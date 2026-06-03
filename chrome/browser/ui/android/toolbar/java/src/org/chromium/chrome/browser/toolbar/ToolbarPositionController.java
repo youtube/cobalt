@@ -318,6 +318,17 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
     }
 
     /**
+     * Whether the current position matches the user-configured one, e.g. if the configured position
+     * is bottom but the omnibox is focused.
+     */
+    public boolean doesPrefMismatchPosition() {
+        @ControlsPosition
+        int positionForPref =
+                isToolbarConfiguredToShowOnTop() ? ControlsPosition.TOP : ControlsPosition.BOTTOM;
+        return mCurrentPosition != positionForPref;
+    }
+
+    /**
      * Returns whether the given {context, device, cct-ness} combo is eligible for toolbar position
      * customization.
      *
@@ -423,7 +434,7 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
                                 (LayoutParams) mToolbarProgressBarContainer.getLayoutParams();
                         progressBarLayoutParams.setAnchorId(mControlContainer.getView().getId());
                         progressBarLayoutParams.anchorGravity = Gravity.BOTTOM;
-                        progressBarLayoutParams.gravity = Gravity.TOP;
+                        progressBarLayoutParams.gravity = Gravity.CENTER;
                         mToolbarProgressBarContainer.setLayoutParams(progressBarLayoutParams);
                     };
 
@@ -549,6 +560,12 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
             mControlContainerHeight = mControlContainer.getToolbarHeight();
         } else {
             mControlContainerHeight = height;
+        }
+
+        if (mCurrentPosition == ControlsPosition.BOTTOM) {
+            mControlContainer.mutateHairlineLayoutParams().bottomMargin = mControlContainerHeight;
+        } else {
+            mControlContainer.mutateHairlineLayoutParams().topMargin = mControlContainerHeight;
         }
 
         mBottomControlsStacker.requestLayerUpdate(false);

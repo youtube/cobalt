@@ -7,7 +7,7 @@
 //   --gn_target chrome/test/data/webui/glic:build_ts
 
 import {ScrollToErrorReason, WebClientMode} from '/glic/glic_api/glic_api.js';
-import type {GlicBrowserHost, GlicHostRegistry, GlicWebClient, Observable, OpenPanelInfo, PanelOpeningData, ScrollToError, Subscriber} from '/glic/glic_api/glic_api.js';
+import type {FocusedTabData, GlicBrowserHost, GlicHostRegistry, GlicWebClient, Observable, OpenPanelInfo, PanelOpeningData, ScrollToError, Subscriber} from '/glic/glic_api/glic_api.js';
 import {ObservableValue} from '/glic/observable.js';
 
 import {createGlicHostRegistryOnLoad} from './api_boot.js';
@@ -33,7 +33,9 @@ class SequencedSubscriber<T> {
     this.subscriber = observable.subscribe(this.change.bind(this));
   }
   next(): Promise<T> {
-    return this.getSignal(this.readIndex++).promise;
+    // Wrapping the returned value with `waitFor` improves failure logs
+    // on timeout.
+    return waitFor(this.getSignal(this.readIndex++).promise);
   }
   isEmpty(): boolean {
     return this.readIndex === this.writeIndex;
@@ -114,15 +116,24 @@ const glicHostRegistry = Promise.withResolvers<GlicHostRegistry>();
 
 class ApiTestFixtureBase {
   private clientValue?: WebClient;
+  private testStepLabel: string;
+  private testStepCount: number;
   // Test parameters passed to `ExecuteJsTest()`. This is undefined until
   // ExecuteJsTest() is called.
   testParams: any;
-  constructor(protected testStepper: TestStepper) {}
+  constructor(protected testStepper: TestStepper) {
+    this.testStepCount = 1;
+    this.testStepLabel = `step #${this.testStepCount} (single or first)`;
+  }
 
   // Return to the C++ side, and wait for it to call ContinueJsTest() to
   // continue execution in the JS test. Optionally, pass data to the C++ side.
-  advanceToNextStep(data?: any): Promise<void> {
-    return this.testStepper.nextStep(data);
+  async advanceToNextStep(data?: any): Promise<void> {
+    this.testStepLabel =
+        `in between steps ${this.testStepCount} and ${this.testStepCount + 1}`;
+    await this.testStepper.nextStep(data);
+    this.testStepCount += 1;
+    this.testStepLabel = `step #${this.testStepCount}`;
   }
 
   // Sets up the web client. This is called when the web contents loads,
@@ -155,6 +166,14 @@ class ApiTestFixtureBase {
   get client(): WebClient {
     assertTrue(!!this.clientValue);
     return this.clientValue;
+  }
+
+  getStepLabel(): string {
+    return this.testStepLabel;
+  }
+
+  getStepCount(): number {
+    return this.testStepCount;
   }
 }
 
@@ -310,18 +329,10 @@ class ApiTests extends ApiTestFixtureBase {
     assertEquals(0, suggestions.suggestions.length);
   }
 
-  async testGetFocusedTabState() {
-    assertTrue(!!this.host.getFocusedTabState);
-    const sequence = observeSequence(this.host.getFocusedTabState());
-    const focus = await sequence.next();
-    assertTrue(!!focus);
-    assertTrue(focus.url.endsWith('glic/test.html'), `url=${focus.url}`);
-    assertEquals('Test Page', focus.title);
-  }
-
   async testGetFocusedTabStateV2() {
     assertTrue(!!this.host.getFocusedTabStateV2);
-    const sequence = observeSequence(this.host.getFocusedTabStateV2());
+    const sequence =
+        observeSequence<FocusedTabData>(this.host.getFocusedTabStateV2());
     const focus = await sequence.next();
     assertTrue(!!focus.hasFocus);
     assertTrue(
@@ -334,7 +345,8 @@ class ApiTests extends ApiTestFixtureBase {
   async testGetFocusedTabStateV2WithNavigation() {
     // Initial state.
     assertTrue(!!this.host.getFocusedTabStateV2);
-    const sequence = observeSequence(this.host.getFocusedTabStateV2());
+    const sequence =
+        observeSequence<FocusedTabData>(this.host.getFocusedTabStateV2());
     const focus = await sequence.next();
     assertTrue(!!focus.hasFocus);
     assertTrue(
@@ -377,7 +389,8 @@ class ApiTests extends ApiTestFixtureBase {
     // Initial state.
     assertTrue(!!this.host.getFocusedTabStateV2);
     await this.closePanelAndWaitUntilInactive();
-    const sequence = observeSequence(this.host.getFocusedTabStateV2());
+    const sequence =
+        observeSequence<FocusedTabData>(this.host.getFocusedTabStateV2());
     const focus = await sequence.next();
     assertTrue(!!focus.hasFocus);
     assertTrue(
@@ -420,9 +433,60 @@ class ApiTests extends ApiTestFixtureBase {
     assertFalse(!!focus2.hasNoFocus);
   }
 
+  async testSingleFocusedTabUpdatesOnTabEvents() {
+    assertTrue(!!this.host.getFocusedTabStateV2);
+    const sequence =
+        observeSequence<FocusedTabData>(this.host.getFocusedTabStateV2());
+    // Check events from first tab.
+    {
+      const focus = await sequence.next();
+      assertTrue(
+          !!focus.hasFocus,
+          `#1: should have a focused tab; FocusedTabData=${
+              JSON.stringify(focus)}`);
+      assertTrue(
+          !!focus.hasFocus?.tabData.url.endsWith('glic/test.html'),
+          `#1: Unexpected URL; FocusedTabData=${JSON.stringify(focus)}`);
+      assertTrue(
+          sequence.isEmpty(), '#1: Spurious updates after first tab opened');
+    }
+
+    // After a navigation occurs in the first tab.
+    {
+      await this.advanceToNextStep();
+      const focus = await sequence.next();
+      assertTrue(
+          !!focus.hasFocus,
+          `#2: should have a focused tab; FocusedTabData=${
+              JSON.stringify(focus)}`);
+      assertTrue(
+          !!focus.hasFocus?.tabData.url.endsWith(
+              'scrollable_page_with_content.html'),
+          `#2: Unexpected URL; FocusedTabData=${JSON.stringify(focus)}`);
+      assertTrue(
+          sequence.isEmpty(), '#2: Spurious updates after first tab navigated');
+    }
+
+    // A new tab is opened and navigated.
+    {
+      await this.advanceToNextStep();
+      const focus = await sequence.next();
+      assertTrue(
+          !!focus.hasFocus,
+          `#3: should have a focused tab; FocusedTabData=${
+              JSON.stringify(focus)}`);
+      assertTrue(
+          !!focus.hasFocus?.tabData.url.endsWith('glic/test.html'),
+          `#3: Unexpected URL; FocusedTabData=${JSON.stringify(focus)}`);
+      assertTrue(
+          sequence.isEmpty(), '#3: Spurious updates after a new tab opened');
+    }
+  }
+
   async testGetFocusedTabStateV2BrowserClosed() {
     assertTrue(!!this.host.getFocusedTabStateV2);
-    const sequence = observeSequence(this.host.getFocusedTabStateV2());
+    const sequence =
+        observeSequence<FocusedTabData>(this.host.getFocusedTabStateV2());
     // Ignore the initial focus.
     await sequence.next();
     const focus = await sequence.next();
@@ -556,11 +620,11 @@ class ApiTests extends ApiTestFixtureBase {
     assertTrue(!!this.host.getTabContextPermissionState);
 
     const microphoneState =
-        observeSequence(this.host.getMicrophonePermissionState());
+        observeSequence<boolean>(this.host.getMicrophonePermissionState());
     const locationState =
-        observeSequence(this.host.getLocationPermissionState());
+        observeSequence<boolean>(this.host.getLocationPermissionState());
     const tabContextState =
-        observeSequence(this.host.getTabContextPermissionState());
+        observeSequence<boolean>(this.host.getTabContextPermissionState());
 
     assertFalse(await microphoneState.next());
     assertFalse(await locationState.next());
@@ -817,40 +881,6 @@ class ApiTests extends ApiTestFixtureBase {
     await this.host.resizeWindow(this.testParams.width, this.testParams.height);
   }
 
-  async testGetContextFromFocusedTabWithIneligiblePage() {
-    assertTrue(!!this.host.getContextFromFocusedTab);
-    await this.host.setTabContextPermissionState(true);
-
-    try {
-      await this.host.getContextFromFocusedTab?.({
-        innerText: true,
-        viewportScreenshot: true,
-        annotatedPageContent: true,
-        maxMetaTags: 32,
-        pdfData: true,
-      });
-    } catch (e) {
-      assertEquals(
-          'tabContext failed: page context ineligible', (e as Error).message);
-      return;
-    }
-    assertTrue(false, 'getContextFromFocusedTab should have thrown an error');
-  }
-
-  async testGetContextFromFocusedTabWithEligiblePage() {
-    await this.host.setTabContextPermissionState(true);
-
-    const result = await this.host.getContextFromFocusedTab?.({
-      innerText: true,
-      viewportScreenshot: true,
-      annotatedPageContent: true,
-      maxMetaTags: 32,
-      pdfData: true,
-    });
-
-    assertTrue(!!result);
-  }
-
   async testOpenOsMediaPermissionSettings() {
     assertTrue(!!this.host.openOsPermissionSettingsMenu);
     this.host.openOsPermissionSettingsMenu('media');
@@ -937,6 +967,19 @@ class ApiTests extends ApiTestFixtureBase {
     assertEquals('createTab: failed', errorMessage);
   }
 
+  async testMaybeRefreshUserStatus() {
+    assertTrue(!!this.host.maybeRefreshUserStatus);
+    this.host.maybeRefreshUserStatus();
+  }
+
+  async testMaybeRefreshUserStatusThrottled() {
+    assertTrue(!!this.host.maybeRefreshUserStatus);
+    for (let i = 0; i < 10; i++) {
+      this.host.maybeRefreshUserStatus();
+      await sleep(100);
+    }
+  }
+
   private async closePanelAndWaitUntilInactive() {
     assertTrue(!!this.host.closePanel);
     await this.host.closePanel();
@@ -958,7 +1001,7 @@ class ApiTestWithoutOpen extends ApiTestFixtureBase {
     // Initial state.
     assertTrue(!!this.host.getFocusedTabStateV2);
     const focusedTabStateV2Sequence =
-        observeSequence(this.host.getFocusedTabStateV2());
+        observeSequence<FocusedTabData>(this.host.getFocusedTabStateV2());
     let focusedTabState = await focusedTabStateV2Sequence.next();
     assertTrue(!!focusedTabState.hasNoFocus);
     const tabStatePromise = focusedTabStateV2Sequence.next();
@@ -1224,16 +1267,20 @@ class TestRunner implements TestStepper {
       }
     } catch (e) {
       if (e instanceof Error) {
-        console.error(await improveStackTrace(e.stack ?? ''));
+        console.error(
+            `Test ${this.testName} failed at ${
+                this.fixture!.getStepLabel()}.\n` +
+            await improveStackTrace(e.stack ?? ''));
       }
-      return `fail: ${e}`;
+      return `Failed at ${this.fixture!.getStepLabel()} due to: ${e}`;
     }
     return 'pass';
   }
 
   // TestStepper implementation.
   nextStep(payload: any): Promise<void> {
-    console.info(`Waiting for next step in test ${this.testName}`);
+    console.info(`Waiting to continue to step #${
+        this.fixture!.getStepCount() + 1} in test ${this.testName}...`);
     payload = payload ?? {};  // undefined is not serializable to base::Value.
     this.nextStepPromise.resolve({id: 'next-step', payload});
     return this.continuePromise.promise;
@@ -1242,7 +1289,9 @@ class TestRunner implements TestStepper {
 
 // Adds js source lines to the stack trace.
 async function improveStackTrace(stack: string) {
-  const outLines = [];
+  const outLines: string[] = [];
+  const contextLines = 2;  // Must be >= 1
+  let stackLevel = 0;
   for (const line of stack.split('\n')) {
     const m = line.match(/^\s+at.*\((.*):(\d+):(\d+)\)$/);
     if (m) {
@@ -1251,16 +1300,28 @@ async function improveStackTrace(stack: string) {
         const response = await fetch(file!);
         const text = await response.text();
         const lines = text.split('\n');
-        const lineStr = lines[Number(lineNo) - 1];
-        outLines.push(`${line.trim()}\n- ${lineStr}\n  ${
-                                    ' '.repeat(Number(column) - 1)}^`);
+        const failureLineNo = Number(lineNo) - 1;
+        outLines.push(`[${stackLevel}] ${line.trim()}:`);
+        const spacePrefixedIntroLines =
+            lines.slice(failureLineNo - contextLines, failureLineNo)
+                .map((l) => '| ' + l);
+        outLines.push(...spacePrefixedIntroLines);
+        const lineStr = lines[failureLineNo];
+        outLines.push(`> ${lineStr}`);
+        outLines.push(`__${'_'.repeat(Number(column) - 1)}^`);
+        const spacePrefixedOutroLines =
+            lines.slice(failureLineNo + 1, failureLineNo + contextLines + 1)
+                .map((l) => '| ' + l);
+        outLines.push(...spacePrefixedOutroLines);
       } catch (e) {
         outLines.push(`${line}`);
       }
+      stackLevel += 1;
     } else {
       outLines.push(line);
     }
   }
+  outLines.push('');
   return outLines.join('\n');
 }
 

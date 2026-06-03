@@ -13,10 +13,6 @@ inline constexpr char kChromeUICommerceInternalsHost[] = "commerce-internals";
 // The host for compare.
 inline constexpr char kChromeUICompareHost[] = "compare";
 
-// The URL for managing compare entities.
-inline constexpr char kChromeUICompareListsUrl[] =
-    "chrome://history/comparisonTables";
-
 // The URL for compare.
 inline constexpr char kChromeUICompareUrl[] = "chrome://compare";
 
@@ -90,6 +86,11 @@ inline constexpr char kProductSpecificationsUrlKey[] =
 // The conversion multiplier to go from standard currency units to
 // micro-currency units.
 inline constexpr long kToMicroCurrency = 1e6;
+
+// Header name for using alternate shopping server.
+inline constexpr char kAlternateServerHeaderName[] = "x-use-alt-service";
+inline constexpr char kAlternateServerHeaderTrueValue[] = "true";
+
 }  // namespace commerce
 
 #endif  // COMPONENTS_COMMERCE_CORE_COMMERCE_CONSTANTS_H_

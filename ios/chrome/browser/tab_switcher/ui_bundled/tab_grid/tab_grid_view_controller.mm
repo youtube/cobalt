@@ -22,6 +22,7 @@
 #import "ios/chrome/browser/menu/ui_bundled/action_factory.h"
 #import "ios/chrome/browser/recent_tabs/ui_bundled/recent_tabs_table_view_controller.h"
 #import "ios/chrome/browser/recent_tabs/ui_bundled/recent_tabs_table_view_controller_ui_delegate.h"
+#import "ios/chrome/browser/shared/model/web_state_list/tab_utils.h"
 #import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/tab_grid_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -363,7 +364,7 @@ NSUInteger GetPageIndexFromPage(TabGridPage page) {
   }
 }
 
-#pragma mark - Accessibility
+#pragma mark - UIAccessibilityAction
 
 - (BOOL)accessibilityPerformEscape {
   [self.tabGridHandler exitTabGrid];
@@ -380,11 +381,7 @@ NSUInteger GetPageIndexFromPage(TabGridPage page) {
       stringID = IDS_IOS_TAB_GRID_INCOGNITO_TABS_TITLE;
       break;
     case TabGridPageRegularTabs:
-      if (IsTabGroupInGridEnabled()) {
         stringID = IDS_IOS_TAB_GRID_REGULAR_TABS_WITH_GROUPS_TITLE;
-      } else {
-        stringID = IDS_IOS_TAB_GRID_REGULAR_TABS_TITLE;
-      }
       break;
     case TabGridPageRemoteTabs:
       stringID = IDS_IOS_TAB_GRID_REMOTE_TABS_TITLE;
@@ -962,8 +959,19 @@ NSUInteger GetPageIndexFromPage(TabGridPage page) {
     [topToolbar.topAnchor
         constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
     [topToolbar.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
-    [topToolbar.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor]
+    [topToolbar.trailingAnchor
+        constraintEqualToAnchor:self.view.trailingAnchor],
   ]];
+
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  if (@available(iOS 26, *)) {
+    UIScrollEdgeElementContainerInteraction* edgeEffect =
+        [[UIScrollEdgeElementContainerInteraction alloc] init];
+    edgeEffect.edge = UIRectEdgeTop;
+    edgeEffect.scrollView = self.scrollView;
+    [topToolbar addInteraction:edgeEffect];
+  }
+#endif
 }
 
 // Adds the bottom toolbar and sets constraints.
@@ -983,6 +991,16 @@ NSUInteger GetPageIndexFromPage(TabGridPage page) {
 
   [self.layoutGuideCenter referenceView:bottomToolbar
                               underName:kTabGridBottomToolbarGuide];
+
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  if (@available(iOS 26, *)) {
+    UIScrollEdgeElementContainerInteraction* edgeEffect =
+        [[UIScrollEdgeElementContainerInteraction alloc] init];
+    edgeEffect.edge = UIRectEdgeBottom;
+    edgeEffect.scrollView = self.scrollView;
+    [bottomToolbar addInteraction:edgeEffect];
+  }
+#endif
 }
 
 // Adds the PinnedTabsViewController and sets constraints.
@@ -1603,9 +1621,10 @@ NSUInteger GetPageIndexFromPage(TabGridPage page) {
   // Record how long it took to select an item.
   [self reportTabSelectionTime];
 
-  [self.regularGridHandler selectItemWithID:itemID
-                                     pinned:YES
-                     isFirstActionOnTabGrid:[self status]];
+  [self.regularGridHandler
+            selectItemWithID:itemID
+                 pinnedState:WebStateSearchCriteria::PinnedState::kPinned
+      isFirstActionOnTabGrid:[self status]];
 
   self.activePage = self.currentPage;
   [self tabGridDidPerformAction:TabGridActionType::kInPageAction];
@@ -1705,7 +1724,7 @@ NSUInteger GetPageIndexFromPage(TabGridPage page) {
   BOOL alreadySelected = [tabsDelegate isItemWithIDSelected:itemID];
 
   [tabsDelegate selectItemWithID:itemID
-                          pinned:NO
+                     pinnedState:WebStateSearchCriteria::PinnedState::kAny
           isFirstActionOnTabGrid:[self status]];
 
   if (!alreadySelected) {

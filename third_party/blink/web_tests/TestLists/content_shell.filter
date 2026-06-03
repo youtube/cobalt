@@ -211,7 +211,6 @@ external/wpt/css/css-flexbox/align-items-003.htm
 external/wpt/css/css-flexbox/anonymous-flex-item-004.html
 external/wpt/css/css-flexbox/content-height-with-scrollbars.html
 external/wpt/css/css-flexbox/flex-container*
-external/wpt/css/css-flexbox/flexbox_columns.html
 external/wpt/css/css-flexbox/flexbox_visibility-collapse.html
 external/wpt/css/css-flexbox/intrinsic-size/row-use-cases-001.html
 external/wpt/css/css-flexbox/scrollbars*
@@ -829,6 +828,12 @@ external/wpt/webxr/xr_viewport_scale.https.html
 external/wpt/workers/baseurl/alpha/sharedworker-in-worker.html
 external/wpt/workers/postMessage_block.https.html
 
+# TODO(crbug.com/421119389): This is a crash test that (currently) crashes on
+# content_shell but doesn't run properly on headless. It either gives "Tried to
+# run in a non-testharness window without a call to set_test_context" if written
+# without testharness, or just doesn't crash if written with testharness.
+external/wpt/pointerevents/crashtests/longpress-crash.html
+
 # Tests that exhibit antialiasing differences only on headless shell, not on
 # content_shell, when run under Fontations.
 # See crbug.com/397880053 and crbug.com/339041663.
@@ -888,13 +893,11 @@ external/wpt/css/printing/input-file-print.html
 external/wpt/html/semantics/popovers/popover-focus-2.html
 virtual/html-anchor-attribute-disabled/external/wpt/html/semantics/popovers/popover-focus-2.html
 
-virtual/atomic-move-range-preservation/external/wpt/dom/nodes/moveBefore/selection-preserve.html
 virtual/backface-visibility-interop/external/wpt/css/css-transforms/backface-visibility-001.html
 virtual/backface-visibility-interop/external/wpt/css/css-transforms/backface-visibility-hidden-animated-002.html
 virtual/backface-visibility-interop/external/wpt/css/css-transforms/ttwf-css-3d-polygon-cycle.html
 virtual/composite-clip-path-animation/external/wpt/css/css-masking/clip-path/animations/clip-path-animation*
 virtual/composite-clip-path-animation/external/wpt/css/css-masking/clip-path/animations/clip-path-transition*
-virtual/css-gap-decorations/external/wpt/css/css-ui/compute-kind-widget-no-fallback-props-001.html
 virtual/customizable-select-disabled/external/wpt/html/semantics/forms/the-select-element/reset-algorithm-rendering.html
 virtual/customizable-select-disabled/external/wpt/html/semantics/forms/the-select-element/select-tabindex-order.tentative.html
 virtual/dark-color-scheme/external/wpt/css/css-color/system-color-consistency.html
@@ -906,6 +909,14 @@ virtual/direct-sockets/external/wpt/direct-sockets/udp_socket.https.html
 virtual/disable-css-line-clamp/external/wpt/css/css-overflow/line-clamp/webkit-line-clamp-024.html
 virtual/disable-css-line-clamp/external/wpt/css/css-overflow/line-clamp/webkit-line-clamp-025.html
 virtual/disable-css-line-clamp/external/wpt/css/css-overflow/line-clamp/webkit-line-clamp-036.html
+virtual/do-not-hide-visited-color/external/wpt/css/css-color/composited-filters-under-opacity.html
+virtual/do-not-hide-visited-color/external/wpt/css/css-color/deprecated-sameas-010.html
+virtual/do-not-hide-visited-color/external/wpt/css/css-color/filters-under-will-change-opacity.html
+virtual/do-not-hide-visited-color/external/wpt/css/css-color/system-color-consistency.html
+virtual/do-not-hide-visited-color/external/wpt/css/css-color/system-color-hightlights-vs-getSelection-001.html
+virtual/do-not-hide-visited-color/external/wpt/css/css-color/system-color-hightlights-vs-getSelection-002.html
+virtual/do-not-hide-visited-color/external/wpt/css/css-color/system-color-support.html
+virtual/do-not-hide-visited-color/external/wpt/css/css-color/t424-hsl-basic-a.xht
 external/wpt/fedcm/fedcm-multi-idp/fedcm-multi-idp-mediation-optional.https.html
 external/wpt/fedcm/fedcm-multi-idp/fedcm-multi-idp-mediation-silent.https.html
 virtual/fedcm-register/external/wpt/fedcm/fedcm-register/fedcm-no-registered-idps.https.html
@@ -922,13 +933,6 @@ virtual/gpu-rasterization/external/wpt/css/css-images/object-fit-*
 virtual/gpu-rasterization/external/wpt/css/css-images/object-view-box-fit-*
 virtual/html-anchor-attribute-disabled/external/wpt/html/semantics/popovers/popover-focus.html
 virtual/html-anchor-attribute-disabled/external/wpt/html/semantics/popovers/popover-hidden-display.html
-virtual/keepalive-in-browser-migration/external/wpt/background-fetch/abort.https.window.html
-virtual/keepalive-in-browser-migration/external/wpt/background-fetch/fetch.https.window.html
-virtual/keepalive-in-browser-migration/external/wpt/background-fetch/fetch-uploads.https.window.html
-virtual/keepalive-in-browser-migration/external/wpt/background-fetch/match.https.window.html
-virtual/keepalive-in-browser-migration/external/wpt/background-fetch/update-ui.https.window.html
-virtual/keepalive-in-browser-migration/external/wpt/fetch/fetch-later/new-window.tentative.https.window.html
-virtual/keepalive-in-browser-migration/external/wpt/fetch/stale-while-revalidate/stale-*
 virtual/main-thread-clip-path-animation/external/wpt/css/css-masking/clip-path/animations/clip-path-animation-custom-timing-function.html
 virtual/main-thread-clip-path-animation/external/wpt/css/css-masking/clip-path/animations/clip-path-animation-fixed-position-rounding-error.html
 virtual/media-foundation-for-clear-dcomp/external/wpt/media-source/last-frame-dimensions.html
@@ -974,15 +978,14 @@ virtual/scalefactor200/external/wpt/largest-contentful-paint/video-data-uri.html
 virtual/select-parser-relaxation/external/wpt/html/semantics/forms/the-select-element/select-tabindex-order.tentative.html
 virtual/shared-storage-fenced-frame-mparch/external/wpt/shared-storage/select-url-saved-query-cross-origin-multi-query.tentative.https.sub.html
 virtual/shared-storage-fenced-frame-mparch/external/wpt/shared-storage/select-url-saved-query-same-origin-multi-query.tentative.https.sub.html
-virtual/speculation-rules-prerender-target-hint/external/wpt/speculation-rules/prerender/restriction-background-sync.tentative.https.html?target_hint=_blank
-virtual/speculation-rules-prerender-target-hint/external/wpt/speculation-rules/prerender/restriction-background-sync.tentative.https.html?target_hint=_self
+virtual/speculation-rules-prerender-target-hint/external/wpt/speculation-rules/prerender/restriction-background-sync.https.html?target_hint=_blank
+virtual/speculation-rules-prerender-target-hint/external/wpt/speculation-rules/prerender/restriction-background-sync.https.html?target_hint=_self
 virtual/speculation-rules-prerender-target-hint/external/wpt/speculation-rules/prerender/restriction-notification.https.html
 virtual/speculation-rules-prerender-target-hint/external/wpt/speculation-rules/prerender/restriction-push.https.html
 virtual/speculation-rules-prerender-target-hint/external/wpt/speculation-rules/prerender/restriction-screen-capture.https.html?target_hint=_blank
 virtual/speculation-rules-prerender-target-hint/external/wpt/speculation-rules/prerender/restriction-speech-synthesis.html
 virtual/speech-with-unified-autoplay/external/wpt/speech-api/idlharness.window.html
 virtual/speech-with-unified-autoplay/external/wpt/speech-api/SpeechSynthesis*
-virtual/stable/external/wpt/soft-navigation-heuristics/smoke/tentative/lcp.html
 virtual/third-party-storage-partitioning/external/wpt/service-workers/service-worker/partitioned-matchAll.tentative.https.html
 virtual/threaded/external/wpt/css/css-backgrounds/background-attachment-fixed-inline-002.html
 virtual/threaded/external/wpt/css/css-backgrounds/background-clip/clip-text-*
@@ -1007,7 +1010,6 @@ virtual/threaded-preload-scanner/external/wpt/html/semantics/scripting-1/the-scr
 virtual/threaded-preload-scanner/external/wpt/html/semantics/scripting-1/the-script-element/module/dynamic-import/microtasks/basic.any.html
 virtual/threaded-preload-scanner/external/wpt/html/semantics/scripting-1/the-script-element/moving-between-documents/after-prepare-*
 virtual/threaded-preload-scanner/external/wpt/html/semantics/scripting-1/the-script-element/moving-between-documents/ordering/*
-virtual/url-non-special/external/wpt/url/failure.html
 virtual/view-transition-mpa-serialization/*
 virtual/view-transition-mpa-serialization/wpt_internal/*
 # https://github.com/web-platform-tests/wpt/issues/48825

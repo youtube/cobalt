@@ -8,12 +8,18 @@
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 
+namespace tabs {
+class TabInterface;
+}  // namespace tabs
+
 namespace glic {
 
+// `tab` must be non-null.
 void FetchPageContext(
-    FocusedTabData focused_tab_data,
+    tabs::TabInterface* tab,
     const mojom::GetTabContextOptions& options,
-    mojom::WebClientHandler::GetContextFromFocusedTabCallback callback);
+    bool include_actionable_data,
+    base::OnceCallback<void(glic::mojom::GetContextResultPtr)> callback);
 
 }  // namespace glic
 

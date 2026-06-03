@@ -25,6 +25,7 @@
 #include "base/notreached.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "base/strings/string_view_util.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
@@ -403,7 +404,8 @@ bool NeedsIpProtection(const IpProtectionCoreHost* ipp_core_host,
 }  // namespace
 
 ProfileNetworkContextService::ProfileNetworkContextService(Profile* profile)
-    : profile_(profile), proxy_config_monitor_(profile) {
+    : profile_(profile),
+      proxy_config_monitor_(std::make_unique<ProxyConfigMonitor>(profile)) {
   TRACE_EVENT0("startup", "ProfileNetworkContextService::ctor");
   PrefService* profile_prefs = profile->GetPrefs();
   quic_allowed_.Init(prefs::kQuicAllowed, profile_prefs,
@@ -507,6 +509,9 @@ void ProfileNetworkContextService::ConfigureNetworkContextParams(
     network::mojom::NetworkContextParams* network_context_params,
     cert_verifier::mojom::CertVerifierCreationParams*
         cert_verifier_creation_params) {
+  if (is_shutting_down_) {
+    return;
+  }
   ConfigureNetworkContextParamsInternal(in_memory, relative_partition_path,
                                         network_context_params,
                                         cert_verifier_creation_params);
@@ -527,6 +532,7 @@ void ProfileNetworkContextService::ConfigureNetworkContextParams(
   }
 }
 
+// static
 void ProfileNetworkContextService::RegisterProfilePrefs(
     user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(embedder_support::kAlternateErrorPagesEnabled,
@@ -707,6 +713,9 @@ ProfileNetworkContextService::GetCertificatePolicy(
   }
 
   for (const base::Value& cert_b64 : prefs->GetList(prefs::kCACertificates)) {
+    if (!cert_b64.is_string()) {
+      continue;
+    }
     std::optional<std::vector<uint8_t>> decoded_opt =
         base::Base64Decode(cert_b64.GetString());
 
@@ -824,6 +833,8 @@ ProfileNetworkContextService::GetCertificatePolicy(
 }
 
 void ProfileNetworkContextService::UpdateAdditionalCertificates() {
+  CHECK(!is_shutting_down_);
+
 #if BUILDFLAG(CHROME_ROOT_STORE_CERT_MANAGEMENT_UI)
   if (base::FeatureList::IsEnabled(features::kEnableCertManagementUIV2Write)) {
     net::ServerCertificateDatabaseService* cert_db_service =
@@ -928,6 +939,10 @@ ProfileNetworkContextService::CertificatePoliciesForView::operator=(
 
 ProfileNetworkContextService::CertificatePoliciesForView
 ProfileNetworkContextService::GetCertificatePolicyForView() {
+  // This method is called by the certificate manager WebUI, which should be
+  // destroyed before this service begins shutting down (and therefore can't
+  // call this method after shutdown has started).
+  CHECK(!is_shutting_down_);
   CertificatePoliciesForView policies;
   policies.certificate_policies =
       GetCertificatePolicy(profile_->GetDefaultStoragePartition()->GetPath());
@@ -1079,6 +1094,9 @@ ProfileNetworkContextService::CreateCookieManagerParams(
 void ProfileNetworkContextService::FlushCachedClientCertIfNeeded(
     const net::HostPortPair& host,
     const scoped_refptr<net::X509Certificate>& certificate) {
+  if (is_shutting_down_) {
+    return;
+  }
   profile_->ForEachLoadedStoragePartition(
       [&](content::StoragePartition* storage_partition) {
         storage_partition->GetNetworkContext()->FlushCachedClientCertIfNeeded(
@@ -1087,7 +1105,7 @@ void ProfileNetworkContextService::FlushCachedClientCertIfNeeded(
 }
 
 void ProfileNetworkContextService::FlushProxyConfigMonitorForTesting() {
-  proxy_config_monitor_.FlushForTesting();
+  proxy_config_monitor_->FlushForTesting();  // IN-TEST
 }
 
 void ProfileNetworkContextService::SetDiscardDomainReliabilityUploadsForTesting(
@@ -1168,8 +1186,11 @@ ProfileNetworkContextService::GetClientCertIssuerSourceFactory() {
 
 std::unique_ptr<net::ClientCertStore>
 ProfileNetworkContextService::CreateClientCertStore() {
-  if (!client_cert_store_factory_.is_null()) {
-    return client_cert_store_factory_.Run();
+  if (is_shutting_down_) {
+    return nullptr;
+  }
+  if (!client_cert_store_factory_for_testing_.is_null()) {
+    return client_cert_store_factory_for_testing_.Run();
   }
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -1409,7 +1430,7 @@ void ProfileNetworkContextService::ConfigureNetworkContextParamsInternal(
     network_context_params->hsts_policy_bypass_list.push_back(*string_value);
   }
 
-  proxy_config_monitor_.AddToNetworkContextParams(network_context_params);
+  proxy_config_monitor_->AddToNetworkContextParams(network_context_params);
 
   network_context_params->enable_certificate_reporting = true;
 
@@ -1458,10 +1479,12 @@ void ProfileNetworkContextService::ConfigureNetworkContextParamsInternal(
     // Note: in the case of Network Service restarts, we assume that
     // `profile_supports_policy_certs` will be calculated the same way on
     // subsequent NetworkContext creations as it was on the first one.
+    // Using `base::Unretained(this)` here is safe because we call
+    // `StopObservingCertChanges()` in `Shutdown()` which clears the callback.
     if (policy_cert_service && !policy_cert_service->IsObservingCertChanges()) {
       policy_cert_service->StartObservingCertChanges(base::BindRepeating(
           &ProfileNetworkContextService::UpdateAdditionalCertificates,
-          weak_factory_.GetWeakPtr()));
+          base::Unretained(this)));
     }
   }
 #endif
@@ -1591,4 +1614,37 @@ void ProfileNetworkContextService::OnContentSettingChanged(
       }
       return;
   }
+}
+
+void ProfileNetworkContextService::Shutdown() {
+  is_shutting_down_ = true;
+
+#if BUILDFLAG(CHROME_ROOT_STORE_CERT_MANAGEMENT_UI)
+  server_cert_database_observer_ = {};
+#endif
+
+  cert_policy_update_timer_.Stop();
+  ct_policy_update_timer_.Stop();
+
+  HostContentSettingsMapFactory::GetForProfile(profile_)->RemoveObserver(this);
+  cookie_settings_observation_.Reset();
+  cookie_settings_ = nullptr;
+
+#if BUILDFLAG(IS_CHROMEOS)
+  policy::PolicyCertService* policy_cert_service =
+      policy::PolicyCertServiceFactory::GetForProfile(profile_);
+
+  if (policy_cert_service && policy_cert_service->IsObservingCertChanges()) {
+    policy_cert_service->StopObservingCertChanges();
+  }
+#endif
+
+  pref_change_registrar_.RemoveAll();
+  enable_referrers_.Destroy();
+  pref_accept_language_.Destroy();
+  quic_allowed_.Destroy();
+
+  proxy_config_monitor_ = nullptr;
+
+  profile_ = nullptr;
 }

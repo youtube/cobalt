@@ -13,6 +13,7 @@
 #include "chrome/browser/web_applications/locks/app_lock.h"
 #include "chrome/browser/web_applications/web_app_command_manager.h"
 #include "chrome/browser/web_applications/web_app_command_scheduler.h"
+#include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/browser/web_applications/web_app_tab_helper.h"
@@ -47,6 +48,43 @@ namespace web_app {
 namespace {
 
 using PermissionStatus = blink::mojom::PermissionStatus;
+
+// Checks if an app is installed based on `manifest_id`, if possible. Otherwise
+// falls back to `install_target`. Used by the background doc install path.
+// These are allowed to use unsafe registrar accesses, as this is the first step
+// in a launch flow, and we later queue a command to launch, which will safely
+// recheck the app's state in the registrar, and fail gracefully if it's no
+// longer installed.
+std::optional<webapps::AppId> IsAppInstalled(
+    Profile* profile,
+    const GURL& install_target,
+    const std::optional<GURL>& manifest_id) {
+  auto* provider = WebAppProvider::GetForWebApps(profile);
+  CHECK(provider);
+
+  // Only consider apps that launch in a standalone window, or were installed
+  // by the user.
+  WebAppFilter filter = WebAppFilter::LaunchableFromInstallApi();
+
+  // If the developer provided a manifest ID, use it to look up the app. This
+  // avoids issues with nested app scopes and `install_target` potentially
+  // launching the wrong app.
+  if (manifest_id) {
+    webapps::AppId app_id_from_manifest_id =
+        GenerateAppIdFromManifestId(manifest_id.value());
+
+    bool found_app = provider->registrar_unsafe().AppMatches(
+        app_id_from_manifest_id, filter);
+
+    return found_app ? std::optional<webapps::AppId>(app_id_from_manifest_id)
+                     : std::nullopt;
+  }
+
+  // No `manifest_id` was provided. Check for the app by `install_target`. This
+  // is less accurate and may result in another app being launched.
+  return provider->registrar_unsafe().FindBestAppWithUrlInScope(install_target,
+                                                                filter);
+}
 
 }  // namespace
 
@@ -165,10 +203,7 @@ void WebInstallServiceImpl::TryInstallCurrentDocument(
   // Check if the current document is already installed.
   const webapps::AppId* app_id =
       web_app::WebAppTabHelper::GetAppId(web_contents);
-  if (app_id) {
-    // TODO(crbug.com/402547565) Use IntentPickerBubbleView to launch the app if
-    // already installed. Add test cases when this is implemented.
-  } else {
+  if (!app_id) {
     // The current document is not installed yet. Retrieve the manifest to
     // perform id validation checks.
     std::unique_ptr<WebAppDataRetriever> data_retriever =
@@ -183,6 +218,66 @@ void WebInstallServiceImpl::TryInstallCurrentDocument(
                        weak_ptr_factory_.GetWeakPtr(), std::move(callback),
                        provider),
         params);
+    return;
+  }
+  // If the current document that is trying to install is currently in a PWA
+  // window, return kSuccessAlreadyInstalled.
+  web_app::WebAppTabHelper* tab_helper =
+      web_app::WebAppTabHelper::FromWebContents(web_contents);
+  if (tab_helper->is_in_app_window()) {
+    OnAppInstalled(std::move(callback), *app_id,
+                   webapps::InstallResultCode::kSuccessAlreadyInstalled);
+    return;
+  }
+
+  provider->scheduler().ScheduleCallback<AppLock>(
+      "WebInstallServiceImpl::TryInstallCurrentDocument",
+      AppLockDescription(*app_id),
+      base::BindOnce(&WebInstallServiceImpl::CheckForInstalledAppMaybeLaunch,
+                     weak_ptr_factory_.GetWeakPtr(), web_contents,
+                     std::move(callback)),
+      /*on_complete=*/base::DoNothing());
+}
+
+void WebInstallServiceImpl::CheckForInstalledAppMaybeLaunch(
+    content::WebContents* web_contents,
+    InstallCallback callback,
+    AppLock& lock,
+    base::Value::Dict& debug_value) {
+  // Now that we've locked the app, re-confirm the current document is still
+  // already installed on the current device.
+  const webapps::AppId* app_id =
+      web_app::WebAppTabHelper::GetAppId(web_contents);
+  if (!app_id || !lock.registrar().AppMatches(
+                     *app_id, web_app::WebAppFilter::InstalledInChrome())) {
+    std::move(callback).Run(blink::mojom::WebInstallServiceResult::kAbortError,
+                            GURL());
+    return;
+  }
+
+  auto* provider = WebAppProvider::GetForWebContents(web_contents);
+  CHECK(provider);
+
+  // Now that we know the app is already installed, show the intent picker.
+  provider->ui_manager().ShowIntentPicker(
+      web_contents->GetURL(), web_contents,
+      base::BindOnce(&WebInstallServiceImpl::OnIntentPickerMaybeLaunched,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(callback),
+                     *app_id));
+}
+
+void WebInstallServiceImpl::OnIntentPickerMaybeLaunched(
+    InstallCallback callback,
+    webapps::AppId app_id,
+    bool user_chose_to_open) {
+  // If the user chose to open the app in the intent picker, return success.
+  // Otherwise, return an abort error.
+  if (user_chose_to_open) {
+    OnAppInstalled(std::move(callback), app_id,
+                   webapps::InstallResultCode::kSuccessAlreadyInstalled);
+  } else {
+    std::move(callback).Run(blink::mojom::WebInstallServiceResult::kAbortError,
+                            GURL());
   }
 }
 
@@ -192,8 +287,8 @@ void WebInstallServiceImpl::OnDidRetrieveManifestForCurrentDocumentInstall(
     blink::mojom::ManifestPtr opt_manifest,
     bool valid_manifest_for_web_app,
     webapps::InstallableStatusCode error_code) {
-  // If for some reason a valid manifest was not found, cancel with the generic
-  // abort error.
+  // If for some reason a valid manifest was not found, cancel with the
+  // generic abort error.
   if (!opt_manifest || !valid_manifest_for_web_app) {
     std::move(callback).Run(blink::mojom::WebInstallServiceResult::kAbortError,
                             GURL());
@@ -217,8 +312,8 @@ void WebInstallServiceImpl::OnDidRetrieveManifestForCurrentDocumentInstall(
     return;
   }
   // navigator.install was invoked with a manifest_id, so the current document
-  // is not required to have a developer-specified id. However, the id passed to
-  // navigator.install must match the current document's computed id.
+  // is not required to have a developer-specified id. However, the id passed
+  // to navigator.install must match the current document's computed id.
   if (!manifest_must_have_id &&
       install_options_->manifest_id.value() != opt_manifest->id) {
     std::move(callback).Run(blink::mojom::WebInstallServiceResult::kDataError,
@@ -298,29 +393,62 @@ void WebInstallServiceImpl::OnPermissionDecided(
     return;
   }
 
+  // Now that we have permission, verify that the current web contents is not
+  // already involved in an install operation. This protects against showing
+  // multiple dialogs, either install for the current or a background document,
+  // or a background document launch.
   auto* web_contents =
       content::WebContents::FromRenderFrameHost(&render_frame_host());
-
   webapps::MLInstallabilityPromoter* promoter =
       webapps::MLInstallabilityPromoter::FromWebContents(web_contents);
   CHECK(promoter);
   if (promoter->HasCurrentInstall()) {
     // The current web contents is being installed via another method. Cancel
-    // this background install.
+    // this background install/launch flow.
     std::move(callback).Run(blink::mojom::WebInstallServiceResult::kAbortError,
                             GURL());
     return;
   }
 
-  auto* provider = WebAppProvider::GetForWebContents(web_contents);
+  auto* profile =
+      Profile::FromBrowserContext(render_frame_host().GetBrowserContext());
+  auto* provider = WebAppProvider::GetForWebApps(profile);
   CHECK(provider);
   if (provider->command_manager().IsInstallingForWebContents(web_contents)) {
-    // Another install is already scheduled on the current web contents. Cancel
-    // this background install.
+    // Another install is already scheduled on the current web contents.
+    // Cancel this background install/launch flow.
     std::move(callback).Run(blink::mojom::WebInstallServiceResult::kAbortError,
                             GURL());
     return;
   }
+
+  // Check if the background document is already installed so we can show the
+  // launch dialog instead of the install dialog.
+  std::optional<webapps::AppId> app_id =
+      IsAppInstalled(profile, install_target, manifest_id);
+  if (app_id) {
+    // See `IsAppInstalled` for why these are unsafe accesses.
+    const GURL& installed_manifest_id =
+        provider->registrar_unsafe().GetComputedManifestId(app_id.value());
+    CHECK(installed_manifest_id != GURL());
+
+    // Name to display in the dialog.
+    std::string app_name =
+        provider->registrar_unsafe().GetAppShortName(app_id.value());
+    // TODO(crbug.com/422940463): Show app icon in new launch dialog for
+    // background document launches.
+
+    provider->ui_manager().TriggerLaunchDialogForBackgroundInstall(
+        web_contents, app_id.value(), profile, app_name,
+        base::BindOnce(
+            &WebInstallServiceImpl::OnBackgroundAppLaunchDialogClosed,
+            weak_ptr_factory_.GetWeakPtr(), std::move(callback),
+            installed_manifest_id));
+    return;
+  }
+
+  // `install_target` was not installed locally with OS integration. Proceed
+  // with the background install.
 
   // Register the background install on the current web contents.
   std::unique_ptr<webapps::MlInstallOperationTracker> install_tracker =
@@ -331,6 +459,17 @@ void WebInstallServiceImpl::OnPermissionDecided(
       web_contents, std::move(install_tracker), install_target, manifest_id,
       base::BindOnce(&WebInstallServiceImpl::OnAppInstalled,
                      weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+}
+
+void WebInstallServiceImpl::OnBackgroundAppLaunchDialogClosed(
+    InstallCallback callback,
+    const GURL& manifest_id,
+    bool accepted) {
+  // For privacy reasons, only resolve with success if the user accepted.
+  std::move(callback).Run(
+      accepted ? blink::mojom::WebInstallServiceResult::kSuccess
+               : blink::mojom::WebInstallServiceResult::kAbortError,
+      accepted ? manifest_id : GURL());
 }
 
 void WebInstallServiceImpl::OnAppInstalled(InstallCallback callback,

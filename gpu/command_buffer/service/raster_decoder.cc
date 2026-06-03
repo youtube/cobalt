@@ -32,6 +32,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notimplemented.h"
 #include "base/numerics/checked_math.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
@@ -360,6 +361,19 @@ class RasterCommandsCompletedQuery : public QueryManager::Query {
             weak_ptr_factory_.GetWeakPtr());
         shared_context_state_->graphite_shared_context()->insertRecording(info);
         shared_context_state_->graphite_shared_context()->submit();
+
+#if BUILDFLAG(IS_WIN) && BUILDFLAG(SKIA_USE_DAWN)
+        // Canvas typically uses Commands Completed query to implement
+        // backpressures. We need to flush any delayed commands to make sure the
+        // query can be completed in finite time.
+        // Furthermore, some websites use setTimeout() to implement canvas'
+        // rendering loop. Hence within a vsync interval, a canvas could be
+        // redrawn multiple times. Flushing here ensures that we send the draw
+        // commands to GPU earlier, reducing the chance the canvas' rate limiter
+        // kicks in.
+        shared_context_state_->dawn_context_provider()
+            ->FlushD3D11CommandsIfDelayed();
+#endif
       } else {
         finished_ = true;
       }
@@ -466,7 +480,7 @@ class RasterDecoderImpl final : public RasterDecoder,
                     gles2::Outputter* outputter,
                     const GpuFeatureInfo& gpu_feature_info,
                     const GpuPreferences& gpu_preferences,
-                    MemoryTracker* memory_tracker,
+                    scoped_refptr<MemoryTracker> memory_tracker,
                     SharedImageManager* shared_image_manager,
                     scoped_refptr<SharedContextState> shared_context_state,
                     bool is_privileged);
@@ -840,7 +854,6 @@ class RasterDecoderImpl final : public RasterDecoder,
   static const CommandInfo command_info[kNumCommands - kFirstRasterCommand];
 
   const int raster_decoder_id_;
-  const bool display_context_on_another_thread_;
 
   // Number of commands remaining to be processed in DoCommands().
   int commands_to_process_ = 0;
@@ -942,13 +955,13 @@ RasterDecoder* RasterDecoder::Create(
     gles2::Outputter* outputter,
     const GpuFeatureInfo& gpu_feature_info,
     const GpuPreferences& gpu_preferences,
-    MemoryTracker* memory_tracker,
+    scoped_refptr<MemoryTracker> memory_tracker,
     SharedImageManager* shared_image_manager,
     scoped_refptr<SharedContextState> shared_context_state,
     bool is_privileged) {
   return new RasterDecoderImpl(client, command_buffer_service, outputter,
                                gpu_feature_info, gpu_preferences,
-                               memory_tracker, shared_image_manager,
+                               std::move(memory_tracker), shared_image_manager,
                                std::move(shared_context_state), is_privileged);
 }
 
@@ -999,15 +1012,12 @@ RasterDecoderImpl::RasterDecoderImpl(
     gles2::Outputter* outputter,
     const GpuFeatureInfo& gpu_feature_info,
     const GpuPreferences& gpu_preferences,
-    MemoryTracker* memory_tracker,
+    scoped_refptr<MemoryTracker> memory_tracker,
     SharedImageManager* shared_image_manager,
     scoped_refptr<SharedContextState> shared_context_state,
     bool is_privileged)
     : RasterDecoder(client, command_buffer_service, outputter),
       raster_decoder_id_(g_raster_decoder_id.GetNext() + 1),
-      display_context_on_another_thread_(
-          shared_image_manager &&
-          shared_image_manager->display_context_on_another_thread()),
       use_passthrough_(gpu_preferences.use_passthrough_cmd_decoder),
       gpu_preferences_(gpu_preferences),
       logger_(&debug_marker_manager_,
@@ -1019,7 +1029,7 @@ RasterDecoderImpl::RasterDecoderImpl(
       shared_context_state_(std::move(shared_context_state)),
       validators_(new Validators),
       shared_image_representation_factory_(shared_image_manager,
-                                           memory_tracker),
+                                           std::move(memory_tracker)),
       gpu_decoder_category_(TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
           TRACE_DISABLED_BY_DEFAULT("gpu.decoder"))),
       font_manager_(base::MakeRefCounted<ServiceFontManager>(
@@ -1181,20 +1191,6 @@ Capabilities RasterDecoderImpl::GetCapabilities() {
       feature_info()->feature_flags().chromium_image_ycbcr_p010;
   caps.render_buffer_format_bgra8888 =
       feature_info()->feature_flags().ext_render_buffer_format_bgra8888;
-
-  if (shared_context_state_->GrContextIsGL()) {
-    caps.disable_one_component_textures =
-        display_context_on_another_thread_ &&
-        workarounds().avoid_one_component_egl_images;
-  } else if (shared_context_state_->GrContextIsVulkan() ||
-             shared_context_state_->IsGraphiteDawnVulkan()) {
-    // Vulkan currently doesn't support single-component cross-thread shared
-    // images for WebView.
-    const bool is_drdc = features::IsDrDcEnabled() &&
-                         !feature_info()->workarounds().disable_drdc;
-    caps.disable_one_component_textures =
-        display_context_on_another_thread_ && !is_drdc;
-  }
 
   caps.angle_rgbx_internal_format =
       feature_info()->feature_flags().angle_rgbx_internal_format;

@@ -236,7 +236,6 @@ class FastPairPresenterImplTest : public AshTestBase {
   base::HistogramTester histogram_tester_;
   std::unique_ptr<signin::IdentityTestEnvironment> identity_test_environment_;
   std::unique_ptr<MockQuickPairBrowserDelegate> browser_delegate_;
-  signin::IdentityTestEnvironment identity_test_env_;
   raw_ptr<signin::IdentityManager> identity_manager_;
   DiscoveryAction discovery_action_;
   DiscoveryAction secondary_discovery_action_;
@@ -882,7 +881,7 @@ TEST_F(FastPairPresenterImplTest, ShowInitialDiscovery_KioskApp) {
 
   SetIdentityManager(identity_manager_);
 
-  Login(user_manager::UserType::kKioskApp);
+  Login(user_manager::UserType::kKioskChromeApp);
   base::test::ScopedFeatureList feature_list;
   feature_list.InitWithFeatures(
       /*enabled_features=*/{},

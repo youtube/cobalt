@@ -5,6 +5,8 @@
 #ifndef THIRD_PARTY_BLINK_PUBLIC_COMMON_FEATURES_H_
 #define THIRD_PARTY_BLINK_PUBLIC_COMMON_FEATURES_H_
 
+#include <stdint.h>
+
 #include <string>
 
 #include "base/feature_list.h"
@@ -371,15 +373,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kDirectCompositorThreadIpc);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kDisableArrayBufferSizeLimitsForTesting);
 
-// Kill-switch for a deprecation trial that unpartitions storage in third-party
-// contexts under the registered top-level site. If
-// `kDisableThirdPartyStoragePartitioning3DeprecationTrial` is enabled, the
-// deprecation trial information can be sent to and enabled in the browser
-// process (i.e. when the base::Feature is enabled, the deprecation trial
-// extension is enabled in the browser process too).
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
-    kDisableThirdPartyStoragePartitioning3DeprecationTrial);
-
 // These values are used to implement a browser intervention: if a cross-origin
 // iframe has moved more than {param:distance} device independent pixels
 // (manhattan distance) within its embedding page's viewport within the last
@@ -661,6 +654,8 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kForceInOrderScript);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kForceOffTextAutosizing);
 
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kFrameMetadataObserver);
+
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kFrequencyCappingForLargeStickyAdDetection);
 
@@ -742,14 +737,6 @@ enum class IsolateSandboxedIframesGrouping {
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     IsolateSandboxedIframesGrouping,
     kIsolateSandboxedIframesGroupingParam);
-
-// Serves as killswitch for migrating CanvasRenderingContext2D::IsPaintable()
-// from checking the existence of the canvas' Canvas2DLayerBridge to checking
-// for the existence of its resource provider.
-// NOTE: Do not check this feature directly: Check
-// CheckProviderInCanvas2DRenderingContextIsPaintable() instead.
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
-    kIsPaintableChecksResourceProviderInsteadOfBridge);
 
 // Kill-switch for the fetch keepalive request infra migration.
 // If enabled, all keepalive requests will be proxied via the browser process.
@@ -1257,14 +1244,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     bool,
     kLowPriorityAsyncScriptExecutionDisableWhenLcpNotInHtmlParam);
-enum class AsyncScriptPrioritisationType {
-  kHigh,
-  kLow,
-  kBestEffort,
-};
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
-    AsyncScriptPrioritisationType,
-    kLowPriorityAsyncScriptExecutionLowerTaskPriorityParam);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     AsyncScriptExperimentalSchedulingTarget,
     kLowPriorityAsyncScriptExecutionTargetParam);
@@ -1362,8 +1341,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     bool,
     kPartialLowEndModeExcludeCanvasFontCache);
 #endif
-
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kPartitionVisitedLinkDatabase);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kDedicatedWorkerAblationStudyEnabled);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
@@ -1562,6 +1539,12 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kReleaseResourceStrongReferencesOnMemoryPressure);
 
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kRemoveCommitRedirectUrlsArray);
+
+// If enabled, prefetches and prerenders will not include a Purpose: prefetch
+// header.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kRemovePurposeHeaderForPrefetch);
+
 // Makes preloaded fonts render-blocking up to the limits below.
 // See https://crbug.com/1412861
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kRenderBlockingFonts);
@@ -1700,6 +1683,16 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     std::string,
     kServiceWorkerSyntheticResponseAllowedUrls);
 
+// 'Mode' parameter for blink::features::kSoftNavigationHeuristics.
+enum class SoftNavigationHeuristicsMode : uint8_t {
+  kBasic,
+  kAdvancedPaintAttribution,
+  kPrePaintBasedAttribution,
+};
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    SoftNavigationHeuristicsMode,
+    kSoftNavigationHeuristicsModeParam);
+
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kBoostRenderProcessForLoading);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
@@ -1795,6 +1788,10 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebRtcUseCaptureBeginTimestamp);
 // capture timestamps. This is disabled by default.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebRtcAudioSinkUseTimestampAligner);
 
+// This feature enables using Post-Quantum Crypto(PQC) for DTLS to improve
+// WebRTC's security.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebRtcPqcForDtls);
+
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebAppBorderless);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebAppEnableScopeExtensions);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebAppEnableScopeExtensionsBySite);
@@ -1815,9 +1812,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     bool,
     kWebAudioBypassOutputBufferingExact);
 
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
-    kWebAudioRemoveAudioDestinationResampler);
-
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebFontsCacheAwareTimeoutAdaption);
 
 // Combine WebRTC Network and Worker threads. More info at crbug.com/1373439.
@@ -1834,6 +1828,7 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebUSBTransferSizeLimit);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebviewAccelerateSmallCanvases);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWorkerThreadSequentialShutdown);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWorkerThreadRespectTermRequest);
 
 // Kill switch for https://crbug.com/415810136.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kNoReferrerForPreloadFromSubresource);

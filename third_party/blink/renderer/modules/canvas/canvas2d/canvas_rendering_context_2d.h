@@ -35,6 +35,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "cc/paint/paint_record.h"
 #include "third_party/blink/public/common/privacy_budget/identifiable_token.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_canvas_element_hit_test_region.h"
 #include "third_party/blink/renderer/core/canvas_interventions/canvas_interventions_enums.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_context_creation_attributes_core.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_performance_monitor.h"
@@ -155,6 +156,27 @@ class MODULES_EXPORT CanvasRenderingContext2D final
   void DisableAcceleration() override;
   bool ShouldDisableAccelerationBecauseOfReadback() const override;
 
+  // CanvasRenderingContext implementation
+  int AllocatedBufferCountPerPixel() override {
+    if (!Host()) {
+      return 0;
+    }
+
+    int buffer_count = 0;
+    auto* provider = Host()->GetResourceProviderForCanvas2D();
+    if (provider) {
+      buffer_count = 1;
+      if (provider->IsAccelerated()) {
+        // The number of internal GPU buffers vary between one (stable
+        // non-displayed state) and three (triple-buffered animations).
+        // Adding 2 is a pessimistic but relevant estimate.
+        // Note: These buffers might be allocated in GPU memory.
+        buffer_count += 2;
+      }
+    }
+    return buffer_count;
+  }
+
   int Width() const final;
   int Height() const final;
 
@@ -181,13 +203,15 @@ class MODULES_EXPORT CanvasRenderingContext2D final
   void drawElement(Element* element,
                    double x,
                    double y,
-                   ExceptionState& exceptionState);
+                   ExceptionState& exception_state);
   void drawElement(Element* element,
                    double x,
                    double y,
                    double dwidth,
                    double dheight,
-                   ExceptionState& exceptionState);
+                   ExceptionState& exception_state);
+  void setHitTestRegions(VectorOf<CanvasElementHitTestRegion> hit_test_regions,
+                         ExceptionState& exception_state);
 
   CanvasRenderingContextHost* GetCanvasRenderingContextHost() const override;
   ExecutionContext* GetTopExecutionContext() const override;
@@ -258,10 +282,7 @@ class MODULES_EXPORT CanvasRenderingContext2D final
                            double y,
                            std::optional<double> dwidth,
                            std::optional<double> dheight,
-                           ExceptionState& exceptionState);
-  // Handles a page visibility change that occurs when the canvas is paintable.
-  // TODO(crbug.com/40280152): Fold this method into PageVisibilityChanged().
-  void OnPageVisibilityChangeWhenPaintable();
+                           ExceptionState& exception_state);
 
   void PruneLocalFontCache(size_t target_size);
 

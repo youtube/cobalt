@@ -34,6 +34,7 @@
 #include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/span_printf.h"
+#include "base/strings/string_view_util.h"
 #include "build/build_config.h"
 #include "third_party/blink/renderer/platform/wtf/dtoa.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
@@ -130,7 +131,7 @@ String String::Substring(unsigned pos, unsigned len) const {
 String String::DeprecatedLower() const {
   if (!impl_)
     return String();
-  return CaseMap::FastToLowerInvariant(impl_.get());
+  return blink::CaseMap::FastToLowerInvariant(impl_.get());
 }
 
 String String::LowerASCII() const {
@@ -467,15 +468,15 @@ String String::FromUTF8(base::span<const uint8_t> bytes) {
   if (!length)
     return g_empty_string;
 
-  ASCIIStringAttributes attributes = CharacterAttributes(bytes);
+  blink::AsciiStringAttributes attributes = blink::CharacterAttributes(bytes);
   if (attributes.contains_only_ascii)
     return StringImpl::Create(bytes, attributes);
 
   Vector<UChar, 1024> buffer(length);
 
-  unicode::ConversionResult result =
-      unicode::ConvertUTF8ToUTF16(bytes, base::span(buffer));
-  if (result.status != unicode::kConversionOK) {
+  blink::unicode::ConversionResult result =
+      blink::unicode::ConvertUtf8ToUtf16(bytes, base::span(buffer));
+  if (result.status != blink::unicode::kConversionOK) {
     return String();
   }
 

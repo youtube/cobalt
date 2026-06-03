@@ -15,13 +15,7 @@ class Origin;
 
 class SmartCardPermissionRequest : public permissions::PermissionRequest {
  public:
-  enum class Result {
-    kAllowOnce = 0,
-    kAllowAlways = 1,
-    kDontAllow = 2,
-  };
-
-  using ResultCallback = base::OnceCallback<void(Result)>;
+  using ResultCallback = base::OnceCallback<void(PermissionDecision)>;
 
   SmartCardPermissionRequest(const url::Origin& requesting_origin,
                              const std::string& reader_name,
@@ -37,8 +31,7 @@ class SmartCardPermissionRequest : public permissions::PermissionRequest {
   std::optional<std::u16string> GetBlockText() const override;
 
   void OnPermissionDecided(
-      ContentSetting result,
-      bool is_one_time,
+      PermissionDecision decision,
       bool is_final_decision,
       const permissions::PermissionRequestData& request_data);
 

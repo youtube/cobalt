@@ -713,6 +713,46 @@ TEST_F(SearchEngineChoiceServiceTest,
       kSearchEngineChoiceCompletedOnMonthHistogram, 202504, 1);
 }
 
+// Tests if choice screen completion date is recorded.
+TEST_F(SearchEngineChoiceServiceTest,
+       RecordsChoiceScreenCompletionDateBefore2022Histogram) {
+  base::HistogramTester histogram_tester;
+
+  // July 1993. What is specific about this timestamp (in windows epoch seconds)
+  // is that it is before 2022.
+  int64_t windows_epoch_timestamp = 12388103000;
+
+  pref_service()->SetString(
+      prefs::kDefaultSearchProviderChoiceScreenCompletionVersion, "1.0.0.0");
+  pref_service()->SetInt64(
+      prefs::kDefaultSearchProviderChoiceScreenCompletionTimestamp,
+      windows_epoch_timestamp);
+
+  search_engine_choice_service();
+  histogram_tester.ExpectUniqueSample(
+      kSearchEngineChoiceCompletedOnMonthHistogram, 100001, 1);
+}
+
+// Tests if choice screen completion date is recorded.
+TEST_F(SearchEngineChoiceServiceTest,
+       RecordsChoiceScreenCompletionDateAfter2050Histogram) {
+  base::HistogramTester histogram_tester;
+
+  // December 2056. What is specific about this timestamp (in windows epoch
+  // seconds) is that it is after 2050.
+  int64_t windows_epoch_timestamp = 14388103000;
+
+  pref_service()->SetString(
+      prefs::kDefaultSearchProviderChoiceScreenCompletionVersion, "1.0.0.0");
+  pref_service()->SetInt64(
+      prefs::kDefaultSearchProviderChoiceScreenCompletionTimestamp,
+      windows_epoch_timestamp);
+
+  search_engine_choice_service();
+  histogram_tester.ExpectUniqueSample(
+      kSearchEngineChoiceCompletedOnMonthHistogram, 300001, 1);
+}
+
 // Test that the user is not reprompted if the reprompt parameter is not a valid
 // JSON string.
 TEST_F(SearchEngineChoiceServiceTest, NoRepromptForSyntaxError) {
@@ -868,6 +908,77 @@ TEST_F(SearchEngineChoiceServiceTest, RepromptForMissingTimestamp) {
   histogram_tester_.ExpectTotalCount(
       search_engines::kSearchEngineChoiceRepromptHistogram, 0);
 }
+
+class SearchEngineChoiceServiceWipeOnMissingDSETest
+    : public SearchEngineChoiceServiceTest,
+      public testing::WithParamInterface<bool> {
+ public:
+  SearchEngineChoiceServiceWipeOnMissingDSETest() {
+    scoped_feature_list_.InitWithFeatureState(
+        switches::kWipeChoicePrefsOnMissingDefaultSearchEngine,
+        IsFeatureEnabled());
+  }
+
+  bool IsFeatureEnabled() const { return GetParam(); }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+TEST_P(SearchEngineChoiceServiceWipeOnMissingDSETest, WipeOnMissingDSE) {
+  {
+    // Set up services and make some DSE choice.
+    std::unique_ptr<TemplateURLData> data =
+        TemplateURLDataFromPrepopulatedEngine(
+            TemplateURLPrepopulateData::google);
+    auto template_url = std::make_unique<TemplateURL>(*data);
+    template_url_service().SetUserSelectedDefaultSearchProvider(
+        template_url.get(), ChoiceMadeLocation::kChoiceScreen);
+
+    // Check that choice prefs are present.
+    EXPECT_TRUE(pref_service()->HasPrefPath(
+        prefs::kDefaultSearchProviderChoiceScreenCompletionTimestamp));
+    EXPECT_TRUE(pref_service()->HasPrefPath(
+        prefs::kDefaultSearchProviderChoiceScreenCompletionVersion));
+    EXPECT_TRUE(pref_service()->HasPrefPath(
+        DefaultSearchManager::kDefaultSearchProviderDataPrefName));
+
+    ResetServices();
+  }
+
+  // Remove the DSE pref.
+  pref_service()->ClearPref(
+      DefaultSearchManager::kDefaultSearchProviderDataPrefName);
+
+  // Instantiating the service should wipe the choice prefs when the feature is
+  // enabled.
+  search_engine_choice_service();
+
+  if (IsFeatureEnabled()) {
+    EXPECT_FALSE(pref_service()->HasPrefPath(
+        prefs::kDefaultSearchProviderChoiceScreenCompletionTimestamp));
+    EXPECT_FALSE(pref_service()->HasPrefPath(
+        prefs::kDefaultSearchProviderChoiceScreenCompletionVersion));
+    histogram_tester_.ExpectUniqueSample(
+        search_engines::kSearchEngineChoiceWipeReasonHistogram,
+        SearchEngineChoiceWipeReason::kMissingDefaultSearchEngine, 1);
+    histogram_tester_.ExpectUniqueSample(
+        "Search.ChoicePrefsCheck.WipeOnMissingDse", true, 1);
+  } else {
+    EXPECT_TRUE(pref_service()->HasPrefPath(
+        prefs::kDefaultSearchProviderChoiceScreenCompletionTimestamp));
+    EXPECT_TRUE(pref_service()->HasPrefPath(
+        prefs::kDefaultSearchProviderChoiceScreenCompletionVersion));
+    histogram_tester_.ExpectTotalCount(
+        search_engines::kSearchEngineChoiceWipeReasonHistogram, 0);
+    histogram_tester_.ExpectUniqueSample(
+        "Search.ChoicePrefsCheck.WipeOnMissingDse", false, 1);
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(,
+                         SearchEngineChoiceServiceWipeOnMissingDSETest,
+                         ::testing::Bool());
 
 struct DeviceRestoreTestParam {
   std::string test_suffix;

@@ -76,6 +76,7 @@ public class CustomTabToolbarCoordinator {
 
     @Nullable private ToolbarManager mToolbarManager;
     @Nullable private DesktopWindowStateManager.AppHeaderObserver mAppHeaderObserver;
+    private @Nullable CustomTabToolbarButtonsCoordinator mToolbarButtonsCoordinator;
 
     private int mControlsHidingToken = TokenHolder.INVALID_TOKEN;
     private int mMenuButtonHideToken = TokenHolder.INVALID_TOKEN;
@@ -154,7 +155,14 @@ public class CustomTabToolbarCoordinator {
         if (mToolbarManager == null) return;
 
         boolean isInDesktopWindow = AppHeaderUtils.isAppInDesktopWindow(mDesktopWindowStateManager);
-        mToolbarManager.setCustomActionsVisibility(!isInDesktopWindow);
+
+        if (ChromeFeatureList.sCctToolbarRefactor.isEnabled()) {
+            if (mToolbarButtonsCoordinator != null) {
+                mToolbarButtonsCoordinator.setCustomActionButtonsVisible(!isInDesktopWindow);
+            }
+        } else {
+            mToolbarManager.setCustomActionsVisibility(!isInDesktopWindow);
+        }
 
         if (isInDesktopWindow) {
             mMenuButtonHideToken = mToolbarManager.hideMenuButtonPersistently(mMenuButtonHideToken);
@@ -168,12 +176,20 @@ public class CustomTabToolbarCoordinator {
      * use. ToolbarManager isn't passed directly to the constructor because it's not guaranteed to
      * be initialized yet.
      */
-    public void onToolbarInitialized(ToolbarManager manager) {
+    public void onToolbarInitialized(
+            ToolbarManager manager, CustomTabToolbarButtonsCoordinator toolbarButtonsCoordinator) {
         assert manager != null : "Toolbar manager not initialized";
         mToolbarManager = manager;
         mToolbarColorController.onToolbarInitialized(manager);
-        mCloseButtonVisibilityManager.setVisibility(mIntentDataProvider.isCloseButtonEnabled());
-        mCloseButtonVisibilityManager.onToolbarInitialized(manager);
+        mToolbarButtonsCoordinator = toolbarButtonsCoordinator;
+
+        if (ChromeFeatureList.sCctToolbarRefactor.isEnabled()) {
+            mToolbarButtonsCoordinator.setCloseButtonClickHandler(v -> onCloseButtonClick());
+        } else {
+            mCloseButtonVisibilityManager.setVisibility(mIntentDataProvider.isCloseButtonEnabled());
+        }
+
+        mCloseButtonVisibilityManager.onToolbarInitialized(manager, mToolbarButtonsCoordinator);
         updateTitleBarVisibility();
 
         if (CustomTabsConnection.getInstance()
@@ -198,7 +214,10 @@ public class CustomTabToolbarCoordinator {
         for (CustomButtonParams params : mIntentDataProvider.getCustomButtonsOnToolbar()) {
             View.OnClickListener onClickListener = v -> onCustomButtonClick(params);
             mToolbarManager.addCustomActionButton(
-                    params.getIcon(mActivity), params.getDescription(), onClickListener);
+                    params.getIcon(mActivity),
+                    params.getDescription(),
+                    onClickListener,
+                    params.getType());
         }
     }
 
@@ -276,7 +295,7 @@ public class CustomTabToolbarCoordinator {
                 /* bookmarkClickHandler= */ null,
                 /* customTabsBackClickHandler= */ v -> onCloseButtonClick(),
                 /* archivedTabCountSupplier= */ null,
-                /* tabModelNotificationDotSupplier= */ new ObservableSupplierImpl<TabModelDotInfo>(
+                /* tabModelNotificationDotSupplier= */ new ObservableSupplierImpl<>(
                         TabModelDotInfo.HIDE),
                 /* undoBarThrottle= */ null);
         mInitializedToolbarWithNative = true;

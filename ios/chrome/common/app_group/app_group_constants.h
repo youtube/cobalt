@@ -58,9 +58,15 @@ extern NSString* const kChromeShowDefaultBrowserPromoCapability;
 // links in chrome.
 extern NSString* const kChromeSupportOpenLinksParametersFromCapability;
 
+// Share default browser promo status capability.
+extern NSString* const kChromeSupportShareDefaultBrowserStatusCapability;
+
 // The x-callback-url indicating that an application in the group requires a
 // command.
 extern const char kChromeAppGroupXCallbackCommand[];
+
+// The gaid id query name to add to a given URL.
+extern const char kGaiaIDQueryItemName[];
 
 // The key of a preference containing a dictionary of field trial values needed
 // in extensions.
@@ -217,6 +223,7 @@ extern NSString* const kOpenExtensionOutcomes;
 extern NSString* const kAccountsOnDevice;
 // Names of keys in dictionary saved in kAccountsOnDevice.
 extern NSString* const kEmail;
+extern NSString* const kFullName;
 // Key used to save info for widgets when no account is signed-in.
 extern NSString* const kDefaultAccount;
 

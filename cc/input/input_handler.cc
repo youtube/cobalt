@@ -449,19 +449,28 @@ void InputHandler::AdjustScrollDeltaForScrollbarSnap(
   if (!scroll_node || !scroll_node->snap_container_data)
     return;
 
-  // Ideally, scrollbar track and arrow interactions would have
-  // kScrollByPage and kScrollByLine, respectively. Currently, both have
-  // kScrollByPixel granularity.
-  // TODO(crbug.com/41456637): Update snap strategy once the granularity is
-  // properly set. Currently, track and arrow scrolls both use a direction
-  // strategy; however, the track should be using an "end and direction"
-  // strategy.
   gfx::PointF current_position = GetVisualScrollOffset(*scroll_node);
+  std::unique_ptr<SnapSelectionStrategy> strategy;
   const SnapContainerData& data = scroll_node->snap_container_data.value();
-  std::unique_ptr<SnapSelectionStrategy> strategy =
-      SnapSelectionStrategy::CreateForDirection(
-          current_position,
-          gfx::Vector2dF(scroll_state.delta_x(), scroll_state.delta_y()), true);
+  if (scroll_state.delta_granularity() ==
+      ui::ScrollGranularity::kScrollByPage) {
+    strategy = SnapSelectionStrategy::CreateForPageScroll(
+        current_position,
+        gfx::Vector2dF(scroll_state.delta_x(), scroll_state.delta_y()),
+        PageSize(*scroll_node),
+        /*use_fractional_offsets=*/true);
+  } else {
+    // Ideally, scrollbar track and arrow interactions would always have
+    // kScrollByPage and kScrollByLine, respectively. Native scrollbars have
+    // kScrollByPixel granularity currently.
+    strategy = SnapSelectionStrategy::CreateForDirection(
+        current_position,
+        ResolveScrollGranularityToPixels(
+            *scroll_node,
+            gfx::Vector2dF(scroll_state.delta_x(), scroll_state.delta_y()),
+            scroll_state.delta_granularity()),
+        /*use_fractional_offsets=*/true);
+  }
 
   SnapPositionData snap = data.FindSnapPosition(*strategy);
   if (snap.type == SnapPositionData::Type::kNone) {
@@ -470,6 +479,8 @@ void InputHandler::AdjustScrollDeltaForScrollbarSnap(
 
   scroll_state.data()->delta_x = snap.position.x() - current_position.x();
   scroll_state.data()->delta_y = snap.position.y() - current_position.y();
+  scroll_state.data()->delta_granularity =
+      ui::ScrollGranularity::kScrollByPixel;
 }
 
 void InputHandler::InsertPendingScrollendContainer(
@@ -715,7 +726,7 @@ void InputHandler::SetSynchronousInputHandlerRootScrollOffset(
   }
 
   compositor_delegate_->DidScrollContent(OuterViewportScrollNode()->element_id,
-                                         /*is_animated_scroll=*/false,
+                                         /*animated=*/false,
                                          consumed_delta);
   SetNeedsCommit();
 
@@ -736,7 +747,7 @@ void InputHandler::PinchGestureBegin(const gfx::Point& anchor,
 
   TRACE_EVENT_INSTANT1("cc", "SetCurrentlyScrollingNode PinchGestureBegin",
                        TRACE_EVENT_SCOPE_THREAD, "isNull",
-                       OuterViewportScrollNode() ? false : true);
+                       !OuterViewportScrollNode());
 
   // Some unit tests don't setup viewport scroll nodes but do initiate a pinch
   // zoom gesture. Ideally, those tests should either create the viewport
@@ -1467,6 +1478,22 @@ FrameSequenceTrackerType InputHandler::GetTrackerTypeForScroll(
   }
 }
 
+gfx::Size InputHandler::PageSize(const ScrollNode& scroll_node) const {
+  gfx::SizeF scroller_size = gfx::SizeF(scroll_node.container_bounds);
+  gfx::SizeF viewport_size(compositor_delegate_->VisualDeviceViewportSize());
+
+  // Convert from rootframe coordinates to screen coordinates (physical
+  // pixels if --use-zoom-for-dsf enabled, DIPs otherwise).
+  scroller_size.Scale(compositor_delegate_->PageScaleFactor());
+
+  // Convert from physical pixels to screen coordinates (if --use-zoom-for-dsf
+  // enabled, `DeviceScaleFactor()` returns 1).
+  viewport_size.InvScale(compositor_delegate_->DeviceScaleFactor());
+
+  return gfx::Size(std::min(scroller_size.width(), viewport_size.width()),
+                   std::min(scroller_size.height(), viewport_size.height()));
+}
+
 float InputHandler::LineStep() const {
   return kPixelsPerLineStep * ActiveTree().painted_device_scale_factor();
 }
@@ -2020,8 +2047,19 @@ ScrollNode* InputHandler::FindNodeToLatch(ScrollState* scroll_state,
       break;
     }
 
+    // A scroll container allows chaining ​if​ overscroll-behavior is set to
+    // auto on both axes, ​or if​ the Feature Flag is disabled. When the
+    // scroll container does not allow chaining, we should not skip it, as we
+    // may need to latch to it.
+    bool scroll_container_allows_chaining =
+        !base::FeatureList::IsEnabled(
+            ::features::kOverscrollBehaviorRespectedOnAllScrollContainers) ||
+        (cur_node->overscroll_behavior.x == OverscrollBehavior::Type::kAuto &&
+         cur_node->overscroll_behavior.y == OverscrollBehavior::Type::kAuto);
+
     if (!cur_node->user_scrollable_horizontal &&
-        !cur_node->user_scrollable_vertical) {
+        !cur_node->user_scrollable_vertical &&
+        scroll_container_allows_chaining) {
       continue;
     }
 

@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_delegate_android_impl.h"
-#include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_controller.h"
+#include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_controller_impl.h"
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_view.h"
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_view_controller.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
@@ -53,7 +53,9 @@ class MockTouchToFillPaymentMethodViewImpl : public TouchToFillPaymentMethodView
   MOCK_METHOD(bool,
               ShowLoyaltyCards,
               (TouchToFillPaymentMethodViewController * controller,
-               base::span<const LoyaltyCard> loyalty_cards_to_suggest));
+               base::span<const LoyaltyCard> affiliated_loyalty_cards,
+               base::span<const LoyaltyCard> all_loyalty_cards,
+               bool first_time_usage));
   MOCK_METHOD(void, Hide, ());
 };
 
@@ -98,12 +100,12 @@ class TestContentAutofillClientWithTouchToFillPaymentMethodController
  public:
   using TestContentAutofillClient::TestContentAutofillClient;
 
-  TouchToFillPaymentMethodController& payment_method_controller() {
+  TouchToFillPaymentMethodControllerImpl& payment_method_controller() {
     return payment_method_controller_;
   }
 
  private:
-  TouchToFillPaymentMethodController payment_method_controller_{this};
+  TouchToFillPaymentMethodControllerImpl payment_method_controller_{this};
 };
 
 class TouchToFillPaymentMethodControllerTest
@@ -147,7 +149,7 @@ class TouchToFillPaymentMethodControllerTest
     return *autofill_manager_injector_[web_contents()];
   }
 
-  TouchToFillPaymentMethodController& payment_method_controller() {
+  TouchToFillPaymentMethodControllerImpl& payment_method_controller() {
     return autofill_client().payment_method_controller();
   }
 
@@ -160,8 +162,10 @@ class TouchToFillPaymentMethodControllerTest
                                                  test::GetCreditCard2()};
   const std::vector<Iban> ibans_ = {test::GetLocalIban(),
                                     test::GetServerIban()};
-  const std::vector<LoyaltyCard> loyalty_cards_ = {test::CreateLoyaltyCard(),
-                                                   test::CreateLoyaltyCard2()};
+  const std::vector<LoyaltyCard> all_loyalty_cards_ = {
+      test::CreateLoyaltyCard(), test::CreateLoyaltyCard2()};
+  const std::vector<LoyaltyCard> affiliated_loyalty_cards_ = {
+      test::CreateLoyaltyCard()};
   const std::vector<Suggestion> suggestions_{
       test::CreateAutofillSuggestion(
           credit_cards_[0].CardNameForAutofillDisplay(),
@@ -241,11 +245,15 @@ TEST_F(TouchToFillPaymentMethodControllerTest,
        ShowLoyaltyCardsPassesLoyaltyCardsToTheView) {
   SetUpLoyaltyCardFormField();
   // Test that the loyalty cards have propagated to the view.
-  EXPECT_CALL(*mock_view_, ShowLoyaltyCards(&payment_method_controller(),
-                                            ElementsAreArray(loyalty_cards_)));
+  EXPECT_CALL(*mock_view_,
+              ShowLoyaltyCards(&payment_method_controller(),
+                               ElementsAreArray(affiliated_loyalty_cards_),
+                               ElementsAreArray(all_loyalty_cards_),
+                               /*first_time_usage*/ true));
   OnBeforeAskForValuesToFill();
   payment_method_controller().ShowLoyaltyCards(
-      std::move(mock_view_), ttf_delegate().GetWeakPointer(), loyalty_cards_);
+      std::move(mock_view_), ttf_delegate().GetWeakPointer(),
+      affiliated_loyalty_cards_, all_loyalty_cards_, /*first_time_usage*/ true);
   OnAfterAskForValuesToFill();
 }
 

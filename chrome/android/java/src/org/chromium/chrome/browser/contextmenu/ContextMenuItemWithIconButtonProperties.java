@@ -7,11 +7,13 @@ package org.chromium.chrome.browser.contextmenu;
 import android.graphics.drawable.Drawable;
 import android.view.View;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.ui.listmenu.ListMenuItemProperties;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableIntPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableObjectPropertyKey;
 
+@NullMarked
 class ContextMenuItemWithIconButtonProperties extends ListMenuItemProperties {
     public static final WritableObjectPropertyKey<Drawable> BUTTON_IMAGE =
             new WritableObjectPropertyKey<>();
@@ -29,6 +31,7 @@ class ContextMenuItemWithIconButtonProperties extends ListMenuItemProperties {
                 BUTTON_IMAGE,
                 BUTTON_CONTENT_DESC,
                 BUTTON_MENU_ID,
-                BUTTON_CLICK_LISTENER
+                BUTTON_CLICK_LISTENER,
+                HOVER_LISTENER,
             };
 }

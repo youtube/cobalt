@@ -7,14 +7,16 @@ module blink.mojom;
 import "third_party/blink/public/mojom/ai/model_download_progress_observer.mojom";
 import "third_party/blink/public/mojom/on_device_translation/translator.mojom";
 
-
 struct TranslatorLanguageCode {
   // BCP 47 language code used for the Translator API.
   // This code may be hardcoded in Chrome or passed from the JS API.
   string code;
 };
 
-// The result of TranslationManager's CanCreateTranslator IPC.
+// TODO(crbug.com/421228289): Update naming of `CanCreateTranslatorResult` to
+// `TranslationAvailableResult`.
+//
+// The result of TranslationManager's TranslationAvailable IPC.
 enum CanCreateTranslatorResult {
   // Both the library and the language pack are ready.
   kReadily = 0,
@@ -36,23 +38,16 @@ enum CanCreateTranslatorResult {
   // language pair is not supported.
   kNoNotSupportedLanguage = 5,
 
-  // The translator cannot be created because the Accept-Language check failed.
-  kNoAcceptLanguagesCheckFailed = 6,
-
-  // The translator cannot be created. New models need to be downloaded,
-  // but the number of downloaded language packs will exceedd the limit.
-  kNoExceedsLanguagePackCountLimitation = 7,
-
   // The translator cannot be created, because the translator service crashed.
-  kNoServiceCrashed = 8,
+  kNoServiceCrashed = 6,
 
   // The translator cannot be created, because the use of Translator API is
   // disallowed by `TranslatorAPIAllowed` Enterprise policy
-  kNoDisallowedByPolicy = 9,
+  kNoDisallowedByPolicy = 7,
 
   // The translator cannot be created, because the number of services exceeds
   // the limitation.
-  kNoExceedsServiceCountLimitation = 10,
+  kNoExceedsServiceCountLimitation = 8,
 };
 
 // The error of TranslationManager's CreateTranslator IPC.
@@ -72,30 +67,23 @@ enum CreateTranslatorError {
   // translator.
   kFailedToCreateTranslator = 4,
 
-  // The translator cannot be created because the Accept-Language check failed.
-  kAcceptLanguagesCheckFailed = 5,
-
-  // The translator cannot be created. New models need to be downloaded,
-  // but the number of downloaded language packs will exceedd the limit.
-  kExceedsLanguagePackCountLimitation = 6,
-
   // The translator cannot be created, because the translator service crashed.
-  kServiceCrashed = 7,
+  kServiceCrashed = 5,
 
   // The translator cannot be created, because the use of Translator API is
   // disallowed by `TranslatorAPIAllowed` Enterprise policy
-  kDisallowedByPolicy = 8,
+  kDisallowedByPolicy = 6,
 
   // The translator cannot be created, because the number of services exceeds
   // the limitation.
-  kExceedsServiceCountLimitation = 9,
+  kExceedsServiceCountLimitation = 7,
 
   // The translator cannot be created, because the number of pending tasks
   // exceeds the limitation.
-  kExceedsPendingTaskCountLimitation = 10,
+  kExceedsPendingTaskCountLimitation =  8,
 
   // The translator cannot be created because the library version is invalid.
-  kInvalidVersion = 11,
+  kInvalidVersion = 9,
 };
 
 // The result of TranslationManager's CreateTranslator IPC.
@@ -111,7 +99,9 @@ interface TranslationManagerCreateTranslatorClient {
   // Called with a created Translator's mojo interface as a result for the
   // CreateTranslator() method of the TranslationManager. When failed to create
   // a Translator, this method is called with an error result.
-  OnResult(CreateTranslatorResult result);
+  OnResult(CreateTranslatorResult result,
+           TranslatorLanguageCode? source_lang,
+           TranslatorLanguageCode? target_lang);
 };
 
 // This is used when creating a new Translator for Translator API.
@@ -133,27 +123,16 @@ struct TranslatorCreateOptions {
 };
 
 // Interface to manage translation between languages on-device. Process called
-// from the renderer and used to implement the translation in the browser process.
+// from the renderer and used to implement the translation in the browser
+// process.
 interface TranslationManager {
-  // Returns if it is supported to create a translator that could translate
-  // texts from `source_lang` to `target_lang`.
-  //
-  // Both `source_lang` and `target_lang` are passed from JS via
-  // `translation.canTranslate()` method as `TranslationLanguageOptions` in the
-  // explainer. This canTranslate() method was removed from the explainer.
-  // So this `CanCreateTranslator IPC` will be eventually removed when we remove
-  // the `translation.canTranslate()` method (crbug.com/379643382).
-  // https://github.com/WICG/translation-api/blob/5151a1b1b/README.md#full-api-surface-in-web-idl
-  CanCreateTranslator(
-    TranslatorLanguageCode source_lang, TranslatorLanguageCode target_lang
-  ) => (CanCreateTranslatorResult result);
-
   // Creates a translator that could translate texts from `source_lang`
   // to `target_lang` of the passed `options`. When the passed client is
   // disconnected, the creation process will be aborted.
   CreateTranslator(
-    pending_remote<TranslationManagerCreateTranslatorClient> client,
-    TranslatorCreateOptions options);
+      pending_remote<TranslationManagerCreateTranslatorClient> client,
+      TranslatorCreateOptions options,
+      bool add_fake_download_delay);
 
   // Returns the availability of the language pair translation.
   TranslationAvailable(

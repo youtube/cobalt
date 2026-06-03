@@ -8,6 +8,7 @@
 #include "base/strings/strcat.h"
 #include "base/test/test_trace_processor.h"
 #include "base/test/trace_test_utils.h"
+#include "base/trace_event/trace_event.h"
 #include "build/buildflag.h"
 #include "cc/paint/paint_op.h"
 #include "cc/test/paint_op_matchers.h"
@@ -52,32 +53,6 @@ void HTMLCanvasElementTest::TearDown() {
   CanvasRenderingContext::GetCanvasPerformanceMonitor().ResetForTesting();
 }
 
-// This test enforces that there is no eager creation of
-// CanvasResourceProvider for html canvas with 2d context when its
-// Canvas2DLayerBridge is initially set up. This enforcement might be changed
-// in the future refactoring; but change is seriously warned against because
-// certain code paths in canvas 2d (that depend on the existence of
-// CanvasResourceProvider) will be changed too, causing bad regressions.
-TEST_P(HTMLCanvasElementTest,
-       NoResourceProviderAfterCanvas2DLayerBridgeCreation) {
-  SetBodyInnerHTML("<canvas id='c' width='10' height='20'></canvas>");
-
-  // The canvas having a 2D context is a prerequisite for calling
-  // GetOrCreateCanvas2DLayerBridge().
-  GetDocument().GetSettings()->SetScriptEnabled(true);
-  Element* script = GetDocument().CreateRawElement(html_names::kScriptTag);
-  script->setTextContent(R"JS(
-    var canvas = document.getElementById('c');
-    var ctx = canvas.getContext('2d');
-  )JS");
-  GetDocument().body()->appendChild(script);
-
-  auto* canvas =
-      To<HTMLCanvasElement>(GetDocument().getElementById(AtomicString("c")));
-  EXPECT_TRUE(canvas->GetOrCreateCanvas2DLayerBridge());
-  EXPECT_FALSE(canvas->ResourceProvider());
-}
-
 TEST_P(HTMLCanvasElementTest, CleanCanvasResizeDoesntClearFrameBuffer) {
   GetDocument().GetSettings()->SetScriptEnabled(true);
   // Enable printing so that flushes preserve the last recording.
@@ -98,7 +73,7 @@ TEST_P(HTMLCanvasElementTest, CleanCanvasResizeDoesntClearFrameBuffer) {
   auto* canvas =
       To<HTMLCanvasElement>(GetDocument().getElementById(AtomicString("c")));
   CanvasResourceProvider* provider =
-      canvas->GetOrCreateCanvasResourceProvider();
+      canvas->GetOrCreateCanvasResourceProviderForCanvas2D();
 
   cc::PaintFlags fill_flags = FillFlags();
   fill_flags.setColor(SkColors::kBlue);
@@ -132,7 +107,7 @@ TEST_P(HTMLCanvasElementTest, CanvasResizeClearsFrameBuffer) {
   auto* canvas =
       To<HTMLCanvasElement>(GetDocument().getElementById(AtomicString("c")));
   CanvasResourceProvider* provider =
-      canvas->GetOrCreateCanvasResourceProvider();
+      canvas->GetOrCreateCanvasResourceProviderForCanvas2D();
 
   cc::PaintFlags fill_flags = FillFlags();
   fill_flags.setColor(SkColors::kBlue);

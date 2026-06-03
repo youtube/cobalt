@@ -291,6 +291,7 @@ TEST_F(TabGroupChangeNotifierImplTest,
   EXPECT_CALL(*notifier_observer_, OnSyncDisabled).Times(0);
   tgss_observer_->OnSyncBridgeUpdateTypeChanged(
       tab_groups::SyncBridgeUpdateType::kInitialMerge);
+
   // Add a tab group to the service.
   tab_groups::SavedTabGroup tab_group_1 = CreateTestSharedTabGroup();
   EXPECT_CALL(*notifier_observer_, OnTabGroupAdded).Times(0);
@@ -301,7 +302,7 @@ TEST_F(TabGroupChangeNotifierImplTest,
   // Complete initial merge.
   EXPECT_CALL(*notifier_observer_, OnSyncDisabled).Times(0);
   tgss_observer_->OnSyncBridgeUpdateTypeChanged(
-      tab_groups::SyncBridgeUpdateType::kDefaultState);
+      tab_groups::SyncBridgeUpdateType::kCompletedInitialMergeThisSession);
 
   // Add another test group and ensure the observer is informed.
   tab_groups::SavedTabGroup tab_group_2 = CreateTestSharedTabGroup();
@@ -314,13 +315,17 @@ TEST_F(TabGroupChangeNotifierImplTest,
 
   // Sign-out and start disabling sync. Incoming sync updates should be ignored.
   // Remove the first group and ensure the observer is not informed.
-  EXPECT_CALL(*notifier_observer_, OnSyncDisabled).Times(1);
   tgss_observer_->OnSyncBridgeUpdateTypeChanged(
       tab_groups::SyncBridgeUpdateType::kDisableSync);
 
   EXPECT_CALL(*notifier_observer_, OnTabGroupRemoved).Times(0);
   tgss_observer_->OnTabGroupRemoved(tab_group_1.saved_guid(),
                                     tab_groups::TriggerSource::REMOTE);
+
+  // Finish disabling sync.
+  EXPECT_CALL(*notifier_observer_, OnSyncDisabled).Times(1);
+  tgss_observer_->OnSyncBridgeUpdateTypeChanged(
+      tab_groups::SyncBridgeUpdateType::kCompletedDisableSyncThisSession);
 }
 
 TEST_F(TabGroupChangeNotifierImplTest, TestTabGroupsAvailableOnStartup) {

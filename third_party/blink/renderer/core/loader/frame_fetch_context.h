@@ -92,6 +92,8 @@ class CORE_EXPORT FrameFetchContext final : public BaseFetchContext,
                       WebScopedVirtualTimePauser&,
                       ResourceType) override;
 
+  void FillInitiatorInfo(FetchInitiatorInfo& initiator_info) override;
+
   void AddResourceTiming(mojom::blink::ResourceTimingInfoPtr,
                          const AtomicString& initiator_type) override;
   bool AllowImage() const override;
@@ -134,7 +136,8 @@ class CORE_EXPORT FrameFetchContext final : public BaseFetchContext,
       const ResourceRequestHead& resource_request,
       base::optional_ref<const KURL> alias_url,
       ResourceType type,
-      const FetchInitiatorInfo& initiator_info) override;
+      const FetchInitiatorInfo& initiator_info,
+      subresource_filter::ScopedRule* out_rule) override;
 
   // LoadingBehaviorObserver overrides:
   void DidObserveLoadingBehavior(LoadingBehaviorFlag) override;

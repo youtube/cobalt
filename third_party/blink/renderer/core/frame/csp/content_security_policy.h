@@ -106,7 +106,7 @@ class CORE_EXPORT ContentSecurityPolicyDelegate : public GarbageCollectedMixin {
 
   // See https://w3c.github.io/webappsec-csp/#create-violation-for-global.
   // These functions are used to create the violation object.
-  virtual std::unique_ptr<SourceLocation> GetSourceLocation() = 0;
+  virtual SourceLocation* GetSourceLocation() = 0;
   virtual std::optional<uint16_t> GetStatusCode() = 0;
   // If the Delegate is not bound to a document, a null string should be
   // returned as the referrer.
@@ -320,7 +320,7 @@ class CORE_EXPORT ContentSecurityPolicy final
       const String& header,
       network::mojom::ContentSecurityPolicyType,
       ContentSecurityPolicyViolationType,
-      std::unique_ptr<SourceLocation>,
+      SourceLocation*,
       LocalFrame* = nullptr,
       Element* = nullptr,
       const String& source = g_empty_string,
@@ -419,6 +419,11 @@ class CORE_EXPORT ContentSecurityPolicy final
 
   void Count(WebFeature feature) const;
 
+  // Start the mode to disallow any script executions for synthetic response.
+  void DisallowScriptForSyntheticResponse() {
+    disallow_script_for_synthetic_response_ = true;
+  }
+
  private:
   FRIEND_TEST_ALL_PREFIXES(ContentSecurityPolicyTest, NonceInline);
   FRIEND_TEST_ALL_PREFIXES(ContentSecurityPolicyTest, NonceSinglePolicy);
@@ -497,6 +502,11 @@ class CORE_EXPORT ContentSecurityPolicy final
   bool supports_wasm_eval_ = false;
 
   bool enforces_strict_policy_{false};
+
+  // When this flag is set true, inline script, external script, and script
+  // attribute are blocked. This is a special mode for the synthetic response
+  // experiment.
+  bool disallow_script_for_synthetic_response_ = false;
 };
 
 }  // namespace blink

@@ -21,7 +21,7 @@
 #include "components/facilitated_payments/core/metrics/facilitated_payments_metrics.h"
 #include "components/facilitated_payments/core/utils/facilitated_payments_ui_utils.h"
 #include "components/facilitated_payments/core/utils/facilitated_payments_utils.h"
-#include "components/optimization_guide/core/optimization_guide_decider.h"
+#include "components/optimization_guide/core/hints/optimization_guide_decider.h"
 
 namespace payments::facilitated {
 namespace {
@@ -132,6 +132,18 @@ void PixManager::OnPixCodeValidated(
     return;
   }
 
+  if (!payments_data_manager->IsAutofillPaymentMethodsEnabled()) {
+    LogPixFlowExitedReason(
+        PixFlowExitedReason::kAutofillPaymentMethodsDisabled);
+    return;
+  }
+
+  // Pix pref is shown only if the user has linked Pix accounts.
+  if (!payments_data_manager->IsFacilitatedPaymentsPixUserPrefEnabled()) {
+    LogPixFlowExitedReason(PixFlowExitedReason::kUserOptedOut);
+    return;
+  }
+
   // If the user has no linked Pix accounts, initialize the Pix account linking
   // flow.
   if (!payments_data_manager->HasMaskedBankAccounts()) {
@@ -139,12 +151,6 @@ void PixManager::OnPixCodeValidated(
     if (base::FeatureList::IsEnabled(kEnablePixAccountLinking)) {
       client_->InitPixAccountLinkingFlow();
     }
-    return;
-  }
-
-  // Pix pref is shown only if the user has linked Pix accounts.
-  if (!payments_data_manager->IsFacilitatedPaymentsPixUserPrefEnabled()) {
-    LogPixFlowExitedReason(PixFlowExitedReason::kUserOptedOut);
     return;
   }
 

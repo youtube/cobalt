@@ -1569,6 +1569,7 @@ interface PerformanceResourceTiming : PerformanceEntry
     getter finalResponseHeadersStart
     getter firstInterimResponseStart
     getter initiatorType
+    getter initiatorUrl
     getter nextHopProtocol
     getter redirectEnd
     getter redirectStart
@@ -2093,6 +2094,7 @@ interface URLPattern
     getter username
     method constructor
     method exec
+    method generate
     method test
 interface URLSearchParams
     attribute @@toStringTag
@@ -2852,6 +2854,7 @@ interface WebGL2RenderingContext
     method samplerParameterf
     method samplerParameteri
     method scissor
+    method setHitTestRegions
     method shaderSource
     method stencilFunc
     method stencilFuncSeparate
@@ -3356,6 +3359,7 @@ interface WebGLRenderingContext
     method renderbufferStorage
     method sampleCoverage
     method scissor
+    method setHitTestRegions
     method shaderSource
     method stencilFunc
     method stencilFuncSeparate

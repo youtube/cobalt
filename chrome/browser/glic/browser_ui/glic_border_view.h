@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_GLIC_BROWSER_UI_GLIC_BORDER_VIEW_H_
 
 #include "base/scoped_observation.h"
+#include "cc/paint/paint_shader.h"
 #include "content/public/browser/gpu_data_manager_observer.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/compositor/compositor_animation_observer.h"
@@ -130,6 +131,8 @@ class GlicBorderView : public views::View,
 
   GlicKeyedService* GetGlicService() const;
 
+  void UpdateShader();
+
   // A utility class that subscribe to `GlicKeyedService` for various browser UI
   // status change.
   class BorderViewUpdater;
@@ -164,8 +167,18 @@ class GlicBorderView : public views::View,
                           content::GpuDataManagerObserver>
       gpu_data_manager_observer_{this};
 
+  base::ScopedObservation<ui::Compositor, ui::CompositorObserver>
+      compositor_observation_{this};
+  base::ScopedObservation<ui::Compositor, ui::CompositorAnimationObserver>
+      compositor_animation_observation_{this};
+
   // Empty in production environment.
   const std::unique_ptr<Tester> tester_;
+
+  sk_sp<cc::PaintShader> cached_paint_shader_;
+
+  const std::vector<SkColor> colors_;
+  const std::vector<float> floats_;
 
   raw_ptr<ui::Compositor> compositor_ = nullptr;
   raw_ptr<ThemeService> theme_service_ = nullptr;

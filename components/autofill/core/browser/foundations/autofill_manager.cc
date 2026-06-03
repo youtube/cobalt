@@ -16,7 +16,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/task/thread_pool.h"
-#include "base/types/optional_ref.h"
 #include "base/types/zip.h"
 #include "components/autofill/core/browser/country_type.h"
 #include "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_encoding.h"
@@ -114,7 +113,10 @@ bool CachedFormNeedsUpdate(const FormData& live_form,
 
   for (auto [cached_field, live_field] :
        base::zip(cached_form.fields(), live_form.fields())) {
-    if (!cached_field->SameFieldAs(live_field)) {
+    if (base::FeatureList::IsEnabled(
+            features::kAutofillUseDeepEqualInsteadOfSameFieldAs)
+            ? !FormFieldData::DeepEqual(*cached_field, live_field)
+            : !cached_field->SameFieldAs(live_field)) {
       return true;
     }
   }
@@ -389,7 +391,7 @@ void AutofillManager::OnAskForValuesToFill(
     const FieldGlobalId& field_id,
     const gfx::Rect& caret_bounds,
     AutofillSuggestionTriggerSource trigger_source,
-    base::optional_ref<const PasswordSuggestionRequest> password_request) {
+    std::optional<PasswordSuggestionRequest> password_request) {
   if (!IsValidFormData(form)) {
     return;
   }
@@ -398,7 +400,7 @@ void AutofillManager::OnAskForValuesToFill(
   ParseFormAsync(
       form,
       ParsingCallback(&AutofillManager::OnAskForValuesToFillImpl, field_id,
-                      caret_bounds, trigger_source, password_request)
+                      caret_bounds, trigger_source, std::move(password_request))
           .Then(NotifyObserversCallback(&Observer::OnAfterAskForValuesToFill,
                                         form.global_id(), field_id)));
 }

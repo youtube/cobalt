@@ -426,6 +426,11 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
       const std::string& ocsp_result,
       const std::string& sct_list,
       VerifyCertCallback callback) override;
+  void Verify2QwacCertBinding(
+      const std::string& binding,
+      const std::string& hostname,
+      const scoped_refptr<net::X509Certificate>& tls_certificate,
+      Verify2QwacCertBindingCallback callback) override;
   void AddHSTS(const std::string& host,
                base::Time expiry,
                bool include_subdomains,
@@ -451,6 +456,8 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
       const std::string& ocsp_response,
       const std::string& sct_list,
       VerifyCertificateForTestingCallback callback) override;
+  void GetTrustAnchorIDsForTesting(
+      GetTrustAnchorIDsForTestingCallback callback) override;
   void PreconnectSockets(
       uint32_t num_streams,
       const GURL& url,

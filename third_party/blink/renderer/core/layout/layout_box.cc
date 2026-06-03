@@ -111,6 +111,7 @@
 #include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
 #include "third_party/blink/renderer/core/resize_observer/resize_observer_size.h"
 #include "third_party/blink/renderer/core/scroll/scroll_into_view_util.h"
+#include "third_party/blink/renderer/core/scroll/scrollbar_theme.h"
 #include "third_party/blink/renderer/core/style/computed_style_base_constants.h"
 #include "third_party/blink/renderer/core/style/shadow_list.h"
 #include "third_party/blink/renderer/core/style/style_overflow_clip_margin.h"
@@ -186,7 +187,7 @@ LayoutUnit TextAreaIntrinsicInlineSize(const HTMLTextAreaElement& textarea,
 LayoutUnit TextFieldIntrinsicInlineSize(const HTMLInputElement& input,
                                         const LayoutBox& box) {
   int factor;
-  const bool includes_decoration = input.SizeShouldIncludeDecoration(factor);
+  const bool includes_decoration = input.GetSizeWithDecoration(factor);
   if (factor <= 0)
     factor = 20;
 
@@ -422,28 +423,20 @@ void ApplyOverflowClip(OverflowClipAxes overflow_clip_axes,
 }
 
 int HypotheticalScrollbarThickness(const LayoutBox& box,
-                                   ScrollbarOrientation scrollbar_orientation,
-                                   bool should_include_overlay_thickness) {
-  box.CheckIsNotDestroyed();
-
+                                   ScrollbarOrientation scrollbar_orientation) {
   if (PaintLayerScrollableArea* scrollable_area = box.GetScrollableArea()) {
     return scrollable_area->HypotheticalScrollbarThickness(
-        scrollbar_orientation, should_include_overlay_thickness);
-  } else {
-    Page* page = box.GetFrame()->GetPage();
-    ScrollbarTheme& theme = page->GetScrollbarTheme();
-
-    if (theme.UsesOverlayScrollbars() && !should_include_overlay_thickness) {
-      return 0;
-    } else {
-      ChromeClient& chrome_client = page->GetChromeClient();
-      Document& document = box.GetDocument();
-      float scale_from_dip =
-          chrome_client.WindowToViewportScalar(document.GetFrame(), 1.0f);
-      return theme.ScrollbarThickness(scale_from_dip,
-                                      box.StyleRef().UsedScrollbarWidth());
-    }
+        scrollbar_orientation, /* should_include_overlay_thickness */ true);
   }
+  Page* page = box.GetFrame()->GetPage();
+  ScrollbarTheme& theme = page->GetScrollbarTheme();
+
+  ChromeClient& chrome_client = page->GetChromeClient();
+  Document& document = box.GetDocument();
+  float scale_from_dip =
+      chrome_client.WindowToViewportScalar(document.GetFrame(), 1.0f);
+  return theme.ScrollbarThickness(scale_from_dip,
+                                  box.StyleRef().UsedScrollbarWidth());
 }
 
 void RecalcFragmentScrollableOverflow(RecalcScrollableOverflowResult& result,
@@ -1571,8 +1564,8 @@ PhysicalBoxStrut LayoutBox::ComputeScrollbarsInternal(
 
   if (include_scrollbar_gutter == kIncludeScrollbarGutter &&
       HasScrollbarGutters(kVerticalScrollbar)) {
-    LayoutUnit gutter_size = LayoutUnit(HypotheticalScrollbarThickness(
-        *this, kVerticalScrollbar, /* include_overlay_thickness */ true));
+    LayoutUnit gutter_size =
+        LayoutUnit(HypotheticalScrollbarThickness(*this, kVerticalScrollbar));
     if (ShouldPlaceVerticalScrollbarOnLeft()) {
       scrollbars.left = gutter_size;
       if (StyleRef().IsScrollbarGutterBothEdges())
@@ -1594,9 +1587,8 @@ PhysicalBoxStrut LayoutBox::ComputeScrollbarsInternal(
 
   if (include_scrollbar_gutter == kIncludeScrollbarGutter &&
       HasScrollbarGutters(kHorizontalScrollbar)) {
-    LayoutUnit gutter_size = LayoutUnit(
-        HypotheticalScrollbarThickness(*this, kHorizontalScrollbar,
-                                       /* include_overlay_thickness */ true));
+    LayoutUnit gutter_size =
+        LayoutUnit(HypotheticalScrollbarThickness(*this, kHorizontalScrollbar));
     scrollbars.bottom = gutter_size;
     if (StyleRef().IsScrollbarGutterBothEdges())
       scrollbars.top = gutter_size;
@@ -1948,8 +1940,9 @@ bool LayoutBox::ApplyBoxClips(
   PhysicalRect clip_rect = ClippingRect(PhysicalOffset());
 
   transform_state.Flatten();
-  PhysicalRect rect(
-      gfx::ToEnclosingRect(transform_state.LastPlanarQuad().BoundingBox()));
+  PhysicalRect rect = PhysicalRect::EnclosingRect(
+      transform_state.LastPlanarQuad().BoundingBox());
+
   bool does_intersect;
   if (visual_rect_flags & kEdgeInclusive) {
     does_intersect = rect.InclusiveIntersect(clip_rect);
@@ -3000,12 +2993,14 @@ void LayoutBox::ClearSpannerPlaceholder() {
   rare_data_->spanner_placeholder_ = nullptr;
 }
 
-bool LayoutBox::IsValidColumnSpanner() const {
+bool LayoutBox::IsValidColumnSpanner(const ComputedStyle& style) const {
   NOT_DESTROYED();
   // Note that this function may be called in many circumstances, such as before
   // it is inserted into the tree, and even as part of calculating the
   // containing block. Be careful.
-  DCHECK_EQ(StyleRef().GetColumnSpan(), EColumnSpan::kAll);
+  if (style.GetColumnSpan() != EColumnSpan::kAll) {
+    return false;
+  }
   if (!RuntimeEnabledFeatures::FlowThreadLessEnabled()) {
     return SpannerPlaceholder();
   }
@@ -3016,8 +3011,8 @@ bool LayoutBox::IsValidColumnSpanner() const {
 
   // The spec says that column-span only applies to in-flow block-level
   // elements.
-  if (ShouldBeHandledAsInline() || ShouldBeHandledAsFloating() ||
-      ToPositionedState() == kIsOutOfFlowPositioned) {
+  if (ShouldBeHandledAsInline(style) || ShouldBeHandledAsFloating(style) ||
+      ToPositionedState(style.GetPosition()) == kIsOutOfFlowPositioned) {
     return false;
   }
 
@@ -3195,7 +3190,8 @@ LayoutUnit LayoutBox::ContainingBlockLogicalHeightForPositioned(
   return height_result;
 }
 
-PhysicalRect LayoutBox::LocalCaretRect(int caret_offset) const {
+PhysicalRect LayoutBox::LocalCaretRect(int caret_offset,
+                                       CaretShape caret_shape) const {
   NOT_DESTROYED();
   // VisiblePositions at offsets inside containers either a) refer to the
   // positions before/after those containers (tables and select elements) or
@@ -3203,7 +3199,9 @@ PhysicalRect LayoutBox::LocalCaretRect(int caret_offset) const {
   // They never refer to children.
   // FIXME: Paint the carets inside empty blocks differently than the carets
   // before/after elements.
-  LayoutUnit caret_width = GetFrameView()->CaretWidth();
+  // TODO(crbug.com/353713061): Add support for caret-shape: underscore and
+  // caret-shape: block cases.
+  LayoutUnit caret_width = GetFrameView()->BarCaretWidth();
   LogicalSize size(LogicalWidth(), LogicalHeight());
 
   LayoutUnit caret_block_size = size.block_size;
@@ -4365,6 +4363,11 @@ namespace {
 template <typename Function>
 void ForEachAnchorQueryOnContainer(const LayoutBox& box, Function func) {
   const LayoutObject* container = box.Container();
+  if (!container) {
+    // This is not supposed to be possible, but it is (crbug.com/424420492).
+    DCHECK(false);
+    return;
+  }
   if (container->IsLayoutBlock()) {
     for (const PhysicalBoxFragment& fragment :
          To<LayoutBlock>(container)->PhysicalFragments()) {
@@ -4627,15 +4630,14 @@ bool LayoutBox::IsReadingFlowContainer() const {
   return false;
 }
 
-const HeapVector<Member<Node>>& LayoutBox::ReadingFlowNodes() const {
+const GCedHeapVector<Member<Node>>& LayoutBox::ReadingFlowNodes() const {
   NOT_DESTROYED();
   if (const auto* nodes = GetPhysicalFragment(0)->ReadingFlowNodes()) {
     return *nodes;
   }
-  using HolderType = DisallowNewWrapper<HeapVector<Member<Node>>>;
-  DEFINE_STATIC_LOCAL(Persistent<HolderType>, empty_vector,
-                      (MakeGarbageCollected<HolderType>()));
-  return empty_vector->Value();
+  DEFINE_STATIC_LOCAL(Persistent<GCedHeapVector<Member<Node>>>, empty_vector,
+                      (MakeGarbageCollected<GCedHeapVector<Member<Node>>>()));
+  return *empty_vector.Get();
 }
 
 }  // namespace blink

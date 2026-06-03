@@ -282,7 +282,7 @@ public class FeedSurfaceMediator
     private static PrefService sPrefServiceForTest;
     private static final int SPAN_COUNT_SMALL_WIDTH = 1;
     private static final int SPAN_COUNT_LARGE_WIDTH = 2;
-    private static final int SMALL_WIDTH_DP = 600;
+    private static final int SMALL_WIDTH_DP = 700;
 
     private final FeedSurfaceCoordinator mCoordinator;
     private final Context mContext;
@@ -1031,8 +1031,9 @@ public class FeedSurfaceMediator
                 mTabToStreamMap.clear();
             }
         } else {
-            if (mCurrentStream != null) {
-                mCurrentStream.removeOnContentChangedListener(mStreamContentChangedListener);
+            if (mStreamHolder != null) {
+                mStreamHolder.removeOnContentChangedListener(mStreamContentChangedListener);
+                mStreamHolder = null;
             }
         }
         mStreamContentChangedListener = null;
@@ -1599,7 +1600,7 @@ public class FeedSurfaceMediator
         }
     }
 
-    private boolean isSuggestionsVisible() {
+    public boolean isSuggestionsVisible() {
         return getPrefService().getBoolean(Pref.ARTICLES_LIST_VISIBLE);
     }
 

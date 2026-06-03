@@ -26,6 +26,13 @@ chromium-metrics-reviews@google.com.
 
 <enums>
 
+<enum name="AndroidDownloadWarningBypassDialogEvent">
+  <int value="0" label="Dialog shown"/>
+  <int value="1" label="User validated download"/>
+  <int value="2" label="User tapped Learn More"/>
+  <int value="3" label="Dialog dismissed"/>
+</enum>
+
 <enum name="BooleanOpenFromDuplicates">
   <int value="0" label="Created New file"/>
   <int value="1" label="Opened existing duplicate"/>
@@ -406,6 +413,8 @@ chromium-metrics-reviews@google.com.
   <int value="9" label="Multiple downloads pending"/>
   <int value="10" label="Scheduled"/>
   <int value="11" label="Multiple downloads scheduled"/>
+  <int value="12" label="Dangerous"/>
+  <int value="13" label="Multiple downloads dangerous"/>
 </enum>
 
 <enum name="DownloadInputStreamReadErrorType">
@@ -714,6 +723,7 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Attached on job start"/>
   <int value="1" label="Attached after job start"/>
   <int value="2" label="Never attached before job complete"/>
+  <int value="3" label="Resumption job started"/>
 </enum>
 
 <enum name="OpenDownloadWithExternalAppsSource">

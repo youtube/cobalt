@@ -364,6 +364,10 @@ class ChromePrintContext : public PrintContext {
     GraphicsContext& context = builder.Context();
     context.SetPrintingMetafile(canvas->GetPrintingMetafile());
     context.SetPrinting(true);
+    if (frame_->GetDocument()->Printing()) {
+      context.SetPrintingInternalHeadersAndFooters(
+          frame_->GetPrintParams().printing_internal_headers_and_footers);
+    }
     context.BeginRecording();
     SpoolPage(context, page_index);
     canvas->drawPicture(context.EndRecording());
@@ -378,6 +382,8 @@ class ChromePrintContext : public PrintContext {
     GraphicsContext& context = builder.Context();
     context.SetPrintingMetafile(canvas->GetPrintingMetafile());
     context.SetPrinting(true);
+    context.SetPrintingInternalHeadersAndFooters(
+        frame_->GetPrintParams().printing_internal_headers_and_footers);
     context.BeginRecording();
 
     // Fill the whole background by white.
@@ -1242,6 +1248,10 @@ void WebLocalFrameImpl::DeprecatedStopLoading() {
   // FIXME: Figure out what we should really do here. It seems like a bug
   // that FrameLoader::stopLoading doesn't call stopAllLoaders.
   GetFrame()->Loader().StopAllLoaders(/*abort_client=*/true);
+}
+
+void WebLocalFrameImpl::RequestNetworkIdleCallback(base::OnceClosure callback) {
+  GetFrame()->RequestNetworkIdleCallback(std::move(callback));
 }
 
 void WebLocalFrameImpl::ReplaceSelection(const WebString& text) {
@@ -2673,6 +2683,10 @@ bool WebLocalFrameImpl::IsProvisional() const {
 }
 
 WebLocalFrameImpl* WebLocalFrameImpl::LocalRoot() {
+  return const_cast<WebLocalFrameImpl*>(std::as_const(*this).LocalRoot());
+}
+
+const WebLocalFrameImpl* WebLocalFrameImpl::LocalRoot() const {
   DCHECK(GetFrame());
   auto* result = FromFrame(GetFrame()->LocalFrameRoot());
   DCHECK(result);

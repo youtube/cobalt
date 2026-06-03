@@ -47,6 +47,7 @@
 #include "components/search_engines/template_url_service.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/preloading_data.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "net/base/load_flags.h"
@@ -188,6 +189,35 @@ bool IsSlowNetwork() {
     return true;
   }
   return false;
+}
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(DuplicateNavigationServingResult)
+enum class DuplicateNavigationServingResult : uint8_t {
+  kNotServedThenNotServed = 0,
+  kNotServedThenServed = 1,
+  kServedThenNotServed = 2,
+  kServedThenServed = 3,
+  kMaxValue = kServedThenServed
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/omnibox/enums.xml:DuplicateNavigationServingResult)
+DuplicateNavigationServingResult ConvertToDuplicateNavigationServingResult(
+    bool first_navigation_served_from_prefetch_cache,
+    bool second_navigation_served_from_prefetch_cache) {
+  if (first_navigation_served_from_prefetch_cache &&
+      second_navigation_served_from_prefetch_cache) {
+    return DuplicateNavigationServingResult::kServedThenServed;
+  }
+  if (first_navigation_served_from_prefetch_cache &&
+      !second_navigation_served_from_prefetch_cache) {
+    return DuplicateNavigationServingResult::kServedThenNotServed;
+  }
+  if (!first_navigation_served_from_prefetch_cache &&
+      second_navigation_served_from_prefetch_cache) {
+    return DuplicateNavigationServingResult::kNotServedThenServed;
+  }
+  return DuplicateNavigationServingResult::kNotServedThenNotServed;
 }
 
 }  // namespace
@@ -668,11 +698,6 @@ void SearchPrefetchService::OnResultChanged(content::WebContents* web_contents,
   // Do not perform preloading if there is no active tab.
   if (!web_contents)
     return;
-
-  // This preloads dictionaries for AutocompleteResult's `destination_url` which
-  // are not specific to search prefetch.
-  // TODO(crbug.com/349030549): Consider moving somewhere more suitable.
-  MaybePreloadDictionary(result);
 
   for (const auto& match : result) {
     // Return early if neither prefetch nor prerender are enabled for the match.
@@ -1231,44 +1256,6 @@ void SearchPrefetchService::SetLoaderDestructionCallbackForTesting(
           std::move(streaming_url_loader_destruction_callback));
 }
 
-void SearchPrefetchService::MaybePreloadDictionary(
-    const AutocompleteResult& result) {
-  if (!base::FeatureList::IsEnabled(kAutocompleteDictionaryPreload)) {
-    return;
-  }
-  std::vector<GURL> match_destination_urls;
-  match_destination_urls.reserve(result.size());
-  for (const AutocompleteMatch& match : result) {
-    if (match.destination_url.SchemeIsHTTPOrHTTPS()) {
-      match_destination_urls.emplace_back(match.destination_url);
-    }
-  }
-
-  if (match_destination_urls.empty()) {
-    return;
-  }
-
-  // Keep the old handle until `PreloadSharedDictionaryInfoForDocument()` call
-  // to avoid reloading dictionaries in the network service.
-  mojo::PendingRemote<network::mojom::PreloadedSharedDictionaryInfoHandle>
-      old_handle = std::move(preloaded_shared_dictionaries_handle_);
-
-  preloaded_shared_dictionaries_handle_.reset();
-  profile_->GetDefaultStoragePartition()
-      ->GetNetworkContext()
-      ->PreloadSharedDictionaryInfoForDocument(
-          match_destination_urls, preloaded_shared_dictionaries_handle_
-                                      .InitWithNewPipeAndPassReceiver());
-  preloaded_shared_dictionaries_expiry_timer_.Start(
-      FROM_HERE, kAutocompletePreloadedDictionaryTimeout.Get(),
-      base::BindOnce(&SearchPrefetchService::DeletePreloadedDictionaries,
-                     base::Unretained(this)));
-}
-
-void SearchPrefetchService::DeletePreloadedDictionaries() {
-  preloaded_shared_dictionaries_handle_.reset();
-}
-
 void SearchPrefetchService::RecordInterceptionMetrics(
     const std::u16string& search_terms,
     SearchPrefetchServingReason serving_status) {
@@ -1292,9 +1279,10 @@ void SearchPrefetchService::RecordInterceptionMetrics(
     case SearchPrefetchServingReason::kRequestInFlightNotReady:
       NOTREACHED();
   }
+  const bool is_served = serving_status == SearchPrefetchServingReason::kServed;
   auto iter = search_terms_cache_.Get(search_terms);
   if (iter != search_terms_cache_.end()) {
-    base::TimeDelta age = base::Time::Now() - iter->second;
+    base::TimeDelta age = base::Time::Now() - iter->second.last_navigation_time;
     base::UmaHistogramCustomTimes(
         "Omnibox.SearchPrefetch.DuplicateSearchTermsAge", age,
         base::Milliseconds(1), base::Hours(10), 100);
@@ -1307,9 +1295,16 @@ void SearchPrefetchService::RecordInterceptionMetrics(
       base::UmaHistogramCustomTimes(
           "Omnibox.SearchPrefetch.Within1sDuplicateSearchTermsAge", age,
           base::Milliseconds(1), base::Seconds(1), 20);
+      base::UmaHistogramEnumeration(
+          "Omnibox.SearchPrefetch.Within1sDuplicateSearchTermsRelationship",
+          ConvertToDuplicateNavigationServingResult(
+              iter->second.served_from_prefetch_cache, is_served));
     }
   }
-  search_terms_cache_.Put(search_terms, base::Time::Now());
+  RealNaivigationServingResult result = {
+      .served_from_prefetch_cache = is_served,
+      .last_navigation_time = base::Time::Now()};
+  search_terms_cache_.Put(search_terms, std::move(result));
   base::trace_event::EmitNamedTrigger("first-search-request");
 }
 
@@ -1324,7 +1319,7 @@ void SearchPrefetchService::
     base::UmaHistogramCustomTimes(
         "Omnibox.SearchPrefetch."
         "DuplicateSearchTermsAgeAheadOfNavigationalPrefetch",
-        base::Time::Now() - iter->second, base::Milliseconds(1),
+        base::Time::Now() - iter->second.last_navigation_time, base::Milliseconds(1),
         base::Minutes(2), 50);
   }
 }

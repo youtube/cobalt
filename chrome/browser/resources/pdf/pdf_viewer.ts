@@ -183,7 +183,9 @@ export class PdfViewerElement extends PdfViewerBaseElement {
       showErrorDialog: {type: Boolean},
       strings: {type: Object},
 
+      // <if expr="enable_pdf_ink2 or enable_ink">
       annotationMode_: {type: String},
+      // </if>
       attachments_: {type: Array},
       bookmarks_: {type: Array},
       canSerializeDocument_: {type: Boolean},
@@ -199,7 +201,9 @@ export class PdfViewerElement extends PdfViewerBaseElement {
       fileName_: {type: String},
       hadPassword_: {type: Boolean},
       hasEdits_: {type: Boolean},
+      // <if expr="enable_ink">
       hasEnteredAnnotationMode_: {type: Boolean},
+      // </if>
 
       // <if expr="enable_pdf_ink2">
       hasCommittedInk2Edits_: {type: Boolean},
@@ -239,7 +243,9 @@ export class PdfViewerElement extends PdfViewerBaseElement {
   }
 
   beepCount: number = 0;
+  // <if expr="enable_pdf_ink2 or enable_ink">
   protected accessor annotationMode_: AnnotationMode = AnnotationMode.OFF;
+  // </if>
   protected accessor attachments_: Attachment[] = [];
   protected accessor bookmarks_: Bookmark[] = [];
   private accessor canSerializeDocument_: boolean = false;
@@ -265,7 +271,9 @@ export class PdfViewerElement extends PdfViewerBaseElement {
   protected accessor fileName_: string = '';
   private accessor hadPassword_: boolean = false;
   protected accessor hasEdits_: boolean = false;
+  // <if expr="enable_ink">
   protected accessor hasEnteredAnnotationMode_: boolean = false;
+  // </if>
   // <if expr="enable_pdf_ink2">
   protected accessor hasCommittedInk2Edits_: boolean = false;
   private hasSavedEdits_: boolean = false;
@@ -468,7 +476,7 @@ export class PdfViewerElement extends PdfViewerBaseElement {
       case 'Enter':
         if ((e as ExtendedKeyEvent).fromPlugin &&
             this.isInTextAnnotationMode_()) {
-          Ink2Manager.getInstance().initializeTextAnnotation();
+          this.maybeCreateTextAnnotation_();
         }
         // </if>
     }
@@ -506,16 +514,29 @@ export class PdfViewerElement extends PdfViewerBaseElement {
         return;
       // <if expr="enable_pdf_ink2">
       case 'z':
+        // <if expr="is_macosx">
+        if (e.metaKey && !e.ctrlKey && !e.altKey) {
+          if (e.shiftKey) {
+            this.$.toolbar.redo();
+          } else {
+            this.$.toolbar.undo();
+          }
+        }
+        // </if>  is_macosx
+        // <if expr="not is_macosx">
         if (hasCtrlModifierOnly(e)) {
           this.$.toolbar.undo();
         }
+        // </if>  not is_macosx
         return;
+      // <if expr="not is_macosx">
       case 'y':
         if (hasCtrlModifierOnly(e)) {
           this.$.toolbar.redo();
         }
         return;
-      // </if>
+      // </if>  not is_macosx
+      // </if>  enable_pdf_ink2
     }
   }
 
@@ -565,6 +586,16 @@ export class PdfViewerElement extends PdfViewerBaseElement {
   // </if>
 
   // <if expr="enable_pdf_ink2">
+  private maybeCreateTextAnnotation_(location?: Point) {
+    const created =
+        Ink2Manager.getInstance().initializeTextAnnotation(location);
+    if (!created && this.textboxState_ !== TextBoxState.INACTIVE) {
+      const textbox = this.shadowRoot.querySelector('ink-text-box');
+      assert(textbox);
+      textbox.commitTextAnnotation();
+    }
+  }
+
   private recordEnterExitAnnotationModeMetrics_(
       newAnnotationMode: AnnotationMode) {
     // Record exit metrics if annotation mode is being changed from one of
@@ -1015,11 +1046,6 @@ export class PdfViewerElement extends PdfViewerBaseElement {
             data as unknown as {metadataData: DocumentMetadata};
         this.setDocumentMetadata_(metadataData.metadataData);
         return;
-      // <if expr="enable_pdf_ink2">
-      case 'contentFocused':
-        this.handleContentFocused_();
-        return;
-      // </if>
       case 'navigate':
         const navigateData = data as unknown as NavigateMessageData;
         this.handleNavigate_(navigateData.url, navigateData.disposition);
@@ -1077,7 +1103,14 @@ export class PdfViewerElement extends PdfViewerBaseElement {
           return;
         }
         const location = data as unknown as Point;
-        Ink2Manager.getInstance().initializeTextAnnotation(location);
+        // Clicks on a scrollbar should allow the plugin to take focus.
+        if (this.viewport.isPointOnScrollbar(location)) {
+          const textbox = this.shadowRoot.querySelector('ink-text-box');
+          assert(textbox);
+          textbox.blur();
+        } else {
+          this.maybeCreateTextAnnotation_(data as unknown as Point);
+        }
         return;
         // </if>
     }
@@ -1156,12 +1189,6 @@ export class PdfViewerElement extends PdfViewerBaseElement {
     }
     this.pluginController_.getEventTarget().dispatchEvent(new CustomEvent(
         PluginControllerEventType.FINISH_INK_STROKE, {detail: modified}));
-  }
-
-  /** Handles a 'contentFocused' event in the PDF content. */
-  private handleContentFocused_() {
-    this.pluginController_.getEventTarget().dispatchEvent(
-        new CustomEvent(PluginControllerEventType.CONTENT_FOCUSED));
   }
   // </if>
 
@@ -1274,7 +1301,10 @@ export class PdfViewerElement extends PdfViewerBaseElement {
       return;
     }
 
-    let shouldSaveWithAnnotation = this.hasEnteredAnnotationMode_;
+    let shouldSaveWithAnnotation = false;
+    // <if expr="enable_ink">
+    shouldSaveWithAnnotation = this.hasEnteredAnnotationMode_;
+    // </if>
     // <if expr="enable_pdf_ink2">
     if (this.pdfInk2Enabled_) {
       shouldSaveWithAnnotation = this.hasCommittedInk2Edits_ ||

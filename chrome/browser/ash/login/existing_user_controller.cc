@@ -290,7 +290,7 @@ int CountRegularUsers(const user_manager::UserList& users) {
   for (user_manager::User* user : users) {
     // Skip kiosk apps for login screen user list. Kiosk apps as pods (aka new
     // kiosk UI) is currently disabled and it gets the apps directly from
-    // KioskChromeAppManager, WebKioskAppManager.
+    // KioskChromeAppManager, KioskWebAppManager.
     if (user->IsKioskType()) {
       continue;
     }
@@ -1608,14 +1608,14 @@ void ExistingUserController::DoLogin(const UserContext& user_context,
     return;
   }
 
-  if (user_context.GetUserType() == user_manager::UserType::kKioskApp) {
+  if (user_context.GetUserType() == user_manager::UserType::kKioskChromeApp) {
     LoginAsKioskApp(
         KioskAppId::ForChromeApp(user_context.GetAccountId().GetUserEmail(),
                                  user_context.GetAccountId()));
     return;
   }
 
-  if (user_context.GetUserType() == user_manager::UserType::kWebKioskApp) {
+  if (user_context.GetUserType() == user_manager::UserType::kKioskWebApp) {
     LoginAsKioskApp(KioskAppId::ForWebApp(user_context.GetAccountId()));
     return;
   }

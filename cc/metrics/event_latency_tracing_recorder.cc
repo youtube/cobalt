@@ -72,8 +72,6 @@ const char* GetVizBreakdownToPresentationName(
     case CompositorFrameReporter::VizBreakdown::kLatchToSwapEnd:
       return "LatchToPresentation";
     default:
-      base::UmaHistogramEnumeration(
-          "Compositing.VizBreakdownToPresentationUnexpected", breakdown);
       return "Unknown";
   }
 }
@@ -411,13 +409,6 @@ void EventLatencyTracingRecorder::RecordEventLatencyTraceEvent(
     TRACE_EVENT_END(kTracingCategory, trace_track, termination_time);
   }
   TRACE_EVENT_END(kTracingCategory, trace_track, termination_time);
-}
-
-// static
-bool EventLatencyTracingRecorder::IsEventLatencyTracingEnabled() {
-  return IsTracingEnabled() ||
-         !base::FeatureList::IsEnabled(
-             ::features::kMetricsTracingCalculationReduction);
 }
 
 }  // namespace cc

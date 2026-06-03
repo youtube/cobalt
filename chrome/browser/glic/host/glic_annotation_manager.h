@@ -8,6 +8,7 @@
 #include <ostream>
 
 #include "base/callback_list.h"
+#include "base/memory/raw_ptr.h"
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
 #include "chrome/browser/glic/host/glic.mojom-shared.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
@@ -120,7 +121,7 @@ class GlicAnnotationManager {
                            Browser* attached_browser) override;
 
     // GlicFocusedTabManager::FocusedTabChangedCallback
-    void OnFocusedTabChanged(FocusedTabData focused_tab_data);
+    void OnFocusedTabChanged(const FocusedTabData& focused_tab_data);
 
     // `pref_change_registrar_` callback.
     void OnTabContextPermissionChanged(const std::string& pref_name);

@@ -125,8 +125,8 @@ public class ShareSheetUsageRankingHelper {
         availableResolveInfos.addAll(
                 ShareHelper.getCompatibleAppsForSharingFiles(params.getFileContentType()));
 
-        List<String> availableActivities = new ArrayList<String>();
-        Map<String, ResolveInfo> resolveInfos = new HashMap<String, ResolveInfo>();
+        List<String> availableActivities = new ArrayList<>();
+        Map<String, ResolveInfo> resolveInfos = new HashMap<>();
 
         // The system can return ResolveInfos which refer to activities exported
         // by Chrome - especially the Print activity. We don't want to offer
@@ -194,7 +194,7 @@ public class ShareSheetUsageRankingHelper {
     // package.
     private List<ResolveInfo> filterOutOwnResolveInfos(List<ResolveInfo> infos) {
         String currentPackageName = ContextUtils.getApplicationContext().getPackageName();
-        List<ResolveInfo> remaining = new ArrayList<ResolveInfo>();
+        List<ResolveInfo> remaining = new ArrayList<>();
         for (ResolveInfo info : infos) {
             if (!info.activityInfo.packageName.equals(currentPackageName)) {
                 remaining.add(info);
@@ -206,7 +206,7 @@ public class ShareSheetUsageRankingHelper {
     // Returns a new list of ResolveInfos with blocklisted packages removed.
     @VisibleForTesting
     static List<ResolveInfo> filterOutBlocklistedResolveInfos(List<ResolveInfo> infos) {
-        List<ResolveInfo> remaining = new ArrayList<ResolveInfo>();
+        List<ResolveInfo> remaining = new ArrayList<>();
         for (ResolveInfo info : infos) {
             if (!PACKAGE_BLOCK_LIST.contains(info.activityInfo.packageName)) {
                 remaining.add(info);
@@ -251,7 +251,7 @@ public class ShareSheetUsageRankingHelper {
             List<String> targets) {
         // Build PropertyModels for all the ResolveInfos that correspond to
         // actual targets, in the order that we're going to show them.
-        List<PropertyModel> models = new ArrayList<PropertyModel>();
+        List<PropertyModel> models = new ArrayList<>();
         for (String target : targets) {
             if (target.equals(MORE_TARGET_NAME)) {
                 models.add(createMorePropertyModel(activity, params, saveLastUsed));

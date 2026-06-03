@@ -175,6 +175,7 @@
 <translation id="5259423875997548710">በChromium ውስጥ የሚታዩ ነገሮችን ይፈልጉ።</translation>
 <translation id="5308226104666789935">Chromium ዝማኔዎች ካሉ መፈተሽ አልቻለም</translation>
 <translation id="5311557153294205270">በChromium ውስጥ የገቡትን ዩአርኤሎች ወደ ዕልባቶችዎ ያክላል።</translation>
+<translation id="5383251701169024761">በሌሎች መተግበሪያዎች ውስጥ የተቀመጡ የይለፍ ቃላትዎን በቀላሉ ለማግኘት Chromium ለራስ-ሙላን ይምረጡ።</translation>
 <translation id="538767207339317086">የChromium በመለያ መግባትን ይፍቀዱ</translation>
 <translation id="5389058611415066188">በChromium ደህንነትዎን ይጠብቁ</translation>
 <translation id="5415273218238091735">የChromium ጠቃሚ ምክር</translation>
@@ -275,7 +276,6 @@
 <translation id="7763454117143368771">ከአደገኛ ጣቢያዎች እንዲጠበቁ እና የይለፍ ቃላትዎን ደህንነት ለመጠበቅ Chromiumን እንደ ነባሪ አሳሽዎ ይጠቀሙ</translation>
 <translation id="7784950022329154821">Chromium ሲዘጉ ማንነት የማያሳውቁ ትሮችን ይቆልፉ</translation>
 <translation id="78025249032851484">የእርስዎ Chromium ጊዜው ያለፈበት ነው።</translation>
-<translation id="7811371919871579588">በሌሎች መተግበሪያዎች ውስጥ የተቀመጡ የይለፍ ቃላትዎን በቀላሉ ለማግኘት Chromium ለራስ-ሙላን ይምረጡ</translation>
 <translation id="7859018312476869945">የአድራሻ አሞሌ ወይም የፍለጋ ሳጥን ውስጥ ሲተይቡ የተሻሉ ጥቆማዎችን ለማግኘት Chromium የሚተይቡትን ለእርስዎ ነባሪ የፍለጋ ፕሮግራም ይልካል። ይህ ማንነት የማያሳውቅ ውስጥ ጠፍቷል።</translation>
 <translation id="7890287942691234100">የChromium ቃኚውን መጠቀም ይጀምሩ</translation>
 <translation id="7905064834449738336">የይለፍ ቃል ሲጠቀሙ Chromium በመስመር ላይ ታትሞ ከነበረ ያስጠነቅቅዎታል። ይህን በሚያደርግበት ጊዜ የእርስዎ የይለፍ ቃላት እና የተጠቃሚ ስሞች Googleን ጨምሮ በሌላ ማንም ወገን እንዳይነበቡ ይመሰጠራሉ።</translation>
@@ -330,6 +330,7 @@
 <translation id="9050790730841755540">በሌሎች መተግበሪያዎች ውስጥ ያሉ አገናኞች ላይ መታ በሚያደርጉበት ማንኛውም ጊዜ Chromiumን ይጠቀሙ።</translation>
 <translation id="9059693977935746710">ይህን የይለፍ ቃል ማስታወስ አያስፈልገዎትም። ለ<ph name="EMAIL" /> በይለፍ ቃል አስተዳዳሪ ላይ ይቀመጣል</translation>
 <translation id="9089354809943900324">Chromium ጊዜው አልፎበታል</translation>
+<translation id="9105645282262300612">የChromium ጠቃሚ ምክር፦ የሚመለከቱትን ይፈልጉ</translation>
 <translation id="9152995302810511799">የChromium ጠቃሚ ምክር፦ የChromiumን ጠንካራ ደህንነት ያግኙ</translation>
 <translation id="9177628952266852500"><ph name="EMAIL" />። Chromium ይተዳደራል።</translation>
 <translation id="921174536258924340">Chromium ሁሉንም የይለፍ ቃሎች ማረጋገጥ አልቻለም። ነገ እንደገና ይሞክሩ ወይም <ph name="BEGIN_LINK" />የGoogle መለያዎን ይለፍ ቃላት ይፈትሹ።<ph name="END_LINK" /></translation>

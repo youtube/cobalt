@@ -27,29 +27,30 @@ namespace controlled_frame {
 
 namespace {
 
-// TODO(crbug.com/383348612): Re-enable webrequest_event_handlers_part_1 once
-// they no longer timeout on Windows ASN bots.
-const auto kTestFiles =
-    testing::Values("add_content_scripts.window.js",
-                    "camera.window.js",
-                    "client_hints_user_agent.window.js",
-                    "frame_event_handlers_part_1.window.js",
-                    "frame_event_handlers_part_2.window.js",
-                    "geolocation.window.js",
-                    "new_window.window.js",
-                    "no_callback.window.js",
-                    "scheme.window.js",
-                    "user_agent_override.window.js",
+// TODO(crbug.com/423697478): webrequest_auth times out on win-asan bots
+const auto kTestFiles = testing::Values("add_content_scripts.window.js",
+                                        "camera.window.js",
+                                        "client_hints_user_agent.window.js",
+                                        "frame_event_handlers_part_1.window.js",
+                                        "frame_event_handlers_part_2.window.js",
+                                        "geolocation.window.js",
+                                        "navigation.window.js",
+                                        "new_window.window.js",
+                                        "no_callback.window.js",
+                                        "scheme.window.js",
+                                        "user_agent_override.window.js",
 #if !(BUILDFLAG(IS_WIN) && defined(ADDRESS_SANITIZER))
-                    "webrequest_event_handlers_part_1.window.js",
+                                        "webrequest_auth.window.js",
 #endif
-                    "webrequest_event_handlers_part_2.window.js");
+                                        "webrequest_core.window.js",
+                                        "webrequest_modify.window.js",
+                                        "webrequest_read.window.js");
 
 constexpr char kTestDirectory[] = "chrome/test/data/controlled_frame";
 constexpr char kTestHarnessPath[] =
     "third_party/blink/web_tests/external/wpt/resources/testharness.js";
 constexpr char kTestDriverPath[] =
-    "third_party/blink/web_tests/external/wpt/resources/testdriver.js";
+    "third_party/wpt_tools/wpt/resources/testdriver.js";
 
 constexpr char kHtmlWrapperSrc[] = R"(
   <!doctype html>

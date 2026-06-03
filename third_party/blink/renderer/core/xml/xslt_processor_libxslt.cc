@@ -90,8 +90,8 @@ void XSLTProcessor::ParseErrorFunc(void* user_data, const xmlError* error) {
 
   console->AddMessage(MakeGarbageCollected<ConsoleMessage>(
       mojom::ConsoleMessageSource::kXml, level, error->message,
-      std::make_unique<SourceLocation>(error->file, String(), error->line, 0,
-                                       nullptr)));
+      MakeGarbageCollected<SourceLocation>(error->file, String(), error->line,
+                                           0, nullptr)));
 }
 
 // FIXME: There seems to be no way to control the ctxt pointer for loading here,
@@ -193,10 +193,10 @@ static int WriteToStringBuilder(void* context, const char* buffer, int len) {
       UNSAFE_BUFFERS(base::span(buffer, base::checked_cast<size_t>(len)));
 
   StringBuffer<UChar> string_buffer(len);
-  WTF::unicode::ConversionResult result = WTF::unicode::ConvertUTF8ToUTF16(
+  unicode::ConversionResult result = unicode::ConvertUtf8ToUtf16(
       base::as_bytes(source_buffer), string_buffer.Span());
-  CHECK(result.status == WTF::unicode::kConversionOK ||
-        result.status == WTF::unicode::kSourceExhausted);
+  CHECK(result.status == unicode::kConversionOK ||
+        result.status == unicode::kSourceExhausted);
 
   StringBuilder& result_output = *static_cast<StringBuilder*>(context);
   result_output.Append(result.converted);

@@ -294,7 +294,7 @@ targets.legacy_matrix_compound_suite(
         "chromeos_chrome_all_tast_tests": targets.legacy_matrix_config(
             mixins = [
                 # jacuzzi is slow. So that we use more number of shards.
-                "skylab-shards-50",
+                "skylab-shards-45",
             ],
             variants = [
                 "CROS_RELEASE_LKGM",
@@ -579,6 +579,37 @@ targets.legacy_matrix_compound_suite(
                 "AMD_RADEON_RX_5500_XT",
                 "INTEL_UHD_630_OR_770",
                 "NVIDIA_GEFORCE_GTX_1660",
+            ],
+        ),
+    },
+)
+
+targets.legacy_matrix_compound_suite(
+    name = "chromeos_tfc_tests",
+    basic_suites = {
+        "chromeos_chrome_all_tast_tests_tfc": targets.legacy_matrix_config(
+            mixins = [
+                "skylab-50-tests-per-shard",
+            ],
+            variants = [
+                "CROS_RELEASE_LKGM",
+            ],
+        ),
+        "chromeos_chrome_criticalstaging_tast_tests_tfc": targets.legacy_matrix_config(
+            mixins = [
+                "skylab-50-tests-per-shard",
+            ],
+            variants = [
+                "CROS_RELEASE_LKGM",
+            ],
+        ),
+        "chromeos_chrome_disabled_tast_tests_tfc": targets.legacy_matrix_config(
+            mixins = [
+                # Setting smaller max_in_shard to offset tast level retries.
+                "skylab-20-tests-per-shard",
+            ],
+            variants = [
+                "CROS_RELEASE_LKGM",
             ],
         ),
     },

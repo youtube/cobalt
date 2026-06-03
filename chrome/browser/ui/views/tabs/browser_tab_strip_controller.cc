@@ -18,6 +18,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/user_metrics.h"
+#include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "chrome/browser/autocomplete/autocomplete_classifier_factory.h"
@@ -793,8 +794,8 @@ BrowserWindowInterface* BrowserTabStripController::GetBrowserWindowInterface() {
   return browser_view_->browser();
 }
 
-const Browser* BrowserTabStripController::GetBrowser() const {
-  return browser();
+Browser* BrowserTabStripController::GetBrowser() {
+  return browser_view_->browser();
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -1033,6 +1034,7 @@ void BrowserTabStripController::OnSplitTabChanged(
         std::back_inserter(split_indices),
         [](const std::pair<tabs::TabInterface*, int>& p) { return p.second; });
     tabstrip_->OnSplitContentsChanged(split_indices);
+    tabstrip_->StopAnimating(true);
   }
 }
 

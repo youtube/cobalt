@@ -281,11 +281,11 @@ TEST_F(DiagnosticsLogControllerTest,
   DiagnosticsLogController::Get()->ResetAndInitializeLogWriters();
   EXPECT_EQ(expected_path_not_regular_user, log_base_path());
 
-  SimulateKioskMode(user_manager::UserType::kKioskApp);
+  SimulateKioskMode(user_manager::UserType::kKioskChromeApp);
   DiagnosticsLogController::Get()->ResetAndInitializeLogWriters();
   EXPECT_EQ(expected_path_not_regular_user, log_base_path());
 
-  SimulateKioskMode(user_manager::UserType::kWebKioskApp);
+  SimulateKioskMode(user_manager::UserType::kKioskWebApp);
   DiagnosticsLogController::Get()->ResetAndInitializeLogWriters();
   EXPECT_EQ(expected_path_not_regular_user, log_base_path());
 }
@@ -326,10 +326,10 @@ TEST_F(DiagnosticsLogControllerTest,
   SimulateGuestLogin();
   EXPECT_EQ(expected_path_not_regular_user, log_base_path());
 
-  SimulateKioskMode(user_manager::UserType::kKioskApp);
+  SimulateKioskMode(user_manager::UserType::kKioskChromeApp);
   EXPECT_EQ(expected_path_not_regular_user, log_base_path());
 
-  SimulateKioskMode(user_manager::UserType::kWebKioskApp);
+  SimulateKioskMode(user_manager::UserType::kKioskWebApp);
   EXPECT_EQ(expected_path_not_regular_user, log_base_path());
 
   SimulateUserLogin({kTestUserEmail});

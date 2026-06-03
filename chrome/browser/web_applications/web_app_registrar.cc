@@ -330,10 +330,11 @@ void WebAppRegistrar::RemoveObserver(WebAppRegistrarObserver* observer) {
   observers_.RemoveObserver(observer);
 }
 
-void WebAppRegistrar::NotifyWebAppProtocolSettingsChanged() {
+void WebAppRegistrar::NotifyWebAppProtocolSettingsChanged(
+    const webapps::AppId& app_id) {
   DVLOG(1) << "NotifyWebAppProtocolSettingsChanged";
   for (WebAppRegistrarObserver& observer : observers_) {
-    observer.OnWebAppProtocolSettingsChanged();
+    observer.OnWebAppProtocolSettingsChanged(app_id);
   }
 }
 
@@ -974,6 +975,12 @@ bool WebAppRegistrar::AppMatches(const webapps::AppId& app_id,
 
   if (filter.installed_in_os_) {
     return install_state == proto::INSTALLED_WITH_OS_INTEGRATION;
+  }
+
+  if (filter.launchable_from_install_api_) {
+    const WebApp* app = GetAppById(app_id);
+    return (app && app->WasInstalledByUser()) ||
+           GetAppEffectiveDisplayMode(app_id) != DisplayMode::kBrowser;
   }
 
   return false;
@@ -1659,7 +1666,7 @@ bool WebAppRegistrar::IsAppPolicyDefinedHandlerForFileExtension(
   }
 
   std::optional<std::vector<std::string>> app_policy_ids =
-      web_app::GetPolicyIds(profile(), *web_app);
+      WebAppPolicyManager::GetPolicyIds(profile(), *web_app);
 
   if (!app_policy_ids->empty()) {
     return base::Contains(app_policy_ids.value(), *file_extension_policy_id);
@@ -1680,7 +1687,7 @@ bool WebAppRegistrar::IsAppSetAsPolicyDefinedFileHandlerForAnyFileExtension(
   }
 
   std::optional<std::vector<std::string>> app_policy_ids =
-      web_app::GetPolicyIds(profile(), *web_app);
+      WebAppPolicyManager::GetPolicyIds(profile(), *web_app);
 
   if (!app_policy_ids->empty()) {
     return std::ranges::any_of(default_handlers, [&](const auto& handler) {

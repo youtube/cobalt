@@ -19,6 +19,7 @@
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/to_string.h"
 #include "base/strings/utf_string_conversions.h"
@@ -558,7 +559,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionWebRequestApiTest,
   {
     ExtensionTestMessageListener listener1("iframe1 ready");
     ExtensionTestMessageListener listener2("iframe2 ready");
-    ASSERT_TRUE(NavigateToURL(extension->GetResourceURL("parent.html")));
+    ASSERT_TRUE(NavigateToURL(extension->ResolveExtensionURL("parent.html")));
     ASSERT_TRUE(listener1.WaitUntilSatisfied());
     ASSERT_TRUE(listener2.WaitUntilSatisfied());
   }
@@ -658,6 +659,14 @@ class ExtensionWebRequestApiTestWithContextType
       : ExtensionWebRequestApiTest(GetParam().first) {
     std::vector<base::test::FeatureRef> enabled_features;
     std::vector<base::test::FeatureRef> disabled_features;
+    // TODO(crbug.com/395895368): the right fix is to set
+    // network::switches::kIpAddressSpaceOverrides command line override, but
+    // this is complicated by the fact that the different tests start the
+    // embedded test server in different ways in the tests themselves, whereas
+    // this command line switch needs to be set after the embedded test server
+    // starts to obtain the correct port. Refactor tests to ensure the ones that
+    // need the command line switch override are within a specific test class.
+    disabled_features.push_back(network::features::kLocalNetworkAccessChecks);
     if (IsBackgroundResourceFetchEnabled()) {
       enabled_features.push_back(blink::features::kBackgroundResourceFetch);
     } else {
@@ -1640,7 +1649,7 @@ IN_PROC_BROWSER_TEST_P(ExtensionWebRequestApiTestWithContextType,
   ExtensionRegistry* registry = ExtensionRegistry::Get(browser()->profile());
   const Extension* extension =
       registry->enabled_extensions().GetByID(last_loaded_extension_id());
-  GURL url = extension->GetResourceURL("newTab/a.html");
+  GURL url = extension->ResolveExtensionURL("newTab/a.html");
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
 
@@ -5753,7 +5762,9 @@ IN_PROC_BROWSER_TEST_P(RedirectInfoWebRequestApiTest,
           net::IsolationInfo::Create(
               net::IsolationInfo::RequestType::kSubFrame, top_level_origin,
               redirected_origin,
-              net::SiteForCookies::FromOrigin(top_level_origin))));
+              net::SiteForCookies::FromOrigin(top_level_origin),
+              /*nonce=*/std::nullopt, net::NetworkIsolationPartition::kGeneral,
+              net::IsolationInfo::FrameAncestorRelation::kSameOrigin)));
 }
 
 // Regression test for crbug.com/1510422 to validate that redirection to an
@@ -6620,7 +6631,7 @@ IN_PROC_BROWSER_TEST_F(ManifestV3WebRequestApiTest,
   ASSERT_TRUE(extension);
 
   // Load the page with the extension listeners.
-  ASSERT_TRUE(NavigateToURL(extension->GetResourceURL("page.html")));
+  ASSERT_TRUE(NavigateToURL(extension->ResolveExtensionURL("page.html")));
   content::RenderFrameHost* page_host =
       GetActiveWebContents()->GetPrimaryMainFrame();
   ASSERT_TRUE(page_host);
@@ -7033,7 +7044,7 @@ IN_PROC_BROWSER_TEST_F(ManifestV3WebRequestApiTest,
   ASSERT_TRUE(extension);
 
   // Load the page with the extension listeners.
-  ASSERT_TRUE(NavigateToURL(extension->GetResourceURL("page.html")));
+  ASSERT_TRUE(NavigateToURL(extension->ResolveExtensionURL("page.html")));
   content::RenderFrameHost* page_host =
       GetActiveWebContents()->GetPrimaryMainFrame();
   ASSERT_TRUE(page_host);
@@ -7130,7 +7141,7 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(extension);
 
   // Load the page with the extension listeners.
-  ASSERT_TRUE(NavigateToURL(extension->GetResourceURL("page.html")));
+  ASSERT_TRUE(NavigateToURL(extension->ResolveExtensionURL("page.html")));
   content::RenderFrameHost* page_host =
       GetActiveWebContents()->GetPrimaryMainFrame();
   ASSERT_TRUE(page_host);

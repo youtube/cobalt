@@ -20,8 +20,8 @@ import java.util.Set;
 public abstract class Element<ProductT extends @Nullable Object> implements Supplier<ProductT> {
     private final String mId;
     protected ConditionalState mOwner;
-    private @Nullable ConditionWithResult<ProductT> mEnterCondition;
-    private @Nullable Condition mExitCondition;
+    protected @Nullable ConditionWithResult<ProductT> mEnterCondition;
+    protected @Nullable Condition mExitCondition;
 
     /**
      * @param id A String ID used to match elements in origin and destination states. This avoids
@@ -63,6 +63,14 @@ public abstract class Element<ProductT extends @Nullable Object> implements Supp
 
         mEnterCondition = newEnterCondition;
         mEnterCondition.bindToState(mOwner);
+    }
+
+    /** Replace the exit Condition. */
+    protected void replaceExitCondition(Condition newExitCondition) {
+        assert mOwner != null : "Must be called after bind()";
+
+        mExitCondition = newExitCondition;
+        mExitCondition.bindToState(mOwner);
     }
 
     // Supplier implementation
@@ -136,5 +144,10 @@ public abstract class Element<ProductT extends @Nullable Object> implements Supp
     @Override
     public String toString() {
         return getId();
+    }
+
+    /** Returns the ConditionalState where this Element was declared. */
+    @Nullable ConditionalState getOwner() {
+        return mOwner;
     }
 }

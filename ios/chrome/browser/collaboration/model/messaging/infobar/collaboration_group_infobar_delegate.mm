@@ -146,6 +146,59 @@ bool CollaborationGroupInfoBarDelegate::Create(
   return !!infobar_manager->AddInfoBar(std::move(infobar));
 }
 
+void CollaborationGroupInfoBarDelegate::ClearCollaborationGroupInfobars(
+    ProfileIOS* profile,
+    const std::set<base::Uuid>& message_ids) {
+  // Only check the first available regular browser.
+  BrowserList* browser_list = BrowserListFactory::GetForProfile(profile);
+  Browser* browser = GetBrowserFromInstantMessage(
+      collaboration::messaging::InstantMessage(), browser_list);
+  if (!browser) {
+    return;
+  }
+
+  web::WebState* active_web_state =
+      browser->GetWebStateList()->GetActiveWebState();
+  if (!active_web_state) {
+    return;
+  }
+
+  infobars::InfoBarManager* infobar_manager =
+      InfoBarManagerImpl::FromWebState(active_web_state);
+
+  // Iterate in reverse. This prevents issues when removing infobars.
+  const auto& infobars = infobar_manager->infobars();
+  for (int i = static_cast<int>(infobars.size()) - 1; i >= 0; --i) {
+    infobars::InfoBar* infobar = infobars[i];
+
+    InfoBarIOS* infobar_ios = static_cast<InfoBarIOS*>(infobar);
+    if (infobar_ios->infobar_type() !=
+        InfobarType::kInfobarTypeCollaborationGroup) {
+      continue;
+    }
+
+    CollaborationGroupInfoBarDelegate* delegate =
+        static_cast<CollaborationGroupInfoBarDelegate*>(
+            infobar_ios->delegate());
+    if (!delegate) {
+      continue;
+    }
+
+    // Retrieve the instant message identifier for the infobar.
+    std::optional<base::Uuid> opt_message_id =
+        delegate->GetInstantMessageIdentifier();
+    if (!opt_message_id) {
+      continue;
+    }
+
+    // Remove the infobar if its message ID is in the set of IDs to clear.
+    base::Uuid message_id = opt_message_id.value();
+    if (message_ids.count(message_id)) {
+      infobar_manager->RemoveInfoBar(infobar);
+    }
+  }
+}
+
 CollaborationGroupInfoBarDelegate::CollaborationGroupInfoBarDelegate(
     ProfileIOS* profile,
     collaboration::messaging::InstantMessage instant_message)
@@ -154,6 +207,21 @@ CollaborationGroupInfoBarDelegate::CollaborationGroupInfoBarDelegate(
 }
 
 CollaborationGroupInfoBarDelegate::~CollaborationGroupInfoBarDelegate() {}
+
+std::optional<base::Uuid>
+CollaborationGroupInfoBarDelegate::GetInstantMessageIdentifier() const {
+  const auto& attributions = instant_message_.attributions;
+  if (attributions.empty()) {
+    return std::nullopt;
+  }
+
+  const auto& message_id = attributions.at(0).id;
+  if (!message_id.has_value() || !message_id.value().is_valid()) {
+    return std::nullopt;
+  }
+
+  return message_id;
+}
 
 infobars::InfoBarDelegate::InfoBarIdentifier
 CollaborationGroupInfoBarDelegate::GetIdentifier() const {
@@ -222,6 +290,17 @@ bool CollaborationGroupInfoBarDelegate::Accept() {
 
 void CollaborationGroupInfoBarDelegate::InfoBarDismissed() {
   ConfirmInfoBarDelegate::InfoBarDismissed();
+}
+
+bool CollaborationGroupInfoBarDelegate::EqualsDelegate(
+    infobars::InfoBarDelegate* delegate) const {
+  if (delegate->GetIdentifier() != GetIdentifier()) {
+    return false;
+  }
+  CollaborationGroupInfoBarDelegate* collaboration_delegate =
+      static_cast<CollaborationGroupInfoBarDelegate*>(delegate);
+  return collaboration_delegate->GetInstantMessageIdentifier() ==
+         GetInstantMessageIdentifier();
 }
 
 id<ShareKitAvatarPrimitive>

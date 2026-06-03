@@ -147,12 +147,12 @@ TEST_F(CanvasResourceProviderTest,
   auto client_si_with_webgpu_usage_required =
       provider->GetBackingClientSharedImageForExternalWrite(
           /*internal_access_sync_token=*/nullptr,
-          gpu::SHARED_IMAGE_USAGE_WEBGPU_READ);
+          gpu::SHARED_IMAGE_USAGE_WEBGPU_WRITE);
   EXPECT_NE(client_si_with_webgpu_usage_required, client_si);
   EXPECT_TRUE(client_si_with_webgpu_usage_required->usage().HasAll(
       shared_image_usage_flags));
   EXPECT_TRUE(client_si_with_webgpu_usage_required->usage().Has(
-      gpu::SHARED_IMAGE_USAGE_WEBGPU_READ));
+      gpu::SHARED_IMAGE_USAGE_WEBGPU_WRITE));
 
   // That new backing SI should then be returned on subsequent calls with
   // already-supported usages.
@@ -736,20 +736,18 @@ TEST_F(
     CanvasResourceProviderTest,
     CanvasResourceProviderSwapChain_NonDefaultColorSpaceIsPropagatedToResource) {
   const gfx::Size kSize(10, 10);
-  const SkImageInfo kInfo = SkImageInfo::MakeN32(
-      10, 10, kPremul_SkAlphaType, SkColorSpace::MakeSRGBLinear());
+  const auto color_space = gfx::ColorSpace::CreateSRGBLinear();
 
   auto provider = CanvasResourceProvider::CreateSwapChainProvider(
-      kSize, GetN32FormatForCanvas(), kInfo.alphaType(),
-      gfx::ColorSpace::CreateSRGBLinear(),
+      kSize, GetN32FormatForCanvas(), kPremul_SkAlphaType, color_space,
       CanvasResourceProvider::ShouldInitialize::kCallClear,
       context_provider_wrapper_);
 
   ASSERT_TRUE(provider);
-  ASSERT_EQ(provider->GetSkImageInfo(), kInfo);
+  ASSERT_EQ(provider->GetColorSpace(), color_space);
 
   auto resource = provider->ProduceCanvasResource(FlushReason::kTesting);
-  EXPECT_EQ(resource->CreateSkImageInfo(), kInfo);
+  EXPECT_EQ(resource->GetClientSharedImage()->color_space(), color_space);
 }
 
 TEST_F(CanvasResourceProviderTest, FlushForImage) {

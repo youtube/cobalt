@@ -15,6 +15,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
+import android.content.res.Resources;
 import android.os.Build;
 import android.provider.Browser;
 import android.text.TextUtils;
@@ -22,6 +23,7 @@ import android.util.SparseBooleanArray;
 import android.util.SparseIntArray;
 
 import androidx.annotation.IntDef;
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
@@ -33,6 +35,7 @@ import org.chromium.base.BuildInfo;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.IntentUtils;
 import org.chromium.base.ResettersForTesting;
+import org.chromium.base.SysUtils;
 import org.chromium.base.TimeUtils;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
@@ -56,13 +59,21 @@ import org.chromium.chrome.browser.tabwindow.WindowId;
 import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderUtils;
 import org.chromium.chrome.browser.util.AndroidTaskUtils;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
+import org.chromium.components.browser_ui.util.ConversionUtils;
+import org.chromium.components.messages.MessageBannerProperties;
+import org.chromium.components.messages.MessageDispatcher;
+import org.chromium.components.messages.MessageIdentifier;
+import org.chromium.components.messages.PrimaryActionClickBehavior;
 import org.chromium.components.ukm.UkmRecorder;
+import org.chromium.ui.base.DeviceFormFactor;
+import org.chromium.ui.modelutil.PropertyModel;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.ref.WeakReference;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * Utilities for detecting multi-window/multi-instance support.
@@ -177,14 +188,37 @@ public class MultiWindowUtils implements ActivityStateListener {
         }
     }
 
+    /**
+     * @return The maximum number of instances that a user is allowed to create.
+     */
     public static int getMaxInstances() {
-        return sMaxInstancesForTesting != null
-                ? sMaxInstancesForTesting
-                : (isMultiInstanceApi31Enabled()
-                        ? (ChromeFeatureList.sDisableInstanceLimit.isEnabled()
-                                ? TabWindowManager.MAX_SELECTORS
-                                : TabWindowManager.MAX_SELECTORS_S)
-                        : TabWindowManager.MAX_SELECTORS_LEGACY);
+        if (sMaxInstancesForTesting != null) {
+            return sMaxInstancesForTesting;
+        }
+
+        if (!isMultiInstanceApi31Enabled()) {
+            return TabWindowManager.MAX_SELECTORS_LEGACY;
+        }
+
+        if (!ChromeFeatureList.sDisableInstanceLimit.isEnabled()) {
+            return TabWindowManager.MAX_SELECTORS_S;
+        }
+
+        Context context = ContextUtils.getApplicationContext();
+        if (DeviceFormFactor.isNonMultiDisplayContextOnTablet(context)) {
+            int memoryThresholdMb =
+                    ChromeFeatureList.sDisableInstanceLimitMemoryThresholdMb.getValue();
+            boolean isAboveMemoryThreshold =
+                    SysUtils.amountOfPhysicalMemoryKB()
+                            >= memoryThresholdMb * ConversionUtils.KILOBYTES_PER_MEGABYTE;
+            if (isAboveMemoryThreshold) {
+                return ChromeFeatureList.sDisableInstanceLimitMaxCount.getValue();
+            } else {
+                return TabWindowManager.MAX_SELECTORS_S;
+            }
+        }
+
+        return TabWindowManager.MAX_SELECTORS;
     }
 
     /** Returns the singleton instance of MultiWindowUtils. */
@@ -406,8 +440,9 @@ public class MultiWindowUtils implements ActivityStateListener {
     public static int getInstanceCount() {
         if (sInstanceCountForTesting != null) return sInstanceCountForTesting;
         int count = 0;
-        for (int i = 0; i < getMaxInstances(); ++i) {
-            if (MultiInstanceManagerApi31.instanceEntryExists(i) && isRestorableInstance(i)) {
+        Set<Integer> ids = MultiInstanceManagerApi31.getPersistedInstanceIds();
+        for (Integer id : ids) {
+            if (isRestorableInstance(id)) {
                 count++;
             }
         }
@@ -815,7 +850,7 @@ public class MultiWindowUtils implements ActivityStateListener {
 
         SparseIntArray windowIdsOfRunningTabbedActivities =
                 MultiInstanceManagerApi31.getWindowIdsOfRunningTabbedActivities();
-        for (int i = 0; i < maxInstances; i++) {
+        for (int i : MultiInstanceManagerApi31.getPersistedInstanceIds()) {
             // Exclude instance IDs of non-running activities.
             if (windowIdsOfRunningTabbedActivities.indexOfValue(i) < 0) continue;
             if (MultiWindowUtils.readLastAccessedTime(i)
@@ -897,7 +932,8 @@ public class MultiWindowUtils implements ActivityStateListener {
     private static void recordDesktopWindowCountHistograms(
             @InstanceAllocationType int instanceAllocationType, String histogramName, int count) {
         // Emit generic histogram, irrespective of instance allocation type.
-        RecordHistogram.recordExactLinearHistogram(histogramName, count, getMaxInstances() + 1);
+        RecordHistogram.recordExactLinearHistogram(
+                histogramName, count, TabWindowManager.MAX_SELECTORS + 1);
 
         // Emit histogram variant based on instance allocation type.
         String histogramSuffix = HISTOGRAM_DESKTOP_WINDOW_COUNT_NEW_INSTANCE_SUFFIX;
@@ -907,7 +943,7 @@ public class MultiWindowUtils implements ActivityStateListener {
         }
 
         RecordHistogram.recordExactLinearHistogram(
-                histogramName + histogramSuffix, count, getMaxInstances() + 1);
+                histogramName + histogramSuffix, count, TabWindowManager.MAX_SELECTORS + 1);
     }
 
     /**
@@ -963,6 +999,67 @@ public class MultiWindowUtils implements ActivityStateListener {
     static String getTabCountForRelaunchKey(int windowId) {
         return ChromePreferenceKeys.MULTI_INSTANCE_TAB_COUNT_FOR_RELAUNCH.createKey(
                 String.valueOf(windowId));
+    }
+
+    /**
+     * Creates and shows a message to notify a user about instance restoration when the number of
+     * persisted instances exceeds the max instance count after an instance limit downgrade.
+     *
+     * @param messageDispatcher The {@link MessageDispatcher} to enqueue the message.
+     * @param context The current context.
+     * @param primaryActionRunnable The {@link Runnable} that will be executed when the message
+     *     primary action button is clicked.
+     * @return Whether the message was shown.
+     */
+    public static boolean maybeShowInstanceRestorationMessage(
+            MessageDispatcher messageDispatcher,
+            @NonNull Context context,
+            @NonNull Runnable primaryActionRunnable) {
+        if (messageDispatcher == null) return false;
+
+        // Show the message only when the number of persisted instances exceeds the instance limit.
+        if (getInstanceCount() <= getMaxInstances()) {
+            return false;
+        }
+
+        // Show the message only if the message is not already shown.
+        if (ChromeSharedPreferences.getInstance()
+                .contains(ChromePreferenceKeys.MULTI_INSTANCE_RESTORATION_MESSAGE_SHOWN)) {
+            return false;
+        }
+
+        Resources resources = context.getResources();
+        PropertyModel message =
+                new PropertyModel.Builder(MessageBannerProperties.ALL_KEYS)
+                        .with(
+                                MessageBannerProperties.MESSAGE_IDENTIFIER,
+                                MessageIdentifier.MULTI_INSTANCE_RESTORATION_ON_DOWNGRADED_LIMIT)
+                        .with(
+                                MessageBannerProperties.TITLE,
+                                resources.getString(
+                                        R.string.multi_instance_restoration_message_title,
+                                        getMaxInstances()))
+                        .with(
+                                MessageBannerProperties.DESCRIPTION,
+                                resources.getString(
+                                        R.string.multi_instance_restoration_message_description))
+                        .with(MessageBannerProperties.ICON_RESOURCE_ID, R.drawable.ic_chrome)
+                        .with(
+                                MessageBannerProperties.PRIMARY_BUTTON_TEXT,
+                                resources.getString(
+                                        R.string.multi_instance_restoration_message_button))
+                        .with(
+                                MessageBannerProperties.ON_PRIMARY_ACTION,
+                                () -> {
+                                    primaryActionRunnable.run();
+                                    return PrimaryActionClickBehavior.DISMISS_IMMEDIATELY;
+                                })
+                        .build();
+
+        messageDispatcher.enqueueWindowScopedMessage(message, false);
+        ChromeSharedPreferences.getInstance()
+                .writeBoolean(ChromePreferenceKeys.MULTI_INSTANCE_RESTORATION_MESSAGE_SHOWN, true);
+        return true;
     }
 
     public static void setInstanceForTesting(MultiWindowUtils instance) {

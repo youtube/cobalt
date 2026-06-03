@@ -18,6 +18,7 @@ import static org.chromium.chrome.browser.tasks.tab_management.TabListContainerP
 import static org.chromium.chrome.browser.tasks.tab_management.TabListContainerProperties.IS_SCROLLING_SUPPLIER_CALLBACK;
 import static org.chromium.chrome.browser.tasks.tab_management.TabListContainerProperties.MODE;
 import static org.chromium.chrome.browser.tasks.tab_management.TabListContainerProperties.PAGE_KEY_LISTENER;
+import static org.chromium.chrome.browser.tasks.tab_management.TabListContainerProperties.SUPPRESS_ACCESSIBILITY;
 
 import android.app.Activity;
 import android.graphics.Rect;
@@ -38,6 +39,7 @@ import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.tab.TabUtils;
+import org.chromium.chrome.browser.tasks.tab_management.TabListCoordinator.TabListMode;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 
@@ -117,6 +119,12 @@ class TabListContainerViewBinder {
             }
         } else if (PAGE_KEY_LISTENER == propertyKey) {
             view.setPageKeyListenerCallback(model.get(PAGE_KEY_LISTENER));
+        } else if (SUPPRESS_ACCESSIBILITY == propertyKey) {
+            int important =
+                    model.get(SUPPRESS_ACCESSIBILITY)
+                            ? View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+                            : View.IMPORTANT_FOR_ACCESSIBILITY_AUTO;
+            view.setImportantForAccessibility(important);
         }
     }
 
@@ -142,26 +150,13 @@ class TabListContainerViewBinder {
         }
         if (width <= 0 || height <= 0) return 0;
 
-        @TabListCoordinator.TabListMode int mode = model.get(MODE);
         LinearLayoutManager layoutManager = (LinearLayoutManager) view.getLayoutManager();
-        if (mode == TabListCoordinator.TabListMode.GRID) {
-            GridLayoutManager gridLayoutManager = (GridLayoutManager) layoutManager;
-            int cardWidth = width / gridLayoutManager.getSpanCount();
-            int cardHeight =
-                    TabUtils.deriveGridCardHeight(
-                            cardWidth, view.getContext(), browserControlsStateProvider);
-            return Math.max(0, height / 2 - cardHeight / 2);
-        }
-        if (mode == TabListCoordinator.TabListMode.LIST) {
-            // Avoid divide by 0 when there are no tabs.
-            if (layoutManager.getItemCount() == 0) return 0;
-
-            return Math.max(
-                    0,
-                    height / 2
-                            - view.computeVerticalScrollRange() / layoutManager.getItemCount() / 2);
-        }
-        assert false : "Unexpected MODE when setting INITIAL_SCROLL_INDEX.";
-        return 0;
+        assert model.get(MODE) == TabListMode.GRID;
+        GridLayoutManager gridLayoutManager = (GridLayoutManager) layoutManager;
+        int cardWidth = width / gridLayoutManager.getSpanCount();
+        int cardHeight =
+                TabUtils.deriveGridCardHeight(
+                        cardWidth, view.getContext(), browserControlsStateProvider);
+        return Math.max(0, height / 2 - cardHeight / 2);
     }
 }

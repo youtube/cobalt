@@ -1620,7 +1620,7 @@ namespace base::internal {
     !defined(MEMORY_TOOL_REPLACES_ALLOCATOR)
 
 void HandleOOM(size_t unused_size) {
-  LOG(FATAL) << "Out of memory";
+  PA_LOG(FATAL) << "Out of memory";
 }
 
 class BackupRefPtrTest : public testing::Test {
@@ -2400,7 +2400,7 @@ TEST_F(BackupRefPtrTest, WriteAfterFree) {
         // Write something different from |kQuarantinedByte|.
         *ptr = kPayload;
         // Write-after-Free should lead to crash
-        // on |PartitionAllocFreeForRefCounting|.
+        // on |PartitionRoot::FreeAfterBRPQuarantine|.
         ptr = nullptr;
       },
       "");

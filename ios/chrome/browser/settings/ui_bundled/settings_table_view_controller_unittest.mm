@@ -10,8 +10,6 @@
 #import "base/test/scoped_feature_list.h"
 #import "base/test/task_environment.h"
 #import "components/keyed_service/core/service_access_type.h"
-#import "components/metrics/metrics_state_manager.h"
-#import "components/metrics/test/test_enabled_state_provider.h"
 #import "components/password_manager/core/browser/password_manager_test_utils.h"
 #import "components/password_manager/core/browser/password_store/test_password_store.h"
 #import "components/plus_addresses/features.h"
@@ -22,15 +20,13 @@
 #import "components/signin/public/base/signin_pref_names.h"
 #import "components/sync/test/test_sync_service.h"
 #import "components/sync/test/test_sync_user_settings.h"
-#import "components/variations/service/variations_service.h"
-#import "components/variations/service/variations_service_client.h"
-#import "components/variations/synthetic_trial_registry.h"
 #import "ios/chrome/browser/authentication/ui_bundled/cells/table_view_account_item.h"
 #import "ios/chrome/browser/discover_feed/model/discover_feed_visibility_browser_agent.h"
 #import "ios/chrome/browser/passwords/model/ios_chrome_profile_password_store_factory.h"
 #import "ios/chrome/browser/photos/model/photos_service_factory.h"
 #import "ios/chrome/browser/policy/model/policy_util.h"
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
+#import "ios/chrome/browser/settings/ui_bundled/settings_navigation_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_table_view_controller_constants.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
@@ -38,6 +34,7 @@
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_manager_ios.h"
 #import "ios/chrome/browser/shared/public/commands/application_commands.h"
+#import "ios/chrome/browser/shared/public/commands/browser_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/popup_menu_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
@@ -56,105 +53,15 @@
 #import "ios/chrome/grit/ios_branded_strings.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
-#import "ios/chrome/test/testing_application_context.h"
+#import "ios/chrome/test/ios_chrome_scoped_testing_variations_service.h"
 #import "ios/web/public/test/web_task_environment.h"
-#import "services/network/test/test_network_connection_tracker.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "third_party/ocmock/gtest_support.h"
 #import "ui/base/l10n/l10n_util_mac.h"
 
-using ::testing::NiceMock;
-using ::testing::Return;
 using web::WebTaskEnvironment;
-
-namespace {
-
-using variations::SyntheticTrialRegistry;
-using variations::UIStringOverrider;
-using variations::VariationsService;
-using variations::VariationsServiceClient;
-
-// TODO(crbug.com/40742801): Remove when fake VariationsServiceClient created.
-// TODO(crbug.com/377275759): Check if TestVariationsServiceClient and
-// ScopedVariationsService can be consolidated with implementations elsewhere.
-class TestVariationsServiceClient : public VariationsServiceClient {
- public:
-  TestVariationsServiceClient() = default;
-  TestVariationsServiceClient(const TestVariationsServiceClient&) = delete;
-  TestVariationsServiceClient& operator=(const TestVariationsServiceClient&) =
-      delete;
-  ~TestVariationsServiceClient() override = default;
-
-  // VariationsServiceClient:
-  base::Version GetVersionForSimulation() override { return base::Version(); }
-  scoped_refptr<network::SharedURLLoaderFactory> GetURLLoaderFactory()
-      override {
-    return nullptr;
-  }
-  network_time::NetworkTimeTracker* GetNetworkTimeTracker() override {
-    return nullptr;
-  }
-  bool OverridesRestrictParameter(std::string* parameter) override {
-    return false;
-  }
-  bool IsEnterprise() override { return false; }
-  void RemoveGoogleGroupsFromPrefsForDeletedProfiles(
-      PrefService* local_state) override {}
-
- private:
-  // VariationsServiceClient:
-  version_info::Channel GetChannel() override {
-    return version_info::Channel::UNKNOWN;
-  }
-};
-
-// Creates a VariationsService and sets it as the TestingApplicationContext's
-// VariationService for the life of the instance.
-class ScopedVariationsService {
- public:
-  ScopedVariationsService() {
-    EXPECT_EQ(nullptr,
-              TestingApplicationContext::GetGlobal()->GetVariationsService());
-    synthetic_trial_registry_ = std::make_unique<SyntheticTrialRegistry>();
-    enabled_state_provider_ =
-        std::make_unique<metrics::TestEnabledStateProvider>(false, false);
-    metrics_state_manager_ = metrics::MetricsStateManager::Create(
-        TestingApplicationContext::GetGlobal()->GetLocalState(),
-        enabled_state_provider_.get(),
-        /*backup_registry_key=*/std::wstring(),
-        /*user_data_dir=*/base::FilePath(),
-        metrics::StartupVisibility::kUnknown);
-
-    variations_service_ = VariationsService::Create(
-        std::make_unique<TestVariationsServiceClient>(),
-        TestingApplicationContext::GetGlobal()->GetLocalState(),
-        metrics_state_manager_.get(),
-        /*disable_network_switch=*/"dummy-disable-background-switch",
-        UIStringOverrider(),
-        network::TestNetworkConnectionTracker::CreateGetter(),
-        synthetic_trial_registry_.get());
-    TestingApplicationContext::GetGlobal()->SetVariationsService(
-        variations_service_.get());
-  }
-
-  ~ScopedVariationsService() {
-    EXPECT_EQ(variations_service_.get(),
-              TestingApplicationContext::GetGlobal()->GetVariationsService());
-    TestingApplicationContext::GetGlobal()->SetVariationsService(nullptr);
-    variations_service_.reset();
-  }
-
-  VariationsService* Get() { return variations_service_.get(); }
-
-  std::unique_ptr<metrics::MetricsStateManager> metrics_state_manager_;
-  std::unique_ptr<metrics::TestEnabledStateProvider> enabled_state_provider_;
-  std::unique_ptr<VariationsService> variations_service_;
-  std::unique_ptr<SyntheticTrialRegistry> synthetic_trial_registry_;
-};
-
-}  // namespace
 
 class SettingsTableViewControllerTest
     : public LegacyChromeTableViewControllerTest {
@@ -162,7 +69,8 @@ class SettingsTableViewControllerTest
   void SetUp() override {
     LegacyChromeTableViewControllerTest::SetUp();
 
-    scoped_variations_service_.Get()->OverrideStoredPermanentCountry("us");
+    scoped_testing_variations_service_.Get()->OverrideStoredPermanentCountry(
+        "us");
 
     TestProfileIOS::Builder builder;
     builder.AddTestingFactory(
@@ -241,6 +149,8 @@ class SettingsTableViewControllerTest
                              forProtocol:@protocol(ApplicationCommands)];
     [dispatcher startDispatchingToTarget:mock_settings_handler
                              forProtocol:@protocol(SettingsCommands)];
+    [dispatcher startDispatchingToTarget:mock_settings_handler
+                             forProtocol:@protocol(BrowserCommands)];
     [dispatcher startDispatchingToTarget:mock_snackbar_handler
                              forProtocol:@protocol(SnackbarCommands)];
     [dispatcher startDispatchingToTarget:mock_popup_menu_handler_
@@ -250,6 +160,11 @@ class SettingsTableViewControllerTest
         [[SettingsTableViewController alloc]
                      initWithBrowser:browser_.get()
             hasDefaultBrowserBlueDot:has_default_browser_blue_dot_];
+
+    navigation_controller_ = [[SettingsNavigationController alloc]
+        initWithRootViewController:controller
+                           browser:browser_.get()
+                          delegate:nil];
     controller.applicationHandler =
         HandlerForProtocol(dispatcher, ApplicationCommands);
     controller.settingsHandler =
@@ -295,8 +210,9 @@ class SettingsTableViewControllerTest
   // Needed for test profile created by TestProfileIOS().
   web::WebTaskEnvironment task_environment_;
   IOSChromeScopedTestingLocalState scoped_testing_local_state_;
-  ScopedVariationsService scoped_variations_service_;
+  IOSChromeScopedTestingVariationsService scoped_testing_variations_service_;
   TestProfileManagerIOS profile_manager_;
+  SettingsNavigationController* navigation_controller_;
 
   FakeSystemIdentity* fake_identity_ = nullptr;
   raw_ptr<AuthenticationService> auth_service_ = nullptr;

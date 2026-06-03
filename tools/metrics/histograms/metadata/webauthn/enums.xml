@@ -74,6 +74,30 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="prepareGetCredential request failed."/>
 </enum>
 
+<!-- LINT.IfChange(GmsCoreGetCredentialsResultEnum) -->
+
+<enum name="GmsCoreGetCredentialsResult">
+  <int value="0" label="CacheSuccess">
+    The passkey cache service returned credentials successfully.
+  </int>
+  <int value="1" label="CacheFailureFallbackSuccess">
+    The passkey cache service failed, but the fallback to the FIDO2 API
+    succeeded.
+  </int>
+  <int value="2" label="CacheFailureFallbackFailure">
+    The passkey cache service failed, and the fallback to the FIDO2 API also
+    failed.
+  </int>
+  <int value="3" label="Fido2Success">
+    The FIDO2 API was used directly and succeeded.
+  </int>
+  <int value="4" label="Fido2Failure">
+    The FIDO2 API was used directly and failed.
+  </int>
+</enum>
+
+<!-- LINT.ThenChange(//components/webauthn/android/java/src/org/chromium/components/webauthn/GmsCoreGetCredentialsHelper.java:GmsCoreGetCredentialsResult) -->
+
 <enum name="GPMGetAssertionEvents">
   <int value="0" label="Started - GPM passkey selected"/>
   <int value="1" label="Success - Authentication complete"/>
@@ -133,13 +157,6 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/webauthn/chrome_web_authentication_delegate.h:SignalUnknownCredentialResult) -->
-
-<enum name="SuccessState">
-  <int value="0" label="FIDO2 and Passkey Cache calls failed."/>
-  <int value="1" label="FIDO2 call failed; Passkey Cache call succeeded."/>
-  <int value="2" label="FIDO2 call succeeded; Passkey Cache call failed."/>
-  <int value="3" label="FIDO2 and Passkey Cache calls succeeded."/>
-</enum>
 
 <!-- LINT.IfChange(U2fSignOperationResultEnum) -->
 
@@ -289,6 +306,17 @@ chromium-metrics-reviews@google.com.
   <int value="14" label="Other Failure"/>
 </enum>
 
+<!-- LINT.IfChange(WebAuthenticationImmediateMediationRejectionReason) -->
+
+<enum name="WebAuthenticationImmediateMediationRejectionReason">
+  <int value="0" label="Incognito"/>
+  <int value="1" label="RateLimited"/>
+  <int value="2" label="NoCredentials"/>
+  <int value="3" label="Timeout"/>
+</enum>
+
+<!-- LINT.ThenChange(//content/public/browser/authenticator_request_client_delegate.h:ImmediateMediationRejectionReason) -->
+
 <!-- LINT.IfChange(WebAuthenticationIOSContentAreaEvent) -->
 
 <enum name="WebAuthenticationIOSContentAreaEvent">
@@ -383,7 +411,19 @@ chromium-metrics-reviews@google.com.
   <int value="15" label="Enclave Authenticator Error"/>
   <int value="16" label="Timeout Occurred"/>
   <int value="17" label="Other Failure"/>
+  <int value="18" label="Conditional Create (Passkey Upgrade) Failure"/>
 </enum>
+
+<!-- LINT.IfChange(WebAuthenticationMechanismDeduplicatedType) -->
+
+<enum name="WebAuthenticationMechanismDeduplicatedType">
+  <int value="0" label="Enclave Passkey"/>
+  <int value="1" label="Platform Passkey"/>
+  <int value="2" label="Password"/>
+  <int value="3" label="Other"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/webauthn/mechanism_sorter.h:WebAuthnMechanismDeduplicatedType) -->
 
 <enum name="WebAuthenticationPinRenewalEvent">
   <int value="0" label="Considered renewing the PIN"/>

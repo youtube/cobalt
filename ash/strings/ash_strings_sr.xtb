@@ -761,6 +761,7 @@
 <translation id="3552189655002856821">WiFi је искључен</translation>
 <translation id="3554215588514239132">Прикажи или сакриј окно Алатке за програмере</translation>
 <translation id="3554637740840164787">Ставка <ph name="ITEM_TITLE" /> је закачена</translation>
+<translation id="3554928024630051016">Да бисте додали још USB уређаја, пробајте да уклоните неки, па прикључите нови уређај</translation>
 <translation id="3558768885091059911">Желите да укључите приступ камери и микрофону?</translation>
 <translation id="3560174576767922131">Сними видео</translation>
 <translation id="3563775809269155755">Омогући хотспот</translation>
@@ -868,6 +869,7 @@
 <translation id="3861651314799684201">Притисните Enter да бисте снимили цео екран</translation>
 <translation id="3870197372373144624">Пробајте да искључите уређај.</translation>
 <translation id="3879748587602334249">Менаџер преузимања</translation>
+<translation id="3884007280698606545">Ограничење за USB је достигнуто</translation>
 <translation id="3886872229787704059">Отварано данас</translation>
 <translation id="3891340733213178823">Двапут притисните Ctrl+Shift+Q да бисте се одјавили.</translation>
 <translation id="3892148308691398805">Копирај текст</translation>
@@ -1013,6 +1015,7 @@
 <translation id="4305817255990598646">Пређи</translation>
 <translation id="4307713728991152670">Подесите преглед недавних слика, медија и апликација на телефону</translation>
 <translation id="4312840429157639164">Камера је уклопљена у горњи десни угао. Неусаглашеност са површином система.</translation>
+<translation id="4312935606722154789">Групишите или опозовите груписање два напоредна прозора</translation>
 <translation id="4316910396681052118">СВЕ АПЛИКАЦИЈЕ</translation>
 <translation id="4321179778687042513">ctrl</translation>
 <translation id="4322385711258710213">Сакријте све предлоге Chrome прегледача</translation>
@@ -1452,7 +1455,6 @@
 <translation id="5691772641933328258">Отисак прста није препознат</translation>
 <translation id="5693255400847650006">Микрофон се користи</translation>
 <translation id="5699366815052349604">Доделите активни прозор свим радним површинама</translation>
-<translation id="5701785125601597013">Брзо шаљите поруке или одговарајте на њих помоћу Phone Hub-а</translation>
 <translation id="570390244361237317">Све апликације, крећите се помоћу тастера са стрелицама да бисте приступали свим апликацијама</translation>
 <translation id="5705197514573687092">Прегледајте подешавања фокуса. Тајмер је подешен на <ph name="FOCUS_DURATION" /></translation>
 <translation id="5707775774148071965">Уређај подржава већи проток података у односу на кабл. Учинак уређаја ће можда бити ограничен.</translation>
@@ -1582,7 +1584,6 @@
 <translation id="6095425951508823973">Додајте везу са добављачем <ph name="PROVIDER" /></translation>
 <translation id="6099678161144790572">Измењено протеклог месеца</translation>
 <translation id="6103838137565245112">систем</translation>
-<translation id="610395411842312282">Групишите два упоредна прозора</translation>
 <translation id="6108952804512516814">Правите помоћу вештачке интелигенције</translation>
 <translation id="6114505516289286752">Преузети су фајлови са говором на језику <ph name="LANGUAGE" /></translation>
 <translation id="6119360623251949462"><ph name="CHARGING_STATE" />. <ph name="BATTERY_SAVER_STATE" /></translation>

@@ -505,6 +505,12 @@ class TabStripModelTest : public testing::Test {
     EXPECT_EQ(tabstrip_->selection_model().size(), selected.size());
   }
 
+  bool HasTabSwitchStartTimeAtIndex(int index) {
+    return !content::WebContentsTester::For(tabstrip()->GetWebContentsAt(index))
+                ->GetTabSwitchStartTime()
+                .is_null();
+  }
+
  private:
   content::BrowserTaskEnvironment task_environment_;
   content::RenderViewHostTestEnabler rvh_test_enabler_;
@@ -963,6 +969,36 @@ TEST_F(TabStripModelTest, TestDetachGroupForInsertion) {
   EXPECT_EQ(tabstrip()->GetTabAtIndex(0)->GetGroup().value(), group_id);
   EXPECT_EQ(tabstrip()->GetTabAtIndex(1)->GetGroup().value(), group_id);
   EXPECT_EQ(tabstrip()->count(), 6);
+}
+
+TEST_F(TabStripModelTest, TestInsertDetachGroupStartOfTabstrip) {
+  PrepareTabstripForSelectionTest(tabstrip(), 5, 2, {2});
+
+  tab_groups::TabGroupId group_id =
+      tabstrip()->AddToNewGroup(std::vector<int>{3, 4});
+  std::unique_ptr<DetachedTabCollection> detached_group =
+      tabstrip()->DetachTabGroupForInsertion(group_id);
+  tabs::TabGroupTabCollection* group_collection =
+      std::get<std::unique_ptr<tabs::TabGroupTabCollection>>(
+          detached_group->collection_)
+          .get();
+
+  EXPECT_EQ(group_collection->TabCountRecursive(), 2u);
+  EXPECT_FALSE(tabstrip()->group_model()->ContainsTabGroup(group_id));
+  EXPECT_EQ(tabstrip()->count(), 3);
+
+  // Reinsert the detached group.
+  gfx::Range insert_indices =
+      tabstrip()->InsertDetachedTabGroupAt(std::move(detached_group), 0);
+
+  EXPECT_TRUE(tabstrip()->group_model()->ContainsTabGroup(group_id));
+  EXPECT_EQ(
+      tabstrip()->group_model()->GetTabGroup(group_id)->ListTabs().length(),
+      2u);
+  EXPECT_EQ(tabstrip()->count(), 5);
+
+  // group is inserted after the pinned container.
+  EXPECT_EQ(insert_indices, gfx::Range(2, 4));
 }
 
 TEST_F(TabStripModelTest, TestDetachGroupNewSelection) {
@@ -1778,6 +1814,23 @@ TEST_F(TabStripModelTest, CommandCloseOtherTabs) {
   EXPECT_EQ("0p 1", GetTabStripStateString(tabstrip()));
   tabstrip()->CloseAllTabs();
   EXPECT_TRUE(tabstrip()->empty());
+
+  // Unselected split tab.
+  ASSERT_NO_FATAL_FAILURE(
+      PrepareTabstripForSelectionTest(tabstrip(), 4, 1, {1}));
+  tabstrip()->AddToNewSplit({2}, split_tabs::SplitTabVisualData());
+  tabstrip()->ActivateTabAt(3);
+  ASSERT_EQ("0p 1s 2s 3", GetTabStripStateString(tabstrip()));
+  EXPECT_TRUE(tabstrip()->IsContextMenuCommandEnabled(
+      1, TabStripModel::CommandCloseOtherTabs));
+  EXPECT_TRUE(tabstrip()->IsContextMenuCommandEnabled(
+      2, TabStripModel::CommandCloseOtherTabs));
+  tabstrip()->ExecuteContextMenuCommand(1,
+                                        TabStripModel::CommandCloseOtherTabs);
+  // The pinned tab and the other tab in the split shouldn't be closed.
+  EXPECT_EQ("0p 1s 2s", GetTabStripStateString(tabstrip()));
+  tabstrip()->CloseAllTabs();
+  EXPECT_TRUE(tabstrip()->empty());
 }
 
 // Tests IsContextMenuCommandEnabled and ExecuteContextMenuCommand with
@@ -1796,6 +1849,23 @@ TEST_F(TabStripModelTest, CommandCloseTabsToRight) {
   tabstrip()->ExecuteContextMenuCommand(0,
                                         TabStripModel::CommandCloseTabsToRight);
   EXPECT_EQ("0", GetTabStripStateString(tabstrip()));
+  tabstrip()->CloseAllTabs();
+  EXPECT_TRUE(tabstrip()->empty());
+
+  // Unselected split tab.
+  ASSERT_NO_FATAL_FAILURE(
+      PrepareTabstripForSelectionTest(tabstrip(), 4, 1, {1}));
+  tabstrip()->AddToNewSplit({2}, split_tabs::SplitTabVisualData());
+  tabstrip()->ActivateTabAt(3);
+  ASSERT_EQ("0p 1s 2s 3", GetTabStripStateString(tabstrip()));
+  EXPECT_TRUE(tabstrip()->IsContextMenuCommandEnabled(
+      1, TabStripModel::CommandCloseTabsToRight));
+  EXPECT_TRUE(tabstrip()->IsContextMenuCommandEnabled(
+      2, TabStripModel::CommandCloseTabsToRight));
+  tabstrip()->ExecuteContextMenuCommand(1,
+                                        TabStripModel::CommandCloseTabsToRight);
+  // The pinned tab and the other tab in the split shouldn't be closed.
+  EXPECT_EQ("0p 1s 2s", GetTabStripStateString(tabstrip()));
   tabstrip()->CloseAllTabs();
   EXPECT_TRUE(tabstrip()->empty());
 }
@@ -2142,13 +2212,12 @@ TEST_F(TabStripModelTest, ReplaceActiveTabInSplit) {
       0, TabStripUserGestureDetails(
              TabStripUserGestureDetails::GestureType::kOther));
 
-  split_tabs::SplitTabId split_tab_id =
-      tabstrip()->AddToNewSplit({3}, split_tabs::SplitTabVisualData());
+  tabstrip()->AddToNewSplit({3}, split_tabs::SplitTabVisualData());
 
   EXPECT_EQ("0ps 3ps 1p 2 4", GetTabStripStateString(tabstrip()));
 
-  tabstrip()->UpdateActiveTabInSplit(split_tab_id, 3,
-                                     TabStripModel::SplitUpdateType::kReplace);
+  tabstrip()->UpdateTabInSplit(tabstrip()->GetTabAtIndex(0), 3,
+                               TabStripModel::SplitUpdateType::kReplace);
   EXPECT_EQ("2ps 3ps 1p 4", GetTabStripStateString(tabstrip()));
 
   tabstrip()->CloseAllTabs();
@@ -2164,15 +2233,37 @@ TEST_F(TabStripModelTest, SwapActiveTabInSplit) {
       0, TabStripUserGestureDetails(
              TabStripUserGestureDetails::GestureType::kOther));
 
-  split_tabs::SplitTabId split_tab_id =
-      tabstrip()->AddToNewSplit({3}, split_tabs::SplitTabVisualData());
+  tabstrip()->AddToNewSplit({3}, split_tabs::SplitTabVisualData());
 
   EXPECT_EQ("0ps 3ps 1p 2 4", GetTabStripStateString(tabstrip()));
 
-  tabstrip()->UpdateActiveTabInSplit(split_tab_id, 3,
-                                     TabStripModel::SplitUpdateType::kSwap);
+  tabstrip()->UpdateTabInSplit(tabstrip()->GetTabAtIndex(0), 3,
+                               TabStripModel::SplitUpdateType::kSwap);
   EXPECT_EQ("2ps 3ps 1p 0 4", GetTabStripStateString(tabstrip()));
 
+  tabstrip()->CloseAllTabs();
+  EXPECT_TRUE(tabstrip()->empty());
+}
+
+TEST_F(TabStripModelTest, SwapActiveTabInSplitWithOnlyTabInGroup) {
+  // Create five tabs with two pinned, select the last.
+  ASSERT_NO_FATAL_FAILURE(
+      PrepareTabstripForSelectionTest(tabstrip(), 5, 2, {2}));
+
+  tabstrip()->ActivateTabAt(
+      0, TabStripUserGestureDetails(
+             TabStripUserGestureDetails::GestureType::kOther));
+
+  tabstrip()->AddToNewSplit({3}, split_tabs::SplitTabVisualData());
+
+  EXPECT_EQ("0ps 3ps 1p 2 4", GetTabStripStateString(tabstrip()));
+
+  tab_groups::TabGroupId update_group_id = tabstrip()->AddToNewGroup({3});
+
+  tabstrip()->UpdateTabInSplit(tabstrip()->GetTabAtIndex(0), 3,
+                               TabStripModel::SplitUpdateType::kSwap);
+  EXPECT_EQ("2ps 3ps 1p 0 4", GetTabStripStateString(tabstrip()));
+  EXPECT_EQ(tabstrip()->GetTabGroupForTab(3), update_group_id);
   tabstrip()->CloseAllTabs();
   EXPECT_TRUE(tabstrip()->empty());
 }
@@ -2224,8 +2315,8 @@ TEST_F(TabStripModelTest, ReverseAndReplaceTabsInSplit) {
   tabstrip()->ReverseTabsInSplit(split_tab_id);
   EXPECT_EQ("0 2s 1s", GetTabStripStateString(tabstrip()));
 
-  tabstrip()->UpdateActiveTabInSplit(split_tab_id, 0,
-                                     TabStripModel::SplitUpdateType::kReplace);
+  tabstrip()->UpdateTabInSplit(tabstrip()->GetTabAtIndex(1), 0,
+                               TabStripModel::SplitUpdateType::kReplace);
   EXPECT_EQ("0s 1s", GetTabStripStateString(tabstrip()));
 
   tabstrip()->CloseAllTabs();
@@ -4097,6 +4188,31 @@ TEST_F(TabStripModelTest, AddTabToNewGroup) {
   tabstrip()->CloseAllTabs();
 }
 
+TEST_F(TabStripModelTest, FindGroupIdFor) {
+  ASSERT_TRUE(tabstrip()->SupportsTabGroups());
+
+  {
+    auto result = tabstrip()->FindGroupIdFor(tabs::TabCollection::Handle(888));
+    ASSERT_FALSE(result.has_value());
+  }
+
+  {
+    tabstrip()->AppendWebContents(CreateWebContents(), false);
+    auto* tab = tabstrip()->GetTabAtIndex(0);
+
+    ASSERT_TRUE(tab != nullptr);
+
+    auto group_id = tabstrip()->AddToNewGroup({0});
+
+    auto* collection = tab->GetParentCollection();
+    ASSERT_TRUE(collection != nullptr);
+
+    auto result = tabstrip()->FindGroupIdFor(collection->GetHandle());
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(group_id, result.value());
+  }
+}
+
 TEST_F(TabStripModelTest, AddTabToNewGroupUpdatesObservers) {
   ASSERT_TRUE(tabstrip()->SupportsTabGroups());
 
@@ -4133,16 +4249,9 @@ TEST_F(TabStripModelTest, AddTabToNewGroupMiddleOfExistingGroup) {
 
   PrepareTabs(tabstrip(), 4);
   tabstrip()->AddToNewGroup({0, 1, 2, 3});
-  std::optional<tab_groups::TabGroupId> first_group =
-      tabstrip()->GetTabGroupForTab(0);
 
   tabstrip()->AddToNewGroup({1, 2});
-
-  EXPECT_EQ(tabstrip()->GetTabGroupForTab(0), first_group);
-  EXPECT_EQ(tabstrip()->GetTabGroupForTab(1), first_group);
-  EXPECT_NE(tabstrip()->GetTabGroupForTab(2), first_group);
-  EXPECT_EQ(tabstrip()->GetTabGroupForTab(2), tabstrip()->GetTabGroupForTab(3));
-  EXPECT_EQ("0 3 1 2", GetTabStripStateString(tabstrip()));
+  EXPECT_EQ("0g0 3g0 1g1 2g1", GetTabStripStateString(tabstrip(), true));
 
   tabstrip()->CloseAllTabs();
 }
@@ -4153,8 +4262,7 @@ TEST_F(TabStripModelTest, AddTabToNewGroupMiddleOfExistingGroupTwoGroups) {
   tabstrip()->AddToNewGroup({3});
 
   tabstrip()->AddToNewGroup({1});
-  EXPECT_NE(tabstrip()->GetTabGroupForTab(2), tabstrip()->GetTabGroupForTab(0));
-  EXPECT_EQ("0 2 1 3", GetTabStripStateString(tabstrip()));
+  EXPECT_EQ("0g0 2g0 1g1 3g2", GetTabStripStateString(tabstrip(), true));
 
   tabstrip()->CloseAllTabs();
 }
@@ -4164,10 +4272,7 @@ TEST_F(TabStripModelTest, AddTabToNewGroupReorders) {
 
   tabstrip()->AddToNewGroup({0, 2});
 
-  EXPECT_EQ("0 2 1", GetTabStripStateString(tabstrip()));
-  EXPECT_EQ(tabstrip()->GetTabGroupForTab(0), tabstrip()->GetTabGroupForTab(1));
-  EXPECT_TRUE(tabstrip()->GetTabGroupForTab(0).has_value());
-  EXPECT_FALSE(tabstrip()->GetTabGroupForTab(2).has_value());
+  EXPECT_EQ("0g0 2g0 1", GetTabStripStateString(tabstrip(), true));
 
   tabstrip()->CloseAllTabs();
 }
@@ -4178,7 +4283,7 @@ TEST_F(TabStripModelTest, AddTabToNewGroupUnpins) {
   tabstrip()->SetTabPinned(0, true);
   tabstrip()->AddToNewGroup({0, 1});
 
-  EXPECT_EQ("0 1", GetTabStripStateString(tabstrip()));
+  EXPECT_EQ("0g0 1g0", GetTabStripStateString(tabstrip(), true));
 
   tabstrip()->CloseAllTabs();
 }
@@ -4190,7 +4295,7 @@ TEST_F(TabStripModelTest, AddTabToNewGroupUnpinsAndReorders) {
   tabstrip()->SetTabPinned(1, true);
   tabstrip()->AddToNewGroup({0});
 
-  EXPECT_EQ("1p 0 2", GetTabStripStateString(tabstrip()));
+  EXPECT_EQ("1p 0g0 2", GetTabStripStateString(tabstrip(), true));
 
   tabstrip()->CloseAllTabs();
 }
@@ -4202,10 +4307,35 @@ TEST_F(TabStripModelTest, AddTabToNewGroupMovesPinnedAndUnpinnedTabs) {
   tabstrip()->SetTabPinned(1, true);
   tabstrip()->SetTabPinned(2, true);
   tabstrip()->AddToNewGroup({0, 1});
-  EXPECT_EQ("2p 0 1 3", GetTabStripStateString(tabstrip()));
+  EXPECT_EQ("2p 0g0 1g0 3", GetTabStripStateString(tabstrip(), true));
 
   tabstrip()->AddToNewGroup({0, 2});
-  EXPECT_EQ("2 1 0 3", GetTabStripStateString(tabstrip()));
+  EXPECT_EQ("2g0 1g0 0g1 3", GetTabStripStateString(tabstrip(), true));
+
+  tabstrip()->CloseAllTabs();
+}
+
+TEST_F(TabStripModelTest, AddTabAndSplitsToNewGroup) {
+  PrepareTabs(tabstrip(), 8);
+
+  tabstrip()->SetTabPinned(0, true);
+  tabstrip()->SetTabPinned(1, true);
+  tabstrip()->SetTabPinned(2, true);
+  tabstrip()->ActivateTabAt(1);
+  tabstrip()->AddToNewSplit({2}, split_tabs::SplitTabVisualData());
+  tabstrip()->SetTabPinned(3, true);
+  tabstrip()->ActivateTabAt(5);
+  tabstrip()->AddToNewSplit({6}, split_tabs::SplitTabVisualData());
+  ASSERT_EQ("0p 1ps 2ps 3p 4 5s 6s 7",
+            GetTabStripStateString(tabstrip(), true));
+
+  tabstrip()->AddToNewGroup({0, 1, 2, 5, 6, 7});
+  EXPECT_EQ("3p 0g0 1g0s 2g0s 5g0s 6g0s 7g0 4",
+            GetTabStripStateString(tabstrip(), true));
+
+  tabstrip()->AddToNewGroup({0, 2, 3, 6});
+  EXPECT_EQ("3g0 1g0s 2g0s 7g0 0g1 5g1s 6g1s 4",
+            GetTabStripStateString(tabstrip(), true));
 
   tabstrip()->CloseAllTabs();
 }
@@ -4234,9 +4364,7 @@ TEST_F(TabStripModelTest, AddTabToExistingGroup) {
       tabstrip()->GetTabGroupForTab(0);
 
   tabstrip()->AddToExistingGroup({1}, group.value());
-
-  EXPECT_EQ(tabstrip()->GetTabGroupForTab(1), group);
-  EXPECT_EQ("0 1", GetTabStripStateString(tabstrip()));
+  EXPECT_EQ("0g0 1g0", GetTabStripStateString(tabstrip(), true));
 
   tabstrip()->CloseAllTabs();
 }
@@ -4266,9 +4394,7 @@ TEST_F(TabStripModelTest, AddTabToLeftOfExistingGroupReorders) {
       tabstrip()->GetTabGroupForTab(2);
 
   tabstrip()->AddToExistingGroup({0}, group.value());
-  EXPECT_EQ(tabstrip()->GetTabGroupForTab(1), group);
-  EXPECT_EQ(tabstrip()->GetTabGroupForTab(2), group);
-  EXPECT_EQ("1 0 2", GetTabStripStateString(tabstrip()));
+  EXPECT_EQ("1 0g0 2g0", GetTabStripStateString(tabstrip(), true));
 
   tabstrip()->CloseAllTabs();
 }
@@ -4281,10 +4407,7 @@ TEST_F(TabStripModelTest, AddTabToRighOfExistingGroupReorders) {
       tabstrip()->GetTabGroupForTab(0);
 
   tabstrip()->AddToExistingGroup({2}, group.value());
-  EXPECT_EQ(tabstrip()->GetTabGroupForTab(0), group);
-  EXPECT_EQ(tabstrip()->GetTabGroupForTab(1), group);
-  EXPECT_FALSE(tabstrip()->GetTabGroupForTab(2).has_value());
-  EXPECT_EQ("0 2 1", GetTabStripStateString(tabstrip()));
+  EXPECT_EQ("0g0 2g0 1", GetTabStripStateString(tabstrip(), true));
 
   tabstrip()->CloseAllTabs();
 }
@@ -4318,6 +4441,30 @@ TEST_F(TabStripModelTest, AddTabToExistingGroupUnpins) {
   EXPECT_FALSE(tabstrip()->IsTabPinned(0));
   EXPECT_EQ(tabstrip()->GetTabGroupForTab(0), group);
   EXPECT_EQ("0 1", GetTabStripStateString(tabstrip()));
+
+  tabstrip()->CloseAllTabs();
+}
+
+TEST_F(TabStripModelTest, AddTabAndSplitsToExistingGroup) {
+  PrepareTabs(tabstrip(), 8);
+
+  tabstrip()->SetTabPinned(0, true);
+  tabstrip()->SetTabPinned(1, true);
+  tabstrip()->SetTabPinned(2, true);
+  tabstrip()->ActivateTabAt(1);
+  tabstrip()->AddToNewSplit({2}, split_tabs::SplitTabVisualData());
+  tabstrip()->SetTabPinned(3, true);
+  tabstrip()->ActivateTabAt(5);
+  tabstrip()->AddToNewSplit({6}, split_tabs::SplitTabVisualData());
+  tabstrip()->AddToNewGroup({4});
+  ASSERT_EQ("0p 1ps 2ps 3p 4g0 5s 6s 7",
+            GetTabStripStateString(tabstrip(), true));
+  std::optional<tab_groups::TabGroupId> group =
+      tabstrip()->GetTabGroupForTab(4);
+
+  tabstrip()->AddToExistingGroup({0, 1, 2, 5, 6, 7}, group.value());
+  EXPECT_EQ("3p 0g0 1g0s 2g0s 4g0 5g0s 6g0s 7g0",
+            GetTabStripStateString(tabstrip(), true));
 
   tabstrip()->CloseAllTabs();
 }
@@ -4378,10 +4525,7 @@ TEST_F(TabStripModelTest, RemoveTabFromGroupMaintainsOrder) {
   tabstrip()->AddToNewGroup({0, 1});
 
   tabstrip()->RemoveFromGroup({0});
-
-  EXPECT_TRUE(tabstrip()->GetTabGroupForTab(1).has_value());
-  EXPECT_FALSE(tabstrip()->GetTabGroupForTab(0).has_value());
-  EXPECT_EQ("0 1", GetTabStripStateString(tabstrip()));
+  EXPECT_EQ("0 1g0", GetTabStripStateString(tabstrip(), true));
 
   tabstrip()->CloseAllTabs();
 }
@@ -4402,12 +4546,7 @@ TEST_F(TabStripModelTest,
   tabstrip()->AddToNewGroup({0, 1, 2, 3});
 
   tabstrip()->RemoveFromGroup({0, 2});
-
-  EXPECT_FALSE(tabstrip()->GetTabGroupForTab(0).has_value());
-  EXPECT_TRUE(tabstrip()->GetTabGroupForTab(1).has_value());
-  EXPECT_TRUE(tabstrip()->GetTabGroupForTab(2).has_value());
-  EXPECT_FALSE(tabstrip()->GetTabGroupForTab(3).has_value());
-  EXPECT_EQ("0 1 3 2", GetTabStripStateString(tabstrip()));
+  EXPECT_EQ("0 1g0 3g0 2", GetTabStripStateString(tabstrip(), true));
 
   tabstrip()->CloseAllTabs();
 }
@@ -4418,13 +4557,7 @@ TEST_F(TabStripModelTest, RemoveTabFromGroupMixtureOfGroups) {
   tabstrip()->AddToNewGroup({2, 3});
 
   tabstrip()->RemoveFromGroup({0, 3, 4});
-
-  EXPECT_FALSE(tabstrip()->GetTabGroupForTab(0).has_value());
-  EXPECT_TRUE(tabstrip()->GetTabGroupForTab(1).has_value());
-  EXPECT_TRUE(tabstrip()->GetTabGroupForTab(2).has_value());
-  EXPECT_FALSE(tabstrip()->GetTabGroupForTab(3).has_value());
-  EXPECT_FALSE(tabstrip()->GetTabGroupForTab(4).has_value());
-  EXPECT_EQ("0 1 2 3 4", GetTabStripStateString(tabstrip()));
+  EXPECT_EQ("0 1g0 2g1 3 4", GetTabStripStateString(tabstrip(), true));
 
   tabstrip()->CloseAllTabs();
 }
@@ -4437,6 +4570,30 @@ TEST_F(TabStripModelTest, RemoveTabFromGroupDeletesGroup) {
   tabstrip()->RemoveFromGroup({0});
 
   EXPECT_EQ(tabstrip()->group_model()->ListTabGroups().size(), 0U);
+
+  tabstrip()->CloseAllTabs();
+}
+
+TEST_F(TabStripModelTest, RemoveTabsAndSplitsFromGroup) {
+  PrepareTabs(tabstrip(), 5);
+  tabstrip()->ActivateTabAt(1);
+  tabstrip()->AddToNewSplit({2}, split_tabs::SplitTabVisualData());
+  tabstrip()->AddToNewGroup({0, 1, 2, 3, 4});
+  ASSERT_EQ("0g0 1g0s 2g0s 3g0 4g0", GetTabStripStateString(tabstrip(), true));
+
+  tabstrip()->RemoveFromGroup({1, 2, 3});
+  EXPECT_EQ("1s 2s 0g0 4g0 3", GetTabStripStateString(tabstrip(), true));
+
+  tabstrip()->CloseAllTabs();
+
+  PrepareTabs(tabstrip(), 5);
+  tabstrip()->ActivateTabAt(2);
+  tabstrip()->AddToNewSplit({3}, split_tabs::SplitTabVisualData());
+  tabstrip()->AddToNewGroup({0, 1, 2, 3, 4});
+  ASSERT_EQ("0g0 1g0 2g0s 3g0s 4g0", GetTabStripStateString(tabstrip(), true));
+
+  tabstrip()->RemoveFromGroup({1, 2, 3});
+  EXPECT_EQ("1 0g0 4g0 2s 3s", GetTabStripStateString(tabstrip(), true));
 
   tabstrip()->CloseAllTabs();
 }
@@ -5036,34 +5193,102 @@ TEST_F(TabStripModelTest, SurroundingGroupAtIndex) {
 TEST_F(TabStripModelTest, ActivateRecordsStartTime) {
   PrepareTabs(tabstrip(), 2);
 
-  auto has_tab_switch_start_time = [this](int index) -> bool {
-    return !content::WebContentsTester::For(tabstrip()->GetWebContentsAt(index))
-                ->GetTabSwitchStartTime()
-                .is_null();
-  };
-
   // PrepareTabs should leave the last tab active.
   ASSERT_EQ(tabstrip()->GetActiveWebContents(),
             tabstrip()->GetWebContentsAt(1));
-  ASSERT_FALSE(has_tab_switch_start_time(0));
-  ASSERT_FALSE(has_tab_switch_start_time(1));
+  ASSERT_FALSE(HasTabSwitchStartTimeAtIndex(0));
+  ASSERT_FALSE(HasTabSwitchStartTimeAtIndex(1));
 
   // ActivateTabAt should only update the start time if the active tab changes.
   tabstrip()->ActivateTabAt(
       1, TabStripUserGestureDetails(
              TabStripUserGestureDetails::GestureType::kOther));
-  EXPECT_FALSE(has_tab_switch_start_time(0));
-  EXPECT_FALSE(has_tab_switch_start_time(1));
+  EXPECT_FALSE(HasTabSwitchStartTimeAtIndex(0));
+  EXPECT_FALSE(HasTabSwitchStartTimeAtIndex(1));
   tabstrip()->ActivateTabAt(
       0, TabStripUserGestureDetails(
              TabStripUserGestureDetails::GestureType::kOther));
-  EXPECT_TRUE(has_tab_switch_start_time(0));
-  EXPECT_FALSE(has_tab_switch_start_time(1));
+  EXPECT_TRUE(HasTabSwitchStartTimeAtIndex(0));
+  EXPECT_FALSE(HasTabSwitchStartTimeAtIndex(1));
   tabstrip()->ActivateTabAt(
       1, TabStripUserGestureDetails(
              TabStripUserGestureDetails::GestureType::kOther));
-  EXPECT_TRUE(has_tab_switch_start_time(0));
-  EXPECT_TRUE(has_tab_switch_start_time(1));
+  EXPECT_TRUE(HasTabSwitchStartTimeAtIndex(0));
+  EXPECT_TRUE(HasTabSwitchStartTimeAtIndex(1));
+}
+
+TEST_F(TabStripModelTest, ActivateRecordsStartTime_UnSplitToSplit) {
+  // Create 3 tabs with a split containing tabs 1 and 2.
+  PrepareTabs(tabstrip(), 3);
+  ASSERT_EQ(tabstrip()->GetActiveWebContents(),
+            tabstrip()->GetWebContentsAt(2));
+  tabstrip()->AddToNewSplit({1}, split_tabs::SplitTabVisualData());
+
+  // ActivateTabAt should update the start time when the tab outside the split
+  // becomes active.
+  EXPECT_FALSE(HasTabSwitchStartTimeAtIndex(0));
+  tabstrip()->ActivateTabAt(
+      0, TabStripUserGestureDetails(
+             TabStripUserGestureDetails::GestureType::kOther));
+  EXPECT_TRUE(HasTabSwitchStartTimeAtIndex(0));
+}
+
+TEST_F(TabStripModelTest, ActivateRecordsStartTime_SplitToUnSplit) {
+  // Create 3 tabs with a split containing tabs 1 and 2.
+  PrepareTabs(tabstrip(), 3);
+  ASSERT_EQ(tabstrip()->GetActiveWebContents(),
+            tabstrip()->GetWebContentsAt(2));
+  tabstrip()->AddToNewSplit({1}, split_tabs::SplitTabVisualData());
+  tabstrip()->ActivateTabAt(0);
+
+  // ActivateTabAt should update the start time when a tab in the split becomes
+  // active. Only the tab that was activated should get a start time.
+  EXPECT_FALSE(HasTabSwitchStartTimeAtIndex(1));
+  EXPECT_FALSE(HasTabSwitchStartTimeAtIndex(2));
+  tabstrip()->ActivateTabAt(
+      1, TabStripUserGestureDetails(
+             TabStripUserGestureDetails::GestureType::kOther));
+  EXPECT_TRUE(HasTabSwitchStartTimeAtIndex(1));
+  EXPECT_FALSE(HasTabSwitchStartTimeAtIndex(2));
+}
+
+TEST_F(TabStripModelTest, ActivateRecordsStartTime_SplitToSameSplit) {
+  // Create 3 tabs with a split containing tabs 1 and 2.
+  PrepareTabs(tabstrip(), 3);
+  ASSERT_EQ(tabstrip()->GetActiveWebContents(),
+            tabstrip()->GetWebContentsAt(2));
+  tabstrip()->AddToNewSplit({1}, split_tabs::SplitTabVisualData());
+
+  // ActivateTabAt should not update the start time when the other tab in the
+  // split becomes active.
+  EXPECT_FALSE(HasTabSwitchStartTimeAtIndex(1));
+  EXPECT_FALSE(HasTabSwitchStartTimeAtIndex(2));
+  tabstrip()->ActivateTabAt(
+      1, TabStripUserGestureDetails(
+             TabStripUserGestureDetails::GestureType::kOther));
+  EXPECT_FALSE(HasTabSwitchStartTimeAtIndex(1));
+  EXPECT_FALSE(HasTabSwitchStartTimeAtIndex(2));
+}
+
+TEST_F(TabStripModelTest, ActivateRecordsStartTime_SplitToOtherSplit) {
+  // Create 4 tabs, with a split containing tabs 0 and 1, and a split containing
+  // tabs 2 and 3.
+  PrepareTabs(tabstrip(), 4);
+  ASSERT_EQ(tabstrip()->GetActiveWebContents(),
+            tabstrip()->GetWebContentsAt(3));
+  tabstrip()->AddToNewSplit({2}, split_tabs::SplitTabVisualData());
+  tabstrip()->ActivateTabAt(0);
+  tabstrip()->AddToNewSplit({1}, split_tabs::SplitTabVisualData());
+
+  // ActivateTabAt should update the start time when a tab in the other split
+  // becomes active. Only the tab that was activated should get a start time.
+  ASSERT_FALSE(HasTabSwitchStartTimeAtIndex(2));
+  ASSERT_FALSE(HasTabSwitchStartTimeAtIndex(3));
+  tabstrip()->ActivateTabAt(
+      2, TabStripUserGestureDetails(
+             TabStripUserGestureDetails::GestureType::kOther));
+  EXPECT_TRUE(HasTabSwitchStartTimeAtIndex(2));
+  EXPECT_FALSE(HasTabSwitchStartTimeAtIndex(3));
 }
 
 TEST_F(TabStripModelTest, ToggleSiteMuted) {

@@ -6,11 +6,11 @@
 #define COMPONENTS_PERMISSIONS_CONTEXTS_NFC_PERMISSION_CONTEXT_H_
 
 #include "build/build_config.h"
-#include "components/permissions/permission_context_base.h"
+#include "components/permissions/content_setting_permission_context_base.h"
 
 namespace permissions {
 
-class NfcPermissionContext : public PermissionContextBase {
+class NfcPermissionContext : public ContentSettingPermissionContextBase {
  public:
   // The delegate allows embedders to modify the permission context logic.
   class Delegate {
@@ -35,13 +35,15 @@ class NfcPermissionContext : public PermissionContextBase {
   std::unique_ptr<Delegate> delegate_;
 
  private:
-  // PermissionContextBase:
+  // ContentSettingPermissionContextBase:
 #if !BUILDFLAG(IS_ANDROID)
-  ContentSetting GetPermissionStatusInternal(
+  ContentSetting GetContentSettingStatusInternal(
       content::RenderFrameHost* render_frame_host,
       const GURL& requesting_origin,
       const GURL& embedding_origin) const override;
 #endif
+
+  // PermissionContextBase:
   void DecidePermission(std::unique_ptr<PermissionRequestData> request_data,
                         BrowserPermissionCallback callback) override;
   void UpdateTabContext(const PermissionRequestID& id,

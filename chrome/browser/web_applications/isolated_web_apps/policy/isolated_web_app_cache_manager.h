@@ -9,6 +9,7 @@
 #include "base/types/pass_key.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/web_applications/isolated_web_apps/commands/cleanup_bundle_cache_command.h"
+#include "chrome/browser/web_applications/isolated_web_apps/commands/remove_obsolete_bundle_versions_cache_command.h"
 #include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_cache_client.h"
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_install_manager.h"
@@ -23,8 +24,6 @@ class WebAppProvider;
 // Controls whether IWA bundle cache directories should be cleaned or not. If
 // `IsIwaBundleCacheEnabled()` returns false, this class will not clean up
 // anything.
-// TODO(crbug.com/388727598): observe IWA installation to trigger updates
-// manually.
 class IwaBundleCacheManager : public WebAppInstallManagerObserver {
  public:
   explicit IwaBundleCacheManager(Profile& profile);
@@ -41,15 +40,35 @@ class IwaBundleCacheManager : public WebAppInstallManagerObserver {
   void OnWebAppInstallManagerDestroyed() override;
 
  private:
-  // Cleans IWA bundle cache for the current session. Which means if Managed
-  // Guest Session is launched, cache will be cleaned only for Managed Guest
-  // Session and not for kiosk. And vice versa.
-  void CleanCacheForIwasDeletedFromPolicy();
-  void OnCleanCacheForIwasDeletedFromPolicy(
+  // If Managed Guest Session is not in configured on the device anymore, remove
+  // all IWA bundle cache for it.
+  void MaybeRemoveManagedGuestSessionCache();
+  void OnMaybeRemoveManagedGuestSessionCache(
+      base::expected<CleanupBundleCacheSuccess, CleanupBundleCacheError>
+          result);
+
+  // If some IWA kiosks are not in the policy list anymore, remove their bundles
+  // from cache.
+  void RemoveCacheForIwaKioskDeletedFromPolicy();
+  void OnRemoveCacheForIwaKioskDeletedFromPolicy(
+      base::expected<CleanupBundleCacheSuccess, CleanupBundleCacheError>
+          result);
+
+  // Cleans IWA bundle cache for the IWAs which are not in the policy list for
+  // current Managed Guest Session. Does nothing when called outside of the
+  // Managed Guest Session.
+  void CleanupManagedGuestSessionOrphanedIwas();
+  void OnCleanupManagedGuestSessionOrphanedIwas(
       base::expected<CleanupBundleCacheSuccess, CleanupBundleCacheError>
           result);
 
   void TriggerIwaUpdateCheck(const WebApp& iwa);
+
+  // Keep only currently installed version in cache and cleanup all other
+  // bundles for `iwa`.
+  void RemoveObsoleteIwaVersionsCache(const WebApp& iwa);
+  void OnRemoveObsoleteIwaVersionsCache(
+      RemoveObsoleteBundleVersionsResult result);
 
   const raw_ref<Profile> profile_;
   raw_ptr<WebAppProvider> provider_ = nullptr;

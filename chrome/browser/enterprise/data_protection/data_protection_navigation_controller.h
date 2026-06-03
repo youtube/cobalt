@@ -5,8 +5,12 @@
 #ifndef CHROME_BROWSER_ENTERPRISE_DATA_PROTECTION_DATA_PROTECTION_NAVIGATION_CONTROLLER_H_
 #define CHROME_BROWSER_ENTERPRISE_DATA_PROTECTION_DATA_PROTECTION_NAVIGATION_CONTROLLER_H_
 
+#include <memory>
+
 #include "base/callback_list.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "chrome/browser/enterprise/data_protection/data_protection_navigation_observer.h"
 #include "components/enterprise/buildflags/buildflags.h"
 #include "content/public/browser/web_contents_observer.h"
 
@@ -21,7 +25,9 @@ struct UrlSettings;
 // settings based on the SafeBrowsing verdict for said navigation.
 // This class is unconditionally created, but will do nothing if data protection
 // is disabled.
-class DataProtectionNavigationController : public content::WebContentsObserver {
+class DataProtectionNavigationController
+    : public DataProtectionNavigationDelegate,
+      public content::WebContentsObserver {
  public:
   explicit DataProtectionNavigationController(
       tabs::TabInterface* tab_interface);
@@ -65,6 +71,9 @@ class DataProtectionNavigationController : public content::WebContentsObserver {
       content::NavigationHandle* navigation_handle) override;
   void DocumentOnLoadCompletedInPrimaryMainFrame() override;
 
+  // DataProtectionNavigationDelegate
+  void Cleanup(int64_t navigation_id) override;
+
   // Clear data protections once the page loads.
   // TODO(b/330960313): These bools can be removed once FCP is used as the
   // signal to set the data protections for the current tab.
@@ -75,6 +84,13 @@ class DataProtectionNavigationController : public content::WebContentsObserver {
 
   // Holds subscriptions for TabInterface callbacks.
   std::vector<base::CallbackListSubscription> tab_subscriptions_;
+
+  // Maps navigation IDs to navigation observers. We take ownership of said
+  // navigation observers here because, with added support for
+  // same-document navigations, some verdicts arrive after the navigation
+  // finishes, and we need the navigation observer to persist after this
+  // happens.
+  DataProtectionNavigationObserver::NavigationObservers navigation_observers_;
 
   raw_ptr<tabs::TabInterface> tab_interface_;
 

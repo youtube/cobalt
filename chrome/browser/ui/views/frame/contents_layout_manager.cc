@@ -7,16 +7,19 @@
 #include "base/check.h"
 #include "ui/views/view.h"
 
+constexpr int kNewTabFooterSeparatorHeight = 1;
 constexpr int kNewTabFooterHeight = 56;
 
-ContentsLayoutManager::ContentsLayoutManager(views::View* devtools_view,
-                                             views::View* devtools_scrim_view,
-                                             views::View* contents_view,
-                                             views::View* lens_overlay_view,
-                                             views::View* scrim_view,
-                                             views::View* border_view,
-                                             views::View* watermark_view,
-                                             views::View* new_tab_footer_view)
+ContentsLayoutManager::ContentsLayoutManager(
+    views::View* devtools_view,
+    views::View* devtools_scrim_view,
+    views::View* contents_view,
+    views::View* lens_overlay_view,
+    views::View* scrim_view,
+    views::View* border_view,
+    views::View* watermark_view,
+    views::View* new_tab_footer_view_separator,
+    views::View* new_tab_footer_view)
     : devtools_view_(devtools_view),
       devtools_scrim_view_(devtools_scrim_view),
       contents_view_(contents_view),
@@ -24,6 +27,7 @@ ContentsLayoutManager::ContentsLayoutManager(views::View* devtools_view,
       scrim_view_(scrim_view),
       border_view_(border_view),
       watermark_view_(watermark_view),
+      new_tab_footer_view_separator_(new_tab_footer_view_separator),
       new_tab_footer_view_(new_tab_footer_view) {}
 
 ContentsLayoutManager::~ContentsLayoutManager() = default;
@@ -52,9 +56,33 @@ views::ProposedLayout ContentsLayoutManager::CalculateProposedLayout(
   gfx::Size container_size(width, height);
   gfx::Rect new_devtools_bounds;
   gfx::Rect new_contents_bounds;
+  gfx::Size devtools_and_content_size = container_size;
 
-  ApplyDevToolsContentsResizingStrategy(
-      strategy_, container_size, &new_devtools_bounds, &new_contents_bounds);
+  if (new_tab_footer_view_ && new_tab_footer_view_->GetVisible()) {
+    const int footer_total_height =
+        kNewTabFooterHeight + kNewTabFooterSeparatorHeight;
+    devtools_and_content_size.set_height(devtools_and_content_size.height() -
+                                         footer_total_height);
+
+    layouts.child_layouts.emplace_back(
+        new_tab_footer_view_separator_.get(),
+        new_tab_footer_view_separator_->GetVisible(),
+        gfx::Rect(0, devtools_and_content_size.height(), container_size.width(),
+                  kNewTabFooterSeparatorHeight),
+        views::SizeBounds(container_size));
+
+    layouts.child_layouts.emplace_back(
+        new_tab_footer_view_.get(), new_tab_footer_view_->GetVisible(),
+        gfx::Rect(
+            0,
+            devtools_and_content_size.height() + kNewTabFooterSeparatorHeight,
+            container_size.width(), kNewTabFooterHeight),
+        views::SizeBounds(container_size));
+  }
+
+  ApplyDevToolsContentsResizingStrategy(strategy_, devtools_and_content_size,
+                                        &new_devtools_bounds,
+                                        &new_contents_bounds);
 
   // DevTools cares about the specific position, so we have to compensate RTL
   // layout here.
@@ -66,17 +94,6 @@ views::ProposedLayout ContentsLayoutManager::CalculateProposedLayout(
       devtools_scrim_view_.get(), devtools_scrim_view_->GetVisible(),
       host_view()->GetMirroredRect(new_devtools_bounds),
       views::SizeBounds(container_size));
-
-  // New Tab Footer view is displayed at the bottom of the contents view.
-  if (new_tab_footer_view_ && new_tab_footer_view_->GetVisible()) {
-    new_contents_bounds.set_height(new_contents_bounds.height() -
-                                   kNewTabFooterHeight);
-
-    layouts.child_layouts.emplace_back(
-        new_tab_footer_view_.get(), new_tab_footer_view_->GetVisible(),
-        gfx::Rect(0, new_contents_bounds.height(), width, kNewTabFooterHeight),
-        views::SizeBounds(container_size));
-  }
 
   const auto& contents_rect = host_view()->GetMirroredRect(new_contents_bounds);
   views::SizeBounds optional_size_bound = views::SizeBounds(container_size);

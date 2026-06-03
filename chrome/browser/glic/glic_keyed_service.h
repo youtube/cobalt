@@ -7,14 +7,18 @@
 
 #include <memory>
 #include <optional>
+#include <string>
+#include <vector>
 
 #include "base/callback_list.h"
 #include "base/containers/flat_set.h"
 #include "base/memory/memory_pressure_listener.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/actor/task_id.h"
-#include "chrome/browser/glic/host/context/glic_focused_tab_manager.h"
+#include "chrome/browser/glic/glic_enabling.h"
+#include "chrome/browser/glic/host/context/glic_sharing_manager.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
+#include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "content/public/browser/web_contents.h"
 
@@ -23,7 +27,7 @@ class Profile;
 class ProfileManager;
 
 namespace actor {
-class ActorCoordinator;
+class ExecutionEngine;
 }  // namespace actor
 
 namespace contextual_cueing {
@@ -37,12 +41,15 @@ class IdentityManager;
 namespace glic {
 class AuthController;
 class GlicActorController;
-class FocusedTabData;
 class GlicEnabling;
 class GlicMetrics;
+class GlicOcclusionNotifier;
 class GlicProfileManager;
 class GlicScreenshotCapturer;
+class GlicSharingManagerImpl;
+class GlicWindowController;
 class GlicWindowControllerImpl;
+class Host;
 
 // The GlicKeyedService is created for each eligible (i.e. non-incognito,
 // non-system, etc.) browser profile if Glic flags are enabled, regardless
@@ -75,7 +82,8 @@ class GlicKeyedService : public KeyedService {
                 bool prevent_close,
                 mojom::InvocationSource source);
 
-  void OpenFreDialogInNewTab(BrowserWindowInterface* bwi);
+  void OpenFreDialogInNewTab(BrowserWindowInterface* bwi,
+                             mojom::InvocationSource source);
 
   // Forcibly close the UI. This is similar to Shutdown in that it causes the
   // window controller to shutdown (and clear cached state), but unlike
@@ -90,6 +98,7 @@ class GlicKeyedService : public KeyedService {
   // Fetch zero state suggestions for the active web contents.
   void FetchZeroStateSuggestions(
       bool is_first_run,
+      std::optional<std::vector<std::string>> supported_tools,
       glic::mojom::WebClientHandler::
           GetZeroStateSuggestionsForFocusedTabCallback callback);
 
@@ -97,6 +106,7 @@ class GlicKeyedService : public KeyedService {
 
   GlicMetrics* metrics() { return metrics_.get(); }
   GlicWindowController& window_controller();
+  GlicSharingManager& sharing_manager();
 
   // Called when a webview guest is created within a chrome://glic WebUI.
   void GuestAdded(content::WebContents* guest_contents);
@@ -124,63 +134,15 @@ class GlicKeyedService : public KeyedService {
   void SetPanelDraggableAreas(const std::vector<gfx::Rect>& draggable_areas);
   void SetContextAccessIndicator(bool show);
 
-  // Callback for all changes to focused tab.
-  using FocusedTabChangedCallback =
-      base::RepeatingCallback<void(FocusedTabData)>;
-  // Callback for changes to focused tab data.
-  using FocusedTabDataChangedCallback =
-      base::RepeatingCallback<void(const glic::mojom::TabData*)>;
-  // Callback for changes to the focused tab instance.
-  using FocusedTabInstanceChangedCallback =
-      base::RepeatingCallback<void(content::WebContents*)>;
-  // Callback for changes to the focused tab container or candidate instances.
-  using FocusedTabOrCandidateInstanceChangedCallback =
-      base::RepeatingCallback<void(FocusedTabData)>;
   // Callback for changes to the context access indicator status.
   using ContextAccessIndicatorChangedCallback =
       base::RepeatingCallback<void(bool)>;
-
-  // Registers |callback| to be called whenever the focused tab changes. This
-  // includes when the active/selected tab for the profile changes (including
-  // those resulting from browser/window changes) as well as when the primary
-  // page of the focused tab has changed internally. Subscribers can filter for
-  // specific subsets of changes they care about by holding on to their own
-  // internal state. When the focused tab changes to nothing, this will be
-  // called with nullptr as the supplied WebContents argument.
-  base::CallbackListSubscription AddFocusedTabChangedCallback(
-      FocusedTabChangedCallback callback);
-
-  // Callback for changes to either the focused tab or the focused tab candidate
-  // instances. If no tab is in focus an error reason is returned indicating
-  // why and maybe a tab candidate with details as to why it cannot be focused.
-  base::CallbackListSubscription
-  AddFocusedTabOrCandidateInstanceChangedCallback(
-      FocusedTabOrCandidateInstanceChangedCallback callback);
-
-  // Callback for changes to the `WebContents` comprising the focused tab. Only
-  // fired when the `WebContents` for the focused tab changes to/from nullptr or
-  // to different `WebContents` instance.
-  base::CallbackListSubscription AddFocusedTabInstanceChangedCallback(
-      FocusedTabInstanceChangedCallback callback);
-
-  // Callback for changes to the tab data representation of the focused tab.
-  // This includes any event that changes tab data -- e.g. favicon/title change
-  // events (where the container does not change), as well as container changed
-  // events.
-  base::CallbackListSubscription AddFocusedTabDataChangedCallback(
-      FocusedTabDataChangedCallback callback);
 
   // Registers a callback to be called any time the context access indicator
   // status changes. This is used to update UI effects on the focused tab
   // depending on whether the client has requested the indicators or not.
   base::CallbackListSubscription AddContextAccessIndicatorStatusChangedCallback(
       ContextAccessIndicatorChangedCallback callback);
-
-  // Returns the currently focused tab data union which contains the focused
-  // tab's web contents, or the candidate for the focused tab and why it was
-  // deemed invalid for focus, or an error stating why no candidate was
-  // available.
-  FocusedTabData GetFocusedTabData();
 
   // Returns whether the context access indicator should be shown for the web
   // contents. True iff the web contents is considered focused by
@@ -191,10 +153,6 @@ class GlicKeyedService : public KeyedService {
   bool is_context_access_indicator_enabled() const {
     return is_context_access_indicator_enabled_;
   }
-
-  void GetContextFromFocusedTab(
-      const mojom::GetTabContextOptions& options,
-      glic::mojom::WebClientHandler::GetContextFromFocusedTabCallback callback);
 
   void ActInFocusedTab(
       const std::vector<uint8_t>& action_proto,
@@ -208,12 +166,17 @@ class GlicKeyedService : public KeyedService {
       const mojom::GetTabContextOptions& context_options,
       glic::mojom::WebClientHandler::ResumeActorTaskCallback callback);
 
-  // Returns true if the associated ActorCoordinator is active on the given
-  // `tab`. This can be used by callers to customize certain behaviour that
-  // might interfere with the ActorCoordinator.
-  bool IsActorCoordinatorActingOnTab(const content::WebContents* tab) const;
+  void OnUserInputSubmitted(glic::mojom::WebClientMode mode);
+  void OnRequestStarted();
+  void OnResponseStarted();
+  void OnResponseStopped();
 
-  actor::ActorCoordinator& GetActorCoordinatorForTesting();
+  // Returns true if the associated ExecutionEngine is active on the given
+  // `tab`. This can be used by callers to customize certain behaviour that
+  // might interfere with the ExecutionEngine.
+  bool IsExecutionEngineActingOnTab(const content::WebContents* tab) const;
+
+  actor::ExecutionEngine& GetExecutionEngineForTesting(tabs::TabInterface* tab);
 
   void CaptureScreenshot(
       glic::mojom::WebClientHandler::CaptureScreenshotCallback callback);
@@ -222,11 +185,17 @@ class GlicKeyedService : public KeyedService {
 
   bool IsActiveWebContents(content::WebContents* contents);
 
+  void AddPreloadCallback(base::OnceCallback<void()> callback);
+
   virtual void TryPreload();
+  void TryPreloadAfterDelay();
   virtual void TryPreloadFre();
   void Reload();
 
   Profile* profile() const { return profile_; }
+
+  // Used only for testing purposes.
+  void reset_profile_for_test() { profile_ = nullptr; }
 
   base::WeakPtr<GlicKeyedService> GetWeakPtr();
 
@@ -241,6 +210,14 @@ class GlicKeyedService : public KeyedService {
   // chrome://glic.
   bool IsGlicWebUi(content::WebContents* web_contents);
 
+  // Log a fake network request to NetLog with a Glic traffic annotation. This
+  // doesn't *send* a request, it just logs it for chrome://net-export.
+  //
+  // Unfortunately there's no way to pass `traffic_annotation` to
+  // LoadURLWithParams() or to tag the WebContents with an annotation, so we
+  // use this hacky workaround to capture the annotation at runtime.
+  void LogDummyNetworkRequestForTrafficAnnotation(const GURL& url);
+
  private:
   // A helper function to route GetZeroStateSuggestionsForFocusedTabCallback
   // callbacks.
@@ -250,8 +227,8 @@ class GlicKeyedService : public KeyedService {
           GetZeroStateSuggestionsForFocusedTabCallback callback,
       std::optional<std::vector<std::string>> returned_suggestions);
 
-  void FinishPreload(Profile* profile, bool should_preload);
-  void FinishPreloadFre(Profile* profile, bool should_preload);
+  void FinishPreload(bool should_preload);
+  void FinishPreloadFre(bool should_preload);
 
   // List of callbacks to be notified when the client requests a change to the
   // context access indicator status.
@@ -266,11 +243,13 @@ class GlicKeyedService : public KeyedService {
   std::unique_ptr<GlicMetrics> metrics_;
   std::unique_ptr<Host> host_;
   std::unique_ptr<GlicWindowControllerImpl> window_controller_;
-  GlicFocusedTabManager focused_tab_manager_;
+  std::unique_ptr<GlicSharingManagerImpl> sharing_manager_;
   std::unique_ptr<GlicScreenshotCapturer> screenshot_capturer_;
   std::unique_ptr<AuthController> auth_controller_;
   std::unique_ptr<GlicActorController> actor_controller_;
   std::unique_ptr<base::MemoryPressureListener> memory_pressure_listener_;
+  std::unique_ptr<GlicOcclusionNotifier> occlusion_notifier_;
+  base::OnceCallback<void()> preload_callback_;
 
   // Unowned
   raw_ptr<contextual_cueing::ContextualCueingService>

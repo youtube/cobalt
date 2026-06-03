@@ -8,7 +8,6 @@
 #include <string>
 
 #include "base/test/metrics/histogram_tester.h"
-#include "chrome/browser/ui/tabs/test/mock_tab_interface.h"
 #include "chrome/browser/ui/views/chrome_constrained_window_views_client.h"
 #include "chrome/browser/ui/views/webid/account_selection_bubble_view.h"
 #include "chrome/browser/ui/views/webid/account_selection_view_test_base.h"
@@ -17,6 +16,7 @@
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/views/chrome_views_test_base.h"
 #include "components/constrained_window/constrained_window_views.h"
+#include "components/tabs/public/mock_tab_interface.h"
 #include "content/public/browser/identity_request_dialog_controller.h"
 #include "content/public/test/test_renderer_host.h"
 #include "content/public/test/web_contents_tester.h"
@@ -42,7 +42,8 @@ class TestAccountSelectionView : public AccountSelectionViewBase,
             owner,
             /*url_loader_factory=*/nullptr,
             content::RelyingPartyData(/*rp_for_display=*/u"",
-                                      /*iframe_for_display=*/u"")) {
+                                      /*iframe_for_display=*/u""),
+            /*device_scale_factor=*/1.f) {
     // This matches behavior of the production code, which implicitly passes
     // ownership of the view to the widget via DialogDelegate superclass.
     SetOwnedByWidget(OwnedByWidgetPassKey());
@@ -330,6 +331,9 @@ class FedCmAccountSelectionViewDesktopTest : public ChromeViewsTestBase {
         /*labels=*/std::vector<std::string>(),
         /*login_state=*/idp_claimed_login_state,
         /*browser_trusted_login_state=*/browser_trusted_login_state);
+    if (idp_claimed_login_state == LoginState::kSignUp) {
+      account->fields = idp->disclosure_fields;
+    }
     account->identity_provider = std::move(idp);
     return account;
   }
@@ -346,6 +350,9 @@ class FedCmAccountSelectionViewDesktopTest : public ChromeViewsTestBase {
           /*labels=*/std::vector<std::string>(),
           /*login_state=*/account_info.second,
           /*browser_trusted_login_state=*/account_info.second));
+      if (account_info.second == LoginState::kSignUp) {
+        accounts.back()->fields = idp_data->disclosure_fields;
+      }
       accounts.back()->identity_provider = idp_data;
     }
     return accounts;
@@ -2275,6 +2282,12 @@ TEST_F(FedCmAccountSelectionViewDesktopTest,
 TEST_F(FedCmAccountSelectionViewDesktopTest,
        RequestPermissionFalseAndNewIdpDataDisclosureText) {
   idp_data_->disclosure_fields = {};
+  for (auto& account : accounts_) {
+    account->fields = {};
+  }
+  for (auto& account : new_accounts_) {
+    account->fields = {};
+  }
   std::unique_ptr<TestFedCmAccountSelectionView> controller =
       CreateAndShowAccountsModalThroughPopupWindow(accounts_, new_accounts_);
 

@@ -131,7 +131,7 @@ CSSStyleSheet* CSSStyleSheet::CreateInline(StyleSheetContents* sheet,
 CSSStyleSheet* CSSStyleSheet::CreateInline(Node& owner_node,
                                            const KURL& base_url,
                                            const TextPosition& start_position,
-                                           const WTF::TextEncoding& encoding) {
+                                           const TextEncoding& encoding) {
   Document& owner_node_document = owner_node.GetDocument();
   auto* parser_context = MakeGarbageCollected<CSSParserContext>(
       owner_node_document, owner_node_document.BaseURL(),
@@ -414,9 +414,9 @@ unsigned CSSStyleSheet::insertRule(const String& rule_string,
   if (index > length()) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kIndexSizeError,
-        WTF::StrCat({"The index provided (", String::Number(index),
-                     ") is larger than the maximum index (",
-                     String::Number(length()), ")."}));
+        StrCat({"The index provided (", String::Number(index),
+                ") is larger than the maximum index (",
+                String::Number(length()), ")."}));
     return 0;
   }
 
@@ -430,7 +430,7 @@ unsigned CSSStyleSheet::insertRule(const String& rule_string,
   if (!rule) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kSyntaxError,
-        WTF::StrCat({"Failed to parse the rule '", rule_string, "'."}));
+        StrCat({"Failed to parse the rule '", rule_string, "'."}));
     return 0;
   }
   RuleMutationScope mutation_scope(this);
@@ -474,9 +474,9 @@ void CSSStyleSheet::deleteRule(unsigned index,
     if (length()) {
       exception_state.ThrowDOMException(
           DOMExceptionCode::kIndexSizeError,
-          WTF::StrCat({"The index provided (", String::Number(index),
-                       ") is larger than the maximum index (",
-                       String::Number(length() - 1), ")."}));
+          StrCat({"The index provided (", String::Number(index),
+                  ") is larger than the maximum index (",
+                  String::Number(length() - 1), ")."}));
     } else {
       exception_state.ThrowDOMException(DOMExceptionCode::kIndexSizeError,
                                         "Style sheet is empty (length 0).");

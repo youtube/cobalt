@@ -202,6 +202,7 @@ class BottomSheetControllerImpl implements ManagedBottomSheetController, ScrimCo
 
     /**
      * Do the actual initialization of the bottom sheet.
+     *
      * @param initializedCallback A callback for the creation of the sheet.
      * @param window A means of accessing the screen size.
      * @param keyboardDelegate A means of hiding the keyboard.
@@ -213,6 +214,9 @@ class BottomSheetControllerImpl implements ManagedBottomSheetController, ScrimCo
             KeyboardVisibilityDelegate keyboardDelegate,
             Supplier<ViewGroup> root) {
         mBottomSheetContainer = root.get();
+        if (mBottomSheetContainer == null) {
+            return;
+        }
         mBottomSheetContainer.setVisibility(View.VISIBLE);
 
         LayoutInflater.from(root.get().getContext())
@@ -333,7 +337,6 @@ class BottomSheetControllerImpl implements ManagedBottomSheetController, ScrimCo
             mBottomSheet.addObserver(mPendingSheetObservers.get(i));
         }
         mPendingSheetObservers.clear();
-
         mSheetInitializer = null;
     }
 
@@ -534,9 +537,10 @@ class BottomSheetControllerImpl implements ManagedBottomSheetController, ScrimCo
         if (content == null) {
             throw new RuntimeException("Attempting to show null content in the sheet!");
         }
-
         if (mBottomSheet == null) assumeNonNull(mSheetInitializer).run();
-        assumeNonNull(mBottomSheet);
+        if (mBottomSheet == null) {
+            return false;
+        }
         assumeNonNull(mContentQueue);
 
         // If already showing (or queued to show) the requested content, do nothing.
@@ -691,6 +695,16 @@ class BottomSheetControllerImpl implements ManagedBottomSheetController, ScrimCo
     @Override
     public boolean isAnchoredToBottomControls() {
         return mIsAnchoredToBottomControls;
+    }
+
+    @Override
+    public @Nullable Integer getSheetBackgroundColor() {
+        if (mBottomSheet == null
+                || getCurrentSheetContent() == null
+                || !getCurrentSheetContent().hasSolidBackgroundColor()) {
+            return null;
+        }
+        return mBottomSheet.getSheetBackgroundColor();
     }
 
     // ScrimCoordinator.Observer

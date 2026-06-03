@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "base/notimplemented.h"
 #include "chrome/browser/ash/login/existing_user_controller.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/browser_process.h"
@@ -71,34 +72,6 @@ void LoginAsh::LaunchManagedGuestSession(
   }
   std::move(callback).Run(
       extensions::login_api_errors::kNoManagedGuestSessionAccounts);
-}
-
-void LoginAsh::ExitCurrentSession(
-    const std::optional<std::string>& data_for_next_login_attempt,
-    ExitCurrentSessionCallback callback) {
-  PrefService* local_state = g_browser_process->local_state();
-  DCHECK(local_state);
-
-  if (data_for_next_login_attempt) {
-    local_state->SetString(prefs::kLoginExtensionApiDataForNextLoginAttempt,
-                           *data_for_next_login_attempt);
-  } else {
-    local_state->ClearPref(prefs::kLoginExtensionApiDataForNextLoginAttempt);
-  }
-
-  chrome::AttemptUserExit();
-  std::move(callback).Run(std::nullopt);
-}
-
-void LoginAsh::FetchDataForNextLoginAttempt(
-    FetchDataForNextLoginAttemptCallback callback) {
-  PrefService* local_state = g_browser_process->local_state();
-  DCHECK(local_state);
-  std::string data_for_next_login_attempt =
-      local_state->GetString(prefs::kLoginExtensionApiDataForNextLoginAttempt);
-  local_state->ClearPref(prefs::kLoginExtensionApiDataForNextLoginAttempt);
-
-  std::move(callback).Run(data_for_next_login_attempt);
 }
 
 void LoginAsh::LockManagedGuestSession(
@@ -222,17 +195,6 @@ void LoginAsh::EndSharedSession(EndSharedSessionCallback callback) {
   chromeos::SharedSessionHandler::Get()->EndSharedSession(
       base::BindOnce(&LoginAsh::OnOptionalErrorCallbackComplete,
                      weak_factory_.GetWeakPtr(), std::move(callback)));
-}
-
-void LoginAsh::SetDataForNextLoginAttempt(
-    const std::string& data_for_next_login_attempt,
-    SetDataForNextLoginAttemptCallback callback) {
-  PrefService* local_state = g_browser_process->local_state();
-  DCHECK(local_state);
-  local_state->SetString(prefs::kLoginExtensionApiDataForNextLoginAttempt,
-                         data_for_next_login_attempt);
-
-  std::move(callback).Run();
 }
 
 void LoginAsh::AddExternalLogoutRequestObserver(

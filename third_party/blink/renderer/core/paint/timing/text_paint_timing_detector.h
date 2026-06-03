@@ -23,8 +23,9 @@ class PropertyTreeStateOrAlias;
 class TextElementTiming;
 class TracedValue;
 struct DOMPaintTimingInfo;
+class SoftNavigationContext;
 
-class TextRecord final : public GarbageCollected<TextRecord> {
+class CORE_EXPORT TextRecord final : public GarbageCollected<TextRecord> {
  public:
   TextRecord(Node& node,
              uint64_t new_recorded_size,
@@ -32,12 +33,15 @@ class TextRecord final : public GarbageCollected<TextRecord> {
              const gfx::Rect& frame_visual_rect,
              const gfx::RectF& root_visual_rect,
              uint32_t frame_index,
-             bool is_needed_for_timing)
+             bool is_needed_for_timing,
+             SoftNavigationContext* soft_navigation_context)
       : node_(&node),
         recorded_size(new_recorded_size),
         frame_index_(frame_index),
         element_timing_rect_(element_timing_rect),
-        is_needed_for_timing_(is_needed_for_timing) {
+        root_visual_rect_(root_visual_rect),
+        is_needed_for_timing_(is_needed_for_timing),
+        soft_navigation_context_(soft_navigation_context) {
     if (PaintTimingVisualizer::IsTracingEnabled()) {
       lcp_rect_info_ = std::make_unique<LCPRectInfo>(
           frame_visual_rect, gfx::ToRoundedRect(root_visual_rect));
@@ -52,11 +56,13 @@ class TextRecord final : public GarbageCollected<TextRecord> {
   uint64_t recorded_size = 0;
   uint32_t frame_index_ = 0;
   gfx::RectF element_timing_rect_;
+  gfx::RectF root_visual_rect_;
   std::unique_ptr<LCPRectInfo> lcp_rect_info_;
   // The time of the first paint after fully loaded.
-  base::TimeTicks paint_time = base::TimeTicks();
+  base::TimeTicks paint_time;
   DOMPaintTimingInfo paint_timing_info;
   bool is_needed_for_timing_ = false;
+  WeakMember<SoftNavigationContext> soft_navigation_context_;
 };
 
 class CORE_EXPORT LargestTextPaintManager final
@@ -84,16 +90,6 @@ class CORE_EXPORT LargestTextPaintManager final
 
   Member<TextRecord> PopLargestIgnoredText() {
     return std::move(largest_ignored_text_);
-  }
-
-  void Clear() {
-    count_candidates_ = 0;
-    largest_text_.Clear();
-    largest_ignored_text_.Clear();
-  }
-  bool IsUnrelatedSoftNavigationPaint(const Node& node) {
-    CHECK(paint_timing_detector_);
-    return paint_timing_detector_->IsUnrelatedSoftNavigationPaint(node);
   }
 
   void Trace(Visitor*) const;
@@ -139,7 +135,7 @@ class CORE_EXPORT TextPaintTimingDetector final
   TextPaintTimingDetector(const TextPaintTimingDetector&) = delete;
   TextPaintTimingDetector& operator=(const TextPaintTimingDetector&) = delete;
 
-  bool ShouldWalkObject(const LayoutBoxModelObject&) const;
+  bool ShouldWalkObject(const LayoutBoxModelObject&);
   void RecordAggregatedText(const LayoutBoxModelObject& aggregator,
                             const gfx::Rect& aggregated_visual_rect,
                             const PropertyTreeStateOrAlias&);
@@ -148,7 +144,6 @@ class CORE_EXPORT TextPaintTimingDetector final
   TakePaintTimingCallback();
   void LayoutObjectWillBeDestroyed(const LayoutObject&);
   void StopRecordingLargestTextPaint();
-  void RestartRecordingLargestTextPaint();
   void ResetCallbackManager(PaintTimingCallbackManager* manager) {
     callback_manager_ = manager;
   }
@@ -168,12 +163,13 @@ class CORE_EXPORT TextPaintTimingDetector final
   void AssignPaintTimeToQueuedRecords(uint32_t frame_index,
                                       const base::TimeTicks&,
                                       const DOMPaintTimingInfo&);
-  void MaybeRecordTextRecord(
+  TextRecord* MaybeRecordTextRecord(
       const LayoutObject& object,
       const uint64_t& visual_size,
       const PropertyTreeStateOrAlias& property_tree_state,
       const gfx::Rect& frame_visual_rect,
-      const gfx::RectF& root_visual_rect);
+      const gfx::RectF& root_visual_rect,
+      SoftNavigationContext* context);
   inline void QueueToMeasurePaintTime(const LayoutObject& object,
                                       TextRecord* record) {
     texts_queued_for_paint_time_.insert(&object, record);

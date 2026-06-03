@@ -7,7 +7,7 @@
 #include <utility>
 #include <variant>
 
-#include "base/functional/overloaded.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "third_party/blink/public/mojom/webauthn/authenticator.mojom-shared.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
@@ -255,7 +255,7 @@ v8::Local<v8::Object> PublicKeyCredential::toJSON(
 
   v8::Local<v8::Value> result;
   std::visit(
-      base::Overloaded{
+      absl::Overload{
           [&](AuthenticatorAttestationResponseJSON* attestation_response) {
             auto* registration_response = RegistrationResponseJSON::Create();
             registration_response->setId(id());
@@ -326,7 +326,7 @@ ScriptPromise<IDLUndefined> PublicKeyCredential::signalUnknownCredential(
   auto promise = resolver->Promise();
 
   Vector<uint8_t> decoded_cred_id;
-  if (!WTF::Base64UnpaddedURLDecode(options->credentialId(), decoded_cred_id)) {
+  if (!Base64UnpaddedURLDecode(options->credentialId(), decoded_cred_id)) {
     resolver->RejectWithTypeError("Invalid base64url string for credentialId.");
     return promise;
   }
@@ -358,14 +358,14 @@ ScriptPromise<IDLUndefined> PublicKeyCredential::signalAllAcceptedCredentials(
 
   for (WTF::String credential_id : options->allAcceptedCredentialIds()) {
     Vector<uint8_t> decoded_cred_id;
-    if (!WTF::Base64UnpaddedURLDecode(credential_id, decoded_cred_id)) {
+    if (!Base64UnpaddedURLDecode(credential_id, decoded_cred_id)) {
       resolver->RejectWithTypeError(
           "Invalid base64url string for allAcceptedCredentialIds.");
       return promise;
     }
   }
   Vector<uint8_t> decoded_user_id;
-  if (!WTF::Base64UnpaddedURLDecode(options->userId(), decoded_user_id)) {
+  if (!Base64UnpaddedURLDecode(options->userId(), decoded_user_id)) {
     resolver->RejectWithTypeError("Invalid base64url string for userId.");
     return promise;
   }
@@ -396,7 +396,7 @@ ScriptPromise<IDLUndefined> PublicKeyCredential::signalCurrentUserDetails(
   auto promise = resolver->Promise();
 
   Vector<uint8_t> decoded_user_id;
-  if (!WTF::Base64UnpaddedURLDecode(options->userId(), decoded_user_id)) {
+  if (!Base64UnpaddedURLDecode(options->userId(), decoded_user_id)) {
     resolver->RejectWithTypeError("Invalid base64url string for userId.");
     return promise;
   }

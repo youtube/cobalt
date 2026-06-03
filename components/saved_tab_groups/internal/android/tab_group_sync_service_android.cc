@@ -12,6 +12,7 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/scoped_refptr.h"
+#include "components/saved_tab_groups/internal/android/versioning_message_controller_android.h"
 #include "components/saved_tab_groups/public/android/tab_group_sync_conversions_bridge.h"
 #include "components/saved_tab_groups/public/android/tab_group_sync_conversions_utils.h"
 #include "components/saved_tab_groups/public/collaboration_finder.h"
@@ -59,6 +60,9 @@ TabGroupSyncServiceAndroid::TabGroupSyncServiceAndroid(
     : tab_group_sync_service_(tab_group_sync_service) {
   DCHECK(tab_group_sync_service_);
   JNIEnv* env = base::android::AttachCurrentThread();
+  versioning_messaging_controller_android_ =
+      std::make_unique<VersioningMessageControllerAndroid>(
+          tab_group_sync_service_->GetVersioningMessageController());
   java_obj_.Reset(env, Java_TabGroupSyncServiceImpl_create(
                            env, reinterpret_cast<int64_t>(this))
                            .obj());
@@ -175,15 +179,27 @@ void TabGroupSyncServiceAndroid::MakeTabGroupShared(
     JNIEnv* env,
     const JavaParamRef<jobject>& j_caller,
     const JavaParamRef<jobject>& j_group_id,
-    const JavaParamRef<jstring>& j_collaboration_id) {
+    const JavaParamRef<jstring>& j_collaboration_id,
+    const JavaParamRef<jobject>& j_callback) {
   LocalTabGroupID tab_group_id =
       TabGroupSyncConversionsBridge::FromJavaTabGroupId(env, j_group_id);
-  std::string collaboration_id =
-      ConvertJavaStringToUTF8(env, j_collaboration_id);
-  // TODO(crbug.com/382557489): implement the callback.
+  syncer::CollaborationId collaboration_id(
+      ConvertJavaStringToUTF8(env, j_collaboration_id));
+
+  TabGroupSyncService::TabGroupSharingCallback native_sharing_callback;
+  if (j_callback) {
+    native_sharing_callback = base::BindOnce(
+        [](const jni_zero::JavaRef<jobject>& j_callback,
+           TabGroupSyncService::TabGroupSharingResult result) {
+          bool success =
+              (result == TabGroupSyncService::TabGroupSharingResult::kSuccess);
+          base::android::RunBooleanCallbackAndroid(j_callback, success);
+        },
+        ScopedJavaGlobalRef<jobject>(j_callback));
+  }
+
   tab_group_sync_service_->MakeTabGroupShared(
-      tab_group_id, collaboration_id,
-      TabGroupSyncService::TabGroupSharingCallback());
+      tab_group_id, collaboration_id, std::move(native_sharing_callback));
 }
 
 void TabGroupSyncServiceAndroid::AboutToUnShareTabGroup(
@@ -429,6 +445,13 @@ void TabGroupSyncServiceAndroid::UpdateArchivalStatus(
   auto sync_group_id = JavaStringToUuid(env, j_sync_group_id);
   tab_group_sync_service_->UpdateArchivalStatus(sync_group_id,
                                                 j_archival_status);
+}
+
+ScopedJavaLocalRef<jobject>
+TabGroupSyncServiceAndroid::GetVersioningMessageController(
+    JNIEnv* env,
+    const JavaParamRef<jobject>& j_caller) {
+  return versioning_messaging_controller_android_->GetJavaObject(env);
 }
 
 void TabGroupSyncServiceAndroid::SetCollaborationAvailableInFinderForTesting(

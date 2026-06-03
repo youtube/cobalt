@@ -23,9 +23,7 @@ try_.defaults.set(
     execution_timeout = try_.DEFAULT_EXECUTION_TIMEOUT,
     orchestrator_cores = 2,
     orchestrator_siso_remote_jobs = siso.remote_jobs.HIGH_JOBS_FOR_CQ,
-    reclient_enabled = False,
     service_account = try_.DEFAULT_SERVICE_ACCOUNT,
-    siso_enabled = True,
     siso_project = siso.project.DEFAULT_UNTRUSTED,
 )
 
@@ -157,7 +155,7 @@ try_.orchestrator_builder(
     branch_selector = branches.selector.MAC_BRANCHES,
     mirrors = [
         "ci/Mac Builder",
-        "ci/mac14-tests",
+        "ci/mac15-x64-rel-tests",
         "ci/GPU Mac Builder",
         "ci/Mac Release (Intel)",
         "ci/Mac Retina Release (AMD)",
@@ -361,7 +359,7 @@ try_.orchestrator_builder(
         # TODO (crbug.com/415099984): change to 100,
         # then move out of experimental CQ after,
         # mac15-arm64-rel replaces mac14-arm64-rel on CQ.
-        experiment_percentage = 100,
+        experiment_percentage = 1,
     ),
 )
 
@@ -596,11 +594,11 @@ ios_builder(
 )
 
 ios_builder(
-    name = "ios-blink-dbg-fyi",
+    name = "ios-blink-rel-fyi",
     mirrors = [
-        "ci/ios-blink-dbg-fyi",
+        "ci/ios-blink-rel-fyi",
     ],
-    gn_args = "ci/ios-blink-dbg-fyi",
+    gn_args = "ci/ios-blink-rel-fyi",
     builderless = True,
     cpu = cpu.ARM64,
     execution_timeout = 4 * time.hour,
@@ -762,27 +760,21 @@ ios_builder(
 )
 
 ios_builder(
+    name = "tvos-rel-fyi",
+    mirrors = ["ci/tvos-rel-fyi"],
+    gn_args = "ci/tvos-rel-fyi",
+    builderless = True,
+    cpu = cpu.ARM64,
+    contact_team_email = "cobalt-appletv@google.com",
+)
+
+ios_builder(
     name = "ios-vm",
     mirrors = ["ci/ios-vm"],
     gn_args = "ci/ios-vm",
     builderless = True,
     cpu = cpu.ARM64,
     contact_team_email = "bling-engprod@google.com",
-)
-
-ios_builder(
-    name = "ios17-beta-simulator",
-    mirrors = ["ci/ios17-beta-simulator"],
-    gn_args = "ci/ios17-beta-simulator",
-    cpu = cpu.ARM64,
-)
-
-ios_builder(
-    name = "ios17-sdk-simulator",
-    mirrors = ["ci/ios17-sdk-simulator"],
-    gn_args = "ci/ios17-sdk-simulator",
-    cpu = cpu.ARM64,
-    xcode = xcode.x16betabots,
 )
 
 ios_builder(
@@ -796,6 +788,13 @@ ios_builder(
 )
 
 ios_builder(
+    name = "ios26-beta-simulator",
+    mirrors = ["ci/ios26-beta-simulator"],
+    gn_args = "ci/ios26-beta-simulator",
+    cpu = cpu.ARM64,
+)
+
+ios_builder(
     name = "ios18-sdk-simulator",
     mirrors = [
         "ci/ios18-sdk-simulator",
@@ -803,6 +802,14 @@ ios_builder(
     gn_args = "ci/ios18-sdk-simulator",
     cpu = cpu.ARM64,
     xcode = xcode.x16betabots,
+)
+
+ios_builder(
+    name = "ios26-sdk-simulator",
+    mirrors = ["ci/ios26-sdk-simulator"],
+    gn_args = "ci/ios26-sdk-simulator",
+    cpu = cpu.ARM64,
+    xcode = xcode.x26betabots,
 )
 
 ios_builder(

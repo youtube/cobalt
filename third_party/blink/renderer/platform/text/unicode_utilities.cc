@@ -44,15 +44,15 @@ enum VoicedSoundMarkType {
 template <typename CharType>
 static inline CharType FoldQuoteMarkOrSoftHyphen(CharType c) {
   switch (static_cast<UChar>(c)) {
-    case kHebrewPunctuationGershayimCharacter:
-    case kLeftDoubleQuotationMarkCharacter:
-    case kRightDoubleQuotationMarkCharacter:
+    case uchar::kHebrewPunctuationGershayim:
+    case uchar::kLeftDoubleQuotationMark:
+    case uchar::kRightDoubleQuotationMark:
       return '"';
-    case kHebrewPunctuationGereshCharacter:
-    case kLeftSingleQuotationMarkCharacter:
-    case kRightSingleQuotationMarkCharacter:
+    case uchar::kHebrewPunctuationGeresh:
+    case uchar::kLeftSingleQuotationMark:
+    case uchar::kRightSingleQuotationMark:
       return '\'';
-    case kSoftHyphenCharacter:
+    case uchar::kSoftHyphen:
       // Replace soft hyphen with an ignorable character so that their presence
       // or absence will
       // not affect string comparison.
@@ -69,16 +69,16 @@ void FoldQuoteMarksAndSoftHyphens(base::span<UChar> data) {
 }
 
 void FoldQuoteMarksAndSoftHyphens(String& s) {
-  s.Replace(kHebrewPunctuationGereshCharacter, '\'');
-  s.Replace(kHebrewPunctuationGershayimCharacter, '"');
-  s.Replace(kLeftDoubleQuotationMarkCharacter, '"');
-  s.Replace(kLeftSingleQuotationMarkCharacter, '\'');
-  s.Replace(kRightDoubleQuotationMarkCharacter, '"');
-  s.Replace(kRightSingleQuotationMarkCharacter, '\'');
+  s.Replace(uchar::kHebrewPunctuationGeresh, '\'');
+  s.Replace(uchar::kHebrewPunctuationGershayim, '"');
+  s.Replace(uchar::kLeftDoubleQuotationMark, '"');
+  s.Replace(uchar::kLeftSingleQuotationMark, '\'');
+  s.Replace(uchar::kRightDoubleQuotationMark, '"');
+  s.Replace(uchar::kRightSingleQuotationMark, '\'');
   // Replace soft hyphen with an ignorable character so that their presence or
   // absence will
   // not affect string comparison.
-  s.Replace(kSoftHyphenCharacter, static_cast<UChar>('\0'));
+  s.Replace(uchar::kSoftHyphen, static_cast<UChar>('\0'));
 }
 
 static bool IsNonLatin1Separator(UChar32 character) {

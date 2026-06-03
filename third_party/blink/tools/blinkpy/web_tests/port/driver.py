@@ -391,7 +391,7 @@ class Driver(TestURIMapper):
         crash_site = None
         if crashed:
             self.error_from_test, crash_log, crash_site = self._get_crash_log(
-                text, self.error_from_test, newer_than=start_time)
+                text, self.error_from_test)
 
             # If we don't find a crash log use a placeholder error message instead.
             if not crash_log:
@@ -450,11 +450,9 @@ class Driver(TestURIMapper):
                             pid=pid,
                             command=command)
 
-    def _get_crash_log(self, stdout, stderr, newer_than):
-        # pylint: disable=protected-access
-        return self._port._get_crash_log(self._crashed_process_name,
-                                         self._crashed_pid, stdout, stderr,
-                                         newer_than)
+    def _get_crash_log(self, stdout, stderr):
+        return self._port.get_crash_log(self._crashed_process_name,
+                                        self._crashed_pid, stdout, stderr)
 
     def has_crashed(self):
         if self._server_process is None:
@@ -818,13 +816,7 @@ class ContentBlock(object):
         self.content_hash = None
         self._content_length = None
         # Content is treated as binary data even though the text output is usually UTF-8.
-        # FIXME: Should be bytearray() once we require Python 2.6.
-        # TODO(crbug/1197331): Keeping PY2 as str() for now, as diffing modules
-        # need to be looked into for PY3 unified_diff.py and html_diff.py
-        if six.PY2:
-            self.content = str()
-        else:
-            self.content = bytearray()
+        self.content = bytearray()
         self.decoded_content = None
         self.malloc = None
         self.js_heap = None

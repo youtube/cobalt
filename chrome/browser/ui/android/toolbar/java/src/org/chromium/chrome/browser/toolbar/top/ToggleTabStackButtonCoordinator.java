@@ -48,8 +48,6 @@ import org.chromium.ui.base.ViewUtils;
 import org.chromium.ui.util.XrUtils;
 import org.chromium.url.GURL;
 
-import java.util.concurrent.TimeUnit;
-
 /**
  * Root component for the tab switcher button on the toolbar. Intended to own the {@link
  * ToggleTabStackButton}, but currently it only manages some signals around the tab switcher button.
@@ -60,7 +58,7 @@ import java.util.concurrent.TimeUnit;
 public class ToggleTabStackButtonCoordinator extends ToolbarChild {
     private static final int IPH_TAB_SWITCHER_XR_WAIT_TIME_MS = 5 * 1000;
     private static final int IPH_TAB_SWITCHER_XR_MIN_TABS = 4;
-    private static final long ONE_DAY_IN_MILLIS = TimeUnit.DAYS.toMillis(1);
+
     private final CallbackController mCallbackController = new CallbackController();
     private final Context mContext;
     private final ToggleTabStackButton mToggleTabStackButton;
@@ -84,7 +82,6 @@ public class ToggleTabStackButtonCoordinator extends ToolbarChild {
     private final Callback<Integer> mArchivedTabCountObserver = this::maybeShowDeclutterIph;
     private @Nullable Callback<TabModelSelector> mTabModelSelectorCallback;
     private boolean mAlreadyRequestedDeclutterIph;
-    private long mLastTimeXrIphWasShown;
 
     /**
      * @param context The Android context used for various view operations.
@@ -443,12 +440,6 @@ public class ToggleTabStackButtonCoordinator extends ToolbarChild {
         if (tabCount < IPH_TAB_SWITCHER_XR_MIN_TABS) return;
         if (mUserEducationHelper == null) return;
 
-        long currentTime = System.currentTimeMillis();
-
-        // We don't show the IPH again unless Chrome is fully restarted
-        // or one day has elapsed since last time it was dismissed.
-        if (currentTime - mLastTimeXrIphWasShown < ONE_DAY_IN_MILLIS) return;
-
         mUserEducationHelper.requestShowIph(
                 new IphCommandBuilder(
                                 mContext.getResources(),
@@ -457,10 +448,7 @@ public class ToggleTabStackButtonCoordinator extends ToolbarChild {
                                 R.string.iph_tab_switcher_xr)
                         .setAnchorView(mToggleTabStackButton)
                         .setAutoDismissTimeout(IPH_TAB_SWITCHER_XR_WAIT_TIME_MS)
-                        .setOnDismissCallback(
-                                () -> {
-                                    mLastTimeXrIphWasShown = System.currentTimeMillis();
-                                })
+                        .setEnableSnoozeMode(true)
                         .build());
     }
 }

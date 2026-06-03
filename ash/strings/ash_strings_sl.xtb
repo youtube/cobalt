@@ -761,6 +761,7 @@ V nasprotnem primeru bo vgrajena sledilna ploščica znova omogočena čez <ph n
 <translation id="3552189655002856821">Povezava Wi-Fi je izklopljena.</translation>
 <translation id="3554215588514239132">Prikaz ali skrivanje podokna z orodji za razvijalce</translation>
 <translation id="3554637740840164787">Element <ph name="ITEM_TITLE" /> je bil pripet</translation>
+<translation id="3554928024630051016">Če želite dodati dodatne naprave USB, poskusite eno odstraniti in nato priključiti novo</translation>
 <translation id="3558768885091059911">Želite vklopiti dostop do kamere in mikrofona?</translation>
 <translation id="3560174576767922131">Posnemi videoposnetek</translation>
 <translation id="3563775809269155755">Omogočanje dostopne točke</translation>
@@ -868,6 +869,7 @@ Priklopite napravo v vir napajanja.</translation>
 <translation id="3861651314799684201">Pritisnite Enter, če želite snemati v celozaslonskem načinu</translation>
 <translation id="3870197372373144624">Poskusite izklopiti napravo.</translation>
 <translation id="3879748587602334249">Upravitelj prenosov</translation>
+<translation id="3884007280698606545">Omejitev USB je dosežena</translation>
 <translation id="3886872229787704059">Odprto danes</translation>
 <translation id="3891340733213178823">Dvakrat pritisnite Ctrl + Shift + Q, če se želite odjaviti.</translation>
 <translation id="3892148308691398805">Kopiraj besedilo</translation>
@@ -1012,6 +1014,7 @@ Nekatere funkcije so omejene za podaljšanje časa delovanja baterije.</translat
 <translation id="4305817255990598646">Preklopi</translation>
 <translation id="4307713728991152670">Nastavitev ogleda nedavnih fotografij, predstavnosti in aplikacij telefona</translation>
 <translation id="4312840429157639164">Fotoaparat je pripet v zgornji desni kot. To je v navzkrižju s sistemskim okoljem.</translation>
+<translation id="4312935606722154789">Združitev ali razdružitev dveh vzporednih oken</translation>
 <translation id="4316910396681052118">VSE APLIKACIJE</translation>
 <translation id="4321179778687042513">ctrl</translation>
 <translation id="4322385711258710213">Skrivanje vseh predlogov za brskalnik Chrome</translation>
@@ -1451,7 +1454,6 @@ Nobena naprava ni povezana.</translation>
 <translation id="5691772641933328258">Prstni odtis ni prepoznan</translation>
 <translation id="5693255400847650006">Mikrofon je v uporabi</translation>
 <translation id="5699366815052349604">Dodelitev aktivnega okna vsem namizjem</translation>
-<translation id="5701785125601597013">S telefonskim središčem lahko hitro pošiljate sporočila v telefonu ali odgovarjate nanje</translation>
 <translation id="570390244361237317">Vse aplikacije, s puščičnimi tipkami se premikate in dostopate do vseh aplikacij</translation>
 <translation id="5705197514573687092">Prikaz nastavitev Osredotočenosti. Časovnik je nastavljen na <ph name="FOCUS_DURATION" />.</translation>
 <translation id="5707775774148071965">Naprava podpira višjo podatkovno hitrost od kabla. Delovanje naprave bo morda omejeno.</translation>
@@ -1581,7 +1583,6 @@ Nobena naprava ni povezana.</translation>
 <translation id="6095425951508823973">Dodajanje povezavo s ponudnikom <ph name="PROVIDER" /></translation>
 <translation id="6099678161144790572">Urejeno v preteklem mesecu</translation>
 <translation id="6103838137565245112">sistem</translation>
-<translation id="610395411842312282">Združiteh dveh oken drugega ob drugem</translation>
 <translation id="6108952804512516814">Ustvarjanje z umetno inteligenco</translation>
 <translation id="6114505516289286752">Datoteke za govor v jeziku <ph name="LANGUAGE" /> so bile prenesene</translation>
 <translation id="6119360623251949462"><ph name="CHARGING_STATE" />. <ph name="BATTERY_SAVER_STATE" />.</translation>

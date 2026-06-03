@@ -67,6 +67,7 @@
 #include "third_party/blink/renderer/core/navigation_api/navigation_api.h"
 #include "third_party/blink/renderer/core/page/chrome_client.h"
 #include "third_party/blink/renderer/core/page/page.h"
+#include "third_party/blink/renderer/core/scroll/scroll_into_view_util.h"
 #include "third_party/blink/renderer/core/speculation_rules/document_speculation_rules.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
@@ -208,8 +209,8 @@ static void AppendServerMapMousePosition(StringBuilder& url, Event* event) {
   if (!mouse_event)
     return;
 
-  DCHECK(event->target());
-  Node* target = event->target()->ToNode();
+  DCHECK(event->RawTarget());
+  Node* target = event->RawTarget()->ToNode();
   DCHECK(target);
   auto* image_element = DynamicTo<HTMLImageElement>(target);
   if (!image_element || !image_element->IsServerMap())
@@ -828,14 +829,14 @@ HTMLAnchorElement::HTMLAnchorElement(Document& document)
 
 void HTMLAnchorElement::AttachLayoutTree(AttachContext& context) {
   // It's ok to set the update flag here, since update traversal will only
-  // happen if there are elements with scroll-marker-contain property set, and
+  // happen if there are elements with scroll-target-group property set, and
   // if there are some, the update traversal will happen anyway.
-  GetDocument().SetNeedsScrollMarkerGroupRelationsUpdate();
+  GetDocument().SetNeedsScrollTargetGroupRelationsUpdate();
   HTMLAnchorElementBase::AttachLayoutTree(context);
 }
 
 void HTMLAnchorElement::DetachLayoutTree(bool performing_reattach) {
-  if (ScrollMarkerGroupData* data = GetScrollMarkerGroupContainerData()) {
+  if (ScrollMarkerGroupData* data = GetScrollTargetGroupContainerData()) {
     data->RemoveFromFocusGroup(*this);
   }
   HTMLAnchorElementBase::DetachLayoutTree(performing_reattach);
@@ -854,14 +855,15 @@ Element* HTMLAnchorElement::ScrollTargetElement() const {
 PaintLayerScrollableArea*
 HTMLAnchorElement::AncestorScrollableAreaOfScrollTargetElement() const {
   Element* scroll_target = ScrollTargetElement();
-  if (!scroll_target) {
+  if (!scroll_target || !scroll_target->GetLayoutBox()) {
     return nullptr;
   }
-  for (Element* parent =
-           LayoutTreeBuilderTraversal::ParentElement(*scroll_target);
-       parent; parent = LayoutTreeBuilderTraversal::ParentElement(*parent)) {
-    if (parent->GetLayoutBox() && parent->GetLayoutBox()->GetScrollableArea()) {
-      return parent->GetLayoutBox()->GetScrollableArea();
+  for (LayoutBox* parent_box = scroll_target->GetLayoutBox()->ParentBox();
+       parent_box; parent_box = parent_box->ParentBox()) {
+    if (ScrollableArea* scrollable_area =
+            scroll_into_view_util::GetScrollableAreaForLayoutBox(
+                *parent_box, /*make_visible_in_visual_viewport=*/false)) {
+      return DynamicTo<PaintLayerScrollableArea>(scrollable_area);
     }
   }
   return nullptr;

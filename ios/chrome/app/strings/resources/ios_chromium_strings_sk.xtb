@@ -176,6 +176,7 @@ Ak chcete toto nastavenie zmeniť, <ph name="BEGIN_LINK" />odstráňte údaje pr
 <translation id="5259423875997548710">Vyhľadajte vizuálne prvky v prehliadači Chromium.</translation>
 <translation id="5308226104666789935">Chromium nemôže skontrolovať dostupnosť aktualizácií</translation>
 <translation id="5311557153294205270">Pridá vložené webové adresy do vašich záložiek v prehliadači Chromium.</translation>
+<translation id="5383251701169024761">Ak chcete ľahko získať svoje uložené heslá v iných aplikáciách, vyberte automatické dopĺňanie v prehliadači Chromium.</translation>
 <translation id="538767207339317086">Povoliť prihlásenie do prehliadača Chromium</translation>
 <translation id="5389058611415066188">Zaistite svoju bezpečnosť s prehliadačom Chromium</translation>
 <translation id="5415273218238091735">Tip pre Chromium</translation>
@@ -276,7 +277,6 @@ Ak chcete toto nastavenie zmeniť, <ph name="BEGIN_LINK" />odstráňte údaje pr
 <translation id="7763454117143368771">Používajte Chromium ako svoj predvolený prehliadač, aby ste sa naďalej chránili pred nebezpečnými webmi a zaistili ochranu svojich hesiel</translation>
 <translation id="7784950022329154821">Uzamknúť karty inkognito pri zavretí prehliadača Chromium</translation>
 <translation id="78025249032851484">Váš prehliadač Chromium je zastaraný.</translation>
-<translation id="7811371919871579588">Ak chcete ľahko získať svoje uložené heslá v iných aplikáciách, vyberte automatické dopĺňanie v prehliadači Chromium.</translation>
 <translation id="7859018312476869945">Keď zadávate v paneli s adresou alebo vyhľadávacom poli, prehliadač Chromium odosiela zadaný text do vášho predvoleného vyhľadávača, aby dostal lepšie návrhy. Táto možnosť je v režime inkognito vypnutá.</translation>
 <translation id="7890287942691234100">Začnite používať skener prehliadača Chromium</translation>
 <translation id="7905064834449738336">Keď používate heslo, Chromium vás upozorní, ak bude zverejnené na internete. Vaše heslá a používateľské mená sú pritom šifrované, aby ich nikto nemohol prečítať (ani Google).</translation>
@@ -331,6 +331,7 @@ Pred odhlásením skúste počkať niekoľko minút. Ak sa odhlásite teraz, tie
 <translation id="9050790730841755540">Chromium môžete kedykoľvek použiť klepnutím na odkazy v iných aplikáciách.</translation>
 <translation id="9059693977935746710">Toto heslo si nebudete musieť pamätať. Uloží sa do správcu hesiel v účte <ph name="EMAIL" />.</translation>
 <translation id="9089354809943900324">Prehliadač Chromium je zastaraný</translation>
+<translation id="9105645282262300612">Tip pre Chromium: vyhľadajte, čo vidíte</translation>
 <translation id="9152995302810511799">Tip pre prehliadač Chromium: získajte najúčinnejšie zabezpečenie prehliadača Chromium</translation>
 <translation id="9177628952266852500"><ph name="EMAIL" />. Prehliadač Chromium je spravovaný.</translation>
 <translation id="921174536258924340">Prehliadaču Chromium sa nepodarilo skontrolovať všetky heslá. Skúste to znova zajtra alebo <ph name="BEGIN_LINK" />skontrolujte heslá vo svojom účte Google<ph name="END_LINK" />.</translation>

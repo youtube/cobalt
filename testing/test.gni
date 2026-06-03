@@ -175,7 +175,14 @@ template("mixed_test") {
                              "*",
                              TESTONLY_AND_VISIBILITY + _rs_vars + [
                                    "fuzztests",
-                                   "fuzztest_stack_limit_kb",
+                                   "fuzztest_additional_args",
+                                   "libfuzzer_options",
+                                   "centipede_options",
+                                   "asan_options",
+                                   "msan_options",
+                                   "ubsan_options",
+                                   "environment_variables",
+                                   "grammar_options",
                                  ])
       forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
       sources = _cc_sources
@@ -211,6 +218,9 @@ template("mixed_test") {
     # is 'executable', since we generate a wrapper script that assumes so.
     # At the moment, we aim to fuzz these fuzztests only on Linux so that's
     # fine. In future we may need to broaden this.
+
+    # It makes no sense to have an empty fuzztests variable, let's forbid it.
+    assert(invoker.fuzztests != [])
     if (defined(invoker.output_name)) {
       _output_name = invoker.output_name
     } else {
@@ -231,9 +241,8 @@ template("mixed_test") {
     # all fuzz tests in this executable.
     _common_fuzzer_args = [ "--corpus_database=" ]
 
-    if (use_centipede && defined(invoker.fuzztest_stack_limit_kb)) {
-      _common_fuzzer_args +=
-          [ "--stack_limit_kb=${invoker.fuzztest_stack_limit_kb}" ]
+    if (defined(invoker.fuzztest_additional_args)) {
+      _common_fuzzer_args += invoker.fuzztest_additional_args
     }
 
     # Confirming that the "fuzztests =" directive is correct can only
@@ -300,13 +309,70 @@ template("mixed_test") {
               NEWLINE
         }
 
+        _additional_fuzz_deps = []
+        gen_fuzzer_config_args = []
+
+        if (defined(invoker.libfuzzer_options)) {
+          gen_fuzzer_config_args += [ "--libfuzzer_options" ]
+          gen_fuzzer_config_args += invoker.libfuzzer_options
+        }
+
+        if (defined(invoker.centipede_options)) {
+          gen_fuzzer_config_args += [ "--centipede_options" ]
+          gen_fuzzer_config_args += invoker.centipede_options
+        }
+
+        if (defined(invoker.asan_options)) {
+          gen_fuzzer_config_args += [ "--asan_options" ]
+          gen_fuzzer_config_args += invoker.asan_options
+        }
+
+        if (defined(invoker.msan_options)) {
+          gen_fuzzer_config_args += [ "--msan_options" ]
+          gen_fuzzer_config_args += invoker.msan_options
+        }
+
+        if (defined(invoker.ubsan_options)) {
+          gen_fuzzer_config_args += [ "--ubsan_options" ]
+          gen_fuzzer_config_args += invoker.ubsan_options
+        }
+
+        if (defined(invoker.environment_variables)) {
+          gen_fuzzer_config_args += [ "--environment_variables" ]
+          gen_fuzzer_config_args += invoker.environment_variables
+        }
+
+        if (defined(invoker.grammar_options)) {
+          gen_fuzzer_config_args += [ "--grammar_options" ]
+          gen_fuzzer_config_args += invoker.grammar_options
+        }
+
+        if (gen_fuzzer_config_args != []) {
+          _config_file_name = _fuzzer_name + ".options"
+          _additional_fuzz_deps += [ ":" + _config_file_name ]
+
+          # Generate .options file.
+          action(_config_file_name) {
+            script = "//testing/libfuzzer/gen_fuzzer_config.py"
+            args = [
+              "--config",
+              rebase_path("$root_build_dir/" + _config_file_name,
+                          root_build_dir),
+            ]
+
+            args += gen_fuzzer_config_args
+
+            outputs = [ "$root_build_dir/$_config_file_name" ]
+          }
+        }
+
         _fuzzer_target_name = target_name
         executable(_fuzztest_generate_fuzzer) {
           testonly = true
           data_deps = [
-            ":" + _fuzztest_target_name,
-            ":" + _fuzzer_target_name,
-          ]
+                        ":" + _fuzztest_target_name,
+                        ":" + _fuzzer_target_name,
+                      ] + _additional_fuzz_deps
           deps = [
             "//testing/libfuzzer:individual_fuzztest_wrapper",
             ":" + _fuzztest_generate_fuzzer + "_constants",
@@ -320,6 +386,12 @@ template("mixed_test") {
           write_runtime_deps = "$root_build_dir/${_fuzzer_name}.runtime_deps"
         }
       }
+    } else {
+      not_needed([
+                   "_common_fuzzer_args",
+                   "_fuzzer_binary_name",
+                   "_fuzztest_target_name",
+                 ])
     }
   }
 }
@@ -348,8 +420,7 @@ template("mixed_test") {
 #      fuzzing infrastructure can find and run such tests.
 #      This should be a list of the test names, for example
 #      fuzztests = [ "MyTestClass.MyTestName" ]
-#   fuzztest_stack_limit_kb: soft limit on the size of the stack in KB, enforced
-#     for fuzz tests in fuzzing mode only.
+#   fuzztest_additional_args: additional arguments to be forwarded to fuzztest.
 template("test") {
   # Ensures a test filter file exists and if not, creates a dummy file.
   # The Regression Test Selection (rts) flag is passed in mb.py and used

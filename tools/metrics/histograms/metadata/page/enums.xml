@@ -297,7 +297,7 @@ chromium-metrics-reviews@google.com.
   <int value="30" label="Discounts"/>
   <int value="31" label="Optimization Guide"/>
   <int value="32" label="Collaboration Messaging"/>
-  <int value="33" label="Change Password"/>
+  <int value="33" label="(Deprecated) Change Password"/>
   <int value="34" label="Lens Overlay Homework"/>
 </enum>
 
@@ -357,12 +357,6 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//components/page_load_metrics/browser/page_load_metrics_update_dispatcher.h:PageLoadTimingStatus) -->
-
-<enum name="PageLoadTrackerPageType">
-  <int value="0" label="Primary Page"/>
-  <int value="1" label="Prerender Page"/>
-  <int value="2" label="FencedFrames Page"/>
-</enum>
 
 <enum name="PageVisitType">
   <int value="0"

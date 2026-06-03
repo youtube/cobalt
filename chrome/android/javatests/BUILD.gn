@@ -614,6 +614,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.compositor") {
 
   sources = [
     "src/org/chromium/chrome/browser/compositor/CompositorVisibilityTest.java",
+    "src/org/chromium/chrome/browser/compositor/PerformancePTTest.java",
     "src/org/chromium/chrome/browser/compositor/layouts/LayoutManagerTest.java",
     "src/org/chromium/chrome/browser/compositor/layouts/content/TabContentManagerTest.java",
     "src/org/chromium/chrome/browser/compositor/overlays/strip/TabStripGroupContextMenuTest.java",
@@ -628,6 +629,7 @@ android_library(
   resources_package = "org.chromium.chrome.test"
 
   sources = [
+    "src/org/chromium/chrome/browser/contextualsearch/ContextualSearchCalloutTest.java",
     "src/org/chromium/chrome/browser/contextualsearch/ContextualSearchCriticalTest.java",
     "src/org/chromium/chrome/browser/contextualsearch/ContextualSearchFakeServer.java",
     "src/org/chromium/chrome/browser/contextualsearch/ContextualSearchHistogramTest.java",
@@ -1297,7 +1299,10 @@ android_library("chrome_test_java_org.chromium.chrome.browser.tab_group_sync") {
 android_library("chrome_test_java_org.chromium.chrome.browser.collaboration") {
   resources_package = "org.chromium.chrome.test"
 
-  sources = [ "//chrome/browser/collaboration/android/java/src/org/chromium/chrome/browser/collaboration/CollaborationIntegrationTest.java" ]
+  sources = [
+    "//chrome/browser/collaboration/android/java/src/org/chromium/chrome/browser/collaboration/CollaborationIntegrationTest.java",
+    "//chrome/browser/collaboration/android/java/src/org/chromium/chrome/browser/collaboration/CollaborationTestUtils.java",
+  ]
 
   deps = [
     ":chrome_test_java_helper",
@@ -1319,6 +1324,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.tabmodel") {
     "src/org/chromium/chrome/browser/tabmodel/ContextMenuLoadUrlParamsTest.java",
     "src/org/chromium/chrome/browser/tabmodel/IncognitoTabModelTest.java",
     "src/org/chromium/chrome/browser/tabmodel/MultiInstanceMigrationTest.java",
+    "src/org/chromium/chrome/browser/tabmodel/TabCollectionTabModelImplTest.java",
     "src/org/chromium/chrome/browser/tabmodel/TabGroupsTest.java",
     "src/org/chromium/chrome/browser/tabmodel/TabModelImplTest.java",
     "src/org/chromium/chrome/browser/tabmodel/TabModelMergingTest.java",
@@ -1353,6 +1359,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.tasks") {
     "//chrome/android/features/tab_ui/javatests/src/org/chromium/chrome/browser/tasks/tab_management/TabGridDialogTest.java",
     "//chrome/android/features/tab_ui/javatests/src/org/chromium/chrome/browser/tasks/tab_management/TabGridIncognitoReauthPromoTest.java",
     "//chrome/android/features/tab_ui/javatests/src/org/chromium/chrome/browser/tasks/tab_management/TabGridIphTest.java",
+    "//chrome/android/features/tab_ui/javatests/src/org/chromium/chrome/browser/tasks/tab_management/TabGridViewRenderTest.java",
     "//chrome/android/features/tab_ui/javatests/src/org/chromium/chrome/browser/tasks/tab_management/TabGroupColorPickerTest.java",
     "//chrome/android/features/tab_ui/javatests/src/org/chromium/chrome/browser/tasks/tab_management/TabGroupDialogPTTest.java",
     "//chrome/android/features/tab_ui/javatests/src/org/chromium/chrome/browser/tasks/tab_management/TabGroupListBottomSheetTest.java",
@@ -1699,6 +1706,7 @@ android_library(
     "src/org/chromium/chrome/browser/customtabs/CustomTabLaunchCauseMetricsTest.java",
     "src/org/chromium/chrome/browser/customtabs/features/minimizedcustomtab/MinimizedCardCoordinatorTest.java",
     "src/org/chromium/chrome/browser/customtabs/features/minimizedcustomtab/MinimizedCardViewBinderTest.java",
+    "src/org/chromium/chrome/browser/customtabs/features/toolbar/CustomTabToolbarButtonsViewBinderTest.java",
   ]
 
   deps = [ ":common_unit_test_deps_java" ]
@@ -1716,7 +1724,10 @@ android_library("chrome_unit_test_java_org.chromium.chrome.browser.download") {
     "src/org/chromium/chrome/browser/download/dialogs/DownloadLocationDialogTest.java",
   ]
 
-  deps = [ ":common_unit_test_deps_java" ]
+  deps = [
+    ":common_unit_test_deps_java",
+    "//components/download/public/common:public_java",
+  ]
 }
 
 android_library("chrome_unit_test_java_org.chromium.chrome.browser.share") {

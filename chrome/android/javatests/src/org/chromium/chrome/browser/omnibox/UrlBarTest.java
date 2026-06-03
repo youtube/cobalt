@@ -37,10 +37,8 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.params.ParameterAnnotations.UseRunnerDelegate;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CallbackHelper;
-import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.RequiresRestart;
-import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.ChromeJUnit4RunnerDelegate;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
@@ -66,7 +64,6 @@ import java.util.concurrent.atomic.AtomicReference;
  * component alone. This should help deflake several tests here and focus on the logic and behavior.
  */
 @RunWith(ChromeJUnit4ClassRunner.class)
-@CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @UseRunnerDelegate(ChromeJUnit4RunnerDelegate.class)
 @Batch(Batch.PER_CLASS)
 public class UrlBarTest {
@@ -117,9 +114,9 @@ public class UrlBarTest {
 
     private AutocompleteState getAutocompleteState(final Runnable action) {
         final AtomicBoolean hasAutocomplete = new AtomicBoolean();
-        final AtomicReference<String> textWithoutAutocomplete = new AtomicReference<String>();
-        final AtomicReference<String> textWithAutocomplete = new AtomicReference<String>();
-        final AtomicReference<String> additionalText = new AtomicReference<String>();
+        final AtomicReference<String> textWithoutAutocomplete = new AtomicReference<>();
+        final AtomicReference<String> textWithAutocomplete = new AtomicReference<>();
+        final AtomicReference<String> additionalText = new AtomicReference<>();
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -221,7 +218,7 @@ public class UrlBarTest {
         mOmnibox.setAutocompleteText(inlineAutocomplete, Optional.of(additionalText));
 
         final CallbackHelper autocompleteHelper = new CallbackHelper();
-        final AtomicReference<String> requestedAutocompleteText = new AtomicReference<String>();
+        final AtomicReference<String> requestedAutocompleteText = new AtomicReference<>();
         final AtomicBoolean didPreventInlineAutocomplete = new AtomicBoolean();
         mUrlBar.setTextChangeListener(
                 (textWithoutAutocomplete) -> {

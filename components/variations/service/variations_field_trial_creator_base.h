@@ -20,6 +20,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -36,7 +37,6 @@
 #include "components/variations/proto/study.pb.h"
 #include "components/variations/seed_response.h"
 #include "components/variations/service/buildflags.h"
-#include "components/variations/service/limited_entropy_synthetic_trial.h"
 #include "components/variations/service/safe_seed_manager.h"
 #include "components/variations/service/variations_service_client.h"
 #include "components/variations/variations_seed_store.h"
@@ -48,8 +48,14 @@ class MetricsStateManager;
 
 namespace variations {
 
-class SyntheticTrialRegistry;
 class EntropyProviders;
+
+// TODO(crbug.com/424154785): Clean this up if low entropy source values are no
+// longer transmitted with VariationIDs.
+struct CreateTrialsResult {
+  bool applied_seed = false;
+  std::optional<bool> seed_has_limited_layer;
+};
 
 // Just maps one set of enum values to another. Nothing to see here.
 Study::Channel ConvertProductChannelToStudyChannel(
@@ -112,20 +118,16 @@ class VariationsServiceClient;
 // Used to set up field trials based on stored variations seed data.
 class VariationsFieldTrialCreatorBase {
  public:
-  // Caller is responsible for ensuring that the VariationsServiceClient and
-  // LimitedEntropySyntheticTrial passed to the
-  // constructor stay valid for the lifetime of this object.
+  // Caller is responsible for ensuring that the VariationsServiceClient
+  // passed to the constructor stays valid for the lifetime of this object.
   //
   // |client| provides some platform-specific operations for variations.
   // |seed_store| manages seed data.
   // |locale_cb| computes the locale, given a PrefService for local_state.
-  // |limited_entropy_synthetic_trial|, if not null, allows eligible clients to
-  // participate in the synthetic trial.
   VariationsFieldTrialCreatorBase(
       VariationsServiceClient* client,
       std::unique_ptr<VariationsSeedStore> seed_store,
-      base::OnceCallback<std::string(PrefService*)> locale_cb,
-      LimitedEntropySyntheticTrial* limited_entropy_synthetic_trial);
+      base::OnceCallback<std::string(PrefService*)> locale_cb);
 
   VariationsFieldTrialCreatorBase(const VariationsFieldTrialCreatorBase&) =
       delete;
@@ -155,8 +157,6 @@ class VariationsFieldTrialCreatorBase {
   // Must not be null.
   // |metrics_state_manager| facilitates signaling that Chrome has not yet
   // exited cleanly. Must not be null.
-  // |synthetic_trial_registry| provides an interface to register synthetic
-  // trials. Must not be null.
   // |platform_field_trials| provides the
   // platform-specific field trial setup for Chrome. Must not be null.
   // |safe_seed_manager| should be notified of the combined server and client
@@ -178,7 +178,6 @@ class VariationsFieldTrialCreatorBase {
           extra_overrides,
       std::unique_ptr<base::FeatureList> feature_list,
       metrics::MetricsStateManager* metrics_state_manager,
-      SyntheticTrialRegistry* synthetic_trial_registry,
       PlatformFieldTrials* platform_field_trials,
       SafeSeedManagerBase* safe_seed_manager,
       bool add_entropy_source_to_variations_ids,
@@ -216,8 +215,10 @@ class VariationsFieldTrialCreatorBase {
   // overridden.
   void OverrideVariationsPlatform(Study::Platform platform_override);
 
-  // Calculates the Seed Freshness
-  base::Time CalculateSeedFreshness();
+  // Gets the last fetch time of the seed. If using the safe seed, returns
+  // the safe seed fetch time. Otherwise, returns the last fetch time of the
+  // latest seed. Returns base::Time() if there is no seed.
+  base::Time GetSeedFetchTime();
 
   // Returns the locale that was used for evaluating trials.
   const std::string& application_locale() const { return application_locale_; }
@@ -232,13 +233,9 @@ class VariationsFieldTrialCreatorBase {
   // To be implemented by subclasses, if they have need for UI strings.
   virtual bool IsOverrideResourceMapEmpty() = 0;
 
-  // Whether the limited entropy randomization source is enabled on this client.
-  // The `trial` param controls the output, which will be false if `trial` is
-  // null or the trial is not enabled. `trial` can be a nullptr when the client
-  // is not eligible for limited entropy randomization (e.g. Android WebView).
-  static bool IsLimitedEntropyRandomizationSourceEnabled(
-      version_info::Channel channel,
-      LimitedEntropySyntheticTrial* trial);
+  // Returns the client-side time when the seed was last fetched. Returns
+  // base::Time() if there is no seed.
+  base::Time GetLatestSeedFetchTime();
 
  protected:
   // Get the platform we're running on, respecting OverrideVariationsPlatform().
@@ -278,18 +275,26 @@ class VariationsFieldTrialCreatorBase {
   // the server.
   bool IsSeedForFutureMilestone(bool is_safe_seed);
 
-  // Creates field trials based on the variations seed loaded from local state.
-  // If there is a problem loading the seed data, all trials specified by the
-  // seed may not be created. Some field trials are configured to override or
-  // associate with (for reporting) specific features. These associations are
-  // registered with |feature_list|. Returns true if trials were created
-  // successfully; and if so, stores the loaded variations state into the
-  // |safe_seed_manager|.
-  bool CreateTrialsFromSeed(const EntropyProviders& entropy_providers,
-                            base::FeatureList* feature_list,
-                            SafeSeedManagerBase* safe_seed_manager,
-                            SyntheticTrialRegistry* synthetic_trial_registry,
-                            std::unique_ptr<ClientFilterableState> state);
+  // Creates field trials from a VariationsSeed. Returns whether the seed was
+  // successfully applied and whether the seed contains a limited-entropy-mode
+  // layer.
+  //
+  // |entropy_providers| helps to randomize field trial groups.
+  // |feature_list| associates field trial groups with features.
+  // |safe_seed_manager| has two responsibilities. It is used to determine which
+  // seed to apply, if any. If the latest seed is successfully applied, the
+  // manager also stores the applied variations state.
+  // |client_state| is used for filtering studies in the seed.
+  //
+  // If the seed isn't successfully loaded or if the seed fails some checks
+  // (e.g. if the seed has expired), then no trials are created from the seed
+  // and the client uses client-side defaults for features, like
+  // DISABLED_BY_DEFAULT.
+  CreateTrialsResult CreateTrialsFromSeed(
+      const EntropyProviders& entropy_providers,
+      base::FeatureList* feature_list,
+      SafeSeedManagerBase* safe_seed_manager,
+      std::unique_ptr<ClientFilterableState> client_state);
 
   // Reads a seed's data and signature from the file at |json_seed_path| and
   // writes them to Local State. Exits Chrome if (A) the file's contents can't
@@ -297,17 +302,6 @@ class VariationsFieldTrialCreatorBase {
   // or |kVariationsSeedSignature|. Also forces Chrome to not run in variations
   // safe mode. Used for variations seed testing.
   void LoadSeedFromJsonFile(const base::FilePath& json_seed_path);
-
-  // Returns whether the conditions to activate the limited entropy synthetic
-  // trial are met.
-  bool ShouldActivateLimitedEntropySyntheticTrial(const VariationsSeed& seed);
-
-  // Registers the group assignment of the limited entropy synthetic trial if
-  // the activation condition are met (as given by
-  // ShouldActivateLimitedEntropySyntheticTrial()).
-  void RegisterLimitedEntropySyntheticTrialIfNeeded(
-      const VariationsSeed& seed,
-      SyntheticTrialRegistry* synthetic_trial_registry);
 
   // Returns the seed store. Virtual for testing.
   virtual VariationsSeedStore* GetSeedStore();
@@ -324,27 +318,20 @@ class VariationsFieldTrialCreatorBase {
 
   // Tracks whether |CreateTrialsFromSeed| has been called, to ensure that it is
   // called at most once.
-  bool create_trials_from_seed_called_;
+  bool create_trials_from_seed_called_ = false;
 
   // The application locale won't change after the startup, so we cache the
   // value the first time when GetApplicationLocale() is called in the
   // constructor.
   std::string application_locale_;
 
-  // Indicate if OverrideVariationsPlatform has been used to set
-  // |platform_override_|.
-  bool has_platform_override_;
-
   // Platform to be used for variations filtering, overriding the current
   // platform.
-  Study::Platform platform_override_;
+  std::optional<Study::Platform> platform_override_;
 
   // Caches the UI strings which need to be overridden in the resource bundle.
   // These strings are cached before the resource bundle is initialized.
   std::unordered_map<int, std::u16string> overridden_strings_map_;
-
-  // Configurations related to the limited entropy synthetic trial.
-  raw_ptr<LimitedEntropySyntheticTrial> limited_entropy_synthetic_trial_;
 
   // Holds the country code to use for filtering permanent consistency studies
   std::string permanent_consistency_country_;

@@ -203,6 +203,18 @@ chromium-metrics-reviews@google.com.
   <int value="6" label="Wrong referrer, invalid session"/>
 </enum>
 
+<!-- LINT.IfChange(FinishReason) -->
+
+<enum name="FinishReason">
+  <int value="0" label="User Navigation"/>
+  <int value="1" label="Reparenting"/>
+  <int value="2" label="Other"/>
+  <int value="3" label="Open in Browser"/>
+  <int value="4" label="Handled by OS"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/customtabs/content/CustomTabActivityNavigationController.java:FinishReason) -->
+
 <enum name="GoogleBottomBarButtonEvent">
   <int value="0" label="Unknown button"/>
   <int value="1" label="Chrome Page Insights button"/>
@@ -242,6 +254,7 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Chrome - Reader mode"/>
   <int value="4" label="Chrome - Read later"/>
   <int value="5" label="Ephemeral Tab"/>
+  <int value="6" label="Chrome - Download Home"/>
 </enum>
 
 <enum name="MayLaunchUrlType">
@@ -321,14 +334,15 @@ chromium-metrics-reviews@google.com.
 <!-- LINT.IfChange(WebAppHeaderDisplayMode) -->
 
 <enum name="WebAppHeaderDisplayMode">
-  <int value="0" label="browser"/>
-  <int value="1" label="minimalUI"/>
-  <int value="2" label="standalone"/>
-  <int value="3" label="fullscreen"/>
-  <int value="4" label="windowControlsOverlay"/>
-  <int value="5" label="tabbed"/>
-  <int value="6" label="borderless"/>
-  <int value="7" label="pictureInPicture"/>
+  <int value="0" label="undefined"/>
+  <int value="1" label="browser"/>
+  <int value="2" label="minimalUI"/>
+  <int value="3" label="standalone"/>
+  <int value="4" label="fullscreen"/>
+  <int value="5" label="windowControlsOverlay"/>
+  <int value="6" label="tabbed"/>
+  <int value="7" label="borderless"/>
+  <int value="8" label="pictureInPicture"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/manifest/display_mode.mojom:DisplayMode)-->

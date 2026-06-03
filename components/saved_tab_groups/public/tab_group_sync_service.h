@@ -34,6 +34,7 @@ namespace tab_groups {
 class CollaborationFinder;
 class TabGroupSyncDelegate;
 class TabGroupSyncMetricsLogger;
+class VersioningMessageController;
 
 // A RAII class that pauses local tab model observers when required.
 class ScopedLocalObservationPauser {
@@ -227,14 +228,15 @@ class TabGroupSyncService : public KeyedService, public base::SupportsUserData {
   // given `collaboration_id` (this is the same as data_sharing::GroupId). The
   // tab group must not be shared. `callback` will be called with the result if
   // provided.
-  virtual void MakeTabGroupShared(const LocalTabGroupID& local_group_id,
-                                  std::string_view collaboration_id,
-                                  TabGroupSharingCallback callback) = 0;
+  virtual void MakeTabGroupShared(
+      const LocalTabGroupID& local_group_id,
+      const syncer::CollaborationId& collaboration_id,
+      TabGroupSharingCallback callback) = 0;
   // For testing only. This is needed to test shared tab groups flow without
   // depending on real people groups from data sharing service backend.
   virtual void MakeTabGroupSharedForTesting(
       const LocalTabGroupID& local_group_id,
-      std::string_view collaboration_id) = 0;
+      const syncer::CollaborationId& collaboration_id) = 0;
 
   // Mutator methods for shared tab groups.
   // Starts the process of converting a shared tab group to saved tab group. Due
@@ -348,7 +350,9 @@ class TabGroupSyncService : public KeyedService, public base::SupportsUserData {
   virtual void UpdateArchivalStatus(const base::Uuid& sync_id,
                                     bool archival_status) = 0;
 
-  // Update the last seen timestamp for a tab.
+  // Method to update the last seen timestamp for a tab. This method exists for
+  // external callers such as messaging card dismiss button to be able to clear
+  // the dots of all unseen tabs without actually switching to the tabs.
   virtual void UpdateTabLastSeenTime(const base::Uuid& group_id,
                                      const base::Uuid& tab_id,
                                      TriggerSource source) = 0;
@@ -383,12 +387,21 @@ class TabGroupSyncService : public KeyedService, public base::SupportsUserData {
   virtual std::unique_ptr<std::vector<SavedTabGroup>>
   TakeSharedTabGroupsAvailableAtStartupForMessaging() = 0;
 
+  // Returns if shared tab group existed during startup. If
+  // `open_shared_tab_groups` is true, returns whether there were open shared
+  // tab groups during startup.
+  virtual bool HadSharedTabGroupsLastSession(bool open_shared_tab_groups) = 0;
+
   // Called when the last tab in a group is closed.
   virtual void OnLastTabClosed(const SavedTabGroup& saved_tab_group) = 0;
 
   // Add / remove observers.
   virtual void AddObserver(Observer* observer) = 0;
   virtual void RemoveObserver(Observer* observer) = 0;
+
+  // Returns the versioning message controller which is responsible for business
+  // logic related to shared tab groups versioning related messages.
+  virtual VersioningMessageController* GetVersioningMessageController() = 0;
 
   // For testing only. This is needed to test the API calls received before
   // service init as we need to explicitly un-initialize the service for these

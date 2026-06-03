@@ -29,11 +29,12 @@
 
 #include "third_party/blink/renderer/platform/geometry/blend.h"
 #include "third_party/blink/renderer/platform/geometry/calculation_value.h"
+#include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
-#include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/size_assertions.h"
 #include "third_party/blink/renderer/platform/wtf/static_constructors.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
+#include "third_party/blink/renderer/platform/wtf/wtf.h"
 
 namespace blink {
 
@@ -47,30 +48,40 @@ DEFINE_GLOBAL(PLATFORM_EXPORT, Length, g_min_intrinsic_length);
 
 // static
 void Length::Initialize() {
-  new (WTF::NotNullTag::kNotNull, (void*)&g_auto_length) Length(kAuto);
-  new (WTF::NotNullTag::kNotNull, (void*)&g_fill_available_length)
+  new (base::NotNullTag::kNotNull, (void*)&g_auto_length) Length(kAuto);
+  new (base::NotNullTag::kNotNull, (void*)&g_fill_available_length)
       Length(kFillAvailable);
-  new (WTF::NotNullTag::kNotNull, (void*)&g_stretch_length) Length(kStretch);
-  new (WTF::NotNullTag::kNotNull, (void*)&g_fit_content_length)
+  new (base::NotNullTag::kNotNull, (void*)&g_stretch_length) Length(kStretch);
+  new (base::NotNullTag::kNotNull, (void*)&g_fit_content_length)
       Length(kFitContent);
-  new (WTF::NotNullTag::kNotNull, (void*)&g_max_content_length)
+  new (base::NotNullTag::kNotNull, (void*)&g_max_content_length)
       Length(kMaxContent);
-  new (WTF::NotNullTag::kNotNull, (void*)&g_min_content_length)
+  new (base::NotNullTag::kNotNull, (void*)&g_min_content_length)
       Length(kMinContent);
-  new (WTF::NotNullTag::kNotNull, (void*)&g_min_intrinsic_length)
+  new (base::NotNullTag::kNotNull, (void*)&g_min_intrinsic_length)
       Length(kMinIntrinsic);
 }
 
-class CalculationValueHandleMap {
-  USING_FAST_MALLOC(CalculationValueHandleMap);
-
+class CalculationValueHandleMap
+    : public GarbageCollected<CalculationValueHandleMap> {
  public:
   CalculationValueHandleMap() = default;
   CalculationValueHandleMap(const CalculationValueHandleMap&) = delete;
   CalculationValueHandleMap& operator=(const CalculationValueHandleMap&) =
       delete;
 
-  int insert(scoped_refptr<const CalculationValue> calc_value) {
+  struct MemberWithCount {
+    DISALLOW_NEW();
+
+   public:
+    void Trace(Visitor* visitor) const { visitor->Trace(value); }
+    Member<const CalculationValue> value;
+    unsigned count = 1u;
+  };
+
+  void Trace(Visitor* visitor) const { visitor->Trace(map_); }
+
+  int insert(const CalculationValue* calc_value) {
     DCHECK(index_);
     // FIXME calc(): https://bugs.webkit.org/show_bug.cgi?id=80489
     // This monotonically increasing handle generation scheme is potentially
@@ -78,48 +89,53 @@ class CalculationValueHandleMap {
     while (map_.Contains(index_))
       index_++;
 
-    map_.Set(index_, std::move(calc_value));
+    map_.Set(index_, MemberWithCount(calc_value, 1u));
 
     return index_;
   }
 
-  void Remove(int index) {
+  const CalculationValue& Get(int index) const {
     DCHECK(map_.Contains(index));
-    map_.erase(index);
+    return *map_.at(index).value;
   }
 
-  const CalculationValue& Get(int index) {
+  unsigned GetCount(int index) const {
     DCHECK(map_.Contains(index));
-    return *map_.at(index);
+    return map_.at(index).count;
   }
 
-  void DecrementRef(int index) {
+  wtf_size_t GetMapSize() const { return map_.size(); }
+
+  void DecrementCount(int index) {
     DCHECK(map_.Contains(index));
     auto iter = map_.find(index);
-    if (iter->value->HasOneRef()) {
-      // Force the CalculationValue destructor early to avoid a potential
-      // recursive call inside HashMap remove().
-      iter->value = nullptr;
-      // |iter| may be invalidated during the CalculationValue destructor.
+    --iter->value.count;
+    if (iter->value.count == 0u) {
       map_.erase(index);
-    } else {
-      iter->value->Release();
     }
+  }
+
+  void IncrementCount(int index) {
+    DCHECK(map_.Contains(index));
+    auto iter = map_.find(index);
+    ++iter->value.count;
   }
 
  private:
   int index_ = 1;
-  HashMap<int, scoped_refptr<const CalculationValue>> map_;
+  HeapHashMap<int, MemberWithCount> map_;
 };
 
 static CalculationValueHandleMap& CalcHandles() {
-  DEFINE_STATIC_LOCAL(CalculationValueHandleMap, handle_map, ());
-  return handle_map;
+  DCHECK(IsMainThread());
+  DEFINE_STATIC_LOCAL(Persistent<CalculationValueHandleMap>, handle_map,
+                      (MakeGarbageCollected<CalculationValueHandleMap>()));
+  return *handle_map;
 }
 
-Length::Length(scoped_refptr<const CalculationValue> calc)
+Length::Length(const CalculationValue* calc)
     : quirk_(false), type_(kCalculated) {
-  calculation_handle_ = CalcHandles().insert(std::move(calc));
+  calculation_handle_ = CalcHandles().insert(calc);
 }
 
 Length Length::BlendMixedTypes(const Length& from,
@@ -159,10 +175,11 @@ PixelsAndPercent Length::GetPixelsAndPercent() const {
   }
 }
 
-scoped_refptr<const CalculationValue> Length::AsCalculationValue() const {
+const CalculationValue* Length::AsCalculationValue() const {
   if (IsCalculated())
     return &GetCalculationValue();
-  return CalculationValue::Create(GetPixelsAndPercent(), ValueRange::kAll);
+  return MakeGarbageCollected<CalculationValue>(GetPixelsAndPercent(),
+                                                ValueRange::kAll);
 }
 
 Length Length::SubtractFromOneHundredPercent() const {
@@ -199,14 +216,23 @@ const CalculationValue& Length::GetCalculationValue() const {
   return CalcHandles().Get(CalculationHandle());
 }
 
-void Length::IncrementCalculatedRef() const {
+void Length::IncrementCalculatedCount() const {
   DCHECK(IsCalculated());
-  GetCalculationValue().AddRef();
+  CalcHandles().IncrementCount(CalculationHandle());
 }
 
-void Length::DecrementCalculatedRef() const {
+void Length::DecrementCalculatedCount() const {
   DCHECK(IsCalculated());
-  CalcHandles().DecrementRef(CalculationHandle());
+  CalcHandles().DecrementCount(CalculationHandle());
+}
+
+unsigned Length::GetCalculatedCountForTest() const {
+  DCHECK(IsCalculated());
+  return CalcHandles().GetCount(CalculationHandle());
+}
+
+wtf_size_t Length::GetCalcHandleMapSizeForTest() {
+  return CalcHandles().GetMapSize();
 }
 
 float Length::NonNanCalculatedValue(float max_value,
@@ -321,6 +347,15 @@ String Length::ToString() const {
     builder.Append(", Quirk");
   builder.Append(")");
   return builder.ToString();
+}
+
+unsigned Length::GetHash() const {
+  unsigned hash = 0;
+  WTF::AddFloatToHash(hash, value_);
+  WTF::AddIntToHash(hash, type_);
+  WTF::AddIntToHash(hash, quirk_);
+  WTF::AddIntToHash(hash, calculation_handle_);
+  return hash;
 }
 
 std::ostream& operator<<(std::ostream& ostream, const Length& value) {

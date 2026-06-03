@@ -5,7 +5,10 @@
 package org.chromium.chrome.browser.touch_to_fill.payments;
 
 import static org.chromium.chrome.browser.autofill.AutofillUiUtils.getCardIcon;
+import static org.chromium.chrome.browser.autofill.AutofillUiUtils.getValuableIcon;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.CURRENT_SCREEN;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.DISMISS_HANDLER;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.ALL_LOYALTY_CARDS;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.CREDIT_CARD;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.FILL_BUTTON;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.FOOTER;
@@ -13,7 +16,9 @@ import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaym
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.IBAN;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.LOYALTY_CARD;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.TERMS_LABEL;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.WALLET_SETTINGS_BUTTON;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.SHEET_ITEMS;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ScreenId.HOME_SCREEN;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.VISIBLE;
 
 import android.content.Context;
@@ -45,6 +50,7 @@ public class TouchToFillPaymentMethodCoordinator implements TouchToFillPaymentMe
     private PropertyModel mTouchToFillPaymentMethodModel;
     private Function<TouchToFillPaymentMethodProperties.CardImageMetaData, Drawable>
             mCardImageFunction;
+    private Function<LoyaltyCard, Drawable> mValuableImageFunction;
 
     @Override
     public void initialize(
@@ -53,7 +59,7 @@ public class TouchToFillPaymentMethodCoordinator implements TouchToFillPaymentMe
             BottomSheetController sheetController,
             Delegate delegate,
             BottomSheetFocusHelper bottomSheetFocusHelper) {
-                mTouchToFillPaymentMethodModel = createModel(mMediator);
+        mTouchToFillPaymentMethodModel = createModel(mMediator);
         mCardImageFunction =
                 (metaData) ->
                         getCardIcon(
@@ -63,6 +69,14 @@ public class TouchToFillPaymentMethodCoordinator implements TouchToFillPaymentMe
                                 metaData.iconId,
                                 ImageSize.LARGE,
                                 /* showCustomIcon= */ true);
+        mValuableImageFunction =
+                (loyaltyCard) ->
+                        getValuableIcon(
+                                context,
+                                imageFetcher,
+                                loyaltyCard.getProgramLogo(),
+                                ImageSize.LARGE,
+                                loyaltyCard.getMerchantName());
         mMediator.initialize(delegate, mTouchToFillPaymentMethodModel, bottomSheetFocusHelper);
         setUpModelChangeProcessors(
                 mTouchToFillPaymentMethodModel,
@@ -82,8 +96,12 @@ public class TouchToFillPaymentMethodCoordinator implements TouchToFillPaymentMe
     }
 
     @Override
-    public void showLoyaltyCards(List<LoyaltyCard> loyaltyCards) {
-        mMediator.showLoyaltyCards(loyaltyCards);
+    public void showLoyaltyCards(
+            List<LoyaltyCard> affiliatedLoyaltyCards,
+            List<LoyaltyCard> allLoyaltyCards,
+            boolean firstTimeUsage) {
+        mMediator.showLoyaltyCards(
+                affiliatedLoyaltyCards, allLoyaltyCards, mValuableImageFunction, firstTimeUsage);
     }
 
     @Override
@@ -117,13 +135,21 @@ public class TouchToFillPaymentMethodCoordinator implements TouchToFillPaymentMe
                 TouchToFillPaymentMethodViewBinder::createLoyaltyCardItemView,
                 TouchToFillPaymentMethodViewBinder::bindLoyaltyCardItemView);
         adapter.registerType(
+                ALL_LOYALTY_CARDS,
+                TouchToFillPaymentMethodViewBinder::createAllLoyaltyCardsItemView,
+                TouchToFillPaymentMethodViewBinder::bindAllLoyaltyCardsItemView);
+        adapter.registerType(
                 HEADER,
                 TouchToFillPaymentMethodViewBinder::createHeaderItemView,
                 TouchToFillPaymentMethodViewBinder::bindHeaderView);
         adapter.registerType(
                 FILL_BUTTON,
                 TouchToFillPaymentMethodViewBinder::createFillButtonView,
-                TouchToFillPaymentMethodViewBinder::bindFillButtonView);
+                TouchToFillPaymentMethodViewBinder::bindButtonView);
+        adapter.registerType(
+                WALLET_SETTINGS_BUTTON,
+                TouchToFillPaymentMethodViewBinder::createWalletSettingsButtonView,
+                TouchToFillPaymentMethodViewBinder::bindButtonView);
         adapter.registerType(
                 FOOTER,
                 TouchToFillPaymentMethodViewBinder::createFooterItemView,
@@ -138,6 +164,7 @@ public class TouchToFillPaymentMethodCoordinator implements TouchToFillPaymentMe
     PropertyModel createModel(TouchToFillPaymentMethodMediator mediator) {
         return new PropertyModel.Builder(TouchToFillPaymentMethodProperties.ALL_KEYS)
                 .with(VISIBLE, false)
+                .with(CURRENT_SCREEN, HOME_SCREEN)
                 .with(SHEET_ITEMS, new ModelList())
                 .with(DISMISS_HANDLER, mediator::onDismissed)
                 .build();

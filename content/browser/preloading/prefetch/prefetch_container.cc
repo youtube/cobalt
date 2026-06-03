@@ -11,6 +11,7 @@
 #include "base/debug/dump_without_crashing.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
@@ -328,6 +329,7 @@ PrefetchContainer::PrefetchContainer(
     const blink::mojom::Referrer& referrer,
     std::optional<SpeculationRulesTags> speculation_rules_tags,
     std::optional<net::HttpNoVarySearchData> no_vary_search_hint,
+    std::optional<PrefetchPriority> priority,
     base::WeakPtr<PrefetchDocumentManager> prefetch_document_manager,
     scoped_refptr<PreloadPipelineInfo> preload_pipeline_info,
     base::WeakPtr<PreloadingAttempt> attempt)
@@ -355,7 +357,9 @@ PrefetchContainer::PrefetchContainer(
               ->GetOrCreateWebPreferences()
               .javascript_enabled,
           PrefetchContainerDefaultTtlInPrefetchService(),
-          /*should_append_variations_header=*/true) {
+          /*should_append_variations_header=*/true,
+          /*should_disable_block_until_head_timeout=*/false,
+          priority) {
   CHECK(prefetch_type_.IsRendererInitiated());
 }
 
@@ -367,9 +371,11 @@ PrefetchContainer::PrefetchContainer(
     const blink::mojom::Referrer& referrer,
     const std::optional<url::Origin>& referring_origin,
     std::optional<net::HttpNoVarySearchData> no_vary_search_hint,
+    std::optional<PrefetchPriority> priority,
     scoped_refptr<PreloadPipelineInfo> preload_pipeline_info,
     base::WeakPtr<PreloadingAttempt> attempt,
-    std::optional<PreloadingHoldbackStatus> holdback_status_override)
+    std::optional<PreloadingHoldbackStatus> holdback_status_override,
+    std::optional<base::TimeDelta> ttl)
     : PrefetchContainer(
           GlobalRenderFrameHostId(),
           referring_origin,
@@ -392,8 +398,11 @@ PrefetchContainer::PrefetchContainer(
           /*Must be empty: additional_headers=*/{},
           /*request_status_listener=*/nullptr,
           referring_web_contents.GetOrCreateWebPreferences().javascript_enabled,
-          PrefetchContainerDefaultTtlInPrefetchService(),
-          /*should_append_variations_header=*/true) {
+          ttl.has_value() ? ttl.value()
+                          : PrefetchContainerDefaultTtlInPrefetchService(),
+          /*should_append_variations_header=*/true,
+          /*should_disable_block_until_head_timeout=*/false,
+          priority) {
   CHECK(!prefetch_type_.IsRendererInitiated());
   CHECK(PrefetchBrowserInitiatedTriggersEnabled());
   CHECK(!embedder_histogram_suffix_.value().empty());
@@ -408,11 +417,13 @@ PrefetchContainer::PrefetchContainer(
     bool javascript_enabled,
     const std::optional<url::Origin>& referring_origin,
     std::optional<net::HttpNoVarySearchData> no_vary_search_hint,
+    std::optional<PrefetchPriority> priority,
     base::WeakPtr<PreloadingAttempt> attempt,
     const net::HttpRequestHeaders& additional_headers,
     std::unique_ptr<PrefetchRequestStatusListener> request_status_listener,
-    base::TimeDelta ttl_in_sec,
-    bool should_append_variations_header)
+    base::TimeDelta ttl,
+    bool should_append_variations_header,
+    bool should_disable_block_until_head_timeout)
     : PrefetchContainer(
           GlobalRenderFrameHostId(),
           referring_origin,
@@ -436,8 +447,10 @@ PrefetchContainer::PrefetchContainer(
           additional_headers,
           std::move(request_status_listener),
           javascript_enabled,
-          ttl_in_sec,
-          should_append_variations_header) {
+          ttl,
+          should_append_variations_header,
+          should_disable_block_until_head_timeout,
+          priority) {
   CHECK(!prefetch_type_.IsRendererInitiated());
   CHECK(PrefetchBrowserInitiatedTriggersEnabled());
   CHECK(!embedder_histogram_suffix_.value().empty());
@@ -463,8 +476,10 @@ PrefetchContainer::PrefetchContainer(
     const net::HttpRequestHeaders& additional_headers,
     std::unique_ptr<PrefetchRequestStatusListener> request_status_listener,
     bool is_javascript_enabled,
-    base::TimeDelta ttl_in_sec,
-    bool should_append_variations_header)
+    base::TimeDelta ttl,
+    bool should_append_variations_header,
+    bool should_disable_block_until_head_timeout,
+    std::optional<PrefetchPriority> priority)
     : referring_render_frame_host_id_(referring_render_frame_host_id),
       referring_origin_(referring_origin),
       referring_url_hash_(referring_url_hash),
@@ -487,8 +502,11 @@ PrefetchContainer::PrefetchContainer(
       additional_headers_(additional_headers),
       request_status_listener_(std::move(request_status_listener)),
       is_javascript_enabled_(is_javascript_enabled),
-      ttl_in_sec_(ttl_in_sec),
-      should_append_variations_header_(should_append_variations_header) {
+      ttl_(ttl),
+      should_append_variations_header_(should_append_variations_header),
+      should_disable_block_until_head_timeout_(
+          should_disable_block_until_head_timeout),
+      priority_(priority) {
   is_likely_ahead_of_prerender_ =
       CalculateIsLikelyAheadOfPrerender(*preload_pipeline_info_);
 
@@ -1338,11 +1356,10 @@ void PrefetchContainer::MaybeSetNoVarySearchData() {
 
 void PrefetchContainer::StartTimeoutTimerIfNeeded(
     base::OnceClosure on_timeout_callback) {
-  if (ttl_in_sec_.is_positive()) {
+  if (ttl_.is_positive()) {
     CHECK(!timeout_timer_);
     timeout_timer_ = std::make_unique<base::OneShotTimer>();
-    timeout_timer_->Start(FROM_HERE, ttl_in_sec_,
-                          std::move(on_timeout_callback));
+    timeout_timer_->Start(FROM_HERE, ttl_, std::move(on_timeout_callback));
   }
 }
 
@@ -1428,6 +1445,15 @@ void PrefetchContainer::OnPrefetchComplete(
         request_status_listener_->OnPrefetchResponseError();
         break;
     }
+  }
+
+  std::optional<int> response_code = std::nullopt;
+  if (net_error == net::OK && GetNonRedirectHead() &&
+      GetNonRedirectHead()->headers) {
+    response_code = GetNonRedirectHead()->headers->response_code();
+  }
+  for (auto& observer : observers_) {
+    observer.OnPrefetchCompletedOrFailed(completion_status, response_code);
   }
 
   if (GetPrefetchResponseCompletedCallbackForTesting()) {
@@ -1721,8 +1747,22 @@ void PrefetchContainer::MakeResourceRequest(
       net::SiteForCookies::FromOrigin(origin));
 
   auto priority = [&] {
+    if (GetPrefetchPriority().has_value()) {
+      switch (GetPrefetchPriority().value()) {
+        case PrefetchPriority::kLow:
+          return net::RequestPriority::IDLE;
+        case PrefetchPriority::kMedium:
+          return net::RequestPriority::LOW;
+        case PrefetchPriority::kHigh:
+          return net::RequestPriority::MEDIUM;
+        case PrefetchPriority::kHighest:
+          return net::RequestPriority::HIGHEST;
+      }
+    }
+
+    // TODO(crbug.com/426404355): Migrate to use `PrefetchPriority`.
     if (IsSpeculationRuleType(prefetch_type_.trigger_type())) {
-      // This may seem inverted (surely eager prefetches would be higher
+      // This may seem inverted (surely immediate prefetches would be higher
       // priority), but the fact that we're doing this at all for more
       // conservative candidates suggests a strong engagement signal.
       //
@@ -1737,7 +1777,7 @@ void PrefetchContainer::MakeResourceRequest(
           return net::RequestPriority::MEDIUM;
         case blink::mojom::SpeculationEagerness::kModerate:
           return net::RequestPriority::LOW;
-        case blink::mojom::SpeculationEagerness::kEager:
+        case blink::mojom::SpeculationEagerness::kImmediate:
           return net::RequestPriority::IDLE;
       }
     } else {
@@ -1775,8 +1815,11 @@ void PrefetchContainer::MakeResourceRequest(
 
   request->headers.MergeFrom(additional_headers_);
   request->headers.MergeFrom(additional_headers);
-  request->headers.SetHeader(blink::kPurposeHeaderName,
-                             blink::kSecPurposePrefetchHeaderValue);
+  if (!base::FeatureList::IsEnabled(
+          blink::features::kRemovePurposeHeaderForPrefetch)) {
+    request->headers.SetHeader(blink::kPurposeHeaderName,
+                               blink::kSecPurposePrefetchHeaderValue);
+  }
   request->headers.SetHeader(blink::kSecPurposeHeaderName,
                              GetSecPurposeHeaderValue(url));
   request->headers.SetHeader("Upgrade-Insecure-Requests", "1");
@@ -2013,6 +2056,7 @@ bool PrefetchContainer::ShouldWaitForNoVarySearchHeader(const GURL& url) const {
 void PrefetchContainer::OnUnregisterCandidate(
     const GURL& navigated_url,
     bool is_served,
+    bool is_nav_prerender,
     std::optional<base::TimeDelta> blocked_duration) {
   // Note that this method can be called with `is_in_dtor_` true.
   //
@@ -2026,10 +2070,11 @@ void PrefetchContainer::OnUnregisterCandidate(
                              redirect_chain_.size());
   }
 
-  RecordPrefetchMatchingBlockedNavigationHistogram(
-      blocked_duration.has_value());
+  RecordPrefetchMatchingBlockedNavigationHistogram(blocked_duration.has_value(),
+                                                   is_nav_prerender);
 
-  RecordBlockUntilHeadDurationHistogram(blocked_duration, is_served);
+  RecordBlockUntilHeadDurationHistogram(blocked_duration, is_served,
+                                        is_nav_prerender);
 
   // Note that `PreloadingAttemptImpl::SetIsAccurateTriggering()` is called for
   // prefetch in
@@ -2138,6 +2183,9 @@ void PrefetchContainer::NotifyPrefetchResponseReceived(
   // Ensured by the caller `PrefetchService::OnPrefetchResponseStarted()`.
   CHECK(!IsDecoy());
 
+  time_url_request_started_ = head.load_timing.request_start;
+
+  // DevTools plumbing.
   auto* ftn = FrameTreeNode::From(
       RenderFrameHostImpl::FromID(referring_render_frame_host_id_));
   // Don't emit CDP events if the trigger is not Spec Rules or the document
@@ -2145,7 +2193,6 @@ void PrefetchContainer::NotifyPrefetchResponseReceived(
   if (!ftn) {
     return;
   }
-
   devtools_instrumentation::OnPrefetchResponseReceived(ftn, RequestId(),
                                                        GetCurrentURL(), head);
 }
@@ -2240,6 +2287,19 @@ void PrefetchContainer::RecordDurationFromAdded() {
       }),
       time_prefetch_started_.value() - time_added_to_prefetch_service_.value());
 
+  if (!time_url_request_started_.has_value()) {
+    return;
+  }
+
+  base::UmaHistogramTimes(base::StrCat({
+                              "Prefetch.PrefetchContainer."
+                              "AddedToURLRequestStarted.",
+                              GetMetricsSuffixTriggerTypeAndEagerness(
+                                  prefetch_type_, embedder_histogram_suffix_),
+                          }),
+                          time_url_request_started_.value() -
+                              time_added_to_prefetch_service_.value());
+
   if (!time_header_determined_successfully_.has_value()) {
     return;
   }
@@ -2268,10 +2328,18 @@ void PrefetchContainer::RecordDurationFromAdded() {
 }
 
 void PrefetchContainer::RecordPrefetchMatchingBlockedNavigationHistogram(
-    bool blocked_until_head) {
+    bool blocked_until_head,
+    bool is_nav_prerender) {
   base::UmaHistogramBoolean(
       base::StrCat(
           {"Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate.",
+           GetMetricsSuffixTriggerTypeAndEagerness(
+               prefetch_type_, embedder_histogram_suffix_)}),
+      blocked_until_head);
+  base::UmaHistogramBoolean(
+      base::StrCat(
+          {"Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate.",
+           is_nav_prerender ? "Prerender." : "NonPrerender.",
            GetMetricsSuffixTriggerTypeAndEagerness(
                prefetch_type_, embedder_histogram_suffix_)}),
       blocked_until_head);
@@ -2279,12 +2347,21 @@ void PrefetchContainer::RecordPrefetchMatchingBlockedNavigationHistogram(
 
 void PrefetchContainer::RecordBlockUntilHeadDurationHistogram(
     const std::optional<base::TimeDelta>& blocked_duration,
-    bool served) {
+    bool served,
+    bool is_nav_prerender) {
   base::UmaHistogramTimes(
       base::StrCat({"Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.",
                     served ? "Served." : "NotServed.",
                     GetMetricsSuffixTriggerTypeAndEagerness(
                         prefetch_type_, embedder_histogram_suffix_)}),
       blocked_duration.value_or(base::Seconds(0)));
+  base::UmaHistogramTimes(
+      base::StrCat({"Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.",
+                    is_nav_prerender ? "Prerender." : "NonPrerender.",
+                    served ? "Served." : "NotServed.",
+                    GetMetricsSuffixTriggerTypeAndEagerness(
+                        prefetch_type_, embedder_histogram_suffix_)}),
+      blocked_duration.value_or(base::Seconds(0)));
 }
+
 }  // namespace content

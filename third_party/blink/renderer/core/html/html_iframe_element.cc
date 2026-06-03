@@ -47,6 +47,7 @@
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
 #include "third_party/blink/renderer/core/layout/layout_iframe.h"
+#include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/loader/document_loader.h"
 #include "third_party/blink/renderer/core/permissions_policy/document_policy_parser.h"
 #include "third_party/blink/renderer/core/permissions_policy/iframe_policy.h"
@@ -261,7 +262,7 @@ void HTMLIFrameElement::ParseAttribute(
       GetDocument().AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
           mojom::blink::ConsoleMessageSource::kOther,
           mojom::blink::ConsoleMessageLevel::kError,
-          WTF::StrCat({"'csp' attribute is invalid: ", value})));
+          StrCat({"'csp' attribute is invalid: ", value})));
     } else if (value && value.length() > kMaxLengthCSPAttribute) {
       // TODO(antoniosartori): It would be safer to block loading iframes with
       // invalid 'csp' attribute.
@@ -558,10 +559,10 @@ HTMLIFrameElement::ConstructTrustTokenParams() const {
     GetDocument().AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
         mojom::blink::ConsoleMessageSource::kOther,
         mojom::blink::ConsoleMessageLevel::kError,
-        WTF::StrCat({"iframe trusttoken attribute was invalid JSON: ",
-                     parse_error.message, " (line ",
-                     String::Number(parse_error.line), ", col ",
-                     String::Number(parse_error.column), ")"})));
+        StrCat({"iframe trusttoken attribute was invalid JSON: ",
+                parse_error.message, " (line ",
+                String::Number(parse_error.line), ", col ",
+                String::Number(parse_error.column), ")"})));
     return nullptr;
   }
 
@@ -699,6 +700,16 @@ void HTMLIFrameElement::CheckPotentialPermissionsPolicyViolation() {
           feature, mojom::blink::PolicyDisposition::kReport, endpoint,
           /*message*/ "", allow_, src_);
     }
+  }
+}
+
+void HTMLIFrameElement::NaturalSizingInfoChanged() {
+  if (!RuntimeEnabledFeatures::ResponsiveIframesEnabled()) {
+    return;
+  }
+  if (auto* object = DynamicTo<LayoutIFrame>(GetLayoutObject())) {
+    object->SetNeedsLayoutAndIntrinsicWidthsRecalcAndFullPaintInvalidation(
+        layout_invalidation_reason::kSizeChanged);
   }
 }
 

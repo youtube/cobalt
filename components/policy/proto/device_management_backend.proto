@@ -569,7 +569,8 @@ message BrowserDeviceIdentifier {
 }
 
 message PolicyFetchRequest {
-  reserved 5;
+  reserved 5, 11;
+  reserved "invalidation_topics_only";
 
   // This is the policy type, which maps to D3 policy type internally.
   // By convention, we use "/" as separator to create policy namespace.
@@ -653,11 +654,6 @@ message PolicyFetchRequest {
   // Encoded information from a policy invalidation notification. This is opaque
   // to the client and should be forwarded from the invalidation notification.
   optional string policy_invalidation_info = 10 [deprecated = true];
-
-  // Whether or not the client only supports the new PolicyData invalidation
-  // topics. If true, only the policy_invalidation_topic and
-  // command_invalidation_topic fields will be set in the PolicyData response.
-  optional bool invalidation_topics_only = 11 [deprecated = true];
 
   // If this is an affiliated user, this is the device's DMToken.
   optional string device_dm_token = 12;
@@ -3719,6 +3715,7 @@ message ExtensionInstallReportLogEvent {
   // Type of current user. See user_manager::UserType for more details.
   // user_manager::UserType is the main enum and this is a copy used for
   // reporting purposes.
+  // LINT.IfChange(UserType)
   enum UserType {
     USER_TYPE_UNKNOWN = 0;
     USER_TYPE_REGULAR = 1;
@@ -3730,7 +3727,9 @@ message ExtensionInstallReportLogEvent {
     USER_TYPE_ARC_KIOSK_APP = 7;
     USER_TYPE_ACTIVE_DIRECTORY = 8;
     USER_TYPE_WEB_KIOSK_APP = 9;
+    USER_TYPE_KIOSK_IWA = 10;
   }
+  // LINT.ThenChange(//components/user_manager/user_type.h:UserType)
 
   // Current stage of the extension downloading process. See
   // ExtensionDownloaderDelegate::Stage for more details.

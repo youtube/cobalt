@@ -17,7 +17,9 @@ class ChromeAccountManagerService;
 class PrefService;
 @protocol SigninPresenter;
 @protocol AccountSettingsPresenter;
+typedef NS_ENUM(NSUInteger, SigninCoordinatorResult);
 @class SigninPromoViewConfigurator;
+@class ShowSigninCommand;
 @protocol SigninPromoViewConsumer;
 @protocol SystemIdentity;
 
@@ -68,6 +70,17 @@ enum class SigninPromoAction {
   // Shows account settings.
   kReviewAccountSettings,
 };
+
+@class SigninPromoViewMediator;
+
+// Protocol used to display signin UI.
+@protocol SigninPromoViewMediatorDelegate
+
+// Asks the presenter to display the signin UI configured by `command`.
+- (void)showSignin:(SigninPromoViewMediator*)mediator
+           command:(ShowSigninCommand*)command;
+
+@end
 
 // Class that monitors the available identities and creates
 // SigninPromoViewConfigurator. This class makes the link between the model and
@@ -140,7 +153,8 @@ enum class SigninPromoAction {
                           prefService:(PrefService*)prefService
                           syncService:(syncer::SyncService*)syncService
                           accessPoint:(signin_metrics::AccessPoint)accessPoint
-                      signinPresenter:(id<SigninPresenter>)signinPresenter
+                             delegate:
+                                 (id<SigninPromoViewMediatorDelegate>)delegate
              accountSettingsPresenter:
                  (id<AccountSettingsPresenter>)accountSettingsPresenter
     changeProfileContinuationProvider:(const ChangeProfileContinuationProvider&)
@@ -162,6 +176,9 @@ enum class SigninPromoAction {
 // promo view is removed from the view hierarchy (it or one of its superviews is
 // removed). The mediator should not be used after this called.
 - (void)disconnect;
+
+// Callback for the SigninPresenter.
+- (void)signinDidCompleteWithResult:(SigninCoordinatorResult)result;
 
 @end
 

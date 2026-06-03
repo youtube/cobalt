@@ -18,6 +18,7 @@
 #include "chrome/browser/extensions/test_extension_system.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search/background/ntp_custom_background_service_constants.h"
+#include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/themes/theme_service_test_utils.h"
@@ -32,10 +33,12 @@
 #include "components/sync/model/sync_change.h"
 #include "components/sync/protocol/entity_specifics.pb.h"
 #include "components/sync/protocol/theme_specifics.pb.h"
+#include "components/sync/protocol/theme_types.pb.h"
 #include "components/sync/service/local_data_description.h"
 #include "components/sync/test/fake_sync_change_processor.h"
 #include "components/sync/test/sync_change_processor_wrapper_for_test.h"
 #include "components/sync/test/test_matchers.h"
+#include "components/sync/test/test_sync_service.h"
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_registry.h"
@@ -122,6 +125,16 @@ class ThemeLocalDataBatchUploaderTestBase
 
     batch_uploader_ = std::make_unique<ThemeLocalDataBatchUploader>(
         theme_sync_service_.get());
+
+    // Avoid using the real SyncService instance, to avoid triggering sync
+    // startup notifications, specifically clearing of existing account data
+    // upon startup when there is no sync metadata.
+    SyncServiceFactory::GetInstance()->SetTestingFactoryAndUse(
+        profile_.get(),
+        base::BindRepeating([](content::BrowserContext* context)
+                                -> std::unique_ptr<KeyedService> {
+          return std::make_unique<syncer::TestSyncService>();
+        }));
   }
 
   ThemeService* theme_service() { return theme_service_; }
@@ -283,11 +296,11 @@ TEST_F(ThemeLocalDataBatchUploaderTest,
   theme_specifics.set_use_custom_theme(false);
   theme_specifics.set_browser_color_scheme(
       ::sync_pb::ThemeSpecifics_BrowserColorScheme_SYSTEM);
-  sync_pb::ThemeSpecifics::UserColorTheme* user_color_theme =
+  sync_pb::UserColorTheme* user_color_theme =
       theme_specifics.mutable_user_color_theme();
   user_color_theme->set_color(SK_ColorRED);
   user_color_theme->set_browser_color_variant(
-      sync_pb::ThemeSpecifics_UserColorTheme_BrowserColorVariant_TONAL_SPOT);
+      sync_pb::UserColorTheme_BrowserColorVariant_TONAL_SPOT);
 
   ASSERT_FALSE(theme_sync_service()->ProcessSyncChanges(
       FROM_HERE, MakeThemeChangeList(theme_specifics)));

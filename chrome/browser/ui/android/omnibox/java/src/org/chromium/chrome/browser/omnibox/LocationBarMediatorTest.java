@@ -22,9 +22,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import android.animation.ObjectAnimator;
-import android.app.Activity;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.content.res.Configuration;
@@ -60,6 +60,7 @@ import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.build.BuildConfig;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
@@ -85,10 +86,11 @@ import org.chromium.chrome.browser.tab.Tab.LoadUrlResult;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
+import org.chromium.chrome.browser.theme.SurfaceColorUpdateUtils;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
+import org.chromium.chrome.browser.util.BrowserUiUtils;
 import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
 import org.chromium.chrome.test.util.browser.signin.AccountManagerTestRule;
-import org.chromium.components.browser_ui.styles.ChromeColors;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.embedder_support.util.UrlUtilitiesJni;
 import org.chromium.components.omnibox.AutocompleteMatchBuilder;
@@ -118,12 +120,8 @@ import java.util.List;
             LocationBarMediatorTest.ShadowGeolocationHeader.class,
             LocationBarMediatorTest.ObjectAnimatorShadow.class
         })
-// TODO(crbug.com/419289558): Re-enable color surface feature flags
 @DisableFeatures({
     ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_V2,
-    ChromeFeatureList.ANDROID_SURFACE_COLOR_UPDATE,
-    ChromeFeatureList.GRID_TAB_SWITCHER_SURFACE_COLOR_UPDATE,
-    ChromeFeatureList.GRID_TAB_SWITCHER_UPDATE
 })
 public class LocationBarMediatorTest {
 
@@ -243,7 +241,7 @@ public class LocationBarMediatorTest {
         doReturn(mRootView).when(mLocationBarLayout).getRootView();
         doReturn(true).when(mLocationBarLayout).shouldClearTextOnFocus();
         doReturn(mRootView).when(mLocationBarTablet).getRootView();
-        doReturn(new WeakReference<Activity>(null)).when(mWindowAndroid).getActivity();
+        doReturn(new WeakReference<>(null)).when(mWindowAndroid).getActivity();
         UrlUtilitiesJni.setInstanceForTesting(mUrlUtilitiesJniMock);
         OmniboxPrerenderJni.setInstanceForTesting(mPrerenderJni);
         PreloadPagesSettingsBridgeJni.setInstanceForTesting(mPreloadPagesSettingsJni);
@@ -874,7 +872,8 @@ public class LocationBarMediatorTest {
 
     @Test
     public void testUpdateColors_incognito() {
-        final int primaryColor = ChromeColors.getDefaultThemeColor(mContext, true);
+        final int primaryColor =
+                SurfaceColorUpdateUtils.getDefaultThemeColor(mContext, /* isIncognito= */ true);
         doReturn(primaryColor).when(mLocationBarDataProvider).getPrimaryColor();
         doReturn(true).when(mLocationBarDataProvider).isIncognitoBranded();
 
@@ -887,7 +886,8 @@ public class LocationBarMediatorTest {
 
     @Test
     public void testUpdateColors_default() {
-        final int primaryColor = ChromeColors.getDefaultThemeColor(mContext, false);
+        final int primaryColor =
+                SurfaceColorUpdateUtils.getDefaultThemeColor(mContext, /* isIncognito= */ false);
         doReturn(primaryColor).when(mLocationBarDataProvider).getPrimaryColor();
         doReturn(false).when(mLocationBarDataProvider).isIncognito();
 
@@ -1563,6 +1563,92 @@ public class LocationBarMediatorTest {
                         UrlBar.ScrollType.SCROLL_TO_BEGINNING,
                         SelectionState.SELECT_ALL);
         verify(mUrlCoordinator).requestAccessibilityFocus();
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_COMPOSEPLATE)
+    public void testButtonVisibility_showComposeplateUnfocused() {
+        VoiceRecognitionHandler voiceRecognitionHandler = mock(VoiceRecognitionHandler.class);
+        mMediator.setVoiceRecognitionHandlerForTesting(voiceRecognitionHandler);
+        mMediator.onFinishNativeInitialization();
+        mMediator.setShouldShowMicButtonWhenUnfocusedForPhone(true);
+        doReturn(true).when(voiceRecognitionHandler).isVoiceSearchEnabled();
+        assertTrue(mMediator.shouldShowMicButton());
+
+        mMediator.resetLastCachedIsLensOnOmniboxEnabledForTesting();
+        doReturn(true).when(mLensController).isLensEnabled(any());
+        mUiOverrides.setLensEntrypointAllowed(true);
+        mMediator.setShouldShowLensButtonWhenUnfocusedForPhone(true);
+        mMediator.setLensControllerForTesting(mLensController);
+        assertTrue(mMediator.shouldShowLensButton());
+
+        mMediator.setUrlFocusChangeFraction(
+                /* ntpSearchBoxScrollFraction= */ 1.0f, /* urlFocusChangeFraction= */ 0f);
+        assertTrue(
+                mMediator.shouldShowComposeplateButton(
+                        /* shouldShowMicButton= */ true, /* shouldShowLensButton= */ true));
+
+        // Verifies that the composeplate button is shown when the url bar is unfocused, and both
+        // mic and lens buttons are hidden.
+        Mockito.reset(mLocationBarLayout);
+        mMediator.updateButtonVisibility();
+        verify(mLocationBarLayout).setMicButtonVisibility(eq(false));
+        verify(mLocationBarLayout).setLensButtonVisibility(eq(false));
+        verify(mLocationBarLayout).setComposeplateButtonVisibility(eq(true));
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_COMPOSEPLATE)
+    public void testButtonVisibility_dontShowComposeplateFocused() {
+        VoiceRecognitionHandler voiceRecognitionHandler = mock(VoiceRecognitionHandler.class);
+        mMediator.setVoiceRecognitionHandlerForTesting(voiceRecognitionHandler);
+        mMediator.onFinishNativeInitialization();
+        mMediator.setShouldShowMicButtonWhenUnfocusedForPhone(true);
+        doReturn(true).when(voiceRecognitionHandler).isVoiceSearchEnabled();
+        assertTrue(mMediator.shouldShowMicButton());
+
+        mMediator.resetLastCachedIsLensOnOmniboxEnabledForTesting();
+        doReturn(true).when(mLensController).isLensEnabled(any());
+        mUiOverrides.setLensEntrypointAllowed(true);
+        mMediator.setShouldShowLensButtonWhenUnfocusedForPhone(true);
+        mMediator.setLensControllerForTesting(mLensController);
+        assertTrue(mMediator.shouldShowLensButton());
+
+        mMediator.setUrlFocusChangeFraction(
+                /* ntpSearchBoxScrollFraction= */ 1.0f, /* urlFocusChangeFraction= */ 0f);
+        assertTrue(
+                mMediator.shouldShowComposeplateButton(
+                        /* shouldShowMicButton= */ true, /* shouldShowLensButton= */ true));
+
+        // Verifies that the composeplate button is hidden when url bar is focused.
+        Mockito.reset(mLocationBarLayout);
+        mMediator.onUrlFocusChange(/* hasFocus= */ true);
+        verify(mLocationBarLayout).setMicButtonVisibility(eq(true));
+        verify(mLocationBarLayout).setLensButtonVisibility(eq(true));
+        verify(mLocationBarLayout).setComposeplateButtonVisibility(eq(false));
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_COMPOSEPLATE)
+    public void testComposeplateButtonClicked() {
+        mMediator.onFinishNativeInitialization();
+
+        GURL url = new GURL("https://foo.com");
+        when(mTemplateUrlService.getComposeplateUrl()).thenReturn(url);
+        when(mTabModelSelectorSupplier.hasValue()).thenReturn(true);
+        when(mTabModelSelector.getCurrentTab()).thenReturn(mTab);
+        when(mTab.isIncognito()).thenReturn(false);
+        HistogramWatcher histogramWatcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecords(
+                                "NewTabPage.Module.Click",
+                                BrowserUiUtils.ModuleTypeOnStartAndNtp.COMPOSEPLATE_BUTTON)
+                        .build();
+        mMediator.composeplateButtonClicked(null);
+
+        verify(mTab).loadUrl(mLoadUrlParamsCaptor.capture());
+        assertEquals(url.getSpec(), mLoadUrlParamsCaptor.getValue().getUrl());
+        histogramWatcher.assertExpected();
     }
 
     private ArgumentMatcher<UrlBarData> matchesUrlBarDataForQuery(String query) {

@@ -10,8 +10,6 @@ import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.graphics.Color;
-import android.os.Build;
-import android.os.Build.VERSION;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.Menu;
@@ -57,6 +55,7 @@ import org.chromium.components.browser_ui.settings.SettingsFragment;
 import org.chromium.components.browser_ui.util.TraceEventVectorDrawableCompat;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
+import org.chromium.components.browser_ui.widget.scrim.ScrimManager.ScrimClient;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.ui.UiUtils;
 import org.chromium.ui.base.DeviceFormFactor;
@@ -235,7 +234,11 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
     private void initBottomSheet() {
         ViewGroup sheetContainer = findViewById(R.id.sheet_container);
         // TODO: Observe scrim changes if status bar needs to change color with the scrim.
-        mScrimManager = new ScrimManager(this, (ViewGroup) sheetContainer.getParent());
+        mScrimManager =
+                new ScrimManager(
+                        this,
+                        (ViewGroup) sheetContainer.getParent(),
+                        ScrimClient.SETTINGS_ACTIVITY);
 
         mManagedBottomSheetController =
                 BottomSheetControllerFactory.createBottomSheetController(
@@ -499,9 +502,7 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
 
     /** Set device status bar to match the activity background color, if supported. */
     private void setStatusBarColor() {
-        // On P+, the status bar color is set via the XML theme.
-        if (VERSION.SDK_INT >= Build.VERSION_CODES.P
-                && !BuildInfo.getInstance().isAutomotive
+        if (!BuildInfo.getInstance().isAutomotive
                 && !DeviceFormFactor.isNonMultiDisplayContextOnTablet(this)) {
             return;
         }

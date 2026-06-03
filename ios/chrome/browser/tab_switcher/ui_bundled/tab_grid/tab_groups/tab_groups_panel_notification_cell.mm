@@ -4,6 +4,7 @@
 
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/tab_groups_panel_notification_cell.h"
 
+#import "base/check_op.h"
 #import "ios/chrome/browser/shared/ui/elements/extended_touch_target_button.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/tab_groups_constants.h"
@@ -73,10 +74,6 @@ const CGFloat kVerticalPadding = 20;
   _notificationItem = nil;
 }
 
-- (NSString*)accessibilityLabel {
-  return _textLabel.text;
-}
-
 - (void)setNotificationItem:(TabGroupsPanelItem*)notificationItem {
   CHECK_EQ(notificationItem.type, TabGroupsPanelItemType::kNotification);
   if ([notificationItem isEqual:_notificationItem]) {
@@ -84,6 +81,12 @@ const CGFloat kVerticalPadding = 20;
   }
   _notificationItem = notificationItem;
   _textLabel.text = notificationItem.notificationText;
+}
+
+#pragma mark - UIAccessibility
+
+- (NSString*)accessibilityLabel {
+  return _textLabel.text;
 }
 
 #pragma mark - Private

@@ -34,7 +34,8 @@
       </template>
       <template is="dom-if" if="[[enableDeleteBrowsingDataRevamp_]]" restamp>
         <settings-clear-browsing-data-dialog-v2 prefs="{{prefs}}"
-            on-close="onCbdDialogClosed_">
+            on-close="onCbdDialogClosed_"
+            on-browsing-data-deleted="onBrowsingDataDeleted_">
         </settings-clear-browsing-data-dialog-v2>
       </template>
     </template>
@@ -138,15 +139,6 @@
           <settings-subpage associated-control="[[$$('#securityLinkRow')]]"
               page-title="$i18n{securityKeysTitle}">
             <security-keys-subpage></security-keys-subpage>
-          </settings-subpage>
-        </template>
-      </template>
-
-      <template is="dom-if" if="[[enableManagePhones_]]">
-        <template is="dom-if" route-path="/securityKeys/phones">
-          <settings-subpage associated-control="[[$$('#securityLinkRow')]]"
-              page-title="$i18n{securityKeysPhonesManage}">
-            <security-keys-phones-subpage></security-keys-phones-subpage>
           </settings-subpage>
         </template>
       </template>
@@ -380,12 +372,11 @@
           </settings-cookies-page>
         </settings-subpage>
       </template>
-      <!-- TODO(crbug.com/408036586): Update learn more URL when finalized -->
       <template is="dom-if" if="[[enableIncognitoTrackingProtections_]]">
         <template is="dom-if" route-path="/incognito" no-search>
           <settings-subpage id="incognito-tracking-protections"
                 page-title="$i18n{incognitoTrackingProtectionsPageTitle}"
-                learn-more-url=""
+                learn-more-url="$i18n{incognitoTrackingProtectionsLearnMoreUrl}"
                 associated-control="[[$$('#incognitoTrackingProtectionsLinkRow')]]">
             <incognito-tracking-protections-page prefs="{{prefs}}">
             </incognito-tracking-protections-page>
@@ -480,7 +471,9 @@
         <settings-subpage page-title="$i18n{siteSettingsCategoryLocation}"
             search-label="$i18n{siteSettingsAllSitesSearch}"
             search-term="{{searchFilter_}}">
-          <settings-geolocation-page prefs="{{prefs}}"></settings-location-page>
+          <settings-geolocation-page prefs="{{prefs}}"
+              search-term="[[searchFilter_]]">
+          </settings-location-page>
         </settings-subpage>
       </template>
       <template is="dom-if" route-path="/handlers" no-search>
@@ -642,7 +635,8 @@
         <settings-subpage page-title="$i18n{siteSettingsCategoryNotifications}"
             search-label="$i18n{siteSettingsAllSitesSearch}"
             search-term="{{searchFilter_}}">
-          <settings-notifications-page prefs="{{prefs}}">
+          <settings-notifications-page prefs="{{prefs}}"
+              search-term="[[searchFilter_]]">
           </settings-notifications-page>
         </settings-subpage>
       </template>
@@ -1332,3 +1326,6 @@
         </template>
       </template>
     </settings-animated-pages>
+    <cr-toast id="deleteBrowsingDataToast" duration="5000">
+      <div>[[dbdDeletionConfirmationToastLabel_]]</div>
+    </cr-toast>

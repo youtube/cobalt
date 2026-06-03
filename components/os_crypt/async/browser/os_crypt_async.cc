@@ -12,6 +12,7 @@
 #include "base/check_op.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/sequence_checker.h"
 #include "base/types/expected.h"
 #include "components/os_crypt/async/browser/key_provider.h"
@@ -58,8 +59,7 @@ OSCryptAsync::OSCryptAsync(
     : providers_(SortProviders(std::move(providers))) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (providers_.empty()) {
-    encryptor_instance_ = base::WrapUnique<Encryptor>(new Encryptor());
-    is_initialized_ = true;
+    SetEncryptorInstance(Encryptor());
   }
 }
 
@@ -71,7 +71,7 @@ OSCryptAsync::~OSCryptAsync() = default;
 void OSCryptAsync::CallbackHelper(InitCallback callback,
                                   Encryptor::Option option) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  std::move(callback).Run(encryptor_instance_->Clone(option), /*result=*/true);
+  std::move(callback).Run(encryptor_instance_->Clone(option));
 }
 
 void OSCryptAsync::HandleKey(
@@ -104,6 +104,7 @@ void OSCryptAsync::HandleKey(
   } else {
     switch (key.error()) {
       case KeyProvider::KeyError::kPermanentlyUnavailable:
+        ++number_of_failing_key_providers_;
         DVLOG(1) << "Provider " << tag << " failed to return a key.";
         break;
       case KeyProvider::KeyError::kTemporarilyUnavailable:
@@ -113,11 +114,12 @@ void OSCryptAsync::HandleKey(
   }
 
   if (++current == providers_.end()) {
-    encryptor_instance_ = base::WrapUnique<Encryptor>(
-        new Encryptor(std::move(key_ring_), provider_for_encryption_,
-                      provider_for_os_crypt_sync_compatible_encryption_));
-    callbacks_.Notify();
-    is_initialized_ = true;
+    SetEncryptorInstance(
+        Encryptor(std::move(key_ring_), provider_for_encryption_,
+                  provider_for_os_crypt_sync_compatible_encryption_));
+    for (auto& callback : callbacks_) {
+      std::move(callback).Run();
+    }
     is_initializing_ = false;
     return;
   }
@@ -126,29 +128,52 @@ void OSCryptAsync::HandleKey(
                                     weak_factory_.GetWeakPtr(), current));
 }
 
-base::CallbackListSubscription OSCryptAsync::GetInstance(
-    InitCallback callback) {
-  return GetInstance(std::move(callback), Encryptor::Option::kNone);
+void OSCryptAsync::SetEncryptorInstance(Encryptor encryptor) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  CHECK(!is_initialized_);
+  is_initialized_ = true;
+  encryptor_instance_ = std::make_unique<Encryptor>(std::move(encryptor));
+  size_t available_keys = 0;
+  size_t unavailable_keys = 0;
+  for (const auto& key : encryptor_instance_->keys_) {
+    if (key.second) {
+      ++available_keys;
+    } else {
+      ++unavailable_keys;
+    }
+  }
+  base::UmaHistogramCounts100(
+      "OSCrypt.EncryptorKeyCount",
+      number_of_failing_key_providers_ + available_keys + unavailable_keys);
+  base::UmaHistogramCounts100("OSCrypt.EncryptorKeyCount.Available",
+                              available_keys);
+  base::UmaHistogramCounts100(
+      "OSCrypt.EncryptorKeyCount.TemporarilyUnavailable", unavailable_keys);
+  base::UmaHistogramCounts100(
+      "OSCrypt.EncryptorKeyCount.PermanentlyUnavailable",
+      number_of_failing_key_providers_);
 }
 
-base::CallbackListSubscription OSCryptAsync::GetInstance(
-    InitCallback callback,
-    Encryptor::Option option) {
+void OSCryptAsync::GetInstance(InitCallback callback) {
+  GetInstance(std::move(callback), Encryptor::Option::kNone);
+}
+
+void OSCryptAsync::GetInstance(InitCallback callback,
+                               Encryptor::Option option) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (is_initialized_) {
     CHECK(!is_initializing_);
-    std::move(callback).Run(encryptor_instance_->Clone(option),
-                            /*result=*/true);
-    return base::CallbackListSubscription();
+    std::move(callback).Run(encryptor_instance_->Clone(option));
+    return;
   }
 
-  auto subscription = callbacks_.Add(
-      base::BindOnce(&OSCryptAsync::CallbackHelper, weak_factory_.GetWeakPtr(),
-                     std::move(callback), option));
+  callbacks_.emplace_back(base::BindOnce(&OSCryptAsync::CallbackHelper,
+                                         weak_factory_.GetWeakPtr(),
+                                         std::move(callback), option));
 
   if (is_initializing_) {
-    return subscription;
+    return;
   }
 
   CHECK(key_ring_.empty());
@@ -158,8 +183,6 @@ base::CallbackListSubscription OSCryptAsync::GetInstance(
 
   (*start)->GetKey(base::BindOnce(&OSCryptAsync::HandleKey,
                                   weak_factory_.GetWeakPtr(), start));
-
-  return subscription;
 }
 
 }  // namespace os_crypt_async

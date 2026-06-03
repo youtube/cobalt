@@ -5,6 +5,7 @@
 <translation id="1029669172902658969">Genstart og opdater &amp;Chromium OS</translation>
 <translation id="1040916596585577953">Chromium anbefaler, at du gennemgår denne udvidelse</translation>
 <translation id="1042552502243217427">Når et website anmoder om at forudindlæse links privat på websitets side, anvender Chromium Googles servere. På denne måde skjules din identitet fra det forudindlæste website, men Google registrerer, hvilke websites der forudindlæses.</translation>
+<translation id="1051793555070215510">Hjælp os med at forbedre inkognito ved at deltage i denne undersøgelse, der kun tager 1 minut.</translation>
 <translation id="1065672644894730302">Dine præferencer kan ikke læses. Visse funktioner er muligvis ikke tilgængelige, og ændringer af præferencer gemmes ikke.</translation>
 <translation id="1083934481477628225">Din forælder har deaktiveret "Tilladelser for websites, apps og udvidelser" for Chromium</translation>
 <translation id="1104942323762546749">Chromium anmoder om at eksportere dine adgangskoder. Angiv din Windows-adgangskode for at tillade dette.</translation>
@@ -85,7 +86,6 @@
 <translation id="2126108037660393668">Verificering af den downloadede fil mislykkedes.</translation>
 <translation id="2137162749895930932">Luk oversættelsesskærmen</translation>
 <translation id="215352261310130060">Chromium har blokeret denne download, fordi websitet ikke anvender en sikker forbindelse, og der kan være blevet manipuleret med filen</translation>
-<translation id="2157600032285353789">Du kan åbne bogmærker, læsetilstand med mere via Chromium-menuen</translation>
 <translation id="2174178932569897599">Tilpas Chromium</translation>
 <translation id="2174917724755363426">Installationen er ikke fuldført. Er du sikker på, at du vil annullere?</translation>
 <translation id="2185166961232948079">Chromium – Login på netværk – <ph name="PAGE_TITLE" /></translation>
@@ -220,11 +220,13 @@
 <translation id="3954172517175569325">De adgangskoder, betalingsmetoder og adresser, du har gemt på din Google-konto, fjernes fra denne enhed. Hvis du vil bruge dem igen i Chromium, skal du logge ind igen.</translation>
 <translation id="395904275706073188">Beskyttede sider kan ikke læses. Prøv en anden side.</translation>
 <translation id="3962647064319009959">Se, hvordan Chromium beskytter dig</translation>
+<translation id="3971865010372729242">Når du skriver i adresselinjen eller søgefeltet, sender Chromium det, du skriver, til din organisations søge-, AI- og agentværktøjer for at få forslag.</translation>
 <translation id="3975724895399328945">Om &amp;Google Chrome for Testing</translation>
 <translation id="3997429360543082038">Om Chromium OS</translation>
 <translation id="4019629340646866719">Chromium OS leveres ved hjælp af <ph name="BEGIN_LINK_CROS_OSS" />open source-software<ph name="END_LINK_CROS_OSS" />. Det samme gælder for <ph name="BEGIN_LINK_LINUX_OSS" />Linux-udviklingsmiljøet<ph name="END_LINK_LINUX_OSS" />.</translation>
 <translation id="4022972681110646219">Oversæt skærmen</translation>
 <translation id="4023601594785368013">Originalsprog: <ph name="LANGUAGE" /></translation>
+<translation id="4023845192681161785">Åbn links i Chromium fra en hvilken som helst app. Den fastgøres også til proceslinjen, så du nemt kan tilgå den.</translation>
 <translation id="4036079820698952681">Hjælp med at gøre Chromium bedre ved at rapportere de <ph name="BEGIN_LINK" />aktuelle indstillinger<ph name="END_LINK" />.</translation>
 <translation id="4050175100176540509">Vigtige sikkerhedsforbedringer og nye funktioner er tilgængelige i den seneste version.</translation>
 <translation id="4055805654398742145">Adgangs­kode­admin­istrator</translation>
@@ -326,6 +328,7 @@
 <translation id="5524890928877629608">øverste venstre hjørne af søgeområdet: venstre <ph name="LEFT" /> %, øverste <ph name="TOP" /> %</translation>
 <translation id="5527463683072221100">Åbn PDF-filer i Chromium</translation>
 <translation id="5579324208890605088">Opstartsfejl: Kør installationsprogrammet som almindelig bruger, ikke som administrator.</translation>
+<translation id="5580770360767802657">Brug Chromium som standard, og fastgør den</translation>
 <translation id="5596627076506792578">Flere valgmuligheder</translation>
 <translation id="5605834417512968703">Vælg det, du vil søge efter med billedsøgning, eller tryk på Escape for at lukke billedsøgning</translation>
 <translation id="5618818588972826921">Vælg den tekst eller det billede, du vil søge efter med Billedsøgning, eller tryk på Escape for at lukke Billedsøgning</translation>
@@ -340,6 +343,7 @@
 <translation id="5775198138441669627">Hvis du glemmer din adgangssætning eller vil ændre denne indstilling, skal du <ph name="SETTINGS_LINK" /> Chromium-dataene på din konto.</translation>
 <translation id="5800158606660203929">Tilpas og styr Chromium. Angiv Chromium som din standardbrowser.</translation>
 <translation id="5809516625706423866">Der kan ikke oprettes forbindelse til internettet. HTTP 401 (uautoriseret). Tjek din proxykonfiguration.</translation>
+<translation id="5817952762723416573">Gør websites hurtigere ved hjælp af Chromiums V8-maskine, men gør Chromium en smule mindre modstandsdygtig over for angreb. Denne indstilling er deaktiveret.</translation>
 <translation id="5821520528363214608">For at bruge og gemme Chromium-data på din Google-konto skal du opdatere Chromium</translation>
 <translation id="5824893331272123205">Dette panel kunne ikke indlæses. Prøv igen</translation>
 <translation id="5862307444128926510">Velkommen til Chromium</translation>
@@ -356,7 +360,6 @@
 <translation id="5987687638152509985">Opdater Chromium for at starte synkronisering</translation>
 <translation id="5988505247484123880">Det er almindeligt, at de websites, du besøger, husker ting, du er interesseret i, så din oplevelse personligt tilpasses. Websites kan også gemme oplysninger med Chromium om dine interesser.</translation>
 <translation id="6003112304606738118">Downloader… Der er <ph name="HOURS" /> timer tilbage</translation>
-<translation id="6019451407441383358">Du kan åbne bogmærker, læsetilstand med mere via Chromium-menuen øverst til højre</translation>
 <translation id="6040143037577758943">Luk</translation>
 <translation id="6058380562449900225">Du kan beskytte dine data ved at lade Chromium fjerne tilladelser fra websites, du ikke har besøgt for nylig. Dette forhindrer ikke notifikationer.</translation>
 <translation id="6063093106622310249">Åbn i Chr&amp;omium</translation>
@@ -430,6 +433,7 @@ Visse funktioner kan være utilgængelige. Angiv en anden profilmappe, eller bru
 <translation id="6729124504294600478">For at få personlig tilpasning og andre funktioner skal du medtage Chromium i Web- og appaktivitet og tilknyttede Google-tjenester</translation>
 <translation id="6734291798041940871">Chromium er allerede installeret for alle brugere på computeren.</translation>
 <translation id="674245979920622322">Du har ikke besøgt websitet for nylig. Chromium har fjernet <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> og <ph name="COUNT" /> andre</translation>
+<translation id="6751374565094704799">Gør websites hurtigere ved hjælp af Chromiums V8-maskine, men gør Chromium en smule mindre modstandsdygtig over for angreb. Denne indstilling er aktiveret.</translation>
 <translation id="67706546131546258">Chromium anbefaler, at du scanner denne fil, da den kan være skadelig.</translation>
 <translation id="6779406956731413166">Chromium OS leveres ved hjælp af <ph name="BEGIN_LINK_CROS_OSS" />open source-software<ph name="END_LINK_CROS_OSS" />.</translation>
 <translation id="6831043979455480757">Oversæt</translation>
@@ -526,7 +530,6 @@ Chromium kan ikke gendanne dine præferencer.</translation>
 <translation id="8118331347066725040">Send feedback om søgning via Lens</translation>
 <translation id="8133124826068723441">Chromium OS kunne ikke synkronisere dine data, fordi synkronisering ikke er tilgængeligt på dit domæne.</translation>
 <translation id="813913629614996137">Initialiserer...</translation>
-<translation id="8166782796394721554">Aktivér yderligere beskyttelse i JavaScript- og WebAssembly-maskinen i Chromium</translation>
 <translation id="81770708095080097">Denne fil er farlig, så Chromium har blokeret den.</translation>
 <translation id="8177472873527554730">Der blev ikke fundet indhold på siden</translation>
 <translation id="8200109504272824693">Angiv din adgangssætning for at bruge og gemme Chromium-data på din konto, <ph name="USER_EMAIL" /></translation>
@@ -598,6 +601,7 @@ Chromium kan ikke gendanne dine præferencer.</translation>
 <translation id="9106612006984859720">Hvis du vil have fremtidige Chromium-opdateringer, skal du have Windows 10 eller nyere. Denne computer anvender Windows 8.1.</translation>
 <translation id="91086099826398415">Åbn linket på en ny Chromium-&amp;fane</translation>
 <translation id="911206726377975832">Slet også dine browserdata?</translation>
+<translation id="9134482777260927479">Lektiehjælp</translation>
 <translation id="9148058034647219655">Afslut</translation>
 <translation id="9158494823179993217">Din systemadministrator har konfigureret Chromium til at åbne en anden browser for at få adgang til <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="9185526690718004400">Genstart og opdater &amp;Chromium</translation>

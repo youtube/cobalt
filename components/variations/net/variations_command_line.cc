@@ -14,6 +14,7 @@
 #include "base/feature_list.h"
 #include "base/files/file_util.h"
 #include "base/json/json_string_value_serializer.h"
+#include "base/logging.h"
 #include "base/metrics/field_trial.h"
 #include "base/strings/escape.h"
 #include "base/strings/strcat.h"
@@ -50,15 +51,9 @@ void ExitWithMessage(const std::string& message) {
 namespace variations {
 
 #if !BUILDFLAG(IS_CHROMEOS)
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
 BASE_FEATURE(kFeedbackIncludeVariations,
              "FeedbackIncludeVariations",
              base::FEATURE_ENABLED_BY_DEFAULT);
-#else
-BASE_FEATURE(kFeedbackIncludeVariations,
-             "FeedbackIncludeVariations",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
 #endif
 
 void MaybeUnpackVariationsStateFile() {

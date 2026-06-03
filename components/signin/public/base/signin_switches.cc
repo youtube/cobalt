@@ -49,18 +49,14 @@ BASE_FEATURE(kSkipCheckForAccountManagementOnSignin,
              "SkipCheckForAccountManagementOnSignin",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kUnoForAuto, "UnoForAuto", base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kUnoForAuto, "UnoForAuto", base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kUseHostedDomainForManagementCheckOnSignin,
              "UseHostedDomainForManagementCheckOnSignin",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kMakeAccountsAvailableInIdentityManager,
              "MakeAccountsAvailableInIdentityManager",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kFullscreenSignInPromoUseDate,
-             "FullscreenSignInPromoUseDate",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
@@ -69,9 +65,20 @@ BASE_FEATURE(kFullscreenSignInPromoUseDate,
 BASE_FEATURE(kEnableHistorySyncOptin,
              "EnableHistorySyncOptin",
              base::FEATURE_DISABLED_BY_DEFAULT);
+// Enables the History Sync Opt-in from the tab helper entry point.
+BASE_FEATURE(kEnableHistorySyncOptinFromTabHelper,
+             "EnableHistorySyncOptinFromTabHelper",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
+// Move the step of browser Signin into the Sync header processing logic.
+// This flag is meant to be used as a kill switch, as the feature starts enabled
+// by default.
+BASE_FEATURE(kBrowserSigninInSyncHeaderOnGaiaIntegration,
+             "BrowserSigninInSyncHeaderOnGaiaIntegration",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Enables the History Sync Opt-in expansion pill on Desktop.
 BASE_FEATURE(kEnableHistorySyncOptinExpansionPill,
              "EnableHistorySyncOptinExpansionPill",
@@ -106,6 +113,13 @@ const char kForceFreDefaultBrowserStep[] = "force-fre-default-browser-step";
 // Clears the token service before using it. This allows simulating the
 // expiration of credentials during testing.
 const char kClearTokenService[] = "clear-token-service";
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+BASE_FEATURE(kWebSigninLeadsToImplicitlySignedInState,
+             "WebSigninLeadsToImplicitlySignedInState",
+             // THIS IS A TEST-ONLY FLAG AND SHOULD NEVER BE ENABLED.
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 #if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 // Enable experimental binding session credentials to the device.
@@ -179,22 +193,14 @@ BASE_FEATURE(kEnablePreferencesAccountStorage,
 BASE_FEATURE(kForceStartupSigninPromo,
              "ForceStartupSigninPromo",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kFullscreenSignInPromoUseDate,
+             "FullscreenSignInPromoUseDate",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
 BASE_FEATURE(kInterceptBubblesDismissibleByAvatarButton,
              "InterceptBubblesDismissibleByAvatarButton",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kEnableSnackbarInSettings,
-             "EnableSnackbarInSettings",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kEnableImprovedGuestProfileMenu,
-             "EnableImprovedGuestProfileMenu",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kEnablePendingModePasswordsPromo,
-             "EnablePendingModePasswordsPromo",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_IOS)
@@ -220,7 +226,12 @@ BASE_FEATURE(kShowEnterpriseDialogForAllManagedAccountsSignin,
 
 BASE_FEATURE(kEnableExtensionsExplicitBrowserSignin,
              "EnableExtensionsExplicitBrowserSignin",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
 
 bool IsExtensionsExplicitBrowserSigninEnabled() {
   return base::FeatureList::IsEnabled(kEnableExtensionsExplicitBrowserSignin);
@@ -238,6 +249,12 @@ BASE_FEATURE(kSyncEnableBookmarksInTransportMode,
 BASE_FEATURE(kDeferWebSigninTrackerCreation,
              "DeferWebSigninTrackerCreation",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+BASE_FEATURE(kSignInPromoMaterialNextUI,
+             "SignInPromoMaterialNextUI",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 }  // namespace switches
 
@@ -263,3 +280,7 @@ BASE_FEATURE(kIgnoreMirrorHeadersInBackgoundTabs,
 BASE_FEATURE(kNonDefaultGaiaOriginCheck,
              "NonDefaultGaiaOriginCheck",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kUseAccountCapabilityToDetermineAccountManagement,
+             "UseAccountCapabilityToDetermineAccountManagement",
+             base::FEATURE_DISABLED_BY_DEFAULT);

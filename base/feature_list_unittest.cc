@@ -311,8 +311,9 @@ TEST_F(FeatureListTest, IsFeatureOverriddenFromFieldTrial) {
   EXPECT_FALSE(feature_list->IsFeatureOverridden(kFeatureOnByDefaultName));
   EXPECT_FALSE(feature_list->IsFeatureOverridden(kFeatureOffByDefaultName));
 
-  // Now, register a field trial to override |kFeatureOnByDefaultName| state
-  // and check that the function still returns false for that feature.
+  // Now, register field trials to override `kFeatureOnByDefaultName` state and
+  // keeping `kFeatureOffByDefault` as the default. Check that both are
+  // considered overridden.
   feature_list->RegisterFieldTrialOverride(
       kFeatureOffByDefaultName, FeatureList::OVERRIDE_USE_DEFAULT,
       FieldTrialList::CreateFieldTrial("Trial1", "A"));
@@ -996,18 +997,32 @@ TEST(TestFeatureVisitor, FeatureHasParams) {
       /*enable_features=*/"TestFeature<foo.bar:k1/v1/k2/v2",
       /*disable_features=*/"");
 
-  TestFeatureVisitor visitor;
-  base::FeatureList::VisitFeaturesAndParams(visitor);
-  std::multiset<TestFeatureVisitor::VisitedFeatureState> actual_feature_state =
-      visitor.feature_state();
-
-  std::multiset<TestFeatureVisitor::VisitedFeatureState>
+  const std::multiset<TestFeatureVisitor::VisitedFeatureState>
       expected_feature_state = {
           {"TestFeature", FeatureList::OverrideState::OVERRIDE_ENABLE_FEATURE,
            FieldTrialParams{{"k1", "v1"}, {"k2", "v2"}}, "foo", "bar"},
       };
 
-  EXPECT_EQ(actual_feature_state, expected_feature_state);
+  {  // Check cached params.
+    TestFeatureVisitor visitor;
+    base::FeatureList::VisitFeaturesAndParams(visitor);
+    std::multiset<TestFeatureVisitor::VisitedFeatureState>
+        actual_feature_state = visitor.feature_state();
+
+    EXPECT_EQ(actual_feature_state, expected_feature_state);
+  }
+
+  {  // Check that we fetch params from shared memory.
+    FieldTrialList::InstantiateFieldTrialAllocatorIfNeeded();
+    FieldTrialParamAssociator::GetInstance()->ClearAllCachedParamsForTesting();
+
+    TestFeatureVisitor visitor;
+    base::FeatureList::VisitFeaturesAndParams(visitor);
+    std::multiset<TestFeatureVisitor::VisitedFeatureState>
+        actual_feature_state = visitor.feature_state();
+
+    EXPECT_EQ(actual_feature_state, expected_feature_state);
+  }
 }
 
 TEST(TestFeatureVisitor, FeatureWithPrefix) {

@@ -20,6 +20,7 @@
 #include "third_party/blink/renderer/platform/image-decoders/image_decoder_test_helpers.h"
 #include "third_party/blink/renderer/platform/image-decoders/png/png_decoder_factory.h"
 #include "third_party/blink/renderer/platform/wtf/shared_buffer.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "third_party/skia/include/core/SkColorSpace.h"
@@ -928,6 +929,68 @@ TEST_P(AnimatedPNGTests, FailureMissingIendChunk) {
   }
 }
 
+// This is a regression test for https://crbug.com/422832556
+TEST_P(AnimatedPNGTests, IncrementalDecodeOfDifferentFrame) {
+  Vector<char> full_data = ReadFile(
+      "/images/resources/"
+      "png-animated-idat-part-of-animation.png");
+  ASSERT_FALSE(full_data.empty());
+  auto decoder = CreatePNGDecoder();
+
+  const size_t kInsideSecondFrameFdat = 232;
+  scoped_refptr<SharedBuffer> temp_data =
+      SharedBuffer::Create(base::span(full_data).first(kInsideSecondFrameFdat));
+  decoder->SetData(temp_data.get(), false);
+
+  // When going through `SkiaImageDecoderBase`, this will call
+  // `startIncrementalDecode` (reporting `kSuccess`) and then
+  // `incrementalDecode` (reporting `kIncompleteData`).  This will
+  // leave the codec ready for another call to `incrementalDecode`.
+  ImageFrame* frame1 = decoder->DecodeFrameBufferAtIndex(1);
+  if (!skia::IsRustyPngEnabled()) {
+    EXPECT_FALSE(frame1);
+    return;
+  }
+  ASSERT_TRUE(frame1);
+  EXPECT_EQ(frame1->GetStatus(), ImageFrame::kFramePartial);
+
+  // Ensure that the `DecodeFrameBufferAtIndex(0)` below actually needs
+  // to decode the frame from scratch, rather than using cached, previously
+  // decoded data.
+  ImageFrame* frame0 = decoder->DecodeFrameBufferAtIndex(0);
+  ASSERT_TRUE(frame0);
+  frame0->ClearPixelData();
+
+  // When going through `SkiaImageDecoderBase`, this will call
+  // `startIncrementalDecode` (reporting `kSuccess`) and then
+  // `incrementalDecode` (reporting `kSuccess`).  This will
+  // leave the codec in a state where further `incrementalDecode` calls
+  // are invalid (e.g. because `SkPngRustCodec::fIncrementalDecodingState`
+  // has been reset to `nullopt`).
+  frame0 = decoder->DecodeFrameBufferAtIndex(0);
+  ASSERT_TRUE(frame0);
+  EXPECT_EQ(frame0->GetStatus(), ImageFrame::kFrameComplete);
+
+  // Make the 2nd frame fully available.  This is not strictly required for
+  // a repro of https://crbug.com/422832556 but seems like a more realistic
+  // testing scenario.  Additionally, this helps to continue detecting
+  // `SkiaImageDecoderBase`-level issues even after hardnening `SkPngRustCodec`.
+  scoped_refptr<SharedBuffer> all_frames = SharedBuffer::Create(full_data);
+  decoder->SetData(all_frames.get(), true);
+
+  // When going through `SkiaImageDecoderBase`, this:
+  //
+  // * Should realize that `SkCodec` is not at this point ready for
+  //   `incrementalDecode` calls (at all, and specifically not for
+  //   frame #1 / 2nd frame).  And because of this a call to
+  //   `startIncrementalDecode` should happen.  https://crbug.com/422832556
+  //   meant that this is not happening.
+  // * Will call `incrementalDecode`
+  frame1 = decoder->DecodeFrameBufferAtIndex(1);
+  ASSERT_TRUE(frame1);
+  EXPECT_EQ(frame1->GetStatus(), ImageFrame::kFrameComplete);
+}
+
 // Verify that a malformatted PNG, where the IEND appears before any frame data
 // (IDAT), invalidates the decoder.
 TEST_P(AnimatedPNGTests, VerifyIENDBeforeIDATInvalidatesDecoder) {
@@ -1552,26 +1615,22 @@ static Vector<PNGSample> GetPNGSamplesInfo(bool include_8bit_pngs) {
   for (String color_space : color_spaces) {
     for (String alpha : alpha_status) {
       PNGSample png_sample;
-      StringBuilder filename;
-      filename.Append("_");
-      filename.Append(color_space);
-      filename.Append(alpha);
-      filename.Append(".png");
-      png_sample.filename = filename.ToString();
+      String filename = StrCat({"_", color_space, alpha, ".png"});
+      png_sample.filename = filename;
       png_sample.color_space = color_space;
       png_sample.is_transparent = (alpha == "_transparent");
 
       for (String interlace : interlace_status) {
         PNGSample high_bit_depth_sample(png_sample);
         high_bit_depth_sample.filename =
-            "2x2_16bit" + interlace + high_bit_depth_sample.filename;
+            StrCat({"2x2_16bit", interlace, high_bit_depth_sample.filename});
         high_bit_depth_sample.is_high_bit_depth = true;
         png_samples.push_back(high_bit_depth_sample);
       }
       if (include_8bit_pngs) {
         PNGSample regular_bit_depth_sample(png_sample);
         regular_bit_depth_sample.filename =
-            "2x2_8bit" + regular_bit_depth_sample.filename;
+            StrCat({"2x2_8bit", regular_bit_depth_sample.filename});
         regular_bit_depth_sample.is_high_bit_depth = false;
         png_samples.push_back(regular_bit_depth_sample);
       }
@@ -1589,7 +1648,7 @@ TEST_P(StaticPNGTests, DecodeHighBitDepthPngToHalfFloat) {
   for (PNGSample& png_sample : png_samples) {
     SCOPED_TRACE(testing::Message()
                  << "Testing '" << png_sample.filename << "'");
-    String full_path = path + png_sample.filename;
+    String full_path = StrCat({path, png_sample.filename});
     png_sample.png_contents = ReadFileToSharedBuffer(full_path);
     auto decoder = Create16BitPNGDecoder();
     TestHighBitDepthPNGDecoding(png_sample, decoder.get());
@@ -1603,7 +1662,7 @@ TEST_P(StaticPNGTests, ImageIsHighBitDepth) {
 
   String path = "/images/resources/png-16bit/";
   for (PNGSample& png_sample : png_samples) {
-    String full_path = path + png_sample.filename;
+    String full_path = StrCat({path, png_sample.filename});
     png_sample.png_contents = ReadFileToSharedBuffer(full_path);
     ASSERT_TRUE(png_sample.png_contents.get());
 
@@ -1896,6 +1955,46 @@ TEST_P(PNGTests, MalformedPlteOrTrnsChunks) {
       EXPECT_EQ(1u, decoder->FrameCount());
       EXPECT_EQ(frame->GetStatus(), ImageFrame::kFrameComplete);
     }
+  }
+}
+
+// Regression test for https://crbug.com/423247103
+TEST_P(PNGTests, RecoveringToReadFirstFrameAfterSecondFrameFailure) {
+  scoped_refptr<SharedBuffer> data = ReadFileToSharedBuffer(
+      kDecodersTestingDir, "apng-with-malformed-2nd-frame.png");
+  EXPECT_FALSE(data->empty());
+  auto decoder = CreatePNGDecoder();
+  decoder->SetData(data.get(), true);
+
+  // 1st frame can be successfully decoded.
+  const ImageFrame* frame1 = decoder->DecodeFrameBufferAtIndex(0);
+  EXPECT_FALSE(decoder->Failed());
+  ASSERT_TRUE(frame1);
+  EXPECT_EQ(frame1->GetStatus(), ImageFrame::kFrameComplete);
+
+  // 2nd frame is malformed in the test input.
+  const ImageFrame* frame2 = decoder->DecodeFrameBufferAtIndex(1);
+  ASSERT_TRUE(frame2);
+  EXPECT_EQ(frame2->GetStatus(), ImageFrame::kFramePartial);
+  if (skia::IsRustyPngEnabled()) {
+    // `SkiaImageDecoderBase` doesn't report an overall failure, unless *all*
+    // frames fail.  This is by design - see
+    // https://crbug.com/371592786#comment3.
+    EXPECT_FALSE(decoder->Failed());
+  } else {
+    EXPECT_TRUE(decoder->Failed());
+  }
+
+  // Try decoding the 1st frame again.
+  const ImageFrame* frame1b = decoder->DecodeFrameBufferAtIndex(0);
+  if (skia::IsRustyPngEnabled()) {
+    EXPECT_FALSE(decoder->Failed());
+    ASSERT_TRUE(frame1b);
+    EXPECT_EQ(frame1b->GetStatus(), ImageFrame::kFrameComplete);
+  } else {
+    EXPECT_TRUE(decoder->Failed());
+    ASSERT_TRUE(frame1b);
+    EXPECT_EQ(frame1b->GetStatus(), ImageFrame::kFrameEmpty);
   }
 }
 

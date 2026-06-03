@@ -1,0 +1,107 @@
+<style include="cr-icons cr-shared-style settings-shared">
+  #subpageDescription {
+    padding-bottom: 16px;
+  }
+
+  .cancel-button {
+    margin: 0;
+  }
+
+  .icon-arrow-back {
+    --cr-icon-button-margin-end: 12px;
+    --cr-icon-button-margin-start: 0;
+  }
+
+  .label {
+    color: var(--cr-primary-text-color);
+    font-weight: 500;
+  }
+
+  .link-rows-block > * {
+    background-color: var(--dbd-container-color);
+    padding: 4px 16px;
+  }
+
+  .first-link-row {
+    border-bottom-left-radius: var(--dbd-container-stacked-border-radius);
+    border-bottom-right-radius: var(--dbd-container-stacked-border-radius);
+    border-top-left-radius: var(--dbd-container-border-radius);
+    border-top-right-radius: var(--dbd-container-border-radius);
+    margin-bottom: 2px;
+  }
+
+  .last-link-row {
+    border-bottom-left-radius: var(--dbd-container-border-radius);
+    border-bottom-right-radius: var(--dbd-container-border-radius);
+    border-top-left-radius: var(--dbd-container-stacked-border-radius);
+    border-top-right-radius: var(--dbd-container-stacked-border-radius);
+    margin-bottom: 0;
+  }
+
+  .middle-link-row {
+    border-radius: var(--dbd-container-stacked-border-radius);
+    margin-bottom: 2px;
+  }
+
+  .only-link-row {
+    border-radius: var(--dbd-container-border-radius);
+    margin-bottom: 0;
+  }
+
+  div[slot="title"] {
+    --cr-dialog-title-slot-padding-bottom: 12px;
+    --cr-dialog-title-slot-padding-top: 18px;
+    align-items: center;
+    display: flex;
+    font-size: 16px;
+    font-weight: 500;
+  }
+</style>
+
+<cr-dialog id="dialog" show-on-attach>
+  <div slot="title">
+    <cr-icon-button class="icon-arrow-back" aria-label="$i18n{back}"
+        on-click="onBackOrCancelClick_"></cr-icon-button>
+    [[dialogTitle_]]
+  </div>
+  <div slot="body">
+    <div id="subpageDescription">$i18n{otherDataDescription}
+    </div>
+    <div class="link-rows-block">
+      <cr-link-row external using-slotted-label
+          class$="[[getPasswordsLinkCssClass_(syncStatus_, isGoogleDse_)]]"
+          sub-label="$i18n{manageInGooglePasswordManager}"
+          id="passwordManagerLink" on-click="onPasswordManagerClick_">
+        <div slot="label" class="label">$i18n{passwordsAndPasskeys}</div>
+      </cr-link-row>
+      <cr-link-row id="googleSearchHistoryLink" class="middle-link-row"
+          external hidden="[[!shouldShowGoogleSearchHistoryLink_(
+              syncStatus_, isGoogleDse_)]]"
+          on-click="onGoogleSearchHistoryLinkClick_"
+          sub-label="$i18n{manageInYourGoogleAccount}" using-slotted-label>
+        <div slot="label" class="label">$i18n{searchHistory}</div>
+      </cr-link-row>
+      <cr-link-row id="myActivityLink" external using-slotted-label
+          class$="[[getMyActivityLinkCssClass_(isGoogleDse_)]]"
+          hidden="[[!shouldShowMyActivityLink_(syncStatus_)]]"
+          sub-label="$i18n{manageInYourGoogleAccount}"
+          on-click="onMyActivityLinkClick_">
+        <div slot="label" class="label">$i18n{myActivity}</div>
+      </cr-link-row>
+      <div id="nonGoogleSearchHistoryLink" class="cr-row first last-link-row"
+          hidden="[[isGoogleDse_]]">
+        <div class="flex cr-padded-text">
+          <div class="label">$i18n{searchHistory}</div>
+          <div class="secondary">
+            [[nonGoogleSearchHistorySubLabel_]]
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div slot="button-container">
+    <cr-button class="cancel-button" on-click="onBackOrCancelClick_">
+      $i18n{cancel}
+    </cr-button>
+  </div>
+</cr-dialog>

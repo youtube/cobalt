@@ -10,7 +10,7 @@
 #include <initializer_list>
 #include <string>
 
-#include "gpu/gpu_export.h"
+#include "gpu/command_buffer/common/gpu_command_buffer_common_export.h"
 
 namespace gpu {
 
@@ -109,20 +109,26 @@ enum SharedImageUsage : uint32_t {
   // Image will be used as a WebNN shared tensor
   SHARED_IMAGE_USAGE_WEBNN_SHARED_TENSOR = 1 << 26,
 
+  // Image will be used by one copy raster for raster source access.
+  SHARED_IMAGE_USAGE_RASTER_COPY_SOURCE = 1 << 27,
+
+  // Image will be used for CPU Reads by client.
+  SHARED_IMAGE_USAGE_CPU_READ = 1 << 28,
+
   // Start service side only usage flags after this entry. They must be larger
   // than `LAST_CLIENT_USAGE`.
-  LAST_CLIENT_USAGE = SHARED_IMAGE_USAGE_WEBNN_SHARED_TENSOR,
+  LAST_CLIENT_USAGE = SHARED_IMAGE_USAGE_CPU_READ,
 
   // Image will have pixels uploaded from CPU. The backing must implement
   // `UploadFromMemory()` if it supports this usage. Clients should specify
   // SHARED_IMAGE_USAGE_CPU_WRITE_ONLY if they need to write pixels to the
   // image.
-  SHARED_IMAGE_USAGE_CPU_UPLOAD = 1 << 27,
+  SHARED_IMAGE_USAGE_CPU_UPLOAD = 1 << 29,
 
   LAST_SHARED_IMAGE_USAGE = SHARED_IMAGE_USAGE_CPU_UPLOAD
 };
 
-class GPU_EXPORT SharedImageUsageSet {
+class GPU_COMMAND_BUFFER_COMMON_EXPORT SharedImageUsageSet {
  public:
   constexpr SharedImageUsageSet() = default;
   // Permanent nolint to allow for natural conversion from mask to set.
@@ -253,17 +259,19 @@ inline constexpr bool operator==(gpu::SharedImageUsageSet set_a,
 // This is used as the debug_label prefix for all shared images created by
 // importing buffers in Exo. This prefix is checked in the GPU process when
 // reporting if memory for shared images is attributed to exo imports or not.
-GPU_EXPORT extern const char kExoTextureLabelPrefix[];
+GPU_COMMAND_BUFFER_COMMON_EXPORT extern const char kExoTextureLabelPrefix[];
 
 // Returns true if usage is a valid client usage.
-GPU_EXPORT bool IsValidClientUsage(SharedImageUsageSet usage);
+GPU_COMMAND_BUFFER_COMMON_EXPORT bool IsValidClientUsage(
+    SharedImageUsageSet usage);
 
 // Returns true iff usage includes SHARED_IMAGE_USAGE_GLES2_READ or
 // SHARED_IMAGE_USAGE_GLES2_WRITE.
-GPU_EXPORT bool HasGLES2ReadOrWriteUsage(SharedImageUsageSet usage);
+GPU_COMMAND_BUFFER_COMMON_EXPORT bool HasGLES2ReadOrWriteUsage(
+    SharedImageUsageSet usage);
 
 // Create a string to label SharedImageUsage.
-GPU_EXPORT std::string CreateLabelForSharedImageUsage(
+GPU_COMMAND_BUFFER_COMMON_EXPORT std::string CreateLabelForSharedImageUsage(
     SharedImageUsageSet usage);
 
 }  // namespace gpu

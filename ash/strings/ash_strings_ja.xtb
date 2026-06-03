@@ -300,7 +300,7 @@
 <translation id="1957958912175573503">言語を設定</translation>
 <translation id="1961239773406905488">カメラ プレビューが非表示になっています</translation>
 <translation id="1961832440516943645"><ph name="DATE" />、<ph name="TIME" /></translation>
-<translation id="1962969542251276847">画面をロック</translation>
+<translation id="1962969542251276847">ロック画面</translation>
 <translation id="1967970931040389207">アクセス ポイントをオンにする</translation>
 <translation id="1969011864782743497"><ph name="DEVICE_NAME" />（USB）</translation>
 <translation id="1971815855639997522">デスクとウィンドウが削除されました。操作を元に戻すには、Ctrl+Z キーを押します。</translation>
@@ -434,7 +434,7 @@
 <translation id="2455994958736234930">アドレスバーに「www.」と「.com」を追加してからウェブサイトを開く</translation>
 <translation id="2456008742792828469">カレンダー、<ph name="CURRENT_MONTH_YEAR" /></translation>
 <translation id="246052086404491029">ドリルダウン</translation>
-<translation id="2465145153332031561">バッテリーの状態 <ph name="BATTERY_HEALTH_PERCENTAGE" />%、サイクル数 <ph name="CYCLE_COUNT" /></translation>
+<translation id="2465145153332031561">バッテリー ヘルス <ph name="BATTERY_HEALTH_PERCENTAGE" />%、サイクル数 <ph name="CYCLE_COUNT" /></translation>
 <translation id="2473177541599297363">解像度の確定</translation>
 <translation id="2475783092753560388"><ph name="SEARCH_RESULT_TEXT" /> を挿入</translation>
 <translation id="2475982808118771221">エラーが発生しました</translation>
@@ -761,6 +761,7 @@
 <translation id="3552189655002856821">Wi-Fi はオフです</translation>
 <translation id="3554215588514239132">デベロッパー ツール パネルの表示と非表示を切り替える</translation>
 <translation id="3554637740840164787"><ph name="ITEM_TITLE" /> を固定しました</translation>
+<translation id="3554928024630051016">他の USB デバイスを追加するには、1 つ取り外してから新しいデバイスを接続してください</translation>
 <translation id="3558768885091059911">カメラとマイクへのアクセスをオンにしますか？</translation>
 <translation id="3560174576767922131">動画を撮影</translation>
 <translation id="3563775809269155755">アクセス ポイントを有効にする</translation>
@@ -868,6 +869,7 @@
 <translation id="3861651314799684201">全画面を録画するには Enter キーを押してください</translation>
 <translation id="3870197372373144624">デバイスをシャットダウンしてみてください。</translation>
 <translation id="3879748587602334249">ダウンロード マネージャ</translation>
+<translation id="3884007280698606545">USB の上限に達しました</translation>
 <translation id="3886872229787704059">今日開いたファイル</translation>
 <translation id="3891340733213178823">ログアウトするには、Ctrl+Shift+Q を 2 回押します。</translation>
 <translation id="3892148308691398805">テキストをコピー</translation>
@@ -1012,6 +1014,7 @@
 <translation id="4305817255990598646">切り替え</translation>
 <translation id="4307713728991152670">スマートフォンの最近の写真、メディア、アプリの表示を設定</translation>
 <translation id="4312840429157639164">カメラは右上にスナップされています。システムのサーフェスと競合しています。</translation>
+<translation id="4312935606722154789">横に並んだ 2 つのウィンドウをグループ化またはグループ化を解除する</translation>
 <translation id="4316910396681052118">すべてのアプリ</translation>
 <translation id="4321179778687042513">ctrl</translation>
 <translation id="4322385711258710213">Chrome ブラウザの提案をすべて非表示にする</translation>
@@ -1280,7 +1283,7 @@
 <translation id="5147567197700016471">ロック解除済み</translation>
 <translation id="5150070631291639005">プライバシー設定</translation>
 <translation id="5155897006997040331">読み上げ速度</translation>
-<translation id="5163434717504750796">バッテリーの状態 <ph name="BATTERY_HEALTH_PERCENTAGE" />% | サイクル数 <ph name="CYCLE_COUNT" /></translation>
+<translation id="5163434717504750796">バッテリー ヘルス <ph name="BATTERY_HEALTH_PERCENTAGE" />% | サイクル数 <ph name="CYCLE_COUNT" /></translation>
 <translation id="5166007464919321363">デスクをテンプレートとして保存</translation>
 <translation id="5168181903108465623">キャスト デバイスを利用できます</translation>
 <translation id="5168753792967365150">Google ToDo リストで編集</translation>
@@ -1451,7 +1454,6 @@
 <translation id="5691772641933328258">指紋を認識できません</translation>
 <translation id="5693255400847650006">マイクを使用中</translation>
 <translation id="5699366815052349604">すべてのデスクにアクティブなウィンドウを割り当てる</translation>
-<translation id="5701785125601597013">スマートフォン ハブを使用して、スマートフォンのメッセージをすばやく送信、返信</translation>
 <translation id="570390244361237317">すべてのアプリ、矢印キーで操作して、すべてのアプリにアクセスできます</translation>
 <translation id="5705197514573687092">フォーカス モード設定を表示します。タイマーを <ph name="FOCUS_DURATION" /> に設定しました。</translation>
 <translation id="5707775774148071965">ケーブルの対応データレートがデバイスより低くなっています。デバイスのパフォーマンスが制限される可能性があります。</translation>
@@ -1581,7 +1583,6 @@
 <translation id="6095425951508823973"><ph name="PROVIDER" /> との接続を追加</translation>
 <translation id="6099678161144790572">過去 1 か月以内に編集したファイル</translation>
 <translation id="6103838137565245112">システム</translation>
-<translation id="610395411842312282">横に並んだ 2 つのウィンドウをグループ化する</translation>
 <translation id="6108952804512516814">AI を使用して作成</translation>
 <translation id="6114505516289286752"><ph name="LANGUAGE" />の音声ファイルをダウンロードしました</translation>
 <translation id="6119360623251949462"><ph name="CHARGING_STATE" />。<ph name="BATTERY_SAVER_STATE" /></translation>

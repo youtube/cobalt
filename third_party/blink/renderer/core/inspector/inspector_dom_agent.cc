@@ -190,12 +190,12 @@ void InspectorRevalidateDOMTask::Trace(Visitor* visitor) const {
 protocol::Response InspectorDOMAgent::ToResponse(
     DummyExceptionStateForTesting& exception_state) {
   if (exception_state.HadException()) {
-    String name_prefix = IsDOMExceptionCode(exception_state.Code())
-                             ? DOMException::GetErrorName(
-                                   exception_state.CodeAs<DOMExceptionCode>()) +
-                                   " "
-                             : g_empty_string;
-    String msg = name_prefix + exception_state.Message();
+    String msg = exception_state.Message();
+    if (IsDOMExceptionCode(exception_state.Code())) {
+      msg = StrCat({DOMException::GetErrorName(
+                        exception_state.CodeAs<DOMExceptionCode>()),
+                    " ", msg});
+    }
     return protocol::Response::ServerError(msg.Utf8());
   }
   return protocol::Response::Success();
@@ -280,6 +280,8 @@ protocol::DOM::PseudoType InspectorDOMAgent::ProtocolPseudoElementType(
       return protocol::DOM::PseudoTypeEnum::ViewTransitionGroup;
     case kPseudoIdViewTransitionImagePair:
       return protocol::DOM::PseudoTypeEnum::ViewTransitionImagePair;
+    case kPseudoIdViewTransitionGroupChildren:
+      return protocol::DOM::PseudoTypeEnum::ViewTransitionGroupChildren;
     case kPseudoIdViewTransitionNew:
       return protocol::DOM::PseudoTypeEnum::ViewTransitionNew;
     case kPseudoIdViewTransitionOld:
@@ -379,6 +381,9 @@ PseudoId InspectorDOMAgent::ProtocolPseudoTypeToPseudoId(
   }
   if (type == protocol::DOM::PseudoTypeEnum::ViewTransitionImagePair) {
     return kPseudoIdViewTransitionImagePair;
+  }
+  if (type == protocol::DOM::PseudoTypeEnum::ViewTransitionGroupChildren) {
+    return kPseudoIdViewTransitionGroupChildren;
   }
   if (type == protocol::DOM::PseudoTypeEnum::ViewTransitionOld) {
     return kPseudoIdViewTransitionOld;
@@ -1085,11 +1090,10 @@ protocol::Response InspectorDOMAgent::setAttributesAsText(
 
   auto getParsedElement = [](Element* element, Element* contextElement,
                              const String& text, bool is_html_document) {
-    String markup = element->IsSVGElement()
-                        ? "<svg " + text + "></svg>"
-                        : element->IsMathMLElement()
-                              ? "<math " + text + "></math>"
-                              : "<span " + text + "></span>";
+    String markup = element->IsSVGElement() ? StrCat({"<svg ", text, "></svg>"})
+                    : element->IsMathMLElement()
+                        ? StrCat({"<math ", text, "></math>"})
+                        : StrCat({"<span ", text, "></span>"});
     DocumentFragment* fragment =
         element->GetDocument().createDocumentFragment();
     if (is_html_document && contextElement)
@@ -1665,8 +1669,7 @@ protocol::Response InspectorDOMAgent::getNodeStackTraces(
 
   auto it = node_to_creation_source_location_map_.find(node);
   if (it != node_to_creation_source_location_map_.end()) {
-    SourceLocation& source_location = it->value->GetSourceLocation();
-    *creation = source_location.BuildInspectorObject();
+    *creation = it->value->BuildInspectorObject();
   }
   return protocol::Response::Success();
 }
@@ -2058,8 +2061,10 @@ std::unique_ptr<protocol::DOM::Node> InspectorDOMAgent::BuildObjectForNode(
     case Node::kCommentNode:
     case Node::kCdataSectionNode:
       node_value = node->nodeValue();
-      if (node_value.length() > kMaxTextSize)
-        node_value = node_value.Left(kMaxTextSize) + kEllipsisUChar;
+      if (node_value.length() > kMaxTextSize) {
+        node_value =
+            StrCat({node_value.Left(kMaxTextSize), StringView(kEllipsisUChar)});
+      }
       break;
     case Node::kAttributeNode:
       local_name = To<Attr>(node)->localName();
@@ -2685,7 +2690,7 @@ void InspectorDOMAgent::PseudoElementDestroyed(PseudoElement* pseudo_element) {
   Element* parent = pseudo_element->ParentOrShadowHostElement();
   DCHECK(parent);
   int parent_id = BoundNodeId(parent);
-  // Since the pseudo element tree created for a view transition is destroyed
+  // Since the pseudo-element tree created for a view transition is destroyed
   // with in-order traversal, the parent node (::view-transition) are destroyed
   // before its children
   // (::view-transition-group).
@@ -2699,12 +2704,10 @@ void InspectorDOMAgent::NodeCreated(Node* node) {
   if (!capture_node_stack_traces_.Get())
     return;
 
-  std::unique_ptr<SourceLocation> creation_source_location =
+  SourceLocation* creation_source_location =
       SourceLocation::CaptureWithFullStackTrace();
   if (creation_source_location) {
-    node_to_creation_source_location_map_.Set(
-        node, MakeGarbageCollected<InspectorSourceLocation>(
-                  std::move(creation_source_location)));
+    node_to_creation_source_location_map_.Set(node, creation_source_location);
   }
 }
 

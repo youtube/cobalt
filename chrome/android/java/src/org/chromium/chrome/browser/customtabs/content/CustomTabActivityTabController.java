@@ -200,8 +200,18 @@ public class CustomTabActivityTabController implements PauseResumeWithNativeObse
     }
 
     /**
-     * Checks if the current tab contains unload events and if so it opens the dialog
-     * to ask the user before closing the tab.
+     * Returns the number of tabs in the current model.
+     *
+     * @return The number of tabs.
+     */
+    public int getTabCount() {
+        TabModel model = mTabFactory.getTabModelSelector().getCurrentModel();
+        return model.getCount();
+    }
+
+    /**
+     * Checks if the current tab contains unload events and if so it opens the dialog to ask the
+     * user before closing the tab.
      *
      * @return Whether we ran the unload events or not.
      */
@@ -391,13 +401,12 @@ public class CustomTabActivityTabController implements PauseResumeWithNativeObse
     }
 
     /** Encapsulates CustomTabsConnection#takeHiddenTab() with additional initialization logic. */
-    public static @Nullable HiddenTab getHiddenTab(
+    public static @Nullable HiddenTab takeHiddenTab(
             BrowserServicesIntentDataProvider intentDataProvider) {
         String url = intentDataProvider.getUrlToLoad();
         SessionHolder<?> token = intentDataProvider.getSession();
         HiddenTab hiddenTab =
-                CustomTabsConnection.getInstance()
-                        .takeHiddenTab(token, url, intentDataProvider.getIntent());
+                CustomTabsConnection.getInstance().takeHiddenTab(token, url, intentDataProvider);
         if (hiddenTab == null) return null;
         RecordHistogram.recordEnumeratedHistogram(
                 "CustomTabs.WebContentsStateOnLaunch",

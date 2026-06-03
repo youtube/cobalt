@@ -760,7 +760,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
     }
 
     @Override
-    public void onUpdateContainerView(ViewGroup view) {
+    public void onUpdateContainerView(@Nullable ViewGroup view) {
         // When the ContainerView is updated, we must update the |mView| variable and remove all
         // previous references to it. We clear the AccessibilityEventDispatcher queue, which may
         // have posted Runnable(s) to the old view. We also clear the AccessibilityNodeInfo cache
@@ -768,6 +768,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
         // do not want to delete |this| because the object is (largely) not ContainerView dependent.
         mEventDispatcher.clearQueue();
         mNodeInfoCache.clear();
+        assumeNonNull(view);
         mView = view;
     }
 
@@ -1021,8 +1022,8 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
             if (WebContentsAccessibilityImplJni.get()
                     .populateAccessibilityNodeInfo(mNativeObj, info, virtualViewId)) {
                 // After successfully populating this node, add it to our cache then return.
-                if (!ContentFeatureMap.isEnabled(
-                        ContentFeatureList.ACCESSIBILITY_DEPRECATE_JAVA_NODE_CACHE)) {
+                if (!ContentFeatureList.sAccessibilityDeprecateJavaNodeCacheDisableCache
+                        .getValue()) {
                     mNodeInfoCache.put(virtualViewId, AccessibilityNodeInfoCompat.obtain(info));
                 }
                 mHistogramRecorder.incrementNodeWasCreatedFromScratch();
@@ -1393,9 +1394,13 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
                     WebContentsAccessibilityImplJni.get()
                             .getIdForElementAfterElementHostingAutofillPopup(mNativeObj);
             if (id == 0) return;
-
-            moveAccessibilityFocusToId(id);
-            scrollToMakeNodeVisible(mAccessibilityFocusId);
+            if (ContentFeatureList.sAccessibilityDeprecateJavaNodeCacheOptimizeScroll.getValue()) {
+                scrollToMakeNodeVisible(mAccessibilityFocusId);
+                moveAccessibilityFocusToId(id);
+            } else {
+                moveAccessibilityFocusToId(id);
+                scrollToMakeNodeVisible(mAccessibilityFocusId);
+            }
         }
     }
 
@@ -1740,6 +1745,10 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
         WebContentsAccessibilityImplJni.get()
                 .moveAccessibilityFocus(mNativeObj, mAccessibilityFocusId, newAccessibilityFocusId);
 
+        // Some properties like text formatting spans are populated depending on accessibility
+        // focus, so we clear the cache to have them repopulated.
+        clearNodeInfoCacheForGivenId(newAccessibilityFocusId);
+
         mAccessibilityFocusId = newAccessibilityFocusId;
         // Used to store the node (edit text field) that has input focus but not a11y focus.
         // Usually while the user is typing in an edit text field, a11y is on the IME and input
@@ -1770,9 +1779,15 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
         return true;
     }
 
+    /** Gets the ID of the current accessibility focused node. */
+    @CalledByNative
+    private int getAccessibilityFocusId() {
+        return mAccessibilityFocusId;
+    }
+
     /**
-     * Send a WINDOW_CONTENT_CHANGED event after a short delay. This helps throttle such
-     * events from firing too quickly during animations, for example.
+     * Send a WINDOW_CONTENT_CHANGED event after a short delay. This helps throttle such events from
+     * firing too quickly during animations, for example.
      */
     @CalledByNative
     private void sendDelayedWindowContentChangedEvent() {

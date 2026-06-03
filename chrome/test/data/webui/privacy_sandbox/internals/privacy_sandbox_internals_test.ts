@@ -1,16 +1,129 @@
 // Copyright 2024 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
 import 'chrome://privacy-sandbox-internals/mojo_timestamp.js';
 import 'chrome://privacy-sandbox-internals/mojo_timedelta.js';
 import 'chrome://privacy-sandbox-internals/value_display.js';
 import 'chrome://privacy-sandbox-internals/pref_display.js';
+import 'chrome://privacy-sandbox-internals/internals_page.js';
 
+import type {InternalsPage} from 'chrome://privacy-sandbox-internals/internals_page.js';
 import type {PrefDisplayElement} from 'chrome://privacy-sandbox-internals/pref_display.js';
 import type {ValueDisplayElement} from 'chrome://privacy-sandbox-internals/value_display.js';
 import {timestampLogicalFn} from 'chrome://privacy-sandbox-internals/value_display.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import type {DictionaryValue, ListValue, Value} from 'chrome://resources/mojo/mojo/public/mojom/base/values.mojom-webui.js';
-import {assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {assertEquals, assertFalse, assertNull, assertTrue} from 'chrome://webui-test/chai_assert.js';
+
+function waitForElement(
+    root: ShadowRoot, selector: string): Promise<HTMLElement> {
+  return new Promise(resolve => {
+    const check = () => {
+      const element = root.querySelector<HTMLElement>(selector);
+      if (element) {
+        resolve(element);
+      } else {
+        requestAnimationFrame(check);
+      }
+    };
+    check();
+  });
+}
+
+// Test the <internals-page> element with the real PageHandler.
+suite('InternalsPageTest', function() {
+  let internalsPage: InternalsPage;
+
+  setup(function() {
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    internalsPage = document.createElement('internals-page');
+    document.body.appendChild(internalsPage);
+  });
+
+  test('rendersAdvertisingPrefs', async () => {
+    const firstPrefElement = await waitForElement(
+        internalsPage.shadowRoot!, '#advertising-prefs > pref-display');
+    assertTrue(
+        !!firstPrefElement,
+        'A <pref-display> element should be displayed for Advertising Prefs.');
+  });
+
+  test('rendersTrackingProtectionPrefs', async () => {
+    const firstPrefElement = await waitForElement(
+        internalsPage.shadowRoot!, '#tracking-protection-prefs > pref-display');
+    assertTrue(
+        !!firstPrefElement,
+        'A <pref-display> element should be displayed for Tracking Protection Prefs.');
+  });
+
+  test('rendersTpcdExperimentPrefs', async () => {
+    const firstPrefElement = await waitForElement(
+        internalsPage.shadowRoot!, '#tpcd-experiment-prefs > pref-display');
+    assertTrue(
+        !!firstPrefElement,
+        'A <pref-display> element should be displayed for TPCD Experiment Prefs.');
+  });
+});
+
+// Tests the <internals-page> element's display of the TPCD tab based on feature
+// flag status.
+suite('PSInternalsPageTpcdTabLoadingTest', function() {
+  let internalsPage: InternalsPage;
+
+  function setShouldShowTpcdMetadataGrants(isEnabled: boolean) {
+    loadTimeData.overrideValues({
+      isPrivacySandboxInternalsDevUIEnabled: isEnabled,
+    });
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    internalsPage = document.createElement('internals-page');
+    document.body.appendChild(internalsPage);
+  }
+
+  async function findTpcdTab() {
+    const tabBox = await waitForElement(internalsPage.shadowRoot!, '#ps-page');
+    if (!tabBox) {
+      return false;
+    }
+
+    const tabs = tabBox.querySelectorAll<HTMLElement>('div[slot="tab"]');
+    const foundTab = Array.from(tabs).find(
+        (tab: HTMLElement) =>
+            tab.textContent?.trim() === 'TPCD_METADATA_GRANTS');
+
+    return foundTab;
+  }
+
+  test('NoTpcdPanelIfDisabled', async () => {
+    setShouldShowTpcdMetadataGrants(false);
+    await internalsPage.whenLoaded;
+    const anotherPanel = await waitForElement(
+        internalsPage.shadowRoot!, 'div[slot="panel"][title="COOKIES"]');
+    assertTrue(
+        !!anotherPanel,
+        'Panels that are not TPCD Metadata Grants should render normally.');
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const tpcdPanel = internalsPage.shadowRoot!.querySelector(
+        'div[slot="panel"][title="TPCD_METADATA_GRANTS"]');
+    assertNull(
+        tpcdPanel,
+        'The panel for TPCD Metadata Grants should not exist when the flag is disabled.');
+  });
+
+  test('hidesTpcdMetadataGrantsTab', async () => {
+    setShouldShowTpcdMetadataGrants(false);
+    const tpcdTab = await findTpcdTab();
+    assertFalse(
+        !!tpcdTab, 'The TPCD tab should not exist when its flag is disabled.');
+  });
+
+  test('rendersTpcdMetadataGrantsTab', async () => {
+    setShouldShowTpcdMetadataGrants(true);
+    const tpcdTab = await findTpcdTab();
+    assertTrue(
+        !!tpcdTab, 'The TPCD tab should exist when its flag is enabled.');
+  });
+});
 
 // Test that the <mojo-timestamp> CustomElement renders the correct time.
 suite('MojoTimestampElementTest', function() {
@@ -106,6 +219,12 @@ suite('ValueDisplayElementTest', function() {
     assertEquals(span.textContent, s);
   };
 
+  const assertJsonValue = (s: string) => {
+    const jsonValueElement = valueElement.$('#json-value');
+    assertTrue(!!jsonValueElement);
+    assertEquals(jsonValueElement.textContent, s);
+  };
+
   test('null', () => {
     v.nullValue = 1;
     valueElement.configure(v);
@@ -176,8 +295,9 @@ suite('ValueDisplayElementTest', function() {
       return v;
     });
     valueElement.configure(v);
-    assertValue(
-        '[{"intValue":1},{"intValue":2},{"intValue":3},{"intValue":4}]');
+    assertJsonValue(JSON.stringify(
+        [{'intValue': 1}, {'intValue': 2}, {'intValue': 3}, {'intValue': 4}],
+        null, 2));
     assertType('(list)');
   });
 
@@ -189,7 +309,54 @@ suite('ValueDisplayElementTest', function() {
     v2.stringValue = 'bikes';
     v.dictionaryValue.storage = {'v1': v1, 'v2': v2};
     valueElement.configure(v);
-    assertValue('{"v1":{"intValue":10},"v2":{"stringValue":"bikes"}}');
+    assertJsonValue(JSON.stringify(
+        {'v1': {'intValue': 10}, 'v2': {'stringValue': 'bikes'}}, null, 2));
+    assertType('(dictionary)');
+  });
+
+  test('flattens list with nested dictionary', () => {
+    const vDict = {} as DictionaryValue;
+    const v1: Value = {} as Value;
+    v1.intValue = 10;
+    const v2: Value = {} as Value;
+    v2.stringValue = 'bikes';
+    vDict.storage = {'v1': v1, 'v2': v2};
+
+    v.listValue = {} as ListValue;
+    v.listValue.storage = [
+      {dictionaryValue: vDict} as Value,
+    ];
+
+    valueElement.configure(v);
+    assertJsonValue(JSON.stringify(
+        [{'v1': {'intValue': 10}, 'v2': {'stringValue': 'bikes'}}], null, 2));
+    assertType('(list)');
+  });
+
+  test('flattens dictionary with nested list', () => {
+    const vList = {} as ListValue;
+    vList.storage = [1, 2, 3, 4].map((x) => {
+      const v: Value = {} as Value;
+      v.intValue = x;
+      return v;
+    });
+
+    v.dictionaryValue = {} as DictionaryValue;
+    v.dictionaryValue.storage = {
+      'someKey': {listValue: vList} as Value,
+    };
+
+    valueElement.configure(v);
+    assertJsonValue(JSON.stringify(
+        {
+          'someKey': [
+            {'intValue': 1},
+            {'intValue': 2},
+            {'intValue': 3},
+            {'intValue': 4},
+          ],
+        },
+        null, 2));
     assertType('(dictionary)');
   });
 

@@ -10,10 +10,12 @@
 
 #include "base/containers/contains.h"
 #include "base/containers/flat_map.h"
+#include "base/logging.h"
 #include "base/strings/escape.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "components/media_router/common/media_source.h"
 #include "components/media_router/common/providers/cast/channel/cast_device_capability.h"

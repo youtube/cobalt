@@ -46,7 +46,6 @@
 #include "remoting/host/host_event_logger.h"
 #include "remoting/host/host_event_reporter.h"
 #include "remoting/host/host_secret.h"
-#include "remoting/host/host_status_logger.h"
 #include "remoting/host/it2me/it2me_confirmation_dialog.h"
 #include "remoting/host/it2me/it2me_confirmation_dialog_proxy.h"
 #include "remoting/host/it2me/it2me_helpers.h"
@@ -280,24 +279,20 @@ void It2MeHost::ConnectOnNetworkThread(
   SetState(It2MeHostState::kStarting, ErrorCode::OK);
 
   auto connection_context = std::move(create_context).Run(host_context_.get());
-  log_to_server_ = std::move(connection_context->log_to_server);
   signal_strategy_ = std::move(connection_context->signal_strategy);
   api_token_getter_ = std::move(connection_context->api_token_getter);
-  DCHECK(log_to_server_);
   DCHECK(signal_strategy_);
 
-  if (connection_context->use_ftl_signaling) {
-    // If the host owns the signaling channel then we want to make sure that it
-    // will reconnect that channel if a transient network error occurs.
-    // FtlSignalingConnector takes a callback which will indicate whether an
-    // auth error has occurred (e.g. token expired). For our purposes, there
-    // isn't anything we need to do in this case since a new token will be
-    // generated for the next connection.
-    ftl_signaling_connector_ = std::make_unique<FtlSignalingConnector>(
-        signal_strategy_.get(), base::DoNothing());
-    ftl_signaling_connector_->Start();
-    ftl_device_id_ = connection_context->ftl_device_id;
-  }
+  // We want to make sure that the signaling channel will reconnect if a
+  // transient network error occurs.
+  // FtlSignalingConnector takes a callback which will indicate whether an
+  // auth error has occurred (e.g. token expired). For our purposes, there
+  // isn't anything we need to do in this case since a new token will be
+  // generated for the next connection.
+  ftl_signaling_connector_ = std::make_unique<FtlSignalingConnector>(
+      signal_strategy_.get(), base::DoNothing());
+  ftl_signaling_connector_->Start();
+  ftl_device_id_ = connection_context->ftl_device_id;
 
   // Check the host domain policy.
   // Skip this check for enterprise sessions, as they use the device specific
@@ -415,8 +410,6 @@ void It2MeHost::ConnectOnNetworkThread(
                           base::Unretained(this)),
       local_session_policies_provider_.get());
   host_->status_monitor()->AddStatusObserver(this);
-  host_status_logger_ = std::make_unique<HostStatusLogger>(
-      host_->status_monitor(), log_to_server_.get());
 
   // Create event logger.
   host_event_logger_ =
@@ -819,8 +812,6 @@ void It2MeHost::DisconnectOnNetworkThread(protocol::ErrorCode error_code) {
   }
 
   register_request_ = nullptr;
-  host_status_logger_ = nullptr;
-  log_to_server_ = nullptr;
   ftl_signaling_connector_ = nullptr;
   reconnect_params_.reset();
 

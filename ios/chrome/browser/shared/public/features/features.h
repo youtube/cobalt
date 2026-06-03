@@ -288,9 +288,6 @@ extern const base::NotFatalUntil kLensOverlayNotFatalUntil;
 // Feature flag to enable the Lens View Finder Unified experience
 BASE_DECLARE_FEATURE(kEnableLensViewFinderUnifiedExperience);
 
-// Feature flag to enable the Lens Context Menu Unified experience
-BASE_DECLARE_FEATURE(kEnableLensContextMenuUnifiedExperience);
-
 // Whether to enable loading AIM in the lens result page.
 BASE_DECLARE_FEATURE(kLensLoadAIMInLensResultPage);
 
@@ -327,17 +324,17 @@ BASE_DECLARE_FEATURE(kLensOverlayEnableSameTabNavigation);
 // Feature to enable force showing the lens overlay onboarding screen.
 BASE_DECLARE_FEATURE(kLensOverlayForceShowOnboardingScreen);
 
-// Types of lens overlay onboarding.
-extern const char kLensOverlayOnboardingParam[];
-extern const char kLensOverlayOnboardingParamSpeedbumpMenu[];
-extern const char kLensOverlayOnboardingParamUpdatedStrings[];
-extern const char kLensOverlayOnboardingParamUpdatedStringsAndVisuals[];
-
-// Feature flag to change the onboariding experience of Lens Overlay.
-BASE_DECLARE_FEATURE(kLensOverlayAlternativeOnboarding);
-
 // Feature flag to add lens overlay navigation to history.
 BASE_DECLARE_FEATURE(kLensOverlayNavigationHistory);
+
+// Variations of MIA NTP entrypoint.
+extern const char kNTPMIAEntrypointParam[];
+extern const char kNTPMIAEntrypointParamOmniboxContainedSingleButton[];
+extern const char kNTPMIAEntrypointParamOmniboxContainedInline[];
+extern const char kNTPMIAEntrypointParamOmniboxContainedEnlargedFakebox[];
+
+// Feature flag to change the MIA entrypoint in NTP.
+BASE_DECLARE_FEATURE(kNTPMIAEntrypoint);
 
 // Feature flag to enable UITraitCollection workaround for fixing incorrect
 // trait propagation.
@@ -526,9 +523,6 @@ extern const char kDeliveredNAUMaxPerSession[];
 // Feature flag to enable a more stable fullscreen.
 BASE_DECLARE_FEATURE(kFullscreenImprovement);
 
-// Whether the Tab Groups should be enabled in the Grid.
-bool IsTabGroupInGridEnabled();
-
 // Feature flag to enable Tab Group Sync.
 BASE_DECLARE_FEATURE(kTabGroupSync);
 
@@ -540,10 +534,6 @@ BASE_DECLARE_FEATURE(kTabGroupIndicator);
 
 // Whether the Tab Group Indicator feature is enabled.
 bool IsTabGroupIndicatorEnabled();
-
-// Whether the TabGroup send feedback button is enabled.
-// TODO(crbug.com/398183785): Remove once we got feedback.
-bool IsTabGroupSendFeedbackAvailable();
 
 // Feature flag to enable a new illustration in the sync opt-in promotion view.
 BASE_DECLARE_FEATURE(kNewSyncOptInIllustration);
@@ -814,6 +804,10 @@ BASE_DECLARE_FEATURE(kChromeStartupParametersAsync);
 // incognito.
 BASE_DECLARE_FEATURE(kYoutubeIncognito);
 
+// Feature flag to have share extension item shared per profile.
+// DO NOT CHECK DIRECTLY, use IsShareExtensionForMultiprofileEnabled().
+BASE_DECLARE_FEATURE(kShareExtensionForMultiprofile);
+
 // Feature param to specify whether the youtube incognito handling is done
 // without the incognito interstitial.
 extern const char
@@ -1016,6 +1010,9 @@ extern const char kIOSOneTapMiniMapRestrictionMinAlphanumProportionParamName[];
 extern const base::FeatureParam<double>
     kIOSOneTapMiniMapRestrictionMinAlphanumProportionParam;
 
+// Feature flag to forward Maps Universal links to native maps.
+BASE_DECLARE_FEATURE(kIOSMiniMapUniversalLink);
+
 // Returns whether notification collision management is enabled.
 bool IsNotificationCollisionManagementEnabled();
 
@@ -1067,13 +1064,26 @@ bool IsBestOfAppFREEnabled();
 // Whether the Guided Tour variant of `kBestOfAppFRE` is enabled.
 bool IsBestOfAppGuidedTourEnabled();
 
+// Whether manual UMA uploads are enabled for the Best Of App feature.
+bool IsManualUploadForBestOfAppEnabled();
+
 // Whether the Lens Interactive Promo variant of `kBestOfAppFRE` is enabled.
 bool IsBestOfAppLensInteractivePromoEnabled();
+
+// Whether the Lens Animated Promo variant of `kBestOfAppFRE` is enabled.
+bool IsBestOfAppLensAnimatedPromoEnabled();
 
 // Feature flag to include GWS variations in feedback.
 BASE_DECLARE_FEATURE(kFeedbackIncludeGWSVariations);
 
 // Whether the feature to include GWS variations in feedback is enabled.
 bool IsFeedbackIncludeGWSVariationsEnabled();
+
+// Feature flag enabling checking a propensity model before showing a default
+// browser promo.
+BASE_DECLARE_FEATURE(kDefaultBrowserPromoPropensityModel);
+
+// Whether the `kDefaultBrowserPromoPropensityModel` feature is enabled.
+bool IsDefaultBrowserPromoPropensityModelEnabled();
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_

@@ -24,9 +24,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "base/timer/elapsed_timer.h"
-#include "base/trace_event/base_tracing.h"
 #include "base/trace_event/named_trigger.h"
-#include "base/trace_event/trace_event.h"
 #include "base/trace_event/typed_macros.h"
 #include "base/types/cxx23_to_underlying.h"
 #include "base/types/expected.h"
@@ -91,6 +89,7 @@
 #include "third_party/blink/public/mojom/frame/fullscreen.mojom.h"
 #include "third_party/blink/public/mojom/frame/user_activation_update_types.mojom.h"
 #include "third_party/blink/public/mojom/security_context/insecure_request_policy.mojom.h"
+#include "url/gurl_debug.h"
 
 #if BUILDFLAG(IS_MAC)
 #include "ui/gfx/mac/scoped_cocoa_disable_screen_updates.h"
@@ -1769,12 +1768,19 @@ RenderFrameHostManager::GetFrameHostForNavigation(
   // The appropriate RenderFrameHost to commit the navigation.
   RenderFrameHostImpl* navigation_rfh = nullptr;
 
-  // First compute the SiteInstance to use for the navigation.
+  // Get ready to compute the SiteInstance to use for navigation.
   SiteInstanceImpl* current_site_instance =
       render_frame_host_->GetSiteInstance();
+  BrowserContext* browser_context = current_site_instance->GetIsolationContext()
+                                        .browser_or_resource_context()
+                                        .ToBrowserContext();
+  // Notify the embedder that the SiteInstance will be computed soon.
+  GetContentClient()->browser()->WillComputeSiteForNavigation(
+      browser_context, request->GetURL());
   bool is_same_site =
       render_frame_host_->IsNavigationSameSite(request->GetUrlInfo());
 
+  // Now compute the SiteInstance to use for the navigation.
   IsSameSiteGetter is_same_site_getter(is_same_site);
   std::string site_instance_reason;
   std::string* reason_output =

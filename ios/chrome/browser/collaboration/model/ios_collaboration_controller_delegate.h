@@ -13,30 +13,46 @@
 #import "ios/chrome/browser/shared/model/browser/browser_observer.h"
 
 @class AlertCoordinator;
+enum class AuthenticationOperation;
 class Browser;
 class FaviconLoader;
 class ProfileIOS;
 enum class ShareKitFlowOutcome;
 @class ShareKitPreviewItem;
 class ShareKitService;
+enum class SigninContextStyle;
+@class SigninCoordinator;
 typedef NS_ENUM(NSUInteger, SigninCoordinatorResult);
 @protocol SystemIdentity;
 class TabGroup;
 class TabGroupFaviconsGridConfigurator;
 class TabGroupService;
 
-namespace tab_groups {
-class TabGroupSyncService;
-}  // namespace tab_groups
+namespace signin_metrics {
+enum class AccessPoint;
+}  // namespace signin_metrics
 
 namespace syncer {
 class SyncService;
 }  // namespace syncer
 
+namespace tab_groups {
+class TabGroupSyncService;
+}  // namespace tab_groups
+
 namespace collaboration {
+
+// Bundles the necessary UI configuration parameters for the sign-in flow based
+// on the specific collaboration action.
+struct FlowConfig {
+  signin_metrics::AccessPoint access_point;
+  SigninContextStyle context_style;
+  BOOL full_screen_promo;
+};
 
 class CollaborationService;
 enum class FlowType;
+enum class SigninStatus;
 
 // Structure to hold parameters for IOSCollaborationControllerDelegate.
 struct IOSCollaborationControllerDelegateParams {
@@ -119,6 +135,9 @@ class IOSCollaborationControllerDelegate
   using PreviewItemsCallBack =
       base::OnceCallback<void(NSArray<ShareKitPreviewItem*>*)>;
 
+  // Stops the signin coordinator.
+  void StopSigninCoordinator();
+
   // Common implementation of `ShowLeaveDialog:` and `ShowDeleteDialog:`.
   void ShowLeaveOrDeleteDialog(const tab_groups::EitherGroupID& either_id,
                                ResultCallback result);
@@ -148,8 +167,11 @@ class IOSCollaborationControllerDelegate
   void DidUnshareGroup(std::optional<tab_groups::LocalTabGroupID> local_id,
                        NSError* error);
 
-  // Callback called when the user acknowledge the error.
+  // Callback called when the user acknowledges the error.
   void ErrorAccepted(ResultCallback result);
+
+  // Callback called when the user accepts to update the app.
+  void Update(ResultCallback result);
 
   // Returns the local tab group that matches `either_id`.
   const TabGroup* GetLocalGroup(const tab_groups::EitherGroupID& either_id);
@@ -179,11 +201,22 @@ class IOSCollaborationControllerDelegate
   // Returns the join group image displayed in the join flow.
   UIImage* JoinGroupImage(NSArray<ShareKitPreviewItem*>* preview_items);
 
+  // Shows an alert when sign in has been disabled by the user.
+  void ShowSignInDisabledByUserAlert(ResultCallback result);
+
+  // Called when the alert has been dismissed. Opens the Google services
+  // settings screen if `open_settings` is true.
+  void SignInDisabledByUserAlertDismissed(ResultCallback result,
+                                          bool open_settings);
+
   // Presents the scrim view.
   void AddScrimView();
 
   // Removes the scrim view if it exists.
   void RemoveScrimView(bool delayed);
+
+  // Returns a FlowConfig based on FlowType.
+  FlowConfig GetFlowConfig(FlowType flow_type);
 
   raw_ptr<Browser> browser_ = nullptr;
 
@@ -219,6 +252,9 @@ class IOSCollaborationControllerDelegate
   // when the "Share" screen is actually presented. Calling it with success
   // shares the group associated with this delegate and allows link generation.
   ResultWithGroupTokenCallback share_screen_callback_;
+
+  // The signin coordinator if it’s opened.
+  SigninCoordinator* signin_coordinator_;
 
   // The callback to generate the link and continue the share flow (present the
   // share sheet).

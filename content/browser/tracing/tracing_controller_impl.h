@@ -34,6 +34,8 @@ class TraceConfig;
 
 namespace content {
 
+class TracingDelegate;
+
 class TracingControllerImpl : public TracingController,
                               public mojo::DataPipeDrainer::Client,
                               public tracing::mojom::TracingSessionClient {
@@ -53,6 +55,9 @@ class TracingControllerImpl : public TracingController,
 
   TracingControllerImpl(const TracingControllerImpl&) = delete;
   TracingControllerImpl& operator=(const TracingControllerImpl&) = delete;
+
+  // Returns the embedder's tracing delegate.
+  TracingDelegate* tracing_delegate() { return delegate_.get(); }
 
   // TracingController implementation.
   bool GetCategories(GetCategoriesDoneCallback callback) override;
@@ -78,8 +83,11 @@ class TracingControllerImpl : public TracingController,
   void InitializeDataSources();
   void ConnectToServiceIfNeeded();
   std::optional<base::Value::Dict> GenerateMetadataDict();
-  void GenerateMetadataPacket(perfetto::protos::pbzero::TracePacket* packet,
-                              bool privacy_filtering_enabled);
+  static void RecorderMetadataToBundle(
+      perfetto::protos::pbzero::ChromeEventBundle* bundle);
+  static void GenerateMetadataPacket(
+      perfetto::protos::pbzero::TracePacket* packet,
+      bool privacy_filtering_enabled);
   void GenerateMetadataPacketFieldTrials(
       perfetto::protos::pbzero::ChromeMetadataPacket* metadata_proto,
       bool privacy_filtering_enabled);
@@ -108,6 +116,8 @@ class TracingControllerImpl : public TracingController,
   scoped_refptr<TraceDataEndpoint> trace_data_endpoint_;
   bool is_data_complete_ = false;
   bool read_buffers_complete_ = false;
+
+  std::unique_ptr<TracingDelegate> delegate_;
 
 #if BUILDFLAG(IS_CHROMEOS)
   bool are_statistics_loaded_ = false;

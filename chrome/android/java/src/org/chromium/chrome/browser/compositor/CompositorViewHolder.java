@@ -19,7 +19,6 @@ import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.AttributeSet;
@@ -143,7 +142,14 @@ public class CompositorViewHolder extends FrameLayout
                 LayoutManagerImpl layoutManager, View urlBar, ControlContainer controlContainer);
     }
 
+    /** Interface for the observer of frame requests. */
+    public interface FrameRequestObserver {
+        public void onFrameRequested();
+    }
+
     private final ObserverList<TouchEventObserver> mTouchEventObservers = new ObserverList<>();
+    private final ObserverList<FrameRequestObserver> mFrameRequestObservers = new ObserverList<>();
+
     // Tracks current aggregated state of if the compositor is in motion. This could be an ongoing
     // touch by the user, or a scroll that's in progress.
     private final ObservableSupplierImpl<Boolean> mInMotionSupplier =
@@ -403,9 +409,7 @@ public class CompositorViewHolder extends FrameLayout
         }
         handleSystemUiVisibilityChange();
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            setDefaultFocusHighlightEnabled(false);
-        }
+        setDefaultFocusHighlightEnabled(false);
     }
 
     private Point getViewportSize() {
@@ -655,6 +659,14 @@ public class CompositorViewHolder extends FrameLayout
      */
     public DynamicResourceLoader getDynamicResourceLoader() {
         return mCompositorView.getResourceManager().getDynamicResourceLoader();
+    }
+
+    public void addFrameRequestObserver(FrameRequestObserver o) {
+        mFrameRequestObservers.addObserver(o);
+    }
+
+    public void removeFrameRequestObserver(FrameRequestObserver o) {
+        mFrameRequestObservers.removeObserver(o);
     }
 
     // TouchEventProvider implementation.
@@ -1227,6 +1239,9 @@ public class CompositorViewHolder extends FrameLayout
         if (onUpdateEffective != null) {
             mOnCompositorLayoutCallbacks.add(onUpdateEffective);
             updateNeedsSwapBuffersCallback();
+        }
+        for (FrameRequestObserver o : mFrameRequestObservers) {
+            o.onFrameRequested();
         }
         mCompositorView.requestRender();
     }

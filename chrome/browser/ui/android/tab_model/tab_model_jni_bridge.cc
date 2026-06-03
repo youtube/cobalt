@@ -7,9 +7,11 @@
 #include <stdint.h>
 
 #include "base/android/jni_android.h"
+#include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/android/jni_weak_ref.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/notimplemented.h"
 #include "base/time/time.h"
 #include "chrome/browser/android/tab_android.h"
 #include "chrome/browser/browser_process.h"
@@ -29,6 +31,7 @@
 using base::android::AttachCurrentThread;
 using base::android::ConvertUTF8ToJavaString;
 using base::android::JavaParamRef;
+using base::android::SafeGetArrayLength;
 using base::android::ScopedJavaLocalRef;
 using chrome::android::ActivityType;
 using content::WebContents;
@@ -264,8 +267,9 @@ void TabModelJniBridge::HighlightTabs(std::set<int> indicies) {
 }
 
 void TabModelJniBridge::MoveTab(int from_index, int to_index) {
-  // TODO(crbug.com/415351293): Implement.
-  NOTIMPLEMENTED();
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> jobj = java_object_.get(env);
+  Java_TabModelJniBridge_moveTabToIndex(env, jobj, from_index, to_index);
 }
 
 void TabModelJniBridge::CloseTab(int index) {
@@ -273,9 +277,24 @@ void TabModelJniBridge::CloseTab(int index) {
 }
 
 std::vector<tabs::TabInterface*> TabModelJniBridge::GetAllTabs() {
-  // TODO(crbug.com/415351293): Implement.
-  NOTIMPLEMENTED();
-  return {};
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> jobj = java_object_.get(env);
+  ScopedJavaLocalRef<jobjectArray> jtabs =
+      Java_TabModelJniBridge_getAllTabs(env, jobj);
+
+  std::vector<tabs::TabInterface*> tabs;
+  if (jtabs) {
+    size_t numTabs = SafeGetArrayLength(env, jtabs);
+    tabs.reserve(numTabs);
+
+    jobjectArray jarray = jtabs.obj();
+    for (size_t i = 0; i < numTabs; i++) {
+      ScopedJavaLocalRef<jobject> jtab(env,
+                                       env->GetObjectArrayElement(jarray, i));
+      tabs.push_back(TabAndroid::GetNativeTab(env, jtab));
+    }
+  }
+  return tabs;
 }
 
 void TabModelJniBridge::PinTab(int index) {

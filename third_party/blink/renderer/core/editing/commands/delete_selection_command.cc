@@ -224,8 +224,8 @@ static Position TrailingWhitespacePosition(const Position& position,
       CharacterAfter(visible_position);
   const bool is_space =
       option == kConsiderNonCollapsibleWhitespace
-          ? (IsSpaceOrNewline(character_after_visible_position) ||
-             character_after_visible_position == kNoBreakSpaceCharacter)
+          ? (unicode::IsSpaceOrNewline(character_after_visible_position) ||
+             character_after_visible_position == uchar::kNoBreakSpace)
           : IsCollapsibleWhitespace(character_after_visible_position);
   // The space must not be in another paragraph and it must be editable.
   if (is_space && !IsEndOfParagraph(visible_position) &&
@@ -1030,6 +1030,11 @@ void DeleteSelectionCommand::MergeParagraphs(EditingState* editing_state) {
   VisiblePosition start_of_paragraph_to_move = StartOfParagraph(merge_origin);
   VisiblePosition end_of_paragraph_to_move =
       EndOfParagraph(merge_origin, kCanSkipOverEditingBoundary);
+  if (RuntimeEnabledFeatures::TraverseFlatTreeToHandleSlotsEnabled()) {
+    start_of_paragraph_to_move = StartOfParagraphInFlatTree(merge_origin);
+    end_of_paragraph_to_move =
+        EndOfParagraphInFlatTree(merge_origin, kCanSkipOverEditingBoundary);
+  }
 
   if (merge_destination.DeepEquivalent() ==
       end_of_paragraph_to_move.DeepEquivalent())
@@ -1373,7 +1378,7 @@ void DeleteSelectionCommand::DoApply(EditingState* editing_state) {
       if (editing_state->IsAborted())
         return;
     }
-    // HandleGeneralDelete cause DOM mutation events so |ending_position_|
+    // HandleGeneralDelete cause DOM synchronous events so |ending_position_|
     // can be out of document.
     if (ending_position_.IsValidFor(GetDocument())) {
       InsertNodeAt(placeholder, ending_position_, editing_state);

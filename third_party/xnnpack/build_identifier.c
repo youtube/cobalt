@@ -284,7 +284,7 @@
 // - external/xnnpack+/src/f32-rdsum/gen/f32-rdsum-7p7x-minmax-avx-c32.c
 // - external/xnnpack+/src/f32-rdsum/gen/f32-rdsum-7p7x-minmax-avx512f-c64.c
 // - external/xnnpack+/src/f32-rdsum/gen/f32-rdsum-7p7x-minmax-scalar.c
-// - external/xnnpack+/src/f32-rdsum/gen/f32-rdsum-7p7x-minmax-sse-c16.c
+// - external/xnnpack+/src/f32-rdsum/gen/f32-rdsum-7p7x-minmax-sse2-c16.c
 // - external/xnnpack+/src/f32-rminmax/gen/f32-rmax-avx-u32-acc4.c
 // - external/xnnpack+/src/f32-rminmax/gen/f32-rmax-avx512f-u64-acc4.c
 // - external/xnnpack+/src/f32-rminmax/gen/f32-rmax-scalar-u4-acc4.c
@@ -310,6 +310,7 @@
 // - external/xnnpack+/src/f32-vapproxgelu/gen/f32-vapproxgelu-fma3-rational-12-10-div.c
 // - external/xnnpack+/src/f32-vapproxgelu/gen/f32-vapproxgelu-scalar-rational-12-10-div.c
 // - external/xnnpack+/src/f32-vapproxgelu/gen/f32-vapproxgelu-sse2-rational-12-10-div.c
+// - external/xnnpack+/src/f32-vapproxgelu/gen/f32-vapproxgelu-sse2fma-rational-12-10-div.c
 // - external/xnnpack+/src/f32-vbinary/gen/f32-vadd-avx-u16.c
 // - external/xnnpack+/src/f32-vbinary/gen/f32-vadd-avx512f-u32.c
 // - external/xnnpack+/src/f32-vbinary/gen/f32-vadd-scalar-u8.c
@@ -411,6 +412,7 @@
 // - external/xnnpack+/src/f32-vcos/gen/f32-vcos-fma3-rational-5-4-div.c
 // - external/xnnpack+/src/f32-vcos/gen/f32-vcos-scalar-rational-5-4-div.c
 // - external/xnnpack+/src/f32-vcos/gen/f32-vcos-sse2-rational-5-4-div.c
+// - external/xnnpack+/src/f32-vcos/gen/f32-vcos-sse2fma-rational-5-4-div.c
 // - external/xnnpack+/src/f32-velu/gen/f32-velu-avx-rr2-lut4-p4-perm-u32.c
 // - external/xnnpack+/src/f32-velu/gen/f32-velu-avx2-rr1-lut4-p4-perm-u32.c
 // - external/xnnpack+/src/f32-velu/gen/f32-velu-avx512f-rr1-p6-u64.c
@@ -421,21 +423,25 @@
 // - external/xnnpack+/src/f32-vexp/gen/f32-vexp-fma3-rational-3-2-div.c
 // - external/xnnpack+/src/f32-vexp/gen/f32-vexp-scalar-rational-3-2-div.c
 // - external/xnnpack+/src/f32-vexp/gen/f32-vexp-sse2-rational-3-2-div.c
+// - external/xnnpack+/src/f32-vexp/gen/f32-vexp-sse2fma-rational-3-2-div.c
 // - external/xnnpack+/src/f32-vgelu/gen/f32-vgelu-avx-rational-12-10-div.c
 // - external/xnnpack+/src/f32-vgelu/gen/f32-vgelu-avx512f-rational-12-10-div.c
 // - external/xnnpack+/src/f32-vgelu/gen/f32-vgelu-fma3-rational-12-10-div.c
 // - external/xnnpack+/src/f32-vgelu/gen/f32-vgelu-scalar-rational-12-10-div.c
 // - external/xnnpack+/src/f32-vgelu/gen/f32-vgelu-sse2-rational-12-10-div.c
+// - external/xnnpack+/src/f32-vgelu/gen/f32-vgelu-sse2fma-rational-12-10-div.c
 // - external/xnnpack+/src/f32-vhswish/gen/f32-vhswish-avx.c
 // - external/xnnpack+/src/f32-vhswish/gen/f32-vhswish-avx512f.c
 // - external/xnnpack+/src/f32-vhswish/gen/f32-vhswish-fma3.c
 // - external/xnnpack+/src/f32-vhswish/gen/f32-vhswish-scalar.c
 // - external/xnnpack+/src/f32-vhswish/gen/f32-vhswish-sse2.c
+// - external/xnnpack+/src/f32-vhswish/gen/f32-vhswish-sse2fma.c
 // - external/xnnpack+/src/f32-vlog/gen/f32-vlog-avx2-rational-3-3-div.c
 // - external/xnnpack+/src/f32-vlog/gen/f32-vlog-avx512f-rational-3-3-div.c
 // - external/xnnpack+/src/f32-vlog/gen/f32-vlog-fma3-rational-3-3-div.c
 // - external/xnnpack+/src/f32-vlog/gen/f32-vlog-scalar-rational-3-3-div.c
 // - external/xnnpack+/src/f32-vlog/gen/f32-vlog-sse2-rational-3-3-div.c
+// - external/xnnpack+/src/f32-vlog/gen/f32-vlog-sse2fma-rational-3-3-div.c
 // - external/xnnpack+/src/f32-vlrelu/gen/f32-vlrelu-avx-u16.c
 // - external/xnnpack+/src/f32-vlrelu/gen/f32-vlrelu-avx512f-u16.c
 // - external/xnnpack+/src/f32-vlrelu/gen/f32-vlrelu-scalar-u4.c
@@ -443,10 +449,6 @@
 // - external/xnnpack+/src/f32-vlrelu/gen/f32-vlrelu-sse41-u8.c
 // - external/xnnpack+/src/f32-vmulcaddc/gen/f32-vmulcaddc-c1-minmax-scalar-2x.c
 // - external/xnnpack+/src/f32-vmulcaddc/gen/f32-vmulcaddc-c4-minmax-sse-2x.c
-// - external/xnnpack+/src/f32-vrelu/gen/f32-vrelu-avx.c
-// - external/xnnpack+/src/f32-vrelu/gen/f32-vrelu-avx512f.c
-// - external/xnnpack+/src/f32-vrelu/gen/f32-vrelu-scalar.c
-// - external/xnnpack+/src/f32-vrelu/gen/f32-vrelu-sse2.c
 // - external/xnnpack+/src/f32-vrnd/gen/f32-vrndd-avx-u16.c
 // - external/xnnpack+/src/f32-vrnd/gen/f32-vrndd-avx512f-u16.c
 // - external/xnnpack+/src/f32-vrnd/gen/f32-vrndd-scalar-libm-u1.c
@@ -473,6 +475,7 @@
 // - external/xnnpack+/src/f32-vrsqrt/gen/f32-vrsqrt-avx512f-sqrt.c
 // - external/xnnpack+/src/f32-vrsqrt/gen/f32-vrsqrt-scalar-rsqrt-u1.c
 // - external/xnnpack+/src/f32-vrsqrt/gen/f32-vrsqrt-scalar-sqrt.c
+// - external/xnnpack+/src/f32-vrsqrt/gen/f32-vrsqrt-sse2-rsqrt.c
 // - external/xnnpack+/src/f32-vrsqrt/gen/f32-vrsqrt-sse2-sqrt.c
 // - external/xnnpack+/src/f32-vsigmoid/gen/f32-vsigmoid-avx-rr2-p5-nr2-u16.c
 // - external/xnnpack+/src/f32-vsigmoid/gen/f32-vsigmoid-avx2-rr1-p5-div-u16.c
@@ -485,16 +488,19 @@
 // - external/xnnpack+/src/f32-vsin/gen/f32-vsin-fma3-rational-5-4-div.c
 // - external/xnnpack+/src/f32-vsin/gen/f32-vsin-scalar-rational-5-4-div.c
 // - external/xnnpack+/src/f32-vsin/gen/f32-vsin-sse2-rational-5-4-div.c
+// - external/xnnpack+/src/f32-vsin/gen/f32-vsin-sse2fma-rational-5-4-div.c
 // - external/xnnpack+/src/f32-vsqrt/gen/f32-vsqrt-avx-rsqrt.c
 // - external/xnnpack+/src/f32-vsqrt/gen/f32-vsqrt-avx-sqrt.c
 // - external/xnnpack+/src/f32-vsqrt/gen/f32-vsqrt-avx512f-rsqrt.c
 // - external/xnnpack+/src/f32-vsqrt/gen/f32-vsqrt-scalar-sqrt.c
+// - external/xnnpack+/src/f32-vsqrt/gen/f32-vsqrt-sse2-rsqrt.c
 // - external/xnnpack+/src/f32-vsqrt/gen/f32-vsqrt-sse2-sqrt.c
 // - external/xnnpack+/src/f32-vtanh/gen/f32-vtanh-avx-rational-9-8-div.c
 // - external/xnnpack+/src/f32-vtanh/gen/f32-vtanh-avx512f-rational-9-8-div.c
 // - external/xnnpack+/src/f32-vtanh/gen/f32-vtanh-fma3-rational-9-8-div.c
 // - external/xnnpack+/src/f32-vtanh/gen/f32-vtanh-scalar-rational-9-8-div.c
 // - external/xnnpack+/src/f32-vtanh/gen/f32-vtanh-sse2-rational-9-8-div.c
+// - external/xnnpack+/src/f32-vtanh/gen/f32-vtanh-sse2fma-rational-9-8-div.c
 // - external/xnnpack+/src/f32-vunary/gen/f32-vabs-avx.c
 // - external/xnnpack+/src/f32-vunary/gen/f32-vabs-avx512f.c
 // - external/xnnpack+/src/f32-vunary/gen/f32-vabs-scalar.c
@@ -508,10 +514,7 @@
 // - external/xnnpack+/src/f32-vunary/gen/f32-vsqr-scalar.c
 // - external/xnnpack+/src/f32-vunary/gen/f32-vsqr-sse2.c
 // - external/xnnpack+/src/log.c
-// - external/xnnpack+/src/memory.c
 // - external/xnnpack+/src/microparams-init.c
-// - external/xnnpack+/src/mutex.c
-// - external/xnnpack+/src/params.c
 // - external/xnnpack+/src/qd8-f16-qb4w-gemm/gen/qd8-f16-qb4w-gemm-1x8c8-minmax-avx2.c
 // - external/xnnpack+/src/qd8-f16-qb4w-gemm/gen/qd8-f16-qb4w-gemm-3x8c8-minmax-avx2.c
 // - external/xnnpack+/src/qd8-f16-qc4w-gemm/gen/qd8-f16-qc4w-gemm-1x8c8-minmax-avx2-madd-prfm.c
@@ -962,10 +965,10 @@
 #include <string.h>
 
 static const uint8_t xnn_build_identifier[] = {
-  149, 211,  46,  48, 250, 232, 248, 229,
-   62, 155, 121, 247,   2, 205,  53, 241,
-   41,   3, 110, 143, 132,  15, 198, 224,
-   93,  92, 171, 189, 231,  92, 246,  74
+   83,  44, 182, 218,  15, 122,  56,  16,
+  220, 122, 231,  91,  40, 178,  59,  89,
+  249, 110, 114,  99,  58, 200, 182, 227,
+  161, 225, 194,   7, 242,  80, 120,  71
 };
 
 size_t xnn_experimental_get_build_identifier_size() {

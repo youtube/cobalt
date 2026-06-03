@@ -163,7 +163,7 @@ public class TabUiThemeUtil {
      */
     public static @ColorInt int getDividerTint(Context context, boolean isIncognito) {
         if (isIncognito) {
-            return context.getColor(R.color.tab_strip_tablet_divider_bg_incognito);
+            return ContextCompat.getColor(context, R.color.tab_strip_tablet_divider_bg_incognito);
         }
 
         if (!ColorUtils.inNightMode(context)) {

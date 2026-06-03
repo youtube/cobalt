@@ -956,9 +956,9 @@ def make_hosts_file(config, host):
     ):
         rv.append("%s\t%s" % (host, domain))
 
-    # Windows interpets the IP address 0.0.0.0 as non-existent, making it an
+    # Windows interprets the IP address 0.0.0.0 as non-existent, making it an
     # appropriate alias for non-existent hosts. However, UNIX-like systems
-    # interpret the same address to mean any IP address, which is inappropraite
+    # interpret the same address to mean any IP address, which is inappropriate
     # for this context. These systems do not reserve any value for this
     # purpose, so the inavailability of the domains must be taken for granted.
     #
@@ -997,10 +997,10 @@ def start_servers(logger, host, ports, paths, routes, bind_address, config,
 
             init_func = {
                 "http": start_http_server,
-                "http-private": start_http_server,
+                "http-local": start_http_server,
                 "http-public": start_http_server,
                 "https": start_https_server,
-                "https-private": start_https_server,
+                "https-local": start_https_server,
                 "https-public": start_https_server,
                 "h2": start_http2_server,
                 "ws": start_ws_server,
@@ -1238,10 +1238,10 @@ class ConfigBuilder(config.ConfigBuilder):
         "server_host": None,
         "ports": {
             "http": [8000, "auto"],
-            "http-private": ["auto"],
+            "http-local": ["auto"],
             "http-public": ["auto"],
             "https": [8443, 8444],
-            "https-private": ["auto"],
+            "https-local": ["auto"],
             "https-public": ["auto"],
             "ws": ["auto"],
             "wss": ["auto"],

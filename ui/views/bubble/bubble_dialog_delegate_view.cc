@@ -175,7 +175,7 @@ Widget* CreateBubbleWidget(BubbleDialogDelegate* bubble,
   bubble_params.opacity = Widget::InitParams::WindowOpacity::kTranslucent;
   bubble_params.accept_events = bubble->accept_events();
   bubble_params.remove_standard_frame = true;
-  bubble_params.layer_type = bubble->GetLayerType();
+  bubble_params.layer_type = bubble->layer_type();
   // TODO(crbug.com/41493925): Remove CHECK once native frame dialogs support
   // autosize.
   CHECK(!bubble->is_autosized() || bubble->use_custom_frame())
@@ -588,7 +588,7 @@ ClientView* BubbleDialogDelegate::CreateClientView(Widget* widget) {
   // rounded corner clip we must paint the client view to a layer. This is
   // necessary because layers do not respect the clip of a non-layer backed
   // parent.
-  client_view_->SetPaintToLayer();
+  client_view_->SetPaintToLayer(layer_type());
   client_view_->layer()->SetRoundedCornerRadius(
       gfx::RoundedCornersF(GetCornerRadius()));
   client_view_->layer()->SetIsFastRoundedCorner(true);
@@ -782,10 +782,6 @@ gfx::Rect BubbleDialogDelegate::GetAnchorRect() const {
   }
 
   return anchor_rect_.value();
-}
-
-ui::LayerType BubbleDialogDelegate::GetLayerType() const {
-  return ui::LAYER_TEXTURED;
 }
 
 void BubbleDialogDelegate::UseCompactMargins() {
@@ -1131,14 +1127,15 @@ void BubbleDialogDelegate::UpdateFrameColor() {
     frame_view->SetBackgroundColor(background_color());
   }
 
-  // When there's an opaque layer, the bubble border background won't show
-  // through, so explicitly paint a background color.
   const bool contents_layer_opaque =
-      contents_view->layer() && contents_view->layer()->fills_bounds_opaquely();
-  contents_view->SetBackground(contents_layer_opaque ||
-                                       force_create_contents_background_
-                                   ? CreateSolidBackground(background_color())
-                                   : nullptr);
+      contents_view->layer() &&
+      contents_view->layer()->type() != ui::LAYER_NOT_DRAWN &&
+      contents_view->layer()->fills_bounds_opaquely();
+  if (contents_layer_opaque) {
+    CHECK(contents_view->background())
+        << "If contents paint to an opaque layer, the bubble border background "
+           "won't show through, so explicitly paint a background color";
+  }
 }
 
 void BubbleDialogDelegate::OnBubbleWidgetVisibilityChanged(bool visible) {

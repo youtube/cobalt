@@ -4,6 +4,7 @@
 
 #include "gpu/ipc/service/gpu_memory_buffer_factory_native_pixmap.h"
 
+#include "base/logging.h"
 #include "build/build_config.h"
 #include "components/viz/common/gpu/vulkan_context_provider.h"
 #include "ui/gfx/buffer_format_util.h"
@@ -49,24 +50,6 @@ GpuMemoryBufferFactoryNativePixmap::CreateGpuMemoryBuffer(
                                                client_id, std::move(pixmap));
 }
 
-void GpuMemoryBufferFactoryNativePixmap::CreateGpuMemoryBufferAsync(
-    gfx::GpuMemoryBufferId id,
-    const gfx::Size& size,
-    gfx::BufferFormat format,
-    gfx::BufferUsage usage,
-    int client_id,
-    SurfaceHandle surface_handle,
-    CreateGpuMemoryBufferAsyncCallback callback) {
-  ui::OzonePlatform::GetInstance()
-      ->GetSurfaceFactoryOzone()
-      ->CreateNativePixmapAsync(
-          surface_handle, GetVulkanDeviceQueue(), size, format, usage,
-          base::BindOnce(
-              &GpuMemoryBufferFactoryNativePixmap::OnNativePixmapCreated, id,
-              size, format, usage, client_id, std::move(callback),
-              weak_factory_.GetWeakPtr()));
-}
-
 void GpuMemoryBufferFactoryNativePixmap::DestroyGpuMemoryBuffer(
     gfx::GpuMemoryBufferId id,
     int client_id) {
@@ -89,24 +72,6 @@ VulkanDeviceQueue* GpuMemoryBufferFactoryNativePixmap::GetVulkanDeviceQueue() {
 #endif
 
   return nullptr;
-}
-
-// static
-void GpuMemoryBufferFactoryNativePixmap::OnNativePixmapCreated(
-    gfx::GpuMemoryBufferId id,
-    const gfx::Size& size,
-    gfx::BufferFormat format,
-    gfx::BufferUsage usage,
-    int client_id,
-    CreateGpuMemoryBufferAsyncCallback callback,
-    base::WeakPtr<GpuMemoryBufferFactoryNativePixmap> weak_ptr,
-    scoped_refptr<gfx::NativePixmap> pixmap) {
-  if (weak_ptr) {
-    std::move(callback).Run(weak_ptr->CreateGpuMemoryBufferFromNativePixmap(
-        id, size, format, usage, client_id, pixmap));
-  } else {
-    std::move(callback).Run(gfx::GpuMemoryBufferHandle());
-  }
 }
 
 gfx::GpuMemoryBufferHandle

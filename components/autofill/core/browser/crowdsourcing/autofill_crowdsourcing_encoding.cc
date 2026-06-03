@@ -17,6 +17,7 @@
 #include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/types/optional_ref.h"
 #include "components/autofill/core/browser/crowdsourcing/randomized_encoder.h"
@@ -321,16 +322,12 @@ void PopulateRandomizedFieldMetadata(
   // 0 is the default value for fields that do not allow free input, while
   // `kDefaultMaxLength` is the default value for fields that allow free input.
   if (field.max_length() != 0 &&
-      field.max_length() != FormFieldData::kDefaultMaxLength &&
-      base::FeatureList::IsEnabled(
-          features::kAutofillIncludeMaxLengthInCrowdsourcing)) {
+      field.max_length() != FormFieldData::kDefaultMaxLength) {
     encode_value(RandomizedEncoder::kFieldMaxLength,
                  base::NumberToString(field.max_length()),
                  metadata->mutable_max_length());
   }
-  if (field.IsSelectElement() &&
-      base::FeatureList::IsEnabled(
-          features::kAutofillIncludeSelectOptionsInCrowdsourcing)) {
+  if (field.IsSelectElement()) {
     auto add_option = [&](const SelectOption& option) {
       auto* proto_option = metadata->add_select_option();
       if (!option.text.empty()) {

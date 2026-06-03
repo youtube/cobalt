@@ -21,6 +21,7 @@
 #include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_observer.h"
 #include "components/prefs/pref_service.h"
+#include "components/segmentation_platform/embedder/default_model/chrome_user_engagement.h"
 #include "components/segmentation_platform/embedder/default_model/contextual_page_actions_model.h"
 #include "components/segmentation_platform/embedder/default_model/metrics_clustering.h"
 #include "components/segmentation_platform/embedder/default_model/most_visited_tiles_user.h"
@@ -423,6 +424,19 @@ TEST_F(SegmentationPlatformServiceFactoryTest, TestLowUserEngagementModel) {
       std::vector<std::string>(1, kChromeLowUserEngagementUmaName));
 }
 
+TEST_F(SegmentationPlatformServiceFactoryTest, TestChromeUserEngagementModel) {
+  InitServiceAndCacheResults(ChromeUserEngagement::kChromeUserEngagementKey);
+
+  PredictionOptions prediction_options;
+
+  ExpectGetClassificationResult(
+      ChromeUserEngagement::kChromeUserEngagementKey, prediction_options,
+      nullptr,
+      /*expected_status=*/PredictionStatus::kSucceeded,
+      /*expected_labels=*/
+      std::vector<std::string>(1, "None"));
+}
+
 TEST_F(SegmentationPlatformServiceFactoryTest, TestCrossDeviceModel) {
   InitServiceAndCacheResults(segmentation_platform::kCrossDeviceUserKey);
   segmentation_platform::PredictionOptions prediction_options;
@@ -542,6 +556,9 @@ TEST_F(SegmentationPlatformServiceFactoryTest, TestContextualPageActionsShare) {
       segmentation_platform::processing::ProcessedValue::FromFloat(0));
   input_context->metadata_args.emplace(
       segmentation_platform::kContextualPageActionModelInputReaderMode,
+      segmentation_platform::processing::ProcessedValue::FromFloat(0));
+  input_context->metadata_args.emplace(
+      segmentation_platform::kContextualPageActionModelInputTabGrouping,
       segmentation_platform::processing::ProcessedValue::FromFloat(0));
 
   ExpectGetClassificationResult(

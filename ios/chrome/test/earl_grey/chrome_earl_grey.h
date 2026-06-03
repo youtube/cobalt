@@ -364,9 +364,6 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 - (void)simulateExternalAppURLOpeningWithURL:(NSURL*)url;
 - (void)simulateExternalAppURLOpeningAndWaitUntilOpenedWithGURL:(GURL)url;
 
-// Simulates opening the add account sign-in flow from the web.
-- (void)simulateAddAccountFromWeb;
-
 // Closes the current tab and waits for the UI to complete.
 - (void)closeCurrentTab;
 
@@ -700,6 +697,11 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 // not be used.
 // Fails if the execution causes an error.
 - (void)evaluateJavaScriptForSideEffect:(NSString*)javaScript;
+
+// Same as -evaluateJavaScriptForSideEffect but executes the javascript in the
+// isolated world instead of the page content world. This allows interacting
+// with the gcrweb objects that are injected there.
+- (void)evaluateJavaScriptInIsolatedWorldForSideEffect:(NSString*)javaScript;
 
 // Returns the user agent that should be used for the mobile version.
 - (NSString*)mobileUserAgentString;

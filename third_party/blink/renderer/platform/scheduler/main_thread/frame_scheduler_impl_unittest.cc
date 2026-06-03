@@ -519,7 +519,6 @@ class FrameSchedulerImplTest : public testing::Test {
   JavaScriptTimerNormalThrottleableTaskQueue() {
     return GetTaskQueue(
         FrameSchedulerImpl::ThrottleableTaskQueueTraits()
-            .SetPrioritisationType(PrioritisationType::kJavaScriptTimer)
             .SetCanBeDeferredForRendering(true));
   }
 
@@ -527,7 +526,6 @@ class FrameSchedulerImplTest : public testing::Test {
   JavaScriptTimerIntensivelyThrottleableTaskQueue() {
     return GetTaskQueue(
         FrameSchedulerImpl::ThrottleableTaskQueueTraits()
-            .SetPrioritisationType(PrioritisationType::kJavaScriptTimer)
             .SetCanBeIntensivelyThrottled(true)
             .SetCanBeDeferredForRendering(true));
   }
@@ -535,7 +533,6 @@ class FrameSchedulerImplTest : public testing::Test {
   scoped_refptr<MainThreadTaskQueue> JavaScriptTimerNonThrottleableTaskQueue() {
     return GetTaskQueue(
         FrameSchedulerImpl::DeferrableTaskQueueTraits()
-            .SetPrioritisationType(PrioritisationType::kJavaScriptTimer)
             .SetCanBeDeferredForRendering(true));
   }
 
@@ -1617,41 +1614,10 @@ TEST_F(FrameSchedulerImplTest, ComputePriorityForDetachedFrame) {
   frame_scheduler_->ComputePriority(task_queue.get());
 }
 
-class FrameSchedulerImplLowPriorityAsyncScriptExecutionTest
-    : public FrameSchedulerImplTest,
-      public testing::WithParamInterface<std::string> {
- public:
-  FrameSchedulerImplLowPriorityAsyncScriptExecutionTest()
-      : FrameSchedulerImplTest(
-            features::kLowPriorityAsyncScriptExecution,
-            {{features::kLowPriorityAsyncScriptExecutionLowerTaskPriorityParam
-                  .name,
-              specified_priority()}},
-            {}) {}
-
-  std::string specified_priority() { return GetParam(); }
-  TaskPriority GetExpectedPriority() {
-    if (specified_priority() == "high") {
-      return TaskPriority::kHighPriority;
-    } else if (specified_priority() == "low") {
-      return TaskPriority::kLowPriority;
-    } else if (specified_priority() == "best_effort") {
-      return TaskPriority::kBestEffortPriority;
-    }
-    NOTREACHED();
-  }
-};
-
-INSTANTIATE_TEST_SUITE_P(All,
-                         FrameSchedulerImplLowPriorityAsyncScriptExecutionTest,
-                         testing::Values("high", "low", "best_effort"));
-
-TEST_P(FrameSchedulerImplLowPriorityAsyncScriptExecutionTest,
-       LowPriorityScriptExecutionHasBestEffortPriority) {
+TEST_F(FrameSchedulerImplTest, LowPriorityScriptExecutionHasLowPriority) {
   EXPECT_EQ(
-      GetExpectedPriority(),
-      GetTaskQueue(TaskType::kLowPriorityScriptExecution)->GetQueuePriority())
-      << specified_priority();
+      TaskPriority::kLowPriority,
+      GetTaskQueue(TaskType::kLowPriorityScriptExecution)->GetQueuePriority());
 }
 
 TEST_F(FrameSchedulerImplTest, BackForwardCacheOptOut) {
@@ -2006,8 +1972,7 @@ TEST_F(WebSchedulingTaskQueueTest, DynamicPriorityContinuations) {
 TEST_F(WebSchedulingTaskQueueTest, WebScheduingAndNonWebScheduingTasks) {
   Vector<String> run_order;
   Vector<TestTaskSpecEntry> test_spec = {
-      {.descriptor = "Idle",
-       .type_info = TaskType::kLowPriorityScriptExecution},
+      {.descriptor = "Idle", .type_info = TaskType::kInternalContentCapture},
       {.descriptor = "BG",
        .type_info = WebSchedulingParams(
            {.queue_type = WebSchedulingQueueType::kTaskQueue,

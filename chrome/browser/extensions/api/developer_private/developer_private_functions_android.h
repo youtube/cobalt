@@ -8,36 +8,15 @@
 #include "chrome/common/extensions/api/developer_private.h"
 #include "extensions/browser/extension_function.h"
 
-DECLARE_UNIMPLEMENTED_EXTENSION_FUNCTION(DeveloperPrivateReloadFunction,
-                   "developerPrivate.reload",
-                   DEVELOPERPRIVATE_RELOAD);
 DECLARE_UNIMPLEMENTED_EXTENSION_FUNCTION(DeveloperPrivateLoadUnpackedFunction,
                    "developerPrivate.loadUnpacked",
                    DEVELOPERPRIVATE_LOADUNPACKED);
-DECLARE_UNIMPLEMENTED_EXTENSION_FUNCTION(DeveloperPrivateInstallDroppedFileFunction,
-                   "developerPrivate.installDroppedFile",
-                   DEVELOPERPRIVATE_INSTALLDROPPEDFILE);
-DECLARE_UNIMPLEMENTED_EXTENSION_FUNCTION(DeveloperPrivateNotifyDragInstallInProgressFunction,
-                   "developerPrivate.notifyDragInstallInProgress",
-                   DEVELOPERPRIVATE_NOTIFYDRAGINSTALLINPROGRESS);
 DECLARE_UNIMPLEMENTED_EXTENSION_FUNCTION(DeveloperPrivatePackDirectoryFunction,
                    "developerPrivate.packDirectory",
                    DEVELOPERPRIVATE_PACKDIRECTORY);
 DECLARE_UNIMPLEMENTED_EXTENSION_FUNCTION(DeveloperPrivateLoadDirectoryFunction,
                    "developerPrivate.loadDirectory",
                    DEVELOPERPRIVATE_LOADUNPACKEDCROS);
-DECLARE_UNIMPLEMENTED_EXTENSION_FUNCTION(DeveloperPrivateRepairExtensionFunction,
-                   "developerPrivate.repairExtension",
-                   DEVELOPERPRIVATE_REPAIREXTENSION);
-DECLARE_UNIMPLEMENTED_EXTENSION_FUNCTION(DeveloperPrivateShowOptionsFunction,
-                   "developerPrivate.showOptions",
-                   DEVELOPERPRIVATE_SHOWOPTIONS);
-DECLARE_UNIMPLEMENTED_EXTENSION_FUNCTION(DeveloperPrivateShowPathFunction,
-                   "developerPrivate.showPath",
-                   DEVELOPERPRIVATE_SHOWPATH);
-DECLARE_UNIMPLEMENTED_EXTENSION_FUNCTION(DeveloperPrivateSetShortcutHandlingSuspendedFunction,
-                   "developerPrivate.setShortcutHandlingSuspended",
-                   DEVELOPERPRIVATE_SETSHORTCUTHANDLINGSUSPENDED);
 DECLARE_UNIMPLEMENTED_EXTENSION_FUNCTION(DeveloperPrivateRemoveMultipleExtensionsFunction,
                    "developerPrivate.removeMultipleExtensions",
                    DEVELOPERPRIVATE_REMOVEMULTIPLEEXTENSIONS);

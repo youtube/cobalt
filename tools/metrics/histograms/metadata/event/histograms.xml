@@ -198,9 +198,10 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Event.Jank.PredictorJankyFramePercentage2" units="%"
-    expires_after="2025-10-12">
+    expires_after="2025-12-14">
   <owner>jonross@chromium.org</owner>
   <owner>woa-performance@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     A frame is deemed janky if an irregular jump in screen displacement occured
     in consecutive frames, this metric is the percentage of those janky frames
@@ -219,9 +220,10 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Event.Jank.ScrollUpdate.{ScrollSpeed}.{VsyncStatus}.FrameAboveJankyThreshold2"
-    units="ratio * 100" expires_after="2025-09-21">
+    units="ratio * 100" expires_after="2025-11-23">
   <owner>jonross@chromium.org</owner>
   <owner>woa-performance@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     This metric is the ratio between a larger screen displacement divided by a
     following small screen displacement {ScrollSpeed}. If the larger screen
@@ -463,6 +465,18 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Event.ReceivedAfterHidden" units="ms"
+    expires_after="2026-05-27">
+  <owner>jonross@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <summary>
+    Emitted when an input event is received in the Renderer, while the Renderer
+    is hidden. This is not emitted if DevTools are attached, as automation can
+    occur while hidden. This denotes the delta from when the Renderer was hidden
+    until the event was received.
+  </summary>
+</histogram>
+
 <histogram name="Event.Scroll.{ScrollInputType}" units="ms"
     expires_after="2026-04-11">
   <owner>kraskevich@google.com</owner>
@@ -480,6 +494,7 @@ chromium-metrics-reviews@google.com.
   <owner>jonross@chromium.org</owner>
   <owner>woa-performance-team@google.com</owner>
   <owner>chrome-analysis-team@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     The percentage of frames not presented during a scroll or a fling[1],
     meaning frame production took longer than expected and the frame was
@@ -514,6 +529,7 @@ chromium-metrics-reviews@google.com.
   <owner>kartarsingh@google.com</owner>
   <owner>jonross@chromium.org</owner>
   <owner>woa-performance-team@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     NOTE: This metric is a new experimental version of
     Event.ScrollJank.DelayedFramesPercentage.FixedWindow. This new metric aims
@@ -551,6 +567,7 @@ chromium-metrics-reviews@google.com.
   <owner>kartarsingh@google.com</owner>
   <owner>jonross@chromium.org</owner>
   <owner>woa-performance-team@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     NOTE: This metric is a new experimental version of
     Event.ScrollJank.DelayedFramesPercentage.PerScroll. This new metric aims to
@@ -578,6 +595,7 @@ chromium-metrics-reviews@google.com.
   <owner>kartarsingh@google.com</owner>
   <owner>jonross@chromium.org</owner>
   <owner>woa-performance-team@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     A frame is deemed janky during a scroll if there was no presented frame in
     the previous vsync, and the current frame contains input that was not
@@ -599,6 +617,7 @@ chromium-metrics-reviews@google.com.
   <owner>kartarsingh@google.com</owner>
   <owner>jonross@chromium.org</owner>
   <owner>woa-performance-team@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     A frame is deemed janky during a scroll if there was no presented frame in
     the previous vsync, and the current frame contains input that was not
@@ -619,9 +638,10 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Event.ScrollJank.MissedVsyncsPercentage.FixedWindow" units="%"
-    expires_after="2025-10-05">
+    expires_after="2025-12-07">
   <owner>jonross@chromium.org</owner>
   <owner>woa-performance-team@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     NOTE: This metric is experimental, for performance analysis, please use
     Event.ScrollJank.DelayedFramesPercentage.FixedWindow.
@@ -645,6 +665,7 @@ chromium-metrics-reviews@google.com.
   <owner>petrcermak@chromium.org</owner>
   <owner>jonross@chromium.org</owner>
   <owner>woa-performance-team@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     NOTE: This metric is a new experimental version of
     Event.ScrollJank.MissedVsyncsPercentage.FixedWindow. This new metric aims to
@@ -673,6 +694,7 @@ chromium-metrics-reviews@google.com.
   <owner>kartarsingh@google.com</owner>
   <owner>jonross@chromium.org</owner>
   <owner>woa-performance-team@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     NOTE: This metric is a new experimental version of
     Event.ScrollJank.MissedVsyncsPercentage.PerScroll. This new metric aims to
@@ -697,10 +719,11 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Event.ScrollJank.MissedVsyncsPercentage.PerScroll{Length}"
-    units="%" expires_after="2025-10-05">
+    units="%" expires_after="2025-12-07">
   <owner>kartarsingh@google.com</owner>
   <owner>jonross@chromium.org</owner>
   <owner>woa-performance-team@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     A vsync is deemed janky during a scroll if there was no presented frame in
     the vsync and the next frame contained late input that was not presented
@@ -727,6 +750,7 @@ chromium-metrics-reviews@google.com.
   <owner>kartarsingh@google.com</owner>
   <owner>jonross@chromium.org</owner>
   <owner>woa-performance-team@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     NOTE: This metric is a new experimental version of
     Event.ScrollJank.MissedVsyncsSum.FixedWindow. This new metric aims to
@@ -755,6 +779,7 @@ chromium-metrics-reviews@google.com.
   <owner>kartarsingh@google.com</owner>
   <owner>jonross@chromium.org</owner>
   <owner>woa-performance-team@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     NOTE: This metric is a new experimental version of
     Event.ScrollJank.MissedVsyncsSum.PerScroll. This new metric aims to address
@@ -778,10 +803,11 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Event.ScrollJank.MissedVsyncs{Operator}.FixedWindow"
-    units="counts" expires_after="2025-10-05">
+    units="counts" expires_after="2025-12-07">
   <owner>kartarsingh@google.com</owner>
   <owner>jonross@chromium.org</owner>
   <owner>woa-performance-team@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     A frame is deemed janky during a scroll if there was no presented frame in
     the previous vsync, and the current frame contains input that was not
@@ -806,6 +832,7 @@ chromium-metrics-reviews@google.com.
     units="counts" expires_after="2025-10-19">
   <owner>jonross@chromium.org</owner>
   <owner>woa-performance-team@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     NOTE: This metric is experimental, for performance analysis, please use
     Event.ScrollJank.MissedVsyncs{Operator}.FixedWindow.
@@ -827,10 +854,11 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Event.ScrollJank.MissedVsyncs{Operator}.PerScroll{Length}"
-    units="counts" expires_after="2025-10-05">
+    units="counts" expires_after="2025-12-07">
   <owner>kartarsingh@google.com</owner>
   <owner>jonross@chromium.org</owner>
   <owner>woa-performance-team@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     A frame is deemed janky during a scroll if there was no presented frame in
     the previous vsync, and the current frame contains input that was not
@@ -924,7 +952,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="EventLatency.GestureScrollUpdate.Touchscreen.TotalLatency2"
-    units="microseconds" expires_after="2025-10-05">
+    units="microseconds" expires_after="2025-12-07">
   <owner>jonross@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -946,7 +974,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="EventLatency.GestureScrollUpdate.{NonTouchscreenScrollInputType}.TotalLatency2"
-    units="microseconds" expires_after="2025-10-12">
+    units="microseconds" expires_after="2025-12-14">
   <owner>jonross@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -1011,7 +1039,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="EventLatency.{NonScrollPinchEventType}.TotalLatency"
-    units="microseconds" expires_after="2025-10-05">
+    units="microseconds" expires_after="2025-12-07">
   <owner>jonross@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -1085,7 +1113,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="EventLatency.{ScrollEventType}.TotalLatency2"
-    units="microseconds" expires_after="2025-10-12">
+    units="microseconds" expires_after="2025-12-14">
   <owner>jonross@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>

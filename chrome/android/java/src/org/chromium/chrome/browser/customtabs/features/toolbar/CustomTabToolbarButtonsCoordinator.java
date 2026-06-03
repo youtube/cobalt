@@ -5,6 +5,8 @@
 package org.chromium.chrome.browser.customtabs.features.toolbar;
 
 import static org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarButtonsProperties.CLICK_LISTENER;
+import static org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarButtonsProperties.CLOSE_BUTTON;
+import static org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarButtonsProperties.CUSTOM_ACTION_BUTTONS_VISIBLE;
 import static org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarButtonsProperties.DESCRIPTION;
 import static org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarButtonsProperties.ICON;
 import static org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarButtonsProperties.INDIVIDUAL_BUTTON_KEYS;
@@ -14,11 +16,13 @@ import static org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabT
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.drawable.Drawable;
+import android.view.View;
 
 import androidx.browser.customtabs.CustomTabsIntent;
 
 import org.chromium.base.Callback;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider.CustomTabProfileType;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider.TitleVisibility;
@@ -32,6 +36,9 @@ import org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarB
 import org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarButtonsProperties.SideSheetMaximizeButtonData;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
+import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonCoordinator;
+import org.chromium.chrome.browser.toolbar.optional_button.ButtonData;
+import org.chromium.chrome.browser.toolbar.top.OptionalBrowsingModeButtonController;
 import org.chromium.ui.modelutil.ListModelChangeProcessor;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyListModel;
@@ -40,7 +47,9 @@ import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 
 import java.util.List;
 
-public class CustomTabToolbarButtonsCoordinator {
+public class CustomTabToolbarButtonsCoordinator
+        implements MenuButtonCoordinator.VisibilityDelegate,
+                OptionalBrowsingModeButtonController.Delegate {
     private final ListModelChangeProcessor<
                     PropertyListModel<PropertyModel, PropertyKey>, CustomTabToolbar, PropertyKey>
             mCustomActionButtonsMcp;
@@ -55,7 +64,8 @@ public class CustomTabToolbarButtonsCoordinator {
             CustomTabMinimizeDelegate minimizeDelegate,
             @Nullable CustomTabFeatureOverridesManager featureOverridesManager,
             CustomTabToolbar.@Nullable OmniboxParams omniboxParams,
-            ActivityLifecycleDispatcher lifecycleDispatcher) {
+            ActivityLifecycleDispatcher lifecycleDispatcher,
+            ActivityTabProvider tabProvider) {
         var customActionButtons =
                 getCustomActionButtonsModel(
                         activity, intentDataProvider, customButtonClickCallback);
@@ -67,7 +77,9 @@ public class CustomTabToolbarButtonsCoordinator {
                         ? getCloseButtonData(
                                 closeButtonVisible,
                                 intentDataProvider.getCloseButtonDrawable(),
-                                closeButtonPosition)
+                                closeButtonPosition,
+                                /* clickListener= */ v -> {}) // Real value set later by
+                        // #setCloseButtonClickHandler.
                         : new CloseButtonData();
 
         int toolbarWidth = CustomTabDimensionUtils.getInitialWidth(activity, intentDataProvider);
@@ -83,8 +95,8 @@ public class CustomTabToolbarButtonsCoordinator {
                         // We will fill in the actual data in the mediator.
                         new MinimizeButtonData(),
                         closeButton,
-                        // TODO(crbug.com/402213312): Coordinate with MenuButtonCoordinator.
                         /* menuButtonVisible= */ true,
+                        /* optionalButtonVisible= */ false,
                         toolbarWidth,
                         omniboxEnabled,
                         titleVisible,
@@ -101,16 +113,39 @@ public class CustomTabToolbarButtonsCoordinator {
         mMediator =
                 new CustomTabToolbarButtonsMediator(
                         mModel,
+                        view,
                         activity,
                         minimizeDelegate,
                         intentDataProvider,
                         featureOverridesManager,
-                        lifecycleDispatcher);
+                        lifecycleDispatcher,
+                        tabProvider);
         view.setOnNewWidthMeasuredListener(mMediator);
+        view.setOnColorSchemeChangedObserver(mMediator);
     }
 
     public void destroy() {
         mMediator.destroy();
+    }
+
+    @Override
+    public void setMenuButtonVisible(boolean visible) {
+        mModel.set(CustomTabToolbarButtonsProperties.MENU_BUTTON_VISIBLE, visible);
+    }
+
+    @Override
+    public boolean isMenuButtonVisible() {
+        return mModel.get(CustomTabToolbarButtonsProperties.MENU_BUTTON_VISIBLE);
+    }
+
+    @Override
+    public void setOptionalButtonData(@Nullable ButtonData buttonData) {
+        mMediator.setOptionalButtonData(buttonData);
+    }
+
+    @Override
+    public boolean isOptionalButtonVisible() {
+        return false;
     }
 
     /**
@@ -138,6 +173,24 @@ public class CustomTabToolbarButtonsCoordinator {
         mMediator.setMinimizeButtonEnabled(enabled);
     }
 
+    public void setCloseButtonVisible(boolean visible) {
+        var oldData = mModel.get(CLOSE_BUTTON);
+        mModel.set(
+                CLOSE_BUTTON,
+                getCloseButtonData(visible, oldData.icon, oldData.position, oldData.clickListener));
+    }
+
+    public void setCloseButtonClickHandler(View.OnClickListener listener) {
+        var oldData = mModel.get(CLOSE_BUTTON);
+        mModel.set(
+                CLOSE_BUTTON,
+                getCloseButtonData(oldData.visible, oldData.icon, oldData.position, listener));
+    }
+
+    public void setCustomActionButtonsVisible(boolean visible) {
+        mModel.set(CUSTOM_ACTION_BUTTONS_VISIBLE, visible);
+    }
+
     static PropertyListModel<PropertyModel, PropertyKey> getCustomActionButtonsModel(
             Context context,
             BrowserServicesIntentDataProvider intentDataProvider,
@@ -162,7 +215,8 @@ public class CustomTabToolbarButtonsCoordinator {
     private static CloseButtonData getCloseButtonData(
             boolean visible,
             Drawable icon,
-            @CustomTabsIntent.CloseButtonPosition int closeButtonPosition) {
-        return new CloseButtonData(visible, icon, closeButtonPosition);
+            @CustomTabsIntent.CloseButtonPosition int closeButtonPosition,
+            View.OnClickListener clickListener) {
+        return new CloseButtonData(visible, icon, closeButtonPosition, clickListener);
     }
 }

@@ -794,7 +794,6 @@ group("gn_all") {
       deps += [
         "//testing/libfuzzer/fuzzers",
         "//testing/libfuzzer/research",
-        "//third_party/freetype-testing:fuzzers",
         "//third_party/icu/fuzzers",
         "//third_party/ukey2/fuzzers",
         "//third_party/zlib/contrib/tests/fuzzers",
@@ -1185,7 +1184,10 @@ if (use_blink && !is_cronet_build) {
     # https://chromium.googlesource.com/chromium/src/+/HEAD/docs/testing/run_web_platform_tests.md
     script_test("chrome_wpt_tests") {
       script = "//third_party/blink/tools/run_wpt_tests.py"
-      args = _common_web_test_options + [ "--product=chrome" ]
+      args = _common_web_test_options + [
+               "--product=chrome",
+               "--verbose",
+             ]
       if (dcheck_always_on) {
         args += [ "--timeout-multiplier=2" ]
       } else {
@@ -1209,7 +1211,10 @@ if (use_blink && !is_cronet_build) {
     # https://chromium.googlesource.com/chromium/src/+/HEAD/docs/testing/run_web_platform_tests.md
     script_test("headless_shell_wpt") {
       script = "//third_party/blink/tools/run_wpt_tests.py"
-      args = _common_web_test_options + [ "--product=headless_shell" ]
+      args = _common_web_test_options + [
+               "--product=headless_shell",
+               "--verbose",
+             ]
       data_deps = [
         ":blink_web_tests_expectations",
         ":blink_web_tests_support_data",
@@ -1410,7 +1415,6 @@ if (use_blink && !is_cronet_build) {
 
       # === List Test Cases folders here ===
       "//third_party/blink/web_tests/accessibility/",
-      "//third_party/blink/web_tests/android/",
       "//third_party/blink/web_tests/animations/",
       "//third_party/blink/web_tests/app_banner/",
       "//third_party/blink/web_tests/bindings/",
@@ -1539,8 +1543,6 @@ if (use_blink && !is_cronet_build) {
     } else if (is_mac) {
       data += [
         "//third_party/blink/web_tests/platform/mac/",
-        "//third_party/blink/web_tests/platform/mac-mac11/",
-        "//third_party/blink/web_tests/platform/mac-mac11-arm64/",
         "//third_party/blink/web_tests/platform/mac-mac12/",
         "//third_party/blink/web_tests/platform/mac-mac12-arm64/",
         "//third_party/blink/web_tests/platform/mac-mac13/",
@@ -1790,14 +1792,6 @@ if (!is_ios && !is_android && !is_castos && !is_cronet_build) {
       if (enable_pdf) {
         deps += [ "//third_party/pdfium/testing:pdfium_test" ]
       }
-    }
-
-    if (!is_component_build) {
-      # See https://bugs.chromium.org/p/chromium/issues/detail?id=942546#c11.
-      deps += [
-        "//third_party/webrtc/rtc_tools:rtp_generator",
-        "//third_party/webrtc/rtc_tools:video_replay",
-      ]
     }
 
     if (build_dawn_tests) {

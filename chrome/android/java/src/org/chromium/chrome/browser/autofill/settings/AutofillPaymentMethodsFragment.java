@@ -35,6 +35,7 @@ import org.chromium.chrome.R;
 import org.chromium.chrome.browser.autofill.AutofillEditorBase;
 import org.chromium.chrome.browser.autofill.AutofillImageFetcherFactory;
 import org.chromium.chrome.browser.autofill.AutofillUiUtils;
+import org.chromium.chrome.browser.autofill.GoogleWalletLauncher;
 import org.chromium.chrome.browser.autofill.PersonalDataManager;
 import org.chromium.chrome.browser.autofill.PersonalDataManager.CreditCard;
 import org.chromium.chrome.browser.autofill.PersonalDataManager.Iban;
@@ -80,6 +81,9 @@ public class AutofillPaymentMethodsFragment extends ChromeBaseSettingsFragment
     static final String PREF_IBAN = "iban";
     static final String PREF_CARD_BENEFITS = "card_benefits";
     private static final String PREF_PAYMENT_APPS = "payment_apps";
+    static final String PREF_LOYALTY_CARDS = "loyalty_cards";
+    // The constant used to optionally scroll to the loyalty card management pref.
+    static final String EXTRA_FOCUS_LOYALTY_CARD_PREF = "focus_loyalty_card_pref";
 
     @VisibleForTesting
     static final String PREF_FINANCIAL_ACCOUNTS_MANAGEMENT = "financial_accounts_management";
@@ -109,6 +113,11 @@ public class AutofillPaymentMethodsFragment extends ChromeBaseSettingsFragment
         screen.setShouldUseGeneratedIds(false);
 
         setPreferenceScreen(screen);
+
+        Bundle arguments = getArguments();
+        if (arguments != null && arguments.keySet().contains(EXTRA_FOCUS_LOYALTY_CARD_PREF)) {
+            scrollToPreference(PREF_LOYALTY_CARDS);
+        }
     }
 
     @Override
@@ -397,6 +406,22 @@ public class AutofillPaymentMethodsFragment extends ChromeBaseSettingsFragment
         payment_apps_pref.setKey(PREF_PAYMENT_APPS);
         getPreferenceScreen().addPreference(payment_apps_pref);
         refreshPaymentAppsPrefForAndroidPaymentApps(payment_apps_pref);
+
+        // Add the link to manage loyalty cards.
+        if (ChromeFeatureList.isEnabled(ChromeFeatureList.AUTOFILL_ENABLE_LOYALTY_CARDS_FILLING)) {
+            Preference loyalty_cards_pref = new Preference(getStyledContext());
+            loyalty_cards_pref.setTitle(R.string.payment_methods_settings_loyalty_cards_title);
+            loyalty_cards_pref.setSummary(
+                    R.string.payment_methods_settings_loyalty_cards_description);
+            loyalty_cards_pref.setKey(PREF_LOYALTY_CARDS);
+            getPreferenceScreen().addPreference(loyalty_cards_pref);
+            loyalty_cards_pref.setOnPreferenceClickListener(
+                    (preference) -> {
+                        GoogleWalletLauncher.openGoogleWallet(
+                                getActivity(), getActivity().getPackageManager());
+                        return true;
+                    });
+        }
     }
 
     private void createReauthenticatorBridge() {

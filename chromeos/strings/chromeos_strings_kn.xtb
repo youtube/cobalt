@@ -477,6 +477,7 @@
 <translation id="3091839911843451378">ವಿಫಲವಾಗಿದೆ - ನಿಲ್ಲಿಸಲಾಗಿದೆ</translation>
 <translation id="3102119246920354026">ಸಂಗ್ರಹ</translation>
 <translation id="3103783611481501187">ಅತಿವಾಸ್ತವಿಕವಾದ</translation>
+<translation id="3119672627216736407">ಅನುವಾದವು ಲಭ್ಯವಿದೆ</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">ಪೂಲ್‌ಗಳು</translation>
 <translation id="3122883569442693641">ಇನ್ನಷ್ಟು ವಿವರಗಳು</translation>
@@ -563,7 +564,7 @@
 <translation id="3492882532495507361"><ph name="OFFICE_COLOR" /> ಟೋನ್ ಹೊಂದಿರುವ <ph name="OFFICE_STYLE" /> ಆಫೀಸ್</translation>
 <translation id="3493187369049186498">ಡೇಟಾವನ್ನು ನಿಮ್ಮ Chromebook ಮೂಲಕ ಅಳೆಯಲಾಗುತ್ತದೆ. ಇದು ಪೂರೈಕೆದಾರರ ಡೇಟಾದಿಂದ ಭಿನ್ನವಾಗಿರಬಹುದು.</translation>
 <translation id="3502426834823382181">ಎಲ್ಲಾ ಆ್ಯಪ್‌ಗಳನ್ನು ವೀಕ್ಷಿಸಿ</translation>
-<translation id="3510890413042482857"><ph name="BEGIN_LINK1" />ಕಾರ್ಯಕ್ಷಮತೆ ಟ್ರೇಸ್ ಡೇಟಾ<ph name="END_LINK1" /> ಕಳುಹಿಸಿ</translation>
+<translation id="3510890413042482857"><ph name="BEGIN_LINK1" />ಪರ್ಫಾರ್ಮೆನ್ಸ್ ಟ್ರೇಸ್ ಡೇಟಾ<ph name="END_LINK1" /> ಕಳುಹಿಸಿ</translation>
 <translation id="3517001332549868749">ChromeOS ಅಪ್‌ಡೇಟ್</translation>
 <translation id="3527036260304016759">ವಿಫಲವಾಗಿದೆ - ಅಪರಿಚಿತ ದೋಷ</translation>
 <translation id="353214771040290298">ಎಡಿಟ್ ಮಾಡುವುದು ಮುಗಿದಿದೆ</translation>
@@ -1137,6 +1138,7 @@
 <translation id="6058625436358447366">ಪೂರ್ಣಗೊಳಿಸಲು, ನಿಮ್ಮ ಹಳೆಯ ಹಾಗೂ ಹೊಸ ಪಾಸ್‌ವರ್ಡ್‌ಗಳನ್ನು ನಮೂದಿಸಿ</translation>
 <translation id="6061772781719867950">HTTP ವಿನಂತಿಗಳು ವಿಫಲವಾಗಿವೆ</translation>
 <translation id="6073292342939316679">ಕೀಬೋರ್ಡ್ ಪ್ರಖರತೆಯನ್ನು ಕಡಿಮೆ ಮಾಡಿ</translation>
+<translation id="6074608334942655098">ಅನುವಾದಿಸುವುದನ್ನು ನಿಲ್ಲಿಸಿ</translation>
 <translation id="6074752328838739425">ಸಾರಾಂಶವನ್ನು ಮರೆಮಾಡಿ</translation>
 <translation id="6075872808778243331">(Android) HTTP ವಿಳಂಬ</translation>
 <translation id="6078323886959318429">ಶಾರ್ಟ್‌ಕಟ್ ಸೇರಿಸಿ</translation>
@@ -1434,7 +1436,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">Chromebook ಸಹಾಯ ಫೋರಮ್‌ನಲ್ಲಿನ ತಜ್ಞರನ್ನು ಕೇಳಿ</translation>
-<translation id="7309823890857024809">ಕಪ್ಪು ಹಿನ್ನೆಲೆಯಲ್ಲಿ ಗಾಜಿನ ಹೂದಾನಿಯಲ್ಲಿ ಕೆಲವು ಪಾಪಾವರ್ ರಿಯಾ ಕಾಂಡಗಳ ಕನಿಷ್ಠ ಸ್ಥಿರ ಜೀವಿತಾವಧಿ.</translation>
 <translation id="7311368985037279727">ಕೀಬೋರ್ಡ್ ಬಣ್ಣ</translation>
 <translation id="7317831949569936035">ಶಾಲಾ ನೋಂದಣಿ</translation>
 <translation id="7319430975418800333">A3</translation>

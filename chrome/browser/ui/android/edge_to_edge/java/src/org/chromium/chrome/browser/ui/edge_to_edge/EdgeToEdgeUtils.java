@@ -5,8 +5,11 @@
 package org.chromium.chrome.browser.ui.edge_to_edge;
 
 import android.app.Activity;
+import android.content.Context;
+import android.os.Build;
 import android.os.Build.VERSION_CODES;
 import android.view.Window;
+import android.view.WindowInsets;
 
 import androidx.annotation.IntDef;
 import androidx.annotation.OptIn;
@@ -20,6 +23,7 @@ import org.chromium.base.Callback;
 import org.chromium.base.Log;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.base.supplier.Supplier;
 import org.chromium.blink.mojom.ViewportFit;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -32,6 +36,8 @@ import org.chromium.components.browser_ui.display_cutout.DisplayCutoutController
 import org.chromium.content_public.browser.WebContentsObserver;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.display.DisplayUtil;
+import org.chromium.ui.insets.InsetObserver;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -46,6 +52,7 @@ public class EdgeToEdgeUtils {
     private static @Nullable Boolean sIsTargetSdkEnforceEdgeToEdge;
     private static boolean sObservedTappableNavigationBar;
     private static boolean sAlwaysDrawWebEdgeToEdgeForTesting;
+    private static @Nullable Boolean sHas3ButtonNavBarForTesting;
 
     private static final String ELIGIBLE_HISTOGRAM = "Android.EdgeToEdge.Eligible";
     private static final String INELIGIBLE_REASON_HISTOGRAM =
@@ -72,10 +79,7 @@ public class EdgeToEdgeUtils {
         int NUM_TYPES = 4;
     }
 
-
-    /**
-     * The reason of why the navigation bar insets are missing.
-     */
+    /** The reason of why the navigation bar insets are missing. */
     // These values are persisted to logs. Entries should not be renumbered and
     // numeric values should never be reused.
     @IntDef({
@@ -109,7 +113,7 @@ public class EdgeToEdgeUtils {
      */
     @Deprecated
     public static boolean isChromeEdgeToEdgeFeatureEnabled() {
-        return isEdgeToEdgeBottomChinEnabled() || isEdgeToEdgeEverywhereEnabled();
+        return isBottomChinFeatureEnabled() || isEdgeToEdgeEverywhereEnabled();
     }
 
     /**
@@ -118,8 +122,67 @@ public class EdgeToEdgeUtils {
      * <p>When enabled, Chrome will replace the OS navigation bar with a thin "Chin" layer in the
      * browser controls and can be scrolled off the screen on web pages.
      */
-    public static boolean isEdgeToEdgeBottomChinEnabled() {
+    public static boolean isBottomChinFeatureEnabled() {
         return ChromeFeatureList.sEdgeToEdgeBottomChin.isEnabled();
+    }
+
+    /**
+     * Returns whether the configuration of the device should allow Edge To Edge bottom chin. Note
+     * the results are false-positive, if the method is called before the |activity|'s decor view
+     * being attached to the window.
+     */
+    public static boolean isEdgeToEdgeBottomChinEnabled(Activity activity) {
+        // Make sure we test SDK version before checking the Feature so Field Trials only collect
+        // from qualifying devices.
+        if (!EdgeToEdgeFieldTrial.getBottomChinOverrides().isEnabledForManufacturerVersion()) {
+            return false;
+        }
+
+        // The root view's window insets is too soon to determine if we are in 3-button gesture nav
+        // mode.
+        if (activity == null
+                || activity.getWindow() == null
+                || activity.getWindow().getDecorView().getRootWindowInsets() == null) {
+            return false;
+        }
+
+        // Not supported on tablet unless the flag is on.
+        if (!isEdgeToEdgeTabletEnabled() && isSupportedTablet(activity)) {
+            return false;
+        }
+
+        return isBottomChinFeatureEnabled()
+                && !BuildInfo.getInstance().isAutomotive
+                && !hasTappableNavigationBar(activity.getWindow());
+    }
+
+    /**
+     * This is a sensitive check for whether all insets indicate or imply that the device is in
+     * gesture navigation mode, and not tappable (3-button) navigation mode.
+     *
+     * @param insetObserver The InsetObserver in the current activity, used to retrieve the last
+     *     seen root view window insets.
+     * @return Whether all insets indicate the device is in gesture navigation mode.
+     */
+    public static boolean doAllInsetsIndicateGestureNavigation(InsetObserver insetObserver) {
+        WindowInsetsCompat rootInsets = insetObserver.getLastRawWindowInsets();
+        return rootInsets != null
+                && isInGestureNavigationMode(rootInsets)
+                && !hasTappableBarIgnoringTop(() -> rootInsets);
+    }
+
+    /** Whether the edge-to-edge feature is enabled on tablet. */
+    public static boolean isEdgeToEdgeTabletEnabled() {
+        return ChromeFeatureList.sEdgeToEdgeTablet.isEnabled();
+    }
+
+    /** Whether the device is a tablet and supports edge-to-edge. */
+    public static boolean isSupportedTablet(Context context) {
+        int widthThreshold = ChromeFeatureList.sEdgeToEdgeTabletMinWidthThreshold.getValue();
+        if (widthThreshold == -1) {
+            return DeviceFormFactor.isNonMultiDisplayContextOnTablet(context);
+        }
+        return DisplayUtil.getCurrentSmallestScreenWidth(context) >= widthThreshold;
     }
 
     /**
@@ -127,7 +190,7 @@ public class EdgeToEdgeUtils {
      * bottom chin.
      */
     public static boolean isEdgeToEdgeWebOptInEnabled() {
-        return isEdgeToEdgeBottomChinEnabled() && ChromeFeatureList.sEdgeToEdgeWebOptIn.isEnabled();
+        return isBottomChinFeatureEnabled() && ChromeFeatureList.sEdgeToEdgeWebOptIn.isEnabled();
     }
 
     /** Whether edge-to-edge should be enabled everywhere. */
@@ -160,7 +223,7 @@ public class EdgeToEdgeUtils {
 
     /** Whether key native pages should draw to edge. */
     public static boolean isDrawKeyNativePageToEdgeEnabled() {
-        return isEdgeToEdgeBottomChinEnabled()
+        return isBottomChinFeatureEnabled()
                 && ChromeFeatureList.sDrawKeyNativeEdgeToEdge.isEnabled();
     }
 
@@ -169,7 +232,7 @@ public class EdgeToEdgeUtils {
      * isEdgeToEdgeBottomChinEnabled}.
      */
     public static boolean isSafeAreaConstraintEnabled() {
-        return isEdgeToEdgeBottomChinEnabled()
+        return isBottomChinFeatureEnabled()
                 && ChromeFeatureList.sEdgeToEdgeSafeAreaConstraint.isEnabled();
     }
 
@@ -200,7 +263,8 @@ public class EdgeToEdgeUtils {
                     IneligibilityReason.NUM_TYPES);
         }
 
-        if (DeviceFormFactor.isNonMultiDisplayContextOnTablet(activity)) {
+        if (!EdgeToEdgeUtils.isEdgeToEdgeTabletEnabled()
+                && EdgeToEdgeUtils.isSupportedTablet(activity)) {
             eligible = false;
             RecordHistogram.recordEnumeratedHistogram(
                     INELIGIBLE_REASON_HISTOGRAM,
@@ -235,8 +299,7 @@ public class EdgeToEdgeUtils {
      */
     public static void recordIfMissingNavigationBar(@MissingNavbarInsetsReason int reason) {
         RecordHistogram.recordEnumeratedHistogram(
-                    MISSING_NAVBAR_INSETS_HISTOGRAM, reason,
-                    MissingNavbarInsetsReason.NUM_ENTRIES);
+                MISSING_NAVBAR_INSETS_HISTOGRAM, reason, MissingNavbarInsetsReason.NUM_ENTRIES);
     }
 
     /**
@@ -249,7 +312,7 @@ public class EdgeToEdgeUtils {
     static boolean shouldDrawToEdge(
             boolean isPageOptedIntoEdgeToEdge, @LayoutType int layoutType, int bottomInset) {
         return isPageOptedIntoEdgeToEdge
-                || (isEdgeToEdgeBottomChinEnabled() && isBottomChinAllowed(layoutType, bottomInset))
+                || (isBottomChinFeatureEnabled() && isBottomChinAllowed(layoutType, bottomInset))
                 || (isDrawKeyNativePageToEdgeEnabled()
                         && layoutType == LayoutType.TAB_SWITCHER
                         && !ChromeFeatureList.sDrawKeyNativeEdgeToEdgeDisableHubE2e.getValue());
@@ -333,19 +396,38 @@ public class EdgeToEdgeUtils {
 
     /**
      * @return whether the given window's insets indicate a tappable navigation bar.
+     * @deprecated Use {@link #hasTappableNavigationBar(Supplier)}.
      */
+    @Deprecated
     static boolean hasTappableNavigationBar(Window window) {
+        Supplier<WindowInsetsCompat> insetsSupplier =
+                () -> {
+                    var rootInsets = window.getDecorView().getRootWindowInsets();
+                    assert rootInsets != null;
+
+                    return WindowInsetsCompat.toWindowInsetsCompat(rootInsets);
+                };
+        return hasTappableNavigationBar(insetsSupplier);
+    }
+
+    /**
+     * @param insetsSupplier Supplier for the root window insets.
+     * @return whether the given window's insets indicate a tappable navigation bar.
+     */
+    static boolean hasTappableNavigationBar(Supplier<WindowInsetsCompat> insetsSupplier) {
+        if (sHas3ButtonNavBarForTesting != null) {
+            return sHas3ButtonNavBarForTesting;
+        }
+
         if (sObservedTappableNavigationBar
                 && ChromeFeatureList.sEdgeToEdgeMonitorConfigurations.isEnabled()) {
             return true;
         }
 
-        var rootInsets = window.getDecorView().getRootWindowInsets();
+        var rootInsets = insetsSupplier.get();
         assert rootInsets != null;
 
-        boolean hasTappableNavBar =
-                hasTappableNavigationBarFromInsets(
-                        WindowInsetsCompat.toWindowInsetsCompat(rootInsets));
+        boolean hasTappableNavBar = hasTappableNavigationBarFromInsets(rootInsets);
         sObservedTappableNavigationBar |= hasTappableNavBar;
         return hasTappableNavBar;
     }
@@ -358,6 +440,33 @@ public class EdgeToEdgeUtils {
         return (navigationBarInsets.bottom > 0 && tappableElementInsets.bottom > 0)
                 || (navigationBarInsets.left > 0 && tappableElementInsets.left > 0)
                 || (navigationBarInsets.right > 0 && tappableElementInsets.right > 0);
+    }
+
+    /**
+     * @param insetsSupplier Supplier for the root window insets.
+     * @return whether the given window's insets indicate a tappable bar, ignoring the top status
+     *     bar inset.
+     */
+    static boolean hasTappableBarIgnoringTop(Supplier<WindowInsetsCompat> insetsSupplier) {
+        if (sHas3ButtonNavBarForTesting != null) {
+            return sHas3ButtonNavBarForTesting;
+        }
+
+        var rootInsets = insetsSupplier.get();
+        assert rootInsets != null;
+
+        return hasTappableBarFromInsetsIgnoringTop(rootInsets);
+    }
+
+    /**
+     * Returns whether the given window's insets contains a tappable bar, ignoring the top status
+     * bar insets.
+     */
+    static boolean hasTappableBarFromInsetsIgnoringTop(WindowInsetsCompat insets) {
+        Insets tappableElementInsets = insets.getInsets(WindowInsetsCompat.Type.tappableElement());
+        return tappableElementInsets.bottom > 0
+                || tappableElementInsets.left > 0
+                || tappableElementInsets.right > 0;
     }
 
     /**
@@ -386,6 +495,28 @@ public class EdgeToEdgeUtils {
         ResettersForTesting.register(() -> sObservedTappableNavigationBar = false);
     }
 
+    public static void setHas3ButtonNavBarForTesting(Boolean has3ButtonNavBar) {
+        sHas3ButtonNavBarForTesting = has3ButtonNavBar;
+        ResettersForTesting.register(() -> sHas3ButtonNavBarForTesting = null);
+    }
+
+    /** Returns whether the insets indicate that the device is in gesture navigation mode. */
+    public static boolean isInGestureNavigationMode(WindowInsetsCompat insets) {
+        Insets mandatorySystemGesturesInsets =
+                insets.getInsets(WindowInsetsCompat.Type.mandatorySystemGestures());
+        Insets systemGesturesInsets = insets.getInsets(WindowInsetsCompat.Type.systemGestures());
+        Insets nonMandatorySystemGestures =
+                Insets.subtract(systemGesturesInsets, mandatorySystemGesturesInsets);
+
+        // In gesture navigation mode, the left and right sides have insets for swiping gestures,
+        // but these are not considered mandatory system gestures. These non-mandatory gesture
+        // insets do not appear in 3-button navigation mode. Note, though, that even in gesture
+        // navigation mode, one side may not show an inset when in landscape mode, as the side with
+        // the display cutout / camera will not show a gesture inset (the other side will still show
+        // an inset).
+        return nonMandatorySystemGestures.left > 0 || nonMandatorySystemGestures.right > 0;
+    }
+
     /**
      * A class to store the debugging info for edge-to-edge error case, when EdgeToEdgeController is
      * presented in an unsupported configuration.
@@ -393,55 +524,69 @@ public class EdgeToEdgeUtils {
     public static class EdgeToEdgeDebuggingInfo {
         boolean mHasUploaded;
         @Nullable @MissingNavbarInsetsReason Integer mMissingNavBarReason;
+        @Nullable String mUploadMessage;
+        final Callback<String> mReportUploadCallback;
 
         /**
-         * Gather the current debug information
+         * Create an EdgeToEdgeDebuggingInfo for logging info useful to debugging edge-to-edge
+         * issues.
          *
-         * @param window The current window.
-         * @param windowAndroid The window android of the activity.
-         * @param hasEdgeToEdgeController Whether the activity has an EdgeToEdgeController.
-         * @param isSupportedConfiguration Whether the activity supports for edge-to-edge.
-         * @param callSite The call site of the debugging info.
          * @param reportUploadCallback The callback to update debugging report.
          */
-        public void buildDebugReport(
-                @Nullable Window window,
-                @Nullable WindowAndroid windowAndroid,
+        public EdgeToEdgeDebuggingInfo(Callback<String> reportUploadCallback) {
+            mReportUploadCallback = reportUploadCallback;
+        }
+
+        /**
+         * Add to the current debug information
+         *
+         * @param callSite The call site of the debugging info.
+         * @param hasEdgeToEdgeController Whether the activity has an EdgeToEdgeController.
+         * @param isSupportedConfiguration Whether the activity supports for edge-to-edge.
+         * @param window The current window.
+         * @param windowAndroid The window android of the activity.
+         */
+        public void addToDebugReport(
+                String callSite,
                 boolean hasEdgeToEdgeController,
                 boolean isSupportedConfiguration,
-                String callSite,
-                Callback<String> reportUploadCallback) {
+                @Nullable Window window,
+                @Nullable WindowAndroid windowAndroid) {
             if (mHasUploaded || !ChromeFeatureList.sEdgeToEdgeDebugging.isEnabled()) return;
-
             if (!isCaseOfInterests(hasEdgeToEdgeController, window)) return;
 
-            String state =
-                    "EdgeToEdgeDebugging: callSite: "
-                            + callSite
-                            + " \nEdgeToEdgeController hasValue: "
-                            + hasEdgeToEdgeController
-                            + " \nisSupportedConfiguration: "
-                            + isSupportedConfiguration
-                            + " \nedgeToEdgeEverywhere: "
-                            + EdgeToEdgeUtils.isEdgeToEdgeEverywhereEnabled()
-                            + " \nobservedTappableNavigationBar: "
-                            + sObservedTappableNavigationBar
-                            + " \nmissingNavBarReason: "
-                            + mMissingNavBarReason;
-
-            String rootInsetsState = "";
-            if (window != null && window.getDecorView().getRootWindowInsets() != null) {
-                var rootWindowInsets =
-                        WindowInsetsCompat.toWindowInsetsCompat(
-                                window.getDecorView().getRootWindowInsets());
-                var insetsString =
-                        rootWindowInsets.getInsets(WindowInsetsCompat.Type.systemBars()).toString();
-                rootInsetsState = " \nrootWindowInsets: " + insetsString;
+            if (mUploadMessage == null) {
+                mUploadMessage =
+                        "EdgeToEdgeDebugging:"
+                                + " \nedgeToEdgeEverywhere: "
+                                + EdgeToEdgeUtils.isEdgeToEdgeEverywhereEnabled()
+                                + " \nmissingNavBarReason: "
+                                + mMissingNavBarReason;
             }
 
+            String hasSeenNonZeroNavBar = "";
+            String rawWindowInsetsIndicateGestureNav = "";
             String rawWindowInsetsState = "";
+            String rawWindowInsetsIgnoringVisibilityState = "";
+            String rawWindowInsetsTappableState = "";
+            String rawWindowInsetsSystemGesturesState = "";
             if (windowAndroid != null && windowAndroid.getInsetObserver() != null) {
+                hasSeenNonZeroNavBar =
+                        " \nhasSeenNonZeroNavBar: "
+                                + windowAndroid
+                                        .getInsetObserver()
+                                        .hasSeenNonZeroNavigationBarInsets();
+
                 var lastRawWindowInsets = windowAndroid.getInsetObserver().getLastRawWindowInsets();
+                var gestureNavString =
+                        lastRawWindowInsets == null
+                                ? "null"
+                                : Boolean.toString(
+                                        EdgeToEdgeUtils.isInGestureNavigationMode(
+                                                lastRawWindowInsets));
+                rawWindowInsetsIndicateGestureNav =
+                        "\nisGestureNav (from lastRawWindowInsets): " + gestureNavString;
+
                 var insetsString =
                         lastRawWindowInsets == null
                                 ? "null"
@@ -449,11 +594,115 @@ public class EdgeToEdgeUtils {
                                         .getInsets(WindowInsetsCompat.Type.systemBars())
                                         .toString();
                 rawWindowInsetsState = " \nlastRawWindowInsets: " + insetsString;
+
+                var insetsIgnoringVisibilityString =
+                        lastRawWindowInsets == null
+                                ? "null"
+                                : lastRawWindowInsets
+                                        .getInsetsIgnoringVisibility(
+                                                WindowInsetsCompat.Type.systemBars())
+                                        .toString();
+                rawWindowInsetsIgnoringVisibilityState =
+                        " \nlastRawWindowInsets ignoringVisibility: "
+                                + insetsIgnoringVisibilityString;
+
+                var tappableInsetsString =
+                        lastRawWindowInsets == null
+                                ? "null"
+                                : lastRawWindowInsets
+                                        .getInsetsIgnoringVisibility(
+                                                WindowInsetsCompat.Type.tappableElement())
+                                        .toString();
+                rawWindowInsetsTappableState =
+                        " \nlastRawWindowInsets tappable: " + tappableInsetsString;
+
+                var systemGesturesInsetsString =
+                        lastRawWindowInsets == null
+                                ? "null"
+                                : lastRawWindowInsets
+                                        .getInsetsIgnoringVisibility(
+                                                WindowInsetsCompat.Type.systemGestures())
+                                        .toString();
+                rawWindowInsetsSystemGesturesState =
+                        " \nlastRawWindowInsets systemGestures: " + systemGesturesInsetsString;
             }
+
+            String windowMetricsIndicateGestureNav = "";
+            String windowMetricsInsetsState = "";
+            String windowMetricsInsetsStateTappable = "";
+            String windowMetricsInsetsStateSystemGestures = "";
+            if (Build.VERSION.SDK_INT >= VERSION_CODES.R) {
+                if (window != null
+                        && window.getWindowManager() != null
+                        && window.getWindowManager().getCurrentWindowMetrics() != null) {
+                    WindowInsets windowInsets =
+                            window.getWindowManager().getCurrentWindowMetrics().getWindowInsets();
+
+                    var gestureNavString =
+                            windowInsets == null
+                                    ? "null"
+                                    : Boolean.toString(
+                                            EdgeToEdgeUtils.isInGestureNavigationMode(
+                                                    WindowInsetsCompat.toWindowInsetsCompat(
+                                                            windowInsets)));
+                    windowMetricsIndicateGestureNav =
+                            "\nisGestureNav (from windowMetrics): " + gestureNavString;
+
+                    var insetsString =
+                            windowInsets == null
+                                    ? "null"
+                                    : windowInsets
+                                            .getInsets(WindowInsets.Type.systemBars())
+                                            .toString();
+                    windowMetricsInsetsState = " \nwindowMetricsInsets: " + insetsString;
+
+                    var insetsStringTappable =
+                            windowInsets == null
+                                    ? "null"
+                                    : windowInsets
+                                            .getInsets(WindowInsets.Type.tappableElement())
+                                            .toString();
+                    windowMetricsInsetsStateTappable =
+                            " \nwindowMetricsInsetsTappable: " + insetsStringTappable;
+
+                    var insetsStringSystemGestures =
+                            windowInsets == null
+                                    ? "null"
+                                    : windowInsets
+                                            .getInsets(WindowInsets.Type.systemGestures())
+                                            .toString();
+                    windowMetricsInsetsStateSystemGestures =
+                            " \nwindowMetricsInsetsSystemGestures: " + insetsStringSystemGestures;
+                }
+            }
+            mUploadMessage +=
+                    "\nand\ncallSite: "
+                            + callSite
+                            + "\nhasSeenNonZeroNavBar"
+                            + hasSeenNonZeroNavBar
+                            + "\nisSupportedConfiguration: "
+                            + isSupportedConfiguration
+                            + " \nobservedTappableNavigationBar: "
+                            + sObservedTappableNavigationBar
+                            + rawWindowInsetsIndicateGestureNav
+                            + rawWindowInsetsState
+                            + rawWindowInsetsIgnoringVisibilityState
+                            + rawWindowInsetsTappableState
+                            + rawWindowInsetsSystemGesturesState
+                            + windowMetricsIndicateGestureNav
+                            + windowMetricsInsetsState
+                            + windowMetricsInsetsStateTappable
+                            + windowMetricsInsetsStateSystemGestures;
+        }
+
+        /** Uploads the current report. */
+        public void uploadReport() {
+            if (mHasUploaded || !ChromeFeatureList.sEdgeToEdgeDebugging.isEnabled()) return;
+            if (mUploadMessage == null) return;
 
             // Ensure report is only sent once.
             mHasUploaded = true;
-            reportUploadCallback.onResult(state + rootInsetsState + rawWindowInsetsState);
+            mReportUploadCallback.onResult(mUploadMessage);
         }
 
         /** Returns whether the the instance has uploaded any report. */

@@ -14,6 +14,7 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/callback_forward.h"
+#include "base/logging.h"
 #include "base/values.h"
 #include "base/version.h"
 #include "chrome/browser/browser_process.h"
@@ -25,11 +26,10 @@
 #include "content/public/browser/browser_thread.h"
 #include "crypto/sha2.h"
 
-using ::optimization_guide::OnDeviceModelComponentStateManager;
-
 namespace component_updater {
-
 namespace {
+
+using ::optimization_guide::OnDeviceModelComponentStateManager;
 
 // Extension id is fklghjjljmnfjoepjmlobpekiapffcja.
 constexpr char kManifestName[] = "Optimization Guide On Device Model";

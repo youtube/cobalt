@@ -69,14 +69,18 @@ import java.util.function.Predicate;
 /** Responsible for navigating to new pages and going back to previous pages. */
 public class CustomTabActivityNavigationController
         implements StartStopWithNativeObserver, BackPressHandler, OnSystemNavigationObserver {
+    static final String HISTOGRAM_FINISH_REASON = "CustomTabs.Navigation.FinishReason";
+
     private static final String TAG = "CTANavigationCtrl";
 
+    // LINT.IfChange(FinishReason)
     @IntDef({
         FinishReason.USER_NAVIGATION,
         FinishReason.REPARENTING,
         FinishReason.OTHER,
         FinishReason.OPEN_IN_BROWSER,
-        FinishReason.HANDLED_BY_OS
+        FinishReason.HANDLED_BY_OS,
+        FinishReason.NUM_TYPES
     })
     @Target(ElementType.TYPE_USE)
     @Retention(RetentionPolicy.SOURCE)
@@ -88,7 +92,10 @@ public class CustomTabActivityNavigationController
         // The web page is opened in the default browser by starting a new activity.
         int OPEN_IN_BROWSER = 3;
         int HANDLED_BY_OS = 4;
+        int NUM_TYPES = 5;
     }
+
+    // LINT.ThenChange(//tools/metrics/histograms/metadata/custom_tabs/enums.xml:FinishReason)
 
     /** A handler of back presses. */
     public interface BackHandler {
@@ -145,12 +152,7 @@ public class CustomTabActivityNavigationController
                 }
 
                 private boolean shouldInterceptBackPress() {
-                    // If this is the first tab created or when all other tabs are closed, we want
-                    // the OS to handle the back event then notify the registered observer that the
-                    // back event has happened.
-                    if (supportsPredictiveBackGesture()
-                            && mTabController.onlyOneTabRemaining()
-                            && !mIntentDataProvider.isPartialCustomTab()) {
+                    if (shouldDeferToOs()) {
                         return false;
                     }
                     return mTabProvider.getTab() != null
@@ -186,7 +188,8 @@ public class CustomTabActivityNavigationController
         ChromeBrowserInitializer.getInstance()
                 .runNowOrAfterFullBrowserStarted(
                         () -> {
-                            mBackPressStateSupplier.set(mTabProvider.getTab() != null);
+                            mBackPressStateSupplier.set(
+                                    mTabProvider.getTab() != null && !shouldDeferToOs());
                         });
     }
 
@@ -261,6 +264,10 @@ public class CustomTabActivityNavigationController
         if (mTabProvider.getTab() == null) return false;
 
         if (mTabController.onlyOneTabRemaining()) {
+            MinimizeAppAndCloseTabBackPressHandler.record(
+                    MinimizeAppAndCloseTabType.MINIMIZE_APP_AND_CLOSE_TAB);
+            MinimizeAppAndCloseTabBackPressHandler.recordForCustomTab(
+                    MinimizeAppAndCloseTabType.MINIMIZE_APP_AND_CLOSE_TAB, separateTask);
             finishActivity(reason, separateTask);
             return true;
         }
@@ -424,6 +431,10 @@ public class CustomTabActivityNavigationController
         if (mIsFinishing) return;
         mIsFinishing = true;
         mFinishReason = reason;
+
+        RecordHistogram.recordEnumeratedHistogram(
+                HISTOGRAM_FINISH_REASON, mFinishReason, FinishReason.NUM_TYPES);
+
         // Closing the activity destroys the renderer as well. Re-create a spare renderer some
         // time after, so that we have one ready for the next tab open. This does not increase
         // memory consumption, as the current renderer goes away. We create a renderer as a lot
@@ -500,6 +511,21 @@ public class CustomTabActivityNavigationController
         String assertMsg = "URL used to open browser is null. " + tabInfo + intentDataProviderInfo;
         Log.e(TAG, assertMsg);
         assert false : assertMsg;
+    }
+
+    private boolean shouldDeferToOs() {
+        // If this is the first tab created or when all other tabs are closed, we want
+        // the OS to handle the back event. This allows the predictive back gesture to
+        // show the "back to home" animation. The registered observer will be notified
+        // that the back event has been handled by the OS.
+        // Additionally, we verify that an initial tab has been set and the tab count is either one
+        // or zero if it is a tab that is being initially set before updating the tab count.
+        // This behavior is not applicable to partial custom tabs.
+        return supportsPredictiveBackGesture()
+                && (mTabProvider.getInitialTabCreationMode() != TabCreationMode.NONE
+                        && (mTabController.onlyOneTabRemaining()
+                                || mTabController.getTabCount() == 0))
+                && !mIntentDataProvider.isPartialCustomTab();
     }
 
     public BrowserServicesIntentDataProvider getIntentDataProviderForTesting() {

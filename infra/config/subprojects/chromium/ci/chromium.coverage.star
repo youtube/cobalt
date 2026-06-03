@@ -45,10 +45,8 @@ ci.defaults.set(
     execution_timeout = 20 * time.hour,
     health_spec = health_spec.DEFAULT,
     priority = ci.DEFAULT_FYI_PRIORITY,
-    reclient_enabled = False,
     service_account = ci.DEFAULT_SERVICE_ACCOUNT,
     shadow_service_account = ci.DEFAULT_SHADOW_SERVICE_ACCOUNT,
-    siso_enabled = True,
     siso_project = siso.project.DEFAULT_TRUSTED,
     siso_remote_jobs = siso.remote_jobs.DEFAULT,
 )
@@ -127,12 +125,12 @@ coverage_builder(
     ),
     targets = targets.bundle(
         targets = [
-            "android_pie_coverage_instrumentation_tests",
+            "android_coverage_instrumentation_tests",
             "chromium_junit_tests_scripts",
             "gtests_once",
         ],
         mixins = [
-            "chromium_pixel_2_pie",
+            "chromium_pixel_2_q",
             "has_native_resultdb_integration",
             "isolate_profile_data",
         ],
@@ -197,7 +195,7 @@ coverage_webview_builder(
             "webview_fyi_bot_all_gtests",
         ],
         mixins = [
-            "chromium_pixel_2_pie",
+            "chromium_pixel_2_q",
             "has_native_resultdb_integration",
             "isolate_profile_data",
         ],
@@ -220,6 +218,7 @@ coverage_webview_builder(
 
 coverage_builder(
     name = "android-x86-code-coverage",
+    description_html = "Builder for creating x86 Android code coverage builds.",
     builder_spec = builder_config.builder_spec(
         gclient_config = builder_config.gclient_config(
             config = "chromium",
@@ -253,7 +252,7 @@ coverage_builder(
             "x86",
             "strip_debug_info",
             "android_fastbuild",
-            "webview_monochrome",
+            "webview_trichrome",
             "webview_shell",
             "use_java_coverage",
         ],
@@ -262,8 +261,8 @@ coverage_builder(
         targets = [
             targets.bundle(
                 targets = [
-                    "android_oreo_emulator_gtests",
-                    "oreo_isolated_scripts",
+                    "android_10_emulator_gtests",
+                    "android_10_isolated_scripts",
                 ],
                 mixins = targets.mixin(
                     args = [
@@ -280,104 +279,119 @@ coverage_builder(
         mixins = [
             "has_native_resultdb_integration",
             "isolate_profile_data",
-            "oreo-x86-emulator",
+            "10-x86-emulator",
             "emulator-4-cores",
             "linux-jammy",
             "x86-64",
         ],
         per_test_modifications = {
-            # Keep this same as android-oreo-x86-rel
+            # Keep this same as android-10-x86-rel
             "android_browsertests": targets.mixin(
+                args = [
+                    "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_10.android_browsertests.filter",
+                ],
                 ci_only = True,
                 swarming = targets.swarming(
                     shards = 9,
                 ),
             ),
-            # Keep this same as android-oreo-x86-rel
+            # Keep this same as android-10-x86-rel
             "android_sync_integration_tests": targets.mixin(
                 ci_only = True,
                 swarming = targets.swarming(
                     shards = 2,
                 ),
             ),
-            # Keep this same as android-oreo-x86-rel
+            # Keep this same as android-10-x86-rel
             "chrome_public_test_apk": targets.mixin(
                 args = [
                     "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_o.chrome_public_test_apk.filter",
                 ],
                 swarming = targets.swarming(
                     dimensions = {
+                        # use 8-core to shorten runtime
                         "cores": "8",
                     },
                     shards = 75,
                 ),
             ),
-            # Keep this same as android-oreo-x86-rel
-            "chrome_public_unit_test_apk": targets.mixin(
-                args = [
-                    "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_o.chrome_public_unit_test_apk.filter",
-                ],
-            ),
-            # Keep this same as android-oreo-x86-rel
+            # Keep this same as android-10-x86-rel
             "components_browsertests": targets.mixin(
                 swarming = targets.swarming(
                     shards = 4,
                 ),
             ),
-            # Keep this same as android-oreo-x86-rel
+            # Keep this same as android-10-x86-rel
             "content_browsertests": targets.mixin(
                 args = [
-                    "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_o.content_browsertests.filter",
+                    "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_10.content_browsertests.filter",
                 ],
                 swarming = targets.swarming(
                     dimensions = {
+                        # use 8-core to shorten runtime
                         "cores": "8",
                     },
                     shards = 75,
                 ),
             ),
+            # Keep this same as android-10-x86-rel
             "content_shell_crash_test": targets.remove(
                 reason = "crbug.com/1084353",
             ),
-            # Keep this same as android-oreo-x86-rel
+            # Keep this same as android-10-x86-rel
             "content_shell_test_apk": targets.mixin(
                 swarming = targets.swarming(
                     dimensions = {
+                        # use 8-core to shorten runtime
                         "cores": "8",
                     },
                     shards = 6,
                 ),
             ),
-            # Keep this same as android-oreo-x86-rel
+            # Keep this same as android-10-x86-rel
+            "content_unittests": targets.mixin(
+                ci_only = True,
+            ),
+            # Keep this same as android-10-x86-rel
             "gl_tests_validating": targets.mixin(
                 args = [
-                    "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_o_p_10.gl_tests.filter",
+                    "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_10.gl_tests.filter",
                 ],
             ),
-            # Keep this same as android-oreo-x86-rel
+            # Keep this same as android-10-x86-rel
             "perfetto_unittests": targets.mixin(
                 args = [
+                    # TODO(crbug.com/40201873): Fix the failed test
                     "--gtest_filter=-ScopedDirTest.CloseOutOfScope",
                 ],
             ),
-            # Keep this same as android-oreo-x86-rel
-            "services_unittests": targets.mixin(
+            # Keep this same as android-10-x86-rel
+            "media_unittests": targets.mixin(
                 args = [
-                    "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_o.services_unittests.filter",
+                    "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_10.media_unittests.filter",
                 ],
+                ci_only = True,
+            ),
+            # Keep this same as android-10-x86-rel
+            "services_unittests": targets.mixin(
+                ci_only = True,
                 swarming = targets.swarming(
                     shards = 3,
                 ),
             ),
-            # Keep this same as android-oreo-x86-rel
+            # Keep this same as android-10-x86-rel
+            "system_webview_shell_layout_test_apk": targets.mixin(
+                args = [
+                    # TODO(crbug.com/390676579): Fix the failed test
+                    "--gtest_filter=-org.chromium.webview_shell.test.WebViewLayoutTest.*",
+                ],
+                ci_only = True,
+            ),
+            # Keep this same as android-10-x86-rel
             "telemetry_chromium_minidump_unittests": targets.mixin(
                 ci_only = True,
             ),
-            # Keep this same as android-oreo-x86-rel
-            "telemetry_monochrome_minidump_unittests": targets.mixin(
-                ci_only = True,
-            ),
-            # Keep this same as android-oreo-x86-rel
+            # Keep this same as android-10-x86-rel
             "telemetry_perf_unittests_android_chrome": targets.mixin(
                 # For whatever reason, automatic browser selection on this bot chooses
                 # webview instead of the full browser, so explicitly specify it here.
@@ -386,20 +400,23 @@ coverage_builder(
                 ],
                 ci_only = True,
             ),
-            # Keep this same as android-oreo-x86-rel
+            # Keep this same as android-10-x86-rel
             "webview_instrumentation_test_apk_multiple_process_mode": targets.mixin(
                 args = [
+                    "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_10.webview_instrumentation_test_apk.filter",
                     "--use-persistent-shell",
                 ],
                 swarming = targets.swarming(
                     shards = 18,
                 ),
             ),
-            # Keep this same as android-oreo-x86-rel
+            # Keep this same as android-10-x86-rel
             "webview_instrumentation_test_apk_single_process_mode": targets.mixin(
                 args = [
                     "--use-persistent-shell",
                 ],
+                # Only multiple process tests run in CQ.
+                ci_only = True,
                 swarming = targets.swarming(
                     shards = 9,
                 ),
@@ -416,6 +433,7 @@ coverage_builder(
             short_name = "x86",
         ),
     ],
+    contact_team_email = "clank-engprod@google.com",
     coverage_test_types = ["overall", "unit"],
     export_coverage_to_zoss = True,
     siso_remote_jobs = siso.remote_jobs.HIGH_JOBS_FOR_CI,
@@ -469,7 +487,7 @@ coverage_builder(
             "gtests_once",
         ],
         mixins = [
-            "chromium_pixel_2_pie",
+            "chromium_pixel_2_q",
             "has_native_resultdb_integration",
             "isolate_profile_data",
         ],
@@ -503,18 +521,6 @@ coverage_builder(
             ),
             "content_shell_test_apk": targets.remove(
                 reason = "Does not generate profraw data.",
-            ),
-            "gin_unittests": targets.mixin(
-                args = [
-                    # https://crbug.com/1404782
-                    "--test-launcher-filter-file=../../testing/buildbot/filters/android.pie_arm64.gin_unittests.filter",
-                ],
-            ),
-            "gl_tests_validating": targets.mixin(
-                args = [
-                    # https://crbug.com/1034007
-                    "--test-launcher-filter-file=../../testing/buildbot/filters/android.pie_arm64_rel.gl_tests.filter",
-                ],
             ),
             "mojo_test_apk": targets.remove(
                 reason = "Does not generate profraw data.",
@@ -607,7 +613,7 @@ coverage_webview_builder(
             "webview_native_coverage_bot_gtests",
         ],
         mixins = [
-            "chromium_pixel_2_pie",
+            "chromium_pixel_2_q",
             "has_native_resultdb_integration",
             "isolate_profile_data",
         ],

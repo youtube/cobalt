@@ -9,7 +9,6 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Configuration;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Process;
 
@@ -162,14 +161,14 @@ public class SplitCompatApplication extends Application {
 
         Log.i(
                 TAG,
-                "version=%s (%s) minSdkVersion=%s isBundle=%s processName=%s isIsolatedProcess=%s",
+                "version=%s (%s) minSdkVersion=%s processName=%s isIsolatedProcess=%s splits=%s",
                 VersionConstants.PRODUCT_VERSION,
                 BuildConfig.VERSION_CODE,
                 BuildConfig.MIN_SDK_VERSION,
-                // BundleUtils uses getApplicationContext, so logging after we init it.
-                BundleUtils.isBundle(),
                 ContextUtils.getProcessName(),
-                isIsolatedProcess);
+                isIsolatedProcess,
+                // BundleUtils uses getApplicationContext, so logging after we init it.
+                BundleUtils.getInstalledSplitNamesForLogging());
 
         if (isBrowserProcess) {
             // This must come as early as possible to avoid early loading of the native library from
@@ -201,14 +200,9 @@ public class SplitCompatApplication extends Application {
 
         maybeInitProcessType();
 
-        if (isBrowserProcess) {
-            ChromeFeatureList.sSkipIsolatedSplitPreload.isEnabled();
+        if (isBrowserProcess && !ChromeFeatureList.sSkipIsolatedSplitPreload.isEnabled()) {
             performBrowserProcessPreloading(context);
         }
-
-        // Write installed modules to crash keys. This needs to be done as early as possible so
-        // that these values are set before any crashes are reported.
-        ModuleUtil.updateCrashKeys();
 
         AsyncTask.takeOverAndroidThreadPool();
         ResourceBundle.setAvailablePakLocales(ProductConfig.LOCALES);
@@ -219,10 +213,7 @@ public class SplitCompatApplication extends Application {
             TraceEvent.begin(ATTACH_BASE_CONTEXT_EVENT);
         } else {
             checkAppBeingReplaced();
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                // Fixes are never required before O (where "cmd package compile" does not exist).
-                DexFixer.scheduleDexFix();
-            }
+            DexFixer.scheduleDexFix();
 
             PathUtils.setPrivateDataDirectorySuffix(PRIVATE_DATA_DIRECTORY_SUFFIX);
             // Renderer and GPU processes have command line passed to them via IPC
@@ -254,6 +245,9 @@ public class SplitCompatApplication extends Application {
                 AppLocaleUtils.maybeMigrateOverrideLanguage();
             }
         }
+
+        // Write installed modules to crash keys.
+        ModuleUtil.updateCrashKeys();
 
         // WebView installs its own PureJavaExceptionHandler.
         // Incremental install disables process isolation, so things in this block will
@@ -297,8 +291,11 @@ public class SplitCompatApplication extends Application {
     }
 
     private void maybeInitChromeSplitAndPreloadNativeLibrary() {
-        if (isBrowserProcess()) {
-            ChromeFeatureList.sSkipIsolatedSplitPreload.isEnabled();
+        if (isBrowserProcess()
+                && ChromeFeatureList.sSkipIsolatedSplitPreload.isEnabled()
+                && !BuildConfig.IS_FOR_TEST) {
+            new Thread(() -> LibraryLoader.getInstance().loadNow()).start();
+            performBrowserProcessPreloading(this, true);
         }
     }
 

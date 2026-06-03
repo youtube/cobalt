@@ -26,7 +26,6 @@
 #import "ios/chrome/browser/saved_tab_groups/favicon/coordinator/tab_group_favicons_grid_configurator.h"
 #import "ios/chrome/browser/saved_tab_groups/model/ios_tab_group_sync_util.h"
 #import "ios/chrome/browser/saved_tab_groups/ui/tab_group_utils.h"
-#import "ios/chrome/browser/share_kit/model/share_kit_face_pile_configuration.h"
 #import "ios/chrome/browser/share_kit/model/share_kit_service.h"
 #import "ios/chrome/browser/share_kit/model/sharing_state.h"
 #import "ios/chrome/browser/shared/model/web_state_list/tab_group.h"
@@ -60,9 +59,6 @@ using tab_groups::utils::GetLocalTabGroupInfo;
 using tab_groups::utils::LocalTabGroupInfo;
 
 namespace {
-
-// The preferred size in points for the avatar icons.
-constexpr CGFloat kFacePileAvatarSize = 24;
 
 using ScopedTabGroupSyncObservation =
     base::ScopedObservation<tab_groups::TabGroupSyncService,
@@ -219,16 +215,6 @@ NSString* CreationText(base::Time creation_date) {
   }
 }
 
-- (void)deleteSharedTabGroup:(const base::Uuid&)syncID {
-  [self takeActionForActionType:TabGroupActionType::kDeleteSharedTabGroup
-                 sharedTabGroup:syncID];
-}
-
-- (void)leaveSharedTabGroup:(const base::Uuid&)syncID {
-  [self takeActionForActionType:TabGroupActionType::kLeaveSharedTabGroup
-                 sharedTabGroup:syncID];
-}
-
 - (void)disconnect {
   if (_messagingService) {
     _messagingService->RemovePersistentMessageObserver(
@@ -379,7 +365,7 @@ NSString* CreationText(base::Time creation_date) {
                                                    cell.item.savedTabGroupID);
 }
 
-- (UIView*)facePileViewForItem:(TabGroupsPanelItem*)item {
+- (id<FacePileProviding>)facePileProviderForItem:(TabGroupsPanelItem*)item {
   if (!_shareKitService || !_shareKitService->IsSupported() ||
       !_collaborationService || !_tabGroupSyncService) {
     return nil;
@@ -390,17 +376,9 @@ NSString* CreationText(base::Time creation_date) {
   if (!group.has_value() || !group->collaboration_id().has_value()) {
     return nil;
   }
-  NSString* savedCollabID =
-      base::SysUTF8ToNSString(group->collaboration_id()->value());
 
-  // Configure the face pile.
-  ShareKitFacePileConfiguration* config =
-      [[ShareKitFacePileConfiguration alloc] init];
-  config.collabID = savedCollabID;
-  config.showsEmptyState = NO;
-  config.avatarSize = kFacePileAvatarSize;
-
-  return _shareKitService->FacePileView(config);
+  return [self.delegate
+      facePileProviderForGroupID:group->collaboration_id()->value()];
 }
 
 #pragma mark TabGroupsPanelMutator
@@ -625,51 +603,6 @@ NSString* CreationText(base::Time creation_date) {
   return userRole == data_sharing::MemberRole::kOwner
              ? SharingState::kSharedAndOwned
              : SharingState::kShared;
-}
-
-// Takes the corresponded action to `actionType` for the shared `groupSyncID`.
-// TabGroupActionType must be kLeaveSharedTabGroup or kDeleteSharedTabGroup.
-- (void)takeActionForActionType:(TabGroupActionType)actionType
-                 sharedTabGroup:(const base::Uuid&)groupSyncID {
-  std::optional<tab_groups::SavedTabGroup> group =
-      _tabGroupSyncService->GetGroup(groupSyncID);
-  if (!group || !group.has_value() || !group->collaboration_id().has_value()) {
-    return;
-  }
-
-  const tab_groups::CollaborationId collabId =
-      group->collaboration_id().value();
-  const data_sharing::GroupId groupId = data_sharing::GroupId(collabId.value());
-
-  __weak TabGroupsPanelMediator* weakSelf = self;
-  auto callback = base::BindOnce(^(bool success) {
-    [weakSelf handleTakeActionForActionTypeOutcome:success];
-  });
-
-  // TODO(crbug.com/393073658): Block the screen.
-
-  // Asynchronously call on the server.
-  switch (actionType) {
-    case TabGroupActionType::kLeaveSharedTabGroup:
-      _collaborationService->LeaveGroup(groupId, std::move(callback));
-      break;
-    case TabGroupActionType::kDeleteSharedTabGroup:
-      _collaborationService->DeleteGroup(groupId, std::move(callback));
-      break;
-    case TabGroupActionType::kUngroupTabGroup:
-    case TabGroupActionType::kDeleteTabGroup:
-    case TabGroupActionType::kLeaveOrKeepSharedTabGroup:
-    case TabGroupActionType::kDeleteOrKeepSharedTabGroup:
-      NOTREACHED();
-  }
-}
-
-// Called when `takeActionForActionType:forSharedTabGroup:` server's call
-// returned.
-- (void)handleTakeActionForActionTypeOutcome:(BOOL)success {
-  // TODO(crbug.com/393073658):
-  // - Unblock the screen.
-  // - Show an error if needed.
 }
 
 @end

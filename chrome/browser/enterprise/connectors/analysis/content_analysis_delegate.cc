@@ -195,11 +195,8 @@ void ContentAnalysisDelegate::Data::AddClipboardData(
     text.push_back(clipboard_paste_data.rtf);
   }
   if (!clipboard_paste_data.png.empty()) {
-    // Send image only to local agent for analysis.
-    if (settings.cloud_or_local_settings.is_local_analysis()) {
       image = std::string(clipboard_paste_data.png.begin(),
                           clipboard_paste_data.png.end());
-    }
   }
   if (!clipboard_paste_data.custom_data.empty()) {
     for (const auto& entry : clipboard_paste_data.custom_data) {
@@ -544,9 +541,15 @@ ContentAnalysisDelegate::ContentAnalysisDelegate(
   DCHECK(web_contents);
   profile_ = Profile::FromBrowserContext(web_contents->GetBrowserContext());
   url_ = web_contents->GetLastCommittedURL();
-  if (base::FeatureList::IsEnabled(kEnterpriseIframeDlpRulesSupport) &&
-      access_point_ == safe_browsing::DeepScanAccessPoint::UPLOAD) {
+  if (base::FeatureList::IsEnabled(kEnterpriseIframeDlpRulesSupport)) {
     frame_url_chain_ = CollectFrameUrls(web_contents);
+    base::UmaHistogramCustomCounts(
+        base::JoinString(
+            {"Enterprise.IframeDlpRulesSupport",
+             safe_browsing::DeepScanAccessPointToString(access_point_),
+             "UrlChainSize"},
+            "."),
+        frame_url_chain_.size(), 1, kMaxFrameUrls, 10);
   }
   title_ = base::UTF16ToUTF8(web_contents->GetTitle());
   user_action_id_ = base::HexEncode(base::RandBytesAsVector(128));
@@ -758,12 +761,18 @@ void ContentAnalysisDelegate::PrepareTextRequest() {
                                    /*buckets=*/50);
   }
 
-  if (!text_request_complete_) {
+  if (text_request_complete_) {
+    // When no text scan is required, mark `result_.text_results` as true so
+    // caller code doesn't interpret text data as being blocked. Note that the
+    // paste might still be blocked if the same paste action has its image
+    // request blocked.
+    std::fill(result_.text_results.begin(), result_.text_results.end(), true);
+  } else {
     text_request_handler_ = ClipboardRequestHandler::Create(
         this, GetBinaryUploadService(), profile_, url_,
         ClipboardRequestHandler::Type::kText, access_point_,
-        data_.clipboard_source, GetContentTransferMethod(),
-        std::move(full_text),
+        data_.clipboard_source, data_.source_content_area_email,
+        GetContentTransferMethod(), std::move(full_text),
         base::BindOnce(&ContentAnalysisDelegate::TextRequestCallback,
                        weak_ptr_factory_.GetWeakPtr()));
 
@@ -788,11 +797,18 @@ void ContentAnalysisDelegate::PrepareImageRequest() {
                                    /*buckets=*/50);
   }
 
-  if (!image_request_complete_) {
+  if (image_request_complete_) {
+    // When no image scan is required, mark `result_.image_result` as true so
+    // caller code doesn't interpret the image as being blocked. Note that the
+    // paste might still be blocked if the same paste action has its text
+    // request blocked.
+    result_.image_result = true;
+  } else {
     image_request_handler_ = ClipboardRequestHandler::Create(
         this, GetBinaryUploadService(), profile_, url_,
         ClipboardRequestHandler::Type::kImage, access_point_,
-        data_.clipboard_source, GetContentTransferMethod(), data_.image,
+        data_.clipboard_source, data_.source_content_area_email,
+        GetContentTransferMethod(), data_.image,
         base::BindOnce(&ContentAnalysisDelegate::ImageRequestCallback,
                        weak_ptr_factory_.GetWeakPtr()));
 
@@ -805,7 +821,11 @@ void ContentAnalysisDelegate::PreparePageRequest() {
   // prevents scanning.
   page_request_complete_ = !data_.page.IsValid();
 
-  if (!page_request_complete_) {
+  if (page_request_complete_) {
+    // When no print scan is required, mark `result_.page_result` as true so
+    // caller code doesn't interpret the print action as being blocked.
+    result_.page_result = true;
+  } else {
     page_print_request_handler_ = PagePrintRequestHandler::Create(
         this, GetBinaryUploadService(), profile_, url_, data_.printer_name,
         page_content_type_, std::move(data_.page),
@@ -987,7 +1007,8 @@ bool ContentAnalysisDelegate::text_request_required() const {
 bool ContentAnalysisDelegate::image_request_required() const {
   return !data_.image.empty() &&
          data_.image.size() <=
-             data_.settings.cloud_or_local_settings.max_file_size();
+             data_.settings.cloud_or_local_settings.max_file_size() &&
+         data_.settings.cloud_or_local_settings.is_local_analysis();
 }
 
 const AnalysisSettings& ContentAnalysisDelegate::settings() const {

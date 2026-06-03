@@ -19,9 +19,7 @@ try_.defaults.set(
     cores = 8,
     contact_team_email = "chrome-blink-engprod@google.com",
     execution_timeout = try_.DEFAULT_EXECUTION_TIMEOUT,
-    reclient_enabled = False,
     service_account = try_.DEFAULT_SERVICE_ACCOUNT,
-    siso_enabled = True,
     siso_project = siso.project.DEFAULT_UNTRUSTED,
     siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
 )
@@ -319,112 +317,6 @@ _rebaseline_builder(
     ),
     builderless = True,
     os = os.WINDOWS_ANY,
-)
-
-_mac_rebaseline_builder(
-    name = "mac11.0-blink-rel",
-    builder_spec = builder_config.builder_spec(
-        gclient_config = builder_config.gclient_config(
-            config = "chromium",
-        ),
-        chromium_config = builder_config.chromium_config(
-            config = "chromium",
-            apply_configs = [
-                "mb",
-            ],
-            build_config = builder_config.build_config.RELEASE,
-            target_bits = 64,
-            target_platform = builder_config.target_platform.MAC,
-        ),
-    ),
-    builder_config_settings = builder_config.try_settings(
-        retry_failed_shards = True,
-    ),
-    gn_args = gn_args.config(
-        configs = [
-            "release_builder",
-            "remoteexec",
-            "chrome_with_codecs",
-            "minimal_symbols",
-            "mac",
-            "x64",
-        ],
-    ),
-    targets = targets.bundle(
-        targets = [
-            "chromium_webkit_isolated_scripts",
-        ],
-        mixins = [
-            "mac_11_x64",
-        ],
-        per_test_modifications = {
-            "blink_wpt_tests": targets.mixin(
-                swarming = targets.swarming(
-                    hard_timeout_sec = 2400,
-                ),
-            ),
-            "blink_web_tests": targets.mixin(
-                swarming = targets.swarming(
-                    hard_timeout_sec = 2400,
-                ),
-            ),
-        },
-    ),
-    builderless = False,
-)
-
-_mac_rebaseline_builder(
-    name = "mac11.0.arm64-blink-rel",
-    builder_spec = builder_config.builder_spec(
-        gclient_config = builder_config.gclient_config(
-            config = "chromium",
-        ),
-        chromium_config = builder_config.chromium_config(
-            config = "chromium",
-            apply_configs = [
-                "mb",
-            ],
-            build_config = builder_config.build_config.RELEASE,
-            target_bits = 64,
-            target_platform = builder_config.target_platform.MAC,
-        ),
-        build_gs_bucket = "chromium-fyi-archive",
-    ),
-    builder_config_settings = builder_config.try_settings(
-        retry_failed_shards = True,
-    ),
-    gn_args = gn_args.config(
-        configs = [
-            "release_builder",
-            "remoteexec",
-            "chrome_with_codecs",
-            "arm64",
-            "minimal_symbols",
-            "mac",
-        ],
-    ),
-    targets = targets.bundle(
-        targets = [
-            "chromium_webkit_isolated_scripts",
-        ],
-        mixins = [
-            "mac_11_arm64",
-        ],
-        per_test_modifications = {
-            "blink_wpt_tests": targets.mixin(
-                swarming = targets.swarming(
-                    hard_timeout_sec = 2400,
-                ),
-            ),
-            "blink_web_tests": targets.mixin(
-                swarming = targets.swarming(
-                    hard_timeout_sec = 2400,
-                ),
-            ),
-        },
-    ),
-    cores = None,
-    cpu = cpu.ARM64,
 )
 
 _mac_rebaseline_builder(
@@ -881,5 +773,7 @@ _rebaseline_builder(
     targets_settings = targets.settings(
         os_type = targets.os_type.ANDROID,
     ),
+    builderless = True,
+    os = os.LINUX_DEFAULT,
     main_list_view = "try",
 )

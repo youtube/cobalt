@@ -59,6 +59,8 @@ extern NSString* const kToolbarButtonColor;
 extern NSString* const kToolbarShadowColor;
 
 // Colors of the omnibox.
+// Background color used in the mini fake omnibox of NTP customization.
+extern NSString* const kMiniFakeOmniboxBackgroundColor;
 // Background color for omnibox keyboard buttons.
 extern NSString* const kOmniboxKeyboardButtonColor;
 // Color for the omnibox popout overlay.
@@ -74,7 +76,6 @@ extern NSString* const kOmniboxSuggestionRowSeparatorColor;
 extern NSString* const kTabGroupFaviconBackgroundColor;
 
 // Color of the Tab Strip.
-extern NSString* const kTabStripBackgroundColor;
 extern NSString* const kTabStripV3BackgroundColor;
 // Color of the symbol of the Tab Strip new tab button.
 extern NSString* const kTabStripNewTabButtonColor;

@@ -28,7 +28,6 @@
 #include "chrome/browser/themes/theme_properties.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
-#include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/tab_contents/core_tab_helper.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert.h"
@@ -39,6 +38,7 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
+#include "chrome/browser/ui/views/event_utils.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/tabs/alert_indicator_button.h"
 #include "chrome/browser/ui/views/tabs/browser_tab_strip_controller.h"
@@ -227,6 +227,15 @@ Tab::Tab(TabSlotController* controller)
   // inside the tab shape, rather than to its extents.
   SetBorder(views::CreateEmptyBorder(tab_style_views()->GetContentsInsets()));
 
+#if BUILDFLAG(ENABLE_GLIC)
+  // For performance testing, pull a GlicBorderView into the tab UI to mimic use
+  // of a shader-based glow effect.
+  if (base::FeatureList::IsEnabled(features::kGlicTabGlow)) {
+    glic_border_view_ = AddChildView(
+        glic::GlicBorderView::Factory::Create(controller->GetBrowser()));
+  }
+#endif
+
   title_->SetHorizontalAlignment(gfx::ALIGN_TO_HEAD);
   title_->SetElideBehavior(gfx::FADE_TAIL);
   title_->SetHandlesTooltips(false);
@@ -330,6 +339,13 @@ void Tab::Layout(PassKey) {
   UpdateIconVisibility();
 
   const int start = contents_rect.x();
+
+#if BUILDFLAG(ENABLE_GLIC)
+  if (glic_border_view_) {
+    glic_border_view_->SetBoundsRect(contents_rect);
+    glic_border_view_->SetVisible(true);
+  }
+#endif
 
   // The bounds for the favicon will include extra width for the attention
   // indicator, but visually it will be smaller at kFaviconSize wide.
@@ -469,36 +485,33 @@ bool Tab::OnKeyPressed(const ui::KeyEvent& event) {
     return true;
   }
 
-  constexpr int kModifiedFlag =
-#if BUILDFLAG(IS_MAC)
-      ui::EF_COMMAND_DOWN;
-#else
-      ui::EF_CONTROL_DOWN;
-#endif
+  std::optional<event_utils::ReorderDirection> reorder_direction =
+      event_utils::GetReorderCommandForKeyboardEvent(event);
+  if (!reorder_direction) {
+    return false;
+  }
 
-  if (event.type() == ui::EventType::kKeyPressed &&
-      (event.flags() & kModifiedFlag)) {
-    const bool is_right = event.key_code() == ui::VKEY_RIGHT;
-    const bool is_left = event.key_code() == ui::VKEY_LEFT;
-    if (is_right || is_left) {
-      const bool is_rtl = base::i18n::IsRTL();
-      const bool is_next = (is_right && !is_rtl) || (is_left && is_rtl);
-      if (event.flags() & ui::EF_SHIFT_DOWN) {
-        if (is_next) {
-          controller()->MoveTabLast(this);
-        } else {
-          controller()->MoveTabFirst(this);
-        }
-      } else if (is_next) {
-        controller()->ShiftTabNext(this);
+  bool move_to_end = event.flags() & ui::EF_SHIFT_DOWN;
+  switch (*reorder_direction) {
+    case event_utils::ReorderDirection::kPrevious: {
+      if (move_to_end) {
+        controller()->MoveTabFirst(this);
       } else {
         controller()->ShiftTabPrevious(this);
       }
-      return true;
+      break;
+    }
+    case event_utils::ReorderDirection::kNext: {
+      if (move_to_end) {
+        controller()->MoveTabLast(this);
+      } else {
+        controller()->ShiftTabNext(this);
+      }
+      break;
     }
   }
 
-  return false;
+  return true;
 }
 
 bool Tab::OnKeyReleased(const ui::KeyEvent& event) {
@@ -846,54 +859,6 @@ std::optional<SkColor> Tab::GetGroupColor() const {
       controller_->GetGroupColorId(group().value()));
 }
 
-ui::ColorId Tab::GetAlertIndicatorColor(tabs::TabAlert state) const {
-  const ui::ColorProvider* color_provider = GetColorProvider();
-  if (!color_provider) {
-    return gfx::kPlaceholderColor;
-  }
-
-  int group;
-  switch (state) {
-    case tabs::TabAlert::MEDIA_RECORDING:
-    case tabs::TabAlert::AUDIO_RECORDING:
-    case tabs::TabAlert::VIDEO_RECORDING:
-    case tabs::TabAlert::DESKTOP_CAPTURING:
-      group = 0;
-      break;
-    case tabs::TabAlert::TAB_CAPTURING:
-    case tabs::TabAlert::PIP_PLAYING:
-    case tabs::TabAlert::GLIC_ACCESSING:
-      group = 1;
-      break;
-    case tabs::TabAlert::AUDIO_PLAYING:
-    case tabs::TabAlert::AUDIO_MUTING:
-    case tabs::TabAlert::BLUETOOTH_CONNECTED:
-    case tabs::TabAlert::BLUETOOTH_SCAN_ACTIVE:
-    case tabs::TabAlert::USB_CONNECTED:
-    case tabs::TabAlert::HID_CONNECTED:
-    case tabs::TabAlert::SERIAL_CONNECTED:
-    case tabs::TabAlert::VR_PRESENTING_IN_HEADSET:
-      group = 2;
-      break;
-  }
-
-  static constexpr std::array<std::array<std::array<ui::ColorId, 2>, 2>, 3>
-      color_ids{{{{{kColorTabAlertMediaRecordingInactiveFrameInactive,
-                    kColorTabAlertMediaRecordingInactiveFrameActive},
-                   {kColorTabAlertMediaRecordingActiveFrameInactive,
-                    kColorTabAlertMediaRecordingActiveFrameActive}}},
-                 {{{kColorTabAlertPipPlayingInactiveFrameInactive,
-                    kColorTabAlertPipPlayingInactiveFrameActive},
-                   {kColorTabAlertPipPlayingActiveFrameInactive,
-                    kColorTabAlertPipPlayingActiveFrameActive}}},
-                 {{{kColorTabAlertAudioPlayingInactiveFrameInactive,
-                    kColorTabAlertAudioPlayingInactiveFrameActive},
-                   {kColorTabAlertAudioPlayingActiveFrameInactive,
-                    kColorTabAlertAudioPlayingActiveFrameActive}}}}};
-  return color_ids[group][tab_style_views()->GetApparentActiveState() ==
-                          TabActive::kActive]
-                  [GetWidget()->ShouldPaintAsActive()];
-}
 
 bool Tab::IsActive() const {
   if (split()) {

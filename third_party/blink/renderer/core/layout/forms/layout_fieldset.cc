@@ -88,6 +88,10 @@ void LayoutFieldset::InsertedIntoTree() {
     case EDisplay::kInlineGrid:
       display = EDisplay::kGrid;
       break;
+    case EDisplay::kMasonry:
+    case EDisplay::kInlineMasonry:
+      display = EDisplay::kMasonry;
+      break;
     default:
       break;
   }
@@ -145,11 +149,8 @@ void LayoutFieldset::UpdateAnonymousChildStyle(
   }
   child_style_builder.SetColumnGap(StyleRef().ColumnGap());
   child_style_builder.SetColumnFill(StyleRef().GetColumnFill());
-  child_style_builder.SetColumnRuleColor(
-      GapDataList<StyleColor>(StyleColor(LayoutObject::ResolveColor(
-          StyleRef(), GetCSSPropertyColumnRuleColor()))));
-  child_style_builder.SetRowRuleColor(GapDataList<StyleColor>(StyleColor(
-      LayoutObject::ResolveColor(StyleRef(), GetCSSPropertyRowRuleColor()))));
+  child_style_builder.SetColumnRuleColor(StyleRef().ColumnRuleColor());
+  child_style_builder.SetRowRuleColor(StyleRef().RowRuleColor());
   child_style_builder.SetColumnRuleStyle(StyleRef().ColumnRuleStyle());
   child_style_builder.SetRowRuleStyle(StyleRef().RowRuleStyle());
   child_style_builder.SetColumnRuleWidth(

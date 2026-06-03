@@ -23,10 +23,8 @@ ci.defaults.set(
     contact_team_email = "chrome-gpu-infra@google.com",
     execution_timeout = ci.DEFAULT_EXECUTION_TIMEOUT,
     health_spec = health_spec.DEFAULT,
-    reclient_enabled = False,
     service_account = ci.DEFAULT_SERVICE_ACCOUNT,
     shadow_service_account = ci.DEFAULT_SHADOW_SERVICE_ACCOUNT,
-    siso_enabled = True,
     siso_project = siso.project.DEFAULT_TRUSTED,
     siso_remote_jobs = siso.remote_jobs.DEFAULT,
     thin_tester_cores = 2,
@@ -57,71 +55,6 @@ consoles.console_view(
             "Linux",
         ],
     },
-)
-
-ci.gpu.linux_builder(
-    name = "Android Release (Nexus 5X)",
-    description_html = "Runs a subset of release GPU tests on stable Nexus 5X configs",
-    builder_spec = builder_config.builder_spec(
-        gclient_config = builder_config.gclient_config(
-            config = "chromium",
-            apply_configs = [
-                "android",
-            ],
-        ),
-        chromium_config = builder_config.chromium_config(
-            config = "main_builder",
-            apply_configs = [
-                "download_xr_test_apks",
-                "mb",
-            ],
-            build_config = builder_config.build_config.RELEASE,
-            target_arch = builder_config.target_arch.ARM,
-            target_bits = 64,
-            target_platform = builder_config.target_platform.ANDROID,
-        ),
-        android_config = builder_config.android_config(
-            config = "base_config",
-        ),
-        build_gs_bucket = "chromium-gpu-archive",
-    ),
-    gn_args = gn_args.config(
-        configs = [
-            "gpu_tests",
-            "android_builder",
-            "release_builder",
-            "try_builder",
-            "remoteexec",
-            "arm64",
-            "static_angle",
-            "android_fastbuild",
-        ],
-    ),
-    targets = targets.bundle(
-        targets = [
-            "gpu_common_android_telemetry_tests",
-        ],
-        mixins = [
-            "chromium_nexus_5x_oreo",
-        ],
-        per_test_modifications = {
-            "trace_test": targets.mixin(
-                swarming = targets.swarming(
-                    shards = 2,
-                ),
-            ),
-        },
-    ),
-    targets_settings = targets.settings(
-        browser_config = targets.browser_config.ANDROID_CHROMIUM,
-        os_type = targets.os_type.ANDROID,
-        use_android_merge_script_by_default = False,
-    ),
-    console_view_entry = consoles.console_view_entry(
-        category = "Android",
-        short_name = "N5X",
-    ),
-    cq_mirrors_console_view = "mirrors",
 )
 
 ci.gpu.linux_builder(
@@ -168,7 +101,7 @@ ci.gpu.linux_builder(
             "gpu_common_android_telemetry_tests",
         ],
         mixins = [
-            "chromium_pixel_2_pie",
+            "chromium_pixel_2_q",
         ],
     ),
     targets_settings = targets.settings(
@@ -427,7 +360,7 @@ ci.gpu.windows_builder(
 ci.thin_tester(
     name = "Linux Debug (NVIDIA)",
     description_html = "Runs a subset of debug GPU tests on stable Linux/NVIDIA GTX 1660 configs",
-    triggered_by = ["GPU Linux Builder (dbg)"],
+    parent = "GPU Linux Builder (dbg)",
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -475,7 +408,7 @@ ci.thin_tester(
     name = "Linux Release (NVIDIA)",
     branch_selector = branches.selector.LINUX_BRANCHES,
     description_html = "Runs a subset of release GPU tests on stable Linux/NVIDIA GTX 1660 configs",
-    triggered_by = ["ci/GPU Linux Builder"],
+    parent = "ci/GPU Linux Builder",
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -524,7 +457,7 @@ ci.thin_tester(
 ci.thin_tester(
     name = "Mac Debug (Intel)",
     description_html = "Runs a subset of debug GPU tests on stable Mac/Intel UHD 630 Mac Mini configs",
-    triggered_by = ["GPU Mac Builder (dbg)"],
+    parent = "GPU Mac Builder (dbg)",
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -571,7 +504,7 @@ ci.thin_tester(
     name = "Mac Release (Intel)",
     branch_selector = branches.selector.MAC_BRANCHES,
     description_html = "Runs a subset of release GPU tests on stable Mac/Intel UHD 630 Mac Mini configs",
-    triggered_by = ["ci/GPU Mac Builder"],
+    parent = "ci/GPU Mac Builder",
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -611,7 +544,7 @@ ci.thin_tester(
 ci.thin_tester(
     name = "Mac Retina Debug (AMD)",
     description_html = "Runs a subset of debug GPU tests on stable Mac/AMD Macbook Pro configs",
-    triggered_by = ["GPU Mac Builder (dbg)"],
+    parent = "GPU Mac Builder (dbg)",
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -638,6 +571,13 @@ ci.thin_tester(
             "puppet_production",
         ],
         per_test_modifications = {
+            "pixel_skia_gold_metal_passthrough_graphite_test": targets.per_test_modification(
+                mixins = targets.mixin(
+                    swarming = targets.swarming(
+                        shards = 2,
+                    ),
+                ),
+            ),
             "tab_capture_end2end_tests": targets.remove(
                 reason = "Run these only on Release bots.",
             ),
@@ -657,7 +597,7 @@ ci.thin_tester(
     name = "Mac Retina Release (AMD)",
     branch_selector = branches.selector.MAC_BRANCHES,
     description_html = "Runs a subset of release GPU tests on stable Mac/AMD Macbook Pro configs",
-    triggered_by = ["ci/GPU Mac Builder"],
+    parent = "ci/GPU Mac Builder",
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -697,7 +637,7 @@ ci.thin_tester(
 ci.thin_tester(
     name = "Win10 x64 Debug (NVIDIA)",
     description_html = "Runs a subset of debug GPU tests on stable Windows 10/NVIDIA GTX 1660 configs",
-    triggered_by = ["GPU Win x64 Builder (dbg)"],
+    parent = "GPU Win x64 Builder (dbg)",
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -755,7 +695,7 @@ ci.thin_tester(
     name = "Win10 x64 Release (NVIDIA)",
     branch_selector = branches.selector.WINDOWS_BRANCHES,
     description_html = "Runs a subset of release GPU tests on stable Windows 10/NVIDIA GTX 1660 configs",
-    triggered_by = ["ci/GPU Win x64 Builder"],
+    parent = "ci/GPU Win x64 Builder",
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(

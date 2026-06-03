@@ -138,7 +138,6 @@ Oodake enne väljalogimist paar minutit. Kui logite kohe välja, siis need andme
 <translation id="4724297637870447613">Chrome'i kasutamine kõikjal</translation>
 <translation id="4738647308035481133">Google Chrome'i leht</translation>
 <translation id="4742795653798179840">Chrome'i andmed on kustutatud</translation>
-<translation id="4749294594657945639">Selleks et muudes rakendustes hõlpsasti oma salvestatud paroolidele juurde pääseda, valige funktsioon Chrome automaattäite jaoks.</translation>
 <translation id="4761869838909035636">Käita Chrome'i ohutuskontroll</translation>
 <translation id="4798859546468762093">Isikupärastatud kasutuskogemuse saamiseks ja muude funktsioonide kasutamiseks kaasake Chrome funktsioonidesse <ph name="FEATURE_NAME_1" /> ning <ph name="FEATURE_NAME_2" /></translation>
 <translation id="4819268619367838612">Rakenduse täiustamiseks saadab Chrome Google'ile kasutus- ja krahhiandmeid. <ph name="BEGIN_LINK" />Haldamine<ph name="END_LINK" /></translation>
@@ -215,6 +214,7 @@ Teie andmed on krüpteeritud teie parooliga. Chrome’i andmete kasutamiseks ja 
 <translation id="6533470733797826516">Logige Chrome'i automaattäite abil kiiremini sisse</translation>
 <translation id="6536544321553662809">Määrake Chrome oma vaikebrauseriks, et hõlpsalt linke jagada ja avada</translation>
 <translation id="6545449117344801102">Chrome tuvastab aadressid ning annab teile Google Mapsi abil juhiseid ja kohalikku teavet.</translation>
+<translation id="6611692150236062461">Selleks et muudes rakendustes hõlpsasti oma salvestatud paroolidele juurde pääseda, valige automaattäite jaoks Chrome.</translation>
 <translation id="6636941099779251629">Teie organisatsioon nõuab, et logiksite Chrome'i kasutamiseks sisse. <ph name="BEGIN_LINK" />Lisateave<ph name="END_LINK" /></translation>
 <translation id="6646696210740573446">Saadab privaatse serveri kaudu Google'ile URL-i hägustatud osa, mis peidab teie IP-aadressi. Kui sait üritab teie parooli varastada või laadite alla kahjuliku faili, võib Chrome saata Google'ile ka URL-e, sh lehe sisu.</translation>
 <translation id="6647304104688527905">Avab Chrome'is uue vahelehe.</translation>
@@ -313,6 +313,7 @@ Teie krüpteeritud andmeid saab lugeda ainult isik, kes teab teie parooli. Paroo
 Teie andmed krüpteeriti teie parooliga kuupäeval <ph name="TIME" />. Chrome’i andmete kasutamiseks ja salvestamiseks oma Google’i kontole sisestage parool.</translation>
 <translation id="8540666473246803645">Google Chrome</translation>
 <translation id="8544583291890527417">Hoiatab privaatsus- või turvaprobleemidest, mille Chrome teie eest tuvastab.</translation>
+<translation id="855027533751209304">Chrome'i nõuanne: otsige seda, mida näete</translation>
 <translation id="8558480467877843976">Nüüd saate kasutada Chrome'i iga kord, kui sirvite või puudutate linke sõnumites, dokumentides ja muudes rakendustes.</translation>
 <translation id="8603022514504485810">Google'i paroolihalduril ei õnnestunud kõiki paroole kontrollida. Proovige homme uuesti või <ph name="BEGIN_LINK" />kontrollige oma Google'i kontol paroole<ph name="END_LINK" />.</translation>
 <translation id="8630122478628016441">Lülitage sisse valik „Lukusta Chrome'i sulgemisel inkognito vahelehed“.</translation>

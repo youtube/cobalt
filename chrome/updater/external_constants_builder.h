@@ -22,6 +22,8 @@ enum class VerifierFormat;
 
 namespace updater {
 
+struct EventLoggingPermissionProvider;
+
 // ExternalConstantsBuilder uses the Builder design pattern to write a set of
 // overrides for default constant values to the file loaded by
 // ExternalConstantsOverrider. It is not thread-safe.
@@ -45,11 +47,20 @@ class ExternalConstantsBuilder {
   ExternalConstantsBuilder& SetCrashUploadURL(const std::string& url);
   ExternalConstantsBuilder& ClearCrashUploadURL();
 
-  ExternalConstantsBuilder& SetDeviceManagementURL(const std::string& url);
-  ExternalConstantsBuilder& ClearDeviceManagementURL();
-
   ExternalConstantsBuilder& SetAppLogoURL(const std::string& url);
   ExternalConstantsBuilder& ClearAppLogoURL();
+
+  ExternalConstantsBuilder& SetEventLoggingUrl(const std::string& url);
+  ExternalConstantsBuilder& ClearEventLoggingUrl();
+
+  ExternalConstantsBuilder& SetEventLoggingPermissionProvider(
+      std::optional<EventLoggingPermissionProvider>
+          event_logging_permission_provider);
+  ExternalConstantsBuilder& ClearEventLoggingPermissionProvider();
+
+  ExternalConstantsBuilder& SetMinimumEventLoggingCooldown(
+      base::TimeDelta cooldown);
+  ExternalConstantsBuilder& ClearMinimumEventLoggingCooldown();
 
   ExternalConstantsBuilder& SetUseCUP(bool use_cup);
   ExternalConstantsBuilder& ClearUseCUP();

@@ -30,6 +30,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
@@ -95,6 +96,7 @@
 #include "services/network/public/mojom/network_service_test.mojom.h"
 #include "services/network/public/mojom/system_dns_resolution.mojom-forward.h"
 #include "services/network/restricted_cookie_manager.h"
+#include "services/network/scheduler/network_service_scheduler.h"
 #include "services/network/tpcd/metadata/manager.h"
 #include "services/network/url_loader.h"
 
@@ -378,6 +380,11 @@ NetworkService::NetworkService(
     : net_log_(net::NetLog::Get()), registry_(std::move(registry)) {
   DCHECK(!g_network_service);
   g_network_service = this;
+
+  if (base::FeatureList::IsEnabled(features::kNetworkServiceScheduler)) {
+    scheduler_ = std::make_unique<NetworkServiceScheduler>();
+    scheduler_->SetUpNetTaskRunners();
+  }
 
   ContentDecodingInterceptor::SetIsNetworkServiceRunningInTheCurrentProcess(
       true, {});

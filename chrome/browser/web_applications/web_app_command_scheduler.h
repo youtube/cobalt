@@ -63,6 +63,7 @@ enum class LaunchWebAppWindowSetting;
 enum class RunOnOsLoginMode;
 enum class ManifestUpdateCheckResult;
 enum class ManifestUpdateResult;
+enum class ManifestSilentUpdateCheckResult;
 enum class NavigateAndTriggerInstallDialogCommandResult;
 struct CleanupOrphanedIsolatedWebAppsCommandError;
 struct CleanupOrphanedIsolatedWebAppsCommandSuccess;
@@ -84,6 +85,8 @@ class CopyBundleToCacheSuccess;
 enum class CopyBundleToCacheError;
 class GetBundleCachePathSuccess;
 enum class GetBundleCachePathError;
+class RemoveObsoleteBundleVersionsError;
+class RemoveObsoleteBundleVersionsSuccess;
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_MAC)
@@ -203,17 +206,17 @@ class WebAppCommandScheduler {
       ManifestUpdateCheckCompletedCallback callback,
       const base::Location& location = FROM_HERE);
 
+  using ManifestSilentUpdateCompletedCallback =
+      base::OnceCallback<void(ManifestSilentUpdateCheckResult check_result)>;
   // Schedule a command that performs fetching data from the manifest
   // for a manifest update. This is part of the predicatable app updating
   // algorithm that will be implemented. After implementation, this should
   // replace the current ScheduleManifestUpdateCheck.
   // For more details, go/predictable-app-updating-design-doc.
-  void ScheduleManifestUpdateCheckV2(
+  void ScheduleManifestSilentUpdate(
       const GURL& url,
-      const webapps::AppId& app_id,
-      base::Time check_time,
       base::WeakPtr<content::WebContents> contents,
-      ManifestUpdateCheckCompletedCallback callback,
+      ManifestSilentUpdateCompletedCallback callback,
       const base::Location& location = FROM_HERE);
 
   // Schedules a command that performs the data writes into the DB for
@@ -334,6 +337,14 @@ class WebAppCommandScheduler {
       base::OnceCallback<void(
           base::expected<CleanupBundleCacheSuccess, CleanupBundleCacheError>)>
           callback,
+      const base::Location& call_location = FROM_HERE);
+
+  void RemoveObsoleteIsolatedWebAppVersionsCache(
+      const IsolatedWebAppUrlInfo& url_info,
+      IwaCacheClient::SessionType session_type,
+      base::OnceCallback<
+          void(base::expected<RemoveObsoleteBundleVersionsSuccess,
+                              RemoveObsoleteBundleVersionsError>)> callback,
       const base::Location& call_location = FROM_HERE);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 

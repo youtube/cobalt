@@ -24,6 +24,7 @@
 #include "android_webview/browser/aw_devtools_manager_delegate.h"
 #include "android_webview/browser/aw_feature_list_creator.h"
 #include "android_webview/browser/aw_http_auth_handler.h"
+#include "android_webview/browser/aw_origin_matched_header.h"
 #include "android_webview/browser/aw_settings.h"
 #include "android_webview/browser/aw_speech_recognition_manager_delegate.h"
 #include "android_webview/browser/aw_web_contents_delegate.h"
@@ -63,10 +64,11 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "base/path_service.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "components/crash/content/browser/crash_handler_host_linux.h"
 #include "components/embedder_support/origin_trials/origin_trials_settings_storage.h"
@@ -643,9 +645,14 @@ void AwContentBrowserClient::GetAdditionalMappedFilesForChildProcess(
   CHECK_GE(fd, 0);
   mappings->ShareWithRegion(kAndroidWebView100PercentPakDescriptor, fd, region);
 
-  fd = ui::GetLocalePackFd(&region);
-  CHECK_GE(fd, 0);
-  mappings->ShareWithRegion(kAndroidWebViewLocalePakDescriptor, fd, region);
+  // WebView will (currently) only ever have one locale pak, compared to Clank,
+  // which has up to 2. This will change in the near future when we introduce
+  // genders to locales.
+  auto locale_paks = ui::GetLocalePaks();
+  CHECK_EQ(locale_paks.size(), 1u);
+  CHECK_GE(locale_paks.at(0).fd, 0);
+  mappings->ShareWithRegion(kAndroidWebViewLocalePakDescriptor,
+                            locale_paks.at(0).fd, locale_paks.at(0).region);
 
   int crash_signal_fd =
       crashpad::CrashHandlerHost::Get()->GetDeathSignalSocket();
@@ -955,11 +962,9 @@ bool AwContentBrowserClient::HandleExternalProtocol(
                     web_contents->GetBrowserContext()));
 
   // Pass WebContentsKey to look up AwContentsIoThreadClient in
-  // WebContentsToIoThreadClientMap later. Currently this is used only when a
-  // page is being prerendered.
-  // TODO(crbug.com/373474043): Use this even for non-prerendered pages.
+  // WebContentsToIoThreadClientMap later.
   std::optional<WebContentsKey> web_contents_key;
-  if (web_contents && web_contents->IsPrerenderedFrame(frame_tree_node_id)) {
+  if (web_contents) {
     web_contents_key = GetWebContentsKey(*web_contents);
   }
 
@@ -980,14 +985,16 @@ bool AwContentBrowserClient::HandleExternalProtocol(
              const net::IsolationInfo& isolation_info) {
             // Manages its own lifetime.
             new android_webview::AwProxyingURLLoaderFactory(
-                std::nullopt /* cookie_manager */,
-                nullptr /* cookie_access_policy */, isolation_info,
+                /* cookie_manager=*/std::nullopt,
+                /* cookie_access_policy=*/nullptr, isolation_info,
                 web_contents_key, frame_tree_node_id, std::move(receiver),
-                mojo::NullRemote(), true /* intercept_only */,
-                std::nullopt /* security_options */,
-                nullptr /* xrw_allowlist_matcher */,
+                mojo::NullRemote(),
+                /* intercept_only=*/true,
+                /* security_options=*/std::nullopt,
+                /* xrw_allowlist_matcher=*/nullptr,
+                /* origin_matched_headers=*/{},
                 std::move(browser_context_handle),
-                std::nullopt /* navigation_id */);
+                /* navigation_id=*/std::nullopt);
           },
           std::move(receiver), web_contents_key, frame_tree_node_id,
           std::move(browser_context_handle), isolation_info));
@@ -1163,13 +1170,9 @@ void AwContentBrowserClient::WillCreateURLLoaderFactory(
     }
 
     // Pass WebContentsKey to look up AwContentsIoThreadClient in
-    // WebContentsToIoThreadClientMap later. Currently this is used only when a
-    // page is being prerendered.
-    // TODO(crbug.com/373474043): Use this even for non-prerendered pages.
+    // WebContentsToIoThreadClientMap later.
     std::optional<WebContentsKey> web_contents_key;
-    if (web_contents->IsPrerenderedFrame(frame->GetFrameTreeNodeId())) {
-      web_contents_key = GetWebContentsKey(*web_contents);
-    }
+    web_contents_key = GetWebContentsKey(*web_contents);
 
     auto xrw_allowlist_matcher =
         AwSettings::FromWebContents(web_contents)->xrw_allowlist_matcher();
@@ -1182,6 +1185,7 @@ void AwContentBrowserClient::WillCreateURLLoaderFactory(
                        frame->GetFrameTreeNodeId(), std::move(proxied_receiver),
                        std::move(target_factory_remote), security_options,
                        std::move(xrw_allowlist_matcher),
+                       aw_browser_context->GetOriginMatchedHeaders(),
                        std::move(browser_context_handle), navigation_id));
   } else {
     // A service worker and worker subresources set nullptr to |frame|, and
@@ -1196,6 +1200,7 @@ void AwContentBrowserClient::WillCreateURLLoaderFactory(
             std::move(proxied_receiver), std::move(target_factory_remote),
             std::nullopt /* security_options */,
             aw_browser_context->service_worker_xrw_allowlist_matcher(),
+            aw_browser_context->GetOriginMatchedHeaders(),
             std::move(browser_context_handle), navigation_id));
   }
 }

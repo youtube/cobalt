@@ -403,9 +403,14 @@ void BindCredentialManager(
     mojo::PendingReceiver<blink::mojom::CredentialManager> receiver) {
   content::WebContents* web_contents =
       content::WebContents::FromRenderFrameHost(frame_host);
+  autofill::ContentAutofillClient* autofill_client =
+      autofill::ContentAutofillClient::FromWebContents(web_contents);
+  // Not every `WebContents` has a `ContentAutofillClient`.
+  if (!autofill_client) {
+    return;
+  }
   credential_management::ContentCredentialManager* content_credential_manager =
-      autofill::ContentAutofillClient::FromWebContents(web_contents)
-          ->GetContentCredentialManager();
+      autofill_client->GetContentCredentialManager();
 
   // Try to bind to the credential manager, but if it's not available for this
   // render frame host, the request will be just dropped. This will cause the

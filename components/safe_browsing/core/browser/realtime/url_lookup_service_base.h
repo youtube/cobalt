@@ -22,6 +22,7 @@
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/safe_browsing/core/browser/db/v4_protocol_manager_util.h"
 #include "components/safe_browsing/core/browser/referring_app_info.h"
+#include "components/safe_browsing/core/browser/safe_browsing_token_fetcher.h"
 #include "components/safe_browsing/core/browser/utils/backoff_operator.h"
 #include "components/safe_browsing/core/common/proto/csd.pb.h"
 #include "components/safe_browsing/core/common/proto/realtimeapi.pb.h"
@@ -81,6 +82,7 @@ class RealTimeUrlLookupServiceBase : public KeyedService {
       base::RepeatingCallback<ChromeUserPopulation()>
           get_user_population_callback,
       ReferrerChainProvider* referrer_chain_provider,
+      std::unique_ptr<SafeBrowsingTokenFetcher> token_fetcher,
       PrefService* pref_service,
       WebUIDelegate* webui_delegate);
 
@@ -111,6 +113,18 @@ class RealTimeUrlLookupServiceBase : public KeyedService {
       scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
       SessionID tab_id,
       std::optional<internal::ReferringAppInfo> referring_app_info);
+
+  // Start the full URL lookup for |url| and call |response_callback|
+  // on |callback_task_runner| when response is received. |use_cache| may be
+  // set to `false` to skip the URL verdict cache check.
+  // This function is overridden in unit tests.
+  virtual void StartMaybeCachedLookup(
+      const GURL& url,
+      RTLookupResponseCallback response_callback,
+      scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
+      SessionID tab_id,
+      std::optional<internal::ReferringAppInfo> referring_app_info,
+      bool use_cache);
 
   // Similar to the function StartLookup above,
   // but to send Protego sampled request specifically.
@@ -248,16 +262,22 @@ class RealTimeUrlLookupServiceBase : public KeyedService {
 
   // Gets access token, called if |CanPerformFullURLLookupWithToken| returns
   // true.
-  virtual void GetAccessToken(
+  void GetAccessToken(
       const GURL& url,
       RTLookupResponseCallback response_callback,
       scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
       SessionID tab_id,
-      std::optional<internal::ReferringAppInfo> referring_app_info) = 0;
+      std::optional<internal::ReferringAppInfo> referring_app_info);
 
-  // Called when the response from the server is unauthorized, so child classes
-  // can add extra handling when this happens.
-  virtual void OnResponseUnauthorized(const std::string& invalid_access_token);
+  // Called when the access token is obtained from |token_fetcher_|.
+  void OnGetAccessToken(
+      const GURL& url,
+      RTLookupResponseCallback response_callback,
+      scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
+      base::TimeTicks get_token_start_time,
+      SessionID tab_id,
+      std::optional<internal::ReferringAppInfo> referring_app_info,
+      const std::string& access_token);
 
   // Gets a dm token string to be set in a request proto.
   virtual std::optional<std::string> GetDMTokenString() const = 0;
@@ -317,9 +337,9 @@ class RealTimeUrlLookupServiceBase : public KeyedService {
   // Called when the response from the real-time lookup remote endpoint is
   // received. |url| is the URL that was looked up and can be used as a key into
   // the |pending_requests_| map. |access_token_string| is used for calling
-  // |OnResponseUnauthorized| in case the response code is HTTP_UNAUTHORIZED.
-  // |request_start_time| is the time when the request was sent.
-  // |response_body| is the response received.
+  // |SafeBrowsingTokenFetcher::OnInvalidAccessToken| in case the response code
+  // is HTTP_UNAUTHORIZED. |request_start_time| is the time when the request was
+  // sent. |response_body| is the response received.
   void OnURLLoaderComplete(
       const GURL& url,
       std::optional<std::string> access_token_string,
@@ -365,6 +385,9 @@ class RealTimeUrlLookupServiceBase : public KeyedService {
                                  const RTLookupResponse& response);
 
   SEQUENCE_CHECKER(sequence_checker_);
+
+  // The token fetcher used for getting access token.
+  std::unique_ptr<SafeBrowsingTokenFetcher> token_fetcher_;
 
   // The URLLoaderFactory we use to issue network requests.
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;

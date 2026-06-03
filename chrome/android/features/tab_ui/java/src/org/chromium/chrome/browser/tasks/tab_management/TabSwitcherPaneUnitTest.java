@@ -250,6 +250,7 @@ public class TabSwitcherPaneUnitTest {
                         mHairlineVisibilityCallbackCaptor.capture(),
                         anyBoolean(),
                         any(),
+                        any(),
                         any());
         when(mTabSwitcherPaneCoordinatorFactory.getTabListMode()).thenReturn(TabListMode.GRID);
         when(mTabSwitcherPaneCoordinator.getHandleBackPressChangedSupplier())
@@ -291,7 +292,8 @@ public class TabSwitcherPaneUnitTest {
                         mEdgeToEdgeSupplier,
                         mCompositorViewHolderSupplier,
                         mUiFlow,
-                        mMockArchivedTabsAutoDeletePromoManager);
+                        mMockArchivedTabsAutoDeletePromoManager,
+                        /* xrSpaceModeObservableSupplier= */ null);
         ShadowLooper.runUiThreadTasks();
         verify(mSharedPreferences)
                 .registerOnSharedPreferenceChangeListener(
@@ -525,28 +527,6 @@ public class TabSwitcherPaneUnitTest {
 
     @Test
     public void testCreateFadeInAnimatorNoTab() {
-        assertEquals(
-                HubLayoutAnimationType.FADE_IN,
-                mTabSwitcherPane
-                        .createShowHubLayoutAnimatorProvider(mHubContainerView)
-                        .getPlannedAnimationType());
-    }
-
-    @Test
-    public void testCreateFadeOutAnimatorListMode() {
-        createSelectedTab();
-        when(mTabSwitcherPaneCoordinatorFactory.getTabListMode()).thenReturn(TabListMode.LIST);
-        assertEquals(
-                HubLayoutAnimationType.FADE_OUT,
-                mTabSwitcherPane
-                        .createHideHubLayoutAnimatorProvider(mHubContainerView)
-                        .getPlannedAnimationType());
-    }
-
-    @Test
-    public void testCreateFadeInAnimatorListMode() {
-        createSelectedTab();
-        when(mTabSwitcherPaneCoordinatorFactory.getTabListMode()).thenReturn(TabListMode.LIST);
         assertEquals(
                 HubLayoutAnimationType.FADE_IN,
                 mTabSwitcherPane

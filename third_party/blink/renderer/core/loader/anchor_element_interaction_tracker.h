@@ -5,6 +5,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LOADER_ANCHOR_ELEMENT_INTERACTION_TRACKER_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LOADER_ANCHOR_ELEMENT_INTERACTION_TRACKER_H_
 
+#include <array>
+
 #include "base/metrics/field_trial_params.h"
 #include "third_party/blink/public/mojom/preloading/anchor_element_interaction_host.mojom-blink.h"
 #include "third_party/blink/renderer/core/html/anchor_element_viewport_position_tracker.h"
@@ -83,7 +85,8 @@ class BLINK_EXPORT AnchorElementInteractionTracker
   explicit AnchorElementInteractionTracker(Document& document);
   virtual ~AnchorElementInteractionTracker();
 
-  static base::TimeDelta GetHoverDwellTime();
+  static constexpr base::TimeDelta kModerateHoverDwellTime{
+      base::Milliseconds(200)};
 
   void OnMouseMoveEvent(const WebMouseEvent& mouse_event);
   void OnPointerEvent(EventTarget& target, const PointerEvent& pointer_event);

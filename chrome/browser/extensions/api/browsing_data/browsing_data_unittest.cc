@@ -15,8 +15,6 @@
 #include "chrome/browser/extensions/api/browsing_data/browsing_data_api.h"
 #include "chrome/browser/extensions/extension_service_test_base.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/test/base/test_browser_window.h"
 #include "components/browsing_data/content/browsing_data_helper.h"
 #include "components/browsing_data/core/browsing_data_utils.h"
 #include "components/browsing_data/core/pref_names.h"
@@ -26,8 +24,11 @@
 #include "content/public/browser/browsing_data_remover.h"
 #include "content/public/test/mock_browsing_data_remover_delegate.h"
 #include "extensions/browser/api_test_utils.h"
+#include "extensions/buildflags/buildflags.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 using extensions::api_test_utils::RunFunctionAndReturnError;
 using extensions::api_test_utils::RunFunctionAndReturnSingleResult;
@@ -43,6 +44,7 @@ enum OriginTypeMask {
 };
 
 // TODO(http://crbug.com/1266606): appcache is a noop and should be removed.
+// TODO(http://crbug.com/420857719): webSQL is a noop and should be removed.
 const char kRemoveEverythingArguments[] =
     R"([{"since": 1000}, {
     "appcache": true, "cache": true, "cookies": true, "downloads": true,
@@ -58,21 +60,10 @@ class BrowsingDataApiTest : public ExtensionServiceTestBase {
     ExtensionServiceTestBase::SetUp();
     InitializeEmptyExtensionService();
 
-    browser_window_ = std::make_unique<TestBrowserWindow>();
-    Browser::CreateParams params(profile(), true);
-    params.type = Browser::TYPE_NORMAL;
-    params.window = browser_window_.get();
-    browser_ = std::unique_ptr<Browser>(Browser::Create(params));
-
     remover_ = profile()->GetBrowsingDataRemover();
     remover_->SetEmbedderDelegate(&delegate_);
   }
 
-  void TearDown() override {
-    browser_.reset();
-    browser_window_.reset();
-    ExtensionServiceTestBase::TearDown();
-  }
   const base::Time& GetBeginTime() {
     return remover_->GetLastUsedBeginTimeForTesting();
   }
@@ -100,7 +91,7 @@ class BrowsingDataApiTest : public ExtensionServiceTestBase {
     SCOPED_TRACE(data_types);
     EXPECT_FALSE(RunFunctionAndReturnSingleResult(
         function.get(), std::string("[{\"since\": 1},") + data_types + "]",
-        browser()->profile()));
+        profile()));
     EXPECT_EQ(expected_mask, GetRemovalMask());
     EXPECT_EQ(UNPROTECTED_WEB, GetOriginTypeMask());
   }
@@ -120,7 +111,7 @@ class BrowsingDataApiTest : public ExtensionServiceTestBase {
     EXPECT_FALSE(RunFunctionAndReturnSingleResult(
         function.get(),
         "[{\"originTypes\": " + protectedStr + "}, {\"cookies\": true}]",
-        browser()->profile()));
+        profile()));
     EXPECT_EQ(expected_mask, GetOriginTypeMask());
   }
 
@@ -129,13 +120,13 @@ class BrowsingDataApiTest : public ExtensionServiceTestBase {
     scoped_refptr<ShortcutFunction> function = new ShortcutFunction();
     SCOPED_TRACE(ShortcutFunction::static_function_name());
     EXPECT_FALSE(RunFunctionAndReturnSingleResult(
-        function.get(), std::string("[{\"since\": 1}]"), browser()->profile()));
+        function.get(), std::string("[{\"since\": 1}]"), profile()));
     EXPECT_EQ(expected_mask, GetRemovalMask());
     EXPECT_EQ(UNPROTECTED_WEB, GetOriginTypeMask());
   }
 
   void SetSinceAndVerify(browsing_data::TimePeriod since_pref) {
-    PrefService* prefs = browser()->profile()->GetPrefs();
+    PrefService* prefs = profile()->GetPrefs();
     browsing_data::ClearBrowsingDataTab tab =
         static_cast<browsing_data::ClearBrowsingDataTab>(
             prefs->GetInteger(browsing_data::prefs::kLastClearBrowsingDataTab));
@@ -146,7 +137,7 @@ class BrowsingDataApiTest : public ExtensionServiceTestBase {
         new BrowsingDataSettingsFunction();
     SCOPED_TRACE("settings");
     std::optional<base::Value> result = RunFunctionAndReturnSingleResult(
-        function.get(), std::string("[]"), browser()->profile());
+        function.get(), std::string("[]"), profile());
     EXPECT_TRUE(result->is_dict());
     ASSERT_TRUE(result->GetDict().FindDoubleByDottedPath("options.since"));
     double since = *result->GetDict().FindDoubleByDottedPath("options.since");
@@ -167,7 +158,7 @@ class BrowsingDataApiTest : public ExtensionServiceTestBase {
   void SetPrefsAndVerifySettings(uint64_t data_type_flags,
                                  uint64_t expected_origin_type_mask,
                                  uint64_t expected_removal_mask) {
-    PrefService* prefs = browser()->profile()->GetPrefs();
+    PrefService* prefs = profile()->GetPrefs();
     prefs->SetInteger(
         browsing_data::prefs::kLastClearBrowsingDataTab,
         static_cast<int>(browsing_data::ClearBrowsingDataTab::ADVANCED));
@@ -200,7 +191,7 @@ class BrowsingDataApiTest : public ExtensionServiceTestBase {
   void SetBasicPrefsAndVerifySettings(uint64_t data_type_flags,
                                       uint64_t expected_origin_type_mask,
                                       uint64_t expected_removal_mask) {
-    PrefService* prefs = browser()->profile()->GetPrefs();
+    PrefService* prefs = profile()->GetPrefs();
     prefs->SetInteger(
         browsing_data::prefs::kLastClearBrowsingDataTab,
         static_cast<int>(browsing_data::ClearBrowsingDataTab::BASIC));
@@ -223,7 +214,7 @@ class BrowsingDataApiTest : public ExtensionServiceTestBase {
         new BrowsingDataSettingsFunction();
     SCOPED_TRACE("settings");
     std::optional<base::Value> result = RunFunctionAndReturnSingleResult(
-        function.get(), std::string("[]"), browser()->profile());
+        function.get(), std::string("[]"), profile());
 
     ASSERT_TRUE(result->is_dict());
     const base::Value::Dict& result_dict = result->GetDict();
@@ -264,9 +255,7 @@ class BrowsingDataApiTest : public ExtensionServiceTestBase {
         GetAsMask(data_to_remove, "passwords",
                   chrome_browsing_data_remover::DATA_TYPE_PASSWORDS) |
         GetAsMask(data_to_remove, "serviceWorkers",
-                  content::BrowsingDataRemover::DATA_TYPE_SERVICE_WORKERS) |
-        GetAsMask(data_to_remove, "webSQL",
-                  content::BrowsingDataRemover::DATA_TYPE_WEB_SQL);
+                  content::BrowsingDataRemover::DATA_TYPE_SERVICE_WORKERS);
 
     EXPECT_EQ(expected_removal_mask, removal_mask);
   }
@@ -278,13 +267,12 @@ class BrowsingDataApiTest : public ExtensionServiceTestBase {
     std::string args = "[{\"since\": 1}," + data_types + "]";
 
     if (permitted) {
-      EXPECT_FALSE(RunFunctionAndReturnSingleResult(function.get(), args,
-                                                    browser()->profile()))
+      EXPECT_FALSE(
+          RunFunctionAndReturnSingleResult(function.get(), args, profile()))
           << " for " << args;
     } else {
-      EXPECT_EQ(
-          RunFunctionAndReturnError(function.get(), args, browser()->profile()),
-          extension_browsing_data_api_constants::kDeleteProhibitedError)
+      EXPECT_EQ(RunFunctionAndReturnError(function.get(), args, profile()),
+                extension_browsing_data_api_constants::kDeleteProhibitedError)
           << " for " << args;
     }
   }
@@ -292,9 +280,8 @@ class BrowsingDataApiTest : public ExtensionServiceTestBase {
   void CheckInvalidRemovalArgs(const std::string& args,
                                const std::string& expected_error) {
     auto function = base::MakeRefCounted<BrowsingDataRemoveFunction>();
-    EXPECT_EQ(
-        RunFunctionAndReturnError(function.get(), args, browser()->profile()),
-        expected_error)
+    EXPECT_EQ(RunFunctionAndReturnError(function.get(), args, profile()),
+              expected_error)
         << " for " << args;
   }
 
@@ -307,18 +294,14 @@ class BrowsingDataApiTest : public ExtensionServiceTestBase {
     auto function = base::MakeRefCounted<BrowsingDataRemoveFunction>();
     EXPECT_FALSE(RunFunctionAndReturnSingleResult(
         function.get(), "[" + options + ", {\"localStorage\": true}]",
-        browser()->profile()))
+        profile()))
         << options;
     delegate()->VerifyAndClearExpectations();
   }
 
-  Browser* browser() { return browser_.get(); }
-
   content::MockBrowsingDataRemoverDelegate* delegate() { return &delegate_; }
 
  private:
-  std::unique_ptr<TestBrowserWindow> browser_window_;
-  std::unique_ptr<Browser> browser_;
   raw_ptr<content::BrowsingDataRemover> remover_;
   content::MockBrowsingDataRemoverDelegate delegate_;
 };
@@ -326,7 +309,7 @@ class BrowsingDataApiTest : public ExtensionServiceTestBase {
 }  // namespace
 
 TEST_F(BrowsingDataApiTest, RemovalProhibited) {
-  PrefService* prefs = browser()->profile()->GetPrefs();
+  PrefService* prefs = profile()->GetPrefs();
   prefs->SetBoolean(prefs::kAllowDeletingBrowserHistory, false);
 
   CheckRemovalPermitted("{\"cache\": true}", true);
@@ -341,7 +324,6 @@ TEST_F(BrowsingDataApiTest, RemovalProhibited) {
   CheckRemovalPermitted("{\"serverBoundCertificates\": true}", true);
   CheckRemovalPermitted("{\"passwords\": true}", true);
   CheckRemovalPermitted("{\"serviceWorkers\": true}", true);
-  CheckRemovalPermitted("{\"webSQL\": true}", true);
 
   // The entire removal is prohibited if any part is.
   CheckRemovalPermitted("{\"cache\": true, \"history\": true}", false);
@@ -357,7 +339,7 @@ TEST_F(BrowsingDataApiTest, RemovalProhibited) {
 TEST_F(BrowsingDataApiTest, RemoveBrowsingDataAll) {
   auto function = base::MakeRefCounted<BrowsingDataRemoveFunction>();
   EXPECT_FALSE(RunFunctionAndReturnSingleResult(
-      function.get(), kRemoveEverythingArguments, browser()->profile()));
+      function.get(), kRemoveEverythingArguments, profile()));
 
   EXPECT_EQ(base::Time::FromSecondsSinceUnixEpoch(1.0), GetBeginTime());
   EXPECT_EQ(
@@ -429,8 +411,6 @@ TEST_F(BrowsingDataApiTest, BrowsingDataRemovalMask) {
   RunBrowsingDataRemoveWithKeyAndCompareRemovalMask(
       "serviceWorkers",
       content::BrowsingDataRemover::DATA_TYPE_SERVICE_WORKERS);
-  RunBrowsingDataRemoveWithKeyAndCompareRemovalMask(
-      "webSQL", content::BrowsingDataRemover::DATA_TYPE_WEB_SQL);
 }
 
 // Test an arbitrary combination of data types.
@@ -443,7 +423,7 @@ TEST_F(BrowsingDataApiTest, BrowsingDataRemovalMaskCombination) {
 
 // Make sure the remove() function accepts the format produced by settings().
 TEST_F(BrowsingDataApiTest, BrowsingDataRemovalInputFromSettings) {
-  PrefService* prefs = browser()->profile()->GetPrefs();
+  PrefService* prefs = profile()->GetPrefs();
   prefs->SetInteger(
       browsing_data::prefs::kLastClearBrowsingDataTab,
       static_cast<int>(browsing_data::ClearBrowsingDataTab::ADVANCED));
@@ -464,7 +444,7 @@ TEST_F(BrowsingDataApiTest, BrowsingDataRemovalInputFromSettings) {
         new BrowsingDataSettingsFunction();
     SCOPED_TRACE("settings_json");
     std::optional<base::Value> result = RunFunctionAndReturnSingleResult(
-        settings_function.get(), std::string("[]"), browser()->profile());
+        settings_function.get(), std::string("[]"), profile());
 
     EXPECT_TRUE(result->is_dict());
     base::Value::Dict* data_to_remove =
@@ -479,7 +459,7 @@ TEST_F(BrowsingDataApiTest, BrowsingDataRemovalInputFromSettings) {
     SCOPED_TRACE("remove_json");
     EXPECT_FALSE(RunFunctionAndReturnSingleResult(
         remove_function.get(), std::string("[{\"since\": 1},") + *json + "]",
-        browser()->profile()));
+        profile()));
     EXPECT_EQ(expected_mask, GetRemovalMask());
     EXPECT_EQ(UNPROTECTED_WEB, GetOriginTypeMask());
   }
@@ -508,8 +488,6 @@ TEST_F(BrowsingDataApiTest, ShortcutFunctionRemovalMask) {
       chrome_browsing_data_remover::DATA_TYPE_PASSWORDS);
   RunAndCompareRemovalMask<BrowsingDataRemoveServiceWorkersFunction>(
       content::BrowsingDataRemover::DATA_TYPE_SERVICE_WORKERS);
-  RunAndCompareRemovalMask<BrowsingDataRemoveWebSQLFunction>(
-      content::BrowsingDataRemover::DATA_TYPE_WEB_SQL);
 }
 
 // Test the processing of the 'delete since' preference.
@@ -638,7 +616,7 @@ TEST_F(BrowsingDataApiTest, RemoveCookiesWithFilter) {
       function.get(),
       R"([{"excludeOrigins": ["http://example.com"]},
                     {"cookies": true}])",
-      browser()->profile()));
+      profile()));
   delegate()->VerifyAndClearExpectations();
 }
 
@@ -665,7 +643,7 @@ TEST_F(BrowsingDataApiTest, RemoveCookiesAndStorageWithFilter) {
       function.get(),
       R"([{"origins": ["http://www.example.com"]},
                     {"cookies": true, "localStorage": true}])",
-      browser()->profile()));
+      profile()));
   delegate()->VerifyAndClearExpectations();
 }
 

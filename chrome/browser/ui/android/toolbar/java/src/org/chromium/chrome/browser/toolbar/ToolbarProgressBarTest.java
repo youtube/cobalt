@@ -14,6 +14,7 @@ import android.animation.Animator;
 import android.content.res.Resources;
 import android.graphics.Color;
 import android.graphics.drawable.ClipDrawable;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.LayerDrawable;
 import android.view.View;
@@ -319,19 +320,14 @@ public class ToolbarProgressBarTest {
     @Feature({"Android-Progress-Bar"})
     public void testProgressBarColors_TransparentTheme() {
         mProgressBar.setThemeColor(Color.TRANSPARENT, /* isIncognito = */ false);
-        int foregroundColor = mProgressBar.getForegroundColor();
-        int backgroundColor = mProgressBar.getBackgroundColor();
         mProgressBar.setAnimatingView(mProgressBarAnimatingView);
 
         assertEquals(
-                "Foreground color does not match color.",
-                foregroundColor,
+                "Foreground color does not match expected color.",
+                SemanticColorUtils.getProgressBarForeground(mActivity),
                 mProgressBar.getForegroundColor());
-        assertEquals(
-                "Background color does not match color.",
-                backgroundColor,
-                mProgressBar.getBackgroundColor());
     }
+
 
     @Test
     @Feature({"Android-Progress-Bar"})
@@ -380,6 +376,10 @@ public class ToolbarProgressBarTest {
                 "Background color does not match expected color.",
                 SemanticColorUtils.getProgressBarTrackColor(mActivity),
                 mProgressBar.getBackgroundColor());
+
+        int gapBackgroundColor = ((ColorDrawable) mProgressBar.getBackground()).getColor();
+        assertEquals("Gap color doesn't match the toolbar color.", mThemeColor,
+                gapBackgroundColor);
     }
 
     @Test

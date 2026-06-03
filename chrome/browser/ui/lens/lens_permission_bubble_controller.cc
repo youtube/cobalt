@@ -119,10 +119,11 @@ std::unique_ptr<views::Widget> LensPermissionBubbleController::ShowDialogWidget(
   model_host->SetOwnershipOfNewWidget(
       views::Widget::InitParams::CLIENT_OWNS_WIDGET);
 
-  std::unique_ptr<views::Widget> widget =
+  auto widget =
       tab_interface_->GetTabFeatures()
           ->tab_dialog_manager()
-          ->CreateShowDialogAndBlockTabInteraction(model_host);
+          ->CreateAndShowDialog(
+              model_host, std::make_unique<tabs::TabDialogManager::Params>());
   widget->MakeCloseSynchronous(
       base::BindOnce(&LensPermissionBubbleController::CloseDialogWidget,
                      base::Unretained(this)));
@@ -182,7 +183,9 @@ LensPermissionBubbleController::CreateLensPermissionDialogModel(
                                               ui::kColorIcon, 20))
       .SetBannerImage(ui::ImageModel::FromImageSkia(
           *ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
-              IDR_LENS_PERMISSION_MODAL_IMAGE)))
+              lens::features::IsLensOverlayPermissionBubbleAltEnabled()
+                  ? IDR_LENS_PERMISSION_MODAL_IMAGE_ALT
+                  : IDR_LENS_PERMISSION_MODAL_IMAGE)))
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
       .AddParagraph(description_text)
       .AddOkButton(

@@ -4,7 +4,9 @@
 
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 
+#include "base/test/scoped_feature_list.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
+#include "components/autofill/core/common/autofill_features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -15,10 +17,17 @@ using ::testing::ElementsAre;
 using ::testing::UnorderedElementsAre;
 
 TEST(AutofillAttributeTypeTest, Relationships) {
+  base::test::ScopedFeatureList scoped_feature_list{
+      features::kAutofillAiNoTagTypes};
   AttributeType a = AttributeType(AttributeTypeName::kPassportName);
   EXPECT_EQ(a.entity_type(), EntityType(EntityTypeName::kPassport));
-  EXPECT_EQ(a.field_type(), PASSPORT_NAME_TAG);
-  EXPECT_EQ(a, AttributeType::FromFieldType(PASSPORT_NAME_TAG));
+  EXPECT_THAT(a.field_subtypes(),
+              UnorderedElementsAre(
+                  NAME_HONORIFIC_PREFIX, NAME_FIRST, NAME_MIDDLE, NAME_LAST,
+                  NAME_LAST_PREFIX, NAME_LAST_CORE, NAME_LAST_FIRST,
+                  NAME_LAST_SECOND, NAME_LAST_CONJUNCTION, NAME_MIDDLE_INITIAL,
+                  NAME_FULL, NAME_SUFFIX, ALTERNATIVE_FAMILY_NAME,
+                  ALTERNATIVE_GIVEN_NAME, ALTERNATIVE_FULL_NAME));
 }
 
 TEST(AutofillAttributeTypeTest, IsObfuscated) {

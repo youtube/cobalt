@@ -36,7 +36,8 @@
 #include "base/task/task_observer.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/trace_event/interned_args_helper.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/container/inlined_vector.h"
 
@@ -438,10 +439,8 @@ void TaskQueueImpl::PostImmediateTaskImpl(PostedTask task,
     bool add_queue_time_to_tasks = sequence_manager_->GetAddQueueTimeToTasks();
     TimeTicks queue_time;
     bool config_category_enabled = false;
-#if BUILDFLAG(ENABLE_BASE_TRACING)
     config_category_enabled =
         TRACE_EVENT_CATEGORY_ENABLED("config.scheduler.record_task_post_time");
-#endif
     if (config_category_enabled || add_queue_time_to_tasks ||
         delayed_fence_allowed_) {
       queue_time = sequence_manager_->any_thread_clock()->NowTicks();

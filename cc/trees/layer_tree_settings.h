@@ -59,7 +59,6 @@ class CC_EXPORT LayerTreeSettings {
   bool gpu_rasterization_disabled = false;
   int gpu_rasterization_msaa_sample_count = -1;
   float gpu_rasterization_skewport_target_time_in_seconds = 0.2f;
-  bool create_low_res_tiling = false;
   bool use_gpu_memory_buffer_resources = false;
 
   enum ScrollbarAnimator {
@@ -75,7 +74,6 @@ class CC_EXPORT LayerTreeSettings {
   bool scrollbar_flash_after_any_scroll_update = false;
   base::TimeDelta scroll_animation_duration_for_testing;
   bool layers_always_allowed_lcd_text = false;
-  float low_res_contents_scale_factor = 0.25f;
   float top_controls_show_threshold = 0.5f;
   float top_controls_hide_threshold = 0.5f;
   gfx::Size default_tile_size;

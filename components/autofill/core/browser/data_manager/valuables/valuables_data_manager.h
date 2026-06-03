@@ -8,7 +8,6 @@
 #include <string_view>
 #include <vector>
 
-#include "base/containers/span.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
@@ -52,11 +51,18 @@ class ValuablesDataManager : public KeyedService,
   // Returns the cached loyalty cards from the database.
   //
   // The cache is populated asynchronously after the construction of this
-  // `ValuablesDataManager`. Returns an empty span until the population is
+  // `ValuablesDataManager`. Returns an empty vector until the population is
   // finished.
   //
-  // The returned span may be invalidated asynchronously.
-  base::span<const LoyaltyCard> GetLoyaltyCards() const;
+  // The returned vector may be invalidated asynchronously.
+  std::vector<LoyaltyCard> GetLoyaltyCards() const;
+
+  // Returns the cached loyalty cards to suggest, sorted by merchant name.
+  std::vector<LoyaltyCard> GetLoyaltyCardsToSuggest() const;
+
+  // Returns the loyalty card with the specified `id`, or `nullopt` if there is
+  // no such loyaty card.
+  std::optional<LoyaltyCard> GetLoyaltyCardById(const ValuableId& id) const;
 
   // Returns if there are any pending queries to the web database.
   bool HasPendingQueries() const;

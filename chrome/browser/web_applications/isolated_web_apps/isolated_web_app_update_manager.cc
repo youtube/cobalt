@@ -18,7 +18,6 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
-#include "base/functional/overloaded.h"
 #include "base/location.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
@@ -55,6 +54,7 @@
 #include "components/prefs/pref_service.h"
 #include "components/web_package/signed_web_bundles/signed_web_bundle_id.h"
 #include "components/webapps/common/web_app_id.h"
+#include "components/webapps/isolated_web_apps/iwa_key_distribution_info_provider.h"
 #include "components/webapps/isolated_web_apps/update_channel.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/isolated_web_apps_policy.h"
@@ -300,7 +300,7 @@ void IsolatedWebAppUpdateManager::Start() {
   has_started_ = true;
   install_manager_observation_.Observe(&provider_->install_manager());
   key_distribution_info_observation_.Observe(
-      IwaKeyDistributionInfoProvider::GetInstance());
+      &IwaKeyDistributionInfoProvider::GetInstance());
 
   if (!IsAnyIwaInstalled()) {
     // If no IWA is installed, then we do not need to regularly check for
@@ -477,22 +477,12 @@ void IsolatedWebAppUpdateManager::DiscoverUpdatesForApp(
     bool allow_downgrades,
     const std::optional<base::Version>& pinned_version,
     bool dev_mode) {
-  auto keep_alive = std::make_unique<ScopedKeepAlive>(
-      KeepAliveOrigin::ISOLATED_WEB_APP_UPDATE,
-      KeepAliveRestartOption::DISABLED);
-  auto profile_keep_alive =
-      profile_->IsOffTheRecord()
-          ? nullptr
-          : std::make_unique<ScopedProfileKeepAlive>(
-                &*profile_, ProfileKeepAliveOrigin::kIsolatedWebAppUpdate);
-
   task_queue_.Push(std::make_unique<IsolatedWebAppUpdateDiscoveryTask>(
       IwaUpdateDiscoveryTaskParams(update_manifest_url, update_channel,
                                    allow_downgrades, pinned_version, url_info,
                                    dev_mode),
       provider_->scheduler(), provider_->registrar_unsafe(),
-      profile_->GetURLLoaderFactory(), std::move(keep_alive),
-      std::move(profile_keep_alive)));
+      profile_->GetURLLoaderFactory(), *profile_));
 
   task_queue_.MaybeStartNextTask();
 }
@@ -616,6 +606,13 @@ bool IsolatedWebAppUpdateManager::MaybeQueueUpdateDiscoveryTask(
   if (!update_options) {
     // The app is no longer part of the policy (and thus should soon be
     // uninstalled), so no need to check for updates.
+    return false;
+  }
+
+  if (!IwaKeyDistributionInfoProvider::GetInstance().IsManagedUpdatePermitted(
+          url_info.web_bundle_id().id())) {
+    LOG(WARNING) << "The app " << url_info.app_id()
+                 << " cannot be updated because it's not allowlisted.";
     return false;
   }
 
@@ -1055,6 +1052,8 @@ IsolatedWebAppUpdateError IsolatedWebAppUpdateManager::FromDiscoveryTaskError(
       return IsolatedWebAppUpdateError::kBundleDownloadError;
     case IsolatedWebAppUpdateDiscoveryTask::Error::kUpdateDryRunFailed:
       return IsolatedWebAppUpdateError::kUpdateDryRunFailed;
+    case IsolatedWebAppUpdateDiscoveryTask::Error::kSystemShutdown:
+      return IsolatedWebAppUpdateError::kSystemShutdown;
   }
 }
 

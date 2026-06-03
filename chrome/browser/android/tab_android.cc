@@ -17,6 +17,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/user_metrics.h"
+#include "base/notimplemented.h"
 #include "base/trace_event/trace_event.h"
 #include "cc/slim/layer.h"
 #include "chrome/browser/android/background_tab_manager.h"
@@ -48,7 +49,9 @@
 #include "components/infobars/content/content_infobar_manager.h"
 #include "components/no_state_prefetch/browser/no_state_prefetch_manager.h"
 #include "components/sessions/content/session_tab_helper.h"
+#include "components/tabs/public/supports_handles.h"
 #include "components/tabs/public/tab_collection.h"
+#include "components/tabs/public/tab_group_tab_collection.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/navigation_entry.h"
@@ -110,6 +113,8 @@ WEB_CONTENTS_USER_DATA_KEY_IMPL(TabAndroidHelper);
 }  // namespace
 
 namespace tabs {
+
+DEFINE_HANDLE_FACTORY(TabInterface);
 
 // static
 TabInterface* TabInterface::GetFromContents(
@@ -588,11 +593,14 @@ content::WebContents* TabAndroid::GetContents() const {
 }
 
 void TabAndroid::Close() {
-  NOTIMPLEMENTED();
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_TabImpl_closeTabFromNative(env, weak_java_tab_.get(env));
 }
 
 base::CallbackListSubscription TabAndroid::RegisterWillDiscardContents(
     WillDiscardContentsCallback callback) {
+  // Tab discarding is currently an OS level operation and we don't necessarily
+  // get signal when this occurs.
   NOTIMPLEMENTED();
   return base::CallbackListSubscription();
 }
@@ -602,12 +610,14 @@ bool TabAndroid::IsActivated() const {
   return Java_TabImpl_isActivated(env, weak_java_tab_.get(env));
 }
 
+// TODO(crbug.com/409366905): Finish TabInterface implementation.
 base::CallbackListSubscription TabAndroid::RegisterDidActivate(
     DidActivateCallback callback) {
   NOTIMPLEMENTED();
   return base::CallbackListSubscription();
 }
 
+// TODO(crbug.com/409366905): Finish TabInterface implementation.
 base::CallbackListSubscription TabAndroid::RegisterWillDeactivate(
     WillDeactivateCallback callback) {
   NOTIMPLEMENTED();
@@ -618,41 +628,52 @@ bool TabAndroid::IsVisible() const {
   return !IsHidden();
 }
 
+// TODO(crbug.com/409366905): Finish TabInterface implementation.
 base::CallbackListSubscription TabAndroid::RegisterDidBecomeVisible(
     DidBecomeVisibleCallback callback) {
   NOTIMPLEMENTED();
   return base::CallbackListSubscription();
 }
 
+// TODO(crbug.com/409366905): Finish TabInterface implementation.
 base::CallbackListSubscription TabAndroid::RegisterWillBecomeHidden(
     WillBecomeHiddenCallback callback) {
   NOTIMPLEMENTED();
   return base::CallbackListSubscription();
 }
 
+// TODO(crbug.com/409366905): Finish TabInterface implementation.
 base::CallbackListSubscription TabAndroid::RegisterWillDetach(
     WillDetach callback) {
   NOTIMPLEMENTED();
   return base::CallbackListSubscription();
 }
 
+// TODO(crbug.com/409366905): Finish TabInterface implementation.
 base::CallbackListSubscription TabAndroid::RegisterDidInsert(
     DidInsertCallback callback) {
   NOTIMPLEMENTED();
   return base::CallbackListSubscription();
 }
 
+// TODO(crbug.com/409366905): Finish TabInterface implementation.
 base::CallbackListSubscription TabAndroid::RegisterPinnedStateChanged(
     PinnedStateChangedCallback callback) {
   NOTIMPLEMENTED();
   return base::CallbackListSubscription();
 }
 
+// TODO(crbug.com/409366905): Finish TabInterface implementation.
 base::CallbackListSubscription TabAndroid::RegisterGroupChanged(
     GroupChangedCallback callback) {
   NOTIMPLEMENTED();
   return base::CallbackListSubscription();
 }
+
+// For now tab scoped modals should continue to be handled by the window-scoped
+// ModalDialogManager class in Java.
+// TODO(crbug.com/422208977): Investigate adding a capability to trigger tab
+// scoped modals directly to tab.
 
 bool TabAndroid::CanShowModalUI() const {
   NOTIMPLEMENTED();
@@ -683,10 +704,11 @@ const tabs::TabFeatures* TabAndroid::GetTabFeatures() const {
 }
 
 bool TabAndroid::IsPinned() const {
-  NOTIMPLEMENTED();
-  return false;
+  JNIEnv* env = base::android::AttachCurrentThread();
+  return Java_TabImpl_getIsPinned(env, weak_java_tab_.get(env));
 }
 
+// Split tabs is currently desktop only.
 bool TabAndroid::IsSplit() const {
   NOTIMPLEMENTED();
   return false;
@@ -703,33 +725,32 @@ std::optional<tab_groups::TabGroupId> TabAndroid::GetGroup() const {
       base::android::TokenAndroid::FromJavaToken(env, j_token));
 }
 
+// Split tabs is currently desktop only.
 std::optional<split_tabs::SplitTabId> TabAndroid::GetSplit() const {
   NOTIMPLEMENTED();
   return std::nullopt;
 }
 
-// TODO(crbug.com/409366905): Finish implementing TabInterface.
 tabs::TabCollection* TabAndroid::GetParentCollection(
     base::PassKey<tabs::TabCollection>) const {
-  NOTIMPLEMENTED();
-  return nullptr;
+  return parent_collection_;
 }
 
-// TODO(crbug.com/409366905): Finish implementing TabInterface.
 const tabs::TabCollection* TabAndroid::GetParentCollection() const {
-  NOTIMPLEMENTED();
-  return nullptr;
+  return parent_collection_;
 }
 
-// TODO(crbug.com/409366905): Finish implementing TabInterface.
 void TabAndroid::OnReparented(tabs::TabCollection* parent,
-                              base::PassKey<tabs::TabCollection>) {
-  NOTIMPLEMENTED();
+                              base::PassKey<tabs::TabCollection> pass_key) {
+  parent_collection_ = parent;
+  OnAncestorChanged(pass_key);
 }
 
-// TODO(crbug.com/409366905): Finish implementing TabInterface.
 void TabAndroid::OnAncestorChanged(base::PassKey<tabs::TabCollection>) {
-  NOTIMPLEMENTED();
+  // TODO(crbug.com/409366905): Possibly add a detached state.
+  if (parent_collection_) {
+    UpdateProperties();
+  }
 }
 
 TabAndroid::TabAndroid(Profile* profile, int tab_id)
@@ -739,6 +760,49 @@ TabAndroid::TabAndroid(Profile* profile, int tab_id)
       synced_tab_delegate_(new browser_sync::SyncedTabDelegateAndroid(this)),
       profile_(profile->GetWeakPtr()) {
   CHECK_IS_TEST();
+}
+
+void TabAndroid::UpdateProperties() {
+  bool pinned = false;
+  std::optional<tab_groups::TabGroupId> tab_group_id = std::nullopt;
+
+  tabs::TabCollection* ancestor = parent_collection_;
+  while (ancestor) {
+    switch (ancestor->type()) {
+      case tabs::TabCollection::Type::PINNED:
+        pinned = true;
+        break;
+      case tabs::TabCollection::Type::GROUP:
+        tab_group_id = static_cast<tabs::TabGroupTabCollection*>(ancestor)
+                           ->GetTabGroupId();
+        break;
+      case tabs::TabCollection::Type::SPLIT:
+        // Intentional fallthrough. Split tabs is currently desktop only.
+      case tabs::TabCollection::Type::TABSTRIP:
+      case tabs::TabCollection::Type::UNPINNED:
+        break;
+    }
+    ancestor = ancestor->GetParentCollection();
+  }
+
+  SetIsPinned(pinned);
+  SetTabGroupId(tab_group_id);
+}
+
+void TabAndroid::SetIsPinned(bool is_pinned) {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_TabImpl_setIsPinned(env, weak_java_tab_.get(env), is_pinned);
+}
+
+void TabAndroid::SetTabGroupId(
+    std::optional<tab_groups::TabGroupId> tab_group_id) {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> java_token;
+  if (tab_group_id) {
+    java_token =
+        base::android::TokenAndroid::Create(env, tab_group_id->token());
+  }
+  Java_TabImpl_setTabGroupId(env, weak_java_tab_.get(env), java_token);
 }
 
 base::android::ScopedJavaLocalRef<jobject> JNI_TabImpl_FromWebContents(
@@ -760,7 +824,8 @@ static jboolean JNI_TabImpl_HandleNonNavigationAboutURL(
     JNIEnv* env,
     const JavaParamRef<jobject>& jurl) {
   GURL url = url::GURLAndroid::ToNativeGURL(env, jurl);
-  return HandleNonNavigationAboutURL(url);
+  // TODO(crbug.com/418187845): Set browser context to support URL block policy.
+  return HandleNonNavigationAboutURL(url, /*context=*/nullptr);
 }
 
 static void JNI_TabImpl_Init(JNIEnv* env,

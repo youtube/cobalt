@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_PASSWORD_MANAGER_PASSWORD_CHANGE_CHANGE_PASSWORD_FORM_FINDER_H_
 
 #include "base/functional/callback_forward.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/password_manager/password_change/change_password_form_waiter.h"
@@ -62,23 +63,19 @@ class ChangePasswordFormFinder {
           optimization_guide::proto::PasswordChangeSubmissionLoggingData>
           logging_data);
 
-#if !BUILDFLAG(IS_ANDROID)
   void OnButtonClicked(bool result);
 
   void OnSubsequentFormWaitingResult(
       password_manager::PasswordFormManager* form_manager);
-#endif
 
-  base::WeakPtr<content::WebContents> web_contents_;
+  const raw_ptr<content::WebContents> web_contents_;
   ChangePasswordFormWaiter::PasswordFormFoundCallback callback_;
   base::OnceCallback<void(optimization_guide::OnAIPageContentDone)>
       capture_annotated_page_content_;
 
   std::unique_ptr<ChangePasswordFormWaiter> form_waiter_;
 
-#if !BUILDFLAG(IS_ANDROID)
   std::unique_ptr<ButtonClickHelper> click_helper_;
-#endif
 
   base::WeakPtrFactory<ChangePasswordFormFinder> weak_ptr_factory_{this};
 };

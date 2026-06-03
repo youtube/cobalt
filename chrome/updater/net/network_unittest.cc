@@ -66,13 +66,13 @@ class UpdaterNetworkTest : public ::testing::Test {
                                    int net_error,
                                    const std::string& header_etag,
                                    const std::string& header_x_cup_server_proof,
-                                   const std::string& header_cookie,
+                                   const std::string& header_set_cookie,
                                    int64_t xheader_retry_after_sec) {
     EXPECT_EQ(*response_body, expected_body);
     EXPECT_EQ(net_error, 0);
     EXPECT_EQ(header_etag, "Wfhw789h");
     EXPECT_EQ(header_x_cup_server_proof, "server-proof");
-    EXPECT_EQ(header_cookie, "cookie");
+    EXPECT_EQ(header_set_cookie, "cookie");
     EXPECT_EQ(xheader_retry_after_sec, 67);
     PostRequestCompleted();
   }
@@ -97,7 +97,8 @@ class UpdaterNetworkTest : public ::testing::Test {
       http_response->AddCustomHeader("x-retry-after", "67");
       http_response->AddCustomHeader("etag", "Wfhw789h");
       http_response->AddCustomHeader("x-cup-server-proof", "server-proof");
-      http_response->AddCustomHeader("Cookie", "cookie");
+      http_response->AddCustomHeader(
+          update_client::NetworkFetcher::kHeaderSetCookie, "cookie");
     } else if (request.method == net::test_server::HttpMethod::METHOD_GET) {
       http_response->set_content("hello");
       http_response->set_content_type("application/octet-stream");
@@ -125,7 +126,8 @@ class UpdaterNetworkTest : public ::testing::Test {
     server_handle_ = test_server_.StartAndReturnHandle();
     ASSERT_TRUE(server_handle_);
     network_fetcher_factory_ = base::MakeRefCounted<NetworkFetcherFactory>(
-        PolicyServiceProxyConfiguration::Get(test::CreateTestPolicyService()));
+        PolicyServiceProxyConfiguration::Get(test::CreateTestPolicyService()),
+        /*event_logger=*/nullptr);
     fetcher_ = network_fetcher_factory_->Create();
   }
 
@@ -203,7 +205,8 @@ TEST_F(UpdaterDownloadTest, NetworkFetcher) {
 
   base::RunLoop run_loop;
   auto factory = base::MakeRefCounted<NetworkFetcherFactory>(
-      PolicyServiceProxyConfiguration::Get(test::CreateTestPolicyService()));
+      PolicyServiceProxyConfiguration::Get(test::CreateTestPolicyService()),
+      /*event_logger=*/nullptr);
   ASSERT_NE(factory, nullptr);
   {
     base::ScopedDisallowBlocking no_blocking_allowed_on_sequence;

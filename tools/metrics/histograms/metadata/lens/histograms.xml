@@ -31,11 +31,13 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <variants name="InvocationSources">
+  <variant name="AIHub"/>
   <variant name="AppMenu"/>
   <variant name="ContentAreaContextMenuImage"/>
   <variant name="ContentAreaContextMenuPage"/>
   <variant name="ContextMenu"/>
   <variant name="FindInPage"/>
+  <variant name="FREPromo"/>
   <variant name="HomeworkActionChip"/>
   <variant name="LVFGallery"/>
   <variant name="LVFShutterButton"/>
@@ -234,7 +236,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Lens.Overlay.ContextMenuOption.Shown"
-    enum="LensOverlayContextMenuOption" expires_after="2025-10-12">
+    enum="LensOverlayContextMenuOption" expires_after="2025-12-14">
   <owner>hujasonx@chromium.org</owner>
   <owner>lens-chrome@google.com</owner>
   <summary>
@@ -721,7 +723,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Lens.Overlay.SidePanelResultStatus"
-    enum="SidePanelResultStatus" expires_after="2025-09-28">
+    enum="SidePanelResultStatus" expires_after="2025-11-30">
   <owner>juanmojica@google.com</owner>
   <owner>lens-chrome@google.com</owner>
   <summary>
@@ -731,13 +733,14 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Lens.Overlay.SpeedbumpMenu"
-    enum="LensOverlaySpeedbumpMenuSelection" expires_after="2026-01-31">
-  <owner>stkhapugin@chromium.org</owner>
-  <owner>radunitescu@google.com</owner>
+<histogram name="Lens.Overlay.TextDirectiveResult"
+    enum="LensOverlayTextDirectiveResult" expires_after="2026-01-31">
+  <owner>juanmojica@google.com</owner>
+  <owner>lens-chrome@google.com</owner>
   <summary>
-    Recorded once when the Lens Overlay speedbump menu is used, enumerated by
-    the selected menu item.
+    Recorded once whenever the text finder is invoked on the Lens overlay.
+    Indicates whether the text finder was successful in finding text in the
+    page.
   </summary>
 </histogram>
 
@@ -766,7 +769,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Lens.Overlay.TimeToWebUIReady" units="ms"
-    expires_after="2025-09-07">
+    expires_after="2025-12-07">
   <owner>jdonnelly@chromium.org</owner>
   <owner>lens-chrome@google.com</owner>
   <summary>

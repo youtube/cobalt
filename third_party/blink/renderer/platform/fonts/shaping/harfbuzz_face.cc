@@ -116,8 +116,9 @@ static hb_bool_t HarfBuzzGetGlyph(hb_font_t* hb_font,
   // https://crbug.com/550275. To prevent that, we are replacing line and
   // paragraph separators with space, as it is said in unicode specification,
   // compare: https://www.unicode.org/faq/unsup_char.html#2.
-  if (unicode == kLineSeparator || unicode == kParagraphSeparator) {
-    unicode = kSpaceCharacter;
+  if (unicode == uchar::kLineSeparator ||
+      unicode == uchar::kParagraphSeparator) {
+    unicode = uchar::kSpace;
   }
 
   bool consider_variation_selector = false;
@@ -160,18 +161,18 @@ static hb_bool_t HarfBuzzGetGlyph(hb_font_t* hb_font,
       if (variation_selector_mode == kForceVariationSelector15 ||
           (variation_selector_mode == kUseUnicodeDefaultPresentation &&
            Character::IsEmojiTextDefault(unicode))) {
-        variation_selector = kVariationSelector15Character;
+        variation_selector = uchar::kVariationSelector15;
       } else if (variation_selector_mode == kForceVariationSelector16 ||
                  (variation_selector_mode == kUseUnicodeDefaultPresentation &&
                   Character::IsEmojiEmojiDefault(unicode))) {
-        variation_selector = kVariationSelector16Character;
+        variation_selector = uchar::kVariationSelector16;
       }
     }
 
     text_presentation_requested =
-        (variation_selector == kVariationSelector15Character);
+        (variation_selector == uchar::kVariationSelector15);
     emoji_presentation_requested =
-        (variation_selector == kVariationSelector16Character);
+        (variation_selector == uchar::kVariationSelector16);
 
     hb_bool_t hb_has_vs_glyph = hb_font_get_variation_glyph(
         hb_font_get_parent(hb_font), unicode, variation_selector, glyph);
@@ -227,7 +228,7 @@ static hb_bool_t HarfBuzzGetGlyph(hb_font_t* hb_font,
     if (!typeface) {
       return false;
     }
-    if (unicode == kHyphenCharacter || unicode == kNonBreakingHyphen) {
+    if (unicode == uchar::kHyphen || unicode == uchar::kNonBreakingHyphen) {
       SkGlyphID sk_glyph_id = typeface->unicharToGlyph(unicode);
       *glyph = sk_glyph_id;
       return sk_glyph_id;
@@ -338,7 +339,7 @@ static inline bool TableHasSpace(hb_face_t* face,
 }
 
 static bool GetSpaceGlyph(hb_font_t* font, hb_codepoint_t& space) {
-  return hb_font_get_nominal_glyph(font, kSpaceCharacter, &space);
+  return hb_font_get_nominal_glyph(font, uchar::kSpace, &space);
 }
 
 bool HarfBuzzFace::HasSpaceInLigaturesOrKerning(TypesettingFeatures features) {
@@ -447,7 +448,7 @@ class HarfBuzzSkiaFontFuncs final {
 
     Vector<SkFontTableTag> tags(num_tags);
 
-    const int returned_tags = typeface->getTableTags(tags.data());
+    const int returned_tags = typeface->readTableTags(tags);
     DCHECK_EQ(num_tags, returned_tags);
 
     for (auto& tag : tags) {
@@ -577,12 +578,11 @@ HarfBuzzFontData* CreateHarfBuzzFontData(hb_face_t* face,
   hb::unique_ptr<hb_font_t> ot_font(hb_font_create(face));
   hb_ot_font_set_funcs(ot_font.get());
 
-  int axis_count = typeface->getVariationDesignPosition(nullptr, 0);
+  int axis_count = typeface->getVariationDesignPosition({});
   if (axis_count > 0) {
     Vector<SkFontArguments::VariationPosition::Coordinate> axis_values;
     axis_values.resize(axis_count);
-    if (typeface->getVariationDesignPosition(axis_values.data(),
-                                             axis_values.size()) > 0) {
+    if (typeface->getVariationDesignPosition(axis_values) > 0) {
       hb_font_set_variations(
           ot_font.get(), reinterpret_cast<hb_variation_t*>(axis_values.data()),
           axis_values.size());

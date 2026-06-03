@@ -9,14 +9,17 @@
 #include <variant>
 
 #include "base/functional/callback_forward.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/types/expected.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "components/favicon/core/favicon_driver_observer.h"
+#include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 
+class SkBitmap;
 namespace glic {
 
 // TODO: Detect changes to windowID.
@@ -30,15 +33,13 @@ class TabDataObserver : public content::WebContentsObserver,
   // stop providing updates if the primary page changes.
   TabDataObserver(
       content::WebContents* web_contents,
-      bool observe_current_page_only,
       base::RepeatingCallback<void(glic::mojom::TabDataPtr)> tab_data_changed);
   ~TabDataObserver() override;
   TabDataObserver(const TabDataObserver&) = delete;
   TabDataObserver& operator=(const TabDataObserver&) = delete;
 
   // Returns the web contents being observed. Returns null if the web contents
-  // was null originally, the web contents has been destroyed, or the primary
-  // page has changed, and observe_current_page_only is true.
+  // was null originally or the web contents has been destroyed.
   content::WebContents* web_contents() {
     // const_cast is safe because a non-const WebContents is passed in this
     // class's constructor.
@@ -62,54 +63,45 @@ class TabDataObserver : public content::WebContentsObserver,
   void SendUpdate();
   void ClearObservation();
 
-  bool observe_current_page_only_ = false;
+  // Handler for TabInterface callback subscription.
+  void OnTabWillDetach(tabs::TabInterface* tab,
+                       tabs::TabInterface::DetachReason reason);
+
   base::RepeatingCallback<void(glic::mojom::TabDataPtr)> tab_data_changed_;
+
+  // Subscription to TabInterface detach callback.
+  base::CallbackListSubscription tab_detach_subscription_;
 };
 
-// Data provided when there is no focused tab.
-// The browser-side type corresponding to mojom::NoFocusedTabData.
-struct NoFocusedTabData {
-  explicit NoFocusedTabData(std::string_view reason,
-                            content::WebContents* tab = nullptr);
-  NoFocusedTabData();
-  ~NoFocusedTabData();
-  NoFocusedTabData(const NoFocusedTabData& src);
-  NoFocusedTabData& operator=(const NoFocusedTabData& src);
-  bool IsSame(const NoFocusedTabData& new_data) const;
-
-  // The active tab that could not be focused, may be null.
-  base::WeakPtr<content::WebContents> active_tab;
-  // Human readable debug message about why there is no focused tab.
-  std::string_view no_focus_reason;
-};
-
-// Either a focused web contents, or a NoFocusedTabData.
-class FocusedTabData : public std::variant<base::WeakPtr<content::WebContents>,
-                                           NoFocusedTabData> {
+// Either a focused tab, or an error string.
+class FocusedTabData {
  public:
-  FocusedTabData() = delete;  // Disallow the empty state.
-  using variant::variant;
-
+  explicit FocusedTabData(tabs::TabInterface* tab);
+  // `unfocused_tab` can be nullptr. If it is not nullptr, it is the tab that
+  // would be focused but for some reason cannot be.
+  FocusedTabData(const std::string& error, tabs::TabInterface* unfocused_tab);
+  ~FocusedTabData();
+  FocusedTabData(const FocusedTabData& src) = delete;
+  FocusedTabData& operator=(const FocusedTabData& src) = delete;
   bool is_focus() const {
-    return std::holds_alternative<base::WeakPtr<content::WebContents>>(*this);
+    return std::holds_alternative<tabs::TabInterface*>(data_);
   }
 
-  // Returns the focused tab web contents. Note that if FocusedTabData
-  // represents a valid focus, this can still return nullptr if the web contents
-  // has been deleted.
-  content::WebContents* focus() const {
-    const base::WeakPtr<content::WebContents>* focus = std::get_if<0>(this);
-    return focus ? focus->get() : nullptr;
+  // Returns the focused tab or nullptr.
+  tabs::TabInterface* focus() const {
+    return is_focus() ? std::get<0>(data_) : nullptr;
   }
-
-  // Whether this FocusedTabData is the same as `new_data`. Note that this
-  // returns true if both FocusedTabData point to two different invalidated web
-  // contents.
-  bool IsSame(const FocusedTabData& new_data) const;
 
   // Returns the focused web contents, or a human-readable message indicating
   // why there is none.
-  base::expected<content::WebContents*, std::string_view> GetFocus() const;
+  base::expected<tabs::TabInterface*, std::string> GetFocus() const;
+  tabs::TabInterface* unfocused_tab() const { return unfocused_tab_.get(); }
+
+ private:
+  std::variant<tabs::TabInterface*, std::string> data_;
+
+  // Only see if `data_` is string variant.
+  raw_ptr<tabs::TabInterface> unfocused_tab_;
 };
 
 // Helper function to extract the Tab Id from the current web contents.
@@ -125,6 +117,12 @@ glic::mojom::TabDataPtr CreateTabData(content::WebContents* web_contents);
 // Populates and returns a FocusedTabDataPtr from a given FocusedTabData.
 glic::mojom::FocusedTabDataPtr CreateFocusedTabData(
     const FocusedTabData& focused_tab_data);
+
+// Checks if two SkBitmap images -- used for favicons -- are visually the same.
+// This is not a highly optimized comparison but should be good enough for
+// comparing (small) favicon images.
+bool FaviconEquals(const ::SkBitmap& a, const ::SkBitmap& b);
+
 }  // namespace glic
 
 #endif  // CHROME_BROWSER_GLIC_HOST_CONTEXT_GLIC_TAB_DATA_H_

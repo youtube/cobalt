@@ -317,7 +317,7 @@ class TestPermissionService : public PermissionService {
       PermissionDescriptorPtr permission,
       MojoPermissionStatus last_known_status,
       mojo::PendingRemote<PermissionObserver> observer) override {}
-  void AddPageEmbeddedPermissionObserver(
+  void AddCombinedPermissionObserver(
       PermissionDescriptorPtr permission,
       MojoPermissionStatus last_known_status,
       mojo::PendingRemote<PermissionObserver> observer) override {
@@ -1045,6 +1045,7 @@ TEST_F(HTMLPermissionElementSimTest, InitializeGrantedText) {
 }
 
 TEST_F(HTMLPermissionElementSimTest, BlockedByPermissionsPolicy) {
+  GetDocument().GetSettings()->SetDefaultFontSize(12);
   SimRequest main_resource("https://example.test", "text/html");
   LoadURL("https://example.test");
   SimRequest first_iframe_resource("https://example.test/foo1.html",
@@ -1114,31 +1115,6 @@ TEST_F(HTMLPermissionElementSimTest, EnableClickingAfterDelay) {
   permission_element->EnableClickingAfterDelay(
       HTMLPermissionElement::DisableReason::kInvalidStyle, kDefaultTimeout);
   checker.CheckClickingEnabled(/*enabled=*/true);
-}
-
-TEST_F(HTMLPermissionElementSimTest, InvalidDisplayStyleElement) {
-  auto* permission_element = CreatePermissionElement(GetDocument(), "camera");
-  DeferredChecker checker(permission_element);
-  permission_element->setAttribute(
-      html_names::kStyleAttr,
-      AtomicString("display: block; position: absolute;"));
-  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
-  checker.CheckClickingEnabled(/*enabled=*/false);
-  checker.CheckClickingEnabledAfterDelay(kDefaultTimeout,
-                                         /*expected_enabled=*/false);
-  EXPECT_TRUE(To<HTMLPermissionElement>(
-                  GetDocument().QuerySelector(AtomicString("permission")))
-                  ->matches(AtomicString(":invalid-style")));
-
-  permission_element->setAttribute(html_names::kStyleAttr,
-                                   AtomicString("display: inline-block;"));
-  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
-  checker.CheckClickingEnabled(/*enabled=*/false);
-  checker.CheckClickingEnabledAfterDelay(kDefaultTimeout,
-                                         /*expected_enabled=*/true);
-  EXPECT_FALSE(To<HTMLPermissionElement>(
-                   GetDocument().QuerySelector(AtomicString("permission")))
-                   ->matches(AtomicString(":invalid-style")));
 }
 
 TEST_F(HTMLPermissionElementSimTest, BadContrastDisablesElement) {
@@ -1503,6 +1479,7 @@ TEST_F(HTMLPermissionElementFencedFrameTest, NotAllowedInFencedFrame) {
 }
 
 TEST_F(HTMLPermissionElementSimTest, BlockedByMissingFrameAncestorsCSP) {
+  GetDocument().GetSettings()->SetDefaultFontSize(12);
   SimRequest::Params params;
   params.response_http_headers = {
       {"content-security-policy",
@@ -1662,6 +1639,7 @@ class HTMLPermissionElementIntersectionTest
       CSSPropertyID property_name,
       const String& property_value,
       HTMLPermissionElement::IntersectionVisibility expect_visibility) {
+    GetDocument().GetSettings()->SetDefaultFontSize(12);
     SimRequest main_resource("https://example.test/", "text/html");
     LoadURL("https://example.test/");
     main_resource.Complete(R"HTML(
@@ -1691,6 +1669,7 @@ class HTMLPermissionElementIntersectionTest
 };
 
 TEST_F(HTMLPermissionElementIntersectionTest, IntersectionChanged) {
+  GetDocument().GetSettings()->SetDefaultFontSize(12);
   SimRequest main_resource("https://example.test/", "text/html");
   LoadURL("https://example.test/");
   main_resource.Complete(R"HTML(
@@ -1733,6 +1712,7 @@ TEST_F(HTMLPermissionElementIntersectionTest, IntersectionChanged) {
 
 TEST_F(HTMLPermissionElementIntersectionTest,
        IntersectionVisibleOverlapsRecentAttachedInterval) {
+  GetDocument().GetSettings()->SetDefaultFontSize(12);
   SimRequest main_resource("https://example.test/", "text/html");
   LoadURL("https://example.test/");
   main_resource.Complete(R"HTML(
@@ -1772,6 +1752,7 @@ TEST_F(HTMLPermissionElementIntersectionTest,
 
 TEST_F(HTMLPermissionElementIntersectionTest,
        IntersectionChangedDisableEnableDisable) {
+  GetDocument().GetSettings()->SetDefaultFontSize(12);
   SimRequest main_resource("https://example.test/", "text/html");
   LoadURL("https://example.test/");
   main_resource.Complete(R"HTML(
@@ -1826,6 +1807,7 @@ TEST_F(HTMLPermissionElementIntersectionTest,
 }
 
 TEST_F(HTMLPermissionElementIntersectionTest, ClickingDisablePseudoClass) {
+  GetDocument().GetSettings()->SetDefaultFontSize(12);
   SimRequest main_resource("https://example.test/", "text/html");
   LoadURL("https://example.test/");
   main_resource.Complete(R"HTML(
@@ -1902,12 +1884,17 @@ TEST_F(HTMLPermissionElementIntersectionTest, ClickingDisablePseudoClass) {
 }
 
 TEST_F(HTMLPermissionElementIntersectionTest, IntersectionOclluderLogging) {
+  GetDocument().GetSettings()->SetDefaultFontSize(12);
   SimRequest main_resource("https://example.test/", "text/html");
   LoadURL("https://example.test/");
   main_resource.Complete(R"HTML(
-<div id='parent' style='width: 250px; height: 0px;'>
-  <permission id='camera' type='camera'></permission>
-  <div style='position: fixed; left: 0px; top: 100px; width: 100px; height: 100px;'>
+<div id='parent' style='width: 250px; height: 250px;'>
+  <permission
+      style='position: relative; border:0; top: 0px; left: 0px; width: 100px; height: 36px;'
+      id='camera'
+      type='camera'>
+  </permission>
+  <div style='position: relative; left: 0px; top: -36px; width: 2px; height: 2px;'>
 </div>
 )HTML");
 
@@ -1926,10 +1913,13 @@ TEST_F(HTMLPermissionElementIntersectionTest, IntersectionOclluderLogging) {
                                          /*expected_enabled*/ true);
   permission_element->setAttribute(
       html_names::kStyleAttr,
-      AtomicString("color: red; background-color: purple;"));
+      AtomicString(
+          "position: relative; border:0; top: 0px; left: 0px; width: 100px; "
+          "height: 36px; color: red; background-color: purple;"));
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
 
-  div->SetInlineStyleProperty(CSSPropertyID::kTop, "0px");
+  div->SetInlineStyleProperty(CSSPropertyID::kTop, "-33px");
+  div->SetInlineStyleProperty(CSSPropertyID::kLeft, "3px");
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
   WaitForIntersectionVisibilityChanged(
       permission_element,

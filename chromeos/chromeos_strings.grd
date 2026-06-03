@@ -258,6 +258,18 @@
       <message name="IDS_QUICK_ANSWERS_USER_CONSENT_TITLE_UNIT_CONVERSION_INTENT" desc="Title text of the dialog that opens up to seek user-consent for the Quick Answers feature when the supported intent is generated from the query.">
         Convert "<ph name="query">$1<ex>1kg</ex></ph>"
       </message>
+      <message name="IDS_QUICK_ANSWERS_MAGIC_BOOST_USER_NOTICE_VIEW_A11Y_INFO_DESC_TEXT" desc="A11y description text for the Quick Answers Magic Boost user notice view.">
+        Right-click or press and hold to get definitions, translations, or unit conversions. Use Left or Right arrow keys to manage this feature.
+      </message>
+      <message name="IDS_QUICK_ANSWERS_MAGIC_BOOST_USER_CONSENT_DEFINITION_INTENT_LABEL_BUTTON" desc="Button label for Dictionary intent in the magic boost user consent view which leads to the magic boost disclaimer UI when clicked upon.">
+        Define "<ph name="query">$1<ex>unfathomable</ex></ph>"
+      </message>
+      <message name="IDS_QUICK_ANSWERS_MAGIC_BOOST_USER_CONSENT_TRANSLATION_INTENT_LABEL_BUTTON" desc="Button label for Translation intent in the magic boost user consent view which leads to the magic boost disclaimer UI when clicked upon.">
+        Translate "<ph name="query">$1<ex>信息</ex></ph>"
+      </message>
+      <message name="IDS_QUICK_ANSWERS_MAGIC_BOOST_USER_CONSENT_UNIT_CONVERSION_INTENT_LABEL_BUTTON" desc="Button label for Unit Conversion intent in the magic boost user consent view which leads to the magic boost disclaimer UI when clicked upon.">
+        Convert "<ph name="query">$1<ex>1kg</ex></ph>"
+      </message>
       <message name="IDS_QUICK_ANSWERS_USER_CONSENT_VIEW_TITLE_TEXT_WITH_INTENT" desc="Title text of the dialog that opens up to seek user-consent for the Quick Answers feature when supported intent is generated.">
         Get the <ph name="intent">$1<ex>definition</ex></ph> for "<ph name="query">$2<ex>unfathomable</ex></ph>" and more
       </message>
@@ -3785,7 +3797,7 @@
           anime path overlooking the ocean with falling cherry blossom leaves
         </message>
         <message name="IDS_SEA_PEN_FREEFORM_SAMPLE_PAPAVER_RHEA_STEMS" desc="An example prompt that can be used to generate an image">
-          minimal still life of a few Papaver rhea stems in a glass vase on a black background
+          minimal still life of a few Papaver rhea flowers in a glass vase on a black background
         </message>
         <message name="IDS_SEA_PEN_FREEFORM_SAMPLE_METEOR_SHOWER" desc="An example prompt that can be used to generate an image">
           photo of a night sky with a meteor shower and a few trees in the foreground, with purple and pink hues
@@ -7191,9 +7203,6 @@
       </message>
       <message name="IDS_ON_TASK_BUNDLE_CONTENT_REMOVED_MESSAGE" desc="Notification message telling students that their teacher has removed content from the bundle.">
         Your teacher has removed content in Class Tools
-      </message>
-      <message name="IDS_ON_TASK_CANNOT_OPEN_UNSUPPORTED_RESOURCES_IN_LOCKED_MODE_MESSAGE" desc="Notification message telling students that the provided resource is unsupported in locked mode. Let the students tell the teacher the issue.">
-        Your teacher has sent an unsupported resource. Let them know.
       </message>
 
       <!-- Strings for the OnTask pod -->

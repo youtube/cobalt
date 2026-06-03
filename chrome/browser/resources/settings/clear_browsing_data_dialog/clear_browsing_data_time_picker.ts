@@ -32,10 +32,12 @@ interface TimePeriodOption {
   label: string;
 }
 
-export function getTimePeriodString(timePeriod: TimePeriod) {
+export function getTimePeriodString(
+    timePeriod: TimePeriod, short: boolean = true) {
   switch (timePeriod) {
     case TimePeriod.LAST_15_MINUTES:
-      return loadTimeData.getString('clearPeriod15Minutes');
+      return short ? loadTimeData.getString('clearPeriod15Min') :
+                     loadTimeData.getString('clearPeriod15Minutes');
     case TimePeriod.LAST_HOUR:
       return loadTimeData.getString('clearPeriodHour');
     case TimePeriod.LAST_DAY:
@@ -206,6 +208,14 @@ export class SettingsClearBrowsingDataTimePicker extends
 
     if (newTimePeriod !== this.selectedTimePeriod_) {
       this.selectedTimePeriod_ = event.model.item.value;
+    }
+  }
+
+  private onMenuTimePeriodSelected_(event: DomRepeatEvent<TimePeriodOption>) {
+    this.onTimePeriodSelected_(event);
+    const actionMenu = this.shadowRoot!.querySelector('cr-action-menu');
+    if (actionMenu) {
+      actionMenu.close();
     }
   }
 

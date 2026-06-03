@@ -65,7 +65,7 @@ CSSStyleSheetResource* CSSStyleSheetResource::Fetch(FetchParameters& params,
 
 CSSStyleSheetResource* CSSStyleSheetResource::CreateForTest(
     const KURL& url,
-    const WTF::TextEncoding& encoding) {
+    const TextEncoding& encoding) {
   ResourceRequest request(url);
   request.SetCredentialsMode(network::mojom::CredentialsMode::kOmit);
   ResourceLoaderOptions options(nullptr /* world */);
@@ -107,7 +107,7 @@ void CSSStyleSheetResource::OnMemoryDump(
     WebMemoryDumpLevelOfDetail level_of_detail,
     WebProcessMemoryDump* memory_dump) const {
   Resource::OnMemoryDump(level_of_detail, memory_dump);
-  const String name = GetMemoryDumpName() + "/style_sheets";
+  const String name = StrCat({GetMemoryDumpName(), "/style_sheets"});
   auto* dump = memory_dump->CreateMemoryAllocatorDump(name);
   dump->AddScalar("size", "bytes", decoded_sheet_text_.CharactersSizeInBytes());
   memory_dump->AddSuballocation(

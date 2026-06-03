@@ -23,6 +23,7 @@
 #include "components/signin/core/browser/signin_header_helper.h"
 #include "components/signin/public/base/signin_buildflags.h"
 #include "components/signin/public/base/signin_metrics.h"
+#include "components/sync/service/local_data_description.h"
 #include "ui/views/controls/styled_label.h"
 
 namespace signin_metrics {
@@ -44,6 +45,7 @@ class Browser;
 // the signin (or sync), e.g. history sync opt-in identity pill promo.
 class ProfileMenuView : public ProfileMenuViewBase {
  public:
+  // `browser` must not be nullptr.
   ProfileMenuView(views::Button* anchor_button,
                   Browser* browser,
                   std::optional<signin_metrics::AccessPoint>
@@ -63,15 +65,14 @@ class ProfileMenuView : public ProfileMenuViewBase {
   friend class ProfileMenuViewSyncErrorButtonTest;
   friend class ProfileMenuInteractiveUiTest;
 
+  Browser& browser() const { return *browser_; }
+
   // views::BubbleDialogDelegateView:
   std::u16string GetAccessibleWindowTitle() const override;
 
   // Button/link actions.
   void OnProfileManagementButtonClicked();
   void OnManageGoogleAccountButtonClicked();
-  void OnPasswordsButtonClicked();
-  void OnCreditCardsButtonClicked();
-  void OnAddressesButtonClicked();
   void OnGuestProfileButtonClicked();
   void OnExitProfileButtonClicked();
   void OnSyncSettingsButtonClicked();
@@ -79,13 +80,13 @@ class ProfileMenuView : public ProfileMenuViewBase {
   void OnSigninButtonClicked(CoreAccountInfo account,
                              ActionableItem button_type,
                              signin_metrics::AccessPoint access_point);
-  void OnCookiesClearedOnExitLinkClicked();
   void OnSignoutButtonClicked();
   void OnOtherProfileSelected(const base::FilePath& profile_path);
   void OnAddNewProfileButtonClicked();
   void OnManageProfilesButtonClicked();
   void OnEditProfileButtonClicked();
   void OnAutofillSettingsButtonClicked();
+  void OnBuildBatchUploadButtonClicked();
 
   // We normally close the bubble any time it becomes inactive but this can lead
   // to flaky tests where unexpected UI events are triggering this behavior.
@@ -96,6 +97,7 @@ class ProfileMenuView : public ProfileMenuViewBase {
   void SetMenuTitleForAccessibility();
   void BuildGuestIdentity();
   void BuildHistorySyncOptInButton();
+  void MaybeBuildBatchUploadButton();
   void BuildAutofillSettingsButton();
   void BuildCustomizeProfileButton();
   void MaybeBuildChromeAccountSettingsButton();
@@ -115,6 +117,11 @@ class ProfileMenuView : public ProfileMenuViewBase {
       const std::vector<ProfileAttributesEntry*>& available_profiles);
 
   void BuildProfileManagementFeatureButtons();
+
+  void OnBatchUploadDataReceived(
+      std::map<syncer::DataType, syncer::LocalDataDescription> local_data_map);
+
+  const raw_ref<Browser> browser_;
 
   std::u16string menu_title_;
   std::u16string menu_subtitle_;

@@ -5,23 +5,27 @@
 #include "content/browser/accessibility/browser_accessibility_android.h"
 
 #include <algorithm>
-#include <unordered_map>
 
 #include "base/check_deref.h"
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/i18n/break_iterator.h"
-#include "base/lazy_instance.h"
 #include "base/memory/ptr_util.h"
+#include "base/no_destructor.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "content/browser/accessibility/ax_style_data.h"
 #include "content/browser/accessibility/browser_accessibility_manager_android.h"
 #include "content/public/common/content_client.h"
+#include "content/public/common/content_features.h"
 #include "skia/ext/skia_utils_base.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/accessibility/android/accessibility_state.h"
 #include "ui/accessibility/ax_assistant_structure.h"
+#include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/accessibility/ax_node_position.h"
 #include "ui/accessibility/ax_role_properties.h"
 #include "ui/accessibility/ax_selection.h"
@@ -93,6 +97,99 @@ enum {
   ANDROID_VIEW_ACCESSIBILITY_CHECKED_STATE_PARTIAL = 2,
 };
 
+using AXStyleData = content::AXStyleData;
+
+using UniqueIdMap =
+    absl::flat_hash_map<int32_t, content::BrowserAccessibilityAndroid*>;
+using LeafMap =
+    absl::flat_hash_map<const content::BrowserAccessibilityAndroid*, bool>;
+
+// Map from each AXPlatformNode's unique id to its instance.
+UniqueIdMap& GetUniqueIdMap() {
+  static base::NoDestructor<UniqueIdMap> unique_id_map;
+  return *unique_id_map;
+}
+
+// Map from BrowserAccessibilityAndroid nodes to whether they qualify as a
+// "leaf". Must be cleared on any tree mutation.
+LeafMap& GetLeafMap() {
+  static base::NoDestructor<LeafMap> leaf_map;
+  return *leaf_map;
+}
+
+// Populates the computed style data from `node` into `style_data`.
+// Non-opaque colors also are blended from ancestors.
+void PopulateStyleData(const content::BrowserAccessibilityAndroid& node,
+                       const std::u16string& parent_text,
+                       const std::u16string& text,
+                       AXStyleData* style_data) {
+  if (!style_data) {
+    return;
+  }
+
+  int start = parent_text.size();
+  int end = start + text.size();
+
+  if (node.IsTextField()) {
+    std::vector<int> suggestion_starts;
+    std::vector<int> suggestion_ends;
+    node.GetSuggestions(&suggestion_starts, &suggestion_ends);
+    CHECK_EQ(suggestion_starts.size(), suggestion_ends.size());
+    for (size_t i = 0; i < suggestion_starts.size(); ++i) {
+      // TODO: crbug.com/425974312 - Currently we don't retrieve the text of
+      // each suggestion, so store a blank string for now.
+      AXStyleData::AddRange(style_data->suggestions, std::u16string(),
+                            start + suggestion_starts[i],
+                            start + suggestion_ends[i]);
+    }
+  }
+
+  if (ui::IsLink(node.GetRole())) {
+    AXStyleData::AddRange(style_data->links, node.GetTargetUrl(), start, end);
+  }
+
+  if (node.GetRole() == ax::mojom::Role::kStaticText) {
+    if (node.HasFloatAttribute(ax::mojom::FloatAttribute::kFontSize)) {
+      // Zero font size is valid in CSS, which makes the text invisible.
+      if (float size = node.GetTextSize(); size >= 0) {
+        AXStyleData::AddRange(style_data->text_sizes, size, start, end);
+      }
+    }
+    if (node.GetTextStyle() != 0) {
+      // GetTextStyle returns a bit field shifted by ax::mojom::TextStyle enum
+      // values, so we need to parse out the individual enum values. See:
+      // https://source.chromium.org/chromium/chromium/src/+/main:ui/accessibility/ax_node_data.cc?q=HasTextStyle
+      for (int i = static_cast<int>(ax::mojom::TextStyle::kMinValue);
+           i <= static_cast<int>(ax::mojom::TextStyle::kMaxValue); ++i) {
+        ax::mojom::TextStyle style = static_cast<ax::mojom::TextStyle>(i);
+        if (style != ax::mojom::TextStyle::kNone && node.HasTextStyle(style)) {
+          AXStyleData::AddRange(style_data->text_styles, style, start, end);
+        }
+      }
+    }
+    if (auto pos = static_cast<ax::mojom::TextPosition>(node.GetTextPosition());
+        pos != ax::mojom::TextPosition::kNone) {
+      AXStyleData::AddRange(style_data->text_positions, pos, start, end);
+    }
+    // GetColor() gets the blended color.
+    AXStyleData::AddRange(style_data->foreground_colors,
+                          static_cast<int>(node.GetColor()), start, end);
+    // GetBackgroundColor() gets blended background color.
+    AXStyleData::AddRange(style_data->background_colors,
+                          static_cast<int>(node.GetBackgroundColor()), start,
+                          end);
+    if (const auto& family = node.GetInheritedFontFamilyName();
+        !family.empty()) {
+      AXStyleData::AddRange(style_data->font_families, std::move(family), start,
+                            end);
+    }
+    // GetLanguage() gets the inherited language locale.
+    if (const auto& lang = node.GetLanguage(); !lang.empty()) {
+      AXStyleData::AddRange(style_data->locales, std::move(lang), start, end);
+    }
+  }
+}
+
 }  // namespace
 
 namespace ui {
@@ -107,22 +204,12 @@ std::unique_ptr<BrowserAccessibility> BrowserAccessibility::Create(
 
 namespace content {
 
-using UniqueIdMap = std::unordered_map<int32_t, BrowserAccessibilityAndroid*>;
-// Map from each AXPlatformNode's unique id to its instance.
-base::LazyInstance<UniqueIdMap>::Leaky g_unique_id_map =
-    LAZY_INSTANCE_INITIALIZER;
-
-// Map from BrowserAccessibilityAndroid nodes to whether they qualify as a
-// "leaf". Must be cleared on any tree mutation.
-base::LazyInstance<std::map<const BrowserAccessibilityAndroid*, bool>>::Leaky
-    g_leaf_map = LAZY_INSTANCE_INITIALIZER;
-
 // static
 BrowserAccessibilityAndroid* BrowserAccessibilityAndroid::GetFromUniqueId(
     int32_t unique_id) {
-  UniqueIdMap* unique_ids = g_unique_id_map.Pointer();
-  auto iter = unique_ids->find(unique_id);
-  if (iter != unique_ids->end()) {
+  const UniqueIdMap& unique_ids = GetUniqueIdMap();
+  auto iter = unique_ids.find(unique_id);
+  if (iter != unique_ids.end()) {
     return iter->second;
   }
 
@@ -131,19 +218,19 @@ BrowserAccessibilityAndroid* BrowserAccessibilityAndroid::GetFromUniqueId(
 
 // static
 void BrowserAccessibilityAndroid::ResetLeafCache() {
-  g_leaf_map.Get().clear();
+  GetLeafMap().clear();
 }
 
 BrowserAccessibilityAndroid::BrowserAccessibilityAndroid(
     ui::BrowserAccessibilityManager* manager,
     ui::AXNode* node)
     : BrowserAccessibility(manager, node) {
-  g_unique_id_map.Get()[GetUniqueId()] = this;
+  GetUniqueIdMap()[GetUniqueId()] = this;
 }
 
 BrowserAccessibilityAndroid::~BrowserAccessibilityAndroid() {
   if (auto id = GetUniqueId()) {
-    g_unique_id_map.Get().erase(id);
+    GetUniqueIdMap().erase(id);
   }
 }
 
@@ -178,11 +265,11 @@ void BrowserAccessibilityAndroid::AppendTextToString(
   }
 
   if (string->empty()) {
-    *string = extra_text;
+    *string = std::move(extra_text);
     return;
   }
 
-  *string += std::u16string(u", ") + extra_text;
+  base::StrAppend(string, {u", ", std::move(extra_text)});
 }
 
 bool BrowserAccessibilityAndroid::IsCheckable() const {
@@ -370,14 +457,12 @@ bool BrowserAccessibilityAndroid::IsSlider() const {
 }
 
 bool BrowserAccessibilityAndroid::IsSubscript() const {
-  return static_cast<ax::mojom::TextPosition>(
-             GetIntAttribute(ax::mojom::IntAttribute::kTextPosition)) ==
+  return static_cast<ax::mojom::TextPosition>(GetTextPosition()) ==
          ax::mojom::TextPosition::kSubscript;
 }
 
 bool BrowserAccessibilityAndroid::IsSuperscript() const {
-  return static_cast<ax::mojom::TextPosition>(
-             GetIntAttribute(ax::mojom::IntAttribute::kTextPosition)) ==
+  return static_cast<ax::mojom::TextPosition>(GetTextPosition()) ==
          ax::mojom::TextPosition::kSuperscript;
 }
 
@@ -446,6 +531,11 @@ bool BrowserAccessibilityAndroid::IsInterestingOnAndroid() const {
     }
 
     parent = parent->PlatformGetParent();
+  }
+
+  // A kMenu container should not be interesting and navigatable.
+  if (GetRole() == ax::mojom::Role::kMenu) {
+    return false;
   }
 
   // Otherwise, focusable nodes are always interesting. Note that IsFocusable()
@@ -612,8 +702,8 @@ bool BrowserAccessibilityAndroid::IsChildOfLeaf() const {
 }
 
 bool BrowserAccessibilityAndroid::IsLeaf() const {
-  if (base::Contains(g_leaf_map.Get(), this)) {
-    return g_leaf_map.Get()[this];
+  if (base::Contains(GetLeafMap(), this)) {
+    return GetLeafMap()[this];
   }
 
   if (BrowserAccessibility::IsLeaf()) {
@@ -678,25 +768,25 @@ bool BrowserAccessibilityAndroid::IsLeaf() const {
     std::u16string name = GetSubstringTextContentUTF16(1);
     if (GetRole() == ax::mojom::Role::kHeading && !name.empty()) {
       bool ret = IsLeafConsideringChildren();
-      g_leaf_map.Get()[this] = ret;
+      GetLeafMap()[this] = ret;
       return ret;
     }
 
     // Focusable nodes with text can drop their children (with exceptions).
     if (HasState(ax::mojom::State::kFocusable) && !name.empty()) {
       bool ret = IsLeafConsideringChildren();
-      g_leaf_map.Get()[this] = ret;
+      GetLeafMap()[this] = ret;
       return ret;
     }
 
     // Nodes with only static text can drop their children, with the exception
     // that list markers have a different role and should not be dropped.
     if (HasOnlyTextChildren() && !HasListMarkerChild()) {
-      g_leaf_map.Get()[this] = true;
+      GetLeafMap()[this] = true;
       return true;
     }
   }
-  g_leaf_map.Get()[this] = false;
+  GetLeafMap()[this] = false;
   return false;
 }
 
@@ -768,16 +858,37 @@ int BrowserAccessibilityAndroid::GetTextContentLengthUTF16() const {
 }
 
 std::u16string BrowserAccessibilityAndroid::GetSubstringTextContentUTF16(
-    std::optional<size_t> min_length) const {
+    std::optional<size_t> min_length,
+    AXStyleData* style_data) const {
+  std::u16string text;
+  AccumulateSubstringTextContentUTF16(&text, min_length, style_data);
+  return text;
+}
+
+void BrowserAccessibilityAndroid::AccumulateSubstringTextContentUTF16(
+    std::u16string* accumulated_text,
+    std::optional<size_t> min_length,
+    AXStyleData* style_data) const {
+  CHECK(accumulated_text);
+  std::u16string text;
+  base::ScopedClosureRunner accumulate_text_and_styling(base::BindOnce(
+      [](const BrowserAccessibilityAndroid& node, std::u16string* dest,
+         std::u16string& src, AXStyleData* style_data) {
+        PopulateStyleData(node, *dest, src, style_data);
+        base::StrAppend(dest, {std::move(src)});
+      },
+      std::cref(*this), base::Unretained(accumulated_text), std::ref(text),
+      base::Unretained(style_data)));
+
   if (ui::IsIframe(GetRole())) {
-    return std::u16string();
+    return;
   }
 
-  // First, always return the |value| attribute if this is an
-  // input field.
+  // First, always return the `value` attribute if this is an input field.
   std::u16string value = GetValueForControl();
   if (ShouldExposeValueAsName(value)) {
-    return value;
+    text = std::move(value);
+    return;
   }
 
   // For color wells, the color is stored in separate attributes.
@@ -785,14 +896,14 @@ std::u16string BrowserAccessibilityAndroid::GetSubstringTextContentUTF16(
   if (GetRole() == ax::mojom::Role::kColorWell) {
     unsigned int color = static_cast<unsigned int>(
         GetIntAttribute(ax::mojom::IntAttribute::kColorValue));
-    return base::UTF8ToUTF16(skia::SkColorToHexString(color));
+    text = base::UTF8ToUTF16(skia::SkColorToHexString(color));
+    return;
   }
 
   // In the case of accessible name from kAttribute, the aria-label will be
   // mapped to one of the container title, content description or supplemental
   // description, we should exclude aria-label from mapping to text.
-  std::u16string text =
-      IsAccessibleNameFromAttribute() ? u"" : GetNameAsString16();
+  text = IsAccessibleNameFromAttribute() ? u"" : GetNameAsString16();
   if (ui::IsRangeValueSupported(GetRole())) {
     // For controls that support range values such as sliders, when a non-empty
     // name is present (e.g. a label), append this to the value so both the
@@ -817,13 +928,13 @@ std::u16string BrowserAccessibilityAndroid::GetSubstringTextContentUTF16(
   // For almost all focusable nodes we try to get text from contents, but for
   // the root node that's redundant and often way too verbose.
   if (ui::IsPlatformDocument(GetRole())) {
-    return text;
+    return;
   }
 
   // A role="separator" is a leaf, and cannot get name from contents, even if
   // author appends text children.
   if (GetRole() == ax::mojom::Role::kSplitter) {
-    return text;
+    return;
   }
 
   // Append image description strings to the text.
@@ -855,29 +966,22 @@ std::u16string BrowserAccessibilityAndroid::GetSubstringTextContentUTF16(
     }
   }
 
-  size_t text_length = text.size();
-  std::vector<std::u16string> inner_text({std::move(text)});
   // This is called from IsLeaf, so don't call PlatformChildCount
   // from within this!
   // Only for roles that do not support naming with child content, we loop
   // through the children, in order to populate the visual content (use Android
   // text API), in addition to populating the aria label information.
-  if (text_length == 0 && !ui::SupportsNamingWithChildContent(GetRole()) &&
+  if (text.size() == 0 && !ui::SupportsNamingWithChildContent(GetRole()) &&
       ((HasOnlyTextChildren() && !HasListMarkerChild()) ||
        (IsFocusable() && HasOnlyTextAndImageChildren()))) {
     for (auto it = InternalChildrenBegin(); it != InternalChildrenEnd(); ++it) {
-      std::u16string child_text =
-          static_cast<BrowserAccessibilityAndroid*>(it.get())
-              ->GetSubstringTextContentUTF16(min_length);
-      text_length += child_text.size();
-      inner_text.push_back(std::move(child_text));
-      if (min_length && text_length >= *min_length) {
+      static_cast<BrowserAccessibilityAndroid*>(it.get())
+          ->AccumulateSubstringTextContentUTF16(&text, min_length, style_data);
+      if (min_length && text.size() >= *min_length) {
         break;
       }
     }
   }
-
-  text = base::JoinString(inner_text, u"");
 
   if (text.empty() &&
       (ui::IsLink(GetRole()) || ui::IsImageOrVideo(GetRole())) &&
@@ -885,8 +989,6 @@ std::u16string BrowserAccessibilityAndroid::GetSubstringTextContentUTF16(
     std::u16string url = GetString16Attribute(ax::mojom::StringAttribute::kUrl);
     text = ui::AXUrlBaseText(url);
   }
-
-  return text;
 }
 
 BrowserAccessibilityAndroid::EarlyExitPredicate
@@ -1051,7 +1153,9 @@ std::u16string BrowserAccessibilityAndroid::GetSupplementalDescription() const {
 }
 
 bool BrowserAccessibilityAndroid::IsAccessibleNameFromAttribute() const {
-  return HasIntAttribute(ax::mojom::IntAttribute::kNameFrom) &&
+  return base::FeatureList::IsEnabled(
+             features::kAccessibilityPopulateSupplementalDescriptionApi) &&
+         HasIntAttribute(ax::mojom::IntAttribute::kNameFrom) &&
          GetNameFrom() == ax::mojom::NameFrom::kAttribute;
 }
 
@@ -1437,6 +1541,10 @@ float BrowserAccessibilityAndroid::GetTextSize() const {
 
 int BrowserAccessibilityAndroid::GetTextStyle() const {
   return GetIntAttribute(ax::mojom::IntAttribute::kTextStyle);
+}
+
+int BrowserAccessibilityAndroid::GetTextPosition() const {
+  return GetIntAttribute(ax::mojom::IntAttribute::kTextPosition);
 }
 
 int BrowserAccessibilityAndroid::GetTextColor() const {
@@ -2285,6 +2393,11 @@ void BrowserAccessibilityAndroid::OnDataChanged() {
   auto* manager =
       static_cast<BrowserAccessibilityManagerAndroid*>(this->manager());
   manager->ClearNodeInfoCacheForGivenId(GetUniqueId());
+
+  if (BrowserAccessibilityAndroid* parent =
+          static_cast<BrowserAccessibilityAndroid*>(PlatformGetParent())) {
+    manager->ClearNodeInfoCacheForGivenId(parent->GetUniqueId());
+  }
 }
 
 int BrowserAccessibilityAndroid::CountChildrenWithRole(

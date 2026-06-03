@@ -5,9 +5,17 @@
 #ifndef CONTENT_PUBLIC_BROWSER_TRACING_DELEGATE_H_
 #define CONTENT_PUBLIC_BROWSER_TRACING_DELEGATE_H_
 
+#include <memory>
+
 #include "base/functional/callback_forward.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
 #include "content/common/content_export.h"
+#include "services/tracing/public/cpp/perfetto/metadata_data_source.h"
+
+namespace tracing {
+class BackgroundTracingStateManager;
+}
 
 namespace content {
 
@@ -17,11 +25,24 @@ class CONTENT_EXPORT TracingDelegate {
  public:
   virtual ~TracingDelegate() = default;
 
-  // Returns true if the tracing session is allowed to record.
-  virtual bool IsRecordingAllowed(bool requires_anonymized_data) const;
+  // Returns true if a tracing session that started at `tracing_start` is
+  // allowed to record or save data.
+  virtual bool IsRecordingAllowed(bool requires_anonymized_data,
+                                  base::TimeTicks session_start) const;
 
   // Specifies whether traces that aren't uploaded should still be saved.
   virtual bool ShouldSaveUnuploadedTrace() const;
+
+  // Creates background tracing state manager connected to embedder local state.
+  virtual std::unique_ptr<tracing::BackgroundTracingStateManager>
+  CreateStateManager();
+
+  // Returns a serialized system metrics.
+  virtual std::string RecordSerializedSystemProfileMetrics() const;
+
+  // Returns a callback to fill a bundle packet with system metrics.
+  virtual tracing::MetadataDataSource::BundleRecorder
+  CreateSystemProfileMetadataRecorder() const;
 
 #if BUILDFLAG(IS_WIN)
   // Runs `on_tracing_state` (asynchronously) with the current state of the

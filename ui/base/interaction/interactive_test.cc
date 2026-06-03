@@ -6,22 +6,24 @@
 
 #include <functional>
 #include <memory>
+#include <ostream>
 #include <sstream>
 #include <string>
 #include <string_view>
 #include <variant>
 
 #include "base/functional/callback_helpers.h"
-#include "base/functional/overloaded.h"
 #include "base/logging.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_run_loop_timeout.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/interaction/element_tracker.h"
 #include "ui/base/interaction/interaction_sequence.h"
 #include "ui/base/interaction/interaction_test_util.h"
+#include "ui/base/interaction/interactive_test_definitions.h"
 #include "ui/base/interaction/interactive_test_internal.h"
 
 namespace ui::test {
@@ -459,7 +461,7 @@ InteractiveTestApi::FindElementCallback
 InteractiveTestApi::GetFindElementCallback(AbsoluteElementSpecifier spec) {
   using ContextCallback = base::OnceCallback<TrackedElement*(ElementContext)>;
   return std::visit(
-      base::Overloaded{
+      absl::Overload{
           [](TrackedElement* el) {
             CHECK(el) << "NameView(TrackedElement*): view must be set.";
             return base::BindOnce(
@@ -520,6 +522,15 @@ void InteractiveTestApi::AddDescriptionPrefix(MultiStep& steps,
   for (auto& step : steps) {
     step.AddDescriptionPrefix(prefix);
   }
+}
+
+std::ostream& operator<<(std::ostream& os, internal::ElementSpecifier element) {
+  if (auto* id = std::get_if<ui::ElementIdentifier>(&element)) {
+    os << *id;
+  } else {
+    os << std::get<std::string_view>(element);
+  }
+  return os;
 }
 
 }  // namespace ui::test

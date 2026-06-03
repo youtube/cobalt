@@ -165,7 +165,9 @@ class CONTENT_EXPORT SiteInstanceImpl final : public SiteInstance {
   BrowsingInstanceId GetBrowsingInstanceId() override;
   bool HasProcess() override;
   RenderProcessHost* GetProcess() override;
-  RenderProcessHost* GetOrCreateProcess() override;
+  RenderProcessHost* GetOrCreateProcess(
+      base::PassKey<SiteInstanceProcessCreationClient>) override;
+  RenderProcessHost* GetOrCreateProcessForTesting() override;
   SiteInstanceGroupId GetSiteInstanceGroupId() override;
   BrowserContext* GetBrowserContext() override;
   const GURL& GetSiteURL() override;

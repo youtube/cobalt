@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "base/containers/fixed_flat_map.h"
+#include "base/containers/fixed_flat_set.h"
 
 namespace on_device_translation {
 
@@ -65,16 +66,24 @@ enum class SupportedLanguage {
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/translate/enums.xml:SupportedLanguage)
 
+// The supported languages for on-device translation.
+static constexpr auto kSupportedLanguageCodes =
+    base::MakeFixedFlatSet<std::string_view>({
+        "en", "es", "ja", "ar", "bn", "de", "fr", "hi", "it",      "ko",
+        "nl", "pl", "pt", "ru", "th", "tr", "vi", "zh", "zh-Hant", "bg",
+        "cs", "da", "el", "fi", "hr", "hu", "id", "iw", "lt",      "no",
+        "ro", "sk", "sl", "sv", "uk", "kn", "ta", "te", "mr",
+    });
+static_assert(std::size(kSupportedLanguageCodes) ==
+                  static_cast<unsigned>(SupportedLanguage::kMaxValue) + 1,
+              "All languages must be in kSupportedLanguageCodes.");
+
 // Converts a SupportedLanguage to a language code.
 std::string_view ToLanguageCode(SupportedLanguage supported_language);
 
 // Converts a language code to a SupportedLanguage.
 std::optional<SupportedLanguage> ToSupportedLanguage(
     std::string_view language_code);
-
-// Returns whether the language is in the top 12 by number of native speakers.
-// https://en.wikipedia.org/wiki/List_of_languages_by_number_of_native_speakers#Top_languages_by_population
-bool IsPopularLanguage(SupportedLanguage supported_language);
 
 // The key for language pack components.
 enum class LanguagePackKey {

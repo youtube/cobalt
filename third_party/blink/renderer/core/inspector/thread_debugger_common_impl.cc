@@ -132,18 +132,18 @@ unsigned ThreadDebuggerCommonImpl::PromiseRejected(
     v8::Local<v8::Context> context,
     const String& error_message,
     v8::Local<v8::Value> exception,
-    std::unique_ptr<SourceLocation> location) {
+    SourceLocation* location) {
   const StringView default_message = "Uncaught (in promise)";
   String message = error_message;
   if (message.empty()) {
     message = "Uncaught (in promise)";
   } else if (message.StartsWith("Uncaught ")) {
-    message = "Uncaught (in promise)" + StringView(message, 8);
+    message = StrCat({"Uncaught (in promise)", StringView(message, 8)});
   }
 
-  ReportConsoleMessage(
-      ToExecutionContext(context), mojom::ConsoleMessageSource::kJavaScript,
-      mojom::ConsoleMessageLevel::kError, message, location.get());
+  ReportConsoleMessage(ToExecutionContext(context),
+                       mojom::ConsoleMessageSource::kJavaScript,
+                       mojom::ConsoleMessageLevel::kError, message, location);
   String url = location->Url();
   return GetV8Inspector()->exceptionThrown(
       context, ToV8InspectorStringView(default_message), exception,
@@ -492,8 +492,8 @@ bool ReadAdditionalSerializationParameters(
     if (!include_shadow_tree_value->IsUndefined()) {
       if (!include_shadow_tree_value->IsString()) {
         *error_message = ToV8InspectorStringBuffer(
-            String("Parameter " + String(kIncludeShadowTreeParameterName) +
-                   " should be of type string."));
+            StrCat({"Parameter ", kIncludeShadowTreeParameterName,
+                    " should be of type string."}));
         return false;
       }
       String include_shadow_tree_string = ToCoreString(
@@ -507,8 +507,8 @@ bool ReadAdditionalSerializationParameters(
         include_shadow_tree = ShadowTreeSerialization::kAll;
       } else {
         *error_message = ToV8InspectorStringBuffer(
-            String("Unknown value " + String(kIncludeShadowTreeParameterName) +
-                   ":" + include_shadow_tree_string));
+            StrCat({"Unknown value ", kIncludeShadowTreeParameterName, ":",
+                    include_shadow_tree_string}));
         return false;
       }
     }
@@ -523,8 +523,8 @@ bool ReadAdditionalSerializationParameters(
     if (!max_node_depth_value->IsUndefined()) {
       if (!max_node_depth_value->IsInt32()) {
         *error_message = ToV8InspectorStringBuffer(
-            String("Parameter " + String(kMaxNodeDepthParameterName) +
-                   " should be of type int."));
+            StrCat({"Parameter ", kMaxNodeDepthParameterName,
+                    " should be of type int."}));
         return false;
       }
       max_node_depth = max_node_depth_value.As<v8::Int32>()->Value();

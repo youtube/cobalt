@@ -108,24 +108,36 @@ public class CustomTabToolbarButtonsProperties {
         /** The close button position. See {@link CloseButtonPosition}. */
         public final @CloseButtonPosition int position;
 
+        /** The listener for the button click. */
+        public final OnClickListener clickListener;
+
         // TODO: Maybe add default constr for not visible
-        CloseButtonData(boolean visible, Drawable icon, @CloseButtonPosition int position) {
+        CloseButtonData(
+                boolean visible,
+                Drawable icon,
+                @CloseButtonPosition int position,
+                OnClickListener onClickListener) {
             this.visible = visible;
             this.icon = icon;
             this.position = position;
+            this.clickListener = onClickListener;
         }
 
         CloseButtonData() {
-            this(false, null, CLOSE_BUTTON_POSITION_DEFAULT);
+            this(false, null, CLOSE_BUTTON_POSITION_DEFAULT, v -> {});
         }
     }
 
     /** Property key for the close button. */
-    public static final ReadableObjectPropertyKey<CloseButtonData> CLOSE_BUTTON =
-            new ReadableObjectPropertyKey<>();
+    public static final WritableObjectPropertyKey<CloseButtonData> CLOSE_BUTTON =
+            new WritableObjectPropertyKey<>();
 
     /** Property key for whether the menu button is visible. */
     public static final WritableBooleanPropertyKey MENU_BUTTON_VISIBLE =
+            new WritableBooleanPropertyKey();
+
+    /** Property key for whether the optional button is visible. */
+    public static final WritableBooleanPropertyKey OPTIONAL_BUTTON_VISIBLE =
             new WritableBooleanPropertyKey();
 
     /** Property key for the toolbar width. */
@@ -139,7 +151,7 @@ public class CustomTabToolbarButtonsProperties {
     public static final ReadableBooleanPropertyKey TITLE_VISIBLE = new ReadableBooleanPropertyKey();
 
     /** Property key for whether the CCT is incognito. */
-    public static final ReadableBooleanPropertyKey IS_INCOGNITO = new ReadableBooleanPropertyKey();
+    public static final WritableBooleanPropertyKey IS_INCOGNITO = new WritableBooleanPropertyKey();
 
     public static PropertyModel create(
             boolean customActionButtonsVisible,
@@ -147,6 +159,7 @@ public class CustomTabToolbarButtonsProperties {
             MinimizeButtonData minimizeButtonData,
             CloseButtonData closeButton,
             boolean menuButtonVisible,
+            boolean optionalButtonVisible,
             @Px int toolbarWidth,
             boolean omniboxEnabled,
             boolean titleVisible,
@@ -158,6 +171,7 @@ public class CustomTabToolbarButtonsProperties {
                         MINIMIZE_BUTTON,
                         CLOSE_BUTTON,
                         MENU_BUTTON_VISIBLE,
+                        OPTIONAL_BUTTON_VISIBLE,
                         TOOLBAR_WIDTH,
                         OMNIBOX_ENABLED,
                         TITLE_VISIBLE,
@@ -168,6 +182,7 @@ public class CustomTabToolbarButtonsProperties {
                 .with(MINIMIZE_BUTTON, minimizeButtonData)
                 .with(CLOSE_BUTTON, closeButton)
                 .with(MENU_BUTTON_VISIBLE, menuButtonVisible)
+                .with(OPTIONAL_BUTTON_VISIBLE, optionalButtonVisible)
                 .with(TOOLBAR_WIDTH, toolbarWidth)
                 .with(OMNIBOX_ENABLED, omniboxEnabled)
                 .with(TITLE_VISIBLE, titleVisible)
