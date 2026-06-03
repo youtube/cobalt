@@ -86,6 +86,8 @@
 #include "chrome/browser/ui/lens/lens_side_panel_untrusted_ui.h"
 #include "chrome/browser/ui/webui/access_code_cast/access_code_cast.mojom.h"
 #include "chrome/browser/ui/webui/access_code_cast/access_code_cast_ui.h"
+#include "chrome/browser/ui/webui/actor_internals/actor_internals.mojom.h"
+#include "chrome/browser/ui/webui/actor_internals/actor_internals_ui.h"
 #include "chrome/browser/ui/webui/app_service_internals/app_service_internals.mojom.h"
 #include "chrome/browser/ui/webui/app_service_internals/app_service_internals_ui.h"
 #include "chrome/browser/ui/webui/commerce/product_specifications_ui.h"
@@ -101,6 +103,7 @@
 #include "chrome/browser/ui/webui/metrics_reporter/metrics_reporter_service.h"
 #include "chrome/browser/ui/webui/new_tab_footer/new_tab_footer.mojom.h"
 #include "chrome/browser/ui/webui/new_tab_footer/new_tab_footer_ui.h"
+#include "chrome/browser/ui/webui/new_tab_page/composebox/composebox.mojom.h"
 #include "chrome/browser/ui/webui/new_tab_page/new_tab_page.mojom.h"
 #include "chrome/browser/ui/webui/new_tab_page/new_tab_page_ui.h"
 #include "chrome/browser/ui/webui/new_tab_page_third_party/new_tab_page_third_party_ui.h"
@@ -340,8 +343,8 @@
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(CHROME_ROOT_STORE_CERT_MANAGEMENT_UI)
+#include "chrome/browser/resources/certificate_manager/certificate_manager.mojom.h"
 #include "chrome/browser/ui/webui/certificate_manager/certificate_manager_ui.h"
-#include "ui/webui/resources/cr_components/certificate_manager/certificate_manager_v2.mojom.h"
 #endif  // BUILDFLAG(CHROME_ROOT_STORE_CERT_MANAGEMENT_UI)
 
 #if BUILDFLAG(ENABLE_COMPOSE)
@@ -489,6 +492,9 @@ void PopulateChromeWebUIFrameBinders(
 
 #if !BUILDFLAG(IS_ANDROID)
   RegisterWebUIControllerInterfaceBinder<
+      actor_internals::mojom::PageHandlerFactory, ActorInternalsUI>(map);
+
+  RegisterWebUIControllerInterfaceBinder<
       search_engine_choice::mojom::PageHandlerFactory, SearchEngineChoiceUI>(
       map);
 
@@ -538,8 +544,8 @@ void PopulateChromeWebUIFrameBinders(
       NewTabFooterUI>(map);
 
   RegisterWebUIControllerInterfaceBinder<
-      customize_buttons::mojom::CustomizeButtonsHandlerFactory, NewTabPageUI>(
-      map);
+      customize_buttons::mojom::CustomizeButtonsHandlerFactory, NewTabPageUI,
+      NewTabFooterUI>(map);
 
   RegisterWebUIControllerInterfaceBinder<
       new_tab_page::mojom::PageHandlerFactory, NewTabPageUI>(map);
@@ -645,7 +651,7 @@ void PopulateChromeWebUIFrameBinders(
 
 #if BUILDFLAG(CHROME_ROOT_STORE_CERT_MANAGEMENT_UI)
   RegisterWebUIControllerInterfaceBinder<
-      certificate_manager_v2::mojom::CertificateManagerPageHandlerFactory,
+      certificate_manager::mojom::CertificateManagerPageHandlerFactory,
       CertificateManagerUI>(map);
 #endif  // BUILDFLAG(CHROME_ROOT_STORE_CERT_MANAGEMENT_UI)
 
@@ -701,6 +707,11 @@ void PopulateChromeWebUIFrameBinders(
         file_suggestion::mojom::MicrosoftFilesPageHandler, NewTabPageUI>(map);
   }
 
+  if (ntp_features::IsNtpComposeboxEnabled()) {
+    RegisterWebUIControllerInterfaceBinder<
+        composebox::mojom::ComposeboxPageHandler, NewTabPageUI>(map);
+  }
+
 #if BUILDFLAG(IS_CHROMEOS)
   RegisterWebUIControllerInterfaceBinder<
       ash::mojom::HidPreservingBluetoothStateController,
@@ -716,12 +727,12 @@ void PopulateChromeWebUIFrameBinders(
   RegisterWebUIControllerInterfaceBinder<
       shopping_service::mojom::ShoppingServiceHandlerFactory,
       BookmarksSidePanelUI, commerce::ProductSpecificationsUI,
-      ShoppingInsightsSidePanelUI, HistoryUI>(map);
+      ShoppingInsightsSidePanelUI>(map);
 
   RegisterWebUIControllerInterfaceBinder<
       commerce::product_specifications::mojom::
           ProductSpecificationsHandlerFactory,
-      commerce::ProductSpecificationsUI, HistoryUI>(map);
+      commerce::ProductSpecificationsUI>(map);
 
   RegisterWebUIControllerInterfaceBinder<
       commerce::price_tracking::mojom::PriceTrackingHandlerFactory,
@@ -1220,12 +1231,9 @@ void PopulateChromeWebUIFrameBinders(
   }
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 
-  if (base::FeatureList::IsEnabled(
-          privacy_sandbox::kPrivacySandboxInternalsDevUI)) {
-    RegisterWebUIControllerInterfaceBinder<
-        privacy_sandbox_internals::mojom::PageHandler,
-        privacy_sandbox_internals::PrivacySandboxInternalsUI>(map);
-  }
+  RegisterWebUIControllerInterfaceBinder<
+      privacy_sandbox_internals::mojom::PageHandler,
+      privacy_sandbox_internals::PrivacySandboxInternalsUI>(map);
 
 #if !BUILDFLAG(IS_ANDROID)
   if (base::FeatureList::IsEnabled(privacy_sandbox::kRelatedWebsiteSetsDevUI)) {

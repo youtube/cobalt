@@ -5,11 +5,17 @@
 #include "ash/examples/test_app_window.h"
 
 #include <memory>
+#include <optional>
 
+#include "ash/examples/client_controlled_state_util.h"
 #include "ash/shell.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/memory/weak_ptr.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/time/time.h"
+#include "base/timer/timer.h"
 #include "chromeos/ui/base/app_types.h"
 #include "chromeos/ui/base/window_properties.h"
 #include "ui/aura/client/aura_constants.h"
@@ -63,7 +69,12 @@ class AppTypeComboboxModel : public ui::ComboboxModel {
 
 class TestView : public views::View {
  public:
-  TestView() {
+  enum ViewElements : int {
+    kAppTypesCombobox = 1000,
+    kOpenClientControlledButton,
+  };
+
+  explicit TestView(bool add_open_client_controlled) {
     SetBackground(
         views::CreateSolidBackground(ui::ColorVariant(SK_ColorWHITE)));
     auto* layout = SetLayoutManager(std::make_unique<views::BoxLayout>(
@@ -135,6 +146,39 @@ class TestView : public views::View {
                  }));
 
     AddChildView(std::make_unique<views::LabelButton>(
+        base::BindRepeating(
+            &TestView::RunAfterFiveSeconds, base::Unretained(this),
+            base::BindRepeating(
+                [](views::View* view) -> void { view->GetWidget()->Close(); },
+                base::Unretained(this))),
+        u"Close After 5 seconds"));
+
+    AddChildView(std::make_unique<views::LabelButton>(
+        base::BindRepeating(
+            &TestView::RunAfterFiveSeconds, base::Unretained(this),
+            base::BindRepeating(
+                [](views::View* view) { view->GetWidget()->Activate(); },
+                base::Unretained(this))),
+        u"Activate After 5 seconds"));
+
+    AddChildView(std::make_unique<views::LabelButton>(
+        base::BindRepeating(
+            &TestView::RunAfterFiveSeconds, base::Unretained(this),
+            base::BindRepeating(
+                [](views::View* view) { view->GetWidget()->Restore(); },
+                base::Unretained(this))),
+        u"Restore After 5 seconds"));
+
+    if (add_open_client_controlled) {
+      AddChildView(
+          std::make_unique<views::LabelButton>(
+              base::BindRepeating(&OpenTestAppWindow,
+                                  /*use_client_controlled_state=*/true),
+              u"Open ClientControlled App Window"))
+          ->SetID(kOpenClientControlledButton);
+    }
+
+    AddChildView(std::make_unique<views::LabelButton>(
         base::BindRepeating(&TestView::UpdateMinimumSize,
                             base::Unretained(this)),
         u"Apply Minimum Size"));
@@ -155,10 +199,24 @@ class TestView : public views::View {
                               static_cast<chromeos::AppType>(selected));
         },
         base::Unretained(app_types)));
+    app_types->SetID(kAppTypesCombobox);
   }
 
+  // views::View:
   gfx::Size GetMinimumSize() const override { return minimum_size_; }
 
+  void AddedToWidget() override {
+    // Initialize the app type values when the widget/window is ready.
+    auto* app_types =
+        static_cast<views::Combobox*>(GetViewByID(kAppTypesCombobox));
+    if (GetViewByID(kOpenClientControlledButton)) {
+      app_types->MenuSelectionAt(1);  // Browser
+    } else {
+      app_types->MenuSelectionAt(3);  // ARC
+    }
+  }
+
+ private:
   void UpdateMinimumSize() {
     int width;
     int height;
@@ -172,31 +230,44 @@ class TestView : public views::View {
     }
   }
 
- private:
+  void RunAfterFiveSeconds(base::RepeatingCallback<void()> callback) {
+    timer_.Start(FROM_HERE, base::Seconds(5), callback);
+  }
+
   raw_ptr<views::Textfield> width_, height_;
-  gfx::Size minimum_size_{200, 100};
+  gfx::Size minimum_size_{250, 100};
+  base::OneShotTimer timer_;
 };
 
 }  // namespace
 
-void OpenTestAppWindow() {
+void OpenTestAppWindow(bool use_client_controlled_state) {
   views::Widget* widget = new views::Widget;
   views::Widget::InitParams params(
       views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET,
       views::Widget::InitParams::TYPE_WINDOW);
-  auto delegate = std::make_unique<views::WidgetDelegate>();
-  delegate->SetCanActivate(true);
-  delegate->SetCanFullscreen(true);
-  delegate->SetCanMaximize(true);
-  delegate->SetCanMinimize(true);
-  delegate->SetCanResize(true);
+  auto widget_delegate = std::make_unique<views::WidgetDelegate>();
+  widget_delegate->SetCanActivate(true);
+  widget_delegate->SetCanFullscreen(true);
+  widget_delegate->SetCanMaximize(true);
+  widget_delegate->SetCanMinimize(true);
+  widget_delegate->SetCanResize(true);
+  widget_delegate->SetTitle(use_client_controlled_state
+                                ? u"TestAppWindow(ClientControlled)"
+                                : u"TestAppWindow(Normal)");
 
-  params.delegate = delegate.release();
-  params.delegate->SetContentsView(std::make_unique<TestView>());
+  params.delegate = widget_delegate.release();
+  params.delegate->SetContentsView(
+      std::make_unique<TestView>(!use_client_controlled_state));
 
   params.context = Shell::GetPrimaryRootWindow();
   params.name = "AshTestAppWindow";
   widget->Init(std::move(params));
+
+  if (use_client_controlled_state) {
+    ClientControlledStateUtil::BuildAndSet(widget->GetNativeWindow());
+  }
+
   widget->Show();
 }
 

@@ -76,11 +76,16 @@ _DISABLED_TESTS = frozenset({
     'system_health.memory_desktop/load:media:facebook_feed:desktop:2020',
     'system_health.memory_desktop/load:games:miniclip:2018',
 
-    # crbug.com/401513455
-    'system_health.memory_desktop/load_accessibility:tech:codesearch:2025',
-
     # crbug.com/418717796 - flaky
     'system_health.memory_desktop/load:media:youtubelivingroom:2020',
+
+    # crbug.com/422824099
+    'system_health.memory_desktop/browse:news:nytimes:2020'
+    'system_health.memory_desktop/browse:tools:gmail-labelclick:2020'
+    'system_health.memory_desktop/load:games:lazors',
+    'system_health.memory_desktop/load:media:youtube:2018',
+    'system_health.memory_desktop/load:search:ebay:2018',
+    'system_health.memory_desktop/load:tools:gmail:2019',
 
     # The following tests are disabled because they are disabled on the perf
     # waterfall (using tools/perf/expectations.config) on one platform or

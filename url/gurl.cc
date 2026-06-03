@@ -21,13 +21,12 @@
 #include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "base/strings/string_util.h"
-#include "base/trace_event/base_tracing.h"
 #include "base/trace_event/memory_usage_estimator.h"
+#include "base/trace_event/trace_event.h"
 #include "url/url_canon_stdstring.h"
 #include "url/url_util.h"
 
-GURL::GURL() : is_valid_(false) {
-}
+GURL::GURL() : is_valid_(false) {}
 
 GURL::GURL(const GURL& other)
     : spec_(other.spec_),
@@ -290,8 +289,11 @@ GURL GURL::DeprecatedGetOriginAsURL() const {
 }
 
 GURL GURL::GetAsReferrer() const {
-  if (!is_valid() || !IsReferrerScheme(spec_.data(), parsed_.scheme))
+  if (!is_valid() ||
+      !url::IsReferrerScheme(
+          parsed_.scheme.maybe_as_string_view_on(spec_.data()))) {
     return GURL();
+  }
 
   if (!has_ref() && !has_username() && !has_password())
     return GURL(*this);
@@ -341,7 +343,7 @@ GURL GURL::GetWithoutRef() const {
 }
 
 bool GURL::IsStandard() const {
-  return url::IsStandard(spec_.data(), parsed_.scheme);
+  return url::IsStandard(parsed_.scheme.maybe_as_string_view_on(spec_.data()));
 }
 
 bool GURL::IsAboutBlank() const {
@@ -548,15 +550,3 @@ bool operator==(const GURL& x, std::string_view spec) {
          "the string is fully canonicalized.";
   return x.possibly_invalid_spec() == spec;
 }
-
-namespace url::debug {
-
-ScopedUrlCrashKey::ScopedUrlCrashKey(base::debug::CrashKeyString* crash_key,
-                                     const GURL& url)
-    : scoped_string_value_(
-          crash_key,
-          url.is_empty() ? "<empty url>" : url.possibly_invalid_spec()) {}
-
-ScopedUrlCrashKey::~ScopedUrlCrashKey() = default;
-
-}  // namespace url::debug

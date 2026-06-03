@@ -83,14 +83,6 @@ BASE_FEATURE(kIOSSessionRestoreLoadTriggerKillSwitch,
              base::FEATURE_DISABLED_BY_DEFAULT);
 }  // namespace
 
-// TODO(crbug.com/40746865): Allow usage of iOS15 interactionState on iOS 14 SDK
-// based builds.
-#if !defined(__IPHONE_15_0) || __IPHONE_OS_VERSION_MAX_ALLOWED < __IPHONE_15_0
-@interface WKWebView (Additions)
-@property(nonatomic, nullable, copy) id interactionState;
-@end
-#endif
-
 @interface CRWWebController () <CRWWKNavigationHandlerDelegate,
                                 CRWEditMenuBuilder,
                                 CRWInputViewProvider,
@@ -229,6 +221,7 @@ BASE_FEATURE(kIOSSessionRestoreLoadTriggerKillSwitch,
     _webUsageEnabled = YES;
 
     _allowsBackForwardNavigationGestures = YES;
+    _allowsLinkPreview = YES;
 
     DCHECK(_webStateImpl);
     // Content area is lazily instantiated.
@@ -336,6 +329,14 @@ BASE_FEATURE(kIOSSessionRestoreLoadTriggerKillSwitch,
       allowsBackForwardNavigationGestures;
 }
 
+- (void)setAllowsLinkPreview:(BOOL)allowsLinkPreview {
+  // Store it to an instance variable as well as
+  // self.webView.allowsLinkPreview because self.webView may be nil. When
+  // self.webView is nil, it will be set later in -setWebView:.
+  _allowsLinkPreview = allowsLinkPreview;
+  self.webView.allowsLinkPreview = allowsLinkPreview;
+}
+
 #pragma mark - Private properties accessors
 
 - (void)setWebView:(WKWebView*)webView {
@@ -381,6 +382,7 @@ BASE_FEATURE(kIOSSessionRestoreLoadTriggerKillSwitch,
 
     _webView.allowsBackForwardNavigationGestures =
         _allowsBackForwardNavigationGestures;
+    _webView.allowsLinkPreview = _allowsLinkPreview;
   }
   self.webViewNavigationObserver.webView = _webView;
 
@@ -1170,6 +1172,9 @@ BASE_FEATURE(kIOSSessionRestoreLoadTriggerKillSwitch,
       _allowsBackForwardNavigationGestures) {
     _webView.allowsBackForwardNavigationGestures =
         _allowsBackForwardNavigationGestures;
+  }
+  if (_webView.allowsLinkPreview != _allowsLinkPreview) {
+    _webView.allowsLinkPreview = _allowsLinkPreview;
   }
 
   BOOL success = !context || !context->GetError();

@@ -138,7 +138,6 @@
 <translation id="4724297637870447613">在所有裝置上使用 Chrome</translation>
 <translation id="4738647308035481133">Google Chrome 頁面</translation>
 <translation id="4742795653798179840">已刪除 Chrome 資料</translation>
-<translation id="4749294594657945639">如要在其他應用程式中輕鬆使用儲存的密碼，請選擇 Chrome 做為自動填寫來源。</translation>
 <translation id="4761869838909035636">執行 Chrome 安全檢查</translation>
 <translation id="4798859546468762093">如要享有個人化服務和其他功能，請在「<ph name="FEATURE_NAME_1" />」和「<ph name="FEATURE_NAME_2" />」中納入 Chrome</translation>
 <translation id="4819268619367838612">為協助改良應用程式，Chrome 會將使用情形和當機資料傳送給 Google。<ph name="BEGIN_LINK" />管理設定<ph name="END_LINK" /></translation>
@@ -177,7 +176,7 @@
 <translation id="5681291952421236520">切換 Chrome</translation>
 <translation id="5690398455483874150">{count,plural, =1{目前顯示 1 個 Chrome 視窗}other{目前顯示 {count} 個 Chrome 視窗}}</translation>
 <translation id="5690427481109656848">Google LLC</translation>
-<translation id="5709557627224531708">將 Chrome 設為預設網路瀏覽器</translation>
+<translation id="5709557627224531708">將 Chrome 設為預設瀏覽器</translation>
 <translation id="571296537125272375">目前處於離線狀態，因此 Chrome 無法檢查更新</translation>
 <translation id="5716154293141027663">只要輕觸其他應用程式中的連結，即可透過 Chrome 開啟</translation>
 <translation id="5752489513673657785">Google 專為你打造的自訂動態消息</translation>
@@ -191,7 +190,7 @@
 <translation id="6021312115739110405">Google 專為你打造的自訂動態消息，像是新聞、體育和天氣資訊。</translation>
 <translation id="6022659036123304283">打造專屬的 Chrome</translation>
 <translation id="6132075343662013154">Chrome 會詢問你是否要儲存密碼</translation>
-<translation id="6132149203299792222">登入 Google 帳戶就能同步處理密碼、書籤和其他資訊。</translation>
+<translation id="6132149203299792222">登入 Google 帳戶就能同步處理密碼、&lt;br&gt;書籤和其他資訊。</translation>
 <translation id="6145223986912084844">chrome</translation>
 <translation id="6177442314419606057">在 Chrome 中搜尋</translation>
 <translation id="6181652351336379338">在 Chrome 中搜尋影像內容。</translation>
@@ -215,6 +214,7 @@
 <translation id="6533470733797826516">使用 Chrome 自動填入功能快速登入</translation>
 <translation id="6536544321553662809">將 Chrome 設為預設瀏覽器，輕鬆分享及開啟連結</translation>
 <translation id="6545449117344801102">Chrome 會偵測地址，並使用 Google 地圖提供路線和當地資訊。</translation>
+<translation id="6611692150236062461">如要在其他應用程式中輕鬆使用儲存的密碼，請選擇 Chrome 做為自動填寫來源。</translation>
 <translation id="6636941099779251629">根據貴機構的政策規定，你必須先登入才能使用 Chrome。<ph name="BEGIN_LINK" />瞭解詳情<ph name="END_LINK" /></translation>
 <translation id="6646696210740573446">透過隱私權伺服器隱藏你的 IP 位址，再傳送經模糊處理的部分網址傳送給 Google。如果網站試圖竊取密碼，或你下載的檔案會造成傷害，Chrome 可能也會將網址 (包括部分網頁內容) 傳送給 Google。</translation>
 <translation id="6647304104688527905">使用 Chrome 開啟新分頁。</translation>
@@ -282,7 +282,7 @@
 <translation id="7897703007638178753">查看最近使用 Chrome 開啟的分頁</translation>
 <translation id="7948283758957877064">Chrome 新功能</translation>
 <translation id="8000174216052461231">Chrome 提示：享有 Chrome 最強大的安全防護</translation>
-<translation id="8006014511203279255">隨時可以使用 Chrome 開啟訊息或其他應用程式中的連結。</translation>
+<translation id="8006014511203279255">想開啟訊息或其他應用程式中的連結？就用 Chrome 吧！</translation>
 <translation id="8014670471808569312">Chrome 會詢問你是否要儲存密碼。</translation>
 <translation id="8018153653741938705">讓 Google Chrome 保障你的安全</translation>
 <translation id="8022947259858476807">預設使用 Chrome 來開啟連結、從小工具搜尋，以及自動在其他應用程式中填入密碼</translation>
@@ -291,7 +291,8 @@
 <translation id="8065292699993359127">在 Chrome 無痕模式中開啟網址</translation>
 <translation id="8069507567842347179">Chrome 已追蹤了這個包裹。</translation>
 <translation id="8136856065410661948">系統將使用 Chrome 和 Google 智慧鏡頭中的內容在 Apple 行事曆中建立活動。</translation>
-<translation id="8154120522323162874">如要充分運用 Chrome 的功能，請繼續設定瀏覽器。</translation>
+<translation id="8154120522323162874">如要充分運用 Chrome 的功能，&lt;br&gt;
+請繼續設定瀏覽器。</translation>
 <translation id="8160472928944011082">Chrome 無法更新</translation>
 <translation id="8245080522851805544">關閉 Chrome 時進行裝置驗證，確保瀏覽活動不外洩</translation>
 <translation id="8248887045858762645">Chrome 實用訣竅</translation>
@@ -313,6 +314,7 @@
 你已在 <ph name="TIME" />使用通關密語對資料進行加密。如要在 Google 帳戶中使用及儲存 Chrome 資料，請輸入通關密語。</translation>
 <translation id="8540666473246803645">Google Chrome</translation>
 <translation id="8544583291890527417">如果 Chrome 偵測到隱私權或安全性問題，就會發出警示。</translation>
+<translation id="855027533751209304">Chrome 提示：搜尋畫面內容</translation>
 <translation id="8558480467877843976">現在起，每當你瀏覽或點選訊息、文件和其他應用程式中的連結時，都可以直接使用 Chrome 來開啟。</translation>
 <translation id="8603022514504485810">Google 密碼管理工具無法檢查所有密碼，請明天再試。你也可以<ph name="BEGIN_LINK" />檢查 Google 帳戶中的密碼<ph name="END_LINK" />。</translation>
 <translation id="8630122478628016441">開啟「關閉 Chrome 時鎖定無痕分頁」。</translation>

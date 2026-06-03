@@ -52,19 +52,6 @@ namespace {
 constexpr base::TimeDelta kReEnableTurnOnPasswordsInOtherAppsButtonDelay =
     base::Seconds(10);
 
-// Sections of the password settings UI.
-typedef NS_ENUM(NSInteger, SectionIdentifier) {
-  SectionIdentifierSavePasswordsSwitch = kSectionIdentifierEnumZero,
-  SectionIdentifierBulkMovePasswordsToAccount,
-  SectionIdentifierPasswordsInOtherApps,
-  SectionIdentifierAutomaticPasskeyUpgradesSwitch,
-  SectionIdentifierGooglePasswordManagerPin,
-  SectionIdentifierOnDeviceEncryption,
-  SectionIdentifierExportPasswordsButton,
-  SectionIdentifierImportPasswordsButton,
-  SectionIdentifierDeleteCredentialsButton,
-};
-
 // Items within the password settings UI.
 typedef NS_ENUM(NSInteger, ItemType) {
   ItemTypeSavePasswordsSwitch = kItemTypeEnumZero,
@@ -341,8 +328,6 @@ BOOL AutomaticPasskeyUpgradeFeatureEnabled() {
         toSectionWithIdentifier:SectionIdentifierImportPasswordsButton];
   }
 
-  if (base::FeatureList::IsEnabled(
-          password_manager::features::kIOSEnableDeleteAllSavedCredentials)) {
     // Delete credentials button.
     [model addSectionWithIdentifier:SectionIdentifierDeleteCredentialsButton];
     _deleteCredentialsItem = [self createDeleteCredentialsItem];
@@ -354,7 +339,6 @@ BOOL AutomaticPasskeyUpgradeFeatureEnabled() {
     // Add footer for the delete credential section.
     [model setFooter:_deleteCredentialsFooterItem
         forSectionWithIdentifier:SectionIdentifierDeleteCredentialsButton];
-  }
 
   if (_canBulkMoveLocalPasswordsToAccount) {
     [self updateBulkMovePasswordsToAccountSection];
@@ -1322,9 +1306,7 @@ BOOL AutomaticPasskeyUpgradeFeatureEnabled() {
 }
 
 - (void)updateDeleteAllCredentialsSection {
-  if (_modelLoadStatus == ModelNotLoaded ||
-      !base::FeatureList::IsEnabled(
-          password_manager::features::kIOSEnableDeleteAllSavedCredentials)) {
+  if (_modelLoadStatus == ModelNotLoaded) {
     return;
   }
 

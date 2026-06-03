@@ -12,6 +12,7 @@
 #include "base/memory/unsafe_shared_memory_region.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+// TODO(crbug.com/40263579): Remove.
 #include "gpu/ipc/common/gpu_memory_buffer_support.h"
 #include "media/base/color_plane_layout.h"
 #include "media/base/format_utils.h"
@@ -373,9 +374,9 @@ bool StructTraits<media::mojom::VideoFrameDataView,
 
     gpu::GpuMemoryBufferSupport support;
     std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer =
-        support.CreateGpuMemoryBufferImplFromHandle(
+        support.CreateGpuMemoryBufferImplFromHandleForVideoFrame(
             std::move(gpu_memory_buffer_handle), coded_size, *buffer_format,
-            buffer_usage, base::NullCallback());
+            buffer_usage);
     if (!gpu_memory_buffer) {
       return false;
     }

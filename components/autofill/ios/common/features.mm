@@ -42,6 +42,10 @@ BASE_FEATURE(kAutofillFixXhrForXframe,
              "AutofillFixXhrForXframe",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kAutofillFormSubmissionEventsInCaptureMode,
+             "AutofillFormSubmissionEventsInCaptureMode",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // LINT.IfChange(autofill_isolated_content_world)
 BASE_FEATURE(kAutofillIsolatedWorldForJavascriptIos,
              "AutofillIsolatedWorldForJavascriptIos",
@@ -59,6 +63,12 @@ BASE_FEATURE(kAutofillPaymentsSheetV3Ios,
 BASE_FEATURE(kAutofillRefillForFormsIos,
              "AutofillRefillForFormsIos",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// LINT.IfChange(autofill_report_form_submission_errors)
+BASE_FEATURE(kAutofillReportFormSubmissionErrors,
+             "AutofillReportFormSubmissionErrors",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+// LINT.ThenChange(/components/autofill/ios/form_util/resources/autofill_form_features.ts:autofill_report_form_submission_errors)
 
 BASE_FEATURE(kAutofillStickyInfobarIos,
              "AutofillStickyInfobarIos",

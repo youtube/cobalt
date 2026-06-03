@@ -151,7 +151,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Security.GwpAsan.Activated.{Allocator}.{Process}"
-    enum="Boolean" expires_after="2025-10-12">
+    enum="Boolean" expires_after="2025-12-14">
   <owner>mpdenton@chromium.org</owner>
   <owner>kdlee@chromium.org</owner>
   <owner>memory-safety-dev@chromium.org</owner>
@@ -174,7 +174,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Security.GwpAsan.AllocatorOom.{Allocator}.{Process}"
-    units="allocations" expires_after="2025-10-12">
+    units="allocations" expires_after="2025-12-14">
   <owner>mpdenton@chromium.org</owner>
   <owner>kdlee@chromium.org</owner>
   <owner>memory-safety-dev@chromium.org</owner>
@@ -342,7 +342,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Security.JSONParser.ParsingTime" units="microseconds"
-    expires_after="2025-09-21">
+    expires_after="2025-11-23">
   <owner>djmitche@chromium.org</owner>
   <owner>chrome-platform-security@google.com</owner>
   <summary>
@@ -418,7 +418,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Security.PageInfo.AdPersonalizationRowShown" enum="Boolean"
-    expires_after="2025-10-12">
+    expires_after="2025-12-14">
   <owner>dullweber@chromium.org</owner>
   <owner>sauski@google.com</owner>
   <summary>
@@ -852,7 +852,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Security.SecurityLevel.OnComplete" enum="SecurityLevel"
-    expires_after="2025-09-28">
+    expires_after="2025-11-30">
   <owner>cthomp@chromium.org</owner>
   <owner>security-enamel@chromium.org</owner>
   <summary>
@@ -953,7 +953,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SiteIsolation.IsolatableSandboxedIframes" units="processes"
-    expires_after="2025-09-28">
+    expires_after="2025-11-30">
   <owner>wjmaclean@chromium.org</owner>
   <owner>alexmos@chromium.org</owner>
   <owner>creis@chromium.org</owner>
@@ -972,7 +972,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SiteIsolation.IsolatableSandboxedIframes.UniqueOrigins"
-    units="processes" expires_after="2025-09-28">
+    units="processes" expires_after="2025-11-30">
   <owner>wjmaclean@chromium.org</owner>
   <owner>alexmos@chromium.org</owner>
   <owner>creis@chromium.org</owner>
@@ -1007,18 +1007,6 @@ chromium-metrics-reviews@google.com.
     Logs whether or not a password form was submitted from a site-isolated
     process that's dedicated to a single site. Recorded when a password form is
     submitted.
-  </summary>
-</histogram>
-
-<histogram
-    name="SiteIsolation.NewProcessUsedForNavigationWhenSameSiteProcessExists"
-    enum="Boolean" expires_after="2025-10-26">
-  <owner>bashi@chromium.org</owner>
-  <owner>blink-network-stack@google.com</owner>
-  <summary>
-    Records whether a new process is used for navigation when there are other
-    same site process(es). Recorded for the outer-most main frame navigation
-    when navigation is committed (cross-origin redirects are not recorded).
   </summary>
 </histogram>
 
@@ -1071,7 +1059,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SiteIsolation.ProxyCount" units="proxies"
-    expires_after="2025-10-05">
+    expires_after="2025-12-07">
   <owner>alexmos@chromium.org</owner>
   <owner>creis@chromium.org</owner>
   <owner>lukasza@chromium.org</owner>
@@ -1144,7 +1132,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SiteIsolation.SavedWebTriggeredIsolatedOrigins.Size"
-    units="origins" expires_after="2025-10-05">
+    units="origins" expires_after="2025-12-07">
   <owner>alexmos@chromium.org</owner>
   <owner>creis@chromium.org</owner>
   <owner>lukasza@chromium.org</owner>

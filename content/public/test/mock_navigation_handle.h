@@ -11,6 +11,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/no_destructor.h"
+#include "base/notimplemented.h"
 #include "base/types/optional_util.h"
 #include "content/public/browser/child_process_host.h"
 #include "content/public/browser/global_request_id.h"
@@ -84,8 +85,8 @@ class MockNavigationHandle : public NavigationHandle {
   bool IsInPrimaryMainFrame() const override {
     return is_in_primary_main_frame_;
   }
-  bool IsInOutermostMainFrame() override {
-    return !GetParentFrameOrOuterDocument();
+  bool IsInOutermostMainFrame() const override {
+    return !GetConstParentFrameOrOuterDocument();
   }
   content::FrameTreeNodeId GetFrameTreeNodeId() override {
     if (IsInPrimaryMainFrame()) {
@@ -109,8 +110,7 @@ class MockNavigationHandle : public NavigationHandle {
     return render_frame_host_ ? render_frame_host_->GetParent() : nullptr;
   }
   RenderFrameHost* GetParentFrameOrOuterDocument() override {
-    return render_frame_host_ ? render_frame_host_->GetParentOrOuterDocument()
-                              : nullptr;
+    return const_cast<RenderFrameHost*>(GetConstParentFrameOrOuterDocument());
   }
   WebContents* GetWebContents() override { return web_contents_; }
   MOCK_METHOD0(NavigationStart, base::TimeTicks());
@@ -357,6 +357,11 @@ class MockNavigationHandle : public NavigationHandle {
   }
 
  private:
+  const RenderFrameHost* GetConstParentFrameOrOuterDocument() const {
+    return render_frame_host_ ? render_frame_host_->GetParentOrOuterDocument()
+                              : nullptr;
+  }
+
   int64_t navigation_id_;
   GURL url_;
   GURL previous_primary_main_frame_url_;

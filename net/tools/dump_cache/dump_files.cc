@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 // Performs basic inspection of the disk cache files with minimal disruption
 // to the actual files (they still may change if an error is detected on the
 // files).
@@ -15,11 +10,15 @@
 
 #include <stdio.h>
 
+#include <cstddef>
 #include <memory>
 #include <set>
 #include <string>
 
 #include "base/command_line.h"
+#include "base/compiler_specific.h"
+#include "base/containers/heap_array.h"
+#include "base/containers/span.h"
 #include "base/files/file.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
@@ -42,16 +41,15 @@ namespace {
 
 const base::FilePath::CharType kIndexName[] = FILE_PATH_LITERAL("index");
 
-// Reads the |header_size| bytes from the beginning of file |name|.
-bool ReadHeader(const base::FilePath& name, char* header, int header_size) {
+// Reads the `header.size()` bytes from the beginning of file `name`.
+bool ReadHeader(const base::FilePath& name, base::span<uint8_t> header) {
   base::File file(name, base::File::FLAG_OPEN | base::File::FLAG_READ);
   if (!file.IsValid()) {
     printf("Unable to open file %s\n", name.MaybeAsASCII().c_str());
     return false;
   }
 
-  int read = file.Read(0, header, header_size);
-  if (read != header_size) {
+  if (!file.ReadAndCheck(0, header)) {
     printf("Unable to read file %s\n", name.MaybeAsASCII().c_str());
     return false;
   }
@@ -60,8 +58,9 @@ bool ReadHeader(const base::FilePath& name, char* header, int header_size) {
 
 int GetMajorVersionFromIndexFile(const base::FilePath& name) {
   disk_cache::IndexHeader header;
-  if (!ReadHeader(name, reinterpret_cast<char*>(&header), sizeof(header)))
+  if (!ReadHeader(name, base::byte_span_from_ref(header))) {
     return 0;
+  }
   if (header.magic != disk_cache::kIndexMagic) {
     return 0;
   }
@@ -70,7 +69,7 @@ int GetMajorVersionFromIndexFile(const base::FilePath& name) {
 
 int GetMajorVersionFromBlockFile(const base::FilePath& name) {
   disk_cache::BlockFileHeader header;
-  if (!ReadHeader(name, reinterpret_cast<char*>(&header), sizeof(header))) {
+  if (!ReadHeader(name, base::byte_span_from_ref(header))) {
     return 0;
   }
 
@@ -103,19 +102,29 @@ void DumpStats(const base::FilePath& path, disk_cache::CacheAddr addr) {
   size_t offset = address.start_block() * address.BlockSize() +
                   disk_cache::kBlockHeaderSize;
 
-  auto buffer = std::make_unique<int32_t[]>(length);
-  if (!file->Read(buffer.get(), length, offset))
+  auto buffer = base::HeapArray<int32_t>::Uninit(length / sizeof(int32_t));
+  if (!file->Read(base::as_writable_bytes(buffer.as_span()), offset)) {
     return;
+  }
 
-  printf("Stats:\nSignatrure: 0x%x\n", buffer[0]);
+  printf("Stats:\nSignature: 0x%x\n", buffer[0]);
   printf("Total size: %d\n", buffer[1]);
   for (int i = 0; i < disk_cache::Stats::kDataSizesLength; i++)
     printf("Size(%d): %d\n", i, buffer[i + 2]);
 
-  int64_t* counters = reinterpret_cast<int64_t*>(
-      buffer.get() + 2 + disk_cache::Stats::kDataSizesLength);
+  static_assert(disk_cache::Stats::kDataSizesLength % 2 == 0,
+                "Code below assumes counters immediately after sizes");
+  base::span<int32_t> counter_portion = buffer.as_span().subspan(
+      2u + static_cast<size_t>(disk_cache::Stats::kDataSizesLength));
+
+  // SAFETY: Alignment comes from kDataSizesLength being even. Boundaries are
+  // those of `counter_portion`, just interpreted as 64-bit and not 32-bit.
+  base::span<uint64_t> counters = UNSAFE_BUFFERS(
+      base::span(reinterpret_cast<uint64_t*>(counter_portion.data()),
+                 counter_portion.size() / 2));
+
   for (int i = 0; i < disk_cache::Stats::MAX_COUNTER; i++)
-    printf("Count(%d): %" PRId64 "\n", i, *counters++);
+    printf("Count(%d): %" PRId64 "\n", i, counters[i]);
   printf("-------------------------\n\n");
 }
 
@@ -123,8 +132,9 @@ void DumpStats(const base::FilePath& path, disk_cache::CacheAddr addr) {
 void DumpIndexHeader(const base::FilePath& name,
                      disk_cache::CacheAddr* stats_addr) {
   disk_cache::IndexHeader header;
-  if (!ReadHeader(name, reinterpret_cast<char*>(&header), sizeof(header)))
+  if (!ReadHeader(name, base::byte_span_from_ref(header))) {
     return;
+  }
 
   printf("Index file:\n");
   printf("magic: %x\n", header.magic);
@@ -136,6 +146,7 @@ void DumpIndexHeader(const base::FilePath& name,
   printf("table length: %d\n", header.table_len);
   printf("last crash: %d\n", header.crash);
   printf("experiment: %d\n", header.experiment);
+  printf("corruption detected: %d\n", header.corruption_detected);
   printf("stats: %x\n", header.stats);
   for (int i = 0; i < 5; i++) {
     printf("head %d: 0x%x\n", i, header.lru.heads[i]);
@@ -154,8 +165,9 @@ void DumpIndexHeader(const base::FilePath& name,
 // Dumps the contents of a block-file header.
 void DumpBlockHeader(const base::FilePath& name) {
   disk_cache::BlockFileHeader header;
-  if (!ReadHeader(name, reinterpret_cast<char*>(&header), sizeof(header)))
+  if (!ReadHeader(name, base::byte_span_from_ref(header))) {
     return;
+  }
 
   printf("Block file: %s\n", name.BaseName().MaybeAsASCII().c_str());
   printf("magic: %x\n", header.magic);
@@ -249,13 +261,15 @@ bool CacheDumper::GetEntry(disk_cache::EntryStore* entry,
   for (int i = current_hash_; i < index_->header.table_len; i++) {
     // Yes, we'll crash if the table is shorter than expected, but only after
     // dumping every entry that we can find.
-    if (index_->table[i]) {
+    disk_cache::CacheAddr addr_i = UNSAFE_TODO(index_->table[i]);
+    if (addr_i) {
       current_hash_ = i;
-      *addr = index_->table[i];
-      if (LoadEntry(index_->table[i], entry))
+      *addr = addr_i;
+      if (LoadEntry(addr_i, entry)) {
         return true;
+      }
 
-      printf("Unable to load entry at address 0x%x\n", index_->table[i]);
+      printf("Unable to load entry at address 0x%x\n", addr_i);
     }
   }
   return false;
@@ -272,7 +286,7 @@ bool CacheDumper::LoadEntry(disk_cache::CacheAddr addr,
   if (!entry_block.Load())
     return false;
 
-  memcpy(entry, entry_block.Data(), sizeof(*entry));
+  *entry = *entry_block.Data();
   if (!entry_block.VerifyHash())
     printf("Self hash failed at 0x%x\n", addr);
 
@@ -304,7 +318,8 @@ bool CacheDumper::LoadRankings(disk_cache::CacheAddr addr,
   if (!rank_block.VerifyHash())
     printf("Self hash failed at 0x%x\n", addr);
 
-  memcpy(rankings, rank_block.Data(), sizeof(*rankings));
+  *rankings = *rank_block.Data();
+
   return true;
 }
 
@@ -315,15 +330,16 @@ bool CacheDumper::HexDump(disk_cache::CacheAddr addr, std::string* out) {
     return false;
 
   size_t size = address.num_blocks() * address.BlockSize();
-  auto buffer = std::make_unique<char[]>(size);
+  auto buffer = base::HeapArray<uint8_t>::Uninit(size);
 
   size_t offset = address.start_block() * address.BlockSize() +
                   disk_cache::kBlockHeaderSize;
-  if (!file->Read(buffer.get(), size, offset))
+  if (!file->Read(buffer.as_span(), offset)) {
     return false;
+  }
 
   base::StringAppendF(out, "0x%x:\n", addr);
-  DumpCacheHelper::HexDump(buffer.get(), size, out);
+  DumpCacheHelper::HexDump(buffer.as_span(), out);
   return true;
 }
 
@@ -491,8 +507,9 @@ int DumpContents(const base::FilePath& input_path) {
 int DumpLists(const base::FilePath& input_path) {
   base::FilePath index_name(input_path.Append(kIndexName));
   disk_cache::IndexHeader header;
-  if (!ReadHeader(index_name, reinterpret_cast<char*>(&header), sizeof(header)))
+  if (!ReadHeader(index_name, base::byte_span_from_ref(header))) {
     return -1;
+  }
 
   // We need a task executor, although we really don't run any task.
   base::SingleThreadTaskExecutor io_task_executor(base::MessagePumpType::IO);
@@ -543,8 +560,9 @@ int DumpEntryAt(const base::FilePath& input_path, const std::string& at) {
 
   base::FilePath index_name(input_path.Append(kIndexName));
   disk_cache::IndexHeader header;
-  if (!ReadHeader(index_name, reinterpret_cast<char*>(&header), sizeof(header)))
+  if (!ReadHeader(index_name, base::byte_span_from_ref(header))) {
     return -1;
+  }
 
   // We need a task executor, although we really don't run any task.
   base::SingleThreadTaskExecutor io_task_executor(base::MessagePumpType::IO);
@@ -600,12 +618,13 @@ int DumpEntryAt(const base::FilePath& input_path, const std::string& at) {
 
 int DumpAllocation(const base::FilePath& file) {
   disk_cache::BlockFileHeader header;
-  if (!ReadHeader(file, reinterpret_cast<char*>(&header), sizeof(header)))
+  if (!ReadHeader(file, base::byte_span_from_ref(header))) {
     return -1;
+  }
 
   std::string out;
-  DumpCacheHelper::HexDump(reinterpret_cast<char*>(&header.allocation_map),
-                           sizeof(header.allocation_map), &out);
+  DumpCacheHelper::HexDump(base::byte_span_from_ref(header.allocation_map),
+                           &out);
   printf("%s\n", out.c_str());
   return 0;
 }

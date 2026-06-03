@@ -189,7 +189,9 @@ BASE_DECLARE_FEATURE_PARAM(int, kDeprecateUnloadBucket);
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE_PARAM(std::string, kDeprecateUnloadAllowlist);
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
-BASE_DECLARE_FEATURE(kFrameAncestorHeaders);
+BASE_DECLARE_FEATURE(kFrameTopHeader);
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE(kFrameAncestorsHeader);
 
 // Updates the request body, headers, and referrer policy for CORS
 // redirects, following 4.4. HTTP-redirect fetch:
@@ -291,6 +293,9 @@ BASE_DECLARE_FEATURE(kGetCookiesOnSet);
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE(kIncreaseCookieAccessCacheSize);
 
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(int, kCookieAccessCacheSize);
+
 // If enabled, permissions policies relevant to a request are populated on
 // `network:ResourceRequest`.
 //
@@ -341,6 +346,7 @@ BASE_DECLARE_FEATURE_PARAM(size_t, kSharedDictionaryCacheSize);
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE_PARAM(size_t, kSharedDictionaryCacheMaxSizeBytes);
 
+<<<<<<< HEAD
 #if BUILDFLAG(IS_COBALT)
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE(kCobaltDynamicMojoPipeSizing);
@@ -351,6 +357,12 @@ BASE_DECLARE_FEATURE_PARAM(int, kCobaltDynamicMojoPipeSizingSubresourceSize);
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE_PARAM(int, kCobaltDynamicMojoPipeSizingMediaSize);
 #endif  // BUILDFLAG(IS_COBALT)
+=======
+// When enabled, Network Service Scheduler is enabled on the Network
+// Service's IO Thread.
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE(kNetworkServiceScheduler);
+>>>>>>> 52788d1a1e (Update to m139 branch point.)
 
 }  // namespace network::features
 

@@ -77,6 +77,7 @@
 #include "third_party/blink/renderer/core/editing/forward.h"
 #include "third_party/blink/renderer/core/editing/iterators/text_iterator_behavior.h"
 #include "third_party/blink/renderer/core/frame/ad_script_identifier.h"
+#include "third_party/blink/renderer/core/frame/ad_tracker.h"
 #include "third_party/blink/renderer/core/frame/frame.h"
 #include "third_party/blink/renderer/core/frame/frame_types.h"
 #include "third_party/blink/renderer/core/frame/frame_visibility_observer.h"
@@ -91,7 +92,6 @@
 #include "third_party/blink/renderer/platform/loader/fetch/client_hints_preferences.h"
 #include "third_party/blink/renderer/platform/loader/fetch/loader_freeze_mode.h"
 #include "third_party/blink/renderer/platform/mojo/browser_interface_broker_proxy_impl.h"
-#include "third_party/blink/renderer/platform/mojo/heap_mojo_associated_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_unique_receiver_set.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
@@ -268,9 +268,8 @@ class CORE_EXPORT LocalFrame final
   bool IsAdFrame() const override;
 
   // BackForwardCacheLoaderHelperImpl::Delegate:
-  void EvictFromBackForwardCache(
-      mojom::blink::RendererEvictionReason reason,
-      std::unique_ptr<SourceLocation> source_location) override;
+  void EvictFromBackForwardCache(mojom::blink::RendererEvictionReason reason,
+                                 SourceLocation* source_location) override;
   void DidBufferLoadWhileInBackForwardCache(bool update_process_wide_count,
                                             size_t num_bytes) override;
 
@@ -405,6 +404,10 @@ class CORE_EXPORT LocalFrame final
       mojom::blink::ScrollDirection direction,
       ui::ScrollGranularity granularity,
       Frame* child);
+
+  void NetworkBecameAlmostIdle(base::TimeDelta almost_idle_start_time);
+  void NetworkBecameIdle(base::TimeDelta idle_start_time);
+  void RequestNetworkIdleCallback(base::OnceClosure callback);
 
   // =========================================================================
   // All public functions below this point are candidates to move out of
@@ -651,6 +654,16 @@ class CORE_EXPORT LocalFrame final
   bool IsFrameCreatedByAdScript() const {
     return is_frame_created_by_ad_script_;
   }
+
+  // Returns the identifier of the ad script that created this frame, if
+  // applicable.
+  //
+  // Returns `nullopt` if:
+  // - The frame is not an ad.
+  // - The frame navigated cross-origin.
+  // - The frame was not created by an ad script (e.g., its URL was flagged by
+  //   the subresource filter).
+  std::optional<AdScriptIdentifier> CreationAdScript() const;
 
   // Updates the frame color overlay to match the highlight ad setting.
   void UpdateAdHighlight();
@@ -1111,6 +1124,7 @@ class CORE_EXPORT LocalFrame final
 
   Member<AdTracker> ad_tracker_;
   Member<IdlenessDetector> idleness_detector_;
+  base::OnceClosure network_idle_callback_;
   Member<AttributionSrcLoader> attribution_src_loader_;
   Member<InspectorIssueReporter> inspector_issue_reporter_;
   Member<InspectorTraceEvents> inspector_trace_events_;
@@ -1209,11 +1223,15 @@ class CORE_EXPORT LocalFrame final
   bool is_frame_created_by_ad_script_ = false;
 
   // The ancestry chain of ad script identifiers leading to this frame's
-  // creation, ordered from the most immediate script (in the frame creation
-  // stack) to more distant ancestors (that created the immediately preceding
+  // creation, along with the root script's filterlist rule. The ancestry chain
+  // is ordered from the most immediate script (in the frame creation stack) to
+  // more distant ancestors (that created the immediately preceding
   // script). Kept to defer instrumentation probe call until the frame is
   // committed.
-  Vector<AdScriptIdentifier> provisional_ad_script_ancestry_;
+  //
+  // This is currently *not* populated when a frame navigates cross-origin
+  // (crbug.com/421202278).
+  AdTracker::AdScriptAncestry ad_script_ancestry_;
 
   bool evict_cached_session_storage_on_freeze_or_unload_ = false;
 
@@ -1224,6 +1242,11 @@ class CORE_EXPORT LocalFrame final
   // frame). Calculated browser-side and used to help determine if this frame
   // is allowed to load a new child opaque-ads fenced frame.
   bool ancestor_or_self_has_cspee_ = false;
+
+  // Used to prevent signaling idle network notifications more than once for a
+  // given document. Reset when a new document is committed.
+  bool notified_initial_network_almost_idle_ = false;
+  bool notified_initial_network_idle_ = false;
 
   // Reduced accept language for top-level frame.
   AtomicString reduced_accept_language_;

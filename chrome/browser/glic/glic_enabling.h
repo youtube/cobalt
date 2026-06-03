@@ -7,6 +7,7 @@
 
 #include "base/callback_list.h"
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/types/expected.h"
 #include "chrome/browser/glic/glic_user_status_fetcher.h"
@@ -166,6 +167,19 @@ class GlicEnabling : public signin::IdentityManager::Observer {
     glic_user_status_fetcher_->SetGlicUserStatusUrlForTest(test_url);
   }
 
+  void SetUserStatusFetchOverrideForTest(
+      GlicUserStatusFetcher::FetchOverrideCallback fetch_override) {
+    glic_user_status_fetcher_->SetFetchOverrideForTest(
+        std::move(fetch_override));
+  }
+
+  // Updates the user status when information suggests that it might have
+  // changed recently. This is internally debounced to avoid excessive
+  // requests, for signals that might be received multiple times.
+  void UpdateUserStatusWithThrottling() {
+    glic_user_status_fetcher_->UpdateUserStatusWithThrottling();
+  }
+
   // This is called anytime IsAllowed() might return a different value.
   using EnableChangedCallback = base::RepeatingClosure;
   base::CallbackListSubscription RegisterAllowedChanged(
@@ -192,8 +206,6 @@ class GlicEnabling : public signin::IdentityManager::Observer {
   void OnExtendedAccountInfoUpdated(const AccountInfo& info) override;
   void OnExtendedAccountInfoRemoved(const AccountInfo& info) override;
   void OnRefreshTokensLoaded() override;
-  void OnRefreshTokenUpdatedForAccount(
-      const CoreAccountInfo& account_info) override;
   void OnRefreshTokenRemovedForAccount(
       const CoreAccountId& account_id) override;
 
@@ -207,13 +219,8 @@ class GlicEnabling : public signin::IdentityManager::Observer {
       signin_metrics::SourceForRefreshTokenOperation token_operation_source)
       override;
 
-  void OnIdentityManagerShutdown(
-      signin::IdentityManager* identity_manager) override;
-
   void UpdateEnabledStatus();
   void UpdateConsentStatus();
-
-  void UpdateUserStatus(const signin::PrimaryAccountChangeEvent& event_details);
 
   raw_ptr<Profile> profile_;
   raw_ptr<ProfileAttributesStorage> profile_attributes_storage_;
@@ -230,10 +237,6 @@ class GlicEnabling : public signin::IdentityManager::Observer {
   base::ScopedObservation<signin::IdentityManager,
                           signin::IdentityManager::Observer>
       identity_manager_observation_{this};
-
-  // Stores the previous value of `prefs::kGeminiSettings` to detect
-  // transitions.
-  std::optional<glic::prefs::SettingsPolicyState> cached_gemini_settings_value_;
 };
 
 }  // namespace glic

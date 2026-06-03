@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/apps/link_capturing/apps_intent_picker_delegate.h"
@@ -65,7 +66,8 @@ class WebAppsIntentPickerDelegate : public AppsIntentPickerDelegate {
   void LaunchApp(content::WebContents* web_contents,
                  const GURL& url,
                  const std::string& launch_name,
-                 PickerEntryType entry_type) override;
+                 PickerEntryType entry_type,
+                 base::OnceClosure callback = base::DoNothing()) override;
 
  private:
 #if BUILDFLAG(IS_MAC)

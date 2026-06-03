@@ -41,9 +41,6 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kUseDMSAAForTiles);
 // Enabled 03/2024, kept to run a holdback experiment.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kReclaimResourcesDelayedFlushInBackground);
 
-// Use 4x MSAA (vs 8) on High DPI screens.
-CC_BASE_EXPORT BASE_DECLARE_FEATURE(kDetectHiDpiForMsaa);
-
 // When no frames are produced in a certain time interval, reclaim prepaint
 // tiles.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kReclaimPrepaintTilesWhenIdle);
@@ -71,12 +68,6 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kEvictionThrottlesDraw);
 // When a LayerTreeHostImpl is not visible, clear its transferable resources
 // that haven't been imported into viz.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kClearCanvasResourcesInBackground);
-
-// Currently CC Metrics does a lot of calculations for UMA and Tracing. While
-// Traces themselves won't run when we are not tracing, some of the calculation
-// work is done regardless. When enabled this feature reduces extra calculation
-// to when tracing is enabled.
-CC_BASE_EXPORT BASE_DECLARE_FEATURE(kMetricsTracingCalculationReduction);
 
 // Currently there is a race between OnBeginFrames from the GPU process and
 // input arriving from the Browser process. Due to this we can start to produce
@@ -202,11 +193,6 @@ CC_BASE_EXPORT void SetIsEligibleForThrottleMainFrameTo60Hz(bool is_eligible);
 // capture.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kViewTransitionCaptureAndDisplay);
 
-// When enabled, we save the `EventMetrics` for a scroll, even when the result
-// is no damage. So that the termination can be per properly attributed to the
-// end of frame production for the given VSync.
-CC_BASE_EXPORT BASE_DECLARE_FEATURE(kZeroScrollMetricsUpdate);
-
 // When enabled, the view transition capture transform is floored instead of
 // rounded and we use the render surface pixel snapping to counteract the blurry
 // effect.
@@ -253,6 +239,15 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(double, kCubicBezierX2);
 CC_BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(double, kCubicBezierY2);
 CC_BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
                                           kMaxAnimtionDuration);
+
+// When enabled, slim will receive CompositorFrameSink messages directly without
+// the intermediate IO-thread hop.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kSlimDirectReceiverIpc);
+
+// When enabled, the overscroll behavior will be respected on all scroll
+// containers.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(
+    kOverscrollBehaviorRespectedOnAllScrollContainers);
 
 }  // namespace features
 

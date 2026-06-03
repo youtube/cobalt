@@ -252,10 +252,12 @@ UILabel* BubbleTitleLabelWithText(NSString* text,
   return label;
 }
 
-UIButton* BubbleNextButton() {
+UIButton* BubbleNextButton(BubblePageControlPage page) {
   UIButton* button = [UIButton buttonWithType:UIButtonTypeSystem];
   button.accessibilityIdentifier = kBubbleViewNextButtonIdentifier;
-  [button setTitle:l10n_util::GetNSString(IDS_IOS_IPH_BUBBLE_NEXT)
+  int textID = page == BubblePageControlPageFourth ? IDS_IOS_IPH_BUBBLE_GOT_IT
+                                                   : IDS_IOS_IPH_BUBBLE_NEXT;
+  [button setTitle:l10n_util::GetNSString(textID)
           forState:UIControlStateNormal];
   [button setTitleColor:[UIColor colorNamed:kSolidButtonTextColor]
                forState:UIControlStateNormal];
@@ -406,7 +408,7 @@ UIStackView* PageControl(BubblePageControlPage page) {
       _separator.translatesAutoresizingMaskIntoConstraints = NO;
       _separator.backgroundColor = [UIColor colorNamed:kSeparatorColor];
       [self addSubview:_separator];
-      _nextButton = BubbleNextButton();
+      _nextButton = BubbleNextButton(page);
       [_nextButton addTarget:self
                       action:@selector(nextButtonWasTapped:)
             forControlEvents:UIControlEventTouchUpInside];
@@ -464,6 +466,8 @@ UIStackView* PageControl(BubblePageControlPage page) {
   [self updateArrowAlignmentConstraint];
 }
 
+#pragma mark - UIAccessibility
+
 - (NSString*)accessibilityLabel {
   return self.titleLabel.text;
 }
@@ -471,6 +475,8 @@ UIStackView* PageControl(BubblePageControlPage page) {
 - (NSString*)accessibilityValue {
   return self.label.text;
 }
+
+#pragma mark - UIAccessibilityAction
 
 - (NSArray<UIAccessibilityCustomAction*>*)accessibilityCustomActions {
   NSMutableArray<UIAccessibilityCustomAction*>* accessibilityCustomActions =

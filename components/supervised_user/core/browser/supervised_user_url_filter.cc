@@ -162,32 +162,50 @@ SupervisedUserURLFilter::ResultCallback WrapCallbackWithMetrics(
                         context, transition_type);
 }
 
-// Returns true when two OrderedContainers have the same values.
-template <typename OrderedContainer>
-bool ContainersAreEqual(const OrderedContainer& lhs,
-                        const OrderedContainer& rhs) {
-  return lhs.size() == rhs.size() &&
-         std::equal(lhs.begin(), lhs.end(), rhs.begin());
+// Tells if url filtering settings are configured by family link. See
+// supervised_user::SupervisedUserPrefStore to understand how the prefs are
+// organized.
+bool IsConfiguredByFamilyLink(const PrefService& pref_service) {
+  return IsSubjectToParentalControls(pref_service) &&
+         pref_service.FindPreference(prefs::kSupervisedUserSafeSites)
+             ->IsManagedByCustodian() &&
+         pref_service
+             .FindPreference(prefs::kDefaultSupervisedUserFilteringBehavior)
+             ->IsManagedByCustodian();
 }
 
-// Indicates if all prefs that configure this filter are unset, meaning that
-// filtering is not required.
-bool ConfigPrefsAreDefault(const PrefService& pref_service) {
-  bool are_prefs_default =
-      pref_service.FindPreference(prefs::kSupervisedUserManualHosts)
-          ->IsDefaultValue() &&
-      pref_service.FindPreference(prefs::kSupervisedUserManualURLs)
-          ->IsDefaultValue() &&
-      pref_service.FindPreference(prefs::kSupervisedUserSafeSites)
-          ->IsDefaultValue() &&
-      pref_service
-          .FindPreference(prefs::kDefaultSupervisedUserFilteringBehavior)
-          ->IsDefaultValue();
-  CHECK_EQ(are_prefs_default, !IsSubjectToParentalControls(pref_service))
-      << "URL filter config prefs can only be default when the parental "
-         "controls are off. With parental controls on, the preferences above "
-         "have values set from the supervised user pref store";
-  return are_prefs_default;
+// Tells if url filtering settings are configured locally. See
+// supervised_user::SupervisedUserService::SetUserSettingsActive to understand
+// how the prefs are organized.
+bool IsConfiguredLocally(const PrefService& pref_service) {
+  return IsSubjectToUserControls(pref_service) &&
+         pref_service.FindPreference(prefs::kSupervisedUserSafeSites)
+             ->HasUserSetting() &&
+         pref_service
+             .FindPreference(prefs::kDefaultSupervisedUserFilteringBehavior)
+             ->HasUserSetting();
+}
+
+bool AreUrlFilterPrefsDefault(const PrefService& pref_service) {
+  return pref_service.FindPreference(prefs::kSupervisedUserManualHosts)
+             ->IsDefaultValue() &&
+         pref_service.FindPreference(prefs::kSupervisedUserManualURLs)
+             ->IsDefaultValue() &&
+         pref_service.FindPreference(prefs::kSupervisedUserSafeSites)
+             ->IsDefaultValue() &&
+         pref_service
+             .FindPreference(prefs::kDefaultSupervisedUserFilteringBehavior)
+             ->IsDefaultValue();
+}
+
+// Returns true when the pref configuration suggests that filtering settings are
+// unset. Validates whether the preferences configuration is consistent state:
+// filter is either disabled, configured by family link or locally.
+bool FilterIsDisabled(const PrefService& pref_service) {
+  bool is_disabled = AreUrlFilterPrefsDefault(pref_service);
+  CHECK_NE(is_disabled, IsConfiguredByFamilyLink(pref_service) ||
+                            IsConfiguredLocally(pref_service));
+  return is_disabled;
 }
 
 FilteringBehavior GetDefaultFilteringBehavior(const PrefService& pref_service) {
@@ -369,8 +387,12 @@ std::optional<FilteringSubdomainConflictType> AddConflict(
 
 SupervisedUserURLFilter::SupervisedUserURLFilter(
     PrefService& user_prefs,
-    std::unique_ptr<Delegate> delegate)
-    : user_prefs_(user_prefs), delegate_(std::move(delegate)) {}
+    std::unique_ptr<Delegate> delegate,
+    std::unique_ptr<safe_search_api::URLCheckerClient> url_checker_client)
+    : user_prefs_(user_prefs),
+      delegate_(std::move(delegate)),
+      async_url_checker_(std::make_unique<safe_search_api::URLChecker>(
+          std::move(url_checker_client))) {}
 
 SupervisedUserURLFilter::~SupervisedUserURLFilter() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -696,7 +718,7 @@ void SupervisedUserURLFilter::RemoveObserver(Observer* observer) {
 }
 
 WebFilterType SupervisedUserURLFilter::GetWebFilterType() const {
-  if (ConfigPrefsAreDefault(user_prefs_.get())) {
+  if (FilterIsDisabled(user_prefs_.get())) {
     return WebFilterType::kDisabled;
   }
 
@@ -713,7 +735,7 @@ WebFilterType SupervisedUserURLFilter::GetWebFilterType() const {
 }
 
 bool SupervisedUserURLFilter::RunAsyncChecker(const GURL& url,
-                                              ResultCallback callback) const {
+                                              ResultCallback callback) {
   // The parental setting may allow all sites to be visited.
   if (GetWebFilterType() == WebFilterType::kAllowAllSites) {
     std::move(callback).Run(
@@ -722,16 +744,14 @@ bool SupervisedUserURLFilter::RunAsyncChecker(const GURL& url,
     return true;
   }
 
-  // The primary account must be supervised to run async URL classification.
-  CHECK(supervised_user::IsSubjectToParentalControls(user_prefs_.get()));
-  CHECK(async_url_checker_);
+  CHECK(async_url_checker_) << "Filter must always have a checker.";
   return async_url_checker_->CheckURL(
       url_matcher::util::Normalize(url),
       base::BindOnce(&SupervisedUserURLFilter::CheckCallback,
                      base::Unretained(this), std::move(callback), url));
 }
 
-void SupervisedUserURLFilter::SetURLCheckerClient(
+void SupervisedUserURLFilter::SetURLCheckerClientForTesting(
     std::unique_ptr<safe_search_api::URLCheckerClient> url_checker_client) {
   async_url_checker_.reset(
       new safe_search_api::URLChecker(std::move(url_checker_client)));

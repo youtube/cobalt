@@ -11,6 +11,7 @@
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
+#include "chrome/browser/glic/glic_metrics.h"
 #include "chrome/browser/glic/host/context/glic_page_context_fetcher.h"
 #include "chrome/browser/glic/host/glic.mojom-shared.h"
 #include "chrome/browser/glic/test_support/interactive_glic_test.h"
@@ -19,6 +20,7 @@
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
 #include "chrome/test/interaction/tracked_element_webcontents.h"
+#include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/test/browser_test.h"
@@ -151,21 +153,25 @@ class GlicAnnotationManagerUiTest : public InteractiveGlicTest {
       auto options = mojom::GetTabContextOptions::New();
       options->include_annotated_page_content = true;
 
-      FetchPageContext(
-          glic_service->GetFocusedTabData(), *options,
-          base::BindLambdaForTesting([&](mojom::GetContextResultPtr result) {
-            mojo_base::ProtoWrapper& serialized_apc =
-                *result->get_tab_context()
-                     ->annotated_page_data->annotated_page_content;
-            annotated_page_content_ = std::make_unique<
-                optimization_guide::proto::AnnotatedPageContent>(
-                serialized_apc
-                    .As<optimization_guide::proto::AnnotatedPageContent>()
-                    .value());
-            run_loop.Quit();
-          }));
+      FocusedTabData data = glic_service->sharing_manager().GetFocusedTabData();
+      if (data.focus()) {
+        FetchPageContext(
+            data.focus(), *options,
+            /*include_actionable_data=*/false,
+            base::BindLambdaForTesting([&](mojom::GetContextResultPtr result) {
+              mojo_base::ProtoWrapper& serialized_apc =
+                  *result->get_tab_context()
+                       ->annotated_page_data->annotated_page_content;
+              annotated_page_content_ = std::make_unique<
+                  optimization_guide::proto::AnnotatedPageContent>(
+                  serialized_apc
+                      .As<optimization_guide::proto::AnnotatedPageContent>()
+                      .value());
+              run_loop.Quit();
+            }));
 
-      run_loop.Run();
+        run_loop.Run();
+      }
     }));
   }
 
@@ -191,14 +197,20 @@ class GlicAnnotationManagerUiTest : public InteractiveGlicTest {
   // Similar to the above method, but also includes documentId in the params.
   // If `document_id` is not set, it uses a value retrieved from
   // `annotated_page_content_`.
+  using DocumentIdGetter = base::OnceCallback<std::string()>;
   auto ScrollToWithDocumentId(
       Selector selector,
-      std::optional<std::string> document_id = std::nullopt) {
+      std::optional<DocumentIdGetter> document_id = std::nullopt) {
     return Steps(InAnyContext(WithElement(
         kGlicContentsElementId, [&, selector = std::move(selector),
-                                 document_id](ui::TrackedElement* el) mutable {
+                                 document_id_getter = std::move(document_id)](
+                                    ui::TrackedElement* el) mutable {
           content::WebContents* glic_contents =
               AsInstrumentedWebContents(el)->web_contents();
+          std::string document_id = GetDocumentIdFromAnnotatedPageContent();
+          if (document_id_getter.has_value()) {
+            document_id = std::move(document_id_getter.value()).Run();
+          }
           std::string script = content::JsReplace(
               R"js(
                 (() => {
@@ -208,8 +220,7 @@ class GlicAnnotationManagerUiTest : public InteractiveGlicTest {
                   });
                 })();
               )js",
-              std::move(selector).Run(),
-              document_id.value_or(GetDocumentIdFromAnnotatedPageContent()));
+              std::move(selector).Run(), document_id);
           ASSERT_TRUE(content::ExecJs(glic_contents, std::move(script)));
         })));
   }
@@ -241,11 +252,16 @@ class GlicAnnotationManagerUiTest : public InteractiveGlicTest {
   auto ScrollToWithDocumentIdExpectingError(
       Selector selector,
       mojom::ScrollToErrorReason error_reason,
-      std::optional<std::string> document_id = std::nullopt) {
+      std::optional<DocumentIdGetter> document_id = std::nullopt) {
     auto step_callback = [&, selector = std::move(selector), error_reason,
-                          document_id](ui::TrackedElement* el) mutable {
+                          document_id_getter = std::move(document_id)](
+                             ui::TrackedElement* el) mutable {
       content::WebContents* glic_contents =
           AsInstrumentedWebContents(el)->web_contents();
+      std::string document_id = GetDocumentIdFromAnnotatedPageContent();
+      if (document_id_getter.has_value()) {
+        document_id = std::move(document_id_getter.value()).Run();
+      }
       std::string script = content::JsReplace(
           R"js(
             (async () => {
@@ -259,8 +275,7 @@ class GlicAnnotationManagerUiTest : public InteractiveGlicTest {
               }
             })();
           )js",
-          std::move(selector).Run(),
-          document_id.value_or(GetDocumentIdFromAnnotatedPageContent()));
+          std::move(selector).Run(), document_id);
       EXPECT_EQ(content::EvalJs(glic_contents, std::move(script)),
                 static_cast<int>(error_reason));
     };
@@ -341,14 +356,29 @@ class GlicAnnotationManagerUiTest : public InteractiveGlicTest {
             InteractiveBrowserTest::AsInstrumentedWebContents(tracked_element)
                 ->web_contents();
       }
-      if (glic_service->GetFocusedTabData().focus() == web_contents) {
+      content::WebContents* focused_web_contents =
+          glic_service->sharing_manager().GetFocusedTabData().focus()
+              ? glic_service->sharing_manager()
+                    .GetFocusedTabData()
+                    .focus()
+                    ->GetContents()
+              : nullptr;
+      if (focused_web_contents == web_contents) {
         return true;
       }
       base::RunLoop run_loop(base::RunLoop::Type::kNestableTasksAllowed);
       auto subscription =
-          glic_service->AddFocusedTabChangedCallback(base::BindLambdaForTesting(
-              [&run_loop, glic_service, web_contents](FocusedTabData) {
-                if (glic_service->GetFocusedTabData().focus() == web_contents) {
+          glic_service->sharing_manager().AddFocusedTabChangedCallback(
+              base::BindLambdaForTesting([&run_loop, glic_service,
+                                          web_contents](const FocusedTabData&) {
+                content::WebContents* focused_web_contents =
+                    glic_service->sharing_manager().GetFocusedTabData().focus()
+                        ? glic_service->sharing_manager()
+                              .GetFocusedTabData()
+                              .focus()
+                              ->GetContents()
+                        : nullptr;
+                if (focused_web_contents == web_contents) {
                   run_loop.Quit();
                   return;
                 }
@@ -441,6 +471,10 @@ class GlicAnnotationManagerUiTest : public InteractiveGlicTest {
                .content_attributes()
                .common_ancestor_dom_node_id() +
            9999;
+  }
+
+  base::HistogramTester* histogram_tester() const {
+    return histogram_tester_.get();
   }
 
  private:
@@ -720,6 +754,8 @@ IN_PROC_BROWSER_TEST_F(GlicAnnotationManagerUiTest, WithDocumentId) {
 }
 
 IN_PROC_BROWSER_TEST_F(GlicAnnotationManagerUiTest, WithUnknownDocumentId) {
+  DocumentIdGetter unknown_document_id = base::BindLambdaForTesting(
+      []() { return base::UnguessableToken().Create().ToString(); });
   RunTestSequence(InstrumentTab(kActiveTabId),
                   NavigateWebContents(
                       kActiveTabId, embedded_test_server()->GetURL(
@@ -730,7 +766,28 @@ IN_PROC_BROWSER_TEST_F(GlicAnnotationManagerUiTest, WithUnknownDocumentId) {
                   ScrollToWithDocumentIdExpectingError(
                       ExactTextSelector("Some text"),
                       mojom::ScrollToErrorReason::kNoMatchingDocument,
-                      base::UnguessableToken().Create().ToString()));
+                      std::move(unknown_document_id)));
+}
+
+IN_PROC_BROWSER_TEST_F(GlicAnnotationManagerUiTest, WithIframeDocumentId) {
+  DocumentIdGetter iframe_document_id = base::BindLambdaForTesting([&]() {
+    content::RenderFrameHost* iframe_rfh = content::ChildFrameAt(
+        browser()->tab_strip_model()->GetActiveWebContents(), /*index=*/0u);
+    return optimization_guide::DocumentIdentifierUserData::
+        GetForCurrentDocument(iframe_rfh)
+            ->serialized_token();
+  });
+  RunTestSequence(InstrumentTab(kActiveTabId),
+                  NavigateWebContents(kActiveTabId,
+                                      embedded_test_server()->GetURL(
+                                          "/scrollable_page_with_iframe.html")),
+                  OpenGlicWindow(GlicWindowMode::kDetached),  //
+                  SetTabContextPermission(true),
+                  GetPageContextFromFocusedTab(),  //
+                  ScrollToWithDocumentIdExpectingError(
+                      ExactTextSelector("Some text"),
+                      mojom::ScrollToErrorReason::kNoMatchingDocument,
+                      std::move(iframe_document_id)));
 }
 
 IN_PROC_BROWSER_TEST_F(GlicAnnotationManagerUiTest,
@@ -1025,6 +1082,92 @@ IN_PROC_BROWSER_TEST_F(GlicAnnotationManagerUiTest,
       UserSwitchesConversation(),                                            //
       WaitForScrollToError(mojom::ScrollToErrorReason::kDroppedByWebClient)  //
   );
+}
+
+IN_PROC_BROWSER_TEST_F(GlicAnnotationManagerUiTest, RecordsSessionCount) {
+  RunTestSequence(
+      InstrumentTab(kActiveTabId),  //
+      NavigateWebContents(
+          kActiveTabId,
+          embedded_test_server()->GetURL("/scrollable_page_with_content.html")),
+      OpenGlicWindow(GlicWindowMode::kDetached),  //
+      SetTabContextPermission(true),
+      ScrollToExpectingError(ExactTextSelector("missing text"),
+                             mojom::ScrollToErrorReason::kNoMatchFound),
+      ScrollTo(ExactTextSelector("Some text")),  //
+      Do([&]() {
+        histogram_tester()->ExpectTotalCount("Glic.ScrollTo.SessionCount",
+                                             /*expected_count=*/0);
+      }),
+      CloseGlicWindow(),  //
+      Do([&]() {
+        histogram_tester()->ExpectUniqueSample("Glic.ScrollTo.SessionCount",
+                                               /*sample=*/2,
+                                               /*expected_bucket_count=*/1);
+      }));
+}
+
+// Tests that "Glic.ScrollTo.UserPromptToScrollTime" is:
+//  - not recorded if scrolling fails
+//  - recorded after scrolling starts
+//
+// This test manually calls `GlicMetrics` methods like `OnUserInputSubmitted`,
+// `OnResponseStarted` and `OnResponseStopped` instead of doing it through
+// the test client for convenience and better control of timing. The order of
+// the method calls reflect the order of expected calls in practice.
+IN_PROC_BROWSER_TEST_F(GlicAnnotationManagerUiTest,
+                       RecordsUserPromptToScrollTime) {
+  GlicMetrics* glic_metrics;
+  RunTestSequence(
+      InstrumentTab(kActiveTabId),  //
+      NavigateWebContents(
+          kActiveTabId,
+          embedded_test_server()->GetURL("/scrollable_page_with_content.html")),
+      OpenGlicWindow(GlicWindowMode::kDetached),  //
+      SetTabContextPermission(true),              //
+      InsertFakeAnnotationService(),              //
+      Do([&]() {
+        glic_metrics = GlicKeyedServiceFactory::GetGlicKeyedService(
+                           browser()->GetProfile())
+                           ->metrics();
+        glic_metrics->OnUserInputSubmitted(mojom::WebClientMode::kAudio);
+      }),
+      ScrollToAsync(ExactTextSelector("does not matter")),            //
+      WaitForEvent(kBrowserViewElementId, kScrollToRequestReceived),  //
+      Do([&]() {
+        glic_metrics->OnResponseStarted();
+        glic_metrics->OnResponseStopped();
+      }),
+      Do([&]() {
+        fake_service()->NotifyAttachment(
+            gfx::Rect(), blink::mojom::AttachmentResult::kSelectorNotMatched);
+      }),
+      WaitForScrollToError(mojom::ScrollToErrorReason::kNoMatchFound),
+      Do([&]() {
+        // Metric shouldn't be recorded if scrolling wasn't triggered.
+        histogram_tester()->ExpectTotalCount(
+            "Glic.ScrollTo.UserPromptToScrollTime.Audio",
+            /*expected_count=*/0);
+      }),
+      Do([&]() {
+        glic_metrics->OnUserInputSubmitted(mojom::WebClientMode::kAudio);
+      }),
+      ScrollToAsync(ExactTextSelector("does not matter")),            //
+      WaitForEvent(kBrowserViewElementId, kScrollToRequestReceived),  //
+      Do([&]() {
+        glic_metrics->OnResponseStarted();
+        glic_metrics->OnResponseStopped();
+      }),
+      Do([&]() {
+        fake_service()->NotifyAttachment(
+            gfx::Rect(20, 20), blink::mojom::AttachmentResult::kSuccess);
+      }),
+      WaitForEvent(kBrowserViewElementId, kScrollStarted),  //
+      Do([&]() {
+        histogram_tester()->ExpectTotalCount(
+            "Glic.ScrollTo.UserPromptToScrollTime.Audio",
+            /*expected_count=*/1);
+      }));
 }
 
 class GlicAnnotationManagerWithScrollToDisabledUiTest

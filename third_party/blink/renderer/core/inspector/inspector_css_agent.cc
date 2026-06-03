@@ -184,13 +184,13 @@ Element* GetPseudoIdAndTag(Element* element,
   auto* try_pseudo = DynamicTo<PseudoElement>(element);
   bool is_transition =
       try_pseudo && IsTransitionPseudoElement(try_pseudo->GetPseudoId());
-  // If nested pseudo element support is turned on, it is better not to do this
-  // translation, as it is lossy. We can query styles directly from the pseudo
+  // If nested pseudo-element support is turned on, it is better not to do this
+  // translation, as it is lossy. We can query styles directly from the pseudo-
   // element node instead of using the originating element and pseudo id.
   // TODO(crbug.com/373478544): Remove this function once this flag is no longer
   // necessary.
   if (RuntimeEnabledFeatures::CSSNestedPseudoElementsEnabled()) {
-    // View transition pseudo elements depend on the old logic; always translate
+    // View transition pseudo-elements depend on the old logic; always translate
     // them.
     if (!is_transition) {
       return resolved_element;
@@ -219,7 +219,7 @@ String CreateShorthandValue(Document& document,
   auto* style_sheet_contents =
       MakeGarbageCollected<StyleSheetContents>(StrictCSSParserContext(
           document.GetExecutionContext()->GetSecureContextMode()));
-  String text = " div { " + shorthand + ": " + old_text + "; }";
+  String text = StrCat({" div { ", shorthand, ": ", old_text, "; }"});
   CSSParser::ParseSheet(MakeGarbageCollected<CSSParserContext>(document),
                         style_sheet_contents, text);
 
@@ -487,7 +487,7 @@ class InspectorCSSAgent::SetStyleSheetTextAction final
   }
 
   String MergeId() override {
-    return WTF::StrCat({"SetStyleSheetText ", style_sheet_->Id()});
+    return StrCat({"SetStyleSheetText ", style_sheet_->Id()});
   }
 
   void Merge(Action* action) override {
@@ -703,7 +703,7 @@ class InspectorCSSAgent::SetElementStyleAction final
   }
 
   String MergeId() override {
-    return WTF::StrCat({"SetElementStyleAction:", style_sheet_->Id()});
+    return StrCat({"SetElementStyleAction:", style_sheet_->Id()});
   }
 
   std::unique_ptr<protocol::CSS::CSSStyle> TakeSerializedStyle(
@@ -1315,8 +1315,8 @@ protocol::Response InspectorCSSAgent::getLocationForSelector(
   }
 
   if ((*ranges)->empty()) {
-    String message = "Failed to find selector '" + selector_text +
-                     "' in style sheet " + style_sheet->FinalURL();
+    String message = StrCat({"Failed to find selector '", selector_text,
+                             "' in style sheet ", style_sheet->FinalURL()});
     return protocol::Response::InvalidParams(message.Utf8());
   }
 
@@ -1353,9 +1353,9 @@ protocol::Response InspectorCSSAgent::getAnimatedStylesForNode(
   PseudoId element_pseudo_id = kPseudoIdNone;
   AtomicString view_transition_name = g_null_atom;
   PseudoElement* pseudo_element = nullptr;
-  // If the requested element is a view transition pseudo element, `element` becomes
-  // the first non-pseudo parent element or shadow host element
-  // after `GetPseudoIdAndTag` call below.
+  // If the requested element is a view transition pseudo-element, `element`
+  // becomes the first non-pseudo parent element or shadow host element after
+  // `GetPseudoIdAndTag` call below.
   element = GetPseudoIdAndTag(element, pseudo_element, element_pseudo_id,
                               view_transition_name);
   if (!element) {
@@ -1430,9 +1430,9 @@ protocol::Response InspectorCSSAgent::getMatchedStylesForNode(
 
   PseudoId element_pseudo_id = kPseudoIdNone;
   AtomicString view_transition_name = g_null_atom;
-  // If the requested element is a view transition pseudo element, `element` becomes
-  // the first non-pseudo parent element or shadow host element
-  // after `GetPseudoIdAndTag` call below.
+  // If the requested element is a view transition pseudo-element, `element`
+  // becomes the first non-pseudo parent element or shadow host element after
+  // `GetPseudoIdAndTag` call below.
   PseudoElement* pseudo_element = nullptr;
   element = GetPseudoIdAndTag(element, pseudo_element, element_pseudo_id,
                               view_transition_name);
@@ -1499,9 +1499,9 @@ protocol::Response InspectorCSSAgent::getMatchedStylesForNode(
   std::tie(*css_property_rules, *css_property_registrations) =
       CustomPropertiesForNode(element);
 
-  // Pseudo elements.
-  // Some pseudo elements can have nested pseudo elements,
-  // and we need to show them in the originating pseudo element's
+  // Pseudo-elements.
+  // Some pseudo-elements can have nested pseudo-elements,
+  // and we need to show them in the originating pseudo-element's
   // styles.
   if (pseudo_element) {
     if (!pseudo_element->CanHaveNestedPseudoElement()) {
@@ -1896,12 +1896,12 @@ CSSKeyframesRule*
 InspectorCSSAgent::FindKeyframesRuleFromUAViewTransitionStylesheet(
     Element* element,
     StyleRuleKeyframes* keyframes_style_rule) {
-  // This function should only be called for transition pseudo elements.
+  // This function should only be called for transition pseudo-elements.
   CHECK(IsTransitionPseudoElement(element->GetPseudoId()));
   auto* transition = ViewTransitionUtils::GetTransition(element->GetDocument());
 
   // There must be a transition and an active UAStyleSheet for the
-  // transition when the queried element is a transition pseudo element.
+  // transition when the queried element is a transition pseudo-element.
   CHECK(transition && transition->UAStyleSheet());
 
   if (!user_agent_view_transition_style_sheet_) {
@@ -1971,8 +1971,8 @@ InspectorCSSAgent::AnimationsForNode(Element* element,
   Document& document = element->GetDocument();
   DCHECK(!document.NeedsLayoutTreeUpdateForNode(*element));
   // We want to match the animation name of the animating element not the parent
-  // element's animation names for pseudo elements. When the `element` is a
-  // non-pseudo element then `animating_element` and the `element` are the same.
+  // element's animation names for pseudo-elements. When the `element` is a
+  // non-pseudo-element then `animating_element` and the `element` are the same.
   const ComputedStyle* style = animating_element->EnsureComputedStyle();
   if (!style)
     return css_keyframes_rules;
@@ -4291,11 +4291,12 @@ protocol::Response InspectorCSSAgent::setEffectivePropertyValueForNode(
       style_sheet_text.Substring(body_range.start, body_range.length());
   SourceRange change_range;
   if (found_index == -1) {
-    String new_property_text = "\n" + longhand + ": " + value +
-                               (force_important ? " !important" : "") + ";";
+    String new_property_text =
+        StrCat({"\n", longhand, ": ", value,
+                (force_important ? " !important" : ""), ";"});
     if (!style_text.empty() && !style_text.StripWhiteSpace().EndsWith(';'))
-      new_property_text = ";" + new_property_text;
-    style_text = style_text + new_property_text;
+      new_property_text = StrCat({";", new_property_text});
+    style_text = StrCat({style_text, new_property_text});
     change_range.start = body_range.end;
     change_range.end = body_range.end + new_property_text.length();
   } else {
@@ -4308,9 +4309,9 @@ protocol::Response InspectorCSSAgent::setEffectivePropertyValueForNode(
       new_value_text = value;
     }
 
-    String new_property_text =
-        declaration.name + ": " + new_value_text +
-        (declaration.important || force_important ? " !important" : "") + ";";
+    String new_property_text = StrCat(
+        {declaration.name, ": ", new_value_text,
+         (declaration.important || force_important ? " !important" : ""), ";"});
     style_text.replace(declaration.range.start - body_range.start,
                        declaration.range.length(), new_property_text);
     change_range.start = declaration.range.start;

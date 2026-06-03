@@ -56,6 +56,8 @@ class ProductSpecificationsButtonBrowserTest : public InProcessBrowserTest {
   }
 
   void SetUpOnMainThread() override {
+    browser()->GetUnownedUserDataHost().MarkKeyForTesting(
+        commerce::ProductSpecificationsEntryPointController::kDataKey);
     controller_ =
         std::make_unique<MockProductSpecificationsEntryPointController>(
             browser());
@@ -63,6 +65,11 @@ class ProductSpecificationsButtonBrowserTest : public InProcessBrowserTest {
         controller_.get());
     ON_CALL(*controller(), ShouldExecuteEntryPointShow)
         .WillByDefault(testing::Return(true));
+  }
+
+  void TearDownOnMainThread() override {
+    controller_.reset();
+    InProcessBrowserTest::TearDownOnMainThread();
   }
 
   void SetTestingFactory(content::BrowserContext* context) {
@@ -309,8 +316,14 @@ IN_PROC_BROWSER_TEST_F(ProductSpecificationsButtonBrowserTest,
   ASSERT_EQ(product_specifications_button()->GetTooltipText(), u"title");
 }
 
+// TODO(crbug.com/413297654): Test is flaky on Windows.
+#if BUILDFLAG(IS_WIN)
+#define MAYBE_NotifyHideEntryPoint DISABLED_NotifyHideEntryPoint
+#else
+#define MAYBE_NotifyHideEntryPoint NotifyHideEntryPoint
+#endif
 IN_PROC_BROWSER_TEST_F(ProductSpecificationsButtonBrowserTest,
-                       NotifyHideEntryPoint) {
+                       MAYBE_NotifyHideEntryPoint) {
   product_specifications_button()->ShowEntryPointWithTitle(u"title");
 
   ShowButton();

@@ -351,8 +351,8 @@ Position LeadingCollapsibleWhitespacePosition(const Position& position,
   const String& string = anchor_text_node->data();
   const UChar previous_character = string[prev.ComputeOffsetInContainerNode()];
   const bool is_space = option == kConsiderNonCollapsibleWhitespace
-                            ? (IsSpaceOrNewline(previous_character) ||
-                               previous_character == kNoBreakSpaceCharacter)
+                            ? (unicode::IsSpaceOrNewline(previous_character) ||
+                               previous_character == uchar::kNoBreakSpace)
                             : IsCollapsibleWhitespace(previous_character);
   if (!is_space || !IsEditablePosition(prev))
     return Position();
@@ -523,7 +523,7 @@ VisibleSelection SelectionForParagraphIteration(
 
 const String& NonBreakingSpaceString() {
   DEFINE_STATIC_LOCAL(String, non_breaking_space_string,
-                      (base::span_from_ref(kNoBreakSpaceCharacter)));
+                      (base::span_from_ref(uchar::kNoBreakSpace)));
   return non_breaking_space_string;
 }
 

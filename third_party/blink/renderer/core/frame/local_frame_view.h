@@ -61,6 +61,7 @@
 #include "third_party/blink/renderer/platform/timer.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
+#include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/rect.h"
 
@@ -97,7 +98,6 @@ class JSONObject;
 class KURL;
 class LayoutBox;
 class LayoutBoxModelObject;
-class LayoutEmbeddedObject;
 class LayoutObject;
 class LayoutShiftTracker;
 class LayoutSVGRoot;
@@ -345,7 +345,7 @@ class CORE_EXPORT LocalFrameView final
   void ClearRootScroller();
   void InitializeRootScroller();
 
-  void AddPartToUpdate(LayoutEmbeddedObject&);
+  void AddPartToUpdate(LayoutEmbeddedContent&);
 
   Color DocumentBackgroundColor();
 
@@ -415,7 +415,7 @@ class CORE_EXPORT LocalFrameView final
   // disallows layout invalidation within the containing scope. If layout
   // invalidation takes place while the scoper is active a DCHECK will be
   // triggered.
-  class InvalidationDisallowedScope {
+  class CORE_EXPORT InvalidationDisallowedScope {
     STACK_ALLOCATED();
 
    public:
@@ -467,7 +467,7 @@ class CORE_EXPORT LocalFrameView final
   void DestroyPaginationLayout();
 
   // Updates the fragment anchor element based on URL's fragment identifier.
-  // Updates corresponding ':target' CSS pseudo class on the anchor element.
+  // Updates corresponding ':target' CSS pseudo-class on the anchor element.
   // If |should_scroll| is passed it can be used to prevent scrolling/focusing
   // while still performing all related side-effects like setting :target (used
   // for e.g. in history restoration to override the scroll offset). The scroll
@@ -729,7 +729,10 @@ class CORE_EXPORT LocalFrameView final
   void SetVisualViewportOrOverlayNeedsRepaint();
   bool VisualViewportOrOverlayNeedsRepaintForTesting() const;
 
-  LayoutUnit CaretWidth() const;
+  LayoutUnit BarCaretWidth() const;
+  // Returns the max value between the given float value of width and viewpoint
+  // scale in LayoutUnit.
+  LayoutUnit ScaleCssPixelForCaret(float width) const;
 
   size_t PaintFrameCount() const { return paint_frame_count_; }
 
@@ -843,6 +846,8 @@ class CORE_EXPORT LocalFrameView final
   void RemovePendingScrollMarkerSelectionUpdate(
       ScrollMarkerGroupPseudoElement* scroll_marker_group);
   void ExecutePendingScrollMarkerSelectionUpdates();
+
+  void RecordNaturalDimensions();
 
  protected:
   void FrameRectsChanged(const gfx::Rect&) override;
@@ -1083,8 +1088,8 @@ class CORE_EXPORT LocalFrameView final
 
   void EnqueueScrollSnapChangingFromImplIfNecessary();
 
-  typedef HeapHashSet<Member<LayoutEmbeddedObject>> EmbeddedObjectSet;
-  EmbeddedObjectSet part_update_set_;
+  typedef HeapHashSet<Member<LayoutEmbeddedContent>> EmbeddedContentSet;
+  EmbeddedContentSet part_update_set_;
 
   Member<LocalFrame> frame_;
 
@@ -1148,6 +1153,7 @@ class CORE_EXPORT LocalFrameView final
   // TODO(bokan): This is unneeded when root-layer-scrolls is turned on.
   // crbug.com/417782.
   gfx::Size layout_overflow_size_;
+  std::optional<float> natural_height_;
 
   bool root_layer_did_scroll_;
 

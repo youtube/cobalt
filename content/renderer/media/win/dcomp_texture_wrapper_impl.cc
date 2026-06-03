@@ -13,7 +13,6 @@
 #include "gpu/command_buffer/client/client_shared_image.h"
 #include "gpu/command_buffer/client/shared_image_interface.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
-#include "gpu/ipc/common/gpu_memory_buffer_impl_dxgi.h"
 #include "media/base/win/mf_helpers.h"
 
 namespace content {
@@ -192,7 +191,7 @@ void DCOMPTextureWrapperImpl::CreateVideoFrame(
         gpu::SHARED_IMAGE_USAGE_DISPLAY_READ |
             gpu::SHARED_IMAGE_USAGE_GLES2_READ |
             gpu::SHARED_IMAGE_USAGE_RASTER_READ,
-        GL_TEXTURE_EXTERNAL_OES);
+        GL_TEXTURE_EXTERNAL_OES, "DCOMPTextureWrapperImpl");
 
     CHECK(shared_image);
     dcomp_texture_resources_ =

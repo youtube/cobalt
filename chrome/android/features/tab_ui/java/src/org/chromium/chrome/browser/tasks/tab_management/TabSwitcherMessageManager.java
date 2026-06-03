@@ -20,8 +20,10 @@ import org.chromium.chrome.browser.app.tabmodel.ArchivedTabModelOrchestrator;
 import org.chromium.chrome.browser.back_press.BackPressManager;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.hub.PaneManager;
 import org.chromium.chrome.browser.incognito.reauth.IncognitoReauthManager;
+import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.multiwindow.MultiWindowModeStateDispatcher;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
@@ -150,10 +152,12 @@ public class TabSwitcherMessageManager implements PriceWelcomeMessageController 
     private final @NonNull ObservableSupplier<EdgeToEdgeController> mEdgeToEdgeSupplier;
     private final @NonNull Supplier<PaneManager> mPaneManagerSupplier;
     private final @NonNull Supplier<TabGroupUiActionHandler> mTabGroupUiActionHandlerSupplier;
+    private final @NonNull Supplier<LayoutStateProvider> mLayoutStateProviderSupplier;
 
     private @Nullable Profile mProfile;
     private @Nullable PriceMessageService mPriceMessageService;
     private @Nullable IncognitoReauthPromoMessageService mIncognitoReauthPromoMessageService;
+    private @Nullable TabGroupSuggestionMessageService mTabGroupSuggestionMessageService;
     private @Nullable ArchivedTabsMessageService mArchivedTabsMessageService;
 
     /**
@@ -175,6 +179,8 @@ public class TabSwitcherMessageManager implements PriceWelcomeMessageController 
      * @param edgeToEdgeSupplier Supplier to the {@link EdgeToEdgeController} instance.
      * @param paneManagerSupplier Used to switch and communicate with other panes.
      * @param tabGroupUiActionHandlerSupplier Used to open hidden tab groups.
+     * @param layoutStateProviderSupplier Supplies the LayoutStateProvider, which is used to observe
+     *     when the TabSwitcher is hidden.
      */
     public TabSwitcherMessageManager(
             @NonNull Activity activity,
@@ -192,7 +198,8 @@ public class TabSwitcherMessageManager implements PriceWelcomeMessageController 
             @Nullable DesktopWindowStateManager desktopWindowStateManager,
             @NonNull ObservableSupplier<EdgeToEdgeController> edgeToEdgeSupplier,
             @NonNull Supplier<PaneManager> paneManagerSupplier,
-            @NonNull Supplier<TabGroupUiActionHandler> tabGroupUiActionHandlerSupplier) {
+            @NonNull Supplier<TabGroupUiActionHandler> tabGroupUiActionHandlerSupplier,
+            @NonNull Supplier<LayoutStateProvider> layoutStateProviderSupplier) {
         mActivity = activity;
         mLifecycleDispatcher = lifecycleDispatcher;
         mCurrentTabGroupModelFilterSupplier = currentTabGroupModelFilterSupplier;
@@ -206,6 +213,7 @@ public class TabSwitcherMessageManager implements PriceWelcomeMessageController 
         mRegularTabCreator = regularTabCreator;
         mBackPressManager = backPressManager;
         mDesktopWindowStateManager = desktopWindowStateManager;
+        mLayoutStateProviderSupplier = layoutStateProviderSupplier;
 
         mMessageCardProviderCoordinator =
                 new MessageCardProviderCoordinator(
@@ -320,7 +328,8 @@ public class TabSwitcherMessageManager implements PriceWelcomeMessageController 
                         TabGroupSyncServiceFactory.getForProfile(mProfile),
                         mPaneManagerSupplier,
                         mTabGroupUiActionHandlerSupplier,
-                        mCurrentTabGroupModelFilterSupplier);
+                        mCurrentTabGroupModelFilterSupplier,
+                        mLayoutStateProviderSupplier);
         addObserver(mArchivedTabsMessageService);
         mMessageCardProviderCoordinator.subscribeMessageService(mArchivedTabsMessageService);
 
@@ -343,6 +352,16 @@ public class TabSwitcherMessageManager implements PriceWelcomeMessageController 
                             mLifecycleDispatcher);
             mMessageCardProviderCoordinator.subscribeMessageService(
                     mIncognitoReauthPromoMessageService);
+
+            if (ChromeFeatureList.sTabSwitcherGroupSuggestionsAndroid.isEnabled()) {
+                mTabGroupSuggestionMessageService =
+                        new TabGroupSuggestionMessageService(
+                                mActivity,
+                                mCurrentTabGroupModelFilterSupplier,
+                                this::addTabGroupSuggestionMessage);
+                mMessageCardProviderCoordinator.subscribeMessageService(
+                        mTabGroupSuggestionMessageService);
+            }
         }
         setUpPriceTracking();
     }
@@ -393,6 +412,9 @@ public class TabSwitcherMessageManager implements PriceWelcomeMessageController 
         mTabGridIphDialogCoordinator.destroy();
         if (mIncognitoReauthPromoMessageService != null) {
             mIncognitoReauthPromoMessageService.destroy();
+        }
+        if (mTabGroupSuggestionMessageService != null) {
+            mTabGroupSuggestionMessageService.destroy();
         }
         if (mArchivedTabsMessageService != null) {
             mArchivedTabsMessageService.destroy();
@@ -446,6 +468,10 @@ public class TabSwitcherMessageManager implements PriceWelcomeMessageController 
         for (MessageUpdateObserver observer : mObservers) {
             observer.onRestorePriceWelcomeMessage();
         }
+    }
+
+    public @Nullable TabGroupSuggestionMessageService getTabGroupSuggestionMessageService() {
+        return mTabGroupSuggestionMessageService;
     }
 
     private void appendNextMessage(@MessageService.MessageType int messageType) {
@@ -692,5 +718,9 @@ public class TabSwitcherMessageManager implements PriceWelcomeMessageController 
         assert mPriceMessageService == null
                 : "setPriceMessageServiceForTesting() must be before initWithNative().";
         mPriceMessageService = priceMessageService;
+    }
+
+    private void addTabGroupSuggestionMessage() {
+        appendNextMessage(MessageType.TAB_GROUP_SUGGESTION_MESSAGE);
     }
 }

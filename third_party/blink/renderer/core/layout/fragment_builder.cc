@@ -12,6 +12,7 @@
 #include "third_party/blink/renderer/core/layout/fragmentation_utils.h"
 #include "third_party/blink/renderer/core/layout/physical_box_fragment.h"
 #include "third_party/blink/renderer/core/layout/physical_fragment.h"
+#include "third_party/blink/renderer/core/layout/transform_utils.h"
 #include "third_party/blink/renderer/core/style/computed_style_base_constants.h"
 
 namespace blink {
@@ -146,7 +147,7 @@ GCedHeapVector<Member<Element>>& FragmentBuilder::EnsureSnapAreas() {
 void FragmentBuilder::PropagateSnapAreas(const PhysicalFragment& child) {
   auto get_insertion_pos = [&](Element* snap_area) {
     auto& snap_areas = EnsureSnapAreas();
-    // TODO(crbug.com/365680822): ::column pseudo elements don't have layout
+    // TODO(crbug.com/365680822): ::column pseudo-elements don't have layout
     // objects, and how snap areas established by them should be sorted,
     // relatively to real elements, is undefined.
     const LayoutBox* new_box = snap_area->GetLayoutBox();
@@ -193,6 +194,14 @@ PhysicalAnchorQuery& FragmentBuilder::EnsureAnchorQuery() {
 
 void FragmentBuilder::PropagateChildAnchors(const PhysicalFragment& child,
                                             const LogicalOffset& child_offset) {
+  if (!has_final_size_) {
+    // The container size isn't known yet. It needs to finish layout before
+    // anchors can be propagated, since they are stored in physical coordinates.
+    children_with_size_dependent_propagation_.push_back(
+        LogicalFragmentLink(child, child_offset));
+    return;
+  }
+
   std::optional<PhysicalAnchorQuery::SetOptions> options;
   Element* context = nullptr;
   if (auto* node = child.GetNode()) {
@@ -207,6 +216,10 @@ void FragmentBuilder::PropagateChildAnchors(const PhysicalFragment& child,
       }
     }
   }
+  const LayoutObject* container_object = GetLayoutObject();
+  CHECK(container_object);
+  PhysicalSize physical_container_size =
+      ToPhysicalSize(Size(), GetWritingMode());
   if (child.IsAnchor()) {
     DCHECK(child.GetLayoutObject());
     // Set the child's `anchor-name` before propagating its descendants', so
@@ -215,6 +228,12 @@ void FragmentBuilder::PropagateChildAnchors(const PhysicalFragment& child,
                              ToLogicalSize(child.Size(), GetWritingMode()));
     const WritingModeConverter converter(GetWritingDirection(), Size());
     PhysicalRect rect = converter.ToPhysical(logical_rect);
+    TransformState transform_state(
+        TransformState::kApplyTransformDirection,
+        gfx::QuadF(gfx::RectF(gfx::SizeF(rect.size))));
+    UpdateTransformState(child, rect.offset, *container_object,
+                         physical_container_size, &transform_state);
+
     options = AnchorQuerySetOptions(
         child, node_, IsBlockFragmentationContextRoot() || HasItems());
     if (child.IsExplicitAnchor()) {
@@ -222,13 +241,13 @@ void FragmentBuilder::PropagateChildAnchors(const PhysicalFragment& child,
         AnchorScopedName* anchor_scoped_name =
             ToAnchorScopedName(*name, *child.GetLayoutObject());
         EnsureAnchorQuery().Set(anchor_scoped_name, *child.GetLayoutObject(),
-                                rect, *options, context);
+                                transform_state, rect, *options, context);
       }
     }
     if (child.IsImplicitAnchor()) {
       EnsureAnchorQuery().Set(To<Element>(child.GetNode()),
-                              *child.GetLayoutObject(), rect, *options,
-                              context);
+                              *child.GetLayoutObject(), transform_state, rect,
+                              *options, context);
     }
   }
 
@@ -241,8 +260,9 @@ void FragmentBuilder::PropagateChildAnchors(const PhysicalFragment& child,
     const WritingModeConverter converter(GetWritingDirection(), Size());
     PhysicalOffset additional_offset =
         converter.ToPhysical(child_offset, child.Size());
-    EnsureAnchorQuery().SetFromChild(*anchor_query, additional_offset, *options,
-                                     context);
+    EnsureAnchorQuery().SetFromChild(*anchor_query, child, additional_offset,
+                                     *container_object, physical_container_size,
+                                     *options, context);
   }
 }
 
@@ -303,16 +323,7 @@ void FragmentBuilder::PropagateFromFragment(
   if (child.HasAnchorQueryToPropagate()) {
     // This child either is an anchor, or has anchors inside (or both). They are
     // to be propagated as soon as the container size is known.
-    LogicalOffset total_offset = child_offset + relative_offset;
-    if (HasFinalSize()) {
-      // When handling OOFs (after in-flow layout is finished) and an OOF wants
-      // to propagate anchors, it needs to be done right away, since there may
-      // be subsequent OOFs that have queries against those anchors.
-      PropagateChildAnchors(child, total_offset);
-    } else {
-      children_with_size_dependent_propagation_.push_back(
-          LogicalFragmentLink(child, total_offset));
-    }
+    PropagateChildAnchors(child, child_offset + relative_offset);
   }
 
   PropagateStickyDescendants(child);

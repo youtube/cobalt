@@ -30,6 +30,7 @@ include_rules = [
   "+chrome/browser/ui/browser_list_observer.h",
   "+chrome/browser/ui/browser_navigator.h",
   "+chrome/browser/ui/browser_window.h",
+  "+chrome/browser/ui/browser_window/public/browser_window_features.h",
   "+chrome/browser/ui/exclusive_access/exclusive_access_manager.h",
   "+chrome/browser/ui/exclusive_access/fullscreen_controller.h",
   "+chrome/browser/ui/views/frame/browser_view.h",
@@ -67,6 +68,7 @@ specific_include_rules = {
       "+chrome/app/chrome_command_ids.h",
       "+chrome/browser/renderer_context_menu/render_view_context_menu_test_util.h",
       "+chrome/common/chrome_paths.h",
+      "+chrome/common/webui_url_constants.h",
       "+chrome/test/base/ui_test_utils.h"
   ],
   "on_task_pod_controller_impl_browsertest.cc": [

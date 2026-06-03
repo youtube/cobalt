@@ -4,12 +4,18 @@
 
 #include "content/browser/renderer_host/render_widget_host_view_tvos_uiview.h"
 
+<<<<<<< HEAD
 #include "base/apple/owned_objc.h"
+=======
+>>>>>>> 52788d1a1e (Update to m139 branch point.)
 #include "base/strings/sys_string_conversions.h"
 #include "components/input/native_web_keyboard_event.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
 #include "third_party/blink/public/common/input/web_keyboard_event.h"
+<<<<<<< HEAD
 #include "ui/accessibility/platform/browser_accessibility_manager.h"
+=======
+>>>>>>> 52788d1a1e (Update to m139 branch point.)
 #include "ui/base/ime/mojom/ime_types.mojom-shared.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/events/keycodes/dom/dom_code.h"
@@ -20,6 +26,7 @@ static void* kObservingContext = &kObservingContext;
 
 namespace {
 
+<<<<<<< HEAD
 typedef NS_ENUM(NSInteger, RemoteButton) {
   kUp,
   kDown,
@@ -35,6 +42,8 @@ typedef NS_ENUM(NSInteger, RemoteButton) {
 // UIPanGestureRecognizer.
 const CGFloat kMinVelocity = 100;
 
+=======
+>>>>>>> 52788d1a1e (Update to m139 branch point.)
 UIKeyboardType keyboardTypeForInputType(ui::TextInputType inputType) {
   // TODO(crbug.com/411452047): Implement textFieldShouldEndEditing to detect
   // invalid contents in the text field. When texts are inserted via a H/W
@@ -55,6 +64,7 @@ UIKeyboardType keyboardTypeForInputType(ui::TextInputType inputType) {
   }
 }
 
+<<<<<<< HEAD
 RemoteButton remoteButtonFromPressType(UIPressType type) {
   RemoteButton button = kNone;
   switch (type) {
@@ -85,6 +95,8 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   return button;
 }
 
+=======
+>>>>>>> 52788d1a1e (Update to m139 branch point.)
 }  // namespace
 
 @implementation RenderWidgetUIView
@@ -99,6 +111,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
     self.autoresizingMask =
         UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
 
+<<<<<<< HEAD
     // tvOS supports multiple types of input events from the Remote, including
     // the clickpad (touch surface), the clickpad ring (directional control),
     // and various physical buttons.
@@ -129,6 +142,39 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
         [panGesture requireGestureRecognizerToFail:swipeGesture];
       }
     }
+=======
+    UITapGestureRecognizer* tapGesture =
+        [[UITapGestureRecognizer alloc] initWithTarget:self
+                                                action:@selector(tapGesture:)];
+    [self addGestureRecognizer:tapGesture];
+
+    UISwipeGestureRecognizer* swipeLeftGesture =
+        [[UISwipeGestureRecognizer alloc]
+            initWithTarget:self
+                    action:@selector(swipeGesture:)];
+    swipeLeftGesture.direction = UISwipeGestureRecognizerDirectionLeft;
+    [self addGestureRecognizer:swipeLeftGesture];
+
+    UISwipeGestureRecognizer* swipeRightGesture =
+        [[UISwipeGestureRecognizer alloc]
+            initWithTarget:self
+                    action:@selector(swipeGesture:)];
+    swipeRightGesture.direction = UISwipeGestureRecognizerDirectionRight;
+    [self addGestureRecognizer:swipeRightGesture];
+
+    UISwipeGestureRecognizer* swipeUpGesture = [[UISwipeGestureRecognizer alloc]
+        initWithTarget:self
+                action:@selector(swipeGesture:)];
+    swipeUpGesture.direction = UISwipeGestureRecognizerDirectionUp;
+    [self addGestureRecognizer:swipeUpGesture];
+
+    UISwipeGestureRecognizer* swipeDownGesture =
+        [[UISwipeGestureRecognizer alloc]
+            initWithTarget:self
+                    action:@selector(swipeGesture:)];
+    swipeDownGesture.direction = UISwipeGestureRecognizerDirectionDown;
+    [self addGestureRecognizer:swipeDownGesture];
+>>>>>>> 52788d1a1e (Update to m139 branch point.)
   }
   return self;
 }
@@ -182,6 +228,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
 
 #pragma mark - Private
 
+<<<<<<< HEAD
 // Helper method to add swipe gestures for `direction`.
 - (void)addSwipeGestureRecognizerWithDirection:
     (UISwipeGestureRecognizerDirection)direction {
@@ -191,6 +238,44 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   swipeGesture.direction = direction;
   swipeGesture.delegate = self;
   [self addGestureRecognizer:swipeGesture];
+=======
+- (void)tapGesture:(UIGestureRecognizer*)gestureRecognizer {
+  if ([gestureRecognizer state] != UIGestureRecognizerStateEnded) {
+    return;
+  }
+
+  const ui::mojom::TextInputState* state = [self editState];
+  if (state && state->mode != ui::TextInputMode::TEXT_INPUT_MODE_NONE &&
+      state->type != ui::TextInputType::TEXT_INPUT_TYPE_NONE) {
+    [self showKeyboard:*state];
+    return;
+  }
+
+  blink::WebKeyboardEvent event(blink::WebInputEvent::Type::kKeyDown,
+                                blink::WebInputEvent::kNoModifiers,
+                                ui::EventTimeForNow());
+  event.native_key_code = UIKeyboardHIDUsageKeyboardReturnOrEnter;
+  event.dom_code = static_cast<int>(ui::DomCode::ENTER);
+  event.dom_key = ui::DomKey::ENTER;
+  event.windows_key_code = ui::VKEY_RETURN;
+
+  // Copied from components/input/web_input_event_builders_mac.mm's
+  // WebKeyboardEventBuilder::Build().
+  // This is necessary due to way some HTML elements process keyboard activation
+  // (e.g. blink::HTMLElement::HandleKeyboardActivation()).
+  event.text[0] = '\r';
+  event.unmodified_text[0] = '\r';
+
+  _view->SendKeyEvent(
+      input::NativeWebKeyboardEvent(event, _view->GetNativeView()));
+
+  // We also need to send a keyup event so that e.g. checkboxes are properly
+  // activated/deactivated with the keyboard.
+  event.SetType(blink::WebInputEvent::Type::kKeyUp);
+  event.SetTimeStamp(ui::EventTimeForNow());
+  _view->SendKeyEvent(
+      input::NativeWebKeyboardEvent(event, _view->GetNativeView()));
+>>>>>>> 52788d1a1e (Update to m139 branch point.)
 }
 
 - (void)swipeGesture:(UISwipeGestureRecognizer*)gestureRecognizer {
@@ -198,6 +283,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
     return;
   }
 
+<<<<<<< HEAD
   RemoteButton button = kNone;
   switch (gestureRecognizer.direction) {
     case UISwipeGestureRecognizerDirectionLeft:
@@ -333,29 +419,53 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
 
   switch (remoteButton) {
     case kLeft:
+=======
+  const UISwipeGestureRecognizerDirection direction =
+      gestureRecognizer.direction;
+
+  blink::WebKeyboardEvent event(blink::WebInputEvent::Type::kKeyDown,
+                                blink::WebInputEvent::kNoModifiers,
+                                ui::EventTimeForNow());
+
+  switch (direction) {
+    case UISwipeGestureRecognizerDirectionLeft:
+>>>>>>> 52788d1a1e (Update to m139 branch point.)
       event.native_key_code = UIKeyboardHIDUsageKeyboardLeftArrow;
       event.dom_code = static_cast<int>(ui::DomCode::ARROW_LEFT);
       event.dom_key = ui::DomKey::ARROW_LEFT;
       event.windows_key_code = ui::VKEY_LEFT;
       break;
+<<<<<<< HEAD
     case kRight:
+=======
+    case UISwipeGestureRecognizerDirectionRight:
+>>>>>>> 52788d1a1e (Update to m139 branch point.)
       event.native_key_code = UIKeyboardHIDUsageKeyboardRightArrow;
       event.dom_code = static_cast<int>(ui::DomCode::ARROW_RIGHT);
       event.dom_key = ui::DomKey::ARROW_RIGHT;
       event.windows_key_code = ui::VKEY_RIGHT;
       break;
+<<<<<<< HEAD
     case kUp:
+=======
+    case UISwipeGestureRecognizerDirectionUp:
+>>>>>>> 52788d1a1e (Update to m139 branch point.)
       event.native_key_code = UIKeyboardHIDUsageKeyboardUpArrow;
       event.dom_code = static_cast<int>(ui::DomCode::ARROW_UP);
       event.dom_key = ui::DomKey::ARROW_UP;
       event.windows_key_code = ui::VKEY_UP;
       break;
+<<<<<<< HEAD
     case kDown:
+=======
+    case UISwipeGestureRecognizerDirectionDown:
+>>>>>>> 52788d1a1e (Update to m139 branch point.)
       event.native_key_code = UIKeyboardHIDUsageKeyboardDownArrow;
       event.dom_code = static_cast<int>(ui::DomCode::ARROW_DOWN);
       event.dom_key = ui::DomKey::ARROW_DOWN;
       event.windows_key_code = ui::VKEY_DOWN;
       break;
+<<<<<<< HEAD
     case kMediaPlayPause:
       event.native_key_code = UIKeyboardHIDUsageKeyboardPause;
       event.dom_code = static_cast<int>(ui::DomCode::MEDIA_PLAY_PAUSE);
@@ -384,11 +494,16 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
       break;
     case kNone:
       return NO;
+=======
+>>>>>>> 52788d1a1e (Update to m139 branch point.)
   }
 
   _view->SendKeyEvent(
       input::NativeWebKeyboardEvent(event, _view->GetNativeView()));
+<<<<<<< HEAD
   return YES;
+=======
+>>>>>>> 52788d1a1e (Update to m139 branch point.)
 }
 
 - (void)showKeyboard:(const ui::mojom::TextInputState&)state {
@@ -436,6 +551,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
 
 #pragma mark - NSObject
 
+<<<<<<< HEAD
 - (NSArray*)accessibilityElements {
   ui::BrowserAccessibilityManager* manager =
       _view->host()->GetRootBrowserAccessibilityManager();
@@ -449,6 +565,8 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   return nil;
 }
 
+=======
+>>>>>>> 52788d1a1e (Update to m139 branch point.)
 - (void)observeValueForKeyPath:(NSString*)keyPath
                       ofObject:(id)object
                         change:(NSDictionary*)change
@@ -464,6 +582,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   }
 }
 
+<<<<<<< HEAD
 #pragma mark - UIAccessibilityElement
 
 - (BOOL)isAccessibilityElement {
@@ -480,6 +599,14 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   return YES;
 }
 
+=======
+#pragma mark - UIResponder
+
+- (BOOL)canBecomeFirstResponder {
+  return YES;
+}
+
+>>>>>>> 52788d1a1e (Update to m139 branch point.)
 - (BOOL)isFirstResponder {
   return
       [super isFirstResponder] || [_textFieldForAllTextInput isFirstResponder];
@@ -523,6 +650,7 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   [self hideAndDeleteKeyboard];
 }
 
+<<<<<<< HEAD
 #pragma mark - UIGestureRecognizerDelegate
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer*)gestureRecognizer
@@ -531,6 +659,8 @@ RemoteButton remoteButtonFromPressType(UIPressType type) {
   return YES;
 }
 
+=======
+>>>>>>> 52788d1a1e (Update to m139 branch point.)
 #pragma mark - UIView
 
 - (BOOL)canBecomeFocused {

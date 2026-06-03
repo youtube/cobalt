@@ -5,15 +5,17 @@
 #include "content/public/test/mock_navigation_throttle_registry.h"
 
 #include "base/check_deref.h"
+#include "base/notimplemented.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/navigation_throttle.h"
+#include "content/public/test/mock_navigation_handle.h"
 
 namespace content {
 
 MockNavigationThrottleRegistry::MockNavigationThrottleRegistry(
     NavigationHandle* navigation_handle,
     RegistrationMode registration_mode)
-    : navigation_handle_(CHECK_DEREF(navigation_handle)),
+    : navigation_handle_(navigation_handle),
       registration_mode_(registration_mode) {}
 
 MockNavigationThrottleRegistry::~MockNavigationThrottleRegistry() = default;
@@ -27,18 +29,11 @@ void MockNavigationThrottleRegistry::AddThrottle(
   CHECK(throttle);
   switch (registration_mode_) {
     case RegistrationMode::kAutoRegistrationForTesting:
-      navigation_handle_->RegisterThrottleForTesting(std::move(throttle));
+      GetNavigationHandle().RegisterThrottleForTesting(std::move(throttle));
       break;
     case RegistrationMode::kHold:
       throttles_.push_back(std::move(throttle));
       break;
-  }
-}
-
-void MockNavigationThrottleRegistry::MaybeAddThrottle(
-    std::unique_ptr<NavigationThrottle> throttle) {
-  if (throttle) {
-    AddThrottle(std::move(throttle));
   }
 }
 
@@ -57,10 +52,22 @@ bool MockNavigationThrottleRegistry::ContainsHeldThrottle(
 void MockNavigationThrottleRegistry::RegisterHeldThrottles() {
   CHECK_EQ(registration_mode_, RegistrationMode::kHold);
 
+  auto& handle = GetNavigationHandle();
   for (auto& it : throttles_) {
-    navigation_handle_->RegisterThrottleForTesting(std::move(it));
+    handle.RegisterThrottleForTesting(std::move(it));
   }
   throttles_.clear();
+}
+
+bool MockNavigationThrottleRegistry::HasThrottle(const std::string& name) {
+  NOTIMPLEMENTED();
+  return false;
+}
+
+bool MockNavigationThrottleRegistry::EraseThrottleForTesting(
+    const std::string& name) {
+  NOTIMPLEMENTED();
+  return false;
 }
 
 }  // namespace content

@@ -244,6 +244,8 @@ class BrowserView : public BrowserWindow,
 
   SidePanel* unified_side_panel() { return unified_side_panel_; }
 
+  MultiContentsView* multi_contents_view() { return multi_contents_view_; }
+
   void set_contents_border_widget(views::Widget* contents_border_widget) {
     GetBrowserViewLayout()->set_contents_border_widget(contents_border_widget);
   }
@@ -483,37 +485,6 @@ class BrowserView : public BrowserWindow,
   // Returns true if the browser is currently showing tabs in a split view.
   bool IsInSplitView() const;
 
-  // Display the current active split view as a series of multiple side-by-side
-  // web contents.
-  void ShowSplitView(bool focus_active_view);
-
-  // Display only the current active tab's web contents, hiding any previous
-  // side-by-side display.
-  void HideSplitView();
-
-  // Update the index of the active split based on the active tab's web
-  // contents.
-  void UpdateActiveTabInSplitView();
-
-  // Updates the contents in the active split view.
-  void UpdateContentsInSplitView(
-      const std::vector<std::pair<tabs::TabInterface*, int>>& prev_tabs,
-      const std::vector<std::pair<tabs::TabInterface*, int>>& new_tabs);
-
-  // True if an activation from `old_contents` to `new_contents` happens between
-  // tabs that are already in a split-view configuration.
-  bool IsTabChangeInSplitView(content::WebContents* old_contents,
-                              content::WebContents* new_contents);
-
-  // Reverses the order of the contents in the active split.
-  void ReverseWebContents();
-
-  // Resize the ratio of the contents in the active split.
-  void ResizeWebContents(double start_ratio);
-
-  // Activate the tab containing the given WebContents (if any).
-  void ActivateWebContents(content::WebContents* web_contents);
-
   // BrowserWindow:
   void Show() override;
   void ShowInactive() override;
@@ -672,11 +643,11 @@ class BrowserView : public BrowserWindow,
   void UserChangedTheme(BrowserThemeChangeType theme_change_type) override;
   void ShowAppMenu() override;
   bool PreHandleMouseEvent(const blink::WebMouseEvent& event) override;
+  content::KeyboardEventProcessingResult PreHandleKeyboardEvent(
+      const input::NativeWebKeyboardEvent& event) override;
   void PreHandleDragUpdate(const content::DropData& drop_data,
                            const gfx::PointF& point) override;
   void PreHandleDragExit() override;
-  content::KeyboardEventProcessingResult PreHandleKeyboardEvent(
-      const input::NativeWebKeyboardEvent& event) override;
   bool HandleKeyboardEvent(const input::NativeWebKeyboardEvent& event) override;
   std::unique_ptr<FindBar> CreateFindBar() override;
   web_modal::WebContentsModalDialogHost* GetWebContentsModalDialogHost()
@@ -921,10 +892,6 @@ class BrowserView : public BrowserWindow,
     return watermark_view_;
   }
 
-  MultiContentsView* multi_contents_view_for_testing() {
-    return multi_contents_view_;
-  }
-
   // This value is used in a common calculation in NonClientFrameView
   // subclasses. This must be added to the origin of the first painted pixel of
   // NonClientFrameView to get the correct offset. See
@@ -976,6 +943,31 @@ class BrowserView : public BrowserWindow,
   FRIEND_TEST_ALL_PREFIXES(PermissionChipUnitTest, AccessibleName);
 
   class AccessibilityModeObserver;
+
+  // Display the current active split view as a series of multiple side-by-side
+  // web contents.
+  void ShowSplitView(bool focus_active_view);
+
+  // Display only the current active tab's web contents, hiding any previous
+  // side-by-side display.
+  void HideSplitView();
+
+  // Update the index of the active split based on the active tab's web
+  // contents.
+  void UpdateActiveTabInSplitView();
+
+  // Updates the contents in the active split view.
+  void UpdateContentsInSplitView(
+      const std::vector<std::pair<tabs::TabInterface*, int>>& prev_tabs,
+      const std::vector<std::pair<tabs::TabInterface*, int>>& new_tabs);
+
+  // True if an activation from `old_contents` to `new_contents` happens between
+  // tabs that are already in a split-view configuration.
+  bool IsTabChangeInSplitView(content::WebContents* old_contents,
+                              content::WebContents* new_contents);
+
+  // Updates stored focus for web contents that is being activated.
+  void MaybeUpdateStoredFocusForWebContents(content::WebContents*);
 
   // BrowserUserEducationInterface private methods:
   user_education::FeaturePromoControllerCommon* GetFeaturePromoControllerImpl()
@@ -1126,9 +1118,6 @@ class BrowserView : public BrowserWindow,
   // side panel. Should be called when the IPH backend is initialized or
   // whenever the touch mode changes.
   void MaybeShowReadingListInSidePanelIPH();
-
-  // Attempts to show IPH promo for experimental AI.
-  void MaybeShowExperimentalAIIPH();
 
   // Attempts to show IPH promo for the tab search toolbar button.
   void MaybeShowTabStripToolbarButtonIPH();
@@ -1289,6 +1278,8 @@ class BrowserView : public BrowserWindow,
   // container on new tab pages.
   raw_ptr<new_tab_footer::NewTabFooterWebView> new_tab_footer_web_view_ =
       nullptr;
+  // Separator between the web contents and the Footer.
+  raw_ptr<views::View> new_tab_footer_web_view_separator_ = nullptr;
 
   // The scrim view that covers the content area when a tab-modal dialog is
   // open.

@@ -10,6 +10,7 @@ import static org.chromium.ui.KeyboardUtils.NO_MODIFIER;
 import static org.chromium.ui.KeyboardUtils.SHIFT;
 
 import android.content.Context;
+import android.content.res.Resources;
 import android.view.KeyEvent;
 import android.view.KeyboardShortcutGroup;
 import android.view.KeyboardShortcutInfo;
@@ -80,10 +81,10 @@ public class KeyboardShortcuts {
         KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_FOCUS_WEB_CONTENTS_PANE,
         KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_SCROLL_DOWN,
         KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_SCROLL_UP,
-        KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_KEYBOARD_FOCUS_TOOLBAR,
-        KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_KEYBOARD_FOCUS_BOOKMARKS,
-        KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_KEYBOARD_FOCUS_SWITCH_ROW_OF_TOP_ELEMENTS,
-        KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_FOCUSED_TAB_STRIP_ITEM_OPEN_CONTEXT_MENU,
+        KeyboardShortcutsSemanticMeaning.KEYBOARD_FOCUS_TOOLBAR,
+        KeyboardShortcutsSemanticMeaning.KEYBOARD_FOCUS_BOOKMARKS,
+        KeyboardShortcutsSemanticMeaning.KEYBOARD_FOCUS_SWITCH_ROW_OF_TOP_ELEMENTS,
+        KeyboardShortcutsSemanticMeaning.FOCUSED_TAB_STRIP_ITEM_OPEN_CONTEXT_MENU,
         KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_FOCUSED_TAB_STRIP_ITEM_REORDER_LEFT,
         KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_FOCUSED_TAB_STRIP_ITEM_REORDER_RIGHT,
         KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_CURRENT_OPEN_TAB_REORDER_LEFT,
@@ -156,10 +157,10 @@ public class KeyboardShortcuts {
         int NOT_IMPLEMENTED_SCROLL_UP = 20;
 
         // Top controls.
-        int NOT_IMPLEMENTED_KEYBOARD_FOCUS_TOOLBAR = 21;
-        int NOT_IMPLEMENTED_KEYBOARD_FOCUS_BOOKMARKS = 22;
-        int NOT_IMPLEMENTED_KEYBOARD_FOCUS_SWITCH_ROW_OF_TOP_ELEMENTS = 23;
-        int NOT_IMPLEMENTED_FOCUSED_TAB_STRIP_ITEM_OPEN_CONTEXT_MENU = 24;
+        int KEYBOARD_FOCUS_TOOLBAR = 21;
+        int KEYBOARD_FOCUS_BOOKMARKS = 22;
+        int KEYBOARD_FOCUS_SWITCH_ROW_OF_TOP_ELEMENTS = 23;
+        int FOCUSED_TAB_STRIP_ITEM_OPEN_CONTEXT_MENU = 24;
         int NOT_IMPLEMENTED_FOCUSED_TAB_STRIP_ITEM_REORDER_LEFT = 25;
         int NOT_IMPLEMENTED_FOCUSED_TAB_STRIP_ITEM_REORDER_RIGHT = 26;
         int NOT_IMPLEMENTED_CURRENT_OPEN_TAB_REORDER_LEFT = 27;
@@ -230,104 +231,6 @@ public class KeyboardShortcuts {
 
         if (KEYBOARD_SHORTCUT_SEMANTIC_MAP.containsKey(keyCodeAndMeta)) {
             return KEYBOARD_SHORTCUT_SEMANTIC_MAP.get(keyCodeAndMeta);
-        }
-
-        switch (keyCodeAndMeta) {
-            case CTRL | SHIFT | KeyEvent.KEYCODE_A:
-                return KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_TAB_SEARCH;
-                // TODO(crbug.com/402775002): Figure out what shortcut does TOGGLE_MULTITASK_MENU.
-
-            case CTRL | SHIFT | KeyEvent.KEYCODE_W:
-            case ALT | KeyEvent.KEYCODE_F4:
-                return KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_CLOSE_WINDOW;
-                // TODO(crbug.com/402775002): Change fn signature to allow (Alt + F then X) or
-                // Command+Q
-
-                // Navigation controls.
-            case CTRL | KeyEvent.KEYCODE_F6:
-                return KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_FOCUS_WEB_CONTENTS_PANE;
-            case KeyEvent.KEYCODE_SPACE:
-                return KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_SCROLL_DOWN;
-            case SHIFT | KeyEvent.KEYCODE_SPACE:
-                return KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_SCROLL_UP;
-
-                // Top controls.
-            case ALT | SHIFT | KeyEvent.KEYCODE_T:
-                return KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_KEYBOARD_FOCUS_TOOLBAR;
-            case ALT | SHIFT | KeyEvent.KEYCODE_B:
-                return KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_KEYBOARD_FOCUS_BOOKMARKS;
-            case KeyEvent.KEYCODE_F6:
-                return KeyboardShortcutsSemanticMeaning
-                        .NOT_IMPLEMENTED_KEYBOARD_FOCUS_SWITCH_ROW_OF_TOP_ELEMENTS;
-            case SHIFT | KeyEvent.KEYCODE_F7:
-                return KeyboardShortcutsSemanticMeaning
-                        .NOT_IMPLEMENTED_FOCUSED_TAB_STRIP_ITEM_OPEN_CONTEXT_MENU;
-            case CTRL | KeyEvent.KEYCODE_DPAD_LEFT:
-                return KeyboardShortcutsSemanticMeaning
-                        .NOT_IMPLEMENTED_FOCUSED_TAB_STRIP_ITEM_REORDER_LEFT;
-            case CTRL | KeyEvent.KEYCODE_DPAD_RIGHT:
-                return KeyboardShortcutsSemanticMeaning
-                        .NOT_IMPLEMENTED_FOCUSED_TAB_STRIP_ITEM_REORDER_RIGHT;
-            case CTRL | SHIFT | KeyEvent.KEYCODE_PAGE_UP:
-                // TODO(crbug.com/402775002): Change fn signature to allow CTRL+SHIFT+FN+UpArrow.
-                return KeyboardShortcutsSemanticMeaning
-                        .NOT_IMPLEMENTED_CURRENT_OPEN_TAB_REORDER_LEFT;
-            case CTRL | SHIFT | KeyEvent.KEYCODE_PAGE_DOWN:
-                // TODO(crbug.com/402775002): Change fn signature to allow CTRL+SHIFT+FN+DownArrow.
-                return KeyboardShortcutsSemanticMeaning
-                        .NOT_IMPLEMENTED_CURRENT_OPEN_TAB_REORDER_RIGHT;
-
-                // Accessibility.
-            case CTRL | KeyEvent.KEYCODE_F7:
-            case KeyEvent.KEYCODE_F7:
-                return KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_TOGGLE_CARET_BROWSING;
-            case ALT | SHIFT | KeyEvent.KEYCODE_A:
-                return KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_FOCUS_ON_INACTIVE_DIALOGS;
-
-                // Bookmarks.
-            case CTRL | SHIFT | KeyEvent.KEYCODE_D:
-                return KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_BOOKMARK_ALL_TABS;
-                // TODO(crbug.com/412427797): Conform shortcut to KeyboardShortcutDefinition
-            case CTRL | SHIFT | KeyEvent.KEYCODE_B:
-                return KeyboardShortcutsSemanticMeaning.TOGGLE_BOOKMARK_BAR;
-
-                // Fullscreen.
-            case KeyEvent.KEYCODE_F11:
-                return KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_TOGGLE_IMMERSIVE;
-                // TODO(crbug.com/402775002): Allow long press on Esc.
-
-                // Developer tools.
-            case CTRL | SHIFT | KeyEvent.KEYCODE_J:
-                return KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_DEV_TOOLS_CONSOLE;
-            case CTRL | SHIFT | KeyEvent.KEYCODE_C:
-                return KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_DEV_TOOLS_INSPECT;
-            case KeyEvent.KEYCODE_F12:
-                return KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_DEV_TOOLS_TOGGLE;
-            case CTRL | KeyEvent.KEYCODE_U:
-                return KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_VIEW_SOURCE;
-            case CTRL | KeyEvent.KEYCODE_ESCAPE:
-                return KeyboardShortcutsSemanticMeaning.TASK_MANAGER;
-
-                // Downloads.
-            case CTRL | KeyEvent.KEYCODE_J:
-                return KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_SHOW_DOWNLOADS;
-
-                // History.
-            case CTRL | SHIFT | KeyEvent.KEYCODE_DEL:
-                return KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_CLEAR_BROWSING_DATA;
-
-                // Print.
-            case CTRL | SHIFT | KeyEvent.KEYCODE_P:
-                return KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_BASIC_PRINT;
-
-                // Misc.
-            case CTRL | SHIFT | KeyEvent.KEYCODE_M:
-                return KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_AVATAR_MENU;
-            case ALT | SHIFT | KeyEvent.KEYCODE_I:
-                return KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_FEEDBACK_FORM;
-            case ALT | KeyEvent.KEYCODE_HOME:
-            case KeyEvent.KEYCODE_HOME:
-                return KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_HOME;
         }
 
         return KeyboardShortcutsSemanticMeaning.UNKNOWN;
@@ -445,6 +348,46 @@ public class KeyboardShortcuts {
                     resId,
                     groupId,
                     /* alternateShortcuts= */ new KeyCombo[] {});
+        }
+
+        /**
+         * Build a new instance with no alternate key combinations and null integer values for resId
+         * and groupId.
+         *
+         * @param semanticMeaning An integer representing the meaning or purpose of the shortcut.
+         * @param primaryShortcut A KeyCombo object that contains the keycode and modifier for the
+         *     shortcut.
+         */
+        KeyboardShortcutDefinition(
+                @KeyboardShortcutsSemanticMeaning int semanticMeaning, KeyCombo primaryShortcut) {
+            this(
+                    semanticMeaning,
+                    primaryShortcut,
+                    /* resId= */ Resources.ID_NULL,
+                    /* groupId= */ Resources.ID_NULL);
+        }
+
+        /**
+         * Build a new instance with no alternate key combinations and null integer values for resId
+         * and groupId.
+         *
+         * @param semanticMeaning An integer representing the meaning or purpose of the shortcut.
+         * @param primaryShortcut A KeyCombo object that contains the keycode and modifier for the
+         *     shortcut.
+         * @param alternateShortcuts An array of KeyCombo objects that contain alternative keycode
+         *     and modifier combinations for the shortcut. These will be added to the semantic map
+         *     but will not be displayed in the keyboard shortcut helper window.
+         */
+        KeyboardShortcutDefinition(
+                @KeyboardShortcutsSemanticMeaning int semanticMeaning,
+                KeyCombo primaryShortcut,
+                KeyCombo[] alternateShortcuts) {
+            this(
+                    semanticMeaning,
+                    primaryShortcut,
+                    /* resId= */ Resources.ID_NULL,
+                    /* groupId= */ Resources.ID_NULL,
+                    alternateShortcuts);
         }
     }
 
@@ -638,7 +581,28 @@ public class KeyboardShortcuts {
                     new KeyCombo(KeyEvent.KEYCODE_BUTTON_START, NO_MODIFIER)
                 });
 
+        // Top controls.
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.KEYBOARD_FOCUS_TOOLBAR,
+                new KeyCombo(KeyEvent.KEYCODE_T, KeyEvent.META_ALT_ON | KeyEvent.META_SHIFT_ON));
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.KEYBOARD_FOCUS_BOOKMARKS,
+                new KeyCombo(KeyEvent.KEYCODE_B, KeyEvent.META_ALT_ON | KeyEvent.META_SHIFT_ON));
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.KEYBOARD_FOCUS_SWITCH_ROW_OF_TOP_ELEMENTS,
+                new KeyCombo(KeyEvent.KEYCODE_F6, NO_MODIFIER));
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning
+                        .FOCUSED_TAB_STRIP_ITEM_OPEN_CONTEXT_MENU,
+                new KeyCombo(KeyEvent.KEYCODE_F10, KeyEvent.META_SHIFT_ON));
+
         // Bookmark shortcuts.
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.TOGGLE_BOOKMARK_BAR,
+                new KeyCombo(KeyEvent.KEYCODE_B, KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON),
+                /* resId= */ Resources.ID_NULL, // Purposefully setting to null
+                // so that the shortcut is not shown in the helper unless the user has enabled it.
+                /* groupId= */ Resources.ID_NULL);
         new KeyboardShortcutDefinition(
                 KeyboardShortcutsSemanticMeaning.BOOKMARK_PAGE,
                 new KeyCombo(KeyEvent.KEYCODE_D, KeyEvent.META_CTRL_ON),
@@ -715,6 +679,89 @@ public class KeyboardShortcuts {
                             KeyEvent.KEYCODE_SLASH,
                             (KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON))
                 });
+
+        // Unimplemented shortcuts.
+        // TODO(crbug.com/402775002): Figure out what shortcut does TOGGLE_MULTITASK_MENU.
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_TAB_SEARCH,
+                new KeyCombo(KeyEvent.KEYCODE_A, (KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON)));
+        // TODO(crbug.com/402775002): Change fn signature to allow (Alt + F then X) or
+        // Command+Q
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_CLOSE_WINDOW,
+                new KeyCombo(KeyEvent.KEYCODE_W, (KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON)),
+                new KeyCombo[] {new KeyCombo(KeyEvent.KEYCODE_F4, KeyEvent.META_ALT_ON)});
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_FOCUS_WEB_CONTENTS_PANE,
+                new KeyCombo(KeyEvent.KEYCODE_F6, KeyEvent.META_CTRL_ON));
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_SCROLL_DOWN,
+                new KeyCombo(KeyEvent.KEYCODE_SPACE, NO_MODIFIER));
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_SCROLL_UP,
+                new KeyCombo(KeyEvent.KEYCODE_SPACE, KeyEvent.META_SHIFT_ON));
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning
+                        .NOT_IMPLEMENTED_FOCUSED_TAB_STRIP_ITEM_REORDER_LEFT,
+                new KeyCombo(KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.META_CTRL_ON));
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning
+                        .NOT_IMPLEMENTED_FOCUSED_TAB_STRIP_ITEM_REORDER_RIGHT,
+                new KeyCombo(KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.META_CTRL_ON));
+        // TODO(crbug.com/402775002): Change fn signature to allow CTRL+SHIFT+FN+UpArrow.
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_CURRENT_OPEN_TAB_REORDER_LEFT,
+                new KeyCombo(
+                        KeyEvent.KEYCODE_PAGE_UP, KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON));
+        // TODO(crbug.com/402775002): Change fn signature to allow CTRL+SHIFT+FN+DownArrow.
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_CURRENT_OPEN_TAB_REORDER_RIGHT,
+                new KeyCombo(
+                        KeyEvent.KEYCODE_PAGE_DOWN,
+                        KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON));
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_TOGGLE_CARET_BROWSING,
+                new KeyCombo(KeyEvent.KEYCODE_F7, KeyEvent.META_CTRL_ON));
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_FOCUS_ON_INACTIVE_DIALOGS,
+                new KeyCombo(KeyEvent.KEYCODE_A, KeyEvent.META_ALT_ON | KeyEvent.META_SHIFT_ON));
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_BOOKMARK_ALL_TABS,
+                new KeyCombo(KeyEvent.KEYCODE_D, KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON));
+        // TODO(crbug.com/402775002): Allow long press on Esc.
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_TOGGLE_IMMERSIVE,
+                new KeyCombo(KeyEvent.KEYCODE_F11, NO_MODIFIER));
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_DEV_TOOLS_CONSOLE,
+                new KeyCombo(KeyEvent.KEYCODE_J, KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON));
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_DEV_TOOLS_INSPECT,
+                new KeyCombo(KeyEvent.KEYCODE_C, KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON));
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_DEV_TOOLS_TOGGLE,
+                new KeyCombo(KeyEvent.KEYCODE_F12, NO_MODIFIER));
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_VIEW_SOURCE,
+                new KeyCombo(KeyEvent.KEYCODE_U, KeyEvent.META_CTRL_ON));
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_SHOW_DOWNLOADS,
+                new KeyCombo(KeyEvent.KEYCODE_J, KeyEvent.META_CTRL_ON));
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_CLEAR_BROWSING_DATA,
+                new KeyCombo(KeyEvent.KEYCODE_DEL, KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON));
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_BASIC_PRINT,
+                new KeyCombo(KeyEvent.KEYCODE_P, KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON));
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_AVATAR_MENU,
+                new KeyCombo(KeyEvent.KEYCODE_M, KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON));
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_FEEDBACK_FORM,
+                new KeyCombo(KeyEvent.KEYCODE_I, KeyEvent.META_ALT_ON | KeyEvent.META_SHIFT_ON));
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_HOME,
+                new KeyCombo(KeyEvent.KEYCODE_HOME, KeyEvent.META_ALT_ON));
     }
 
     /**
@@ -816,6 +863,9 @@ public class KeyboardShortcuts {
         LinkedHashMap<Integer, KeyboardShortcutGroup> shortcutGroupsById = new LinkedHashMap<>();
         for (KeyboardShortcutDefinition shortcutDefinition :
                 KEYBOARD_SHORTCUT_DEFINITION_MAP.values()) {
+            if (shortcutDefinition.mGroupId == Resources.ID_NULL) {
+                continue;
+            }
             int groupId = shortcutDefinition.mGroupId;
             if (!shortcutGroupsById.containsKey(groupId)) {
                 shortcutGroupsById.put(
@@ -830,7 +880,6 @@ public class KeyboardShortcuts {
                     shortcutDefinition.mPrimaryShortcut.mModifier);
         }
 
-        // TODO(crbug.com/412427797): Conform shortcut to KeyboardShortcutDefinition
         if (BookmarkBarUtils.isFeatureEnabled(context)) {
             addShortcut(
                     context,
@@ -1070,8 +1119,7 @@ public class KeyboardShortcuts {
                 case KeyboardShortcutsSemanticMeaning.OPEN_HELP:
                     menuOrKeyboardActionController.onMenuOrKeyboardAction(R.id.help_id, false);
                     return true;
-                case KeyboardShortcutsSemanticMeaning
-                        .NOT_IMPLEMENTED_KEYBOARD_FOCUS_SWITCH_ROW_OF_TOP_ELEMENTS:
+                case KeyboardShortcutsSemanticMeaning.KEYBOARD_FOCUS_SWITCH_ROW_OF_TOP_ELEMENTS:
                     if (ChromeFeatureList.isEnabled(ChromeFeatureList.ANDROID_KEYBOARD_A11Y)) {
                         // TODO(crbug.com/360423850): Don't allow F6 to be overridden by websites.
                         return menuOrKeyboardActionController.onMenuOrKeyboardAction(
@@ -1079,14 +1127,22 @@ public class KeyboardShortcuts {
                     } else {
                         return false;
                     }
-                case KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_KEYBOARD_FOCUS_TOOLBAR:
+                case KeyboardShortcutsSemanticMeaning
+                        .FOCUSED_TAB_STRIP_ITEM_OPEN_CONTEXT_MENU:
+                    if (ChromeFeatureList.isEnabled(ChromeFeatureList.ANDROID_KEYBOARD_A11Y)) {
+                        return menuOrKeyboardActionController.onMenuOrKeyboardAction(
+                                R.id.open_tab_strip_context_menu, /* fromMenu= */ false);
+                    } else {
+                        return false;
+                    }
+                case KeyboardShortcutsSemanticMeaning.KEYBOARD_FOCUS_TOOLBAR:
                     if (ChromeFeatureList.isEnabled(ChromeFeatureList.ANDROID_KEYBOARD_A11Y)) {
                         toolbarManager.requestFocus();
                         return true;
                     } else {
                         return false;
                     }
-                case KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_KEYBOARD_FOCUS_BOOKMARKS:
+                case KeyboardShortcutsSemanticMeaning.KEYBOARD_FOCUS_BOOKMARKS:
                     if (ChromeFeatureList.isEnabled(ChromeFeatureList.ANDROID_KEYBOARD_A11Y)) {
                         return menuOrKeyboardActionController.onMenuOrKeyboardAction(
                                 R.id.focus_bookmarks, /* fromMenu= */ false);

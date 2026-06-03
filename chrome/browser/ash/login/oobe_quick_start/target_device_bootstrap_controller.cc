@@ -12,9 +12,8 @@
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/functional/overloaded.h"
 #include "base/no_destructor.h"
-#include "base/notreached.h"
+#include "base/notimplemented.h"
 #include "base/values.h"
 #include "chrome/browser/ash/login/oobe_quick_start/connectivity/account_transfer_client_data.h"
 #include "chrome/browser/ash/login/oobe_quick_start/connectivity/fido_assertion_info.h"
@@ -31,6 +30,7 @@
 #include "chromeos/ash/components/quick_start/types.h"
 #include "chromeos/ash/services/nearby/public/mojom/quick_start_decoder_types.mojom.h"
 #include "components/prefs/pref_service.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "ui/chromeos/devicetype_utils.h"
 #include "url/gurl.h"
 #include "url/origin.h"
@@ -489,7 +489,7 @@ void TargetDeviceBootstrapController::OnAuthCodeReceived(
   bool is_error = true;
 
   std::visit(
-      base::Overloaded{
+      absl::Overload{
           [&](SecondDeviceAuthBroker::AuthCodeSuccessResponse res) {
             GaiaCredentials gaia_creds;
             gaia_creds.auth_code = res.auth_code;

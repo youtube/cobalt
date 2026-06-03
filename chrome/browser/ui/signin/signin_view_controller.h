@@ -12,6 +12,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/observer_list.h"
 #include "build/build_config.h"
 #include "chrome/browser/ui/signin/signin_modal_dialog.h"
 #include "chrome/browser/ui/webui/signin/signin_utils.h"
@@ -31,7 +32,9 @@
 #error This file should only be included on desktop.
 #endif
 
-class Browser;
+class BrowserWindowInterface;
+class Profile;
+class TabStripModel;
 struct AccountInfo;
 struct CoreAccountId;
 
@@ -67,7 +70,20 @@ class SigninViewController {
       kSignoutConfirmationDialogViewElementId);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kHistorySyncOptinViewId);
 
-  explicit SigninViewController(Browser* browser);
+  class Observer : public base::CheckedObserver {
+   public:
+    // Called when a sigin-in modal dialog is closed.
+    virtual void OnModalSigninDialogClosed() {}
+
+   protected:
+    ~Observer() override = default;
+  };
+
+  // Add/Remove an `observer`; cannot be NULL.
+  void AddObserver(Observer* observer);
+  void RemoveObserver(Observer* observer);
+
+  explicit SigninViewController(BrowserWindowInterface* browser);
 
   SigninViewController(const SigninViewController&) = delete;
   SigninViewController& operator=(const SigninViewController&) = delete;
@@ -194,6 +210,8 @@ class SigninViewController {
 
   base::WeakPtr<SigninViewController> AsWeakPtr();
 
+  void TearDownPreBrowserWindowDestruction();
+
  private:
   FRIEND_TEST_ALL_PREFIXES(SignInViewControllerBrowserTest,
                            EmailConfirmationDefaultFocus);
@@ -264,8 +282,11 @@ class SigninViewController {
   // Helper to create an on close callback for `SigninModalDialog`.
   base::OnceClosure GetOnModalDialogClosedCallback();
 
-  // Browser owning this controller.
-  raw_ptr<Browser> browser_;
+  // BrowserWindowInterface owning this controller.
+  const raw_ptr<BrowserWindowInterface> browser_;
+
+  const raw_ptr<Profile> profile_;
+  const raw_ptr<TabStripModel> tab_strip_model_;
 
   // Currently displayed modal dialog, or nullptr if none is displayed.
   std::unique_ptr<SigninModalDialog> dialog_;
@@ -273,6 +294,8 @@ class SigninViewController {
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
   std::unique_ptr<NewTabWebContentsObserver> new_tab_web_contents_observer_;
 #endif
+
+  base::ObserverList<Observer> observer_list_;
 
   base::WeakPtrFactory<SigninViewController> weak_ptr_factory_{this};
 };

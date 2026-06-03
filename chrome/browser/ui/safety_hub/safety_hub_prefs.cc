@@ -25,8 +25,13 @@ void RegisterSafetyHubProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterIntegerPref(safety_hub_prefs::kLocalReusedCredentialsCount,
                                 -1);
   registry->RegisterInt64Pref(
+      safety_hub_prefs::kLastTimeInMsAccountPasswordCheckCompleted, 0);
+  registry->RegisterInt64Pref(
       safety_hub_prefs::kLastTimeInMsLocalPasswordCheckCompleted, 0);
 #endif  // !BUILDFLAG(IS_ANDROID)
+  registry->RegisterInt64Pref(
+      safety_hub_prefs::kLastTimeInMsAbusiveNotificationBlocklistCheckCompleted,
+      0);
   registry->RegisterDictionaryPref(
       safety_hub_prefs::kMenuNotificationsPrefsKey);
   registry->RegisterBooleanPref(

@@ -6,6 +6,7 @@
 #define COMPONENTS_SEGMENTATION_PLATFORM_EMBEDDER_HOME_MODULES_HOME_MODULES_CARD_REGISTRY_H_
 
 #include <memory>
+#include <vector>
 
 #include "base/memory/weak_ptr.h"
 #include "base/supports_user_data.h"
@@ -127,6 +128,12 @@ class HomeModulesCardRegistry : public base::SupportsUserData::Data {
 #endif
 
   base::WeakPtrFactory<HomeModulesCardRegistry> weak_ptr_factory_{this};
+
+  // Returns the list of card names configured via the
+  // "names_of_ephemeral_cards_to_show" feature param. The param is expected to
+  // be a comma-separated string (e.g.,
+  // "TabGroupPromo,TabGroupSyncPromo,QuickDeletePromo").
+  std::vector<std::string> GetEnabledCardList();
 };
 
 }  // namespace segmentation_platform::home_modules

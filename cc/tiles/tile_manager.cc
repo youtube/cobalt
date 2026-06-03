@@ -517,7 +517,7 @@ void TileManager::TrimPrepaintTiles() {
 #endif
 
   std::unique_ptr<EvictionTilePriorityQueue> eviction_priority_queue =
-      client_->BuildEvictionQueue(global_state_.tree_priority);
+      client_->BuildEvictionQueue();
   bool has_eligible_used_tiles = false;
   for (; !eviction_priority_queue->IsEmpty(); eviction_priority_queue->Pop()) {
     const auto& prioritized_tile = eviction_priority_queue->Top();
@@ -826,8 +826,7 @@ TileManager::FreeTileResourcesUntilUsageIsWithinLimit(
     MemoryUsage* usage) {
   while (usage->Exceeds(limit)) {
     if (!eviction_priority_queue) {
-      eviction_priority_queue =
-          client_->BuildEvictionQueue(global_state_.tree_priority);
+      eviction_priority_queue = client_->BuildEvictionQueue();
     }
     if (eviction_priority_queue->IsEmpty())
       break;
@@ -848,8 +847,7 @@ TileManager::FreeTileResourcesWithLowerPriorityUntilUsageIsWithinLimit(
     MemoryUsage* usage) {
   while (usage->Exceeds(limit)) {
     if (!eviction_priority_queue) {
-      eviction_priority_queue =
-          client_->BuildEvictionQueue(global_state_.tree_priority);
+      eviction_priority_queue = client_->BuildEvictionQueue();
     }
     if (eviction_priority_queue->IsEmpty())
       break;
@@ -1096,20 +1094,16 @@ TileManager::PrioritizedWorkToSchedule TileManager::AssignGpuMemoryToTiles() {
   did_oom_on_last_assign_ = !had_enough_memory_to_schedule_tiles_needed_now;
   // Since this is recorded once per frame, subsample these metrics.
   if (metrics_sub_sampler_.ShouldSample(metrics_sampling_rate_)) {
-    if (running_on_renderer_process_) {
-      UMA_HISTOGRAM_BOOLEAN("Compositing.TileManager.EnoughMemory.Renderer",
-                            had_enough_memory_to_schedule_tiles_needed_now);
-    } else {
+    if (!running_on_renderer_process_) {
       UMA_HISTOGRAM_BOOLEAN("Compositing.TileManager.EnoughMemory.Browser",
                             had_enough_memory_to_schedule_tiles_needed_now);
-    }
-    if (did_oom_on_last_assign_) {
-      auto memory_limit = hard_memory_limit.memory_bytes() / (1024 * 1024);
-      if (running_on_renderer_process_) {
+      if (had_enough_memory_to_schedule_tiles_needed_now) {
         UMA_HISTOGRAM_MEMORY_MEDIUM_MB(
-            "Compositing.TileManager.LimitWhenNotEnoughMemory.Renderer",
-            memory_limit);
-      } else {
+            "Compositing.TileManager.MemoryUsageWhenEnoughMemory",
+            memory_usage.memory_bytes() / (1024 * 1024));
+      }
+      if (did_oom_on_last_assign_) {
+        auto memory_limit = hard_memory_limit.memory_bytes() / (1024 * 1024);
         UMA_HISTOGRAM_MEMORY_MEDIUM_MB(
             "Compositing.TileManager.LimitWhenNotEnoughMemory.Browser",
             memory_limit);
@@ -1497,10 +1491,7 @@ scoped_refptr<TileTask> TileManager::CreateRasterTask(
     DCHECK(resource);
   }
 
-  // For LOW_RESOLUTION tiles, we don't draw or predecode images.
   RasterSource::PlaybackSettings playback_settings;
-  const bool skip_images =
-      prioritized_tile.priority().resolution == LOW_RESOLUTION;
   playback_settings.use_lcd_text = tile->can_use_lcd_text();
   playback_settings.msaa_sample_count = msaa_sample_count;
   playback_settings.visible =
@@ -1518,12 +1509,10 @@ scoped_refptr<TileTask> TileManager::CreateRasterTask(
   sync_decoded_images.clear();
   std::vector<PaintImage> checkered_images;
   base::flat_map<PaintImage::Id, size_t> image_id_to_current_frame_index;
-  if (!skip_images) {
-    PartitionImagesForCheckering(
-        prioritized_tile, target_color_params, &sync_decoded_images,
-        &checkered_images, partial_tile_decode ? &invalidated_rect : nullptr,
-        &image_id_to_current_frame_index);
-  }
+  PartitionImagesForCheckering(
+      prioritized_tile, target_color_params, &sync_decoded_images,
+      &checkered_images, partial_tile_decode ? &invalidated_rect : nullptr,
+      &image_id_to_current_frame_index);
 
   // Get the tasks for the required images.
   ImageDecodeCache::TracingInfo tracing_info(
@@ -1580,14 +1569,12 @@ scoped_refptr<TileTask> TileManager::CreateRasterTask(
           has_hardware_accelerated_webp_candidates);
 
   std::optional<PlaybackImageProvider::Settings> settings;
-  if (!skip_images) {
-    settings.emplace();
-    settings->images_to_skip = std::move(images_to_skip);
-    settings->image_to_current_frame_index =
-        std::move(image_id_to_current_frame_index);
-    if (use_gpu_rasterization_) {
-      settings->raster_mode = PlaybackImageProvider::RasterMode::kOop;
-    }
+  settings.emplace();
+  settings->images_to_skip = std::move(images_to_skip);
+  settings->image_to_current_frame_index =
+      std::move(image_id_to_current_frame_index);
+  if (use_gpu_rasterization_) {
+    settings->raster_mode = PlaybackImageProvider::RasterMode::kOop;
   }
 
   PlaybackImageProvider image_provider(
@@ -2231,7 +2218,7 @@ bool TileManager::OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
                   global_state_.num_resources_limit);
 
   std::unique_ptr<EvictionTilePriorityQueue> eviction_priority_queue(
-      client_->BuildEvictionQueue(global_state_.tree_priority));
+      client_->BuildEvictionQueue());
   std::set<Tile*> tiles_to_evict;
   while (!eviction_priority_queue->IsEmpty()) {
     const PrioritizedTile& tile = eviction_priority_queue->Top();

@@ -8,6 +8,7 @@
 
 #include "base/base_switches.h"
 #include "base/debug/crash_logging.h"
+#include "base/logging.h"
 #include "base/memory/shared_memory_mapping.h"
 #include "base/memory/writable_shared_memory_region.h"
 #include "base/metrics/histogram_macros_local.h"
@@ -68,7 +69,12 @@ namespace base {
 
 BASE_FEATURE(kPassHistogramSharedMemoryOnLaunch,
              "PassHistogramSharedMemoryOnLaunch",
-             FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_ANDROID)
+             FEATURE_DISABLED_BY_DEFAULT
+#else
+             FEATURE_ENABLED_BY_DEFAULT
+#endif
+);
 
 #if BUILDFLAG(IS_APPLE)
 const shared_memory::SharedMemoryMachPortRendezvousKey

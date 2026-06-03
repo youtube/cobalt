@@ -37,6 +37,11 @@ export enum WebClientState {
   ERROR,  // Final state
 }
 
+enum PanelOpenState {
+  OPEN,
+  CLOSED,
+}
+
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
 //
@@ -49,7 +54,9 @@ export enum DetailedWebClientState {
   TEMPORARY_UNRESPONSIVE = 4,
   PERMANENT_UNRESPONSIVE = 5,
   RESPONSIVE = 6,
-  MAX_VALUE = RESPONSIVE,
+  RESPONSIVE_INACTIVE = 7,
+  UNRESPONSIVE_INACTIVE = 8,
+  MAX_VALUE = UNRESPONSIVE_INACTIVE,
 }
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicDetailedWebClientState)
 
@@ -94,6 +101,7 @@ class WebClientImpl implements WebClientInterface {
           {panelOpeningData: panelOpeningDataToClient(panelOpeningData)});
     } finally {
       this.host.setWaitingOnPanelWillOpen(false);
+      this.host.panelOpenStateChanged(PanelOpenState.OPEN);
     }
 
     // The web client is ready to show, ensure the webview is
@@ -121,6 +129,7 @@ class WebClientImpl implements WebClientInterface {
   }
 
   notifyPanelWasClosed(): Promise<void> {
+    this.host.panelOpenStateChanged(PanelOpenState.CLOSED);
     return this.sender.requestWithResponse(
         'glicWebClientNotifyPanelWasClosed', undefined);
   }
@@ -197,6 +206,21 @@ class WebClientImpl implements WebClientInterface {
   notifyOsHotkeyStateChanged(hotkey: string): void {
     this.sender.requestNoResponse(
         'glicWebClientNotifyOsHotkeyStateChanged', {hotkey});
+  }
+
+  notifyPinnedTabsChanged(tabData: TabDataMojo[]): void {
+    const extras = new ResponseExtras();
+    this.sender.requestNoResponse(
+        'glicWebClientNotifyPinnedTabsChanged',
+        {tabData: tabData.map((x) => tabDataToClient(x, extras))},
+        extras.transfers);
+  }
+
+  notifyPinnedTabDataChanged(tabData: TabDataMojo): void {
+    const extras = new ResponseExtras();
+    this.sender.requestNoResponse(
+        'glicWebClientNotifyPinnedTabDataChanged',
+        {tabData: tabDataToClient(tabData, extras)}, extras.transfers);
   }
 }
 
@@ -334,6 +358,33 @@ class HostMessageHandler implements HostMessageHandlerInterface {
     return {
       tabContextResult: tabContextResult,
     };
+  }
+
+  async glicBrowserGetContextFromTab(
+      request: {tabId: string, options: TabContextOptions},
+      extras: ResponseExtras):
+      Promise<{tabContextResult: TabContextResultPrivate}> {
+    const {result: {errorReason, tabContext}} =
+        await this.handler.getContextFromTab(
+            tabIdFromClient(request.tabId),
+            tabContextOptionsFromClient(request.options));
+    if (!tabContext) {
+      throw new Error(`tabContext failed: ${errorReason}`);
+    }
+    const tabContextResult = tabContextToClient(tabContext, extras);
+
+    return {
+      tabContextResult: tabContextResult,
+    };
+  }
+
+  async glicBrowserSetMaximumNumberOfPinnedTabs(request: {
+    requestedMax: number,
+  }): Promise<{effectiveMax: number}> {
+    const requestedMax = request.requestedMax >= 0 ? request.requestedMax : 0;
+    const {effectiveMax} =
+        await this.handler.setMaximumNumberOfPinnedTabs(requestedMax);
+    return {effectiveMax};
   }
 
   async glicBrowserActInFocusedTab(
@@ -483,6 +534,10 @@ class HostMessageHandler implements HostMessageHandlerInterface {
     this.handler.onUserInputSubmitted(request.mode);
   }
 
+  glicBrowserOnRequestStarted(): void {
+    this.handler.onRequestStarted();
+  }
+
   glicBrowserOnResponseStarted(): void {
     this.handler.onResponseStarted();
   }
@@ -590,6 +645,21 @@ class HostMessageHandler implements HostMessageHandlerInterface {
     return this.handler.getOsMicrophonePermissionStatus();
   }
 
+  glicBrowserPinTabs(request: {tabIds: string[]}):
+      Promise<{pinnedAll: boolean}> {
+    return this.handler.pinTabs(request.tabIds.map((x) => tabIdFromClient(x)));
+  }
+
+  glicBrowserUnpinTabs(request: {tabIds: string[]}):
+      Promise<{unpinnedAll: boolean}> {
+    return this.handler.unpinTabs(
+        request.tabIds.map((x) => tabIdFromClient(x)));
+  }
+
+  glicBrowserUnpinAllTabs(): void {
+    this.handler.unpinAllTabs();
+  }
+
   async glicBrowserGetZeroStateSuggestionsForFocusedTab(request: {
     isFirstRun?: boolean,
   }): Promise<{suggestions?: ZeroStateSuggestions}> {
@@ -613,6 +683,10 @@ class HostMessageHandler implements HostMessageHandlerInterface {
   glicBrowserDropScrollToHighlight(): void {
     this.handler.dropScrollToHighlight();
   }
+
+  glicBrowserMaybeRefreshUserStatus(): void {
+    this.handler.maybeRefreshUserStatus();
+  }
 }
 
 export class GlicApiHost implements PostMessageRequestHandler {
@@ -626,6 +700,8 @@ export class GlicApiHost implements PostMessageRequestHandler {
   private webClientState =
       ObservableValue.withValue<WebClientState>(WebClientState.UNINITIALIZED);
   private waitingOnPanelWillOpenValue = false;
+  private clientActiveObs = ObservableValue.withValue(false);
+  private panelOpenState = PanelOpenState.CLOSED;
   detailedWebClientState = DetailedWebClientState.BOOTSTRAP_PENDING;
 
   constructor(
@@ -675,6 +751,17 @@ export class GlicApiHost implements PostMessageRequestHandler {
 
   setWaitingOnPanelWillOpen(value: boolean): void {
     this.waitingOnPanelWillOpenValue = value;
+  }
+
+  panelOpenStateChanged(state: PanelOpenState) {
+    this.panelOpenState = state;
+    this.clientActiveObs.assignAndSignal(this.isClientActive());
+  }
+
+  isClientActive() {
+    // TODO - crbug.com/416530284: Add check for Chrome window in focus.
+    return this.panelOpenState === PanelOpenState.OPEN &&
+        this.webClientState.getCurrentValue() !== WebClientState.ERROR;
   }
 
   // Called when the web client is initialized.
@@ -740,6 +827,22 @@ export class GlicApiHost implements PostMessageRequestHandler {
         loadTimeData.getInteger('clientResponsivenessCheckIntervalMs');
 
     while (this.webClientState.getCurrentValue() !== WebClientState.ERROR) {
+      if (!this.isClientActive()) {
+        if (this.webClientState.getCurrentValue() ===
+            WebClientState.UNRESPONSIVE) {
+          this.detailedWebClientState =
+              DetailedWebClientState.UNRESPONSIVE_INACTIVE;
+          // Prevent unresponsive overlay showing forever while checking is
+          // paused.
+          this.setWebClientState(WebClientState.RESPONSIVE);
+          this.webClientErrorTimer.reset();
+        } else {
+          this.detailedWebClientState =
+              DetailedWebClientState.RESPONSIVE_INACTIVE;
+        }
+        await this.clientActiveObs.waitUntil((active) => active);
+      }
+
       let gotResponse = false;
       const responsePromise =
           this.sender
@@ -886,6 +989,14 @@ function tabIdToClient(tabId: number): string {
   return `${tabId}`;
 }
 
+function tabIdFromClient(tabId: string): number {
+  const parsed = parseInt(tabId);
+  if (Number.isNaN(parsed)) {
+    return 0;
+  }
+  return parsed;
+}
+
 function optionalWindowIdToClient(windowId: number|null): string|undefined {
   if (windowId === null) {
     return undefined;
@@ -951,6 +1062,7 @@ function tabDataToClient(tabData: TabDataMojo|null, extras: ResponseExtras):
     }
   }
 
+  const isObservable = optionalToClient(tabData.isObservable);
   return {
     tabId: tabIdToClient(tabData.tabId),
     windowId: windowIdToClient(tabData.windowId),
@@ -958,6 +1070,7 @@ function tabDataToClient(tabData: TabDataMojo|null, extras: ResponseExtras):
     title: optionalToClient(tabData.title),
     favicon,
     documentMimeType: tabData.documentMimeType,
+    isObservable,
   };
 }
 

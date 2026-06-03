@@ -191,9 +191,6 @@
       <message name="IDS_IOS_ABOUT_VERSION_COPYRIGHT" desc="Copyright information on the about pages">
         Copyright <ph name="YEAR">$1</ph> The Chromium Authors. All rights reserved.
       </message>
-      <message name="IDS_IOS_ACCOUNT_MENU_OPEN_SETTINGS" desc="The button title in the account menu to open settings. [iOS only]">
-        Chromium settings
-      </message>
       <message name="IDS_IOS_ACCOUNT_TABLE_ERROR_ENTER_PASSPHRASE_MESSAGE" desc="The error message to show in the account table when there is a passphrase error. [iOS only]">
         To use and save Chromium data in your Google Account, enter your passphrase.
       </message>
@@ -734,7 +731,7 @@ Only someone with your passphrase can read your encrypted data. The passphrase i
         Tips on getting the most out of Chromium.
       </message>
       <message name="IDS_IOS_NOTIFICATIONS_TIPS_CPE_BODY" desc="Text for the body of a Tips notification that encourages the user to enable the CPE.">
-        To easily get your saved passwords in other apps, chose Chromium for Autofill.
+        To easily get your saved passwords in other apps, choose Chromium for Autofill.
       </message>
       <message name="IDS_IOS_NOTIFICATIONS_TIPS_CPE_TITLE" desc="Text for the title of a Tips notification that encourages the user to enable the CPE.">
         Chromium Tip: Get your passwords in any app
@@ -756,6 +753,9 @@ Only someone with your passphrase can read your encrypted data. The passphrase i
       </message>
       <message name="IDS_IOS_NOTIFICATIONS_TIPS_ENHANCED_SAFE_BROWSING_TITLE" desc="Text for the title of a Tips notification that encourages the user to enable Enhanced Safe Browsing">
         Chromium Tip: Get Chromium's strongest security
+      </message>
+      <message name="IDS_IOS_NOTIFICATIONS_TIPS_LENS_OVERLAY_TITLE" desc="Text for the title of a Tips notification that encourages the user to use the Lens Overlay feature.">
+        Chromium Tip: Search what you see
       </message>
       <message name="IDS_IOS_NOTIFICATIONS_TIPS_LENS_TITLE" desc="Text for the title of a Tips notification that encourages the user to search with Lens">
         Chromium Tip: Search with Lens
@@ -878,6 +878,12 @@ For more settings that use data to improve your Chromium experience, go to <ph n
       </message>
       <message name="IDS_IOS_REMOVE_ACCOUNT_CONFIRMATION_MESSAGE" desc="Dialog message to emphasize the effects of removing an account.">
         This account and any unsaved data will be removed from Chromium.
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_ENTRY_POINT_PRIMARY_ACTION" desc="Safari import entry point screen - Button text to start the workflow to import data from Safari to Chromium. [iOS only]" meaning="mport data from other browser to be used on Chromium">
+        Import to Chromium
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_ENTRY_POINT_SUBTITLE" desc="Safari import entry point screen - Subtitle. [iOS only]">
+        Import your data to use your passwords, history, bookmarks and credit cards on Chromium
       </message>
       <message name="IDS_IOS_SAFETY_CHECK_COMPACT_DESCRIPTION_UPDATE_CHROME" desc="Tag label description displayed for the Safety Check module in the Magic Stack when the Update Chrome check finds an issue. [iOS only]">
         Your Chromium is out of date.

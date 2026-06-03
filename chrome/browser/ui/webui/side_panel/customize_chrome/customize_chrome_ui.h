@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/image_fetcher/image_decoder_impl.h"
 #include "chrome/browser/new_tab_page/modules/new_tab_page_modules.h"
@@ -125,7 +126,7 @@ class CustomizeChromeUI
           side_panel::customize_chrome::mojom::CustomizeToolbarHandlerFactory>
           receiver);
 
-  static constexpr std::string GetWebUIName() { return "CustomizeChrome"; }
+  static constexpr std::string_view GetWebUIName() { return "CustomizeChrome"; }
 
  private:
   // side_panel::mojom::CustomizeChromePageHandlerFactory

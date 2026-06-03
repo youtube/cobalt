@@ -72,17 +72,13 @@ public class TabSwitcherGroupCardFacility extends TabSwitcherCardFacility {
 
         declareEnterCondition(
                 new TabGroupExistsCondition(
-                        mHostStation.isIncognito(),
-                        mTabIdsToGroup,
-                        mHostStation.tabModelSelectorElement));
+                        mHostStation.tabGroupModelFilterElement, mTabIdsToGroup));
     }
 
     /** Clicks the group card to open the tab group dialog. */
     public TabGroupDialogFacility<TabSwitcherStation> clickCard() {
-        boolean isIncognito = mHostStation.isIncognito();
         return mHostStation.enterFacilitySync(
-                new TabGroupDialogFacility<>(mTabIdsToGroup, isIncognito),
-                titleElement.getClickTrigger());
+                new TabGroupDialogFacility<>(mTabIdsToGroup), titleElement.getClickTrigger());
     }
 
     /** Clicks the ("...") action button on a tab group to open the overflow menu. */

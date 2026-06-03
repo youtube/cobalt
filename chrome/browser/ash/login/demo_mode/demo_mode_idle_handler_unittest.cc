@@ -6,6 +6,7 @@
 
 #include "ash/clipboard/clipboard_history_controller_impl.h"
 #include "ash/clipboard/clipboard_history_item.h"
+#include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
 #include "ash/metrics/demo_session_metrics_recorder.h"
 #include "ash/public/cpp/wallpaper/wallpaper_info.h"
@@ -17,12 +18,16 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/test/bind.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "base/time/time.h"
+#include "chrome/browser/ash/browser_delegate/browser_controller_impl.h"
 #include "chrome/browser/ash/login/demo_mode/demo_mode_window_closer.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_list.h"
+#include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/chrome_ash_test_base.h"
 #include "chrome/test/base/test_browser_window.h"
 #include "chrome/test/base/testing_browser_process.h"
@@ -35,7 +40,9 @@
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/user_activity/user_activity_detector.h"
+#include "ui/message_center/message_center.h"
 
 namespace ash {
 namespace {
@@ -48,6 +55,8 @@ const AccountId kAccountId =
     AccountId::FromUserEmailGaiaId(kUser, GaiaId("1111"));
 constexpr SkColor kWallpaperColor = SK_ColorMAGENTA;
 
+constexpr char kDemoSessionToSNotificationId[] = "demo_session_ToS";
+
 }  // namespace
 
 class DemoModeIdleHandlerTestBase : public ChromeAshTestBase {
@@ -56,9 +65,9 @@ class DemoModeIdleHandlerTestBase : public ChromeAshTestBase {
       : ChromeAshTestBase(std::make_unique<content::BrowserTaskEnvironment>(
             base::test::TaskEnvironment::TimeSource::MOCK_TIME)),
         profile_manager_(TestingBrowserProcess::GetGlobal()) {
-    window_closer_ = std::make_unique<DemoModeWindowCloser>(
-        base::BindRepeating(&DemoModeIdleHandlerTestBase::MockLaunchDemoModeApp,
-                            base::Unretained(this)));
+    scoped_feature_list_.InitWithFeatures(
+        /*enabled_features=*/{features::kDemoSessionToSNotification},
+        /*disabled_features=*/{});
   }
   ~DemoModeIdleHandlerTestBase() override = default;
 
@@ -89,6 +98,11 @@ class DemoModeIdleHandlerTestBase : public ChromeAshTestBase {
     // activity to set `first_user_activity_`.
     metrics_recorder_ = std::make_unique<DemoSessionMetricsRecorder>();
 
+    browser_controller_ = std::make_unique<ash::BrowserControllerImpl>();
+    window_closer_ = std::make_unique<DemoModeWindowCloser>(
+        base::BindRepeating(&DemoModeIdleHandlerTestBase::MockLaunchDemoModeApp,
+                            base::Unretained(this)));
+
     // OK to unretained `this` since the life cycle of `demo_mode_idle_handler_`
     // is the same as the tests.
     demo_mode_idle_handler_ = std::make_unique<DemoModeIdleHandler>(
@@ -105,6 +119,7 @@ class DemoModeIdleHandlerTestBase : public ChromeAshTestBase {
     profile_manager_.DeleteAllTestingProfiles();
     demo_mode_idle_handler_.reset();
     window_closer_.reset();
+    browser_controller_.reset();
   }
 
   void SimulateUserActivity() {
@@ -134,6 +149,7 @@ class DemoModeIdleHandlerTestBase : public ChromeAshTestBase {
   int launch_demo_app_count_ = 0;
   TestingProfileManager profile_manager_;
 
+  std::unique_ptr<BrowserControllerImpl> browser_controller_;
   std::unique_ptr<DemoModeWindowCloser> window_closer_;
   std::unique_ptr<DemoModeIdleHandler> demo_mode_idle_handler_;
   raw_ptr<Profile> profile_ = nullptr;
@@ -144,6 +160,7 @@ class DemoModeIdleHandlerTestBase : public ChromeAshTestBase {
       wallpaper_controller_ = nullptr;
   base::ScopedTempDir user_data_dir_;
   std::unique_ptr<DemoSessionMetricsRecorder> metrics_recorder_;
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 // DemoIdleHandler test for shopper session.
@@ -217,6 +234,33 @@ TEST_F(DemoModeIdleHandlerTest, ClearAndCloseClipboard) {
   const std::list<ClipboardHistoryItem>& no_items =
       clipboard_history_controller->history()->GetItems();
   EXPECT_TRUE(no_items.empty());
+}
+
+TEST_F(DemoModeIdleHandlerTest, ToSNotificationShown) {
+  auto* message_center = message_center::MessageCenter::Get();
+  message_center::Notification* notification =
+      message_center->FindVisibleNotificationById(
+          kDemoSessionToSNotificationId);
+  // The notification is not shown before the user's first activity.
+  EXPECT_FALSE(notification);
+
+  SimulateUserActivity();
+  // The notification is shown after the user's first activity.
+  notification = message_center->FindVisibleNotificationById(
+      kDemoSessionToSNotificationId);
+  EXPECT_TRUE(notification);
+
+  // Confirm the title and the message of the notification.
+  const std::u16string notification_title =
+      l10n_util::GetStringUTF16(IDS_DEMO_SESSION_TOS_NOTIFICATION_TITLE);
+  const std::u16string notification_message =
+      l10n_util::GetStringUTF16(IDS_DEMO_SESSION_TOS_NOTIFICATION_MESSAGE);
+
+  EXPECT_EQ(notification->title(), notification_title);
+  EXPECT_EQ(notification->message(), notification_message);
+
+  // Reset the current shopper session so it won't affect following tests.
+  FastForwardBy(kReLuanchDemoAppIdleDuration);
 }
 
 TEST_F(DemoModeIdleHandlerTest, ResetWallpaper) {

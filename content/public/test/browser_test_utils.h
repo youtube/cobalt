@@ -320,6 +320,16 @@ void NotifyCopyableViewInWebContents(WebContents* web_contents,
 void NotifyCopyableViewInFrame(RenderFrameHost* render_frame_host,
                                base::OnceClosure done_callback);
 
+// Blocks the current execution until the renderer main thread in the main frame
+// is in a steady state, so the caller can issue an `viz::CopyOutputRequest`
+// against the current `WebContents`.
+void WaitForCopyableViewInWebContents(WebContents* web_contents);
+
+// Blocks the current execution until the renderer main thread in the subframe
+// is in a steady state, so the caller can issue an `viz::CopyOutputRequest`
+// against its view.
+void WaitForCopyableViewInFrame(RenderFrameHost* render_frame_host);
+
 // Allows tests to set the last committed origin of |render_frame_host|, to
 // simulate a scenario that might happen with a compromised renderer or might
 // not otherwise be possible.
@@ -1252,10 +1262,13 @@ WebContents* GetFocusedWebContents(WebContents* web_contents);
 // set.
 class TitleWatcher : public WebContentsObserver {
  public:
-  // |web_contents| must be non-NULL and needs to stay alive for the
-  // entire lifetime of |this|. |expected_title| is the title that |this|
-  // will wait for.
-  TitleWatcher(WebContents* web_contents, std::u16string_view expected_title);
+  // `web_contents` must be non-NULL and needs to stay alive for the
+  // entire lifetime of |this|. `expected_title` is the title that |this|
+  // will wait for. `include_nestable_tasks` allows processing of
+  // application tasks while waiting for a title change.
+  TitleWatcher(WebContents* web_contents,
+               std::u16string_view expected_title,
+               bool include_nestable_tasks = false);
 
   TitleWatcher(const TitleWatcher&) = delete;
   TitleWatcher& operator=(const TitleWatcher&) = delete;
@@ -2585,6 +2598,23 @@ void InitAndEnableRenderDocumentForAllFrames(
 // protocol) and waits for a result (an IPC back from the renderer) each time.
 std::optional<int> GetDOMNodeId(content::RenderFrameHost& rfh,
                                 std::string_view query_selector);
+
+// Returns the DOMNodeId of the node matched by the given CSS query selector
+// inside the iframe (must be a direct child of main frame, i.e. no nested
+// iframes) identified by subframe_query_selector or std::nullopt if no node
+// matches. Note: This method makes multiple renderer IPC calls (via the
+// devtools protocol) and waits for a result (an IPC back from the renderer)
+// each time.
+std::optional<int> GetDOMNodeIdFromSubframe(
+    RenderFrameHost& rfh,
+    std::string_view subframe_query_selector,
+    std::string_view query_selector);
+
+// Suspends execution in the current thread until the DOMContentLoaded event
+// fires in the given RenderFrameHost. Note, this will only observe the
+// Document associated with the given RenderFrameHost at the time of the
+// call.
+[[nodiscard]] bool WaitForDOMContentLoaded(RenderFrameHost* rfh);
 
 }  // namespace content
 

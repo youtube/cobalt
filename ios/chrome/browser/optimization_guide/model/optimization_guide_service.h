@@ -13,17 +13,17 @@
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "components/keyed_service/core/keyed_service.h"
-#include "components/optimization_guide/core/optimization_guide_decider.h"
-#include "components/optimization_guide/core/optimization_guide_decision.h"
-#include "components/optimization_guide/core/optimization_guide_model_provider.h"
+#include "components/optimization_guide/core/delivery/optimization_guide_model_provider.h"
+#include "components/optimization_guide/core/hints/optimization_guide_decider.h"
+#include "components/optimization_guide/core/hints/optimization_guide_decision.h"
+#include "components/optimization_guide/core/hints/optimization_metadata.h"
+#include "components/optimization_guide/core/model_execution/model_execution_features_controller.h"
+#include "components/optimization_guide/core/optimization_guide_model_executor.h"
 #include "components/optimization_guide/core/optimization_guide_on_device_capability_provider.h"
-#include "components/optimization_guide/core/optimization_metadata.h"
 #import "components/optimization_guide/optimization_guide_buildflags.h"
 #include "components/optimization_guide/proto/hints.pb.h"
 #include "ios/chrome/browser/download/model/background_service/background_download_service_factory.h"
 #include "url/gurl.h"
-#include "components/optimization_guide/core/model_execution/model_execution_features_controller.h"
-#include "components/optimization_guide/core/optimization_guide_model_executor.h"
 
 namespace leveldb_proto {
 class ProtoDatabaseProvider;
@@ -73,11 +73,6 @@ class OptimizationGuideService
 #endif
       public optimization_guide::OptimizationGuideModelProvider {
  public:
-  // BackgroundDownloadService is only available once the profile is fully
-  // initialized and that cannot be done as part of `Initialize`. Get a provider
-  // to retrieve the service when it is needed.
-  using BackgroundDownloadServiceProvider =
-      base::OnceCallback<download::BackgroundDownloadService*(void)>;
   OptimizationGuideService(
       leveldb_proto::ProtoDatabaseProvider* proto_db_provider,
       const base::FilePath& profile_path,
@@ -87,7 +82,6 @@ class OptimizationGuideService
       PrefService* pref_service,
       BrowserList* browser_list,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-      BackgroundDownloadServiceProvider background_download_service_provider,
       signin::IdentityManager* identity_manager);
   ~OptimizationGuideService() override;
 

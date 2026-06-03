@@ -11,15 +11,17 @@ import static org.chromium.ui.listmenu.ContextMenuRadioItemProperties.TITLE;
 import android.view.View;
 import android.widget.RadioButton;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.ui.listmenu.ContextMenuRadioItemProperties;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 
 /**
- * View binder for a context menu item with checkbox (of type {@code
+ * View binder for a context menu item with radio button (of type {@code
  * ListItemType.CONTEXT_MENU_ITEM_WITH_RADIO_BUTTON}, with property keys {@link
  * ContextMenuRadioItemProperties}).
  */
+@NullMarked
 class ContextMenuItemWithRadioButtonViewBinder {
     public static void bind(PropertyModel model, View view, PropertyKey propertyKey) {
         RadioButton radioButton = (RadioButton) view.getRootView();

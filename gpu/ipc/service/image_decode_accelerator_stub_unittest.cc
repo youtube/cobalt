@@ -77,7 +77,7 @@
 #include "ui/gfx/buffer_types.h"
 #include "ui/gfx/color_space.h"
 #include "ui/gfx/geometry/size.h"
-#include "ui/gfx/gpu_memory_buffer.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 #include "ui/gfx/native_pixmap_handle.h"
 #include "ui/gl/gl_bindings.h"
 #include "url/gurl.h"
@@ -103,8 +103,8 @@ struct ExpectedCacheEntry {
   SkISize dimensions;
 };
 
-std::unique_ptr<MemoryTracker> CreateMockMemoryTracker() {
-  return std::make_unique<NiceMock<gles2::MockMemoryTracker>>();
+scoped_refptr<MemoryTracker> CreateMockMemoryTracker() {
+  return base::MakeRefCounted<NiceMock<gles2::MockMemoryTracker>>();
 }
 
 scoped_refptr<Buffer> MakeBufferForTesting() {

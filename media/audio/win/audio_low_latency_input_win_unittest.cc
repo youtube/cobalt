@@ -38,6 +38,7 @@
 #include "media/audio/win/core_audio_util_win.h"
 #include "media/audio/win/test_support/fake_win_wasapi_environment.h"
 #include "media/audio/win/test_support/wasapi_test_error_code.h"
+#include "media/base/audio_sample_types.h"
 #include "media/base/media_switches.h"
 #include "media/base/seekable_buffer.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -816,6 +817,7 @@ TEST_F(WinAudioInputLoopbackTest,
   sink.WaitForData();
   sink.WaitForData();
   stream_.Close();
+  output_stream_.Close();
 
   EXPECT_EQ(sink.num_callbacks(), 2);
   EXPECT_GT(sink.num_received_audio_frames(), 0);

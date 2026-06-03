@@ -39,6 +39,7 @@
 #include "third_party/blink/renderer/core/css/css_font_face.h"
 #include "third_party/blink/renderer/core/css/css_font_face_src_value.h"
 #include "third_party/blink/renderer/core/css/css_font_family_value.h"
+#include "third_party/blink/renderer/core/css/css_font_feature_value.h"
 #include "third_party/blink/renderer/core/css/css_font_selector.h"
 #include "third_party/blink/renderer/core/css/css_font_style_range_value.h"
 #include "third_party/blink/renderer/core/css/css_identifier_value.h"
@@ -162,8 +163,8 @@ FontFace* FontFace::Create(ExecutionContext* context,
   if (!src || !src->IsValueList()) {
     font_face->SetError(MakeGarbageCollected<DOMException>(
         DOMExceptionCode::kSyntaxError,
-        WTF::StrCat({"The source provided ('", source,
-                     "') could not be parsed as a value list."})));
+        StrCat({"The source provided ('", source,
+                "') could not be parsed as a value list."})));
   }
 
   font_face->InitCSSFontFace(context, *src);
@@ -401,8 +402,7 @@ void FontFace::SetPropertyFromString(const ExecutionContext* context,
     return;
   }
 
-  String message =
-      WTF::StrCat({"Failed to set '", s, "' as a property value."});
+  String message = StrCat({"Failed to set '", s, "' as a property value."});
   if (exception_state) {
     exception_state->ThrowDOMException(DOMExceptionCode::kSyntaxError, message);
   } else {
@@ -923,7 +923,7 @@ void FontFace::InitCSSFontFace(ExecutionContext* context,
       context->AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
           mojom::blink::ConsoleMessageSource::kOther,
           mojom::blink::ConsoleMessageLevel::kWarning,
-          WTF::StrCat({"OTS parsing error: ", ots_parse_message_})));
+          StrCat({"OTS parsing error: ", ots_parse_message_})));
     }
     SetError(MakeGarbageCollected<DOMException>(
         DOMExceptionCode::kSyntaxError, "Invalid font data in ArrayBuffer."));
@@ -1005,6 +1005,29 @@ float FontFace::GetSizeAdjust() const {
   return To<CSSPrimitiveValue>(*size_adjust_)
              .ComputeValueInCanonicalUnit(EnsureLengthResolver()) /
          100;
+}
+
+scoped_refptr<FontFeatureSettings> FontFace::GetFontFeatureSettings() const {
+  DCHECK(RuntimeEnabledFeatures::FontFeatureSettingsDescriptorEnabled());
+  scoped_refptr<FontFeatureSettings> settings = FontFeatureSettings::Create();
+  if (!feature_settings_) {
+    return settings;
+  }
+
+  auto* identifier_value = DynamicTo<CSSIdentifierValue>(*feature_settings_);
+  if ((identifier_value &&
+       identifier_value->GetValueID() == CSSValueID::kNormal)) {
+    return settings;
+  }
+
+  const auto& list = To<CSSValueList>(*feature_settings_);
+  const wtf_size_t len = list.length();
+  for (wtf_size_t i = 0; i < len; ++i) {
+    const auto& feature = To<cssvalue::CSSFontFeatureValue>(list.Item(i));
+    settings->Append(
+        FontFeature(feature.Tag(), feature.Value(EnsureLengthResolver())));
+  }
+  return settings;
 }
 
 Document* FontFace::GetDocument() const {

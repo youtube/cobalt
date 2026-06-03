@@ -148,12 +148,12 @@ class COMPONENT_EXPORT(VARIATIONS) VariationsSeedStore {
                              const ClientFilterableState& client_state,
                              base::Time seed_fetch_time);
 
-  // Loads the last fetch time (for the latest seed) that was persisted to the
-  // local state.
-  base::Time GetLastFetchTime() const;
+  // Loads the last fetch time (for the latest seed) that was persisted. Returns
+  // base::Time() if there is no seed.
+  base::Time GetLatestSeedFetchTime() const;
 
-  // Returns the time at which the safe seed was persisted to the local state.
-  //
+  // Returns the client-side timestamp at which the safe seed was fetched.
+  // Returns base::Time() if there is no safe seed.
   // Virtual for early-boot CrOS experiments to use a different safe seed.
   virtual base::Time GetSafeSeedFetchTime() const;
 
@@ -170,11 +170,12 @@ class COMPONENT_EXPORT(VARIATIONS) VariationsSeedStore {
   void RecordLastFetchTime(base::Time fetch_time);
 
   // Loads the last server-provided seed date (for the latest seed) that was
-  // persisted to the local state. (See GetTimeForStudyDateChecks.)
+  // persisted to the local state.
+  // (See VariationsSeedStore::GetTimeForStudyDateChecks().)
   base::Time GetLatestTimeForStudyDateChecks() const;
 
   // Loads the last server-provided safe seed date of when the seed to be used
-  // was fetched. (See GetTimeForStudyDateChecks.)
+  // was fetched. (See VariationsSeedStore::GetTimeForStudyDateChecks().)
   base::Time GetSafeSeedTimeForStudyDateChecks() const;
 
   // Returns the time to use when determining whether a client should
@@ -197,6 +198,9 @@ class COMPONENT_EXPORT(VARIATIONS) VariationsSeedStore {
   // different day.
   void UpdateSeedDateAndLogDayChange(base::Time server_date_fetched);
 
+  // Creates a histogram for the result of the update of the seed date.
+  void LogSeedDayChange(base::Time server_date_fetched);
+
   // Returns the serial number of the most recently received seed, or an empty
   // string if there is no seed (or if it could not be read).
   // Side-effect: If there is a failure while attempting to read the latest seed
@@ -210,10 +214,6 @@ class COMPONENT_EXPORT(VARIATIONS) VariationsSeedStore {
 
   // Registers Local State prefs used by this class.
   static void RegisterPrefs(PrefRegistrySimple* registry);
-
-  // Loads the last fetch time (for the latest seed) that was persisted to
-  // |local_state|.
-  static base::Time GetLastFetchTimeFromPrefService(PrefService* local_state);
 
   static VerifySignatureResult VerifySeedSignatureForTesting(
       const std::string& seed_bytes,

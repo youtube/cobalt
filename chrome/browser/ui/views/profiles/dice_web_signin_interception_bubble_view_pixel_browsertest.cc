@@ -21,6 +21,7 @@
 #include "chrome/browser/ui/views/profiles/avatar_toolbar_button.h"
 #include "chrome/browser/ui/views/profiles/dice_web_signin_interception_bubble_view.h"
 #include "chrome/common/chrome_features.h"
+#include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/profile_destruction_waiter.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "components/policy/core/common/management/scoped_management_service_override_for_testing.h"
@@ -349,14 +350,17 @@ class DiceWebSigninInterceptionBubblePixelTest
     intercepted_account.given_name = GivenNameFromNameFormat();
     intercepted_account.full_name = intercepted_account.given_name + " Sample";
     intercepted_account.email = "sam.sample@intercepted.com";
-    intercepted_account.hosted_domain =
+    bool is_managed_intercepted_account =
         GetParam().intercepted_account_management_state ==
-                ManagedAccountState::kEnterpriseAccount
-            ? "intercepted.com"
-            : kNoHostedDomainFound;
+        ManagedAccountState::kEnterpriseAccount;
+    intercepted_account.hosted_domain = is_managed_intercepted_account
+                                            ? "intercepted.com"
+                                            : kNoHostedDomainFound;
+    AccountCapabilitiesTestMutator mutator(&intercepted_account.capabilities);
+    mutator.set_is_subject_to_enterprise_policies(
+        is_managed_intercepted_account);
     if (GetParam().intercepted_account_management_state ==
         ManagedAccountState::kSupervisedAccount) {
-      AccountCapabilitiesTestMutator mutator(&intercepted_account.capabilities);
       mutator.set_is_subject_to_parental_controls(true);
     }
 
@@ -371,6 +375,10 @@ class DiceWebSigninInterceptionBubblePixelTest
                 ManagedAccountState::kEnterpriseAccount
             ? "primary.com"
             : kNoHostedDomainFound;
+    AccountCapabilitiesTestMutator(&primary_account.capabilities)
+        .set_is_subject_to_enterprise_policies(
+            GetParam().primary_account_management_state ==
+            ManagedAccountState::kEnterpriseAccount);
     bool show_managed_disclaimer =
         (GetParam().intercepted_account_management_state ==
              ManagedAccountState::kEnterpriseAccount ||

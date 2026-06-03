@@ -15,6 +15,7 @@ namespace user_manager {
 // The user type. Used in a histogram; do not modify existing types.
 // When adding a new one, also update histograms/enums.xml. Note that types are
 // not sorted by number but grouped by means instead.
+// LINT.IfChange(UserType)
 enum class UserType {
   // Regular user, has a user name, password and Gaia account. (@gmail.com,
   // managed commercial and EDU accounts). These users are usually connected to
@@ -40,10 +41,10 @@ enum class UserType {
   // Kiosk users used to launch application in a single app mode. Logs in
   // without authentications. No Gaia user account. Uses device robot account.
   // Kiosk type for Chrome apps.
-  kKioskApp = 5,
+  kKioskChromeApp = 5,
   // kArcKioskApp = 7, deprecated
   // Kiosk type for Web apps (aka PWA - Progressive Web Apps).
-  kWebKioskApp = 9,
+  kKioskWebApp = 9,
 
   // Kiosk type for Isolated Web Apps (IWA)
   kKioskIWA = 10,
@@ -55,6 +56,7 @@ enum class UserType {
   // Alias for histogram.
   kMaxValue = kKioskIWA,
 };
+// LINT.ThenChange(//components/policy/proto/device_management_backend.proto:UserType)
 
 // Stringifies UserType. Returns a C-style (i.e. \0-terminated) string literal.
 // The returned value is for logging or also to be used for crash key in

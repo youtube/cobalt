@@ -12,8 +12,9 @@
 #include "base/task/single_thread_task_runner.h"
 #include "gpu/ipc/common/surface_handle.h"
 #include "gpu/ipc/service/gpu_ipc_service_export.h"
+#include "ui/gfx/buffer_types.h"
 #include "ui/gfx/geometry/size.h"
-#include "ui/gfx/gpu_memory_buffer.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 
 namespace viz {
 class VulkanContextProvider;
@@ -69,20 +70,6 @@ class GPU_IPC_SERVICE_EXPORT GpuMemoryBufferFactory {
       gfx::BufferUsage usage,
       int client_id,
       SurfaceHandle surface_handle) = 0;
-
-  // Same as above, but returns the result asynchrounously. Safe to use on the
-  // IO thread. |callback| will be called on the same thread that calls this
-  // method, and it might be called on the same call stack.
-  using CreateGpuMemoryBufferAsyncCallback =
-      base::OnceCallback<void(gfx::GpuMemoryBufferHandle)>;
-  virtual void CreateGpuMemoryBufferAsync(
-      gfx::GpuMemoryBufferId id,
-      const gfx::Size& size,
-      gfx::BufferFormat format,
-      gfx::BufferUsage usage,
-      int client_id,
-      SurfaceHandle surface_handle,
-      CreateGpuMemoryBufferAsyncCallback callback);
 
   // Destroys GPU memory buffer identified by |id|. It can be called on any
   // thread.

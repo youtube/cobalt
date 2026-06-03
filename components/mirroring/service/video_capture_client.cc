@@ -6,6 +6,7 @@
 
 #include "base/functional/bind.h"
 #include "base/memory/read_only_shared_memory_region.h"
+#include "base/notimplemented.h"
 #include "base/task/bind_post_task.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
@@ -234,8 +235,7 @@ void VideoCaptureClient::OnBufferReady(media::mojom::ReadyBufferPtr buffer) {
       frame = media::VideoFrame::WrapExternalData(
           buffer->info->pixel_format, buffer->info->coded_size,
           buffer->info->visible_rect, buffer->info->visible_rect.size(),
-          mapping.GetMemoryAs<uint8_t>(), frame_allocation_size,
-          buffer->info->timestamp);
+          mapping, buffer->info->timestamp);
     }
     buffer_finished_callback =
         base::BindPostTaskToCurrentDefault(base::BindOnce(
@@ -253,8 +253,7 @@ void VideoCaptureClient::OnBufferReady(media::mojom::ReadyBufferPtr buffer) {
       frame = media::VideoFrame::WrapExternalData(
           buffer->info->pixel_format, buffer->info->coded_size,
           buffer->info->visible_rect, buffer->info->visible_rect.size(),
-          mapping.GetMemoryAs<uint8_t>(), frame_allocation_size,
-          buffer->info->timestamp);
+          mapping, buffer->info->timestamp);
       if (frame) {
         frame->BackWithOwnedSharedMemory(std::move(shm_region),
                                          std::move(mapping));

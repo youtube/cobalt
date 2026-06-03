@@ -39,6 +39,7 @@ inline constexpr char kChromeUIAccessCodeCastURL[] =
 inline constexpr char kChromeUIAccessibilityHost[] = "accessibility";
 inline constexpr char kChromeUIActivateSafetyCheckSettingsURL[] =
     "chrome://settings/safetyCheck?activateSafetyCheck";
+inline constexpr char kChromeUIActorInternalsHost[] = "actor-internals";
 inline constexpr char kChromeUIAllSitesPath[] = "/content/all";
 inline constexpr char kChromeUIAppIconHost[] = "app-icon";
 inline constexpr char kChromeUIAppIconURL[] = "chrome://app-icon/";
@@ -637,7 +638,7 @@ inline constexpr char kFileSystemSettingsSubpage[] =
 inline constexpr char kFileSystemSubpage[] = "content/filesystem";
 inline constexpr char kGlicSettingsSubpage[] = "ai/gemini";
 inline constexpr char kHandlerSettingsSubPage[] = "handlers";
-inline constexpr char kHistorySearchSubpage[] = "historySearch";
+inline constexpr char kHistorySearchSubpage[] = "ai/historySearch";
 inline constexpr char kImportDataSubPage[] = "importData";
 inline constexpr char kIncognitoSettingsSubPage[] = "incognito";
 inline constexpr char kLanguageOptionsSubPage[] = "languages";

@@ -57,11 +57,11 @@ import org.chromium.build.BuildConfig;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.build.annotations.RequiresNonNull;
-import org.chromium.ui.InsetObserver;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.ui.display.DisplayAndroid;
 import org.chromium.ui.display.DisplayAndroid.DisplayAndroidObserver;
 import org.chromium.ui.gfx.OverlayTransform;
+import org.chromium.ui.insets.InsetObserver;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.permissions.AndroidPermissionDelegate;
 import org.chromium.ui.permissions.PermissionCallback;
@@ -160,12 +160,6 @@ public class WindowAndroid
 
     private ProgressBarConfig.@Nullable Provider mProgressBarConfigProvider;
 
-    /** An interface to notify listeners that a context menu is closed. */
-    public interface OnCloseContextMenuListener {
-        /** Called when a context menu has been closed. */
-        void onContextMenuClosed();
-    }
-
     /** An interface to notify listeners of the changes in activity state. */
     public interface ActivityStateObserver {
         /** Called when the activity goes into paused state. */
@@ -203,9 +197,6 @@ public class WindowAndroid
     public @Nullable View getReadbackView() {
         return null;
     }
-
-    private final ObserverList<OnCloseContextMenuListener> mContextMenuCloseListeners =
-            new ObserverList<>();
 
     private @Nullable ModalDialogManager mModalDialogManagerForTesting;
 
@@ -245,6 +236,7 @@ public class WindowAndroid
                 trackOcclusion);
         mIntentRequestTracker = (IntentRequestTrackerImpl) tracker;
         mInsetObserver = insetObserver;
+        mApplicationBottomInsetSupplier.setInsetObserver(mInsetObserver);
     }
 
     /**
@@ -348,7 +340,7 @@ public class WindowAndroid
 
         var thresholds = new TrustedPresentationThresholds(Float.MIN_VALUE, Float.MIN_VALUE, 1);
         mOcclusionObserver =
-                new Consumer<Boolean>() {
+                new Consumer<>() {
                     @Override
                     public void accept(Boolean visible) {
                         mOcclusionSupplier.set(!visible);
@@ -996,30 +988,6 @@ public class WindowAndroid
      */
     public ApplicationViewportInsetSupplier getApplicationBottomInsetSupplier() {
         return mApplicationBottomInsetSupplier;
-    }
-
-    /** Adds a listener that will be notified whenever a ContextMenu is closed. */
-    public void addContextMenuCloseListener(OnCloseContextMenuListener listener) {
-        mContextMenuCloseListeners.addObserver(listener);
-    }
-
-    /**
-     * Removes a listener from the list of listeners that will be notified when a
-     * ContextMenu is closed.
-     */
-    public void removeContextMenuCloseListener(OnCloseContextMenuListener listener) {
-        mContextMenuCloseListeners.removeObserver(listener);
-    }
-
-    /**
-     * This hook is called whenever the context menu is being closed (either by
-     * the user canceling the menu with the back/menu button, or when an item is
-     * selected).
-     */
-    public void onContextMenuClosed() {
-        for (OnCloseContextMenuListener listener : mContextMenuCloseListeners) {
-            listener.onContextMenuClosed();
-        }
     }
 
     /**

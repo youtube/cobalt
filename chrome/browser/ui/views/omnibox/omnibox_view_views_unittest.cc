@@ -453,7 +453,7 @@ void OmniboxViewViewsTest::SetUp() {
   Browser::CreateParams params(profile(), /*user_gesture*/ true);
   params.type = Browser::TYPE_NORMAL;
   params.window = browser_window_.get();
-  browser_.reset(Browser::Create(params));
+  browser_ = Browser::DeprecatedCreateOwnedForTesting(params);
 
   util_ = std::make_unique<TemplateURLServiceFactoryTestUtil>(profile_.get());
 
@@ -622,6 +622,57 @@ TEST_F(OmniboxViewViewsTest, OnBlur) {
   EXPECT_EQ(gfx::ELIDE_TAIL, render_text->elide_behavior());
   EXPECT_EQ(0, render_text->GetUpdatedDisplayOffset().x());
   EXPECT_FALSE(omnibox_view()->IsSelectAll());
+}
+
+// Verifies that crbug.com/417895268 does not regress.
+TEST_F(OmniboxViewViewsTest, EmojiPickerInsertion) {
+  omnibox_view()->SetFocus(/*is_user_initiated=*/true);
+
+  // Set "ab|c", where | is the caret position.
+  omnibox_textfield()->InsertText(
+      u"abc", OmniboxViewViews::InsertTextCursorBehavior::kMoveCursorAfterText);
+  omnibox_textfield()->Scroll({2});
+  {
+    size_t start, end;
+    omnibox_view()->GetSelectionBounds(&start, &end);
+    EXPECT_EQ(2u, start);
+    EXPECT_EQ(2u, end);
+    EXPECT_EQ(2u, omnibox_view()->GetCursorPosition());
+  }
+
+  // Emulation of Emoji picker. Because emoji picker has the focus,
+  // omnibox looses it.
+  omnibox_textfield()->OnBlur();
+  {
+    size_t start, end;
+    omnibox_view()->GetSelectionBounds(&start, &end);
+    EXPECT_EQ(2u, start);
+    EXPECT_EQ(2u, end);
+    EXPECT_EQ(2u, omnibox_view()->GetCursorPosition());
+  }
+
+  // Then, insertion of an emoji. Uses 0x1F600 (smile mark) as an example.
+  omnibox_textfield()->InsertText(
+      u"\xD83D\xDE00",
+      OmniboxViewViews::InsertTextCursorBehavior::kMoveCursorAfterText);
+
+  // Now, emoji picker closes, and so omnibox will be re-focused.
+  omnibox_textfield()->OnFocus();
+
+  // Verify the result. Emoji is inserted between 'b' and 'c', then
+  // the caret is placed between the emoji and 'c'.
+  EXPECT_EQ(
+      u"ab"
+      u"\xD83D\xDE00"
+      u"c",
+      omnibox_view()->GetText());
+  {
+    size_t start, end;
+    omnibox_view()->GetSelectionBounds(&start, &end);
+    EXPECT_EQ(4u, start);
+    EXPECT_EQ(4u, end);
+    EXPECT_EQ(4u, omnibox_view()->GetCursorPosition());
+  }
 }
 
 // Verifies that https://crbug.com/45260 doesn't regress.

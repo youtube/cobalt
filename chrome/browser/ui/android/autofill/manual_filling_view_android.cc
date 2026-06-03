@@ -8,6 +8,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -128,7 +129,8 @@ ScopedJavaGlobalRef<jobject> ConvertAccessorySheetDataToJavaObject(
         Java_ManualFillingComponentBridge_addUserInfoToAccessorySheetData(
             env, java_object, j_tab_data, user_info.origin(),
             user_info.is_exact_match().value(),
-            url::GURLAndroid::FromNativeGURL(env, user_info.icon_url()));
+            url::GURLAndroid::FromNativeGURL(env, user_info.icon_url()),
+            user_info.is_backup_credential().value());
     for (const AccessorySheetField& field : user_info.fields()) {
       Java_ManualFillingComponentBridge_addFieldToUserInfo(
           env, java_object, j_user_info,
@@ -353,7 +355,7 @@ void JNI_ManualFillingComponentBridge_CachePasswordSheetDataForTesting(
       ->SaveCredentialsAndBlocklistedForOrigin(
           credentials,
           password_manager::CredentialCache::IsOriginBlocklisted(j_blocklisted),
-          origin);
+          std::nullopt, origin);
 }
 
 // static

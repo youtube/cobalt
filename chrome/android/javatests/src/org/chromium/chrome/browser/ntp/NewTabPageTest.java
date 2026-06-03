@@ -67,7 +67,6 @@ import org.chromium.base.test.util.UrlUtils;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.feed.FeedActionDelegate;
 import org.chromium.chrome.browser.feed.FeedReliabilityLogger;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.logo.LogoBridge;
 import org.chromium.chrome.browser.logo.LogoBridgeJni;
@@ -133,7 +132,7 @@ import java.util.concurrent.TimeUnit;
 public class NewTabPageTest {
     private static final int ARTICLE_SECTION_HEADER_POSITION = 1;
 
-    private static final int RENDER_TEST_REVISION = 7;
+    private static final int RENDER_TEST_REVISION = 8;
 
     private static final String HISTOGRAM_NTP_MODULE_CLICK = "NewTabPage.Module.Click";
     private static final String HISTOGRAM_NTP_MODULE_LONGCLICK = "NewTabPage.Module.LongClick";
@@ -258,6 +257,7 @@ public class NewTabPageTest {
     @Test
     @MediumTest
     @Feature({"NewTabPage", "FeedNewTabPage", "RenderTest"})
+    @DisableFeatures({"FeedHeaderRemoval", "WebFeedKillSwitch"})
     public void testRender_ArticleSectionHeader() throws Exception {
         // Scroll to the article section header in case it is not visible.
         onView(withId(R.id.feed_stream_recycler_view))
@@ -283,7 +283,6 @@ public class NewTabPageTest {
     @Test
     @SmallTest
     @Feature({"NewTabPage", "FeedNewTabPage"})
-    @DisableIf.Build(sdk_equals = Build.VERSION_CODES.P, message = "http://crbug.com/40664848")
     @DisableIf.Build(sdk_equals = Build.VERSION_CODES.R, message = "http://crbug.com/40664848")
     public void testFocusFakebox() {
         int initialFakeboxTop = getFakeboxTop(mNtp);
@@ -354,25 +353,6 @@ public class NewTabPageTest {
                 ContextMenuManager.ContextMenuItemId.OPEN_IN_NEW_TAB,
                 false,
                 mSiteSuggestions.get(0).url.getSpec());
-    }
-
-    /** Tests opening a most visited item in a new incognito tab. */
-    @Test
-    @SmallTest
-    @Feature({"NewTabPage", "FeedNewTabPage"})
-    @DisableFeatures(ChromeFeatureList.TILE_CONTEXT_MENU_REFACTOR)
-    public void testOpenMostVisitedItemInIncognitoTab() throws ExecutionException {
-        Assert.assertNotNull(mMvTilesLayout);
-        HistogramWatcher histogramWatcher = expectMostVisitedTilesRecordForNtpModuleClick();
-
-        ChromeTabUtils.invokeContextMenuAndOpenInANewTab(
-                mActivityTestRule.getActivity(),
-                mMvTilesLayout.getTileAt(0),
-                ContextMenuManager.ContextMenuItemId.OPEN_IN_INCOGNITO_TAB,
-                true,
-                mSiteSuggestions.get(0).url.getSpec());
-
-        histogramWatcher.assertExpected();
     }
 
     /** Tests deleting a most visited item. */
@@ -1037,7 +1017,7 @@ public class NewTabPageTest {
 
     private boolean getUrlFocusAnimationsDisabled() {
         return ThreadUtils.runOnUiThreadBlocking(
-                new Callable<Boolean>() {
+                new Callable<>() {
                     @Override
                     public Boolean call() {
                         return mNtp.getNewTabPageLayout().urlFocusAnimationsDisabled();
@@ -1080,7 +1060,7 @@ public class NewTabPageTest {
      */
     private int getFakeboxTop(final NewTabPage ntp) {
         return ThreadUtils.runOnUiThreadBlocking(
-                new Callable<Integer>() {
+                new Callable<>() {
                     @Override
                     public Integer call() {
                         final View fakebox = ntp.getView().findViewById(R.id.search_box);
