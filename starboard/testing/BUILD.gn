@@ -34,4 +34,6 @@ static_library("scoped_feature_list") {
     "scoped_feature_list.cc",
     "scoped_feature_list.h",
   ]
+
+  deps = [ "//starboard:starboard_group" ]
 }

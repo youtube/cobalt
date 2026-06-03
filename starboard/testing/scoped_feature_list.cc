@@ -25,8 +25,8 @@ void ScopedFeatureList::InitAndEnableFeature(const SbFeature& feature) {
 }
 
 void ScopedFeatureList::InitAndEnableFeature(const std::string& feature_name) {
+  SaveOverride(feature_name);
   FeatureList::SetFeatureForTesting(feature_name, true);
-  overridden_features_.push_back(feature_name);
 }
 
 void ScopedFeatureList::InitAndDisableFeature(const SbFeature& feature) {
@@ -34,13 +34,31 @@ void ScopedFeatureList::InitAndDisableFeature(const SbFeature& feature) {
 }
 
 void ScopedFeatureList::InitAndDisableFeature(const std::string& feature_name) {
+  SaveOverride(feature_name);
   FeatureList::SetFeatureForTesting(feature_name, false);
-  overridden_features_.push_back(feature_name);
+}
+
+void ScopedFeatureList::SaveOverride(const std::string& feature_name) {
+  for (const auto& override : overridden_features_) {
+    if (override.feature_name == feature_name) {
+      return;
+    }
+  }
+
+  OriginalOverride original;
+  original.feature_name = feature_name;
+  original.value = FeatureList::GetOverrideForTesting(feature_name);
+  overridden_features_.push_back(original);
 }
 
 void ScopedFeatureList::Reset() {
-  for (const auto& feature_name : overridden_features_) {
-    FeatureList::ClearFeatureForTesting(feature_name);
+  for (auto it = overridden_features_.rbegin();
+       it != overridden_features_.rend(); ++it) {
+    if (it->value.has_value()) {
+      FeatureList::SetFeatureForTesting(it->feature_name, it->value.value());
+    } else {
+      FeatureList::ClearFeatureForTesting(it->feature_name);
+    }
   }
   overridden_features_.clear();
 }

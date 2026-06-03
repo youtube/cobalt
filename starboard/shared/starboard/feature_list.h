@@ -69,6 +69,13 @@ class FeatureList {
   // Check if a feature has an override.
   static bool HasOverrideForTesting(const std::string& feature_name);
 
+  // Get the current override value for a feature if it exists.
+  // Returns the overridden value if the feature was overridden, otherwise
+  // std::nullopt.
+  static std::optional<bool> GetOverrideForTesting(const SbFeature& feature);
+  static std::optional<bool> GetOverrideForTesting(
+      const std::string& feature_name);
+
   template <typename T>
   static T GetParam(const SbFeatureParamExt<T>& param);
 

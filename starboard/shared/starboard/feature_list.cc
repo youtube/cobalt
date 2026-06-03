@@ -263,4 +263,22 @@ bool FeatureList::HasOverrideForTesting(const std::string& feature_name) {
          instance->overridden_features_.end();
 }
 
+// static
+std::optional<bool> FeatureList::GetOverrideForTesting(
+    const SbFeature& feature) {
+  return GetOverrideForTesting(feature.name);
+}
+
+// static
+std::optional<bool> FeatureList::GetOverrideForTesting(
+    const std::string& feature_name) {
+  FeatureList* instance = GetInstance();
+  std::lock_guard lock(instance->mutex_);
+  auto it = instance->overridden_features_.find(feature_name);
+  if (it != instance->overridden_features_.end()) {
+    return it->second;
+  }
+  return std::nullopt;
+}
+
 }  // namespace starboard::features

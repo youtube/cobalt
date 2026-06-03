@@ -110,5 +110,49 @@ TEST_F(ScopedFeatureListTest, NestedDifferentFeatures) {
   EXPECT_FALSE(FeatureList::IsEnabled(kTestFeatureDisabledByDefault));
 }
 
+TEST_F(ScopedFeatureListTest, NestedSameFeature) {
+  EXPECT_FALSE(FeatureList::IsEnabled(kTestFeatureDisabledByDefault));
+
+  {
+    ScopedFeatureList outer;
+    outer.InitAndEnableFeature(kTestFeatureDisabledByDefault);
+    EXPECT_TRUE(FeatureList::IsEnabled(kTestFeatureDisabledByDefault));
+
+    {
+      ScopedFeatureList inner;
+      inner.InitAndDisableFeature(kTestFeatureDisabledByDefault);
+      EXPECT_FALSE(FeatureList::IsEnabled(kTestFeatureDisabledByDefault));
+    }
+
+    // Inner destructed, outer's override should be restored (enabled).
+    EXPECT_TRUE(FeatureList::IsEnabled(kTestFeatureDisabledByDefault));
+  }
+
+  // Outer destructed, should be back to default (disabled).
+  EXPECT_FALSE(FeatureList::IsEnabled(kTestFeatureDisabledByDefault));
+}
+
+TEST_F(ScopedFeatureListTest, NestedSameFeatureStartEnabled) {
+  EXPECT_TRUE(FeatureList::IsEnabled(kTestFeatureEnabledByDefault));
+
+  {
+    ScopedFeatureList outer;
+    outer.InitAndDisableFeature(kTestFeatureEnabledByDefault);
+    EXPECT_FALSE(FeatureList::IsEnabled(kTestFeatureEnabledByDefault));
+
+    {
+      ScopedFeatureList inner;
+      inner.InitAndEnableFeature(kTestFeatureEnabledByDefault);
+      EXPECT_TRUE(FeatureList::IsEnabled(kTestFeatureEnabledByDefault));
+    }
+
+    // Inner destructed, outer's override should be restored (disabled).
+    EXPECT_FALSE(FeatureList::IsEnabled(kTestFeatureEnabledByDefault));
+  }
+
+  // Outer destructed, should be back to default (enabled).
+  EXPECT_TRUE(FeatureList::IsEnabled(kTestFeatureEnabledByDefault));
+}
+
 }  // namespace
 }  // namespace starboard::features

@@ -15,6 +15,7 @@
 #ifndef STARBOARD_TESTING_SCOPED_FEATURE_LIST_H_
 #define STARBOARD_TESTING_SCOPED_FEATURE_LIST_H_
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -50,7 +51,13 @@ class ScopedFeatureList {
   void Reset();
 
  private:
-  std::vector<std::string> overridden_features_;
+  struct OriginalOverride {
+    std::string feature_name;
+    std::optional<bool> value;
+  };
+  std::vector<OriginalOverride> overridden_features_;
+
+  void SaveOverride(const std::string& feature_name);
 };
 
 }  // namespace starboard::features
