@@ -106,6 +106,9 @@
 #include "base/gtest_prod_util.h"
 #endif
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "base/test/test_support_starboard.h"
+#endif
 namespace base {
 
 namespace {
@@ -232,7 +235,8 @@ class CheckForLeakedGlobals : public testing::EmptyTestEventListener {
 // iOS: base::Process is not available.
 // macOS: Tests may run at background priority locally (crbug.com/1358639#c6) or
 // on bots (crbug.com/931721#c7).
-#if !BUILDFLAG(IS_APPLE)
+// Starboard: Process::IsProcessBackgrounded() is not available.
+#if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 class CheckProcessPriority : public testing::EmptyTestEventListener {
  public:
   CheckProcessPriority() { CHECK(!IsProcessBackgrounded()); }
@@ -252,7 +256,7 @@ class CheckProcessPriority : public testing::EmptyTestEventListener {
     return Process::Current().GetPriority() == Process::Priority::kBestEffort;
   }
 };
-#endif  // !BUILDFLAG(IS_APPLE)
+#endif  // !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 const std::string& GetProfileName() {
   static const NoDestructor<std::string> profile_name([] {
@@ -571,7 +575,26 @@ void TestSuite::Initialize() {
   InitAndroidTestMessageLoop();
 #endif  // else BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_STARBOARD)
+  InitStarboardTestMessageLoop();
+#endif
+
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+  // Hermetic builds rely on the signal handlers installed by the platform under
+  // Starboard. We don't want these overridden by base::debug's signal handlers.
+  // We do, however, want to ignore SIGPIPE: chromium code generally expects
+  // this and cobalt gets this behavior via content::SetupSignalHandlers. To get
+  // this behavior for tests the following block of code is lifted from the
+  // stack_trace_posix.cc implementation of EnableInProcessStackDumping().
+  struct sigaction sigpipe_action;
+  memset(&sigpipe_action, 0, sizeof(sigpipe_action));
+  sigpipe_action.sa_handler = SIG_IGN;
+  sigemptyset(&sigpipe_action.sa_mask);
+  sigaction(SIGPIPE, &sigpipe_action, nullptr);
+#else
   CHECK(debug::EnableInProcessStackDumping());
+#endif
+
 #if BUILDFLAG(IS_WIN)
   RouteStdioToConsole(true);
   // Make sure we run with high resolution timer to minimize differences
@@ -599,7 +622,7 @@ void TestSuite::Initialize() {
     i18n::SetICUDefaultLocale("en_US");
   }
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
   test_fonts::SetUpFontconfig();
 #endif
 
@@ -613,7 +636,7 @@ void TestSuite::Initialize() {
     listeners.Append(new CheckForLeakedGlobals);
   }
   if (check_for_thread_and_process_priority_) {
-#if !BUILDFLAG(IS_APPLE)
+#if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
     listeners.Append(new CheckProcessPriority);
 #endif
   }

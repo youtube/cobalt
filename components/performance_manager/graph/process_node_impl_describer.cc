@@ -60,7 +60,7 @@ std::string HostedProcessTypesToString(
   return str;
 }
 
-#if !BUILDFLAG(IS_APPLE)
+#if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_STARBOARD)
 const char* GetProcessPriorityString(const base::Process& process) {
   switch (process.GetPriority()) {
     case base::Process::Priority::kBestEffort:
@@ -107,10 +107,10 @@ base::Value GetProcessValueDict(const base::Process& process) {
   if (process.IsValid()) {
     // These properties can only be accessed for valid processes.
     ret.Set("os_priority", process.GetOSPriority());
-#if !BUILDFLAG(IS_APPLE)
+#if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_STARBOARD)
     ret.Set("priority", GetProcessPriorityString(process));
 #endif
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_WIN)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_STARBOARD)
     ret.Set("creation_time",
             base::TimeFormatTimeOfDayWithMilliseconds(process.CreationTime()));
 #endif

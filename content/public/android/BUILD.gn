@@ -228,6 +228,12 @@ android_library("content_full_java") {
     "//ui/gfx/geometry/mojom:mojom_java",
     "//url:gurl_java",
   ]
+
+  # TODO(b/443992661): Add a GN flag to conditionally disable or enable shape detection.
+  if(is_cobalt) {
+    deps -= [ "//services/shape_detection:shape_detection_java" ]
+  }
+  
   srcjar_deps = [
     ":content_jni_headers",
     ":is_ready_to_pay_service_aidl",
@@ -435,9 +441,17 @@ android_library("content_full_java") {
     "java/src/org/chromium/content_public/browser/selection/SelectionDropdownMenuDelegate.java",
   ]
 
+<<<<<<< HEAD
   if (enable_screen_capture) {
     sources += [ "java/src/org/chromium/content_public/browser/media/capture/ScreenCapture.java" ]
     deps += [ "//third_party/androidx:androidx_activity_activity_java" ]
+=======
+  # If in the future privacy sandbox components are removed from the code base, ignore this if block.
+  if (!enable_privacy_sandbox_apis) {
+    sources -= [
+      "java/src/org/chromium/content/browser/AttributionOsLevelManager.java",
+    ]
+>>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
   }
 
   public_deps = [ "//ui/base/mojom:ui_base_types_java" ]
@@ -546,8 +560,16 @@ generate_jni("content_jni_headers") {
     "java/src/org/chromium/content_public/browser/Page.java",
   ]
 
+<<<<<<< HEAD
   if (enable_screen_capture) {
     sources += [ "java/src/org/chromium/content_public/browser/media/capture/ScreenCapture.java" ]
+=======
+  # If in the future privacy sandbox components are removed from the code base, ignore this if block.
+  if (!enable_privacy_sandbox_apis) {
+    sources -= [
+      "java/src/org/chromium/content/browser/AttributionOsLevelManager.java",
+    ]
+>>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
   }
 }
 

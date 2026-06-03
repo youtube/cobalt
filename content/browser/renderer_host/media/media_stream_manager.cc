@@ -104,6 +104,14 @@
 #include "content/browser/media/captured_surface_controller.h"
 #endif
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/audio/audio_manager.h"
+#include "cobalt/media/audio/audio_input_constants.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "media/audio/android/starboard_audio_input_stream.h"
+#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 using ::blink::mojom::MediaDeviceType;
 
 namespace content {
@@ -510,7 +518,7 @@ bool ChangeSourceSupported(const MediaStreamDevices& devices) {
   return true;  // getDisplayMedia() and killswitches did not trigger.
 }
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 MediaStreamManager::CapturedSurfaceControllerFactoryCallback
 MakeDefaultCapturedSurfaceControllerFactory() {
   return base::BindRepeating(
@@ -888,6 +896,7 @@ class MediaStreamManager::DeviceRequest {
     return captured_wc_id;
   }
 
+#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
   CapturedSurfaceController* captured_surface_controller() const {
     DCHECK_CURRENTLY_ON(BrowserThread::IO);
     return captured_surface_controller_.get();
@@ -899,6 +908,11 @@ class MediaStreamManager::DeviceRequest {
     CHECK(!captured_surface_controller_);
     captured_surface_controller_ = std::move(controller);
   }
+#else
+  CapturedSurfaceController* captured_surface_controller() const {
+    return nullptr;
+  }
+#endif
 
   // If capturing a tab, zoom-level updates are received through this callback.
   virtual void OnZoomLevelChange(const std::string& label, int zoom_level) {}
@@ -1013,7 +1027,7 @@ class MediaStreamManager::DeviceRequest {
   std::optional<std::string> video_raw_id_;
   GlobalRenderFrameHostId target_render_frame_host_id_;
   std::string label_;
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && BUILDFLAG(ENABLE_SCREEN_CAPTURE)
   std::unique_ptr<CapturedSurfaceController> captured_surface_controller_;
 #endif
   bool captured_surface_control_active_ = false;
@@ -1569,7 +1583,7 @@ MediaStreamManager::MediaStreamManager(
     media::AudioSystem* audio_system,
     std::unique_ptr<VideoCaptureProvider> video_capture_provider)
     :
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && BUILDFLAG(ENABLE_SCREEN_CAPTURE)
       captured_surface_controller_factory_(
           MakeDefaultCapturedSurfaceControllerFactory()),
 #endif
@@ -2661,6 +2675,31 @@ void MediaStreamManager::SetUpRequest(const std::string& label) {
   request->SetAudioType(request->stream_controls().audio.stream_type);
   request->SetVideoType(request->stream_controls().video.stream_type);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // FAST-TRACK for Cobalt Audio Capture
+  if (request->audio_type() == MediaStreamType::DEVICE_AUDIO_CAPTURE &&
+      request->video_type() == MediaStreamType::NO_SERVICE) {
+    LOG(INFO) << "SetUpRequest: FAST-TRACKING Cobalt Audio Request";
+
+#if BUILDFLAG(IS_ANDROID)
+    // On Android, we MUST check/request OS permission on the UI thread.
+    GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
+        FROM_HERE,
+        base::BindOnce(&media::StarboardAudioInputStream::RequestRuntimePermission),
+        base::BindOnce(&MediaStreamManager::CompleteFastTrackSetUp,
+                       base::Unretained(this), label, request->GetWeakPtr()));
+#else
+    // On other platforms, RequestRuntimePermission() returns true immediately.
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&MediaStreamManager::CompleteFastTrackSetUp,
+                       base::Unretained(this), label, request->GetWeakPtr(),
+                       true));
+#endif
+    return;
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   const bool is_display_capture =
       request->video_type() == MediaStreamType::DISPLAY_VIDEO_CAPTURE ||
       request->video_type() ==
@@ -2729,6 +2768,68 @@ void MediaStreamManager::SetUpRequest(const std::string& label) {
 
   ReadOutputParamsAndPostRequestToUI(label, request, MediaDeviceEnumeration());
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void MediaStreamManager::CompleteFastTrackSetUp(
+    const std::string& label,
+    base::WeakPtr<DeviceRequest> request,
+    bool allowed) {
+  DCHECK_CURRENTLY_ON(BrowserThread::IO);
+
+  if (!request) {
+    return;
+  }
+
+  const DeviceRequests::const_iterator request_it = FindRequestIterator(label);
+  if (request_it == requests_.end()) {
+    return;
+  }
+
+  if (!allowed) {
+    LOG(WARNING) << "Fast-track Cobalt Audio Request: PERMISSION_DENIED";
+    FinalizeRequestFailed(request_it,
+                          MediaStreamRequestResult::PERMISSION_DENIED);
+    return;
+  }
+
+  // Manually construct the device list and jump to response handling.
+  blink::mojom::StreamDevicesSet stream_devices_set;
+  stream_devices_set.stream_devices.emplace_back(
+      blink::mojom::StreamDevices::New());
+
+  // Hardcode 16kHz Mono parameters (Starboard spec).
+  media::AudioParameters params(
+      media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
+      media::ChannelLayoutConfig::Mono(),
+      cobalt::media::kSampleRate, cobalt::media::kSamplesPerBuffer);
+
+  // Use a special prefix for the device_id to carry the session_id to the
+  // AudioThread. This allows deterministic lookup of the pre-started stream.
+  base::UnguessableToken session_token = base::UnguessableToken::Create();
+  std::string encoded_device_id =
+      "fast-track-" + session_token.ToString();
+
+  blink::MediaStreamDevice device(MediaStreamType::DEVICE_AUDIO_CAPTURE,
+                                  encoded_device_id, "Default Microphone");
+  device.input = params;
+
+  auto session_id = audio_input_device_manager()->Open(device);
+  device.set_session_id(session_id);
+
+  media::AudioManager* audio_manager = media::AudioManager::Get();
+  if (audio_manager) {
+    audio_manager->PreStartStream(session_token, params);
+  }
+
+  stream_devices_set.stream_devices[0]->audio_device = device;
+
+  // Resolve the JS promise immediately.
+  // This tells the UI to start "Listening" while the hardware is still warming
+  // up.
+  HandleAccessRequestResponse(label, params, stream_devices_set,
+                              blink::mojom::MediaStreamRequestResult::OK);
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 bool MediaStreamManager::SetUpDisplayCaptureRequest(DeviceRequest* request) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
@@ -3083,7 +3184,7 @@ void MediaStreamManager::FinalizeGenerateStreams(const std::string& label,
     return;
   }
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && BUILDFLAG(ENABLE_SCREEN_CAPTURE)
   CHECK(!request->captured_surface_controller());
   const WebContentsMediaCaptureId captured_tab_id = request->GetCapturedTabId();
   if (!captured_tab_id.is_null()) {
@@ -3093,7 +3194,7 @@ void MediaStreamManager::FinalizeGenerateStreams(const std::string& label,
             base::BindRepeating(&DeviceRequest::OnZoomLevelChange,
                                 request->GetWeakPtr(), label)));
   }
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 
   // TODO(crbug.com/40216442): Generalize to multiple streams.
   DCHECK_EQ(1u, request->stream_devices_set.stream_devices.size());
@@ -4094,7 +4195,7 @@ void MediaStreamManager::SetStateForTesting(
   requests_iterator->second->SetState(stream_type, new_state);
 }
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 void MediaStreamManager::SetConditionalFocusWindowForTesting(
     base::TimeDelta window) {
   conditional_focus_window_ = window;

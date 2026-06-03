@@ -62,6 +62,10 @@ class PLATFORM_EXPORT WebContentDecryptionModuleImpl
   void GetStatusForPolicy(const WebString& min_hdcp_version_string,
                           WebContentDecryptionModuleResult result) override;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void GetMetrics(WebContentDecryptionModuleResult result) override;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   std::unique_ptr<media::CdmContextRef> GetCdmContextRef();
   media::CdmConfig GetCdmConfig() const;
 

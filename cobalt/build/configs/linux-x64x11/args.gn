@@ -1,0 +1,3 @@
+import("//cobalt/build/configs/linux_common.gn")
+
+target_cpu = "x64"

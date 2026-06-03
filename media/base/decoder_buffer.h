@@ -27,8 +27,13 @@
 #include "build/build_config.h"
 #include "media/base/decoder_buffer_side_data.h"
 #include "media/base/decrypt_config.h"
+#include "media/base/demuxer_stream.h"
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/media_export.h"
+#include "starboard/common/experimental/media_buffer_pool.h"  // nogncheck
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/timestamp_constants.h"
+#include "media/base/video_codecs.h"
 
 namespace media {
 
@@ -69,6 +74,40 @@ class MEDIA_EXPORT DecoderBuffer
     DiscardPadding discard_padding;
   };
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  class Allocator {
+   public:
+    // The class technically allocates opaque handles from the underlying memory
+    // pool.  While these handles can sometimes be used as a pointer directly,
+    // they may also be opaque handles that cannot be dereferenced, and can only
+    // be written to using |Write|.
+    // TODO(b/369245553): Currently only the surface functions below are using
+    // Handle, and all the underlying Allocators are still using void* to avoid
+    // massive changes.  Once this feature is proven to be working, we should
+    // consider refactoring the underlying allocators.
+    typedef intptr_t Handle;
+
+    // This has to be 0 to be compatible with existing code checking for
+    // nullptr.
+    static constexpr Handle kInvalidHandle = 0;
+
+    static Allocator* Get();
+    static void Set(Allocator* allocator);
+
+    // The function should never return kInvalidHandle.  It may terminate the
+    // app on allocation failure.
+    virtual Handle Allocate(DemuxerStream::Type type, size_t size) = 0;
+    virtual void Free(DemuxerStream::Type type, Handle handle, size_t size) = 0;
+    virtual void Write(Handle handle, const void* data, size_t size) = 0;
+
+    virtual base::TimeDelta GetBufferGarbageCollectionDurationThreshold()
+        const = 0;
+
+   protected:
+    ~Allocator() {}
+  };
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   // Allocates buffer with |size| > 0. |is_key_frame_| will default to false.
   // If size is 0, no buffer will be allocated.
   // TODO(crbug.com/365814210): Remove this constructor. Clients should use the
@@ -81,6 +120,7 @@ class MEDIA_EXPORT DecoderBuffer
   DecoderBuffer(base::PassKey<DecoderBuffer>, base::HeapArray<uint8_t> data);
   DecoderBuffer(base::PassKey<DecoderBuffer>,
                 std::unique_ptr<ExternalMemory> external_memory);
+
   enum class DecoderBufferType { kNormal, kEndOfStream };
   using ConfigVariant = DecoderBufferSideData::ConfigVariant;
   DecoderBuffer(base::PassKey<DecoderBuffer>,
@@ -167,11 +207,29 @@ class MEDIA_EXPORT DecoderBuffer
     duration_ = duration;
   }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  Allocator::Handle handle() const {
+    return allocator_data_->handle;
+  }
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   // The pointer to the start of the buffer. Prefer to construct a span around
   // the buffer, such as `base::span(decoder_buffer)`.
   // TODO(crbug.com/365814210): Remove in favor of AsSpan().
   const uint8_t* data() const {
     DCHECK(!end_of_stream());
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    if (allocator_data_) {
+      // The function is used by unit tests and Chromium media stack, so we keep
+      // it but CHECK() when the handle is annotated (e.g. cannot be converted
+      // to a pointer).
+#if !defined(OFFICIAL_BUILD)
+      using starboard::experimental::IsPointerAnnotated;
+      CHECK(!IsPointerAnnotated(allocator_data_->handle));
+#endif  // !defined(OFFICIAL_BUILD)
+      return reinterpret_cast<const uint8_t*>(allocator_data_->handle);
+    }
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
     if (external_memory_)
       return external_memory_->Span().data();
     return data_.data();
@@ -180,13 +238,29 @@ class MEDIA_EXPORT DecoderBuffer
   // The number of bytes in the buffer.
   size_t size() const {
     DCHECK(!end_of_stream());
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    return allocator_data_ ? allocator_data_->size : 0u;
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
     return external_memory_ ? external_memory_->Span().size() : data_.size();
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
   // Prefer writable_span(), though it should also be removed.
   //
   // TODO(crbug.com/41383992): Remove writable_data().
   uint8_t* writable_data() const {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    if (allocator_data_) {
+      // The function is used by unit tests and Chromium media stack, so we keep
+      // it but CHECK() when the handle is annotated (e.g. cannot be converted
+      // to a pointer).
+#if !defined(OFFICIAL_BUILD)
+      using starboard::experimental::IsPointerAnnotated;
+      CHECK(!IsPointerAnnotated(allocator_data_->handle));
+#endif  // !defined(OFFICIAL_BUILD)
+      return reinterpret_cast<uint8_t*>(allocator_data_->handle);
+    }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     DCHECK(!end_of_stream());
     DCHECK(!external_memory_);
     return const_cast<uint8_t*>(data_.data());
@@ -200,9 +274,26 @@ class MEDIA_EXPORT DecoderBuffer
   }
 
   bool empty() const {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    return !allocator_data_ || allocator_data_->size == 0u;
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     return external_memory_ ? external_memory_->Span().empty() : data_.empty();
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  auto begin() const { return data(); }
+  auto end() const { return data() + size(); }
+  auto first(size_t count) const {
+    CHECK_LE(count, size());
+    return base::span<const uint8_t>(data(), count);
+  }
+  auto subspan(size_t offset, size_t count) const {
+    CHECK_LE(offset, size());
+    CHECK_LE(offset + count, size());
+    return base::span<const uint8_t>(data() + offset, count);
+  }
+#else
   // Read-only iteration as bytes. This allows this type to meet the
   // requirements of `std::ranges::contiguous_range`, and thus be implicitly
   // convertible to a span.
@@ -220,6 +311,7 @@ class MEDIA_EXPORT DecoderBuffer
     return external_memory_ ? external_memory_->Span().subspan(offset, count)
                             : data_.subspan(offset, count);
   }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // TODO(crbug.com/365814210): Change the return type to std::optional.
   DiscardPadding discard_padding() const {
@@ -299,6 +391,14 @@ class MEDIA_EXPORT DecoderBuffer
   friend class base::RefCountedThreadSafe<DecoderBuffer>;
   virtual ~DecoderBuffer();
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  DecoderBuffer(DemuxerStream::Type type,
+                const uint8_t* data,
+                size_t size);
+  DecoderBuffer(DemuxerStream::Type type,
+                base::span<const uint8_t> data);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   // Allocates a buffer with a copy of `data` in it. `is_key_frame_` will
   // default to false.
   explicit DecoderBuffer(base::span<const uint8_t> data);
@@ -307,10 +407,25 @@ class MEDIA_EXPORT DecoderBuffer
   DecoderBuffer(DecoderBufferType decoder_buffer_type,
                 std::optional<ConfigVariant> next_config);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  struct AllocatorData {
+    AllocatorData(DemuxerStream::Type type, Allocator::Handle handle, size_t size)
+        : stream_type_(type), handle(handle), size(size) {}
+
+    DemuxerStream::Type stream_type_ = DemuxerStream::UNKNOWN;
+    Allocator::Handle handle = Allocator::kInvalidHandle;
+    size_t size = 0;
+  };
+  // Encoded data, allocated from DecoderBuffer::Allocator.
+  const std::optional<AllocatorData> allocator_data_;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   // Encoded data, if it is stored on the heap.
   const base::HeapArray<uint8_t> data_;
 
  private:
+  DecoderBuffer(DemuxerStream::Type type, size_t size);
+
   // ***************************************************************************
   // WARNING: This is a highly allocated object. Care should be taken when
   // adding any fields to make sure they are absolutely necessary. If a field

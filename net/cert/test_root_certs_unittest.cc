@@ -58,7 +58,7 @@ class TestRootCertsTest : public testing::TestWithParam<bool> {
         std::make_unique<DoNothingCTVerifier>(),
         base::MakeRefCounted<DefaultCTPolicyEnforcer>(),
         /*root_store_data=*/nullptr, /*instance_params=*/{}, std::nullopt);
-#elif BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_STARBOARD)
     return CertVerifyProc::CreateBuiltinVerifyProc(
         /*cert_net_fetcher=*/nullptr, CRLSet::BuiltinCRLSet().get(),
         std::make_unique<DoNothingCTVerifier>(),

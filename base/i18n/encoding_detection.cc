@@ -5,7 +5,10 @@
 #include "base/i18n/encoding_detection.h"
 
 #include "build/build_config.h"
-#include "third_party/ced/src/compact_enc_det/compact_enc_det.h"
+#include "build/buildflag.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "third_party/ced/src/compact_enc_det/compact_enc_det.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 
 // third_party/ced/src/util/encodings/encodings.h, which is included
 // by the include above, undefs UNICODE because that is a macro used
@@ -19,6 +22,7 @@
 
 namespace base {
 
+<<<<<<< HEAD
 namespace {
 
 // Include 7-bit encodings
@@ -31,6 +35,10 @@ constexpr CompactEncDet::TextCorpusType kPlainTextCorpus =
 }  // namespace
 
 bool DetectEncoding(std::string_view text, std::string* encoding) {
+=======
+bool DetectEncoding(const std::string& text, std::string* encoding) {
+#if !BUILDFLAG(IS_COBALT)
+>>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
   int consumed_bytes;
   bool is_reliable;
   Encoding enc = CompactEncDet::DetectEncoding(
@@ -49,6 +57,11 @@ bool DetectEncoding(std::string_view text, std::string* encoding) {
 
   *encoding = MimeEncodingName(enc);
   return true;
+#else
+  // Cobalt always uses UTF-8 and does not need dynamic encoding detection.
+  *encoding = "UTF-8";
+  return true;
+#endif  // !BUILDFLAG(IS_COBALT)
 }
 
 }  // namespace base

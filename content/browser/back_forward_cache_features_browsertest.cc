@@ -9,8 +9,10 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "content/browser/back_forward_cache_browsertest.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "content/browser/bluetooth/bluetooth_adapter_factory_wrapper.h"
 #include "content/browser/bluetooth/test/mock_bluetooth_delegate.h"
+#endif
 #include "content/browser/browser_interface_binders.h"
 #include "content/browser/generic_sensor/frame_sensor_provider_proxy.h"
 #include "content/browser/generic_sensor/web_contents_sensor_provider_proxy.h"
@@ -36,7 +38,9 @@
 #include "content/public/test/test_utils.h"
 #include "content/public/test/web_transport_simple_test_server.h"
 #include "content/shell/browser/shell.h"
-#include "device/bluetooth/test/mock_bluetooth_adapter.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "device/bluetooth/test/mock_bluetooth_adapter.h"  // nogncheck
+#endif
 #include "net/test/embedded_test_server/controllable_http_response.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/spawned_test_server/spawned_test_server.h"
@@ -3907,6 +3911,7 @@ IN_PROC_BROWSER_TEST_F(GeolocationBackForwardCacheBrowserTest,
       << "watchPosition API should have reported no errors";
 }
 
+#if !BUILDFLAG(IS_COBALT)
 class BluetoothBrowserTestContentBrowserClient
     : public ContentBrowserTestContentBrowserClient {
  public:
@@ -4107,6 +4112,7 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheWebBluetoothTest,
   EXPECT_EQ(current_frame_host(), rfh_a.get());
   ExpectRestored(FROM_HERE);
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 enum class SerialContext {
   kDocument,

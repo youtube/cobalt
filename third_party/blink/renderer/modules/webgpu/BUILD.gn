@@ -120,6 +120,17 @@ blink_modules_sources("webgpu") {
     # something to link to, though WebGPU won't be supported.
     deps += [ "//third_party/dawn/src/dawn:proc" ]
   }
+
+  # Cobalt completely disables WebGPU/Dawn to reduce binary size.
+  # We remove Dawn dependencies regardless of whether use_dawn is true or false.
+  # If use_dawn is false, we also use our own stubs in platform/ to satisfy links.
+  if (is_cobalt) {
+    if (use_dawn) {
+      deps -= [ "//third_party/dawn/src/dawn/wire" ]
+    } else {
+      deps -= [ "//third_party/dawn/src/dawn:proc" ]
+    }
+  }
 }
 
 source_set("unit_tests") {

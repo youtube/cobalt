@@ -8,9 +8,16 @@
 #include <cstdint>
 
 #include "base/functional/callback_forward.h"
+<<<<<<< HEAD
 #include "components/services/unzip/public/mojom/unzipper.mojom-forward.h"
+=======
+#include "build/buildflag.h"
+#include "components/services/unzip/public/mojom/unzipper.mojom.h"
+>>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
 #include "mojo/public/cpp/bindings/pending_remote.h"
-#include "third_party/ced/src/util/encodings/encodings.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "third_party/ced/src/util/encodings/encodings.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 
 namespace base {
 class FilePath;
@@ -45,10 +52,12 @@ base::OnceClosure Unzip(mojo::PendingRemote<mojom::Unzipper> unzipper,
 
 // Must be called on a sequenced task runner. `result_callback` will run on the
 // same sequence.
+#if !BUILDFLAG(IS_COBALT)
 using DetectEncodingCallback = base::OnceCallback<void(Encoding)>;
 void DetectEncoding(mojo::PendingRemote<mojom::Unzipper> unzipper,
                     const base::FilePath& zip_file,
                     DetectEncodingCallback result_callback);
+#endif  // !BUILDFLAG(IS_COBALT)
 
 // Must be called on a sequenced task runner. `result_callback` will run on the
 // same sequence.

@@ -38,7 +38,7 @@ if (is_android) {
 # Writable mmap isn't supported on Fuchsia, so it should be bypassed.
 posix_bypass_mmap = (is_android && current_cpu != "x86") || is_fuchsia
 
-enable_built_in_dns = use_blink
+enable_built_in_dns = use_blink && !is_starboard
 
 # TODO(droger): Support client auth on iOS. See http://crbug.com/145954).
 #
@@ -55,7 +55,7 @@ enable_built_in_dns = use_blink
 enable_client_certificates = !is_ios || (use_blink && !is_cronet_build)
 
 # Unix sockets are not supported on iOS.
-enable_unix_sockets = is_posix && !is_ios
+enable_unix_sockets = (is_posix && !is_starboard) && !is_ios
 
 # x86/x64 cast_shell builds run on regular trybots and can use python runtime
 # and remote test server. ARM cast_shell builds don't have python runtime.
@@ -84,6 +84,12 @@ use_remote_test_server =
 #              https://www.chromium.org/developers/design-documents/http-authentication/writing-a-spnego-authenticator-for-chrome-on-android
 use_external_gssapi = use_kerberos && !is_android && !is_win
 
+# The multi-packet per call QUIC optimizations rely on system calls like
+# recvmsg(), which are specific to the Linux kernel. Restrict the feature to
+# Starboard (assuming it corresponds to something running a Linux kernel
+# underneath) and Android (which does have a Linux kernel running underndeath).
+enable_multi_packets_per_call_quic_optimizations = is_cobalt && (is_starboard || is_android)
+
 config("net_test_config") {
   if (use_remote_test_server) {
     defines = [ "USE_REMOTE_TEST_SERVER" ]
@@ -108,6 +114,7 @@ buildflag_header("buildflags") {
     "ENABLE_DEVICE_BOUND_SESSIONS=$enable_device_bound_sessions",
     "ENABLE_BRACKETED_PROXY_URIS=$enable_bracketed_proxy_uris",
     "ENABLE_QUIC_PROXY_SUPPORT=$enable_quic_proxy_support",
+    "ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS=$enable_multi_packets_per_call_quic_optimizations",
   ]
 }
 
@@ -126,7 +133,7 @@ net_configs = [
   "//build/config/compiler:wexit_time_destructors",
 ]
 
-if (is_linux || is_chromeos) {
+if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
   net_configs += [ "//build/config/linux:libresolv" ]
 }
 
@@ -1320,8 +1327,6 @@ component("net") {
 
   if (is_linux) {
     sources += [
-      "base/network_change_notifier_linux.cc",
-      "base/network_change_notifier_linux.h",
       "proxy_resolution/proxy_config_service_linux.cc",
       "proxy_resolution/proxy_config_service_linux.h",
     ]
@@ -1330,7 +1335,7 @@ component("net") {
     }
   }
 
-  if (is_linux || is_chromeos || is_android) {
+  if ((is_linux || is_chromeos || is_android) && !is_cobalt_hermetic_build) {
     sources += [
       "base/address_map_linux.cc",
       "base/address_map_linux.h",
@@ -1342,10 +1347,12 @@ component("net") {
     ]
   }
 
-  if (is_linux) {
+  if (is_linux && !is_cobalt_hermetic_build) {
     sources += [
       "base/address_map_cache_linux.cc",
       "base/address_map_cache_linux.h",
+      "base/network_change_notifier_linux.cc",
+      "base/network_change_notifier_linux.h",
     ]
   }
 
@@ -1479,7 +1486,7 @@ component("net") {
     }
   }
 
-  if (is_android || is_chromeos || is_linux) {
+  if (is_android || is_chromeos || is_linux || is_starboard) {
     sources += [
       "base/network_change_notifier_passive.cc",
       "base/network_change_notifier_passive.h",
@@ -1786,6 +1793,7 @@ component("net") {
     deps += [ "//mojo/public/cpp/bindings:default_construct_tag" ]
   }
 
+<<<<<<< HEAD
   if (enable_disk_cache_sql_backend) {
     sources += [
       "disk_cache/sql/cache_entry_key.cc",
@@ -1797,6 +1805,30 @@ component("net") {
       "disk_cache/sql/sql_persistent_store.h",
     ]
     deps += [ "//sql:sql" ]
+=======
+  if (is_cobalt && is_linux && !use_nss_certs) {
+    sources += [ "cert/test_root_certs_builtin.cc" ]
+  }
+  if (is_starboard) {
+    assert(!chrome_root_store_supported)
+    sources += [
+      "cert/internal/trust_store_in_memory_starboard.cc",
+      "cert/internal/trust_store_in_memory_starboard.h",
+    ]
+    deps += [ "//starboard/common" ]
+    data_deps = [ "//starboard/content/ssl:copy_ssl_certificates_evergreen" ]
+  } else if (is_cobalt && is_linux && chrome_root_store_supported) {
+    # We use `is_cobalt` here because non-starboard configs builds Chromedriver
+    # which needs to use the Chrome Root Store only.
+    sources += [ "cert/internal/system_trust_store_cobalt.cc" ]
+  }
+
+  if (is_cobalt_hermetic_build) {
+    sources += [
+      "base/network_interfaces_starboard.cc",
+      "base/platform_mime_util_starboard.cc",
+    ]
+>>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
   }
 }
 
@@ -2236,7 +2268,7 @@ static_library("test_support") {
     ]
   }
 
-  if (is_linux || is_chromeos || is_android) {
+  if ((is_linux || is_chromeos || is_android) && !is_starboard) {
     sources += [
       "base/address_tracker_linux_test_util.cc",
       "base/address_tracker_linux_test_util.h",
@@ -2309,7 +2341,7 @@ static_library("test_support") {
       "test/spawned_test_server/remote_test_server_spawner_request.cc",
       "test/spawned_test_server/remote_test_server_spawner_request.h",
     ]
-  } else if (!is_ios) {
+  } else if (!is_ios && !is_starboard) {
     sources += [
       "test/spawned_test_server/local_test_server.cc",
       "test/spawned_test_server/local_test_server.h",
@@ -3034,6 +3066,10 @@ target(_test_target_type, "net_unittests") {
     "url_request/url_request_quic_unittest.cc",
     "url_request/url_request_unittest.cc",
   ]
+  if (is_cobalt_hermetic_build) {
+    sources += [ "test/starboard/run_all_unittests.cc" ]
+    sources -= [ "test/run_all_unittests.cc" ]
+  }
 
   if (is_android) {
     sources += [
@@ -3047,6 +3083,9 @@ target(_test_target_type, "net_unittests") {
       "proxy_resolution/proxy_config_service_android_unittest.cc",
       "ssl/ssl_platform_key_android_unittest.cc",
     ]
+    if (is_cobalt) {
+      sources += [ "cert/internal/trust_store_android_unittest.cc" ]
+    }
   }
 
   if (is_chromeos && use_nss_certs) {
@@ -3056,14 +3095,14 @@ target(_test_target_type, "net_unittests") {
     ]
   }
 
-  if (is_linux) {
+  if (is_linux && !is_starboard) {
     sources += [
       "base/network_change_notifier_linux_unittest.cc",
       "proxy_resolution/proxy_config_service_linux_unittest.cc",
     ]
   }
 
-  if (is_linux || is_chromeos) {
+  if ((is_linux || is_chromeos) && !is_starboard) {
     sources += [
       "base/address_tracker_linux_unittest.cc",
       "base/network_interfaces_linux_unittest.cc",
@@ -3177,7 +3216,7 @@ target(_test_target_type, "net_unittests") {
     sources += [ "base/sockaddr_util_posix_unittest.cc" ]
   }
 
-  if (is_android || is_chromeos) {
+  if (is_android || is_chromeos || is_starboard) {
     sources += [ "base/network_change_notifier_passive_unittest.cc" ]
   }
 
@@ -3334,7 +3373,7 @@ target(_test_target_type, "net_unittests") {
       "websockets/websocket_test_util.h",
     ]
 
-    if (!is_ios) {
+    if (!is_ios && !is_starboard) {
       # TODO(crbug.com/40812029): iOS does not have support for the spawned test
       # server, which is used by this test. The long term plan is to add
       # websocket support to the embedded test server and when that happens,

@@ -7,6 +7,9 @@
 
 #include "base/fuzzing_buildflags.h"
 #include "build/build_config.h"
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/common/log.h"  // nogncheck
+#endif
 
 #if !(defined(OFFICIAL_BUILD) || BUILDFLAG(IS_WIN))
 #include <stdlib.h>
@@ -56,7 +59,11 @@ extern "C" int __attribute__((weak)) __llvm_profile_write_file(void);
 // be removed in followups, so splitting it up like this now makes it easy to
 // land the followups.
 
-#if defined(COMPILER_GCC)
+#if BUILDFLAG(IS_STARBOARD)
+#define IMMEDIATE_CRASH() SB_CHECK(false)
+#define TRAP_SEQUENCE1_() SB_CHECK(false)
+#define TRAP_SEQUENCE2_()
+#elif defined(COMPILER_GCC)
 
 #if BUILDFLAG(IS_NACL)
 

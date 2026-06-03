@@ -618,7 +618,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 #endif  // BUILDFLAG(IS_APPLE)
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS)
 
 namespace {
 
@@ -689,6 +689,6 @@ TEST(PlatformThreadTidCacheTest, MainThreadSecond) {
 
 }  // namespace
 
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_STARBOARD)
 
 }  // namespace base

@@ -39,6 +39,8 @@ import("//build/rust/rust_bindgen.gni")
 import("//build/rust/rust_static_library.gni")
 import("//build/util/process_version.gni")
 import("//build_overrides/build.gni")
+import("//cobalt/build/configs/hacks.gni")
+import("//starboard/build/config/android_toolchain.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//testing/test.gni")
 
@@ -57,6 +59,11 @@ if (is_mac) {
 
 if (is_win) {
   import("//build/config/win/control_flow_guard.gni")
+}
+
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+  import("//starboard/build/config/toolchain_variables.gni")
 }
 
 declare_args() {
@@ -173,6 +180,15 @@ use_epoll = is_linux || is_chromeos || is_android
 # base compilation units to be linked in where they wouldn't have otherwise.
 # This does not include test code (test support and anything in the test
 # directory) which should use source_set as is recommended for GN targets).
+
+# Builds using the starboard or native toolchains must use
+# //copied_base/base instead.
+if (is_cobalt && is_partner_toolchain) {
+  not_needed([ "use_epoll" ])
+  group("base") {
+    public_deps = [ "//copied_base/base" ]
+  }
+} else {
 component("base") {
   sources = [
     "allocator/allocator_check.cc",
@@ -935,6 +951,14 @@ component("base") {
     _build_date_header,
   ]
 
+
+  if (is_cobalt_hermetic_build) {
+    sources += [
+      "base_paths_starboard.cc",
+      "base_paths_starboard.h",
+    ]
+  }
+
   # Various files that are unused in the Chromium build, but presumably here to
   # make downstream's life easier. They are not included in the main sources
   # list to avoid breaking GN formatting's auto-sorting.
@@ -1019,6 +1043,14 @@ component("base") {
       "files/file_path_watcher_inotify.cc",
       "files/file_path_watcher_inotify.h",
     ]
+
+    if (is_starboard) {
+      sources -= [
+        "files/file_path_watcher_inotify.cc",
+        "files/file_path_watcher_inotify.h",
+      ]
+      sources += [ "files/file_path_watcher_stub.cc" ]
+    }
   }
 
   all_dependent_configs = []
@@ -1049,6 +1081,7 @@ component("base") {
     "//third_party/modp_b64",
   ]
 
+<<<<<<< HEAD
   # Used by metrics/crc32
   deps += [ "//third_party/zlib" ]
 
@@ -1056,6 +1089,20 @@ component("base") {
     ":rust_logger",
     "//third_party/rust/serde_json_lenient/v0_2/wrapper",
   ]
+=======
+    if (!(is_cobalt && is_partner_toolchain)) {
+    # NaCl does not support Rust.
+    deps += [
+      ":rust_logger",
+      "//third_party/rust/serde_json_lenient/v0_2/wrapper",
+    ]
+    }
+  }
+
+  if (is_cobalt_hermetic_build) {
+    deps += [ "//starboard/common" ]
+  }
+>>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
 
   # `raw_ptr` cannot be made a component due to CRT symbol issues.
   # Its gateway to being a component is through `//base`, so we have
@@ -1090,10 +1137,18 @@ component("base") {
     "//third_party/abseil-cpp:absl",
   ]
 
+<<<<<<< HEAD
   sources += [
     "containers/span_rust.h",
     "strings/string_view_rust.h",
   ]
+=======
+  if (!is_nacl && !(is_cobalt && is_partner_toolchain)) {
+    sources += [
+      "containers/span_rust.h",
+      "strings/string_view_rust.h",
+    ]
+>>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
 
   # Base provides conversions between CXX types and base types (e.g.
   # std::string_view).
@@ -1102,7 +1157,7 @@ component("base") {
   # Needed for <atomic> if using newer C++ library than sysroot, except if
   # building inside the cros_sdk environment - use host_toolchain as a
   # more robust check for this.
-  if (!use_sysroot && (is_android || is_chromeos || (is_linux && !is_castos)) &&
+  if (!use_sysroot && (is_android || is_chromeos || (is_linux && !is_cobalt_hermetic_build && !is_castos)) &&
       host_toolchain != "//build/toolchain/cros:host") {
     libs += [ "atomic" ]
   }
@@ -1366,10 +1421,10 @@ component("base") {
       "android/unguessable_token_android.h",
     ]
     deps += [
-      ":base_minimal_jni($default_toolchain)",
-      ":command_line_jni($default_toolchain)",
-      ":library_loader_jni($default_toolchain)",
-      ":tasks_minimal_jni($default_toolchain)",
+      ":base_minimal_jni($android_toolchain)",
+      ":command_line_jni($android_toolchain)",
+      ":library_loader_jni($android_toolchain)",
+      ":tasks_minimal_jni($android_toolchain)",
       "//build:robolectric_buildflags",
     ]
     public_deps += [ "//third_party/jni_zero:jni_zero" ]
@@ -1705,6 +1760,7 @@ component("base") {
     }
   }
 
+<<<<<<< HEAD
   if (is_linux || is_chromeos) {
     sources += [
       "base_paths_posix.cc",
@@ -1728,6 +1784,177 @@ component("base") {
   }
   if (use_allocator_shim) {
     public_deps += [ "allocator/partition_allocator:allocator_shim" ]
+=======
+    if (is_posix || is_fuchsia) {
+      sources += [
+        "files/file_descriptor_watcher_posix.cc",
+        "files/file_descriptor_watcher_posix.h",
+        "files/file_enumerator_posix.cc",
+        "files/file_util_posix.cc",
+        "memory/page_size_posix.cc",
+      ]
+
+      if (!is_apple) {
+        sources += [ "files/drive_info_posix.cc" ]
+      }
+    }
+
+    if ((is_posix && !is_ios) || is_fuchsia) {
+      sources += [
+        "process/process_metrics_posix.cc",
+        "sync_socket_posix.cc",
+      ]
+    }
+
+    if (is_posix && !is_apple) {
+      sources += [
+        "native_library_posix.cc",
+        "posix/can_lower_nice_to.cc",
+        "posix/can_lower_nice_to.h",
+        "process/launch_posix.cc",
+        "profiler/module_cache_posix.cc",
+        "profiler/stack_base_address_posix.cc",
+        "profiler/stack_base_address_posix.h",
+        "profiler/stack_copier_signal.cc",
+        "profiler/stack_copier_signal.h",
+        "profiler/thread_delegate_posix.cc",
+        "profiler/thread_delegate_posix.h",
+      ]
+
+      if (is_starboard) {
+        sources -= ["native_library_posix.cc"]
+        sources += ["native_library_starboard.cc"]
+      }
+    }
+
+    if (is_posix && !is_android) {
+      sources += [ "debug/stack_trace_posix.cc" ]
+    }
+
+    if (is_posix && !is_ios) {
+      sources += [ "process/process_posix.cc" ]
+    }
+    if (!is_win && !is_chromeos && !is_android && !is_linux) {
+      sources += [ "synchronization/cancelable_event_default.cc" ]
+    }
+
+    if (is_linux || is_chromeos || is_android) {
+      sources += [ "synchronization/cancelable_event_posix.cc" ]
+    }
+
+    if (use_blink) {
+      sources += [
+        "memory/discardable_shared_memory.cc",
+        "memory/discardable_shared_memory.h",
+        "memory/shared_memory_switch.cc",
+        "memory/shared_memory_switch.h",
+        "metrics/histogram_shared_memory.cc",
+        "metrics/histogram_shared_memory.h",
+        "process/kill.cc",
+        "process/kill.h",
+        "process/launch.cc",
+        "process/launch.h",
+        "process/memory.cc",
+        "process/memory.h",
+        "process/process_iterator.cc",
+        "process/process_iterator.h",
+      ]
+
+      if (is_posix) {
+        sources += [ "process/kill_posix.cc" ]
+      }
+    }
+
+    if (is_linux || is_chromeos) {
+      sources += [
+        "base_paths_posix.cc",
+        "debug/elf_reader.cc",
+        "debug/elf_reader.h",
+        "stack_canary_linux.cc",
+        "stack_canary_linux.h",
+      ]
+    }
+    if (use_partition_alloc) {
+      # Add stuff that doesn't work in NaCl or other environments that disable
+      # partition_alloc.
+      sources += [
+        "allocator/dispatcher/memory_tagging.cc",
+        "allocator/dispatcher/memory_tagging.h",
+
+        # PartitionAlloc uses SpinLock, which doesn't work in NaCl (see below).
+        "allocator/miracle_parameter.cc",
+        "allocator/miracle_parameter.h",
+        "allocator/partition_alloc_features.cc",
+        "allocator/partition_alloc_features.h",
+        "allocator/partition_alloc_support.cc",
+        "allocator/partition_alloc_support.h",
+      ]
+    }
+    if (use_allocator_shim) {
+      public_deps += [ "allocator/partition_allocator:allocator_shim" ]
+    }
+
+    if (is_cobalt && is_partner_toolchain) {
+      sources -= [
+        "logging/rust_log_integration.cc",
+        "logging/rust_log_integration.h",
+      ]
+    }
+  }
+
+  if (is_starboard) {
+    sources -= [ "process/launch_posix.cc" ]
+    sources += [
+      "message_loop/message_pump_ui_starboard.cc",
+      "message_loop/message_pump_ui_starboard.h",
+      "process/launch_starboard.cc",
+    ]
+    deps += [
+      "//starboard:starboard_group",
+      "//starboard/common",
+    ]
+  }
+
+  if (is_cobalt_hermetic_build) {
+    sources -= [
+      "debug/debugger_posix.cc",
+      "process/process_posix.cc",
+      "process/process_linux.cc",
+    ]
+    sources += [
+      "process/process_stubs.cc",
+      "starboard/debugger_starboard.cc",
+    ]
+  }
+
+  # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
+  if (enable_cobalt_hermetic_hacks) {
+    sources -= [
+      #           ../../base/process/process_linux.cc:8:10: fatal error: 'linux/magic.h' file not found
+      # #include <linux/magic.h>
+      "files/dir_reader_linux.h",
+
+      #   ../../base/process/launch_posix.cc:145:18: error: use of undeclared identifier 'SYS_rt_sigaction'
+      # return syscall(SYS_rt_sigaction, sig, act, oact, sizeof(kernel_sigset_t));
+      "posix/can_lower_nice_to.cc",
+      "posix/can_lower_nice_to.h",
+      "profiler/module_cache_posix.cc",
+      "profiler/stack_copier_signal.cc",
+      "profiler/stack_copier_signal.h",
+      "profiler/thread_delegate_posix.cc",
+      "profiler/thread_delegate_posix.h",
+
+      #         ../../base/process/process_metrics_posix.cc:119:27: error: invalid use of incomplete type 'mallinfo'
+      # struct mallinfo minfo = mallinfo();
+      "process/process_metrics_posix.cc",
+    ]
+    sources += [
+      "process/process_metrics_posix_starboard_stub.cc",
+    ]
+
+    # Find a way to fix the offending customizations instead.
+    configs -= [ "//build/config/compiler:prevent_unsafe_narrowing" ]
+>>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
   }
 
   # Windows.
@@ -2206,10 +2433,16 @@ component("base") {
         ]
       }
 
-      # We include launch_mac on simulator builds so unittests can fork. But,
-      # platforms like tvOS continue to use launch_ios since they do not support
-      # multi-processes.
-      if (target_environment == "simulator" && target_platform == "iphoneos") {
+      # We include launch_mac on simulator builds so unit and browser tests can
+      # fork.
+      # iOS-based platforms like tvOS need special treatment in launch_mac.cc
+      # due to some symbols being marked unavailable despite being present,
+      # which is why this condition is restricted to specific `target_platform`
+      # values.
+      # In all cases, this is restricted to simulator builds because App Store
+      # restrictions forbid the use of multiple processes in applications.
+      if (target_environment == "simulator" &&
+          (target_platform == "iphoneos" || target_platform == "tvos")) {
         sources += [
           "process/kill_mac.cc",
           "process/launch_mac.cc",
@@ -2303,6 +2536,22 @@ component("base") {
         "linux_util.h",
       ]
     }
+  }
+
+  if (is_cobalt) {
+    sources += [
+      "memory/cobalt_memory_context.cc",
+      "memory/cobalt_memory_context.h",
+      "memory/cobalt_memory_attribution_observer.cc",
+      "memory/cobalt_memory_attribution_observer.h",
+      "system/sys_info_starboard.cc",
+      "system/sys_info_starboard.h",
+    ]
+
+    deps += [
+      "//starboard/common:common_headers_only",
+      "//starboard:starboard_headers_only",
+    ]
   }
 
   if (use_blink) {
@@ -2501,6 +2750,7 @@ component("base") {
     configs += [ "//build/config/compiler:optimize_max" ]
   }
 }
+}
 
 rust_bindgen("logging_log_severity_bindgen") {
   # TODO(danakj): Maybe combine all base bindgen targets, or all base/logging
@@ -2626,6 +2876,11 @@ buildflag_header("cfi_buildflags") {
   }
 }
 
+if (is_cobalt && is_partner_toolchain) {
+  group("debugging_buildflags") {
+    public_deps = [ "//copied_base/base:debugging_buildflags" ]
+  }
+} else {
 buildflag_header("debugging_buildflags") {
   header = "debugging_buildflags.h"
   header_dir = "base/debug"
@@ -2636,7 +2891,7 @@ buildflag_header("debugging_buildflags") {
 
   # TODO(crbug.com/40258939): Try and enable these checks on Android too.
   enable_commandline_sequence_checks =
-      (is_debug || dcheck_always_on) && !is_android
+      (is_debug || dcheck_always_on) && !is_android && !is_cobalt
 
   if (enable_stack_trace_line_numbers) {
     assert(
@@ -2662,6 +2917,7 @@ buildflag_header("debugging_buildflags") {
     "ENABLE_ALLOCATION_TRACE_RECORDER_FULL_REPORTING=$build_allocation_trace_recorder_full_reporting",
     "PRINT_UNSYMBOLIZED_STACK_TRACES=$print_unsymbolized_stack_traces",
   ]
+}
 }
 
 buildflag_header("feature_list_buildflags") {
@@ -2695,7 +2951,7 @@ buildflag_header("protected_memory_buildflags") {
   header_dir = "base/memory"
 
   protected_memory_enabled = !is_component_build && is_clang &&
-                             (is_win || is_linux || is_android || is_mac)
+                             (is_win || is_linux || is_android || is_mac) && !is_cobalt_hermetic_build
 
   flags = [ "PROTECTED_MEMORY_ENABLED=$protected_memory_enabled" ]
 }
@@ -2808,6 +3064,10 @@ static_library("base_static") {
     configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_max" ]
   }
+
+  if (is_starboard) {
+    deps += [ "//starboard/common" ]
+  }
 }
 
 buildflag_header("i18n_transliterator") {
@@ -2891,6 +3151,9 @@ component("i18n") {
     "//third_party/ced",
     "//third_party/icu",
   ]
+  if (is_cobalt) {
+    public_deps -= [ "//third_party/ced" ]
+  }
   deps = [
     ":i18n_transliterator",
     "//build:chromecast_buildflags",
@@ -3687,6 +3950,10 @@ test("base_unittests") {
     "allocator/partition_allocator/src/partition_alloc/pointers/raw_ref_unittest.cc",
   ]
 
+  if (is_cobalt) {
+    sources += [ "system/sys_info_starboard_unittest.cc" ]
+  }
+
   if (!is_cronet_build) {
     # location_unittest.cc fails gn check for tracing-shimmed Cronet builds.
     # Cronet buildbot do not run base_unittests, so exclusing this test
@@ -3747,14 +4014,28 @@ test("base_unittests") {
     deps += [ "allocator/partition_allocator/src/partition_alloc:unittests" ]
   }
 
+<<<<<<< HEAD
   deps += [ "//build/rust:cxx_cppdeps" ]
+=======
+  if (!is_nacl && !(is_cobalt && is_partner_toolchain)) {
+    deps += [ "//build/rust:cxx_cppdeps" ]
+  }
+>>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
 
+  if (is_starboard) {
+    deps += [
+      "//starboard:starboard_group",
+      "//starboard/common",
+    ]
+    data_deps = []
+  } else {
   data_deps = [
     "//base/test:immediate_crash_test_helper",
     "//base/test:test_child_process",
     "//base/test:test_shared_library",
     "//testing/buildbot/filters:base_unittests_filters",
   ]
+  }
   if (is_ios) {
     deps += [ "//base/test:test_shared_library_ios+bundle" ]
   }
@@ -3896,7 +4177,51 @@ test("base_unittests") {
     deps += [ ":stack_canary_linux_unittests" ]
   }
 
+<<<<<<< HEAD
   sources += [ "test/test_trace_processor_example_unittest.cc" ]
+=======
+  if (is_starboard) {
+    sources -= [
+      "debug/stack_trace_unittest.cc",
+      "files/file_path_watcher_unittest.cc",
+      "files/file_util_unittest.cc",
+      "immediate_crash_unittest.cc",
+      "memory/platform_shared_memory_region_unittest.cc",
+      "metrics/field_trial_unittest.cc",
+      "native_library_unittest.cc",
+      "process/process_metrics_unittest.cc",
+      "profiler/module_cache_unittest.cc",
+      "profiler/stack_sampling_profiler_unittest.cc",
+      "profiler/stack_sampler_unittest.cc",
+      "sync_socket_unittest.cc",
+      "system/sys_info_unittest.cc",
+      "test/task_environment_unittest.cc",
+      "task/thread_pool/thread_pool_impl_unittest.cc",
+    ]
+
+    if (is_linux) {
+      sources -= [
+        "debug/proc_maps_linux_unittest.cc",
+        "process/process_util_unittest.cc",
+        "process/process_unittest.cc",
+        "test/launcher/test_launcher_unittest.cc",
+        "test/launcher/test_results_tracker_unittest.cc",
+      ]
+    }
+  }
+
+  # TODO: b/402471389 - Cobalt: try to enable these tests.
+  if (enable_cobalt_hermetic_hacks) {
+    sources -= [
+      "process/memory_unittest.cc",
+      "state_transitions_unittest.cc",
+    ]
+  }
+
+  if (enable_base_tracing && !is_cobalt_hermetic_build) {
+    sources += [ "test/test_trace_processor_example_unittest.cc" ]
+  }
+>>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
 
   if (is_posix) {
     sources += [
@@ -3909,7 +4234,16 @@ test("base_unittests") {
       "posix/file_descriptor_shuffle_unittest.cc",
       "posix/unix_domain_socket_unittest.cc",
     ]
+<<<<<<< HEAD
     if (!is_apple) {
+=======
+    if (is_starboard) {
+      sources -= [
+        "posix/unix_domain_socket_unittest.cc",
+      ]
+    }
+    if (!is_nacl && !is_apple && !is_starboard) {
+>>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
       sources += [
         "profiler/stack_base_address_posix_unittest.cc",
         "profiler/stack_copier_signal_unittest.cc",
@@ -4108,7 +4442,7 @@ test("base_unittests") {
     deps += [ ":base_profiler_test_support_library" ]
   }
 
-  if (is_fuchsia || is_linux || is_chromeos) {
+  if (is_fuchsia || (is_linux && !is_cobalt_hermetic_build) || is_chromeos) {
     sources += [
       "debug/elf_reader_unittest.cc",
       "debug/test_elf_image_builder.cc",
@@ -4189,7 +4523,7 @@ test("base_unittests") {
     ]
   }
 
-  if (!is_fuchsia && !is_ios) {
+  if (!is_fuchsia && !is_ios && !is_starboard) {
     sources += [ "files/file_locking_unittest.cc" ]
   }
 
@@ -4835,6 +5169,13 @@ if (is_android) {
       "android/java/src/org/chromium/base/memory/MemoryInfoBridge.java",
       "android/java/src/org/chromium/base/memory/MemoryPurgeManager.java",
     ]
+
+    if (is_cobalt) {
+      sources += [
+        "android/java/src/org/chromium/base/memory/CobaltMemoryInfoBridge.java",
+      ]
+    }
+
   }
 
   android_library("memory_java") {
@@ -4852,6 +5193,13 @@ if (is_android) {
       "android/java/src/org/chromium/base/memory/MemoryPurgeManager.java",
       "android/java/src/org/chromium/base/memory/SelfFreezeCallback.java",
     ]
+
+    if (is_cobalt) {
+      sources += [
+        "android/java/src/org/chromium/base/memory/CobaltMemoryInfoBridge.java",
+      ]
+    }
+
     deps = [
       ":library_loader_java",
       ":log_java",

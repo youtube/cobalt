@@ -17,7 +17,7 @@ if (is_ios) {
 }
 
 is_serial_enabled_platform =
-    is_win || ((is_linux || is_chromeos) && use_udev) || is_mac || is_android
+    !is_cobalt && (is_win || ((is_linux || is_chromeos) && use_udev) || is_mac || is_android)
 
 source_set("lib") {
   # This should be visible only to embedders of the Device Service, and the
@@ -29,6 +29,11 @@ source_set("lib") {
     "//content/test:test_support",
     "//services/device/public/cpp:test_support",
   ]
+ 
+  if (is_cobalt) {
+    visibility += [ "//cobalt" ]
+  }
+
   sources = [
     "device_service.cc",
     "device_service.h",
@@ -84,6 +89,12 @@ source_set("lib") {
   if (is_serial_enabled_platform) {
     deps += [ "//services/device/serial" ]
     defines = [ "IS_SERIAL_ENABLED_PLATFORM" ]
+  }
+
+  if (is_cobalt) {
+    deps -= [
+      "//services/device/usb/mojo",
+    ]
   }
 }
 
@@ -274,29 +285,31 @@ source_set("tests") {
       deps += [ "//services/device/battery" ]
     }
 
-    if ((!is_linux && !is_chromeos) || use_udev) {
-      sources += [
-        "hid/hid_connection_impl_unittest.cc",
-        "public/cpp/hid/hid_device_filter_unittest.cc",
-        "public/cpp/hid/hid_report_descriptor_unittest.cc",
-      ]
-      if (is_linux || is_chromeos) {
+    if (!is_cobalt) {
+      if ((!is_linux && !is_chromeos) || use_udev) {
         sources += [
-          "hid/hid_service_linux_unittest.cc",
-          "hid/input_service_linux_unittest.cc",
+          "hid/hid_connection_impl_unittest.cc",
+          "public/cpp/hid/hid_device_filter_unittest.cc",
+          "public/cpp/hid/hid_report_descriptor_unittest.cc",
         ]
-      }
-      if (!is_fuchsia && !is_ios) {
-        # Fuchsia and iOS do not currently implement HidService.
-        sources += [ "hid/hid_service_unittest.cc" ]
-      }
-      if (!is_ios) {
-        sources += [ "hid/hid_connection_unittest.cc" ]
-        deps += [
-          ":usb_test_gadget",
-          "//net:test_support",
-          "//services/device/usb",
-        ]
+        if (is_linux || is_chromeos) {
+          sources += [
+            "hid/hid_service_linux_unittest.cc",
+            "hid/input_service_linux_unittest.cc",
+          ]
+        }
+        if (!is_fuchsia && !is_ios) {
+          # Fuchsia and iOS do not currently implement HidService.
+          sources += [ "hid/hid_service_unittest.cc" ]
+        }
+        if (!is_ios) {
+          sources += [ "hid/hid_connection_unittest.cc" ]
+          deps += [
+            ":usb_test_gadget",
+            "//net:test_support",
+            "//services/device/usb",
+          ]
+        }
       }
     }
   }
@@ -485,6 +498,11 @@ if (is_android) {
       "//services/service_manager/public/mojom:mojom_java",
       "//third_party/jni_zero:jni_zero_java",
     ]
+    if (is_cobalt) {
+      deps -= [
+        "//services/device/usb:java",
+      ]
+    }
   }
 }
 

@@ -200,7 +200,7 @@ component("webnn_service") {
     libs += [ "runtimeobject.lib" ]
   }
 
-  if (is_mac || webnn_use_tflite) {
+  if (is_apple || webnn_use_tflite) {
     sources += [
       "queueable_resource_state.h",
       "queueable_resource_state_base.cc",

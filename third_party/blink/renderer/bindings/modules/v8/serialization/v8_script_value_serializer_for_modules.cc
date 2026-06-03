@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/bindings/modules/v8/serialization/v8_script_value_serializer_for_modules.h"
+#include "third_party/blink/public/common/buildflags.h"
 
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/web_crypto.h"
@@ -27,10 +28,12 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_media_stream_track.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_point_2d.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_restriction_target.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_certificate.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_data_channel.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_encoded_audio_frame.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_encoded_video_frame.h"
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
+#include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_certificate.h"  // nogncheck
+#include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_data_channel.h"  // nogncheck
+#include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_encoded_audio_frame.h"  // nogncheck
+#include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_encoded_video_frame.h"  // nogncheck
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 #include "third_party/blink/renderer/bindings/modules/v8/v8_video_frame.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/modules/crypto/crypto_key.h"
@@ -46,14 +49,16 @@
 #include "third_party/blink/renderer/modules/mediastream/media_stream_track.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream_utils.h"
 #include "third_party/blink/renderer/modules/mediastream/restriction_target.h"
-#include "third_party/blink/renderer/modules/peerconnection/rtc_certificate.h"
-#include "third_party/blink/renderer/modules/peerconnection/rtc_data_channel.h"
-#include "third_party/blink/renderer/modules/peerconnection/rtc_data_channel_attachment.h"
-#include "third_party/blink/renderer/modules/peerconnection/rtc_data_channel_transfer_list.h"
-#include "third_party/blink/renderer/modules/peerconnection/rtc_encoded_audio_frame.h"
-#include "third_party/blink/renderer/modules/peerconnection/rtc_encoded_audio_frame_delegate.h"
-#include "third_party/blink/renderer/modules/peerconnection/rtc_encoded_video_frame.h"
-#include "third_party/blink/renderer/modules/peerconnection/rtc_encoded_video_frame_delegate.h"
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
+#include "third_party/blink/renderer/modules/peerconnection/rtc_certificate.h"  // nogncheck
+#include "third_party/blink/renderer/modules/peerconnection/rtc_data_channel.h"  // nogncheck
+#include "third_party/blink/renderer/modules/peerconnection/rtc_data_channel_attachment.h"  // nogncheck
+#include "third_party/blink/renderer/modules/peerconnection/rtc_data_channel_transfer_list.h"  // nogncheck
+#include "third_party/blink/renderer/modules/peerconnection/rtc_encoded_audio_frame.h"  // nogncheck
+#include "third_party/blink/renderer/modules/peerconnection/rtc_encoded_audio_frame_delegate.h"  // nogncheck
+#include "third_party/blink/renderer/modules/peerconnection/rtc_encoded_video_frame.h"  // nogncheck
+#include "third_party/blink/renderer/modules/peerconnection/rtc_encoded_video_frame_delegate.h"  // nogncheck
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 #include "third_party/blink/renderer/modules/webcodecs/audio_data.h"
 #include "third_party/blink/renderer/modules/webcodecs/audio_data_attachment.h"
 #include "third_party/blink/renderer/modules/webcodecs/audio_data_transfer_list.h"
@@ -111,6 +116,7 @@ bool V8ScriptValueSerializerForModules::ExtractTransferable(
     return true;
   }
 
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
   if (RTCDataChannel* channel =
           V8RTCDataChannel::ToWrappable(isolate, object)) {
     if (RuntimeEnabledFeatures::TransferableRTCDataChannelEnabled(
@@ -130,6 +136,7 @@ bool V8ScriptValueSerializerForModules::ExtractTransferable(
       return true;
     }
   }
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 
   if (MediaStreamTrack* track =
           V8MediaStreamTrack::ToWrappable(isolate, object)) {
@@ -223,6 +230,7 @@ bool V8ScriptValueSerializerForModules::WriteDOMObject(
     }
     return WriteFileSystemHandle(kFileSystemDirectoryHandleTag, dir_handle);
   }
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
   if (auto* certificate = dispatcher.ToMostDerived<RTCCertificate>()) {
     webrtc::RTCCertificatePEM pem = certificate->Certificate()->ToPEM();
     WriteAndRequireInterfaceTag(kRTCCertificateTag);
@@ -248,6 +256,7 @@ bool V8ScriptValueSerializerForModules::WriteDOMObject(
     }
     return WriteRTCEncodedVideoFrame(video_frame);
   }
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
   if (auto* video_frame = dispatcher.ToMostDerived<VideoFrame>()) {
     if (IsForStorage()) {
       exception_state.ThrowDOMException(DOMExceptionCode::kDataCloneError,
@@ -311,6 +320,7 @@ bool V8ScriptValueSerializerForModules::WriteDOMObject(
     }
     return WriteMediaStreamTrack(track, dispatcher, exception_state);
   }
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
   if (auto* channel = dispatcher.DowncastTo<RTCDataChannel>()) {
     if (!RuntimeEnabledFeatures::TransferableRTCDataChannelEnabled(
             ExecutionContext::From(GetScriptState()))) {
@@ -331,6 +341,7 @@ bool V8ScriptValueSerializerForModules::WriteDOMObject(
     }
     return WriteRTCDataChannel(channel);
   }
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
   if (auto* crop_target = dispatcher.ToMostDerived<CropTarget>()) {
     if (!RuntimeEnabledFeatures::RegionCaptureEnabled(
             ExecutionContext::From(GetScriptState()))) {
@@ -590,6 +601,7 @@ bool V8ScriptValueSerializerForModules::WriteFileSystemHandle(
   return true;
 }
 
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 bool V8ScriptValueSerializerForModules::WriteRTCEncodedAudioFrame(
     RTCEncodedAudioFrame* audio_frame) {
   auto* attachment =
@@ -617,6 +629,7 @@ bool V8ScriptValueSerializerForModules::WriteRTCEncodedVideoFrame(
   WriteUint32(index);
   return true;
 }
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 
 bool V8ScriptValueSerializerForModules::WriteVideoFrameHandle(
     scoped_refptr<VideoFrameHandle> handle) {
@@ -714,6 +727,7 @@ bool V8ScriptValueSerializerForModules::WriteMediaStreamTrack(
   return true;
 }
 
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 bool V8ScriptValueSerializerForModules::WriteRTCDataChannel(
     RTCDataChannel* channel) {
   if (!RuntimeEnabledFeatures::TransferableRTCDataChannelEnabled()) {
@@ -733,6 +747,7 @@ bool V8ScriptValueSerializerForModules::WriteRTCDataChannel(
 
   return true;
 }
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 
 bool V8ScriptValueSerializerForModules::WriteCropTarget(
     CropTarget* crop_target) {

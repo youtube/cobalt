@@ -184,7 +184,7 @@ class CONTENT_EXPORT RendererBlinkPlatformImpl : public BlinkPlatformImpl {
   CreateWebGPUGraphicsContext3DProvider(
       const blink::WebURL& document_url) override;
   blink::WebString ConvertIDNToUnicode(const blink::WebString& host) override;
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
   void SetThreadType(base::PlatformThreadId thread_id,
                      base::ThreadType) override;
 #endif
@@ -263,13 +263,19 @@ class CONTENT_EXPORT RendererBlinkPlatformImpl : public BlinkPlatformImpl {
     webui_resource_to_code_cache_id_map_ = resource_map;
   }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  virtual uint64_t GetMediaSourceMaximumMemoryCapacity() const override;
+  virtual uint64_t GetMediaSourceCurrentMemoryCapacity() const override;
+  virtual uint64_t GetMediaSourceTotalAllocatedMemory() const override;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
  private:
   bool CheckPreparsedJsCachingEnabled() const;
 
   void Collect3DContextInformation(blink::Platform::GraphicsInfo* gl_info,
                                    const gpu::GPUInfo& gpu_info) const;
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC) || \
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC) || \
     BUILDFLAG(IS_WIN)
   std::unique_ptr<blink::WebSandboxSupport> sandbox_support_;
 #endif

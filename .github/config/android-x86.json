@@ -1,0 +1,15 @@
+{
+  "docker_service": "linux",
+  "platforms": [
+    "android-x86"
+  ],
+  "targets": [
+    "cobalt:gn_all"
+  ],
+  "includes": [
+    {
+      "name": "x86",
+      "platform": "android-x86"
+    }
+  ]
+}

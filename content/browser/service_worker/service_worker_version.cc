@@ -35,6 +35,7 @@
 #include "components/services/storage/public/mojom/service_worker_database.mojom-forward.h"
 #include "content/browser/bad_message.h"
 #include "content/browser/child_process_security_policy_impl.h"
+#include "content/browser/storage_partition_impl.h"
 #include "content/browser/renderer_host/back_forward_cache_can_store_document_result.h"
 #include "content/browser/renderer_host/private_network_access_util.h"
 #include "content/browser/service_worker/payment_handler_support.h"
@@ -43,11 +44,15 @@
 #include "content/browser/service_worker/service_worker_container_host.h"
 #include "content/browser/service_worker/service_worker_context_core.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "content/browser/service_worker/service_worker_hid_delegate_observer.h"
+#endif
 #include "content/browser/service_worker/service_worker_host.h"
 #include "content/browser/service_worker/service_worker_installed_scripts_sender.h"
 #include "content/browser/service_worker/service_worker_security_utils.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "content/browser/service_worker/service_worker_usb_delegate_observer.h"
+#endif
 #include "content/common/content_navigation_policy.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/content_browser_client.h"
@@ -454,7 +459,7 @@ void ServiceWorkerVersion::SetStatus(Status status) {
   if (status == INSTALLED) {
     embedded_worker_->OnWorkerVersionInstalled();
   } else if (status == ACTIVATED) {
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
     // Notify the hid delegate observer if the active service worker has any hid
     // event handlers.
     context_->hid_delegate_observer()->UpdateHasEventHandlers(
@@ -464,7 +469,7 @@ void ServiceWorkerVersion::SetStatus(Status status) {
     // event handlers.
     context_->usb_delegate_observer()->UpdateHasEventHandlers(
         registration_id_, has_usb_event_handlers_);
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
   } else if (status == REDUNDANT) {
     embedded_worker_->OnWorkerVersionDoomed();
 

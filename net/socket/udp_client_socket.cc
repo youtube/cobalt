@@ -184,6 +184,16 @@ void UDPClientSocket::ApplySocketTag(const SocketTag& tag) {
   socket_.ApplySocketTag(tag);
 }
 
+#if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
+int UDPClientSocket::ReadMultiplePackets(ReadPacketResults* results,
+                                         int read_buffer_size,
+                                         CompletionOnceCallback callback) {
+  int result = socket_.ReadMultiplePackets(results, read_buffer_size,
+                                     std::move(callback));
+  return result;
+}
+#endif
+
 int UDPClientSocket::Read(IOBuffer* buf,
                           int buf_len,
                           CompletionOnceCallback callback) {

@@ -73,7 +73,7 @@ class AcceptHeaderTest : public ContentBrowserTest {
 
   std::string GetOptionalImageCodecs() const {
     std::string result;
-#if BUILDFLAG(ENABLE_AV1_DECODER)
+#if BUILDFLAG(ENABLE_DAV1D_DECODER)
     result.append("image/avif,");
 #endif
     return result;

@@ -13,4 +13,8 @@ blink_modules_sources("video_rvfc") {
   ]
 
   deps = [ "//third_party/blink/renderer/modules/xr:xr" ]
+
+  if (is_cobalt) {
+    deps -= [ "//third_party/blink/renderer/modules/xr:xr" ]
+  }
 }

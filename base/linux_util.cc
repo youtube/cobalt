@@ -26,6 +26,7 @@
 #include "base/files/dir_reader_posix.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_file.h"
+#include "base/logging.h"
 #include "base/strings/safe_sprintf.h"
 #include "base/strings/span_printf.h"
 #include "base/strings/string_number_conversions.h"

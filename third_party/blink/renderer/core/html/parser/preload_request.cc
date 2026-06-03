@@ -140,11 +140,13 @@ Resource* PreloadRequest::Start(Document* document) {
     UseCounter::Count(document, WebFeature::kSharedStorageAPI_Image_Attribute);
   }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   bool browsing_topics =
       browsing_topics_eligible_ && RuntimeEnabledFeatures::TopicsAPIEnabled() &&
       document->domWindow()->IsSecureContext() &&
       !document->domWindow()->GetSecurityOrigin()->IsOpaque();
   resource_request.SetBrowsingTopics(browsing_topics);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   ResourceLoaderOptions options(document->domWindow()->GetCurrentWorld());
   options.initiator_info = initiator_info;

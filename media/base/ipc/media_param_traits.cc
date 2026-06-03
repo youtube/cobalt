@@ -154,7 +154,6 @@ void ParamTraits<media::EncryptionPattern>::Log(const param_type& p,
                                                 std::string* l) {
   l->append(base::StringPrintf("<EncryptionPattern>"));
 }
-
 }  // namespace IPC
 
 // Generate param traits write methods.

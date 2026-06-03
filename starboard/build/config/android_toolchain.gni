@@ -1,0 +1,26 @@
+# Copyright 2026 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Identifies the toolchain that should be used for Android-specific targets
+# (JNI code generation, Android tools, etc.).
+# This variable is meant to replace `default_toolchain` in upstream Android GN
+# files where it is used to avoid duplicate builds by secondary toolchains.
+# In Cobalt modular builds with separate toolchains, the `default_toolchain` is
+# a Linux/Evergreen toolchain where is_android=false. Android targets must be
+# evaluated in the starboard toolchain where current_os="android".
+if (is_cobalt && build_with_separate_cobalt_toolchain) {
+  android_toolchain = starboard_toolchain
+} else {
+  android_toolchain = default_toolchain
+}

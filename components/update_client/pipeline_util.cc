@@ -11,9 +11,15 @@
 
 namespace update_client {
 
+#if BUILDFLAG(IS_STARBOARD)
+base::Value::Dict MakeSimpleOperationEvent(
+    base::expected<OperationResult, CategorizedError> result,
+    const int operation_type) {
+#else
 base::Value::Dict MakeSimpleOperationEvent(
     base::expected<base::FilePath, CategorizedError> result,
     const int operation_type) {
+#endif
   return MakeSimpleOperationEvent(
       result.has_value()
           ? CategorizedError(

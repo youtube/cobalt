@@ -64,6 +64,13 @@
 #include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
 #include "ui/gfx/geometry/size.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/feature_list.h"
+#include "cobalt/media/audio/audio_input_constants.h"
+#include "media/base/media_switches.h"
+#include "third_party/blink/renderer/platform/mediastream/media_stream_audio_processor_options.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace blink {
 
 using blink::mojom::MediaStreamRequestResult;
@@ -719,6 +726,43 @@ void UserMediaProcessor::SetupAudioInput() {
   }
 
   if (blink::IsDeviceMediaType(audio_controls.stream_type)) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    SendLogMessage(
+        base::StringPrintf("Cobalt: SetupAudioInput({request_id=%d}) => "
+                           "(Shortcut handshake, hardcoding capabilities)",
+                           current_request_info_->request_id()));
+    
+    // Force-disable all native processing to get a "Straight Pipe" at 16kHz.
+    // This prevents the WebRtcAudioProcessor from forcing a downsample.
+    blink::AudioProcessingProperties properties;
+    properties.DisableDefaultProperties();
+    properties.echo_cancellation_type = 
+        blink::AudioProcessingProperties::EchoCancellationType::kEchoCancellationDisabled;
+
+    // Manually construct the settings to bypass the SelectSettingsAudioCapture algorithm
+    // and its default processing dependencies.
+    blink::AudioCaptureSettings settings(
+        "default", /*requested_buffer_size=*/cobalt::media::kSamplesPerBuffer,
+        /*disable_local_echo=*/false,
+        /*enable_automatic_output_device_selection=*/false,
+        blink::AudioCaptureSettings::ProcessingType::kUnprocessed,
+        properties, /*num_channels=*/1);
+
+    if (current_request_info_->stream_controls()->audio.stream_type !=
+        MediaStreamType::DISPLAY_AUDIO_CAPTURE) {
+      current_request_info_->stream_controls()->audio.device_ids = {
+          settings.device_id()};
+      current_request_info_->stream_controls()->disable_local_echo =
+          settings.disable_local_echo();
+    }
+    current_request_info_->SetAudioCaptureSettings(
+        settings,
+        !blink::IsDeviceMediaType(
+            current_request_info_->stream_controls()->audio.stream_type));
+
+    SetupVideoInput();
+    return;
+#else
     SendLogMessage(
         base::StringPrintf("SetupAudioInput({request_id=%d}) => "
                            "(Requesting device capabilities)",
@@ -727,6 +771,7 @@ void UserMediaProcessor::SetupAudioInput() {
     GetMediaDevicesDispatcher()->GetAudioInputCapabilities(
         WTF::BindOnce(&UserMediaProcessor::SelectAudioDeviceSettings,
                       WrapWeakPersistent(this), WrapPersistent(request)));
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   } else {
     if (!blink::IsAudioInputMediaType(audio_controls.stream_type)) {
       String failed_constraint_name = String(

@@ -17,6 +17,11 @@
 #include "components/update_client/crx_cache.h"
 #include "components/update_client/update_client.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "components/update_client/pipeline.h"
+#include "components/update_client/persisted_data.h"
+#endif
+
 namespace base {
 class FilePath;
 }
@@ -38,13 +43,22 @@ base::OnceClosure InstallOperation(
     const std::vector<uint8_t>& pk_hash,
     scoped_refptr<CrxInstaller> installer,
     std::unique_ptr<CrxInstaller::InstallParams> install_params,
+#if BUILDFLAG(IS_STARBOARD)
+    PersistedData* metadata,
+    const std::string& next_version,
+#endif
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
     base::RepeatingCallback<void(ComponentState)> state_tracker,
     CrxInstaller::ProgressCallback progress_callback,
     base::OnceCallback<void(const CrxInstaller::Result&)>
         install_result_callback,
+#if BUILDFLAG(IS_STARBOARD)
+    const OperationResult& crx_operation_result,
+    base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
+#else
     const base::FilePath& crx_file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
+#endif
         callback);
 
 }  // namespace update_client

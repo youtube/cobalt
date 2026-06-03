@@ -923,6 +923,11 @@ static_library("browser") {
     "//ui/accessibility:accessibility",
   ]
 
+  if (is_cobalt) {
+    deps -= [ "//components/language_detection/core" ]
+    deps += [ "//components/language_detection/core:constants" ]
+  }
+
   if (!is_fuchsia) {
     deps += [ "//components/variations/service" ]
   }

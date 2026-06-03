@@ -12,7 +12,13 @@
 #include "content/browser/renderer_host/render_widget_host_view_ios.h"
 #include "ui/accelerated_widget_mac/ca_layer_frame_sink_provider.h"
 
+<<<<<<< HEAD
 @interface RenderWidgetUIView : CALayerFrameSinkProvider <UITextFieldDelegate> {
+=======
+@interface RenderWidgetUIView
+    : CALayerFrameSinkProvider <UITextFieldDelegate,
+                                UIGestureRecognizerDelegate> {
+>>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
   base::WeakPtr<content::RenderWidgetHostViewIOS> _view;
 
   // Contrary to what Apple's documentation says, on tvOS calling
@@ -20,6 +26,12 @@
   // but doing so on a UITextField instance does, so we use this text field to
   // show/hide the system keyboard and plumb its value to |_view| and Blink.
   UITextField* _textFieldForAllTextInput;
+<<<<<<< HEAD
+=======
+  // Set on pressesBegan for kSelect when an input field is focused, cleared and
+  // used on pressesEnded to show the keyboard.
+  BOOL _selectWillShowKeyboard;
+>>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
 }
 
 - (instancetype)initWithWidget:

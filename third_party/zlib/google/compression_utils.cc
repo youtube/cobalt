@@ -4,6 +4,10 @@
 
 #include "third_party/zlib/google/compression_utils.h"
 
+#if defined(COBALT)
+#include "build/build_config.h"
+#endif
+
 #include "base/check_op.h"
 #include "base/process/memory.h"
 
@@ -55,10 +59,17 @@ bool GzipCompress(base::span<const uint8_t> input, std::string* output) {
           compressed_data, &compressed_data_size,
           reinterpret_cast<const Bytef*>(input.data()), input_size, nullptr,
           nullptr) != Z_OK) {
+#if BUILDFLAG(IS_COBALT)
+    base::UncheckedFree(compressed_data);
+#else
     free(compressed_data);
+#endif
     return false;
   }
 
+#if BUILDFLAG(IS_COBALT)
+  output->assign(compressed_data, compressed_data + compressed_data_size);
+#else
   Bytef* resized_data =
       reinterpret_cast<Bytef*>(realloc(compressed_data, compressed_data_size));
   if (!resized_data) {
@@ -66,9 +77,15 @@ bool GzipCompress(base::span<const uint8_t> input, std::string* output) {
     return false;
   }
   output->assign(resized_data, resized_data + compressed_data_size);
+#endif
+
   DCHECK_EQ(input_size, GetUncompressedSize(*output));
 
+#if BUILDFLAG(IS_COBALT)
+  base::UncheckedFree(compressed_data);
+#else
   free(resized_data);
+#endif
   return true;
 }
 

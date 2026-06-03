@@ -186,6 +186,13 @@ target(link_target_type, "renderer") {
     ]
   }
 
+  if (is_cobalt) {
+    sources -= [
+      "media/audio_decoder.cc",
+      "media/audio_decoder.h",
+    ]
+  }
+
   if (is_linux || is_chromeos) {
     sources += [ "renderer_main_platform_delegate_linux.cc" ]
   }
@@ -325,6 +332,12 @@ target(link_target_type, "renderer") {
   ]
   allow_circular_includes_from = []
 
+  if (is_cobalt) {
+    deps += [
+      "//cobalt/media/audio:audio_decoder",
+    ]
+  }
+
   if (is_android) {
     deps += [
       # Used by Android WebView only.
@@ -349,7 +362,7 @@ target(link_target_type, "renderer") {
     deps += [ "//services/screen_ai/public/mojom" ]
   }
 
-  if (is_linux || is_chromeos) {
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     deps += [ "//components/services/font/public/cpp" ]
   }
 
@@ -441,6 +454,12 @@ group("for_content_tests") {
     "//content/test/*",
     "//content/web_test:web_test_renderer_public_deps",
   ]
+  if (is_cobalt) {
+    visibility += [
+      "//cobalt/testing:*",
+      "//cobalt/testing/browser_tests:*",
+    ]
+  }
 
   if (!is_component_build) {
     public_deps = [ ":renderer" ]

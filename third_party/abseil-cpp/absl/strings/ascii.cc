@@ -227,6 +227,7 @@ void AsciiStrToUpper(char* absl_nonnull dst, const char* absl_nullable src,
   return AsciiStrCaseFold<true>(dst, src, n);
 }
 
+#if !defined(ENABLE_BUILDFLAG_BUILD_BASE_WITH_CPP17)
 static constexpr size_t ValidateAsciiCasefold() {
   constexpr size_t num_chars = 1 + CHAR_MAX - CHAR_MIN;
   size_t incorrect_index = 0;
@@ -250,6 +251,7 @@ static constexpr size_t ValidateAsciiCasefold() {
 }
 
 static_assert(ValidateAsciiCasefold() == 0, "error in case conversion");
+#endif
 
 }  // namespace ascii_internal
 
