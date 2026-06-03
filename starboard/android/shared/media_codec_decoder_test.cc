@@ -65,8 +65,6 @@ const AudioStreamInfo kDefaultAudioStreamInfo = [] {
 
 class MediaCodecDecoderTest : public ::testing::Test {
  protected:
-  MediaCodecDecoderTest() {}
-
   scoped_refptr<InputBuffer> CreateDummyAudioInputBuffer(int64_t timestamp,
                                                          int size) {
     uint8_t* buffer = new uint8_t[size];
