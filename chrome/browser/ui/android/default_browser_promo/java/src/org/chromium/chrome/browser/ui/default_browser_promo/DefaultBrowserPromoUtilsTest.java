@@ -16,7 +16,6 @@ import android.app.Activity;
 import android.app.role.RoleManager;
 import android.content.pm.ActivityInfo;
 import android.content.pm.ResolveInfo;
-import android.os.Build;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -30,7 +29,6 @@ import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
-import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowRoleManager;
 
 import org.chromium.base.ContextUtils;
@@ -49,15 +47,14 @@ import org.chromium.components.messages.MessageBannerProperties;
 import org.chromium.components.messages.MessageIdentifier;
 import org.chromium.components.messages.MessagesFactory;
 import org.chromium.components.search_engines.SearchEngineChoiceService;
-import org.chromium.ui.InsetObserver;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.insets.InsetObserver;
 import org.chromium.ui.modelutil.PropertyModel;
 
 /** Unit test for {@link DefaultBrowserPromoUtils}. */
 @RunWith(BaseRobolectricTestRunner.class)
-@Config(manifest = Config.NONE, sdk = Build.VERSION_CODES.Q)
 public class DefaultBrowserPromoUtilsTest {
     @Mock private DefaultBrowserPromoImpressionCounter mCounter;
     @Mock private DefaultBrowserStateProvider mProvider;
@@ -90,10 +87,8 @@ public class DefaultBrowserPromoUtilsTest {
         MessagesFactory.attachMessageDispatcher(mWindowAndroid, mMockMessageDispatcher);
         SearchEngineChoiceService.setInstanceForTests(mMockSearchEngineChoiceService);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            mShadowRoleManager = shadowOf(mActivity.getSystemService(RoleManager.class));
-            mShadowRoleManager.addAvailableRole(RoleManager.ROLE_BROWSER);
-        }
+        mShadowRoleManager = shadowOf(mActivity.getSystemService(RoleManager.class));
+        mShadowRoleManager.addAvailableRole(RoleManager.ROLE_BROWSER);
 
         mUtils = new DefaultBrowserPromoUtils(mCounter, mProvider);
         setDepsMockWithDefaultValues();
@@ -149,14 +144,6 @@ public class DefaultBrowserPromoUtilsTest {
         Assert.assertFalse(
                 "Should Not show role manager promo when Role is not available on Q+.",
                 mUtils.shouldShowRoleManagerPromo(mActivity));
-        Assert.assertTrue(mUtils.shouldShowNonRoleManagerPromo(mActivity));
-    }
-
-    // --- P below ---
-    @Test
-    @Config(sdk = Build.VERSION_CODES.P)
-    public void testNoPromo_P() {
-        Assert.assertFalse("Should not promo on P-.", mUtils.shouldShowRoleManagerPromo(mActivity));
         Assert.assertTrue(mUtils.shouldShowNonRoleManagerPromo(mActivity));
     }
 

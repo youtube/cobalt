@@ -151,6 +151,7 @@
 #include "chrome/browser/predictors/loading_predictor_factory.h"
 #include "chrome/browser/predictors/predictor_database_factory.h"
 #include "chrome/browser/prefs/pref_metrics_service.h"
+#include "chrome/browser/preloading/autocomplete_dictionary_preload_service_factory.h"
 #include "chrome/browser/preloading/prefetch/no_state_prefetch/no_state_prefetch_link_manager_factory.h"
 #include "chrome/browser/preloading/prefetch/no_state_prefetch/no_state_prefetch_manager_factory.h"
 #include "chrome/browser/preloading/prefetch/search_prefetch/search_prefetch_service_factory.h"
@@ -352,6 +353,7 @@
 #include "chrome/browser/user_education/user_education_service_factory.h"
 #include "components/commerce/core/proto/cart_db_content.pb.h"
 #include "components/commerce/core/proto/coupon_db_content.pb.h"
+#include "components/commerce/core/proto/discount_infos_db_content.pb.h"  // nogncheck
 #include "components/commerce/core/proto/discounts_db_content.pb.h"  // nogncheck
 #include "components/optimization_guide/core/model_execution/model_execution_features.h"
 #include "ui/accessibility/accessibility_features.h"
@@ -362,9 +364,6 @@
 #include "chrome/browser/ui/webui/signin/turn_sync_on_helper.h"
 #endif
 
-#if BUILDFLAG(ENABLE_PDF)
-#include "chrome/browser/accessibility/pdf_ocr_controller_factory.h"
-#endif
 #endif
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || \
@@ -393,6 +392,7 @@
 #include "chrome/browser/chromeos/enterprise/cloud_storage/one_drive_pref_observer.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_download_observer_factory.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_rules_manager_factory.h"
+#include "chrome/browser/media/webrtc/multi_capture/multi_capture_usage_indicator_service_factory.h"
 #include "chrome/browser/nearby_sharing/nearby_sharing_service_factory.h"
 #include "chrome/browser/policy/networking/policy_cert_service_factory.h"
 #include "chrome/browser/policy/networking/user_network_configuration_updater_factory.h"
@@ -562,6 +562,7 @@
 #include "chrome/browser/safe_browsing/chrome_enterprise_url_lookup_service_factory.h"
 #include "chrome/browser/safe_browsing/chrome_password_protection_service_factory.h"
 #include "chrome/browser/safe_browsing/chrome_ping_manager_factory.h"
+#include "chrome/browser/safe_browsing/client_side_detection_intelligent_scan_delegate_factory.h"
 #include "chrome/browser/safe_browsing/client_side_detection_service_factory.h"
 #include "chrome/browser/safe_browsing/notification_content_detection/notification_content_detection_service_factory.h"
 #include "chrome/browser/safe_browsing/notification_telemetry/notification_telemetry_service_factory.h"
@@ -697,6 +698,7 @@ void ChromeBrowserMainExtraPartsProfiles::
 #endif
   AutocompleteClassifierFactory::GetInstance();
   AutocompleteControllerEmitterFactory::GetInstance();
+  AutocompleteDictionaryPreloadServiceFactory::GetInstance();
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   AutocompleteScoringModelServiceFactory::GetInstance();
 #endif
@@ -797,6 +799,10 @@ void ChromeBrowserMainExtraPartsProfiles::
   ClipboardRestrictionServiceFactory::GetInstance();
 #if BUILDFLAG(IS_CHROMEOS)
   policy::MultiScreenCapturePolicyServiceFactory::GetInstance();
+  if (base::FeatureList::IsEnabled(
+          chromeos::features::kMultiCaptureReworkedUsageIndicators)) {
+    multi_capture::MultiCaptureUsageIndicatorServiceFactory::GetInstance();
+  }
   if (chromeos::features::
           IsMicrosoftOneDriveIntegrationForEnterpriseEnabled()) {
     chromeos::cloud_storage::OneDrivePrefObserverFactory::GetInstance();
@@ -904,7 +910,7 @@ void ChromeBrowserMainExtraPartsProfiles::
   ExitTypeServiceFactory::GetInstance();
 #endif
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE) && BUILDFLAG(IS_ANDROID)
-  ExtensionActionsBridgeFactory::GetInstance();
+  extensions::ExtensionActionsBridgeFactory::GetInstance();
 #endif
 #if BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_CHROMEOS_DEVICE)
   // A ChromeOS build for a dev linux machine.
@@ -1238,6 +1244,8 @@ void ChromeBrowserMainExtraPartsProfiles::
   safe_browsing::ChromePasswordProtectionServiceFactory::GetInstance();
   safe_browsing::ChromePingManagerFactory::GetInstance();
   safe_browsing::ClientSideDetectionServiceFactory::GetInstance();
+  safe_browsing::ClientSideDetectionIntelligentScanDelegateFactory::
+      GetInstance();
 #endif
 #if BUILDFLAG(FULL_SAFE_BROWSING)
   safe_browsing::CloudBinaryUploadServiceFactory::GetInstance();
@@ -1264,9 +1272,6 @@ void ChromeBrowserMainExtraPartsProfiles::
   if (features::IsMainNodeAnnotationsEnabled()) {
     screen_ai::AXMainNodeAnnotatorControllerFactory::GetInstance();
   }
-#if BUILDFLAG(ENABLE_PDF)
-  screen_ai::PdfOcrControllerFactory::GetInstance();
-#endif
   screen_ai::ScreenAIServiceRouterFactory::EnsureFactoryBuilt();
 #endif
 #if BUILDFLAG(IS_CHROMEOS)
@@ -1304,6 +1309,8 @@ void ChromeBrowserMainExtraPartsProfiles::
 #if !BUILDFLAG(IS_ANDROID)
   SessionProtoDBFactory<coupon_db::CouponContentProto>::GetInstance();
   SessionProtoDBFactory<discounts_db::DiscountsContentProto>::GetInstance();
+  SessionProtoDBFactory<
+      discount_infos_db::DiscountInfosContentProto>::GetInstance();
 #endif
 #if BUILDFLAG(IS_ANDROID)
   SessionProtoDBFactory<
@@ -1385,15 +1392,7 @@ void ChromeBrowserMainExtraPartsProfiles::
   TurnSyncOnHelper::EnsureFactoryBuilt();
 #endif
   UnifiedConsentServiceFactory::GetInstance();
-#if BUILDFLAG(IS_ANDROID)
-  if (base::FeatureList::IsEnabled(features::kSafetyHub) ||
-      base::FeatureList::IsEnabled(
-          safe_browsing::kSafetyHubAbusiveNotificationRevocation)) {
-    RevokedPermissionsServiceFactory::GetInstance();
-  }
-#else
   RevokedPermissionsServiceFactory::GetInstance();
-#endif
   UrlLanguageHistogramFactory::GetInstance();
   UsbChooserContextFactory::GetInstance();
 #if !BUILDFLAG(IS_ANDROID)

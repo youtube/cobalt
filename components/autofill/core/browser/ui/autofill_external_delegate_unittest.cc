@@ -41,7 +41,7 @@
 #include "components/autofill/core/browser/foundations/test_autofill_client.h"
 #include "components/autofill/core/browser/foundations/test_autofill_driver.h"
 #include "components/autofill/core/browser/foundations/test_browser_autofill_manager.h"
-#include "components/autofill/core/browser/integrators/autofill_ai/mock_autofill_ai_delegate.h"
+#include "components/autofill/core/browser/integrators/autofill_ai/mock_autofill_ai_manager.h"
 #include "components/autofill/core/browser/integrators/compose/autofill_compose_delegate.h"
 #include "components/autofill/core/browser/integrators/compose/mock_autofill_compose_delegate.h"
 #include "components/autofill/core/browser/integrators/identity_credential/mock_identity_credential_delegate.h"
@@ -55,6 +55,7 @@
 #include "components/autofill/core/browser/payments/mock_iban_access_manager.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/payments/test/mock_bnpl_manager.h"
+#include "components/autofill/core/browser/payments/test/mock_save_and_fill_manager.h"
 #include "components/autofill/core/browser/payments/test_payments_autofill_client.h"
 #include "components/autofill/core/browser/single_field_fillers/mock_single_field_fill_router.h"
 #include "components/autofill/core/browser/studies/autofill_experiments.h"
@@ -557,15 +558,13 @@ TEST_F(AutofillExternalDelegateTest, GetMainFillingProduct) {
   EXPECT_EQ(external_delegate().GetMainFillingProduct(),
             FillingProduct::kAutocomplete);
 
-  // Show only datalist suggestion with autocomplete suggestion in the popup.
+  // Show only datalist suggestion in the popup.
   OnSuggestionsReturned(
       queried_field().global_id(),
       {test::CreateAutofillSuggestion(SuggestionType::kDatalistEntry,
-                                      u"datalist"),
-       test::CreateAutofillSuggestion(SuggestionType::kAutocompleteEntry,
-                                      u"autocomplete")});
+                                      u"datalist")});
   EXPECT_EQ(external_delegate().GetMainFillingProduct(),
-            FillingProduct::kAutocomplete);
+            FillingProduct::kDataList);
 
   // Show auxiliary helper suggestion in the popup.
   OnSuggestionsReturned(
@@ -2335,6 +2334,18 @@ TEST_F(AutofillExternalDelegateTest,
   EXPECT_CALL(compose_delegate, GoToSettings);
   external_delegate().DidAcceptSuggestion(
       Suggestion(SuggestionType::kComposeGoToSettings),
+      SuggestionPosition{.row = 0});
+}
+
+TEST_F(AutofillExternalDelegateTest,
+       AcceptSaveAndFillCreditCardSuggestion_CallsSaveAndFillManager) {
+  IssueOnQuery();
+
+  EXPECT_CALL(*client().GetPaymentsAutofillClient()->GetSaveAndFillManager(),
+              OnDidAcceptCreditCardSaveAndFillSuggestion());
+  external_delegate().DidAcceptSuggestion(
+      test::CreateAutofillSuggestion(
+          SuggestionType::kSaveAndFillCreditCardEntry),
       SuggestionPosition{.row = 0});
 }
 

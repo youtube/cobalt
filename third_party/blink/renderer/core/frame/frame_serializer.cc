@@ -151,8 +151,8 @@ const char kShadowDelegatesFocusAttributeName[] = "shadowdelegatesfocus";
 using mojom::blink::FormControlType;
 
 KURL MakePseudoUrl(StringView type) {
-  return KURL(WTF::StrCat(
-      {"cid:", type, "-", WTF::CreateCanonicalUUIDString(), "@mhtml.blink"}));
+  return KURL(
+      StrCat({"cid:", type, "-", CreateCanonicalUUIDString(), "@mhtml.blink"}));
 }
 
 KURL MakePseudoCSSUrl() {
@@ -1093,7 +1093,7 @@ function main(metadata) {
     return blink::internal::ReplaceAllCaseInsensitive(
         css_text.ToString(), "</style", [](const String& text) {
           // \3C = '<'.
-          return WTF::StrCat({"\\3C/", text.Substring(2)});
+          return StrCat({"\\3C/", text.Substring(2)});
         });
   }
 
@@ -1159,12 +1159,14 @@ function main(metadata) {
       String text_string = css_text.ToString();
       std::string text;
       if (charset.IsValid()) {
-        WTF::TextEncoding text_encoding(charset);
-        text = text_encoding.Encode(text_string,
-                                    WTF::kCSSEncodedEntitiesForUnencodables);
+        TextEncoding text_encoding(charset);
+        text = text_encoding.Encode(
+            text_string,
+            UnencodableHandling::kCSSEncodedEntitiesForUnencodables);
       } else {
-        text = WTF::UTF8Encoding().Encode(
-            text_string, WTF::kCSSEncodedEntitiesForUnencodables);
+        text = Utf8Encoding().Encode(
+            text_string,
+            UnencodableHandling::kCSSEncodedEntitiesForUnencodables);
       }
 
       resource_serializer_->AddToResources(String("text/css"),
@@ -1364,8 +1366,8 @@ void FrameSerializer::SerializeFrame(
     String text =
         accumulator.SerializeNodes<EditingStrategy>(document, kIncludeNode);
 
-    std::string frame_html =
-        document.Encoding().Encode(text, WTF::kEntitiesForUnencodables);
+    std::string frame_html = document.Encoding().Encode(
+        text, UnencodableHandling::kEntitiesForUnencodables);
     resource_serializer->AddMainResource(document.SuggestedMIMEType(),
                                          SharedBuffer::Create(frame_html), url);
     resource_serializer->Finish(std::move(callback));
@@ -1397,8 +1399,7 @@ String FrameSerializer::MarkOfTheWebDeclaration(const KURL& url) {
 // static
 String FrameSerializer::GetContentID(Frame* frame) {
   DCHECK(frame);
-  return WTF::StrCat(
-      {"<frame-", frame->GetFrameIdForTracing(), "@mhtml.blink>"});
+  return StrCat({"<frame-", frame->GetFrameIdForTracing(), "@mhtml.blink>"});
 }
 
 }  // namespace blink

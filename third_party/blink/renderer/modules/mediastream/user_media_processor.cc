@@ -126,6 +126,8 @@ const char* MediaStreamRequestResultToString(MediaStreamRequestResult value) {
       return "REQUEST_CANCELLED";
     case MediaStreamRequestResult::START_TIMEOUT:
       return "START_TIMEOUT";
+    case MediaStreamRequestResult::PERMISSION_DENIED_BY_USER:
+      return "PERMISSION_DENIED_BY_USER";
     case MediaStreamRequestResult::NUM_MEDIA_REQUEST_RESULTS:
       break;
   }
@@ -298,6 +300,8 @@ String ErrorCodeToString(MediaStreamRequestResult result) {
       return "Timeout starting video source";
     case MediaStreamRequestResult::CONSTRAINT_NOT_SATISFIED:
       return "Constraint not satisfied";
+    case MediaStreamRequestResult::PERMISSION_DENIED_BY_USER:
+      return "Permission denied by user";
     case MediaStreamRequestResult::NUM_MEDIA_REQUEST_RESULTS:
       break;  // Not a valid enum value.
   }
@@ -1868,16 +1872,23 @@ UserMediaProcessor::CreateAudioSource(
 
   StreamControls* stream_controls = current_request_info_->stream_controls();
 
-  // If the audio device is a loopback device (for screen capture), or if the
-  // constraints/effects parameters indicate no audio processing is needed,
-  // create an efficient, direct-path MediaStreamAudioSource instance.
+  // If the constraints/effects parameters indicate no audio processing is
+  // needed, create an efficient, direct-path MediaStreamAudioSource instance.
   std::optional<MediaStreamAudioProcessingLayout> processing_layout =
-      (device.type == mojom::blink::MediaStreamType::DEVICE_AUDIO_CAPTURE)
+      device.type == mojom::blink::MediaStreamType::DEVICE_AUDIO_CAPTURE
           ? std::make_optional(MediaStreamAudioProcessingLayout(
                 current_request_info_->audio_capture_settings()
                     .audio_processing_properties(),
                 device.input.effects(),
                 current_request_info_->audio_capture_settings().num_channels()))
+      : device.type == mojom::blink::MediaStreamType::DISPLAY_AUDIO_CAPTURE
+          ?
+          // TODO(crbug.com://40247860, crbug.com://415952276): retire this
+          // logic when restrictOwnAudio is launched.
+          MediaStreamAudioProcessingLayout::MakeForDisplayCapture(
+              current_request_info_->audio_capture_settings()
+                  .audio_processing_properties(),
+              current_request_info_->audio_capture_settings().num_channels())
           : std::nullopt;
 
   if (processing_layout && processing_layout->NeedWebrtcAudioProcessing()) {

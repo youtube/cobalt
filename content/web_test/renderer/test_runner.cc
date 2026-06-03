@@ -22,6 +22,7 @@
 #include "base/containers/contains.h"
 #include "base/containers/unique_ptr_adapters.h"
 #include "base/functional/callback_helpers.h"
+#include "base/hash/md5.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/string_number_conversions.h"
@@ -31,6 +32,10 @@
 #include "build/build_config.h"
 #include "cc/paint/paint_canvas.h"
 #include "cc/paint/skia_paint_canvas.h"
+#include "components/subresource_filter/content/renderer/web_document_subresource_filter_impl.h"
+#include "components/subresource_filter/core/common/memory_mapped_ruleset.h"
+#include "components/subresource_filter/core/mojom/subresource_filter.mojom.h"
+#include "content/public/common/content_switches.h"
 #include "content/public/common/isolated_world_ids.h"
 #include "content/public/renderer/render_frame_observer.h"
 #include "content/renderer/render_thread_impl.h"
@@ -38,9 +43,9 @@
 #include "content/web_test/common/web_test_string_util.h"
 #include "content/web_test/renderer/app_banner_service.h"
 #include "content/web_test/renderer/blink_test_helpers.h"
-#include "content/web_test/renderer/fake_subresource_filter.h"
 #include "content/web_test/renderer/spell_check_client.h"
 #include "content/web_test/renderer/test_preferences.h"
+#include "content/web_test/renderer/test_runner_utils.h"
 #include "content/web_test/renderer/web_frame_test_proxy.h"
 #include "gin/arguments.h"
 #include "gin/array_buffer.h"
@@ -374,6 +379,7 @@ class TestRunnerBindings : public gin::Wrappable<TestRunnerBindings> {
   void SetPrintingForFrame(const std::string& frame_name);
   void SetPrintingSize(int width, int height);
   void SetPrintingMargin(int);
+  void SetSafePrintableInset(int);
   void SetShouldCenterAndShrinkToFitPaper(bool);
   void SetPrintingScaleFactor(float);
   void SetShouldGeneratePixelResults(bool);
@@ -591,7 +597,7 @@ gin::ObjectTemplateBuilder TestRunnerBindings::GetObjectTemplateBuilder(
                  &TestRunnerBindings::DisableAutoResizeMode)
       .SetMethod("disableMockScreenOrientation",
                  &TestRunnerBindings::DisableMockScreenOrientation)
-      // Sets up a mock DocumentSubresourceFilter to disallow subsequent
+      // Sets up a WebDocumentSubresourceFilterImpl to disallow subsequent
       // subresource loads within the current document with the given path
       // |suffixes|. The filter is created and injected even if |suffixes| is
       // empty. If |suffixes| contains the empty string, all subresource loads
@@ -807,6 +813,8 @@ gin::ObjectTemplateBuilder TestRunnerBindings::GetObjectTemplateBuilder(
                  &TestRunnerBindings::SetPrintingForFrame)
       .SetMethod("setPrintingSize", &TestRunnerBindings::SetPrintingSize)
       .SetMethod("setPrintingMargin", &TestRunnerBindings::SetPrintingMargin)
+      .SetMethod("setSafePrintableInset",
+                 &TestRunnerBindings::SetSafePrintableInset)
       .SetMethod("setShouldCenterAndShrinkToFitPaper",
                  &TestRunnerBindings::SetShouldCenterAndShrinkToFitPaper)
       .SetMethod("setPrintingScaleFactor",
@@ -1479,8 +1487,32 @@ void TestRunnerBindings::SetDisallowedSubresourcePathSuffixes(
   if (!frame_) {
     return;
   }
+
+  base::File ruleset_file;
+  frame_->GetWebTestControlHostRemote()->CreateSubresourceFilterRulesetFile(
+      suffixes, &ruleset_file);
+
+  scoped_refptr<subresource_filter::MemoryMappedRuleset> ruleset =
+      subresource_filter::MemoryMappedRuleset::CreateAndInitialize(
+          std::move(ruleset_file));
+
+  subresource_filter::mojom::ActivationLevel activation_level =
+      block_subresources ? subresource_filter::mojom::ActivationLevel::kEnabled
+                         : subresource_filter::mojom::ActivationLevel::kDryRun;
+
+  // Some tests rely on console loggings.
+  subresource_filter::mojom::ActivationState activation_state(
+      activation_level,
+      /*filtering_disabled_for_document=*/false,
+      /*generic_blocking_rules_disabled=*/false,
+      /*measure_performance=*/false,
+      /*enable_logging=*/true);
+
   GetWebFrame()->GetDocumentLoader()->SetSubresourceFilter(
-      new FakeSubresourceFilter(std::move(suffixes), block_subresources));
+      new subresource_filter::WebDocumentSubresourceFilterImpl(
+          url::Origin::Create(GetWebFrame()->GetDocumentLoader()->GetUrl()),
+          activation_state, std::move(ruleset),
+          /*first_disallowed_load_callback=*/base::DoNothing()));
 }
 
 void TestRunnerBindings::SetPopupBlockingEnabled(bool block_popups) {
@@ -1773,6 +1805,13 @@ void TestRunnerBindings::SetPrintingMargin(int margin) {
     return;
   }
   runner_->SetPrintingMargin(margin, *frame_);
+}
+
+void TestRunnerBindings::SetSafePrintableInset(int inset) {
+  if (!frame_) {
+    return;
+  }
+  runner_->SetSafePrintableInset(inset, *frame_);
 }
 
 void TestRunnerBindings::SetShouldCenterAndShrinkToFitPaper(bool b) {
@@ -2789,6 +2828,10 @@ int TestRunner::GetPrintingMargin() const {
   return web_test_runtime_flags_.printing_margin();
 }
 
+int TestRunner::GetSafePrintableInset() const {
+  return web_test_runtime_flags_.safe_printable_inset();
+}
+
 static std::string GetPageRangesStringFromMetadata(
     blink::WebLocalFrame* frame) {
   blink::WebElementCollection meta_iter =
@@ -2867,13 +2910,16 @@ printing::PageRanges TestRunner::GetPrintingPageRanges(
 
 SkBitmap TestRunner::PrintFrameToBitmap(blink::WebLocalFrame* frame) {
   // Page size and margins are in CSS pixels.
-  auto print_params =
-      blink::WebPrintParams(gfx::SizeF(GetPrintingPageSize(frame)));
+  gfx::SizeF page_size = gfx::SizeF(GetPrintingPageSize(frame));
+  auto print_params = blink::WebPrintParams(page_size);
   int default_margin = GetPrintingMargin();
   print_params.default_page_description.margin_top = default_margin;
   print_params.default_page_description.margin_right = default_margin;
   print_params.default_page_description.margin_bottom = default_margin;
   print_params.default_page_description.margin_left = default_margin;
+  gfx::RectF printable_area(page_size);
+  printable_area.Inset(GetSafePrintableInset());
+  print_params.printable_area_in_css_pixels = printable_area;
   print_params.scale_factor = printing_scale_factor_;
   print_params.print_scaling_option =
       should_center_and_shrink_to_fit_paper_
@@ -3293,6 +3339,30 @@ void TestRunner::SetMainWindowAndTestConfiguration(
   if (!IsFrameInMainWindow(frame)) {
     main_windows_.push_back(std::make_unique<MainWindowTracker>(view, this));
   }
+
+  const base::CommandLine* command_line =
+      base::CommandLine::ForCurrentProcess();
+
+  std::string web_settings_switch_value =
+      command_line->GetSwitchValueASCII(switches::kWebSettingsForTesting);
+  for (auto [key, value] :
+       TestRunnerUtils::ParseWebSettingsString(web_settings_switch_value)) {
+    view->GetSettings()->SetFromStrings(blink::WebString::FromASCII(key),
+                                        blink::WebString::FromASCII(value));
+  }
+
+  if (command_line->HasSwitch(switches::kTargetDeviceScaleForTesting)) {
+    auto target_scale_factor_for_testing = command_line->GetSwitchValueASCII(
+        switches::kTargetDeviceScaleForTesting);
+    double scale_factor;
+    if (base::StringToDouble(
+            TrimWhitespaceASCII(target_scale_factor_for_testing,
+                                base::TRIM_ALL),
+            &scale_factor)) {
+      frame->FrameWidget()->SetDeviceScaleFactorForTesting(scale_factor);
+    }
+  }
+
   // This may be called for a local root in the same process as another local
   // root, in which case we just keep the original config, which should match.
   if (test_is_running_)
@@ -3580,6 +3650,11 @@ void TestRunner::SetPrintingSize(int width,
 
 void TestRunner::SetPrintingMargin(int size, WebFrameTestProxy& source) {
   web_test_runtime_flags_.set_printing_margin(size);
+  OnWebTestRuntimeFlagsChanged(source);
+}
+
+void TestRunner::SetSafePrintableInset(int inset, WebFrameTestProxy& source) {
+  web_test_runtime_flags_.set_safe_printable_inset(inset);
   OnWebTestRuntimeFlagsChanged(source);
 }
 

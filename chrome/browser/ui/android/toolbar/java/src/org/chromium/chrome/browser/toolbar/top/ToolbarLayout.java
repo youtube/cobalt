@@ -9,8 +9,6 @@ import android.content.res.ColorStateList;
 import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
-import android.os.Build;
-import android.os.Build.VERSION;
 import android.util.AttributeSet;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
@@ -25,7 +23,6 @@ import androidx.annotation.DrawableRes;
 import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.widget.TooltipCompat;
 
-import org.chromium.base.ObserverList;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.lifetime.DestroyChecker;
 import org.chromium.base.lifetime.Destroyable;
@@ -58,7 +55,6 @@ import org.chromium.chrome.browser.toolbar.optional_button.ButtonData;
 import org.chromium.chrome.browser.toolbar.reload_button.ReloadButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.top.NavigationPopup.HistoryDelegate;
 import org.chromium.chrome.browser.toolbar.top.TopToolbarCoordinator.ToolbarColorObserver;
-import org.chromium.chrome.browser.toolbar.top.TopToolbarCoordinator.UrlExpansionObserver;
 import org.chromium.chrome.browser.toolbar.top.tab_strip.TabStripTransitionCoordinator;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuButtonHelper;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
@@ -81,8 +77,6 @@ public abstract class ToolbarLayout extends FrameLayout
         implements Destroyable, TintObserver, ThemeColorObserver {
     private @Nullable ToolbarColorObserver mToolbarColorObserver;
 
-    protected final ObserverList<UrlExpansionObserver> mUrlExpansionObservers =
-            new ObserverList<>();
     private final int[] mTempPosition = new int[2];
 
     private final ColorStateList mDefaultTint;
@@ -137,6 +131,8 @@ public abstract class ToolbarLayout extends FrameLayout
      * @param historyDelegate Delegate used to display navigation history.
      * @param userEducationHelper Helper for user education flows.
      * @param trackerSupplier Provides a {@link Tracker} when available.
+     * @param homeButtonDisplay The {@link HomeButtonDisplay} to manage the display and behavior of
+     *     home button(s). Should be null on custom tabs.
      */
     @CallSuper
     @Initializer
@@ -150,7 +146,8 @@ public abstract class ToolbarLayout extends FrameLayout
             ObservableSupplier<Tracker> trackerSupplier,
             ToolbarProgressBar progressBar,
             @Nullable ReloadButtonCoordinator reloadButtonCoordinator,
-            @Nullable BackButtonCoordinator backButtonCoordinator) {
+            @Nullable BackButtonCoordinator backButtonCoordinator,
+            @Nullable HomeButtonDisplay homeButtonDisplay) {
         mToolbarDataProvider = toolbarDataProvider;
         mToolbarTabController = tabController;
         mMenuButtonCoordinator = menuButtonCoordinator;
@@ -201,20 +198,6 @@ public abstract class ToolbarLayout extends FrameLayout
         if (mToolbarColorObserver != null) {
             mToolbarColorObserver = null;
         }
-    }
-
-    /**
-     * @param urlExpansionObserver The observer that observes URL expansion progress change.
-     */
-    void addUrlExpansionObserver(UrlExpansionObserver urlExpansionObserver) {
-        mUrlExpansionObservers.addObserver(urlExpansionObserver);
-    }
-
-    /**
-     * @param urlExpansionObserver The observer that observes URL expansion progress change.
-     */
-    void removeUrlExpansionObserver(UrlExpansionObserver urlExpansionObserver) {
-        mUrlExpansionObservers.removeObserver(urlExpansionObserver);
     }
 
     /**
@@ -296,7 +279,7 @@ public abstract class ToolbarLayout extends FrameLayout
      * the method in UiUtils.java instead once JaCoCo issue is resolved.
      */
     protected void setTooltipText(View button, @Nullable String text) {
-        if (button != null && VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        if (button != null) {
             TooltipCompat.setTooltipText(button, text);
         }
     }
@@ -562,9 +545,10 @@ public abstract class ToolbarLayout extends FrameLayout
      * @param drawable The icon for the button.
      * @param description The content description for the button.
      * @param listener The {@link OnClickListener} to use for clicks to the button.
+     * @param {@link ButtonType} of the button.
      */
     protected void addCustomActionButton(
-            Drawable drawable, String description, OnClickListener listener) {
+            Drawable drawable, String description, OnClickListener listener, int type) {
         // This method should only be called for subclasses that override it.
         assert false;
     }

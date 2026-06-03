@@ -12,7 +12,6 @@ import static org.junit.Assert.assertTrue;
 
 import static org.chromium.ui.test.util.ViewUtils.onViewWaiting;
 
-import android.os.Build;
 import android.os.Environment;
 import android.view.View;
 
@@ -32,7 +31,7 @@ import org.chromium.base.test.params.ParameterAnnotations.UseRunnerDelegate;
 import org.chromium.base.test.params.ParameterizedRunner;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CommandLineFlags;
-import org.chromium.base.test.util.DisableIf;
+import org.chromium.base.test.util.DisabledTest;
 import org.chromium.chrome.browser.customtabs.IncognitoCustomTabActivityTestRule;
 import org.chromium.chrome.browser.download.DownloadItem;
 import org.chromium.chrome.browser.download.DownloadManagerService;
@@ -93,9 +92,9 @@ public class IncognitoDownloadLeakageTest {
                 public void onAllDownloadsRetrieved(
                         List<DownloadItem> list, ProfileKey profileKey) {
                     if (profileKey.isOffTheRecord()) {
-                        mOffTheRecordDownloadItems = new ArrayList<DownloadItem>(list);
+                        mOffTheRecordDownloadItems = new ArrayList<>(list);
                     } else {
-                        mRegularDownloadItems = new ArrayList<DownloadItem>(list);
+                        mRegularDownloadItems = new ArrayList<>(list);
                     }
                     mRetrieveDownloadsCallback.notifyCalled();
                 }
@@ -212,7 +211,8 @@ public class IncognitoDownloadLeakageTest {
     @Test
     @LargeTest
     @UseMethodParameter(IncognitoDataTestUtils.TestParams.IncognitoToRegular.class)
-    public void testIncognitoDowloadEntriesNotVisibleInRegular(
+    @DisabledTest(message = "crbug.com/422225234")
+    public void testIncognitoDownloadEntriesNotVisibleInRegular(
             String incognitoActivityType, String regularActivityType) throws Exception {
         IncognitoDataTestUtils.ActivityType incognitoActivity =
                 IncognitoDataTestUtils.ActivityType.valueOf(incognitoActivityType);
@@ -257,10 +257,8 @@ public class IncognitoDownloadLeakageTest {
     @Test
     @LargeTest
     @UseMethodParameter(IncognitoDataTestUtils.TestParams.IncognitoToIncognito.class)
-    @DisableIf.Build(
-            sdk_is_less_than = Build.VERSION_CODES.S,
-            message = "crbug.com/391749002, crbug.com/40935094")
-    public void testIncognitoDowloadEntriesNotVisibleInAnotherIncognito(
+    @DisabledTest(message = "crbug.com/391749002, crbug.com/40935094")
+    public void testIncognitoDownloadEntriesNotVisibleInAnotherIncognito(
             String incognitoActivityType1, String incognitoActivityType2) throws Exception {
         IncognitoDataTestUtils.ActivityType incognitoActivity1 =
                 IncognitoDataTestUtils.ActivityType.valueOf(incognitoActivityType1);

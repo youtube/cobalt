@@ -212,7 +212,7 @@ public class HistoryContentManager implements SignInStateObserver, PrefObserver 
         mSelectionDelegate =
                 selectionDelegate != null
                         ? selectionDelegate
-                        : new SelectionDelegate<HistoryItem>() {
+                        : new SelectionDelegate<>() {
                             @Override
                             public boolean toggleSelectionForItem(HistoryItem bookmark) {
                                 return false;
@@ -747,7 +747,7 @@ public class HistoryContentManager implements SignInStateObserver, PrefObserver 
 
         public AppInfo get(String appId) {
             assert appId != null;
-            if (mAppInfoMap == null) mAppInfoMap = new HashMap<String, AppInfo>();
+            if (mAppInfoMap == null) mAppInfoMap = new HashMap<>();
             AppInfo appInfo = mAppInfoMap.get(appId);
             if (appInfo == null) {
                 try {

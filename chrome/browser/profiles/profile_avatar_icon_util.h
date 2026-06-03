@@ -102,7 +102,7 @@ gfx::ImageSkia GetAvatarWithDottedRing(const ui::ImageModel& image,
                                        int size,
                                        bool has_padding,
                                        bool has_background,
-                                       ui::ColorProvider* color_provider);
+                                       const ui::ColorProvider& color_provider);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 // Returns a version of |image| suitable for use in WebUI.
@@ -188,7 +188,7 @@ bool IsDefaultAvatarIconIndex(size_t index);
 
 // Checks if the given URL points to one of the default avatar icons. If it
 // is, returns true and its index through |icon_index|. If not, returns false.
-bool IsDefaultAvatarIconUrl(const std::string& icon_url, size_t *icon_index);
+bool IsDefaultAvatarIconUrl(std::string_view icon_url, size_t* icon_index);
 
 // Returns dictionary containing the avatar icon info in the format expected by
 // the WebUI component 'cr-profile-avatar-selector'.

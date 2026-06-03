@@ -6,6 +6,7 @@
 
 #import "base/apple/foundation_util.h"
 #import "base/check.h"
+#import "base/ios/block_types.h"
 #import "base/memory/raw_ptr.h"
 #import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
@@ -53,6 +54,7 @@
 #import "ios/chrome/browser/overlays/model/public/overlay_presentation_context.h"
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
@@ -109,12 +111,22 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
                                       LensOverlayResultsPagePresenterDelegate,
                                       LensOverlayTabChangeAudience>
 
-// Whether the `_containerViewController` is currently presented.
+/// Whether the `_containerViewController` is currently presented.
 @property(nonatomic, assign, readonly, getter=isLensOverlayVisible)
     BOOL lensOverlayVisible;
 
-// Whether the UI is created.
+/// Whether the UI is created.
 @property(nonatomic, assign, readonly) BOOL isUICreated;
+
+/// Indicates the Lens Overlay is in the exit flow.
+@property(nonatomic, getter=isExiting) BOOL exiting;
+
+/// Indicates this coordinator has received the `stop` call.
+@property(nonatomic, getter=isStopped) BOOL stopped;
+
+/// Whether the coordinator is suspended, either momentarily by being in the
+/// exit flow or having received the stop call.
+@property(nonatomic, readonly, getter=isSuspended) BOOL suspended;
 
 @end
 
@@ -144,12 +156,6 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
 
   UIViewController<ChromeLensOverlay>* _selectionViewController;
 
-  /// Indicates the Lens Overlay is in the exit flow.
-  BOOL _isExiting;
-
-  /// Indicates this coordinator has received the `stop` call.
-  BOOL _isStopped;
-
   /// This auxiliary window is used while restoring the sheet state when
   /// returning to the tab where Lens Overlay is active.
   UIWindow* _restorationWindow;
@@ -174,6 +180,9 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
 
   // The view controller that serves as the base of the presentation.
   __weak UIViewController* _presentationBaseViewController;
+
+  // Accumulates the callbacks that are to be run once the overlay is destroyed.
+  NSMutableArray<ProceduralBlock>* _runOnDestroy;
 }
 
 #pragma mark - public
@@ -264,6 +273,7 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
               profilePrefs:browser->GetProfile()->GetPrefs()];
   _mediator.applicationHandler =
       HandlerForProtocol(browser->GetCommandDispatcher(), ApplicationCommands);
+  _mediator.metricsRecorder = _metricsRecorder;
 
   // Results UI is lazily initialized; see comment in LensOverlayResultConsumer
   // section.
@@ -292,7 +302,7 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
 }
 
 - (void)stop {
-  _isStopped = YES;
+  self.stopped = YES;
 
   if (Browser* browser = self.browser) {
     [browser->GetCommandDispatcher() stopDispatchingToTarget:self];
@@ -433,14 +443,13 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
          containerViewController:_containerViewController];
   _containerPresenter.delegate = self;
 
-  [_containerPresenter
-      presentContainerAnimated:animated
-                    sceneState:self.browser->GetSceneState()
-                    completion:^{
-                      if (completion) {
-                        completion(YES);
-                      }
-                    }];
+  [_containerPresenter presentContainerAnimated:animated
+                                     sceneState:self.browser->GetSceneState()
+                                     completion:^{
+                                       if (completion) {
+                                         completion(YES);
+                                       }
+                                     }];
 }
 
 - (void)presentConsentFlow {
@@ -473,20 +482,18 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
       HandlerForProtocol(self.browser->GetCommandDispatcher(), LensCommands);
   [weakCommands lensOverlayWillDismissWithCause:
                     LensOverlayDismissalCauseExternalNavigation];
-  __weak LensOverlayContainerPresenter* weakContainerPresenter =
-      _containerPresenter;
-
+  __weak __typeof(self) weakSelf = self;
   auto dismissLensOverlayContainer = ^{
-    [weakContainerPresenter
-        dismissContainerAnimated:animated
-                      completion:^{
-                        [weakCommands
-                            lensOverlayDidDismissWithCause:
-                                LensOverlayDismissalCauseExternalNavigation];
-                        if (completion) {
-                          completion();
-                        }
-                      }];
+    [weakSelf
+        dismissLensOverlayAnimated:animated
+                        completion:^{
+                          [weakCommands
+                              lensOverlayDidDismissWithCause:
+                                  LensOverlayDismissalCauseExternalNavigation];
+                          if (completion) {
+                            completion();
+                          }
+                        }];
   };
 
   if (_resultsPagePresenter.isResultPageVisible) {
@@ -500,84 +507,69 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
 
 - (void)destroyLensUI:(BOOL)animated
                reason:(lens::LensOverlayDismissalSource)dismissalSource {
-  if (_isExiting) {
+  [self destroyLensUI:animated reason:dismissalSource completion:nil];
+}
+
+- (void)destroyLensUI:(BOOL)animated
+               reason:(lens::LensOverlayDismissalSource)dismissalSource
+           completion:(ProceduralBlock)completion {
+  // All completions are stored and ran toghether once the overlay is fully
+  // dismissed.
+  if (completion) {
+    [_runOnDestroy addObject:completion];
+  }
+
+  [self prepareForLensOverlayDestroyWithReason:dismissalSource];
+
+  // If the destroy command is invoked on the stopped coordinator, immediately
+  // destroy all dependencies even if another exit flow is in progress.
+  if (self.stopped) {
+    [self completeLensOverlayDestroy];
     return;
   }
 
-  _isExiting = YES;
-
-  [self monitorMemoryWarnings:NO];
-  [_metricsRecorder
-      recordDismissalMetricsWithSource:dismissalSource
-                     generatedTabCount:_mediator.generatedTabCount];
-
-  // The reason the UI is destroyed can be that Omnient gets associated to a
-  // different tab. In this case mark the stale tab helper as not shown.
-  if (_associatedTabHelper) {
-    _associatedTabHelper->SetLensOverlayUIAttachedAndAlive(false);
-    _associatedTabHelper->RecordSheetDimensionState(
-        SheetDimensionState::kHidden);
-    _associatedTabHelper->ClearViewportSnapshot();
-    _associatedTabHelper->UpdateSnapshot();
-    if (self.browser &&
-        IsLensOverlaySameTabNavigationEnabled(self.profile->GetPrefs())) {
-      _associatedTabHelper->ClearInvokationNavigationId();
-    }
-  }
-
-  if (!animated) {
-    [self exitWithoutAnimation];
+  if (self.exiting) {
     return;
   }
+  self.exiting = YES;
 
-  // Taking the screenshot triggered fullscreen mode. Ensure it's reverted in
-  // the cleanup process. Exiting fullscreen has to happen on destruction to
-  // ensure a smooth transition back to the content.
+  // Since the coordinator is likely to be dereferenced right afterward, we
+  // must ensure all its dependencies are synchronously cleaned up first.
+  BOOL shouldAnimate = animated && !self.stopped;
   __weak __typeof(self) weakSelf = self;
-  __weak id<LensCommands> weakCommands =
-      HandlerForProtocol(self.browser->GetCommandDispatcher(), LensCommands);
-
-  BOOL dismissedWithSwipeDown =
-      dismissalSource ==
-      lens::LensOverlayDismissalSource::kBottomSheetDismissed;
-
-  BOOL isInTranslate = _selectionViewController.translateFilterActive;
-
-  LensOverlayDismissalCause dismissalCause;
-  if (dismissedWithSwipeDown) {
-    if (isInTranslate) {
-      dismissalCause = LensOverlayDismissalCauseSwipeDownFromTranslate;
-    } else {
-      dismissalCause = LensOverlayDismissalCauseSwipeDownFromSelection;
-    }
-  } else {
-    dismissalCause = LensOverlayDismissalCauseDismissButton;
-  }
-
-  [weakCommands lensOverlayWillDismissWithCause:dismissalCause];
-  void (^onAnimationFinished)() = ^{
-    [weakSelf dismissLensOverlayWithCompletion:^{
-      [weakCommands lensOverlayDidDismissWithCause:dismissalCause];
-      [weakSelf destroyViewControllersAndMediators];
-    }];
-  };
-
-  [self executeExitAnimationFlowWithCompletion:onAnimationFinished];
+  [self exitAnimated:shouldAnimate
+          completion:^{
+            [weakSelf completeLensOverlayDestroy];
+          }];
 }
 
 #pragma mark - Exit animations
 
-- (void)exitWithoutAnimation {
+- (void)exitAnimated:(BOOL)animated completion:(ProceduralBlock)completion {
   __weak __typeof(self) weakSelf = self;
-  [_containerPresenter
-      dismissContainerAnimated:NO
-                    completion:^{
-                      [weakSelf exitFullscreenAnimated:NO];
-                      [weakSelf destroyViewControllersAndMediators];
-                    }];
+
+  auto onExitComplete = ^{
+    if (!animated) {
+      [weakSelf exitFullscreenAnimated:NO];
+    }
+    if (completion) {
+      completion();
+    }
+  };
+
+  auto dismissLensOverlay = ^{
+    [weakSelf dismissLensOverlayAnimated:animated completion:onExitComplete];
+  };
+
+  if (!animated) {
+    dismissLensOverlay();
+    return;
+  }
+
+  [self executeExitAnimationFlowWithCompletion:dismissLensOverlay];
 }
 
-- (void)executeExitAnimationFlowWithCompletion:(void (^)())completion {
+- (void)executeExitAnimationFlowWithCompletion:(ProceduralBlock)completion {
   __block int completionCount = 0;
   void (^onAnimationFinished)() = ^{
     completionCount++;
@@ -592,7 +584,7 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
   [self animateSelectionUIExitWithCompletion:onAnimationFinished];
 }
 
-- (void)animateBottomSheetExitWithCompletion:(void (^)())completion {
+- (void)animateBottomSheetExitWithCompletion:(ProceduralBlock)completion {
   if (_lensOverlayConsentPresenter.isConsentVisible) {
     [_lensOverlayConsentPresenter
         dismissConsentViewControllerAnimated:YES
@@ -611,7 +603,7 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
   }
 }
 
-- (void)animateSelectionUIExitWithCompletion:(void (^)())completion {
+- (void)animateSelectionUIExitWithCompletion:(ProceduralBlock)completion {
   __weak __typeof(self) weakSelf = self;
   __weak LensOverlayContainerPresenter* weakContainerPresenter =
       _containerPresenter;
@@ -636,8 +628,95 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
   }
 }
 
-- (void)dismissLensOverlayWithCompletion:(void (^)())completion {
-  [_containerPresenter dismissContainerAnimated:NO completion:completion];
+- (void)dismissLensOverlayAnimated:(BOOL)animated
+                        completion:(ProceduralBlock)completion {
+  if (!_containerPresenter && completion) {
+    completion();
+  }
+  [_containerPresenter dismissContainerAnimated:animated completion:completion];
+}
+
+#pragma mark - Destroy lifecycle
+
+// Called before a Lens Overlay UI destroy is started. Subsequent calls until
+// destroy is complete will not invoke this method.
+- (void)prepareForLensOverlayDestroyWithReason:
+    (lens::LensOverlayDismissalSource)dismissalSource {
+  // The destroy preparations should only be called once per exit.
+  if (self.isExiting) {
+    return;
+  }
+
+  [self monitorMemoryWarnings:NO];
+  [_metricsRecorder recordDismissalMetricsWithSource:dismissalSource];
+
+  // The reason the UI is destroyed can be that Omnient gets associated to a
+  // different tab. In this case mark the stale tab helper as not shown.
+  [self cleanupAssociatedTabHelper];
+
+  __weak id<LensCommands> weakCommands =
+      HandlerForProtocol(self.browser->GetCommandDispatcher(), LensCommands);
+  LensOverlayDismissalCause dismissalCause =
+      [self dismissalCauseForSource:dismissalSource];
+  [weakCommands lensOverlayWillDismissWithCause:dismissalCause];
+  [_runOnDestroy addObject:^{
+    [weakCommands lensOverlayDidDismissWithCause:dismissalCause];
+  }];
+}
+
+// Called before a destroy flow is finalized.
+- (void)completeLensOverlayDestroy {
+  [self destroyViewControllersAndMediators];
+  [self notifyDestroyCompleted];
+  self.exiting = NO;
+}
+
+#pragma mark - Exit helpers
+
+// Disconnect and destroy all of the owned view controllers.
+- (void)destroyViewControllersAndMediators {
+  [self stopResultPage];
+  _containerViewController = nil;
+  [_mediator disconnect];
+  _selectionViewController = nil;
+  _mediator = nil;
+  _consentViewController = nil;
+  _associatedTabHelper = nullptr;
+  _metricsRecorder = nil;
+  _containerPresenter = nil;
+  _resultsPagePresenter = nil;
+  _lensOverlayConsentPresenter = nil;
+  _networkIssuePresenter = nil;
+}
+
+- (void)cleanupAssociatedTabHelper {
+  if (!_associatedTabHelper) {
+    return;
+  }
+
+  _associatedTabHelper->SetLensOverlayUIAttachedAndAlive(false);
+  _associatedTabHelper->RecordSheetDimensionState(SheetDimensionState::kHidden);
+  _associatedTabHelper->ClearViewportSnapshot();
+  _associatedTabHelper->UpdateSnapshot();
+  if (self.browser &&
+      IsLensOverlaySameTabNavigationEnabled(self.profile->GetPrefs())) {
+    _associatedTabHelper->ClearInvokationNavigationId();
+  }
+}
+
+- (LensOverlayDismissalCause)dismissalCauseForSource:
+    (lens::LensOverlayDismissalSource)dismissalSource {
+  BOOL dismissedWithSwipeDown =
+      dismissalSource ==
+      lens::LensOverlayDismissalSource::kBottomSheetDismissed;
+
+  if (dismissedWithSwipeDown) {
+    BOOL isInTranslate = _selectionViewController.translateFilterActive;
+    return isInTranslate ? LensOverlayDismissalCauseSwipeDownFromTranslate
+                         : LensOverlayDismissalCauseSwipeDownFromSelection;
+  }
+
+  return LensOverlayDismissalCauseDismissButton;
 }
 
 #pragma mark - LensOverlayNetworkIssuePresenterDelegate
@@ -679,11 +758,15 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
     _associatedTabHelper->ReleaseSnapshotAuxiliaryWindows();
   }
 
-  // In some situations this coordinator shouldn't do
-  // anything because it's already being torn down. Just do minimal clean up and
-  // return.
-  if (_isStopped || _isExiting) {
+  // In some situations this coordinator shouldn't do anything because it's
+  // already being torn down. Just do minimal clean up and return.
+  if (self.suspended) {
     return;
+  }
+
+  if (!lens::IsLVFEntrypoint(_entrypoint)) {
+    PrefService* local_state = GetApplicationContext()->GetLocalState();
+    local_state->SetTime(prefs::kLensOverlayLastPresented, base::Time::Now());
   }
 
   [self indicateLensOverlayVisible:YES];
@@ -919,7 +1002,7 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
 }
 
 - (BOOL)shouldShowTooltipHint {
-  if (_isExiting || _isStopped || ![self shouldShowEscapeHatch]) {
+  if (self.suspended || ![self shouldShowEscapeHatch]) {
     return NO;
   }
 
@@ -943,7 +1026,7 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
 }
 
 - (void)didShowTooltipHint {
-  if (_isExiting || _isStopped) {
+  if (self.suspended) {
     return;
   }
 
@@ -963,7 +1046,7 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
 }
 
 - (void)scheduleTooltipHintDisplayIfNecessary {
-  if (_isExiting || _isStopped || ![self shouldShowTooltipHint]) {
+  if (self.suspended || ![self shouldShowTooltipHint]) {
     return;
   }
 
@@ -976,17 +1059,14 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
 }
 
 - (void)onTooltipScheduledDisplayDelayElapsed {
-  if (_isExiting || _isStopped) {
+  if (self.suspended) {
     return;
   }
 
   BOOL hadInteraction = self.isResultsBottomSheetCreated;
   if (!hadInteraction) {
-    if ([_selectionViewController
-            respondsToSelector:@selector(requestShowOverflowMenuTooltip)]) {
-      [_selectionViewController requestShowOverflowMenuTooltip];
-      [self didShowTooltipHint];
-    }
+    [_selectionViewController requestShowOverflowMenuTooltip];
+    [self didShowTooltipHint];
   }
 }
 
@@ -1019,10 +1099,11 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
 
 // Prepares the lens overlay for display from the given entrypoint.
 - (BOOL)prepareOverlayWithEntrypoint:(LensOverlayEntrypoint)entrypoint {
-  if (_isExiting) {
+  if (self.exiting) {
     return NO;
   }
 
+  _runOnDestroy = [[NSMutableArray alloc] init];
   if (self.isUICreated) {
     // The UI is probably associated with the non-active tab. Destroy it with no
     // animation.
@@ -1251,6 +1332,10 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
   return _containerViewController != nil;
 }
 
+- (BOOL)isSuspended {
+  return self.stopped || self.exiting;
+}
+
 - (BOOL)isResultsBottomSheetCreated {
   return _resultViewController != nil;
 }
@@ -1264,21 +1349,15 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
          !lens::IsImageContextMenuEntrypoint(_entrypoint);
 }
 
-// Disconnect and destroy all of the owned view controllers.
-- (void)destroyViewControllersAndMediators {
-  [self stopResultPage];
-  _containerViewController = nil;
-  [_mediator disconnect];
-  _selectionViewController = nil;
-  _mediator = nil;
-  _consentViewController = nil;
-  _isExiting = NO;
-  _associatedTabHelper = nullptr;
-  _metricsRecorder = nil;
-  _containerPresenter = nil;
-  _resultsPagePresenter = nil;
-  _lensOverlayConsentPresenter = nil;
-  _networkIssuePresenter = nil;
+// Invokes all the completions that are meant to run once the overlay is
+// destroyed.
+- (void)notifyDestroyCompleted {
+  NSMutableArray<ProceduralBlock>* blocks = _runOnDestroy;
+  _runOnDestroy = [[NSMutableArray alloc] init];
+
+  for (ProceduralBlock block in blocks) {
+    block();
+  }
 }
 
 // The tab helper for the active web state.
@@ -1367,10 +1446,18 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
 
 // Whether the image should be repositioned when exiting.
 - (BOOL)shouldResetSelectionToInitialPositionOnExit {
-  BOOL isLVFEntrypoint =
+  // LVF camera capture always resets to initial position.
+  BOOL isCameraCapture =
+      _entrypoint == LensOverlayEntrypoint::kLVFCameraCapture;
+  if (isCameraCapture) {
+    return YES;
+  }
+
+  // User provided images should not cause a reset.
+  BOOL isUserProvidedLVFImage =
       _entrypoint == LensOverlayEntrypoint::kSearchImageContextMenu ||
       _entrypoint == LensOverlayEntrypoint::kLVFImagePicker;
-  if (isLVFEntrypoint) {
+  if (isUserProvidedLVFImage) {
     return NO;
   }
 
@@ -1405,7 +1492,7 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
 
 // Called after consent dialog was dismissed and TOS accepted.
 - (void)handleConsentViewControllerDismissed {
-  if (_isExiting || _isStopped) {
+  if (self.suspended) {
     return;
   }
 

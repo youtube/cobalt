@@ -19,6 +19,7 @@
 #include "chrome/browser/ui/tabs/existing_base_sub_menu_model.h"
 #include "chrome/browser/ui/tabs/organization/tab_organization_utils.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
+#include "chrome/browser/ui/tabs/split_tab_swap_menu_model.h"
 #include "chrome/browser/ui/tabs/tab_menu_model_delegate.h"
 #include "chrome/browser/ui/tabs/test_tab_strip_model_delegate.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -42,6 +43,13 @@
 #include "ui/base/models/menu_model.h"
 #include "ui/base/mojom/window_show_state.mojom.h"
 #include "ui/base/ui_base_features.h"
+#include "ui/menus/simple_menu_model.h"
+
+#if BUILDFLAG(ENABLE_GLIC)
+#include "chrome/browser/glic/glic_keyed_service_factory.h"
+#include "chrome/browser/glic/host/glic_features.mojom.h"
+#include "chrome/browser/glic/test_support/glic_test_environment.h"
+#endif
 
 class TabMenuModelBrowserTest : public MenuModelTest,
                                 public InProcessBrowserTest {
@@ -54,6 +62,21 @@ class TabMenuModelBrowserTest : public MenuModelTest,
   }
 
   Profile* profile() { return browser()->profile(); }
+
+  void ActivateSwapWithSplitSubmenuCommand(
+      int tab_index,
+      SplitTabSwapMenuModel::CommandId command_id) {
+    TabMenuModel menu(&delegate_,
+                      browser()->GetFeatures().tab_menu_model_delegate(),
+                      browser()->tab_strip_model(), tab_index);
+    size_t submenu_index =
+        menu.GetIndexOfCommandId(TabStripModel::CommandSwapWithActiveSplit)
+            .value();
+    ui::SimpleMenuModel* submenu = static_cast<ui::SimpleMenuModel*>(
+        menu.GetSubmenuModelAt(submenu_index));
+    submenu->ActivatedAt(static_cast<size_t>(
+        submenu->GetIndexOfCommandId(static_cast<int>(command_id)).value()));
+  }
 
  private:
   base::test::ScopedFeatureList feature_list_;
@@ -198,6 +221,230 @@ IN_PROC_BROWSER_TEST_F(TabMenuModelBrowserTest,
 
   EXPECT_FALSE(tab_strip_model->GetTabGroupForTab(0).has_value());
   EXPECT_FALSE(tab_strip_model->GetTabGroupForTab(1).has_value());
+}
+
+class TabMenuModelSplitTabsTest : public TabMenuModelBrowserTest {
+ public:
+  TabMenuModelSplitTabsTest() {
+    feature_list_.InitAndEnableFeature(features::kSideBySide);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(TabMenuModelSplitTabsTest, ActiveTabNotSplit) {
+  chrome::NewTab(browser());
+  chrome::NewTab(browser());
+  chrome::NewTab(browser());
+
+  TabStripModel* tab_strip_model = browser()->tab_strip_model();
+  EXPECT_EQ(tab_strip_model->count(), 4);
+  EXPECT_EQ(tab_strip_model->active_index(), 3);
+
+  tab_strip_model->ExecuteContextMenuCommand(2,
+                                             TabStripModel::CommandAddToSplit);
+  tab_strip_model->ActivateTabAt(0);
+
+  // Active tab is not split, context menu index is active tab
+  {
+    TabMenuModel menu_model(&delegate_,
+                            browser()->GetFeatures().tab_menu_model_delegate(),
+                            tab_strip_model, 0);
+
+    EXPECT_TRUE(menu_model.GetIndexOfCommandId(TabStripModel::CommandAddToSplit)
+                    .has_value());
+    EXPECT_FALSE(
+        menu_model
+            .GetIndexOfCommandId(TabStripModel::CommandSwapWithActiveSplit)
+            .has_value());
+    EXPECT_FALSE(
+        menu_model.GetIndexOfCommandId(TabStripModel::CommandArrangeSplit)
+            .has_value());
+  }
+
+  // Active tab is not split, context menu index is on inactive tab
+  {
+    TabMenuModel menu_model(&delegate_,
+                            browser()->GetFeatures().tab_menu_model_delegate(),
+                            tab_strip_model, 1);
+
+    EXPECT_TRUE(menu_model.GetIndexOfCommandId(TabStripModel::CommandAddToSplit)
+                    .has_value());
+    EXPECT_FALSE(
+        menu_model
+            .GetIndexOfCommandId(TabStripModel::CommandSwapWithActiveSplit)
+            .has_value());
+    EXPECT_FALSE(
+        menu_model.GetIndexOfCommandId(TabStripModel::CommandArrangeSplit)
+            .has_value());
+  }
+
+  // Active tab is not split, context menu index is on inactive split tab
+  {
+    TabMenuModel menu_model(&delegate_,
+                            browser()->GetFeatures().tab_menu_model_delegate(),
+                            tab_strip_model, 2);
+
+    EXPECT_FALSE(
+        menu_model.GetIndexOfCommandId(TabStripModel::CommandAddToSplit)
+            .has_value());
+    EXPECT_FALSE(
+        menu_model
+            .GetIndexOfCommandId(TabStripModel::CommandSwapWithActiveSplit)
+            .has_value());
+    EXPECT_TRUE(
+        menu_model.GetIndexOfCommandId(TabStripModel::CommandArrangeSplit)
+            .has_value());
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(TabMenuModelSplitTabsTest, SplitActiveTab) {
+  chrome::NewTab(browser());
+  chrome::NewTab(browser());
+  chrome::NewTab(browser());
+
+  TabStripModel* tab_strip_model = browser()->tab_strip_model();
+  EXPECT_EQ(tab_strip_model->count(), 4);
+  EXPECT_EQ(tab_strip_model->active_index(), 3);
+
+  tab_strip_model->ExecuteContextMenuCommand(2,
+                                             TabStripModel::CommandAddToSplit);
+
+  // Active tab is split, context menu index is active tab
+  {
+    TabMenuModel menu_model(&delegate_,
+                            browser()->GetFeatures().tab_menu_model_delegate(),
+                            tab_strip_model, 3);
+
+    EXPECT_FALSE(
+        menu_model.GetIndexOfCommandId(TabStripModel::CommandAddToSplit)
+            .has_value());
+    EXPECT_FALSE(
+        menu_model
+            .GetIndexOfCommandId(TabStripModel::CommandSwapWithActiveSplit)
+            .has_value());
+    EXPECT_TRUE(
+        menu_model.GetIndexOfCommandId(TabStripModel::CommandArrangeSplit)
+            .has_value());
+  }
+
+  // Active tab is split, context menu index is on inactive tab
+  {
+    TabMenuModel menu_model(&delegate_,
+                            browser()->GetFeatures().tab_menu_model_delegate(),
+                            tab_strip_model, 1);
+
+    EXPECT_FALSE(
+        menu_model.GetIndexOfCommandId(TabStripModel::CommandAddToSplit)
+            .has_value());
+    EXPECT_TRUE(
+        menu_model
+            .GetIndexOfCommandId(TabStripModel::CommandSwapWithActiveSplit)
+            .has_value());
+    EXPECT_FALSE(
+        menu_model.GetIndexOfCommandId(TabStripModel::CommandArrangeSplit)
+            .has_value());
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(TabMenuModelSplitTabsTest, MultiSelectTabs) {
+  chrome::NewTab(browser());
+  chrome::NewTab(browser());
+  chrome::NewTab(browser());
+
+  TabStripModel* tab_strip_model = browser()->tab_strip_model();
+  EXPECT_EQ(tab_strip_model->count(), 4);
+  EXPECT_EQ(tab_strip_model->active_index(), 3);
+
+  tab_strip_model->ActivateTabAt(1);
+  tab_strip_model->AddSelectionFromAnchorTo(2);
+
+  {
+    TabMenuModel menu_model(&delegate_,
+                            browser()->GetFeatures().tab_menu_model_delegate(),
+                            tab_strip_model, 2);
+
+    auto index =
+        menu_model.GetIndexOfCommandId(TabStripModel::CommandAddToSplit);
+
+    EXPECT_TRUE(index.has_value());
+    EXPECT_TRUE(menu_model.IsEnabledAt(index.value()));
+  }
+
+  tab_strip_model->ActivateTabAt(0);
+  tab_strip_model->AddSelectionFromAnchorTo(2);
+
+  {
+    TabMenuModel menu_model(&delegate_,
+                            browser()->GetFeatures().tab_menu_model_delegate(),
+                            tab_strip_model, 2);
+
+    auto index =
+        menu_model.GetIndexOfCommandId(TabStripModel::CommandAddToSplit);
+
+    EXPECT_TRUE(index.has_value());
+    EXPECT_FALSE(menu_model.IsEnabledAt(index.value()));
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(TabMenuModelSplitTabsTest, SwapWithActiveTab) {
+  // Add 3 tabs to the browser.
+  chrome::NewTab(browser());
+  chrome::NewTab(browser());
+  TabStripModel* tab_strip_model = browser()->tab_strip_model();
+  EXPECT_EQ(tab_strip_model->count(), 3);
+
+  // Create a split. Assert that the last two tabs are split with the rightmost
+  // tab active.
+  tab_strip_model->ActivateTabAt(0);
+  tab_strip_model->AddToNewSplit(
+      {1},
+      split_tabs::SplitTabVisualData(split_tabs::SplitTabLayout::kVertical));
+  EXPECT_TRUE(tab_strip_model->GetSplitForTab(0).has_value());
+  EXPECT_TRUE(tab_strip_model->GetSplitForTab(1).has_value());
+  EXPECT_FALSE(tab_strip_model->GetSplitForTab(2).has_value());
+  EXPECT_EQ(tab_strip_model->active_index(), 0);
+
+  // Trigger the swap start tab command.
+  ActivateSwapWithSplitSubmenuCommand(
+      2, SplitTabSwapMenuModel::CommandId::kSwapStartTab);
+
+  // Check that now the left two tabs are in a split and the left (swapped) tab
+  // in the split is active.
+  EXPECT_TRUE(tab_strip_model->GetSplitForTab(0).has_value());
+  EXPECT_TRUE(tab_strip_model->GetSplitForTab(1).has_value());
+  EXPECT_FALSE(tab_strip_model->GetSplitForTab(2).has_value());
+  EXPECT_EQ(tab_strip_model->active_index(), 0);
+}
+
+IN_PROC_BROWSER_TEST_F(TabMenuModelSplitTabsTest, SwapWithInactiveTab) {
+  // Add 3 tabs to the browser.
+  chrome::NewTab(browser());
+  chrome::NewTab(browser());
+  TabStripModel* tab_strip_model = browser()->tab_strip_model();
+  EXPECT_EQ(tab_strip_model->count(), 3);
+
+  // Create a split. Assert that the last two tabs are split with the rightmost
+  // tab active.
+  tab_strip_model->AddToNewSplit(
+      {1},
+      split_tabs::SplitTabVisualData(split_tabs::SplitTabLayout::kVertical));
+  EXPECT_FALSE(tab_strip_model->GetSplitForTab(0).has_value());
+  EXPECT_TRUE(tab_strip_model->GetSplitForTab(1).has_value());
+  EXPECT_TRUE(tab_strip_model->GetSplitForTab(2).has_value());
+  EXPECT_EQ(tab_strip_model->active_index(), 2);
+
+  // Trigger the swap start tab command.
+  ActivateSwapWithSplitSubmenuCommand(
+      0, SplitTabSwapMenuModel::CommandId::kSwapStartTab);
+
+  // Check that now the right two tabs are in a split and the right (swapped)
+  // tab in the split is active.
+  EXPECT_FALSE(tab_strip_model->GetSplitForTab(0).has_value());
+  EXPECT_TRUE(tab_strip_model->GetSplitForTab(1).has_value());
+  EXPECT_TRUE(tab_strip_model->GetSplitForTab(2).has_value());
+  EXPECT_EQ(tab_strip_model->active_index(), 2);
 }
 
 class TabMenuModelCommerceProductSpecsTest : public TabMenuModelBrowserTest {
@@ -712,3 +959,101 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_TRUE(index.has_value());
   EXPECT_TRUE(model.IsEnabledAt(index.value()));
 }
+
+#if BUILDFLAG(ENABLE_GLIC)
+class TabMenuModelGlicMultiTabTest : public TabMenuModelBrowserTest {
+ public:
+  TabMenuModelGlicMultiTabTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        glic::mojom::features::kGlicMultiTab);
+  }
+
+ protected:
+  TabStripModel* tab_strip() { return browser()->tab_strip_model(); }
+
+  glic::GlicSharingManager& sharing_manager() {
+    return glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile())
+        ->sharing_manager();
+  }
+
+  tabs::TabHandle TabHandleAtIndex(int index) {
+    return tab_strip()->GetTabAtIndex(index)->GetHandle();
+  }
+
+  glic::GlicTestEnvironment glic_test_environment_;
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(TabMenuModelGlicMultiTabTest, NotShared) {
+  chrome::NewTab(browser());
+  chrome::NewTab(browser());
+  chrome::NewTab(browser());
+
+  TabStripModel* tab_strip_model = browser()->tab_strip_model();
+  TabMenuModel model(&delegate_,
+                     browser()->GetFeatures().tab_menu_model_delegate(),
+                     tab_strip_model, 1);
+  EXPECT_TRUE(model.GetIndexOfCommandId(TabStripModel::CommandGlicStartShare)
+                  .has_value());
+  EXPECT_FALSE(model.GetIndexOfCommandId(TabStripModel::CommandGlicStopShare)
+                   .has_value());
+  EXPECT_FALSE(model.GetIndexOfCommandId(TabStripModel::CommandGlicShareLimit)
+                   .has_value());
+}
+
+IN_PROC_BROWSER_TEST_F(TabMenuModelGlicMultiTabTest, SomeShared) {
+  chrome::NewTab(browser());
+  chrome::NewTab(browser());
+  chrome::NewTab(browser());
+
+  sharing_manager().PinTabs({TabHandleAtIndex(0)});
+
+  TabMenuModel model(&delegate_,
+                     browser()->GetFeatures().tab_menu_model_delegate(),
+                     tab_strip(), 1);
+  EXPECT_TRUE(model.GetIndexOfCommandId(TabStripModel::CommandGlicStartShare)
+                  .has_value());
+  EXPECT_FALSE(model.GetIndexOfCommandId(TabStripModel::CommandGlicStopShare)
+                   .has_value());
+  EXPECT_FALSE(model.GetIndexOfCommandId(TabStripModel::CommandGlicShareLimit)
+                   .has_value());
+}
+
+IN_PROC_BROWSER_TEST_F(TabMenuModelGlicMultiTabTest, AllShared) {
+  for (int i = 0; i < 3; ++i) {
+    chrome::NewTab(browser());
+    sharing_manager().PinTabs({TabHandleAtIndex(i)});
+  }
+
+  TabMenuModel model(&delegate_,
+                     browser()->GetFeatures().tab_menu_model_delegate(),
+                     tab_strip(), 1);
+  EXPECT_FALSE(model.GetIndexOfCommandId(TabStripModel::CommandGlicStartShare)
+                   .has_value());
+  EXPECT_TRUE(model.GetIndexOfCommandId(TabStripModel::CommandGlicStopShare)
+                  .has_value());
+  EXPECT_FALSE(model.GetIndexOfCommandId(TabStripModel::CommandGlicShareLimit)
+                   .has_value());
+}
+
+IN_PROC_BROWSER_TEST_F(TabMenuModelGlicMultiTabTest, TooManyShared) {
+  const int limit = sharing_manager().GetMaxPinnedTabs();
+  for (int i = 0; i < limit; ++i) {
+    chrome::NewTab(browser());
+    sharing_manager().PinTabs({TabHandleAtIndex(i)});
+  }
+  chrome::NewTab(browser());
+  tab_strip()->SelectTabAt(limit);
+  EXPECT_FALSE(sharing_manager().IsTabPinned(TabHandleAtIndex(limit)));
+
+  TabMenuModel model(&delegate_,
+                     browser()->GetFeatures().tab_menu_model_delegate(),
+                     tab_strip(), limit);
+  EXPECT_FALSE(model.GetIndexOfCommandId(TabStripModel::CommandGlicStartShare)
+                   .has_value());
+  EXPECT_FALSE(model.GetIndexOfCommandId(TabStripModel::CommandGlicStopShare)
+                   .has_value());
+  EXPECT_TRUE(model.GetIndexOfCommandId(TabStripModel::CommandGlicShareLimit)
+                  .has_value());
+}
+#endif  // BUILDFLAG(ENABLE_GLIC)

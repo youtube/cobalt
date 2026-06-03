@@ -34,6 +34,7 @@
 #include "chrome/common/chrome_paths.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/lens/lens_features.h"
 #include "components/omnibox/browser/location_bar_model_impl.h"
 #include "components/omnibox/browser/omnibox_field_trial.h"
 #include "components/omnibox/common/omnibox_features.h"
@@ -85,10 +86,17 @@ class LocationBarViewBrowserTest : public InProcessBrowserTest {
     return browser_view->GetLocationBarView();
   }
 
-  PageActionIconView* GetZoomView() {
-    return BrowserView::GetBrowserViewForBrowser(browser())
-        ->toolbar_button_provider()
-        ->GetPageActionIconView(PageActionIconType::kZoom);
+  views::View* GetZoomView() {
+    auto* toolbar_button_provider =
+        BrowserView::GetBrowserViewForBrowser(browser())
+            ->toolbar_button_provider();
+
+    if (IsPageActionMigrated(PageActionIconType::kZoom)) {
+      return toolbar_button_provider->GetPageActionView(kActionZoomNormal);
+    }
+
+    return toolbar_button_provider->GetPageActionIconView(
+        PageActionIconType::kZoom);
   }
 
   ContentSettingImageView& GetContentSettingImageView(
@@ -108,7 +116,7 @@ IN_PROC_BROWSER_TEST_F(LocationBarViewBrowserTest, LocationBarDecoration) {
       browser()->tab_strip_model()->GetActiveWebContents();
   zoom::ZoomController* zoom_controller =
       zoom::ZoomController::FromWebContents(web_contents);
-  PageActionIconView* zoom_view = GetZoomView();
+  auto* zoom_view = GetZoomView();
 
   ASSERT_TRUE(zoom_view);
   EXPECT_FALSE(zoom_view->GetVisible());
@@ -152,7 +160,7 @@ IN_PROC_BROWSER_TEST_F(LocationBarViewBrowserTest, BubblesCloseOnHide) {
       browser()->tab_strip_model()->GetActiveWebContents();
   zoom::ZoomController* zoom_controller =
       zoom::ZoomController::FromWebContents(web_contents);
-  PageActionIconView* zoom_view = GetZoomView();
+  auto* zoom_view = GetZoomView();
 
   ASSERT_TRUE(zoom_view);
   EXPECT_FALSE(zoom_view->GetVisible());
@@ -427,7 +435,8 @@ class LocationBarViewPageActionMigrationTest
   LocationBarViewPageActionMigrationTest() {
     scoped_feature_list_.InitWithFeaturesAndParameters(
         {{::features::kPageActionsMigration,
-          {{::features::kPageActionsMigrationLensOverlay.name, "true"}}}},
+          {{::features::kPageActionsMigrationLensOverlay.name, "true"}}},
+         {lens::features::kLensOverlayOmniboxEntryPoint, {}}},
         {});
   }
   ~LocationBarViewPageActionMigrationTest() override = default;
@@ -447,7 +456,7 @@ class LocationBarViewPageActionMigrationTest
 #if BUILDFLAG(IS_OZONE_WAYLAND)
 #define MAYBE_LocationBarFocusOrder DISABLED_LocationBarFocusOrder
 #else
-#define MAYBE_LocationBarFocusOrder ocationBarFocusOrder
+#define MAYBE_LocationBarFocusOrder LocationBarFocusOrder
 #endif
 
 // Tests that shifting focus from the omnibox will focus the migrated page
@@ -493,8 +502,11 @@ class LocationBarViewPageActionHideWhileEditingTests
     : public InProcessBrowserTest {
  public:
   LocationBarViewPageActionHideWhileEditingTests() {
-    scoped_feature_list_.InitWithFeaturesAndParameters(
-        {{::features::kPageActionsMigration, {}}}, {});
+    scoped_feature_list_.InitAndEnableFeatureWithParameters(
+        ::features::kPageActionsMigration,
+        {
+            {features::kPageActionsMigrationZoom.name, "true"},
+        });
   }
 
   void SetUpOnMainThread() override {

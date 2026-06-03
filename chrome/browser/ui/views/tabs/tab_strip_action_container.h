@@ -6,9 +6,10 @@
 #define CHROME_BROWSER_UI_VIEWS_TABS_TAB_STRIP_ACTION_CONTAINER_H_
 
 #include "base/gtest_prod_util.h"
+#include "base/memory/raw_ptr.h"
 #include "chrome/browser/glic/browser_ui/glic_button_controller_delegate.h"
 #include "chrome/browser/ui/tabs/glic_nudge_controller.h"
-#include "chrome/browser/ui/tabs/glic_nudge_observer.h"
+#include "chrome/browser/ui/tabs/glic_nudge_delegate.h"
 #include "chrome/browser/ui/tabs/organization/tab_declutter_controller.h"
 #include "chrome/browser/ui/tabs/organization/tab_declutter_observer.h"
 #include "chrome/browser/ui/views/tabs/tab_search_container.h"
@@ -34,7 +35,7 @@ class TabStripActionContainer : public views::View,
                                 public views::AnimationDelegateViews,
                                 public views::MouseWatcherListener,
                                 public TabOrganizationObserver,
-                                public GlicNudgeObserver,
+                                public GlicNudgeDelegate,
                                 public glic::GlicButtonControllerDelegate {
   METADATA_HEADER(TabStripActionContainer, views::View)
 
@@ -119,8 +120,9 @@ class TabStripActionContainer : public views::View,
   // views::MouseWatcherListener:
   void MouseMovedOutOfHost() override;
 
-  // GlicNudgeObserver
+  // GlicNudgeDelegate:
   void OnTriggerGlicNudgeUI(std::string label) override;
+  bool GetIsShowingGlicNudge() override;
 
   // GlicButtonControllerDelegate:
   void SetGlicShowState(bool show) override;
@@ -217,9 +219,6 @@ class TabStripActionContainer : public views::View,
 
   base::ScopedObservation<tabs::TabDeclutterController, TabDeclutterObserver>
       tab_declutter_observation_{this};
-
-  base::ScopedObservation<tabs::GlicNudgeController, GlicNudgeObserver>
-      tab_glic_nudge_observation_{this};
 
   // Prevents other features from showing tabstrip-modal UI.
   std::unique_ptr<ScopedTabStripModalUI> scoped_tab_strip_modal_ui_;

@@ -175,6 +175,7 @@ void TestLensOverlayQueryController::ResetTestingState() {
   last_sent_page_url_ = GURL();
   num_interaction_requests_sent_ = 0;
   num_upload_chunk_requests_sent_ = 0;
+  last_cluster_info_request_ = std::nullopt;
 }
 
 std::unique_ptr<EndpointFetcher>
@@ -201,12 +202,19 @@ TestLensOverlayQueryController::CreateEndpointFetcher(
   bool is_chunk_request =
       chunk_endpoint_url.GetWithEmptyPath() == fetch_url.GetWithEmptyPath() &&
       chunk_endpoint_url.path() == fetch_url.path();
+  bool is_cluster_info_request =
+      fetch_url == GURL(lens::features::GetLensOverlayClusterInfoEndpointUrl());
 
-  if (request_string.empty()) {
+  if (is_cluster_info_request) {
     // Cluster info request.
     num_cluster_info_fetch_requests_sent_++;
     fake_server_response_string =
         fake_cluster_info_response_.SerializeAsString();
+    if (!request_string.empty()) {
+      lens::LensOverlayServerClusterInfoRequest cluster_info_request;
+      cluster_info_request.ParseFromString(request_string);
+      last_cluster_info_request_ = cluster_info_request;
+    }
   } else if (is_chunk_request) {
     // Upload chunk request.
     lens::LensOverlayUploadChunkResponse fake_response;
@@ -255,7 +263,8 @@ TestLensOverlayQueryController::CreateEndpointFetcher(
         base::as_byte_span(last_sent_page_content_data_);
     last_sent_underlying_content_type_ =
         StringToContentType(request.objects_request().payload().content_type());
-    last_sent_page_url_ = GURL(request.objects_request().payload().page_url());
+    last_sent_page_url_ =
+        GURL(request.objects_request().payload().content().webpage_url());
   } else if (request.has_objects_request()) {
     // Full image request.
     num_full_image_requests_sent_++;

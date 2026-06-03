@@ -54,9 +54,14 @@ bool DetectTextEncoding(base::span<const uint8_t> bytes,
                         const char* hint_encoding_name,
                         const KURL& hint_url,
                         const char* hint_user_language,
+<<<<<<< HEAD
                         WTF::TextEncoding* detected_encoding) {
 #if !BUILDFLAG(IS_COBALT)
   *detected_encoding = WTF::TextEncoding();
+=======
+                        TextEncoding* detected_encoding) {
+  *detected_encoding = TextEncoding();
+>>>>>>> 52788d1a1e (Update to m139 branch point.)
   // In general, do not use language hint. This helps get more
   // deterministic encoding detection results across devices. Note that local
   // file resources can still benefit from the hint.
@@ -74,9 +79,9 @@ bool DetectTextEncoding(base::span<const uint8_t> bytes,
       &consumed_bytes, &is_reliable);
 
   if (encoding == UNKNOWN_ENCODING)
-    *detected_encoding = WTF::UnknownEncoding();
+    *detected_encoding = UnknownEncoding();
   else
-    *detected_encoding = WTF::TextEncoding(MimeEncodingName(encoding));
+    *detected_encoding = TextEncoding(MimeEncodingName(encoding));
 
   // Should return false if the detected encoding is UTF8. This helps prevent
   // modern web sites from neglecting proper encoding labelling and simply

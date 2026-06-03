@@ -33,23 +33,22 @@
 #include "third_party/blink/renderer/platform/wtf/text/text_codec.h"
 #include "third_party/blink/renderer/platform/wtf/text/text_encoding.h"
 
-typedef struct UConverter UConverter;
+using UConverter = struct UConverter;
 
-namespace WTF {
+namespace blink {
 
 class TextCodecInput;
 
-class TextCodecICU final : public TextCodec {
+class TextCodecIcu final : public TextCodec {
  public:
   static void RegisterEncodingNames(EncodingNameRegistrar);
   static void RegisterCodecs(TextCodecRegistrar);
 
-  ~TextCodecICU() override;
+  ~TextCodecIcu() override;
 
  private:
-  TextCodecICU(const TextEncoding&);
-  WTF_EXPORT static std::unique_ptr<TextCodec> Create(const TextEncoding&,
-                                                      const void*);
+  explicit TextCodecIcu(const TextEncoding&);
+  WTF_EXPORT static std::unique_ptr<TextCodec> Create(const TextEncoding&);
 
   String Decode(base::span<const uint8_t> data,
                 FlushBehavior,
@@ -62,8 +61,8 @@ class TextCodecICU final : public TextCodec {
   std::string EncodeCommon(base::span<const CharType>, UnencodableHandling);
   std::string EncodeInternal(const TextCodecInput&, UnencodableHandling);
 
-  void CreateICUConverter() const;
-  void ReleaseICUConverter() const;
+  void CreateIcuConverter() const;
+  void ReleaseIcuConverter() const;
 
   int DecodeToBuffer(UChar* buffer,
                      UChar* buffer_limit,
@@ -79,21 +78,21 @@ class TextCodecICU final : public TextCodec {
   mutable bool needs_gbk_fallbacks_ = false;
 #endif
 
-  FRIEND_TEST_ALL_PREFIXES(TextCodecICUTest, IgnorableCodePoint);
+  FRIEND_TEST_ALL_PREFIXES(TextCodecIcuTest, IgnorableCodePoint);
 };
 
-struct ICUConverterWrapper {
-  USING_FAST_MALLOC(ICUConverterWrapper);
+struct IcuConverterWrapper {
+  USING_FAST_MALLOC(IcuConverterWrapper);
 
  public:
-  ICUConverterWrapper() : converter(nullptr) {}
-  ICUConverterWrapper(const ICUConverterWrapper&) = delete;
-  ICUConverterWrapper& operator=(const ICUConverterWrapper&) = delete;
-  ~ICUConverterWrapper();
+  IcuConverterWrapper() : converter(nullptr) {}
+  IcuConverterWrapper(const IcuConverterWrapper&) = delete;
+  IcuConverterWrapper& operator=(const IcuConverterWrapper&) = delete;
+  ~IcuConverterWrapper();
 
   UConverter* converter;
 };
 
-}  // namespace WTF
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_TEXT_TEXT_CODEC_ICU_H_

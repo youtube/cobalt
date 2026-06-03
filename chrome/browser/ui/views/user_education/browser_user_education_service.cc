@@ -353,7 +353,7 @@ void MaybeRegisterChromeFeaturePromos(
           .SetMetadata(100, "siyua@chromium.org",
                        "Triggered after autofill popup appears.")));
 
-  // kIPHAutofillBnplSuggestionFeature:
+  // kIPHAutofillBnplAffirmOrZipSuggestionFeature:
   registry.RegisterFeature(std::move(
       FeaturePromoSpecification::CreateForToastPromo(
           feature_engagement::kIPHAutofillBnplAffirmOrZipSuggestionFeature,
@@ -363,7 +363,24 @@ void MaybeRegisterChromeFeaturePromos(
           FeaturePromoSpecification::AcceleratorInfo())
           .SetBubbleArrow(HelpBubbleArrow::kLeftCenter)
           .SetMetadata(137, "yiwenqian@google.com",
-                       "Triggered when users see the BNPL chip.")));
+                       "Triggered when users see the BNPL chip. Used when the "
+                       "possible available BNPL issuers are Affirm and Zip.")));
+
+  // kIPHAutofillBnplAffirmZipOrKlarnaSuggestionFeature:
+  registry.RegisterFeature(std::move(
+      FeaturePromoSpecification::CreateForToastPromo(
+          feature_engagement::
+              kIPHAutofillBnplAffirmZipOrKlarnaSuggestionFeature,
+          autofill::PopupViewViews::
+              kAutofillBnplAffirmZipOrKlarnaSuggestionElementId,
+          IDS_AUTOFILL_CARD_BNPL_AFFIRM_ZIP_OR_KLARNA_SUGGESTION_IPH_BUBBLE_LABEL_DESKTOP,
+          IDS_AUTOFILL_CARD_BNPL_AFFIRM_ZIP_OR_KLARNA_SUGGESTION_IPH_BUBBLE_LABEL_DESKTOP_SCREENREADER,
+          FeaturePromoSpecification::AcceleratorInfo())
+          .SetBubbleArrow(HelpBubbleArrow::kLeftCenter)
+          .SetMetadata(
+              139, "wilsonlow@google.com",
+              "Triggered when users see the BNPL chip. Used when the possible "
+              "available BNPL issuers are Affirm, Zip, and Klarna.")));
 
   // kIPHAutofillCardInfoRetrievalSuggestionFeature:
   registry.RegisterFeature(std::move(
@@ -567,30 +584,6 @@ void MaybeRegisterChromeFeaturePromos(
                        "Triggered when there is atleast one "
                        "new module on the NTP page.")));
 
-  // kIPHExperimentalAIPromoFeature:
-  registry.RegisterFeature(std::move(
-      FeaturePromoSpecification::CreateForCustomAction(
-          feature_engagement::kIPHExperimentalAIPromoFeature,
-          kToolbarAppMenuButtonElementId, IDS_IPH_EXPERIMENTAL_AI_PROMO_BODY,
-          IDS_IPH_EXPERIMENTAL_AI_PROMO_BUTTON_CONTINUE,
-          base::BindRepeating(
-              [](ui::ElementContext ctx,
-                 user_education::FeaturePromoHandle promo_handle) {
-                auto* browser = chrome::FindBrowserWithUiElementContext(ctx);
-                if (!browser) {
-                  return;
-                }
-                chrome::ShowSettingsSubPage(
-                    browser, chrome::kExperimentalAISettingsSubPage);
-                base::RecordAction(base::UserMetricsAction(
-                    "ExperimentalAI_IPHPromo_SettingsPageOpened"));
-              }))
-          .SetBubbleTitleText(IDS_IPH_EXPERIMENTAL_AI_PROMO)
-          .SetCustomActionDismissText(IDS_NO_THANKS)
-          .SetBubbleArrow(HelpBubbleArrow::kTopRight)
-          .SetCustomActionIsDefault(true)
-          .OverrideFocusOnShow(false)));
-
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // kIPHExtensionsMenuFeature:
   registry.RegisterFeature(std::move(
@@ -617,9 +610,9 @@ void MaybeRegisterChromeFeaturePromos(
 
   // kIPHExtensionsZeroStatePromoFeature
   user_education::Metadata kIPHExtensionsZeroStatePromoFeatureMetaData =
-      user_education::Metadata(
-          140, "uwyiming@google.com",
-          "Triggered when a user has no extensions installed.");
+      user_education::Metadata(140, "uwyiming@google.com",
+                               "Triggered when a user has no "
+                               "extensions installed.");
   switch (feature_engagement::kIPHExtensionsZeroStatePromoVariantParam.Get()) {
     case feature_engagement::kCustomActionIph:
       registry.RegisterFeature(std::move(
@@ -628,7 +621,9 @@ void MaybeRegisterChromeFeaturePromos(
               kToolbarAppMenuButtonElementId,
               IDS_EXTENSIONS_ZERO_STATE_PROMO_CUSTOM_ACTION_IPH_DESCRIPTION,
               IDS_EXTENSIONS_ZERO_STATE_PROMO_CUSTOM_ACTION_IPH_ACCEPT,
-              CreateNavigationAction(extension_urls::GetWebstoreLaunchURL()))
+              CreateNavigationAction(extension_urls::AppendUtmSource(
+                  extension_urls::GetWebstoreLaunchURL(),
+                  extension_urls::kCustomActionIphUtmSource)))
               .SetCustomActionIsDefault(true)
               .SetBubbleTitleText(IDS_EXTENSIONS_ZERO_STATE_PROMO_IPH_TITLE)
               .SetMetadata(
@@ -1116,28 +1111,17 @@ void MaybeRegisterChromeFeaturePromos(
 
   // kIPHTabSearchToolbarButtonFeature:
   registry.RegisterFeature(std::move(
-      FeaturePromoSpecification::CreateForCustomAction(
+      FeaturePromoSpecification::CreateForToastPromo(
           feature_engagement::kIPHTabSearchToolbarButtonFeature,
           kTabSearchButtonElementId, IDS_TAB_SEARCH_TOOLBAR_BUTTON_PROMO_BODY,
-          IDS_TAB_SEARCH_TOOLBAR_BUTTON_PROMO_ACTION,
-          base::BindRepeating(
-              [](ui::ElementContext context,
-                 user_education::FeaturePromoHandle promo_handle) {
-                auto* browser =
-                    chrome::FindBrowserWithUiElementContext(context);
-                if (browser) {
-                  PinnedToolbarActionsModel::Get(browser->profile())
-                      ->UpdatePinnedState(kActionTabSearch, false);
-                }
-              }))
+          IDS_TAB_SEARCH_TOOLBAR_BUTTON_PROMO_BODY,
+          FeaturePromoSpecification::AcceleratorInfo())
           .SetBubbleArrow(user_education::HelpBubbleArrow::kTopRight)
           .SetBubbleIcon(kLightbulbOutlineIcon)
           .SetBubbleTitleText(IDS_TAB_SEARCH_TOOLBAR_BUTTON_PROMO_TITLE)
           .SetMetadata(136, "emshack@chromium.org",
                        "Triggered when the tab search button has been moved "
-                       "into the toolbar.")
-          .SetPromoSubtype(
-              FeaturePromoSpecification::PromoSubtype::kActionableAlert)));
+                       "into the toolbar.")));
 
   // kIPHDesktopSharedHighlightingFeature:
   registry.RegisterFeature(
@@ -1357,8 +1341,7 @@ void MaybeRegisterChromeFeaturePromos(
                 }
                 const GURL final_url(chrome::kChromeUIWebAppSettingsURL +
                                      *app_id);
-                if (web_contents &&
-                    web_contents->GetURL() != browser->GetNewTabURL()) {
+                if (web_contents) {
                   NavigateParams params(browser->profile(), final_url,
                                         ui::PAGE_TRANSITION_LINK);
                   params.disposition =
@@ -1401,8 +1384,7 @@ void MaybeRegisterChromeFeaturePromos(
                 }
                 const GURL final_url(chrome::kChromeUIWebAppSettingsURL +
                                      *app_id);
-                if (web_contents &&
-                    web_contents->GetURL() != browser->GetNewTabURL()) {
+                if (web_contents) {
                   NavigateParams params(browser->profile(), final_url,
                                         ui::PAGE_TRANSITION_LINK);
                   params.disposition =

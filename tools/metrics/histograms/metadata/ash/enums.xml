@@ -2317,6 +2317,8 @@ chromeos/ash/components/peripheral_notification/peripheral_notification_manager.
   <int value="19" label="Visible on all desks"/>
   <int value="20" label="Select a window in Snap Group in partial Overview"/>
   <int value="21" label="Move a window in Snap Group to new coral desk"/>
+  <int value="22" label="ToggleSnapGroup accelerator"/>
+  <int value="23" label="Moved to another display"/>
 </enum>
 
 <enum name="SpeechRecognitionEndState">
@@ -3019,7 +3021,7 @@ chromeos/ash/components/peripheral_notification/peripheral_notification_manager.
   <int value="14" label="Window is snapped due to desk or session change"/>
   <int value="15"
       label="Window is snapped when updating a window in snap group"/>
-  <int value="16" label="Window is snapped in test"/>
+  <int value="16" label="(Obsolete) Window is snapped in test"/>
   <int value="17"
       label="(Obsolete) Window is snapped by long pressing lacros window
              caption button or window layout menu"/>

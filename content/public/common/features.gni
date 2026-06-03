@@ -4,6 +4,7 @@
 
 import("//build/config/features.gni")
 
+<<<<<<< HEAD
 declare_args() {
   # Screen capture is enabled on most platforms. Currently, screen capture
   # is only enabled for desktop Android, but should be enabled on all Android
@@ -12,3 +13,10 @@ declare_args() {
                           is_win || is_desktop_android || is_fuchsia
 
 }
+=======
+# Screen capture is enabled on most platforms. Currently, screen capture
+# is only enabled for desktop Android, but should be enabled on all Android
+# at some point once the feature is stable. See crbug.com/40418135.
+enable_screen_capture = is_linux || is_chromeos || (is_apple && use_blink) ||
+                        is_win || is_android || is_fuchsia
+>>>>>>> 52788d1a1e (Update to m139 branch point.)

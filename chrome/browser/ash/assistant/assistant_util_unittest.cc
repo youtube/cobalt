@@ -112,8 +112,8 @@ class ScopedLogIn {
         EXPECT_TRUE(IsGaiaAccount());
         return;
       case user_manager::UserType::kPublicAccount:
-      case user_manager::UserType::kKioskApp:
-      case user_manager::UserType::kWebKioskApp:
+      case user_manager::UserType::kKioskChromeApp:
+      case user_manager::UserType::kKioskWebApp:
       case user_manager::UserType::kKioskIWA:
         EXPECT_FALSE(IsGaiaAccount());
         return;
@@ -132,11 +132,11 @@ class ScopedLogIn {
       case user_manager::UserType::kPublicAccount:
         fake_user_manager_->AddPublicAccountUser(account_id_);
         return;
-      case user_manager::UserType::kKioskApp:
-        fake_user_manager_->AddKioskAppUser(account_id_);
+      case user_manager::UserType::kKioskChromeApp:
+        fake_user_manager_->AddKioskChromeAppUser(account_id_);
         return;
-      case user_manager::UserType::kWebKioskApp:
-        fake_user_manager_->AddWebKioskAppUser(account_id_);
+      case user_manager::UserType::kKioskWebApp:
+        fake_user_manager_->AddKioskWebAppUser(account_id_);
         return;
       case user_manager::UserType::kKioskIWA:
         fake_user_manager_->AddKioskIwaUser(account_id_);
@@ -175,7 +175,7 @@ class ChromeAssistantUtilTest : public testing::Test {
 
     ASSERT_TRUE(data_dir_.CreateUniqueTempDir());
     profile_manager_ = std::make_unique<TestingProfileManager>(
-        TestingBrowserProcess::GetGlobal(), &local_state_);
+        TestingBrowserProcess::GetGlobal());
     ASSERT_TRUE(profile_manager_->SetUp());
 
     profile_ = profile_manager_->CreateTestingProfile(
@@ -428,7 +428,7 @@ TEST_F(ChromeAssistantUtilTest,
 TEST_F(ChromeAssistantUtilTest, IsAssistantAllowedForKiosk_KioskApp) {
   ScopedLogIn login(GetFakeUserManager(), identity_test_env(),
                     GetNonGaiaUserAccountId(profile()),
-                    user_manager::UserType::kKioskApp);
+                    user_manager::UserType::kKioskChromeApp);
 
   if (ash::assistant::features::IsNewEntryPointEnabled()) {
     EXPECT_EQ(
@@ -445,7 +445,7 @@ TEST_F(ChromeAssistantUtilTest, IsAssistantAllowedForKiosk_KioskApp) {
 TEST_F(ChromeAssistantUtilTest, IsAssistantAllowedForKiosk_WebKioskApp) {
   ScopedLogIn login(GetFakeUserManager(), identity_test_env(),
                     GetNonGaiaUserAccountId(profile()),
-                    user_manager::UserType::kWebKioskApp);
+                    user_manager::UserType::kKioskWebApp);
 
   if (ash::assistant::features::IsNewEntryPointEnabled()) {
     EXPECT_EQ(

@@ -436,7 +436,7 @@ ReadingListSelectionState GetSelectionStateForSelectedCounts(
 
 - (void)keyCommand_close {
   CHECK(self.delegate.canDismiss, base::NotFatalUntil::M145);
-  base::RecordAction(base::UserMetricsAction("MobileKeyCommandClose"));
+  base::RecordAction(base::UserMetricsAction(kMobileKeyCommandClose));
   [self.delegate dismissReadingListListViewController:self];
 }
 
@@ -1167,7 +1167,7 @@ ReadingListSelectionState GetSelectionStateForSelectedCounts(
   [self setEditing:NO animated:animated];
 }
 
-#pragma mark - Accessibility
+#pragma mark - UIAccessibilityAction
 
 - (BOOL)accessibilityPerformEscape {
   if (!self.delegate.canDismiss) {

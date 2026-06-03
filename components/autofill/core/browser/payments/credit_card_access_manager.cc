@@ -40,6 +40,7 @@
 #include "components/autofill/core/browser/payments/payments_network_interface.h"
 #include "components/autofill/core/browser/payments/payments_util.h"
 #include "components/autofill/core/browser/payments/payments_window_manager.h"
+#include "components/autofill/core/browser/payments/virtual_card_enrollment_manager.h"
 #include "components/autofill/core/browser/payments/webauthn_callback_types.h"
 #include "components/autofill/core/browser/suggestions/payments/payments_suggestion_generator.h"
 #include "components/autofill/core/common/autofill_clock.h"
@@ -273,6 +274,8 @@ void CreditCardAccessManager::LogMetricsAndFillFormForServerUnmaskFlows(
     autofill_metrics::LogCardInfoRetrievalEnrolledUnmaskResult(
         CardInfoRetrievalEnrolledUnmaskResult::kAuthenticationUnmasked);
   }
+  autofill_client().GetFormDataImporter()->set_card_was_fetched_from_cache(
+      false);
   std::move(on_credit_card_fetched_callback_).Run(*card_);
 }
 
@@ -351,21 +354,39 @@ void CreditCardAccessManager::FetchCreditCard(
             : PaymentsRpcCardType::kServerCard);
   }
 
+  // If the to-be-unmasked card is a virtual card eligible card (this also
+  // implicitly checks the RecordType to be masked server card), send the
+  // virtual card enrollment preflight call early.
+  auto* virtual_card_enrollment_manager =
+      payments_autofill_client().GetVirtualCardEnrollmentManager();
+  if (card->virtual_card_enrollment_state() ==
+          CreditCard::VirtualCardEnrollmentState::kUnenrolledAndEligible &&
+      virtual_card_enrollment_manager &&
+      base::FeatureList::IsEnabled(
+          features::
+              kAutofillEnableMultipleRequestInVirtualCardDownstreamEnrollment)) {
+    // Set empty callback as we need to wait for form submission & card
+    // extraction from the form, before we start the next step.
+    virtual_card_enrollment_manager->InitVirtualCardEnroll(
+        *card, VirtualCardEnrollmentSource::kDownstream,
+        /*virtual_card_enrollment_fields_loaded_callback=*/base::DoNothing());
+  }
+
   // If card has been previously unmasked, use cached data.
   std::unordered_map<std::string, CachedServerCardInfo>::iterator it =
       unmasked_card_cache_.find(GetKeyForUnmaskedCardsCache(*card));
   if (it != unmasked_card_cache_.end()) {  // key is in cache
     it->second.card.set_cvc(it->second.cvc);
     std::move(on_credit_card_fetched).Run(/*credit_card=*/it->second.card);
-    std::string metrics_name =
-        record_type == CreditCard::RecordType::kVirtualCard
-            ? "Autofill.UsedCachedVirtualCard"
-            : "Autofill.UsedCachedServerCard";
-    base::UmaHistogramCounts1000(metrics_name, ++it->second.cache_uses);
 
     autofill_metrics::LogServerCardUnmaskResult(
         ServerCardUnmaskResult::kLocalCacheHit, record_type,
         ServerCardUnmaskFlowType::kUnspecified);
+
+    // If the card is fetched from the in-memory cache, notify the
+    // FormDataImporter.
+    autofill_client().GetFormDataImporter()->set_card_was_fetched_from_cache(
+        true);
 
     Reset();
     return;
@@ -390,6 +411,13 @@ void CreditCardAccessManager::FetchCreditCard(
 }
 
 bool CreditCardAccessManager::IsMaskedServerCardRiskBasedAuthAvailable() const {
+  // On some particular platforms (iOS WebView i.e.), Hagrid (risk based
+  // authentication) is not supported. This check if the current platform
+  // supports Hagrid.
+  if (!payments_autofill_client().IsRiskBasedAuthEffectivelyAvailable()) {
+    return false;
+  }
+
   bool isCardInfoRetrievalEnrolled =
       base::FeatureList::IsEnabled(
           features::kAutofillEnableCardInfoRuntimeRetrieval) &&
@@ -659,7 +687,7 @@ void CreditCardAccessManager::Authenticate(
       payments_autofill_client()
           .GetOtpAuthenticator()
           ->OnChallengeOptionSelected(
-              card_.get(), *selected_challenge_option_, GetWeakPtr(),
+              *card_, *selected_challenge_option_, GetWeakPtr(),
               risk_based_authentication_response_.context_token,
               payments::GetBillingCustomerId(payments_data_manager()));
       break;

@@ -7,9 +7,9 @@
 
 #include <compare>
 #include <optional>
-#include <string>
+#include <string_view>
 
-#include "base/memory/raw_ref.h"
+#include "base/types/optional_ref.h"
 #include "base/types/pass_key.h"
 #include "net/base/net_export.h"
 #include "net/cookies/cookie_constants.h"
@@ -19,43 +19,43 @@ namespace net {
 
 class CookieBase;
 
-// RefUniqueCookieKey is similar to a UniqueCookieKey, but it cannot be copied
-// or moved. It MUST NOT outlive the CookieBase used to create it, because it
-// contains string_views to strings in the CookieBase.
+// RefUniqueCookieKey is similar to a UniqueCookieKey, but it does not own the
+// underlying data. It MUST NOT outlive the CookieBase used to create it,
+// because it contains references to data in the CookieBase.
 class NET_EXPORT RefUniqueCookieKey {
  public:
   // Conditionally populates the source scheme and source port depending on the
   // state of their associated feature.
   static RefUniqueCookieKey Host(
       base::PassKey<CookieBase>,
-      const std::optional<CookiePartitionKey>& partition_key,
-      const std::string& name,
-      const std::string& domain,
-      const std::string& path,
-      const std::optional<CookieSourceScheme>& source_scheme,
-      const std::optional<int>& source_port);
+      base::optional_ref<const CookiePartitionKey> partition_key,
+      std::string_view name,
+      std::string_view domain,
+      std::string_view path,
+      std::optional<CookieSourceScheme> source_scheme,
+      std::optional<int> source_port);
 
   // Same as Host but for use with Domain cookies, which do not
   // consider the source_port.
   static RefUniqueCookieKey Domain(
       base::PassKey<CookieBase>,
-      const std::optional<CookiePartitionKey>& partition_key,
-      const std::string& name,
-      const std::string& domain,
-      const std::string& path,
-      const std::optional<CookieSourceScheme>& source_scheme);
+      base::optional_ref<const CookiePartitionKey> partition_key,
+      std::string_view name,
+      std::string_view domain,
+      std::string_view path,
+      std::optional<CookieSourceScheme> source_scheme);
 
-  RefUniqueCookieKey(RefUniqueCookieKey&& other);
-  RefUniqueCookieKey(const RefUniqueCookieKey& other) = delete;
-  RefUniqueCookieKey& operator=(RefUniqueCookieKey&& other) = delete;
-  RefUniqueCookieKey& operator=(const RefUniqueCookieKey& other) = delete;
+  RefUniqueCookieKey(RefUniqueCookieKey&&);
+  RefUniqueCookieKey(const RefUniqueCookieKey&) = delete;
+  RefUniqueCookieKey& operator=(RefUniqueCookieKey&&) = delete;
+  RefUniqueCookieKey& operator=(const RefUniqueCookieKey&) = delete;
 
   ~RefUniqueCookieKey();
 
-  friend bool operator==(const RefUniqueCookieKey& left,
-                         const RefUniqueCookieKey& right) = default;
-  friend auto operator<=>(const RefUniqueCookieKey& left,
-                          const RefUniqueCookieKey& right) = default;
+  friend bool operator==(const RefUniqueCookieKey&,
+                         const RefUniqueCookieKey&) = default;
+  friend auto operator<=>(const RefUniqueCookieKey&,
+                          const RefUniqueCookieKey&) = default;
 
  private:
   enum class KeyType {
@@ -64,17 +64,17 @@ class NET_EXPORT RefUniqueCookieKey {
   };
 
   RefUniqueCookieKey(KeyType key_type,
-                     const std::optional<CookiePartitionKey>& partition_key,
-                     const std::string& name,
-                     const std::string& domain,
-                     const std::string& path,
-                     const std::optional<CookieSourceScheme>& source_scheme,
-                     const std::optional<int>& port);
+                     base::optional_ref<const CookiePartitionKey> partition_key,
+                     std::string_view name,
+                     std::string_view domain,
+                     std::string_view path,
+                     std::optional<CookieSourceScheme> source_scheme,
+                     std::optional<int> port);
 
   // Keys of different "types" (i.e., created by different factory functions)
   // are never considered equivalent.
   KeyType key_type_;
-  const std::optional<CookiePartitionKey> partition_key_;
+  const base::optional_ref<const CookiePartitionKey> partition_key_;
   const std::string_view name_;
   const std::string_view domain_;
   const std::string_view path_;

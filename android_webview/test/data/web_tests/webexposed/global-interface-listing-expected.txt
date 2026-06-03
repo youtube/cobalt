@@ -72,7 +72,6 @@ interface Animation : EventTarget
     getter replaceState
     getter startTime
     getter timeline
-    getter trigger
     method cancel
     method commitStyles
     method constructor
@@ -93,7 +92,6 @@ interface Animation : EventTarget
     setter rangeStart
     setter startTime
     setter timeline
-    setter trigger
 interface AnimationEffect
     attribute @@toStringTag
     method constructor
@@ -125,7 +123,9 @@ interface AnimationTrigger
     getter rangeStart
     getter timeline
     getter type
+    method addAnimation
     method constructor
+    method removeAnimation
 interface AsyncDisposableStack
     attribute @@toStringTag
     getter disposed
@@ -1244,6 +1244,7 @@ interface CanvasRenderingContext2D
     method roundRect
     method save
     method scale
+    method setHitTestRegions
     method setLineDash
     method setTransform
     method stroke
@@ -1473,7 +1474,6 @@ interface CustomElementRegistry
     method define
     method get
     method getName
-    method initialize
     method upgrade
     method whenDefined
 interface CustomEvent : Event
@@ -1854,7 +1854,6 @@ interface Document : Node
     getter contentType
     getter cookie
     getter currentScript
-    getter customElementRegistry
     getter defaultView
     getter designMode
     getter dir
@@ -2373,8 +2372,8 @@ interface Element : Node
     getter computedName
     getter computedRole
     getter containerTiming
+    getter containerTimingIgnore
     getter currentCSSZoom
-    getter customElementRegistry
     getter elementTiming
     getter firstElementChild
     getter headingOffset
@@ -2521,6 +2520,7 @@ interface Element : Node
     setter classList
     setter className
     setter containerTiming
+    setter containerTimingIgnore
     setter elementTiming
     setter headingOffset
     setter headingReset
@@ -3776,6 +3776,7 @@ interface HTMLElement : Element
     getter onwheel
     getter outerText
     getter popover
+    getter scrollParent
     getter spellcheck
     getter style
     getter tabIndex
@@ -4509,11 +4510,13 @@ interface HTMLMenuElement : HTMLElement
 interface HTMLMenuItemElement : HTMLElement
     attribute @@toStringTag
     getter checked
-    getter defaultChecked
+    getter command
+    getter commandForElement
     getter disabled
     method constructor
     setter checked
-    setter defaultChecked
+    setter command
+    setter commandForElement
     setter disabled
 interface HTMLMenuListElement : HTMLElement
     attribute @@toStringTag
@@ -4948,14 +4951,12 @@ interface HTMLTemplateElement : HTMLElement
     getter content
     getter parseparts
     getter shadowRootClonable
-    getter shadowRootCustomElementRegistry
     getter shadowRootDelegatesFocus
     getter shadowRootMode
     getter shadowRootSerializable
     method constructor
     setter parseparts
     setter shadowRootClonable
-    setter shadowRootCustomElementRegistry
     setter shadowRootDelegatesFocus
     setter shadowRootMode
     setter shadowRootSerializable
@@ -6882,7 +6883,6 @@ interface PaymentMethodChangeEvent : PaymentRequestUpdateEvent
     getter methodName
     method constructor
 interface PaymentRequest : EventTarget
-    static method securePaymentConfirmationAvailability
     attribute @@toStringTag
     getter id
     getter onpaymentmethodchange
@@ -7070,6 +7070,7 @@ interface PerformanceResourceTiming : PerformanceEntry
     getter finalResponseHeadersStart
     getter firstInterimResponseStart
     getter initiatorType
+    getter initiatorUrl
     getter nextHopProtocol
     getter redirectEnd
     getter redirectStart
@@ -9129,7 +9130,6 @@ interface ShadowRoot : DocumentFragment
     getter activeElement
     getter adoptedStyleSheets
     getter clonable
-    getter customElementRegistry
     getter delegatesFocus
     getter fullscreenElement
     getter host
@@ -9143,8 +9143,6 @@ interface ShadowRoot : DocumentFragment
     getter slotAssignment
     getter styleSheets
     method constructor
-    method createElement
-    method createElementNS
     method elementFromPoint
     method elementsFromPoint
     method getAnimations
@@ -9198,6 +9196,8 @@ interface SnapEvent : Event
     method constructor
 interface SoftNavigationEntry : PerformanceEntry
     attribute @@toStringTag
+    getter paintTime
+    getter presentationTime
     method constructor
 interface SourceBuffer : EventTarget
     attribute @@toStringTag
@@ -9240,6 +9240,92 @@ interface SourceBufferList : EventTarget
     method constructor
     setter onaddsourcebuffer
     setter onremovesourcebuffer
+interface SpeechGrammar
+    attribute @@toStringTag
+    getter src
+    getter weight
+    method constructor
+    setter src
+    setter weight
+interface SpeechGrammarList
+    attribute @@toStringTag
+    getter length
+    method @@iterator
+    method addFromString
+    method addFromUri
+    method constructor
+    method item
+interface SpeechRecognition : EventTarget
+    static method available
+    static method install
+    attribute @@toStringTag
+    getter continuous
+    getter grammars
+    getter interimResults
+    getter lang
+    getter maxAlternatives
+    getter onaudioend
+    getter onaudiostart
+    getter onend
+    getter onerror
+    getter onnomatch
+    getter onresult
+    getter onsoundend
+    getter onsoundstart
+    getter onspeechend
+    getter onspeechstart
+    getter onstart
+    getter phrases
+    getter processLocally
+    method abort
+    method constructor
+    method start
+    method stop
+    setter continuous
+    setter grammars
+    setter interimResults
+    setter lang
+    setter maxAlternatives
+    setter onaudioend
+    setter onaudiostart
+    setter onend
+    setter onerror
+    setter onnomatch
+    setter onresult
+    setter onsoundend
+    setter onsoundstart
+    setter onspeechend
+    setter onspeechstart
+    setter onstart
+    setter phrases
+    setter processLocally
+interface SpeechRecognitionContext
+    attribute @@toStringTag
+    getter phrases
+    method constructor
+    setter phrases
+interface SpeechRecognitionErrorEvent : Event
+    attribute @@toStringTag
+    getter error
+    getter message
+    method constructor
+interface SpeechRecognitionEvent : Event
+    attribute @@toStringTag
+    getter resultIndex
+    getter results
+    method constructor
+interface SpeechRecognitionPhrase
+    attribute @@toStringTag
+    getter boost
+    getter phrase
+    method constructor
+interface SpeechRecognitionPhraseList
+    attribute @@toStringTag
+    getter length
+    method addItem
+    method constructor
+    method item
+    method removeItem
 interface StaticRange : AbstractRange
     attribute @@toStringTag
     method constructor
@@ -9723,6 +9809,7 @@ interface URLPattern
     getter username
     method constructor
     method exec
+    method generate
     method test
 interface URLSearchParams
     attribute @@toStringTag
@@ -10709,6 +10796,7 @@ interface WebGL2RenderingContext
     method samplerParameterf
     method samplerParameteri
     method scissor
+    method setHitTestRegions
     method shaderSource
     method stencilFunc
     method stencilFuncSeparate
@@ -11212,6 +11300,7 @@ interface WebGLRenderingContext
     method renderbufferStorage
     method sampleCoverage
     method scissor
+    method setHitTestRegions
     method shaderSource
     method stencilFunc
     method stencilFuncSeparate
@@ -11698,6 +11787,7 @@ interface webkitSpeechGrammar
     attribute @@toStringTag
     getter src
     getter weight
+    method constructor
     setter src
     setter weight
 interface webkitSpeechGrammarList
@@ -11706,17 +11796,17 @@ interface webkitSpeechGrammarList
     method @@iterator
     method addFromString
     method addFromUri
+    method constructor
     method item
 interface webkitSpeechRecognition : EventTarget
-    static method availableOnDevice
-    static method installOnDevice
+    static method available
+    static method install
     attribute @@toStringTag
     getter continuous
     getter grammars
     getter interimResults
     getter lang
     getter maxAlternatives
-    getter mode
     getter onaudioend
     getter onaudiostart
     getter onend
@@ -11728,7 +11818,10 @@ interface webkitSpeechRecognition : EventTarget
     getter onspeechend
     getter onspeechstart
     getter onstart
+    getter phrases
+    getter processLocally
     method abort
+    method constructor
     method start
     method stop
     setter continuous
@@ -11736,7 +11829,6 @@ interface webkitSpeechRecognition : EventTarget
     setter interimResults
     setter lang
     setter maxAlternatives
-    setter mode
     setter onaudioend
     setter onaudiostart
     setter onend
@@ -11748,14 +11840,18 @@ interface webkitSpeechRecognition : EventTarget
     setter onspeechend
     setter onspeechstart
     setter onstart
+    setter phrases
+    setter processLocally
 interface webkitSpeechRecognitionError : Event
     attribute @@toStringTag
     getter error
     getter message
+    method constructor
 interface webkitSpeechRecognitionEvent : Event
     attribute @@toStringTag
     getter resultIndex
     getter results
+    method constructor
 interface webkitURL
     static method canParse
     static method createObjectURL

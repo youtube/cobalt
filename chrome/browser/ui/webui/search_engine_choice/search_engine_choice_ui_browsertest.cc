@@ -92,16 +92,7 @@ class MockSearchEngineChoiceDialogService
         // engines.
         choice.prepopulate_id = i + 1;
         choice.SetShortName(kShortName);
-        if (i % 2 == 0) {
-          // The bing icon should be bundled with Chrome.
-          choice.SetKeyword(TemplateURLPrepopulateData::bing.keyword);
-          choice.base_builtin_resource_id =
-              TemplateURLPrepopulateData::bing.base_builtin_resource_id;
-        } else {
-          // Uses the default generic favicon.
-          choice.SetKeyword(u"incredibar");
-          choice.base_builtin_resource_id = "";
-        }
+        choice.SetKeyword(u"incredibar");
         choices_.push_back(std::make_unique<TemplateURL>(choice));
       }
     }
@@ -148,10 +139,9 @@ const TestParam kTestParams[] = {
      .dialog_dimensions = gfx::Size(500, 500)},
     {.test_suffix = "LargerFirstEngineSnippet",
      .first_snippet_text_larger = true},
-    // TODO(b/360286412): This test case is flaky.
-    // {.test_suffix = "FirstEngineSelectedWithLargerSnippet",
-    //  .select_first_search_engine = true,
-    //  .first_snippet_text_larger = true},
+    {.test_suffix = "FirstEngineSelectedWithLargerSnippet",
+     .select_first_search_engine = true,
+     .first_snippet_text_larger = true},
     {.test_suffix = "InfoDialog", .display_info_dialog = true},
     {.test_suffix = "InfoDialogDarkTheme",
      .use_dark_theme = true,

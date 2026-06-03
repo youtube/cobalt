@@ -50,8 +50,9 @@ namespace blink {
 ViewTransition::ScopedPauseRendering::ScopedPauseRendering(
     const Element& element) {
   const Document& document = element.GetDocument();
-  if (!document.GetFrame()->IsLocalRoot())
+  if (!document.GetFrame() || !document.GetFrame()->IsLocalRoot()) {
     return;
+  }
 
   if (!element.IsDocumentElement()) {
     return;
@@ -596,6 +597,13 @@ void ViewTransition::ProcessCurrentState() {
           break;
         }
 
+        if (RuntimeEnabledFeatures::
+                ViewTransitionUpdateLifecycleBeforeReadyEnabled()) {
+          document_->View()->UpdateAllLifecyclePhasesExceptPaint(
+              DocumentUpdateReason::kViewTransition);
+          style_tracker_->RunPostPrePaintSteps();
+        }
+
         delegate_->AddPendingRequest(
             ViewTransitionRequest::CreateAnimateRenderer(
                 transition_token_, MaybeCrossFrameSink()));
@@ -764,7 +772,7 @@ bool ViewTransition::NeedsViewTransitionEffectNode(
     const LayoutObject& object) const {
   // The scope always needs an effect node, even if the scope element is not a
   // participant in the transition. The reason for this is so that we can place
-  // the effect node for the ::view-transition pseudo element as a sibling of
+  // the effect node for the ::view-transition pseudo-element as a sibling of
   // the scope's effect. For a document transition, the scope's effect node is
   // associated with the LayoutView rather than the document element.
   if (IsA<LayoutView>(object)) {

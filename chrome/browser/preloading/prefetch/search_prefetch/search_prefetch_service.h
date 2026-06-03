@@ -222,6 +222,11 @@ class SearchPrefetchService : public KeyedService,
   friend class PrerenderOmniboxSearchSuggestionBrowserTest;
   friend class SearchPrefetchServiceEnabledBrowserTest;
 
+  struct RealNaivigationServingResult {
+    bool served_from_prefetch_cache = false;
+    base::Time last_navigation_time;
+  };
+
   // Returns whether the prefetch started or not.
   bool MaybePrefetchURL(const GURL& url,
                         bool navigation_prefetch,
@@ -268,10 +273,6 @@ class SearchPrefetchService : public KeyedService,
                                        TemplateURLService* template_url_service,
                                        const GURL& canonical_search_url);
 
-  // Preloads the compression dictionaries in the network service.
-  void MaybePreloadDictionary(const AutocompleteResult& result);
-  void DeletePreloadedDictionaries();
-
   void RecordInterceptionMetrics(const std::u16string& search_terms,
                                  SearchPrefetchServingReason serving_status);
   void RecordPotentialDuplicateSearchTermsAheadOfNavigationalPrefetch(
@@ -301,11 +302,8 @@ class SearchPrefetchService : public KeyedService,
   // serving time of the response.
   std::map<GURL, std::pair<GURL, base::Time>> prefetch_cache_;
 
-  base::LRUCache<std::u16string, base::Time> search_terms_cache_{50};
-
-  mojo::PendingRemote<network::mojom::PreloadedSharedDictionaryInfoHandle>
-      preloaded_shared_dictionaries_handle_;
-  base::OneShotTimer preloaded_shared_dictionaries_expiry_timer_;
+  base::LRUCache<std::u16string, RealNaivigationServingResult>
+      search_terms_cache_{50};
 
   base::WeakPtrFactory<SearchPrefetchService> weak_factory_{this};
 };

@@ -33,7 +33,9 @@
 #include "chrome/browser/signin/signin_util.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/chrome_pages.h"
+#include "chrome/browser/ui/signin/signin_view_controller.h"
 #include "chrome/browser/ui/webui/signin/login_ui_service.h"
 #include "chrome/browser/ui/webui/signin/login_ui_service_factory.h"
 #include "chrome/common/chrome_switches.h"
@@ -49,6 +51,7 @@
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/base/signin_pref_names.h"
 #include "components/signin/public/base/signin_prefs.h"
+#include "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
 #include "components/signin/public/identity_manager/accounts_mutator.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
@@ -1576,6 +1579,8 @@ TEST_F(PeopleHandlerTest, HandleStartSigninManaged) {
   SetExplicitSignin(true);
   // Make the account managed and disallow signout.
   account.hosted_domain = "managedchrome.com";
+  AccountCapabilitiesTestMutator(&account.capabilities)
+      .set_is_subject_to_enterprise_policies(true);
   identity_test_env()->UpdateAccountInfoForAccount(account);
   SigninClient* client = ChromeSigninClientFactory::GetForProfile(profile());
   client->set_is_clear_primary_account_allowed_for_testing(
@@ -1927,14 +1932,16 @@ TEST_F(PeopleHandlerSignoutTest, Signout) {
   EXPECT_EQ(2U, identity_manager()->GetAccountsWithRefreshTokens().size());
 
   CreatePeopleHandler();
-  EXPECT_FALSE(browser()->signin_view_controller()->ShowsModalDialog());
+  EXPECT_FALSE(
+      browser()->GetFeatures().signin_view_controller()->ShowsModalDialog());
 
   base::Value::List args;
   args.Append(/*value=*/false);
   SimulateSignout(args);
   // The signout confirmation dialog is shown.
   EXPECT_TRUE(identity_manager()->HasPrimaryAccount(ConsentLevel::kSignin));
-  EXPECT_TRUE(browser()->signin_view_controller()->ShowsModalDialog());
+  EXPECT_TRUE(
+      browser()->GetFeatures().signin_view_controller()->ShowsModalDialog());
 }
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 

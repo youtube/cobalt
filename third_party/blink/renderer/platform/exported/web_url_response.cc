@@ -134,6 +134,7 @@ WebURLResponse WebURLResponse::Create(
 
   response.SetCurrentRequestUrl(url);
   response.SetResponseTime(head.response_time);
+  response.SetOriginalResponseTime(head.original_response_time);
   response.SetMimeType(WebString::FromUTF8(head.mime_type));
   response.SetTextEncodingName(WebString::FromUTF8(head.charset));
   response.SetExpectedContentLength(head.content_length);
@@ -148,6 +149,7 @@ WebURLResponse WebURLResponse::Create(
   response.SetConnectionReused(head.load_timing.socket_reused);
   response.SetWasFetchedViaSPDY(head.was_fetched_via_spdy);
   response.SetWasFetchedViaServiceWorker(head.was_fetched_via_service_worker);
+  response.SetFromSyntheticResponse(head.from_synthetic_response);
   response.SetDidUseSharedDictionary(head.did_use_shared_dictionary);
   response.SetServiceWorkerResponseSource(head.service_worker_response_source);
   if (!head.service_worker_router_info.is_null()) {
@@ -338,6 +340,14 @@ void WebURLResponse::SetResponseTime(base::Time response_time) {
   resource_response_->SetResponseTime(response_time);
 }
 
+base::Time WebURLResponse::OriginalResponseTime() const {
+  return resource_response_->OriginalResponseTime();
+}
+
+void WebURLResponse::SetOriginalResponseTime(base::Time response_time) {
+  resource_response_->SetOriginalResponseTime(response_time);
+}
+
 WebString WebURLResponse::MimeType() const {
   return resource_response_->MimeType();
 }
@@ -469,6 +479,14 @@ bool WebURLResponse::WasFetchedViaServiceWorker() const {
 
 void WebURLResponse::SetWasFetchedViaServiceWorker(bool value) {
   resource_response_->SetWasFetchedViaServiceWorker(value);
+}
+
+bool WebURLResponse::FromSyntheticResponse() const {
+  return resource_response_->FromSyntheticResponse();
+}
+
+void WebURLResponse::SetFromSyntheticResponse(bool value) {
+  resource_response_->SetFromSyntheticResponse(value);
 }
 
 network::mojom::FetchResponseSource

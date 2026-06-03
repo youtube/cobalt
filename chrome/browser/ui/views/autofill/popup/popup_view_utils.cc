@@ -455,12 +455,12 @@ bool IsExpandableSuggestionType(SuggestionType type) {
   switch (type) {
     case SuggestionType::kAddressEntry:
     case SuggestionType::kAddressFieldByFieldFilling:
+    case SuggestionType::kAllLoyaltyCardsEntry:
     case SuggestionType::kComposeProactiveNudge:
     case SuggestionType::kCreditCardEntry:
     case SuggestionType::kDevtoolsTestAddresses:
     case SuggestionType::kFillAutofillAi:
     case SuggestionType::kLoyaltyCardEntry:
-    case SuggestionType::kHomeAndWorkAddressEntry:
     case SuggestionType::kPasswordEntry:
       return true;
     case SuggestionType::kAccountStoragePasswordEntry:
@@ -479,6 +479,9 @@ bool IsExpandableSuggestionType(SuggestionType type) {
     case SuggestionType::kDevtoolsTestAddressByCountry:
     case SuggestionType::kDevtoolsTestAddressEntry:
     case SuggestionType::kFillExistingPlusAddress:
+    case SuggestionType::kBackupPasswordEntry:
+    case SuggestionType::kTroubleSigningInEntry:
+    case SuggestionType::kFreeformFooter:
     case SuggestionType::kFillPassword:
     case SuggestionType::kGeneratePasswordEntry:
     case SuggestionType::kIbanEntry:

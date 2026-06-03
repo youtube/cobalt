@@ -26,6 +26,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/json/json_reader.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/process/process.h"
 #include "base/strings/string_number_conversions.h"
@@ -105,8 +106,6 @@ using NoArgFuture = base::test::TestFuture<void>;
 using BoolFuture = base::test::TestFuture<bool>;
 
 namespace {
-
-constexpr int32_t kSecretVersion = 417;
 
 constexpr std::array<uint8_t, 32> kTestKey = {
     0xc4, 0xdf, 0xa4, 0xed, 0xfc, 0xf9, 0x7c, 0xc0, 0x3a, 0xb1, 0xcb,
@@ -1607,7 +1606,10 @@ TEST_F(EnclaveManagerTest, MAYBE_HardwareKeyLost) {
   // create before testing that it is later deleted.
   EXPECT_EQ(manager_.uv_key_state(/*platform_has_biometrics=*/false),
             EnclaveManager::UvKeyState::kUsesSystemUIDeferredCreation);
-  auto key_creation_callback = manager_.UserVerifyingKeyCreationCallback();
+  std::unique_ptr<EnclaveManager::UvKeyCreationLock> uv_creation_lock;
+  device::enclave::UVKeyCreationCallback key_creation_callback;
+  std::tie(uv_creation_lock, key_creation_callback) =
+      manager_.UserVerifyingKeyCreationCallback();
   quit_closure = task_env_.QuitClosure();
   std::move(key_creation_callback)
       .Run(base::BindLambdaForTesting(
@@ -1965,7 +1967,10 @@ TEST_F(EnclaveUVTest, UserVerifyingKeyLost) {
   // create before testing that it is later deleted.
   EXPECT_EQ(manager_.uv_key_state(/*platform_has_biometrics=*/false),
             EnclaveManager::UvKeyState::kUsesSystemUIDeferredCreation);
-  auto key_creation_callback = manager_.UserVerifyingKeyCreationCallback();
+  std::unique_ptr<EnclaveManager::UvKeyCreationLock> uv_creation_lock;
+  device::enclave::UVKeyCreationCallback key_creation_callback;
+  std::tie(uv_creation_lock, key_creation_callback) =
+      manager_.UserVerifyingKeyCreationCallback();
   quit_closure = task_env_.QuitClosure();
   std::move(key_creation_callback)
       .Run(base::BindLambdaForTesting(
@@ -2073,14 +2078,8 @@ TEST_F(EnclaveUVTest, ChromeHandlesBiometrics) {
 
   scoped_fake_apple_keychain_.SetUVMethod(
       crypto::ScopedFakeAppleKeychainV2::UVMethod::kBiometrics);
-  // The TouchID view is only available on macOS 12+.
-  if (__builtin_available(macos 12, *)) {
-    EXPECT_EQ(manager_.uv_key_state(/*platform_has_biometrics=*/true),
-              EnclaveManager::UvKeyState::kUsesChromeUI);
-  } else {
-    EXPECT_EQ(manager_.uv_key_state(/*platform_has_biometrics=*/false),
-              EnclaveManager::UvKeyState::kUsesSystemUI);
-  }
+  EXPECT_EQ(manager_.uv_key_state(/*platform_has_biometrics=*/true),
+            EnclaveManager::UvKeyState::kUsesChromeUI);
 
   scoped_fake_apple_keychain_.SetUVMethod(
       crypto::ScopedFakeAppleKeychainV2::UVMethod::kPasswordOnly);
@@ -2124,7 +2123,10 @@ TEST_F(EnclaveUVTest, DeferredUVKeyCreation) {
               user_state.deferred_uv_key_creation());
   EXPECT_TRUE(user_state.wrapped_uv_private_key().empty());
 
-  auto key_creation_callback = manager_.UserVerifyingKeyCreationCallback();
+  std::unique_ptr<EnclaveManager::UvKeyCreationLock> uv_creation_lock;
+  device::enclave::UVKeyCreationCallback key_creation_callback;
+  std::tie(uv_creation_lock, key_creation_callback) =
+      manager_.UserVerifyingKeyCreationCallback();
   auto quit_closure = task_env_.QuitClosure();
   std::move(key_creation_callback)
       .Run(base::BindLambdaForTesting(
@@ -2185,7 +2187,8 @@ TEST_F(EnclaveUVTest, UnregisterOnFailedDeferredUVKeyCreation) {
       [](sync_pb::WebauthnCredentialSpecifics) { NOTREACHED(); });
   ui_request->up_and_uv_bits =
       device::enclave::UserPresentAndVerifiedBits::kPresentAndVerified;
-  ui_request->uv_key_creation_callback =
+  std::unique_ptr<EnclaveManager::UvKeyCreationLock> uv_creation_lock;
+  std::tie(uv_creation_lock, ui_request->uv_key_creation_callback) =
       manager_.UserVerifyingKeyCreationCallback();
   ui_request->unregister_callback =
       base::BindOnce(&EnclaveManager::Unenroll, manager_.GetWeakPtr(),

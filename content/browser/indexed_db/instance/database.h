@@ -113,14 +113,6 @@ class CONTENT_EXPORT Database {
                       blink::mojom::IDBDatabase::GetCallback callback,
                       Transaction* transaction);
 
-  Status SetIndexKeysOperation(
-      int64_t object_store_id,
-      blink::IndexedDBKey primary_key,
-      std::vector<blink::IndexedDBIndexKeys> index_keys,
-      Transaction* transaction);
-
-  Status SetIndexesReadyOperation(size_t index_count, Transaction* transaction);
-
   struct OpenCursorOperationParams {
     OpenCursorOperationParams();
 
@@ -194,6 +186,8 @@ class CONTENT_EXPORT Database {
   }
 
   bool CanBeDestroyed();
+
+  uint32_t id_for_locks() const { return id_for_locks_; }
 
  protected:
   friend class Transaction;
@@ -304,6 +298,9 @@ class CONTENT_EXPORT Database {
   const blink::IndexedDBObjectStoreMetadata& GetObjectStoreMetadata(
       int64_t object_store_id) const;
 
+  // This ID uniquely identifies this database within this process. It's not
+  // persisted anywhere.
+  uint32_t id_for_locks_;
   std::u16string name_;
 
   // The object that owns `this`.
@@ -311,6 +308,7 @@ class CONTENT_EXPORT Database {
 
   list_set<Connection*> connections_;
 
+  // True once `ForceCloseAndRunTasks()` is called.
   bool force_closing_ = false;
 
   ConnectionCoordinator connection_coordinator_;

@@ -65,13 +65,12 @@ bool DevToolsPageHandler::Parse(Extension* extension, std::u16string* error) {
     *error = errors::kInvalidDevToolsPage;
     return false;
   }
-  GURL url = extension->GetResourceURL(*devtools_str);
+  GURL url = extension->ResolveExtensionURL(*devtools_str);
   // SharedModuleInfo::IsImportedPath() does not require knowledge of data from
   // extension, so we can call it right here in Parse() and not Validate() and
   // do not need to specify DevToolsPageHandler::PrerequisiteKeys()
-  const bool is_extension_url = url.SchemeIs(kExtensionScheme) &&
-                                url.host_piece() == extension->id() &&
-                                !SharedModuleInfo::IsImportedPath(url.path());
+  const bool is_extension_url =
+      url.is_valid() && !SharedModuleInfo::IsImportedPath(url.path());
   if (!is_extension_url) {
     *error = errors::kInvalidDevToolsPage;
     return false;
@@ -89,14 +88,14 @@ base::span<const char* const> DevToolsPageHandler::Keys() const {
 }
 
 bool DevToolsPageHandler::Validate(
-    const Extension* extension,
+    const Extension& extension,
     std::string* error,
     std::vector<InstallWarning>* warnings) const {
-  const GURL& url = chrome_manifest_urls::GetDevToolsPage(extension);
+  const GURL& url = chrome_manifest_urls::GetDevToolsPage(&extension);
   const base::FilePath relative_path =
       file_util::ExtensionURLToRelativeFilePath(url);
   const base::FilePath resource_path =
-      extension->GetResource(relative_path).GetFilePath();
+      extension.GetResource(relative_path).GetFilePath();
   if (resource_path.empty() || !base::PathExists(resource_path)) {
     const std::string message = ErrorUtils::FormatErrorMessage(
         errors::kFileNotFound, relative_path.AsUTF8Unsafe());
@@ -137,7 +136,7 @@ bool URLOverridesHandler::Parse(Extension* extension, std::u16string* error) {
 
     // Replace the entry with a fully qualified chrome-extension:// URL.
     url_overrides->chrome_url_overrides_[property.first] =
-        extension->GetResourceURL(*property.second.get());
+        extension->ResolveExtensionURL(*property.second.get());
 
     // For component extensions, add override URL to extent patterns.
     if (extension->is_legacy_packaged_app() &&
@@ -173,11 +172,11 @@ bool URLOverridesHandler::Parse(Extension* extension, std::u16string* error) {
 }
 
 bool URLOverridesHandler::Validate(
-    const Extension* extension,
+    const Extension& extension,
     std::string* error,
     std::vector<InstallWarning>* warnings) const {
   const URLOverrides::URLOverrideMap& overrides =
-      URLOverrides::GetChromeURLOverrides(extension);
+      URLOverrides::GetChromeURLOverrides(&extension);
   if (overrides.empty())
     return true;
 
@@ -185,7 +184,7 @@ bool URLOverridesHandler::Validate(
     base::FilePath relative_path =
         file_util::ExtensionURLToRelativeFilePath(entry.second);
     base::FilePath resource_path =
-        extension->GetResource(relative_path).GetFilePath();
+        extension.GetResource(relative_path).GetFilePath();
     if (resource_path.empty() || !base::PathExists(resource_path)) {
       *error = ErrorUtils::FormatErrorMessage(errors::kFileNotFound,
                                               relative_path.AsUTF8Unsafe());

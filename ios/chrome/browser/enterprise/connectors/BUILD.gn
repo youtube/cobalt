@@ -39,6 +39,7 @@ source_set("interstitials") {
   ]
 
   deps = [
+    "//components/application_locale_storage",
     "//components/enterprise/connectors/core",
     "//components/resources:components_resources_grit",
     "//components/safe_browsing/core/browser:safe_browsing_metrics_collector",
@@ -123,7 +124,9 @@ source_set("unit_tests") {
     "//ios/chrome/browser/shared/model/profile/test",
     "//ios/chrome/browser/signin/model",
     "//ios/chrome/browser/signin/model:test_support",
+    "//ios/chrome/test:test_support",
     "//ios/components/security_interstitials/safe_browsing",
+    "//ios/web/common:user_agent",
     "//ios/web/public/test",
     "//ios/web/public/test/fakes",
     "//services/network:test_support",

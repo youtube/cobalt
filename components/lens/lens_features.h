@@ -37,6 +37,20 @@ BASE_DECLARE_FEATURE(kLensOverlayImageContextMenuActions);
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensOverlayContextualSearchbox);
 
+// Enables the Lens overlay searchbox for omnibox suggestions. This does the
+// same thing as kLensOverlayContextualSearchbox, but is used to enable the
+// feature from the omnibox contextual suggestions experiment. This relies on
+// the same params as kLensOverlayContextualSearchbox. This flag turns the meta
+// feature on to remove the dependency between the CSB experiment and omnibox
+// experiment.
+COMPONENT_EXPORT(LENS_FEATURES)
+BASE_DECLARE_FEATURE(kLensOverlayContextualSearchboxForOmniboxSuggestions);
+
+// Enables the migration for Lens overlay suggestions URL params, independent
+// of the CSB feature.
+COMPONENT_EXPORT(LENS_FEATURES)
+BASE_DECLARE_FEATURE(kLensOverlaySuggestionsMigration);
+
 // Enables the Lens overlay optimizations.
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensOverlayLatencyOptimizations);
@@ -60,6 +74,15 @@ BASE_DECLARE_FEATURE(kLensOverlaySimplifiedSelection);
 // Enables the Lens overlay visual selection updates.
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensOverlayVisualSelectionUpdates);
+
+// Enables the Lens overlay visual selection updates for omnibox suggestions.
+// This does the same thing as kLensOverlayVisualSelectionUpdates, but is used
+// to enable the feature from the omnibox contextual suggestions experiment.
+// This relies on the same params as kLensOverlayVisualSelectionUpdates. This
+// flag turns the meta feature on to remove the dependency between the visual
+// selection ramp up and omnibox experiment.
+COMPONENT_EXPORT(LENS_FEATURES)
+BASE_DECLARE_FEATURE(kLensOverlayVisualSelectionUpdatesForOmniboxSuggestions);
 
 // Enables the Lens overlay updated client context.
 COMPONENT_EXPORT(LENS_FEATURES)
@@ -100,6 +123,22 @@ BASE_DECLARE_FEATURE(kLensSearchProtectedPage);
 // Enables the EDU action chip.
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensOverlayEduActionChip);
+
+// Enables the modification of the default width of the Lens search side panel.
+COMPONENT_EXPORT(LENS_FEATURES)
+BASE_DECLARE_FEATURE(kLensSearchSidePanelDefaultWidthChange);
+
+// Enables keyboard selection in the Lens overlay.
+COMPONENT_EXPORT(LENS_FEATURES)
+BASE_DECLARE_FEATURE(kLensOverlayKeyboardSelection);
+
+// Use alternate appearance for permission bubble.
+COMPONENT_EXPORT(LENS_FEATURES)
+BASE_DECLARE_FEATURE(kLensOverlayPermissionBubbleAlt);
+
+// Enables the back to live page functionality in the Lens overlay.
+COMPONENT_EXPORT(LENS_FEATURES)
+BASE_DECLARE_FEATURE(kLensOverlayBackToPage);
 
 // The base URL for Lens.
 COMPONENT_EXPORT(LENS_FEATURES)
@@ -146,6 +185,14 @@ extern const base::FeatureParam<bool> kEnableFullscreenSearch;
 // Enable "open in new tab" option in side panel.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern const base::FeatureParam<bool> kLensOverlayEnableOpenInNewTab;
+
+// Whether the EDU action chip should be disabled by glic.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern const base::FeatureParam<bool> kLensOverlayEduActionChipDisabledByGlic;
+
+// The default width of the Lens search side panel.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern const base::FeatureParam<int> kLensSearchSidePanelDefaultWidth;
 
 // The URL for the Lens home page.
 COMPONENT_EXPORT(LENS_FEATURES)
@@ -416,6 +463,11 @@ extern bool UseInnerTextAsContext();
 // when combined with other page content types.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool UseInnerHtmlAsContext();
+
+// Returns whether to send the client context to the cluster info request for
+// contextual suggest.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern bool SendClientContextToClusterInfoRequestForContextualSuggest();
 
 // Returns whether to include the Annotated Page Content from the underlying
 // page in the inner HTML requests used as page context. Must have
@@ -796,6 +848,18 @@ extern bool GetVisualSelectionUpdatesEnableCsbThumbnail();
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool GetVisualSelectionUpdatesEnableCsbMotionTweaks();
 
+// Whether to enable thumbnail sizing tweaks for the visual selection updates.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern bool GetVisualSelectionUpdatesEnableThumbnailSizingTweaks();
+
+// Whether to hide the csb ellipsis for the visual selection updates.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern bool GetVisualSelectionUpdatesHideCsbEllipsis();
+
+// Whether to enable close button tweaks for the visual selection updates.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern bool GetVisualSelectionUpdatesEnableCloseButtonTweaks();
+
 // Whether to fix the request id for page content upload requests. When enabled,
 // this will not increment the image upload request ID when the page content
 // upload request is sent.
@@ -829,6 +893,10 @@ extern bool ShouldUseAltLoadingHintWeb();
 // Whether to use the alt loading hint when overlay is opened on pdfs.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool ShouldUseAltLoadingHintPdf();
+
+// Whether to enable the summarize hint for contextual suggest.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern bool ShouldEnableSummarizeHintForContextualSuggest();
 
 // Whether to enable upload chunking in the Lens Overlay.
 COMPONENT_EXPORT(LENS_FEATURES)
@@ -901,6 +969,30 @@ extern std::string GetLensOverlayEduUrlForceAllowedMatchPatterns();
 // Hashed domain block filters for the EDU action chip.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern std::string GetLensOverlayEduHashedDomainBlockFilters();
+
+// Whether EDU action chip should be disabled by glic.
+COMPONENT_EXPORT(LENS_FEATURES)
+bool IsLensOverlayEduActionChipDisabledByGlic();
+
+// Whether to enable the default width change for the side panel.
+COMPONENT_EXPORT(LENS_FEATURES)
+bool IsLensSearchSidePanelDefaultWidthChangeEnabled();
+
+// The default width for the side panel.
+COMPONENT_EXPORT(LENS_FEATURES)
+int GetLensSearchSidePanelDefaultWidth();
+
+// Whether to enable keyboard selection in the Lens overlay.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern bool IsLensOverlayKeyboardSelectionEnabled();
+
+// Whether to use alternate appearance for permission bubble.
+COMPONENT_EXPORT(LENS_FEATURES)
+bool IsLensOverlayPermissionBubbleAltEnabled();
+
+// Whether the back to live page functionality is enabled in the Lens overlay.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern bool IsLensOverlayBackToPageEnabled();
 
 }  // namespace lens::features
 #endif  // COMPONENTS_LENS_LENS_FEATURES_H_

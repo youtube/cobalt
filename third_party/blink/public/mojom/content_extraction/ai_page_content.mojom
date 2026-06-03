@@ -4,9 +4,9 @@
 
 module blink.mojom;
 
-import "ui/accessibility/ax_enums.mojom";
 import "third_party/blink/public/mojom/forms/form_control_type.mojom";
 import "third_party/blink/public/mojom/tokens/tokens.mojom";
+import "ui/accessibility/ax_enums.mojom";
 import "ui/gfx/geometry/mojom/geometry.mojom";
 import "url/mojom/origin.mojom";
 import "url/mojom/url.mojom";
@@ -34,6 +34,7 @@ enum AIPageContentAttributeType {
   kImage,
   kSVG,
   kCanvas,
+  kVideo,
 
   // Structured chunks.
   kForm,
@@ -116,6 +117,31 @@ struct AIPageContentFrameInteractionInfo {
   AIPageContentSelection? selection;
 };
 
+// Provides the reasons which make an element clickable.
+enum AIPageContentClickabilityReason {
+  // The node is a native form control.
+  kClickableControl,
+
+  // The node has a click event handler.
+  kClickEvents,
+
+  // The node has mouse event handlers like mouseup, mousedown, mouseover and
+  // mouseenter.
+  kMouseEvents,
+
+  // The node has keyboard event handlers like keydown, keypress, keyup.
+  kKeyEvents,
+
+  // The node's text can be edited.
+  kEditable,
+
+  // The node uses cursor css to indicate the element is interactive.
+  kCursorPointer,
+
+  // The node has a clickable aria role.
+  kAriaRole,
+};
+
 struct AIPageContentNodeInteractionInfo {
   // If this node supports scrolling, provides information about its current
   // state.
@@ -155,6 +181,11 @@ struct AIPageContentNodeInteractionInfo {
   //
   // Note: This value is only set for nodes in the viewport.
   int32? document_scoped_z_order;
+
+  // If this node is detected to be is_clickable, provides the reason which
+  // caused that.
+  // Note: This may not capture all the reasons.
+  array<AIPageContentClickabilityReason> debug_clickability_reasons;
 };
 
 // The coordinate space for the dimensions here is physical coordinates (not
@@ -234,6 +265,18 @@ struct AIPageContentCanvasData {
   // The layout size of the canvas element. This is the total size of the
   // element irrespective of clipping or transforms.
   gfx.mojom.Size layout_size;
+};
+
+struct AIPageContentVideoData {
+  // The URL of the video.
+  url.mojom.Url url;
+
+  // The source origin for the video. This ensures the security origin for the
+  // video's content is accurately tracked. For example:
+  // 1. data URLs use an opaque origin
+  // 2. about:blank inherits its origin from the initiator while the URL doesn't
+  //    convey that.
+  url.mojom.Origin? source_origin;
 };
 
 // Represents meta tags on the page.
@@ -358,6 +401,9 @@ struct AIPageContentAttributes {
   // Only set if attribute_type is kCanvas.
   AIPageContentCanvasData? canvas_data;
 
+  // Only set if attribute_type is kVideo.
+  AIPageContentVideoData? video_data;
+
   // Only set if attribute_type is kAnchor.
   AIPageContentAnchorData? anchor_data;
 
@@ -414,28 +460,31 @@ struct AIPageContent {
   AIPageContentFrameData frame_data;
 };
 
+enum AIPageContentMode {
+  // Includes all rendered content from the Document. The page can have content
+  // which is currently hidden but can be accessed by the user via find-in-page.
+  // Such content is also included.
+  kDefault,
+
+  // Includes additional information to know which nodes are interactive and the
+  // geometry associated each node. This includes both 2D geometry and stacking
+  // order for occlusion.
+  kActionableElements,
+};
+
 struct AIPageContentOptions {
-  // Indicates whether the geometry for each ContentNode should be included in
-  // the content.
-  bool include_geometry = false;
+  // Configures which content is included in the extracted APC.
+  AIPageContentMode mode;
 
   // Indicates whether this request is on the critical path, i.e., user visible.
   // Requests which are not on the critical path can be de-prioritized to avoid
   // blocking higher priority work.
   bool on_critical_path = false;
 
-  // The page can have content which is currently hidden but can be accessed by
-  // the user via find-in-page. This content's style and layout is not kept
-  // up-to-date as an optimization. Including it will force the renderer to
-  // update it's style and layout.
-  bool include_hidden_searchable_content = false;
-
   // The maximum number of meta elements to include in the content.
+  // Note: This option is not folded into AIPageContentMode since this
+  // information is not added to the proto.
   int32 max_meta_elements = 0;
-
-  // Include node-level data for actionable elements captured in
-  // AIPageContentNodeInteractionInfo.
-  bool enable_experimental_actionable_data = false;
 };
 
 // Used to obtain the AIPageContent representation for Documents. Lives in the

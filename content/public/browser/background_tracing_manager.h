@@ -12,6 +12,7 @@
 #include "base/token.h"
 #include "base/trace_event/trace_event_impl.h"
 #include "content/common/content_export.h"
+#include "content/public/browser/tracing_delegate.h"
 #include "third_party/perfetto/protos/perfetto/config/chrome/scenario_config.gen.h"
 
 namespace content {
@@ -24,7 +25,7 @@ class BackgroundTracingManager {
  public:
   // Creates and return a global BackgroundTracingManager instance.
   CONTENT_EXPORT static std::unique_ptr<BackgroundTracingManager>
-  CreateInstance();
+  CreateInstance(TracingDelegate* delegate);
 
   // Returns the global instance created with CreateInstance().
   CONTENT_EXPORT static BackgroundTracingManager& GetInstance();
@@ -145,11 +146,6 @@ class BackgroundTracingManager {
           void(std::optional<std::string> /*compressed_trace_content*/,
                std::optional<std::string> /*serialized_system_profile*/,
                base::OnceClosure /*upload_complete_closure*/)> callback) = 0;
-
-  // Sets a callback that records `SystemProfileProto` when a trace is
-  // collected.
-  virtual void SetSystemProfileRecorder(
-      base::RepeatingCallback<std::string()> recorder) = 0;
 
   // For tests
   virtual void AbortScenarioForTesting() = 0;

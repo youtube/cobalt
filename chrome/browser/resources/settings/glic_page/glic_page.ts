@@ -10,6 +10,10 @@ import '../controls/settings_toggle_button.js';
 import 'chrome://resources/cr_elements/cr_expand_button/cr_expand_button.js';
 import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
 import '../icons.html.js';
+// <if expr="_google_chrome">
+import '../internal/icons.html.js';
+
+// </if>
 
 import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
 import {CrSettingsPrefs} from '/shared/settings/prefs/prefs_types.js';
@@ -40,12 +44,19 @@ export enum SettingsGlicPageFeaturePrefName {
   MICROPHONE_ENABLED = 'glic.microphone_enabled',
   SETTINGS_POLICY = 'browser.gemini_settings',
   TAB_CONTEXT_ENABLED = 'glic.tab_context_enabled',
+  TABSTRIP_BUTTON_ENABLED = 'glic.pinned_to_tabstrip',
+  USER_STATUS = 'glic.user_status',
 }
 
 // browser_element_identifiers constants
 const OS_WIDGET_TOGGLE_ELEMENT_ID = 'kGlicOsToggleElementId';
 const OS_WIDGET_KEYBOARD_SHORTCUT_ELEMENT_ID =
     'kGlicOsWidgetKeyboardShortcutElementId';
+
+// Partial structure of the glic.user_status dictionary pref.
+interface GlicUserStatusPref {
+  isEnterpriseAccountDataProtected?: boolean;
+}
 
 const SettingsGlicPageElementBase =
     HelpBubbleMixin(I18nMixin(WebUiListenerMixin(PrefsMixin(PolymerElement))));
@@ -99,6 +110,42 @@ export class SettingsGlicPageElement extends SettingsGlicPageElementBase {
           return loadTimeData.getBoolean('glicClosedCaptionsFeatureEnabled');
         },
       },
+
+      glicUserStatusCheckFeatureEnabled_: {
+        type: Boolean,
+        value: () =>
+            loadTimeData.getBoolean('glicUserStatusCheckFeatureEnabled'),
+      },
+
+      locationSubLabel_: {
+        type: String,
+        computed: `computeLocationSubLabel_(prefs.${
+            SettingsGlicPageFeaturePrefName.USER_STATUS}.value)`,
+      },
+
+      locationLearnMoreUrl_: {
+        type: String,
+        computed: `computeLocationLearnMoreUrl_(prefs.${
+            SettingsGlicPageFeaturePrefName.USER_STATUS}.value)`,
+      },
+
+      microphoneSubLabel_: {
+        type: String,
+        computed: `computeMicrophoneSubLabel_(prefs.${
+            SettingsGlicPageFeaturePrefName.USER_STATUS}.value)`,
+      },
+
+      tabAccessSubLabel_: {
+        type: String,
+        computed: `computeTabAccessSubLabel_(prefs.${
+            SettingsGlicPageFeaturePrefName.USER_STATUS}.value)`,
+      },
+
+      tabAccessLearnMoreUrl_: {
+        type: String,
+        computed: `computeTabAccessLearnMoreUrl_(prefs.${
+            SettingsGlicPageFeaturePrefName.USER_STATUS}.value)`,
+      },
     };
   }
 
@@ -121,6 +168,12 @@ export class SettingsGlicPageElement extends SettingsGlicPageElementBase {
       MetricsBrowserProxyImpl.getInstance();
   declare private tabAccessToggleExpanded_: boolean;
   declare private closedCaptionsFeatureEnabled_: boolean;
+  declare private glicUserStatusCheckFeatureEnabled_: boolean;
+  declare private locationSubLabel_: string;
+  declare private locationLearnMoreUrl_: string;
+  declare private microphoneSubLabel_: string;
+  declare private tabAccessSubLabel_: string;
+  declare private tabAccessLearnMoreUrl_: string;
 
   override async connectedCallback() {
     super.connectedCallback();
@@ -287,6 +340,52 @@ export class SettingsGlicPageElement extends SettingsGlicPageElementBase {
     const enabled = (event.target as SettingsToggleButtonElement).checked;
     this.metricsBrowserProxy_.recordAction(
         'Glic.Settings.ClosedCaptions.' + (enabled ? 'Enabled' : 'Disabled'));
+  }
+
+  private onTabstripButtonToggleChange_(event: Event) {
+    const enabled = (event.target as SettingsToggleButtonElement).checked;
+    this.metricsBrowserProxy_.recordAction(
+        'Glic.Settings.TabstripButton.' + (enabled ? 'Enabled' : 'Disabled'));
+  }
+
+  private computeLocationSubLabel_(userStatus: GlicUserStatusPref|undefined):
+      string {
+    return this.glicUserStatusCheckFeatureEnabled_ &&
+            userStatus?.isEnterpriseAccountDataProtected ?
+        this.i18n('glicLocationToggleSublabelDataProtected') :
+        this.i18n('glicLocationToggleSublabel');
+  }
+
+  private computeLocationLearnMoreUrl_(
+      userStatus: GlicUserStatusPref|undefined): string {
+    return this.glicUserStatusCheckFeatureEnabled_ &&
+            userStatus?.isEnterpriseAccountDataProtected ?
+        '' :
+        this.i18n('glicLocationToggleLearnMoreUrl');
+  }
+
+  private computeMicrophoneSubLabel_(userStatus: GlicUserStatusPref|undefined):
+      string {
+    return this.glicUserStatusCheckFeatureEnabled_ &&
+            userStatus?.isEnterpriseAccountDataProtected ?
+        this.i18n('glicMicrophoneToggleSublabelDataProtected') :
+        this.i18n('glicMicrophoneToggleSublabel');
+  }
+
+  private computeTabAccessSubLabel_(userStatus: GlicUserStatusPref|undefined):
+      string {
+    return this.glicUserStatusCheckFeatureEnabled_ &&
+            userStatus?.isEnterpriseAccountDataProtected ?
+        this.i18n('glicTabAccessToggleSublabelDataProtected') :
+        this.i18n('glicTabAccessToggleSublabel');
+  }
+
+  private computeTabAccessLearnMoreUrl_(
+      userStatus: GlicUserStatusPref|undefined): string {
+    return this.glicUserStatusCheckFeatureEnabled_ &&
+            userStatus?.isEnterpriseAccountDataProtected ?
+        this.i18n('glicTabAccessToggleLearnMoreUrlDataProtected') :
+        this.i18n('glicTabAccessToggleLearnMoreUrl');
   }
 }
 

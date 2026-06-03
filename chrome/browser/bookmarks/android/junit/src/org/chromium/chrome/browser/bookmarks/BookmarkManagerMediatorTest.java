@@ -29,8 +29,6 @@ import static org.mockito.Mockito.when;
 import static org.chromium.ui.test.util.MockitoHelper.doCallback;
 import static org.chromium.ui.test.util.MockitoHelper.doRunnable;
 
-import static java.util.Map.entry;
-
 import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
@@ -1225,10 +1223,8 @@ public class BookmarkManagerMediatorTest {
         verify(mBookmarkModel).addObserver(mBookmarkModelObserverArgumentCaptor.capture());
         assertNotNull(mSubscriptionsObserver.getValue());
 
-        doReturn(new ArrayList<BookmarkItem>())
-                .when(mBookmarkModel)
-                .searchBookmarks(anyString(), anyInt());
-        doReturn(new ArrayList<BookmarkId>()).when(mBookmarkModel).getChildIds(mFolderId1);
+        doReturn(new ArrayList<>()).when(mBookmarkModel).searchBookmarks(anyString(), anyInt());
+        doReturn(new ArrayList<>()).when(mBookmarkModel).getChildIds(mFolderId1);
 
         mMediator.openFolder(mFolderId1);
 
@@ -1721,7 +1717,7 @@ public class BookmarkManagerMediatorTest {
                         eq(Set.of(DataType.BOOKMARKS, DataType.PASSWORDS, DataType.READING_LIST)),
                         any(Callback.class));
         mMediator
-                .getBookmarkBatchUploadCardCoordinator()
+                .getBatchUploadCardCoordinatorForTesting()
                 .immediatelyHideBatchUploadCardAndUpdateItsVisibility();
 
         mBookmarkUiPrefs.setBookmarkRowSortOrder(BookmarkRowSortOrder.ALPHABETICAL);
@@ -1794,7 +1790,7 @@ public class BookmarkManagerMediatorTest {
                         eq(Set.of(DataType.BOOKMARKS, DataType.PASSWORDS, DataType.READING_LIST)),
                         any(Callback.class));
         mMediator
-                .getBookmarkBatchUploadCardCoordinator()
+                .getBatchUploadCardCoordinatorForTesting()
                 .immediatelyHideBatchUploadCardAndUpdateItsVisibility();
 
         mBookmarkUiPrefs.setBookmarkRowSortOrder(BookmarkRowSortOrder.ALPHABETICAL);
@@ -1869,7 +1865,7 @@ public class BookmarkManagerMediatorTest {
                         eq(Set.of(DataType.BOOKMARKS, DataType.PASSWORDS, DataType.READING_LIST)),
                         any(Callback.class));
         mMediator
-                .getBookmarkBatchUploadCardCoordinator()
+                .getBatchUploadCardCoordinatorForTesting()
                 .immediatelyHideBatchUploadCardAndUpdateItsVisibility();
 
         mBookmarkUiPrefs.setBookmarkRowSortOrder(BookmarkRowSortOrder.ALPHABETICAL);

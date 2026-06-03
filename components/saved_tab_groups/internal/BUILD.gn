@@ -22,6 +22,8 @@ source_set("internal") {
     "tab_group_sync_service_impl.h",
     "tab_group_type_observer.cc",
     "tab_group_type_observer.h",
+    "versioning_message_controller_impl.cc",
+    "versioning_message_controller_impl.h",
   ]
   deps = [
     ":tab_group_sync_bridge",
@@ -48,6 +50,8 @@ source_set("internal") {
     sources += [
       "android/tab_group_sync_service_android.cc",
       "android/tab_group_sync_service_android.h",
+      "android/versioning_message_controller_android.cc",
+      "android/versioning_message_controller_android.h",
     ]
 
     deps += [
@@ -81,7 +85,10 @@ source_set("model") {
 
 if (is_android) {
   android_library("java") {
-    sources = [ "android/java/src/org/chromium/components/tab_group_sync/TabGroupSyncServiceImpl.java" ]
+    sources = [
+      "android/java/src/org/chromium/components/tab_group_sync/TabGroupSyncServiceImpl.java",
+      "android/java/src/org/chromium/components/tab_group_sync/VersioningMessageControllerImpl.java",
+    ]
 
     deps = [
       "//base:base_java",
@@ -103,7 +110,10 @@ if (is_android) {
       "//chrome/browser",
     ]
 
-    sources = [ "android/java/src/org/chromium/components/tab_group_sync/TabGroupSyncServiceImpl.java" ]
+    sources = [
+      "android/java/src/org/chromium/components/tab_group_sync/TabGroupSyncServiceImpl.java",
+      "android/java/src/org/chromium/components/tab_group_sync/VersioningMessageControllerImpl.java",
+    ]
   }
 
   android_library("native_java_unittests_java") {
@@ -168,6 +178,7 @@ source_set("unit_tests") {
     "tab_group_sync_metrics_logger_unittest.cc",
     "tab_group_sync_service_unittest.cc",
     "tab_group_type_observer_unittest.cc",
+    "versioning_message_controller_impl_unittest.cc",
   ]
   deps = [
     ":internal",
@@ -215,6 +226,7 @@ source_set("tab_group_sync_bridge") {
 
     # This is allowed until usage of SavedTabGroupKeyedService has been migrated
     # to TabGroupSyncService.
+    "//chrome/android:browser_test_support",
     "//chrome/browser",
     "//chrome/browser/sync/test/integration:*",
     "//chrome/browser/ui",

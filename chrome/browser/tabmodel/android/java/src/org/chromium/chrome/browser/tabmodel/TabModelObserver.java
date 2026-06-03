@@ -49,6 +49,14 @@ public interface TabModelObserver {
     default void onFinishingTabClosure(Tab tab) {}
 
     /**
+     * Called right before {@code tab} will be destroyed. Called for each tab.
+     *
+     * @param tab The {@link Tab} that was closed.
+     * @param closingSource The tab closing source, e.g. the tablet tab strip.
+     */
+    default void onFinishingTabClosure(Tab tab, @TabClosingSource int closingSource) {}
+
+    /**
      * Called right before each of {@code tabs} will be destroyed. Called as each closure event is
      * committed. Will be called per closure event i.e. {@link TabModel#closeTab()}, {@link
      * TabModel#closeAllTabs()}, and {@link TabModel#closeMultipleTabs()} will all trigger one event
@@ -91,14 +99,28 @@ public interface TabModelObserver {
     default void didMoveTab(Tab tab, int newIndex, int curIndex) {}
 
     /**
+     * Called when a tab's pin state is about to change.
+     *
+     * @param tab The tab whose pin state is about to change.
+     */
+    default void willChangePinState(Tab tab) {}
+
+    /**
+     * Called when a tab's pin state has changed.
+     *
+     * @param tab The tab whose pin state has changed.
+     */
+    default void didChangePinState(Tab tab) {}
+
+    /**
      * Called when a tab is pending closure, i.e. the user has just closed it, but it can still be
      * undone. At this point, the Tab has been removed from the TabModel and can only be accessed
      * via {@link TabModel#getComprehensiveModel()}.
      *
      * @param tab The tab that is pending closure.
-     * @param pendingToken The token that can be used to commit or undo the tab closure.
+     * @param closingSource The tab closing source, e.g. the tablet tab strip.
      */
-    default void tabPendingClosure(Tab tab) {}
+    default void tabPendingClosure(Tab tab, @TabClosingSource int closingSource) {}
 
     /**
      * Called when multiple tabs are pending closure.

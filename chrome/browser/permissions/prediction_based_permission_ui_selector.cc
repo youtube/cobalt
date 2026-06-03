@@ -110,6 +110,21 @@ bool ShouldPredictionTriggerQuietUi(
 void LogSnapshotTakenSuccessfullyForAiv3(bool success) {
   base::UmaHistogramBoolean("Permissions.AIv3.SnapshotTaken", success);
 }
+
+void LogPredictionModelHandlerProviderForAiv3(bool exists) {
+  base::UmaHistogramBoolean("Permissions.AIv3.ModelHandlerProviderExists",
+                            exists);
+}
+
+void LogPermissionsAiv3HandlerForAiv3(bool exists) {
+  base::UmaHistogramBoolean("Permissions.AIv3.PermissionsAiv3HandlerExists",
+                            exists);
+}
+
+void LogAiv3RelevanceHasValue(bool has_value) {
+  base::UmaHistogramBoolean("Permissions.AIv3.RelevanceHasValue", has_value);
+}
+
 }  // namespace
 
 PredictionBasedPermissionUiSelector::PredictionBasedPermissionUiSelector(
@@ -234,12 +249,17 @@ void PredictionBasedPermissionUiSelector::OnSnapshotTakenForOnDeviceModel(
   if (snapshot.drawsNothing()) {
     VLOG(1) << "[PermissionsAIv3] The page's snapshot is empty";
   } else {
-    if (PredictionModelHandlerProvider* prediction_model_handler_provider =
-            PredictionModelHandlerProviderFactory::GetForBrowserContext(
-                profile_)) {
-      if (PermissionsAiv3Handler* aiv3_handler =
-              prediction_model_handler_provider->GetPermissionsAiv3Handler(
-                  request_metadata.request_type)) {
+    PredictionModelHandlerProvider* prediction_model_handler_provider =
+        PredictionModelHandlerProviderFactory::GetForBrowserContext(profile_);
+    LogPredictionModelHandlerProviderForAiv3(
+        prediction_model_handler_provider != nullptr);
+    if (prediction_model_handler_provider) {
+      PermissionsAiv3Handler* aiv3_handler =
+          prediction_model_handler_provider->GetPermissionsAiv3Handler(
+              request_metadata.request_type);
+
+      LogPermissionsAiv3HandlerForAiv3(aiv3_handler != nullptr);
+      if (aiv3_handler) {
         VLOG(1) << "[PermissionsAIv3] Inquire model";
 
         aiv3_handler->ExecuteModel(
@@ -268,15 +288,15 @@ void PredictionBasedPermissionUiSelector::OnDeviceAiv3ModelExecutionCallback(
       model_inquire_start_time, PredictionModelType::kOnDeviceAiV3Model);
   VLOG(1) << "[PermissionsAIv3]: AI model execution callback called "
           << (relevance.has_value() ? "with value" : "without value");
+  LogAiv3RelevanceHasValue(relevance.has_value());
   if (relevance.has_value()) {
     VLOG(1) << "[PermissionsAIv3]: PermissionRequest has a relevance of "
             << static_cast<int>(relevance.value());
     last_permission_request_relevance_ = relevance.value();
     features.permission_relevance = relevance.value();
-    // TODO(crbug.com/382447738) refactor this function to also encode the model
-    // version
+
     PermissionUmaUtil::RecordPermissionRequestRelevance(
-        features.permission_relevance);
+        request_metadata.request_type, features.permission_relevance, "AIv3");
   } else {
     last_permission_request_relevance_ =
         PermissionRequestRelevance::kUnspecified;
@@ -454,19 +474,18 @@ PredictionBasedPermissionUiSelector::BuildPredictionRequestFeatures(
 
   features.experiment_id =
       PredictionRequestFeatures::ExperimentId::kNoExperimentId;
-  bool use_aiv1 =
-      base::FeatureList::IsEnabled(permissions::features::kPermissionsAIv1);
-  bool use_aiv3 =
-      base::FeatureList::IsEnabled(permissions::features::kPermissionsAIv3) ||
-      base::FeatureList::IsEnabled(
-          permissions::features::kPermissionsAIv3Geolocation);
-  if (use_aiv1 || use_aiv3) {
-    // Init `permission_relevance` here to avoid a crash during
-    // `ConvertToProtoRelevance` execution.
-    features.permission_relevance = PermissionRequestRelevance::kUnspecified;
+
+  // Init `permission_relevance` here to avoid a crash during
+  // `ConvertToProtoRelevance` execution.
+  features.permission_relevance = PermissionRequestRelevance::kUnspecified;
+  // if both Aiv3 and Aiv1 are enabled, we want to chose Aiv3.
+  if (base::FeatureList::IsEnabled(permissions::features::kPermissionsAIv3)) {
     features.experiment_id =
-        use_aiv1 ? PredictionRequestFeatures::ExperimentId::kAiV1ExperimentId
-                 : PredictionRequestFeatures::ExperimentId::kAiV3ExperimentId;
+        PredictionRequestFeatures::ExperimentId::kAiV3ExperimentId;
+  } else if (base::FeatureList::IsEnabled(
+                 permissions::features::kPermissionsAIv1)) {
+    features.experiment_id =
+        PredictionRequestFeatures::ExperimentId::kAiV1ExperimentId;
   }
 
   base::Time cutoff = base::Time::Now() - kPermissionActionCutoffAge;
@@ -511,7 +530,7 @@ void PredictionBasedPermissionUiSelector::OnDeviceAiv1ModelExecutionCallback(
   }
   features.permission_relevance = last_permission_request_relevance_.value();
   PermissionUmaUtil::RecordPermissionRequestRelevance(
-      features.permission_relevance);
+      request_metadata.request_type, features.permission_relevance, "AIv1");
   InquireServerModel(features, std::move(request_metadata),
                      /*record_source=*/!response.has_value());
 }
@@ -649,13 +668,7 @@ PredictionSource PredictionBasedPermissionUiSelector::GetPredictionTypeToUse(
   if (use_server_side) {
     // Aiv3 takes priority over Aiv1 if both are enabled.
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
-    if (request_type == permissions::RequestType::kNotifications &&
-        base::FeatureList::IsEnabled(permissions::features::kPermissionsAIv3)) {
-      return PredictionSource::kOnDeviceAiv3AndServerSideModel;
-    }
-    if (request_type == permissions::RequestType::kGeolocation &&
-        base::FeatureList::IsEnabled(
-            permissions::features::kPermissionsAIv3Geolocation)) {
+    if (base::FeatureList::IsEnabled(permissions::features::kPermissionsAIv3)) {
       return PredictionSource::kOnDeviceAiv3AndServerSideModel;
     }
 #endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)

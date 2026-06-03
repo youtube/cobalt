@@ -8,9 +8,9 @@
 #include <string>
 
 #include "build/build_config.h"
+#include "components/signin/public/base/signin_buildflags.h"
 #include "components/signin/public/base/signin_metrics.h"
-
-class GURL;
+#include "url/gurl.h"
 
 namespace content {
 class BrowserContext;
@@ -88,9 +88,11 @@ struct ChromeSyncUrlArgs {
   Flow flow = Flow::NONE;
 };
 
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
 // Returns the URL to be used to signin and turn on Sync when DICE is enabled.
 // See `ChromeSyncUrlArgs` docs for details on the arguments.
 GURL GetChromeSyncURLForDice(ChromeSyncUrlArgs args);
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 // Returns the URL to be used to reauth.
 // As part of `args` only `email` and `continue_url` are used:
@@ -112,6 +114,9 @@ GURL GetChromeReauthURL(ChromeSyncUrlArgs args);
 // If email is not empty, then it will pass email as hint to the page so that it
 // will be autofilled by Gaia.
 // If |continue_url| is empty, this may redirect to myaccount.
+// Deprecated for secondary DICE account addition (crbug.com/420635510):
+// For this case, use `GetChromeSyncURLForDice` instead.
+// The method remains valid for cases relating to users' re-authentication.
 GURL GetAddAccountURLForDice(const std::string& email,
                              const GURL& continue_url);
 

@@ -15,13 +15,13 @@
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile_observer.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/optimization_guide/core/delivery/optimization_guide_model_provider.h"
+#include "components/optimization_guide/core/hints/optimization_guide_decider.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
 #include "components/optimization_guide/core/model_execution/model_broker_client.h"
 #include "components/optimization_guide/core/model_execution/model_execution_features_controller.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_adaptation_loader.h"
-#include "components/optimization_guide/core/optimization_guide_decider.h"
 #include "components/optimization_guide/core/optimization_guide_model_executor.h"
-#include "components/optimization_guide/core/optimization_guide_model_provider.h"
 #include "components/optimization_guide/core/optimization_guide_on_device_capability_provider.h"
 #include "components/optimization_guide/proto/hints.pb.h"
 #include "components/optimization_guide/proto/model_execution.pb.h"
@@ -275,7 +275,6 @@ class OptimizationGuideKeyedService
   GetModelExecutionFeaturesController();
 
  private:
-  friend class BrowserView;
   friend class ChromeBrowserMainExtraPartsOptimizationGuide;
   friend class ChromeBrowsingDataRemoverDelegate;
   friend class contextual_cueing::ZeroStateSuggestionsPageData;
@@ -356,10 +355,6 @@ class OptimizationGuideKeyedService
           callback,
       std::optional<optimization_guide::proto::RequestContextMetadata>
           request_context_metadata = std::nullopt) override;
-
-  // Returns whether all conditions are met to show the IPH promo for
-  // experimental AI.
-  bool ShouldShowExperimentalAIPromo() const;
 
   download::BackgroundDownloadService* BackgroundDownloadServiceProvider();
 

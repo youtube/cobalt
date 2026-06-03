@@ -1150,7 +1150,7 @@ TEST_F(TabletModeControllerTest, StartingKioskSwitchesToUiClamshellMode) {
   EXPECT_TRUE(display::Screen::GetScreen()->InTabletMode());
   EXPECT_TRUE(AreEventsBlocked());
 
-  SimulateKioskMode(user_manager::UserType::kKioskApp);
+  SimulateKioskMode(user_manager::UserType::kKioskChromeApp);
 
   EXPECT_FALSE(display::Screen::GetScreen()->InTabletMode());
   // When the device is in the physical tablet state, the internal events should
@@ -1161,7 +1161,7 @@ TEST_F(TabletModeControllerTest, StartingKioskSwitchesToUiClamshellMode) {
 TEST_F(TabletModeControllerTest, KioskBlocksEnteringTabletMode) {
   EXPECT_FALSE(display::Screen::GetScreen()->InTabletMode());
   EXPECT_FALSE(AreEventsBlocked());
-  SimulateKioskMode(user_manager::UserType::kKioskApp);
+  SimulateKioskMode(user_manager::UserType::kKioskChromeApp);
 
   SetTabletMode(true);
 
@@ -1170,10 +1170,23 @@ TEST_F(TabletModeControllerTest, KioskBlocksEnteringTabletMode) {
   EXPECT_TRUE(IsInPhysicalTabletState());
 }
 
+TEST_F(TabletModeControllerTest,
+       KioskModeExplicitlyHidesCursorWhenEnteringClamshellMode) {
+  SetTabletMode(true);
+  EXPECT_TRUE(display::Screen::GetScreen()->InTabletMode());
+  EXPECT_TRUE(AreEventsBlocked());
+  Shell::Get()->cursor_manager()->ShowCursor();
+  EXPECT_TRUE(Shell::Get()->cursor_manager()->IsCursorVisible());
+
+  SimulateKioskMode(user_manager::UserType::kKioskChromeApp);
+
+  EXPECT_FALSE(Shell::Get()->cursor_manager()->IsCursorVisible());
+}
+
 TEST_F(TabletModeControllerTest, DeviceReactsOnLidChangeInKioskSession) {
   EXPECT_FALSE(display::Screen::GetScreen()->InTabletMode());
   EXPECT_FALSE(AreEventsBlocked());
-  SimulateKioskMode(user_manager::UserType::kKioskApp);
+  SimulateKioskMode(user_manager::UserType::kKioskChromeApp);
 
   // Opening the lid to 270 degrees should start tablet mode if not blocked.
   OpenLidToAngle(270.0f);
@@ -1187,7 +1200,7 @@ TEST_F(TabletModeControllerTest,
        KioskBlocksUiTabletModeEvenAfterMultipleLidChange) {
   EXPECT_FALSE(display::Screen::GetScreen()->InTabletMode());
   EXPECT_FALSE(AreEventsBlocked());
-  SimulateKioskMode(user_manager::UserType::kKioskApp);
+  SimulateKioskMode(user_manager::UserType::kKioskChromeApp);
 
   OpenLidToAngle(270.0f);
   EXPECT_FALSE(display::Screen::GetScreen()->InTabletMode());
@@ -1248,7 +1261,7 @@ TEST_F(TabletModeControllerForceTabletModeTest,
        ForceTabletModeOverridenInKiosk) {
   EXPECT_TRUE(display::Screen::GetScreen()->InTabletMode());
 
-  SimulateKioskMode(user_manager::UserType::kKioskApp);
+  SimulateKioskMode(user_manager::UserType::kKioskChromeApp);
 
   EXPECT_FALSE(display::Screen::GetScreen()->InTabletMode());
 }

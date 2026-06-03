@@ -4,7 +4,7 @@
 <translation id="1000436330784933699">Ovdje možete otvoriti Objektiv.</translation>
 <translation id="1042296835509784301">Otvara Upravitelj lozinki u Chromiumu.</translation>
 <translation id="1047130070405668746">Odaberite Chromium</translation>
-<translation id="1086486568852410168">Pretražujte pomoću Google Objektiva</translation>
+<translation id="1086486568852410168">Pretraži putem Google Objektiva</translation>
 <translation id="1091252999271033193">Ovo znači da će Chromium svaki put zatražiti web lokaciju za mobilni uređaj.</translation>
 <translation id="1115463765356382667">Izvršite predložene radnje u nastavku da iskoristite sve prednosti Chromiuma.</translation>
 <translation id="1140315115515116765">Koristite Chromium prema zadanim postavkama da jednostavno dobijate uvide u cijene</translation>
@@ -176,6 +176,7 @@ Da promijenite ovu postavku, <ph name="BEGIN_LINK" />izbrišite podatke Chromium
 <translation id="5259423875997548710">Pretraživanje vizuelnih elemenata u Chromiumu.</translation>
 <translation id="5308226104666789935">Chromium ne može provjeriti ima li ažuriranja</translation>
 <translation id="5311557153294205270">Dodaje unesene URL-ove u vaše oznake u Chromiumu.</translation>
+<translation id="5383251701169024761">Da lako dobijate sačuvane lozinke u drugim aplikacijama, odaberite Chromium za automatsko popunjavanje.</translation>
 <translation id="538767207339317086">Dozvoli prijavljivanje u Chromium</translation>
 <translation id="5389058611415066188">Budite sigurni uz Chromium</translation>
 <translation id="5415273218238091735">Savjet za Chromium</translation>
@@ -276,7 +277,6 @@ Vaše šifrirane podatke može čitati samo osoba koja ima vaš pristupni izraz.
 <translation id="7763454117143368771">Koristite Chromium kao zadani preglednik da se zaštitite od opasnih web lokacija i da zaštitite lozinke</translation>
 <translation id="7784950022329154821">Zaključaj anonimne kartice prilikom zatvaranja Chromiuma</translation>
 <translation id="78025249032851484">Chromium je zastario.</translation>
-<translation id="7811371919871579588">Da lako dobijate sačuvane lozinke u drugim aplikacijama, odaberite Chromium za automatsko popunjavanje.</translation>
 <translation id="7859018312476869945">Kad pišete u traci za adresu ili u okviru za pretraživanje, Chromium šalje ono što upišete zadanom pretraživaču radi dobijanja boljih prijedloga. Ovo je isključeno u anonimnom načinu rada.</translation>
 <translation id="7890287942691234100">Počnite koristiti Chromium skener</translation>
 <translation id="7905064834449738336">Kada koristite lozinku, Chromium vas upozorava ako je objavljena online. Prilikom toga, vaše lozinke i korisnička imena su šifrirani i niko, uključujući Google, ih ne može pročitati.</translation>
@@ -331,6 +331,7 @@ Pričekajte nekoliko minuta prije odjave. Ako se sada odjavite, ovi podaci će s
 <translation id="9050790730841755540">Koristite Chromium svaki put kada dodirnete linkove u drugim aplikacijama.</translation>
 <translation id="9059693977935746710">Nećete morati zapamtiti ovu lozinku. Sačuvat će se u Upravitelju lozinki za račun <ph name="EMAIL" /></translation>
 <translation id="9089354809943900324">Chromium nije ažuriran</translation>
+<translation id="9105645282262300612">Savjet za Chromium: pretražite ono što vidite</translation>
 <translation id="9152995302810511799">Savjet za Chromium: dobijte Chromiumovu najjaču zaštitu</translation>
 <translation id="9177628952266852500"><ph name="EMAIL" />. Chromiumom se upravlja.</translation>
 <translation id="921174536258924340">Chromium nije mogao provjeriti sve lozinke. Pokušajte ponovo sutra ili <ph name="BEGIN_LINK" />provjerite lozinke na Google računu.<ph name="END_LINK" /></translation>

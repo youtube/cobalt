@@ -7,10 +7,11 @@
 
 #import <UIKit/UIKit.h>
 
-#import "ios/chrome/browser/home_customization/model/background_customization_configuration.h"
-
 @protocol LogoVendor;
 @protocol HomeCustomizationMutator;
+@protocol BackgroundCustomizationConfiguration;
+
+@class HomeCustomizationColorPaletteConfiguration;
 
 // Represents a mini preview of how the NTP will look with a particular
 // background selected. This cell is part of the background customization
@@ -21,10 +22,17 @@
 // Mutator for communicating with the HomeCustomizationMediator.
 @property(nonatomic, weak) id<HomeCustomizationMutator> mutator;
 
+// Sets up and positions the view responsible for displaying the cell's
+// content.
+- (void)setupContentView:(UIView*)contentView;
+
 // Configures the cell using the given background customization configuration.
 - (void)configureWithBackgroundOption:
-            (BackgroundCustomizationConfiguration*)backgroundConfiguration
-                           logoVendor:(id<LogoVendor>)logoVendor;
+            (id<BackgroundCustomizationConfiguration>)backgroundConfiguration
+                           logoVendor:(id<LogoVendor>)logoVendor
+                         colorPalette:
+                             (HomeCustomizationColorPaletteConfiguration*)
+                                 colorPalette;
 
 // Updates the background image displayed behind the cell’s content.
 - (void)updateBackgroundImage:(UIImage*)image;

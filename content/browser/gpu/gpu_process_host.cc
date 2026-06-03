@@ -253,6 +253,7 @@ static const char* const kSwitchNames[] = {
     switches::kRaiseTimerFrequency,
     switches::kUseRedistributableDirectML,
 #endif  // BUILDFLAG(IS_WIN)
+    switches::kBackgroundThreadPoolFieldTrial,
     switches::kEnableANGLEFeatures,
     switches::kDelegatedInkRenderer,
     switches::kDisableANGLEFeatures,
@@ -263,7 +264,6 @@ static const char* const kSwitchNames[] = {
     switches::kDisableShaderNameHashing,
     switches::kDisableSkiaRuntimeOpts,
     switches::kDRMVirtualConnectorIsExternal,
-    switches::kEnableBackgroundThreadPool,
     switches::kEnableGpuMainTimeKeeperMetrics,
     switches::kEnableGpuRasterization,
     switches::kEnableSkiaGraphite,
@@ -328,6 +328,7 @@ static const char* const kSwitchNames[] = {
 #endif
 #if BUILDFLAG(IS_WIN)
     switches::kWebNNOrtLoggingLevel,
+    switches::kWebNNOrtDumpModel,
 #endif
 };
 
@@ -812,7 +813,8 @@ GpuProcessHost::~GpuProcessHost() {
         message += "was killed by you! Why?";
         break;
       case base::TERMINATION_STATUS_PROCESS_CRASHED:
-        message += "crashed!";
+        message +=
+            base::StringPrintf("crashed! Exit code: %d.", info.exit_code);
         unexpected_exit = true;
         break;
       case base::TERMINATION_STATUS_STILL_RUNNING:

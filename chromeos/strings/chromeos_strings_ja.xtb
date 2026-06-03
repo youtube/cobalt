@@ -206,6 +206,7 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
+<translation id="1762353673362288306">現在、クラスツールのみ使用できます</translation>
 <translation id="1762483337755424125">文字起こし</translation>
 <translation id="1765169783255151332">キーをすばやく切り替え</translation>
 <translation id="1768959921651994223">認証タイプ</translation>
@@ -328,7 +329,7 @@
 <translation id="2244834438220057800">緑色</translation>
 <translation id="225692081236532131">起動状態</translation>
 <translation id="2267285889943769271">スクリーンショットを追加</translation>
-<translation id="2268044343513325586">絞り込み</translation>
+<translation id="2268044343513325586">修正</translation>
 <translation id="2271469253353559191">ダークモードのスケジュールを設定する</translation>
 <translation id="2276999893457278469">関連するヘルプ コンテンツ</translation>
 <translation id="2277631741861284101">音声を簡単に録音して共有</translation>
@@ -476,6 +477,7 @@
 <translation id="3091839911843451378">失敗 - 停止中です</translation>
 <translation id="3102119246920354026">キャッシュ</translation>
 <translation id="3103783611481501187">シュール</translation>
+<translation id="3119672627216736407">翻訳を確認</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">プール</translation>
 <translation id="3122883569442693641">詳細</translation>
@@ -946,7 +948,7 @@
 <translation id="5145331109270917438">更新日</translation>
 <translation id="5154917547274118687">メモリ</translation>
 <translation id="5160857336552977725"><ph name="DEVICE_TYPE" /> にログインしてください</translation>
-<translation id="5168185087976003268">電池の状態</translation>
+<translation id="5168185087976003268">バッテリー ヘルス</translation>
 <translation id="5170568018924773124">フォルダを開く</translation>
 <translation id="517075088756846356">更新プロセスを続行するには、<ph name="DEVICE_NAME" /> の電源ケーブルを取り外してから、もう一度差し込んでください</translation>
 <translation id="5180108905184566358">バオバブの木々</translation>
@@ -1136,6 +1138,7 @@
 <translation id="6058625436358447366">終了するには、古いパスワードと新しいパスワードを入力してください</translation>
 <translation id="6061772781719867950">HTTP リクエストが失敗しました</translation>
 <translation id="6073292342939316679">キーボードの明るさを下げる</translation>
+<translation id="6074608334942655098">翻訳を中止</translation>
 <translation id="6074752328838739425">概要を非表示</translation>
 <translation id="6075872808778243331">（Android）HTTP レイテンシ</translation>
 <translation id="6078323886959318429">ショートカットを追加</translation>
@@ -1433,7 +1436,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">Chromebook ヘルプ フォーラムのエキスパートに問い合わせる</translation>
-<translation id="7309823890857024809">黒色の背景でガラスの花瓶に入った数本のケシの茎のミニマルな静物画</translation>
 <translation id="7311368985037279727">キーボードの色</translation>
 <translation id="7317831949569936035">教育機関の登録</translation>
 <translation id="7319430975418800333">A3</translation>
@@ -1613,6 +1615,7 @@
 <translation id="8088963492174775412">押すと録音を開始します</translation>
 <translation id="8094062939584182041">この問題に関するメールの送信を Google に許可する</translation>
 <translation id="8104083085214006426">保護されていないオープン ネットワークを使用しています</translation>
+<translation id="8108879170356113798"><ph name="NUM_SECONDS" /> 秒後にクラスツールのみ使用できるようになります</translation>
 <translation id="811820734797650957">（Android）ゲートウェイへの ping</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" /> ℃</translation>
 <translation id="8131740175452115882">確認</translation>

@@ -83,9 +83,9 @@ base::HeapArray<uint8_t> PrepareAACBuffer(
     std::vector<SubsampleEntry>* subsamples) {
   base::HeapArray<uint8_t> output_buffer;
 
-  // Append an ADTS header to every audio sample unless it's xHE-AAC.
+  // Append an ADTS header to every audio sample if possible.
   int adts_header_size = 0;
-  if (aac_config.GetProfile() != AudioCodecProfile::kXHE_AAC) {
+  if (aac_config.fits_in_adts()) {
     output_buffer = aac_config.CreateAdtsFromEsds(frame_buf, &adts_header_size);
   } else {
     output_buffer = base::HeapArray<uint8_t>::CopiedFrom(frame_buf);
@@ -322,7 +322,8 @@ void MP4StreamParser::ModulatedPeek(const uint8_t** buf, int* size) {
   DCHECK(buf);
   DCHECK(size);
 
-  queue_.Peek(buf, size);
+  *buf = queue_.Data().data();
+  *size = queue_.Data().size();
 
   // The size or even availability of anything to parse (in scope of current
   // iteration of Parse()) may be less than reported in the Peek() call,
@@ -353,7 +354,9 @@ void MP4StreamParser::ModulatedPeekAt(int64_t offset,
     return;
   }
 
-  queue_.PeekAt(offset, buf, size);
+  auto eq_queue_span = queue_.DataAt(offset);
+  *buf = eq_queue_span.data();
+  *size = eq_queue_span.size();
 
   if (*buf) {
     int parseable_size = max_parse_offset_ - offset;

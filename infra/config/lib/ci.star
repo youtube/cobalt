@@ -222,7 +222,6 @@ def _gpu_mac_builder(*, name, **kwargs):
     """
     kwargs.setdefault("builderless", True)
     kwargs.setdefault("os", os.MAC_ANY)
-    kwargs.setdefault("reclient_scandeps_server", True)
     return ci.builder(name = name, **kwargs)
 
 def _gpu_windows_builder(*, name, **kwargs):
@@ -240,7 +239,7 @@ def _gpu_windows_builder(*, name, **kwargs):
 def thin_tester(
         *,
         name,
-        triggered_by,
+        parent,
         cores = args.DEFAULT,
         **kwargs):
     """Define a thin tester.
@@ -253,9 +252,7 @@ def thin_tester(
 
     Args:
       name: The name of the builder.
-      triggered_by: The triggering builder. See
-        https://chromium.googlesource.com/infra/luci/luci-go/+/refs/heads/main/lucicfg/doc/README.md#luci.builder
-        for more information.
+      parent: Reference to the parent builder.
       cores: See `builders.builder` for more information. The `thin_tester_core`
         module-level default in `ci.defaults` will be used as the default if it
         is set.
@@ -265,14 +262,15 @@ def thin_tester(
       The `luci.builder` keyset.
     """
     builder_spec = kwargs.get("builder_spec")
-    if builder_spec and builder_spec.execution_mode != builder_config.execution_mode.TEST:
+    if (builder_spec and not builder_config.is_copy_from(builder_spec) and
+        builder_spec.execution_mode != builder_config.execution_mode.TEST):
         fail("thin testers with builder specs must have TEST execution mode")
     cores = defaults.get_value("thin_tester_cores", cores)
     kwargs.setdefault("siso_project", None)
     kwargs.setdefault("os", builders.os.LINUX_DEFAULT)
     return ci.builder(
         name = name,
-        triggered_by = triggered_by,
+        parent = parent,
         cores = cores,
         **kwargs
     )

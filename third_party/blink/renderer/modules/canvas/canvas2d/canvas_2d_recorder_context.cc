@@ -79,6 +79,7 @@
 #include "third_party/blink/renderer/core/html/canvas/canvas_rendering_context_host.h"
 #include "third_party/blink/renderer/core/html/canvas/html_canvas_element.h"
 #include "third_party/blink/renderer/core/html/media/html_video_element.h"
+#include "third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.h"
 #include "third_party/blink/renderer/core/paint/filter_effect_builder.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/core/style/filter_operations.h"
@@ -1037,6 +1038,9 @@ void Canvas2DRecorderContext::setStrokeStyle(v8::Isolate* isolate,
       if (!origin_tainted_by_content_ && !v8_style.pattern->OriginClean()) {
         SetOriginTaintedByContent();
       }
+      if (v8_style.pattern->HasInterventionTrigger()) {
+        AddTriggersForCanvasIntervention(CanvasOperationType::kCopyFromCanvas);
+      }
       state.SetStrokePattern(v8_style.pattern);
       break;
     case V8CanvasStyleType::kString: {
@@ -1157,6 +1161,9 @@ void Canvas2DRecorderContext::setFillStyle(v8::Isolate* isolate,
     case V8CanvasStyleType::kPattern:
       if (!origin_tainted_by_content_ && !v8_style.pattern->OriginClean()) {
         SetOriginTaintedByContent();
+      }
+      if (v8_style.pattern->HasInterventionTrigger()) {
+        AddTriggersForCanvasIntervention(CanvasOperationType::kCopyFromCanvas);
       }
       state.SetFillPattern(v8_style.pattern);
       break;
@@ -2669,8 +2676,19 @@ CanvasPattern* Canvas2DRecorderContext::createPattern(
 
   bool origin_clean = !WouldTaintCanvasOrigin(image_source);
 
+  bool has_intervention_trigger = false;
+  if (image_source->IsCanvasElement() || image_source->IsOffscreenCanvas()) {
+    CanvasRenderingContext* rendering_context =
+        static_cast<CanvasRenderingContextHost*>(image_source)
+            ->RenderingContext();
+    if (rendering_context && rendering_context->ShouldTriggerIntervention()) {
+      has_intervention_trigger = true;
+    }
+  }
+
   auto* pattern = MakeGarbageCollected<CanvasPattern>(
-      std::move(image_for_rendering), repeat_mode, origin_clean);
+      std::move(image_for_rendering), repeat_mode, origin_clean,
+      has_intervention_trigger);
   pattern->SetExecutionContext(
       identifiability_study_helper_.execution_context());
   return pattern;
@@ -2690,10 +2708,9 @@ scoped_refptr<cc::RefCountedBuffer<SkPoint>> MakeSkPointBuffer(
   static_assert(std::is_trivially_copyable<SkPoint>::value);
   static_assert(sizeof(SkPoint) == sizeof(float) * 2);
 
-  const size_t size = array->length() / 2;
-  std::vector<SkPoint> skpoints(size);
-  UNSAFE_TODO(
-      std::memcpy(skpoints.data(), array->Data(), size * sizeof(SkPoint)));
+  std::vector<SkPoint> skpoints(array->length() / 2);
+  base::as_writable_byte_span(base::allow_nonunique_obj, skpoints)
+      .copy_from(array->ByteSpan());
 
   return base::MakeRefCounted<cc::RefCountedBuffer<SkPoint>>(
       std::move(skpoints));
@@ -2789,9 +2806,7 @@ void Canvas2DRecorderContext::drawMesh(
     SetOriginTaintedByContent();
   }
 
-  SkRect bounds;
-  bounds.setBounds(vertex_data->data().data(),
-                   SkToInt(vertex_data->data().size()));
+  SkRect bounds = SkRect::BoundsOrEmpty(vertex_data->data());
 
   Draw<OverdrawOp::kNone>(
       /*draw_func=*/
@@ -2978,7 +2993,7 @@ void Canvas2DRecorderContext::SnapshotStateForFilter() {
 bool Canvas2DRecorderContext::IsAccelerated() const {
   CanvasRenderingContextHost* host = GetCanvasRenderingContextHost();
   if (host) {
-    return host->GetRasterMode() == RasterMode::kGPU;
+    return host->GetRasterModeForCanvas2D() == RasterMode::kGPU;
   }
   return false;
 }

@@ -73,13 +73,14 @@ public class LayoutManagerChromeTablet extends LayoutManagerChrome {
      *     tab drag and drop.
      * @param toolbarContainerView View passed to StripLayoutHelper to support tab drag and drop.
      * @param tabHoverCardViewStub The ViewStub representing the strip tab hover card.
-     * @param tabStripTooltipViewStub The ViewStub representing the tooltip for NTB or MSB.
      * @param toolbarManager The ToolbarManager instance.
      * @param desktopWindowStateManager The DesktopWindowStateManager for the app header.
      * @param actionConfirmationManager The {@link ActionConfirmationManager} for group actions.
      * @param dataSharingTabManager The {@link DataSharingTabManager} for shared groups.
      * @param bottomSheetController The {@link BottomSheetController} used to show bottom sheets.
      * @param shareDelegateSupplier Supplies {@link ShareDelegate} to share tab URLs.
+     * @param xrSpaceModeObservableSupplier Supplies current XR space mode status. True for XR full
+     *     space mode, false otherwise.
      */
     public LayoutManagerChromeTablet(
             LayoutManagerHost host,
@@ -96,14 +97,14 @@ public class LayoutManagerChromeTablet extends LayoutManagerChrome {
             DragAndDropDelegate dragAndDropDelegate,
             View toolbarContainerView,
             @NonNull ViewStub tabHoverCardViewStub,
-            @NonNull ViewStub tabStripTooltipViewStub,
             @NonNull WindowAndroid windowAndroid,
             @NonNull ToolbarManager toolbarManager,
             @Nullable DesktopWindowStateManager desktopWindowStateManager,
             ActionConfirmationManager actionConfirmationManager,
             DataSharingTabManager dataSharingTabManager,
             @NonNull BottomSheetController bottomSheetController,
-            @NonNull Supplier<ShareDelegate> shareDelegateSupplier) {
+            @NonNull Supplier<ShareDelegate> shareDelegateSupplier,
+            @Nullable ObservableSupplier<Boolean> xrSpaceModeObservableSupplier) {
         super(
                 host,
                 contentContainer,
@@ -125,7 +126,6 @@ public class LayoutManagerChromeTablet extends LayoutManagerChrome {
                         dragAndDropDelegate,
                         toolbarContainerView,
                         tabHoverCardViewStub,
-                        tabStripTooltipViewStub,
                         tabContentManagerSupplier,
                         browserControlsStateProvider,
                         windowAndroid,
@@ -134,7 +134,8 @@ public class LayoutManagerChromeTablet extends LayoutManagerChrome {
                         actionConfirmationManager,
                         dataSharingTabManager,
                         bottomSheetController,
-                        shareDelegateSupplier);
+                        shareDelegateSupplier,
+                        xrSpaceModeObservableSupplier);
         addSceneOverlay(mTabStripLayoutHelperManager);
         addObserver(mTabStripLayoutHelperManager.getTabSwitcherObserver());
         mDesktopWindowStateManager = desktopWindowStateManager;

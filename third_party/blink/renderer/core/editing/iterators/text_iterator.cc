@@ -486,7 +486,13 @@ void TextIteratorAlgorithm<Strategy>::Advance() {
           // sibling shadow root, if any.
           const auto* shadow_root = DynamicTo<ShadowRoot>(node_);
           if (!shadow_root) {
+#if !BUILDFLAG(IS_ANDROID)
+            // TODO(crbug.com/421311110): Hits at chrome://extensions,
+            // chrome://flags, etc.
             NOTREACHED();
+#endif  // !BUILDFLAG(IS_ANDROID)
+            should_stop_ = true;
+            return;
           }
           if (shadow_root->IsOpen()) {
             // We are the shadow root; exit from here and go back to
@@ -596,7 +602,7 @@ void TextIteratorAlgorithm<Strategy>::HandleReplacedElement() {
   }
 
   if (EmitsObjectReplacementCharacter()) {
-    EmitChar16AsNode(kObjectReplacementCharacter, *node_);
+    EmitChar16AsNode(uchar::kObjectReplacementCharacter, *node_);
     return;
   }
 
@@ -837,7 +843,7 @@ void TextIteratorAlgorithm<Strategy>::RepresentNodeOffsetZero() {
       EmitChar16BeforeNode('\n', *node_);
   } else if (ShouldEmitSpaceBeforeAndAfterNode(*node_)) {
     if (ShouldRepresentNodeOffsetZero())
-      EmitChar16BeforeNode(kSpaceCharacter, *node_);
+      EmitChar16BeforeNode(uchar::kSpace, *node_);
   }
 }
 
@@ -847,7 +853,7 @@ void TextIteratorAlgorithm<Strategy>::HandleNonTextNode() {
     EmitChar16AsNode('\n', *node_);
   else if (EmitsCharactersBetweenAllVisiblePositions() &&
            node_->GetLayoutObject() && node_->GetLayoutObject()->IsHR())
-    EmitChar16AsNode(kSpaceCharacter, *node_);
+    EmitChar16AsNode(uchar::kSpace, *node_);
   else
     RepresentNodeOffsetZero();
 }
@@ -881,19 +887,19 @@ void TextIteratorAlgorithm<Strategy>::ExitNode() {
     // contain a VisiblePosition when doing selection preservation.
     if (text_state_.LastCharacter() != '\n') {
       // insert a newline with a position following this block's contents.
-      EmitChar16AfterNode(kNewlineCharacter, *base_node);
+      EmitChar16AfterNode(uchar::kLineFeed, *base_node);
       // remember whether to later add a newline for the current node
       DCHECK(!needs_another_newline_);
       needs_another_newline_ = add_newline;
     } else if (add_newline) {
       // insert a newline with a position following this block's contents.
-      EmitChar16AfterNode(kNewlineCharacter, *base_node);
+      EmitChar16AfterNode(uchar::kLineFeed, *base_node);
     }
   }
 
   // If nothing was emitted, see if we need to emit a space.
   if (!text_state_.PositionNode() && ShouldEmitSpaceBeforeAndAfterNode(*node_))
-    EmitChar16AfterNode(kSpaceCharacter, *base_node);
+    EmitChar16AfterNode(uchar::kSpace, *base_node);
 }
 
 template <typename Strategy>

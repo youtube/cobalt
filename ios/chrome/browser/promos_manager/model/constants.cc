@@ -88,8 +88,12 @@ std::optional<Promo> PromoForName(std::string_view promo) {
     return promos_manager::Promo::WelcomeBack;
   }
 
-  if (promo == "promos_manager::Promo::GLICPromo") {
-    return promos_manager::Promo::GLICPromo;
+  if (promo == "promos_manager::Promo::BWGPromo") {
+    return promos_manager::Promo::BWGPromo;
+  }
+
+  if (promo == "promos_manager::Promo::SafariImportRemindMeLater") {
+    return promos_manager::Promo::SafariImportRemindMeLater;
   }
 
   return std::nullopt;
@@ -135,8 +139,10 @@ std::string_view ShortNameForPromo(Promo promo) {
       return "SigninFullscreen";
     case promos_manager::Promo::WelcomeBack:
       return "WelcomeBack";
-    case promos_manager::Promo::GLICPromo:
-      return "GLICPromo";
+    case promos_manager::Promo::BWGPromo:
+      return "BWGPromo";
+    case promos_manager::Promo::SafariImportRemindMeLater:
+      return "SafariImportRemindMeLater";
   }
 }
 

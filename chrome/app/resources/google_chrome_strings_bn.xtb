@@ -7,6 +7,7 @@
 <translation id="102763973188675173">Google Chrome কে কাস্টমাইজ এবং নিয়ন্ত্রণ করুন৷ আপডেট পাওয়া যাবে৷</translation>
 <translation id="1028061813283459617">শুধুমাত্র এই ডিভাইস থেকে ব্রাউজ করা ডেটা মুছে দিতে, তা নিজের Google অ্যাকাউন্টে রেখে দেওয়ার সময়, <ph name="BEGIN_LINK" />Chrome থেকে সাইন-আউট করুন<ph name="END_LINK" />।</translation>
 <translation id="1042270987544905725">Chrome-এ সাইন-ইন করার জন্য ডায়ালগ বন্ধ করতে, ক্লিক করুন</translation>
+<translation id="1051793555070215510">এই ১-মিনিটের সমীক্ষায় অংশ নিয়ে ছদ্মবেশী মোড উন্নত করতে আমাদের সাহায্য করুন।</translation>
 <translation id="1059838145689930908"><ph name="USER_EMAIL_ADDRESS" /> হিসেবে এই এক্সটেনশন ব্যবহার করতে, Chrome-এ সাইন-ইন করুন।</translation>
 <translation id="1065672644894730302">আপনার অভিরুচিগুলি পড়া যাবে না৷ কিছু বৈশিষ্ট্য অনুপলব্ধ থাকতে পারে ও অভিরুচিগুলিতে করা পরিবর্তনগুলি সংরক্ষিত হবে না৷</translation>
 <translation id="1086486568852410168">Google Lens ব্যবহার করে সার্চ করুন</translation>
@@ -54,6 +55,7 @@
 <translation id="1682634494516646069">Google Chrome-এর ডেটা নির্দেশিকা পড়তে এবং লিখতে পারে না:
 
 <ph name="USER_DATA_DIRECTORY" /></translation>
+<translation id="1688214853608504530">অ্যাড্রেস বার বা সার্চ বক্সে আপনি কিছু টাইপ করলে, সাজেশন পাওয়ার জন্য আপনি যা টাইপ করেন Chrome সেটি আপনার প্রতিষ্ঠানের সার্চ, AI ও এজেন্ট টুলে পাঠিয়ে দেয়।</translation>
 <translation id="1698376642261615901">Google Chrome হল একটি ওয়েব ব্রাউজার যা ওয়েব পৃষ্ঠাগুলি এবং অ্যাপগুলিকে বিদ্যুৎ গতিতে চালনা করে৷ এটি দ্রুত, সুস্থির এবং সহজেই ব্যবহারযোগ্য৷ Google Chrome-এ অন্তর্গঠিত ম্যালওয়ার এবং ফিশিং সুরক্ষার সাথে আরও নিরাপদে ওয়েব ব্রাউজ করুন৷</translation>
 <translation id="1713301662689114961">{0,plural, =1{Chrome ১ ঘণ্টার মধ্যে আবার লঞ্চ হবে}one{Chrome # ঘণ্টার মধ্যে আবার লঞ্চ হবে}other{Chrome # ঘণ্টার মধ্যে আবার লঞ্চ হবে}}</translation>
 <translation id="1722488837206509557">এর ফলে আপনি উপলভ্য় ডিভাইসগুলি থেকে বেছে নিতে পারবেন এবং সেগুলিতে কন্টেন্ট দেখাতে পারবেন।</translation>
@@ -62,6 +64,7 @@
 <translation id="178701303897325119">এই এক্সটেনশন আর কাজ করবে না। পরিবর্তে, Chrome আপনাকে এটি সরিয়ে দেওয়ার সাজেশন দেয়।</translation>
 <translation id="1812689907177901597">এটি বন্ধ করার মানে হল, আপনি Chrome-এ সাইন-ইন না করে Gmail এর মতো Google সাইটগুলিতে সাইন-ইন করতে পারেন</translation>
 <translation id="1821644463306970002">{NUM_TABS,plural, =1{আপনার ব্রাউজারের গতি কমিয়ে দেয় এমন ট্যাব পজ করার জন্য Chrome সাজেস্ট করে}one{আপনার ব্রাউজারের গতি কমিয়ে দেয় এমন ট্যাব পজ করার জন্য Chrome সাজেস্ট করে}other{আপনার ব্রাউজারের গতি কমিয়ে দেয় এমন ট্যাবগুলি পজ করার জন্য Chrome সাজেস্ট করে}}</translation>
+<translation id="1832046143430087831">Chrome-এর ভি৮ ইঞ্জিন সাইটের স্পিড বাড়িয়ে দেয় কিন্তু Chrome-এর অ্যাটাক আটকানোর ক্ষমতা সামান্য কমে যায়। এই সেটিংসটি বন্ধ করা আছে।</translation>
 <translation id="1838374766361614909">সার্চ সাফ করুন</translation>
 <translation id="1860536484129686729">এই সাইটটির জন্য Chrome কে আপনার ক্যামেরায় অ্যাক্সেস দিতে হবে</translation>
 <translation id="1873233029667955273">Google Chrome আপনার ডিফল্ট ব্রাউজার নয়</translation>
@@ -220,6 +223,7 @@
 <translation id="3716540481907974026">ChromeOS Flex ভার্সন</translation>
 <translation id="3718181793972440140">এটি এই ডিভাইস থেকে ১টি আইটেম মুছে দেবে। আপনার ডেটা পরে পুনরুদ্ধার করার জন্য, Chrome-এ <ph name="USER_EMAIL" /> হিসেবে সাইন-ইন করুন।</translation>
 <translation id="3723744677043446310">{NUM_EXTENSIONS,plural, =1{Chrome আপনাকে এটি সরিয়ে দেওয়ার সাজেশন দেয়। <ph name="BEGIN_LINK" />ব্যবহার করা যায় এমন এক্সটেনশন সম্পর্কে আরও জানুন<ph name="END_LINK" />}one{Chrome আপনাকে এটি সরিয়ে দেওয়ার সাজেশন দেয়। <ph name="BEGIN_LINK" />ব্যবহার করা যায় এমন এক্সটেনশন সম্পর্কে আরও জানুন<ph name="END_LINK" />}other{Chrome আপনাকে এটি সরিয়ে দেওয়ার সাজেশন দেয়। <ph name="BEGIN_LINK" />ব্যবহার করা যায় এমন এক্সটেনশন সম্পর্কে আরও জানুন<ph name="END_LINK" />}}</translation>
+<translation id="3756724684201900923">Chrome ইনস্টল করার ব্যাপারে আরও জানুন</translation>
 <translation id="3780814664026482060">Chrome - <ph name="PAGE_TITLE" /></translation>
 <translation id="3785324443014631273">সাইন-ইনে সমস্যা থাকার জন্য ChromeOS Flex আপনার ডেটা সিঙ্ক করতে পারেনি।</translation>
 <translation id="3795971588916395511">Google ChromeOS</translation>
@@ -242,6 +246,7 @@
 <translation id="4050175100176540509">গুরুত্বপূর্ণ নিরাপত্তা উন্নতি এবং নতুন বৈশিষ্ট্যগুলি সর্বশেষ ভার্সনে উপলভ্য।</translation>
 <translation id="4053720452172726777">Google Chrome কাস্টমাইজ ও নিয়ন্ত্রণ করুন</translation>
 <translation id="408393047846373801">নিজের সব ডিভাইসে পাসওয়ার্ড ও আরও অনেক কিছু পেতে, Chrome-এ সাইন-ইন করুন। সাইন-ইন করার পরে, আপনার Google অ্যাকাউন্টে এই পাসওয়ার্ড সেভ করা হবে।</translation>
+<translation id="409936259433005390">শীঘ্রই Windows 11-এ আপগ্রেড করতে চলেছেন? One Drive-এ Chrome ইনস্টলার ডাউনলোড করুন যাতে আপনি প্রথম দিন থেকেই তৈরি থাকতে পারেন।</translation>
 <translation id="4110895483821904099">আপনার নতুন Chrome প্রোফাইল সেট আপ করুন</translation>
 <translation id="4111566860456076004">এই এক্সটেনশন কোথা থেকে এসেছে তা Chrome যাচাই করতে পারে না এবং এটি নিরাপদ নাও হতে পারে। Chrome থেকে এটি সরান যাতে ব্যক্তিগত তথ্য সহ আপনার ভিজিট করা সাইটের ডেটা এটি আর দেখতে না পায় এবং তা পরিবর্তন করতে না পারে।</translation>
 <translation id="4128488089242627000">Chrome আরও দ্রুত কাজ করে এবং যেসব ফিচার জাভাস্ক্রিপ্ট ব্যবহার করে, সেগুলি ডিজাইন করা (সাজেস্ট করা হয়েছে) হিসেবে কাজ করতে হবে</translation>
@@ -265,6 +270,7 @@
 <translation id="4326552909330437744">{NUM_TABS,plural, =1{আপনার ব্রাউজারের গতি কমিয়ে দেয় এমন ট্যাব পজ করার জন্য Chrome সাজেস্ট করে}one{আপনার ব্রাউজারের গতি কমিয়ে দেয় এমন ট্যাব পজ করার জন্য Chrome সাজেস্ট করে}other{আপনার ব্রাউজারের গতি কমিয়ে দেয় এমন ট্যাবগুলি পজ করার জন্য Chromium সাজেস্ট করে}}</translation>
 <translation id="4328355335528187361">Google Chrome ডেভেলপার (mDNS-In)</translation>
 <translation id="4329315893554541805">পছন্দমতো সুবিধা ও অন্যান্য ফিচার ব্যবহার করতে ওয়েব ও অ্যাপ অ্যাক্টিভিটি ও লিঙ্ক করা Google পরিষেবায় Chrome যোগ করে নিন</translation>
+<translation id="4334241893986177674">এই স্ক্রিনশট সার্চ করুন</translation>
 <translation id="4334294535648607276">ডাউনলোড সম্পূর্ণ।</translation>
 <translation id="4337324600316876133">আপনার কাছে macOS 12 বা তার পরের ভার্সন থাকলে, তবেই ভবিষ্যতে Google Chrome সম্পর্কিত আপডেট পাবেন। এই কম্পিউটারে macOS 11 ভার্সন ব্যবহার করা হচ্ছে।</translation>
 <translation id="4343195214584226067">Chrome-এ <ph name="EXTENSION_NAME" /> যোগ করা হয়েছে</translation>
@@ -315,6 +321,7 @@
 <translation id="4970880042055371251">ChromeOS ভার্সন</translation>
 <translation id="4990567037958725628">Google Chrome  ক্যানারি</translation>
 <translation id="5003967926796347400">“Google Password Manager”-এ ক্লিক করুন</translation>
+<translation id="504867494566807945">যেকোনও অ্যাপ থেকে Chrome-এ লিঙ্ক খুলুন। এর সাথে, সহজ অ্যাক্সেসের জন্য এটি আপনার টাস্কবারে পিন করা থাকে।</translation>
 <translation id="5114340746415930644">আপনার অ্যাকাউন্ট, <ph name="USER_EMAIL" />-এ Chrome ডেটা ব্যবহার এবং সেভ করার জন্য পাসফ্রেজ লিখুন</translation>
 <translation id="5120334927898581447">অন্যান্য Google পরিষেবায় সাইন-ইন করার সময় Chrome-এ সাইন-ইন করুন</translation>
 <translation id="5126049312684316860">আপনি ভিজিট করতে পারেন এমন আরও বেশি সংখ্যক পৃষ্ঠা Chrome প্রিলোড করে, যাতে সেই ভিজিট করার সময় সেই পৃষ্ঠাগুলি আরও দ্রুত লোড হয়</translation>
@@ -393,6 +400,7 @@
 <translation id="6075300983329039771">আপনার সংস্থা, <ph name="MANAGER" />-এর প্রয়োজন অনুযায়ী, আপনাকে Chrome-এ সাইন-ইন করতে হবে</translation>
 <translation id="6113794647360055231">Chrome আরও ভাল হয়ে উঠেছে</translation>
 <translation id="6116252277240876590">Chrome-এ মেনু, সেটিংস, অ্যালার্ট ও অন্যান্য টেক্সট দেখানোর জন্য এই ভাষা ব্যবহার করা হবে</translation>
+<translation id="6127237283587442951">ডিফল্ট হিসেবে Chrome ব্যবহার করুন এবং এটি পিন করুন</translation>
 <translation id="6134085236017727171">আপনার মাইক্রোফোন ব্যবহার করতে, Chrome-কে <ph name="BEGIN_LINK" />সিস্টেম সেটিংস<ph name="END_LINK" /> অ্যাক্সেস করতে দিন</translation>
 <translation id="6135456723633883042">এইসব ট্যাব অতিরিক্ত রিসোর্স ব্যবহার করছে। আপনার পারফর্ম্যান্স উন্নত করতে, Chrome-কে এগুলি বন্ধ করতে দিন।</translation>
 <translation id="6145313976051292476">Chrome-এ পিডিএফ ফাইল খুলুন</translation>
@@ -442,12 +450,12 @@
 <translation id="6718739135284199302">Chrome ব্যবহারের স্পিড বাড়ান</translation>
 <translation id="6735387454586646204">ChromeOS Flex সিস্টেম</translation>
 <translation id="6750954913813541382">বানান ভুল ঠিক করতে, আপনি ব্রাউজারে যে টেক্সট লেখেন Chrome সেটি Google-এ পাঠায়</translation>
+<translation id="6760235774835597023">Chrome-এর ভি৮ ইঞ্জিন সাইটের স্পিড বাড়িয়ে দেয় কিন্তু Chrome-এর অ্যাটাক আটকানোর ক্ষমতা সামান্য কমে যায়। এই সেটিংসটি চালু করা আছে।</translation>
 <translation id="677276454032249905">তা স্বত্তেও Chrome বন্ধ করতে চান?</translation>
 <translation id="6794858689789885890">Chrome বন্ধ করার সময় আপনার ডিভাইস থেকে সবসময় সাইট ডেটা মুছুন</translation>
 <translation id="6831043979455480757">অনুবাদ</translation>
 <translation id="683440813066116847">mDNS ট্রাফিকের অনুমতি দিতে Google Chrome Canary এর জন্য ইনবাউন্ড নিয়ম।</translation>
 <translation id="684888714667046800">ইন্টারনেটের সাথে কানেক্ট করা যায়নি। আপনি ফায়ারওয়াল ব্যবহার করলে, <ph name="PRODUCT_EXE_NAME" /> সাদাতালিকায় আছে কিনা দেখে নিন।</translation>
-<translation id="6851981911629679515">Chrome-এর জাভাস্ক্রিপ্ট ও WebAssembly ইঞ্জিনে অতিরিক্ত সুরক্ষা চালু করুন</translation>
 <translation id="6877155553248388166">সার্চের নিচে ডানদিকের কোণা: ডানদিক থেকে <ph name="RIGHT" />%, নিচের দিকে <ph name="BOTTOM" />%</translation>
 <translation id="6881299373831449287">Chrome আপডেট হচ্ছে</translation>
 <translation id="6885412569789873916">Chrome বিটা অ্যাপ</translation>
@@ -507,7 +515,6 @@
 <translation id="7572537927358445944">বন্ধ রয়েছে • Chrome এই এক্সটেনশনের সোর্স যাচাই করতে পারে না</translation>
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" /> ইনস্টলার</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
-<translation id="7626032353295482388">Chrome এ স্বাগতম</translation>
 <translation id="7626072681686626474"><ph name="MANAGER" />-এ এই ডিভাইস ব্যবহার করার আগে আপনাকে নিম্নলিখিত পরিষেবার শর্তাবলী পড়ে নিতে হবে এবং তাতে সম্মতি দিতে হবে। এইসব শর্ত Google ChromeOS-এর শর্তাবলীকে সম্প্রসারণ, পরিবর্তন বা সীমাবদ্ধ করে না।</translation>
 <translation id="7629695634924605473">আপনার পাসওয়ার্ড কখনও চুরি হলে তা Chrome আপনাকে জানিয়ে দেবে</translation>
 <translation id="7641148173327520642"><ph name="TARGET_URL_HOSTNAME" /> অ্যাক্সেস করতে <ph name="ALTERNATIVE_BROWSER_NAME" /> ব্যবহার করার জন্য আপনার সিস্টেম অ্যাডমিনিস্ট্রেটর Google Chrome কনফিগার করেছে।</translation>
@@ -551,7 +558,6 @@
 <translation id="8019103195866286235">ডেভেলপার এই এক্সটেনশনটি প্রকাশনা থেকে সরিয়ে নিয়েছেন এবং এটি নিরাপদ নাও হতে পারে। Chrome থেকে এটি সরান যাতে আপনার ভিজিট করা সাইটের ডেটা এটি আর দেখতে না পায় এবং তা পরিবর্তন না করতে পারে, এর মধ্যে আপনার ব্যক্তিগত তথ্যও রয়েছে।</translation>
 <translation id="8040768861829554732">এক্সটেনশন ব্যবহার করতে Chrome-এ সাইন-ইন করতে হবে</translation>
 <translation id="80471789339884597">ইনস্টল করার জন্য ধন্যবাদ। <ph name="BUNDLE_NAME" /> ব্যবহার করার আগে আপনাকে অবশ্যই সমস্ত ব্রাউজার রিস্টার্ট করতে হবে।</translation>
-<translation id="8064015041956107954">আপনি একদম উপরে ডানদিকে Chrome মেনু থেকে বুকমার্ক, রিডিং মোড এবং আরও অনেক কিছু খুলতে পারেন</translation>
 <translation id="8064015586118426197">ChromeOS Flex</translation>
 <translation id="8077579734294125741">অন্যান্য Chrome প্রোফাইল</translation>
 <translation id="8086881907087796310">ইনস্টলেশন করা যায়নি কারণ আপনার কম্পিউটার হার্ডওয়্যারের নূন্যতম প্রয়োজনীয় শর্ত পূরণ করে না।</translation>
@@ -563,7 +569,6 @@
 <translation id="8177472873527554730">পৃষ্ঠায় কন্টেন্ট খুঁজে পাওয়া যাচ্ছে না</translation>
 <translation id="8221491193165283816">আপনি সাধারণত বিজ্ঞপ্তি ব্লক করেন। এই সাইট থেকে বিজ্ঞপ্তি পেতে, এখানে ক্লিক করুন।</translation>
 <translation id="8255190535488645436">Google Chrome আপনার ক্যামেরা এবং মাইক্রোফোন ব্যবহার করছে৷</translation>
-<translation id="8257796129973882597">আপনার Chrome মেনু থেকে বুকমার্ক, রিডিং মোড এবং আরও অনেক কিছু খুলতে পারেন</translation>
 <translation id="8267953129876836456">আপনার পর্যালোচনার জন্য Chrome কিছু সুরক্ষা সম্পর্কিত সাজেশন খুঁজে পেয়েছে</translation>
 <translation id="8286862437124483331">Google Chrome পাসওয়ার্ডগুলি দেখানোর চেষ্টা করছে। এটির অনুমতি দিতে আপনার Windows পাসওয়ার্ড টাইপ করুন।</translation>
 <translation id="829923460755755423">Google Password Manager-এ শর্টকাট যোগ করুন</translation>
@@ -627,6 +632,7 @@
 <translation id="9090566250983691233">Chrome কিছু ফাইল কেন ব্লক করে সেই সম্পর্কে জানুন</translation>
 <translation id="9106236359747881194">সার্চ করার জন্য টেক্সট বেছে নিন</translation>
 <translation id="911206726377975832">আপনার ব্রাউজিং ডেটাও মুছে দেবেন?</translation>
+<translation id="9134482777260927479">হোমওয়ার্কে সহায়তা</translation>
 <translation id="9138603949443464873">আপনার পরিবর্তনগুলি প্রয়োগ করতে, Chrome রিলঞ্চ করুন</translation>
 <translation id="9148058034647219655">প্রস্থান করুন</translation>
 <translation id="9195993889682885387">Chrome গত কয়েক সপ্তাহের আপনার ব্রাউজিং ইতিহাসের উপর ভিত্তি করে আপনার আগ্রহ অনুমান করতে পারে। আপনার ডিভাইসে এই তথ্য থাকে।</translation>

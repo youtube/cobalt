@@ -530,8 +530,6 @@ struct EnumTraits<media::mojom::CreateCdmStatus, media::CreateCdmStatus> {
         return media::mojom::CreateCdmStatus::kDisconnectionError;
       case media::CreateCdmStatus::kNotAllowedOnUniqueOrigin:
         return media::mojom::CreateCdmStatus::kNotAllowedOnUniqueOrigin;
-      case media::CreateCdmStatus::kMediaDrmBridgeCreationFailed:
-        return media::mojom::CreateCdmStatus::kMediaDrmBridgeCreationFailed;
       case media::CreateCdmStatus::kMediaCryptoNotAvailable:
         return media::mojom::CreateCdmStatus::kMediaCryptoNotAvailable;
       case media::CreateCdmStatus::kNoMoreInstances:
@@ -612,9 +610,6 @@ struct EnumTraits<media::mojom::CreateCdmStatus, media::CreateCdmStatus> {
         return true;
       case media::mojom::CreateCdmStatus::kNotAllowedOnUniqueOrigin:
         *output = media::CreateCdmStatus::kNotAllowedOnUniqueOrigin;
-        return true;
-      case media::mojom::CreateCdmStatus::kMediaDrmBridgeCreationFailed:
-        *output = media::CreateCdmStatus::kMediaDrmBridgeCreationFailed;
         return true;
       case media::mojom::CreateCdmStatus::kMediaCryptoNotAvailable:
         *output = media::CreateCdmStatus::kMediaCryptoNotAvailable;

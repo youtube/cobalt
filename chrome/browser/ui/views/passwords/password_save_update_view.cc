@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/strings/string_util.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/password_manager/password_store_utils.h"
 #include "chrome/browser/profiles/profile.h"
@@ -221,6 +222,12 @@ bool PasswordSaveUpdateView::CloseOrReplaceWithPromo() {
   SetLayoutManager(std::make_unique<views::FillLayout>());
   SetShowIcon(false);
   SetButtons(static_cast<int>(ui::mojom::DialogButton::kNone));
+  // SetExtraView is not designed to be called multiple times, so hide the
+  // extra button if it exists.
+  if (extra_view_) {
+    extra_view_->SetVisible(false);
+  }
+
   GetBubbleFrameView()->SetFootnoteView(nullptr);
   SetTitle(IDS_AUTOFILL_SIGNIN_PROMO_TITLE_PASSWORD);
 

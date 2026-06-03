@@ -12,7 +12,6 @@
 
 #include "base/check.h"
 #include "base/functional/bind.h"
-#include "base/functional/overloaded.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
 #include "base/values.h"
@@ -34,6 +33,7 @@
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/mojom/fetch_api.mojom-shared.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -78,7 +78,7 @@ AttributionReportNetworkSender::AttributionReportNetworkSender(
               // Listener is destroyed at destructor, and
               // object will be alive for any callback.
               base::Unretained(this)))) {
-  DCHECK(url_loader_factory_);
+  CHECK(url_loader_factory_);
   OnApplicationStateChanged(
       base::android::ApplicationStatusListener::GetState());
 }
@@ -89,7 +89,7 @@ void AttributionReportNetworkSender::OnApplicationStateChanged(
 }
 #else
 {
-  DCHECK(url_loader_factory_);
+  CHECK(url_loader_factory_);
 }
 #endif
 
@@ -289,7 +289,7 @@ void AttributionReportNetworkSender::OnReportSent(
 #endif
 
   std::visit(
-      base::Overloaded{
+      absl::Overload{
           [&](const AttributionReport::EventLevelData&) {
             NetworkHistogram("HttpResponseOrNetErrorCodeEventLevel",
                              &base::UmaHistogramSparse, is_debug_report,
