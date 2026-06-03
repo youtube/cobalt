@@ -800,6 +800,15 @@ static_library("test_support") {
     libs = [ "oleacc.lib" ]
   }
 
+  if (!enable_privacy_sandbox_apis) {
+    sources -= [
+      "../browser/browsing_topics/test_util.cc",
+      "../browser/browsing_topics/test_util.h",
+      "../public/test/browsing_topics_test_util.cc",
+      "../public/test/browsing_topics_test_util.h",
+    ]
+  }
+
   if (is_android) {
     sources += [
       "mock_overscroll_refresh_handler_android.cc",
@@ -858,6 +867,17 @@ static_library("test_support") {
 
   if (is_fuchsia) {
     public_deps += [ "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.mediacodec:fuchsia.mediacodec_hlcpp" ]
+  }
+
+  if (is_cobalt) {
+    sources -= [
+      "../browser/bluetooth/test/mock_bluetooth_delegate.cc",
+      "../browser/bluetooth/test/mock_bluetooth_delegate.h",
+      "../public/test/bluetooth_test_utils.cc",
+      "../public/test/bluetooth_test_utils.h",
+      "../public/test/embedded_worker_instance_test_harness.cc",
+      "../public/test/embedded_worker_instance_test_harness.h",
+    ]
   }
 }
 
@@ -1821,6 +1841,10 @@ test("content_browsertests") {
     sources += [ "../browser/network/sandboxed_socket_broker_browsertest.cc" ]
   }
 
+  if (is_cobalt) {
+    sources -= [ "../browser/bluetooth/web_bluetooth_service_impl_browsertest.cc" ]
+  }
+
   if (enable_reporting) {
     sources += [ "../browser/security/coop/cross_origin_opener_policy_reporting_browsertest.cc" ]
   }
@@ -1998,7 +2022,18 @@ test("content_browsertests") {
     deps += [ "//components/variations" ]
   }
 
+<<<<<<< HEAD
   data_deps = [ "//content/shell:pak" ]
+=======
+  if (is_cobalt) {
+    deps -= [ "//device/bluetooth:mocks" ]
+  }
+
+  data_deps = [
+    "//content/shell:pak",
+    "//third_party/mesa_headers",
+  ]
+>>>>>>> parent of 25b3fa7d8c (CONFLICTED Chromium Cherry pick: Reverting Cobalt.)
 
   data = [
     "data/",
@@ -3032,6 +3067,19 @@ test("content_unittests") {
     "FirstPartySetFuzzer.ParsesSetsCorrectly",
   ]
 
+  if (is_cobalt) {
+    sources -= [
+      "../browser/bluetooth/bluetooth_allowed_devices_unittest.cc",
+      "../browser/bluetooth/bluetooth_blocklist_unittest.cc",
+      "../browser/bluetooth/bluetooth_device_chooser_controller_unittest.cc",
+      "../browser/bluetooth/bluetooth_util_unittest.cc",
+      "../browser/bluetooth/frame_connected_bluetooth_devices_unittest.cc",
+      "../browser/bluetooth/web_bluetooth_pairing_manager_impl_unittest.cc",
+      "../browser/bluetooth/web_bluetooth_service_impl_unittest.cc",
+      "../browser/service_worker/embedded_worker_instance_unittest.cc",
+    ]
+  }
+
   if (is_mac) {
     sources += [
       "../browser/child_process_task_port_provider_mac_unittest.cc",
@@ -3099,6 +3147,11 @@ test("content_unittests") {
       "../browser/webid/digital_credentials/cross_device_request_dispatcher_unittest.cc",
       "../browser/webid/digital_credentials/cross_device_transaction_impl_unittest.cc",
     ]
+    if (is_cobalt) {
+      sources -= [
+        "../browser/webid/digital_credentials/cross_device_transaction_impl_unittest.cc",
+      ]
+    }
   }
 
   if (!is_android && !is_ios) {
@@ -3330,7 +3383,21 @@ test("content_unittests") {
     deps += [ ":content_nocompile_tests" ]
   }
 
+<<<<<<< HEAD
   data_deps = [ "//testing/buildbot/filters:content_unittests_filters" ]
+=======
+  if (is_cobalt) {
+    deps -= [
+      "//device/bluetooth",
+      "//device/bluetooth:mocks",
+    ]
+  }
+
+  data_deps = [
+    "//testing/buildbot/filters:content_unittests_filters",
+    "//third_party/mesa_headers",
+  ]
+>>>>>>> parent of 25b3fa7d8c (CONFLICTED Chromium Cherry pick: Reverting Cobalt.)
 
   if (!is_ios) {
     data_deps += [
@@ -3563,7 +3630,7 @@ test("content_unittests") {
 
   # HID support is not available without udev.
   is_linux_without_udev = (is_linux || is_chromeos) && !use_udev
-  if (!is_linux_without_udev && !is_android) {
+  if (!is_linux_without_udev && !is_android && !is_cobalt) {
     sources += [
       "../browser/hid/hid_service_unittest.cc",
       "../browser/service_worker/service_worker_hid_delegate_observer_unittest.cc",

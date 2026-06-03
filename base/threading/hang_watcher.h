@@ -33,6 +33,10 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include <optional>
+#endif
+
 namespace base {
 class WatchHangsInScope;
 namespace internal {
@@ -122,8 +126,38 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
     kMainThread = 1,
     kThreadPoolThread = 2,
     kCompositorThread = 3,
+#if BUILDFLAG(IS_COBALT)
+    // this is used in single-process mode only, inside browser process
+    kRendererThread = 4,
+    kMax = kRendererThread
+#else
     kMax = kCompositorThread
+#endif
   };
+
+#if BUILDFLAG(IS_COBALT)
+  // Re-polls the delegate to update the cached configuration values (e.g.
+  // timeout, thread scopes).
+  static void UpdateConfiguration();
+
+  // Delegate interface to allow embedders to control HangWatcher behavior.
+  class BASE_EXPORT Delegate {
+   public:
+    virtual ~Delegate() = default;
+    // Returns true if hang reporting should be enabled
+    // potentially overriding default settings.
+    virtual bool IsHangReportingEnabled() = 0;
+    // Returns a custom timeout for hang watching, or std::nullopt to use
+    // default.
+    virtual std::optional<base::TimeDelta> GetHangWatchTime() = 0;
+    // Returns a custom monitoring period, or std::nullopt to use default.
+    virtual std::optional<base::TimeDelta> GetHangWatchMonitoringPeriod() = 0;
+    // Returns whether crash dumps are enabled for a specific thread type.
+    // Returns std::nullopt if the embedder has no specific override.
+    virtual std::optional<bool> IsThreadDumpingEnabled(
+        ThreadType thread_type) = 0;
+  };
+#endif
 
   // Notes on lifetime:
   //   1) The first invocation of the constructor will set the global instance
@@ -160,6 +194,14 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   // Thread safe functions to verify if hang watching is activated. If called
   // before InitializeOnMainThread returns the default value which is false.
   static bool IsEnabled();
+#if BUILDFLAG(IS_COBALT)
+  // suspends hang watching when the application is frozen.
+  static void Suspend();
+
+  // resumes hang watching after the application is unfrozen, ignoring
+  // pre-freeze deadlines.
+  static void Resume();
+#endif
   static bool IsThreadPoolHangWatchingEnabled();
   static bool IsIOThreadHangWatchingEnabled();
   static bool IsCompositorThreadHangWatchingEnabled();
@@ -264,6 +306,11 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   // Returns the value of the crash key with the time since last system power
   // resume.
   std::string GetTimeSinceLastSystemPowerResumeCrashKeyValue() const;
+
+#if BUILDFLAG(IS_COBALT)
+  // Sets the delegate for the HangWatcher. Must be called before Start().
+  static void SetDelegate(Delegate* delegate);
+#endif
 
  private:
   // See comment of ::RegisterThread() for details.

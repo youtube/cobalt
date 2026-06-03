@@ -14,6 +14,14 @@
 
 #include <unordered_map>
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/containers/flat_map.h"
+#include "base/posix/eintr_wrapper.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_tokenizer.h"
+#include "base/strings/string_util.h"
+#endif
+
 #include "base/files/file_util.h"
 #include "base/files/scoped_file.h"
 #include "base/format_macros.h"
@@ -100,6 +108,202 @@ bool ReadProcMaps(std::string* proc_maps) {
 
   return true;
 }
+
+#if BUILDFLAG(IS_COBALT)
+
+bool ParseProcMaps(const std::string& input,
+                   std::vector<MappedMemoryRegion>* regions_out) {
+  CHECK(regions_out);
+  std::vector<MappedMemoryRegion> regions;
+
+  // Use SplitStringPiece to avoid heap allocations for every line.
+  std::vector<std::string_view> lines = base::SplitStringPiece(
+      input, "\n", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
+
+  for (size_t i = 0; i < lines.size(); ++i) {
+    // Due to splitting on '\n' the last line should be empty.
+    if (i == lines.size() - 1) {
+      if (!lines[i].empty()) {
+        DLOG(WARNING) << "Last line not empty";
+        return false;
+      }
+      break;
+    }
+
+    // Use StringViewTokenizer to avoid any heap allocations for tokens.
+    base::StringViewTokenizer t(lines[i], " ");
+    std::string_view tokens[6];
+    size_t token_count = 0;
+    while (t.GetNext() && token_count < 6) {
+      tokens[token_count++] = t.token_piece();
+    }
+    if (token_count < 5) {
+      DLOG(WARNING) << "Too few tokens for line: " << lines[i];
+      return false;
+    }
+
+    MappedMemoryRegion region;
+
+    // Parse address range: "08048000-08056000"
+    std::string_view addr_token = tokens[0];
+    size_t hyphen_pos = addr_token.find('-');
+    if (hyphen_pos == std::string_view::npos) {
+      return false;
+    }
+    std::string_view start_sv = addr_token.substr(0, hyphen_pos);
+    std::string_view end_sv = addr_token.substr(hyphen_pos + 1);
+
+    uint64_t start, end;
+    if (!base::HexStringToUInt64(start_sv, &start) ||
+        !base::HexStringToUInt64(end_sv, &end)) {
+      return false;
+    }
+    region.start = static_cast<uintptr_t>(start);
+    region.end = static_cast<uintptr_t>(end);
+
+    // Parse permissions: "r-xp"
+    std::string_view permissions = tokens[1];
+    if (permissions.size() < 4) {
+      return false;
+    }
+
+    region.permissions = 0;
+    if (permissions[0] == 'r') {
+      region.permissions |= MappedMemoryRegion::READ;
+    } else if (permissions[0] != '-') {
+      return false;
+    }
+
+    if (permissions[1] == 'w') {
+      region.permissions |= MappedMemoryRegion::WRITE;
+    } else if (permissions[1] != '-') {
+      return false;
+    }
+
+    if (permissions[2] == 'x') {
+      region.permissions |= MappedMemoryRegion::EXECUTE;
+    } else if (permissions[2] != '-') {
+      return false;
+    }
+
+    if (permissions[3] == 'p') {
+      region.permissions |= MappedMemoryRegion::PRIVATE;
+    } else if (permissions[3] != 's' && permissions[3] != 'S') {
+      return false;
+    }
+
+    // Parse offset: "00000000"
+    uint64_t offset;
+    if (!base::HexStringToUInt64(tokens[2], &offset)) {
+      return false;
+    }
+    region.offset = offset;
+
+    // Parse dev: "03:0c"
+    std::string_view dev_token = tokens[3];
+    size_t colon_pos = dev_token.find(':');
+    if (colon_pos == std::string_view::npos) {
+      return false;
+    }
+    std::string_view major_sv = dev_token.substr(0, colon_pos);
+    std::string_view minor_sv = dev_token.substr(colon_pos + 1);
+
+    uint32_t dev_major, dev_minor;
+    if (!base::HexStringToUInt(major_sv, &dev_major) ||
+        !base::HexStringToUInt(minor_sv, &dev_minor)) {
+      return false;
+    }
+    region.dev_major = static_cast<uint8_t>(dev_major);
+    region.dev_minor = static_cast<uint8_t>(dev_minor);
+
+    // Parse inode: "64593"
+    int64_t inode;
+    if (!base::StringToInt64(tokens[4], &inode)) {
+      return false;
+    }
+    region.inode = static_cast<long>(inode);
+
+    // Parse path: "/usr/sbin/gpm" (optional)
+    if (token_count >= 6) {
+      // The path starts after the inode. However, it might contain spaces.
+      // We find the inode token in the original line, but we must search
+      // after the device token to avoid matching the same string in earlier
+      // fields (e.g. if the offset is the same as the inode).
+      size_t dev_pos = lines[i].find(tokens[3]);
+      size_t inode_pos = lines[i].find(tokens[4], dev_pos + tokens[3].size());
+      if (inode_pos != std::string_view::npos) {
+        size_t path_pos =
+            lines[i].find_first_not_of(' ', inode_pos + tokens[4].size());
+        if (path_pos != std::string_view::npos) {
+          region.path.assign(lines[i].substr(path_pos));
+        }
+      }
+    }
+
+    regions.push_back(std::move(region));
+  }
+
+  regions_out->swap(regions);
+  return true;
+}
+
+// TODO(b/494004530): Connect and use this function in production inside
+// OSMetrics (FillDetailedMetrics) in a subsequent change.
+std::optional<SmapsRollup> ParseSmapsRollup(const std::string& buffer) {
+  std::vector<std::string_view> lines = base::SplitStringPiece(
+      buffer, "\n", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+
+  base::flat_map<std::string_view, size_t> tmp;
+  for (const auto& line : lines) {
+    std::vector<std::string_view> tokens = base::SplitStringPiece(
+        line, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+    if (tokens.size() < 3 || tokens[2] != "kB") {
+      continue;
+    }
+
+    std::string_view key = tokens[0];
+    if (key.ends_with(":")) {
+      key.remove_suffix(1);
+    }
+
+    if (key.empty()) {
+      continue;
+    }
+
+    size_t val;
+    if (base::StringToSizeT(tokens[1], &val)) {
+      base::CheckedNumeric<size_t> val_bytes = val;
+      val_bytes *= 1024;
+      tmp[key] = val_bytes.ValueOrDefault(0);
+    }
+  }
+
+  if (tmp.empty()) {
+    return std::nullopt;
+  }
+
+  SmapsRollup smaps_rollup;
+  smaps_rollup.rss = tmp["Rss"];
+  smaps_rollup.pss = tmp["Pss"];
+  smaps_rollup.pss_anon = tmp["Pss_Anon"];
+  smaps_rollup.pss_file = tmp["Pss_File"];
+  smaps_rollup.pss_shmem = tmp["Pss_Shmem"];
+  smaps_rollup.private_dirty = tmp["Private_Dirty"];
+  smaps_rollup.swap = tmp["Swap"];
+  smaps_rollup.swap_pss = tmp["SwapPss"];
+
+  return smaps_rollup;
+}
+
+std::optional<SmapsRollup> ReadAndParseSmapsRollup() {
+  std::string buffer;
+  if (!ReadFileToString(FilePath("/proc/self/smaps_rollup"), &buffer)) {
+    return std::nullopt;
+  }
+  return ParseSmapsRollup(buffer);
+}
+
+#else  // !BUILDFLAG(IS_COBALT)
 
 bool ParseProcMaps(const std::string& input,
                    std::vector<MappedMemoryRegion>* regions_out) {
@@ -245,6 +449,8 @@ std::optional<SmapsRollup> ReadAndParseSmapsRollup() {
 
   return ParseSmapsRollup(buffer);
 }
+
+#endif  // BUILDFLAG(IS_COBALT)
 
 std::optional<SmapsRollup> ParseSmapsRollupForTesting(
     const std::string& smaps_rollup) {

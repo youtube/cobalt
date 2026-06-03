@@ -396,7 +396,12 @@ TEST_P(AddressSorterPosixSyncOrAsyncTest, Rule6) {
   AddMapping("2001::1", "2001::10");              // Teredo
   const char* const addresses[] = {"2001::1", "::ffff:1234:1", "ff32::1", "::1",
                                    nullptr};
+#if BUILDFLAG(IS_COBALT)
+  // The expected order is: IPv4-mapped (1), loopback (3), multicast (2), Teredo (0).
+  const int order[] = { 1, 3, 2, 0, -1 };
+#else
   const int order[] = { 3, 2, 1, 0, -1 };
+#endif
   Verify(addresses, order);
 }
 

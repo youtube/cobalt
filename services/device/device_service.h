@@ -35,8 +35,10 @@
 #include "services/device/public/mojom/usb_manager_test.mojom.h"
 #include "services/device/public/mojom/vibration_manager.mojom.h"
 #include "services/device/public/mojom/wake_lock_provider.mojom.h"
-#include "services/device/usb/mojo/device_manager_impl.h"
-#include "services/device/usb/mojo/device_manager_test.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "services/device/usb/mojo/device_manager_impl.h"  // nogncheck
+#include "services/device/usb/mojo/device_manager_test.h"  // nogncheck
+#endif
 #include "services/device/wake_lock/wake_lock_context.h"
 #include "services/device/wake_lock/wake_lock_provider.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
@@ -245,8 +247,10 @@ class DeviceService : public mojom::DeviceService {
       public_ip_address_geolocation_provider_;
   std::unique_ptr<SensorProviderImpl> sensor_provider_;
   std::unique_ptr<TimeZoneMonitor> time_zone_monitor_;
+#if !BUILDFLAG(IS_COBALT)
   std::unique_ptr<usb::DeviceManagerImpl> usb_device_manager_;
   std::unique_ptr<usb::DeviceManagerTest> usb_device_manager_test_;
+#endif
   scoped_refptr<base::SingleThreadTaskRunner> file_task_runner_;
   scoped_refptr<base::SingleThreadTaskRunner> io_task_runner_;
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;

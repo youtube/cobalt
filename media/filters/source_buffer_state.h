@@ -9,6 +9,7 @@
 #include "base/memory/memory_pressure_listener.h"
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/demuxer.h"
 #include "media/base/demuxer_stream.h"
@@ -31,6 +32,12 @@ class MEDIA_EXPORT SourceBufferState {
   // Callback signature used to create ChunkDemuxerStreams.
   using CreateDemuxerStreamCB =
       base::RepeatingCallback<ChunkDemuxerStream*(DemuxerStream::Type)>;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Overrides the maximum number of bytes that a single call to Parse() will
+  // inspect from the pending buffer.
+  static void SetMaxPendingBytesPerParseOverride(int max_bytes);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   SourceBufferState(std::unique_ptr<StreamParser> stream_parser,
                     std::unique_ptr<FrameProcessor> frame_processor,

@@ -13,6 +13,10 @@ import("//build/config/gclient_args.gni")
 import("//build/config/rts.gni")
 import("//build/rust/rust_static_library.gni")
 import("//build_overrides/build.gni")
+if (is_starboard) {
+  import("//cobalt/build/modular_executable.gni")
+  import("//cobalt/build/configs/hacks.gni")
+}
 
 declare_args() {
   # Some component repos (e.g. ANGLE) import //testing but do not have
@@ -443,7 +447,17 @@ template("test") {
            "allow_cleartext_traffic can be set only for Android tests")
   }
 
-  if (is_android) {
+  # TODO: b/384652502 - Cobalt: Remove use_custom_libc after setting
+  # is_starboard as a toolchain arg.
+  if (is_starboard && use_custom_libc) {
+    mixed_test(target_name) {
+      target_type = "modular_executable"
+      forward_variables_from(invoker,
+                             "*",
+                             TESTONLY_AND_VISIBILITY + [ "use_xvfb" ])
+      testonly = true
+    }
+  } else if (is_android) {
     assert(!defined(invoker.use_xvfb) || !invoker.use_xvfb)
 
     _use_default_launcher =
@@ -1013,7 +1027,9 @@ template("test") {
         info_plist = "//testing/gtest_ios/unittest-Info.plist"
       }
 
-      bundle_identifier = shared_bundle_id_for_test_apps
+      if (!defined(bundle_identifier)) {
+        bundle_identifier = shared_bundle_id_for_test_apps
+      }
 
       if (!defined(bundle_deps)) {
         bundle_deps = []
@@ -1122,7 +1138,15 @@ template("test") {
         data += [ "//testing/location_tags.json" ]
       }
 
-      executable_args = [
+      executable_args = []
+      if (is_cobalt && defined(invoker.custom_launcher)) {
+        executable_args += [
+          "@WrappedPath(" + rebase_path(invoker.custom_launcher, root_build_dir) +
+          ")",
+        ]
+        data += [ invoker.custom_launcher ]
+      }
+      executable_args += [
         "@WrappedPath(./${_executable})",
         "--test-launcher-bot-mode",
       ]
@@ -1365,6 +1389,9 @@ set_defaults("test") {
     configs += [ "//build/config/android:hide_all_but_jni" ]
 
     # LINT.ThenChange(/components/cronet/android/cronet_test_templates.gni)
+  } else if (is_cobalt_hermetic_build) {
+    configs = default_shared_library_configs
+    configs -= [ "//build/config/compiler:no_unresolved_symbols" ]
   } else {
     configs = default_executable_configs
   }

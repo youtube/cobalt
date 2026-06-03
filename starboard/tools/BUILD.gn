@@ -1,0 +1,50 @@
+# Copyright 2022 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+group("build_app_launcher_zip") {
+  deps = [
+    ":package_app_launcher_directory",
+    ":package_app_launcher_zip",
+  ]
+}
+
+# TODO(b/294130306): Get rid of app_launcher.zip.
+action("package_app_launcher_zip") {
+  script = "//starboard/tools/app_launcher_packager.py"
+
+  file_list = exec_script(script, [ "-l" ], "trim string")
+  inputs = string_split(file_list)
+  outputs = [ "$root_out_dir/app_launcher.zip" ]
+
+  args = [
+    # TODO(b/294130306): Control this flag with a GN variable.
+    "--include_integration_tests",
+    "-z",
+    rebase_path(outputs[0], root_build_dir),
+  ]
+}
+
+# Platforms that has windows based toolchains (ps4/5, xb1, switch) expect the
+# app launcher files to be in a folder in the test archive as opposed to in a
+# zip file.
+copy("package_app_launcher_directory") {
+  script = "//starboard/tools/app_launcher_packager.py"
+
+  app_launcher_dir = "$root_out_dir/app_launcher"
+
+  file_list = exec_script(script, [ "-l" ], "trim string")
+  sources = string_split(file_list)
+  outputs =
+      [ "$app_launcher_dir/{{source_root_relative_dir}}/{{source_file_part}}" ]
+}

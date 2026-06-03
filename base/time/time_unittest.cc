@@ -15,9 +15,11 @@
 #include "base/check_op.h"
 #include "base/compiler_specific.h"
 #include "base/environment.h"
+#include "base/logging.h"
 #include "base/numerics/safe_math.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/to_string.h"
+
 #include "base/test/gtest_util.h"
 #include "base/test/test_timeouts.h"
 #include "base/threading/platform_thread.h"

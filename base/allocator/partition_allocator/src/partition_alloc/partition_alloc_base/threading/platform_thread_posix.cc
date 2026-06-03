@@ -13,6 +13,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "build/build_config.h"
 #include "partition_alloc/build_config.h"
 #include "partition_alloc/buildflags.h"
 #include "partition_alloc/partition_alloc_base/logging.h"
@@ -55,12 +56,14 @@ std::atomic<bool> g_main_thread_tid_cache_valid = false;
 // also updated by PlatformThread::CurrentId().
 thread_local bool g_is_main_thread = true;
 
+#if !BUILDFLAG(IS_STARBOARD)
 class InitAtFork {
  public:
   InitAtFork() {
     pthread_atfork(nullptr, nullptr, internal::InvalidateTidCache);
   }
 };
+#endif // !BUILDFLAG(IS_STARBOARD)
 
 }  // namespace
 
@@ -81,7 +84,10 @@ PlatformThreadId PlatformThread::CurrentId() {
 #if PA_BUILDFLAG(IS_APPLE)
   return pthread_mach_thread_np(pthread_self());
 #elif PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)
+
+#if !BUILDFLAG(IS_STARBOARD)
   static InitAtFork init_at_fork;
+#endif // !BUILDFLAG(IS_STARBOARD)
   if (g_thread_id == -1 ||
       (g_is_main_thread &&
        !g_main_thread_tid_cache_valid.load(std::memory_order_relaxed))) {

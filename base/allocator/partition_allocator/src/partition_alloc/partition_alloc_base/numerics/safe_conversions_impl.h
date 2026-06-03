@@ -9,6 +9,7 @@
 #include <limits>
 #include <type_traits>
 
+#include "build/build_config.h"
 #include "partition_alloc/buildflags.h"
 
 namespace partition_alloc::internal::base::internal {
@@ -78,9 +79,20 @@ constexpr typename std::make_unsigned<T>::type SafeUnsignedAbs(T value) {
              : static_cast<UnsignedT>(value);
 }
 
+#if BUILDFLAG(BUILD_BASE_WITH_CPP17)
+constexpr bool pa_is_constant_evaluated_stub() noexcept {
+  // Compilers are not guaranteed to provide this builtin. Always returning
+  // false should be safe: if a calling function that uses this result to select
+  // a runtime or compile-time path were actually used in a constant-evaluated
+  // context then we should get a compile-time error.
+  return false;
+}
+#define PA_IsConstantEvaluated() (pa_is_constant_evaluated_stub())
+#else
 // TODO(jschuh): Switch to std::is_constant_evaluated() once C++20 is supported.
 // Alternately, the usage could be restructured for "consteval if" in C++23.
 #define PA_IsConstantEvaluated() (__builtin_is_constant_evaluated())
+#endif
 
 // TODO(jschuh): Debug builds don't reliably propagate constants, so we restrict
 // some accelerated runtime paths to release builds until this can be forced

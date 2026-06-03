@@ -1,0 +1,123 @@
+name: Process Test Results
+description: Processes test results to produce a test summary and upload results to DataDog.
+inputs:
+  target_name:
+    description: "The test target name."
+    required: true
+  datadog_api_key:
+    description: "Path to directory where test results are saved."
+    default: ''
+  results_glob:
+    description: "Path (or glob) to test result xml files."
+    required: true
+  log_glob:
+    description: "Path (or glob) to test result log files."
+    required: true
+  num_gtest_shards:
+    description: Number of gtest shards run.
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Create Test Summary
+      id: test-summary
+      uses: test-summary/action@31493c76ec9e7aa675f1585d3ed6f1da69269a86
+      with:
+        paths: ${{ inputs.results_glob }}
+        output: test-report-summary.md
+        show: "fail, skip"
+
+    - name: Populate GitHub Summary
+      if: steps.test_summary.outputs.failed > 0
+      run: cat test-report-summary.md >> $GITHUB_STEP_SUMMARY
+      shell: bash
+
+    - name: Check Failed Tests
+      if: always()
+      env:
+        TESTS_FAILED: ${{ steps.test-summary.outputs.failed }}
+        TESTS_PASSED: ${{ steps.test-summary.outputs.passed }}
+        TESTS_SKIPPED: ${{ steps.test-summary.outputs.skipped }}
+        TESTS_TOTAL: ${{ steps.test-summary.outputs.total }}
+        RESULTS_GLOB: ${{ inputs.results_glob }}
+        LOG_GLOB: ${{ inputs.log_glob }}
+        TARGET_NAME: ${{ inputs.target_name }}
+        GTEST_SHARDS: ${{ inputs.num_gtest_shards }}
+      run: |
+        # Check test status.
+        if [ "$RUNNER_DEBUG" == "1" ]; then
+          set -x
+        fi
+        exit_code=0
+
+        # Enable globstar shell option for globstar paths e.g. /**/*.xml and
+        # nullglob to return empty string if the glob matches no files.
+        shopt -s globstar nullglob
+
+        result_xmls=(${RESULTS_GLOB})
+        result_logs=(${LOG_GLOB})
+
+        if [ ${#result_xmls[@]} -ne ${GTEST_SHARDS} ]; then
+          if [ ${#result_logs[@]} -gt ${#result_xmls[@]} ]; then
+            # If there are more log files than test results, test shards probably crashed.
+            msg="Some targets likely crashed."
+          else
+            # If both the logs and the results are missing the tests probably failed to run.
+            msg="Some targets may have failed to run."
+          fi
+          echo "::error::${msg} Found ${#result_xmls[@]} test results, ${#result_logs[@]} logs, expected ${GTEST_SHARDS}."
+          exit_code=1
+        fi
+
+        if [ ${TESTS_FAILED:-0} -gt 0 ]; then
+          # Print failed tests.
+          echo
+          echo " _____ _____ ____ _____   ____ _____   _   _____ _   _  ____  "
+          echo "|_   _| ____/ ___|_   _| / ___|_   _| / \ |_   _| | | |/ ___| "
+          echo "  | | |  _| \___ \ | |   \___ \ | |  / _ \  | | | | | |\___ \ "
+          echo "  | | | |___ ___) || |    ___) || | / ___ \ | | | |_| | ___) |"
+          echo "  |_| |_____|____/ |_|   |____/ |_|/_/   \_\|_|  \___/ |____/ "
+          echo
+
+          python3 cobalt/tools/junit_mini_parser.py ${RESULTS_GLOB}
+
+          echo "::error::${TARGET_NAME} has ${TESTS_FAILED} failed test(s)."
+          exit_code=1
+        fi
+
+        echo "${TESTS_PASSED} of ${TESTS_TOTAL} tests passed (${TESTS_SKIPPED} skipped)."
+        exit ${exit_code}
+      shell: bash
+
+    - name: Get Datadog CLI
+      id: download-dd-cli
+      # The API key is not available on PRs created from a fork.
+      if: always() && inputs.datadog_api_key != ''
+      continue-on-error: true
+      env:
+        DD_VERSION: 'v2.18.0'
+        DD_SHA256SUM: 'adbe9b3a41faaf0b1d9702ba256cf8fa9e474c0cc8216f25e5b489c53d6f0a70  datadog-ci'
+      run: |
+        set -x
+        download_url="https://github.com/DataDog/datadog-ci/releases/download/${DD_VERSION}/datadog-ci_linux-x64"
+        curl -L --fail ${download_url} --output datadog-ci
+        echo ${DD_SHA256SUM} | sha256sum --check
+        chmod +x datadog-ci
+      shell: bash
+
+    - name: Upload Results to Datadog
+      if: always() && steps.download-dd-cli.outcome == 'success'
+      continue-on-error: true
+      env:
+        DATADOG_SITE: us5.datadoghq.com
+        DATADOG_API_KEY: ${{ inputs.datadog_api_key }}
+        DD_SERVICE: ${{ github.event.repository.name }}
+        DD_TAGS: os.platform:${{ matrix.platform }}
+        DD_ENV: ci
+        RESULTS_GLOB: ${{ inputs.results_glob }}
+      run: |
+        set -x
+        # Enable globstar shell option for globstar paths e.g. /**/*.xml
+        shopt -s globstar
+        ./datadog-ci junit upload --service ${DD_SERVICE} ${RESULTS_GLOB}
+      shell: bash

@@ -12,8 +12,8 @@
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "components/language/core/common/language_util.h"
-#include "components/language_detection/core/constants.h"
-#include "components/language_detection/core/language_detection_model.h"
+#include "components/language_detection/core/constants.h" // nogncheck
+#include "components/language_detection/core/language_detection_model.h" // nogncheck
 #include "components/translate/core/common/translate_util.h"
 #include "components/translate/core/language_detection/language_detection_util.h"
 

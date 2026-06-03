@@ -21,6 +21,10 @@ if (is_ios) {
 
 import("//third_party/perfetto/gn/perfetto_cc_proto_descriptor.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/config/toolchain_variables.gni")
+}
+
 static_library("test_config") {
   testonly = true
   sources = [
@@ -47,6 +51,12 @@ rust_static_library("test_rust_logger_consumer") {
   cxx_bindings = [ "logging/test_rust_logger_consumer.rs" ]
 }
 
+if (is_cobalt && is_partner_toolchain) {
+  group("test_support") {
+    testonly = true
+    public_deps = [ "//copied_base/base/test:test_support" ]
+  }
+} else {
 static_library("test_support") {
   testonly = true
   sources = [
@@ -229,6 +239,13 @@ static_library("test_support") {
         ":test_trace_processor+link",
       ]
     }
+    if (is_cobalt_hermetic_build) {
+      sources -= [
+        "test_trace_processor.cc",
+        "test_trace_processor.h",
+      ]
+      public_deps -= [ ":test_trace_processor" ]
+    }
   }
 
   if (is_win) {
@@ -256,7 +273,7 @@ static_library("test_support") {
     ]
   }
 
-  if (is_linux || is_chromeos) {
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     sources += [ "test_file_util_linux.cc" ]
     public_deps += [ "//third_party/test_fonts/fontconfig:test_support" ]
   }
@@ -270,6 +287,12 @@ static_library("test_support") {
     ]
   }
 
+  if (is_starboard) {
+    sources += [
+      "test_support_starboard.cc",
+      "test_support_starboard.h",
+    ]
+  }
   if (is_android) {
     sources += [
       "android/content_uri_test_utils.cc",
@@ -349,6 +372,10 @@ static_library("test_support") {
       "multiprocess_test.cc",
     ]
   }
+  if (is_cobalt_hermetic_build) {
+    sources -= [ "multiprocess_test.cc" ]
+    sources += [ "multiprocess_test_starboard.cc" ]
+  }
 
   sources += [
     "../trace_event/trace_config_memory_test_util.h",
@@ -359,6 +386,7 @@ static_library("test_support") {
     "trace_to_file.cc",
     "trace_to_file.h",
   ]
+}
 }
 
 component("proto_test_support") {
@@ -402,7 +430,11 @@ config("perf_test_config") {
 # this, you always want the object file anyway.
 source_set("test_support_perf") {
   testonly = true
-  sources = [ "run_all_perftests.cc" ]
+  if (is_cobalt_hermetic_build) {
+    sources = [ "starboard/run_all_perftests.cc" ]
+  } else {
+    sources = [ "run_all_perftests.cc" ]
+  }
   deps = [
     ":test_support",
     "//base",
@@ -452,14 +484,20 @@ shared_library("immediate_crash_test_helper") {
   if (is_android) {
     configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
   }
+
+  if (is_starboard) {
+    deps += [ "//starboard:starboard_group" ]
+  }
 }
 
+if (!is_starboard) {
 # This shared library is dynamically loaded by NativeLibrary unittests.
 shared_library("test_shared_library") {
   testonly = true
   sources = [ "test_shared_library.cc" ]
 
   deps = [ ":native_library_test_utils" ]
+}
 }
 
 if (is_ios) {
@@ -573,11 +611,13 @@ if (is_ios) {
   }
 }
 
+if (!is_starboard) {
 # Trivial executable which outputs space-delimited argv to stdout,
 # used for testing.
 executable("test_child_process") {
   testonly = true
   sources = [ "test_child_process.cc" ]
+}
 }
 
 perfetto_cc_proto_descriptor("gen_cc_chrome_track_event_descriptor") {
@@ -630,6 +670,35 @@ target(_target_type, "test_trace_processor") {
     configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
   }
 
+<<<<<<< HEAD
+=======
+  import("//base/tracing/stdlib/chrome/perfetto_sql_files.gni")
+  action("amalgamated_perfetto_sql_stdlib") {
+    script = "//third_party/perfetto/tools/gen_amalgamated_sql.py"
+    sources = rebase_path(chrome_stdlib_sql_files,
+                          ".",
+                          "//base/tracing/stdlib/chrome")
+    stdlib_header = "$root_gen_dir/base/test/perfetto_sql_stdlib.h"
+    outputs = [ stdlib_header ]
+    args = [
+             "--namespace",
+             "chrome_stdlib",
+             "--cpp-out",
+             rebase_path(stdlib_header, root_build_dir),
+           ] + rebase_path(sources, root_build_dir)
+  }
+
+if (!is_cobalt_hermetic_build) {
+  # We encapsulate the trace processor in a separate shared library to prevent
+  # any duplicate symbol issues. Perfetto symbols are exported by chromium’s
+  # base via a public_dep on libperfetto; libtrace_processor also depends on
+  # these symbols. So we “hide” the perfetto symbols exported from this
+  # interface. Also, chrome targets depend on chromium_sqlite and the trace
+  # processor depends on dev_sqlite. The two share the same symbols but have
+  # different implementations, so we need to hide dev_sqlite in this shared
+  # library even in non-component builds to prevent duplicate symbols.
+  _target_type = "shared_library"
+>>>>>>> parent of 25b3fa7d8c (CONFLICTED Chromium Cherry pick: Reverting Cobalt.)
   if (is_ios) {
     info_plist = "test_trace_processor_impl.plist"
     output_name = "TestTraceProcessor"
@@ -655,8 +724,24 @@ target(_target_type, "test_trace_processor") {
   }
 }
 
+<<<<<<< HEAD
 if (!is_component_build && is_mac) {
   bundle_data("test_trace_processor_bundle_data") {
+=======
+  if (!is_component_build && is_mac) {
+    bundle_data("test_trace_processor_bundle_data") {
+      testonly = true
+      sources = [ "$root_out_dir/Libraries/libtest_trace_processor.dylib" ]
+      outputs = [ "{{bundle_contents_dir}}/Libraries/{{source_file_part}}" ]
+      public_deps = [ ":test_trace_processor" ]
+    }
+  }
+}
+} else if (!is_component_build && is_mac) {
+  # Provide a dummy target in order for clients to not have to special-case
+  # the dependency.
+  group("test_trace_processor_bundle_data") {
+>>>>>>> parent of 25b3fa7d8c (CONFLICTED Chromium Cherry pick: Reverting Cobalt.)
     testonly = true
     sources = [ "$root_out_dir/Libraries/libtest_trace_processor.dylib" ]
     outputs = [ "{{bundle_contents_dir}}/Libraries/{{source_file_part}}" ]

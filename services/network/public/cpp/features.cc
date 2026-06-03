@@ -629,8 +629,29 @@ BASE_FEATURE_PARAM(size_t,
                    /*name=*/"max_size",
                    1'000'000);
 
+<<<<<<< HEAD
 BASE_FEATURE(kNetworkServiceScheduler,
              "NetworkServiceScheduler",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+=======
+#if BUILDFLAG(IS_COBALT)
+BASE_FEATURE(kCobaltDynamicMojoPipeSizing,
+             "CobaltDynamicMojoPipeSizing",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltDynamicMojoPipeSizingSubresourceSize,
+                   &kCobaltDynamicMojoPipeSizing,
+                   "subresource_size",
+                   512 * 1024);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltDynamicMojoPipeSizingMediaSize,
+                   &kCobaltDynamicMojoPipeSizing,
+                   "media_size",
+                   512 * 1024);
+#endif  // BUILDFLAG(IS_COBALT)
+
+>>>>>>> parent of 25b3fa7d8c (CONFLICTED Chromium Cherry pick: Reverting Cobalt.)
 }  // namespace network::features

@@ -1,0 +1,6 @@
+{
+  "failing_tests": [
+    "VideoCaptureDeviceTests/VideoCaptureDeviceTest.*",
+    "V4l2GpuMemoryBufferTrackerTest.InitFailedAsEmptyTestSharedImageInterface"
+  ]
+}

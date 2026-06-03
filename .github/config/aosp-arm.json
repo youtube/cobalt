@@ -1,0 +1,21 @@
+{
+  "docker_service": "linux",
+  "platforms": [
+    "aosp-arm"
+  ],
+  "build_configs": [
+    "debug",
+    "devel",
+    "qa",
+    "gold"
+  ],
+  "targets": [
+    "buildflag_header_h"
+  ],
+  "includes": [
+    {
+      "name": "arm",
+      "platform": "aosp-arm"
+    }
+  ]
+}

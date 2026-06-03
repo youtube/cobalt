@@ -1,0 +1,3 @@
+import("//cobalt/build/configs/evergreen_common.gn")
+
+target_cpu = "x64"

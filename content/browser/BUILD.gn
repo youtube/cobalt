@@ -54,6 +54,7 @@ if (is_android) {
 if (is_ios) {
   import("//build/config/apple/mobile_config.gni")  # For `target_platform`
 }
+import("//cobalt/build/configs/hacks.gni")
 
 source_set("browser") {
   # Only the public target should depend on this. All other targets (even
@@ -73,6 +74,12 @@ source_set("browser") {
     "//content/test/fuzzer:indexed_db_fuzzer_support",
     "//content/test/fuzzer:media_stream_dispatcher_host_mojolpm_fuzzer",
   ]
+  if (is_cobalt) {
+    visibility += [
+      "//cobalt/testing:*",
+      "//cobalt/testing/browser_tests:*",
+    ]
+  }
 
   configs += [
     "//build/config:precompiled_headers",
@@ -342,6 +349,10 @@ source_set("browser") {
     "//v8",
     "//v8:v8_version",
   ]
+
+  if (is_cobalt) {
+    deps -= [ "//components/language_detection/content/common" ]
+  }
 
   public_deps = [
     "//base",
@@ -2655,12 +2666,20 @@ source_set("browser") {
     ]
   }
 
+  if (is_starboard) {
+    sources += [ "speech/tts_starboard.cc" ]
+    deps += [
+      "//starboard:starboard_group",
+      "//ui/linux:linux_ui",
+    ]
+  } else {
   if (is_linux) {
     sources += [ "speech/tts_linux.cc" ]
     deps += [
       "//third_party/speech-dispatcher",
       "//ui/linux:linux_ui",
     ]
+  }
   }
 
   # ChromeOS also defines linux but their memory-monitors conflict.
@@ -2891,7 +2910,6 @@ source_set("browser") {
       "renderer_host/render_widget_host_view_ios.mm",
       "renderer_host/web_menu_runner_ios.h",
       "renderer_host/web_menu_runner_ios.mm",
-      "speech/tts_ios.mm",
       "web_contents/web_contents_view_ios.h",
       "web_contents/web_contents_view_ios.mm",
     ]
@@ -2912,6 +2930,7 @@ source_set("browser") {
         "date_time_chooser/ios/date_time_chooser_view_controller.mm",
         "renderer_host/render_widget_host_view_ios_uiview.h",
         "renderer_host/render_widget_host_view_ios_uiview.mm",
+        "speech/tts_ios.mm",
       ]
       frameworks += [ "BrowserEngineKit.framework" ]
     } else {
@@ -2922,6 +2941,13 @@ source_set("browser") {
         "renderer_host/render_widget_host_view_tvos_uiview.h",
         "renderer_host/render_widget_host_view_tvos_uiview.mm",
       ]
+
+      if (is_cobalt) {
+        sources += [
+          "speech/tts_tvos.h",
+          "speech/tts_tvos.mm",
+        ]
+      }
     }
 
     frameworks += [ "IOSurface.framework" ]
@@ -3233,7 +3259,7 @@ source_set("browser") {
     }
   }
 
-  if ((is_linux || is_chromeos) && use_aura) {
+  if ((is_linux && !is_cobalt_hermetic_build || is_chromeos) && use_aura) {
     deps += [ "//third_party/fontconfig" ]
   }
 
@@ -3464,6 +3490,11 @@ source_set("browser") {
     if (enable_vulkan) {
       deps += [ "//gpu/vulkan/init" ]
     }
+    if (is_cobalt) {
+      deps += [
+        "//third_party/jni_zero:cobalt_for_google3_buildflags",
+      ]
+    }
     libs += [ "jnigraphics" ]
   } else {
     # Not Android.
@@ -3576,6 +3607,32 @@ source_set("browser") {
       "//media/mojo/mojom:speech_recognition",
       "//ui/base",
     ]
+  }
+
+  if (is_cobalt_hermetic_build) {
+    sources += [ "child_process_launcher_helper_starboard.cc" ]
+
+    if (is_android) {
+      sources -= [ "child_process_launcher_helper_android.cc" ]
+    }
+
+    if (is_linux) {
+      sources -= [
+        "child_process_launcher_helper_linux.cc",
+        "font_access/font_enumeration_data_source_linux.cc",
+        "font_access/font_enumeration_data_source_linux.h",
+        "font_service.cc",
+        "font_service.h",
+        "sandbox_host_linux.cc",
+        "sandbox_host_linux.h",
+        "sandbox_ipc_linux.cc",
+        "sandbox_ipc_linux.h",
+        "zygote_host/zygote_host_impl_linux.cc",
+        "zygote_host/zygote_host_impl_linux.h",
+      ]
+      public_deps -= [ "//components/services/font/public/mojom" ]
+      deps -= [ "//components/services/font:lib" ]
+    }
   }
 
   if (enable_devtools_frontend) {
@@ -3729,6 +3786,72 @@ source_set("browser") {
   if (is_chromeos) {
     deps += [ "//ash/constants:constants" ]
   }
+
+  # If in the future privacy sandbox components are removed from the code base, ignore this if block.
+  if (!enable_privacy_sandbox_apis) {
+    _filtered_sources = filter_exclude(sources,
+                                       [
+                                         "browsing_topics/*",
+                                         "attribution_reporting/*",
+                                         "shared_storage/*",
+                                       ])
+    sources = []
+    sources = _filtered_sources
+    deps -= [ "//components/browsing_topics/common:common" ]
+  }
+
+  if (is_cobalt) {
+    sources -= [
+      "bluetooth/advertisement_client.cc",
+      "bluetooth/advertisement_client.h",
+      "bluetooth/bluetooth_adapter_factory_wrapper.cc",
+      "bluetooth/bluetooth_adapter_factory_wrapper.h",
+      "bluetooth/bluetooth_allowed_devices.cc",
+      "bluetooth/bluetooth_allowed_devices.h",
+      "bluetooth/bluetooth_allowed_devices_map.cc",
+      "bluetooth/bluetooth_allowed_devices_map.h",
+      "bluetooth/bluetooth_blocklist.cc",
+      "bluetooth/bluetooth_blocklist.h",
+      "bluetooth/bluetooth_device_chooser_controller.cc",
+      "bluetooth/bluetooth_device_chooser_controller.h",
+      "bluetooth/bluetooth_device_scanning_prompt_controller.cc",
+      "bluetooth/bluetooth_device_scanning_prompt_controller.h",
+      "bluetooth/bluetooth_metrics.cc",
+      "bluetooth/bluetooth_metrics.h",
+      "bluetooth/bluetooth_util.cc",
+      "bluetooth/bluetooth_util.h",
+      "bluetooth/frame_connected_bluetooth_devices.cc",
+      "bluetooth/frame_connected_bluetooth_devices.h",
+      "bluetooth/web_bluetooth_pairing_manager.h",
+      "bluetooth/web_bluetooth_pairing_manager_delegate.h",
+      "bluetooth/web_bluetooth_pairing_manager_impl.cc",
+      "bluetooth/web_bluetooth_pairing_manager_impl.h",
+      "bluetooth/web_bluetooth_service_impl.cc",
+      "bluetooth/web_bluetooth_service_impl.h",
+
+      "serial/serial_service.cc",
+      "serial/serial_service.h",
+
+      "usb/web_usb_service_impl.cc",
+      "usb/web_usb_service_impl.h",
+    ]
+
+    deps -= [
+      "//device/bluetooth",
+      "//device/bluetooth/public/cpp",
+    ]
+
+    if (!is_android) {
+      sources -= [
+        "hid/hid_service.cc",
+        "hid/hid_service.h",
+        "service_worker/service_worker_hid_delegate_observer.cc",
+        "service_worker/service_worker_hid_delegate_observer.h",
+        "service_worker/service_worker_usb_delegate_observer.cc",
+        "service_worker/service_worker_usb_delegate_observer.h",
+      ]
+    }
+  }
 }
 
 if (is_android) {
@@ -3753,6 +3876,34 @@ group("for_content_tests") {
     "//content/test/*",
     "//content/web_test:web_test_browser",
   ]
+  if (is_cobalt) {
+    visibility += [
+      "//cobalt/testing:*",
+      "//cobalt/testing/browser_tests:*",
+      "//cobalt:cobalt_unittests",
+    ]
+
+    if (is_android) {
+      visibility += [
+        "//cobalt:cobalt_unittests__apk__compile_java",
+        "//cobalt:cobalt_unittests__apk__compile_resources",
+        "//cobalt:cobalt_unittests__apk__create",
+        "//cobalt:cobalt_unittests__apk__java",
+        "//cobalt:cobalt_unittests__apk__java__dex",
+        "//cobalt:cobalt_unittests__apk__java__header",
+        "//cobalt:cobalt_unittests__apk__java__validate",
+        "//cobalt:cobalt_unittests__library",
+        "//cobalt:cobalt_unittests__library__jni_registration__native_sources",
+      ]
+    }
+
+    if (is_ios && target_platform == "tvos") {
+      visibility += [
+        "//cobalt:cobalt_unittests_executable",
+        "//cobalt:run_cobalt_unittests",
+      ]
+    }
+  }
   if (!is_component_build) {
     public_deps = [ ":browser" ]
   } else {

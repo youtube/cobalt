@@ -55,6 +55,13 @@ public class VersionInfo {
     }
 
     /**
+     * @return Whether this is a release (i.e. gold) build.
+     */
+    public static boolean isReleaseBuild() {
+        return VersionConstants.IS_RELEASE_BUILD;
+    }
+
+    /**
      * @return The version number.
      */
     public static String getProductVersion() {

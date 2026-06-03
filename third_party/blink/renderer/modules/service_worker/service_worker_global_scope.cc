@@ -100,7 +100,9 @@
 #include "third_party/blink/renderer/modules/cookie_store/cookie_change_event.h"
 #include "third_party/blink/renderer/modules/cookie_store/extendable_cookie_change_event.h"
 #include "third_party/blink/renderer/modules/event_target_modules.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "third_party/blink/renderer/modules/hid/hid.h"
+#endif
 #include "third_party/blink/renderer/modules/notifications/notification.h"
 #include "third_party/blink/renderer/modules/notifications/notification_event.h"
 #include "third_party/blink/renderer/modules/payments/abort_payment_event.h"
@@ -131,7 +133,9 @@
 #include "third_party/blink/renderer/modules/service_worker/service_worker_window_client.h"
 #include "third_party/blink/renderer/modules/service_worker/wait_until_observer.h"
 #include "third_party/blink/renderer/modules/service_worker/web_service_worker_fetch_context_impl.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "third_party/blink/renderer/modules/webusb/usb.h"
+#endif
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/bindings/source_location.h"
 #include "third_party/blink/renderer/platform/bindings/v8_binding.h"
@@ -2737,13 +2741,21 @@ ServiceWorkerGlobalScope::FetchHandlerType() {
 }
 
 bool ServiceWorkerGlobalScope::HasHidEventHandlers() {
+#if BUILDFLAG(IS_COBALT)
+  return false;
+#else
   HID* hid = Supplement<NavigatorBase>::From<HID>(*navigator());
   return hid ? hid->HasEventListeners() : false;
+#endif
 }
 
 bool ServiceWorkerGlobalScope::HasUsbEventHandlers() {
+#if BUILDFLAG(IS_COBALT)
+  return false;
+#else
   USB* usb = Supplement<NavigatorBase>::From<USB>(*navigator());
   return usb ? usb->HasEventListeners() : false;
+#endif
 }
 
 void ServiceWorkerGlobalScope::GetRemoteAssociatedInterface(

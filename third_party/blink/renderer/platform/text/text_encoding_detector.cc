@@ -31,9 +31,12 @@
 #include "third_party/blink/renderer/platform/text/text_encoding_detector.h"
 
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/text/text_encoding.h"
-#include "third_party/ced/src/compact_enc_det/compact_enc_det.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "third_party/ced/src/compact_enc_det/compact_enc_det.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 
 // third_party/ced/src/util/encodings/encodings.h, which is included
 // by the include above, undefs UNICODE because that is a macro used
@@ -51,8 +54,14 @@ bool DetectTextEncoding(base::span<const uint8_t> bytes,
                         const char* hint_encoding_name,
                         const KURL& hint_url,
                         const char* hint_user_language,
+<<<<<<< HEAD
                         TextEncoding* detected_encoding) {
   *detected_encoding = TextEncoding();
+=======
+                        WTF::TextEncoding* detected_encoding) {
+#if !BUILDFLAG(IS_COBALT)
+  *detected_encoding = WTF::TextEncoding();
+>>>>>>> parent of 25b3fa7d8c (CONFLICTED Chromium Cherry pick: Reverting Cobalt.)
   // In general, do not use language hint. This helps get more
   // deterministic encoding detection results across devices. Note that local
   // file resources can still benefit from the hint.
@@ -83,6 +92,10 @@ bool DetectTextEncoding(base::span<const uint8_t> bytes,
   // determined from system locale or TLD.
   return !(encoding == UNKNOWN_ENCODING ||
            (hint_url.Protocol() != "file" && encoding == UTF8));
+#else
+  *detected_encoding = WTF::TextEncoding();
+  return false;
+#endif  // !BUILDFLAG(IS_COBALT)
 }
 
 }  // namespace blink

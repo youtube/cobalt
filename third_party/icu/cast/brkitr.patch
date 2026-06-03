@@ -1,0 +1,43 @@
+diff --git a/source/data/brkitr/ja.txt b/source/data/brkitr/ja.txt
+index 363a74f6..7ae4b8f6 100644
+--- a/source/data/brkitr/ja.txt
++++ b/source/data/brkitr/ja.txt
+@@ -11,6 +11,7 @@ ja{
+         line_phrase:process(dependency){"line_phrase_cj.brk"}
+         line_strict:process(dependency){"line.brk"}
+         line_strict_phrase:process(dependency){"line_phrase_cj.brk"}
++	word:process(dependency){"word_ja.brk"}
+     }
+     extensions{
+     }
+diff --git a/source/data/brkitr/rules/word.txt b/source/data/brkitr/rules/word.txt
+index b4603823..58c18cbc 100644
+--- a/source/data/brkitr/rules/word.txt
++++ b/source/data/brkitr/rules/word.txt
+@@ -84,13 +84,11 @@ $Control        = [\p{Grapheme_Cluster_Break = Control}];
+ $HangulSyllable = [\uac00-\ud7a3];
+ $ComplexContext = [:LineBreak = Complex_Context:];
+ $KanaKanji      = [$Han $Hiragana $Katakana];
+-$dictionaryCJK  = [$KanaKanji $HangulSyllable];
+-$dictionary     = [$ComplexContext $dictionaryCJK];
++$dictionary     = [$ComplexContext];
+ 
+ # TODO: check if handling of katakana in dictionary makes rules incorrect/void
+ 
+-# leave CJK scripts out of ALetterPlus
+-$ALetterPlus  = [$ALetter-$dictionaryCJK [$ComplexContext-$Extend-$Control]];
++$ALetterPlus  = [$ALetter [$ComplexContext-$Extend-$Control]];
+ 
+ 
+ ## -------------------------------------------------
+@@ -185,10 +183,6 @@ $ExtendNumLet  $ExFm* $Katakana     {400};    #  (13b)
+ #
+ ^$Regional_Indicator $ExFm* $Regional_Indicator;
+ 
+-# special handling for CJK characters: chain for later dictionary segmentation
+-$HangulSyllable $HangulSyllable {200};
+-$KanaKanji $KanaKanji {400}; # different rule status if both kana and kanji found
+-
+ # Rule 999
+ #     Match a single code point if no other rule applies.
+ .;

@@ -1,0 +1,173 @@
+name: Test Artifact Upload
+description: Uploads test archives for on-device and on-host tests.
+inputs:
+  upload_e2e_test_artifacts:
+    description: "Indicates if E2E test artifacts should be uploaded."
+    required: true
+  upload_on_host_test_artifacts:
+    description: "Indicates if on-host test artifacts should be uploaded."
+    required: true
+  upload_on_device_test_artifacts:
+    description: "Indicates if on-device test artifacts should be uploaded."
+    required: true
+  test_artifacts_key:
+    description: "Artifact key used to store on-host test artifacts."
+    required: true
+  test_targets_json_file:
+    description: "The path to test targets json file."
+    required: true
+  platform:
+    description: "The platform for which artifacts are being uploaded."
+    required: true
+  config:
+    description: "The build configuration (e.g., devel, qa, gold)."
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Create Artifacts Directory
+      run: mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
+      shell: bash
+
+    - name: Compute Archive Flags
+      id: compute-flags
+      env:
+        PLATFORM: ${{ inputs.platform }}
+      run: |
+        host_archive_flags="--compression zstd --compression-level=9"
+        android_archive_flags="--compression gz --archive-per-target --use-android-deps-path --flatten-deps"
+        rdk_archive_flags="--compression gz --archive-per-target --flatten-deps"
+
+        device_archive_flags=""
+        if [[ "${PLATFORM}" == *android* ]]; then
+          device_archive_flags="${android_archive_flags}"
+        elif [[ "${PLATFORM}" == *rdk* ]]; then
+          device_archive_flags="${rdk_archive_flags}"
+        fi
+
+        echo "host_archive_flags=${host_archive_flags}" >> $GITHUB_OUTPUT
+        echo "device_archive_flags=${device_archive_flags}" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Parse Test Targets
+      id: parse-targets
+      if: inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_on_device_test_artifacts == 'true'
+      env:
+        TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
+      run: |
+        set -x
+        cd cobalt/src
+        json_file="${TEST_TARGETS_JSON_FILE}"
+
+        # This includes both gtest and junit since both will be archived as though they were on-host tests.
+        host_targets=$(jq -cr '[.[] | select(.target != null and .runs_on == "host" and (.test_type == "gtest" or .test_type == "junit")) | .target] | join(",")' "${json_file}")
+        echo "host_targets=${host_targets}" >> $GITHUB_OUTPUT
+
+        device_gtest_targets=$(jq -cr '[.[] | select(.target != null and .runs_on == "device" and .test_type == "gtest") | .target] | join(",")' "${json_file}")
+        echo "device_gtest_targets=${device_gtest_targets}" >> $GITHUB_OUTPUT
+
+        browser_web_targets=$(jq -cr '[.[] | select(.target != null and (.test_type == "browsertest" or .test_type == "webtest")) | .target] | join(",")' "${json_file}")
+        echo "browser_web_targets=${browser_web_targets}" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Copy Runnables to Artifacts
+      if: inputs.upload_on_device_test_artifacts == 'true'
+      env:
+        TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
+      run: |
+        set -eux
+        cd cobalt/src/
+        mapfile -t targets < <(jq -r '.[] | select(.executable != null and .runs_on == "device") | .executable' "${TEST_TARGETS_JSON_FILE}")
+        for target in "${targets[@]}"; do
+          cp "${target}" "${GITHUB_WORKSPACE}/artifacts/"
+        done
+      shell: bash
+    - name: Archive Host Tests
+      if: inputs.upload_on_host_test_artifacts == 'true' && steps.parse-targets.outputs.host_targets != ''
+      env:
+        HOST_TARGETS: ${{ steps.parse-targets.outputs.host_targets }}
+        PLATFORM: ${{ inputs.platform }}
+        CONFIG: ${{ inputs.config }}
+        ARCHIVE_FLAGS: ${{ steps.compute-flags.outputs.host_archive_flags }}
+      run: |
+        set -x
+        cd cobalt/src
+        time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
+          --source-dir . \
+          --out-dir out/${PLATFORM}_${CONFIG}/ \
+          --destination-dir ${GITHUB_WORKSPACE}/artifacts \
+          --targets "${HOST_TARGETS}" \
+          ${ARCHIVE_FLAGS}
+      shell: bash
+
+    - name: Archive Device Tests
+      if: inputs.upload_on_device_test_artifacts == 'true' && steps.parse-targets.outputs.device_gtest_targets != ''
+      env:
+        DEVICE_TARGETS: ${{ steps.parse-targets.outputs.device_gtest_targets }}
+        PLATFORM: ${{ inputs.platform }}
+        CONFIG: ${{ inputs.config }}
+        ARCHIVE_FLAGS: ${{ steps.compute-flags.outputs.device_archive_flags }}
+      run: |
+        set -x
+        cd cobalt/src
+        time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
+          --source-dir . \
+          --out-dir out/${PLATFORM}_${CONFIG}/ \
+          --destination-dir ${GITHUB_WORKSPACE}/artifacts \
+          --targets "${DEVICE_TARGETS}" \
+          ${ARCHIVE_FLAGS}
+      shell: bash
+
+    - name: Archive Browser/Web Tests
+      if: (inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_on_host_test_artifacts == 'true') && steps.parse-targets.outputs.browser_web_targets != ''
+      env:
+        BROWSER_WEB_TEST_TARGETS: ${{ steps.parse-targets.outputs.browser_web_targets }}
+        PLATFORM: ${{ inputs.platform }}
+        CONFIG: ${{ inputs.config }}
+        ARCHIVE_FLAGS: ${{ steps.compute-flags.outputs.flags }}
+      run: |
+        set -x
+        cd cobalt/src
+        time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
+          --source-dir . \
+          --out-dir out/${PLATFORM}_${CONFIG}/ \
+          --destination-dir ${GITHUB_WORKSPACE}/artifacts \
+          --targets "${BROWSER_WEB_TEST_TARGETS}" \
+          ${ARCHIVE_FLAGS}
+      shell: bash
+    - name: Upload On-Host Test Artifacts Archive
+      if: inputs.upload_on_host_test_artifacts == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.test_artifacts_key }}
+        path: artifacts/*
+        retention-days: 3
+    - name: Set up Cloud SDK
+      if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_e2e_test_artifacts == 'true'
+      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
+    - name: Upload On-Device Test Artifacts to GCS
+      if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_e2e_test_artifacts == 'true'
+      env:
+        WORKFLOW: ${{ github.workflow }}
+        PLATFORM: ${{ inputs.platform }}
+        CONFIG: ${{ inputs.config }}
+        UPLOAD_E2E_TEST_ARTIFACTS: ${{ inputs.upload_e2e_test_artifacts }}
+      run: |
+        set -eux
+        project_name=$(gcloud config get-value project)
+
+        # Add Cobalt release artifacts for smoke tests.
+        if [[ "${UPLOAD_E2E_TEST_ARTIFACTS}" == "true" ]]; then
+          mv ${GITHUB_WORKSPACE}/cobalt/src/out/test-package/* \
+             ${GITHUB_WORKSPACE}/artifacts/
+        fi
+
+        # Upload cobalt.apk for smoke tests.
+        if [[ "${PLATFORM}" == *android* ]]; then
+          cp "${GITHUB_WORKSPACE}/cobalt/src/out/${PLATFORM}_${CONFIG}/apks/Cobalt.apk" \
+             "${GITHUB_WORKSPACE}/artifacts/"
+        fi
+
+        gsutil -m cp -r "${GITHUB_WORKSPACE}/artifacts/*" \
+          "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${PLATFORM}/"
+      shell: bash

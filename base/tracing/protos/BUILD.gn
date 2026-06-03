@@ -7,6 +7,18 @@ import("//third_party/protobuf/proto_library.gni")
 import("//tools/grit/grit_rule.gni")
 import("sources.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/config/toolchain_variables.gni")
+}
+
+if (is_cobalt && is_partner_toolchain) {
+  group("chrome_track_event") {
+    public_deps = [ "//copied_base/base/tracing/protos:chrome_track_event" ]
+  }
+  group("chrome_track_event_gen") {
+    public_deps = [ "//copied_base/base/tracing/protos:chrome_track_event_gen" ]
+  }
+} else {
 proto_library("chrome_track_event") {
   proto_in_dir = "//"
   proto_out_dir = "base/tracing/protos"
@@ -17,6 +29,7 @@ proto_library("chrome_track_event") {
   generate_descriptor = "chrome_track_event.descriptor"
   deps =
       [ "//third_party/perfetto/protos/perfetto/trace/track_event:source_set" ]
+}
 }
 
 protozero_library("chrome_track_event_zero") {

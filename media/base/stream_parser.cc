@@ -4,10 +4,23 @@
 
 #include "media/base/stream_parser.h"
 
+<<<<<<< HEAD
 #include "base/notimplemented.h"
+=======
+#include <atomic>
+
+#include "base/logging.h"
+>>>>>>> parent of 25b3fa7d8c (CONFLICTED Chromium Cherry pick: Reverting Cobalt.)
 #include "media/base/stream_parser_buffer.h"
+#include "media/media_buildflags.h"
 
 namespace media {
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+namespace {
+std::atomic<bool> g_enable_incremental_parse_look_ahead{false};
+}  // namespace
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 StreamParser::InitParameters::InitParameters(base::TimeDelta duration)
     : duration(duration) {}
@@ -15,6 +28,21 @@ StreamParser::InitParameters::InitParameters(base::TimeDelta duration)
 StreamParser::StreamParser() = default;
 
 StreamParser::~StreamParser() = default;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// static
+void StreamParser::SetEnableIncrementalParseLookAhead(bool enable) {
+  LOG(INFO) << "Set incremental parse look ahead: "
+            << (enable ? "enabled" : "disabled");
+  g_enable_incremental_parse_look_ahead.store(enable,
+                                              std::memory_order_relaxed);
+}
+
+// static
+bool StreamParser::IsIncrementalParseLookAheadEnabled() {
+  return g_enable_incremental_parse_look_ahead.load(std::memory_order_relaxed);
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // Default implementation of ProcessChunks() is not fully implemented.
 bool StreamParser::ProcessChunks(std::unique_ptr<BufferQueue> buffer_queue) {

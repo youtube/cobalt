@@ -537,5 +537,9 @@ DOM_KEY_MAP("VideoModeNext",        VIDEO_MODE_NEXT,          0x0D4C)
 DOM_KEY_MAP("Wink",                 WINK,                     0x0D4D)
 DOM_KEY_MAP("ZoomToggle",           ZOOM_TOGGLE,              0x0D4E)
 
-DOM_KEY_MAP_DECLARATION_END
+#if BUILDFLAG(IS_COBALT)
+  // YouTube button delivered through kSbKeyLaunchThisApplication on Starboard
+  DOM_KEY_MAP("LaunchThisApplication", LAUNCH_THIS_APPLICATION, 0x2001)
+#endif
 
+DOM_KEY_MAP_DECLARATION_END

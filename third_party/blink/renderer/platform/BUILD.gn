@@ -1706,11 +1706,18 @@ component("platform") {
   if (is_ios) {
     sources += [ "fonts/ios/font_cache_ios.mm" ]
   }
-  if (is_linux || is_chromeos) {
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     sources += [
       "fonts/linux/font_cache_linux.cc",
       "fonts/linux/font_unique_name_lookup_linux.cc",
       "fonts/linux/font_unique_name_lookup_linux.h",
+    ]
+  }
+  if (is_cobalt_hermetic_build) {
+    sources += [
+      "fonts/starboard/font_cache_starboard.cc",
+      "fonts/starboard/font_unique_name_lookup_starboard.cc",
+      "fonts/starboard/font_unique_name_lookup_starboard.h",
     ]
   }
 
@@ -1854,6 +1861,16 @@ component("platform") {
     deps += [ "//third_party/dawn/src/dawn:proc" ]
   }
 
+  if (is_cobalt) {
+    deps -= [ "//third_party/ced" ]
+    if (use_dawn) {
+      deps -= [ "//third_party/dawn/src/dawn/wire" ]
+    } else {
+      deps -= [ "//third_party/dawn/src/dawn:proc" ]
+      sources += [ "graphics/gpu/cobalt_webgpu_stubs.cc" ]
+    }
+  }
+
   if (is_android) {
     deps += [ "//third_party/cpu_features:ndk_compat" ]
     sources += [
@@ -1961,6 +1978,20 @@ component("platform") {
 
   configs -= [ "//build/config/compiler:default_symbols" ]
   configs += blink_symbols_config
+
+  if (is_cobalt) {
+    sources -= [
+      "language_detection/language_detection_model.cc",
+      "language_detection/language_detection_model.h",
+    ]
+    deps -= [
+      "//components/language_detection/content/common",
+      "//components/language_detection/content/common:common_blink",
+      "//components/language_detection/content/renderer",
+      "//components/language_detection/core",
+      "//components/translate/core/language_detection:language_detection",
+    ]
+  }
 }
 
 static_library("test_support") {
@@ -2424,7 +2455,11 @@ source_set("blink_platform_unittests_sources") {
     sources += [ "text/locale_icu_test.cc" ]
   }
 
-  sources += [ "testing/run_all_tests.cc" ]
+  if (is_cobalt_hermetic_build) {
+    sources += [ "testing/starboard/run_all_tests.cc" ]
+  } else {
+    sources += [ "testing/run_all_tests.cc" ]
+  }
 
   configs += [
     ":blink_platform_pch",
@@ -2493,6 +2528,10 @@ source_set("blink_platform_unittests_sources") {
   defines = [ "INSIDE_BLINK" ]
   if (use_minikin_hyphenation) {
     defines += [ "USE_MINIKIN_HYPHENATION" ]
+  }
+
+  if (is_cobalt) {
+    sources -= [ "text/text_encoding_detector_test.cc" ]
   }
 }
 
@@ -2574,6 +2613,10 @@ test("blink_platform_perftests") {
     "testing/shaping_line_breaker_perf_test.cc",
   ]
 
+  if (is_cobalt_hermetic_build) {
+    sources += [ "testing/starboard/run_all_perf_tests.cc" ]
+    sources -= [ "testing/run_all_perf_tests.cc" ]
+  }
   configs += [
     "//third_party/blink/renderer/platform/wtf:wtf_config",
     "//third_party/blink/renderer:config",
@@ -2801,17 +2844,19 @@ fuzzer_test("web_icon_sizes_fuzzer") {
   additional_configs = [ "//third_party/blink/renderer:inside_blink" ]
 }
 
-# Fuzzer for blink::CrabbyAVIFImageDecoder
-fuzzer_test("blink_crabbyavif_decoder_fuzzer") {
-  sources = [ "image-decoders/avif/crabbyavif_image_decoder_fuzzer.cc" ]
-  deps = [
-    ":blink_fuzzer_test_support",
-    ":blink_image_decoder_fuzzer_test_support",
-    ":platform",
-  ]
-  seed_corpuses = [ "//third_party/blink/web_tests/images/resources/avif" ]
-  libfuzzer_options = [ "rss_limit_mb=8192" ]
-  additional_configs = [ "//third_party/blink/renderer:inside_blink" ]
+if (enable_dav1d_decoder) {
+  # Fuzzer for blink::CrabbyAVIFImageDecoder
+  fuzzer_test("blink_crabbyavif_decoder_fuzzer") {
+    sources = [ "image-decoders/avif/crabbyavif_image_decoder_fuzzer.cc" ]
+    deps = [
+      ":blink_fuzzer_test_support",
+      ":blink_image_decoder_fuzzer_test_support",
+      ":platform",
+    ]
+    seed_corpuses = [ "//third_party/blink/web_tests/images/resources/avif" ]
+    libfuzzer_options = [ "rss_limit_mb=8192" ]
+    additional_configs = [ "//third_party/blink/renderer:inside_blink" ]
+  }
 }
 
 # Fuzzer for blink::ICOImageDecoder.

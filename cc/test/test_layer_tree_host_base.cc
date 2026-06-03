@@ -214,8 +214,14 @@ void TestLayerTreeHostBase::SetInitialTreePriority() {
 }
 
 void TestLayerTreeHostBase::ResetTrees() {
+#if BUILDFLAG(IS_COBALT)
+// Need to nullify raw pointer before its owner to avoid raw dangling pointer.
+  pending_layer_ = old_pending_layer_ = active_layer_ = nullptr;
+  host_impl_->ResetTreesForTesting();
+#else
   host_impl_->ResetTreesForTesting();
   pending_layer_ = old_pending_layer_ = active_layer_ = nullptr;
+#endif
 }
 
 }  // namespace cc

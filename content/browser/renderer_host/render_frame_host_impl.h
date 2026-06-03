@@ -202,7 +202,12 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "base/containers/id_map.h"
 #include "content/browser/webauth/webauth_request_security_checker.h"
+<<<<<<< HEAD
 #else
+=======
+#include "services/device/public/mojom/nfc.mojom.h"
+#elif !BUILDFLAG(IS_COBALT)
+>>>>>>> parent of 25b3fa7d8c (CONFLICTED Chromium Cherry pick: Reverting Cobalt.)
 #include "third_party/blink/public/mojom/hid/hid.mojom-forward.h"
 #endif
 
@@ -230,7 +235,9 @@ class CacheStorage;
 class DeviceAPIService;
 class GeolocationService;
 class ManagedConfigurationService;
+#if !BUILDFLAG(IS_COBALT)
 class WebUsbService;
+#endif
 }  // namespace mojom
 }  // namespace blink
 
@@ -2083,12 +2090,14 @@ class CONTENT_EXPORT RenderFrameHostImpl
   void GetFileSystemAccessManager(
       mojo::PendingReceiver<blink::mojom::FileSystemAccessManager> receiver);
 
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
   void GetHidService(mojo::PendingReceiver<blink::mojom::HidService> receiver);
 #endif
 
+#if !BUILDFLAG(IS_COBALT)
   void BindSerialService(
       mojo::PendingReceiver<blink::mojom::SerialService> receiver);
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
   void GetSmartCardService(
@@ -2155,7 +2164,11 @@ class CONTENT_EXPORT RenderFrameHostImpl
       const net::NetworkIsolationKey& nik,
       const blink::StorageKey& storage_key);
 
+<<<<<<< HEAD
 #if BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS))
+=======
+#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
+>>>>>>> parent of 25b3fa7d8c (CONFLICTED Chromium Cherry pick: Reverting Cobalt.)
   void BindNFCReceiver(mojo::PendingReceiver<device::mojom::NFC> receiver);
 #endif
 
@@ -2206,9 +2219,11 @@ class CONTENT_EXPORT RenderFrameHostImpl
   void BindTrustTokenQueryAnswerer(
       mojo::PendingReceiver<network::mojom::TrustTokenQueryAnswerer> receiver);
 
+#if !BUILDFLAG(IS_COBALT)
   // Creates connections to WebUSB interfaces bound to this frame.
   void CreateWebUsbService(
       mojo::PendingReceiver<blink::mojom::WebUsbService> receiver);
+#endif
 
   void CreateWebSocketConnector(
       mojo::PendingReceiver<blink::mojom::WebSocketConnector> receiver);

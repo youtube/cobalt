@@ -23,6 +23,8 @@
 #include "net/base/net_export.h"
 #include "net/base/network_handle.h"
 #include "net/log/net_log_with_source.h"
+#include "net/net_buildflags.h"
+#include "net/socket/socket.h"
 #include "net/socket/datagram_socket.h"
 #include "net/socket/diff_serv_code_point.h"
 #include "net/socket/socket_descriptor.h"
@@ -90,6 +92,15 @@ class NET_EXPORT UDPSocketPosix {
   // Only usable from the client-side of a UDP socket, after the socket
   // has been connected.
   int Read(IOBuffer* buf, int buf_len, CompletionOnceCallback callback);
+
+#if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
+  // Reads multiple packets from the socket.
+  // Only usable from the client-side of a UDP socket, after the socket
+  // has been connected.
+  int ReadMultiplePackets(Socket::ReadPacketResults* results,
+                          int read_buffer_size,
+                          CompletionOnceCallback callback);
+#endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
 
   // Writes to the socket.
   // Only usable from the client-side of a UDP socket, after the socket
@@ -327,7 +338,11 @@ class NET_EXPORT UDPSocketPosix {
 
   void DoReadCallback(int rv);
   void DoWriteCallback(int rv);
+
   void DidCompleteRead();
+#if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
+  void DidCompleteMultiplePacketRead();
+#endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
   void DidCompleteWrite();
 
   // Handles stats and logging. |result| is the number of bytes transferred, on
@@ -370,6 +385,9 @@ class NET_EXPORT UDPSocketPosix {
   int InternalRecvFromNonConnectedSocket(IOBuffer* buf,
                                          int buf_len,
                                          IPEndPoint* address);
+#if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
+  int InternalReadMultiplePackets(Socket::ReadPacketResults* results);
+#endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
   int InternalSendTo(IOBuffer* buf, int buf_len, const IPEndPoint* address);
 
   // Applies |socket_options_| to |socket_|. Should be called before
@@ -432,6 +450,11 @@ class NET_EXPORT UDPSocketPosix {
   scoped_refptr<IOBuffer> write_buf_;
   int write_buf_len_ = 0;
   std::unique_ptr<IPEndPoint> send_to_address_;
+
+#if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
+  // The buffer used by ReadMultiplePackets() to retry Read requests
+  raw_ptr<Socket::ReadPacketResults> results_ = nullptr;
+#endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
 
   // External callback; called when read is complete.
   CompletionOnceCallback read_callback_;

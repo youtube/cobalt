@@ -2,6 +2,10 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 import("//services/device/public/cpp/compute_pressure/buildflags.gni")
 import("//third_party/blink/renderer/config.gni")
 
@@ -82,6 +86,13 @@ generated_callback_function_sources_in_modules = [
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_xr_frame_request_callback.cc",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_xr_frame_request_callback.h",
 ]
+
+if (is_cobalt) {
+  generated_callback_function_sources_in_modules += [
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_receive_callback.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_receive_callback.h",
+  ]
+}
 
 if (enable_compute_pressure) {
   generated_callback_function_sources_in_modules += [
@@ -3199,6 +3210,68 @@ generated_interface_sources_in_modules = [
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_xr_webgl_sub_image.cc",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_xr_webgl_sub_image.h",
 ]
+
+if (is_cobalt && use_starboard_media) {
+  generated_interface_sources_in_modules += [
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_oesegl_image_external.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_oesegl_image_external.h",
+  ]
+}
+
+if (is_cobalt) {
+  generated_interface_sources_in_modules += [
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_crash_log.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_crash_log.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_deep_link_event.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_deep_link_event.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_accessibility.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_accessibility.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_experiments.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_experiments.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_metrics.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_metrics.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_platform_service.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_platform_service.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_runtime.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_runtime.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_settings.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_settings.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_system.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_system.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_metrics_event.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_metrics_event.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_text_to_speech_change_event.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_text_to_speech_change_event.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_updater.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_updater.h",
+  ]
+
+  generated_dictionary_sources_in_modules += [
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_experiment_configuration.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_experiment_configuration.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_text_to_speech_change_event_init.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_text_to_speech_change_event_init.h",
+  ]
+  generated_enumeration_sources_in_modules += [
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_metric_type.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_metric_type.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_override_state.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_override_state.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_user_on_exit_strategy.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_user_on_exit_strategy.h",
+  ]
+
+  if (enable_native_on_screen_keyboard) {
+    generated_interface_sources_in_modules += [
+      "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_on_screen_keyboard.cc",
+      "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_on_screen_keyboard.h",
+    ]
+  }
+}
 
 generated_namespace_sources_in_modules = [
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_css.cc",

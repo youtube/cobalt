@@ -9,10 +9,19 @@
 #include "base/android/jni_android.h"
 #include "base/logging.h"
 #include "base/memory_jni/MemoryInfoBridge_jni.h"
+<<<<<<< HEAD
 #include "base/time/time.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "base/trace_event/trace_event.h"
+=======
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory_jni/CobaltMemoryInfoBridge_jni.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
+#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
+>>>>>>> parent of 25b3fa7d8c (CONFLICTED Chromium Cherry pick: Reverting Cobalt.)
 
 namespace base::android {
 
@@ -93,6 +102,14 @@ bool MeminfoDumpProvider::OnMemoryDump(
                   static_cast<uint64_t>(other_private_dirty_kb) * 1024);
   dump->AddScalar(kPssMetricName, "bytes",
                   static_cast<uint64_t>(other_pss_kb) * 1024);
+
+#if BUILDFLAG(IS_COBALT)
+  int graphics_kb = Java_CobaltMemoryInfoBridge_getGraphicsMemoryKb(env, memory_info);
+  if (graphics_kb > 0) {
+    dump->AddScalar(kGraphicsMetricName, "bytes",
+                    static_cast<uint64_t>(graphics_kb) * 1024);
+  }
+#endif
 
   return true;
 }

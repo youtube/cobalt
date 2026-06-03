@@ -13,6 +13,10 @@ import("//testing/test.gni")
 import("//third_party/libgav1/options.gni")
 import("//tools/generate_stubs/rules.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 buildflag_header("buildflags") {
   header = "buildflags.h"
 
@@ -181,9 +185,12 @@ component("gpu") {
       ]
     }
     libs += [
-      "aaudio",
       "mediandk",
     ]
+    # Cobalt uses the Starboard layer instead of AAudio. AAudio also breaks SDK 24 compatibility. See b/508072838.
+    if (!is_cobalt) {
+      libs += [ "aaudio" ]
+    }
     deps += [
       # TODO(crbug.com/40552063): This can be removed once CdmManager is removed.
       "//gpu/ipc/common",
@@ -194,6 +201,17 @@ component("gpu") {
     if (enable_vulkan) {
       deps += [ "//gpu/vulkan:vulkan" ]
     }
+  }
+
+  if (is_cobalt && use_starboard_media) {
+    sources += [
+      "starboard/starboard_gpu_factory.cc",
+      "starboard/starboard_gpu_factory.h",
+      "starboard/starboard_gpu_factory_impl.cc",
+      "starboard/starboard_gpu_factory_impl.h",
+    ]
+
+    deps += [ "//starboard/common" ]
   }
 
   if (use_v4l2_codec) {

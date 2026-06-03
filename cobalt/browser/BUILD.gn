@@ -1,0 +1,244 @@
+# Copyright 2025 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//cobalt/build/configs/cobalt.gni")
+import("//testing/test.gni")
+
+if (is_ios) {
+  import("//build/config/apple/mobile_config.gni")
+}
+
+source_set("browser") {
+  sources = [
+    "captured_surface_controller_stub.cc",
+    "cobalt_browser_interface_binders.cc",
+    "cobalt_browser_interface_binders.h",
+    "cobalt_browser_main_parts.cc",
+    "cobalt_browser_main_parts.h",
+    "cobalt_content_browser_client.cc",
+    "cobalt_content_browser_client.h",
+    "cobalt_secure_navigation_throttle.cc",
+    "cobalt_secure_navigation_throttle.h",
+    "cobalt_web_contents_observer.cc",
+    "cobalt_web_contents_observer.h",
+    "h5vcc_settings_impl.cc",
+    "h5vcc_settings_impl.h",
+  ]
+
+  if (is_androidtv) {
+    sources += [
+      "android/mojo/cobalt_interface_registrar_android.cc",
+      "android/mojo/cobalt_interface_registrar_android.h",
+    ]
+  }
+
+  public_deps = [
+    "//cobalt/browser/h5vcc_metrics",
+    "//cobalt/browser/h5vcc_runtime",
+    "//cobalt/browser/lifecycle",
+    "//content/public/browser",
+  ]
+
+  deps = [
+    ":command_line_logger",
+    ":features",
+    ":global_features",
+    ":metrics",
+    "//cobalt/browser:switches",
+    "//cobalt/browser/client_hint_headers",
+    "//cobalt/browser/constants:cobalt_experiment_names",
+    "//cobalt/browser/crash_annotator/public/mojom",
+    "//cobalt/browser/h5vcc_accessibility",
+    "//cobalt/browser/h5vcc_accessibility/public/mojom",
+    "//cobalt/browser/h5vcc_experiments",
+    "//cobalt/browser/h5vcc_experiments/public/mojom",
+    "//cobalt/browser/h5vcc_metrics/public/mojom",
+    "//cobalt/browser/h5vcc_platform_service",
+    "//cobalt/browser/h5vcc_platform_service/public/mojom",
+    "//cobalt/browser/h5vcc_runtime/public/mojom",
+    "//cobalt/browser/h5vcc_settings",
+    "//cobalt/browser/h5vcc_settings/public/mojom",
+    "//cobalt/browser/h5vcc_storage",
+    "//cobalt/browser/h5vcc_storage/public/mojom",
+    "//cobalt/browser/h5vcc_system",
+    "//cobalt/browser/h5vcc_system/public/mojom",
+    "//cobalt/browser/h5vcc_updater",
+    "//cobalt/browser/h5vcc_updater/public/mojom",
+    "//cobalt/browser/mojom",
+    "//cobalt/browser/performance",
+    "//cobalt/browser/performance/public/mojom",
+    "//cobalt/browser/user_agent",
+    "//cobalt/build/configs:buildflags",
+    "//cobalt/common/features",
+    "//cobalt/media/service",
+    "//cobalt/media/service/mojom",
+    "//cobalt/memory",
+    "//cobalt/shell:cobalt_shell_lib",
+    "//components/embedder_support:user_agent",
+    "//components/metrics",
+    "//components/metrics_services_manager",
+    "//components/os_crypt/sync",
+    "//components/prefs",
+    "//components/variations/service:service",
+    "//services/resource_coordinator/public/cpp/memory_instrumentation",
+    "//starboard:starboard_group",
+  ]
+
+  if (!cobalt_is_release_build) {
+    deps += [
+      "//components/services/heap_profiling",
+      "//components/services/heap_profiling/public/cpp",
+    ]
+  }
+
+  if (is_androidtv) {
+    deps += [
+      "//cobalt/android:browser_jni_headers",
+      "//cobalt/android:jni_headers",
+      "//components/variations:variations_associated_data",
+    ]
+  } else {
+    deps += [ "//cobalt/browser/crash_annotator" ]
+  }
+
+  if (is_ios && target_platform == "tvos") {
+    deps += [
+      "//cobalt/browser:cobalt_crash_annotations",
+      "//cobalt/browser/tvos:network_error_handler",
+    ]
+  }
+
+  if (use_evergreen) {
+    deps += [ "//cobalt/updater" ]
+  }
+
+  if (is_starboard) {
+    deps += [ "//ui/ozone/platform/starboard" ]
+  }
+
+  if (enable_native_on_screen_keyboard) {
+    deps += [
+      "//cobalt/browser/on_screen_keyboard",
+      "//cobalt/browser/on_screen_keyboard/public/mojom",
+    ]
+  }
+}
+
+source_set("features") {
+  sources = [
+    "features.cc",
+    "features.h",
+  ]
+  deps = [ "//base" ]
+}
+
+source_set("switches") {
+  sources = [
+    "switches.cc",
+    "switches.h",
+  ]
+
+  deps = [
+    "//base",
+    "//cobalt/shell:cobalt_shell_switches",
+  ]
+}
+
+source_set("global_features") {
+  sources = [
+    "experiments/experiment_config_manager.cc",
+    "experiments/experiment_config_manager.h",
+    "global_features.cc",
+    "global_features.h",
+  ]
+  public_deps = [ ":features" ]
+  deps = [
+    ":metrics",
+    "//base",
+    "//cobalt/browser/constants:cobalt_experiment_names",
+    "//components/metrics",
+    "//components/metrics_services_manager",
+    "//components/prefs",
+    "//components/variations",
+    "//third_party/abseil-cpp:absl",
+  ]
+}
+
+if (is_starboard || is_androidtv) {
+  source_set("hang_watcher_delegate") {
+    sources = [
+      "hang_watcher_delegate_impl.cc",
+      "hang_watcher_delegate_impl.h",
+    ]
+    deps = [
+      ":global_features",
+      "//base",
+    ]
+  }
+}
+
+source_set("metrics") {
+  sources = [
+    "metrics/cobalt_cpu_metrics_emitter.cc",
+    "metrics/cobalt_cpu_metrics_emitter.h",
+    "metrics/cobalt_detailed_metrics_delegate.cc",
+    "metrics/cobalt_detailed_metrics_delegate.h",
+    "metrics/cobalt_enabled_state_provider.cc",
+    "metrics/cobalt_enabled_state_provider.h",
+    "metrics/cobalt_memory_metrics_emitter.cc",
+    "metrics/cobalt_memory_metrics_emitter.h",
+    "metrics/cobalt_metrics_log_uploader.cc",
+    "metrics/cobalt_metrics_log_uploader.h",
+    "metrics/cobalt_metrics_service_client.cc",
+    "metrics/cobalt_metrics_service_client.h",
+    "metrics/cobalt_metrics_services_manager_client.cc",
+    "metrics/cobalt_metrics_services_manager_client.h",
+  ]
+  deps = [
+    ":features",
+    "//cobalt/browser/h5vcc_metrics/public/mojom",
+    "//components/metrics",
+    "//components/metrics_services_manager",
+    "//components/prefs",
+    "//components/variations",
+    "//components/variations/service",
+    "//content/public/browser",
+    "//services/resource_coordinator/public/cpp/memory_instrumentation:browser",
+    "//third_party/metrics_proto",
+    "//url",
+  ]
+}
+
+source_set("command_line_logger") {
+  sources = [
+    "command_line_logger.cc",
+    "command_line_logger.h",
+  ]
+  deps = [ "//base" ]
+}
+
+source_set("cobalt_crash_annotations") {
+  sources = [
+    "cobalt_crash_annotations.cc",
+    "cobalt_crash_annotations.h",
+  ]
+  deps = [
+    "//base",
+    "//third_party/crashpad/crashpad/client",
+  ]
+  if (is_android && !use_evergreen) {
+    sources += [ "crash_annotator/crash_annotator_jni.cc" ]
+    deps += [ "//cobalt/android:jni_headers" ]
+  }
+}

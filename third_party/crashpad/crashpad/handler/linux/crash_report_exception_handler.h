@@ -18,6 +18,7 @@
 #include <map>
 #include <string>
 
+#include "build/build_config.h"
 #include "client/crash_report_database.h"
 #include "handler/crash_report_upload_thread.h"
 #include "handler/linux/exception_handler_server.h"

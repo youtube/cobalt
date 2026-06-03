@@ -147,6 +147,7 @@ _NATIVE_ALLOWLIST = {
     'media.mojom.RangeID',
     'media.mojom.SampleFormat',
     'media.mojom.Status',
+    'media.mojom.StarboardRendererConfig',
     'media.mojom.StreamType',
     'media.mojom.SubsampleEntry',
     'media.mojom.TransferID',

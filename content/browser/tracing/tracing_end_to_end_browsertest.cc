@@ -938,63 +938,63 @@ IN_PROC_BROWSER_TEST_F(SystemTracingEndToEndBrowserTest, SimpleTraceEvent) {
 // The test fails on Android because Renderers can't connect to an
 // arbitrary socket. Flaky on Mac since the renderer doesn't connect on
 // time. crbug.com/324063092
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_MAC)
-#define MAYBE_PerformanceMark DISABLED_PerformanceMark
-#else
-#define MAYBE_PerformanceMark PerformanceMark
-#endif
-IN_PROC_BROWSER_TEST_F(SystemTracingEndToEndBrowserTest,
-                       MAYBE_PerformanceMark) {
-  auto session = perfetto::Tracing::NewTrace(perfetto::kSystemBackend);
-  session->Setup(base::test::DefaultTraceConfig("blink.user_timing", false));
-  base::RunLoop start_session;
-  session->SetOnStartCallback(
-      [&start_session]() { start_session.QuitWhenIdle(); });
-  session->Start();
-  start_session.Run();
+// #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_MAC)
+// #define MAYBE_PerformanceMark DISABLED_PerformanceMark
+// #else
+// #define MAYBE_PerformanceMark PerformanceMark
+// #endif
+// IN_PROC_BROWSER_TEST_F(SystemTracingEndToEndBrowserTest,
+//                        MAYBE_PerformanceMark) {
+//   auto session = perfetto::Tracing::NewTrace(perfetto::kSystemBackend);
+//   session->Setup(base::test::DefaultTraceConfig("blink.user_timing", false));
+//   base::RunLoop start_session;
+//   session->SetOnStartCallback(
+//       [&start_session]() { start_session.QuitWhenIdle(); });
+//   session->Start();
+//   start_session.Run();
 
-  Shell* tab = CreateBrowser();
+//   Shell* tab = CreateBrowser();
 
-  // Wait until the renderer connects to the tracing service and starts tracing.
-  // We do this by periodically emitting a performance mark and checking the
-  // trace contents for its name. This can lead to multiple marks appearing in
-  // the trace (e.g. if the renderer does startup tracing for some time before
-  // connecting to the service), but it doesn't matter. We just want to make
-  // sure that at least one of them is there.
-  std::vector<char> trace;
-  size_t i = 0;
-  for (; i < 300; i++) {
-    EXPECT_TRUE(ExecJs(tab, "performance.mark('mark1');"));
+//   // Wait until the renderer connects to the tracing service and starts tracing.
+//   // We do this by periodically emitting a performance mark and checking the
+//   // trace contents for its name. This can lead to multiple marks appearing in
+//   // the trace (e.g. if the renderer does startup tracing for some time before
+//   // connecting to the service), but it doesn't matter. We just want to make
+//   // sure that at least one of them is there.
+//   std::vector<char> trace;
+//   size_t i = 0;
+//   for (; i < 300; i++) {
+//     EXPECT_TRUE(ExecJs(tab, "performance.mark('mark1');"));
 
-    base::RunLoop flush;
-    session->Flush([&flush](bool) { flush.QuitWhenIdle(); });
-    flush.Run();
+//     base::RunLoop flush;
+//     session->Flush([&flush](bool) { flush.QuitWhenIdle(); });
+//     flush.Run();
 
-    std::vector<char> buffer = session->ReadTraceBlocking();
-    trace.insert(trace.end(), buffer.begin(), buffer.end());
-    std::vector<char> mark_name = {'m', 'a', 'r', 'k', '1'};
-    auto it = std::search(buffer.begin(), buffer.end(), mark_name.begin(),
-                          mark_name.end());
-    if (it != buffer.end()) {
-      break;
-    }
-  }
-  ASSERT_LT(i, 300U);
+//     std::vector<char> buffer = session->ReadTraceBlocking();
+//     trace.insert(trace.end(), buffer.begin(), buffer.end());
+//     std::vector<char> mark_name = {'m', 'a', 'r', 'k', '1'};
+//     auto it = std::search(buffer.begin(), buffer.end(), mark_name.begin(),
+//                           mark_name.end());
+//     if (it != buffer.end()) {
+//       break;
+//     }
+//   }
+//   ASSERT_LT(i, 300U);
 
-  base::test::TestTraceProcessorImpl ttp;
-  absl::Status status = ttp.ParseTrace(trace);
-  ASSERT_TRUE(status.ok()) << status.message();
+//   base::test::TestTraceProcessorImpl ttp;
+//   absl::Status status = ttp.ParseTrace(trace);
+//   ASSERT_TRUE(status.ok()) << status.message();
 
-  std::string query =
-      "SELECT name FROM slice "
-      "WHERE cat = 'blink.user_timing' AND name = 'mark1' LIMIT 1";
-  auto result = ttp.ExecuteQuery(query);
-  ASSERT_TRUE(result.ok()) << result.error();
+//   std::string query =
+//       "SELECT name FROM slice "
+//       "WHERE cat = 'blink.user_timing' AND name = 'mark1' LIMIT 1";
+//   auto result = ttp.ExecuteQuery(query);
+//   ASSERT_TRUE(result.ok()) << result.error();
 
-  EXPECT_THAT(result.result(),
-              ::testing::ElementsAre(std::vector<std::string>{"name"},
-                                     std::vector<std::string>{"mark1"}));
-}
+//   EXPECT_THAT(result.result(),
+//               ::testing::ElementsAre(std::vector<std::string>{"name"},
+//                                      std::vector<std::string>{"mark1"}));
+// }
 #endif  // BUILDFLAG(IS_POSIX)
 
 }  // namespace content

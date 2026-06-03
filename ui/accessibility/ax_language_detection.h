@@ -13,8 +13,14 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
+<<<<<<< HEAD
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "third_party/cld_3/src/src/nnet_language_identifier.h"
+=======
+#if !BUILDFLAG(IS_COBALT)
+#include "third_party/cld_3/src/src/nnet_language_identifier.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
+>>>>>>> parent of 25b3fa7d8c (CONFLICTED Chromium Cherry pick: Reverting Cobalt.)
 #include "ui/accessibility/ax_enums.mojom-forward.h"
 #include "ui/accessibility/ax_export.h"
 #include "ui/accessibility/ax_tree_observer.h"
@@ -294,12 +300,14 @@ class AX_EXPORT AXLanguageDetectionManager {
   // This language identifier is constructed with a default minimum byte length
   // of chrome_lang_id::NNetLanguageIdentifier::kMinNumBytesToConsider and is
   // used for detecting page-level languages.
+#if !BUILDFLAG(IS_COBALT)
   chrome_lang_id::NNetLanguageIdentifier language_identifier_;
 
   // This language identifier is constructed with a minimum byte length of
   // kShortTextIdentifierMinByteLength so it can be used for detecting languages
   // of shorter text (e.g. one character).
   chrome_lang_id::NNetLanguageIdentifier short_text_language_identifier_;
+#endif  // !BUILDFLAG(IS_COBALT)
 
   // The observer to support dynamic content language detection.
   std::unique_ptr<AXLanguageDetectionObserver> language_detection_observer_;

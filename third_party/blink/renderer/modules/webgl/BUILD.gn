@@ -2,6 +2,10 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 import("//third_party/blink/renderer/modules/modules.gni")
 import("//ui/gl/features.gni")
 
@@ -201,8 +205,23 @@ blink_modules_sources("webgl") {
     "//third_party/blink/renderer/modules/xr:xr",
     "//ui/gl:gl",
   ]
+<<<<<<< HEAD
   if (use_static_angle) {
     deps += [ "//third_party/angle:libGLESv2_thin_static" ]
   }
+=======
+
+  if (is_cobalt) {
+    deps -= [ "//third_party/blink/renderer/modules/xr:xr" ]
+  }
+
+>>>>>>> parent of 25b3fa7d8c (CONFLICTED Chromium Cherry pick: Reverting Cobalt.)
   allow_circular_includes_from = deps
+
+  if (is_cobalt && use_starboard_media) {
+    sources += [
+      "cobalt/oes_egl_image_external.cc",
+      "cobalt/oes_egl_image_external.h",
+    ]
+  }
 }

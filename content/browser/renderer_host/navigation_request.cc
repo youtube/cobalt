@@ -869,6 +869,7 @@ struct TopicsHeaderValueResult {
 // Returns the topics header for a navigation request. Returns std::nullopt if
 // the request isn't eligible for topics. This should align with the handling in
 // `GetTopicsHeaderValueForSubresourceRequest()`.
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 TopicsHeaderValueResult GetTopicsHeaderValueForNavigationRequest(
     FrameTreeNode* frame_tree_node,
     const GURL& url) {
@@ -937,6 +938,7 @@ TopicsHeaderValueResult GetTopicsHeaderValueForNavigationRequest(
       .topics_eligible = topics_eligible,
       .header_value = DeriveTopicsHeaderValue(topics, num_versions_in_epochs)};
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 ukm::SourceId GetPageUkmSourceId(FrameTreeNode* frame_tree_node) {
   CHECK(frame_tree_node);
@@ -2048,6 +2050,7 @@ NavigationRequest::NavigationRequest(
       }
     }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
     TopicsHeaderValueResult topics_header_value_result =
         GetTopicsHeaderValueForNavigationRequest(frame_tree_node,
                                                  common_params_->url);
@@ -2058,6 +2061,7 @@ NavigationRequest::NavigationRequest(
       headers.SetHeader(kBrowsingTopicsRequestHeaderKey,
                         *topics_header_value_result.header_value);
     }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
     if (has_ad_auction_headers_attribute_ &&
         IsAdAuctionHeadersEligibleForNavigation(
@@ -5770,6 +5774,7 @@ void NavigationRequest::OnRedirectChecksComplete(
   // regardless of cross-origin-ness, the timestamp can also affect the
   // candidate epochs where the topics are derived from, thus resulting in
   // different topics across redirects.
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (topics_eligible_) {
     topics_eligible_ = false;
 
@@ -5799,6 +5804,7 @@ void NavigationRequest::OnRedirectChecksComplete(
     modified_headers.SetHeader(kBrowsingTopicsRequestHeaderKey,
                                *topics_header_value_result.header_value);
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   if (ad_auction_headers_eligible_) {
     // Redirects are ineligible for ad auction headers.
@@ -6259,7 +6265,9 @@ void NavigationRequest::CommitErrorPage(
     }
   }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   topics_eligible_ = false;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   ad_auction_headers_eligible_ = false;
 
@@ -6421,6 +6429,7 @@ void NavigationRequest::CommitNavigation() {
   commit_params_->storage_key = GetRenderFrameHost()->CalculateStorageKey(
       origin_to_commit, base::OptionalToPtr(nonce));
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (topics_eligible_) {
     topics_eligible_ = false;
 
@@ -6431,6 +6440,7 @@ void NavigationRequest::CommitNavigation() {
           browsing_topics::ApiCallerSource::kIframeAttribute);
     }
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   if (ad_auction_headers_eligible_) {
     ProcessAdAuctionResponseHeaders(origin_to_commit, *GetRenderFrameHost(),
@@ -7178,6 +7188,18 @@ net::Error NavigationRequest::CheckCSPDirectives(
       // overridden by the checks below.
       error = net::ERR_ABORTED;
     }
+#if BUILDFLAG(IS_COBALT)
+    // [cobalt-location-src] or [h5vcc-location-src]
+    if (!IsAllowedByCSPDirective(
+            initiator_policies->content_security_policies, &initiator_context,
+            network::mojom::CSPDirectiveName::CobaltLocationSrc,
+            has_followed_redirect, url_upgraded_after_redirect,
+            /*is_opaque_fenced_frame=*/false,
+            disposition)) {
+      error = net::ERR_ABORTED;
+      return error;
+    }
+#endif
   }
 
   // [frame-src] or [fenced-frame-src]

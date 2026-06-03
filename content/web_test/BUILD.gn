@@ -38,6 +38,24 @@ mojom("web_test_common_mojom") {
     "//url/mojom:url_mojom_origin",
   ]
 
+  if (is_cobalt) {
+    sources -= [
+      "common/fake_bluetooth_chooser.mojom",
+      "common/web_test_bluetooth_fake_adapter_setter.mojom",
+    ]
+    # These deps automatically generate the JavaScript bindings.
+    public_deps += [
+      "//cobalt/browser/crash_annotator/public/mojom",
+      # TODO(b/409786069): Add web tests for window.accessibility
+      #"//cobalt/browser/h5vcc_accessibility/public/mojom",
+      "//cobalt/browser/h5vcc_experiments/public/mojom",
+      "//cobalt/browser/h5vcc_runtime/public/mojom",
+      "//cobalt/browser/h5vcc_settings/public/mojom",
+      "//cobalt/browser/h5vcc_system/public/mojom",
+      "//cobalt/browser/h5vcc_updater/public/mojom",
+    ]
+  }
+
   overridden_deps = [ "//third_party/blink/public/mojom:mojom_platform" ]
   component_deps = [ "//third_party/blink/public/common" ]
 }
@@ -182,6 +200,25 @@ static_library("web_test_browser") {
   if (is_linux || is_chromeos) {
     sources += [ "browser/web_test_browser_main_platform_support_linux.cc" ]
   }
+  
+  if (is_cobalt) {
+    sources -= [
+      "browser/fake_bluetooth_chooser.cc",
+      "browser/fake_bluetooth_chooser.h",
+      "browser/fake_bluetooth_chooser_factory.cc",
+      "browser/fake_bluetooth_chooser_factory.h",
+      "browser/fake_bluetooth_delegate.cc",
+      "browser/fake_bluetooth_delegate.h",
+      "browser/web_test_bluetooth_adapter_provider.cc",
+      "browser/web_test_bluetooth_adapter_provider.h",
+      "browser/web_test_bluetooth_chooser_factory.cc",
+      "browser/web_test_bluetooth_chooser_factory.h",
+      "browser/web_test_bluetooth_fake_adapter_setter_impl.cc",
+      "browser/web_test_bluetooth_fake_adapter_setter_impl.h",
+      "browser/web_test_first_device_bluetooth_chooser.cc",
+      "browser/web_test_first_device_bluetooth_chooser.h",
+    ]
+  }
 
   deps = [
     ":web_test_common",
@@ -252,6 +289,18 @@ static_library("web_test_browser") {
 
   if (use_ozone) {
     deps += [ "//ui/ozone" ]
+  }
+
+  if (is_cobalt) {
+    deps += [
+      "//cobalt/browser/h5vcc_runtime/public/mojom",
+      "//cobalt/testing/h5vcc_runtime:stub_h5vcc_runtime",
+    ]
+    deps -= [
+      "//device/bluetooth:fake_bluetooth",
+      "//device/bluetooth:mocks",
+      "//device/bluetooth/public/mojom:fake_bluetooth_interfaces",
+    ]
   }
 }
 
