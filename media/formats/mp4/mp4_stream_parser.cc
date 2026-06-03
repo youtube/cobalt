@@ -189,6 +189,11 @@ void MP4StreamParser::Reset() {
   runs_.reset();
   moof_head_ = 0;
   mdat_tail_ = 0;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  scratch_frame_buf_.clear();
+  scratch_frame_buf_.shrink_to_fit();
+#endif
 }
 
 void MP4StreamParser::Flush() {
@@ -1065,7 +1070,17 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
   // `frame_buf` or `heap_frame_buf` should be used for post-processing buffer
   // storage if [buf, buf + sample_size] needs any kind of processing before
   // being put in a StreamParserBuffer. Prefer `heap_frame_buf` where possible.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // For Starboard, we reuse `scratch_frame_buf_` capacity via a reference
+  // alias to avoid per-frame heap allocations. This is safe because
+  // Starboard copies the frame data into the media pool rather than moving
+  // it (which would release/deallocate the vector's backing memory), and
+  // the parser is single-threaded.
+  scratch_frame_buf_.clear();
+  std::vector<uint8_t>& frame_buf = scratch_frame_buf_;
+#else
   std::vector<uint8_t> frame_buf;
+#endif
   base::HeapArray<uint8_t> heap_frame_buf;
   if (video) {
     if (runs_->video_description().video_info.codec == VideoCodec::kH264 ||
