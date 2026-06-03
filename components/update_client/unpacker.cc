@@ -25,6 +25,10 @@
 #include "components/update_client/utils.h"
 #include "third_party/zlib/google/compression_utils.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "components/update_client/pipeline.h"
+#endif
+
 namespace {
 
 constexpr base::FilePath::CharType kMetadataFolder[] =
@@ -41,6 +45,29 @@ namespace update_client {
 
 Unpacker::Result::Result() = default;
 
+#if BUILDFLAG(IS_STARBOARD)
+Unpacker::Unpacker(const OperationResult& crx_operation_result,
+                   std::unique_ptr<Unzipper> unzipper,
+                   base::OnceCallback<void(const Result& result)> callback)
+    : result_(crx_operation_result),
+#if !defined(IN_MEMORY_UPDATES)
+      path_(crx_operation_result.response),
+#endif
+      unzipper_(std::move(unzipper)),
+      callback_(std::move(callback)) {}
+
+Unpacker::~Unpacker() = default;
+
+void Unpacker::Unpack(const std::vector<uint8_t>& pk_hash,
+                      const OperationResult& crx_operation_result,
+                      std::unique_ptr<Unzipper> unzipper,
+                      crx_file::VerifierFormat crx_format,
+                      base::OnceCallback<void(const Result& result)> callback) {
+  base::WrapRefCounted(
+      new Unpacker(crx_operation_result, std::move(unzipper), std::move(callback)))
+      ->Verify(pk_hash, crx_format);
+}
+#else
 Unpacker::Unpacker(const base::FilePath& path,
                    std::unique_ptr<Unzipper> unzipper,
                    base::OnceCallback<void(const Result& result)> callback)
@@ -59,32 +86,59 @@ void Unpacker::Unpack(const std::vector<uint8_t>& pk_hash,
       new Unpacker(path, std::move(unzipper), std::move(callback)))
       ->Verify(pk_hash, crx_format);
 }
+#endif
+
 
 void Unpacker::Verify(const std::vector<uint8_t>& pk_hash,
                       crx_file::VerifierFormat crx_format) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+#if defined(IN_MEMORY_UPDATES)
+  VLOG(1) << "Verifying component";
+  if (!result_.crx_str) {
+    EndUnpacking(UnpackerError::kInvalidParams, 0);
+    return;
+  }
+#else
   VLOG(1) << "Verifying component: " << path_.value();
   if (path_.empty()) {
     EndUnpacking(UnpackerError::kInvalidParams, 0);
     return;
   }
+#endif
   std::vector<std::vector<uint8_t>> required_keys;
   if (!pk_hash.empty()) {
     required_keys.push_back(pk_hash);
   }
   const crx_file::VerifierResult result = crx_file::Verify(
+#if defined(IN_MEMORY_UPDATES)
+      *result_.crx_str, crx_format, required_keys, std::vector<uint8_t>(),
+      &public_key_,
+#else
       path_, crx_format, required_keys, std::vector<uint8_t>(), &public_key_,
+#endif
       /*crx_id=*/nullptr, &compressed_verified_contents_);
   if (result != crx_file::VerifierResult::OK_FULL) {
     EndUnpacking(UnpackerError::kInvalidFile, static_cast<int>(result));
     return;
   }
+#if defined(IN_MEMORY_UPDATES)
+  VLOG(2) << "Verification successful";
+#else
   VLOG(2) << "Verification successful: " << path_.value();
+#endif
   BeginUnzipping();
 }
 
 void Unpacker::BeginUnzipping() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+#if BUILDFLAG(IS_STARBOARD)
+#if defined(IN_MEMORY_UPDATES)
+  unpack_path_ = result_.installation_dir;
+#else
+  // The directory of path_ is the installation slot.
+  unpack_path_ = path_.DirName();
+#endif  // defined(IN_MEMORY_UPDATES)
+#else  // BUILDFLAG(IS_STARBOARD)
   if (!base::CreateNewTempDirectory(
           FILE_PATH_LITERAL("chrome_Unpacker_BeginUnzipping"), &unpack_path_)) {
     VLOG(1) << "Unable to create temporary directory for unpacking.";
@@ -92,9 +146,15 @@ void Unpacker::BeginUnzipping() {
                  ::logging::GetLastSystemErrorCode());
     return;
   }
+#endif  // BUILDFLAG(IS_STARBOARD)
   VLOG(1) << "Unpacking in: " << unpack_path_.value();
+#if defined(IN_MEMORY_UPDATES)
+  unzipper_->Unzip(*result_.crx_str, unpack_path_,
+                   base::BindOnce(&Unpacker::EndUnzipping, this));
+#else
   unzipper_->Unzip(path_, unpack_path_,
                    base::BindOnce(&Unpacker::EndUnzipping, this));
+#endif
 }
 
 void Unpacker::EndUnzipping(bool result) {
@@ -152,9 +212,11 @@ void Unpacker::StoreVerifiedContentsInExtensionDir(
 
 void Unpacker::EndUnpacking(UnpackerError error, int extended_error) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+#if !BUILDFLAG(IS_STARBOARD)
   if (error != UnpackerError::kNone && !unpack_path_.empty()) {
     RetryDeletePathRecursively(unpack_path_);
   }
+#endif
 
   Result result;
   result.error = error;

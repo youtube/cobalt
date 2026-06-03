@@ -346,8 +346,11 @@ PipelineStatus DemuxerManager::CreateDemuxer(
   } else if (!load_media_source) {
 #if BUILDFLAG(ENABLE_FFMPEG)
     SetDemuxer(CreateFFmpegDemuxer());
+#elif BUILDFLAG(USE_STARBOARD_MEDIA)
+    LOG(INFO) << "Progressive streams are unsupported.";
+    return DEMUXER_ERROR_NO_SUPPORTED_STREAMS;
 #else
-    return DEMUXER_ERROR_COULD_NOT_OPEN;
+    return DEMUXER_ERROR_PROGRESSIVE_DISABLED;
 #endif
   } else {
     DCHECK(!HasDataSource());

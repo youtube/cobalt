@@ -79,6 +79,9 @@ class QUICHE_EXPORT UberReceivedPacketManager {
 
   size_t min_received_before_ack_decimation() const;
   void set_min_received_before_ack_decimation(size_t new_value);
+#if BUILDFLAG(IS_COBALT)
+  void set_max_retransmittable_packets_before_ack(size_t new_value);
+#endif
 
   void set_ack_frequency(size_t new_value);
 

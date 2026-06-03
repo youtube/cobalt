@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/modules/mediastream/processed_local_audio_source.h"
+#include "third_party/blink/public/common/buildflags.h"
 
 #include <algorithm>
 #include <utility>
@@ -32,7 +33,9 @@
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream_audio_processor.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream_constraints_util.h"
-#include "third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.h"
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
+#include "third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.h"  // nogncheck
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 #include "third_party/blink/renderer/modules/webrtc/webrtc_audio_device_impl.h"
 #include "third_party/blink/renderer/platform/mediastream/audio_service_audio_processor_proxy.h"
 #include "third_party/blink/renderer/platform/scheduler/public/post_cross_thread_task.h"
@@ -99,8 +102,10 @@ ProcessedLocalAudioSource::ProcessedLocalAudioSource(
                                     true /* is_local_source */,
                                     disable_local_echo),
       consumer_frame_(&frame),
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
       dependency_factory_(
           PeerConnectionDependencyFactory::From(*frame.DomWindow())),
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
       processing_layout_(processing_layout),
       started_callback_(std::move(started_callback)),
       allow_invalid_render_frame_id_for_testing_(false) {
@@ -171,6 +176,7 @@ bool ProcessedLocalAudioSource::EnsureSourceIsStarted() {
   }
   // Create the audio processor.
 
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
   DCHECK(dependency_factory_);
   WebRtcAudioDeviceImpl* const rtc_audio_device =
       dependency_factory_->GetWebRtcAudioDevice();
@@ -179,6 +185,9 @@ bool ProcessedLocalAudioSource::EnsureSourceIsStarted() {
         "EnsureSourceIsStarted() => (ERROR: no WebRTC ADM instance)");
     return false;
   }
+#else
+  WebRtcAudioDeviceImpl* const rtc_audio_device = nullptr;
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 
   if (processing_layout_.NoiseSuppressionInTandem()) {
     SendLogMessage(StringPrintf("%s() => (NS will run in tandem)", __func__));
@@ -273,7 +282,9 @@ bool ProcessedLocalAudioSource::EnsureSourceIsStarted() {
   source_->Start();
 
   // Register this source with the WebRtcAudioDeviceImpl.
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
   rtc_audio_device->AddAudioCapturer(this);
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 
   return true;
 }
@@ -286,9 +297,11 @@ void ProcessedLocalAudioSource::EnsureSourceIsStopped() {
 
   scoped_refptr<media::AudioCapturerSource> source_to_stop(std::move(source_));
 
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
   if (dependency_factory_) {
     dependency_factory_->GetWebRtcAudioDevice()->RemoveAudioCapturer(this);
   }
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 
   source_to_stop->Stop();
 

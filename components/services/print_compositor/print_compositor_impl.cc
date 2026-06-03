@@ -156,7 +156,7 @@ PrintCompositorImpl::PrintCompositorImpl(
   SkGraphics::SetImageGeneratorFromEncodedDataFactory(
       blink::WebImageGenerator::CreateAsSkImageGenerator);
 
-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   content::UtilityThread::Get()->EnsureBlinkInitializedWithSandboxSupport();
   // Check that we have sandbox support on this platform.
   DCHECK(blink::Platform::Current()->GetSandboxSupport());

@@ -12,7 +12,9 @@
 #include "components/viz/common/quads/solid_color_draw_quad.h"
 #include "components/viz/service/display/display_resource_provider.h"
 #include "components/viz/service/display/output_surface.h"
+#include "components/viz/service/display/overlay_candidate_factory.h"
 #include "ui/gfx/geometry/rect_conversions.h"
+#include "ui/gfx/geometry/rect_f.h"
 
 namespace viz {
 
@@ -81,10 +83,18 @@ void OverlayProcessorMac::ProcessForOverlays(
     // drawing the root RenderPass, we set |damage_rect| to be empty.
     *damage_rect = gfx::Rect();
   } else {
+    OverlayCandidateFactory::OverlayContext context;
+    context.supports_mask_filter = true;
+    const OverlayCandidateFactory factory(
+        render_pass, resource_provider, &surface_damage_rect_list,
+        &output_color_matrix,
+        output_surface_plane ? output_surface_plane->display_rect
+                             : gfx::RectF(),
+        &render_pass_filters, context);
     ca_layer_overlay_processor_->PutForcedOverlayContentIntoUnderlays(
         resource_provider, render_pass, gfx::RectF(render_pass->output_rect),
         &render_pass->quad_list, render_pass_filters,
-        render_pass_backdrop_filters, candidates);
+        render_pass_backdrop_filters, candidates, factory);
   }
 }
 

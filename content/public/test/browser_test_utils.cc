@@ -4644,7 +4644,7 @@ base::CallbackListSubscription RegisterWebContentsCreationCallback(
   return WebContentsImpl::FriendWrapper::AddCreatedCallbackForTesting(callback);
 }
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 void SetConditionalFocusWindowForTesting(base::TimeDelta window) {
   MediaStreamManager::GetInstance()->SetConditionalFocusWindowForTesting(
       window);
