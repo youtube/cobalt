@@ -15,8 +15,6 @@
 #ifndef STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX__EXIT_ABI_WRAPPERS_H_
 #define STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX__EXIT_ABI_WRAPPERS_H_
 
-#include <stdlib.h>
-
 #include "starboard/configuration.h"
 #include "starboard/export.h"
 
