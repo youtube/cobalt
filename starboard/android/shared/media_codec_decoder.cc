@@ -423,9 +423,10 @@ void MediaCodecDecoder::DecoderThreadFunc() {
   if (media_type_ == kSbMediaTypeAudio) {
     std::deque<PendingInput> pending_inputs;
     std::vector<int> input_buffer_indices;
+    std::vector<DequeueOutputResult> dequeue_output_results;
 
     while (!destroying_.load()) {
-      std::vector<DequeueOutputResult> dequeue_output_results;
+      dequeue_output_results.clear();
       {
         std::unique_lock lock(mutex_);
         bool has_pending_input =
