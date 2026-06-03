@@ -627,7 +627,7 @@ AudioParameters AudioProcessor::GetDefaultOutputFormat(
                                    std::min(media::kAudioProcessingSampleRateHz,
                                             input_format.sample_rate())
 #elif BUILDFLAG(IS_COBALT)
-                                   input_format.sample_rate()                                   
+                                   input_format.sample_rate()
 #else
                                    media::kAudioProcessingSampleRateHz
 #endif
