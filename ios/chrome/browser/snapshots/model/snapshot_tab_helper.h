@@ -10,13 +10,11 @@
 #import "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
-#include "ios/chrome/browser/snapshots/model/snapshot_id.h"
 #include "ios/web/public/web_state_observer.h"
 #include "ios/web/public/web_state_user_data.h"
 
-@class LegacySnapshotManager;
-@class SnapshotManager;
-@class SnapshotStorageWrapper;
+@protocol SnapshotManager;
+@protocol SnapshotStorage;
 @protocol SnapshotGeneratorDelegate;
 
 namespace web {
@@ -38,7 +36,7 @@ class SnapshotTabHelper : public web::WebStateObserver,
 
   // Sets the snapshot storage to be used to store and retrieve snapshots. This
   // is not owned by the tab helper.
-  void SetSnapshotStorage(SnapshotStorageWrapper* wrapper);
+  void SetSnapshotStorage(id<SnapshotStorage> storage);
 
   // Retrieves a color snapshot for the current page, invoking `callback` with
   // the image. The callback may be called synchronously if there is a cached
@@ -67,14 +65,8 @@ class SnapshotTabHelper : public web::WebStateObserver,
   // generation fails.
   UIImage* GenerateSnapshotWithoutOverlays();
 
-  // Requests deletion of the current page snapshot from disk and memory.
-  void RemoveSnapshot();
-
   // Instructs the helper not to snapshot content for the next page load event.
   void IgnoreNextLoad();
-
-  // Returns the ID to use for the snapshot.
-  SnapshotID GetSnapshotID() const;
 
  private:
   friend class web::WebStateUserData<SnapshotTabHelper>;
@@ -88,8 +80,7 @@ class SnapshotTabHelper : public web::WebStateObserver,
   void WebStateDestroyed(web::WebState* web_state) override;
 
   raw_ptr<web::WebState> web_state_ = nullptr;
-  SnapshotManager* snapshot_manager_ = nil;
-  LegacySnapshotManager* legacy_snapshot_manager_ = nil;
+  id<SnapshotManager> snapshot_manager_ = nil;
 
   // Manages this object as an observer of `web_state_`.
   base::ScopedObservation<web::WebState, web::WebStateObserver>

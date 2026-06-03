@@ -1,5 +1,6 @@
 # mypy: allow-untyped-defs
 
+from typing import Any, Mapping
 webdriver = None
 
 
@@ -22,8 +23,30 @@ def get_browsing_context_id(context):
         return context.browsing_context
     raise ValueError("Unexpected context type: %s" % context)
 
+class BidiBluetoothAction:
+    def __init__(self, logger, protocol):
+        do_delayed_imports()
+        self.logger = logger
+        self.protocol = protocol
 
-class BidiBluetoothHandleRequestDevicePrompt:
+    async def __call__(self, payload):
+        if "context" not in payload:
+            raise ValueError("Missing required parameter: context")
+
+        context = get_browsing_context_id(payload["context"])
+        if isinstance(context, str):
+            pass
+        elif isinstance(context, webdriver.bidi.protocol.BidiWindow):
+            # Context can be a serialized WindowProxy.
+            context = context.browsing_context
+        else:
+            raise ValueError("Unexpected context type: %s" % context)
+        return await self.execute(context, payload)
+
+    async def execute(self, context: str, payload: Mapping[str, Any]) -> Any:
+        raise NotImplementedError
+
+class BidiBluetoothHandleRequestDevicePrompt(BidiBluetoothAction):
     name = "bidi.bluetooth.handle_request_device_prompt"
 
     def __init__(self, logger, protocol):
@@ -31,48 +54,30 @@ class BidiBluetoothHandleRequestDevicePrompt:
         self.logger = logger
         self.protocol = protocol
 
-    async def __call__(self, payload):
-        if "context" not in payload:
-            raise ValueError("Missing required parameter: context")
-
-        context = get_browsing_context_id(payload["context"])
+    async def execute(self, context: str, payload: Mapping[str, Any]) -> Any:
         prompt = payload["prompt"]
         accept = payload["accept"]
         device = payload["device"]
         return await self.protocol.bidi_bluetooth.handle_request_device_prompt(context, prompt, accept, device)
 
-class BidiBluetoothSimulateAdapterAction:
+class BidiBluetoothSimulateAdapterAction(BidiBluetoothAction):
     name = "bidi.bluetooth.simulate_adapter"
 
-    def __init__(self, logger, protocol):
-        do_delayed_imports()
-        self.logger = logger
-        self.protocol = protocol
-
-    async def __call__(self, payload):
-        if "context" not in payload:
-            raise ValueError("Missing required parameter: context")
-
-        context = get_browsing_context_id(payload["context"])
-
+    async def execute(self, context: str, payload: Mapping[str, Any]) -> Any:
         state = payload["state"]
         return await self.protocol.bidi_bluetooth.simulate_adapter(context,
-                                                                   state,
-                                                                   type_="create")
+                                                                   state)
 
-class BidiBluetoothSimulatePreconnectedPeripheralAction:
+class BidiBluetoothDisableSimulationAction(BidiBluetoothAction):
+    name = "bidi.bluetooth.disable_simulation"
+
+    async def execute(self, context: str, payload: Mapping[str, Any]) -> Any:
+        return await self.protocol.bidi_bluetooth.disable_simulation(context)
+
+class BidiBluetoothSimulatePreconnectedPeripheralAction(BidiBluetoothAction):
     name = "bidi.bluetooth.simulate_preconnected_peripheral"
 
-    def __init__(self, logger, protocol):
-        do_delayed_imports()
-        self.logger = logger
-        self.protocol = protocol
-
-    async def __call__(self, payload):
-        if "context" not in payload:
-            raise ValueError("Missing required parameter: context")
-        context = get_browsing_context_id(payload["context"])
-
+    async def execute(self, context: str, payload: Mapping[str, Any]) -> Any:
         address = payload["address"]
         name = payload["name"]
         manufacturer_data = payload["manufacturerData"]
@@ -80,6 +85,83 @@ class BidiBluetoothSimulatePreconnectedPeripheralAction:
         return await self.protocol.bidi_bluetooth.simulate_preconnected_peripheral(
             context, address, name, manufacturer_data, known_service_uuids)
 
+class BidiBluetoothSimulateGattConnectionResponseAction(BidiBluetoothAction):
+    name = "bidi.bluetooth.simulate_gatt_connection_response"
+
+    async def execute(self, context: str, payload: Mapping[str, Any]) -> Any:
+        address = payload["address"]
+        code = payload["code"]
+        return await self.protocol.bidi_bluetooth.simulate_gatt_connection_response(
+            context, address, code)
+
+class BidiBluetoothSimulateGattDisconnectionAction(BidiBluetoothAction):
+    name = "bidi.bluetooth.simulate_gatt_disconnection"
+
+    async def execute(self, context: str, payload: Mapping[str, Any]) -> Any:
+        address = payload["address"]
+        return await self.protocol.bidi_bluetooth.simulate_gatt_disconnection(
+            context, address)
+
+class BidiBluetoothSimulateServiceAction(BidiBluetoothAction):
+    name = "bidi.bluetooth.simulate_service"
+
+    async def execute(self, context: str, payload: Mapping[str, Any]) -> Any:
+        address = payload["address"]
+        uuid = payload["uuid"]
+        type = payload["type"]
+        return await self.protocol.bidi_bluetooth.simulate_service(
+            context, address, uuid, type)
+
+class BidiBluetoothSimulateCharacteristicAction(BidiBluetoothAction):
+    name = "bidi.bluetooth.simulate_characteristic"
+
+    async def execute(self, context: str, payload: Mapping[str, Any]) -> Any:
+        address = payload["address"]
+        service_uuid = payload["serviceUuid"]
+        characteristic_uuid = payload["characteristicUuid"]
+        characteristic_properties = payload["characteristicProperties"]
+        type = payload["type"]
+        return await self.protocol.bidi_bluetooth.simulate_characteristic(
+            context, address, service_uuid, characteristic_uuid, characteristic_properties, type)
+
+class BidiBluetoothSimulateCharacteristicResponseAction(BidiBluetoothAction):
+    name = "bidi.bluetooth.simulate_characteristic_response"
+
+    async def execute(self, context: str, payload: Mapping[str, Any]) -> Any:
+        address = payload["address"]
+        service_uuid = payload["serviceUuid"]
+        characteristic_uuid = payload["characteristicUuid"]
+        type = payload["type"]
+        code = payload["code"]
+        data = payload["data"]
+        return await self.protocol.bidi_bluetooth.simulate_characteristic_response(
+            context, address, service_uuid, characteristic_uuid, type, code, data)
+
+class BidiBluetoothSimulateDescriptorAction(BidiBluetoothAction):
+    name = "bidi.bluetooth.simulate_descriptor"
+
+    async def execute(self, context: str, payload: Mapping[str, Any]) -> Any:
+        address = payload["address"]
+        service_uuid = payload["serviceUuid"]
+        characteristic_uuid = payload["characteristicUuid"]
+        descriptor_uuid = payload["descriptorUuid"]
+        type = payload["type"]
+        return await self.protocol.bidi_bluetooth.simulate_descriptor(
+            context, address, service_uuid, characteristic_uuid, descriptor_uuid, type)
+
+class BidiBluetoothSimulateDescriptorResponseAction(BidiBluetoothAction):
+    name = "bidi.bluetooth.simulate_descriptor_response"
+
+    async def execute(self, context: str, payload: Mapping[str, Any]) -> Any:
+        address = payload["address"]
+        service_uuid = payload["serviceUuid"]
+        characteristic_uuid = payload["characteristicUuid"]
+        descriptor_uuid = payload["descriptorUuid"]
+        type = payload["type"]
+        code = payload["code"]
+        data = payload["data"]
+        return await self.protocol.bidi_bluetooth.simulate_descriptor_response(
+            context, address, service_uuid, characteristic_uuid, descriptor_uuid, type, code, data)
 
 class BidiEmulationSetGeolocationOverrideAction:
     name = "bidi.emulation.set_geolocation_override"
@@ -153,7 +235,15 @@ class BidiPermissionsSetPermissionAction:
 async_actions = [
     BidiBluetoothHandleRequestDevicePrompt,
     BidiBluetoothSimulateAdapterAction,
+    BidiBluetoothDisableSimulationAction,
     BidiBluetoothSimulatePreconnectedPeripheralAction,
+    BidiBluetoothSimulateGattConnectionResponseAction,
+    BidiBluetoothSimulateGattDisconnectionAction,
+    BidiBluetoothSimulateServiceAction,
+    BidiBluetoothSimulateCharacteristicAction,
+    BidiBluetoothSimulateCharacteristicResponseAction,
+    BidiBluetoothSimulateDescriptorAction,
+    BidiBluetoothSimulateDescriptorResponseAction,
     BidiEmulationSetGeolocationOverrideAction,
     BidiPermissionsSetPermissionAction,
     BidiSessionSubscribeAction]

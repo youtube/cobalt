@@ -4,40 +4,52 @@
 #include "components/credential_management/android/third_party_credential_manager_impl.h"
 
 #include "base/android/jni_callback.h"
+#include "base/check_deref.h"
 #include "base/functional/bind.h"
 #include "base/notimplemented.h"
+#include "content/public/browser/browser_context.h"
+#include "content/public/browser/navigation_entry.h"
+#include "content/public/browser/ssl_status.h"
 
 namespace credential_management {
 
 ThirdPartyCredentialManagerImpl::ThirdPartyCredentialManagerImpl(
-    content::RenderFrameHost* render_frame_host)
-    : DocumentUserData(render_frame_host),
-      bridge_(std::make_unique<ThirdPartyCredentialManagerBridge>()) {}
+    content::WebContents* web_contents)
+    : bridge_(std::make_unique<ThirdPartyCredentialManagerBridge>()),
+      web_contents_(CHECK_DEREF(web_contents)) {}
 
 ThirdPartyCredentialManagerImpl::ThirdPartyCredentialManagerImpl(
     base::PassKey<class ThirdPartyCredentialManagerImplTest>,
-    content::RenderFrameHost* render_frame_host,
+    content::WebContents* web_contents,
     std::unique_ptr<CredentialManagerBridge> bridge)
-    : DocumentUserData(render_frame_host), bridge_(std::move(bridge)) {}
-
-DOCUMENT_USER_DATA_KEY_IMPL(ThirdPartyCredentialManagerImpl);
+    : bridge_(std::move(bridge)), web_contents_(CHECK_DEREF(web_contents)) {}
 
 ThirdPartyCredentialManagerImpl::~ThirdPartyCredentialManagerImpl() = default;
 
 void ThirdPartyCredentialManagerImpl::Store(
     const password_manager::CredentialInfo& credential,
     StoreCallback callback) {
+  // Don't store empty credentials.
+  if (credential.type ==
+      password_manager::CredentialType::CREDENTIAL_TYPE_EMPTY) {
+    return;
+  }
+
   std::u16string username = credential.id.value_or(u"");
   std::u16string password = credential.password.value_or(u"");
   bridge_->Store(username, password,
-                 render_frame_host().GetLastCommittedOrigin().Serialize(),
+                 web_contents_->GetPrimaryMainFrame()
+                     ->GetLastCommittedOrigin()
+                     .Serialize(),
                  std::move(callback));
 }
 
 void ThirdPartyCredentialManagerImpl::PreventSilentAccess(
     PreventSilentAccessCallback callback) {
-  // TODO(crbug.com/374710839): Implement.
-  NOTIMPLEMENTED();
+  // Send acknowledge response back.
+  // We're currently preventing silent access for every get request by default
+  // in 3rd party mode so there is nothing more to do here for now.
+  std::move(callback).Run();
 }
 
 // This method decides if credential picker should be shown.
@@ -77,29 +89,63 @@ bool ShouldAllowAutoSelect(
   return false;
 }
 
+net::CertStatus ThirdPartyCredentialManagerImpl::GetMainFrameCertStatus()
+    const {
+  content::NavigationEntry* entry =
+      web_contents_->GetController().GetLastCommittedEntry();
+  if (!entry) {
+    return 0;
+  }
+  return entry->GetSSL().cert_status;
+}
+
 void ThirdPartyCredentialManagerImpl::Get(
     password_manager::CredentialMediationRequirement mediation,
     bool include_passwords,
     const std::vector<GURL>& federations,
     GetCallback callback) {
-  if (mediation == password_manager::CredentialMediationRequirement::kSilent ||
-      mediation ==
-          password_manager::CredentialMediationRequirement::kConditional) {
-    std::move(callback).Run(password_manager::CredentialManagerError::UNKNOWN,
-                            std::nullopt);
+  // Return an empty credential if the current page has SSL errors.
+  if (net::IsCertStatusError(GetMainFrameCertStatus())) {
+    std::move(callback).Run(password_manager::CredentialManagerError::SUCCESS,
+                            password_manager::CredentialInfo());
     return;
   }
 
-  // TODO(crbug.com/404199116): Pass all the parameters to the bridge.
-  bridge_->Get(ShouldAllowAutoSelect(mediation),
-               include_passwords,
-               render_frame_host().GetLastCommittedOrigin().Serialize(),
+  // Return an empty credential for incognito mode.
+  if (IsOffTheRecord()) {
+    // Callback with empty credential info.
+    std::move(callback).Run(password_manager::CredentialManagerError::SUCCESS,
+                            password_manager::CredentialInfo());
+    return;
+  }
+
+  // Silent mediation is not supported because the list of origins that prevent
+  // silent access can't be persisted.
+  // Conditional mediation is only for passkeys, not for passwords that are
+  // currently the only supported credential type.
+  // Return an empty credential in these cases.
+  if (mediation == password_manager::CredentialMediationRequirement::kSilent ||
+      mediation ==
+          password_manager::CredentialMediationRequirement::kConditional) {
+    std::move(callback).Run(password_manager::CredentialManagerError::SUCCESS,
+                            password_manager::CredentialInfo());
+    return;
+  }
+
+  bridge_->Get(ShouldAllowAutoSelect(mediation), include_passwords, federations,
+               web_contents_->GetPrimaryMainFrame()
+                   ->GetLastCommittedOrigin()
+                   .Serialize(),
                std::move(callback));
 }
 
 void ThirdPartyCredentialManagerImpl::ResetAfterDisconnecting() {
   // There is currently nothing to do upon disconnecting for this implementation
   // of CredentialManagerInterface.
+}
+
+bool ThirdPartyCredentialManagerImpl::IsOffTheRecord() const {
+  return web_contents_->GetBrowserContext()->IsOffTheRecord();
 }
 
 }  // namespace credential_management

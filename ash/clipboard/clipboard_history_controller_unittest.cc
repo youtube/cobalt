@@ -24,6 +24,7 @@
 #include "base/notreached.h"
 #include "base/run_loop.h"
 #include "base/scoped_observation.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -335,9 +336,9 @@ TEST_F(ClipboardHistoryControllerTest, VerifyAvailabilityInUserModes) {
   } kTestCases[] = {{user_manager::UserType::kRegular, true},
                     {user_manager::UserType::kGuest, true},
                     {user_manager::UserType::kPublicAccount, false},
-                    {user_manager::UserType::kKioskApp, false},
+                    {user_manager::UserType::kKioskChromeApp, false},
                     {user_manager::UserType::kChild, true},
-                    {user_manager::UserType::kWebKioskApp, false}};
+                    {user_manager::UserType::kKioskWebApp, false}};
 
   for (const auto& test_case : kTestCases) {
     ClearLogin();

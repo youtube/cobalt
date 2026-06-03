@@ -101,11 +101,11 @@
 #include "content/renderer/mojo/blink_interface_registry_impl.h"
 #include "content/renderer/navigation_client.h"
 #include "content/renderer/navigation_state.h"
-#include "content/renderer/pepper/pepper_audio_controller.h"
 #include "content/renderer/policy_container_util.h"
 #include "content/renderer/render_process.h"
 #include "content/renderer/render_thread_impl.h"
 #include "content/renderer/renderer_blink_platform_impl.h"
+#include "content/renderer/renderer_navigation_metrics_manager.h"
 #include "content/renderer/service_worker/service_worker_network_provider_for_frame.h"
 #include "content/renderer/service_worker/web_service_worker_provider_impl.h"
 #include "content/renderer/skia_benchmarking_extension.h"
@@ -193,7 +193,7 @@
 #include "third_party/blink/public/platform/url_conversion.h"
 #include "third_party/blink/public/platform/weak_wrapper_resource_load_info_notifier.h"
 #include "third_party/blink/public/platform/web_data.h"
-#include "third_party/blink/public/platform/web_dedicated_or_shared_worker_fetch_context.h"
+#include "third_party/blink/public/platform/web_dedicated_or_shared_worker_global_scope_context.h"
 #include "third_party/blink/public/platform/web_http_body.h"
 #include "third_party/blink/public/platform/web_media_player.h"
 #include "third_party/blink/public/platform/web_media_player_source.h"
@@ -1698,6 +1698,8 @@ void RenderFrameImpl::CreateFrame(
     const blink::DocumentToken& document_token,
     blink::mojom::PolicyContainerPtr policy_container,
     bool is_for_nested_main_frame) {
+  base::ElapsedTimer timer;
+
   // TODO(danakj): Split this method into two pieces. The first block makes a
   // WebLocalFrame and collects the `blink::WebView` and RenderFrame for it. The
   // second block uses that to make a RenderWidget, if needed.
@@ -1849,6 +1851,10 @@ void RenderFrameImpl::CreateFrame(
   }
 
   render_frame->Initialize(web_frame->Parent());
+
+  RendererNavigationMetricsManager::Instance().AddCreateFrameEvent(
+      navigation_metrics_token, timer.start_time(), timer.Elapsed());
+  // Add any new code above the AddCreateFrameEvent call.
 }
 
 // static
@@ -2726,6 +2732,8 @@ void RenderFrameImpl::CommitNavigation(
     mojom::CookieManagerInfoPtr cookie_manager_info,
     mojom::StorageInfoPtr storage_info,
     mojom::NavigationClient::CommitNavigationCallback commit_callback) {
+  RendererNavigationMetricsManager::Instance().MarkCommitStart(
+      commit_params->navigation_metrics_token);
   if (!response_head->client_side_content_decoding_types.empty()) {
     // Attempt to create the data pipe needed for content decoding.
     auto data_pipe_pair =
@@ -2763,6 +2771,13 @@ void RenderFrameImpl::CommitNavigation(
   DCHECK(!NavigationTypeUtils::IsSameDocument(common_params->navigation_type));
   LogCommitHistograms(commit_params->commit_sent, is_main_frame_,
                       common_params->url);
+
+  // Clear the `redirects` array to ensure it is not accidentally used somewhere
+  // downstream of this code.
+  if (base::FeatureList::IsEnabled(
+          blink::features::kRemoveCommitRedirectUrlsArray)) {
+    commit_params->redirects.clear();
+  }
 
   bool is_new_navigation_in_outermost_main_frame_with_http_or_https = false;
   if (frame_->IsOutermostMainFrame() &&
@@ -3118,6 +3133,8 @@ void RenderFrameImpl::CommitFailedNavigation(
   TRACE_EVENT1("navigation,benchmark,rail",
                "RenderFrameImpl::CommitFailedNavigation", "frame_token",
                frame_token_);
+  RendererNavigationMetricsManager::Instance().MarkCommitStart(
+      commit_params->navigation_metrics_token);
   DCHECK(navigation_client_impl_);
   DCHECK(!NavigationTypeUtils::IsSameDocument(common_params->navigation_type));
 
@@ -3127,6 +3144,13 @@ void RenderFrameImpl::CommitFailedNavigation(
 
   AssertNavigationCommits assert_navigation_commits(
       this, kMayReplaceInitialEmptyDocument);
+
+  // Clear the `redirects` array to ensure it is not accidentally used somewhere
+  // downstream of this code.
+  if (base::FeatureList::IsEnabled(
+          blink::features::kRemoveCommitRedirectUrlsArray)) {
+    commit_params->redirects.clear();
+  }
 
   GetWebView()->SetHistoryListFromNavigation(
       commit_params->current_history_list_index,
@@ -3247,11 +3271,21 @@ void RenderFrameImpl::CommitFailedNavigation(
   // message to the browser.
   // TODO(crbug.com/40150370): Stop sending the URL back with DidCommit.
   navigation_params->unreachable_url = error.url();
-  if (commit_params->redirects.size()) {
-    navigation_params->pre_redirect_url_for_failed_navigations =
-        commit_params->redirects[0];
+  if (base::FeatureList::IsEnabled(
+          blink::features::kRemoveCommitRedirectUrlsArray)) {
+    if (commit_params->redirect_infos.size()) {
+      navigation_params->pre_redirect_url_for_failed_navigations =
+          common_params->url;
+    } else {
+      navigation_params->pre_redirect_url_for_failed_navigations = error.url();
+    }
   } else {
-    navigation_params->pre_redirect_url_for_failed_navigations = error.url();
+   if (commit_params->redirects.size()) {
+     navigation_params->pre_redirect_url_for_failed_navigations =
+         commit_params->redirects[0];
+   } else {
+     navigation_params->pre_redirect_url_for_failed_navigations = error.url();
+   }
   }
 
   navigation_params->policy_container =
@@ -3288,12 +3322,16 @@ void RenderFrameImpl::CommitSameDocumentNavigation(
     blink::mojom::CommonNavigationParamsPtr common_params,
     blink::mojom::CommitNavigationParamsPtr commit_params,
     CommitSameDocumentNavigationCallback callback) {
+  RendererNavigationMetricsManager::Instance().MarkCommitStart(
+      commit_params->navigation_metrics_token);
+
   DCHECK(!blink::IsRendererDebugURL(common_params->url));
   DCHECK(!NavigationTypeUtils::IsReload(common_params->navigation_type));
   DCHECK(!commit_params->is_view_source);
   DCHECK(NavigationTypeUtils::IsSameDocument(common_params->navigation_type));
 
   CHECK(in_frame_tree_);
+
   // Unlike a cross-document navigation commit, detach the MHTMLBodyLoaderClient
   // before resetting it. In the case of a cross-document navigation, it's
   // important to ensure *something* commits, even if the original commit
@@ -3596,9 +3634,9 @@ RenderFrameImpl::CreateWorkletFetchContext() {
 
   // `pending_subresource_loader_updater` and
   // `pending_resource_load_info_notifier` are not used for worklets.
-  scoped_refptr<blink::WebDedicatedOrSharedWorkerFetchContext>
-      web_dedicated_or_shared_worker_fetch_context =
-          blink::WebDedicatedOrSharedWorkerFetchContext::Create(
+  scoped_refptr<blink::WebDedicatedOrSharedWorkerGlobalScopeContext>
+      web_dedicated_or_shared_worker_global_scope_context =
+          blink::WebDedicatedOrSharedWorkerGlobalScopeContext::Create(
               provider->context(), GetWebView()->GetRendererPreferences(),
               std::move(watcher_receiver), GetLoaderFactoryBundle()->Clone(),
               GetLoaderFactoryBundle()->Clone(),
@@ -3606,18 +3644,18 @@ RenderFrameImpl::CreateWorkletFetchContext() {
               web_cors_exempt_header_list,
               std::move(pending_resource_load_info_notifier));
 
-  web_dedicated_or_shared_worker_fetch_context->SetAncestorFrameToken(
+  web_dedicated_or_shared_worker_global_scope_context->SetAncestorFrameToken(
       frame_->GetLocalFrameToken());
-  web_dedicated_or_shared_worker_fetch_context->set_site_for_cookies(
+  web_dedicated_or_shared_worker_global_scope_context->set_site_for_cookies(
       frame_->GetDocument().SiteForCookies());
-  web_dedicated_or_shared_worker_fetch_context->set_top_frame_origin(
+  web_dedicated_or_shared_worker_global_scope_context->set_top_frame_origin(
       frame_->GetDocument().TopFrameOrigin());
 
   for (auto& observer : observers_) {
     observer.WillCreateWorkerFetchContext(
-        web_dedicated_or_shared_worker_fetch_context.get());
+        web_dedicated_or_shared_worker_global_scope_context.get());
   }
-  return web_dedicated_or_shared_worker_fetch_context;
+  return web_dedicated_or_shared_worker_global_scope_context;
 }
 
 scoped_refptr<blink::WebWorkerFetchContext>
@@ -3637,26 +3675,26 @@ RenderFrameImpl::CreateWorkerFetchContext(
       pending_resource_load_info_notifier.InitWithNewPipeAndPassReceiver(),
       agent_scheduling_group_->agent_group_scheduler().DefaultTaskRunner());
 
-  scoped_refptr<blink::WebDedicatedOrSharedWorkerFetchContext>
-      web_dedicated_or_shared_worker_fetch_context =
+  scoped_refptr<blink::WebDedicatedOrSharedWorkerGlobalScopeContext>
+      web_dedicated_or_shared_worker_global_scope_context =
           static_cast<DedicatedWorkerHostFactoryClient*>(factory_client)
-              ->CreateWorkerFetchContext(
+              ->CreateWorkerGlobalScopeContext(
                   GetWebView()->GetRendererPreferences(),
                   std::move(watcher_receiver),
                   std::move(pending_resource_load_info_notifier));
 
-  web_dedicated_or_shared_worker_fetch_context->SetAncestorFrameToken(
+  web_dedicated_or_shared_worker_global_scope_context->SetAncestorFrameToken(
       frame_->GetLocalFrameToken());
-  web_dedicated_or_shared_worker_fetch_context->set_site_for_cookies(
+  web_dedicated_or_shared_worker_global_scope_context->set_site_for_cookies(
       frame_->GetDocument().SiteForCookies());
-  web_dedicated_or_shared_worker_fetch_context->set_top_frame_origin(
+  web_dedicated_or_shared_worker_global_scope_context->set_top_frame_origin(
       frame_->GetDocument().TopFrameOrigin());
 
   for (auto& observer : observers_) {
     observer.WillCreateWorkerFetchContext(
-        web_dedicated_or_shared_worker_fetch_context.get());
+        web_dedicated_or_shared_worker_global_scope_context.get());
   }
-  return web_dedicated_or_shared_worker_fetch_context;
+  return web_dedicated_or_shared_worker_global_scope_context;
 }
 
 std::unique_ptr<blink::WebPrescientNetworking>
@@ -5320,6 +5358,17 @@ void RenderFrameImpl::DidCommitNavigationInternal(
     main_frame_intersection_rect_.reset();
     main_frame_viewport_rect_.reset();
   }
+
+  // Record metrics and trace events for the navigation that was just committed.
+  // For the navigation start time, use `actual_navigation_start` from
+  // common_params() instead of `navigation_start`, since the latter might've
+  // been adjusted by beforeunload handling, and it's important to use the
+  // non-adjusted version for trace events.
+  RendererNavigationMetricsManager::Instance().ProcessNavigationCommit(
+      navigation_state->commit_params().navigation_metrics_token,
+      navigation_state->common_params().url,
+      navigation_state->common_params().actual_navigation_start);
+  // Add any new code above the ProcessNavigationCommit call.
 }
 
 void RenderFrameImpl::PrepareFrameForCommit(
@@ -6388,6 +6437,8 @@ void RenderFrameImpl::BeginNavigationInternal(
         nav_start_diff);
     if (start_diff_under_threshold &&
         base::FeatureList::IsEnabled(features::kIgnoreDuplicateNavs)) {
+      DVLOG(0) << "Ignoring duplicate navigation to " << common_params->url
+               << " due to the short interval since the previous one.";
       return;
     }
   }

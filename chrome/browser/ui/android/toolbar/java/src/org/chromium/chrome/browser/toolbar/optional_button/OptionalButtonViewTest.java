@@ -61,6 +61,7 @@ import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarFeatures;
 import org.chromium.chrome.browser.toolbar.optional_button.ButtonData.ButtonSpec;
 import org.chromium.chrome.browser.toolbar.optional_button.OptionalButtonConstants.TransitionType;
+import org.chromium.components.browser_ui.widget.textbubble.TextBubble;
 import org.chromium.ui.listmenu.ListMenuButton;
 
 import java.util.function.BooleanSupplier;
@@ -158,7 +159,7 @@ public class OptionalButtonViewTest {
                 AppCompatResources.getDrawable(mActivity, R.drawable.ic_mic_white_24dp);
         OnClickListener clickListener = mock(OnClickListener.class);
         OnLongClickListener longClickListener = mock(OnLongClickListener.class);
-        String contentDescription = mActivity.getString(R.string.reader_view_text_alt);
+        String contentDescription = mActivity.getString(R.string.show_reading_mode_text);
 
         // Whether a button is static or dynamic is determined by the button variant.
         ButtonSpec buttonSpec =
@@ -891,6 +892,40 @@ public class OptionalButtonViewTest {
         assertThat(
                 mOptionalButtonView.getLayoutParams().width,
                 Matchers.lessThanOrEqualTo(maxActionChipWidth));
+    }
+
+    @Test
+    public void testUpdateButtonWithAnimation_showIconWithTextBubble() {
+        TextBubble.setSkipShowCheckForTesting(true);
+
+        // Test that an action chip displays a text bubble instead of expansion/collapse
+        // animation when |setShowTextBubble()| passes a predicate returning |true|.
+        ButtonDataImpl buttonData = getDataForReaderModeActionChip();
+        buttonData.setShouldShowTextBubble(true);
+
+        mOptionalButtonView.updateButtonWithAnimation(buttonData);
+
+        // Get past the delay to show the text bubble.
+        mShadowLooper.runOneTask();
+
+        // Icon is visible without animation.
+        assertEquals(View.VISIBLE, mOptionalButtonView.getVisibility());
+        assertEquals(View.VISIBLE, mInnerButton.getVisibility());
+        assertEquals(View.GONE, mActionChipLabel.getVisibility());
+
+        // Text bubble is showing.
+        assertThat(TextBubble.getTextBubbleSetForTesting().size(), Matchers.greaterThan(0));
+    }
+
+    @Test
+    public void testUpdateButton_canChangeOwnVisibility() {
+        ButtonDataImpl buttonData = getDataForReaderModeActionChip();
+        mOptionalButtonView.setVisibility(View.GONE);
+        mOptionalButtonView.setCanChangeVisibility(false);
+        mOptionalButtonView.updateButtonWithAnimation(buttonData);
+
+        // OptionalButtonView stays invisible after going through the animation.
+        assertEquals(View.GONE, mOptionalButtonView.getVisibility());
     }
 
     @Test

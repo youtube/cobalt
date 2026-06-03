@@ -85,6 +85,17 @@ public class MiniPlayerLayoutUnitTest {
     }
 
     @Test
+    public void testBufferingWhenCreatingPlayback() {
+      mLayout.onPlaybackStateChanged(PlaybackListener.State.PLAYBACK_CREATION);
+      assertEquals(View.GONE, mLayout.findViewById(R.id.progress_bar).getVisibility());
+
+      // Only the buffering layout is visible.
+      assertEquals(View.VISIBLE, mLayout.findViewById(R.id.buffering_layout).getVisibility());
+      assertEquals(View.GONE, mLayout.findViewById(R.id.normal_layout).getVisibility());
+      assertEquals(View.GONE, mLayout.findViewById(R.id.error_layout).getVisibility());
+    }
+
+    @Test
     public void testBufferingStrings() {
         mLayout.setRequestedPlaybackMode(PlaybackMode.OVERVIEW);
         mLayout.onPlaybackStateChanged(PlaybackListener.State.BUFFERING);
@@ -169,7 +180,7 @@ public class MiniPlayerLayoutUnitTest {
         mLayout.onPlaybackStateChanged(PlaybackListener.State.PLAYING);
         mLayout.setPlaybackMode(PlaybackMode.OVERVIEW);
         assertEquals(
-                "AI audio playback", ((TextView) mLayout.findViewById(R.id.subtitle)).getText());
+                "AI playback", ((TextView) mLayout.findViewById(R.id.subtitle)).getText());
     }
 
     @Test

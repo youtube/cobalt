@@ -9,14 +9,14 @@
 #import "base/test/metrics/histogram_tester.h"
 #import "base/test/scoped_command_line.h"
 #import "base/test/scoped_feature_list.h"
-#import "components/optimization_guide/core/hints_component_util.h"
-#import "components/optimization_guide/core/hints_manager.h"
+#import "components/optimization_guide/core/filters/hints_component_util.h"
+#import "components/optimization_guide/core/filters/optimization_hints_component_update_listener.h"
+#import "components/optimization_guide/core/filters/test_hints_component_creator.h"
+#import "components/optimization_guide/core/hints/hints_manager.h"
+#import "components/optimization_guide/core/hints/optimization_guide_navigation_data.h"
+#import "components/optimization_guide/core/hints/test_hints_config.h"
 #import "components/optimization_guide/core/optimization_guide_features.h"
-#import "components/optimization_guide/core/optimization_guide_navigation_data.h"
 #import "components/optimization_guide/core/optimization_guide_switches.h"
-#import "components/optimization_guide/core/optimization_guide_test_util.h"
-#import "components/optimization_guide/core/optimization_hints_component_update_listener.h"
-#import "components/optimization_guide/core/test_hints_component_creator.h"
 #import "components/saved_tab_groups/test_support/fake_tab_group_sync_service.h"
 #import "components/sync_preferences/pref_service_syncable.h"
 #import "components/sync_preferences/testing_pref_service_syncable.h"
@@ -95,9 +95,6 @@ class OptimizationGuideServiceTest : public PlatformTest {
     enabled_features.push_back(
         optimization_guide::features::kRemoteOptimizationGuideFetching);
     if (url_keyed_anonymized_data_collection_enabled_) {
-      enabled_features.push_back(
-          optimization_guide::features::
-              kRemoteOptimizationGuideFetchingAnonymousDataConsent);
       testing_prefs->SetBoolean(
           unified_consent::prefs::kUrlKeyedAnonymizedDataCollectionEnabled,
           true);

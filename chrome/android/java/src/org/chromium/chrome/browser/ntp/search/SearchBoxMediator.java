@@ -13,6 +13,9 @@ import android.view.ViewGroup;
 
 import androidx.appcompat.content.res.AppCompatResources;
 
+import org.chromium.build.annotations.MonotonicNonNull;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.lens.LensController;
 import org.chromium.chrome.browser.lens.LensEntryPoint;
 import org.chromium.chrome.browser.lens.LensIntentParams;
@@ -30,13 +33,15 @@ import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 import java.util.ArrayList;
 import java.util.List;
 
+@NullMarked
 class SearchBoxMediator implements DestroyObserver, NativeInitObserver {
     private final Context mContext;
     private final PropertyModel mModel;
     private final ViewGroup mView;
     private final List<OnClickListener> mVoiceSearchClickListeners = new ArrayList<>();
     private final List<OnClickListener> mLensClickListeners = new ArrayList<>();
-    private ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
+    private @MonotonicNonNull OnClickListener mComposeplateButtonClickListener;
+    private @Nullable ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
 
     /** Constructor. */
     SearchBoxMediator(Context context, PropertyModel model, ViewGroup view) {
@@ -117,8 +122,25 @@ class SearchBoxMediator implements DestroyObserver, NativeInitObserver {
                 });
     }
 
+    /** Called to set a click listener for the composeplate button. */
+    void setComposeplateButtonClickListener(OnClickListener listener) {
+        assert mComposeplateButtonClickListener == null;
+
+        mComposeplateButtonClickListener = listener;
+        mModel.set(
+                SearchBoxProperties.COMPOSEPLATE_BUTTON_CLICK_CALLBACK,
+                v -> {
+                    mComposeplateButtonClickListener.onClick(v);
+                });
+    }
+
+    void setComposeplateButtonIconRawResId(int iconRawResId) {
+        mModel.set(SearchBoxProperties.COMPOSEPLATE_BUTTON_ICON_RAW_RES_ID, iconRawResId);
+    }
+
     /**
      * Launch the Lens app.
+     *
      * @param lensEntryPoint A {@link LensEntryPoint}.
      * @param windowAndroid A {@link WindowAndroid} instance.
      * @param isIncognito Whether the request is from a Incognito tab.

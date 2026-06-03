@@ -33,6 +33,8 @@ BASE_DECLARE_FEATURE(kNtpAlphaBackgroundCollections);
 BASE_DECLARE_FEATURE(kNtpBackgroundImageErrorDetection);
 BASE_DECLARE_FEATURE(kNtpCalendarModule);
 BASE_DECLARE_FEATURE(kNtpChromeCartModule);
+BASE_DECLARE_FEATURE(kNtpSearchboxComposebox);
+BASE_DECLARE_FEATURE(kNtpSearchboxComposeEntrypoint);
 BASE_DECLARE_FEATURE(kNtpDriveModule);
 BASE_DECLARE_FEATURE(kNtpDriveModuleNoSyncRequirement);
 BASE_DECLARE_FEATURE(kNtpDriveModuleSegmentation);
@@ -48,6 +50,7 @@ BASE_DECLARE_FEATURE(kNtpModulesLoadTimeoutMilliseconds);
 BASE_DECLARE_FEATURE(kNtpModulesOrder);
 BASE_DECLARE_FEATURE(kNtpModulesDragAndDrop);
 BASE_DECLARE_FEATURE(kNtpModulesLoad);
+BASE_DECLARE_FEATURE(kNtpModuleSignInRequirement);
 BASE_DECLARE_FEATURE(kNtpOutlookCalendarModule);
 BASE_DECLARE_FEATURE(kNtpPhotosModule);
 BASE_DECLARE_FEATURE(kNtpPhotosModuleSoftOptOut);
@@ -249,6 +252,8 @@ int GetWallpaperSearchButtonAnimationShownThreshold();
 int GetWallpaperSearchButtonHideCondition();
 
 std::string GetMobilePromoTargetURL();
+
+bool IsNtpComposeboxEnabled();
 }  // namespace ntp_features
 
 #endif  // COMPONENTS_SEARCH_NTP_FEATURES_H_

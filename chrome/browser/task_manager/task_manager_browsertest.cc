@@ -13,6 +13,7 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
@@ -437,7 +438,7 @@ IN_PROC_BROWSER_TEST_F(TaskManagerBrowserTest, NoticeAppTabChanges) {
   ASSERT_NO_FATAL_FAILURE(WaitForTaskManagerRows(0, MatchAnyApp()));
 
   // Open a new tab to the app's launch URL and make sure we notice that.
-  GURL url(extension->GetResourceURL("main.html"));
+  GURL url(extension->ResolveExtensionURL("main.html"));
   ASSERT_TRUE(AddTabAtIndex(0, url, ui::PAGE_TRANSITION_TYPED));
 
   // There should be 1 "App: " tab and the original new tab page.
@@ -474,7 +475,7 @@ IN_PROC_BROWSER_TEST_F(TaskManagerBrowserTest, NoticeAppTab) {
           last_loaded_extension_id(), extensions::ExtensionRegistry::ENABLED);
 
   // Open a new tab to the app's launch URL and make sure we notice that.
-  GURL url(extension->GetResourceURL("main.html"));
+  GURL url(extension->ResolveExtensionURL("main.html"));
   ASSERT_TRUE(AddTabAtIndex(0, url, ui::PAGE_TRANSITION_TYPED));
 
   ShowTaskManager();

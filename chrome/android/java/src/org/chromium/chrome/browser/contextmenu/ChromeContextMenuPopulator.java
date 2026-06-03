@@ -8,6 +8,7 @@ import static org.chromium.chrome.browser.contextmenu.ContextMenuItemWithIconBut
 import static org.chromium.chrome.browser.contextmenu.ContextMenuItemWithIconButtonProperties.BUTTON_IMAGE;
 import static org.chromium.chrome.browser.contextmenu.ContextMenuItemWithIconButtonProperties.BUTTON_MENU_ID;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.ENABLED;
+import static org.chromium.ui.listmenu.ListMenuItemProperties.HOVER_LISTENER;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.MENU_ITEM_ID;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.TITLE;
 
@@ -18,6 +19,8 @@ import android.net.MailTo;
 import android.net.Uri;
 import android.text.TextUtils;
 import android.util.Pair;
+import android.view.MotionEvent;
+import android.view.View;
 import android.webkit.URLUtil;
 
 import androidx.annotation.IntDef;
@@ -33,7 +36,6 @@ import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.bookmarks.BookmarkUtils;
 import org.chromium.chrome.browser.contextmenu.ChromeContextMenuItem.Item;
-import org.chromium.chrome.browser.contextmenu.ContextMenuCoordinator.ListItemType;
 import org.chromium.chrome.browser.download.DownloadUtils;
 import org.chromium.chrome.browser.enterprise.util.DataProtectionBridge;
 import org.chromium.chrome.browser.ephemeraltab.EphemeralTabCoordinator;
@@ -80,6 +82,7 @@ import org.chromium.content_public.common.ContentUrlConstants;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.DeviceInput;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.listmenu.ListItemType;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -102,6 +105,27 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
     private static final String LENS_SUPPORT_STATUS_HISTOGRAM_NAME =
             "ContextMenu.LensSupportStatus";
     private final boolean mIsDownloadRestrictedByPolicy;
+    // Custom listener to set hover state so that the background color updates when user hovers or
+    // exits hover on the list item.
+    // This is normally handled by the View API if the view is clickable. However, the text views
+    // for context menu items are not clickable, to allow the list view to receive the click events.
+    // TODO(crbug.com/395024510): this is duplicating logic in Android framework (View.java), a
+    // proper fix would be changing to use RecycledView, or change to use a custom ViewBinder
+    // (instead of ListMenuItemViewBinder) where each item/TextView has its own click handler like
+    // AppMenu.
+    private final View.OnHoverListener mItemOnHoverListener =
+            (v, e) -> {
+                switch (e.getAction()) {
+                    case MotionEvent.ACTION_HOVER_ENTER:
+                        v.setHovered(true);
+                        return false;
+                    case MotionEvent.ACTION_HOVER_EXIT:
+                        v.setHovered(false);
+                        return false;
+                    default:
+                        return false;
+                }
+            };
 
     // True when the tracker indicates IPH in the form of "new" label needs to be shown.
     private Boolean mShowEphemeralTabNewLabel;
@@ -331,8 +355,7 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
 
     @VisibleForTesting
     boolean shouldShowEmptySpaceContextMenu() {
-        return DeviceFormFactor.isDesktop()
-                && DeviceInput.supportsPrecisionPointer()
+        return DeviceInput.supportsPrecisionPointer()
                 && ChromeFeatureList.isEnabled(ChromeFeatureList.CONTEXT_MENU_EMPTY_SPACE);
     }
 
@@ -368,15 +391,6 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
             if (FirstRunStatus.getFirstRunFlowComplete()
                     && !isEmptyUrl(mParams.getUrl())
                     && UrlUtilities.isAcceptedScheme(mParams.getUrl())) {
-                if (mParams.getOpenedFromInterestTarget()
-                        && mParams.getInterestTargetNodeID() != 0) {
-                    // This is a context menu for a link with `interesttarget`. If the node ID is
-                    // valid, then we should add a context menu item to show interest in the link.
-                    // There is a static_assert in ContextMenuController::ShowContextMenu() that
-                    // ensures "zero" means invalid. This item will only be created if the
-                    // HTMLInterestTargetAttribute flag is enabled.
-                    linkGroup.add(createListItem(Item.SHOW_INTEREST_IN_ELEMENT));
-                }
                 if (mMode == ContextMenuMode.NORMAL) {
                     if (ChromeFeatureList.sSwapNewTabAndNewTabInGroupAndroid.isEnabled()) {
                         linkGroup.add(createListItem(Item.OPEN_IN_NEW_TAB));
@@ -393,6 +407,15 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
                     } else if (isTabletScreen() && mItemDelegate.canEnterMultiWindowMode()) {
                         linkGroup.add(createListItem(Item.OPEN_IN_NEW_WINDOW));
                     }
+                }
+                if (mParams.getOpenedFromInterestTarget()
+                        && mParams.getInterestTargetNodeID() != 0) {
+                    // This is a context menu for a link with `interesttarget`. If the node ID is
+                    // valid, then we should add a context menu item to show interest in the link.
+                    // There is a static_assert in ContextMenuController::ShowContextMenu() that
+                    // ensures "zero" means invalid. This item will only be created if the
+                    // HTMLInterestTargetAttribute flag is enabled.
+                    linkGroup.add(createListItem(Item.SHOW_INTEREST_IN_ELEMENT));
                 }
                 if ((mMode == ContextMenuMode.NORMAL || mMode == ContextMenuMode.CUSTOM_TAB)
                         && EphemeralTabCoordinator.isSupported()) {
@@ -641,14 +664,14 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
             mItemDelegate.onOpenImageUrl(mParams.getSrcUrl(), mParams.getReferrer());
         } else if (itemId == R.id.contextmenu_open_image_in_new_tab) {
             recordContextMenuSelection(ContextMenuUma.Action.OPEN_IMAGE_IN_NEW_TAB);
-            verifyCopyImageIsAllowedByPolicy(
+            verifyGenericCopyImageActionIsAllowedByPolicy(
                     mParams.getSrcUrl().getSpec(),
                     () ->
                             mItemDelegate.onOpenImageInNewTab(
                                     mParams.getSrcUrl(), mParams.getReferrer()));
         } else if (itemId == R.id.contextmenu_open_image_in_ephemeral_tab) {
             recordContextMenuSelection(ContextMenuUma.Action.OPEN_IMAGE_IN_EPHEMERAL_TAB);
-            verifyCopyImageIsAllowedByPolicy(
+            verifyGenericCopyImageActionIsAllowedByPolicy(
                     mParams.getSrcUrl().getSpec(),
                     () -> {
                         String title = mParams.getTitleText();
@@ -733,11 +756,10 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
             }
         } else if (itemId == R.id.contextmenu_save_page) {
             recordContextMenuSelection(ContextMenuUma.Action.SAVE_PAGE);
-            GURL url = mItemDelegate.getPageUrl();
             if (mIsDownloadRestrictedByPolicy) {
                 showDownloadRestrictedToast();
-            } else if (mItemDelegate.startDownload(url, true)) {
-                mNativeDelegate.startDownload(url, false);
+            } else {
+                mItemDelegate.startDownloadPage(mContext);
             }
         } else if (itemId == R.id.contextmenu_share_page) {
             recordContextMenuSelection(ContextMenuUma.Action.SHARE_PAGE);
@@ -933,8 +955,9 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
                                 }));
     }
 
-    private void verifyCopyImageIsAllowedByPolicy(String imageUri, Runnable continueIfCopyAllowed) {
-        DataProtectionBridge.verifyCopyImageIsAllowedByPolicy(
+    private void verifyGenericCopyImageActionIsAllowedByPolicy(
+            String imageUri, Runnable continueIfCopyAllowed) {
+        DataProtectionBridge.verifyGenericCopyImageActionIsAllowedByPolicy(
                 imageUri,
                 mItemDelegate.getWebContents().getMainFrame(),
                 (isAllowed) -> {
@@ -1116,12 +1139,6 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
             return false;
         }
 
-        if (LensUtils.isDeviceOsBelowMinimum()) {
-            LensMetrics.recordLensSupportStatus(
-                    LENS_SUPPORT_STATUS_HISTOGRAM_NAME, LensMetrics.LensSupportStatus.LEGACY_OS);
-            return false;
-        }
-
         if (!LensUtils.isValidAgsaPackage()) {
             LensMetrics.recordLensSupportStatus(
                     LENS_SUPPORT_STATUS_HISTOGRAM_NAME,
@@ -1145,13 +1162,14 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
 
     private ListItem createListItem(@Item int item, boolean showInProductHelp, boolean enabled) {
         final PropertyModel model =
-                new PropertyModel.Builder(MENU_ITEM_ID, TITLE, ENABLED)
+                new PropertyModel.Builder(MENU_ITEM_ID, TITLE, ENABLED, HOVER_LISTENER)
                         .with(MENU_ITEM_ID, ChromeContextMenuItem.getMenuId(item))
                         .with(
                                 TITLE,
                                 ChromeContextMenuItem.getTitle(
                                         mContext, getProfile(), item, showInProductHelp))
                         .with(ENABLED, enabled)
+                        .with(HOVER_LISTENER, mItemOnHoverListener)
                         .build();
         return new ListItem(ListItemType.CONTEXT_MENU_ITEM, model);
     }
@@ -1169,6 +1187,7 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
                         .with(BUTTON_IMAGE, shareInfo.first)
                         .with(BUTTON_CONTENT_DESC, shareInfo.second)
                         .with(BUTTON_MENU_ID, ChromeContextMenuItem.getMenuId(iconButtonItem))
+                        .with(HOVER_LISTENER, mItemOnHoverListener)
                         .build();
         return new ListItem(ListItemType.CONTEXT_MENU_ITEM_WITH_ICON_BUTTON, model);
     }

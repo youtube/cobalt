@@ -7,6 +7,7 @@
 <translation id="102763973188675173">A Google Chrome személyre szabása és vezérlése. Van rendelkezésre álló frissítés.</translation>
 <translation id="1028061813283459617">Ha csak erről az eszközről szeretné törölni böngészési adatait, Google-fiókjából azonban nem, <ph name="BEGIN_LINK" />jelentkezzen ki a Chrome-ból<ph name="END_LINK" />.</translation>
 <translation id="1042270987544905725">Kattintson a Chrome bejelentkezési párbeszédpaneljének bezárásához</translation>
+<translation id="1051793555070215510">Segíthet nekünk az inkognitó mód továbbfejlesztésében, ha kitölti ezt az egyperces felmérést.</translation>
 <translation id="1059838145689930908">Ha ezt a bővítményt a(z) <ph name="USER_EMAIL_ADDRESS" /> fiókban szeretné használni, jelentkezzen be a Chrome-ba.</translation>
 <translation id="1065672644894730302">A beállításait nem sikerült olvasni. Egyes funkciókat esetleg nem ér el, és a beállításaiban végrehajtott módosításokat nem menti a rendszer.</translation>
 <translation id="1086486568852410168">Keresés a Google Lens segítségével</translation>
@@ -52,6 +53,7 @@
 <translation id="1662146548738125461">A ChromeOS Flex névjegye</translation>
 <translation id="1674870198290878346">Link megnyitása Chrome-inko&amp;gnitóablakban</translation>
 <translation id="1682634494516646069">A Chrome nem tudja olvasni és írni az adatkönyvtárát: <ph name="USER_DATA_DIRECTORY" /></translation>
+<translation id="1688214853608504530">Amikor beír valamit a címsávba vagy a keresőmezőbe, a Chrome elküldi a beírt szöveget a szervezet keresési, AI- és ügynökeszközeinek javaslatok biztosítása érdekében.</translation>
 <translation id="1698376642261615901">A Google Chrome olyan böngésző, amely villámgyorsan futtatja a weboldalakat és az alkalmazásokat. Gyors, stabil és könnyen használható. A beépített, adathalászat és a kártékony programok elleni védelemmel biztonságosabban böngészhet az interneten.</translation>
 <translation id="1713301662689114961">{0,plural, =1{A Chrome 1 órán belül újraindul}other{A Chrome # órán belül újraindul}}</translation>
 <translation id="1722488837206509557">Ez lehetővé teszi, hogy válasszon a rendelkezésre álló eszközök közül, és tartalmakat jelenítsen meg rajtuk.</translation>
@@ -60,6 +62,7 @@
 <translation id="178701303897325119">Ez a bővítmény már nem támogatott. A Chrome az eltávolítását javasolja.</translation>
 <translation id="1812689907177901597">A beállítás kikapcsolásával anélkül jelentkezhet be a Google-webhelyekre (pl. Gmail), hogy a Chrome-ba is bejelentkezne</translation>
 <translation id="1821644463306970002">{NUM_TABS,plural, =1{A Chrome a böngészőt lassító lap szüneteltetését javasolja}other{A Chrome a böngészőt lassító lapok szüneteltetését javasolja}}</translation>
+<translation id="1832046143430087831">A Chrome V8 motorjával felgyorsítja a webhelyeket, de kissé kevésbé ellenállóvá teszi a Chrome-ot a támadásokkal szemben. Ez a beállítás ki van kapcsolva.</translation>
 <translation id="1838374766361614909">Keresett kifejezés törlése</translation>
 <translation id="1860536484129686729">A Chrome-nak engedélyre van szüksége ahhoz, hogy hozzáférjen a kamerához ennél a webhelynél</translation>
 <translation id="1873233029667955273">Nem a Google Chrome az alapértelmezett böngésző</translation>
@@ -218,6 +221,7 @@
 <translation id="3716540481907974026">ChromeOS Flex verziója</translation>
 <translation id="3718181793972440140">Ezzel egyetlen elemet töröl az eszközről. Az adatok későbbi lekéréséhez jelentkezzen be a Chrome-ba a következő e-mail-címmel: <ph name="USER_EMAIL" />.</translation>
 <translation id="3723744677043446310">{NUM_EXTENSIONS,plural, =1{A Chrome az eltávolítását javasolja. <ph name="BEGIN_LINK" />További információ a támogatott bővítményekről.<ph name="END_LINK" />}other{A Chrome az eltávolításukat javasolja. <ph name="BEGIN_LINK" />További információ a támogatott bővítményekről.<ph name="END_LINK" />}}</translation>
+<translation id="3756724684201900923">További információ a Chrome telepítéséről</translation>
 <translation id="3780814664026482060">Chrome – <ph name="PAGE_TITLE" /></translation>
 <translation id="3785324443014631273">A ChromeOS Flex nem tudta szinkronizálni az adatokat, mert hiba történt a bejelentkezés során.</translation>
 <translation id="3795971588916395511">Google ChromeOS</translation>
@@ -314,6 +318,7 @@
 <translation id="4970880042055371251">ChromeOS verziószáma</translation>
 <translation id="4990567037958725628">Google Chrome Canary</translation>
 <translation id="5003967926796347400">Kattintson a „Google Jelszókezelő” lehetőségre</translation>
+<translation id="504867494566807945">A Chrome-ban bármely alkalmazásból megnyithatja a linkeket. A Chrome a tálcára is ki lesz tűzve, így könnyen hozzáférhet.</translation>
 <translation id="5114340746415930644">Adja meg összetett jelszavát, ha a Chrome-adatokat szeretné használni és tárolni a fiókjában (<ph name="USER_EMAIL" />)</translation>
 <translation id="5120334927898581447">Bejelentkezés a Chrome-ba, amikor más Google-szolgáltatásokba is bejelentkezik</translation>
 <translation id="5126049312684316860">A Chrome még több olyan oldalt előtölt, amelyeket Ön valószínűsíthetően fel fog keresni, így amikor valóban felkeresi őket, gyorsabban töltődnek be.</translation>
@@ -390,6 +395,7 @@
 <translation id="6075300983329039771">Szervezete (<ph name="MANAGER" />) megköveteli a Chrome-ba történő bejelentkezést</translation>
 <translation id="6113794647360055231">A Chrome még jobb lett</translation>
 <translation id="6116252277240876590">A Chrome ezt a nyelvet használja a menük, beállítások, figyelmeztetések és egyéb szövegek megjelenítésére</translation>
+<translation id="6127237283587442951">Használja a Chrome-ot alapértelmezett böngészőként, és tűzze ki a tálcára</translation>
 <translation id="6134085236017727171">A mikrofon használatához adjon hozzáférést a Chrome-nak a <ph name="BEGIN_LINK" />rendszerbeállításokban<ph name="END_LINK" /></translation>
 <translation id="6135456723633883042">Ezek a lapok plusz erőforrásokat használnak. A teljesítmény javítása érdekében engedélyezze, hogy a Chrome inaktiválhassa őket.</translation>
 <translation id="6145313976051292476">PDF-fájlok megnyitása a Chrome-ban</translation>
@@ -439,12 +445,12 @@
 <translation id="6718739135284199302">A Chrome felgyorsítása</translation>
 <translation id="6735387454586646204">ChromeOS Flex rendszer</translation>
 <translation id="6750954913813541382">A nyelvtani hibák javítása érdekében a Chrome elküldi a böngészőben begépelt összes szöveget a Google-nak</translation>
+<translation id="6760235774835597023">A Chrome V8 motorjával felgyorsítja a webhelyeket, de kissé kevésbé ellenállóvá teszi a Chrome-ot a támadásokkal szemben. Ez a beállítás be van kapcsolva.</translation>
 <translation id="677276454032249905">Biztosan kilép a Chrome-ból?</translation>
 <translation id="6794858689789885890">Mindig törölje a webhelyadatokat az eszközről a Chrome bezárásakor</translation>
 <translation id="6831043979455480757">Fordítás</translation>
 <translation id="683440813066116847">Bejövő szabály a Google Chrome Canaryhoz az mDNS forgalom engedélyezése céljából.</translation>
 <translation id="684888714667046800">Nem lehet kapcsolódni az internethez. Ha tűzfalat használ, győződjön meg arról, hogy a(z) <ph name="PRODUCT_EXE_NAME" /> szerepel az engedélyezőlistán.</translation>
-<translation id="6851981911629679515">Kiegészítő védelem bekapcsolása a Chrome JavaScript- és WebAssembly-motorjában</translation>
 <translation id="6877155553248388166">keresési terület jobb alsó sarka: jobb <ph name="RIGHT" />%, lent <ph name="BOTTOM" />%</translation>
 <translation id="6881299373831449287">A Chrome frissítése</translation>
 <translation id="6885412569789873916">Chrome Beta-alkalmazások</translation>
@@ -504,7 +510,6 @@
 <translation id="7572537927358445944">Ki • A Chrome nem tudja ellenőrizni a bővítmény forrását</translation>
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" />-telepítő</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
-<translation id="7626032353295482388">A Chrome üdvözli Önt!</translation>
 <translation id="7626072681686626474">A(z) <ph name="MANAGER" /> megköveteli, hogy olvassa el, majd fogadja el a következő Általános Szerződési Feltételeket, mielőtt használná ezt az eszközt. Ezek a feltételek nem bővítik, módosítják vagy korlátozzák a Google ChromeOS Általános Szerződési Feltételeit.</translation>
 <translation id="7629695634924605473">A Chrome tájékoztatja arról, ha jelszavai illetéktelen kezekbe kerülnek</translation>
 <translation id="7641148173327520642">Rendszergazdája úgy állította be a Google Chrome-ot, hogy a(z) <ph name="ALTERNATIVE_BROWSER_NAME" /> böngészőt nyissa meg a(z) <ph name="TARGET_URL_HOSTNAME" /> eléréséhez.</translation>
@@ -548,7 +553,6 @@
 <translation id="8019103195866286235">A bővítmény közzétételét visszavonta a fejlesztő, és előfordulhat, hogy nem biztonságos. Távolítsa el a Chrome-ból, így a továbbiakban már nem láthatja és módosíthatja az Ön felkeresett webhelyekkel kapcsolatos adatait, beleértve a személyes adatokat is.</translation>
 <translation id="8040768861829554732">Egy bővítmény arra kéri, hogy jelentkezzen be a Chrome-ba</translation>
 <translation id="80471789339884597">Köszönjük, hogy elvégezte a telepítést. A(z) <ph name="BUNDLE_NAME" /> használata előtt minden böngészőt újra kell indítania.</translation>
-<translation id="8064015041956107954">A jobb felső sarokban található Chrome-menüből megnyithatja a könyvjelzőket, az olvasási módot és egyebeket.</translation>
 <translation id="8064015586118426197">ChromeOS Flex</translation>
 <translation id="8077579734294125741">Egyéb Chrome-profilok</translation>
 <translation id="8086881907087796310">A telepítés sikertelen volt, mert a számítógép nem felel meg a minimális hardverkövetelményeknek.</translation>
@@ -560,7 +564,6 @@
 <translation id="8177472873527554730">Nem található tartalom az oldalon</translation>
 <translation id="8221491193165283816">Ön általában letiltja az értesítéseket. Ha azt szeretné, hogy ez a webhely küldjön értesítéseket, kattintson ide.</translation>
 <translation id="8255190535488645436">A Google Chrome használja a kamerát és a mikrofont.</translation>
-<translation id="8257796129973882597">A Chrome-menüből megnyithatja a könyvjelzőket, az olvasási módot és egyebeket</translation>
 <translation id="8267953129876836456">A Chrome talált néhány áttekintésre érdemes biztonsági javaslatot</translation>
 <translation id="8286862437124483331">A Google Chrome megkísérli megjeleníteni a jelszavakat. Ennek engedélyezéséhez írja be Windows-jelszavát.</translation>
 <translation id="829923460755755423">Parancsikon hozzáadása Google Jelszókezelőhöz</translation>
@@ -624,6 +627,7 @@
 <translation id="9090566250983691233">További információ arról, hogy miért tilt le bizonyos fájlokat a Chrome</translation>
 <translation id="9106236359747881194">Jelöljön ki szöveget a kereséshez</translation>
 <translation id="911206726377975832">Törli a böngészési adatait is?</translation>
+<translation id="9134482777260927479">Segítség a házi feladatban</translation>
 <translation id="9138603949443464873">A módosítások alkalmazásához indítsa újra a Chrome-ot</translation>
 <translation id="9148058034647219655">Kilépés</translation>
 <translation id="9195993889682885387">A Chrome meg tudja becsülni az Ön érdeklődési köreit a legutóbbi pár hétben végzett böngészési tevékenységei alapján. Ezek az információk nem hagyják el az eszközt.</translation>

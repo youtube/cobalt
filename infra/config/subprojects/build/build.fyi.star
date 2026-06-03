@@ -24,7 +24,6 @@ ci.defaults.set(
     service_account = ci.DEFAULT_SERVICE_ACCOUNT,
     shadow_service_account = ci.DEFAULT_SHADOW_SERVICE_ACCOUNT,
     shadow_siso_project = siso.project.DEFAULT_UNTRUSTED,
-    siso_enabled = True,
     siso_project = siso.project.DEFAULT_TRUSTED,
     siso_remote_jobs = siso.remote_jobs.DEFAULT,
 )
@@ -100,7 +99,7 @@ But, the tests are built by {}.\
         linkify_builder("ci", "mac14-tests"),
         linkify_builder("build", "Mac Builder Siso FYI"),
     ),
-    triggered_by = ["build/Mac Builder Siso FYI"],
+    parent = "build/Mac Builder Siso FYI",
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(

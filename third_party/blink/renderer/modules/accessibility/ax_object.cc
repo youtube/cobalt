@@ -133,6 +133,8 @@
 #include "third_party/blink/renderer/platform/text/platform_locale.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
 #include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_builder_stream.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
 #include "ui/accessibility/accessibility_features.h"
@@ -201,14 +203,15 @@ String IgnoredReasonName(AXIgnoredReason reason) {
 String GetIgnoredReasonsDebugString(AXObject::IgnoredReasons& reasons) {
   if (reasons.size() == 0)
     return "";
-  String string_builder = "(";
+  StringBuilder string_builder;
+  string_builder.Append("(");
   for (wtf_size_t count = 0; count < reasons.size(); count++) {
     if (count > 0)
-      string_builder = string_builder + ',';
-    string_builder = string_builder + IgnoredReasonName(reasons[count].reason);
+      string_builder.Append(',');
+    string_builder.Append(IgnoredReasonName(reasons[count].reason));
   }
-  string_builder = string_builder + ")";
-  return string_builder;
+  string_builder.Append(")");
+  return string_builder.ReleaseString();
 }
 
 #endif
@@ -978,7 +981,7 @@ Node* AXObject::GetParentNodeForComputeParent(AXObjectCacheImpl& cache,
     return nullptr;
   }
 
-  // Descendants of pseudo elements must only be created by walking the tree via
+  // Descendants of pseudo-elements must only be created by walking the tree via
   // AXNodeObject::AddChildren(), which already knows the parent. Therefore, the
   // parent must not be computed. This helps avoid situations with certain
   // elements where there is asymmetry between what considers this a child vs
@@ -2040,7 +2043,7 @@ String AXObject::KeyboardShortcut() const {
     modifier_string = modifier_string_builder.ToString();
   }
 
-  return String(modifier_string + access_key);
+  return StrCat({modifier_string, access_key});
 }
 
 void AXObject::SerializeOtherScreenReaderAttributes(
@@ -4481,16 +4484,16 @@ bool AXObject::ComputeIsIgnoredButIncludedInTree() {
 
   Element* element = GetElement();
 
-  // Include all pseudo element content. Any anonymous subtree is included
+  // Include all pseudo-element content. Any anonymous subtree is included
   // from above, in the condition where there is no node.
   if (element && element->IsPseudoElement()) {
     return true;
   }
 
   // Include all parents of ::before/::after/::marker/::scroll-marker-group
-  // pseudo elements to help ClearChildren() find all children, and assist
+  // pseudo-elements to help ClearChildren() find all children, and assist
   // naming computation. It is unnecessary to include a rule for other types of
-  // pseudo elements: Specifically, ::first-letter/::backdrop are not visited by
+  // pseudo-elements: Specifically, ::first-letter/::backdrop are not visited by
   // LayoutTreeBuilderTraversal, and cannot be in the tree, therefore do not add
   // a special rule to include their parents.
   if (element && (element->GetPseudoElement(kPseudoIdBefore) ||
@@ -6645,7 +6648,7 @@ Element* AXObject::GetClosestElement() const {
     for (AXObject* parent = ParentObject(); parent;
          parent = parent->ParentObject()) {
       // It's possible to have a parent without a node here if the parent is a
-      // pseudo element descendant. Since we're looking for the nearest element,
+      // pseudo-element descendant. Since we're looking for the nearest element,
       // keep going up the ancestor chain until we find a parent that has one.
       element = parent->GetElement();
       if (element) {
@@ -6685,18 +6688,18 @@ AXObject* AXObject::ContainerListMarkerIncludingIgnored() const {
 bool AXObject::ShouldUseLayoutObjectTraversalForChildren() const {
   // There are two types of traversal used to find AXObjects:
   // 1. LayoutTreeBuilderTraversal, which takes FlatTreeTraversal and adds
-  // pseudo elements on top of that. This is the usual case. However, while this
-  // can add pseudo elements it cannot add important content descendants such as
+  // pseudo-elements on top of that. This is the usual case. However, while this
+  // can add pseudo-elements it cannot add important content descendants such as
   // text and images. For this, LayoutObject traversal (#2) is required.
   // 2. LayoutObject traversal, which just uses the children of a LayoutObject.
 
-  // Therefore, if the object is a pseudo element or pseudo element descendant,
+  // Therefore, if the object is a pseudo-element or pseudo-element descendant,
   // use LayoutObject traversal (#2) to find the children.
   if (GetNode() && GetNode()->IsPseudoElement())
     return true;
 
   // If no node, this is an anonymous layout object. The only way this can be
-  // reached is inside a pseudo element subtree.
+  // reached is inside a pseudo-element subtree.
   if (!GetNode() && GetLayoutObject()) {
     DCHECK(GetLayoutObject()->IsAnonymous());
     DCHECK(AXObjectCacheImpl::IsRelevantPseudoElementDescendant(
@@ -6831,7 +6834,7 @@ void AXObject::DetachFromParent() {
     if (GetNode()) {
       AXObjectCache().RemoveSubtree(GetNode());
     } else {
-      // This is rare, but technically a pseudo element descendant can have a
+      // This is rare, but technically a pseudo-element descendant can have a
       // subtree, and they do not have nodes.
       AXObjectCache().RemoveIncludedSubtree(this, /* remove_root */ true);
     }
@@ -8501,10 +8504,7 @@ void AXObject::PreSerializationConsistencyCheck() const{
 // static
 String AXObject::GetNodeString(Node* node) {
   if (node->IsTextNode()) {
-    String string_builder = "\"";
-    string_builder = string_builder + node->nodeValue();
-    string_builder = string_builder + "\"";
-    return string_builder;
+    return StrCat({"\"", node->nodeValue(), "\""});
   }
 
   Element* element = DynamicTo<Element>(node);
@@ -8513,24 +8513,22 @@ String AXObject::GetNodeString(Node* node) {
                                                  : "#document (loading)";
   }
 
-  String string_builder = "<";
-
-  string_builder = string_builder + element->tagName().LowerASCII();
+  StringBuilder string_builder;
+  string_builder << "<" << element->tagName().LowerASCII();
   // Cannot safely get @class from SVG elements.
   if (!element->IsSVGElement() &&
       element->FastHasAttribute(html_names::kClassAttr)) {
-    string_builder = string_builder + "." +
-                     element->FastGetAttribute(html_names::kClassAttr);
+    string_builder << "." << element->FastGetAttribute(html_names::kClassAttr);
   }
   if (element->FastHasAttribute(html_names::kIdAttr)) {
-    string_builder =
-        string_builder + "#" + element->FastGetAttribute(html_names::kIdAttr);
+    string_builder << "#" << element->FastGetAttribute(html_names::kIdAttr);
   }
   if (element->FastHasAttribute(html_names::kSlotAttr)) {
-    string_builder = string_builder + " slot=" +
-                     element->FastGetAttribute(html_names::kSlotAttr);
+    string_builder << " slot="
+                   << element->FastGetAttribute(html_names::kSlotAttr);
   }
-  return string_builder + ">";
+  string_builder << ">";
+  return string_builder.ReleaseString();
 }
 
 String AXObject::ToString(bool verbose) const {
@@ -8543,91 +8541,93 @@ String AXObject::ToString(bool verbose) const {
 
 #if !defined(NDEBUG)
   if (IsDetached() && verbose) {
-    return "(detached) " + detached_object_debug_info_;
+    return StrCat({"(detached) ", detached_object_debug_info_});
   }
 #endif
 
-  String string_builder = InternalRoleName(RoleValue()).EncodeForDebugging();
+  String role = InternalRoleName(RoleValue()).EncodeForDebugging();
 
   if (IsDetached()) {
-    return string_builder + " (detached)";
+    return StrCat({role, " (detached)"});
   }
 
   bool cached_values_only = !AXObjectCache().IsFrozen();
 
   if (AXObjectCache().HasBeenDisposed() || AXObjectCache().IsDisposing()) {
-    return string_builder + " (doc shutdown) #" + String::Number(AXObjectID());
+    return StrCat({role, " (doc shutdown) #", String::Number(AXObjectID())});
   }
 
+  StringBuilder string_builder;
+  string_builder << role;
   if (verbose) {
-    string_builder = string_builder + " axid#" + String::Number(AXObjectID());
+    string_builder << " axid#" << AXObjectID();
     // The following can be useful for debugging locally when determining if
     // two objects with the same AXID were the same instance.
     // std::ostringstream pointer_str;
     // pointer_str << " hex:" << std::hex << reinterpret_cast<uintptr_t>(this);
-    // string_builder = string_builder + String(pointer_str.str());
+    // string_builder << String(pointer_str.str());
 
     // Add useful HTML element info, like <div.myClass#myId>.
     if (GetNode()) {
-      string_builder = string_builder + " " + GetNodeString(GetNode());
+      string_builder << " " << GetNodeString(GetNode());
       if (IsRoot()) {
-        string_builder = string_builder + " isRoot";
+        string_builder << " isRoot";
       }
       if (GetDocument()) {
         if (GetDocument()->GetFrame() &&
             GetDocument()->GetFrame()->PagePopupOwner()) {
-          string_builder = string_builder + " inPopup";
+          string_builder << " inPopup";
         }
       } else {
-        string_builder = string_builder + " missingDocument";
+        string_builder << " missingDocument";
       }
 
       if (!GetNode()->isConnected()) {
         // TODO(accessibility) Do we have a handy helper for determining whether
         // a node is still in the flat tree? That would be useful to log.
-        string_builder = string_builder + " nodeDisconnected";
+        string_builder << " nodeDisconnected";
       }
     }
 
     if (NeedsToUpdateCachedValues()) {
-      string_builder = string_builder + " needsToUpdateCachedValues";
+      string_builder << " needsToUpdateCachedValues";
       if (AXObjectCache().IsFrozen()) {
         cached_values_only = true;
-        string_builder = string_builder + "/disallowed";
+        string_builder << "/disallowed";
       }
     }
     if (child_cached_values_need_update_) {
-      string_builder = string_builder + " childCachedValuesNeedUpdate";
+      string_builder << " childCachedValuesNeedUpdate";
     }
     if (!GetDocument()) {
-      string_builder = string_builder + " missingDocument";
+      string_builder << " missingDocument";
     } else if (!GetDocument()->GetFrame()) {
-      string_builder = string_builder + " closedDocument";
+      string_builder << " closedDocument";
     }
 
     // Add properties of interest that often contribute to errors:
     if (HasARIAOwns(GetElement())) {
-      string_builder =
-          string_builder + " aria-owns=" +
-          GetElement()->FastGetAttribute(html_names::kAriaOwnsAttr);
+      string_builder << " aria-owns="
+                     << GetElement()->FastGetAttribute(
+                            html_names::kAriaOwnsAttr);
     }
 
     if (Element* active_descendant = ElementFromAttributeOrInternals(
             GetElement(), html_names::kAriaActivedescendantAttr)) {
-      string_builder = string_builder + " aria-activedescendant=" +
-                       GetNodeString(active_descendant);
+      string_builder << " aria-activedescendant="
+                     << GetNodeString(active_descendant);
     }
     if (IsFocused())
-      string_builder = string_builder + " focused";
+      string_builder << " focused";
     if (cached_values_only ? cached_can_set_focus_attribute_
                            : CanSetFocusAttribute()) {
-      string_builder = string_builder + " focusable";
+      string_builder << " focusable";
     }
     if (!IsDetached() && AXObjectCache().IsAriaOwned(this, /*checks*/ false)) {
-      string_builder = string_builder + " isAriaOwned";
+      string_builder << " isAriaOwned";
     }
     if (IsIgnored()) {
-      string_builder = string_builder + " isIgnored";
+      string_builder << " isIgnored";
 #if AX_FAIL_FAST_BUILD()
       // TODO(accessibility) Move this out of AX_FAIL_FAST_BUILD by having a new
       // ax_enum, and a ToString() in ax_enum_utils, as well as move out of
@@ -8636,71 +8636,68 @@ String AXObject::ToString(bool verbose) const {
       if (!cached_values_only && !IsDetached()) {
         AXObject::IgnoredReasons reasons;
         ComputeIsIgnored(&reasons);
-        string_builder = string_builder + GetIgnoredReasonsDebugString(reasons);
+        string_builder << GetIgnoredReasonsDebugString(reasons);
       }
 #endif
       if (!IsIncludedInTree()) {
-        string_builder = string_builder + " isRemovedFromTree";
+        string_builder << " isRemovedFromTree";
       }
     }
     if (GetNode()) {
       if (GetNode()->OwnerShadowHost()) {
-        string_builder = string_builder + (GetNode()->IsInUserAgentShadowRoot()
-                                               ? " inUserAgentShadowRoot:"
-                                               : " inShadowRoot:");
-        string_builder =
-            string_builder + GetNodeString(GetNode()->OwnerShadowHost());
+        string_builder << (GetNode()->IsInUserAgentShadowRoot()
+                               ? " inUserAgentShadowRoot:"
+                               : " inShadowRoot:");
+        string_builder << GetNodeString(GetNode()->OwnerShadowHost());
       }
       if (GetNode()->GetShadowRoot()) {
-        string_builder = string_builder + " hasShadowRoot";
+        string_builder << " hasShadowRoot";
       }
 
       if (GetDocument() && CanSafelyUseFlatTreeTraversalNow(*GetDocument()) &&
           DisplayLockUtilities::ShouldIgnoreNodeDueToDisplayLock(
               *GetNode(), DisplayLockActivationReason::kAccessibility)) {
-        string_builder = string_builder + " isDisplayLocked";
+        string_builder << " isDisplayLocked";
       }
     }
     if (cached_values_only ? !!cached_live_region_root_ : !!LiveRegionRoot()) {
-      string_builder = string_builder + " inLiveRegion";
+      string_builder << " inLiveRegion";
     }
 
     if (cached_values_only ? cached_is_in_menu_list_subtree_
                            : IsInMenuListSubtree()) {
-      string_builder = string_builder + " inMenuList";
+      string_builder << " inMenuList";
     }
 
     if (cached_values_only) {
       if (cached_is_aria_hidden_)
-        string_builder = string_builder + " ariaHidden";
+        string_builder << " ariaHidden";
     } else if (IsAriaHidden()) {
       const AXObject* aria_hidden_root = AriaHiddenRoot();
       if (aria_hidden_root) {
-        string_builder = string_builder + " ariaHiddenRoot";
+        string_builder << " ariaHiddenRoot";
         if (aria_hidden_root != this) {
-          string_builder =
-              string_builder + GetNodeString(aria_hidden_root->GetNode());
+          string_builder << GetNodeString(aria_hidden_root->GetNode());
         }
       } else {
-        string_builder = string_builder + " ariaHiddenRootMissing";
+        string_builder << " ariaHiddenRootMissing";
       }
     } else if (AriaHiddenRoot()) {
-      string_builder = string_builder + " ariaHiddenRootExtra";
+      string_builder << " ariaHiddenRootExtra";
     }
     if (cached_values_only ? cached_is_hidden_via_style_ : IsHiddenViaStyle()) {
-      string_builder = string_builder + " isHiddenViaCSS";
+      string_builder << " isHiddenViaCSS";
     }
     if (cached_values_only ? cached_is_inert_ : IsInert())
-      string_builder = string_builder + " isInert";
+      string_builder << " isInert";
     if (children_dirty_) {
-      string_builder = string_builder + " needsToUpdateChildren";
+      string_builder << " needsToUpdateChildren";
     }
     if (!children_.empty()) {
-      string_builder = string_builder + " #children=";
-      string_builder = string_builder + String::Number(children_.size());
+      string_builder << " #children=" << children_.size();
     }
     if (HasDirtyDescendants()) {
-      string_builder = string_builder + " hasDirtyDescendants";
+      string_builder << " hasDirtyDescendants";
     }
     const AXObject* included_parent = parent_;
     while (included_parent &&
@@ -8709,34 +8706,33 @@ String AXObject::ToString(bool verbose) const {
     }
     if (included_parent) {
       if (!included_parent->HasDirtyDescendants() && children_dirty_) {
-        string_builder =
-            string_builder + " includedParentMissingHasDirtyDescendants";
+        string_builder << " includedParentMissingHasDirtyDescendants";
       }
       if (IsIncludedInTree()) {
         // All cached children must be included.
         const HeapVector<Member<AXObject>>& siblings =
             included_parent->CachedChildrenIncludingIgnored();
         if (!siblings.Contains(this)) {
-          string_builder = string_builder + " missingFromParentsChildren";
+          string_builder << " missingFromParentsChildren";
         }
       }
     } else if (!IsRoot()) {
       if (!parent_) {
-        string_builder = string_builder + " isMissingParent";
+        string_builder << " isMissingParent";
       } else if (parent_->IsDetached()) {
-        string_builder = string_builder + " detachedParent";
+        string_builder << " detachedParent";
       }
     }
     if (!cached_values_only && !CanHaveChildren()) {
-      string_builder = string_builder + " cannotHaveChildren";
+      string_builder << " cannotHaveChildren";
     }
     if (!GetLayoutObject() && !IsAXInlineTextBox()) {
-      string_builder = string_builder + " missingLayout";
+      string_builder << " missingLayout";
     }
 
     if (cached_values_only ? cached_is_used_for_label_or_description_
                            : IsUsedForLabelOrDescription()) {
-      string_builder = string_builder + " inLabelOrDesc";
+      string_builder << " inLabelOrDesc";
     }
 
     if (!cached_values_only) {
@@ -8748,28 +8744,26 @@ String AXObject::ToString(bool verbose) const {
       if (!desc.empty()) {
         std::ostringstream desc_from_str;
         desc_from_str << desc_from;
-        string_builder = string_builder +
-                         " descFrom=" + String(desc_from_str.str()) +
-                         " desc=" + desc;
+        string_builder << " descFrom=" << String(desc_from_str.str())
+                       << " desc=" << desc;
       }
       std::ostringstream name_from_str;
       name_from_str << name_from;
       if (!name.empty()) {
-        string_builder = string_builder +
-                         " nameFrom=" + String(name_from_str.str()) +
-                         " name=" + name;
+        string_builder << " nameFrom=" << String(name_from_str.str())
+                       << " name=" << name;
       }
-      return string_builder;
+      return string_builder.ReleaseString();
     }
   } else {
-    string_builder = string_builder + ": ";
+    string_builder << ": ";
   }
 
   // Append name last, in case it is long.
   if (!cached_values_only || !verbose)
-    string_builder = string_builder + ComputedName().EncodeForDebugging();
+    string_builder << ComputedName().EncodeForDebugging();
 
-  return string_builder;
+  return string_builder.ReleaseString();
 }
 
 bool operator==(const AXObject& first, const AXObject& second) {

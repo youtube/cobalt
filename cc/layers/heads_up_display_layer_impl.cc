@@ -17,6 +17,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/process_memory_dump.h"
@@ -24,7 +25,7 @@
 #include "base/trace_event/traced_value.h"
 #include "build/build_config.h"
 #include "cc/debug/debug_colors.h"
-#include "cc/metrics/dropped_frame_counter.h"
+#include "cc/metrics/frame_sorter.h"
 #include "cc/paint/display_item_list.h"
 #include "cc/paint/image_provider.h"
 #include "cc/paint/paint_canvas.h"
@@ -206,6 +207,10 @@ void HeadsUpDisplayLayerImpl::UpdateHudTexture(
 
   // Update state that will be drawn.
   UpdateHudContents();
+
+  // Note the layer properties changed, to force the layer to update changes to
+  // Viz/Display.
+  NoteLayerPropertyChanged();
 
   viz::RasterContextProvider* raster_context_provider = nullptr;
   std::optional<viz::RasterContextProvider::ScopedRasterContextLock> lock;
@@ -448,6 +453,22 @@ void HeadsUpDisplayLayerImpl::ClearLayoutShiftRects() {
   layout_shift_rects_.clear();
 }
 
+void HeadsUpDisplayLayerImpl::GetContentsResourceId(
+    viz::ResourceId* resource_id,
+    gfx::Size* resource_size,
+    gfx::SizeF* resource_uv_size) const {
+  if (in_flight_resource_ && in_flight_resource_.backing()) {
+    *resource_id = in_flight_resource_.resource_id_for_export();
+    *resource_size = in_flight_resource_.size();
+    // HUD layers use the full texture.
+    *resource_uv_size = gfx::SizeF(1.f, 1.f);
+  } else {
+    *resource_id = viz::kInvalidResourceId;
+    *resource_size = gfx::Size();
+    *resource_uv_size = gfx::SizeF();
+  }
+}
+
 void HeadsUpDisplayLayerImpl::PushPropertiesTo(LayerImpl* layer) {
   LayerImpl::PushPropertiesTo(layer);
 
@@ -469,7 +490,7 @@ void HeadsUpDisplayLayerImpl::UpdateHudContents() {
 
     if (debug_state.show_fps_counter) {
       throughput_value_ =
-          layer_tree_impl()->dropped_frame_counter()->GetAverageThroughput();
+          layer_tree_impl()->frame_sorter()->GetAverageThroughput();
       const auto& args = layer_tree_impl()->CurrentBeginFrameArgs();
       if (args.IsValid())
         frame_interval_ = args.interval;
@@ -519,8 +540,7 @@ void HeadsUpDisplayLayerImpl::DrawHudContents(PaintCanvas* canvas) {
   SkRect area = SkRect::MakeXYWH(0, 0, 0, 0);
 
   if (debug_state.show_fps_counter) {
-    area = DrawFrameThroughputDisplay(
-        canvas, layer_tree_impl()->dropped_frame_counter(), 0, 0);
+    area = DrawFrameThroughputDisplay(canvas, 0, 0);
     area = DrawGpuRasterizationStatus(canvas, 0, area.bottom(),
                                       std::max<SkScalar>(area.width(), 150));
   }
@@ -634,9 +654,9 @@ void HeadsUpDisplayLayerImpl::DrawSeparatorLine(PaintCanvas* canvas,
 
 SkRect HeadsUpDisplayLayerImpl::DrawFrameThroughputDisplay(
     PaintCanvas* canvas,
-    const DroppedFrameCounter* dropped_frame_counter,
     int right,
     int top) const {
+  FrameSorter* frame_sorter = layer_tree_impl()->frame_sorter();
   const int kPadding = 4;
   const int kGap = 6;
 
@@ -644,7 +664,7 @@ SkRect HeadsUpDisplayLayerImpl::DrawFrameThroughputDisplay(
   const int kFontHeight = 12;
 
   const int kGraphWidth =
-      base::saturated_cast<int>(dropped_frame_counter->frame_history_size());
+      base::saturated_cast<int>(frame_sorter->frame_history_size());
   const int kGraphHeight = 40;
 
   int width = kGraphWidth + 4 * kPadding;
@@ -691,14 +711,13 @@ SkRect HeadsUpDisplayLayerImpl::DrawFrameThroughputDisplay(
   SkPath good_path;
   SkPath dropped_path;
   SkPath partial_path;
-  for (auto it = dropped_frame_counter->End(); it; --it) {
+  for (auto it = frame_sorter->End(); it; --it) {
     const auto state = **it;
     int x = graph_bounds.left() + it.index();
-    SkPath& path = state == DroppedFrameCounter::kFrameStateDropped
-                       ? dropped_path
-                       : state == DroppedFrameCounter::kFrameStateComplete
-                             ? good_path
-                             : partial_path;
+    SkPath& path = state == FrameInfo::FrameFinalState::kDropped ? dropped_path
+                   : state == FrameInfo::FrameFinalState::kPresentedAll
+                       ? good_path
+                       : partial_path;
     path.moveTo(x, graph_bounds.top());
     path.lineTo(x, graph_bounds.bottom());
   }

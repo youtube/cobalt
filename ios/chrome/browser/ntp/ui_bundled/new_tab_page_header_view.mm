@@ -10,6 +10,7 @@
 
 #import "base/check.h"
 #import "base/feature_list.h"
+#import "components/omnibox/common/omnibox_features.h"
 #import "components/prefs/pref_service.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/content_suggestions_collection_utils.h"
@@ -24,7 +25,6 @@
 #import "ios/chrome/browser/omnibox/ui/omnibox_container_view.h"
 #import "ios/chrome/browser/omnibox/ui/omnibox_text_field_ios.h"
 #import "ios/chrome/browser/shared/model/profile/features.h"
-#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/elements/extended_touch_target_button.h"
 #import "ios/chrome/browser/shared/ui/elements/new_feature_badge_view.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
@@ -37,12 +37,16 @@
 #import "ios/chrome/browser/toolbar/ui_bundled/public/toolbar_utils.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/tab_groups/ui/tab_group_indicator_constants.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/tab_groups/ui/tab_group_indicator_view.h"
+#import "ios/chrome/common/NSString+Chromium.h"
 #import "ios/chrome/common/material_timing.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/elements/gradient_view.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/common/ui/util/ui_util.h"
+#import "ios/chrome/grit/ios_strings.h"
 #import "ios/public/provider/chrome/browser/lens/lens_api.h"
+#import "ios/public/provider/chrome/browser/lottie/lottie_animation_api.h"
+#import "ios/public/provider/chrome/browser/lottie/lottie_animation_configuration.h"
 #import "ui/base/l10n/l10n_util.h"
 #import "ui/gfx/ios/uikit_util.h"
 
@@ -61,11 +65,18 @@ const CGFloat kFakeLocationBarHeightMargin = 2;
 // Voice Search, depending on if Lens is enabled.
 const CGFloat kEndButtonFakeboxTrailingSpace = 13.0;
 const CGFloat kEndButtonNormalSizeFakeboxWithBadgeTrailingSpace = 7.0;
+const CGFloat kEndButtonMIAEnlargedFakebox = 20.0;
 const CGFloat kEndButtonOmniboxTrailingSpace = 7.0;
 
 // The constants for the constraints the leading-edge aligned UI elements.
-const CGFloat kHintLabelFakeboxLeadingSpace = 26.0;
+const CGFloat kHintLabelFakeboxLeadingSpace = 28.0;
+const CGFloat kHintLabelFakeboxLeadingSpaceWithIcon = 49.0;
+
 const CGFloat kHintLabelOmniboxLeadingSpace = 20.0;
+const CGFloat kHintLabelOmniboxLeadingSpaceWithIcon = 39.0;
+
+const CGFloat kFakeboxImageLeadingSpace = 22.0;
+const CGFloat kFakeboxImageSize = 16.0;
 
 // The amount to inset the Fakebox from the rest of the modules on Home, when
 // Large Fakebox is enabled.
@@ -86,6 +97,21 @@ const CGFloat kErrorSymbolPointSize = 16.0;
 // The offset from the center of the customization button for where to show the
 // new feature badge.
 const CGFloat kCustomizationNewBadgeOffset = 14.0;
+
+// The name of the animation for the MIA button.
+NSString* const kMIACircleAnimationLightMode = @"mia_circle_animation_no_glow";
+NSString* const kMIACircleAnimationDarkMode = @"mia_glowing_circle_animation";
+
+// The value that makes the Lottie animation loop indefinitely.
+const CGFloat kLottieInfiniteLoopFlag = -1;
+
+// The value of the sides of the MIA circle animation for the normal size of the
+// fakebox.
+const CGFloat kMIACircleAnimationSizeNormal = 40.0;
+
+// The value of the sides of the MIA circle animation for the enlarged size of
+// the fakebox.
+const CGFloat kMIACircleAnimationSizeEnlarged = 48.0;
 
 // The amount to inset the Fakebox from the rest of the modules on Home.
 CGFloat FakeboxHorizontalMargin(id<UITraitEnvironment> environment) {
@@ -167,13 +193,28 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
   return from + (to - from) * percent;
 }
 
+// Computes the opacity of the MIA animation given the scroll percent of the
+// view.
+CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
+  // The progress is inversely proportional with the scroll percentage, meaning
+  // that a scroll percent of 0 corresponds to full opacity.
+  //
+  // To avoid showing a mostly faded animation view for intermediary scrolls,
+  // follow a scaled exponential curve that will ease in the animation.
+  CGFloat unboundOpacity = 1 - 6 * pow(percent, 4);
+  return MIN(MAX(unboundOpacity, 0), 1);
+}
+
 }  // namespace
 
 @interface NewTabPageHeaderView ()
 
 // The Lens button. May be null if Lens is not available.
 @property(nonatomic, strong, readwrite) ExtendedTouchTargetButton* lensButton;
-@property(nonatomic, strong, readwrite) UIView* voiceAndLensDivider;
+// The MIA button. May be null if MIA is not available.
+@property(nonatomic, strong, readwrite) ExtendedTouchTargetButton* miaButton;
+@property(nonatomic, strong) UIView* voiceAndLensDivider;
+@property(nonatomic, strong) UIView* miaAndVoiceDivider;
 
 @property(nonatomic, strong, readwrite)
     ExtendedTouchTargetButton* voiceSearchButton;
@@ -191,6 +232,15 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
 // View used to simulate the top toolbar when the header is stuck to the top of
 // the NTP.
 @property(nonatomic, strong) UIView* fakeToolbar;
+
+// Whether to use MIA inline with other action buttons.
+@property(nonatomic, readonly) BOOL useInlineMIA;
+// Whether to only display the MIA button.
+@property(nonatomic, readonly) BOOL useSingleButtonMIA;
+// Whether the MIA entry point is being shown.
+@property(nonatomic, readonly) BOOL shouldShowMIAEntrypoint;
+// Whether the fakebox is enlarged due to a MIA entry point variation.
+@property(nonatomic, readonly) BOOL useMIAEnlargedFakebox;
 
 @end
 
@@ -211,11 +261,17 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
   UIView* _customizationNewFeatureBadge;
   // A view to contain all the buttons on the trailing side of the fakebox.
   UIStackView* _buttonStack;
+  // Default search engine logo view.
+  UIImageView* _logoView;
 
   // Constraints to update the `toolbarView`'s postion according to the
   // `tabGroupIndicatorView`'s visibility.
   NSLayoutConstraint* _toolbarNoTabGroupIndicartorConstraint;
   NSLayoutConstraint* _toolbarTabGroupIndicartorConstraint;
+
+  // Maintains the MIA circle animation.
+  id<LottieAnimation> _miaAnimation;
+  UIView* _miaAnimationView;
 }
 
 #pragma mark - Public
@@ -273,6 +329,15 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
   ]];
 }
 
+- (void)setPlaceholderText:(NSString*)placeholderText {
+  if (_placeholderText == placeholderText) {
+    return;
+  }
+  _placeholderText = placeholderText;
+  self.omnibox.textField.placeholder = placeholderText;
+  self.searchHintLabel.text = placeholderText;
+}
+
 - (void)addViewsToSearchField:(UIView*)searchField {
   // Fake Toolbar.
   self.fakeToolbar = [[UIView alloc] init];
@@ -292,8 +357,7 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
                                     textFieldTint:color
                                          iconTint:color
                                     isLensOverlay:NO];
-  omnibox.textField.placeholder =
-      l10n_util::GetNSString(IDS_OMNIBOX_EMPTY_HINT);
+  omnibox.textField.placeholder = self.placeholderText;
   [omnibox.textField setText:@""];
   omnibox.translatesAutoresizingMaskIntoConstraints = NO;
   [searchField addSubview:omnibox];
@@ -317,13 +381,13 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
 
   // Hint label.
   self.searchHintLabel = [[UILabel alloc] init];
-  content_suggestions::ConfigureSearchHintLabel(self.searchHintLabel,
-                                                searchField);
+  content_suggestions::ConfigureSearchHintLabel(
+      self.searchHintLabel, searchField, self.placeholderText);
   [self updateHintLabelFonts];
 
   self.hintLabelLeadingConstraint = [self.searchHintLabel.leadingAnchor
       constraintEqualToAnchor:self.fakeLocationBar.leadingAnchor
-                     constant:kHintLabelFakeboxLeadingSpace];
+                     constant:self.hintLabelFakeboxLeadingSpace];
   [NSLayoutConstraint activateConstraints:@[
     self.hintLabelLeadingConstraint,
     [self.searchHintLabel.heightAnchor
@@ -357,16 +421,35 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
         constraintEqualToAnchor:self.fakeLocationBar.centerYAnchor],
   ]];
 
-  // Voice search.
-  self.voiceSearchButton =
-      [ExtendedTouchTargetButton buttonWithType:UIButtonTypeSystem];
-  [_buttonStack addArrangedSubview:self.voiceSearchButton];
+  if (self.shouldShowMIAEntrypoint) {
+    self.miaButton =
+        [ExtendedTouchTargetButton buttonWithType:UIButtonTypeSystem];
+    [self.miaButton
+        setAccessibilityLabel:l10n_util::GetNSString(IDS_IOS_ACCNAME_MIA)];
+    [self.miaButton setAccessibilityIdentifier:@"MIA"];
+
+    [_buttonStack addArrangedSubview:self.miaButton];
+    if (self.useInlineMIA) {
+      [self addMIAAndVoiceDivider];
+    } else if (self.useSingleButtonMIA) {
+      [self updateAnimationOnMIAButton];
+    }
+  }
+
+  BOOL displayOtherActions = !self.useSingleButtonMIA;
+
+  if (displayOtherActions) {
+    // Voice search.
+    self.voiceSearchButton =
+        [ExtendedTouchTargetButton buttonWithType:UIButtonTypeSystem];
+    [_buttonStack addArrangedSubview:self.voiceSearchButton];
+  }
 
   // Lens.
   const BOOL useLens =
       lens_availability::CheckAndLogAvailabilityForLensEntryPoint(
           LensEntrypoint::NewTabPage, self.isGoogleDefaultSearchEngine);
-  if (useLens) {
+  if (useLens && displayOtherActions) {
     [self addVoiceAndLensDivider];
     self.lensButton =
         [ExtendedTouchTargetButton buttonWithType:UIButtonTypeSystem];
@@ -401,20 +484,51 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
     self.fakeLocationBarHeightConstraint,
   ]];
 
-  // The voice search button is always on the leading side, even if the Lens
-  // button is visible.
+  UIButton* referenceButton = self.voiceSearchButton ?: self.miaButton;
   self.hintLabelTrailingConstraint = [self.searchHintLabel.trailingAnchor
-      constraintLessThanOrEqualToAnchor:self.voiceSearchButton.leadingAnchor];
+      constraintLessThanOrEqualToAnchor:referenceButton.leadingAnchor];
   self.hintLabelTrailingConstraint.priority = UILayoutPriorityDefaultHigh;
   [NSLayoutConstraint activateConstraints:@[
-    [self.voiceSearchButton.centerYAnchor
+    [referenceButton.centerYAnchor
         constraintEqualToAnchor:self.fakeLocationBar.centerYAnchor],
     self.hintLabelTrailingConstraint,
   ]];
+
+  [self addSearchEngineLogoIfNeededToSearchField:searchField];
+}
+
+- (void)addSearchEngineLogoIfNeededToSearchField:(UIView*)searchField {
+  if (!base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate)) {
+    return;
+  }
+
+  UIImageView* logoView = [[UIImageView alloc] init];
+  [searchField addSubview:logoView];
+
+  logoView.translatesAutoresizingMaskIntoConstraints = NO;
+  AddSquareConstraints(logoView, kFakeboxImageSize);
+
+  [NSLayoutConstraint activateConstraints:@[
+    [logoView.leadingAnchor constraintEqualToAnchor:searchField.leadingAnchor
+                                           constant:kFakeboxImageLeadingSpace],
+    [logoView.centerYAnchor constraintEqualToAnchor:searchField.centerYAnchor
+                                           constant:-2.0],
+
+  ]];
+
+  _logoView = logoView;
+}
+
+- (void)setDefaultSearchEngineLogo:(UIImage*)logo {
+  _logoView.image = logo;
 }
 
 - (void)updateButtonsForUserInterfaceStyle:(UIUserInterfaceStyle)style {
-  const BOOL useColorIcon = (style != UIUserInterfaceStyleDark);
+  // Variations containing MIA entry point force disable colors in the icons.
+  const BOOL forceDisableColors = self.shouldShowMIAEntrypoint;
+  const BOOL darkUIStyle = style == UIUserInterfaceStyleDark;
+  const BOOL useColorIcon = !darkUIStyle && !forceDisableColors;
+
   content_suggestions::ConfigureVoiceSearchButton(self.voiceSearchButton,
                                                   useColorIcon);
   if (self.lensButton) {
@@ -424,6 +538,10 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
       content_suggestions::ConfigureLensButtonWithNewBadgeAlpha(
           self.lensButton, 1 - _lastAnimationPercent);
     }
+  }
+
+  if (self.miaButton) {
+    content_suggestions::ConfigureInlineMIAButton(self.miaButton, useColorIcon);
   }
 }
 
@@ -481,9 +599,10 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
       content_suggestions::SearchFieldWidth(contentWidth, self.traitCollection);
 
   CGFloat percent = [self searchFieldProgressForOffset:offset];
-  if (IsTabGroupInGridEnabled()) {
-    [self updateTabGroupIndicatorAvailabilityWithOffset:offset];
-  }
+
+  _miaAnimationView.alpha = MIAAnimationOpacityForScrollProgress(percent);
+
+  [self updateTabGroupIndicatorAvailabilityWithOffset:offset];
 
   // Update the opacity of the header background color as the user scrolls so
   // that content does not appear beneath it. Since the NTP background might be
@@ -526,7 +645,7 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
 
     // Reset the view horizontal constraints.
     self.hintLabelLeadingConstraint.constant =
-        kHintLabelFakeboxLeadingSpace + hintLabelScalingExtraOffset;
+        self.hintLabelFakeboxLeadingSpace + hintLabelScalingExtraOffset;
 
     self.separator.alpha = 0;
 
@@ -576,9 +695,9 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
   _buttonStack.directionalLayoutMargins =
       NSDirectionalEdgeInsetsMake(0, 0, 0, endButtonInset);
   self.hintLabelLeadingConstraint.constant =
-      hintLabelScalingExtraOffset + Interpolate(kHintLabelFakeboxLeadingSpace,
-                                                kHintLabelOmniboxLeadingSpace,
-                                                percent);
+      hintLabelScalingExtraOffset +
+      Interpolate(self.hintLabelFakeboxLeadingSpace,
+                  self.hintLabelOmniboxLeadingSpace, percent);
 
   // Fade N badge treatment when scrolled.
   if (_useNewBadgeForLensButton && !_lensButtonWithNewBadgeTapped &&
@@ -587,6 +706,7 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
                                                               1 - percent);
     // Hide divider when N badge is shown.
     self.voiceAndLensDivider.alpha = percent;
+    self.miaAndVoiceDivider.alpha = percent;
   }
 
   _lastAnimationPercent = percent;
@@ -690,7 +810,6 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
 }
 
 - (void)updateTabGroupIndicatorAvailabilityWithOffset:(CGFloat)offset {
-  CHECK(IsTabGroupInGridEnabled());
   BOOL canShowTabStrip = IsRegularXRegularSizeClass(self);
   BOOL isAvailable = !IsCompactHeight(self) && !canShowTabStrip;
   _tabGroupIndicatorView.available = isAvailable;
@@ -756,7 +875,6 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
 
 // Sets tabgroupIndicatorView.
 - (void)setTabGroupIndicatorView:(TabGroupIndicatorView*)view {
-  CHECK(IsTabGroupInGridEnabled());
   _tabGroupIndicatorView = view;
   _tabGroupIndicatorView.hidden = YES;
   _tabGroupIndicatorView.translatesAutoresizingMaskIntoConstraints = NO;
@@ -868,8 +986,8 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
            endColor:BlendColors(FakeboxBottomColor(), pinnedColor, progress)];
 }
 
-// Adds a short vertical line between the mic and lens icons in the fakebox.
-- (void)addVoiceAndLensDivider {
+// Creates a thin grey divider that acts as a visual separator.
+- (UIView*)createDivider {
   UIView* divider = [[UIView alloc] init];
   divider.backgroundColor = [UIColor colorNamed:kGrey600Color];
   divider.translatesAutoresizingMaskIntoConstraints = NO;
@@ -879,7 +997,21 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
     [divider.heightAnchor constraintEqualToConstant:kIconDividerHeight],
     [divider.widthAnchor constraintEqualToConstant:dividerWidth],
   ]];
+
+  return divider;
+}
+
+// Adds a short vertical line between the mic and lens icons in the fakebox.
+- (void)addVoiceAndLensDivider {
+  UIView* divider = [self createDivider];
   self.voiceAndLensDivider = divider;
+  [_buttonStack addArrangedSubview:divider];
+}
+
+// Adds a short vertical line between the MIA and Voice icons in the fakebox.
+- (void)addMIAAndVoiceDivider {
+  UIView* divider = [self createDivider];
+  self.miaAndVoiceDivider = divider;
   [_buttonStack addArrangedSubview:divider];
 }
 
@@ -900,6 +1032,11 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
 // Returns end button fakebox trailing space depending on fakebox size and
 // whether the new badge is displayed.
 - (CGFloat)endButtonFakeboxTrailingSpace {
+  // If the MIA entry point is shown add a bigger space to the trailing edge to
+  // accomodate the animation view.
+  if (self.useMIAEnlargedFakebox) {
+    return kEndButtonMIAEnlargedFakebox;
+  }
   // If normal sized fakebox and new bade is showing, reduce trailing space.
   if (_useNewBadgeForLensButton && !ShouldEnlargeLogoAndFakebox()) {
     return kEndButtonNormalSizeFakeboxWithBadgeTrailingSpace;
@@ -927,6 +1064,101 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
           AccountParticleDiscBadgeBackgroundColor(
               self.traitCollection.userInterfaceStyle);
     }
+
+    if (self.useSingleButtonMIA) {
+      [_miaAnimationView removeFromSuperview];
+      _miaAnimation = nil;
+      [self updateAnimationOnMIAButton];
+    }
+  }
+}
+
+#pragma mark - MIA
+
+- (BOOL)useInlineMIA {
+  return self.isGoogleDefaultSearchEngine &&
+         GetNTPMIAEntrypointVariation() ==
+             NTPMIAEntrypointVariation::kOmniboxContainedInline;
+}
+
+- (BOOL)useSingleButtonMIA {
+  return self.isGoogleDefaultSearchEngine &&
+         ShowOnlyMIAEntrypointInNTPFakebox();
+}
+
+- (BOOL)shouldShowMIAEntrypoint {
+  return self.useInlineMIA || self.useSingleButtonMIA;
+}
+
+// Creates an animation view for the MIA entry point.
+- (UIView*)createMIAAnimationView {
+  if (!_miaAnimation) {
+    _miaAnimation = [self createMIAAnimation];
+  }
+
+  UIView* animationView = _miaAnimation.animationView;
+  animationView.translatesAutoresizingMaskIntoConstraints = NO;
+  animationView.contentMode = UIViewContentModeScaleAspectFit;
+
+  return animationView;
+}
+
+// Creates and returns the LottieAnimation for the MIA button.
+- (id<LottieAnimation>)createMIAAnimation {
+  LottieAnimationConfiguration* config =
+      [[LottieAnimationConfiguration alloc] init];
+  config.animationName =
+      self.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark
+          ? kMIACircleAnimationDarkMode
+          : kMIACircleAnimationLightMode;
+  config.loopAnimationCount = kLottieInfiniteLoopFlag;
+  return ios::provider::GenerateLottieAnimation(config);
+}
+
+- (void)updateAnimationOnMIAButton {
+  if (!self.miaButton) {
+    return;
+  }
+  _miaAnimationView = [self createMIAAnimationView];
+  _miaAnimationView.userInteractionEnabled = NO;
+  [_miaAnimation play];
+  [self.miaButton addSubview:_miaAnimationView];
+  AddSameCenterConstraints(_miaAnimationView, self.miaButton);
+  AddSizeConstraints(_miaAnimationView, [self miaAnimationSize]);
+}
+
+// The size for the animation view dependant on the fakebox size.
+- (CGSize)miaAnimationSize {
+  if (self.useMIAEnlargedFakebox) {
+    return CGSizeMake(kMIACircleAnimationSizeEnlarged,
+                      kMIACircleAnimationSizeEnlarged);
+  } else {
+    return CGSizeMake(kMIACircleAnimationSizeNormal,
+                      kMIACircleAnimationSizeNormal);
+  }
+}
+
+- (BOOL)useMIAEnlargedFakebox {
+  return self.isGoogleDefaultSearchEngine &&
+         (GetNTPMIAEntrypointVariation() ==
+          NTPMIAEntrypointVariation::kOmniboxContainedEnlargedFakebox);
+}
+
+#pragma mark - helpers
+
+- (CGFloat)hintLabelFakeboxLeadingSpace {
+  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate)) {
+    return kHintLabelFakeboxLeadingSpaceWithIcon;
+  } else {
+    return kHintLabelFakeboxLeadingSpace;
+  }
+}
+
+- (CGFloat)hintLabelOmniboxLeadingSpace {
+  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate)) {
+    return kHintLabelOmniboxLeadingSpaceWithIcon;
+  } else {
+    return kHintLabelOmniboxLeadingSpace;
   }
 }
 

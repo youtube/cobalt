@@ -16,7 +16,7 @@ import {Command} from '../common/command.js';
 import {Msgs} from '../common/msgs.js';
 import type {PanelCommand} from '../common/panel_command.js';
 import {PanelCommandType} from '../common/panel_command.js';
-import type {PanelNodeMenuItemData} from '../common/panel_menu_data.js';
+import type {MenuDataForTest, PanelNodeMenuItemData} from '../common/panel_menu_data.js';
 import {SettingsManager} from '../common/settings_manager.js';
 
 import {ISearchUI} from './i_search_ui.js';
@@ -29,9 +29,6 @@ const $ = (id: string): HTMLElement | null => document.getElementById(id);
 
 type AsyncCallback = () => Promise<void>;
 type SessionState = chrome.loginState.SessionState;
-
-type MessageSender = chrome.runtime.MessageSender;
-type SendResponse = (value: any) => void;
 
 /** Class to manage the panel. */
 export class Panel implements PanelInterface {
@@ -60,11 +57,6 @@ export class Panel implements PanelInterface {
   }
 
   private initListeners_(): void {
-    chrome.runtime.onMessage.addListener(
-        (message: any|undefined, _sender: MessageSender,
-         sendResponse: SendResponse) =>
-            this.handleMessageFromServiceWorker_(message, sendResponse));
-
     chrome.loginState.getSessionState(
         (state: SessionState) => this.updateSessionState_(state));
     chrome.loginState.onSessionStateChanged.addListener(
@@ -95,6 +87,12 @@ export class Panel implements PanelInterface {
 
     BridgeHelper.registerHandler(
         BridgeConstants.Panel.TARGET,
+        BridgeConstants.Panel.Action.IS_PANEL_INITIALIZED, () => {return true});
+    BridgeHelper.registerHandler(
+        BridgeConstants.Panel.TARGET, BridgeConstants.Panel.Action.EXEC_COMMAND,
+        (panelCommand: PanelCommand) => this.exec_(panelCommand))
+    BridgeHelper.registerHandler(
+        BridgeConstants.Panel.TARGET,
         BridgeConstants.Panel.Action.ADD_MENU_ITEM,
         (itemData: PanelNodeMenuItemData) => this.menuManager_.addNodeMenuItem(
             itemData));
@@ -103,6 +101,36 @@ export class Panel implements PanelInterface {
         BridgeConstants.Panel.Action.ON_CURRENT_RANGE_CHANGED,
         () => this.onCurrentRangeChanged_());
     this.updateFromPrefs_();
+
+    // These handlers are all for tests.
+    BridgeHelper.registerHandler(
+        BridgeConstants.PanelTest.TARGET,
+        BridgeConstants.PanelTest.Action.BRAILLE_PAN_LEFT,
+        () => this.onPanLeft_());
+    BridgeHelper.registerHandler(
+        BridgeConstants.PanelTest.TARGET,
+        BridgeConstants.PanelTest.Action.BRAILLE_PAN_RIGHT,
+        () => this.onPanRight_());
+    BridgeHelper.registerHandler(
+        BridgeConstants.PanelTest.TARGET,
+        BridgeConstants.PanelTest.Action.DISABLE_ERROR_MSG,
+        () => this.disableErrorMsgForTest_());
+    BridgeHelper.registerHandler(
+        BridgeConstants.PanelTest.TARGET,
+        BridgeConstants.PanelTest.Action.FIRE_MOCK_EVENT,
+        (key: string) => this.fireMockEventForTest_(key));
+    BridgeHelper.registerHandler(
+        BridgeConstants.PanelTest.TARGET,
+        BridgeConstants.PanelTest.Action.FIRE_MOCK_QUERY,
+        (query: string) => this.fireMockQueryForTest_(query));
+    BridgeHelper.registerHandler(
+        BridgeConstants.PanelTest.TARGET,
+        BridgeConstants.PanelTest.Action.GET_ACTIVE_MENU_DATA,
+        () => this.getActiveMenuDataForTest_());
+    BridgeHelper.registerHandler(
+        BridgeConstants.PanelTest.TARGET,
+        BridgeConstants.PanelTest.Action.GET_ACTIVE_SEARCH_MENU_DATA,
+        () => this.getActiveSearchMenuDataForTest_());
   }
 
   /** Initialize the panel. */
@@ -169,14 +197,38 @@ export class Panel implements PanelInterface {
     }
   }
 
-  private handleMessageFromServiceWorker_(
-      message: any|undefined, sendResponse: SendResponse): boolean {
-    if (message.type == PanelCommandType.IS_PANEL_INITIALIZED) {
-      sendResponse(true);
-    } else {
-      this.exec_({type: message.type, data: message.data} as PanelCommand)
+  private disableErrorMsgForTest_() {
+    MenuManager.disableMissingMsgsErrorsForTesting = true;
+  }
+
+  private fireMockEventForTest_(key: string): void {
+    // @ts-ignore: Mocked KeyboardEvent.
+    const obj: KeyboardEvent = {key};
+    obj.preventDefault = function() {};
+    obj.stopPropagation = function() {};
+    this.onKeyDown_(obj);
+  }
+
+  private fireMockQueryForTest_(query: string): void {
+    // @ts-ignore: Mocked InputEvent.
+    const evt: InputEvent = {target: {value: query}};
+    this.menuManager_.onSearchBarQuery(evt);
+  }
+
+  private getActiveMenuDataForTest_(): MenuDataForTest {
+    const activeMenu = this.menuManager_.activeMenu;
+    if (activeMenu) {
+      return activeMenu.getMenuDataForTest();
     }
-    return false;
+    return {};
+  }
+
+  private getActiveSearchMenuDataForTest_(): MenuDataForTest {
+    const searchMenu = this.menuManager_.searchMenu;
+    if (searchMenu) {
+      return searchMenu.getMenuDataForTest();
+    }
+    return {};
   }
 
   /**
@@ -235,14 +287,6 @@ export class Panel implements PanelInterface {
         break;
       case PanelCommandType.CLOSE_CHROMEVOX:
         this.onClose();
-        break;
-      case PanelCommandType.ENABLE_TEST_HOOKS:
-        // @ts-ignore: Exports for testing.
-        window['MenuManager'] = MenuManager;
-        // @ts-ignore: Exports for testing.
-        window['Msgs'] = Msgs;
-        // @ts-ignore: Exports for testing.
-        window['Panel'] = Panel;
         break;
     }
   }

@@ -761,6 +761,7 @@
 <translation id="3552189655002856821">‏Wi-Fi خاموش است</translation>
 <translation id="3554215588514239132">نشان دادن یا پنهان کردن پانل «ابزار توسعه‌دهندگان»</translation>
 <translation id="3554637740840164787"><ph name="ITEM_TITLE" /> پین شد</translation>
+<translation id="3554928024630051016">‏برای افزودن دستگاه‌های USB بیشتر، یکی از آن‌ها را جدا کنید و سپس دستگاه جدیدی وصل کنید</translation>
 <translation id="3558768885091059911">دسترسی به دوربین و میکروفون روشن شود؟</translation>
 <translation id="3560174576767922131">ضبط ویدیو</translation>
 <translation id="3563775809269155755">فعال کردن نقطه اتصال</translation>
@@ -868,6 +869,7 @@
 <translation id="3861651314799684201">برای ضبط تمام صفحه، کلید «ورود» را فشار دهید</translation>
 <translation id="3870197372373144624">دستگاهتان را خاموش کنید.</translation>
 <translation id="3879748587602334249">مدیریت بارگیری</translation>
+<translation id="3884007280698606545">‏به حد تعداد USB رسیدید</translation>
 <translation id="3886872229787704059">امروز باز شده است</translation>
 <translation id="3891340733213178823">‏برای خروج از سیستم Ctrl+Shift+Q را دو بار فشار دهید.</translation>
 <translation id="3892148308691398805">کپی کردن نوشتار</translation>
@@ -1012,6 +1014,7 @@
 <translation id="4305817255990598646">جابه‌جایی</translation>
 <translation id="4307713728991152670">راه‌اندازی مشاهده عکس‌ها، رسانه‌ها، و برنامه‌های جدید تلفن</translation>
 <translation id="4312840429157639164">دوربین به گوشه بالا سمت راست چسبید. تداخلی با سطح سیستم روی داد.</translation>
+<translation id="4312935606722154789">گروه‌بندی یا لغو گروه‌بندی دو پنجره پهلوبه‌پهلو</translation>
 <translation id="4316910396681052118">همه برنامه‌ها</translation>
 <translation id="4321179778687042513">مهار</translation>
 <translation id="4322385711258710213">‏پنهان کردن همه پیشنهادهای مرورگر Chrome</translation>
@@ -1451,7 +1454,6 @@
 <translation id="5691772641933328258">اثر انگشت تشخیص داده نشد</translation>
 <translation id="5693255400847650006">میکروفون درحال استفاده است</translation>
 <translation id="5699366815052349604">واگذاری پنجره فعال به همه میزکارها</translation>
-<translation id="5701785125601597013">بااستفاده از «مرکز کنترل تلفن»، به‌سرعت از تلفنتان پیام ارسال کنید یا به پیام‌ها پاسخ دهید</translation>
 <translation id="570390244361237317">همه برنامه‌ها؛ برای دسترسی به همه برنامه‌ها با کلیدهای جهت‌نما پیمایش کنید</translation>
 <translation id="5705197514573687092">نمایش تنظیمات «تمرکز». زمان‌سنج روی <ph name="FOCUS_DURATION" /> تنظیم شده است.</translation>
 <translation id="5707775774148071965">دستگاه از سرعت انتقال داده بیشتری نسبت به کابلتان پشتیبانی می‌کند. ممکن است عملکرد دستگاه محدود شود.</translation>
@@ -1581,7 +1583,6 @@
 <translation id="6095425951508823973">افزودن اتصال با <ph name="PROVIDER" /></translation>
 <translation id="6099678161144790572">ماه گذشته ویرایش شده است</translation>
 <translation id="6103838137565245112">سیستم</translation>
-<translation id="610395411842312282">گروه‌بندی دو پنجره پهلو به پهلو</translation>
 <translation id="6108952804512516814">ساخت با هوش مصنوعی</translation>
 <translation id="6114505516289286752">فایل‌های گفتار <ph name="LANGUAGE" /> بارگیری شد</translation>
 <translation id="6119360623251949462"><ph name="CHARGING_STATE" />. <ph name="BATTERY_SAVER_STATE" /></translation>

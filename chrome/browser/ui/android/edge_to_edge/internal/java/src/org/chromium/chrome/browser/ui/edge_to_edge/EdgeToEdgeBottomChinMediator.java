@@ -26,8 +26,8 @@ import org.chromium.chrome.browser.layouts.LayoutManager;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgeSupplier;
-import org.chromium.ui.InsetObserver;
 import org.chromium.ui.KeyboardVisibilityDelegate;
+import org.chromium.ui.insets.InsetObserver;
 import org.chromium.ui.modelutil.PropertyModel;
 
 @NullMarked
@@ -72,6 +72,7 @@ class EdgeToEdgeBottomChinMediator
     private final EdgeToEdgeController mEdgeToEdgeController;
     private final BottomControlsStacker mBottomControlsStacker;
     private final FullscreenManager mFullscreenManager;
+    private final boolean mDefaultVisibility;
     private final boolean mIsConstraintChinScrollableWhenStacking;
 
     /**
@@ -88,6 +89,7 @@ class EdgeToEdgeBottomChinMediator
      * @param bottomControlsStacker The {@link BottomControlsStacker} for observing and changing
      *     browser controls heights.
      * @param fullscreenManager The {@link FullscreenManager} for provide the fullscreen state.
+     * @param defaultVisibility Whether the bottom chin should be visible by default.
      */
     EdgeToEdgeBottomChinMediator(
             PropertyModel model,
@@ -96,7 +98,8 @@ class EdgeToEdgeBottomChinMediator
             LayoutManager layoutManager,
             EdgeToEdgeController edgeToEdgeController,
             BottomControlsStacker bottomControlsStacker,
-            FullscreenManager fullscreenManager) {
+            FullscreenManager fullscreenManager,
+            boolean defaultVisibility) {
         mModel = model;
         mKeyboardVisibilityDelegate = keyboardVisibilityDelegate;
         mInsetObserver = insetObserver;
@@ -104,6 +107,7 @@ class EdgeToEdgeBottomChinMediator
         mEdgeToEdgeController = edgeToEdgeController;
         mBottomControlsStacker = bottomControlsStacker;
         mFullscreenManager = fullscreenManager;
+        mDefaultVisibility = defaultVisibility;
         mIsConstraintChinScrollableWhenStacking =
                 EdgeToEdgeUtils.isConstraintBottomChinScrollableWhenStacking();
 
@@ -121,6 +125,7 @@ class EdgeToEdgeBottomChinMediator
                 mEdgeToEdgeController.getBottomInsetPx(),
                 mEdgeToEdgeController.isDrawingToEdge(),
                 mEdgeToEdgeController.isPageOptedIntoEdgeToEdge());
+        if (!mDefaultVisibility) mModel.set(Y_OFFSET, mModel.get(HEIGHT));
         updateHeightAndVisibility();
     }
 
@@ -285,7 +290,11 @@ class EdgeToEdgeBottomChinMediator
     @Override
     public @LayerVisibility int getLayerVisibility() {
         if (mIsKeyboardVisible && mKeyboardInset > 0) return LayerVisibility.HIDDEN;
-        return (mModel.get(CAN_SHOW) && !mIsPagedOptedIntoEdgeToEdge)
+        if (mIsPagedOptedIntoEdgeToEdge || !mDefaultVisibility) {
+            return LayerVisibility.VISIBLE_IF_OTHERS_VISIBLE;
+        }
+
+        return mModel.get(CAN_SHOW)
                 ? LayerVisibility.VISIBLE
                 : LayerVisibility.VISIBLE_IF_OTHERS_VISIBLE;
     }

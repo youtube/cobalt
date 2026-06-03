@@ -7,6 +7,7 @@
 <translation id="102763973188675173">Prilagodite in nadzirajte Google Chrome. Posodobitev je na voljo.</translation>
 <translation id="1028061813283459617">Če želite izbrisati podatke brskanja samo iz te naprave, v računu Google pa jih želite ohraniti, <ph name="BEGIN_LINK" />se odjavite iz Chroma<ph name="END_LINK" />.</translation>
 <translation id="1042270987544905725">Kliknite, če želite zapreti pogovorno okno za prijavo v Chrome</translation>
+<translation id="1051793555070215510">Izpolnite to enominutno anketo in nam pomagajte izboljšati anonimni način.</translation>
 <translation id="1059838145689930908">Če želite to razširitev uporabljati kot <ph name="USER_EMAIL_ADDRESS" />, se prijavite v Chrome.</translation>
 <translation id="1065672644894730302">Nastavitev ni mogoče prebrati.
 
@@ -56,6 +57,7 @@ Nekatere funkcije morda niso na voljo in spremembe nastavitev ne bodo shranjene.
 <translation id="1682634494516646069">Google Chrome ne more brati svojega imenika s podatki ali pisati vanj:
 
 <ph name="USER_DATA_DIRECTORY" /></translation>
+<translation id="1688214853608504530">Ko vnašate v naslovno vrstico ali iskalno polje, Chrome vaše vnose pošlje v orodja za iskanje, orodja z umetno inteligenco in agentska orodja organizacije zaradi prejemanja predlogov.</translation>
 <translation id="1698376642261615901">Google Chrome je spletni brskalnik, ki bliskovito odpira spletna mesta in izvaja programe. Je hiter, stabilen in preprost za uporabo. V Google Chrome je vgrajena zaščita pred zlonamerno programsko opremo in lažnim predstavljanjem, kar omogoča varnejše brskanje v spletu.</translation>
 <translation id="1713301662689114961">{0,plural, =1{Chrome se bo znova zagnal čez eno uro}one{Chrome se bo znova zagnal čez # uro}two{Chrome se bo znova zagnal čez # uri}few{Chrome se bo znova zagnal čez # ure}other{Chrome se bo znova zagnal čez # ur}}</translation>
 <translation id="1722488837206509557">Tako boste lahko izbirali med razpoložljivimi napravami in v njih prikazali vsebino.</translation>
@@ -64,6 +66,7 @@ Nekatere funkcije morda niso na voljo in spremembe nastavitev ne bodo shranjene.
 <translation id="178701303897325119">Ta razširitev ni več podprta. Chrome priporoča, da jo odstranite.</translation>
 <translation id="1812689907177901597">Če to izklopite, se lahko prijavite na Googlovih spletnih mestih, kot je Gmail, ne da bi se morali prijaviti v Chrome</translation>
 <translation id="1821644463306970002">{NUM_TABS,plural, =1{Chrome priporoča, da začasno zaustavite zavihek, ki upočasnjuje brskalnik}one{Chrome priporoča, da začasno zaustavite zavihke, ki upočasnjujejo brskalnik}two{Chrome priporoča, da začasno zaustavite zavihke, ki upočasnjujejo brskalnik}few{Chrome priporoča, da začasno zaustavite zavihke, ki upočasnjujejo brskalnik}other{Chrome priporoča, da začasno zaustavite zavihke, ki upočasnjujejo brskalnik}}</translation>
+<translation id="1832046143430087831">S Chromovim mehanizmom V8 pospešite delovanje spletnih mest, vendar je Chrome zato nekoliko manj odporen proti napadom. Ta nastavitev je izklopljena.</translation>
 <translation id="1838374766361614909">Čiščenje iskanja</translation>
 <translation id="1860536484129686729">Chrome potrebuje dovoljenje za dostop do fotoaparata za to spletno mesto</translation>
 <translation id="1873233029667955273">Google Chrome ni privzeti brskalnik</translation>
@@ -222,6 +225,7 @@ Nekatere funkcije morda niso na voljo in spremembe nastavitev ne bodo shranjene.
 <translation id="3716540481907974026">Različica sistema ChromeOS Flex</translation>
 <translation id="3718181793972440140">S tem bo iz te naprave izbrisan 1 element. Če želite pozneje prenesti podatke, se v Chrome prijavite kot <ph name="USER_EMAIL" />.</translation>
 <translation id="3723744677043446310">{NUM_EXTENSIONS,plural, =1{Chrome priporoča, da jo odstranite. <ph name="BEGIN_LINK" />Preberite več o podprtih razširitvah.<ph name="END_LINK" />}one{Chrome priporoča, da jih odstranite. <ph name="BEGIN_LINK" />Preberite več o podprtih razširitvah.<ph name="END_LINK" />}two{Chrome priporoča, da jih odstranite. <ph name="BEGIN_LINK" />Preberite več o podprtih razširitvah.<ph name="END_LINK" />}few{Chrome priporoča, da jih odstranite. <ph name="BEGIN_LINK" />Preberite več o podprtih razširitvah.<ph name="END_LINK" />}other{Chrome priporoča, da jih odstranite. <ph name="BEGIN_LINK" />Preberite več o podprtih razširitvah.<ph name="END_LINK" />}}</translation>
+<translation id="3756724684201900923">Preberite več o namestitvi Chroma</translation>
 <translation id="3780814664026482060">Chrome – <ph name="PAGE_TITLE" /></translation>
 <translation id="3785324443014631273">ChromeOS Flex ni mogel sinhronizirati podatkov zaradi napake pri prijavi.</translation>
 <translation id="3795971588916395511">Google Chrome OS</translation>
@@ -318,6 +322,7 @@ Nekatere funkcije morda niso na voljo in spremembe nastavitev ne bodo shranjene.
 <translation id="4970880042055371251">Različica sistema Chrome OS</translation>
 <translation id="4990567037958725628">Google Chrome Canary</translation>
 <translation id="5003967926796347400">Kliknite »Googlov upravitelj gesel«</translation>
+<translation id="504867494566807945">Povezave iz poljubne aplikacije odprite v Chromu, ki bo pripet v opravilno vrstico, da boste lažje dostopali do njega.</translation>
 <translation id="5114340746415930644">Vnesite geslo, če želite podatke iz Chroma uporabljati in shranjevati v računu, <ph name="USER_EMAIL" /></translation>
 <translation id="5120334927898581447">Prijavite se v Chrome, ko se prijavite v druge Googlove storitve</translation>
 <translation id="5126049312684316860">Chrome vnaprej naloži še več strani, ki jih boste verjetno obiskali, da se ob obisku naložijo še hitreje</translation>
@@ -398,6 +403,7 @@ Google Chrome ne more obnoviti vaših nastavitev.</translation>
 <translation id="6075300983329039771">Vaša organizacija (<ph name="MANAGER" />) zahteva, da se prijavite v Chrome</translation>
 <translation id="6113794647360055231">Chrome je pravkar postal še boljši</translation>
 <translation id="6116252277240876590">Ta jezik se uporablja za prikaz menijev, nastavitev, opozoril in drugega besedila v Chromu</translation>
+<translation id="6127237283587442951">Privzeto uporabljajte Chrome in ga pripnite</translation>
 <translation id="6134085236017727171">Če želite uporabljati mikrofon, omogočite Chromu dostop v <ph name="BEGIN_LINK" />sistemskih nastavitvah<ph name="END_LINK" /></translation>
 <translation id="6135456723633883042">Ti zavihki porabljajo dodatna sredstva. Če želite izboljšati učinkovitost delovanja, pustite Chromu, da jih spremeni v neaktivne.</translation>
 <translation id="6145313976051292476">Odpiranje datotek PDF v Chromu</translation>
@@ -447,12 +453,12 @@ Google Chrome ne more obnoviti vaših nastavitev.</translation>
 <translation id="6718739135284199302">Pospešite Chrome</translation>
 <translation id="6735387454586646204">Sistem ChromeOS Flex</translation>
 <translation id="6750954913813541382">Chrome zaradi odpravljanja napak pri črkovanju Googlu pošlje besedilo, ki ga vnesete v brskalnik</translation>
+<translation id="6760235774835597023">S Chromovim mehanizmom V8 pospešite delovanje spletnih mest, vendar je Chrome zato nekoliko manj odporen proti napadom. Ta nastavitev je vklopljena.</translation>
 <translation id="677276454032249905">Želite vseeno zapreti Chrome?</translation>
 <translation id="6794858689789885890">Podatki spletnih mest se vedno izbrišejo iz naprave, ko zaprete Chrome</translation>
 <translation id="6831043979455480757">Prevedi</translation>
 <translation id="683440813066116847">Pravilo za dohodni promet za Google Chrome Canary, ki dovoli promet mDNS.</translation>
 <translation id="684888714667046800">Internetne povezave ni mogoče vzpostaviti. Če uporabljate požarni zid, poskrbite, da je <ph name="PRODUCT_EXE_NAME" /> na seznamu dovoljenih.</translation>
-<translation id="6851981911629679515">Vklopite dodatno zaščito v mehanizmih za JavaScript in WebAssembly za Chrome</translation>
 <translation id="6877155553248388166">spodnji desni kot območja za iskanje: desno <ph name="RIGHT" /> %, spodaj <ph name="BOTTOM" /> %</translation>
 <translation id="6881299373831449287">Posodabljanje Chroma</translation>
 <translation id="6885412569789873916">Aplikacije za Chrome Beta</translation>
@@ -512,7 +518,6 @@ Google Chrome ne more obnoviti vaših nastavitev.</translation>
 <translation id="7572537927358445944">Izklopljeno • Chrome ne more preveriti, od kod izvira ta razširitev</translation>
 <translation id="7583399374488819119">Namestitveni program za <ph name="COMPANY_NAME" /></translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
-<translation id="7626032353295482388">Dobrodošli v Chromu</translation>
 <translation id="7626072681686626474"><ph name="MANAGER" /> zahteva, da preberete in sprejmete pogoje storitve, preden začnete uporabljati napravo. Ti pogoji ne dopolnjujejo, spreminjajo ali omejujejo pogojev za Google Chrome OS.</translation>
 <translation id="7629695634924605473">Chrome vam sporoči, ali so gesla ogrožena</translation>
 <translation id="7641148173327520642">Skrbnik sistema je Google Chrome nastavil tako, da za dostop do <ph name="TARGET_URL_HOSTNAME" /> odpre brskalnik <ph name="ALTERNATIVE_BROWSER_NAME" />.</translation>
@@ -556,7 +561,6 @@ Google Chrome ne more obnoviti vaših nastavitev.</translation>
 <translation id="8019103195866286235">Razvijalec je preklical objavo te razširitve in morda ni varna. Odstranite jo iz Chroma, da si ne bo mogla več ogledati vaših podatkov na obiskanih spletnih mestih, vključno z osebnimi podatki, in jih spreminjati.</translation>
 <translation id="8040768861829554732">Razširitev želi, da se prijavite v Chrome</translation>
 <translation id="80471789339884597">Hvala, ker ste se odločili za namestitev. Preden uporabite <ph name="BUNDLE_NAME" />, morate znova zagnati vse brskalnike.</translation>
-<translation id="8064015041956107954">V Chromovem meniju lahko v zgornjem desnem kotu odprete zaznamke, način za branje in drugo</translation>
 <translation id="8064015586118426197">ChromeOS Flex</translation>
 <translation id="8077579734294125741">Drugi profili v Chromu</translation>
 <translation id="8086881907087796310">Namestitev ni uspela, ker računalnik ne izpolnjuje najnižjih zahtev za strojno opremo.</translation>
@@ -568,7 +572,6 @@ Google Chrome ne more obnoviti vaših nastavitev.</translation>
 <translation id="8177472873527554730">Vsebine na strani ni mogoče najti</translation>
 <translation id="8221491193165283816">Obvestila običajno blokirate. Če želite dovoliti, da vas to spletno mesto obvešča, kliknite tukaj.</translation>
 <translation id="8255190535488645436">Google Chrome uporablja vašo kamero in mikrofon.</translation>
-<translation id="8257796129973882597">V Chromovem meniju lahko odprete zaznamke, način za branje in drugo</translation>
 <translation id="8267953129876836456">Chrome je za vaš pregled našel nekaj varnostnih priporočil</translation>
 <translation id="8286862437124483331">Google Chrome poskuša prikazati gesla. Če želite omogočiti to, vnesite geslo za Windows.</translation>
 <translation id="829923460755755423">Dodajanje bližnjice do Googlovega upravitelja gesel</translation>
@@ -632,6 +635,7 @@ Google Chrome ne more obnoviti vaših nastavitev.</translation>
 <translation id="9090566250983691233">Preberite, zakaj Chrome blokira nekatere datoteke</translation>
 <translation id="9106236359747881194">Izberite besedilo, če želite iskati</translation>
 <translation id="911206726377975832">Ali želite izbrisati tudi podatke brskanja?</translation>
+<translation id="9134482777260927479">Pomoč za domačo nalogo</translation>
 <translation id="9138603949443464873">Če želite uporabiti spremembe, znova zaženite Chrome</translation>
 <translation id="9148058034647219655">Zapri</translation>
 <translation id="9195993889682885387">Chrome lahko oceni vaša zanimanja glede na vašo zgodovino brskanja zadnjih nekaj tednov. Ti podatki so shranjeni v vaši napravi.</translation>

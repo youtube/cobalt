@@ -206,6 +206,7 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
+<translation id="1762353673362288306">‘စာသင်ခန်းသုံးတူးလ်’ ကိုသာ ယခုသုံးနိုင်သည်</translation>
 <translation id="1762483337755424125">စာသားမှတ်တမ်း</translation>
 <translation id="1765169783255151332">ခလုတ်များကြား အမြန်ပြောင်းခြင်း</translation>
 <translation id="1768959921651994223">အထောက်အထားစိစစ်မှု အမျိုးအစား</translation>
@@ -476,6 +477,7 @@
 <translation id="3091839911843451378">မအောင်မြင်ပါ - ရပ်သွားသည်</translation>
 <translation id="3102119246920354026">Cache</translation>
 <translation id="3103783611481501187">အိပ်မက်ဆန်</translation>
+<translation id="3119672627216736407">ဘာသာပြန်ဆိုချက် ရနိုင်သည်</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">ရေအိုင်</translation>
 <translation id="3122883569442693641">နောက်ထပ်အသေးစိတ်</translation>
@@ -1136,6 +1138,7 @@
 <translation id="6058625436358447366">အပြီးသတ်ရန်အတွက် သင့်စကားဝှက် အသစ်နှင့် အဟောင်းကို ထည့်ပါ</translation>
 <translation id="6061772781719867950">HTTP တောင်းဆိုချက်များ မအောင်မြင်ပါ</translation>
 <translation id="6073292342939316679">ကီးဘုတ်တောက်ပမှု လျှော့ရန်</translation>
+<translation id="6074608334942655098">ဘာသာပြန်ခြင်းကို ရပ်ရန်</translation>
 <translation id="6074752328838739425">အကျဉ်းချုပ်ကို ဖျောက်ပါ</translation>
 <translation id="6075872808778243331">(Android) HTTP တုံ့ပြန်ချိန်</translation>
 <translation id="6078323886959318429">ဖြတ်လမ်းလင့်ခ် ထည့်ပါ</translation>
@@ -1433,7 +1436,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">Chromebook အကူအညီဖိုရမ်တွင် ကျွမ်းကျင်သူများကို မေးမြန်းရန်</translation>
-<translation id="7309823890857024809">အနက်ရောင်နောက်ခံတွင် ဖန်ပုလင်းတစ်ခုထဲရှိ Papaver rhea ပန်းရိုးတံ အနည်းငယ်ပါဝင်သော ရိုးရှင်းသည့် သက်ငြိမ်ပုံ</translation>
 <translation id="7311368985037279727">ကီးဘုတ်အရောင်</translation>
 <translation id="7317831949569936035">ကျောင်းအပ်နှံမှု</translation>
 <translation id="7319430975418800333">A3</translation>
@@ -1613,6 +1615,7 @@
 <translation id="8088963492174775412">ရိုက်ကူးရန် နှိပ်ပါ</translation>
 <translation id="8094062939584182041">ဤပြဿနာအကြောင်း အီးမေးလ်ပို့ခွင့် Google ကိုပေးရန်</translation>
 <translation id="8104083085214006426">သင်သည် အများသုံးဖြစ်ပြီး မလုံခြုံသောကွန်ရက်ကို သုံးနေသည်</translation>
+<translation id="8108879170356113798"><ph name="NUM_SECONDS" /> စက္ကန့်အကြာတွင် ‘စာသင်ခန်းသုံးတူးလ်’ ကိုသာ သုံးနိုင်မည်</translation>
 <translation id="811820734797650957">(Android) ကွန်ရက်ဂိတ်ဝကို ပင်လုပ်နိုင်သည်</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" />° စင်တီဂရိတ်</translation>
 <translation id="8131740175452115882">အတည်ပြုရန်</translation>

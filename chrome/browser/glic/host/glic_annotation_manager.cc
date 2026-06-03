@@ -11,7 +11,9 @@
 #include "base/state_transitions.h"
 #include "base/strings/escape.h"
 #include "chrome/browser/glic/glic_keyed_service.h"
+#include "chrome/browser/glic/glic_metrics.h"
 #include "chrome/browser/glic/glic_pref_names.h"
+#include "chrome/browser/glic/host/context/glic_sharing_manager_impl.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/common/chrome_features.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
@@ -65,6 +67,8 @@ void GlicAnnotationManager::ScrollTo(
         mojom::ScrollToErrorReason::kNewerScrollToCall);
   }
   annotation_task_.reset();
+
+  service_->metrics()->OnGlicScrollAttempt();
 
   mojom::WebClientHandler::ScrollToCallback wrapped_callback =
       base::BindOnce(&RunScrollToCallback, std::move(callback));
@@ -144,10 +148,11 @@ void GlicAnnotationManager::ScrollTo(
     return;
   }
 
-  auto focused_tab_data = service_->GetFocusedTabData();
+  auto focused_tab_data = service_->sharing_manager().GetFocusedTabData();
   content::Page* focused_primary_page = nullptr;
   if (focused_tab_data.focus()) {
-    focused_primary_page = &focused_tab_data.focus()->GetPrimaryPage();
+    focused_primary_page =
+        &focused_tab_data.focus()->GetContents()->GetPrimaryPage();
   }
   if (!focused_primary_page) {
     std::move(wrapped_callback).Run(mojom::ScrollToErrorReason::kNoFocusedTab);
@@ -250,8 +255,9 @@ GlicAnnotationManager::AnnotationTask::AnnotationTask(
   CHECK(service);
   // Using base::Unretained is safe here because `this` owns the subscription.
   tab_change_subscription_ =
-      service->AddFocusedTabChangedCallback(base::BindRepeating(
-          &AnnotationTask::OnFocusedTabChanged, base::Unretained(this)));
+      static_cast<GlicSharingManagerImpl&>(service->sharing_manager())
+          .AddFocusedTabChangedCallback(base::BindRepeating(
+              &AnnotationTask::OnFocusedTabChanged, base::Unretained(this)));
 
   // Using base::Unretained is safe because `this` owns the receiver.
   annotation_agent_host_receiver_.set_disconnect_handler(base::BindOnce(
@@ -322,6 +328,17 @@ void GlicAnnotationManager::AnnotationTask::SetState(State new_state) {
            {State::kInactive, {}}}));
   CHECK_STATE_TRANSITION(allowed_transitions, old_state, new_state);
   state_ = new_state;
+
+  switch (new_state) {
+    case State::kActive:
+    case State::kFailed:
+      annotation_manager_->service_->metrics()->OnGlicScrollComplete(
+          new_state == State::kActive);
+      break;
+    case State::kRunning:
+    case State::kInactive:
+      break;
+  }
 }
 
 void GlicAnnotationManager::AnnotationTask::RemoteDisconnected() {
@@ -435,7 +452,7 @@ void GlicAnnotationManager::AnnotationTask::OnTabContextPermissionChanged(
 // the currently focused tab navigates its primary page (i.e.
 // PrimaryPageChanged). We also want to perform these steps in that scenario.
 void GlicAnnotationManager::AnnotationTask::OnFocusedTabChanged(
-    FocusedTabData focused_tab_data) {
+    const FocusedTabData& focused_tab_data) {
   CHECK_EQ(state_, State::kRunning);
   // We've navigated away from the page this (in-progress) task was supposed to
   // run in, so we fail the task.
@@ -446,7 +463,8 @@ void GlicAnnotationManager::AnnotationTask::OnFocusedTabChanged(
 
   content::Page* new_focused_primary_page = nullptr;
   if (focused_tab_data.focus()) {
-    new_focused_primary_page = &focused_tab_data.focus()->GetPrimaryPage();
+    new_focused_primary_page =
+        &focused_tab_data.focus()->GetContents()->GetPrimaryPage();
   }
   // If the focused tab hasn't changed and its primary page hasn't changed, we
   // don't need to do anything.

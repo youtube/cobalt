@@ -8,6 +8,7 @@
 #include <ostream>
 #include <string_view>
 
+#include "base/strings/string_number_conversions.h"
 #include "base/types/cxx23_to_underlying.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_i18n_api.h"
@@ -666,7 +667,6 @@ std::optional<double> AddressFieldParserNG::FindScoreOfBestMatchingRule(
     case PRICE:
     case NUMERIC_QUANTITY:
     case SEARCH_TERM:
-    case IMPROVED_PREDICTION:
     case PASSPORT_NAME_TAG:
     case PASSPORT_NUMBER:
     case PASSPORT_ISSUING_COUNTRY:

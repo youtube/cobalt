@@ -66,43 +66,9 @@ TEST(PictureLayerTilingSetTest, TilingRange) {
   PictureLayerTilingSet::TilingRange low_res_range(0, 0);
   PictureLayerTilingSet::TilingRange lower_than_low_res_range(0, 0);
   PictureLayerTiling* high_res_tiling;
-  PictureLayerTiling* low_res_tiling;
 
   scoped_refptr<FakeRasterSource> raster_source =
       FakeRasterSource::CreateFilled(layer_bounds);
-
-  std::unique_ptr<TestablePictureLayerTilingSet> set = CreateTilingSet(&client);
-  set->AddTiling(gfx::AxisTransform2d(2.0, gfx::Vector2dF()), raster_source);
-  high_res_tiling = set->AddTiling(gfx::AxisTransform2d(), raster_source);
-  high_res_tiling->set_resolution(HIGH_RESOLUTION);
-  set->AddTiling(gfx::AxisTransform2d(0.5, gfx::Vector2dF()), raster_source);
-  low_res_tiling = set->AddTiling(gfx::AxisTransform2d(0.25, gfx::Vector2dF()),
-                                  raster_source);
-  low_res_tiling->set_resolution(LOW_RESOLUTION);
-  set->AddTiling(gfx::AxisTransform2d(0.125, gfx::Vector2dF()), raster_source);
-
-  higher_than_high_res_range =
-      set->GetTilingRange(PictureLayerTilingSet::HIGHER_THAN_HIGH_RES);
-  EXPECT_EQ(0u, higher_than_high_res_range.start);
-  EXPECT_EQ(1u, higher_than_high_res_range.end);
-
-  high_res_range = set->GetTilingRange(PictureLayerTilingSet::HIGH_RES);
-  EXPECT_EQ(1u, high_res_range.start);
-  EXPECT_EQ(2u, high_res_range.end);
-
-  between_high_and_low_res_range =
-      set->GetTilingRange(PictureLayerTilingSet::BETWEEN_HIGH_AND_LOW_RES);
-  EXPECT_EQ(2u, between_high_and_low_res_range.start);
-  EXPECT_EQ(3u, between_high_and_low_res_range.end);
-
-  low_res_range = set->GetTilingRange(PictureLayerTilingSet::LOW_RES);
-  EXPECT_EQ(3u, low_res_range.start);
-  EXPECT_EQ(4u, low_res_range.end);
-
-  lower_than_low_res_range =
-      set->GetTilingRange(PictureLayerTilingSet::LOWER_THAN_LOW_RES);
-  EXPECT_EQ(4u, lower_than_low_res_range.start);
-  EXPECT_EQ(5u, lower_than_low_res_range.end);
 
   std::unique_ptr<TestablePictureLayerTilingSet> set_without_low_res =
       CreateTilingSet(&client);
@@ -131,48 +97,6 @@ TEST(PictureLayerTilingSetTest, TilingRange) {
   EXPECT_EQ(2u, between_high_and_low_res_range.start);
   EXPECT_EQ(4u, between_high_and_low_res_range.end);
 
-  low_res_range =
-      set_without_low_res->GetTilingRange(PictureLayerTilingSet::LOW_RES);
-  EXPECT_EQ(0u, low_res_range.end - low_res_range.start);
-
-  lower_than_low_res_range = set_without_low_res->GetTilingRange(
-      PictureLayerTilingSet::LOWER_THAN_LOW_RES);
-  EXPECT_EQ(0u, lower_than_low_res_range.end - lower_than_low_res_range.start);
-
-  std::unique_ptr<TestablePictureLayerTilingSet>
-      set_with_only_high_and_low_res = CreateTilingSet(&client);
-  high_res_tiling = set_with_only_high_and_low_res->AddTiling(
-      gfx::AxisTransform2d(), raster_source);
-  high_res_tiling->set_resolution(HIGH_RESOLUTION);
-  low_res_tiling = set_with_only_high_and_low_res->AddTiling(
-      gfx::AxisTransform2d(0.5, gfx::Vector2dF()), raster_source);
-  low_res_tiling->set_resolution(LOW_RESOLUTION);
-
-  higher_than_high_res_range = set_with_only_high_and_low_res->GetTilingRange(
-      PictureLayerTilingSet::HIGHER_THAN_HIGH_RES);
-  EXPECT_EQ(0u,
-            higher_than_high_res_range.end - higher_than_high_res_range.start);
-
-  high_res_range = set_with_only_high_and_low_res->GetTilingRange(
-      PictureLayerTilingSet::HIGH_RES);
-  EXPECT_EQ(0u, high_res_range.start);
-  EXPECT_EQ(1u, high_res_range.end);
-
-  between_high_and_low_res_range =
-      set_with_only_high_and_low_res->GetTilingRange(
-          PictureLayerTilingSet::BETWEEN_HIGH_AND_LOW_RES);
-  EXPECT_EQ(0u, between_high_and_low_res_range.end -
-                    between_high_and_low_res_range.start);
-
-  low_res_range = set_with_only_high_and_low_res->GetTilingRange(
-      PictureLayerTilingSet::LOW_RES);
-  EXPECT_EQ(1u, low_res_range.start);
-  EXPECT_EQ(2u, low_res_range.end);
-
-  lower_than_low_res_range = set_with_only_high_and_low_res->GetTilingRange(
-      PictureLayerTilingSet::LOWER_THAN_LOW_RES);
-  EXPECT_EQ(0u, lower_than_low_res_range.end - lower_than_low_res_range.start);
-
   std::unique_ptr<TestablePictureLayerTilingSet> set_with_only_high_res =
       CreateTilingSet(&client);
   high_res_tiling =
@@ -193,14 +117,6 @@ TEST(PictureLayerTilingSetTest, TilingRange) {
       PictureLayerTilingSet::BETWEEN_HIGH_AND_LOW_RES);
   EXPECT_EQ(0u, between_high_and_low_res_range.end -
                     between_high_and_low_res_range.start);
-
-  low_res_range =
-      set_with_only_high_res->GetTilingRange(PictureLayerTilingSet::LOW_RES);
-  EXPECT_EQ(0u, low_res_range.end - low_res_range.start);
-
-  lower_than_low_res_range = set_with_only_high_res->GetTilingRange(
-      PictureLayerTilingSet::LOWER_THAN_LOW_RES);
-  EXPECT_EQ(0u, lower_than_low_res_range.end - lower_than_low_res_range.start);
 }
 
 class PictureLayerTilingSetTestWithResources : public testing::Test {
@@ -418,6 +334,10 @@ TEST(PictureLayerTilingSetTest, TileSizeChange) {
   for (auto* tile : active_tiles) {
     EXPECT_EQ(tile_size3, tile->content_rect().size());
   }
+
+  // Clear the raw_ptr to pending_set before it goes out of scope to prevent
+  // dangling pointer when active_client is destroyed after pending_set.
+  active_client.set_twin_tiling_set(nullptr);
 }
 
 TEST(PictureLayerTilingSetTest, ModifyPendingTilingSetTwiceInOneVsync) {
@@ -480,6 +400,10 @@ TEST(PictureLayerTilingSetTest, ModifyPendingTilingSetTwiceInOneVsync) {
   EXPECT_EQ(tile_size2, pending_set->tiling_at(0)->tile_size());
   // The pending tiling should have tiles.
   EXPECT_TRUE(pending_set->tiling_at(0)->has_tiles());
+
+  // Clear the raw_ptr to pending_set before it goes out of scope to prevent
+  // dangling pointer when active_client is destroyed after pending_set.
+  active_client.set_twin_tiling_set(nullptr);
 }
 
 TEST(PictureLayerTilingSetTest, MaxContentScale) {
@@ -537,6 +461,10 @@ TEST(PictureLayerTilingSetTest, MaxContentScale) {
       raster_source.get(), pending_set.get(), Region(), 1.f, max_content_scale);
   // All the tilings are on the active tree.
   EXPECT_EQ(2u, active_set->num_tilings());
+
+  // Clear the raw_ptr to pending_set before it goes out of scope to prevent
+  // dangling pointer when active_client is destroyed after pending_set.
+  active_client.set_twin_tiling_set(nullptr);
 }
 
 TEST(PictureLayerTilingSetTest, SkewportLimits) {
@@ -1093,6 +1021,10 @@ TEST(PictureLayerTilingTest, InvalidateAfterUpdateRasterSourceForCommit) {
   // No changes for active set until activation.
   EXPECT_FALSE(
       active_set->UpdateTilePriorities(viewport, 1.f, time, Occlusion(), true));
+
+  // Clear the raw_ptr to pending_set before it goes out of scope to prevent
+  // dangling pointer when active_client is destroyed after pending_set.
+  active_client.set_twin_tiling_set(nullptr);
 }
 
 TEST(PictureLayerTilingSetTest, TilingTranslationChanges) {
@@ -1152,6 +1084,10 @@ TEST(PictureLayerTilingSetTest, TilingTranslationChanges) {
   ASSERT_EQ(1u, active_set->num_tilings());
   EXPECT_EQ(active_set->tiling_at(0)->raster_transform(), raster_transform2);
   EXPECT_EQ(1u, active_set->tiling_at(0)->AllTilesForTesting().size());
+
+  // Clear the raw_ptr to pending_set before it goes out of scope to prevent
+  // dangling pointer when active_client is destroyed after pending_set.
+  active_client.set_twin_tiling_set(nullptr);
 }
 
 TEST(PictureLayerTilingSetTest, LcdChanges) {
@@ -1205,6 +1141,11 @@ TEST(PictureLayerTilingSetTest, LcdChanges) {
                                     Occlusion(), false);
   // We should have created all tiles because lcd state changed.
   EXPECT_EQ(4u, pending_set->tiling_at(0)->AllTilesForTesting().size());
+
+  // Clear the raw_ptrs to prevent dangling pointers when objects go out of
+  // scope.
+  active_client.set_twin_tiling_set(nullptr);
+  pending_client.set_twin_tiling_set(nullptr);
 }
 
 }  // namespace

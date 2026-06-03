@@ -9,6 +9,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.eq;
@@ -28,7 +29,6 @@ import static org.chromium.ui.test.util.MockitoHelper.doCallback;
 import android.app.Activity;
 import android.graphics.Bitmap;
 import android.view.View;
-import android.view.ViewStub;
 import android.widget.FrameLayout;
 
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
@@ -41,6 +41,7 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
+import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.Callback;
 import org.chromium.base.Token;
@@ -61,6 +62,7 @@ import org.chromium.chrome.browser.data_sharing.DataSharingServiceFactory;
 import org.chromium.chrome.browser.data_sharing.DataSharingTabManager;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.hub.SingleChildViewManager;
 import org.chromium.chrome.browser.price_tracking.PriceTrackingFeatures;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
@@ -158,7 +160,10 @@ public class TabSwitcherPaneCoordinatorUnitTest {
             new ObservableSupplierImpl<>();
     private final ObservableSupplierImpl<TabBookmarker> mTabBookmarkerSupplier =
             new ObservableSupplierImpl<>(mTabBookmarker);
+    private final ObservableSupplierImpl<View> mOverlayViewSupplier =
+            new ObservableSupplierImpl<>();
 
+    private SingleChildViewManager mOverlayViewManager;
     private MockTabModel mTabModel;
     private Activity mActivity;
     private FrameLayout mRootView;
@@ -213,6 +218,8 @@ public class TabSwitcherPaneCoordinatorUnitTest {
         mRootView.addView(mContainerView);
         mCoordinatorView.setId(R.id.coordinator);
         mRootView.addView(mCoordinatorView);
+        FrameLayout overlayView = new FrameLayout(activity);
+        mRootView.addView(overlayView);
         activity.setContentView(mRootView);
 
         HistogramWatcher watcher =
@@ -247,8 +254,11 @@ public class TabSwitcherPaneCoordinatorUnitTest {
                         /* desktopWindowStateManager= */ null,
                         mShareDelegateSupplier,
                         mTabBookmarkerSupplier,
-                        mUndoBarThrottle);
+                        mUndoBarThrottle,
+                        mOverlayViewSupplier::set,
+                        /* tabSwitcherDragHandler= */ null);
         watcher.assertExpected();
+        mOverlayViewManager = new SingleChildViewManager(overlayView, mOverlayViewSupplier);
 
         mCoordinator.initWithNative();
 
@@ -259,10 +269,6 @@ public class TabSwitcherPaneCoordinatorUnitTest {
     }
 
     DialogController showTabGridDialogWithTabs() {
-        ViewStub dialogStub = new ViewStub(mActivity);
-        mCoordinatorView.addView(dialogStub);
-        dialogStub.setId(R.id.tab_grid_dialog_stub);
-
         DialogController controller = mCoordinator.getTabGridDialogControllerForTesting();
         MockTab tab = MockTab.createAndInitialize(/* id= */ 1, mProfile);
         tab.setIsInitialized(true);
@@ -279,7 +285,10 @@ public class TabSwitcherPaneCoordinatorUnitTest {
     @After
     public void tearDown() {
         mCoordinator.destroy();
+        // Force animation to complete.
+        ShadowLooper.runUiThreadTasks();
         assertTrue(mDestroyed);
+        mOverlayViewManager.destroy();
     }
 
     @Test
@@ -471,7 +480,7 @@ public class TabSwitcherPaneCoordinatorUnitTest {
         mCoordinator.onLongPressOnTabCard(
                 mTabGridContextMenuCoordinator, mTabListGroupMenuCoordinator, 1, cardView);
 
-        verify(mTabGridContextMenuCoordinator, never()).showMenu(any(), anyInt());
+        verify(mTabGridContextMenuCoordinator, never()).showMenu(any(), anyInt(), anyBoolean());
     }
 
     @Test
@@ -486,8 +495,10 @@ public class TabSwitcherPaneCoordinatorUnitTest {
 
         mCoordinator.onLongPressOnTabCard(
                 mTabGridContextMenuCoordinator, mTabListGroupMenuCoordinator, tabId, cardView);
-        verify(mTabGridContextMenuCoordinator).showMenu(any(ViewRectProvider.class), eq(tabId));
-        verify(mTabListGroupMenuCoordinator, never()).showMenu(any(ViewRectProvider.class), any());
+        verify(mTabGridContextMenuCoordinator)
+                .showMenu(any(ViewRectProvider.class), eq(tabId), anyBoolean());
+        verify(mTabListGroupMenuCoordinator, never())
+                .showMenu(any(ViewRectProvider.class), any(), anyBoolean());
     }
 
     @Test
@@ -505,8 +516,8 @@ public class TabSwitcherPaneCoordinatorUnitTest {
 
         mCoordinator.onLongPressOnTabCard(
                 mTabGridContextMenuCoordinator, mTabListGroupMenuCoordinator, tabId, cardView);
-        verify(mTabGridContextMenuCoordinator, never()).showMenu(any(), anyInt());
-        verify(mTabListGroupMenuCoordinator).showMenu(any(), eq(groupId));
+        verify(mTabGridContextMenuCoordinator, never()).showMenu(any(), anyInt(), anyBoolean());
+        verify(mTabListGroupMenuCoordinator).showMenu(any(), eq(groupId), anyBoolean());
     }
 
     @Test
@@ -519,18 +530,19 @@ public class TabSwitcherPaneCoordinatorUnitTest {
 
         mCoordinator.onLongPressOnTabCard(
                 mTabGridContextMenuCoordinator, mTabListGroupMenuCoordinator, tabId, null);
-        verify(mTabGridContextMenuCoordinator, never()).showMenu(any(), anyInt());
-        verify(mTabListGroupMenuCoordinator, never()).showMenu(any(), any());
+        verify(mTabGridContextMenuCoordinator, never()).showMenu(any(), anyInt(), anyBoolean());
+        verify(mTabListGroupMenuCoordinator, never()).showMenu(any(), any(), anyBoolean());
     }
 
     @Test
     public void testGetPageKeyListener() {
         assertNotNull(mCoordinator.getContainerViewModelForTesting().get(PAGE_KEY_LISTENER));
-        showTabGridDialogWithTabs();
+        DialogController controller = showTabGridDialogWithTabs();
         assertNotNull(
                 mCoordinator
                         .getTabGridDialogCoordinatorForTesting()
                         .getModelForTesting()
                         .get(TabGridDialogProperties.PAGE_KEY_LISTENER));
+        controller.hideDialog(false);
     }
 }

@@ -19,7 +19,6 @@
 #import "ios/chrome/browser/shared/model/web_state_list/tab_group.h"
 #import "ios/chrome/browser/shared/model/web_state_list/test/fake_web_state_list_delegate.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
-#import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/tab_groups_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -27,6 +26,7 @@
 #import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_grid_mode_holder.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/tab_group_view_controller.h"
+#import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/platform_test.h"
@@ -76,11 +76,6 @@ class TabGroupCoordinatorTest : public PlatformTest {
 
   void SetUp() override {
     PlatformTest::SetUp();
-    if (!IsTabGroupInGridEnabled()) {
-      // Disabled on iPadOS 16.
-      return;
-    }
-
     // Create a TestProfileIOS with required services.
     TestProfileIOS::Builder builder;
     builder.AddTestingFactory(
@@ -98,13 +93,11 @@ class TabGroupCoordinatorTest : public PlatformTest {
         std::make_unique<TabGroupCoordinatorFakeWebStateListDelegate>());
     SnapshotBrowserAgent::CreateForBrowser(browser_.get());
 
-    tab_groups_handler_ = OCMProtocolMock(@protocol(TabGroupsCommands));
-    application_handler_ = OCMProtocolMock(@protocol(ApplicationCommands));
+    tab_groups_commands_handler_ =
+        OCMProtocolMock(@protocol(TabGroupsCommands));
     CommandDispatcher* dispatcher = browser_->GetCommandDispatcher();
-    [dispatcher startDispatchingToTarget:tab_groups_handler_
+    [dispatcher startDispatchingToTarget:tab_groups_commands_handler_
                              forProtocol:@protocol(TabGroupsCommands)];
-    [dispatcher startDispatchingToTarget:application_handler_
-                             forProtocol:@protocol(ApplicationCommands)];
 
     base_view_controller_ = [[UIViewController alloc] init];
 
@@ -153,12 +146,12 @@ class TabGroupCoordinatorTest : public PlatformTest {
 
   // Needed for test profile created by TestBrowser().
   web::WebTaskEnvironment task_environment_;
+  IOSChromeScopedTestingLocalState scoped_testing_local_state_;
   base::test::ScopedFeatureList feature_list_;
   std::unique_ptr<TestProfileIOS> profile_;
   raw_ptr<tab_groups::FakeTabGroupSyncService> tab_group_sync_service_;
   std::unique_ptr<TestBrowser> browser_;
-  id<TabGroupsCommands> tab_groups_handler_;
-  id<ApplicationCommands> application_handler_;
+  id<TabGroupsCommands> tab_groups_commands_handler_;
   UIViewController* base_view_controller_;
   TabGridModeHolder* mode_holder_;
   TabGroupCoordinator* coordinator_;
@@ -190,10 +183,6 @@ class TabGroupCoordinatorWithSharedTabGroupsTest
 
 // Checks that the coordinator and its view controller are created upon start.
 TEST_F(TabGroupCoordinatorTest, Started) {
-  if (!IsTabGroupInGridEnabled()) {
-    // Disabled on iPadOS 16.
-    return;
-  }
   [coordinator_ start];
 
   EXPECT_NE(coordinator_, nil);
@@ -202,10 +191,6 @@ TEST_F(TabGroupCoordinatorTest, Started) {
 
 // Checks that the coordinator and its view controller are created upon start.
 TEST_F(TabGroupCoordinatorWithSharedTabGroupsJoinOnlyTest, Started) {
-  if (!IsTabGroupInGridEnabled()) {
-    // Disabled on iPadOS 16.
-    return;
-  }
   [coordinator_ start];
 
   EXPECT_NE(coordinator_, nil);
@@ -214,10 +199,6 @@ TEST_F(TabGroupCoordinatorWithSharedTabGroupsJoinOnlyTest, Started) {
 
 // Checks that the coordinator and its view controller are created upon start.
 TEST_F(TabGroupCoordinatorWithSharedTabGroupsTest, Started) {
-  if (!IsTabGroupInGridEnabled()) {
-    // Disabled on iPadOS 16.
-    return;
-  }
   [coordinator_ start];
 
   EXPECT_NE(coordinator_, nil);

@@ -9,6 +9,7 @@
 
 #include "base/check_op.h"
 #include "base/feature_list.h"
+#include "base/time/time.h"
 #include "third_party/blink/public/mojom/frame/frame.mojom-blink.h"
 #include "third_party/blink/public/web/web_frame_load_type.h"
 #include "third_party/blink/renderer/bindings/core/v8/capture_source_location.h"
@@ -596,6 +597,7 @@ NavigationResult* NavigationApi::PerformNonTraverseNavigation(
 NavigationResult* NavigationApi::traverseTo(ScriptState* script_state,
                                             const String& key,
                                             NavigationOptions* options) {
+  base::TimeTicks actual_navigation_start = base::TimeTicks::Now();
   if (DOMException* maybe_ex =
           PerformSharedNavigationChecks("traverseTo()/back()/forward()")) {
     return EarlyErrorResult(script_state, maybe_ex);
@@ -631,7 +633,7 @@ NavigationResult* NavigationApi::traverseTo(ScriptState* script_state,
   }
   frame->GetLocalFrameHostRemote().NavigateToNavigationApiKey(
       key, LocalFrame::HasTransientUserActivation(frame),
-      soft_navigation_task_id);
+      actual_navigation_start, soft_navigation_task_id);
   return api_method_tracker->GetNavigationResult();
 }
 
@@ -811,16 +813,13 @@ NavigationApi::DispatchResult NavigationApi::DispatchNavigateEvent(
   init->setUserInitiated(params->involvement !=
                          UserNavigationInvolvement::kNone);
   if (params->source_element) {
+    auto* control =
+        DynamicTo<HTMLFormControlElement>(params->source_element.Get());
     HTMLFormElement* form =
-        DynamicTo<HTMLFormElement>(params->source_element.Get());
-    if (!form) {
-      if (auto* control =
-              DynamicTo<HTMLFormControlElement>(params->source_element.Get())) {
-        form = control->formOwner();
-      }
-    }
+        control ? control->formOwner()
+                : DynamicTo<HTMLFormElement>(params->source_element.Get());
     if (form && form->Method() == FormSubmission::kPostMethod) {
-      init->setFormData(FormData::Create(form, ASSERT_NO_EXCEPTION));
+      init->setFormData(FormData::Create(form, control, ASSERT_NO_EXCEPTION));
     }
   }
   if (ongoing_api_method_tracker_) {
@@ -962,11 +961,11 @@ void NavigationApi::DidFailOngoingNavigation(ScriptValue value) {
   auto* isolate = window_->GetIsolate();
   v8::Local<v8::Message> message =
       v8::Exception::CreateMessage(isolate, value.V8Value());
-  std::unique_ptr<SourceLocation> location =
+  SourceLocation* location =
       blink::CaptureSourceLocation(isolate, message, window_);
-  ErrorEvent* event = ErrorEvent::Create(
-      ToCoreStringWithNullCheck(isolate, message->Get()), std::move(location),
-      value, &DOMWrapperWorld::MainWorld(isolate));
+  ErrorEvent* event =
+      ErrorEvent::Create(ToCoreStringWithNullCheck(isolate, message->Get()),
+                         location, value, &DOMWrapperWorld::MainWorld(isolate));
   event->SetType(event_type_names::kNavigateerror);
   DispatchEvent(*event);
 

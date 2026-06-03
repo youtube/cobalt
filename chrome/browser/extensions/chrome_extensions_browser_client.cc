@@ -44,6 +44,7 @@
 #include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/extensions/favicon/favicon_util.h"
 #include "chrome/browser/extensions/pref_mapping.h"
+#include "chrome/browser/extensions/tab_helper.h"
 #include "chrome/browser/extensions/updater/chrome_update_client_config.h"
 #include "chrome/browser/extensions/user_script_listener.h"
 #include "chrome/browser/external_protocol/external_protocol_handler.h"
@@ -105,6 +106,7 @@
 #include "chrome/browser/chromeos/policy/dlp/dlp_content_manager.h"
 #include "chrome/browser/extensions/updater/chromeos_extension_cache_delegate.h"
 #include "chrome/browser/extensions/updater/extension_cache_impl.h"
+#include "chromeos/ash/components/demo_mode/utils/demo_session_utils.h"
 #include "chromeos/components/mgs/managed_guest_session_utils.h"
 #include "components/user_manager/user_manager.h"
 #else
@@ -443,7 +445,7 @@ void ChromeExtensionsBrowserClient::PermitExternalProtocolHandler() {
 
 bool ChromeExtensionsBrowserClient::IsInDemoMode() {
 #if BUILDFLAG(IS_CHROMEOS)
-  return ash::DemoSession::IsDeviceInDemoMode();
+  return ash::demo_mode::IsDeviceInDemoMode();
 #else
   return false;
 #endif
@@ -713,6 +715,12 @@ bool ChromeExtensionsBrowserClient::IsExtensionTelemetryServiceEnabled(
 #else
   return false;
 #endif
+}
+
+ScriptExecutor* ChromeExtensionsBrowserClient::GetScriptExecutorForTab(
+    content::WebContents& web_contents) {
+  TabHelper* tab_helper = TabHelper::FromWebContents(&web_contents);
+  return tab_helper ? tab_helper->script_executor() : nullptr;
 }
 
 void ChromeExtensionsBrowserClient::NotifyExtensionApiTabExecuteScript(

@@ -164,6 +164,18 @@ BASE_FEATURE(kWebViewSeparateResourceContext,
              "WebViewSeparateResourceContext",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Whether to skip shouldInterceptRequest and other checks for prefetch
+// requests.
+BASE_FEATURE(kWebViewSkipInterceptsForPrefetch,
+             "WebViewSkipInterceptsForPrefetch",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Whether to skip `WebView::ContentsPreferredMinimumSize` within
+// `AwRenderViewExt::UpdateContentsSize`.
+BASE_FEATURE(kWebViewSkipPreferredSizeForContentsSize,
+             "WebViewSkipPreferredSizeForContentsSize",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Whether to use initial network state during initialization to speed up
 // startup.
 BASE_FEATURE(kWebViewUseInitialNetworkStateAtStartup,
@@ -292,4 +304,10 @@ const base::FeatureParam<int> kWebViewCacheSizeLimitMaximum{
 const base::FeatureParam<double> kWebViewCodeCacheSizeLimitMultiplier{
     &kWebViewCacheSizeLimitDerivedFromAppCacheQuota,
     "WebViewCodeCacheSizeLimitMultiplier", 0.5};
+
+// Connect to the non-embedded components provider from a background thread.
+BASE_FEATURE(kWebViewConnectToComponentProviderInBackground,
+             "WebViewConnectToComponentProviderInBackground",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 }  // namespace android_webview::features

@@ -33,10 +33,8 @@ ci.defaults.set(
             ),
         ),
     }),
-    reclient_enabled = False,
     service_account = ci.DEFAULT_SERVICE_ACCOUNT,
     shadow_service_account = ci.DEFAULT_SHADOW_SERVICE_ACCOUNT,
-    siso_enabled = True,
     siso_project = siso.project.DEFAULT_TRUSTED,
     siso_remote_jobs = siso.remote_jobs.DEFAULT,
 )
@@ -278,7 +276,7 @@ ci.thin_tester(
     branch_selector = branches.selector.CROS_LTS_BRANCHES,
     description_html = "This is a tester builder for Ash chrome." +
                        " This builder only run gtest.",
-    triggered_by = ["ci/chromeos-amd64-generic-rel"],
+    parent = "ci/chromeos-amd64-generic-rel",
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -331,7 +329,7 @@ ci.thin_tester(
                        " This builder only run tast tests. If you see" +
                        " test failures, please contact ChromeOS gardeners" +
                        " for help.",
-    triggered_by = ["ci/chromeos-amd64-generic-rel"],
+    parent = "ci/chromeos-amd64-generic-rel",
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(

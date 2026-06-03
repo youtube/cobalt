@@ -47,12 +47,9 @@
 #include "remoting/host/it2me/it2me_constants.h"
 #include "remoting/host/policy_watcher.h"
 #include "remoting/host/register_support_host_request.h"
-#include "remoting/host/xmpp_register_support_host_request.h"
 #include "remoting/protocol/errors.h"
 #include "remoting/protocol/transport_context.h"
 #include "remoting/signaling/fake_signal_strategy.h"
-#include "remoting/signaling/remoting_log_to_server.h"
-#include "remoting/signaling/xmpp_log_to_server.h"
 #include "services/network/test/test_shared_url_loader_factory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -443,10 +440,6 @@ void It2MeHostTest::StartHost() {
         context->use_corp_session_authz = use_corp_session_authz;
         context->register_request =
             std::make_unique<FakeRegisterSupportHostRequest>();
-        context->log_to_server = std::make_unique<RemotingLogToServer>(
-            ServerLogEntry::IT2ME,
-            std::make_unique<OAuthTokenGetterProxy>(token_getter),
-            host_context->url_loader_factory());
         context->signaling_token_getter =
             std::make_unique<OAuthTokenGetterProxy>(token_getter);
         context->api_token_getter =

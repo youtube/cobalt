@@ -44,6 +44,7 @@
 #include "third_party/blink/renderer/core/layout/layout_multi_column_flow_thread.h"
 #include "third_party/blink/renderer/core/layout/layout_multi_column_set.h"
 #include "third_party/blink/renderer/core/layout/layout_multi_column_spanner_placeholder.h"
+#include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/layout/layout_result.h"
 #include "third_party/blink/renderer/core/layout/layout_utils.h"
 #include "third_party/blink/renderer/core/layout/layout_video.h"
@@ -86,7 +87,6 @@
 #include "third_party/blink/renderer/core/mathml/mathml_under_over_element.h"
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
 #include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
-#include "third_party/blink/renderer/core/paint/transform_utils.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/text/writing_mode.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
@@ -253,7 +253,7 @@ bool CanUseCachedIntrinsicInlineSizes(const ConstraintSpace& constraint_space,
   // "grid-template-columns: repeat(auto-fill, 50px); min-width: 50%;"
   // In this specific case our min/max sizes are now dependent on what
   // "min-width" resolves to - which is unique to grid.
-  if (node.IsGrid()) {
+  if (node.IsGrid() || node.IsMasonry()) {
     if (style.LogicalMinWidth().HasPercentOrStretch() ||
         style.LogicalMaxWidth().HasPercentOrStretch()) {
       return false;
@@ -388,7 +388,7 @@ void AttachScrollMarkers(LayoutObject& parent,
   }
 
   const LayoutBox* parent_box = DynamicTo<LayoutBox>(&parent);
-  // If this is a multicol container, look for ::column::scroll-marker pseudo
+  // If this is a multicol container, look for ::column::scroll-marker pseudo-
   // elements, and attach them.
   if (parent_box && parent_box->IsFragmentationContextRoot()) {
     if (const ColumnPseudoElementsVector* column_pseudos =
@@ -970,11 +970,12 @@ MinMaxSizesResult BlockNode::ComputeMinMaxSizes(
   };
 
   const bool is_in_perform_layout = box_->GetFrameView()->IsInPerformLayout();
-  // In some scenarios, GridNG and FlexNG will run layout on their items during
-  // MinMaxSizes computation. Instead of running (and possible caching incorrect
-  // results), when we're not performing layout, just use border + padding.
+  // In some scenarios, Grid, Masonry and Flex will run layout on their items
+  // during MinMaxSizes computation. Instead of running (and possible caching
+  // incorrect results), when we're not performing layout, just use border +
+  // padding.
   if (!is_in_perform_layout &&
-      (IsGrid() ||
+      (IsGrid() || IsMasonry() ||
        (IsFlexibleBox() && Style().ResolvedIsColumnFlexDirection()))) {
     const FragmentGeometry& fragment_geometry = IntrinsicFragmentGeometry();
     const BoxStrut border_padding =
@@ -1217,7 +1218,7 @@ LayoutUnit BlockNode::EmptyLineBlockSize(
 }
 
 String BlockNode::ToString() const {
-  return WTF::StrCat({"BlockNode: ", GetLayoutBox()->ToString()});
+  return StrCat({"BlockNode: ", GetLayoutBox()->ToString()});
 }
 
 void BlockNode::CopyFragmentDataToLayoutBox(
@@ -1611,38 +1612,6 @@ LogicalSize BlockNode::GetReplacedAspectRatio() const {
     return Style().LogicalAspectRatio();
   }
   return LogicalSize();
-}
-
-std::optional<gfx::Transform> BlockNode::GetTransformForChildFragment(
-    const PhysicalBoxFragment& child_fragment,
-    PhysicalSize size) const {
-  const auto* child_layout_object = child_fragment.GetLayoutObject();
-  DCHECK(child_layout_object);
-
-  if (!child_layout_object->ShouldUseTransformFromContainer(box_))
-    return std::nullopt;
-
-  std::optional<gfx::Transform> fragment_transform;
-  if (!child_fragment.IsOnlyForNode()) {
-    // If we're fragmented, there's no correct transform stored for
-    // us. Calculate it now.
-    fragment_transform.emplace();
-    fragment_transform->MakeIdentity();
-    const PhysicalRect reference_box = ComputeReferenceBox(child_fragment);
-    child_fragment.Style().ApplyTransform(
-        *fragment_transform, box_, reference_box,
-        ComputedStyle::kIncludeTransformOperations,
-        ComputedStyle::kIncludeTransformOrigin,
-        ComputedStyle::kIncludeMotionPath,
-        ComputedStyle::kIncludeIndependentTransformProperties);
-  }
-
-  gfx::Transform transform;
-  child_layout_object->GetTransformFromContainer(
-      box_, PhysicalOffset(), transform, &size,
-      base::OptionalToPtr(fragment_transform));
-
-  return transform;
 }
 
 bool BlockNode::HasNonVisibleBlockOverflow() const {

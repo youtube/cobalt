@@ -8,6 +8,7 @@ import static org.chromium.chrome.browser.contextmenu.ContextMenuItemWithIconBut
 import static org.chromium.chrome.browser.contextmenu.ContextMenuItemWithIconButtonProperties.BUTTON_CONTENT_DESC;
 import static org.chromium.chrome.browser.contextmenu.ContextMenuItemWithIconButtonProperties.BUTTON_IMAGE;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.ENABLED;
+import static org.chromium.ui.listmenu.ListMenuItemProperties.HOVER_LISTENER;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.TITLE;
 
 import android.graphics.drawable.Drawable;
@@ -15,10 +16,12 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.R;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 
+@NullMarked
 class ContextMenuItemWithIconButtonViewBinder {
     public static void bind(PropertyModel model, View view, PropertyKey propertyKey) {
         TextView textView = view.findViewById(R.id.menu_row_text);
@@ -46,6 +49,8 @@ class ContextMenuItemWithIconButtonViewBinder {
                                     .getString(
                                             R.string.accessibility_menu_share_via,
                                             model.get(BUTTON_CONTENT_DESC)));
+        } else if (propertyKey == HOVER_LISTENER) {
+            textView.setOnHoverListener(model.get(HOVER_LISTENER));
         } else if (propertyKey == BUTTON_CLICK_LISTENER) {
             view.findViewById(R.id.menu_row_share_icon)
                     .setOnClickListener(model.get(BUTTON_CLICK_LISTENER));

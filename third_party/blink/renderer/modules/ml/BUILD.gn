@@ -28,6 +28,8 @@ blink_modules_sources("ml") {
     "webnn/ml_graph_transform/ml_graph_transformer.h",
     "webnn/ml_graph_transform/pipeline.cc",
     "webnn/ml_graph_transform/pipeline.h",
+    "webnn/ml_graph_transform/transpose_elimination_transformer.cc",
+    "webnn/ml_graph_transform/transpose_elimination_transformer.h",
     "webnn/ml_graph_type_converter.cc",
     "webnn/ml_graph_type_converter.h",
     "webnn/ml_graph_utils.cc",
@@ -44,6 +46,15 @@ blink_modules_sources("ml") {
     "//services/webnn/public/cpp",
     "//services/webnn/public/mojom:mojom_blink",
     "//third_party/blink/renderer/modules/webgpu",
+  ]
+}
+
+source_set("operand_id_hash_traits") {
+  sources = [ "webnn/operand_id_hash_traits.h" ]
+
+  deps = [
+    "//services/webnn/public/cpp",
+    "//third_party/blink/renderer/platform/wtf",
   ]
 }
 

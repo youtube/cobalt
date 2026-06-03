@@ -26,9 +26,9 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.ui.InsetObserver;
-import org.chromium.ui.InsetObserver.WindowInsetsConsumer.InsetConsumerSource;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.insets.InsetObserver;
+import org.chromium.ui.insets.InsetObserver.WindowInsetsConsumer.InsetConsumerSource;
 
 import java.lang.ref.WeakReference;
 
@@ -110,6 +110,27 @@ public class DeferredIMEWindowInsetApplicationCallbackTest {
                         .build();
         WindowInsetsCompat modifiedInsets = mCallback.onApplyWindowInsets(mView, windowInsets);
 
+        assertEquals(Insets.NONE, modifiedInsets.getInsets(WindowInsetsCompat.Type.ime()));
+        verify(mUpdateRunnable, never()).run();
+    }
+
+    @Test
+    public void testAnimatedkeyboardShow_horizontalNavBar() {
+        Insets horizontalNavbarInsets = Insets.of(0, 0, 84, 0);
+
+        mCallback.attach(mWindowAndroid);
+        mCallback.onPrepare(mAnimation);
+
+        WindowInsetsCompat windowInsets =
+                mBaseWindowInsets
+                        .setInsets(WindowInsetsCompat.Type.navigationBars(), horizontalNavbarInsets)
+                        .setInsets(WindowInsetsCompat.Type.ime(), Insets.of(0, 0, 0, 384))
+                        .build();
+        WindowInsetsCompat modifiedInsets = mCallback.onApplyWindowInsets(mView, windowInsets);
+
+        assertEquals(
+                horizontalNavbarInsets,
+                modifiedInsets.getInsets(WindowInsetsCompat.Type.navigationBars()));
         assertEquals(Insets.NONE, modifiedInsets.getInsets(WindowInsetsCompat.Type.ime()));
         verify(mUpdateRunnable, never()).run();
     }

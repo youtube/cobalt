@@ -93,6 +93,10 @@ BASE_FEATURE(kIOSPasswordBottomSheetV2,
 BASE_FEATURE(kIOSProactivePasswordGenerationBottomSheet,
              "kIOSProactivePasswordGenerationBottomSheet",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kIOSFillRecoveryPassword,
+             "IOSFillRecoveryPassword",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // IS_IOS
 
 BASE_FEATURE(kPasswordFormGroupedAffiliations,
@@ -140,6 +144,10 @@ BASE_FEATURE(kSetLeakCheckRequestCriticality,
              "SetLeakCheckRequestCriticality",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kShowRecoveryPassword,
+             "ShowRecoveryPassword",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kSkipUndecryptablePasswords,
              "SkipUndecryptablePasswords",
 #if BUILDFLAG(IS_WIN)
@@ -153,6 +161,10 @@ BASE_FEATURE(kTriggerPasswordResyncAfterDeletingUndecryptablePasswords,
              "TriggerPasswordResyncAfterDeletingUndecryptablePasswords",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kTriggerPasswordResyncWhenUndecryptablePasswordsDetected,
+             "TriggerPasswordResyncWhenUndecryptablePasswordsDetected",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kBiometricAuthIdentityCheck,
              "BiometricAuthIdentityCheck",
@@ -160,7 +172,7 @@ BASE_FEATURE(kBiometricAuthIdentityCheck,
 
 BASE_FEATURE(kLoginDbDeprecationAndroid,
              "LoginDbDeprecationAndroid",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 BASE_FEATURE(kUseNewEncryptionMethod,

@@ -49,10 +49,28 @@ using content::BrowserContext;
 // TODO(crbug.com/419848973): This is a workaround until the "he" language code
 // is fully supported.
 std::string SwitchLanguageCodeToIwIfHe(std::string language_code) {
-  if (language_code == "he") {
-    return "iw";
+  std::string language_subtag = language_code;
+  int pos = language_code.find("-");
+  if (pos != -1) {
+    language_subtag.resize(pos);
+  }
+  if (language_subtag == "he") {
+    language_code.replace(0, 2, "iw");
   }
   return language_code;
+}
+
+void RunTranslationAvailableCallbackWithMasking(
+    bool mask_readily_result,
+    std::string source_language,
+    std::string target_language,
+    TranslationManagerImpl::TranslationAvailableCallback callback,
+    CanCreateTranslatorResult result) {
+  if (result == CanCreateTranslatorResult::kReadily && mask_readily_result) {
+    result =
+        CanCreateTranslatorResult::kAfterDownloadTranslatorCreationRequired;
+  }
+  std::move(callback).Run(result);
 }
 
 }  // namespace
@@ -165,32 +183,18 @@ void TranslationManagerImpl::SetInitializedTranslation(
       std::move(initialized_translations_value));
 }
 
-void TranslationManagerImpl::CanCreateTranslator(
-    TranslatorLanguageCodePtr source_lang,
-    TranslatorLanguageCodePtr target_lang,
-    CanCreateTranslatorCallback callback) {
-  const std::string source_language =
-      SwitchLanguageCodeToIwIfHe(source_lang->code);
-  const std::string target_language =
-      SwitchLanguageCodeToIwIfHe(target_lang->code);
-
-  RecordTranslationAPICallForLanguagePair("CanTranslate", source_language,
-                                          target_language);
-
-  if (!IsTranslatorAllowed(browser_context())) {
-    std::move(callback).Run(CanCreateTranslatorResult::kNoDisallowedByPolicy);
-    return;
+std::optional<std::string> TranslationManagerImpl::GetBestFitLanguageCode(
+    std::string requested_language) {
+  // The "crash" code is only allowed in testing. This code triggers the mock
+  // TranslateKit lib to crash, so that we can test graceful handling of
+  // TranslateKit crashes.
+  if (CrashesAllowed() && requested_language == "crash") {
+    return requested_language;
   }
-
-  if (!PassAcceptLanguagesCheck(GetAcceptLanguages(browser_context()),
-                                source_language, target_language)) {
-    std::move(callback).Run(
-        CanCreateTranslatorResult::kNoAcceptLanguagesCheckFailed);
-    return;
-  }
-
-  GetServiceController().CanTranslate(source_language, target_language,
-                                      std::move(callback));
+  std::string best_fit =
+      SwitchLanguageCodeToIwIfHe(std::move(requested_language));
+  return LookupMatchingLocaleByBestFit(kSupportedLanguageCodes,
+                                       std::move(best_fit));
 }
 
 base::TimeDelta TranslationManagerImpl::GetTranslatorDownloadDelay() {
@@ -200,6 +204,10 @@ base::TimeDelta TranslationManagerImpl::GetTranslatorDownloadDelay() {
 component_updater::ComponentUpdateService*
 TranslationManagerImpl::GetComponentUpdateService() {
   return g_browser_process->component_updater();
+}
+
+bool TranslationManagerImpl::CrashesAllowed() {
+  return false;
 }
 
 void TranslationManagerImpl::CreateTranslatorImpl(
@@ -226,7 +234,8 @@ void TranslationManagerImpl::CreateTranslatorImpl(
             if (!result.has_value()) {
               mojo::Remote<TranslationManagerCreateTranslatorClient>(
                   std::move(client))
-                  ->OnResult(CreateTranslatorResult::NewError(result.error()));
+                  ->OnResult(CreateTranslatorResult::NewError(result.error()),
+                             nullptr, nullptr);
               return;
             }
             mojo::PendingRemote<::blink::mojom::Translator> blink_remote;
@@ -238,7 +247,9 @@ void TranslationManagerImpl::CreateTranslatorImpl(
             mojo::Remote<TranslationManagerCreateTranslatorClient>(
                 std::move(client))
                 ->OnResult(CreateTranslatorResult::NewTranslator(
-                    std::move(blink_remote)));
+                               std::move(blink_remote)),
+                           TranslatorLanguageCode::New(source_language),
+                           TranslatorLanguageCode::New(target_language));
 
             // TODO(crbug.com/414393698): Ensure stored WebsiteSetting is not
             // updated when create is aborted prior to download completion.
@@ -256,11 +267,28 @@ void TranslationManagerImpl::CreateTranslatorImpl(
 
 void TranslationManagerImpl::CreateTranslator(
     mojo::PendingRemote<TranslationManagerCreateTranslatorClient> client,
-    blink::mojom::TranslatorCreateOptionsPtr options) {
-  const std::string source_language =
-      SwitchLanguageCodeToIwIfHe(options->source_lang->code);
-  const std::string target_language =
-      SwitchLanguageCodeToIwIfHe(options->target_lang->code);
+    blink::mojom::TranslatorCreateOptionsPtr options,
+    bool add_fake_download_delay) {
+  std::optional<std::string> maybe_source_language =
+      GetBestFitLanguageCode(options->source_lang->code);
+  std::optional<std::string> maybe_target_language =
+      GetBestFitLanguageCode(options->target_lang->code);
+
+  // TranslationAvailable should have been called on these language codes which
+  // has already verified that a best fit language code exists, but if the
+  // renderer is compromised, the CreateTranslator mojo function could be called
+  // directly with invalid values.
+  if (!maybe_source_language.has_value() ||
+      !maybe_target_language.has_value()) {
+    mojo::Remote(std::move(client))
+        ->OnResult(CreateTranslatorResult::NewError(
+                       CreateTranslatorError::kFailedToCreateTranslator),
+                   nullptr, nullptr);
+    return;
+  }
+
+  std::string source_language = *std::move(maybe_source_language);
+  std::string target_language = *std::move(maybe_target_language);
 
   RecordTranslationAPICallForLanguagePair("Create", source_language,
                                           target_language);
@@ -268,15 +296,8 @@ void TranslationManagerImpl::CreateTranslator(
   if (!IsTranslatorAllowed(browser_context())) {
     mojo::Remote(std::move(client))
         ->OnResult(CreateTranslatorResult::NewError(
-            CreateTranslatorError::kDisallowedByPolicy));
-    return;
-  }
-
-  if (!PassAcceptLanguagesCheck(GetAcceptLanguages(browser_context()),
-                                source_language, target_language)) {
-    mojo::Remote(std::move(client))
-        ->OnResult(CreateTranslatorResult::NewError(
-            CreateTranslatorError::kAcceptLanguagesCheckFailed));
+                       CreateTranslatorError::kDisallowedByPolicy),
+                   nullptr, nullptr);
     return;
   }
 
@@ -303,29 +324,12 @@ void TranslationManagerImpl::CreateTranslator(
                      weak_ptr_factory_.GetWeakPtr(), std::move(client),
                      source_language, target_language);
 
-  TranslationAvailable(
-      TranslatorLanguageCode::New(source_language),
-      TranslatorLanguageCode::New(target_language),
-      base::BindOnce(
-          [](base::WeakPtr<TranslationManagerImpl> self,
-             base::OnceClosure create_translator,
-             CanCreateTranslatorResult result) {
-            if (!self) {
-              return;
-            }
-
-            if (base::FeatureList::IsEnabled(
-                    blink::features::kTranslationAPIV1) &&
-                result == CanCreateTranslatorResult::
-                              kAfterDownloadTranslatorCreationRequired) {
-              base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-                  FROM_HERE, std::move(create_translator),
-                  self->GetTranslatorDownloadDelay());
-            } else {
-              std::move(create_translator).Run();
-            }
-          },
-          weak_ptr_factory_.GetWeakPtr(), std::move(create_translator)));
+  if (add_fake_download_delay) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE, std::move(create_translator), GetTranslatorDownloadDelay());
+  } else {
+    std::move(create_translator).Run();
+  }
 }
 
 OnDeviceTranslationServiceController&
@@ -343,10 +347,19 @@ void TranslationManagerImpl::TranslationAvailable(
     TranslatorLanguageCodePtr source_lang,
     TranslatorLanguageCodePtr target_lang,
     TranslationAvailableCallback callback) {
-  const std::string source_language =
-      SwitchLanguageCodeToIwIfHe(std::move(source_lang->code));
-  const std::string target_language =
-      SwitchLanguageCodeToIwIfHe(std::move(target_lang->code));
+  std::optional<std::string> maybe_source_language =
+      GetBestFitLanguageCode(std::move(source_lang->code));
+  std::optional<std::string> maybe_target_language =
+      GetBestFitLanguageCode(std::move(target_lang->code));
+
+  if (!maybe_source_language.has_value() ||
+      !maybe_target_language.has_value()) {
+    std::move(callback).Run(CanCreateTranslatorResult::kNoNotSupportedLanguage);
+    return;
+  }
+
+  std::string source_language = *std::move(maybe_source_language);
+  std::string target_language = *std::move(maybe_target_language);
 
   RecordTranslationAPICallForLanguagePair("Availability", source_language,
                                           target_language);
@@ -359,14 +372,6 @@ void TranslationManagerImpl::TranslationAvailable(
   const std::vector<std::string_view> accept_languages =
       GetAcceptLanguages(browser_context());
 
-  // TODO(crbug.com/385173766): Remove once V1 is launched.
-  if (!PassAcceptLanguagesCheck(accept_languages, source_language,
-                                target_language)) {
-    std::move(callback).Run(
-        CanCreateTranslatorResult::kNoAcceptLanguagesCheckFailed);
-    return;
-  }
-
   bool are_source_and_target_accept_or_english =
       (IsInAcceptLanguage(accept_languages, source_language) ||
        l10n_util::GetLanguage(source_language) == "en") &&
@@ -374,24 +379,13 @@ void TranslationManagerImpl::TranslationAvailable(
        l10n_util::GetLanguage(target_language) == "en");
 
   bool mask_readily_result =
-      base::FeatureList::IsEnabled(blink::features::kTranslationAPIV1) &&
       !HasInitializedTranslator(source_language, target_language) &&
       !are_source_and_target_accept_or_english;
 
   GetServiceController().CanTranslate(
       std::move(source_language), std::move(target_language),
-      base::BindOnce(
-          [](bool mask_readily_result, TranslationAvailableCallback callback,
-             CanCreateTranslatorResult result) {
-            if (result == CanCreateTranslatorResult::kReadily &&
-                mask_readily_result) {
-              std::move(callback).Run(
-                  CanCreateTranslatorResult::
-                      kAfterDownloadTranslatorCreationRequired);
-              return;
-            }
-            std::move(callback).Run(result);
-          },
-          mask_readily_result, std::move(callback)));
+      base::BindOnce(&RunTranslationAvailableCallbackWithMasking,
+                     mask_readily_result, source_language, target_language,
+                     std::move(callback)));
 }
 }  // namespace on_device_translation

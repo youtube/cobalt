@@ -31,6 +31,7 @@
 #include "components/saved_tab_groups/internal/sync_data_type_configuration.h"
 #include "components/saved_tab_groups/internal/tab_group_sync_bridge_mediator.h"
 #include "components/saved_tab_groups/internal/tab_group_sync_coordinator_impl.h"
+#include "components/saved_tab_groups/internal/versioning_message_controller_impl.h"
 #include "components/saved_tab_groups/public/collaboration_finder.h"
 #include "components/saved_tab_groups/public/features.h"
 #include "components/saved_tab_groups/public/pref_names.h"
@@ -191,7 +192,10 @@ TabGroupSyncServiceImpl::TabGroupSyncServiceImpl(
       collaboration_finder_(std::move(collaboration_finder)),
       logger_(logger),
       pref_service_(pref_service),
-      opt_guide_(optimization_guide_decider) {
+      opt_guide_(optimization_guide_decider),
+      versioning_message_controller_(
+          std::make_unique<VersioningMessageControllerImpl>(pref_service_,
+                                                            this)) {
   if (shared_tab_group_account_configuration) {
     shared_tab_group_account_data_bridge_ =
         std::make_unique<SharedTabGroupAccountDataSyncBridge>(
@@ -251,6 +255,18 @@ std::unique_ptr<std::vector<SavedTabGroup>>
 TabGroupSyncServiceImpl::TakeSharedTabGroupsAvailableAtStartupForMessaging() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return std::move(shared_tab_groups_available_at_startup_for_messaging_);
+}
+
+bool TabGroupSyncServiceImpl::HadSharedTabGroupsLastSession(
+    bool open_shared_tab_groups) {
+  return open_shared_tab_groups ? had_open_shared_tab_groups_on_startup_
+                                : had_shared_tab_groups_on_startup_;
+}
+
+VersioningMessageController*
+TabGroupSyncServiceImpl::GetVersioningMessageController() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  return versioning_message_controller_.get();
 }
 
 void TabGroupSyncServiceImpl::AddObserver(
@@ -687,7 +703,7 @@ void TabGroupSyncServiceImpl::UnsaveGroup(const LocalTabGroupID& local_id) {
 
 void TabGroupSyncServiceImpl::MakeTabGroupShared(
     const LocalTabGroupID& local_group_id,
-    std::string_view collaboration_id,
+    const syncer::CollaborationId& collaboration_id,
     TabGroupSharingCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   const SavedTabGroup* saved_group = model_->Get(local_group_id);
@@ -712,8 +728,8 @@ void TabGroupSyncServiceImpl::MakeTabGroupShared(
 
   // Make a deep copy of the group without fields which are not used in shared
   // tab groups, and without migration of local IDs.
-  SavedTabGroup shared_group = saved_group->CloneAsSharedTabGroup(
-      CollaborationId(std::string(collaboration_id)));
+  SavedTabGroup shared_group =
+      saved_group->CloneAsSharedTabGroup(collaboration_id);
   shared_group.SetUpdatedByAttribution(gaia_id.value());
 
   // The shared group must never be empty.
@@ -839,10 +855,9 @@ void TabGroupSyncServiceImpl::OnCollaborationRemoved(
 
 void TabGroupSyncServiceImpl::MakeTabGroupSharedForTesting(
     const LocalTabGroupID& local_group_id,
-    std::string_view collaboration_id) {
+    const syncer::CollaborationId& collaboration_id) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  model_->MakeTabGroupSharedForTesting(
-      local_group_id, CollaborationId(std::string(collaboration_id)));
+  model_->MakeTabGroupSharedForTesting(local_group_id, collaboration_id);
 }
 
 bool TabGroupSyncServiceImpl::ShouldExposeSavedTabGroupInList(
@@ -1650,7 +1665,8 @@ void TabGroupSyncServiceImpl::NotifyServiceInitialized() {
 void TabGroupSyncServiceImpl::OnSyncBridgeUpdateTypeChanged(
     SyncBridgeUpdateType sync_bridge_update_type) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  if (sync_bridge_update_type == SyncBridgeUpdateType::kDefaultState &&
+  if (sync_bridge_update_type ==
+          SyncBridgeUpdateType::kCompletedInitialMergeThisSession &&
       sync_bridge_mediator_->GetTrackingGaiaIdForSharedBridge().has_value()) {
     while (!pending_actions_waiting_sign_in_.empty()) {
       // User just signed-in. Run any pending actions.
@@ -1754,6 +1770,11 @@ void TabGroupSyncServiceImpl::
 
     // Dereference to create a safe copy.
     shared_tab_groups_available_at_startup_for_messaging_->push_back(*group);
+
+    had_shared_tab_groups_on_startup_ = true;
+    if (group->local_group_id().has_value()) {
+      had_open_shared_tab_groups_on_startup_ = true;
+    }
   }
 }
 

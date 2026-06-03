@@ -988,6 +988,9 @@ Google Chrome is unable to recover your settings.
       <message name="IDS_INSTALLER_DOWNLOADER_BUTTON_LABEL" desc="Button label for the installer downloader infobar to download the Chrome installer.">
         Download Chrome Installer
       </message>
+      <message name="IDS_INSTALLER_DOWNLOADER_LINK" desc="Text for the link in the installer downloader infobar to learn more about installing Chrome">
+        Learn more about installing Chrome
+      </message>
 
       <!-- Enterprise sign-in dialog -->
       <message name="IDS_ENTERPRISE_VALUE_PROPOSITION_PROFILE_REQUIRED_BY_ORG_TITLE" desc="Title of the screen in the profile creation flow where the user is asked whether they want to confirm signing in to Chrome with their enterprise account when it is mandatory to sign in to Chrome with the enterprise account.">
@@ -1393,16 +1396,6 @@ Google Chrome is unable to recover your settings.
       <message name="IDS_QUIET_NOTIFICATION_IPH_TEXT_SCREENREADER" desc="Text of the blocked notifications indicator promo, that shows under the blocked notifications indicator in the address bar, when a site requests notifications permission. The promo informs the user that as a result of them usually blocking notifications, the request from the site is automatically blocked, and the user can click on the icon to allow notifications.">
         You usually block notifications. To let this site notify you, click the notification icon on the right corner of your location bar.
       </message>
-
-      <if expr="not is_android">
-        <!-- Desktop User Education IPH Strings -->
-        <message name="IDS_SIDE_PANEL_GENERIC_MENU_IPH" desc="The body text of the IPH describing how to find side panel entry points in the Chrome menu.">
-          You can open bookmarks, reading mode, and more from the Chrome menu
-        </message>
-        <message name="IDS_SIDE_PANEL_GENERIC_MENU_IPH_SCREENREADER" desc="The screen reader text of the IPH describing how to find side panel entry points in the Chrome menu. The phrase 'top right' should read as 'top left' in rtl languages.">
-          You can open bookmarks, reading mode, and more from the Chrome menu at the top right
-        </message>
-      </if>
 
       <!-- Settings API bubble -->
       <message name="IDS_EXTENSIONS_SETTINGS_API_SECOND_LINE_START_PAGES" desc="Second line in the Settings API bubble. Only shown if the secondary change by the extension was just the start pages. The triple single quotes are needed to preserve the space before and after the sentence which is needed when the language (Chrome is being translated to) uses space as word separator. Please preserve them, unless the language being translated to does not use space as word separator.">
@@ -1889,6 +1882,10 @@ Google Chrome is unable to recover your settings.
           desc="Accessibility label for the slider controlling the bottom left corner of the search area. Includes the coordinates of the left and bottom edges of the search area expressed as percentages of the image area.">
           bottom left corner of search area: left <ph name="LEFT"><ex>15</ex>$1</ph>%, bottom <ph name="BOTTOM"><ex>65</ex>$2</ph>%
         </message>
+        <message name="IDS_LENS_OVERLAY_SEARCH_SCREENSHOT_ACCESSIBILITY_LABEL"
+          desc="Spoken by screen readers when the screenshot gets focus, but not visually rendered. Informs the user that the screenshot will be searched when activated.">
+          Search this screenshot
+        </message>
 
         <!-- IPH Strings -->
         <message name="IDS_LENS_OVERLAY_TRANSLATE_BUTTON_IPH"
@@ -2000,13 +1997,6 @@ Google Chrome is unable to recover your settings.
             ChromeOS terms
           </message>
         </if>
-      </if>
-
-      <!-- Welcome page (chrome://welcome) strings -->
-      <if expr="not is_chromeos">
-        <message name="IDS_WELCOME_HEADER" desc="A message which will appear as the header on the Welcome UI if the user has never run Chrome before.">
-          Welcome to Chrome
-        </message>
       </if>
 
       <!-- Native notifications for Windows 10 -->
@@ -2127,6 +2117,13 @@ Google Chrome is unable to recover your settings.
       <if expr="not is_android">
         <message name="IDS_HATS_BUBBLE_TITLE" translateable="false" desc="The title of Happiness Tracking Survey's invitation banner, it invites users to take a survey">
           Take a quick survey
+        </message>
+      </if>
+
+      <!-- HaTS invitations on Android -->
+      <if expr="is_android">
+        <message name="IDS_MESSAGE_ACT_SURVEY_INVITATION" desc="Survey invitation text that's shown in a pop up. The user can then ignore the invitation or accept it, which will cause the survey to be shown.">
+          Help us improve Incognito by taking this 1 minute survey.
         </message>
       </if>
 
@@ -2251,8 +2248,11 @@ Google Chrome is unable to recover your settings.
       </message>
 
       <!-- Advanced security settings -->
-      <message name="IDS_SETTINGS_SECURITY_V8_LINK_DESCRIPTION" desc="Description for the link row of the V8 security settings page.">
-        Turn on additional protection in Chrome’s JavaScript and WebAssembly engine
+      <message name="IDS_SETTINGS_SECURITY_JAVASCRIPT_OPTIMIZATION_LINK_ROW_ENABLED" desc="Description for the link row of the Javascript-optimization page when javascript-optimization is enabled.">
+        Speeds up sites with Chrome's V8 engine but makes Chrome slightly less resistant to attacks. This setting is on.
+      </message>
+      <message name="IDS_SETTINGS_SECURITY_JAVASCRIPT_OPTIMIZATION_LINK_ROW_DISABLED" desc="Description for the link row of the Javascript-optimization page when javascript-optimization is disabled.">
+        Speeds up sites with Chrome's V8 engine but makes Chrome slightly less resistant to attacks. This setting is off.
       </message>
       <message name="IDS_SETTINGS_SITE_SETTINGS_JAVASCRIPT_OPTIMIZER_DESCRIPTION" desc="Description of the JavaScript optimizer content setting.">
         V8 is Chrome’s JavaScript and WebAssembly engine used to improve site performance

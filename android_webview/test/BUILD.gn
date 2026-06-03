@@ -96,11 +96,13 @@ script_test("system_webview_crx_smoke_tests") {
 }
 
 # Options shared by all script test targets that call `run_wpt_tests.py`.
+# TODO(crbug.com/419890016): Consolidate the common options.
 _common_web_test_options = [
   "--no-show-results",
   "--zero-tests-executed-ok",
   "--build-directory",
   "@WrappedPath(.)",
+  "--verbose",
 ]
 if (is_debug) {
   _common_web_test_options += [ "--debug" ]
@@ -191,7 +193,6 @@ if (android_64bit_target_cpu) {
 
 base_webview_instrumentation_apk("webview_instrumentation_apk") {
   deps = [
-    "//android_webview:platform_service_bridge_upstream_implementation_java",
     # Note: you probably don't want to add any more deps here. This is the
     # upstream instantiation of 'base_webview_instrumentation_apk', however
     # there is also another instance of 'base_webview_instrumentation_apk'
@@ -353,6 +354,7 @@ base_webview_instrumentation_test_apk("webview_instrumentation_test_apk") {
     "//components/metrics:metrics_java",
     "//components/minidump_uploader:minidump_uploader_java",
     "//components/minidump_uploader:minidump_uploader_java_test_support",
+    "//components/origin_matcher/android:java",
     "//components/payments/content/android:full_java",
     "//components/payments/content/android:minimal_java",
     "//components/payments/content/android:service_java",
@@ -386,6 +388,7 @@ base_webview_instrumentation_test_apk("webview_instrumentation_test_apk") {
     "//third_party/androidx:androidx_test_core_java",
     "//third_party/androidx:androidx_test_monitor_java",
     "//third_party/androidx:androidx_test_rules_java",
+    "//third_party/androidx:androidx_test_uiautomator_uiautomator_java",
     "//third_party/androidx_javascriptengine:javascriptengine_common_java",
     "//third_party/androidx_javascriptengine:javascriptengine_java",
     "//third_party/blink/public:blink_headers_java",
@@ -432,7 +435,6 @@ base_webview_instrumentation_test_apk("webview_instrumentation_test_apk") {
     "../javatests/src/org/chromium/android_webview/test/AwContentsContainerViewTest.java",
     "../javatests/src/org/chromium/android_webview/test/AwContentsGarbageCollectionTest.java",
     "../javatests/src/org/chromium/android_webview/test/AwContentsLifecycleNotifierTest.java",
-    "../javatests/src/org/chromium/android_webview/test/AwContentsOriginMatcherTest.java",
     "../javatests/src/org/chromium/android_webview/test/AwContentsRenderTest.java",
     "../javatests/src/org/chromium/android_webview/test/AwContentsStaticsTest.java",
     "../javatests/src/org/chromium/android_webview/test/AwContentsTest.java",
@@ -455,6 +457,7 @@ base_webview_instrumentation_test_apk("webview_instrumentation_test_apk") {
     "../javatests/src/org/chromium/android_webview/test/AwPermissionManagerTest.java",
     "../javatests/src/org/chromium/android_webview/test/AwPermissionQueryApiTest.java",
     "../javatests/src/org/chromium/android_webview/test/AwPersistentOriginTrialTest.java",
+    "../javatests/src/org/chromium/android_webview/test/AwPrefetchInterceptionTest.java",
     "../javatests/src/org/chromium/android_webview/test/AwPrefetchTest.java",
     "../javatests/src/org/chromium/android_webview/test/AwPrerenderTest.java",
     "../javatests/src/org/chromium/android_webview/test/AwProxyControllerTest.java",
@@ -507,9 +510,11 @@ base_webview_instrumentation_test_apk("webview_instrumentation_test_apk") {
     "../javatests/src/org/chromium/android_webview/test/NavigationHistoryTest.java",
     "../javatests/src/org/chromium/android_webview/test/NavigationListenerTest.java",
     "../javatests/src/org/chromium/android_webview/test/OnDiskFileTest.java",
+    "../javatests/src/org/chromium/android_webview/test/OriginMatcherTest.java",
     "../javatests/src/org/chromium/android_webview/test/PolicyUrlFilteringTest.java",
     "../javatests/src/org/chromium/android_webview/test/PopupWindowTest.java",
     "../javatests/src/org/chromium/android_webview/test/PostMessageTest.java",
+    "../javatests/src/org/chromium/android_webview/test/ProfileExtraHeadersTest.java",
     "../javatests/src/org/chromium/android_webview/test/RenderProcessGoneHelper.java",
     "../javatests/src/org/chromium/android_webview/test/RendererProcessMetricsProviderTest.java",
     "../javatests/src/org/chromium/android_webview/test/SafeBrowsingSafeModeTest.java",
@@ -800,6 +805,7 @@ test("android_webview_unittests") {
     "//components/safe_browsing/core/common",
     "//components/tracing:background_tracing_utils",
     "//components/update_client",
+    "//components/variations:variations",
     "//components/viz/service:service",
     "//components/webui/flags:flags",
     "//content:content",

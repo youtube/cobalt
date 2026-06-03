@@ -35,7 +35,7 @@
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
-namespace WTF {
+namespace blink {
 
 void TextCodecUserDefined::RegisterEncodingNames(
     EncodingNameRegistrar registrar) {
@@ -43,13 +43,12 @@ void TextCodecUserDefined::RegisterEncodingNames(
 }
 
 static std::unique_ptr<TextCodec> NewStreamingTextDecoderUserDefined(
-    const TextEncoding&,
-    const void*) {
+    const TextEncoding&) {
   return std::make_unique<TextCodecUserDefined>();
 }
 
 void TextCodecUserDefined::RegisterCodecs(TextCodecRegistrar registrar) {
-  registrar("x-user-defined", NewStreamingTextDecoderUserDefined, nullptr);
+  registrar("x-user-defined", NewStreamingTextDecoderUserDefined);
 }
 
 String TextCodecUserDefined::Decode(base::span<const uint8_t> data,
@@ -71,7 +70,7 @@ template <typename CharType>
 static std::string EncodeComplexUserDefined(
     base::span<const CharType> char_data,
     UnencodableHandling handling) {
-  DCHECK_NE(handling, kNoUnencodables);
+  DCHECK_NE(handling, UnencodableHandling::kNoUnencodables);
   const auto* characters = char_data.data();
   const wtf_size_t length = base::checked_cast<wtf_size_t>(char_data.size());
   wtf_size_t target_length = length;
@@ -139,4 +138,4 @@ std::string TextCodecUserDefined::Encode(base::span<const LChar> characters,
   return EncodeCommon(characters, handling);
 }
 
-}  // namespace WTF
+}  // namespace blink

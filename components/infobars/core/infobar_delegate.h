@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_INFOBARS_CORE_INFOBAR_DELEGATE_H_
 #define COMPONENTS_INFOBARS_CORE_INFOBAR_DELEGATE_H_
 
+#include <optional>
 #include <string>
 
 #include "base/memory/raw_ptr.h"
@@ -134,9 +135,9 @@ class InfoBarDelegate {
     // Removed: INSTANT_APPS_INFOBAR_DELEGATE_ANDROID = 67,
     // Removed: DATA_REDUCTION_PROXY_PREVIEW_INFOBAR_DELEGATE = 68,
     // Removed: SCREEN_CAPTURE_INFOBAR_DELEGATE_ANDROID = 69,
-    PERMISSION_INFOBAR_DELEGATE_ANDROID = 70,
+    // Removed: PERMISSION_INFOBAR_DELEGATE_ANDROID = 70,
     // Removed: OFFLINE_PAGE_INFOBAR_DELEGATE_ANDROID = 71,
-    SEARCH_GEOLOCATION_DISCLOSURE_INFOBAR_DELEGATE_ANDROID = 72,
+    // Removed: SEARCH_GEOLOCATION_DISCLOSURE_INFOBAR_DELEGATE_ANDROID = 72,
     AUTOMATION_INFOBAR_DELEGATE = 73,
     // Removed: VR_SERVICES_UPGRADE_ANDROID = 74,
     // Removed: READER_MODE_INFOBAR_ANDROID = 75,
@@ -250,6 +251,10 @@ class InfoBarDelegate {
 
   // Returns the URL the link should navigate to.
   virtual GURL GetLinkURL() const;
+
+  // Returns the accessible text of the link to give more context to the screen
+  // reader. Otherwise returns std::nullopt.
+  virtual std::optional<std::u16string> GetLinkAccessibleText() const;
 
   // Returns true if the supplied |delegate| is equal to this one. Equality is
   // left to the implementation to define. This function is called by the

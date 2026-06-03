@@ -393,15 +393,11 @@
 #include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
 #include "third_party/blink/renderer/platform/wtf/text/character_names.h"
 #include "third_party/blink/renderer/platform/wtf/text/character_visitor.h"
+#include "third_party/blink/renderer/platform/wtf/text/code_point_iterator.h"
 #include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_buffer.h"
 #include "third_party/blink/renderer/platform/wtf/text/text_encoding_registry.h"
 #include "third_party/blink/renderer/platform/wtf/text/utf16.h"
-
-#ifndef NDEBUG
-using WeakDocumentSet = blink::HeapHashSet<blink::WeakMember<blink::Document>>;
-static WeakDocumentSet& LiveDocumentSet();
-#endif
 
 namespace blink {
 
@@ -413,6 +409,15 @@ class IntrinsicSizeResizeObserverDelegate : public ResizeObserver::Delegate {
   ResizeObserver::DeliveryTime Delivery() const final;
   bool SkipNonAtomicInlineObservations() const final;
 };
+
+using WeakDocumentSet = blink::HeapHashSet<blink::WeakMember<blink::Document>>;
+
+WeakDocumentSet& LiveDocumentSet() {
+  using WeakDocumentSetHolder = blink::DisallowNewWrapper<WeakDocumentSet>;
+  DEFINE_STATIC_LOCAL(blink::Persistent<WeakDocumentSetHolder>, holder,
+                      (blink::MakeGarbageCollected<WeakDocumentSetHolder>()));
+  return holder->Value();
+}
 
 // Returns true if any of <object> ancestors don't start loading or are loading
 // plugins/frames/images. If there are no <object> ancestors, this function
@@ -473,6 +478,87 @@ static const unsigned kCMaxWriteRecursionDepth = 21;
 static const base::TimeDelta kCLayoutScheduleThreshold =
     base::Milliseconds(250);
 
+namespace {
+
+// https://github.com/whatwg/dom/pull/1079
+// Returns the first character that is invalid, otherwise nullopt.
+template <typename CharType>
+std::optional<CharType> ParseNamespacePrefixNewSpec(
+    base::span<const CharType> characters) {
+  DCHECK(RuntimeEnabledFeatures::RelaxDOMValidNamesEnabled());
+  for (size_t i = 0; i < characters.size(); i++) {
+    CharType c = characters[i];
+    // A string is a valid namespace prefix if its length is at least 1 and
+    // it does not contain ASCII whitespace, U+0000 NULL, U+002F (/), or
+    // U+003E (>).
+    if (c == '>' || c == '/' || !c || WTF::IsASCIISpaceWHATWG(c)) {
+      return c;
+    }
+  }
+  return std::nullopt;
+}
+
+// https://github.com/whatwg/dom/pull/1079
+// Returns the first character that is invalid, otherwise nullopt.
+template <typename CharType>
+std::optional<CharType> ParseAttributeLocalNameNewSpec(
+    base::span<const CharType> characters) {
+  DCHECK(RuntimeEnabledFeatures::RelaxDOMValidNamesEnabled());
+  DCHECK(!characters.empty());
+  for (size_t i = 0; i < characters.size(); i++) {
+    CharType c = characters[i];
+    // A string is a valid attribute local name if its length is at least 1
+    // and it does not contain ASCII whitespace, U+0000 NULL, U+002F (/),
+    // U+003D (=), or U+003E (>).
+    if (!c || WTF::IsASCIISpaceWHATWG(c) || c == '/' || c == '=' || c == '>') {
+      return c;
+    }
+  }
+  return std::nullopt;
+}
+
+// https://github.com/whatwg/dom/pull/1079
+// Returns the first character that is invalid, otherwise nullopt.
+template <typename CharType>
+std::optional<CharType> ParseElementLocalNameNewSpec(
+    const base::span<const CharType>& characters) {
+  DCHECK(RuntimeEnabledFeatures::RelaxDOMValidNamesEnabled());
+  // If name's length is 0, then return false.
+  DCHECK(!characters.empty());
+  CharType next_char = characters[0];
+  // If name's 0th code point is an ASCII alpha, then:
+  if (IsASCIIAlpha(next_char)) {
+    for (size_t i = 1; i < characters.size(); i++) {
+      // If name contains ASCII whitespace, U+0000 NULL, U+002F (/), or U+003E
+      // (>), then return false.
+      next_char = characters[i];
+      if (!next_char || WTF::IsASCIISpaceWHATWG(next_char) ||
+          next_char == '/' || next_char == '>') {
+        return next_char;
+      }
+    }
+  } else {
+    // If name's 0th code point is not U+003A (:), U+005F (_), or in the range
+    // U+0080 to U+10FFFF, inclusive, then return false.
+    if (next_char < 0x80 && next_char != ':' && next_char != '_') {
+      return next_char;
+    }
+    for (size_t i = 1; i < characters.size(); i++) {
+      // If name's subsequent code points, if any, are not ASCII alphas, ASCII
+      // digits, U+002D (-), U+002E (.), U+003A (:), U+005F (_), or in the range
+      // U+0080 to U+10FFFF, inclusive, then return false.
+      next_char = characters[i];
+      if (!IsASCIIAlpha(next_char) && !IsASCIIDigit(next_char) &&
+          next_char != '-' && next_char != '.' && next_char != ':' &&
+          next_char != '_' && next_char < 0x80) {
+        return next_char;
+      }
+    }
+  }
+  return std::nullopt;
+}
+}  // namespace
+
 // DOM Level 2 says (letters added):
 //
 // a) Name start characters must have one of the categories Ll, Lu, Lo, Lt, Nl.
@@ -509,22 +595,23 @@ static inline bool IsValidNameStart(UChar32 c) {
 
   // rules (a) and (f) above
   const uint32_t kNameStartMask =
-      WTF::unicode::kLetter_Lowercase | WTF::unicode::kLetter_Uppercase |
-      WTF::unicode::kLetter_Other | WTF::unicode::kLetter_Titlecase |
-      WTF::unicode::kNumber_Letter;
-  if (!(WTF::unicode::Category(c) & kNameStartMask))
+      unicode::kLetter_Lowercase | unicode::kLetter_Uppercase |
+      unicode::kLetter_Other | unicode::kLetter_Titlecase |
+      unicode::kNumber_Letter;
+  if (!(unicode::Category(c) & kNameStartMask)) {
     return false;
+  }
 
   // rule (c) above
   if (c >= 0xF900 && c < 0xFFFE)
     return false;
 
   // rule (d) above
-  WTF::unicode::CharDecompositionType decomp_type =
-      WTF::unicode::DecompositionType(c);
-  if (decomp_type == WTF::unicode::kDecompositionFont ||
-      decomp_type == WTF::unicode::kDecompositionCompat)
+  unicode::CharDecompositionType decomp_type = unicode::DecompositionType(c);
+  if (decomp_type == unicode::kDecompositionFont ||
+      decomp_type == unicode::kDecompositionCompat) {
     return false;
+  }
 
   return true;
 }
@@ -544,22 +631,23 @@ static inline bool IsValidNamePart(UChar32 c) {
 
   // rules (b) and (f) above
   const uint32_t kOtherNamePartMask =
-      WTF::unicode::kMark_NonSpacing | WTF::unicode::kMark_Enclosing |
-      WTF::unicode::kMark_SpacingCombining | WTF::unicode::kLetter_Modifier |
-      WTF::unicode::kNumber_DecimalDigit;
-  if (!(WTF::unicode::Category(c) & kOtherNamePartMask))
+      unicode::kMark_NonSpacing | unicode::kMark_Enclosing |
+      unicode::kMark_SpacingCombining | unicode::kLetter_Modifier |
+      unicode::kNumber_DecimalDigit;
+  if (!(unicode::Category(c) & kOtherNamePartMask)) {
     return false;
+  }
 
   // rule (c) above
   if (c >= 0xF900 && c < 0xFFFE)
     return false;
 
   // rule (d) above
-  WTF::unicode::CharDecompositionType decomp_type =
-      WTF::unicode::DecompositionType(c);
-  if (decomp_type == WTF::unicode::kDecompositionFont ||
-      decomp_type == WTF::unicode::kDecompositionCompat)
+  unicode::CharDecompositionType decomp_type = unicode::DecompositionType(c);
+  if (decomp_type == unicode::kDecompositionFont ||
+      decomp_type == unicode::kDecompositionCompat) {
     return false;
+  }
 
   return true;
 }
@@ -593,13 +681,23 @@ static bool IsValidElementNamePerHTMLParser(const String& name) {
 // Tests whether |name| is a valid name per DOM spec. Also checks
 // whether the HTML parser would accept this element name and counts
 // cases of mismatches.
-static bool IsValidElementName(Document* document, const String& name) {
+bool IsValidElementName(Document* document, const String& name) {
+  if (RuntimeEnabledFeatures::RelaxDOMValidNamesEnabled()) {
+    if (name.empty()) {
+      return false;
+    }
+    return WTF::VisitCharacters(
+        name, [](auto chars) { return !ParseElementLocalNameNewSpec(chars); });
+  }
+
   bool is_valid_dom_name = Document::IsValidName(name);
   bool is_valid_html_name = IsValidElementNamePerHTMLParser(name);
   if (is_valid_html_name != is_valid_dom_name) [[unlikely]] {
     // This is inaccurate because it will not report activity in
     // detached documents. However retrieving the frame from the
     // bindings is too slow.
+    // TODO(crbug.com/40228234): Mark these UseCounters as obsolete when
+    // removing the RelaxDOMValidNames flag.
     UseCounter::Count(document,
                       is_valid_dom_name
                           ? WebFeature::kElementNameDOMValidHTMLParserInvalid
@@ -973,9 +1071,7 @@ Document::Document(const DocumentInit& initializer,
   DCHECK(!ParentDocument() ||
          !ParentDocument()->domWindow()->IsContextPaused());
 
-#ifndef NDEBUG
   LiveDocumentSet().insert(this);
-#endif
 }
 
 Document::~Document() {
@@ -1176,40 +1272,34 @@ Element* Document::CreateRawElement(const QualifiedName& qname,
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createelement
-// TODO(crbug.com/1304439): Move it to `tree_scope.cc` if the feature
-// `ScopedCustomElementRegistry` can stabilize.
-Element* TreeScope::CreateElementForBinding(const AtomicString& name,
-                                            ExceptionState& exception_state) {
-  Document& document = GetDocument();
-  if (!IsValidElementName(&document, name)) {
+Element* Document::CreateElementForBinding(const AtomicString& name,
+                                           ExceptionState& exception_state) {
+  if (!IsValidElementName(this, name)) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidCharacterError,
-        WTF::StrCat(
-            {"The tag name provided ('", name, "') is not a valid name."}));
+        StrCat({"The tag name provided ('", name, "') is not a valid name."}));
     return nullptr;
   }
 
-  if (document.IsXHTMLDocument() || IsA<HTMLDocument>(document)) {
+  if (IsXHTMLDocument() || IsA<HTMLDocument>(this)) {
     // 2. If the context object is an HTML document, let localName be
     // converted to ASCII lowercase.
-    AtomicString local_name = document.ConvertLocalName(name);
+    AtomicString local_name = ConvertLocalName(name);
     if (CustomElement::ShouldCreateCustomElement(local_name)) {
       return CustomElement::CreateCustomElement(
           *this,
           QualifiedName(g_null_atom, local_name, html_names::xhtmlNamespaceURI),
-          IsA<ShadowRoot>(this)
-              ? CreateElementFlags::ByShadowRootCreateElement()
-              : CreateElementFlags::ByCreateElement());
+          CreateElementFlags::ByCreateElement());
     }
     if (auto* element = HTMLElementFactory::Create(
-            local_name, document, CreateElementFlags::ByCreateElement())) {
+            local_name, *this, CreateElementFlags::ByCreateElement())) {
       return element;
     }
     QualifiedName q_name(g_null_atom, local_name,
                          html_names::xhtmlNamespaceURI);
-    return MakeGarbageCollected<HTMLUnknownElement>(q_name, document);
+    return MakeGarbageCollected<HTMLUnknownElement>(q_name, *this);
   }
-  return MakeGarbageCollected<Element>(QualifiedName(name), &document);
+  return MakeGarbageCollected<Element>(QualifiedName(name), this);
 }
 
 AtomicString GetTypeExtension(
@@ -1235,9 +1325,7 @@ AtomicString GetTypeExtension(
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createelement
-// TODO(crbug.com/1304439): Move it to `tree_scope.cc` if the feature
-// `ScopedCustomElementRegistry` can stabilize.
-Element* TreeScope::CreateElementForBinding(
+Element* Document::CreateElementForBinding(
     const AtomicString& local_name,
     const V8UnionElementCreationOptionsOrString* string_or_options,
     ExceptionState& exception_state) {
@@ -1245,27 +1333,24 @@ Element* TreeScope::CreateElementForBinding(
     return CreateElementForBinding(local_name, exception_state);
   }
 
-  Document& document = GetDocument();
-
   // 1. If localName does not match Name production, throw InvalidCharacterError
-  if (!IsValidElementName(&document, local_name)) {
+  if (!IsValidElementName(this, local_name)) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidCharacterError,
-        WTF::StrCat({"The tag name provided ('", local_name,
-                     "') is not a valid name."}));
+        StrCat({"The tag name provided ('", local_name,
+                "') is not a valid name."}));
     return nullptr;
   }
 
   // 2. localName converted to ASCII lowercase
-  const AtomicString& converted_local_name =
-      document.ConvertLocalName(local_name);
+  const AtomicString& converted_local_name = ConvertLocalName(local_name);
   QualifiedName q_name(g_null_atom, converted_local_name,
-                       document.IsXHTMLDocument() || IsA<HTMLDocument>(document)
+                       IsXHTMLDocument() || IsA<HTMLDocument>(this)
                            ? html_names::xhtmlNamespaceURI
                            : g_null_atom);
 
   // 3.
-  const AtomicString& is = GetTypeExtension(&document, string_or_options);
+  const AtomicString& is = GetTypeExtension(this, string_or_options);
 
   // 5. Let element be the result of creating an element given ...
   Element* element =
@@ -1277,49 +1362,45 @@ Element* TreeScope::CreateElementForBinding(
 static inline QualifiedName CreateQualifiedName(
     const AtomicString& namespace_uri,
     const AtomicString& qualified_name,
-    ExceptionState& exception_state) {
+    ExceptionState& exception_state,
+    Document::QualifiedNameParsingMode parsing_mode) {
   AtomicString prefix, local_name;
   if (!Document::ParseQualifiedName(qualified_name, prefix, local_name,
-                                    exception_state))
+                                    exception_state, parsing_mode)) {
     return QualifiedName::Null();
+  }
 
   QualifiedName q_name(prefix, local_name, namespace_uri);
   if (!Document::HasValidNamespaceForElements(q_name)) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kNamespaceError,
-        WTF::StrCat({"The namespace URI provided ('", namespace_uri,
-                     "') is not valid for the qualified name provided ('",
-                     qualified_name, "')."}));
+        StrCat({"The namespace URI provided ('", namespace_uri,
+                "') is not valid for the qualified name provided ('",
+                qualified_name, "')."}));
     return QualifiedName::Null();
   }
 
   return q_name;
 }
 
-// TODO(crbug.com/1304439): Move it to `tree_scope.cc` if the feature
-// `ScopedCustomElementRegistry` can stabilize.
-Element* TreeScope::createElementNS(const AtomicString& namespace_uri,
-                                    const AtomicString& qualified_name,
-                                    ExceptionState& exception_state) {
+Element* Document::createElementNS(const AtomicString& namespace_uri,
+                                   const AtomicString& qualified_name,
+                                   ExceptionState& exception_state) {
   QualifiedName q_name(
-      CreateQualifiedName(namespace_uri, qualified_name, exception_state));
+      CreateQualifiedName(namespace_uri, qualified_name, exception_state,
+                          Document::QualifiedNameParsingMode::kParsingElement));
   if (q_name == QualifiedName::Null())
     return nullptr;
 
   CreateElementFlags flags = CreateElementFlags::ByCreateElement();
   if (CustomElement::ShouldCreateCustomElement(q_name)) {
-    return CustomElement::CreateCustomElement(
-        *this, q_name,
-        IsA<ShadowRoot>(this) ? CreateElementFlags::ByShadowRootCreateElement()
-                              : CreateElementFlags::ByCreateElement());
+    return CustomElement::CreateCustomElement(*this, q_name, flags);
   }
-  return GetDocument().CreateRawElement(q_name, flags);
+  return CreateRawElement(q_name, flags);
 }
 
 // https://dom.spec.whatwg.org/#internal-createelementns-steps
-// TODO(crbug.com/1304439): Move it to `tree_scope.cc` if the feature
-// `ScopedCustomElementRegistry` can stabilize.
-Element* TreeScope::createElementNS(
+Element* Document::createElementNS(
     const AtomicString& namespace_uri,
     const AtomicString& qualified_name,
     const V8UnionElementCreationOptionsOrString* string_or_options,
@@ -1328,20 +1409,19 @@ Element* TreeScope::createElementNS(
 
   // 1. Validate and extract
   QualifiedName q_name(
-      CreateQualifiedName(namespace_uri, qualified_name, exception_state));
+      CreateQualifiedName(namespace_uri, qualified_name, exception_state,
+                          Document::QualifiedNameParsingMode::kParsingElement));
   if (q_name == QualifiedName::Null())
     return nullptr;
 
-  Document& document = GetDocument();
-
   // 2.
-  const AtomicString& is = GetTypeExtension(&document, string_or_options);
+  const AtomicString& is = GetTypeExtension(this, string_or_options);
 
-  if (!IsValidElementName(&document, qualified_name)) {
+  if (!IsValidElementName(this, qualified_name)) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidCharacterError,
-        WTF::StrCat({"The tag name provided ('", qualified_name,
-                     "') is not a valid name."}));
+        StrCat({"The tag name provided ('", qualified_name,
+                "') is not a valid name."}));
     return nullptr;
   }
 
@@ -1354,11 +1434,9 @@ Element* TreeScope::createElementNS(
 
 // Entry point of "create an element".
 // https://dom.spec.whatwg.org/#concept-create-element
-// TODO(crbug.com/1304439): Move it to `tree_scope.cc` if the feature
-// `ScopedCustomElementRegistry` can stabilize.
-Element* TreeScope::CreateElement(const QualifiedName& q_name,
-                                  const CreateElementFlags flags,
-                                  const AtomicString& is) {
+Element* Document::CreateElement(const QualifiedName& q_name,
+                                 const CreateElementFlags flags,
+                                 const AtomicString& is) {
   CustomElementDefinition* definition = nullptr;
   if (flags.IsCustomElements() &&
       q_name.NamespaceURI() == html_names::xhtmlNamespaceURI) {
@@ -1369,10 +1447,10 @@ Element* TreeScope::CreateElement(const QualifiedName& q_name,
   }
 
   if (definition)
-    return definition->CreateElement(GetDocument(), q_name, flags);
+    return definition->CreateElement(*this, q_name, flags);
 
-  return CustomElement::CreateUncustomizedOrUndefinedElement(GetDocument(),
-                                                             q_name, flags, is);
+  return CustomElement::CreateUncustomizedOrUndefinedElement(*this, q_name,
+                                                             flags, is);
 }
 
 DocumentFragment* Document::createDocumentFragment() {
@@ -1412,14 +1490,13 @@ ProcessingInstruction* Document::createProcessingInstruction(
   if (!IsValidName(target)) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidCharacterError,
-        WTF::StrCat(
-            {"The target provided ('", target, "') is not a valid name."}));
+        StrCat({"The target provided ('", target, "') is not a valid name."}));
     return nullptr;
   }
   if (data.Contains("?>")) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidCharacterError,
-        WTF::StrCat({"The data provided ('", data, "') contains '?>'."}));
+        StrCat({"The data provided ('", data, "') contains '?>'."}));
     return nullptr;
   }
   if (IsA<HTMLDocument>(this)) {
@@ -1514,8 +1591,8 @@ Node* Document::adoptNode(Node* source, ExceptionState& exception_state) {
     case kDocumentNode:
       exception_state.ThrowDOMException(
           DOMExceptionCode::kNotSupportedError,
-          WTF::StrCat({"The node provided is of type '", source->nodeName(),
-                       "', which may not be adopted."}));
+          StrCat({"The node provided is of type '", source->nodeName(),
+                  "', which may not be adopted."}));
       return nullptr;
     case kAttributeNode: {
       auto* attr = To<Attr>(source);
@@ -1673,8 +1750,8 @@ void Document::setXMLVersion(const String& version,
   if (!XMLDocumentParser::SupportsXMLVersion(version)) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kNotSupportedError,
-        WTF::StrCat({"This document does not support the XML version '",
-                     version, "'."}));
+        StrCat({"This document does not support the XML version '", version,
+                "'."}));
     return;
   }
 
@@ -1885,9 +1962,8 @@ static inline String CanonicalizedTitle(
   bool pending_whitespace = false;
   for (size_t i = 0; i < characters.size(); ++i) {
     UChar32 c = characters[i];
-    if ((c <= WTF::unicode::kSpaceCharacter &&
-         c != WTF::unicode::kLineTabulationCharacter) ||
-        c == WTF::unicode::kDeleteCharacter) {
+    if ((c <= uchar::kSpace && c != uchar::kLineTabulation) ||
+        c == uchar::kDelete) {
       if (builder_index != 0)
         pending_whitespace = true;
     } else {
@@ -2338,7 +2414,7 @@ static void AssertLayoutTreeUpdated(Node& root,
         node = FlatTreeTraversal::NextSkippingChildren(*node);
         continue;
       }
-      // Check pseudo elements.
+      // Check pseudo-elements.
       AssertLayoutTreeUpdatedForPseudoElements(*element);
     }
 
@@ -2598,7 +2674,6 @@ void Document::UpdateStyle() {
   style_engine.UpdateStyleAndLayoutTree();
 
   LayoutView* layout_view = GetLayoutView();
-  layout_view->UpdateCountersAfterStyleChange();
   layout_view->RecalcScrollableOverflow();
 
 #if DCHECK_IS_ON()
@@ -3856,8 +3931,8 @@ void Document::setBody(HTMLElement* prp_new_body,
       !IsA<HTMLFrameSetElement>(*new_body)) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kHierarchyRequestError,
-        WTF::StrCat({"The new body element is of type '", new_body->tagName(),
-                     "'. It must be either a 'BODY' or 'FRAMESET' element."}));
+        StrCat({"The new body element is of type '", new_body->tagName(),
+                "'. It must be either a 'BODY' or 'FRAMESET' element."}));
     return;
   }
 
@@ -4070,6 +4145,15 @@ void Document::ImplicitClose() {
 
   if (SvgExtensions())
     AccessSVGExtensions().StartAnimations();
+
+  if (RuntimeEnabledFeatures::ResponsiveIframesEnabled() && IsHTMLDocument() &&
+      responsive_embedded_sizing_) {
+    if (auto* owner = GetFrame()->Owner()) {
+      UpdateStyleAndLayout(DocumentUpdateReason::kUnknown);
+      View()->RecordNaturalDimensions();
+      owner->NaturalSizingInfoChanged();
+    }
+  }
 }
 
 static bool AllDescendantsAreComplete(Document* document) {
@@ -4210,17 +4294,7 @@ bool Document::CheckCompletedInternal() {
 
 namespace {
 
-enum class BeforeUnloadUse {
-  kNoDialogNoText,
-  kNoDialogNoUserGesture,
-  kNoDialogMultipleConfirmationForNavigation,
-  kShowDialog,
-  kNoDialogAutoCancelTrue,
-  kNotSupportedInDocumentPictureInPicture,
-  kMaxValue = kNotSupportedInDocumentPictureInPicture,
-};
-
-void RecordBeforeUnloadUse(BeforeUnloadUse metric) {
+void RecordBeforeUnloadUse(Document::BeforeUnloadUse metric) {
   base::UmaHistogramEnumeration("Document.BeforeUnloadDialog", metric);
 }
 
@@ -4310,6 +4384,12 @@ bool Document::DispatchBeforeUnloadEvent(ChromeClient* chrome_client,
     RecordBeforeUnloadUse(BeforeUnloadUse::kNoDialogAutoCancelTrue);
     did_allow_navigation = false;
     return false;
+  }
+
+  if (dom_window_->IsSandboxed(
+          network::mojom::blink::WebSandboxFlags::kModals)) {
+    RecordBeforeUnloadUse(BeforeUnloadUse::kNoDialogSandboxedIframe);
+    return true;
   }
 
   String text = before_unload_event.returnValue();
@@ -4872,9 +4952,8 @@ void Document::ProcessBaseElement() {
       UseCounter::Count(*this, WebFeature::kBaseWithDataHref);
       AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
           ConsoleMessage::Source::kSecurity, ConsoleMessage::Level::kError,
-          WTF::StrCat(
-              {"'", base_element_url.Protocol(),
-               "' URLs may not be used as base URLs for a document."})));
+          StrCat({"'", base_element_url.Protocol(),
+                  "' URLs may not be used as base URLs for a document."})));
     }
     if (GetExecutionContext() &&
         !GetExecutionContext()->GetSecurityOrigin()->CanRequest(
@@ -4999,7 +5078,7 @@ void Document::MaybeHandleHttpRefresh(const String& content,
       refresh_url_string.empty() ? Url() : CompleteURL(refresh_url_string);
 
   if (refresh_url.ProtocolIsJavaScript()) {
-    String message = WTF::StrCat(
+    String message = StrCat(
         {"Refused to refresh ", url_.ElidedString(), " to a javascript: URL"});
     AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
         ConsoleMessage::Source::kSecurity, ConsoleMessage::Level::kError,
@@ -5180,7 +5259,7 @@ bool Document::CanAcceptChild(const Node* new_child,
       case kTextNode:
         exception_state.ThrowDOMException(
             DOMExceptionCode::kHierarchyRequestError,
-            WTF::StrCat(
+            StrCat(
                 {"Nodes of type '", child.nodeName(),
                  "' may not be inserted inside nodes of type '#document'."}));
         return false;
@@ -5416,7 +5495,7 @@ class FlatTreeTraversalParentElementExceptSelectPopover {
   using TraversalNodeType = Element;
   static TraversalNodeType* Next(const TraversalNodeType& node) {
     if (HTMLSelectElement::CustomizableSelectEnabled(&node) &&
-        HTMLSelectElement::IsPopoverForAppearanceBase(&node)) {
+        HTMLSelectElement::IsPopoverPickerElement(&node)) {
       return nullptr;
     }
     return Traversal::ParentElement(node);
@@ -6022,13 +6101,10 @@ void Document::NodeWillBeRemoved(Node& n) {
   // We want to run the normal Range reset code when we're not in the middle of
   // `moveBefore()`, or when we *are* but when range preservation is disabled
   // (it is by default).
-  if (!StatePreservingAtomicMoveInProgress() ||
-      !RuntimeEnabledFeatures::AtomicMoveRangePreservationEnabled()) {
-    for (Range* range : ranges_) {
-      range->NodeWillBeRemoved(n);
-      if (range == sequential_focus_navigation_starting_point_) {
-        range->FixupRemovedNodeAcrossShadowBoundary(n);
-      }
+  for (Range* range : ranges_) {
+    range->NodeWillBeRemoved(n);
+    if (range == sequential_focus_navigation_starting_point_) {
+      range->FixupRemovedNodeAcrossShadowBoundary(n);
     }
   }
 
@@ -6316,35 +6392,18 @@ Event* Document::createEvent(ScriptState* script_state,
   }
   exception_state.ThrowDOMException(
       DOMExceptionCode::kNotSupportedError,
-      WTF::StrCat(
-          {"The provided event type ('", event_type, "') is invalid."}));
+      StrCat({"The provided event type ('", event_type, "') is invalid."}));
   return nullptr;
 }
 
-void Document::AddMutationEventListenerTypeIfEnabled(
-    ListenerType listener_type) {
-  // Mutation events can be disabled by the embedder, or via the runtime enabled
-  // feature.
-  if (!SupportsLegacyDOMMutations()) {
-    return;
-  }
-  AddListenerType(listener_type);
-}
-
 bool Document::HasListenerType(ListenerType listener_type) const {
-  DCHECK(!execution_context_ ||
-         RuntimeEnabledFeatures::MutationEventsEnabled(execution_context_) ||
-         !(listener_types_ & kDOMMutationEventListener));
-  return (listener_types_ & listener_type);
+  return listener_types_ & listener_type;
 }
 
 void Document::AddListenerTypeIfNeeded(const AtomicString& event_type,
                                        EventTarget& event_target) {
-  auto info = event_util::IsDOMMutationEventType(event_type);
-  if (info.is_mutation_event) {
-    AddMutationEventListenerTypeIfEnabled(info.listener_type);
-  } else if (event_type == event_type_names::kWebkitAnimationStart ||
-             event_type == event_type_names::kAnimationstart) {
+  if (event_type == event_type_names::kWebkitAnimationStart ||
+      event_type == event_type_names::kAnimationstart) {
     AddListenerType(kAnimationStartListener);
   } else if (event_type == event_type_names::kWebkitAnimationEnd ||
              event_type == event_type_names::kAnimationend) {
@@ -6536,9 +6595,9 @@ void Document::setDomain(const String& raw_domain,
 
   if (SchemeRegistry::IsDomainRelaxationForbiddenForURLScheme(
           dom_window_->GetSecurityOrigin()->Protocol())) {
-    exception_state.ThrowSecurityError(WTF::StrCat(
-        {"Assignment is forbidden for the '",
-         dom_window_->GetSecurityOrigin()->Protocol(), "' scheme."}));
+    exception_state.ThrowSecurityError(
+        StrCat({"Assignment is forbidden for the '",
+                dom_window_->GetSecurityOrigin()->Protocol(), "' scheme."}));
     return;
   }
 
@@ -6547,13 +6606,13 @@ void Document::setDomain(const String& raw_domain,
       raw_domain, dom_window_->GetSecurityOrigin()->Protocol(), &success);
   if (!success) {
     exception_state.ThrowSecurityError(
-        WTF::StrCat({"'", raw_domain, "' could not be parsed properly."}));
+        StrCat({"'", raw_domain, "' could not be parsed properly."}));
     return;
   }
 
   if (new_domain.empty()) {
     exception_state.ThrowSecurityError(
-        WTF::StrCat({"'", new_domain, "' is an empty domain."}));
+        StrCat({"'", new_domain, "' is an empty domain."}));
     return;
   }
 
@@ -6565,15 +6624,15 @@ void Document::setDomain(const String& raw_domain,
   network::cors::OriginAccessEntry::MatchResult result =
       access_entry.MatchesOrigin(*dom_window_->GetSecurityOrigin());
   if (result == network::cors::OriginAccessEntry::kDoesNotMatchOrigin) {
-    exception_state.ThrowSecurityError(WTF::StrCat(
-        {"'", new_domain, "' is not a suffix of '", domain(), "'."}));
+    exception_state.ThrowSecurityError(
+        StrCat({"'", new_domain, "' is not a suffix of '", domain(), "'."}));
     return;
   }
 
   if (result ==
       network::cors::OriginAccessEntry::kMatchesOriginButIsPublicSuffix) {
     exception_state.ThrowSecurityError(
-        WTF::StrCat({"'", new_domain, "' is a top-level domain."}));
+        StrCat({"'", new_domain, "' is a top-level domain."}));
     return;
   }
 
@@ -7056,6 +7115,7 @@ static inline bool IsValidNameASCII(base::span<const CharType> characters) {
   return true;
 }
 
+// static
 bool Document::IsValidName(const StringView& name) {
   unsigned length = name.length();
   if (!length)
@@ -7065,6 +7125,27 @@ bool Document::IsValidName(const StringView& name) {
       return true;
     }
     return IsValidNameNonASCII(chars);
+  });
+}
+
+// static
+bool Document::IsValidAttributeLocalNameNewSpec(const StringView& local_name) {
+  DCHECK(RuntimeEnabledFeatures::RelaxDOMValidNamesEnabled());
+  if (local_name.empty()) {
+    return false;
+  }
+  return WTF::VisitCharacters(local_name, [](auto chars) {
+    return !ParseAttributeLocalNameNewSpec(chars);
+  });
+}
+
+// static
+bool Document::IsValidElementLocalNameNewSpec(const StringView& local_name) {
+  if (local_name.empty()) {
+    return false;
+  }
+  return WTF::VisitCharacters(local_name, [](auto chars) {
+    return !ParseElementLocalNameNewSpec(chars);
   });
 }
 
@@ -7132,10 +7213,65 @@ static ParseQualifiedNameResult ParseQualifiedNameInternal(
   return ParseQualifiedNameResult(kQNValid);
 }
 
+namespace {
+// https://github.com/whatwg/dom/pull/1079
+template <typename CharType>
+ParseQualifiedNameResult ParseQualifiedNameInternalNewSpec(
+    base::span<const CharType> characters,
+    AtomicString& out_prefix,
+    AtomicString& out_local_name,
+    Document::QualifiedNameParsingMode parsing_mode) {
+  DCHECK(RuntimeEnabledFeatures::RelaxDOMValidNamesEnabled());
+  // Do a first pass to look for the colon. Otherwise, we don't know which
+  // parsing rules to apply to the text we are iterating.
+  std::optional<size_t> colon_index;
+  for (size_t i = 0; i < characters.size(); i++) {
+    if (characters[i] == ':') {
+      colon_index = i;
+      break;
+    }
+  }
+
+  base::span<const CharType> prefix;
+  base::span<const CharType> local_name;
+  if (colon_index) {
+    auto split_pair = characters.split_at(*colon_index);
+    prefix = split_pair.first;
+    local_name = split_pair.second.subspan(1u);
+    if (auto invalid_char = ParseNamespacePrefixNewSpec(prefix)) {
+      return ParseQualifiedNameResult(kQNInvalidChar, *invalid_char);
+    }
+  } else {
+    local_name = characters;
+  }
+
+  if (local_name.empty()) {
+    return ParseQualifiedNameResult(kQNEmptyLocalName);
+  }
+
+  if (parsing_mode == Document::QualifiedNameParsingMode::kParsingAttribute) {
+    if (auto invalid_char = ParseAttributeLocalNameNewSpec(local_name)) {
+      return ParseQualifiedNameResult(kQNInvalidChar, *invalid_char);
+    }
+  } else {
+    DCHECK_EQ(parsing_mode,
+              Document::QualifiedNameParsingMode::kParsingElement);
+    if (auto invalid_char = ParseElementLocalNameNewSpec(local_name)) {
+      return ParseQualifiedNameResult(kQNInvalidChar, *invalid_char);
+    }
+  }
+
+  out_prefix = colon_index ? AtomicString(prefix) : g_null_atom;
+  out_local_name = AtomicString(local_name);
+  return ParseQualifiedNameResult(kQNValid);
+}
+}  // namespace
+
 bool Document::ParseQualifiedName(const AtomicString& qualified_name,
                                   AtomicString& prefix,
                                   AtomicString& local_name,
-                                  ExceptionState& exception_state) {
+                                  ExceptionState& exception_state,
+                                  QualifiedNameParsingMode parsing_mode) {
   if (qualified_name.empty()) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidCharacterError,
                                       "The qualified name provided is empty.");
@@ -7143,9 +7279,15 @@ bool Document::ParseQualifiedName(const AtomicString& qualified_name,
   }
 
   ParseQualifiedNameResult return_value = WTF::VisitCharacters(
-      qualified_name, [&qualified_name, &prefix, &local_name](auto chars) {
-        return ParseQualifiedNameInternal(qualified_name, chars, prefix,
-                                          local_name);
+      qualified_name,
+      [&qualified_name, &prefix, &local_name, &parsing_mode](auto chars) {
+        if (RuntimeEnabledFeatures::RelaxDOMValidNamesEnabled()) {
+          return ParseQualifiedNameInternalNewSpec(chars, prefix, local_name,
+                                                   parsing_mode);
+        } else {
+          return ParseQualifiedNameInternal(qualified_name, chars, prefix,
+                                            local_name);
+        }
       });
   if (return_value.status == kQNValid)
     return true;
@@ -7191,7 +7333,7 @@ void Document::SetEncodingData(const DocumentEncodingData& new_data) {
     std::string original_bytes = title_element_->textContent().Latin1();
     std::unique_ptr<TextCodec> codec = NewTextCodec(new_data.Encoding());
     String correctly_decoded_title = codec->Decode(
-        base::as_byte_span(original_bytes), WTF::FlushBehavior::kDataEOF);
+        base::as_byte_span(original_bytes), FlushBehavior::kDataEOF);
     title_element_->setTextContent(correctly_decoded_title);
   }
 
@@ -7401,11 +7543,14 @@ Agent& Document::GetAgent() const {
 
 Attr* Document::createAttribute(const AtomicString& name,
                                 ExceptionState& exception_state) {
-  if (!IsValidName(name)) {
+  bool is_valid = RuntimeEnabledFeatures::RelaxDOMValidNamesEnabled()
+                      ? Document::IsValidAttributeLocalNameNewSpec(name)
+                      : Document::IsValidName(name);
+  if (!is_valid) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidCharacterError,
-        WTF::StrCat({"The localName provided ('", name,
-                     "') contains an invalid character."}));
+        StrCat({"The localName provided ('", name,
+                "') contains an invalid character."}));
     return nullptr;
   }
   return MakeGarbageCollected<Attr>(
@@ -7416,17 +7561,19 @@ Attr* Document::createAttributeNS(const AtomicString& namespace_uri,
                                   const AtomicString& qualified_name,
                                   ExceptionState& exception_state) {
   AtomicString prefix, local_name;
-  if (!ParseQualifiedName(qualified_name, prefix, local_name, exception_state))
+  if (!ParseQualifiedName(qualified_name, prefix, local_name, exception_state,
+                          QualifiedNameParsingMode::kParsingAttribute)) {
     return nullptr;
+  }
 
   QualifiedName q_name(prefix, local_name, namespace_uri);
 
   if (!HasValidNamespaceForAttributes(q_name)) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kNamespaceError,
-        WTF::StrCat({"The namespace URI provided ('", namespace_uri,
-                     "') is not valid for the qualified name provided ('",
-                     qualified_name, "')."}));
+        StrCat({"The namespace URI provided ('", namespace_uri,
+                "') is not valid for the qualified name provided ('",
+                qualified_name, "')."}));
     return nullptr;
   }
 
@@ -7879,6 +8026,20 @@ void Document::ColorSchemeMetaChanged() {
   GetStyleEngine().SetPageColorSchemes(color_scheme);
 }
 
+void Document::ResponsiveEmbeddedSizingChanged() {
+  DCHECK(RuntimeEnabledFeatures::ResponsiveIframesEnabled());
+  responsive_embedded_sizing_ = false;
+  if (auto* root_element = documentElement()) {
+    for (HTMLMetaElement& meta_element :
+         Traversal<HTMLMetaElement>::DescendantsOf(*root_element)) {
+      if (EqualIgnoringASCIICase(meta_element.GetName(),
+                                 keywords::kResponsiveEmbeddedSizing)) {
+        responsive_embedded_sizing_ = true;
+      }
+    }
+  }
+}
+
 void Document::SupportsReducedMotionMetaChanged() {
   auto* root_element = documentElement();
   if (!root_element)
@@ -8215,7 +8376,7 @@ void Document::RemoveFromTopLayerImmediately(Element* element) {
   element->SetIsInTopLayer(false);
   display_lock_document_state_->ElementRemovedFromTopLayer(element);
   if (auto* html_element = DynamicTo<HTMLElement>(element)) {
-    if (html_element->HasPopoverAttribute()) {
+    if (html_element->IsPopover()) {
       html_element->SetImplicitAnchor(nullptr);
     }
   }
@@ -8269,7 +8430,7 @@ HTMLElement* Document::TopmostPopoverOrHint() const {
   return nullptr;
 }
 void Document::SetPopoverPointerdownTarget(const HTMLElement* popover) {
-  DCHECK(!popover || popover->HasPopoverAttribute());
+  DCHECK(!popover || popover->IsPopover());
   popover_pointerdown_target_ = popover;
 }
 
@@ -8285,12 +8446,6 @@ const HTMLDialogElement* Document::DialogPointerdownTarget() const {
 void Document::SetDialogPointerdownTarget(const HTMLDialogElement* dialog) {
   DCHECK(!dialog || dialog->IsOpen());
   dialog_pointerdown_target_ = dialog;
-}
-
-HeapLinkedHashSet<Member<Element>>& Document::CurrentInterestTargetElements() {
-  DCHECK(RuntimeEnabledFeatures::HTMLInterestTargetAttributeEnabled(
-      GetExecutionContext()));
-  return current_interest_target_elements_;
 }
 
 void Document::exitPointerLock() {
@@ -8714,9 +8869,9 @@ void Document::FlushAutofocusCandidates() {
     AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
         mojom::ConsoleMessageSource::kRendering,
         mojom::ConsoleMessageLevel::kInfo,
-        WTF::StrCat({"Autofocus processing was blocked because a document's "
-                     "URL has a fragment '#",
-                     Url().FragmentIdentifier(), "'."})));
+        StrCat({"Autofocus processing was blocked because a document's URL has "
+                "a fragment '#",
+                Url().FragmentIdentifier(), "'."})));
     return;
   }
 
@@ -8772,9 +8927,9 @@ void Document::FlushAutofocusCandidates() {
         AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
             mojom::ConsoleMessageSource::kRendering,
             mojom::ConsoleMessageLevel::kInfo,
-            WTF::StrCat({"Autofocus processing was blocked because a "
-                         "document's URL has a fragment '#",
-                         doc->Url().FragmentIdentifier(), "'."})));
+            StrCat({"Autofocus processing was blocked because a document's URL "
+                    "has a fragment '#",
+                    doc->Url().FragmentIdentifier(), "'."})));
         continue;
       }
       DCHECK_EQ(doc, this);
@@ -9033,7 +9188,6 @@ void Document::Trace(Visitor* visitor) const {
   visitor->Trace(popovers_waiting_to_hide_);
   visitor->Trace(all_open_popovers_);
   visitor->Trace(all_open_dialogs_);
-  visitor->Trace(current_interest_target_elements_);
   visitor->Trace(document_part_root_);
   visitor->Trace(load_event_delay_timer_);
   visitor->Trace(plugin_loading_timer_);
@@ -9095,7 +9249,7 @@ void Document::Trace(Visitor* visitor) const {
   visitor->Trace(focused_element_change_observers_);
   visitor->Trace(pending_link_header_preloads_);
   visitor->Trace(elements_needing_shadow_tree_);
-  visitor->Trace(scroll_marker_group_to_scrollable_areas_);
+  visitor->Trace(scroll_target_group_to_scrollable_areas_);
 #if BUILDFLAG(IS_ANDROID)
   visitor->Trace(payment_link_handler_);
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -9513,29 +9667,6 @@ void Document::ResetAgent(Agent& agent) {
   agent_ = agent;
 }
 
-bool Document::SupportsLegacyDOMMutations() {
-  if (!RuntimeEnabledFeatures::MutationEventsEnabled(GetExecutionContext())) {
-    return false;
-  }
-  if (!legacy_dom_mutations_supported_.has_value()) {
-    // We load the `LocalFrame` from the `ExecutionContext`'s so that documents
-    // that do not have a frame are given the same setting consistently across
-    // the `ExecutionContext`.
-    auto* execution_dom_window =
-        DynamicTo<LocalDOMWindow>(GetExecutionContext());
-    LocalFrame* frame =
-        execution_dom_window ? execution_dom_window->GetFrame() : nullptr;
-    if (frame && frame->GetContentSettingsClient()) {
-      legacy_dom_mutations_supported_ =
-          frame->GetContentSettingsClient()->AllowMutationEvents(
-              /*default_value=*/true);
-    } else {
-      legacy_dom_mutations_supported_ = true;
-    }
-  }
-  return legacy_dom_mutations_supported_.value();
-}
-
 void Document::EnqueuePageRevealEvent() {
   CHECK(RuntimeEnabledFeatures::PageRevealEventEnabled());
   CHECK(dom_window_);
@@ -9593,12 +9724,17 @@ void Document::HandlePaymentLink(const KURL& href) {
 
 void Document::OnLocalRootWidgetCreated() {
   if (!features::kThrottleFrameRateOnInitialization.Get() || !GetFrame() ||
-      !GetFrame()->GetPage() || !GetFrame()->IsAttached() ||
-      !GetExecutionContext()->CrossOriginIsolatedCapability()) {
+      !GetFrame()->GetPage() || !GetFrame()->IsAttached()) {
     return;
   }
-  GetFrame()->GetPage()->GetChromeClient().SetShouldThrottleFrameRate(
-      true, *GetFrame());
+  bool allowed_by_security = CanThrottleFrameRate();
+  base::UmaHistogramBoolean(
+      "Blink.ThrottleFrameRate.AllowedBySecurity.DocumentInitialization",
+      allowed_by_security);
+  if (allowed_by_security) {
+    GetFrame()->GetPage()->GetChromeClient().SetShouldThrottleFrameRate(
+        true, *GetFrame());
+  }
 }
 
 void Document::ProcessScheduledShadowTreeCreationsNow() {
@@ -9644,12 +9780,16 @@ void Document::SetHasFullFrameRateBlockingExpectLinkElements(bool flag) {
 }
 
 void Document::UpdateRenderFrameRate() {
-  if (!GetFrame() || !GetFrame()->GetPage() || !GetFrame()->IsAttached() ||
-      !GetExecutionContext()->CrossOriginIsolatedCapability()) {
+  if (!GetFrame() || !GetFrame()->GetPage() || !GetFrame()->IsAttached()) {
     return;
   }
-  GetFrame()->GetPage()->GetChromeClient().SetShouldThrottleFrameRate(
-      has_frame_rate_blocking_expect_link_elements_, *GetFrame());
+  bool allowed_by_security = CanThrottleFrameRate();
+  base::UmaHistogramBoolean("Blink.ThrottleFrameRate.AllowedBySecurity.API",
+                            allowed_by_security);
+  if (allowed_by_security) {
+    GetFrame()->GetPage()->GetChromeClient().SetShouldThrottleFrameRate(
+        has_frame_rate_blocking_expect_link_elements_, *GetFrame());
+  }
 }
 
 // static
@@ -9727,87 +9867,86 @@ VisitedLinkState& Document::GetVisitedLinkState() {
 namespace {
 
 // Recursively traverses the DOM tree to find all elements with
-// scroll-marker-contain properties and collects their descendant
+// scroll-target-group properties and collects their descendant
 // HTMLAnchorElements.
-void RecalcScrollMarkerContainRelations(
-    Element& element,
-    Element* scroll_marker_group_container) {
-  if (scroll_marker_group_container && element.HasTagName(html_names::kATag)) {
+void RecalcScrollTargetGroupRelations(Element& element,
+                                      Element* scroll_target_group_container) {
+  if (scroll_target_group_container && element.HasTagName(html_names::kATag)) {
     if (To<HTMLAnchorElement>(element).ScrollTargetElement()) {
       ScrollMarkerGroupData& data =
-          scroll_marker_group_container->EnsureScrollMarkerGroupData();
+          scroll_target_group_container->EnsureScrollTargetGroupData();
       data.AddToFocusGroup(element);
     }
   }
   if (const ComputedStyle* style = element.GetComputedStyle()) {
-    if (!style->ScrollMarkerContainNone()) {
-      scroll_marker_group_container = &element;
-      element.GetDocument().AddScrollMarkerGroup(
-          &element.EnsureScrollMarkerGroupData());
+    if (!style->ScrollTargetGroupNone()) {
+      scroll_target_group_container = &element;
+      element.GetDocument().AddScrollTargetGroup(
+          &element.EnsureScrollTargetGroupData());
     }
   }
   for (Element* child = element.firstElementChild(); child;
        child = child->nextElementSibling()) {
-    RecalcScrollMarkerContainRelations(*child, scroll_marker_group_container);
+    RecalcScrollTargetGroupRelations(*child, scroll_target_group_container);
   }
 }
 
 }  // namespace
 
-void Document::UpdateScrollMarkerGroupRelations() {
-  if (!needs_scroll_marker_contain_relations_update_) {
+void Document::UpdateScrollTargetGroupRelations() {
+  if (!needs_scroll_target_group_relations_update_) {
     return;
   }
-  if (scroll_marker_group_to_scrollable_areas_.empty()) {
+  if (scroll_target_group_to_scrollable_areas_.empty()) {
     return;
   }
   for (auto& [scroll_marker_group, scrollable_areas] :
-       scroll_marker_group_to_scrollable_areas_) {
+       scroll_target_group_to_scrollable_areas_) {
     for (PaintLayerScrollableArea* scrollable_area : scrollable_areas) {
       scrollable_area->RemoveScrollMarkerGroupContainerData(
           scroll_marker_group);
     }
     scroll_marker_group->ClearFocusGroup();
   }
-  scroll_marker_group_to_scrollable_areas_.clear();
+  scroll_target_group_to_scrollable_areas_.clear();
   if (document_element_) {
-    RecalcScrollMarkerContainRelations(*document_element_, nullptr);
+    RecalcScrollTargetGroupRelations(*document_element_, nullptr);
   }
-  needs_scroll_marker_contain_relations_update_ = false;
+  needs_scroll_target_group_relations_update_ = false;
 }
 
-void Document::UpdateScrollMarkerGroupToScrollableAreasMap() {
-  if (!needs_scroll_marker_groups_map_update_) {
+void Document::UpdateScrollTargetGroupToScrollableAreasMap() {
+  if (!needs_scroll_target_groups_map_update_) {
     return;
   }
-  for (auto& [scroll_marker_group, scrollable_areas] :
-       scroll_marker_group_to_scrollable_areas_) {
-    scroll_marker_group->UpdateScrollableAreaSubscriptions(scrollable_areas);
-    scroll_marker_group->UpdateSelectedScrollMarker();
+  for (auto& [scroll_target_group, scrollable_areas] :
+       scroll_target_group_to_scrollable_areas_) {
+    scroll_target_group->UpdateScrollableAreaSubscriptions(scrollable_areas);
+    scroll_target_group->UpdateSelectedScrollMarker();
   }
-  needs_scroll_marker_groups_map_update_ = false;
+  needs_scroll_target_groups_map_update_ = false;
 }
 
-void Document::AddScrollMarkerGroup(
+void Document::AddScrollTargetGroup(
     ScrollMarkerGroupData* scroll_marker_group) {
-  scroll_marker_group_to_scrollable_areas_.insert(
+  scroll_target_group_to_scrollable_areas_.insert(
       scroll_marker_group, HeapHashSet<Member<PaintLayerScrollableArea>>());
-  needs_scroll_marker_contain_relations_update_ = true;
+  needs_scroll_target_group_relations_update_ = true;
 }
 
-void Document::RemoveScrollMarkerGroup(
+void Document::RemoveScrollTargetGroup(
     ScrollMarkerGroupData* scroll_marker_group_data) {
   auto it =
-      scroll_marker_group_to_scrollable_areas_.find(scroll_marker_group_data);
-  if (it == scroll_marker_group_to_scrollable_areas_.end()) {
+      scroll_target_group_to_scrollable_areas_.find(scroll_marker_group_data);
+  if (it == scroll_target_group_to_scrollable_areas_.end()) {
     return;
   }
   for (PaintLayerScrollableArea* scrollable_area : it->value) {
     scrollable_area->RemoveScrollMarkerGroupContainerData(
         scroll_marker_group_data);
   }
-  scroll_marker_group_to_scrollable_areas_.erase(it);
-  needs_scroll_marker_contain_relations_update_ = true;
+  scroll_target_group_to_scrollable_areas_.erase(it);
+  needs_scroll_target_group_relations_update_ = true;
 }
 
 net::SchemefulSite Document::GetCachedTopFrameSite(VisitedLinkPassKey) {
@@ -9819,19 +9958,30 @@ net::SchemefulSite Document::GetCachedTopFrameSite(VisitedLinkPassKey) {
   return cached_top_frame_site_for_visited_links_.value();
 }
 
+bool Document::CanThrottleFrameRate() {
+  // To prevent side-channel attacks by monitoring the frame rate to detect
+  // page loads from other origins, we only allow the frame rate to be throttled
+  // if the renderer process is only hosting pages from one origin.
+  CHECK(GetExecutionContext());
+  const SecurityOrigin* expected_security_origin =
+      GetExecutionContext()->GetSecurityOrigin();
+  for (blink::Document* document : blink::LiveDocumentSet()) {
+    if (!document->GetExecutionContext() ||
+        !document->GetExecutionContext()->GetSecurityOrigin()->IsSameOriginWith(
+            expected_security_origin)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 template class CORE_TEMPLATE_EXPORT Supplement<Document>;
 
 }  // namespace blink
-#ifndef NDEBUG
-static WeakDocumentSet& LiveDocumentSet() {
-  using WeakDocumentSetHolder = blink::DisallowNewWrapper<WeakDocumentSet>;
-  DEFINE_STATIC_LOCAL(blink::Persistent<WeakDocumentSetHolder>, holder,
-                      (blink::MakeGarbageCollected<WeakDocumentSetHolder>()));
-  return holder->Value();
-}
 
+#ifndef NDEBUG
 void ShowLiveDocumentInstances() {
-  WeakDocumentSet& set = LiveDocumentSet();
+  blink::WeakDocumentSet& set = blink::LiveDocumentSet();
   fprintf(stderr, "There are %u documents currently alive:\n", set.size());
   for (blink::Document* document : set) {
     fprintf(stderr, "- Document %p URL: %s\n", document,

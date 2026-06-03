@@ -10,7 +10,8 @@
 #include "chrome/common/pref_names.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings.h"
-#include "components/permissions/permission_context_base.h"
+#include "components/content_settings/core/common/content_settings_utils.h"
+#include "components/permissions/permission_decision.h"
 #include "components/permissions/permission_util.h"
 #include "content/public/browser/permission_descriptor_util.h"
 #include "content/public/browser/permission_request_description.h"
@@ -33,8 +34,9 @@ namespace {
 
 network::mojom::PermissionsPolicyFeature GetPermissionsPolicyFeature(
     ContentSettingsType type) {
-  if (type == ContentSettingsType::MEDIASTREAM_MIC)
+  if (type == ContentSettingsType::MEDIASTREAM_MIC) {
     return network::mojom::PermissionsPolicyFeature::kMicrophone;
+  }
 
   DCHECK_EQ(ContentSettingsType::MEDIASTREAM_CAMERA, type);
   return network::mojom::PermissionsPolicyFeature::kCamera;
@@ -45,9 +47,10 @@ network::mojom::PermissionsPolicyFeature GetPermissionsPolicyFeature(
 MediaStreamDevicePermissionContext::MediaStreamDevicePermissionContext(
     content::BrowserContext* browser_context,
     const ContentSettingsType content_settings_type)
-    : PermissionContextBase(browser_context,
-                            content_settings_type,
-                            GetPermissionsPolicyFeature(content_settings_type)),
+    : permissions::ContentSettingPermissionContextBase(
+          browser_context,
+          content_settings_type,
+          GetPermissionsPolicyFeature(content_settings_type)),
       content_settings_type_(content_settings_type) {
   DCHECK(content_settings_type_ == ContentSettingsType::MEDIASTREAM_MIC ||
          content_settings_type_ == ContentSettingsType::MEDIASTREAM_CAMERA);
@@ -56,7 +59,8 @@ MediaStreamDevicePermissionContext::MediaStreamDevicePermissionContext(
 MediaStreamDevicePermissionContext::~MediaStreamDevicePermissionContext() =
     default;
 
-ContentSetting MediaStreamDevicePermissionContext::GetPermissionStatusInternal(
+ContentSetting
+MediaStreamDevicePermissionContext::GetContentSettingStatusInternal(
     content::RenderFrameHost* render_frame_host,
     const GURL& requesting_origin,
     const GURL& embedding_origin) const {
@@ -95,12 +99,13 @@ ContentSetting MediaStreamDevicePermissionContext::GetPermissionStatusInternal(
 
   // Check the content setting. TODO(raymes): currently mic/camera permission
   // doesn't consider the embedder.
-  ContentSetting setting =
-      permissions::PermissionContextBase::GetPermissionStatusInternal(
-          render_frame_host, requesting_origin, requesting_origin);
+  ContentSetting setting = permissions::ContentSettingPermissionContextBase::
+      GetContentSettingStatusInternal(render_frame_host, requesting_origin,
+                                      requesting_origin);
 
-  if (setting == CONTENT_SETTING_DEFAULT)
+  if (setting == CONTENT_SETTING_DEFAULT) {
     setting = CONTENT_SETTING_ASK;
+  }
 
   return setting;
 }
@@ -115,13 +120,12 @@ void MediaStreamDevicePermissionContext::NotifyPermissionSet(
     const permissions::PermissionRequestData& request_data,
     permissions::BrowserPermissionCallback callback,
     bool persist,
-    ContentSetting content_setting,
-    bool is_one_time,
+    PermissionDecision decision,
     bool is_final_decision) {
   DCHECK(is_final_decision);
 
-  // For Android, we need to customize the PermissionContextBase's behavior if
-  // the permission was granted. We will:
+  // For Android, we need to customize the ContentSettingPermissionContextBase's
+  // behavior if the permission was granted. We will:
   // 1. Check if the permission was granted by the user - if not, we'll fall
   //    back to the implementation in the base class.
   // 2. Handle persisting the permission if needed (this is the same as base
@@ -150,25 +154,39 @@ void MediaStreamDevicePermissionContext::NotifyPermissionSet(
 
   // Camera and Microphone need to check for additional permissions, but only if
   // they were actually allowed:
-  if (content_setting != ContentSetting::CONTENT_SETTING_ALLOW) {
-    PermissionContextBase::NotifyPermissionSet(
-        request_data, std::move(callback), persist, content_setting,
-        is_one_time, is_final_decision);
+  if (decision != PermissionDecision::kAllow) {
+    ContentSettingPermissionContextBase::NotifyPermissionSet(
+        request_data, std::move(callback), persist, decision,
+        is_final_decision);
     return;
   }
+
+  // Must exist since permission requests must be initiated from an RFH
+  auto* rfh = content::RenderFrameHost::FromID(
+      request_data.id.global_render_frame_host_id());
 
   // Whether or not the user will ultimately accept the OS permissions, we want
   // to save the content_setting here if we should. This is done here because we
   // won't set `persist=true` when calling
-  // `PermissionContextBase::NotifyPermissionSet()` after this point.
+  // `ContentSettingPermissionContextBase::NotifyPermissionSet()` after this
+  // point.
   if (persist) {
-    UpdateContentSetting(request_data, content_setting, is_one_time);
+    // Need to reretrieve the persisted value, since the underlying permission
+    // status may have changed in the meantime.
+    auto previous_content_setting = GetContentSettingStatusInternal(
+        rfh, request_data.requesting_origin, request_data.embedding_origin);
+    auto new_content_setting = content_settings::ValueToContentSetting(
+        request_data.resolver->ComputePermissionDecisionResult(
+            base::Value(previous_content_setting), decision,
+            request_data.prompt_options));
+
+    UpdateContentSetting(request_data, new_content_setting,
+                         decision == PermissionDecision::kAllowThisTime);
   }
 
   content::WebContents* web_contents =
-      content::WebContents::FromRenderFrameHost(
-          content::RenderFrameHost::FromID(
-              request_data.id.global_render_frame_host_id()));
+      content::WebContents::FromRenderFrameHost(rfh);
+
   if (!web_contents) {
     // If we can't get the web contents, we don't know the state of the OS
     // permission, so assume we don't have it.
@@ -187,9 +205,9 @@ void MediaStreamDevicePermissionContext::NotifyPermissionSet(
   // permissions, so we can shortcut to calling NotifyPermissionSet directly.
   const auto* request = FindPermissionRequest(request_data.id);
   if (request && request->IsEmbeddedPermissionElementInitiated()) {
-    PermissionContextBase::NotifyPermissionSet(
-        request_data, std::move(callback), persist, content_setting,
-        is_one_time, is_final_decision);
+    ContentSettingPermissionContextBase::NotifyPermissionSet(
+        request_data, std::move(callback), persist, decision,
+        is_final_decision);
     return;
   }
 
@@ -243,13 +261,12 @@ void MediaStreamDevicePermissionContext::OnAndroidPermissionDecided(
   // initial override of |NotifyPermissionSet|. At this point, if the user
   // has denied the OS level permission, we want to notify the requestor that
   // the permission has been blocked.
-  ContentSetting setting = permission_granted
-                               ? ContentSetting::CONTENT_SETTING_ALLOW
-                               : ContentSetting::CONTENT_SETTING_BLOCK;
+  PermissionDecision decision = permission_granted ? PermissionDecision::kAllow
+                                                   : PermissionDecision::kDeny;
   // `persist=false` because the user's response to Chrome-level permission is
   // already persisted, and `is_one_time=false` because it is only relevant when
   // persisting permission.
-  PermissionContextBase::NotifyPermissionSet(
+  ContentSettingPermissionContextBase::NotifyPermissionSet(
       permissions::PermissionRequestData(
           this, id,
           content::PermissionRequestDescription(
@@ -259,8 +276,7 @@ void MediaStreamDevicePermissionContext::OnAndroidPermissionDecided(
                           ContentSettingsTypeToPermissionType(
                               content_settings_type_))),
           requesting_origin, embedding_origin),
-      std::move(callback), false /*persist*/, setting,
-      /*is_one_time=*/false,
+      std::move(callback), false /*persist*/, decision,
       /*is_final_decision=*/true);
 }
 

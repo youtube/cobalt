@@ -197,7 +197,7 @@ class CONTENT_EXPORT StoragePartition {
     REMOVE_DATA_MASK_INDEXEDDB = 1 << 3,
     REMOVE_DATA_MASK_LOCAL_STORAGE = 1 << 4,
     REMOVE_DATA_MASK_SHADER_CACHE = 1 << 5,
-    REMOVE_DATA_MASK_WEBSQL = 1 << 6,
+    REMOVE_DATA_MASK_WEBSQL_DEPRECATED = 1 << 6,
     REMOVE_DATA_MASK_SERVICE_WORKERS = 1 << 7,
     REMOVE_DATA_MASK_CACHE_STORAGE = 1 << 8,
     REMOVE_DATA_MASK_MEDIA_LICENSES = 1 << 9,
@@ -227,6 +227,11 @@ class CONTENT_EXPORT StoragePartition {
     // Things in interest groups that should only be removed as part of
     // user-initiated clearing.
     REMOVE_DATA_MASK_INTEREST_GROUPS_USER_CLEAR = 1 << 20,
+
+    // Keepalive loads might be kept around in memory for a long time when
+    // waiting for a chance to retry. They should be removed as part of
+    // user-initiated clearing.
+    REMOVE_KEEPALIVE_LOADS_ATTEMPTING_RETRY = 1 << 21,
 
     REMOVE_DATA_MASK_ALL = 0xFFFFFFFF,
 

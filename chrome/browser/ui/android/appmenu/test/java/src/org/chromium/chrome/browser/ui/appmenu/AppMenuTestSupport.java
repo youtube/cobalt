@@ -23,24 +23,49 @@ public class AppMenuTestSupport {
     public static ModelList getMenuModelList(AppMenuCoordinator coordinator) {
         return ((AppMenuCoordinatorImpl) coordinator)
                 .getAppMenuHandlerImplForTesting()
-                .getAppMenu()
-                .getMenuModelList();
+                .getModelListForTesting();
     }
 
-    /** See {@link AppMenu#getMenuItemPropertyModel} */
+    /** See {@link #getMenuItemPropertyModel(ModelList, int)} */
     public static PropertyModel getMenuItemPropertyModel(
             AppMenuCoordinator coordinator, int itemId) {
-        return ((AppMenuCoordinatorImpl) coordinator)
-                .getAppMenuHandlerImplForTesting()
-                .getAppMenu()
-                .getMenuItemPropertyModel(itemId);
+        return getMenuItemPropertyModel(getMenuModelList(coordinator), itemId);
+    }
+
+    /**
+     * Find the {@link PropertyModel} associated with the given id. If the menu item is not found,
+     * return null.
+     *
+     * @param modelList The ModelList representing the menu.
+     * @param itemId The id of the menu item to find.
+     * @return The {@link PropertyModel} has the given id. null if not found.
+     */
+    @Nullable
+    public static PropertyModel getMenuItemPropertyModel(ModelList modelList, int itemId) {
+        for (int i = 0; i < modelList.size(); i++) {
+            PropertyModel model = modelList.get(i).model;
+            if (model.get(AppMenuItemProperties.MENU_ITEM_ID) == itemId) {
+                return model;
+            } else if (model.get(AppMenuItemProperties.ADDITIONAL_ICONS) != null) {
+                ModelList subList = model.get(AppMenuItemProperties.ADDITIONAL_ICONS);
+                for (int j = 0; j < subList.size(); j++) {
+                    PropertyModel subModel = subList.get(j).model;
+                    if (subModel.get(AppMenuItemProperties.MENU_ITEM_ID) == itemId) {
+                        return subModel;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     /** See {@link AppMenuHandlerImpl#onOptionsItemSelected(int)}. */
     public static void onOptionsItemSelected(AppMenuCoordinator coordinator, int itemId) {
         ((AppMenuCoordinatorImpl) coordinator)
                 .getAppMenuHandlerImplForTesting()
-                .onOptionsItemSelected(itemId, /* triggeringMotion= */ null);
+                .onItemClick(
+                        getMenuItemPropertyModel(coordinator, itemId),
+                        /* triggeringMotion= */ null);
     }
 
     /**
@@ -64,31 +89,41 @@ public class AppMenuTestSupport {
             AppMenuCoordinator coordinator,
             int menuItemId,
             @Nullable MotionEventInfo triggeringMotion) {
-        PropertyModel model =
-                ((AppMenuCoordinatorImpl) coordinator)
-                        .getAppMenuHandlerImplForTesting()
-                        .getAppMenu()
-                        .getMenuItemPropertyModel(menuItemId);
+        PropertyModel model = getMenuItemPropertyModel(coordinator, menuItemId);
 
         ((AppMenuCoordinatorImpl) coordinator)
                 .getAppMenuHandlerImplForTesting()
-                .getAppMenu()
                 .onItemClick(model, triggeringMotion);
     }
 
     /**
+     * Simulates a long click on the menu item matching the provided id.
+     *
+     * @param coordinator The {@link AppMenuCoordinator} associated with the app menu being tested.
+     * @param menuItemId The id of the menu item to click.
+     * @param view The view that was clicked.
+     */
+    public static void callOnItemLongClick(
+            AppMenuCoordinator coordinator, int menuItemId, View view) {
+        PropertyModel model = getMenuItemPropertyModel(coordinator, menuItemId);
+
+        ((AppMenuCoordinatorImpl) coordinator)
+                .getAppMenuHandlerImplForTesting()
+                .onItemLongClick(model, view);
+    }
+
+    /**
      * Show the app menu.
+     *
      * @param coordinator The {@link AppMenuCoordinator} associated with the app menu being tested.
      * @param anchorView Anchor view (usually a menu button) to be used for the popup, if null is
-     *         passed then hardware menu button anchor will be used.
+     *     passed then hardware menu button anchor will be used.
      * @param startDragging Whether dragging is started. For example, if the app menu is showed by
-     *         tapping on a button, this should be false. If it is showed by start
-     *         dragging down on the menu button, this should be true. Note that if
-     *         anchorView is null, this must be false since we no longer support
-     *         hardware menu button dragging.
-     * @return True, if the menu is shown, false, if menu is not shown, example
-     *         reasons: the menu is not yet available to be shown, or the menu is
-     *         already showing.
+     *     tapping on a button, this should be false. If it is showed by start dragging down on the
+     *     menu button, this should be true. Note that if anchorView is null, this must be false
+     *     since we no longer support hardware menu button dragging.
+     * @return True, if the menu is shown, false, if menu is not shown, example reasons: the menu is
+     *     not yet available to be shown, or the menu is already showing.
      */
     public static boolean showAppMenu(
             AppMenuCoordinator coordinator, View anchorView, boolean startDragging) {
@@ -140,7 +175,7 @@ public class AppMenuTestSupport {
             AppMenuCoordinator coordinator) {
         return ((AppMenuCoordinatorImpl) coordinator)
                 .getAppMenuHandlerImplForTesting()
-                .getDelegateForTests();
+                .getMenuPropertiesDelegate();
     }
 
     /**

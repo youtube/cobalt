@@ -50,15 +50,53 @@ bool SessionMatchesFilter(
   return true;
 }
 
+class DebugHeaderBuilder {
+ public:
+  void AddSkippedSession(SessionKey key, SessionService::RefreshResult result) {
+    structured_headers::Item item;
+    switch (result) {
+      case SessionService::RefreshResult::kRefreshed:
+      case SessionService::RefreshResult::kFatalError:
+        return;
+      case SessionService::RefreshResult::kInitializedService:
+        NOTREACHED();
+      case SessionService::RefreshResult::kUnreachable:
+        item = structured_headers::Item("unreachable",
+                                        structured_headers::Item::kTokenType);
+        break;
+      case SessionService::RefreshResult::kServerError:
+        item = structured_headers::Item("server_error",
+                                        structured_headers::Item::kTokenType);
+        break;
+      case SessionService::RefreshResult::kQuotaExceeded:
+        item = structured_headers::Item("quota_exceeded",
+                                        structured_headers::Item::kTokenType);
+        break;
+    }
+
+    structured_headers::Parameters params = {
+        {"session_identifier", structured_headers::Item(key.id.value())}};
+    skipped_sessions_.emplace_back(std::move(item), std::move(params));
+  }
+
+  std::optional<std::string> Build() {
+    if (skipped_sessions_.empty()) {
+      return std::nullopt;
+    }
+
+    return structured_headers::SerializeList(std::move(skipped_sessions_));
+  }
+
+ private:
+  structured_headers::List skipped_sessions_;
+};
+
 }  // namespace
 
 DeferredURLRequest::DeferredURLRequest(
     const URLRequest* request,
-    SessionService::RefreshCompleteCallback restart_callback,
-    SessionService::RefreshCompleteCallback continue_callback)
-    : request(request),
-      restart_callback(std::move(restart_callback)),
-      continue_callback(std::move(continue_callback)) {}
+    SessionService::RefreshCompleteCallback callback)
+    : request(request), callback(std::move(callback)) {}
 
 DeferredURLRequest::DeferredURLRequest(DeferredURLRequest&& other) noexcept =
     default;
@@ -143,40 +181,62 @@ void SessionServiceImpl::OnRegistrationComplete(
                                 result);
 }
 
-std::pair<SessionServiceImpl::SessionsMap::iterator,
-          SessionServiceImpl::SessionsMap::iterator>
+std::ranges::subrange<SessionServiceImpl::SessionsMap::iterator>
 SessionServiceImpl::GetSessionsForSite(const SchemefulSite& site) {
   const auto now = base::Time::Now();
-  auto [begin, end] = unpartitioned_sessions_.equal_range(site);
-  for (auto it = begin; it != end;) {
-    if (now >= it->second->expiry_date()) {
+  // Session keys are sorted by site, then identifier. So the first
+  // element not less than (`site`, "") is the first session for this
+  // site.
+  auto it =
+      unpartitioned_sessions_.lower_bound(SessionKey{site, Session::Id("")});
+  while (it != unpartitioned_sessions_.end() && it->first.site == site) {
+    auto curit = it;
+    ++it;
+
+    if (now >= curit->second->expiry_date()) {
       // Since this deletion is not due to a request, we do not need to
       // provide a per-request callback here.
-      it = DeleteSessionAndNotifyInternal(it, base::NullCallback());
+      DeleteSessionAndNotifyInternal(curit, base::NullCallback());
     } else {
-      it->second->RecordAccess();
-      it++;
+      curit->second->RecordAccess();
     }
   }
 
-  return unpartitioned_sessions_.equal_range(site);
+  return std::ranges::subrange<SessionsMap::iterator>(
+      unpartitioned_sessions_.lower_bound(SessionKey{site, Session::Id("")}),
+      it);
 }
 
 std::optional<SessionService::DeferralParams> SessionServiceImpl::ShouldDefer(
     URLRequest* request,
+    HttpRequestHeaders* extra_headers,
     const FirstPartySetMetadata& first_party_set_metadata) {
   if (pending_initialization_) {
     return DeferralParams();
   }
   SchemefulSite site(request->url());
-  auto range = GetSessionsForSite(site);
-  for (auto it = range.first; it != range.second; ++it) {
-    if (it->second->ShouldDeferRequest(request, first_party_set_metadata)) {
+  DebugHeaderBuilder debug_header_builder;
+  const base::flat_map<SessionKey, RefreshResult>& previous_deferrals =
+      request->device_bound_session_deferrals();
+  for (const auto& [_, session] : GetSessionsForSite(site)) {
+    if (session->ShouldDeferRequest(request, first_party_set_metadata)) {
+      auto previous_deferrals_it =
+          previous_deferrals.find({site, session->id()});
+      if (previous_deferrals_it != previous_deferrals.end()) {
+        debug_header_builder.AddSkippedSession(previous_deferrals_it->first,
+                                               previous_deferrals_it->second);
+        continue;
+      }
+
       NotifySessionAccess(request->device_bound_session_access_callback(),
-                          SessionAccess::AccessType::kUpdate, site,
-                          *it->second);
-      return DeferralParams(it->second->id());
+                          SessionAccess::AccessType::kUpdate, site, *session);
+      return DeferralParams(session->id());
     }
+  }
+
+  std::optional<std::string> debug_header = debug_header_builder.Build();
+  if (debug_header.has_value()) {
+    extra_headers->SetHeader("Secure-Session-Skipped", *debug_header);
   }
 
   return std::nullopt;
@@ -185,10 +245,8 @@ std::optional<SessionService::DeferralParams> SessionServiceImpl::ShouldDefer(
 void SessionServiceImpl::DeferRequestForRefresh(
     URLRequest* request,
     DeferralParams deferral,
-    RefreshCompleteCallback restart_callback,
-    RefreshCompleteCallback continue_callback) {
-  CHECK(restart_callback);
-  CHECK(continue_callback);
+    RefreshCompleteCallback callback) {
+  CHECK(callback);
   CHECK(request);
 
   if (deferral.is_pending_initialization) {
@@ -196,38 +254,40 @@ void SessionServiceImpl::DeferRequestForRefresh(
     requests_before_initialization_++;
     // Due to the need to recompute `first_party_set_metadata`, we always
     // restart the request after initialization completes.
-    queued_operations_.push_back(std::move(restart_callback));
+    queued_operations_.push_back(base::BindOnce(
+        std::move(callback), RefreshResult::kInitializedService));
     return;
   }
 
   Session::Id session_id = *deferral.session_id;
-  bool needs_refresh = false;
   // For the first deferring request, create a new vector and add the request.
   auto [it, inserted] = deferred_requests_.try_emplace(session_id);
-  if (inserted) {
-    needs_refresh = true;
-  }
   // Add the request to the deferred list.
-  it->second.emplace_back(request, std::move(restart_callback),
-                          std::move(continue_callback));
+  it->second.emplace_back(request, std::move(callback));
 
   SchemefulSite site(request->url());
   auto* session = GetSession(site, session_id);
   if (!session) {
-    // If we can't find the session, clear the session_id key in the map and
-    // continue all related requests.
-    UnblockDeferredRequests(session_id, /*is_cookie_refreshed=*/false);
+    // If we can't find the session, clear the session_id key in the map
+    // and continue all related requests. We can call this a fatal error
+    // because the session has already been deleted.
+    UnblockDeferredRequests(session_id, RefreshResult::kFatalError);
     return;
   }
   // Notify the request that it has been deferred for refreshed cookies.
   NotifySessionAccess(request->device_bound_session_access_callback(),
                       SessionAccess::AccessType::kUpdate, site, *session);
-  if (!needs_refresh) {
+  if (!inserted) {
     return;
   }
 
   if (RefreshQuotaExceeded(site)) {
-    UnblockDeferredRequests(session_id, /*is_cookie_refreshed=*/false);
+    UnblockDeferredRequests(session_id, RefreshResult::kQuotaExceeded);
+    return;
+  }
+
+  if (session->ShouldBackoff()) {
+    UnblockDeferredRequests(session_id, RefreshResult::kUnreachable);
     return;
   }
 
@@ -238,10 +298,12 @@ void SessionServiceImpl::DeferRequestForRefresh(
       session_store_->RestoreSessionBindingKey(
           site, session_id,
           base::BindOnce(&SessionServiceImpl::OnSessionKeyRestored,
-                         weak_factory_.GetWeakPtr(), request, site,
-                         session_id));
+                         weak_factory_.GetWeakPtr(), request, site, session_id,
+                         request->device_bound_session_access_callback()));
     } else {
-      UnblockDeferredRequests(session_id, /*is_cookie_refreshed=*/false);
+      UnblockDeferredRequests(session_id, RefreshResult::kFatalError);
+      DeleteSessionAndNotify(site, session_id,
+                             request->device_bound_session_access_callback());
     }
 
     return;
@@ -271,7 +333,7 @@ void SessionServiceImpl::OnRefreshRequestCompletion(
 // Continue or restart all deferred requests for the session and remove the
 // session_id key in the map.
 void SessionServiceImpl::UnblockDeferredRequests(const Session::Id& session_id,
-                                                 bool is_cookie_refreshed) {
+                                                 RefreshResult result) {
   auto it = deferred_requests_.find(session_id);
   if (it == deferred_requests_.end()) {
     return;
@@ -283,12 +345,7 @@ void SessionServiceImpl::UnblockDeferredRequests(const Session::Id& session_id,
   for (auto& request : requests) {
     base::UmaHistogramTimes("Net.DeviceBoundSessions.RequestDeferredDuration",
                             request.timer.Elapsed());
-
-    if (is_cookie_refreshed) {
-      std::move(request.restart_callback).Run();
-    } else {
-      std::move(request.continue_callback).Run();
-    }
+    std::move(request.callback).Run(result);
   }
 }
 
@@ -301,13 +358,11 @@ void SessionServiceImpl::SetChallengeForBoundSession(
   }
 
   SchemefulSite site(request_url);
-  auto range = GetSessionsForSite(site);
-  for (auto it = range.first; it != range.second; ++it) {
-    if (it->second->id().value() == param.session_id()) {
+  for (const auto& [_, session] : GetSessionsForSite(site)) {
+    if (session->id().value() == param.session_id()) {
       NotifySessionAccess(on_access_callback,
-                          SessionAccess::AccessType::kUpdate, site,
-                          *it->second);
-      it->second->set_cached_challenge(param.challenge());
+                          SessionAccess::AccessType::kUpdate, site, *session);
+      session->set_cached_challenge(param.challenge());
       return;
     }
   }
@@ -322,11 +377,8 @@ void SessionServiceImpl::GetAllSessionsAsync(
         // `queued_operations_`, which is owned by `this`.
         base::Unretained(this), std::move(callback)));
   } else {
-    std::vector<SessionKey> sessions =
-        base::ToVector(unpartitioned_sessions_, [](const auto& pair) {
-          const auto& [site, session] = pair;
-          return SessionKey(site, session->id());
-        });
+    std::vector<SessionKey> sessions = base::ToVector(
+        unpartitioned_sessions_, [](const auto& pair) { return pair.first; });
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(callback), std::move(sessions)));
   }
@@ -336,26 +388,20 @@ void SessionServiceImpl::DeleteSessionAndNotify(
     const SchemefulSite& site,
     const Session::Id& id,
     SessionService::OnAccessCallback per_request_callback) {
-  auto range = unpartitioned_sessions_.equal_range(site);
-  for (auto it = range.first; it != range.second; ++it) {
-    if (it->second->id() == id) {
-      std::ignore = DeleteSessionAndNotifyInternal(it, per_request_callback);
-      return;
-    }
+  auto it = unpartitioned_sessions_.find(SessionKey{site, id});
+  if (it == unpartitioned_sessions_.end()) {
+    return;
   }
+
+  DeleteSessionAndNotifyInternal(it, per_request_callback);
 }
 
 Session* SessionServiceImpl::GetSession(const SchemefulSite& site,
                                         const Session::Id& session_id) const {
-  // Intentionally do not use `GetSessionsForSite` here so we do not
-  // modify the session during testing.
-  auto range = unpartitioned_sessions_.equal_range(site);
-  for (auto it = range.first; it != range.second; ++it) {
-    if (it->second->id() == session_id) {
-      return it->second.get();
-    }
+  auto it = unpartitioned_sessions_.find(SessionKey{site, session_id});
+  if (it != unpartitioned_sessions_.end()) {
+    return it->second.get();
   }
-
   return nullptr;
 }
 
@@ -364,8 +410,9 @@ void SessionServiceImpl::AddSession(const SchemefulSite& site,
   if (session_store_) {
     session_store_->SaveSession(site, *session);
   }
-  // TODO(crbug.com/402020386): Enforce unique session ids per site.
-  unpartitioned_sessions_.emplace(site, std::move(session));
+
+  unpartitioned_sessions_.emplace(SessionKey{site, session->id()},
+                                  std::move(session));
 }
 
 void SessionServiceImpl::DeleteAllSessions(
@@ -376,11 +423,13 @@ void SessionServiceImpl::DeleteAllSessions(
     base::OnceClosure completion_callback) {
   for (auto it = unpartitioned_sessions_.begin();
        it != unpartitioned_sessions_.end();) {
-    if (SessionMatchesFilter(it->first, *it->second, created_after_time,
-                             created_before_time, origin_and_site_matcher)) {
-      it = DeleteSessionAndNotifyInternal(it, base::NullCallback());
-    } else {
-      ++it;
+    auto curit = it;
+    ++it;
+
+    if (SessionMatchesFilter(curit->first.site, *curit->second,
+                             created_after_time, created_before_time,
+                             origin_and_site_matcher)) {
+      DeleteSessionAndNotifyInternal(curit, base::NullCallback());
     }
   }
 
@@ -398,19 +447,18 @@ base::ScopedClosureRunner SessionServiceImpl::AddObserver(
   return subscription;
 }
 
-SessionServiceImpl::SessionsMap::iterator
-SessionServiceImpl::DeleteSessionAndNotifyInternal(
+void SessionServiceImpl::DeleteSessionAndNotifyInternal(
     SessionServiceImpl::SessionsMap::iterator it,
     SessionService::OnAccessCallback per_request_callback) {
   if (session_store_) {
-    session_store_->DeleteSession(it->first, it->second->id());
+    session_store_->DeleteSession(it->first);
   }
 
   NotifySessionAccess(per_request_callback,
-                      SessionAccess::AccessType::kTermination, it->first,
+                      SessionAccess::AccessType::kTermination, it->first.site,
                       *it->second);
 
-  return unpartitioned_sessions_.erase(it);
+  unpartitioned_sessions_.erase(it);
 }
 
 void SessionServiceImpl::NotifySessionAccess(
@@ -519,7 +567,7 @@ SessionError::ErrorType SessionServiceImpl::OnRefreshRequestCompletionInternal(
     if (!session_or_error.has_value()) {
       // New parameters are invalid, terminate the session.
       DeleteSessionAndNotify(site, session_id, on_access_callback);
-      UnblockDeferredRequests(session_id, /*is_cookie_refreshed=*/false);
+      UnblockDeferredRequests(session_id, RefreshResult::kFatalError);
       return session_or_error.error().type;
     }
 
@@ -541,17 +589,19 @@ SessionError::ErrorType SessionServiceImpl::OnRefreshRequestCompletionInternal(
     }
     AddSession(new_site, std::move(new_session));
     // The session has been refreshed, restart the request.
-    UnblockDeferredRequests(session_id, /*is_cookie_refreshed=*/true);
+    UnblockDeferredRequests(session_id, RefreshResult::kRefreshed);
   } else if (const SessionError& error = params_or_error.error();
              error.IsFatal()) {
     Session::Id session_to_terminate =
         error.session_id ? Session::Id(*error.session_id) : session_id;
     DeleteSessionAndNotify(error.site, session_to_terminate,
                            on_access_callback);
-    UnblockDeferredRequests(session_id, /*is_cookie_refreshed=*/false);
+    UnblockDeferredRequests(session_id, RefreshResult::kFatalError);
   } else {
     // Transient error, unblock the request without cookies.
-    UnblockDeferredRequests(session_id, /*is_cookie_refreshed=*/false);
+    UnblockDeferredRequests(session_id, error.IsServerError()
+                                            ? RefreshResult::kServerError
+                                            : RefreshResult::kUnreachable);
   }
 
   return params_or_error.has_value() ? SessionError::ErrorType::kSuccess
@@ -562,15 +612,17 @@ void SessionServiceImpl::OnSessionKeyRestored(
     URLRequest* request,
     const SchemefulSite& site,
     const Session::Id& session_id,
+    OnAccessCallback on_access_callback,
     Session::KeyIdOrError key_id_or_error) {
   if (!key_id_or_error.has_value()) {
-    UnblockDeferredRequests(session_id, /*is_cookie_refreshed=*/false);
+    UnblockDeferredRequests(session_id, RefreshResult::kFatalError);
+    DeleteSessionAndNotify(site, session_id, on_access_callback);
     return;
   }
 
   auto* session = GetSession(site, session_id);
   if (!session) {
-    UnblockDeferredRequests(session_id, /*is_cookie_refreshed=*/false);
+    UnblockDeferredRequests(session_id, RefreshResult::kFatalError);
     return;
   }
 

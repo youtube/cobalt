@@ -16,15 +16,11 @@
 #include "base/files/file_util.h"
 #include "base/json/json_file_value_serializer.h"
 #include "base/json/json_reader.h"
-
-#if BUILDFLAG(IS_MAC)
-#include "base/mac/mac_util.h"
-#endif
-
 #include "base/memory/weak_ptr.h"
 #include "base/notreached.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/task/current_thread.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -1770,13 +1766,6 @@ class NavCaptureParameterizedBrowserTest
     if (ShouldRunDisabledTests()) {
       return false;
     }
-
-#if BUILDFLAG(IS_MAC)
-    //TODO(crbug.com/415092020): remove after Mac12 flakiness is fixed.
-    if (base::mac::MacOSMajorVersion() == 12) {
-      return true;
-    }
-#endif
 
     testing::TestParamInfo<LinkCaptureTestParam> param(GetParam(), 0);
     const base::Value::Dict& test_case = GetTestCaseDataFromParam();

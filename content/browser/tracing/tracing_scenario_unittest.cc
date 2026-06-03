@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "base/files/file_path.h"
+#include "base/notimplemented.h"
 #include "base/path_service.h"
 #include "base/task/thread_pool.h"
 #include "base/test/gmock_callback_support.h"
@@ -15,6 +16,7 @@
 #include "base/trace_event/named_trigger.h"
 #include "build/build_config.h"
 #include "content/public/browser/background_tracing_manager.h"
+#include "content/public/browser/tracing_delegate.h"
 #include "content/public/test/browser_task_environment.h"
 #include "services/tracing/perfetto/test_utils.h"
 #include "services/tracing/public/cpp/perfetto/perfetto_traced_process.h"
@@ -48,7 +50,7 @@ const char* kDefaultConfig = R"pb(
   stop_rules: { manual_trigger_name: "stop_trigger" }
   upload_rules: { manual_trigger_name: "upload_trigger" }
   trace_config: {
-    data_sources: { config: { name: "org.chromium.trace_metadata" } }
+    data_sources: { config: { name: "org.chromium.trace_metadata2" } }
   }
   nested_scenarios: {
     scenario_name: "nested_scenario"
@@ -300,7 +302,8 @@ class TracingScenarioTest : public testing::Test {
  public:
   TracingScenarioTest()
       : background_tracing_manager_(
-            content::BackgroundTracingManager::CreateInstance()) {}
+            content::BackgroundTracingManager::CreateInstance(
+                &tracing_delegate_)) {}
 
  protected:
   BrowserTaskEnvironment task_environment;
@@ -308,6 +311,7 @@ class TracingScenarioTest : public testing::Test {
       base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()})};
   TestTracingScenarioDelegate delegate;
   TestNestedTracingScenarioDelegate nested_delegate;
+  content::TracingDelegate tracing_delegate_;
   std::unique_ptr<content::BackgroundTracingManager>
       background_tracing_manager_;
 };
@@ -316,11 +320,13 @@ class NestedTracingScenarioTest : public testing::Test {
  public:
   NestedTracingScenarioTest()
       : background_tracing_manager_(
-            content::BackgroundTracingManager::CreateInstance()) {}
+            content::BackgroundTracingManager::CreateInstance(
+                &tracing_delegate_)) {}
 
  protected:
   BrowserTaskEnvironment task_environment;
   TestNestedTracingScenarioDelegate delegate;
+  content::TracingDelegate tracing_delegate_;
   std::unique_ptr<content::BackgroundTracingManager>
       background_tracing_manager_;
 };
@@ -332,7 +338,7 @@ TEST_F(TracingScenarioTest, Init) {
       ParseScenarioConfigFromText(R"pb(
         scenario_name: "test_scenario"
         trace_config: {
-          data_sources: { config: { name: "org.chromium.trace_metadata" } }
+          data_sources: { config: { name: "org.chromium.trace_metadata2" } }
         }
       )pb"),
       &delegate);
@@ -396,8 +402,31 @@ TEST_F(TracingScenarioTest, NestedStartStop) {
   EXPECT_TRUE(base::trace_event::EmitNamedTrigger("start_trigger"));
   EXPECT_TRUE(base::trace_event::EmitNamedTrigger("nested_start_trigger"));
 
-  EXPECT_FALSE(base::trace_event::EmitNamedTrigger("stop_trigger"));
   EXPECT_TRUE(base::trace_event::EmitNamedTrigger("nested_stop_trigger"));
+
+  base::RunLoop run_loop;
+  EXPECT_CALL(delegate, OnScenarioIdle(&tracing_scenario))
+      .WillOnce([&run_loop]() {
+        run_loop.Quit();
+        return true;
+      });
+
+  EXPECT_TRUE(base::trace_event::EmitNamedTrigger("stop_trigger"));
+  run_loop.Run();
+  EXPECT_EQ(TracingScenario::State::kDisabled,
+            tracing_scenario.current_state());
+}
+
+TEST_F(TracingScenarioTest, UnnestedStop) {
+  TracingScenarioForTesting tracing_scenario(
+      ParseScenarioConfigFromText(kDefaultConfig), &delegate);
+
+  tracing_scenario.Enable();
+  EXPECT_EQ(TracingScenario::State::kEnabled, tracing_scenario.current_state());
+  EXPECT_CALL(delegate, OnScenarioActive(&tracing_scenario))
+      .WillOnce(testing::Return(true));
+  EXPECT_TRUE(base::trace_event::EmitNamedTrigger("start_trigger"));
+  EXPECT_TRUE(base::trace_event::EmitNamedTrigger("nested_start_trigger"));
 
   base::RunLoop run_loop;
   EXPECT_CALL(delegate, OnScenarioIdle(&tracing_scenario))
@@ -568,7 +597,6 @@ TEST_F(TracingScenarioTest, SetupNestedStartStop) {
             tracing_scenario.current_state());
   EXPECT_FALSE(
       base::trace_event::EmitNamedTrigger("other_nested_start_trigger"));
-  EXPECT_FALSE(base::trace_event::EmitNamedTrigger("stop_trigger"));
 
   EXPECT_TRUE(base::trace_event::EmitNamedTrigger("nested_stop_trigger"));
 
@@ -905,7 +933,7 @@ class TracingScenarioSystemBackendTest : public testing::Test {
     traced_process_ = std::make_unique<tracing::TracedProcessForTesting>(
         base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()}));
     background_tracing_manager_ =
-        content::BackgroundTracingManager::CreateInstance();
+        content::BackgroundTracingManager::CreateInstance(&tracing_delegate_);
 
     // Connect the producer to the tracing service.
     system_producer_ = std::make_unique<tracing::MockProducer>();
@@ -936,6 +964,7 @@ class TracingScenarioSystemBackendTest : public testing::Test {
   BrowserTaskEnvironment task_environment_;
   std::unique_ptr<tracing::TracedProcessForTesting> traced_process_;
   TestTracingScenarioDelegate delegate;
+  content::TracingDelegate tracing_delegate_;
   std::unique_ptr<content::BackgroundTracingManager>
       background_tracing_manager_;
 

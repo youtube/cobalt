@@ -41,14 +41,14 @@ class PseudoElement;
 // system which encompasses the following responsibilities :
 //
 // 1) Triggering style invalidation to change the DOM structure at different
-//    stages during a transition. For example, pseudo elements for new-content
+//    stages during a transition. For example, pseudo-elements for new-content
 //    are generated after the new Document has loaded and the transition can be
 //    started.
 //
 // 2) Tracking changes in the state of transition elements that are mirrored in
-//    the style for their corresponding pseudo element. For example, if a
+//    the style for their corresponding pseudo-element. For example, if a
 //    transition element's size or viewport space transform is updated. This
-//    data is used to generate a dynamic UA stylesheet for these pseudo
+//    data is used to generate a dynamic UA stylesheet for these pseudo-
 //    elements.
 //
 // Note: The root element is special because its responsibilities are hoisted up
@@ -92,7 +92,7 @@ class ViewTransitionStyleTracker
 
   void AddTransitionElementsFromCSS();
 
-  // Returns true if the pseudo element corresponding to the given id and name
+  // Returns true if the pseudo-element corresponding to the given id and name
   // is the only child.
   bool MatchForOnlyChild(PseudoId pseudo_id,
                          const AtomicString& view_transition_name) const;
@@ -153,12 +153,12 @@ class ViewTransitionStyleTracker
   // should be skipped.
   bool RunPostPrePaintSteps();
 
-  // Provides a UA stylesheet applied to ::transition* pseudo elements.
+  // Provides a UA stylesheet applied to ::transition* pseudo-elements.
   CSSStyleSheet& UAStyleSheet();
 
   void Trace(Visitor* visitor) const;
 
-  // Returns true if any of the pseudo elements are currently participating in
+  // Returns true if any of the pseudo-elements are currently participating in
   // an animation.
   bool HasActiveAnimations() const;
 
@@ -183,7 +183,7 @@ class ViewTransitionStyleTracker
     return std::move(capture_resource_ids_);
   }
 
-  // Returns whether styles applied to pseudo elements should be limited to UA
+  // Returns whether styles applied to pseudo-elements should be limited to UA
   // rules based on the current phase of the transition.
   StyleRequest::RulesToInclude StyleRulesToInclude() const;
 
@@ -234,6 +234,10 @@ class ViewTransitionStyleTracker
 
   void InvalidateInternalPseudoStyle();
 
+  // Computes a list of contained group names for a given view transition name.
+  Vector<AtomicString> ComputeContainedGroupNames(
+      const AtomicString& container_name) const;
+
  private:
   class ImageWrapperPseudoElement;
 
@@ -266,7 +270,7 @@ class ViewTransitionStyleTracker
     void CacheStateForOldSnapshot();
 
     // The element in the current DOM whose state is being tracked and mirrored
-    // into the corresponding container pseudo element.
+    // into the corresponding container pseudo-element.
     Member<Element> target_element;
 
     // Computed info for each element participating in the transition for the
@@ -308,6 +312,12 @@ class ViewTransitionStyleTracker
     // exists.
     base::flat_map<CSSPropertyID, String> captured_css_properties;
 
+    // The set of properties to set on the view-transition-group-children
+    // pseudo. Only updated during the capture phase. This also includes the
+    // border offset from the border box to the content area.
+    base::flat_map<CSSPropertyID, String> group_children_css_properties;
+    gfx::Vector2d border_offset;
+
     // This only contains properties that need to be animated, which is a
     // subset of `captured_css_properties`.
     base::flat_map<CSSPropertyID, String> cached_animated_css_properties;
@@ -322,6 +332,11 @@ class ViewTransitionStyleTracker
     // getAnimations.
     bool is_generated_name;
   };
+
+  bool RunPostPrePaintStepsForElement(AtomicString name,
+                                      ElementData* element_data,
+                                      const int max_capture_size_in_layout,
+                                      bool& needs_style_invalidation);
 
   // In physical pixels. Returns the snapshot root rect, relative to the
   // fixed viewport origin. See README.md for a detailed description of the
@@ -383,13 +398,14 @@ class ViewTransitionStyleTracker
   // in the rare case that the root element has been removed from the DOM.
   Element* OriginatingElement() const;
 
-  // Returns true if we have potentially created pseudo elements that should not
+  // Returns true if we have potentially created pseudo-elements that should not
   // be exposed via getComputedStyle or should not have author styles applied.
   bool HasInternalPseudoElements() const;
 
   Member<Document> document_;
 
   Member<Element> element_;
+  AtomicString scope_tag_;
 
   // Indicates which step during the transition we're currently at.
   State state_ = State::kIdle;

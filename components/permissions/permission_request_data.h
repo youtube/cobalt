@@ -7,6 +7,7 @@
 
 #include <optional>
 
+#include "base/values.h"
 #include "components/permissions/permission_request_id.h"
 #include "components/permissions/request_type.h"
 #include "components/permissions/resolvers/permission_resolver.h"
@@ -20,19 +21,19 @@ struct PermissionRequestDescription;
 
 namespace permissions {
 
-class PermissionContextBase;
+class ContentSettingPermissionContextBase;
 
 // Holds information about `permissions::PermissionRequest`
 struct PermissionRequestData {
   PermissionRequestData(
-      PermissionContextBase* context,
+      ContentSettingPermissionContextBase* context,
       const PermissionRequestID& id,
       const content::PermissionRequestDescription& request_description,
       const GURL& canonical_requesting_origin,
       const GURL& embedding_origin = GURL(),
       int request_description_permission_index = 0);
 
-  PermissionRequestData(PermissionContextBase* context,
+  PermissionRequestData(ContentSettingPermissionContextBase* context,
                         const PermissionRequestID& id,
                         bool user_gesture,
                         const GURL& requesting_origin,
@@ -90,6 +91,8 @@ struct PermissionRequestData {
 
   std::vector<std::string> requested_audio_capture_device_ids;
   std::vector<std::string> requested_video_capture_device_ids;
+
+  base::Value prompt_options;
 };
 
 }  // namespace permissions

@@ -33,6 +33,7 @@
 #include "chrome/browser/prefs/browser_prefs.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search/background/ntp_custom_background_service_constants.h"
+#include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/themes/test/theme_service_changed_waiter.h"
 #include "chrome/browser/themes/theme_helper.h"
 #include "chrome/browser/themes/theme_service.h"
@@ -49,8 +50,10 @@
 #include "components/sync/protocol/entity_specifics.pb.h"
 #include "components/sync/protocol/proto_value_conversions.h"
 #include "components/sync/protocol/theme_specifics.pb.h"
+#include "components/sync/protocol/theme_types.pb.h"
 #include "components/sync/test/fake_sync_change_processor.h"
 #include "components/sync/test/sync_change_processor_wrapper_for_test.h"
+#include "components/sync/test/test_sync_service.h"
 #include "components/sync_preferences/pref_service_syncable.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "content/public/test/browser_task_environment.h"
@@ -1047,7 +1050,7 @@ TEST_F(RealThemeSyncableServiceTest, UpdateThemeSpecifics_CurrentTheme_Policy) {
 
 TEST_F(RealThemeSyncableServiceTest, ShouldDownloadUserColorTheme) {
   sync_pb::ThemeSpecifics theme_specifics;
-  sync_pb::ThemeSpecifics::UserColorTheme* user_color_theme =
+  sync_pb::UserColorTheme* user_color_theme =
       theme_specifics.mutable_user_color_theme();
   user_color_theme->set_color(SK_ColorRED);
   user_color_theme->set_browser_color_variant(BrowserColorVariantToProtoEnum(
@@ -1231,7 +1234,7 @@ TEST_F(RealThemeSyncableServiceTest, ShouldUploadBrowserColorScheme) {
 
 TEST_F(RealThemeSyncableServiceTest, ShouldDownloadNtpBackground) {
   sync_pb::ThemeSpecifics theme_specifics;
-  sync_pb::ThemeSpecifics::NtpCustomBackground* ntp_background =
+  sync_pb::NtpCustomBackground* ntp_background =
       theme_specifics.mutable_ntp_background();
   ntp_background->set_url(kTestUrl);
   ntp_background->set_attribution_line_1("attribution_line_1");
@@ -1295,7 +1298,7 @@ TEST_F(RealThemeSyncableServiceTest, ShouldUploadNtpBackground) {
 
   const syncer::SyncChangeList& changes = fake_change_processor()->changes();
   ASSERT_GE(changes.size(), 0u);
-  const sync_pb::ThemeSpecifics::NtpCustomBackground& ntp_background =
+  const sync_pb::NtpCustomBackground& ntp_background =
       changes.back().sync_data().GetSpecifics().theme().ntp_background();
   EXPECT_EQ(ntp_background.url(), kTestUrl);
   EXPECT_EQ(ntp_background.attribution_line_1(), "attribution_line_1");
@@ -1510,7 +1513,7 @@ TEST_F(RealThemeSyncableServiceTest,
   theme_specifics.set_custom_theme_name(kCustomThemeName);
   theme_specifics.set_custom_theme_update_url(kCustomThemeUrl);
 
-  sync_pb::ThemeSpecifics::UserColorTheme* user_color_theme =
+  sync_pb::UserColorTheme* user_color_theme =
       theme_specifics.mutable_user_color_theme();
   user_color_theme->set_color(SK_ColorRED);
   user_color_theme->set_browser_color_variant(BrowserColorVariantToProtoEnum(
@@ -1654,8 +1657,7 @@ TEST_F(RealThemeSyncableServiceTest,
 
   b = a;
 
-  sync_pb::ThemeSpecifics::NtpCustomBackground* background =
-      b.mutable_ntp_background();
+  sync_pb::NtpCustomBackground* background = b.mutable_ntp_background();
 
   EXPECT_TRUE(ThemeSyncableService::AreThemeSpecificsEquivalent(a, b, false));
 
@@ -1712,7 +1714,7 @@ TEST_F(RealThemeSyncableServiceTest,
   theme_specifics.set_use_custom_theme(false);
   theme_specifics.set_browser_color_scheme(
       BrowserColorSchemeToProtoEnum(ThemeService::BrowserColorScheme::kLight));
-  sync_pb::ThemeSpecifics::UserColorTheme* user_color_theme =
+  sync_pb::UserColorTheme* user_color_theme =
       theme_specifics.mutable_user_color_theme();
   user_color_theme->set_color(SK_ColorRED);
   user_color_theme->set_browser_color_variant(BrowserColorVariantToProtoEnum(
@@ -1801,7 +1803,7 @@ TEST_F(RealThemeSyncableServiceTest,
   sync_pb::ThemeSpecifics theme_specifics;
   theme_specifics.set_use_custom_theme(false);
   theme_specifics.mutable_ntp_background()->set_url(kTestUrl);
-  sync_pb::ThemeSpecifics::UserColorTheme* user_color_theme =
+  sync_pb::UserColorTheme* user_color_theme =
       theme_specifics.mutable_user_color_theme();
   user_color_theme->set_color(SK_ColorRED);
   user_color_theme->set_browser_color_variant(BrowserColorVariantToProtoEnum(
@@ -2084,11 +2086,11 @@ TEST_F(RealThemeSyncableServiceTest, ClearLocalNtpBackgroundIfRemoteEmpty) {
   theme_specifics.set_use_custom_theme(false);
   theme_specifics.set_browser_color_scheme(
       ::sync_pb::ThemeSpecifics_BrowserColorScheme_SYSTEM);
-  sync_pb::ThemeSpecifics::UserColorTheme* user_color_theme =
+  sync_pb::UserColorTheme* user_color_theme =
       theme_specifics.mutable_user_color_theme();
   user_color_theme->set_color(SK_ColorRED);
   user_color_theme->set_browser_color_variant(
-      sync_pb::ThemeSpecifics_UserColorTheme_BrowserColorVariant_TONAL_SPOT);
+      sync_pb::UserColorTheme_BrowserColorVariant_TONAL_SPOT);
 
   // Start syncing.
   std::optional<syncer::ModelError> error =
@@ -2354,7 +2356,7 @@ TEST_F(RealThemeSyncableServiceTest,
   ASSERT_TRUE(current_specifics.has_user_color_theme());
   EXPECT_EQ(current_specifics.user_color_theme().color(), SK_ColorBLUE);
   EXPECT_EQ(current_specifics.user_color_theme().browser_color_variant(),
-            sync_pb::ThemeSpecifics_UserColorTheme_BrowserColorVariant_NEUTRAL);
+            sync_pb::UserColorTheme_BrowserColorVariant_NEUTRAL);
 }
 
 TEST_F(RealThemeSyncableServiceTest,
@@ -2426,7 +2428,7 @@ TEST_F(RealThemeSyncableServiceTest,
   ASSERT_TRUE(current_specifics.has_user_color_theme());
   EXPECT_EQ(current_specifics.user_color_theme().color(), SK_ColorBLUE);
   EXPECT_EQ(current_specifics.user_color_theme().browser_color_variant(),
-            sync_pb::ThemeSpecifics_UserColorTheme_BrowserColorVariant_NEUTRAL);
+            sync_pb::UserColorTheme_BrowserColorVariant_NEUTRAL);
 }
 
 TEST_F(RealThemeSyncableServiceTest,
@@ -2443,7 +2445,7 @@ TEST_F(RealThemeSyncableServiceTest,
       ::sync_pb::ThemeSpecifics_BrowserColorScheme_SYSTEM);
   theme_specifics.mutable_user_color_theme()->set_color(SK_ColorBLUE);
   theme_specifics.mutable_user_color_theme()->set_browser_color_variant(
-      ::sync_pb::ThemeSpecifics_UserColorTheme_BrowserColorVariant_NEUTRAL);
+      ::sync_pb::UserColorTheme_BrowserColorVariant_NEUTRAL);
 
   ASSERT_EQ(theme_specifics.SerializeAsString(),
             theme_sync_service()
@@ -2882,9 +2884,8 @@ TEST_F(ThemeSyncableServiceTestWithAccountThemesSeparation,
             sync_pb::ThemeSpecifics_BrowserColorScheme_SYSTEM);
   ASSERT_TRUE(local_theme_specifics.has_user_color_theme());
   EXPECT_EQ(local_theme_specifics.user_color_theme().color(), SK_ColorRED);
-  EXPECT_EQ(
-      local_theme_specifics.user_color_theme().browser_color_variant(),
-      sync_pb::ThemeSpecifics_UserColorTheme_BrowserColorVariant_TONAL_SPOT);
+  EXPECT_EQ(local_theme_specifics.user_color_theme().browser_color_variant(),
+            sync_pb::UserColorTheme_BrowserColorVariant_TONAL_SPOT);
 }
 
 TEST_F(ThemeSyncableServiceTestWithAccountThemesSeparation,
@@ -3102,11 +3103,11 @@ TEST_F(ThemeSyncableServiceTestWithAccountThemesSeparation,
   // Set saved local theme pref.
   sync_pb::ThemeSpecifics local_theme_specifics;
   local_theme_specifics.set_use_custom_theme(false);
-  sync_pb::ThemeSpecifics::UserColorTheme* user_color_theme =
+  sync_pb::UserColorTheme* user_color_theme =
       local_theme_specifics.mutable_user_color_theme();
   user_color_theme->set_color(SK_ColorRED);
   user_color_theme->set_browser_color_variant(
-      sync_pb::ThemeSpecifics_UserColorTheme_BrowserColorVariant_TONAL_SPOT);
+      sync_pb::UserColorTheme_BrowserColorVariant_TONAL_SPOT);
 
   profile()->GetPrefs()->SetString(
       prefs::kSavedLocalTheme,
@@ -3301,7 +3302,7 @@ TEST_F(ThemeSyncableServiceTestWithAccountThemesSeparation,
   // Set saved local theme pref.
   sync_pb::ThemeSpecifics local_theme_specifics;
   local_theme_specifics.set_use_custom_theme(false);
-  sync_pb::ThemeSpecifics::NtpCustomBackground* background =
+  sync_pb::NtpCustomBackground* background =
       local_theme_specifics.mutable_ntp_background();
   background->set_url(kTestUrl);
   background->set_attribution_line_1("attribution_line_1");
@@ -3401,11 +3402,11 @@ TEST_F(ThemeSyncableServiceTestWithAccountThemesSeparation,
   // Set saved local theme pref.
   sync_pb::ThemeSpecifics local_theme_specifics;
   local_theme_specifics.set_use_custom_theme(false);
-  sync_pb::ThemeSpecifics::UserColorTheme* user_color_theme =
+  sync_pb::UserColorTheme* user_color_theme =
       local_theme_specifics.mutable_user_color_theme();
   user_color_theme->set_color(SK_ColorRED);
   user_color_theme->set_browser_color_variant(
-      sync_pb::ThemeSpecifics_UserColorTheme_BrowserColorVariant_TONAL_SPOT);
+      sync_pb::UserColorTheme_BrowserColorVariant_TONAL_SPOT);
 
   profile()->GetPrefs()->SetString(
       prefs::kSavedLocalTheme,
@@ -3419,6 +3420,88 @@ TEST_F(ThemeSyncableServiceTestWithAccountThemesSeparation,
   EXPECT_TRUE(theme_service()->UsingAutogeneratedTheme());
   EXPECT_NE(theme_service()->GetThemeID(), ThemeService::kUserColorThemeID);
   histogram_tester.ExpectTotalCount("Theme.RestoredLocalThemeUponSignout", 0);
+}
+
+TEST_F(ThemeSyncableServiceTestWithAccountThemesSeparation,
+       ShouldLoadLocalThemeFromPrefUponStayStoppedAndMaybeClearData) {
+  // Set current theme to autogenerated theme.
+  theme_service()->BuildAutogeneratedThemeFromColor(SK_ColorBLUE);
+  ASSERT_TRUE(theme_service()->UsingAutogeneratedTheme());
+
+  // Set saved local theme pref.
+  sync_pb::ThemeSpecifics local_theme_specifics;
+  local_theme_specifics.set_use_custom_theme(false);
+  sync_pb::UserColorTheme* user_color_theme =
+      local_theme_specifics.mutable_user_color_theme();
+  user_color_theme->set_color(SK_ColorRED);
+  user_color_theme->set_browser_color_variant(
+      sync_pb::UserColorTheme_BrowserColorVariant_TONAL_SPOT);
+
+  profile()->GetPrefs()->SetString(
+      prefs::kSavedLocalTheme,
+      base::Base64Encode(local_theme_specifics.SerializeAsString()));
+
+  theme_sync_service()->StayStoppedAndMaybeClearData(syncer::THEMES);
+
+  // Saved local theme is applied.
+  EXPECT_FALSE(theme_service()->UsingAutogeneratedTheme());
+  EXPECT_EQ(theme_service()->GetThemeID(), ThemeService::kUserColorThemeID);
+}
+
+TEST_F(
+    ThemeSyncableServiceTestWithAccountThemesSeparation,
+    ShouldLoadLocalThemeFromPrefUponStayStoppedAndMaybeClearDataEvenIfDefault) {
+  // Set current theme to autogenerated theme.
+  theme_service()->BuildAutogeneratedThemeFromColor(SK_ColorBLUE);
+  ASSERT_TRUE(theme_service()->UsingAutogeneratedTheme());
+
+  // Set saved local theme pref to default theme.
+  sync_pb::ThemeSpecifics local_theme_specifics =
+      theme_service::test::EmptySpecifics();
+
+  profile()->GetPrefs()->SetString(
+      prefs::kSavedLocalTheme,
+      base::Base64Encode(local_theme_specifics.SerializeAsString()));
+
+  theme_sync_service()->StayStoppedAndMaybeClearData(syncer::THEMES);
+
+  // Saved local theme is applied.
+  EXPECT_FALSE(theme_service()->UsingAutogeneratedTheme());
+  EXPECT_TRUE(theme_service()->UsingDefaultTheme());
+}
+
+TEST_F(
+    ThemeSyncableServiceTestWithAccountThemesSeparation,
+    ShouldNotSetToDefaultThemeUponStayStoppedAndMaybeClearDataIfLocalThemeAlreadyApplied) {
+  // Set current theme to user color theme.
+  theme_service()->SetUserColorAndBrowserColorVariant(
+      SK_ColorRED, ui::mojom::BrowserColorVariant::kTonalSpot);
+  ASSERT_EQ(theme_service()->GetThemeID(), ThemeService::kUserColorThemeID);
+
+  // Set saved local theme pref.
+  sync_pb::ThemeSpecifics local_theme_specifics;
+  local_theme_specifics.set_use_custom_theme(false);
+  local_theme_specifics.mutable_autogenerated_color_theme()->set_color(
+      SK_ColorRED);
+
+  profile()->GetPrefs()->SetString(
+      prefs::kSavedLocalTheme,
+      base::Base64Encode(local_theme_specifics.SerializeAsString()));
+
+  theme_sync_service()->StayStoppedAndMaybeClearData(syncer::THEMES);
+
+  // Saved local theme is applied.
+  EXPECT_EQ(theme_service()->GetThemeID(), ThemeService::kAutogeneratedThemeID);
+  EXPECT_TRUE(theme_service()->UsingAutogeneratedTheme());
+  EXPECT_FALSE(theme_service()->UsingDefaultTheme());
+
+  // Call StayStoppedAndMaybeClearData() again.
+  theme_sync_service()->StayStoppedAndMaybeClearData(syncer::THEMES);
+
+  // Saved local theme is still applied.
+  EXPECT_EQ(theme_service()->GetThemeID(), ThemeService::kAutogeneratedThemeID);
+  EXPECT_TRUE(theme_service()->UsingAutogeneratedTheme());
+  EXPECT_FALSE(theme_service()->UsingDefaultTheme());
 }
 
 class ThemeSyncableServiceTestForThemeExtension
@@ -3438,6 +3521,16 @@ class ThemeSyncableServiceTestForThemeExtension
     pending_extension_manager_ =
         extensions::PendingExtensionManager::Get(profile());
     extension_registry_ = extensions::ExtensionRegistry::Get(profile());
+
+    // Avoid using the real SyncService instance, to avoid triggering sync
+    // startup notifications, specifically clearing of existing account data
+    // upon startup when there is no sync metadata.
+    SyncServiceFactory::GetInstance()->SetTestingFactoryAndUse(
+        profile_.get(),
+        base::BindRepeating([](content::BrowserContext* context)
+                                -> std::unique_ptr<KeyedService> {
+          return std::make_unique<syncer::TestSyncService>();
+        }));
   }
 
   void InstallExtension() {

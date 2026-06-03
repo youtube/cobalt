@@ -13,6 +13,7 @@
 #include "base/check_deref.h"
 #include "base/check_is_test.h"
 #include "base/command_line.h"
+#include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/debug/stack_trace.h"
 #include "base/feature_list.h"
@@ -232,9 +233,27 @@ void RecordChoiceScreenCompletionDate(PrefService& profile_prefs) {
   base::Time::Exploded exploded;
   timestamp->LocalExplode(&exploded);
 
+  // For reporting purposes, we want to keep the date in the range [2022-01,
+  // 2050-12]. Dates that are before 2022 are reported as `1000-01`, and dates
+  // after 2050 are reported as `3000-01`.
+  int year = exploded.year;
+  int month = exploded.month;
+  if (exploded.year < 2022) {
+    year = 1000;
+    month = 1;
+  } else if (exploded.year > 2050) {
+    year = 3000;
+    month = 1;
+  }
+
   // Expected value space is 12 samples / year.
   base::UmaHistogramSparse(kSearchEngineChoiceCompletedOnMonthHistogram,
-                           exploded.year * 100 + exploded.month);
+                           year * 100 + month);
+}
+
+void RecordWipeOnMissingDse(bool will_wipe) {
+  base::UmaHistogramBoolean("Search.ChoicePrefsCheck.WipeOnMissingDse",
+                            will_wipe);
 }
 
 }  // namespace
@@ -271,7 +290,10 @@ SearchEngineChoiceService::SearchEngineChoiceService(
       regional_capabilities_service_(regional_capabilities),
       prepopulate_data_resolver_(prepopulate_data_resolver) {
   ProcessPendingChoiceScreenDisplayState();
-  PreprocessPrefsForReprompt();
+  if (auto maybe_wipe_reason = CheckPrefsForWipeReason();
+      maybe_wipe_reason.has_value()) {
+    WipeSearchEngineChoicePrefs(profile_prefs, maybe_wipe_reason.value());
+  }
   RecordChoiceScreenCompletionDate(profile_prefs);
 }
 
@@ -492,7 +514,7 @@ void SearchEngineChoiceService::MaybeRecordChoiceScreenDisplayState(
                      : "no")
               : "no value");
 
-      NOTREACHED(base::NotFatalUntil::M138);
+      NOTREACHED(base::NotFatalUntil::M141);
       caller_trace_key.Clear();
     }
   }
@@ -526,29 +548,33 @@ void SearchEngineChoiceService::MaybeRecordChoiceScreenDisplayState(
   }
 }
 
-void SearchEngineChoiceService::PreprocessPrefsForReprompt() {
+std::optional<SearchEngineChoiceWipeReason>
+SearchEngineChoiceService::CheckPrefsForWipeReason() {
   base::expected<ChoiceCompletionMetadata, ChoiceCompletionMetadata::ParseError>
       completion_metadata = GetChoiceCompletionMetadata(profile_prefs_.get());
   if (!completion_metadata.has_value()) {
     switch (completion_metadata.error()) {
       case ChoiceCompletionMetadata::ParseError::kAbsent:
         // No choice has been made at all, so there is nothing to reset.
-        return;
+        return std::nullopt;
       case ChoiceCompletionMetadata::ParseError::kMissingVersion:
-        WipeSearchEngineChoicePrefs(
-            profile_prefs_.get(),
-            SearchEngineChoiceWipeReason::kMissingMetadataVersion);
-        return;
+        return SearchEngineChoiceWipeReason::kMissingMetadataVersion;
       case ChoiceCompletionMetadata::ParseError::kInvalidVersion:
-        WipeSearchEngineChoicePrefs(
-            profile_prefs_.get(),
-            SearchEngineChoiceWipeReason::kInvalidMetadataVersion);
-        return;
-      case ChoiceCompletionMetadata::ParseError::kOther:
-        WipeSearchEngineChoicePrefs(
-            profile_prefs_.get(),
-            SearchEngineChoiceWipeReason::kInvalidMetadata);
-        return;
+        return SearchEngineChoiceWipeReason::kInvalidMetadataVersion;
+      case ChoiceCompletionMetadata::ParseError::kMissingTimestamp:
+      case ChoiceCompletionMetadata::ParseError::kNullTimestamp:
+        return SearchEngineChoiceWipeReason::kInvalidMetadata;
+    }
+  }
+
+  if (!profile_prefs_->HasPrefPath(
+          DefaultSearchManager::kDefaultSearchProviderDataPrefName)) {
+    if (base::FeatureList::IsEnabled(
+            switches::kWipeChoicePrefsOnMissingDefaultSearchEngine)) {
+      RecordWipeOnMissingDse(true);
+      return SearchEngineChoiceWipeReason::kMissingDefaultSearchEngine;
+    } else {
+      RecordWipeOnMissingDse(false);
     }
   }
 
@@ -560,9 +586,7 @@ void SearchEngineChoiceService::PreprocessPrefsForReprompt() {
   // change if we want to re-enable the triggering.
   auto* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kForceSearchEngineChoiceScreen)) {
-    WipeSearchEngineChoicePrefs(profile_prefs_.get(),
-                                SearchEngineChoiceWipeReason::kCommandLineFlag);
-    return;
+    return SearchEngineChoiceWipeReason::kCommandLineFlag;
   }
 
   if (base::FeatureList::IsEnabled(
@@ -570,9 +594,7 @@ void SearchEngineChoiceService::PreprocessPrefsForReprompt() {
       client_->DoesChoicePredateDeviceRestore(completion_metadata.value())) {
     if (switches::kInvalidateChoiceOnRestoreIsRetroactive.Get() ||
         client_->IsDeviceRestoreDetectedInCurrentSession()) {
-      WipeSearchEngineChoicePrefs(
-          profile_prefs_.get(), SearchEngineChoiceWipeReason::kDeviceRestored);
-      return;
+      return SearchEngineChoiceWipeReason::kDeviceRestored;
     }
   }
 
@@ -582,10 +604,9 @@ void SearchEngineChoiceService::PreprocessPrefsForReprompt() {
               regional_capabilities::CountryAccessKey(
                   regional_capabilities::CountryAccessReason::
                       kSearchEngineChoiceServiceReprompting)))) {
-    WipeSearchEngineChoicePrefs(
-        profile_prefs_.get(),
-        SearchEngineChoiceWipeReason::kFinchBasedReprompt);
+    return SearchEngineChoiceWipeReason::kFinchBasedReprompt;
   }
+  return std::nullopt;
 }
 
 void SearchEngineChoiceService::ProcessPendingChoiceScreenDisplayState() {

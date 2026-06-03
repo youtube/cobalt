@@ -74,6 +74,10 @@ static_library("safe_browsing") {
     "//services/preferences/public/cpp",
   ]
 
+  if (enable_extensions) {
+    deps += [ "//chrome/browser/ui/web_applications" ]
+  }
+
   # Note: is_android is not equivalent to safe_browsing_mode == 2.
   # Sources and dependencies added to this block must not depend on anything
   # requiring safe_browsing_mode != 0.
@@ -132,6 +136,8 @@ static_library("safe_browsing") {
       "chrome_user_population_helper.h",
       "chrome_v4_protocol_config_provider.cc",
       "chrome_v4_protocol_config_provider.h",
+      "client_side_detection_intelligent_scan_delegate_factory.cc",
+      "client_side_detection_intelligent_scan_delegate_factory.h",
       "client_side_detection_service_factory.cc",
       "client_side_detection_service_factory.h",
       "delayed_warning_navigation_throttle.cc",
@@ -207,6 +213,17 @@ static_library("safe_browsing") {
       "user_interaction_observer.cc",
       "user_interaction_observer.h",
     ]
+    if (is_android) {
+      sources += [
+        "android/client_side_detection_intelligent_scan_delegate_android.cc",
+        "android/client_side_detection_intelligent_scan_delegate_android.h",
+      ]
+    } else {
+      sources += [
+        "client_side_detection_intelligent_scan_delegate_desktop.cc",
+        "client_side_detection_intelligent_scan_delegate_desktop.h",
+      ]
+    }
     deps += [
       ":advanced_protection",
       ":metrics_collector",
@@ -490,6 +507,8 @@ static_library("safe_browsing") {
         "android/services_delegate_android.h",
         "download_protection/download_protection_delegate_android.cc",
         "download_protection/download_protection_delegate_android.h",
+        "download_protection/rate_limiting_key_manager.cc",
+        "download_protection/rate_limiting_key_manager.h",
         "tailored_security/consented_message_android.cc",
         "tailored_security/consented_message_android.h",
         "tailored_security/unconsented_message_android.cc",

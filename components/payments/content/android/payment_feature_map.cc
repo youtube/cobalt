@@ -38,6 +38,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kAndroidPaymentIntentsOmitDeprecatedParameters,
     &kGooglePayViaAndroidIntents,
     &kOmitParametersInReadyToPay,
+    &kReconnectOnLostConnectionToUpdatePaymentDetailsService,
     &kShowReadyToPayDebugInfo,
     &kUpdatePaymentDetailsIntentFilterInPaymentApp,
 };
@@ -58,13 +59,16 @@ static jlong JNI_PaymentFeatureMap_GetNativeMap(JNIEnv* env) {
 // Android only features.
 BASE_FEATURE(kAndroidPaymentIntentsOmitDeprecatedParameters,
              "AndroidPaymentIntentsOmitDeprecatedParameters",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kGooglePayViaAndroidIntents,
              "GooglePayViaAndroidIntents",
              base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kOmitParametersInReadyToPay,
              "OmitParametersInReadyToPay",
              base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kReconnectOnLostConnectionToUpdatePaymentDetailsService,
+             "ReconnectOnLostConnectionToUpdatePaymentDetailsService",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kShowReadyToPayDebugInfo,
              "ShowReadyToPayDebugInfo",
              base::FEATURE_DISABLED_BY_DEFAULT);

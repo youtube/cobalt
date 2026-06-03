@@ -8,9 +8,11 @@
 #include <memory>
 
 #include "base/memory/raw_ptr.h"
-#include "gpu/command_buffer/client/gpu_memory_buffer_manager.h"
+#include "base/synchronization/waitable_event.h"
+#include "gpu/ipc/common/surface_handle.h"
 #include "media/gpu/media_gpu_export.h"
 #include "ui/gfx/buffer_types.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 #include "ui/gfx/linux/scoped_gbm_device.h"
 
 namespace gfx {
@@ -21,12 +23,13 @@ class Size;
 
 namespace media {
 
+class GpuMemoryBufferImplGbm;
+
 // A local, as opposed to the default IPC-based, implementation of
 // gfx::GpuMemoryBufferManager which interacts with the DRM render node device
 // directly. The LocalGpuMemoryBufferManager is only for testing purposes and
 // should not be used in production.
-class MEDIA_GPU_EXPORT LocalGpuMemoryBufferManager
-    : public gpu::GpuMemoryBufferManager {
+class MEDIA_GPU_EXPORT LocalGpuMemoryBufferManager {
  public:
   LocalGpuMemoryBufferManager();
 
@@ -34,25 +37,20 @@ class MEDIA_GPU_EXPORT LocalGpuMemoryBufferManager
   LocalGpuMemoryBufferManager& operator=(const LocalGpuMemoryBufferManager&) =
       delete;
 
-  // gpu::GpuMemoryBufferManager implementation
-  ~LocalGpuMemoryBufferManager() override;
-  std::unique_ptr<gfx::GpuMemoryBuffer> CreateGpuMemoryBuffer(
+  ~LocalGpuMemoryBufferManager();
+
+  std::unique_ptr<GpuMemoryBufferImplGbm> CreateGpuMemoryBuffer(
       const gfx::Size& size,
       gfx::BufferFormat format,
       gfx::BufferUsage usage,
       gpu::SurfaceHandle surface_handle,
-      base::WaitableEvent* shutdown_event) override;
-  void CopyGpuMemoryBufferAsync(
-      gfx::GpuMemoryBufferHandle buffer_handle,
-      base::UnsafeSharedMemoryRegion memory_region,
-      base::OnceCallback<void(bool)> callback) override;
-  bool IsConnected() override;
+      base::WaitableEvent* shutdown_event);
 
   // Imports a DmaBuf as a GpuMemoryBuffer to be able to map it. The
   // GBM_BO_USE_SW_READ_OFTEN usage is specified so that the user of the
   // returned GpuMemoryBuffer is guaranteed to have a linear view when mapping
   // it.
-  std::unique_ptr<gfx::GpuMemoryBuffer> ImportDmaBuf(
+  std::unique_ptr<GpuMemoryBufferImplGbm> ImportDmaBuf(
       const gfx::NativePixmapHandle& handle,
       const gfx::Size& size,
       gfx::BufferFormat format);
@@ -64,6 +62,37 @@ class MEDIA_GPU_EXPORT LocalGpuMemoryBufferManager
 
  private:
   ui::ScopedGbmDevice gbm_device_;
+};
+
+class GpuMemoryBufferImplGbm {
+ public:
+  GpuMemoryBufferImplGbm() = delete;
+
+  GpuMemoryBufferImplGbm(gfx::BufferFormat format, gbm_bo* buffer_object);
+
+  GpuMemoryBufferImplGbm(const GpuMemoryBufferImplGbm&) = delete;
+  GpuMemoryBufferImplGbm& operator=(const GpuMemoryBufferImplGbm&) = delete;
+
+  ~GpuMemoryBufferImplGbm();
+
+  // gfx::GpuMemoryBuffer:
+  bool Map();
+  void* memory(size_t plane);
+  void Unmap();
+  gfx::Size GetSize() const;
+  int stride(size_t plane) const;
+  gfx::GpuMemoryBufferHandle CloneHandle() const;
+
+ private:
+  struct MappedPlane {
+    raw_ptr<void> addr;
+    raw_ptr<void> mapped_data;
+  };
+
+  raw_ptr<gbm_bo> buffer_object_;
+  gfx::GpuMemoryBufferHandle handle_;
+  bool mapped_;
+  std::vector<MappedPlane> mapped_planes_;
 };
 
 }  // namespace media

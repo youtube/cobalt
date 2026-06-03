@@ -4,6 +4,9 @@
 
 package org.chromium.chrome.browser.compositor.layouts.phone;
 
+import static org.chromium.build.NullUtil.assertNonNull;
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
@@ -14,6 +17,8 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.compositor.layouts.Layout;
 import org.chromium.chrome.browser.compositor.layouts.LayoutRenderHost;
@@ -44,12 +49,13 @@ import java.util.Collection;
 import java.util.LinkedList;
 
 /** This class handles animating the opening of new tabs. */
+@NullMarked
 public class SimpleAnimationLayout extends Layout {
     /** The animation for a tab being created in the foreground. */
-    private AnimatorSet mTabCreatedForegroundAnimation;
+    private @Nullable AnimatorSet mTabCreatedForegroundAnimation;
 
     /** The animation for a tab being created in the background. */
-    private AnimatorSet mTabCreatedBackgroundAnimation;
+    private @Nullable AnimatorSet mTabCreatedBackgroundAnimation;
 
     /** Fraction to scale tabs by during animation. */
     public static final float SCALE_FRACTION = 0.90f;
@@ -103,7 +109,8 @@ public class SimpleAnimationLayout extends Layout {
 
     @Override
     public void doneHiding() {
-        TabModelUtils.selectTabById(mTabModelSelector, mNextTabId, TabSelectionType.FROM_USER);
+        TabModelUtils.selectTabById(
+                assertNonNull(mTabModelSelector), mNextTabId, TabSelectionType.FROM_USER);
         super.doneHiding();
         updateContentContainerSensitivity(TabModel.INVALID_TAB_INDEX);
     }
@@ -162,13 +169,13 @@ public class SimpleAnimationLayout extends Layout {
             return;
         }
         // Just draw the source tab on the screen.
-        TabModel sourceModel = mTabModelSelector.getModelForTabId(sourceTabId);
+        TabModel sourceModel = assumeNonNull(mTabModelSelector).getModelForTabId(sourceTabId);
         if (sourceModel == null) return;
         LayoutTab sourceLayoutTab = createLayoutTab(sourceTabId, sourceModel.isIncognito());
         sourceLayoutTab.setBorderAlpha(0.0f);
 
         mLayoutTabs = new LayoutTab[] {sourceLayoutTab};
-        updateCacheVisibleIds(new LinkedList<Integer>(Arrays.asList(sourceTabId)));
+        updateCacheVisibleIds(new LinkedList<>(Arrays.asList(sourceTabId)));
     }
 
     @Override
@@ -221,7 +228,7 @@ public class SimpleAnimationLayout extends Layout {
         } else {
             mLayoutTabs = new LayoutTab[] {mLayoutTabs[0], newLayoutTab};
         }
-        updateCacheVisibleIds(new LinkedList<Integer>(Arrays.asList(id, sourceId)));
+        updateCacheVisibleIds(new LinkedList<>(Arrays.asList(id, sourceId)));
 
         newLayoutTab.setBorderAlpha(0.0f);
 
@@ -269,7 +276,7 @@ public class SimpleAnimationLayout extends Layout {
                 scaleAnimation, alphaAnimation, xAnimation, yAnimation);
         mTabCreatedForegroundAnimation.start();
 
-        mTabModelSelector.selectModel(newIsIncognito);
+        assumeNonNull(mTabModelSelector).selectModel(newIsIncognito);
         mNextTabId = id;
         startHiding();
     }
@@ -289,10 +296,10 @@ public class SimpleAnimationLayout extends Layout {
             int id, int sourceId, boolean newIsIncognito, float originX, float originY) {
         LayoutTab newLayoutTab = createLayoutTab(id, newIsIncognito);
         // mLayoutTabs should already have the source tab from tabCreating().
-        assert mLayoutTabs.length == 1;
+        assert mLayoutTabs != null && mLayoutTabs.length == 1;
         LayoutTab sourceLayoutTab = mLayoutTabs[0];
         mLayoutTabs = new LayoutTab[] {sourceLayoutTab, newLayoutTab};
-        updateCacheVisibleIds(new LinkedList<Integer>(Arrays.asList(id, sourceId)));
+        updateCacheVisibleIds(new LinkedList<>(Arrays.asList(id, sourceId)));
 
         forceAnimationToFinish();
 
@@ -493,7 +500,7 @@ public class SimpleAnimationLayout extends Layout {
         mTabCreatedBackgroundAnimation.playSequentially(step1, step3);
         mTabCreatedBackgroundAnimation.start();
 
-        mTabModelSelector.selectModel(newIsIncognito);
+        assumeNonNull(mTabModelSelector).selectModel(newIsIncognito);
     }
 
     /**
@@ -517,7 +524,8 @@ public class SimpleAnimationLayout extends Layout {
                         == View.CONTENT_SENSITIVITY_SENSITIVE) {
                     return;
                 }
-                TabModel sourceModel = mTabModelSelector.getModelForTabId(sourceTabId);
+                TabModel sourceModel =
+                        assumeNonNull(mTabModelSelector).getModelForTabId(sourceTabId);
                 if (sourceModel == null) {
                     return;
                 }

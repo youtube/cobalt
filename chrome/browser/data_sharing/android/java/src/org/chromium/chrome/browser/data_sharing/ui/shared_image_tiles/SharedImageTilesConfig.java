@@ -16,6 +16,7 @@ import androidx.annotation.StyleRes;
 import androidx.core.content.ContextCompat;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.chrome.browser.theme.SurfaceColorUpdateUtils;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.tab_groups.TabGroupColorId;
 import org.chromium.components.tab_groups.TabGroupColorPickerUtils;
@@ -98,7 +99,7 @@ public class SharedImageTilesConfig {
             this.mIconSizeDp = R.dimen.shared_image_tiles_icon_height;
             this.mBorderSizeDp = R.dimen.shared_image_tiles_icon_border;
             this.mTextPaddingDp = R.dimen.shared_image_tiles_text_padding;
-            this.mTextColor = SemanticColorUtils.getDefaultTextColor(context);
+            this.mTextColor = SemanticColorUtils.getDefaultIconColorOnAccent1Container(context);
             this.mBorderColor = SemanticColorUtils.getDefaultBgColor(context);
             this.mBackgroundColor = SemanticColorUtils.getColorPrimaryContainer(context);
             this.mTextStyle = R.style.TextAppearance_TextAccentMediumThick;
@@ -112,7 +113,6 @@ public class SharedImageTilesConfig {
          */
         public static Builder createForButton(Context context) {
             return new Builder(context)
-                    .setTextColor(SemanticColorUtils.getDefaultTextColorAccent1(context))
                     .setTextStyle(R.style.TextAppearance_TextAccentMediumThick_Primary);
         }
 
@@ -218,6 +218,9 @@ public class SharedImageTilesConfig {
          * @return This builder instance for chaining.
          */
         public Builder setTabGroupColor(Context context, @TabGroupColorId int tabGroupColorId) {
+            if (SurfaceColorUpdateUtils.useNewGm3GtsTabGroupColors()) {
+                return setTabGroupColorGm3(context, tabGroupColorId);
+            }
             @ColorInt
             int tabGroupColor =
                     TabGroupColorPickerUtils.getTabGroupColorPickerItemColor(
@@ -230,7 +233,6 @@ public class SharedImageTilesConfig {
                             ? R.color.small_shared_image_tiles_text_color_dark
                             : R.color.small_shared_image_tiles_text_color_light;
             setTextColor(ContextCompat.getColor(context, textColorRes));
-
             return this;
         }
 
@@ -241,6 +243,28 @@ public class SharedImageTilesConfig {
          */
         public SharedImageTilesConfig build() {
             return new SharedImageTilesConfig(this);
+        }
+
+        /**
+         * Sets the a new tab group color and updates all relevant colors to match.
+         *
+         * @param context The Android context.
+         * @param tabGroupColorId The color associated with the tab group.
+         * @return This builder instance for chaining.
+         */
+        private Builder setTabGroupColorGm3(Context context, @TabGroupColorId int tabGroupColorId) {
+            @ColorInt
+            int tabGroupColor =
+                    SurfaceColorUpdateUtils.getCardViewBackgroundColor(
+                            context, /* isIncognito= */ false, tabGroupColorId);
+            setBorderColor(tabGroupColor);
+            setBackgroundColor(tabGroupColor);
+            @ColorInt
+            int textColor =
+                    SurfaceColorUpdateUtils.getCardViewTextColor(
+                            context, /* isIncognito= */ false, tabGroupColorId);
+            setTextColor(textColor);
+            return this;
         }
     }
 }

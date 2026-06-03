@@ -73,7 +73,8 @@ enum class IsolatedWebAppUpdateError {
   kBundleDownloadError = 8,
   kUpdateDryRunFailed = 9,
   kUpdateApplyFailed = 10,
-  kMaxValue = kUpdateApplyFailed
+  kSystemShutdown = 11,
+  kMaxValue = kSystemShutdown
 };
 
 struct IsolatedWebAppUpdateOptions {
@@ -99,9 +100,6 @@ struct IsolatedWebAppUpdateOptions {
 //
 // TODO(crbug.com/40274186): Implement updates for unmanaged IWAs once we have
 // designed that process.
-//
-// TODO(crbug.com/40274187): Consider only executing update discovery tasks when
-// the user is not on a metered/paid internet connection.
 class IsolatedWebAppUpdateManager
     : public WebAppInstallManagerObserver,
       public IwaKeyDistributionInfoProvider::Observer {

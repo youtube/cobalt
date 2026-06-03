@@ -114,6 +114,7 @@ import org.chromium.chrome.browser.ui.RootUiCoordinator;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuPropertiesDelegate;
 import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderCoordinator;
 import org.chromium.chrome.browser.ui.google_bottom_bar.GoogleBottomBarCoordinator;
+import org.chromium.chrome.browser.ui.web_app_header.WebAppHeaderLayoutCoordinator;
 import org.chromium.chrome.browser.ui.web_app_header.WebAppHeaderUtils;
 import org.chromium.chrome.browser.usage_stats.UsageStatsService;
 import org.chromium.chrome.browser.webapps.SameTaskWebApkActivity;
@@ -520,7 +521,7 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
         HiddenTab hiddenTab =
                 mIntentDataProvider.isOffTheRecord()
                         ? null
-                        : CustomTabActivityTabController.getHiddenTab(mIntentDataProvider);
+                        : CustomTabActivityTabController.takeHiddenTab(mIntentDataProvider);
 
         if (hiddenTab != null) {
             mTabProvider = new CustomTabActivityTabProvider(hiddenTab.url);
@@ -577,7 +578,8 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
                         this,
                         getBrowserServicesThemeColorProvider(),
                         getAppHeaderCoordinator(),
-                        getIntentDataProvider());
+                        getIntentDataProvider(),
+                        getLifecycleDispatcher());
 
         mCustomTabCompositorContentInitializer =
                 new CustomTabCompositorContentInitializer(
@@ -813,10 +815,6 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
 
         if (getCustomTabActivityTabController() != null) {
             getCustomTabActivityTabController().destroy();
-        }
-
-        if (mBrowserControlsVisibilityManager != null) {
-            mBrowserControlsVisibilityManager.destroy();
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM
@@ -1386,7 +1384,8 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
                             getActivityType(),
                             getBottomSheetController(),
                             getAuthTabVerifier(),
-                            getBrowserControlsManager());
+                            getBrowserControlsManager(),
+                            this::isShowingWebAppHeaderButtons);
         }
         return mDelegateFactory;
     }
@@ -1485,7 +1484,6 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
                         getCustomTabActivityTabProvider(),
                         getCustomTabToolbarCoordinator(),
                         getCloseButtonVisibilityManager(),
-                        getAppHeaderCoordinator(),
                         getIntentDataProvider());
         return mBrowserControlsVisibilityManager;
     }
@@ -1537,7 +1535,9 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
                         getIntentDataProvider(),
                         getTopUiThemeColorProvider(),
                         getCustomTabActivityTabProvider(),
-                        getTabObserverRegistrar());
+                        getTabObserverRegistrar(),
+                        getLifecycleDispatcher(),
+                        getAppHeaderCoordinator());
         return mBrowserServicesThemeColorProvider;
     }
 
@@ -1547,5 +1547,17 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
 
     protected BaseCustomTabRootUiCoordinator getBaseCustomTabRootUiCoordinator() {
         return mBaseCustomTabRootUiCoordinator;
+    }
+
+    @ChecksSdkIntAtLeast(api = Build.VERSION_CODES.VANILLA_ICE_CREAM)
+    private boolean isShowingWebAppHeaderButtons() {
+        if (!WebAppHeaderUtils.isMinimalUiEnabled(getIntentDataProvider())) return false;
+
+        WebAppHeaderLayoutCoordinator webAppHeaderLayoutCoordinator =
+                mBaseCustomTabRootUiCoordinator.getWebAppHeaderLayoutCoordinator();
+        if (webAppHeaderLayoutCoordinator == null) {
+            return false;
+        }
+        return webAppHeaderLayoutCoordinator.isShowingButtons();
     }
 }

@@ -300,6 +300,12 @@
     // TODO(b/307230150): Clean up API flag
     "feature_flag": "ApiEnterpriseKioskInput"
   },
+  "enterprise.login": {
+    "channel": "stable",
+    "extension_types": ["extension"],
+    "location": "policy",
+    "platforms": ["chromeos"]
+  },
   "enterprise.platformKeys": [{
     "channel": "stable",
     "platforms": ["chromeos"],
@@ -356,6 +362,14 @@
       "C8F4673FC69965390BC376C0761EC341492F9D87",  // Contact Center Insights
       "31367E6C4D69B90D866289492A307C205AF8A32F", // b/361094242 Secure Enterprise Browser Extension
       "50B8ECD18A36937668D1FCA9CEEE668BC25C39CC" // b/361094242 Beyondcorp Enterprise Extension
+    ]
+  },
+  "enterprise.reportingPrivate.onDataMaskingRulesTriggered": {
+    "channel": "stable",
+    "extension_types": ["extension"],
+    "allowlist" : [
+      "31367E6C4D69B90D866289492A307C205AF8A32F", // crbug.com/361094242 Secure Enterprise Browser Extension
+      "50B8ECD18A36937668D1FCA9CEEE668BC25C39CC" // crbug.com/361094242 Beyondcorp Enterprise Extension
     ]
   },
   "experimental": {
@@ -891,12 +905,14 @@
     "min_manifest_version": 3
   },
   "smartCardProviderPrivate": {
-    "channel": "dev",
+    "channel": "stable",
     "platforms": ["chromeos"],
     "extension_types": ["extension", "platform_app"],
     "allowlist": [
-      "EC3DE21E048B67319893889529354DFBFA96FD23"   // Smart Card Connector
-    ]
+      "EC3DE21E048B67319893889529354DFBFA96FD23", // Smart Card Connector
+      "A19608AC34215B127FF9D7C006D67F5C8ED8146D"  // Smart Card Connector - beta channel
+    ],
+    "feature_flag": "SmartCard"
   },
   "speechRecognitionPrivate": {
     "channel": "stable",
@@ -918,6 +934,7 @@
     "platforms": ["chromeos"],
     "allowlist": [
       "EC3DE21E048B67319893889529354DFBFA96FD23", // Smart Card Connector
+      "A19608AC34215B127FF9D7C006D67F5C8ED8146D", // Smart Card Connector - beta channel
       "6B748A5C005F21B7CBCF4170C2F883E435DEB511", // DriveLock Smart Card Middleware
       "075FF17D52ED6E3C2E5EC4D99F188E7A25AF47EA", // Beta DriveLock Smart Card Middleware
       "5C825E850034490380BCB756D43ABB2CF537AA91"  // b/359290130

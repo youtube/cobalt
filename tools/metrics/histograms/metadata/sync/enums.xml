@@ -77,6 +77,7 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Password manager settings"/>
   <int value="1" label="Password promo card"/>
   <int value="2" label="Bookmark manager promo card"/>
+  <int value="3" label="Profile menu button"/>
 </enum>
 
 <!-- LINT.ThenChange(/chrome/browser/profiles/batch_upload/batch_upload_service.h:EntryPoint) -->
@@ -133,7 +134,7 @@ chromium-metrics-reviews@google.com.
       label="Local and account datasets are non-empty but do not intersect"/>
 </enum>
 
-<!-- LINT.ThenChange(//components/sync_bookmarks/bookmark_model_merger_comparison_metrics.h:BookmarkSetComparisonOutcome) -->
+<!-- LINT.ThenChange(/components/sync_bookmarks/bookmark_model_merger_comparison_metrics.h:BookmarkSetComparisonOutcome) -->
 
 <!-- LINT.IfChange(BookmarksGUIDDuplicates) -->
 
@@ -201,6 +202,33 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(/components/sync_bookmarks/bookmark_specifics_conversions.cc:InvalidBookmarkSpecificsError) -->
+
+<!-- LINT.IfChange(LegacyBookmarkSetComparisonOutcome) -->
+
+<enum name="LegacyBookmarkSetComparisonOutcome">
+  <int value="0" label="Both datasets empty"/>
+  <int value="1" label="Account data empty (local data non-empty)"/>
+  <int value="2" label="Local data empty (account data non-empty)"/>
+  <int value="3" label="Both datasets equal and non-empty"/>
+  <int value="4"
+      label="Account data non-empty and a strict subset of local data"/>
+  <int value="5"
+      label="Intersection of local and account data [99%, 100%) of the total"/>
+  <int value="6"
+      label="Intersection of local and account data [95%, 99%) of the total"/>
+  <int value="7"
+      label="Intersection of local and account data [90%, 95%) of the total"/>
+  <int value="8"
+      label="Intersection of local and account data [50%, 90%) of the total"/>
+  <int value="9"
+      label="Intersection of local and account data [10%, 50%) of the total"/>
+  <int value="10"
+      label="Intersection of local and account data (0%, 10%) of the total"/>
+  <int value="11"
+      label="Local and account datasets are non-empty but do not intersect"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/sync_bookmarks/bookmark_model_merger_comparison_metrics_unittests.cc:LegacyBookmarkSetComparisonOutcome) -->
 
 <!-- LINT.IfChange(NudgedUpdateResult) -->
 
@@ -376,7 +404,7 @@ chromium-metrics-reviews@google.com.
   <int value="73" label="SyncableTabGroups"/>
   <int value="74" label="AutoPinNewTabGroups"/>
   <int value="75" label="ShowGoogleLensShortcut"/>
-  <int value="76" label="SharingVapidKey"/>
+  <int value="76" label="(obsolete) SharingVapidKey2"/>
   <int value="77" label="FirstPlusAddressCreationTime"/>
   <int value="78" label="LastPlusAddressFillingTime"/>
   <int value="79" label="SafeBrowsingEnhanced"/>
@@ -386,6 +414,8 @@ chromium-metrics-reviews@google.com.
   <int value="83" label="AutomaticPasskeyUpgrades"/>
   <int value="84" label="(test) SyncablePriorityPrefForTesting"/>
   <int value="85" label="(test) SyncableAlwaysSyncingPriorityPrefForTesting"/>
+  <int value="86" label="FacilitatedPaymentsPixAccountLinking"/>
+  <int value="87" label="OmniboxShowSearchTools"/>
 <!-- LINT.ThenChange(/components/sync_preferences/common_syncable_prefs_database.cc:CommonSyncablePref)-->
 
 <!-- LINT.IfChange(ChromeSyncablePref) -->
@@ -729,7 +759,8 @@ chromium-metrics-reviews@google.com.
   <int value="100307" label="DesktopToiOSPaymentPromoOptOut"/>
   <int value="100308" label="DesktopToiOSNtpPromoAppearanceTimestamps"/>
   <int value="100309" label="DesktopToiOSNtpPromoDismissed"/>
-  <int value="100310" label="PrivacySandboxFakeNoticePromptShownTimeSync"/>
+  <int value="100310"
+      label="(obsolete) PrivacySandboxFakeNoticePromptShownTimeSync"/>
   <int value="100311" label="AccessibilityBounceKeysDelayMs"/>
   <int value="100312" label="AccessibilitySlowKeysDelayMs"/>
   <int value="100313" label="AccessibilityFaceGazePrecisionClick"/>
@@ -1338,6 +1369,7 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="Password Manager Error Message"/>
   <int value="5" label="Account menu"/>
   <int value="6" label="Password Manager Settings"/>
+  <int value="7" label="Password Manager keyboard accessory"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/sync/service/sync_service_utils.h:TrustedVaultUserActionTrigger) -->

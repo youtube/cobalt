@@ -16,9 +16,8 @@
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list_observer_bridge.h"
 #import "ios/chrome/browser/snapshots/model/model_swift.h"
+#import "ios/chrome/browser/snapshots/model/snapshot_id.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_id_wrapper.h"
-#import "ios/chrome/browser/snapshots/model/snapshot_storage_wrapper.h"
-#import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_collection_consumer.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_item_identifier.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/inactive_tabs/inactive_tabs_info_consumer.h"
@@ -76,6 +75,19 @@ void PopulateConsumerItems(id<TabCollectionConsumer> consumer,
       selectedItemIdentifier:nil];
 }
 
+// Returns the WebState with the given SnapshotID (if it exists) or null.
+web::WebState* WebStateWithSnapshotID(WebStateList& web_state_list,
+                                      SnapshotID snapshot_id) {
+  const int count = web_state_list.count();
+  for (int i = 0; i < count; ++i) {
+    web::WebState* const web_state = web_state_list.GetWebStateAt(i);
+    if (snapshot_id == SnapshotID(web_state->GetUniqueIdentifier())) {
+      return web_state;
+    }
+  }
+  return nullptr;
+}
+
 }  // namespace
 
 @interface InactiveTabsMediator () <CRWWebStateObserver,
@@ -85,7 +97,7 @@ void PopulateConsumerItems(id<TabCollectionConsumer> consumer,
   // The list of inactive tabs.
   raw_ptr<WebStateList> _webStateList;
   // The snapshot storage of _webStateList.
-  __weak SnapshotStorageWrapper* _snapshotStorage;
+  __weak id<SnapshotStorage> _snapshotStorage;
   // The observers of _webStateList.
   std::unique_ptr<WebStateListObserverBridge> _webStateListObserverBridge;
   std::unique_ptr<ScopedWebStateListObservation> _scopedWebStateListObservation;
@@ -109,7 +121,7 @@ void PopulateConsumerItems(id<TabCollectionConsumer> consumer,
 
 - (instancetype)initWithWebStateList:(WebStateList*)webStateList
                   profilePrefService:(PrefService*)prefService
-                     snapshotStorage:(SnapshotStorageWrapper*)snapshotStorage
+                     snapshotStorage:(id<SnapshotStorage>)snapshotStorage
                           tabsCloser:(std::unique_ptr<TabsCloser>)tabsCloser {
   CHECK(webStateList);
   CHECK(prefService);
@@ -222,15 +234,8 @@ void PopulateConsumerItems(id<TabCollectionConsumer> consumer,
 #pragma mark - SnapshotStorageObserver
 
 - (void)didUpdateSnapshotStorageWithSnapshotID:(SnapshotIDWrapper*)snapshotID {
-  web::WebState* webState = nullptr;
-  for (int i = 0; i < _webStateList->count(); i++) {
-    SnapshotTabHelper* snapshotTabHelper =
-        SnapshotTabHelper::FromWebState(_webStateList->GetWebStateAt(i));
-    if (snapshotID.snapshot_id == snapshotTabHelper->GetSnapshotID()) {
-      webState = _webStateList->GetWebStateAt(i);
-      break;
-    }
-  }
+  web::WebState* webState =
+      WebStateWithSnapshotID(*_webStateList, snapshotID.snapshot_id);
   if (webState) {
     // It is possible to observe an updated snapshot for a WebState before
     // observing that the WebState has been added to the WebStateList. It is the
@@ -400,7 +405,7 @@ void PopulateConsumerItems(id<TabCollectionConsumer> consumer,
 }
 
 - (void)selectItemWithID:(web::WebStateID)itemID
-                    pinned:(BOOL)pinned
+               pinnedState:(WebStateSearchCriteria::PinnedState)pinnedState
     isFirstActionOnTabGrid:(BOOL)isFirstActionOnTabGrid {
   NOTREACHED();
 }

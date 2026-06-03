@@ -67,6 +67,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "components/user_education/common/tutorial/tutorial_identifier.h"
 #include "components/user_education/common/tutorial/tutorial_service.h"
+#include "ui/base/base_window.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/l10n/time_format.h"
 #include "ui/color/color_provider.h"
@@ -291,6 +292,22 @@ void TabSearchPageHandler::CloseTab(int32_t tab_id) {
   const int index = details->GetIndex();
   // Don't dangle a tabs::TabInterface* in `details`.
   details.reset();
+  tab_strip_model->CloseWebContentsAt(
+      index, TabCloseTypes::CLOSE_CREATE_HISTORICAL_TAB);
+  // Do not add code past this point.
+}
+
+void TabSearchPageHandler::CloseWebUiTab() {
+  // CloseTab() can target the WebContents hosting Tab Search if the Tab Search
+  // WebUI is open in a chrome browser tab rather than its bubble. In this case
+  // CloseWebContentsAt() closes the WebContents hosting this
+  // TabSearchPageHandler object, causing it to be immediately destroyed. Ensure
+  // that no further actions are performed following the call to
+  // CloseWebContentsAt(). See (https://crbug.com/1175507).
+  TabStripModel* const tab_strip_model = browser_->tab_strip_model();
+  CHECK(tab_strip_model);
+  const int index =
+      tab_strip_model->GetIndexOfWebContents(web_ui_->GetWebContents());
   tab_strip_model->CloseWebContentsAt(
       index, TabCloseTypes::CLOSE_CREATE_HISTORICAL_TAB);
   // Do not add code past this point.
@@ -570,6 +587,7 @@ void TabSearchPageHandler::BrowserWindowInterfaceChanged() {
       browser_window_interface
           ? browser_window_interface->GetFeatures().tab_declutter_controller()
           : nullptr);
+  page_->HostWindowChanged();
 }
 
 std::vector<tabs::TabInterface*>
@@ -768,7 +786,10 @@ void TabSearchPageHandler::SwitchToTab(
 
   details->tab->GetBrowserWindowInterface()->GetTabStripModel()->ActivateTabAt(
       details->GetIndex());
-  details->tab->GetBrowserWindowInterface()->ActivateWindow();
+  // Tab search shows tabs from other windows in the profile. So if a user
+  // selects a tab in another window, we need to manually activate it so
+  // that we can bring that window to the foreground.
+  details->tab->GetBrowserWindowInterface()->GetWindow()->Activate();
   metrics_reporter_->Measure(
       "SwitchToTab",
       base::BindOnce(
@@ -870,8 +891,8 @@ void TabSearchPageHandler::ReplaceActiveSplitTab(int32_t replacement_tab_id) {
         tabs::TabHandle(replacement_tab_id).Get();
     const int32_t replacement_index =
         browser_->tab_strip_model()->GetIndexOfTab(replacement_tab);
-    browser_->tab_strip_model()->UpdateActiveTabInSplit(
-        split_id.value(), replacement_index,
+    browser_->tab_strip_model()->UpdateTabInSplit(
+        browser_->tab_strip_model()->GetActiveTab(), replacement_index,
         TabStripModel::SplitUpdateType::kReplace);
   }
 }
@@ -1077,6 +1098,7 @@ tab_search::mojom::ProfileDataPtr TabSearchPageHandler::CreateProfileData() {
 
     auto window = tab_search::mojom::Window::New();
     window->active = browser->IsActive();
+    window->is_host_window = browser == browser_;
     window->height = browser->window()->GetContentsSize().height();
     for (int i = 0; i < tab_strip_model->count(); ++i) {
       auto* web_contents = tab_strip_model->GetWebContentsAt(i);
@@ -1393,6 +1415,7 @@ tab_search::mojom::TabPtr TabSearchPageHandler::GetTab(
     tab_data->group_id = group_id.value().token();
   }
   tab_data->pinned = tab->IsPinned();
+  tab_data->split = tab->IsSplit();
 
   TabRendererData tab_renderer_data =
       TabRendererData::FromTabInModel(tab_strip_model, index);
@@ -1441,8 +1464,7 @@ tab_search::mojom::TabPtr TabSearchPageHandler::GetTab(
           ? custom_last_active_text
           : GetLastActiveElapsedText(last_active_time_ticks);
 
-  std::vector<tabs::TabAlert> alert_states =
-      GetTabAlertStatesForContents(contents);
+  std::vector<tabs::TabAlert> alert_states = GetTabAlertStatesForTab(tab);
   // Currently, we only report media alert states.
   std::ranges::copy_if(alert_states.begin(), alert_states.end(),
                        std::back_inserter(tab_data->alert_states),
@@ -1563,6 +1585,7 @@ void TabSearchPageHandler::TabChangedAt(content::WebContents* contents,
   auto tab_update_info = tab_search::mojom::TabUpdateInfo::New();
   BrowserWindowInterface* browser = tab->GetBrowserWindowInterface();
   tab_update_info->in_active_window = browser->IsActive();
+  tab_update_info->in_host_window = browser == browser_;
   tab_update_info->tab =
       GetTab(browser->GetTabStripModel(), tab->GetContents(), index);
   page_->TabUpdated(std::move(tab_update_info));

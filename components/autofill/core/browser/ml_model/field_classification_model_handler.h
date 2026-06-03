@@ -8,14 +8,15 @@
 #include <optional>
 #include <vector>
 
+#include "base/containers/lru_cache.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/weak_ptr.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/ml_model/field_classification_model_encoder.h"
 #include "components/keyed_service/core/keyed_service.h"
-#include "components/optimization_guide/core/model_handler.h"
-#include "components/optimization_guide/core/optimization_guide_model_provider.h"
+#include "components/optimization_guide/core/delivery/optimization_guide_model_provider.h"
+#include "components/optimization_guide/core/inference/model_handler.h"
 #include "components/optimization_guide/proto/autofill_field_classification_model_metadata.pb.h"
 
 namespace autofill {
@@ -30,6 +31,8 @@ class FieldClassificationModelHandler
           const FieldClassificationModelEncoder::ModelInput&>,
       public KeyedService {
  public:
+  using ModelInputHash = size_t;
+
   // The version of the input, based on which the relevant model
   // version will be used by the server.
   static constexpr int64_t kAutofillModelInputVersion = 3;
@@ -67,14 +70,18 @@ class FieldClassificationModelHandler
       base::optional_ref<const optimization_guide::ModelInfo> model_info)
       override;
 
+  bool ShouldApplySmallFormRules() const;
+
 #if defined(UNIT_TEST)
   const FieldTypeSet& get_supported_types() const { return supported_types_; }
 #endif
 
  private:
-  // Computes the `GetMostLikelyType()` from every element of `outputs` and
-  // asssigns it to the corresponding field of the `form`.
-  void AssignMostLikelyTypes(
+  // Computes the predicted type for every element of `outputs`.
+  // The size of the resulting vector is not guaranteed to have
+  // `form.field_count()` elements if the maximum number of fields to be
+  // predicted is limited by the model.
+  std::vector<FieldType> GetMostLikelyTypes(
       FormStructure& form,
       const FieldClassificationModelEncoder::ModelOutput& output) const;
 
@@ -84,10 +91,28 @@ class FieldClassificationModelHandler
   std::pair<FieldType, float> GetMostLikelyType(
       const std::vector<float>& model_output) const;
 
+  // Applies small form rules from FormFieldParser. If triggered, sets some or
+  // all values in `predicted_types` to `UNKNOWN_TYPE`. See
+  // `ClearCandidatesIfHeuristicsDidNotFindEnoughFields` for details.
+  // The purpose is to have identical post-processing for ML and regex
+  // predictions for more accurate comparison.
+  void ApplySmallFormRules(const FormStructure& form,
+                           std::vector<FieldType>& predicted_types) const;
+
+  // Assigns field types from `predicted_types` to field in the `form`.
+  void AssignPredictedFieldTypesToForm(
+      const std::vector<FieldType>& predicted_types,
+      FormStructure& form);
+
   // Returns true if the `output` allows to return predictions for `form`.
   bool ShouldEmitPredictions(
       const FormStructure* form,
       const FieldClassificationModelEncoder::ModelOutput& output);
+
+  // Computes a hash of the encoded model input that is used as a key for
+  // `predictions_cache_`.
+  ModelInputHash CalculateModelInputHash(
+      const FieldClassificationModelEncoder::ModelInput& input);
 
   struct ModelState {
     optimization_guide::proto::AutofillFieldClassificationModelMetadata
@@ -103,6 +128,9 @@ class FieldClassificationModelHandler
 
   // Types which the model is able to output.
   FieldTypeSet supported_types_;
+
+  // Cached model classifications.
+  base::LRUCache<ModelInputHash, std::vector<FieldType>> predictions_cache_;
 
   base::WeakPtrFactory<FieldClassificationModelHandler> weak_ptr_factory_{this};
 };

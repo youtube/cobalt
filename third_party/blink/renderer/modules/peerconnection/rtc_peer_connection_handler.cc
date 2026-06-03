@@ -763,7 +763,7 @@ class RtcDataChannelLogOutputSinkProxy
           "data", WTF::String(base::span<const unsigned char>(message.data())));
     } else {
       json->SetString("data_type", "binary");
-      json->SetString("data", WTF::Base64Encode(message.data()));
+      json->SetString("data", Base64Encode(message.data()));
     }
 
     StringBuilder string_builder;
@@ -885,6 +885,11 @@ bool RTCPeerConnectionHandler::Initialize(
   configuration_.crypto_options->srtp.enable_encrypted_rtp_header_extensions =
       base::FeatureList::IsEnabled(kWebRtcEncryptedRtpHeaderExtensions);
   configuration_.enable_implicit_rollback = true;
+  if (base::FeatureList::IsEnabled(features::kWebRtcPqcForDtls)) {
+    configuration_.crypto_options->ephemeral_key_exchange_cipher_groups
+        .AddFirst(webrtc::CryptoOptions::EphemeralKeyExchangeCipherGroups::
+                      kX25519_MLKEM768);
+  }
 
   // Apply 40 ms worth of bursting. See webrtc::TaskQueuePacedSender.
   configuration_.pacer_burst_interval = webrtc::TimeDelta::Millis(40);

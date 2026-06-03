@@ -138,7 +138,6 @@
 <translation id="4724297637870447613">‏אפשר להשתמש ב-Chrome בכל מקום</translation>
 <translation id="4738647308035481133">‏דף Google Chrome</translation>
 <translation id="4742795653798179840">‏הנתונים של Chrome נמחקו</translation>
-<translation id="4749294594657945639">‏אפשר לבחור ב-Chrome למילוי אוטומטי כדי לגשת בקלות לסיסמאות השמורות שלך באפליקציות אחרות</translation>
 <translation id="4761869838909035636">‏הרצה של בדיקת אבטחה ב-Chrome</translation>
 <translation id="4798859546468762093">‏כדי להשתמש בהתאמה אישית ובתכונות אחרות, צריך לכלול את Chrome ב<ph name="FEATURE_NAME_1" /> וב<ph name="FEATURE_NAME_2" /></translation>
 <translation id="4819268619367838612">‏כדי לעזור בשיפור האפליקציה, Chrome ישלח נתוני שימוש וקריסות אל Google. <ph name="BEGIN_LINK" />ניהול<ph name="END_LINK" /></translation>
@@ -215,6 +214,7 @@
 <translation id="6533470733797826516">‏כניסה מהירה יותר עם המילוי האוטומטי של Chrome</translation>
 <translation id="6536544321553662809">‏אפשר להגדיר את Chrome כדפדפן ברירת המחדל כדי לשתף ולפתוח קישורים בקלות</translation>
 <translation id="6545449117344801102">‏Chrome מזהה כתובות ונעזר במפות Google כדי לספק מסלולים ומידע מקומי.</translation>
+<translation id="6611692150236062461">‏כדי לגשת בקלות לסיסמאות השמורות שלך באפליקציות אחרות, אפשר לבחור ב-Chrome למילוי אוטומטי.</translation>
 <translation id="6636941099779251629">‏לפי דרישת הארגון שלך, עליך להיכנס לחשבון כדי להשתמש ב-Chrome. <ph name="BEGIN_LINK" />מידע נוסף<ph name="END_LINK" /></translation>
 <translation id="6646696210740573446">‏שליחת קטע קוד מעורפל מכתובת ה-URL ל-Google דרך שרת פרטיות שמסתיר את כתובת ה-IP. אם באתר כלשהו מתבצע ניסיון לגנוב את הסיסמה שלך, או אם המערכת מזהה הורדה של קובץ מזיק, Chrome עשוי גם לשלוח כתובות URL לבדיקה באמצעות 'גלישה בטוחה'. הנתונים שנשלחים לבדיקה כוללים קטעי תוכן מדפים.</translation>
 <translation id="6647304104688527905">‏תיפתח כרטיסייה חדשה ב-Chrome.</translation>
@@ -313,6 +313,7 @@
 הנתונים שלך הוצפנו באמצעות ביטוי הסיסמה ב-<ph name="TIME" />. כדי להשתמש בנתוני Chrome ולשמור אותם בחשבון Google, עליך להזין אותו.</translation>
 <translation id="8540666473246803645">Google Chrome</translation>
 <translation id="8544583291890527417">‏התראות לגבי כל בעיה בפרטיות או באבטחה ש-Chrome מזהה.</translation>
+<translation id="855027533751209304">‏טיפ ל-Chrome: מחפשים את מה שרואים</translation>
 <translation id="8558480467877843976">‏אפשר עכשיו להשתמש ב-Chrome בכל פעם שגולשים או לוחצים על קישורים בהודעות, במסמכים ובאפליקציות אחרות.</translation>
 <translation id="8603022514504485810">‏למנהל הסיסמאות של Google לא הייתה אפשרות לבדוק את כל הסיסמאות. אפשר לנסות שוב מחר או <ph name="BEGIN_LINK" />לבדוק את הסיסמאות בחשבון Google<ph name="END_LINK" />.</translation>
 <translation id="8630122478628016441">‏מפעילים את האפשרות 'כרטיסיות פרטיות יינעלו כש-Chrome ייסגר'.</translation>

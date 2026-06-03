@@ -29,6 +29,7 @@
 #include "components/services/storage/dom_storage/storage_area_test_util.h"
 #include "components/services/storage/public/cpp/constants.h"
 #include "components/services/storage/public/cpp/filesystem/filesystem_proxy.h"
+#include "components/services/storage/public/mojom/storage_service.mojom.h"
 #include "components/services/storage/public/mojom/storage_usage_info.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/features.h"
@@ -139,6 +140,7 @@ class LocalStorageImplTest : public testing::Test {
     DCHECK(!storage_);
     storage_ = std::make_unique<LocalStorageImpl>(
         path, base::SingleThreadTaskRunner::GetCurrentDefault(),
+        base::NullCallback(),
         /*receiver=*/mojo::NullReceiver());
   }
 

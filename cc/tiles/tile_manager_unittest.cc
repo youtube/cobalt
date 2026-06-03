@@ -133,7 +133,6 @@ class TileManagerTilePriorityQueueTest : public TestLayerTreeHostBase {
  public:
   LayerTreeSettings CreateSettings() override {
     auto settings = TestLayerTreeHostBase::CreateSettings();
-    settings.create_low_res_tiling = true;
     return settings;
   }
 
@@ -165,20 +164,6 @@ TEST_F(TileManagerTilePriorityQueueTest, RasterTilePriorityQueue) {
   std::set<Tile*> smoothness_tiles;
   queue = host_impl()->BuildRasterQueue(SMOOTHNESS_TAKES_PRIORITY,
                                         RasterTilePriorityQueue::Type::ALL);
-  bool had_low_res = false;
-  while (!queue->IsEmpty()) {
-    PrioritizedTile prioritized_tile = queue->Top();
-    EXPECT_TRUE(prioritized_tile.tile());
-    EXPECT_EQ(TilePriority::NOW, prioritized_tile.priority().priority_bin);
-    if (prioritized_tile.priority().resolution == LOW_RESOLUTION)
-      had_low_res = true;
-    else
-      smoothness_tiles.insert(prioritized_tile.tile());
-    queue->Pop();
-  }
-  EXPECT_EQ(all_tiles, smoothness_tiles);
-  EXPECT_TRUE(had_low_res);
-
   // Check that everything is required for activation.
   queue = host_impl()->BuildRasterQueue(
       SMOOTHNESS_TAKES_PRIORITY,
@@ -235,11 +220,6 @@ TEST_F(TileManagerTilePriorityQueueTest, RasterTilePriorityQueue) {
     high_res_tiles.insert(active_high_res_tiles[i]);
   }
 
-  std::vector<Tile*> active_low_res_tiles =
-      active_layer()->LowResTiling()->AllTilesForTesting();
-  for (size_t i = 0; i < active_low_res_tiles.size(); ++i)
-    all_tiles.insert(active_low_res_tiles[i]);
-
   PrioritizedTile last_tile;
   smoothness_tiles.clear();
   tile_count = 0;
@@ -270,13 +250,6 @@ TEST_F(TileManagerTilePriorityQueueTest, RasterTilePriorityQueue) {
       skip_updating_last_tile = true;
     }
 
-    if (prioritized_tile.priority().priority_bin == TilePriority::NOW &&
-        last_tile.priority().resolution !=
-            prioritized_tile.priority().resolution) {
-      // Low resolution should come first.
-      EXPECT_EQ(LOW_RESOLUTION, last_tile.priority().resolution);
-    }
-
     if (!skip_updating_last_tile)
       last_tile = prioritized_tile;
     ++tile_count;
@@ -292,7 +265,7 @@ TEST_F(TileManagerTilePriorityQueueTest, RasterTilePriorityQueue) {
   EXPECT_EQ(all_tiles, smoothness_tiles);
   // Since we don't guarantee increasing distance due to spiral iterator, we
   // should check that we're _mostly_ right.
-  EXPECT_GT(correct_order_tiles, 3 * tile_count / 4);
+  EXPECT_GT(correct_order_tiles, 2 * tile_count / 4);
 
   // Check that we have consistent required_for_activation tiles.
   queue = host_impl()->BuildRasterQueue(
@@ -612,81 +585,6 @@ TEST_F(TileManagerTilePriorityQueueTest,
   EXPECT_EQ(all_expected_tiles, all_actual_tiles);
 }
 
-TEST_F(TileManagerTilePriorityQueueTest,
-       RasterTilePriorityQueueHighLowTilings) {
-  const gfx::Size layer_bounds(1000, 1000);
-  const gfx::Size viewport(800, 800);
-  host_impl()->active_tree()->SetDeviceViewportRect(gfx::Rect(viewport));
-  SetupDefaultTrees(layer_bounds);
-
-  pending_layer()->tilings()->AddTiling(
-      gfx::AxisTransform2d(1.5f, gfx::Vector2dF()),
-      pending_layer()->raster_source());
-  active_layer()->tilings()->AddTiling(
-      gfx::AxisTransform2d(1.5f, gfx::Vector2dF()),
-      active_layer()->raster_source());
-  pending_layer()->tilings()->AddTiling(
-      gfx::AxisTransform2d(1.7f, gfx::Vector2dF()),
-      pending_layer()->raster_source());
-  active_layer()->tilings()->AddTiling(
-      gfx::AxisTransform2d(1.7f, gfx::Vector2dF()),
-      active_layer()->raster_source());
-
-  pending_layer()->tilings()->UpdateTilePriorities(gfx::Rect(viewport), 1.f,
-                                                   5.0, Occlusion(), true);
-  active_layer()->tilings()->UpdateTilePriorities(gfx::Rect(viewport), 1.f, 5.0,
-                                                  Occlusion(), true);
-
-  std::set<Tile*> all_expected_tiles;
-  for (size_t i = 0; i < pending_layer()->num_tilings(); ++i) {
-    PictureLayerTiling* tiling = pending_layer()->tilings()->tiling_at(i);
-    if (tiling->contents_scale_key() == 1.f) {
-      tiling->set_resolution(HIGH_RESOLUTION);
-      const auto& all_tiles = tiling->AllTilesForTesting();
-      all_expected_tiles.insert(all_tiles.begin(), all_tiles.end());
-    } else {
-      tiling->set_resolution(NON_IDEAL_RESOLUTION);
-    }
-  }
-
-  for (size_t i = 0; i < active_layer()->num_tilings(); ++i) {
-    PictureLayerTiling* tiling = active_layer()->tilings()->tiling_at(i);
-    if (tiling->contents_scale_key() == 1.5f) {
-      tiling->set_resolution(HIGH_RESOLUTION);
-      const auto& all_tiles = tiling->AllTilesForTesting();
-      all_expected_tiles.insert(all_tiles.begin(), all_tiles.end());
-    } else {
-      tiling->set_resolution(LOW_RESOLUTION);
-      // Low res tilings with a high res pending twin have to be processed
-      // because of possible activation tiles.
-      if (tiling->contents_scale_key() == 1.f) {
-        tiling->UpdateAndGetAllPrioritizedTilesForTesting();
-        const auto& all_tiles = tiling->AllTilesForTesting();
-        for (auto* tile : all_tiles)
-          EXPECT_TRUE(tile->required_for_activation());
-        all_expected_tiles.insert(all_tiles.begin(), all_tiles.end());
-      }
-    }
-  }
-
-  std::unique_ptr<RasterTilePriorityQueue> queue(host_impl()->BuildRasterQueue(
-      SAME_PRIORITY_FOR_BOTH_TREES, RasterTilePriorityQueue::Type::ALL));
-  EXPECT_FALSE(queue->IsEmpty());
-
-  size_t tile_count = 0;
-  std::set<Tile*> all_actual_tiles;
-  while (!queue->IsEmpty()) {
-    EXPECT_TRUE(queue->Top().tile());
-    all_actual_tiles.insert(queue->Top().tile());
-    ++tile_count;
-    queue->Pop();
-  }
-
-  EXPECT_EQ(tile_count, all_actual_tiles.size());
-  EXPECT_EQ(all_expected_tiles.size(), all_actual_tiles.size());
-  EXPECT_EQ(all_expected_tiles, all_actual_tiles);
-}
-
 TEST_F(TileManagerTilePriorityQueueTest, RasterTilePriorityQueueInvalidation) {
   const gfx::Size layer_bounds(1000, 1000);
   host_impl()->active_tree()->SetDeviceViewportRect(gfx::Rect(500, 500));
@@ -840,12 +738,10 @@ TEST_F(TileManagerTilePriorityQueueTest, EvictionTilePriorityQueue) {
   host_impl()->active_tree()->SetDeviceViewportRect(gfx::Rect(layer_bounds));
   SetupDefaultTrees(layer_bounds);
   ASSERT_TRUE(active_layer()->HighResTiling());
-  ASSERT_TRUE(active_layer()->LowResTiling());
   ASSERT_TRUE(pending_layer()->HighResTiling());
-  EXPECT_FALSE(pending_layer()->LowResTiling());
 
   std::unique_ptr<EvictionTilePriorityQueue> empty_queue(
-      host_impl()->BuildEvictionQueue(SAME_PRIORITY_FOR_BOTH_TREES));
+      host_impl()->BuildEvictionQueue());
   EXPECT_TRUE(empty_queue->IsEmpty());
   std::set<Tile*> all_tiles;
   size_t tile_count = 0;
@@ -867,7 +763,7 @@ TEST_F(TileManagerTilePriorityQueueTest, EvictionTilePriorityQueue) {
       std::vector<Tile*>(all_tiles.begin(), all_tiles.end()));
 
   std::unique_ptr<EvictionTilePriorityQueue> queue(
-      host_impl()->BuildEvictionQueue(SMOOTHNESS_TAKES_PRIORITY));
+      host_impl()->BuildEvictionQueue());
   EXPECT_FALSE(queue->IsEmpty());
 
   // Sanity check, all tiles should be visible.
@@ -891,7 +787,6 @@ TEST_F(TileManagerTilePriorityQueueTest, EvictionTilePriorityQueue) {
   pending_layer()->set_invalidation(invalidation);
   pending_layer()->HighResTiling()->Invalidate(invalidation);
   pending_layer()->HighResTiling()->CreateMissingTilesInLiveTilesRect();
-  EXPECT_FALSE(pending_layer()->LowResTiling());
 
   // Renew all of the tile priorities.
   gfx::Rect viewport(50, 50, 100, 100);
@@ -912,11 +807,6 @@ TEST_F(TileManagerTilePriorityQueueTest, EvictionTilePriorityQueue) {
   for (size_t i = 0; i < active_high_res_tiles.size(); ++i)
     all_tiles.insert(active_high_res_tiles[i]);
 
-  std::vector<Tile*> active_low_res_tiles =
-      active_layer()->LowResTiling()->AllTilesForTesting();
-  for (size_t i = 0; i < active_low_res_tiles.size(); ++i)
-    all_tiles.insert(active_low_res_tiles[i]);
-
   tile_manager()->InitializeTilesWithResourcesForTesting(
       std::vector<Tile*>(all_tiles.begin(), all_tiles.end()));
 
@@ -924,7 +814,7 @@ TEST_F(TileManagerTilePriorityQueueTest, EvictionTilePriorityQueue) {
   smoothness_tiles.clear();
   tile_count = 0;
   // Here we expect to get increasing combined priority_bin.
-  queue = host_impl()->BuildEvictionQueue(SMOOTHNESS_TAKES_PRIORITY);
+  queue = host_impl()->BuildEvictionQueue();
   int distance_increasing = 0;
   int distance_decreasing = 0;
   while (!queue->IsEmpty()) {
@@ -960,14 +850,14 @@ TEST_F(TileManagerTilePriorityQueueTest, EvictionTilePriorityQueue) {
 
   // Ensure that the distance is decreasing many more times than increasing.
   EXPECT_EQ(3, distance_increasing);
-  EXPECT_EQ(16, distance_decreasing);
+  EXPECT_EQ(15, distance_decreasing);
   EXPECT_EQ(tile_count, smoothness_tiles.size());
   EXPECT_EQ(all_tiles, smoothness_tiles);
 
   std::set<Tile*> new_content_tiles;
   last_tile = PrioritizedTile();
   // Again, we expect to get increasing combined priority_bin.
-  queue = host_impl()->BuildEvictionQueue(NEW_CONTENT_TAKES_PRIORITY);
+  queue = host_impl()->BuildEvictionQueue();
   distance_decreasing = 0;
   distance_increasing = 0;
   while (!queue->IsEmpty()) {
@@ -1001,7 +891,7 @@ TEST_F(TileManagerTilePriorityQueueTest, EvictionTilePriorityQueue) {
 
   // Ensure that the distance is decreasing many more times than increasing.
   EXPECT_EQ(3, distance_increasing);
-  EXPECT_EQ(16, distance_decreasing);
+  EXPECT_EQ(15, distance_decreasing);
   EXPECT_EQ(tile_count, new_content_tiles.size());
   EXPECT_EQ(all_tiles, new_content_tiles);
 }
@@ -1118,17 +1008,15 @@ TEST_F(TileManagerTilePriorityQueueTest,
       pending_child_layer->HighResTiling()->AllTilesForTesting();
   pending_child_layer->HighResTiling()->SetAllTilesOccludedForTesting();
   active_child_layer->HighResTiling()->SetAllTilesOccludedForTesting();
-  active_child_layer->LowResTiling()->SetAllTilesOccludedForTesting();
 
   tile_manager()->InitializeTilesWithResourcesForTesting(
       std::vector<Tile*>(all_tiles.begin(), all_tiles.end()));
 
   // Verify occlusion is considered by EvictionTilePriorityQueue.
-  TreePriority tree_priority = NEW_CONTENT_TAKES_PRIORITY;
   size_t occluded_count = 0u;
   PrioritizedTile last_tile;
   std::unique_ptr<EvictionTilePriorityQueue> queue(
-      host_impl()->BuildEvictionQueue(tree_priority));
+      host_impl()->BuildEvictionQueue());
   while (!queue->IsEmpty()) {
     PrioritizedTile prioritized_tile = queue->Top();
     if (!last_tile.tile())
@@ -1229,11 +1117,10 @@ TEST_F(TileManagerTilePriorityQueueTest,
   // Verify that eviction queue returns tiles also from layers without valid
   // tile priorities and that the tile priority bin of those tiles is (at most)
   // EVENTUALLY.
-  TreePriority tree_priority = NEW_CONTENT_TAKES_PRIORITY;
   std::set<Tile*> new_content_tiles;
   size_t tile_count = 0;
   std::unique_ptr<EvictionTilePriorityQueue> queue(
-      host_impl()->BuildEvictionQueue(tree_priority));
+      host_impl()->BuildEvictionQueue());
   while (!queue->IsEmpty()) {
     PrioritizedTile prioritized_tile = queue->Top();
     Tile* tile = prioritized_tile.tile();
@@ -1331,7 +1218,7 @@ TEST_F(TileManagerTilePriorityQueueTest, EvictionTilePriorityQueueEmptyLayers) {
   }
 
   std::unique_ptr<EvictionTilePriorityQueue> queue(
-      host_impl()->BuildEvictionQueue(SAME_PRIORITY_FOR_BOTH_TREES));
+      host_impl()->BuildEvictionQueue());
   EXPECT_FALSE(queue->IsEmpty());
 
   tile_count = 0;
@@ -1387,7 +1274,7 @@ TEST_F(TileManagerTilePriorityQueueTest,
   //    marked as ready to draw.
   for (int i = 0; i < 3; ++i) {
     std::unique_ptr<TilingSetRasterQueueAll> queue =
-        TilingSetRasterQueueAll::Create(tiling_set.get(), false, false);
+        TilingSetRasterQueueAll::Create(tiling_set.get(), false);
     EXPECT_TRUE(queue);
 
     // There are 3 bins in TilePriority.
@@ -1500,7 +1387,7 @@ TEST_F(TileManagerTilePriorityQueueTest,
   int eventually_bin_order_correct_count = 0;
   int eventually_bin_order_incorrect_count = 0;
   std::unique_ptr<TilingSetRasterQueueAll> queue =
-      TilingSetRasterQueueAll::Create(tiling_set.get(), false, false);
+      TilingSetRasterQueueAll::Create(tiling_set.get(), false);
   EXPECT_TRUE(queue);
   for (; !queue->IsEmpty(); queue->Pop()) {
     if (!last_tile.tile())
@@ -1662,7 +1549,7 @@ TEST_F(TileManagerTilePriorityQueueTest, RasterQueueAllUsesCorrectTileBounds) {
         intersecting_rect,      // Soon rect.
         intersecting_rect);     // Eventually rect.
     std::unique_ptr<TilingSetRasterQueueAll> queue =
-        TilingSetRasterQueueAll::Create(tiling_set.get(), false, false);
+        TilingSetRasterQueueAll::Create(tiling_set.get(), false);
     if (features::IsCCSlimmingEnabled()) {
       EXPECT_FALSE(queue);
     } else {
@@ -1683,7 +1570,7 @@ TEST_F(TileManagerTilePriorityQueueTest, RasterQueueAllUsesCorrectTileBounds) {
         intersecting_rect,      // Soon rect.
         intersecting_rect);     // Eventually rect.
     std::unique_ptr<TilingSetRasterQueueAll> queue =
-        TilingSetRasterQueueAll::Create(tiling_set.get(), false, false);
+        TilingSetRasterQueueAll::Create(tiling_set.get(), false);
     EXPECT_TRUE(queue);
     EXPECT_FALSE(queue->IsEmpty());
   }
@@ -1695,7 +1582,7 @@ TEST_F(TileManagerTilePriorityQueueTest, RasterQueueAllUsesCorrectTileBounds) {
         intersecting_rect,      // Soon rect.
         intersecting_rect);     // Eventually rect.
     std::unique_ptr<TilingSetRasterQueueAll> queue =
-        TilingSetRasterQueueAll::Create(tiling_set.get(), false, false);
+        TilingSetRasterQueueAll::Create(tiling_set.get(), false);
     EXPECT_TRUE(queue);
     EXPECT_FALSE(queue->IsEmpty());
   }
@@ -1706,10 +1593,14 @@ TEST_F(TileManagerTilePriorityQueueTest, RasterQueueAllUsesCorrectTileBounds) {
         non_intersecting_rect,  // Soon rect.
         intersecting_rect);     // Eventually rect.
     std::unique_ptr<TilingSetRasterQueueAll> queue =
-        TilingSetRasterQueueAll::Create(tiling_set.get(), false, false);
+        TilingSetRasterQueueAll::Create(tiling_set.get(), false);
     EXPECT_TRUE(queue);
     EXPECT_FALSE(queue->IsEmpty());
   }
+
+  // Clear the raw_ptr to tiling_set before it goes out of scope to prevent
+  // dangling pointer when pending_client is destroyed after tiling_set.
+  pending_client.set_twin_tiling_set(nullptr);
 }
 
 TEST_F(TileManagerTilePriorityQueueTest, NoRasterTasksforSolidColorTiles) {
@@ -2014,7 +1905,6 @@ class TileManagerOcclusionTest : public TileManagerTest {
  public:
   LayerTreeSettings CreateSettings() override {
     auto settings = TileManagerTest::CreateSettings();
-    settings.create_low_res_tiling = true;
     settings.use_occlusion_for_tile_prioritization = true;
     return settings;
   }
@@ -2123,89 +2013,74 @@ class PixelInspectTileManagerTest : public TileManagerTest {
   TestSoftwareRasterBufferProvider raster_buffer_provider_;
 };
 
-TEST_F(PixelInspectTileManagerTest, LowResHasNoImage) {
+TEST_F(PixelInspectTileManagerTest, ImageDrawn) {
   gfx::Size size(10, 12);
-  auto resolutions =
-      std::to_array<TileResolution>({HIGH_RESOLUTION, LOW_RESOLUTION});
   host_impl()->CreatePendingTree();
 
-  for (size_t i = 0; i < std::size(resolutions); ++i) {
-    SCOPED_TRACE(resolutions[i]);
+  SCOPED_TRACE(HIGH_RESOLUTION);
 
-    // Make a RasterSource that will draw a blue bitmap image.
-    sk_sp<SkSurface> surface = SkSurfaces::Raster(
-        SkImageInfo::MakeN32Premul(size.width(), size.height()));
-    ASSERT_NE(surface, nullptr);
-    surface->getCanvas()->clear(SK_ColorBLUE);
-    sk_sp<SkImage> blue_image = surface->makeImageSnapshot();
+  // Make a RasterSource that will draw a blue bitmap image.
+  sk_sp<SkSurface> surface = SkSurfaces::Raster(
+      SkImageInfo::MakeN32Premul(size.width(), size.height()));
+  ASSERT_NE(surface, nullptr);
+  surface->getCanvas()->clear(SK_ColorBLUE);
+  sk_sp<SkImage> blue_image = surface->makeImageSnapshot();
 
-    FakeRecordingSource recording_source(size);
-    recording_source.SetBackgroundColor(SkColors::kTransparent);
-    recording_source.SetRequiresClear(true);
-    PaintFlags flags;
-    flags.setColor(SK_ColorGREEN);
-    recording_source.add_draw_rect_with_flags(gfx::Rect(size), flags);
-    recording_source.add_draw_image(std::move(blue_image), gfx::Point());
-    recording_source.Rerecord();
-    scoped_refptr<RasterSource> raster = recording_source.CreateRasterSource();
+  FakeRecordingSource recording_source(size);
+  recording_source.SetBackgroundColor(SkColors::kTransparent);
+  recording_source.SetRequiresClear(true);
+  PaintFlags flags;
+  flags.setColor(SK_ColorGREEN);
+  recording_source.add_draw_rect_with_flags(gfx::Rect(size), flags);
+  recording_source.add_draw_image(std::move(blue_image), gfx::Point());
+  recording_source.Rerecord();
+  scoped_refptr<RasterSource> raster = recording_source.CreateRasterSource();
 
-    std::unique_ptr<PictureLayerImpl> layer =
-        PictureLayerImpl::Create(host_impl()->pending_tree(), 1);
-    layer->SetBounds(size);
-    layer->SetRasterSourceForTesting(raster);
-    PictureLayerTilingSet* tiling_set = layer->picture_layer_tiling_set();
-    layer->set_contributes_to_drawn_render_surface(true);
+  std::unique_ptr<PictureLayerImpl> layer =
+      PictureLayerImpl::Create(host_impl()->pending_tree(), 1);
+  layer->SetBounds(size);
+  layer->SetRasterSourceForTesting(raster);
+  PictureLayerTilingSet* tiling_set = layer->picture_layer_tiling_set();
+  layer->set_contributes_to_drawn_render_surface(true);
 
-    auto* tiling = tiling_set->AddTiling(gfx::AxisTransform2d(), raster);
-    tiling->set_resolution(resolutions[i]);
-    tiling->CreateAllTilesForTesting(gfx::Rect(size));
+  auto* tiling = tiling_set->AddTiling(gfx::AxisTransform2d(), raster);
+  tiling->set_resolution(HIGH_RESOLUTION);
+  tiling->CreateAllTilesForTesting(gfx::Rect(size));
 
-    // SMOOTHNESS_TAKES_PRIORITY ensures that we will actually raster
-    // LOW_RESOLUTION tiles, otherwise they are skipped.
-    host_impl()->SetTreePriority(SMOOTHNESS_TAKES_PRIORITY);
+  // Call PrepareTiles and wait for it to complete.
+  auto* tile_manager = host_impl()->tile_manager();
+  base::RunLoop run_loop;
+  EXPECT_CALL(MockHostImpl(), NotifyAllTileTasksCompleted())
+      .WillOnce(testing::Invoke([&run_loop]() { run_loop.Quit(); }));
+  tile_manager->PrepareTiles(host_impl()->global_tile_state());
+  run_loop.Run();
+  tile_manager->PrepareToDraw();
 
-    // Call PrepareTiles and wait for it to complete.
-    auto* tile_manager = host_impl()->tile_manager();
-    base::RunLoop run_loop;
-    EXPECT_CALL(MockHostImpl(), NotifyAllTileTasksCompleted())
-        .WillOnce(testing::Invoke([&run_loop]() { run_loop.Quit(); }));
-    tile_manager->PrepareTiles(host_impl()->global_tile_state());
-    run_loop.Run();
-    tile_manager->PrepareToDraw();
+  Tile* tile = tiling->TileAt(0, 0);
+  // The tile in the tiling was rastered.
+  EXPECT_EQ(TileDrawInfo::RESOURCE_MODE, tile->draw_info().mode());
+  EXPECT_TRUE(tile->draw_info().IsReadyToDraw());
 
-    Tile* tile = tiling->TileAt(0, 0);
-    // The tile in the tiling was rastered.
-    EXPECT_EQ(TileDrawInfo::RESOURCE_MODE, tile->draw_info().mode());
-    EXPECT_TRUE(tile->draw_info().IsReadyToDraw());
+  gfx::Size resource_size = tile->draw_info().resource_size();
+  SkColorType ct = ToClosestSkColorType(
+      TestSoftwareRasterBufferProvider::kSharedImageFormat);
+  auto info = SkImageInfo::Make(resource_size.width(), resource_size.height(),
+                                ct, kPremul_SkAlphaType);
+  // CreateLayerTreeFrameSink() sets up a software compositing, so the
+  // tile resource will be a bitmap.
+  auto* backing = tile->draw_info().GetResource().backing();
+  SkBitmap bitmap;
+  auto mapping = backing->shared_image()->Map();
+  void* pixels = mapping->GetMemoryForPlane(0).data();
+  bitmap.installPixels(info, pixels, info.minRowBytes());
 
-    gfx::Size resource_size = tile->draw_info().resource_size();
-    SkColorType ct = ToClosestSkColorType(
-        TestSoftwareRasterBufferProvider::kSharedImageFormat);
-    auto info = SkImageInfo::Make(resource_size.width(), resource_size.height(),
-                                  ct, kPremul_SkAlphaType);
-    // CreateLayerTreeFrameSink() sets up a software compositing, so the
-    // tile resource will be a bitmap.
-    auto* backing = tile->draw_info().GetResource().backing();
-    SkBitmap bitmap;
-    auto mapping = backing->shared_image()->Map();
-    void* pixels = mapping->GetMemoryForPlane(0).data();
-    bitmap.installPixels(info, pixels, info.minRowBytes());
-
-    for (int x = 0; x < size.width(); ++x) {
-      for (int y = 0; y < size.height(); ++y) {
-        SCOPED_TRACE(y);
-        SCOPED_TRACE(x);
-        if (resolutions[i] == LOW_RESOLUTION) {
-          // Since it's low res, the bitmap was not drawn, and the background
-          // (green) is visible instead.
-          ASSERT_EQ(SK_ColorGREEN, bitmap.getColor(x, y));
-        } else {
-          EXPECT_EQ(HIGH_RESOLUTION, resolutions[i]);
-          // Since it's high res, the bitmap (blue) was drawn, and the
-          // background is not visible.
-          ASSERT_EQ(SK_ColorBLUE, bitmap.getColor(x, y));
-        }
-      }
+  for (int x = 0; x < size.width(); ++x) {
+    for (int y = 0; y < size.height(); ++y) {
+      SCOPED_TRACE(y);
+      SCOPED_TRACE(x);
+      // Since it's high res, the bitmap (blue) was drawn, and the
+      // background is not visible.
+      ASSERT_EQ(SK_ColorBLUE, bitmap.getColor(x, y));
     }
   }
 }
@@ -4159,8 +4034,7 @@ TEST_F(TileManagerTileReclaimTest, ReclaimOldPrepainTilesSimple) {
   host_impl()->active_tree()->SetDeviceViewportRect(viewport);
   MakeFrame(global_tile_state);
 
-  auto eviction_queue = host_impl()->BuildEvictionQueue(
-      host_impl()->global_tile_state().tree_priority);
+  auto eviction_queue = host_impl()->BuildEvictionQueue();
   bool has_eventually_tiles = false;
   size_t tiles_count_before = 0;
   for (; !eviction_queue->IsEmpty(); eviction_queue->Pop()) {
@@ -4177,8 +4051,7 @@ TEST_F(TileManagerTileReclaimTest, ReclaimOldPrepainTilesSimple) {
   task_runner()->FastForwardBy(TileManager::GetTrimPrepaintTilesDelay());
 
   // Since the policy is still ALLOW_ANYTHING, no changes.
-  eviction_queue = host_impl()->BuildEvictionQueue(
-      host_impl()->global_tile_state().tree_priority);
+  eviction_queue = host_impl()->BuildEvictionQueue();
   size_t tiles_count_after = 0;
   for (; !eviction_queue->IsEmpty(); eviction_queue->Pop()) {
     const auto& tile = eviction_queue->Top();
@@ -4203,8 +4076,7 @@ TEST_F(TileManagerTileReclaimTest, ReclaimOldPrepainTilesSimple) {
   task_runner()->FastForwardBy(TileManager::GetTrimPrepaintTilesDelay());
 
   tiles_count_after = 0;
-  eviction_queue = host_impl()->BuildEvictionQueue(
-      host_impl()->global_tile_state().tree_priority);
+  eviction_queue = host_impl()->BuildEvictionQueue();
   for (; !eviction_queue->IsEmpty(); eviction_queue->Pop()) {
     const auto& tile = eviction_queue->Top();
     if (tile.priority().priority_bin == TilePriority::EVENTUALLY) {
@@ -4222,8 +4094,7 @@ TEST_F(TileManagerTileReclaimTest, ReclaimOldPrepainTilesSimple) {
 
   // All the EVENTUALLY tiles are gone.
   tiles_count_after = 0;
-  eviction_queue = host_impl()->BuildEvictionQueue(
-      host_impl()->global_tile_state().tree_priority);
+  eviction_queue = host_impl()->BuildEvictionQueue();
   for (; !eviction_queue->IsEmpty(); eviction_queue->Pop()) {
     const auto& tile = eviction_queue->Top();
     EXPECT_NE(tile.priority().priority_bin, TilePriority::EVENTUALLY);
@@ -4247,8 +4118,7 @@ TEST_F(TileManagerTileReclaimTest, ReclaimOldPrepainTilesOldYoungTiles) {
   host_impl()->active_tree()->SetDeviceViewportRect(viewport);
   MakeFrame(global_tile_state);
 
-  auto eviction_queue = host_impl()->BuildEvictionQueue(
-      host_impl()->global_tile_state().tree_priority);
+  auto eviction_queue = host_impl()->BuildEvictionQueue();
   bool has_eventually_tiles = false;
   size_t tiles_count_before = 0;
   for (; !eviction_queue->IsEmpty(); eviction_queue->Pop()) {
@@ -4272,8 +4142,7 @@ TEST_F(TileManagerTileReclaimTest, ReclaimOldPrepainTilesOldYoungTiles) {
 
   size_t tiles_count_after = 0;
   Tile* first_eventually_tile = nullptr;
-  eviction_queue = host_impl()->BuildEvictionQueue(
-      host_impl()->global_tile_state().tree_priority);
+  eviction_queue = host_impl()->BuildEvictionQueue();
   for (; !eviction_queue->IsEmpty(); eviction_queue->Pop()) {
     const auto& tile = eviction_queue->Top();
     if (tile.priority().priority_bin == TilePriority::EVENTUALLY) {
@@ -4298,8 +4167,7 @@ TEST_F(TileManagerTileReclaimTest, ReclaimOldPrepainTilesOldYoungTiles) {
   // The tile is there, it's the only remaining EVENTUALLY one.
   tiles_count_after = 0;
   bool has_found_tile = false;
-  eviction_queue = host_impl()->BuildEvictionQueue(
-      host_impl()->global_tile_state().tree_priority);
+  eviction_queue = host_impl()->BuildEvictionQueue();
   for (; !eviction_queue->IsEmpty(); eviction_queue->Pop()) {
     const auto& tile = eviction_queue->Top();
     EXPECT_TRUE(tile.priority().priority_bin != TilePriority::EVENTUALLY ||
@@ -4316,8 +4184,7 @@ TEST_F(TileManagerTileReclaimTest, ReclaimOldPrepainTilesOldYoungTiles) {
   task_runner()->FastForwardBy(TileManager::GetTrimPrepaintTilesDelay());
 
   // The tile is not there anymore.
-  eviction_queue = host_impl()->BuildEvictionQueue(
-      host_impl()->global_tile_state().tree_priority);
+  eviction_queue = host_impl()->BuildEvictionQueue();
   for (; !eviction_queue->IsEmpty(); eviction_queue->Pop()) {
     const auto& tile = eviction_queue->Top();
     EXPECT_NE(tile.tile(), first_eventually_tile);

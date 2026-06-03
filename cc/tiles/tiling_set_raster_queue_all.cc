@@ -25,7 +25,6 @@ TilingSetRasterQueueAll::IterationStage::IterationStage(
 // static
 std::unique_ptr<TilingSetRasterQueueAll> TilingSetRasterQueueAll::Create(
     PictureLayerTilingSet* tiling_set,
-    bool prioritize_low_res,
     bool is_drawing_layer) {
   DCHECK(tiling_set);
 
@@ -55,8 +54,6 @@ std::unique_ptr<TilingSetRasterQueueAll> TilingSetRasterQueueAll::Create(
     PictureLayerTiling* tiling = tiling_set->tiling_at(i);
     if (tiling->resolution() == HIGH_RESOLUTION)
       high_res_tiling = tiling;
-    if (prioritize_low_res && tiling->resolution() == LOW_RESOLUTION)
-      low_res_tiling = tiling;
     if (tree == ACTIVE_TREE && tiling->resolution() != HIGH_RESOLUTION) {
       const PictureLayerTiling* twin =
           client->GetPendingOrActiveTwinTiling(tiling);

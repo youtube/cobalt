@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <ranges>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -39,8 +40,7 @@ class SessionStore;
 
 struct DeferredURLRequest {
   DeferredURLRequest(const URLRequest* request,
-                     SessionService::RefreshCompleteCallback restart_callback,
-                     SessionService::RefreshCompleteCallback continue_callback);
+                     SessionService::RefreshCompleteCallback callback);
   DeferredURLRequest(DeferredURLRequest&& other) noexcept;
 
   DeferredURLRequest& operator=(DeferredURLRequest&& other) noexcept;
@@ -49,8 +49,7 @@ struct DeferredURLRequest {
 
   raw_ptr<const URLRequest> request = nullptr;
   base::ElapsedTimer timer;
-  SessionService::RefreshCompleteCallback restart_callback;
-  SessionService::RefreshCompleteCallback continue_callback;
+  SessionService::RefreshCompleteCallback callback;
 };
 
 class NET_EXPORT SessionServiceImpl : public SessionService {
@@ -73,13 +72,12 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
 
   std::optional<DeferralParams> ShouldDefer(
       URLRequest* request,
+      HttpRequestHeaders* extra_headers,
       const FirstPartySetMetadata& first_party_set_metadata) override;
 
-  void DeferRequestForRefresh(
-      URLRequest* request,
-      DeferralParams deferral,
-      RefreshCompleteCallback restart_callback,
-      RefreshCompleteCallback continue_callback) override;
+  void DeferRequestForRefresh(URLRequest* request,
+                              DeferralParams deferral,
+                              RefreshCompleteCallback callback) override;
 
   void SetChallengeForBoundSession(OnAccessCallback on_access_callback,
                                    const GURL& request_url,
@@ -108,8 +106,9 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
  private:
   friend class SessionServiceImplWithStoreTest;
 
-  // The key is the site (eTLD+1) of the session's origin.
-  using SessionsMap = std::multimap<SchemefulSite, std::unique_ptr<Session>>;
+  // The key is the site (eTLD+1) of the session's origin and the
+  // session id.
+  using SessionsMap = std::map<SessionKey, std::unique_ptr<Session>>;
   using DeferredRequestsMap =
       std::unordered_map<Session::Id,
                          absl::InlinedVector<DeferredURLRequest, 1>>;
@@ -143,18 +142,17 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
 
   void AddSession(const SchemefulSite& site, std::unique_ptr<Session> session);
   void UnblockDeferredRequests(const Session::Id& session_id,
-                               bool is_cookie_refreshed);
+                               RefreshResult result);
 
   // Get all the unexpired sessions for a given site. This also removes
   // expired sessions for the site and extends the TTL of used sessions.
-  std::pair<SessionsMap::iterator, SessionsMap::iterator> GetSessionsForSite(
+  std::ranges::subrange<SessionsMap::iterator> GetSessionsForSite(
       const SchemefulSite& site);
 
   // Remove a session from the session map. It also clears the session
   // from `session_store_` and notifies any observers (including
   // `per_request_callback`) about the termination.
-  // Return the iterator to the next session in the map.
-  [[nodiscard]] SessionsMap::iterator DeleteSessionAndNotifyInternal(
+  void DeleteSessionAndNotifyInternal(
       SessionsMap::iterator it,
       SessionService::OnAccessCallback per_request_callback);
 
@@ -182,10 +180,13 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
       const Session::Id& session_id,
       base::expected<SessionParams, SessionError> params_or_error);
 
-  // Callback after unwrapping a session key
+  // Callback after unwrapping a session key. `on_access_callback` is
+  // used to notify the browser that this request led to usage of a
+  // session.
   void OnSessionKeyRestored(URLRequest* request,
                             const SchemefulSite& site,
                             const Session::Id& session_id,
+                            OnAccessCallback on_access_callback,
                             Session::KeyIdOrError key_id_or_error);
 
   // Helper function for starting a refresh
@@ -196,6 +197,10 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
 
   // Whether the site has exceeded its refresh quota.
   bool RefreshQuotaExceeded(const SchemefulSite& site);
+
+  // Add a header to `request` indicating which sessions should have
+  // applied, but did not due to error conditions.
+  void AddDebugHeader(URLRequest* request);
 
   // Whether we are waiting on the initial load of saved sessions to complete.
   bool pending_initialization_ = false;

@@ -17,6 +17,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/observer_list.h"
 #include "base/run_loop.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/current_thread.h"
 #include "base/timer/timer.h"
@@ -69,10 +70,6 @@
 
 #if BUILDFLAG(IS_WIN)
 #include "chrome/browser/printing/xps_features.h"
-#endif
-
-#if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
-#include "chrome/browser/win/conflicts/module_database.h"
 #endif
 
 #if BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
@@ -174,10 +171,6 @@ std::string PrintMsgPrintParamsErrorDetails(const mojom::PrintParams& params) {
 
 }  // namespace
 
-BASE_FEATURE(kCheckPrintRfhIsActive,
-             "CheckPrintRfhIsActive",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 PrintViewManagerBase::PrintViewManagerBase(content::WebContents* web_contents)
     : PrintManager(web_contents),
       queue_(g_browser_process->print_job_manager()->queue()) {
@@ -191,22 +184,6 @@ PrintViewManagerBase::~PrintViewManagerBase() {
   ReleasePrinterQuery();
   DisconnectFromCurrentPrintJob();
 }
-
-#if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
-// TODO(crbug.com/41419019):  Remove `DisableThirdPartyBlocking()` once OOP
-// printing is always enabled for Windows.
-// static
-void PrintViewManagerBase::DisableThirdPartyBlocking() {
-#if BUILDFLAG(ENABLE_OOP_PRINTING) && BUILDFLAG(ENABLE_OOP_BASIC_PRINT_DIALOG)
-  const bool loads_print_drivers_in_browser_process = !ShouldPrintJobOop();
-#else
-  constexpr bool loads_print_drivers_in_browser_process = true;
-#endif
-  if (loads_print_drivers_in_browser_process) {
-    ModuleDatabase::DisableThirdPartyBlocking();
-  }
-}
-#endif  // BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
 bool PrintViewManagerBase::PrintNow(content::RenderFrameHost* rfh) {
   if (!StartPrintCommon(rfh)) {
@@ -655,8 +632,7 @@ void PrintViewManagerBase::GetDefaultPrintSettings(
   }
 
   content::RenderFrameHost* render_frame_host = GetCurrentTargetFrame();
-  if (base::FeatureList::IsEnabled(kCheckPrintRfhIsActive) &&
-      !render_frame_host->IsActive()) {
+  if (!render_frame_host->IsActive()) {
     // Only active RFHs should show UI elements.
     GetDefaultPrintSettingsReply(std::move(callback), nullptr);
     return;
@@ -1310,10 +1286,6 @@ void PrintViewManagerBase::CompleteScriptedPrint(
   auto callback_wrapper = base::BindOnce(
       &PrintViewManagerBase::ScriptedPrintReply, weak_ptr_factory_.GetWeakPtr(),
       std::move(callback), render_process_host->GetDeprecatedID());
-#if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  DisableThirdPartyBlocking();
-#endif
-
   std::unique_ptr<PrinterQuery> printer_query =
       queue()->PopPrinterQuery(params->cookie);
   if (!printer_query)

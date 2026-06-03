@@ -94,7 +94,7 @@ class CC_EXPORT SingleThreadProxy : public Proxy,
   void CompositeImmediatelyForTest(base::TimeTicks frame_begin_time,
                                    bool raster,
                                    base::OnceClosure callback) override;
-  double GetPercentDroppedFrames() const override;
+  double GetAverageThroughput() const override;
 
   void UpdateBrowserControlsState(
       BrowserControlsState constraints,
@@ -175,6 +175,8 @@ class CC_EXPORT SingleThreadProxy : public Proxy,
   void ClearHistory() override;
   void SetHasActiveThreadedScroll(bool is_scrolling) override;
   void SetWaitingForScrollEvent(bool waiting_for_scroll_event) override;
+  bool IsRenderingPaused() const override;
+  void NotifyNewLocalSurfaceIdExpectedWhilePaused() override;
 
   size_t CommitDurationSampleCountForTesting() const override;
 
@@ -200,7 +202,7 @@ class CC_EXPORT SingleThreadProxy : public Proxy,
   void BeginMainFrame(const viz::BeginFrameArgs& begin_frame_args);
   void BeginMainFrameAbortedOnImplThread(CommitEarlyOutReason reason);
   void DoBeginMainFrame(const viz::BeginFrameArgs& begin_frame_args);
-  void DoPainting(const viz::BeginFrameArgs& commit_args);
+  void DoPainting();
   void DoCommit(const viz::BeginFrameArgs& commit_args);
   void DoPostCommit();
   DrawResult DoComposite(LayerTreeHostImpl::FrameData* frame);

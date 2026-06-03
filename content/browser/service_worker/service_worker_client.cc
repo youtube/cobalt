@@ -10,8 +10,8 @@
 #include "base/check_is_test.h"
 #include "base/containers/adapters.h"
 #include "base/containers/contains.h"
+#include "base/debug/alias.h"
 #include "base/debug/crash_logging.h"
-#include "base/functional/overloaded.h"
 #include "base/notreached.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/types/optional_util.h"
@@ -37,6 +37,7 @@
 #include "services/network/public/cpp/single_request_url_loader_factory.h"
 #include "services/network/public/cpp/url_loader_factory_builder.h"
 #include "services/network/public/cpp/wrapper_shared_url_loader_factory.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "third_party/blink/public/common/service_worker/service_worker_scope_match.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_running_status_callback.mojom.h"
@@ -430,7 +431,7 @@ blink::mojom::ServiceWorkerClientType ServiceWorkerClient::GetClientType()
     const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return std::visit(
-      base::Overloaded(
+      absl::Overload(
           [](GlobalRenderFrameHostId render_frame_host_id) {
             return blink::mojom::ServiceWorkerClientType::kWindow;
           },
@@ -638,7 +639,7 @@ blink::StorageKey ServiceWorkerClient::CalculateStorageKeyForUpdateUrls(
   const url::Origin origin = url::Origin::Create(url);
 
   const std::optional<blink::StorageKey> storage_key = std::visit(
-      base::Overloaded(
+      absl::Overload(
           [&](GlobalRenderFrameHostId render_frame_host_id) {
             if (is_initiated_by_prefetch_) {
               // Falls back to the `CreateFromOriginAndIsolationInfo()` case
@@ -1156,13 +1157,16 @@ void ServiceWorkerClient::InheritControllerFrom(
          (base::FeatureList::IsEnabled(features::kServiceWorkerSrcdocSupport) &&
           GetClientType() == blink::mojom::ServiceWorkerClientType::kWindow &&
           client_url.IsAboutSrcdoc()));
-  // Only expect srcdoc url or blob url of same origin as creator for
-  // client_url.
-  DCHECK((client_url.SchemeIsBlob() &&
-          url::Origin::Create(client_url)
-              .IsSameOriginWith(creator_host.key().origin())) ||
+  // Only expect srcdoc url or blob url.
+  DCHECK(client_url.SchemeIsBlob() ||
          (base::FeatureList::IsEnabled(features::kServiceWorkerSrcdocSupport) &&
           client_url.IsAboutSrcdoc()));
+  // origins of blob client_url and creator host should be the same or both
+  // opaque.
+  if (client_url.SchemeIsBlob()) {
+    service_worker_security_utils::CheckOnUpdateUrls(client_url,
+                                                     creator_host.key());
+  }
 
   // Let `scope_match_url_for_client_` be the creator's url for scope match
   // because a client should be handled by the service worker of its creator.

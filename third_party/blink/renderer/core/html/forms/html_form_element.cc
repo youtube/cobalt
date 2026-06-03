@@ -193,7 +193,7 @@ void HTMLFormElement::RemovedFrom(ContainerNode& insertion_point) {
 }
 
 void HTMLFormElement::HandleLocalEvents(Event& event) {
-  Node* target_node = event.target()->ToNode();
+  Node* target_node = event.RawTarget()->ToNode();
   if (event.eventPhase() != Event::PhaseType::kCapturingPhase && target_node &&
       target_node != this &&
       (event.type() == event_type_names::kSubmit ||
@@ -304,14 +304,13 @@ void HTMLFormElement::PrepareForSubmission(
 
   if (GetExecutionContext()->IsSandboxed(
           network::mojom::blink::WebSandboxFlags::kForms)) {
-    GetExecutionContext()->AddConsoleMessage(MakeGarbageCollected<
-                                             ConsoleMessage>(
-        mojom::blink::ConsoleMessageSource::kSecurity,
-        mojom::blink::ConsoleMessageLevel::kError,
-        WTF::StrCat(
-            {"Blocked form submission to '", attributes_.Action(),
-             "' because the form's frame is sandboxed and the 'allow-forms' "
-             "permission is not set."})));
+    GetExecutionContext()->AddConsoleMessage(
+        MakeGarbageCollected<ConsoleMessage>(
+            mojom::blink::ConsoleMessageSource::kSecurity,
+            mojom::blink::ConsoleMessageLevel::kError,
+            StrCat({"Blocked form submission to '", attributes_.Action(),
+                    "' because the form's frame is sandboxed and the "
+                    "'allow-forms' permission is not set."})));
     return;
   }
 
@@ -326,11 +325,11 @@ void HTMLFormElement::PrepareForSubmission(
         GetDocument().AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
             mojom::ConsoleMessageSource::kSecurity,
             mojom::ConsoleMessageLevel::kError,
-            WTF::StrCat({"Form submission failed, as the <", tag_name,
-                         "> element named '", element->GetName(),
-                         "' was implicitly closed by reaching the end of the "
-                         "file. Please add an explicit end tag ('</",
-                         tag_name, ">')"})));
+            StrCat({"Form submission failed, as the <", tag_name,
+                    "> element named '", element->GetName(),
+                    "' was implicitly closed by reaching the end of the "
+                    "file. Please add an explicit end tag ('</",
+                    tag_name, ">')"})));
         DispatchEvent(*Event::Create(event_type_names::kError));
         return;
       }
@@ -512,15 +511,14 @@ void HTMLFormElement::ScheduleFormSubmission(
           network::mojom::blink::WebSandboxFlags::kForms)) {
     // FIXME: This message should be moved off the console once a solution to
     // https://bugs.webkit.org/show_bug.cgi?id=103274 exists.
-    GetExecutionContext()->AddConsoleMessage(MakeGarbageCollected<
-                                             ConsoleMessage>(
-        mojom::blink::ConsoleMessageSource::kSecurity,
-        mojom::blink::ConsoleMessageLevel::kError,
-        WTF::StrCat(
-            {"Blocked form submission to '",
-             form_submission->Action().ElidedString(),
-             "' because the form's frame is sandboxed and the 'allow-forms' "
-             "permission is not set."})));
+    GetExecutionContext()->AddConsoleMessage(
+        MakeGarbageCollected<ConsoleMessage>(
+            mojom::blink::ConsoleMessageSource::kSecurity,
+            mojom::blink::ConsoleMessageLevel::kError,
+            StrCat({"Blocked form submission to '",
+                    form_submission->Action().ElidedString(),
+                    "' because the form's frame is sandboxed and the "
+                    "'allow-forms' permission is not set."})));
     return;
   }
 
@@ -592,7 +590,7 @@ void HTMLFormElement::ScheduleFormSubmission(
 
 FormData* HTMLFormElement::ConstructEntryList(
     HTMLFormControlElement* submit_button,
-    const WTF::TextEncoding& encoding) {
+    const TextEncoding& encoding) {
   if (is_constructing_entry_list_) {
     return nullptr;
   }
@@ -1202,7 +1200,7 @@ void HTMLFormElement::UseCountPropertyAccess(
     v8::Local<v8::Name>& v8_property_name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   bool hasPropertyInPrototypeChain =
-      !info.Holder()
+      !info.HolderV2()
            ->GetRealNamedPropertyInPrototypeChain(
                info.GetIsolate()->GetCurrentContext(), v8_property_name)
            .IsEmpty();

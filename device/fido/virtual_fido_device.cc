@@ -18,9 +18,9 @@
 #include "base/strings/string_number_conversions.h"
 #include "components/cbor/values.h"
 #include "components/cbor/writer.h"
-#include "crypto/ec_private_key.h"
-#include "crypto/ec_signature_creator.h"
+#include "crypto/evp.h"
 #include "crypto/hash.h"
+#include "crypto/keypair.h"
 #include "crypto/openssl_util.h"
 #include "device/fido/fido_parsing_utils.h"
 #include "device/fido/large_blob.h"
@@ -121,8 +121,7 @@ class EVPBackedPrivateKey : public VirtualFidoDevice::PrivateKey {
   }
 
   std::vector<uint8_t> GetPKCS8PrivateKey() const override {
-    return CBBFunctionToVector<decltype(&EVP_marshal_private_key),
-                               EVP_marshal_private_key>(pkey_.get());
+    return crypto::evp::PrivateKeyToBytes(pkey_.get());
   }
 
  protected:
@@ -190,13 +189,10 @@ class RSAPrivateKey : public EVPBackedPrivateKey {
     std::optional<std::vector<uint8_t>> cbor_bytes(
         cbor::Writer::Write(cbor::Value(std::move(map))));
 
-    std::vector<uint8_t> der_bytes(
-        CBBFunctionToVector<decltype(&EVP_marshal_public_key),
-                            EVP_marshal_public_key>(pkey_.get()));
-
+    std::vector<uint8_t> der = crypto::evp::PublicKeyToBytes(pkey_.get());
     return std::make_unique<PublicKey>(
         static_cast<int32_t>(CoseAlgorithmIdentifier::kRs256), *cbor_bytes,
-        std::move(der_bytes));
+        std::move(der));
   }
 
  private:
@@ -233,13 +229,10 @@ class Ed25519PrivateKey : public EVPBackedPrivateKey {
     std::optional<std::vector<uint8_t>> cbor_bytes(
         cbor::Writer::Write(cbor::Value(std::move(map))));
 
-    std::vector<uint8_t> der_bytes(
-        CBBFunctionToVector<decltype(&EVP_marshal_public_key),
-                            EVP_marshal_public_key>(pkey_.get()));
-
+    std::vector<uint8_t> der = crypto::evp::PublicKeyToBytes(pkey_.get());
     return std::make_unique<PublicKey>(
         static_cast<int32_t>(CoseAlgorithmIdentifier::kEdDSA), *cbor_bytes,
-        std::move(der_bytes));
+        std::move(der));
   }
 
  private:
@@ -291,10 +284,9 @@ VirtualFidoDevice::PrivateKey::FromPKCS8(
     base::span<const uint8_t> pkcs8_private_key) {
   crypto::OpenSSLErrStackTracer err_tracer(FROM_HERE);
 
-  CBS cbs;
-  CBS_init(&cbs, pkcs8_private_key.data(), pkcs8_private_key.size());
-  bssl::UniquePtr<EVP_PKEY> pkey(EVP_parse_private_key(&cbs));
-  if (!pkey || CBS_len(&cbs) != 0) {
+  bssl::UniquePtr<EVP_PKEY> pkey =
+      crypto::evp::PrivateKeyFromBytes(pkcs8_private_key);
+  if (!pkey) {
     return std::nullopt;
   }
 
@@ -565,19 +557,12 @@ std::vector<uint8_t> VirtualFidoDevice::GetAttestationKey() {
   return fido_parsing_utils::Materialize(kAttestationKey);
 }
 
-bool VirtualFidoDevice::Sign(crypto::ECPrivateKey* private_key,
-                             base::span<const uint8_t> sign_buffer,
-                             std::vector<uint8_t>* signature) {
-  auto signer = crypto::ECSignatureCreator::Create(private_key);
-  return signer->Sign(sign_buffer, signature);
-}
-
 std::optional<std::vector<uint8_t>>
 VirtualFidoDevice::GenerateAttestationCertificate(
     bool individual_attestation_requested,
     bool include_transports) const {
-  std::unique_ptr<crypto::ECPrivateKey> attestation_private_key =
-      crypto::ECPrivateKey::CreateFromPrivateKeyInfo(GetAttestationKey());
+  auto attestation_private_key =
+      crypto::keypair::PrivateKey::FromPrivateKeyInfo(GetAttestationKey());
   constexpr uint32_t kAttestationCertSerialNumber = 1;
 
   // https://fidoalliance.org/specs/fido-u2f-v1.2-ps-20170411/fido-u2f-authenticator-transports-extension-v1.2-ps-20170411.html#fido-u2f-certificate-transports-extension

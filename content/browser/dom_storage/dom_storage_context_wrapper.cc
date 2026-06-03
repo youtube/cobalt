@@ -23,6 +23,7 @@
 #include "components/services/storage/dom_storage/local_storage_impl.h"
 #include "components/services/storage/dom_storage/session_storage_impl.h"
 #include "components/services/storage/public/mojom/storage_policy_update.mojom.h"
+#include "components/services/storage/public/mojom/storage_service.mojom.h"
 #include "components/services/storage/public/mojom/storage_usage_info.mojom.h"
 #include "content/browser/dom_storage/session_storage_namespace_impl.h"
 #include "content/browser/renderer_host/frame_tree.h"
@@ -43,9 +44,7 @@
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 
 namespace content {
-#if BUILDFLAG(IS_MAC)
-using LocalStorageLifecycle = storage::mojom::LocalStorageLifecycle;
-#endif  // BUILDFLAG(IS_MAC)
+
 namespace {
 
 void AdaptSessionStorageUsageInfo(
@@ -73,22 +72,6 @@ void AdaptStorageUsageInfo(
   }
   std::move(callback).Run(result);
 }
-
-#if BUILDFLAG(IS_MAC)
-LocalStorageLifecycle GetLocalStorageLifecycle(
-    bool recovering,
-    bool storage_service_remote_was_bound) {
-  if (recovering) {
-    return storage_service_remote_was_bound
-               ? LocalStorageLifecycle::kRecovering
-               : LocalStorageLifecycle::kRecoveringWithUnboundStorageService;
-  } else {
-    return storage_service_remote_was_bound
-               ? LocalStorageLifecycle::kInitializing
-               : LocalStorageLifecycle::kInitializingWithUnboundStorageService;
-  }
-}
-#endif  // BUILDFLAG(IS_MAC)
 
 }  // namespace
 
@@ -118,18 +101,13 @@ DOMStorageContextWrapper::DOMStorageContextWrapper(
       base::BindRepeating(&DOMStorageContextWrapper::OnMemoryPressure,
                           base::Unretained(this)));
 
-#if BUILDFLAG(IS_MAC)
-  // Binding Session or Local storage will result in the storage service getting
-  // bound. So, we capture this state before those calls.
-  LocalStorageLifecycle lifecycle = GetLocalStorageLifecycle(
-      /*recovering=*/false, partition_->IsStorageServiceRemoteValid());
-#endif  // BUILDFLAG(IS_MAC)
+  // `partition_` can be null in test environments.
+  if (!partition_) {
+    return;
+  }
+
   MaybeBindSessionStorageControl();
-#if BUILDFLAG(IS_MAC)
-  MaybeBindLocalStorageControlAndReportLifecycle(lifecycle);
-#else
   MaybeBindLocalStorageControl();
-#endif  // BUILDFLAG(IS_MAC)
 }
 
 DOMStorageContextWrapper::~DOMStorageContextWrapper() {
@@ -334,7 +312,7 @@ bool DOMStorageContextWrapper::IsRequestValid(
     // third_party/blink/renderer/modules/storage_access/README.md
     host_storage_key_matched_or_missing =
         host->GetStorageKey() == storage_key ||
-        (host->DoesDocumentHaveStorageAccess() &&
+        (host->IsFullCookieAccessAllowed() &&
          blink::StorageKey::CreateFirstParty(host->GetStorageKey().origin()) ==
              storage_key);
   }
@@ -357,20 +335,9 @@ bool DOMStorageContextWrapper::IsRequestValid(
   return true;
 }
 
-void DOMStorageContextWrapper::RecoverFromStorageServiceCrash() {
+void DOMStorageContextWrapper::OnSessionStorageDisconnected() {
   DCHECK(partition_);
-#if BUILDFLAG(IS_MAC)
-  // Binding Session or Local storage will result in the storage service getting
-  // bound. So, we capture this state before those calls.
-  LocalStorageLifecycle lifecycle = GetLocalStorageLifecycle(
-      /*recovering=*/true, partition_->IsStorageServiceRemoteValid());
-#endif  // BUILDFLAG(IS_MAC)
   MaybeBindSessionStorageControl();
-#if BUILDFLAG(IS_MAC)
-  MaybeBindLocalStorageControlAndReportLifecycle(lifecycle);
-#else
-  MaybeBindLocalStorageControl();
-#endif  // BUILDFLAG(IS_MAC)
 
   // Make sure the service is aware of namespaces we asked a previous instance
   // to create, so it can properly service renderers trying to manipulate those
@@ -379,36 +346,41 @@ void DOMStorageContextWrapper::RecoverFromStorageServiceCrash() {
   for (const auto& entry : alive_namespaces_)
     session_storage_control_->CreateNamespace(entry.first);
   session_storage_control_->ScavengeUnusedNamespaces(base::NullCallback());
+
+  partition_->ResetSessionStorageConnections();
 }
 
 void DOMStorageContextWrapper::MaybeBindSessionStorageControl() {
   if (!partition_)
     return;
   session_storage_control_.reset();
-  partition_->GetStorageServicePartition()->BindSessionStorageControl(
+  partition_->GetStorageService()->BindSessionStorageControl(
+      partition_->GetStoragePartitionPath(),
       session_storage_control_.BindNewPipeAndPassReceiver());
+  session_storage_control_.set_disconnect_handler(
+      base::BindOnce(&DOMStorageContextWrapper::OnSessionStorageDisconnected,
+                     base::Unretained(this)));
+}
+
+void DOMStorageContextWrapper::OnLocalStorageDisconnected() {
+  DCHECK(partition_);
+
+  MaybeBindLocalStorageControl();
+  partition_->ResetLocalStorageConnections();
 }
 
 void DOMStorageContextWrapper::MaybeBindLocalStorageControl() {
-  if (!partition_)
-    return;
-  local_storage_control_.reset();
-  partition_->GetStorageServicePartition()->BindLocalStorageControl(
-      local_storage_control_.BindNewPipeAndPassReceiver());
-}
-
-#if BUILDFLAG(IS_MAC)
-void DOMStorageContextWrapper::MaybeBindLocalStorageControlAndReportLifecycle(
-    LocalStorageLifecycle lifecycle) {
   if (!partition_) {
     return;
   }
   local_storage_control_.reset();
-  partition_->GetStorageServicePartition()
-      ->BindLocalStorageControlAndReportLifecycle(
-          lifecycle, local_storage_control_.BindNewPipeAndPassReceiver());
+  partition_->GetStorageService()->BindLocalStorageControl(
+      partition_->GetStoragePartitionPath(),
+      local_storage_control_.BindNewPipeAndPassReceiver());
+  local_storage_control_.set_disconnect_handler(
+      base::BindOnce(&DOMStorageContextWrapper::OnLocalStorageDisconnected,
+                     base::Unretained(this)));
 }
-#endif  // BUILDFLAG(IS_MAC)
 
 scoped_refptr<SessionStorageNamespaceImpl>
 DOMStorageContextWrapper::MaybeGetExistingNamespace(

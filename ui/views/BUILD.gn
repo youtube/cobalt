@@ -86,9 +86,9 @@ component("views") {
     "accessibility/ax_update_notifier.h",
     "accessibility/ax_update_observer.h",
     "accessibility/ax_virtual_view.h",
+    "accessibility/tree/widget_ax_manager.h",
     "accessibility/view_accessibility.h",
     "accessibility/view_accessibility_utils.h",
-    "accessibility/widget_ax_tree_id_map.h",
     "accessible_pane_view.h",
     "actions/action_view_controller.h",
     "actions/action_view_interface.h",
@@ -151,6 +151,7 @@ component("views") {
     "controls/button/label_button_image_container.h",
     "controls/button/md_text_button.h",
     "controls/button/md_text_button_with_down_arrow.h",
+    "controls/button/md_text_button_with_spinner.h",
     "controls/button/menu_button.h",
     "controls/button/menu_button_controller.h",
     "controls/button/radio_button.h",
@@ -311,7 +312,7 @@ component("views") {
     "window/caption_button_layout_constants.h",
     "window/caption_button_types.h",
     "window/client_view.h",
-    "window/custom_frame_view.h",
+    "window/default_frame_view.h",
     "window/dialog_client_view.h",
     "window/dialog_delegate.h",
     "window/dialog_observer.h",
@@ -335,6 +336,7 @@ component("views") {
     "accessibility/ax_update_notifier.cc",
     "accessibility/ax_update_observer.cc",
     "accessibility/ax_virtual_view.cc",
+    "accessibility/tree/widget_ax_manager.cc",
     "accessibility/view_accessibility.cc",
     "accessibility/view_accessibility_utils.cc",
     "accessible_pane_view.cc",
@@ -395,6 +397,7 @@ component("views") {
     "controls/button/label_button_image_container.cc",
     "controls/button/md_text_button.cc",
     "controls/button/md_text_button_with_down_arrow.cc",
+    "controls/button/md_text_button_with_spinner.cc",
     "controls/button/menu_button.cc",
     "controls/button/menu_button_controller.cc",
     "controls/button/radio_button.cc",
@@ -528,7 +531,7 @@ component("views") {
     "widget/widget_utils.cc",
     "window/caption_button_layout_constants.cc",
     "window/client_view.cc",
-    "window/custom_frame_view.cc",
+    "window/default_frame_view.cc",
     "window/dialog_client_view.cc",
     "window/dialog_delegate.cc",
     "window/frame_background.cc",
@@ -829,9 +832,6 @@ component("views") {
       "widget/window_reorderer.cc",
       "windows_stationarity_monitor_aura.cc",
     ]
-    if (!is_chromeos) {
-      sources += [ "accessibility/widget_ax_tree_id_map.cc" ]
-    }
     deps += [
       "//components/crash/core/common:crash_key",
       "//ui/aura",
@@ -998,6 +998,7 @@ if (is_win || is_mac || is_linux || is_chromeos) {
 source_set("test_support") {
   testonly = true
   sources = [
+    "accessibility/tree/widget_ax_manager_test_api.h",
     "animation/test/flood_fill_ink_drop_ripple_test_api.cc",
     "animation/test/flood_fill_ink_drop_ripple_test_api.h",
     "animation/test/ink_drop_highlight_test_api.cc",
@@ -1047,6 +1048,10 @@ source_set("test_support") {
     "test/capture_tracking_view.h",
     "test/combobox_test_api.cc",
     "test/combobox_test_api.h",
+    "test/configurable_test_frame_view.cc",
+    "test/configurable_test_frame_view.h",
+    "test/configurable_test_non_client_frame_view.cc",
+    "test/configurable_test_non_client_frame_view.h",
     "test/desktop_test_views_delegate.h",
     "test/dialog_test.cc",
     "test/dialog_test.h",
@@ -1241,6 +1246,7 @@ test("views_unittests") {
     "controls/button/label_button_label_unittest.cc",
     "controls/button/label_button_unittest.cc",
     "controls/button/md_text_button_unittest.cc",
+    "controls/button/md_text_button_with_spinner_unittest.cc",
     "controls/button/menu_button_controller_unittest.cc",
     "controls/button/menu_button_unittest.cc",
     "controls/button/radio_button_unittest.cc",
@@ -1326,7 +1332,7 @@ test("views_unittests") {
     "widget/unique_widget_ptr_unittest.cc",
     "widget/widget_delegate_unittest.cc",
     "widget/widget_unittest.cc",
-    "window/custom_frame_view_unittest.cc",
+    "window/default_frame_view_unittest.cc",
     "window/dialog_client_view_unittest.cc",
     "window/dialog_delegate_unittest.cc",
     "window/frame_caption_button_unittest.cc",
@@ -1430,6 +1436,7 @@ test("views_unittests") {
     sources += [
       "accessibility/atomic_view_ax_tree_manager_unittest.cc",
       "accessibility/ax_virtual_view_unittest.cc",
+      "accessibility/tree/widget_ax_manager_unittest.cc",
       "accessibility/view_accessibility_unittest.cc",
       "accessibility/view_ax_platform_node_delegate_unittest.cc",
     ]
@@ -1612,6 +1619,9 @@ source_set("views_interactive_ui_tests") {
   if (is_mac) {
     sources += [
       "cocoa/bridged_native_widget_interactive_uitest.mm",
+      "controls/native/native_view_host_mac_interactive_uitest.mm",
+      "controls/native/native_view_host_test_base.cc",
+      "controls/native/native_view_host_test_base.h",
       "widget/native_widget_mac_interactive_uitest.mm",
     ]
     deps += [ "//components/remote_cocoa/app_shim" ]

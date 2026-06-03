@@ -94,8 +94,9 @@ TextSegmentationMachineState BackspaceStateMachine::FeedPrecedingCodeUnit(
   switch (state_) {
     case BackspaceState::kStart:
       code_units_to_be_deleted_ = U16_LENGTH(code_point);
-      if (code_point == kNewlineCharacter)
+      if (code_point == uchar::kLineFeed) {
         return MoveToNextState(BackspaceState::kBeforeLF);
+      }
       if (u_hasBinaryProperty(code_point, UCHAR_VARIATION_SELECTOR))
         return MoveToNextState(BackspaceState::kBeforeVS);
       if (Character::IsRegionalIndicator(code_point))
@@ -104,12 +105,14 @@ TextSegmentationMachineState BackspaceStateMachine::FeedPrecedingCodeUnit(
         return MoveToNextState(BackspaceState::kBeforeEmojiModifier);
       if (Character::IsEmoji(code_point))
         return MoveToNextState(BackspaceState::kBeforeZWJEmoji);
-      if (code_point == kCombiningEnclosingKeycapCharacter)
+      if (code_point == uchar::kCombiningEnclosingKeycap) {
         return MoveToNextState(BackspaceState::kBeforeKeycap);
+      }
       return Finish();
     case BackspaceState::kBeforeLF:
-      if (code_point == kCarriageReturnCharacter)
+      if (code_point == uchar::kCarriageReturn) {
         ++code_units_to_be_deleted_;
+      }
       return Finish();
     case BackspaceState::kBeforeKeycap:
       if (u_hasBinaryProperty(code_point, UCHAR_VARIATION_SELECTOR)) {
@@ -157,7 +160,7 @@ TextSegmentationMachineState BackspaceStateMachine::FeedPrecedingCodeUnit(
         code_units_to_be_deleted_ += U16_LENGTH(code_point);
       return Finish();
     case BackspaceState::kBeforeZWJEmoji:
-      return code_point == kZeroWidthJoinerCharacter
+      return code_point == uchar::kZeroWidthJoiner
                  ? MoveToNextState(BackspaceState::kBeforeZWJ)
                  : Finish();
     case BackspaceState::kBeforeZWJ:

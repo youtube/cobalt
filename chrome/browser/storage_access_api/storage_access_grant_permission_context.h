@@ -9,7 +9,7 @@
 
 #include "base/memory/weak_ptr.h"
 #include "base/types/pass_key.h"
-#include "components/permissions/permission_context_base.h"
+#include "components/permissions/content_setting_permission_context_base.h"
 #include "net/first_party_sets/first_party_set_metadata.h"
 
 class GURL;
@@ -63,7 +63,7 @@ enum class RequestOutcome {
 };
 
 class StorageAccessGrantPermissionContext
-    : public permissions::PermissionContextBase {
+    : public permissions::ContentSettingPermissionContextBase {
  public:
   using PassKey = base::PassKey<StorageAccessGrantPermissionContext>;
 
@@ -98,17 +98,18 @@ class StorageAccessGrantPermissionContext
   void DecidePermission(
       std::unique_ptr<permissions::PermissionRequestData> request_data,
       permissions::BrowserPermissionCallback callback) override;
-  ContentSetting GetPermissionStatusInternal(
-      content::RenderFrameHost* render_frame_host,
-      const GURL& requesting_origin,
-      const GURL& embedding_origin) const override;
   void NotifyPermissionSet(
       const permissions::PermissionRequestData& request_data,
       permissions::BrowserPermissionCallback callback,
       bool persist,
-      ContentSetting content_setting,
-      bool is_one_time,
+      PermissionDecision decision,
       bool is_final_decision) override;
+
+  // ContentSettingPermissionContextBase
+  ContentSetting GetContentSettingStatusInternal(
+      content::RenderFrameHost* render_frame_host,
+      const GURL& requesting_origin,
+      const GURL& embedding_origin) const override;
   void UpdateContentSetting(
       const permissions::PermissionRequestData& request_data,
       ContentSetting content_setting,
@@ -124,7 +125,7 @@ class StorageAccessGrantPermissionContext
       const permissions::PermissionRequestData& request_data,
       permissions::BrowserPermissionCallback callback,
       bool persist,
-      ContentSetting content_setting,
+      PermissionDecision decision,
       RequestOutcome outcome);
 
   // Checks First-Party Sets metadata to determine if auto-grants or

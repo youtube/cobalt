@@ -6,15 +6,12 @@
 #define CHROME_BROWSER_TOP_LEVEL_STORAGE_ACCESS_API_TOP_LEVEL_STORAGE_ACCESS_PERMISSION_CONTEXT_H_
 
 #include "base/memory/weak_ptr.h"
+#include "components/permissions/content_setting_permission_context_base.h"
 #include "components/permissions/permission_context_base.h"
 #include "components/permissions/permission_request_data.h"
 #include "net/first_party_sets/first_party_set_metadata.h"
 
 class GURL;
-
-namespace permissions {
-class PermissionRequestID;
-}
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
@@ -54,7 +51,7 @@ enum class TopLevelStorageAccessRequestOutcome {
 };
 
 class TopLevelStorageAccessPermissionContext
-    : public permissions::PermissionContextBase {
+    : public permissions::ContentSettingPermissionContextBase {
  public:
   explicit TopLevelStorageAccessPermissionContext(
       content::BrowserContext* browser_context);
@@ -76,30 +73,31 @@ class TopLevelStorageAccessPermissionContext
   void DecidePermission(
       std::unique_ptr<permissions::PermissionRequestData> request_data,
       permissions::BrowserPermissionCallback callback) override;
-  ContentSetting GetPermissionStatusInternal(
-      content::RenderFrameHost* render_frame_host,
-      const GURL& requesting_origin,
-      const GURL& embedding_origin) const override;
   void NotifyPermissionSet(
       const permissions::PermissionRequestData& request_data,
       permissions::BrowserPermissionCallback callback,
       bool persist,
-      ContentSetting content_setting,
-      bool is_one_time,
+      PermissionDecision decision,
       bool is_final_decision) override;
+
+  // ContentSettingPermissionContextBase
   void UpdateContentSetting(
       const permissions::PermissionRequestData& request_data,
       ContentSetting content_setting,
       bool is_one_time) override;
 
+  // ContentSettingPermissionContextBase
+  ContentSetting GetContentSettingStatusInternal(
+      content::RenderFrameHost* render_frame_host,
+      const GURL& requesting_origin,
+      const GURL& embedding_origin) const override;
+
   // Internal implementation for NotifyPermissionSet.
   void NotifyPermissionSetInternal(
-      const permissions::PermissionRequestID& id,
-      const GURL& requesting_origin,
-      const GURL& embedding_origin,
+      const permissions::PermissionRequestData& request_data,
       permissions::BrowserPermissionCallback callback,
       bool persist,
-      ContentSetting content_setting,
+      PermissionDecision decision,
       TopLevelStorageAccessRequestOutcome outcome);
 
   // Checks First-Party Sets metadata to determine whether the request should be

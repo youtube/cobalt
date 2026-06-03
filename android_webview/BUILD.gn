@@ -437,7 +437,6 @@ if (_is_default_toolchain) {
       "java/src/org/chromium/android_webview/AwContentsIoThreadClient.java",
       "java/src/org/chromium/android_webview/AwContentsIoThreadClientImpl.java",
       "java/src/org/chromium/android_webview/AwContentsLifecycleNotifier.java",
-      "java/src/org/chromium/android_webview/AwContentsOriginMatcher.java",
       "java/src/org/chromium/android_webview/AwContentsStatics.java",
       "java/src/org/chromium/android_webview/AwCookieManager.java",
       "java/src/org/chromium/android_webview/AwCrashyClassUtils.java",
@@ -447,7 +446,6 @@ if (_is_default_toolchain) {
       "java/src/org/chromium/android_webview/AwDevToolsServer.java",
       "java/src/org/chromium/android_webview/AwDisplayCutoutController.java",
       "java/src/org/chromium/android_webview/AwDisplayModeController.java",
-      "java/src/org/chromium/android_webview/AwFeatureMap.java",
       "java/src/org/chromium/android_webview/AwFrameMetricsListener.java",
       "java/src/org/chromium/android_webview/AwGeolocationPermissions.java",
       "java/src/org/chromium/android_webview/AwHistogramRecorder.java",
@@ -530,14 +528,11 @@ if (_is_default_toolchain) {
       "java/src/org/chromium/android_webview/contextmenu/AwContextMenuHeaderProperties.java",
       "java/src/org/chromium/android_webview/contextmenu/AwContextMenuHeaderViewBinder.java",
       "java/src/org/chromium/android_webview/contextmenu/AwContextMenuHelper.java",
-      "java/src/org/chromium/android_webview/contextmenu/AwContextMenuItem.java",
       "java/src/org/chromium/android_webview/contextmenu/AwContextMenuItemDelegate.java",
       "java/src/org/chromium/android_webview/contextmenu/AwContextMenuItemProperties.java",
       "java/src/org/chromium/android_webview/contextmenu/AwContextMenuItemViewBinder.java",
       "java/src/org/chromium/android_webview/contextmenu/AwContextMenuPopulator.java",
       "java/src/org/chromium/android_webview/gfx/AwDrawFnImpl.java",
-      "java/src/org/chromium/android_webview/gfx/AwFunctor.java",
-      "java/src/org/chromium/android_webview/gfx/AwGLFunctor.java",
       "java/src/org/chromium/android_webview/gfx/AwPicture.java",
       "java/src/org/chromium/android_webview/gfx/JavaBrowserViewRendererHelper.java",
       "java/src/org/chromium/android_webview/gfx/RectUtils.java",
@@ -606,6 +601,7 @@ if (_is_default_toolchain) {
       "//components/ip_protection/android/android_auth_client_lib/client:ip_protection_auth_client_java",
       "//components/minidump_uploader:minidump_uploader_java",
       "//components/navigation_interception/android:navigation_interception_java",
+      "//components/origin_matcher/android:java",
       "//components/payments/content/android:feature_list_java",
       "//components/payments/content/android:full_java",
       "//components/payments/content/android:minimal_java",
@@ -686,14 +682,16 @@ if (_is_default_toolchain) {
       "java/src/org/chromium/android_webview/common/MediaIntegrityApiStatus.java",
       "java/src/org/chromium/android_webview/common/MediaIntegrityErrorCode.java",
       "java/src/org/chromium/android_webview/common/MediaIntegrityErrorWrapper.java",
+      "java/src/org/chromium/android_webview/common/MediaIntegrityNonRecoverableErrorLogger.java",
       "java/src/org/chromium/android_webview/common/MediaIntegrityProvider.java",
+      "java/src/org/chromium/android_webview/common/NoOpPlatformServiceBridge.java",
       "java/src/org/chromium/android_webview/common/PlatformServiceBridge.java",
-      "java/src/org/chromium/android_webview/common/PlatformServiceBridgeImpl.java",
       "java/src/org/chromium/android_webview/common/ValueOrErrorCallback.java",
     ]
 
     deps = [
       "//base:base_java",
+      "//base:service_loader_java",
       "//components/embedder_support/android/metrics:java",
       "//content/public/android:content_full_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
@@ -703,13 +701,6 @@ if (_is_default_toolchain) {
     # The appropriate .class file will be loaded via a dependency to a library
     # like :platform_service_bridge_upstream_implementation_java below. We only include the
     # .java file because other files in the target depend on it.
-    jar_excluded_patterns = [ "*/PlatformServiceBridgeImpl.class" ]
-  }
-
-  # This target compiles the implementation of PlatformServiceBridge for AOSP targets.
-  android_library("platform_service_bridge_upstream_implementation_java") {
-    sources = [ "java/src/org/chromium/android_webview/common/PlatformServiceBridgeImpl.java" ]
-    deps = [ ":common_platform_services_java" ]
   }
 
   android_library("crash_client_java") {
@@ -741,20 +732,19 @@ if (_is_default_toolchain) {
     # External code should depend on "common_java" instead.
     visibility = [ ":*" ]
     sources = [ "common/aw_switches.cc" ]
-    template =
-        "java/src/org/chromium/android_webview/common/AwSwitches.java.tmpl"
+    class_name = "org.chromium.android_webview.common.AwSwitches"
   }
 
   java_cpp_features("common_java_features_srcjar") {
     # External code should depend on "common_java" instead.
     visibility = [ ":*" ]
     sources = [ "common/aw_features.cc" ]
-    template =
-        "java/src/org/chromium/android_webview/common/AwFeatures.java.tmpl"
+    class_name = "org.chromium.android_webview.common.AwFeatures"
   }
 
   android_library("common_java") {
     sources = [
+      "java/src/org/chromium/android_webview/common/AwFeatureMap.java",
       "java/src/org/chromium/android_webview/common/AwResource.java",
       "java/src/org/chromium/android_webview/common/BackgroundThreadExecutor.java",
       "java/src/org/chromium/android_webview/common/BugTrackerConstants.java",
@@ -983,8 +973,11 @@ if (_is_default_toolchain) {
       "java/res/drawable-xhdpi/ic_play_circle_outline_black_48dp.png",
       "java/res/drawable-xxhdpi/ic_play_circle_outline_black_48dp.png",
       "java/res/drawable-xxxhdpi/ic_play_circle_outline_black_48dp.png",
-      "java/res/drawable/aw_context_menu_bg.xml",
-      "java/res/layout/aw_context_menu.xml",
+      "java/res/drawable/aw_context_menu_dialog_bg.xml",
+      "java/res/drawable/aw_context_menu_dropdown_bg.xml",
+      "java/res/layout/aw_context_menu_dialog.xml",
+      "java/res/layout/aw_context_menu_divider.xml",
+      "java/res/layout/aw_context_menu_dropdown.xml",
       "java/res/layout/aw_context_menu_fullscreen_container.xml",
       "java/res/layout/aw_context_menu_header.xml",
       "java/res/layout/aw_context_menu_row.xml",
@@ -1148,6 +1141,7 @@ grit_strings("generate_components_strings") {
 
 generate_jni("common_jni") {
   sources = [
+    "java/src/org/chromium/android_webview/common/AwFeatureMap.java",
     "java/src/org/chromium/android_webview/common/AwResource.java",
     "java/src/org/chromium/android_webview/common/origin_trial/DisableOriginTrialsSafeModeUtils.java",
   ]
@@ -1165,13 +1159,11 @@ generate_jni("browser_jni_headers") {
     "java/src/org/chromium/android_webview/AwContentsClientBridge.java",
     "java/src/org/chromium/android_webview/AwContentsIoThreadClient.java",
     "java/src/org/chromium/android_webview/AwContentsLifecycleNotifier.java",
-    "java/src/org/chromium/android_webview/AwContentsOriginMatcher.java",
     "java/src/org/chromium/android_webview/AwContentsStatics.java",
     "java/src/org/chromium/android_webview/AwCookieManager.java",
     "java/src/org/chromium/android_webview/AwCrashyClassUtils.java",
     "java/src/org/chromium/android_webview/AwDarkMode.java",
     "java/src/org/chromium/android_webview/AwDevToolsServer.java",
-    "java/src/org/chromium/android_webview/AwFeatureMap.java",
     "java/src/org/chromium/android_webview/AwHttpAuthHandler.java",
     "java/src/org/chromium/android_webview/AwInterfaceRegistrar.java",
     "java/src/org/chromium/android_webview/AwNetLogsConnection.java",
@@ -1199,7 +1191,6 @@ generate_jni("browser_jni_headers") {
     "java/src/org/chromium/android_webview/client_hints/AwUserAgentMetadata.java",
     "java/src/org/chromium/android_webview/contextmenu/AwContextMenuHelper.java",
     "java/src/org/chromium/android_webview/gfx/AwDrawFnImpl.java",
-    "java/src/org/chromium/android_webview/gfx/AwGLFunctor.java",
     "java/src/org/chromium/android_webview/gfx/AwPicture.java",
     "java/src/org/chromium/android_webview/gfx/JavaBrowserViewRendererHelper.java",
     "java/src/org/chromium/android_webview/gfx/RootBeginFrameSourceWebView.java",

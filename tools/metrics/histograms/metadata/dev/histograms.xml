@@ -33,28 +33,19 @@ chromium-metrics-reviews@google.com.
     expires_after="2024-07-21">
   <owner>yangguo@google.com</owner>
   <owner>danilsomsikov@google.com</owner>
+  <component>1633102</component>
   <summary>
     Measures the time until a full response from AIDA backend is received.
   </summary>
 </histogram>
 
 <histogram name="DevTools.AnimationPlaybackRateChanged"
-    enum="DevToolsAnimationPlaybackRateChanged" expires_after="2025-09-28">
+    enum="DevToolsAnimationPlaybackRateChanged" expires_after="2025-11-30">
   <owner>yangguo@google.com</owner>
   <owner>changhaohan@google.com</owner>
   <owner>ergunsh@google.com</owner>
+  <component>1559716</component>
   <summary>Playback rate is changed in Animations panel in DevTools.</summary>
-</histogram>
-
-<histogram name="DevTools.AnimationPointDragged"
-    enum="DevToolsAnimationPointDragged" expires_after="2024-10-13">
-  <owner>yangguo@google.com</owner>
-  <owner>changhaohan@google.com</owner>
-  <owner>ergunsh@google.com</owner>
-  <summary>
-    An animation's duration or delay updated visually by dragging the animation
-    point in Animations panel in DevTools.
-  </summary>
 </histogram>
 
 <histogram name="DevTools.CDPCommandFrom{ClientType}" enum="CDPCommands"
@@ -62,6 +53,7 @@ chromium-metrics-reviews@google.com.
   <owner>wolfi@google.com</owner>
   <owner>danilsomsikov@google.com</owner>
   <owner>yangguo@google.com</owner>
+  <component>1559716</component>
   <summary>
     Records CDP command usage originating from {ClientType}. This is recorded
     whenever a CDP session receives and handles a command from a CDP client.
@@ -87,7 +79,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.DeveloperResourceLoaded"
-    enum="DevToolsDeveloperResourceLoaded" expires_after="2025-07-06">
+    enum="DevToolsDeveloperResourceLoaded" expires_after="M140">
   <owner>bmeurer@google.com</owner>
   <owner>danilsomsikov@google.com</owner>
   <summary>
@@ -122,7 +114,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.DeveloperResourceScheme"
-    enum="DevToolsDeveloperResourceScheme" expires_after="2025-07-06">
+    enum="DevToolsDeveloperResourceScheme" expires_after="M140">
   <owner>bmeurer@google.com</owner>
   <owner>danilsomsikov@google.com</owner>
   <summary>
@@ -190,6 +182,7 @@ chromium-metrics-reviews@google.com.
     expires_after="2025-11-11">
   <owner>ergunsh@google.com</owner>
   <owner>alexrudenko@google.com</owner>
+  <component>1633102</component>
   <summary>
     The size (in bytes) of the code evaluation output returned by the
     FreestylerAgent.
@@ -200,6 +193,7 @@ chromium-metrics-reviews@google.com.
     expires_after="2025-11-11">
   <owner>ergunsh@google.com</owner>
   <owner>alexrudenko@google.com</owner>
+  <component>1633102</component>
   <summary>
     The length of the query (number of characters) given to the FreestylerAgent.
   </summary>
@@ -240,6 +234,7 @@ chromium-metrics-reviews@google.com.
     expires_after="2025-09-14">
   <owner>yangguo@google.com</owner>
   <owner>danilsomsikov@google.com</owner>
+  <component>1519296</component>
   <summary>
     Records the issue type when an issue is created for the Issues Panel.
   </summary>
@@ -249,6 +244,7 @@ chromium-metrics-reviews@google.com.
     enum="DevToolsIssuesPanelIssueExpanded" expires_after="2025-08-10">
   <owner>bmeurer@google.com</owner>
   <owner>danilsomsikov@google.com</owner>
+  <component>1519296</component>
   <summary>
     Records which type of issue is expanded in the issues panel.
   </summary>
@@ -258,6 +254,7 @@ chromium-metrics-reviews@google.com.
     enum="DevToolsIssuesPanelOpenedFrom" expires_after="2025-08-10">
   <owner>bmeurer@google.com</owner>
   <owner>danilsomsikov@google.com</owner>
+  <component>1519296</component>
   <summary>
     Records which UI element is being used to open the Issues Panel.
   </summary>
@@ -267,6 +264,7 @@ chromium-metrics-reviews@google.com.
     enum="DevToolsIssuesPanelResourceOpened" expires_after="2025-08-10">
   <owner>bmeurer@google.com</owner>
   <owner>danilsomsikov@google.com</owner>
+  <component>1519296</component>
   <summary>
     Records which resource from what issue category is opened in the issue
     panel.
@@ -323,16 +321,6 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
-<histogram name="DevTools.LighthouseCategoryUsed"
-    enum="DevToolsLighthouseCategoryUsed" expires_after="2025-06-08">
-  <owner>asraine@google.com</owner>
-  <owner>paulirish@google.com</owner>
-  <owner>cjamcl@google.com</owner>
-  <summary>
-    Records when a Lighthouse category was used to audit the page.
-  </summary>
-</histogram>
-
 <histogram name="DevTools.LighthouseModeRun" enum="DevToolsLighthouseModeRun"
     expires_after="2025-07-13">
   <owner>asraine@google.com</owner>
@@ -383,6 +371,7 @@ chromium-metrics-reviews@google.com.
   <owner>alexrudenko@google.com</owner>
   <owner>mathiasb@google.com</owner>
   <owner>yangguo@google.com</owner>
+  <component>1456922</component>
   <summary>Recorded when assertions are used/edited</summary>
 </histogram>
 
@@ -391,6 +380,7 @@ chromium-metrics-reviews@google.com.
   <owner>alexrudenko@google.com</owner>
   <owner>mathiasb@google.com</owner>
   <owner>yangguo@google.com</owner>
+  <component>1456922</component>
   <summary>
     Recorded when the code view for a recording was toggled in Recorder panel.
   </summary>
@@ -401,6 +391,7 @@ chromium-metrics-reviews@google.com.
   <owner>alexrudenko@google.com</owner>
   <owner>mathiasb@google.com</owner>
   <owner>yangguo@google.com</owner>
+  <component>1456922</component>
   <summary>
     Recorded when user copies a recording or step to clipboard in Recorder
     panel.
@@ -412,6 +403,7 @@ chromium-metrics-reviews@google.com.
   <owner>alexrudenko@google.com</owner>
   <owner>mathiasb@google.com</owner>
   <owner>yangguo@google.com</owner>
+  <component>1456922</component>
   <summary>Recorded when a recording is being edited by the user.</summary>
 </histogram>
 
@@ -420,6 +412,7 @@ chromium-metrics-reviews@google.com.
   <owner>alexrudenko@google.com</owner>
   <owner>mathiasb@google.com</owner>
   <owner>yangguo@google.com</owner>
+  <component>1456922</component>
   <summary>Recorded when a recording is exported.</summary>
 </histogram>
 
@@ -428,6 +421,7 @@ chromium-metrics-reviews@google.com.
   <owner>alexrudenko@google.com</owner>
   <owner>mathiasb@google.com</owner>
   <owner>yangguo@google.com</owner>
+  <component>1456922</component>
   <summary>Recorded when a replay is over.</summary>
 </histogram>
 
@@ -437,6 +431,7 @@ chromium-metrics-reviews@google.com.
   <owner>alexrudenko@google.com</owner>
   <owner>mathiasb@google.com</owner>
   <owner>yangguo@google.com</owner>
+  <component>1456922</component>
   <summary>
     Recorded when a recording is being replayed. Used to count number of times
     replay started with which speed.
@@ -448,6 +443,7 @@ chromium-metrics-reviews@google.com.
   <owner>alexrudenko@google.com</owner>
   <owner>mathiasb@google.com</owner>
   <owner>yangguo@google.com</owner>
+  <component>1456922</component>
   <summary>Recorded when a recording is being replayed.</summary>
 </histogram>
 
@@ -456,22 +452,17 @@ chromium-metrics-reviews@google.com.
   <owner>alexrudenko@google.com</owner>
   <owner>mathiasb@google.com</owner>
   <owner>yangguo@google.com</owner>
+  <component>1456922</component>
   <summary>
     Recorded when a recording is started or finished in the Recorder panel.
   </summary>
-</histogram>
-
-<histogram name="DevTools.SidebarPaneShown" enum="DevToolsSidebarPane"
-    expires_after="2025-07-06">
-  <owner>bmeurer@google.com</owner>
-  <owner>changhaohan@google.com</owner>
-  <summary>Specified DevTools sidebar pane was shown.</summary>
 </histogram>
 
 <histogram name="DevTools.SourcesPanelFileDebugged" enum="DevToolsMediaType"
     expires_after="M140">
   <owner>bmeurer@google.com</owner>
   <owner>szuend@google.com</owner>
+  <component>1456920</component>
   <summary>
     Records the media types of files debugged in the DevTools Sources panel.
     This means the user eiter sets a breakpoint, pauses or steps in a file of
@@ -483,6 +474,7 @@ chromium-metrics-reviews@google.com.
     expires_after="M140">
   <owner>bmeurer@google.com</owner>
   <owner>szuend@google.com</owner>
+  <component>1456920</component>
   <summary>
     Records the media types of files opened in the DevTools Sources panel.
   </summary>
@@ -542,6 +534,7 @@ chromium-metrics-reviews@google.com.
     units="count" expires_after="2025-12-01">
   <owner>bmeurer@google.com</owner>
   <owner>hablich@google.com</owner>
+  <component>1456920</component>
   <summary>
     Number of directories within a workspace folder traversed while loading the
     files from the folder.
@@ -552,6 +545,7 @@ chromium-metrics-reviews@google.com.
     expires_after="2025-12-01">
   <owner>bmeurer@google.com</owner>
   <owner>hablich@google.com</owner>
+  <component>1456920</component>
   <summary>
     Number of files loaded from a workspace folder (after the exclusion patterns
     are applied).
@@ -562,6 +556,7 @@ chromium-metrics-reviews@google.com.
     expires_after="2025-12-01">
   <owner>bmeurer@google.com</owner>
   <owner>hablich@google.com</owner>
+  <component>1456920</component>
   <summary>
     Wall clock time elapsed to initially populate a Workspaces folder. Recorded
     in the FileSystem#populate() method of FileSystemWorkspaceBinding.ts.

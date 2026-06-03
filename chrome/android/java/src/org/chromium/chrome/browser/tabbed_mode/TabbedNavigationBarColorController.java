@@ -11,13 +11,11 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.Color;
-import android.os.Build;
 import android.view.Window;
 
 import androidx.annotation.ColorInt;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.Callback;
@@ -46,7 +44,6 @@ import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorObserver;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
-import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeControllerFactory;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
 import org.chromium.chrome.browser.ui.edge_to_edge.NavigationBarColorProvider;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
@@ -54,14 +51,13 @@ import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgeSupplier.ChangeObserver;
 import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgeSystemBarColorHelper;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
-import org.chromium.ui.InsetObserver;
+import org.chromium.ui.insets.InsetObserver;
 import org.chromium.ui.interpolators.Interpolators;
 import org.chromium.ui.util.ColorUtils;
 
 import java.util.Optional;
 
 /** Controls the bottom system navigation bar color for the provided {@link Window}. */
-@RequiresApi(Build.VERSION_CODES.O_MR1)
 class TabbedNavigationBarColorController
         implements BottomAttachedUiObserver.Observer, NavigationBarColorProvider {
     /** The amount of time transitioning from one color to another should take in ms. */
@@ -112,6 +108,7 @@ class TabbedNavigationBarColorController
     private boolean mForceShowDivider;
     private boolean mOverviewMode;
     private ValueAnimator mNavbarColorTransitionAnimation;
+    private @Nullable Boolean mEnabledBottomChinForTesting;
 
     /**
      * Creates a new {@link TabbedNavigationBarColorController} instance.
@@ -191,8 +188,6 @@ class TabbedNavigationBarColorController
             @NonNull ObservableSupplier<Integer> overviewColorSupplier,
             @NonNull EdgeToEdgeSystemBarColorHelper edgeToEdgeSystemBarColorHelper,
             @Nullable BottomAttachedUiObserver bottomAttachedUiObserver) {
-        assert Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1;
-
         mContext = context;
         mFullScreenManager = fullscreenManager;
         mEdgeToEdgeSystemBarColorHelper = edgeToEdgeSystemBarColorHelper;
@@ -322,9 +317,7 @@ class TabbedNavigationBarColorController
                             enableOverviewMode();
                         } else if (layoutType == LayoutType.TOOLBAR_SWIPE
                                 && ChromeFeatureList.sNavBarColorAnimation.isEnabled()
-                                && mContext instanceof Activity
-                                && EdgeToEdgeControllerFactory.isSupportedConfiguration(
-                                        (Activity) mContext)) {
+                                && isBottomChinEnabled()) {
                             // Hide the nav bar during omnibox swipes.
                             mEdgeToEdgeSystemBarColorHelper.setNavigationBarColor(
                                     Color.TRANSPARENT);
@@ -533,14 +526,17 @@ class TabbedNavigationBarColorController
         return mNavbarColorTransitionAnimation;
     }
 
+    public void setIsBottomChinEnabledForTesting(boolean isEnabled) {
+        mEnabledBottomChinForTesting = isEnabled;
+    }
+
     private boolean shouldEnableNavBarBottomChinColorAnimations() {
         // First check the dedicated feature flag.
         if (!ChromeFeatureList.sNavBarColorAnimation.isEnabled()) {
             return false;
         }
         // Next check whether the bottom chin is enabled.
-        if (EdgeToEdgeUtils.isEdgeToEdgeBottomChinEnabled()
-                && mEdgeToEdgeControllerSupplier.get() != null) {
+        if (isBottomChinEnabled() && mEdgeToEdgeControllerSupplier.get() != null) {
             return !ChromeFeatureList.sNavBarColorAnimationDisableBottomChinColorAnimation
                     .getValue();
         }
@@ -551,6 +547,15 @@ class TabbedNavigationBarColorController
         }
         // Disable animations.
         return false;
+    }
+
+    private boolean isBottomChinEnabled() {
+        if (mEnabledBottomChinForTesting != null) {
+            return mEnabledBottomChinForTesting;
+        }
+
+        return mContext instanceof Activity
+                && EdgeToEdgeUtils.isEdgeToEdgeBottomChinEnabled((Activity) mContext);
     }
 
     @Override

@@ -4,12 +4,13 @@
 
 package org.chromium.chrome.browser.feed;
 
+import static org.chromium.components.browser_ui.styles.SemanticColorUtils.getDefaultIconColor;
+
 import android.app.Activity;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.content.res.Configuration;
 import android.graphics.Canvas;
-import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
@@ -76,7 +77,6 @@ import org.chromium.chrome.browser.xsurface.feed.FeedUserInteractionReliabilityL
 import org.chromium.chrome.browser.xsurface.feed.FeedUserInteractionReliabilityLogger.ClosedReason;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgePadAdjuster;
-import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.browser_ui.widget.displaystyle.UiConfig;
 import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.Tracker;
@@ -491,8 +491,7 @@ public class FeedSurfaceCoordinator
             mNtpCustomizationButton.setBackgroundResource(R.drawable.edit_icon_circle_background);
             ImageViewCompat.setImageTintList(
                     mNtpCustomizationButton,
-                    ColorStateList.valueOf(
-                            SemanticColorUtils.getColorOnSurface(mRootView.getContext())));
+                    ColorStateList.valueOf(getDefaultIconColor(mRootView.getContext())));
             int size =
                     mActivity
                             .getResources()
@@ -963,9 +962,7 @@ public class FeedSurfaceCoordinator
 
             // Work around https://crbug.com/943873 where default focus highlight shows up after
             // toggling dark mode.
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                view.setDefaultFocusHighlightEnabled(false);
-            }
+            view.setDefaultFocusHighlightEnabled(false);
             if (mOverScrollDisabled) {
                 view.setOverScrollMode(View.OVER_SCROLL_NEVER);
             }
@@ -1270,7 +1267,7 @@ public class FeedSurfaceCoordinator
 
     @Override
     public boolean isFeedExpanded() {
-        return mSectionHeaderModel.get(SectionHeaderListProperties.IS_SECTION_ENABLED_KEY);
+        return mMediator.isSuggestionsVisible();
     }
 
     @Override

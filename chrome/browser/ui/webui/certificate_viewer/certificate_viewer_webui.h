@@ -16,14 +16,8 @@
 #include "components/server_certificate_database/server_certificate_database.h"
 #include "components/server_certificate_database/server_certificate_database.pb.h"
 #include "content/public/browser/web_ui_message_handler.h"
-#include "crypto/crypto_buildflags.h"
-#include "net/cert/x509_certificate.h"
 #include "ui/gfx/native_widget_types.h"
 #include "ui/web_dialogs/web_dialog_delegate.h"
-
-#if BUILDFLAG(USE_NSS_CERTS)
-#include "net/cert/scoped_nss_types.h"
-#endif
 
 namespace content {
 class WebContents;
@@ -44,16 +38,8 @@ class ConstrainedWebDialogDelegate;
 // "View" from the Certificate Manager.
 class CertificateViewerDialog : public ui::WebDialogDelegate {
  public:
-#if BUILDFLAG(USE_NSS_CERTS)
-  static CertificateViewerDialog* ShowConstrained(
-      net::ScopedCERTCertificateList nss_certs,
-      content::WebContents* web_contents,
-      gfx::NativeWindow parent);
-#endif
-
   static CertificateViewerDialog* ShowConstrained(
       std::vector<bssl::UniquePtr<CRYPTO_BUFFER>> certs,
-      std::vector<std::string> cert_nicknames,
       content::WebContents* web_contents,
       gfx::NativeWindow parent);
 
@@ -84,7 +70,6 @@ class CertificateViewerDialog : public ui::WebDialogDelegate {
   // If |modifications_callback| is not null, |cert_metadata| must be present.
   static CertificateViewerDialog* ShowConstrained(
       std::vector<bssl::UniquePtr<CRYPTO_BUFFER>> certs,
-      std::vector<std::string> cert_nicknames,
       std::optional<
           chrome_browser_server_certificate_database::CertificateMetadata>
           cert_metadata,
@@ -97,7 +82,6 @@ class CertificateViewerDialog : public ui::WebDialogDelegate {
   // viewer.
   CertificateViewerDialog(
       std::vector<bssl::UniquePtr<CRYPTO_BUFFER>> certs,
-      std::vector<std::string> cert_nicknames,
       std::optional<
           chrome_browser_server_certificate_database::CertificateMetadata>
           cert_metadata,

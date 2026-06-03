@@ -23,6 +23,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "components/affiliations/core/browser/affiliation_utils.h"
@@ -59,6 +60,7 @@
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "google_apis/gaia/gaia_id.h"
 #include "net/base/url_util.h"
+#include "url/gurl.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "components/webauthn/android/webauthn_cred_man_delegate.h"
@@ -823,7 +825,7 @@ void PasswordFormManager::SaveSuggestedUsernameValueToVotesUploader() {
   }
 }
 
-std::unique_ptr<PasswordFormManager> PasswordFormManager::Clone() {
+std::unique_ptr<PasswordFormManager> PasswordFormManager::Clone() const {
   // Fetcher is cloned to avoid re-fetching data from PasswordStore.
   std::unique_ptr<FormFetcher> fetcher = form_fetcher_->Clone();
 
@@ -891,10 +893,11 @@ void PasswordFormManager::OnFetchCompleted() {
   newly_blocklisted_ = false;
   autofills_left_ = kMaxTimesAutofill;
 
+  std::optional<PasswordStoreBackendError> error = std::nullopt;
 #if BUILDFLAG(IS_ANDROID)
-  std::optional<PasswordStoreBackendError> error = GetErrorForErrorMessage(
-      form_fetcher_->GetProfileStoreBackendError(),
-      form_fetcher_->GetAccountStoreBackendError(), client_);
+  error = GetErrorForErrorMessage(form_fetcher_->GetProfileStoreBackendError(),
+                                  form_fetcher_->GetAccountStoreBackendError(),
+                                  client_);
 
   // If there is no FormData, this is an http authentication form. We don't
   // show the message for it because it would be hidden behind a sign in
@@ -933,7 +936,7 @@ void PasswordFormManager::OnFetchCompleted() {
 
   client_->UpdateCredentialCache(url::Origin::Create(GetURL()),
                                  form_fetcher_->GetBestMatches(),
-                                 form_fetcher_->IsBlocklisted());
+                                 form_fetcher_->IsBlocklisted(), error);
 
   if (is_submitted_) {
     CreatePendingCredentials();
@@ -1342,6 +1345,30 @@ FormParsingResult PasswordFormManager::ParseFormAndMakeLogging(
     }
   }
   return form_parsing_result;
+}
+void PasswordFormManager::UpdateBackupPassword(
+    const std::u16string& backup_password) {
+  CHECK(parsed_submitted_form_);
+  parsed_submitted_form_->SetPasswordBackupNote(backup_password);
+  CreatePendingCredentials();
+}
+
+void PasswordFormManager::PresaveGeneratedPasswordAsBackup(
+    const PasswordFormManager& form_manager,
+    PasswordForm form,
+    const std::u16string& generated_password) {
+  CHECK(!form.password_value.empty());
+  CHECK(!form.username_value.empty());
+  form.SetPasswordBackupNote(generated_password);
+  // Create a temporary manager to avoid changing the state of |this|.
+  // TODO(crbug.com/422125487): Fix metrics duplication.
+  std::unique_ptr<PasswordFormManager> temporary_password_form_manager =
+      form_manager.Clone();
+  temporary_password_form_manager->parsed_submitted_form_ =
+      std::make_unique<PasswordForm>(std::move(form));
+  temporary_password_form_manager->is_submitted_ = true;
+  temporary_password_form_manager->CreatePendingCredentials();
+  temporary_password_form_manager->Save();
 }
 
 void PasswordFormManager::PresaveGeneratedPasswordInternal(

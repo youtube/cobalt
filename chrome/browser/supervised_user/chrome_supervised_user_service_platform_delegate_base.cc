@@ -63,8 +63,7 @@ void ChromeSupervisedUserServicePlatformDelegateBase::
               IdentityManagerFactory::GetForProfile(&profile_.get()),
               *profile_->GetPrefs(),
               *HostContentSettingsMapFactory::GetForProfile(&profile_.get()),
-              supervised_user_service ? supervised_user_service->GetURLFilter()
-                                      : nullptr)
+              supervised_user_service)
               .GetSupervisionStatusForPrimaryAccount();
   if (!user_log_segment.has_value()) {
     return;
@@ -72,9 +71,21 @@ void ChromeSupervisedUserServicePlatformDelegateBase::
 
   switch (user_log_segment.value()) {
     case supervised_user::FamilyLinkUserLogRecord::Segment::
-        kSupervisionEnabledByPolicy:
+        kSupervisionEnabledByFamilyLinkPolicy:
     case supervised_user::FamilyLinkUserLogRecord::Segment::
-        kSupervisionEnabledByUser:
+        kSupervisionEnabledByFamilyLinkUser:
+    case supervised_user::FamilyLinkUserLogRecord::Segment::
+        kSupervisionEnabledLocally:
+      if (!supervised_user_service->IsLocalContentFilteringEnabled()) {
+        CHECK(supervised_user_service->IsSupervisedLocally());
+        // This sub-state is exceptionally allowed: user is attributed to local
+        // supervision, but that supervision is enabled due to other reasons
+        // than browser content filtering (which would disable the incognito
+        // mode). In other words, that's a type of supervised user who can use
+        // incognito mode.
+        return;
+      }
+
       // This is a supervised profile. It is not expected for incognito to be
       // available except in some edge cases. Output the edge cases separately
       // from the "unexpected" bucket.

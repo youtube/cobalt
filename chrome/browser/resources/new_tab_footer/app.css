@@ -7,21 +7,27 @@
  * #scheme=relative
  * #css_wrapper_metadata_end */
 
-#centerContainer {
+#container {
   display: flex;
   justify-content: center;
   margin: 12px auto;
-  max-width: 400px;
 }
 
-#centerContainer > div {
+#infoContainer {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+  padding: 0 210px;
+}
+
+.notice-item {
   min-width: calc-size(fit-content, min(50%, size));
   padding: 0 16px;
   position: relative;
 }
 
-#centerContainer > div > p,
-#centerContainer > div > button {
+.notice-item > p,
+.notice-item > button {
   color: var(--color-new-tab-footer-text);
   font-size: 13px;
   line-height: 20px;
@@ -41,13 +47,9 @@
   text-decoration: underline;
 }
 
-[role="link"]:hover {
-  background: var(--color-new-tab-page-button-background-hovered);
-}
-
-/* Add a vertical divider after each centerContainer item in the footer
+/* Add a vertical divider after each container item in the footer
  * except the last one. */
-#centerContainer > div:not(:last-child):after {
+#infoContainer > div:not(:last-child):after {
   background-color: var(--color-new-tab-footer-text);
   content: "";
   display: inline-block;
@@ -58,13 +60,43 @@
   width: 1px;
 }
 
+#customizeButtons {
+  position: absolute;
+}
+
+:host-context([dir='ltr']) #customizeButtons {
+  right: 16px;
+}
+
+:host-context([dir='rtl']) #customizeButtons {
+  left: 16px;
+}
+
 #managementNoticeContainer {
   display: flex;
 }
 
-#managementNoticeLogo {
-  padding-right: 16px;
+#managementNoticeLogoContainer {
+  align-items: center;
+  display: flex;
+  flex-shrink: 0;
+  height: 32px;
+  justify-content: center;
+  width: 32px;
+  margin-right: 8px;
+}
+
+.custom_logo {
+  background-color: var(--color-new-tab-footer-logo-background);
+  border-radius: 8px;
+}
+
+#managementNoticeLogoContainer > cr-icon,
+#managementNoticeLogoContainer > img {
   width: 20px;
   height: 20px;
-  transform: translateY(+25%);
+}
+
+cr-icon {
+   --iron-icon-fill-color: var(--color-new-tab-footer-text);
 }

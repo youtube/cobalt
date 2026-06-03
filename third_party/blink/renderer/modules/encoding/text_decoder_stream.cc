@@ -31,7 +31,7 @@ namespace blink {
 class TextDecoderStream::Transformer final : public TransformStreamTransformer {
  public:
   explicit Transformer(ScriptState* script_state,
-                       WTF::TextEncoding encoding,
+                       TextEncoding encoding,
                        bool fatal,
                        bool ignore_bom)
       : decoder_(NewTextCodec(encoding)),
@@ -62,7 +62,7 @@ class TextDecoderStream::Transformer final : public TransformStreamTransformer {
           "Buffer size exceeds maximum heap object size.");
       return EmptyPromise();
     }
-    DecodeAndEnqueue(array_piece.ByteSpan(), WTF::FlushBehavior::kDoNotFlush,
+    DecodeAndEnqueue(array_piece.ByteSpan(), FlushBehavior::kDoNotFlush,
                      controller, exception_state);
     return ToResolvedUndefinedPromise(script_state_.Get());
   }
@@ -71,8 +71,7 @@ class TextDecoderStream::Transformer final : public TransformStreamTransformer {
   ScriptPromise<IDLUndefined> Flush(
       TransformStreamDefaultController* controller,
       ExceptionState& exception_state) override {
-    DecodeAndEnqueue({}, WTF::FlushBehavior::kDataEOF, controller,
-                     exception_state);
+    DecodeAndEnqueue({}, FlushBehavior::kDataEOF, controller, exception_state);
 
     return ToResolvedUndefinedPromise(script_state_.Get());
   }
@@ -88,7 +87,7 @@ class TextDecoderStream::Transformer final : public TransformStreamTransformer {
   // Implements the second part of "decode and enqueue a chunk" as well as the
   // "flush and enqueue" algorithm.
   void DecodeAndEnqueue(base::span<const uint8_t> data,
-                        WTF::FlushBehavior flush,
+                        FlushBehavior flush,
                         TransformStreamDefaultController* controller,
                         ExceptionState& exception_state) {
     const UChar kBOM = 0xFEFF;
@@ -122,12 +121,12 @@ class TextDecoderStream::Transformer final : public TransformStreamTransformer {
         exception_state);
   }
 
-  static bool EncodingHasBomRemoval(const WTF::TextEncoding& encoding) {
+  static bool EncodingHasBomRemoval(const TextEncoding& encoding) {
     const AtomicString& name = encoding.GetName();
     return name == "UTF-8" || name == "UTF-16LE" || name == "UTF-16BE";
   }
 
-  std::unique_ptr<WTF::TextCodec> decoder_;
+  std::unique_ptr<TextCodec> decoder_;
   // There is no danger of ScriptState leaking across worlds because a
   // TextDecoderStream can only be accessed from the world that created it.
   Member<ScriptState> script_state_;
@@ -141,8 +140,7 @@ TextDecoderStream* TextDecoderStream::Create(ScriptState* script_state,
                                              const String& label,
                                              const TextDecoderOptions* options,
                                              ExceptionState& exception_state) {
-  WTF::TextEncoding encoding(
-      label.StripWhiteSpace(&encoding::IsASCIIWhiteSpace));
+  TextEncoding encoding(label.StripWhiteSpace(&encoding::IsASCIIWhiteSpace));
   // The replacement encoding is not valid, but the Encoding API also
   // rejects aliases of the replacement encoding.
   if (!encoding.IsValid() ||
@@ -176,7 +174,7 @@ void TextDecoderStream::Trace(Visitor* visitor) const {
 }
 
 TextDecoderStream::TextDecoderStream(ScriptState* script_state,
-                                     const WTF::TextEncoding& encoding,
+                                     const TextEncoding& encoding,
                                      const TextDecoderOptions* options,
                                      ExceptionState& exception_state)
     : transform_(TransformStream::Create(

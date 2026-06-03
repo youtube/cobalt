@@ -24,6 +24,8 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/process/memory.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
 #include "base/types/pass_key.h"
@@ -37,6 +39,8 @@
 #include "media/base/video_util.h"
 #include "ui/gfx/buffer_format_util.h"
 #include "ui/gfx/geometry/point.h"
+
+// TODO(crbug.com/40263579): Remove.
 #include "ui/gfx/gpu_memory_buffer.h"
 
 #if BUILDFLAG(IS_APPLE)
@@ -543,22 +547,6 @@ scoped_refptr<VideoFrame> VideoFrame::WrapExternalData(
     const gfx::Size& coded_size,
     const gfx::Rect& visible_rect,
     const gfx::Size& natural_size,
-    const uint8_t* data,
-    size_t data_size,
-    base::TimeDelta timestamp) {
-  auto layout = GetDefaultLayout(format, coded_size);
-  if (!layout)
-    return nullptr;
-  return WrapExternalDataWithLayout(*layout, visible_rect, natural_size, data,
-                                    data_size, timestamp);
-}
-
-// static
-scoped_refptr<VideoFrame> VideoFrame::WrapExternalData(
-    VideoPixelFormat format,
-    const gfx::Size& coded_size,
-    const gfx::Rect& visible_rect,
-    const gfx::Size& natural_size,
     base::span<const uint8_t> data,
     base::TimeDelta timestamp) {
   auto layout = GetDefaultLayout(format, coded_size);
@@ -734,33 +722,6 @@ scoped_refptr<VideoFrame> VideoFrame::WrapExternalYuvData(
     frame->data_[plane] = data[plane];
   }
   return frame;
-}
-
-// TODO(crbug.com/338570700): This method needs to be remove in favour
-// of its span version.
-// static
-scoped_refptr<VideoFrame> VideoFrame::WrapExternalYuvData(
-    VideoPixelFormat format,
-    const gfx::Size& coded_size,
-    const gfx::Rect& visible_rect,
-    const gfx::Size& natural_size,
-    size_t y_stride,
-    size_t uv_stride,
-    const uint8_t* y_data,
-    const uint8_t* uv_data,
-    base::TimeDelta timestamp) {
-  auto layout = VideoFrameLayout::CreateWithStrides(format, coded_size,
-                                                    {y_stride, uv_stride});
-  if (!layout) {
-    DLOG(ERROR) << "Invalid layout.";
-    return nullptr;
-  }
-
-  return WrapExternalYuvData(
-      format, coded_size, visible_rect, natural_size, y_stride, uv_stride,
-      UNSAFE_TODO(base::span(y_data, layout->planes()[Plane::kY].size)),
-      UNSAFE_TODO(base::span(uv_data, layout->planes()[Plane::kUV].size)),
-      timestamp);
 }
 
 // static
@@ -1298,17 +1259,24 @@ size_t VideoFrame::Columns(size_t plane, VideoPixelFormat format, int width) {
 }
 
 // static
-void VideoFrame::HashFrameForTesting(base::MD5Context* context,
-                                     const VideoFrame& frame) {
-  DCHECK(context);
+void VideoFrame::UpdateHashWithFrameForTesting(crypto::hash::Hasher& hasher,
+                                               const VideoFrame& frame) {
   for (size_t plane = 0; plane < NumPlanes(frame.format()); ++plane) {
     for (int row = 0; row < frame.rows(plane); ++row) {
-      base::MD5Update(context,
-                      frame.data_[plane].subspan(
-                          base::checked_cast<size_t>(frame.stride(plane) * row),
-                          base::checked_cast<size_t>(frame.row_bytes(plane))));
+      hasher.Update(frame.data_[plane].subspan(
+          base::checked_cast<size_t>(frame.stride(plane) * row),
+          base::checked_cast<size_t>(frame.row_bytes(plane))));
     }
   }
+}
+
+// static
+std::string VideoFrame::HexHashOfFrameForTesting(const VideoFrame& frame) {
+  crypto::hash::Hasher hasher(crypto::hash::HashKind::kSha256);
+  UpdateHashWithFrameForTesting(hasher, frame);  // IN-TEST
+  std::array<uint8_t, crypto::hash::kSha256Size> hash;
+  hasher.Finish(hash);
+  return base::ToLowerASCII(base::HexEncode(hash));
 }
 
 void VideoFrame::BackWithSharedMemory(
@@ -1604,15 +1572,6 @@ void VideoFrame::SetReleaseMailboxCB(ReleaseMailboxCB release_mailbox_cb) {
   DCHECK(!wrapped_frame_);
   mailbox_holder_and_gmb_release_cb_ =
       WrapReleaseMailboxCB(std::move(release_mailbox_cb));
-}
-
-void VideoFrame::SetReleaseMailboxAndGpuMemoryBufferCB(
-    ReleaseMailboxAndGpuMemoryBufferCB release_mailbox_cb) {
-  // See remarks in SetReleaseMailboxCB.
-  DCHECK(release_mailbox_cb);
-  DCHECK(!mailbox_holder_and_gmb_release_cb_);
-  DCHECK(!wrapped_frame_);
-  mailbox_holder_and_gmb_release_cb_ = std::move(release_mailbox_cb);
 }
 
 bool VideoFrame::HasReleaseMailboxCB() const {

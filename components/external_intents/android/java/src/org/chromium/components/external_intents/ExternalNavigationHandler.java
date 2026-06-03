@@ -1183,16 +1183,17 @@ public class ExternalNavigationHandler {
      * specialized external app handling it.
      */
     private OverrideUrlLoadingResult fallBackToHandlingInApp(ExternalNavigationParams params) {
-        if (debug()) Log.i(TAG, "No specialized handler for URL");
         // The default behavior for Desktop windowing should be to open a browser tab. In case
-        // the navigation starts in a PWA, we should reparent the tab to the browser.
+        // a new frame navigation starts in a PWA, we should reparent the tab to the browser.
         if (ExternalIntentsFeatures.REPARENT_TOP_LEVEL_NAVIGATION_FROM_PWA.isEnabled()
                 && params.isInDesktopWindowingMode()
                 && params.isInitialNavigationInFrame()
-                && params.isTabInPWA()) {
+                && params.isTabInPWA()
+                && !params.isFromIntent()) {
             if (debug()) Log.i(TAG, "No specialized handler found, reparent to browser.");
             return OverrideUrlLoadingResult.forReparentToBrowser();
         }
+        if (debug()) Log.i(TAG, "No specialized handler for URL");
         return OverrideUrlLoadingResult.forNoOverride();
     }
 
@@ -1589,6 +1590,17 @@ public class ExternalNavigationHandler {
         if (selfScheme != null && intentTargetUrl.getScheme().equals(selfScheme)) {
             intentTargetUrl =
                     new GURL(getUrlFromSelfSchemeUrl(selfScheme, intentTargetUrl.getSpec()));
+        }
+
+        if (params.isIncognito() && params.getUrl() != null) {
+            // Accessing chrome://extensions in incognito is not allowed, and causes sending an
+            // intent to chrome to open the same page on a regular tab. On non-android desktop, the
+            // same logic is implemented in browser_navigator.cc, but the file is not compiled on
+            // android.
+            Intent intent = mDelegate.createIntentToPreventIncognitoAccess(params.getUrl());
+            if (intent != null) {
+                return startActivity(intent, params);
+            }
         }
 
         // Needs to be checked first as a failure for this reason is persisted through the
@@ -2109,8 +2121,8 @@ public class ExternalNavigationHandler {
      *
      * @param intent The intent we want to send.
      */
-    private void startActivity(Intent intent, ExternalNavigationParams params) {
-        startActivity(intent, params, false, null, null, null, null);
+    private OverrideUrlLoadingResult startActivity(Intent intent, ExternalNavigationParams params) {
+        return startActivity(intent, params, false, null, null, null, null);
     }
 
     /**

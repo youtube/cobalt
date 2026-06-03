@@ -110,15 +110,23 @@ class LensOverlayPageActionIconViewTest
   LensOverlayPageActionIconViewTest() {
     if (IsMigrationEnabled()) {
       scoped_feature_list_.InitWithFeaturesAndParameters(
-          {{lens::features::kLensOverlay, {}},
-           {::features::kPageActionsMigration,
-            {
-                {::features::kPageActionsMigrationLensOverlay.name, "true"},
-            }}},
+          {
+              {lens::features::kLensOverlay, {}},
+              {lens::features::kLensOverlayOmniboxEntryPoint, {}},
+              {
+                  ::features::kPageActionsMigration,
+                  {
+                      {::features::kPageActionsMigrationLensOverlay.name,
+                       "true"},
+                  },
+              },
+          },
           {});
     } else {
       scoped_feature_list_.InitWithFeatures(
-          {lens::features::kLensOverlay}, {::features::kPageActionsMigration});
+          {lens::features::kLensOverlay,
+           lens::features::kLensOverlayOmniboxEntryPoint},
+          {::features::kPageActionsMigration});
     }
   }
 
@@ -166,8 +174,9 @@ class LensOverlayPageActionIconViewTestOmniboxEntryPointDisabled
       scoped_feature_list_.InitWithFeaturesAndParameters(
           {base::test::FeatureRefAndParams(lens::features::kLensOverlay,
                                            {{"omnibox-entry-point", "false"}}),
-           base::test::FeatureRefAndParams(::features::kPageActionsMigration,
-                                           {})},
+           base::test::FeatureRefAndParams(
+               ::features::kPageActionsMigration,
+               {{::features::kPageActionsMigrationLensOverlay.name, "true"}})},
           {});
     } else {
       scoped_feature_list_.InitWithFeaturesAndParameters(

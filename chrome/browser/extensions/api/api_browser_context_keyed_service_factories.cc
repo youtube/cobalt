@@ -6,8 +6,13 @@
 #include "chrome/browser/extensions/api/bookmarks/bookmarks_api_watcher.h"
 #include "chrome/browser/extensions/api/cookies/cookies_api.h"
 #include "chrome/browser/extensions/api/developer_private/developer_private_api.h"
+#include "chrome/browser/extensions/api/font_settings/font_settings_api.h"
 #include "chrome/browser/extensions/api/history/history_api.h"
 #include "chrome/browser/extensions/api/notifications/extension_notification_display_helper_factory.h"
+#include "chrome/browser/extensions/api/permissions/permissions_event_router_factory.h"
+#include "chrome/browser/extensions/api/preference/preference_api.h"
+#include "chrome/browser/extensions/api/processes/processes_api.h"
+#include "chrome/browser/extensions/api/reading_list/reading_list_event_router_factory.h"
 #include "chrome/browser/extensions/commands/command_service.h"
 #include "chrome/common/buildflags.h"
 #include "extensions/buildflags/buildflags.h"
@@ -23,7 +28,6 @@
 #include "chrome/browser/extensions/api/bookmark_manager_private/bookmark_manager_private_api.h"
 #include "chrome/browser/extensions/api/braille_display_private/braille_display_private_api.h"
 #include "chrome/browser/extensions/api/enterprise_reporting_private/enterprise_reporting_private_event_router.h"
-#include "chrome/browser/extensions/api/font_settings/font_settings_api.h"
 #include "chrome/browser/extensions/api/identity/identity_api.h"
 #include "chrome/browser/extensions/api/image_writer_private/operation_manager.h"
 #include "chrome/browser/extensions/api/language_settings_private/language_settings_private_delegate_factory.h"
@@ -32,10 +36,6 @@
 #include "chrome/browser/extensions/api/omnibox/omnibox_api.h"
 #include "chrome/browser/extensions/api/passwords_private/passwords_private_delegate_factory.h"
 #include "chrome/browser/extensions/api/passwords_private/passwords_private_event_router_factory.h"
-#include "chrome/browser/extensions/api/permissions/permissions_event_router_factory.h"
-#include "chrome/browser/extensions/api/preference/preference_api.h"
-#include "chrome/browser/extensions/api/processes/processes_api.h"
-#include "chrome/browser/extensions/api/reading_list/reading_list_event_router_factory.h"
 #include "chrome/browser/extensions/api/sessions/sessions_api.h"
 #include "chrome/browser/extensions/api/settings_overrides/settings_overrides_api.h"
 #include "chrome/browser/extensions/api/settings_private/settings_private_event_router_factory.h"
@@ -84,7 +84,11 @@ void EnsureApiBrowserContextKeyedServiceFactoriesBuilt() {
   extensions::CookiesAPI::GetFactoryInstance();
   extensions::DeveloperPrivateAPI::GetFactoryInstance();
   extensions::ExtensionNotificationDisplayHelperFactory::GetInstance();
+  extensions::FontSettingsAPI::GetFactoryInstance();
   extensions::HistoryAPI::GetFactoryInstance();
+  extensions::PermissionsEventRouterFactory::GetInstance();
+  extensions::PreferenceAPI::GetFactoryInstance();
+  extensions::ProcessesAPI::GetFactoryInstance();
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   extensions::ActivityLogAPI::GetFactoryInstance();
@@ -96,7 +100,6 @@ void EnsureApiBrowserContextKeyedServiceFactoriesBuilt() {
   extensions::DocumentScanAPIHandler::GetFactoryInstance();
 #endif
   extensions::EnterpriseReportingPrivateEventRouterFactory::GetInstance();
-  extensions::FontSettingsAPI::GetFactoryInstance();
   extensions::IdentityAPI::GetFactoryInstance();
   extensions::IncognitoConnectability::EnsureFactoryBuilt();
 #if BUILDFLAG(IS_CHROMEOS)
@@ -116,12 +119,9 @@ void EnsureApiBrowserContextKeyedServiceFactoriesBuilt() {
   extensions::OmniboxAPI::GetFactoryInstance();
   extensions::PasswordsPrivateDelegateFactory::GetInstance();
   extensions::PasswordsPrivateEventRouterFactory::GetInstance();
-  extensions::PermissionsEventRouterFactory::GetInstance();
-  extensions::PreferenceAPI::GetFactoryInstance();
 #if BUILDFLAG(IS_CHROMEOS) && BUILDFLAG(USE_CUPS)
   extensions::PrintingAPIHandler::GetFactoryInstance();
 #endif
-  extensions::ProcessesAPI::GetFactoryInstance();
   extensions::ReadingListEventRouterFactory::GetInstance();
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   extensions::SafeBrowsingPrivateEventRouterFactory::GetInstance();

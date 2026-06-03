@@ -27,6 +27,7 @@ export class OverlayBorderGlowElement extends CrLitElement {
         type: Boolean,
         reflect: true,
       },
+      selectionOverlayRect: {type: DOMRect},
     };
   }
 
@@ -34,11 +35,12 @@ export class OverlayBorderGlowElement extends CrLitElement {
   private accessor isFadingOut: boolean = false;
   // Whether the border glow is fading in.
   private accessor isFadingIn: boolean = false;
+  // The bounding box of the selection overlay.
+  private accessor selectionOverlayRect: DOMRect = new DOMRect(0, 0, 0, 0);
 
   static override get styles() {
     return getCss();
   }
-
 
   protected getGradientColorStyles(): string {
     const styles: string[] = [
@@ -50,13 +52,23 @@ export class OverlayBorderGlowElement extends CrLitElement {
     return styles.join(';');
   }
 
+  protected getBoundsStyles(): string {
+    /* Height and width must be larger than the diagonal of the viewport,
+    in order to prevent gaps at the corners while rotating. */
+    const longestSide = Math.max(
+        this.selectionOverlayRect.width, this.selectionOverlayRect.height);
+    return `width: ${longestSide * 1.5}px; height: ${longestSide * 1.5}px`;
+  }
+
   handleGestureStart() {
     this.isFadingOut = true;
   }
 
-  /* TODO(crbug.com/419035304): Trigger this when the CSB thumbnail is removed.
-   */
-  handleRemoveSearchboxThumbnail() {
+  handlePostSelectionUpdated() {
+    this.isFadingOut = true;
+  }
+
+  handleClearSelection() {
     this.isFadingOut = false;
     this.isFadingIn = true;
   }
@@ -73,3 +85,15 @@ declare global {
 }
 
 customElements.define(OverlayBorderGlowElement.is, OverlayBorderGlowElement);
+
+// Register the custom property for the gradient mask opacity middle value.
+// Custom properties are ignored by the browser in shadow DOMs, so need to
+// register them globally here. Additionally, the property can only by
+// registered once per document, so this must be done in the main window, rather
+// than in the class itself.
+window.CSS.registerProperty({
+  name: '--gradient-mask-opacity-middle-val',
+  syntax: '<number>',
+  inherits: false,
+  initialValue: '0',
+});

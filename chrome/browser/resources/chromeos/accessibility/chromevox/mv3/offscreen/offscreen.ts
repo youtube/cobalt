@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 import {EarconEngine} from '../background/earcon_engine.js';
+import {BackgroundBridge} from '../common/background_bridge.js';
 import {InternalKeyEvent} from '../common/internal_key_event.js';
+import {LearnModeBridge} from '../common/learn_mode_bridge.js';
 import {OffscreenCommandType} from '../common/offscreen_command_type.js';
 
 import {LibLouisWorker} from './liblouis_worker.js';
@@ -37,33 +39,105 @@ class OffscreenBackgroundKeyboardHandler {
    * Handles key down events using the offscreen DOM and forwards them to the
    * ChromeVox service worker.
    */
-  private onKeyDown_(evt: KeyboardEvent): void {
-    this.sendKeyEventToServiceWorker_(OffscreenCommandType.ON_KEY_DOWN, evt);
+  private async onKeyDown_(evt: KeyboardEvent): Promise<void> {
+    const internalEvt = new InternalKeyEvent(evt);
+    const stopPropagation =
+        await BackgroundBridge.BackgroundKeyboardHandler.onKeyDown(internalEvt);
+    if (stopPropagation) {
+      evt.preventDefault();
+      evt.stopPropagation();
+    }
   }
 
   /**
    * Handles key up events using the offscreen DOM and forwards them to the
    * ChromeVox service worker.
    */
-  private onKeyUp_(evt: KeyboardEvent): void {
-    this.sendKeyEventToServiceWorker_(OffscreenCommandType.ON_KEY_UP, evt);
+  private async onKeyUp_(evt: KeyboardEvent): Promise<void> {
+    const internalEvt = new InternalKeyEvent(evt);
+    const stopPropagation =
+        await BackgroundBridge.BackgroundKeyboardHandler.onKeyUp(internalEvt);
+    if (stopPropagation) {
+      evt.preventDefault();
+      evt.stopPropagation();
+    }
+  }
+}
+
+/**
+ * Handles keydown and keyup events when Learn Mode is initiated.
+ */
+class OffscreenLearnModeKeyboardHandler {
+  static instance?: OffscreenLearnModeKeyboardHandler;
+
+  constructor() {
+    // Add listeners to chrome.runtime
+    chrome.runtime.onMessage.addListener(
+        (message: any|undefined, _sender: chrome.runtime.MessageSender,
+         _sendResponse: SendResponse) =>
+            this.handleMessageFromLearnMode_(message));
   }
 
+  private handleMessageFromLearnMode_(message: any|undefined): boolean {
+    switch (message.command) {
+      case OffscreenCommandType.LEARN_MODE_REGISTER_LISTENERS:
+        this.registerListeners_();
+        break;
+      case OffscreenCommandType.LEARN_MODE_REMOVE_LISTENERS:
+        this.removeListeners_();
+        break;
+    }
+    // Returns false as the response is not asynchronous and the callback does
+    // not need to be kept alive.
+    return false;
+  }
 
-  private sendKeyEventToServiceWorker_(
-      command: OffscreenCommandType, evt: KeyboardEvent) {
-    const extensionId = undefined;
-    const message = {command, internalEvent: new InternalKeyEvent(evt)};
-    const options = undefined;
-    const callback = (value: any) => {
-      if (value as boolean) {
+  static init(): void {
+    if (OffscreenLearnModeKeyboardHandler.instance) {
+      throw 'Error: trying to create two instances of singleton ' +
+          'OffscreenLearnModeKeyboardHandler.';
+    }
+    OffscreenLearnModeKeyboardHandler.instance =
+        new OffscreenLearnModeKeyboardHandler();
+  }
+
+  private registerListeners_(): void {
+    window.addEventListener('keydown', this.onKeyDown_, true);
+    window.addEventListener('keyup', this.onKeyUp_, true);
+    window.addEventListener('keypress', this.onKeyPress_, true);
+  }
+
+  private removeListeners_(): void {
+    window.removeEventListener('keydown', this.onKeyDown_, true);
+    window.removeEventListener('keyup', this.onKeyUp_, true);
+    window.removeEventListener('keypress', this.onKeyPress_, true);
+  }
+
+  private onKeyDown_(evt: KeyboardEvent): void {
+    const internalEvt = new InternalKeyEvent(evt);
+    LearnModeBridge.onKeyDown(internalEvt).then((stopProp: boolean) => {
+      if (stopProp) {
         evt.preventDefault();
         evt.stopPropagation();
       }
-    };
-    chrome.runtime.sendMessage(extensionId, message, options, callback);
+    });
+  }
+
+  private onKeyUp_(evt: KeyboardEvent): void {
+    evt.preventDefault();
+    evt.stopPropagation();
+
+    LearnModeBridge.onKeyUp();
+  }
+
+  private onKeyPress_(evt: KeyboardEvent): void {
+    evt.preventDefault();
+    evt.stopPropagation();
+
+    LearnModeBridge.onKeyPress();
   }
 }
+
 
 /**
  * Handles DOM interactions when accessing and tracking access to the clipboard,
@@ -151,8 +225,8 @@ class OffscreenSpeechSynthesis {
   constructor() {
     if (window.speechSynthesis) {
       window.speechSynthesis.onvoiceschanged = () => {
-        chrome.runtime.sendMessage(
-            undefined, {command: OffscreenCommandType.ON_VOICES_CHANGED});
+        BackgroundBridge.LocaleOutputHelper.onVoicesChanged();
+        BackgroundBridge.PrimaryTts.onVoicesChanged();
       };
     }
 
@@ -252,6 +326,7 @@ class OffscreenBrailleDisplayManager {
 
 
 OffscreenBackgroundKeyboardHandler.init();
+OffscreenLearnModeKeyboardHandler.init();
 OffscreenClipboardHandler.init();
 OffscreenSpeechSynthesis.init();
 OffscreenBrailleDisplayManager.init();

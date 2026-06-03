@@ -15,7 +15,6 @@
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/image_fetcher/image_decoder_impl.h"
 #include "chrome/browser/net/system_network_context_manager.h"
-#include "chrome/browser/ui/monogram_utils.h"
 #include "chrome/browser/ui/views/controls/hover_button.h"
 #include "chrome/browser/ui/views/extensions/security_dialog_tracker.h"
 #include "chrome/browser/ui/views/webid/account_selection_view_base.h"
@@ -31,6 +30,7 @@
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
 #include "components/web_modal/web_contents_modal_dialog_manager_delegate.h"
 #include "content/public/browser/identity_request_dialog_controller.h"
+#include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/web_contents.h"
 #include "skia/ext/image_operations.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -41,6 +41,7 @@
 #include "ui/base/ui_base_types.h"
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
+#include "ui/compositor/compositor.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/geometry/insets.h"
@@ -144,7 +145,13 @@ AccountSelectionModalView::AccountSelectionModalView(
     blink::mojom::RpContext rp_context,
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
     FedCmAccountSelectionView* owner)
-    : AccountSelectionViewBase(owner, std::move(url_loader_factory), rp_data) {
+    : AccountSelectionViewBase(owner,
+                               std::move(url_loader_factory),
+                               rp_data,
+                               owner->web_contents()
+                                   ->GetPrimaryMainFrame()
+                                   ->GetRenderWidgetHost()
+                                   ->GetDeviceScaleFactor()) {
   SetModalType(ui::mojom::ModalType::kChild);
   SetOwnedByWidget(OwnedByWidgetPassKey());
   SetOwnershipOfNewWidget(views::Widget::InitParams::CLIENT_OWNS_WIDGET);
@@ -650,7 +657,7 @@ void AccountSelectionModalView::ShowRequestPermissionDialog(
   if (account->login_state == Account::LoginState::kSignUp) {
     // Add disclosure label.
     std::unique_ptr<views::StyledLabel> disclosure_label =
-        CreateDisclosureLabel(*account->identity_provider);
+        CreateDisclosureLabel(account);
     disclosure_label->SetDefaultTextStyle(views::style::STYLE_BODY_4);
     disclosure_label->SetBorder(views::CreateEmptyBorder(gfx::Insets::TLBR(
         /*top=*/kVerticalSpacing, /*left=*/0, /*bottom=*/0,

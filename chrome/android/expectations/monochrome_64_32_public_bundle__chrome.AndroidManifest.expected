@@ -20,7 +20,7 @@
   </queries>  # DIFF-ANCHOR: ac70d2a8
   <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
   <uses-permission android:name="android.permission.USE_FINGERPRINT"/>
-  <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="35"/>
+  <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="35"/>
   <application>
     <activity  # DIFF-ANCHOR: 28dc9019
         android:name="com.google.ar.core.InstallActivity"
@@ -831,13 +831,6 @@
       </intent-filter>  # DIFF-ANCHOR: 4ed161a4
       <meta-data android:name="android.appwidget.provider" android:resource="@xml/search_widget_info"/>
     </receiver>  # DIFF-ANCHOR: a0d83ae5
-    <receiver  # DIFF-ANCHOR: 2f1fe689
-        android:name="org.chromium.chrome.browser.sharing.click_to_call.ClickToCallMessageHandler$PhoneUnlockedReceiver"
-        android:exported="true">
-      <intent-filter>  # DIFF-ANCHOR: 4b5ec7a9
-        <action android:name="android.intent.action.USER_PRESENT"/>
-      </intent-filter>  # DIFF-ANCHOR: 4b5ec7a9
-    </receiver>  # DIFF-ANCHOR: 2f1fe689
     <receiver  # DIFF-ANCHOR: 124ac9a1
         android:name="org.chromium.chrome.browser.sharing.click_to_call.ClickToCallMessageHandler$TapReceiver"
         android:exported="false">
@@ -943,7 +936,8 @@
     </service>  # DIFF-ANCHOR: 7e3ff13a
     <service  # DIFF-ANCHOR: ac8469ff
         android:name="org.chromium.chrome.browser.media.MediaCaptureNotificationService"
-        android:exported="false">
+        android:exported="false"
+        android:foregroundServiceType="mediaProjection|mediaPlayback">
     </service>  # DIFF-ANCHOR: ac8469ff
     <service  # DIFF-ANCHOR: 7ef9e4e5
         android:name="org.chromium.chrome.browser.media.ui.ChromeMediaNotificationControllerServices$CastListenerService"

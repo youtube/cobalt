@@ -72,9 +72,9 @@ import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
+import org.chromium.chrome.browser.tab_ui.TabCardThemeUtil;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tab_ui.TabThumbnailView;
-import org.chromium.chrome.browser.tab_ui.TabUiThemeUtils;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
@@ -799,8 +799,11 @@ public class TabUiTestHelper {
         final @ColorInt int actualColor =
                 ViewCompat.getBackgroundTintList(cardView).getDefaultColor();
         final @ColorInt int selectedColor =
-                TabUiThemeUtils.getCardViewBackgroundColor(
-                        holder.getContext(), /* isIncognito= */ false, /* isSelected= */ true);
+                TabCardThemeUtil.getCardViewBackgroundColor(
+                        holder.getContext(),
+                        /* isIncognito= */ false,
+                        /* isSelected= */ true,
+                        /* colorId */ null);
         return actualColor == selectedColor;
     }
 

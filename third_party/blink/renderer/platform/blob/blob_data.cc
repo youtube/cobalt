@@ -148,7 +148,8 @@ void BlobData::AppendText(const String& text,
                           bool do_normalize_line_endings_to_native) {
   DCHECK_EQ(file_composition_, FileCompositionStatus::kNoUnknownSizeFiles)
       << "Blobs with a unknown-size file cannot have other items.";
-  std::string utf8_text = UTF8Encoding().Encode(text, WTF::kNoUnencodables);
+  std::string utf8_text =
+      Utf8Encoding().Encode(text, UnencodableHandling::kNoUnencodables);
 
   if (do_normalize_line_endings_to_native) {
     if (utf8_text.length() >
@@ -286,7 +287,7 @@ scoped_refptr<BlobDataHandle> BlobDataHandle::Create(
 }
 
 BlobDataHandle::BlobDataHandle()
-    : uuid_(WTF::CreateCanonicalUUIDString()),
+    : uuid_(CreateCanonicalUUIDString()),
       size_(0),
       is_single_unknown_size_file_(false) {
   GetThreadSpecificRegistry()->Register(
@@ -294,7 +295,7 @@ BlobDataHandle::BlobDataHandle()
 }
 
 BlobDataHandle::BlobDataHandle(std::unique_ptr<BlobData> data, uint64_t size)
-    : uuid_(WTF::CreateCanonicalUUIDString()),
+    : uuid_(CreateCanonicalUUIDString()),
       type_(data->ContentType()),
       size_(size),
       is_single_unknown_size_file_(data->IsSingleUnknownSizeFile()) {
@@ -311,7 +312,7 @@ BlobDataHandle::BlobDataHandle(
     const String& content_type,
     uint64_t size,
     bool synchronous_register)
-    : uuid_(WTF::CreateCanonicalUUIDString()),
+    : uuid_(CreateCanonicalUUIDString()),
       type_(content_type),
       size_(size),
       is_single_unknown_size_file_(size ==

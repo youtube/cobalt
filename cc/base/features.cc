@@ -63,10 +63,6 @@ BASE_FEATURE(kReclaimResourcesDelayedFlushInBackground,
              "ReclaimResourcesDelayedFlushInBackground",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kDetectHiDpiForMsaa,
-             "DetectHiDpiForMsaa",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kReclaimPrepaintTilesWhenIdle,
              "ReclaimPrepaintTilesWhenIdle",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -105,10 +101,6 @@ BASE_FEATURE(kEvictionThrottlesDraw,
 BASE_FEATURE(kClearCanvasResourcesInBackground,
              "ClearCanvasResourcesInBackground",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kMetricsTracingCalculationReduction,
-             "MetricsTracingCalculationReduction",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kWaitForLateScrollEvents,
              "WaitForLateScrollEvents",
@@ -154,7 +146,7 @@ BASE_FEATURE(kTreeAnimationsInViz,
 
 BASE_FEATURE(kSendExplicitDecodeRequestsImmediately,
              "SendExplicitDecodeRequestsImmediately",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kNewContentForCheckerboardedScrolls,
              "NewContentForCheckerboardedScrolls",
@@ -206,10 +198,6 @@ BASE_FEATURE(kViewTransitionCaptureAndDisplay,
              "ViewTransitionCaptureAndDisplay",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kZeroScrollMetricsUpdate,
-             "ZeroScrollMetricsUpdate",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kViewTransitionFloorTransform,
              "ViewTransitionFloorTransform",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -231,7 +219,7 @@ BASE_FEATURE(kFastPathNoRaster,
 
 BASE_FEATURE(kExportFrameTimingAfterFrameDone,
              "ExportFrameTimingAfterFrameDone",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kInternalBeginFrameSourceOnManyDidNotProduceFrame,
              "InternalBeginFrameSourceOnManyDidNotProduceFrame",
@@ -281,4 +269,11 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    "max_animation_duration",
                    base::Milliseconds(700));
 
+BASE_FEATURE(kSlimDirectReceiverIpc,
+             "SlimDirectReceiverIpc",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kOverscrollBehaviorRespectedOnAllScrollContainers,
+             "OverscrollBehaviorRespectedOnAllScrollContainers",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 }  // namespace features

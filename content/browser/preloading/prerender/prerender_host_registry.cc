@@ -317,8 +317,8 @@ PreloadingEligibility ToEligibility(PrerenderFinalStatus status) {
       return PreloadingEligibility::kPreloadingDisabledByDevTools;
     case PrerenderFinalStatus::kSpeculationRuleRemoved:
     case PrerenderFinalStatus::kActivatedWithAuxiliaryBrowsingContexts:
-    case PrerenderFinalStatus::kMaxNumOfRunningEagerPrerendersExceeded:
-    case PrerenderFinalStatus::kMaxNumOfRunningNonEagerPrerendersExceeded:
+    case PrerenderFinalStatus::kMaxNumOfRunningImmediatePrerendersExceeded:
+    case PrerenderFinalStatus::kMaxNumOfRunningNonImmediatePrerendersExceeded:
     case PrerenderFinalStatus::kMaxNumOfRunningEmbedderPrerendersExceeded:
       NOTREACHED();
     case PrerenderFinalStatus::kPrerenderingUrlHasEffectiveUrl:
@@ -339,6 +339,17 @@ PreloadingEligibility ToEligibility(PrerenderFinalStatus status) {
   }
 
   NOTREACHED();
+}
+
+template <class ContainerType>
+void DestructPrerenderHosts(ContainerType& hosts) {
+  // Swap the container and let it scope out instead of directly destructing the
+  // hosts in the container, for example, by `hosts.clear()`. This avoids
+  // potential cases where a host being deleted indirectly modifies the
+  // container while the container is being cleared up.
+  // See https://crbug.com/40263658 for contexts.
+  ContainerType temp;
+  hosts.swap(temp);
 }
 
 // Represents a contract and ensures that the given prerender attempt is started
@@ -523,6 +534,9 @@ PrerenderHostRegistry::~PrerenderHostRegistry() {
   // Here we have to delete the prerender hosts synchronously, to ensure the
   // FrameTrees would not access the WebContents.
   CancelAllHosts(final_status);
+  DestructPrerenderHosts(to_be_deleted_hosts_);
+  DestructPrerenderHosts(pending_deletion_hosts_);
+
   Observe(nullptr);
   for (Observer& obs : observers_)
     obs.OnRegistryDestroyed();
@@ -765,13 +779,13 @@ FrameTreeNodeId PrerenderHostRegistry::CreateAndStartHost(
       // learn more.
       PrerenderFinalStatus final_status;
       switch (GetPrerenderLimitGroup(attributes.trigger_type, eagerness)) {
-        case PrerenderLimitGroup::kSpeculationRulesEager:
+        case PrerenderLimitGroup::kSpeculationRulesImmediate:
           final_status =
-              PrerenderFinalStatus::kMaxNumOfRunningEagerPrerendersExceeded;
+              PrerenderFinalStatus::kMaxNumOfRunningImmediatePrerendersExceeded;
           break;
-        case PrerenderLimitGroup::kSpeculationRulesNonEager:
-          final_status =
-              PrerenderFinalStatus::kMaxNumOfRunningNonEagerPrerendersExceeded;
+        case PrerenderLimitGroup::kSpeculationRulesNonImmediate:
+          final_status = PrerenderFinalStatus::
+              kMaxNumOfRunningNonImmediatePrerendersExceeded;
           break;
         case PrerenderLimitGroup::kEmbedder:
           final_status =
@@ -791,8 +805,8 @@ FrameTreeNodeId PrerenderHostRegistry::CreateAndStartHost(
         std::move(prerender_host);
 
     if (GetPrerenderLimitGroup(attributes.trigger_type, eagerness) ==
-        PrerenderLimitGroup::kSpeculationRulesNonEager) {
-      non_eager_prerender_host_id_by_arrival_order_.push_back(
+        PrerenderLimitGroup::kSpeculationRulesNonImmediate) {
+      non_immediate_prerender_host_id_by_arrival_order_.push_back(
           frame_tree_node_id);
     }
   }
@@ -867,8 +881,9 @@ FrameTreeNodeId PrerenderHostRegistry::CreateAndStartHostForNewTab(
 
   if (GetPrerenderLimitGroup(attributes.trigger_type,
                              attributes.GetEagerness()) ==
-      PrerenderLimitGroup::kSpeculationRulesNonEager) {
-    non_eager_prerender_host_id_by_arrival_order_.push_back(prerender_host_id);
+      PrerenderLimitGroup::kSpeculationRulesNonImmediate) {
+    non_immediate_prerender_host_id_by_arrival_order_.push_back(
+        prerender_host_id);
   }
   return prerender_host_id;
 }
@@ -1368,6 +1383,16 @@ PrerenderHost* PrerenderHostRegistry::FindHostByUrlForTesting(
   return nullptr;
 }
 
+PrerenderHost* PrerenderHostRegistry::FindPrewarmSearchResultHostForTesting(
+    const GURL& search_prewarm_url) {
+  for (auto& iter : prerender_host_by_frame_tree_node_id_) {
+    if (iter.second->GetInitialUrl() == search_prewarm_url) {
+      return iter.second.get();
+    }
+  }
+  return nullptr;
+}
+
 bool PrerenderHostRegistry::HasNewTabHandleByIdForTesting(
     FrameTreeNodeId frame_tree_node_id) {
   return prerender_new_tab_handle_by_frame_tree_node_id_.contains(
@@ -1748,7 +1773,13 @@ bool PrerenderHostRegistry::CanNavigationActivateHost(
 
 void PrerenderHostRegistry::DeletePendingDeletionHosts(
     FrameTreeNodeId prerender_host_id) {
+  // Avoid directly destructing the host in the map. See the comments in
+  // `DestructPrerenderHosts()` for details.
+  std::unique_ptr<PrerenderHost> prerender_host =
+      std::move(pending_deletion_hosts_[prerender_host_id]);
   pending_deletion_hosts_.erase(prerender_host_id);
+  DestructPrerenderHosts(prerender_host);
+
   if (pending_deletion_new_tab_prerender_handle_) {
     // Delete the handle asynchronously to avoid delete `this`, as the handle
     // owns the prerender WebContents, which indirectly owns this
@@ -1799,13 +1830,7 @@ void PrerenderHostRegistry::ScheduleToDeleteAbandonedHost(
 }
 
 void PrerenderHostRegistry::DeleteAbandonedHosts() {
-  // Swap the vector and let it scope out instead of directly destructing the
-  // hosts in the vector, for example, by `to_be_deleted_hosts_.clear()`. This
-  // avoids potential cases where a host being deleted indirectly modifies
-  // `to_be_deleted_hosts_` while the vector is being cleared up. See
-  // https://crbug.com/1431744 for contexts.
-  std::vector<std::unique_ptr<PrerenderHost>> hosts;
-  to_be_deleted_hosts_.swap(hosts);
+  DestructPrerenderHosts(to_be_deleted_hosts_);
 }
 
 void PrerenderHostRegistry::NotifyTrigger(const GURL& url) {
@@ -1846,16 +1871,16 @@ PrerenderHostRegistry::GetPrerenderLimitGroup(
     case PreloadingTriggerType::kSpeculationRuleFromAutoSpeculationRules:
       CHECK(eagerness.has_value());
       switch (eagerness.value()) {
-        // Separate the limits of speculation rules into two categories: eager,
-        // which are triggered immediately after adding the rule, and
-        // non-eager(moderate, conservative), which wait for a specific user
+        // Separate the limits of speculation rules into two categories:
+        // immediate, which are triggered immediately after adding the rule, and
+        // non-immediate(moderate, conservative), which wait for a specific user
         // action to trigger, aiming to apply the appropriate corresponding
         // limits for these attributes.
-        case blink::mojom::SpeculationEagerness::kEager:
-          return PrerenderLimitGroup::kSpeculationRulesEager;
+        case blink::mojom::SpeculationEagerness::kImmediate:
+          return PrerenderLimitGroup::kSpeculationRulesImmediate;
         case blink::mojom::SpeculationEagerness::kModerate:
         case blink::mojom::SpeculationEagerness::kConservative:
-          return PrerenderLimitGroup::kSpeculationRulesNonEager;
+          return PrerenderLimitGroup::kSpeculationRulesNonImmediate;
       }
     case PreloadingTriggerType::kEmbedder:
       return PrerenderLimitGroup::kEmbedder;
@@ -1894,29 +1919,24 @@ bool PrerenderHostRegistry::IsAllowedToStartPrerenderingForTrigger(
   // Apply the limit of maximum number of running prerenders per
   // PrerenderLimitGroup.
   switch (limit_group) {
-    case PrerenderLimitGroup::kSpeculationRulesEager: {
+    case PrerenderLimitGroup::kSpeculationRulesImmediate: {
       int host_count = GetHostCountByLimitGroup(limit_group);
-      return host_count <
-             base::GetFieldTrialParamByFeatureAsInt(
-                 features::kPrerender2NewLimitAndScheduler,
-                 "max_num_of_running_speculation_rules_eager_prerenders", 10);
+      return host_count < kMaxRunningSpeculationRulesImmediatePrerenders;
     }
-    case PrerenderLimitGroup::kSpeculationRulesNonEager: {
+    case PrerenderLimitGroup::kSpeculationRulesNonImmediate: {
       int host_count = GetHostCountByLimitGroup(limit_group);
-      int limit_non_eager = base::GetFieldTrialParamByFeatureAsInt(
-          features::kPrerender2NewLimitAndScheduler,
-          "max_num_of_running_speculation_rules_non_eager_prerenders", 2);
 
-      // When the limit on non-eager speculation rules is reached, cancel the
-      // oldest host to allow a newly incoming trigger to start.
-      if (host_count >= limit_non_eager) {
+      // When the limit on non-immediate speculation rules is reached, cancel
+      // the oldest host to allow a newly incoming trigger to start.
+      if (host_count >= kMaxRunningSpeculationRulesNonImmediatePrerenders) {
         FrameTreeNodeId oldest_prerender_host_id;
 
-        // Find the oldest non-eager prerender that has not been canceled yet.
+        // Find the oldest non-immediate prerender that has not been canceled
+        // yet.
         do {
           oldest_prerender_host_id =
-              non_eager_prerender_host_id_by_arrival_order_.front();
-          non_eager_prerender_host_id_by_arrival_order_.pop_front();
+              non_immediate_prerender_host_id_by_arrival_order_.front();
+          non_immediate_prerender_host_id_by_arrival_order_.pop_front();
         } while (
             base::FeatureList::IsEnabled(blink::features::kPrerender2InNewTab)
                 ? !prerender_host_by_frame_tree_node_id_.contains(
@@ -1926,11 +1946,12 @@ bool PrerenderHostRegistry::IsAllowedToStartPrerenderingForTrigger(
                 : !prerender_host_by_frame_tree_node_id_.contains(
                       oldest_prerender_host_id));
 
-        CHECK(CancelHost(
-            oldest_prerender_host_id,
-            PrerenderFinalStatus::kMaxNumOfRunningNonEagerPrerendersExceeded));
+        CHECK(CancelHost(oldest_prerender_host_id,
+                         PrerenderFinalStatus::
+                             kMaxNumOfRunningNonImmediatePrerendersExceeded));
 
-        CHECK_LT(GetHostCountByLimitGroup(limit_group), limit_non_eager);
+        CHECK_LT(GetHostCountByLimitGroup(limit_group),
+                 kMaxRunningSpeculationRulesNonImmediatePrerenders);
       }
 
       return true;

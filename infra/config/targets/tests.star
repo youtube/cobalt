@@ -171,6 +171,7 @@ targets.tests.gtest_test(
     name = "ash_pixeltests",
     mixins = [
         "skia_gold_test",
+        "skia_gold_test_on_linux_gce",
     ],
     args = [
         "--enable-pixel-output-in-tests",
@@ -1177,6 +1178,10 @@ targets.tests.gtest_test(
 )
 
 targets.tests.gtest_test(
+    name = "video_encode_accelerator_tests",
+)
+
+targets.tests.gtest_test(
     name = "filesystem_service_unittests",
 )
 
@@ -1805,10 +1810,6 @@ targets.tests.gtest_test(
     binary = "interactive_ui_tests",
 )
 
-targets.tests.gtest_test(
-    name = "nacl_loader_unittests",
-)
-
 targets.tests.isolated_script_test(
     name = "build_rust_tests",
 )
@@ -2114,10 +2115,6 @@ targets.tests.isolated_script_test(
         "--test-list=../../third_party/blink/web_tests/TestLists/ppapi",
     ],
     binary = "blink_web_tests",
-)
-
-targets.tests.gtest_test(
-    name = "ppapi_unittests",
 )
 
 targets.tests.gtest_test(

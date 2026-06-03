@@ -978,7 +978,6 @@
         "args": [
           "--use-persistent-shell",
           "--avd-config=../../tools/android/avd/proto/generic_android26.textpb",
-          "--gtest-also-run-pre-tests",
           "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_o.content_browsertests.filter",
           "--gs-results-bucket=chromium-result-details",
           "--recover-devices"
@@ -3025,6 +3024,53 @@
             "--bucket",
             "chromium-result-details",
             "--test-name",
+            "video_encode_accelerator_tests"
+          ],
+          "script": "//build/android/pylib/results/presentation/test_results_presentation.py"
+        },
+        "name": "video_encode_accelerator_tests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "dimensions": {
+            "cores": "4",
+            "cpu": "x86-64",
+            "device_os": null,
+            "device_type": null,
+            "os": "Ubuntu-22.04",
+            "pool": "chromium.tests.avd"
+          },
+          "named_caches": [
+            {
+              "name": "generic_android26",
+              "path": ".android_emulator/generic_android26"
+            }
+          ],
+          "optional_dimensions": {
+            "60": {
+              "caches": "generic_android26"
+            }
+          },
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "video_encode_accelerator_tests",
+        "test_id_prefix": "ninja://media/gpu/test:video_encode_accelerator_tests/"
+      },
+      {
+        "args": [
+          "--use-persistent-shell",
+          "--avd-config=../../tools/android/avd/proto/generic_android26.textpb",
+          "--gs-results-bucket=chromium-result-details",
+          "--recover-devices"
+        ],
+        "isolate_profile_data": true,
+        "merge": {
+          "args": [
+            "--bucket",
+            "chromium-result-details",
+            "--test-name",
             "viz_unittests"
           ],
           "script": "//build/android/pylib/results/presentation/test_results_presentation.py"
@@ -3960,51 +4006,6 @@
         },
         "test": "telemetry_perf_unittests_android_chrome",
         "test_id_prefix": "ninja://chrome/test:telemetry_perf_unittests_android_chrome/"
-      },
-      {
-        "args": [
-          "BrowserMinidumpTest",
-          "--browser=android-chromium-monochrome",
-          "-v",
-          "--passthrough",
-          "--retry-limit=2",
-          "--use-persistent-shell",
-          "--avd-config=../../tools/android/avd/proto/generic_android26.textpb"
-        ],
-        "ci_only": true,
-        "isolate_profile_data": true,
-        "merge": {
-          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
-        },
-        "name": "telemetry_monochrome_minidump_unittests",
-        "resultdb": {
-          "enable": true,
-          "has_native_resultdb_integration": true
-        },
-        "swarming": {
-          "dimensions": {
-            "cores": "4",
-            "cpu": "x86-64",
-            "device_os": null,
-            "device_type": null,
-            "os": "Ubuntu-22.04",
-            "pool": "chromium.tests.avd"
-          },
-          "named_caches": [
-            {
-              "name": "generic_android26",
-              "path": ".android_emulator/generic_android26"
-            }
-          ],
-          "optional_dimensions": {
-            "60": {
-              "caches": "generic_android26"
-            }
-          },
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
-        },
-        "test": "telemetry_perf_unittests_android_monochrome",
-        "test_id_prefix": "ninja://chrome/test:telemetry_perf_unittests_android_monochrome/"
       },
       {
         "args": [

@@ -27,6 +27,11 @@ chromium-metrics-reviews@google.com.
   <variant name="TLS" summary="TLS canary check"/>
 </variants>
 
+<variants name="PrerenderOrNonPrerender">
+  <variant name="NonPrerender" summary="the navigation is not prerender"/>
+  <variant name="Prerender" summary="the navigaiton is prerender"/>
+</variants>
+
 <!-- LINT.IfChange(TriggerTypeAndEagerness) -->
 
 <variants name="TriggerTypeAndEagerness">
@@ -37,20 +42,20 @@ chromium-metrics-reviews@google.com.
   <variant name="Embedder_WebView" summary="Embedder trigger, WebView"/>
   <variant name="SpeculationRule_Conservative"
       summary="SpeculationRules trigger, Conservative"/>
-  <variant name="SpeculationRule_Eager"
-      summary="SpeculationRules trigger, Eager"/>
+  <variant name="SpeculationRule_Immediate"
+      summary="SpeculationRules trigger, Immediate"/>
   <variant name="SpeculationRule_Moderate"
       summary="SpeculationRules trigger, Moderate"/>
   <variant name="SpeculationRuleFromAutoSpeculationRules_Conservative"
       summary="SpeculationRulesFromAutoSpeculationRules trigger, Conservative"/>
-  <variant name="SpeculationRuleFromAutoSpeculationRules_Eager"
-      summary="SpeculationRulesFromAutoSpeculationRules trigger, Eager"/>
+  <variant name="SpeculationRuleFromAutoSpeculationRules_Immediate"
+      summary="SpeculationRulesFromAutoSpeculationRules trigger, Immediate"/>
   <variant name="SpeculationRuleFromAutoSpeculationRules_Moderate"
       summary="SpeculationRulesFromAutoSpeculationRules trigger, Moderate"/>
   <variant name="SpeculationRuleFromIsolatedWorld_Conservative"
       summary="SpeculationRulesFromIsolatedWorld trigger, Conservative"/>
-  <variant name="SpeculationRuleFromIsolatedWorld_Eager"
-      summary="SpeculationRulesFromIsolatedWorld trigger, Eager"/>
+  <variant name="SpeculationRuleFromIsolatedWorld_Immediate"
+      summary="SpeculationRulesFromIsolatedWorld trigger, Immediate"/>
   <variant name="SpeculationRuleFromIsolatedWorld_Moderate"
       summary="SpeculationRulesFromIsolatedWorld trigger, Moderate"/>
 </variants>
@@ -61,6 +66,35 @@ chromium-metrics-reviews@google.com.
   <variant name="NotServed" summary="not served"/>
   <variant name="Served" summary="served"/>
 </variants>
+
+<histogram
+    name="Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.{PrerenderOrNonPrerender}.{WasServed}.{TriggerTypeAndEagerness}"
+    units="ms" expires_after="2025-10-18">
+  <owner>kenoss@chromium.org</owner>
+  <owner>taiyo@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
+  <summary>
+    When a navigation started, `PrefetchMatchResolver` collects potentially
+    matching prefetches for it. Judging a prefetch actually matches or not needs
+    non-redirect header. If a prefetch has non-redirect header and actually
+    matched, then this process ends synchronously. If not, it waits non-redirect
+    headers until it finds a matched and servable one or there is no more
+    candidates.
+
+    This histogram records that duration navigation was blocked by the prefetch
+    matching, when the matching is settled. Zero is recorded when the navigation
+    is not blocked.
+
+    This histogram is recorded per potentially matching candidate, with its
+    TriggerType and Eagerness as {TriggerTypeAndEagerness}, and whether its
+    candidate was eventually served or not as {WasServed}.
+
+    Recorded iff {PrerenderOrNonPrerender}.
+  </summary>
+  <token key="PrerenderOrNonPrerender" variants="PrerenderOrNonPrerender"/>
+  <token key="WasServed" variants="WasServed"/>
+  <token key="TriggerTypeAndEagerness" variants="TriggerTypeAndEagerness"/>
+</histogram>
 
 <histogram
     name="Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.{WasServed}.{TriggerTypeAndEagerness}"
@@ -93,7 +127,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Prefetch.PrefetchContainer.AddedToHeaderDeterminedSuccessfully.{TriggerTypeAndEagerness}"
-    units="ms" expires_after="2025-10-01">
+    units="ms" expires_after="2025-11-30">
   <owner>kenoss@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
   <summary>
@@ -103,14 +137,14 @@ chromium-metrics-reviews@google.com.
     This metrics is recorded when `PrefetchContainer::dtor()` is called if it
     received non-redirect header.
 
-    This histgram is only recorded for prefetches of {TriggerTypeAndEagerness}.
+    This histogram is only recorded for prefetches of {TriggerTypeAndEagerness}.
   </summary>
   <token key="TriggerTypeAndEagerness" variants="TriggerTypeAndEagerness"/>
 </histogram>
 
 <histogram
     name="Prefetch.PrefetchContainer.AddedToInitialEligibility.{TriggerTypeAndEagerness}"
-    units="ms" expires_after="2025-10-01">
+    units="ms" expires_after="2025-11-30">
   <owner>kenoss@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
   <summary>
@@ -120,14 +154,14 @@ chromium-metrics-reviews@google.com.
     This metrics is recorded when `PrefetchContainer::dtor()` is called if it
     passed initial eligibility check.
 
-    This histgram is only recorded for prefetches of {TriggerTypeAndEagerness}.
+    This histogram is only recorded for prefetches of {TriggerTypeAndEagerness}.
   </summary>
   <token key="TriggerTypeAndEagerness" variants="TriggerTypeAndEagerness"/>
 </histogram>
 
 <histogram
     name="Prefetch.PrefetchContainer.AddedToPrefetchCompletedSuccessfully.{TriggerTypeAndEagerness}"
-    units="ms" expires_after="2025-10-01">
+    units="ms" expires_after="2025-11-30">
   <owner>kenoss@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
   <summary>
@@ -137,31 +171,78 @@ chromium-metrics-reviews@google.com.
     This metrics is recorded when `PrefetchContainer::dtor()` is called if it
     completed the load successfully.
 
-    This histgram is only recorded for prefetches of {TriggerTypeAndEagerness}.
+    This histogram is only recorded for prefetches of {TriggerTypeAndEagerness}.
   </summary>
   <token key="TriggerTypeAndEagerness" variants="TriggerTypeAndEagerness"/>
 </histogram>
 
 <histogram
     name="Prefetch.PrefetchContainer.AddedToPrefetchStarted.{TriggerTypeAndEagerness}"
-    units="ms" expires_after="2025-10-01">
+    units="ms" expires_after="2025-11-30">
   <owner>kenoss@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
   <summary>
     Records duration from when `PrefetchContainer` is added to `PrefetchService`
-    to when `PrefetchService` starts the load of it.
+    to when `PrefetchService` starts its loading process (i.e.,
+    `PrefetchService::StartSinglePrefetch` is called).
 
     This metrics is recorded when `PrefetchContainer::dtor()` is called if it
     started the load.
 
-    This histgram is only recorded for prefetches of {TriggerTypeAndEagerness}.
+    This histogram is only recorded for prefetches of {TriggerTypeAndEagerness}.
   </summary>
   <token key="TriggerTypeAndEagerness" variants="TriggerTypeAndEagerness"/>
 </histogram>
 
 <histogram
+    name="Prefetch.PrefetchContainer.AddedToURLRequestStarted.{TriggerTypeAndEagerness}"
+    units="ms" expires_after="2025-12-01">
+  <owner>taiyo@chromium.org</owner>
+  <owner>kenoss@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
+  <summary>
+    Records the duration from when `PrefetchContainer` is added to
+    `PrefetchService` to when its URLRequest is started in //net layer (i.e.,
+    when `URLRequest::Start()` is called).
+
+    This metrics is recorded when `PrefetchContainer::dtor()` is called if it
+    received a non-redirect header.
+
+    This histogram is only recorded for prefetches of {TriggerTypeAndEagerness}.
+  </summary>
+  <token key="TriggerTypeAndEagerness" variants="TriggerTypeAndEagerness"/>
+</histogram>
+
+<histogram
+    name="Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate.{PrerenderOrNonPrerender}.{TriggerTypeAndEagerness}"
+    enum="Boolean" expires_after="2025-12-14">
+  <owner>kouhei@chromium.org</owner>
+  <owner>kenoss@chromium.org</owner>
+  <owner>taiyo@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
+  <summary>
+    When a navigation started, `PrefetchMatchResolver` collects potentially
+    matching prefetches for it. Judging a prefetch actually matches or not needs
+    non-redirect header. If a prefetch has non-redirect header and actually
+    matched, then this process ends synchronously. If not, it waits non-redirect
+    headers until it finds a matched and servable one or there is no more
+    candidates.
+
+    This histogram records whether this process ends synchronously (i.e. whether
+    prefetch matching blocked the navigation), when the above prefetch matching
+    is settled.
+
+    This histogram is recorded per potentially matching candidates, with its
+    TriggerType and Eagerness as {TriggerTypeAndEagerness}. Recorded iff
+    {PrerenderOrNonPrerender}.
+  </summary>
+  <token key="PrerenderOrNonPrerender" variants="PrerenderOrNonPrerender"/>
+  <token key="TriggerTypeAndEagerness" variants="TriggerTypeAndEagerness"/>
+</histogram>
+
+<histogram
     name="Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate.{TriggerTypeAndEagerness}"
-    enum="Boolean" expires_after="2025-10-12">
+    enum="Boolean" expires_after="2025-12-14">
   <owner>kouhei@chromium.org</owner>
   <owner>kenoss@chromium.org</owner>
   <owner>taiyo@chromium.org</owner>
@@ -482,7 +563,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PrefetchProxy.Prefetch.Mainframe.RespCode"
-    enum="HttpResponseCode" expires_after="2025-10-12">
+    enum="HttpResponseCode" expires_after="2025-12-14">
   <owner>kouhei@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
   <summary>

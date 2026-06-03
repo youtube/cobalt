@@ -34,7 +34,7 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <histogram name="MessagePumpEpoll.WatchedFileDescriptors"
-    units="FileDescriptors" expires_after="2025-10-05">
+    units="FileDescriptors" expires_after="2025-12-07">
   <owner>mthiesse@chromium.org</owner>
   <owner>lizeb@chromium.org</owner>
   <summary>
@@ -110,7 +110,7 @@ chromium-metrics-reviews@google.com.
     enum="MessagePumpPhases" expires_after="2025-10-19">
   <owner>gab@chromium.org</owner>
   <owner>fdoray@chromium.org</owner>
-  <owner>spvw@chromium.org</owner>
+  <owner>spvm@chromium.org</owner>
   <summary>
     Records the number of milliseconds spent in each phase of pumping tasks on
     {NamedThread}. Each enum value can be analyzed for its total time or as a
@@ -182,7 +182,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Scheduling.ThreadController.ActiveIntervalDuration.{Length}.{NamedThread}"
-    units="ms" expires_after="2025-10-12">
+    units="ms" expires_after="2025-12-14">
   <owner>olivierli@google.com</owner>
   <owner>etienneb@google.com</owner>
   <summary>
@@ -213,7 +213,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Scheduling.ThreadController.ActiveIntervalOffCpuDuration.{Length}.{NamedThread}"
-    units="ms" expires_after="2025-10-12">
+    units="ms" expires_after="2025-12-14">
   <owner>olivierli@google.com</owner>
   <owner>etienneb@google.com</owner>
   <summary>
@@ -244,7 +244,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Scheduling.ThreadController.ActiveIntervalOnCpuDuration.{Length}.{NamedThread}"
-    units="ms" expires_after="2025-10-12">
+    units="ms" expires_after="2025-12-14">
   <owner>olivierli@google.com</owner>
   <owner>etienneb@google.com</owner>
   <summary>
@@ -271,7 +271,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Scheduling.ThreadController.ActiveIntervalOnCpuPercentage.{Length}.{NamedThread}"
-    units="%" expires_after="2025-10-12">
+    units="%" expires_after="2025-12-14">
   <owner>olivierli@google.com</owner>
   <owner>etienneb@google.com</owner>
   <summary>
@@ -362,7 +362,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Scheduling.ThreadController.IdleDuration.{Length}.{NamedThread}"
-    units="ms" expires_after="2025-10-12">
+    units="ms" expires_after="2025-12-14">
   <owner>olivierli@google.com</owner>
   <owner>etienneb@google.com</owner>
   <summary>
@@ -396,8 +396,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ThreadPool.UnnecessaryWakeup.{ThreadPoolName}.{WorkerGroup}"
-    enum="BooleanHit" expires_after="2025-10-12">
-  <owner>spvw@chromium.org</owner>
+    enum="BooleanHit" expires_after="2025-12-14">
+  <owner>spvm@chromium.org</owner>
   <owner>gab@chromium.org</owner>
   <summary>
     Records a hit when a thread pool worker thread woke up unnecessarily (when

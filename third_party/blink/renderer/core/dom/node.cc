@@ -58,7 +58,6 @@
 #include "third_party/blink/renderer/core/dom/events/event_dispatcher.h"
 #include "third_party/blink/renderer/core/dom/events/event_listener.h"
 #include "third_party/blink/renderer/core/dom/events/event_path.h"
-#include "third_party/blink/renderer/core/dom/events/mutation_event_suppression_scope.h"
 #include "third_party/blink/renderer/core/dom/flat_tree_node_data.h"
 #include "third_party/blink/renderer/core/dom/flat_tree_traversal.h"
 #include "third_party/blink/renderer/core/dom/focus_params.h"
@@ -88,7 +87,6 @@
 #include "third_party/blink/renderer/core/events/input_event.h"
 #include "third_party/blink/renderer/core/events/keyboard_event.h"
 #include "third_party/blink/renderer/core/events/mouse_event.h"
-#include "third_party/blink/renderer/core/events/mutation_event.h"
 #include "third_party/blink/renderer/core/events/pointer_event.h"
 #include "third_party/blink/renderer/core/events/pointer_event_factory.h"
 #include "third_party/blink/renderer/core/events/text_event.h"
@@ -398,7 +396,7 @@ Node* Node::PseudoAwarePreviousSibling() const {
   }
 
   // Note the [[fallthrough]] attributes, the order of the cases matters and
-  // corresponds to the ordering of pseudo elements in a traversal:
+  // corresponds to the ordering of pseudo-elements in a traversal:
   // ::scroll-marker-group(before), ::marker, ::scroll-marker,
   // ::scroll-button(), ::checkmark,
   // ::before, non-pseudo Elements, ::after, ::picker-icon,
@@ -500,19 +498,23 @@ Node* Node::PseudoAwarePreviousSibling() const {
           kPseudoIdViewTransitionOld,
           To<PseudoElement>(this)->view_transition_name());
     case kPseudoIdViewTransitionGroup: {
+      auto* pseudo = To<ViewTransitionPseudoElementBase>(this);
+      auto* parent_pseudo = To<ViewTransitionPseudoElementBase>(parent);
       const Vector<AtomicString>& names =
-          To<ViewTransitionPseudoElementBase>(this)->GetViewTransitionNames();
-      wtf_size_t found_index =
-          names.Find(To<PseudoElement>(this)->view_transition_name());
+          parent_pseudo->GetContainedViewTransitionNames();
+      wtf_size_t found_index = names.Find(pseudo->view_transition_name());
       CHECK_NE(found_index, kNotFound);
       if (found_index == 0) {
         return nullptr;
       }
-
-      CHECK_EQ(parent->GetPseudoId(), kPseudoIdViewTransition);
       return parent->GetPseudoElement(kPseudoIdViewTransitionGroup,
                                       names[found_index - 1]);
     }
+    case kPseudoIdViewTransitionGroupChildren:
+      CHECK_EQ(parent->GetPseudoId(), kPseudoIdViewTransitionGroup);
+      return parent->GetPseudoElement(
+          kPseudoIdViewTransitionImagePair,
+          To<PseudoElement>(this)->view_transition_name());
     case kPseudoIdViewTransitionImagePair:
     case kPseudoIdViewTransitionOld:
       return nullptr;
@@ -618,20 +620,24 @@ Node* Node::PseudoAwareNextSibling() const {
           kPseudoIdViewTransitionNew,
           To<PseudoElement>(this)->view_transition_name());
     case kPseudoIdViewTransitionGroup: {
+      auto* pseudo = To<ViewTransitionPseudoElementBase>(this);
+      auto* parent_pseudo = To<ViewTransitionPseudoElementBase>(parent);
       const Vector<AtomicString>& names =
-          To<ViewTransitionPseudoElementBase>(this)->GetViewTransitionNames();
-      wtf_size_t found_index =
-          names.Find(To<PseudoElement>(this)->view_transition_name());
+          parent_pseudo->GetContainedViewTransitionNames();
+      wtf_size_t found_index = names.Find(pseudo->view_transition_name());
       CHECK_NE(found_index, kNotFound);
       if (found_index == names.size() - 1) {
         return nullptr;
       }
-
-      CHECK_EQ(parent->GetPseudoId(), kPseudoIdViewTransition);
       return parent->GetPseudoElement(kPseudoIdViewTransitionGroup,
                                       names[found_index + 1]);
     }
     case kPseudoIdViewTransitionImagePair:
+      CHECK_EQ(parent->GetPseudoId(), kPseudoIdViewTransitionGroup);
+      return parent->GetPseudoElement(
+          kPseudoIdViewTransitionGroupChildren,
+          To<PseudoElement>(this)->view_transition_name());
+    case kPseudoIdViewTransitionGroupChildren:
     case kPseudoIdViewTransitionNew:
       return nullptr;
     default:
@@ -667,6 +673,14 @@ Node* Node::PseudoAwareFirstChild() const {
 
       return current_element->GetPseudoElement(kPseudoIdViewTransitionNew,
                                                name);
+    }
+    if (GetPseudoId() == kPseudoIdViewTransitionGroupChildren) {
+      const Vector<AtomicString>& nested_names =
+          To<ViewTransitionPseudoElementBase>(current_element)
+              ->GetContainedViewTransitionNames();
+      CHECK(!nested_names.empty());
+      return current_element->GetPseudoElement(kPseudoIdViewTransitionGroup,
+                                               nested_names.front());
     }
     if (Node* first = current_element->GetPseudoElement(
             kPseudoIdScrollMarkerGroupBefore)) {
@@ -730,7 +744,8 @@ Node* Node::PseudoAwareLastChild() const {
     // pseudo traversal.
     if (GetPseudoId() == kPseudoIdViewTransition) {
       const Vector<AtomicString>& names =
-          To<ViewTransitionPseudoElementBase>(this)->GetViewTransitionNames();
+          To<ViewTransitionPseudoElementBase>(this)
+              ->GetContainedViewTransitionNames();
       if (names.empty()) {
         return nullptr;
       }
@@ -738,9 +753,17 @@ Node* Node::PseudoAwareLastChild() const {
                                                names.back());
     }
     if (GetPseudoId() == kPseudoIdViewTransitionGroup) {
-      return current_element->GetPseudoElement(
-          kPseudoIdViewTransitionImagePair,
-          To<PseudoElement>(this)->view_transition_name());
+      if (!To<ViewTransitionPseudoElementBase>(current_element)
+               ->GetContainedViewTransitionNames()
+               .empty()) {
+        return current_element->GetPseudoElement(
+            kPseudoIdViewTransitionGroupChildren,
+            To<PseudoElement>(this)->view_transition_name());
+      } else {
+        return current_element->GetPseudoElement(
+            kPseudoIdViewTransitionImagePair,
+            To<PseudoElement>(this)->view_transition_name());
+      }
     }
     if (GetPseudoId() == kPseudoIdViewTransitionImagePair) {
       const AtomicString& name =
@@ -884,9 +907,6 @@ void Node::moveBefore(Node* new_child,
   // move is already in progress.
   DCHECK(!GetDocument().StatePreservingAtomicMoveInProgress());
   GetDocument().SetStatePreservingAtomicMoveInProgress(true);
-
-  // Mutation events are disabled during the `moveBefore()` API.
-  MutationEventSuppressionScope scope(GetDocument());
 
   ContainerNode* old_parent = new_child->parentNode();
 
@@ -1579,7 +1599,7 @@ void Node::SetNeedsStyleRecalc(StyleChangeType change_type,
     // done after resolving style for the author DOM. See
     // StyleEngine::RecalcTransitionPseudoStyle.
     // Since the dirty bits from the originating element (root element) are not
-    // propagated to these pseudo elements during the default walk, we need to
+    // propagated to these pseudo-elements during the default walk, we need to
     // invalidate style for these elements here.
     bool mark_transition_pseudos =
         RuntimeEnabledFeatures::ScopedViewTransitionsEnabled()
@@ -2335,10 +2355,8 @@ void Node::setTextContent(const String& text) {
       ChildListMutationScope mutation(*this);
       // Note: This API will not insert empty text nodes:
       // https://dom.spec.whatwg.org/#dom-node-textcontent
-      if (text.empty()) {
-        container->RemoveChildren(kDispatchSubtreeModifiedEvent);
-      } else {
-        container->RemoveChildren(kOmitSubtreeModifiedEvent);
+      container->RemoveChildren();
+      if (!text.empty()) {
         container->AppendChild(GetDocument().createTextNode(text),
                                ASSERT_NO_EXCEPTION);
       }
@@ -2525,10 +2543,14 @@ void Node::MovedFrom(ContainerNode& old_parent) {}
 void Node::RemovedFrom(ContainerNode& insertion_point) {
   DCHECK(IsContainerNode() || IsInTreeScope() || GetDOMParts());
   if (insertion_point.isConnected()) {
-    ClearNeedsStyleRecalc();
-    ClearChildNeedsStyleRecalc();
-    ClearNeedsStyleInvalidation();
-    ClearChildNeedsStyleInvalidation();
+    // Don't clear the layout/style flags on `moveBefore`, so that the layout is
+    // recomputed and reattached on the next style recalc.
+    if (!GetDocument().StatePreservingAtomicMoveInProgress()) {
+      ClearNeedsStyleRecalc();
+      ClearChildNeedsStyleRecalc();
+      ClearNeedsStyleInvalidation();
+      ClearChildNeedsStyleInvalidation();
+    }
     ClearFlag(kIsConnectedFlag);
 #if DCHECK_IS_ON()
     insertion_point.GetDocument().DecrementNodeCount();
@@ -3208,22 +3230,6 @@ DispatchEventResult Node::DispatchEventInternal(Event& event) {
   return EventDispatcher::DispatchEvent(*this, event);
 }
 
-void Node::DispatchSubtreeModifiedEvent() {
-  if (IsInShadowTree() || GetDocument().ShouldSuppressMutationEvents()) {
-    return;
-  }
-
-#if DCHECK_IS_ON()
-  DCHECK(!EventDispatchForbiddenScope::IsEventDispatchForbidden());
-#endif
-
-  if (!GetDocument().HasListenerType(Document::kDOMSubtreeModifiedListener))
-    return;
-
-  DispatchScopedEvent(*MutationEvent::Create(
-      event_type_names::kDOMSubtreeModified, Event::Bubbles::kYes));
-}
-
 DispatchEventResult Node::DispatchDOMActivateEvent(int detail,
                                                    Event& underlying_event) {
 #if DCHECK_IS_ON()
@@ -3253,8 +3259,9 @@ void Node::DispatchSimulatedClick(const Event* underlying_event,
 }
 
 void Node::DefaultEventHandler(Event& event) {
-  if (event.target() != this)
+  if (event.RawTarget() != this) {
     return;
+  }
   const AtomicString& event_type = event.type();
   if (event_type == event_type_names::kKeydown ||
       event_type == event_type_names::kKeypress ||

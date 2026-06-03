@@ -18,7 +18,6 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/time/time.h"
 #include "build/buildflag.h"
-#include "crypto/ec_private_key.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/completion_repeating_callback.h"
 #include "net/base/net_error_details.h"
@@ -123,9 +122,6 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
   void OnNeedsClientAuth(SSLCertRequestInfo* cert_info) override;
 
   void OnQuicBroken() override;
-
-  void OnSwitchesToHttpStreamPool(
-      HttpStreamPoolRequestInfo request_info) override;
 
   ConnectionAttempts GetConnectionAttempts() const override;
 

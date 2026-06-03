@@ -22,6 +22,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/run_loop.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
@@ -2647,9 +2648,10 @@ class LensOverlayBrowserTest : public LensBrowserBaseTest {
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
 
-    // Permits sharing the page screenshot by default.
+    // Permits sharing the page screenshot and content by default.
     PrefService* prefs = browser()->profile()->GetPrefs();
     prefs->SetBoolean(lens::prefs::kLensSharingPageScreenshotEnabled, true);
+    prefs->SetBoolean(lens::prefs::kLensSharingPageContentEnabled, true);
   }
 
   void TearDownOnMainThread() override {
@@ -2839,8 +2841,10 @@ IN_PROC_BROWSER_TEST_P(PdfPluginContextMenuBrowserTestWithOopifOverride,
   ASSERT_TRUE(menu->IsCommandIdEnabled(IDC_CONTENT_CONTEXT_ROTATECCW));
 
   // Set to tab fullscreen, and test that 'Rotate' items are disabled.
-  FullscreenController* fullscreen_controller =
-      browser()->exclusive_access_manager()->fullscreen_controller();
+  FullscreenController* fullscreen_controller = browser()
+                                                    ->GetFeatures()
+                                                    .exclusive_access_manager()
+                                                    ->fullscreen_controller();
   fullscreen_controller->set_is_tab_fullscreen_for_testing(true);
 
   ASSERT_FALSE(menu->IsCommandIdEnabled(IDC_CONTENT_CONTEXT_ROTATECW));
@@ -3525,6 +3529,31 @@ IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, OpenLinkInNewSplitTab) {
   EXPECT_EQ(tab_strip_model->active_index(), 1);
   EXPECT_TRUE(tab_strip_model->GetActiveTab()->IsSplit());
   EXPECT_TRUE(tab_strip_model->GetTabAtIndex(0)->IsSplit());
+}
+
+IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, OpenLinkInNewPinnedSplitTab) {
+  const GURL test_url("http://www.example.com/");
+  const GURL wrong_url("http://www.example.com/wrong");
+  std::unique_ptr<TestRenderViewContextMenu> menu =
+      CreateContextMenuMediaTypeNone(test_url, test_url);
+
+  EXPECT_TRUE(menu->IsItemPresent(IDC_CONTENT_CONTEXT_OPENLINKSPLITVIEW));
+
+  TabStripModel* const tab_strip_model = browser()->tab_strip_model();
+  tab_strip_model->SetTabPinned(0, true);
+  tab_strip_model->delegate()->AddTabAt(wrong_url, 1, false, std::nullopt);
+  tab_strip_model->SetTabPinned(1, true);
+  tab_strip_model->delegate()->AddTabAt(wrong_url, 2, false, std::nullopt);
+  tab_strip_model->SetTabPinned(2, true);
+  ASSERT_EQ(tab_strip_model->count(), 3);
+  menu->ExecuteCommand(IDC_CONTENT_CONTEXT_OPENLINKSPLITVIEW, 0);
+  ASSERT_EQ(tab_strip_model->count(), 4);
+  EXPECT_EQ(test_url,
+            tab_strip_model->GetTabAtIndex(1)->GetContents()->GetURL());
+  EXPECT_EQ(tab_strip_model->active_index(), 1);
+  EXPECT_TRUE(tab_strip_model->GetActiveTab()->IsSplit());
+  EXPECT_EQ(tab_strip_model->GetActiveTab()->GetSplit(),
+            tab_strip_model->GetTabAtIndex(0)->GetSplit());
 }
 
 IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, OpenLinkInExistingSplitTab) {

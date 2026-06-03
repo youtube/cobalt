@@ -56,7 +56,7 @@ public final class Website implements WebsiteEntry {
     // The collection of chooser-based permissions (e.g. USB device access) granted to this site.
     // Each entry declares its own ContentSettingsType and so depending on how this object was
     // built this list could contain multiple types of objects.
-    private final List<ChosenObjectInfo> mObjectInfo = new ArrayList<ChosenObjectInfo>();
+    private final List<ChosenObjectInfo> mObjectInfo = new ArrayList<>();
 
     private boolean mIsDomainImportant;
 
@@ -208,6 +208,13 @@ public final class Website implements WebsiteEntry {
     public @Nullable ContentSettingException getContentSettingException(
             @ContentSettingsType.EnumType int type) {
         return mContentSettingExceptions.get(type);
+    }
+
+    /** Returns the title for a specific type of content setting for this Website. */
+    public String getTitleForContentSetting(@ContentSettingsType.EnumType int type) {
+        return getContentSettingException(type) != null
+                ? assumeNonNull(getContentSettingException(type)).getDisplayPattern()
+                : getTitle();
     }
 
     /** Sets the exception info for this Website for specified type. */
@@ -410,7 +417,7 @@ public final class Website implements WebsiteEntry {
     }
 
     public List<StorageInfo> getStorageInfo() {
-        return new ArrayList<StorageInfo>(mStorageInfo);
+        return new ArrayList<>(mStorageInfo);
     }
 
     public void addSharedDictionaryInfo(SharedDictionaryInfo info) {
@@ -418,7 +425,7 @@ public final class Website implements WebsiteEntry {
     }
 
     public List<SharedDictionaryInfo> getSharedDictionaryInfo() {
-        return new ArrayList<SharedDictionaryInfo>(mSharedDictionaryInfo);
+        return new ArrayList<>(mSharedDictionaryInfo);
     }
 
     public void setCookiesInfo(CookiesInfo info) {
@@ -493,7 +500,7 @@ public final class Website implements WebsiteEntry {
 
     /** Returns the set of objects this website has been granted permission to access. */
     public List<ChosenObjectInfo> getChosenObjectInfo() {
-        return new ArrayList<ChosenObjectInfo>(mObjectInfo);
+        return new ArrayList<>(mObjectInfo);
     }
 
     public String getTitleForEmbeddedPreferenceRow() {

@@ -44,6 +44,7 @@ android_library("java") {
     "android/java/src/org/chromium/chrome/browser/hub/ShrinkExpandAnimationData.java",
     "android/java/src/org/chromium/chrome/browser/hub/ShrinkExpandAnimator.java",
     "android/java/src/org/chromium/chrome/browser/hub/ShrinkExpandImageView.java",
+    "android/java/src/org/chromium/chrome/browser/hub/SingleChildViewManager.java",
     "android/java/src/org/chromium/chrome/browser/hub/TabSwitcherDrawableButtonData.java",
   ]
 
@@ -86,6 +87,7 @@ android_library_factory("factory_java") {
     "internal/android/java/src/org/chromium/chrome/browser/hub/HubLayoutAnimationRunnerFactory.java",
     "internal/android/java/src/org/chromium/chrome/browser/hub/HubManagerFactory.java",
     "internal/android/java/src/org/chromium/chrome/browser/hub/ShrinkExpandHubLayoutAnimationFactory.java",
+    "internal/android/java/src/org/chromium/chrome/browser/hub/TabListHubLayoutAnimationFactory.java",
     "internal/android/java/src/org/chromium/chrome/browser/hub/TranslateHubLayoutAnimationFactory.java",
   ]
 }
@@ -100,6 +102,7 @@ robolectric_library("junit") {
     "android/java/src/org/chromium/chrome/browser/hub/PaneListBuilderUnitTest.java",
     "android/java/src/org/chromium/chrome/browser/hub/ResourceButtonDataUnitTest.java",
     "android/java/src/org/chromium/chrome/browser/hub/ShrinkExpandImageViewUnitTest.java",
+    "android/java/src/org/chromium/chrome/browser/hub/SingleChildViewManagerUnitTest.java",
   ]
 
   deps = [
@@ -109,6 +112,7 @@ robolectric_library("junit") {
     "//base:base_junit_test_support",
     "//chrome/browser/flags:java",
     "//chrome/browser/ui/android/strings:ui_strings_grd",
+    "//chrome/browser/ui/android/theme:java",
     "//chrome/test/android:chrome_java_unit_test_support",
     "//components/browser_ui/styles/android:java",
     "//components/browser_ui/styles/android:java_resources",

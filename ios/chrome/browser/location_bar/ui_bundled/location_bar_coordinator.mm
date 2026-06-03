@@ -13,6 +13,7 @@
 #import "components/omnibox/browser/omnibox_edit_model.h"
 #import "components/omnibox/browser/omnibox_text_util.h"
 #import "components/omnibox/browser/omnibox_view.h"
+#import "components/omnibox/common/omnibox_features.h"
 #import "components/open_from_clipboard/clipboard_recent_content.h"
 #import "components/prefs/pref_service.h"
 #import "components/profile_metrics/browser_profile_type.h"
@@ -53,6 +54,8 @@
 #import "ios/chrome/browser/omnibox/model/chrome_omnibox_client_ios.h"
 #import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_position_browser_agent.h"
 #import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_state_provider.h"
+#import "ios/chrome/browser/omnibox/model/placeholder_service.h"
+#import "ios/chrome/browser/omnibox/model/placeholder_service_factory.h"
 #import "ios/chrome/browser/omnibox/ui/omnibox_focus_delegate.h"
 #import "ios/chrome/browser/omnibox/ui/omnibox_text_field_ios.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_presenter.h"
@@ -62,6 +65,7 @@
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
+#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_commands.h"
@@ -184,6 +188,8 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
           self.browser->GetCommandDispatcher());
   self.viewController.pageActionMenuHandler = HandlerForProtocol(
       self.browser->GetCommandDispatcher(), PageActionMenuCommands);
+  self.viewController.BWGHandler =
+      HandlerForProtocol(self.browser->GetCommandDispatcher(), BWGCommands);
   self.viewController.tracker =
       feature_engagement::TrackerFactory::GetForProfile(self.profile);
   self.viewController.voiceSearchEnabled =
@@ -277,6 +283,11 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
       ios::TemplateURLServiceFactory::GetForProfile(self.profile);
   self.mediator.consumer = self.viewController;
   self.mediator.webStateList = self.webStateList;
+  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate)) {
+    PlaceholderService* placeholderService =
+        ios::PlaceholderServiceFactory::GetForProfile(self.profile);
+    self.mediator.placeholderService = placeholderService;
+  }
 
   self.steadyViewMediator = [[LocationBarSteadyViewMediator alloc]
       initWithLocationBarModel:[self locationBarModel]];
@@ -374,6 +385,7 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 }
 
 - (void)setLensOverlayVisible:(BOOL)lensOverlayVisible {
+  self.badgeViewController.forceDisabled = lensOverlayVisible;
   [self.viewController setLensOverlayVisible:lensOverlayVisible];
 }
 

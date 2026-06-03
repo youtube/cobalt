@@ -181,10 +181,15 @@ source_set("test_support") {
     ]
   }
 
-  if (!is_android) {
+  if (enable_extensions_core) {
     sources += [
       "extension_policy_test_base.cc",
       "extension_policy_test_base.h",
+    ]
+  }
+
+  if (!is_android) {
+    sources += [
       "policy_test_utils_desktop.cc",
       "safe_search_policy_test.cc",
       "safe_search_policy_test.h",
@@ -227,12 +232,10 @@ source_set("policy_specific_browser_tests") {
     "test/certificate_transparency_policy_browsertest.cc",
     "test/force_permission_policy_unload_default_enabled_policy_browsertest.cc",
     "test/hsts_policy_browsertest.cc",
-    "test/keyboard_focusable_scollers_policy_browsertest.cc",
     "test/network_prediction_policy_browsertest.cc",
     "test/policy_statistics_collector_browsertest.cc",
     "test/proxy_policies_browsertest.cc",
     "test/safe_browsing_policy_browsertest.cc",
-    "test/select_parser_relaxation_policy_browsertest.cc",
     "test/shared_clipboard_enabled_browsertest.cc",
     "test/ssl_error_overriding_allowed_policy_browsertest.cc",
     "test/standardized_browser_zoom_browsertest.cc",
@@ -246,6 +249,7 @@ source_set("policy_specific_browser_tests") {
   deps = [
     ":test_support",
     "//base",
+    "//build:android_buildflags",
     "//chrome/app:command_ids",
     "//chrome/browser",
     "//chrome/browser/media/webrtc",
@@ -314,7 +318,7 @@ source_set("policy_specific_browser_tests") {
       "//chrome/browser/profiles:profile",
       "//chrome/browser/task_manager",
       "//components/autofill/content/browser:test_support",
-      "//components/autofill_ai/core/browser",
+      "//components/autofill/core/browser",
       "//components/bookmarks/common",
       "//components/enterprise",
       "//components/enterprise:test_support",
@@ -405,14 +409,20 @@ source_set("browser_tests") {
     deps += [ "//chrome/browser/ui/webui/signin" ]
   }
 
-  if (enable_extensions) {
+  if (enable_extensions_core) {
     sources += [ "extension_policy_browsertest.cc" ]
 
     deps += [
+      "//chrome/browser/extensions",
       "//chrome/browser/extensions:test_support",
-      "//chrome/browser/web_applications:web_applications_test_support",
-      "//components/webapps/browser:browser",
     ]
+
+    if (enable_extensions) {
+      deps += [
+        "//chrome/browser/web_applications:web_applications_test_support",
+        "//components/webapps/browser:browser",
+      ]
+    }
   }
 
   if (is_android) {
@@ -513,6 +523,7 @@ source_set("browser_tests") {
 
       # Chrome OS does not support this policy.
       "test/native_messaging_policy_browsertest.cc",
+      "test/swiftshader_enabled_browsertest.cc",
     ]
   }
 

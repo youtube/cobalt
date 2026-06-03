@@ -30,6 +30,7 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
@@ -463,25 +464,21 @@ std::string GetXYZParamsString(FPDF_DEST dest, PDFiumPage* page) {
 }
 
 void SetXYZParamsInScreenCoords(PDFiumPage* page, base::span<float> params) {
-  UNSAFE_TODO({
-    gfx::PointF page_coords(params[0], params[1]);
-    gfx::PointF screen_coords = page->TransformPageToScreenXY(page_coords);
-    params[0] = screen_coords.x();
-    params[1] = screen_coords.y();
-  });
+  gfx::PointF page_coords(params[0], params[1]);
+  gfx::PointF screen_coords = page->TransformPageToScreenXY(page_coords);
+  params[0] = screen_coords.x();
+  params[1] = screen_coords.y();
 }
 
 void SetFitRParamsInScreenCoords(PDFiumPage* page, base::span<float> params) {
-  UNSAFE_TODO({
-    gfx::PointF point_1 =
-        page->TransformPageToScreenXY(gfx::PointF(params[0], params[1]));
-    gfx::PointF point_2 =
-        page->TransformPageToScreenXY(gfx::PointF(params[2], params[3]));
-    params[0] = point_1.x();
-    params[1] = point_1.y();
-    params[2] = point_2.x();
-    params[3] = point_2.y();
-  });
+  gfx::PointF point_1 =
+      page->TransformPageToScreenXY(gfx::PointF(params[0], params[1]));
+  gfx::PointF point_2 =
+      page->TransformPageToScreenXY(gfx::PointF(params[2], params[3]));
+  params[0] = point_1.x();
+  params[1] = point_1.y();
+  params[2] = point_2.x();
+  params[3] = point_2.y();
 }
 
 // A helper function that transforms the in-page coordinates in `params` to
@@ -1264,7 +1261,7 @@ uint32_t PDFiumEngine::GetLoadedByteSize() {
 
 bool PDFiumEngine::ReadLoadedBytes(uint32_t offset,
                                    base::span<uint8_t> buffer) {
-  return doc_loader_->GetBlock(offset, buffer.size(), buffer.data());
+  return doc_loader_->GetBlock(offset, buffer);
 }
 
 void PDFiumEngine::SetFormSelectedText(FPDF_FORMHANDLE form_handle,
@@ -1448,6 +1445,10 @@ bool PDFiumEngine::OnLeftMouseDown(const blink::WebMouseEvent& event) {
     }
   }
   SetFieldFocus(FocusFieldType::kNoFocus);
+
+#if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
+  client_->MaybeShowSearchifyInProgress();
+#endif
 
   if (point_data.area != PDFiumPage::TEXT_AREA) {
     return true;  // Return true so WebKit doesn't do its own highlighting.
@@ -1914,6 +1915,10 @@ void PDFiumEngine::StartFind(const std::u16string& text, bool case_sensitive) {
     client_->NotifyNumberOfFindResultsChanged(0, true);
     return;
   }
+
+#if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
+  client_->MaybeShowSearchifyInProgress();
+#endif
 
   bool first_search = (current_find_text_ != text);
   int character_to_start_searching_from = 0;
@@ -2667,15 +2672,6 @@ void PDFiumEngine::HandleLongPress(const blink::WebTouchEvent& event) {
   mouse_event.SetPositionInWidget(event.touches[0].PositionInWidget());
 
   OnMouseDown(mouse_event);
-}
-
-SkBitmap PDFiumEngine::GetImageForOcr(int page_index, int image_index) {
-  DCHECK(PageIndexInBounds(page_index));
-  // This function is not used after launch of PDF Searchify. Default OCR
-  // expected resolution is used to avoid unnecessary update of the call chain.
-  // TODO(crbug.com/360803943): Remove this function and call chain.
-  return pages_[page_index]->GetImageForOcr(image_index,
-                                            /*max_image_dimension=*/2048);
 }
 
 bool PDFiumEngine::GetPrintScaling() {
@@ -3540,12 +3536,14 @@ void PDFiumEngine::Highlight(const RegionData& region,
         continue;
       }
 
-      UNSAFE_TODO({
-        uint8_t* pixel = row.data() + x * 4;
-        pixel[0] = static_cast<uint8_t>(pixel[0] * color_f.fB);
-        pixel[1] = static_cast<uint8_t>(pixel[1] * color_f.fG);
-        pixel[2] = static_cast<uint8_t>(pixel[2] * color_f.fR);
-      });
+      size_t pixel_index = x * 4;
+      if (pixel_index + 2 < row.size()) {
+        row[pixel_index] = static_cast<uint8_t>(row[pixel_index] * color_f.fB);
+        row[pixel_index + 1] =
+            static_cast<uint8_t>(row[pixel_index + 1] * color_f.fG);
+        row[pixel_index + 2] =
+            static_cast<uint8_t>(row[pixel_index + 2] * color_f.fR);
+      }
     }
   }
 }
@@ -4348,8 +4346,7 @@ void PDFiumEngine::UpdatePageCount() {
 void PDFiumEngine::StartSearchify(
     GetOcrMaxImageDimensionCallbackAsync get_max_dimension,
     PerformOcrCallbackAsync perform_ocr_callback) {
-  if (!base::FeatureList::IsEnabled(chrome_pdf::features::kPdfSearchify) ||
-      !base::FeatureList::IsEnabled(ax::mojom::features::kScreenAIOCREnabled)) {
+  if (!base::FeatureList::IsEnabled(ax::mojom::features::kScreenAIOCREnabled)) {
     return;
   }
   // Searchify requests may be sent to the engine when PDF pages are loaded and
@@ -4374,7 +4371,7 @@ void PDFiumEngine::OnOcrDisconnected() {
   }
 }
 
-bool PDFiumEngine::PageNeedsSearchify(int page_index) const {
+bool PDFiumEngine::IsPageScheduledForSearchify(int page_index) const {
   CHECK(PageIndexInBounds(page_index));
   return searchifier_ && searchifier_->IsPageScheduled(page_index);
 }
@@ -4389,6 +4386,9 @@ void PDFiumEngine::ScheduleSearchifyIfNeeded(PDFiumPage* page) {
 
   // TODO(crbug.com/40066441): Explore heuristics to run OCR on pages with large
   // images and a little text.
+  // Note that `PdfAccessibilityTreeBuilder` relies on this heuristic about
+  // pages that are searchified. If this is changed, verify it's also compatible
+  // with that.
   bool page_has_text = page->GetCharCount() != 0;
 
   // Report metric only once for each page. Note that it is possible to reach
@@ -4399,12 +4399,11 @@ void PDFiumEngine::ScheduleSearchifyIfNeeded(PDFiumPage* page) {
   if (not_reported) {
     base::UmaHistogramBoolean("PDF.PageHasText", page_has_text);
   }
-  if (page_has_text) {
+  if (page_has_text || !page->HasImages()) {
     return;
   }
 
-  if (!base::FeatureList::IsEnabled(chrome_pdf::features::kPdfSearchify) ||
-      !base::FeatureList::IsEnabled(ax::mojom::features::kScreenAIOCREnabled)) {
+  if (!base::FeatureList::IsEnabled(ax::mojom::features::kScreenAIOCREnabled)) {
     return;
   }
 
@@ -4673,9 +4672,8 @@ std::vector<gfx::Rect> PDFiumEngine::GetSelectionRects() {
   for (auto& selection : selection_) {
     std::vector<gfx::Rect> screen_rects = selection.GetScreenRects(
         GetVisibleRect().origin(), current_zoom_, GetCurrentOrientation());
-    for (auto& screen_rect : screen_rects) {
-      selection_rects.push_back(screen_rect);
-    }
+    selection_rects.insert(selection_rects.end(), screen_rects.begin(),
+                           screen_rects.end());
   }
   return selection_rects;
 }

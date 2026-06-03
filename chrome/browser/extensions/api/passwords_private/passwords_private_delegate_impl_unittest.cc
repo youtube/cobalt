@@ -18,6 +18,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
+#include "base/notimplemented.h"
 #include "base/rand_util.h"
 #include "base/run_loop.h"
 #include "base/strings/utf_string_conversions.h"
@@ -1393,7 +1394,7 @@ TEST_F(PasswordsPrivateDelegateImplTest, DISABLED_ShowAddShortcutDialog) {
   params.type = Browser::TYPE_NORMAL;
   auto window = std::make_unique<TestBrowserWindow>();
   params.window = window.get();
-  auto browser = std::unique_ptr<Browser>(Browser::Create(params));
+  auto browser = Browser::DeprecatedCreateOwnedForTesting(params);
   NavigateParams nav_params(browser.get(), GURL("chrome://password-manager"),
                             ui::PAGE_TRANSITION_TYPED);
   nav_params.tabstrip_index = 0;
@@ -1440,6 +1441,8 @@ TEST_F(PasswordsPrivateDelegateImplTest, GetCredentialGroups) {
       CreateSampleForm(PasswordForm::Store::kProfileStore, u"username1");
   PasswordForm password2 =
       CreateSampleForm(PasswordForm::Store::kProfileStore, u"username2");
+  const std::u16string backup_password = u"backup";
+  password2.SetPasswordBackupNote(backup_password);
 
   SetUpPasswordStores({password1, password2});
 
@@ -1459,6 +1462,7 @@ TEST_F(PasswordsPrivateDelegateImplTest, GetCredentialGroups) {
   expected_entry2.affiliated_domains.back().signon_realm = "https://abc1.com";
   expected_entry2.username = "username2";
   expected_entry2.stored_in = api::passwords_private::PasswordStoreSet::kDevice;
+  expected_entry2.backup_password = base::UTF16ToUTF8(backup_password);
   EXPECT_THAT(groups[0].entries,
               testing::UnorderedElementsAre(
                   PasswordUiEntryDataEquals(testing::ByRef(expected_entry1)),

@@ -42,7 +42,6 @@ import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
-import android.os.Build;
 import android.os.Bundle;
 import android.text.format.DateUtils;
 import android.view.Gravity;
@@ -121,6 +120,7 @@ import org.chromium.components.content_settings.ContentSettingValues;
 import org.chromium.components.content_settings.ContentSettingsType;
 import org.chromium.components.content_settings.CookieControlsEnforcement;
 import org.chromium.components.content_settings.CookieControlsMode;
+import org.chromium.components.content_settings.CookieControlsState;
 import org.chromium.components.location.LocationUtils;
 import org.chromium.components.page_info.PageInfoAdPersonalizationController;
 import org.chromium.components.page_info.PageInfoController;
@@ -226,6 +226,65 @@ public class PageInfoViewTest {
                                                     new Date(TIMESTAMPE_APRIL_4))))
                             .name("ExactDay"));
             return parameters;
+        }
+    }
+
+    public static class CookieControlsStateParams implements ParameterProvider {
+        @Override
+        public Iterable<ParameterSet> getParameters() {
+            return Arrays.asList(
+                    new ParameterSet()
+                            .value(CookieControlsState.ACTIVE_TP)
+                            .name("ProtectionsActive"),
+                    new ParameterSet()
+                            .value(CookieControlsState.PAUSED_TP)
+                            .name("ProtectionsPaused"));
+        }
+    }
+
+    public static class TrackingProtectionMetricsParams implements ParameterProvider {
+        @Override
+        public Iterable<ParameterSet> getParameters() {
+            return Arrays.asList(
+                    new ParameterSet()
+                            .value(
+                                    CookieControlsState.ACTIVE_TP,
+                                    R.string.tracking_protections_bubble_pause_protections_label,
+                                    "PageInfo.PrivacySubpage.TrackingProtectionsPaused")
+                            .name("ProtectionsPaused"),
+                    new ParameterSet()
+                            .value(
+                                    CookieControlsState.PAUSED_TP,
+                                    R.string.tracking_protections_bubble_resume_protections_label,
+                                    "PageInfo.PrivacySubpage.TrackingProtectionsReenabled")
+                            .name("ProtectionsReenabled"));
+        }
+    }
+
+    public static class EnforcementRenderParams implements ParameterProvider {
+        @Override
+        public Iterable<ParameterSet> getParameters() {
+            return Arrays.asList(
+                    new ParameterSet()
+                            .value(
+                                    CookieControlsEnforcement.ENFORCED_BY_POLICY,
+                                    "PageInfo_PrivacySubpage_3pcsAllowed_ByEnterprise",
+                                    R.string
+                                            .page_info_privacy_site_data_3pcs_enterprise_allowed_description_android)
+                            .name("ByEnterprise"),
+                    new ParameterSet()
+                            .value(
+                                    CookieControlsEnforcement.ENFORCED_BY_COOKIE_SETTING,
+                                    "PageInfo_PrivacySubpage_3pcsAllowed_ByUserSetting",
+                                    R.string
+                                            .page_info_privacy_site_data_3pcs_user_allowed_description_android)
+                            .name("ByUserSetting"),
+                    new ParameterSet()
+                            .value(
+                                    CookieControlsEnforcement.NO_ENFORCEMENT,
+                                    "PageInfo_PrivacySubpage_ProtectionsActive",
+                                    R.string.page_info_privacy_site_data_description_android)
+                            .name("ProtectionsActive"));
         }
     }
 
@@ -487,8 +546,7 @@ public class PageInfoViewTest {
             @ContentSettingsType.EnumType int type) {
         return ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    List<ContentSettingException> exceptions =
-                            new ArrayList<ContentSettingException>();
+                    List<ContentSettingException> exceptions = new ArrayList<>();
                     WebsitePreferenceBridgeJni.get()
                             .getContentSettingsExceptions(
                                     ProfileManager.getLastUsedRegularProfile(), type, exceptions);
@@ -538,13 +596,11 @@ public class PageInfoViewTest {
         // TODO(crbug.com/41452182): Find a general solution to avoid leaking channels
         // between
         // tests.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            ThreadUtils.runOnUiThreadBlocking(
-                    () -> {
-                        SiteChannelsManager manager = SiteChannelsManager.getInstance();
-                        manager.deleteAllSiteChannels();
-                    });
-        }
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    SiteChannelsManager manager = SiteChannelsManager.getInstance();
+                    manager.deleteAllSiteChannels();
+                });
 
         setThirdPartyCookieBlocking(CookieControlsMode.INCOGNITO_ONLY);
         clearPermissions();
@@ -1317,6 +1373,98 @@ public class PageInfoViewTest {
                 getPageInfoView(), "PageInfo_TrackingProtectionSubpage_Block_All_Toggle_On");
     }
 
+    /** Tests the "Privacy and site data" entrypoint title in the PageInfo UI. */
+    @Test
+    @MediumTest
+    @Feature({"RenderTest"})
+    @ParameterAnnotations.UseMethodParameter(CookieControlsStateParams.class)
+    public void displaysPageInfoMainView_showsPrivacySiteDataRow_withState(int state)
+            throws IOException {
+        loadUrlAndOpenPageInfo(mTestServerRule.getServer().getURL(sSimpleHtml));
+        // Manually call `onStatusChanged` to correctly set the value of CookieControlsState when
+        // rendering the title.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    getCookiesController().onStatusChanged(state, 0, 0, 0L);
+                });
+
+        onView(withText(R.string.page_info_privacy_site_data_header)).check(matches(isDisplayed()));
+        // The entrypoint title should be the same regardless of CookieControlsState value.
+        mRenderTestRule.render(getPageInfoView(), "PageInfo_MainView_PrivacySiteDataRow");
+    }
+
+    /**
+     * Tests metrics are recorded when tracking protection button is pressed on "Privacy and site
+     * data" PageInfo subpage.
+     */
+    @Test
+    @MediumTest
+    @ParameterAnnotations.UseMethodParameter(TrackingProtectionMetricsParams.class)
+    public void displaysPrivacySubpage_recordMetrics_trackingProtectionButtonPressed(
+            int state, int buttonLabelId, String metric) throws IOException {
+        UserActionTester userActionTester = new UserActionTester();
+        loadUrlAndOpenPageInfo(mTestServerRule.getServer().getURL(sSimpleHtml));
+        // Manually call `onStatusChanged` to correctly set the value of CookieControlsState.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    getCookiesController().onStatusChanged(state, 0, 0, 0L);
+                });
+        onView(withId(R.id.page_info_cookies_row)).perform(click());
+        onViewWaiting(allOf(withText(buttonLabelId), isDisplayed()));
+        onView(withText(buttonLabelId)).perform(click());
+        assertEquals(1, userActionTester.getActionCount(metric));
+        userActionTester.tearDown();
+    }
+
+    /** Tests the "Privacy and site data" PageInfo UI subpage when protections are active. */
+    @Test
+    @MediumTest
+    @Feature({"RenderTest"})
+    @ParameterAnnotations.UseMethodParameter(EnforcementRenderParams.class)
+    public void displaysPrivacySubpage_protectionsActive(
+            int enforcement, String renderId, int expectedDescriptionResId) throws IOException {
+        loadUrlAndOpenPageInfo(mTestServerRule.getServer().getURL(sSimpleHtml));
+        // Manually call `onStatusChanged` to correctly set the value of CookieControlsState and
+        // CookieControlsEnforcement.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    getCookiesController()
+                            .onStatusChanged(CookieControlsState.ACTIVE_TP, enforcement, 0, 0L);
+                });
+        onView(withId(R.id.page_info_cookies_row)).perform(click());
+        Context context = ApplicationProvider.getApplicationContext();
+        String description =
+                context.getString(expectedDescriptionResId).replaceAll("<link>|</link>", "");
+        onView(withText(description)).check(matches(isDisplayed()));
+        onViewWaiting(
+                allOf(
+                        withText(R.string.tracking_protections_bubble_pause_protections_label),
+                        isDisplayed()));
+        int resId = R.string.tracking_protections_bubble_active_protections_description;
+        onViewWaiting(allOf(withText(resId), isDisplayed()));
+        mRenderTestRule.render(getPageInfoView(), renderId);
+    }
+
+    /** Tests the "Privacy and site data" PageInfo UI subpage when protections are paused. */
+    @Test
+    @MediumTest
+    @Feature({"RenderTest"})
+    public void displaysPrivacySubpage_protectionsPaused() throws IOException {
+        loadUrlAndOpenPageInfo(mTestServerRule.getServer().getURL(sSimpleHtml));
+        // Manually call `onStatusChanged` to correctly set the value of CookieControlsState.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    getCookiesController().onStatusChanged(CookieControlsState.PAUSED_TP, 0, 0, 0L);
+                });
+        onView(withId(R.id.page_info_cookies_row)).perform(click());
+        Context context = ApplicationProvider.getApplicationContext();
+        int resId = R.string.tracking_protections_bubble_paused_protections_description_android;
+        String description = context.getString(resId).replaceAll("<link>|</link>", "");
+
+        onViewWaiting(allOf(withText(description), isDisplayed()));
+        mRenderTestRule.render(getPageInfoView(), "PageInfo_PrivacySubpage_ProtectionsPaused");
+    }
+
     /** Tests the history page of the PageInfo UI. */
     @Test
     @MediumTest
@@ -1953,7 +2101,7 @@ public class PageInfoViewTest {
 
     @Test
     @MediumTest
-    @Restriction({DeviceFormFactor.TABLET})
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     public void testBottomGravityTablets() {
         ObservableSupplier<ModalDialogManager> modalDialogManagerSupplier =
                 ThreadUtils.runOnUiThreadBlocking(

@@ -19,7 +19,6 @@
 #include "build/build_config.h"
 #include "components/viz/common/features.h"
 #include "components/viz/common/switches.h"
-#include "components/viz/service/display_embedder/in_process_gpu_memory_buffer_manager.h"
 #include "components/viz/service/display_embedder/output_surface_provider_impl.h"
 #include "components/viz/service/frame_sinks/frame_sink_manager_impl.h"
 #include "components/viz/service/frame_sinks/gmb_video_frame_pool_context_provider_impl.h"
@@ -47,6 +46,11 @@ std::unique_ptr<VizCompositorThreadType> CreateAndStartCompositorThread() {
   auto thread = std::make_unique<base::android::JavaHandlerThread>(kThreadName,
                                                                    thread_type);
   thread->Start();
+  thread->task_runner()->PostTask(
+      FROM_HERE, base::BindOnce([]() {
+        mojo::InterfaceEndpointClient::SetThreadNameSuffixForMetrics(
+            "VizCompositor");
+      }));
   return thread;
 #else  // !BUILDFLAG(IS_ANDROID)
 
@@ -74,6 +78,12 @@ std::unique_ptr<VizCompositorThreadType> CreateAndStartCompositorThread() {
   thread_options.thread_type = thread_type;
 
   CHECK(thread->StartWithOptions(std::move(thread_options)));
+
+  thread->task_runner()->PostTask(
+      FROM_HERE, base::BindOnce([]() {
+        mojo::InterfaceEndpointClient::SetThreadNameSuffixForMetrics(
+            "VizCompositor");
+      }));
 
   return thread;
 #endif  // !BUILDFLAG(IS_ANDROID)
@@ -165,10 +175,6 @@ void VizCompositorThreadRunnerImpl::CreateFrameSinkManagerOnCompositorThread(
 
   if (gpu_service) {
     // Create OutputSurfaceProvider usable for GPU + software compositing.
-    gpu_memory_buffer_manager_ =
-        std::make_unique<InProcessGpuMemoryBufferManager>(
-            gpu_service->gpu_memory_buffer_factory(),
-            gpu_service->sync_point_manager());
     output_surface_provider_ =
         std::make_unique<OutputSurfaceProviderImpl>(gpu_service, headless);
 
@@ -176,8 +182,7 @@ void VizCompositorThreadRunnerImpl::CreateFrameSinkManagerOnCompositorThread(
     // manager to create GMB-backed video frames.
     gmb_video_frame_pool_context_provider_ =
         std::make_unique<GmbVideoFramePoolContextProviderImpl>(
-            gpu_service, gpu_memory_buffer_manager_.get(),
-            gpu_service->gpu_memory_buffer_factory());
+            gpu_service, gpu_service->gpu_memory_buffer_factory());
   } else {
     // Create OutputSurfaceProvider usable for software compositing only.
     output_surface_provider_ =
@@ -239,7 +244,6 @@ void VizCompositorThreadRunnerImpl::TearDownOnCompositorThread() {
   hint_session_factory_.reset();
   output_surface_provider_.reset();
   gmb_video_frame_pool_context_provider_.reset();
-  gpu_memory_buffer_manager_.reset();
 }
 
 }  // namespace viz

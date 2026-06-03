@@ -182,7 +182,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.GaiaNameShareStatus" enum="ProfileGaiaNameShareStatus"
-    expires_after="2025-10-11">
+    expires_after="2025-12-14">
   <owner>droger@google.com</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -314,7 +314,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.Menu.ClickedActionableItem{ProfileType}"
-    enum="ProfileMenuActionableItem" expires_after="2025-10-05">
+    enum="ProfileMenuActionableItem" expires_after="2025-12-07">
   <owner>droger@chromium.org</owner>
   <owner>msarda@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -465,12 +465,23 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.PercentageOfManagedProfiles" units="units"
-    expires_after="2025-10-05">
+    expires_after="2025-12-07">
   <owner>agawronska@chromium.org</owner>
   <owner>cros-families-eng@google.com</owner>
   <summary>
     Tracks the percentage (0-100) of profiles that are locally managed, recorded
     when Chrome starts up.
+  </summary>
+</histogram>
+
+<histogram name="Profile.ProfileError2" enum="ProfileErrorType"
+    expires_after="2025-11-16">
+  <owner>etienneb@chromium.org</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <summary>
+    Counts the number of times a profile error dialog is shown. The dialog will
+    ask the user if they want to upload an error report for Google to debug the
+    issue.
   </summary>
 </histogram>
 
@@ -611,7 +622,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Profile.{Database}Size" units="MB" expires_after="2025-10-12">
+<histogram name="Profile.{Database}Size" units="MB" expires_after="2025-12-14">
   <owner>etienneb@chromium.org</owner>
   <owner>gab@chromium.org</owner>
   <summary>
@@ -633,7 +644,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProfileChooser.HasProfilesShown" enum="BooleanShown"
-    expires_after="2025-09-28">
+    expires_after="2025-11-30">
   <owner>vasilii@chromium.org</owner>
   <owner>ewald@chromium.org</owner>
   <summary>
@@ -729,7 +740,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProfilePicker.FirstRun.OrganizationAvailableTiming" units="ms"
-    expires_after="2025-09-21">
+    expires_after="2025-11-23">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>

@@ -10,17 +10,24 @@
 #include "third_party/blink/public/mojom/payments/payment_request.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/native_value_traits_impl.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_arraybuffer_arraybufferview.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_payment_credential_instrument.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_secure_payment_confirmation_request.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_network_or_issuer_information.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_payment_credential_instrument.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_payment_entity_logo.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_secure_payment_confirmation_request.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/modules/payments/secure_payment_confirmation_type_converter.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 
 namespace blink {
 
 namespace {
+
+// The maximum size of the payment instrument details string. Arbitrarily chosen
+// while being much larger than any reasonable input.
+constexpr size_t kMaxInstrumentDetailsLength = 4096;
+
 bool IsEmpty(const V8UnionArrayBufferOrArrayBufferView* buffer) {
   DCHECK(buffer);
   switch (buffer->GetContentType()) {
@@ -39,7 +46,7 @@ bool IsEmpty(const V8UnionArrayBufferOrArrayBufferView* buffer) {
 bool IsValidDomain(const String& rp_id) {
   // A valid domain, such as 'site.example', should be a URL host (and nothing
   // more of the URL!) that is not an IP address.
-  KURL url("https://" + rp_id);
+  KURL url(StrCat({"https://", rp_id}));
   return url.IsValid() && url.Host() == rp_id &&
          !url::HostIsIPAddress(url.Host().Utf8());
 }
@@ -96,6 +103,13 @@ SecurePaymentConfirmationHelper::ParseSecurePaymentConfirmationData(
     exception_state.ThrowTypeError(
         "The \"secure-payment-confirmation\" method requires a valid URL in "
         "the \"instrument.icon\" field.");
+    return nullptr;
+  }
+  if (request->instrument()->hasDetails() &&
+      request->instrument()->details().length() > kMaxInstrumentDetailsLength) {
+    exception_state.ThrowTypeError(
+        "The \"secure-payment-confirmation\" method requires the string "
+        "length in the \"instrument.details\" field to be at most 4096.");
     return nullptr;
   }
   if (!IsValidDomain(request->rpId())) {
@@ -172,6 +186,43 @@ SecurePaymentConfirmationHelper::ParseSecurePaymentConfirmationData(
           "The \"secure-payment-confirmation\" method requires a valid URL in "
           "the \"issuerInfo.icon\" field.");
       return nullptr;
+    }
+  }
+
+  if (request->hasPaymentEntitiesLogos()) {
+    for (const PaymentEntityLogo* logo : request->paymentEntitiesLogos()) {
+      // The IDL bindings code does not allow the sequence to contain null
+      // entries.
+      CHECK(logo);
+
+      if (logo->url().empty()) {
+        exception_state.ThrowTypeError(
+            "The \"secure-payment-confirmation\" method requires that each "
+            "entry in \"paymentEntitiesLogos\" has a non-empty \"url\" field.");
+        return nullptr;
+      }
+      KURL logo_url(logo->url());
+      if (!logo_url.IsValid()) {
+        exception_state.ThrowTypeError(
+            "The \"secure-payment-confirmation\" method requires that each "
+            "entry in \"paymentEntitiesLogos\" has a valid URL in the \"url\" "
+            "field.");
+        return nullptr;
+      }
+      if (!logo_url.ProtocolIsInHTTPFamily() && !logo_url.ProtocolIsData()) {
+        exception_state.ThrowTypeError(
+            "The \"secure-payment-confirmation\" method requires that each "
+            "entry in \"paymentEntitiesLogos\" has a URL whose scheme is one "
+            "of \"https\", \"http\", or \"data\" in the \"url\" field.");
+        return nullptr;
+      }
+      if (logo->label().empty()) {
+        exception_state.ThrowTypeError(
+            "The \"secure-payment-confirmation\" method requires that each "
+            "entry in \"paymentEntitiesLogos\" has a non-empty \"label\" "
+            "field.");
+        return nullptr;
+      }
     }
   }
 

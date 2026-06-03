@@ -11,35 +11,27 @@ import "chromeos/components/sensors/mojom/cros_sensor_service.mojom";
 import "chromeos/crosapi/mojom/account_manager.mojom";
 import "chromeos/crosapi/mojom/guest_os_sk_forwarder.mojom";
 import "chromeos/crosapi/mojom/cert_provisioning.mojom";
-import "chromeos/crosapi/mojom/chaps_service.mojom";
 import "chromeos/crosapi/mojom/chrome_app_kiosk_service.mojom";
 import "chromeos/crosapi/mojom/clipboard_history.mojom";
 import "chromeos/crosapi/mojom/cros_display_config.mojom";
 import "chromeos/crosapi/mojom/desk_profiles.mojom";
-import "chromeos/crosapi/mojom/device_attributes.mojom";
-import "chromeos/crosapi/mojom/device_oauth2_token_service.mojom";
 import "chromeos/crosapi/mojom/diagnostics_service.mojom";
 import "chromeos/crosapi/mojom/document_scan.mojom";
 import "chromeos/crosapi/mojom/file_change_service_bridge.mojom";
 import "chromeos/crosapi/mojom/file_system_access_cloud_identifier.mojom";
 import "chromeos/crosapi/mojom/file_system_provider.mojom";
 import "chromeos/crosapi/mojom/full_restore.mojom";
-import "chromeos/crosapi/mojom/fullscreen_controller.mojom";
 import "chromeos/crosapi/mojom/identity_manager.mojom";
 import "chromeos/crosapi/mojom/keystore_service.mojom";
 import "chromeos/crosapi/mojom/local_printer.mojom";
 import "chromeos/crosapi/mojom/login.mojom";
-import "chromeos/crosapi/mojom/login_state.mojom";
 import "chromeos/crosapi/mojom/policy_service.mojom";
-import "chromeos/crosapi/mojom/multi_capture_service.mojom";
 import "chromeos/crosapi/mojom/network_change.mojom";
-import "chromeos/crosapi/mojom/networking_attributes.mojom";
 import "chromeos/crosapi/mojom/networking_private.mojom";
 import "chromeos/crosapi/mojom/parent_access.mojom";
 import "chromeos/crosapi/mojom/print_preview_cros.mojom";
 import "chromeos/crosapi/mojom/probe_service.mojom";
 import "chromeos/crosapi/mojom/remoting.mojom";
-import "chromeos/crosapi/mojom/structured_metrics_service.mojom";
 import "chromeos/crosapi/mojom/telemetry_diagnostic_routine_service.mojom";
 import "chromeos/crosapi/mojom/telemetry_event_service.mojom";
 import "chromeos/crosapi/mojom/telemetry_management_service.mojom";
@@ -47,7 +39,6 @@ import "chromeos/crosapi/mojom/vpn_service.mojom";
 import "chromeos/services/chromebox_for_meetings/public/mojom/cfm_service_manager.mojom";
 import "chromeos/services/machine_learning/public/mojom/machine_learning_service.mojom";
 import "chromeos/crosapi/mojom/video_capture.mojom";
-import "chromeos/crosapi/mojom/kiosk_session_service.mojom";
 import "chromeos/crosapi/mojom/media_ui.mojom";
 import "mojo/public/mojom/base/generic_pending_receiver.mojom";
 import "services/device/public/mojom/hid.mojom";
@@ -105,11 +96,7 @@ interface Crosapi {
   BindCfmServiceContext@142(
       pending_receiver<chromeos.cfm.mojom.CfmServiceContext> receiver);
 
-  // Binds the ChapsService interface for communicating with the Chaps daemon.
-  // Added in M121.
-  [MinVersion=125] BindChapsService@127(
-      pending_receiver<ChapsService> receiver);
-
+  // BindChapsService@127 was removed.
   // BindChromeAppPublisher@43 was removed.
   // BindChromeAppWindowTracker@49 was removed.
   // BindClipboard@15 was removed.
@@ -125,19 +112,8 @@ interface Crosapi {
   // BindDesk@103 was removed.
   // BindDeskProfileObserver@124 was removed.
   // BindDeskTemplate@71 was removed.
-
-  // Binds the device attributes service which is used by enterprise extension
-  // APIs to query information about the device.
-  // Added in M89.
-  [MinVersion=12] BindDeviceAttributes@17(
-      pending_receiver<DeviceAttributes> receiver);
-
-  // Binds the DeviceOAuth2TokenService interface for the device oauth2 token
-  // service in Lacros-Chrome.
-  // Added in M106.
-  [MinVersion=91] BindDeviceOAuth2TokenService@95(
-    pending_receiver<DeviceOAuth2TokenService> receiver);
-
+  // BindDeviceAttributes@17 was removed.
+  // BindDeviceOAuth2TokenService@95 was removed.
   // BindDeviceSettingsService@59 was removed.
 
   // Binds the diagnostics service to allow Lacros to initiate diagnostics
@@ -176,12 +152,7 @@ interface Crosapi {
   // BindFileSystemProviderService@81 was removed.
   // BindForceInstalledTracker@57 was removed.
   // BindFullRestore@137 was removed.
-
-  // Binds the full screen controller which determines whether to keep or exit
-  // full screen mode.
-  [MinVersion=94] BindFullscreenController@98(
-      pending_receiver<FullscreenController> receiver);
-
+  // BindFullscreenController@98 was removed.
   // BindGeolocationService@48 was removed.
   // BindIdentityManager@55 was removed.
   // BindIdleService@21 was removed.
@@ -214,9 +185,7 @@ interface Crosapi {
   [MinVersion=63] BindLogin@67(pending_receiver<Login> receiver);
 
   // BindLoginScreenStorage@68 was removed.
-
-  // Binds the login state service.
-  [MinVersion=57] BindLoginState@61(pending_receiver<LoginState> receiver);
+  // BindLoginState@61 was removed.
 
   // Binds the machine learning service.
   // Added in M90.
@@ -232,21 +201,13 @@ interface Crosapi {
 
   // BindNativeThemeService@38 was removed.
   // BindMetrics@106 was removed.
-
-  // Binds the MultiCaptureService interface that handles multi capture related
-  // usage indicators and notifications.
-  [MinVersion=100]
-  BindMultiCaptureService@104(pending_receiver<MultiCaptureService> receiver);
+  // BindMultiCaptureService@104 was removed.
 
   // Binds the NetworkChange interface for getting network change notification.
   [MinVersion=88]
   BindNetworkChange@92(pending_receiver<NetworkChange> receiver);
 
-  // Binds the networking attributes service which is used by enterprise
-  // extension APIs to query details about the network.
-  [MinVersion=39]
-  BindNetworkingAttributes@44(pending_receiver<NetworkingAttributes> receiver);
-
+  // BindNetworkingAttributes@44 was removed.
   // BindOneDriveNotificationService@132 was removed.
   // BindOneDriveIntegrationService@135 was removed.
 
@@ -282,13 +243,7 @@ interface Crosapi {
   // BindSmartReaderClient@107 was removed.
   // BindSpeechRecognition@84 was removed.
   // BindStableVideoDecoderFactory@56 was removed.
-
-  // Binds the StructuredMetricsService interface to record events.
-  // Added in M96.
-  [MinVersion=48]
-  BindStructuredMetricsService@52(
-      pending_receiver<StructuredMetricsService> receiver);
-
+  // BindStructuredMetricsService@52 was removed.
   // BindSuggestionService@136 was removed.
   // BindTrustedVaultBackend@121 was removed.
   // BindTrustedVaultBackendService@145 was removed.
@@ -322,13 +277,8 @@ interface Crosapi {
 
   // BindPower@40 was removed.
   // BindPrintingMetrics@90 was removed.
-
-  // Binds the PrintPreviewCrosDelegate interface.
-  [MinVersion=141] BindPrintPreviewCrosDelegate@143(
-      pending_receiver<PrintPreviewCrosDelegate> receiver);
-
+  // BindPrintPreviewCrosClient@143 was removed.
   // BindResourceManager@41 was removed.
-
   // REMOVED_29@29 was removed.
   // BindSearchControllerFactory@138 was removed.
   // BindSearchControllerRegistry@66 was removed.
@@ -372,13 +322,7 @@ interface Crosapi {
   // BindVideoConferenceManager@102 was removed.
   // BindVirtualKeyboard@91 was removed.
   // BindVpnExtensionObserver@78 was removed.
-
-  // Binds the Kiosk session service which sends session status changes from
-  // lacros to ash.
-  // Added in M96.
-  [MinVersion=49] BindKioskSessionService@53(
-      pending_receiver<KioskSessionService> receiver);
-
+  // BindKioskSessionService@53 was removed.
   // BindChromeAppKioskService@76 was removed.
   // BindWebKioskService@114 was removed.
   // BindDeviceLocalAccountExtensionService@100 was removed.

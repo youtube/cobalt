@@ -12,6 +12,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/timer/elapsed_timer.h"
+#include "components/supervised_user/core/browser/supervised_user_service.h"
 #include "components/supervised_user/core/browser/supervised_user_url_filter.h"
 #include "components/supervised_user/core/browser/supervised_user_utils.h"
 #include "content/public/browser/navigation_handle.h"
@@ -42,31 +43,21 @@ enum class ClassifyUrlThrottleStatus : int {
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/families/enums.xml:ClassifyUrlThrottleStatus)
 
-// LINT.IfChange(ClassifyUrlThrottleUseCase)
-enum class ClassifyUrlThrottleUseCase : int {
-  kNotAllowed = 0,
-  kFamilyLinkSupervisedUser = 1,
-  kMaxValue = kFamilyLinkSupervisedUser,
-};
-// LINT.ThenChange(//tools/metrics/histograms/metadata/families/enums.xml:ClassifyUrlThrottleUseCase)
-
 enum class InterstitialResultCallbackActions {
   kCancelNavigation = 0,
   kCancelWithInterstitial = 1
 };
 
-// Returns a new throttle for the given navigation, or nullptr if no
-// throttling is required.
-void MaybeCreateAndAddClassifyUrlNavigationThrottle(
-    content::NavigationThrottleRegistry& registry);
 
 // Navigation throttle that processes requests and redirects in parallel with
 // their verification against ClassifyUrl, up until the response is ready for
 // processing. Only then the navigation can be deferred.
 class ClassifyUrlNavigationThrottle : public content::NavigationThrottle {
  public:
-  static void CreateAndAdd(content::NavigationThrottleRegistry& registry,
-      SupervisedUserURLFilter* url_filter);
+// Adds a ClassifyUrlNavigationThrottle to the registry for all profiles except
+// for OffTheRecord profiles.
+  static void MaybeCreateAndAdd(
+  content::NavigationThrottleRegistry& registry);
 
   ClassifyUrlNavigationThrottle(const ClassifyUrlNavigationThrottle&) = delete;
   ClassifyUrlNavigationThrottle& operator=(
@@ -118,8 +109,7 @@ class ClassifyUrlNavigationThrottle : public content::NavigationThrottle {
     std::optional<base::ElapsedTimer> elapsed_;
   };
 
-  ClassifyUrlNavigationThrottle(content::NavigationThrottleRegistry& registry,
-                                SupervisedUserURLFilter* url_filter);
+  explicit ClassifyUrlNavigationThrottle(content::NavigationThrottleRegistry& registry);
 
   // content::NavigationThrottle implementation:
   ThrottleCheckResult WillStartRequest() override;
@@ -159,6 +149,18 @@ class ClassifyUrlNavigationThrottle : public content::NavigationThrottle {
                             bool already_sent_request,
                             bool is_main_frame);
 
+  // Returns the HTML to be used for the interstitial, specific for the profile
+  // doing the navigation.
+  std::string GetInterstitialHTML(SupervisedUserURLFilter::Result result,
+                                  bool already_sent_request,
+                                  bool is_main_frame) const;
+
+  // Returns the URL filter associated with the navigated under throttling.
+  SupervisedUserURLFilter* url_filter() const;
+  // Returns the supervised user service associated with the navigated under
+  // throttling.
+  SupervisedUserService* supervised_user_service() const;
+
   // All pending and completed checks.
   ClassifyUrlCheckList list_;
 
@@ -168,8 +170,6 @@ class ClassifyUrlNavigationThrottle : public content::NavigationThrottle {
   // Timers forming a continuum of time, only recorded in unblocked navigation
   // (success) case.
   std::optional<base::ElapsedTimer> waiting_for_decision_;
-
-  raw_ptr<SupervisedUserURLFilter> url_filter_;
   base::WeakPtrFactory<ClassifyUrlNavigationThrottle> weak_ptr_factory_{this};
 };
 

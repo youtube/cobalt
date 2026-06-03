@@ -10,6 +10,7 @@
 #include <tuple>
 #include <utility>
 
+#include "base/debug/crash_logging.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
@@ -535,9 +536,11 @@ void OpenWindow(const GURL& url,
           ? WindowOpenDisposition::NEW_POPUP
           : WindowOpenDisposition::NEW_FOREGROUND_TAB,
       ui::PAGE_TRANSITION_AUTO_TOPLEVEL, true /* is_renderer_initiated */);
-  // TODO(https://crbug.com/382542907): Remove `open_pwa_window_if_possible` or
-  // make it IWA-specific.
-  params.open_app_window_if_possible = type == WindowType::NEW_TAB_WINDOW;
+
+  // Technically this field is equivalent to (disposition == NEW_FOREGROUND_TAB)
+  // && (transition == AUTO_TOPLEVEL) && is_renderer_initiated; this
+  // constellation of params is unique to just service worker navigations.
+  params.is_service_worker_open_window = type == WindowType::NEW_TAB_WINDOW;
   params.initiator_origin =
       url::Origin::Create(script_url.DeprecatedGetOriginAsURL());
 

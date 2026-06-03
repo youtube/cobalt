@@ -200,6 +200,7 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> — <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
+<translation id="1762353673362288306">Tagad varat izmantot tikai lietotni Klases rīki.</translation>
 <translation id="1762483337755424125">Transkripcija</translation>
 <translation id="1765169783255151332">Ātra taustiņu pārslēgšana</translation>
 <translation id="1768959921651994223">Autentifikācijas veids</translation>
@@ -470,6 +471,7 @@
 <translation id="3091839911843451378">Neizdevās — darbība apturēta</translation>
 <translation id="3102119246920354026">Kešatmiņa</translation>
 <translation id="3103783611481501187">sirreāls</translation>
+<translation id="3119672627216736407">Tulkojums pieejams</translation>
 <translation id="3122464029669770682">Maksa par daļas vienību</translation>
 <translation id="3122614491980756867">pludmales peļķes</translation>
 <translation id="3122883569442693641">Plašāka informācija</translation>
@@ -1124,6 +1126,7 @@
 <translation id="6058625436358447366">Lai pabeigtu, ievadiet savu iepriekšējo un jauno paroli</translation>
 <translation id="6061772781719867950">Nesekmīgi HTTP pieprasījumi</translation>
 <translation id="6073292342939316679">samazināt tastatūras spilgtumu</translation>
+<translation id="6074608334942655098">Apturēt tulkošanu</translation>
 <translation id="6074752328838739425">Paslēpt kopsavilkumu</translation>
 <translation id="6075872808778243331">(Android) HTTP latentums</translation>
 <translation id="6078323886959318429">Pievienot saīsni</translation>
@@ -1421,7 +1424,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">Uzdodiet jautājumus ekspertiem Chromebook datoru palīdzības forumā.</translation>
-<translation id="7309823890857024809">minimālisms: klusā daba ar dažiem magoņu ziediem stikla vāzē uz melna fona</translation>
 <translation id="7311368985037279727">tastatūras krāsa</translation>
 <translation id="7317831949569936035">Skolas ierīces reģistrēšana</translation>
 <translation id="7319430975418800333">A3</translation>
@@ -1601,6 +1603,7 @@ Lai varētu izveidot šādas transkripcijas, lejupielādējiet transkribēšanas
 <translation id="8088963492174775412">Nospiediet, lai sāktu ierakstīšanu</translation>
 <translation id="8094062939584182041">Atļaut Google nosūtīt jums e-pasta ziņojumu par šo problēmu</translation>
 <translation id="8104083085214006426">Jūs izmantojat atvērtu un nedrošu tīklu</translation>
+<translation id="8108879170356113798">Lietotni Klases rīki varēs izmantot tikai pēc <ph name="NUM_SECONDS" /> s</translation>
 <translation id="811820734797650957">(Android) Vārteju var ehotestēt</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" />° C</translation>
 <translation id="8131740175452115882">Apstiprināt</translation>

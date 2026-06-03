@@ -22,7 +22,6 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
@@ -121,17 +120,15 @@ public class CustomTabActivityAppMenuTest {
                         @Override
                         public List<ResolveInfo> queryBroadcastReceivers(
                                 Intent intent, int filters) {
-                            return new ArrayList<ResolveInfo>();
+                            return new ArrayList<>();
                         }
                     });
         }
 
         @Override
         public Object getSystemService(String name) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
-                if (name.equals(Context.SHORTCUT_SERVICE)) {
-                    return null;
-                }
+            if (name.equals(Context.SHORTCUT_SERVICE)) {
+                return null;
             }
             return super.getSystemService(name);
         }

@@ -122,15 +122,14 @@ IN_PROC_BROWSER_TEST_F(GlicWindowControllerUiTest, DoNotCrashWhenReopening) {
                   OpenGlicWindow(GlicWindowMode::kAttached));
 }
 
-// Disabled due to flakes Mac; see https://crbug.com/394350688.
-IN_PROC_BROWSER_TEST_F(GlicWindowControllerUiTest,
-                       DISABLED_OpenDetachedAndThenOpenAttached) {
+IN_PROC_BROWSER_TEST_F(GlicWindowControllerUiTest, ButtonTogglesGlicWindow) {
   RunTestSequence(OpenGlicWindow(GlicWindowMode::kDetached),
                   PressButton(kGlicButtonElementId),
-                  WaitForEvent(kGlicButtonElementId, kGlicWidgetAttached),
+                  InAnyContext(WaitForHide(kGlicViewElementId)),
+                  CheckControllerHasWidget(false),
+                  PressButton(kGlicButtonElementId),
                   CheckControllerHasWidget(true),
-                  CheckControllerWidgetMode(GlicWindowMode::kAttached),
-                  CloseGlicWindow(), CheckControllerHasWidget(false));
+                  CheckControllerWidgetMode(GlicWindowMode::kDetached));
 }
 
 constexpr char kActivateSurfaceIncompatibilityNotice[] =
@@ -311,6 +310,7 @@ IN_PROC_BROWSER_TEST_F(GlicWindowControllerUiTest,
 
 IN_PROC_BROWSER_TEST_F(GlicWindowControllerUiTest,
                        ClientUnresponsiveThenError) {
+  base::HistogramTester histogram_tester;
   RunTestSequence(
       OpenGlicWindow(GlicWindowMode::kAttached),
       ClickMockGlicElement(kMockGlicClientHangButton, true),
@@ -319,6 +319,16 @@ IN_PROC_BROWSER_TEST_F(GlicWindowControllerUiTest,
                    mojom::WebUiState::kUnresponsive),
       // Client should show error after showing the unresponsive UI for 5s.
       WaitForState(test::internal::kGlicAppState, mojom::WebUiState::kError));
+  histogram_tester.ExpectTotalCount(
+      "Glic.Host.WebClientUnresponsiveState.Duration", 1);
+  histogram_tester.ExpectTotalCount("Glic.Host.WebClientUnresponsiveState", 2);
+  // One sample in the WebClientUnresponsiveState.ENTERED_FROM_CUSTOM_HEARTBEAT
+  // (1) bucket.
+  histogram_tester.ExpectBucketCount("Glic.Host.WebClientUnresponsiveState", 1,
+                                     1);
+  // One sample in the WebClientUnresponsiveState.EXITED (4) bucket.
+  histogram_tester.ExpectBucketCount("Glic.Host.WebClientUnresponsiveState", 4,
+                                     1);
 }
 
 IN_PROC_BROWSER_TEST_F(GlicWindowControllerUiTest,
@@ -364,6 +374,12 @@ IN_PROC_BROWSER_TEST_F(GlicWindowControllerUiTest,
       WaitForState(test::internal::kGlicAppState, mojom::WebUiState::kSignIn),
       ForceReauthAccount(),
       WaitForState(test::internal::kGlicAppState, mojom::WebUiState::kReady));
+}
+
+IN_PROC_BROWSER_TEST_F(GlicWindowControllerUiTest,
+                       DetachedWidgetIsTrackedByOcclusionTracker) {
+  RunTestSequence(OpenGlicWindow(GlicWindowMode::kDetached),
+                  CheckOcclusionTracked(true));
 }
 
 IN_PROC_BROWSER_TEST_F(GlicWindowControllerUiTest, TestInitialBounds) {
@@ -452,8 +468,6 @@ IN_PROC_BROWSER_TEST_F(GlicWindowControllerUiTest, PermanentlyDeleteProfile) {
   Profile& profile1 = profiles::testing::CreateProfileSync(
       profile_manager, profile_manager->GenerateNextProfileDirectoryPath());
   Browser* const browser1 = CreateBrowser(&profile1);
-  SigninWithPrimaryAccount(&profile1);
-  SetModelExecutionCapability(&profile1, true);
   GlicKeyedService* const service1 =
       GlicKeyedServiceFactory::GetGlicKeyedService(browser1->profile());
   service1->window_controller().fre_controller()->AcceptFre();
@@ -672,6 +686,6 @@ IN_PROC_BROWSER_TEST_F(
                   InAnyContext(DetachGlicWindow(), MoveWidgetToSecondDisplay(),
                                CheckWidgetMovedToSecondaryDisplay(true)));
 }
-#endif
+#endif  // BUILDFLAG(IS_MAC)
 
 }  // namespace glic

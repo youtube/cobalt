@@ -5,6 +5,7 @@
 <translation id="1029669172902658969">重新启动以更新 Chromium 操作系统(&amp;C)</translation>
 <translation id="1040916596585577953">Chromium 建议您检查此扩展程序</translation>
 <translation id="1042552502243217427">当某个网站请求以私密方式预加载其网页上的链接时，Chromium 会使用 Google 服务器。如此一来，Google 能知道会预加载哪些网站，但这些网站无法得知您的身份。</translation>
+<translation id="1051793555070215510">请花 1 分钟时间填写调查问卷，帮助我们改进无痕模式。</translation>
 <translation id="1065672644894730302">系统无法读取您的偏好设置。某些功能可能无法使用，并且对偏好设置所做的更改不会保存。</translation>
 <translation id="1083934481477628225">您的家长已为 Chromium 停用“网站、应用和扩展程序的权限”</translation>
 <translation id="1104942323762546749">Chromium 想导出您的密码。请输入您的 Windows 密码以允许此操作。</translation>
@@ -84,7 +85,6 @@
 <translation id="2126108037660393668">所下载的文件未能顺利通过验证。</translation>
 <translation id="2137162749895930932">关闭翻译屏幕</translation>
 <translation id="215352261310130060">Chromium 阻止了此项下载操作，因为网站未使用安全连接，该文件可能已被篡改</translation>
-<translation id="2157600032285353789">您可以通过 Chromium 菜单打开书签、阅读模式等</translation>
 <translation id="2174178932569897599">自定义 Chromium</translation>
 <translation id="2174917724755363426">尚未完成安装，确定要取消吗？</translation>
 <translation id="2185166961232948079">Chromium - 网络登录 - <ph name="PAGE_TITLE" /></translation>
@@ -219,11 +219,13 @@
 <translation id="3954172517175569325">您在 Google 账号中保存的密码、支付方式和地址将从此设备中移除。如需在 Chromium 中重新使用这些数据，请重新登录。</translation>
 <translation id="395904275706073188">无法读取受保护的页面，请尝试其他页面。</translation>
 <translation id="3962647064319009959">了解 Chromium 如何保障您的安全</translation>
+<translation id="3971865010372729242">当您在地址栏或搜索框中输入内容时，Chromium 会将您输入的内容发送给组织的搜索、AI 和代理工具，以便获取建议。</translation>
 <translation id="3975724895399328945">关于 Google Chrome for Testing(&amp;G)</translation>
 <translation id="3997429360543082038">关于 Chromium 操作系统</translation>
 <translation id="4019629340646866719">与 <ph name="BEGIN_LINK_LINUX_OSS" />Linux 开发环境<ph name="END_LINK_LINUX_OSS" />一样，Chromium 操作系统也是借助了其他<ph name="BEGIN_LINK_CROS_OSS" />开源软件<ph name="END_LINK_CROS_OSS" />才得以问世。</translation>
 <translation id="4022972681110646219">翻译屏幕</translation>
 <translation id="4023601594785368013">源语言：<ph name="LANGUAGE" /></translation>
+<translation id="4023845192681161785">在任意应用内通过 Chromium 打开链接。此外，为了方便使用，Chromium 会固定到任务栏。</translation>
 <translation id="4036079820698952681">报告<ph name="BEGIN_LINK" />当前设置<ph name="END_LINK" />，协助我们改进 Chromium</translation>
 <translation id="4050175100176540509">最新版本不仅在安全性方面做出了重要改进，还提供了多项新功能。</translation>
 <translation id="4055805654398742145">密码管理工具(&amp;A)</translation>
@@ -325,6 +327,7 @@
 <translation id="5524890928877629608">搜索区域的左上角：左侧 <ph name="LEFT" />%，顶部 <ph name="TOP" />%</translation>
 <translation id="5527463683072221100">在 Chromium 中打开 PDF 文件</translation>
 <translation id="5579324208890605088">启动错误：请以普通用户身份（非管理员身份）运行安装程序。</translation>
+<translation id="5580770360767802657">默认使用 Chromium 并将其固定</translation>
 <translation id="5596627076506792578">更多选项</translation>
 <translation id="5605834417512968703">选择任意内容即可使用图片搜索功能进行搜索，按 Esc 键可退出图片搜索功能</translation>
 <translation id="5618818588972826921">选择任何文字或图片即可使用图片搜索功能进行搜索，按 Esc 键可退出图片搜索功能</translation>
@@ -339,6 +342,7 @@
 <translation id="5775198138441669627">如果您忘记了口令或想更改此设置，请<ph name="SETTINGS_LINK" />您账号中的 Chromium 数据</translation>
 <translation id="5800158606660203929">自定义和控制 Chromium。将 Chromium 设为默认浏览器。</translation>
 <translation id="5809516625706423866">无法连接到互联网。发生 HTTP 401 Unauthorized 错误，请检查您的代理配置。</translation>
+<translation id="5817952762723416573">使用 Chromium 的 V8 引擎加速网站，但 Chromium 的防攻击能力会略微降低。此设置已关闭。</translation>
 <translation id="5821520528363214608">如要将 Chromium 数据保存在 Google 账号中并使用这些数据，请更新 Chromium</translation>
 <translation id="5824893331272123205">无法加载此面板，请重试</translation>
 <translation id="5862307444128926510">欢迎使用 Chromium</translation>
@@ -355,7 +359,6 @@
 <translation id="5987687638152509985">更新 Chromium 以开始同步</translation>
 <translation id="5988505247484123880">您访问的网站经常会记住您感兴趣的内容，以便为您提供个性化体验。网站还可以将您的兴趣信息存储在 Chromium 中。</translation>
 <translation id="6003112304606738118">正在下载…还需 <ph name="HOURS" /> 小时</translation>
-<translation id="6019451407441383358">您可以通过右上角的 Chromium 菜单打开书签、阅读模式等</translation>
 <translation id="6040143037577758943">关闭</translation>
 <translation id="6058380562449900225">为保护您的数据，对于您近期未访问的网站，请允许 Chromium 移除网站权限。此操作不会停用通知功能。</translation>
 <translation id="6063093106622310249">在 Chromium 中打开(&amp;O)</translation>
@@ -429,6 +432,7 @@
 <translation id="6729124504294600478">若要获得个性化体验和其他功能，请在“网络与应用活动记录”和关联的 Google 服务中包含 Chromium</translation>
 <translation id="6734291798041940871">已为您计算机上的所有用户都安装 Chromium。</translation>
 <translation id="674245979920622322">您近期未访问过该网站。Chromium 移除了<ph name="PERMISSION_1" />、<ph name="PERMISSION_2" />和另外 <ph name="COUNT" /> 项权限</translation>
+<translation id="6751374565094704799">使用 Chromium 的 V8 引擎加速网站，但 Chromium 的防攻击能力会略微降低。此设置已开启。</translation>
 <translation id="67706546131546258">Chromium 建议您扫描此文件，因为它可能包含危险因素。</translation>
 <translation id="6779406956731413166">Chromium 操作系统是借助了其他<ph name="BEGIN_LINK_CROS_OSS" />开源软件<ph name="END_LINK_CROS_OSS" />才得以问世。</translation>
 <translation id="6831043979455480757">翻译</translation>
@@ -525,7 +529,6 @@ Chromium 无法恢复您的设置。</translation>
 <translation id="8118331347066725040">发送有关智能镜头搜索的反馈</translation>
 <translation id="8133124826068723441">由于您的网域不支持同步，Chromium 操作系统无法同步您的数据。</translation>
 <translation id="813913629614996137">正在初始化…</translation>
-<translation id="8166782796394721554">开启 Chromium 的 JavaScript 和 WebAssembly 引擎额外保护功能</translation>
 <translation id="81770708095080097">此文件存在危险，因此 Chromium 已将其拦截。</translation>
 <translation id="8177472873527554730">在页面中找不到内容</translation>
 <translation id="8200109504272824693">请输入您的口令，以便将 Chromium 数据保存在您的账号 <ph name="USER_EMAIL" /> 中并使用这些数据</translation>
@@ -597,6 +600,7 @@ Chromium 无法恢复您的设置。</translation>
 <translation id="9106612006984859720">若要接收后续 Chromium 更新，您需使用 Windows 10 或更高版本。该计算机目前使用的是 Windows 8.1。</translation>
 <translation id="91086099826398415">在 Chromium 新标签页中打开链接(&amp;T)</translation>
 <translation id="911206726377975832">同时删除您的浏览数据吗？</translation>
+<translation id="9134482777260927479">作业辅导</translation>
 <translation id="9148058034647219655">退出</translation>
 <translation id="9158494823179993217">您的系统管理员已将 Chromium 配置为使用备用浏览器访问 <ph name="TARGET_URL_HOSTNAME" />。</translation>
 <translation id="9185526690718004400">重新启动以更新 Chromium(&amp;C)</translation>

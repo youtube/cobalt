@@ -54,9 +54,9 @@ class ProfileMenuViewBase : public content::WebContentsDelegate,
   // LINT.IfChange(ActionableItem)
   enum class ActionableItem {
     kManageGoogleAccountButton = 0,
-    kPasswordsButton = 1,
-    kCreditCardsButton = 2,
-    kAddressesButton = 3,
+    // DEPRECATED: kPasswordsButton = 1,
+    // DEPRECATED: kCreditCardsButton = 2,
+    // DEPRECATED: kAddressesButton = 3,
     kGuestProfileButton = 4,
     kManageProfilesButton = 5,
     // DEPRECATED: kLockButton = 6,
@@ -69,7 +69,7 @@ class ProfileMenuViewBase : public content::WebContentsDelegate,
     kSigninAccountButton = 11,
     kSignoutButton = 12,
     kOtherProfileButton = 13,
-    kCookiesClearedOnExitLink = 14,
+    // DEPRECATED: kCookiesClearedOnExitLink = 14,
     kAddNewProfileButton = 15,
     kSyncSettingsButton = 16,
     kEditProfileButton = 17,
@@ -79,7 +79,8 @@ class ProfileMenuViewBase : public content::WebContentsDelegate,
     kSigninReauthButton = 21,
     kAutofillSettingsButton = 22,
     kHistorySyncOptInButton = 23,
-    kMaxValue = kHistorySyncOptInButton,
+    kBatchUploadButton = 24,
+    kMaxValue = kBatchUploadButton,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/profile/enums.xml:ProfileMenuActionableItem)
 
@@ -140,6 +141,7 @@ class ProfileMenuViewBase : public content::WebContentsDelegate,
   // icon size of other rows.
   static constexpr int kOtherProfileImageSize = 16;
 
+  // `browser` must not be nullptr.
   ProfileMenuViewBase(views::Button* anchor_button, Browser* browser);
   ~ProfileMenuViewBase() override;
 
@@ -149,23 +151,25 @@ class ProfileMenuViewBase : public content::WebContentsDelegate,
   // This method is called once to add all menu items.
   virtual void BuildMenu() = 0;
 
-  // If |profile_name| is empty, no heading will be displayed.
-  // `management_badge` and `image_model` do not need to be circular.
-  void SetProfileIdentityInfo(const ui::ImageModel& image_model,
-                              const std::u16string& title,
-                              const std::u16string& subtitle = std::u16string(),
-                              const gfx::VectorIcon* header_art_icon = nullptr);
-
   // See `IdentitySectionParams` for documentation of the parameters.
   void SetProfileIdentityWithCallToAction(IdentitySectionParams params);
+
+  // Promo buttons have the following Ui aspects:
+  // - are shown right after identity section and before other buttons.
+  // - background color.
+  // - first promo button has a top rounded corners.
+  // - last promo button has bottom rounded corners.
+  // - slight separation between promo buttons.
+  // - limit to the first 2 promo shown.
+  void AddPromoButton(const std::u16string& text,
+                      base::RepeatingClosure action,
+                      const gfx::VectorIcon& icon);
 
   void AddFeatureButton(
       const std::u16string& text,
       base::RepeatingClosure action,
       const gfx::VectorIcon& icon = gfx::VectorIcon::EmptyIcon(),
-      float icon_to_image_ratio = 1.0f,
-      std::optional<ui::ColorId> background_color = std::nullopt,
-      bool add_vertical_margin = false);
+      float icon_to_image_ratio = 1.0f);
   void SetProfileManagementHeading(const std::u16string& heading);
   void AddAvailableProfile(const ui::ImageModel& image_model,
                            const std::u16string& name,
@@ -181,7 +185,7 @@ class ProfileMenuViewBase : public content::WebContentsDelegate,
   // Should be called inside each button/link action.
   void RecordClick(ActionableItem item);
 
-  Browser* browser() const { return browser_; }
+  Profile& profile() const { return *profile_; }
 
   // Return maximal height for the view after which it becomes scrollable.
   // TODO(crbug.com/40587757): remove when a general solution is available.
@@ -207,15 +211,8 @@ class ProfileMenuViewBase : public content::WebContentsDelegate,
   // exists).
   void FocusFirstProfileButton();
 
-  void BuildIdentityInfoColorCallback(const ui::ColorProvider* color_provider);
-
-  void BuildProfileBackgroundContainer(
-      std::unique_ptr<views::View> avatar_image_view,
-      const ui::ThemedVectorIcon& avatar_header_art);
-
   // views::BubbleDialogDelegateView:
   void Init() final;
-  void OnThemeChanged() override;
 
   // content::WebContentsDelegate:
   bool HandleContextMenu(content::RenderFrameHost& render_frame_host,
@@ -230,12 +227,12 @@ class ProfileMenuViewBase : public content::WebContentsDelegate,
       std::unique_ptr<views::View> icon_view,
       const std::u16string& text);
 
-  const raw_ptr<Browser> browser_;
-
+  const raw_ref<Profile> profile_;
   const raw_ptr<views::Button> anchor_button_;
 
   // Component containers.
   raw_ptr<views::View> identity_info_container_ = nullptr;
+  raw_ptr<views::View> promo_container_ = nullptr;
   raw_ptr<views::View> features_container_ = nullptr;
   raw_ptr<views::View> profile_mgmt_separator_container_ = nullptr;
   raw_ptr<views::View> profile_mgmt_heading_container_ = nullptr;
@@ -245,8 +242,6 @@ class ProfileMenuViewBase : public content::WebContentsDelegate,
 
   // Child components of `identity_info_container_`.
   raw_ptr<views::FlexLayoutView> profile_background_container_ = nullptr;
-  raw_ptr<views::Label> title_label_ = nullptr;
-  raw_ptr<views::Label> subtitle_label_ = nullptr;
 
   // The first profile button that should be focused when the menu is opened
   // using a key accelerator.
@@ -257,19 +252,6 @@ class ProfileMenuViewBase : public content::WebContentsDelegate,
   bool perform_menu_actions_ = true;
 
   CloseBubbleOnTabActivationHelper close_bubble_helper_;
-
-  // Builds the colors for `profile_background_container_` and `heading_label_`
-  // in `identity_info_container_`. This requires ui::ColorProvider, which is
-  // only available once OnThemeChanged() is called, so the class caches this
-  // callback and calls it afterwards.
-  base::RepeatingCallback<void(const ui::ColorProvider*)>
-      identity_info_color_callback_ = base::DoNothing();
-
-  // Builds the background for |sync_info_container_|. This requires
-  // ui::ColorProvider, which is only available once OnThemeChanged() is called,
-  // so the class caches this callback and calls it afterwards.
-  base::RepeatingCallback<void(const ui::ColorProvider*)>
-      sync_info_background_callback_ = base::DoNothing();
 
   // Actual heading string would be set by children classes.
   std::u16string profile_mgmt_heading_;

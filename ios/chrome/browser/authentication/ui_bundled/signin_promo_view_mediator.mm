@@ -577,9 +577,6 @@ id<SystemIdentity> GetDisplayedIdentity(
 // type is based on `dataTypeToWaitForInitialSync`.
 @property(nonatomic, assign, readwrite) BOOL initialSyncInProgress;
 
-// Presenter which can show signin UI.
-@property(nonatomic, weak, readonly) id<SigninPresenter> signinPresenter;
-
 // Presenter which can show the signed-in account settings UI.
 @property(nonatomic, weak, readonly) id<AccountSettingsPresenter>
     accountSettingsPresenter;
@@ -617,6 +614,8 @@ id<SystemIdentity> GetDisplayedIdentity(
   // Observer for changes to the sync state.
   std::unique_ptr<SyncObserverBridge> _syncObserverBridge;
   ChangeProfileContinuationProvider _changeProfileContinuationProvider;
+  // Presenter which can show signin UI.
+  __weak id<SigninPromoViewMediatorDelegate> _delegate;
 }
 
 + (void)registerProfilePrefs:(user_prefs::PrefRegistrySyncable*)registry {
@@ -708,7 +707,8 @@ id<SystemIdentity> GetDisplayedIdentity(
                           prefService:(PrefService*)prefService
                           syncService:(syncer::SyncService*)syncService
                           accessPoint:(signin_metrics::AccessPoint)accessPoint
-                      signinPresenter:(id<SigninPresenter>)signinPresenter
+                             delegate:
+                                 (id<SigninPromoViewMediatorDelegate>)delegate
              accountSettingsPresenter:
                  (id<AccountSettingsPresenter>)accountSettingsPresenter
     changeProfileContinuationProvider:(const ChangeProfileContinuationProvider&)
@@ -729,7 +729,7 @@ id<SystemIdentity> GetDisplayedIdentity(
     _signinPromoViewState = SigninPromoViewState::kNeverVisible;
     _signinPromoAction = SigninPromoAction::kInstantSignin;
     _dataTypeToWaitForInitialSync = syncer::DataType::UNSPECIFIED;
-    _signinPresenter = signinPresenter;
+    _delegate = delegate;
     _accountSettingsPresenter = accountSettingsPresenter;
     _identityManagerObserver =
         std::make_unique<signin::IdentityManagerObserverBridge>(
@@ -892,10 +892,8 @@ id<SystemIdentity> GetDisplayedIdentity(
 }
 
 - (void)disconnect {
-  // While the sign-in is in progress, the UI should be frozen, with the
-  // exception of the part of the UI used for sign-in. So it should not be
-  // possible to disconnect the mediator.
-  CHECK(!self.signinInProgress, base::NotFatalUntil::M145);
+  // It is possible to interrupt sign-in in progress even if the UI is blocked.
+  // This can happen if the user opens an external URL during sign-in.
   [self signinPromoViewIsRemoved];
   self.consumer = nil;
   _accountManagerService = nullptr;
@@ -904,6 +902,23 @@ id<SystemIdentity> GetDisplayedIdentity(
   _syncService = nullptr;
   _identityManagerObserver.reset();
   _syncObserverBridge.reset();
+}
+
+// Finishes the sign-in process.
+- (void)signinDidCompleteWithResult:(SigninCoordinatorResult)result {
+  if (self.signinPromoViewState == SigninPromoViewState::kInvalid) {
+    // The mediator owner can remove the view before the sign-in is done.
+    return;
+  }
+  // We can turn on `self.initialSyncInProgress`, if the sign-in is successful.
+  // We can't call now GetTypesWithPendingDownloadForInitialSync() related to
+  // a post task issue.
+  self.initialSyncInProgress = (result == SigninCoordinatorResultSuccess) &&
+                               [self shouldWaitForInitialSync];
+  DCHECK_EQ(SigninPromoViewState::kUsedAtLeastOnce, self.signinPromoViewState)
+      << base::SysNSStringToUTF8([self description]);
+  DCHECK(self.signinInProgress) << base::SysNSStringToUTF8([self description]);
+  self.signinInProgress = NO;
 }
 
 #pragma mark - Public properties
@@ -1007,50 +1022,24 @@ id<SystemIdentity> GetDisplayedIdentity(
                                                            displayedCount);
 }
 
-// Finishes the sign-in process.
-- (void)signinCallbackWithResult:(SigninCoordinatorResult)result {
-  if (self.signinPromoViewState == SigninPromoViewState::kInvalid) {
-    // The mediator owner can remove the view before the sign-in is done.
-    return;
-  }
-  // We can turn on `self.initialSyncInProgress`, if the sign-in is successful.
-  // We can't call now GetTypesWithPendingDownloadForInitialSync() related to
-  // a post task issue.
-  self.initialSyncInProgress = (result == SigninCoordinatorResultSuccess) &&
-                               [self shouldWaitForInitialSync];
-  DCHECK_EQ(SigninPromoViewState::kUsedAtLeastOnce, self.signinPromoViewState)
-      << base::SysNSStringToUTF8([self description]);
-  DCHECK(self.signinInProgress) << base::SysNSStringToUTF8([self description]);
-  self.signinInProgress = NO;
-}
-
 // Starts sign-in process with the Chrome identity from `identity`.
 - (void)showSigninWithIdentity:(id<SystemIdentity>)identity
                      operation:(AuthenticationOperation)operation
                    promoAction:(signin_metrics::PromoAction)promoAction {
   self.signinPromoViewState = SigninPromoViewState::kUsedAtLeastOnce;
   self.signinInProgress = YES;
-  __weak SigninPromoViewMediator* weakSelf = self;
   // This mediator might be removed before the sign-in callback is invoked.
   // (if the owner receive primary account notification).
   // To make sure -[<SigninPromoViewConsumer> signinDidFinish], we have to save
   // in a variable and not get it from weakSelf (that might not exist anymore).
-  __weak id<SigninPromoViewConsumer> weakConsumer = self.consumer;
-  SigninCoordinatorCompletionCallback completion =
-      ^(SigninCoordinatorResult result, id<SystemIdentity> completionIdentity) {
-        [weakSelf signinCallbackWithResult:result];
-        if ([weakConsumer respondsToSelector:@selector(signinDidFinish)]) {
-          [weakConsumer signinDidFinish];
-        }
-      };
   ShowSigninCommand* command = [[ShowSigninCommand alloc]
                       initWithOperation:operation
                                identity:identity
                             accessPoint:self.accessPoint
                             promoAction:promoAction
-                             completion:completion
+                             completion:nil
       changeProfileContinuationProvider:_changeProfileContinuationProvider];
-  [self.signinPresenter showSignin:command];
+  [_delegate showSignin:self command:command];
 }
 
 // Shows account settings.

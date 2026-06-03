@@ -1322,7 +1322,7 @@ CSSPrimitiveValue* ConsumeAlphaValue(CSSParserTokenStream& stream,
 bool CanConsumeCalcValue(CalculationResultCategory category,
                          CSSParserMode css_parser_mode) {
   return category == kCalcLength || category == kCalcPercent ||
-         category == kCalcLengthFunction || category == kCalcIntrinsicSize ||
+         category == kCalcLengthFunction ||
          (css_parser_mode == kSVGAttributeMode && category == kCalcNumber);
 }
 
@@ -2044,11 +2044,11 @@ static bool ParseHexColor(CSSParserTokenStream& stream,
       if (token.GetType() == kNumberToken) {  // e.g. 112233
         color = String::Format("%d", static_cast<int>(token.NumericValue()));
       } else {  // e.g. 0001FF
-        color = String::Number(static_cast<int>(token.NumericValue())) +
-                token.Value().ToString();
+        color = StrCat({String::Number(static_cast<int>(token.NumericValue())),
+                        token.Value().ToString()});
       }
       while (color.length() < 6) {
-        color = "0" + color;
+        color = StrCat({"0", color});
       }
     } else if (token.GetType() == kIdentToken) {  // e.g. FF0000
       color = token.Value().ToString();
@@ -3211,6 +3211,12 @@ CSSValue* ConsumeAxis(CSSParserTokenStream& stream,
 
 CSSValue* ConsumeIntrinsicSizeLonghand(CSSParserTokenStream& stream,
                                        const CSSParserContext& context) {
+  if (RuntimeEnabledFeatures::ResponsiveIframesEnabled() &&
+      css_parsing_utils::IdentMatches<CSSValueID::kFromElement>(
+          stream.Peek().Id())) {
+    return css_parsing_utils::ConsumeIdent(stream);
+  }
+
   if (css_parsing_utils::IdentMatches<CSSValueID::kNone>(stream.Peek().Id())) {
     return css_parsing_utils::ConsumeIdent(stream);
   }
@@ -5327,6 +5333,33 @@ CSSValue* ConsumeCornerShape(CSSParserTokenStream& stream,
   guard.Release();
   stream.ConsumeWhitespace();
   return MakeGarbageCollected<cssvalue::CSSSuperellipseValue>(*param);
+}
+
+bool ConsumeCorner(CSSParserTokenStream& stream,
+                   const CSSParserContext& context,
+                   CSSValue*& radius,
+                   CSSValue*& shape) {
+  if (stream.Peek().GetType() == kIdentToken &&
+      stream.Peek().Id() == CSSValueID::kNormal) {
+    ConsumeIdent(stream);
+    radius = MakeGarbageCollected<CSSValuePair>(
+        CSSNumericLiteralValue::Create(0, CSSPrimitiveValue::UnitType::kPixels),
+        CSSNumericLiteralValue::Create(0, CSSPrimitiveValue::UnitType::kPixels),
+        CSSValuePair::kDropIdenticalValues);
+    shape = CSSIdentifierValue::Create(CSSValueID::kRound);
+    return true;
+  }
+
+  shape = ConsumeCornerShape(stream, context);
+  radius = ParseBorderRadiusCorner(stream, context);
+  if (!radius) {
+    return false;
+  }
+
+  if (!shape) {
+    shape = ConsumeCornerShape(stream, context);
+  }
+  return shape != nullptr;
 }
 
 CSSValue* ParseBorderWidthSide(CSSParserTokenStream& stream,
@@ -7985,23 +8018,6 @@ bool ConsumeRadii(std::array<CSSValue*, 4>& horizontal_radii,
   return true;
 }
 
-bool ConsumeCornerShapes(std::array<CSSValue*, 4>& shapes,
-                         CSSParserTokenStream& stream,
-                         const CSSParserContext& context) {
-  for (unsigned value_count = 0; value_count < 4; ++value_count) {
-    shapes[value_count] = ConsumeCornerShape(stream, context);
-    if (!shapes[value_count]) {
-      if (!value_count) {
-        return false;
-      }
-      break;
-    }
-  }
-
-  Complete4Sides(shapes);
-  return true;
-}
-
 CSSValue* ConsumeBasicShape(CSSParserTokenStream& stream,
                             const CSSParserContext& context,
                             AllowPathValue allow_path,
@@ -8403,12 +8419,27 @@ CSSValue* ConsumeBorderWidth(CSSParserTokenStream& stream,
   return ConsumeLineWidth(stream, context, unitless);
 }
 
-CSSValue* ParseSpacing(CSSParserTokenStream& stream,
-                       const CSSParserContext& context) {
+// TODO(crbug.com/327740939): Merge ParseLetterSpacing and ParseWordSpacing if
+// percentage for word-spacing is implemented.
+CSSValue* ParseLetterSpacing(CSSParserTokenStream& stream,
+                             const CSSParserContext& context) {
   if (stream.Peek().Id() == CSSValueID::kNormal) {
     return ConsumeIdent(stream);
   }
-  // TODO(timloh): allow <percentage>s in word-spacing.
+  if (RuntimeEnabledFeatures::CSSLetterSpacingPercentageEnabled()) {
+    return ConsumeLengthOrPercent(stream, context,
+                                  CSSPrimitiveValue::ValueRange::kAll,
+                                  UnitlessQuirk::kAllow);
+  }
+  return ConsumeLength(stream, context, CSSPrimitiveValue::ValueRange::kAll,
+                       UnitlessQuirk::kAllow);
+}
+
+CSSValue* ParseWordSpacing(CSSParserTokenStream& stream,
+                           const CSSParserContext& context) {
+  if (stream.Peek().Id() == CSSValueID::kNormal) {
+    return ConsumeIdent(stream);
+  }
   return ConsumeLength(stream, context, CSSPrimitiveValue::ValueRange::kAll,
                        UnitlessQuirk::kAllow);
 }

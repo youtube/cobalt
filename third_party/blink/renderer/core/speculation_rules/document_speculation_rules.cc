@@ -462,6 +462,24 @@ void DocumentSpeculationRules::DocumentStyleUpdated() {
   }
 }
 
+void DocumentSpeculationRules::DisplayLockedRootsForceUpdateEnded(
+    const HeapVector<Member<Element>>& roots) {
+  if (!initialized_) {
+    return;
+  }
+  // During force update, the links under display-locked roots can by styled
+  // and removed from stale_links_. These links shall be added back to
+  // stale_links_ when the force update ends. To avoid repeatedly traverse
+  // through all the child nodes of these roots, we remove the roots from
+  // elements_blocking_child_style_recalc_ and then add them back.
+  for (Element* root : roots) {
+    elements_blocking_child_style_recalc_.erase(root);
+  }
+  for (Element* root : roots) {
+    ChildStyleRecalcBlocked(root);
+  }
+}
+
 void DocumentSpeculationRules::ChildStyleRecalcBlocked(Element* root) {
   if (!initialized_) {
     return;
@@ -755,7 +773,9 @@ void DocumentSpeculationRules::UpdateSpeculationCandidates() {
   if (eagerness_set.Has(SpeculationEagerness::kModerate)) {
     UseCounter::Count(document, WebFeature::kSpeculationRulesEagernessModerate);
   }
-  if (eagerness_set.Has(SpeculationEagerness::kEager)) {
+  // Record "immediate" as "eager" for historical reasons: see
+  // crbug.com/40287486
+  if (eagerness_set.Has(SpeculationEagerness::kImmediate)) {
     UseCounter::Count(document, WebFeature::kSpeculationRulesEagernessEager);
   }
 

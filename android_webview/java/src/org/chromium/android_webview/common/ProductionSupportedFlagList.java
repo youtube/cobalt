@@ -208,6 +208,9 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 BlinkFeatures.LAYOUT_NG_SHAPE_CACHE, "Cache shape results for short text blocks."),
         Flag.baseFeature(
+                BlinkFeatures.FORCE_OFF_TEXT_AUTOSIZING,
+                "Disable text inflation with setLayoutAlgorithm(TEXT_AUTOSIZING)"),
+        Flag.baseFeature(
                 NetFeatures.SIMDUTF_BASE64_SUPPORT,
                 "Use the simdutf library to base64 decode data: URLs."),
         Flag.baseFeature(
@@ -248,8 +251,8 @@ public final class ProductionSupportedFlagList {
                 AutofillFeatures.AUTOFILL_BETTER_LOCAL_HEURISTIC_PLACEHOLDER_SUPPORT,
                 "Treats placeholders as a separate signal for Autofill local heuristics"),
         Flag.baseFeature(
-                AutofillFeatures.AUTOFILL_ENABLE_EMAIL_HEURISTIC_OUTSIDE_FORMS,
-                "Enables heuristics for detecting email fields outside of forms."),
+                AutofillFeatures.AUTOFILL_DETECT_FIELD_VISIBILITY,
+                "Populates FormFieldData::is_visible() with visibility rather than focusability"),
         Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_ENABLE_EXPIRATION_DATE_IMPROVEMENTS,
                 "Enables various improvements to handling expiration dates."),
@@ -258,19 +261,11 @@ public final class ProductionSupportedFlagList {
                 "Splits Autofill labels among consecutive fields for better heuristic"
                         + " predictions."),
         Flag.baseFeature(
-                AutofillFeatures.AUTOFILL_EXTRACT_INPUT_DATE, "Extracts <input type=date> fields."),
-        Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_FIX_FORM_TRACKING,
                 "Improves form submission tracking and duplicate submission handling"),
         Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_IMPROVE_CITY_FIELD_CLASSIFICATION,
                 "Reduces city field false positive classifications"),
-        Flag.baseFeature(
-                AutofillFeatures.AUTOFILL_DISALLOW_SLASH_DOT_LABELS,
-                "Disallows labels that only contain slashes, dots and other special characters."),
-        Flag.baseFeature(
-                AutofillFeatures.AUTOFILL_DETECT_REMOVED_FORM_CONTROLS,
-                "Enables Autofill to detect if form controls are removed from the DOM"),
         Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_OPTIMIZE_FORM_EXTRACTION,
                 "Makes Autofill spend less time on extracting forms."),
@@ -290,10 +285,6 @@ public final class ProductionSupportedFlagList {
                 AutofillFeatures.AUTOFILL_PAGE_LANGUAGE_DETECTION,
                 "Enables Autofill to retrieve the page language for form parsing."),
         Flag.baseFeature(
-                AutofillFeatures.AUTOFILL_PARSE_EMAIL_LABEL_AND_PLACEHOLDER,
-                "Classifies fields as email fields if their label or placeholder have valid email"
-                        + " format."),
-        Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_PREFER_SAVED_FORM_AS_SUBMITTED_FORM,
                 "When enabled, Autofill will start preferring the saved form over performing form "
                         + "extraction at submission time, and only use the latter as a fallback."),
@@ -306,17 +297,15 @@ public final class ProductionSupportedFlagList {
                 "When enabled, the same rationalization/sectioning order is used for heuristic and"
                         + " server predictions."),
         Flag.baseFeature(
-                AutofillFeatures.AUTOFILL_USE_FR_ADDRESS_MODEL,
-                "When enabled, Autofill uses a custom address model for France."),
-        Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_USE_IN_ADDRESS_MODEL,
                 "When enabled, Autofill uses a custom address model for India."),
         Flag.baseFeature(
-                AutofillFeatures.AUTOFILL_USE_NL_ADDRESS_MODEL,
-                "When enabled, Autofill uses a custom address model for the Netherlands."),
-        Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_SUPPORT_LAST_NAME_PREFIX,
                 "When enabled, Autofill uses a custom name hierarchy for parsing last names."),
+        Flag.baseFeature(
+                AutofillFeatures.AUTOFILL_SUPPORT_SPLIT_ZIP_CODE,
+                "When enabled, two-part zip codes are splitted into two fields while filling and"
+                        + " imported from two adjacent fields."),
         Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_USE_NEGATIVE_PATTERN_FOR_ALL_ATTRIBUTES,
                 "When enabled, parser won't try to match other attributes if any of the negative"
@@ -344,9 +333,6 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_SUPPORT_PHONETIC_NAME_FOR_JP,
                 "When enabled, Autofill will support phonetic name for Japan."),
-        Flag.baseFeature(
-                AutofillFeatures.AUTOFILL_THROTTLE_ASK_FOR_VALUES_TO_FILL,
-                "When enabled, Autofill throttles duplicate AskForValuesToFill() events."),
         Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_UKM_EXPERIMENTAL_FIELDS,
                 "Enables UKM collection for experimental fields"),
@@ -602,6 +588,7 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature("AvoidScheduleWorkDuringNativeEventProcessing"),
         Flag.baseFeature("AvoidEntryCreationForNoStore"),
         Flag.baseFeature("ChangeDiskCacheSize"),
+        Flag.baseFeature("RaiseDisplayCriticalThreadPriority"),
         Flag.baseFeature("BatchNativeEventsInMessagePumpEpoll"),
         Flag.baseFeature(
                 VizFeatures.ON_BEGIN_FRAME_THROTTLE_VIDEO,
@@ -670,6 +657,7 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature("UseRustJsonParser"),
         Flag.baseFeature("V8BaselineBatchCompilation"),
         Flag.baseFeature("V8ConcurrentSparkplug"),
+        Flag.baseFeature("V8Flag_late_heap_limit_check"),
         Flag.baseFeature("V8Flag_minor_gc_task_with_lower_priority"),
         Flag.baseFeature("V8FlushCodeBasedOnTabVisibility"),
         Flag.baseFeature("V8FlushCodeBasedOnTime"),
@@ -679,7 +667,6 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature("V8ScavengerHigherCapacity"),
         Flag.baseFeature("V8IncrementalMarkingStartUserVisible"),
         Flag.baseFeature("V8ExternalMemoryAccountedInGlobalLimit"),
-        Flag.baseFeature("V8GCSpeedUsesCounters"),
         Flag.baseFeature("WebAssemblyTurboshaft"),
         Flag.baseFeature("WebAssemblyTurboshaftInstructionSelection"),
         Flag.baseFeature("WebAssemblyDeopt"),
@@ -808,7 +795,6 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 AwFeatures.WEBVIEW_USE_INITIAL_NETWORK_STATE_AT_STARTUP,
                 "Use initial network state at startup"),
-        Flag.baseFeature("StandardCompliantNonSpecialSchemeURLParsing"),
         Flag.baseFeature(
                 NetworkServiceFeatures.AVOID_RESOURCE_REQUEST_COPIES,
                 "Avoids copying ResourceRequest when possible."),
@@ -848,9 +834,6 @@ public final class ProductionSupportedFlagList {
                 AwFeatures.WEBVIEW_DRAIN_PREFETCH_QUEUE_DURING_INIT,
                 "Drain any prefetches that were triggered on the background thread during WebView"
                         + " initialization."),
-        Flag.baseFeature(
-                CcFeatures.METRICS_TRACING_CALCULATION_REDUCTION,
-                "Reduces Renderer event latency attribution to only during tracing."),
         Flag.baseFeature(BlinkFeatures.STREAMLINE_RENDERER_INIT),
         Flag.baseFeature("LazyBindJsInjection"),
         Flag.baseFeature(AwFeatures.WEBVIEW_MUTE_AUDIO, "Enables WebView audio to be muted."),
@@ -875,6 +858,9 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 AwFeatures.WEBVIEW_SEPARATE_RESOURCE_CONTEXT,
                 "Use WebView's own Context for Resources rather than the embedding app's"),
+        Flag.baseFeature(
+                AwFeatures.WEBVIEW_SKIP_INTERCEPTS_FOR_PREFETCH,
+                "Skip shouldInterceptRequest and other checks for prefetch requests."),
         Flag.baseFeature(
                 BlinkFeatures.STANDARDIZED_BROWSER_ZOOM,
                 "Enable conformance to the new HTML specification for CSS zoom."),
@@ -1005,6 +991,9 @@ public final class ProductionSupportedFlagList {
                 "Omit the deprecated parameters from the intents that are sent to "
                         + "Android payment apps in the PaymentRequest API."),
         Flag.baseFeature(
+                GpuFeatures.WEB_GPU_ENABLE_RANGE_ANALYSIS_FOR_ROBUSTNESS,
+                "Use range analysis to remove unnecessary bounds checks"),
+        Flag.baseFeature(
                 GpuFeatures.WEB_GPU_USE_VULKAN_MEMORY_MODEL,
                 "Use the Vulkan Memory Model from WebGPU when available"),
         Flag.baseFeature("RunBeforeUnloadClosureOnStackInvestigation"),
@@ -1077,6 +1066,17 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 "PrefetchServiceWorker",
                 "Enables SpeculationRules prefetch to ServiceWorker-controlled URLs."),
+        Flag.baseFeature("TimedHTMLParserBudget"),
+        Flag.baseFeature("ServiceWorkerBackgroundUpdateForRegisteredStorageKeys"),
+        Flag.baseFeature("ServiceWorkerBackgroundUpdateForServiceWorkerScopeCache"),
+        Flag.baseFeature(
+                "ServiceWorkerBackgroundUpdateForRegisteredStorageKeysFieldTrialControlled"),
+        Flag.baseFeature(
+                AwFeatures.WEBVIEW_CONNECT_TO_COMPONENT_PROVIDER_IN_BACKGROUND,
+                "Connect to the non-embedded components provider from a background thread."),
+        Flag.baseFeature("PrefetchUseContentRefactor"),
+        Flag.baseFeature("LowPriorityAsyncScriptExecution"),
+        Flag.baseFeature("WebViewPrefetchHighestPrefetchPriority"),
         // Add new commandline switches and features above. The final entry should have a
         // trailing comma for cleaner diffs.
     };

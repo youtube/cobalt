@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "components/permissions/permission_decision.h"
 #include "components/permissions/request_type.h"
 #include "components/permissions/resolvers/permission_resolver.h"
 
@@ -24,8 +25,8 @@ class ContentSettingPermissionResolver : public PermissionResolver {
 
   base::Value ComputePermissionDecisionResult(
       const base::Value& previous_value,
-      ContentSetting decision,
-      std::optional<base::Value> prompt_options) const override;
+      PermissionDecision decision,
+      const base::Value& prompt_options = base::Value()) const override;
 
   PromptParameters GetPromptParameters(
       const base::Value& current_setting_state) const override;

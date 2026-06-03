@@ -156,6 +156,11 @@ config("ios_executable_flags") {
   }
 
   ldflags += [ "-Wl,-rpath,@executable_path/Frameworks" ]
+
+  # TODO(crbug.com/424634516): Remove once Apple fixes the issue.
+  if (xcode_version_int >= 2600) {
+    framework_dirs = [ "$ios_sdk_path/System/Library/SubFrameworks" ]
+  }
 }
 
 config("ios_extension_executable_flags") {
@@ -173,6 +178,11 @@ config("ios_extension_executable_flags") {
   }
 
   ldflags += [ "-Wl,-rpath,@executable_path/../../Frameworks" ]
+
+  # TODO(crbug.com/424634516): Remove once Apple fixes the issue.
+  if (xcode_version_int >= 2600) {
+    framework_dirs = [ "$ios_sdk_path/System/Library/SubFrameworks" ]
+  }
 }
 
 config("ios_dynamic_flags") {
@@ -225,6 +235,11 @@ config("ios_shared_library_flags") {
     "-Wl,-rpath,@executable_path/Frameworks",
     "-Wl,-rpath,@loader_path/Frameworks",
   ]
+
+  # TODO(crbug.com/424634516): Remove once Apple fixes the issue.
+  if (xcode_version_int >= 2600) {
+    framework_dirs = [ "$ios_sdk_path/System/Library/SubFrameworks" ]
+  }
 }
 
 config("xctest_config") {
@@ -248,6 +263,11 @@ config("xctest_config") {
     "Foundation.framework",
     "XCTest.framework",
   ]
+
+  # TODO(crbug.com/424634516): Remove once Apple fixes the issue.
+  if (xcode_version_int >= 2600) {
+    framework_dirs = [ "$ios_sdk_path/System/Library/SubFrameworks" ]
+  }
 }
 
 # TODO(crbug.com/40911785): any target that uses this config will miscompile.

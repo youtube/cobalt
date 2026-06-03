@@ -14,8 +14,8 @@ import org.chromium.chrome.browser.browser_controls.BottomControlsStacker;
 import org.chromium.chrome.browser.fullscreen.FullscreenManager;
 import org.chromium.chrome.browser.layouts.LayoutManager;
 import org.chromium.components.browser_ui.edge_to_edge.SystemBarColorHelper;
-import org.chromium.ui.InsetObserver;
 import org.chromium.ui.KeyboardVisibilityDelegate;
+import org.chromium.ui.insets.InsetObserver;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 
@@ -45,6 +45,7 @@ public class EdgeToEdgeBottomChinCoordinator implements Destroyable, SystemBarCo
      * @param bottomControlsStacker The {@link BottomControlsStacker} for observing and changing
      *     browser controls heights.
      * @param fullscreenManager The {@link FullscreenManager} for provide the fullscreen state.
+     * @param isTablet Whether the device is a tablet.
      */
     public EdgeToEdgeBottomChinCoordinator(
             View androidView,
@@ -54,7 +55,8 @@ public class EdgeToEdgeBottomChinCoordinator implements Destroyable, SystemBarCo
             Runnable requestRenderRunnable,
             EdgeToEdgeController edgeToEdgeController,
             BottomControlsStacker bottomControlsStacker,
-            FullscreenManager fullscreenManager) {
+            FullscreenManager fullscreenManager,
+            boolean isTablet) {
         this(
                 androidView,
                 keyboardVisibilityDelegate,
@@ -63,7 +65,8 @@ public class EdgeToEdgeBottomChinCoordinator implements Destroyable, SystemBarCo
                 edgeToEdgeController,
                 bottomControlsStacker,
                 new EdgeToEdgeBottomChinSceneLayer(requestRenderRunnable),
-                fullscreenManager);
+                fullscreenManager,
+                isTablet);
     }
 
     @VisibleForTesting
@@ -75,7 +78,8 @@ public class EdgeToEdgeBottomChinCoordinator implements Destroyable, SystemBarCo
             EdgeToEdgeController edgeToEdgeController,
             BottomControlsStacker bottomControlsStacker,
             EdgeToEdgeBottomChinSceneLayer sceneLayer,
-            FullscreenManager fullscreenManager) {
+            FullscreenManager fullscreenManager,
+            boolean isTablet) {
         mLayoutManager = layoutManager;
         mSceneLayer = sceneLayer;
 
@@ -101,7 +105,8 @@ public class EdgeToEdgeBottomChinCoordinator implements Destroyable, SystemBarCo
                         mLayoutManager,
                         edgeToEdgeController,
                         bottomControlsStacker,
-                        fullscreenManager);
+                        fullscreenManager,
+                        /* defaultVisibility= */ !isTablet);
 
         mLayoutManager.addSceneOverlay(sceneLayer);
     }

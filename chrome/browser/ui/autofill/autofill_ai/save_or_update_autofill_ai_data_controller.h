@@ -10,14 +10,13 @@
 
 #include "base/memory/weak_ptr.h"
 #include "base/types/optional_ref.h"
-#include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_delegate.h"
-#include "components/autofill_ai/core/browser/autofill_ai_client.h"
+#include "components/autofill/core/browser/foundations/autofill_client.h"
+#include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_manager.h"
 #include "content/public/browser/web_contents.h"
 
 namespace autofill {
+
 class EntityInstance;
-}
-namespace autofill_ai {
 
 // Interface that exposes controller functionality to the save Autofill AI data
 // bubble.
@@ -79,9 +78,9 @@ class SaveOrUpdateAutofillAiDataController {
   // Shows a save or update Autofill AI data bubble which the user can accept or
   // decline. `old_entity` is used in the update case to give users an overview
   // of what was changed.
-  virtual void ShowPrompt(autofill::EntityInstance new_entity,
-                          std::optional<autofill::EntityInstance> old_entity,
-                          AutofillAiClient::SaveOrUpdatePromptResultCallback
+  virtual void ShowPrompt(EntityInstance new_entity,
+                          std::optional<EntityInstance> old_entity,
+                          AutofillClient::EntitySaveOrUpdatePromptResultCallback
                               save_prompt_acceptance_callback) = 0;
 
   // Called when the user accepts to save or update Autofill AI data.
@@ -104,7 +103,7 @@ class SaveOrUpdateAutofillAiDataController {
   virtual bool IsSavePrompt() const = 0;
 
   // Returns the Autofill AI data to be displayed in the UI.
-  virtual base::optional_ref<const autofill::EntityInstance> GetAutofillAiData()
+  virtual base::optional_ref<const EntityInstance> GetAutofillAiData()
       const = 0;
 
   // Called when the Autofill AI data bubble is closed.
@@ -113,6 +112,6 @@ class SaveOrUpdateAutofillAiDataController {
   virtual base::WeakPtr<SaveOrUpdateAutofillAiDataController> GetWeakPtr() = 0;
 };
 
-}  // namespace autofill_ai
+}  // namespace autofill
 
 #endif  // CHROME_BROWSER_UI_AUTOFILL_AUTOFILL_AI_SAVE_OR_UPDATE_AUTOFILL_AI_DATA_CONTROLLER_H_

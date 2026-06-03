@@ -249,23 +249,31 @@ UIFont* GetNavigationBarTitleFont() {
 #pragma mark - UI actions
 
 - (void)skipButtonAction:(id)sender {
+  base::RecordAction(
+      base::UserMetricsAction("Signin_BottomSheet_DefaultAccount_Skip"));
   [self.actionDelegate consistencyDefaultAccountViewControllerSkip:self];
 }
 
 - (void)identityButtonControlAction:(id)sender forEvent:(UIEvent*)event {
+  base::RecordAction(base::UserMetricsAction(
+      "Signin_BottomSheet_DefaultAccount_IdentityButtonTapped"));
   [self.actionDelegate
       consistencyDefaultAccountViewControllerOpenIdentityChooser:self];
 }
 
 - (void)primaryButtonAction:
     (ConsistencyDefaultAccountViewController*)viewController {
-  // If the IdentityButtonControl is hidden, there is no account avaiable on the
-  // device.
   if (!self.identityButtonControl.hidden) {
+    base::RecordAction(
+        base::UserMetricsAction("Signin_BottomSheet_DefaultAccount_Signin"));
     [self.actionDelegate
         consistencyDefaultAccountViewControllerContinueWithSelectedIdentity:
             self];
   } else {
+    // If the IdentityButtonControl is hidden, there is no account available on
+    // the device.
+    base::RecordAction(base::UserMetricsAction(
+        "Signin_BottomSheet_DefaultAccount_AddAccount"));
     [self.actionDelegate
         consistencyDefaultAccountViewControllerAddAccountAndSignin:self];
   }
@@ -336,6 +344,13 @@ UIFont* GetNavigationBarTitleFont() {
       l10n_util::GetNSString(IDS_IOS_CONSISTENCY_PROMO_SIGN_IN));
 }
 
+#pragma mark - UIAccessibilityAction
+
+- (BOOL)accessibilityPerformEscape {
+  [self.actionDelegate consistencyDefaultAccountViewControllerSkip:self];
+  return YES;
+}
+
 #pragma mark - UIResponder
 
 // To always be able to register key commands via -keyCommands, the VC must be
@@ -349,7 +364,7 @@ UIFont* GetNavigationBarTitleFont() {
 }
 
 - (void)keyCommand_close {
-  base::RecordAction(base::UserMetricsAction("MobileKeyCommandClose"));
+  base::RecordAction(base::UserMetricsAction(kMobileKeyCommandClose));
   [self.actionDelegate consistencyDefaultAccountViewControllerSkip:self];
 }
 

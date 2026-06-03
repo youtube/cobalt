@@ -12,12 +12,12 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
+#include "components/optimization_guide/core/delivery/optimization_target_model_observer.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_adaptation_loader.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_component.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/core/optimization_guide_model_executor.h"
-#include "components/optimization_guide/core/optimization_target_model_observer.h"
 #include "components/optimization_guide/proto/model_execution.pb.h"
 #include "components/optimization_guide/proto/model_quality_service.pb.h"
 #include "url/gurl.h"
@@ -85,6 +85,10 @@ class ModelExecutionManager final {
   // Returns the capabilities for the on-device model, or empty capabilities if
   // no model is available.
   on_device_model::Capabilities GetOnDeviceCapabilities();
+
+  OnDeviceModelServiceController* GetOnDeviceModelServiceController() {
+    return on_device_model_service_controller_.get();
+  }
 
   // Records a fake model execution response to be returned when ExecuteModel is
   // called for the given feature.

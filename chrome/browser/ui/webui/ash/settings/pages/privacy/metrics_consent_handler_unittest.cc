@@ -10,7 +10,6 @@
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/ash/ownership/owner_settings_service_ash.h"
 #include "chrome/browser/ash/ownership/owner_settings_service_ash_factory.h"
-#include "chrome/browser/ash/policy/core/device_policy_builder.h"
 #include "chrome/browser/ash/settings/cros_settings_holder.h"
 #include "chrome/browser/ash/settings/device_settings_service.h"
 #include "chrome/browser/ash/settings/scoped_test_device_settings_service.h"
@@ -20,8 +19,10 @@
 #include "chrome/browser/metrics/profile_pref_names.h"
 #include "chrome/browser/net/fake_nss_service.h"
 #include "chrome/browser/prefs/browser_prefs.h"
+#include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/ash/components/dbus/session_manager/fake_session_manager_client.h"
+#include "chromeos/ash/components/policy/device_policy/device_policy_builder.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "chromeos/ash/components/settings/device_settings_cache.h"
 #include "components/metrics/metrics_state_manager.h"
@@ -121,7 +122,8 @@ class MetricsConsentHandlerTest : public testing::Test {
   ~MetricsConsentHandlerTest() override = default;
 
   std::unique_ptr<TestingProfile> RegisterOwner(const AccountId& account_id) {
-    DeviceSettingsService::Get()->SetSessionManager(
+    DeviceSettingsService::Get()->StartProcessing(
+        TestingBrowserProcess::GetGlobal()->local_state(),
         &fake_session_manager_client_, owner_keys);
     std::unique_ptr<TestingProfile> owner = CreateUser(kOwner, owner_keys);
     test_user_manager_->AddUserWithAffiliationAndTypeAndProfile(

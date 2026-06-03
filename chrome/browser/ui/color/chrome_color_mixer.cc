@@ -410,6 +410,7 @@ void AddChromeColorMixer(ui::ColorProvider* provider,
   mixer[kColorSidePanelHeaderButtonIcon] = {ui::kColorIcon};
   mixer[kColorSidePanelHeaderButtonIconDisabled] = {ui::kColorIconDisabled};
   mixer[kColorSidePanelResizeAreaHandle] = {kColorToolbarContentAreaSeparator};
+  mixer[kColorSplitViewScrim] = ui::SetAlpha(ui::kColorRefNeutral99, 0x99);
   mixer[kColorStarRatingFullIcon] =
       ui::SelectBasedOnDarkInput(kColorTabForegroundActiveFrameActive,
                                  gfx::kGoogleYellow500, gfx::kGoogleYellow300);
@@ -754,11 +755,10 @@ void AddChromeColorMixer(ui::ColorProvider* provider,
       ui::SetAlpha(ui::GetColorWithMaxContrast(kColorToolbarButtonText), 0xCC);
   mixer[kColorAvatarButtonHighlightIncognito] = {
       kColorToolbarButtonBackgroundHighlightedDefault};
-  mixer[kColorAvatarButtonHighlightNormal] = {kColorToolbar};
+  mixer[kColorAvatarButtonHighlightGuest] = {kColorToolbar};
   mixer[kColorAvatarButtonHighlightDefaultForeground] =
       AdjustHighlightColorForContrast(ui::kColorAccent, kColorToolbar);
-  mixer[kColorAvatarButtonHighlightNormalForeground] = {
-      kColorToolbarButtonText};
+  mixer[kColorAvatarButtonHighlightGuestForeground] = {kColorToolbarButtonText};
   mixer[kColorAvatarButtonHighlightSyncErrorForeground] =
       AdjustHighlightColorForContrast(ui::kColorAlertMediumSeverityIcon,
                                       kColorToolbar);

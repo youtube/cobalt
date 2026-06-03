@@ -42,6 +42,8 @@
 #include "net/cookies/cookie_setting_override.h"
 #include "net/cookies/cookie_util.h"
 #include "net/cookies/site_for_cookies.h"
+#include "net/device_bound_sessions/session_key.h"
+#include "net/device_bound_sessions/session_service.h"
 #include "net/device_bound_sessions/session_usage.h"
 #include "net/dns/public/secure_dns_policy.h"
 #include "net/filter/source_stream_type.h"
@@ -952,6 +954,19 @@ class NET_EXPORT URLRequest : public base::SupportsUserData {
     device_bound_session_usage_ = usage;
   }
 
+  // Returns all the device bound sessions that have deferred this
+  // request.
+  const base::flat_map<device_bound_sessions::SessionKey,
+                       device_bound_sessions::SessionService::RefreshResult>&
+  device_bound_session_deferrals() const {
+    return device_bound_session_deferrals_;
+  }
+  void AddDeviceBoundSessionDeferral(
+      const device_bound_sessions::SessionKey& deferral,
+      const device_bound_sessions::SessionService::RefreshResult result) {
+    device_bound_session_deferrals_[deferral] = result;
+  }
+
  protected:
   // Allow the URLRequestJob class to control the is_pending() flag.
   void set_is_pending(bool value) { is_pending_ = value; }
@@ -1246,6 +1261,11 @@ class NET_EXPORT URLRequest : public base::SupportsUserData {
   // How existing device bound sessions interacted with this request
   device_bound_sessions::SessionUsage device_bound_session_usage_ =
       device_bound_sessions::SessionUsage::kUnknown;
+  // Which device bound sessions have deferred this request, and the
+  // result of that refresh.
+  base::flat_map<device_bound_sessions::SessionKey,
+                 device_bound_sessions::SessionService::RefreshResult>
+      device_bound_session_deferrals_;
 
   THREAD_CHECKER(thread_checker_);
 

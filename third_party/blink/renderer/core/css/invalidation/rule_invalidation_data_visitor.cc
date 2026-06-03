@@ -172,6 +172,7 @@ bool SupportsInvalidation(CSSSelector::PseudoType type) {
     case CSSSelector::kPseudoUnparsed:  // Never invalidates.
     case CSSSelector::kPseudoViewTransition:
     case CSSSelector::kPseudoViewTransitionGroup:
+    case CSSSelector::kPseudoViewTransitionGroupChildren:
     case CSSSelector::kPseudoViewTransitionImagePair:
     case CSSSelector::kPseudoViewTransitionNew:
     case CSSSelector::kPseudoViewTransitionOld:
@@ -220,7 +221,7 @@ bool RequiresSubtreeInvalidation(const CSSSelector& selector) {
   switch (selector.GetPseudoType()) {
     case CSSSelector::kPseudoFirstLine:
     case CSSSelector::kPseudoFirstLetter:
-    // FIXME: Most pseudo classes/elements above can be supported and moved
+    // FIXME: Most pseudo-classes/elements above can be supported and moved
     // to assertSupportedPseudo(). Move on a case-by-case basis. If they
     // require subtree invalidation, document why.
     case CSSSelector::kPseudoHostContext:
@@ -253,29 +254,6 @@ scoped_refptr<InvalidationSet> CopyInvalidationSet(
   scoped_refptr<InvalidationSet> copy = DescendantInvalidationSet::Create();
   copy->Combine(invalidation_set);
   return copy;
-}
-
-bool IsPrecedingSimpleSelectorsValidBeforeHost(const CSSSelector* selector,
-                                               const CSSSelector* host) {
-  DCHECK(selector);
-  DCHECK(host);
-  for (; selector != host; selector = selector->NextSimpleSelector()) {
-    // TODO(blee@igalia.com) Need to support logical combinations before :host
-    // (e.g. ':not(:has(.a)):host')
-    if (!selector->IsHostPseudoClass() &&
-        selector->GetPseudoType() != CSSSelector::kPseudoHas) {
-      return false;
-    }
-  }
-  return true;
-}
-
-bool IsSimpleSelectorValidAfterHost(const CSSSelector* simple_selector) {
-  // TODO(blee@igalia.com) Need to support logical combinations after :host
-  // (e.g. ':host:not(:has(.a))')
-  return simple_selector->Match() == CSSSelector::kPseudoElement ||
-         simple_selector->IsHostPseudoClass() ||
-         simple_selector->GetPseudoType() == CSSSelector::kPseudoHas;
 }
 
 }  // anonymous namespace
@@ -374,20 +352,11 @@ RuleInvalidationDataVisitor<VisitorType>::CollectMetadataFromSelector(
     unsigned max_direct_adjacent_selectors,
     FeatureMetadata& metadata) {
   CSSSelector::RelationType relation = CSSSelector::kDescendant;
-  bool found_host_pseudo = false;
-  const CSSSelector* compound = nullptr;
 
   for (const CSSSelector* current = &selector; current;
        current = current->NextSimpleSelector()) {
-    if (relation != CSSSelector::kSubSelector) {
-      compound = current;
-    }
     switch (current->GetPseudoType()) {
       case CSSSelector::kPseudoHas:
-        if (found_host_pseudo && !current->IsLastInComplexSelector() &&
-            !IsSimpleSelectorValidAfterHost(current->NextSimpleSelector())) {
-          return SelectorPreMatch::kNeverMatches;
-        }
         break;
       case CSSSelector::kPseudoFirstLine:
         metadata.uses_first_line_rules = true;
@@ -397,16 +366,6 @@ RuleInvalidationDataVisitor<VisitorType>::CollectMetadataFromSelector(
         break;
       case CSSSelector::kPseudoHost:
       case CSSSelector::kPseudoHostContext:
-        if (!found_host_pseudo && relation == CSSSelector::kSubSelector &&
-            !IsPrecedingSimpleSelectorsValidBeforeHost(compound,
-                                                       /*host=*/current)) {
-          return SelectorPreMatch::kNeverMatches;
-        }
-        if (!current->IsLastInComplexSelector() &&
-            !IsSimpleSelectorValidAfterHost(current->NextSimpleSelector())) {
-          return SelectorPreMatch::kNeverMatches;
-        }
-        found_host_pseudo = true;
         CollectMetadataFromSelectorList(current->SelectorListOrParent(),
                                         max_direct_adjacent_selectors,
                                         metadata);
@@ -451,10 +410,6 @@ RuleInvalidationDataVisitor<VisitorType>::CollectMetadataFromSelector(
     }
 
     relation = current->Relation();
-
-    if (found_host_pseudo && relation != CSSSelector::kSubSelector) {
-      return SelectorPreMatch::kNeverMatches;
-    }
 
     if (relation == CSSSelector::kDirectAdjacent) {
       max_direct_adjacent_selectors++;
@@ -772,7 +727,7 @@ const CSSSelector* RuleInvalidationDataVisitor<VisitorType>::
     // While adding features to invalidation sets for logical combinations
     // inside :has(), ExtractInvalidationSetFeaturesFromCompound() can be
     // called again to extract features from the compound selector containing
-    // the :has() pseudo class. (e.g. '.a:has(:is(.b ~ .c)) .d')
+    // the :has() pseudo-class. (e.g. '.a:has(:is(.b ~ .c)) .d')
     // To avoid infinite recursive call, skip adding features for :has() if
     // ExtractInvalidationSetFeaturesFromCompound() is invoked for the logical
     // combinations inside :has().
@@ -806,7 +761,7 @@ void RuleInvalidationDataVisitor<VisitorType>::
   }
   CSSSelector::PseudoType pseudo_type = simple_selector.GetPseudoType();
 
-  // For the :has pseudo class, we should not extract invalidation set features
+  // For the :has pseudo-class, we should not extract invalidation set features
   // here because the :has invalidation direction is different with others.
   // (preceding-sibling/ancestors/preceding-sibling-of-ancestors)
   if (pseudo_type == CSSSelector::kPseudoHas) {
@@ -845,7 +800,7 @@ void RuleInvalidationDataVisitor<VisitorType>::
   // Don't add any features if one of the sub-selectors of does not contain
   // any invalidation set features. E.g. :-webkit-any(*, span).
   //
-  // For the :not() pseudo class, we should not use the inner features for
+  // For the :not() pseudo-class, we should not use the inner features for
   // invalidation because we should invalidate elements _without_ that
   // feature. On the other hand, we should still have invalidation sets
   // for the features since we are able to detect when they change.
@@ -992,7 +947,7 @@ void RuleInvalidationDataVisitor<VisitorType>::
     return;
   }
 
-  // For the :has pseudo class, we should not extract invalidation set features
+  // For the :has pseudo-class, we should not extract invalidation set features
   // here because the :has invalidation direction is different with others.
   // (preceding-sibling/ancestors/preceding-sibling-of-ancestors)
   if (pseudo_type == CSSSelector::kPseudoHas) {
@@ -1236,7 +1191,7 @@ void RuleInvalidationDataVisitor<VisitorType>::
     }
   }
 
-  // Add features to invalidation sets only when the :has() pseudo class
+  // Add features to invalidation sets only when the :has() pseudo-class
   // contains logical combinations containing a complex selector as argument.
   if (!pseudo_has.ContainsComplexLogicalCombinationsInsideHasPseudoClass()) {
     return;
@@ -1249,7 +1204,7 @@ void RuleInvalidationDataVisitor<VisitorType>::
     descendant_features.invalidation_flags.SetWholeSubtreeInvalid(true);
   }
 
-  // Use descendant features as sibling features if the :has() pseudo class is
+  // Use descendant features as sibling features if the :has() pseudo-class is
   // in subject position.
   if (!sibling_features && descendant_features.descendant_features_depth == 0) {
     sibling_features = &descendant_features;
@@ -1463,8 +1418,8 @@ void RuleInvalidationDataVisitor<VisitorType>::
       combinator = CSSSelector::kIndirectAdjacent;
       break;
     default:
-      // Implicit combinators for pseudo elements (kUAShadow, kShadowSlot,
-      // kShadowPart) cannot be inside :has() because pseudo elements are
+      // Implicit combinators for pseudo-elements (kUAShadow, kShadowSlot,
+      // kShadowPart) cannot be inside :has() because pseudo-elements are
       // not allowed inside :has().
       // Combinators for relative relations (kRelativeDescendant,
       // kRelativeChild, kRelativeDirectAdjacent, kRelativeIndirectAdjacent)
@@ -2022,7 +1977,7 @@ bool RuleInvalidationDataVisitor<VisitorType>::
         return false;
       } else {
         rule_invalidation_data_.names_with_self_invalidation =
-            std::make_unique<WTF::BloomFilter<14>>();
+            std::make_unique<BloomFilter<14>>();
       }
     }
     rule_invalidation_data_.names_with_self_invalidation->Add(value.Hash() *

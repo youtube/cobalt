@@ -83,7 +83,7 @@
 #endif
 
 #if BUILDFLAG(ENABLE_GUEST_VIEW)
-#include "components/guest_view/common/guest_view.mojom.h"
+#include "components/guest_view/common/guest_view.mojom.h"  // nogncheck
 #include "extensions/browser/guest_view/web_view/web_view_guest.h"
 #include "extensions/browser/guest_view/web_view/web_view_renderer_state.h"
 #endif
@@ -157,9 +157,8 @@ bool AllowServiceWorker(const GURL& scope,
 
   // If an extension is service-worker based, only the script specified in the
   // manifest can be registered at the root scope.
-  const std::string& sw_script =
-      BackgroundInfo::GetBackgroundServiceWorkerScript(extension);
-  return script_url == extension->GetResourceURL(sw_script);
+  return script_url ==
+         BackgroundInfo::GetBackgroundServiceWorkerScriptURL(extension);
 }
 
 // Returns the extension associated with the given `scope` if and only if it's

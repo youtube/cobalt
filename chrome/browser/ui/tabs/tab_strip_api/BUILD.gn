@@ -11,6 +11,7 @@ mojom("mojom") {
 
   public_deps = [
     "//chrome/browser/ui/webui/tabs:mojo_bindings",
+    "//components/tab_groups/public/mojom:mojo_bindings",
     "//mojo/public/mojom/base",
     "//url/mojom:url_mojom_gurl",
   ]
@@ -21,20 +22,20 @@ mojom("mojom") {
     {
       types = [
         {
-          mojom = "tabs_api.mojom.TabId"
-          cpp = "::tabs_api::TabId"
+          mojom = "tabs_api.mojom.NodeId"
+          cpp = "::tabs_api::NodeId"
         },
         {
-          mojom = "tabs_api.mojom.TabId.Type"
-          cpp = "enum ::tabs_api::TabId::Type"
+          mojom = "tabs_api.mojom.NodeId.Type"
+          cpp = "enum ::tabs_api::NodeId::Type"
         },
       ]
       traits_headers = [
-        "//chrome/browser/ui/tabs/tab_strip_api/tab_id.h",
-        "//chrome/browser/ui/tabs/tab_strip_api/tab_id_traits.h",
+        "//chrome/browser/ui/tabs/tab_strip_api/node_id.h",
+        "//chrome/browser/ui/tabs/tab_strip_api/node_id_traits.h",
       ]
       traits_sources =
-          [ "//chrome/browser/ui/tabs/tab_strip_api/tab_id_traits.cc" ]
+          [ "//chrome/browser/ui/tabs/tab_strip_api/node_id_traits.cc" ]
       traits_public_deps = [
         ":types",
         "//base",
@@ -82,8 +83,14 @@ source_set("impl") {
 
 source_set("types") {
   sources = [
-    "tab_id.cc",
-    "tab_id.h",
+    "node_id.cc",
+    "node_id.h",
+  ]
+
+  public_deps = [
+    "//base",
+    "//components/tab_groups",
+    "//components/tabs:public",
   ]
 }
 
@@ -91,8 +98,8 @@ source_set("unit_tests") {
   testonly = true
 
   sources = [
-    "tab_id_traits_unittest.cc",
-    "tab_id_unittest.cc",
+    "node_id_traits_unittest.cc",
+    "node_id_unittest.cc",
     "tab_strip_service_impl_unittest.cc",
   ]
 
@@ -107,6 +114,7 @@ source_set("unit_tests") {
     "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/browser/ui/tabs:test_support",
     "//chrome/test:test_support",
+    "//components/tabs:public",
     "//content/test:test_support",
     "//testing/gtest",
   ]
@@ -120,6 +128,7 @@ source_set("browser_tests") {
   deps = [
     ":impl",
     ":tab_strip_api",
+    "adapters/tree_builder:browser_tests",
     "//base",
     "//base/test:test_support",
     "//chrome/browser/ui:ui_features",

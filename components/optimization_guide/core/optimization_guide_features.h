@@ -19,7 +19,6 @@
 #include "base/metrics/field_trial_params.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "components/optimization_guide/core/model_execution/feature_keys.h"
 #include "components/optimization_guide/core/optimization_guide_enums.h"
 #include "components/optimization_guide/proto/hints.pb.h"
 #include "components/optimization_guide/proto/model_execution.pb.h"
@@ -36,8 +35,6 @@ COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 BASE_DECLARE_FEATURE(kOptimizationHints);
 COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 BASE_DECLARE_FEATURE(kRemoteOptimizationGuideFetching);
-COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
-BASE_DECLARE_FEATURE(kRemoteOptimizationGuideFetchingAnonymousDataConsent);
 COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 BASE_DECLARE_FEATURE(kOptimizationGuideFetchingForSRP);
 COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
@@ -84,6 +81,8 @@ COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 BASE_DECLARE_FEATURE(kPrivacyGuideAiSettings);
 COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 BASE_DECLARE_FEATURE(kAnnotatedPageContentWithActionableElements);
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+BASE_DECLARE_FEATURE(kOptimizationGuideProactivePersonalizedHintsFetching);
 
 // Allows setting feature params for model download configuration, such as
 // minimum performance class for download.
@@ -123,6 +122,11 @@ typedef base::EnumSet<proto::RequestContext,
                       proto::RequestContext_MIN,
                       proto::RequestContext_MAX>
     RequestContextSet;
+
+typedef base::EnumSet<proto::OptimizationType,
+                      proto::OptimizationType_MIN,
+                      proto::OptimizationType_MAX>
+    OptimizationTypeSet;
 
 // The grace period duration for how long to give outstanding page text dump
 // requests to respond after DidFinishLoad.
@@ -186,11 +190,6 @@ bool IsOptimizationHintsEnabled();
 // Service is enabled. This controls the fetching of both hints and models.
 COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 bool IsRemoteFetchingEnabled();
-
-// Returns true if the feature to fetch data for users that have consented to
-// anonymous data collection is enabled but are not Data Saver users.
-COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
-bool IsRemoteFetchingForAnonymousDataConsentEnabled();
 
 // Returns true if the feature to use push notifications is enabled.
 COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
@@ -296,6 +295,11 @@ bool ShouldOverrideOptimizationTargetDecisionForMetricsPurposes(
 // Returns requests contexts for which personalized metadata should be enabled.
 COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 RequestContextSet GetAllowedContextsForPersonalizedMetadata();
+
+// Returns optimization types for which proactive personalization should be
+// enabled.
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+OptimizationTypeSet GetAllowedOptimizationTypesForProactivePersonalization();
 
 // Returns the minimum random delay before starting to fetch for prediction
 // models and host model features.

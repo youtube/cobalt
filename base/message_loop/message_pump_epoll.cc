@@ -20,6 +20,7 @@
 #include "base/auto_reset.h"
 #include "base/check_op.h"
 #include "base/feature_list.h"
+#include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/metrics/histogram_macros.h"
@@ -27,7 +28,8 @@
 #include "base/posix/eintr_wrapper.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/trace_event/heap_profiler.h"
+#include "base/trace_event/trace_event.h"
 
 #if DCHECK_IS_ON()
 #include <iomanip>

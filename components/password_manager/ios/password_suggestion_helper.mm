@@ -222,21 +222,25 @@ base::TimeDelta GetCleanupTaskPeriodMs() {
         realm = SysUTF8ToNSString(password_manager::GetShownOrigin(origin));
       }
 
+      autofill::SuggestionType suggestionType =
+          usernameAndRealm.is_backup_credential
+              ? autofill::SuggestionType::kBackupPasswordEntry
+              : autofill::SuggestionType::kPasswordEntry;
+
       FormSuggestionMetadata metadata;
       metadata.is_single_username_form = is_single_username_form;
       metadata.likely_from_real_password_field = isPasswordField;
+
       [results
-          addObject:
-              [FormSuggestion
-                         suggestionWithValue:username
-                          displayDescription:realm
-                                        icon:nil
-                                        type:autofill::SuggestionType::
-                                                 kPasswordEntry
-                                     payload:autofill::Suggestion::Payload()
-                              requiresReauth:YES
-                  acceptanceA11yAnnouncement:nil
-                                    metadata:std::move(metadata)]];
+          addObject:[FormSuggestion suggestionWithValue:username
+                                     displayDescription:realm
+                                                   icon:nil
+                                                   type:suggestionType
+                                                payload:autofill::Suggestion::
+                                                            Payload()
+                                         requiresReauth:YES
+                             acceptanceA11yAnnouncement:nil
+                                               metadata:std::move(metadata)]];
     }
   }
 

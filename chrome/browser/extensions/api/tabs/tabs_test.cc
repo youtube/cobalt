@@ -51,6 +51,7 @@
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/web_applications/test/isolated_web_app_test_utils.h"
@@ -104,6 +105,7 @@
 #include "ui/display/screen.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/views/widget/widget_interactive_uitest_utils.h"
+#include "url/gurl.h"
 
 #if BUILDFLAG(IS_MAC)
 #include "ui/base/test/scoped_fake_nswindow_fullscreen.h"
@@ -147,7 +149,7 @@ class TestFunctionDispatcherDelegate
 
  private:
   extensions::WindowController* GetExtensionWindowController() const override {
-    return browser_->extension_window_controller();
+    return browser_->GetFeatures().extension_window_controller();
   }
 
   content::WebContents* GetAssociatedWebContents() const override {
@@ -236,10 +238,11 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, GetWindow) {
 
   // Basic window details.
   gfx::Rect bounds;
-  if (browser()->window()->IsMinimized())
+  if (browser()->window()->IsMinimized()) {
     bounds = browser()->window()->GetRestoredBounds();
-  else
+  } else {
     bounds = browser()->window()->GetBounds();
+  }
 
   function = base::MakeRefCounted<WindowsGetFunction>();
   function->set_extension(extension.get());
@@ -593,6 +596,39 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, DefaultToIncognitoWhenItIsForced) {
   EXPECT_TRUE(api_test_utils::GetBoolean(result, "incognito"));
 }
 
+// Regression test for crbug.com/427147470. Verifies that opening
+// chrome-extension:// URLs using chrome.tabs.create() from non-extension
+// contexts (e.g. WebUI pages) works as expected.
+IN_PROC_BROWSER_TEST_F(ExtensionTabsTest,
+                       CreateExtensionTabFromNonExtensionContext) {
+  auto function = base::MakeRefCounted<TabsCreateFunction>();
+  function->SetRenderFrameHost(browser()
+                                   ->tab_strip_model()
+                                   ->GetActiveWebContents()
+                                   ->GetPrimaryMainFrame());
+  function->set_extension(nullptr);
+
+  const Extension* extension =
+      LoadExtension(test_data_dir_.AppendASCII("options_page"));
+  ASSERT_TRUE(extension);
+  GURL extension_url = extension->ResolveExtensionURL("options.html");
+
+  const std::string args_with_extension_url =
+      base::StringPrintf(R"([{ "url": "%s" }])", extension_url.spec());
+  base::Value::Dict result =
+      utils::ToDict(utils::RunFunctionAndReturnSingleResult(
+          function.get(), args_with_extension_url, browser()->profile()));
+
+  int tab_id = GetTabId(result);
+  content::WebContents* created_tab = nullptr;
+  ExtensionTabUtil::GetTabById(tab_id, profile(), /*include_incognito=*/false,
+                               &created_tab);
+  ASSERT_TRUE(created_tab);
+  content::WaitForLoadStop(created_tab);
+  EXPECT_EQ(created_tab->GetPrimaryMainFrame()->GetLastCommittedURL(),
+            extension_url);
+}
+
 IN_PROC_BROWSER_TEST_F(ExtensionTabsTest,
                        DefaultToIncognitoWhenItIsForcedAndNoArgs) {
   static const char kEmptyArgs[] = "[]";
@@ -690,8 +726,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsTest,
 
 IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, QueryCurrentWindowTabs) {
   const size_t kExtraWindows = 3;
-  for (size_t i = 0; i < kExtraWindows; ++i)
+  for (size_t i = 0; i < kExtraWindows; ++i) {
     CreateBrowser(browser()->profile());
+  }
 
   GURL url(url::kAboutBlankURL);
   ASSERT_TRUE(AddTabAtIndex(0, url, ui::PAGE_TRANSITION_LINK));
@@ -857,8 +894,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, InvalidUpdateWindowBounds) {
 
   // Get the display bounds so we can test whether the window intersects.
   gfx::Rect displays;
-  for (const auto& display : display::Screen::GetScreen()->GetAllDisplays())
+  for (const auto& display : display::Screen::GetScreen()->GetAllDisplays()) {
     displays.Union(display.bounds());
+  }
 
   int window_id = ExtensionTabUtil::GetWindowId(browser());
   gfx::Rect window_bounds = browser()->window()->GetBounds();
@@ -1073,8 +1111,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionWindowCreateTest, ValidateCreateWindowState) {
 IN_PROC_BROWSER_TEST_F(ExtensionWindowCreateTest, ValidateCreateWindowBounds) {
   // Get the display bounds so we can test whether the window intersects.
   gfx::Rect displays;
-  for (const auto& display : display::Screen::GetScreen()->GetAllDisplays())
+  for (const auto& display : display::Screen::GetScreen()->GetAllDisplays()) {
     displays.Union(display.bounds());
+  }
 
   static const char kArgsCreateFunction[] =
       "[{\"left\": %d, \"top\": %d, \"width\": %d, \"height\": %d }]";
@@ -1239,7 +1278,20 @@ IN_PROC_BROWSER_TEST_P(ExtensionWindowCreateIwaTest, CreateWindowForIwa) {
     ASSERT_EQ(BrowserList::GetInstance()->size(), 1ul);
     Browser* iwa_browser = *BrowserList::GetInstance()->begin();
     ASSERT_EQ(iwa_browser->tab_strip_model()->count(), 1);
-    EXPECT_EQ(iwa_browser->tab_strip_model()->GetWebContentsAt(0)->GetURL(),
+
+    auto* web_contents = iwa_browser->tab_strip_model()->GetActiveWebContents();
+    content::WaitForLoadStop(web_contents);
+    EXPECT_EQ(web_contents->GetURL(), url_info.origin().GetURL());
+
+    static constexpr std::string_view kLaunchQueueScript = R"(
+      new Promise(async (resolve) => {
+        window.launchQueue.setConsumer(launchParams => {
+          resolve(launchParams.targetURL);
+        });
+      });
+    )";
+
+    EXPECT_EQ(content::EvalJs(web_contents, kLaunchQueueScript),
               url_info.origin().GetURL().Resolve("/index.html"));
   } else {
     EXPECT_FALSE(result);
@@ -1522,7 +1574,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, DiscardedProperty) {
   resource_coordinator::GetTabLifecycleUnitSource()
       ->SetFocusedTabStripModelForTesting(browser()->tab_strip_model());
 
-  // Create two aditional tabs.
+  // Create two additional tabs.
   content::OpenURLParams params(GURL(url::kAboutBlankURL), content::Referrer(),
                                 WindowOpenDisposition::NEW_BACKGROUND_TAB,
                                 ui::PAGE_TRANSITION_LINK, false);
@@ -1881,7 +1933,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, Freezing) {
 }
 
 IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, AutoDiscardableProperty) {
-  // Create two aditional tabs.
+  // Create two additional tabs.
   content::OpenURLParams params(GURL(url::kAboutBlankURL), content::Referrer(),
                                 WindowOpenDisposition::NEW_BACKGROUND_TAB,
                                 ui::PAGE_TRANSITION_LINK, false);
@@ -2013,8 +2065,7 @@ class ExtensionTabsZoomTest : public ExtensionTabsTest {
                                              double* default_zoom_factor);
 
   // Runs chrome.tabs.setZoom(), expecting an error.
-  std::string RunSetZoomExpectError(int tab_id,
-                                    double zoom_factor);
+  std::string RunSetZoomExpectError(int tab_id, double zoom_factor);
 
   // Runs chrome.tabs.setZoomSettings(), expecting an error.
   std::string RunSetZoomSettingsExpectError(int tab_id,
@@ -2055,12 +2106,14 @@ testing::AssertionResult ExtensionTabsZoomTest::RunGetZoom(
           get_zoom_function.get(), base::StringPrintf("[%u]", tab_id),
           browser()->profile());
 
-  if (!get_zoom_result)
+  if (!get_zoom_result) {
     return testing::AssertionFailure() << "no result";
+  }
 
   std::optional<double> maybe_value = get_zoom_result->GetIfDouble();
-  if (!maybe_value.has_value())
+  if (!maybe_value.has_value()) {
     return testing::AssertionFailure() << "result was not a double";
+  }
 
   *zoom_factor = maybe_value.value();
   return testing::AssertionSuccess();
@@ -2102,8 +2155,9 @@ testing::AssertionResult ExtensionTabsZoomTest::RunGetZoomSettings(
           get_zoom_settings_function.get(), base::StringPrintf("[%u]", tab_id),
           browser()->profile());
 
-  if (!get_zoom_settings_result)
+  if (!get_zoom_settings_result) {
     return testing::AssertionFailure() << "no result";
+  }
 
   base::Value::Dict get_zoom_settings_dict =
       utils::ToDict(std::move(get_zoom_settings_result));
@@ -2176,7 +2230,7 @@ content::WebContents* ExtensionTabsZoomTest::OpenUrlAndWaitForLoad(
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
-  return  browser()->tab_strip_model()->GetActiveWebContents();
+  return browser()->tab_strip_model()->GetActiveWebContents();
 }
 
 namespace {
@@ -2387,8 +2441,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsZoomTest, GetZoomSettings) {
   std::string error =
       RunSetZoomSettingsExpectError(tab_id, "manual", "per-origin");
   EXPECT_TRUE(base::MatchPattern(error, keys::kPerOriginOnlyInAutomaticError));
-  error =
-      RunSetZoomSettingsExpectError(tab_id, "disabled", "per-origin");
+  error = RunSetZoomSettingsExpectError(tab_id, "disabled", "per-origin");
   EXPECT_TRUE(base::MatchPattern(error, keys::kPerOriginOnlyInAutomaticError));
 }
 
@@ -2507,7 +2560,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionApiTest, WindowsCreate_WithOpener) {
   ASSERT_TRUE(extension);
 
   // Navigate a tab to an extension page.
-  GURL extension_url = extension->GetResourceURL("file.html");
+  GURL extension_url = extension->ResolveExtensionURL("file.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), extension_url));
   content::WebContents* old_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -2579,7 +2632,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionApiTest, WindowsCreate_NoOpener) {
   ASSERT_TRUE(extension);
 
   // Navigate a tab to an extension page.
-  GURL extension_url = extension->GetResourceURL("file.html");
+  GURL extension_url = extension->ResolveExtensionURL("file.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), extension_url));
   content::WebContents* old_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -2619,7 +2672,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionApiTest, WindowsCreate_OpenerAndOrigin) {
   ASSERT_TRUE(extension);
 
   // Navigate a tab to an extension page.
-  GURL extension_url = extension->GetResourceURL("file.html");
+  GURL extension_url = extension->ResolveExtensionURL("file.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), extension_url));
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -2700,7 +2753,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionApiTest, TabsUpdate_WebToAboutBlank) {
   const extensions::Extension* extension =
       LoadExtension(test_data_dir_.AppendASCII("../simple_with_file"));
   ASSERT_TRUE(extension);
-  GURL extension_url = extension->GetResourceURL("file.html");
+  GURL extension_url = extension->ResolveExtensionURL("file.html");
   url::Origin extension_origin = url::Origin::Create(extension_url);
   GURL web_url = embedded_test_server()->GetURL("/title1.html");
   url::Origin web_origin = url::Origin::Create(web_url);
@@ -2760,7 +2813,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionApiTest, TabsUpdate_WebToAboutNewTab) {
   const extensions::Extension* extension =
       LoadExtension(test_data_dir_.AppendASCII("../simple_with_file"));
   ASSERT_TRUE(extension);
-  GURL extension_url = extension->GetResourceURL("file.html");
+  GURL extension_url = extension->ResolveExtensionURL("file.html");
   url::Origin extension_origin = url::Origin::Create(extension_url);
   GURL web_url = embedded_test_server()->GetURL("/title1.html");
   url::Origin web_origin = url::Origin::Create(web_url);
@@ -2820,7 +2873,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionApiTest, TabsUpdate_WebToNonWAR) {
   const extensions::Extension* extension =
       LoadExtension(test_data_dir_.AppendASCII("../simple_with_file"));
   ASSERT_TRUE(extension);
-  GURL extension_url = extension->GetResourceURL("file.html");
+  GURL extension_url = extension->ResolveExtensionURL("file.html");
   url::Origin extension_origin = url::Origin::Create(extension_url);
   GURL web_url = embedded_test_server()->GetURL("/title1.html");
   url::Origin web_origin = url::Origin::Create(web_url);

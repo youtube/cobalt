@@ -182,12 +182,6 @@ _BROWSER_AND_PLATFORM_SPECIFIC_FILTER['chrome-headless-shell']['mac'] = [
     # Unable to run chrome-headless-shell with logging enabled on Mac. See
     # crbug.com/1011000.
     'ChromeLogPathCapabilityTest.testChromeLogPath',
-    # https://crbug.com/chromedriver/4631
-    # chrome-headless-shell does not set the window rect as requested.
-    'ChromeDriverTest.testWindowMinimize',
-    'ChromeDriverTest.testWindowPosition',
-    'ChromeDriverTest.testWindowRect',
-    'ChromeDriverTest.testWindowSize',
     # https://crbug.com/chromedriver/4632
     # chrome-headless-shell ignores the selected range while inserting the text
     'ChromeDriverW3cTest.testSendKeysToElementDoesNotAppend',
@@ -278,14 +272,8 @@ _ANDROID_NEGATIVE_FILTER['chrome'] = (
         # Page cannot be loaded from file:// URI in Android unless it
         # is stored in device.
         'ChromeDriverTest.testCanClickAlertInIframes',
-        # https://bugs.chromium.org/p/chromedriver/issues/detail?id=2081
-        'ChromeDriverTest.testCloseWindowUsingJavascript',
         # Tests of the desktop Chrome launch process.
         'LaunchDesktopTest.*',
-        # https://bugs.chromium.org/p/chromedriver/issues/detail?id=2737
-        'ChromeDriverTest.testTakeElementScreenshot',
-        'ChromeDriverTest.testTakeElementScreenshotPartlyVisible',
-        'ChromeDriverTest.testTakeElementScreenshotInIframe',
         # setWindowBounds not supported on Android
         'ChromeDriverTest.testTakeLargeElementScreenshot',
         # https://bugs.chromium.org/p/chromedriver/issues/detail?id=2786
@@ -367,7 +355,6 @@ _ANDROID_NEGATIVE_FILTER['chromedriver_webview_shell'] = (
         'ChromeDriverTest.testPopups',
         'ChromeDriverTest.testDontGoBackOrGoForward',
         # ChromeDriver WebView shell doesn't support multiple tabs.
-        'ChromeDriverTest.testCloseWindowUsingJavascript',
         'ChromeDriverTest.testGetWindowHandles',
         'ChromeDriverTest.testSwitchToWindow',
         'ChromeDriverTest.testShouldHandleNewWindowLoadingProperly',
@@ -9006,8 +8993,11 @@ class FedCmSpecificTest(ChromeDriverBaseTestWithWebServer):
       """ % self._url_prefix, 'utf-8')
     self._https_server.SetDataForPath('/fedcm.html', script_content)
 
+    # Disable SegmentationPlatformFedCmUser for chromedriver tests since it is
+    # possible for segmentation platform to suppress the UI.
     self.chrome_switches = ['host-resolver-rules=MAP *:443 127.0.0.1:%s' % port,
-            'enable-experimental-web-platform-features']
+            'enable-experimental-web-platform-features',
+            'disable-features=SegmentationPlatformFedCmUser']
     self._driver = self.CreateDriver(
         accept_insecure_certs=True,
         chrome_switches=self.chrome_switches)

@@ -39,16 +39,6 @@ BASE_DECLARE_FEATURE(kIOSSharedHighlightingColorChange);
 // Feature flag to enable Measurements detection.
 BASE_DECLARE_FEATURE(kEnableMeasurements);
 
-// Feature param under kOneTapForMaps to select consent behavior.
-extern const char kOneTapForMapsConsentModeParamTitle[];
-extern const char kOneTapForMapsConsentModeDefaultParam[];
-extern const char kOneTapForMapsConsentModeForcedParam[];
-extern const char kOneTapForMapsConsentModeDisabledParam[];
-extern const char kOneTapForMapsConsentModeIPHParam[];
-extern const char kOneTapForMapsConsentModeIPHForcedParam[];
-// Feature flag to enable One tap experience for Maps.
-BASE_DECLARE_FEATURE(kOneTapForMaps);
-
 // When enabled, CRWWebViewScrollViewProxy's `scrollEnabled` state is not
 // restored if the new instance already has the same `scrollEnabled` state as
 // the old one.
@@ -68,6 +58,17 @@ BASE_DECLARE_FEATURE(kEnableWebInspector);
 // Feature used by finch config to enable smooth scrolling when the default
 // viewport adjustment experiment is selected via command line switches.
 BASE_DECLARE_FEATURE(kSmoothScrollingDefault);
+
+// Feature flag to enable a scroll threshold before entering or exiting
+// fullscreen.
+BASE_DECLARE_FEATURE(kFullscreenScrollThreshold);
+
+// A flag parameter to set the number of pixels to use as the threshold.
+extern const char kFullscreenScrollThresholdAmount[];
+
+// Returns true if SmoothScrollingDefault is disabled and
+// FullScreenScrollThreshold is enabled.
+bool IsFullscreenScrollThresholdEnabled();
 
 // Feature flag that force the use of the synthesized native WKWebView
 // session instead of the (maybe inexistent) saved native session. The

@@ -8,6 +8,7 @@
 
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
@@ -506,13 +507,12 @@ AutofillWalletChecker::~AutofillWalletChecker() {
   wallet_helper::GetPaymentsDataManager(profile_b_)->RemoveObserver(this);
 }
 
-bool AutofillWalletChecker::Wait() {
+void AutofillWalletChecker::WillStartWaiting() {
   // We need to make sure we are not reading before any locally instigated async
   // writes. This is run exactly one time before the first
   // IsExitConditionSatisfied() is called.
   WaitForPDMToRefresh(profile_a_);
   WaitForPDMToRefresh(profile_b_);
-  return StatusChangeChecker::Wait();
 }
 
 bool AutofillWalletChecker::IsExitConditionSatisfied(std::ostream* os) {

@@ -281,7 +281,7 @@ TEST_F(PredictionBasedPermissionUiSelectorTest, GetPredictionTypeToUseCpssV1) {
             prediction_selector.GetPredictionTypeToUse(
                 permissions::RequestType::kNotifications));
 
-  auto decided = [](ContentSetting, bool, bool,
+  auto decided = [](PermissionDecision, bool,
                     const permissions::PermissionRequestData&) {};
   permissions::PermissionRequest permission_request(
       std::make_unique<permissions::PermissionRequestData>(
@@ -339,16 +339,14 @@ INSTANTIATE_TEST_SUITE_P(
          PredictionSource::kOnDeviceAiv1AndServerSideModel},
         {/*test_name=*/"UsePermissionsAiv3OnDesktop",
          /*enabled_features=*/
-         {BASIC_CPSS_FEATURES, permissions::features::kPermissionsAIv3,
-          permissions::features::kPermissionsAIv3Geolocation},
+         {BASIC_CPSS_FEATURES, permissions::features::kPermissionsAIv3},
          /*disabled_features=*/{},
          /*expected_prediction_source=*/
          PredictionSource::kOnDeviceAiv3AndServerSideModel},
         {/*test_name=*/"UsePermissionsAiv3OverAiv1OnDesktop",
          /*enabled_features=*/
          {BASIC_CPSS_FEATURES, permissions::features::kPermissionsAIv1,
-          permissions::features::kPermissionsAIv3,
-          permissions::features::kPermissionsAIv3Geolocation},
+          permissions::features::kPermissionsAIv3},
          /*disabled_features=*/{},
          /*expected_prediction_source=*/
          PredictionSource::kOnDeviceAiv3AndServerSideModel},

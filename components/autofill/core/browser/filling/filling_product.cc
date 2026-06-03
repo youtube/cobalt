@@ -38,7 +38,9 @@ std::string FillingProductToString(FillingProduct filling_product) {
       return "LoyaltyCard";
     case FillingProduct::kIdentityCredential:
       return "IdentityCredential";
-  };
+    case FillingProduct::kDataList:
+      return "DataList";
+  }
   NOTREACHED();
 }
 // LINT.ThenChange(//tools/metrics/histograms/metadata/autofill/histograms.xml:Autofill.FillingProduct)
@@ -52,7 +54,6 @@ FillingProduct GetFillingProductFromSuggestionType(SuggestionType type) {
     case SuggestionType::kDevtoolsTestAddressByCountry:
     case SuggestionType::kDevtoolsTestAddressEntry:
     case SuggestionType::kManageAddress:
-    case SuggestionType::kHomeAndWorkAddressEntry:
       return FillingProduct::kAddress;
     case SuggestionType::kBnplEntry:
     case SuggestionType::kCreditCardEntry:
@@ -73,6 +74,9 @@ FillingProduct GetFillingProductFromSuggestionType(SuggestionType type) {
     case SuggestionType::kFillPassword:
     case SuggestionType::kGeneratePasswordEntry:
     case SuggestionType::kPasswordEntry:
+    case SuggestionType::kBackupPasswordEntry:
+    case SuggestionType::kTroubleSigningInEntry:
+    case SuggestionType::kFreeformFooter:
     case SuggestionType::kPasswordFieldByFieldFilling:
     case SuggestionType::kViewPasswordDetails:
     case SuggestionType::kWebauthnCredential:
@@ -93,6 +97,7 @@ FillingProduct GetFillingProductFromSuggestionType(SuggestionType type) {
     case SuggestionType::kPlusAddressError:
       return FillingProduct::kPlusAddresses;
     case SuggestionType::kDatalistEntry:
+      return FillingProduct::kDataList;
     case SuggestionType::kInsecureContextPaymentDisabledMessage:
     case SuggestionType::kMixedFormMessage:
     case SuggestionType::kSeePromoCodeDetails:
@@ -103,6 +108,7 @@ FillingProduct GetFillingProductFromSuggestionType(SuggestionType type) {
     case SuggestionType::kFillAutofillAi:
     case SuggestionType::kManageAutofillAi:
       return FillingProduct::kAutofillAi;
+    case SuggestionType::kAllLoyaltyCardsEntry:
     case SuggestionType::kLoyaltyCardEntry:
     case SuggestionType::kManageLoyaltyCard:
       return FillingProduct::kLoyaltyCard;

@@ -6,34 +6,28 @@
 
 #include <optional>
 
+#include "base/feature_list.h"
 #include "base/types/cxx23_to_underlying.h"
+#include "components/autofill/core/browser/data_model/addresses/contact_info.h"
 #include "components/autofill/core/browser/field_types.h"
+#include "components/autofill/core/common/autofill_features.h"
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/l10n/l10n_util.h"
 
 namespace autofill {
 
-// AttributeType::field_type() must be injective: distinct AttributeTypes must
-// be mapped to distinct FieldTypes.
-static_assert(
-    std::ranges::all_of(DenseSet<AttributeType>::all(), [](AttributeType a) {
-      return std::ranges::all_of(
-          DenseSet<AttributeType>::all(), [&a](AttributeType b) {
-            return a == b || a.field_type() != b.field_type();
-          });
-    }));
+FieldType AttributeType::field_type() const {
+  return base::FeatureList::IsEnabled(features::kAutofillAiNoTagTypes)
+             ? field_type_without_tag_types()
+             : field_type_with_tag_types();
+}
 
-// static
-std::optional<AttributeType> AttributeType::FromFieldType(FieldType type) {
-  // This lookup table is the inverse of AttributeType::field_type().
-  static constexpr auto kTable = []() {
-    std::array<std::optional<AttributeType>, MAX_VALID_FIELD_TYPE> arr{};
-    for (AttributeType at : DenseSet<AttributeType>::all()) {
-      arr[at.field_type()] = at;
-    }
-    return arr;
-  }();
-  return 0 <= type && type < kTable.size() ? kTable[type] : std::nullopt;
+FieldTypeSet AttributeType::storable_field_types(
+    base::PassKey<EntityTable> pass_key) const {
+  if (data_type() == DataType::kName) {
+    return NameInfo::kDatabaseStoredTypes;
+  }
+  return {field_type()};
 }
 
 std::u16string AttributeType::GetNameForI18n() const {

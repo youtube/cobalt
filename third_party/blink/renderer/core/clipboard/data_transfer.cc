@@ -95,7 +95,7 @@ class DraggedNodeImageBuilder {
 #if DCHECK_IS_ON()
     DCHECK_EQ(dom_tree_version_, node_->GetDocument().DomTreeVersion());
 #endif
-    // Construct layout object for |node_| with pseudo class "-webkit-drag"
+    // Construct layout object for |node_| with pseudo-class "-webkit-drag"
     local_frame_->View()->UpdateAllLifecyclePhasesExceptPaint(
         DocumentUpdateReason::kDragImage);
     LayoutObject* const dragged_layout_object = node_->GetLayoutObject();
@@ -113,14 +113,12 @@ class DraggedNodeImageBuilder {
 
     // Maximum reasonable dimension for a drag image which won't crash during
     // memory allocation and DnD operation.
-    if (RuntimeEnabledFeatures::DnDScaleHeightAndWidthToMaxDimensionEnabled()) {
-      const int kMaxDimension = 64 * 128;
-      if (absolute_bounding_box.width() > kMaxDimension) {
-        absolute_bounding_box.set_width(kMaxDimension);
-      }
-      if (absolute_bounding_box.height() > kMaxDimension) {
-        absolute_bounding_box.set_height(kMaxDimension);
-      }
+    const int kMaxDimension = 64 * 128;
+    if (absolute_bounding_box.width() > kMaxDimension) {
+      absolute_bounding_box.set_width(kMaxDimension);
+    }
+    if (absolute_bounding_box.height() > kMaxDimension) {
+      absolute_bounding_box.set_height(kMaxDimension);
     }
 
     gfx::RectF bounding_box =

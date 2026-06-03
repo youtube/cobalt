@@ -138,7 +138,6 @@
 <translation id="4724297637870447613">በየትኛውም ቦታ Chrome ይጠቀሙ</translation>
 <translation id="4738647308035481133">የGoogle Chrome ገፅ</translation>
 <translation id="4742795653798179840">የተሰረዘ የChrome ውሂብ</translation>
-<translation id="4749294594657945639">በሌሎች መተግበሪያዎች ውስጥ የተቀመጡ የይለፍ ቃላትዎን በቀላሉ ለማግኘት Chrome ለራስ-ሙላን ይጠቀሙ።</translation>
 <translation id="4761869838909035636">የChrome ደህንነት ፍተሻን ያሂዱ</translation>
 <translation id="4798859546468762093">ግላዊነት ማላበስን እና ሌሎች ባህሪያትን ለማግኘት Chromeን በ<ph name="FEATURE_NAME_1" /> እና <ph name="FEATURE_NAME_2" /> ውስጥ ያካትቱ</translation>
 <translation id="4819268619367838612">መተግበሪያውን ለማሻሻል ለማገዝ Chrome የአጠቃቀም እና የስንክል ውሂብን ወደ Google ይልካል። <ph name="BEGIN_LINK" />አቀናብር<ph name="END_LINK" /></translation>
@@ -215,6 +214,7 @@
 <translation id="6533470733797826516">በChrome ራስ-ሙላ ይበልጥ በፍጥነት ይግቡ</translation>
 <translation id="6536544321553662809">አገናኞችን በቀላሉ ለማጋራት እና ለመክፈት Chromeን እንደ ነባሪ አሳሽዎ ያቀናብሩ</translation>
 <translation id="6545449117344801102">Chrome አድራሻዎችን ያገኛል እና ለእርስዎ አቅጣጫዎችን እና አካባቢያዊ መረጃ ለመስጠት Google ካርታዎችን ይጠቀማል።</translation>
+<translation id="6611692150236062461">በሌሎች መተግበሪያዎች ውስጥ የተቀመጡ የይለፍ ቃላትዎን በቀላሉ ለማግኘት Chrome ለራስ-ሙላን ይምረጡ።</translation>
 <translation id="6636941099779251629">Chrome ለመጠቀም የእርስዎ ድርጅት እርስዎ በመለያ እንዲገቡ ይጠይቃል። <ph name="BEGIN_LINK" />የበለጠ ለመረዳት<ph name="END_LINK" /></translation>
 <translation id="6646696210740573446">የአይ ፒ አድራሻዎን በሚደብቅ የግላዊነት አገልጋይ በኩል የተደበቀውን የዩአርኤል ክፍል ወደ Google ይልካል። አንድ ጣቢያ የእርስዎን የይለፍ ቃል ለመስረቅ ከሞከረ ወይም ጎጂ ፋይል ሲያወርዱ፣ እንዲሁም Chrome የገፅ ይዘት ቢቶችንም ጨምሮ ዩአርኤሎችን ወደ Google ሊልክ ይችላል</translation>
 <translation id="6647304104688527905">በChrome ውስጥ አዲስ ትር ይከፍታል።</translation>
@@ -313,6 +313,7 @@
 <ph name="TIME" /> ላይ ውሂብዎ በይለፍ ሐረግዎ ተመስጥሯል። የChrome ውሂብን በGoogle መለያዎ ውስጥ ለመጠቀም እና ለማስቀመጥ እሱን ያስገቡ።</translation>
 <translation id="8540666473246803645">Google Chrome</translation>
 <translation id="8544583291890527417">Chrome ለእርስዎ በሚያገኛቸው ማናቸውም የግላዊነት ወይም የደህንነት ችግሮች ላይ ያሉ ማንቂያዎች።</translation>
+<translation id="855027533751209304">የChrome ጠቃሚ ምክር፦ የሚመለከቱትን ይፈልጉ</translation>
 <translation id="8558480467877843976">አሁን በሚያስሱበት ወይም በመልዕክቶች ውስጥ አገናኞችን መታ በሚያደርጉበት በማንኛውም ጊዜ Chromeን እና ሌሎች መተግበሪያዎችን መጠቀም ይችላሉ።</translation>
 <translation id="8603022514504485810">Google የይለፍ ቃል አስተዳዳሪ ሁሉንም የይለፍ ቃላት መፈተሽ አልቻለም። ነገ እንደገና ይሞክሩ ወይም <ph name="BEGIN_LINK" />በGoogle መለያዎ ውስጥ የይለፍ ቃላትን ይፈትሹ።<ph name="END_LINK" /></translation>
 <translation id="8630122478628016441">«Chrome በሚዘጉበት ጊዜ ማንነት የማያሳውቁ ትሮችን ይቆልፉ» የሚለውን ያብሩ።</translation>

@@ -16,6 +16,7 @@
 #include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "base/strings/string_util.h"
@@ -85,18 +86,25 @@ void SetDawnErrorCrashKey(std::string_view message) {
 // Different versions of DumpWithoutCrashing for different reasons.
 // Deliberately prevent inlining so that the crash report's call stack can
 // distinguish between them.
+#if BUILDFLAG(IS_WIN)
 NOINLINE NOOPT void DumpWithoutCrashingOnDXGIError(wgpu::ErrorType error_type,
                                                    std::string_view message) {
   LOG(ERROR) << "DXGI Error: " << message;
-  base::debug::DumpWithoutCrashing();
+
+  if (features::kSkiaGraphiteDawnDumpWCOnD3DError.Get()) {
+    base::debug::DumpWithoutCrashing();
+  }
 }
 
 NOINLINE NOOPT void DumpWithoutCrashingOnD3D11DebugLayerError(
     wgpu::ErrorType error_type,
     std::string_view message) {
   LOG(ERROR) << message;
-  base::debug::DumpWithoutCrashing();
+  if (features::kSkiaGraphiteDawnDumpWCOnD3DError.Get()) {
+    base::debug::DumpWithoutCrashing();
+  }
 }
+#endif
 
 NOINLINE NOOPT void DumpWithoutCrashingOnGenericError(
     wgpu::ErrorType error_type,
@@ -108,11 +116,14 @@ NOINLINE NOOPT void DumpWithoutCrashingOnGenericError(
 void DumpWithoutCrashingOnError(wgpu::ErrorType error_type,
                                 std::string_view message) {
   SetDawnErrorCrashKey(message);
+#if BUILDFLAG(IS_WIN)
   if (message.find("DXGI_ERROR") != std::string_view::npos) {
     DumpWithoutCrashingOnDXGIError(error_type, message);
   } else if (message.find("The D3D11 debug layer") != std::string_view::npos) {
     DumpWithoutCrashingOnD3D11DebugLayerError(error_type, message);
-  } else {
+  } else
+#endif
+  {
     DumpWithoutCrashingOnGenericError(error_type, message);
   }
 }
@@ -159,9 +170,12 @@ std::vector<const char*> GetEnabledToggles(
     // Use packed D24_UNORM_S8_UINT DXGI format for Depth24PlusStencil8
     // format.
     enabled_toggles.push_back("use_packed_depth24_unorm_stencil8_format");
-    // Tell Dawn to defer sending commands to GPU until swapchain's Present.
-    // This will batch the commands better.
-    enabled_toggles.push_back("d3d11_delay_flush_to_gpu");
+
+    if (features::kSkiaGraphiteDawnD3D11DelayFlush.Get()) {
+      // Tell Dawn to defer sending commands to GPU until swapchain's Present.
+      // This will batch the commands better.
+      enabled_toggles.push_back("d3d11_delay_flush_to_gpu");
+    }
   }
 #endif
 
@@ -439,6 +453,29 @@ class DawnSharedContext : public base::RefCountedThreadSafe<DawnSharedContext>,
     }
     return nullptr;
   }
+
+  void FlushD3D11CommandsIfDelayed() const {
+    if (backend_type() != wgpu::BackendType::D3D11) {
+      return;
+    }
+
+    // This function is meant for delayed flush option.
+    if (!features::kSkiaGraphiteDawnD3D11DelayFlush.Get()) {
+      return;
+    }
+
+    TRACE_EVENT0("gpu", "DawnSharedContext::FlushD3D11Commands");
+
+    Microsoft::WRL::ComPtr<ID3D11Device> d3d11_device =
+        dawn::native::d3d11::GetD3D11Device(device_.Get());
+    if (!d3d11_device) {
+      return;
+    }
+
+    Microsoft::WRL::ComPtr<ID3D11DeviceContext> context;
+    d3d11_device->GetImmediateContext(&context);
+    context->Flush();
+  }
 #endif
 
   std::optional<error::ContextLostReason> GetResetStatus() const;
@@ -572,6 +609,36 @@ DawnSharedContext::~DawnSharedContext() {
     instance_->DisconnectDawnPlatform();
   }
 }
+
+namespace {
+// Dawn Graphite adapter feature level for metrics.
+//
+// See also: webgpu.h:WGPUFeatureLevel
+//
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+//
+// LINT.IfChange(DawnAdapterFeatureLevel)
+enum class DawnAdapterFeatureLevel {
+  kUnknown = 0,
+  kCompatibility = 1,
+  kCore = 2,
+  kMaxValue = kCore,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/gpu/enums.xml:DawnAdapterFeatureLevel)
+
+DawnAdapterFeatureLevel DawnAdapterFeatureLevelFromWGPU(
+    wgpu::FeatureLevel level) {
+  switch (level) {
+    case wgpu::FeatureLevel::Compatibility:
+      return DawnAdapterFeatureLevel::kCompatibility;
+    case wgpu::FeatureLevel::Core:
+      return DawnAdapterFeatureLevel::kCore;
+    default:
+      return DawnAdapterFeatureLevel::kUnknown;
+  }
+}
+}  // namespace
 
 bool DawnSharedContext::Initialize(
     wgpu::BackendType backend_type,
@@ -812,6 +879,9 @@ bool DawnSharedContext::Initialize(
                                                 /*is_thread_safe=*/true);
   }
 
+  base::UmaHistogramEnumeration(
+      "GPU.Dawn.AdapterFeatureLevel",
+      DawnAdapterFeatureLevelFromWGPU(adapter_options.featureLevel));
   return true;
 }
 
@@ -963,12 +1033,18 @@ bool DawnSharedContext::OnMemoryDump(
     // `allocated_size` is memory allocated from the device, used is what is
     // actually used.
     dump->AddScalar("allocated_size", MemoryAllocatorDump::kUnitsBytes,
-                    allocator_usage.totalAllocatedMemory);
-    dump->AddScalar("used_size", MemoryAllocatorDump::kUnitsBytes,
-                    allocator_usage.totalUsedMemory);
+                    allocator_usage.totalAllocatedMemory -
+                        allocator_usage.totalLazyAllocatedMemory);
+    dump->AddScalar(
+        "used_size", MemoryAllocatorDump::kUnitsBytes,
+        allocator_usage.totalUsedMemory - allocator_usage.totalLazyUsedMemory);
     dump->AddScalar(
         "fragmentation_size", MemoryAllocatorDump::kUnitsBytes,
         allocator_usage.totalAllocatedMemory - allocator_usage.totalUsedMemory);
+    dump->AddScalar("lazy_allocated_size", MemoryAllocatorDump::kUnitsBytes,
+                    allocator_usage.totalLazyAllocatedMemory);
+    dump->AddScalar("lazy_used_size", MemoryAllocatorDump::kUnitsBytes,
+                    allocator_usage.totalLazyUsedMemory);
   }
 
   return true;
@@ -1077,6 +1153,10 @@ void DawnContextProvider::SetCachingInterface(
 Microsoft::WRL::ComPtr<ID3D11Device> DawnContextProvider::GetD3D11Device()
     const {
   return dawn_shared_context_->GetD3D11Device();
+}
+
+void DawnContextProvider::FlushD3D11CommandsIfDelayed() const {
+  dawn_shared_context_->FlushD3D11CommandsIfDelayed();
 }
 #endif
 

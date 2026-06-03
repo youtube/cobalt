@@ -12,7 +12,6 @@ import android.annotation.SuppressLint;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Build;
 import android.os.Bundle;
 import android.util.Pair;
 
@@ -36,6 +35,8 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.components.ukm.UkmRecorder;
 import org.chromium.content_public.browser.RenderFrameHost;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.device.DeviceFeatureList;
+import org.chromium.device.DeviceFeatureMap;
 import org.chromium.mojo.system.MojoException;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.url.Origin;
@@ -166,7 +167,11 @@ public final class AuthenticatorImpl implements Authenticator, AuthenticationCon
             return;
         }
 
-        if (mCreateConfirmationUiDelegate != null) {
+        boolean isConditionalCreate =
+                options.isConditional
+                        && DeviceFeatureMap.isEnabled(DeviceFeatureList.WEBAUTHN_PASSKEY_UPGRADE);
+
+        if (mCreateConfirmationUiDelegate != null && !isConditionalCreate) {
             if (!mCreateConfirmationUiDelegate.show(
                     () -> continueMakeCredential(options),
                     () -> {
@@ -242,9 +247,7 @@ public final class AuthenticatorImpl implements Authenticator, AuthenticationCon
     }
 
     private boolean couldSupportConditionalMediation() {
-        return GmsCoreUtils.isWebauthnSupported()
-                && isChrome(mWebContents)
-                && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P;
+        return GmsCoreUtils.isWebauthnSupported() && isChrome(mWebContents);
     }
 
     private boolean couldSupportUvpaa() {
@@ -289,10 +292,13 @@ public final class AuthenticatorImpl implements Authenticator, AuthenticationCon
         capabilities.add(
                 createWebAuthnClientCapability(AuthenticatorConstants.CAPABILITY_PPAA, true));
 
-        if (!couldSupportConditionalMediation() && !couldSupportUvpaa()) {
+        if (!couldSupportUvpaa()) {
             capabilities.add(
                     createWebAuthnClientCapability(
                             AuthenticatorConstants.CAPABILITY_CONDITIONAL_GET, false));
+            capabilities.add(
+                    createWebAuthnClientCapability(
+                            AuthenticatorConstants.CAPABILITY_CONDITIONAL_CREATE, false));
             capabilities.add(
                     createWebAuthnClientCapability(AuthenticatorConstants.CAPABILITY_UVPAA, false));
             callback.call(capabilities.toArray(new WebAuthnClientCapability[0]));
@@ -310,6 +316,14 @@ public final class AuthenticatorImpl implements Authenticator, AuthenticationCon
                                     createWebAuthnClientCapability(
                                             AuthenticatorConstants.CAPABILITY_UVPAA,
                                             couldSupportUvpaa() && isUvpaa));
+                            boolean conditionalCreateEnabled =
+                                    couldSupportConditionalMediation()
+                                            && DeviceFeatureMap.isEnabled(
+                                                    DeviceFeatureList.WEBAUTHN_PASSKEY_UPGRADE);
+                            capabilities.add(
+                                    createWebAuthnClientCapability(
+                                            AuthenticatorConstants.CAPABILITY_CONDITIONAL_CREATE,
+                                            isUvpaa && conditionalCreateEnabled));
                             callback.call(capabilities.toArray(new WebAuthnClientCapability[0]));
                         });
     }

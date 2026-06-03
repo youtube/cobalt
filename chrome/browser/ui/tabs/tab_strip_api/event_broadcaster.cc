@@ -14,12 +14,28 @@ class EventVisitor {
       const mojo::AssociatedRemote<tabs_api::mojom::TabsObserver>* target)
       : target_(target) {}
 
-  void operator()(mojom::OnTabsCreatedEventPtr& event) {
+  void operator()(const mojom::OnTabsCreatedEventPtr& event) {
     (*target_)->OnTabsCreated(event.Clone());
   }
 
-  void operator()(mojom::OnTabsClosedEventPtr& event) {
+  void operator()(const mojom::OnTabsClosedEventPtr& event) {
     (*target_)->OnTabsClosed(event.Clone());
+  }
+
+  void operator()(const mojom::OnTabMovedEventPtr& event) {
+    (*target_)->OnTabMoved(event.Clone());
+  }
+
+  void operator()(const mojom::OnTabDataChangedEventPtr& event) {
+    (*target_)->OnTabDataChanged(event.Clone());
+  }
+
+  void operator()(const mojom::OnTabGroupCreatedEventPtr& event) {
+    (*target_)->OnTabGroupCreated(event.Clone());
+  }
+
+  void operator()(const mojom::OnTabGroupVisualsChangedEventPtr& event) {
+    (*target_)->OnTabGroupVisualsChanged(event.Clone());
   }
 
  private:
@@ -28,7 +44,7 @@ class EventVisitor {
 
 void EventBroadcaster::Broadcast(
     const mojo::AssociatedRemoteSet<tabs_api::mojom::TabsObserver>& targets,
-    events::Event& event) {
+    const events::Event& event) {
   for (auto& target : targets) {
     EventVisitor visitor(&target);
     std::visit(visitor, event);

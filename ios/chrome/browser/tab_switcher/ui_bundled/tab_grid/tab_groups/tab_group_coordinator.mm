@@ -19,6 +19,8 @@
 #import "ios/chrome/browser/collaboration/model/ios_collaboration_controller_delegate.h"
 #import "ios/chrome/browser/collaboration/model/messaging/messaging_backend_service_factory.h"
 #import "ios/chrome/browser/data_sharing/model/data_sharing_service_factory.h"
+#import "ios/chrome/browser/first_run/public/best_features_item.h"
+#import "ios/chrome/browser/first_run/public/features.h"
 #import "ios/chrome/browser/saved_tab_groups/model/ios_tab_group_sync_util.h"
 #import "ios/chrome/browser/saved_tab_groups/model/tab_group_sync_service_factory.h"
 #import "ios/chrome/browser/share_kit/model/share_kit_face_pile_configuration.h"
@@ -35,7 +37,6 @@
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/shared_tab_group_last_tab_closed_alert_commands.h"
 #import "ios/chrome/browser/shared/public/commands/tab_groups_commands.h"
-#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/tab_group_grid_view_controller.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_context_menu/tab_context_menu_helper.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_grid_idle_status_handler.h"
@@ -87,9 +88,6 @@ constexpr CGFloat kTabGroupBackgroundElementDurationFactor = 0.75;
 - (instancetype)initWithBaseViewController:(UIViewController*)viewController
                                    browser:(Browser*)browser
                                   tabGroup:(const TabGroup*)tabGroup {
-  CHECK(IsTabGroupInGridEnabled())
-      << "You should not be able to create a tab group coordinator outside the "
-         "Tab Groups experiment.";
   CHECK(tabGroup) << "You need to pass a tab group in order to display it.";
   self = [super initWithBaseViewController:viewController browser:browser];
   if (self) {
@@ -114,6 +112,12 @@ constexpr CGFloat kTabGroupBackgroundElementDurationFactor = 0.75;
   [self setUpViewController];
   ProfileIOS* profile = self.profile;
   Browser* browser = self.browser;
+
+  // Notify Welcome Back to remove Tab Groups from the eligible
+  // features.
+  if (IsWelcomeBackInFirstRunEnabled()) {
+    MarkWelcomeBackFeatureUsed(BestFeaturesItemType::kTabGroups);
+  }
 
   tab_groups::TabGroupSyncService* tabGroupSyncService =
       tab_groups::TabGroupSyncServiceFactory::GetForProfile(profile);
@@ -293,7 +297,7 @@ constexpr CGFloat kTabGroupBackgroundElementDurationFactor = 0.75;
           base::UserMetricsAction("MobileTabRegularGridTabGroupOpenTab"));
     }
     [_mediator selectItemWithID:itemID
-                         pinned:NO
+                    pinnedState:WebStateSearchCriteria::PinnedState::kNonPinned
          isFirstActionOnTabGrid:[self.tabGridIdleStatusHandler status]];
   }
 
@@ -454,8 +458,6 @@ constexpr CGFloat kTabGroupBackgroundElementDurationFactor = 0.75;
                                              tabGroup:_tabGroup];
   _viewController.gridViewController.delegate = self;
   _viewController.presentationHandler = self;
-  _viewController.applicationHandler = HandlerForProtocol(
-      self.browser->GetCommandDispatcher(), ApplicationCommands);
 }
 
 // Called when the tab group is presented, to show the user education
@@ -480,16 +482,6 @@ constexpr CGFloat kTabGroupBackgroundElementDurationFactor = 0.75;
 
   // Record the presentation.
   [defaults setBool:YES forKey:kSharedTabGroupUserEducationShownOnceKey];
-}
-
-// Removes the shared tab group.
-- (void)deleteSharedGroup {
-  [_mediator deleteSharedTabGroup:_tabGroup];
-}
-
-// Leaves the shared tab group.
-- (void)leaveSharedGroup {
-  [_mediator leaveSharedTabGroup:_tabGroup];
 }
 
 // Closes the given tab and replace it with a new tab.

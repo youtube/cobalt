@@ -13,7 +13,6 @@
 #import "ios/chrome/browser/keyboard/ui_bundled/UIKeyCommand+Chrome.h"
 #import "ios/chrome/browser/saved_tab_groups/ui/tab_group_utils.h"
 #import "ios/chrome/browser/shared/model/web_state_list/tab_group.h"
-#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/elements/top_aligned_image_view.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
@@ -116,16 +115,14 @@ const CGFloat kClearButtonWidthAndHeight = 40;
   UIButton* _selectedButton;
   // Default color.
   tab_groups::TabGroupColorId _defaultColor;
-  // Array of all snapshots and favicons of the group.
-  NSArray<TabSnapshotAndFavicon*>* _tabSnapshotsAndFavicons;
   // Snapshots views container.
   UIView* _snapshotsContainer;
   // Whether it is to edit a group (vs creation).
   BOOL _editMode;
   // Whether the user is syncing tabs.
   BOOL _tabSynced;
-  // Number of selected items.
-  NSInteger _numberOfSelectedItems;
+  // Number of tabs in the group.
+  NSInteger _tabsCount;
   // Title of the group.
   NSString* _title;
 
@@ -151,13 +148,18 @@ const CGFloat kClearButtonWidthAndHeight = 40;
 }
 
 - (instancetype)initWithEditMode:(BOOL)editMode tabSynced:(BOOL)tabSynced {
-  CHECK(IsTabGroupInGridEnabled())
-      << "You should not be able to create a tab group outside the Tab Groups "
-         "experiment.";
   self = [super init];
   if (self) {
     _editMode = editMode;
     _tabSynced = tabSynced;
+
+    // Create the `_snapshotsView` early. Favicon and snapshot fetches begin
+    // before the view loads, and `_snapshotsView` is updated incrementally as
+    // each item is fetched.
+    _snapshotsView = [[TabGroupSnapshotsView alloc]
+        initWithLightInterface:self.traitCollection.userInterfaceStyle ==
+                               UIUserInterfaceStyleLight
+                          cell:NO];
 
     [self createColorSelectionButtons];
     CHECK_NE([_colorSelectionButtons count], 0u)
@@ -784,13 +786,6 @@ const CGFloat kClearButtonWidthAndHeight = 40;
   snapshotsBackground.layer.cornerRadius = kSnapshotViewCornerRadius;
   snapshotsBackground.opaque = NO;
 
-  _snapshotsView = [[TabGroupSnapshotsView alloc]
-      initWithTabSnapshotsAndFavicons:_tabSnapshotsAndFavicons
-                                 size:_numberOfSelectedItems
-                                light:self.traitCollection.userInterfaceStyle ==
-                                      UIUserInterfaceStyleLight
-                                 cell:NO];
-
   [snapshotsBackground addSubview:_snapshotsView];
 
   NSLayoutConstraint* backgroundHeightConstraint =
@@ -837,7 +832,7 @@ const CGFloat kClearButtonWidthAndHeight = 40;
 
 // Activates or deactivates the appropriate constraints.
 - (void)applyConstraints {
-  if (_numberOfSelectedItems == 1) {
+  if (_tabsCount == 1) {
     [NSLayoutConstraint deactivateConstraints:_multipleSnapshotsConstraints];
     [NSLayoutConstraint activateConstraints:_singleSnapshotConstraints];
   } else {
@@ -869,24 +864,22 @@ const CGFloat kClearButtonWidthAndHeight = 40;
   _defaultColor = color;
 }
 
-- (void)setTabSnapshotsAndFavicons:
-            (NSArray<TabSnapshotAndFavicon*>*)tabSnapshotsAndFavicons
-             numberOfSelectedItems:(NSInteger)numberOfSelectedItems {
-  _tabSnapshotsAndFavicons = tabSnapshotsAndFavicons;
-  _numberOfSelectedItems = numberOfSelectedItems;
-  [_snapshotsView
-      configureTabGroupSnapshotsViewWithTabSnapshotsAndFavicons:
-          tabSnapshotsAndFavicons
-                                                           size:
-                                                               _numberOfSelectedItems];
-  [self applyConstraints];
-}
-
 - (void)setGroupTitle:(NSString*)title {
   _title = title;
 }
 
-#pragma mark - Accessibility
+- (void)setSnapshotAndFavicon:(TabSnapshotAndFavicon*)tabSnapshotAndFavicon
+                     tabIndex:(NSInteger)tabIndex {
+  [_snapshotsView configureTabSnapshotAndFavicon:tabSnapshotAndFavicon
+                                        tabIndex:tabIndex];
+}
+
+- (void)setTabsCount:(NSInteger)tabsCount {
+  _snapshotsView.tabsCount = tabsCount;
+  _tabsCount = tabsCount;
+}
+
+#pragma mark - UIAccessibilityAction
 
 - (BOOL)accessibilityPerformEscape {
   [self dismissViewController];
@@ -906,7 +899,7 @@ const CGFloat kClearButtonWidthAndHeight = 40;
 }
 
 - (void)keyCommand_close {
-  base::RecordAction(base::UserMetricsAction("MobileKeyCommandClose"));
+  base::RecordAction(base::UserMetricsAction(kMobileKeyCommandClose));
   [self dismissViewController];
 }
 

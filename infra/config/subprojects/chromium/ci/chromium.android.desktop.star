@@ -28,10 +28,8 @@ ci.defaults.set(
     contact_team_email = "clank-engprod@google.com",
     execution_timeout = ci.DEFAULT_EXECUTION_TIMEOUT,
     health_spec = health_spec.DEFAULT,
-    reclient_enabled = False,
     service_account = ci.DEFAULT_SERVICE_ACCOUNT,
     shadow_service_account = ci.DEFAULT_SHADOW_SERVICE_ACCOUNT,
-    siso_enabled = True,
     siso_project = siso.project.DEFAULT_TRUSTED,
     siso_remote_jobs = siso.remote_jobs.DEFAULT,
 )
@@ -240,7 +238,7 @@ ci.builder(
 ci.thin_tester(
     name = "android-desktop-x64-rel-15-tests",
     description_html = "Android desktop x64 release tests on Android 15.",
-    triggered_by = ["ci/android-desktop-x64-compile-rel"],
+    parent = "ci/android-desktop-x64-compile-rel",
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(

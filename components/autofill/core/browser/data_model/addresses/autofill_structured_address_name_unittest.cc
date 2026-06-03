@@ -129,14 +129,7 @@ class AutofillStructuredNameParseFullNameTest
     : public testing::TestWithParam<NameParserTestRecord> {};
 
 // Tests the parsing of full names into their subcomponents.
-#if BUILDFLAG(IS_IOS)
-// TODO(crbug.com/394860914): This test currently fails on the platform when run
-// as part of the full test suite.
-#define MAYBE_ParseFullName DISABLED_ParseFullName
-#else
-#define MAYBE_ParseFullName ParseFullName
-#endif  // BUILDFLAG(IOS)
-TEST_P(AutofillStructuredNameParseFullNameTest, MAYBE_ParseFullName) {
+TEST_P(AutofillStructuredNameParseFullNameTest, ParseFullName) {
   base::test::ScopedFeatureList scoped_feature_list_{
       features::kAutofillSupportLastNamePrefix};
   auto test_case = GetParam();
@@ -998,9 +991,9 @@ TEST(AutofillStructuredName, MergeSubsetLastname_WithNonSpaceSeparators) {
 
   // After normalization, the two names should have a single-token-superset
   // relation.
-  SortedTokenComparisonResult token_comparison_result =
-      CompareSortedTokens(test_api(name).GetValueForComparison(subset_name),
-                          test_api(subset_name).GetValueForComparison(name));
+  SortedTokenComparisonResult token_comparison_result = CompareSortedTokens(
+      test_api(name).GetValueForComparison(subset_name.GetCountryCode()),
+      test_api(subset_name).GetValueForComparison(name.GetCountryCode()));
   EXPECT_TRUE(token_comparison_result.IsSingleTokenSuperset());
 
   // Without normalization, the two names should be considered distinct.

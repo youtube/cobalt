@@ -24,6 +24,7 @@
 #include "base/run_loop.h"
 #include "base/scoped_observation.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
@@ -323,7 +324,7 @@ class CertificateProviderApiMockedExtensionTest
     extension_path_ = test_data_dir_.AppendASCII("certificate_provider");
     extension_ = LoadExtension(extension_path_);
     ASSERT_TRUE(ui_test_utils::NavigateToURL(
-        browser(), extension_->GetResourceURL("basic.html")));
+        browser(), extension_->ResolveExtensionURL("basic.html")));
 
     extension_contents_ = browser()->tab_strip_model()->GetActiveWebContents();
 
@@ -518,7 +519,7 @@ class CertificateProviderRequestPinTest : public CertificateProviderApiTest {
 
   void NavigateTo(const std::string& test_page_file_name) {
     ASSERT_TRUE(ui_test_utils::NavigateToURL(
-        browser(), extension_->GetResourceURL(test_page_file_name)));
+        browser(), extension_->ResolveExtensionURL(test_page_file_name)));
   }
 
   RequestPinView* GetActivePinDialogView() {

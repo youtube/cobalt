@@ -21,7 +21,7 @@
 #include "content/public/browser/web_contents_observer.h"
 
 #if BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_controller.h"
+#include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_controller_impl.h"
 #include "components/autofill/core/browser/ui/payments/card_expiration_date_fix_flow_controller_impl.h"
 #include "components/autofill/core/browser/ui/payments/card_name_fix_flow_controller_impl.h"
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -202,9 +202,9 @@ class ChromePaymentsAutofillClient : public PaymentsAutofillClient,
   bool ShowTouchToFillIban(
       base::WeakPtr<TouchToFillDelegate> delegate,
       base::span<const autofill::Iban> ibans_to_suggest) override;
-  bool ShowTouchToFillLoyaltyCard(base::WeakPtr<TouchToFillDelegate> delegate,
-                                  base::span<const autofill::LoyaltyCard>
-                                      loyalty_cards_to_suggest) override;
+  bool ShowTouchToFillLoyaltyCard(
+      base::WeakPtr<TouchToFillDelegate> delegate,
+      std::vector<autofill::LoyaltyCard> loyalty_cards_to_suggest) override;
   void HideTouchToFillPaymentMethod() override;
   std::unique_ptr<webauthn::InternalAuthenticator>
   CreateCreditCardInternalAuthenticator(AutofillDriver* driver) override;
@@ -220,13 +220,14 @@ class ChromePaymentsAutofillClient : public PaymentsAutofillClient,
       base::OnceClosure cancel_callback) override;
   void DismissSelectBnplIssuerDialog() override;
   bool IsTabModalPopupDeprecated() const override;
+  bool IsRiskBasedAuthEffectivelyAvailable() const override;
 
 #if BUILDFLAG(IS_ANDROID)
   // The AutofillMessageController is used to show a message notification
   // on Android.
   AutofillMessageController& GetAutofillMessageController();
 
-  TouchToFillPaymentMethodController& GetTouchToFillPaymentMethodController();
+  TouchToFillPaymentMethodController* GetTouchToFillPaymentMethodController();
 #endif
 
   AutofillProgressDialogControllerImpl*
@@ -254,6 +255,11 @@ class ChromePaymentsAutofillClient : public PaymentsAutofillClient,
 
   void SetAutofillMessageControllerForTesting(
       std::unique_ptr<AutofillMessageController> autofill_message_controller);
+
+  void SetTouchToFillPaymentMethodControllerForTesting(
+      std::unique_ptr<TouchToFillPaymentMethodController>
+          touch_to_fill_payment_method_controller);
+
 #endif
   void SetRiskDataForTesting(const std::string& risk_data);
 
@@ -289,8 +295,10 @@ class ChromePaymentsAutofillClient : public PaymentsAutofillClient,
   CardExpirationDateFixFlowControllerImpl
       card_expiration_date_fix_flow_controller_;
 
-  TouchToFillPaymentMethodController touch_to_fill_payment_method_controller_{
-      &client_.get()};
+  std::unique_ptr<TouchToFillPaymentMethodController>
+      touch_to_fill_payment_method_controller_ =
+          std::make_unique<TouchToFillPaymentMethodControllerImpl>(
+              &client_.get());
 #endif
 
   std::unique_ptr<PaymentsNetworkInterface> payments_network_interface_;

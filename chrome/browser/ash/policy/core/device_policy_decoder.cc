@@ -357,16 +357,6 @@ void DecodeLoginPolicies(const em::ChromeDeviceSettingsProto& policy,
                   base::Value(std::move(apps)), nullptr);
   }
 
-  if (policy.has_login_screen_extension_manifest_v2_availability()) {
-    const em::LoginScreenExtensionManifestV2AvailabilityProto& proto(
-        policy.login_screen_extension_manifest_v2_availability());
-    policies->Set(
-        key::kDeviceLoginScreenExtensionManifestV2Availability,
-        POLICY_LEVEL_MANDATORY, POLICY_SCOPE_MACHINE, POLICY_SOURCE_CLOUD,
-        base::Value(proto.login_screen_extension_manifest_v2_availability()),
-        nullptr);
-  }
-
   if (policy.has_login_screen_power_management()) {
     const em::LoginScreenPowerManagementProto& container(
         policy.login_screen_power_management());
@@ -2295,17 +2285,6 @@ void DecodeGenericPolicies(const em::ChromeDeviceSettingsProto& policy,
       policies->Set(policy::key::kDeviceSwitchFunctionKeysBehaviorEnabled,
                     POLICY_LEVEL_MANDATORY, POLICY_SCOPE_MACHINE,
                     POLICY_SOURCE_CLOUD, base::Value(container.enabled()),
-                    nullptr);
-    }
-  }
-
-  if (policy.has_devicenativeclientforceallowed()) {
-    const em::BooleanPolicyProto& container(
-        policy.devicenativeclientforceallowed());
-    if (container.has_value()) {
-      policies->Set(policy::key::kDeviceNativeClientForceAllowed,
-                    POLICY_LEVEL_MANDATORY, POLICY_SCOPE_MACHINE,
-                    POLICY_SOURCE_CLOUD, base::Value(container.value()),
                     nullptr);
     }
   }
