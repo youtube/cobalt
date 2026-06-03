@@ -19,8 +19,12 @@ extern NSString* const kChromeShowDefaultBrowserPromoCapability =
     @"ShowDefaultBrowserPromo";
 extern NSString* const kChromeSupportOpenLinksParametersFromCapability =
     @"SupportOpenLinksParametersFrom";
+extern NSString* const kChromeSupportShareDefaultBrowserStatusCapability =
+    @"SupportShareDefaultBrowserStatus";
 
 const char kChromeAppGroupXCallbackCommand[] = "app-group-command";
+
+const char kGaiaIDQueryItemName[] = "gaia_id";
 
 NSString* const kChromeExtensionFieldTrialPreference = @"Extension.FieldTrial";
 
@@ -99,6 +103,7 @@ NSString* const kOpenExtensionOutcomeFailureUnsupportedScheme =
 
 NSString* const kAccountsOnDevice = @"ios.registered_accounts_on_device";
 NSString* const kEmail = @"email";
+NSString* const kFullName = @"fullName";
 NSString* const kDefaultAccount = @"Default";
 
 NSString* const kYoutubeBundleID = @"com.google.youtube";

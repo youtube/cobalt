@@ -24,7 +24,7 @@
 #include "base/numerics/safe_math.h"
 #include "base/system/sys_info.h"
 #include "base/time/time.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/trace_event/trace_event.h"
 #include "base/types/expected.h"
 #include "build/build_config.h"
 
@@ -263,7 +263,7 @@ bool GetSystemMemoryInfo(SystemMemoryInfoKB* meminfo) {
                         &count) != KERN_SUCCESS) {
     return false;
   }
-  DCHECK_EQ(HOST_VM_INFO64_COUNT, count);
+  DCHECK_GE(count, HOST_VM_INFO64_REV1_COUNT);
 
 #if !(BUILDFLAG(IS_IOS) && defined(ARCH_CPU_X86_FAMILY))
   // PAGE_SIZE (aka vm_page_size) isn't constexpr, so this check needs to be

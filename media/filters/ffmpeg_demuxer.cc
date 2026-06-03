@@ -32,6 +32,7 @@
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
+#include "media/base/data_source.h"
 #include "media/base/decrypt_config.h"
 #include "media/base/demuxer.h"
 #include "media/base/demuxer_memory_limit.h"
@@ -1136,15 +1137,41 @@ void FFmpegDemuxer::SeekInternal(base::TimeDelta time,
     seek_time = std::max(start_time_, time);
   }
 
-  // When seeking in an opus stream we need to ensure we deliver enough data to
-  // satisfy the seek preroll; otherwise the audio at the actual seek time will
-  // not be entirely accurate.
   FFmpegDemuxerStream* audio_stream =
       GetFirstEnabledFFmpegStream(DemuxerStream::AUDIO);
   if (audio_stream) {
     const AudioDecoderConfig& config = audio_stream->audio_decoder_config();
-    if (config.codec() == AudioCodec::kOpus)
+
+    // When seeking in an opus stream we need to ensure we deliver enough data
+    // to satisfy the seek preroll; otherwise the audio at the actual seek time
+    // will not be entirely accurate.
+    if (config.codec() == AudioCodec::kOpus) {
       seek_time = std::max(start_time_, seek_time - config.seek_preroll());
+    }
+
+    // Seeking in MP3s is not precise due to our usage of AVFMT_FLAG_FAST_SEEK;
+    // which works by looking for 3 contiguous MP3 packets since MP3 headers
+    // are simple enough they can occur by random chance in a byte stream.
+    //
+    // Bytes early in the stream often look enough like an MP3 header to trip up
+    // ffmpeg's seeking logic. As a workaround, round seeks within the first
+    // frame to zero. The audio renderer will trim off the excess later.
+    //
+    // Technically these issues can happen anywhere in the stream since the MP3
+    // header is not complex enough to avoid it happening by chance. We could
+    // also fix this by not using AVFMT_FLAG_FAST_SEEK, but that hurts seeking
+    // performance on large files too much.
+    //
+    // 1152 is the number of frame in a MPEG1 packet. Though packets of size 576
+    // may occur with MPEG 2.5 streams we use 1152 here since the problematic
+    // boundary was 0.1 and 576/48000 = 0.012, so 0.024 provide more margin of
+    // error for this workaround.
+    //
+    // See https://crbug.com/415092041
+    if (config.codec() == AudioCodec::kMP3 &&
+        seek_time < base::Seconds(1152.0 / config.samples_per_second())) {
+      seek_time = start_time_;
+    }
   }
 
   // Choose the seeking stream based on whether it contains the seek time, if
@@ -1784,69 +1811,54 @@ void FFmpegDemuxer::OnSeekFrameDone(int result) {
 
 void FFmpegDemuxer::OnTrackChangeSeekComplete(
     base::OnceClosure cb,
-    std::vector<FFmpegDemuxerStream*> needs_flush,
+    FFmpegDemuxerStream* stream_to_flush,
     int seek_status) {
-  for (const auto& stream : needs_flush) {
-    CHECK(stream->IsEnabled());
-    stream->FlushBuffers(true);
+  if (stream_to_flush) {
+    CHECK(stream_to_flush->IsEnabled());
+    stream_to_flush->FlushBuffers(true);
   }
   // TODO(crbug.com/41393620): Report seek failures for track changes too.
   std::move(cb).Run();
 }
 
-void FFmpegDemuxer::OnTracksChanged(
-    DemuxerStream::Type track_type,
-    const std::vector<MediaTrack::Id>& track_ids,
-    base::TimeDelta curr_time,
-    TrackChangeCB change_completed_cb) {
+void FFmpegDemuxer::OnTracksChanged(DemuxerStream::Type track_type,
+                                    std::optional<MediaTrack::Id> track_id,
+                                    base::TimeDelta curr_time,
+                                    TrackChangeCB change_completed_cb) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
-  bool any_track_changed = false;
+  bool seek_after_changing_tracks = false;
+  DemuxerStream* response = nullptr;
+  FFmpegDemuxerStream* stream_to_flush = nullptr;
 
-  std::set<FFmpegDemuxerStream*> enabled_streams;
-  std::vector<FFmpegDemuxerStream*> needs_flush;
-  for (const auto& id : track_ids) {
-    auto it = track_id_to_demux_stream_map_.find(id);
-    if (it == track_id_to_demux_stream_map_.end())
-      continue;
-    FFmpegDemuxerStream* stream = it->second;
-    DCHECK_EQ(track_type, stream->type());
-    // TODO(servolk): Remove after multiple enabled audio tracks are supported
-    // by the media::RendererImpl.
-    if (!enabled_streams.empty()) {
-      MEDIA_LOG(INFO, media_log_)
-          << "Only one enabled audio track is supported, ignoring track " << id;
-      continue;
-    }
-    enabled_streams.insert(stream);
-    if (!stream->IsEnabled()) {
-      any_track_changed = true;
-      needs_flush.push_back(stream);
-    }
-    stream->SetEnabled(true, curr_time);
-  }
-
-  // First disable all streams that need to be disabled and then enable streams
-  // that are enabled.
-  for (const auto& stream : streams_) {
-    if (stream && stream->type() == track_type &&
-        enabled_streams.find(stream.get()) == enabled_streams.end()) {
-      DVLOG(1) << __func__ << ": disabling stream " << stream.get();
-      if (stream->IsEnabled()) {
-        any_track_changed = true;
+  // Enable the stream associated with `track_id`
+  if (track_id.has_value()) {
+    auto it = track_id_to_demux_stream_map_.find(*track_id);
+    if (it != track_id_to_demux_stream_map_.end()) {
+      FFmpegDemuxerStream* stream = it->second;
+      DCHECK_EQ(track_type, stream->type());
+      if (!stream->IsEnabled()) {
+        stream_to_flush = stream;
+        seek_after_changing_tracks = true;
       }
-      stream->SetEnabled(false, curr_time);
+      response = stream;
+      stream->SetEnabled(true, curr_time);
     }
   }
 
-  std::vector<DemuxerStream*> streams(enabled_streams.begin(),
-                                      enabled_streams.end());
+  for (const auto& s : streams_) {
+    if (s && s->type() == track_type && s.get() != response && s->IsEnabled()) {
+      seek_after_changing_tracks = true;
+      s->SetEnabled(false, curr_time);
+    }
+  }
+
   base::OnceCallback<void(int)> seek_cb = base::BindOnce(
       &FFmpegDemuxer::OnTrackChangeSeekComplete, weak_factory_.GetWeakPtr(),
-      base::BindOnce(std::move(change_completed_cb), std::move(streams)),
-      std::move(needs_flush));
+      base::BindOnce(std::move(change_completed_cb), response),
+      stream_to_flush);
 
-  if (any_track_changed) {
+  if (seek_after_changing_tracks) {
     SeekInternal(curr_time, std::move(seek_cb));
   } else {
     std::move(seek_cb).Run(0);

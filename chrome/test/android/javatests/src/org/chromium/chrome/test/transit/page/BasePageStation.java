@@ -6,6 +6,8 @@ package org.chromium.chrome.test.transit.page;
 
 import static org.chromium.base.test.transit.Condition.whether;
 
+import com.google.errorprone.annotations.CheckReturnValue;
+
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.base.test.transit.CallbackCondition;
@@ -14,14 +16,12 @@ import org.chromium.base.test.transit.ConditionStatus;
 import org.chromium.base.test.transit.ConditionStatusWithResult;
 import org.chromium.base.test.transit.ConditionWithResult;
 import org.chromium.base.test.transit.Element;
-import org.chromium.base.test.transit.Facility;
-import org.chromium.base.test.transit.Station;
-import org.chromium.base.test.transit.Transition;
-import org.chromium.base.test.transit.Transition.Trigger;
+import org.chromium.base.test.transit.TripBuilder;
 import org.chromium.chrome.browser.app.ChromeActivity;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelObserver;
+import org.chromium.chrome.test.transit.ChromeActivityTabModelBoundStation;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.base.PageTransition;
 
@@ -38,21 +38,11 @@ import java.util.function.Function;
  *
  * @param <HostActivity> The type of activity this station is associate to.
  */
-public class BasePageStation<HostActivity extends ChromeActivity> extends Station<HostActivity> {
+public class BasePageStation<HostActivity extends ChromeActivity>
+        extends ChromeActivityTabModelBoundStation<HostActivity> {
 
-    /**
-     * Basic builder for all BasePageStation subclasses.
-     *
-     * @param <ActivityT> the subclass of ChromeActivity on which the BasePageStation being built is
-     *     based upon.
-     * @param <PageT> the subclass of BasePageStation to build.
-     * @param <BuilderT> the subclass of this Builder.
-     */
-    public static class Builder<
-            ActivityT extends ChromeActivity,
-            PageT extends BasePageStation<ActivityT>,
-            BuilderT extends Builder<ActivityT, PageT, BuilderT>> {
-        protected final Function<BuilderT, PageT> mFactoryMethod;
+    /** Configuration for all BasePageStation subclasses. */
+    public static class Config {
         protected boolean mIsEntryPoint;
         protected Boolean mIncognito;
         protected Integer mNumTabsBeingOpened;
@@ -60,70 +50,53 @@ public class BasePageStation<HostActivity extends ChromeActivity> extends Statio
         protected Tab mTabAlreadySelected;
         protected String mExpectedUrlSubstring;
         protected String mExpectedTitle;
-        protected List<Facility<PageT>> mFacilities;
 
-        public Builder(Function<BuilderT, PageT> factoryMethod) {
-            mFactoryMethod = factoryMethod;
-        }
-
-        public BuilderT self() {
-            return (BuilderT) this;
-        }
-
-        public BuilderT withIncognito(boolean incognito) {
+        public Config withIncognito(boolean incognito) {
             mIncognito = incognito;
-            return self();
+            return this;
         }
 
-        public BuilderT withIsOpeningTabs(int numTabsBeingOpened) {
+        public Config withIsOpeningTabs(int numTabsBeingOpened) {
             assert numTabsBeingOpened >= 0;
             mNumTabsBeingOpened = numTabsBeingOpened;
-            return self();
+            return this;
         }
 
-        public BuilderT withTabAlreadySelected(Tab currentTab) {
+        public Config withTabAlreadySelected(Tab currentTab) {
             mTabAlreadySelected = currentTab;
             mNumTabsBeingSelected = 0;
-            return self();
+            return this;
         }
 
-        public BuilderT withIsSelectingTabs(int numTabsBeingSelected) {
+        public Config withIsSelectingTabs(int numTabsBeingSelected) {
             assert numTabsBeingSelected > 0
                     : "Use withIsSelectingTab() if the PageStation is still in the current tab";
             mNumTabsBeingSelected = numTabsBeingSelected;
             // Commonly already set via initFrom().
             mTabAlreadySelected = null;
-            return self();
+            return this;
         }
 
-        public BuilderT withEntryPoint() {
+        public Config withEntryPoint() {
             mNumTabsBeingOpened = 0;
             mNumTabsBeingSelected = 0;
             mIsEntryPoint = true;
-            return self();
+            return this;
         }
 
-        public BuilderT withExpectedUrlSubstring(String value) {
+        public Config withExpectedUrlSubstring(String value) {
             mExpectedUrlSubstring = value;
-            return self();
+            return this;
         }
 
-        public BuilderT withExpectedTitle(String title) {
+        public Config withExpectedTitle(String title) {
             mExpectedTitle = title;
-            return self();
+            return this;
         }
 
-        public BuilderT withFacility(Facility<PageT> facility) {
-            if (mFacilities == null) {
-                mFacilities = new ArrayList<>();
-            }
-            mFacilities.add(facility);
-            return self();
-        }
-
-        public BuilderT initFrom(BasePageStation<ActivityT> previousStation) {
+        public Config initFrom(BasePageStation<?> previousStation) {
             if (mIncognito == null) {
-                mIncognito = previousStation.mIncognito;
+                mIncognito = previousStation.mIsIncognito;
             }
             if (mNumTabsBeingOpened == null) {
                 mNumTabsBeingOpened = 0;
@@ -136,71 +109,125 @@ public class BasePageStation<HostActivity extends ChromeActivity> extends Statio
             }
             // Cannot copy over facilities because we have no way to clone them. It's also not
             // obvious that we should...
-            return self();
-        }
-
-        public PageT build() {
-            return mFactoryMethod.apply(self());
+            return this;
         }
     }
 
-    protected final boolean mIncognito;
-    public Element<Tab> activityTabElement;
-    public Element<Tab> loadedTabElement;
+    /**
+     * Basic builder for all BasePageStation subclasses.
+     *
+     * @param <PageT> the subclass of BasePageStation to build.
+     */
+    public static class Builder<PageT extends BasePageStation<? extends ChromeActivity>> {
+        protected final Function<Config, PageT> mFactoryMethod;
+        protected final Config mConfig;
 
-    protected <T extends BasePageStation<HostActivity>> BasePageStation(
-            Class<HostActivity> activityClass, Builder<HostActivity, T, ?> builder) {
-        super(activityClass);
+        public Builder(Function<Config, PageT> factoryMethod) {
+            mFactoryMethod = factoryMethod;
+            mConfig = new Config();
+        }
 
+        public Builder<PageT> withIncognito(boolean incognito) {
+            mConfig.withIncognito(incognito);
+            return this;
+        }
+
+        public Builder<PageT> withIsOpeningTabs(int numTabsBeingOpened) {
+            mConfig.withIsOpeningTabs(numTabsBeingOpened);
+            return this;
+        }
+
+        public Builder<PageT> withTabAlreadySelected(Tab currentTab) {
+            mConfig.withTabAlreadySelected(currentTab);
+            return this;
+        }
+
+        public Builder<PageT> withIsSelectingTabs(int numTabsBeingSelected) {
+            mConfig.withIsSelectingTabs(numTabsBeingSelected);
+            return this;
+        }
+
+        public Builder<PageT> withEntryPoint() {
+            mConfig.withEntryPoint();
+            return this;
+        }
+
+        public Builder<PageT> withExpectedUrlSubstring(String value) {
+            mConfig.withExpectedUrlSubstring(value);
+            return this;
+        }
+
+        public Builder<PageT> withExpectedTitle(String title) {
+            mConfig.withExpectedTitle(title);
+            return this;
+        }
+
+        public Builder<PageT> initFrom(BasePageStation<?> previousStation) {
+            mConfig.initFrom(previousStation);
+            return this;
+        }
+
+        public Builder<PageT> initForLoadingUrlOnSameTab(
+                String url, BasePageStation<?> previousStation) {
+            initFrom(previousStation);
+            if (mConfig.mExpectedUrlSubstring == null) {
+                mConfig.withExpectedUrlSubstring(url);
+            }
+            return this;
+        }
+
+        public PageT build() {
+            return mFactoryMethod.apply(mConfig);
+        }
+    }
+
+    public final Element<Tab> activityTabElement;
+    public final Element<Tab> loadedTabElement;
+
+    protected BasePageStation(Class<HostActivity> activityClass, Config config) {
         // incognito is optional and defaults to false
-        mIncognito = builder.mIncognito == null ? false : builder.mIncognito;
+        super(activityClass, config.mIncognito == null ? false : config.mIncognito);
 
         // mNumTabsBeingOpened is required
-        assert builder.mNumTabsBeingOpened != null
+        assert config.mNumTabsBeingOpened != null
                 : "PageStation.Builder needs withIsOpeningTabs() or initFrom()";
 
         // mNumTabsBeingSelected is required
-        assert builder.mNumTabsBeingSelected != null
+        assert config.mNumTabsBeingSelected != null
                 : "PageStation.Builder needs withIsSelectingTabs(), withTabAlreadySelected() or"
                         + " initFrom()";
 
         // Pages must have an already selected tab, or be selecting a tab.
-        assert builder.mIsEntryPoint
-                        || (builder.mTabAlreadySelected != null)
-                                != (builder.mNumTabsBeingSelected != 0)
+        assert config.mIsEntryPoint
+                        || (config.mTabAlreadySelected != null)
+                                != (config.mNumTabsBeingSelected != 0)
                 : String.format(
                         "mTabAlreadySelected=%s mNumTabsBeingSelected=%s",
-                        builder.mTabAlreadySelected, builder.mNumTabsBeingSelected);
+                        config.mTabAlreadySelected, config.mNumTabsBeingSelected);
 
-        if (builder.mFacilities != null) {
-            for (Facility<T> facility : builder.mFacilities) {
-                addInitialFacility(facility);
-            }
-        }
-
-        if (builder.mNumTabsBeingOpened > 0) {
+        if (config.mNumTabsBeingOpened > 0) {
             declareEnterCondition(
-                    new TabAddedCondition<>(builder.mNumTabsBeingOpened, mActivityElement));
+                    new TabAddedCondition(config.mNumTabsBeingOpened, tabModelElement));
         }
 
         // isEntryPoint is optional and defaults to false
-        if (builder.mIsEntryPoint) {
+        if (config.mIsEntryPoint) {
             // In entry points we just match the first ActivityTab we see, instead of waiting for
             // callbacks.
             activityTabElement =
                     declareEnterConditionAsElement(new AnyActivityTabCondition<>(mActivityElement));
         } else {
             Supplier<Tab> mSelectedTabSupplier;
-            if (builder.mNumTabsBeingSelected > 0) {
+            if (config.mNumTabsBeingSelected > 0) {
                 // The last tab of N opened is the Tab that mSelectedTabSupplier will supply.
-                TabSelectedCondition<HostActivity> tabSelectedCondition =
-                        new TabSelectedCondition<>(builder.mNumTabsBeingSelected, mActivityElement);
+                TabSelectedCondition tabSelectedCondition =
+                        new TabSelectedCondition(config.mNumTabsBeingSelected, tabModelElement);
                 declareEnterCondition(tabSelectedCondition);
                 mSelectedTabSupplier = tabSelectedCondition;
             } else {
                 // The Tab already created and provided to the constructor is the one that is
                 // expected to be the activityTab.
-                mSelectedTabSupplier = () -> builder.mTabAlreadySelected;
+                mSelectedTabSupplier = () -> config.mTabAlreadySelected;
             }
             // Only returns the tab when it is the activityTab.
             activityTabElement =
@@ -210,50 +237,46 @@ public class BasePageStation<HostActivity extends ChromeActivity> extends Statio
         }
         loadedTabElement =
                 declareEnterConditionAsElement(
-                        new PageLoadedCondition(activityTabElement, mIncognito));
+                        new PageLoadedCondition(activityTabElement, mIsIncognito));
 
         declareEnterCondition(new PageInteractableOrHiddenCondition(loadedTabElement));
 
         // URL substring is optional.
-        if (builder.mExpectedUrlSubstring != null) {
+        if (config.mExpectedUrlSubstring != null) {
             declareEnterCondition(
-                    new PageUrlContainsCondition(builder.mExpectedUrlSubstring, loadedTabElement));
+                    new PageUrlContainsCondition(config.mExpectedUrlSubstring, loadedTabElement));
         }
 
         // title is optional
-        if (builder.mExpectedTitle != null) {
-            declareEnterCondition(new PageTitleCondition(builder.mExpectedTitle, loadedTabElement));
+        if (config.mExpectedTitle != null) {
+            declareEnterCondition(new PageTitleCondition(config.mExpectedTitle, loadedTabElement));
         }
     }
 
-    public boolean isIncognito() {
-        return mIncognito;
+    /** Convenience method for |loadedTabElement.get()|. */
+    public Tab getTab() {
+        return loadedTabElement.get();
     }
 
-    /** Loads a |url| in the same tab and waits to transition. */
+    /** Loads a |url| in the same tab and waits to transition to the Station built by |builder|. */
     public <DestinationT extends BasePageStation<HostActivity>>
-            DestinationT loadPageProgrammatically(
-                    String url, Builder<HostActivity, DestinationT, ?> builder) {
-        builder.initFrom(this);
-        if (builder.mExpectedUrlSubstring == null) {
-            builder.mExpectedUrlSubstring = url;
-        }
+            DestinationT loadPageProgrammatically(String url, Builder<DestinationT> builder) {
+        return loadUrlTo(url).arriveAt(builder.initForLoadingUrlOnSameTab(url, this).build());
+    }
 
-        DestinationT destination = builder.build();
-        Trigger trigger =
-                () -> {
-                    @PageTransition
-                    int transitionType = PageTransition.TYPED | PageTransition.FROM_ADDRESS_BAR;
-                    loadedTabElement.get().loadUrl(new LoadUrlParams(url, transitionType));
-                };
-        Transition.TransitionOptions options =
-                Transition.newOptions()
-                        .withCondition(new PageLoadCallbackCondition(loadedTabElement.get()))
-                        .withTimeout(10000)
-                        .withPossiblyAlreadyFulfilled()
-                        .withRunTriggerOnUiThread()
-                        .build();
-        return travelToSync(destination, options, trigger);
+    /** Loads a |url| in the same tab to start a Trip. */
+    @CheckReturnValue
+    public TripBuilder loadUrlTo(String url) {
+        return runOnUiThreadTo(
+                        () -> {
+                            @PageTransition
+                            int transitionType =
+                                    PageTransition.TYPED | PageTransition.FROM_ADDRESS_BAR;
+                            loadedTabElement.get().loadUrl(new LoadUrlParams(url, transitionType));
+                        })
+                .withTimeout(10000)
+                .withPossiblyAlreadyFulfilled()
+                .waitForAnd(new PageLoadCallbackCondition(loadedTabElement.get()));
     }
 
     /** Condition to check the page url contains a certain substring. */
@@ -302,14 +325,13 @@ public class BasePageStation<HostActivity extends ChromeActivity> extends Statio
         }
     }
 
-    private class TabAddedCondition<ActivityT extends ChromeActivity> extends CallbackCondition
-            implements TabModelObserver {
+    private static class TabAddedCondition extends CallbackCondition implements TabModelObserver {
         private TabModel mTabModel;
-        private final Supplier<ActivityT> mActivitySupplier;
+        private final Supplier<TabModel> mTabModelSupplier;
 
-        protected TabAddedCondition(int numTabsBeingOpened, Supplier<ActivityT> activitySupplier) {
+        protected TabAddedCondition(int numTabsBeingOpened, Supplier<TabModel> tabModelSupplier) {
             super("didAddTab", numTabsBeingOpened);
-            mActivitySupplier = dependOnSupplier(activitySupplier, "ChromeActivity");
+            mTabModelSupplier = dependOnSupplier(tabModelSupplier, "TabModel");
         }
 
         @Override
@@ -322,11 +344,7 @@ public class BasePageStation<HostActivity extends ChromeActivity> extends Statio
             super.onStartMonitoring();
             ThreadUtils.runOnUiThreadBlocking(
                     () -> {
-                        mTabModel =
-                                mActivitySupplier
-                                        .get()
-                                        .getTabModelSelector()
-                                        .getModel(isIncognito());
+                        mTabModel = mTabModelSupplier.get();
                         mTabModel.addObserver(this);
                     });
         }
@@ -341,16 +359,16 @@ public class BasePageStation<HostActivity extends ChromeActivity> extends Statio
         }
     }
 
-    private class TabSelectedCondition<ActivityT extends ChromeActivity> extends CallbackCondition
+    private static class TabSelectedCondition extends CallbackCondition
             implements TabModelObserver, Supplier<Tab> {
         private final List<Tab> mTabsSelected = new ArrayList<>();
+        private final Supplier<TabModel> mTabModelSupplier;
         private TabModel mTabModel;
-        private final Supplier<ActivityT> mActivitySupplier;
 
         private TabSelectedCondition(
-                int numTabsBeingSelected, Supplier<ActivityT> activitySupplier) {
+                int numTabsBeingSelected, Supplier<TabModel> tabModelSupplier) {
             super("didSelectTab", numTabsBeingSelected);
-            mActivitySupplier = dependOnSupplier(activitySupplier, "ChromeActivity");
+            mTabModelSupplier = dependOnSupplier(tabModelSupplier, "ChromeActivity");
         }
 
         @Override
@@ -369,11 +387,7 @@ public class BasePageStation<HostActivity extends ChromeActivity> extends Statio
             super.onStartMonitoring();
             ThreadUtils.runOnUiThreadBlocking(
                     () -> {
-                        mTabModel =
-                                mActivitySupplier
-                                        .get()
-                                        .getTabModelSelector()
-                                        .getModel(isIncognito());
+                        mTabModel = mTabModelSupplier.get();
                         mTabModel.addObserver(this);
                     });
         }
@@ -447,7 +461,7 @@ public class BasePageStation<HostActivity extends ChromeActivity> extends Statio
         private final Supplier<ActivityT> mActivitySupplier;
 
         private AnyActivityTabCondition(Supplier<ActivityT> activitySupplier) {
-            super(/* isRunOnUiThread= */ false);
+            super(/* isRunOnUiThread= */ true);
             mActivitySupplier = dependOnSupplier(activitySupplier, "ChromeActivity");
         }
 

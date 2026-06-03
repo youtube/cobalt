@@ -389,9 +389,9 @@ class PipelineIntegrationTest : public testing::Test,
   }
 
   void OnEnabledAudioTracksChanged(
-      const std::vector<MediaTrack::Id>& enabled_track_ids) {
+      std::optional<MediaTrack::Id> enabled_track_id) {
     base::RunLoop run_loop;
-    pipeline_->OnEnabledAudioTracksChanged(enabled_track_ids,
+    pipeline_->OnEnabledAudioTracksChanged(std::move(enabled_track_id),
                                            run_loop.QuitClosure());
     run_loop.Run();
   }
@@ -702,7 +702,8 @@ TEST_F(PipelineIntegrationTest, BasicPlaybackHashed) {
 
   ASSERT_TRUE(WaitUntilOnEnded());
 
-  EXPECT_EQ("f0be120a90a811506777c99a2cdf7cc1", GetVideoHash());
+  EXPECT_EQ("a6dbca10f0730373ab948df04b4bc16d7bca6d3a1593dc989b6e376487544bf5",
+            GetVideoHash());
   EXPECT_AUDIO_HASH("-3.59,-2.06,-0.43,2.15,0.77,-0.95,");
   EXPECT_TRUE(demuxer_->GetTimelineOffset().is_null());
 }
@@ -743,8 +744,7 @@ TEST_F(PipelineIntegrationTest, PlaybackWithAudioTrackDisabledThenEnabled) {
   ASSERT_EQ(PIPELINE_OK, Start("bear-320x240.webm", kHashed | kNoClockless));
 
   // Disable audio.
-  std::vector<MediaTrack::Id> empty;
-  OnEnabledAudioTracksChanged(empty);
+  OnEnabledAudioTracksChanged(std::nullopt);
 
   // Seek to flush the pipeline and ensure there's no prerolled audio data.
   ASSERT_TRUE(Seek(base::TimeDelta()));
@@ -758,9 +758,7 @@ TEST_F(PipelineIntegrationTest, PlaybackWithAudioTrackDisabledThenEnabled) {
   EXPECT_AUDIO_HASH(kNullAudioHash);
 
   // Re-enable audio.
-  std::vector<MediaTrack::Id> audio_track_id;
-  audio_track_id.push_back(MediaTrack::Id("2"));
-  OnEnabledAudioTracksChanged(audio_track_id);
+  OnEnabledAudioTracksChanged(MediaTrack::Id("2"));
 
   // Restart playback from 500ms position.
   ASSERT_TRUE(Seek(k500ms));
@@ -797,13 +795,16 @@ TEST_F(PipelineIntegrationTest, PlaybackWithVideoTrackDisabledThenEnabled) {
   // Verify that no video has been rendered, since we disabled video tracks.
   EXPECT_EQ(kNullVideoHash, GetVideoHash());
 
+  // Reset the hash before enabling the video track and seeking so that those
+  // frames are considered as part of the hash.
+  ResetVideoHash();
+
   // Re-enable video.
   OnSelectedVideoTrackChanged(MediaTrack::Id("1"));
 
   // Seek to flush video pipeline and reset the video hash again to clear state
   // if some prerolled frames got hashed after enabling video.
   ASSERT_TRUE(Seek(base::TimeDelta()));
-  ResetVideoHash();
 
   // Restart playback from 500ms position.
   ASSERT_TRUE(Seek(k500ms));
@@ -811,12 +812,12 @@ TEST_F(PipelineIntegrationTest, PlaybackWithVideoTrackDisabledThenEnabled) {
   ASSERT_TRUE(WaitUntilOnEnded());
 
   // Verify that video has been rendered after being enabled.
-  EXPECT_EQ("fd59357dfd9c144ab4fb8181b2de32c3", GetVideoHash());
+  EXPECT_EQ("38b8b5de49e2ada131674f90e4688dfc9309e6d194267e6f11992d25f11ea472",
+            GetVideoHash());
 }
 
 TEST_F(PipelineIntegrationTest, TrackStatusChangesBeforePipelineStarted) {
-  std::vector<MediaTrack::Id> empty_track_ids;
-  OnEnabledAudioTracksChanged(empty_track_ids);
+  OnEnabledAudioTracksChanged(std::nullopt);
   OnSelectedVideoTrackChanged(std::nullopt);
 }
 
@@ -824,12 +825,10 @@ TEST_F(PipelineIntegrationTest, TrackStatusChangesAfterPipelineEnded) {
   ASSERT_EQ(PIPELINE_OK, Start("bear-320x240.webm", kHashed));
   Play();
   ASSERT_TRUE(WaitUntilOnEnded());
-  std::vector<MediaTrack::Id> track_ids;
   // Disable audio track.
-  OnEnabledAudioTracksChanged(track_ids);
+  OnEnabledAudioTracksChanged(std::nullopt);
   // Re-enable audio track.
-  track_ids.push_back(MediaTrack::Id("2"));
-  OnEnabledAudioTracksChanged(track_ids);
+  OnEnabledAudioTracksChanged(MediaTrack::Id("2"));
   // Disable video track.
   OnSelectedVideoTrackChanged(std::nullopt);
   // Re-enable video track.
@@ -855,17 +854,14 @@ TEST_F(PipelineIntegrationTest, MAYBE_TrackStatusChangesWhileSuspended) {
       .Times(AnyNumber());
   EXPECT_CALL(*this, OnVideoOpacityChange(true)).Times(AnyNumber());
 
-  std::vector<MediaTrack::Id> track_ids;
-
   // Disable audio track.
-  OnEnabledAudioTracksChanged(track_ids);
+  OnEnabledAudioTracksChanged(std::nullopt);
   ASSERT_TRUE(Resume(TimestampMs(100)));
   ASSERT_TRUE(WaitUntilCurrentTimeIsAfter(TimestampMs(200)));
   ASSERT_TRUE(Suspend());
 
   // Re-enable audio track.
-  track_ids.push_back(MediaTrack::Id("2"));
-  OnEnabledAudioTracksChanged(track_ids);
+  OnEnabledAudioTracksChanged(MediaTrack::Id("2"));
   ASSERT_TRUE(Resume(TimestampMs(200)));
   ASSERT_TRUE(WaitUntilCurrentTimeIsAfter(TimestampMs(300)));
   ASSERT_TRUE(Suspend());
@@ -893,16 +889,14 @@ TEST_F(PipelineIntegrationTest, ReinitRenderersWhileAudioTrackIsDisabled) {
   EXPECT_CALL(*this, OnVideoOpacityChange(true)).Times(AnyNumber());
 
   // Disable the audio track.
-  std::vector<MediaTrack::Id> track_ids;
-  OnEnabledAudioTracksChanged(track_ids);
+  OnEnabledAudioTracksChanged(std::nullopt);
   // pipeline.Suspend() releases renderers and pipeline.Resume() recreates and
   // reinitializes renderers while the audio track is disabled.
   ASSERT_TRUE(Suspend());
   ASSERT_TRUE(Resume(TimestampMs(100)));
   // Now re-enable the audio track, playback should continue successfully.
   EXPECT_CALL(*this, OnBufferingStateChange(BUFFERING_HAVE_ENOUGH, _)).Times(1);
-  track_ids.push_back(MediaTrack::Id("2"));
-  OnEnabledAudioTracksChanged(track_ids);
+  OnEnabledAudioTracksChanged(MediaTrack::Id("2"));
   ASSERT_TRUE(WaitUntilCurrentTimeIsAfter(TimestampMs(200)));
 
   Stop();
@@ -936,13 +930,10 @@ TEST_F(PipelineIntegrationTest, PipelineStoppedWhileAudioRestartPending) {
 
   // Disable audio track first, to re-enable it later and stop the pipeline
   // (which destroys the media renderer) while audio restart is pending.
-  std::vector<MediaTrack::Id> track_ids;
-  OnEnabledAudioTracksChanged(track_ids);
+  OnEnabledAudioTracksChanged(std::nullopt);
 
   // Playback is paused while all audio tracks are disabled.
-
-  track_ids.push_back(MediaTrack::Id("2"));
-  OnEnabledAudioTracksChanged(track_ids);
+  OnEnabledAudioTracksChanged(MediaTrack::Id("2"));
   Stop();
 }
 
@@ -965,9 +956,7 @@ TEST_F(PipelineIntegrationTest, SwitchAudioTrackDuringPlayback) {
   ASSERT_TRUE(WaitUntilCurrentTimeIsAfter(TimestampMs(100)));
   // The first audio track (TrackId=4) is enabled by default. This should
   // disable TrackId=4 and enable TrackId=5.
-  std::vector<MediaTrack::Id> track_ids;
-  track_ids.push_back(MediaTrack::Id("5"));
-  OnEnabledAudioTracksChanged(track_ids);
+  OnEnabledAudioTracksChanged(MediaTrack::Id("5"));
   ASSERT_TRUE(WaitUntilCurrentTimeIsAfter(TimestampMs(200)));
   Stop();
 }
@@ -1291,7 +1280,8 @@ TEST_F(PipelineIntegrationTest, BasicPlaybackLive) {
 
   ASSERT_TRUE(WaitUntilOnEnded());
 
-  EXPECT_EQ("f0be120a90a811506777c99a2cdf7cc1", GetVideoHash());
+  EXPECT_EQ("a6dbca10f0730373ab948df04b4bc16d7bca6d3a1593dc989b6e376487544bf5",
+            GetVideoHash());
   EXPECT_AUDIO_HASH("-3.59,-2.06,-0.43,2.15,0.77,-0.95,");
   EXPECT_EQ(kLiveTimelineOffset(), demuxer_->GetTimelineOffset());
 }
@@ -2994,7 +2984,8 @@ TEST_F(PipelineIntegrationTest, NegativeVideoTimestamps) {
             Start("sync2-trimmed.mp4", kHashed | kUnreliableDuration));
   Play();
   ASSERT_TRUE(WaitUntilOnEnded());
-  EXPECT_EQ("aa56bcbc674d2e7a60bbecb77c55bb1e", GetVideoHash());
+  EXPECT_EQ("dd059004f04a4d7a910123e5b306639a4559b5d7df7c0879d523649ff12a8a43",
+            GetVideoHash());
   EXPECT_AUDIO_HASH("89.10,30.04,90.81,29.89,89.55,29.20,");
 }
 
@@ -3026,7 +3017,8 @@ TEST_F(PipelineIntegrationTest, Spherical) {
   ASSERT_EQ(PIPELINE_OK, Start("spherical.mp4", kHashed));
   Play();
   ASSERT_TRUE(WaitUntilOnEnded());
-  EXPECT_EQ("1cb7f980020d99ea852e22dd6bd8d9de", GetVideoHash());
+  EXPECT_EQ("ebb0ad0c2205c9c797f4303b0ed698a07c647c2f37692f227c12875591885877",
+            GetVideoHash());
 }
 
 TEST_F(PipelineIntegrationTest, BasicPlaybackHi10P) {
@@ -3043,7 +3035,8 @@ TEST_F(PipelineIntegrationTest, HLSMediaPlaylistTSavc1) {
   ASSERT_EQ(PIPELINE_OK, StartPipelineWithHlsManifest("hls/mp_ts_avc1.m3u8"));
   Play();
   ASSERT_TRUE(WaitUntilOnEnded());
-  EXPECT_EQ("6bc0ecac3fea91d9591cb3197d28b196", GetVideoHash());
+  EXPECT_EQ("00df0aa6796123f535402c39c20baa3fe1c2ad02fe1f015f84878977b30931d2",
+            GetVideoHash());
 }
 #endif
 

@@ -37,6 +37,8 @@ DECLARE_RESOURCE_ID(IDR_ANDROID_INFOBAR_IDENTITY_PROVIDER,
                     R.drawable.gm_filled_devices_24)
 DECLARE_RESOURCE_ID(IDR_ANDROID_INFOBAR_IDLE_DETECTION,
                     R.drawable.gm_filled_devices_24)
+DECLARE_RESOURCE_ID(IDR_ANDROID_INFOBAR_LOCAL_NETWORK_ACCESS,
+                    R.drawable.router_24)
 DECLARE_RESOURCE_ID(IDR_ANDROID_INFOBAR_MEDIA_STREAM_CAMERA,
                     R.drawable.gm_filled_videocam_24)
 DECLARE_RESOURCE_ID(IDR_ANDROID_INFOBAR_MEDIA_STREAM_MIC,
@@ -55,4 +57,6 @@ DECLARE_RESOURCE_ID(IDR_ANDROID_STORAGE_ACCESS, R.drawable.ic_storage_access_24)
 DECLARE_RESOURCE_ID(IDR_ANDROID_INFOBAR_VR_HEADSET,
                     R.drawable.gm_filled_cardboard_24)
 DECLARE_RESOURCE_ID(IDR_ANDROID_INFOBAR_WARNING, R.drawable.infobar_warning)
+DECLARE_RESOURCE_ID(IDR_ANDROID_INFOBAR_WINDOW_MANAGEMENT,
+                    R.drawable.gm_filled_select_window_24)
 DECLARE_RESOURCE_ID(IDR_BUSINESS, R.drawable.ic_business)

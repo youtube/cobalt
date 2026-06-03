@@ -25,7 +25,6 @@
 #include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
-#include "base/functional/overloaded.h"
 #include "base/i18n/time_formatting.h"
 #include "base/logging.h"
 #include "base/memory/weak_ptr.h"
@@ -55,6 +54,7 @@
 #include "content/public/browser/isolated_web_apps_policy.h"
 #include "net/base/backoff_entry.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -169,7 +169,7 @@ void OnComponentDataReady(PrefService* prefs, base::OnceClosure callback) {
   }
 
   IwaKeyDistributionInfoProvider::GetInstance()
-      ->OnMaybeDownloadedComponentDataReady()
+      .OnMaybeDownloadedComponentDataReady()
       .Post(FROM_HERE, std::move(callback));
 }
 
@@ -242,7 +242,7 @@ void IsolatedWebAppPolicyManager::Start(base::OnceClosure on_started_callback) {
           .Set("start_time",
                base::TimeFormatFriendlyDateAndTime(base::Time::Now()))
           .Set("info", "IsolatedWebAppPolicyManager::Start()");
-  IwaKeyDistributionInfoProvider::GetInstance()->WriteComponentMetadata(
+  IwaKeyDistributionInfoProvider::GetInstance().WriteComponentMetadata(
       debug_log);
   process_logs_.AppendCompletedStep(std::move(debug_log));
 
@@ -256,6 +256,13 @@ void IsolatedWebAppPolicyManager::Start(base::OnceClosure on_started_callback) {
 void IsolatedWebAppPolicyManager::StartImpl() {
   const int pending_inits_count = GetPendingInitCount();
   SetPendingInitCount(pending_inits_count + 1);
+
+  if (pending_inits_count > 0) {
+    base::UmaHistogramCounts100(
+        "WebApp.Isolated.PolicyManager.PendingInitializations",
+        /*sample=*/pending_inits_count);
+  }
+
   if (pending_inits_count <= kIsolatedWebAppForceInstallMaxRetryTreshold) {
     ConfigureObserversOnSessionStart();
     CleanupAndProcessPolicyOnSessionStart();
@@ -278,6 +285,10 @@ void IsolatedWebAppPolicyManager::StartImpl() {
 void IsolatedWebAppPolicyManager::SetProvider(base::PassKey<WebAppProvider>,
                                               WebAppProvider& provider) {
   provider_ = &provider;
+}
+
+void IsolatedWebAppPolicyManager::Shutdown() {
+  SetPendingInitCount(0);
 }
 
 base::Value IsolatedWebAppPolicyManager::GetDebugValue() const {
@@ -322,7 +333,7 @@ void IsolatedWebAppPolicyManager::ProcessPolicy() {
 
 void IsolatedWebAppPolicyManager::ConfigureObserversOnSessionStart() {
   key_distribution_info_observation_.Observe(
-      IwaKeyDistributionInfoProvider::GetInstance());
+      &IwaKeyDistributionInfoProvider::GetInstance());
 
   pref_change_registrar_.Init(profile_->GetPrefs());
   pref_change_registrar_.Add(
@@ -368,7 +379,7 @@ void IsolatedWebAppPolicyManager::DoProcessPolicy(
   MaybeRecordFirstPolicyProcessingDelay(profile_);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
-  IwaKeyDistributionInfoProvider::GetInstance()->WriteComponentMetadata(
+  IwaKeyDistributionInfoProvider::GetInstance().WriteComponentMetadata(
       debug_info);
 
   CHECK(provider_);
@@ -426,7 +437,7 @@ void IsolatedWebAppPolicyManager::DoProcessPolicy(
         break;
 
       case WebAppManagement::kIwaUserInstalled:
-        if (!CHECK_DEREF(IwaKeyDistributionInfoProvider::GetInstance())
+        if (!IwaKeyDistributionInfoProvider::GetInstance()
                  .IsManagedInstallPermitted(
                      install_options.web_bundle_id().id())) {
           DLOG(WARNING) << "The IWA " << install_options.web_bundle_id()
@@ -469,7 +480,7 @@ void IsolatedWebAppPolicyManager::DoProcessPolicy(
         const auto& [web_bundle_id, app_action] = entry;
         return base::Value::Dict()
             .Set("web_bundle_id", base::ToString(web_bundle_id))
-            .Set("action", std::visit(base::Overloaded{[](const auto& action) {
+            .Set("action", std::visit(absl::Overload{[](const auto& action) {
                                         return action.GetDebugValue();
                                       }},
                                       app_action));
@@ -497,7 +508,7 @@ void IsolatedWebAppPolicyManager::DoProcessPolicy(
     auto url_info =
         IsolatedWebAppUrlInfo::CreateFromSignedWebBundleId(web_bundle_id);
     std::visit(
-        base::Overloaded{
+        absl::Overload{
             [&](const AppActionRemoveInstallSource& action) {
               auto callback = base::BindOnce(&IsolatedWebAppPolicyManager::
                                                  LogRemoveInstallSourceResult,

@@ -149,7 +149,7 @@ chromium-metrics-reviews@google.com.
   <int value="6" label="User Certs subpage"/>
 </enum>
 
-<!-- LINT.ThenChange(/ui/webui/resources/cr_components/certificate_manager/navigation_v2.ts:PageHistogramEnum) -->
+<!-- LINT.ThenChange(/chrome/browser/resources/certificate_manager/navigation_v2.ts:PageHistogramEnum) -->
 
 <enum name="ConnectionInfo">
   <summary>
@@ -207,45 +207,6 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="GZip"/>
   <int value="3" label="Deflate"/>
   <int value="4" label="Zstd"/>
-</enum>
-
-<enum name="CorsAccessCheckError">
-  <summary>
-    The detailed error type for CORS check failures. See
-    services/network/public/mojom/cors.mojom for detailed information.
-  </summary>
-  <int value="0" label="kDisallowedByMode"/>
-  <int value="1" label="kInvalidResponse"/>
-  <int value="2" label="kWildcardOriginNotAllowed"/>
-  <int value="3" label="kMissingAllowOriginHeader"/>
-  <int value="4" label="kMultipleAllowOriginValues"/>
-  <int value="5" label="kInvalidAllowOriginValue"/>
-  <int value="6" label="kAllowOriginMismatch"/>
-  <int value="7" label="kInvalidAllowCredentials"/>
-  <int value="8" label="kCorsDisabledScheme"/>
-  <int value="9" label="kPreflightInvalidStatus"/>
-  <int value="10" label="kPreflightDisallowedRedirect"/>
-  <int value="11" label="kPreflightWildcardOriginNotAllowed"/>
-  <int value="12" label="kPreflightMissingAllowOriginHeader"/>
-  <int value="13" label="kPreflightMultipleAllowOriginValues"/>
-  <int value="14" label="kPreflightInvalidAllowOriginValue"/>
-  <int value="15" label="kPreflightAllowOriginMismatch"/>
-  <int value="16" label="kPreflightInvalidAllowCredentials"/>
-  <int value="17" label="kPreflightMissingAllowPrivateNetwork"/>
-  <int value="18" label="kPreflightInvalidAllowPrivateNetwork"/>
-  <int value="19" label="kInvalidAllowMethodsPreflightResponse"/>
-  <int value="20" label="kInvalidAllowHeadersPreflightResponse"/>
-  <int value="21" label="kMethodDisallowedByPreflightResponse"/>
-  <int value="22" label="kHeaderDisallowedByPreflightResponse"/>
-  <int value="23" label="kRedirectContainsCredentials"/>
-  <int value="24" label="kInsecurePrivateNetwork"/>
-  <int value="25" label="kInvalidPrivateNetworkAccess"/>
-  <int value="26" label="kUnexpectedPrivateNetworkAccess"/>
-  <int value="27" label="kPreflightMissingPrivateNetworkAccessId"/>
-  <int value="28" label="kPreflightMissingPrivateNetworkAccessName"/>
-  <int value="29" label="kPrivateNetworkAccessPermissionUnavailable"/>
-  <int value="30" label="kPrivateNetworkAccessPermissionDenied"/>
-  <int value="31" label="kLocalNetworkAccessPermissionDenied"/>
 </enum>
 
 <!-- LINT.IfChange(DeviceBoundSessionError) -->
@@ -677,26 +638,45 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//net/cert/cert_verify_proc_builtin.h:NetCertVerifier1QwacResult) -->
 
-<!-- LINT.IfChange(NetCertVerifier2QwacResult) -->
+<!-- LINT.IfChange(NetCertVerifier2QwacBindingResult) -->
 
-<enum name="NetCertVerifier2QwacResult">
-  <int value="0" label="error parsing 2-QWAC leaf certificate"/>
-  <int value="1" label="certificate does not have 2-QWAC indicators"/>
-  <int value="2"
-      label="Has some QWAC-like indicators, but they are inconsistent or
-             incomplete"/>
-  <int value="3" label="2-QWAC verification succeeded"/>
-  <int value="4" label="certificate name invalid"/>
-  <int value="5" label="certificate date invalid"/>
-  <int value="6" label="authority invalid"/>
-  <int value="7" label="invalid"/>
-  <int value="8" label="weak key"/>
-  <int value="9" label="name constraint violation"/>
-  <int value="10" label="other certificate error"/>
-  <int value="11" label="other error"/>
+<enum name="NetCertVerifier2QwacBindingResult">
+  <int value="0" label="other error"/>
+  <int value="1" label="binding verification succeeded"/>
+  <int value="2" label="binding parsing error"/>
+  <int value="3" label="binding signature invalid"/>
+  <int value="4" label="TLS certificate not bound"/>
+  <int value="5" label="error parsing 2-QWAC leaf certificate"/>
+  <int value="6" label="2-QWAC certificate does not have 2-QWAC indicators"/>
+  <int value="7"
+      label="2-QWAC certificate has some QWAC-like indicators, but they are
+             inconsistent or incomplete"/>
+  <int value="8" label="2-QWAC certificate name invalid"/>
+  <int value="9" label="2-QWAC certificate date invalid"/>
+  <int value="10" label="2-QWAC certificate authority invalid"/>
+  <int value="11" label="2-QWAC certificate invalid"/>
+  <int value="12" label="2-QWAC certificate weak key"/>
+  <int value="13" label="2-QWAC certificate name constraint violation"/>
+  <int value="14" label="other 2-QWAC certificate error"/>
 </enum>
 
-<!-- LINT.ThenChange(//net/cert/cert_verify_proc_builtin.h:NetCertVerifier2QwacResult) -->
+<!-- LINT.ThenChange(//net/cert/cert_verify_proc_builtin.h:NetCertVerifier2QwacBindingResult) -->
+
+<!-- LINT.IfChange(NetCertVerifier2QwacLinkProcessingResult) -->
+
+<enum name="NetCertVerifier2QwacLinkProcessingResult">
+  <int value="0" label="QwacStatus already present"/>
+  <int value="1" label="unacceptable SSLInfo"/>
+  <int value="2" label="no 2-QWAC Link header"/>
+  <int value="3" label="invalid 2-QWAC Link header"/>
+  <int value="4" label="non-relative 2-QWAC Link URL"/>
+  <int value="5" label="download failed or disallowed"/>
+  <int value="6" label="verification failed"/>
+  <int value="7" label="valid 2-QWAC"/>
+  <int value="8" label="QwacStatus destroyed before processing finished"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/net/qwac_web_contents_observer.h:NetCertVerifier2QwacLinkProcessingResult) -->
 
 <enum name="NetErrorPageEvents">
   <int value="0" label="Error Page Shown">
@@ -2824,6 +2804,27 @@ Called by update_net_trust_anchors.py.-->
   <int value="3" label="imported from socket"/>
 </enum>
 
+<!-- LINT.IfChange(SqlDiskCacheStoreError) -->
+
+<enum name="SqlDiskCacheStoreError">
+  <int value="0" label="Ok"/>
+  <int value="1" label="FailedToCreateDirectory"/>
+  <int value="2" label="FailedToOpenDatabase"/>
+  <int value="3" label="FailedToRazeIncompatibleDatabase"/>
+  <int value="4" label="FailedToStartTransaction"/>
+  <int value="5" label="FailedToCommitTransaction"/>
+  <int value="6" label="FailedToInitializeMetaTable"/>
+  <int value="7" label="FailedToInitializeSchema"/>
+  <int value="8" label="FailedToSetEntryCountMetadata"/>
+  <int value="9" label="FailedToSetTotalSizeMetadata"/>
+  <int value="10" label="FailedToExecute"/>
+  <int value="11" label="InvalidData"/>
+  <int value="12" label="AlreadyExists"/>
+  <int value="13" label="NotFound"/>
+</enum>
+
+<!-- LINT.ThenChange(//net/disk_cache/sql/sql_persistent_store.h:SqlDiskCacheStoreError) -->
+
 <enum name="SSLECHResult">
   <summary>The result of a TLS connection that offered ECH</summary>
   <int value="0" label="The connection succeeded on the initial connection"/>
@@ -2907,6 +2908,21 @@ Called by update_net_trust_anchors.py.-->
   <int value="5" label="TLS 1.2"/>
   <int value="6" label="TLS 1.3"/>
   <int value="7" label="QUIC"/>
+</enum>
+
+<enum name="SSLTrustAnchorIDsResult">
+  <summary>
+    The result of a TLS connection that advertised Trust Anchor IDs in DNS
+  </summary>
+  <int value="0" label="The connection succeeded on the initial connection"/>
+  <int value="1"
+      label="The connection failed on the initial connection, and the client
+             didn't retry"/>
+  <int value="2"
+      label="The connection succeeded after retrying with fresh Trust Anchor
+             IDs"/>
+  <int value="3"
+      label="The connection failed after retrying with fresh Trust Anchor IDs"/>
 </enum>
 
 <enum name="StorageAccessNetRequestKind">

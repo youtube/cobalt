@@ -133,13 +133,18 @@ class CORE_EXPORT MixedContentChecker final {
                                 bool was_allowed,
                                 const KURL& url_before_redirects,
                                 bool had_redirect,
-                                std::unique_ptr<SourceLocation>);
+                                SourceLocation*);
 
   static ConsoleMessage* CreateConsoleMessageAboutFetchAutoupgrade(
       const KURL& main_resource_url,
       const KURL& mixed_content_url);
 
   static ConsoleMessage* CreateConsoleMessageAboutFetchIPAddressNoAutoupgrade(
+      const KURL& main_resource_url,
+      const KURL& mixed_content_url);
+
+  static ConsoleMessage*
+  CreateConsoleMessageAboutFetchLocalNetworkNoAutoupgrade(
       const KURL& main_resource_url,
       const KURL& mixed_content_url);
 
@@ -173,7 +178,7 @@ class CORE_EXPORT MixedContentChecker final {
       const KURL&,
       mojom::blink::RequestContextType,
       bool allowed,
-      std::unique_ptr<SourceLocation>);
+      SourceLocation*);
   static ConsoleMessage* CreateConsoleMessageAboutWebSocket(const KURL&,
                                                             const KURL&,
                                                             bool allowed);

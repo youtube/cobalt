@@ -86,7 +86,7 @@ class LoginLogoutTestHelper {
     AccountId account_id =
         AccountId::FromUserEmail(GenerateDeviceLocalAccountUserId(
             "kiosk", policy::DeviceLocalAccountType::kKioskApp));
-    auto* const user = fake_user_manager_->AddKioskAppUser(account_id);
+    auto* const user = fake_user_manager_->AddKioskChromeAppUser(account_id);
     return CreateProfile(user);
   }
 
@@ -94,7 +94,7 @@ class LoginLogoutTestHelper {
     AccountId account_id =
         AccountId::FromUserEmail(GenerateDeviceLocalAccountUserId(
             "webkiosk", policy::DeviceLocalAccountType::kWebKioskApp));
-    auto* const user = fake_user_manager_->AddWebKioskAppUser(account_id);
+    auto* const user = fake_user_manager_->AddKioskWebAppUser(account_id);
     return CreateProfile(user);
   }
 
@@ -107,9 +107,9 @@ class LoginLogoutTestHelper {
         return CreateGuestProfile();
       case user_manager::UserType::kPublicAccount:
         return CreatePublicAccountProfile();
-      case user_manager::UserType::kKioskApp:
+      case user_manager::UserType::kKioskChromeApp:
         return CreateKioskAppProfile();
-      case user_manager::UserType::kWebKioskApp:
+      case user_manager::UserType::kKioskWebApp:
         return CreateWebKioskAppProfile();
       default:
         NOTREACHED();
@@ -339,9 +339,9 @@ INSTANTIATE_TEST_SUITE_P(All,
                                LoginLogoutSessionType::GUEST_SESSION},
                               {user_manager::UserType::kPublicAccount,
                                LoginLogoutSessionType::PUBLIC_ACCOUNT_SESSION},
-                              {user_manager::UserType::kKioskApp,
+                              {user_manager::UserType::kKioskChromeApp,
                                LoginLogoutSessionType::KIOSK_SESSION},
-                              {user_manager::UserType::kWebKioskApp,
+                              {user_manager::UserType::kKioskWebApp,
                                LoginLogoutSessionType::KIOSK_SESSION}}));
 
 class LoginFailureReporterTest : public ::testing::TestWithParam<AuthFailure> {

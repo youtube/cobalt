@@ -10,7 +10,7 @@
 #include "base/containers/span.h"
 #include "base/gtest_prod_util.h"
 #include "crypto/crypto_export.h"
-#include "third_party/boringssl/src/include/openssl/evp.h"
+#include "third_party/boringssl/src/include/openssl/digest.h"
 
 namespace crypto::obsolete {
 class Md5;
@@ -23,8 +23,16 @@ crypto::obsolete::Md5 MakeMd5HasherForZeroconf();
 std::string ServerPrinterId(const std::string& url);
 }  // namespace ash::printing
 
+namespace drive::util {
+crypto::obsolete::Md5 MakeMd5HasherForDriveApi();
+}
+
 namespace extensions::image_writer {
 crypto::obsolete::Md5 MakeMd5HasherForImageWriter();
+}
+
+namespace net {
+crypto::obsolete::Md5 MakeMd5HasherForHttpVaryData();
 }
 
 namespace policy {
@@ -34,6 +42,18 @@ crypto::obsolete::Md5 MakeMd5HasherForPolicyEventId();
 namespace web_app::internals {
 crypto::obsolete::Md5 MakeMd5HasherForWebAppShortcutIcon();
 }
+
+namespace cachetool {
+crypto::obsolete::Md5 MakeMd5HasherForCachetools();
+}
+
+namespace trusted_vault {
+std::string MD5StringForTrustedVault(const std::string& local_trusted_value);
+}
+
+namespace bookmarks {
+class BookmarkCodec;
+}  // namespace bookmarks
 
 namespace crypto::obsolete {
 
@@ -68,7 +88,9 @@ class CRYPTO_EXPORT Md5 {
   // The friends listed here are the areas required to continue using MD5 for
   // compatibility with existing specs, on-disk data, or similar.
   friend Md5 policy::MakeMd5HasherForPolicyEventId();
+  friend Md5 drive::util::MakeMd5HasherForDriveApi();
   friend Md5 extensions::image_writer::MakeMd5HasherForImageWriter();
+  friend Md5 cachetool::MakeMd5HasherForCachetools();
 
   // TODO(b/298652869): get rid of these.
   friend Md5 ash::printing::MakeMd5HasherForPrinterConfigurer();
@@ -76,8 +98,18 @@ class CRYPTO_EXPORT Md5 {
   friend Md5 ash::printing::MakeMd5HasherForZeroconf();
   friend std::string ash::printing::ServerPrinterId(const std::string& url);
 
+  // TODO(https://crbug.com/419853200): get rid of this.
+  friend Md5 net::MakeMd5HasherForHttpVaryData();
+
   // TODO(https://crbug.com/416304903): get rid of this.
   friend Md5 web_app::internals::MakeMd5HasherForWebAppShortcutIcon();
+
+  // TODO(https://crbug.com/425990763): get rid of this
+  friend std::string trusted_vault::MD5StringForTrustedVault(
+      const std::string& local_trusted_value);
+
+  // TODO(https://crbug.com/426243026): get rid of this.
+  friend class bookmarks::BookmarkCodec;
 
   Md5();
   static std::array<uint8_t, kSize> Hash(std::string_view data);

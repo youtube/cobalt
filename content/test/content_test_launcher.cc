@@ -18,6 +18,7 @@
 #include "content/public/test/test_launcher.h"
 #include "content/shell/common/shell_switches.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "testing/libfuzzer/fuzztest_init_helper.h"
 #include "ui/base/buildflags.h"
 #include "ui/base/ui_base_switches.h"
 
@@ -79,16 +80,19 @@ class ContentTestLauncherDelegate : public TestLauncherDelegate {
 
 }  // namespace content
 
-#if BUILDFLAG(IS_IOS) && BUILDFLAG(IS_IOS_APP_EXTENSION)
-extern "C" int ChildProcessMain(int argc, const char** argv)
-#else
-int main(int argc, char** argv)
-#endif
-{
+extern "C" int ContentTestMain(int argc, const char** argv) {
   base::CommandLine::Init(argc, argv);
   size_t parallel_jobs = base::NumParallelJobs(/*cores_per_job=*/2);
   if (parallel_jobs == 0U)
     return 1;
+
+  // This is needed because when running the browser test in multi-process
+  // mode, the FuzzTest initialization code will not get called in the child
+  // process.
+  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "single-process-tests")) {
+    MaybeInitFuzztest(argc, argv);
+  }
 
 #if BUILDFLAG(IS_WIN)
   // Load and pin user32.dll to avoid having to load it once tests start while
@@ -99,3 +103,9 @@ int main(int argc, char** argv)
   return LaunchTests(&launcher_delegate, parallel_jobs, argc,
                      const_cast<char**>(argv));
 }
+
+#if BUILDFLAG(IS_IOS)
+extern "C" int ChildProcessMain(int argc, const char** argv) {
+  return ContentTestMain(argc, argv);
+}
+#endif

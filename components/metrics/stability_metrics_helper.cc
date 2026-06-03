@@ -10,6 +10,7 @@
 
 #include "base/check.h"
 #include "base/containers/contains.h"
+#include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
@@ -94,6 +95,8 @@ std::string CdmMetricsNameToUmaPrefix(const std::string& metrics_name) {
     return uma_prefix + "CdmServiceBroker.";
   } else if (metrics_name == "media.mojom.MediaFoundationServiceBroker") {
     return uma_prefix + "MediaFoundationServiceBroker.";
+  } else if (metrics_name == "media.mojom.MediaDrmSupport") {
+    return uma_prefix + "MediaDrmSupport.";
   }
 
   NOTREACHED();

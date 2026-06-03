@@ -9,6 +9,7 @@
 #import "base/apple/bundle_locations.h"
 #import "base/check.h"
 #import "build/branding_buildflags.h"
+#import "ios/chrome/common/app_group/app_group_utils.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/elements/branded_navigation_item_title_view.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
@@ -46,7 +47,16 @@ CGFloat const kTitleViewSpacing = 3.0;
 // Custom detent identifier for when the bottom sheet is minimized.
 NSString* const kCustomMinimizedDetentIdentifier = @"customMinimizedDetent";
 
+// Constants for the MIM configuration.
+CGFloat const kMIMStackSpacing = 8.0;
+CGFloat const kAccountRowHeight = 57.0;
+CGFloat const kMIMViewCornerRadius = 10;
+CGFloat const kAvatarImageDimension = 30.0;
+
 }  // namespace
+
+@interface ShareExtensionSheet () <UITableViewDataSource, UITableViewDelegate>
+@end
 
 @implementation ShareExtensionSheet {
   NSString* _primaryString;
@@ -73,15 +83,22 @@ NSString* const kCustomMinimizedDetentIdentifier = @"customMinimizedDetent";
   self.showDismissBarButton = YES;
   self.alwaysShowImage = YES;
   self.topAlignedLayout = YES;
+  self.scrollEnabled = YES;
 
   self.customScrollViewBottomInsets = 0;
   self.customGradientViewHeight = 0;
 
   self.titleView = [self configureSheetTitleView];
 
-  self.underTitleView = [self configureMainView];
   self.dismissBarButtonSystemItem = UIBarButtonSystemItemClose;
   self.customDismissBarButtonImage = [self configureDismissButtonIcon];
+
+  if (app_group::MultiProfileShareExtensionEnabled()) {
+    self.mainBackgroundColor = [UIColor colorNamed:kSecondaryBackgroundColor];
+    self.underTitleView = [self createUnderTitleViewWithMIM];
+  } else {
+    self.underTitleView = [self configureMainView];
+  }
 
   [super viewDidLoad];
   [self setUpBottomSheetPresentationController];
@@ -95,6 +112,41 @@ NSString* const kCustomMinimizedDetentIdentifier = @"customMinimizedDetent";
       [self.delegate shareExtensionSheetDidDisappear:self];
     }
   }
+}
+
+- (void)viewDidLayoutSubviews {
+  [super viewDidLayoutSubviews];
+
+  if (app_group::MultiProfileShareExtensionEnabled() &&
+      ![self isScrolledToBottom]) {
+    [self scrollToBottom];
+  }
+}
+
+#pragma mark - UITableViewDataSource
+
+- (NSInteger)tableView:(UITableView*)tableView
+    numberOfRowsInSection:(NSInteger)section {
+  return 1;
+}
+
+- (NSInteger)numberOfSectionsInTableView:(UITableView*)tableView {
+  return 1;
+}
+
+- (UITableViewCell*)tableView:(UITableView*)tableView
+        cellForRowAtIndexPath:(NSIndexPath*)indexPath {
+  UITableViewCell* cell =
+      [tableView dequeueReusableCellWithIdentifier:@"Account"];
+  return [self configureAccountCell:cell];
+}
+
+#pragma mark - UITableViewDelegate
+
+- (void)tableView:(UITableView*)tableView
+    didSelectRowAtIndexPath:(NSIndexPath*)indexPath {
+  // TODO(crbug.com/425589952): Handle account selection and push the accounts
+  // VC.
 }
 
 #pragma mark - Public
@@ -164,30 +216,62 @@ NSString* const kCustomMinimizedDetentIdentifier = @"customMinimizedDetent";
 }
 
 - (void)confirmationAlertPrimaryAction {
+  NSString* gaiaID = self.selectedAccountInfo.gaiaID;
   switch (_sharedItemType) {
     case kURL:
-      [self.delegate didTapOpenInChromeShareExtensionSheet:self];
+      [self.delegate didTapOpenInChromeShareExtensionSheet:self gaiaID:gaiaID];
       return;
     case kImage:
     case kText:
-      [self.delegate didTapSearchInChromeShareExtensionSheet:self];
+      [self.delegate didTapSearchInChromeShareExtensionSheet:self
+                                                      gaiaID:gaiaID];
       return;
   }
 }
 
 - (void)confirmationAlertSecondaryAction {
+  NSString* gaiaID = self.selectedAccountInfo.gaiaID;
   switch (_sharedItemType) {
     case kURL:
-      [self.delegate didTapMoreOptionsShareExtensionSheet:self];
+      [self.delegate didTapMoreOptionsShareExtensionSheet:self gaiaID:gaiaID];
       return;
     case kImage:
     case kText:
-      [self.delegate didTapSearchInIncognitoShareExtensionSheet:self];
+      [self.delegate didTapSearchInIncognitoShareExtensionSheet:self
+                                                         gaiaID:gaiaID];
       return;
   }
 }
 
 #pragma mark - Private
+
+// Configures the account cell with the appropriate configuration based on
+// `selectedAccountInfo`.
+- (UITableViewCell*)configureAccountCell:(UITableViewCell*)cell {
+  CHECK(self.selectedAccountInfo);
+
+  UIListContentConfiguration* content = cell.defaultContentConfiguration;
+  if ([self.selectedAccountInfo.gaiaID isEqual:@"Default"]) {
+    // TODO(crbug.com/425571657): Add strings translation.
+    content.text = @"Signed out";
+    content.image = [[UIImage systemImageNamed:@"person.crop.circle"]
+        imageWithTintColor:[UIColor colorNamed:kGrey400Color]
+             renderingMode:UIImageRenderingModeAlwaysOriginal];
+
+  } else {
+    content.text = self.selectedAccountInfo.fullName;
+    content.secondaryText = self.selectedAccountInfo.email;
+    content.image = self.selectedAccountInfo.avatar;
+    UIListContentImageProperties* imageProperties = content.imageProperties;
+    imageProperties.cornerRadius = kAvatarImageDimension / 2.0;
+    imageProperties.maximumSize =
+        CGSize(kAvatarImageDimension, kAvatarImageDimension);
+  }
+  cell.contentConfiguration = content;
+  cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+  cell.selectionStyle = UITableViewCellSelectionStyleNone;
+  return cell;
+}
 
 // Configures the bottom sheet's presentation controller appearance.
 - (void)setUpBottomSheetPresentationController {
@@ -285,6 +369,36 @@ NSString* const kCustomMinimizedDetentIdentifier = @"customMinimizedDetent";
   AddSameCenterConstraints(mainView, innerView);
 
   return mainView;
+}
+
+- (UIStackView*)createUnderTitleViewWithMIM {
+  UIView* mainView = [self configureMainView];
+  mainView.backgroundColor =
+      [UIColor colorNamed:kUpdatedTertiaryBackgroundColor];
+  mainView.layer.cornerRadius = kMIMViewCornerRadius;
+
+  UITableView* accountTableView = [self createSelectedAccountTableView];
+  UIStackView* underTitleView = [[UIStackView alloc]
+      initWithArrangedSubviews:@[ mainView, accountTableView ]];
+  underTitleView.axis = UILayoutConstraintAxisVertical;
+  underTitleView.spacing = kMIMStackSpacing;
+
+  return underTitleView;
+}
+
+- (UITableView*)createSelectedAccountTableView {
+  UITableView* containerTable = [[UITableView alloc] initWithFrame:CGRectZero];
+  containerTable.rowHeight = kAccountRowHeight;
+  containerTable.separatorStyle = UITableViewCellSeparatorStyleNone;
+  containerTable.layer.cornerRadius = kMIMViewCornerRadius;
+  containerTable.scrollEnabled = NO;
+  [containerTable registerClass:[UITableViewCell class]
+         forCellReuseIdentifier:@"Account"];
+  containerTable.dataSource = self;
+  containerTable.delegate = self;
+  [containerTable.heightAnchor constraintEqualToConstant:kAccountRowHeight]
+      .active = YES;
+  return containerTable;
 }
 
 - (UIStackView*)configureSharedURLView {
@@ -407,8 +521,8 @@ NSString* const kCustomMinimizedDetentIdentifier = @"customMinimizedDetent";
   URLLabel.text = [_sharedURL absoluteString];
   URLLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote];
   URLLabel.textColor = [UIColor colorNamed:kTextTertiaryColor];
-  URLLabel.lineBreakMode = NSLineBreakByCharWrapping;
-  URLLabel.numberOfLines = 0;
+  URLLabel.lineBreakMode = NSLineBreakByTruncatingTail;
+  URLLabel.numberOfLines = 2;
 
   UIStackView* URLStackView =
       [[UIStackView alloc] initWithArrangedSubviews:@[ titleLabel, URLLabel ]];

@@ -33,6 +33,8 @@ source_set("on_device_internals") {
     "//chrome/browser/resources/on_device_internals:resources",
     "//chrome/common",
     "//content/public/browser",
+    "//services/on_device_model/ml:ml_no_internal",
+    "//services/preferences/public/cpp",
     "//ui/base",
     "//ui/webui",
   ]

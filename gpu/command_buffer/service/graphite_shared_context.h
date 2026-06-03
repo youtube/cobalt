@@ -5,6 +5,8 @@
 #ifndef GPU_COMMAND_BUFFER_SERVICE_GRAPHITE_SHARED_CONTEXT_H_
 #define GPU_COMMAND_BUFFER_SERVICE_GRAPHITE_SHARED_CONTEXT_H_
 
+#include <atomic>
+
 #include "base/functional/callback.h"
 #include "base/synchronization/lock.h"
 #include "gpu/gpu_gles2_export.h"
@@ -76,6 +78,21 @@ class GPU_GLES2_EXPORT GraphiteSharedContext {
                                  SkImage::RescaleMode rescaleMode,
                                  SkImageReadPixelsCallback callback,
                                  SkImage::ReadPixelsContext context);
+
+  bool asyncRescaleAndReadPixelsAndSubmit(const SkImage* src,
+                                          const SkImageInfo& dstImageInfo,
+                                          const SkIRect& srcRect,
+                                          SkImage::RescaleGamma rescaleGamma,
+                                          SkImage::RescaleMode rescaleMode,
+                                          SkImageReadPixelsCallback callback,
+                                          SkImage::ReadPixelsContext context);
+  bool asyncRescaleAndReadPixelsAndSubmit(const SkSurface* src,
+                                          const SkImageInfo& dstImageInfo,
+                                          const SkIRect& srcRect,
+                                          SkImage::RescaleGamma rescaleGamma,
+                                          SkImage::RescaleMode rescaleMode,
+                                          SkImageReadPixelsCallback callback,
+                                          SkImage::ReadPixelsContext context);
 
   void asyncRescaleAndReadPixelsYUV420(const SkImage* src,
                                        SkYUVColorSpace yuvColorSpace,
@@ -150,6 +167,12 @@ class GPU_GLES2_EXPORT GraphiteSharedContext {
   // The lock for protecting skgpu::graphite::Context.
   // Valid only when |is_thread_safe| is set to true in Ctor.
   mutable std::optional<base::Lock> lock_;
+
+  // This is the id of the thread where |lock_| is acquired, used for detecting
+  // recursive lock. |locked_thread_id_| is set to kInvalidThreadId when
+  // is_thread_safe is not enabled or when |lock_| is released.
+  mutable std::atomic<base::PlatformThreadId> locked_thread_id_{
+      base::kInvalidThreadId};
 
   const std::unique_ptr<skgpu::graphite::Context> graphite_context_;
 };

@@ -75,7 +75,6 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Page UserData"/>
   <int value="1" label="Cached lookup result"/>
   <int value="2" label="Post navigation lookup"/>
-  <int value="3" label="WebContents UserData"/>
 </enum>
 
 <enum name="DeviceIdentifierStatus">
@@ -473,6 +472,7 @@ chromium-metrics-reviews@google.com.
   <int value="34" label="FAILURE_INVALID_STATE"/>
   <int value="35" label="FAILURE_INVALID_ARGUMENT"/>
   <int value="36" label="FAILURE_NETWORK_FAILURE"/>
+  <int value="37" label="FAILURE_OPERATION_TIMEOUT"/>
 </enum>
 
 <enum name="EnterpriseDeviceManagementStatus">
@@ -1889,7 +1889,7 @@ chromium-metrics-reviews@google.com.
   <int value="1009" label="BatterySaverModeAvailability"/>
   <int value="1010" label="TabDiscardingExceptions"/>
   <int value="1011" label="AssistantWebEnabled"/>
-  <int value="1012" label="(Obsolete) LacrosDataBackwardMigrationMode"/>
+  <int value="1012" label="LacrosDataBackwardMigrationMode"/>
   <int value="1013" label="StrictMimetypeCheckForWorkerScriptsEnabled"/>
   <int value="1014" label="RecoveryFactorBehavior"/>
   <int value="1015" label="CalendarIntegrationEnabled"/>
@@ -2224,17 +2224,22 @@ chromium-metrics-reviews@google.com.
   <int value="1353" label="EnterpriseLogoUrlForBrowser"/>
   <int value="1354" label="EnterpriseCustomLabelForBrowser"/>
   <int value="1355" label="DefaultSmartCardConnectSetting"/>
-  <int value="1356" label="DeviceUserInitiatedFirmwareUpdate"/>
+  <int value="1356" label="DeviceUserInitiatedFirmwareUpdatesEnabled"/>
   <int value="1357" label="BuiltInAIAPIsEnabled"/>
   <int value="1358" label="TabGroupSharingSettings"/>
-  <int value="1359" label="NTPFootermanagementNoticeEnabled"/>
+  <int value="1359" label="NTPFooterManagementNoticeEnabled"/>
   <int value="1360" label="NTPFooterExtensionAttributionEnabled"/>
   <int value="1361" label="ClearWindowNameForNewBrowsingContextGroup"/>
   <int value="1362" label="PasswordManagerBlocklist"/>
   <int value="1363" label="TLS13EarlyDataEnabled"/>
   <int value="1364" label="LocalNetworkAccessRestrictionsEnabled"/>
   <int value="1365" label="PrefetchWithServiceWorkerEnabled"/>
-  <int value="1366" label="AIModeSearchSuggestSettings"/>
+  <int value="1367" label="AIModeSettings"/>
+  <int value="1368" label="WatermarkStyle"/>
+  <int value="1369" label="KioskApplicationLogCollectionEnabled"/>
+  <int value="1370" label="EnableUnsafeSwiftShader"/>
+  <int value="1371" label="LocalNetworkAccessAllowedForUrls"/>
+  <int value="1372" label="LocalNetworkAccessBlockedForUrls"/>
 </enum>
 
 <enum name="EnterprisePoliciesSources">

@@ -46,6 +46,7 @@ chromium-metrics-reviews@google.com.
   <variant name="History" summary="History"/>
   <variant name="HistoryEmbeddings" summary="HistoryEmbeddings"/>
   <variant name="HistoryInMemoryDB" summary="HistoryInMemoryDB"/>
+  <variant name="HttpCacheDiskCache" summary="HttpCacheDiskCache"/>
   <variant name="InterestGroups" summary="InterestGroups"/>
   <variant name="InterestGroupStorage" summary="InterestGroupStorage"/>
   <variant name="IpProtectionProbabilisticRevealTokens"
@@ -112,6 +113,41 @@ chromium-metrics-reviews@google.com.
     {DatabaseTag} database. Databases can sometimes trigger a second open
     attempt if the caller-provided error callback razes the database on open
     failure.
+  </summary>
+  <token key="DatabaseTag" variants="DatabaseTag"/>
+</histogram>
+
+<histogram name="Sql.Database.Raze.FailureReason.{DatabaseTag}"
+    enum="RazeDatabaseFailedReason" expires_after="2026-06-01">
+  <owner>etienneb@chromium.org</owner>
+  <owner>grt@chromium.org</owner>
+  <summary>
+    Reports the fine-grained reason for a failure in Database::Raze. Recorded
+    once per failure to raze the {DatabaseTag} database.
+  </summary>
+  <token key="DatabaseTag" variants="DatabaseTag"/>
+</histogram>
+
+<histogram name="Sql.Database.RazeTime.{DatabaseTag}" units="microseconds"
+    expires_after="2026-06-01">
+  <owner>etienneb@chromium.org</owner>
+  <owner>grt@chromium.org</owner>
+  <summary>
+    Reports the time spent in Raze, in microseconds. This typically executed
+    after an unrecoverable errors on {DatabaseTag} database.
+
+    Only reported for clients with high-resolution clocks.
+  </summary>
+  <token key="DatabaseTag" variants="DatabaseTag"/>
+</histogram>
+
+<histogram name="Sql.Database.Statement.Error.{DatabaseTag}"
+    enum="SqliteErrorCode" expires_after="2026-06-01">
+  <owner>etienneb@chromium.org</owner>
+  <owner>grt@chromium.org</owner>
+  <summary>
+    Reports sqlite errors triggered during execution of statements on the
+    {DatabaseTag} database.
   </summary>
   <token key="DatabaseTag" variants="DatabaseTag"/>
 </histogram>

@@ -1117,10 +1117,7 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
                     Pair<ArrayList<ChosenObjectInfo>, ArrayList<Website>> entry =
                             objects.get(info.getObject());
                     if (entry == null) {
-                        entry =
-                                Pair.create(
-                                        new ArrayList<ChosenObjectInfo>(),
-                                        new ArrayList<Website>());
+                        entry = Pair.create(new ArrayList<>(), new ArrayList<>());
                         objects.put(info.getObject(), entry);
                     }
                     entry.first.add(info);
@@ -1231,6 +1228,8 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
                 return R.string.website_settings_file_editing_page_description;
             } else if (mCategory.getType() == SiteSettingsCategory.Type.SERIAL_PORT) {
                 return R.string.website_settings_serial_port_page_description;
+            } else if (mCategory.getType() == SiteSettingsCategory.Type.LOCAL_NETWORK_ACCESS) {
+                return R.string.website_settings_local_network_access_page_description;
             }
         }
         return -1;

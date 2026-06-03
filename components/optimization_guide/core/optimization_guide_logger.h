@@ -6,6 +6,7 @@
 #define COMPONENTS_OPTIMIZATION_GUIDE_CORE_OPTIMIZATION_GUIDE_LOGGER_H_
 
 #include <string>
+#include <vector>
 
 #include "base/containers/circular_deque.h"
 #include "base/memory/raw_ptr.h"
@@ -13,8 +14,8 @@
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
 #include "base/time/time.h"
+#include "components/optimization_guide/core/hints/optimization_guide_decision.h"
 #include "components/optimization_guide/core/optimization_guide_common.mojom.h"
-#include "components/optimization_guide/core/optimization_guide_decision.h"
 #include "components/optimization_guide/proto/common_types.pb.h"
 #include "url/gurl.h"
 

@@ -177,7 +177,6 @@
 #include "content/browser/android/browser_startup_controller.h"
 #include "content/browser/android/input_token_forwarder_manager.h"
 #include "content/browser/android/launcher_thread.h"
-#include "content/browser/android/scoped_surface_request_manager.h"
 #include "content/browser/android/tracing_controller_android.h"
 #include "content/browser/font_unique_name_lookup/font_unique_name_lookup_android.h"
 #include "content/browser/screen_orientation/screen_orientation_delegate_android.h"
@@ -210,6 +209,8 @@
 
 #if defined(USE_GLIB)
 #include <glib-object.h>
+
+#include "base/synchronization/lock.h"
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -267,11 +268,17 @@ static void GLibLogHandler(const gchar* log_domain,
   if (!message)
     message = "<no message>";
 
-  GLogLevelFlags always_fatal_flags = g_log_set_always_fatal(G_LOG_LEVEL_MASK);
-  g_log_set_always_fatal(always_fatal_flags);
-  GLogLevelFlags fatal_flags =
-      g_log_set_fatal_mask(log_domain, G_LOG_LEVEL_MASK);
-  g_log_set_fatal_mask(log_domain, fatal_flags);
+  GLogLevelFlags always_fatal_flags;
+  GLogLevelFlags fatal_flags;
+  {
+    static base::NoDestructor<base::Lock> lock;
+    base::AutoLock auto_lock(*lock);
+    always_fatal_flags = g_log_set_always_fatal(G_LOG_LEVEL_MASK);
+    g_log_set_always_fatal(always_fatal_flags);
+    fatal_flags = g_log_set_fatal_mask(log_domain, G_LOG_LEVEL_MASK);
+    g_log_set_fatal_mask(log_domain, fatal_flags);
+  }
+
   if ((always_fatal_flags | fatal_flags) & log_level) {
     LOG(DFATAL) << log_domain << ": " << message;
   } else if (log_level & (G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL)) {
@@ -731,10 +738,8 @@ void BrowserMainLoop::PostCreateMainMessageLoop() {
 #if BUILDFLAG(IS_ANDROID)
   {
     TRACE_EVENT0("startup",
-                 "BrowserMainLoop::Subsystem:ScopedSurfaceRequestManager");
+                 "BrowserMainLoop::Subsystem:InputTokenForwarderManager");
     if (UsingInProcessGpu()) {
-      gpu::ScopedSurfaceRequestConduit::SetInstance(
-          ScopedSurfaceRequestManager::GetInstance());
       input::InputTokenForwarder::SetInstance(
           InputTokenForwarderManager::GetInstance());
     }
@@ -785,8 +790,8 @@ int BrowserMainLoop::PreCreateThreads() {
   // ChromeBrowserMainParts::PreCreateThreads() because it's used in
   // BackgroundTracingMetricsProvider.
   tracing_controller_ = std::make_unique<TracingControllerImpl>();
-  background_tracing_manager_ =
-      BackgroundTracingManagerImpl::CreateInstance();
+  background_tracing_manager_ = BackgroundTracingManagerImpl::CreateInstance(
+      tracing_controller_->tracing_delegate());
 
   // Make sure no accidental call to initialize GpuDataManager earlier.
   DCHECK(!GpuDataManagerImpl::Initialized());

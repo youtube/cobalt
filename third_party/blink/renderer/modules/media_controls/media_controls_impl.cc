@@ -1532,7 +1532,7 @@ void MediaControlsImpl::UpdateOverflowMenuItemCSSClass() const {
       continue;
 
     AtomicString css_class =
-        AtomicString(WTF::StrCat({"animated-", AtomicString::Number(id++)}));
+        AtomicString(StrCat({"animated-", AtomicString::Number(id++)}));
     if (!class_list.contains(css_class))
       class_list.setValue(css_class);
   }

@@ -155,7 +155,7 @@ void CookieControlsController::Update(content::WebContents* web_contents) {
   DCHECK(web_contents);
   if (!tab_observer_ || GetWebContents() != web_contents) {
     tab_observer_ = std::make_unique<TabObserver>(this, web_contents);
-    SetUserChangedCookieBlockingForSite(false);
+    SetStateChangedViaBypass(false);
   }
   if (observers_.empty()) {
     return;
@@ -232,18 +232,18 @@ CookieControlsController::Status CookieControlsController::GetStatus(
           info.metadata.expiration()};
 }
 
-void CookieControlsController::RecordActMetrics(bool pause_protections) {
+void CookieControlsController::RecordActMetrics(bool enable_protections) {
   if (GetIsSubresourceBlocked()) {
     base::RecordAction(UserMetricsAction(
-        pause_protections
-            ? "TrackingProtections.Bubble.FppActive.DisableProtections"
-            : "TrackingProtections.Bubble.FppActive.EnableProtections"));
+        enable_protections
+            ? "TrackingProtections.Bubble.FppActive.EnableProtections"
+            : "TrackingProtections.Bubble.FppActive.DisableProtections"));
   }
   if (GetIsSubresourceProxied()) {
     base::RecordAction(UserMetricsAction(
-        pause_protections
-            ? "TrackingProtections.Bubble.IppActive.DisableProtections"
-            : "TrackingProtections.Bubble.IppActive.EnableProtections"));
+        enable_protections
+            ? "TrackingProtections.Bubble.IppActive.EnableProtections"
+            : "TrackingProtections.Bubble.IppActive.DisableProtections"));
   }
 }
 
@@ -315,16 +315,18 @@ bool CookieControlsController::HasOriginSandboxedTopLevelDocument() const {
   return rfh->IsSandboxed(network::mojom::WebSandboxFlags::kOrigin);
 }
 
-void CookieControlsController::OnTrackingProtectionsChangedForSite(
-    bool pause_protections) {
+void CookieControlsController::OnTrackingProtectionsChangedForSite() {
   const GURL& url = GetWebContents()->GetLastCommittedURL();
-  if (pause_protections) {
-    tracking_protection_settings_->AddTrackingProtectionException(url);
-  } else {
+  bool reenable_protections =
+      tracking_protection_settings_->HasTrackingProtectionException(url);
+  if (reenable_protections) {
     tracking_protection_settings_->RemoveTrackingProtectionException(url);
+  } else {
+    tracking_protection_settings_->AddTrackingProtectionException(url);
   }
-  OnCookieBlockingEnabledForSite(!pause_protections);
-  RecordActMetrics(pause_protections);
+  OnCookieBlockingEnabledForSite(
+      /*block_third_party_cookies=*/reenable_protections);
+  RecordActMetrics(reenable_protections);
 }
 
 void CookieControlsController::OnCookieBlockingEnabledForSite(
@@ -364,14 +366,13 @@ void CookieControlsController::OnEntryPointAnimated() {
   ApplyMetadataChanges(settings_map_, url, std::move(metadata));
 }
 
-bool CookieControlsController::HasUserChangedCookieBlockingForSite() {
-  return user_changed_cookie_blocking_;
+bool CookieControlsController::StateChangedViaBypass() {
+  return user_changed_ub_state_;
 }
 
-void CookieControlsController::SetUserChangedCookieBlockingForSite(
-    bool changed) {
+void CookieControlsController::SetStateChangedViaBypass(bool changed) {
   // Avoid a toggle back and forth being marked as "changed".
-  user_changed_cookie_blocking_ = changed && !user_changed_cookie_blocking_;
+  user_changed_ub_state_ = changed && !user_changed_ub_state_;
 }
 
 int CookieControlsController::GetAllowedThirdPartyCookiesSitesCount() const {
@@ -472,10 +473,10 @@ void CookieControlsController::UpdateLastVisitedSitesMap() {
 
 void CookieControlsController::UpdatePageReloadStatus(
     int recent_reloads_count) {
-  if (HasUserChangedCookieBlockingForSite() && recent_reloads_count > 0) {
+  if (StateChangedViaBypass() && recent_reloads_count > 0) {
     waiting_for_page_load_finish_ = true;
   }
-  SetUserChangedCookieBlockingForSite(false);
+  SetStateChangedViaBypass(false);
   recent_reloads_count_ = recent_reloads_count;
 
   if (recent_reloads_count_ >= features::kUserBypassUIReloadCount.Get()) {

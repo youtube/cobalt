@@ -17,6 +17,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
+#include "base/trace_event/named_trigger.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
@@ -25,8 +26,10 @@
 #include "chrome/common/pref_names.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/prefs/pref_service.h"
+#include "components/tracing/common/background_tracing_metrics_provider.h"
 #include "components/tracing/common/background_tracing_state_manager.h"
 #include "components/tracing/common/background_tracing_utils.h"
+#include "components/tracing/common/system_profile_metadata_recorder.h"
 #include "components/tracing/common/tracing_scenarios_config.h"
 #include "components/variations/active_field_trials.h"
 #include "components/version_info/version_info.h"
@@ -58,9 +61,7 @@ using tracing::BackgroundTracingStateManager;
 
 }  // namespace
 
-ChromeTracingDelegate::ChromeTracingDelegate()
-    : state_manager_(tracing::BackgroundTracingStateManager::CreateInstance(
-          g_browser_process->local_state())) {
+ChromeTracingDelegate::ChromeTracingDelegate() {
   // Ensure that this code is called on the UI thread, except for
   // tests where a UI thread might not have been initialized at this point.
   DCHECK(
@@ -85,31 +86,47 @@ ChromeTracingDelegate::~ChromeTracingDelegate() {
 #if BUILDFLAG(IS_ANDROID)
 void ChromeTracingDelegate::OnTabModelAdded(TabModel* tab_model) {
   for (const TabModel* model : TabModelList::models()) {
-    if (model->GetProfile()->IsOffTheRecord())
-      incognito_launched_ = true;
+    if (model->GetProfile()->IsOffTheRecord()) {
+      latest_incognito_launched_ = base::TimeTicks::Now();
+      base::trace_event::EmitNamedTrigger("incognito-start");
+    }
   }
 }
 
-void ChromeTracingDelegate::OnTabModelRemoved(TabModel* tab_model) {}
+void ChromeTracingDelegate::OnTabModelRemoved(TabModel* tab_model) {
+  if (!IsOffTheRecordSessionActive()) {
+    base::trace_event::EmitNamedTrigger("incognito-end");
+  }
+}
 
 #else
 
 void ChromeTracingDelegate::OnBrowserAdded(Browser* browser) {
-  if (browser->profile()->IsOffTheRecord())
-    incognito_launched_ = true;
+  if (browser->profile()->IsOffTheRecord()) {
+    latest_incognito_launched_ = base::TimeTicks::Now();
+    base::trace_event::EmitNamedTrigger("incognito-start");
+  }
 }
+
+void ChromeTracingDelegate::OnBrowserRemoved(Browser* browser) {
+  if (!IsOffTheRecordSessionActive()) {
+    base::trace_event::EmitNamedTrigger("incognito-end");
+  }
+}
+
 #endif  // BUILDFLAG(IS_ANDROID)
 
 bool ChromeTracingDelegate::IsRecordingAllowed(
-    bool requires_anonymized_data) const {
+    bool requires_anonymized_data,
+    base::TimeTicks session_start) const {
   // If the background tracing is specified on the command-line, we allow
   // any scenario to be traced and uploaded.
-  if (tracing::IsBackgroundTracingEnabledFromCommandLine()) {
+  if (!requires_anonymized_data) {
     return true;
   }
 
-  if (requires_anonymized_data &&
-      (incognito_launched_ || IsOffTheRecordSessionActive())) {
+  if (IsOffTheRecordSessionActive() ||
+      session_start <= latest_incognito_launched_) {
     UMA_HISTOGRAM_ENUMERATION(
         "Tracing.Background.FinalizationDisallowedReason",
         TracingFinalizationDisallowedReason::kIncognitoLaunched);
@@ -121,6 +138,31 @@ bool ChromeTracingDelegate::IsRecordingAllowed(
 
 bool ChromeTracingDelegate::ShouldSaveUnuploadedTrace() const {
   return true;
+}
+
+std::unique_ptr<tracing::BackgroundTracingStateManager>
+ChromeTracingDelegate::CreateStateManager() {
+  return tracing::BackgroundTracingStateManager::CreateInstance(
+      g_browser_process->local_state());
+}
+
+std::string ChromeTracingDelegate::RecordSerializedSystemProfileMetrics()
+    const {
+  metrics::SystemProfileProto system_profile_proto;
+  auto recorder = tracing::BackgroundTracingMetricsProvider::
+      GetSystemProfileMetricsRecorder();
+  if (!recorder) {
+    return std::string();
+  }
+  recorder.Run(system_profile_proto);
+  std::string serialized_system_profile;
+  system_profile_proto.SerializeToString(&serialized_system_profile);
+  return serialized_system_profile;
+}
+
+tracing::MetadataDataSource::BundleRecorder
+ChromeTracingDelegate::CreateSystemProfileMetadataRecorder() const {
+  return base::BindRepeating(&tracing::RecordSystemProfileMetadata);
 }
 
 #if BUILDFLAG(IS_WIN)

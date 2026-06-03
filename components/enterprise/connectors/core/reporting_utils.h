@@ -17,6 +17,9 @@ namespace enterprise_connectors {
 // The maximum number of referrers to include in the referrer chain.
 inline constexpr int kReferrerUserGestureLimit = 5;
 
+using ReferrerChain =
+    google::protobuf::RepeatedPtrField<safe_browsing::ReferrerChainEntry>;
+
 // Helper functions that compiles information into event protos. The
 // logic is shared across platforms to ensure event consistency.
 //
@@ -57,7 +60,9 @@ std::optional<chrome::cros::reporting::proto::PasswordBreachEvent>
 GetPasswordBreachEvent(
     const std::string& trigger,
     const std::vector<std::pair<GURL, std::u16string>>& identities,
-    const enterprise_connectors::ReportingSettings& settings);
+    const enterprise_connectors::ReportingSettings& settings,
+    const std::string& profile_identifier,
+    const std::string& profile_username);
 
 chrome::cros::reporting::proto::SafeBrowsingPasswordReuseEvent
 GetPasswordReuseEvent(const GURL& url,
@@ -81,7 +86,19 @@ GetInterstitialEvent(const GURL& url,
                      const std::string& reason,
                      int net_error_code,
                      bool clicked_through,
-                     EventResult event_result);
+                     EventResult event_result,
+                     const std::string& profile_identifier,
+                     const std::string& profile_username,
+                     const ReferrerChain& referrer_chain);
+
+chrome::cros::reporting::proto::UrlFilteringInterstitialEvent
+GetUrlFilteringInterstitialEvent(
+    const GURL& url,
+    const std::string& threat_type,
+    const safe_browsing::RTLookupResponse& response,
+    const std::string& profile_identifier,
+    const std::string& profile_username,
+    const ReferrerChain& referrer_chain);
 
 chrome::cros::reporting::proto::BrowserCrashEvent GetBrowserCrashEvent(
     const std::string& channel,
@@ -92,10 +109,8 @@ chrome::cros::reporting::proto::BrowserCrashEvent GetBrowserCrashEvent(
 // Returns a list of the local IPv4 and IPv6 addresses of the device.
 std::vector<std::string> GetLocalIpAddresses();
 
-void AddReferrerChainToEvent(
-    const google::protobuf::RepeatedPtrField<safe_browsing::ReferrerChainEntry>&
-        referrer_chain,
-    base::Value::Dict& event);
+void AddReferrerChainToEvent(const ReferrerChain& referrer_chain,
+                             base::Value::Dict& event);
 
 }  // namespace enterprise_connectors
 

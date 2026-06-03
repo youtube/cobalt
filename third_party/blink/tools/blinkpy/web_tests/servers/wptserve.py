@@ -22,11 +22,11 @@ class WPTServe(server_base.ServerBase):
         # These ports must match external/wpt/config.json
         http_port = 8001
         http_alt_port = 8081
-        http_private_port = 8082
+        http_local_port = 8082
         http_public_port = 8093
         https_port = 8444
         https_alt_port = 8445
-        https_private_port = 8446
+        https_local_port = 8446
         https_public_port = 8447
         h2_port = 9000
         ws_port = 9001
@@ -42,7 +42,7 @@ class WPTServe(server_base.ServerBase):
             'port': http_alt_port,
             'scheme': 'http'
         }, {
-            'port': http_private_port,
+            'port': http_local_port,
             'scheme': 'http'
         }, {
             'port': http_public_port,
@@ -56,7 +56,7 @@ class WPTServe(server_base.ServerBase):
             'scheme': 'https',
             'sslcert': True
         }, {
-            'port': https_private_port,
+            'port': https_local_port,
             'scheme': 'https'
         }, {
             'port': https_public_port,
@@ -102,12 +102,11 @@ class WPTServe(server_base.ServerBase):
         if self._port_obj.host.filesystem.exists(path_to_ws_handlers):
             start_cmd += ['--ws_doc_root', path_to_ws_handlers]
 
-        if six.PY3:
-            self._mappings.append({
-                'port': webtransport_h3_port,
-                'scheme': 'webtransport-h3'
-            })
-            start_cmd.append('--webtransport-h3')
+        self._mappings.append({
+            'port': webtransport_h3_port,
+            'scheme': 'webtransport-h3'
+        })
+        start_cmd.append('--webtransport-h3')
 
         # TODO(burnik): We should stop setting the CWD once WPT can be run without it.
         self._cwd = finder.path_from_web_tests()

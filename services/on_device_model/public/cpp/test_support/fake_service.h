@@ -12,7 +12,6 @@
 #include "base/memory/weak_ptr.h"
 #include "base/run_loop.h"
 #include "build/build_config.h"
-#include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/unique_receiver_set.h"
 #include "services/on_device_model/public/cpp/model_assets.h"
@@ -43,8 +42,7 @@ struct FakeOnDeviceServiceSettings final {
   // If non-zero this amount of delay is added before the response is sent.
   base::TimeDelta execute_delay;
 
-  // The delay before running the GetEstimatedPerformanceClass() response
-  // callback.
+  // The delay before running the GetDevicePerformanceInfo() response callback.
   base::TimeDelta estimated_performance_delay;
 
   // If non-empty, used as the output from Execute().
@@ -120,9 +118,14 @@ class FakeOnDeviceSession final : public mojom::Session {
 class FakeOnDeviceModel : public mojom::OnDeviceModel {
  public:
   struct Data {
+    Data();
+    ~Data();
+    Data(const Data&);
+
     std::string base_weight = "";
     std::string adaptation_model_weight = "";
     std::string cache_weight = "";
+    std::vector<uint32_t> adaptation_ranks;
   };
   explicit FakeOnDeviceModel(FakeOnDeviceServiceSettings* settings,
                              Data&& data,
@@ -208,6 +211,14 @@ class FakeOnDeviceModelService : public mojom::OnDeviceModelService {
     return model_receivers_.size();
   }
 
+  FakeOnDeviceModel* model() {
+    auto contexts = model_receivers_.GetAllContexts();
+    if (contexts.size() != 1) {
+      return nullptr;
+    }
+    return *contexts.begin()->second;
+  }
+
  private:
   // mojom::OnDeviceModelService:
   void LoadModel(mojom::LoadModelParamsPtr params,
@@ -218,12 +229,13 @@ class FakeOnDeviceModelService : public mojom::OnDeviceModelService {
   void LoadTextSafetyModel(
       mojom::TextSafetyModelParamsPtr params,
       mojo::PendingReceiver<mojom::TextSafetyModel> model) override;
-  void GetEstimatedPerformanceClass(
-      GetEstimatedPerformanceClassCallback callback) override;
+  void GetDevicePerformanceInfo(
+      GetDevicePerformanceInfoCallback callback) override;
 
   raw_ptr<FakeOnDeviceServiceSettings> settings_;
   FakeTsHolder ts_holder_;
-  mojo::UniqueReceiverSet<mojom::OnDeviceModel> model_receivers_;
+  mojo::UniqueReceiverSet<mojom::OnDeviceModel, FakeOnDeviceModel*>
+      model_receivers_;
 };
 
 class FakeServiceLauncher final {
@@ -250,6 +262,14 @@ class FakeServiceLauncher final {
       total += (*context)->on_device_model_receiver_count();
     }
     return total;
+  }
+
+  FakeOnDeviceModelService* service() {
+    auto contexts = services_.GetAllContexts();
+    if (contexts.size() != 1) {
+      return nullptr;
+    }
+    return *contexts.begin()->second;
   }
 
   void CrashService() { services_.Clear(); }

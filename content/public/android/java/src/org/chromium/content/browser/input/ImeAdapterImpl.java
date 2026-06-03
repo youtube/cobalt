@@ -257,7 +257,7 @@ public class ImeAdapterImpl
     public static InputMethodManagerWrapper createDefaultInputMethodManagerWrapper(
             Context context,
             @Nullable WindowAndroid windowAndroid,
-            InputMethodManagerWrapper.Delegate delegate) {
+            InputMethodManagerWrapper.@Nullable Delegate delegate) {
         return new InputMethodManagerWrapperImpl(context, windowAndroid, delegate);
     }
 
@@ -419,7 +419,7 @@ public class ImeAdapterImpl
     }
 
     private View getContainerView() {
-        return mViewDelegate.getContainerView();
+        return assumeNonNull(mViewDelegate.getContainerView());
     }
 
     /**
@@ -569,20 +569,21 @@ public class ImeAdapterImpl
      * @param alwaysHide Whether the keyboard should be unconditionally hidden.
      * @param text The String contents of the field being edited.
      * @param selectionStart The character offset of the selection start, or the caret position if
-     *                       there is no selection.
+     *     there is no selection.
      * @param selectionEnd The character offset of the selection end, or the caret position if there
-     *                     is no selection.
+     *     is no selection.
      * @param compositionStart The character offset of the composition start, or -1 if there is no
-     *                         composition.
+     *     composition.
      * @param compositionEnd The character offset of the composition end, or -1 if there is no
-     *                       selection.
+     *     selection.
      * @param replyToRequest True when the update was requested by IME.
-     * @param lastVkVisibilityRequest VK visibility request type if show/hide APIs are called
-     *         from JS.
+     * @param lastVkVisibilityRequest VK visibility request type if show/hide APIs are called from
+     *     JS.
      * @param vkPolicy VK policy type whether it is manual or automatic.
      */
+    @VisibleForTesting
     @CalledByNative
-    private void updateState(
+    /*package*/ void updateState(
             int textInputType,
             int textInputFlags,
             int textInputMode,
@@ -642,13 +643,7 @@ public class ImeAdapterImpl
 
             boolean editable = focusedNodeEditable();
             boolean password = textInputType == TextInputType.PASSWORD;
-            if (mNodeEditable != editable || mNodePassword != password) {
-                for (ImeEventObserver observer : mEventObservers) {
-                    observer.onNodeAttributeUpdated(editable, password);
-                }
-                mNodeEditable = editable;
-                mNodePassword = password;
-            }
+            updateNodeAttributes(editable, password);
             if (mCursorAnchorInfoController != null
                     && (!TextUtils.equals(mLastText, text)
                             || mLastSelectionStart != selectionStart
@@ -731,6 +726,16 @@ public class ImeAdapterImpl
         }
     }
 
+    private void updateNodeAttributes(boolean isEditable, boolean isPassword) {
+        if (mNodeEditable != isEditable || mNodePassword != isPassword) {
+            for (ImeEventObserver observer : mEventObservers) {
+                observer.onNodeAttributeUpdated(isEditable, isPassword);
+            }
+            mNodeEditable = isEditable;
+            mNodePassword = isPassword;
+        }
+    }
+
     @Override
     public void onShowKeyboardReceiveResult(int resultCode) {
         if (!isValid()) return;
@@ -774,7 +779,7 @@ public class ImeAdapterImpl
         if (!isValid()) return;
         if (DEBUG_LOGS) Log.i(TAG, "hideKeyboard");
         View view = mViewDelegate.getContainerView();
-        if (mInputMethodManagerWrapper.isActive(view)) {
+        if (view != null && mInputMethodManagerWrapper.isActive(view)) {
             // NOTE: we should not set ResultReceiver here. Otherwise, IMM will own
             // ImeAdapter even after input method goes away and result gets received.
             mInputMethodManagerWrapper.hideSoftInputFromWindow(view.getWindowToken(), 0, null);
@@ -864,6 +869,19 @@ public class ImeAdapterImpl
         }
     }
 
+    /** Resets IME adapter and hides keyboard. Note that this will also unblock input connection. */
+    @Override
+    public void resetAndHideKeyboard() {
+        if (DEBUG_LOGS) Log.i(TAG, "resetAndHideKeyboard");
+        mTextInputType = TextInputType.NONE;
+        mTextInputFlags = 0;
+        mTextInputMode = WebTextInputMode.DEFAULT;
+        mRestartInputOnNextStateUpdate = false;
+        updateNodeAttributes(/* isEditable= */ false, mNodePassword);
+        // This will trigger unblocking if necessary.
+        hideKeyboard();
+    }
+
     private static boolean isTextInputType(int type) {
         return type != TextInputType.NONE && !InputDialogContainer.isDialogInputType(type);
     }
@@ -879,18 +897,6 @@ public class ImeAdapterImpl
         }
         if (mInputConnection != null) return mInputConnection.sendKeyEventOnUiThread(event);
         return sendKeyEvent(event);
-    }
-
-    /** Resets IME adapter and hides keyboard. Note that this will also unblock input connection. */
-    public void resetAndHideKeyboard() {
-        if (DEBUG_LOGS) Log.i(TAG, "resetAndHideKeyboard");
-        mTextInputType = TextInputType.NONE;
-        mTextInputFlags = 0;
-        mTextInputMode = WebTextInputMode.DEFAULT;
-        mRestartInputOnNextStateUpdate = false;
-        mNodeEditable = false;
-        // This will trigger unblocking if necessary.
-        hideKeyboard();
     }
 
     @CalledByNative
@@ -1267,7 +1273,7 @@ public class ImeAdapterImpl
                 .onFocusedNodeChanged(
                         editableNodeBounds,
                         isEditable,
-                        mViewDelegate.getContainerView(),
+                        assumeNonNull(mViewDelegate.getContainerView()),
                         deviceScale,
                         mWebContents.getRenderCoordinates().getContentOffsetYPixInt());
     }

@@ -15,7 +15,6 @@
 #include "chrome/enterprise_companion/dm_client.h"
 #include "chrome/enterprise_companion/enterprise_companion_status.h"
 #include "chrome/enterprise_companion/event_logger.h"
-#include "chrome/enterprise_companion/telemetry_logger/telemetry_logger.h"
 #include "components/policy/core/common/cloud/cloud_policy_constants.h"
 #include "components/policy/core/common/policy_types.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -74,7 +73,7 @@ TEST_F(EnterpriseCompanionServiceTest, Shutdown) {
                                        base::MakeRefCounted<MockLogger>(),
                                        service_run_loop.QuitClosure());
 
-  EXPECT_CALL(shutdown_callback, Run()).Times(1);
+  EXPECT_CALL(shutdown_callback, Run());
   service->Shutdown(shutdown_callback.Get());
   service_run_loop.Run(FROM_HERE);
 }

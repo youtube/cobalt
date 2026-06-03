@@ -190,13 +190,13 @@
         Standard playback
       </message>
       <message name="IDS_READALOUD_CHROME_NOW_PLAYING_AUDIO_OVERVIEW" desc="Text in the expanded player appearing before the title, when in Audio Overviews mode.">
-        AI audio playback
+        AI playback
       </message>
       <message name="IDS_READALOUD_FEEDBACK_THUMB_UP" desc="Accessibility string for thumb up button (for audio overview mode only).">
-        Thumb up
+        Thumbs up button, select to submit feedback that you like this feature
       </message>
       <message name="IDS_READALOUD_FEEDBACK_THUMB_DOWN" desc="Accessibility string for thumb down button (for audio overview mode only).">
-        Thumb down
+        Thumbs down button, select to open a form to give detailed feedback about an issue with this feature
       </message>
       <message name="IDS_READALOUD_NEGATIVE_FEEDBACK_MENU_TITLE" desc="Menu title for negative feedback.">
         What went wrong?
@@ -255,8 +255,11 @@
       <message name="IDS_READALOUD_MENU_BACK" desc="Accessibility string for the 'navigate back' button on the bottom sheet menus.">
         Back
       </message>
-      <message name="IDS_READALOUD_PLAYBACK_MODE" desc="Accessibility string for the playback mode selector.">
-        Playback mode selector
+      <message name="IDS_READALOUD_PLAYBACK_MODE_SELECTOR_CLASSIC" desc="Accessibility string for when the playback mode selector is in classic mode.">
+        Standard playback
+      </message>
+      <message name="IDS_READALOUD_PLAYBACK_MODE_SELECTOR_OVERVIEW" desc="Accessibility string for when the playback mode selector is in overview mode.">
+        AI playback
       </message>
       <message name="IDS_READALOUD_PLAYBACK_ERROR" desc="Message displayed when an error occured during 'Listen to this page' playback.">
         Playback is unavailable for this page.
@@ -270,8 +273,14 @@
       <message name="IDS_READALOUD_PLAYBACK_LOADING" desc="Message displayed when 'Listen to this page' playback is buffering.">
         Loading…
       </message>
+      <message name="IDS_READALOUD_MINI_PLAYER_SPINNER_CLASSIC_CONTENT_DESCRIPTION" desc="Accessibility string for the mini-player spinner when loading classic readaloud">
+        Loading
+      </message>
+      <message name="IDS_READALOUD_MINI_PLAYER_SPINNER_OVERVIEW_CONTENT_DESCRIPTION" desc="Accessibility string for the mini-player spinner when loading audio overviews">
+        Generating AI playback
+      </message>
       <message name="IDS_READALOUD_MINI_PLAYER_LOADING_AI_PLAYBACK" desc="Description message displayed in the mini player when about to play Audio Overviews">
-        Generating AI audio...
+        Generating AI playback...
       </message>
        <message name="IDS_READALOUD_VOICE_MENU_TITLE" desc="Voice menu title in options menu.">
         Voice
@@ -289,7 +298,7 @@
         Playback Speed
       </message>
       <message name="IDS_READALOUD_SEEK_BAR" desc="Accessibility string for the 'seekbar'.">
-        Scrub Playback
+        Seek control. <ph name="ELAPSED">%1$s<ex>23 seconds</ex></ph> elapsed out of <ph name="TOTAL">%2$s<ex>30 seconds</ex></ph>.
       </message>
       <message name="IDS_READALOUD_OPTIONS_MENU_DESCRIPTION" desc="Accessibility string announced when the player options menu is opened.">
         Options menu

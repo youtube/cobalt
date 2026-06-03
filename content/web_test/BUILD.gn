@@ -233,6 +233,7 @@ static_library("web_test_browser") {
     "//components/network_session_configurator/common",
     "//components/origin_trials:common",
     "//components/proxy_config",
+    "//components/subresource_filter/core/common:test_support",
     "//content/browser:for_content_tests",  # For non-component builds.
     "//content/public/browser",  # For component builds.
     "//content/shell:content_shell_lib",
@@ -243,7 +244,6 @@ static_library("web_test_browser") {
     "//device/bluetooth:fake_bluetooth",
     "//device/bluetooth:mocks",
     "//device/bluetooth/public/mojom:fake_bluetooth_interfaces",
-    "//gpu",
     "//media",
     "//net",
     "//net:net_resources",
@@ -326,7 +326,6 @@ group("web_test_renderer_public_deps") {
     "//device/gamepad/public/cpp:shared_with_blink",
     "//device/gamepad/public/mojom",
     "//gin",
-    "//gpu",
     "//mojo/public/cpp/bindings",
     "//services/device/public/mojom",
     "//third_party/blink/public:blink_headers",
@@ -338,6 +337,23 @@ group("web_test_renderer_public_deps") {
     "//url",
     "//v8",
   ]
+}
+
+static_library("test_support") {
+  testonly = true
+
+  if (is_component_build) {
+    check_includes = false
+  }
+
+  sources = [
+    "renderer/test_runner_utils.cc",
+    "renderer/test_runner_utils.h",
+  ]
+
+  deps = [ "//base" ]
+
+  public_deps = []
 }
 
 static_library("web_test_renderer") {
@@ -367,8 +383,6 @@ static_library("web_test_renderer") {
     "renderer/event_sender.h",
     "renderer/fake_screen_orientation_impl.cc",
     "renderer/fake_screen_orientation_impl.h",
-    "renderer/fake_subresource_filter.cc",
-    "renderer/fake_subresource_filter.h",
     "renderer/gamepad_controller.cc",
     "renderer/gamepad_controller.h",
     "renderer/gc_controller.cc",
@@ -402,10 +416,13 @@ static_library("web_test_renderer") {
   ]
   deps = [
     "//components/plugins/renderer",
+    "//components/subresource_filter/content/renderer",
+    "//components/subresource_filter/core/common",
     "//components/viz/common",
     "//components/web_cache/renderer",
     "//content/public/common",
     "//content/test:test_support",
+    "//content/web_test:test_support",
     "//gpu/command_buffer/client:gles2_interface",
     "//media/capture",
     "//printing/buildflags",

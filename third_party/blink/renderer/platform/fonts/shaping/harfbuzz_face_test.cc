@@ -66,8 +66,8 @@ hb_codepoint_t GetGlyphForEmojiVSFromFontWithBaseCharOnly(
 }
 
 hb_codepoint_t GetGlyphForStandardizedVSFromFontWithBaseCharOnly() {
-  UChar32 character = kMongolianLetterA;
-  UChar32 variation_selector = kMongolianFreeVariationSelectorTwo;
+  UChar32 character = uchar::kMongolianLetterA;
+  UChar32 variation_selector = uchar::kMongolianFreeVariationSelectorTwo;
 
   Font* font = test::CreateTestFont(AtomicString("Noto Sans Mongolian"),
                                     blink::test::BlinkWebTestsFontsTestDataPath(
@@ -78,8 +78,8 @@ hb_codepoint_t GetGlyphForStandardizedVSFromFontWithBaseCharOnly() {
 }
 
 hb_codepoint_t GetGlyphForCJKVSFromFontWithVS() {
-  UChar32 character = kFullwidthExclamationMark;
-  UChar32 variation_selector = kVariationSelector2Character;
+  UChar32 character = uchar::kFullwidthExclamationMark;
+  UChar32 variation_selector = uchar::kVariationSelector2;
 
   Font* font = test::CreateTestFont(
       AtomicString("Noto Sans CJK JP"),
@@ -126,8 +126,8 @@ TEST(HarfBuzzFaceTest,
 TEST(HarfBuzzFaceTest, HarfBuzzGetNominalGlyph_TestFontWithoutBaseChar) {
   HarfBuzzFace::SetVariationSelectorMode(kUseSpecifiedVariationSelector);
 
-  UChar32 character = kFullwidthExclamationMark;
-  UChar32 variation_selector = kVariationSelector2Character;
+  UChar32 character = uchar::kFullwidthExclamationMark;
+  UChar32 variation_selector = uchar::kVariationSelector2;
 
   Font* font = test::CreateAhemFont(11);
   EXPECT_FALSE(GetGlyphForVariationSequenceFromFont(font, character,
@@ -137,7 +137,7 @@ TEST(HarfBuzzFaceTest, HarfBuzzGetNominalGlyph_TestFontWithoutBaseChar) {
 TEST(HarfBuzzFaceTest, HarfBuzzGetNominalGlyph_TestVariantEmojiEmoji) {
   HarfBuzzFace::SetVariationSelectorMode(kForceVariationSelector16);
 
-  UChar32 character = kShakingFaceEmoji;
+  UChar32 character = uchar::kShakingFaceEmoji;
   UChar32 variation_selector = 0;
 
   hb_codepoint_t glyph_from_font_with_vs15 =
@@ -160,7 +160,7 @@ TEST(HarfBuzzFaceTest, HarfBuzzGetNominalGlyph_TestVariantEmojiEmoji) {
 TEST(HarfBuzzFaceTest, HarfBuzzGetNominalGlyph_TestVariantEmojiText) {
   HarfBuzzFace::SetVariationSelectorMode(kForceVariationSelector15);
 
-  UChar32 character = kShakingFaceEmoji;
+  UChar32 character = uchar::kShakingFaceEmoji;
   UChar32 variation_selector = 0;
 
   hb_codepoint_t glyph_from_font_with_vs15 =
@@ -183,7 +183,7 @@ TEST(HarfBuzzFaceTest, HarfBuzzGetNominalGlyph_TestVariantEmojiText) {
 TEST(HarfBuzzFaceTest, HarfBuzzGetNominalGlyph_TestVariantEmojiUnicode) {
   HarfBuzzFace::SetVariationSelectorMode(kUseUnicodeDefaultPresentation);
 
-  UChar32 character = kShakingFaceEmoji;
+  UChar32 character = uchar::kShakingFaceEmoji;
   UChar32 variation_selector = 0;
 
   hb_codepoint_t glyph_from_font_with_vs15 =
@@ -206,8 +206,8 @@ TEST(HarfBuzzFaceTest, HarfBuzzGetNominalGlyph_TestVariantEmojiUnicode) {
 TEST(HarfBuzzFaceTest, HarfBuzzGetNominalGlyph_TestVSOverrideVariantEmoji) {
   HarfBuzzFace::SetVariationSelectorMode(kForceVariationSelector16);
 
-  UChar32 character = kShakingFaceEmoji;
-  UChar32 variation_selector = kVariationSelector15Character;
+  UChar32 character = uchar::kShakingFaceEmoji;
+  UChar32 variation_selector = uchar::kVariationSelector15;
 
   hb_codepoint_t glyph_from_font_with_vs15 =
       GetGlyphForEmojiVSFromFontWithVS15(character, variation_selector);
@@ -235,15 +235,15 @@ TEST(HarfBuzzFaceTest, HarfBuzzGetNominalGlyph_TestSystemFallbackEmojiVS) {
 
   HarfBuzzFace::SetVariationSelectorMode(kUseSpecifiedVariationSelector);
 
-  UChar32 character = kShakingFaceEmoji;
+  UChar32 character = uchar::kShakingFaceEmoji;
 
   hb_codepoint_t glyph_from_font_with_vs15 = GetGlyphForEmojiVSFromFontWithVS15(
-      character, kVariationSelector15Character);
+      character, uchar::kVariationSelector15);
   EXPECT_TRUE(glyph_from_font_with_vs15);
   EXPECT_NE(glyph_from_font_with_vs15, kUnmatchedVSGlyphId);
 
   hb_codepoint_t glyph_from_font_with_vs16 = GetGlyphForEmojiVSFromFontWithVS16(
-      character, kVariationSelector16Character);
+      character, uchar::kVariationSelector16);
   EXPECT_TRUE(glyph_from_font_with_vs16);
   EXPECT_NE(glyph_from_font_with_vs16, kUnmatchedVSGlyphId);
 

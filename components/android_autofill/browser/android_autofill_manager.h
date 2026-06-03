@@ -91,8 +91,7 @@ class AndroidAutofillManager : public AutofillManager,
       const FieldGlobalId& field_id,
       const gfx::Rect& caret_bounds,
       AutofillSuggestionTriggerSource trigger_source,
-      base::optional_ref<const PasswordSuggestionRequest> password_request)
-      override;
+      std::optional<PasswordSuggestionRequest> password_request) override;
 
   void OnFocusOnFormFieldImpl(const FormData& form,
                               const FieldGlobalId& field_id) override;
@@ -141,6 +140,7 @@ class AndroidAutofillManager : public AutofillManager,
   // The forms that have received server predictions.
   base::flat_set<FormGlobalId> forms_with_server_predictions_;
   std::unique_ptr<AndroidFormEventLogger> address_logger_;
+  std::unique_ptr<AndroidFormEventLogger> loyalty_card_logger_;
   std::unique_ptr<AndroidFormEventLogger> payments_logger_;
   std::unique_ptr<AndroidFormEventLogger> password_logger_;
 

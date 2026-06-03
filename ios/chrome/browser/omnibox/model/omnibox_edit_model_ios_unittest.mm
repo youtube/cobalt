@@ -33,10 +33,8 @@
 #import "components/url_formatter/url_fixer.h"
 #import "extensions/buildflags/buildflags.h"
 #import "ios/chrome/browser/omnibox/model/omnibox_controller_ios.h"
-#import "ios/chrome/browser/omnibox/model/omnibox_view_ios.h"
+#import "ios/chrome/browser/omnibox/model/omnibox_text_controller.h"
 #import "ios/chrome/browser/omnibox/model/test_omnibox_edit_model_ios.h"
-#import "ios/chrome/browser/omnibox/model/test_omnibox_popup_view_ios.h"
-#import "ios/chrome/browser/omnibox/model/test_omnibox_view_ios.h"
 #import "testing/gmock/include/gmock/gmock.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/platform_test.h"
@@ -83,201 +81,100 @@ void OpenUrlFromEditBox(OmniboxControllerIOS* controller,
 
 }  // namespace
 
+// Mocking the text controller to not rely on the textfield view.
+@interface TestOmniboxTextController : OmniboxTextController
+@end
+
+@implementation TestOmniboxTextController {
+  std::u16string text_;
+}
+
+- (std::u16string)displayedText {
+  return text_;
+}
+
+- (void)setWindowText:(const std::u16string&)text
+             caretPos:(size_t)caretPos
+    startAutocomplete:(BOOL)startAutocomplete
+    notifyTextChanged:(BOOL)notifyTextChanged {
+  [super setWindowText:text
+               caretPos:caretPos
+      startAutocomplete:startAutocomplete
+      notifyTextChanged:notifyTextChanged];
+  text_ = text;
+}
+
+- (void)updateAutocompleteIfTextChanged:(const std::u16string&)userText
+                         autocompletion:
+                             (const std::u16string&)inlineAutocomplete {
+  [super updateAutocompleteIfTextChanged:userText
+                          autocompletion:inlineAutocomplete];
+  text_ = userText + inlineAutocomplete;
+}
+
+@end
+
 class OmniboxEditModelIOSTest : public PlatformTest {
  public:
   OmniboxEditModelIOSTest() {
-    auto omnibox_client = std::make_unique<TestOmniboxClient>();
-    omnibox_client_ = omnibox_client.get();
+    omnibox_client_ = std::make_unique<TestOmniboxClient>();
 
-    view_ = std::make_unique<TestOmniboxViewIOS>(std::move(omnibox_client));
-    view_->controller()->SetEditModelForTesting(
-        std::make_unique<TestOmniboxEditModelIOS>(view_->controller(),
-                                                  view_.get(),
-                                                  /*pref_service=*/nullptr));
+    omnibox_controller_ =
+        std::make_unique<OmniboxControllerIOS>(omnibox_client_.get());
+    omnibox_text_model_ =
+        std::make_unique<OmniboxTextModel>(omnibox_client_.get());
+    omnibox_edit_model_ = std::make_unique<TestOmniboxEditModelIOS>(
+        omnibox_controller_.get(), /*pref_service=*/nullptr,
+        omnibox_text_model_.get());
+    omnibox_text_controller_ = [[TestOmniboxTextController alloc]
+        initWithOmniboxController:omnibox_controller_.get()
+                 omniboxEditModel:omnibox_edit_model_.get()
+                 omniboxTextModel:omnibox_text_model_.get()
+                    inLensOverlay:NO];
+    omnibox_edit_model_->set_text_controller(omnibox_text_controller_);
   }
 
-  TestOmniboxViewIOS* view() { return view_.get(); }
   TestLocationBarModel* location_bar_model() {
     return omnibox_client_->location_bar_model();
   }
-  TestOmniboxEditModelIOS* model() {
-    return static_cast<TestOmniboxEditModelIOS*>(view_->model());
-  }
-  OmniboxControllerIOS* controller() { return view_->controller(); }
+  TestOmniboxEditModelIOS* model() { return omnibox_edit_model_.get(); }
+  OmniboxControllerIOS* controller() { return omnibox_controller_.get(); }
 
  protected:
   base::test::TaskEnvironment task_environment_;
-  raw_ptr<TestOmniboxClient, DanglingUntriaged> omnibox_client_;
-  std::unique_ptr<TestOmniboxViewIOS> view_;
+  TestOmniboxTextController* omnibox_text_controller_;
+  std::unique_ptr<TestOmniboxClient> omnibox_client_;
+  std::unique_ptr<OmniboxControllerIOS> omnibox_controller_;
+  std::unique_ptr<OmniboxTextModel> omnibox_text_model_;
+  std::unique_ptr<TestOmniboxEditModelIOS> omnibox_edit_model_;
 };
-
-// Tests various permutations of AutocompleteModel::AdjustTextForCopy.
-TEST_F(OmniboxEditModelIOSTest, AdjustTextForCopy) {
-  struct Data {
-    const char* url_for_editing;
-    const int sel_start;
-
-    const char* match_destination_url;
-    const bool is_match_selected_in_popup;
-
-    const char* input;
-    const char* expected_output;
-    const bool write_url;
-    const char* expected_url;
-
-    const char* url_for_display = "";
-  };
-  auto input = std::to_array<Data>({
-      // Test that http:// is inserted if all text is selected.
-      {"a.de/b", 0, "", false, "a.de/b", "http://a.de/b", true,
-       "http://a.de/b"},
-
-      // Test that http:// and https:// are inserted if the host is selected.
-      {"a.de/b", 0, "", false, "a.de/", "http://a.de/", true, "http://a.de/"},
-      {"https://a.de/b", 0, "", false, "https://a.de/", "https://a.de/", true,
-       "https://a.de/"},
-
-      // Tests that http:// is inserted if the path is modified.
-      {"a.de/b", 0, "", false, "a.de/c", "http://a.de/c", true,
-       "http://a.de/c"},
-
-      // Tests that http:// isn't inserted if the host is modified.
-      {"a.de/b", 0, "", false, "a.com/b", "a.com/b", false, ""},
-
-      // Tests that http:// isn't inserted if the start of the selection is 1.
-      {"a.de/b", 1, "", false, "a.de/b", "a.de/b", false, ""},
-
-      // Tests that http:// isn't inserted if a portion of the host is selected.
-      {"a.de/", 0, "", false, "a.d", "a.d", false, ""},
-
-      // Tests that http:// isn't inserted if the user adds to the host.
-      {"a.de/", 0, "", false, "a.de.com/", "a.de.com/", false, ""},
-
-      // Tests that we don't get double schemes if the user manually inserts
-      // a scheme.
-      {"a.de/", 0, "", false, "http://a.de/", "http://a.de/", true,
-       "http://a.de/"},
-      {"a.de/", 0, "", false, "HTtp://a.de/", "http://a.de/", true,
-       "http://a.de/"},
-      {"https://a.de/", 0, "", false, "https://a.de/", "https://a.de/", true,
-       "https://a.de/"},
-
-      // Test that we don't get double schemes or revert the change if the user
-      // manually changes the scheme from 'http://' to 'https://' or vice versa.
-      {"a.de/", 0, "", false, "https://a.de/", "https://a.de/", true,
-       "https://a.de/"},
-      {"https://a.de/", 0, "", false, "http://a.de/", "http://a.de/", true,
-       "http://a.de/"},
-
-      // Makes sure intranet urls get 'http://' prefixed to them.
-      {"b/foo", 0, "", false, "b/foo", "http://b/foo", true, "http://b/foo",
-       "b/foo"},
-
-      // Verifies a search term 'foo' doesn't end up with http.
-      {"www.google.com/search?", 0, "", false, "foo", "foo", false, ""},
-
-      // Verifies that http:// and https:// are inserted for a match in a popup.
-      {"a.com", 0, "http://b.com/foo", true, "b.com/foo", "http://b.com/foo",
-       true, "http://b.com/foo"},
-      {"a.com", 0, "https://b.com/foo", true, "b.com/foo", "https://b.com/foo",
-       true, "https://b.com/foo"},
-
-      // Even if the popup is open, if the input text doesn't correspond to the
-      // current match, ignore the current match.
-      {"a.com/foo", 0, "https://b.com/foo", true, "a.com/foo", "a.com/foo",
-       false, "a.com/foo"},
-      {"https://b.com/foo", 0, "https://b.com/foo", true, "https://b.co",
-       "https://b.co", false, "https://b.co"},
-
-      // Verifies that no scheme is inserted if there is no valid match.
-      {"a.com", 0, "", true, "b.com/foo", "b.com/foo", false, ""},
-
-      // Steady State Elisions test for re-adding an elided 'https://'.
-      {"https://a.de/b", 0, "", false, "a.de/b", "https://a.de/b", true,
-       "https://a.de/b", "a.de/b"},
-
-      // Verifies that non-ASCII characters are %-escaped for valid copied URLs,
-      // as long as the host has not been modified from the page URL.
-      {"https://ja.wikipedia.org/wiki/目次", 0, "", false,
-       "https://ja.wikipedia.org/wiki/目次",
-       "https://ja.wikipedia.org/wiki/%E7%9B%AE%E6%AC%A1", true,
-       "https://ja.wikipedia.org/wiki/%E7%9B%AE%E6%AC%A1"},
-      // Test escaping when part of the path was not copied.
-      {"https://ja.wikipedia.org/wiki/目次", 0, "", false,
-       "https://ja.wikipedia.org/wiki/目",
-       "https://ja.wikipedia.org/wiki/%E7%9B%AE", true,
-       "https://ja.wikipedia.org/wiki/%E7%9B%AE"},
-      // Correctly handle escaping in the scheme-elided case as well.
-      {"https://ja.wikipedia.org/wiki/目次", 0, "", false,
-       "ja.wikipedia.org/wiki/目次",
-       "https://ja.wikipedia.org/wiki/%E7%9B%AE%E6%AC%A1", true,
-       "https://ja.wikipedia.org/wiki/%E7%9B%AE%E6%AC%A1",
-       "ja.wikipedia.org/wiki/目次"},
-      // Don't escape when host was modified.
-      {"https://ja.wikipedia.org/wiki/目次", 0, "", false,
-       "https://wikipedia.org/wiki/目次", "https://wikipedia.org/wiki/目次",
-       false, ""},
-  });
-
-  for (size_t i = 0; i < std::size(input); ++i) {
-    location_bar_model()->set_formatted_full_url(
-        base::UTF8ToUTF16(input[i].url_for_editing));
-    location_bar_model()->set_url_for_display(
-        base::UTF8ToUTF16(input[i].url_for_display));
-
-    // Set the location bar model's URL to be a valid GURL that would generate
-    // the test case's url_for_editing.
-    location_bar_model()->set_url(
-        url_formatter::FixupURL(input[i].url_for_editing, ""));
-
-    model()->ResetDisplayTexts();
-
-    model()->SetInputInProgress(input[i].is_match_selected_in_popup);
-    model()->SetPopupIsOpen(input[i].is_match_selected_in_popup);
-    AutocompleteMatch match;
-    match.type = AutocompleteMatchType::NAVSUGGEST;
-    match.destination_url = GURL(input[i].match_destination_url);
-    model()->SetCurrentMatchForTest(match);
-
-    std::u16string result = base::UTF8ToUTF16(input[i].input);
-    GURL url;
-    bool write_url;
-    model()->AdjustTextForCopy(input[i].sel_start, &result, &url, &write_url);
-    EXPECT_EQ(base::UTF8ToUTF16(input[i].expected_output), result)
-        << "@: " << i;
-    EXPECT_EQ(input[i].write_url, write_url) << " @" << i;
-    if (write_url) {
-      EXPECT_EQ(input[i].expected_url, url.spec()) << " @" << i;
-    }
-  }
-}
 
 TEST_F(OmniboxEditModelIOSTest, DISABLED_InlineAutocompleteText) {
   // Test if the model updates the inline autocomplete text in the view.
-  EXPECT_EQ(std::u16string(), view()->inline_autocompletion());
+  EXPECT_EQ(std::u16string(), omnibox_text_model_->inline_autocompletion);
   model()->SetUserText(u"he");
   model()->OnPopupDataChanged(u"llo", std::u16string(), {});
-  EXPECT_EQ(u"hello", view()->GetText());
-  EXPECT_EQ(u"llo", view()->inline_autocompletion());
+  EXPECT_EQ(u"hello", [omnibox_text_controller_ displayedText]);
+  EXPECT_EQ(u"llo", omnibox_text_model_->inline_autocompletion);
 
   std::u16string text_before = u"he";
   std::u16string text_after = u"hel";
-  OmniboxViewIOS::StateChanges state_changes{&text_before, &text_after, 3,    3,
-                                             false,        true,        false};
+  OmniboxStateChanges state_changes{&text_before, &text_after, 3,    3,
+                                    false,        true,        false};
   model()->OnAfterPossibleChange(state_changes);
-  EXPECT_EQ(std::u16string(), view()->inline_autocompletion());
+  EXPECT_EQ(std::u16string(), omnibox_text_model_->inline_autocompletion);
   model()->OnPopupDataChanged(u"lo", std::u16string(), {});
-  EXPECT_EQ(u"hello", view()->GetText());
-  EXPECT_EQ(u"lo", view()->inline_autocompletion());
+  EXPECT_EQ(u"hello", [omnibox_text_controller_ displayedText]);
+  EXPECT_EQ(u"lo", omnibox_text_model_->inline_autocompletion);
 
   model()->Revert();
-  EXPECT_EQ(std::u16string(), view()->GetText());
-  EXPECT_EQ(std::u16string(), view()->inline_autocompletion());
+  EXPECT_EQ(std::u16string(), [omnibox_text_controller_ displayedText]);
+  EXPECT_EQ(std::u16string(), omnibox_text_model_->inline_autocompletion);
 
   model()->SetUserText(u"he");
   model()->OnPopupDataChanged(u"llo", std::u16string(), {});
-  EXPECT_EQ(u"hello", view()->GetText());
-  EXPECT_EQ(u"llo", view()->inline_autocompletion());
+  EXPECT_EQ(u"hello", [omnibox_text_controller_ displayedText]);
+  EXPECT_EQ(u"llo", omnibox_text_model_->inline_autocompletion);
 }
 
 // This verifies the fix for a bug where calling OpenMatch() with a valid
@@ -325,7 +222,8 @@ TEST_F(OmniboxEditModelIOSTest, CurrentMatch) {
     model()->ResetDisplayTexts();
     model()->Revert();
 
-    EXPECT_EQ(u"http://www.example.com/", view()->GetText());
+    EXPECT_EQ(u"http://www.example.com/",
+              [omnibox_text_controller_ displayedText]);
 
     AutocompleteMatch match = model()->CurrentMatch(nullptr);
     EXPECT_EQ(AutocompleteMatchType::URL_WHAT_YOU_TYPED, match.type);
@@ -341,7 +239,8 @@ TEST_F(OmniboxEditModelIOSTest, CurrentMatch) {
     model()->ResetDisplayTexts();
     model()->Revert();
 
-    EXPECT_EQ(u"https://www.google.com/", view()->GetText());
+    EXPECT_EQ(u"https://www.google.com/",
+              [omnibox_text_controller_ displayedText]);
 
     AutocompleteMatch match = model()->CurrentMatch(nullptr);
     EXPECT_EQ(AutocompleteMatchType::URL_WHAT_YOU_TYPED, match.type);
@@ -364,73 +263,14 @@ TEST_F(OmniboxEditModelIOSTest, DisplayText) {
   // iOS OmniboxEditModel always provides the full URL as the OmniboxView
   // permanent display text.
   EXPECT_EQ(u"https://www.example.com/", model()->GetPermanentDisplayText());
-  EXPECT_EQ(u"https://www.example.com/", view()->GetText());
+  EXPECT_EQ(u"https://www.example.com/",
+            [omnibox_text_controller_ displayedText]);
   EXPECT_FALSE(model()->user_input_in_progress());
 
-  EXPECT_EQ(u"https://www.example.com/", view()->GetText());
+  EXPECT_EQ(u"https://www.example.com/",
+            [omnibox_text_controller_ displayedText]);
   EXPECT_TRUE(model()->CurrentTextIsURL());
 }
-
-///////////////////////////////////////////////////////////////////////////////
-// Popup-related tests
-
-class OmniboxEditModelIOSPopupTest : public PlatformTest {
- public:
-  OmniboxEditModelIOSPopupTest() {
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-    // `kExperimentalOmniboxLabs` feature flag has to be enabled
-    // before the test client initialization for the `UnscopedExtensionProvider`
-    // to be initialized. The provider is needed for
-    // `GetIconForExtensionWithImageURL` test.
-    feature_list_.InitAndEnableFeature(
-        extensions_features::kExperimentalOmniboxLabs);
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
-
-    auto omnibox_client = std::make_unique<TestOmniboxClient>();
-    EXPECT_CALL(*omnibox_client, GetPrefs())
-        .WillRepeatedly(Return(pref_service()));
-
-    view_ = std::make_unique<TestOmniboxViewIOS>(std::move(omnibox_client));
-    view_->controller()->SetEditModelForTesting(
-        std::make_unique<TestOmniboxEditModelIOS>(view_->controller(),
-                                                  view_.get(), pref_service()));
-
-    omnibox::RegisterProfilePrefs(pref_service_.registry());
-    model()->set_popup_view(&popup_view_);
-    model()->SetPopupIsOpen(true);
-  }
-  OmniboxEditModelIOSPopupTest(const OmniboxEditModelIOSPopupTest&) = delete;
-  OmniboxEditModelIOSPopupTest& operator=(const OmniboxEditModelIOSPopupTest&) =
-      delete;
-
-  TestingPrefServiceSimple* pref_service() { return &pref_service_; }
-  OmniboxTriggeredFeatureService* triggered_feature_service() {
-    return &triggered_feature_service_;
-  }
-  TestOmniboxEditModelIOS* model() {
-    return static_cast<TestOmniboxEditModelIOS*>(view_->model());
-  }
-  OmniboxControllerIOS* controller() { return view_->controller(); }
-  TestOmniboxClient* client() {
-    return static_cast<TestOmniboxClient*>(controller()->client());
-  }
-  AutocompleteResult* published_result() {
-    return const_cast<AutocompleteResult*>(
-        &view_->controller()->autocomplete_controller()->result());
-  }
-  AutocompleteInput& autocomplete_input() {
-    return const_cast<AutocompleteInput&>(
-        view_->controller()->autocomplete_controller()->input());
-  }
-
- protected:
-  base::test::ScopedFeatureList feature_list_;
-  base::test::TaskEnvironment task_environment_;
-  TestingPrefServiceSimple pref_service_;
-  std::unique_ptr<TestOmniboxViewIOS> view_;
-  TestOmniboxPopupViewIOS popup_view_;
-  OmniboxTriggeredFeatureService triggered_feature_service_;
-};
 
 TEST_F(OmniboxEditModelIOSTest, IPv4AddressPartsCount) {
   base::HistogramTester histogram_tester;

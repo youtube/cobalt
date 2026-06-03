@@ -60,7 +60,6 @@
 #include "components/password_manager/core/common/password_manager_util.h"
 #include "components/safe_browsing/buildflags.h"
 #include "components/signin/public/base/signin_buildflags.h"
-#include "components/signin/public/base/signin_switches.h"
 #include "content/public/renderer/render_frame.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
@@ -1031,8 +1030,11 @@ void PasswordAutofillAgent::FillChangePasswordForm(
     std::move(callback).Run(std::nullopt);
     return;
   }
-  std::optional<FormData> form_data = GetFormDataFromWebForm(
-      last_element.GetOwningFormForAutofill(), /*form_cache=*/{});
+
+  const WebFormElement& form = last_element.GetOwningFormForAutofill();
+  std::optional<FormData> form_data =
+      form ? GetFormDataFromWebForm(form, /*form_cache=*/{})
+           : GetFormDataFromUnownedInputElements(/*form_cache=*/{});
   if (!form_data) {
     std::move(callback).Run(std::nullopt);
     return;
@@ -1061,10 +1063,18 @@ void PasswordAutofillAgent::SubmitFormWithEnter(
     return;
   }
 
+  auto form_elements = form.GetFormControlElements();  // nocheck
+  auto submit_element_iter =
+      std::ranges::find_if(form_elements, &IsSubmitElement);
   // If there is no submit element in the form, we can't guarantee Enter will
   // work.
-  if (std::ranges::none_of(form.GetFormControlElements(),  // nocheck
-                           &IsSubmitElement)) {
+  if (submit_element_iter == form_elements.end()) {
+    std::move(callback).Run(false);
+    return;
+  }
+
+  // Fail immediately if the element is disabled.
+  if (submit_element_iter->HasAttribute("disabled")) {
     std::move(callback).Run(false);
     return;
   }
@@ -2171,9 +2181,7 @@ bool PasswordAutofillAgent::CanShowPopupWithoutPasswords(
     const WebInputElement& password_element) const {
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
   return password_element && IsElementEditable(password_element) &&
-         should_show_popup_without_passwords_ &&
-         base::FeatureList::IsEnabled(
-             switches::kEnablePendingModePasswordsPromo);
+         should_show_popup_without_passwords_;
 #else
   return false;
 #endif

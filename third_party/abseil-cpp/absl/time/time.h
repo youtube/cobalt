@@ -1878,8 +1878,9 @@ ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t ToInt64Nanoseconds(Duration d) {
       time_internal::GetRepHi(d) >> 33 == 0) {
     return (time_internal::GetRepHi(d) * 1000 * 1000 * 1000) +
            (time_internal::GetRepLo(d) / time_internal::kTicksPerNanosecond);
+  } else {
+    return d / Nanoseconds(1);
   }
-  return d / Nanoseconds(1);
 }
 
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t ToInt64Microseconds(
@@ -1889,8 +1890,9 @@ ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t ToInt64Microseconds(
     return (time_internal::GetRepHi(d) * 1000 * 1000) +
            (time_internal::GetRepLo(d) /
             (time_internal::kTicksPerNanosecond * 1000));
+  } else {
+    return d / Microseconds(1);
   }
-  return d / Microseconds(1);
 }
 
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t ToInt64Milliseconds(
@@ -1900,8 +1902,9 @@ ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t ToInt64Milliseconds(
     return (time_internal::GetRepHi(d) * 1000) +
            (time_internal::GetRepLo(d) /
             (time_internal::kTicksPerNanosecond * 1000 * 1000));
+  } else {
+    return d / Milliseconds(1);
   }
-  return d / Milliseconds(1);
 }
 #endif  // !defined(ENABLE_BUILDFLAG_IS_COBALT) || defined(SB_IS_DEFAULT_TC)
 

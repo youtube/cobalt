@@ -138,6 +138,7 @@ class CORE_EXPORT WebLocalFrameImpl final
   void SetName(const WebString&) override;
   bool IsProvisional() const override;
   WebLocalFrameImpl* LocalRoot() override;
+  const WebLocalFrameImpl* LocalRoot() const override;
   WebFrameWidget* FrameWidget() const override;
   WebFrame* FindFrameByName(const WebString& name) override;
   void SetEmbeddingToken(
@@ -312,6 +313,7 @@ class CORE_EXPORT WebLocalFrameImpl final
   std::unique_ptr<WebAssociatedURLLoader> CreateAssociatedURLLoader(
       const WebAssociatedURLLoaderOptions&) override;
   void DeprecatedStopLoading() override;
+  void RequestNetworkIdleCallback(base::OnceClosure callback) override;
   gfx::PointF GetScrollOffset() const override;
   bool SetScrollOffset(const gfx::PointF&) override;
   gfx::Size DocumentSize() const override;

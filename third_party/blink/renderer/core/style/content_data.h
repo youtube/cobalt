@@ -34,6 +34,7 @@
 #include "third_party/blink/renderer/platform/heap/member.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 
 namespace blink {
@@ -60,7 +61,7 @@ class ContentData : public GarbageCollected<ContentData> {
       const ContentData& first_alt_data);
 
   // Create a layout object for this piece of content. `owner` is the layout
-  // object that has the content property, e.g. a pseudo element, or an @page
+  // object that has the content property, e.g. a pseudo-element, or an @page
   // margin box.
   virtual LayoutObject* CreateLayoutObject(LayoutObject& owner) const = 0;
 
@@ -151,7 +152,9 @@ class ImageContentData final : public ContentData {
     if (image_->IsCrossfadeImage()) {
       str.Append("[crossfade]");
     }
-    return str + image_->CssValue()->CssText() + ">";
+    str.Append(image_->CssValue()->CssText());
+    str.Append(">");
+    return str.ReleaseString();
   }
 
  private:
@@ -219,7 +222,7 @@ class AltTextContentData final : public ContentData {
     return static_cast<const AltTextContentData&>(data).GetText() == GetText();
   }
 
-  String DebugString() const override { return "<alt: " + text_ + ">"; }
+  String DebugString() const override { return StrCat({"<alt: ", text_, ">"}); }
 
  private:
   ContentData* CloneInternal() const override {

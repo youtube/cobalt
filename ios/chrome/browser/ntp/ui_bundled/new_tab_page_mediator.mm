@@ -12,6 +12,7 @@
 #import "base/metrics/user_metrics_action.h"
 #import "components/image_fetcher/core/image_fetcher.h"
 #import "components/image_fetcher/core/image_fetcher_service.h"
+#import "components/omnibox/common/omnibox_features.h"
 #import "components/prefs/ios/pref_observer_bridge.h"
 #import "components/prefs/pref_change_registrar.h"
 #import "components/regional_capabilities/regional_capabilities_service.h"
@@ -41,6 +42,8 @@
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_constants.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_consumer.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_view_controller.h"
+#import "ios/chrome/browser/omnibox/model/placeholder_service.h"
+#import "ios/chrome/browser/omnibox/model/placeholder_service_observer_bridge.h"
 #import "ios/chrome/browser/policy/model/policy_util.h"
 #import "ios/chrome/browser/search_engines/model/search_engine_observer_bridge.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
@@ -52,6 +55,7 @@
 #import "ios/chrome/browser/sync/model/sync_observer_bridge.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_params.h"
+#import "ios/chrome/common/NSString+Chromium.h"
 #import "ios/chrome/common/ui/favicon/favicon_attributes.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/public/provider/chrome/browser/voice_search/voice_search_api.h"
@@ -62,9 +66,17 @@
 #import "ui/base/l10n/l10n_util.h"
 #import "url/gurl.h"
 
+namespace {
+
+// The point size of the entry point's symbol.
+const CGFloat kIconPointSize = 18.0;
+
+}  // namespace
+
 @interface NewTabPageMediator () <BrowserViewVisibilityObserving,
                                   HomeBackgroundCustomizationServiceObserving,
                                   IdentityManagerObserverBridgeDelegate,
+                                  PlaceholderServiceObserving,
                                   PrefObserverDelegate,
                                   SearchEngineObserving,
                                   SyncObserverModelBridge>
@@ -120,6 +132,7 @@
   std::unique_ptr<SyncObserverBridge> _syncObserver;
   raw_ptr<signin::IdentityManager> _identityManager;
   id<SystemIdentity> _signedInIdentity;
+  std::unique_ptr<PlaceholderServiceObserverBridge> _placeholderServiceObserver;
 }
 
 // Synthesized from NewTabPageMutator.
@@ -195,6 +208,17 @@
                                             self.templateURLService)];
   [self.headerConsumer
       setVoiceSearchIsEnabled:ios::provider::IsVoiceSearchEnabled()];
+
+  const TemplateURL* defaultSearchEngine =
+      self.templateURLService->GetDefaultSearchProvider();
+  NSString* dseName =
+      defaultSearchEngine
+          ? [NSString
+                cr_fromString16:defaultSearchEngine
+                                    ->AdjustedShortNameForLocaleDirection()]
+          : @"";
+  [self.headerConsumer setDefaultSearchEngineName:dseName];
+
   [self updateAccountImage];
   [self updateAccountErrorBadge];
   [self startObservingPrefs];
@@ -205,6 +229,8 @@
     _backgroundCustomizationServiceObserverBridge =
         std::make_unique<HomeBackgroundCustomizationServiceObserverBridge>(
             _backgroundCustomizationService, self);
+    // Make sure the intial background is set.
+    [self updateBackground];
   }
 }
 
@@ -229,6 +255,9 @@
   _backgroundCustomizationServiceObserverBridge = nullptr;
   _backgroundCustomizationService = nullptr;
   _imageFetcherService = nullptr;
+  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate)) {
+    self.placeholderService = nullptr;
+  }
 }
 
 - (void)saveNTPStateForWebState:(web::WebState*)webState {
@@ -258,6 +287,21 @@
   }
 }
 
+- (void)setPlaceholderService:(PlaceholderService*)placeholderService {
+  CHECK(base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate));
+
+  _placeholderService = placeholderService;
+
+  if (!placeholderService) {
+    _placeholderServiceObserver.reset();
+    return;
+  }
+
+  _placeholderServiceObserver =
+      std::make_unique<PlaceholderServiceObserverBridge>(self,
+                                                         placeholderService);
+}
+
 #pragma mark - BrowserViewVisibilityObserving
 
 - (void)browserViewDidChangeToVisibilityState:
@@ -283,6 +327,14 @@
   [self.headerConsumer setLogoIsShowing:search::DefaultSearchProviderIsGoogle(
                                             self.templateURLService)];
   [self.feedControlDelegate updateFeedForDefaultSearchEngineChanged];
+
+  NSString* dseName =
+      updatedDefaultSearchEngine
+          ? [NSString
+                cr_fromString16:updatedDefaultSearchEngine
+                                    ->AdjustedShortNameForLocaleDirection()]
+          : @"";
+  [self.headerConsumer setDefaultSearchEngineName:dseName];
 }
 
 #pragma mark - IdentityManagerObserverBridgeDelegate
@@ -300,6 +352,27 @@
   }
   [self updateAccountImage];
   [self updateAccountErrorBadge];
+}
+
+#pragma mark - PlaceholderServiceObserving
+
+- (void)placeholderImageUpdated {
+  // Show Default Search Engine favicon.
+  // Remember what is the Default Search Engine provider that the icon is
+  // for, in case the user changes Default Search Engine while this is being
+  // loaded.
+  __weak __typeof(self) weakSelf = self;
+  if (self.placeholderService) {
+    self.placeholderService->FetchDefaultSearchEngineIcon(
+        kIconPointSize, base::BindRepeating(^(UIImage* image) {
+          [weakSelf.headerConsumer setDefaultSearchEngineImage:image];
+        }));
+  }
+}
+
+- (void)placeholderServiceShuttingDown:(PlaceholderService*)service {
+  // Removes observation.
+  self.placeholderService = nil;
 }
 
 #pragma mark - PrefObserverDelegate
@@ -322,24 +395,7 @@
 #pragma mark - HomeBackgroundCustomizationServiceObserving
 
 - (void)onBackgroundChanged {
-  const sync_pb::ThemeSpecifics::NtpCustomBackground& background =
-      _backgroundCustomizationService->GetCurrentBackground();
-
-  GURL imageURL = GURL(background.url());
-
-  image_fetcher::ImageFetcher* imageFetcher =
-      _imageFetcherService->GetImageFetcher(
-          image_fetcher::ImageFetcherConfig::kDiskCacheOnly);
-
-  __weak __typeof(self) weakSelf = self;
-  imageFetcher->FetchImage(
-      imageURL,
-      base::BindOnce(^(const gfx::Image& image,
-                       const image_fetcher::RequestMetadata& metadata) {
-        [weakSelf handleBackgroundImageFetch:image];
-      }),
-      // TODO (crbug.com/417234848): Add annotation.
-      image_fetcher::ImageFetcherParams(NO_TRAFFIC_ANNOTATION_YET, "Test"));
+  [self updateBackground];
 }
 
 #pragma mark - Private
@@ -392,7 +448,8 @@
 
 - (void)updateAccountErrorBadge {
   if (!base::FeatureList::IsEnabled(
-          switches::kEnableErrorBadgeOnIdentityDisc)) {
+          switches::kEnableErrorBadgeOnIdentityDisc) &&
+      !base::FeatureList::IsEnabled(switches::kEnableIdentityInAuthError)) {
     return;
   }
   BOOL primaryIdentityHasError =
@@ -402,6 +459,32 @@
       updateADPBadgeWithErrorFound:primaryIdentityHasError
                               name:_signedInIdentity.userFullName
                              email:_signedInIdentity.userEmail];
+}
+
+- (void)updateBackground {
+  std::optional<sync_pb::NtpCustomBackground> background =
+      _backgroundCustomizationService->GetCurrentCustomBackground();
+
+  if (!background) {
+    [self.consumer setBackgroundImage:nil];
+    return;
+  }
+
+  GURL imageURL = GURL(background->url());
+
+  image_fetcher::ImageFetcher* imageFetcher =
+      _imageFetcherService->GetImageFetcher(
+          image_fetcher::ImageFetcherConfig::kDiskCacheOnly);
+
+  __weak __typeof(self) weakSelf = self;
+  imageFetcher->FetchImage(
+      imageURL,
+      base::BindOnce(^(const gfx::Image& image,
+                       const image_fetcher::RequestMetadata& metadata) {
+        [weakSelf handleBackgroundImageFetch:image];
+      }),
+      // TODO (crbug.com/417234848): Add annotation.
+      image_fetcher::ImageFetcherParams(NO_TRAFFIC_ANNOTATION_YET, "Test"));
 }
 
 // Helper method to handle the image response after fetching the background

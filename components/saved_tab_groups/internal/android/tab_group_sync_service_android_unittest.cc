@@ -13,6 +13,7 @@
 #include "base/test/task_environment.h"
 #include "components/saved_tab_groups/public/android/tab_group_sync_conversions_bridge.h"
 #include "components/saved_tab_groups/public/android/tab_group_sync_conversions_utils.h"
+#include "components/saved_tab_groups/public/versioning_message_controller.h"
 #include "components/saved_tab_groups/test_support/mock_tab_group_sync_service.h"
 #include "components/saved_tab_groups/test_support/saved_tab_group_test_utils.h"
 #include "components/sync/test/test_matchers.h"
@@ -27,6 +28,7 @@ using base::android::AttachCurrentThread;
 using base::android::JavaParamRef;
 using testing::_;
 using testing::Eq;
+using testing::Invoke;
 using testing::Return;
 using testing::SaveArg;
 
@@ -50,6 +52,21 @@ MATCHER_P3(TabBuilderEq, title, url, position, "") {
          static_cast<int>(arg.position()) == position;
 }
 
+class MockVersioningMessageController : public VersioningMessageController {
+ public:
+  MockVersioningMessageController() = default;
+  ~MockVersioningMessageController() override = default;
+
+  MOCK_METHOD(bool, IsInitialized, (), (override));
+  MOCK_METHOD(bool, ShouldShowMessageUi, (MessageType), (override));
+  MOCK_METHOD(void,
+              ShouldShowMessageUiAsync,
+              (MessageType, base::OnceCallback<void(bool)>),
+              (override));
+  MOCK_METHOD(void, OnMessageUiShown, (MessageType), (override));
+  MOCK_METHOD(void, OnMessageUiDismissed, (MessageType), (override));
+};
+
 }  // namespace
 
 class TabGroupSyncServiceAndroidTest : public testing::Test {
@@ -65,6 +82,8 @@ class TabGroupSyncServiceAndroidTest : public testing::Test {
   }
 
   void CreateBridge() {
+    EXPECT_CALL(tab_group_sync_service_, GetVersioningMessageController())
+        .WillOnce(Return(&versioning_message_controller_));
     EXPECT_CALL(tab_group_sync_service_, AddObserver(_));
     bridge_ =
         std::make_unique<TabGroupSyncServiceAndroid>(&tab_group_sync_service_);
@@ -86,6 +105,7 @@ class TabGroupSyncServiceAndroidTest : public testing::Test {
   base::android::ScopedJavaLocalRef<jobject> j_service_;
   base::android::ScopedJavaGlobalRef<jobject> j_test_;
   LocalTabGroupID test_tab_group_id_ = base::Token(4, 5);
+  MockVersioningMessageController versioning_message_controller_;
 };
 
 TEST_F(TabGroupSyncServiceAndroidTest, OnInitialized) {
@@ -222,13 +242,25 @@ TEST_F(TabGroupSyncServiceAndroidTest, UpdateVisualData) {
 
 TEST_F(TabGroupSyncServiceAndroidTest, MakeTabGroupShared) {
   JNIEnv* env = AttachCurrentThread();
-  const std::string collaboration_id = "collaboration";
+  const syncer::CollaborationId collaboration_id("collaboration");
+  TabGroupSyncService::TabGroupSharingCallback captured_callback;
 
   EXPECT_CALL(
       tab_group_sync_service_,
-      MakeTabGroupShared(Eq(test_tab_group_id_), Eq(collaboration_id), _));
+      MakeTabGroupShared(
+          Eq(test_tab_group_id_), Eq(collaboration_id),
+          testing::Truly(
+              [](const TabGroupSyncService::TabGroupSharingCallback& cb) {
+                return cb.is_null();
+              })))
+      .WillOnce(testing::WithArgs<2>(
+          testing::Invoke([&captured_callback](
+                              TabGroupSyncService::TabGroupSharingCallback cb) {
+            captured_callback = std::move(cb);
+          })));
+
   ScopedJavaLocalRef<jstring> j_collaboration_id =
-      base::android::ConvertUTF8ToJavaString(env, collaboration_id);
+      base::android::ConvertUTF8ToJavaString(env, collaboration_id.value());
   Java_TabGroupSyncServiceAndroidUnitTest_testMakeTabGroupShared(
       env, j_test_, j_collaboration_id);
 }
@@ -418,6 +450,40 @@ TEST_F(TabGroupSyncServiceAndroidTest, UpdateArchivalStatus) {
       .Times(1);
   Java_TabGroupSyncServiceAndroidUnitTest_testUpdateArchivalStatus(
       env, j_test_, j_uuid, true);
+}
+
+TEST_F(TabGroupSyncServiceAndroidTest, ShouldShowMessageUiAsync) {
+  auto* env = AttachCurrentThread();
+  EXPECT_CALL(
+      versioning_message_controller_,
+      ShouldShowMessageUiAsync(VersioningMessageController::MessageType::
+                                   VERSION_OUT_OF_DATE_INSTANT_MESSAGE,
+                               _))
+      .WillOnce(
+          testing::WithArg<1>([](base::OnceCallback<void(bool)> callback) {
+            std::move(callback).Run(true);
+          }));
+  Java_TabGroupSyncServiceAndroidUnitTest_testShouldShowMessageUiAsync(env,
+                                                                       j_test_);
+}
+
+TEST_F(TabGroupSyncServiceAndroidTest, OnMessageUiShown) {
+  auto* env = AttachCurrentThread();
+  EXPECT_CALL(versioning_message_controller_,
+              OnMessageUiShown(VersioningMessageController::MessageType::
+                                   VERSION_OUT_OF_DATE_INSTANT_MESSAGE))
+      .Times(1);
+  Java_TabGroupSyncServiceAndroidUnitTest_testOnMessageUiShown(env, j_test_);
+}
+
+TEST_F(TabGroupSyncServiceAndroidTest, OnMessageUiDismissed) {
+  auto* env = AttachCurrentThread();
+  EXPECT_CALL(versioning_message_controller_,
+              OnMessageUiDismissed(VersioningMessageController::MessageType::
+                                       VERSION_OUT_OF_DATE_PERSISTENT_MESSAGE))
+      .Times(1);
+  Java_TabGroupSyncServiceAndroidUnitTest_testOnMessageUiDismissed(env,
+                                                                   j_test_);
 }
 
 }  // namespace tab_groups

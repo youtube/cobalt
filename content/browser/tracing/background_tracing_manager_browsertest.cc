@@ -32,8 +32,9 @@
 #include "base/test/test_proto_loader.h"
 #include "base/test/trace_event_analyzer.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/trace_event/interned_args_helper.h"
 #include "base/trace_event/named_trigger.h"
-#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
 #include "build/build_config.h"
 #include "content/browser/devtools/protocol/devtools_protocol_test_support.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
@@ -57,6 +58,7 @@
 #include "services/tracing/public/cpp/tracing_features.h"
 #include "third_party/perfetto/include/perfetto/ext/trace_processor/export_json.h"
 #include "third_party/perfetto/include/perfetto/trace_processor/trace_processor_storage.h"
+#include "third_party/perfetto/protos/perfetto/trace/track_event/log_message.pbzero.h"
 #include "third_party/re2/src/re2/re2.h"
 #include "third_party/zlib/google/compression_utils.h"
 #include "third_party/zlib/zlib.h"
@@ -263,7 +265,7 @@ perfetto::protos::gen::ChromeFieldTracingConfig CreateSimpleScenarioConfig() {
             }
           }
         }
-        data_sources: { config: { name: "org.chromium.trace_metadata" } }
+        data_sources: { config: { name: "org.chromium.trace_metadata2" } }
       }
     }
   )pb";
@@ -285,7 +287,7 @@ IN_PROC_BROWSER_TEST_F(BackgroundTracingManagerBrowserTest,
         manual_trigger_name: "upload_trigger"
       }
       trace_config: {
-        data_sources: { config: { name: "org.chromium.trace_metadata" } }
+        data_sources: { config: { name: "org.chromium.trace_metadata2" } }
       }
     }
   )pb";
@@ -295,9 +297,14 @@ IN_PROC_BROWSER_TEST_F(BackgroundTracingManagerBrowserTest,
   EXPECT_EQ(std::vector<std::string>({"test_scenario"}), scenarios);
   {
     auto all_scenarios =
-        BackgroundTracingManagerImpl::GetInstance().GetAllPresetScenarios();
-    std::vector<trace_report::mojom::ScenarioPtr> expected;
-    expected.push_back(trace_report::mojom::Scenario::New("test_scenario"));
+        BackgroundTracingManagerImpl::GetInstance().GetAllScenarios();
+    std::vector<traces_internals::mojom::ScenarioPtr> expected;
+    auto scenario = traces_internals::mojom::Scenario::New();
+    scenario->scenario_name = "test_scenario";
+    scenario->is_local_scenario = true;
+    scenario->is_enabled = false;
+    scenario->current_state = TracingScenario::State::kDisabled;
+    expected.push_back(std::move(scenario));
     EXPECT_EQ(expected, all_scenarios);
   }
 
@@ -328,7 +335,7 @@ IN_PROC_BROWSER_TEST_F(BackgroundTracingManagerBrowserTest,
         manual_trigger_name: "start_trigger"
       }
       trace_config: {
-        data_sources: { config: { name: "org.chromium.trace_metadata" } }
+        data_sources: { config: { name: "org.chromium.trace_metadata2" } }
       }
     }
   )pb";
@@ -367,7 +374,7 @@ IN_PROC_BROWSER_TEST_F(BackgroundTracingManagerBrowserTest,
         manual_trigger_name: "upload_trigger"
       }
       trace_config: {
-        data_sources: { config: { name: "org.chromium.trace_metadata" } }
+        data_sources: { config: { name: "org.chromium.trace_metadata2" } }
       }
     }
   )pb";
@@ -484,7 +491,7 @@ IN_PROC_BROWSER_TEST_F(BackgroundTracingManagerBrowserTest,
       }
       stop_rules: { name: "stop_trigger" manual_trigger_name: "stop_trigger" }
       trace_config: {
-        data_sources: { config: { name: "org.chromium.trace_metadata" } }
+        data_sources: { config: { name: "org.chromium.trace_metadata2" } }
       }
     }
     scenarios: {
@@ -494,7 +501,7 @@ IN_PROC_BROWSER_TEST_F(BackgroundTracingManagerBrowserTest,
         manual_trigger_name: "other_start_trigger"
       }
       trace_config: {
-        data_sources: { config: { name: "org.chromium.trace_metadata" } }
+        data_sources: { config: { name: "org.chromium.trace_metadata2" } }
       }
     }
   )pb";
@@ -524,7 +531,7 @@ IN_PROC_BROWSER_TEST_F(BackgroundTracingManagerBrowserTest,
       start_rules: { manual_trigger_name: "start_trigger" }
       stop_rules: { manual_trigger_name: "stop_trigger" }
       trace_config: {
-        data_sources: { config: { name: "org.chromium.trace_metadata" } }
+        data_sources: { config: { name: "org.chromium.trace_metadata2" } }
       }
       nested_scenarios: {
         scenario_name: "nested_scenario"
@@ -719,9 +726,7 @@ IN_PROC_BROWSER_TEST_F(BackgroundTracingManagerBrowserTest,
   background_tracing_helper.WaitForTraceReceived();
 
   EXPECT_TRUE(background_tracing_helper.trace_received());
-  EXPECT_TRUE(background_tracing_helper.TraceHasMatchingString("cpu-brand"));
-  EXPECT_TRUE(background_tracing_helper.TraceHasMatchingString("network-type"));
-  EXPECT_TRUE(background_tracing_helper.TraceHasMatchingString("user-agent"));
+  EXPECT_TRUE(background_tracing_helper.TraceHasMatchingString("os-name"));
 }
 
 // This tests that histogram triggers for preemptive mode configs.
@@ -742,7 +747,7 @@ IN_PROC_BROWSER_TEST_F(BackgroundTracingManagerBrowserTest,
       start_rules: { manual_trigger_name: "start_trigger" }
       upload_rules: { histogram: { histogram_name: "fake" min_value: 1 } }
       trace_config: {
-        data_sources: { config: { name: "org.chromium.trace_metadata" } }
+        data_sources: { config: { name: "org.chromium.trace_metadata2" } }
       }
     }
   )pb";
@@ -943,7 +948,7 @@ IN_PROC_BROWSER_TEST_F(ProtoBackgroundTracingTest,
       scenario_name: "test_scenario"
       start_rules: { manual_trigger_name: "start_trigger" }
       trace_config: {
-        data_sources: { config: { name: "org.chromium.trace_metadata" } }
+        data_sources: { config: { name: "org.chromium.trace_metadata2" } }
       }
     }
   )pb";

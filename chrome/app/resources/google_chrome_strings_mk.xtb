@@ -7,11 +7,12 @@
 <translation id="102763973188675173">Приспособете го и контролирајте го Google Chrome. Достапно е ажурирање.</translation>
 <translation id="1028061813283459617">За да ги избришете податоците од прелистување само од овој уред, а притоа да ги задржите во сметката на Google, <ph name="BEGIN_LINK" />одјавете се од Chrome<ph name="END_LINK" />.</translation>
 <translation id="1042270987544905725">Кликнете за да се затвори дијалогот за најавување на Chrome</translation>
+<translation id="1051793555070215510">Помогнете ни да ја подобриме „Инкогнито“ така што ќе ја пополните анкетава што ќе ви одземе 1 минута.</translation>
 <translation id="1059838145689930908">За да ја користите екстензијава како <ph name="USER_EMAIL_ADDRESS" />, најавете се на Chrome.</translation>
 <translation id="1065672644894730302">Вашите поставки не може да се прочитаат.
 
 Некои функции може да се недостапни и измените на поставките нема да се зачуваат.</translation>
-<translation id="1086486568852410168">Пребарувајте со Google Lens</translation>
+<translation id="1086486568852410168">Пребарај со Google Lens</translation>
 <translation id="1088300314857992706"><ph name="USER_EMAIL_ADDRESS" /> претходно користеше Chrome</translation>
 <translation id="110877069173485804">Ова е вашиот Chrome</translation>
 <translation id="1125124144982679672">Кој користи Chrome?</translation>
@@ -56,6 +57,7 @@
 <translation id="1682634494516646069">Google Chrome не може да чита и да пишува во директориумот за податоци:
 
 <ph name="USER_DATA_DIRECTORY" /></translation>
+<translation id="1688214853608504530">Кога ќе напишете нешто во лентата за адреса или полето за пребарување, Chrome го испраќа напишаното до алатките за пребарување, AI и агенти на вашата организација за да добивате предлози.</translation>
 <translation id="1698376642261615901">Google Chrome е веб-прелистувач кој отвора веб-локации и апликации со светлосна брзина. Тој е брз, стабилен и лесен за користење. Побезбедно прелистувајте на интернет со заштита од злонамерен софтвер и кражба на идентитетот која е вградена во Google Chrome.</translation>
 <translation id="1713301662689114961">{0,plural, =1{Chrome ќе се рестартира по еден час}one{Chrome ќе се рестартира по # час}other{Chrome ќе се рестартира по # часа}}</translation>
 <translation id="1722488837206509557">Ова ќе ви овозможи да изберете некој од достапните уреди и да прикажувате содржини на нив.</translation>
@@ -64,6 +66,7 @@
 <translation id="178701303897325119">Екстензијава веќе не е поддржана. Затоа, Chrome препорачува да ја отстраните.</translation>
 <translation id="1812689907177901597">Ако го исклучите ова, може да се најавувате на сајтови на Google, како што е Gmail, без да се најавите на Chrome</translation>
 <translation id="1821644463306970002">{NUM_TABS,plural, =1{Chrome препорачува да ја паузирате картичката што го забавува прелистувачот}one{Chrome препорачува да ги паузирате картичките што го забавуваат прелистувачот}other{Chrome препорачува да ги паузирате картичките што го забавуваат прелистувачот}}</translation>
+<translation id="1832046143430087831">Ги забрзува сајтовите со пребарувачот V8 на Chrome, но го прави Chrome малку понеотпорен на напади. Поставкава е исклучена.</translation>
 <translation id="1838374766361614909">Исчисти го пребарувањето</translation>
 <translation id="1860536484129686729">На Chrome му треба дозвола за да пристапи до камерата за сајтов</translation>
 <translation id="1873233029667955273">Google Chrome не е вашиот стандарден прелистувач</translation>
@@ -222,6 +225,7 @@
 <translation id="3716540481907974026">Верзија на ChromeOS Flex</translation>
 <translation id="3718181793972440140">Ова ќе избрише една ставка од уредов. За да ги вратите вашите податоци подоцна, најавете се на Chrome како <ph name="USER_EMAIL" />.</translation>
 <translation id="3723744677043446310">{NUM_EXTENSIONS,plural, =1{Chrome препорачува да ја отстраните. <ph name="BEGIN_LINK" />Дознајте повеќе за поддржаните екстензии<ph name="END_LINK" />}one{Chrome препорачува да ги отстраните. <ph name="BEGIN_LINK" />Дознајте повеќе за поддржаните екстензии<ph name="END_LINK" />}other{Chrome препорачува да ги отстраните. <ph name="BEGIN_LINK" />Дознајте повеќе за поддржаните екстензии<ph name="END_LINK" />}}</translation>
+<translation id="3756724684201900923">Дознајте повеќе за инсталирањето Chrome</translation>
 <translation id="3780814664026482060">Chrome - <ph name="PAGE_TITLE" /></translation>
 <translation id="3785324443014631273">ChromeOS Flex не може да ги синхронизира вашите податоци поради грешка при најавување.</translation>
 <translation id="3795971588916395511">Google Chrome OS</translation>
@@ -318,6 +322,7 @@
 <translation id="4970880042055371251">Верзија на Chrome OS</translation>
 <translation id="4990567037958725628">Google Chrome Канари</translation>
 <translation id="5003967926796347400">Кликнете „Google Password Manager“</translation>
+<translation id="504867494566807945">Отворајте линкови во Chrome од која било апликација. Освен тоа, за лесен пристап, се закачува на „Лентата со задачи“.</translation>
 <translation id="5114340746415930644">Внесете ја вашата лозинка за да користите и зачувувате податоци од Chrome во вашата сметка <ph name="USER_EMAIL" /></translation>
 <translation id="5120334927898581447">Најавете се на Chrome при најавување на други услуги на Google</translation>
 <translation id="5126049312684316860">Chrome вчитува однапред уште повеќе страници што е веројатно дека ќе ги отворите за да може да се вчитуваат побрзо кога ги отворате</translation>
@@ -398,6 +403,7 @@ Google Chrome не може да ги обнови вашите поставки
 <translation id="6075300983329039771">Вашата организација, <ph name="MANAGER" />, бара да се најавите на Chrome</translation>
 <translation id="6113794647360055231">Chrome тукушто се подобри</translation>
 <translation id="6116252277240876590">Јазиков се користи за да се прикажуваат менија, поставки, известувања и друг текст во Chrome</translation>
+<translation id="6127237283587442951">Користете го Chrome стандардно и закачете го</translation>
 <translation id="6134085236017727171">За да го користи микрофонот, дајте му пристап на Chrome во <ph name="BEGIN_LINK" />системските поставки<ph name="END_LINK" /></translation>
 <translation id="6135456723633883042">Картичкиве користат дополнителни ресурси. За да се подобри изведбата, дозволете Chrome да ги деактивира.</translation>
 <translation id="6145313976051292476">Отворај PDF-формат во Chrome</translation>
@@ -447,12 +453,12 @@ Google Chrome не може да ги обнови вашите поставки
 <translation id="6718739135284199302">Имајте побрз Chrome</translation>
 <translation id="6735387454586646204">Системот ChromeOS Flex</translation>
 <translation id="6750954913813541382">За исправка на правописни грешки, Chrome го испраќа текстот што го пишувате во прелистувачот до Google</translation>
+<translation id="6760235774835597023">Ги забрзува сајтовите со пребарувачот V8 на Chrome, но го прави Chrome малку понеотпорен на напади. Поставкава е вклучена.</translation>
 <translation id="677276454032249905">Сепак да се излезе од Chrome?</translation>
 <translation id="6794858689789885890">Секогаш бришете ги податоците од сајт од вашиот уред кога го затворате Chrome</translation>
 <translation id="6831043979455480757">Преведи</translation>
 <translation id="683440813066116847">Дојдовно правило за Google Chrome Canary за да овозможи сообраќај mDNS.</translation>
 <translation id="684888714667046800">Не може да се поврзе на интернет. Ако користите заштитен ѕид, погрижете се <ph name="PRODUCT_EXE_NAME" /> да биде во списокот со дозволени.</translation>
-<translation id="6851981911629679515">Вклучување дополнителна заштита во пребарувачот на JavaScript и WebAssembly во Chrome</translation>
 <translation id="6877155553248388166">долен десен агол на областа за пребарување: десно <ph name="RIGHT" /> %, долу <ph name="BOTTOM" /> %</translation>
 <translation id="6881299373831449287">Chrome се ажурира</translation>
 <translation id="6885412569789873916">Апликации на Chrome Beta</translation>
@@ -512,7 +518,6 @@ Google Chrome не може да ги обнови вашите поставки
 <translation id="7572537927358445944">Исклучено • Chrome не може да потврди од каде е екстензијава</translation>
 <translation id="7583399374488819119">Инсталатор на <ph name="COMPANY_NAME" /></translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
-<translation id="7626032353295482388">Добре дојдовте на Chrome</translation>
 <translation id="7626072681686626474"><ph name="MANAGER" /> бара да ги прочитате и да ги прифатите следните „Услови за користење“ пред да го користите уредов. Овие услови не ги прошируваат, менуваат или ограничуваат „Условите на Google Chrome OS“.</translation>
 <translation id="7629695634924605473">Chrome ве известува дали вашите лозинки се компромитирани</translation>
 <translation id="7641148173327520642">Системскиот администратор го конфигурирал Google Chrome да отвора <ph name="ALTERNATIVE_BROWSER_NAME" /> за пристап до <ph name="TARGET_URL_HOSTNAME" />.</translation>
@@ -556,7 +561,6 @@ Google Chrome не може да ги обнови вашите поставки
 <translation id="8019103195866286235">Програмерот го поништи објавувањето на екстензијава, па можеби не е безбедна. Отстранете ја од Chrome за да не може веќе да ги гледа и променува вашите податоци на сајтовите што ги отворате, што ги опфаќа и вашите лични податоци.</translation>
 <translation id="8040768861829554732">Дадена екстензија сака да се најавите на Chrome</translation>
 <translation id="80471789339884597">Фала за инсталирањето. Мора да ги рестартирате сите ваши прелистувачи пред да користите <ph name="BUNDLE_NAME" />.</translation>
-<translation id="8064015041956107954">Може да отворате обележувачи, „Режим за читање“ и друго од менито на Chrome во горниот десен агол</translation>
 <translation id="8064015586118426197">ChromeOS Flex</translation>
 <translation id="8077579734294125741">Други профили на Chrome</translation>
 <translation id="8086881907087796310">Инсталацијата не успеа бидејќи вашиот компјутер не ги исполнува минималните барања за хардвер.</translation>
@@ -568,7 +572,6 @@ Google Chrome не може да ги обнови вашите поставки
 <translation id="8177472873527554730">Не може да се најдат содржини на страницата</translation>
 <translation id="8221491193165283816">Вообичаено ги блокирате известувањата. За да дозволите сајтов да ве известува, кликнете тука.</translation>
 <translation id="8255190535488645436">Google Chrome ги користи камерата и микрофонот.</translation>
-<translation id="8257796129973882597">Може да отворате обележувачи, „Режим за читање“ и друго од менито на Chrome</translation>
 <translation id="8267953129876836456">Chrome најде неколку препораки за безбедност што може да ги прегледате</translation>
 <translation id="8286862437124483331">Google Chrome се обидува да покаже лозинки. Впишете ја лозинката за Windows за да се дозволи ова.</translation>
 <translation id="829923460755755423">Додајте кратенка за Google Password Manager</translation>
@@ -632,6 +635,7 @@ Google Chrome не може да ги обнови вашите поставки
 <translation id="9090566250983691233">Дознајте зошто Chrome блокира некои датотеки</translation>
 <translation id="9106236359747881194">Изберете текст за да пребарате</translation>
 <translation id="911206726377975832">Да се избришат ли и вашите податоци од пребарувањата?</translation>
+<translation id="9134482777260927479">Помош за домашната работа</translation>
 <translation id="9138603949443464873">За да се применат измените, рестартирајте го Chrome</translation>
 <translation id="9148058034647219655">Излези</translation>
 <translation id="9195993889682885387">Chrome може да ги процени вашите интереси според вашата историја на прелистувањето од последните неколку седмици. Податоциве остануваат на вашиот уред.</translation>

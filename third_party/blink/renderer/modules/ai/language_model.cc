@@ -8,11 +8,14 @@
 #include "base/containers/span.h"
 #include "base/functional/callback_forward.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/metrics/metrics_hashes.h"
 #include "base/notreached.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/types/expected_macros.h"
 #include "base/types/pass_key.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-blink.h"
 #include "services/on_device_model/public/mojom/on_device_model.mojom-blink.h"
+#include "third_party/blink/public/mojom/ai/ai_common.mojom-blink.h"
 #include "third_party/blink/public/mojom/ai/ai_language_model.mojom-blink.h"
 #include "third_party/blink/public/mojom/ai/model_streaming_responder.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
@@ -58,6 +61,77 @@ using AILanguageModelPromptContentOrError =
 void RejectResolver(ScriptPromiseResolverBase* resolver,
                     const ScriptValue& value) {
   resolver->Reject(value);
+}
+
+// Logs (mojo converted) prompt message metrics.
+void LogPromptMessageMetrics(
+    const WTF::Vector<mojom::blink::AILanguageModelPromptPtr>& prompts) {
+  for (const auto& prompt : prompts) {
+    std::string prefix =
+        base::StrCat({AIMetrics::GetAIAPIUsageMetricName(
+                          AIMetrics::AISessionType::kLanguageModel),
+                      ".Messages"});
+    base::UmaHistogramEnumeration(
+        base::StrCat({prefix, ".Role"}),
+        AIMetrics::ToLanguageModelInputRole(prompt->role));
+    for (const auto& content : prompt->content) {
+      base::UmaHistogramEnumeration(
+          base::StrCat({prefix, ".Type"}),
+          AIMetrics::ToLanguageModelInputType(content->which()));
+      if (content->is_text()) {
+        base::UmaHistogramCounts1M(
+            base::StrCat({prefix, ".Text.Length"}),
+            static_cast<int>(content->get_text().length()));
+      }
+    }
+  }
+}
+
+// Logs create option metrics.
+void LogCreateOptionMetrics(
+    const LanguageModelCreateCoreOptions& create_options,
+    const std::string& function_name) {
+  std::string prefix =
+      base::StrCat({AIMetrics::GetAIAPIUsageMetricName(
+                        AIMetrics::AISessionType::kLanguageModel),
+                    ".", function_name});
+  if (create_options.hasTopK()) {
+    base::UmaHistogramCounts1000(base::StrCat({prefix, ".TopK"}),
+                                 static_cast<int>(create_options.topK()));
+  }
+  if (create_options.hasTemperature()) {
+    // Temperature is generally in the range of [0.0,2.0].
+    base::UmaHistogramCustomCounts(
+        base::StrCat({prefix, ".TemperatureX1000"}),
+        static_cast<int>(create_options.temperature() * 1000.0f), 1, 2000, 200);
+  }
+  // Logs metrics for a list of expected inputs or outputs.
+  auto log_expected_metrics =
+      [&](const std::string& expected_type,
+          const HeapVector<Member<LanguageModelExpected>>& expected_inputs) {
+        for (const auto& input : expected_inputs) {
+          if (input->hasType()) {
+            base::UmaHistogramEnumeration(
+                base::StrCat({prefix, ".", expected_type, ".Type"}),
+                AIMetrics::ToLanguageModelInputType(input->type().AsEnum()));
+          }
+          for (const auto& lang : input->getLanguagesOr(Vector<String>())) {
+            base::UmaHistogramSparse(
+                base::StrCat({prefix, ".", expected_type, ".Language"}),
+                static_cast<base::HistogramBase::Sample32>(
+                    base::HashMetricName(lang.Ascii())));
+          }
+        }
+      };
+
+  // LINT.IfChange(LanguageModelExpectedInputOrOutput)
+  if (create_options.hasExpectedInputs()) {
+    log_expected_metrics("ExpectedInputs", create_options.expectedInputs());
+  }
+  if (create_options.hasExpectedOutputs()) {
+    log_expected_metrics("ExpectedOutputs", create_options.expectedOutputs());
+  }
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/ai/histograms.xml:LanguageModelExpectedInputOrOutput)
 }
 
 class CloneLanguageModelClient
@@ -107,7 +181,8 @@ class CloneLanguageModelClient
     Cleanup();
   }
 
-  void OnError(mojom::blink::AIManagerCreateClientError error) override {
+  void OnError(mojom::blink::AIManagerCreateClientError error,
+               mojom::blink::QuotaErrorInfoPtr quota_error_info) override {
     if (!GetResolver()) {
       return;
     }
@@ -166,6 +241,7 @@ class AppendClient : public GarbageCollected<AppendClient>,
           complete_callback,
       base::RepeatingClosure overflow_callback,
       WTF::Vector<mojom::blink::AILanguageModelPromptPtr> input) {
+    LogPromptMessageMetrics(input);
     MakeGarbageCollected<AppendClient>(
         std::move(script_state), std::move(language_model), std::move(resolver),
         std::move(input), std::move(signal), std::move(complete_callback),
@@ -193,10 +269,11 @@ class AppendClient : public GarbageCollected<AppendClient>,
     Cleanup();
   }
 
-  void OnError(ModelStreamingResponseStatus status) override {
+  void OnError(ModelStreamingResponseStatus status,
+               mojom::blink::QuotaErrorInfoPtr quota_error_info) override {
     if (GetResolver()) {
-      GetResolver()->Reject(
-          ConvertModelStreamingResponseErrorToDOMException(status));
+      GetResolver()->Reject(ConvertModelStreamingResponseErrorToDOMException(
+          status, std::move(quota_error_info)));
     }
     Cleanup();
   }
@@ -265,6 +342,18 @@ bool ParseConstraint(
   return true;
 }
 
+// Gets the stringified schema that should be used to append to the prompt.
+// Returns an empty string if no schema should be added to the prompt.
+WTF::String GetSchemaForInput(
+    const on_device_model::mojom::blink::ResponseConstraintPtr& constraint,
+    const LanguageModelPromptOptions* options) {
+  if (options->omitResponseConstraintInput() || !constraint ||
+      !constraint->is_json_schema()) {
+    return "";
+  }
+  return constraint->get_json_schema();
+}
+
 }  // namespace
 
 // static
@@ -331,10 +420,19 @@ ScriptPromise<LanguageModel> LanguageModel::create(
       MakeGarbageCollected<ScriptPromiseResolver<LanguageModel>>(script_state);
   auto promise = resolver->Promise();
 
+  // Block access if the Permission Policy is not enabled.
+  ExecutionContext* execution_context = ExecutionContext::From(script_state);
+  if (!execution_context->IsFeatureEnabled(
+          network::mojom::PermissionsPolicyFeature::kLanguageModel)) {
+    resolver->Reject(MakeGarbageCollected<DOMException>(
+        DOMExceptionCode::kNotAllowedError, kExceptionMessagePermissionPolicy));
+    return promise;
+  }
+
+  LogCreateOptionMetrics(*options, "create");
   base::UmaHistogramEnumeration(AIMetrics::GetAIAPIUsageMetricName(
                                     AIMetrics::AISessionType::kLanguageModel),
                                 AIMetrics::AIAPI::kCreateSession);
-  ExecutionContext* execution_context = ExecutionContext::From(script_state);
   HeapMojoRemote<mojom::blink::AIManager>& ai_manager_remote =
       AIInterfaceProxy::GetAIManagerRemote(execution_context);
   if (!ai_manager_remote.is_connected()) {
@@ -349,7 +447,26 @@ ScriptPromise<LanguageModel> LanguageModel::create(
     return promise;
   }
 
-  MakeGarbageCollected<LanguageModelCreateClient>(resolver, options)->Create();
+  auto sampling_params_or_exception = ResolveSamplingParamsOption(options);
+  if (!sampling_params_or_exception.has_value()) {
+    switch (sampling_params_or_exception.error()) {
+      case SamplingParamsOptionError::kOnlyOneOfTopKAndTemperatureIsProvided:
+        resolver->Reject(DOMException::Create(
+            kExceptionMessageInvalidTemperatureAndTopKFormat,
+            DOMException::GetErrorName(DOMExceptionCode::kNotSupportedError)));
+        break;
+      case SamplingParamsOptionError::kInvalidTopK:
+        resolver->RejectWithRangeError(kExceptionMessageInvalidTopK);
+        break;
+      case SamplingParamsOptionError::kInvalidTemperature:
+        resolver->RejectWithRangeError(kExceptionMessageInvalidTemperature);
+        break;
+    }
+    return promise;
+  }
+
+  MakeGarbageCollected<LanguageModelCreateClient>(
+      resolver, options, std::move(sampling_params_or_exception.value()));
   return promise;
 }
 
@@ -367,17 +484,47 @@ ScriptPromise<V8Availability> LanguageModel::availability(
       MakeGarbageCollected<ScriptPromiseResolver<V8Availability>>(script_state);
   auto promise = resolver->Promise();
 
+  // Return unavailable if the Permission Policy is not enabled.
+  if (!ExecutionContext::From(script_state)
+           ->IsFeatureEnabled(
+               network::mojom::PermissionsPolicyFeature::kLanguageModel)) {
+    resolver->Resolve(AvailabilityToV8(Availability::kUnavailable));
+    return promise;
+  }
+
+  LogCreateOptionMetrics(*options, "availability");
   base::UmaHistogramEnumeration(AIMetrics::GetAIAPIUsageMetricName(
                                     AIMetrics::AISessionType::kLanguageModel),
                                 AIMetrics::AIAPI::kCanCreateSession);
-  mojom::blink::AILanguageModelSamplingParamsPtr sampling_params;
   auto sampling_params_or_exception = ResolveSamplingParamsOption(options);
   if (!sampling_params_or_exception.has_value()) {
     resolver->Resolve(AvailabilityToV8(Availability::kUnavailable));
     return promise;
   }
-  sampling_params = std::move(sampling_params_or_exception.value());
 
+  ExecuteAvailability(
+      AIInterfaceProxy::GetAIManagerRemote(
+          ExecutionContext::From(script_state)),
+      std::move(options), std::move(sampling_params_or_exception.value()),
+      WTF::BindOnce(
+          [](ScriptPromiseResolver<V8Availability>* resolver,
+             mojom::blink::ModelAvailabilityCheckResult result) {
+            Availability availability = HandleModelAvailabilityCheckResult(
+                resolver->GetExecutionContext(),
+                AIMetrics::AISessionType::kLanguageModel, result);
+            resolver->Resolve(AvailabilityToV8(availability));
+          },
+          WrapPersistent(resolver)));
+  return promise;
+}
+
+// static
+void LanguageModel::ExecuteAvailability(
+    HeapMojoRemote<mojom::blink::AIManager>& ai_manager_remote,
+    const LanguageModelCreateCoreOptions* options,
+    mojom::blink::AILanguageModelSamplingParamsPtr resolved_sampling_params,
+    base::OnceCallback<void(mojom::blink::ModelAvailabilityCheckResult)>
+        callback) {
   Vector<mojom::blink::AILanguageModelExpectedPtr> expected_in, expected_out;
   if (options && options->hasExpectedInputs()) {
     expected_in = ToMojoExpectations(options->expectedInputs());
@@ -387,23 +534,11 @@ ScriptPromise<V8Availability> LanguageModel::availability(
   }
 
   Vector<mojom::blink::AILanguageModelPromptPtr> initial_prompts;
-  HeapMojoRemote<mojom::blink::AIManager>& ai_manager_remote =
-      AIInterfaceProxy::GetAIManagerRemote(
-          ExecutionContext::From(script_state));
   ai_manager_remote->CanCreateLanguageModel(
       mojom::blink::AILanguageModelCreateOptions::New(
-          std::move(sampling_params), std::move(initial_prompts),
+          std::move(resolved_sampling_params), std::move(initial_prompts),
           std::move(expected_in), std::move(expected_out)),
-      WTF::BindOnce(
-          [](ScriptPromiseResolver<V8Availability>* resolver,
-             mojom::blink::ModelAvailabilityCheckResult check_result) {
-            Availability availability = HandleModelAvailabilityCheckResult(
-                resolver->GetExecutionContext(),
-                AIMetrics::AISessionType::kLanguageModel, check_result);
-            resolver->Resolve(AvailabilityToV8(availability));
-          },
-          WrapPersistent(resolver)));
-  return promise;
+      std::move(callback));
 }
 
 // static
@@ -459,16 +594,19 @@ ScriptPromise<IDLString> LanguageModel::prompt(
       MakeGarbageCollected<ScriptPromiseResolver<IDLString>>(script_state);
   auto promise = resolver->Promise();
 
+  // Use WrapPersistent() to make sure LanguageModel is not garbage collected
+  // during the response.
   auto pending_remote = CreateModelExecutionResponder(
       script_state, options->getSignalOr(nullptr), resolver, task_runner_,
       AIMetrics::AISessionType::kLanguageModel,
-      WTF::BindOnce(&LanguageModel::OnResponseComplete,
-                    WrapWeakPersistent(this)),
-      WTF::BindRepeating(&LanguageModel::OnQuotaOverflow,
-                         WrapWeakPersistent(this)));
+      WTF::BindOnce(&LanguageModel::OnResponseComplete, WrapPersistent(this)),
+      WTF::BindRepeating(&LanguageModel::OnQuotaOverflow, WrapPersistent(this)),
+      /*resolve_override_callback=*/base::NullCallback());
 
+  WTF::String json_schema = GetSchemaForInput(*processed_constraint, options);
   ConvertPromptInputsToMojo(
       script_state, options->getSignalOr(nullptr), input, input_types_,
+      json_schema,
       WTF::BindOnce(&LanguageModel::ExecutePrompt, WrapPersistent(this),
                     WrapPersistent(script_state), WrapPersistent(resolver),
                     std::move(*processed_constraint),
@@ -492,16 +630,19 @@ ReadableStream* LanguageModel::promptStreaming(
                                     AIMetrics::AISessionType::kLanguageModel),
                                 AIMetrics::AIAPI::kSessionPromptStreaming);
 
+  // Use WrapPersistent() to make sure LanguageModel is not garbage collected
+  // during the response.
   auto [stream, remote] = CreateModelExecutionStreamingResponder(
       script_state, options->getSignalOr(nullptr), task_runner_,
       AIMetrics::AISessionType::kLanguageModel,
-      WTF::BindOnce(&LanguageModel::OnResponseComplete,
-                    WrapWeakPersistent(this)),
+      WTF::BindOnce(&LanguageModel::OnResponseComplete, WrapPersistent(this)),
       WTF::BindRepeating(&LanguageModel::OnQuotaOverflow,
-                         WrapWeakPersistent(this)));
+                         WrapPersistent(this)));
 
+  WTF::String json_schema = GetSchemaForInput(*processed_constraint, options);
   ConvertPromptInputsToMojo(
       script_state, options->getSignalOr(nullptr), input, input_types_,
+      json_schema,
       WTF::BindOnce(&LanguageModel::ExecutePrompt, WrapPersistent(this),
                     WrapPersistent(script_state), WrapPersistent(stream),
                     std::move(*processed_constraint), std::move(remote)),
@@ -530,6 +671,7 @@ void LanguageModel::ExecutePrompt(
     mojo::PendingRemote<mojom::blink::ModelStreamingResponder>
         pending_responder,
     WTF::Vector<mojom::blink::AILanguageModelPromptPtr> prompts) {
+  LogPromptMessageMetrics(prompts);
   if (!language_model_remote_) {
     if (std::holds_alternative<ScriptPromiseResolverBase*>(
             resolver_or_stream)) {
@@ -593,12 +735,6 @@ LanguageModel::ValidateAndProcessPromptInput(
     return std::nullopt;
   }
 
-  if (!input->IsString() &&
-      !RuntimeEnabledFeatures::AIPromptAPIMultimodalInputEnabled()) {
-    exception_state.ThrowTypeError("Input type not supported");
-    return std::nullopt;
-  }
-
   AbortSignal* signal = options->getSignalOr(nullptr);
   if (HandleAbortSignal(signal, script_state, exception_state)) {
     return std::nullopt;
@@ -640,12 +776,6 @@ ScriptPromise<IDLUndefined> LanguageModel::append(
       MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(script_state);
   auto promise = resolver->Promise();
 
-  // The API impl only accepts a string by default for now, more to come soon!
-  if (!input->IsString() &&
-      !RuntimeEnabledFeatures::AIPromptAPIMultimodalInputEnabled()) {
-    exception_state.ThrowTypeError("Input type not supported");
-    return promise;
-  }
   if (!language_model_remote_) {
     ThrowSessionDestroyedException(exception_state);
     return promise;
@@ -658,6 +788,7 @@ ScriptPromise<IDLUndefined> LanguageModel::append(
 
   ConvertPromptInputsToMojo(
       script_state, options->getSignalOr(nullptr), input, input_types_,
+      /*json_schema=*/"",
       WTF::BindOnce(&AppendClient::Create, WrapPersistent(script_state),
                     WrapPersistent(this), WrapPersistent(resolver),
                     WrapPersistent(signal),
@@ -713,13 +844,6 @@ ScriptPromise<IDLDouble> LanguageModel::measureInputUsage(
     return EmptyPromise();
   }
 
-  // The API impl only accepts a string by default for now, more to come soon!
-  if (!input->IsString() &&
-      !RuntimeEnabledFeatures::AIPromptAPIMultimodalInputEnabled()) {
-    exception_state.ThrowTypeError("Input type not supported");
-    return EmptyPromise();
-  }
-
   base::UmaHistogramEnumeration(AIMetrics::GetAIAPIUsageMetricName(
                                     AIMetrics::AISessionType::kLanguageModel),
                                 AIMetrics::AIAPI::kSessionCountPromptTokens);
@@ -741,6 +865,7 @@ ScriptPromise<IDLDouble> LanguageModel::measureInputUsage(
 
   ConvertPromptInputsToMojo(
       script_state, options->getSignalOr(nullptr), input, input_types_,
+      /*json_schema=*/"",
       WTF::BindOnce(&LanguageModel::ExecuteMeasureInputUsage,
                     WrapPersistent(this), WrapPersistent(resolver),
                     WrapPersistent(signal)),

@@ -103,9 +103,10 @@ FakeChromeUserManager::AddUserWithAffiliationAndTypeAndProfile(
   return user;
 }
 
-user_manager::User* FakeChromeUserManager::AddKioskAppUser(
+user_manager::User* FakeChromeUserManager::AddKioskChromeAppUser(
     const AccountId& account_id) {
-  user_manager::User* user = user_manager::User::CreateKioskAppUser(account_id);
+  user_manager::User* user =
+      user_manager::User::CreateKioskChromeAppUser(account_id);
   user->set_username_hash(
       user_manager::FakeUserManager::GetFakeUsernameHash(account_id));
   user_storage_.emplace_back(user);
@@ -113,10 +114,10 @@ user_manager::User* FakeChromeUserManager::AddKioskAppUser(
   return user;
 }
 
-user_manager::User* FakeChromeUserManager::AddWebKioskAppUser(
+user_manager::User* FakeChromeUserManager::AddKioskWebAppUser(
     const AccountId& account_id) {
   user_manager::User* user =
-      user_manager::User::CreateWebKioskAppUser(account_id);
+      user_manager::User::CreateKioskWebAppUser(account_id);
   user->set_username_hash(
       user_manager::FakeUserManager::GetFakeUsernameHash(account_id));
   user_storage_.emplace_back(user);
@@ -381,14 +382,14 @@ bool FakeChromeUserManager::IsLoggedInAsGuest() const {
 bool FakeChromeUserManager::IsLoggedInAsKioskChromeApp() const {
   const user_manager::User* active_user = GetActiveUser();
   return active_user
-             ? active_user->GetType() == user_manager::UserType::kKioskApp
+             ? active_user->GetType() == user_manager::UserType::kKioskChromeApp
              : false;
 }
 
 bool FakeChromeUserManager::IsLoggedInAsKioskWebApp() const {
   const user_manager::User* active_user = GetActiveUser();
   return active_user
-             ? active_user->GetType() == user_manager::UserType::kWebKioskApp
+             ? active_user->GetType() == user_manager::UserType::kKioskWebApp
              : false;
 }
 

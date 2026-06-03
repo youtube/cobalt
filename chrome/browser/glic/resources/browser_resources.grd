@@ -17,7 +17,9 @@ found in the LICENSE file.
     <includes>
       <include name="IDR_GLIC_ATTACH_BUTTON_VECTOR_ICON" file="glic_attach_button.icon" type="BINDATA" compress="brotli" />
       <include name="IDR_GLIC_BORDER_SHADER" file="border.sksl" type="BINDATA" compress="brotli" />
+      <include name="IDR_GLIC_PARAMETERIZED_BORDER_SHADER" file="border.sksl" type="BINDATA" compress="brotli" />
       <include name="IDR_GLIC_SIMPLIFIED_BORDER_SHADER" file="border.sksl" type="BINDATA" compress="brotli" />
+      <include name="IDR_GLIC_SIMPLIFIED_PARAMETERIZED_BORDER_SHADER" file="border.sksl" type="BINDATA" compress="brotli" />
       <include name="IDR_GLIC_BUTTON_VECTOR_ICON" file="glic_button.icon" type="BINDATA" compress="brotli" />
       <include name="IDR_GLIC_STATUS_ICON" file="glic_button.icon" type="BINDATA" compress="brotli" />
       <include name="IDR_GLIC_LOGO" file="logo.svg" type="BINDATA" compress="brotli" />
@@ -31,6 +33,15 @@ found in the LICENSE file.
       <include name="IDR_GLIC_PROFILE_BRANDING_CSS" file="glic_profile_branding.css" type="BINDATA" compress="brotli" />
       <include name="IDR_GLIC_TAB_MEDIA_GLIC_ACTIVE" file="tab_media_glic_active.svg" type="BINDATA" compress="brotli" />
       <include name="IDR_GLIC_ACCESSING_ICON" file="../../../app/vector_icons/tv.icon" type="BINDATA" compress="brotli" />
+      <include name="IDR_GLIC_BUTTON_VECTOR_ICON_V2" file="glic_button.icon" type="BINDATA" compress="brotli" />
+      <include name="IDR_GLIC_STATUS_ICON_V2" file="glic_button.icon" type="BINDATA" compress="brotli" />
+      <include name="IDR_GLIC_STATUS_ICON_DARK_V2" file="glic_status_icon_dark.png" type="BINDATA" />
+      <include name="IDR_GLIC_STATUS_ICON_LIGHT_V2" file="glic_status_icon_light.png" type="BINDATA" />
+      <include name="IDR_GLIC_PROFILE_LOGO_V2" file="glic_profile_logo.svg" type="BINDATA" compress="brotli" />
+      <include name="IDR_GLIC_PROFILE_BANNER_BOTTOM_LEFT_V2" file="glic_profile_banner_bottom_left.svg" type="BINDATA" compress="brotli" />
+      <include name="IDR_GLIC_PROFILE_BANNER_TOP_RIGHT_V2" file="glic_profile_banner_top_right.svg" type="BINDATA" compress="brotli" />
+      <include name="IDR_GLIC_PROFILE_BANNER_BOTTOM_LEFT_LIGHT_V2" file="glic_profile_banner_bottom_left_light.svg" type="BINDATA" compress="brotli" />
+      <include name="IDR_GLIC_PROFILE_BANNER_TOP_RIGHT_LIGHT_V2" file="glic_profile_banner_top_right_light.svg" type="BINDATA" compress="brotli" />
     </includes>
 
     <!-- NOTE: file is currently marked as untranslatable in
@@ -41,6 +52,9 @@ found in the LICENSE file.
 
     <messages>
       <message name="IDS_TOOLTIP_TAB_ALERT_STATE_GLIC_ACCESSING" desc="[Placeholder Description]" translateable="false">
+        [Placeholder String]
+      </message>
+      <message name="IDS_TOOLTIP_TAB_ALERT_STATE_GLIC_SHARING" desc="[Placeholder Description]" translateable="false">
         [Placeholder String]
       </message>
       <message name="IDS_GLIC_PROMO_TITLE" desc="Glic promo title." translateable="false">
@@ -60,6 +74,11 @@ found in the LICENSE file.
         </message>
       </if>
       <message name="IDS_TAB_AX_LABEL_GLIC_ACCESSING" is_accessibility_with_no_ui="true" desc="[Placeholder Description]" translateable="false">
+        <ph name="WINDOW_TITLE">
+          $1<ex>Google Photos</ex>
+        </ph> - [Placeholder String]
+      </message>
+      <message name="IDS_TAB_AX_LABEL_GLIC_SHARING" is_accessibility_with_no_ui="true" desc="[Placeholder Description]" translateable="false">
         <ph name="WINDOW_TITLE">
           $1<ex>Google Photos</ex>
         </ph> - [Placeholder String]
@@ -166,6 +185,15 @@ found in the LICENSE file.
       <message name="IDS_GLIC_SIGN_IN_NOTICE_ACTION_BUTTON" translateable="false" desc="This is the button label text for the glic sign in notice.">
         Verify it's you
       </message>
+      <message name ="IDS_GLIC_INELIGIBLE_PROFILE_NOTICE_HEADER" translateable="false" desc="This is the headline on the glic ineligible profile notice.">
+        This account can't use glic
+      </message>
+      <message name ="IDS_GLIC_INELIGIBLE_PROFILE_NOTICE" translateable="false" desc="This is the text of the glic ineligible profile notice.">
+        To use glic, sign in with a different Google Account
+      </message>
+      <message name ="IDS_GLIC_INELIGIBLE_PROFILE_NOTICE_ACTION_BUTTON" translateable="false" desc="This is the button label text for a button that opens the profile picker.">
+        Choose another profile
+      </message>
 
       <!-- Experimental Glic settings -->
       <message name="IDS_SETTINGS_GLIC_PAGE_TITLE" translateable="false" desc="Title of the Glic settings subpage. Also shown as page title in tabstrip.">
@@ -235,17 +263,26 @@ found in the LICENSE file.
       <message name="IDS_SETTINGS_GLIC_PERMISSIONS_LOCATION_TOGGLE_SUBLABEL" translateable="false" desc="Sublabel describing the 'enable location sharing' setting.">
         Use your location to allow enhanced accuracy
       </message>
+      <message name="IDS_SETTINGS_GLIC_PERMISSIONS_LOCATION_TOGGLE_SUBLABEL_DATA_PROTECTED" translateable="false" desc="Sublabel describing the 'enable location sharing' setting (data protected).">
+        Use your location to allow enhanced accuracy but not for model improvement
+      </message>
       <message name="IDS_SETTINGS_GLIC_PERMISSIONS_MICROPHONE_TOGGLE" translateable="false" desc="Name of the 'enable microphone' setting.">
         Microphone
       </message>
       <message name="IDS_SETTINGS_GLIC_PERMISSIONS_MICROPHONE_TOGGLE_SUBLABEL" translateable="false" desc="Sublabel describing the 'enable microphone' setting.">
         Enable use of your microphone
       </message>
+      <message name="IDS_SETTINGS_GLIC_PERMISSIONS_MICROPHONE_TOGGLE_SUBLABEL_DATA_PROTECTED" translateable="false" desc="Sublabel describing the 'enable microphone' setting (data protected).">
+        Enable use of your microphone but not for model improvement
+      </message>
       <message name="IDS_SETTINGS_GLIC_PERMISSIONS_TAB_ACCESS_TOGGLE" translateable="false" desc="Name of the 'enable tab access' setting.">
         Current tab access
       </message>
       <message name="IDS_SETTINGS_GLIC_PERMISSIONS_TAB_ACCESS_TOGGLE_SUBLABEL" translateable="false" desc="Sublabel describing the 'tab access' setting.">
         Allow feature
+      </message>
+      <message name="IDS_SETTINGS_GLIC_PERMISSIONS_TAB_ACCESS_TOGGLE_SUBLABEL_DATA_PROTECTED" translateable="false" desc="Sublabel describing the 'tab access' setting (data protected).">
+        Allow feature but not for model improvement
       </message>
       <message name="IDS_SETTINGS_GLIC_PERMISSIONS_ACTIVITY_BUTTON" translateable="false" desc="Name of the 'activity' button.">
         Activity
@@ -325,6 +362,19 @@ found in the LICENSE file.
       <!-- Task Manager -->
       <message name="IDS_TASK_MANAGER_GLIC_RENDERER_PREFIX" desc="Task Manager row for a render process used to host the Glic UI" translateable="false">
         Glic Host Renderer
+      </message>
+
+      <!-- Multi Page -->
+      <message name="IDS_TAB_CXMENU_GLIC_START_SHARE" desc="Placeholder description" translateable="false">
+        [Placeholder string]
+      </message>
+
+      <message name="IDS_TAB_CXMENU_GLIC_STOP_SHARE" desc="Placeholder description" translateable="false">
+        [Placeholder string]
+      </message>
+
+      <message name="IDS_TAB_CXMENU_GLIC_SHARE_LIMIT" desc="Placeholder description" translateable="false">
+        [Placeholder string]
       </message>
     </messages>
   </release>

@@ -27,13 +27,27 @@ namespace tabs {
 class TabDialogWidgetObserver;
 class BrowserWindowWidgetObserver;
 
-// Class provides a mechanism to show a tab-scoped dialog.
+// Class provides a mechanism to show a tab-scoped dialog on desktop platforms.
+// Please file a bug if you encounter any issues.
 class TabDialogManager : public content::WebContentsObserver {
  public:
   explicit TabDialogManager(TabInterface* tab_interface);
   TabDialogManager(const TabDialogManager&) = delete;
   TabDialogManager& operator=(const TabDialogManager&) = delete;
   ~TabDialogManager() override;
+
+  // Parameters that are used to configure the behavior of the tab dialog.
+  struct Params {
+    // If the tab's main frame performs a different-site navigation, close the
+    // dialog.
+    bool close_on_navigate = true;
+
+    // If the tab is detached, close the dialog.
+    bool close_on_detach = true;
+
+    // Disable input on the underlying WebContents.
+    bool disable_input = true;
+  };
 
   // Create a dialog widget from the given DialogDelegate suitable for showing
   // as scoped to a tab.
@@ -51,14 +65,13 @@ class TabDialogManager : public content::WebContentsObserver {
   // TODO(kylixrd):
   //   (1) Call-sites expect to own the Widget using CLIENT_OWNS_WIDGET and be
   //       updated accordingly.
-  void ShowDialogAndBlockTabInteraction(views::Widget* dialog,
-                                        bool close_on_navigation = true);
+  void ShowDialog(views::Widget* dialog, std::unique_ptr<Params> params);
   // Combines the above two functions into a single invocation. This is the most
   // commonly used version. Only use the other APIs if the caller must do
-  // something unique to the Widget before showing it.
-  std::unique_ptr<views::Widget> CreateShowDialogAndBlockTabInteraction(
+  // something special with the widget.
+  std::unique_ptr<views::Widget> CreateAndShowDialog(
       views::DialogDelegate* delegate,
-      bool close_on_navigation = true);
+      std::unique_ptr<Params> params);
 
   void CloseDialog();
 
@@ -68,6 +81,10 @@ class TabDialogManager : public content::WebContentsObserver {
   //    being destroyed by external code.
   //  * From CloseDialog(), right before calling Close() on the widget.
   void WidgetDestroyed(views::Widget* widget);
+
+  // Returns the widget associated with the browser window. This widget is used
+  // as the parent for tab-scoped widgets.
+  views::Widget* GetHostWidget() const;
 
  private:
   // Overridden from content::WebContentObserver:
@@ -92,8 +109,7 @@ class TabDialogManager : public content::WebContentsObserver {
   std::unique_ptr<TabDialogWidgetObserver> tab_dialog_widget_observer_;
   std::unique_ptr<BrowserWindowWidgetObserver> browser_window_widget_observer_;
   std::unique_ptr<ScopedTabModalUI> showing_modal_ui_;
-
-  bool close_on_navigation_ = true;
+  std::unique_ptr<Params> params_;
 };
 
 }  // namespace tabs
