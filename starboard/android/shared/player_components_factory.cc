@@ -638,15 +638,15 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     return MediaCodecVideoDecoder::Create(
         creation_parameters.job_queue(),
-        creation_parameters.video_stream_info(),
-        creation_parameters.drm_system(), creation_parameters.output_mode(),
-        creation_parameters.decode_target_graphics_context_provider(),
-        creation_parameters.max_video_capabilities(),
-        tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode,
-        force_reset_surface, force_big_endian_hdr_metadata,
-        max_video_input_size, creation_parameters.surface_view(),
-        enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
-        experimental_features);
+        {creation_parameters.video_stream_info(),
+         creation_parameters.drm_system(), creation_parameters.output_mode(),
+         creation_parameters.decode_target_graphics_context_provider(),
+         creation_parameters.surface_view(),
+         creation_parameters.max_video_capabilities()},
+        {tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode},
+        {max_video_input_size, enable_flush_during_seek, experimental_features},
+        {force_reset_surface, force_big_endian_hdr_metadata, reset_delay_usec,
+         flush_delay_usec});
   }
 
   bool IsTunnelModeSupported(const CreationParameters& creation_parameters,
