@@ -39,6 +39,7 @@
 #include "base/strings/string_util.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
+#include "base/types/expected.h"
 #include "base/types/fixed_array.h"
 #include "build/build_config.h"
 #include "components/grit/components_resources.h"
@@ -611,6 +612,10 @@ void PrintHeaderAndFooter(cc::PaintCanvas* canvas,
   // than pushed to a next page that is never to be seen. This may happen for
   // custom headers and (especially) footers.
   webkit_params.use_paginated_layout = false;
+
+  if (params.header_template.empty() && params.footer_template.empty()) {
+    webkit_params.printing_internal_headers_and_footers = true;
+  }
 
   RecordDebugEvent(DebugEvent::kPrintBegin1);
   frame.PrintBegin(webkit_params, blink::WebNode());
@@ -1323,14 +1328,14 @@ void PrintRenderFrameHelper::PrintWithParams(
     PrintWithParamsCallback callback) {
   ScopedIPC scoped_ipc(weak_ptr_factory_.GetWeakPtr());
   if (ipc_nesting_level_ > kAllowedIpcDepthForPrint) {
-    std::move(callback).Run(mojom::PrintWithParamsResult::NewFailureReason(
-        mojom::PrintFailureReason::kGeneralFailure));
+    std::move(callback).Run(
+        base::unexpected(mojom::PrintFailureReason::kGeneralFailure));
     return;
   }
 
   if (print_with_params_callback_) {
-    std::move(callback).Run(mojom::PrintWithParamsResult::NewFailureReason(
-        mojom::PrintFailureReason::kPrintingInProgress));
+    std::move(callback).Run(
+        base::unexpected(mojom::PrintFailureReason::kPrintingInProgress));
     return;
   }
 
@@ -1338,8 +1343,8 @@ void PrintRenderFrameHelper::PrintWithParams(
   frame->DispatchBeforePrintEvent(/*print_client=*/nullptr);
   // Don't print if the RenderFrame is gone.
   if (render_frame_gone_) {
-    std::move(callback).Run(mojom::PrintWithParamsResult::NewFailureReason(
-        mojom::PrintFailureReason::kGeneralFailure));
+    std::move(callback).Run(
+        base::unexpected(mojom::PrintFailureReason::kGeneralFailure));
     return;
   }
 
@@ -2147,10 +2152,10 @@ void PrintRenderFrameHelper::DidFinishPrinting(PrintingResult result) {
   if (print_with_params_callback_) {
     DCHECK_NE(result, PrintingResult::kOk);
     std::move(print_with_params_callback_)
-        .Run(mojom::PrintWithParamsResult::NewFailureReason(
-            result == PrintingResult::kInvalidPageRange
-                ? mojom::PrintFailureReason::kInvalidPageRange
-                : mojom::PrintFailureReason::kGeneralFailure));
+        .Run(
+            base::unexpected(result == PrintingResult::kInvalidPageRange
+                                 ? mojom::PrintFailureReason::kInvalidPageRange
+                                 : mojom::PrintFailureReason::kGeneralFailure));
     Reset();
     return;
   }
@@ -2339,8 +2344,7 @@ bool PrintRenderFrameHelper::PrintPagesNative(
     result->params = std::move(page_params);
     result->accessibility_tree = std::move(accessibility_tree);
     result->generate_document_outline = print_params.generate_document_outline;
-    std::move(print_with_params_callback_)
-        .Run(mojom::PrintWithParamsResult::NewData(std::move(result)));
+    std::move(print_with_params_callback_).Run(base::ok(std::move(result)));
     Reset();
     return true;
   }

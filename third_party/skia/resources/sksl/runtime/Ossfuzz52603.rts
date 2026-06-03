@@ -1,3 +1,0 @@
-uniform half4 colorGreen;
-struct S {int f;} sk_FragColor;
-half4 main(float2) { return colorGreen; }

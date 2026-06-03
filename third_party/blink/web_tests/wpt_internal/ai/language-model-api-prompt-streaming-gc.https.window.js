@@ -1,4 +1,6 @@
 // META: title=Language Model Prompt Streaming GC
+// META: script=/resources/testdriver.js
+// META: script=/resources/testdriver-vendor.js
 // META: script=resources/utils.js
 // META: timeout=long
 
@@ -8,7 +10,7 @@ promise_test(async t => {
   await ensureLanguageModel();
 
   // Start a new session.
-  const session = await LanguageModel.create();
+  const session = await createLanguageModel();
   // Test the streaming prompt API.
   const streamingResponse =
     session.promptStreaming(kTestPrompt);
@@ -18,16 +20,10 @@ promise_test(async t => {
     Object.prototype.toString.call(streamingResponse),
     "[object ReadableStream]"
   );
-  const reader = streamingResponse.getReader();
   let result = "";
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) {
-      break;
-    }
-    if (value) {
-      result += value;
-    }
+  for await (const value of streamingResponse) {
+    result += value;
+    gc();
   }
   assert_greater_than(result.length, 0, "The result should not be empty.");
 }, 'Prompt Streaming API must continue even after GC has been performed.');

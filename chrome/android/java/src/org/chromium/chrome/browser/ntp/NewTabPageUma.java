@@ -4,9 +4,11 @@
 
 package org.chromium.chrome.browser.ntp;
 
+
 import androidx.annotation.IntDef;
 
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.feed.FeedFeatures;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -23,6 +25,7 @@ import java.lang.annotation.RetentionPolicy;
  * Records UMA stats for which actions the user takes on the NTP in the
  * "NewTabPage.ActionAndroid2" histogram.
  */
+@NullMarked
 public class NewTabPageUma {
     // Possible actions taken by the user on the NTP. These values are also defined in
     // enums.xml as NewTabPageActionAndroid2.
@@ -214,5 +217,11 @@ public class NewTabPageUma {
                 "ContentSuggestions.Feed.DisplayStatusOnOpen",
                 status,
                 ContentSuggestionsDisplayStatus.NUM_ENTRIES);
+    }
+
+    public static void recordSimultaneousNtpCount(int count) {
+        // We don't expect more than 100 NTP at the same time. Count100Histogram is enough to track
+        // the metric.
+        RecordHistogram.recordCount100Histogram("NewTabPage.Count", count);
     }
 }

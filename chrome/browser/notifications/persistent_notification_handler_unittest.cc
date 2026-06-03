@@ -10,6 +10,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/thread_pool.h"
 #include "base/test/test_future.h"
 #include "build/build_config.h"
@@ -116,8 +117,7 @@ class PersistentNotificationHandlerTest : public ::testing::Test {
   // ::testing::Test overrides:
   void SetUp() override {
     scoped_feature_list_.InitWithFeatures(
-        {}, {safe_browsing::kOnDeviceNotificationContentDetectionModel,
-             safe_browsing::kShowWarningsForSuspiciousNotifications});
+        {}, {safe_browsing::kShowWarningsForSuspiciousNotifications});
 
     HistoryServiceFactory::GetInstance()->SetTestingFactory(
         profile_.get(), HistoryServiceFactory::GetDefaultFactory());
@@ -274,18 +274,9 @@ TEST_F(PersistentNotificationHandlerTest, DisableNotifications) {
 
 class PersistentNotificationHandlerWithNotificationContentDetection
     : public PersistentNotificationHandlerTest,
-      public testing::WithParamInterface<std::tuple<bool, bool>> {
+      public testing::WithParamInterface<bool> {
  public:
   void SetUp() override {
-    if (IsNotificationContentDetectionEnabled()) {
-      scoped_feature_list_.InitWithFeatures(
-          {safe_browsing::kOnDeviceNotificationContentDetectionModel},
-          {safe_browsing::kShowWarningsForSuspiciousNotifications});
-    } else {
-      scoped_feature_list_.InitWithFeatures(
-          {}, {safe_browsing::kOnDeviceNotificationContentDetectionModel,
-               safe_browsing::kShowWarningsForSuspiciousNotifications});
-    }
     if (IsSafeBrowsingEnabled()) {
       profile_->GetTestingPrefService()->SetManagedPref(
           prefs::kSafeBrowsingEnabled, std::make_unique<base::Value>(true));
@@ -311,11 +302,7 @@ class PersistentNotificationHandlerWithNotificationContentDetection
     PersistentNotificationHandlerTest::TearDown();
   }
 
-  bool IsSafeBrowsingEnabled() { return std::get<0>(GetParam()); }
-
-  bool IsNotificationContentDetectionEnabled() {
-    return std::get<1>(GetParam());
-  }
+  bool IsSafeBrowsingEnabled() { return GetParam(); }
 
  protected:
   raw_ptr<safe_browsing::MockNotificationContentDetectionService>
@@ -326,7 +313,7 @@ class PersistentNotificationHandlerWithNotificationContentDetection
 INSTANTIATE_TEST_SUITE_P(
     ,
     PersistentNotificationHandlerWithNotificationContentDetection,
-    testing::Combine(testing::Bool(), testing::Bool()));
+    testing::Bool());
 
 TEST_P(PersistentNotificationHandlerWithNotificationContentDetection,
        PerformNotificationContentDetectionWhenEnabled) {
@@ -334,7 +321,7 @@ TEST_P(PersistentNotificationHandlerWithNotificationContentDetection,
   display_service_tester_.SetNotificationAddedClosure(run_loop.QuitClosure());
 
   int expected_number_of_calls = 0;
-  if (IsSafeBrowsingEnabled() && IsNotificationContentDetectionEnabled()) {
+  if (IsSafeBrowsingEnabled()) {
     expected_number_of_calls = 1;
   }
   EXPECT_CALL(*mock_notification_content_detection_service_,
@@ -346,7 +333,9 @@ TEST_P(PersistentNotificationHandlerWithNotificationContentDetection,
           kExampleNotificationId, origin_ /* service_worker_scope */, origin_,
           blink::PlatformNotificationData(), blink::NotificationResources());
 
-  run_loop.Run();
+  if (!IsSafeBrowsingEnabled()) {
+    run_loop.Run();
+  }
 }
 
 class

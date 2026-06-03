@@ -317,6 +317,8 @@ const char* RequestResultToString(
       return "REQUEST_CANCELLED";
     case blink::mojom::MediaStreamRequestResult::START_TIMEOUT:
       return "START_TIMEOUT";
+    case blink::mojom::MediaStreamRequestResult::PERMISSION_DENIED_BY_USER:
+      return "PERMISSION_DENIED_BY_USER";
     case blink::mojom::MediaStreamRequestResult::NUM_MEDIA_REQUEST_RESULTS:
       break;  // Not a valid enum value.
   }
@@ -1340,7 +1342,11 @@ class MediaStreamManager::GenerateStreamsRequest
 
   void PanTiltZoomPermissionChecked(const std::string& label,
                                     bool pan_tilt_zoom_allowed) override {
+    DCHECK_CURRENTLY_ON(BrowserThread::IO);
     DCHECK(generate_streams_callback_);
+
+    MaybeConferTransientActivation();
+
     std::move(generate_streams_callback_)
         .Run(MediaStreamRequestResult::OK, label, stream_devices_set.Clone(),
              pan_tilt_zoom_allowed);
@@ -1356,6 +1362,37 @@ class MediaStreamManager::GenerateStreamsRequest
   }
 
  private:
+  void MaybeConferTransientActivation() {
+    DCHECK_CURRENTLY_ON(BrowserThread::IO);
+
+    if (!base::FeatureList::IsEnabled(
+            media::kGetDisplayMediaConfersActivation)) {
+      return;
+    }
+
+    // We consciously avoid `IsVideoDesktopCaptureMediaType(video_type())`,
+    // choosing instead to confer transient activation only if screen-sharing is
+    // initiated through getDisplayMedia(). Extending to other screen-sharing
+    // APIs is possible as a series of follow-ups.
+    if (video_type() != MediaStreamType::DISPLAY_VIDEO_CAPTURE &&
+        video_type() != MediaStreamType::DISPLAY_VIDEO_CAPTURE_THIS_TAB) {
+      return;
+    }
+
+    GetUIThreadTaskRunner({})->PostTask(
+        FROM_HERE,
+        base::BindOnce(
+            [](GlobalRenderFrameHostId rfh_id) {
+              RenderFrameHost* const rfh = RenderFrameHost::FromID(rfh_id);
+              if (!rfh) {
+                return;
+              }
+              rfh->NotifyUserActivation(
+                  blink::mojom::UserActivationNotificationType::kInteraction);
+            },
+            requesting_render_frame_host_id));
+  }
+
   base::WeakPtr<DeviceRequest> GetWeakPtr() override {
     return weak_factory_.GetWeakPtr();
   }

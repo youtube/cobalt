@@ -17,8 +17,8 @@
 class PrefChangeRegistrar;
 class ProfileIOS;
 
-// A notification client responsible for scheduling reminder notification
-// requests and handling user interactions with reminders.
+// A Profile-based notification client responsible for scheduling reminder
+// notification requests and handling user interactions with reminders.
 class ReminderNotificationClient : public PushNotificationClient {
  public:
   explicit ReminderNotificationClient(ProfileIOS* profile);
@@ -31,16 +31,44 @@ class ReminderNotificationClient : public PushNotificationClient {
   std::optional<UIBackgroundFetchResult> HandleNotificationReception(
       NSDictionary<NSString*, id>* notification) override;
   NSArray<UNNotificationCategory*>* RegisterActionableNotifications() override;
-  void OnSceneActiveForegroundBrowserReady() override;
-
-  // Called when the scene becomes "active foreground" and the browser is
-  // ready. The closure will be called when all async operations are done.
-  void OnSceneActiveForegroundBrowserReady(base::OnceClosure closure);
 
  private:
-  // Called when the relevant Reminder Notifications Prefs change for the
-  // Profile associated with this client.
-  void OnPrefsChanged();
+  // Returns true if the client is permitted to schedule notifications.
+  bool IsPermitted();
+
+  // Called when the relevant Reminder Notifications Pref changes.
+  void OnReminderDataPrefChanged();
+
+  // Called when the relevant permissions Pref changes.
+  void OnPermissionsPrefChanged();
+
+  // Schedules new reminder notifications based on the current reminder data in
+  // Prefs.
+  void ScheduleNewReminders();
+
+  // Schedules new reminder notifications if they don't already exist in the
+  // notification center.
+  void ScheduleNewRemindersIfNeeded(
+      NSArray<UNNotificationRequest*>* pending_requests);
+
+  // Cancels all pending reminder notifications.
+  void CancelAllNotifications(base::OnceClosure completion_handler);
+
+  // Callback for `-getPendingNotificationRequestsWithCompletionHandler:` used
+  // in `CancelAllNotifications()`.
+  void OnGetPendingNotificationsForCancellation(
+      base::OnceClosure completion_handler,
+      NSArray<UNNotificationRequest*>* requests);
+
+  // Schedules a single reminder notification for `reminder_url` using
+  // `reminder_details`.
+  void ScheduleNotification(const GURL& reminder_url,
+                            const base::Value::Dict& reminder_details,
+                            std::string_view profile_name);
+
+  // Called upon completion of scheduling a single notification. Removes the
+  // corresponding Pref entry for `scheduled_url` if scheduling was successful.
+  void OnNotificationScheduled(const GURL& scheduled_url, NSError* error);
 
   // Used to assert that asynchronous callback are invoked on the correct
   // sequence.

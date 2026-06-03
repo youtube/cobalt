@@ -119,15 +119,18 @@ void WorkerModuleScriptFetcher::NotifyFinished(Resource* resource) {
     }
   }
 
-  NotifyClient(resource->Url(), resolved_module_type.value(),
-               script_resource->SourceText(), resource->GetResponse(),
-               script_resource->CacheHandler());
+  NotifyClient(
+      resource->Url(), resolved_module_type.value(),
+      script_resource->GetSourceTextOrWasmSource(resolved_module_type.value()),
+      resource->GetResponse(), script_resource->CacheHandler());
 }
 
+// TODO(https://crbug.com/42204365): Wrap `source` and  `module_type` in a
+// new class.
 void WorkerModuleScriptFetcher::NotifyClient(
     const KURL& request_url,
     ResolvedModuleType module_type,
-    const ParkableString& source_text,
+    std::variant<ParkableString, base::HeapArray<uint8_t>>&& source,
     const ResourceResponse& response,
     CachedMetadataHandler* cache_handler) {
   HeapVector<Member<ConsoleMessage>> error_messages;
@@ -200,8 +203,9 @@ void WorkerModuleScriptFetcher::NotifyClient(
   // https://html.spec.whatwg.org/multipage/webappapis.html#concept-script-base-url
   client_->NotifyFetchFinishedSuccess(ModuleScriptCreationParams(
       /*source_url=*/response_url, /*base_url=*/response_url,
-      ScriptSourceLocationType::kExternalFile, module_type, source_text,
-      cache_handler, response_referrer_policy, nullptr,
+      ScriptSourceLocationType::kExternalFile, module_type, std::move(source),
+      cache_handler, response_referrer_policy,
+      response.HttpHeaderField(http_names::kSourceMap), nullptr,
       ScriptStreamer::NotStreamingReason::kStreamingDisabled, import_phase_));
 }
 
@@ -224,11 +228,11 @@ void WorkerModuleScriptFetcher::OnStartLoadingBodyWorkerMainScript(
           resource_response.HttpContentType())) {
     HeapVector<Member<ConsoleMessage>> error_messages;
     String message =
-        "Failed to load module script: The server responded with a "
-        "non-JavaScript MIME type of \"" +
-        resource_response.HttpContentType() +
-        "\". Strict MIME type checking is enforced for module scripts per HTML "
-        "spec.";
+        StrCat({"Failed to load module script: The server responded with a "
+                "non-JavaScript MIME type of \"",
+                resource_response.HttpContentType(),
+                "\". Strict MIME type checking is enforced for module scripts "
+                "per HTML spec."});
     error_messages.push_back(MakeGarbageCollected<ConsoleMessage>(
         mojom::ConsoleMessageSource::kJavaScript,
         mojom::ConsoleMessageLevel::kError, message,

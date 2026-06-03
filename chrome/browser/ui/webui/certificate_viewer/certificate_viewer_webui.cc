@@ -19,6 +19,7 @@
 #include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
+#include "base/strings/string_view_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "base/values.h"
@@ -33,16 +34,13 @@
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/host_zoom_map.h"
 #include "content/public/browser/web_contents.h"
+#include "crypto/crypto_buildflags.h"
 #include "net/base/ip_address.h"
+#include "net/cert/x509_certificate.h"
 #include "net/cert/x509_util.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/gfx/geometry/size.h"
-
-#if BUILDFLAG(USE_NSS_CERTS)
-#include "chrome/common/net/x509_certificate_model_nss.h"
-#include "net/cert/x509_util_nss.h"
-#endif
 
 using content::WebContents;
 using content::WebUIMessageHandler;
@@ -339,25 +337,13 @@ std::string DialogArgsForCertList(
 void ShowCertificateViewer(WebContents* web_contents,
                            gfx::NativeWindow parent,
                            net::X509Certificate* cert) {
-  std::vector<std::string> nicknames;
-#if BUILDFLAG(USE_NSS_CERTS)
-  net::ScopedCERTCertificateList nss_certs =
-      net::x509_util::CreateCERTCertificateListFromX509Certificate(cert);
-  // If any of the certs could not be parsed by NSS, |nss_certs| will be an
-  // empty list and |nicknames| will not be populated, which is fine as a
-  // fallback.
-  for (const auto& nss_cert : nss_certs) {
-    nicknames.push_back(x509_certificate_model::GetRawNickname(nss_cert.get()));
-  }
-#endif
-
   std::vector<bssl::UniquePtr<CRYPTO_BUFFER>> cert_buffers;
   cert_buffers.push_back(bssl::UpRef(cert->cert_buffer()));
   for (const auto& intermediate : cert->intermediate_buffers()) {
     cert_buffers.push_back(bssl::UpRef(intermediate));
   }
-  CertificateViewerDialog::ShowConstrained(
-      std::move(cert_buffers), std::move(nicknames), web_contents, parent);
+  CertificateViewerDialog::ShowConstrained(std::move(cert_buffers),
+                                           web_contents, parent);
 }
 
 #if !(BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC))
@@ -371,33 +357,13 @@ void ShowCertificateViewerForClientAuth(content::WebContents* web_contents,
 ////////////////////////////////////////////////////////////////////////////////
 // CertificateViewerDialog
 
-#if BUILDFLAG(USE_NSS_CERTS)
-// static
-CertificateViewerDialog* CertificateViewerDialog::ShowConstrained(
-    net::ScopedCERTCertificateList nss_certs,
-    WebContents* web_contents,
-    gfx::NativeWindow parent) {
-  std::vector<std::string> nicknames;
-  std::vector<bssl::UniquePtr<CRYPTO_BUFFER>> cert_buffers;
-  for (const auto& cert : nss_certs) {
-    nicknames.push_back(x509_certificate_model::GetRawNickname(cert.get()));
-    cert_buffers.push_back(net::x509_util::CreateCryptoBuffer(
-        net::x509_util::CERTCertificateAsSpan(cert.get())));
-  }
-  return ShowConstrained(std::move(cert_buffers), std::move(nicknames),
-                         web_contents, parent);
-}
-#endif
-
 // static
 CertificateViewerDialog* CertificateViewerDialog::ShowConstrained(
     std::vector<bssl::UniquePtr<CRYPTO_BUFFER>> certs,
-    std::vector<std::string> cert_nicknames,
     content::WebContents* web_contents,
     gfx::NativeWindow parent) {
-  return ShowConstrained(std::move(certs), std::move(cert_nicknames),
-                         std::nullopt, base::NullCallback(), web_contents,
-                         parent);
+  return ShowConstrained(std::move(certs), std::nullopt, base::NullCallback(),
+                         web_contents, parent);
 }
 
 // static
@@ -407,9 +373,8 @@ CertificateViewerDialog* CertificateViewerDialog::ShowConstrained(
     gfx::NativeWindow parent) {
   std::vector<bssl::UniquePtr<CRYPTO_BUFFER>> certs;
   certs.push_back(std::move(cert));
-  return ShowConstrained(std::move(certs),
-                         /*cert_nicknames=*/{}, std::nullopt,
-                         base::NullCallback(), web_contents, parent);
+  return ShowConstrained(std::move(certs), std::nullopt, base::NullCallback(),
+                         web_contents, parent);
 }
 
 // static
@@ -424,23 +389,22 @@ CertificateViewerDialog* CertificateViewerDialog::ShowConstrainedWithMetadata(
   certs.push_back(std::move(cert));
 
   return CertificateViewerDialog::ShowConstrained(
-      std::move(certs), /*cert_nicknames=*/{}, std::move(cert_metadata),
+      std::move(certs), std::move(cert_metadata),
       std::move(modifications_callback), web_contents, parent);
 }
 
 // static
 CertificateViewerDialog* CertificateViewerDialog::ShowConstrained(
     std::vector<bssl::UniquePtr<CRYPTO_BUFFER>> certs,
-    std::vector<std::string> cert_nicknames,
     std::optional<
         chrome_browser_server_certificate_database::CertificateMetadata>
         cert_metadata,
     CertMetadataModificationsCallback modifications_callback,
     content::WebContents* web_contents,
     gfx::NativeWindow parent) {
-  CertificateViewerDialog* dialog_ptr = new CertificateViewerDialog(
-      std::move(certs), std::move(cert_nicknames), std::move(cert_metadata),
-      std::move(modifications_callback));
+  CertificateViewerDialog* dialog_ptr =
+      new CertificateViewerDialog(std::move(certs), std::move(cert_metadata),
+                                  std::move(modifications_callback));
 
   auto dialog = base::WrapUnique(dialog_ptr);
 
@@ -465,7 +429,6 @@ gfx::NativeWindow CertificateViewerDialog::GetNativeWebContentsModalDialog() {
 
 CertificateViewerDialog::CertificateViewerDialog(
     std::vector<bssl::UniquePtr<CRYPTO_BUFFER>> in_certs,
-    std::vector<std::string> cert_nicknames,
     std::optional<
         chrome_browser_server_certificate_database::CertificateMetadata>
         cert_metadata,
@@ -476,12 +439,8 @@ CertificateViewerDialog::CertificateViewerDialog(
   }
 
   std::vector<x509_certificate_model::X509CertificateModel> certs;
-  for (size_t i = 0; i < in_certs.size(); ++i) {
-    std::string nickname;
-    if (i < cert_nicknames.size()) {
-      nickname = std::move(cert_nicknames[i]);
-    }
-    certs.emplace_back(std::move(in_certs[i]), std::move(nickname));
+  for (auto& in_cert : in_certs) {
+    certs.emplace_back(std::move(in_cert));
   }
 
   constexpr gfx::Size kDefaultSize{544, 628};

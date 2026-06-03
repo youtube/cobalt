@@ -12,6 +12,7 @@
 #include "third_party/blink/public/web/blink.h"
 #include "third_party/blink/renderer/platform/bindings/v8_binding.h"
 #include "third_party/blink/renderer/platform/bindings/v8_private_property.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 
 namespace blink {
 
@@ -320,10 +321,9 @@ void RemoteObject::RemoteObjectInvokeCallback(
   String method_name = ToCoreString(isolate, info.Data().As<v8::String>());
   if (info.IsConstructCall()) {
     // This is not a constructor. Throw and return.
-    isolate->ThrowException(v8::Exception::Error(V8String(
-        isolate, base::StrCat({"Error invoking ", method_name.Utf8(), ": ",
-                               kMethodInvocationAsConstructorDisallowed})
-                     .c_str())));
+    isolate->ThrowException(v8::Exception::Error(
+        V8String(isolate, StrCat({"Error invoking ", method_name, ": ",
+                                  kMethodInvocationAsConstructorDisallowed}))));
     return;
   }
 
@@ -331,9 +331,8 @@ void RemoteObject::RemoteObjectInvokeCallback(
   if (!gin::ConvertFromV8(isolate, info.This(), &remote_object)) {
     // Someone messed with the |this| pointer. Throw and return.
     isolate->ThrowException(v8::Exception::Error(V8String(
-        isolate, base::StrCat({"Error invoking ", ": ", method_name.Utf8(),
-                               kMethodInvocationOnNonInjectedObjectDisallowed})
-                     .c_str())));
+        isolate, StrCat({"Error invoking ", ": ", method_name,
+                         kMethodInvocationOnNonInjectedObjectDisallowed}))));
     return;
   }
 
@@ -348,10 +347,9 @@ void RemoteObject::RemoteObjectInvokeCallback(
           .ToLocalChecked();
 
   if (cached_method->IsUndefined()) {
-    isolate->ThrowException(v8::Exception::Error(V8String(
-        isolate, base::StrCat({"Error invoking ", ": ", method_name.Utf8(),
-                               kMethodInvocationNonexistentMethod})
-                     .c_str())));
+    isolate->ThrowException(v8::Exception::Error(
+        V8String(isolate, StrCat({"Error invoking ", ": ", method_name,
+                                  kMethodInvocationNonexistentMethod}))));
     return;
   }
 
@@ -373,11 +371,9 @@ void RemoteObject::RemoteObjectInvokeCallback(
 
   if (result->error != mojom::blink::RemoteInvocationError::OK) {
     isolate->ThrowException(v8::Exception::Error(V8String(
-        isolate,
-        base::StrCat({"Error invoking ", method_name.Utf8(), ": ",
-                      kMethodInvocationErrorMessage, ": ",
-                      RemoteInvocationErrorToString(result->error).Utf8()})
-            .c_str())));
+        isolate, StrCat({"Error invoking ", method_name, ": ",
+                         kMethodInvocationErrorMessage, ": ",
+                         RemoteInvocationErrorToString(result->error)}))));
     return;
   }
 

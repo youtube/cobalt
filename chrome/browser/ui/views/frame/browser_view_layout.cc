@@ -29,6 +29,7 @@
 #include "chrome/browser/ui/views/frame/browser_view_layout_delegate.h"
 #include "chrome/browser/ui/views/frame/contents_layout_manager.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
+#include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/frame/top_container_view.h"
 #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
@@ -229,6 +230,7 @@ BrowserViewLayout::BrowserViewLayout(
     views::View* toolbar,
     InfoBarContainerView* infobar_container,
     views::View* contents_container,
+    MultiContentsView* multi_contents_view,
     views::View* left_aligned_side_panel_separator,
     views::View* unified_side_panel,
     views::View* right_aligned_side_panel_separator,
@@ -245,6 +247,7 @@ BrowserViewLayout::BrowserViewLayout(
       toolbar_(toolbar),
       infobar_container_(infobar_container),
       contents_container_(contents_container),
+      multi_contents_view_(multi_contents_view),
       left_aligned_side_panel_separator_(left_aligned_side_panel_separator),
       unified_side_panel_(unified_side_panel),
       right_aligned_side_panel_separator_(right_aligned_side_panel_separator),
@@ -491,8 +494,8 @@ int BrowserViewLayout::LayoutTitleBarForWebApp(int top) {
     if (delegate_->ShouldDrawTabStrip()) {
       web_app_window_title_->SetVisible(false);
     } else {
-      delegate_->LayoutWebAppWindowTitle(window_title_bounds,
-                                         *web_app_window_title_);
+      browser_view_->frame()->LayoutWebAppWindowTitle(window_title_bounds,
+                                                      *web_app_window_title_);
     }
   }
 
@@ -670,13 +673,13 @@ BrowserViewLayout::CalculateContentsContainerLayout(int top, int bottom) const {
   SidePanel* side_panel = views::AsViewClass<SidePanel>(unified_side_panel_);
 
   const bool side_panel_right_aligned = side_panel->IsRightAligned();
-  const bool is_in_split_view = delegate_->IsInSplitView();
+  const bool is_in_split = delegate_->IsActiveTabSplit();
   views::View* side_panel_separator =
       side_panel_right_aligned ? right_aligned_side_panel_separator_.get()
                                : left_aligned_side_panel_separator_.get();
   CHECK(side_panel_separator);
   const int separator_width =
-      is_in_split_view ? 0 : side_panel_separator->GetPreferredSize().width();
+      is_in_split ? 0 : side_panel_separator->GetPreferredSize().width();
 
   // Side panel occupies some of the container's space. The side panel should
   // never occupy more space than is available in the content window, and
@@ -760,8 +763,11 @@ void BrowserViewLayout::LayoutContentsContainerView(int top, int bottom) {
 
   BrowserViewLayout::ContentsContainerLayoutResult layout_result =
       CalculateContentsContainerLayout(top, bottom);
-  const bool is_in_split_view = delegate_->IsInSplitView();
+  const bool is_in_split = delegate_->IsActiveTabSplit();
 
+  if (is_in_split) {
+    UpdateSplitViewInsets();
+  }
   contents_container_->SetBoundsRect(layout_result.contents_container_bounds);
 
   if (unified_side_panel_) {
@@ -771,7 +777,7 @@ void BrowserViewLayout::LayoutContentsContainerView(int top, int bottom) {
     SetViewVisibility(right_aligned_side_panel_separator_,
                       layout_result.side_panel_visible &&
                           layout_result.side_panel_right_aligned &&
-                          !is_in_split_view);
+                          !is_in_split);
     right_aligned_side_panel_separator_->SetBoundsRect(
         layout_result.separator_bounds);
   }
@@ -779,14 +785,14 @@ void BrowserViewLayout::LayoutContentsContainerView(int top, int bottom) {
     SetViewVisibility(left_aligned_side_panel_separator_,
                       layout_result.side_panel_visible &&
                           !layout_result.side_panel_right_aligned &&
-                          !is_in_split_view);
+                          !is_in_split);
     left_aligned_side_panel_separator_->SetBoundsRect(
         layout_result.separator_bounds);
   }
 
   if (side_panel_rounded_corner_) {
     SetViewVisibility(side_panel_rounded_corner_,
-                      layout_result.side_panel_visible && !is_in_split_view);
+                      layout_result.side_panel_visible && !is_in_split);
     if (layout_result.side_panel_visible) {
       // This can return nullptr when there is no Widget (for context, see
       // http://crbug.com/40178332). The nullptr dereference does not always
@@ -927,4 +933,35 @@ bool BrowserViewLayout::IsInfobarVisible() const {
   return !infobar_container_->IsEmpty() &&
          (!browser_view_->IsFullscreen() ||
           !infobar_container_->ShouldHideInFullscreen());
+}
+
+// When in split view, the outline at the top should replace the content
+// separator. This represents the visual separation between top container and
+// the contents area. The exception to this is immersive full screen with
+// no toolbar or presence of infobar. Similarly the insets for the left and
+// right of the split view is determined by the side panel.
+void BrowserViewLayout::UpdateSplitViewInsets() {
+  SidePanel* side_panel = views::AsViewClass<SidePanel>(unified_side_panel_);
+  bool has_side_panel = side_panel->GetVisible();
+  bool is_right_aligned = side_panel->IsRightAligned();
+  bool is_in_immersive_mode = !delegate_->ShouldLayoutTabStrip();
+  bool has_infobar = infobar_container_->GetVisible();
+
+  CHECK(multi_contents_view_);
+
+  multi_contents_view_->start_contents_view_inset()
+      .set_left(has_side_panel && !is_right_aligned
+                    ? 0
+                    : MultiContentsView::kSplitViewContentInset)
+      .set_top(!is_in_immersive_mode && !has_infobar
+                   ? 0
+                   : MultiContentsView::kSplitViewContentInset);
+
+  multi_contents_view_->end_contents_view_inset()
+      .set_right(has_side_panel && is_right_aligned
+                     ? 0
+                     : MultiContentsView::kSplitViewContentInset)
+      .set_top(!is_in_immersive_mode && !has_infobar
+                   ? 0
+                   : MultiContentsView::kSplitViewContentInset);
 }

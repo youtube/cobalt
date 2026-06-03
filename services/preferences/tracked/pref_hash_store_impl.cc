@@ -98,10 +98,10 @@ class PrefHashStoreImpl::PrefHashStoreTransactionImpl
 
   // Stores the new split Encrypted Hashes. Requires the encryptor.
   void StoreSplitEncryptedHash(const std::string& path,
-                               const base::Value::Dict* split_value);
+                               const base::Value::Dict* split_value) override;
 
   // Clears only the Encrypted Hash for the path.
-  void ClearEncryptedHash(const std::string& path);
+  void ClearEncryptedHash(const std::string& path) override;
 
   // Gets the stored split encrypted hashes if they exist. Returns false
   // otherwise.
@@ -137,9 +137,8 @@ class PrefHashStoreImpl::PrefHashStoreTransactionImpl
 };
 
 PrefHashStoreImpl::PrefHashStoreImpl(const std::string& seed,
-                                     const std::string& legacy_device_id,
                                      bool use_super_mac)
-    : pref_hash_calculator_(seed, GenerateDeviceId(), legacy_device_id),
+    : pref_hash_calculator_(seed, GenerateDeviceId()),
       use_super_mac_(use_super_mac) {}
 
 PrefHashStoreImpl::~PrefHashStoreImpl() {}
@@ -314,45 +313,41 @@ ValueState PrefHashStoreImpl::PrefHashStoreTransactionImpl::CheckValueInternal(
     const base::Value* value,
     const std::optional<std::string>& stored_encrypted_hash,
     const std::optional<std::string>& stored_mac) const {
-  // -- Priority 1: Check encrypted hash --
-  if (stored_encrypted_hash.has_value()) {
     if (encryptor_) {
-      ValidationResult encrypted_validation_result =
-          outer_->pref_hash_calculator_.ValidateEncrypted(
-              path, value, *stored_encrypted_hash, encryptor_);
-
-      if (encrypted_validation_result == ValidationResult::VALID_ENCRYPTED) {
-        return ValueState::UNCHANGED;
-      } else {
-        // Encrypted hash is invalid or decryption failed. Do NOT fall back.
+      // Priority 1: Check encrypted hash.
+      if (stored_encrypted_hash.has_value()) {
+        ValidationResult result =
+            outer_->pref_hash_calculator_.ValidateEncrypted(
+                path, value, *stored_encrypted_hash, encryptor_);
+        if (result == ValidationResult::VALID_ENCRYPTED) {
+          return ValueState::UNCHANGED_ENCRYPTED;
+        }
+        return value ? ValueState::CHANGED_ENCRYPTED
+                     : ValueState::CLEARED_ENCRYPTED;
+      }
+      // Priority 2: Fallback to legacy MAC for healing.
+      if (stored_mac.has_value()) {
+        ValidationResult result =
+            outer_->pref_hash_calculator_.Validate(path, value, *stored_mac);
+        if (result == ValidationResult::VALID) {
+          return ValueState::UNCHANGED_VIA_HMAC_FALLBACK;
+        }
+        return value ? ValueState::CHANGED_VIA_HMAC_FALLBACK
+                     : ValueState::CLEARED_VIA_HMAC_FALLBACK;
+      }
+    } else {
+      // ---- Encryptor is NOT available: Legacy path ----
+      if (stored_mac.has_value()) {
+        ValidationResult mac_validation_result =
+            outer_->pref_hash_calculator_.Validate(path, value, *stored_mac);
+        if (mac_validation_result == ValidationResult::VALID) {
+          // If we fell through from encrypted (which was unusable), a valid MAC
+          // still means the value is UNCHANGED.
+          return ValueState::UNCHANGED;
+        }
         return value ? ValueState::CHANGED : ValueState::CLEARED;
       }
     }
-  }
-
-  // --- Priority 2: Check legacy HMAC ---
-  if (stored_mac.has_value()) {
-    ValidationResult mac_validation_result =
-        outer_->pref_hash_calculator_.Validate(path, value, *stored_mac);
-    switch (mac_validation_result) {
-      case ValidationResult::VALID:
-        // If we fell through from encrypted (which was unusable), a valid MAC
-        // still means the value is UNCHANGED.
-        return ValueState::UNCHANGED;
-      // TODO(crbug.com/415789156): Remove VALID_SECURE_LEGACY from
-      // ValidationResult.
-      case ValidationResult::VALID_SECURE_LEGACY:
-        // If we fell through from encrypted, MAC is valid => SECURE_LEGACY
-        return ValueState::SECURE_LEGACY;
-      case ValidationResult::INVALID:
-        // If encrypted was present but unvalidatable, OR if only MAC was
-        // present and invalid
-        return value ? ValueState::CHANGED : ValueState::CLEARED;
-      default:
-        NOTREACHED() << "Unexpected PrefHashCalculator::ValidationResult: "
-                     << mac_validation_result;
-    }
-  }
 
   // --- No Usable Hashes Found ---
   // Arrive here if:
@@ -441,87 +436,98 @@ PrefHashStoreImpl::PrefHashStoreTransactionImpl::CheckSplitValueInternal(
 
   const bool is_initial_value_empty =
       (!initial_split_value || initial_split_value->empty());
-
-  bool try_mac_fallback = false;
   bool only_unusable_encrypted_present = false;
 
-  // --- Priority 1: Check split encrypted hashes ---
-  if (has_encrypted_hashes) {
     if (encryptor_) {
-      if (is_initial_value_empty) {
-        return ValueState::CLEARED;
-      }
-      bool any_invalid = false;
-      std::map<std::string, std::string> current_encrypted =
-          split_encrypted_hashes;
-      std::string keyed_path_base = path + ".";
-      if (initial_split_value) {
-        for (const auto item : *initial_split_value) {
-          std::string keyed_path = keyed_path_base + item.first;
-          auto it = current_encrypted.find(item.first);
-          if (it == current_encrypted.end() ||
-              outer_->pref_hash_calculator_.ValidateEncrypted(
-                  keyed_path, &item.second, it->second, encryptor_) !=
-                  ValidationResult::VALID_ENCRYPTED) {
-            invalid_keys->push_back(item.first);
-            any_invalid = true;
-          }
-          if (it != current_encrypted.end()) {
-            current_encrypted.erase(it);
+      // --- Encryptor is available ---
+      if (has_encrypted_hashes) {
+        // --- Priority 1: Check split encrypted hashes ---
+        std::map<std::string, std::string> current_encrypted =
+            split_encrypted_hashes;
+        if (initial_split_value) {
+          for (const auto item : *initial_split_value) {
+            const std::string keyed_path = path + "." + item.first;
+            auto it = current_encrypted.find(item.first);
+            if (it == current_encrypted.end() ||
+                outer_->pref_hash_calculator_.ValidateEncrypted(
+                    keyed_path, &item.second, it->second, encryptor_) !=
+                    ValidationResult::VALID_ENCRYPTED) {
+              invalid_keys->push_back(item.first);
+            }
+            if (it != current_encrypted.end()) {
+              current_encrypted.erase(it);
+            }
           }
         }
-      }
-      for (const auto& pair : current_encrypted) {
-        invalid_keys->push_back(pair.first);
-        any_invalid = true;
-      }
-      return any_invalid ? ValueState::CHANGED : ValueState::UNCHANGED;
-    } else {
-      try_mac_fallback = true;
-      if (!has_mac_hashes) {
-        only_unusable_encrypted_present = true;
-      }
-    }
-  }
+        for (const auto& pair : current_encrypted) {
+          invalid_keys->push_back(pair.first);
+        }
 
-  // --- Priority 2: Check legacy split HMACs ---
-  // Proceed if no encrypted hashes were found OR if fallback was indicated
-  if (has_mac_hashes && (!has_encrypted_hashes || try_mac_fallback)) {
-    if (is_initial_value_empty) {
-      return ValueState::CLEARED;
-    }
-    bool any_invalid = false;
-    bool has_secure_legacy = false;
-    std::map<std::string, std::string> current_macs = split_macs;
-    std::string keyed_path_base = path + ".";
-    if (initial_split_value) {
-      for (const auto item : *initial_split_value) {
-        std::string keyed_path = keyed_path_base + item.first;
-        auto it = current_macs.find(item.first);
-        if (it == current_macs.end()) {
-          invalid_keys->push_back(item.first);
-          any_invalid = true;
-        } else {
-          ValidationResult result = outer_->pref_hash_calculator_.Validate(
-              keyed_path, &item.second, it->second);
-          if (result == ValidationResult::INVALID) {
-            invalid_keys->push_back(item.first);
-            any_invalid = true;
-          } else if (result == ValidationResult::VALID_SECURE_LEGACY) {
-            has_secure_legacy = true;
-          }
-          current_macs.erase(it);
+        if (invalid_keys->empty()) {
+          return ValueState::UNCHANGED_ENCRYPTED;
         }
+        return is_initial_value_empty ? ValueState::CLEARED_ENCRYPTED
+                                      : ValueState::CHANGED_ENCRYPTED;
+      }
+
+      // --- Priority 2: Fallback to legacy MACs for healing.
+      if (has_mac_hashes) {
+        std::map<std::string, std::string> current_macs = split_macs;
+        if (initial_split_value) {
+          for (const auto item : *initial_split_value) {
+            const std::string keyed_path = path + "." + item.first;
+            auto it = current_macs.find(item.first);
+            if (it == current_macs.end() ||
+                outer_->pref_hash_calculator_.Validate(keyed_path, &item.second,
+                                                       it->second) !=
+                    ValidationResult::VALID) {
+              invalid_keys->push_back(item.first);
+            }
+            if (it != current_macs.end()) {
+              current_macs.erase(it);
+            }
+          }
+        }
+        for (const auto& pair : current_macs) {
+          invalid_keys->push_back(pair.first);
+        }
+
+        if (invalid_keys->empty()) {
+          return ValueState::UNCHANGED_VIA_HMAC_FALLBACK;
+        }
+        return is_initial_value_empty ? ValueState::CLEARED_VIA_HMAC_FALLBACK
+                                      : ValueState::CHANGED_VIA_HMAC_FALLBACK;
+      }
+    } else {
+      // --- No encryptor, legacy-only path ---
+      if (has_mac_hashes) {
+        std::map<std::string, std::string> current_macs = split_macs;
+        if (initial_split_value) {
+          for (const auto item : *initial_split_value) {
+            const std::string keyed_path = path + "." + item.first;
+            auto it = current_macs.find(item.first);
+            if (it == current_macs.end() ||
+                outer_->pref_hash_calculator_.Validate(keyed_path, &item.second,
+                                                       it->second) !=
+                    ValidationResult::VALID) {
+              invalid_keys->push_back(item.first);
+            }
+            if (it != current_macs.end()) {
+              current_macs.erase(it);
+            }
+          }
+        }
+        for (const auto& pair : current_macs) {
+          invalid_keys->push_back(pair.first);
+        }
+
+        if (invalid_keys->empty()) {
+          return ValueState::UNCHANGED;
+        }
+        return is_initial_value_empty ? ValueState::CLEARED
+                                      : ValueState::CHANGED;
       }
     }
-    for (const auto& pair : current_macs) {
-      invalid_keys->push_back(pair.first);
-      any_invalid = true;
-    }
-    return any_invalid ? ValueState::CHANGED
-                       : (has_secure_legacy ? ValueState::SECURE_LEGACY
-                                            : ValueState::UNCHANGED);
-  }
 
   // --- No Usable Hashes Found ---
   // Arrive here if:
@@ -585,8 +591,6 @@ void PrefHashStoreImpl::PrefHashStoreTransactionImpl::StoreSplitEncryptedHash(
     return;
   }
 
-  // Remove any existing single MAC entry for the base path.
-  contents_->RemoveEntry(path);
   // Also remove any existing single *encrypted hash* entry for the base path
   contents_->RemoveEntry(GetEncryptedHashKey(path));
 

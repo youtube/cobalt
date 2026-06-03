@@ -127,6 +127,12 @@ gfx::ColorSpace GPUCanvasContext::GetColorSpace() const {
   return PredefinedColorSpaceToGfxColorSpace(color_space_);
 }
 
+bool GPUCanvasContext::IsAccelerated() const {
+  auto* resource_provider = Host()->GetResourceProviderForWebGPU();
+  return resource_provider ? resource_provider->IsAccelerated()
+                           : Host()->ShouldTryToUseGpuRaster();
+}
+
 void GPUCanvasContext::Stop() {
   ReplaceDrawingBuffer(/*destroy_swap_buffers*/ true);
   stopped_ = true;
@@ -191,16 +197,16 @@ scoped_refptr<StaticBitmapImage> GPUCanvasContext::GetImage(FlushReason) {
 CanvasResourceProvider* GPUCanvasContext::PaintRenderingResultsToCanvas(
     SourceDrawingBuffer source_buffer) {
   if (!swap_buffers_) {
-    return Host()->ResourceProvider();
+    return Host()->GetResourceProviderForWebGPU();
   }
 
-  if (Host()->ResourceProvider() &&
-      Host()->ResourceProvider()->Size() != swap_buffers_->Size()) {
-    Host()->DiscardResourceProvider();
+  if (Host()->GetResourceProviderForWebGPU() &&
+      Host()->GetResourceProviderForWebGPU()->Size() != swap_buffers_->Size()) {
+    Host()->DiscardResources();
   }
 
   CanvasResourceProvider* resource_provider =
-      Host()->GetOrCreateCanvasResourceProvider();
+      Host()->GetOrCreateCanvasResourceProviderForWebGPU();
   if (!resource_provider) {
     return nullptr;
   }
@@ -242,6 +248,16 @@ CanvasResourceProvider* GPUCanvasContext::PaintRenderingResultsToCanvas(
 
   CopyTextureToResourceProvider(texture, resource_provider);
   return resource_provider;
+}
+
+scoped_refptr<StaticBitmapImage>
+GPUCanvasContext::PaintRenderingResultsToSnapshot(
+    SourceDrawingBuffer source_buffer,
+    FlushReason reason) {
+  CanvasResourceProvider* provider =
+      PaintRenderingResultsToCanvas(source_buffer);
+
+  return provider ? provider->Snapshot(reason) : nullptr;
 }
 
 bool GPUCanvasContext::CopyRenderingResultsToVideoFrame(
@@ -544,7 +560,8 @@ void GPUCanvasContext::configure(const GPUCanvasConfiguration* descriptor,
   swap_buffers_ = base::AdoptRef(new WebGPUSwapBufferProvider(
       this, device_->GetDawnControlClient(), device_->GetHandle(),
       swap_texture_descriptor_.usage, internal_usage,
-      swap_texture_descriptor_.format, color_space_, hdr_metadata));
+      swap_texture_descriptor_.format, color_space_, hdr_metadata,
+      kTopLeft_GrSurfaceOrigin));
 
   // Note: SetContentsOpaque is only an optimization hint. It doesn't
   // actually make the contents opaque.
@@ -722,8 +739,7 @@ GPUCanvasContext::GetFrontBufferMailboxTexture() {
 }
 
 void GPUCanvasContext::ReplaceDrawingBuffer(bool destroy_swap_buffers) {
-  if (swap_texture_) {
-    DCHECK(swap_buffers_);
+  if (swap_buffers_) {
     swap_buffers_->DiscardCurrentSwapBuffer();
     swap_texture_ = nullptr;
   }

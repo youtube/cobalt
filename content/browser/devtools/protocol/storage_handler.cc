@@ -16,11 +16,12 @@
 
 #include "base/barrier_closure.h"
 #include "base/functional/bind.h"
-#include "base/functional/overloaded.h"
 #include "base/notreached.h"
 #include "base/scoped_observation.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
+#include "base/strings/string_view_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "components/attribution_reporting/aggregatable_debug_reporting_config.h"
@@ -47,6 +48,7 @@
 #include "components/services/storage/public/cpp/buckets/bucket_locator.h"
 #include "components/services/storage/public/mojom/cache_storage_control.mojom.h"
 #include "content/browser/attribution_reporting/aggregatable_result.mojom.h"
+#include "content/browser/attribution_reporting/attribution_debug_report.h"
 #include "content/browser/attribution_reporting/attribution_manager.h"
 #include "content/browser/attribution_reporting/attribution_observer.h"
 #include "content/browser/attribution_reporting/attribution_report.h"
@@ -77,6 +79,7 @@
 #include "storage/browser/quota/quota_manager_observer.mojom-forward.h"
 #include "storage/browser/quota/quota_manager_proxy.h"
 #include "storage/browser/quota/quota_override_handle.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "third_party/blink/public/common/interest_group/devtools_serialization.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/mojom/buckets/bucket_manager_host.mojom-shared.h"
@@ -99,7 +102,6 @@ struct UsageListInitializer {
 UsageListInitializer initializers[] = {
     {Storage::StorageTypeEnum::File_systems,
      &blink::mojom::UsageBreakdown::fileSystem},
-    {Storage::StorageTypeEnum::Websql, &blink::mojom::UsageBreakdown::webSql},
     {Storage::StorageTypeEnum::Indexeddb,
      &blink::mojom::UsageBreakdown::indexedDatabase},
     {Storage::StorageTypeEnum::Cache_storage,
@@ -621,9 +623,6 @@ uint32_t GetRemoveDataMask(const std::string& storage_types) {
   }
   if (set.count(Storage::StorageTypeEnum::Shader_cache)) {
     remove_mask |= StoragePartition::REMOVE_DATA_MASK_SHADER_CACHE;
-  }
-  if (set.count(Storage::StorageTypeEnum::Websql)) {
-    remove_mask |= StoragePartition::REMOVE_DATA_MASK_WEBSQL;
   }
   if (set.count(Storage::StorageTypeEnum::Service_workers)) {
     remove_mask |= StoragePartition::REMOVE_DATA_MASK_SERVICE_WORKERS;
@@ -1621,8 +1620,8 @@ void StorageHandler::OnSharedStorageAccessed(
   if (params.ignore_if_present) {
     protocol_params->SetIgnoreIfPresent(*params.ignore_if_present);
   }
-  if (params.worklet_ordinal_id) {
-    protocol_params->SetWorkletOrdinal(*params.worklet_ordinal_id);
+  if (params.worklet_ordinal) {
+    protocol_params->SetWorkletOrdinal(*params.worklet_ordinal);
   }
   if (!params.worklet_devtools_token.is_empty()) {
     protocol_params->SetWorkletTargetId(
@@ -1711,7 +1710,6 @@ void StorageHandler::OnSharedStorageWorkletOperationExecutionFinished(
     SharedStorageRuntimeManager::SharedStorageObserverInterface::AccessMethod
         method,
     int operation_id,
-    int worklet_ordinal_id,
     const base::UnguessableToken& worklet_devtools_token,
     GlobalRenderFrameHostId main_frame_id,
     const std::string& owner_origin) {
@@ -2470,16 +2468,16 @@ void StorageHandler::OnReportSent(const AttributionReport& report,
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   std::optional<int> net_error;
-  std::optional<String> net_error_name;
+  std::optional<std::string> net_error_name;
   std::optional<int> http_status_code;
   Storage::AttributionReportingReportResult out_result = std::visit(
-      base::Overloaded{
+      absl::Overload{
           [&](SendResult::Sent result) {
-            if (result.status >= 0) {
+            if (result.status > 0) {
               http_status_code = result.status;
             } else {
               net_error = result.status;
-              net_error_name = String(net::ErrorToShortString(result.status));
+              net_error_name = net::ErrorToShortString(result.status);
             }
             return Storage::AttributionReportingReportResultEnum::Sent;
           },
@@ -2505,6 +2503,34 @@ void StorageHandler::OnReportSent(const AttributionReport& report,
   (void)is_debug_report;
   (void)result;
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+}
+
+void StorageHandler::OnDebugReportSent(const AttributionDebugReport& report,
+                                       int status,
+                                       base::Time time) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+
+  std::optional<int> net_error;
+  std::optional<std::string> net_error_name;
+  std::optional<int> http_status_code;
+
+  if (status > 0) {
+    http_status_code = status;
+  } else {
+    net_error = status;
+    net_error_name = net::ErrorToShortString(status);
+  }
+
+  auto body = std::make_unique<Array<Value::Dict>>();
+  for (const auto& item : report.ReportBody()) {
+    const auto* as_dict = item.GetIfDict();
+    CHECK(as_dict);
+    body->push_back(std::make_unique<Value::Dict>(as_dict->Clone()));
+  }
+
+  frontend_->AttributionReportingVerboseDebugReportSent(
+      report.ReportUrl().spec(), std::move(body), net_error,
+      std::move(net_error_name), http_status_code);
 }
 
 Response StorageHandler::SetAttributionReportingTracking(bool enable) {

@@ -35,6 +35,7 @@
 #include "base/metrics/metrics_hashes.h"
 #include "base/metrics/user_metrics.h"
 #include "base/no_destructor.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/process/kill.h"
@@ -55,6 +56,7 @@
 #include "base/timer/timer.h"
 #include "base/trace_event/optional_trace_event.h"
 #include "base/trace_event/trace_event.h"
+#include "base/trace_event/trace_id_helper.h"
 #include "base/types/optional_util.h"
 #include "base/uuid.h"
 #include "build/build_config.h"
@@ -62,6 +64,7 @@
 #include "components/input/input_router.h"
 #include "components/input/timeout_monitor.h"
 #include "components/input/utils.h"
+#include "components/tracing/common/tracing_switches.h"
 #include "components/viz/common/features.h"
 #include "content/browser/about_url_loader_factory.h"
 #include "content/browser/accessibility/render_accessibility_host.h"
@@ -112,6 +115,7 @@
 #include "content/browser/network/cross_origin_embedder_policy_reporter.h"
 #include "content/browser/permissions/permission_controller_impl.h"
 #include "content/browser/permissions/permission_service_context.h"
+#include "content/browser/permissions/permission_util.h"
 #include "content/browser/preloading/preloading_decider.h"
 #include "content/browser/preloading/prerender/prerender_final_status.h"
 #include "content/browser/preloading/prerender/prerender_host_registry.h"
@@ -237,6 +241,7 @@
 #include "mojo/public/cpp/bindings/struct_ptr.h"
 #include "mojo/public/cpp/bindings/urgent_message_scope.h"
 #include "mojo/public/cpp/system/data_pipe.h"
+#include "net/base/isolation_info.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "net/base/schemeful_site.h"
 #include "net/cookies/cookie_setting_override.h"
@@ -354,13 +359,6 @@
 #endif
 
 namespace features {
-
-// Evict when accessibility events occur while in back/forward cache.
-// Disabling on all platforms since https://crbug.com/1341507 has been addressed
-// and no significant crashes are happening with experiments.
-BASE_FEATURE(kEvictOnAXEvents,
-             "EvictOnAXEvents",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kDoNotEvictOnAXLocationChange,
              "DoNotEvictOnAXLocationChange",
@@ -1145,29 +1143,6 @@ bool FencedFrameAutomaticBeaconsAllowed(RenderFrameHostImpl* rfh) {
   return allow && base::EqualsCaseInsensitiveASCII(*allow, "true");
 }
 
-bool NewProcessUsedForNavigationWhenSameSiteProcessExists(
-    RenderFrameHostImpl* committing_frame) {
-  RoutingIDFrameMap* frames = g_routing_id_frame_map.Pointer();
-  for (auto [_, frame] : *frames) {
-    if (committing_frame == frame) {
-      continue;
-    }
-    if (frame->GetProcess() == committing_frame->GetProcess()) {
-      continue;
-    }
-    if (frame->GetSiteInstance()->GetSiteInfo() !=
-        committing_frame->GetSiteInstance()->GetSiteInfo()) {
-      continue;
-    }
-    if (RenderProcessHostImpl::MayReuseAndIsSuitable(
-            frame->GetProcess(), committing_frame->GetSiteInstance())) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 // Check if the document is loaded without URLLoaderClient.
 bool IsDocumentLoadedWithoutUrlLoaderClient(
     NavigationRequest* navigation_request,
@@ -1513,11 +1488,16 @@ class DiscardedRFHProcessHelper : public base::SupportsUserData::Data,
 // timestamps for some other slices. Eventually,
 // NavigationRequest::MaybeRecordTraceEventsAndHistograms() should be replaced
 // with this function.
+//
+// `ukm_builder` should be available only when the navigation is for a main
+// frame. Thus, we don't need to record separate main-frame-only metrics for
+// UKMs.
 void RecordNavigationTraceEventsAndMetrics(
     const NavigationRequest::Timeline& timeline,
     const GURL& url,
     bool is_primary_main_frame,
-    bool is_same_document_navigation) {
+    bool is_same_document_navigation,
+    std::optional<ukm::builders::NavigationTimeline>& ukm_builder) {
   DCHECK(!timeline.start.is_null());
 
   // Record these trace events in a global "Navigations" track, so that it can
@@ -1529,13 +1509,19 @@ void RecordNavigationTraceEventsAndMetrics(
       "Navigation: Timelines", base::trace_event::GetNextGlobalTraceId(),
       perfetto::Track::Global(kGlobalInstantTrackId));
 
+  // Convenient alias for `ukm::builders::NavigationTimeline` member functions.
+  using UkmBuilderMethod = ukm::builders::NavigationTimeline& (
+      ukm::builders::NavigationTimeline::*)(int64_t);
+
   // Define a helper to log both a trace event slice and a corresponding metric
-  // for one stage of a navigation. If `histogram_name` is specified, it will be
-  // used for the histogram name instead of `name`. If `url` is specified, it
+  // for one stage of a navigation. If `ukm_builder_method` is specified, it
+  // will be used for recording UKMs. If `histogram_name` is specified, it will
+  // be used for the histogram name instead of `name`. If `url` is specified, it
   // will be emitted as page_load.url argument along the trace event.
   auto log_trace_event_and_uma =
       [&](perfetto::StaticString name, const perfetto::NamedTrack track,
           const base::TimeTicks& begin_time, const base::TimeTicks& end_time,
+          std::optional<UkmBuilderMethod> ukm_builder_method = std::nullopt,
           const std::string& histogram_name = std::string(),
           const std::string& url = std::string()) {
         if (begin_time.is_null() || end_time.is_null()) {
@@ -1582,6 +1568,13 @@ void RecordNavigationTraceEventsAndMetrics(
                                         : histogram_name) +
                 ".Duration",
             end_time - begin_time);
+
+        if (ukm_builder.has_value() && ukm_builder_method.has_value()) {
+          base::BindRepeating(*ukm_builder_method,
+                              // Safe: `ukm_builder` outlives this method call.
+                              base::Unretained(&*ukm_builder))
+              .Run((end_time - begin_time).InMilliseconds());
+        }
       };
 
   // Actual navigation events are logged below in contiguous (or nested)
@@ -1595,6 +1588,7 @@ void RecordNavigationTraceEventsAndMetrics(
   // to be nested, using the wrong end times.
   log_trace_event_and_uma("NavigationTotal", track1, timeline.start,
                           timeline.finish,
+                          &ukm::builders::NavigationTimeline::SetTotalDuration,
                           /*histogram_name=*/"Total", /*url=*/url.spec());
   // Emit a trace event with url in the name for convenience.
   // TODO(crbug.com/415720503): Remove once Perfetto navigation plugins
@@ -1614,34 +1608,50 @@ void RecordNavigationTraceEventsAndMetrics(
     if (!timeline.beforeunload_phase1_start.is_null()) {
       log_trace_event_and_uma("StartToBeforeUnloadPhase1", track1,
                               timeline.start,
-                              timeline.beforeunload_phase1_start);
-      log_trace_event_and_uma("BeforeUnloadPhase1", track1,
                               timeline.beforeunload_phase1_start,
-                              timeline.beforeunload_phase1_end);
-      log_trace_event_and_uma("BeforeUnloadPhase1ToNavigationRequestCreation",
-                              track1, timeline.beforeunload_phase1_end,
-                              timeline.navigation_request_creation);
+                              &ukm::builders::NavigationTimeline::
+                                  SetStartToBeforeUnloadPhase1Duration);
+      log_trace_event_and_uma(
+          "BeforeUnloadPhase1", track1, timeline.beforeunload_phase1_start,
+          timeline.beforeunload_phase1_end,
+          &ukm::builders::NavigationTimeline::SetBeforeUnloadPhase1Duration);
+      log_trace_event_and_uma(
+          "BeforeUnloadPhase1ToNavigationRequestCreation", track1,
+          timeline.beforeunload_phase1_end,
+          timeline.navigation_request_creation,
+          &ukm::builders::NavigationTimeline::
+              SetBeforeUnloadPhase1ToNavigationRequestCreationDuration);
     } else {
       log_trace_event_and_uma("StartToNavigationRequestCreation", track1,
                               timeline.start,
-                              timeline.navigation_request_creation);
+                              timeline.navigation_request_creation,
+                              &ukm::builders::NavigationTimeline::
+                                  SetStartToNavigationRequestCreationDuration);
     }
 
     // Record NavigationRequest -> {BeforeUnloadPhase2} -> BeginNavigation.
     if (!timeline.beforeunload_phase2_start.is_null()) {
-      log_trace_event_and_uma("NavigationRequestToBeforeUnloadPhase2", track1,
-                              timeline.navigation_request_creation,
-                              timeline.beforeunload_phase2_start);
-      log_trace_event_and_uma("BeforeUnloadPhase2", track1,
-                              timeline.beforeunload_phase2_start,
-                              timeline.beforeunload_phase2_end);
-      log_trace_event_and_uma("BeforeUnloadPhase2ToBeginNavigation", track1,
-                              timeline.beforeunload_phase2_end,
-                              timeline.begin_navigation);
+      log_trace_event_and_uma(
+          "NavigationRequestToBeforeUnloadPhase2", track1,
+          timeline.navigation_request_creation,
+          timeline.beforeunload_phase2_start,
+          &ukm::builders::NavigationTimeline::
+              SetNavigationRequestToBeforeUnloadPhase2Duration);
+      log_trace_event_and_uma(
+          "BeforeUnloadPhase2", track1, timeline.beforeunload_phase2_start,
+          timeline.beforeunload_phase2_end,
+          &ukm::builders::NavigationTimeline::SetBeforeUnloadPhase2Duration);
+      log_trace_event_and_uma(
+          "BeforeUnloadPhase2ToBeginNavigation", track1,
+          timeline.beforeunload_phase2_end, timeline.begin_navigation,
+          &ukm::builders::NavigationTimeline::
+              SetBeforeUnloadPhase2ToBeginNavigationDuration);
     } else {
-      log_trace_event_and_uma("NavigationRequestToBeginNavigation", track1,
-                              timeline.navigation_request_creation,
-                              timeline.begin_navigation);
+      log_trace_event_and_uma(
+          "NavigationRequestToBeginNavigation", track1,
+          timeline.navigation_request_creation, timeline.begin_navigation,
+          &ukm::builders::NavigationTimeline::
+              SetNavigationRequestToBeginNavigationDuration);
     }
 
     // For navigations that don't use a URLLoader, such as about:blank
@@ -1655,12 +1665,18 @@ void RecordNavigationTraceEventsAndMetrics(
         timeline.receive_response.is_null()) {
       log_trace_event_and_uma("BeginNavigationToCommit", track1,
                               timeline.begin_navigation,
-                              timeline.commit_ipc_sent);
+                              timeline.commit_ipc_sent,
+                              &ukm::builders::NavigationTimeline::
+                                  SetBeginNavigationToCommitDuration);
     } else {
       log_trace_event_and_uma("BeginNavigationToLoaderStart", track1,
-                              timeline.begin_navigation, timeline.loader_start);
+                              timeline.begin_navigation, timeline.loader_start,
+                              &ukm::builders::NavigationTimeline::
+                                  SetBeginNavigationToLoaderStartDuration);
       log_trace_event_and_uma("LoaderStartToReceiveResponse", track1,
-                              timeline.loader_start, timeline.receive_response);
+                              timeline.loader_start, timeline.receive_response,
+                              &ukm::builders::NavigationTimeline::
+                                  SetLoaderStartToReceiveResponseDuration);
 
       // Generate the nested loader events contained within
       // LoaderStartToReceiveResponse. `loader_fetch_start` can be earlier than
@@ -1669,24 +1685,33 @@ void RecordNavigationTraceEventsAndMetrics(
       if (timeline.loader_start <= timeline.loader_fetch_start) {
         log_trace_event_and_uma("LoaderStartToFetchStart", track1,
                                 timeline.loader_start,
-                                timeline.loader_fetch_start);
+                                timeline.loader_fetch_start,
+                                &ukm::builders::NavigationTimeline::
+                                    SetLoaderStartToFetchStartDuration);
         log_trace_event_and_uma("FetchStartToReceiveHeaders", track1,
                                 timeline.loader_fetch_start,
-                                timeline.loader_receive_headers);
+                                timeline.loader_receive_headers,
+                                &ukm::builders::NavigationTimeline::
+                                    SetFetchStartToReceiveHeadersDuration);
         // TODO(alexmos): add events for redirects when they are present.
         log_trace_event_and_uma("ReceiveHeadersToReceiveResponse", track1,
                                 timeline.loader_receive_headers,
-                                timeline.receive_response);
+                                timeline.receive_response,
+                                &ukm::builders::NavigationTimeline::
+                                    SetReceiveHeadersToReceiveResponseDuration);
       }
 
       log_trace_event_and_uma("ReceiveResponseToCommit", track1,
                               timeline.receive_response,
-                              timeline.commit_ipc_sent);
+                              timeline.commit_ipc_sent,
+                              &ukm::builders::NavigationTimeline::
+                                  SetReceiveResponseToCommitDuration);
     }
 
-    log_trace_event_and_uma("CommitToDidCommit", track1,
-                            timeline.commit_ipc_sent,
-                            timeline.did_commit_ipc_received);
+    log_trace_event_and_uma(
+        "CommitToDidCommit", track1, timeline.commit_ipc_sent,
+        timeline.did_commit_ipc_received,
+        &ukm::builders::NavigationTimeline::SetCommitToDidCommitDuration);
   } else {
     // Navigations without a `begin_navigation` timestamp are synchronous
     // renderer commits, like same-document navigations and the synchronous
@@ -1695,19 +1720,26 @@ void RecordNavigationTraceEventsAndMetrics(
     // `renderer_commit_ipc_received` in `DidCommitNavigationInternal`, making
     // `StartToSyncRendererCommit` zero sized. Move the start time earlier.
     log_trace_event_and_uma("StartToSyncRendererCommit", track1, timeline.start,
-                            timeline.renderer_commit_ipc_received);
-    log_trace_event_and_uma("CommitToDidCommit", track1,
                             timeline.renderer_commit_ipc_received,
-                            timeline.did_commit_ipc_received);
+                            &ukm::builders::NavigationTimeline::
+                                SetStartToSyncRendererCommitDuration);
+    log_trace_event_and_uma(
+        "CommitToDidCommit", track1, timeline.renderer_commit_ipc_received,
+        timeline.did_commit_ipc_received,
+        &ukm::builders::NavigationTimeline::SetCommitToDidCommitDuration);
   }
 
   // Generate a nested slice for the renderer side of the navigation commit,
   // contained within CommitToDidCommit.
-  log_trace_event_and_uma("RendererCommitToDidCommit", track1,
-                          timeline.renderer_commit_ipc_received,
-                          timeline.renderer_did_commit_ipc_sent);
-  log_trace_event_and_uma("DidCommitToFinish", track1,
-                          timeline.did_commit_ipc_received, timeline.finish);
+  log_trace_event_and_uma(
+      "RendererCommitToDidCommit", track1,
+      timeline.renderer_commit_ipc_received,
+      timeline.renderer_did_commit_ipc_sent,
+      &ukm::builders::NavigationTimeline::SetRendererCommitToDidCommitDuration);
+  log_trace_event_and_uma(
+      "DidCommitToFinish", track1, timeline.did_commit_ipc_received,
+      timeline.finish,
+      &ukm::builders::NavigationTimeline::SetDidCommitToFinishDuration);
 
   // Create a second track (with the same name but a different ID) for showing
   // non-nested events about the duration of the navigation, with beforeunload
@@ -1732,13 +1764,16 @@ void RecordNavigationTraceEventsAndMetrics(
   // Record how much time was correctly ignored by current navigation metrics,
   // by moving it to the start of the duration.
   base::TimeTicks duration_start = timeline.start + beforeunload_total_duration;
-  log_trace_event_and_uma("CorrectlyIgnored", track2, timeline.start,
-                          duration_start,
-                          /*histogram_name=*/"IgnoredCorrectly");
+  log_trace_event_and_uma(
+      "CorrectlyIgnored", track2, timeline.start, duration_start,
+      &ukm::builders::NavigationTimeline::SetIgnoredCorrectlyDuration,
+      /*histogram_name=*/"IgnoredCorrectly");
   // Record the remaining duration of the navigation, moving the start time
   // forward by the amount that was ignored.
   log_trace_event_and_uma("TotalExcludingBeforeUnload", track2, duration_start,
-                          timeline.finish);
+                          timeline.finish,
+                          &ukm::builders::NavigationTimeline::
+                              SetTotalExcludingBeforeUnloadDuration);
 
   // Also record a separate metric for main-frame, cross-document cases for
   // better comparison with guardrail metrics.
@@ -1761,16 +1796,19 @@ void RecordNavigationTraceEventsAndMetrics(
   // TODO(crbug.com/385170155): Move to a more accurate navigation start so that
   // we don't incorrectly ignore anything, and remove the metrics below.
   if (duration_start < timeline.common_params_start) {
-    log_trace_event_and_uma("IncorrectlyIgnored", track2, duration_start,
-                            timeline.common_params_start,
-                            /*histogram_name=*/"IgnoredIncorrectly");
+    log_trace_event_and_uma(
+        "IncorrectlyIgnored", track2, duration_start,
+        timeline.common_params_start,
+        &ukm::builders::NavigationTimeline::SetIgnoredIncorrectlyDuration,
+        /*histogram_name=*/"IgnoredIncorrectly");
     if (is_main_frame_cross_doc &&
         (timeline.common_params_start >= duration_start)) {
       base::UmaHistogramTimes(
           "Navigation.Timeline.IgnoredIncorrectly.MainFrameOnly.Duration",
           timeline.common_params_start - duration_start);
     }
-    // Also record what percentage was incorrectly ignored.
+    // Also record what percentage was incorrectly ignored. We don't record UKMs
+    // for that.
     base::TimeDelta ignored_incorrectly =
         timeline.common_params_start - duration_start;
     base::TimeDelta total_excluding_beforeunload =
@@ -1788,6 +1826,10 @@ void RecordNavigationTraceEventsAndMetrics(
             ignored_percentage);
       }
     }
+  }
+
+  if (ukm_builder.has_value()) {
+    ukm_builder->Record(ukm::UkmRecorder::Get());
   }
 }
 }  // namespace
@@ -3803,14 +3845,6 @@ RenderFrameHostImpl::AccessibilityGetAcceleratedWidget() {
 
 gfx::NativeViewAccessible
 RenderFrameHostImpl::AccessibilityGetNativeViewAccessible() {
-  if (base::FeatureList::IsEnabled(features::kEvictOnAXEvents) &&
-      IsInactiveAndDisallowActivation(
-          DisallowActivationReasonId::kAXGetNativeView)) {
-    // |AccessibilityGetNativeViewAccessible()| should be only accessible when
-    // we process AX events. Otherwise this should not be used while in
-    // back/forward cache and the document should be evicted.
-    return gfx::NativeViewAccessible();
-  }
   RenderWidgetHostViewBase* view = static_cast<RenderWidgetHostViewBase*>(
       render_view_host_->GetWidget()->GetView());
   if (view)
@@ -5131,7 +5165,11 @@ net::IsolationInfo RenderFrameHostImpl::ComputeIsolationInfoInternal(
         delegate_->GetPartitionedPopinOpenerProperties().site_for_cookies;
   }
 
-  // Walk up the frame tree to check SiteForCookies.
+  std::optional<net::IsolationInfo::FrameAncestorRelation>
+      candidate_frame_ancestor_relation =
+          net::IsolationInfo::FrameAncestorRelation::kSameOrigin;
+
+  // Walk up the frame tree to check SiteForCookies and FrameAncestorRelation.
   //
   // If |request_type| is kOther, then IsolationInfo is being computed
   // for subresource requests. Check/compute starting from the frame itself.
@@ -5149,6 +5187,10 @@ net::IsolationInfo RenderFrameHostImpl::ComputeIsolationInfoInternal(
         rfh == this ? frame_origin : rfh->last_committed_origin_;
     net::SchemefulSite cur_site = net::SchemefulSite(cur_origin);
 
+    candidate_frame_ancestor_relation =
+        net::IsolationInfo::ComputeNewFrameAncestorRelation(
+            candidate_frame_ancestor_relation, cur_origin, top_frame_origin);
+
     candidate_site_for_cookies.CompareWithFrameTreeSiteAndRevise(cur_site);
   }
 
@@ -5164,9 +5206,10 @@ net::IsolationInfo RenderFrameHostImpl::ComputeIsolationInfoInternal(
 
   std::optional<base::UnguessableToken> nonce =
       ComputeNonce(is_credentialless, fenced_frame_nonce_for_navigation);
-  return net::IsolationInfo::Create(request_type, top_frame_origin,
-                                    frame_origin, candidate_site_for_cookies,
-                                    nonce);
+  return net::IsolationInfo::Create(
+      request_type, top_frame_origin, frame_origin, candidate_site_for_cookies,
+      nonce, net::NetworkIsolationPartition::kGeneral,
+      candidate_frame_ancestor_relation);
 }
 
 std::optional<base::UnguessableToken> RenderFrameHostImpl::ComputeNonce(
@@ -5223,33 +5266,13 @@ bool RenderFrameHostImpl::IsThirdPartyStoragePartitioningEnabled(
               GetSiteInstance()->GetBrowserContext(), new_rfh_origin.GetURL(),
               ComputeSiteForCookies(), ComputeTopFrameOrigin(new_rfh_origin));
 
-  // Ignore deprecation trials if only partitioned access is allowed. We'll
+  // Ignore user bypass if only partitioned access is allowed. We'll
   // still respect enterprise policies which take precedence over the user's 3P
   // cookie blocking preference.
-  if (rfs_document_data_for_storage_key && unpartitioned_key_allowed) {
-    // If the deprecation trial is enabled, we have directive to override the
-    // current value of net::features::ThirdPartyStoragePartitioning.
-    if (rfs_document_data_for_storage_key->runtime_feature_state_read_context()
-            .IsDisableThirdPartyStoragePartitioning3Enabled()) {
-      return false;
-    }
-    // Compile the list of third-party origins we need to check in addition to
-    // the main frame origin. Ensure that the `new_rfh_origin` is used for this
-    // frame, rather than its last-committed origin.
-    CHECK_EQ(ancestor_chain[0], this);
-    std::vector<url::Origin> third_party_origins = {new_rfh_origin};
-    for (size_t i = 1; i < ancestor_chain.size() - 1; ++i) {
-      third_party_origins.push_back(
-          ancestor_chain[i]->GetLastCommittedOrigin());
-    }
-    // If the deprecation trial is enabled for this third-party frame or parent
-    // frame we have directive to override the current value of
-    // net::features::ThirdPartyStoragePartitioning.
-    if (rfs_document_data_for_storage_key->runtime_feature_state_read_context()
-            .IsDisableThirdPartyStoragePartitioning3EnabledForThirdParty(
-                third_party_origins)) {
-      return false;
-    }
+  if (rfs_document_data_for_storage_key && unpartitioned_key_allowed &&
+      rfs_document_data_for_storage_key->runtime_feature_state_read_context()
+          .IsThirdPartyStoragePartitioningUserBypassEnabled()) {
+    return false;
   }
 
   // If the enterprise policy blocks, we have directive to override the
@@ -8347,12 +8370,11 @@ void RenderFrameHostImpl::DispatchLoad() {
 void RenderFrameHostImpl::GoToEntryAtOffset(
     int32_t offset,
     bool has_user_gesture,
+    base::TimeTicks actual_navigation_start,
     std::optional<blink::scheduler::TaskAttributionId>
         soft_navigation_heuristics_task_id) {
   OPTIONAL_TRACE_EVENT2("content", "RenderFrameHostImpl::GoToEntryAtOffset",
                         "render_frame_host", this, "offset", offset);
-  // TODO(crbug.com/385170155): Pass the actual start time from the renderer.
-  base::TimeTicks actual_navigation_start = base::TimeTicks::Now();
 
   // Non-user initiated navigations coming from the renderer should be ignored
   // if there is an ongoing browser-initiated navigation.
@@ -8376,10 +8398,8 @@ void RenderFrameHostImpl::GoToEntryAtOffset(
 void RenderFrameHostImpl::NavigateToNavigationApiKey(
     const std::string& key,
     bool has_user_gesture,
+    base::TimeTicks actual_navigation_start,
     std::optional<blink::scheduler::TaskAttributionId> task_id) {
-  // TODO(crbug.com/385170155): Pass the actual start time from the renderer.
-  base::TimeTicks actual_navigation_start = base::TimeTicks::Now();
-
   // Non-user initiated navigations coming from the renderer should be ignored
   // if there is an ongoing browser-initiated navigation.
   // See https://crbug.com/879965.
@@ -8519,7 +8539,7 @@ void RenderFrameHostImpl::SendAccessibilityEventsToManager(
 
 void RenderFrameHostImpl::ExerciseAccessibilityForTest() {
 #if AX_FAIL_FAST_BUILD()
-  // When running a debugging/sanitizer build with
+  // When running a debugging/sanitizer build (but not a perf test) with
   // --force-renderer-accessibility, exercise the properties for every node, to
   // ensure no crashes or assertions are triggered. This helpfully runs for all
   // web tests on builder linux-blink-web-tests-force-accessibility-rel, as well
@@ -8532,7 +8552,8 @@ void RenderFrameHostImpl::ExerciseAccessibilityForTest() {
            ->GetBoolAttribute(ax::mojom::BoolAttribute::kBusy) &&
       ++count <= g_max_ax_tree_exercise_iterations) {
     base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-    if (command_line->HasSwitch(::switches::kForceRendererAccessibility)) {
+    if (command_line->HasSwitch(::switches::kForceRendererAccessibility) &&
+        !command_line->HasSwitch(switches::kTraceStartupOwner)) {
       std::unique_ptr<ui::AXTreeFormatter> formatter(
           AXInspectFactory::CreatePlatformFormatter());
       formatter->SetPropertyFilters({{"*", ui::AXPropertyFilter::ALLOW}});
@@ -8556,10 +8577,8 @@ bool RenderFrameHostImpl::IsInactiveAndDisallowActivation(uint64_t reason) {
     case LifecycleStateImpl::kInBackForwardCache: {
       // This function should not be called with kAXEvent when the page is in
       // back/forward cache, because |HandleAXevents()| will continue to process
-      // accessibility events without evicting unless the kEvictOnAXEvents flag
-      // is on.
-      if (!base::FeatureList::IsEnabled(features::kEvictOnAXEvents))
-        CHECK_NE(reason, kAXEvent);
+      // accessibility events without evicting.
+      CHECK_NE(reason, kAXEvent);
       // This function should not be called with kAXLocationChange when the
       // page is in back/forward cache, because `HandleAXLocationChange()` will
       // continue to process accessibility location changes unless
@@ -8599,21 +8618,6 @@ bool RenderFrameHostImpl::IsInactiveAndDisallowActivation(uint64_t reason) {
     case LifecycleStateImpl::kActive:
       return false;
   }
-}
-
-bool RenderFrameHostImpl::IsInactiveAndDisallowActivationForAXEvents(
-    const std::vector<ui::AXEvent>& events) {
-  DCHECK(base::FeatureList::IsEnabled(features::kEvictOnAXEvents));
-  if (lifecycle_state_ != LifecycleStateImpl::kInBackForwardCache) {
-    return IsInactiveAndDisallowActivation(
-        DisallowActivationReasonId::kAXEvent);
-  }
-  // If the lifecycle state is |LifecycleStateImpl::kInBackForwardCache|, we
-  // cannot handle accessibility events any more. We should evict the entry.
-  BackForwardCacheCanStoreDocumentResult can_store_flat;
-  can_store_flat.NoDueToAXEvents(events);
-  EvictFromBackForwardCacheWithFlattenedReasons(can_store_flat);
-  return true;
 }
 
 void RenderFrameHostImpl::EvictFromBackForwardCache(
@@ -11228,21 +11232,13 @@ void RenderFrameHostImpl::HandleAXEvents(
   // TODO(accessibility): we should probably consolidate these two params.
   updates_and_events.ax_tree_id = tree_id;
 
-  if (base::FeatureList::IsEnabled(features::kEvictOnAXEvents)) {
-    // If the flag is on, evict the bfcache entry now that AX events are
-    // received.
-    if (IsInactiveAndDisallowActivationForAXEvents(updates_and_events.events)) {
-      return;
-    }
-  } else {
-    // If the page is in back/forward cache, do not return early and continue to
-    // apply AX tree updates.
-    // TODO(crbug.com/40841648): Define and implement the behavior for
-    // when the page is prerendering, too.
-    if (!IsInBackForwardCache() &&
-        IsInactiveAndDisallowActivation(DisallowActivationReasonId::kAXEvent)) {
-      return;
-    }
+  // If the page is in back/forward cache, do not return early and continue to
+  // apply AX tree updates.
+  // TODO(crbug.com/40841648): Define and implement the behavior for
+  // when the page is prerendering, too.
+  if (!IsInBackForwardCache() &&
+      IsInactiveAndDisallowActivation(DisallowActivationReasonId::kAXEvent)) {
+    return;
   }
 
   GetOrCreateBrowserAccessibilityManager();
@@ -12571,23 +12567,6 @@ void RenderFrameHostImpl::CommitNavigation(
       }
     }
 
-    // Record whether there are same site frames that live in different
-    // processes.
-    const bool maybe_new_process_is_used =
-        GetProcess()->GetRenderFrameHostCount() == 1 &&
-        GetSiteInstance()->group() != previous_rfh->GetSiteInstance()->group();
-    if (maybe_new_process_is_used && common_params->url.SchemeIsHTTPOrHTTPS() &&
-        IsOutermostMainFrame()) {
-      bool value = NewProcessUsedForNavigationWhenSameSiteProcessExists(this);
-      base::UmaHistogramBoolean(
-          "SiteIsolation.NewProcessUsedForNavigationWhenSameSiteProcessExists",
-          value);
-      ukm::builders::SiteInstance(
-          navigation_request->commit_params().document_ukm_source_id)
-          .SetNewProcessUsedForNavigationWhenSameSiteProcessExists(value)
-          .Record(ukm::UkmRecorder::Get());
-    }
-
     if (common_params->url.SchemeIsHTTPOrHTTPS() && IsOutermostMainFrame() &&
         (!navigation_request->IsRestore() ||
          blink::features::kBoostRenderProcessForLoadingPrioritizeRestore
@@ -12795,7 +12774,7 @@ void RenderFrameHostImpl::ReportBlockingCrossPartitionBlobURL(
       std::move(details)));
 }
 
-bool RenderFrameHostImpl::DoesDocumentHaveStorageAccess() {
+bool RenderFrameHostImpl::IsFullCookieAccessAllowed() {
   return GetContentClient()->browser()->IsFullCookieAccessAllowed(
       GetBrowserContext(), WebContents::FromRenderFrameHost(this),
       GetLastCommittedURL(), GetStorageKey(), GetCookieSettingOverrides());
@@ -12817,7 +12796,7 @@ void RenderFrameHostImpl::BindBlobUrlStoreAssociatedReceiver(
             if (!frame) {
               return false;
             }
-            return frame->DoesDocumentHaveStorageAccess();
+            return frame->IsFullCookieAccessAllowed();
           },
           weak_ptr_factory_.GetWeakPtr()),
       !(GetContentClient()->browser()->IsBlobUrlPartitioningEnabled(
@@ -14083,7 +14062,7 @@ void RenderFrameHostImpl::CreateDedicatedWorkerHostFactory(
       std::move(receiver));
 }
 
-#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
+#if (BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS))) && !BUILDFLAG(IS_COBALT)
 void RenderFrameHostImpl::BindNFCReceiver(
     mojo::PendingReceiver<device::mojom::NFC> receiver) {
   delegate_->GetNFC(this, std::move(receiver));
@@ -15523,12 +15502,14 @@ bool RenderFrameHostImpl::DidCommitNavigationInternal(
         same_document_params->navigation_entry_screenshot_destination);
   }
 
-  // Grab the navigation's timestamps for recording metrics at the end of this
-  // function, since the NavigationRequest will be destroyed in the DidNavigate
-  // call below.
+  // Grab the navigation's timestamps and ukm builder for recording metrics at
+  // the end of this function, since the NavigationRequest will be destroyed in
+  // the DidNavigate call below.
   auto navigation_timeline =
       navigation_request->GenerateNavigationTimelineForMetrics(
           *params, did_commit_ipc_received_time);
+  auto navigation_ukm_builder =
+      navigation_request->GetNavigationTimelineUkmBuilder();
 
   // TODO(crbug.com/40150370): Do not pass |params| to DidNavigate().
   NavigationRequest* raw_navigation_request = navigation_request.get();
@@ -15561,7 +15542,7 @@ bool RenderFrameHostImpl::DidCommitNavigationInternal(
   // rather than the initial URL.
   RecordNavigationTraceEventsAndMetrics(
       navigation_timeline, GetLastCommittedURL(), IsInPrimaryMainFrame(),
-      is_same_document_navigation);
+      is_same_document_navigation, navigation_ukm_builder);
 
   return true;
 }
@@ -16544,9 +16525,9 @@ void RenderFrameHostImpl::PostMessageEvent(
     ReceivedDelegatedCapability(message.delegated_capability);
 
   // This is always called from either another renderer (through RemoteFrame) or
-  // from the embedder itself. As such, we nullify the parent task ID here, to
+  // from the embedder itself. As such, we nullify the task state ID here, to
   // prevent this information from leaking between renderers.
-  message.parent_task_id = std::nullopt;
+  message.task_state_id = std::nullopt;
 
   GetAssociatedLocalFrame()->PostMessageEvent(
       source_token, source_origin, target_origin, std::move(message));
@@ -17804,6 +17785,12 @@ void RenderFrameHostImpl::OnTextCopiedToClipboard(
   delegate_->OnTextCopiedToClipboard(this, copied_text);
 }
 
+std::optional<std::vector<std::u16string>>
+  RenderFrameHostImpl::GetClipboardTypesIfPolicyApplied(
+      const ui::ClipboardSequenceNumberToken& seqno) {
+  return delegate_->GetClipboardTypesIfPolicyApplied(seqno);
+}
+
 RenderFrameHostImpl* RenderFrameHostImpl::GetParentOrOuterDocument() const {
   return frame_tree_node()->GetParentOrOuterDocumentHelper(
       /*escape_guest_view=*/false, /*include_prospective=*/true);
@@ -18683,7 +18670,9 @@ RenderFrameHostImpl::GetCachedPermissionStatuses() {
       std::to_array<std::pair<PermissionName, PermissionType>>(
           {{PermissionName::VIDEO_CAPTURE, PermissionType::VIDEO_CAPTURE},
            {PermissionName::AUDIO_CAPTURE, PermissionType::AUDIO_CAPTURE},
-           {PermissionName::GEOLOCATION, PermissionType::GEOLOCATION}});
+           {PermissionName::GEOLOCATION, PermissionType::GEOLOCATION},
+           {PermissionName::WINDOW_MANAGEMENT,
+            PermissionType::WINDOW_MANAGEMENT}});
 
   base::flat_map<PermissionName, PermissionStatus> permission_map;
   for (const auto& permission : kPermissions) {
@@ -18700,12 +18689,17 @@ RenderFrameHostImpl::GetCachedPermissionStatuses() {
 
 blink::mojom::PermissionStatus RenderFrameHostImpl::GetCombinedPermissionStatus(
     blink::PermissionType permission_type) {
+  auto descriptor = content::PermissionDescriptorUtil::
+      CreatePermissionDescriptorForPermissionType(permission_type);
+  if (PermissionUtil::IsDevicePermission(descriptor)) {
+    return GetBrowserContext()
+        ->GetPermissionController()
+        ->GetCombinedPermissionAndDeviceStatus(descriptor, this);
+  }
   return GetBrowserContext()
       ->GetPermissionController()
-      ->GetCombinedPermissionAndDeviceStatus(
-          content::PermissionDescriptorUtil::
-              CreatePermissionDescriptorForPermissionType(permission_type),
-          this);
+      ->GetPermissionResultForCurrentDocument(descriptor, this)
+      .status;
 }
 
 media::PictureInPictureEventsInfo::AutoPipReasonCallback

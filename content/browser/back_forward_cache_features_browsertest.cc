@@ -1063,38 +1063,6 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheWithDedicatedWorkerBrowserTest,
   EXPECT_EQ(1, CountWorkerClients(current_frame_host()));
 }
 
-// TODO(crbug.com/40290702): Shared workers are not available on Android.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_PageWithSharedWorkerNotCached \
-  DISABLED_PageWithSharedWorkerNotCached
-#else
-#define MAYBE_PageWithSharedWorkerNotCached PageWithSharedWorkerNotCached
-#endif
-IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
-                       MAYBE_PageWithSharedWorkerNotCached) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-
-  EXPECT_TRUE(NavigateToURL(
-      shell(),
-      embedded_test_server()->GetURL(
-          "a.com", "/back_forward_cache/page_with_shared_worker.html")));
-  RenderFrameDeletedObserver delete_observer_rfh_a(current_frame_host());
-
-  // Navigate away.
-  EXPECT_TRUE(NavigateToURL(
-      shell(), embedded_test_server()->GetURL("b.com", "/title1.html")));
-
-  // The page with the unsupported feature should be deleted (not cached).
-  delete_observer_rfh_a.WaitUntilDeleted();
-
-  // Go back.
-  ASSERT_TRUE(HistoryGoBack(web_contents()));
-  ExpectNotRestored(
-      {NotRestoredReason::kBlocklistedFeatures},
-      {blink::scheduler::WebSchedulerTrackedFeature::kSharedWorker}, {}, {}, {},
-      FROM_HERE);
-}
-
 IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
                        AllowedFeaturesForSubframesDoNotEvict) {
   // The main purpose of this test is to check that when a state of a subframe
@@ -1861,31 +1829,11 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
   ExpectRestored(FROM_HERE);
 }
 
-class BackForwardCacheNonStickyDoubleFixBrowserTest
-    : public BackForwardCacheBrowserTest,
-      public testing::WithParamInterface<bool> {
- protected:
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    if (IsBackForwardCacheNonStickyDoubleFixEnabled()) {
-      EnableFeatureAndSetParams(kBackForwardCacheNonStickyDoubleFix, "", "");
-    } else {
-      DisableFeature(kBackForwardCacheNonStickyDoubleFix);
-    }
-    BackForwardCacheBrowserTest::SetUpCommandLine(command_line);
-  }
-
-  bool IsBackForwardCacheNonStickyDoubleFixEnabled() { return GetParam(); }
-};
-
-INSTANTIATE_TEST_SUITE_P(All,
-                         BackForwardCacheNonStickyDoubleFixBrowserTest,
-                         testing::Bool());
-
 // If pages released keyboard lock during pagehide, they can enter
 // BackForwardCache. This also covers the case of entering BFCache for a
 // second time. KeyboardLock is a good feature to use as it will always
 // block BFCache. See https://crbug.com/360183659
-IN_PROC_BROWSER_TEST_P(BackForwardCacheNonStickyDoubleFixBrowserTest,
+IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
                        CacheIfKeyboardLockReleasedInPagehide) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
@@ -1922,16 +1870,7 @@ IN_PROC_BROWSER_TEST_P(BackForwardCacheNonStickyDoubleFixBrowserTest,
 
   // Go back again.
   ASSERT_TRUE(HistoryGoBack(web_contents()));
-  if (IsBackForwardCacheNonStickyDoubleFixEnabled()) {
-    // The page should be restored from BackForwardCache.
-    ExpectRestored(FROM_HERE);
-  } else {
-    // The page should not be restored from BackForwardCache.
-    ExpectNotRestored(
-        {NotRestoredReason::kBlocklistedFeatures},
-        {blink::scheduler::WebSchedulerTrackedFeature::kKeyboardLock}, {}, {},
-        {}, FROM_HERE);
-  }
+  ExpectRestored(FROM_HERE);
 }
 
 IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
@@ -2867,8 +2806,11 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
 // Verifies that transactions from a single client/render frame and a dedicated
 // worker belonging to the frame cannot disable BFCache for that client.
 // Regression test for https://crbug.com/343519262.
-IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
-                       IndexedDBClientWithDedicatedWorkerDoesntBlockSelf) {
+//
+// TODO(https://crbug.com/422753550): Reactivate test.
+IN_PROC_BROWSER_TEST_F(
+    BackForwardCacheBrowserTest,
+    DISABLED_IndexedDBClientWithDedicatedWorkerDoesntBlockSelf) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   // 1) Use IDB and spam transactions.

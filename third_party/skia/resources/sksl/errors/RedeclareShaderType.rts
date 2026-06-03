@@ -1,5 +1,0 @@
-uniform shader shader;
-
-/*%%*
-expected an identifier, but found type 'shader'
-*%%*/

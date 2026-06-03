@@ -48,6 +48,8 @@ BASE_DECLARE_FEATURE(kWebViewPrefetchNativeLibrary);
 extern const base::FeatureParam<bool> kWebViewPrefetchFromRenderer;
 BASE_DECLARE_FEATURE(kWebViewSafeAreaIncludesSystemBars);
 BASE_DECLARE_FEATURE(kWebViewSeparateResourceContext);
+BASE_DECLARE_FEATURE(kWebViewSkipInterceptsForPrefetch);
+BASE_DECLARE_FEATURE(kWebViewSkipPreferredSizeForContentsSize);
 BASE_DECLARE_FEATURE(kWebViewDoNotSendAccessibilityEventsOnGSU);
 BASE_DECLARE_FEATURE(kWebViewHyperlinkContextMenu);
 BASE_DECLARE_FEATURE(kCreateSpareRendererOnBrowserContextCreation);
@@ -63,6 +65,7 @@ extern const base::FeatureParam<double> kWebViewCacheSizeLimitMultiplier;
 extern const base::FeatureParam<int> kWebViewCacheSizeLimitMinimum;
 extern const base::FeatureParam<int> kWebViewCacheSizeLimitMaximum;
 extern const base::FeatureParam<double> kWebViewCodeCacheSizeLimitMultiplier;
+BASE_DECLARE_FEATURE(kWebViewConnectToComponentProviderInBackground);
 }  // namespace android_webview::features
 
 #endif  // ANDROID_WEBVIEW_COMMON_AW_FEATURES_H_

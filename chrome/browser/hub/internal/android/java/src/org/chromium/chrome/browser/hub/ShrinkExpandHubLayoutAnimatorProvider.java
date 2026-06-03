@@ -27,7 +27,6 @@ import org.chromium.base.supplier.SyncOneshotSupplier;
 import org.chromium.base.supplier.SyncOneshotSupplierImpl;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.ui.animation.AnimationPerformanceTracker;
 import org.chromium.ui.animation.AnimationPerformanceTracker.AnimationMetrics;
 import org.chromium.ui.interpolators.Interpolators;
@@ -46,7 +45,7 @@ public class ShrinkExpandHubLayoutAnimatorProvider implements HubLayoutAnimatorP
      * is desirable for the view and runnable to be available for garbage collection.
      */
     @VisibleForTesting
-    static class ImageViewWeakRefBitmapCallback implements Callback<Bitmap> {
+    static class ImageViewWeakRefBitmapCallback implements Callback<@Nullable Bitmap> {
         private final WeakReference<ImageView> mViewRef;
         private final WeakReference<Runnable> mOnFinishedRunnableRef;
 
@@ -56,7 +55,7 @@ public class ShrinkExpandHubLayoutAnimatorProvider implements HubLayoutAnimatorP
         }
 
         @Override
-        public void onResult(Bitmap bitmap) {
+        public void onResult(@Nullable Bitmap bitmap) {
             ImageView view = mViewRef.get();
 
             // If the view is null a fallback animation is already happening we don't need to
@@ -199,7 +198,7 @@ public class ShrinkExpandHubLayoutAnimatorProvider implements HubLayoutAnimatorP
     }
 
     @Override
-    public @Nullable Callback<Bitmap> getThumbnailCallback() {
+    public @Nullable Callback<@Nullable Bitmap> getThumbnailCallback() {
         return mBitmapCallback;
     }
 
@@ -300,10 +299,8 @@ public class ShrinkExpandHubLayoutAnimatorProvider implements HubLayoutAnimatorP
         }
 
         int searchBoxHeight =
-                OmniboxFeatures.sAndroidHubSearch.isEnabled()
-                        ? HubUtils.getSearchBoxHeight(
-                                mHubContainerView, R.id.hub_toolbar, R.id.toolbar_action_container)
-                        : 0;
+                HubUtils.getSearchBoxHeight(
+                        mHubContainerView, R.id.hub_toolbar, R.id.toolbar_action_container);
         Rect initialRect = animationData.getInitialRect();
         Rect finalRect = animationData.getFinalRect();
         assert mShrinkExpandImageView != null;

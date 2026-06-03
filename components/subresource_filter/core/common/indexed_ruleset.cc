@@ -54,12 +54,12 @@ VerifyStatus GetVerifyStatus(base::span<const uint8_t> buffer,
 
 // RulesetIndexer --------------------------------------------------------------
 
-const int RulesetIndexer::kIndexedFormatVersion = 36;
+const int RulesetIndexer::kIndexedFormatVersion = 37;
 
 // This static assert is meant to catch cases where
 // url_pattern_index::kUrlPatternIndexFormatVersion is incremented without
 // updating RulesetIndexer::kIndexedFormatVersion.
-static_assert(url_pattern_index::kUrlPatternIndexFormatVersion == 15,
+static_assert(url_pattern_index::kUrlPatternIndexFormatVersion == 16,
               "kUrlPatternIndexFormatVersion has changed, make sure you've "
               "also updated RulesetIndexer::kIndexedFormatVersion above.");
 
@@ -149,17 +149,24 @@ LoadPolicy IndexedRulesetMatcher::GetLoadPolicyForResourceLoad(
     const GURL& url,
     const FirstPartyOrigin& first_party,
     proto::ElementType element_type,
-    bool disable_generic_rules) const {
+    bool disable_generic_rules,
+    const url_pattern_index::flat::UrlRule** out_rule) const {
   const url_pattern_index::flat::UrlRule* rule =
       MatchedUrlRule(url, first_party, element_type, disable_generic_rules);
 
+  LoadPolicy policy = LoadPolicy::DISALLOW;
   if (!rule) {
-    return LoadPolicy::ALLOW;
+    policy = LoadPolicy::ALLOW;
+  } else if (rule->options() &
+             url_pattern_index::flat::OptionFlag_IS_ALLOWLIST) {
+    policy = LoadPolicy::EXPLICITLY_ALLOW;
   }
 
-  return rule->options() & url_pattern_index::flat::OptionFlag_IS_ALLOWLIST
-             ? LoadPolicy::EXPLICITLY_ALLOW
-             : LoadPolicy::DISALLOW;
+  if (policy == LoadPolicy::DISALLOW && out_rule) {
+    *out_rule = rule;
+  }
+
+  return policy;
 }
 
 const url_pattern_index::flat::UrlRule* IndexedRulesetMatcher::MatchedUrlRule(

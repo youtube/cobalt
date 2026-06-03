@@ -1,7 +1,0 @@
-void main(in int x, out int y) {
-    y = x;
-}
-
-/*%%*
-shader 'main' must have zero parameters
-*%%*/

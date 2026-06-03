@@ -111,6 +111,7 @@
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/loader/fetch/client_hints_preferences.h"
 #include "third_party/blink/renderer/platform/loader/fetch/detachable_use_counter.h"
+#include "third_party/blink/renderer/platform/loader/fetch/fetch_initiator_type_names.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_load_priority.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_loader_options.h"
@@ -458,6 +459,29 @@ void FrameFetchContext::PrepareRequest(
   request.SetAllowsDeviceBoundSessionRegistration(
       RuntimeEnabledFeatures::DeviceBoundSessionCredentialsEnabled(
           GetExecutionContext()));
+}
+
+// TODO(crbug.com/422626353): Consider consolidating the initiator info
+// calculation for resource timing and dev tools.
+void FrameFetchContext::FillInitiatorInfo(FetchInitiatorInfo& initiator_info) {
+  if (initiator_info.is_imported_module && !initiator_info.referrer.empty()) {
+    // TODO(crbug.com/40919714): Fill |initiator_url|.
+    // Initiator is a js file.
+    return;
+  }
+  bool was_requested_by_stylesheet =
+      initiator_info.name == fetch_initiator_type_names::kCSS ||
+      initiator_info.name == fetch_initiator_type_names::kUacss;
+  if (was_requested_by_stylesheet && !initiator_info.referrer.empty()) {
+    // TODO(crbug.com/40919714): Fill |initiator_url|.
+    // Initiator is a css file.
+    return;
+  }
+
+  // TODO(crbug.com/40919714): Find out if the initiator is a script
+  // resource. If yes, fill |initiator_url| accordingly and return.
+
+  initiator_info.initiator_url = document_->Url();
 }
 
 void FrameFetchContext::AddResourceTiming(
@@ -1288,10 +1312,14 @@ bool FrameFetchContext::CalculateIfAdSubresource(
     const ResourceRequestHead& resource_request,
     base::optional_ref<const KURL> alias_url,
     ResourceType type,
-    const FetchInitiatorInfo& initiator_info) {
+    const FetchInitiatorInfo& initiator_info,
+    subresource_filter::ScopedRule* out_rule) {
+  CHECK(!out_rule);
+
   // Mark the resource as an Ad if the BaseFetchContext thinks it's an ad.
+  subresource_filter::ScopedRule rule;
   bool known_ad = BaseFetchContext::CalculateIfAdSubresource(
-      resource_request, alias_url, type, initiator_info);
+      resource_request, alias_url, type, initiator_info, /*out_rule=*/&rule);
   if (GetResourceFetcherProperties().IsDetached() ||
       !GetFrame()->GetAdTracker()) {
     return known_ad;
@@ -1302,7 +1330,7 @@ bool FrameFetchContext::CalculateIfAdSubresource(
   const KURL& url =
       alias_url.has_value() ? alias_url.value() : resource_request.Url();
   return GetFrame()->GetAdTracker()->CalculateIfAdSubresource(
-      document_->domWindow(), url, type, initiator_info, known_ad);
+      document_->domWindow(), url, type, initiator_info, known_ad, rule);
 }
 
 void FrameFetchContext::DidObserveLoadingBehavior(
@@ -1346,8 +1374,8 @@ std::optional<ResourceRequestBlockedReason> FrameFetchContext::CanRequest(
         MakeGarbageCollected<ConsoleMessage>(
             mojom::ConsoleMessageSource::kJavaScript,
             mojom::ConsoleMessageLevel::kError,
-            "Only fetch keepalive is allowed during onfreeze: " +
-                url.GetString()));
+            StrCat({"Only fetch keepalive is allowed during onfreeze: ",
+                    url.GetString()})));
     return ResourceRequestBlockedReason::kOther;
   }
   std::optional<ResourceRequestBlockedReason> blocked_reason =

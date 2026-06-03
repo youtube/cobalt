@@ -73,9 +73,11 @@ class FakeProxy : public Proxy {
   void CompositeImmediatelyForTest(base::TimeTicks frame_begin_time,
                                    bool raster,
                                    base::OnceClosure callback) override {}
-  double GetPercentDroppedFrames() const override;
+  double GetAverageThroughput() const override;
   void SetPauseRendering(bool pause_rendering) override {}
   void SetInputResponsePending() override {}
+  bool IsRenderingPaused() const override;
+  void NotifyNewLocalSurfaceIdExpectedWhilePaused() override {}
 
  private:
   raw_ptr<LayerTreeHost> layer_tree_host_;

@@ -30,6 +30,7 @@
 #include "net/base/features.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/mock_network_change_notifier.h"
+#include "net/base/net_errors.h"
 #include "net/base/network_anonymization_key.h"
 #include "net/base/proxy_chain.h"
 #include "net/base/proxy_server.h"
@@ -6806,7 +6807,7 @@ TEST_P(QuicNetworkTransactionTest, QuicProxyConnectSpdyServer) {
           packet_num++, GetNthClientInitiatedBidirectionalStreamId(0), 1, 1,
           false, ConstructDataFrame({get_frame.data(), get_frame.size()})));
   spdy::SpdySerializedFrame resp_frame =
-      spdy_util.ConstructSpdyGetReply(nullptr, 0, 1);
+      spdy_util.ConstructSpdyGetReply(base::span<const std::string_view>(), 1);
   mock_quic_data.AddRead(
       ASYNC, ConstructServerDataPacket(
                  2, GetNthClientInitiatedBidirectionalStreamId(0), false,
@@ -7320,7 +7321,7 @@ TEST_P(QuicNetworkTransactionTest, QuicProxyConnectReuseQuicSession) {
           false, ConstructDataFrame({get_frame.data(), get_frame.size()})));
 
   spdy::SpdySerializedFrame resp_frame =
-      spdy_util.ConstructSpdyGetReply(nullptr, 0, 1);
+      spdy_util.ConstructSpdyGetReply(base::span<const std::string_view>(), 1);
   mock_quic_data.AddRead(
       ASYNC, ConstructServerDataPacket(
                  5, GetNthClientInitiatedBidirectionalStreamId(1), false,
@@ -8548,7 +8549,7 @@ TEST_P(QuicNetworkTransactionTest, AllowHTTP1FalseProhibitsH1) {
   TestCompletionCallback callback;
   int rv = trans.Start(&request_, callback.callback(), net_log_with_source_);
   EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
-  EXPECT_THAT(callback.WaitForResult(), IsError(ERR_H2_OR_QUIC_REQUIRED));
+  EXPECT_THAT(callback.WaitForResult(), IsError(ERR_ALPN_NEGOTIATION_FAILED));
 }
 
 // Confirm mock class UploadDataStreamNotAllowHTTP1 can upload content over
@@ -8751,7 +8752,7 @@ TEST_P(QuicNetworkTransactionTest, AllowHTTP1UploadFailH1AndResumeQuic) {
     // the HappyEyeballsV3 is enabled, and when the HappyEyeballsV3 is enabled
     // we create an HttpStream on HTTP/1.1 for the request. Just check we get
     // an appropriate error.
-    EXPECT_THAT(rv, IsError(ERR_H2_OR_QUIC_REQUIRED));
+    EXPECT_THAT(rv, IsError(ERR_ALPN_NEGOTIATION_FAILED));
   } else {
     EXPECT_THAT(rv, IsOk());
     CheckResponseData(&trans, kQuicRespData);
@@ -9043,8 +9044,8 @@ TEST_P(QuicNetworkTransactionTest, WebsocketOpensNewConnectionWithHttp1) {
   request2.url = GURL("wss://mail.example.org/");
   request2.traffic_annotation =
       net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS);
-  EXPECT_TRUE(HostPortPair::FromURL(request_.url)
-                  .Equals(HostPortPair::FromURL(request2.url)));
+  EXPECT_EQ(HostPortPair::FromURL(request_.url),
+            HostPortPair::FromURL(request2.url));
   request2.extra_headers.SetHeader("Connection", "Upgrade");
   request2.extra_headers.SetHeader("Upgrade", "websocket");
   request2.extra_headers.SetHeader("Origin", "http://mail.example.org");
@@ -9148,8 +9149,8 @@ TEST_P(QuicNetworkTransactionTest,
   request2.url = GURL("wss://mail.example.org/");
   request2.traffic_annotation =
       net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS);
-  EXPECT_TRUE(HostPortPair::FromURL(request_.url)
-                  .Equals(HostPortPair::FromURL(request2.url)));
+  EXPECT_EQ(HostPortPair::FromURL(request_.url),
+            HostPortPair::FromURL(request2.url));
   request2.extra_headers.SetHeader("Connection", "Upgrade");
   request2.extra_headers.SetHeader("Upgrade", "websocket");
   request2.extra_headers.SetHeader("Origin", "http://mail.example.org");
@@ -9273,8 +9274,8 @@ TEST_P(QuicNetworkTransactionTest,
   request2.url = GURL("wss://mail.example.org/");
   request2.traffic_annotation =
       net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS);
-  EXPECT_TRUE(HostPortPair::FromURL(request_.url)
-                  .Equals(HostPortPair::FromURL(request2.url)));
+  EXPECT_EQ(HostPortPair::FromURL(request_.url),
+            HostPortPair::FromURL(request2.url));
   request2.extra_headers.SetHeader("Connection", "Upgrade");
   request2.extra_headers.SetHeader("Upgrade", "websocket");
   request2.extra_headers.SetHeader("Origin", "http://mail.example.org");

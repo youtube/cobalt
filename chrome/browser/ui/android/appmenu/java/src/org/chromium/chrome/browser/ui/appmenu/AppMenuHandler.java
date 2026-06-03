@@ -59,24 +59,17 @@ public interface AppMenuHandler {
 
     /**
      * Removes the observer from the App Menu.
+     *
      * @param observer Observer that should no longer be notified about App Menu changes.
      */
     void removeObserver(AppMenuObserver observer);
 
     /**
-     * Notifies the menu that the contents of the menu item specified by {@code menuRowId} have
-     * changed.  This should be called if icons, titles, etc. are changing for a particular menu
-     * item while the menu is open.
-     * @param menuRowId The id of the menu item to change.  This must be a row id and not a child
-     *                  id.
-     */
-    void menuItemContentChanged(int menuRowId);
-
-    /**
-     * Calls attention to this menu and a particular item in it.  The menu will only stay
-     * highlighted for one menu usage.  After that the highlight will be cleared.
+     * Calls attention to this menu and a particular item in it. The menu will only stay highlighted
+     * for one menu usage. After that the highlight will be cleared.
+     *
      * @param highlightItemId The id of a menu item to highlight or {@code null} to turn off the
-     *                        highlight.
+     *     highlight.
      */
     void setMenuHighlight(Integer highlightItemId);
 
@@ -106,6 +99,8 @@ public interface AppMenuHandler {
      */
     AppMenuButtonHelper createAppMenuButtonHelper();
 
-    /** Call to cause a redraw when an item in the app menu changes. */
-    void invalidateAppMenu();
+    /**
+     * @return {@link AppMenuPropertiesDelegate} that builds the menu list.
+     */
+    AppMenuPropertiesDelegate getMenuPropertiesDelegate();
 }

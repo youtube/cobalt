@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 #include "components/viz/common/resources/transferable_resource.h"
+
+#include "base/feature_list.h"
+#include "components/viz/common/features.h"
 #include "components/viz/common/resources/returned_resource.h"
 #include "gpu/command_buffer/client/client_shared_image.h"
 
@@ -86,13 +89,19 @@ TransferableResource TransferableResource::Make(
   resource.origin = override.origin.value_or(shared_image->surface_origin());
   SkAlphaType alpha_type =
       override.alpha_type.value_or(shared_image->alpha_type());
-  // TODO(crbug.com/410591523): Set `resource.alpha_type` directly from
-  // `alpha_type` under a killswitch; this will result in kOpaque_SkAlphaType
-  // being passed through to the service side, whereas historically that has
-  // been compressed to a "premul" bool and treated as kPremul_SkAlphaType on
-  // the service side.
-  resource.alpha_type =
-      (alpha_type == kUnpremul_SkAlphaType) ? alpha_type : kPremul_SkAlphaType;
+  // Historically `alpha_type` has been compressed to a "premul" bool with
+  // kOpaque_SkAlphaType being treated as kPremul_SkAlphaType on the service
+  // side. Eliminate this historical behavior under a killswitch.
+  // TODO(crbug.com/410591523): Remove killswitch after it has safely rolled
+  // out.
+  if (base::FeatureList::IsEnabled(
+          features::kTransferableResourcePassAlphaTypeDirectly)) {
+    resource.alpha_type = alpha_type;
+  } else {
+    resource.alpha_type = (alpha_type == kUnpremul_SkAlphaType)
+                              ? alpha_type
+                              : kPremul_SkAlphaType;
+  }
   resource.set_texture_target(
       override.texture_target.value_or(shared_image->GetTextureTarget()));
 

@@ -41,10 +41,6 @@ void FakeTransaction::Begin(std::vector<PartitionedLock> locks) {
   wrapped_transaction_->Begin(std::move(locks));
 }
 
-void FakeTransaction::Reset() {
-  wrapped_transaction_->Reset();
-}
-
 Status FakeTransaction::SetDatabaseVersion(int64_t version) {
   return wrapped_transaction_->SetDatabaseVersion(version);
 }
@@ -85,10 +81,10 @@ Status FakeTransaction::RenameIndex(int64_t object_store_id,
   return wrapped_transaction_->RenameIndex(object_store_id, index_id, new_name);
 }
 
-Status FakeTransaction::GetRecord(int64_t object_store_id,
-                                  const blink::IndexedDBKey& key,
-                                  IndexedDBValue* record) {
-  return wrapped_transaction_->GetRecord(object_store_id, key, record);
+StatusOr<IndexedDBValue> FakeTransaction::GetRecord(
+    int64_t object_store_id,
+    const blink::IndexedDBKey& key) {
+  return wrapped_transaction_->GetRecord(object_store_id, key);
 }
 
 StatusOr<BackingStore::RecordIdentifier> FakeTransaction::PutRecord(
@@ -111,10 +107,10 @@ StatusOr<int64_t> FakeTransaction::GetKeyGeneratorCurrentNumber(
 
 Status FakeTransaction::MaybeUpdateKeyGeneratorCurrentNumber(
     int64_t object_store_id,
-    int64_t new_state,
-    bool check_current) {
+    int64_t new_number,
+    bool was_generated) {
   return wrapped_transaction_->MaybeUpdateKeyGeneratorCurrentNumber(
-      object_store_id, new_state, check_current);
+      object_store_id, new_number, was_generated);
 }
 
 StatusOr<std::optional<BackingStore::RecordIdentifier>>
@@ -132,23 +128,12 @@ Status FakeTransaction::PutIndexDataForRecord(
                                                      key, record);
 }
 
-Status FakeTransaction::GetPrimaryKeyViaIndex(
+StatusOr<blink::IndexedDBKey> FakeTransaction::GetFirstPrimaryKeyForIndexKey(
     int64_t object_store_id,
     int64_t index_id,
-    const blink::IndexedDBKey& key,
-    std::unique_ptr<blink::IndexedDBKey>* primary_key) {
-  return wrapped_transaction_->GetPrimaryKeyViaIndex(object_store_id, index_id,
-                                                     key, primary_key);
-}
-
-Status FakeTransaction::KeyExistsInIndex(
-    int64_t object_store_id,
-    int64_t index_id,
-    const blink::IndexedDBKey& key,
-    std::unique_ptr<blink::IndexedDBKey>* found_primary_key,
-    bool* exists) {
-  return wrapped_transaction_->KeyExistsInIndex(object_store_id, index_id, key,
-                                                found_primary_key, exists);
+    const blink::IndexedDBKey& key) {
+  return wrapped_transaction_->GetFirstPrimaryKeyForIndexKey(object_store_id,
+                                                             index_id, key);
 }
 
 StatusOr<std::unique_ptr<indexed_db::BackingStore::Cursor>>
@@ -158,6 +143,21 @@ FakeTransaction::OpenObjectStoreKeyCursor(
     blink::mojom::IDBCursorDirection direction) {
   return wrapped_transaction_->OpenObjectStoreKeyCursor(object_store_id,
                                                         key_range, direction);
+}
+
+StatusOr<uint32_t> FakeTransaction::GetObjectStoreKeyCount(
+    int64_t object_store_id,
+    blink::IndexedDBKeyRange key_range) {
+  return wrapped_transaction_->GetObjectStoreKeyCount(object_store_id,
+                                                      std::move(key_range));
+}
+
+StatusOr<uint32_t> FakeTransaction::GetIndexKeyCount(
+    int64_t object_store_id,
+    int64_t index_id,
+    blink::IndexedDBKeyRange key_range) {
+  return wrapped_transaction_->GetIndexKeyCount(object_store_id, index_id,
+                                                std::move(key_range));
 }
 
 StatusOr<std::unique_ptr<indexed_db::BackingStore::Cursor>>
@@ -186,6 +186,11 @@ FakeTransaction::OpenIndexCursor(int64_t object_store_id,
                                  blink::mojom::IDBCursorDirection direction) {
   return wrapped_transaction_->OpenIndexCursor(object_store_id, index_id,
                                                key_range, direction);
+}
+
+blink::mojom::IDBValuePtr FakeTransaction::BuildMojoValue(
+    IndexedDBValue value) {
+  return wrapped_transaction_->BuildMojoValue(std::move(value));
 }
 
 }  // namespace content::indexed_db

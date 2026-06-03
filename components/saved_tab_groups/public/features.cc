@@ -18,14 +18,6 @@ const int kDefaultGroupCleanUpTimeInternalInSeconds = 60 * 60;
 constexpr char kGroupCleanUpTimeIntervalInSecondsFinchKey[] =
     "group_clean_up_time_internal_seconds";
 
-// Core feature flag for tab group sync on Android.
-// Controls registration with the sync service and tab model hookup UI layer.
-// TabGroupSyncService is eanbled when either this flag or kTabGroupPaneAndroid
-// is enabled.
-BASE_FEATURE(kTabGroupSyncAndroid,
-             "TabGroupSyncAndroid",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Feature flag used to determine whether the network layer is disabled for
 // tab group sync.
 BASE_FEATURE(kTabGroupSyncDisableNetworkLayer,
@@ -37,20 +29,12 @@ BASE_FEATURE(kTabGroupSyncDisableNetworkLayer,
 // continue to use SavedTabGroupKeyedService.
 BASE_FEATURE(kTabGroupSyncServiceDesktopMigration,
              "TabGroupSyncServiceDesktopMigration",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Feature flag for Java controller layer migration to use TabGroupSyncDelegate.
 // Noop when disabled.
 BASE_FEATURE(kTabGroupSyncDelegateAndroid,
              "TabGroupSyncDelegateAndroid",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Feature flag to disable auto-open of saved tab groups. Note that the
-// settings page for auto open will still be visible, and when user is allowed
-// to change. However the written pref from the user selection will not be
-// honored. This feature flag should be used only in case of an emergency.
-BASE_FEATURE(kTabGroupSyncAutoOpenKillSwitch,
-             "TabGroupSyncAutoOpenKillSwitch",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Feature flag to restrict download on synced tabs if the navigation is

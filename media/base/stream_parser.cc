@@ -7,6 +7,7 @@
 #include <atomic>
 
 #include "base/logging.h"
+#include "base/notimplemented.h"
 #include "media/base/stream_parser_buffer.h"
 #include "media/media_buildflags.h"
 

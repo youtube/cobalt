@@ -5,6 +5,8 @@
 #ifndef CHROME_UPDATER_CONSTANTS_H_
 #define CHROME_UPDATER_CONSTANTS_H_
 
+#include <optional>
+
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "components/update_client/update_client_errors.h"
@@ -221,12 +223,6 @@ inline constexpr char kOfflineDirSwitch[] =
 // that scenario.
 inline constexpr char kAppArgsSwitch[] = "appargs";  // backward-compatibility.
 
-// If provided alongside the update or install switch, a value is written to the
-// local preferences indicating that the Chrome Enterprise Companion App
-// experiment should be enabled.
-// TODO(crbug.com/342180612): Remove once the application has fully launched.
-inline constexpr char kEnableCecaExperimentSwitch[] = "enable-ceca-experiment";
-
 // The "expect-elevated" switch indicates that updater setup should be running
 // elevated (at high integrity). This switch is needed to avoid running into a
 // loop trying (but failing repeatedly) to elevate updater setup when attempting
@@ -256,15 +252,23 @@ inline constexpr char kUninstallScript[] = "uninstall.cmd";
 // Developer override keys.
 inline constexpr char kDevOverrideKeyUrl[] = "url";
 inline constexpr char kDevOverrideKeyCrashUploadUrl[] = "crash_upload_url";
-inline constexpr char kDevOverrideKeyDeviceManagementUrl[] =
-    "device_management_url";
 inline constexpr char kDevOverrideKeyAppLogoUrl[] = "app_logo_url";
+inline constexpr char kDevOverrideKeyEventLoggingUrl[] = "event_logging_url";
 inline constexpr char kDevOverrideKeyUseCUP[] = "use_cup";
 inline constexpr char kDevOverrideKeyInitialDelay[] = "initial_delay";
 inline constexpr char kDevOverrideKeyServerKeepAliveSeconds[] =
     "server_keep_alive";
 inline constexpr char kDevOverrideKeyCrxVerifierFormat[] =
     "crx_verifier_format";
+inline constexpr char kDevOverrideKeyMinumumEventLoggingCooldownSeconds[] =
+    "minimum_event_logging_cooldown_seconds";
+inline constexpr char kDevOverrideKeyEventLoggingPermissionProviderAppId[] =
+    "event_logging_permission_provider_app_id";
+#if BUILDFLAG(IS_MAC)
+inline constexpr char
+    kDevOverrideKeyEventLoggingPermissionProviderDirectoryName[] =
+        "event_logging_permission_provider_directory_name";
+#endif
 inline constexpr char kDevOverrideKeyDictPolicies[] = "dict_policies";
 
 // TODO(crbug.com/389965546): remove this once the checked-in old updater builds
@@ -298,6 +302,23 @@ inline constexpr base::TimeDelta kDefaultLastCheckPeriod =
 // How long to wait for launchd changes to be reported by launchctl.
 inline constexpr int kWaitForLaunchctlUpdateSec = 5;
 #endif  // BUILDFLAG(IS_MAC)
+
+// The minimum period between remote event logging transmissions. The server may
+// instruct the client to backoff for a longer period.
+inline constexpr base::TimeDelta kMinimumEventLoggingCooldown =
+    base::Minutes(15);
+
+// The minimum factor by which kDefaultLastCheckPeriod can be
+// multiplied to get the next check delay.
+inline constexpr double kUpdateCheckMinDelayFactor = 1.0;
+
+// The maximum factor by which kDefaultLastCheckPeriod can be
+// multiplied to get the next check delay.
+inline constexpr double kUpdateCheckMaxDelayFactor = 1.2;
+
+// Probability of applying kUpdateCheckMaxDelayFactor to the next
+// check delay.
+inline constexpr double kProbabilityOfIncreasedDelay = 0.1;
 
 // Install Errors.
 //

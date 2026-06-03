@@ -9,9 +9,12 @@
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/search/background/ntp_custom_background_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/webui/new_tab_footer/mock_new_tab_footer_document.h"
 #include "chrome/browser/ui/webui/new_tab_footer/new_tab_footer.mojom.h"
+#include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
+#include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/chrome_test_utils.h"
 #include "components/search/ntp_features.h"
 #include "content/public/browser/web_contents.h"
@@ -35,7 +38,10 @@ class NewTabFooterHandlerBrowserTest : public extensions::ExtensionBrowserTest {
     InProcessBrowserTest::SetUpOnMainThread();
     handler_ = std::make_unique<NewTabFooterHandler>(
         mojo::PendingReceiver<new_tab_footer::mojom::NewTabFooterHandler>(),
-        document_.BindAndGetRemote(), web_contents());
+        document_.BindAndGetRemote(),
+        base::WeakPtr<TopChromeWebUIController::Embedder>(),
+        NtpCustomBackgroundServiceFactory::GetForProfile(profile()),
+        web_contents());
   }
 
   void TearDownOnMainThread() override {
@@ -53,6 +59,16 @@ class NewTabFooterHandlerBrowserTest : public extensions::ExtensionBrowserTest {
   std::unique_ptr<NewTabFooterHandler> handler_;
   testing::NiceMock<MockNewTabFooterDocument> document_;
 };
+
+IN_PROC_BROWSER_TEST_F(NewTabFooterHandlerBrowserTest, OpenUrlInCurrentTab) {
+  const GURL url = GURL("https://google.com");
+  EXPECT_EQ(1, browser()->tab_strip_model()->count());
+  handler().OpenUrlInCurrentTab(url);
+
+  WaitForLoadStop(web_contents());
+  EXPECT_EQ(1, browser()->tab_strip_model()->count());
+  EXPECT_EQ(url, web_contents()->GetLastCommittedURL());
+}
 
 IN_PROC_BROWSER_TEST_F(NewTabFooterHandlerBrowserTest,
                        OpenExtensionOptionsPage_ExistingExtensionId) {
@@ -95,5 +111,15 @@ IN_PROC_BROWSER_TEST_F(NewTabFooterHandlerBrowserTest,
   WaitForLoadStop(web_contents());
   EXPECT_EQ(1, browser()->tab_strip_model()->count());
   const GURL expected_url = GURL(chrome::kChromeUIExtensionsURL);
+  EXPECT_EQ(expected_url, web_contents()->GetLastCommittedURL());
+}
+
+IN_PROC_BROWSER_TEST_F(NewTabFooterHandlerBrowserTest, OpenManagementPage) {
+  EXPECT_EQ(1, browser()->tab_strip_model()->count());
+  handler().OpenManagementPage();
+
+  WaitForLoadStop(web_contents());
+  EXPECT_EQ(1, browser()->tab_strip_model()->count());
+  const GURL expected_url = GURL(chrome::kChromeUIManagementURL);
   EXPECT_EQ(expected_url, web_contents()->GetLastCommittedURL());
 }

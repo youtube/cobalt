@@ -95,6 +95,7 @@ ParentPermissionDialogViewTest.*
 *PasswordBubbleBrowserTest.*
 *PasswordAutomaticSaveBubbleBrowserTest.*
 *PasswordCrossDomainConfirmationPopupViewBrowsertest.*
+*PasswordChangeToastBrowserTest.InvokeUi_*
 *PasswordChangeUiBrowserTest.*
 *PasswordGenerationPopupViewBrowsertest.*
 *PasswordGenerationPopupViewWithSoftNudgeBrowsertest.*
@@ -113,6 +114,7 @@ PermissionPromptPreviewBrowserTest.InvokeUi_*
 PlusAddressCreationDialogWithNoticeTest.ShowNoticeAndCancel
 *PopupViewViewsBrowsertest*
 *PopupViewViewsPlusAddressSuggestionBrowsertest*
+PriceTrackingBubbleDialogViewBrowserTest.*
 PrivacySandboxPSNoticeDialogViewBrowserTest.*
 PrivacySandboxDialogViewBrowserTest.*
 PrivacySandboxDialogViewAdsApiUxEnhancementBrowserTest.*
@@ -140,6 +142,7 @@ SecurePaymentConfirmationDialogViewTest.InvokeUi_*
 SessionCrashedBubbleViewTest.*
 *SharedPasswordsNotificationBubbleInteractiveUiTest.*
 SharedTabGroupInteractiveUiTest.SharedTabGroupIn*
+SplitTabButtonInteractiveTest.ButtonUpdatesOnSplit
 SyncConfirmationUIDialogPixelTest.*
 SyncConfirmationUIWindowPixelTest.*
 SyncPassphraseDialogBrowserTest.*

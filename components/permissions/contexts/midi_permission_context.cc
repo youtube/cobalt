@@ -14,14 +14,14 @@ namespace permissions {
 
 MidiPermissionContext::MidiPermissionContext(
     content::BrowserContext* browser_context)
-    : PermissionContextBase(
+    : ContentSettingPermissionContextBase(
           browser_context,
           ContentSettingsType::MIDI,
           network::mojom::PermissionsPolicyFeature::kMidiFeature) {}
 
 MidiPermissionContext::~MidiPermissionContext() = default;
 
-ContentSetting MidiPermissionContext::GetPermissionStatusInternal(
+ContentSetting MidiPermissionContext::GetContentSettingStatusInternal(
     content::RenderFrameHost* render_frame_host,
     const GURL& requesting_origin,
     const GURL& embedding_origin) const {

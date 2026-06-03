@@ -10,17 +10,18 @@
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/functional/overloaded.h"
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "base/time/time.h"
 #include "base/types/expected.h"
+#include "base/types/optional_util.h"
 #include "components/signin/public/base/session_binding_utils.h"
 #include "components/unexportable_keys/background_task_priority.h"
 #include "components/unexportable_keys/unexportable_key_loader.h"
 #include "components/unexportable_keys/unexportable_key_service.h"
 #include "crypto/signature_verifier.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 
 namespace {
 
@@ -94,7 +95,7 @@ void RegistrationTokenHelper::CreateKeyLoaderIfNeeded() {
   }
 
   std::visit(
-      base::Overloaded{
+      absl::Overload{
           [&](const std::vector<uint8_t>& wrapped_binding_key_to_reuse) {
             key_loader_ =
                 unexportable_keys::UnexportableKeyLoader::CreateFromWrappedKey(
@@ -118,13 +119,13 @@ void RegistrationTokenHelper::SignHeaderAndPayload(
         binding_key) {
   if (!binding_key.has_value()) {
     Error error = std::visit(
-        base::Overloaded{[](const std::vector<uint8_t>&) {
-                           return Error::kLoadReusedKeyFailure;
-                         },
-                         [](const std::vector<
-                             crypto::SignatureVerifier::SignatureAlgorithm>&) {
-                           return Error::kGenerateNewKeyFailure;
-                         }},
+        absl::Overload{[](const std::vector<uint8_t>&) {
+                         return Error::kLoadReusedKeyFailure;
+                       },
+                       [](const std::vector<
+                           crypto::SignatureVerifier::SignatureAlgorithm>&) {
+                         return Error::kGenerateNewKeyFailure;
+                       }},
         key_init_param_);
     std::move(callback).Run(base::unexpected(error));
     return;
@@ -186,10 +187,6 @@ void RegistrationTokenHelper::RecordResultAndInvokeCallback(
                    RegistrationTokenHelper::Error> result_or_error) {
   base::UmaHistogramEnumeration(result_histogram_name,
                                 result_or_error.error_or(Error::kNone));
-
-  if (result_or_error.has_value()) {
-    std::move(callback).Run(std::move(result_or_error).value());
-  } else {
-    std::move(callback).Run(std::nullopt);
-  }
+  std::move(callback).Run(
+      base::OptionalFromExpected(std::move(result_or_error)));
 }

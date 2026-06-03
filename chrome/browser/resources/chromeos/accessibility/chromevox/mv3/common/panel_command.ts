@@ -8,6 +8,9 @@
  */
 import {TestImportManager} from '/common/testing/test_import_manager.js';
 
+import {BridgeConstants} from './bridge_constants.js';
+import {PanelBridge} from './panel_bridge.js';
+
 /**
  * Create one command to pass to the ChromeVox Panel.
  */
@@ -29,20 +32,27 @@ export class PanelCommand {
   }
 
   waitForPanel(resolve: () => void) {
-    chrome.runtime.sendMessage(
-        undefined, {type: PanelCommandType.IS_PANEL_INITIALIZED}, undefined,
-        (initialized: any) => {
-          // Panel is not yet initialized
-          if (chrome.runtime.lastError) {
-            setTimeout(() => this.waitForPanel(resolve), 500);
-            return;
-          }
+    const message = {
+      target: BridgeConstants.Panel.TARGET,
+      action: BridgeConstants.Panel.Action.IS_PANEL_INITIALIZED,
+      args: []
+    };
+    const callback = (initialized: any) => {
+      // Panel is not yet initialized
+      if (chrome.runtime.lastError) {
+        setTimeout(() => this.waitForPanel(resolve), 500);
+        return;
+      }
 
-          // Panel is initialized.
-          if (initialized as boolean) {
-            resolve();
-          }
-        });
+      // Panel is initialized.
+      if (initialized as boolean) {
+        resolve();
+      }
+    };
+    // Instead of using the PanelBridge, we will call
+    // chrome.runtime.sendMessage directly, because we need to catch the
+    // possible error if the panel is not initialized.
+    chrome.runtime.sendMessage(undefined, message, undefined, callback);
   }
 
   /** Send this command to the ChromeVox Panel window. */
@@ -51,7 +61,7 @@ export class PanelCommand {
     // loading and is ready to receive commands.
     await PanelCommand.panelIsInitialized_;
 
-    chrome.runtime.sendMessage(undefined, {type: this.type, data: this.data});
+    PanelBridge.execCommand(this)
   }
 }
 
@@ -63,15 +73,12 @@ export enum PanelCommandType {
   CLEAR_SPEECH = 'clear_speech',
   ADD_NORMAL_SPEECH = 'add_normal_speech',
   ADD_ANNOTATION_SPEECH = 'add_annotation_speech',
-  BRAILLE_ROUTE = 'braille_route',
   CLOSE_CHROMEVOX = 'close_chromevox',
   UPDATE_BRAILLE = 'update_braille',
   OPEN_MENUS = 'open_menus',
   OPEN_MENUS_MOST_RECENT = 'open_menus_most_recent',
   SEARCH = 'search',
   TUTORIAL = 'tutorial',
-  ENABLE_TEST_HOOKS = 'enable_test_hooks',
-  IS_PANEL_INITIALIZED = 'IsPanelInitialized',
 }
 
 TestImportManager.exportForTesting(

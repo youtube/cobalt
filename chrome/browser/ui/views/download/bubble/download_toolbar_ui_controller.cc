@@ -472,8 +472,10 @@ void DownloadToolbarUIController::Init() {
       this, browser_view_->browser(), bubble_controller_.get());
 }
 
-void DownloadToolbarUIController::TearDownPreBrowserViewDestruction() {
+void DownloadToolbarUIController::TearDownPreBrowserWindowDestruction() {
   immersive_revealed_lock_.reset();
+  // DownloadDisplayController depends on BrowserView.
+  controller_.reset();
   browser_view_ = nullptr;
 }
 
@@ -794,8 +796,8 @@ DownloadToolbarUIController::GetWeakPtr() {
 // browser becomes active, so that clicking outside the bubble will deactivate
 // and close it.
 void DownloadToolbarUIController::OnBrowserSetLastActive(Browser* browser) {
-  if (browser == browser_view_->browser() && bubble_delegate_ &&
-      !bubble_delegate_->GetWidget()->IsClosed()) {
+  if (browser_view_ && browser == browser_view_->browser() &&
+      bubble_delegate_ && !bubble_delegate_->GetWidget()->IsClosed()) {
     // We need to defer activating the download bubble when the browser window
     // is being activated, otherwise this is ineffective on macOS.
     content::GetUIThreadTaskRunner()->PostTask(

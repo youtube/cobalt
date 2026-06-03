@@ -53,6 +53,7 @@ class MODULES_EXPORT ImageBitmapRenderingContextBase
     return gfx::ColorSpace::CreateSRGB();
   }
   bool IsComposited() const final { return true; }
+  bool IsAccelerated() const final;
   bool PushFrame() override;
 
   cc::Layer* CcLayer() const final;
@@ -62,6 +63,10 @@ class MODULES_EXPORT ImageBitmapRenderingContextBase
   void Reset() override;
 
   void Stop() override;
+
+  scoped_refptr<StaticBitmapImage> PaintRenderingResultsToSnapshot(
+      SourceDrawingBuffer source_buffer,
+      FlushReason reason) override;
 
   bool IsPaintable() const final;
 

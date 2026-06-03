@@ -116,6 +116,20 @@ public interface TabModel extends SupportsTabModelObserver, TabList {
     void moveTab(int id, int newIndex);
 
     /**
+     * Pins a tab to the model.
+     *
+     * @param tabId The id of the tab to pin.
+     */
+    void pinTab(int tabId);
+
+    /**
+     * Unpins a tab from the model.
+     *
+     * @param tabId The id of the tab to unpin.
+     */
+    void unpinTab(int tabId);
+
+    /**
      * Returns a supplier for the number of tabs in this tab model. This does not count tabs that
      * are pending closure.
      */
@@ -133,4 +147,7 @@ public interface TabModel extends SupportsTabModelObserver, TabList {
      * @param creationState How the tab was created.
      */
     void addTab(Tab tab, int index, @TabLaunchType int type, @TabCreationState int creationState);
+
+    /** Broadcast a native-side notification that all tabs are now loaded from storage. */
+    void broadcastSessionRestoreComplete();
 }

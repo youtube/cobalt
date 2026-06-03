@@ -12,10 +12,10 @@
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/layout_constants.h"
-#include "chrome/browser/ui/views/frame/browser_frame_bounds_change_animation.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/glic_button.h"
+#include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/interaction/element_identifier.h"
@@ -66,11 +66,29 @@ void GlicView::UpdatePrimaryDraggableAreaOnResize() {
 }
 
 void GlicView::UpdateBackgroundColor() {
-  std::optional<SkColor> client_background = GetClientBackgroundColor();
-  if (client_background) {
-    SetBackground(views::CreateSolidBackground(*client_background));
-  } else {
-    SetBackground(views::CreateSolidBackground(kColorGlicBackground));
+  const bool explicit_background =
+      base::FeatureList::IsEnabled(features::kGlicExplicitBackgroundColor);
+
+  std::unique_ptr<views::Background> background;
+  if (!explicit_background) {
+    std::optional<SkColor> client_background = GetClientBackgroundColor();
+    if (client_background) {
+      background = views::CreateSolidBackground(*client_background);
+    }
+  }
+
+  if (!background) {
+    background = views::CreateSolidBackground(kColorGlicBackground);
+  }
+
+  SetBackground(std::move(background));
+
+  if (views::Widget* widget = GetWidget(); explicit_background && widget) {
+    // Set the native widget background color if needed.
+    widget->SetColorModeOverride(
+        /*color_mode_override=*/std::nullopt,
+        ui::ColorVariant(kColorGlicBackground)
+            .ResolveToSkColor(widget->GetColorProvider()));
   }
 }
 

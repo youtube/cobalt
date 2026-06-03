@@ -148,6 +148,12 @@ buildflag_header("cronet_buildflags") {
   flags = [ "CRONET_BUILD=$is_cronet_build" ]
 }
 
+buildflag_header("disk_cache_buildflags") {
+  header = "buildflags.h"
+  header_dir = "net/disk_cache/"
+  flags = [ "ENABLE_DISK_CACHE_SQL_BACKEND=$enable_disk_cache_sql_backend" ]
+}
+
 proto_library("device_bound_sessions_storage_proto") {
   proto_in_dir = "//"
   sources = [ "device_bound_sessions/proto/storage.proto" ]
@@ -300,6 +306,8 @@ component("net") {
     "base/sockaddr_storage.cc",
     "base/sockaddr_storage.h",
     "base/sys_addrinfo.h",
+    "base/task/task_runner.cc",
+    "base/task/task_runner.h",
     "base/trace_event_stub.h",
     "base/tracing.h",
     "base/transport_info.cc",
@@ -608,7 +616,6 @@ component("net") {
     "http/http_auth_multi_round_parse.h",
     "http/http_auth_preferences.cc",
     "http/http_auth_preferences.h",
-    "http/http_auth_scheme.cc",
     "http/http_auth_scheme.h",
     "http/http_basic_state.cc",
     "http/http_basic_state.h",
@@ -685,10 +692,6 @@ component("net") {
     "http/http_stream_pool.h",
     "http/http_stream_pool_attempt_manager.cc",
     "http/http_stream_pool_attempt_manager.h",
-    "http/http_stream_pool_attempt_manager_quic_attempt.cc",
-    "http/http_stream_pool_attempt_manager_quic_attempt.h",
-    "http/http_stream_pool_attempt_manager_tcp_based_attempt.cc",
-    "http/http_stream_pool_attempt_manager_tcp_based_attempt.h",
     "http/http_stream_pool_group.cc",
     "http/http_stream_pool_group.h",
     "http/http_stream_pool_handle.cc",
@@ -699,8 +702,12 @@ component("net") {
     "http/http_stream_pool_job.h",
     "http/http_stream_pool_job_controller.cc",
     "http/http_stream_pool_job_controller.h",
+    "http/http_stream_pool_quic_attempt.cc",
+    "http/http_stream_pool_quic_attempt.h",
     "http/http_stream_pool_request_info.cc",
     "http/http_stream_pool_request_info.h",
+    "http/http_stream_pool_tcp_based_attempt.cc",
+    "http/http_stream_pool_tcp_based_attempt.h",
     "http/http_stream_request.cc",
     "http/http_stream_request.h",
     "http/http_transaction.h",
@@ -1157,6 +1164,7 @@ component("net") {
   ]
 
   public_deps = [
+    ":disk_cache_buildflags",
     ":net_export_header",
     ":net_public_deps",
     "//base",
@@ -1808,6 +1816,20 @@ component("net") {
       "base/platform_mime_util_starboard.cc",
     ]
   }
+
+  if (enable_disk_cache_sql_backend) {
+    sources += [
+      "disk_cache/sql/cache_entry_key.cc",
+      "disk_cache/sql/cache_entry_key.h",
+      "disk_cache/sql/sql_backend_constants.h",
+      "disk_cache/sql/sql_backend_impl.cc",
+      "disk_cache/sql/sql_backend_impl.h",
+      "disk_cache/sql/sql_persistent_store.cc",
+      "disk_cache/sql/sql_persistent_store.h",
+    ]
+    deps += [ "//sql:sql" ]
+  }
+  }
 }
 
 # net_export.h has its own build target so that code (eg
@@ -2164,6 +2186,8 @@ static_library("test_support") {
     "test/embedded_test_server/http1_connection.h",
     "test/embedded_test_server/http2_connection.cc",
     "test/embedded_test_server/http2_connection.h",
+    "test/embedded_test_server/http_connect_proxy_handler.cc",
+    "test/embedded_test_server/http_connect_proxy_handler.h",
     "test/embedded_test_server/http_connection.cc",
     "test/embedded_test_server/http_connection.h",
     "test/embedded_test_server/http_request.cc",
@@ -2219,6 +2243,8 @@ static_library("test_support") {
     "test/test_net_log_manager.h",
     "test/test_with_task_environment.cc",
     "test/test_with_task_environment.h",
+    "test/two_qwac_cert_binding_builder.cc",
+    "test/two_qwac_cert_binding_builder.h",
     "test/url_request/ssl_certificate_error_job.cc",
     "test/url_request/ssl_certificate_error_job.h",
     "test/url_request/url_request_failed_job.cc",
@@ -2489,6 +2515,7 @@ if (is_linux || is_chromeos || is_mac) {
       ":net",
       ":test_support",
       "//base",
+      "//crypto",
     ]
   }
 
@@ -2534,6 +2561,7 @@ if (is_android || is_linux || is_chromeos) {
     sources = [ "tools/disk_cache_memory_test/disk_cache_memory_test.cc" ]
     deps = [
       ":net",
+      ":test_support",
       "//base",
     ]
   }
@@ -2654,15 +2682,6 @@ if (!is_ios) {
       "//net/third_party/quiche:quic_server_core",
       "//third_party/boringssl",
       "//third_party/protobuf:protobuf_lite",
-    ]
-  }
-  executable("crypto_message_printer") {
-    testonly = true
-    sources = [ "tools/quic/crypto_message_printer_bin.cc" ]
-    deps = [
-      ":net",
-      "//base",
-      "//build/win:default_exe_manifest",
     ]
   }
 }
@@ -3128,7 +3147,10 @@ target(_test_target_type, "net_unittests") {
     defines += [ "NET_DISABLE_ZSTD" ]
   }
 
-  fuzztests = [ "PickleTest.FuzzRoundTrip" ]
+  fuzztests = [
+    "PickleTest.FuzzRoundTrip",
+    "QuicVersionsFuzzTest.ParseSerializeParseIdentityProperty",
+  ]
 
   deps = [
     ":cronet_buildflags",
@@ -3512,6 +3534,14 @@ target(_test_target_type, "net_unittests") {
       "//components/unexportable_keys:unexportable_keys",
     ]
   }
+
+  if (enable_disk_cache_sql_backend) {
+    sources += [
+      "disk_cache/sql/cache_entry_key_unittest.cc",
+      "disk_cache/sql/sql_backend_impl_unittest.cc",
+      "disk_cache/sql/sql_persistent_store_unittest.cc",
+    ]
+  }
 }
 
 # !is_android && !is_win && !is_mac
@@ -3524,6 +3554,7 @@ if (!is_ios) {
       "cookies/cookie_monster_perftest.cc",
       "disk_cache/disk_cache_perftest.cc",
       "extras/sqlite/sqlite_persistent_cookie_store_perftest.cc",
+      "http/http_request_headers_perftest.cc",
       "socket/udp_socket_perftest.cc",
       "spdy/spdy_http_utils_perftest.cc",
       "url_request/url_request_quic_perftest.cc",

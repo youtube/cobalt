@@ -18,7 +18,10 @@
 #include "base/time/time.h"
 #include "base/values.h"
 #include "chrome/browser/browser_features.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/buildflags.h"
+#include "chrome/browser/enterprise/util/managed_browser_utils.h"
+#include "chrome/browser/new_tab_page/feature_promo_helper/new_tab_page_feature_promo_helper.h"
 #include "chrome/browser/new_tab_page/modules/file_suggestion/drive_service.h"
 #include "chrome/browser/new_tab_page/modules/file_suggestion/drive_suggestion_handler.h"
 #include "chrome/browser/new_tab_page/modules/file_suggestion/microsoft_files_page_handler.h"
@@ -47,6 +50,7 @@
 #include "chrome/browser/ui/webui/customize_buttons/customize_buttons_handler.h"
 #include "chrome/browser/ui/webui/favicon_source.h"
 #include "chrome/browser/ui/webui/metrics_reporter/metrics_reporter_service.h"
+#include "chrome/browser/ui/webui/new_tab_page/composebox/composebox_handler.h"
 #include "chrome/browser/ui/webui/new_tab_page/new_tab_page_handler.h"
 #include "chrome/browser/ui/webui/new_tab_page/ntp_pref_names.h"
 #include "chrome/browser/ui/webui/new_tab_page/untrusted_source.h"
@@ -55,6 +59,8 @@
 #include "chrome/browser/ui/webui/searchbox/realbox_handler.h"
 #include "chrome/browser/ui/webui/searchbox/searchbox_handler.h"
 #include "chrome/browser/ui/webui/theme_source.h"
+#include "chrome/browser/ui/webui/webui_embedding_context.h"
+#include "chrome/common/channel_info.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/search/instant_types.h"
 #include "chrome/common/url_constants.h"
@@ -70,6 +76,8 @@
 #include "components/google/core/common/google_util.h"
 #include "components/grit/components_scaled_resources.h"
 #include "components/history_clusters/core/features.h"
+#include "components/omnibox/browser/omnibox_prefs.h"
+#include "components/omnibox/composebox/composebox_query_controller.h"
 #include "components/page_image_service/image_service.h"
 #include "components/page_image_service/image_service_handler.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -85,6 +93,7 @@
 #include "content/public/browser/web_ui_data_source.h"
 #include "google_apis/gaia/core_account_id.h"
 #include "media/base/media_switches.h"
+#include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
 #include "skia/ext/skia_utils_base.h"
 #include "ui/base/accelerators/accelerator.h"
@@ -456,7 +465,17 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
       // Webstore toast.
       {"webstoreThemesToastMessage", IDS_NTP_WEBSTORE_TOAST_MESSAGE},
       {"webstoreThemesToastButtonText", IDS_NTP_WEBSTORE_TOAST_BUTTON_TEXT},
+
+      // Composebox.
+      {"composeboxCancelButtonTitle", IDS_NTP_COMPOSE_CANCEL_BUTTON_A11Y_LABEL},
+      {"composeboxImageUploadButtonTitle",
+       IDS_NTP_COMPOSE_IMAGE_UPLOAD_BUTTON_A11Y_LABEL},
+      {"composeboxFileUploadButtonTitle",
+       IDS_NTP_COMPOSE_FILE_UPLOAD_BUTTON_A11Y_LABEL},
+      {"composeboxPlaceholderText", IDS_NTP_COMPOSE_PLACEHOLDER_TEXT},
+      {"composeboxSubmitButtonTitle", IDS_NTP_COMPOSE_SUBMIT_BUTTON_A11Y_LABEL},
   };
+
   source->AddLocalizedStrings(kStrings);
 
   source->AddString(
@@ -471,6 +490,22 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
   source->AddBoolean("microsoftModuleEnabled", microsoft_module_enabled);
   source->AddBoolean("modulesReloadable", microsoft_module_enabled);
   source->AddBoolean("waitToLoadModules", microsoft_module_enabled);
+
+  // ComposeBox LoadTimeData
+  source->AddString("composeboxImageFileTypes", "image/*");
+  source->AddString("composeboxAttachmentFileTypes", ".pdf,application/pdf");
+  source->AddInteger("composeboxFileMaxSize", 1000000);
+
+  source->AddBoolean(
+      "searchboxShowComposeEntrypoint",
+      (base::FeatureList::IsEnabled(
+           ntp_features::kNtpSearchboxComposeEntrypoint) ||
+       base::FeatureList::IsEnabled(ntp_features::kNtpSearchboxComposebox)) &&
+          omnibox::IsMiaAllowedByPolicy(profile->GetPrefs()));
+  source->AddBoolean(
+      "searchboxShowComposebox",
+      base::FeatureList::IsEnabled(ntp_features::kNtpSearchboxComposebox) &&
+          omnibox::IsMiaAllowedByPolicy(profile->GetPrefs()));
 
   SearchboxHandler::SetupWebUIDataSource(
       source, profile,
@@ -631,8 +666,8 @@ bool NewTabPageUI::IsManagedProfile(Profile* profile) {
   auto* identity_manager = IdentityManagerFactory::GetForProfile(profile);
   return /* Can be null if Chrome signin is disabled. */ identity_manager &&
          identity_manager
-             ->FindExtendedPrimaryAccountInfo(signin::ConsentLevel::kSignin)
-             .IsManaged();
+                 ->FindExtendedPrimaryAccountInfo(signin::ConsentLevel::kSignin)
+                 .IsManaged() == signin::Tribool::kTrue;
 }
 
 void NewTabPageUI::BindInterface(
@@ -709,6 +744,17 @@ void NewTabPageUI::BindInterface(
   most_relevant_tab_resumption_handler_ =
       std::make_unique<MostRelevantTabResumptionPageHandler>(
           std::move(pending_page_handler), web_contents());
+}
+
+void NewTabPageUI::BindInterface(
+    mojo::PendingReceiver<composebox::mojom::ComposeboxPageHandler>
+        pending_receiver) {
+  composebox_handler_ = std::make_unique<ComposeboxHandler>(
+      std::move(pending_receiver),
+      std::make_unique<ComposeboxQueryController>(
+          IdentityManagerFactory::GetForProfile(profile_),
+          g_browser_process->shared_url_loader_factory(),
+          chrome::GetChannel()));
 }
 
 void NewTabPageUI::BindInterface(
@@ -805,8 +851,9 @@ void NewTabPageUI::CreateCustomizeButtonsHandler(
     mojo::PendingReceiver<customize_buttons::mojom::CustomizeButtonsHandler>
         pending_page_handler) {
   customize_buttons_handler_ = std::make_unique<CustomizeButtonsHandler>(
-      std::move(pending_page_handler), std::move(pending_page), profile_,
-      web_contents(), std::make_unique<NewTabPageFeaturePromoHelper>());
+      std::move(pending_page_handler), std::move(pending_page), web_ui(),
+      webui::GetTabInterface(web_contents()),
+      std::make_unique<NewTabPageFeaturePromoHelper>());
 }
 
 void NewTabPageUI::CreatePageHandler(

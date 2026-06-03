@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "net/test/embedded_test_server/embedded_test_server.h"
 
 #include <stdint.h>
@@ -52,6 +47,7 @@
 #include "net/test/cert_test_util.h"
 #include "net/test/embedded_test_server/default_handlers.h"
 #include "net/test/embedded_test_server/embedded_test_server_connection_listener.h"
+#include "net/test/embedded_test_server/http_connect_proxy_handler.h"
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
 #include "net/test/embedded_test_server/request_handler_util.h"
@@ -631,10 +627,10 @@ bool EmbeddedTestServer::InitializeSSLServerContext() {
       spdy::SpdySerializedFrame serialized_frame = builder.take();
       DCHECK_EQ(frame_size, serialized_frame.size());
 
+      std::string_view serialized_frame_view(serialized_frame);
       ssl_config_.application_settings[NextProto::kProtoHTTP2] =
-          std::vector<uint8_t>(
-              serialized_frame.data(),
-              serialized_frame.data() + serialized_frame.size());
+          std::vector<uint8_t>(serialized_frame_view.begin(),
+                               serialized_frame_view.end());
 
       ssl_config_.client_hello_callback_for_testing =
           base::BindRepeating([](const SSL_CLIENT_HELLO* client_hello) {
@@ -720,6 +716,7 @@ void EmbeddedTestServer::ShutdownOnIOThread() {
   shutdown_closures_.Notify();
   listen_socket_.reset();
   connections_.clear();
+  http_connect_proxy_handler_.reset();
 }
 
 HttpConnection* EmbeddedTestServer::GetConnectionForSocket(
@@ -748,6 +745,17 @@ void EmbeddedTestServer::HandleRequest(
     auto auth_result = auth_handler_.Run(*request);
     if (auth_result) {
       DispatchResponseToDelegate(std::move(auth_result), delegate);
+      return;
+    }
+  }
+
+  if (http_connect_proxy_handler_) {
+    bool request_handled =
+        http_connect_proxy_handler_->HandleProxyRequest(*connection, *request);
+    // If the proxy handler took over the request, it took ownership of the
+    // underlying socket, so only need to delete the socket.
+    if (request_handled) {
+      connections_.erase(socket);
       return;
     }
   }
@@ -980,6 +988,16 @@ void EmbeddedTestServer::RegisterAuthHandler(
     DVLOG(2) << "Overwriting existing Auth handler.";
   }
   auth_handler_ = callback;
+}
+
+void EmbeddedTestServer::EnableConnectProxy(
+    uint16_t dest_port,
+    std::optional<HostPortPair> expected_dest) {
+  CHECK(!StartedAcceptingConnection());
+  CHECK(!http_connect_proxy_handler_);
+
+  http_connect_proxy_handler_ = std::make_unique<HttpConnectProxyHandler>(
+      dest_port, std::move(expected_dest));
 }
 
 void EmbeddedTestServer::RegisterUpgradeRequestHandler(

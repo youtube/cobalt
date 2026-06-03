@@ -72,7 +72,7 @@
 #import "ios/chrome/browser/home_customization/model/ntp_background_service_factory.h"
 #import "ios/chrome/browser/https_upgrades/model/https_upgrade_service_factory.h"
 #import "ios/chrome/browser/image_fetcher/model/image_fetcher_service_factory.h"
-#import "ios/chrome/browser/intelligence/gemini/model/glic_service_factory.h"
+#import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
 #import "ios/chrome/browser/invalidation/model/ios_chrome_profile_invalidation_provider_factory.h"
 #import "ios/chrome/browser/language/model/accept_languages_service_factory.h"
 #import "ios/chrome/browser/language/model/language_model_manager_factory.h"
@@ -83,6 +83,8 @@
 #import "ios/chrome/browser/metrics/model/bookmark_model_metrics_service_factory.h"
 #import "ios/chrome/browser/metrics/model/google_groups_manager_factory.h"
 #import "ios/chrome/browser/metrics/model/ios_profile_session_durations_service_factory.h"
+#import "ios/chrome/browser/mini_map/model/mini_map_service_factory.h"
+#import "ios/chrome/browser/omnibox/model/placeholder_service_factory.h"
 #import "ios/chrome/browser/optimization_guide/model/optimization_guide_service_factory.h"
 #import "ios/chrome/browser/page_content_annotations/model/page_content_annotations_service_factory.h"
 #import "ios/chrome/browser/page_image/model/page_image_service_factory.h"
@@ -230,6 +232,7 @@ void EnsureProfileKeyedServiceFactoriesBuilt() {
   ios::InMemoryURLIndexFactory::GetInstance();
   ios::LocalOrSyncableBookmarkSyncServiceFactory::GetInstance();
   ios::PasswordManagerLogRouterFactory::GetInstance();
+  ios::PlaceholderServiceFactory::GetInstance();
   ios::ProviderStateServiceFactory::GetInstance();
   ios::SearchEngineChoiceServiceFactory::GetInstance();
   ios::ShortcutsBackendFactory::GetInstance();
@@ -273,7 +276,7 @@ void EnsureProfileKeyedServiceFactoriesBuilt() {
   DomainDiversityReporterFactory::GetInstance();
   ExternalFileRemoverFactory::GetInstance();
   FollowServiceFactory::GetInstance();
-  GlicServiceFactory::GetInstance();
+  BwgServiceFactory::GetInstance();
   GoogleGroupsManagerFactory::GetInstance();
   GoogleLogoServiceFactory::GetInstance();
   HashRealTimeServiceFactory::GetInstance();
@@ -315,6 +318,7 @@ void EnsureProfileKeyedServiceFactoriesBuilt() {
   ListFamilyMembersServiceFactory::GetInstance();
   MailtoHandlerServiceFactory::GetInstance();
   ManagedBookmarkServiceFactory::GetInstance();
+  MiniMapServiceFactory::GetInstance();
   OhttpKeyServiceFactory::GetInstance();
   OnDeviceTailModelServiceFactory::GetInstance();
   OptimizationGuideServiceFactory::GetInstance();

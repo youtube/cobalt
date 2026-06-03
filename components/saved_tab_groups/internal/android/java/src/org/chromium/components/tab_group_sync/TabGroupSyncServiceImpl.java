@@ -84,11 +84,15 @@ public class TabGroupSyncServiceImpl implements TabGroupSyncService {
     }
 
     @Override
-    public void makeTabGroupShared(LocalTabGroupId tabGroupId, String collaborationId) {
+    public void makeTabGroupShared(
+            LocalTabGroupId tabGroupId,
+            String collaborationId,
+            @Nullable Callback<Boolean> tabGroupSharingCallback) {
         if (mNativePtr == 0) return;
         assert tabGroupId != null;
         TabGroupSyncServiceImplJni.get()
-                .makeTabGroupShared(mNativePtr, this, tabGroupId, collaborationId);
+                .makeTabGroupShared(
+                        mNativePtr, this, tabGroupId, collaborationId, tabGroupSharingCallback);
     }
 
     @Override
@@ -253,6 +257,11 @@ public class TabGroupSyncServiceImpl implements TabGroupSyncService {
     }
 
     @Override
+    public VersioningMessageController getVersioningMessageController() {
+        return TabGroupSyncServiceImplJni.get().getVersioningMessageController(mNativePtr, this);
+    }
+
+    @Override
     public void setCollaborationAvailableInFinderForTesting(String collaborationId) {
         if (mNativePtr == 0) return;
         TabGroupSyncServiceImplJni.get()
@@ -336,7 +345,8 @@ public class TabGroupSyncServiceImpl implements TabGroupSyncService {
                 long nativeTabGroupSyncServiceAndroid,
                 TabGroupSyncServiceImpl caller,
                 LocalTabGroupId tabGroupId,
-                String collaborationId);
+                String collaborationId,
+                @Nullable Callback<Boolean> tabGroupSharingCallback);
 
         void aboutToUnShareTabGroup(
                 long nativeTabGroupSyncServiceAndroid,
@@ -448,6 +458,9 @@ public class TabGroupSyncServiceImpl implements TabGroupSyncService {
                 TabGroupSyncServiceImpl caller,
                 String syncTabGroupId,
                 boolean archivalStatus);
+
+        VersioningMessageController getVersioningMessageController(
+                long nativeTabGroupSyncServiceAndroid, TabGroupSyncServiceImpl caller);
 
         void setCollaborationAvailableInFinderForTesting(
                 long nativeTabGroupSyncServiceAndroid,

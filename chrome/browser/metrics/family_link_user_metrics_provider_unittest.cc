@@ -5,12 +5,14 @@
 #include "chrome/browser/metrics/family_link_user_metrics_provider.h"
 
 #include <string>
+#include <utility>
 
+#include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
-#include "chrome/browser/supervised_user/supervised_user_service_factory.h"
 #include "chrome/browser/supervised_user/supervised_user_test_util.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
@@ -22,15 +24,15 @@
 #include "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/supervised_user/core/browser/supervised_user_preferences.h"
-#include "components/supervised_user/core/browser/supervised_user_service.h"
-#include "components/supervised_user/core/browser/supervised_user_sync_data_fake.h"
-#include "components/supervised_user/core/browser/supervised_user_url_filter.h"
+#include "components/supervised_user/core/browser/supervised_user_test_environment.h"
 #include "components/supervised_user/core/browser/supervised_user_utils.h"
+#include "components/supervised_user/core/common/features.h"
 #include "components/supervised_user/core/common/pref_names.h"
 #include "components/supervised_user/core/common/supervised_user_constants.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace supervised_user {
 namespace {
 constexpr char kTestEmail[] = "test@gmail.com";
 constexpr char kTestEmail1[] = "test1@gmail.com";
@@ -39,7 +41,6 @@ constexpr char kTestProfile[] = "profile";
 constexpr char kTestProfile1[] = "profile1";
 constexpr char kTestProfile2[] = "profile2";
 
-}  // namespace
 class FamilyLinkUserMetricsProviderTest : public testing::Test {
  protected:
   FamilyLinkUserMetricsProviderTest()
@@ -65,16 +66,11 @@ class FamilyLinkUserMetricsProviderTest : public testing::Test {
                                 bool is_subject_to_parental_controls,
                                 bool is_opted_in_to_parental_supervision) {
     Profile* profile = test_profile_manager()->CreateTestingProfile(
-        test_profile, std::unique_ptr<sync_preferences::PrefServiceSyncable>(),
-        base::UTF8ToUTF16(test_profile), /*avatar_id=*/0,
-        IdentityTestEnvironmentProfileAdaptor::
-            GetIdentityTestEnvironmentFactories(),
+        test_profile, /*prefs=*/nullptr, base::UTF8ToUTF16(test_profile),
+        /*avatar_id=*/0, GetTestingFactories(),
         /*is_supervised_profile=*/is_subject_to_parental_controls,
         /*is_new_profile=*/std::nullopt,
         /*policy_service=*/std::nullopt, /*shared_url_loader_factory=*/nullptr);
-
-    // Ensure that lazy service is loaded and available.
-    CHECK(SupervisedUserServiceFactory::GetForProfile(profile));
 
     AccountInfo account = signin::MakePrimaryAccountAvailable(
         IdentityManagerFactory::GetForProfile(profile), test_email,
@@ -89,40 +85,42 @@ class FamilyLinkUserMetricsProviderTest : public testing::Test {
     signin::UpdateAccountInfoForAccount(
         IdentityManagerFactory::GetForProfile(profile), account);
 
-    if (is_subject_to_parental_controls) {
-      supervised_user::EnableParentalControls(*profile->GetPrefs());
 #if BUILDFLAG(ENABLE_EXTENSIONS)
+    if (is_subject_to_parental_controls) {
       // Set Family Link `Permissions` switch (and its dependencies) to the default value.
       // Mimics the assignment by the `SupervisedUserPrefStore`.
       supervised_user_test_util::
           SetSupervisedUserExtensionsMayRequestPermissionsPref(profile, true);
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
     }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
     return profile;
   }
 
+  // Creates the testing factories for the profile. The important part is to
+  // inject identity manager related factories and supervised user service
+  // factory - which would allow overrides in this test fixture subclasses.
+  TestingProfile::TestingFactories GetTestingFactories() {
+    TestingProfile::TestingFactories factories =
+        IdentityTestEnvironmentProfileAdaptor::
+            GetIdentityTestEnvironmentFactories();
+    factories.emplace_back(
+        SupervisedUserServiceFactory::GetInstance(),
+        base::BindOnce(
+            &FamilyLinkUserMetricsProviderTest::BuildSupervisedUserService,
+            base::Unretained(this)));
+    return factories;
+  }
+
+  // Default supervised user service, as in production.
+  virtual std::unique_ptr<KeyedService> BuildSupervisedUserService(
+      content::BrowserContext* browser_context) {
+    Profile* profile = Profile::FromBrowserContext(browser_context);
+    return SupervisedUserServiceFactory::BuildInstanceFor(profile);
+  }
+
   void SetFamilyRole(Profile* profile, kidsmanagement::FamilyRole family_role) {
-    profile->GetPrefs()->SetString(
-        prefs::kFamilyLinkUserMemberRole,
-        supervised_user::FamilyRoleToString(family_role));
-  }
-
-  void RestrictAllSitesForSupervisedUser(Profile* profile) {
-    supervised_user::test::SupervisedUserSyncDataFake<
-        sync_preferences::TestingPrefServiceSyncable>
-        sync_data_fake(
-            *static_cast<sync_preferences::TestingPrefServiceSyncable*>(
-                profile->GetPrefs()));
-    sync_data_fake.Init();
-    sync_data_fake.SetWebFilterType(
-        supervised_user::WebFilterType::kCertainSites);
-  }
-
-  void AllowUnsafeSitesForSupervisedUser(Profile* profile) {
-    // Note: overrides the setting in the user pref store in the context of user
-    // managed by family link. In true environment, for these users, this
-    // happens in the supervised user pref store.
-    profile->GetPrefs()->SetBoolean(prefs::kSupervisedUserSafeSites, false);
+    profile->GetPrefs()->SetString(prefs::kFamilyLinkUserMemberRole,
+                                   FamilyRoleToString(family_role));
   }
 
   void SetPermissionsToggleForSupervisedUser(Profile* profile, bool enabled) {
@@ -148,9 +146,8 @@ TEST_F(FamilyLinkUserMetricsProviderTest,
 
   base::HistogramTester histogram_tester;
   metrics_provider()->OnDidCreateMetricsLog();
-  histogram_tester.ExpectTotalCount(
-      supervised_user::kFamilyLinkUserLogSegmentHistogramName,
-      /*expected_count=*/0);
+  histogram_tester.ExpectTotalCount(kFamilyLinkUserLogSegmentHistogramName,
+                                    /*expected_count=*/0);
 }
 
 TEST_F(FamilyLinkUserMetricsProviderTest,
@@ -164,9 +161,8 @@ TEST_F(FamilyLinkUserMetricsProviderTest,
   metrics_provider()->OnDidCreateMetricsLog();
 
   histogram_tester.ExpectUniqueSample(
-      supervised_user::kFamilyLinkUserLogSegmentHistogramName,
-      supervised_user::FamilyLinkUserLogRecord::Segment::
-          kSupervisionEnabledByPolicy,
+      kFamilyLinkUserLogSegmentHistogramName,
+      FamilyLinkUserLogRecord::Segment::kSupervisionEnabledByFamilyLinkPolicy,
       /*expected_bucket_count=*/1);
 }
 
@@ -181,9 +177,8 @@ TEST_F(FamilyLinkUserMetricsProviderTest,
   metrics_provider()->OnDidCreateMetricsLog();
 
   histogram_tester.ExpectUniqueSample(
-      supervised_user::kFamilyLinkUserLogSegmentHistogramName,
-      supervised_user::FamilyLinkUserLogRecord::Segment::
-          kSupervisionEnabledByUser,
+      kFamilyLinkUserLogSegmentHistogramName,
+      FamilyLinkUserLogRecord::Segment::kSupervisionEnabledByFamilyLinkUser,
       /*expected_bucket_count=*/1);
 }
 
@@ -198,8 +193,8 @@ TEST_F(FamilyLinkUserMetricsProviderTest,
   metrics_provider()->OnDidCreateMetricsLog();
 
   histogram_tester.ExpectUniqueSample(
-      supervised_user::kFamilyLinkUserLogSegmentHistogramName,
-      supervised_user::FamilyLinkUserLogRecord::Segment::kUnsupervised,
+      kFamilyLinkUserLogSegmentHistogramName,
+      FamilyLinkUserLogRecord::Segment::kUnsupervised,
       /*expected_bucket_count=*/1);
 }
 
@@ -218,12 +213,12 @@ TEST_F(
   base::HistogramTester histogram_tester;
   metrics_provider()->OnDidCreateMetricsLog();
   histogram_tester.ExpectBucketCount(
-      supervised_user::kFamilyLinkUserLogSegmentHistogramName,
-      supervised_user::FamilyLinkUserLogRecord::Segment::kMixedProfile,
+      kFamilyLinkUserLogSegmentHistogramName,
+      FamilyLinkUserLogRecord::Segment::kMixedProfile,
       /*expected_count=*/1);
   histogram_tester.ExpectUniqueSample(
-      supervised_user::kFamilyLinkUserLogSegmentWebFilterHistogramName,
-      supervised_user::WebFilterType::kTryToBlockMatureSites,
+      kFamilyLinkUserLogSegmentWebFilterHistogramName,
+      WebFilterType::kTryToBlockMatureSites,
       /*expected_bucket_count=*/1);
 }
 
@@ -248,12 +243,12 @@ TEST_F(
   base::HistogramTester histogram_tester;
   metrics_provider()->OnDidCreateMetricsLog();
   histogram_tester.ExpectBucketCount(
-      supervised_user::kFamilyLinkUserLogSegmentHistogramName,
-      supervised_user::FamilyLinkUserLogRecord::Segment::kMixedProfile,
+      kFamilyLinkUserLogSegmentHistogramName,
+      FamilyLinkUserLogRecord::Segment::kMixedProfile,
       /*expected_count=*/1);
   histogram_tester.ExpectUniqueSample(
-      supervised_user::kFamilyLinkUserLogSegmentWebFilterHistogramName,
-      supervised_user::WebFilterType::kTryToBlockMatureSites,
+      kFamilyLinkUserLogSegmentWebFilterHistogramName,
+      WebFilterType::kTryToBlockMatureSites,
       /*expected_bucket_count=*/1);
 }
 
@@ -263,19 +258,19 @@ TEST_F(FamilyLinkUserMetricsProviderTest,
       CreateTestingProfile(kTestEmail1, kTestProfile1,
                            /*is_subject_to_parental_controls=*/true,
                            /*is_opted_in_to_parental_supervision=*/false);
-  AllowUnsafeSitesForSupervisedUser(profile1);
-
+  supervised_user_test_util::SetWebFilterType(profile1,
+                                              WebFilterType::kAllowAllSites);
   Profile* profile2 =
       CreateTestingProfile(kTestEmail2, kTestProfile2,
                            /*is_subject_to_parental_controls=*/true,
                            /*is_opted_in_to_parental_supervision=*/false);
-  RestrictAllSitesForSupervisedUser(profile2);
+  supervised_user_test_util::SetWebFilterType(profile2,
+                                              WebFilterType::kCertainSites);
 
   base::HistogramTester histogram_tester;
   metrics_provider()->OnDidCreateMetricsLog();
   histogram_tester.ExpectUniqueSample(
-      supervised_user::kFamilyLinkUserLogSegmentWebFilterHistogramName,
-      supervised_user::WebFilterType::kMixed,
+      kFamilyLinkUserLogSegmentWebFilterHistogramName, WebFilterType::kMixed,
       /*expected_bucket_count=*/1);
 }
 
@@ -288,9 +283,8 @@ TEST_F(FamilyLinkUserMetricsProviderTest,
   base::HistogramTester histogram_tester;
   metrics_provider()->OnDidCreateMetricsLog();
   histogram_tester.ExpectBucketCount(
-      supervised_user::kSitesMayRequestCameraMicLocationHistogramName,
-      supervised_user::ToggleState::kDisabled,
-      /*expected_bucket_count=*/0);
+      kSitesMayRequestCameraMicLocationHistogramName, ToggleState::kDisabled,
+      /*expected_count=*/0);
 }
 
 TEST_F(FamilyLinkUserMetricsProviderTest,
@@ -304,8 +298,7 @@ TEST_F(FamilyLinkUserMetricsProviderTest,
   base::HistogramTester histogram_tester;
   metrics_provider()->OnDidCreateMetricsLog();
   histogram_tester.ExpectUniqueSample(
-      supervised_user::kSitesMayRequestCameraMicLocationHistogramName,
-      supervised_user::ToggleState::kDisabled,
+      kSitesMayRequestCameraMicLocationHistogramName, ToggleState::kDisabled,
       /*expected_bucket_count=*/1);
 }
 
@@ -320,8 +313,7 @@ TEST_F(FamilyLinkUserMetricsProviderTest,
   base::HistogramTester histogram_tester;
   metrics_provider()->OnDidCreateMetricsLog();
   histogram_tester.ExpectUniqueSample(
-      supervised_user::kSitesMayRequestCameraMicLocationHistogramName,
-      supervised_user::ToggleState::kEnabled,
+      kSitesMayRequestCameraMicLocationHistogramName, ToggleState::kEnabled,
       /*expected_bucket_count=*/1);
 }
 
@@ -347,8 +339,8 @@ TEST_F(FamilyLinkUserMetricsProviderTestWithExtensionsPermissionsEnabled,
   base::HistogramTester histogram_tester;
   metrics_provider()->OnDidCreateMetricsLog();
   histogram_tester.ExpectUniqueSample(
-      supervised_user::kSkipParentApprovalToInstallExtensionsHistogramName,
-      supervised_user::ToggleState::kDisabled,
+      kSkipParentApprovalToInstallExtensionsHistogramName,
+      ToggleState::kDisabled,
       /*expected_bucket_count=*/1);
 }
 
@@ -363,8 +355,8 @@ TEST_F(FamilyLinkUserMetricsProviderTestWithExtensionsPermissionsEnabled,
   base::HistogramTester histogram_tester;
   metrics_provider()->OnDidCreateMetricsLog();
   histogram_tester.ExpectUniqueSample(
-      supervised_user::kSkipParentApprovalToInstallExtensionsHistogramName,
-      supervised_user::ToggleState::kDisabled,
+      kSkipParentApprovalToInstallExtensionsHistogramName,
+      ToggleState::kDisabled,
       /*expected_bucket_count=*/1);
 }
 
@@ -379,8 +371,8 @@ TEST_F(FamilyLinkUserMetricsProviderTestWithExtensionsPermissionsEnabled,
   base::HistogramTester histogram_tester;
   metrics_provider()->OnDidCreateMetricsLog();
   histogram_tester.ExpectUniqueSample(
-      supervised_user::kSkipParentApprovalToInstallExtensionsHistogramName,
-      supervised_user::ToggleState::kEnabled,
+      kSkipParentApprovalToInstallExtensionsHistogramName,
+      ToggleState::kEnabled,
       /*expected_bucket_count=*/1);
 }
 
@@ -401,8 +393,7 @@ TEST_F(FamilyLinkUserMetricsProviderTestWithExtensionsPermissionsEnabled,
   base::HistogramTester histogram_tester;
   metrics_provider()->OnDidCreateMetricsLog();
   histogram_tester.ExpectUniqueSample(
-      supervised_user::kSkipParentApprovalToInstallExtensionsHistogramName,
-      supervised_user::ToggleState::kMixed,
+      kSkipParentApprovalToInstallExtensionsHistogramName, ToggleState::kMixed,
       /*expected_bucket_count=*/1);
 }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
@@ -413,8 +404,8 @@ TEST_F(FamilyLinkUserMetricsProviderTest,
   base::HistogramTester histogram_tester;
   metrics_provider()->OnDidCreateMetricsLog();
   histogram_tester.ExpectBucketCount(
-      supervised_user::kFamilyLinkUserLogSegmentHistogramName,
-      supervised_user::FamilyLinkUserLogRecord::Segment::kMixedProfile,
+      kFamilyLinkUserLogSegmentHistogramName,
+      FamilyLinkUserLogRecord::Segment::kMixedProfile,
       /*expected_count=*/0);
 }
 
@@ -427,8 +418,8 @@ TEST_F(FamilyLinkUserMetricsProviderTest,
   base::HistogramTester histogram_tester;
   metrics_provider()->OnDidCreateMetricsLog();
   histogram_tester.ExpectBucketCount(
-      supervised_user::kFamilyLinkUserLogSegmentHistogramName,
-      supervised_user::FamilyLinkUserLogRecord::Segment::kUnsupervised,
+      kFamilyLinkUserLogSegmentHistogramName,
+      FamilyLinkUserLogRecord::Segment::kUnsupervised,
       /*expected_count=*/1);
 }
 
@@ -441,10 +432,9 @@ TEST_F(FamilyLinkUserMetricsProviderTest, ParentProfileLoggedAsParent) {
 
   base::HistogramTester histogram_tester;
   metrics_provider()->OnDidCreateMetricsLog();
-  histogram_tester.ExpectBucketCount(
-      supervised_user::kFamilyLinkUserLogSegmentHistogramName,
-      supervised_user::FamilyLinkUserLogRecord::Segment::kParent,
-      /*expected_count=*/1);
+  histogram_tester.ExpectBucketCount(kFamilyLinkUserLogSegmentHistogramName,
+                                     FamilyLinkUserLogRecord::Segment::kParent,
+                                     /*expected_count=*/1);
 }
 
 TEST_F(FamilyLinkUserMetricsProviderTest, FamilyManagerProfileLoggedAsParent) {
@@ -456,10 +446,9 @@ TEST_F(FamilyLinkUserMetricsProviderTest, FamilyManagerProfileLoggedAsParent) {
 
   base::HistogramTester histogram_tester;
   metrics_provider()->OnDidCreateMetricsLog();
-  histogram_tester.ExpectBucketCount(
-      supervised_user::kFamilyLinkUserLogSegmentHistogramName,
-      supervised_user::FamilyLinkUserLogRecord::Segment::kParent,
-      /*expected_count=*/1);
+  histogram_tester.ExpectBucketCount(kFamilyLinkUserLogSegmentHistogramName,
+                                     FamilyLinkUserLogRecord::Segment::kParent,
+                                     /*expected_count=*/1);
 }
 
 TEST_F(FamilyLinkUserMetricsProviderTest, ParentAndChildProfileLoggedAsMixed) {
@@ -476,8 +465,8 @@ TEST_F(FamilyLinkUserMetricsProviderTest, ParentAndChildProfileLoggedAsMixed) {
   base::HistogramTester histogram_tester;
   metrics_provider()->OnDidCreateMetricsLog();
   histogram_tester.ExpectBucketCount(
-      supervised_user::kFamilyLinkUserLogSegmentHistogramName,
-      supervised_user::FamilyLinkUserLogRecord::Segment::kMixedProfile,
+      kFamilyLinkUserLogSegmentHistogramName,
+      FamilyLinkUserLogRecord::Segment::kMixedProfile,
       /*expected_count=*/1);
 }
 
@@ -496,10 +485,9 @@ TEST_F(FamilyLinkUserMetricsProviderTest, TwoParentProfilesLoggedAsParent) {
 
   base::HistogramTester histogram_tester;
   metrics_provider()->OnDidCreateMetricsLog();
-  histogram_tester.ExpectBucketCount(
-      supervised_user::kFamilyLinkUserLogSegmentHistogramName,
-      supervised_user::FamilyLinkUserLogRecord::Segment::kParent,
-      /*expected_count=*/1);
+  histogram_tester.ExpectBucketCount(kFamilyLinkUserLogSegmentHistogramName,
+                                     FamilyLinkUserLogRecord::Segment::kParent,
+                                     /*expected_count=*/1);
 }
 
 TEST_F(FamilyLinkUserMetricsProviderTest,
@@ -522,8 +510,212 @@ TEST_F(FamilyLinkUserMetricsProviderTest,
 
   base::HistogramTester histogram_tester;
   metrics_provider()->OnDidCreateMetricsLog();
+  histogram_tester.ExpectBucketCount(kFamilyLinkUserLogSegmentHistogramName,
+                                     FamilyLinkUserLogRecord::Segment::kParent,
+                                     /*expected_count=*/1);
+}
+
+#if BUILDFLAG(IS_ANDROID)
+struct ContentFiltersTestCase {
+  std::size_t profile_count;
+  std::string test_name;
+};
+
+// Test fixture for verifying that the content filters are correctly
+// reflected in the metrics. Content filters are mutually exclusive with
+// Family-Link supervision and cannot be applied to these profiles.
+class FamilyLinkUserMetricsProviderWithContentFiltersTest
+    : public FamilyLinkUserMetricsProviderTest,
+      public testing::WithParamInterface<ContentFiltersTestCase> {
+ protected:
+  void CreateProfiles(std::size_t count) {
+    CHECK_GE(email_addresses_.size(), count) << "Not enough email addresses";
+    CHECK_GE(profile_names_.size(), count) << "Not enough profile names";
+
+    for (std::size_t i = 0; i < count; ++i) {
+      Profile* unsupervised_profile = CreateUnsupervisedTestingProfile(
+          email_addresses_[i], profile_names_[i]);
+
+      // Services are lazily created, so we need to access them to force their
+      // creation. That'll trigger the ::BuildSupervisedUserService factory,
+      // which will bind fake content filters observers to this text fixture
+      // instance.
+      CHECK(SupervisedUserServiceFactory::GetInstance()->GetForProfile(
+          unsupervised_profile));
+    }
+  }
+
+  Profile* CreateUnsupervisedTestingProfile(const std::string& email,
+                                            const std::string& profile_name) {
+    // Content filters are not supported for family link supervised profiles.
+    return CreateTestingProfile(email, profile_name,
+                                /*is_subject_to_parental_controls=*/false,
+                                /*is_opted_in_to_parental_supervision=*/false);
+  }
+
+  std::unique_ptr<ContentFiltersObserverBridge> CreateBridge(
+      std::string_view setting_name,
+      base::RepeatingClosure on_enabled,
+      base::RepeatingClosure on_disabled) {
+    std::unique_ptr<FakeContentFiltersObserverBridge> bridge =
+        std::make_unique<FakeContentFiltersObserverBridge>(
+            setting_name, on_enabled, on_disabled);
+    if (setting_name == kBrowserContentFiltersSettingName) {
+      browser_content_filters_observers_.push_back(bridge.get());
+    } else if (setting_name == kSearchContentFiltersSettingName) {
+      search_content_filters_observers_.push_back(bridge.get());
+    }
+    return bridge;
+  }
+
+  // Builds the `SupervisedUserService` and captures the content observers onto
+  // this text fixture instance. Binding memory managed by foreign object (the
+  // service) to raw_ptr is fine, because raw_ptr handles will be destroyed
+  // before profile manager, that transitively owns the content observers.
+  std::unique_ptr<KeyedService> BuildSupervisedUserService(
+      content::BrowserContext* browser_context) override {
+    Profile* profile = Profile::FromBrowserContext(browser_context);
+
+    std::unique_ptr<SupervisedUserServicePlatformDelegate> platform_delegate =
+        std::make_unique<SupervisedUserServicePlatformDelegate>(*profile);
+
+    return std::make_unique<SupervisedUserService>(
+        IdentityManagerFactory::GetForProfile(profile),
+        profile->GetDefaultStoragePartition()
+            ->GetURLLoaderFactoryForBrowserProcess(),
+        *profile->GetPrefs(),
+        *SupervisedUserSettingsServiceFactory::GetInstance()->GetForKey(
+            profile->GetProfileKey()),
+        SyncServiceFactory::GetInstance()->GetForProfile(profile),
+        std::make_unique<SupervisedUserURLFilter>(
+            *profile->GetPrefs(), std::make_unique<FakeURLFilterDelegate>(),
+            std::make_unique<KidsChromeManagementURLCheckerClient>(
+                IdentityManagerFactory::GetForProfile(profile),
+                profile->GetDefaultStoragePartition()
+                    ->GetURLLoaderFactoryForBrowserProcess(),
+                *profile->GetPrefs(), platform_delegate->GetCountryCode(),
+                platform_delegate->GetChannel())),
+        std::make_unique<SupervisedUserServicePlatformDelegate>(*profile),
+        base::BindRepeating(
+            &FamilyLinkUserMetricsProviderWithContentFiltersTest::CreateBridge,
+            base::Unretained(this)));
+  }
+
+  // Enables or disables the browser content filters for all profiles.
+  void SetBrowserContentFilters(bool enabled) {
+    for (FakeContentFiltersObserverBridge* observer :
+         browser_content_filters_observers_) {
+      observer->SetEnabled(enabled);
+    }
+  }
+
+  // Enables or disables the search content filters for all profiles.
+  void SetSearchContentFilters(bool enabled) {
+    for (FakeContentFiltersObserverBridge* observer :
+         search_content_filters_observers_) {
+      observer->SetEnabled(enabled);
+    }
+  }
+
+ private:
+  // Required to propagate the device content filters to the supervised user
+  // service. FakeContentFiltersObserverBridge which is in action here only
+  // avoids creating the java bridge class, but uses prod notification patterns.
+  base::test::ScopedFeatureList scoped_feature_list_{
+      kPropagateDeviceContentFiltersToSupervisedUser};
+  std::vector<std::string> email_addresses_{kTestEmail, kTestEmail1};
+  std::vector<std::string> profile_names_{kTestProfile, kTestProfile1};
+
+  // These are internal components of the `SupervisedUserService` and are used
+  // to simulate changes to the android content filters. Both are owned by the
+  // `SupervisedUserService`. The reason for they're held in vectors is that
+  // content filters are applied at device level, for all profiles at once.
+  std::vector<raw_ptr<FakeContentFiltersObserverBridge>>
+      browser_content_filters_observers_;
+  std::vector<raw_ptr<FakeContentFiltersObserverBridge>>
+      search_content_filters_observers_;
+};
+
+TEST_P(FamilyLinkUserMetricsProviderWithContentFiltersTest,
+       AllFiltersDisabled) {
+  CreateProfiles(GetParam().profile_count);
+
+  base::HistogramTester histogram_tester;
+  metrics_provider()->OnDidCreateMetricsLog();
+
   histogram_tester.ExpectBucketCount(
-      supervised_user::kFamilyLinkUserLogSegmentHistogramName,
-      supervised_user::FamilyLinkUserLogRecord::Segment::kParent,
+      kFamilyLinkUserLogSegmentHistogramName,
+      FamilyLinkUserLogRecord::Segment::kUnsupervised,
+      /*expected_count=*/1);
+  histogram_tester.ExpectTotalCount(
+      kFamilyLinkUserLogSegmentWebFilterHistogramName,
+      /*expected_count=*/0);
+}
+
+TEST_P(FamilyLinkUserMetricsProviderWithContentFiltersTest,
+       SearchFilterEnabled) {
+  CreateProfiles(GetParam().profile_count);
+  SetSearchContentFilters(true);
+
+  base::HistogramTester histogram_tester;
+  metrics_provider()->OnDidCreateMetricsLog();
+
+  histogram_tester.ExpectBucketCount(
+      kFamilyLinkUserLogSegmentHistogramName,
+      FamilyLinkUserLogRecord::Segment::kSupervisionEnabledLocally,
+      /*expected_count=*/1);
+  histogram_tester.ExpectBucketCount(
+      kFamilyLinkUserLogSegmentWebFilterHistogramName, WebFilterType::kDisabled,
       /*expected_count=*/1);
 }
+
+TEST_P(FamilyLinkUserMetricsProviderWithContentFiltersTest,
+       ContentFiltersEnabled) {
+  CreateProfiles(GetParam().profile_count);
+  SetBrowserContentFilters(true);
+
+  base::HistogramTester histogram_tester;
+  metrics_provider()->OnDidCreateMetricsLog();
+
+  histogram_tester.ExpectBucketCount(
+      kFamilyLinkUserLogSegmentHistogramName,
+      FamilyLinkUserLogRecord::Segment::kSupervisionEnabledLocally,
+      /*expected_count=*/1);
+  histogram_tester.ExpectUniqueSample(
+      kFamilyLinkUserLogSegmentWebFilterHistogramName,
+      WebFilterType::kTryToBlockMatureSites,
+      /*expected_bucket_count=*/1);
+}
+
+TEST_P(FamilyLinkUserMetricsProviderWithContentFiltersTest, AllFiltersEnabled) {
+  CreateProfiles(GetParam().profile_count);
+  SetBrowserContentFilters(true);
+  SetSearchContentFilters(true);
+
+  base::HistogramTester histogram_tester;
+  metrics_provider()->OnDidCreateMetricsLog();
+
+  histogram_tester.ExpectBucketCount(
+      kFamilyLinkUserLogSegmentHistogramName,
+      FamilyLinkUserLogRecord::Segment::kSupervisionEnabledLocally,
+      /*expected_count=*/1);
+  histogram_tester.ExpectUniqueSample(
+      kFamilyLinkUserLogSegmentWebFilterHistogramName,
+      WebFilterType::kTryToBlockMatureSites,
+      /*expected_bucket_count=*/1);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ,
+    FamilyLinkUserMetricsProviderWithContentFiltersTest,
+    testing::ValuesIn<ContentFiltersTestCase>({
+        {1, "SingleProfile"},
+        {2, "MultipleProfiles"},
+    }),
+    [](const testing::TestParamInfo<ContentFiltersTestCase>& info) {
+      return info.param.test_name;
+    });
+#endif  // BUILDFLAG(IS_ANDROID)
+
+}  // namespace
+}  // namespace supervised_user

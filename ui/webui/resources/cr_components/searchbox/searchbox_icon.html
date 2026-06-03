@@ -29,14 +29,6 @@
         var(--container-bg-color));
   }
 
-  /* Calculator answer and suggestion answer icons feature a blue background. */
-  :host-context(cr-searchbox-match[is-rich-suggestion]:not([has-image])):host(:not([has-icon-container-background])) #container {
-    background-color: var(--google-blue-600);
-    border-radius: 50%;
-    height: 24px;
-    width: 24px;
-  }
-
   /* If icon is for a pedal or AiS, and it is not in the search box, apply background. */
   :host([has-icon-container-background]:not([in-searchbox])) #container {
     background-color: var(--color-searchbox-answer-icon-background);
@@ -104,14 +96,6 @@
     }
   }
 
-  :host-context(cr-searchbox-match[has-image]) #icon {
-    display: none;
-  }
-
-  :host-context(cr-searchbox-match[is-rich-suggestion]) #icon {
-    background-color: white;
-  }
-
   :host([in-searchbox][background-image*='//resources/cr_components/omnibox/icons/google_g.svg']) #icon {
     background-size: 24px;
   }
@@ -123,6 +107,21 @@
 
   :host([has-icon-container-background]:not([in-searchbox])) #icon {
     background-color: var(--color-searchbox-answer-icon-foreground);
+  }
+
+  #iconImg {
+    height: var(--cr-searchbox-results-search-icon-size,16px);
+    width: var(--cr-searchbox-results-search-icon-size,16px);
+  }
+
+  :host([in-searchbox]) #iconImg {
+    height: var(--cr-searchbox-icon-size-in-searchbox);
+    width: var(--cr-searchbox-icon-size-in-searchbox);
+  }
+
+  :host-context(cr-searchbox-match[has-image]) #icon,
+  :host-context(cr-searchbox-match[has-image]) #iconImg {
+    display: none;
   }
 
   :host(:not([in-searchbox])[is-lens-searchbox_]) #container {
@@ -137,5 +136,6 @@
   <div id="imageOverlay"></div>
   <!--Note: Do not remove the '$' in '$=' below, otherwise the 'style' attribute
       is erroneously removed by the HTML minifier. -->
-  <div id="icon" style$="[[iconStyle_]]"></div>
+  <div id="icon" style$="[[iconStyle_]]" hidden="[[showIconImg_]]"></div>
+  <img id="iconImg" src="[[iconSrc_]]" hidden="[[!showIconImg_]]" on-load="onIconLoad_"></img>
 </div>

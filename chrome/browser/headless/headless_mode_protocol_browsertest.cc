@@ -343,6 +343,9 @@ HEADLESS_MODE_PROTOCOL_TEST(CreateTargetPosition,
 HEADLESS_MODE_PROTOCOL_TEST(CreateTargetWindowState,
                             "sanity/create-target-window-state.js")
 
+HEADLESS_MODE_PROTOCOL_TEST(DocumentVisibilityState,
+                            "sanity/document-visibility-state.js")
+
 // Headless Mode uses Ozone only when running on Linux.
 #if BUILDFLAG(IS_LINUX)
 HEADLESS_MODE_PROTOCOL_TEST_WITH_COMMAND_LINE_EXTRAS(
@@ -396,5 +399,43 @@ HEADLESS_MODE_PROTOCOL_TEST_WITH_COMMAND_LINE_EXTRAS(
     WindowSizeSwitchHandling,
     "sanity/window-size-switch-handling.js",
     "--screen-info={1600x1200} --window-size=700,500")
+
+HEADLESS_MODE_PROTOCOL_TEST_WITH_COMMAND_LINE_EXTRAS(
+    WindowSizeSwitchLargerThanScreen,
+    "sanity/window-size-switch-larger-than-screen.js",
+    "--screen-info={800x600} --window-size=1600,1200")
+
+HEADLESS_MODE_PROTOCOL_TEST_WITH_COMMAND_LINE_EXTRAS(
+    WindowScreenAvail,
+    "sanity/window-screen-avail.js",
+    "--screen-info={800x600"
+    " workAreaLeft=10 workAreaRight=90"
+    " workAreaTop=20 workAreaBottom=80}")
+
+// TODO(crbug.com/424797525): Fails Mac 13.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_StartFullscreenSwitch DISABLED_StartFullscreenSwitch
+#else
+#define MAYBE_StartFullscreenSwitch StartFullscreenSwitch
+#endif
+
+HEADLESS_MODE_PROTOCOL_TEST_WITH_COMMAND_LINE_EXTRAS(
+    MAYBE_StartFullscreenSwitch,
+    "sanity/start-fullscreen-switch.js",
+    "--screen-info={1600x1200}"
+    "--start-fullscreen")
+
+// TODO(crbug.com/423951863): Fails on Linux and Mac.
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#define MAYBE_StartFullscreenSwitchScaled DISABLED_StartFullscreenSwitchScaled
+#else
+#define MAYBE_StartFullscreenSwitchScaled StartFullscreenSwitchScaled
+#endif
+
+HEADLESS_MODE_PROTOCOL_TEST_WITH_COMMAND_LINE_EXTRAS(
+    MAYBE_StartFullscreenSwitchScaled,
+    "sanity/start-fullscreen-switch-scaled.js",
+    "--screen-info={3000x2000 devicePixelRatio=2.0}"
+    "--start-fullscreen")
 
 }  // namespace headless

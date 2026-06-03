@@ -108,7 +108,6 @@ after discussions on the right group.
       <annotation id="remoting_directory_delete_host"/>
       <annotation id="remoting_directory_get_host_list"/>
       <annotation id="remoting_directory_register_host"/>
-      <annotation id="remoting_telemetry_log_writer"/>
       <annotation id="heartbeat_sender"/>
       <annotation id="remoting_register_support_host_request"/>
       <annotation id="remoting_ice_config_request"/>
@@ -116,7 +115,6 @@ after discussions on the right group.
       <annotation id="ftl_messaging_client_receive_messages"/>
       <annotation id="ftl_messaging_client_send_messages"/>
       <annotation id="ftl_registration_manager"/>
-      <annotation id="remoting_log_to_server"/>
       <annotation id="remoting_provision_corp_machine"/>
       <annotation id="omnibox_result_change"/>
       <annotation id="browser_switcher_ieem_sitelist"/>
@@ -291,8 +289,6 @@ after discussions on the right group.
       <annotation id="help_me_write_model_execution"/>
       <annotation id="controlled_frame_content_scripts_download"/>
       <annotation id="essential_search_manager"/>
-      <annotation id="pepper_tcp_socket"/>
-      <annotation id="pepper_udp_socket"/>
       <annotation id="app_install_service_web_app_installer"/>
       <annotation id="remoting_corp_session_authz_generate_host_token"/>
       <annotation id="remoting_corp_session_authz_verify_session_token"/>
@@ -329,6 +325,7 @@ after discussions on the right group.
       <annotation id="lens_overlay_save"/>
       <annotation id="iwa_web_app_internals_update_manifest"/>
       <annotation id="iwa_web_app_internals_web_bundle"/>
+      <annotation id="iwa_dev_tools_installation_web_bundle"/>
       <annotation id="digital_asset_links_include"/>
       <annotation id="remoting_cloud_send_heartbeat"/>
       <annotation id="remoting_cloud_update_remote_access_host"/>
@@ -379,6 +376,10 @@ after discussions on the right group.
       <annotation id="notification_telemetry"/>
       <annotation id="corp_register_support_host_request"/>
       <annotation id="zero_state_suggestions_model_execution"/>
+      <annotation id="certificate_verifier_2qwac_loader"/>
+      <annotation id="trusted_vault_cert_request"/>
+      <annotation id="keepalive_fetch_retry"/>
+      <annotation id="ntp_composebox_query_controller"/>
     </sender>
   </group>
   <group name="Admin Features" hidden="true">
@@ -413,7 +414,6 @@ after discussions on the right group.
       <annotation id="gcm_connection_factory"/>
       <annotation id="gcm_registration"/>
       <annotation id="gcm_unregistration"/>
-      <annotation id="web_push_message"/>
       <annotation id="per_user_topic_registration_request"/>
     </sender>
   </group>

@@ -1,4 +1,5 @@
 [
+    "committed/libs/com_airbnb_android_lottie",
     "committed/libs/com_google_android_datatransport_transport_api",
     "committed/libs/com_google_android_datatransport_transport_backend_cct",
     "committed/libs/com_google_android_datatransport_transport_runtime",
@@ -54,10 +55,8 @@
     "committed/libs/org_jetbrains_kotlinx_kotlinx_serialization_core_jvm",
     "committed/libs/org_jspecify_jspecify",
     "committed/libs/org_ow2_asm_asm",
-    "committed/libs/org_ow2_asm_asm_analysis",
     "committed/libs/org_ow2_asm_asm_commons",
     "committed/libs/org_ow2_asm_asm_tree",
-    "committed/libs/org_ow2_asm_asm_util",
     "committed/libs/org_robolectric_annotations",
     "committed/libs/org_robolectric_junit",
     "committed/libs/org_robolectric_nativeruntime",

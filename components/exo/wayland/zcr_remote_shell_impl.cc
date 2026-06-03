@@ -10,6 +10,8 @@
 #include "ash/wm/window_resizer.h"
 #include "base/bit_cast.h"
 #include "base/command_line.h"
+#include "base/notimplemented.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chromeos/ui/base/window_pin_type.h"
@@ -399,15 +401,16 @@ void WaylandRemoteSurfaceDelegate::OnStateChanged(
 void WaylandRemoteSurfaceDelegate::OnBoundsChanged(
     chromeos::WindowStateType current_state,
     chromeos::WindowStateType requested_state,
-    int64_t display_id,
-    const gfx::Rect& bounds_in_display,
+    int64_t requested_display_id,
+    const gfx::Rect& requested_bounds_in_display,
     bool is_resize,
     int bounds_change,
     bool is_adjusted_bounds) {
   if (shell_) {
-    shell_->OnRemoteSurfaceBoundsChanged(
-        resource_, current_state, requested_state, display_id,
-        bounds_in_display, is_resize, bounds_change, is_adjusted_bounds);
+    shell_->OnRemoteSurfaceBoundsChanged(resource_, current_state,
+                                         requested_state, requested_display_id,
+                                         requested_bounds_in_display, is_resize,
+                                         bounds_change, is_adjusted_bounds);
   }
 }
 void WaylandRemoteSurfaceDelegate::OnDragStarted(int component) {

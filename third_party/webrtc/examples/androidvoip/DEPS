@@ -1,4 +1,0 @@
-include_rules = [
-  "+sdk/android/native_api",
-  "+third_party/jni_zero",
-]

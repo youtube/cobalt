@@ -214,10 +214,10 @@ void Shell::Shutdown() {
   if (quit_loop)
     std::move(quit_loop).Run();
 
-#if !BUILDFLAG(IS_STARBOARD)
+#if !BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_IOS)
   // Pump the message loop to allow window teardown tasks to run.
   base::RunLoop().RunUntilIdle();
-#endif  // !BUILDFLAG(IS_STARBOARD)
+#endif  // !BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_IOS)
 }
 
 gfx::Size Shell::AdjustWindowSize(const gfx::Size& initial_size) {

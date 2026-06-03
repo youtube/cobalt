@@ -153,6 +153,34 @@ void WebNNContextImpl::CreateTensor(
                          std::move(tensor_data))));
 }
 
+void WebNNContextImpl::WaitSyncToken(const gpu::SyncToken& fence) {
+  // Prevent WebNN from performing further operations until the specified
+  // SyncToken fence has been released.
+  base::OnceClosure nop_task = base::DoNothing();
+  context_provider()->scheduler()->ScheduleTask(
+      gpu::Scheduler::Task(sequence_id_, std::move(nop_task), {fence}));
+}
+
+void WebNNContextImpl::GenVerifiedSyncToken(
+    GenVerifiedSyncTokenCallback callback) {
+  gpu::SyncToken verified_release(
+      gpu::CommandBufferNamespace::WEBNN_CONTEXT_INTERFACE, command_buffer_id_,
+      ++last_sync_token_release_id_);
+
+  // Release the sync token once the sequence has completed execution by
+  // appending a no-op task - the sync token will be automatically signaled
+  // by the scheduler after this task executes.
+  base::OnceClosure nop_task = base::DoNothing();
+  context_provider()->scheduler()->ScheduleTask(gpu::Scheduler::Task(
+      sequence_id_, std::move(nop_task), {}, verified_release));
+
+  // Verify the release since the sync token could be passed to another Mojo
+  // interface which requires verification. The release token was verified by
+  // returning it to the renderer only after ScheduleTask was called.
+  verified_release.SetVerifyFlush();
+  std::move(callback).Run(verified_release);
+}
+
 void WebNNContextImpl::DidCreateWebNNTensorImpl(
     mojom::WebNNContext::CreateTensorCallback callback,
     mojo::PendingAssociatedRemote<mojom::WebNNTensor> remote,
@@ -240,12 +268,18 @@ ContextProperties WebNNContextImpl::IntersectWithBaseProperties(
       .IntersectWith(SupportedRanks::Exactly(4));
   backend_context_properties.data_type_limits.conv_transpose2d_bias.ranks
       .IntersectWith(SupportedRanks::Exactly(1));
+  backend_context_properties.data_type_limits.logical_and_input.data_types
+      .RetainAll(DataTypeConstraint::kUint8);
+  backend_context_properties.data_type_limits.logical_or_input.data_types
+      .RetainAll(DataTypeConstraint::kUint8);
+  backend_context_properties.data_type_limits.logical_xor_input.data_types
+      .RetainAll(DataTypeConstraint::kUint8);
   backend_context_properties.data_type_limits.logical_not_input.data_types
       .RetainAll(DataTypeConstraint::kUint8);
   backend_context_properties.data_type_limits.logical_output.RetainAll(
       DataTypeConstraint::kUint8);
   backend_context_properties.data_type_limits.abs_input.data_types.RetainAll(
-      DataTypeConstraint::kFloat16To32Int8To32);
+      DataTypeConstraint::kFloat16To32Int8To64);
   backend_context_properties.data_type_limits.ceil_input.data_types.RetainAll(
       DataTypeConstraint::kFloat16To32);
   backend_context_properties.data_type_limits.cos_input.data_types.RetainAll(
@@ -268,7 +302,7 @@ ContextProperties WebNNContextImpl::IntersectWithBaseProperties(
   backend_context_properties.data_type_limits.log_input.data_types.RetainAll(
       DataTypeConstraint::kFloat16To32);
   backend_context_properties.data_type_limits.neg_input.data_types.RetainAll(
-      DataTypeConstraint::kFloat16To32Int8To32);
+      DataTypeConstraint::kFloat16To32Int8To64);
   backend_context_properties.data_type_limits.reciprocal_input.data_types
       .RetainAll(DataTypeConstraint::kFloat16To32);
   backend_context_properties.data_type_limits.sign_input.data_types.RetainAll(
@@ -346,7 +380,7 @@ ContextProperties WebNNContextImpl::IntersectWithBaseProperties(
   backend_context_properties.data_type_limits.max_pool2d_input.IntersectWith(
       {SupportedDataTypes::All(), SupportedRanks::Exactly(4)});
   backend_context_properties.data_type_limits.prelu_input.data_types.RetainAll(
-      DataTypeConstraint::kFloat16To32Int8To32);
+      DataTypeConstraint::kFloat16To32Int8To64);
   backend_context_properties.data_type_limits.quantize_linear_input.data_types
       .RetainAll(DataTypeConstraint::kFloat16To32);
   backend_context_properties.data_type_limits.quantize_linear_zero_point
@@ -368,7 +402,7 @@ ContextProperties WebNNContextImpl::IntersectWithBaseProperties(
   backend_context_properties.data_type_limits.reduce_sum_square_input.data_types
       .RetainAll(DataTypeConstraint::kFloat16To32Ints32To64);
   backend_context_properties.data_type_limits.relu_input.data_types.RetainAll(
-      DataTypeConstraint::kFloat16To32Int8To32);
+      DataTypeConstraint::kFloat16To32Int8To64);
   backend_context_properties.data_type_limits.resample2d_input.IntersectWith(
       {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(4)});
   backend_context_properties.data_type_limits.scatter_elements_input.ranks

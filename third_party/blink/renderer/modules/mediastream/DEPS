@@ -2,9 +2,9 @@ include_rules = [
     # TODO(crbug.com/923394): Remove these dependencies once std types are
     # migrated to WTF types in mediastream.
     "+base/strings/utf_string_conversions.h",
-    "+base/strings/string_number_conversions.h",
     "+base/strings/stringprintf.h",
     "+base/containers/flat_map.h",
+    "+base/memory/singleton.h",
 
     # TODO(crbug.com/923394): Remove these dependencies once per-frame
     # task runners are used in all cases.

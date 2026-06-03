@@ -104,9 +104,9 @@ std::unique_ptr<net::CanonicalCookie> ToCanonicalCookie(
       return nullptr;
     }
 
-    domain = String(".") + options->domain();
+    domain = StrCat({".", options->domain()}).LowerASCII();
     if (!cookie_url_host.EndsWith(domain) &&
-        cookie_url_host != options->domain()) {
+        cookie_url_host != options->domain().LowerASCII()) {
       exception_state.ThrowTypeError(
           "Cookie domain must domain-match current host");
       return nullptr;
@@ -125,7 +125,7 @@ std::unique_ptr<net::CanonicalCookie> ToCanonicalCookie(
       return nullptr;
     }
     if (!path.EndsWith("/")) {
-      path = path + String("/");
+      path = StrCat({path, "/"});
     }
   }
 

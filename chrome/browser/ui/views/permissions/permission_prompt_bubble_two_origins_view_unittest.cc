@@ -135,12 +135,12 @@ class PermissionPromptBubbleTwoOriginsViewTest : public ChromeViewsTestBase {
     Browser::CreateParams params(profile_.get(), /*user_gesture=*/true);
     params.type = Browser::TYPE_NORMAL;
     params.window = browser_window_.get();
-    browser_.reset(Browser::Create(params));
+    browser_ = Browser::DeprecatedCreateOwnedForTesting(params);
   }
 
   std::unique_ptr<TestingProfile> profile_;
-  std::unique_ptr<Browser> browser_;
   std::unique_ptr<TestBrowserWindow> browser_window_;
+  std::unique_ptr<Browser> browser_;
 };
 
 TEST_F(PermissionPromptBubbleTwoOriginsViewTest,

@@ -33,6 +33,7 @@ group("resources") {
       "access_code_cast:resources",
       "app_service_internals:resources",
       "bookmarks:resources",
+      "certificate_manager:resources",
       "commerce/product_specifications:resources",
       "data_sharing:resources",
       "downloads:resources",
@@ -69,8 +70,8 @@ group("resources") {
       "signin:resources",
       "suggest_internals:resources",
       "support_tool:resources",
+      "tab_group_home:resources",
       "tab_search:resources",
-      "tabs/tab_group_home:resources",
       "web_app_internals:resources",
       "webui_gallery:resources",
       "whats_new:resources",
@@ -319,6 +320,7 @@ group("dev_ui_resources") {
     ]
   } else {
     public_deps += [
+      "actor_internals:resources",
       "infobar_internals:resources",
       "media_router/internals:resources",
       "on_device_internals:resources",
@@ -386,6 +388,7 @@ repack("dev_ui_paks") {
     ]
   } else {
     sources += [
+      "$root_gen_dir/chrome/actor_internals_resources.pak",
       "$root_gen_dir/chrome/infobar_internals_resources.pak",
       "$root_gen_dir/chrome/media_router_internals_resources.pak",
       "$root_gen_dir/chrome/on_device_internals_resources.pak",
