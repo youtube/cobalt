@@ -37,6 +37,20 @@ runs:
           ]' test_targets.json)"
         echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
         echo "test_targets_count=$(echo "${test_targets_json}" | jq -cr 'length')" >> $GITHUB_OUTPUT
+
+        test_executables_json="$(jq -cr \
+          --arg test_type "${TEST_TYPE}" \
+          --arg runs_on "${RUNS_ON}" \
+          '[
+            .[]
+            | select(
+                .executable != null and
+                ($test_type == "" or .test_type == $test_type) and
+                ($runs_on == "" or .runs_on == $runs_on)
+              )
+            | .executable
+          ]' test_targets.json)"
+        echo "test_executables_json=${test_executables_json}" >> $GITHUB_OUTPUT
       shell: bash
 outputs:
   test_targets_count:
@@ -45,3 +59,6 @@ outputs:
   test_targets_json:
     description: The matched test targets in a JSON array.
     value: '${{ steps.parse-json.outputs.test_targets_json }}'
+  test_executables_json:
+    description: The matched test executables in a JSON array.
+    value: '${{ steps.parse-json.outputs.test_executables_json }}'
