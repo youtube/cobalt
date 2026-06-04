@@ -17,7 +17,7 @@
 
 #include <optional>
 
-#include "starboard/extension/experimental_features.h"
+#include "starboard/extension/experimental/experimental_features.h"
 
 namespace starboard {
 
