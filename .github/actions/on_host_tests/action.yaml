@@ -69,31 +69,34 @@ runs:
         failed_suites=""
         cd unit_test/
 
-        test_binaries=$(echo "${TEST_EXECUTABLES_JSON}" | jq -cr 'join(" ")')
-        for test_binary_path in ${test_binaries}; do
-          filename=$(basename "${test_binary_path}")
-          test_binary="${filename%%.*}"
+        # Parse the JSON array into a space-separated string using jq.
+        # This assumes executable paths will never contain spaces.
+        test_executables=$(jq -nr --arg json "${TEST_EXECUTABLES_JSON:-[]}" '$json | fromjson | join(" ")')
 
-          echo "Running tests for suite: ${test_binary}"
+        for test_executable_path in ${test_executables}; do
+          filename=$(basename "${test_executable_path}")
+          test_executable="${filename%%.*}"
+
+          echo "Running tests for suite: ${test_executable}"
 
           test_filter="*"
-          test_filter_json_dir="${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}/${test_binary}_filter.json"
+          test_filter_json_dir="${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}/${test_executable}_filter.json"
           if [ -f ${test_filter_json_dir} ]; then
             test_filter=`jq -r '"-" + (.failing_tests | join(":"))' ${test_filter_json_dir}`
           fi
 
           echo "Test filter evaluated to: ${test_filter}"
-          xml_path="${test_output}/${test_binary}_result.xml"
-          log_path="${test_output}/${test_binary}_log.txt"
+          xml_path="${test_output}/${test_executable}_result.xml"
+          log_path="${test_output}/${test_executable}_log.txt"
           # TODO: Investigate test_runner.py
 
           # Check if a wrapper script was generated for the test (e.g. by test_runner_script).
           # If so, use it as the entrypoint to run tests.
-          wrapper_path="$(dirname "${test_binary_path}")/bin/run_${test_binary}"
+          wrapper_path="$(dirname "${test_executable_path}")/bin/run_${test_executable}"
           if [[ -x "${wrapper_path}" ]]; then
             ENTRYPOINT="./${wrapper_path}"
           else
-            ENTRYPOINT="./${test_binary_path}"
+            ENTRYPOINT="./${test_executable_path}"
           fi
 
           if [ "${test_filter}" == "-*" ]; then
@@ -106,7 +109,7 @@ runs:
                 --gtest_total_shards="${GTEST_TOTAL_SHARDS}" \
                 --gtest_output="xml:${xml_path}" \
                 --gtest_filter="${test_filter}" 2>&1 | tee ${log_path} || {
-              failed_suites="${failed_suites} ${test_binary}"
+              failed_suites="${failed_suites} ${test_executable}"
             }
 
             if [[ ! -f ${xml_path} ]]; then

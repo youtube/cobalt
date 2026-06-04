@@ -35,8 +35,8 @@ runs:
               )
             | .target
           ]' test_targets.json)"
-        echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
-        echo "test_targets_count=$(echo "${test_targets_json}" | jq -cr 'length')" >> $GITHUB_OUTPUT
+        printf "test_targets_json=%s\n" "${test_targets_json}" >> "$GITHUB_OUTPUT"
+        printf "test_targets_count=%s\n" "$(echo "${test_targets_json}" | jq -cr 'length')" >> "$GITHUB_OUTPUT"
 
         test_executables_json="$(jq -cr \
           --arg test_type "${TEST_TYPE}" \
@@ -50,7 +50,7 @@ runs:
               )
             | .executable
           ]' test_targets.json)"
-        echo "test_executables_json=${test_executables_json}" >> $GITHUB_OUTPUT
+        printf "test_executables_json=%s\n" "${test_executables_json}" >> "$GITHUB_OUTPUT"
       shell: bash
 outputs:
   test_targets_count:
