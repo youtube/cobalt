@@ -214,6 +214,9 @@ test("media_unittests") {
 
   if (is_cobalt && use_starboard_media) {
     deps += ["//media/starboard:unit_tests"]
+  }
+
+  if (is_cobalt) {
     # Cobalt disabled WebRtc processing in 
     # https://github.com/youtube/cobalt/pull/10471
     # due to additional latency for the microphone path.
