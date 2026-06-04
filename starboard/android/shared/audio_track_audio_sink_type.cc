@@ -14,6 +14,7 @@
 
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 
+#include <android/api-level.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -107,20 +108,21 @@ bool HasRemoteAudioOutput() {
   return false;
 }
 
-bool CanUseAAudio(std::optional<int> tunnel_mode_audio_session_id,
-                  SbMediaAudioSampleType audio_sample_type) {
+bool CanUseAAudio(std::optional<int> tunnel_mode_audio_session_id) {
   if (!features::FeatureList::IsEnabled(features::kEnableNdkAudio)) {
     return false;
   }
 
-  // We can use AAudio when:
-  // - AAudio is supported on the device.
-  // - Tunnel mode is not enabled. AAudio does not support tunnel mode.
-  // - Audio format is PCM (Float32 or Int16). AAudio does not support
-  //   compressed formats (e.g. AC3).
-  return AAudioLoader::GetInstance() && !tunnel_mode_audio_session_id &&
-         (audio_sample_type == kSbMediaAudioSampleTypeFloat32 ||
-          audio_sample_type == kSbMediaAudioSampleTypeInt16Deprecated);
+  // AAudio does not support tunnel mode.
+  if (tunnel_mode_audio_session_id) {
+    return false;
+  }
+  // AAudio requires Android API level >= 26 (Oreo).
+  if (android_get_device_api_level() < 26) {
+    return false;
+  }
+
+  return true;
 }
 
 }  // namespace
@@ -564,7 +566,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     bool is_web_audio,
     bool allow_audio_writing_on_pause,
     void* context) {
-  if (CanUseAAudio(tunnel_mode_audio_session_id, audio_sample_type)) {
+  if (CanUseAAudio(tunnel_mode_audio_session_id)) {
     auto native_sink = AAudioAudioSink::Create(
         this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
         frames_per_channel, callbacks, context);

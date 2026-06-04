@@ -40,27 +40,20 @@ bool CanUseNdkMediaCodec(std::optional<int> tunnel_mode_audio_session_id,
     return false;
   }
 
-  // 1. Critical Usability Checks
+  // We do not use NDK AMediaCodec for DRM, since it requires architectural
+  // changes.
   if (require_secured_decoder || j_media_crypto) {
-    SB_LOG(INFO) << "[MediaCodec] Secure decoding requested. NDK AMediaCodec "
-                    "does not support DRM. Forcing NDK AMediaCodec OFF.";
     return false;
   }
-
-  if (tunnel_mode_audio_session_id.value_or(-1) != -1) {
-    SB_LOG(INFO) << "[MediaCodec] Tunnel mode requested. NDK AMediaCodec "
-                    "does not support tunnel mode. Using Java MediaCodec.";
+  // NDK AMediaCodec does not support tunnel mode.
+  if (tunnel_mode_audio_session_id) {
     return false;
   }
-
+  // NDK AMediaCodec requires API level >= 28.
   if (android_get_device_api_level() < 28) {
-    SB_LOG(INFO) << "[MediaCodec] NDK AMediaCodec requires API level >= 28. "
-                    "Using Java MediaCodec.";
     return false;
   }
 
-  SB_LOG(INFO)
-      << "[MediaCodec] NDK AMediaCodec is usable. Selecting NDK backend.";
   return true;
 }
 }  // namespace
