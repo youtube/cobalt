@@ -413,6 +413,7 @@ test("starboard_platform_tests") {
   sources = media_tests_sources + player_tests_sources + [
               "//starboard/common/test_main.cc",
               "drm_session_id_mapper_test.cc",
+              "features_extension_test.cc",
               "media_capabilities_cache_test.cc",
               "media_codec_decoder_test.cc",
               "media_codec_video_decoder_helpers_test.cc",
@@ -424,9 +425,6 @@ test("starboard_platform_tests") {
               "player_get_preferred_output_mode_test.cc",
               "video_frame_tracker_test.cc",
             ]
-
-  # Add starboard_feature_test to Android's starboard_platform_tests,
-  # since Android is the only platform that includes starboard_feature.
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
