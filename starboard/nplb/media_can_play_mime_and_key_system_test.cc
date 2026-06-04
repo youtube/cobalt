@@ -260,7 +260,7 @@ TEST(SbMediaCanPlayMimeAndKeySystem, MinimumSupport) {
       "video/mp4; codecs=\"avc1.64002a\"; width=1920; height=1080; "
       "framerate=30",
       "video/webm; codecs=\"vp9\"; width=1920; height=1080; framerate=30",
-      "video/webm; codecs=\"vp09.00.01.00.22\"; width=1920; height=1080; "
+      "video/webm; codecs=\"vp09.00.41.08\"; width=1920; height=1080; "
       "framerate=30",
   };
 
@@ -270,7 +270,7 @@ TEST(SbMediaCanPlayMimeAndKeySystem, MinimumSupport) {
       "video/mp4; codecs=\"avc1.64002a\"; width=1920; height=1080; "
       "framerate=30",
       "video/webm; codecs=\"vp9\"; width=3840; height=2160; framerate=30",
-      "video/webm; codecs=\"vp09.00.01.00.22\"; width=3840; height=2160; "
+      "video/webm; codecs=\"vp09.00.51.08\"; width=3840; height=2160; "
       "framerate=30",
   };
 
