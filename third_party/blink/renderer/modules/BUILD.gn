@@ -213,6 +213,10 @@ component("modules") {
     sub_modules -= [ "//third_party/blink/renderer/modules/peerconnection" ]
   }
 
+  if (is_cobalt) {
+    sub_modules -= [ "//third_party/blink/renderer/modules/ai" ]
+  }
+
   # This uses target_os rather than current_os (which is what is_android is set
   # from) for the case of generating the v8 context snapshot for android. When
   # generating the snapshot for android, blink is compiled with
@@ -699,6 +703,13 @@ source_set("unit_tests") {
     "xr/xr_test_utils.cc",
     "xr/xr_view_test.cc",
   ]
+
+  if (is_cobalt) {
+    sources -= [
+      "ai/ai_utils_test.cc",
+      "ai/model_execution_responder_test.cc",
+    ]
+  }
 
   if (enable_compute_pressure) {
     sources += [
