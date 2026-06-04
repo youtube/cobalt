@@ -31,6 +31,11 @@
 #include "base/trace_event/base_tracing.h"
 #include "build/build_config.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/extension/crash_handler.h"
+#include "starboard/system.h"
+#endif
+
 namespace base {
 
 namespace {
@@ -1085,6 +1090,20 @@ void HangWatcher::DoDumpWithoutCrashing(
 
   SCOPED_CRASH_KEY_BOOL("HangWatcher", "shutting-down",
                         g_shutting_down.load(std::memory_order_relaxed));
+
+#if BUILDFLAG(IS_STARBOARD)
+  // Evergreen builds cannot currently use the crash key system directly and we
+  // instead use a Starboard extension to pass annotations from the Cobalt layer
+  // to Crashpad.
+  auto* crash_handler_extension =
+      static_cast<const CobaltExtensionCrashHandlerApi*>(
+          SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
+  if (crash_handler_extension && crash_handler_extension->version >= 2) {
+    crash_handler_extension->SetString("list-of-hung-threads",
+                                       list_of_hung_thread_ids.c_str());
+    // TODO: b/513671861 - Cobalt: consider adding support for other crash keys.
+  }
+#endif
 #endif
 
   // To avoid capturing more than one hang that blames a subset of the same

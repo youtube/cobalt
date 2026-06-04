@@ -176,10 +176,11 @@ group("cobalt_shell_lib_deps") {
   }
 
   if (is_androidtv) {
-    public_deps += [
-      "//cobalt/android/oom_intervention",
-      "//cobalt/browser:hang_watcher_delegate",
-    ]
+    public_deps += [ "//cobalt/android/oom_intervention" ]
+  }
+
+  if (is_starboard || is_androidtv) {
+    public_deps += [ "//cobalt/browser:hang_watcher_delegate" ]
   }
 }
 
