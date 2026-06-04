@@ -20,6 +20,7 @@
 #include "base/timer/timer.h"
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/browser/lifecycle/public/mojom/cobalt_lifecycle.mojom.h"
+#include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -183,6 +184,16 @@ void CobaltWebContentsObserver::HandlePlatformErrorResponse(
 void CobaltWebContentsObserver::OnPlatformErrorResponse(
     SbSystemPlatformErrorResponse response) {
   is_platform_error_showing_ = false;
+#if !BUILDFLAG(IS_ANDROID)
+  if (response == kSbSystemPlatformErrorResponsePositive) {
+    LOG(INFO) << "Platform error response is POSITIVE. Reloading...";
+    web_contents()->GetController().Reload(content::ReloadType::NORMAL,
+                                           /*check_for_repost=*/false);
+  } else {
+    LOG(INFO) << "Platform error response is NEGATIVE/CANCEL. Stopping app...";
+    SbSystemRequestStop(0);
+  }
+#endif
 }
 #endif  // BUILDFLAG(IS_STARBOARD)
 
