@@ -29,6 +29,17 @@ enum class ExperimentConfigType {
   kEmptyConfig,
 };
 
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum class FinchConfigOutcome {
+  kRegularConfig = 0,
+  kSafeConfig = 1,
+  kEmptyConfigCrashStreak = 2,
+  kEmptyConfigExpired = 3,
+  kEmptyConfigRollback = 4,
+  kMaxValue = kEmptyConfigRollback
+};
+
 // This class manages the content of the experiment config stored on disk.
 class ExperimentConfigManager {
  public:
