@@ -189,6 +189,16 @@ class SkFontMgr_Cobalt : public SkFontMgr {
   // Used to delay font loading until default fonts are fully loaded.
   base::WaitableEvent default_fonts_loaded_event_;
 
+  struct SafeSystemFonts {
+    sk_sp<SkFontStyleSet_Cobalt> sans = nullptr;
+    sk_sp<SkFontStyleSet_Cobalt> serif = nullptr;
+    sk_sp<SkFontStyleSet_Cobalt> mono = nullptr;
+    sk_sp<SkFontStyleSet_Cobalt> generic_fallback = nullptr;
+  };
+  SafeSystemFonts safe_system_fonts_;
+
+  void PopulateSafeSystemFonts();
+
   // Mutex shared by all families for accessing their modifiable data.
   mutable SkMutex family_mutex_;
 };
