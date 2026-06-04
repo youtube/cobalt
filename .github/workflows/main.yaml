@@ -760,6 +760,7 @@ jobs:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
+          test_executables_json: ${{ steps.parse-host-targets.outputs.test_executables_json }}
     outputs:
       test_targets_json: ${{ steps.parse-host-targets.outputs.test_targets_json }}
 
