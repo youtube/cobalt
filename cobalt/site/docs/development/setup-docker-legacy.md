@@ -1,10 +1,12 @@
 Project: /youtube/cobalt/_project.yaml
 Book: /youtube/cobalt/_book.yaml
 
-# Set up your environment - Docker
+NOTE: These are the instructions for Docker builds with Cobalt 25 LTS and older.
+
+# Setup Docker for Building Cobalt
 
 We provide <a
-href="https://github.com/youtube/cobalt/tree/main/docker/linux/">Docker image definitions</a> to simplify managing build environments.
+href="https://github.com/youtube/cobalt/tree/25.lts.1%2B/docker/linux">Docker image definitions</a> to simplify managing build environments.
 
 The instructions below assume Docker is installed and is able to run basic
 hello-world verification. `docker compose` command is expected to be available as well.
@@ -98,5 +100,7 @@ by launching the bash shell, i.e.
 docker compose run linux-x64x11 /bin/bash
 ```
 
-and try to build Cobalt with the <a
+and try to build Cobalt with the usual GN/Ninja flow described in
+[setup-linux.md].
+<a
 href="https://github.com/youtube/cobalt#building-and-running-the-code">usual GN / ninja flow.</a>

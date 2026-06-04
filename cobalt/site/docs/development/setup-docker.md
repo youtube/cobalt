@@ -1,7 +1,7 @@
 Project: /youtube/cobalt/_project.yaml
 Book: /youtube/cobalt/_book.yaml
 
-# Set up your environment - Docker
+# Setup Docker for Building Cobalt
 
 We provide Docker image definitions to simplify managing Cobalt build environments on Linux.
 
@@ -27,30 +27,29 @@ docker build -t linux cobalt/docker/linux
 
 ## 2. Launching the Linux Container
 
-To run build commands in the container environment as your host user (matching your host user's UID and GID to prevent files created in the mounts from being owned by root), launch it using:
+To run build commands in the container environment first launch the container using:
 
 ```bash
 docker run --rm \
   --user $(id -u):$(id -g) \
   -e HOME=/tmp \
-  -v /path/to/parent/directory:/chromium \
-  -w /chromium/src \
-  -e PYTHONPATH="/chromium/src" \
+  -v /path/to/workspace:/cobalt \
+  -w /cobalt/src \
+  -e PYTHONPATH="/cobalt/src" \
   -it linux /bin/bash
 ```
 
-> [!NOTE]
-> * Replace `/path/to/parent/directory` with the absolute path of the parent directory on your host machine (e.g. the directory containing `.gclient`, `tools/`, and `src/`). Mounting the parent directory ensures all relative path checks for gclient and depot_tools succeed.
-> * Setting `-e HOME=/tmp` redirects the home directory inside the container to a writeable directory, avoiding permission errors when build tools (like `autoninja`) try to write to telemetry or cache configurations under the default home directory (`/` when running as a non-root user).
+IMPORTANT: the `/path/to/workspace` should contain both the repo checkout at in `src/` and the `depot_tools` checkout.
+
 
 ## 3. Building Cobalt inside the Container
 
-Once inside the interactive container shell (at `/chromium/src`), run the following commands sequentially to configure and build the Cobalt target:
+Once inside the interactive container shell (at `/cobalt/src`), run the following commands sequentially to configure and build the Cobalt target:
 
 1. **Set the environment PATH variable**:
    Set the path to locate `depot_tools` and `ninja` correctly:
    ```bash
-   export PATH="/chromium/tools/depot_tools:/chromium/src/third_party/ninja:/chromium/src:$PATH"
+   export PATH="/cobalt/tools/depot_tools:/cobalt/src/third_party/ninja:/cobalt/src:$PATH"
    ```
 
 2. **(Optional) Clean stale build locks**:
