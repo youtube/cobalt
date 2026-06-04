@@ -40,7 +40,7 @@ where config is one of the four optimization levels, `debug`, `devel`,
 `qa` and `gold`, and target is the build target passed to ninja
 
 See <a
-href="https://github.com/youtube/cobalt#building-and-running-the-code">Cobalt README</a> for full details.
+href="https://github.com/youtube/cobalt/blob/25.lts.1%2B/README.md#building-and-running-the-code">Cobalt README</a> for full details.
 
 Builds will be available in your `${COBALT_SRC}/out` directory.
 
@@ -100,7 +100,5 @@ by launching the bash shell, i.e.
 docker compose run linux-x64x11 /bin/bash
 ```
 
-and try to build Cobalt with the usual GN/Ninja flow described in
-[setup-linux.md].
-<a
-href="https://github.com/youtube/cobalt#building-and-running-the-code">usual GN / ninja flow.</a>
+and try to build Cobalt with the <a
+href="https://github.com/youtube/cobalt/blob/25.lts.1%2B/README.md#building-and-running-the-code">usual GN / ninja flow.</a>
