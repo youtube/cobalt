@@ -24,6 +24,7 @@
 #include "base/no_destructor.h"
 #include "base/observer_list.h"
 #include "cobalt/browser/lifecycle/public/mojom/cobalt_lifecycle.mojom.h"
+#include "cobalt/common/cobalt_thread_checker.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -145,11 +146,11 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
       mojo::PendingReceiver<cobalt::mojom::CobaltLifecycleObserver> receiver);
 
   // cobalt::mojom::CobaltLifecycleObserver impl.
-  void PageVisibilityChanged(bool visible) override;
-  void PageBlurred() override;
-  void PageFocused() override;
-  void PageResumed() override;
-  void FrameReady() override;
+  void OnPageVisibilityChanged(bool visible) override;
+  void OnPageBlurred() override;
+  void OnPageFocused() override;
+  void OnPageResumed() override;
+  void OnFrameReady() override;
 
   // Adds/removes observers.
   void AddObserver(CobaltLifecycleManagerObserver* observer);
@@ -259,6 +260,8 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
       receivers_;
 
   base::WeakPtrFactory<CobaltLifecycleManager> weak_factory_{this};
+
+  COBALT_THREAD_CHECKER(thread_checker_);
 };
 
 }  // namespace cobalt

@@ -32,10 +32,12 @@ CobaltLifecycleManager* CobaltLifecycleManager::GetInstance() {
 CobaltLifecycleManager::CobaltLifecycleManager() {
   receivers_.set_disconnect_handler(base::BindRepeating(
       &CobaltLifecycleManager::OnMojoDisconnect, base::Unretained(this)));
+  COBALT_DETACH_FROM_THREAD(thread_checker_);
 }
 CobaltLifecycleManager::~CobaltLifecycleManager() = default;
 
 void CobaltLifecycleManager::ResetForTesting() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   receivers_.Clear();
   trackers_.clear();
   main_frames_.clear();
@@ -48,11 +50,13 @@ void CobaltLifecycleManager::ResetForTesting() {
 void CobaltLifecycleManager::BindReceiver(
     content::RenderFrameHost* frame,
     mojo::PendingReceiver<cobalt::mojom::CobaltLifecycleObserver> receiver) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   receivers_.Add(this, std::move(receiver),
                  {content::WebContents::FromRenderFrameHost(frame), frame});
 }
 
 void CobaltLifecycleManager::OnMojoDisconnect() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   FrameContext context = receivers_.current_context();
   if (context.web_contents) {
     UnregisterFrame(context.web_contents, context.frame);
@@ -219,6 +223,7 @@ void CobaltLifecycleManager::WebContentsTracker::OnControllerDisconnect(
 
 CobaltLifecycleManager::WebContentsTracker*
 CobaltLifecycleManager::GetOrCreateTracker(content::WebContents* web_contents) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   auto it = trackers_.find(web_contents);
   if (it == trackers_.end()) {
     trackers_[web_contents] =
@@ -235,6 +240,7 @@ CobaltLifecycleManager::GetOrCreateTracker(content::WebContents* web_contents) {
 
 void CobaltLifecycleManager::RegisterFrame(content::WebContents* web_contents,
                                            content::RenderFrameHost* frame) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   frames_[web_contents].insert(frame);
   GetOrCreateTracker(web_contents);
 
@@ -254,6 +260,7 @@ void CobaltLifecycleManager::RegisterFrame(content::WebContents* web_contents,
 
 void CobaltLifecycleManager::UnregisterFrame(content::WebContents* web_contents,
                                              content::RenderFrameHost* frame) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   frames_[web_contents].erase(frame);
   pending_ack_frames_[web_contents].erase(frame);
 
@@ -270,7 +277,8 @@ void CobaltLifecycleManager::UnregisterFrame(content::WebContents* web_contents,
   CheckCompletion(web_contents);
 }
 
-void CobaltLifecycleManager::PageVisibilityChanged(bool visible) {
+void CobaltLifecycleManager::OnPageVisibilityChanged(bool visible) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   FrameContext context = receivers_.current_context();
   content::RenderFrameHost* frame = context.frame;
   content::WebContents* web_contents = context.web_contents;
@@ -287,7 +295,8 @@ void CobaltLifecycleManager::PageVisibilityChanged(bool visible) {
   }
 }
 
-void CobaltLifecycleManager::PageBlurred() {
+void CobaltLifecycleManager::OnPageBlurred() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   FrameContext context = receivers_.current_context();
   content::RenderFrameHost* frame = context.frame;
   content::WebContents* web_contents = context.web_contents;
@@ -303,7 +312,8 @@ void CobaltLifecycleManager::PageBlurred() {
   }
 }
 
-void CobaltLifecycleManager::PageFocused() {
+void CobaltLifecycleManager::OnPageFocused() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   FrameContext context = receivers_.current_context();
   content::RenderFrameHost* frame = context.frame;
   content::WebContents* web_contents = context.web_contents;
@@ -314,7 +324,8 @@ void CobaltLifecycleManager::PageFocused() {
   }
 }
 
-void CobaltLifecycleManager::PageResumed() {
+void CobaltLifecycleManager::OnPageResumed() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   FrameContext context = receivers_.current_context();
   content::RenderFrameHost* frame = context.frame;
   content::WebContents* web_contents = context.web_contents;
@@ -330,7 +341,8 @@ void CobaltLifecycleManager::PageResumed() {
   }
 }
 
-void CobaltLifecycleManager::FrameReady() {
+void CobaltLifecycleManager::OnFrameReady() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   FrameContext context = receivers_.current_context();
   content::RenderFrameHost* frame = context.frame;
   content::WebContents* web_contents = context.web_contents;
@@ -342,17 +354,20 @@ void CobaltLifecycleManager::FrameReady() {
 
 void CobaltLifecycleManager::AddObserver(
     CobaltLifecycleManagerObserver* observer) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   observers_.AddObserver(observer);
 }
 
 void CobaltLifecycleManager::RemoveObserver(
     CobaltLifecycleManagerObserver* observer) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   observers_.RemoveObserver(observer);
 }
 
 void CobaltLifecycleManager::StartWaitingForAck(
     content::WebContents* web_contents,
     PendingAck ack_type) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   pending_acks_[web_contents] = ack_type;
 
   auto* tracker = GetOrCreateTracker(web_contents);
@@ -418,6 +433,7 @@ void CobaltLifecycleManager::StartWaitingForAck(
 void CobaltLifecycleManager::CompleteAckImmediately(
     content::WebContents* web_contents,
     PendingAck ack_type) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (pending_acks_[web_contents] != ack_type) {
     return;
   }
@@ -452,6 +468,7 @@ void CobaltLifecycleManager::CompleteAckImmediately(
 
 void CobaltLifecycleManager::CheckCompletion(
     content::WebContents* web_contents) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   PendingAck pending_ack = pending_acks_[web_contents];
   if (pending_ack != PendingAck::kNone &&
       pending_ack_frames_[web_contents].empty()) {
@@ -461,6 +478,7 @@ void CobaltLifecycleManager::CheckCompletion(
 
 void CobaltLifecycleManager::NotifyStartWaitingForReveal(
     base::WeakPtr<content::WebContents> web_contents) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (!web_contents) {
     return;
   }
@@ -475,6 +493,7 @@ void CobaltLifecycleManager::NotifyStartWaitingForReveal(
 void CobaltLifecycleManager::OnAckTimeout(
     base::WeakPtr<content::WebContents> web_contents,
     PendingAck ack_type) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (!web_contents) {
     return;
   }
@@ -489,6 +508,7 @@ void CobaltLifecycleManager::OnAckTimeout(
 
 void CobaltLifecycleManager::OnWebContentsDestroyed(
     content::WebContents* web_contents) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   trackers_.erase(web_contents);
   main_frames_.erase(web_contents);
   frames_.erase(web_contents);

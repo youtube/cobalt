@@ -102,18 +102,18 @@ void CobaltLifecycleController::SetObserver(
   // Query initial state now that we have the observer.
   if (GetPage()) {
     bool visible = GetPage()->IsPageVisible();
-    remote_observer_->PageVisibilityChanged(visible);
+    remote_observer_->OnPageVisibilityChanged(visible);
 
     bool is_focused = GetPage()->GetFocusController().IsFocused();
     if (is_focused) {
-      remote_observer_->PageFocused();
+      remote_observer_->OnPageFocused();
     } else {
-      remote_observer_->PageBlurred();
+      remote_observer_->OnPageBlurred();
     }
 
-    remote_observer_->PageResumed();
+    remote_observer_->OnPageResumed();
   }
-  remote_observer_->FrameReady();
+  remote_observer_->OnFrameReady();
 }
 
 void CobaltLifecycleController::PageVisibilityChanged() {
@@ -127,7 +127,7 @@ void CobaltLifecycleController::PageVisibilityChanged() {
                observer,
            bool visible) {
           if (observer.is_bound()) {
-            observer->PageVisibilityChanged(visible);
+            observer->OnPageVisibilityChanged(visible);
           }
         },
         std::ref(remote_observer_), visible));
@@ -145,7 +145,7 @@ void CobaltLifecycleController::FocusedFrameChanged() {
           [](HeapMojoRemote<cobalt::mojom::blink::CobaltLifecycleObserver>&
                  observer) {
             if (observer.is_bound()) {
-              observer->PageFocused();
+              observer->OnPageFocused();
             }
           },
           std::ref(remote_observer_)));
@@ -154,7 +154,7 @@ void CobaltLifecycleController::FocusedFrameChanged() {
           [](HeapMojoRemote<cobalt::mojom::blink::CobaltLifecycleObserver>&
                  observer) {
             if (observer.is_bound()) {
-              observer->PageBlurred();
+              observer->OnPageBlurred();
             }
           },
           std::ref(remote_observer_)));
@@ -170,7 +170,7 @@ void CobaltLifecycleController::ContextLifecycleStateChanged(
           [](HeapMojoRemote<cobalt::mojom::blink::CobaltLifecycleObserver>&
                  observer) {
             if (observer.is_bound()) {
-              observer->PageResumed();
+              observer->OnPageResumed();
             }
           },
           std::ref(remote_observer_)));

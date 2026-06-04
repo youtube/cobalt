@@ -143,7 +143,7 @@ TEST_F(AppEventRunnerTest, OnReveal) {
   EXPECT_EQ(shell_->web_contents()->GetVisibility(),
             content::Visibility::VISIBLE);
   // Simulate Reveal ACK from the frame via Mojo to complete transition.
-  remote->PageVisibilityChanged(true);
+  remote->OnPageVisibilityChanged(true);
   base::RunLoop().RunUntilIdle();
 
   remote.reset();

@@ -149,8 +149,8 @@ graph TD
   Manager ==>|"Mojo: <br/> CobaltLifecycleController::SetObserver(Observer)"| Controller
 
   %% Mojo Observation Flow (Renderer -> Browser Manager)
-  Controller ==>|"Mojo <br/> (Sync ACK): <br/> PageVisibilityChanged <br/> PageResumed <br/> PageBlurred"| Manager
-  Controller ==>|"Mojo <br/> (Async - Passive): <br/> PageFocused"| Manager
+  Controller ==>|"Mojo <br/> (Sync ACK): <br/> OnPageVisibilityChanged <br/> OnPageResumed <br/> OnPageBlurred"| Manager
+  Controller ==>|"Mojo <br/> (Async - Passive): <br/> OnPageFocused"| Manager
 
   %% Return to main loop after aggregation (Only for Sync Blocking transitions)
   Manager -->|"CobaltLifecycleManagerObserver"| Runner
@@ -186,7 +186,7 @@ sequenceDiagram
 
   Note over Blink: 1. Blink updates visibilityState = hidden<br/>2. Dispatches JS event: 'visibilitychange' (hidden)
   Blink-->>Controller: C++ PageVisibilityObserver::OnPageVisibilityChanged()
-  Controller->>Manager: Mojo: PageVisibilityChanged(hidden)
+  Controller->>Manager: Mojo: OnPageVisibilityChanged(hidden)
   Note over Manager: All active frames completed Conceal!
   Manager->>Runner: OnAllFramesConcealed(web_contents)
   Note over Runner: Quit nested RunLoop!<br/>run_loop.Quit()
@@ -283,7 +283,7 @@ sequenceDiagram
 
   Note over Blink: Main Blink Frame layouts<br/>& renders viewport
   Blink-->>Controller: C++ PageVisibilityObserver::OnPageVisibilityChanged()
-  Controller->>Manager: Mojo: PageVisibilityChanged(visible)
+  Controller->>Manager: Mojo: OnPageVisibilityChanged(visible)
   Note over Manager: All active frames completed Reveal!
   Manager->>Runner: OnAllFramesVisible(web_contents)
   Note over Runner: Quit nested RunLoop!<br/>run_loop.Quit()
@@ -315,7 +315,7 @@ sequenceDiagram
   Note over Blink: Main Frame loads Page & DOMWindow
   Blink->>Controller: constructs CobaltLifecycleController (Blink Supplement)
   Manager->>Controller: Mojo: CobaltLifecycleController::SetObserver(Observer)
-  Controller->>Manager: Mojo: CobaltLifecycleObserver::FrameReady()
+  Controller->>Manager: Mojo: CobaltLifecycleObserver::OnFrameReady()
   Note over Manager: Registers Frame in Manager
 ```
 
@@ -443,14 +443,14 @@ sequenceDiagram
   %% Step 1
   Note over Delegate: Step 1: kFrozen ➔ kConcealed (Unfreeze)
   Delegate->>Runner: OnUnfreeze() -> DoUnfreeze()
-  Note over Runner: Synchronous Wait:<br/>Blocks UI thread inside nested RunLoop<br/>waiting for Mojo PageResumed ACK
+  Note over Runner: Synchronous Wait:<br/>Blocks UI thread inside nested RunLoop<br/>waiting for Mojo OnPageResumed ACK
   Runner-->>Delegate: DoUnfreeze complete
   Note over Delegate: SetApplicationState(kConcealed)
 
   %% Step 2
   Note over Delegate: Step 2: kConcealed ➔ kBlurred (Reveal)
   Delegate->>Runner: OnReveal() -> DoReveal()
-  Note over Runner: Synchronous Wait:<br/>Blocks UI thread inside nested RunLoop<br/>waiting for Mojo PageVisibilityChanged(visible) ACK
+  Note over Runner: Synchronous Wait:<br/>Blocks UI thread inside nested RunLoop<br/>waiting for Mojo OnPageVisibilityChanged(visible) ACK
   Runner-->>Delegate: DoReveal complete
   Note over Delegate: SetApplicationState(kBlurred)
 
@@ -481,14 +481,14 @@ sequenceDiagram
   %% Step 1
   Note over Delegate: Step 1: kStarted ➔ kBlurred (Blur)
   Delegate->>Runner: OnBlur() -> DoBlur()
-  Note over Runner: Synchronous Wait:<br/>Blocks UI thread inside nested RunLoop<br/>waiting for Mojo PageBlurred ACK
+  Note over Runner: Synchronous Wait:<br/>Blocks UI thread inside nested RunLoop<br/>waiting for Mojo OnPageBlurred ACK
   Runner-->>Delegate: DoBlur complete
   Note over Delegate: SetApplicationState(kBlurred)
 
   %% Step 2
   Note over Delegate: Step 2: kBlurred ➔ kConcealed (Conceal)
   Delegate->>Runner: OnConceal() -> DoConceal()
-  Note over Runner: Synchronous Wait:<br/>Blocks UI thread inside nested RunLoop<br/>waiting for Mojo PageVisibilityChanged(hidden) ACK
+  Note over Runner: Synchronous Wait:<br/>Blocks UI thread inside nested RunLoop<br/>waiting for Mojo OnPageVisibilityChanged(hidden) ACK
   Runner-->>Delegate: DoConceal complete
   Note over Delegate: SetApplicationState(kConcealed)
 
@@ -528,7 +528,7 @@ sequenceDiagram
   OS->>Delegate: SbEvent (Blur)
   Note over Delegate: target_state_ = kBlurred<br/>is_transitioning_ = true
   Delegate->>Runner: OnBlur() -> DoBlur()
-  Note over Runner: UI Thread blocks synchronously in nested loop<br/>waiting for Mojo PageBlurred ACK
+  Note over Runner: UI Thread blocks synchronously in nested loop<br/>waiting for Mojo OnPageBlurred ACK
 
   %% Re-entrant event
   OS->>Delegate: SbEvent (Conceal)
@@ -536,7 +536,7 @@ sequenceDiagram
   Note over Delegate: Transition active. Redirect target:<br/>target_state_ = kConcealed
   Delegate-->>OS: HandleEvent returns immediately
 
-  Note over Runner: Mojo PageBlurred ACK arrives
+  Note over Runner: Mojo OnPageBlurred ACK arrives
   Note over Runner: Quit nested RunLoop!
   Runner-->>Delegate: DoBlur complete
   Note over Delegate: 1. Acquire lock_<br/>2. SetApplicationState(kBlurred)
@@ -561,7 +561,7 @@ sequenceDiagram
   OS->>Delegate: SbEvent (Reveal)
   Note over Delegate: target_state_ = kBlurred<br/>is_transitioning_ = true
   Delegate->>Runner: OnReveal() -> DoReveal()
-  Note over Runner: UI Thread blocks synchronously in nested loop<br/>waiting for Mojo PageVisibilityChanged(visible) ACK
+  Note over Runner: UI Thread blocks synchronously in nested loop<br/>waiting for Mojo OnPageVisibilityChanged(visible) ACK
 
   %% Re-entrant event
   OS->>Delegate: SbEvent (Conceal)
@@ -569,7 +569,7 @@ sequenceDiagram
   Note over Delegate: Transition active. Redirect/Reverse target:<br/>target_state_ = kConcealed
   Delegate-->>OS: HandleEvent returns immediately
 
-  Note over Runner: Mojo PageVisibilityChanged(visible) ACK arrives
+  Note over Runner: Mojo OnPageVisibilityChanged(visible) ACK arrives
   Note over Runner: Quit nested RunLoop!
   Runner-->>Delegate: DoReveal complete
   Note over Delegate: 1. Acquire lock_<br/>2. SetApplicationState(kBlurred)

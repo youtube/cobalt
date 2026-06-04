@@ -69,7 +69,9 @@ class ShellPlatformDelegate : public cobalt::CobaltLifecycleManagerObserver {
   virtual void OnStop();
 
   virtual void RevealShell(Shell* shell);
+#if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
   virtual void MapWindowShell(Shell* shell);
+#endif
   virtual void ConcealShell(Shell* shell);
 
   // Called after creating a Shell instance, with its initial size.
@@ -191,8 +193,10 @@ class ShellPlatformDelegate : public cobalt::CobaltLifecycleManagerObserver {
 #endif
 
  private:
-  // h5vcc_runtime::H5vccRuntimeObserver implementation.
+  // CobaltLifecycleManagerObserver implementation.
+#if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
   void OnProactiveMapWindow(content::WebContents* web_contents) override;
+#endif
   void OnAllFramesVisible(content::WebContents* web_contents) override;
   void OnAllFramesConcealed(content::WebContents* web_contents) override;
 

@@ -67,6 +67,7 @@ AppEventDelegate::AppEventDelegate(
     const CobaltExtensionCrashHandlerApi* crash_handler_extension)
     : runner_(std::move(runner)),
       crash_handler_extension_(crash_handler_extension) {
+  base::AutoLock lock(lock_);
   if (!crash_handler_extension_) {
     // If a special extension implementation wasn't provided, use the default.
     crash_handler_extension_ =
@@ -74,7 +75,6 @@ AppEventDelegate::AppEventDelegate(
             SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
   }
 
-  base::AutoLock lock(lock_);
   SetApplicationState(ApplicationState::kInitial);
   target_state_ = ApplicationState::kInitial;
   if (!runner_) {
@@ -143,8 +143,6 @@ void AppEventDelegate::HandleEvent(const SbEvent* event) {
 }
 
 void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
-  lock_.AssertAcquired();
-
   // Drop events received after the application stops.
   if (application_state_ == ApplicationState::kStopped ||
       target_state_ == ApplicationState::kStopped) {
@@ -241,9 +239,7 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
   }
 }
 
-void AppEventDelegate::ExecuteNextStepLocked() {
-  lock_.AssertAcquired();
-
+void AppEventDelegate::ExecuteNextStep() {
   if (application_state_ == target_state_) {
     is_transitioning_ = false;
     if (quit_closure_) {
@@ -329,6 +325,10 @@ void AppEventDelegate::ExecuteEventRunner(ApplicationState next_state,
 
 void AppEventDelegate::ExecuteStepOnUIThread(ApplicationState next_state,
                                              bool is_activating) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  // Note: ExecuteEventRunner does not change state nor rely on state of this
+  // object, and always runs as a posted task on the UI thread, and therefore
+  // the lock does not need to be held yet here.
   ExecuteEventRunner(next_state, is_activating);
 
   base::AutoLock lock(lock_);
@@ -337,7 +337,7 @@ void AppEventDelegate::ExecuteStepOnUIThread(ApplicationState next_state,
   if (next_state == ApplicationState::kStopped) {
     SbEventSchedule(&AppEventDelegate::TeardownCallback, this, 0);
   } else {
-    ExecuteNextStepLocked();
+    ExecuteNextStep();
   }
 }
 
@@ -349,12 +349,11 @@ void AppEventDelegate::TeardownCallback(void* data) {
 
 void AppEventDelegate::DoTeardown() {
   runner_->OnStop();
+  base::AutoLock lock(lock_);
   SetApplicationState(ApplicationState::kStopped);
 }
 
 void AppEventDelegate::TransitionToLifeCycleState(ApplicationState state) {
-  lock_.AssertAcquired();
-
   // TransitionToLifeCycleState ensures that the application moves from its
   // current state to the target |state| by traversing all intermediate states
   // in strict linear order. Each state transition triggers its corresponding
@@ -377,7 +376,7 @@ void AppEventDelegate::TransitionToLifeCycleState(ApplicationState state) {
     return;
   } else {
     is_transitioning_ = true;
-    ExecuteNextStepLocked();
+    ExecuteNextStep();
   }
 }
 

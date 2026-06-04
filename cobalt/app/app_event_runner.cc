@@ -63,6 +63,9 @@
 namespace cobalt {
 
 namespace {
+// A timeout of 2 seconds was chosen to be long enough to allow for any
+// normal operations to complete, but short enough to avoid unnecessary
+// user-perceived delays.
 constexpr base::TimeDelta kTransitionTimeout = base::Seconds(2);
 }  // namespace
 

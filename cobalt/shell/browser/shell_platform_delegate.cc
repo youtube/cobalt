@@ -241,6 +241,7 @@ void ShellPlatformDelegate::ClearWaitingForRevealAck() {
 #endif
 }
 
+#if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
 void ShellPlatformDelegate::OnProactiveMapWindow(
     content::WebContents* web_contents) {
   Shell* shell = Shell::FromWebContents(web_contents);
@@ -249,6 +250,7 @@ void ShellPlatformDelegate::OnProactiveMapWindow(
     MapWindowShell(shell);
   }
 }
+#endif
 
 void ShellPlatformDelegate::OnAllFramesVisible(
     content::WebContents* web_contents) {
@@ -284,5 +286,11 @@ void ShellPlatformDelegate::OnAllFramesConcealed(
   cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(
       static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
 }
+
+#if !defined(USE_AURA) || !BUILDFLAG(IS_STARBOARD)
+void ShellPlatformDelegate::DidCreateOrAttachWebContents(
+    Shell* shell,
+    WebContents* web_contents) {}
+#endif
 
 }  // namespace content

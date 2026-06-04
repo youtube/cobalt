@@ -144,18 +144,22 @@ class AppEventDelegateTest : public content::ShellTestBase {
   }
 
   void SetApplicationState(AppEventDelegate::ApplicationState state) {
+    base::AutoLock lock(delegate_->lock_);
     delegate_->application_state_ = state;
   }
   void SetTargetState(AppEventDelegate::ApplicationState state) {
+    base::AutoLock lock(delegate_->lock_);
     delegate_->target_state_ = state;
   }
   void SetPendingAck(PendingAck ack) {
     ON_CALL(*runner_, pending_ack()).WillByDefault(testing::Return(ack));
   }
   void SetIsTransitioning(bool transitioning) {
+    base::AutoLock lock(delegate_->lock_);
     delegate_->is_transitioning_ = transitioning;
   }
   AppEventDelegate::ApplicationState GetTargetState() const {
+    base::AutoLock lock(delegate_->lock_);
     return delegate_->target_state_;
   }
 

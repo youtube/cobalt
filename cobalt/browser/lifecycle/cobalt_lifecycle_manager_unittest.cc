@@ -75,12 +75,12 @@ TEST_F(CobaltLifecycleManagerTest, ScopedWaiting) {
   mojo::Remote<cobalt::mojom::CobaltLifecycleObserver> remote1;
   manager_->BindReceiver(contents1->GetPrimaryMainFrame(),
                          remote1.BindNewPipeAndPassReceiver());
-  remote1->FrameReady();
+  remote1->OnFrameReady();
 
   mojo::Remote<cobalt::mojom::CobaltLifecycleObserver> remote2;
   manager_->BindReceiver(contents2->GetPrimaryMainFrame(),
                          remote2.BindNewPipeAndPassReceiver());
-  remote2->FrameReady();
+  remote2->OnFrameReady();
 
   // Establish Mojo connections and register frames.
   base::RunLoop().RunUntilIdle();
@@ -96,7 +96,7 @@ TEST_F(CobaltLifecycleManagerTest, ScopedWaiting) {
   EXPECT_CALL(observer, OnAllFramesVisible(contents2.get())).Times(0);
 
   // Frame 1 reports visible via Mojo.
-  remote1->PageVisibilityChanged(true);
+  remote1->OnPageVisibilityChanged(true);
 
   // Wait for Mojo message.
   base::RunLoop().RunUntilIdle();
@@ -107,7 +107,7 @@ TEST_F(CobaltLifecycleManagerTest, ScopedWaiting) {
   EXPECT_CALL(observer, OnAllFramesVisible(contents2.get())).Times(1);
 
   // Frame 2 reports visible.
-  remote2->PageVisibilityChanged(true);
+  remote2->OnPageVisibilityChanged(true);
 
   base::RunLoop().RunUntilIdle();
   manager_->RemoveObserver(&observer);
@@ -126,7 +126,7 @@ TEST_F(CobaltLifecycleManagerTest, ObserverNotificationIsDeferred) {
   mojo::Remote<cobalt::mojom::CobaltLifecycleObserver> remote;
   manager_->BindReceiver(contents->GetPrimaryMainFrame(),
                          remote.BindNewPipeAndPassReceiver());
-  remote->FrameReady();
+  remote->OnFrameReady();
   base::RunLoop().RunUntilIdle();
 
   MockCobaltLifecycleObserver observer;
@@ -155,7 +155,7 @@ TEST_F(CobaltLifecycleManagerTest, MainFrameUnregistrationWhileWaiting) {
   mojo::Remote<cobalt::mojom::CobaltLifecycleObserver> remote;
   manager_->BindReceiver(contents->GetPrimaryMainFrame(),
                          remote.BindNewPipeAndPassReceiver());
-  remote->FrameReady();
+  remote->OnFrameReady();
   base::RunLoop().RunUntilIdle();
 
   MockCobaltLifecycleObserver observer;
