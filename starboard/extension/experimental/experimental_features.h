@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_EXTENSION_EXPERIMENTAL_FEATURES_H_
-#define STARBOARD_EXTENSION_EXPERIMENTAL_FEATURES_H_
+#ifndef STARBOARD_EXTENSION_EXPERIMENTAL_EXPERIMENTAL_FEATURES_H_
+#define STARBOARD_EXTENSION_EXPERIMENTAL_EXPERIMENTAL_FEATURES_H_
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -71,4 +71,4 @@ typedef struct StarboardExtensionExperimentalFeaturesConfigurationApi {
 }  // extern "C"
 #endif
 
-#endif  // STARBOARD_EXTENSION_EXPERIMENTAL_FEATURES_H_
+#endif  // STARBOARD_EXTENSION_EXPERIMENTAL_EXPERIMENTAL_FEATURES_H_
