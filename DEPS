@@ -312,15 +312,15 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Skia
   # and whatever else without interference from each other.
-  'skia_revision': '737757aacda8bd051419f818dac5eaf6858f616a',
+  'skia_revision': 'b0ac10a99e91f624bcc82e98cb0b4fb6a0cdd9a8',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling V8
   # and whatever else without interference from each other.
-  'v8_revision': '841d69963bd251abcd920f18908f785b8fbdf60a',
+  'v8_revision': '1f9f95599fb90619df0d43a1ba4bcf17d6b63469',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling ANGLE
   # and whatever else without interference from each other.
-  'angle_revision': 'ecd61c98a8f8dc6a4210bc488f3f1dbe3d4b6705',
+  'angle_revision': '82bf0fb5d06fafbead7c5ea073b9901f00d561b5',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling SwiftShader
   # and whatever else without interference from each other.
@@ -2465,7 +2465,7 @@ deps = {
     Var('chromium_git') + '/webm/libwebp.git' + '@' +  'c00d83f6642e7838a12bb03bca94237f03cc2e00',
 
   'src/third_party/libyuv':
-    Var('chromium_git') + '/libyuv/libyuv.git' + '@' + '4825d9b29eea4dac24607245db7ec7d4c41c1964',
+    Var('chromium_git') + '/libyuv/libyuv.git' + '@' + '957f295ea946cbbd13fcfc46e7066f2efa801233',
 
   'src/third_party/lighttpd': {
       'url': Var('chromium_git') + '/chromium/deps/lighttpd.git' + '@' + Var('lighttpd_revision'),
