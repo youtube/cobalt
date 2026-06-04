@@ -70,11 +70,10 @@ runs:
         cd unit_test/
 
         # Parse the JSON array into a space-separated string using jq.
-        # This assumes executable paths will never contain spaces.
         test_executables=$(jq -nr --arg json "${TEST_EXECUTABLES_JSON:-[]}" '$json | fromjson | join(" ")')
 
         if [[ -z "${test_executables}" ]]; then
-          echo "No tests to execute. Exiting cleanly."
+          echo "No tests to execute. Skipping."
           exit 0
         fi
 
