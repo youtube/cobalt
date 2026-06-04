@@ -36,6 +36,7 @@ struct MEDIA_EXPORT AudioProcessingSettings {
 #if BUILDFLAG(IS_COBALT)
   // Cobalt does not support WebRtcAudioProcessing, since it increases audio
   // latency on low-end TV devices
+  // https://b.corp.google.com/issues/483713292#comment61
   return false;
 #endif
     // TODO(crbug.com/40205004): Legacy iOS-specific behavior;
