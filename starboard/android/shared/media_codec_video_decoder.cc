@@ -114,13 +114,9 @@ std::array<float, 16> GetTransformMatrix(
     const JavaRef<jobject>& surface_texture) {
   JNIEnv* env = AttachCurrentThread();
 
-  jni_zero::ScopedJavaLocalRef<jfloatArray> java_array(env,
-                                                       env->NewFloatArray(16));
+  jni_zero::ScopedJavaLocalRef<jfloatArray> java_array =
+      VideoSurfaceTextureBridge::GetTransformMatrix(env, surface_texture);
   SB_CHECK(java_array);
-
-  VideoSurfaceTextureBridge::GetTransformMatrix(
-      env, surface_texture,
-      jni_zero::JavaParamRef<jfloatArray>(env, java_array.obj()));
 
   std::array<float, 16> matrix4x4;
   env->GetFloatArrayRegion(java_array.obj(), 0, 16, matrix4x4.data());

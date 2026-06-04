@@ -58,10 +58,9 @@ class VideoSurfaceTextureBridge {
 
   static void UpdateTexImage(JNIEnv* env,
                              const jni_zero::JavaRef<jobject>& surface_texture);
-  static void GetTransformMatrix(
+  static jni_zero::ScopedJavaLocalRef<jfloatArray> GetTransformMatrix(
       JNIEnv* env,
-      const jni_zero::JavaRef<jobject>& surface_texture,
-      const jni_zero::JavaParamRef<jfloatArray>& mtx);
+      const jni_zero::JavaRef<jobject>& surface_texture);
 
   void OnFrameAvailable(JNIEnv*) { host_->OnFrameAvailable(); }
 

@@ -130,9 +130,8 @@ AudioTrackBridge::~AudioTrackBridge() {
     // Both the global and local references refer to the exact same Java object
     // in the JVM.
     JNIEnv* env = AttachCurrentThread();
-    jobject audio_track_bridge_ref =
-        env->NewLocalRef(j_audio_track_bridge_.obj());
-    ScopedJavaLocalRef<jobject> audio_track_bridge(env, audio_track_bridge_ref);
+    ScopedJavaLocalRef<jobject> audio_track_bridge =
+        j_audio_track_bridge_.AsLocalRef(env);
     AudioOutputManager::GetInstance()->DestroyAudioTrackBridge(
         env, audio_track_bridge);
   }

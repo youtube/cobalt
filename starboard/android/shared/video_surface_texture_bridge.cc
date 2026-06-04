@@ -63,11 +63,10 @@ void VideoSurfaceTextureBridge::UpdateTexImage(
 }
 
 // static
-void VideoSurfaceTextureBridge::GetTransformMatrix(
+ScopedJavaLocalRef<jfloatArray> VideoSurfaceTextureBridge::GetTransformMatrix(
     JNIEnv* env,
-    const JavaRef<jobject>& surface_texture,
-    const JavaParamRef<jfloatArray>& mtx) {
-  Java_VideoSurfaceTexture_getTransformMatrix(env, surface_texture, mtx);
+    const JavaRef<jobject>& surface_texture) {
+  return Java_VideoSurfaceTexture_getTransformMatrix(env, surface_texture);
 }
 
 }  // namespace starboard

@@ -74,8 +74,10 @@ public class VideoSurfaceTexture extends SurfaceTexture {
   }
 
   @CalledByNative
-  public void getTransformMatrix(float[] mtx) {
+  public float[] getTransformMatrix() {
+    float[] mtx = new float[16];
     super.getTransformMatrix(mtx);
+    return mtx;
   }
 
   @NativeMethods
