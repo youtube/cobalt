@@ -423,23 +423,20 @@ ExportedSymbols::ExportedSymbols() {
 
 }  // NOLINT
 
-const void* ExportedSymbols::Lookup(const char* name, bool is_weak) {
+const void* ExportedSymbols::Lookup(const char* name) {
   const void* address = map_[name];
-  // Any symbol that is not registered as part of the Starboard API in the
-  // constructor of this class is a leak, and is an error.
-  if (address) {
-    return address;
-  }
+  return address;
+}
 
+const void* ExportedSymbols::LookupFallback(const char* name) {
+  const void* address = nullptr;
   SB_LOG(ERROR) << "Failed to retrieve the address of '" << name << "'.";
 #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-  if (is_weak) {
-    // TODO: Cobalt b/421944504 - Cleanup once we are done with all the symbols or
-    // potentially keep it behind a flag to help with future maintenance.
-    address = dlsym(RTLD_DEFAULT, name);
-    if (address == nullptr) {
-      SB_LOG(ERROR) << "Fallback dlsym failed for '" << name << "'.";
-    }
+  // TODO: Cobalt b/421944504 - Cleanup once we are done with all the symbols or
+  // potentially keep it behind a flag to help with future maintenance.
+  address = dlsym(RTLD_DEFAULT, name);
+  if (address == nullptr) {
+    SB_LOG(ERROR) << "Fallback dlsym failed for '" << name << "'.";
   }
 #endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   return address;
