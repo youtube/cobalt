@@ -1,9 +1,12 @@
 Project: /youtube/cobalt/_project.yaml
 Book: /youtube/cobalt/_book.yaml
 
-NOTE: These are the instructions for Docker builds with Cobalt 25 LTS and older.
-
 # Setup Docker for Building Cobalt
+
+> [!NOTE]
+> * These are the instructions for Docker builds with Cobalt 25 LTS and older.
+>
+> * For instructions for 26 LTS and older see [setup-docker.md].
 
 We provide <a
 href="https://github.com/youtube/cobalt/tree/25.lts.1%2B/docker/linux">Docker image definitions</a> to simplify managing build environments.
