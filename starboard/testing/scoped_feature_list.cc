@@ -14,6 +14,8 @@
 
 #include "starboard/testing/scoped_feature_list.h"
 
+#include "starboard/shared/starboard/feature_list.h"
+
 namespace starboard::features {
 
 ScopedFeatureList::~ScopedFeatureList() {

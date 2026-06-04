@@ -19,7 +19,7 @@
 #include <string>
 #include <vector>
 
-#include "starboard/shared/starboard/feature_list.h"
+#include "starboard/extension/features.h"
 
 namespace starboard::features {
 

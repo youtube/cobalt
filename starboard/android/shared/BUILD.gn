@@ -80,8 +80,6 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/drm/drm_update_session.cc",
     "//starboard/shared/starboard/experimental_features.cc",
     "//starboard/shared/starboard/experimental_features.h",
-    "//starboard/shared/starboard/feature_list.cc",
-    "//starboard/shared/starboard/feature_list.h",
     "//starboard/shared/starboard/features.cc",
     "//starboard/shared/starboard/features.h",
     "//starboard/shared/starboard/file_storage/storage_close_record.cc",
@@ -302,6 +300,7 @@ static_library("starboard_platform") {
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//starboard/common",
     "//starboard/extension:feature_config_header",
+    "//starboard/shared/starboard:feature_list",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
@@ -428,10 +427,6 @@ test("starboard_platform_tests") {
 
   # Add starboard_feature_test to Android's starboard_platform_tests,
   # since Android is the only platform that includes starboard_feature.
-  sources += [
-    "//starboard/shared/starboard/starboard_feature_test.cc",
-    "//starboard/testing/scoped_feature_list_test.cc",
-  ]
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
