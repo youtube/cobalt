@@ -18,7 +18,7 @@
 #include <type_traits>
 
 #include "starboard/common/log.h"
-#include "starboard/extension/experimental_features.h"
+#include "starboard/extension/experimental/experimental_features.h"
 
 namespace starboard {
 
