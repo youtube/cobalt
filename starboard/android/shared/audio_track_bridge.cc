@@ -182,13 +182,10 @@ int AudioTrackBridge::WriteSample(const float* samples,
   env->SetFloatArrayRegion(static_cast<jfloatArray>(j_audio_data_.obj()),
                            kNoOffset, num_of_samples, samples);
 
-  ScopedJavaLocalRef<jfloatArray> audio_data_local_ref(
-      env, static_cast<jfloatArray>(env->NewLocalRef(j_audio_data_.obj())));
-
-  return Java_AudioTrackBridge_write(env, j_audio_track_bridge_,
-                                     // JavaParamRef<jfloatArray>'s raw pointer
-                                     // constructor expects a local reference.
-                                     audio_data_local_ref, num_of_samples);
+  return Java_AudioTrackBridge_write(
+      env, j_audio_track_bridge_,
+      JavaParamRef(env, static_cast<jfloatArray>(j_audio_data_.obj())),
+      num_of_samples);
 }
 
 int AudioTrackBridge::WriteSample(const uint16_t* samples,
@@ -206,14 +203,10 @@ int AudioTrackBridge::WriteSample(const uint16_t* samples,
                           kNoOffset, num_of_samples * sizeof(uint16_t),
                           reinterpret_cast<const jbyte*>(samples));
 
-  ScopedJavaLocalRef<jbyteArray> audio_data_local_ref(
-      env, static_cast<jbyteArray>(env->NewLocalRef(j_audio_data_.obj())));
-
   int bytes_written = Java_AudioTrackBridge_writeWithPresentationTime(
       env, j_audio_track_bridge_,
-      // JavaParamRef<jbyteArray>'s raw pointer constructor expects a local
-      // reference.
-      audio_data_local_ref, num_of_samples * sizeof(uint16_t), sync_time);
+      JavaParamRef(env, static_cast<jbyteArray>(j_audio_data_.obj())),
+      num_of_samples * sizeof(uint16_t), sync_time);
   if (bytes_written < 0) {
     // Error code returned as negative value, like AudioTrack.ERROR_DEAD_OBJECT.
     return bytes_written;
@@ -238,14 +231,10 @@ int AudioTrackBridge::WriteSample(const uint8_t* samples,
                           kNoOffset, num_of_samples,
                           reinterpret_cast<const jbyte*>(samples));
 
-  ScopedJavaLocalRef<jbyteArray> audio_data_local_ref(
-      env, static_cast<jbyteArray>(env->NewLocalRef(j_audio_data_.obj())));
-
   int bytes_written = Java_AudioTrackBridge_writeWithPresentationTime(
       env, j_audio_track_bridge_,
-      // JavaParamRef<jbyteArray>'s raw pointer constructor expects a local
-      // reference.
-      audio_data_local_ref, num_of_samples, sync_time);
+      JavaParamRef(env, static_cast<jbyteArray>(j_audio_data_.obj())),
+      num_of_samples, sync_time);
 
   if (bytes_written < 0) {
     // Error code returned as negative value, like AudioTrack.ERROR_DEAD_OBJECT.
