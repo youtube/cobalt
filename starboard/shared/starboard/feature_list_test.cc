@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/shared/starboard/feature_list.h"
+
 #include <iterator>
 
-#include "starboard/shared/starboard/feature_list.h"
-#include "starboard/shared/starboard/features.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -95,35 +95,20 @@ const SbFeatureParam kParams[] = {
 
 }  // namespace
 
-const StarboardExtensionFeaturesApi* kExtension_api = nullptr;
-
-class StarboardFeatureTest : public ::testing::Test {
+class StarboardFeatureListTest : public ::testing::Test {
  protected:
   static void SetUpTestSuite() {
-    kExtension_api = static_cast<const StarboardExtensionFeaturesApi*>(
-        SbSystemGetExtension(kStarboardExtensionFeaturesName));
-    if (!kExtension_api) {
-      return;
-    }
-
-    kExtension_api->InitializeStarboardFeatures(kFeatures, std::size(kFeatures),
-                                                kParams, std::size(kParams));
-  }
-
-  void SetUp() override {
-    if (!kExtension_api) {
-      GTEST_SKIP() << "Failed to get Starboard Features API; skipping all "
-                      "tests in this suite.";
-    }
+    FeatureList::InitializeFeatureList(kFeatures, std::size(kFeatures), kParams,
+                                       std::size(kParams));
   }
 };
 
-TEST_F(StarboardFeatureTest, CanAccessFeatures) {
+TEST_F(StarboardFeatureListTest, CanAccessFeatures) {
   EXPECT_TRUE(FeatureList::IsEnabled(kStarboardFeatureTestEnabled));
   EXPECT_FALSE(FeatureList::IsEnabled(kStarboardFeatureTestDisabled));
 }
 
-TEST_F(StarboardFeatureTest, CanAccessParams) {
+TEST_F(StarboardFeatureListTest, CanAccessParams) {
   for (const auto& param : kParams) {
     switch (param.type) {
       case SbFeatureParamTypeBool: {
