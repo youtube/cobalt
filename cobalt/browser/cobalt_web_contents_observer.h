@@ -58,12 +58,14 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
       controllers_;
 
 #if BUILDFLAG(IS_STARBOARD)
+  class PlatformErrorBridge;
   static void HandlePlatformErrorResponse(
       SbSystemPlatformErrorResponse response,
       void* user_data);
   void OnPlatformErrorResponse(SbSystemPlatformErrorResponse response);
   bool is_platform_error_showing_ = false;
   int platform_error_raised_count_ = 0;
+  PlatformErrorBridge* pending_platform_error_bridge_ = nullptr;
 
   base::OneShotTimer timeout_timer_;
   base::WeakPtrFactory<CobaltWebContentsObserver> weak_factory_{this};
