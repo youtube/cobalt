@@ -65,10 +65,6 @@ struct FallbackCacheKey {
   }
 };
 
-inline unsigned CombineHash(unsigned parent, unsigned child) {
-  return parent ^ (child + 0x9e3779b9 + (parent << 6) + (parent >> 2));
-}
-
 // Custom WTF-compliant HashTraits for FallbackCacheKey.
 // WTF::HashMap uses an open-addressing table that requires explicit empty
 // and deleted sentinel slots (we use 0 for empty and MaxUint32 for deleted).
@@ -109,7 +105,7 @@ struct FallbackCacheKeyHashTraits : GenericHashTraits<FallbackCacheKey> {
 };
 
 typedef HashMap<FallbackCacheKey,
-                std::unique_ptr<FontPlatformData>,
+                Persistent<FontPlatformData>,
                 FallbackCacheKeyHashTraits>
     FallbackPlatformDataCache;
 
@@ -275,16 +271,16 @@ const SimpleFontData* FontCache::PlatformFallbackFontForCharacter(
   ThreadLocalFallbackCacheContainer& container = GetThreadLocalContainer();
   auto it = container.cache.find(key);
   if (it != container.cache.end()) {
-    platform_data = it->value.get();
+    platform_data = it->value.Get();
   } else {
     // Construct the platform data using the safe, normalized float size
     // to prevent malformed values from propagating downstream.
-    auto new_data = std::make_unique<FontPlatformData>(
+    auto* new_data = MakeGarbageCollected<FontPlatformData>(
         std::move(typeface), std::string(), font_size, synthetic_bold,
         synthetic_italic, font_description.TextRendering(),
         ResolvedFontFeatures(), font_description.Orientation());
-    platform_data = new_data.get();
-    container.cache.insert(key, std::move(new_data));
+    platform_data = new_data;
+    container.cache.insert(key, new_data);
   }
 
   return FontDataFromFontPlatformData(platform_data);
