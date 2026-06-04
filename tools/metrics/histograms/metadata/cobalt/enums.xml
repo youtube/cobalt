@@ -117,6 +117,14 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="2" label="Config is missing timestamp"/>
 </enum>
 
+<enum name="FinchConfigOutcome">
+  <int value="0" label="Regular config loaded"/>
+  <int value="1" label="Safe config loaded"/>
+  <int value="2" label="Empty config loaded due to crash streak"/>
+  <int value="3" label="Empty config loaded due to expiration"/>
+  <int value="4" label="Empty config loaded due to rollback"/>
+</enum>
+
 </enums>
 
 </histogram-configuration>

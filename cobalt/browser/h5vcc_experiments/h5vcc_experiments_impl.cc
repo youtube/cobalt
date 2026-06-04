@@ -18,6 +18,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
@@ -94,6 +95,20 @@ void H5vccExperimentsImpl::SetExperimentState(
       ->GetMetricsStateManager()
       ->clean_exit_beacon()
       ->WriteBeaconValue(true);
+
+  int64_t previous_fetch_time_internal = experiment_config_ptr->GetInt64(
+      variations::prefs::kVariationsLastFetchTime);
+  if (previous_fetch_time_internal > 0) {
+    base::Time previous_fetch_time =
+        base::Time::FromInternalValue(previous_fetch_time_internal);
+    base::TimeDelta time_since_last_write =
+        base::Time::Now() - previous_fetch_time;
+    if (time_since_last_write.is_positive()) {
+      base::UmaHistogramCustomTimes("Cobalt.Finch.TimeBetweenWrites",
+                                    time_since_last_write, base::Hours(1),
+                                    base::Days(30), 50);
+    }
+  }
 
   experiment_config_ptr->SetInt64(variations::prefs::kVariationsLastFetchTime,
                                   base::Time::Now().ToInternalValue());
