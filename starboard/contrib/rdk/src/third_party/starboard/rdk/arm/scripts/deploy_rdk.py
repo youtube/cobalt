@@ -26,22 +26,25 @@ Usage Examples:
   1. Build and deploy as Cobalt plugin (default: config: qa, out: out/evergreen-arm-hardfp-rdk_qa):
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py
 
-  2. Build, deploy, and RUN Cobalt plugin on device:
+  2. Deploy a pre-built package and run it:
+     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --out-dir ~/Downloads/evergreen-arm-hardfp-rdk_qa/ --skip-build --run
+
+  3. Build, deploy, and RUN Cobalt plugin on device:
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run
 
-  3. Build, deploy, and RUN nplb tests on device (uses devel config):
+  4. Build, deploy, and RUN nplb tests on device (uses devel config):
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --tests nplb --run
 
-  4. Build and deploy as standalone executable (loader_app):
+  5. Build and deploy as standalone executable (loader_app):
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --mode executable
 
-  5. Force deploy and run even if artifacts are up-to-date:
+  6. Force deploy and run even if artifacts are up-to-date:
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run --force-deploy
 
-  6. Reset RDK display (fixes stuck sessions caused by executable mode):
+  7. Reset RDK display (fixes stuck sessions caused by executable mode):
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --reset
 
-  7. Deploy only the libcobalt library:
+  8. Deploy only the libcobalt library:
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --only-lib
 """
 
