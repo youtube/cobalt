@@ -72,11 +72,6 @@ runs:
         # Parse the JSON array into a space-separated string using jq.
         test_executables=$(jq -nr --arg json "${TEST_EXECUTABLES_JSON:-[]}" '$json | fromjson | join(" ")')
 
-        if [[ -z "${test_executables}" ]]; then
-          echo "No tests to execute. Skipping."
-          exit 0
-        fi
-
         for test_executable_path in ${test_executables}; do
           filename=$(basename "${test_executable_path}")
           test_executable="${filename%%.*}"
