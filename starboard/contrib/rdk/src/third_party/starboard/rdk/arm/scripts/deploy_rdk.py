@@ -147,17 +147,25 @@ def package_and_deploy(
     device_id: str,
     out_dir: Path,
     remote_dir: str,
-    deps_file: Path,
+    deps_file: Optional[Path],
     mode: str,
 ) -> None:
     """Packages artifacts using runtime_deps and pushes to device."""
     print("=== Packaging & Deploying artifacts ===")
     archive_name = "archive.tar.gz"
 
-    tar_cmd = ["tar", "-czvf", archive_name, "-C", str(out_dir), "-T", str(deps_file)]
-    if mode == "plugin":
-        tar_cmd.append("libloader_app.so")
-    tar_cmd.extend(["gen/build_info.json"])
+    if deps_file and deps_file.exists():
+        tar_cmd = ["tar", "-czvf", archive_name, "-C", str(out_dir), "-T", str(deps_file)]
+        if mode == "plugin":
+            tar_cmd.append("libloader_app.so")
+        build_info = out_dir / "gen/build_info.json"
+        if build_info.exists():
+            tar_cmd.append("gen/build_info.json")
+    else:
+        if deps_file:
+            print(f"Warning: deps_file {deps_file} not found.")
+        print(f"Packaging everything in {out_dir}")
+        tar_cmd = ["tar", "-czvf", archive_name, "-C", str(out_dir), "."]
 
     print(f"Packaging with: {' '.join(tar_cmd)}")
     run_command(tar_cmd)
@@ -252,6 +260,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--out-dir", type=str, help="Custom build output directory.")
     parser.add_argument(
+        "--skip-build",
+        action="store_true",
+        help="Skip configure and build steps.",
+    )
+    parser.add_argument(
         "--run", action="store_true", help="Run on device after build/deploy.")
     parser.add_argument(
         "--force-deploy",
@@ -309,12 +322,14 @@ def main() -> None:
         else:
             remote_dir = EXECUTABLE_REMOTE_DIR
 
-    configure_build(PLATFORM, config, out_dir)
-    build_output = build_targets(out_dir, targets)
-
-    # Deployment Check
-    is_up_to_date = build_output and any(
-        msg in build_output for msg in ["Everything is up-to-date", "no work to do"])
+    if not args.skip_build:
+        configure_build(PLATFORM, config, out_dir)
+        build_output = build_targets(out_dir, targets)
+        is_up_to_date = build_output and any(
+            msg in build_output for msg in ["Everything is up-to-date", "no work to do"])
+    else:
+        print("=== Skipping build step ===")
+        is_up_to_date = False
 
     if is_up_to_date and not args.force_deploy:
         print("=== Up to date. Skipping deployment. ===")
