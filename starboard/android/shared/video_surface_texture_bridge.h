@@ -17,6 +17,8 @@
 
 #include <jni.h>
 
+#include <array>
+
 #include "base/memory/raw_ref.h"
 #include "starboard/common/log.h"
 #include "third_party/jni_zero/jni_zero.h"
@@ -61,7 +63,7 @@ class VideoSurfaceTextureBridge {
   static void GetTransformMatrix(
       JNIEnv* env,
       const jni_zero::JavaRef<jobject>& surface_texture,
-      const jni_zero::JavaParamRef<jfloatArray>& mtx);
+      std::array<float, 16>* out_matrix);
 
   void OnFrameAvailable(JNIEnv*) { host_->OnFrameAvailable(); }
 

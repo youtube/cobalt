@@ -110,23 +110,6 @@ const int kMaxPendingInputsSize = 128;
 
 const int kFpsGuesstimateRequiredInputBufferCount = 3;
 
-std::array<float, 16> GetTransformMatrix(
-    const JavaRef<jobject>& surface_texture) {
-  JNIEnv* env = AttachCurrentThread();
-
-  jni_zero::ScopedJavaLocalRef<jfloatArray> java_array(env,
-                                                       env->NewFloatArray(16));
-  SB_CHECK(java_array);
-
-  VideoSurfaceTextureBridge::GetTransformMatrix(
-      env, surface_texture,
-      jni_zero::JavaParamRef<jfloatArray>(env, java_array.obj()));
-
-  std::array<float, 16> matrix4x4;
-  env->GetFloatArrayRegion(java_array.obj(), 0, 16, matrix4x4.data());
-  return matrix4x4;
-}
-
 void StubDrmSessionUpdateRequestFunc(SbDrmSystem drm_system,
                                      void* context,
                                      int ticket,
@@ -622,10 +605,14 @@ SbDecodeTarget MediaCodecVideoDecoder::GetCurrentDecodeTarget() {
 void MediaCodecVideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
   SB_DCHECK(!frame_sizes_.empty());
 
+  JNIEnv* env = AttachCurrentThread();
+  std::array<float, 16> matrix4x4;
+
   while (!frame_sizes_.empty()) {
     const auto& frame_size = frame_sizes_.front();
     if (frame_size.has_crop_values) {
-      auto matrix4x4 = GetTransformMatrix(decode_target_->surface_texture());
+      VideoSurfaceTextureBridge::GetTransformMatrix(
+          env, decode_target_->surface_texture(), &matrix4x4);
       auto [content_region, coded_size] =
           GetDecodeTargetGeometryFromMatrix(matrix4x4, frame_size.display_size);
 
@@ -685,7 +672,8 @@ void MediaCodecVideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
   // the video texture, which is true for most of the playbacks.
   // Leaving the legacy logic in place in case the new logic above doesn't work
   // on some devices, so at least the majority of playbacks still work.
-  auto matrix4x4 = GetTransformMatrix(decode_target_->surface_texture());
+  VideoSurfaceTextureBridge::GetTransformMatrix(
+      env, decode_target_->surface_texture(), &matrix4x4);
   auto [content_region, coded_size] = GetDecodeTargetGeometryFromMatrix(
       matrix4x4, frame_sizes_.back().display_size);
   decode_target_->set_dimension(coded_size);

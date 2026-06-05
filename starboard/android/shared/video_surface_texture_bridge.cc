@@ -66,8 +66,13 @@ void VideoSurfaceTextureBridge::UpdateTexImage(
 void VideoSurfaceTextureBridge::GetTransformMatrix(
     JNIEnv* env,
     const JavaRef<jobject>& surface_texture,
-    const JavaParamRef<jfloatArray>& mtx) {
-  Java_VideoSurfaceTexture_getTransformMatrix(env, surface_texture, mtx);
+    std::array<float, 16>* out_matrix) {
+  SB_CHECK(out_matrix);
+  ScopedJavaLocalRef<jfloatArray> java_array =
+      Java_VideoSurfaceTexture_getTransformMatrix(env, surface_texture);
+  SB_CHECK(java_array);
+  env->GetFloatArrayRegion(java_array.obj(), /*start=*/0, /*len=*/16,
+                           out_matrix->data());
 }
 
 }  // namespace starboard
