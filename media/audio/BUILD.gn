@@ -41,9 +41,11 @@ source_set("audio") {
     # TODO(dalecurtis): Move android audio pieces into //media/audio.
     "//media/base/android",
   ]
-  if (!is_cobalt) {
-    visibility += [ ":flac_audio_handler_fuzzer" ]
+
+  if (is_cobalt) {
+    visibility -= [ ":flac_audio_handler_fuzzer" ]
   }
+
   sources = [
     "aecdump_recording_manager.cc",
     "aecdump_recording_manager.h",
@@ -388,12 +390,12 @@ source_set("audio") {
     ]
   }
 
-  if (!is_cobalt) {
-    sources += [
+  if (is_cobalt) {
+    sources -= [
       "flac_audio_handler.cc",
       "flac_audio_handler.h",
     ]
-    deps += [ "//third_party/flac" ]
+    deps -= [ "//third_party/flac" ]
   }
 }
 
@@ -533,8 +535,9 @@ source_set("unit_tests") {
       "test_data.h",
       "wav_audio_handler_unittest.cc",
     ]
-    if (!is_cobalt) {
-      sources += [ "flac_audio_handler_unittest.cc" ]
+    
+    if (is_cobalt) {
+      sources -= [ "flac_audio_handler_unittest.cc" ]
     }
   }
 
