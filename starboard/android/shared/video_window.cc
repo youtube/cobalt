@@ -64,9 +64,7 @@ void JNI_VideoSurfaceView_OnVideoSurfaceChanged(
     g_video_surface_holder->OnSurfaceDestroyed();
     g_video_surface_holder = NULL;
   }
-  if (GetGlobalVideoSurface()) {
-    GetGlobalVideoSurface().Reset();
-  }
+  GetGlobalVideoSurface().Reset();
   if (g_native_video_window) {
     ANativeWindow_release(g_native_video_window);
     g_native_video_window = NULL;
