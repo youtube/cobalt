@@ -26,7 +26,7 @@
 #include "starboard/shared/internal_only.h"
 
 namespace starboard {
-class FixedSizeMemoryPool;
+class MemoryPool;
 
 // A buffer containing arbitrary binary data, with life time and size managed.
 // It performs better than std::vector<> as it doesn't fill the buffer with 0s.
@@ -88,7 +88,7 @@ class Buffer {
   }
 
   static size_t GetPoolFreeListSizeForTesting();
-  static size_t GetPoolCapacityForTesting();
+  static size_t GetPoolTotalBlocksForTesting();
 
  private:
   static uint8_t* AllocateData(size_t size);

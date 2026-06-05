@@ -44,7 +44,7 @@
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/shared/starboard/player/lazy_initializer.h"
-#include "starboard/shared/starboard/player/object_pool.h"
+#include "starboard/shared/starboard/player/memory_pool.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
@@ -56,8 +56,8 @@ using jni_zero::JavaRef;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
-LazyInitializer<ObjectPool, /*NoDestruct=*/true> g_pool;
-ObjectPool* GetPool();
+LazyInitializer<MemoryPool, /*NoDestruct=*/true> g_pool;
+MemoryPool* GetPool();
 
 class VideoFrameImpl : public VideoFrame {
  public:
@@ -66,13 +66,13 @@ class VideoFrameImpl : public VideoFrame {
   void* operator new(size_t size) {
     if (FeatureList::IsEnabled(features::kVideoFrameImplMemoryPool) &&
         size == sizeof(VideoFrameImpl)) {
-      return GetPool()->Allocate();
+      return GetPool()->Allocate(size);
     }
     return ::operator new(size);
   }
 
   void operator delete(void* ptr) {
-    ObjectPool* pool = g_pool.GetIfInitialized();
+    MemoryPool* pool = g_pool.GetIfInitialized();
     if (pool) {
       pool->Free(ptr);
     } else {
@@ -139,7 +139,7 @@ const int kFpsGuesstimateRequiredInputBufferCount = 3;
 // This is a safe margin to avoid fallback to heap allocation.
 constexpr size_t kPoolSize = 32;
 
-ObjectPool* GetPool() {
+MemoryPool* GetPool() {
   return g_pool.Get("VideoFrameImpl", sizeof(VideoFrameImpl), kPoolSize);
 }
 
