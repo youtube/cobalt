@@ -606,13 +606,12 @@ void MediaCodecVideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
   SB_DCHECK(!frame_sizes_.empty());
 
   JNIEnv* env = AttachCurrentThread();
-  std::array<float, 16> matrix4x4;
 
   while (!frame_sizes_.empty()) {
     const auto& frame_size = frame_sizes_.front();
     if (frame_size.has_crop_values) {
-      VideoSurfaceTextureBridge::GetTransformMatrix(
-          env, decode_target_->surface_texture(), &matrix4x4);
+      auto matrix4x4 = VideoSurfaceTextureBridge::GetTransformMatrix(
+          env, decode_target_->surface_texture());
       auto [content_region, coded_size] =
           GetDecodeTargetGeometryFromMatrix(matrix4x4, frame_size.display_size);
 
@@ -672,8 +671,8 @@ void MediaCodecVideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
   // the video texture, which is true for most of the playbacks.
   // Leaving the legacy logic in place in case the new logic above doesn't work
   // on some devices, so at least the majority of playbacks still work.
-  VideoSurfaceTextureBridge::GetTransformMatrix(
-      env, decode_target_->surface_texture(), &matrix4x4);
+  auto matrix4x4 = VideoSurfaceTextureBridge::GetTransformMatrix(
+      env, decode_target_->surface_texture());
   auto [content_region, coded_size] = GetDecodeTargetGeometryFromMatrix(
       matrix4x4, frame_sizes_.back().display_size);
   decode_target_->set_dimension(coded_size);

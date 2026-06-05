@@ -63,16 +63,16 @@ void VideoSurfaceTextureBridge::UpdateTexImage(
 }
 
 // static
-void VideoSurfaceTextureBridge::GetTransformMatrix(
+std::array<float, 16> VideoSurfaceTextureBridge::GetTransformMatrix(
     JNIEnv* env,
-    const JavaRef<jobject>& surface_texture,
-    std::array<float, 16>* out_matrix) {
-  SB_CHECK(out_matrix);
+    const JavaRef<jobject>& surface_texture) {
   ScopedJavaLocalRef<jfloatArray> java_array =
       Java_VideoSurfaceTexture_getTransformMatrix(env, surface_texture);
   SB_CHECK(java_array);
+  std::array<float, 16> out_matrix;
   env->GetFloatArrayRegion(java_array.obj(), /*start=*/0, /*len=*/16,
-                           out_matrix->data());
+                           out_matrix.data());
+  return out_matrix;
 }
 
 }  // namespace starboard
