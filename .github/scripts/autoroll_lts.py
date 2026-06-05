@@ -28,46 +28,50 @@ _SKIP_LIST = {
     ],
 }
 
-# Default commit to start rolling from if none is specified.
-# Pointing to the last release chore.
-_DEFAULT_START_COMMIT = '2079b05a9fee4de18abd188fa4a6aceb01a77d7e'
-
 
 def get_out(cmd):
   res = subprocess.run(cmd, capture_output=True, text=True, check=True)
   return res.stdout
 
 
-def get_commits(origin, target, start):
+def get_commits(source, target, start):
   """Returns a list of commit lines in chronological order.
 
-  Retrieves commits that are present on the origin branch but not on the target
+  Retrieves commits that are present on the source branch but not on the target
   branch, optionally starting from a specific commit.
   """
-  cmd = ['git', 'rev-list', '--oneline', '--reverse', origin, f'^{target}']
+  cmd = [
+      'git', 'rev-list', '--oneline', '--no-abbrev-commit', '--reverse', source,
+      f'^{target}'
+  ]
   if start:
-    cmd.append(f'{start}^..{origin}')
+    cmd.append(f'{start}^..{source}')
   return get_out(cmd).splitlines()
 
 
-def get_pr_set(branch, exclude_branch):
-  """Returns a set of PR numbers that have been merged into the branch.
+def get_change_id_set(branch, exclude_branch, identifier_type):
+  """Returns a set of change IDs that have been merged into the branch.
 
-  Excludes any PRs that exist on the exclude_branch. Automatically accounts for
-  reverted cherry-picks.
+  Excludes any changes that exist on the exclude_branch. Automatically accounts
+  for reverted cherry-picks.
   """
-  prs = set()
+  if identifier_type == 'pr':
+    pattern = r'Cherry pick PR #(\d+)'
+  else:
+    pattern = r'Cherry pick commit ([0-9a-fA-F]{4,40})'
+
+  change_ids = set()
   cmd = ['git', 'log', '--reverse', '--format=%s', branch, f'^{exclude_branch}']
   subjects = get_out(cmd).splitlines()
   for subject in subjects:
-    match = re.match(r"""^(Revert\s+['"]?)?Cherry pick PR #(\d+):""", subject)
+    match = re.match(fr'^(Revert\s+[\'"]?)?{pattern}:', subject)
     if match:
-      revert, pr_num = match.groups()
+      revert, change_id = match.groups()
       if revert:
-        prs.discard(pr_num)
+        change_ids.discard(change_id)
       else:
-        prs.add(pr_num)
-  return prs
+        change_ids.add(change_id)
+  return change_ids
 
 
 def get_unmerged_files():
@@ -147,10 +151,16 @@ def cherry_pick(sha, num, title):
   body = parts[2] if len(parts) > 2 else ''
 
   body_section = f'{body}\n\n' if body else ''
-  msg = (f'Cherry pick PR #{num}: {title}\n\n'
-         f'Refer to original PR: #{num}\n\n'
-         f'{body_section}'
-         f'(cherry picked from commit {sha})')
+  if num is not None:
+    msg = (f'Cherry pick PR #{num}: {title}\n\n'
+           f'Refer to original PR: #{num}\n\n'
+           f'{body_section}'
+           f'(cherry picked from commit {sha})')
+  else:
+    msg = (f'Cherry pick commit {sha}: {title}\n\n'
+           f'Refer to original commit: {sha}\n\n'
+           f'{body_section}'
+           f'(cherry picked from commit {sha})')
 
   cmd = ['git', 'cherry-pick', '--no-commit']
   ps = get_out(['git', 'show', '-s', '--format=%P', sha]).strip().split()
@@ -181,50 +191,59 @@ def cherry_pick(sha, num, title):
 
 def main():
   p = argparse.ArgumentParser()
+  p.add_argument('--source-branch', required=True)
   p.add_argument('--target-branch', required=True)
-  p.add_argument('--start-commit', default=_DEFAULT_START_COMMIT)
-  p.add_argument('--origin-branch', default='main')
+  p.add_argument('--start-commit')
   p.add_argument('--max-commits', type=int, default=1000)
+  p.add_argument('--identifier-type', required=True)
   args = p.parse_args()
 
-  links = []
-  target_prs = get_pr_set(args.target_branch, args.origin_branch)
-  autoroll_prs = get_pr_set('HEAD', args.origin_branch)
+  # All cherry picked changes in target branch since the branch point.
+  target_change_ids = get_change_id_set(args.target_branch, args.source_branch,
+                                        args.identifier_type)
+  # All cherry picked changes in autoroll branch since the branch point.
+  autoroll_change_ids = get_change_id_set('HEAD', args.source_branch,
+                                          args.identifier_type)
+  commits_added = []
 
-  # Get the number of unmerged commits on the autoroll branch.
-  commits_added = len(autoroll_prs - target_prs)
-
-  for line in get_commits(args.origin_branch, args.target_branch,
+  # All commits in source branch and not in target branch (all commits
+  # since the branch point).
+  for line in get_commits(args.source_branch, args.target_branch,
                           args.start_commit):
-    if commits_added >= args.max_commits:
+    if len(commits_added) >= args.max_commits:
       print(f"Reached commit limit ({args.max_commits}).", file=sys.stderr)
       break
 
-    # Match commits that follow standard PR merge commit format:
-    # "<sha> <title> (#<pr_num>)"
-    match = re.match(r'^(\w+) (.*) \(#(\d+)\)$', line)
+    match = re.match(r'^(\w+) (.*?)(?: \(#(\d+)\))?$', line)
+    sha, title, pr_num = match.groups()
     if match:
-      sha, title, pr_num = match.groups()
-      if any(
-          skip_sha.startswith(sha)
-          for skip_sha in _SKIP_LIST.get(args.target_branch, [])):
+      # Skip if in skip list.
+      if sha in _SKIP_LIST.get(args.target_branch, []):
         continue
 
-      # Skip if the PR is already in the target branch.
-      if pr_num in target_prs:
-        continue
-
-      # If the PR is not on the current (autoroll) branch, cherry-pick it.
-      if pr_num not in autoroll_prs:
-        if cherry_pick(sha, pr_num, title):
-          autoroll_prs.add(pr_num)
-          commits_added += 1
-          links.append(f'- #{pr_num}')
+      if args.identifier_type == 'pr':
+        change_id = pr_num
+        prefix = '#'
       else:
-        links.append(f'- #{pr_num}')
+        change_id = sha
+        prefix = ''
 
-  if links:
-    print('\n'.join(links))
+      # Skip if in target branch.
+      if change_id in target_change_ids:
+        continue
+
+      # Skip if in autoroll branch.
+      if change_id in autoroll_change_ids:
+        commits_added.append(f'- {prefix}{change_id}')
+        continue
+
+      # Cherry pick PR.
+      if cherry_pick(sha, pr_num, title):
+        autoroll_change_ids.add(change_id)
+        commits_added.append(f'- {prefix}{change_id}')
+
+  if commits_added:
+    print('\n'.join(commits_added))
 
 
 if __name__ == '__main__':

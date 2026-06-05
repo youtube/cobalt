@@ -12,44 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-static_library("fake_graphics_context_provider") {
-  testonly = true
-
+static_library("feature_list") {
   sources = [
-    "fake_graphics_context_provider.cc",
-    "fake_graphics_context_provider.h",
+    "feature_list.cc",
+    "feature_list.h",
   ]
 
-  deps = [
-    "//starboard:starboard_headers_only",
-    "//starboard/common",
-    "//starboard/egl_and_gles:buildflags",
-  ]
+  deps = [ "//starboard/common" ]
 }
 
-static_library("scoped_feature_list") {
+source_set("starboard_test") {
   testonly = true
 
-  sources = [
-    "scoped_feature_list.cc",
-    "scoped_feature_list.h",
-  ]
+  sources = [ "feature_list_test.cc" ]
 
   deps = [
+    ":feature_list",
     "//starboard/common",
-    "//starboard/shared/starboard:feature_list",
-  ]
-}
-
-source_set("testing_test") {
-  testonly = true
-
-  sources = [ "scoped_feature_list_test.cc" ]
-
-  deps = [
-    ":scoped_feature_list",
-    "//starboard/common",
-    "//starboard/shared/starboard:feature_list",
     "//testing/gtest",
   ]
 }
