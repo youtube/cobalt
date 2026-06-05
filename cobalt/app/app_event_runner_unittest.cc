@@ -15,10 +15,12 @@
 #include "cobalt/app/app_event_runner.h"
 
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
+#include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_test_support.h"
 #include "content/public/browser/visibility.h"
 #include "content/test/test_web_contents.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -119,13 +121,33 @@ TEST_F(AppEventRunnerTest, OnConceal) {
 TEST_F(AppEventRunnerTest, OnReveal) {
   CreateTestShell(false /* is_visible */);
 
+  // Simulate that the frame was visible before conceal, so OnReveal will
+  // trigger WasShown().
+  platform_->AddPreviouslyVisibleWebContentsForTesting(shell_->web_contents());
+
+  // Bind a mock renderer to CobaltLifecycleManager.
+  mojo::Remote<cobalt::mojom::CobaltLifecycleObserver> remote;
+  CobaltLifecycleManager::GetInstance()->BindReceiver(
+      shell_->web_contents()->GetPrimaryMainFrame(),
+      remote.BindNewPipeAndPassReceiver());
+
   EXPECT_CALL(*platform_, OnReveal());
-  EXPECT_CALL(*platform_, RevealShell(shell_));
+  EXPECT_CALL(*platform_, RevealShell(shell_))
+      .WillOnce(
+          [](content::Shell* shell) { shell->web_contents()->WasShown(); });
   runner_->OnReveal();
 
   EXPECT_TRUE(runner_->is_visible());
+  // Visibility should be VISIBLE because we called WasShown() in RevealShell
+  // to unblock the renderer.
   EXPECT_EQ(shell_->web_contents()->GetVisibility(),
             content::Visibility::VISIBLE);
+  // Simulate Reveal ACK from the frame via Mojo to complete transition.
+  remote->OnPageVisibilityChanged(true);
+  base::RunLoop().RunUntilIdle();
+
+  remote.reset();
+  base::RunLoop().RunUntilIdle();
 }
 
 TEST_F(AppEventRunnerTest, OnFreeze) {
