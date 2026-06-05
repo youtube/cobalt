@@ -39,22 +39,46 @@
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
+#include "starboard/shared/starboard/player/lazy_initializer.h"
+#include "starboard/shared/starboard/player/object_pool.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 namespace {
 
+using features::FeatureList;
 using jni_zero::AttachCurrentThread;
 using jni_zero::JavaRef;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
+LazyInitializer<ObjectPool, /*NoDestruct=*/true> g_pool;
+ObjectPool* GetPool();
+
 class VideoFrameImpl : public VideoFrame {
  public:
   typedef std::function<void()> VideoFrameReleaseCallback;
+
+  void* operator new(size_t size) {
+    if (FeatureList::IsEnabled(features::kVideoFrameImplMemoryPool) &&
+        size == sizeof(VideoFrameImpl)) {
+      return GetPool()->Allocate();
+    }
+    return ::operator new(size);
+  }
+
+  void operator delete(void* ptr) {
+    ObjectPool* pool = g_pool.GetIfInitialized();
+    if (pool) {
+      pool->Free(ptr);
+    } else {
+      ::operator delete(ptr);
+    }
+  }
 
   VideoFrameImpl(const DequeueOutputResult& dequeue_output_result,
                  MediaCodec* media_codec_bridge,
@@ -109,6 +133,32 @@ const int kTunnelModePrerollFrameCount = 1;
 const int kMaxPendingInputsSize = 128;
 
 const int kFpsGuesstimateRequiredInputBufferCount = 3;
+
+// kPoolSize (32) is chosen to accommodate the maximum number of video frames
+// that can be in-flight concurrently in the decoder and renderer pipeline.
+// This is a safe margin to avoid fallback to heap allocation.
+constexpr size_t kPoolSize = 32;
+
+ObjectPool* GetPool() {
+  return g_pool.Get(sizeof(VideoFrameImpl), kPoolSize);
+}
+
+std::array<float, 16> GetTransformMatrix(
+    const JavaRef<jobject>& surface_texture) {
+  JNIEnv* env = AttachCurrentThread();
+
+  jni_zero::ScopedJavaLocalRef<jfloatArray> java_array(env,
+                                                       env->NewFloatArray(16));
+  SB_CHECK(java_array);
+
+  VideoSurfaceTextureBridge::GetTransformMatrix(
+      env, surface_texture,
+      jni_zero::JavaParamRef<jfloatArray>(env, java_array.obj()));
+
+  std::array<float, 16> matrix4x4;
+  env->GetFloatArrayRegion(java_array.obj(), 0, 16, matrix4x4.data());
+  return matrix4x4;
+}
 
 void StubDrmSessionUpdateRequestFunc(SbDrmSystem drm_system,
                                      void* context,

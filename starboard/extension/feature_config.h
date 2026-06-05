@@ -102,6 +102,11 @@ FEATURE_LIST_START
 
 #if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 // keep-sorted start newline_separated=yes
+// When enabled, Cobalt pools physical memory allocations for decoded audio
+// buffers inside a thread-safe fixed-size pool, preventing progressive heap
+// fragmentation on restricted-memory devices.
+STARBOARD_FEATURE(kDecodedAudioBufferPool, "DecodedAudioBufferPool", false)
+
 // By default, app provisioning is disabled. Set the following variable to true
 // to enable app provisioning.
 STARBOARD_FEATURE(kEnableAppProvisioning, "EnableAppProvisioning", false)
@@ -168,6 +173,10 @@ STARBOARD_FEATURE(kUseStubVideoDecoder, "UseStubVideoDecoder", false)
 STARBOARD_FEATURE(kVideoDecoderDelayUsecOverride,
                   "VideoDecoderDelayUsecOverride",
                   false)
+
+// Enable thread-safe memory pool for VideoFrameImpl to eliminate steady-state
+// heap allocations.
+STARBOARD_FEATURE(kVideoFrameImplMemoryPool, "VideoFrameImplMemoryPool", false)
 // keep-sorted end
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_LIST_END
