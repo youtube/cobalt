@@ -38,7 +38,7 @@ namespace cobalt {
 
 #if BUILDFLAG(IS_STARBOARD)
 namespace {
-const int kNavigationTimeoutSeconds = 30;
+constexpr int kNavigationTimeoutSeconds = 30;
 }  // namespace
 
 class CobaltWebContentsObserver::PlatformErrorBridge {
@@ -161,8 +161,10 @@ void CobaltWebContentsObserver::RaisePlatformError() {
           &CobaltWebContentsObserver::HandlePlatformErrorResponse, bridge)) {
     LOG(WARNING) << "Did not handle platform error";
     is_platform_error_showing_ = false;
-    delete bridge;
-    pending_platform_error_bridge_ = nullptr;
+    if (pending_platform_error_bridge_ == bridge) {
+      delete bridge;
+      pending_platform_error_bridge_ = nullptr;
+    }
   }
 }
 
