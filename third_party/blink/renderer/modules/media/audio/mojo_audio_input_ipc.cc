@@ -8,6 +8,7 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/logging.h"
 #include "base/metrics/histogram_macros.h"
 #include "media/audio/audio_device_description.h"
 #include "media/mojo/common/input_error_code_converter.h"
@@ -112,6 +113,7 @@ void MojoAudioInputIPC::StreamCreated(
     media::mojom::blink::ReadOnlyAudioDataPipePtr data_pipe,
     bool initially_muted,
     const absl::optional<base::UnguessableToken>& stream_id) {
+  LOG(INFO) << "SAMSUNG DEBUG - MojoAudioInputIPC::StreamCreated called";
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(delegate_);
   DCHECK(!stream_);
