@@ -171,6 +171,10 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/audio_sink/stub_audio_sink_type.h",
     "//starboard/shared/starboard/event_cancel.cc",
     "//starboard/shared/starboard/event_schedule.cc",
+    "//starboard/shared/starboard/feature_list.cc",
+    "//starboard/shared/starboard/feature_list.h",
+    "//starboard/shared/starboard/features.cc",
+    "//starboard/shared/starboard/features.h",
     "//starboard/shared/starboard/file_storage/storage_close_record.cc",
     "//starboard/shared/starboard/file_storage/storage_delete_record.cc",
     "//starboard/shared/starboard/file_storage/storage_get_record_size.cc",
@@ -315,6 +319,7 @@ if (current_toolchain == starboard_toolchain) {
       ":starboard_platform",
       "//starboard:starboard_with_main",
       "//starboard/shared/starboard/player/filter/testing:test_util",
+      "//starboard/testing:scoped_feature_list",
       "//testing/gmock",
       "//testing/gtest",
     ]
