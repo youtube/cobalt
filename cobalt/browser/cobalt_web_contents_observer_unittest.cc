@@ -184,6 +184,7 @@ TEST_F(CobaltWebContentsObserverTest, MultipleNavigationsResetsTimer) {
 
 TEST_F(CobaltWebContentsObserverTest, DoesNotRaiseAnotherErrorIfOneIsShowing) {
   EXPECT_CALL(*observer(), RaisePlatformErrorProxy(_, kTestUrl)).Times(1);
+  observer()->DidStartNavigation(&navigation_handle());
   navigation_handle().set_net_error_code(net::ERR_CONNECTION_RESET);
   observer()->DidFinishNavigation(&navigation_handle());
 
