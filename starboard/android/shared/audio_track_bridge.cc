@@ -37,6 +37,19 @@ using jni_zero::JavaParamRef;
 using jni_zero::ScopedJavaGlobalRef;
 using jni_zero::ScopedJavaLocalRef;
 
+// Safely casts a JavaRef (like ScopedJavaGlobalRef) to a ScopedJavaLocalRef of
+// a different JNI type (e.g. jobject to jfloatArray).
+//
+// Copied from Chromium/WebRTC. See
+// https://github.com/youtube/cobalt/blob/f0ef063d30589b39dc4a1433b0dde659d2fb5eea/third_party/webrtc/sdk/android/native_api/jni/scoped_java_ref.h#L30-L37
+template <typename T, typename U>
+inline ScopedJavaLocalRef<T> static_java_ref_cast(
+    JNIEnv* env,
+    const jni_zero::JavaRef<U>& ref) {
+  ScopedJavaLocalRef<U> owned_ref(env, ref);
+  return ScopedJavaLocalRef<T>(env, static_cast<T>(owned_ref.Release()));
+}
+
 const jint kNoOffset = 0;
 
 }  // namespace
@@ -65,39 +78,22 @@ std::unique_ptr<AudioTrackBridge> AudioTrackBridge::Create(
     // explicit.
   }
 
+  int max_samples_per_write = [&] {
+    if (coding_type != kSbMediaAudioCodingTypePcm) {
+      SB_DCHECK(!sample_type);
+      return kMaxFramesPerRequest;
+    }
+    return channels * kMaxFramesPerRequest;
+  }();
+
   JNIEnv* env = AttachCurrentThread();
-
-  int max_samples_per_write = 0;
-  ScopedJavaGlobalRef<jobject> j_audio_data;
-  if (coding_type != kSbMediaAudioCodingTypePcm) {
-    SB_DCHECK(!sample_type);
-    max_samples_per_write = kMaxFramesPerRequest;
-    j_audio_data = ScopedJavaLocalRef<jbyteArray>(
-        env, env->NewByteArray(max_samples_per_write));
-  } else if (sample_type == kSbMediaAudioSampleTypeFloat32) {
-    max_samples_per_write = channels * kMaxFramesPerRequest;
-    j_audio_data = ScopedJavaLocalRef<jfloatArray>(
-        env, env->NewFloatArray(channels * kMaxFramesPerRequest));
-  } else if (sample_type == kSbMediaAudioSampleTypeInt16Deprecated) {
-    max_samples_per_write = channels * kMaxFramesPerRequest;
-    int size_in_bytes = channels * GetBytesPerSample(sample_type.value()) *
-                        kMaxFramesPerRequest;
-    j_audio_data =
-        ScopedJavaLocalRef<jbyteArray>(env, env->NewByteArray(size_in_bytes));
-  } else {
-    SB_NOTREACHED();
-  }
-
-  if (j_audio_data.is_null()) {
-    SB_LOG(WARNING) << "Failed to allocate |j_audio_data_|";
-    return nullptr;
-  }
 
   ScopedJavaLocalRef<jobject> j_audio_track_bridge =
       AudioOutputManager::GetInstance()->CreateAudioTrackBridge(
           env, GetAudioFormatSampleType(coding_type, sample_type),
-          sampling_frequency_hz, channels, preferred_buffer_size_in_bytes,
-          tunnel_mode_audio_session_id, is_web_audio);
+          sampling_frequency_hz, channels, max_samples_per_write,
+          preferred_buffer_size_in_bytes, tunnel_mode_audio_session_id,
+          is_web_audio);
 
   if (j_audio_track_bridge.is_null()) {
     // One of the cases that this may hit is when output happened to be switched
@@ -111,9 +107,17 @@ std::unique_ptr<AudioTrackBridge> AudioTrackBridge::Create(
     return nullptr;
   }
 
-  return std::make_unique<AudioTrackBridge>(PassKey<AudioTrackBridge>(),
-                                            max_samples_per_write,
-                                            j_audio_track_bridge, j_audio_data);
+  ScopedJavaLocalRef<jobject> j_audio_data =
+      Java_AudioTrackBridge_getPreAllocatedAudioData(env, j_audio_track_bridge);
+
+  if (j_audio_data.is_null()) {
+    SB_LOG(WARNING) << "Failed to retrieve |j_audio_data_|";
+    return nullptr;
+  }
+
+  return std::make_unique<AudioTrackBridge>(
+      PassKey<AudioTrackBridge>(), max_samples_per_write, j_audio_track_bridge,
+      ScopedJavaGlobalRef<jobject>(env, j_audio_data));
 }
 
 AudioTrackBridge::AudioTrackBridge(
@@ -130,9 +134,8 @@ AudioTrackBridge::~AudioTrackBridge() {
     // Both the global and local references refer to the exact same Java object
     // in the JVM.
     JNIEnv* env = AttachCurrentThread();
-    jobject audio_track_bridge_ref =
-        env->NewLocalRef(j_audio_track_bridge_.obj());
-    ScopedJavaLocalRef<jobject> audio_track_bridge(env, audio_track_bridge_ref);
+    ScopedJavaLocalRef<jobject> audio_track_bridge =
+        j_audio_track_bridge_.AsLocalRef(env);
     AudioOutputManager::GetInstance()->DestroyAudioTrackBridge(
         env, audio_track_bridge);
   }
@@ -180,11 +183,11 @@ int AudioTrackBridge::WriteSample(const float* samples,
   num_of_samples = std::min(num_of_samples, max_samples_per_write_);
 
   SB_DCHECK(env->IsInstanceOf(j_audio_data_.obj(), env->FindClass("[F")));
-  env->SetFloatArrayRegion(static_cast<jfloatArray>(j_audio_data_.obj()),
-                           kNoOffset, num_of_samples, samples);
+  ScopedJavaLocalRef<jfloatArray> audio_data_local_ref =
+      static_java_ref_cast<jfloatArray>(env, j_audio_data_);
 
-  ScopedJavaLocalRef<jfloatArray> audio_data_local_ref(
-      env, static_cast<jfloatArray>(env->NewLocalRef(j_audio_data_.obj())));
+  env->SetFloatArrayRegion(audio_data_local_ref.obj(), kNoOffset,
+                           num_of_samples, samples);
 
   return Java_AudioTrackBridge_write(env, j_audio_track_bridge_,
                                      // JavaParamRef<jfloatArray>'s raw pointer
@@ -203,12 +206,12 @@ int AudioTrackBridge::WriteSample(const uint16_t* samples,
   num_of_samples = std::min(num_of_samples, max_samples_per_write_);
 
   SB_DCHECK(env->IsInstanceOf(j_audio_data_.obj(), env->FindClass("[B")));
-  env->SetByteArrayRegion(static_cast<jbyteArray>(j_audio_data_.obj()),
-                          kNoOffset, num_of_samples * sizeof(uint16_t),
-                          reinterpret_cast<const jbyte*>(samples));
+  ScopedJavaLocalRef<jbyteArray> audio_data_local_ref =
+      static_java_ref_cast<jbyteArray>(env, j_audio_data_);
 
-  ScopedJavaLocalRef<jbyteArray> audio_data_local_ref(
-      env, static_cast<jbyteArray>(env->NewLocalRef(j_audio_data_.obj())));
+  env->SetByteArrayRegion(audio_data_local_ref.obj(), kNoOffset,
+                          num_of_samples * sizeof(uint16_t),
+                          reinterpret_cast<const jbyte*>(samples));
 
   int bytes_written = Java_AudioTrackBridge_writeWithPresentationTime(
       env, j_audio_track_bridge_,
@@ -235,12 +238,11 @@ int AudioTrackBridge::WriteSample(const uint8_t* samples,
   num_of_samples = std::min(num_of_samples, max_samples_per_write_);
 
   SB_DCHECK(env->IsInstanceOf(j_audio_data_.obj(), env->FindClass("[B")));
-  env->SetByteArrayRegion(static_cast<jbyteArray>(j_audio_data_.obj()),
-                          kNoOffset, num_of_samples,
-                          reinterpret_cast<const jbyte*>(samples));
+  ScopedJavaLocalRef<jbyteArray> audio_data_local_ref =
+      static_java_ref_cast<jbyteArray>(env, j_audio_data_);
 
-  ScopedJavaLocalRef<jbyteArray> audio_data_local_ref(
-      env, static_cast<jbyteArray>(env->NewLocalRef(j_audio_data_.obj())));
+  env->SetByteArrayRegion(audio_data_local_ref.obj(), kNoOffset, num_of_samples,
+                          reinterpret_cast<const jbyte*>(samples));
 
   int bytes_written = Java_AudioTrackBridge_writeWithPresentationTime(
       env, j_audio_track_bridge_,
