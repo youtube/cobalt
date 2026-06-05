@@ -49,7 +49,7 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
       content::NavigationHandle* navigation_handle) override;
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
-  void RaisePlatformError();
+  void RaisePlatformError(int64_t navigation_id);
 #endif  // BUILDFLAG(IS_STARBOARD)
 
  private:
@@ -62,10 +62,12 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
   static void HandlePlatformErrorResponse(
       SbSystemPlatformErrorResponse response,
       void* user_data);
-  void OnPlatformErrorResponse(SbSystemPlatformErrorResponse response);
+  void OnPlatformErrorResponse(SbSystemPlatformErrorResponse response,
+                               int64_t navigation_id);
   bool is_platform_error_showing_ = false;
   int platform_error_raised_count_ = 0;
   PlatformErrorBridge* pending_platform_error_bridge_ = nullptr;
+  int64_t latest_navigation_id_ = 0;
 
   base::OneShotTimer timeout_timer_;
   base::WeakPtrFactory<CobaltWebContentsObserver> weak_factory_{this};
