@@ -25,6 +25,7 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/timer/timer.h"
 #include "content/public/browser/navigation_controller.h"
@@ -51,6 +52,13 @@ class CobaltWebContentsObserver::PlatformErrorBridge {
   ~PlatformErrorBridge() = default;
 
   void Run(SbSystemPlatformErrorResponse response) {
+    {
+      base::AutoLock lock(lock_);
+      if (has_run_) {
+        return;
+      }
+      has_run_ = true;
+    }
     if (task_runner_->RunsTasksInCurrentSequence()) {
       RunOnSequence(response);
     } else {
@@ -65,6 +73,11 @@ class CobaltWebContentsObserver::PlatformErrorBridge {
     observer_.reset();
   }
 
+  void set_navigation_id(int64_t navigation_id) {
+    DCHECK(task_runner_->RunsTasksInCurrentSequence());
+    navigation_id_ = navigation_id;
+  }
+
  private:
   void RunOnSequence(SbSystemPlatformErrorResponse response) {
     DCHECK(task_runner_->RunsTasksInCurrentSequence());
@@ -77,6 +90,8 @@ class CobaltWebContentsObserver::PlatformErrorBridge {
   base::WeakPtr<CobaltWebContentsObserver> observer_;
   int64_t navigation_id_;
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
+  base::Lock lock_;
+  bool has_run_ = false;
 };
 #endif  // BUILDFLAG(IS_STARBOARD)
 
@@ -139,6 +154,9 @@ void CobaltWebContentsObserver::DidFinishNavigation(
   if (!navigation_handle->IsInPrimaryMainFrame()) {
     return;
   }
+  if (navigation_handle->GetNavigationId() != latest_navigation_id_) {
+    return;
+  }
 
   timeout_timer_.Stop();
   const auto net_error_code = navigation_handle->GetNetErrorCode();
@@ -153,6 +171,9 @@ void CobaltWebContentsObserver::DidFinishNavigation(
 
 void CobaltWebContentsObserver::RaisePlatformError(int64_t navigation_id) {
   if (is_platform_error_showing_) {
+    if (pending_platform_error_bridge_) {
+      pending_platform_error_bridge_->set_navigation_id(navigation_id);
+    }
     return;
   }
   if (navigation_id != latest_navigation_id_) {
