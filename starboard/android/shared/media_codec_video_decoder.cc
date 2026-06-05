@@ -56,7 +56,7 @@ using jni_zero::JavaRef;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
-LazyInitializer<ObjectPool> g_pool;
+LazyInitializer<ObjectPool, /*NoDestruct=*/true> g_pool;
 ObjectPool* GetPool();
 
 class VideoFrameImpl : public VideoFrame {

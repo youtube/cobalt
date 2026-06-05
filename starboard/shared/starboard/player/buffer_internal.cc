@@ -43,7 +43,7 @@ constexpr size_t kBufferSize = 32 * 1024;
 // consuming only ~1.25MB of RAM total (32KB * 40).
 constexpr size_t kPoolSize = 40;
 
-LazyInitializer<FixedSizeMemoryPool> g_buffer_pool;
+LazyInitializer<FixedSizeMemoryPool, /*NoDestruct=*/true> g_buffer_pool;
 
 FixedSizeMemoryPool* GetPool() {
   return g_buffer_pool.Get(kBufferSize, kPoolSize);

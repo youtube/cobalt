@@ -29,11 +29,18 @@ namespace starboard {
 // This is useful for delaying the allocation of heavy resources (like memory
 // pools) until they are actually needed, while still allowing safe, lock-free
 // checks of whether the resource has been initialized.
-template <typename T>
+//
+// If |NoDestruct| is true, the initialized object will not be deleted at
+// destruction. This is useful for global singletons to avoid shutdown
+// use-after-free crashes.
+template <typename T, bool NoDestruct = false>
 class LazyInitializer {
  public:
   LazyInitializer() = default;
   ~LazyInitializer() {
+    if (NoDestruct) {
+      return;
+    }
     T* val = value_.load(std::memory_order_acquire);
     delete val;
   }
