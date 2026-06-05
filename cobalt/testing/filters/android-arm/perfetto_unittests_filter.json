@@ -3,6 +3,7 @@
     "MessageTest.DestructInvalidMessageHandle",
     "NullTraceWriterDeathTest.NewTracePacketTakeStreamWriterNoFinish",
     "ScopedDirTest.CloseOutOfScope",
-    "UtilsTest.EintrWrapper"
+    "UtilsTest.EintrWrapper",
+    "FuchsiaTraceParserTest.FxtWithProtos"
   ]
 }
