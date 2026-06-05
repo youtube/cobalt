@@ -63,8 +63,10 @@ class NoDestructor {
   const T* operator->() const { return get(); }
   T* operator->() { return get(); }
 
-  const T* get() const { return reinterpret_cast<const T*>(storage_); }
-  T* get() { return reinterpret_cast<T*>(storage_); }
+  const T* get() const {
+    return std::launder(reinterpret_cast<const T*>(storage_));
+  }
+  T* get() { return std::launder(reinterpret_cast<T*>(storage_)); }
 
  private:
   alignas(T) char storage_[sizeof(T)];
