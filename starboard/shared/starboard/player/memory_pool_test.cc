@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/fixed_size_memory_pool.h"
+#include "starboard/shared/starboard/player/memory_pool.h"
 
 #include <thread>
 #include <vector>
@@ -22,50 +22,64 @@
 namespace starboard {
 namespace {
 
-TEST(FixedSizeMemoryPoolTest, BasicAllocationAndFree) {
+TEST(MemoryPoolTest, BasicAllocationAndFree) {
   const size_t kBlockSize = 32;
-  const size_t kCapacity = 4;
-  FixedSizeMemoryPool pool("TestPool", kBlockSize, kCapacity);
+  const size_t kTotalBlocks = 4;
+  MemoryPool pool("TestPool", kBlockSize, kTotalBlocks);
 
   EXPECT_EQ(pool.block_size(), kBlockSize);
-  EXPECT_EQ(pool.capacity(), kCapacity);
-  EXPECT_EQ(pool.free_list_size(), kCapacity);
+  EXPECT_EQ(pool.total_blocks(), kTotalBlocks);
+  EXPECT_EQ(pool.free_list_size(), kTotalBlocks);
 
   std::vector<void*> allocated_blocks;
 
   // 1. Allocate all blocks.
-  for (size_t i = 0; i < kCapacity; ++i) {
-    void* ptr = pool.Allocate();
+  for (size_t i = 0; i < kTotalBlocks; ++i) {
+    void* ptr = pool.Allocate(kBlockSize);
     ASSERT_NE(ptr, nullptr);
     EXPECT_TRUE(pool.IsFromPool(ptr));
     allocated_blocks.push_back(ptr);
   }
   EXPECT_EQ(pool.free_list_size(), 0);
 
-  // 2. Try to allocate one more. Should return nullptr (no fallback).
-  void* extra_ptr = pool.Allocate();
-  EXPECT_EQ(extra_ptr, nullptr);
+  // 2. Try to allocate one more. Should fallback to heap (not from pool).
+  void* extra_ptr = pool.Allocate(kBlockSize);
+  ASSERT_NE(extra_ptr, nullptr);
+  EXPECT_FALSE(pool.IsFromPool(extra_ptr));
+  EXPECT_EQ(pool.free_list_size(), 0);
 
-  // 3. Free all blocks.
+  // 3. Try to allocate with size exceeding block size. Should fallback to heap.
+  void* large_ptr = pool.Allocate(kBlockSize * 2);
+  ASSERT_NE(large_ptr, nullptr);
+  EXPECT_FALSE(pool.IsFromPool(large_ptr));
+
+  // 4. Free extra_ptr (heap). Should be deleted, not returned to pool.
+  pool.Free(extra_ptr);
+  EXPECT_EQ(pool.free_list_size(), 0);
+
+  // 5. Free large_ptr (heap). Should be deleted.
+  pool.Free(large_ptr);
+
+  // 6. Free all pool blocks.
   for (void* ptr : allocated_blocks) {
     pool.Free(ptr);
   }
-  EXPECT_EQ(pool.free_list_size(), kCapacity);
+  EXPECT_EQ(pool.free_list_size(), kTotalBlocks);
 
-  // 4. Allocate again.
-  void* ptr = pool.Allocate();
+  // 7. Allocate again. Should recycle.
+  void* ptr = pool.Allocate(kBlockSize);
   EXPECT_NE(ptr, nullptr);
   EXPECT_TRUE(pool.IsFromPool(ptr));
   pool.Free(ptr);
 }
 
-TEST(FixedSizeMemoryPoolTest, IsFromPool) {
+TEST(MemoryPoolTest, IsFromPool) {
   const size_t kBlockSize = 16;
-  const size_t kCapacity = 2;
-  FixedSizeMemoryPool pool("TestPool", kBlockSize, kCapacity);
+  const size_t kTotalBlocks = 2;
+  MemoryPool pool("TestPool", kBlockSize, kTotalBlocks);
 
-  void* ptr1 = pool.Allocate();
-  void* ptr2 = pool.Allocate();
+  void* ptr1 = pool.Allocate(kBlockSize);
+  void* ptr2 = pool.Allocate(kBlockSize);
 
   ASSERT_NE(ptr1, nullptr);
   ASSERT_NE(ptr2, nullptr);
@@ -75,6 +89,10 @@ TEST(FixedSizeMemoryPoolTest, IsFromPool) {
 
   // Null pointer.
   EXPECT_FALSE(pool.IsFromPool(nullptr));
+
+  // Const pointer.
+  const void* const_ptr = ptr1;
+  EXPECT_TRUE(pool.IsFromPool(const_ptr));
 
   // Heap pointer.
   int* heap_ptr = new int;
@@ -86,17 +104,18 @@ TEST(FixedSizeMemoryPoolTest, IsFromPool) {
   EXPECT_FALSE(pool.IsFromPool(misaligned_ptr));
 
   // Pointer past the end of the pool.
-  uint8_t* past_end_ptr = static_cast<uint8_t*>(ptr1) + kBlockSize * kCapacity;
+  uint8_t* past_end_ptr =
+      static_cast<uint8_t*>(ptr1) + kBlockSize * kTotalBlocks;
   EXPECT_FALSE(pool.IsFromPool(past_end_ptr));
 
   pool.Free(ptr1);
   pool.Free(ptr2);
 }
 
-TEST(FixedSizeMemoryPoolTest, ThreadSafety) {
+TEST(MemoryPoolTest, ThreadSafety) {
   const size_t kBlockSize = 64;
-  const size_t kCapacity = 10;
-  FixedSizeMemoryPool pool("TestPool", kBlockSize, kCapacity);
+  const size_t kTotalBlocks = 10;
+  MemoryPool pool("TestPool", kBlockSize, kTotalBlocks);
 
   const int kNumThreads = 4;
   const int kIterations = 100;
@@ -108,11 +127,10 @@ TEST(FixedSizeMemoryPoolTest, ThreadSafety) {
         std::vector<void*> allocated;
         // Allocate up to 2 blocks per thread.
         for (size_t j = 0; j < 2; ++j) {
-          void* ptr = pool.Allocate();
-          if (ptr) {
-            EXPECT_TRUE(pool.IsFromPool(ptr));
-            allocated.push_back(ptr);
-          }
+          void* ptr = pool.Allocate(kBlockSize);
+          ASSERT_NE(ptr, nullptr);
+          ASSERT_TRUE(pool.IsFromPool(ptr));
+          allocated.push_back(ptr);
         }
         std::this_thread::yield();
         for (void* ptr : allocated) {
@@ -126,18 +144,18 @@ TEST(FixedSizeMemoryPoolTest, ThreadSafety) {
     thread.join();
   }
 
-  EXPECT_EQ(pool.free_list_size(), kCapacity);
+  EXPECT_EQ(pool.free_list_size(), kTotalBlocks);
 }
 
-using FixedSizeMemoryPoolDeathTest = ::testing::Test;
+using MemoryPoolDeathTest = ::testing::Test;
 
-TEST_F(FixedSizeMemoryPoolDeathTest, DeathTest_InvalidConstructorArgs) {
-  EXPECT_DEATH_IF_SUPPORTED(FixedSizeMemoryPool("TestPool", 0, 10), "");
-  EXPECT_DEATH_IF_SUPPORTED(FixedSizeMemoryPool("TestPool", 10, 0), "");
+TEST_F(MemoryPoolDeathTest, DeathTest_InvalidConstructorArgs) {
+  EXPECT_DEATH_IF_SUPPORTED(MemoryPool("TestPool", 0, 10), "");
+  EXPECT_DEATH_IF_SUPPORTED(MemoryPool("TestPool", 10, 0), "");
 }
 
-TEST_F(FixedSizeMemoryPoolDeathTest, DeathTest_FreeInvalidPointer) {
-  FixedSizeMemoryPool pool("TestPool", 16, 2);
+TEST_F(MemoryPoolDeathTest, DeathTest_FreeInvalidPointer) {
+  MemoryPool pool("TestPool", 16, 2);
   int x;
   EXPECT_DEATH_IF_SUPPORTED(pool.Free(&x), "");
 }

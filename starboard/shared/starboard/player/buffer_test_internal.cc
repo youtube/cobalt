@@ -106,9 +106,9 @@ TEST(BufferTest, PoolAllocation) {
 #else
   scoped_features.InitAndEnableFeature("DecodedAudioBufferPool");
 #endif
-  size_t capacity = Buffer::GetPoolCapacityForTesting();
+  size_t total_blocks = Buffer::GetPoolTotalBlocksForTesting();
   size_t initial_free = Buffer::GetPoolFreeListSizeForTesting();
-  EXPECT_EQ(initial_free, capacity);
+  EXPECT_EQ(initial_free, total_blocks);
 
   {
     Buffer buffer1(100);
@@ -129,7 +129,7 @@ TEST(BufferTest, PoolAllocation) {
   EXPECT_EQ(Buffer::GetPoolFreeListSizeForTesting(), initial_free);
 
   std::vector<Buffer> buffers;
-  for (size_t i = 0; i < capacity; ++i) {
+  for (size_t i = 0; i < total_blocks; ++i) {
     buffers.emplace_back(100);
   }
   EXPECT_EQ(Buffer::GetPoolFreeListSizeForTesting(), 0U);
