@@ -97,6 +97,27 @@ class TestAPILeakDetector(unittest.TestCase):
     }
     self.assertEqual(libraries_to_ignore, expected_libraries)
 
+  @patch('builtins.open', new_callable=MagicMock)
+  def test_load_exported_symbols(self, mock_open):
+    mock_open.return_value.__enter__.return_value = [
+        '// Copyright 2019\n', '#define REGISTER_SYMBOL(s) map_[#s] = &s\n',
+        '#define REGISTER_WRAPPER(s) map_[#s] = &__abi_wrap_##s\n',
+        'ExportedSymbols::ExportedSymbols() {\n',
+        '  REGISTER_SYMBOL(kSbFileMaxName);\n',
+        '  REGISTER_SYMBOL(SbAudioSinkCreate);\n',
+        '  REGISTER_SYMBOL(malloc);\n', '  REGISTER_WRAPPER(accept);\n',
+        '  if (errno_translation()) {\n',
+        '    REGISTER_WRAPPER(__errno_location);\n', '  } else {\n',
+        '    REGISTER_SYMBOL(__errno_location);\n', '  }\n', '}\n'
+    ]
+
+    symbols = api_leak_detector.LoadExportedSymbols()
+    expected_symbols = {
+        'kSbFileMaxName', 'SbAudioSinkCreate', 'malloc', 'accept',
+        '__errno_location'
+    }
+    self.assertEqual(symbols, expected_symbols)
+
   @patch('builtins.print')
   def test_pretty_print_dict(self, mock_print):
     test_dict = {
