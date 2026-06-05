@@ -31,7 +31,7 @@ using ::testing::Return;
 
 namespace cobalt {
 
-#if BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_STARBOARD)
 namespace {
 const char kTestUrl[] = "https://www.youtube.com/tv";
 }  // namespace
@@ -212,5 +212,5 @@ TEST_F(CobaltWebContentsObserverTest, SuccessAfterTimeout) {
   navigation_handle().set_net_error_code(net::OK);
   observer()->DidFinishNavigation(&navigation_handle());
 }
-#endif  // BUILDFLAG(IS_ANDROIDTV)
+#endif  // BUILDFLAG(IS_STARBOARD)
 }  // namespace cobalt

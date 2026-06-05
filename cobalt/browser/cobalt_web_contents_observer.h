@@ -66,6 +66,8 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
   int platform_error_raised_count_ = 0;
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 #if BUILDFLAG(IS_STARBOARD)
+  class PlatformErrorBridge;
+  PlatformErrorBridge* pending_platform_error_bridge_ = nullptr;
   static void HandlePlatformErrorResponse(
       SbSystemPlatformErrorResponse response,
       void* user_data);

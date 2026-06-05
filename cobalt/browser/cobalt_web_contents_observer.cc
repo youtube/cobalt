@@ -17,6 +17,7 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/timer/timer.h"
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/browser/lifecycle/public/mojom/cobalt_lifecycle.mojom.h"
@@ -42,6 +43,42 @@ const int kJniErrorTypeConnectionError = 0;
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 }  // namespace
 
+#if BUILDFLAG(IS_STARBOARD)
+class CobaltWebContentsObserver::PlatformErrorBridge {
+ public:
+  PlatformErrorBridge(base::WeakPtr<CobaltWebContentsObserver> observer)
+      : observer_(observer),
+        task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {}
+
+  void Run(SbSystemPlatformErrorResponse response) {
+    if (task_runner_->RunsTasksInCurrentSequence()) {
+      RunOnSequence(response);
+    } else {
+      task_runner_->PostTask(FROM_HERE,
+                             base::BindOnce(&PlatformErrorBridge::RunOnSequence,
+                                            base::Unretained(this), response));
+    }
+  }
+
+  void Invalidate() {
+    DCHECK(task_runner_->RunsTasksInCurrentSequence());
+    observer_.reset();
+  }
+
+ private:
+  void RunOnSequence(SbSystemPlatformErrorResponse response) {
+    DCHECK(task_runner_->RunsTasksInCurrentSequence());
+    if (observer_) {
+      observer_->OnPlatformErrorResponse(response);
+    }
+    delete this;
+  }
+
+  base::WeakPtr<CobaltWebContentsObserver> observer_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
+};
+#endif  // BUILDFLAG(IS_STARBOARD)
+
 CobaltWebContentsObserver::CobaltWebContentsObserver(
     content::WebContents* web_contents)
     : content::WebContentsObserver(web_contents) {
@@ -65,7 +102,13 @@ CobaltWebContentsObserver::CobaltWebContentsObserver(
   }
 }
 
-CobaltWebContentsObserver::~CobaltWebContentsObserver() = default;
+CobaltWebContentsObserver::~CobaltWebContentsObserver() {
+#if BUILDFLAG(IS_STARBOARD)
+  if (pending_platform_error_bridge_) {
+    pending_platform_error_bridge_->Invalidate();
+  }
+#endif  // BUILDFLAG(IS_STARBOARD)
+}
 
 void CobaltWebContentsObserver::SetTimerForTestInternal(
     std::unique_ptr<base::OneShotTimer> timer) {
@@ -161,11 +204,15 @@ void CobaltWebContentsObserver::RaisePlatformError(const std::string& url) {
   platform_error_raised_count_++;
   base::UmaHistogramCounts100("Cobalt.Network.PlatformErrorCount",
                               platform_error_raised_count_);
+  auto* bridge = new PlatformErrorBridge(weak_factory_.GetWeakPtr());
+  pending_platform_error_bridge_ = bridge;
   if (!SbSystemRaisePlatformError(
           kSbSystemPlatformErrorTypeConnectionError,
-          &CobaltWebContentsObserver::HandlePlatformErrorResponse, this)) {
+          &CobaltWebContentsObserver::HandlePlatformErrorResponse, bridge)) {
     LOG(WARNING) << "Did not handle platform error";
     is_platform_error_showing_ = false;
+    delete bridge;
+    pending_platform_error_bridge_ = nullptr;
   }
 #else
   NOTIMPLEMENTED();
@@ -177,12 +224,13 @@ void CobaltWebContentsObserver::RaisePlatformError(const std::string& url) {
 void CobaltWebContentsObserver::HandlePlatformErrorResponse(
     SbSystemPlatformErrorResponse response,
     void* user_data) {
-  auto* observer = static_cast<CobaltWebContentsObserver*>(user_data);
-  observer->OnPlatformErrorResponse(response);
+  auto* bridge = static_cast<PlatformErrorBridge*>(user_data);
+  bridge->Run(response);
 }
 
 void CobaltWebContentsObserver::OnPlatformErrorResponse(
     SbSystemPlatformErrorResponse response) {
+  pending_platform_error_bridge_ = nullptr;
   is_platform_error_showing_ = false;
 #if !BUILDFLAG(IS_ANDROID)
   if (response == kSbSystemPlatformErrorResponsePositive) {
