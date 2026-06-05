@@ -34,7 +34,6 @@
 #include "base/task/bind_post_task.h"
 #include "build/build_config.h"
 #include "cobalt/browser/switches.h"
-#include "cobalt/shell/app/resource.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/browser/shell_devtools_frontend.h"
@@ -541,11 +540,6 @@ void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
 }
 
 void Shell::DidStopLoading() {
-  // Set initial focus to the web content.
-  if (web_contents()->GetRenderWidgetHostView()) {
-    web_contents()->GetRenderWidgetHostView()->Focus();
-  }
-
   if (!is_main_frame_loaded_ &&
       splash_state_ != STATE_SPLASH_SCREEN_UNINITIALIZED) {
     VLOG(1) << "NativeSplash: Main frame WebContents DidStopLoading.";
@@ -933,8 +927,9 @@ void Shell::RendererUnresponsive(
 }
 
 void Shell::ActivateContents(WebContents* contents) {
-  // TODO(danakj): Move this to ShellPlatformDelegate.
-  contents->Focus();
+  if (!g_platform->IsWaitingForRevealAck()) {
+    contents->GetPrimaryMainFrame()->GetRenderWidgetHost()->Focus();
+  }
 }
 
 void Shell::RunFileChooser(RenderFrameHost* render_frame_host,
@@ -1055,6 +1050,10 @@ bool Shell::CheckMediaAccessPermission(RenderFrameHost*,
                                        const GURL&,
                                        blink::mojom::MediaStreamType) {
   return true;
+}
+
+bool Shell::ShouldFocusPageAfterCrash() {
+  return !g_platform->IsWaitingForRevealAck();
 }
 
 gfx::Size Shell::GetShellDefaultSize() {

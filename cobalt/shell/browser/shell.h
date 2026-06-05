@@ -138,6 +138,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   WebContents* web_contents() const { return web_contents_.get(); }
 
   void Focus();
+  bool pending_focus() const { return pending_focus_; }
 
   WebContents* splash_screen_web_contents() const {
     return splash_screen_web_contents_.get();
@@ -218,6 +219,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   bool CheckMediaAccessPermission(RenderFrameHost*,
                                   const GURL&,
                                   blink::mojom::MediaStreamType) override;
+  bool ShouldFocusPageAfterCrash() override;
 
   static gfx::Size GetShellDefaultSize();
 

@@ -22,11 +22,13 @@
 
 #include "base/command_line.h"
 #include "base/memory/raw_ptr.h"
+#include "build/build_config.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_platform_delegate.h"
 #include "content/browser/accessibility/browser_accessibility_state_impl.h"
 #include "content/public/browser/browser_accessibility_state.h"
 #include "content/public/common/content_switches.h"
+#include "content/public/common/network_service_util.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_browser_context.h"
 #include "content/public/test/test_content_client_initializer.h"
@@ -34,9 +36,17 @@
 #include "mojo/core/embedder/embedder.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/aura/env.h"
 #include "ui/base/resource/resource_bundle.h"
+#include "ui/events/devices/device_data_manager.h"
+#include "ui/gfx/geometry/size.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/jni_android.h"
+#endif
+
+#if defined(USE_AURA)
+#include "ui/aura/env.h"
 #include "ui/views/views_delegate.h"
+#endif
 
 namespace content {
 
@@ -88,14 +98,18 @@ class TestBrowserAccessibilityState : public BrowserAccessibilityStateImpl {
 class MojoInitializer {
  public:
   MojoInitializer() {
+#if defined(USE_AURA)
     if (!aura::Env::HasInstance()) {
       aura_env_ = aura::Env::CreateInstance();
     }
+#endif
     mojo::core::Init();
   }
 
  private:
+#if defined(USE_AURA)
   std::unique_ptr<aura::Env> aura_env_;
+#endif
 };
 
 class ShellTestBase : public ::testing::Test {
@@ -105,6 +119,28 @@ class ShellTestBase : public ::testing::Test {
   ~ShellTestBase() override = default;
 
   void SetUp() override {
+#if BUILDFLAG(IS_ANDROID)
+    JNIEnv* env = base::android::AttachCurrentThread();
+    jclass looper_clazz = env->FindClass("android/os/Looper");
+    jmethodID my_looper_method = env->GetStaticMethodID(
+        looper_clazz, "myLooper", "()Landroid/os/Looper;");
+    jobject looper =
+        env->CallStaticObjectMethod(looper_clazz, my_looper_method);
+    if (!looper) {
+      jmethodID prepare_method =
+          env->GetStaticMethodID(looper_clazz, "prepare", "()V");
+      env->CallStaticVoidMethod(looper_clazz, prepare_method);
+      looper = env->CallStaticObjectMethod(looper_clazz, my_looper_method);
+    }
+    jclass thread_utils_clazz = env->FindClass("org/chromium/base/ThreadUtils");
+    jmethodID set_ui_thread_method = env->GetStaticMethodID(
+        thread_utils_clazz, "setUiThread", "(Landroid/os/Looper;)V");
+    env->CallStaticVoidMethod(thread_utils_clazz, set_ui_thread_method, looper);
+#endif
+
+    ForceInProcessNetworkService(true);
+    mojo::core::Init();
+    ui::DeviceDataManager::CreateInstance();
     base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
     if (!command_line->HasSwitch(switches::kSingleProcess)) {
       command_line->AppendSwitch(switches::kSingleProcess);
@@ -113,8 +149,7 @@ class ShellTestBase : public ::testing::Test {
     browser_context_ = std::make_unique<TestBrowserContext>();
     rvh_enabler_ = std::make_unique<RenderViewHostTestEnabler>();
     if (!ui::ResourceBundle::HasSharedInstance()) {
-      ui::ResourceBundle::InitSharedInstanceWithLocale(
-          "en-US", nullptr, ui::ResourceBundle::LOAD_COMMON_RESOURCES);
+      ui::ResourceBundle::InitSharedInstanceWithPakPath(base::FilePath());
     }
     browser_accessibility_state_ =
         std::make_unique<TestBrowserAccessibilityState>();
