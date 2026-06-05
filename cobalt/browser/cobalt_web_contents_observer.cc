@@ -181,8 +181,10 @@ void CobaltWebContentsObserver::OnPlatformErrorResponse(
 #if !BUILDFLAG(IS_ANDROID)
   if (response == kSbSystemPlatformErrorResponsePositive) {
     LOG(INFO) << "Platform error response is POSITIVE. Reloading...";
-    web_contents()->GetController().Reload(content::ReloadType::NORMAL,
-                                           /*check_for_repost=*/false);
+    if (web_contents()) {
+      web_contents()->GetController().Reload(content::ReloadType::NORMAL,
+                                             /*check_for_repost=*/false);
+    }
   } else {
     LOG(INFO) << "Platform error response is NEGATIVE/CANCEL. Stopping app...";
     SbSystemRequestStop(0);
