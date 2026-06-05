@@ -16,7 +16,10 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FIXED_SIZE_MEMORY_POOL_H_
 
 #include <cstddef>
+#include <cstdint>
 #include <mutex>
+#include <string>
+#include <string_view>
 #include <vector>
 
 namespace starboard {
@@ -29,9 +32,12 @@ namespace starboard {
 class FixedSizeMemoryPool {
  public:
   // Constructor.
+  // |name| is the name of the pool for logging.
   // |block_size| is the size of each block in bytes.
   // |capacity| is the number of blocks to pre-allocate. Must be > 0.
-  FixedSizeMemoryPool(size_t block_size, size_t capacity);
+  FixedSizeMemoryPool(std::string_view name,
+                      size_t block_size,
+                      size_t capacity);
   ~FixedSizeMemoryPool();
 
   // Disallow copy and assign.
@@ -50,17 +56,20 @@ class FixedSizeMemoryPool {
   // Helper to check if a pointer belongs to this pool.
   bool IsFromPool(void* ptr) const;
 
+  std::string_view name() const { return name_; }
   size_t block_size() const { return block_size_; }
   size_t capacity() const { return capacity_; }
   size_t free_list_size() const;
 
  private:
+  const std::string name_;
   const size_t block_size_;
   const size_t capacity_;
   void* const pool_storage_;
 
   mutable std::mutex mutex_;
   std::vector<void*> free_list_;  // Guarded by |mutex_|.
+  int64_t last_logged_us_ = 0;    // Guarded by |mutex_|.
 };
 
 }  // namespace starboard

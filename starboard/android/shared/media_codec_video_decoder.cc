@@ -140,7 +140,7 @@ const int kFpsGuesstimateRequiredInputBufferCount = 3;
 constexpr size_t kPoolSize = 32;
 
 ObjectPool* GetPool() {
-  return g_pool.Get(sizeof(VideoFrameImpl), kPoolSize);
+  return g_pool.Get("VideoFrameImpl", sizeof(VideoFrameImpl), kPoolSize);
 }
 
 std::array<float, 16> GetTransformMatrix(

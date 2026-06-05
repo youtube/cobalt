@@ -46,7 +46,7 @@ constexpr size_t kPoolSize = 40;
 LazyInitializer<FixedSizeMemoryPool, /*NoDestruct=*/true> g_buffer_pool;
 
 FixedSizeMemoryPool* GetPool() {
-  return g_buffer_pool.Get(kBufferSize, kPoolSize);
+  return g_buffer_pool.Get("DecodedAudioBuffer", kBufferSize, kPoolSize);
 }
 
 bool UseBufferPool() {
