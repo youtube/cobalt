@@ -64,7 +64,8 @@ class VideoFrameImpl : public VideoFrame {
   typedef std::function<void()> VideoFrameReleaseCallback;
 
   void* operator new(size_t size) {
-    if (FeatureList::IsEnabled(features::kEnableVideoFrameImplMemoryPool)) {
+    if (FeatureList::IsEnabled(features::kVideoFrameImplMemoryPool) &&
+        size == sizeof(VideoFrameImpl)) {
       return GetPool()->Allocate();
     }
     return ::operator new(size);

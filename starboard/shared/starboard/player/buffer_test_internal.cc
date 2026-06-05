@@ -58,6 +58,13 @@ TEST(BufferTest, CopyCtor) {
   }
 }
 
+TEST(BufferTest, CopyEmptyBuffer) {
+  Buffer original;
+  Buffer copy(original);
+  EXPECT_EQ(copy.size(), 0);
+  EXPECT_EQ(copy.data(), nullptr);
+}
+
 TEST(BufferTest, MoveCtor) {
   Buffer original(128);
   memset(original.data(), 'x', 128);
@@ -95,9 +102,9 @@ TEST(BufferTest, MoveAssignmentOperator) {
 TEST(BufferTest, PoolAllocation) {
   starboard::features::ScopedFeatureList scoped_features;
 #if BUILDFLAG(IS_ANDROID)
-  scoped_features.InitAndEnableFeature(features::kEnableDecodedAudioBufferPool);
+  scoped_features.InitAndEnableFeature(features::kDecodedAudioBufferPool);
 #else
-  scoped_features.InitAndEnableFeature("EnableDecodedAudioBufferPool");
+  scoped_features.InitAndEnableFeature("DecodedAudioBufferPool");
 #endif
   size_t capacity = Buffer::GetPoolCapacityForTesting();
   size_t initial_free = Buffer::GetPoolFreeListSizeForTesting();

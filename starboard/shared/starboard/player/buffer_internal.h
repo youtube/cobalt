@@ -49,7 +49,12 @@ class Buffer {
   }
 
   Buffer(const Buffer& that)
-      : size_(that.size_), data_(AllocateData(that.size_ + kPaddingSize * 2)) {
+      : size_(that.size_),
+        data_(that.data_ ? AllocateData(that.size_ + kPaddingSize * 2)
+                         : nullptr) {
+    if (!data_) {
+      return;
+    }
     memcpy(data_, that.data_, size_ + kPaddingSize * 2);
   }
   Buffer(Buffer&& that) : size_(that.size_), data_(that.data_) {

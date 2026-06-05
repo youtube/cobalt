@@ -51,13 +51,10 @@ FixedSizeMemoryPool* GetPool() {
 
 bool UseBufferPool() {
 #if BUILDFLAG(IS_ANDROID)
-  return features::FeatureList::IsEnabled(
-      features::kEnableDecodedAudioBufferPool);
+  return features::FeatureList::IsEnabled(features::kDecodedAudioBufferPool);
 #else
-  if (features::FeatureList::HasOverrideForTesting(
-          "EnableDecodedAudioBufferPool")) {
-    return features::FeatureList::IsEnabledByName(
-        "EnableDecodedAudioBufferPool");
+  if (features::FeatureList::HasOverrideForTesting("DecodedAudioBufferPool")) {
+    return features::FeatureList::IsEnabledByName("DecodedAudioBufferPool");
   }
   return false;
 #endif

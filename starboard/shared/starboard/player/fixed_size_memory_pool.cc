@@ -14,24 +14,32 @@
 
 #include "starboard/shared/starboard/player/fixed_size_memory_pool.h"
 
+#include <cstddef>
 #include <cstdint>
+#include <limits>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "starboard/common/pointer_arithmetic.h"
 
 namespace starboard {
 
 FixedSizeMemoryPool::FixedSizeMemoryPool(size_t block_size, size_t capacity)
     : block_size_([&] {
         SB_CHECK_GT(block_size, 0U);
-        return block_size;
+        return AlignUp(block_size, alignof(std::max_align_t));
       }()),
       capacity_([&] {
         SB_CHECK_GT(capacity, 0U);
         return capacity;
       }()),
-      pool_storage_(::operator new(block_size* capacity)) {
-  SB_CHECK(pool_storage_);
+      pool_storage_([&] {
+        SB_CHECK_LE(block_size_,
+                    std::numeric_limits<size_t>::max() / capacity_);
+        void* storage = ::operator new(block_size_ * capacity_);
+        SB_CHECK(storage);
+        return storage;
+      }()) {
   free_list_.reserve(capacity_);
 
   uint8_t* base = static_cast<uint8_t*>(pool_storage_);
