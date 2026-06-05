@@ -211,8 +211,10 @@ void CobaltWebContentsObserver::RaisePlatformError(const std::string& url) {
           &CobaltWebContentsObserver::HandlePlatformErrorResponse, bridge)) {
     LOG(WARNING) << "Did not handle platform error";
     is_platform_error_showing_ = false;
-    delete bridge;
-    pending_platform_error_bridge_ = nullptr;
+    if (pending_platform_error_bridge_ == bridge) {
+      delete bridge;
+      pending_platform_error_bridge_ = nullptr;
+    }
   }
 #else
   NOTIMPLEMENTED();
