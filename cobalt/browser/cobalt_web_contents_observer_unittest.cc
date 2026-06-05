@@ -40,14 +40,18 @@ class TestCobaltWebContentsObserver : public CobaltWebContentsObserver {
   explicit TestCobaltWebContentsObserver(content::WebContents* web_contents)
       : CobaltWebContentsObserver(web_contents) {}
 
-  MOCK_METHOD(void, RaisePlatformErrorProxy, (const std::string& url), ());
+  MOCK_METHOD(void,
+              RaisePlatformErrorProxy,
+              (int64_t navigation_id, const std::string& url),
+              ());
 
-  void RaisePlatformError(const std::string& url) override {
+  void RaisePlatformError(int64_t navigation_id,
+                          const std::string& url) override {
     if (error_is_showing_) {
       return;
     }
     error_is_showing_ = true;
-    RaisePlatformErrorProxy(url);
+    RaisePlatformErrorProxy(navigation_id, url);
   }
 
   void SetStartupDiagnosisInfo(const char* key, const char* value) override {
@@ -81,6 +85,7 @@ class CobaltWebContentsObserverTest : public content::ShellTestBase {
   }
 
   void TearDown() override {
+    mock_timer_ = nullptr;
     observer_.reset();
     web_contents_.reset();
     content::ShellTestBase::TearDown();
@@ -106,7 +111,7 @@ class CobaltWebContentsObserverTest : public content::ShellTestBase {
 };
 
 TEST_F(CobaltWebContentsObserverTest, NoErrorOnSuccessfulNavigation) {
-  EXPECT_CALL(*observer(), RaisePlatformErrorProxy(_)).Times(0);
+  EXPECT_CALL(*observer(), RaisePlatformErrorProxy(_, _)).Times(0);
   navigation_handle().set_is_in_primary_main_frame(true);
   navigation_handle().set_net_error_code(net::OK);
 
@@ -118,7 +123,7 @@ TEST_F(CobaltWebContentsObserverTest, NoErrorOnSuccessfulNavigation) {
 }
 
 TEST_F(CobaltWebContentsObserverTest, NoErrorOnAbortedNavigation) {
-  EXPECT_CALL(*observer(), RaisePlatformErrorProxy(_)).Times(0);
+  EXPECT_CALL(*observer(), RaisePlatformErrorProxy(_, _)).Times(0);
   navigation_handle().set_is_in_primary_main_frame(true);
   navigation_handle().set_net_error_code(net::ERR_ABORTED);
 
@@ -130,7 +135,7 @@ TEST_F(CobaltWebContentsObserverTest, NoErrorOnAbortedNavigation) {
 }
 
 TEST_F(CobaltWebContentsObserverTest, RaisesErrorOnFailedNavigation) {
-  EXPECT_CALL(*observer(), RaisePlatformErrorProxy(kTestUrl)).Times(1);
+  EXPECT_CALL(*observer(), RaisePlatformErrorProxy(_, kTestUrl)).Times(1);
   navigation_handle().set_net_error_code(net::ERR_CONNECTION_TIMED_OUT);
 
   observer()->DidStartNavigation(&navigation_handle());
@@ -141,7 +146,7 @@ TEST_F(CobaltWebContentsObserverTest, RaisesErrorOnFailedNavigation) {
 }
 
 TEST_F(CobaltWebContentsObserverTest, RaisesErrorOnTimeout) {
-  EXPECT_CALL(*observer(), RaisePlatformErrorProxy(kTestUrl)).Times(1);
+  EXPECT_CALL(*observer(), RaisePlatformErrorProxy(_, kTestUrl)).Times(1);
 
   observer()->DidStartNavigation(&navigation_handle());
   EXPECT_TRUE(mock_timer()->IsRunning());
@@ -151,7 +156,7 @@ TEST_F(CobaltWebContentsObserverTest, RaisesErrorOnTimeout) {
 }
 
 TEST_F(CobaltWebContentsObserverTest, DoesNotRaiseErrorForSubFrame) {
-  EXPECT_CALL(*observer(), RaisePlatformErrorProxy(_)).Times(0);
+  EXPECT_CALL(*observer(), RaisePlatformErrorProxy(_, _)).Times(0);
   navigation_handle().set_is_in_primary_main_frame(false);
   navigation_handle().set_net_error_code(net::ERR_CONNECTION_TIMED_OUT);
 
@@ -163,7 +168,7 @@ TEST_F(CobaltWebContentsObserverTest, DoesNotRaiseErrorForSubFrame) {
 }
 
 TEST_F(CobaltWebContentsObserverTest, MultipleNavigationsResetsTimer) {
-  EXPECT_CALL(*observer(), RaisePlatformErrorProxy(_)).Times(0);
+  EXPECT_CALL(*observer(), RaisePlatformErrorProxy(_, _)).Times(0);
   navigation_handle().set_is_in_primary_main_frame(true);
   navigation_handle().set_net_error_code(net::OK);
 
@@ -178,7 +183,7 @@ TEST_F(CobaltWebContentsObserverTest, MultipleNavigationsResetsTimer) {
 }
 
 TEST_F(CobaltWebContentsObserverTest, DoesNotRaiseAnotherErrorIfOneIsShowing) {
-  EXPECT_CALL(*observer(), RaisePlatformErrorProxy(kTestUrl)).Times(1);
+  EXPECT_CALL(*observer(), RaisePlatformErrorProxy(_, kTestUrl)).Times(1);
   navigation_handle().set_net_error_code(net::ERR_CONNECTION_RESET);
   observer()->DidFinishNavigation(&navigation_handle());
 
@@ -187,7 +192,7 @@ TEST_F(CobaltWebContentsObserverTest, DoesNotRaiseAnotherErrorIfOneIsShowing) {
 }
 
 TEST_F(CobaltWebContentsObserverTest, TimeoutThenFailureOnlyRaisesOnce) {
-  EXPECT_CALL(*observer(), RaisePlatformErrorProxy(kTestUrl)).Times(1);
+  EXPECT_CALL(*observer(), RaisePlatformErrorProxy(_, kTestUrl)).Times(1);
   observer()->DidStartNavigation(&navigation_handle());
   EXPECT_TRUE(mock_timer()->IsRunning());
 
@@ -200,7 +205,7 @@ TEST_F(CobaltWebContentsObserverTest, TimeoutThenFailureOnlyRaisesOnce) {
 }
 
 TEST_F(CobaltWebContentsObserverTest, SuccessAfterTimeout) {
-  EXPECT_CALL(*observer(), RaisePlatformErrorProxy(kTestUrl)).Times(1);
+  EXPECT_CALL(*observer(), RaisePlatformErrorProxy(_, kTestUrl)).Times(1);
   observer()->DidStartNavigation(&navigation_handle());
   EXPECT_TRUE(mock_timer()->IsRunning());
 

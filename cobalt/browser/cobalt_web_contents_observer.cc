@@ -46,8 +46,10 @@ const int kJniErrorTypeConnectionError = 0;
 #if BUILDFLAG(IS_STARBOARD)
 class CobaltWebContentsObserver::PlatformErrorBridge {
  public:
-  PlatformErrorBridge(base::WeakPtr<CobaltWebContentsObserver> observer)
+  PlatformErrorBridge(base::WeakPtr<CobaltWebContentsObserver> observer,
+                      int64_t navigation_id)
       : observer_(observer),
+        navigation_id_(navigation_id),
         task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {}
 
   void Run(SbSystemPlatformErrorResponse response) {
@@ -69,12 +71,13 @@ class CobaltWebContentsObserver::PlatformErrorBridge {
   void RunOnSequence(SbSystemPlatformErrorResponse response) {
     DCHECK(task_runner_->RunsTasksInCurrentSequence());
     if (observer_) {
-      observer_->OnPlatformErrorResponse(response);
+      observer_->OnPlatformErrorResponse(response, navigation_id_);
     }
     delete this;
   }
 
   base::WeakPtr<CobaltWebContentsObserver> observer_;
+  int64_t navigation_id_;
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
 };
 #endif  // BUILDFLAG(IS_STARBOARD)
@@ -126,13 +129,16 @@ void CobaltWebContentsObserver::DidStartNavigation(
     return;
   }
 
+  latest_navigation_id_ = handle->GetNavigationId();
+
   // Start a navigation timer with a timeout callback to raise a
   // network error dialog
   timeout_timer_->Stop();
   timeout_timer_->Start(
       FROM_HERE, base::Seconds(kNavigationTimeoutSeconds),
       base::BindOnce(&CobaltWebContentsObserver::OnNavigationTimeout,
-                     weak_factory_.GetWeakPtr(), handle->GetURL().spec()));
+                     weak_factory_.GetWeakPtr(), latest_navigation_id_,
+                     handle->GetURL().spec()));
 }
 
 // Opting for WebContentsObserver::DidFinishNavigation() over
@@ -157,7 +163,8 @@ void CobaltWebContentsObserver::DidFinishNavigation(
               << net::ErrorToString(net_error_code);
     SetStartupDiagnosisInfo("navigation_error",
                             net::ErrorToString(net_error_code).c_str());
-    RaisePlatformError(navigation_handle->GetURL().spec());
+    RaisePlatformError(navigation_handle->GetNavigationId(),
+                       navigation_handle->GetURL().spec());
   } else if (net_error_code == net::OK) {
     base::UmaHistogramBoolean("Cobalt.WebContentsObserver.FailedNavigation",
                               false);
@@ -175,12 +182,19 @@ void CobaltWebContentsObserver::SetStartupDiagnosisInfo(const char* key,
 #endif
 }
 
-void CobaltWebContentsObserver::OnNavigationTimeout(const std::string& url) {
+void CobaltWebContentsObserver::OnNavigationTimeout(int64_t navigation_id,
+                                                    const std::string& url) {
   base::UmaHistogramBoolean("Cobalt.Network.NavigationTimeout", true);
-  RaisePlatformError(url);
+  RaisePlatformError(navigation_id, url);
 }
 
-void CobaltWebContentsObserver::RaisePlatformError(const std::string& url) {
+void CobaltWebContentsObserver::RaisePlatformError(int64_t navigation_id,
+                                                   const std::string& url) {
+  if (navigation_id != latest_navigation_id_) {
+    LOG(INFO) << "Ignoring stale platform error request for navigation "
+              << navigation_id;
+    return;
+  }
 #if BUILDFLAG(IS_ANDROIDTV)
   JNIEnv* env = base::android::AttachCurrentThread();
   auto* starboard_bridge = starboard::StarboardBridge::GetInstance();
@@ -204,7 +218,8 @@ void CobaltWebContentsObserver::RaisePlatformError(const std::string& url) {
   platform_error_raised_count_++;
   base::UmaHistogramCounts100("Cobalt.Network.PlatformErrorCount",
                               platform_error_raised_count_);
-  auto* bridge = new PlatformErrorBridge(weak_factory_.GetWeakPtr());
+  auto* bridge =
+      new PlatformErrorBridge(weak_factory_.GetWeakPtr(), navigation_id);
   pending_platform_error_bridge_ = bridge;
   if (!SbSystemRaisePlatformError(
           kSbSystemPlatformErrorTypeConnectionError,
@@ -231,9 +246,15 @@ void CobaltWebContentsObserver::HandlePlatformErrorResponse(
 }
 
 void CobaltWebContentsObserver::OnPlatformErrorResponse(
-    SbSystemPlatformErrorResponse response) {
+    SbSystemPlatformErrorResponse response,
+    int64_t navigation_id) {
   pending_platform_error_bridge_ = nullptr;
   is_platform_error_showing_ = false;
+  if (navigation_id != latest_navigation_id_) {
+    LOG(INFO) << "Ignoring stale platform error response for navigation "
+              << navigation_id;
+    return;
+  }
 #if !BUILDFLAG(IS_ANDROID)
   if (response == kSbSystemPlatformErrorResponsePositive) {
     LOG(INFO) << "Platform error response is POSITIVE. Reloading...";
