@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_OBJECT_POOL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_OBJECT_POOL_H_
 
+#include <string_view>
+
 #include "starboard/shared/starboard/player/fixed_size_memory_pool.h"
 
 namespace starboard {
@@ -25,9 +27,10 @@ namespace starboard {
 class ObjectPool {
  public:
   // Constructor.
+  // |name| is the name of the pool for logging.
   // |element_size| is the size of each object in bytes.
   // |capacity| is the number of objects to pre-allocate. Must be > 0.
-  ObjectPool(size_t element_size, size_t capacity);
+  ObjectPool(std::string_view name, size_t element_size, size_t capacity);
 
   ~ObjectPool() = default;
 

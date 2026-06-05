@@ -17,15 +17,20 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <string_view>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/pointer_arithmetic.h"
+#include "starboard/common/time.h"
 
 namespace starboard {
 
-FixedSizeMemoryPool::FixedSizeMemoryPool(size_t block_size, size_t capacity)
-    : block_size_([&] {
+FixedSizeMemoryPool::FixedSizeMemoryPool(std::string_view name,
+                                         size_t block_size,
+                                         size_t capacity)
+    : name_(name),
+      block_size_([&] {
         SB_CHECK_GT(block_size, 0U);
         return AlignUp(block_size, alignof(std::max_align_t));
       }()),
@@ -46,6 +51,8 @@ FixedSizeMemoryPool::FixedSizeMemoryPool(size_t block_size, size_t capacity)
   for (size_t i = 0; i < capacity_; ++i) {
     free_list_.push_back(base + i * block_size_);
   }
+  SB_LOG(INFO) << "FixedSizeMemoryPool created: name=" << name_
+               << ", block_size=" << block_size_ << ", capacity=" << capacity_;
 }
 
 FixedSizeMemoryPool::~FixedSizeMemoryPool() {
@@ -57,6 +64,14 @@ FixedSizeMemoryPool::~FixedSizeMemoryPool() {
 void* FixedSizeMemoryPool::Allocate() {
   std::lock_guard lock(mutex_);
   if (free_list_.empty()) {
+    int64_t now = CurrentMonotonicTime();
+    if (now - last_logged_us_ >= 1'000'000) {
+      SB_LOG(WARNING) << "FixedSizeMemoryPool exhausted: name=" << name_
+                      << ", block_size=" << block_size_
+                      << ", capacity=" << capacity_
+                      << ". Fallback allocation will occur.";
+      last_logged_us_ = now;
+    }
     return nullptr;
   }
 

@@ -25,7 +25,7 @@ namespace {
 TEST(FixedSizeMemoryPoolTest, BasicAllocationAndFree) {
   const size_t kBlockSize = 32;
   const size_t kCapacity = 4;
-  FixedSizeMemoryPool pool(kBlockSize, kCapacity);
+  FixedSizeMemoryPool pool("TestPool", kBlockSize, kCapacity);
 
   EXPECT_EQ(pool.block_size(), kBlockSize);
   EXPECT_EQ(pool.capacity(), kCapacity);
@@ -62,7 +62,7 @@ TEST(FixedSizeMemoryPoolTest, BasicAllocationAndFree) {
 TEST(FixedSizeMemoryPoolTest, IsFromPool) {
   const size_t kBlockSize = 16;
   const size_t kCapacity = 2;
-  FixedSizeMemoryPool pool(kBlockSize, kCapacity);
+  FixedSizeMemoryPool pool("TestPool", kBlockSize, kCapacity);
 
   void* ptr1 = pool.Allocate();
   void* ptr2 = pool.Allocate();
@@ -96,7 +96,7 @@ TEST(FixedSizeMemoryPoolTest, IsFromPool) {
 TEST(FixedSizeMemoryPoolTest, ThreadSafety) {
   const size_t kBlockSize = 64;
   const size_t kCapacity = 10;
-  FixedSizeMemoryPool pool(kBlockSize, kCapacity);
+  FixedSizeMemoryPool pool("TestPool", kBlockSize, kCapacity);
 
   const int kNumThreads = 4;
   const int kIterations = 100;
@@ -132,12 +132,12 @@ TEST(FixedSizeMemoryPoolTest, ThreadSafety) {
 using FixedSizeMemoryPoolDeathTest = ::testing::Test;
 
 TEST_F(FixedSizeMemoryPoolDeathTest, DeathTest_InvalidConstructorArgs) {
-  EXPECT_DEATH_IF_SUPPORTED(FixedSizeMemoryPool(0, 10), "");
-  EXPECT_DEATH_IF_SUPPORTED(FixedSizeMemoryPool(10, 0), "");
+  EXPECT_DEATH_IF_SUPPORTED(FixedSizeMemoryPool("TestPool", 0, 10), "");
+  EXPECT_DEATH_IF_SUPPORTED(FixedSizeMemoryPool("TestPool", 10, 0), "");
 }
 
 TEST_F(FixedSizeMemoryPoolDeathTest, DeathTest_FreeInvalidPointer) {
-  FixedSizeMemoryPool pool(16, 2);
+  FixedSizeMemoryPool pool("TestPool", 16, 2);
   int x;
   EXPECT_DEATH_IF_SUPPORTED(pool.Free(&x), "");
 }

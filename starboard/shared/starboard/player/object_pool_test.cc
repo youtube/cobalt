@@ -30,7 +30,7 @@ struct TestObject {
 
 TEST(ObjectPoolTest, BasicAllocationAndRecycle) {
   // Create a pool with capacity 2.
-  ObjectPool pool(sizeof(TestObject), 2);
+  ObjectPool pool("TestObjectPool", sizeof(TestObject), 2);
   EXPECT_EQ(pool.capacity(), 2);
   EXPECT_EQ(pool.free_list_size(), 2);
 
@@ -73,7 +73,7 @@ TEST(ObjectPoolTest, BasicAllocationAndRecycle) {
 
 TEST(ObjectPoolTest, ThreadSafety) {
   const int kCapacity = 20;
-  ObjectPool pool(sizeof(TestObject), kCapacity);
+  ObjectPool pool("TestObjectPool", sizeof(TestObject), kCapacity);
   const int kNumThreads = 8;
   const int kAllocationsPerThread = 100;
 

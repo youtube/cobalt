@@ -15,11 +15,20 @@
 #include "starboard/shared/starboard/player/object_pool.h"
 
 #include <new>
+#include <string_view>
+
+#include "starboard/common/log.h"
 
 namespace starboard {
 
-ObjectPool::ObjectPool(size_t element_size, size_t capacity)
-    : pool_(element_size, capacity) {}
+ObjectPool::ObjectPool(std::string_view name,
+                       size_t element_size,
+                       size_t capacity)
+    : pool_(name, element_size, capacity) {
+  SB_LOG(INFO) << "ObjectPool created: name=" << name
+               << ", element_size=" << element_size
+               << ", capacity=" << capacity;
+}
 
 void* ObjectPool::Allocate() {
   void* ptr = pool_.Allocate();
