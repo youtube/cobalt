@@ -98,12 +98,19 @@ ApplicationRdk::ApplicationRdk(SbEventHandleCallback sb_event_handle_callback)
   : QueueApplication(sb_event_handle_callback)
   , input_handler_(new EssInput)
   , hang_monitor_(new HangMonitor("ApplicationRdk")) {
-  essos_context_recycle_ = !!getenv("COBALT_ESSOS_CONTEXT_DESTROY");
+  essos_context_destroy_ = !!getenv("COBALT_ESSOS_CONTEXT_DESTROY");
   BuildEssosContext();
 }
 
 ApplicationRdk::~ApplicationRdk() {
-  EssContextDestroy(ctx_);
+  if (native_window_) {
+    EssContextDestroyNativeWindow(ctx_, native_window_);
+    native_window_ = 0;
+  }
+  if (ctx_) {
+    EssContextDestroy(ctx_);
+    ctx_ = NULL;
+  }
 }
 
 void ApplicationRdk::Initialize() {
@@ -260,17 +267,35 @@ void ApplicationRdk::Inject(Event* e) {
 
 void ApplicationRdk::OnSuspend() {
   SbSpeechSynthesisCancel();
-  DestroyNativeWindow();
+
+  if ( !(monitor_timer_fd_ < 0) ) {
+    setTimerInterval(monitor_timer_fd_, 0s);
+  }
+
+  // Unset the Essos terminate listener to prevent callback loops
+  // when the window is destroyed during suspend.
+  EssContextSetTerminateListener(ctx_, nullptr, nullptr);
+
+  if (essos_context_destroy_) {
+    DestroyNativeWindow();
+  }
+
   TeardownJSONRPCLink();
-  setTimerInterval(ess_timer_fd_, 1s);
 }
 
 void ApplicationRdk::OnResume() {
-  if ( essos_context_recycle_ )
+  if ( essos_context_destroy_ ) {
     BuildEssosContext();
+  } else {
+    EssContextSetTerminateListener(ctx_, this, &terminateListener);
+  }
 
+  if ( !(monitor_timer_fd_ < 0) && hang_monitor_ ) {
+    setTimerInterval(monitor_timer_fd_, hang_monitor_->GetResetInterval());
+  }
+
+  // Only restart the Essos timer run loop once the window is materialized.
   setTimerInterval(ess_timer_fd_, kEssRunLoopPeriod);
-  MaterializeNativeWindow();
 }
 
 void ApplicationRdk::OnTerminated() {
@@ -296,8 +321,9 @@ void ApplicationRdk::OnDisplaySize(int width, int height) {
 }
 
 void ApplicationRdk::MaterializeNativeWindow() {
-  if (native_window_ != 0)
+  if (native_window_ != 0) {
     return;
+  }
 
   bool error = false;
 
@@ -325,22 +351,28 @@ void ApplicationRdk::MaterializeNativeWindow() {
 }
 
 void ApplicationRdk::DestroyNativeWindow() {
-  if (native_window_ == 0)
+  if (native_window_ == 0) {
     return;
-
-  if ( !EssContextDestroyNativeWindow(ctx_, native_window_) ) {
-    const char *detail = EssContextGetLastErrorDetail(ctx_);
-    SB_LOG(ERROR) << "Essos error: '" <<  detail << '\'';
   }
 
-  native_window_ = 0;
-
-  if ( essos_context_recycle_ ) {
+  if ( essos_context_destroy_ ) {
+    // If recycling context, we must destroy the window now as it cannot
+    // survive without the context.
+    if ( !EssContextDestroyNativeWindow(ctx_, native_window_) ) {
+      const char *detail = EssContextGetLastErrorDetail(ctx_);
+      SB_LOG(ERROR) << "Essos error: '" <<  detail << '\'';
+    }
+    native_window_ = 0;
     EssContextDestroy(ctx_);
     ctx_ = NULL;
   }
-  else
+  else {
+    // Keep the underlying OS-level native window plane (EssWindow handle)
+    // alive inside ApplicationRdk. This ensures that Chromium's cached EGL
+    // surfaces have a valid window reference in memory during suspend, preventing
+    // graphics driver or Wayland marshalling segmentation faults upon unfreeze.
     EssContextStop(ctx_);
+  }
 }
 
 void ApplicationRdk::DisplayInfoChanged() {
