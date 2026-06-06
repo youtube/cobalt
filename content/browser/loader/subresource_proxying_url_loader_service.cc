@@ -90,9 +90,9 @@ void SubresourceProxyingURLLoaderService::CreateLoaderAndStart(
 
   if (!PrefetchURLLoaderServiceContext::IsPrefetchRequest(
           resource_request_in) &&
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
       !resource_request_in.browsing_topics &&
-#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
       !resource_request_in.ad_auction_headers) {
     loader_factory_receivers_.ReportBadMessage(
         "Unexpected `resource_request_in` in "
@@ -103,9 +103,9 @@ void SubresourceProxyingURLLoaderService::CreateLoaderAndStart(
 
   if (PrefetchURLLoaderServiceContext::IsPrefetchRequest(resource_request_in) &&
       (
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
        resource_request_in.browsing_topics ||
-#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
        resource_request_in.ad_auction_headers)) {
     loader_factory_receivers_.ReportBadMessage(
         "Unexpected `resource_request_in` in "
@@ -115,7 +115,7 @@ void SubresourceProxyingURLLoaderService::CreateLoaderAndStart(
     return;
   }
 
-#if BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) || !CHROMIUM_MILESTONE_LE_138
+#if !BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) || !CHROMIUM_MILESTONE_LE_138
   if (resource_request_in.browsing_topics) {
     loader_factory_receivers_.ReportBadMessage(
         "Unexpected `resource_request_in` in "
@@ -132,7 +132,7 @@ void SubresourceProxyingURLLoaderService::CreateLoaderAndStart(
         "browsing_topics is set when Topics API is disabled.");
     return;
   }
-#endif  // BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) || !CHROMIUM_MILESTONE_LE_138
+#endif  // !BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) || !CHROMIUM_MILESTONE_LE_138
 
   if (resource_request_in.ad_auction_headers &&
       !base::FeatureList::IsEnabled(network::features::kInterestGroupStorage)) {
