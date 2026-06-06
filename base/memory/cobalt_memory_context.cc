@@ -8,8 +8,6 @@
 #include "base/no_destructor.h"
 #include "base/notreached.h"
 
-#include "starboard/common/thread.h"
-
 namespace base {
 namespace memory {
 
@@ -100,50 +98,6 @@ std::string_view ContextToString(MemoryContext context) {
       return "Unknown";
   }
 }
-
-namespace {
-void StarboardThreadMemoryContextCallback(starboard::ThreadMemoryContext context) {
-  MemoryContext base_context = MemoryContext::kUnknown;
-  switch (context) {
-    case starboard::ThreadMemoryContext::kUnknown:
-      base_context = MemoryContext::kUnknown;
-      break;
-    case starboard::ThreadMemoryContext::kDOM:
-      base_context = MemoryContext::kDOM;
-      break;
-    case starboard::ThreadMemoryContext::kLayout:
-      base_context = MemoryContext::kLayout;
-      break;
-    case starboard::ThreadMemoryContext::kMedia:
-      base_context = MemoryContext::kMedia;
-      break;
-    case starboard::ThreadMemoryContext::kScript:
-      base_context = MemoryContext::kScript;
-      break;
-    case starboard::ThreadMemoryContext::kNetwork:
-      base_context = MemoryContext::kNetwork;
-      break;
-    case starboard::ThreadMemoryContext::kGraphics:
-      base_context = MemoryContext::kGraphics;
-      break;
-    case starboard::ThreadMemoryContext::kStorage:
-      base_context = MemoryContext::kStorage;
-      break;
-    case starboard::ThreadMemoryContext::kPlatformStarboard:
-      base_context = MemoryContext::kPlatformStarboard;
-      break;
-  }
-  SetCurrentMemoryContext(base_context);
-}
-
-struct StarboardCallbackRegistrar {
-  StarboardCallbackRegistrar() {
-    starboard::RegisterThreadMemoryContextCallback(StarboardThreadMemoryContextCallback);
-  }
-};
-
-StarboardCallbackRegistrar g_starboard_callback_registrar;
-}  // namespace
 
 }  // namespace memory
 }  // namespace base
