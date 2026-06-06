@@ -512,7 +512,7 @@ void ImageLoader::DoUpdateFromElement(const DOMWrapperWorld* world,
           !SecurityOrigin::Create(url)->IsOpaque();
       resource_request.SetSharedStorageWritableOptedIn(
           shared_storage_writable_opted_in);
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
       if (GetElement()->FastHasAttribute(html_names::kBrowsingtopicsAttr) &&
           RuntimeEnabledFeatures::TopicsAPIEnabled(
               GetElement()->GetExecutionContext()) &&
@@ -521,7 +521,7 @@ void ImageLoader::DoUpdateFromElement(const DOMWrapperWorld* world,
         UseCounter::Count(document, mojom::blink::WebFeature::kTopicsAPIImg);
         UseCounter::Count(document, mojom::blink::WebFeature::kTopicsAPIAll);
       }
-#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
     }
 
     bool page_is_being_dismissed =

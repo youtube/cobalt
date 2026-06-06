@@ -801,7 +801,7 @@ static_library("test_support") {
     libs = [ "oleacc.lib" ]
   }
 
-  if (disable_privacy_sandbox_apis) {
+  if (!enable_privacy_sandbox_apis) {
     sources -= [
       "../browser/browsing_topics/test_util.cc",
       "../browser/browsing_topics/test_util.h",
