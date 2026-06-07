@@ -17,10 +17,12 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <mutex>
 #include <utility>
 #include <vector>
 
 #include "starboard/common/allocator.h"
+#include "starboard/common/memory_pressure_registry.h"
 #include "starboard/configuration.h"
 
 namespace starboard {
@@ -37,7 +39,7 @@ namespace starboard {
 //
 // Threading model: Not thread-safe. External synchronization is required when
 // accessing or allocating memory concurrently across multiple threads.
-class ReuseAllocatorBase : public Allocator {
+class ReuseAllocatorBase : public Allocator, public MemoryPressureObserver {
  public:
   // Allocator methods.
   size_t GetCapacity() const override { return capacity_; }
@@ -45,6 +47,9 @@ class ReuseAllocatorBase : public Allocator {
   // Immediately decommit all remaining decommitable blocks (e.g. on app
   // suspend).
   void DecommitAllDecommitableBlocks();
+
+  // MemoryPressureObserver implementation.
+  void OnMemoryPressure(SbMemoryPressureLevel level) override;
 
  protected:
   ReuseAllocatorBase(Allocator* fallback_allocator,
@@ -76,6 +81,14 @@ class ReuseAllocatorBase : public Allocator {
 
   // Step counter to amortize decommits across sequential active allocations.
   void TryToDecommitOneBlock();
+
+ protected:
+  Allocator* fallback_allocator() const { return fallback_allocator_; }
+
+  virtual void FlushPendingFrees() {}
+  virtual void DecommitFreeBlocks(size_t min_size_to_decommit) {}
+
+  mutable std::recursive_mutex mutex_;
 
   // Enumerates fallback backing allocations. Templated to allow zero-cost
   // compiler inlining for capturing lambdas and avoid std::function overhead.

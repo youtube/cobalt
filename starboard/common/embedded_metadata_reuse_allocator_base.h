@@ -147,6 +147,9 @@ class EmbeddedMetadataReuseAllocatorBase : public ReuseAllocatorBase {
                                                FreeBlockSet::iterator end,
                                                bool* allocate_from_front) = 0;
 
+  void FlushPendingFrees() override;
+  void DecommitFreeBlocks(size_t min_size_to_decommit) override;
+
  private:
   // The metadata of an allocated block stored at the very beginning of the
   // block when it's allocated.  It natually maintains a double linked list to

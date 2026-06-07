@@ -27,9 +27,11 @@
 #include "starboard/android/shared/platform_service.h"
 #include "starboard/android/shared/player_set_max_video_input_size.h"
 #include "starboard/android/shared/player_set_video_surface_view.h"
+#include "starboard/android/shared/memory_pressure.h"
 #include "starboard/android/shared/system_info_api.h"
 #include "starboard/common/string.h"
 #include "starboard/extension/configuration.h"
+#include "starboard/extension/memory_pressure.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/extension/experimental/experimental_features.h"
 #include "starboard/extension/features.h"
@@ -89,6 +91,9 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kStarboardExtensionSystemInfoName) == 0) {
     return starboard::GetSystemInfoApi();
+  }
+  if (strcmp(name, kStarboardExtensionMemoryPressureName) == 0) {
+    return starboard::android::shared::GetMemoryPressureApi();
   }
   return NULL;
 }

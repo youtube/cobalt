@@ -163,6 +163,8 @@ static_library("starboard_platform") {
     "egl_swap_buffers.cc",
     "features_extension.cc",
     "features_extension.h",
+    "memory_pressure.cc",
+    "memory_pressure.h",
     "file_internal.cc",
     "file_internal.h",
     "get_home_directory.cc",

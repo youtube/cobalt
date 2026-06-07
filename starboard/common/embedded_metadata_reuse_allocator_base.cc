@@ -14,6 +14,8 @@
 
 #include "starboard/common/embedded_metadata_reuse_allocator_base.h"
 
+#include <unistd.h>
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -147,6 +149,8 @@ void* EmbeddedMetadataReuseAllocatorBase::Allocate(size_t size,
                                                    size_t alignment) {
   SB_DCHECK_EQ(sizeof(BlockMetadata) % alignment, 0U);
 
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
+
   if (!pending_frees_.empty()) {
     for (auto address_to_free : pending_frees_) {
       bool freed = TryFree(address_to_free);
@@ -205,6 +209,7 @@ void EmbeddedMetadataReuseAllocatorBase::Free(void* memory) {
     return;
   }
 
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   pending_frees_.push_back(memory);
 
   if (pending_frees_.size() == total_allocated_blocks_) {
@@ -337,6 +342,7 @@ bool EmbeddedMetadataReuseAllocatorBase::TryFree(void* memory) {
     return true;
   }
 
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   BlockMetadata* metadata = static_cast<BlockMetadata*>(memory) - 1;
 
   if (metadata->signature != this ||
@@ -635,6 +641,35 @@ EmbeddedMetadataReuseAllocatorBase::AddFreeBlock(MemoryBlock block_to_add) {
 void EmbeddedMetadataReuseAllocatorBase::RemoveFreeBlock(
     FreeBlockSet::iterator it) {
   free_blocks_.erase(it);
+}
+
+void EmbeddedMetadataReuseAllocatorBase::FlushPendingFrees() {
+  if (!pending_frees_.empty()) {
+    for (auto address_to_free : pending_frees_) {
+      bool freed = TryFree(address_to_free);
+      SB_DCHECK(freed);
+    }
+    pending_frees_.clear();
+  }
+}
+
+void EmbeddedMetadataReuseAllocatorBase::DecommitFreeBlocks(
+    size_t min_size_to_decommit) {
+  size_t page_size = static_cast<size_t>(sysconf(_SC_PAGESIZE));
+  for (const auto& block : free_blocks_) {
+    if (block.size() >= min_size_to_decommit) {
+      uintptr_t start = reinterpret_cast<uintptr_t>(block.address());
+      uintptr_t end = start + block.size();
+      uintptr_t aligned_start = AlignUp(start, page_size);
+      if (aligned_start < end) {
+        size_t aligned_size = AlignDown(end - aligned_start, page_size);
+        if (aligned_size > 0) {
+          fallback_allocator()->Decommit(reinterpret_cast<void*>(aligned_start),
+                                         aligned_size, /*conservative=*/false);
+        }
+      }
+    }
+  }
 }
 
 }  // namespace starboard

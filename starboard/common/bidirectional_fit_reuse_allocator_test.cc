@@ -528,4 +528,62 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, TieredDecommit) {
   EXPECT_TRUE(found_block4);
 }
 
+TYPED_TEST(BidirectionalFitReuseAllocatorTest, OnMemoryPressure) {
+  const size_t kAlignment = sizeof(void*);
+  this->ResetAllocatorWithDecommitSupport();
+
+  const size_t kSmallSize = 512 * 1024;
+  const size_t kLargeSize = 2 * 1024 * 1024;
+
+  void* small_block = this->allocator_->Allocate(kSmallSize, kAlignment);
+  void* large_block = this->allocator_->Allocate(kLargeSize, kAlignment);
+
+  EXPECT_TRUE(small_block != nullptr);
+  EXPECT_TRUE(large_block != nullptr);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0);
+
+  this->allocator_->Free(small_block);
+  this->allocator_->Free(large_block);
+
+  // Moderate memory pressure should decommit blocks >= 1MB (large_block).
+  this->allocator_->OnMemoryPressure(kSbMemoryPressureLevelModerate);
+
+  bool found_large_decommit = false;
+  bool found_small_decommit = false;
+
+  for (const auto& decommit : this->mock_fallback_allocator_->decommits) {
+    uint8_t* decommit_ptr = static_cast<uint8_t*>(decommit.memory);
+    size_t decommit_size = decommit.size;
+    uint8_t* ptr_small = static_cast<uint8_t*>(small_block);
+    uint8_t* ptr_large = static_cast<uint8_t*>(large_block);
+
+    if (ptr_large >= decommit_ptr && ptr_large < decommit_ptr + decommit_size) {
+      found_large_decommit = true;
+    }
+    if (ptr_small >= decommit_ptr && ptr_small < decommit_ptr + decommit_size) {
+      found_small_decommit = true;
+    }
+  }
+
+  EXPECT_TRUE(found_large_decommit);
+  EXPECT_FALSE(found_small_decommit);
+
+  this->mock_fallback_allocator_->decommits.clear();
+
+  // Critical memory pressure should decommit all blocks (small_block).
+  this->allocator_->OnMemoryPressure(kSbMemoryPressureLevelCritical);
+
+  found_small_decommit = false;
+  for (const auto& decommit : this->mock_fallback_allocator_->decommits) {
+    uint8_t* decommit_ptr = static_cast<uint8_t*>(decommit.memory);
+    size_t decommit_size = decommit.size;
+    uint8_t* ptr_small = static_cast<uint8_t*>(small_block);
+
+    if (ptr_small >= decommit_ptr && ptr_small < decommit_ptr + decommit_size) {
+      found_small_decommit = true;
+    }
+  }
+  EXPECT_TRUE(found_small_decommit);
+}
+
 }  // namespace starboard

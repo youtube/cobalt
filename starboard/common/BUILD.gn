@@ -69,6 +69,8 @@ static_library("common") {
     "log.cc",
     "media.cc",
     "media.h",
+    "memory_pressure_registry.cc",
+    "memory_pressure_registry.h",
     "metrics/stats_tracker.cc",
     "metrics/stats_tracker.h",
     "murmurhash2.cc",
