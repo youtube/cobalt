@@ -254,6 +254,10 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(double, kCubicBezierY2);
 CC_BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
                                           kMaxAnimtionDuration);
 
+#if BUILDFLAG(IS_COBALT)
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kPreallocatedImageCachePool);
+#endif
+
 }  // namespace features
 
 #endif  // CC_BASE_FEATURES_H_
