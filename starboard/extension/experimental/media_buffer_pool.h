@@ -62,6 +62,12 @@ typedef struct StarboardExtensionMediaBufferPoolApi {
   // within the current capacity of the pool. This operation is guaranteed to
   // succeed.
   void (*Write)(intptr_t position, const void* data, size_t size);
+
+  // Hints to the allocator that the physical memory backing the range
+  // [position, position + size) is no longer needed, but the virtual address
+  // space should remain reserved.
+  // Returns true if the memory was successfully decommitted.
+  bool (*Decommit)(intptr_t position, size_t size);
 } StarboardExtensionMediaBufferPoolApi;
 
 #ifdef __cplusplus

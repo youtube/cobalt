@@ -44,7 +44,7 @@ class ReuseAllocatorBase : public Allocator {
 
   // Immediately decommit all remaining decommitable blocks (e.g. on app
   // suspend).
-  void DecommitAllDecommitableBlocks();
+  virtual void DecommitAllDecommitableBlocks();
 
  protected:
   ReuseAllocatorBase(Allocator* fallback_allocator,
@@ -62,6 +62,8 @@ class ReuseAllocatorBase : public Allocator {
     return fallback_index >= 0 &&
            static_cast<size_t>(fallback_index) < fallback_allocations_.size();
   }
+
+  Allocator* fallback_allocator() const { return fallback_allocator_; }
 
   // Request a new backing buffer from the fallback allocator with capacity and
   // alignment constraints, and register it for ownership tracking.

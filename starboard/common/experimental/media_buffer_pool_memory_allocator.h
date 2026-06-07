@@ -78,6 +78,13 @@ class MediaBufferPoolMemoryAllocator : public starboard::Allocator {
     // Free is a no-op.
   }
 
+  void Decommit(void* memory, size_t size, bool conservative) override {
+#if defined(SB_MEDIA_BUFFER_POOL_ENABLE_HOLE_PUNCHING)
+    SB_DCHECK(pool_);
+    pool_->Decommit(reinterpret_cast<intptr_t>(AnnotatePointer(memory)), size);
+#endif
+  }
+
   size_t GetCapacity() const override {
     // Returns 0 here to avoid tracking the allocated memory twice if used
     // with another allocator that tracks capacity.

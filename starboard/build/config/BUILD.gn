@@ -53,6 +53,10 @@ config("starboard") {
       defines += [ "SB_IS_EVERGREEN_COMPATIBLE=1" ]
     }
 
+    if (sb_media_buffer_pool_enable_hole_punching) {
+      defines += [ "SB_MEDIA_BUFFER_POOL_ENABLE_HOLE_PUNCHING=1" ]
+    }
+
     if (sb_evergreen_compatible_use_libunwind) {
       defines += [ "SB_IS_EVERGREEN_COMPATIBLE_LIBUNWIND=1" ]
     }

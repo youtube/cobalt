@@ -267,10 +267,6 @@ def validateDefinitionDeps(definitions_files, target_path, gen_dir,
                                                      root_gen_dir)).replace(
                                                          '\\', '/')
 
-  def getPathFromCwd(exception):
-    return os.path.relpath(os.path.join(_SRC_DIR, exception),
-                           _CWD).replace('\\', '/')
-
   # TODO(https://crbug.com/326005022): Determine if the following are actually
   # safe for computation of gn input values.
   exceptions_list = [
@@ -280,7 +276,14 @@ def validateDefinitionDeps(definitions_files, target_path, gen_dir,
       'third_party/polymer/v3_0/',
       'tools/typescript/tests/',
   ]
-  exceptions = [getPathFromCwd(e) for e in exceptions_list]
+
+  exceptions_real = []
+  for e in exceptions_list:
+    real_path = os.path.realpath(os.path.join(_SRC_DIR, e)).replace('\\', '/')
+    if e.endswith('/') and not real_path.endswith('/'):
+      real_path += '/'
+    exceptions_real.append(real_path)
+
   definitions_normalized = [d.replace('\\', '/') for d in definitions]
 
   missing_inputs = []
@@ -289,8 +292,9 @@ def validateDefinitionDeps(definitions_files, target_path, gen_dir,
     f_from_cwd = os.path.relpath(f, _CWD).replace('\\', '/')
     is_gen_file = f_from_cwd.startswith(gen_dir_from_build)
     f_from_gen = os.path.relpath(f, gen_dir).replace('\\', '/')
+    f_real = os.path.realpath(f).replace('\\', '/')
     if not is_gen_file and f_from_gen not in definitions_normalized and \
-        not any(f_from_cwd.startswith(exception) for exception in exceptions):
+        not any(f_real.startswith(exception) for exception in exceptions_real):
       missing_inputs.append(
           os.path.relpath(f_from_cwd, _SRC_DIR).replace('\\', '/'))
 

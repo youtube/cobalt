@@ -54,5 +54,15 @@ void MediaBufferPool::Write(intptr_t position, const void* data, size_t size) {
   api_->Write(position, data, size);
 }
 
+bool MediaBufferPool::Decommit(intptr_t position, size_t size) {
+  SB_DCHECK(IsPointerAnnotated(position));
+  position = UnannotatePointer(position);
+
+  if (api_->version >= 2 && api_->Decommit) {
+    return api_->Decommit(position, size);
+  }
+  return false;
+}
+
 }  // namespace experimental
 }  // namespace starboard

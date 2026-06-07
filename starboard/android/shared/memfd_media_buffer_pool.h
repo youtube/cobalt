@@ -34,6 +34,7 @@ class MemFdMediaBufferPool {
   bool ExpandTo(size_t size);
   void Write(intptr_t position, const void* data, size_t size);
   void Read(intptr_t position, void* buffer, size_t size);
+  bool Decommit(intptr_t position, size_t size);
 
  private:
   MemFdMediaBufferPool();

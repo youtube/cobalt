@@ -17,6 +17,7 @@
 #include <android/api-level.h>
 #include <dlfcn.h>
 #include <fcntl.h>
+#include <linux/falloc.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
@@ -26,6 +27,8 @@
 #include <cerrno>
 #include <cstdint>
 #include <cstring>
+
+#include "starboard/configuration_constants.h"
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/experimental/media_buffer_pool.h"
@@ -220,6 +223,51 @@ void MemFdMediaBufferPool::Read(intptr_t position, void* buffer, size_t size) {
   SB_CHECK_EQ(total_read, size);
 #endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 }
+
+bool MemFdMediaBufferPool::Decommit(intptr_t position, size_t size) {
+  SB_DCHECK_GE(fd_, 0);
+  SB_DCHECK(!IsPointerAnnotated(position));
+
+  if (static_cast<size_t>(position) + size > current_capacity_) {
+    SB_LOG(ERROR) << "MemFdMediaBufferPool: Decommit out of bounds. pos="
+                  << position << " size=" << size
+                  << " capacity=" << current_capacity_;
+    return false;
+  }
+
+  uintptr_t start = static_cast<uintptr_t>(position);
+  uintptr_t end = start + size;
+
+  uintptr_t aligned_start = (start + kSbMemoryPageSize - 1) & ~(kSbMemoryPageSize - 1);
+  uintptr_t aligned_end = end & ~(kSbMemoryPageSize - 1);
+
+  if (aligned_start >= aligned_end) {
+    return false;
+  }
+
+  size_t aligned_size = aligned_end - aligned_start;
+
+  static bool is_supported = true;
+  if (!is_supported) {
+    return false;
+  }
+
+  int result = fallocate(fd_, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+                         static_cast<off_t>(aligned_start),
+                         static_cast<off_t>(aligned_size));
+  if (result != 0) {
+    if (errno == EOPNOTSUPP || errno == ENOTSUP) {
+      SB_LOG(WARNING) << "fallocate(PUNCH_HOLE) not supported, disabling.";
+      is_supported = false;
+    } else {
+      SB_LOG(ERROR) << "fallocate(PUNCH_HOLE) failed: " << errno;
+    }
+    return false;
+  }
+
+  return true;
+}
+
 
 MemFdMediaBufferPool::MemFdMediaBufferPool() {
   fd_ = CreateReliableCacheFd("cobalt_media_buffer_pool", 0);

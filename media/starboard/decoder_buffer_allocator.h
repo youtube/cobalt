@@ -20,6 +20,8 @@
 
 #include "base/compiler_specific.h"
 #include "base/functional/callback.h"
+#include "base/memory/memory_pressure_listener.h"
+#include "base/power_monitor/power_observer.h"
 #include "base/synchronization/lock.h"
 #include "base/thread_annotations.h"
 #include "base/time/time.h"
@@ -31,7 +33,8 @@
 namespace media {
 
 class DecoderBufferAllocator : public DecoderBuffer::Allocator,
-                               public DecoderBufferMemoryInfo {
+                               public DecoderBufferMemoryInfo,
+                               public base::PowerSuspendObserver {
  public:
   // Manages the details of the Allocate() and Free(), to allow
   // DecoderBufferAllocator to adopt different strategies at runtime.
@@ -67,7 +70,12 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
 
   void Suspend();
   void Resume();
+  void Trim();
   void DecommitAllDecommitableBlocks();
+
+  // base::PowerSuspendObserver methods.
+  void OnSuspend() override;
+  void OnResume() override;
 
   // DecoderBuffer::Allocator methods.
   Handle Allocate(DemuxerStream::Type type,
@@ -119,6 +127,9 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   int pending_allocation_operations_count_ GUARDED_BY(mutex_) = 0;
   int allocation_operation_index_ GUARDED_BY(mutex_) = 0;
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+
+  void OnMemoryPressure(base::MemoryPressureListener::MemoryPressureLevel level);
+  std::unique_ptr<base::MemoryPressureListener> memory_pressure_listener_;
 };
 
 }  // namespace media

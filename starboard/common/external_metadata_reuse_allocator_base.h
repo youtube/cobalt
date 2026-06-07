@@ -49,6 +49,8 @@ class ExternalMetadataReuseAllocatorBase : public ReuseAllocatorBase {
   // Marks the memory block as being free and it will then become recyclable
   void Free(void* memory) override;
 
+  void DecommitAllDecommitableBlocks() override;
+
   size_t GetAllocated() const override { return total_allocated_; }
 
   void PrintAllocations(bool align_allocated_size,

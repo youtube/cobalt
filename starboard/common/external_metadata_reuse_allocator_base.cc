@@ -274,6 +274,18 @@ void ExternalMetadataReuseAllocatorBase::PrintAllocations(
   }
 }
 
+void ExternalMetadataReuseAllocatorBase::DecommitAllDecommitableBlocks() {
+  ReuseAllocatorBase::DecommitAllDecommitableBlocks();
+
+#if defined(SB_MEDIA_BUFFER_POOL_ENABLE_HOLE_PUNCHING)
+  for (const auto& free_block : free_blocks_) {
+    fallback_allocator()->Decommit(free_block.address(), free_block.size(),
+                                    /*conservative=*/false);
+  }
+#endif
+}
+
+
 bool ExternalMetadataReuseAllocatorBase::TryFree(void* memory) {
   if (!memory) {
     return true;
@@ -286,12 +298,24 @@ bool ExternalMetadataReuseAllocatorBase::TryFree(void* memory) {
 
   // Mark this block as free and remove it from the allocated set.
   const MemoryBlock& block = (*it).second;
-  AddFreeBlock(block);
+  auto free_block_iter = AddFreeBlock(block);
 
   SB_DCHECK_LE(block.size(), total_allocated_);
   total_allocated_ -= block.size();
 
   allocated_blocks_.erase(it);
+
+#if defined(SB_MEDIA_BUFFER_POOL_ENABLE_HOLE_PUNCHING)
+  // Active decommit (hole punching) for large free blocks.
+  // We use 1MB as the threshold to avoid excessive syscall overhead.
+  const size_t kActiveDecommitThresholdBytes = 1024 * 1024; // 1MB
+  if (free_block_iter != free_blocks_.end() &&
+      free_block_iter->size() >= kActiveDecommitThresholdBytes) {
+    fallback_allocator()->Decommit(free_block_iter->address(),
+                                    free_block_iter->size(),
+                                    /*conservative=*/false);
+  }
+#endif
 
   if (enable_decommit_on_idle_ && total_allocated_ == 0) {
     free_blocks_.clear();

@@ -39,12 +39,17 @@ void Write(intptr_t position, const void* data, size_t size) {
   MemFdMediaBufferPool::Get()->Write(position, data, size);
 }
 
+bool Decommit(intptr_t position, size_t size) {
+  return MemFdMediaBufferPool::Get()->Decommit(position, size);
+}
+
 const StarboardExtensionMediaBufferPoolApi kMediaBufferPoolApi = {
     kStarboardExtensionMediaBufferPoolApiName,
-    1,
+    2,
     &ShrinkToZero,
     &ExpandTo,
     &Write,
+    &Decommit,
 };
 
 }  // namespace

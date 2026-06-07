@@ -128,6 +128,12 @@ class MediaBufferPool {
   // current capacity of the pool. This operation is guaranteed to succeed.
   void Write(intptr_t position, const void* data, size_t size);
 
+  // Decommits the physical memory backing the range [position, position + size)
+  // in the pool. The caller must ensure that:
+  // 1. |position| is annotated.
+  // Returns true if successful.
+  bool Decommit(intptr_t position, size_t size);
+
  private:
   explicit MediaBufferPool(const StarboardExtensionMediaBufferPoolApi* api);
 

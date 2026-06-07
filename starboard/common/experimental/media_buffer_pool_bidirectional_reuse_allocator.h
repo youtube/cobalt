@@ -83,6 +83,10 @@ class MediaBufferPoolBidirectionalReuseAllocator : public Allocator {
         align_allocated_size, max_allocations_to_print);
   }
 
+  void DecommitAllDecommitableBlocks() {
+    bidirectional_fit_reuse_allocator_.DecommitAllDecommitableBlocks();
+  }
+
  private:
   MediaBufferPoolMemoryAllocator fallback_allocator_;
   BidirectionalFitReuseAllocator<ExternalMetadataReuseAllocatorBase>

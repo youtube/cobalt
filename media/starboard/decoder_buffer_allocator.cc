@@ -19,6 +19,8 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/memory/memory_pressure_listener.h"
+#include "base/power_monitor/power_monitor.h"
 #include "build/build_config.h"
 #include "media/base/media_switches.h"
 #include "media/base/video_codecs.h"
@@ -65,6 +67,12 @@ DecoderBufferAllocator::DecoderBufferAllocator(
   DCHECK_GE(initial_capacity_, 0);
   DCHECK_GE(allocation_unit_, 0);
 
+  base::PowerMonitor::GetInstance()->AddPowerSuspendObserver(this);
+  memory_pressure_listener_ = std::make_unique<base::MemoryPressureListener>(
+      FROM_HERE,
+      base::BindRepeating(&DecoderBufferAllocator::OnMemoryPressure,
+                          base::Unretained(this)));
+
   if (is_memory_pool_allocated_on_demand_) {
     LOG(INFO) << "Allocated decoder buffer pool on demand.";
     return;
@@ -75,6 +83,7 @@ DecoderBufferAllocator::DecoderBufferAllocator(
 }
 
 DecoderBufferAllocator::~DecoderBufferAllocator() {
+  base::PowerMonitor::GetInstance()->RemovePowerSuspendObserver(this);
   base::AutoLock scoped_lock(mutex_);
 
   if (strategy_) {
@@ -98,6 +107,9 @@ void DecoderBufferAllocator::Suspend() {
     LOG(INFO) << "Freeing " << strategy_->GetCapacity()
               << " bytes of decoder buffer pool `on suspend`.";
     strategy_.reset();
+  } else if (strategy_) {
+    LOG(INFO) << "Decommitting unused blocks of decoder buffer pool `on suspend`.";
+    strategy_->DecommitAllDecommitableBlocks();
   }
 }
 
@@ -114,6 +126,25 @@ void DecoderBufferAllocator::DecommitAllDecommitableBlocks() {
   base::AutoLock scoped_lock(mutex_);
   if (strategy_) {
     strategy_->DecommitAllDecommitableBlocks();
+  }
+}
+
+void DecoderBufferAllocator::Trim() {
+  DecommitAllDecommitableBlocks();
+}
+
+void DecoderBufferAllocator::OnSuspend() {
+  Suspend();
+}
+
+void DecoderBufferAllocator::OnResume() {
+  Resume();
+}
+
+void DecoderBufferAllocator::OnMemoryPressure(
+    base::MemoryPressureListener::MemoryPressureLevel level) {
+  if (level == base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL) {
+    Trim();
   }
 }
 
