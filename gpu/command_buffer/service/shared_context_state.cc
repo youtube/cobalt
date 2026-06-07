@@ -86,6 +86,8 @@
 #include "ui/gl/gl_angle_util_win.h"
 #endif
 
+int g_skia_cache_mib = 0;
+
 namespace gpu {
 namespace {
 
@@ -1186,6 +1188,7 @@ void SharedContextState::UpdateSkiaOwnedMemorySize() {
       CommandBufferId(), skia_resource_cache_size_,
       static_cast<uint64_t>(new_size));
   skia_resource_cache_size_ = static_cast<uint64_t>(new_size);
+  g_skia_cache_mib = static_cast<int>(new_size / (1024 * 1024));
 }
 
 void SharedContextState::PessimisticallyResetGrContext() const {

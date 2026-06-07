@@ -49,7 +49,7 @@ class SmapsCapturer:
     self.platform = config.platform
     self.device_serial = config.device_serial
     self.adb_path = config.adb_path
-    self.interval_seconds = config.interval_minutes * 60
+    self.interval_seconds = config.interval_seconds
     self.capture_duration_seconds = config.capture_duration_seconds
     self.output_dir = config.output_dir
     self.subprocess = subprocess_module
@@ -263,11 +263,11 @@ def run_smaps_capture_tool(argv=None):
       help=f'The name of the process to capture (default: {PROCESS_NAME})')
   parser.add_argument(
       '-i',
-      '--interval_minutes',
+      '--interval_seconds',
       type=int,
-      default=INTERVAL_MINUTES,
-      help='The interval in minutes between captures '
-      f'(default: {INTERVAL_MINUTES})')
+      default=120,
+      help='The interval in seconds between captures '
+      '(default: 120)')
   parser.add_argument(
       '-d',
       '--capture_duration_seconds',

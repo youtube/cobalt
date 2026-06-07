@@ -78,6 +78,8 @@ void ReuseAllocatorBase::DecommitAllDecommitableBlocks() {
   }
 }
 
+int g_allocated_mib = 0;
+
 std::pair<void*, intptr_t> ReuseAllocatorBase::AllocateFallbackBlock(
     size_t* size_to_try,
     size_t alignment) {
@@ -104,6 +106,10 @@ std::pair<void*, intptr_t> ReuseAllocatorBase::AllocateFallbackBlock(
     intptr_t index = static_cast<intptr_t>(fallback_allocations_.size());
     fallback_allocations_.emplace_back(ptr, *size_to_try);
     capacity_ += *size_to_try;
+    g_allocated_mib = static_cast<int>(capacity_ / (1024 * 1024));
+    SB_LOG(INFO) << "MEDIA_ALLOC_GROWTH: block_size(mib)="
+                 << (*size_to_try / (1024 * 1024))
+                 << ", total_capacity(mib)=" << (capacity_ / (1024 * 1024));
     return {ptr, index};
   }
   return {nullptr, -1};
