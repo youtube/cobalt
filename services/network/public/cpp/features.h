@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "build/buildflag.h"
 #include "base/component_export.h"
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
@@ -339,6 +340,14 @@ BASE_DECLARE_FEATURE_PARAM(size_t, kSharedDictionaryCacheSize);
 // Maximum size of dictionaries that are allowed to be stored in the cache.
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE_PARAM(size_t, kSharedDictionaryCacheMaxSizeBytes);
+
+#if BUILDFLAG(IS_COBALT)
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE(kCobaltDynamicMojoPipeSizing);
+
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(int, kCobaltDynamicMojoPipeSizingSubresourceSize);
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace network::features
 
