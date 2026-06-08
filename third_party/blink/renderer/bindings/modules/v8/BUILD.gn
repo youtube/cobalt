@@ -26,17 +26,23 @@ blink_modules_sources("v8") {
       generated_sync_iterator_sources_in_modules +
       generated_typedef_sources_in_modules + generated_union_sources_in_modules
 
+  if (is_cobalt) {
+    _hardware_filtered = filter_exclude(sources, cobalt_hardware_exclude_patterns)
+    sources = []
+    sources = _hardware_filtered
+  }
+
   if (!use_webrtc_peer_connection) {
-    _filtered_sources =
+    _rtc_filtered =
         filter_exclude(sources, cobalt_bindings_exclude_patterns)
     sources = []
-    sources = _filtered_sources
+    sources = _rtc_filtered
   }
 
   if (is_cobalt) {
     _filtered_cobalt_sources = filter_exclude(
         sources,
-        cobalt_webnn_exclude_patterns + cobalt_webxr_exclude_patterns)
+        cobalt_webgpu_exclude_patterns + cobalt_ai_exclude_patterns)
     sources = []
     sources = _filtered_cobalt_sources
   }

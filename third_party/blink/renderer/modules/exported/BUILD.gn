@@ -37,6 +37,9 @@ blink_modules_sources("exported") {
     ]
     deps -= [ "//third_party/blink/renderer/modules/shared_storage" ]
   }
+  if (is_cobalt) {
+    deps -= [ "//third_party/blink/renderer/modules/ai" ]
+  }
 }
 
 static_library("test_support") {

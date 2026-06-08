@@ -19,6 +19,8 @@
 
 #include "starboard/android/shared/mock_media_capabilities_cache.h"
 #include "starboard/media.h"
+#include "starboard/shared/starboard/features.h"
+#include "starboard/testing/scoped_feature_list.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -365,6 +367,51 @@ TEST_F(MediaCapabilitiesCacheTest, FindVideoDecoder_Overload) {
                                      /*require_software_codec=*/false,
                                      /*must_support_tunnel_mode=*/true),
             "OMX.google.vp9.decoder");
+}
+
+TEST_F(MediaCapabilitiesCacheTest, RejectLowPerformanceSoftwareDecoder) {
+  EXPECT_CALL(*mock_media_capabilities_provider_,
+              GetCodecCapabilities(testing::_, testing::_))
+      .WillOnce(testing::Invoke([](auto&, auto& video_caps) {
+        MediaCapabilitiesProvider::VideoCodecCapabilities caps;
+        caps.push_back(std::make_unique<MockVideoCodecCapability>(
+            "OMX.test.soft.vp9.decoder",
+            /*is_secure_req=*/false, /*is_secure_sup=*/false,
+            /*is_tunnel_req=*/false, /*is_tunnel_sup=*/false,
+            /*is_software_decoder=*/true,
+            /*is_hdr_capable=*/false, Range{0, 1280}, Range{0, 720},
+            Range{0, 5'000'000}, Range{0, 30}));
+        video_caps["video/x-vnd.on2.vp9"] = std::move(caps);
+      }));
+
+  // Case 1: Feature is disabled (default). It should find the software decoder.
+  {
+    features::ScopedFeatureList scoped_features;
+    scoped_features.InitAndDisableFeature(
+        features::kRejectLowPerformanceSoftwareDecoder);
+
+    EXPECT_EQ(cache_->FindVideoDecoder("video/x-vnd.on2.vp9",
+                                       /*must_support_secure=*/false,
+                                       /*must_support_hdr=*/false,
+                                       /*require_software_codec=*/false,
+                                       /*must_support_tunnel_mode=*/false),
+              "OMX.test.soft.vp9.decoder");
+  }
+
+  // Case 2: Feature is enabled. It should reject the software decoder because
+  // it is low performance.
+  {
+    features::ScopedFeatureList scoped_features;
+    scoped_features.InitAndEnableFeature(
+        features::kRejectLowPerformanceSoftwareDecoder);
+
+    EXPECT_EQ(cache_->FindVideoDecoder("video/x-vnd.on2.vp9",
+                                       /*must_support_secure=*/false,
+                                       /*must_support_hdr=*/false,
+                                       /*require_software_codec=*/false,
+                                       /*must_support_tunnel_mode=*/false),
+              "");
+  }
 }
 
 }  // namespace starboard

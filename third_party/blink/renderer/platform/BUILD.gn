@@ -1864,6 +1864,15 @@ component("platform") {
     deps += [ "//third_party/dawn/src/dawn:proc" ]
   }
 
+  if (is_cobalt) {
+    if (use_dawn) {
+      deps -= [ "//third_party/dawn/src/dawn/wire" ]
+    } else {
+      deps -= [ "//third_party/dawn/src/dawn:proc" ]
+      sources += [ "graphics/gpu/cobalt_webgpu_stubs.cc" ]
+    }
+  }
+
   if (is_android) {
     deps += [ "//third_party/cpu_features:ndk_compat" ]
     sources += [
@@ -1971,6 +1980,20 @@ component("platform") {
 
   configs -= [ "//build/config/compiler:default_symbols" ]
   configs += blink_symbols_config
+
+  if (is_cobalt) {
+    sources -= [
+      "language_detection/language_detection_model.cc",
+      "language_detection/language_detection_model.h",
+    ]
+    deps -= [
+      "//components/language_detection/content/common",
+      "//components/language_detection/content/common:common_blink",
+      "//components/language_detection/content/renderer",
+      "//components/language_detection/core",
+      "//components/translate/core/language_detection:language_detection",
+    ]
+  }
 }
 
 static_library("test_support") {
