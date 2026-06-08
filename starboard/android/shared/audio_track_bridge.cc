@@ -15,7 +15,6 @@
 #include "starboard/android/shared/audio_track_bridge.h"
 
 #include <algorithm>
-#include <variant>
 
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/media_common.h"
@@ -27,12 +26,14 @@
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/AudioTrackBridge_jni.h"
+#include "starboard/common/check_op.h"
 
 namespace starboard {
 
 namespace {
 
 using jni_zero::AttachCurrentThread;
+using jni_zero::JavaParamRef;
 using jni_zero::ScopedJavaGlobalRef;
 using jni_zero::ScopedJavaLocalRef;
 
@@ -110,24 +111,16 @@ std::unique_ptr<AudioTrackBridge> AudioTrackBridge::Create(
     return nullptr;
   }
 
-  const auto j_audio_data_var = [&]() -> AudioDataVar {
-    if (coding_type == kSbMediaAudioCodingTypePcm &&
-        sample_type == kSbMediaAudioSampleTypeFloat32) {
-      return FloatDataRef(env, static_cast<jfloatArray>(j_audio_data.obj()));
-    }
-    return ByteDataRef(env, static_cast<jbyteArray>(j_audio_data.obj()));
-  }();
-
-  return std::make_unique<AudioTrackBridge>(
-      PassKey<AudioTrackBridge>(), max_samples_per_write, j_audio_track_bridge,
-      j_audio_data_var);
+  return std::make_unique<AudioTrackBridge>(PassKey<AudioTrackBridge>(),
+                                            max_samples_per_write,
+                                            j_audio_track_bridge, j_audio_data);
 }
 
 AudioTrackBridge::AudioTrackBridge(
     PassKey<AudioTrackBridge>,
     int max_samples_per_write,
     const ScopedJavaLocalRef<jobject>& j_audio_track_bridge,
-    const AudioDataVar& j_audio_data)
+    const ScopedJavaGlobalRef<jobject>& j_audio_data)
     : max_samples_per_write_(max_samples_per_write),
       j_audio_track_bridge_(j_audio_track_bridge),
       j_audio_data_(j_audio_data) {}
@@ -137,8 +130,9 @@ AudioTrackBridge::~AudioTrackBridge() {
     // Both the global and local references refer to the exact same Java object
     // in the JVM.
     JNIEnv* env = AttachCurrentThread();
-    ScopedJavaLocalRef<jobject> audio_track_bridge =
-        j_audio_track_bridge_.AsLocalRef(env);
+    jobject audio_track_bridge_ref =
+        env->NewLocalRef(j_audio_track_bridge_.obj());
+    ScopedJavaLocalRef<jobject> audio_track_bridge(env, audio_track_bridge_ref);
     AudioOutputManager::GetInstance()->DestroyAudioTrackBridge(
         env, audio_track_bridge);
   }
@@ -185,16 +179,17 @@ int AudioTrackBridge::WriteSample(const float* samples,
 
   num_of_samples = std::min(num_of_samples, max_samples_per_write_);
 
-  SB_CHECK(
-      std::holds_alternative<AudioTrackBridge::FloatDataRef>(j_audio_data_));
-  const auto& j_audio_float_data =
-      std::get<AudioTrackBridge::FloatDataRef>(j_audio_data_);
+  SB_DCHECK(env->IsInstanceOf(j_audio_data_.obj(), env->FindClass("[F")));
+  env->SetFloatArrayRegion(static_cast<jfloatArray>(j_audio_data_.obj()),
+                           kNoOffset, num_of_samples, samples);
 
-  env->SetFloatArrayRegion(j_audio_float_data.obj(), kNoOffset, num_of_samples,
-                           samples);
+  ScopedJavaLocalRef<jfloatArray> audio_data_local_ref(
+      env, static_cast<jfloatArray>(env->NewLocalRef(j_audio_data_.obj())));
 
   return Java_AudioTrackBridge_write(env, j_audio_track_bridge_,
-                                     j_audio_float_data, num_of_samples);
+                                     // JavaParamRef<jfloatArray>'s raw pointer
+                                     // constructor expects a local reference.
+                                     audio_data_local_ref, num_of_samples);
 }
 
 int AudioTrackBridge::WriteSample(const uint16_t* samples,
@@ -207,18 +202,19 @@ int AudioTrackBridge::WriteSample(const uint16_t* samples,
 
   num_of_samples = std::min(num_of_samples, max_samples_per_write_);
 
-  SB_CHECK(
-      std::holds_alternative<AudioTrackBridge::ByteDataRef>(j_audio_data_));
-  const auto& j_audio_byte_data =
-      std::get<AudioTrackBridge::ByteDataRef>(j_audio_data_);
-
-  env->SetByteArrayRegion(j_audio_byte_data.obj(), kNoOffset,
-                          num_of_samples * sizeof(uint16_t),
+  SB_DCHECK(env->IsInstanceOf(j_audio_data_.obj(), env->FindClass("[B")));
+  env->SetByteArrayRegion(static_cast<jbyteArray>(j_audio_data_.obj()),
+                          kNoOffset, num_of_samples * sizeof(uint16_t),
                           reinterpret_cast<const jbyte*>(samples));
 
+  ScopedJavaLocalRef<jbyteArray> audio_data_local_ref(
+      env, static_cast<jbyteArray>(env->NewLocalRef(j_audio_data_.obj())));
+
   int bytes_written = Java_AudioTrackBridge_writeWithPresentationTime(
-      env, j_audio_track_bridge_, j_audio_byte_data,
-      num_of_samples * sizeof(uint16_t), sync_time);
+      env, j_audio_track_bridge_,
+      // JavaParamRef<jbyteArray>'s raw pointer constructor expects a local
+      // reference.
+      audio_data_local_ref, num_of_samples * sizeof(uint16_t), sync_time);
   if (bytes_written < 0) {
     // Error code returned as negative value, like AudioTrack.ERROR_DEAD_OBJECT.
     return bytes_written;
@@ -238,16 +234,19 @@ int AudioTrackBridge::WriteSample(const uint8_t* samples,
 
   num_of_samples = std::min(num_of_samples, max_samples_per_write_);
 
-  SB_CHECK(
-      std::holds_alternative<AudioTrackBridge::ByteDataRef>(j_audio_data_));
-  const auto& j_audio_byte_data =
-      std::get<AudioTrackBridge::ByteDataRef>(j_audio_data_);
-
-  env->SetByteArrayRegion(j_audio_byte_data.obj(), kNoOffset, num_of_samples,
+  SB_DCHECK(env->IsInstanceOf(j_audio_data_.obj(), env->FindClass("[B")));
+  env->SetByteArrayRegion(static_cast<jbyteArray>(j_audio_data_.obj()),
+                          kNoOffset, num_of_samples,
                           reinterpret_cast<const jbyte*>(samples));
 
+  ScopedJavaLocalRef<jbyteArray> audio_data_local_ref(
+      env, static_cast<jbyteArray>(env->NewLocalRef(j_audio_data_.obj())));
+
   int bytes_written = Java_AudioTrackBridge_writeWithPresentationTime(
-      env, j_audio_track_bridge_, j_audio_byte_data, num_of_samples, sync_time);
+      env, j_audio_track_bridge_,
+      // JavaParamRef<jbyteArray>'s raw pointer constructor expects a local
+      // reference.
+      audio_data_local_ref, num_of_samples, sync_time);
 
   if (bytes_written < 0) {
     // Error code returned as negative value, like AudioTrack.ERROR_DEAD_OBJECT.

@@ -21,7 +21,6 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
-#include <variant>
 
 #include "starboard/common/pass_key.h"
 #include "starboard/media.h"
@@ -32,10 +31,6 @@ namespace starboard {
 // The C++ encapsulation of the Java class AudioTrackBridge.
 class AudioTrackBridge {
  public:
-  using FloatDataRef = jni_zero::ScopedJavaGlobalRef<jfloatArray>;
-  using ByteDataRef = jni_zero::ScopedJavaGlobalRef<jbyteArray>;
-  using AudioDataVar = std::variant<FloatDataRef, ByteDataRef>;
-
   // The maximum number of frames that can be written to android audio track per
   // write request.  It is used to pre-allocate |j_audio_data_|.
   static constexpr int kMaxFramesPerRequest = 65536;
@@ -55,7 +50,7 @@ class AudioTrackBridge {
       PassKey<AudioTrackBridge>,
       int max_samples_per_write,
       const jni_zero::ScopedJavaLocalRef<jobject>& j_audio_track_bridge,
-      const AudioDataVar& j_audio_data);
+      const jni_zero::ScopedJavaGlobalRef<jobject>& j_audio_data);
   ~AudioTrackBridge();
 
   void Play(JNIEnv* env = jni_zero::AttachCurrentThread());
@@ -101,7 +96,7 @@ class AudioTrackBridge {
   // The audio data has to be copied into a Java Array before writing into the
   // audio track. Allocating a large array and saves as a member variable
   // avoids an array being allocated repeatedly.
-  const AudioDataVar j_audio_data_;
+  const jni_zero::ScopedJavaGlobalRef<jobject> j_audio_data_;
 };
 
 }  // namespace starboard
