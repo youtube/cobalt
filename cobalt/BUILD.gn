@@ -204,6 +204,7 @@ test("cobalt_unittests") {
       "//cobalt/app/app_event_delegate_unittest.cc",
       "//cobalt/app/app_event_runner_unittest.cc",
       "//cobalt/app/cobalt_switch_defaults_starboard_test.cc",
+      "//cobalt/browser/lifecycle/cobalt_lifecycle_manager_unittest.cc",
       "//cobalt/shell/common/device_authentication_test.cc",
     ]
   }
@@ -227,6 +228,8 @@ test("cobalt_unittests") {
     "//cobalt/browser/constants:cobalt_experiment_names",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
+    "//cobalt/browser/h5vcc_runtime/public/mojom",
+    "//cobalt/browser/lifecycle",
     "//cobalt/browser/user_agent",
     "//cobalt/common/libc:libc_test",
     "//cobalt/shell/browser/migrate_storage_record:unittest",
