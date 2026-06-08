@@ -23,10 +23,12 @@
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
+#include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -77,6 +79,23 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
   auto* client = manager_client->metrics_service_client();
   ASSERT_TRUE(client);
 
+  // Load a page that allocates WTF elements and a JS ArrayBuffer to ensure
+  // PartitionAlloc partitions are populated
+  std::string html_content = R"(
+    <html>
+    <body>
+      <script>
+        const ab = new ArrayBuffer(1024 * 1024);
+        const div = document.createElement('div');
+        div.style.width = '100px';
+        document.body.appendChild(div);
+      </script>
+    </body>
+    </html>
+  )";
+  GURL url("data:text/html;charset=utf-8," + html_content);
+  ASSERT_TRUE(content::NavigateToURL(shell()->web_contents(), url));
+
   // Trigger a memory dump manually for testing and wait for it.
   base::RunLoop run_loop;
   static_cast<CobaltMetricsServiceClient*>(client)
@@ -84,6 +103,12 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
   run_loop.Run();
 
   base::StatisticsRecorder::ImportProvidedHistogramsSync();
+
+  std::string registered_histograms;
+  base::StatisticsRecorder::WriteGraph("Memory.Experimental.Browser2",
+                                       &registered_histograms);
+  LOG(INFO) << "Registered Memory.Experimental.Browser2 histograms:\n"
+            << registered_histograms;
 
   auto check_histogram = [](const std::string& name) {
     auto* histogram = base::StatisticsRecorder::FindHistogram(name);
@@ -136,10 +161,21 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
       "Memory.Experimental.Browser2.PartitionAlloc.AllocatedObjects");
   EXPECT_TRUE(check_non_zero_histogram(
       "Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.ArrayBuffer"));
-  EXPECT_TRUE(check_non_zero_histogram(
+  EXPECT_TRUE(
+      check_non_zero_histogram("Memory.Experimental.Browser2.PartitionAlloc."
+                               "AllocatedObjects.ArrayBuffer"));
+  EXPECT_TRUE(check_histogram(
       "Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.Buffer"));
+  EXPECT_TRUE(check_histogram(
+      "Memory.Experimental.Browser2.PartitionAlloc.AllocatedObjects.Buffer"));
+  EXPECT_TRUE(check_histogram(
+      "Memory.Experimental.Browser2.PartitionAlloc.MaxCommittedSize.Buffer"));
   EXPECT_TRUE(check_non_zero_histogram(
-      "Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.FastMalloc"));
+      "Memory.Experimental.Browser2.Malloc.CommittedSize.Allocator"));
+  EXPECT_TRUE(check_non_zero_histogram(
+      "Memory.Experimental.Browser2.Malloc.AllocatedObjects.Allocator"));
+  EXPECT_TRUE(check_non_zero_histogram(
+      "Memory.Experimental.Browser2.Malloc.MaxCommittedSize.Allocator"));
   check_histogram("Memory.Experimental.Browser2.V8");
   check_histogram("Memory.Experimental.Browser2.V8.AllocatedObjects");
   check_histogram("Memory.Experimental.Browser2.Skia");
@@ -180,6 +216,23 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   ASSERT_TRUE(manager_client);
   auto* client = manager_client->metrics_service_client();
   ASSERT_TRUE(client);
+
+  // Load a page that allocates WTF elements and a JS ArrayBuffer to ensure
+  // PartitionAlloc partitions are populated
+  std::string html_content = R"(
+    <html>
+    <body>
+      <script>
+        const ab = new ArrayBuffer(1024 * 1024);
+        const div = document.createElement('div');
+        div.style.width = '100px';
+        document.body.appendChild(div);
+      </script>
+    </body>
+    </html>
+  )";
+  GURL url("data:text/html;charset=utf-8," + html_content);
+  ASSERT_TRUE(content::NavigateToURL(shell()->web_contents(), url));
 
   // Trigger a memory dump manually for testing and wait for it.
   // This replaces the fixed delay and is more robust.
@@ -241,10 +294,21 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   check_histogram("Memory.Experimental.Browser2.PartitionAlloc");
   EXPECT_TRUE(check_non_zero_histogram(
       "Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.ArrayBuffer"));
+  EXPECT_TRUE(
+      check_non_zero_histogram("Memory.Experimental.Browser2.PartitionAlloc."
+                               "AllocatedObjects.ArrayBuffer"));
   EXPECT_TRUE(check_non_zero_histogram(
       "Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.Buffer"));
   EXPECT_TRUE(check_non_zero_histogram(
-      "Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.FastMalloc"));
+      "Memory.Experimental.Browser2.PartitionAlloc.AllocatedObjects.Buffer"));
+  EXPECT_TRUE(check_non_zero_histogram(
+      "Memory.Experimental.Browser2.PartitionAlloc.MaxCommittedSize.Buffer"));
+  EXPECT_TRUE(check_non_zero_histogram(
+      "Memory.Experimental.Browser2.Malloc.CommittedSize.Allocator"));
+  EXPECT_TRUE(check_non_zero_histogram(
+      "Memory.Experimental.Browser2.Malloc.AllocatedObjects.Allocator"));
+  EXPECT_TRUE(check_non_zero_histogram(
+      "Memory.Experimental.Browser2.Malloc.MaxCommittedSize.Allocator"));
   check_histogram("Memory.Experimental.Browser2.V8");
   check_histogram("Memory.Experimental.Browser2.Skia");
 
