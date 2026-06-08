@@ -1240,6 +1240,7 @@ void SbPlayerBridge::OnPlayerError(SbPlayer player,
   if (player_ != player) {
     return;
   }
+
   host_->OnPlayerError(error, message);
 }
 
@@ -1284,6 +1285,7 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
   DecodingBuffers::iterator iter = decoding_buffers_.find(
       reinterpret_cast<DecoderBuffer::Allocator::Handle>(sample_buffer));
   DCHECK(iter != decoding_buffers_.end());
+
   if (iter == decoding_buffers_.end()) {
     LOG(ERROR) << "SbPlayerBridge::OnDeallocateSample encounters unknown "
                << "sample_buffer " << sample_buffer;

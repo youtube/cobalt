@@ -75,16 +75,12 @@ class Thread {
  private:
   const std::string name_;
   const std::optional<ThreadPriority> priority_;
-  const ThreadMemoryContext memory_context_;
   struct Data;
   const std::unique_ptr<Data> d_;
 
   Thread(const Thread&) = delete;
   void operator=(const Thread&) = delete;
 };
-
-typedef void (*ThreadMemoryContextCallback)(ThreadMemoryContext);
-void RegisterThreadMemoryContextCallback(ThreadMemoryContextCallback callback);
 
 int ThreadPriorityToNiceValue(ThreadPriority priority);
 

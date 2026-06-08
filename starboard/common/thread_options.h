@@ -68,18 +68,6 @@ enum class ThreadPriority {
   kNoPriority = INT_MIN,
 };
 
-enum class ThreadMemoryContext : uint8_t {
-  kUnknown = 0,
-  kDOM,
-  kLayout,
-  kMedia,
-  kScript,
-  kNetwork,
-  kGraphics,
-  kStorage,
-  kPlatformStarboard,
-};
-
 struct ThreadOptions {
   ThreadOptions() = default;
   ThreadOptions& SetPriority(ThreadPriority priority_in) {
@@ -88,12 +76,6 @@ struct ThreadOptions {
   }
 
   std::optional<ThreadPriority> priority;
-
-  ThreadMemoryContext memory_context = ThreadMemoryContext::kMedia;
-  ThreadOptions& SetMemoryContext(ThreadMemoryContext context) {
-    memory_context = context;
-    return *this;
-  }
 };
 
 }  // namespace starboard
