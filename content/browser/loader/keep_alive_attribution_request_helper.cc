@@ -286,21 +286,21 @@ KeepAliveAttributionRequestHelper::CreateIfNeeded(
 }
 
 KeepAliveAttributionRequestHelper::KeepAliveAttributionRequestHelper(
-    BackgroundRegistrationsId id,
-    AttributionDataHostManager* attribution_data_host_manager,
-    const GURL& reporting_url,
-    bool is_navigation_tied,
-    WeakDocumentPtr weak_document_ptr) {}
+    BackgroundRegistrationsId,
+    AttributionDataHostManager*,
+    const GURL&,
+    bool,
+    WeakDocumentPtr) {}
 
 KeepAliveAttributionRequestHelper::~KeepAliveAttributionRequestHelper() =
     default;
 
 void KeepAliveAttributionRequestHelper::OnReceiveRedirect(
-    scoped_refptr<net::HttpResponseHeaders> headers,
-    const GURL& redirect_url) {}
+    scoped_refptr<net::HttpResponseHeaders>,
+    const GURL&) {}
 
 void KeepAliveAttributionRequestHelper::OnReceiveResponse(
-    scoped_refptr<net::HttpResponseHeaders> headers) {}
+    scoped_refptr<net::HttpResponseHeaders>) {}
 
 void KeepAliveAttributionRequestHelper::OnError() {}
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
