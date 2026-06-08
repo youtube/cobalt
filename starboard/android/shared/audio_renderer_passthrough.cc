@@ -23,6 +23,7 @@
 #include "starboard/common/string.h"
 #include "starboard/common/thread_options.h"
 #include "starboard/common/time.h"
+#include "starboard/shared/starboard/features.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
@@ -66,6 +67,17 @@ int ParseAc3SyncframeAudioSampleCount(const uint8_t* buffer, int size) {
   } else {
     return kAc3SyncFrameAudioSampleCount;
   }
+}
+
+size_t GetAudioPassthroughStackSize() {
+  size_t stack_size = 0;
+#if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+  if (starboard::features::FeatureList::IsEnabled(
+          starboard::features::kReduceMediaThreadStackSize)) {
+    stack_size = 256 * 1024;
+  }
+#endif
+  return stack_size;
 }
 
 }  // namespace
@@ -144,7 +156,9 @@ void AudioRendererPassthrough::WriteSamples(const InputBuffers& input_buffers) {
 
   if (!audio_track_thread_) {
     audio_track_thread_ = JobThread::Create(
-        "AudioPassthrough", ThreadOptions().SetPriority(ThreadPriority::kHigh));
+        "AudioPassthrough", ThreadOptions()
+                                .SetPriority(ThreadPriority::kHigh)
+                                .SetStackSize(GetAudioPassthroughStackSize()));
     audio_track_thread_->Schedule(std::bind(
         &AudioRendererPassthrough::CreateAudioTrackAndStartProcessing, this));
   }
