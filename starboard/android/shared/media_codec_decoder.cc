@@ -82,8 +82,9 @@ class MediaCodecDecoder::DecoderThread : public Thread {
                 std::function<void()> runnable,
                 std::optional<ThreadPriority> priority = std::nullopt)
       : Thread(name,
-               priority ? ThreadOptions().SetPriority(priority.value())
-                        : ThreadOptions()),
+               (priority ? ThreadOptions().SetPriority(priority.value())
+                         : ThreadOptions())
+                   .SetStackSize(256 * 1024)),
         runnable_(std::move(runnable)) {
     SB_CHECK(runnable_);
   }
