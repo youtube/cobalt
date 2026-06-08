@@ -1,15 +1,13 @@
-name: lint
+name: lint_staging
 
 on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
     branches:
-      - main
-      - feature/*
+      - staging
   push:
     branches:
-      - main
-      - feature/*
+      - staging
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }} @ ${{ github.event.label.name || github.event.pull_request.number || github.sha }} @ ${{ github.event.label.name && github.event.pull_request.number || github.event.action }}
