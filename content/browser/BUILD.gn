@@ -2684,13 +2684,13 @@ source_set("browser") {
       "//ui/linux:linux_ui",
     ]
   } else {
-    if (is_linux) {
-      sources += [ "speech/tts_linux.cc" ]
-      deps += [
-        "//third_party/speech-dispatcher",
-        "//ui/linux:linux_ui",
-      ]
-    }
+  if (is_linux) {
+    sources += [ "speech/tts_linux.cc" ]
+    deps += [
+      "//third_party/speech-dispatcher",
+      "//ui/linux:linux_ui",
+    ]
+  }
   }
 
   # ChromeOS also defines linux but their memory-monitors conflict.
@@ -3483,7 +3483,9 @@ source_set("browser") {
       deps += [ "//gpu/vulkan/init" ]
     }
     if (is_cobalt) {
-      deps += [ "//third_party/jni_zero:cobalt_for_google3_buildflags" ]
+      deps += [
+        "//third_party/jni_zero:cobalt_for_google3_buildflags",
+      ]
     }
     libs += [ "jnigraphics" ]
   } else {
@@ -3802,9 +3804,9 @@ group("for_content_tests") {
   ]
   if (is_cobalt) {
     visibility += [
-      "//cobalt:cobalt_unittests",
       "//cobalt/testing:*",
       "//cobalt/testing/browser_tests:*",
+      "//cobalt:cobalt_unittests",
     ]
 
     if (is_android) {
