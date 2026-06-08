@@ -47,7 +47,7 @@
 #include "content/browser/loader/url_loader_factory_utils.h"
 #include "content/public/common/buildflags.h"
 #include "content/public/common/content_milestone_features.h"
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/private_aggregation/private_aggregation_manager.h"
 #endif
 #include "content/browser/renderer_host/page_impl.h"
@@ -812,7 +812,7 @@ AdAuctionServiceImpl::AdAuctionServiceImpl(
           origin(),
           this),
       auction_nonce_manager_(GetFrame()),
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
       private_aggregation_manager_(PrivateAggregationManager::GetManager(
           *render_frame_host.GetBrowserContext()))
 #else

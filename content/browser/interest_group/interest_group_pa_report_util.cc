@@ -24,7 +24,7 @@
 #include "components/aggregation_service/aggregation_coordinator_utils.h"
 #include "content/public/common/buildflags.h"
 #include "content/public/common/content_milestone_features.h"
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/private_aggregation/private_aggregation_caller_api.h"
 #include "content/browser/private_aggregation/private_aggregation_host.h"
 #include "content/browser/private_aggregation/private_aggregation_manager.h"
@@ -465,7 +465,7 @@ bool IsPrivateAggregationRequestReservedOnce(
              auction_worklet::mojom::ReservedNonErrorEventType::kReservedOnce;
 }
 
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 void SplitContributionsIntoBatchesThenSendToHost(
     std::vector<auction_worklet::mojom::FinalizedPrivateAggregationRequestPtr>
         requests,

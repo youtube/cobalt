@@ -26,9 +26,9 @@
 #include "third_party/blink/renderer/modules/locks/lock.h"
 #include "content/public/common/content_milestone_features.h"
 #include "third_party/blink/public/public_buildflags.h"
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "third_party/blink/renderer/modules/shared_storage/shared_storage_worklet_global_scope.h"
-#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "third_party/blink/renderer/platform/bindings/name_client.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
@@ -241,7 +241,7 @@ const char LockManager::kSupplementName[] = "LockManager";
 
 LockManager* LockManager::locks(NavigatorBase& navigator,
                                 ExceptionState& exception_state) {
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   ExecutionContext* context = navigator.GetExecutionContext();
   auto* shared_storage_worklet_global_scope =
       DynamicTo<SharedStorageWorkletGlobalScope>(context);
@@ -253,7 +253,7 @@ LockManager* LockManager::locks(NavigatorBase& navigator,
         "navigator.locks cannot be accessed during addModule().");
     return nullptr;
   }
-#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   auto* supplement = Supplement<NavigatorBase>::From<LockManager>(navigator);
   if (!supplement) {

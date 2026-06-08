@@ -28,7 +28,7 @@
 #include "content/browser/about_url_loader_factory.h"
 #include "content/public/common/buildflags.h"
 #include "content/public/common/content_milestone_features.h"
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/attribution_reporting/attribution_manager.h"
 #endif
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
@@ -323,7 +323,7 @@ std::unique_ptr<network::ResourceRequest> CreateResourceRequest(
   new_request->storage_access_api_status =
       request_info.begin_params->storage_access_api_status;
 
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   WebContentsImpl* web_contents = static_cast<WebContentsImpl*>(
       WebContents::FromFrameTreeNodeId(frame_tree_node->frame_tree_node_id()));
   new_request->attribution_reporting_support =

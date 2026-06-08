@@ -26,14 +26,14 @@ namespace content {
 
 namespace {
 
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 RenderFrameHostImpl* ContainingLocalRoot(RenderFrameHostImpl* frame) {
   while (!frame->is_local_root()) {
     frame = frame->GetParent();
   }
   return frame;
 }
-#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 }  // namespace
 
@@ -51,7 +51,7 @@ SharedStorageWorkletDevToolsAgentHost::
     ~SharedStorageWorkletDevToolsAgentHost() = default;
 
 BrowserContext* SharedStorageWorkletDevToolsAgentHost::GetBrowserContext() {
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (!worklet_host_ || !worklet_host_->GetProcessHost()) {
     return nullptr;
   }
@@ -59,7 +59,7 @@ BrowserContext* SharedStorageWorkletDevToolsAgentHost::GetBrowserContext() {
   return worklet_host_->GetProcessHost()->GetBrowserContext();
 #else
   return nullptr;
-#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 std::string SharedStorageWorkletDevToolsAgentHost::GetType() {
@@ -67,7 +67,7 @@ std::string SharedStorageWorkletDevToolsAgentHost::GetType() {
 }
 
 std::string SharedStorageWorkletDevToolsAgentHost::GetTitle() {
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (!worklet_host_) {
     return std::string();
   }
@@ -76,15 +76,15 @@ std::string SharedStorageWorkletDevToolsAgentHost::GetTitle() {
                        worklet_host_->script_source_url().spec()});
 #else
   return std::string();
-#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 GURL SharedStorageWorkletDevToolsAgentHost::GetURL() {
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   return worklet_host_ ? worklet_host_->script_source_url() : GURL();
 #else
   return GURL();
-#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 bool SharedStorageWorkletDevToolsAgentHost::Activate() {
@@ -110,7 +110,7 @@ void SharedStorageWorkletDevToolsAgentHost::WorkletReadyForInspection(
     mojo::PendingRemote<blink::mojom::DevToolsAgent> agent_remote,
     mojo::PendingReceiver<blink::mojom::DevToolsAgentHost>
         agent_host_receiver) {
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   // The process can be null here when the worklet is in its keep-alive stage
   // and the browser is shutting down.
   if (!worklet_host_->GetProcessHost()) {
@@ -120,7 +120,7 @@ void SharedStorageWorkletDevToolsAgentHost::WorkletReadyForInspection(
   GetRendererChannel()->SetRenderer(
       std::move(agent_remote), std::move(agent_host_receiver),
       worklet_host_->GetProcessHost()->GetDeprecatedID());
-#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void SharedStorageWorkletDevToolsAgentHost::WorkletDestroyed() {
@@ -136,7 +136,7 @@ void SharedStorageWorkletDevToolsAgentHost::WorkletDestroyed() {
 
 bool SharedStorageWorkletDevToolsAgentHost::IsRelevantTo(
     RenderFrameHostImpl* frame) {
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (!worklet_host_->GetFrame()) {
     return false;
   }
@@ -145,7 +145,7 @@ bool SharedStorageWorkletDevToolsAgentHost::IsRelevantTo(
          ContainingLocalRoot(worklet_host_->GetFrame());
 #else
   return false;
-#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 protocol::TargetAutoAttacher*

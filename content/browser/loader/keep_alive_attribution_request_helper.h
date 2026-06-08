@@ -16,7 +16,7 @@
 #include "base/unguessable_token.h"
 #include "content/public/common/buildflags.h"
 #include "content/public/common/content_milestone_features.h"
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/attribution_reporting/attribution_background_registrations_id.h"
 #include "content/browser/attribution_reporting/attribution_suitable_context.h"
 #else

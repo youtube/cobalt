@@ -30,7 +30,7 @@
 #include "base/types/pass_key.h"
 #include "content/public/common/buildflags.h"
 #include "content/public/common/content_milestone_features.h"
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/attribution_reporting/attribution_beacon_id.h"
 #include "content/browser/attribution_reporting/attribution_data_host_manager.h"
 #include "content/browser/attribution_reporting/attribution_host.h"
@@ -43,7 +43,7 @@
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
 #include "content/browser/fenced_frame/fenced_frame_config.h"
 #include "content/browser/interest_group/interest_group_pa_report_util.h"
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/private_aggregation/private_aggregation_budget_key.h"
 #include "content/browser/private_aggregation/private_aggregation_manager.h"
 #endif
@@ -316,7 +316,7 @@ FencedFrameReporter::FencedFrameReporter(
     const std::optional<url::Origin>& winner_aggregation_coordinator_origin,
     const std::optional<std::vector<url::Origin>>& allowed_reporting_origins)
     : url_loader_factory_(std::move(url_loader_factory)),
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
       attribution_manager_(
           AttributionManager::FromBrowserContext(browser_context)),
 #else
@@ -418,7 +418,7 @@ bool FencedFrameReporter::SendReport(
     return false;
   }
 
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   static base::AtomicSequenceNumber unique_id_counter;
 #endif
 
@@ -430,7 +430,7 @@ bool FencedFrameReporter::SendReport(
   WebContents* web_contents =
       WebContents::FromRenderFrameHost(request_initiator_frame);
   if (web_contents) {
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
     network::mojom::AttributionSupport attribution_reporting_support =
         static_cast<WebContentsImpl*>(web_contents)->GetAttributionSupport();
     auto suitable_context =
@@ -773,7 +773,7 @@ bool FencedFrameReporter::SendReportInternal(
 
   network::SimpleURLLoader* simple_url_loader_ptr = simple_url_loader.get();
 
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   AttributionDataHostManager* attribution_data_host_manager =
       attribution_manager_ ? attribution_manager_->GetDataHostManager()
                            : nullptr;
@@ -848,7 +848,7 @@ bool FencedFrameReporter::SendReportInternal(
             },
             event_variant, std::move(simple_url_loader),
             initiator_frame_tree_node_id, devtools_request_id));
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   }
 #endif
 
@@ -915,7 +915,7 @@ void FencedFrameReporter::SendPrivateAggregationRequestsForEvent(
 
 void FencedFrameReporter::SendPrivateAggregationRequestsForEventInternal(
     const std::string& pa_event_type) {
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   DCHECK(private_aggregation_manager_);
   DCHECK(winner_origin_.has_value() &&
          winner_origin_.value().scheme() == url::kHttpsScheme);
@@ -1017,7 +1017,7 @@ void FencedFrameReporter::NotifyFencedFrameReportingBeaconFailed(
     return;
   }
 
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   AttributionDataHostManager* attribution_data_host_manager =
       attribution_manager_ ? attribution_manager_->GetDataHostManager()
                            : nullptr;

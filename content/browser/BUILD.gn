@@ -3765,7 +3765,7 @@ source_set("browser") {
     deps += [ "//ash/constants:constants" ]
   }
 
-  if (disable_privacy_sandbox_apis) {
+  if (!enable_privacy_sandbox_apis) {
     _filtered_sources = filter_exclude(sources,
                                        [
                                          "browsing_topics/*",

@@ -13,7 +13,7 @@
 #include "base/trace_event/typed_macros.h"
 #include "content/public/common/buildflags.h"
 #include "content/public/common/content_milestone_features.h"
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/attribution_reporting/attribution_suitable_context.h"
 #endif
 #include "content/browser/loader/keep_alive_attribution_request_helper.h"
@@ -67,7 +67,7 @@ KeepAliveURLLoaderService::FactoryContext::FactoryContext(
       weak_document_ptr(other->weak_document_ptr),
       ukm_source_id(other->ukm_source_id),
       policy_container_host(other->policy_container_host),
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
       attribution_context(other->attribution_context),
 #endif
       network_isolation_key(other->network_isolation_key) {}
@@ -90,7 +90,7 @@ void KeepAliveURLLoaderService::FactoryContext::OnDidCommitNavigation(
   ukm_source_id = navigation_handle->GetNextPageUkmSourceId();
   policy_container_host = rfh->policy_container_host();
 
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   // `attribution_context` is needed for all kinds of keepalive requests, as
   // trigger registrations are allowed for all subresource requests.
   attribution_context = AttributionSuitableContext::Create(navigation_handle);
@@ -112,7 +112,7 @@ void KeepAliveURLLoaderService::FactoryContext::
       weak_document_ptr.AsRenderFrameHostIfValid());
   CHECK(rfh);
 
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   attribution_context = AttributionSuitableContext::Create(rfh);
 #endif
 }
@@ -271,7 +271,7 @@ class KeepAliveURLLoaderService::KeepAliveURLLoaderFactoriesBase {
         base::BindRepeating(&KeepAliveURLLoaderFactoriesBase::CreateThrottles,
                             base::Unretained(this)),
         base::PassKey<KeepAliveURLLoaderService>(),
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
         KeepAliveAttributionRequestHelper::CreateIfNeeded(
             resource_request.attribution_reporting_eligibility,
             resource_request.url,

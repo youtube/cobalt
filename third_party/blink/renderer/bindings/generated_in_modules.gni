@@ -3671,7 +3671,7 @@ generated_interface_extra_sources_for_testing_in_modules = [
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/properties_per_feature_installer_for_testing.h",
 ]
 
-if (disable_privacy_sandbox_apis) {
+if (!enable_privacy_sandbox_apis) {
   generated_async_iterator_sources_in_modules -= [
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_async_iterator_shared_storage.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_async_iterator_shared_storage.h",

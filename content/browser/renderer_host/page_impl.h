@@ -18,9 +18,9 @@
 #include "content/browser/renderer_host/stored_page.h"
 #include "content/public/common/content_milestone_features.h"
 #include "content/public/common/buildflags.h"
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/shared_storage/shared_storage_saved_query_data.h"
-#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/common/content_export.h"
 #include "content/common/navigation_client.mojom.h"
 #include "content/public/browser/page.h"
@@ -376,7 +376,7 @@ class CONTENT_EXPORT PageImpl : public Page {
   // Any fenced frames created within this page will access this map.
   FencedFrameURLMapping fenced_frame_urls_map_;
 
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   // If `blink::features::kSharedStorageSelectURLLimit` is enabled, the number
   // of bits of entropy remaining in this pageload's overall budget for calls to
   // `sharedStorage.selectURL()`. Calls from all sites on this page are
@@ -402,7 +402,7 @@ class CONTENT_EXPORT PageImpl : public Page {
   base::flat_map<std::tuple<url::Origin, GURL, std::string, std::u16string>,
                  SharedStorageSavedQueryData>
       select_url_saved_query_index_results_;
-#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   // This class is owned by the main RenderFrameHostImpl and it's safe to keep a
   // reference to it.

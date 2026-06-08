@@ -30,7 +30,7 @@ blink_modules_sources("exported") {
     "//ui/accessibility:ax_enums_mojo_blink",
   ]
 
-  if (disable_privacy_sandbox_apis) {
+  if (!enable_privacy_sandbox_apis) {
     sources -= [
       "web_shared_storage_worklet_thread_impl.cc",
       "web_shared_storage_worklet_thread_impl.h",
