@@ -220,10 +220,8 @@ class CONTENT_EXPORT KeepAliveURLLoaderService {
 
  private:
   template <typename Interface,
-            template <typename>
-            class PendingReceiverType,
-            template <typename, typename>
-            class ReceiverSetType>
+            template <typename> class PendingReceiverType,
+            template <typename, typename> class ReceiverSetType>
   class KeepAliveURLLoaderFactoriesBase;
   class KeepAliveURLLoaderFactories;
   class FetchLaterLoaderFactories;

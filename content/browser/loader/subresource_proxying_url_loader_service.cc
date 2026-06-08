@@ -108,9 +108,9 @@ void SubresourceProxyingURLLoaderService::CreateLoaderAndStart(
   if (PrefetchURLLoaderServiceContext::IsPrefetchRequest(resource_request_in) &&
       (
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
-       resource_request_in.browsing_topics ||
+          resource_request_in.browsing_topics ||
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
-       resource_request_in.ad_auction_headers)) {
+          resource_request_in.ad_auction_headers)) {
     loader_factory_receivers_.ReportBadMessage(
         "Unexpected `resource_request_in` in "
         "SubresourceProxyingURLLoaderService::CreateLoaderAndStart(): prefetch "

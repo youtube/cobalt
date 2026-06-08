@@ -151,10 +151,8 @@ void KeepAliveURLLoaderService::FactoryContext::UpdateFactory(
 // The lifetime of an instance of a subclass must be the same as the owning
 // KeepAliveURLLoaderService.
 template <typename Interface,
-          template <typename>
-          class PendingReceiverType,
-          template <typename, typename>
-          class ReceiverSetType>
+          template <typename> class PendingReceiverType,
+          template <typename, typename> class ReceiverSetType>
 class KeepAliveURLLoaderService::KeepAliveURLLoaderFactoriesBase {
  public:
   explicit KeepAliveURLLoaderFactoriesBase(KeepAliveURLLoaderService* service)

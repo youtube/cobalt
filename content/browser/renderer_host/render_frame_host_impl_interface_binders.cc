@@ -86,8 +86,9 @@ class MessageFilterChain final : public mojo::MessageFilter {
 
   bool WillDispatch(mojo::Message* message) override {
     for (auto& filter : filters_) {
-      if (!filter->WillDispatch(message))
+      if (!filter->WillDispatch(message)) {
         return false;
+      }
     }
     return true;
   }
@@ -126,8 +127,9 @@ class BackForwardCacheMessageFilter : public mojo::MessageFilter {
  private:
   // mojo::MessageFilter overrides.
   bool WillDispatch(mojo::Message* message) override {
-    if (!render_frame_host_->render_view_host())
+    if (!render_frame_host_->render_view_host()) {
       return false;
+    }
     if (render_frame_host_->render_view_host()
             ->GetPageLifecycleStateManager()
             ->RendererExpectedToSendChannelAssociatedIpcs() ||

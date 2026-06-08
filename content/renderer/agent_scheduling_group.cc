@@ -173,8 +173,9 @@ bool AgentSchedulingGroup::OnMessageReceived(const IPC::Message& message) {
   DCHECK_NE(message.routing_id(), MSG_ROUTING_CONTROL);
 
   auto* listener = GetListener(message.routing_id());
-  if (!listener)
+  if (!listener) {
     return false;
+  }
 
   return listener->OnMessageReceived(message);
 #else
@@ -205,8 +206,9 @@ void AgentSchedulingGroup::OnAssociatedInterfaceRequest(
 bool AgentSchedulingGroup::Send(IPC::Message* message) {
   std::unique_ptr<IPC::Message> msg(message);
 
-  if (GetMBIMode() == features::MBIMode::kLegacy)
+  if (GetMBIMode() == features::MBIMode::kLegacy) {
     return render_thread_->Send(msg.release());
+  }
 
   // This DCHECK is too idealistic for now - messages that are handled by
   // filters are sent control messages since they are intercepted before
@@ -291,9 +293,10 @@ blink::WebView* AgentSchedulingGroup::CreateWebView(
   DCHECK(RenderThread::IsMainThread());
 
   blink::WebFrame* opener_frame = nullptr;
-  if (params->opener_frame_token)
+  if (params->opener_frame_token) {
     opener_frame =
         blink::WebFrame::FromFrameToken(params->opener_frame_token.value());
+  }
 
   blink::WebView* web_view = blink::WebView::Create(
       new SelfOwnedWebViewClient(), params->hidden,
@@ -429,8 +432,9 @@ blink::WebView* AgentSchedulingGroup::CreateWebView(
   }
 
   // TODO(davidben): Move this state from Blink into content.
-  if (params->window_was_opened_by_another_window)
+  if (params->window_was_opened_by_another_window) {
     web_view->SetOpenedByDOM();
+  }
 
   GetContentClient()->renderer()->WebViewCreated(
       web_view, was_created_by_renderer,

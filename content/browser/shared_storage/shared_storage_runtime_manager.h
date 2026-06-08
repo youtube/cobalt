@@ -205,7 +205,6 @@ class CONTENT_EXPORT SharedStorageRuntimeManager {
 
 }  // namespace content
 
-
 namespace base {
 
 template <>

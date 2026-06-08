@@ -101,8 +101,9 @@ FetchRequestData* FetchRequestData::Create(
   for (const auto& pair : fetch_api_request->headers) {
     // TODO(leonhsl): Check sources of |fetch_api_request.headers| to make clear
     // whether we really need this filter.
-    if (EqualIgnoringASCIICase(pair.key, "referer"))
+    if (EqualIgnoringASCIICase(pair.key, "referer")) {
       continue;
+    }
     if (for_service_worker_fetch_event == ForServiceWorkerFetchEvent::kTrue &&
         IsExcludedHeaderForServiceWorkerFetchEvent(pair.key)) {
       continue;
@@ -175,8 +176,9 @@ FetchRequestData* FetchRequestData::Create(
   // we deprecate SetContext.
 
   request->SetDestination(fetch_api_request->destination);
-  if (fetch_api_request->request_initiator)
+  if (fetch_api_request->request_initiator) {
     request->SetOrigin(fetch_api_request->request_initiator);
+  }
   request->SetNavigationRedirectChain(
       fetch_api_request->navigation_redirect_chain);
   request->SetReferrerString(AtomicString(Referrer::NoReferrer()));
@@ -198,8 +200,9 @@ FetchRequestData* FetchRequestData::Create(
   request->SetIsHistoryNavigation(fetch_api_request->is_history_navigation);
   request->SetPriority(ConvertRequestPriorityToResourceLoadPriority(
       fetch_api_request->priority));
-  if (fetch_api_request->fetch_window_id)
+  if (fetch_api_request->fetch_window_id) {
     request->SetWindowId(fetch_api_request->fetch_window_id.value());
+  }
 
   if (fetch_api_request->trust_token_params) {
     std::optional<network::mojom::blink::TrustTokenParams> trust_token_params =
@@ -270,8 +273,9 @@ FetchRequestData* FetchRequestData::Clone(ScriptState* script_state,
     BodyStreamBuffer* new1 = nullptr;
     BodyStreamBuffer* new2 = nullptr;
     buffer_->Tee(&new1, &new2, exception_state);
-    if (exception_state.HadException())
+    if (exception_state.HadException()) {
       return nullptr;
+    }
     buffer_ = new1;
     request->buffer_ = new2;
     request->buffer_byte_length_ = buffer_byte_length_;

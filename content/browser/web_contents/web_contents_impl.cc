@@ -1154,8 +1154,9 @@ void WebContentsImpl::WebContentsTreeNode::DetachUnownedInnerWebContents(
   // detaching, the inner WebContents becomes the outermost WebContents from its
   // perspective, so its focused frame tree needs to be set.
   inner_web_contents_node.SetFocusedFrameTree(
-    was_inner_web_contents_focused ?
-      focused_frame_tree : &inner_web_contents->GetPrimaryFrameTree());
+      was_inner_web_contents_focused
+          ? focused_frame_tree
+          : &inner_web_contents->GetPrimaryFrameTree());
   // Reset the outermost WebContents's focused frame tree if the inner
   // WebContents was focused before detaching.
   if (was_inner_web_contents_focused) {
@@ -1492,8 +1493,8 @@ WebContentsImpl::~WebContentsImpl() {
     outermost->SetAsFocusedWebContentsIfNecessary();
   }
 
-  if (GetOuterWebContents()
-      && GetOuterWebContents()->node_.IsUnownedInnerWebContents(this)) {
+  if (GetOuterWebContents() &&
+      GetOuterWebContents()->node_.IsUnownedInnerWebContents(this)) {
     GetOuterWebContents()->DetachUnownedInnerWebContents(this);
   }
 
@@ -3218,8 +3219,8 @@ void WebContentsImpl::AttachInnerWebContents(
   // Not reachable with MPArch based guest view.
   CHECK(!base::FeatureList::IsEnabled(features::kGuestViewMPArch));
   AttachInnerWebContentsImpl(inner_web_contents.release(), render_frame_host,
-                            is_full_page,
-                            /*should_take_ownership=*/true);
+                             is_full_page,
+                             /*should_take_ownership=*/true);
 }
 
 void WebContentsImpl::AttachUnownedInnerWebContents(
@@ -3227,8 +3228,8 @@ void WebContentsImpl::AttachUnownedInnerWebContents(
     WebContents* inner_web_contents,
     RenderFrameHost* render_frame_host) {
   AttachInnerWebContentsImpl(inner_web_contents, render_frame_host,
-                            /*is_full_page=*/false,
-                            /*should_take_ownership=*/false);
+                             /*is_full_page=*/false,
+                             /*should_take_ownership=*/false);
 }
 
 void WebContentsImpl::AttachInnerWebContentsImpl(
@@ -10615,8 +10616,8 @@ void WebContentsImpl::OnDialogClosed(int render_process_id,
   std::vector<protocol::PageHandler*> page_handlers =
       protocol::PageHandler::EnabledForWebContents(this);
   for (auto* handler : page_handlers) {
-    handler->DidCloseJavaScriptDialog(rfh->devtools_frame_token(),
-                                      success, user_input);
+    handler->DidCloseJavaScriptDialog(rfh->devtools_frame_token(), success,
+                                      user_input);
   }
 
   is_showing_javascript_dialog_ = false;
@@ -11223,8 +11224,7 @@ WebContentsImpl::CreateAudioStreamFactory() {
     broker_factory = AudioStreamBrokerFactory::CreateImpl();
   }
   return std::make_unique<ForwardingAudioStreamFactory>(
-      this,
-      std::move(broker_factory));
+      this, std::move(broker_factory));
 }
 
 void WebContentsImpl::MediaStartedPlaying(
@@ -11730,26 +11730,24 @@ void WebContentsImpl::ForEachRenderViewHost(
 
   if ((view_mask & (ForEachRenderViewHostTypes::kPrerenderViews |
                     ForEachRenderViewHostTypes::kActiveViews)) != 0) {
-    ForEachFrameTree(
-        [view_mask, &render_view_hosts](FrameTree& frame_tree) {
-          // Check the view masks.
-          if (frame_tree.is_prerendering()) {
-            // We are in a prerendering page.
-            if ((view_mask & ForEachRenderViewHostTypes::kPrerenderViews) ==
-                0) {
-              return;
-            }
-          } else {
-            // We are in an active page.
-            if ((view_mask & ForEachRenderViewHostTypes::kActiveViews) == 0) {
-              return;
-            }
-          }
-          frame_tree.ForEachRenderViewHost(
-              [&render_view_hosts](RenderViewHostImpl* rvh) {
-                render_view_hosts.insert(rvh);
-              });
-        });
+    ForEachFrameTree([view_mask, &render_view_hosts](FrameTree& frame_tree) {
+      // Check the view masks.
+      if (frame_tree.is_prerendering()) {
+        // We are in a prerendering page.
+        if ((view_mask & ForEachRenderViewHostTypes::kPrerenderViews) == 0) {
+          return;
+        }
+      } else {
+        // We are in an active page.
+        if ((view_mask & ForEachRenderViewHostTypes::kActiveViews) == 0) {
+          return;
+        }
+      }
+      frame_tree.ForEachRenderViewHost(
+          [&render_view_hosts](RenderViewHostImpl* rvh) {
+            render_view_hosts.insert(rvh);
+          });
+    });
   }
 
   if ((view_mask & ForEachRenderViewHostTypes::kBackForwardCacheViews) != 0) {

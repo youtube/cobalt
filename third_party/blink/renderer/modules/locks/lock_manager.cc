@@ -65,8 +65,9 @@ HeapVector<Member<LockInfo>> ToLockInfos(
     const Vector<mojom::blink::LockInfoPtr>& records) {
   HeapVector<Member<LockInfo>> out;
   out.ReserveInitialCapacity(records.size());
-  for (const auto& record : records)
+  for (const auto& record : records) {
     out.push_back(ToLockInfo(record));
+  }
   return out;
 }
 
@@ -155,8 +156,9 @@ class LockManager::LockRequestImpl final
     abort_handle_.Clear();
 
     ScriptState* script_state = resolver_->GetScriptState();
-    if (!script_state->ContextIsValid())
+    if (!script_state->ContextIsValid()) {
       return;
+    }
 
     // Lock was not granted e.g. because ifAvailable was specified but
     // the lock was not available.
@@ -531,8 +533,9 @@ void LockManager::Trace(Visitor* visitor) const {
 }
 
 void LockManager::ContextDestroyed() {
-  for (auto request : pending_requests_)
+  for (auto request : pending_requests_) {
     request->Cancel();
+  }
   pending_requests_.clear();
   held_locks_.clear();
 }

@@ -97,16 +97,18 @@ storage::mojom::LocalStorageControl*
 TestStoragePartition::GetLocalStorageControl() {
   // Bind and throw away the receiver. If testing is required, then add a method
   // to set the remote.
-  if (!local_storage_control_.is_bound())
+  if (!local_storage_control_.is_bound()) {
     std::ignore = local_storage_control_.BindNewPipeAndPassReceiver();
+  }
   return local_storage_control_.get();
 }
 
 storage::mojom::IndexedDBControl& TestStoragePartition::GetIndexedDBControl() {
   // Bind and throw away the receiver. If testing is required, then add a method
   // to set the remote.
-  if (!indexed_db_control_.is_bound())
+  if (!indexed_db_control_.is_bound()) {
     std::ignore = indexed_db_control_.BindNewPipeAndPassReceiver();
+  }
   return *indexed_db_control_;
 }
 
@@ -131,8 +133,9 @@ storage::mojom::CacheStorageControl*
 TestStoragePartition::GetCacheStorageControl() {
   // Bind and throw away the receiver. If testing is required, then add a method
   // to set the remote.
-  if (!cache_storage_control_.is_bound())
+  if (!cache_storage_control_.is_bound()) {
     std::ignore = cache_storage_control_.BindNewPipeAndPassReceiver();
+  }
   return cache_storage_control_.get();
 }
 
