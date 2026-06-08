@@ -538,6 +538,13 @@ def main():
     else:
       print('\nNo leaks were introduced.', file=sys.stderr)
 
+    # Non-Cobalt targets aren't tracked in the manifest, so it is possible that
+    # leaks are present in Cobalt but not in NPLB, for example. In that case, we
+    # do not want to claim that a leak is "removed" from Cobalt just because the
+    # leak detector is checking NPLB.
+    if args.target != _DEFAULT_TARGET:
+      removed = type(removed)()
+
     if removed:
       PrettyPrint({'Leaks removed:': removed})
       print('\nPlease delete removed leaks from the manifest file: '
