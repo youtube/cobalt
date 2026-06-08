@@ -2519,8 +2519,13 @@ source_set("browser") {
     "worker_host/worker_script_loader_factory.h",
   ]
 
+  # If in the future privacy sandbox components are removed from the code base, ignore this if block.
   if (!enable_privacy_sandbox_apis) {
-    _filtered_sources = filter_exclude(sources, [ "browsing_topics/*" ])
+    _filtered_sources = filter_exclude(sources,
+                                       [
+                                         "browsing_topics/*",
+                                         "attribution_reporting/*",
+                                       ])
     sources = []
     sources = _filtered_sources
     deps -= [ "//components/browsing_topics/common:common" ]
@@ -3247,7 +3252,7 @@ source_set("browser") {
     }
   }
 
-  if ((is_linux && !is_cobalt_hermetic_build || is_chromeos) && use_aura) {
+  if (((is_linux && !is_cobalt_hermetic_build) || is_chromeos) && use_aura) {
     deps += [ "//third_party/fontconfig" ]
   }
 
