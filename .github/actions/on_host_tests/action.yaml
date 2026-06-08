@@ -34,19 +34,45 @@ runs:
         mkdir -p unit_test/
         cd unit_test/
         tar -I 'zstd -T0' -xf ../test_artifacts.tar.zstd
+    - name: Download Previous Results
+      if: github.run_attempt > 1
+      uses: actions/download-artifact@v4
+      continue-on-error: true
+      with:
+        name: ${{ inputs.test_results_key }}
+        path: previous_results/
+    - name: Prepare Filter Directory
+      env:
+        PLATFORM: ${{ matrix.platform }}
+      run: |
+        # Prepare resolved filter directory.
+        set -x
+        RESOLVED_FILTER_DIR="${GITHUB_WORKSPACE}/resolved_filters"
+        echo "RESOLVED_FILTER_DIR=${RESOLVED_FILTER_DIR}" >> $GITHUB_ENV
+
+        mkdir -p "${RESOLVED_FILTER_DIR}"
+        cp -r "${GITHUB_WORKSPACE}/cobalt/testing/filters/${PLATFORM}"/* "${RESOLVED_FILTER_DIR}/" || true
+
+        # Overwrite with retry filters from previous results if they exist.
+        if [ -d "${GITHUB_WORKSPACE}/previous_results/${PLATFORM}/retry_filters" ]; then
+          cp -r "${GITHUB_WORKSPACE}/previous_results/${PLATFORM}/retry_filters"/* "${RESOLVED_FILTER_DIR}/" || true
+        fi
     - name: Run Tests
       id: run-tests
       shell: bash
       env:
-        XVFB_SERVER_ARGS: "-screen 0 1920x1080x24i +render +extension GLX -noreset"
+        CONFIG: ${{ matrix.config }}
         GTEST_SHARD_INDEX: ${{ matrix.shard }}
         GTEST_TOTAL_SHARDS: ${{ inputs.num_gtest_shards }}
+        PLATFORM: ${{ matrix.platform }}
+        SHARD: ${{ matrix.shard }}
         TEST_EXECUTABLES_JSON: ${{ inputs.test_executables_json }}
+        XVFB_SERVER_ARGS: "-screen 0 1920x1080x24i +render +extension GLX -noreset"
       run: |
         set -x
         env
 
-        out_dir="${GITHUB_WORKSPACE}/unit_test/out/${{ matrix.platform}}_${{ matrix.config }}"
+        out_dir="${GITHUB_WORKSPACE}/unit_test/out/${PLATFORM}_${CONFIG}"
         # TODO: LD_LIBRARY_PATH should not include the starboard subdirectory.
         LD_LIBRARY_PATH="${out_dir}/starboard"
         LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${out_dir}"
@@ -63,8 +89,8 @@ runs:
         # Test results (xml and logs) must be in a subfolder in results_dir
         # to be picked up by the test result processor.
         # This also prevents accidental overwriting when collecting results.
-        test_output="${results_dir}/shard_${{ matrix.shard }}"
-        mkdir -p ${test_output}
+        test_output="${results_dir}/shard_${SHARD}"
+        mkdir -p "${test_output}"
 
         failed_suites=""
         cd unit_test/
@@ -79,9 +105,12 @@ runs:
           echo "Running tests for suite: ${test_executable}"
 
           test_filter="*"
-          test_filter_json_dir="${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}/${test_executable}_filter.json"
+          test_filter_json_dir="${RESOLVED_FILTER_DIR}/${test_executable}_filter.json"
           if [ -f ${test_filter_json_dir} ]; then
-            test_filter=`jq -r '"-" + (.failing_tests | join(":"))' ${test_filter_json_dir}`
+            positive_filters=$(jq -r '.tests_to_run // [] | join(":")' ${test_filter_json_dir})
+            negative_filters=$(jq -r '.failing_tests // [] | join(":")' ${test_filter_json_dir})
+            test_filter="${positive_filters}${negative_filters:+-${negative_filters}}"
+            test_filter="${test_filter:-*}"
           fi
 
           echo "Test filter evaluated to: ${test_filter}"
@@ -102,19 +131,27 @@ runs:
             echo "Skipped due to test filter." >  ${log_path}
           else
             /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
-                stdbuf -i0 -o0 -e0 $ENTRYPOINT \
+                stdbuf -i0 -o0 -e0 "${ENTRYPOINT}" \
                 --single-process-tests \
                 --gtest_shard_index="${GTEST_SHARD_INDEX}" \
                 --gtest_total_shards="${GTEST_TOTAL_SHARDS}" \
                 --gtest_output="xml:${xml_path}" \
-                --gtest_filter="${test_filter}" 2>&1 | tee ${log_path} || {
+                --gtest_filter="${test_filter}" 2>&1 | tee "${log_path}" || {
               failed_suites="${failed_suites} ${test_executable}"
             }
 
-            if [[ ! -f ${xml_path} ]]; then
+            if [[ ! -f "${xml_path}" ]]; then
               # Test binary crashed. Generate a fake JUnit XML report with the last run test.
-              python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
+              python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" "${log_path}" "${xml_path}"
+              exit_code=1
             fi
+
+            # Record results into retry filters directory.
+            python3 "${GITHUB_WORKSPACE}/cobalt/tools/junit_mini_parser.py" \
+                --mode generate-filter \
+                --target "${test_executable}" \
+                --output-dir "${test_output}/retry_filters" \
+                "${xml_path}"
           fi
         done
         echo "Finished running tests..."

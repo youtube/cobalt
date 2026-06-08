@@ -858,6 +858,25 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Download Test Results
+        uses: actions/download-artifact@v5
+        with:
+          pattern: ${{ env.TEST_RESULTS_KEY }}*
+          path: results/
+      - name: Prepare Filter Directory
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          # Prepare resolved filter directory.
+          RESOLVED_FILTER_DIR="${GITHUB_WORKSPACE}/resolved_filters"
+          mkdir -p "${RESOLVED_FILTER_DIR}"
+          echo "RESOLVED_FILTER_DIR=${RESOLVED_FILTER_DIR}" >> $GITHUB_ENV
+
+          # Copy original filter and replace with generated ones if they exist.
+          cp -r "${GITHUB_WORKSPACE}/cobalt/testing/filters/${PLATFORM}"/* "${RESOLVED_FILTER_DIR}/" || true
+          shopt -s globstar nullglob
+          cp -r "${GITHUB_WORKSPACE}/results"/**/retry_filters/* "${RESOLVED_FILTER_DIR}/" || true
+        shell: bash
       - name: Extract Test Target Name
         id: extract-target-name
         env:
@@ -871,10 +890,9 @@ jobs:
           # Get first entry in test filters file.
           test_filter=""
           test_target="${{ steps.extract-target-name.outputs.test_target }}"
-          test_filter_json_dir="${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}/${test_target}_filter.json"
-          if [ -f ${test_filter_json_dir} ]; then
-            test_filter="$(jq -cr '.failing_tests[0]' ${test_filter_json_dir})"
-            if [ "${test_filter}" = '*' ]; then
+          test_filter_json_dir="${RESOLVED_FILTER_DIR}/${test_target}_filter.json"
+          if [ -f "${test_filter_json_dir}" ]; then
+            if jq -e '(.failing_tests // []) | any(. == "*")' "${test_filter_json_dir}" >/dev/null 2>&1; then
               echo "${test_target} was skipped due to test filter."
               echo "skipped=true" >> $GITHUB_OUTPUT
             else
@@ -882,12 +900,6 @@ jobs:
             fi
           fi
         shell: bash
-      - name: Download Test Results
-        if: steps.filter.outputs.skipped != 'true'
-        uses: actions/download-artifact@v5
-        with:
-          pattern: ${{ env.TEST_RESULTS_KEY }}*
-          path: results/
       - name: Test Results
         if: steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/process_test_results
