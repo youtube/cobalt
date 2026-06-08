@@ -5,7 +5,7 @@
 #ifndef CONTENT_BROWSER_LOADER_KEEP_ALIVE_ATTRIBUTION_REQUEST_HELPER_H_
 #define CONTENT_BROWSER_LOADER_KEEP_ALIVE_ATTRIBUTION_REQUEST_HELPER_H_
 
-#include <stdint.h>
+#include <cstdint>
 
 #include <memory>
 #include <optional>
@@ -25,7 +25,7 @@
 #include "content/browser/attribution_reporting/attribution_suitable_context.h"
 #else
 namespace content {
-class AttributionSuitableContext;
+class AttributionSuitableContext {};
 using BackgroundRegistrationsId = int64_t;
 }  // namespace content
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138

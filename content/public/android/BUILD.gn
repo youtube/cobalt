@@ -232,7 +232,7 @@ android_library("content_full_java") {
   if(is_cobalt) {
     deps -= [ "//services/shape_detection:shape_detection_java" ]
   }
-
+  
   srcjar_deps = [
     ":content_jni_headers",
     ":is_ready_to_pay_service_aidl",
