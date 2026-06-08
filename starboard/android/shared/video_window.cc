@@ -25,9 +25,11 @@
 #include "cobalt/android/jni_headers/VideoSurfaceView_jni.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
+#include "starboard/common/no_destructor.h"
 #include "starboard/common/once.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/gles/gl_call.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
@@ -38,8 +40,12 @@ namespace {
 
 // Global video surface pointer mutex.
 SB_ONCE_INITIALIZE_FUNCTION(std::mutex, GetViewSurfaceMutex)
-// Global pointer to the single video surface.
-jobject g_j_video_surface = NULL;
+
+jni_zero::ScopedJavaGlobalRef<jobject>& GetGlobalVideoSurface() {
+  static NoDestructor<jni_zero::ScopedJavaGlobalRef<jobject>> instance;
+  return *instance;
+}
+
 // Global pointer to the single video window.
 ANativeWindow* g_native_video_window = NULL;
 // Global video surface pointer holder.
@@ -58,16 +64,13 @@ void JNI_VideoSurfaceView_OnVideoSurfaceChanged(
     g_video_surface_holder->OnSurfaceDestroyed();
     g_video_surface_holder = NULL;
   }
-  if (g_j_video_surface) {
-    env->DeleteGlobalRef(g_j_video_surface);
-    g_j_video_surface = NULL;
-  }
+  GetGlobalVideoSurface().Reset();
   if (g_native_video_window) {
     ANativeWindow_release(g_native_video_window);
     g_native_video_window = NULL;
   }
   if (surface) {
-    g_j_video_surface = env->NewGlobalRef(surface.obj());
+    GetGlobalVideoSurface().Reset(env, surface);
     g_native_video_window = ANativeWindow_fromSurface(env, surface.obj());
   }
 }
@@ -82,7 +85,7 @@ bool VideoSurfaceHolder::IsVideoSurfaceAvailable() {
   // surface and it is not held by any decoder, i.e.
   // g_video_surface_holder is NULL.
   std::lock_guard lock(*GetViewSurfaceMutex());
-  return !g_video_surface_holder && g_j_video_surface;
+  return !g_video_surface_holder && GetGlobalVideoSurface();
 }
 
 jobject VideoSurfaceHolder::AcquireVideoSurface() {
@@ -90,11 +93,11 @@ jobject VideoSurfaceHolder::AcquireVideoSurface() {
   if (g_video_surface_holder != NULL) {
     return NULL;
   }
-  if (!g_j_video_surface) {
+  if (!GetGlobalVideoSurface()) {
     return NULL;
   }
   g_video_surface_holder = this;
-  return g_j_video_surface;
+  return GetGlobalVideoSurface().obj();
 }
 
 void VideoSurfaceHolder::ReleaseVideoSurface() {
