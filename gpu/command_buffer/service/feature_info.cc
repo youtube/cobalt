@@ -282,7 +282,7 @@ bool IsGL_REDSupportedOnFBOs() {
   return true;
 #else
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   return true;
 #endif
 
