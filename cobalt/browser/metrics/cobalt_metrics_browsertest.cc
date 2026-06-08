@@ -28,6 +28,7 @@
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "content/public/test/browser_test.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -43,11 +44,13 @@ class CobaltMetricsBrowserTest : public content::ContentBrowserTest {
 
   void SetUpOnMainThread() override {
     content::ContentBrowserTest::SetUpOnMainThread();
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
     if (auto* instrumentation =
             memory_instrumentation::MemoryInstrumentation::GetInstance()) {
       static base::NoDestructor<CobaltDetailedMetricsDelegate> delegate;
       instrumentation->SetDetailedMetricsDelegate(delegate.get());
     }
+#endif
   }
 
  private:
@@ -91,6 +94,15 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
     return exists;
   };
 
+  auto check_non_zero_histogram = [](const std::string& name) {
+    auto* histogram = base::StatisticsRecorder::FindHistogram(name);
+    bool valid = histogram && histogram->SnapshotSamples()->sum() > 0;
+    if (!valid) {
+      LOG(WARNING) << "Histogram not found, empty, or zero: " << name;
+    }
+    return valid;
+  };
+
   // Verify process-specific and region-specific metrics.
   // We check for histograms that we confirmed in the logs to have data.
   EXPECT_TRUE(check_histogram("Memory.Experimental.Browser2.Malloc"));
@@ -122,6 +134,12 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
   check_histogram("Memory.Experimental.Browser2.PartitionAlloc");
   check_histogram(
       "Memory.Experimental.Browser2.PartitionAlloc.AllocatedObjects");
+  EXPECT_TRUE(check_non_zero_histogram(
+      "Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.ArrayBuffer"));
+  EXPECT_TRUE(check_non_zero_histogram(
+      "Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.Buffer"));
+  EXPECT_TRUE(check_non_zero_histogram(
+      "Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.FastMalloc"));
   check_histogram("Memory.Experimental.Browser2.V8");
   check_histogram("Memory.Experimental.Browser2.V8.AllocatedObjects");
   check_histogram("Memory.Experimental.Browser2.Skia");
@@ -180,6 +198,15 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
     return exists;
   };
 
+  auto check_non_zero_histogram = [](const std::string& name) {
+    auto* histogram = base::StatisticsRecorder::FindHistogram(name);
+    bool valid = histogram && histogram->SnapshotSamples()->sum() > 0;
+    if (!valid) {
+      LOG(WARNING) << "Histogram not found, empty, or zero: " << name;
+    }
+    return valid;
+  };
+
   // We expect at least one sample from the periodic collection.
   EXPECT_TRUE(check_histogram("Memory.Experimental.Browser2.Malloc"));
 #if BUILDFLAG(IS_ANDROID)
@@ -212,6 +239,12 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   check_histogram("Memory.Experimental.Browser2.BlinkGC");
   check_histogram("Memory.Experimental.Browser2.BlinkGC.AllocatedObjects");
   check_histogram("Memory.Experimental.Browser2.PartitionAlloc");
+  EXPECT_TRUE(check_non_zero_histogram(
+      "Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.ArrayBuffer"));
+  EXPECT_TRUE(check_non_zero_histogram(
+      "Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.Buffer"));
+  EXPECT_TRUE(check_non_zero_histogram(
+      "Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.FastMalloc"));
   check_histogram("Memory.Experimental.Browser2.V8");
   check_histogram("Memory.Experimental.Browser2.Skia");
 

@@ -19,6 +19,7 @@
 
 #include <memory>
 
+#include "starboard/common/rect.h"
 #include "starboard/player.h"
 
 namespace starboard {
@@ -33,7 +34,7 @@ struct SB_EXPORT Player {
   virtual void Seek(int64_t seek_to_timestamp, int ticket) = 0;
   virtual bool SetRate(double rate) = 0;
   virtual void GetInfo(SbPlayerInfo* info) = 0;
-  virtual void SetBounds(int zindex, int x, int y, int w, int h) = 0;
+  virtual void SetBounds(int zindex, const Rect& rect) = 0;
 };
 
 void ForceStop();

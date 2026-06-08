@@ -9267,12 +9267,12 @@ void RenderFrameHostImpl::DidChangeIframeAttributes(
   }
 
   if (attributes->browsing_topics) {
-#if BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) || !CHROMIUM_MILESTONE_LE_138
+#if !BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) || !CHROMIUM_MILESTONE_LE_138
     const bool topics_disabled = true;
 #else
     const bool topics_disabled =
         !base::FeatureList::IsEnabled(network::features::kBrowsingTopics);
-#endif  // BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) || !CHROMIUM_MILESTONE_LE_138
+#endif  // !BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) || !CHROMIUM_MILESTONE_LE_138
     if (topics_disabled) {
       bad_message::ReceivedBadMessage(
           GetProcess(),

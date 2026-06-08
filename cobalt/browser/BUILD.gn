@@ -45,6 +45,7 @@ source_set("browser") {
   public_deps = [
     "//cobalt/browser/h5vcc_metrics",
     "//cobalt/browser/h5vcc_runtime",
+    "//cobalt/browser/lifecycle",
     "//content/public/browser",
   ]
 
@@ -71,6 +72,8 @@ source_set("browser") {
     "//cobalt/browser/h5vcc_storage/public/mojom",
     "//cobalt/browser/h5vcc_system",
     "//cobalt/browser/h5vcc_system/public/mojom",
+    "//cobalt/browser/h5vcc_updater",
+    "//cobalt/browser/h5vcc_updater/public/mojom",
     "//cobalt/browser/mojom",
     "//cobalt/browser/performance",
     "//cobalt/browser/performance/public/mojom",

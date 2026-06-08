@@ -46,6 +46,8 @@ class MediaBufferPoolDecoderBufferAllocatorStrategy
 
   size_t GetAllocated() const override;
 
+  void DecommitAllDecommitableBlocks() override;
+
  private:
   typedef starboard::experimental::MediaBufferPoolBidirectionalReuseAllocator
       MediaBufferPoolBidirectionalReuseAllocator;

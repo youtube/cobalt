@@ -28,7 +28,6 @@
 
 #include "starboard/common/thread_options.h"
 #include "starboard/configuration.h"
-#include "starboard/thread.h"
 
 namespace starboard {
 
@@ -75,7 +74,7 @@ class Thread {
 
  private:
   const std::string name_;
-  const std::optional<SbThreadPriority> priority_;
+  const std::optional<ThreadPriority> priority_;
   struct Data;
   const std::unique_ptr<Data> d_;
 
@@ -83,7 +82,7 @@ class Thread {
   void operator=(const Thread&) = delete;
 };
 
-int SbPriorityToNice(SbThreadPriority priority);
+int ThreadPriorityToNiceValue(ThreadPriority priority);
 
 }  // namespace starboard
 

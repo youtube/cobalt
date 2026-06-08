@@ -18,7 +18,9 @@
 #include "base/test/task_environment.h"
 #include "base/test/test_timeouts.h"
 #include "base/timer/mock_timer.h"
+#include "cobalt/shell/browser/shell_test_support.h"
 #include "content/public/test/mock_navigation_handle.h"
+#include "content/test/test_web_contents.h"
 #include "net/base/net_errors.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -60,17 +62,34 @@ class TestCobaltWebContentsObserver : public CobaltWebContentsObserver {
   bool error_is_showing_ = false;
 };
 
-class CobaltWebContentsObserverTest : public testing::Test {
+class CobaltWebContentsObserverTest : public content::ShellTestBase {
  protected:
-  CobaltWebContentsObserverTest()
-      : task_environment_(base::test::TaskEnvironment::TimeSource::MOCK_TIME),
-        observer_(std::make_unique<TestCobaltWebContentsObserver>(nullptr)) {
+  CobaltWebContentsObserverTest() = default;
+
+  void SetUp() override {
+    content::ShellTestBase::SetUp();
+    web_contents_ = CreateScopedTestWebContents();
+    observer_ =
+        std::make_unique<TestCobaltWebContentsObserver>(web_contents_.get());
+
     auto mock_timer = std::make_unique<base::MockOneShotTimer>();
     mock_timer_ = mock_timer.get();
     observer_->SetTimerForTestInternal(std::move(mock_timer));
 
     navigation_handle_.set_is_in_primary_main_frame(true);
     navigation_handle_.set_url(GURL(kTestUrl));
+  }
+
+  void TearDown() override {
+    observer_.reset();
+    web_contents_.reset();
+    content::ShellTestBase::TearDown();
+  }
+
+  std::unique_ptr<content::WebContents> CreateScopedTestWebContents() {
+    content::WebContents::CreateParams create_params(browser_context());
+    return std::unique_ptr<content::WebContents>(
+        content::TestWebContents::Create(create_params));
   }
 
   TestCobaltWebContentsObserver* observer() { return observer_.get(); }
@@ -80,7 +99,7 @@ class CobaltWebContentsObserverTest : public testing::Test {
   }
 
  private:
-  base::test::TaskEnvironment task_environment_;
+  std::unique_ptr<content::WebContents> web_contents_;
   std::unique_ptr<TestCobaltWebContentsObserver> observer_;
   raw_ptr<base::MockOneShotTimer> mock_timer_;
   content::MockNavigationHandle navigation_handle_;
