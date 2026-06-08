@@ -1,17 +1,13 @@
-name: aosp
+name: aosp_27.lts
 
 on:
   pull_request:
     types: [opened, reopened, synchronize, labeled, ready_for_review]
     branches:
-      - main
-      - experimental/*
-      - feature/*
+      - 27.lts
   push:
     branches:
-      - main
-      - experimental/*
-      - feature/*
+      - 27.lts
   workflow_dispatch:
     inputs:
       nightly:
