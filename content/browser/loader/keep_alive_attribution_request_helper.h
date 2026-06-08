@@ -5,7 +5,7 @@
 #ifndef CONTENT_BROWSER_LOADER_KEEP_ALIVE_ATTRIBUTION_REQUEST_HELPER_H_
 #define CONTENT_BROWSER_LOADER_KEEP_ALIVE_ATTRIBUTION_REQUEST_HELPER_H_
 
-#include <cstdint>
+#include <stdint.h>
 
 #include <memory>
 #include <optional>
