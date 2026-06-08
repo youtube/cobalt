@@ -81,6 +81,8 @@ class CobaltWebContentsObserver::PlatformErrorBridge {
   }
 
  private:
+  ~PlatformErrorBridge() = default;
+
   void RunOnSequence(SbSystemPlatformErrorResponse response) {
     DCHECK(task_runner_->RunsTasksInCurrentSequence());
     if (observer_) {
