@@ -4,6 +4,12 @@
 
 #include "content/browser/interest_group/interest_group_pa_report_util.h"
 
+// clang-format off
+// Remove these two includes after CHROMIUM_MILESTONE_LE_138
+#include "content/public/common/buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+// clang-format on
+
 #include <stdint.h>
 
 #include <cmath>
@@ -22,13 +28,11 @@
 #include "base/notreached.h"
 #include "base/numerics/clamped_math.h"
 #include "components/aggregation_service/aggregation_coordinator_utils.h"
-#include "content/public/common/buildflags.h"
-#include "content/public/common/content_milestone_features.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/private_aggregation/private_aggregation_caller_api.h"
 #include "content/browser/private_aggregation/private_aggregation_host.h"
 #include "content/browser/private_aggregation/private_aggregation_manager.h"
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/common/content_export.h"
 #include "content/services/auction_worklet/public/cpp/private_aggregation_reporting.h"
 #include "content/services/auction_worklet/public/mojom/private_aggregation_request.mojom.h"
@@ -545,7 +549,7 @@ void SplitContributionsIntoBatchesThenSendToHost(
     remote_host.reset();
   }
 }
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 bool HasValidFilteringId(
     const auction_worklet::mojom::PrivateAggregationRequestPtr& request) {

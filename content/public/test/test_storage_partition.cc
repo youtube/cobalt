@@ -4,11 +4,15 @@
 
 #include "content/public/test/test_storage_partition.h"
 
+// clang-format off
+// Remove these two includes after CHROMIUM_MILESTONE_LE_138
+#include "content/public/common/buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+// clang-format on
+
 #include <tuple>
 
 #include "components/leveldb_proto/public/proto_database_provider.h"
-#include "content/public/common/content_milestone_features.h"
-#include "content/public/common/buildflags.h"
 #include "content/public/browser/file_system_access_entry_factory.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
@@ -93,16 +97,18 @@ storage::mojom::LocalStorageControl*
 TestStoragePartition::GetLocalStorageControl() {
   // Bind and throw away the receiver. If testing is required, then add a method
   // to set the remote.
-  if (!local_storage_control_.is_bound())
+  if (!local_storage_control_.is_bound()) {
     std::ignore = local_storage_control_.BindNewPipeAndPassReceiver();
+  }
   return local_storage_control_.get();
 }
 
 storage::mojom::IndexedDBControl& TestStoragePartition::GetIndexedDBControl() {
   // Bind and throw away the receiver. If testing is required, then add a method
   // to set the remote.
-  if (!indexed_db_control_.is_bound())
+  if (!indexed_db_control_.is_bound()) {
     std::ignore = indexed_db_control_.BindNewPipeAndPassReceiver();
+  }
   return *indexed_db_control_;
 }
 
@@ -127,8 +133,9 @@ storage::mojom::CacheStorageControl*
 TestStoragePartition::GetCacheStorageControl() {
   // Bind and throw away the receiver. If testing is required, then add a method
   // to set the remote.
-  if (!cache_storage_control_.is_bound())
+  if (!cache_storage_control_.is_bound()) {
     std::ignore = cache_storage_control_.BindNewPipeAndPassReceiver();
+  }
   return cache_storage_control_.get();
 }
 

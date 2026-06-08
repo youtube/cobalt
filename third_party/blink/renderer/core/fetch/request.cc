@@ -4,6 +4,12 @@
 
 #include "third_party/blink/renderer/core/fetch/request.h"
 
+// clang-format off
+// Remove these two includes after CHROMIUM_MILESTONE_LE_138
+#include "third_party/blink/public/public_buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+// clang-format on
+
 #include <optional>
 
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -13,8 +19,6 @@
 #include "services/network/public/mojom/ip_address_space.mojom-blink.h"
 #include "services/network/public/mojom/trust_tokens.mojom-blink.h"
 #include "third_party/blink/public/common/blob/blob_utils.h"
-#include "content/public/common/content_milestone_features.h"
-#include "third_party/blink/public/public_buildflags.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/platform/web_url_request.h"
 #include "third_party/blink/renderer/bindings/core/v8/dictionary.h"
@@ -198,10 +202,11 @@ FetchRequestData* CreateCopyOfFetchRequestDataForFetch(
   // destination of the original request.  Therefore record the original
   // request's destination if its non-empty, otherwise just carry forward
   // whatever "original destination" value was already set.
-  if (original->Destination() != network::mojom::RequestDestination::kEmpty)
+  if (original->Destination() != network::mojom::RequestDestination::kEmpty) {
     request->SetOriginalDestination(original->Destination());
-  else
+  } else {
     request->SetOriginalDestination(original->OriginalDestination());
+  }
 
   return request;
 }
@@ -246,8 +251,9 @@ static BodyStreamBuffer* ExtractBody(ScriptState* script_state,
     DOMArrayBuffer* array_buffer =
         NativeValueTraits<DOMArrayBuffer>::NativeValue(isolate, body,
                                                        exception_state);
-    if (exception_state.HadException())
+    if (exception_state.HadException()) {
       return nullptr;
+    }
     if (!base::CheckedNumeric<wtf_size_t>(array_buffer->ByteLength())
              .IsValid()) {
       exception_state.ThrowRangeError(
@@ -265,8 +271,9 @@ static BodyStreamBuffer* ExtractBody(ScriptState* script_state,
         NativeValueTraits<MaybeShared<DOMArrayBufferView>>::NativeValue(
             isolate, body, exception_state)
             .Get();
-    if (exception_state.HadException())
+    if (exception_state.HadException()) {
       return nullptr;
+    }
     if (!base::CheckedNumeric<wtf_size_t>(array_buffer_view->byteLength())
              .IsValid()) {
       exception_state.ThrowRangeError(
@@ -325,8 +332,9 @@ static BodyStreamBuffer* ExtractBody(ScriptState* script_state,
   } else {
     String string = NativeValueTraits<IDLUSVString>::NativeValue(
         isolate, body, exception_state);
-    if (exception_state.HadException())
+    if (exception_state.HadException()) {
       return nullptr;
+    }
 
     body_byte_length = string.length();
     return_buffer = BodyStreamBuffer::Create(
@@ -443,8 +451,9 @@ Request* Request::CreateRequestWithRequestOrString(
     request->SetNavigationRedirectChain(Vector<KURL>());
 
     // "If |request|'s |mode| is "navigate", then set it to "same-origin".
-    if (request->Mode() == network::mojom::RequestMode::kNavigate)
+    if (request->Mode() == network::mojom::RequestMode::kNavigate) {
       request->SetMode(network::mojom::RequestMode::kSameOrigin);
+    }
 
     // TODO(yhirano): Implement the following substep:
     // "Unset |request|'s reload-navigation flag."
@@ -564,8 +573,9 @@ Request* Request::CreateRequestWithRequestOrString(
   } else {
     // |inputRequest| is directly checked here instead of setting and
     // checking |fallbackMode| as specified in the spec.
-    if (!input_request)
+    if (!input_request) {
       request->SetMode(network::mojom::RequestMode::kCors);
+    }
   }
 
   // "If |init|'s priority member is present, set |request|'s priority
@@ -659,11 +669,13 @@ Request* Request::CreateRequestWithRequestOrString(
 
   // "If |init|'s integrity member is present, set |request|'s
   // integrity metadata to it."
-  if (init->hasIntegrity())
+  if (init->hasIntegrity()) {
     request->SetIntegrity(init->integrity());
+  }
 
-  if (init->hasKeepalive())
+  if (init->hasKeepalive()) {
     request->SetKeepalive(init->keepalive());
+  }
 
   if (init->hasRetryOptions()) {
     network::FetchRetryOptions options;
@@ -852,8 +864,9 @@ Request* Request::CreateRequestWithRequestOrString(
       DCHECK(headers);
       r->getHeaders()->FillWith(script_state, headers, exception_state);
     }
-    if (exception_state.HadException())
+    if (exception_state.HadException()) {
       return nullptr;
+    }
   }
 
   // "Let |inputBody| be |input|'s request's body if |input| is a
@@ -907,8 +920,9 @@ Request* Request::CreateRequestWithRequestOrString(
       r->getHeaders()->append(script_state, http_names::kContentType,
                               content_type, exception_state);
     }
-    if (exception_state.HadException())
+    if (exception_state.HadException()) {
       return nullptr;
+    }
   }
 
   // "If `inputOrInitBody` is non-null and `inputOrInitBody`’s source is null,
@@ -949,8 +963,9 @@ Request* Request::CreateRequestWithRequestOrString(
   }
 
   // "Set |this|'s request's body to |body|.
-  if (body)
+  if (body) {
     r->request_->SetBuffer(body, body_byte_length);
+  }
 
   // "Set |r|'s MIME type to the result of extracting a MIME type from |r|'s
   // request's header list."
@@ -1225,8 +1240,9 @@ Request* Request::clone(ScriptState* script_state,
   }
 
   FetchRequestData* request = request_->Clone(script_state, exception_state);
-  if (exception_state.HadException())
+  if (exception_state.HadException()) {
     return nullptr;
+  }
   Headers* headers = Headers::Create(request->HeaderList());
   headers->SetGuard(headers_->GetGuard());
 
@@ -1267,8 +1283,9 @@ mojom::blink::FetchAPIRequestPtr Request::CreateFetchAPIRequest() const {
 
   HTTPHeaderMap headers;
   for (const auto& header : headers_->HeaderList()->List()) {
-    if (EqualIgnoringASCIICase(header.first, "referer"))
+    if (EqualIgnoringASCIICase(header.first, "referer")) {
       continue;
+    }
     AtomicString key(header.first);
     AtomicString value(header.second);
     HTTPHeaderMap::AddResult result = headers.Add(key, value);
@@ -1277,8 +1294,9 @@ mojom::blink::FetchAPIRequestPtr Request::CreateFetchAPIRequest() const {
           AtomicString(WTF::StrCat({result.stored_value->value, ", ", value}));
     }
   }
-  for (const auto& pair : headers)
+  for (const auto& pair : headers) {
     fetch_api_request->headers.insert(pair.key, pair.value);
+  }
 
   if (!request_->ReferrerString().empty()) {
     fetch_api_request->referrer =

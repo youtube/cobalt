@@ -22,14 +22,18 @@
 
 #include "third_party/blink/renderer/core/loader/image_loader.h"
 
+// clang-format off
+// Remove these two includes after CHROMIUM_MILESTONE_LE_138
+#include "third_party/blink/public/public_buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+// clang-format on
+
 #include <memory>
 #include <utility>
 
 #include "services/network/public/mojom/attribution.mojom-blink.h"
 #include "services/network/public/mojom/web_client_hints_types.mojom-blink.h"
 #include "third_party/blink/public/common/features.h"
-#include "content/public/common/content_milestone_features.h"
-#include "third_party/blink/public/public_buildflags.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/platform/web_url_request.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_controller.h"
@@ -97,8 +101,10 @@ bool CanReuseFromListOfAvailableImages(
     const SecurityOrigin* origin) {
   const ResourceRequestHead& request = resource->GetResourceRequest();
   bool is_same_origin = request.RequestorOrigin()->IsSameOriginWith(origin);
-  if (cross_origin_attribute != kCrossOriginAttributeNotSet && !is_same_origin)
+  if (cross_origin_attribute != kCrossOriginAttributeNotSet &&
+      !is_same_origin) {
     return false;
+  }
 
   if (request.GetCredentialsMode() ==
           network::mojom::CredentialsMode::kSameOrigin &&
@@ -121,8 +127,9 @@ class ImageLoader::Task {
   }
 
   void Run() {
-    if (!loader_)
+    if (!loader_) {
       return;
+    }
     ExecutionContext* context = loader_->GetElement()->GetExecutionContext();
     probe::AsyncTask async_task(context, &async_task_context_);
     loader_->DoUpdateFromElement(world_.Get(), update_behavior_);
@@ -169,16 +176,18 @@ static bool ImageTypeNeedsDecode(const Image& image) {
   // SVG images are context sensitive, and decoding them without the proper
   // context will just end up wasting memory (and CPU).
   // TODO(vmpstr): Generalize this to be all non-lazy decoded images.
-  if (IsA<SVGImage>(image))
+  if (IsA<SVGImage>(image)) {
     return false;
+  }
   return true;
 }
 
 void ImageLoader::DispatchDecodeRequestsIfComplete() {
   // If the current image isn't complete, then we can't dispatch any decodes.
   // This function will be called again when the current image completes.
-  if (!image_complete_)
+  if (!image_complete_) {
     return;
+  }
 
   bool is_active = GetElement()->GetDocument().IsActive();
   // If any of the following conditions hold, we either have an inactive
@@ -314,10 +323,12 @@ void ImageLoader::SetImageWithoutConsideringPendingLoadEvent(
   DCHECK(failed_load_url_.empty());
   ImageResourceContent* old_image_content = image_content_.Get();
   if (new_image_content != old_image_content) {
-    if (pending_load_event_.IsActive())
+    if (pending_load_event_.IsActive()) {
       pending_load_event_.Cancel();
-    if (pending_error_event_.IsActive())
+    }
+    if (pending_error_event_.IsActive()) {
       pending_error_event_.Cancel();
+    }
     UpdateImageState(new_image_content);
     if (new_image_content) {
       new_image_content->AddObserver(this);
@@ -327,8 +338,9 @@ void ImageLoader::SetImageWithoutConsideringPendingLoadEvent(
     }
   }
 
-  if (LayoutImageResource* image_resource = GetLayoutImageResource())
+  if (LayoutImageResource* image_resource = GetLayoutImageResource()) {
     image_resource->ResetAnimation();
+  }
 }
 
 static void ConfigureRequest(
@@ -408,8 +420,9 @@ void ImageLoader::UpdateImageState(ImageResourceContent* new_image_content) {
     }
   } else {
     image_complete_ = false;
-    if (lazy_image_load_state_ == LazyImageLoadState::kDeferred)
+    if (lazy_image_load_state_ == LazyImageLoadState::kDeferred) {
       LazyImageHelper::StartMonitoring(GetElement());
+    }
   }
   delay_until_image_notify_finished_ = nullptr;
 }
@@ -584,8 +597,9 @@ void ImageLoader::DoUpdateFromElement(const DOMWrapperWorld* world,
   }
 
   ImageResourceContent* old_image_content = image_content_.Get();
-  if (old_image_content != new_image_content)
+  if (old_image_content != new_image_content) {
     RejectPendingDecodes(update_type);
+  }
 
   if (update_behavior == kUpdateSizeChanged && element_->GetLayoutObject() &&
       element_->GetLayoutObject()->IsImage() &&
@@ -599,11 +613,13 @@ void ImageLoader::DoUpdateFromElement(const DOMWrapperWorld* world,
     // spec-wise the image remains in the "Unavailable" state.
     if (new_image_content &&
         new_image_content->GetContentStatus() == ResourceStatus::kNotStarted &&
-        !is_lazyload)
+        !is_lazyload) {
       NoImageResourceToLoad();
+    }
 
-    if (pending_load_event_.IsActive())
+    if (pending_load_event_.IsActive()) {
       pending_load_event_.Cancel();
+    }
 
     // Cancel error events that belong to the previous load, which is now
     // cancelled by changing the src attribute. If newImage is null and
@@ -611,8 +627,9 @@ void ImageLoader::DoUpdateFromElement(const DOMWrapperWorld* world,
     // posted by this load and we should not cancel the event.
     // FIXME: If both previous load and this one got blocked with an error, we
     // can receive one error event instead of two.
-    if (pending_error_event_.IsActive() && new_image_content)
+    if (pending_error_event_.IsActive() && new_image_content) {
       pending_error_event_.Cancel();
+    }
 
     UpdateImageState(new_image_content);
 
@@ -629,8 +646,9 @@ void ImageLoader::DoUpdateFromElement(const DOMWrapperWorld* world,
     }
   }
 
-  if (LayoutImageResource* image_resource = GetLayoutImageResource())
+  if (LayoutImageResource* image_resource = GetLayoutImageResource()) {
     image_resource->ResetAnimation();
+  }
 }
 
 void ImageLoader::UpdateFromElement(UpdateFromElementBehavior update_behavior,
@@ -642,11 +660,13 @@ void ImageLoader::UpdateFromElement(UpdateFromElementBehavior update_behavior,
   AtomicString image_source_url = element_->ImageSourceURL();
   suppress_error_events_ = (update_behavior == kUpdateSizeChanged);
 
-  if (update_behavior == kUpdateIgnorePreviousError)
+  if (update_behavior == kUpdateIgnorePreviousError) {
     ClearFailedLoadURL();
+  }
 
-  if (!failed_load_url_.empty() && image_source_url == failed_load_url_)
+  if (!failed_load_url_.empty() && image_source_url == failed_load_url_) {
     return;
+  }
 
   // Prevent the creation of a ResourceLoader (and therefore a network request)
   // for ImageDocument loads. In this case, the image contents have already been
@@ -701,8 +721,9 @@ void ImageLoader::UpdateFromElement(UpdateFromElementBehavior update_behavior,
   // Don't load images for inactive documents or active documents without V8
   // context. We don't want to slow down the raw HTML parsing case by loading
   // images we don't intend to display.
-  if (element_->GetDocument().IsActive())
+  if (element_->GetDocument().IsActive()) {
     EnqueueImageLoadingMicroTask(update_behavior);
+  }
 }
 
 KURL ImageLoader::ImageSourceToKURL(AtomicString image_source_url) const {
@@ -711,16 +732,18 @@ KURL ImageLoader::ImageSourceToKURL(AtomicString image_source_url) const {
   // Don't load images for inactive documents. We don't want to slow down the
   // raw HTML parsing case by loading images we don't intend to display.
   Document& document = element_->GetDocument();
-  if (!document.IsActive())
+  if (!document.IsActive()) {
     return url;
+  }
 
   // Do not load any image if the 'src' attribute is missing or if it is
   // an empty string.
   if (!image_source_url.IsNull()) {
     String stripped_image_source_url =
         StripLeadingAndTrailingHTMLSpaces(image_source_url);
-    if (!stripped_image_source_url.empty())
+    if (!stripped_image_source_url.empty()) {
       url = document.CompleteURL(stripped_image_source_url);
+    }
   }
   return url;
 }
@@ -752,12 +775,14 @@ void ImageLoader::ImageChanged(ImageResourceContent* content,
                                CanDeferInvalidation) {
   DCHECK_EQ(content, image_content_.Get());
   if (image_complete_ || !content->IsLoading() ||
-      delay_until_image_notify_finished_)
+      delay_until_image_notify_finished_) {
     return;
+  }
 
   Document& document = element_->GetDocument();
-  if (!document.IsActive())
+  if (!document.IsActive()) {
     return;
+  }
 
   delay_until_image_notify_finished_ =
       std::make_unique<IncrementLoadEventDelayCount>(document);
@@ -798,15 +823,15 @@ void ImageLoader::ImageNotifyFinished(ImageResourceContent* content) {
     }
   }
 
-
   DispatchDecodeRequestsIfComplete();
 
   if (content->ErrorOccurred()) {
     pending_load_event_.Cancel();
 
     std::optional<ResourceError> error = content->GetResourceError();
-    if (error && error->IsAccessCheck())
+    if (error && error->IsAccessCheck()) {
       CrossSiteOrCSPViolationOccurred(AtomicString(error->FailingURL()));
+    }
 
     QueuePendingErrorEvent();
     return;
@@ -828,20 +853,24 @@ void ImageLoader::ImageNotifyFinished(ImageResourceContent* content) {
 LayoutImageResource* ImageLoader::GetLayoutImageResource() const {
   LayoutObject* layout_object = element_->GetLayoutObject();
 
-  if (!layout_object)
+  if (!layout_object) {
     return nullptr;
+  }
 
   // We don't return style generated image because it doesn't belong to the
   // ImageLoader. See <https://bugs.webkit.org/show_bug.cgi?id=42840>
   if (layout_object->IsImage() &&
-      !To<LayoutImage>(layout_object)->IsGeneratedContent())
+      !To<LayoutImage>(layout_object)->IsGeneratedContent()) {
     return To<LayoutImage>(layout_object)->ImageResource();
+  }
 
-  if (layout_object->IsSVGImage())
+  if (layout_object->IsSVGImage()) {
     return To<LayoutSVGImage>(layout_object)->ImageResource();
+  }
 
-  if (auto* layout_video = DynamicTo<LayoutVideo>(layout_object))
+  if (auto* layout_video = DynamicTo<LayoutVideo>(layout_object)) {
     return layout_video->ImageResource();
+  }
 
   return nullptr;
 }
@@ -864,16 +893,18 @@ void ImageLoader::OnAttachLayoutTree() {
 void ImageLoader::UpdateLayoutObject() {
   LayoutImageResource* image_resource = GetLayoutImageResource();
 
-  if (!image_resource)
+  if (!image_resource) {
     return;
+  }
 
   // Only update the layoutObject if it doesn't have an image or if what we have
   // is a complete image.  This prevents flickering in the case where a dynamic
   // change is happening between two images.
   ImageResourceContent* cached_image_content = image_resource->CachedImage();
   if (image_content_ != cached_image_content &&
-      (image_complete_ || !cached_image_content))
+      (image_complete_ || !cached_image_content)) {
     image_resource->SetImageResource(image_content_.Get());
+  }
 }
 
 gfx::Size ImageLoader::AccessNaturalSize() const {
@@ -908,8 +939,9 @@ gfx::Size ImageLoader::AccessNaturalSize() const {
 
 ResourcePriority ImageLoader::ComputeResourcePriority() const {
   LayoutImageResource* image_resource = GetLayoutImageResource();
-  if (!image_resource)
+  if (!image_resource) {
     return ResourcePriority();
+  }
 
   ResourcePriority priority = image_resource->ComputeResourcePriority();
   priority.source = ResourcePriority::Source::kImageLoader;
@@ -945,8 +977,9 @@ bool ImageLoader::HasPendingEvent() const {
 
 void ImageLoader::DispatchPendingLoadEvent(
     std::unique_ptr<IncrementLoadEventDelayCount> count) {
-  if (!image_content_)
+  if (!image_content_) {
     return;
+  }
   CHECK(image_complete_);
   DispatchLoadEvent();
 
@@ -966,8 +999,9 @@ void ImageLoader::DispatchPendingErrorEvent(
 
 bool ImageLoader::GetImageAnimationPolicy(
     mojom::blink::ImageAnimationPolicy& policy) {
-  if (!GetElement()->GetDocument().GetSettings())
+  if (!GetElement()->GetDocument().GetSettings()) {
     return false;
+  }
 
   policy = GetElement()->GetDocument().GetSettings()->GetImageAnimationPolicy();
   return true;
@@ -1001,8 +1035,9 @@ ScriptPromise<IDLUndefined> ImageLoader::Decode(
 
 void ImageLoader::LoadDeferredImage(bool force_blocking,
                                     bool update_from_microtask) {
-  if (lazy_image_load_state_ != LazyImageLoadState::kDeferred)
+  if (lazy_image_load_state_ != LazyImageLoadState::kDeferred) {
     return;
+  }
   DCHECK(!image_complete_);
   lazy_image_load_state_ = LazyImageLoadState::kFullImage;
 
@@ -1049,8 +1084,9 @@ void ImageLoader::DecodeRequest::Reject() {
 void ImageLoader::DecodeRequest::ProcessForTask() {
   // We could have already processed (ie rejected) this task due to a sync
   // update in UpdateFromElement. In that case, there's nothing to do here.
-  if (!loader_)
+  if (!loader_) {
     return;
+  }
 
   DCHECK_EQ(state_, kPendingMicrotask);
   state_ = kPendingLoad;

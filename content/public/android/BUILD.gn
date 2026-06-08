@@ -440,6 +440,7 @@ android_library("content_full_java") {
     "java/src/org/chromium/content_public/browser/selection/SelectionDropdownMenuDelegate.java",
   ]
 
+  # If in the future privacy sandbox components are removed from the code base, ignore this if block.
   if (!enable_privacy_sandbox_apis) {
     sources -= [
       "java/src/org/chromium/content/browser/AttributionOsLevelManager.java",
@@ -552,6 +553,7 @@ generate_jni("content_jni_headers") {
     "java/src/org/chromium/content_public/browser/Page.java",
   ]
 
+  # If in the future privacy sandbox components are removed from the code base, ignore this if block.
   if (!enable_privacy_sandbox_apis) {
     sources -= [
       "java/src/org/chromium/content/browser/AttributionOsLevelManager.java",

@@ -4,6 +4,12 @@
 
 #include "content/browser/fenced_frame/fenced_frame_reporter.h"
 
+// clang-format off
+// Remove these two includes after CHROMIUM_MILESTONE_LE_138
+#include "content/public/common/buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+// clang-format on
+
 #include <iterator>
 #include <map>
 #include <memory>
@@ -28,15 +34,13 @@
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
 #include "base/types/pass_key.h"
-#include "content/public/common/buildflags.h"
-#include "content/public/common/content_milestone_features.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/attribution_reporting/attribution_beacon_id.h"
 #include "content/browser/attribution_reporting/attribution_data_host_manager.h"
 #include "content/browser/attribution_reporting/attribution_host.h"
 #include "content/browser/attribution_reporting/attribution_manager.h"
 #include "content/browser/attribution_reporting/attribution_suitable_context.h"
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/devtools/network_service_devtools_observer.h"
 #include "content/browser/devtools/protocol/network_handler.h"
@@ -46,7 +50,7 @@
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/private_aggregation/private_aggregation_budget_key.h"
 #include "content/browser/private_aggregation/private_aggregation_manager.h"
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/web_contents/web_contents_impl.h"
@@ -321,7 +325,7 @@ FencedFrameReporter::FencedFrameReporter(
           AttributionManager::FromBrowserContext(browser_context)),
 #else
       attribution_manager_(nullptr),
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
       browser_context_(browser_context),
       main_frame_origin_(main_frame_origin),
       private_aggregation_manager_(private_aggregation_manager),
@@ -420,7 +424,7 @@ bool FencedFrameReporter::SendReport(
 
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   static base::AtomicSequenceNumber unique_id_counter;
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   std::optional<AttributionReportingData> attribution_reporting_data;
 
@@ -450,7 +454,7 @@ bool FencedFrameReporter::SendReport(
           .attribution_reporting_support = attribution_reporting_support,
       });
     }
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   }
 
   url::Origin request_initiator =
@@ -827,7 +831,7 @@ bool FencedFrameReporter::SendReportInternal(
             attribution_reporting_data->beacon_id, std::move(simple_url_loader),
             initiator_frame_tree_node_id, devtools_request_id));
   } else {
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
     // Send out the reporting beacon.
     simple_url_loader_ptr->DownloadHeadersOnly(
         url_loader_factory_.get(),
@@ -850,7 +854,7 @@ bool FencedFrameReporter::SendReportInternal(
             initiator_frame_tree_node_id, devtools_request_id));
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   }
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   // The associated histograms will be sent out in the FencedFrameReporter
   // destructor.
@@ -937,7 +941,7 @@ void FencedFrameReporter::SendPrivateAggregationRequestsForEventInternal(
   // requests more than once. As a result, receiving the same event type
   // multiple times only triggers sending the event's requests once.
   private_aggregation_event_map_.erase(it);
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 const std::vector<blink::FencedFrame::ReportingDestination>
@@ -1029,7 +1033,7 @@ void FencedFrameReporter::NotifyFencedFrameReportingBeaconFailed(
       attribution_reporting_data->beacon_id,
       /*reporting_url=*/GURL(), /*headers=*/nullptr,
       /*is_final_response=*/true);
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void FencedFrameReporter::NotifyIsBeaconQueued(

@@ -4,6 +4,12 @@
 
 #include "content/browser/browser_interface_binders.h"
 
+// clang-format off
+// Remove these two includes after CHROMIUM_MILESTONE_LE_138
+#include "third_party/blink/public/public_buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+// clang-format on
+
 #include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
@@ -16,8 +22,6 @@
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "cc/base/switches.h"
-#include "content/public/common/buildflags.h"
-#include "content/public/common/content_milestone_features.h"
 #if !BUILDFLAG(IS_COBALT)
 #include "components/language_detection/content/common/language_detection.mojom.h"  // nogncheck
 #endif  // !BUILDFLAG(IS_COBALT)
@@ -26,7 +30,7 @@
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/attribution_reporting/attribution_internals.mojom.h"
 #include "content/browser/attribution_reporting/attribution_internals_ui.h"
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/background_fetch/background_fetch_service_impl.h"
 #include "content/browser/bad_message.h"
 #include "content/browser/bluetooth/web_bluetooth_service_impl.h"
@@ -57,7 +61,7 @@
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/private_aggregation/private_aggregation_internals.mojom.h"
 #include "content/browser/private_aggregation/private_aggregation_internals_ui.h"
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/process_internals/process_internals.mojom.h"
 #include "content/browser/process_internals/process_internals_ui.h"
 #include "content/browser/quota/quota_context.h"
@@ -206,7 +210,6 @@
 #include "third_party/blink/public/mojom/webtransport/web_transport_connector.mojom.h"
 #include "third_party/blink/public/mojom/worker/dedicated_worker_host_factory.mojom.h"
 #include "third_party/blink/public/mojom/worker/shared_worker_connector.mojom.h"
-#include "third_party/blink/public/public_buildflags.h"
 #include "url/origin.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -287,8 +290,9 @@ shape_detection::mojom::ShapeDetectionService* GetShapeDetectionService() {
             .Pass());
 #else
     auto* gpu = GpuProcessHost::Get();
-    if (gpu)
+    if (gpu) {
       gpu->RunService(remote->BindNewPipeAndPassReceiver());
+    }
 #endif
     remote->reset_on_disconnect();
   }
@@ -393,8 +397,9 @@ void BindTextSuggestionHostForFrame(
     mojo::PendingReceiver<blink::mojom::TextSuggestionHost> receiver) {
   auto* view =
       RenderWidgetHostViewAndroid::FromRenderWidgetHostView(host->GetView());
-  if (!view || !view->text_suggestion_host())
+  if (!view || !view->text_suggestion_host()) {
     return;
+  }
 
   view->text_suggestion_host()->BindTextSuggestionHost(std::move(receiver));
 }
@@ -484,8 +489,9 @@ BindWorkerReceiver(
          mojo::PendingReceiver<Interface> receiver) {
         auto* process_host =
             static_cast<RenderProcessHostImpl*>(host->GetProcessHost());
-        if (process_host)
+        if (process_host) {
           (process_host->*method)(std::move(receiver));
+        }
       },
       base::Unretained(host), method);
 }
@@ -504,8 +510,9 @@ BindWorkerReceiverForOrigin(
          const url::Origin& origin, mojo::PendingReceiver<Interface> receiver) {
         auto* process_host =
             static_cast<RenderProcessHostImpl*>(host->GetProcessHost());
-        if (process_host)
+        if (process_host) {
           (process_host->*method)(origin, std::move(receiver));
+        }
       },
       base::Unretained(host), method);
 }
@@ -523,8 +530,9 @@ BindWorkerReceiverForStorageKey(
          mojo::PendingReceiver<Interface> receiver) {
         auto* process_host =
             static_cast<RenderProcessHostImpl*>(host->GetProcessHost());
-        if (process_host)
+        if (process_host) {
           (process_host->*method)(host->GetStorageKey(), std::move(receiver));
+        }
       },
       base::Unretained(host), method);
 }
@@ -545,9 +553,10 @@ BindWorkerReceiverForStorageKeyAndBucketContext(
          mojo::PendingReceiver<Interface> receiver) {
         auto* process_host =
             static_cast<RenderProcessHostImpl*>(host->GetProcessHost());
-        if (process_host)
+        if (process_host) {
           (process_host->*method)(host->GetStorageKey(), *host,
                                   std::move(receiver));
+        }
       },
       base::Unretained(host), method);
 }
@@ -566,8 +575,9 @@ BindServiceWorkerReceiver(
         DCHECK_CURRENTLY_ON(BrowserThread::UI);
         auto* process_host = static_cast<RenderProcessHostImpl*>(
             RenderProcessHost::FromID(host->worker_process_id()));
-        if (!process_host)
+        if (!process_host) {
           return;
+        }
         (process_host->*method)(std::move(receiver));
       },
       base::Unretained(host), method);
@@ -591,8 +601,9 @@ BindServiceWorkerReceiverForOrigin(
         auto origin = info.storage_key.origin();
         auto* process_host = static_cast<RenderProcessHostImpl*>(
             RenderProcessHost::FromID(host->worker_process_id()));
-        if (!process_host)
+        if (!process_host) {
           return;
+        }
         (process_host->*method)(origin, std::move(receiver));
       },
       base::Unretained(host), method);
@@ -615,8 +626,9 @@ BindServiceWorkerReceiverForStorageKey(
         DCHECK_CURRENTLY_ON(BrowserThread::UI);
         auto* process_host = static_cast<RenderProcessHostImpl*>(
             RenderProcessHost::FromID(host->worker_process_id()));
-        if (!process_host)
+        if (!process_host) {
           return;
+        }
         (process_host->*method)(info.storage_key, std::move(receiver));
       },
       base::Unretained(host), method);
@@ -637,8 +649,9 @@ BindServiceWorkerReceiverForStorageKeyAndBucketContext(
         DCHECK_CURRENTLY_ON(BrowserThread::UI);
         auto* process_host = static_cast<RenderProcessHostImpl*>(
             RenderProcessHost::FromID(host->worker_process_id()));
-        if (!process_host)
+        if (!process_host) {
           return;
+        }
         (process_host->*method)(info.storage_key, *host, std::move(receiver));
       },
       base::Unretained(host), method);
@@ -668,10 +681,11 @@ void BindBatteryMonitor(
                                 BIBI_BIND_BATTERY_MONITOR_FOR_FENCED_FRAME);
     return;
   }
-  if (binder)
+  if (binder) {
     binder.Run(std::move(receiver));
-  else
+  } else {
     GetDeviceService().BindBatteryMonitor(std::move(receiver));
+  }
 }
 
 #if BUILDFLAG(ENABLE_COMPUTE_PRESSURE)
@@ -1258,7 +1272,7 @@ void PopulateBinderMapWithContext(
       PrivateAggregationInternalsUI>(map);
   RegisterWebUIControllerInterfaceBinder<attribution_internals::mojom::Factory,
                                          AttributionInternalsUI>(map);
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   RegisterWebUIControllerInterfaceBinder<storage::mojom::IdbInternalsHandler,
                                          indexed_db::IndexedDBInternalsUI>(map);
   RegisterWebUIControllerInterfaceBinder<::mojom::ProcessInternalsHandler,

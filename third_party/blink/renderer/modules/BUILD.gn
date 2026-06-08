@@ -176,6 +176,7 @@ component("modules") {
     "//third_party/blink/renderer/modules/xr",
   ]
 
+  # If in the future privacy sandbox components are removed from the code base, ignore this if block.
   if (!enable_privacy_sandbox_apis) {
     sub_modules -= [
       "//third_party/blink/renderer/modules/browsing_topics",
@@ -823,6 +824,7 @@ source_set("unit_tests") {
     "//v8",
   ]
 
+  # If in the future privacy sandbox components are removed from the code base, ignore this if block.
   if (!enable_privacy_sandbox_apis) {
     sources -= [ "shared_storage/shared_storage_worklet_unittest.cc" ]
     deps -= [ "//third_party/blink/renderer/modules/storage_access:unit_tests" ]

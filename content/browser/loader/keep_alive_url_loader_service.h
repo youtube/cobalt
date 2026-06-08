@@ -8,13 +8,17 @@
 #include <memory>
 #include <optional>
 
-#include "base/containers/lru_cache.h"
-#include "base/memory/scoped_refptr.h"
+// clang-format off
+// Remove these two includes after CHROMIUM_MILESTONE_LE_138
 #include "content/public/common/buildflags.h"
 #include "content/public/common/content_milestone_features.h"
+// clang-format on
+
+#include "base/containers/lru_cache.h"
+#include "base/memory/scoped_refptr.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/attribution_reporting/attribution_suitable_context.h"
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/loader/keep_alive_url_loader.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/weak_document_ptr.h"
@@ -146,7 +150,7 @@ class CONTENT_EXPORT KeepAliveURLLoaderService {
     // the `attribution_context` is created.
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
     std::optional<AttributionSuitableContext> attribution_context;
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
     // On NavigationRequest::DidCommitNavigation(), this field is set to the
     // network isolation key of the committed RenderFrameHostImpl.
@@ -216,10 +220,8 @@ class CONTENT_EXPORT KeepAliveURLLoaderService {
 
  private:
   template <typename Interface,
-            template <typename>
-            class PendingReceiverType,
-            template <typename, typename>
-            class ReceiverSetType>
+            template <typename> class PendingReceiverType,
+            template <typename, typename> class ReceiverSetType>
   class KeepAliveURLLoaderFactoriesBase;
   class KeepAliveURLLoaderFactories;
   class FetchLaterLoaderFactories;

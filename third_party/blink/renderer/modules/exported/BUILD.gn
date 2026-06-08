@@ -30,6 +30,7 @@ blink_modules_sources("exported") {
     "//ui/accessibility:ax_enums_mojo_blink",
   ]
 
+  # If in the future privacy sandbox components are removed from the code base, ignore this if block.
   if (!enable_privacy_sandbox_apis) {
     sources -= [
       "web_shared_storage_worklet_thread_impl.cc",

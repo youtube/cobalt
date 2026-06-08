@@ -4,12 +4,16 @@
 
 #include "third_party/blink/renderer/core/html/parser/preload_request.h"
 
+// clang-format off
+// Remove these two includes after CHROMIUM_MILESTONE_LE_138
+#include "third_party/blink/public/public_buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+// clang-format on
+
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_functions.h"
 #include "services/network/public/mojom/attribution.mojom-blink.h"
 #include "third_party/blink/public/common/features.h"
-#include "content/public/common/content_milestone_features.h"
-#include "third_party/blink/public/public_buildflags.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/frame/attribution_src_loader.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
@@ -43,14 +47,17 @@ PreloadRequest::ExclusionInfo::~ExclusionInfo() = default;
 bool PreloadRequest::ExclusionInfo::ShouldExclude(
     const KURL& base_url,
     const String& resource_url) const {
-  if (resources_.empty() && scopes_.empty())
+  if (resources_.empty() && scopes_.empty()) {
     return false;
+  }
   KURL url = KURL(base_url.IsEmpty() ? document_url_ : base_url, resource_url);
-  if (resources_.Contains(url))
+  if (resources_.Contains(url)) {
     return true;
+  }
   for (const auto& scope : scopes_) {
-    if (url.GetString().StartsWith(scope.GetString()))
+    if (url.GetString().StartsWith(scope.GetString())) {
       return true;
+    }
   }
   return false;
 }
@@ -86,8 +93,9 @@ std::unique_ptr<PreloadRequest> PreloadRequest::CreateIfNeeded(
     return nullptr;
   }
 
-  if (exclusion_info && exclusion_info->ShouldExclude(base_url, resource_url))
+  if (exclusion_info && exclusion_info->ShouldExclude(base_url, resource_url)) {
     return nullptr;
+  }
 
   return base::WrapUnique(new PreloadRequest(
       initiator_name, resource_url, base_url, resource_type, resource_width,
@@ -171,8 +179,9 @@ Resource* PreloadRequest::Start(Document* document) {
   params.SetContentSecurityPolicyNonce(nonce_);
   params.SetParserDisposition(kParserInserted);
 
-  if (request_type_ == kRequestTypeLinkRelPreload)
+  if (request_type_ == kRequestTypeLinkRelPreload) {
     params.SetLinkPreload(true);
+  }
 
   if (script_type_ == mojom::blink::ScriptType::kModule) {
     DCHECK_EQ(resource_type_, ResourceType::kScript);

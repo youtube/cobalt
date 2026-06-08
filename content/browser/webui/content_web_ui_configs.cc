@@ -4,14 +4,17 @@
 
 #include "content/browser/webui/content_web_ui_configs.h"
 
-#include <memory>
-
+// clang-format off
+// Remove these two includes after CHROMIUM_MILESTONE_LE_138
 #include "content/public/common/buildflags.h"
 #include "content/public/common/content_milestone_features.h"
+// clang-format on
+
+#include <memory>
 
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/attribution_reporting/attribution_internals_ui.h"
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/gpu/gpu_internals_ui.h"
 #include "content/browser/indexed_db/indexed_db_internals_ui.h"
 #include "content/browser/media/media_internals_ui.h"
@@ -19,7 +22,7 @@
 #include "content/browser/network/network_errors_listing_ui.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/private_aggregation/private_aggregation_internals_ui.h"
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/process_internals/process_internals_ui.h"
 #include "content/browser/quota/quota_internals_ui.h"
 #include "content/browser/service_worker/service_worker_internals_ui.h"
@@ -42,7 +45,7 @@ void RegisterContentWebUIConfigs() {
   auto& map = WebUIConfigMap::GetInstance();
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   map.AddWebUIConfig(std::make_unique<AttributionInternalsUIConfig>());
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   map.AddWebUIConfig(std::make_unique<GpuInternalsUIConfig>());
   map.AddWebUIConfig(
       std::make_unique<indexed_db::IndexedDBInternalsUIConfig>());
@@ -51,7 +54,7 @@ void RegisterContentWebUIConfigs() {
   map.AddWebUIConfig(std::make_unique<NetworkErrorsListingUIConfig>());
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   map.AddWebUIConfig(std::make_unique<PrivateAggregationInternalsUIConfig>());
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   map.AddWebUIConfig(std::make_unique<ProcessInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<QuotaInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<ServiceWorkerInternalsUIConfig>());
