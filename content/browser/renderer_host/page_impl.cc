@@ -10,7 +10,6 @@
 #include "content/public/common/content_milestone_features.h"
 // clang-format on
 
-
 #include "base/barrier_closure.h"
 #include "base/feature_list.h"
 #include "base/i18n/character_encoding.h"

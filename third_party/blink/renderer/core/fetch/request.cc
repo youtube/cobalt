@@ -10,7 +10,6 @@
 #include "content/public/common/content_milestone_features.h"
 // clang-format on
 
-
 #include <optional>
 
 #include "mojo/public/cpp/bindings/pending_remote.h"

@@ -10,7 +10,6 @@
 #include "content/public/common/content_milestone_features.h"
 // clang-format on
 
-
 #include <map>
 
 #include "base/feature_list.h"
@@ -75,7 +74,8 @@ KeepAliveURLLoaderService::FactoryContext::FactoryContext(
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
       attribution_context(other->attribution_context),
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
-      network_isolation_key(other->network_isolation_key) {}
+      network_isolation_key(other->network_isolation_key) {
+}
 
 KeepAliveURLLoaderService::FactoryContext::~FactoryContext() = default;
 

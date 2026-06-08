@@ -10,7 +10,6 @@
 #include "content/public/common/content_milestone_features.h"
 // clang-format on
 
-
 #include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"

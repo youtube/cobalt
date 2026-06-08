@@ -30,7 +30,6 @@
 #include "content/public/common/content_milestone_features.h"
 // clang-format on
 
-
 #include "base/metrics/histogram_macros.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"

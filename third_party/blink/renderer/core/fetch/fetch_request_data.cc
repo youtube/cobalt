@@ -10,7 +10,6 @@
 #include "content/public/common/content_milestone_features.h"
 // clang-format on
 
-
 #include "base/unguessable_token.h"
 #include "net/base/request_priority.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"

@@ -10,9 +10,7 @@
 #include "content/public/common/content_milestone_features.h"
 // clang-format on
 
-
 #include <memory>
-
 
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/attribution_reporting/attribution_internals_ui.h"

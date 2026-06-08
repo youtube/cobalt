@@ -10,7 +10,6 @@
 #include "content/public/common/content_milestone_features.h"
 // clang-format on
 
-
 #include <tuple>
 
 #include "components/leveldb_proto/public/proto_database_provider.h"

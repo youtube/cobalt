@@ -10,7 +10,6 @@
 #include "content/public/common/content_milestone_features.h"
 // clang-format on
 
-
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "content/browser/loader/prefetch_url_loader_service_context.h"

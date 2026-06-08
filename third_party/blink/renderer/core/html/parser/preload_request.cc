@@ -10,7 +10,6 @@
 #include "content/public/common/content_milestone_features.h"
 // clang-format on
 
-
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_functions.h"
 #include "services/network/public/mojom/attribution.mojom-blink.h"
