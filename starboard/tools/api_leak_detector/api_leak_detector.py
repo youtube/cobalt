@@ -726,7 +726,7 @@ def main():
     # do not want to claim that a leak is "removed" from Cobalt just because the
     # leak detector is checking NPLB.
     if args.target != _DEFAULT_TARGET:
-      removed = 0
+      removed = type(removed)()
 
     if removed:
       PrettyPrint({'Leaks removed:': removed})
