@@ -521,8 +521,16 @@ public class StarboardBridge {
 
   @CalledByNative
   protected String getFriendlyName() {
-    String deviceName = android.provider.Settings.Global.getString(
-        mAppContext.getContentResolver(), android.provider.Settings.Global.DEVICE_NAME);
+    String deviceName = null;
+    try {
+      deviceName = android.provider.Settings.Global.getString(
+          mAppContext.getContentResolver(), android.provider.Settings.Global.DEVICE_NAME);
+    } catch (SecurityException e) {
+      Log.w(TAG, "SecurityException reading DEVICE_NAME setting", e);
+    }
+    if (deviceName == null || deviceName.isEmpty()) {
+      deviceName = android.os.Build.MODEL;
+    }
     if (deviceName == null || deviceName.isEmpty()) {
       deviceName = DEFAULT_DEVICE_NAME;
     }

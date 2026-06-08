@@ -42,7 +42,7 @@ std::string GetAdvertisingIdShared() {
   std::string advertising_id;
   advertising_id =
       starboard::GetSystemPropertyString(kSbSystemPropertyAdvertisingId);
-  DLOG_IF(INFO, advertising_id == "")
+  DLOG_IF(INFO, advertising_id.empty())
       << "Failed to get kSbSystemPropertyAdvertisingId.";
   return advertising_id;
 }
@@ -51,7 +51,7 @@ bool GetLimitAdTrackingShared() {
   bool limit_ad_tracking = false;
   std::string result =
       starboard::GetSystemPropertyString(kSbSystemPropertyLimitAdTracking);
-  if (result == "") {
+  if (result.empty()) {
     DLOG(INFO) << "Failed to get kSbSystemPropertyLimitAdTracking.";
   } else {
     limit_ad_tracking = std::atoi(result.c_str());
@@ -109,7 +109,7 @@ void H5vccSystemImpl::GetFriendlyName(GetFriendlyNameCallback callback) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::string friendly_name =
       starboard::GetSystemPropertyString(kSbSystemPropertyFriendlyName);
-  DLOG_IF(INFO, friendly_name == "")
+  DLOG_IF(INFO, friendly_name.empty())
       << "Failed to get kSbSystemPropertyFriendlyName.";
   std::move(callback).Run(friendly_name);
 }

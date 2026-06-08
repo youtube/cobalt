@@ -39,6 +39,10 @@ interface H5vccSystem : EventTarget {
   readonly attribute boolean? limitAdTracking;
 
   // Gets the device friendly name from the platform.
+  // Note: since there is some performance overhead involved in fetching the
+  // value from the platform via the browser, web clients should be careful not
+  // to call this API excessively. The value is unlikely to be changed during a
+  // Cobalt application lifecycle, anyway.
   [CallWith=ScriptState, RaisesException]
   Promise<DOMString> getFriendlyName();
 
