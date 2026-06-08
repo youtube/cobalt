@@ -4,6 +4,13 @@
 
 #include "content/browser/interest_group/ad_auction_service_impl.h"
 
+// clang-format off
+// Remove these two includes after CHROMIUM_MILESTONE_LE_138
+#include "content/public/common/buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+// clang-format on
+
+
 #include <algorithm>
 #include <cstddef>
 #include <map>
@@ -45,11 +52,9 @@
 #include "content/browser/interest_group/protected_audience_network_util.h"
 #include "content/browser/loader/reconnectable_url_loader_factory.h"
 #include "content/browser/loader/url_loader_factory_utils.h"
-#include "content/public/common/buildflags.h"
-#include "content/public/common/content_milestone_features.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/private_aggregation/private_aggregation_manager.h"
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/renderer_host/page_impl.h"
 #include "content/browser/renderer_host/policy_container_host.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
@@ -817,7 +822,7 @@ AdAuctionServiceImpl::AdAuctionServiceImpl(
           *render_frame_host.GetBrowserContext()))
 #else
       private_aggregation_manager_(nullptr)
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 {
   // Construct `ref_counted_trusted_url_loader_factory_` here because
   // `weak_ptr_factory_` is not yet initialized during the member initializer

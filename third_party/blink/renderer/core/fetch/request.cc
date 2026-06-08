@@ -4,6 +4,13 @@
 
 #include "third_party/blink/renderer/core/fetch/request.h"
 
+// clang-format off
+// Remove these two includes after CHROMIUM_MILESTONE_LE_138
+#include "third_party/blink/public/public_buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+// clang-format on
+
+
 #include <optional>
 
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -13,8 +20,6 @@
 #include "services/network/public/mojom/ip_address_space.mojom-blink.h"
 #include "services/network/public/mojom/trust_tokens.mojom-blink.h"
 #include "third_party/blink/public/common/blob/blob_utils.h"
-#include "content/public/common/content_milestone_features.h"
-#include "third_party/blink/public/public_buildflags.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/platform/web_url_request.h"
 #include "third_party/blink/renderer/bindings/core/v8/dictionary.h"

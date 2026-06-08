@@ -5,6 +5,12 @@
 #ifndef CONTENT_PUBLIC_TEST_TEST_STORAGE_PARTITION_H_
 #define CONTENT_PUBLIC_TEST_TEST_STORAGE_PARTITION_H_
 
+// clang-format off
+// Remove these two includes after CHROMIUM_MILESTONE_LE_138
+#include "content/public/common/buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+// clang-format on
+
 #include "base/files/file_path.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
@@ -14,8 +20,6 @@
 #include "components/services/storage/public/mojom/cache_storage_control.mojom.h"
 #include "components/services/storage/public/mojom/local_storage_control.mojom.h"
 #include "content/public/browser/storage_partition.h"
-#include "content/public/common/content_milestone_features.h"
-#include "content/public/common/buildflags.h"
 #include "content/public/browser/storage_partition_config.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/network/public/mojom/cert_verifier_service_updater.mojom.h"

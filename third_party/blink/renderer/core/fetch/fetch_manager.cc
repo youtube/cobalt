@@ -4,6 +4,13 @@
 
 #include "third_party/blink/renderer/core/fetch/fetch_manager.h"
 
+// clang-format off
+// Remove these two includes after CHROMIUM_MILESTONE_LE_138
+#include "third_party/blink/public/public_buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+// clang-format on
+
+
 #include <inttypes.h>
 #include <stdint.h>
 
@@ -31,8 +38,6 @@
 #include "services/network/public/mojom/trust_tokens.mojom-blink.h"
 #include "services/network/public/mojom/url_loader_factory.mojom-blink.h"
 #include "third_party/blink/public/common/features.h"
-#include "content/public/common/content_milestone_features.h"
-#include "third_party/blink/public/public_buildflags.h"
 #include "third_party/blink/public/common/scheme_registry.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/mojom/loader/code_cache.mojom-blink.h"

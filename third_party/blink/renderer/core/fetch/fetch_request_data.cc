@@ -4,11 +4,16 @@
 
 #include "third_party/blink/renderer/core/fetch/fetch_request_data.h"
 
+// clang-format off
+// Remove these two includes after CHROMIUM_MILESTONE_LE_138
+#include "third_party/blink/public/public_buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+// clang-format on
+
+
 #include "base/unguessable_token.h"
 #include "net/base/request_priority.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
-#include "content/public/common/content_milestone_features.h"
-#include "third_party/blink/public/public_buildflags.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/web_http_body.h"
 #include "third_party/blink/public/platform/web_url_request.h"

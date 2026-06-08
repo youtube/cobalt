@@ -8,6 +8,12 @@
 #include <map>
 #include <memory>
 
+// clang-format off
+// Remove these two includes after CHROMIUM_MILESTONE_LE_138
+#include "content/public/common/buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+// clang-format on
+
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
 #include "base/scoped_observation_traits.h"
@@ -199,8 +205,6 @@ class CONTENT_EXPORT SharedStorageRuntimeManager {
 
 }  // namespace content
 
-#include "content/public/common/content_milestone_features.h"
-#include "content/public/common/buildflags.h"
 
 namespace base {
 

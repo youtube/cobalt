@@ -4,6 +4,13 @@
 
 #include "content/browser/devtools/protocol/storage_handler.h"
 
+// clang-format off
+// Remove these two includes after CHROMIUM_MILESTONE_LE_138
+#include "content/public/common/buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+// clang-format on
+
+
 #include <stdint.h>
 
 #include <memory>
@@ -69,8 +76,6 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/storage_partition.h"
-#include "content/public/common/buildflags.h"
-#include "content/public/common/content_milestone_features.h"
 #include "net/base/net_errors.h"
 #include "net/base/schemeful_site.h"
 #include "services/network/public/mojom/trust_tokens.mojom.h"
@@ -1808,7 +1813,7 @@ void StorageHandler::SetAttributionReportingLocalTestingMode(
 #else
   callback->sendFailure(
       Response::ServerError("Attribution Reporting is disabled."));
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void StorageHandler::SendPendingAttributionReports(
@@ -1847,7 +1852,7 @@ void StorageHandler::SendPendingAttributionReports(
 #else
   callback->sendFailure(
       Response::ServerError("Attribution Reporting is disabled."));
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void StorageHandler::ResetAttributionReporting() {
@@ -1860,7 +1865,7 @@ void StorageHandler::ResetAttributionReporting() {
   }
 
   manager->SetDebugMode(/*enabled=*/std::nullopt, base::DoNothing());
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
@@ -2316,7 +2321,7 @@ ToNamedBudgetCandidates(
 }
 
 }  // namespace
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 void StorageHandler::OnSourceHandled(
     const StorableSource& source,
@@ -2398,7 +2403,7 @@ void StorageHandler::OnSourceHandled(
   (void)source_time;
   (void)cleared_debug_key;
   (void)result;
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void StorageHandler::OnTriggerHandled(std::optional<uint64_t> cleared_debug_key,
@@ -2456,7 +2461,7 @@ void StorageHandler::OnTriggerHandled(std::optional<uint64_t> cleared_debug_key,
 #else
   (void)cleared_debug_key;
   (void)result;
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void StorageHandler::OnReportSent(const AttributionReport& report,
@@ -2500,7 +2505,7 @@ void StorageHandler::OnReportSent(const AttributionReport& report,
   (void)report;
   (void)is_debug_report;
   (void)result;
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 Response StorageHandler::SetAttributionReportingTracking(bool enable) {

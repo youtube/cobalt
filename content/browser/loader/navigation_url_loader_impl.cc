@@ -4,6 +4,13 @@
 
 #include "content/browser/loader/navigation_url_loader_impl.h"
 
+// clang-format off
+// Remove these two includes after CHROMIUM_MILESTONE_LE_138
+#include "content/public/common/buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+// clang-format on
+
+
 #include <map>
 #include <memory>
 #include <optional>
@@ -26,11 +33,9 @@
 #include "build/build_config.h"
 #include "components/download/public/common/download_stats.h"
 #include "content/browser/about_url_loader_factory.h"
-#include "content/public/common/buildflags.h"
-#include "content/public/common/content_milestone_features.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/attribution_reporting/attribution_manager.h"
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
 #include "content/browser/client_hints/client_hints.h"
 #include "content/browser/data_url_loader_factory.h"
@@ -333,7 +338,7 @@ std::unique_ptr<network::ResourceRequest> CreateResourceRequest(
 #else
   new_request->attribution_reporting_support =
       network::mojom::AttributionSupport::kNone;
-#endif
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   new_request->attribution_reporting_eligibility =
       request_info.begin_params->impression.has_value()
