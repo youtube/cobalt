@@ -71,16 +71,17 @@ jobs:
 
       - name: Cherry Pick Merged PRs
         id: autoroll
+        env:
+          MAX_COMMITS: ${{ inputs.max_commits || 25 }}
         run: |
           set -x
 
           # Run the Python script to perform cherry-picks and get all PR links.
-          MAX_COMMITS=${{ inputs.max_commits || 25 }}
           PR_LINKS=$(python3 "${RUNNER_TEMP}/autoroll_lts.py" \
             --source-branch "${{ matrix.branch.source }}" \
             --target-branch "${{ matrix.branch.target }}" \
             --start-commit "${{ matrix.branch.start_commit }}" \
-            --max-commits "${MAX_COMMITS}" \
+            --max-commits "${{ env.MAX_COMMITS }}" \
             --identifier-type "${{ matrix.branch.identifier_type }}")
 
           if [[ -n "${PR_LINKS}" ]]; then
