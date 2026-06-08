@@ -136,10 +136,4 @@ const char kSkiaGraphiteBackend[] = "skia-graphite-backend";
 const char kSkiaGraphiteBackendDawn[] = "dawn";
 const char kSkiaGraphiteBackendMetal[] = "metal";
 
-#if BUILDFLAG(IS_COBALT)
-// Specifies the maximum size of the Skia Ganesh resource cache in MiB.
-const char kSkiaGaneshResourceCacheLimitMb[] =
-    "skia-ganesh-resource-cache-limit-mb";
-#endif
-
 }  // namespace switches

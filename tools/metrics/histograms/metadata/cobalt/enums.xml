@@ -32,6 +32,17 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="1" label="Is hung"/>
 </enum>
 
+<enum name="SplashScreenFetchedState">
+  <int value="0" label="Success: Content from builtin"/>
+  <int value="1" label="Success: Content from cache"/>
+  <int value="2"
+      label="Error: content from cache is empty, fallback to builtin."/>
+  <int value="3"
+      label="Error: Content from cache is too large, fallback to builtin."/>
+  <int value="4" label="Error: Failed to read cache, fallback to builtin."/>
+  <int value="5" label="Error: Builtin resource not found."/>
+</enum>
+
 <enum name="VariationsConfigState">
   <int value="0" label="Config is valid"/>
   <int value="1" label="Config is expired"/>
@@ -41,6 +52,21 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
 <enum name="StorageInjectionResult">
   <int value="0" label="Success"/>
   <int value="1" label="Error"/>
+  <int value="2" label="Timeout"/>
+</enum>
+
+<enum name="MigrationOutcome">
+  <int value="0" label="FastPath"/>
+  <int value="1" label="Skipped"/>
+  <int value="2" label="Success"/>
+  <int value="3" label="Failed"/>
+  <int value="4" label="Timeout"/>
+</enum>
+
+<enum name="SentinelWriteResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Empty Path"/>
+  <int value="2" label="Write Failed"/>
 </enum>
 
 <enum name="StorageReadResult">

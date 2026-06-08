@@ -49,18 +49,12 @@ public class JavaSwitchesTest {
     javaSwitches.put(JavaSwitches.V8_JITLESS, "true");
     javaSwitches.put(JavaSwitches.V8_WRITE_PROTECT_CODE_MEMORY, "true");
     javaSwitches.put(JavaSwitches.V8_GC_INTERVAL, "1000");
-    javaSwitches.put(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE, "128");
     javaSwitches.put(JavaSwitches.V8_MAX_OLD_SPACE_SIZE, "256");
     javaSwitches.put(JavaSwitches.V8_MAX_SEMI_SPACE_SIZE, "16");
     javaSwitches.put(JavaSwitches.V8_HEAP_GROWING_PERCENT, "50");
     javaSwitches.put(JavaSwitches.V8_NOWASM_CODE_GC, "true");
-    javaSwitches.put(JavaSwitches.CC_LAYER_TREE_OPTIMIZATION, "0");
     javaSwitches.put(JavaSwitches.DISABLE_SPLASH_SCREEN, "true");
     javaSwitches.put(JavaSwitches.FORCE_IMAGE_SPLASH_SCREEN, "true");
-    javaSwitches.put(JavaSwitches.DISABLE_BRP, "true");
-    javaSwitches.put(JavaSwitches.ENABLE_BRP_RECLAIMER, "true");
-    javaSwitches.put(JavaSwitches.SKIA_FONT_CACHE, "true");
-    javaSwitches.put(JavaSwitches.SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB, "24");
     javaSwitches.put(JavaSwitches.ENABLE_AV1_STARTUP_OPTIMIZATION, "true");
     javaSwitches.put(JavaSwitches.DISABLE_SW_AV1_DECODER, "true");
 
@@ -71,11 +65,9 @@ public class JavaSwitchesTest {
     assertThat(args).doesNotContain("--disable-rgba-4444-textures");
 
     assertThat(args).contains("--enable-features=PartialLowEndModeOnMidRangeDevices");
-    assertThat(args).contains("--cc-layer-tree-optimization=0");
     assertThat(args).contains("--js-flags=--jitless");
     assertThat(args).contains("--js-flags=--write-protect-code-memory");
     assertThat(args).contains("--js-flags=--gc-interval=1000");
-    assertThat(args).contains("--js-flags=--initial-old-space-size=128");
     assertThat(args).contains("--js-flags=--max-old-space-size=256");
     assertThat(args).contains("--js-flags=--max-semi-space-size=16");
     assertThat(args).contains("--js-flags=--heap-growing-percent=50");
@@ -83,25 +75,9 @@ public class JavaSwitchesTest {
     assertThat(args).contains("--js-flags=--nowasm-code-gc");
     assertThat(args).contains("--disable-splash-screen");
     assertThat(args).contains("--force-image-splash-screen");
-    assertThat(args).contains("--disable-features=PartitionAllocBackupRefPtr");
-    assertThat(args)
-        .contains(
-            "--enable-features=PartitionAllocBackupRefPtr:brp-mode/enabled-with-memory-reclaimer");
-    assertThat(args).contains("--enable-features=SkiaFontCache");
-    assertThat(args).contains("--skia-ganesh-resource-cache-limit-mb=24");
     assertThat(args).contains("--enable-features=EnableAv1StartupOptimization");
     assertThat(args).contains("--enable-features=RejectLowPerformanceSoftwareDecoder");
-    assertThat(args).hasSize(19);
-  }
-
-  @Test
-  public void getExtraCommandLineArgs_SkiaGaneshResourceCacheLimitMb() {
-    Map<String, String> javaSwitches = new HashMap<>();
-    javaSwitches.put(JavaSwitches.SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB, "32 MiB");
-
-    List<String> args = JavaSwitches.getExtraCommandLineArgs(javaSwitches);
-
-    assertThat(args).contains("--skia-ganesh-resource-cache-limit-mb=32");
+    assertThat(args).hasSize(13);
   }
 
   @Test
@@ -119,12 +95,10 @@ public class JavaSwitchesTest {
   public void getExtraCommandLineArgs_SanitizeValues() {
     Map<String, String> javaSwitches = new HashMap<>();
     javaSwitches.put(JavaSwitches.V8_GC_INTERVAL, "1,000ms");
-    javaSwitches.put(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE, "128 MiB");
 
     List<String> args = JavaSwitches.getExtraCommandLineArgs(javaSwitches);
 
     assertThat(args).contains("--js-flags=--gc-interval=1000");
-    assertThat(args).contains("--js-flags=--initial-old-space-size=128");
   }
 
   @Test
@@ -135,5 +109,50 @@ public class JavaSwitchesTest {
     List<String> args = JavaSwitches.getExtraCommandLineArgs(javaSwitches);
 
     assertThat(args).doesNotContain("--js-flags=--optimize-for-size");
+  }
+
+  @Test
+  public void getExtraCommandLineArgs_AvoidCCReuseResource() {
+    Map<String, String> javaSwitches = new HashMap<>();
+    javaSwitches.put(JavaSwitches.AVOID_CC_REUSE_RESOURCE, "true");
+
+    List<String> args = JavaSwitches.getExtraCommandLineArgs(javaSwitches);
+
+    assertThat(args).contains("--avoid-cc-reuse-resource");
+  }
+
+  @Test
+  public void getExtraCommandLineArgs_GpuRasterizationMsaa() {
+    Map<String, String> javaSwitches = new HashMap<>();
+    javaSwitches.put(JavaSwitches.GPU_RASTERIZATION_MSAA_SAMPLE_COUNT, "4");
+
+    List<String> args = JavaSwitches.getExtraCommandLineArgs(javaSwitches);
+
+    assertThat(args).contains("--gpu-rasterization-msaa-sample-count=4");
+  }
+
+  @Test
+  public void getExtraCommandLineArgs_DisableGpuRasterizationMsaa() {
+    Map<String, String> javaSwitches = new HashMap<>();
+    javaSwitches.put(JavaSwitches.DISABLE_GPU_RASTERIZATION_MSAA, "true");
+    // Should take precedence over specific sample count
+    javaSwitches.put(JavaSwitches.GPU_RASTERIZATION_MSAA_SAMPLE_COUNT, "4");
+
+    List<String> args = JavaSwitches.getExtraCommandLineArgs(javaSwitches);
+
+    assertThat(args).contains("--gpu-rasterization-msaa-sample-count=0");
+    assertThat(args).doesNotContain("--gpu-rasterization-msaa-sample-count=4");
+  }
+
+  @Test
+  public void getExtraCommandLineArgs_DiskCacheAndHttpCache() {
+    Map<String, String> javaSwitches = new HashMap<>();
+    javaSwitches.put(JavaSwitches.DISK_CACHE_SIZE, "10485760");
+    javaSwitches.put(JavaSwitches.DISABLE_HTTP_CACHE, "true");
+
+    List<String> args = JavaSwitches.getExtraCommandLineArgs(javaSwitches);
+
+    assertThat(args).contains("--disk-cache-size=10485760");
+    assertThat(args).contains("--disable-http-cache");
   }
 }

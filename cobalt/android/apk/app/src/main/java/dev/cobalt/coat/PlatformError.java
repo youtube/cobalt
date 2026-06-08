@@ -21,15 +21,20 @@ import android.app.Dialog;
 import android.content.ActivityNotFoundException;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
 import android.view.KeyEvent;
 import androidx.annotation.IntDef;
+import androidx.annotation.NonNull;
+import androidx.annotation.VisibleForTesting;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
+import dev.cobalt.shell.StartupGuard;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.chromium.content_public.browser.WebContents;
 
 /** Shows an ErrorDialog to inform the user of a Starboard platform error. */
@@ -56,18 +61,27 @@ public class PlatformError
   private static final int NETWORK_SETTINGS_BUTTON = 2;
   private static final int DISMISS_BUTTON = 3;
 
+  private static final String RETRY_PARAM_KEY = "netdialog_retry";
+  private static final AtomicInteger sRetryCount = new AtomicInteger(0);
+
   private final Holder<Activity> mActivityHolder;
   private final @ErrorType int mErrorType;
   private final long mData;
   private final Handler mUiThreadHandler;
+  @NonNull
+  private final String mUrl;
 
   private Dialog mDialog;
   private int mResponse;
 
-  public PlatformError(Holder<Activity> activityHolder, @ErrorType int errorType, long data) {
+  /**
+   * @param url The URL that caused the navigation error.
+   */
+  public PlatformError(Holder<Activity> activityHolder, @ErrorType int errorType, long data, String url) {
     mActivityHolder = activityHolder;
     mErrorType = errorType;
     mData = data;
+    mUrl = url == null ? "" : url;
     mUiThreadHandler = new Handler(Looper.getMainLooper());
     mResponse = CANCELLED;
   }
@@ -106,6 +120,7 @@ public class PlatformError
         Log.e(TAG, "Unknown platform error " + mErrorType);
         return;
     }
+    StartupGuard.getInstance().disarm();
     mDialog = dialogBuilder.setButtonClickListener(this).setOnDismissListener(this).create();
 
     // When the user presses the back button, suspend the app without dismissing the dialog
@@ -157,7 +172,33 @@ public class PlatformError
         case RETRY_BUTTON:
           mResponse = POSITIVE;
           mDialog.dismiss();
-          reloadWebContents(cobaltActivity);
+          // cobaltActivity should not be null but could be if the Activity was stopped (e.g.
+          // backgrounded) and StarboardBridge cleared the Holder, but a pending dialog click was
+          // still processed.
+          if (cobaltActivity != null) {
+            WebContents webContents = cobaltActivity.getActiveWebContents();
+            if (webContents == null) {
+              Log.e(TAG, "WebContents is null and not available to reload the URL.");
+            } else {
+              String currentUrl = mUrl;
+              if (currentUrl.isEmpty()) {
+                // This is not expected to happen, if it does, it's a bug. Handle it regardless.
+                Log.i(TAG, "No URL provided, using visible URL");
+                currentUrl = webContents.getVisibleUrl() != null ? webContents.getVisibleUrl().getSpec() : "";
+              }
+
+              int retryCount = sRetryCount.incrementAndGet();
+
+              // Add a param to the URL to indicate a bootstrap request with a retry from the network dialog
+              if (currentUrl.isEmpty()) {
+                // This shouldn't happen, but log it incase it does.
+                Log.i(TAG, "Visible URL and fallback URL are empty, reloading without adding retry param");
+                webContents.getNavigationController().reload(/*checkForRepost=*/true);
+              } else {
+                cobaltActivity.getActiveShell().loadUrl(addRetryUrlParam(currentUrl, retryCount));
+              }
+            }
+          }
           break;
         case DISMISS_BUTTON:
           mResponse = NEGATIVE;
@@ -181,16 +222,55 @@ public class PlatformError
 
   private native void nativeSendResponse(@PlatformError.Response int response, long data);
 
-  /** Reloads the web contents if available */
-  private void reloadWebContents(CobaltActivity cobaltActivity) {
-    if (cobaltActivity != null) {
-      WebContents webContents = cobaltActivity.getActiveWebContents();
-      if (webContents != null) {
-        webContents.getNavigationController().reload(true);
+  /**
+   *  Adds a retry param to the URL if not already present to differentiate
+   *  bootstrap requests that originate from a network dialog retry.
+   *  Note: Uri.Builder handles appending query parameters before the fragment (hash) correctly.
+   */
+  String addRetryUrlParam(String url, int count) {
+    Uri parsedUri = Uri.parse(url);
+    Uri.Builder uriBuilder = parsedUri.buildUpon();
+
+    uriBuilder.query(null);
+    boolean retryParamAdded = false;
+
+    for (String key : parsedUri.getQueryParameterNames()) {
+      if (RETRY_PARAM_KEY.equals(key)) {
+        // Add the updated retry parameter only once
+        if (!retryParamAdded) {
+          uriBuilder.appendQueryParameter(key, String.valueOf(count));
+          retryParamAdded = true;
+        }
       } else {
-        Log.e(TAG, "WebContents is null and not available to reload the application.");
+        // Preserve all other existing parameters and their values
+        for (String value : parsedUri.getQueryParameters(key)) {
+          uriBuilder.appendQueryParameter(key, value);
+        }
       }
     }
+
+    // If the parameter wasn't in the original URL, add it now
+    if (!retryParamAdded) {
+      uriBuilder.appendQueryParameter(RETRY_PARAM_KEY, String.valueOf(count));
+    }
+
+    String result = uriBuilder.build().toString();
+    Log.i(TAG, "Reloading URL with retry param: " + result);
+    return result;
   }
 
+  @VisibleForTesting
+  static void resetRetryCount() {
+    sRetryCount.set(0);
+  }
+
+  @VisibleForTesting
+  void setDialog(Dialog dialog) {
+    this.mDialog = dialog;
+  }
+
+  @VisibleForTesting
+  int getResponse() {
+    return mResponse;
+  }
 }

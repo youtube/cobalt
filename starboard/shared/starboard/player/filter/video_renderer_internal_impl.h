@@ -70,6 +70,7 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   void WriteEndOfStream() override;
 
   void Seek(int64_t seek_to_time) override;
+  void SetPlaybackRate(double playback_rate) override;
 
   bool IsEndOfStreamWritten() const override {
     return end_of_stream_written_.load();

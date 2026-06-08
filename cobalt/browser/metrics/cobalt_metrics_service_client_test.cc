@@ -27,6 +27,7 @@
 #include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
+#include "base/trace_event/memory_allocator_dump.h"
 #include "base/version.h"
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom.h"
 #include "cobalt/browser/metrics/cobalt_enabled_state_provider.h"
@@ -39,6 +40,9 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/variations/synthetic_trial_registry.h"
+#include "media/base/decoder_buffer.h"
+#include "media/base/media_client.h"
+#include "media/base/mock_filters.h"
 #include "mojo/core/embedder/embedder.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -51,6 +55,7 @@
 
 namespace cobalt {
 
+using base::trace_event::MemoryAllocatorDump;
 using ::testing::_;
 using ::testing::ByMove;
 using ::testing::IsNull;
@@ -75,6 +80,28 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
     browser_dump->os_dump->private_footprint_kb = 10240;  // 10 MB
     browser_dump->os_dump->resident_set_kb = 20480;       // 20 MB
     browser_dump->os_dump->shared_footprint_kb = 5120;    // 5 MB
+#if BUILDFLAG(IS_ANDROID)
+    browser_dump->os_dump->partition_alloc_rss_kb = 16384;  // 16 MB
+    browser_dump->os_dump->malloc_rss_kb = 10240;           // 10 MB
+    browser_dump->os_dump->v8_rss_kb = 12288;               // 12 MB
+    browser_dump->os_dump->libchrobalt_rss_kb = 10240;      // 10 MB
+    browser_dump->os_dump->libchrobalt_pss_kb = 8192;       // 8 MB
+#endif
+
+    // Add a blink_gc dump
+    auto blink_gc_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+    blink_gc_dump->numeric_entries["effective_size"] = 10 * 1024 * 1024;
+    blink_gc_dump->numeric_entries["allocated_objects_size"] = 6 * 1024 * 1024;
+    browser_dump->chrome_allocator_dumps["blink_gc"] = std::move(blink_gc_dump);
+
+    // Add a blink_gc/main dump
+    auto blink_gc_main_dump =
+        memory_instrumentation::mojom::AllocatorMemDump::New();
+    blink_gc_main_dump->numeric_entries["effective_size"] = 5 * 1024 * 1024;
+    blink_gc_main_dump->numeric_entries["allocated_objects_size"] =
+        3 * 1024 * 1024;
+    browser_dump->chrome_allocator_dumps["blink_gc/main"] =
+        std::move(blink_gc_main_dump);
 
     // Add a malloc dump
     auto malloc_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
@@ -90,11 +117,98 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
 
     // Add Font Caches dump
     auto font_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
-    font_dump->numeric_entries["size"] = 512 * 1024;
+    font_dump->numeric_entries["size"] = 1024 * 1024;
     browser_dump->chrome_allocator_dumps["font_caches/shape_caches"] =
         std::move(font_dump);
 
+    // Add blink_objects dumps
+    auto doc_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+    doc_dump->numeric_entries[MemoryAllocatorDump::kNameObjectCount] = 3;
+    browser_dump->chrome_allocator_dumps["blink_objects/Document"] =
+        std::move(doc_dump);
+
+    auto frame_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+    frame_dump->numeric_entries[MemoryAllocatorDump::kNameObjectCount] = 1;
+    browser_dump->chrome_allocator_dumps["blink_objects/Frame"] =
+        std::move(frame_dump);
+
+    auto layout_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+    layout_dump->numeric_entries[MemoryAllocatorDump::kNameObjectCount] = 10;
+    browser_dump->chrome_allocator_dumps["blink_objects/LayoutObject"] =
+        std::move(layout_dump);
+
+    auto node_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+    node_dump->numeric_entries[MemoryAllocatorDump::kNameObjectCount] = 50;
+    browser_dump->chrome_allocator_dumps["blink_objects/Node"] =
+        std::move(node_dump);
+
+    // Add Java Heap dump
+    auto java_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+    java_dump->numeric_entries["effective_size"] = 4 * 1024 * 1024;
+    browser_dump->chrome_allocator_dumps["java_heap"] = std::move(java_dump);
+
+    // Add LevelDatabase dump
+    auto leveldb_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+    leveldb_dump->numeric_entries["effective_size"] = 512 * 1024;
+    browser_dump->chrome_allocator_dumps["leveldatabase"] =
+        std::move(leveldb_dump);
+
+    // Add PartitionAlloc dump
+    auto pa_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+    pa_dump->numeric_entries["effective_size"] = 16 * 1024 * 1024;
+    browser_dump->chrome_allocator_dumps["partition_alloc"] =
+        std::move(pa_dump);
+
+    auto pa_allocated_dump =
+        memory_instrumentation::mojom::AllocatorMemDump::New();
+    pa_allocated_dump->numeric_entries["effective_size"] = 12 * 1024 * 1024;
+    browser_dump->chrome_allocator_dumps["partition_alloc/allocated_objects"] =
+        std::move(pa_allocated_dump);
+
+    // Add Skia dump (total)
+    auto skia_total_dump =
+        memory_instrumentation::mojom::AllocatorMemDump::New();
+    skia_total_dump->numeric_entries["effective_size"] = 2 * 1024 * 1024;
+    browser_dump->chrome_allocator_dumps["skia"] = std::move(skia_total_dump);
+
+    // Add Sqlite dump
+    auto sqlite_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+    sqlite_dump->numeric_entries["effective_size"] = 1 * 1024;
+    browser_dump->chrome_allocator_dumps["sqlite"] = std::move(sqlite_dump);
+
+    // Add UI dump
+    auto ui_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+    ui_dump->numeric_entries["effective_size"] = 2 * 1024;
+    browser_dump->chrome_allocator_dumps["ui"] = std::move(ui_dump);
+
+    // Add V8 dump
+    auto v8_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+    v8_dump->numeric_entries["effective_size"] = 12 * 1024 * 1024;
+    v8_dump->numeric_entries["allocated_objects_size"] = 10 * 1024 * 1024;
+    browser_dump->chrome_allocator_dumps["v8"] = std::move(v8_dump);
+
     dump_ptr->process_dumps.push_back(std::move(browser_dump));
+
+    // Renderer process dump
+    auto renderer_dump =
+        memory_instrumentation::mojom::ProcessMemoryDump::New();
+    renderer_dump->process_type =
+        memory_instrumentation::mojom::ProcessType::RENDERER;
+    renderer_dump->os_dump = memory_instrumentation::mojom::OSMemDump::New();
+    renderer_dump->os_dump->private_footprint_kb = 20480;  // 20 MB
+#if BUILDFLAG(IS_ANDROID)
+    renderer_dump->os_dump->partition_alloc_rss_kb = 2048;  // 2 MB
+#endif
+
+    auto renderer_blink_gc_dump =
+        memory_instrumentation::mojom::AllocatorMemDump::New();
+    renderer_blink_gc_dump->numeric_entries["effective_size"] = 8 * 1024 * 1024;
+    renderer_blink_gc_dump->numeric_entries["allocated_objects_size"] =
+        5 * 1024 * 1024;
+    renderer_dump->chrome_allocator_dumps["blink_gc"] =
+        std::move(renderer_blink_gc_dump);
+
+    dump_ptr->process_dumps.push_back(std::move(renderer_dump));
 
     auto global_dump =
         memory_instrumentation::GlobalMemoryDump::MoveFrom(std::move(dump_ptr));
@@ -280,8 +394,21 @@ class CobaltMetricsServiceClientTest : public ::testing::Test {
         &prefs_);
     client_->CallInitialize();  // This will use the overridden factory methods.
 
+    // Instantiate mock media client for testing
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    mock_media_client_ = std::make_unique<media::MockMediaClient>();
+    media::SetMediaClient(mock_media_client_.get());
+#endif
+
     ASSERT_THAT(client_->mock_metrics_service(), NotNull());
     ASSERT_THAT(client_->mock_log_uploader(), NotNull());
+  }
+
+  void TearDown() override {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    media::SetMediaClient(nullptr);
+    media::DecoderBuffer::Allocator::Set(nullptr);
+#endif
   }
 
   base::test::TaskEnvironment task_environment_{
@@ -294,6 +421,9 @@ class CobaltMetricsServiceClientTest : public ::testing::Test {
   std::unique_ptr<metrics::MetricsStateManager> metrics_state_manager_;
   base::raw_ptr<variations::SyntheticTrialRegistry> synthetic_trial_registry_;
   std::unique_ptr<TestCobaltMetricsServiceClient> client_;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  std::unique_ptr<media::MockMediaClient> mock_media_client_;
+#endif
 };
 
 TEST_F(CobaltMetricsServiceClientTest, PostCreateInitialization) {
@@ -379,14 +509,103 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
           .size(),
       1u);
 
-  // Experimental histograms (now with .Small. suffix in KB)
-  // Note: we check for bucket count >= 1 because periodic collection might also
-  // fire.
+#if BUILDFLAG(IS_ANDROID)
   EXPECT_GT(histogram_tester.GetBucketCount(
-                "Memory.Experimental.Browser2.Skia.Small.SkGlyphCache", 2048),
+                "Memory.Experimental.Browser2.Malloc", 10),
             0);
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.PartitionAlloc", 16),
+            0);
+  EXPECT_GT(
+      histogram_tester.GetBucketCount("Memory.Experimental.Browser2.V8", 12),
+      0);
+#endif
+
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.Tiny.NumberOfDocuments", 3),
+            0);
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.Tiny.NumberOfFrames", 1),
+            0);
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.Tiny.NumberOfLayoutObjects", 10),
+            0);
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.Small.NumberOfNodes", 50),
+            0);
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.Small.FontCaches", 1024),
+            0);
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.JavaHeap", 4),
+            0);
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.Small.LevelDatabase", 512),
+            0);
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.Malloc.AllocatedObjects", 8),
+            0);
+  EXPECT_GT(
+      histogram_tester.GetBucketCount(
+          "Memory.Experimental.Browser2.PartitionAlloc.AllocatedObjects", 12),
+      0);
+  EXPECT_GT(
+      histogram_tester.GetBucketCount("Memory.Experimental.Browser2.Skia", 2),
+      0);
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.Small.Skia.SkGlyphCache", 2048),
+            0);
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.Small.Sqlite", 1),
+            0);
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.Small.UI", 2),
+            0);
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.V8.AllocatedObjects", 10),
+            0);
+
+  // Fragmentation metrics
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.BlinkGC.Fragmentation", 40),
+            0);
+  EXPECT_GT(
+      histogram_tester.GetBucketCount(
+          "Memory.Experimental.Browser2.BlinkGC.Main.Heap.Fragmentation", 40),
+      0);
+
   // TODO(b/491179673): Investigate why this metric is not firing:
   // Memory.Experimental.Browser2.Small.FontCaches
+}
+
+TEST_F(CobaltMetricsServiceClientTest, RecordMediaMemoryMetricsHistogram) {
+  base::HistogramTester histogram_tester;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  const size_t kSize = 2 * 1024 * 1024;
+  auto buffer = base::MakeRefCounted<media::DecoderBuffer>(kSize);
+  uint64_t allocated = media::MediaClient::GetMediaSourceTotalAllocatedMemory();
+  ASSERT_GE(allocated, static_cast<uint64_t>(kSize));
+#endif
+
+  // Trigger a memory dump manually for testing.
+  base::RunLoop run_loop;
+  client_->ScheduleRecordForTesting(run_loop.QuitClosure());
+  run_loop.Run();
+
+  // Wait for the dump to be processed.
+  task_environment_.FastForwardBy(base::Seconds(3));
+  base::StatisticsRecorder::ImportProvidedHistograms();
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  EXPECT_GE(
+      histogram_tester.GetAllSamples("Memory.Media.AllocatedEncodedBuffer")
+          .size(),
+      1u);
+  EXPECT_GE(
+      histogram_tester.GetBucketCount("Memory.Media.AllocatedEncodedBuffer", 2),
+      1);
+#endif
 }
 
 TEST_F(CobaltMetricsServiceClientTest,

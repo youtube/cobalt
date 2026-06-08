@@ -51,6 +51,13 @@ std::optional<int> FromIntPointer(const int* val) {
   return *val;
 }
 
+std::optional<bool> FromBoolPointer(const bool* val) {
+  if (!val) {
+    return std::nullopt;
+  }
+  return *val;
+}
+
 const StarboardExtensionExperimentalFeaturesConfigurationApi
     kExperimentalFeaturesConfigurationApi = {
         kStarboardExtensionExperimentalFeaturesConfigurationName,
@@ -68,6 +75,12 @@ void SetExperimentalFeaturesForCurrentThread(
 
   ExperimentalFeatures experiment_features;
 
+  experiment_features.enable_av1_startup_optimization =
+      extension_features->enable_av1_startup_optimization;
+  experiment_features.enable_codec_output_checker =
+      extension_features->enable_codec_output_checker;
+  experiment_features.disable_low_performance_sw_decoder =
+      extension_features->disable_low_performance_sw_decoder;
   experiment_features.flush_decoder_during_reset =
       extension_features->flush_decoder_during_reset;
   experiment_features.media_codec_reset_delay_ms =
@@ -76,18 +89,16 @@ void SetExperimentalFeaturesForCurrentThread(
       extension_features->pause_using_audio_track_state;
   experiment_features.reset_audio_decoder =
       extension_features->reset_audio_decoder;
+  experiment_features.skip_flush_on_decoder_teardown =
+      extension_features->skip_flush_on_decoder_teardown;
   experiment_features.video_decoder_initial_preroll_count =
       FromIntPointer(extension_features->video_decoder_initial_preroll_count);
-  experiment_features.video_decoder_poll_interval_ms =
-      FromIntPointer(extension_features->video_decoder_poll_interval_ms);
-  experiment_features.video_initial_max_frames_in_decoder =
-      FromIntPointer(extension_features->video_initial_max_frames_in_decoder);
-  experiment_features.video_max_pending_input_frames =
-      FromIntPointer(extension_features->video_max_pending_input_frames);
   experiment_features.video_renderer_min_decoded_frames =
       FromIntPointer(extension_features->video_renderer_min_decoded_frames);
   experiment_features.video_renderer_min_input_buffers =
       FromIntPointer(extension_features->video_renderer_min_input_buffers);
+  experiment_features.use_dual_threads_for_video =
+      FromBoolPointer(extension_features->use_dual_threads_for_video);
 
   *GetOrCreateExperimentalFeatures() = experiment_features;
 }

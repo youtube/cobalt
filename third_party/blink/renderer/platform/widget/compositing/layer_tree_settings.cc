@@ -93,13 +93,10 @@ cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
   actual.priority_cutoff_when_visible = gpu::MemoryAllocation::CUTOFF_ALLOW_NICE_TO_HAVE;
 
 #if BUILDFLAG(IS_COBALT)
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          cc::switches::kCCLayerTreeOptimization)) {
-    actual.priority_cutoff_when_visible =
-        gpu::MemoryAllocation::CUTOFF_ALLOW_REQUIRED_ONLY;
-    LOG(INFO) << "Layer Tree Optimization: priority_cutoff_when_visible set to "
-                 "REQUIRED_ONLY";
-  }
+  actual.priority_cutoff_when_visible =
+      gpu::MemoryAllocation::CUTOFF_ALLOW_REQUIRED_ONLY;
+  LOG(INFO) << "Layer Tree Optimization: priority_cutoff_when_visible set to "
+                "REQUIRED_ONLY";
 #endif
 
   // If the value was overridden on the command line, use the specified value.
@@ -416,19 +413,10 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
     // On low-end we want to be very careful about killing other
     // apps. So initially we use 50% more memory to avoid flickering
     // or raster-on-demand.
-    settings.max_memory_for_prepaint_percentage = 67;
 #if BUILDFLAG(IS_COBALT)
-    if (cmd.HasSwitch(cc::switches::kCCLayerTreeOptimization)) {
-      int percentage; 
-      if (base::StringToInt(
-              cmd.GetSwitchValueASCII(cc::switches::kCCLayerTreeOptimization),
-              &percentage)) {
-        settings.max_memory_for_prepaint_percentage = percentage;
-        LOG(INFO) << "Layer Tree Optimization: max_memory_for_prepaint_percentage "
-                     "set to "
-                    << percentage;
-      }
-    }
+    settings.max_memory_for_prepaint_percentage = 0;
+#else
+    settings.max_memory_for_prepaint_percentage = 67;
 #endif
   } else {
     // On other devices we have increased memory excessively to avoid

@@ -38,7 +38,7 @@ class FontMetricsBrowserTest : public content::ContentBrowserTest {
   void SetUpCommandLine(base::CommandLine* command_line) override {
     content::ContentBrowserTest::SetUpCommandLine(command_line);
     // Set a short interval for memory metrics to verify periodic recording.
-    command_line->AppendSwitchASCII(switches::kMemoryMetricsInterval, "1");
+    command_line->AppendSwitchASCII(switches::kMetricsInterval, "1");
   }
 };
 
@@ -87,7 +87,7 @@ IN_PROC_BROWSER_TEST_F(FontMetricsBrowserTest, RecordsFontHistograms) {
 
   EXPECT_GE(
       histogram_tester
-          .GetAllSamples("Memory.Experimental.Browser2.Skia.Small.SkGlyphCache")
+          .GetAllSamples("Memory.Experimental.Browser2.Small.Skia.SkGlyphCache")
           .size(),
       1u);
 

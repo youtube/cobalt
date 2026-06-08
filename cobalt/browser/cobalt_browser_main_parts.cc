@@ -16,19 +16,31 @@
 
 #include <memory>
 
+#include "base/check.h"
+#include "base/command_line.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
+#include "base/sequence_checker.h"
 #include "base/trace_event/memory_dump_manager.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
+#include "cobalt/browser/switches.h"
+#include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
+#include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/browser/shell_paths.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/network_service_instance.h"
 #include "content/public/browser/resource_coordinator_service.h"
 #include "content/public/browser/storage_partition.h"
+#include "net/dns/public/dns_over_https_config.h"
+#include "net/dns/public/doh_provider_entry.h"
+#include "net/dns/public/secure_dns_mode.h"
 #include "services/network/public/mojom/cookie_manager.mojom.h"
+#include "services/network/public/mojom/network_service.mojom.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/client_process_impl.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 
@@ -82,6 +94,16 @@ void InitializeBrowserMemoryInstrumentationClient() {
 
 }  // namespace
 
+void CobaltBrowserMainParts::InitializeMessageLoopContext() {
+  // On Android, we completely defer WebContents creation until the Java layer
+  // invokes ShellManager.launchShell() which reaches C++ via JNI.
+  // On Linux, we might need the base behavior.
+  // go/chrobalt-pre-initialization-storage-migration-pipeline
+#if !BUILDFLAG(IS_ANDROID)
+  ShellBrowserMainParts::InitializeMessageLoopContext();
+#endif
+}
+
 CobaltBrowserMainParts::CobaltBrowserMainParts(const std::string& deep_link)
     : ShellBrowserMainParts(deep_link) {}
 
@@ -103,7 +125,95 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
-  return ShellBrowserMainParts::PreMainMessageLoopRun();
+
+  if (base::FeatureList::IsEnabled(features::kAsyncDnsAndDoH)) {
+    ConfigureAsyncDnsAndDoH();
+  }
+
+  int result = ShellBrowserMainParts::PreMainMessageLoopRun();
+
+  if (result != 0) {
+    LOG(ERROR) << "PreMainMessageLoopRun failed with result: " << result
+               << ". Aborting storage migration.";
+    return result;
+  }
+
+  StartStorageMigration();
+
+  return result;
+}
+
+void CobaltBrowserMainParts::StartStorageMigration() {
+  LOG(INFO) << "CobaltBrowserMainParts::StartStorageMigration started.";
+  content::StoragePartition* partition =
+      browser_context()->GetDefaultStoragePartition();
+
+  DCHECK(partition);
+  cobalt::migrate_storage_record::MigrationManager::RunMigration(
+      partition, base::BindOnce(&CobaltBrowserMainParts::OnMigrationComplete,
+                                base::Unretained(this)));
+}
+
+void CobaltBrowserMainParts::OnMigrationComplete() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  CHECK(sequence_checker_.CalledOnValidSequence());
+  LOG(INFO) << "Migration complete. Proceeding with deferred launchShell.";
+  migration_finished_ = true;
+  if (pending_task_) {
+    std::move(pending_task_).Run();
+  }
+}
+
+void CobaltBrowserMainParts::PostOrRunIfStorageMigrationFinished(
+    base::OnceClosure task) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  CHECK(sequence_checker_.CalledOnValidSequence());
+  if (!migration_finished_) {
+    LOG(INFO) << "Deferring launchShell until migration finishes.";
+    CHECK(!pending_task_) << "Only one storage migration task is supported.";
+    pending_task_ = std::move(task);
+  } else {
+    LOG(INFO) << "Migration already finished, running launchShell "
+                 "immediately.";
+    std::move(task).Run();
+  }
+}
+
+void CobaltBrowserMainParts::ConfigureAsyncDnsAndDoH() {
+  // Note: The built-in Async DNS client and therefore DoH is not supported
+  // on iOS. On iOS, the compilation of the built-in DNS resolver in
+  // Chromium's network stack is disabled due to apple store regulations.
+  if (auto* network_service = content::GetNetworkService()) {
+    std::vector<net::DnsOverHttpsServerConfig> doh_servers;
+    // Collect all globally available, enabled DoH providers.
+    // This provides a fallback mechanism: if the first server is unreachable,
+    // the network stack will try the next ones.
+    for (const net::DohProviderEntry* provider :
+         net::DohProviderEntry::GetList()) {
+      if (provider->display_globally &&
+          base::FeatureList::IsEnabled(provider->feature)) {
+        doh_servers.push_back(provider->doh_server_config);
+      }
+    }
+
+    absl::optional<net::DnsOverHttpsConfig> doh_config;
+    if (!doh_servers.empty()) {
+      doh_config = net::DnsOverHttpsConfig(std::move(doh_servers));
+    }
+
+    // kAutomatic means DoH lookups will be performed first if available.
+    // If the DoH server is unreachable, it will gracefully fall back to
+    // using the standard, unencrypted DNS resolution.
+    // If the provided URL is empty or invalid, we turn DoH off entirely.
+    auto secure_dns_mode = doh_config && !doh_config->servers().empty()
+                               ? net::SecureDnsMode::kAutomatic
+                               : net::SecureDnsMode::kOff;
+
+    network_service->ConfigureStubHostResolver(
+        /*insecure_dns_client_enabled=*/true, secure_dns_mode,
+        doh_config ? *doh_config : net::DnsOverHttpsConfig(),
+        /*additional_dns_types_enabled=*/true);
+  }
 }
 
 void CobaltBrowserMainParts::PostMainMessageLoopRun() {
@@ -130,7 +240,7 @@ void CobaltBrowserMainParts::SetupMetrics() {
   metrics::MetricsService* metrics =
       GlobalFeatures::GetInstance()->metrics_service();
   metrics->InitializeMetricsRecordingState();
-  DLOG(INFO) << "Cobalt Metrics Service initialized.";
+  LOG(INFO) << "Cobalt Metrics Service initialized.";
 }
 
 void CobaltBrowserMainParts::StartMetricsRecording() {
@@ -141,7 +251,7 @@ void CobaltBrowserMainParts::StartMetricsRecording() {
   GlobalFeatures::GetInstance()
       ->metrics_services_manager()
       ->UpdateUploadPermissions(true);
-  DLOG(INFO) << "Metrics Service is now running/recording.";
+  LOG(INFO) << "Metrics Service is now running/recording.";
 }
 
 #if BUILDFLAG(IS_ANDROIDTV)

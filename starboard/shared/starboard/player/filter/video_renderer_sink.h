@@ -46,6 +46,8 @@ class VideoRendererSink : public RefCountedThreadSafe<VideoRendererSink> {
 
   virtual ~VideoRendererSink() {}
 
+  virtual void SetPlaybackRate(double playback_rate) {}
+
   virtual void SetRenderCB(RenderCB render_cb) = 0;
   virtual void SetBounds(int z_index, int x, int y, int width, int height) = 0;
 };

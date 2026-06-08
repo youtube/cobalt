@@ -27,12 +27,6 @@ public class JavaSwitches {
   public static final String ENABLE_LOW_END_DEVICE_MODE_NO_SIMULATED_MEMORY =
       "EnableLowEndDeviceModeNoSimulatedMemory";
 
-  /**
-   * GPU flag to enable memory settings in layer tree and set max_memory_for_prepaint_percentage.
-   * Value type: Integer (MiB)
-   */
-  public static final String CC_LAYER_TREE_OPTIMIZATION = "CCLayerTreeOptimization";
-
   /** V8 flag to enable jitless mode. Value type: Boolean (presence means true) */
   public static final String V8_JITLESS = "V8Jitless";
 
@@ -46,9 +40,6 @@ public class JavaSwitches {
 
   /** V8 flag to set the GC interval. Value type: Integer */
   public static final String V8_GC_INTERVAL = "V8GcInterval";
-
-  /** V8 flag to set the initial old space size. Value type: Integer (MiB) */
-  public static final String V8_INITIAL_OLD_SPACE_SIZE = "V8InitialOldSpaceSize";
 
   /** V8 flag to set the maximum old space size. Value type: Integer (MiB) */
   public static final String V8_MAX_OLD_SPACE_SIZE = "V8MaxOldSpaceSize";
@@ -65,12 +56,6 @@ public class JavaSwitches {
   public static final String DISABLE_SPLASH_SCREEN = "DisableSplashScreen";
   public static final String FORCE_IMAGE_SPLASH_SCREEN = "ForceImageSplashScreen";
 
-  /** flag to disable PartitionAllocBackupRefPtr */
-  public static final String DISABLE_BRP = "DisableBRP";
-
-  /** flag to enable PartitionAllocBackupRefPtr with reclaimer */
-  public static final String ENABLE_BRP_RECLAIMER = "EnableBRPRcelaimer";
-
   /** flag to enable AndroidOverlay for SbPlayer */
   public static final String ENABLE_ANDROID_OVERLAY = "EnableAndroidOverlay";
 
@@ -78,15 +63,9 @@ public class JavaSwitches {
   public static final String USING_SURFACE_VIEW_FOR_ANDROID_OVERLAY =
       "UsingSurfaceViewForAndroidOverlay";
 
-  /** flag to enable SkiaFontCache */
-  public static final String SKIA_FONT_CACHE = "SkiaFontCache";
-
   /** flag to lower the priority of the network service thread */
   public static final String LOWER_NETWORK_SERVICE_THREAD_PRIORITY =
       "LowerNetworkServiceThreadPriority";
-
-  /** Skia Ganesh resource cache limit. Value type: Integer (MiB) */
-  public static final String SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB = "SkiaGaneshResourceCacheLimitMb";
 
   /** flag to re-enable freeze and resume events */
   public static final String ENABLE_FREEZE = "EnableFreeze";
@@ -99,6 +78,36 @@ public class JavaSwitches {
 
   /** flag to disable low performance software av1 decoder */
   public static final String DISABLE_SW_AV1_DECODER = "DisableLowPerformanceAv1Decoder";
+
+  /** flag to enable Async DNS mode and DNS over Https */
+  public static final String ENABLE_ASYNC_DNS_AND_DOH = "EnableAsyncDnsAndDoH";
+
+  /** Limit decoded image cache size. Value type: Integer (MB) */
+  public static final String LIMIT_IMAGE_DECODE_CACHE_SIZE_MB = "LimitImageDecodeCacheSizeMb";
+
+  /** Limit the age of decoded images in the cache. Value type: Integer (seconds) */
+  public static final String LIMIT_IMAGE_DECODE_CACHE_AGE_SECONDS =
+      "LimitImageDecodeCacheAgeSeconds";
+
+  /** Force GPU memory available. Value type: Integer (MB) */
+  public static final String FORCE_GPU_MEM_AVAILABLE_MB = "ForceGpuMemAvailableMb";
+
+  /** Avoid reuse resource. */
+  public static final String AVOID_CC_REUSE_RESOURCE = "AvoidCCReuseResource";
+
+  /** flag to force use IPv4 for system host resolution. */
+  public static final String USE_IPV4_FOR_DNS = "UseIPv4ForDNS";
+  /** GPU rasterization MSAA sample count. Value type: Integer */
+  public static final String GPU_RASTERIZATION_MSAA_SAMPLE_COUNT = "GpuRasterizationMsaaSampleCount";
+
+  /** Disable GPU rasterization MSAA. Value type: Boolean (presence means true) */
+  public static final String DISABLE_GPU_RASTERIZATION_MSAA = "DisableGpuRasterizationMsaa";
+
+  /** Disk cache size. Value type: Integer */
+  public static final String DISK_CACHE_SIZE = "DiskCacheSize";
+
+  /** Disable HTTP cache. Value type: Boolean (presence means true) */
+  public static final String DISABLE_HTTP_CACHE = "DisableHttpCache";
 
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
@@ -115,12 +124,6 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--enable-features=PartialLowEndModeOnMidRangeDevices");
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.CC_LAYER_TREE_OPTIMIZATION)) {
-      extraCommandLineArgs.add(
-          "--cc-layer-tree-optimization="
-              + javaSwitches.get(JavaSwitches.CC_LAYER_TREE_OPTIMIZATION).replaceAll("[^0-9]", ""));
-    }
-
     if (javaSwitches.containsKey(JavaSwitches.V8_JITLESS)) {
       extraCommandLineArgs.add("--js-flags=--jitless");
     }
@@ -131,11 +134,6 @@ public class JavaSwitches {
       extraCommandLineArgs.add(
           "--js-flags=--gc-interval="
               + javaSwitches.get(JavaSwitches.V8_GC_INTERVAL).replaceAll("[^0-9]", ""));
-    }
-    if (javaSwitches.containsKey(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE)) {
-      extraCommandLineArgs.add(
-          "--js-flags=--initial-old-space-size="
-              + javaSwitches.get(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE).replaceAll("[^0-9]", ""));
     }
     if (javaSwitches.containsKey(JavaSwitches.V8_MAX_OLD_SPACE_SIZE)) {
       extraCommandLineArgs.add(
@@ -173,15 +171,6 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--force-image-splash-screen");
     }
 
-    // BRP settings
-    if (javaSwitches.containsKey(JavaSwitches.DISABLE_BRP)) {
-      extraCommandLineArgs.add("--disable-features=PartitionAllocBackupRefPtr");
-    }
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_BRP_RECLAIMER)) {
-      extraCommandLineArgs.add(
-          "--enable-features=PartitionAllocBackupRefPtr:brp-mode/enabled-with-memory-reclaimer");
-    }
-
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_ANDROID_OVERLAY)) {
       extraCommandLineArgs.add("--CobaltUsingAndroidOverlay");
       extraCommandLineArgs.add("--enable-features=CobaltUsingAndroidOverlay");
@@ -190,20 +179,8 @@ public class JavaSwitches {
       }
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.SKIA_FONT_CACHE)) {
-      extraCommandLineArgs.add("--enable-features=SkiaFontCache");
-    }
-
     if (javaSwitches.containsKey(JavaSwitches.LOWER_NETWORK_SERVICE_THREAD_PRIORITY)) {
       extraCommandLineArgs.add("--enable-features=LowerNetworkServiceThreadPriority");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB)) {
-      extraCommandLineArgs.add(
-          "--skia-ganesh-resource-cache-limit-mb="
-              + javaSwitches
-                  .get(JavaSwitches.SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB)
-                  .replaceAll("[^0-9]", ""));
     }
 
     if (javaSwitches.containsKey(JavaSwitches.NO_STOP_IN_BACKGROUND)) {
@@ -218,6 +195,64 @@ public class JavaSwitches {
     }
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_SW_AV1_DECODER)) {
       extraCommandLineArgs.add("--enable-features=RejectLowPerformanceSoftwareDecoder");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_ASYNC_DNS_AND_DOH)) {
+      extraCommandLineArgs.add("--enable-features=AsyncDnsAndDoH");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.LIMIT_IMAGE_DECODE_CACHE_SIZE_MB)) {
+      extraCommandLineArgs.add(
+          "--enable-features=LimitImageDecodeCacheSize:mb/"
+              + javaSwitches
+                  .get(JavaSwitches.LIMIT_IMAGE_DECODE_CACHE_SIZE_MB)
+                  .replaceAll("[^0-9]", ""));
+    } else {
+      extraCommandLineArgs.add("--enable-features=LimitImageDecodeCacheSize:mb/24");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.LIMIT_IMAGE_DECODE_CACHE_AGE_SECONDS)) {
+      extraCommandLineArgs.add(
+          "--enable-features=LimitImageDecodeCacheAge:seconds/"
+              + javaSwitches
+                  .get(JavaSwitches.LIMIT_IMAGE_DECODE_CACHE_AGE_SECONDS)
+                  .replaceAll("[^0-9]", ""));
+    } else {
+      extraCommandLineArgs.add("--enable-features=LimitImageDecodeCacheAge:seconds/5");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.FORCE_GPU_MEM_AVAILABLE_MB)) {
+      extraCommandLineArgs.add(
+          "--force-gpu-mem-available-mb="
+              + javaSwitches.get(JavaSwitches.FORCE_GPU_MEM_AVAILABLE_MB).replaceAll("[^0-9]", ""));
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.AVOID_CC_REUSE_RESOURCE)) {
+      extraCommandLineArgs.add("--avoid-cc-reuse-resource");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.USE_IPV4_FOR_DNS)) {
+      extraCommandLineArgs.add("--enable-features=UseIPv4ForDNS");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.DISABLE_GPU_RASTERIZATION_MSAA)) {
+      extraCommandLineArgs.add("--gpu-rasterization-msaa-sample-count=0");
+    } else if (javaSwitches.containsKey(JavaSwitches.GPU_RASTERIZATION_MSAA_SAMPLE_COUNT)) {
+      extraCommandLineArgs.add(
+          "--gpu-rasterization-msaa-sample-count="
+              + javaSwitches
+                  .get(JavaSwitches.GPU_RASTERIZATION_MSAA_SAMPLE_COUNT)
+                  .replaceAll("[^0-9]", ""));
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.DISK_CACHE_SIZE)) {
+      extraCommandLineArgs.add(
+          "--disk-cache-size="
+              + javaSwitches.get(JavaSwitches.DISK_CACHE_SIZE).replaceAll("[^0-9]", ""));
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.DISABLE_HTTP_CACHE)) {
+      extraCommandLineArgs.add("--disable-http-cache");
     }
 
     return extraCommandLineArgs;

@@ -5,6 +5,7 @@
 #include "cc/base/switches.h"
 
 #include "base/command_line.h"
+#include "build/build_config.h"
 
 namespace cc {
 namespace switches {
@@ -120,8 +121,8 @@ const char kCCScrollAnimationDurationForTesting[] =
     "cc-scroll-animation-duration-in-seconds";
 
 #if BUILDFLAG(IS_COBALT)
-// Enables GPU memory optimization settings in layer tree
-const char kCCLayerTreeOptimization[] = "cc-layer-tree-optimization";
+// Avoid reuse resource.
+const char kAvoidCCReuseResource[] = "avoid-cc-reuse-resource";
 #endif
 
 }  // namespace switches

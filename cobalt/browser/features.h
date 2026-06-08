@@ -15,7 +15,10 @@
 #ifndef COBALT_BROWSER_FEATURES_H_
 #define COBALT_BROWSER_FEATURES_H_
 
+#include <string>
+
 #include "base/feature_list.h"
+#include "base/metrics/field_trial_params.h"
 
 namespace cobalt {
 namespace features {
@@ -23,6 +26,16 @@ namespace features {
 // Enables the variations config expiration check.
 extern const base::Feature kExperimentConfigExpiration;
 
+// Test finch feature for Finch end to end testing.
+extern const base::Feature kTestFinchFeature;
+
+// Test finch feature param for Finch end to end testing.
+extern const base::FeatureParam<std::string> kTestFinchFeatureParam;
+// Enables the asynchronous DNS client and DNS-over-HTTPS (DoH).
+extern const base::Feature kAsyncDnsAndDoH;
+
+// Use IPv4 for system host resolution.
+extern const base::Feature kUseIPv4ForDNS;
 }  // namespace features
 }  // namespace cobalt
 

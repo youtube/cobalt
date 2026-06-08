@@ -41,30 +41,34 @@ StarboardRendererConfig::StarboardRendererConfig(
 std::ostream& operator<<(
     std::ostream& os,
     const StarboardRendererConfig::ExperimentalFeatures& features) {
-  return os << "{enable_flush_during_seek="
+  return os << "{enable_av1_startup_optimization="
+            << ToString(features.enable_av1_startup_optimization)
+            << ", enable_codec_output_checker="
+            << ToString(features.enable_codec_output_checker)
+            << ", enable_flush_during_seek="
             << ToString(features.enable_flush_during_seek)
             << ", enable_reset_audio_decoder="
             << ToString(features.enable_reset_audio_decoder)
+            << ", disable_low_performance_sw_decoder="
+            << ToString(features.disable_low_performance_sw_decoder)
             << ", pause_using_audio_track_state="
             << ToString(features.pause_using_audio_track_state)
             << ", report_buffering_state_during_flush="
             << ToString(features.report_buffering_state_during_flush)
-            << ", initial_max_frames_in_decoder="
-            << ToString(features.initial_max_frames_in_decoder)
-            << ", max_pending_input_frames="
-            << ToString(features.max_pending_input_frames)
+            << ", skip_flush_on_decoder_teardown="
+            << ToString(features.skip_flush_on_decoder_teardown)
             << ", max_samples_per_write="
             << ToString(features.max_samples_per_write)
             << ", video_decoder_initial_preroll_count="
             << ToString(features.video_decoder_initial_preroll_count)
-            << ", video_decoder_poll_interval_ms="
-            << ToString(features.video_decoder_poll_interval_ms)
             << ", video_renderer_min_input_buffers="
             << ToString(features.video_renderer_min_input_buffers)
             << ", video_renderer_min_decoded_frames="
             << ToString(features.video_renderer_min_decoded_frames)
             << ", media_codec_reset_delay_ms="
-            << ToString(features.media_codec_reset_delay_ms) << "}";
+            << ToString(features.media_codec_reset_delay_ms)
+            << ", use_dual_threads_for_video="
+            << ToString(features.use_dual_threads_for_video) << "}";
 }
 
 }  // namespace media

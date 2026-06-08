@@ -43,7 +43,7 @@ class PerformanceImpl
   void MeasureUsedCpuMemory(MeasureAvailableCpuMemoryCallback) override;
   void MeasureUsedSwapMemory(MeasureUsedSwapMemoryCallback) override;
   void MeasureReservedVirtualMemory(MeasureReservedVirtualMemoryCallback) override;
-  void GetAppStartupTime(GetAppStartupTimeCallback) override;
+  void GetAppStartupTimeStamp(GetAppStartupTimeStampCallback) override;
 
  private:
   PerformanceImpl(content::RenderFrameHost& render_frame_host,

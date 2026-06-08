@@ -56,6 +56,10 @@ class ShellBrowserMainParts : public BrowserMainParts {
   void PostMainMessageLoopRun() override;
   void PostDestroyThreads() override;
 
+  // Called to defer tasks (e.g. creating WebContents) until migration is
+  // finished.
+  virtual void PostOrRunIfStorageMigrationFinished(base::OnceClosure task);
+
   ShellBrowserContext* browser_context() { return browser_context_.get(); }
   ShellBrowserContext* off_the_record_browser_context() {
     return off_the_record_browser_context_.get();

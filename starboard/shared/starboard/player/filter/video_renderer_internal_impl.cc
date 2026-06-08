@@ -84,7 +84,7 @@ VideoRendererImpl::~VideoRendererImpl() {
   // Be sure to release anything created by the decoder_ before releasing the
   // decoder_ itself.
   if (first_input_written_) {
-    decoder_->Reset();
+    decoder_->ResetForTeardown();
   }
 
   // Now both the decoder thread and the sink thread should have been shutdown.
@@ -200,6 +200,15 @@ void VideoRendererImpl::Seek(int64_t seek_to_time) {
 
   // This is also guarded by |sink_frames_mutex_|.
   algorithm_->Seek(seek_to_time);
+}
+
+void VideoRendererImpl::SetPlaybackRate(double playback_rate) {
+  SB_DCHECK(BelongsToCurrentThread());
+  SB_DCHECK_GE(playback_rate, 0);
+
+  if (sink_) {
+    sink_->SetPlaybackRate(playback_rate);
+  }
 }
 
 bool VideoRendererImpl::CanAcceptMoreData() const {

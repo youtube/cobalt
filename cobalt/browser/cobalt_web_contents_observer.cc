@@ -62,8 +62,8 @@ void CobaltWebContentsObserver::DidStartNavigation(
   timeout_timer_->Stop();
   timeout_timer_->Start(
       FROM_HERE, base::Seconds(kNavigationTimeoutSeconds),
-      base::BindOnce(&CobaltWebContentsObserver::RaisePlatformError,
-                     weak_factory_.GetWeakPtr()));
+      base::BindOnce(&CobaltWebContentsObserver::OnNavigationTimeout,
+                     weak_factory_.GetWeakPtr(), handle->GetURL().spec()));
 }
 
 // Opting for WebContentsObserver::DidFinishNavigation() over
@@ -83,14 +83,19 @@ void CobaltWebContentsObserver::DidFinishNavigation(
     UMA_HISTOGRAM_BOOLEAN("Cobalt.WebContentsObserver.FailedNavigation", true);
     LOG(INFO) << "DidFinishNavigation: Raising platform error with code: "
               << net::ErrorToString(net_error_code);
-    RaisePlatformError();
+    RaisePlatformError(navigation_handle->GetURL().spec());
   } else if (net_error_code == net::OK) {
     UMA_HISTOGRAM_BOOLEAN("Cobalt.WebContentsObserver.FailedNavigation", false);
     platform_error_raised_count_ = 0;
   }
 }
 
-void CobaltWebContentsObserver::RaisePlatformError() {
+void CobaltWebContentsObserver::OnNavigationTimeout(const std::string& url) {
+  UMA_HISTOGRAM_BOOLEAN("Cobalt.Network.NavigationTimeout", true);
+  RaisePlatformError(url);
+}
+
+void CobaltWebContentsObserver::RaisePlatformError(const std::string& url) {
   JNIEnv* env = base::android::AttachCurrentThread();
   auto* starboard_bridge =
       starboard::android::shared::StarboardBridge::GetInstance();
@@ -102,7 +107,13 @@ void CobaltWebContentsObserver::RaisePlatformError() {
   platform_error_raised_count_++;
   UMA_HISTOGRAM_COUNTS_100("Cobalt.Network.CumulativePlatformErrorRaised",
                            platform_error_raised_count_);
-  starboard_bridge->RaisePlatformError(env, kJniErrorTypeConnectionError, 0);
+  starboard_bridge->RaisePlatformError(env, kJniErrorTypeConnectionError, 0,
+                                       url);
+}
+
+void CobaltWebContentsObserver::SetStartupDiagnosisInfo(const char* key,
+                                                        const char* value) {
+  // No-op on this branch
 }
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 

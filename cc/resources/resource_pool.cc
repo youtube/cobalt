@@ -14,6 +14,7 @@
 #include <utility>
 
 #include "base/atomic_sequence_num.h"
+#include "base/command_line.h"
 #include "base/containers/contains.h"
 #include "base/format_macros.h"
 #include "base/functional/bind.h"
@@ -24,6 +25,7 @@
 #include "base/trace_event/memory_dump_manager.h"
 #include "build/build_config.h"
 #include "cc/base/container_util.h"
+#include "cc/base/switches.h"
 #include "components/viz/client/client_resource_provider.h"
 #include "components/viz/common/gpu/context_provider.h"
 #include "gpu/command_buffer/client/context_support.h"
@@ -187,9 +189,25 @@ ResourcePool::InUsePoolResource ResourcePool::AcquireResource(
     viz::SharedImageFormat format,
     const gfx::ColorSpace& color_space,
     const std::string& debug_name) {
+#if BUILDFLAG(IS_COBALT)
+  static bool avoid_cc_reuse_resource =
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kAvoidCCReuseResource);
+  PoolResource* resource = avoid_cc_reuse_resource
+                               ? nullptr
+                               : ReuseResource(size, format, color_space);
+#else
   PoolResource* resource = ReuseResource(size, format, color_space);
+#endif
+
   if (!resource)
     resource = CreateResource(size, format, color_space);
+
+#if BUILDFLAG(IS_COBALT)
+  if (avoid_cc_reuse_resource) {
+    resource->mark_avoid_reuse();
+  }
+#endif
   resource->set_debug_name(debug_name);
   return InUsePoolResource(resource, !!context_provider_);
 }
@@ -212,6 +230,13 @@ ResourcePool::TryAcquireResourceForPartialRaster(
     gfx::Rect* total_invalidated_rect,
     const gfx::ColorSpace& raster_color_space,
     const std::string& debug_name) {
+#if BUILDFLAG(IS_COBALT)
+  static bool avoid_cc_reuse_resource =
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kAvoidCCReuseResource);
+  if (avoid_cc_reuse_resource)
+    return InUsePoolResource();
+#endif
   DCHECK(new_content_id);
   DCHECK(previous_content_id);
   *total_invalidated_rect = gfx::Rect();

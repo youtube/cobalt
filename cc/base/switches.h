@@ -66,15 +66,15 @@ CC_BASE_EXPORT extern const char kEnableClippedImageScaling[];
 
 CC_BASE_EXPORT extern const char kAnimatedImageResume[];
 
+#if BUILDFLAG(IS_COBALT)
+// Avoid reuse resource.
+CC_BASE_EXPORT extern const char kAvoidCCReuseResource[];
+#endif
+
 // Test related.
 CC_BASE_EXPORT extern const char kCCLayerTreeTestNoTimeout[];
 CC_BASE_EXPORT extern const char kCCLayerTreeTestLongTimeout[];
 CC_BASE_EXPORT extern const char kCCScrollAnimationDurationForTesting[];
-
-#if BUILDFLAG(IS_COBALT)
-// experimental flag for tuning GPU memory settings in LayerTree.
-CC_BASE_EXPORT extern const char kCCLayerTreeOptimization[];
-#endif
 
 }  // namespace switches
 }  // namespace cc
