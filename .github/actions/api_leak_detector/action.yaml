@@ -14,3 +14,6 @@ runs:
           SB_API_VERSION_FLAG="--sb_api_version=${{matrix.sb_api_version}}"
         fi
         python3 cobalt/src/starboard/tools/api_leak_detector/api_leak_detector.py -p ${{ matrix.platform }} -c ${{matrix.config}} --submit-check ${SB_API_VERSION_FLAG}
+        if [ "${{matrix.config}}" == "devel" ]; then
+          python3 cobalt/src/starboard/tools/api_leak_detector/api_leak_detector.py -p ${{ matrix.platform }} -c ${{matrix.config}} --submit-check ${SB_API_VERSION_FLAG} -t nplb
+        fi
