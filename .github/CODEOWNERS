@@ -25,6 +25,7 @@
 /starboard/elf_loader                      @youtube/cobalt-starboard-owners
 /starboard/loader_app                      @youtube/cobalt-starboard-owners
 /starboard/common                          @youtube/cobalt-starboard-owners
+/starboard/common/experimental/            # no owners
 /components/viz/service/display/starboard/ @youtube/cobalt-starboard-owners
 /ui/ozone/platform/starboard/              @youtube/cobalt-starboard-owners
 
