@@ -125,7 +125,7 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       bool* disable_secure_dns,
       network::mojom::URLLoaderFactoryOverridePtr* factory_override) override;
 
-  void FlushCookiesAndLocalStorage(base::OnceClosure);
+  void FlushCookiesAndLocalStorage(base::OnceClosure callback);
 
   void AddPendingWindowReceiver(
       mojo::PendingReceiver<cobalt::media::mojom::PlatformWindowProvider>

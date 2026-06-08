@@ -1,0 +1,101 @@
+load("//bazel:skia_rules.bzl", "exports_files_legacy", "skia_filegroup", "split_srcs_and_hdrs")
+load("//bazel:flags.bzl", "bool_flag")
+
+licenses(["notice"])
+
+exports_files_legacy()
+
+VK_FILES = [
+    "GrVkBuffer.cpp",
+    "GrVkBuffer.h",
+    "GrVkCaps.cpp",
+    "GrVkCaps.h",
+    "GrVkCommandBuffer.cpp",
+    "GrVkCommandBuffer.h",
+    "GrVkCommandPool.cpp",
+    "GrVkCommandPool.h",
+    "GrVkDescriptorPool.cpp",
+    "GrVkDescriptorPool.h",
+    "GrVkDescriptorSet.cpp",
+    "GrVkDescriptorSet.h",
+    "GrVkDescriptorSetManager.cpp",
+    "GrVkDescriptorSetManager.h",
+    "GrVkFramebuffer.cpp",
+    "GrVkFramebuffer.h",
+    "GrVkGpu.cpp",
+    "GrVkGpu.h",
+    "GrVkImage.cpp",
+    "GrVkImage.h",
+    "GrVkImageLayout.h",
+    "GrVkImageView.cpp",
+    "GrVkImageView.h",
+    "GrVkMSAALoadManager.cpp",
+    "GrVkMSAALoadManager.h",
+    "GrVkManagedResource.h",
+    "GrVkOpsRenderPass.cpp",
+    "GrVkOpsRenderPass.h",
+    "GrVkPipeline.cpp",
+    "GrVkPipeline.h",
+    "GrVkPipelineState.cpp",
+    "GrVkPipelineState.h",
+    "GrVkPipelineStateBuilder.cpp",
+    "GrVkPipelineStateBuilder.h",
+    "GrVkPipelineStateCache.cpp",
+    "GrVkPipelineStateDataManager.cpp",
+    "GrVkPipelineStateDataManager.h",
+    "GrVkRenderPass.cpp",
+    "GrVkRenderPass.h",
+    "GrVkRenderTarget.cpp",
+    "GrVkRenderTarget.h",
+    "GrVkResourceProvider.cpp",
+    "GrVkResourceProvider.h",
+    "GrVkSampler.cpp",
+    "GrVkSampler.h",
+    "GrVkSamplerYcbcrConversion.cpp",
+    "GrVkSamplerYcbcrConversion.h",
+    "GrVkSemaphore.cpp",
+    "GrVkSemaphore.h",
+    "GrVkTexture.cpp",
+    "GrVkTexture.h",
+    "GrVkTextureRenderTarget.cpp",
+    "GrVkTextureRenderTarget.h",
+    "GrVkTypesPriv.cpp",
+    "GrVkUniformHandler.cpp",
+    "GrVkUniformHandler.h",
+    "GrVkUtil.cpp",
+    "GrVkUtil.h",
+    "GrVkVaryingHandler.cpp",
+    "GrVkVaryingHandler.h",
+]
+
+split_srcs_and_hdrs(
+    name = "vk",
+    files = VK_FILES,
+)
+
+bool_flag(
+    name = "enable_secondary_draw_context",
+    default = False,
+)
+
+skia_filegroup(
+    name = "vk_chromium_srcs",
+    srcs = ["GrVkSecondaryCBDrawContext.cpp"],
+)
+
+skia_filegroup(
+    name = "srcs",
+    srcs = [
+        ":vk_srcs",
+    ] + select({
+        ":enable_secondary_draw_context_true": [":vk_chromium_srcs"],
+        "//conditions:default": [],
+    }),
+    visibility = ["//src/gpu/ganesh:__pkg__"],
+)
+
+skia_filegroup(
+    name = "private_hdrs",
+    srcs = [":vk_hdrs"],
+    visibility = ["//src/gpu/ganesh:__pkg__"],
+)

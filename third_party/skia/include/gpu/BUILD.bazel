@@ -1,0 +1,47 @@
+load("//bazel:skia_rules.bzl", "exports_files_legacy", "select_multi", "skia_filegroup")
+
+licenses(["notice"])
+
+exports_files_legacy()
+
+# In separate group for mapping to //gn/gpu.gni:skia_shared_gpu_sources.
+skia_filegroup(
+    name = "shared_public_hdrs",
+    srcs = [
+        "GpuTypes.h",
+        "MutableTextureState.h",
+        "ShaderErrorHandler.h",
+    ],
+)
+
+skia_filegroup(
+    name = "public_hdrs",
+    srcs = [
+        "GrBackendDrawableInfo.h",
+        "GrBackendSemaphore.h",
+        "GrBackendSurface.h",
+        "GrBackendSurfaceMutableState.h",
+        "GrContextOptions.h",
+        "GrContextThreadSafeProxy.h",
+        "GrDirectContext.h",
+        "GrDriverBugWorkarounds.h",
+        "GrDriverBugWorkaroundsAutogen.h",
+        "GrRecordingContext.h",
+        "GrSurfaceInfo.h",
+        "GrTypes.h",
+        "GrYUVABackendTextures.h",
+        "//include/gpu/mock:public_hdrs",
+        # TODO(egdaniel, kjlubick) GrGLTypes.h is used unconditionally by GrBackendSemaphore.h
+        "//include/gpu/gl:public_hdrs",
+        ":shared_public_hdrs",
+        "//include/gpu/ganesh:public_hdrs",
+    ] + select_multi(
+        {
+            "//src/gpu:dawn_backend": ["//include/gpu/dawn:public_hdrs"],
+            "//src/gpu:vulkan_backend": ["//include/gpu/vk:public_hdrs"],
+            "//src/gpu:metal_backend": ["//include/gpu/mtl:public_hdrs"],
+            # TODO(kjlubick) d3d backend
+        },
+    ),
+    visibility = ["//include:__pkg__"],
+)

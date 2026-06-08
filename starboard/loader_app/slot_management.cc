@@ -37,14 +37,10 @@
 #include "starboard/loader_app/app_key_files.h"
 #include "starboard/loader_app/drain_file.h"
 #include "starboard/loader_app/installation_manager.h"
-#include "third_party/jsoncpp/source/include/json/reader.h"
-#include "third_party/jsoncpp/source/include/json/value.h"
+#include "starboard/loader_app/read_evergreen_version.h"
 
 namespace loader_app {
 namespace {
-
-// The max length of Evergreen version string.
-const int kMaxEgVersionLength = 20;
 
 // The max number of installations slots.
 const int kMaxNumInstallations = 2;
@@ -67,9 +63,6 @@ const char kManifestFileName[] = "manifest.json";
 
 // Deliminator of the Evergreen version string segments.
 const char kEgVersionDeliminator = '.';
-
-// Evergreen version key in the manifest file.
-const char kVersionKey[] = "version";
 
 }  // namespace
 
@@ -108,40 +101,6 @@ int CompareEvergreenVersion(const std::vector<char>& v1,
     return -1;
   }
   return 0;
-}
-
-bool ReadEvergreenVersion(const std::vector<char>& manifest_file_path,
-                          char* version,
-                          int version_length) {
-  // Check the manifest file exists
-  struct stat info;
-  if (stat(manifest_file_path.data(), &info) != 0) {
-    SB_LOG(WARNING)
-        << "Failed to open the manifest file at the installation path.";
-    return false;
-  }
-
-  starboard::ScopedFile manifest_file(manifest_file_path.data(), O_RDONLY,
-                                      S_IRWXU | S_IRGRP);
-  int64_t file_size = manifest_file.GetSize();
-  std::vector<char> file_data(file_size);
-  int read_size = manifest_file.ReadAll(file_data.data(), file_size);
-  if (read_size < 0) {
-    SB_LOG(WARNING) << "Error while reading from the manifest file.";
-    return false;
-  }
-
-  Json::Reader reader;
-  Json::Value obj;
-  if (!reader.parse(std::string(file_data.data(), file_size), obj) ||
-      !obj[kVersionKey]) {
-    SB_LOG(WARNING) << "Failed to parse version from the manifest file at the "
-                       "installation path.";
-    return false;
-  }
-
-  snprintf(version, version_length, "%s", obj[kVersionKey].asString().c_str());
-  return true;
 }
 
 bool GetEvergreenVersionByIndex(int installation_index,
@@ -244,6 +203,22 @@ bool AdoptInstallation(int current_installation,
   return true;
 }
 
+void InsertVersionAnnotationFromManifest(int installation_index) {
+  std::vector<char> version_to_load(kMaxEgVersionLength);
+  if (!GetEvergreenVersionByIndex(installation_index, version_to_load.data(),
+                                  kMaxEgVersionLength)) {
+    SB_LOG(WARNING)
+        << "Failed to get the Evergreen version of installation index "
+        << installation_index << ", not adding to Crashpad";
+    return;
+  }
+
+  if (!crashpad::InsertCrashpadAnnotation(crashpad::kCrashpadVersionKey,
+                                          version_to_load.data())) {
+    SB_LOG(WARNING) << "Failed to add ver annotation to Crashpad";
+  }
+}
+
 void* LoadSlotManagedLibrary(const std::string& app_key,
                              const std::string& alternative_content_path,
                              LibraryLoader* library_loader,
@@ -313,6 +288,8 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
 
     SB_LOG(INFO) << "Try to load the Cobalt binary";
     SB_LOG(INFO) << "current_installation=" << current_installation;
+
+    InsertVersionAnnotationFromManifest(current_installation);
 
     //  Try to load the image. Failures here discard the image.
     std::vector<char> installation_path(kSbFileMaxPath);

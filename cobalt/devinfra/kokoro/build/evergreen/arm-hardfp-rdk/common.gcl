@@ -13,7 +13,7 @@ build = common.build {
     },
     {
       key = 'GN_TARGET'
-      value = 'cobalt:gn_all crash_sandbox_loaded_content noop_sandbox_loaded_content one_app_only_sandbox_loaded_content'
+      value = 'cobalt:gn_all crash_sandbox_loaded_content noop_sandbox_loaded_content one_app_only_sandbox_loaded_content loader_app loader_app_rdk_plugin'
     },
     {
       key = 'TARGET_CPU'

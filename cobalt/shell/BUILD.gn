@@ -59,6 +59,9 @@ group("cobalt_shell_lib_deps") {
     "//base/third_party/dynamic_annotations",
     "//cc/base",
     "//cobalt/browser:switches",
+    "//cobalt/browser/crash_annotator/public/mojom:mojom",
+    "//cobalt/browser/h5vcc_runtime",
+    "//cobalt/browser/lifecycle:lifecycle",
     "//cobalt/shell/browser/migrate_storage_record",
     "//components/cdm/renderer",
     "//components/crash/content/browser",
@@ -68,7 +71,7 @@ group("cobalt_shell_lib_deps") {
     "//components/keyed_service/content",
     "//components/metrics",
     "//components/metrics:net",
-    "//components/network_hints/browser:browser",
+    "//components/network_hints/browser",
     "//components/network_hints/renderer",
     "//components/network_session_configurator/common",
     "//components/performance_manager",
@@ -96,6 +99,7 @@ group("cobalt_shell_lib_deps") {
     "//third_party/blink/public/strings:accessibility_strings",
     "//ui/gfx",
     "//ui/gfx/geometry",
+    "//ui/platform_window",
     "//url",
     "//v8",
   ]
@@ -105,7 +109,6 @@ group("cobalt_shell_lib_deps") {
       "//ui/base",
       "//ui/base/clipboard",
       "//ui/base/ime/init",
-      "//ui/platform_window",
     ]
   }
 
@@ -139,6 +142,9 @@ group("cobalt_shell_lib_deps") {
       "//ui/events",
       "//ui/wm",
     ]
+    if (is_starboard) {
+      public_deps += [ "//ui/ozone/platform/starboard" ]
+    }
 
     if (shell_use_toolkit_views) {
       public_deps += [

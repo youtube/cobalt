@@ -14,6 +14,8 @@
 
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h"
 
+#include <algorithm>
+#include <cctype>
 #include <memory>
 #include <utility>
 
@@ -37,6 +39,79 @@
 const char* ROBOTO_SCRIPT = "latn";
 
 namespace {
+enum GenericFontType { kSansSerif, kSerif, kMonospace };
+
+// Case-insensitively maps common last-resort family names (both standard
+// generic aliases and platform-specific desktop fallbacks) to their broad style
+// categories.
+bool MapToGenericType(const char* name, GenericFontType* type) {
+  if (name == nullptr) {
+    return false;
+  }
+  SkAutoAsciiToLC name_lc(name);
+  std::string n(name_lc.lc(), name_lc.length());
+
+  if (n == "sans-serif" || n == "sans" || n == "arial" || n == "helvetica") {
+    *type = kSansSerif;
+    return true;
+  }
+  if (n == "serif" || n == "times new roman") {
+    *type = kSerif;
+    return true;
+  }
+  if (n == "monospace" || n == "courier new") {
+    *type = kMonospace;
+    return true;
+  }
+  return false;
+}
+
+// Locates the first system fallback font that supports basic Latin 'a'
+// and matches the requested generic style intent (Sans, Serif, or Mono).
+// This prevents dangerous script mismatches (e.g., rendering standard English
+// text with a non-Latin default like Arabic) when our local map is empty.
+SkFontStyleSet_Cobalt* FindSafeSystemFont(
+    const std::vector<SkFontStyleSet_Cobalt*>& fallback_families,
+    GenericFontType type) {
+  for (auto* family : fallback_families) {
+    sk_sp<SkTypeface> tf(family->matchStyle(SkFontStyle()));
+    if (!tf || tf->unicharToGlyph('a') == 0) {
+      continue;
+    }
+
+    std::string name(family->get_family_name().c_str());
+    for (char& c : name) {
+      c = std::tolower(static_cast<unsigned char>(c));
+    }
+
+    bool is_mono = name.find("mono") != std::string::npos ||
+                   name.find("courier") != std::string::npos;
+    bool is_serif = name.find("serif") != std::string::npos ||
+                    name.find("times") != std::string::npos ||
+                    name.find("georgia") != std::string::npos;
+
+    if (type == kMonospace && is_mono) {
+      return family;
+    }
+    if (type == kSerif && is_serif) {
+      return family;
+    }
+    if (type == kSansSerif && !is_mono && !is_serif) {
+      return family;
+    }
+  }
+
+  // Fallback: return the first Latin-supporting font if no specific style
+  // matches.
+  for (auto* family : fallback_families) {
+    sk_sp<SkTypeface> tf(family->matchStyle(SkFontStyle()));
+    if (tf && tf->unicharToGlyph('a') != 0) {
+      return family;
+    }
+  }
+  return nullptr;
+}
+
 std::string GetSystemLanguageScript() {
   char buffer[ULOC_LANG_CAPACITY];
   UErrorCode icu_result = U_ZERO_ERROR;
@@ -231,10 +306,27 @@ sk_sp<SkTypeface> SkFontMgr_Cobalt::onMatchFamilyStyle(
 
   if (family_name != NULL) {
     sk_sp<SkFontStyleSet> family(matchFamily(family_name));
-    typeface = family->matchStyle(style);
+    if (family) {
+      typeface = family->matchStyle(style);
+    }
   }
 
-  if (typeface == NULL) {
+  GenericFontType type;
+  if (!typeface && MapToGenericType(family_name, &type)) {
+    // If the local font map is empty (e.g., standard developer builds on smart
+    // TVs), last-resort lookups (like "sans-serif" or "monospace") fail to
+    // resolve primary fonts. We locate a safe, Latin-supporting system font
+    // that honors the generic style category (Sans vs Serif vs Mono) to
+    // preserve visual design intent, prevent layout crashes, and avoid bad
+    // script fallbacks.
+    SkFontStyleSet_Cobalt* safe_system_family =
+        FindSafeSystemFont(fallback_families_, type);
+    if (safe_system_family) {
+      typeface = safe_system_family->matchStyle(style);
+    }
+  }
+
+  if (typeface == NULL && family_name == NULL) {
     typeface = default_families_[0]->matchStyle(style);
   }
 

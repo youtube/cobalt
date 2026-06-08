@@ -1,0 +1,7 @@
+store_src_rg                   xy = src.rg
+init_lane_masks                CondMask = LoopMask = RetMask = true
+copy_constant                  $0 = 0
+copy_constant                  $1 = 0x3F800000 (1.0)
+copy_constant                  $2 = 0
+copy_constant                  $3 = 0x3F800000 (1.0)
+load_src                       src.rgba = $0..3

@@ -33,6 +33,7 @@ extern const char kContentShellDataPath[];
 extern const char kCrashDumpsDir[];
 extern const char kDisableSplashScreen[];
 extern const char kDisableSystemFontCheck[];
+extern const char kDisableStorageMigration[];
 extern const char kContentShellHostWindowSize[];
 extern const char kContentShellHideToolbar[];
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)

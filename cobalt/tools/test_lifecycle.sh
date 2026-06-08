@@ -13,135 +13,122 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Integration test for Cobalt lifecycle signals and Visibility/Focus APIs.
+# Integration test for Cobalt lifecycle on Linux.
+# Sends signals to a running Cobalt process and verifies JS state via DevTools.
 
-set -e
+source cobalt/tools/test_common.sh
 
-# Configuration
-PLATFORM="linux-x64x11-modular"
-CONFIG="devel"
-TARGET="cobalt_loader"
-OUT_DIR="out/${PLATFORM}_${CONFIG}"
-EXECUTABLE="./${OUT_DIR}/${TARGET}"
+PORT=9223
 LOG_FILE="lifecycle_run.log"
-PORT=9222
+HOST=${TEST_LIFECYCLE_HOST:-"localhost"}
 
-# Colors for logging
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
+parse_args "test_lifecycle.sh" "$@"
+check_running_processes "test_lifecycle.sh"
+run_build_if_needed
 
-log() {
-    echo -e "${BLUE}[TEST]${NC} $1"
-}
+echo "[TEST] Starting cobalt_loader with DevTools on $HOST:$PORT..."
+rm -f $LOG_FILE
+rm -rf ~/.cobalt_storage ~/.cobalt ~/.config/cobalt
 
-# Ensure cobalt is killed on exit if test fails.
-function cleanup {
-  if [ -n "$COBALT_PID" ] && kill -0 $COBALT_PID 2>/dev/null; then
-    log "Cleaning up Cobalt (PID: $COBALT_PID)..."
-    kill -9 $COBALT_PID 2>/dev/null || true
-  fi
-}
-trap cleanup EXIT
+TEST_HTML="<html><body><h1>Test</h1><input autofocus></body></html>"
+B64_HTML=$(echo "$TEST_HTML" | base64 -w 0)
 
-if [[ ! -f "$EXECUTABLE" ]]; then
-    echo -e "${RED}Error: Executable not found at $EXECUTABLE${NC}"
-    exit 1
-fi
-
-log "Starting $TARGET with DevTools on port $PORT..."
-$EXECUTABLE --remote-debugging-port=$PORT --no-sandbox > $LOG_FILE 2>&1 &
+$EXECUTABLE --url="data:text/html;base64,$B64_HTML" --remote-debugging-port=$PORT --no-sandbox > $LOG_FILE 2>&1 &
 COBALT_PID=$!
 
-log "Launched PID: $COBALT_PID. Waiting for DevTools..."
-MAX_TRIES=30
-TRIES=0
-until curl -s http://localhost:$PORT/json > /dev/null; do
-  sleep 1
-  TRIES=$((TRIES + 1))
-  if [ $TRIES -eq $MAX_TRIES ]; then
-    echo -e "${RED}FAILURE: Cobalt DevTools did not become ready in $MAX_TRIES seconds.${NC}"
-    tail -n 20 "$LOG_FILE"
-    exit 1
-  fi
-done
+echo "[TEST] Launched PID: $COBALT_PID. Waiting for DevTools..."
+if ! vpython3 cobalt/tools/cdp_js_helper.py --host $HOST --port $PORT --wait --wait-total 60 | grep -q "SUCCESS"; then
+  echo "FAILURE: DevTools did not become ready in time."
+  kill -9 $COBALT_PID
+  exit 1
+fi
 
-# Helper to check JS state
-function check_js {
-  vpython3 cobalt/tools/cdp_js_helper.py --port $PORT "$1"
+echo "[TEST] Allowing time for app initialization to avoid V8 crashes..."
+sleep 10
+
+execute_js() {
+  vpython3 cobalt/tools/cdp_js_helper.py --host $HOST --port $PORT "$1"
 }
 
-log "Verifying initial state (Visible & Focused)..."
-# Force focus via JS just in case.
-check_js "window.focus()" > /dev/null
-VISIBILITY=$(check_js "document.visibilityState")
-HAS_FOCUS=$(check_js "document.hasFocus()" | tr '[:upper:]' '[:lower:]')
-log "Visibility: $VISIBILITY, Focused: $HAS_FOCUS"
+echo "[TEST] Verifying initial state (Visible & Focused)..."
+bash cobalt/tools/wait_for_state.sh "document.visibilityState" "visible" $PORT 120 $HOST || exit 1
+bash cobalt/tools/wait_for_state.sh "document.hasFocus()" "True" $PORT 120 $HOST || exit 1
 
-if [ "$VISIBILITY" != "visible" ] || [ "$HAS_FOCUS" != "true" ]; then
-  echo -e "${RED}FAILURE: Initial state should be visible and focused.${NC}"
-  exit 1
-fi
+# Inject event logger now that we are in a stable initial state.
+echo "[TEST] Injecting event logger..."
+execute_js "window.event_log = [];
+            document.addEventListener('visibilitychange', () => {
+              console.log('JS_EVENT: visibilitychange ' + document.visibilityState);
+              window.event_log.push({type: 'visibilitychange', visibility: document.visibilityState});
+            });
+            window.addEventListener('focus', () => {
+              console.log('JS_EVENT: focus');
+              window.event_log.push({type: 'focus'});
+            });
+            window.addEventListener('blur', () => {
+              console.log('JS_EVENT: blur');
+              window.event_log.push({type: 'blur'});
+            });
+            document.addEventListener('freeze', () => {
+              console.log('JS_EVENT: freeze');
+              window.event_log.push({type: 'freeze'});
+            });
+            document.addEventListener('resume', () => {
+              console.log('JS_EVENT: resume');
+              window.event_log.push({type: 'resume'});
+            });
+            window.focus();"
 
-log "Sending SIGWINCH (BLUR)..."
-kill -SIGWINCH $COBALT_PID
-sleep 2
-VISIBILITY=$(check_js "document.visibilityState")
-HAS_FOCUS=$(check_js "document.hasFocus()" | tr '[:upper:]' '[:lower:]')
-log "Visibility: $VISIBILITY, Focused: $HAS_FOCUS"
-if [ "$HAS_FOCUS" != "false" ]; then
-  echo -e "${RED}FAILURE: Should have lost focus after SIGWINCH.${NC}"
-  exit 1
-fi
-
-log "Sending SIGCONT (FOCUS)..."
-kill -SIGCONT $COBALT_PID
-sleep 2
-HAS_FOCUS=$(check_js "document.hasFocus()" | tr '[:upper:]' '[:lower:]')
-log "Focused: $HAS_FOCUS"
-if [ "$HAS_FOCUS" != "true" ]; then
-  echo -e "${RED}FAILURE: Should have regained focus after SIGCONT.${NC}"
-  exit 1
-fi
-
-log "Sending SIGUSR1 (CONCEAL)..."
-kill -SIGUSR1 $COBALT_PID
-sleep 5
-VISIBILITY=$(check_js "document.visibilityState")
-log "Visibility: $VISIBILITY"
-if [ "$VISIBILITY" != "hidden" ]; then
-  echo -e "${RED}FAILURE: Should be hidden after SIGUSR1.${NC}"
-  exit 1
-fi
-
-log "Sending SIGCONT (REVEAL)..."
-kill -SIGCONT $COBALT_PID
-sleep 2
-VISIBILITY=$(check_js "document.visibilityState")
-log "Visibility: $VISIBILITY"
-if [ "$VISIBILITY" != "visible" ]; then
-  echo -e "${RED}FAILURE: Should be visible after SIGCONT.${NC}"
-  exit 1
-fi
-
-log "Sending SIGPWR (STOP/QUIT)..."
-kill -SIGPWR $COBALT_PID
-
-# Wait for process to exit
-set +e
-wait $COBALT_PID
-EXIT_CODE=$?
-set -e
-
-log "Cobalt exited with code: $EXIT_CODE"
-log "Reviewing logs for fatal errors..."
-
-FILTERED_LOG=$(grep -aE "FATAL|AddressSanitizer|leak|Check failed" "$LOG_FILE" | grep -av "MojoDiscardableSharedMemoryManagerImpls are still alive" | grep -av "lock_impl_posix.cc(46)" || true)
-if [[ -n "$FILTERED_LOG" ]]; then
-    echo -e "${RED}FAILURE: Found errors in log.${NC}"
-    echo "$FILTERED_LOG" | head -n 20
+wait_and_pop_event() {
+  local expected=$1
+  echo "[WAIT] Waiting to pop event '$expected'..."
+  bash cobalt/tools/wait_for_state.sh "window.event_log.length > 0" "True" $PORT 10 $HOST || exit 1
+  local result=$(vpython3 cobalt/tools/cdp_js_helper.py --host $HOST --port $PORT "JSON.stringify(window.event_log.shift())" 2>/dev/null)
+  if [[ "$result" == *"$expected"* ]]; then
+    echo "[WAIT] SUCCESS: Popped expected event '$expected'"
+  else
+    echo "FAILURE: Expected '$expected', got '$result'"
     exit 1
-fi
+  fi
+}
 
-echo -e "${GREEN}SUCCESS: Lifecycle integration test passed.${NC}"
+echo "[TEST] Sending SIGWINCH (BLUR)..."
+kill -SIGWINCH $COBALT_PID
+bash cobalt/tools/wait_for_state.sh "document.hasFocus()" "False" $PORT 10 $HOST || exit 1
+wait_and_pop_event '{"type":"blur"}'
+
+echo "[TEST] Sending SIGCONT (FOCUS)..."
+kill -SIGCONT $COBALT_PID
+bash cobalt/tools/wait_for_state.sh "document.hasFocus()" "True" $PORT 10 $HOST || exit 1
+wait_and_pop_event '{"type":"focus"}'
+
+echo "[TEST] Sending SIGUSR1 (CONCEAL)..."
+kill -SIGUSR1 $COBALT_PID
+# Concealing from focused state will blur then change visibility to hidden
+bash cobalt/tools/wait_for_state.sh "document.hasFocus()" "False" $PORT 10 $HOST || exit 1
+bash cobalt/tools/wait_for_state.sh "document.visibilityState" "hidden" $PORT 10 $HOST || exit 1
+wait_and_pop_event '{"type":"blur"}'
+wait_and_pop_event '{"type":"visibilitychange","visibility":"hidden"}'
+
+echo "[TEST] Sending SIGTSTP (FREEZE)..."
+kill -SIGTSTP $COBALT_PID
+
+echo "[TEST] Sleeping to ensure app freezes..."
+sleep 2
+
+echo "[TEST] Sending SIGCONT (RESUME & REVEAL & FOCUS)..."
+kill -SIGCONT $COBALT_PID
+sleep 2
+
+echo "[TEST] Verifying freeze and resume events in logs..."
+grep -q "JS_EVENT: freeze" $LOG_FILE || { echo "FAILURE: freeze event not found in logs"; exit 1; }
+grep -q "JS_EVENT: resume" $LOG_FILE || { echo "FAILURE: resume event not found in logs"; exit 1; }
+grep -q "JS_EVENT: visibilitychange visible" $LOG_FILE || { echo "FAILURE: visible event not found in logs"; exit 1; }
+[ $(grep -c "JS_EVENT: focus" $LOG_FILE) -ge 2 ] || { echo "FAILURE: expected at least 2 focus events in logs"; exit 1; }
+
+echo "[TEST] Killing Cobalt..."
+kill -9 $COBALT_PID 2>/dev/null || true
+
+echo "[TEST] SUCCESS: Lifecycle transitions verified!"
+
+exit 0

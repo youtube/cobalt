@@ -16,7 +16,9 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
+#include "base/timer/elapsed_timer.h"
 #include "build/build_config.h"
 #include "content/public/browser/storage_partition.h"
 #include "services/network/public/mojom/cookie_manager.mojom.h"
@@ -96,28 +98,6 @@ std::string GetTrackingAuthorizationStatusShared() {
   NOTIMPLEMENTED();
 #endif
   return "NOT_SUPPORTED";
-}
-
-void PerformExitStrategy() {
-#if BUILDFLAG(IS_STARBOARD)
-  auto strategy = GetUserOnExitStrategyInternal();
-  switch (strategy) {
-    case h5vcc_system::mojom::UserOnExitStrategy::kClose:
-      SbSystemRequestStop(/*error_level=*/0);
-      break;
-    case h5vcc_system::mojom::UserOnExitStrategy::kMinimize:
-      SbSystemRequestConceal();
-      break;
-    case h5vcc_system::mojom::UserOnExitStrategy::kNoExit:
-      return;
-  }
-#elif BUILDFLAG(IS_ANDROIDTV)
-  JNIEnv* env = base::android::AttachCurrentThread();
-  StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
-  starboard_bridge->RequestSuspend(env);
-#else
-#error "Unsupported platform."
-#endif
 }
 
 }  // namespace
@@ -215,12 +195,48 @@ void H5vccSystemImpl::Exit() {
   auto* storage_partition = render_frame_host().GetStoragePartition();
   CHECK(storage_partition);
   // Flushes localStorage.
+  base::ElapsedTimer local_storage_flush_timer;
   storage_partition->Flush();
+  UMA_HISTOGRAM_TIMES("Cobalt.Storage.Exit.LocalStorageFlushDuration",
+                      local_storage_flush_timer.Elapsed());
   auto* cookie_manager = storage_partition->GetCookieManagerForBrowserProcess();
   CHECK(cookie_manager);
   // Sequencing exit strategy after flushing delays performing exit strategy by
   // 20ms when tested on a chromecast.
-  cookie_manager->FlushCookieStore(base::BindOnce(&PerformExitStrategy));
+  auto start_time = std::make_unique<base::ElapsedTimer>();
+  cookie_manager->FlushCookieStore(
+      base::BindOnce(&H5vccSystemImpl::OnFlushCookiesComplete,
+                     weak_factory_.GetWeakPtr(), std::move(start_time)));
+}
+
+void H5vccSystemImpl::OnFlushCookiesComplete(
+    std::unique_ptr<base::ElapsedTimer> timer) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  UMA_HISTOGRAM_TIMES("Cobalt.Storage.Exit.CookieFlushDuration",
+                      timer->Elapsed());
+  PerformExitStrategy();
+}
+
+void H5vccSystemImpl::PerformExitStrategy() {
+#if BUILDFLAG(IS_STARBOARD)
+  auto strategy = GetUserOnExitStrategyInternal();
+  switch (strategy) {
+    case h5vcc_system::mojom::UserOnExitStrategy::kClose:
+      SbSystemRequestStop(/*error_level=*/0);
+      break;
+    case h5vcc_system::mojom::UserOnExitStrategy::kMinimize:
+      SbSystemRequestConceal();
+      break;
+    case h5vcc_system::mojom::UserOnExitStrategy::kNoExit:
+      return;
+  }
+#elif BUILDFLAG(IS_ANDROIDTV)
+  JNIEnv* env = base::android::AttachCurrentThread();
+  StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
+  starboard_bridge->RequestSuspend(env);
+#else
+#error "Unsupported platform."
+#endif
 }
 
 }  // namespace h5vcc_system

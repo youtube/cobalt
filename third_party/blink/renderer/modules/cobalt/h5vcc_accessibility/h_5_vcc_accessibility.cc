@@ -29,6 +29,7 @@ H5vccAccessibility::H5vccAccessibility(LocalDOMWindow& window)
 bool H5vccAccessibility::textToSpeech() {
   CHECK(WTF::IsMainThread());
   EnsureRemoteIsBound();
+  EnsureReceiverIsBound();
 
   if (cached_text_to_speech_enabled_.has_value()) {
     return cached_text_to_speech_enabled_.value();

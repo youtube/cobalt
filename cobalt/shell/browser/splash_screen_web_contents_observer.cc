@@ -17,8 +17,10 @@
 namespace content {
 
 SplashScreenWebContentsObserver::SplashScreenWebContentsObserver(
-    WebContents* web_contents)
-    : WebContentsObserver(web_contents) {}
+    WebContents* web_contents,
+    base::OnceClosure on_load_complete)
+    : WebContentsObserver(web_contents),
+      on_load_complete_(std::move(on_load_complete)) {}
 
 SplashScreenWebContentsObserver::~SplashScreenWebContentsObserver() = default;
 
@@ -26,7 +28,10 @@ void SplashScreenWebContentsObserver::WebContentsDestroyed() {
   Observe(nullptr);
 }
 
-// Intentionally empty.
-void SplashScreenWebContentsObserver::LoadProgressChanged(double progress) {}
+void SplashScreenWebContentsObserver::LoadProgressChanged(double progress) {
+  if (progress >= 1.0 && on_load_complete_) {
+    std::move(on_load_complete_).Run();
+  }
+}
 
 }  // namespace content

@@ -41,8 +41,9 @@
 class GURL;
 
 namespace cobalt {
-class AppLifecycleDelegateTest;
-}
+class AppEventDelegateTest;
+class AppEventRunnerTest;
+}  // namespace cobalt
 
 namespace content {
 class FileSelectListener;
@@ -136,6 +137,9 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 
   WebContents* web_contents() const { return web_contents_.get(); }
 
+  void Focus();
+  bool pending_focus() const { return pending_focus_; }
+
   WebContents* splash_screen_web_contents() const {
     return splash_screen_web_contents_.get();
   }
@@ -215,6 +219,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   bool CheckMediaAccessPermission(RenderFrameHost*,
                                   const GURL&,
                                   blink::mojom::MediaStreamType) override;
+  bool ShouldFocusPageAfterCrash() override;
 
   static gfx::Size GetShellDefaultSize();
 
@@ -228,7 +233,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   friend class TestShell;
   friend class SplashScreenTest;
   friend class LifecycleTest;
-  friend class cobalt::AppLifecycleDelegateTest;
+  friend class cobalt::AppEventDelegateTest;
+  friend class cobalt::AppEventRunnerTest;
 
   enum State {
     STATE_SPLASH_SCREEN_UNINITIALIZED,
@@ -269,6 +275,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   static void FinishShellInitialization(Shell* shell);
 
   // WebContentsObserver
+  void OnVisibilityChanged(Visibility visibility) override;
   void LoadProgressChanged(double progress) override;
   void TitleWasSet(NavigationEntry* entry) override;
   void RenderFrameCreated(RenderFrameHost* frame_host) override;
@@ -280,6 +287,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void SwitchToMainWebContents();
   void ScheduleSwitchToMainWebContents();
   void ClosingSplashScreenWebContents();
+  void OnSplashScreenLoadComplete();
 
   std::unique_ptr<JavaScriptDialogManager> dialog_manager_;
 
@@ -298,6 +306,12 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   bool is_fullscreen_ = false;
 
   gfx::Size content_size_;
+
+  // Set to true if Focus() is requested while the WebContents is not yet
+  // visible. This handles a race condition in the Cobalt Reveal -> Focus
+  // sequence where Aura ignores focus requests for hidden windows. The focus
+  // will be applied as soon as the visibility changes to VISIBLE.
+  bool pending_focus_ = false;
 
   bool delay_popup_contents_delegate_for_testing_ = false;
 
