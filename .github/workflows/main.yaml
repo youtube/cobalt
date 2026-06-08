@@ -888,7 +888,6 @@ jobs:
         run: |
           set -x
           # Get first entry in test filters file.
-          test_filter=""
           test_target="${{ steps.extract-target-name.outputs.test_target }}"
           test_filter_json_dir="${RESOLVED_FILTER_DIR}/${test_target}_filter.json"
           if [ -f "${test_filter_json_dir}" ]; then
