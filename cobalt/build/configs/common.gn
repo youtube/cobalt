@@ -83,3 +83,6 @@ rtc_include_dav1d_in_internal_decoder_factory = false
 # rodata. Cobalt is a closed app shell and does not need
 # a preloaded list of third-party domains.
 include_transport_security_state_preload_list = false
+
+# Disable Vulkan on Cobalt, this reduces binary size (~1.2MB)
+angle_enable_vulkan = false
