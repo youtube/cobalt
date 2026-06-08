@@ -5,10 +5,7 @@ set -ueEx
 . $(dirname "$0")/common.sh
 
 # Using repository root as work directory.
-if [ -z "${WORKSPACE_COBALT:-}" ]; then
-  WORKSPACE_COBALT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-fi
-export WORKSPACE_COBALT
+export WORKSPACE_COBALT="${KOKORO_ARTIFACTS_DIR}/github/src"
 cd "${WORKSPACE_COBALT}"
 
 # Clean up workspace on exit or error.
