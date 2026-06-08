@@ -152,7 +152,10 @@ void Thread::Start() {
 
   if (stack_size_ > 0) {
     int err = pthread_attr_setstacksize(&attributes, stack_size_);
-    SB_CHECK_EQ(err, 0) << "Failed to set stack size to " << stack_size_;
+    if (err != 0) {
+      SB_LOG(WARNING) << "Failed to set stack size to " << stack_size_
+                      << ", error: " << err << ". Falling back to default.";
+    }
   }
 
   const int result =
