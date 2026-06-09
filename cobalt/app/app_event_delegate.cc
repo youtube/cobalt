@@ -375,6 +375,10 @@ void AppEventDelegate::DoTeardown() {
   runner_->OnStop();
   base::AutoLock lock(lock_);
   SetApplicationState(ApplicationState::kStopped);
+
+  // Delete this object asynchronously after the current event loop execution
+  // finishes.
+  base::SequencedTaskRunner::GetCurrentDefault()->DeleteSoon(FROM_HERE, this);
 }
 
 void AppEventDelegate::TransitionToLifeCycleState(ApplicationState state) {

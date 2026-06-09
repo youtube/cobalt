@@ -18,19 +18,22 @@
 #include "starboard/event.h"
 
 void SbEventHandle(const SbEvent* event) {
-  // This object's lifetime extends beyond the function's lifetime, until the
-  // function is called with kSbEventTypeStop at some time in the future.
-  // When the application is stopped, this object is destroyed and the pointer
-  // is reset to nullptr, to ensure that any spurious events received after the
-  // application is stopped are ignored.
-  static cobalt::AppEventDelegate* s_lifecycle_delegate =
-      new cobalt::AppEventDelegate();
-
-  if (!s_lifecycle_delegate) {
+  // Tracks whether the application has started the stop sequence. Once set to
+  // true, any spurious events received after kSbEventTypeStop are permanently
+  // ignored.
+  static bool s_stopped = false;
+  if (s_stopped) {
     LOG(WARNING) << "Received spurious SbEventHandle(type = " << event->type
                  << ") call after kSbEventTypeStop, ignoring.";
     return;
   }
+
+  // The lifecycle delegate is allocated on the heap on the first event call.
+  // Its lifetime extends beyond the scope of this function and is
+  // asynchronously deleted in AppEventDelegate::DoTeardown() on the UI thread
+  // once the stopped transition sequence has fully completed.
+  static cobalt::AppEventDelegate* s_lifecycle_delegate =
+      new cobalt::AppEventDelegate();
 
   s_lifecycle_delegate->HandleEvent(event);
 
@@ -41,6 +44,7 @@ void SbEventHandle(const SbEvent* event) {
     s_lifecycle_delegate->DoTeardown();
     delete s_lifecycle_delegate;
     s_lifecycle_delegate = nullptr;
+    s_stopped = true;
   }
 }
 
