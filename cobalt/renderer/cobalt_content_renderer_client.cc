@@ -420,7 +420,6 @@ CobaltContentRendererClient::GetSupportedKeySystems(
 
 bool CobaltContentRendererClient::IsDecoderSupportedAudioType(
     const ::media::AudioType& type) {
-  CHECK(content::RenderThread::IsMainThread());
   std::string mime = GetMimeFromAudioType(type);
   SbMediaSupportType support_type = kSbMediaSupportTypeNotSupported;
   if (!mime.empty()) {
@@ -434,7 +433,6 @@ bool CobaltContentRendererClient::IsDecoderSupportedAudioType(
 
 bool CobaltContentRendererClient::IsDecoderSupportedVideoType(
     const ::media::VideoType& type) {
-  CHECK(content::RenderThread::IsMainThread());
   std::string mime = GetMimeFromVideoType(type);
   SbMediaSupportType support_type = kSbMediaSupportTypeNotSupported;
   if (!mime.empty()) {
