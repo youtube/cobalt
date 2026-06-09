@@ -43,7 +43,7 @@ interface H5vccSystem : EventTarget {
   // value from the platform via the browser, web clients should be careful not
   // to call this API excessively. The value is unlikely to be changed during a
   // Cobalt application lifecycle, anyway.
-  [CallWith=ScriptState, RaisesException]
+  [CallWith=ScriptState, RaisesException, RuntimeEnabled=CobaltFriendlyName]
   Promise<DOMString> getFriendlyName();
 
   [CallWith=ScriptState, RaisesException]
