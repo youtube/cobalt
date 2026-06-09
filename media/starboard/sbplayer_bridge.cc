@@ -807,6 +807,8 @@ void SbPlayerBridge::CreatePlayer() {
         experimental_features_.disable_low_performance_sw_decoder;
     extension_features.enable_av1_startup_optimization =
         experimental_features_.enable_av1_startup_optimization;
+    extension_features.enable_low_latency =
+        experimental_features_.enable_low_latency;
     extension_features.enable_video_renderer_vsp_adjustment =
         experimental_features_.enable_video_renderer_vsp_adjustment;
     extension_features.flush_decoder_during_reset =

@@ -311,6 +311,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       ignore_mediacodec_callbacks_during_flushing_(
           pipeline_config.experimental_features
               .ignore_mediacodec_callbacks_during_flushing),
+      enable_low_latency_(
+          pipeline_config.experimental_features.enable_low_latency),
       is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
                                       tunnel_mode_audio_session_id_),
       media_codec_factory_(std::move(media_codec_factory)),
@@ -799,8 +801,9 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, is_video_frame_tracker_enabled_,
-      force_big_endian_hdr_metadata_, max_video_input_size_, flush_delay_usec_,
-      use_dual_threads_, skip_video_frames_over_60_fps_,
+      enable_low_latency_, force_big_endian_hdr_metadata_,
+      max_video_input_size_, flush_delay_usec_, use_dual_threads_,
+      skip_video_frames_over_60_fps_,
       ignore_mediacodec_callbacks_during_flushing_);
   if (result) {
     media_decoder_ = std::move(result.value());
