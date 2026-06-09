@@ -448,16 +448,7 @@ bool Relocations::ResolveSymbol(Word rel_type,
 
   // The symbol was not found. Normally this is an error except
   // if this is a weak reference.
-  bool is_weak = dynamic_section_->IsWeakById(rel_symbol);
-  if (is_weak) {
-    address = exported_symbols_->LookupFallback(sym_name);
-    if (address) {
-      *sym_addr = reinterpret_cast<Addr>(address);
-      return true;
-    }
-  }
-
-  if (!is_weak) {
+  if (!dynamic_section_->IsWeakById(rel_symbol)) {
     SB_LOG(ERROR) << "Could not find symbol: " << sym_name;
     return false;
   }

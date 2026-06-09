@@ -425,11 +425,12 @@ ExportedSymbols::ExportedSymbols() {
 
 const void* ExportedSymbols::Lookup(const char* name) {
   const void* address = map_[name];
-  return address;
-}
+  // Any symbol that is not registered as part of the Starboard API in the
+  // constructor of this class is a leak, and is an error.
+  if (address) {
+    return address;
+  }
 
-const void* ExportedSymbols::LookupFallback(const char* name) {
-  const void* address = nullptr;
   SB_LOG(ERROR) << "Failed to retrieve the address of '" << name << "'.";
 #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   // TODO: Cobalt b/421944504 - Cleanup once we are done with all the symbols or

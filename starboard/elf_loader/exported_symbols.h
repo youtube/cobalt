@@ -28,8 +28,8 @@ namespace elf_loader {
 class ExportedSymbols {
  public:
   ExportedSymbols();
+  // Returns the address of the symbol |name|. If it's not found, returns NULL.
   const void* Lookup(const char* name);
-  const void* LookupFallback(const char* name);
 
  private:
   std::map<std::string, const void*> map_;
