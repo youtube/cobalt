@@ -31,6 +31,10 @@ source_set("ffmpeg") {
     "//third_party/ffmpeg",
     "//third_party/ffmpeg:ffmpeg_features",
   ]
+
+  if (is_cobalt) {
+    deps += [ "//cobalt/shell:buildflags" ]
+  }
 }
 
 source_set("unit_tests") {

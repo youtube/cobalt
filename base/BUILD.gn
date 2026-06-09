@@ -2448,15 +2448,16 @@ component("base") {
 
   if (is_cobalt) {
     sources += [
-      "memory/cobalt_memory_context.cc",
-      "memory/cobalt_memory_context.h",
       "memory/cobalt_memory_attribution_observer.cc",
       "memory/cobalt_memory_attribution_observer.h",
       "system/sys_info_starboard.cc",
       "system/sys_info_starboard.h",
     ]
 
-    deps += [ "//starboard/common:common_headers_only" ]
+    deps += [
+      "//starboard/common:common_headers_only",
+      "//copied_base/base/memory:memory_context",
+    ]
   }
 
   if (use_blink) {

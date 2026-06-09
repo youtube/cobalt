@@ -30,6 +30,7 @@ static_library("common") {
 
   public_deps = [
     ":common_headers_only",
+    "//copied_base/base/memory:memory_context",
     "//starboard:starboard_headers_only",
   ]
 

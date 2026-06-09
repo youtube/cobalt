@@ -19,6 +19,12 @@
 
 #include <optional>
 
+namespace base {
+namespace memory {
+enum class MemoryContext : uint8_t;
+}
+}  // namespace base
+
 namespace starboard {
 
 // A spectrum of thread priorities. Platforms map them appropriately to their
@@ -76,6 +82,13 @@ struct ThreadOptions {
   }
 
   std::optional<ThreadPriority> priority;
+
+  ::base::memory::MemoryContext memory_context =
+      static_cast<::base::memory::MemoryContext>(3);  // kMedia
+  ThreadOptions& SetMemoryContext(::base::memory::MemoryContext context) {
+    memory_context = context;
+    return *this;
+  }
 };
 
 }  // namespace starboard

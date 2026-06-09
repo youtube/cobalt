@@ -16,7 +16,7 @@
 #define COPIED_BASE_BASE_MEMORY_COBALT_MEMORY_CONTEXT_H_
 
 #include <string_view>
-#include "copied_base/base/base_export.h"
+#include "copied_base/base/base_export.h"  // nogncheck
 
 namespace base {
 namespace memory {

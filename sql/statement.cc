@@ -34,6 +34,9 @@
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
 #include "base/trace_event/base_tracing.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"  // nogncheck
+#endif
 #include "sql/database.h"
 #include "sql/sqlite_result_code.h"
 #include "sql/sqlite_result_code_values.h"
@@ -156,6 +159,11 @@ void Statement::ReportQueryExecutionMetrics() const {
 
 bool Statement::Run() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kStorage);
+#endif
 
 #if DCHECK_IS_ON()
   DCHECK(!run_called_) << "Run() must be called exactly once";
