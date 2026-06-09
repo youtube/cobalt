@@ -100,7 +100,7 @@ def verify_cuj(cuj_name,
             background=False)
     cmd = [
         "./out/linux-x64x11_devel/cobalt", "--remote-allow-origins=*",
-        f"--remote-debugging-port={port}", "--memory-metrics-interval=5",
+        f"--remote-debugging-port={port}", "--memory-metrics-interval=60",
         "--enable-features=CobaltMemoryAttributionManager",
         "--disable-features=PartitionAllocDanglingPtr", url
     ]
@@ -117,7 +117,7 @@ def verify_cuj(cuj_name,
     run_cmd(adb_base + ["shell", "am", "force-stop", "dev.cobalt.coat"])
     target_args = (
         f"--enable-features=CobaltMemoryAttributionManager,"
-        f"--memory-metrics-interval=5,--remote-debugging-port={port}")
+        f"--memory-metrics-interval=60,--remote-debugging-port={port}")
     run_cmd(adb_base + [
         "shell", "am", "start", "-n",
         "dev.cobalt.coat/dev.cobalt.app.MainActivity", "--esa", "url",
@@ -125,7 +125,7 @@ def verify_cuj(cuj_name,
     ])
 
   # Wait for startup
-  time.sleep(5)
+  time.sleep(30)
 
   script_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -136,7 +136,7 @@ def verify_cuj(cuj_name,
                    "pull_uma_histogram_set_via_cdp.py"), "--platform", platform,
       "--port",
       str(port), "--histogram-file", "cobalt_uma_histograms.txt",
-      "--output-file", "uma_histos.txt", "--poll-interval-s", "10",
+      "--output-file", "uma_histos.txt", "--poll-interval-s", "60",
       "--no-manage-cobalt", "--package-name", "dev.cobalt.coat"
   ]
   if device_id:
