@@ -27,6 +27,7 @@
 #include "base/stl_util.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_runner.h"
 #include "base/threading/scoped_blocking_call.h"
@@ -184,8 +185,7 @@ UpdaterModule::UpdaterModule(
 
 UpdaterModule::~UpdaterModule() {
   LOG(INFO) << "UpdaterModule::~UpdaterModule";
-  if (is_updater_running_) {
-    is_updater_running_ = false;
+  if (is_updater_running_.exchange(false)) {
     // TODO(b/452142372): Investigate UpdaterModule destruction sequence
     {
       base::ScopedBlockingCall scoped_blocking_call(
@@ -204,14 +204,22 @@ UpdaterModule::~UpdaterModule() {
 }
 
 void UpdaterModule::Suspend() {
-  if (is_updater_running_) {
-    is_updater_running_ = false;
+  if (is_updater_running_.exchange(false)) {
+    base::WaitableEvent event(base::WaitableEvent::ResetPolicy::MANUAL,
+                              base::WaitableEvent::InitialState::NOT_SIGNALED);
     {
       base::ScopedBlockingCall scoped_blocking_call(
           FROM_HERE, base::BlockingType::MAY_BLOCK);
-      updater_thread_->task_runner()->PostTask(
-          FROM_HERE,
-          base::BindOnce(&UpdaterModule::Finalize, base::Unretained(this)));
+      if (updater_thread_->task_runner()->PostTask(
+              FROM_HERE,
+              base::BindOnce(
+                  [](UpdaterModule* module, base::WaitableEvent* event) {
+                    module->Finalize();
+                    event->Signal();
+                  },
+                  base::Unretained(this), base::Unretained(&event)))) {
+        event.Wait();
+      }
     }
   }
 }
