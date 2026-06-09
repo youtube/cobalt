@@ -235,13 +235,7 @@ const void* MediaDrmBridge::GetMetrics(int* size) {
     return nullptr;
   }
 
-  jbyte* metrics_elements = env->GetByteArrayElements(j_metrics.obj(), nullptr);
-  jsize metrics_size = base::android::SafeGetArrayLength(env, j_metrics);
-  SB_DCHECK(metrics_elements);
-
-  metrics_.assign(metrics_elements, metrics_elements + metrics_size);
-
-  env->ReleaseByteArrayElements(j_metrics.obj(), metrics_elements, JNI_ABORT);
+  base::android::JavaByteArrayToByteVector(env, j_metrics, &metrics_);
   *size = static_cast<int>(metrics_.size());
 
   return metrics_.data();
@@ -277,12 +271,13 @@ void MediaDrmBridge::OnKeyStatusChange(
   std::string session_id_bytes = JavaByteArrayToString(env, session_id);
 
   // nullptr array indicates key status isn't supported (i.e. Android API < 23)
-  jsize length =
-      (key_information == nullptr) ? 0 : env->GetArrayLength(key_information);
+  size_t length = key_information.is_null()
+                      ? 0
+                      : base::android::SafeGetArrayLength(env, key_information);
   std::vector<SbDrmKeyId> drm_key_ids(length);
   std::vector<SbDrmKeyStatus> drm_key_statuses(length);
 
-  for (jsize i = 0; i < length; ++i) {
+  for (size_t i = 0; i < length; ++i) {
     ScopedJavaLocalRef<jobject> j_key_status(
         env, env->GetObjectArrayElement(key_information.obj(), i));
     ScopedJavaLocalRef<jbyteArray> j_key_id =
