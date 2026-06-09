@@ -36,7 +36,7 @@ const char* kSabiJsonIdArmHardfp =
     "\"alignment_pointer\":4,\"alignment_short\":2,\"calling_convention\":"
     "\"eabi\",\"endianness\":\"little\",\"floating_point_abi\":\"hard\","
     "\"floating_point_fpu\":\"vfpv3\",\"sb_api_version\":18,\"signedness_of_"
-    "char\":\"signed\",\"signedness_of_enum\":\"signed\",\"size_of_char\":1,"
+    "char\":\"signed\",\"signedness_of_enum\":\"unsigned\",\"size_of_char\":1,"
     "\"size_of_double\":8,\"size_of_enum\":4,\"size_of_float\":4,\"size_of_"
     "int\":4,\"size_of_llong\":8,\"size_of_long\":4,\"size_of_pointer\":4,"
     "\"size_of_short\":2,\"target_arch\":\"arm\",\"target_arch_sub\":\"v7a\","
