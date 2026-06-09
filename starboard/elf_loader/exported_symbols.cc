@@ -22,10 +22,9 @@
 
 #include "build/build_config.h"
 
-// TODO: Cobalt b/421944504 - Cleanup once we are done with all the symbols.
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#if !defined(OFFICIAL_BUILD)
 #include <dlfcn.h>
-#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#endif  // !defined(OFFICIAL_BUILD)
 
 #include <errno.h>
 #include <fcntl.h>
