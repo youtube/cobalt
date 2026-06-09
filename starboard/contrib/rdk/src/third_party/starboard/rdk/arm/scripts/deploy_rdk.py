@@ -17,11 +17,6 @@
 This script handles the full lifecycle of building, packaging, deploying,
 and launching Cobalt (as a plugin or executable) or Cobalt tests on RDK.
 
-Prerequisite:
-  Set the RDK_DEVICE_ID environment variable.
-  (Obtain the ID by running 'adb devices')
-  export RDK_DEVICE_ID=<device_id>
-
 Usage Examples:
   1. Build and deploy as Cobalt plugin (default: config: qa, out: out/evergreen-arm-hardfp-rdk_qa):
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py
@@ -49,11 +44,13 @@ Usage Examples:
 """
 
 import argparse
+from datetime import datetime
 import json
 import os
 from pathlib import Path
 import subprocess
 import sys
+import time
 from typing import List, Optional, Union
 
 # Constants
@@ -61,6 +58,7 @@ PLATFORM = "evergreen-arm-hardfp-rdk"
 DEFAULT_REMOTE_DIR = "/data/out_cobalt"
 EXECUTABLE_REMOTE_DIR = "/data/out_loader_app_executable"
 TEST_REMOTE_DIR = "/data/test"
+MIN_SYSTEM_SOFTWARE_VERSION = "20260420"
 
 
 def run_command(
@@ -184,6 +182,7 @@ def launch_on_device(
     force_deploy: bool,
     test_name: Optional[str],
     mode: str,
+    devtools: bool = False,
 ) -> None:
     """Executes remote commands to launch Cobalt or tests."""
     print("=== Launching on device ===")
@@ -212,9 +211,46 @@ def launch_on_device(
             "sleep 2",
         ]
     elif mode == "plugin":
+        if devtools:
+            print("[INFO] Enabling DevTools support...")
+
+        # Deactivate first to change config
+        deactivate_json = '{"jsonrpc":"2.0","id":1,"method":"Controller.1.deactivate","params":{"callsign":"YouTube"}}'
+        run_command(["adb", "-s", device_id, "shell", f"curl -s http://127.0.0.1:9998/jsonrpc -d '{deactivate_json}'"])
+
+        # Get configuration
+        get_config_json = '{"jsonrpc":"2.0","id":1,"method":"Controller.1.configuration@YouTube"}'
+        res_str = run_command(["adb", "-s", device_id, "shell", f"curl -s http://127.0.0.1:9998/jsonrpc -d '{get_config_json}'"], capture_output=True)
+
         rpc_deactivate = (
             r'{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"Controller.1.deactivate\",'
             r'\"params\":{\"callsign\":\"YouTube\"}}')
+        try:
+            res = json.loads(res_str.strip())
+            if "result" in res:
+                config = res["result"]
+                sb_args = config.get("sbmainargs", [])
+                
+                # Filter out any existing remote debugging port argument
+                sb_args = [arg for arg in sb_args if not arg.startswith("--remote-debugging-port=")]
+                
+                if devtools:
+                    sb_args.append("--remote-debugging-port=9222")
+                
+                config["sbmainargs"] = sb_args
+
+                # Set configuration
+                rpc_set_config = json.dumps({
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "Controller.1.configuration@YouTube",
+                    "params": config
+                })
+                run_command(["adb", "-s", device_id, "shell", f"curl -s http://127.0.0.1:9998/jsonrpc -d '{rpc_set_config}'"])
+                print("[INFO] DevTools configuration updated successfully.")
+        except Exception as e:
+            print(f"[WARNING] Failed to update DevTools configuration: {e}")
+
         rpc_activate = (
             r'{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"Controller.1.activate\",'
             r'\"params\":{\"callsign\":\"YouTube\"}}')
@@ -223,8 +259,13 @@ def launch_on_device(
             "sleep 2",
             f"curl http://127.0.0.1:9998/jsonrpc -d '{rpc_deactivate}'",
             "sleep 2",
-            f"curl http://127.0.0.1:9998/jsonrpc -d '{rpc_activate}'",
+            f"curl -s http://127.0.0.1:9998/jsonrpc -d '{rpc_activate}'",
         ]
+
+        if devtools:
+            print("[INFO] Setting up DevTools port forwarding...")
+            run_command(["adb", "-s", device_id, "forward", "tcp:9222", "tcp:9222"])
+            print("[INFO] DevTools is enabled. Please open Chrome and navigate to 'chrome://inspect' (add 'localhost:9222' to discover targets).")
     else:
         remote_cmds += [
             "rdkDisplay remove || true",
@@ -237,7 +278,11 @@ def launch_on_device(
         ]
 
     full_cmd = " && ".join(remote_cmds)
-    run_command(["adb", "-s", device_id, "shell", f"bash -l -c \"{full_cmd}\""])
+    output = run_command(["adb", "-s", device_id, "shell", f"bash -l -c \"{full_cmd}\""], capture_output=True)
+    print(output)
+    if "ERROR_OPENING_FAILED" in output or "error" in output.lower():
+        print("\n[WARNING] Activation failed with error (e.g., ERROR_OPENING_FAILED).")
+        print("[WARNING] Please check the physical device state. It might be in setup/Out-of-Box Experience (OOBE) mode or not connected to a network.")
 
 
 def parse_args() -> argparse.Namespace:
@@ -281,17 +326,204 @@ def parse_args() -> argparse.Namespace:
             "Run rdkDisplay remove on device. Useful if the display is inactive "
             "due to a previous executable mode session."),
     )
+    parser.add_argument(
+        "--devtools",
+        action="store_true",
+        help="Enable Chrome DevTools remote debugging port (port 9222) in plugin mode.",
+    )
     return parser.parse_args()
+
+
+def get_model_name(device_id: str) -> Optional[str]:
+    """Attempts to retrieve the model name from /etc/device.properties."""
+    try:
+        res = subprocess.run(
+            ["adb", "-s", device_id, "shell", "cat /etc/device.properties"],
+            capture_output=True, text=True, timeout=5
+        )
+        if res.returncode == 0:
+            for line in res.stdout.splitlines():
+                if "MODEL_NAME=" in line:
+                    return line.split("=", 1)[1].strip().strip('"')
+    except Exception:
+        pass
+    return None
+
+
+def is_rdk_device(device_id: str) -> bool:
+    """Checks if the device is an RDK device by checking if model is AH212."""
+    model = get_model_name(device_id)
+    return model is not None and model.lower() == "ah212"
+
+
+def get_device_id() -> str:
+    """Gets the target RDK device ID."""
+    try:
+        result = subprocess.run(
+            ["adb", "devices"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        print(f"Error running 'adb devices': {e}")
+        sys.exit(1)
+
+    # Parse 'adb devices' output to collect online device serial IDs.
+    devices = []
+    for line in result.stdout.strip().split("\n")[1:]:
+        if not line.strip():
+            continue
+        parts = line.split()
+        if len(parts) >= 2 and parts[1] == "device":
+            devices.append(parts[0])
+
+    if not devices:
+        print("Error: No ADB devices connected.")
+        sys.exit(1)
+
+    # Filter for RDK devices
+    rdk_devices = []
+    for dev in devices:
+        if is_rdk_device(dev):
+            rdk_devices.append(dev)
+
+    if not rdk_devices:
+        print(f"Error: None of the connected devices {devices} were identified as RDK (AH212).")
+        sys.exit(1)
+
+    # Explicit assumption: if multiple devices are connected, the first one is picked.
+    if len(rdk_devices) > 1:
+        print(f"Note: Multiple RDK devices detected: {rdk_devices}. Picking the first one: {rdk_devices[0]}")
+
+    dev = rdk_devices[0]
+    print(f"Using RDK device: {dev} (AH212)")
+    return dev
+
+
+def assert_software_version(device_id: str, min_version_date: str) -> None:
+    """Asserts that the device software date is at least the min_version_date."""
+    try:
+        res = subprocess.run(
+            ["adb", "-s", device_id, "shell", "cat /version.txt"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if res.returncode != 0:
+            print("Error: Could not read /version.txt from the device to verify system software version.")
+            sys.exit(1)
+
+        custom_version = None
+        for line in res.stdout.splitlines():
+            if "custom version:" in line.lower():
+                custom_version = line.split(":", 1)[1].strip()
+                break
+
+        if not custom_version:
+            print("Error: 'custom version' field not found in /version.txt.")
+            sys.exit(1)
+
+        # Extract date suffix from custom version (e.g. RDK_V6_AH212_20260330 -> 20260330)
+        parts = custom_version.split("_")
+        if not parts:
+            print(f"Error: Could not parse date from custom version: {custom_version}")
+            sys.exit(1)
+
+        date_str = parts[-1]
+        try:
+            min_date = datetime.strptime(min_version_date, "%Y%m%d").date()
+        except ValueError:
+            print(f"Error: Invalid min_version_date format: {min_version_date}. Expected YYYYMMDD.")
+            sys.exit(1)
+
+        try:
+            device_date = datetime.strptime(date_str, "%Y%m%d").date()
+        except ValueError:
+            print(f"Error: Extracted version suffix '{date_str}' is not a valid YYYYMMDD calendar date.")
+            sys.exit(1)
+
+        if device_date < min_date:
+            print(f"Error: Device system software version ({date_str}) is older than the required minimum version ({min_version_date}).")
+            sys.exit(1)
+
+        print(f"Device system software version verified: {date_str} (required: >= {min_version_date})")
+
+    except Exception as e:
+        print(f"Error checking software version: {e}")
+        sys.exit(1)
+
+
+def check_and_switch_cobalt_version(device_id: str) -> None:
+    """Checks if Cobalt 26 is active on the device, otherwise switches and reboots."""
+    try:
+        res = subprocess.run(
+            ["adb", "-s", device_id, "shell", "readlink /usr/lib/libloader_app.so"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        current_target = res.stdout.strip()
+
+        # If it already points to /data/out_cobalt/libloader_app.so, it's already set to c26
+        if current_target == "/data/out_cobalt/libloader_app.so":
+            print("Cobalt 26 configuration is already active on the device.")
+            return
+
+        print("Cobalt configuration is not active. Running 'chCobalt custom_cobalt' on the device...")
+        res = subprocess.run(
+            ["adb", "-s", device_id, "shell", "chCobalt custom_cobalt"],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        if res.returncode != 0:
+            print(f"Error: Failed to run 'chCobalt custom_cobalt': {res.stderr}")
+            sys.exit(1)
+
+        print("Device is being rebooted to apply changes...")
+        subprocess.run(
+            ["adb", "-s", device_id, "shell", "reboot"],
+            timeout=5
+        )
+
+        print("Waiting 30 seconds for the device to reboot...")
+        time.sleep(30)
+
+        print("Attempting to reconnect to device via ADB...")
+        reconnected = False
+        for i in range(10): # try up to 10 times with 3 second intervals
+            res = subprocess.run(
+                ["adb", "-s", device_id, "shell", "echo ok"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if res.returncode == 0 and res.stdout.strip() == "ok":
+                reconnected = True
+                break
+            print(f"Device not ready yet. Retrying in 3 seconds... ({i+1}/10)")
+            time.sleep(3)
+
+        if not reconnected:
+            print("Error: Could not reconnect to the device via ADB after reboot.")
+            sys.exit(1)
+
+        print("Reconnected to device successfully.")
+
+    except Exception as e:
+        print(f"Error during Cobalt version switch: {e}")
+        sys.exit(1)
 
 
 def main() -> None:
     """Main execution flow."""
     args = parse_args()
 
-    device_id = os.environ.get("RDK_DEVICE_ID")
-    if not device_id:
-        print("Error: RDK_DEVICE_ID environment variable must be set.")
-        sys.exit(1)
+    device_id = get_device_id()
+    assert_software_version(device_id, MIN_SYSTEM_SOFTWARE_VERSION)
+    if args.mode == "plugin" and not args.tests:
+        check_and_switch_cobalt_version(device_id)
 
     if args.reset:
         print("=== Resetting display ===")
@@ -305,6 +537,10 @@ def main() -> None:
     # Setup Build Paths
     config = args.config or ("devel" if args.tests else "qa")
     out_dir = Path(args.out_dir or f"out/{PLATFORM}_{config}")
+
+    if args.devtools and config == "gold":
+        print("Error: DevTools is not supported/available in gold builds.")
+        sys.exit(1)
 
     if args.tests:
         targets = [f"{args.tests}_loader"]
@@ -352,6 +588,7 @@ def main() -> None:
             args.force_deploy,
             args.tests,
             args.mode,
+            args.devtools,
         )
 
     print("=== Finished ===")
