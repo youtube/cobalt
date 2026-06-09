@@ -139,7 +139,8 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodec(
           ConvertUTF8ToJavaString(env, decoder_name),
           audio_stream_info.samples_per_second,
           audio_stream_info.number_of_channels,
-          jni_zero::JavaParamRef<jobject>(env, j_media_crypto),
+          ScopedJavaLocalRef<jobject>::Adopt(env,
+                                             env->NewLocalRef(j_media_crypto)),
           configuration_data);
 
   if (!j_media_codec_bridge) {
@@ -209,8 +210,9 @@ MediaCodecBridge::CreateVideoMediaCodec(
       ConvertUTF8ToJavaString(env, decoder_name), frame_size_hint.width,
       frame_size_hint.height, fps, max_frame_size ? max_frame_size->width : -1,
       max_frame_size ? max_frame_size->height : -1,
-      jni_zero::JavaParamRef<jobject>(env, j_surface),
-      jni_zero::JavaParamRef<jobject>(env, j_media_crypto), j_color_info,
+      ScopedJavaLocalRef<jobject>::Adopt(env, env->NewLocalRef(j_surface)),
+      ScopedJavaLocalRef<jobject>::Adopt(env, env->NewLocalRef(j_media_crypto)),
+      j_color_info,
       platform_options.tunnel_mode_audio_session_id.value_or(
           TUNNEL_MODE_AUDIO_SESSION_ID_NONE),
       platform_options.max_input_size,
