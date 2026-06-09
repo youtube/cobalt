@@ -35,7 +35,7 @@ InProcessRendererThread::~InProcessRendererThread() {
 
 void InProcessRendererThread::Init() {
 #if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(
+  base::memory::SetCurrentMemoryContext(
       base::memory::MemoryContext::kBlinkDOM);
 #endif
   // In single-process mode, we never enter the sandbox, so run the post-sandbox
