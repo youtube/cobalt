@@ -26,22 +26,25 @@ Usage Examples:
   1. Build and deploy as Cobalt plugin (default: config: qa, out: out/evergreen-arm-hardfp-rdk_qa):
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py
 
-  2. Build, deploy, and RUN Cobalt plugin on device:
+  2. Deploy a pre-built package and run it:
+     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --out-dir ~/Downloads/evergreen-arm-hardfp-rdk_qa/ --skip-build --run
+
+  3. Build, deploy, and RUN Cobalt plugin on device:
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run
 
-  3. Build, deploy, and RUN nplb tests on device (uses devel config):
+  4. Build, deploy, and RUN nplb tests on device (uses devel config):
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --tests nplb --run
 
-  4. Build and deploy as standalone executable (loader_app):
+  5. Build and deploy as standalone executable (loader_app):
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --mode executable
 
-  5. Force deploy and run even if artifacts are up-to-date:
+  6. Force deploy and run even if artifacts are up-to-date:
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run --force-deploy
 
-  6. Reset RDK display (fixes stuck sessions caused by executable mode):
+  7. Reset RDK display (fixes stuck sessions caused by executable mode):
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --reset
 
-  7. Deploy only the libcobalt library:
+  8. Deploy only the libcobalt library:
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --only-lib
 """
 
@@ -147,17 +150,25 @@ def package_and_deploy(
     device_id: str,
     out_dir: Path,
     remote_dir: str,
-    deps_file: Path,
+    deps_file: Optional[Path],
     mode: str,
 ) -> None:
     """Packages artifacts using runtime_deps and pushes to device."""
     print("=== Packaging & Deploying artifacts ===")
     archive_name = "archive.tar.gz"
 
-    tar_cmd = ["tar", "-czvf", archive_name, "-C", str(out_dir), "-T", str(deps_file)]
-    if mode == "plugin":
-        tar_cmd.append("libloader_app.so")
-    tar_cmd.extend(["gen/build_info.json"])
+    if deps_file and deps_file.exists():
+        tar_cmd = ["tar", "-czvf", archive_name, "-C", str(out_dir), "-T", str(deps_file)]
+        if mode == "plugin":
+            tar_cmd.append("libloader_app.so")
+        build_info = out_dir / "gen/build_info.json"
+        if build_info.exists():
+            tar_cmd.append("gen/build_info.json")
+    else:
+        if deps_file:
+            print(f"Warning: deps_file {deps_file} not found.")
+        print(f"Packaging everything in {out_dir}")
+        tar_cmd = ["tar", "-czvf", archive_name, "-C", str(out_dir), "."]
 
     print(f"Packaging with: {' '.join(tar_cmd)}")
     run_command(tar_cmd)
@@ -252,6 +263,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--out-dir", type=str, help="Custom build output directory.")
     parser.add_argument(
+        "--skip-build",
+        action="store_true",
+        help="Skip configure and build steps.",
+    )
+    parser.add_argument(
         "--run", action="store_true", help="Run on device after build/deploy.")
     parser.add_argument(
         "--force-deploy",
@@ -309,12 +325,14 @@ def main() -> None:
         else:
             remote_dir = EXECUTABLE_REMOTE_DIR
 
-    configure_build(PLATFORM, config, out_dir)
-    build_output = build_targets(out_dir, targets)
-
-    # Deployment Check
-    is_up_to_date = build_output and any(
-        msg in build_output for msg in ["Everything is up-to-date", "no work to do"])
+    if not args.skip_build:
+        configure_build(PLATFORM, config, out_dir)
+        build_output = build_targets(out_dir, targets)
+        is_up_to_date = build_output and any(
+            msg in build_output for msg in ["Everything is up-to-date", "no work to do"])
+    else:
+        print("=== Skipping build step ===")
+        is_up_to_date = False
 
     if is_up_to_date and not args.force_deploy:
         print("=== Up to date. Skipping deployment. ===")
