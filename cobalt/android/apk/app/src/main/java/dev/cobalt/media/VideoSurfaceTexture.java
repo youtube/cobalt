@@ -32,6 +32,11 @@ public class VideoSurfaceTexture extends SurfaceTexture {
   @GuardedBy("mLock")
   private long mNativeVideoSurfaceTextureBridge;
 
+  // Cache the matrix to avoid allocating a new float[16] array on every call
+  // to getTransformMatrix(), which is called on the rendering hot path (60fps)
+  // and would cause significant Garbage Collection (GC) churn.
+  private final float[] mTransformMatrix = new float[16];
+
   @CalledByNative
   VideoSurfaceTexture(int texName) {
     super(texName);
@@ -74,8 +79,9 @@ public class VideoSurfaceTexture extends SurfaceTexture {
   }
 
   @CalledByNative
-  public void getTransformMatrix(float[] mtx) {
-    super.getTransformMatrix(mtx);
+  public float[] getTransformMatrix() {
+    super.getTransformMatrix(mTransformMatrix);
+    return mTransformMatrix;
   }
 
   @NativeMethods
