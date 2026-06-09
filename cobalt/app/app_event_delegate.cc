@@ -375,10 +375,6 @@ void AppEventDelegate::DoTeardown() {
   runner_->OnStop();
   base::AutoLock lock(lock_);
   SetApplicationState(ApplicationState::kStopped);
-
-  // Delete this object asynchronously after the current event loop execution
-  // finishes.
-  base::SequencedTaskRunner::GetCurrentDefault()->DeleteSoon(FROM_HERE, this);
 }
 
 void AppEventDelegate::TransitionToLifeCycleState(ApplicationState state) {
@@ -393,14 +389,17 @@ void AppEventDelegate::TransitionToLifeCycleState(ApplicationState state) {
   CHECK_LE(state, ApplicationState::kStopped);
 
   LOG(INFO) << "AppEventDelegate::TransitionToLifeCycleState called, current="
-            << static_cast<int>(application_state_)
-            << " target=" << static_cast<int>(state);
+            << static_cast<int>(application_state_) << " ("
+            << GetStateString(application_state_)
+            << ") target=" << static_cast<int>(state) << " ("
+            << GetStateString(state) << ")";
 
   target_state_ = state;
 
   if (is_transitioning_) {
     LOG(INFO) << "Transition already in progress. Updated target_state_ to "
-              << static_cast<int>(state);
+              << static_cast<int>(state) << " (" << GetStateString(state)
+              << ")";
     return;
   } else {
     is_transitioning_ = true;
