@@ -86,3 +86,7 @@ include_transport_security_state_preload_list = false
 
 # Disable Vulkan on Cobalt, this reduces binary size (~1.2MB)
 angle_enable_vulkan = false
+
+# Disable the Network Reporting API and Network Error Logging
+# (NEL) on Chrobat, this reduces binary size by ~ 0.1 MB.
+enable_reporting = false
