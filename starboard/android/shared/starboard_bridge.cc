@@ -301,6 +301,13 @@ SB_EXPORT_ANDROID bool StarboardBridge::GetLimitAdTracking(JNIEnv* env) {
   return limit_ad_tracking_java == JNI_TRUE;
 }
 
+SB_EXPORT_ANDROID std::string StarboardBridge::GetFriendlyName(JNIEnv* env) {
+  SB_DCHECK(env);
+  ScopedJavaLocalRef<jstring> friendly_name_java =
+      Java_StarboardBridge_getFriendlyName(env, j_starboard_bridge_);
+  return ConvertJavaStringToUTF8(env, friendly_name_java);
+}
+
 SB_EXPORT_ANDROID void StarboardBridge::CloseApp(JNIEnv* env) {
   SB_DCHECK(env);
   return Java_StarboardBridge_closeApp(env, j_starboard_bridge_);
