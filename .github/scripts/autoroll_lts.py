@@ -18,13 +18,19 @@ _SKIP_LIST = {
         'b77e86a96022541455c239778a4a62462d790c73',
         '8ed51696a04da8b51b82d6540b3b314347c43794',
         # Change to deleted workflow file
-        # (#9670, #9934, #10080, #9593, #10235, #10213).
+        # (#9670, #9934, #10080, #9593, #10235, #10213, #10186).
         'f69b1d1e21f3340d9c963846ed4e1cbef8fa2fb9',
         '478e5c52cf4872407ed855a100165e93b02d9eee',
         '00531389e019a835f49fb3bf56364b244a0d3acd',
         '9b2c106aa54a05640705a3603ebc6821e1adebf8',
         'bdaf3a31f53759ca21c82bb5ede628ab71194db5',
         'ec31efdbdb0c173bb11bb9747808d7c50cd9db81',
+        '4434b9dc99b223ffe54b779565b6d48bd4446e19',
+        # Accidentally pushed commits to main and the revert PR (#10812).
+        '04197f4caa9bd9b0c4d2efb189f00675a9dd03cc',
+        '849e7534a0fdc1f5167764830b6255819ad0e02d',
+        '5e27d0370b0691495fc05ef0d8e6dfcfeaf2a565',
+        'f0ef063d30589b39dc4a1433b0dde659d2fb5eea'
     ],
 }
 
