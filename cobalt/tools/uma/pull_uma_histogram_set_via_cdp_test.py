@@ -204,7 +204,11 @@ class SharedHistogramTest(BaseHistogramTest):
   def test_main_linux(self, mock_get_websocket, mock_loop, mock_is_running):
     pull_uma_histogram_set_via_cdp.main()
     mock_get_websocket.assert_called_with(
-        platform='linux', port=9223, quiet=False)
+        platform='linux',
+        port=9223,
+        quiet=False,
+        device_id=None,
+        setup_forward=False)
     mock_is_running.assert_not_called()  # Should be called inside loop
     mock_loop.assert_called_once()
 
@@ -228,16 +232,25 @@ class CoreLogicTest(BaseHistogramTest):
 
   @patch('pull_uma_histogram_set_via_cdp.is_package_running_android')
   @patch('pull_uma_histogram_set_via_cdp.time')
+  @patch(
+      'pull_uma_histogram_set_via_cdp.get_websocket_url',
+      return_value='ws://test_url')
   @patch('pull_uma_histogram_set_via_cdp._interact_via_cdp')
-  def test_loop_android(self, mock_interact, mock_time, mock_is_running):  # pylint: disable=unused-argument
+  def test_loop_android(self, mock_interact, unused_mock_get_websocket,
+                        unused_mock_time, mock_is_running):
     stop_event = MagicMock()
     stop_event.is_set.side_effect = [False, True]  # Run loop once
-    args = MagicMock(platform='android', package_name='test.package')
+    args = MagicMock(
+        platform='android',
+        package_name='test.package',
+        device=None,
+        port=9222,
+        url='http://test',
+        quiet=False)
 
-    pull_uma_histogram_set_via_cdp.loop('ws://test_url', stop_event, [], args,
-                                        None)
+    pull_uma_histogram_set_via_cdp.loop(stop_event, [], args, None)
 
-    mock_is_running.assert_called_with('test.package')
+    mock_is_running.assert_called_with('test.package', None)
     mock_interact.assert_called_once()
 
 
