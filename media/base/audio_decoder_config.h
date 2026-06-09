@@ -16,7 +16,10 @@
 #include "media/base/encryption_scheme.h"
 #include "media/base/media_export.h"
 #include "media/base/sample_format.h"
-#include "media/media_buildflags.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include <string_view>
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace media {
 
@@ -127,8 +130,8 @@ class MEDIA_EXPORT AudioDecoderConfig {
   void set_is_change_type_transition(bool value) { is_change_type_transition_ = value; }
   bool is_change_type_transition() const { return is_change_type_transition_; }
 
-  void set_mime_type(const std::string& mime_type) { mime_type_ = mime_type; }
-  const std::string& mime_type() const { return mime_type_; }
+  void set_mime_type(std::string_view mime_type) { mime_type_ = mime_type; }
+  std::string_view mime_type() const { return mime_type_; }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  private:

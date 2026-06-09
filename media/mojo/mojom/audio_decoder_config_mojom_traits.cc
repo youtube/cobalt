@@ -5,7 +5,6 @@
 #include "media/mojo/mojom/audio_decoder_config_mojom_traits.h"
 
 #include "base/time/time.h"
-#include "media/media_buildflags.h"
 #include "mojo/public/cpp/base/time_mojom_traits.h"
 
 namespace mojo {

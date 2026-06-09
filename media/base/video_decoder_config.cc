@@ -5,7 +5,6 @@
 #include "media/base/video_decoder_config.h"
 
 #include <iomanip>
-#include "media/media_buildflags.h"
 #include <vector>
 
 #include "base/check_op.h"
@@ -128,13 +127,11 @@ std::string VideoDecoderConfig::AsHumanReadableString() const {
     << ", rotation: " << VideoRotationToString(video_transformation().rotation)
     << ", flipped: " << video_transformation().mirrored
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    << ", color space: " << color_space_info().ToGfxColorSpace().ToString()
     << ", mime: \"" << mime_type() << "\"" 
     << ", is_change_type_transition: "
-    << base::ToString(is_change_type_transition());
-#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
-    << ", color space: " << color_space_info().ToGfxColorSpace().ToString();
+    << base::ToString(is_change_type_transition())
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+    << ", color space: " << color_space_info().ToGfxColorSpace().ToString();
 
   if (hdr_metadata().has_value()) {
     s << ", hdr metadata: " << hdr_metadata()->ToString();
