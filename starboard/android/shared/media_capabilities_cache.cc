@@ -104,11 +104,11 @@ class MediaCapabilitiesProviderImpl : public MediaCapabilitiesProvider {
       return std::set<SbMediaTransferId>();
     }
 
-    jsize length = env->GetArrayLength(j_supported_hdr_types.obj());
-    jint* numbers =
-        env->GetIntArrayElements(j_supported_hdr_types.obj(), nullptr);
-    for (int i = 0; i < length; i++) {
-      switch (numbers[i]) {
+    std::vector<int> hdr_types;
+    base::android::JavaIntArrayToIntVector(env, j_supported_hdr_types,
+                                           &hdr_types);
+    for (int hdr_type : hdr_types) {
+      switch (hdr_type) {
         case HDR_TYPE_DOLBY_VISION:
           continue;
         case HDR_TYPE_HDR10:
@@ -121,7 +121,6 @@ class MediaCapabilitiesProviderImpl : public MediaCapabilitiesProvider {
           continue;
       }
     }
-    env->ReleaseIntArrayElements(j_supported_hdr_types.obj(), numbers, 0);
 
     return supported_transfer_ids;
   }
@@ -156,12 +155,12 @@ class MediaCapabilitiesProviderImpl : public MediaCapabilitiesProvider {
     JNIEnv* env = AttachCurrentThread();
     ScopedJavaLocalRef<jobjectArray> j_codec_infos =
         Java_MediaCodecUtil_getAllCodecCapabilityInfos(env);
-    jsize length = env->GetArrayLength(j_codec_infos.obj());
+    size_t length = base::android::SafeGetArrayLength(env, j_codec_infos);
 
     // Note: Codec infos are sorted by the framework such that the best
     // decoders come first.
     // This order is maintained in the cache.
-    for (int i = 0; i < length; i++) {
+    for (size_t i = 0; i < length; i++) {
       ScopedJavaLocalRef<jobject> j_codec_info(
           env, env->GetObjectArrayElement(j_codec_infos.obj(), i));
       SB_CHECK(j_codec_info);
