@@ -52,6 +52,7 @@ class CobaltWebContentsObserver::PlatformErrorBridge {
       : observer_(observer),
         navigation_id_(navigation_id),
         task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {}
+  ~PlatformErrorBridge() = default;
 
   void Run(SbSystemPlatformErrorResponse response) {
     {
@@ -81,8 +82,6 @@ class CobaltWebContentsObserver::PlatformErrorBridge {
   }
 
  private:
-  ~PlatformErrorBridge() = default;
-
   void RunOnSequence(SbSystemPlatformErrorResponse response) {
     DCHECK(task_runner_->RunsTasksInCurrentSequence());
     if (observer_) {
@@ -278,7 +277,6 @@ void CobaltWebContentsObserver::OnPlatformErrorResponse(
               << navigation_id;
     return;
   }
-#if !BUILDFLAG(IS_ANDROID)
   if (response == kSbSystemPlatformErrorResponsePositive) {
     LOG(INFO) << "Platform error response is POSITIVE. Reloading...";
     if (web_contents()) {
@@ -289,7 +287,6 @@ void CobaltWebContentsObserver::OnPlatformErrorResponse(
     LOG(INFO) << "Platform error response is NEGATIVE/CANCEL. Stopping app...";
     SbSystemRequestStop(0);
   }
-#endif
 }
 #endif  // BUILDFLAG(IS_STARBOARD)
 
