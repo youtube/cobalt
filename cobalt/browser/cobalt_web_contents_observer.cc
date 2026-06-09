@@ -22,10 +22,11 @@
 #include "services/service_manager/public/cpp/interface_provider.h"
 
 #if BUILDFLAG(IS_STARBOARD)
+#include <atomic>
+
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/timer/timer.h"
 #include "content/public/browser/navigation_controller.h"
@@ -52,12 +53,8 @@ class CobaltWebContentsObserver::PlatformErrorBridge {
   ~PlatformErrorBridge() = default;
 
   void Run(SbSystemPlatformErrorResponse response) {
-    {
-      base::AutoLock lock(lock_);
-      if (has_run_) {
-        return;
-      }
-      has_run_ = true;
+    if (has_run_.exchange(true)) {
+      return;
     }
     if (task_runner_->RunsTasksInCurrentSequence()) {
       RunOnSequence(response);
@@ -66,11 +63,6 @@ class CobaltWebContentsObserver::PlatformErrorBridge {
                              base::BindOnce(&PlatformErrorBridge::RunOnSequence,
                                             base::Unretained(this), response));
     }
-  }
-
-  void Invalidate() {
-    DCHECK(task_runner_->RunsTasksInCurrentSequence());
-    observer_.reset();
   }
 
   void set_navigation_id(int64_t navigation_id) {
@@ -89,9 +81,8 @@ class CobaltWebContentsObserver::PlatformErrorBridge {
 
   base::WeakPtr<CobaltWebContentsObserver> observer_;
   int64_t navigation_id_;
-  scoped_refptr<base::SequencedTaskRunner> task_runner_;
-  base::Lock lock_;
-  bool has_run_ = false;
+  const scoped_refptr<base::SequencedTaskRunner> task_runner_;
+  std::atomic<bool> has_run_{false};
 };
 #endif  // BUILDFLAG(IS_STARBOARD)
 
@@ -118,13 +109,7 @@ CobaltWebContentsObserver::CobaltWebContentsObserver(
   }
 }
 
-CobaltWebContentsObserver::~CobaltWebContentsObserver() {
-#if BUILDFLAG(IS_STARBOARD)
-  if (pending_platform_error_bridge_) {
-    pending_platform_error_bridge_->Invalidate();
-  }
-#endif
-}
+CobaltWebContentsObserver::~CobaltWebContentsObserver() = default;
 
 #if BUILDFLAG(IS_STARBOARD)
 void CobaltWebContentsObserver::DidStartNavigation(
