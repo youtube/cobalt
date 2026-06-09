@@ -60,7 +60,7 @@ logged.
 #### Declaration
 
 ```
-void SbLogFormat(const char *format, va_list args) SB_PRINTF_FORMAT(1
+void SbLogFormat(const char *format, va_list args) SB_PRINTF_FORMAT(1, 0)
 ```
 
 ### SbLogFormatF
@@ -70,7 +70,7 @@ Inline wrapper of SbLogFormat that converts from ellipsis to va_args.
 #### Declaration
 
 ```
-void static void static void SbLogFormatF(const char *format,...) SB_PRINTF_FORMAT(1
+void static void static void SbLogFormatF(const char *format,...) SB_PRINTF_FORMAT(1, 2)
 ```
 
 ### SbLogIsTty

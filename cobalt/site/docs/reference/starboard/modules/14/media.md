@@ -201,7 +201,7 @@ as a set of instructions to the audio decoder.
 The audio sample info consists of information found in the `WAVEFORMATEX`
 structure, as well as other information for the audio decoder, including the
 Audio-specific configuration field. The `WAVEFORMATEX` structure is specified at
-[http://msdn.microsoft.com/en-us/library/dd390970(v=vs.85).aspx](http://msdn.microsoft.com/en-us/library/dd390970(v=vs.85).aspx)x) .
+[http://msdn.microsoft.com/en-us/library/dd390970(v=vs.85).aspx](http://msdn.microsoft.com/en-us/library/dd390970(v=vs.85).aspx).
 
 #### Members
 

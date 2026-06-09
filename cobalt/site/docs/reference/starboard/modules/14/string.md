@@ -79,7 +79,7 @@ be formatted. `arguments`: Variable arguments used in the string.
 #### Declaration
 
 ```
-int SbStringFormat(char *out_buffer, size_t buffer_size, const char *format, va_list arguments) SB_PRINTF_FORMAT(3
+int SbStringFormat(char *out_buffer, size_t buffer_size, const char *format, va_list arguments) SB_PRINTF_FORMAT(3, 0)
 ```
 
 ### SbStringFormatF
@@ -94,7 +94,7 @@ be formatted. `...`: Arguments used in the string.
 #### Declaration
 
 ```
-int static int static int SbStringFormatF(char *out_buffer, size_t buffer_size, const char *format,...) SB_PRINTF_FORMAT(3
+int static int static int SbStringFormatF(char *out_buffer, size_t buffer_size, const char *format,...) SB_PRINTF_FORMAT(3, 4)
 ```
 
 ### SbStringFormatUnsafeF
@@ -109,7 +109,7 @@ the string.
 #### Declaration
 
 ```
-static int static int SbStringFormatUnsafeF(char *out_buffer, const char *format,...) SB_PRINTF_FORMAT(2
+static int static int SbStringFormatUnsafeF(char *out_buffer, const char *format,...) SB_PRINTF_FORMAT(2, 3)
 ```
 
 ### SbStringFormatWide

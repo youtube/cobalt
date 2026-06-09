@@ -69,20 +69,25 @@ The `kSbFileAsync` flag is optional.
 #### Values
 
 *   `kSbFileOpenOnly`
+
 *   `kSbFileCreateOnly`
+
 *   `kSbFileOpenAlways`
 
-    does not already exist.
+    Creates a new file, only if it does not already exist.
 *   `kSbFileCreateAlways`
 
-    path or creates a new file at that path.
+    Opens an existing file at the specified path or creates a new file at that path.
+
 *   `kSbFileOpenTruncated`
 
-    or overwrites an existing file at that path.
+    Creates a new file at the specified path or overwrites an existing file at that path.
 *   `kSbFileRead`
 
-    only if it exists.
+    Opens a file and truncates it to zero, only if it exists.
+
 *   `kSbFileWrite`
+
 *   `kSbFileAsync`
 
 ### SbFileWhence

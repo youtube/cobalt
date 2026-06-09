@@ -267,7 +267,7 @@ Information about the samples to be written into SbPlayerWriteSamples().
     Information about a video sample. This value can only be used when `type` is
     kSbMediaTypeVideo.
 *   `union SbPlayerSampleInfo::@0 @1`
-*   `constSbDrmSampleInfo* drm_info`
+*   `const SbDrmSampleInfo* drm_info`
 
     The DRM system related info for the media sample. This value is required for
     encrypted samples. Otherwise, it must be `NULL`.
