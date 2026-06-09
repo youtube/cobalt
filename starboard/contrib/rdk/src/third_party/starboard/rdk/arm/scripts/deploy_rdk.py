@@ -53,6 +53,10 @@ import sys
 import time
 from typing import List, Optional, Union
 
+# Disable AI agent environment variables to avoid siso wrapper flag issues
+os.environ.pop("ANTIGRAVITY_AGENT", None)
+os.environ.pop("GEMINI_CLI", None)
+
 # Constants
 PLATFORM = "evergreen-arm-hardfp-rdk"
 DEFAULT_REMOTE_DIR = "/data/out_cobalt"
