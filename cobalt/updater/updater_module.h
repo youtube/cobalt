@@ -15,6 +15,7 @@
 #ifndef COBALT_UPDATER_UPDATER_MODULE_H_
 #define COBALT_UPDATER_UPDATER_MODULE_H_
 
+#include <atomic>
 #include <map>
 #include <memory>
 #include <string>
@@ -136,7 +137,7 @@ class UpdaterModule {
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
   scoped_refptr<Configurator> updater_configurator_;
   int update_check_count_ = 0;
-  bool is_updater_running_;
+  std::atomic<bool> is_updater_running_;
   base::TimeDelta update_check_delay_ = kDefaultUpdateCheckDelay;
 
   int GetUpdateCheckCount() { return update_check_count_; }
