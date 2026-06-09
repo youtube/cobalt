@@ -38,6 +38,11 @@
 #include <optional>
 #include <string_view>
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#include "cobalt/shell/buildflags.h"
+#endif
+
 #include "base/check.h"
 #include "base/check_op.h"
 #include "base/feature_list.h"
@@ -419,6 +424,9 @@ const MemoryManagedPaintRecorder* CanvasRenderingContext2D::Recorder() const {
 void CanvasRenderingContext2D::WillDraw(
     const SkIRect& dirty_rect,
     CanvasPerformanceMonitor::DrawType draw_type) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kGraphics);
+#endif
   if (ShouldAntialias()) {
     SkIRect inflated_dirty_rect = dirty_rect.makeOutset(1, 1);
     CanvasRenderingContext::DidDraw(inflated_dirty_rect, draw_type);
