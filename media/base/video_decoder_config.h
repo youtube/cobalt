@@ -18,10 +18,13 @@
 #include "media/base/video_color_space.h"
 #include "media/base/video_transformation.h"
 #include "media/base/video_types.h"
-#include "media/media_buildflags.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/hdr_metadata.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include <string_view>
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace media {
 
@@ -169,8 +172,8 @@ class MEDIA_EXPORT VideoDecoderConfig {
   void set_is_change_type_transition(bool value) { is_change_type_transition_ = value; }
   bool is_change_type_transition() const { return is_change_type_transition_; }
 
-  void set_mime_type(const std::string& mime_type) { mime_type_ = mime_type; }
-  const std::string& mime_type() const { return mime_type_; }
+  void set_mime_type(std::string_view mime_type) { mime_type_ = mime_type; }
+  std::string_view mime_type() const { return mime_type_; }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  private:
