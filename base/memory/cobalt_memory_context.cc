@@ -1,53 +1,68 @@
-// Copyright 2026 The Chromium Authors and Cobalt Authors
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
-#include "base/memory/cobalt_memory_context.h"
+#include "copied_base/base/memory/cobalt_memory_context.h"
 
-#include "base/allocator/dispatcher/tls.h"
-#include "base/no_destructor.h"
-#include "base/notreached.h"
+#include <pthread.h>
+#include <stdint.h>
+#include <atomic>
 
 namespace base {
 namespace memory {
+
 
 // Weak symbol to allow the linker to merge this TLS getter across base and copied_base.
 #if defined(__GNUC__)
 __attribute__((weak))
 #endif
-MemoryContext* GetThreadLocalMemoryContext();
-
-#if defined(__GNUC__)
-__attribute__((weak))
-#endif
-MemoryContext* GetThreadLocalMemoryContext() {
-#if USE_LOCAL_TLS_EMULATION()
-  static base::NoDestructor<
-      base::allocator::dispatcher::ThreadLocalStorage<MemoryContext>>
-      thread_local_data("cobalt_memory_context");
-  return thread_local_data->GetThreadLocalData();
-#else
-  static thread_local MemoryContext g_current_memory_context = MemoryContext::kUnknown;
-  return &g_current_memory_context;
-#endif
+pthread_key_t GetSharedMemoryContextKey() {
+  // Use a static atomic to ensure lazy initialization happens safely.
+  // Because this function is weak, the linker will merge all copies into a single instance,
+  // meaning `g_key` will be identical across both `base` and `copied_base`.
+  static std::atomic<uint32_t> g_key{0xFFFFFFFF};
+  uint32_t key = g_key.load(std::memory_order_acquire);
+  if (key == 0xFFFFFFFF) {
+    pthread_key_t new_key;
+    pthread_key_create(&new_key, nullptr);
+    uint32_t expected = 0xFFFFFFFF;
+    if (g_key.compare_exchange_strong(expected, static_cast<uint32_t>(new_key), std::memory_order_release)) {
+      key = static_cast<uint32_t>(new_key);
+    } else {
+      pthread_key_delete(new_key);
+      key = expected;
+    }
+  }
+  return static_cast<pthread_key_t>(key);
 }
 
 MemoryContext GetCurrentMemoryContext() {
-  return *GetThreadLocalMemoryContext();
+  void* ptr = pthread_getspecific(GetSharedMemoryContextKey());
+  return static_cast<MemoryContext>(reinterpret_cast<intptr_t>(ptr));
 }
 
 void SetCurrentMemoryContext(MemoryContext context) {
-  *GetThreadLocalMemoryContext() = context;
+  pthread_setspecific(GetSharedMemoryContextKey(),
+                      reinterpret_cast<void*>(static_cast<intptr_t>(context)));
 }
 
 ScopedMemoryContext::ScopedMemoryContext(MemoryContext context) {
-  MemoryContext* current = GetThreadLocalMemoryContext();
-  prev_context_ = *current;
-  *current = context;
+  prev_context_ = GetCurrentMemoryContext();
+  SetCurrentMemoryContext(context);
 }
 
 ScopedMemoryContext::~ScopedMemoryContext() {
-  *GetThreadLocalMemoryContext() = prev_context_;
+  SetCurrentMemoryContext(prev_context_);
 }
 
 std::string_view ContextToString(MemoryContext context) {
