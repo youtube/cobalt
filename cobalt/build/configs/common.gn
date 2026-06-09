@@ -84,5 +84,10 @@ rtc_include_dav1d_in_internal_decoder_factory = false
 # a preloaded list of third-party domains.
 include_transport_security_state_preload_list = false
 
-# Disable Vulkan on Cobalt, this reduces binary size (~1.2MB)
+# Disable Vulkan on Cobalt, this reduces binary size by ~1.2 MB.
 angle_enable_vulkan = false
+
+# Disable BackupRefPtr on Chrobalt, this reduces binary size by
+# ~0.5 MB.
+enable_backup_ref_ptr_support = false
+enable_backup_ref_ptr_feature_flag = false
