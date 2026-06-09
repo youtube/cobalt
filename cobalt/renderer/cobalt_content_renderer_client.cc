@@ -59,6 +59,7 @@ const char kH5vccSettingsKeyMediaEnableAv1StartupOptimization[] =
 // TODO: b/474454335 - Remove once seek experiment is done.
 const char kH5vccSettingsKeyMediaEnableFlushDuringSeek[] =
     "Media.EnableFlushDuringSeek";
+const char kH5vccSettingsKeyMediaEnableLowLatency[] = "Media.EnableLowLatency";
 // TODO: b/474454335 - Remove once seek experiment is done.
 const char kH5vccSettingsKeyMediaEnableResetAudioDecoder[] =
     "Media.EnableResetAudioDecoder";
@@ -224,6 +225,10 @@ ExperimentalFeatures ProcessH5vccSettings(
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableFlushDuringSeek)) {
     parsed.enable_flush_during_seek = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaEnableLowLatency)) {
+    parsed.enable_low_latency = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableResetAudioDecoder)) {
