@@ -219,7 +219,7 @@ gclient sync --no-history -r $(git rev-parse @)
 ## Remote debugging with gdbserver
    It is a bit slow but is a fully functional gdb with symbols.
 
-   Install on your host(below is an example using google innternal cloudtop)
+   Install on your host(below is an example using google internal cloudtop)
    ```
    $ sudo apt-get install gdb-multiarch
    ```
