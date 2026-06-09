@@ -33,7 +33,9 @@
 #include "net/base/features.h"
 #include "services/device/public/cpp/device_features.h"
 #include "services/network/public/cpp/features.h"
-#include "services/webnn/public/mojom/features.mojom-features.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "services/webnn/public/mojom/features.mojom-features.h"    //nogncheck
+#endif  // #if !BUILDFLAG(IS_COBALT)
 #include "third_party/blink/public/common/buildflags.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/features_generated.h"
@@ -367,9 +369,11 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
           {"FledgeBiddingAndAuctionServerAPI",
            raw_ref(blink::features::kFledgeBiddingAndAuctionServer), kDefault},
           {"FontSrcLocalMatching", raw_ref(features::kFontSrcLocalMatching)},
+#if !BUILDFLAG(IS_COBALT)
           {"MachineLearningNeuralNetwork",
            raw_ref(webnn::mojom::features::kWebMachineLearningNeuralNetwork),
            kSetOnlyIfOverridden},
+#endif  // #if !BUILDFLAG(IS_COBALT)
           {"OriginIsolationHeader", raw_ref(features::kOriginIsolationHeader)},
           {"ReduceAcceptLanguage",
            raw_ref(network::features::kReduceAcceptLanguage)},
@@ -401,10 +405,12 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
           {"PrivateNetworkAccessPermissionPrompt",
            raw_ref(network::features::kPrivateNetworkAccessPermissionPrompt),
            kSetOnlyIfOverridden},
+#if !BUILDFLAG(IS_COBALT)
           {"ExperimentalMachineLearningNeuralNetwork",
            raw_ref(webnn::mojom::features::
                        kExperimentalWebMachineLearningNeuralNetwork),
            kSetOnlyIfOverridden},
+#endif  // #if !BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(IS_ANDROID)
           {"WebAppLaunchQueue", raw_ref(features::kAndroidWebAppLaunchHandler)},
 #endif

@@ -47,6 +47,10 @@ viz_component("host") {
     "//ui/gfx",
   ]
 
+  if (is_cobalt) {
+    deps -= [ "//services/webnn/public/mojom" ]
+  }
+
   public_deps = [
     "//components/viz/common",
     "//gpu/command_buffer/client",

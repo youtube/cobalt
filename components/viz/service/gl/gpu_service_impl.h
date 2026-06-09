@@ -48,7 +48,9 @@
 #include "services/viz/privileged/mojom/gl/gpu_host.mojom.h"
 #include "services/viz/privileged/mojom/gl/gpu_service.mojom.h"
 #include "services/viz/privileged/mojom/viz_main.mojom.h"
-#include "services/webnn/public/mojom/webnn_context_provider.mojom.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "services/webnn/public/mojom/webnn_context_provider.mojom.h"  // nogncheck
+#endif
 #include "skia/buildflags.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
 #include "ui/gfx/gpu_extra_info.h"
@@ -84,9 +86,11 @@ namespace media {
 class MediaGpuChannelManager;
 }  // namespace media
 
+#if !BUILDFLAG(IS_COBALT)
 namespace webnn {
 class WebNNContextProviderImpl;
 }  // namespace webnn
+#endif
 
 namespace viz {
 
@@ -219,10 +223,12 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
       mojo::PendingReceiver<media::mojom::VideoEncodeAcceleratorProvider>
           vea_provider_receiver) override;
 
+#if !BUILDFLAG(IS_COBALT)
   void BindWebNNContextProvider(
       mojo::PendingReceiver<webnn::mojom::WebNNContextProvider>
           pending_receiver,
       int client_id) override;
+#endif
 
   void GetVideoMemoryUsageStats(
       GetVideoMemoryUsageStatsCallback callback) override;
@@ -564,7 +570,9 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
   std::unique_ptr<gpu::DawnContextProvider> dawn_context_provider_;
 #endif
 
+#if !BUILDFLAG(IS_COBALT)
   std::unique_ptr<webnn::WebNNContextProviderImpl> webnn_context_provider_;
+#endif
 
   std::unique_ptr<gpu::GpuMemoryBufferFactory> gpu_memory_buffer_factory_;
 
