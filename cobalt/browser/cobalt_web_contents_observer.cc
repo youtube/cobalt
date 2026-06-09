@@ -21,7 +21,70 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include <atomic>
+
+#include "base/functional/bind.h"
+#include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/timer/timer.h"
+#include "content/public/browser/navigation_controller.h"
+#include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/web_contents.h"
+#include "net/base/net_errors.h"
+#include "starboard/system.h"
+#endif  // BUILDFLAG(IS_STARBOARD)
+
 namespace cobalt {
+
+#if BUILDFLAG(IS_STARBOARD)
+namespace {
+constexpr int kNavigationTimeoutSeconds = 30;
+}  // namespace
+
+class CobaltWebContentsObserver::PlatformErrorBridge {
+ public:
+  PlatformErrorBridge(base::WeakPtr<CobaltWebContentsObserver> observer,
+                      int64_t navigation_id)
+      : observer_(observer),
+        navigation_id_(navigation_id),
+        task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {}
+  ~PlatformErrorBridge() = default;
+
+  void Run(SbSystemPlatformErrorResponse response) {
+    if (has_run_.exchange(true)) {
+      return;
+    }
+    if (task_runner_->RunsTasksInCurrentSequence()) {
+      RunOnSequence(response);
+    } else {
+      task_runner_->PostTask(FROM_HERE,
+                             base::BindOnce(&PlatformErrorBridge::RunOnSequence,
+                                            base::Unretained(this), response));
+    }
+  }
+
+  void set_navigation_id(int64_t navigation_id) {
+    DCHECK(task_runner_->RunsTasksInCurrentSequence());
+    navigation_id_ = navigation_id;
+  }
+
+ private:
+  void RunOnSequence(SbSystemPlatformErrorResponse response) {
+    DCHECK(task_runner_->RunsTasksInCurrentSequence());
+    if (observer_) {
+      observer_->OnPlatformErrorResponse(response, navigation_id_);
+    }
+    delete this;
+  }
+
+  base::WeakPtr<CobaltWebContentsObserver> observer_;
+  int64_t navigation_id_;
+  const scoped_refptr<base::SequencedTaskRunner> task_runner_;
+  std::atomic<bool> has_run_{false};
+};
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 CobaltWebContentsObserver::CobaltWebContentsObserver(
     content::WebContents* web_contents)
@@ -47,5 +110,112 @@ CobaltWebContentsObserver::CobaltWebContentsObserver(
 }
 
 CobaltWebContentsObserver::~CobaltWebContentsObserver() = default;
+
+#if BUILDFLAG(IS_STARBOARD)
+void CobaltWebContentsObserver::DidStartNavigation(
+    content::NavigationHandle* handle) {
+  LOG(INFO) << "DidStartNavigation to: " << handle->GetURL();
+  if (!handle->IsInPrimaryMainFrame()) {
+    LOG(INFO) << "DidStartNavigation: navigation to " << handle->GetURL()
+              << " not in primary mainframe, returning";
+    return;
+  }
+  LOG(INFO) << "DidStartNavigation: navigation to " << handle->GetURL()
+            << " in primary mainframe";
+
+  latest_navigation_id_ = handle->GetNavigationId();
+
+  // Start a navigation timer with a timeout callback to raise a
+  // network error dialog
+  timeout_timer_.Stop();
+  timeout_timer_.Start(
+      FROM_HERE, base::Seconds(kNavigationTimeoutSeconds),
+      base::BindOnce(&CobaltWebContentsObserver::RaisePlatformError,
+                     weak_factory_.GetWeakPtr(), latest_navigation_id_));
+}
+
+void CobaltWebContentsObserver::DidFinishNavigation(
+    content::NavigationHandle* navigation_handle) {
+  if (!navigation_handle->IsInPrimaryMainFrame()) {
+    return;
+  }
+  if (navigation_handle->GetNavigationId() != latest_navigation_id_) {
+    return;
+  }
+
+  timeout_timer_.Stop();
+  const auto net_error_code = navigation_handle->GetNetErrorCode();
+  if (net_error_code != net::OK && net_error_code != net::ERR_ABORTED) {
+    LOG(INFO) << "DidFinishNavigation: Raising platform error with code: "
+              << net::ErrorToString(net_error_code);
+    RaisePlatformError(navigation_handle->GetNavigationId());
+  } else if (net_error_code == net::OK) {
+    platform_error_raised_count_ = 0;
+  }
+}
+
+void CobaltWebContentsObserver::RaisePlatformError(int64_t navigation_id) {
+  if (is_platform_error_showing_) {
+    if (pending_platform_error_bridge_) {
+      pending_platform_error_bridge_->set_navigation_id(navigation_id);
+    }
+    return;
+  }
+  if (navigation_id != latest_navigation_id_) {
+    LOG(INFO) << "Ignoring stale platform error request for navigation "
+              << navigation_id;
+    return;
+  }
+  is_platform_error_showing_ = true;
+  platform_error_raised_count_++;
+  base::UmaHistogramCounts100("Cobalt.Network.PlatformErrorCount",
+                              platform_error_raised_count_);
+  auto* bridge =
+      new PlatformErrorBridge(weak_factory_.GetWeakPtr(), navigation_id);
+  pending_platform_error_bridge_ = bridge;
+  if (!SbSystemRaisePlatformError(
+          kSbSystemPlatformErrorTypeConnectionError,
+          &CobaltWebContentsObserver::HandlePlatformErrorResponse, bridge)) {
+    LOG(WARNING) << "Did not handle platform error";
+    is_platform_error_showing_ = false;
+    if (pending_platform_error_bridge_ == bridge) {
+      delete bridge;
+      pending_platform_error_bridge_ = nullptr;
+    }
+  }
+}
+
+// static
+void CobaltWebContentsObserver::HandlePlatformErrorResponse(
+    SbSystemPlatformErrorResponse response,
+    void* user_data) {
+  auto* bridge = static_cast<PlatformErrorBridge*>(user_data);
+  bridge->Run(response);
+}
+
+void CobaltWebContentsObserver::OnPlatformErrorResponse(
+    SbSystemPlatformErrorResponse response,
+    int64_t navigation_id) {
+  pending_platform_error_bridge_ = nullptr;
+  is_platform_error_showing_ = false;
+  if (navigation_id != latest_navigation_id_) {
+    LOG(INFO) << "Ignoring stale platform error response for navigation "
+              << navigation_id;
+    return;
+  }
+#if !BUILDFLAG(IS_ANDROID)
+  if (response == kSbSystemPlatformErrorResponsePositive) {
+    LOG(INFO) << "Platform error response is POSITIVE. Reloading...";
+    if (web_contents()) {
+      web_contents()->GetController().Reload(content::ReloadType::NORMAL,
+                                             /*check_for_repost=*/false);
+    }
+  } else {
+    LOG(INFO) << "Platform error response is NEGATIVE/CANCEL. Stopping app...";
+    SbSystemRequestStop(0);
+  }
+#endif
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 }  // namespace cobalt
