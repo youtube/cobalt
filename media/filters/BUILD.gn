@@ -84,7 +84,7 @@ source_set("filters") {
   ]
 
   if (use_starboard_media) {
-        deps += [ "//starboard:starboard_headers_only" ]
+    deps += [ "//starboard:starboard_headers_only" ]
   }
 
   libs = []

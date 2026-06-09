@@ -7,8 +7,11 @@
 
 #include "media/base/audio_decoder_config.h"
 #include "media/base/ipc/media_param_traits.h"
-#include "media/media_buildflags.h"
 #include "media/mojo/mojom/media_types.mojom.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include <string_view>
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace mojo {
 
@@ -76,7 +79,7 @@ struct StructTraits<media::mojom::AudioDecoderConfigDataView,
     return input.is_change_type_transition();
   }
 
-  static const std::string& mime_type(const media::AudioDecoderConfig& input) {
+  static std::string_view mime_type(const media::AudioDecoderConfig& input) {
     return input.mime_type();
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)

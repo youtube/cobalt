@@ -9,13 +9,16 @@
 
 #include "media/base/ipc/media_param_traits.h"
 #include "media/base/video_decoder_config.h"
-#include "media/media_buildflags.h"
 #include "media/mojo/mojom/media_types.mojom.h"
 #include "media/mojo/mojom/video_aspect_ratio_mojom_traits.h"
 #include "media/mojo/mojom/video_color_space_mojom_traits.h"
 #include "media/mojo/mojom/video_transformation_mojom_traits.h"
 #include "ui/gfx/geometry/mojom/geometry_mojom_traits.h"
 #include "ui/gfx/mojom/hdr_metadata_mojom_traits.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include <string_view>
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace mojo {
 
@@ -87,7 +90,7 @@ struct StructTraits<media::mojom::VideoDecoderConfigDataView,
     return input.is_change_type_transition();
   }
 
-  static const std::string& mime_type(const media::VideoDecoderConfig& input) {
+  static std::string_view mime_type(const media::VideoDecoderConfig& input) {
     return input.mime_type();
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)

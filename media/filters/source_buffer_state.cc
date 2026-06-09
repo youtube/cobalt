@@ -167,8 +167,8 @@ void SourceBufferState::Init(StreamParser::InitCB init_cb,
 void SourceBufferState::ChangeType(
     std::unique_ptr<StreamParser> new_stream_parser,
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    const std::string& new_expected_codecs,
-    const std::string& new_mime_type) {
+    std::string_view new_expected_codecs,
+    std::string_view new_mime_type) {
 #else  // BUILDFLAG(USE_STARBOARD_MEDIA)
     const std::string& new_expected_codecs) {
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
