@@ -292,8 +292,19 @@ public class AudioTrackBridge {
   }
 
   @CalledByNative
-  public Object getPreAllocatedAudioData() {
-    return mPreAllocatedAudioData;
+  public float[] getPreAllocatedFloatArray() {
+    if (mPreAllocatedAudioData instanceof float[]) {
+      return (float[]) mPreAllocatedAudioData;
+    }
+    return null;
+  }
+
+  @CalledByNative
+  public byte[] getPreAllocatedByteArray() {
+    if (mPreAllocatedAudioData instanceof byte[]) {
+      return (byte[]) mPreAllocatedAudioData;
+    }
+    return null;
   }
 
   // TODO (b/262608024): Have this method return a boolean and return false on failure.
