@@ -109,7 +109,6 @@ class PlatformWindowStarboard : public PlatformWindow,
   ActivationState activation_state_ = ActivationState::kUnknown;
 
   bool waiting_for_reveal_ack_ = false;
-  bool needs_egl_recreation_on_first_focus_ = false;
 };
 
 }  // namespace ui

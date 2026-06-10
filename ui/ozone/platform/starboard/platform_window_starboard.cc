@@ -67,9 +67,6 @@ void PlatformWindowStarboard::ClearWindowDestroyedCallback() {
 
 void PlatformWindowStarboard::SetWaitingForRevealAck(bool waiting) {
   waiting_for_reveal_ack_ = waiting;
-  if (waiting) {
-    needs_egl_recreation_on_first_focus_ = true;
-  }
 }
 
 PlatformWindowStarboard::PlatformWindowStarboard(
@@ -118,13 +115,6 @@ void PlatformWindowStarboard::ProcessWindowSizeChangedEvent(int width,
 
 void PlatformWindowStarboard::ProcessFocusEvent(bool is_focused) {
   if (is_focused) {
-    if (needs_egl_recreation_on_first_focus_) {
-      needs_egl_recreation_on_first_focus_ = false;
-      LOG(INFO) << "Recreating EGL surface on first focus to work around webOS "
-                   "preload bug.";
-      Hide();
-      Show(false);
-    }
     Activate();
   } else {
     Deactivate();
