@@ -47,6 +47,7 @@ ANativeWindow* g_native_video_window = NULL;
 VideoSurfaceHolder* g_video_surface_holder = NULL;
 // Global boolean to indicate if we need to reset SurfaceView after playing
 // vertical video.
+// TODO: b/521503666 - Revisit to see if we need this variable or not.
 bool g_reset_surface_on_clear_window = false;
 
 void ClearNativeWindow(void* raw_context) {
@@ -97,7 +98,7 @@ void ClearNativeWindow(void* raw_context) {
     }
   }
   if (surface == EGL_NO_SURFACE) {
-    SB_LOG(ERROR) << "Found no EGL surface in ClearVideoWindow";
+    SB_LOG(ERROR) << "Found no EGL surface in ClearNativeWindow";
     return;
   }
 
@@ -207,30 +208,26 @@ void VideoSurfaceHolder::CleanUpVideoWindow(
   std::lock_guard lock(*GetViewSurfaceMutex());
 
   if (!g_native_video_window) {
-    SB_LOG(INFO) << "Tried to clear video window when it was null.";
+    SB_LOG(INFO) << "Tried to clean up video window when it was null.";
     return;
   }
 
   JNIEnv* env = AttachCurrentThread();
   if (!env) {
-    SB_LOG(INFO) << "Tried to clear video window when JNIEnv was null.";
+    SB_LOG(INFO) << "Tried to clean up video window when JNIEnv was null.";
     return;
   }
 
   if (force_clear) {
-    if (!gpu_provider) {
-      SB_LOG(WARNING) << "gpu_provider is null in ClearVideoWindow, will force "
-                         "reset surface.";
-    } else {
-      gpu_provider->gles_context_runner(gpu_provider, &ClearNativeWindow,
-                                        g_native_video_window);
-      SB_LOG(INFO) << "Video surface has been cleared.";
-      return;
-    }
+    SB_CHECK(gpu_provider);
+    gpu_provider->gles_context_runner(gpu_provider, &ClearNativeWindow,
+                                      g_native_video_window);
+    SB_LOG(INFO) << "Video surface has been cleared.";
+    return;
   }
 
   StarboardBridge::GetInstance()->ResetVideoSurface(env);
-  SB_LOG(INFO) << "Video surface has been reset.";
+  SB_LOG(INFO) << "Video surface has been reset (default behavior).";
 }
 
 }  // namespace starboard
