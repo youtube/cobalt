@@ -392,7 +392,7 @@ def main() -> int:
   trigger_args.add_argument(
       '--test_attempts',
       type=str,
-      default='0',
+      default='1',
       help='The maximum number of times a test can retry.',
   )
   trigger_args.add_argument(

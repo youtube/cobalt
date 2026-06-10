@@ -72,17 +72,18 @@ std::unique_ptr<AudioTrackBridge> AudioTrackBridge::Create(
   if (coding_type != kSbMediaAudioCodingTypePcm) {
     SB_DCHECK(!sample_type);
     max_samples_per_write = kMaxFramesPerRequest;
-    j_audio_data.Reset(env, env->NewByteArray(max_samples_per_write));
+    j_audio_data = ScopedJavaLocalRef<jbyteArray>(
+        env, env->NewByteArray(max_samples_per_write));
   } else if (sample_type == kSbMediaAudioSampleTypeFloat32) {
     max_samples_per_write = channels * kMaxFramesPerRequest;
-    j_audio_data.Reset(env,
-                       env->NewFloatArray(channels * kMaxFramesPerRequest));
+    j_audio_data = ScopedJavaLocalRef<jfloatArray>(
+        env, env->NewFloatArray(channels * kMaxFramesPerRequest));
   } else if (sample_type == kSbMediaAudioSampleTypeInt16Deprecated) {
     max_samples_per_write = channels * kMaxFramesPerRequest;
-    j_audio_data.Reset(
-        env,
-        env->NewByteArray(channels * GetBytesPerSample(sample_type.value()) *
-                          kMaxFramesPerRequest));
+    int size_in_bytes = channels * GetBytesPerSample(sample_type.value()) *
+                        kMaxFramesPerRequest;
+    j_audio_data =
+        ScopedJavaLocalRef<jbyteArray>(env, env->NewByteArray(size_in_bytes));
   } else {
     SB_NOTREACHED();
   }

@@ -18,7 +18,7 @@
 #include <type_traits>
 
 #include "starboard/common/log.h"
-#include "starboard/extension/experimental_features.h"
+#include "starboard/extension/experimental/experimental_features.h"
 
 namespace starboard {
 
@@ -68,12 +68,16 @@ void SetExperimentalFeaturesForCurrentThread(
       extension_features->disable_low_performance_sw_decoder;
   experiment_features.enable_av1_startup_optimization =
       extension_features->enable_av1_startup_optimization;
+  experiment_features.enable_low_latency =
+      extension_features->enable_low_latency;
   experiment_features.enable_video_renderer_vsp_adjustment =
       extension_features->enable_video_renderer_vsp_adjustment;
   experiment_features.flush_audio_track_during_seek =
       extension_features->flush_audio_track_during_seek;
   experiment_features.flush_decoder_during_reset =
       extension_features->flush_decoder_during_reset;
+  experiment_features.ignore_mediacodec_callbacks_during_flushing =
+      extension_features->ignore_mediacodec_callbacks_during_flushing;
   experiment_features.reset_audio_decoder =
       extension_features->reset_audio_decoder;
   experiment_features.skip_flush_on_decoder_teardown =

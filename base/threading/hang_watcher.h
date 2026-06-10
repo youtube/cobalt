@@ -177,6 +177,14 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   // Thread safe functions to verify if hang watching is activated. If called
   // before InitializeOnMainThread returns the default value which is false.
   static bool IsEnabled();
+#if BUILDFLAG(IS_COBALT)
+  // suspends hang watching when the application is frozen.
+  static void Suspend();
+
+  // resumes hang watching after the application is unfrozen, ignoring
+  // pre-freeze deadlines.
+  static void Resume();
+#endif
   static bool IsThreadPoolHangWatchingEnabled();
   static bool IsIOThreadHangWatchingEnabled();
   static bool IsCompositorThreadHangWatchingEnabled();
