@@ -4,8 +4,11 @@
 
 #include "content/browser/loader/subresource_proxying_url_loader.h"
 
-#include "content/public/common/content_milestone_features.h"
+// clang-format off
+// Remove these two includes after CHROMIUM_MILESTONE_LE_138
 #include "content/public/common/buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+// clang-format on
 
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/browsing_topics/browsing_topics_url_loader_interceptor.h"

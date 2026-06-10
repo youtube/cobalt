@@ -4,6 +4,12 @@
 
 #include "content/browser/devtools/protocol/storage_handler.h"
 
+// clang-format off
+// Remove these two includes after CHROMIUM_MILESTONE_LE_138
+#include "content/public/common/buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+// clang-format on
+
 #include <stdint.h>
 
 #include <memory>
@@ -99,7 +105,7 @@ using SetCookiesCallback = Storage::Backend::SetCookiesCallback;
 
 struct UsageListInitializer {
   const char* type;
-  int64_t blink::mojom::UsageBreakdown::*usage_member;
+  int64_t blink::mojom::UsageBreakdown::* usage_member;
 };
 
 UsageListInitializer initializers[] = {
@@ -1458,8 +1464,8 @@ void StorageHandler::ClearSharedStorageEntries(
           &DispatchSharedStorageCallback<ClearSharedStorageEntriesCallback>,
           std::move(callback)));
 }
-
 Response StorageHandler::SetSharedStorageTracking(bool enable) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (enable) {
     auto* manager = GetSharedStorageRuntimeManager();
     if (!manager) {
@@ -1475,6 +1481,9 @@ Response StorageHandler::SetSharedStorageTracking(bool enable) {
     shared_storage_observation_.Reset();
   }
   return Response::Success();
+#else
+  return Response::ServerError("Shared storage is disabled.");
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void StorageHandler::ResetSharedStorageBudget(
@@ -1795,6 +1804,7 @@ AttributionManager* StorageHandler::GetAttributionManager() {
 void StorageHandler::SetAttributionReportingLocalTestingMode(
     bool enabled,
     std::unique_ptr<SetAttributionReportingLocalTestingModeCallback> callback) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   auto* manager = GetAttributionManager();
   if (!manager) {
     callback->sendFailure(Response::InternalError());
@@ -1806,6 +1816,10 @@ void StorageHandler::SetAttributionReportingLocalTestingMode(
       base::BindOnce(
           &SetAttributionReportingLocalTestingModeCallback::sendSuccess,
           std::move(callback)));
+#else
+  callback->sendFailure(
+      Response::ServerError("Attribution Reporting is disabled."));
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 #else
 void StorageHandler::SetAttributionReportingLocalTestingMode(
@@ -1819,6 +1833,7 @@ void StorageHandler::SetAttributionReportingLocalTestingMode(
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 void StorageHandler::SendPendingAttributionReports(
     std::unique_ptr<SendPendingAttributionReportsCallback> callback) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   auto* manager = GetAttributionManager();
   if (!manager) {
     callback->sendFailure(Response::InternalError());
@@ -1849,6 +1864,10 @@ void StorageHandler::SendPendingAttributionReports(
             }
           },
           weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+#else
+  callback->sendFailure(
+      Response::ServerError("Attribution Reporting is disabled."));
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 #else
 void StorageHandler::SendPendingAttributionReports(
@@ -1860,6 +1879,7 @@ void StorageHandler::SendPendingAttributionReports(
 
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 void StorageHandler::ResetAttributionReporting() {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   attribution_observation_.Reset();
 
   auto* manager = GetAttributionManager();
@@ -1868,6 +1888,7 @@ void StorageHandler::ResetAttributionReporting() {
   }
 
   manager->SetDebugMode(/*enabled=*/std::nullopt, base::DoNothing());
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 #else
 void StorageHandler::ResetAttributionReporting() {}

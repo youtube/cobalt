@@ -4,6 +4,12 @@
 
 #include "content/browser/loader/navigation_url_loader_impl.h"
 
+// clang-format off
+// Remove these two includes after CHROMIUM_MILESTONE_LE_138
+#include "content/public/common/buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+// clang-format on
+
 #include <map>
 #include <memory>
 #include <optional>

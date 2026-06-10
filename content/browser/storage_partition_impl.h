@@ -80,7 +80,7 @@ class DeviceBoundSessionAccessObserver;
 namespace storage {
 struct BucketClientInfo;
 class SharedStorageManager;
-}
+}  // namespace storage
 
 namespace content {
 
@@ -155,18 +155,23 @@ class CONTENT_EXPORT StoragePartitionImpl
       BackgroundSyncContextImpl* background_sync_context);
   void OverrideSharedWorkerServiceForTesting(
       std::unique_ptr<SharedWorkerServiceImpl> shared_worker_service);
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   void OverrideSharedStorageRuntimeManagerForTesting(
       std::unique_ptr<SharedStorageRuntimeManager>
           shared_storage_runtime_manager);
   void OverrideSharedStorageHeaderObserverForTesting(
       std::unique_ptr<SharedStorageHeaderObserver>
           shared_storage_header_observer);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+
   void OverrideAggregationServiceForTesting(
       std::unique_ptr<AggregationService> aggregation_service);
+
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   void OverrideAttributionManagerForTesting(
       std::unique_ptr<AttributionManager> attribution_manager);
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+
   void OverridePrivateAggregationManagerForTesting(
       std::unique_ptr<PrivateAggregationManagerImpl>
           private_aggregation_manager);
@@ -414,7 +419,11 @@ class CONTENT_EXPORT StoragePartitionImpl
       const std::optional<url::Origin>& top_frame_origin) override;
 
   SharedStorageHeaderObserver* shared_storage_header_observer() {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
     return shared_storage_header_observer_.get();
+#else
+    return nullptr;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   }
 
 #if BUILDFLAG(IS_MAC)
@@ -813,13 +822,11 @@ class CONTENT_EXPORT StoragePartitionImpl
   scoped_refptr<ContentIndexContextImpl> content_index_context_;
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   std::unique_ptr<AttributionManager> attribution_manager_;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
-  std::unique_ptr<FontAccessManager> font_access_manager_;
-  std::unique_ptr<InterestGroupManagerImpl> interest_group_manager_;
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   std::unique_ptr<BrowsingTopicsSiteDataManager>
       browsing_topics_site_data_manager_;
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+  std::unique_ptr<FontAccessManager> font_access_manager_;
+  std::unique_ptr<InterestGroupManagerImpl> interest_group_manager_;
   std::unique_ptr<AggregationService> aggregation_service_;
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
   std::unique_ptr<CdmStorageManager> cdm_storage_manager_;
@@ -827,6 +834,7 @@ class CONTENT_EXPORT StoragePartitionImpl
   mojo::Remote<network::mojom::DeviceBoundSessionManager>
       device_bound_session_manager_;
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   // Owning pointer to the SharedStorageManager for this partition.
   std::unique_ptr<storage::SharedStorageManager> shared_storage_manager_;
 
@@ -838,6 +846,7 @@ class CONTENT_EXPORT StoragePartitionImpl
 
   // Owning pointer to the `SharedStorageHeaderObserver` for this partition.
   std::unique_ptr<SharedStorageHeaderObserver> shared_storage_header_observer_;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   std::unique_ptr<PrivateAggregationManagerImpl> private_aggregation_manager_;
 

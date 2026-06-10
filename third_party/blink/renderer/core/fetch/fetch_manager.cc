@@ -4,6 +4,12 @@
 
 #include "third_party/blink/renderer/core/fetch/fetch_manager.h"
 
+// clang-format off
+// Remove these two includes after CHROMIUM_MILESTONE_LE_138
+#include "third_party/blink/public/public_buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+// clang-format on
+
 #include <inttypes.h>
 #include <stdint.h>
 
@@ -31,8 +37,6 @@
 #include "services/network/public/mojom/trust_tokens.mojom-blink.h"
 #include "services/network/public/mojom/url_loader_factory.mojom-blink.h"
 #include "third_party/blink/public/common/features.h"
-#include "content/public/common/content_milestone_features.h"
-#include "third_party/blink/public/public_buildflags.h"
 #include "third_party/blink/public/common/scheme_registry.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/mojom/loader/code_cache.mojom-blink.h"
@@ -200,8 +204,9 @@ bool IsFetchLaterSendOnEnterBackForwardCacheEnabled() {
 
 bool HasNonEmptyLocationHeader(const FetchHeaderList* headers) {
   String value;
-  if (!headers->Get(http_names::kLocation, value))
+  if (!headers->Get(http_names::kLocation, value)) {
     return false;
+  }
   return !value.empty();
 }
 
@@ -522,8 +527,9 @@ class FetchManager::Loader final
           buffer_.Append(buffer);
           result = body_->EndRead(buffer.size());
         }
-        if (result == Result::kShouldWait)
+        if (result == Result::kShouldWait) {
           return;
+        }
       }
 
       String error_message;
@@ -680,8 +686,9 @@ bool FetchManager::Loader::WillFollowRedirect(
     DidReceiveResponse(unused, response);
     DidStartLoadingResponseBody(*BytesConsumer::CreateClosed());
 
-    if (threadable_loader_)
+    if (threadable_loader_) {
       NotifyFinished();
+    }
 
     Dispose();
     return false;
@@ -994,8 +1001,9 @@ void FetchManager::Loader::Dispose() {
     }
     threadable_loader_ = nullptr;
   }
-  if (integrity_verifier_)
+  if (integrity_verifier_) {
     integrity_verifier_->Cancel();
+  }
   SetExecutionContext(nullptr);
 }
 
@@ -1270,8 +1278,9 @@ void FetchManager::Loader::CreateLoader(
 bool FetchLoaderBase::AddConsoleMessage(
     const String& message,
     std::optional<base::UnguessableToken> issue_id) {
-  if (execution_context_->IsContextDestroyed())
+  if (execution_context_->IsContextDestroyed()) {
     return false;
+  }
   if (!message.empty() &&
       !base::FeatureList::IsEnabled(features::kDevToolsImprovedNetworkError)) {
     // CORS issues are reported via network service instrumentation, with the
@@ -1317,8 +1326,9 @@ void FetchManager::Loader::Failed(
 }
 
 void FetchManager::Loader::NotifyFinished() {
-  if (fetch_manager_)
+  if (fetch_manager_) {
     fetch_manager_->OnLoaderFinished(this);
+  }
 }
 
 bool FetchManager::Loader::IsDeferred() const {

@@ -58,7 +58,10 @@
 #include "components/variations/net/variations_http_headers.h"
 #include "content/browser/aggregation_service/aggregation_service.h"
 #include "content/browser/aggregation_service/aggregation_service_impl.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#include "content/browser/attribution_reporting/attribution_manager.h"
 #include "content/browser/attribution_reporting/attribution_manager_impl.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/background_fetch/background_fetch_context.h"
 #include "content/browser/blob_storage/blob_registry_wrapper.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
@@ -107,8 +110,10 @@
 #include "content/browser/renderer_host/navigation_state_keep_alive.h"
 #include "content/browser/service_worker/service_worker_client.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/shared_storage/shared_storage_header_observer.h"
 #include "content/browser/shared_storage/shared_storage_runtime_manager.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/ssl/ssl_client_auth_handler.h"
 #include "content/browser/ssl/ssl_error_handler.h"
 #include "content/browser/ssl_private_key_impl.h"
@@ -1359,8 +1364,10 @@ void StoragePartitionImpl::Initialize(
 
   lock_manager_ = std::make_unique<LockManager<storage::BucketId>>();
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   shared_storage_runtime_manager_ =
       std::make_unique<SharedStorageRuntimeManager>(*this);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   scoped_refptr<ChromeBlobStorageContext> blob_context =
       ChromeBlobStorageContext::GetFor(browser_context_);
@@ -1556,6 +1563,7 @@ void StoragePartitionImpl::Initialize(
   }
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (base::FeatureList::IsEnabled(network::features::kSharedStorageAPI)) {
     base::FilePath shared_storage_path =
         is_in_memory() ? base::FilePath()
@@ -1565,6 +1573,7 @@ void StoragePartitionImpl::Initialize(
     shared_storage_header_observer_ =
         std::make_unique<SharedStorageHeaderObserver>(this);
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   if (base::FeatureList::IsEnabled(blink::features::kPrivateAggregationApi)) {
     private_aggregation_manager_ =
@@ -1708,7 +1717,11 @@ LockManager<storage::BucketId>* StoragePartitionImpl::GetLockManager() {
 SharedStorageRuntimeManager*
 StoragePartitionImpl::GetSharedStorageRuntimeManager() {
   DCHECK(initialized_);
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   return shared_storage_runtime_manager_.get();
+#else
+  return nullptr;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 storage::mojom::IndexedDBControl& StoragePartitionImpl::GetIndexedDBControl() {
@@ -1942,7 +1955,11 @@ StoragePartitionImpl::GetProtoDatabaseProviderForTesting() {
 }
 
 storage::SharedStorageManager* StoragePartitionImpl::GetSharedStorageManager() {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   return shared_storage_manager_.get();
+#else
+  return nullptr;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 PrivateAggregationManager*
@@ -2479,6 +2496,7 @@ void StoragePartitionImpl::OnSharedStorageHeaderReceived(
         methods_with_options,
     const std::optional<std::string>& with_lock,
     OnSharedStorageHeaderReceivedCallback callback) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (!shared_storage_header_observer_) {
     std::move(callback).Run();
     return;
@@ -2499,6 +2517,9 @@ void StoragePartitionImpl::OnSharedStorageHeaderReceived(
       request_origin, url_loader_network_observers_.current_context().type(),
       navigation_or_document, std::move(methods_with_options), with_lock,
       std::move(callback), mojo::GetBadMessageCallback(), /*can_defer=*/true);
+#else
+  std::move(callback).Run();
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void StoragePartitionImpl::OnAdAuctionEventRecordHeaderReceived(
@@ -2788,7 +2809,7 @@ void StoragePartitionImpl::ClearDataImpl(
       nullptr,
 #endif
       aggregation_service_.get(), private_aggregation_manager_.get(),
-      shared_storage_manager_.get(),
+      GetSharedStorageManager(),
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
       cdm_storage_manager_.get(),
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
@@ -3196,7 +3217,7 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
         mojo::WrapCallbackWithDefaultInvokeIfNotRun(
             CreateTaskCompletionClosure(TracingDataType::kPrivateAggregation)));
   }
-
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (base::FeatureList::IsEnabled(network::features::kSharedStorageAPI) &&
       shared_storage_manager &&
       (remove_mask_ & REMOVE_DATA_MASK_SHARED_STORAGE)) {
@@ -3216,6 +3237,7 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
         combined_storage_key_matcher, begin, end,
         std::move(shared_storage_purge_callback), perform_storage_cleanup);
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   if (remove_mask_ & REMOVE_DATA_MASK_DEVICE_BOUND_SESSIONS &&
       device_bound_session_manager) {
@@ -3551,6 +3573,7 @@ void StoragePartitionImpl::OverrideSharedWorkerServiceForTesting(
   shared_worker_service_ = std::move(shared_worker_service);
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 void StoragePartitionImpl::OverrideSharedStorageRuntimeManagerForTesting(
     std::unique_ptr<SharedStorageRuntimeManager>
         shared_storage_runtime_manager) {
@@ -3564,6 +3587,7 @@ void StoragePartitionImpl::OverrideSharedStorageHeaderObserverForTesting(
   DCHECK(initialized_);
   shared_storage_header_observer_ = std::move(shared_storage_header_observer);
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 void StoragePartitionImpl::OverrideAggregationServiceForTesting(
     std::unique_ptr<AggregationService> aggregation_service) {
@@ -3875,8 +3899,7 @@ StoragePartitionImpl::URLLoaderNetworkContext::~URLLoaderNetworkContext() =
 StoragePartitionImpl::URLLoaderNetworkContext
 StoragePartitionImpl::URLLoaderNetworkContext::CreateForRenderFrameHost(
     GlobalRenderFrameHostId render_frame_host_id) {
-  return StoragePartitionImpl::URLLoaderNetworkContext(
-      render_frame_host_id);
+  return StoragePartitionImpl::URLLoaderNetworkContext(render_frame_host_id);
 }
 
 StoragePartitionImpl::URLLoaderNetworkContext

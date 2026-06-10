@@ -4,6 +4,7 @@
 
 import("//build/config/cast.gni")
 import("//build/config/python.gni")
+import("//content/public/common/features.gni")
 import("//media/media_options.gni")
 import("//services/device/public/cpp/compute_pressure/buildflags.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
@@ -175,6 +176,16 @@ component("modules") {
     "//third_party/blink/renderer/modules/xr",
   ]
 
+  # If in the future privacy sandbox components are removed from the code base, ignore this if block.
+  if (!enable_privacy_sandbox_apis) {
+    sub_modules -= [
+      "//third_party/blink/renderer/modules/browsing_topics",
+      "//third_party/blink/renderer/modules/private_attribution",
+      "//third_party/blink/renderer/modules/shared_storage",
+      "//third_party/blink/renderer/modules/storage_access",
+    ]
+  }
+
   if (is_cobalt) {
     sub_modules -= [
       "//third_party/blink/renderer/modules/ml",
@@ -206,7 +217,6 @@ component("modules") {
         "//third_party/blink/renderer/modules/cobalt/mediasource",
       ]
     }
-
   }
 
   if (!use_webrtc_peer_connection) {
@@ -813,6 +823,12 @@ source_set("unit_tests") {
     "//v8",
   ]
 
+  # If in the future privacy sandbox components are removed from the code base, ignore this if block.
+  if (!enable_privacy_sandbox_apis) {
+    sources -= [ "shared_storage/shared_storage_worklet_unittest.cc" ]
+    deps -= [ "//third_party/blink/renderer/modules/storage_access:unit_tests" ]
+  }
+
   if (is_cobalt) {
     deps += [ "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments:experiments_utils" ]
     deps -= [
@@ -821,11 +837,11 @@ source_set("unit_tests") {
       "//third_party/blink/renderer/modules/webgpu:unit_tests",
     ]
     sources -= [
+      "bluetooth/bluetooth_uuid_unittest.cc",
+      "nfc/nfc_proxy_test.cc",
       "xr/xr_rigid_transform_test.cc",
       "xr/xr_test_utils.cc",
       "xr/xr_view_test.cc",
-      "bluetooth/bluetooth_uuid_unittest.cc",
-      "nfc/nfc_proxy_test.cc",
     ]
   }
 

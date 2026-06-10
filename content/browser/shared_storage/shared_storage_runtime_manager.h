@@ -8,6 +8,12 @@
 #include <map>
 #include <memory>
 
+// clang-format off
+// Remove these two includes after CHROMIUM_MILESTONE_LE_138
+#include "content/public/common/buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+// clang-format on
+
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
 #include "base/scoped_observation_traits.h"
@@ -209,13 +215,17 @@ struct ScopedObservationTraits<
       content::SharedStorageRuntimeManager* source,
       content::SharedStorageRuntimeManager::SharedStorageObserverInterface*
           observer) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
     source->AddSharedStorageObserver(observer);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   }
   static void RemoveObserver(
       content::SharedStorageRuntimeManager* source,
       content::SharedStorageRuntimeManager::SharedStorageObserverInterface*
           observer) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
     source->RemoveSharedStorageObserver(observer);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   }
 };
 

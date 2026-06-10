@@ -4,6 +4,12 @@
 
 #include "content/browser/renderer_host/page_impl.h"
 
+// clang-format off
+// Remove these two includes after CHROMIUM_MILESTONE_LE_138
+#include "content/public/common/buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+// clang-format on
+
 #include "base/barrier_closure.h"
 #include "base/feature_list.h"
 #include "base/i18n/character_encoding.h"
@@ -18,7 +24,9 @@
 #include "content/browser/renderer_host/render_frame_proxy_host.h"
 #include "content/browser/renderer_host/render_view_host_delegate.h"
 #include "content/browser/renderer_host/render_view_host_impl.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/shared_storage/shared_storage_features.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/peak_gpu_memory_tracker_factory.h"
 #include "content/public/browser/render_view_host.h"
@@ -37,12 +45,14 @@ PageImpl::PageImpl(RenderFrameHostImpl& rfh, PageDelegate& delegate)
     : main_document_(rfh),
       delegate_(delegate),
       text_autosizer_page_info_({0, 0, 1.f}) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (base::FeatureList::IsEnabled(features::kSharedStorageSelectURLLimit)) {
     select_url_overall_budget_ =
         features::kSharedStorageSelectURLBitBudgetPerPageLoad.Get();
     select_url_max_bits_per_site_ =
         features::kSharedStorageSelectURLBitBudgetPerSitePerPageLoad.Get();
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 #if BUILDFLAG(IS_ANDROID)
   page_proxy_ = std::make_unique<PageProxy>(this);
@@ -404,6 +414,7 @@ int32_t PageImpl::GetSavedQueryResultIndexOrStoreCallback(
     const std::string& operation_name,
     const std::u16string& query_name,
     base::OnceCallback<void(uint32_t)> callback) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   auto key = std::make_tuple(origin, script_url, operation_name, query_name);
   auto it = select_url_saved_query_index_results_.find(key);
   if (it == select_url_saved_query_index_results_.end()) {
@@ -422,6 +433,10 @@ int32_t PageImpl::GetSavedQueryResultIndexOrStoreCallback(
   // The result index has been stored from a previously resolved worklet
   // operation.
   return it->second.index;
+#else
+  // Return -2 to indicate that shared storage is disabled/unavailable.
+  return -2;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void PageImpl::SetSavedQueryResultIndexAndRunCallbacks(
@@ -430,6 +445,7 @@ void PageImpl::SetSavedQueryResultIndexAndRunCallbacks(
     const std::string& operation_name,
     const std::u16string& query_name,
     uint32_t index) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   auto key = std::make_tuple(origin, script_url, operation_name, query_name);
   auto it = select_url_saved_query_index_results_.find(key);
   CHECK(it != select_url_saved_query_index_results_.end());
@@ -439,11 +455,13 @@ void PageImpl::SetSavedQueryResultIndexAndRunCallbacks(
     std::move(it->second.callbacks.front()).Run(index);
     it->second.callbacks.pop();
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 blink::SharedStorageSelectUrlBudgetStatus
 PageImpl::CheckAndMaybeDebitSelectURLBudgets(const net::SchemefulSite& site,
                                              double bits_to_charge) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (!select_url_overall_budget_) {
     // The limits are not enabled.
     return blink::SharedStorageSelectUrlBudgetStatus::kSufficientBudget;
@@ -484,6 +502,9 @@ PageImpl::CheckAndMaybeDebitSelectURLBudgets(const net::SchemefulSite& site,
   // Charge the overall budget.
   select_url_overall_budget_.value() -= bits_to_charge;
   return blink::SharedStorageSelectUrlBudgetStatus::kSufficientBudget;
+#else
+  return blink::SharedStorageSelectUrlBudgetStatus::kSufficientBudget;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void PageImpl::TakeLoadingMemoryTracker(NavigationRequest* request) {

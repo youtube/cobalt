@@ -32,7 +32,9 @@
 #include "content/browser/renderer_host/render_frame_host_delegate.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/renderer_host/render_view_host_impl.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/shared_storage/shared_storage_document_service_impl.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/common/dom_automation_controller.mojom.h"
 #include "content/common/frame.mojom.h"
 #include "content/public/browser/active_url_message_filter.h"
@@ -84,8 +86,9 @@ class MessageFilterChain final : public mojo::MessageFilter {
 
   bool WillDispatch(mojo::Message* message) override {
     for (auto& filter : filters_) {
-      if (!filter->WillDispatch(message))
+      if (!filter->WillDispatch(message)) {
         return false;
+      }
     }
     return true;
   }
@@ -124,8 +127,9 @@ class BackForwardCacheMessageFilter : public mojo::MessageFilter {
  private:
   // mojo::MessageFilter overrides.
   bool WillDispatch(mojo::Message* message) override {
-    if (!render_frame_host_->render_view_host())
+    if (!render_frame_host_->render_view_host()) {
       return false;
+    }
     if (render_frame_host_->render_view_host()
             ->GetPageLifecycleStateManager()
             ->RendererExpectedToSendChannelAssociatedIpcs() ||
@@ -229,6 +233,7 @@ void RenderFrameHostImpl::SetUpMojoConnection() {
           },
           base::Unretained(this)));
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (base::FeatureList::IsEnabled(network::features::kSharedStorageAPI)) {
     associated_registry_->AddInterface<
         blink::mojom::SharedStorageDocumentService>(base::BindRepeating(
@@ -270,6 +275,7 @@ void RenderFrameHostImpl::SetUpMojoConnection() {
         },
         base::Unretained(this)));
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   if (is_main_frame()) {
     associated_registry_->AddInterface<blink::mojom::LocalMainFrameHost>(
