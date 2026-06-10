@@ -89,10 +89,10 @@ DecoderBufferAllocator* DecoderBufferAllocator::Get() {
 }
 
 void DecoderBufferAllocator::Suspend() {
-  base::AutoLock scoped_lock(mutex_);
   if (is_memory_pool_allocated_on_demand_) {
     return;
   }
+  base::AutoLock scoped_lock(mutex_);
 
   if (strategy_ && strategy_->GetAllocated() == 0) {
     LOG(INFO) << "Freeing " << strategy_->GetCapacity()
@@ -102,10 +102,10 @@ void DecoderBufferAllocator::Suspend() {
 }
 
 void DecoderBufferAllocator::Resume() {
-  base::AutoLock scoped_lock(mutex_);
   if (is_memory_pool_allocated_on_demand_) {
     return;
   }
+  base::AutoLock scoped_lock(mutex_);
 
   EnsureStrategyIsCreated();
 }
@@ -119,20 +119,18 @@ void DecoderBufferAllocator::DecommitAllDecommitableBlocks() {
 
 DecoderBuffer::Allocator::Handle DecoderBufferAllocator::Allocate(
     DemuxerStream::Type type,
-    size_t size,
-    size_t alignment) {
+    size_t size) {
   base::AutoLock scoped_lock(mutex_);
 
   EnsureStrategyIsCreated();
 
-  void* p = strategy_->Allocate(type, size, alignment);
+  void* p = strategy_->Allocate(type, size);
   CHECK(p);
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   if (starboard::Allocator::ExtraLogLevel() >= 2) {
     ++pending_allocation_operations_count_;
-    pending_allocation_operations_ << " a " << p << " " << type << " " << size
-                                   << " " << alignment;
+    pending_allocation_operations_ << " a " << p << " " << type << " " << size;
     TryFlushAllocationLog_Locked();
   }
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
@@ -196,10 +194,6 @@ void DecoderBufferAllocator::Write(Handle handle,
   strategy_->Write(reinterpret_cast<void*>(handle), data, size);
 }
 
-int DecoderBufferAllocator::GetBufferAlignment() const {
-  return sizeof(void*);
-}
-
 base::TimeDelta
 DecoderBufferAllocator::GetBufferGarbageCollectionDurationThreshold() const {
   return base::Microseconds(
@@ -236,28 +230,6 @@ void DecoderBufferAllocator::UpdateAllocatorStrategy(
     return;
   }
   if (strategy_) {
-    strategy_.reset();
-  }
-}
-
-void DecoderBufferAllocator::SetAllocateOnDemand(bool enabled) {
-  base::AutoLock scoped_lock(mutex_);
-  if (is_memory_pool_allocated_on_demand_ == enabled) {
-    return;
-  }
-
-  LOG(INFO) << "DecoderBufferAllocator::SetAllocateOnDemand: "
-            << ToString(is_memory_pool_allocated_on_demand_) << " -> "
-            << ToString(enabled);
-
-  is_memory_pool_allocated_on_demand_ = enabled;
-  // If we enable |is_memory_pool_allocated_on_demand_|, we should try to
-  // reset the strategy.
-  if (is_memory_pool_allocated_on_demand_ && strategy_ &&
-      strategy_->GetAllocated() == 0) {
-    LOG(INFO) << "Freeing " << strategy_->GetCapacity()
-              << " bytes of decoder buffer pool since allocator now allocates"
-                 " on demand.";
     strategy_.reset();
   }
 }
