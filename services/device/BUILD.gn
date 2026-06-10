@@ -17,7 +17,7 @@ if (is_ios) {
 }
 
 is_serial_enabled_platform =
-    is_win || ((is_linux || is_chromeos) && use_udev) || is_mac || is_android
+    !is_cobalt && (is_win || ((is_linux || is_chromeos) && use_udev) || is_mac || is_android)
 
 source_set("lib") {
   # This should be visible only to embedders of the Device Service, and the
@@ -88,7 +88,12 @@ source_set("lib") {
 
   if (is_serial_enabled_platform) {
     deps += [ "//services/device/serial" ]
-    defines = [ "IS_SERIAL_ENABLED_PLATFORM" ]
+  }
+
+  if (is_cobalt) {
+    deps -= [
+      "//services/device/usb/mojo",
+    ]
   }
 }
 
@@ -490,6 +495,11 @@ if (is_android) {
       "//services/service_manager/public/mojom:mojom_java",
       "//third_party/jni_zero:jni_zero_java",
     ]
+    if (is_cobalt) {
+      deps -= [
+        "//services/device/usb:java",
+      ]
+    }
   }
 }
 

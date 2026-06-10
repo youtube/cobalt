@@ -27,7 +27,9 @@
 #include "content/browser/attribution_reporting/attribution_internals_ui.h"
 #include "content/browser/background_fetch/background_fetch_service_impl.h"
 #include "content/browser/bad_message.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "content/browser/bluetooth/web_bluetooth_service_impl.h"
+#endif
 #include "content/browser/browser_context_impl.h"
 #include "content/browser/browser_main_loop.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
@@ -902,8 +904,10 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
       &RenderFrameHostImpl::BindFederatedAuthRequestReceiver,
       base::Unretained(host)));
 
+#if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::WebUsbService>(base::BindRepeating(
       &RenderFrameHostImpl::CreateWebUsbService, base::Unretained(host)));
+#endif
 
   map->Add<blink::mojom::WebSocketConnector>(base::BindRepeating(
       &RenderFrameHostImpl::CreateWebSocketConnector, base::Unretained(host)));
@@ -947,8 +951,10 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
         &BindWebNNContextProviderForRenderFrame, base::Unretained(host)));
   }
 
+#if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::WebBluetoothService>(base::BindRepeating(
       &WebBluetoothServiceImpl::BindIfAllowed, base::Unretained(host)));
+#endif
 
   map->Add<blink::mojom::PushMessaging>(base::BindRepeating(
       &RenderFrameHostImpl::GetPushMessaging, base::Unretained(host)));
@@ -1094,19 +1100,25 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
   }
 
 #if BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_COBALT)
   map->Add<device::mojom::NFC>(base::BindRepeating(
       &RenderFrameHostImpl::BindNFCReceiver, base::Unretained(host)));
+#endif
 #else
+#if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::HidService>(base::BindRepeating(
       &RenderFrameHostImpl::GetHidService, base::Unretained(host)));
+#endif
 
   map->Add<blink::mojom::InstalledAppProvider>(
       base::BindRepeating(&RenderFrameHostImpl::CreateInstalledAppProvider,
                           base::Unretained(host)));
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::SerialService>(base::BindRepeating(
       &RenderFrameHostImpl::BindSerialService, base::Unretained(host)));
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
   map->Add<blink::mojom::SmartCardService>(base::BindRepeating(
@@ -1381,8 +1393,10 @@ void PopulateDedicatedWorkerBinders(DedicatedWorkerHost* host,
       base::BindRepeating(&DedicatedWorkerHost::CreateDirectSocketsService,
                           base::Unretained(host)));
 #endif
+#if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::WebUsbService>(base::BindRepeating(
       &DedicatedWorkerHost::CreateWebUsbService, base::Unretained(host)));
+#endif
   map->Add<blink::mojom::WebSocketConnector>(base::BindRepeating(
       &DedicatedWorkerHost::CreateWebSocketConnector, base::Unretained(host)));
   map->Add<blink::mojom::WebTransportConnector>(
@@ -1405,11 +1419,15 @@ void PopulateDedicatedWorkerBinders(DedicatedWorkerHost* host,
                           base::Unretained(host)));
   map->Add<blink::mojom::ReportingServiceProxy>(base::BindRepeating(
       &CreateReportingServiceProxyForDedicatedWorker, base::Unretained(host)));
+#if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::SerialService>(base::BindRepeating(
       &DedicatedWorkerHost::BindSerialService, base::Unretained(host)));
+#endif
 #if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::HidService>(base::BindRepeating(
       &DedicatedWorkerHost::BindHidService, base::Unretained(host)));
+#endif
 #endif  // !BUILDFLAG(IS_ANDROID)
   map->Add<blink::mojom::BucketManagerHost>(base::BindRepeating(
       &DedicatedWorkerHost::CreateBucketManagerHost, base::Unretained(host)));
@@ -1727,13 +1745,17 @@ void PopulateServiceWorkerBinders(ServiceWorkerHost* host,
                                                          std::move(receiver));
       },
       base::Unretained(host)));
+#if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::HidService>(base::BindRepeating(
       &ServiceWorkerHost::BindHidService, base::Unretained(host)));
 #endif
+#endif
   map->Add<blink::mojom::BucketManagerHost>(base::BindRepeating(
       &ServiceWorkerHost::CreateBucketManagerHost, base::Unretained(host)));
+#if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::WebUsbService>(base::BindRepeating(
       &ServiceWorkerHost::BindUsbService, base::Unretained(host)));
+#endif
   if (base::FeatureList::IsEnabled(
           webnn::mojom::features::kWebMachineLearningNeuralNetwork)) {
     map->Add<webnn::mojom::WebNNContextProvider>(base::BindRepeating(

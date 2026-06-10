@@ -121,6 +121,7 @@ void ServiceWorkerHost::GetSandboxedFileSystemForBucket(
 }
 
 #if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_COBALT)
 void ServiceWorkerHost::BindHidService(
     mojo::PendingReceiver<blink::mojom::HidService> receiver) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
@@ -128,7 +129,9 @@ void ServiceWorkerHost::BindHidService(
                                               std::move(receiver));
 }
 #endif
+#endif
 
+#if !BUILDFLAG(IS_COBALT)
 void ServiceWorkerHost::BindUsbService(
     mojo::PendingReceiver<blink::mojom::WebUsbService> receiver) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
@@ -145,6 +148,7 @@ void ServiceWorkerHost::BindUsbService(
   version_->embedded_worker()->BindUsbService(
       container_host_->top_frame_origin(), std::move(receiver));
 }
+#endif
 
 net::NetworkIsolationKey ServiceWorkerHost::GetNetworkIsolationKey() const {
   return version_->key().ToPartialNetIsolationInfo().network_isolation_key();
