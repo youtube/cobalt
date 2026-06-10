@@ -4,6 +4,10 @@
 
 #include "src/heap/scavenger.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h" // nogncheck
+#endif
+
 #include <algorithm>
 #include <atomic>
 #include <optional>
@@ -226,6 +230,9 @@ ScavengerCollector::JobTask::JobTask(
                     GCTracer::Scope::SCAVENGER)) {}
 
 void ScavengerCollector::JobTask::Run(JobDelegate* delegate) {
+#if BUILDFLAG(IS_COBALT)
+  ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
+#endif
   DCHECK_LT(delegate->GetTaskId(), scavengers_->size());
   // Set the current isolate such that trusted pointer tables etc are
   // available and the cage base is set correctly for multi-cage mode.
@@ -678,6 +685,9 @@ ScavengerCollector::QuarantinedPageSweeper::JobTask::JobTask(
 
 void ScavengerCollector::QuarantinedPageSweeper::JobTask::Run(
     JobDelegate* delegate) {
+#if BUILDFLAG(IS_COBALT)
+  ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
+#endif
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   SetCurrentIsolateScope current_isolate_scope(heap_->isolate());
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
