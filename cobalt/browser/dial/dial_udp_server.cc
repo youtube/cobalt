@@ -161,13 +161,11 @@ void DialUdpServer::DidRead(int result) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!socket_ || !read_buffer_.get() || !read_buffer_->data()) {
     LOG(INFO) << "Dial server socket read error: no socket or buffer";
+  } else if (result < 0) {
+    LOG(ERROR) << "DialUdpServer read failed: " << net::ErrorToString(result);
   } else {
-    if (result < 0) {
-      LOG(ERROR) << "DialUdpServer read failed: " << net::ErrorToString(result);
-    }
-
     // ParseSearchRequest can be triggered when read bytes is zero, this will
-    // prompt a response that updates the device picker.
+    // prompt a response that updates the device picker (see b/268088112).
     if (result == 0 ||
         ParseSearchRequest(std::string(read_buffer_->data(), result))) {
       LOG(INFO) << "Dial server socket parses search request with " << result
