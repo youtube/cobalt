@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# TODO(b/522305776): Rewrite this script in Python to share common helper methods
+# with deploy_rdk.py (e.g., launching/deactivating plugins, restarting wpeframework).
+
 # Configuration
 readonly CALLSIGN="YouTube"
 readonly PROCESS_NAME="YouTube"
@@ -100,7 +103,7 @@ try:
 except Exception as e:
     sys.exit(1)
 " "$ORIGINAL_CONFIG" "$url")
-        
+
         if [ $? -eq 0 ] && [ -n "$updated_config" ]; then
             send_jsonrpc "Controller.1.configuration@$CALLSIGN" "$updated_config"
         else
@@ -141,10 +144,10 @@ recover_wpeframework_and_launch() {
     if ! echo "$ORIGINAL_CONFIG" | grep -q '"result"'; then
         ORIGINAL_CONFIG=""
     fi
-    
+
     # Retry launch
     launch_youtube_plugin "$url"
-    
+
     if [ -z "$PID" ]; then
         return 1
     fi
