@@ -51,9 +51,6 @@ class DialUdpServer final {
   void DidClose(net::UDPSocket* sock);
   void WriteComplete(int rv);
 
-  // Construct the appropriate search response.
-  std::string ConstructSearchResponse() const;
-
   // Parse a request to make sure it is a M-Search.
   static bool ParseSearchRequest(const std::string& request);
 
@@ -74,6 +71,8 @@ class DialUdpServer final {
   net::IPEndPoint client_address_ GUARDED_BY_CONTEXT(sequence_checker_);
 
   const std::string device_uuid_ GUARDED_BY_CONTEXT(sequence_checker_);
+
+  const std::string search_response_ GUARDED_BY_CONTEXT(sequence_checker_);
 
   SEQUENCE_CHECKER(sequence_checker_);
 

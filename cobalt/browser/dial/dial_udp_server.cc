@@ -60,6 +60,33 @@ constexpr int kUdpServerPort = 1900;
 constexpr net::IPAddress kMulticastIPv4Address =
     net::IPAddress(239, 255, 255, 250);
 
+std::string ConstructSearchResponse(const std::string& server_address,
+                                    const std::string& device_uuid) {
+  const std::string dd_xml_location =
+      base::StringPrintf("http://%s/dd.xml", server_address);
+  return base::StrCat({
+      "HTTP/1.1 200 OK\r\n",
+      base::StringPrintf("LOCATION: %s\r\n", dd_xml_location),
+      "CACHE-CONTROL: max-age=1800\r\n",
+      "EXT:\r\n",
+      "BOOTID.UPNP.ORG: 1\r\n",
+      // CONFIGID represents the state of the device description. Can be any
+      // non-negative integer from 0 to 2^24 - 1.
+      // DIAL clients like the Cast extension will cache the response based on
+      // this, so we ensure each location change has a different config id.
+      // This way when the app restarts with a new IP or port, the client
+      // updates its cache of DIAL devices accordingly.
+      base::StringPrintf("CONFIGID.UPNP.ORG: %u\r\n",
+                         base::Hash(dd_xml_location) >> 8),
+      base::StringPrintf("SERVER: %s\r\n", kServerAgent),
+      base::StringPrintf("ST: %s\r\n", kDialStRequest),
+      // This is formatted according to the UPnP 1.1 spec (section 1.2.2,
+      // table 1-3).
+      base::StringPrintf("USN: uuid:%s::%s\r\n", device_uuid, kDialStRequest),
+      "\r\n",
+  });
+}
+
 }  // namespace
 
 DialUdpServer::DialUdpServer(const DialDeviceDescription& device_description,
@@ -67,7 +94,9 @@ DialUdpServer::DialUdpServer(const DialDeviceDescription& device_description,
     : http_server_address_(http_server_address),
       is_running_(false),
       read_buffer_(new net::IOBufferWithSize(kReadBufferSize)),
-      device_uuid_(device_description.formatted_uuid()) {
+      device_uuid_(device_description.formatted_uuid()),
+      search_response_(ConstructSearchResponse(http_server_address.ToString(),
+                                               device_uuid_)) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(base::CurrentIOThread::IsSet());
   Start();
@@ -225,43 +254,6 @@ bool DialUdpServer::IsValidMSearchRequest(
   }
 
   return true;
-}
-
-// Since we are constructing a response from user-generated string,
-// ensure all user-generated strings pass through StringPrintf.
-std::string DialUdpServer::ConstructSearchResponse() const {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  static std::string response;
-
-  if (response.empty()) {
-    const std::string dd_xml_location =
-        base::StringPrintf("http://%s/dd.xml", http_server_address_.ToString());
-    response = base::StrCat({
-        "HTTP/1.1 200 OK\r\n",
-        base::StringPrintf("LOCATION: %s\r\n", dd_xml_location),
-        "CACHE-CONTROL: max-age=1800\r\n",
-        "EXT:\r\n",
-        "BOOTID.UPNP.ORG: 1\r\n",
-        // CONFIGID represents the state of the device description. Can be any
-        // non-negative integer from 0 to 2^24 - 1.
-        // DIAL clients like the Cast extension will cache the response based on
-        // this, so we ensure each location change has a different config id.
-        // This way when the app restarts with a new IP or port, the client
-        // updates its cache of DIAL devices accordingly.
-        base::StringPrintf("CONFIGID.UPNP.ORG: %u\r\n",
-                           base::Hash(dd_xml_location) >> 8),
-        base::StringPrintf("SERVER: %s\r\n", kServerAgent),
-        base::StringPrintf("ST: %s\r\n", kDialStRequest),
-        // This is formatted according to the UPnP 1.1 spec (section 1.2.2,
-        // table 1-3).
-        base::StringPrintf("USN: uuid:%s::%s\r\n", device_uuid_,
-                           kDialStRequest),
-        "\r\n",
-    });
-  }
-  LOG(INFO) << "In-App DIAL Discovery response : " << response;
-  return response;
 }
 
 }  // namespace in_app_dial
