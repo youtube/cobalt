@@ -130,6 +130,11 @@ PendingAck AppEventDelegate::pending_ack() const {
   return runner_ ? runner_->pending_ack() : PendingAck::kNone;
 }
 
+void AppEventDelegate::SetQuitClosure(base::OnceClosure closure) {
+  base::AutoLock lock(lock_);
+  quit_closure_ = std::move(closure);
+}
+
 bool AppEventDelegate::IsFrozenLocked() const {
   return application_state_ == ApplicationState::kFrozen ||
          application_state_ == ApplicationState::kStopped ||
@@ -317,7 +322,6 @@ void AppEventDelegate::ExecuteEventRunner(ApplicationState next_state,
         runner_->OnFreeze(base::DoNothing());
         break;
       case ApplicationState::kStopped:
-        runner_->OnStop();
         break;
       default:
         NOTREACHED();
@@ -328,6 +332,13 @@ void AppEventDelegate::ExecuteEventRunner(ApplicationState next_state,
 void AppEventDelegate::ExecuteStepOnUIThread(ApplicationState next_state,
                                              bool is_activating) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  {
+    base::AutoLock lock(lock_);
+    if (is_tearing_down_) {
+      LOG(INFO) << "Ignoring ExecuteStepOnUIThread during teardown.";
+      return;
+    }
+  }
   // Note: ExecuteEventRunner does not change state nor rely on state of this
   // object, and always runs as a posted task on the UI thread, and therefore
   // the lock does not need to be held yet here.
@@ -337,19 +348,19 @@ void AppEventDelegate::ExecuteStepOnUIThread(ApplicationState next_state,
   SetApplicationState(next_state);
 
   if (next_state == ApplicationState::kStopped) {
-    SbEventSchedule(&AppEventDelegate::TeardownCallback, this, 0);
+    if (quit_closure_) {
+      std::move(quit_closure_).Run();
+    }
   } else {
     ExecuteNextStep();
   }
 }
 
-// static
-void AppEventDelegate::TeardownCallback(void* data) {
-  AppEventDelegate* delegate = static_cast<AppEventDelegate*>(data);
-  delegate->DoTeardown();
-}
-
 void AppEventDelegate::DoTeardown() {
+  {
+    base::AutoLock lock(lock_);
+    is_tearing_down_ = true;
+  }
   runner_->OnStop();
   base::AutoLock lock(lock_);
   SetApplicationState(ApplicationState::kStopped);

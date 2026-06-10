@@ -90,10 +90,10 @@ class AppEventDelegate {
     return is_transitioning_;
   }
   PendingAck pending_ack() const LOCKS_EXCLUDED(lock_);
+  void SetQuitClosure(base::OnceClosure closure) LOCKS_EXCLUDED(lock_);
 
  private:
   static const char* GetStateString(ApplicationState state);
-  static void TeardownCallback(void* data);
 
   void HandleEventLocked(const SbEvent* event) EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
@@ -152,6 +152,7 @@ class AppEventDelegate {
       ApplicationState::kInitial;
   ApplicationState target_state_ GUARDED_BY(lock_) = ApplicationState::kInitial;
   bool is_transitioning_ GUARDED_BY(lock_) = false;
+  bool is_tearing_down_ GUARDED_BY(lock_) = false;
   base::OnceClosure quit_closure_;
 
 #if BUILDFLAG(IS_STARBOARD)
