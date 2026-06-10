@@ -1,17 +1,13 @@
-name: raspi-2-modular
+name: tvos_staging
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize, labeled, ready_for_review]
+    types: [opened, reopened, synchronize, labeled]
     branches:
-      - main
-      - experimental/*
-      - feature/*
+      - staging
   push:
     branches:
-      - main
-      - experimental/*
-      - feature/*
+      - staging
   workflow_dispatch:
     inputs:
       nightly:
@@ -23,14 +19,15 @@ on:
 permissions: read-all
 
 jobs:
-  # This is the raspi build config
-  raspi-2-modular:
+  # This is default Chromium build config
+  tvos-arm64-simulator:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: raspi-2-modular
+      platform: tvos-arm64-simulator
       nightly: ${{ github.event.inputs.nightly }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
+      sccache_gcs_key: ${{ secrets.SCCACHE_GCS_KEY_TVOS }}
