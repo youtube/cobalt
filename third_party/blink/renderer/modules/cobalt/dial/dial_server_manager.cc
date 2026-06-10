@@ -72,7 +72,10 @@ void DialServerManager::HandleRequest(
 
   auto it = handler_registry_.find(service_name);
   if (it != handler_registry_.end()) {
-    response = it->value->HandleRequest(method, path, data, host_with_port);
+    DialServer* dial_server = it->value.Get();
+    if (dial_server) {
+      response = dial_server->HandleRequest(method, path, data, host_with_port);
+    }
   }
 
   std::move(callback).Run(std::move(response));
