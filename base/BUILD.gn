@@ -3063,6 +3063,9 @@ component("i18n") {
     "//third_party/ced",
     "//third_party/icu",
   ]
+  if (is_cobalt) {
+    public_deps -= [ "//third_party/ced" ]
+  }
   deps = [
     ":i18n_transliterator",
     "//build:chromecast_buildflags",
