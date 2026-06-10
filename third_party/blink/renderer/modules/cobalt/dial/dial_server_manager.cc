@@ -58,7 +58,7 @@ DialServerManager::~DialServerManager() {}
 
 void DialServerManager::RegisterDialServer(DialServer* dial_server) {
   const String& service_name = dial_server->serviceName();
-  handler_regitry_.insert(service_name, dial_server);
+  handler_registry_.insert(service_name, dial_server);
 }
 
 void DialServerManager::HandleRequest(
@@ -70,8 +70,8 @@ void DialServerManager::HandleRequest(
     HandleRequestCallback callback) {
   in_app_dial::mojom::blink::DialResponsePtr response = nullptr;
 
-  auto it = handler_regitry_.find(service_name);
-  if (it != handler_regitry_.end()) {
+  auto it = handler_registry_.find(service_name);
+  if (it != handler_registry_.end()) {
     response = it->value->HandleRequest(method, path, data, host_with_port);
   }
 
@@ -81,7 +81,7 @@ void DialServerManager::HandleRequest(
 void DialServerManager::Trace(Visitor* visitor) const {
   visitor->Trace(dial_server_);
   visitor->Trace(receiver_);
-  visitor->Trace(handler_regitry_);
+  visitor->Trace(handler_registry_);
   Supplement<ExecutionContext>::Trace(visitor);
 }
 

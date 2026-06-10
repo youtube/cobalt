@@ -72,7 +72,7 @@ class MODULES_EXPORT DialServerManager final
                    DialServerManager>
       receiver_;
 
-  HeapHashMap<String, Member<DialServer>> handler_regitry_;
+  HeapHashMap<String, Member<DialServer>> handler_registry_;
 };
 
 }  // namespace blink
