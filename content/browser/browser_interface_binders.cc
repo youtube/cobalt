@@ -58,10 +58,8 @@
 #include "content/browser/picture_in_picture/picture_in_picture_service_impl.h"
 #include "content/browser/preloading/anchor_element_interaction_host_impl.h"
 #include "content/browser/preloading/speculation_rules/speculation_host_impl.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/private_aggregation/private_aggregation_internals.mojom.h"
 #include "content/browser/private_aggregation/private_aggregation_internals_ui.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/process_internals/process_internals.mojom.h"
 #include "content/browser/process_internals/process_internals_ui.h"
 #include "content/browser/quota/quota_context.h"
@@ -1266,7 +1264,6 @@ void PopulateBinderMapWithContext(
   map->Add<device::mojom::VRService>(
       base::BindRepeating(&EmptyBinderForFrame<device::mojom::VRService>));
 #endif
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   RegisterWebUIControllerInterfaceBinder<
       private_aggregation_internals::mojom::Factory,
       PrivateAggregationInternalsUI>(map);
