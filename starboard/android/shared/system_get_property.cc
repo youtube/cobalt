@@ -87,6 +87,44 @@ bool CopyAndroidPlatformName(char* out_value, int value_length) {
   return CopyStringAndTestIfSuccess(out_value, value_length, result_string);
 }
 
+const char* MapDeviceType(const char* prop_value) {
+  if (!prop_value || prop_value[0] == '\0') {
+    SB_DLOG(INFO) << "Invalid property value";
+    return starboard::kSystemDeviceTypeUnknown;
+  }
+
+  struct Mapping {
+    const char* prop;
+    const char* type;
+  };
+
+  static const Mapping kMappings[] = {
+      {"BDP", starboard::kSystemDeviceTypeBlueRayDiskPlayer},
+      {"GAME", starboard::kSystemDeviceTypeGameConsole},
+      {"OTT", starboard::kSystemDeviceTypeOverTheTopBox},
+      {"STB", starboard::kSystemDeviceTypeSetTopBox},
+      {"TV", starboard::kSystemDeviceTypeTV},
+      {"ATV", starboard::kSystemDeviceTypeAndroidTV},
+      {"DESKTOP", starboard::kSystemDeviceTypeDesktopPC},
+      {"PROJECTOR", starboard::kSystemDeviceTypeVideoProjector},
+      {"MMD", starboard::kSystemDeviceTypeMultimediaDevices},
+      {"MONITOR", starboard::kSystemDeviceTypeMonitor},
+      {"AUTO", starboard::kSystemDeviceTypeAuto},
+      {"SOUNDBAR", starboard::kSystemDeviceTypeSoundBar},
+      {"HOSPITALITY", starboard::kSystemDeviceTypeHospitality},
+  };
+
+  for (const auto& mapping : kMappings) {
+    if (strcasecmp(prop_value, mapping.prop) == 0) {
+      SB_DLOG(INFO) << "mapped '" << prop_value << "' -> '" << mapping.type
+                    << "'";
+      return mapping.type;
+    }
+  }
+  SB_DLOG(INFO) << "Unknown device type: '" << prop_value << "'";
+  return starboard::kSystemDeviceTypeUnknown;
+}
+
 }  // namespace
 
 bool SbSystemGetProperty(SbSystemPropertyId property_id,
@@ -157,9 +195,17 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
       return CopyStringAndTestIfSuccess(out_value, value_length,
                                         limit_ad_tracking_enabled ? "1" : "0");
     }
-    case kSbSystemPropertyDeviceType:
-      return CopyStringAndTestIfSuccess(out_value, value_length,
-                                        starboard::kSystemDeviceTypeAndroidTV);
+    case kSbSystemPropertyDeviceType: {
+      char prop_value[PROP_VALUE_MAX] = {0};
+      GetAndroidSystemProperty("ro.vendor.youtube.device_type", prop_value,
+                               sizeof(prop_value), "TV");
+
+      const char* device_type = MapDeviceType(prop_value);
+      SB_DLOG(INFO) << "Device type property: '" << prop_value
+                    << "', mapped device type: '" << device_type << "'";
+
+      return CopyStringAndTestIfSuccess(out_value, value_length, device_type);
+    }
     default:
       SB_DLOG(WARNING) << __FUNCTION__
                        << ": Unrecognized property: " << property_id;
