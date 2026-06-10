@@ -263,7 +263,7 @@ void MediaCodecBridge::Initialize(jobject j_media_codec_bridge) {
   j_media_codec_bridge_.Reset(env, j_media_codec_bridge);
 }
 
-DataSpan MediaCodecBridge::GetInputBufferAddress(jint index) {
+Span<uint8_t> MediaCodecBridge::GetInputBufferAddress(jint index) {
   SB_DCHECK_GE(index, 0);
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> byte_buffer =
@@ -279,7 +279,7 @@ DataSpan MediaCodecBridge::GetInputBufferAddress(jint index) {
   if (!address) {
     return {};
   }
-  return {address, static_cast<size_t>(cap)};
+  return {static_cast<uint8_t*>(address), static_cast<size_t>(cap)};
 }
 
 jint MediaCodecBridge::QueueInputBuffer(jint index,
@@ -340,7 +340,7 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
       blocks_to_skip, presentation_time_microseconds, is_decode_only);
 }
 
-DataSpan MediaCodecBridge::GetOutputBufferAddress(jint index) {
+Span<uint8_t> MediaCodecBridge::GetOutputBufferAddress(jint index) {
   SB_DCHECK_GE(index, 0);
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> byte_buffer =
@@ -356,7 +356,7 @@ DataSpan MediaCodecBridge::GetOutputBufferAddress(jint index) {
   if (!address) {
     return {};
   }
-  return {address, static_cast<size_t>(cap)};
+  return {static_cast<uint8_t*>(address), static_cast<size_t>(cap)};
 }
 
 void MediaCodecBridge::ReleaseOutputBuffer(jint index, jboolean render) {

@@ -15,6 +15,7 @@
 #ifndef STARBOARD_ANDROID_SHARED_MEDIA_CODEC_H_
 #define STARBOARD_ANDROID_SHARED_MEDIA_CODEC_H_
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <ostream>
@@ -22,6 +23,7 @@
 
 #include "starboard/common/result.h"
 #include "starboard/common/size.h"
+#include "starboard/common/span.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "third_party/jni_zero/jni_zero.h"
@@ -73,11 +75,6 @@ struct DequeueOutputResult {
   int32_t offset;
   int64_t presentation_time_microseconds;
   int32_t num_bytes;
-};
-
-struct DataSpan {
-  void* address = nullptr;
-  size_t capacity = 0;
 };
 
 // MediaCodec is an abstract interface for Android MediaCodec functionality,
@@ -157,7 +154,7 @@ class MediaCodec {
 
   virtual ~MediaCodec() = default;
 
-  virtual DataSpan GetInputBufferAddress(jint index) = 0;
+  virtual Span<uint8_t> GetInputBufferAddress(jint index) = 0;
   virtual jint QueueInputBuffer(jint index,
                                 jint offset,
                                 jint size,
@@ -170,7 +167,7 @@ class MediaCodec {
                                       jlong presentation_time_microseconds,
                                       jboolean is_decode_only) = 0;
 
-  virtual DataSpan GetOutputBufferAddress(jint index) = 0;
+  virtual Span<uint8_t> GetOutputBufferAddress(jint index) = 0;
   virtual void ReleaseOutputBuffer(jint index, jboolean render) = 0;
   virtual void ReleaseOutputBufferAtTimestamp(jint index,
                                               jlong render_timestamp_ns) = 0;
