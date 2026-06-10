@@ -121,20 +121,18 @@ void ShellPlatformDelegate::OnReveal() {
   // multiple windows to wait for.
   bool started_waiting = false;
   for (auto* shell : Shell::windows()) {
-    if (previously_visible_web_contents_.count(shell->web_contents())) {
-      if (!started_waiting) {
-        waiting_for_reveal_ack_ = true;
-        cobalt::CobaltLifecycleManager::GetInstance()->AddObserver(
-            static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
-        started_waiting = true;
-      }
-#if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
-      auto* platform_window = GetPlatformWindowStarboard(shell);
-      if (platform_window) {
-        platform_window->SetWaitingForRevealAck(true);
-      }
-#endif
+    if (!started_waiting) {
+      waiting_for_reveal_ack_ = true;
+      cobalt::CobaltLifecycleManager::GetInstance()->AddObserver(
+          static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
+      started_waiting = true;
     }
+#if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
+    auto* platform_window = GetPlatformWindowStarboard(shell);
+    if (platform_window) {
+      platform_window->SetWaitingForRevealAck(true);
+    }
+#endif
     RevealShell(shell);
     shell->web_contents()->WasShown();
   }
