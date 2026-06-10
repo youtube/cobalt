@@ -148,23 +148,6 @@ FixedBlockPool* GetPool() {
   return g_pool.Get("VideoFrameImpl", sizeof(VideoFrameImpl), kPoolSize);
 }
 
-std::array<float, 16> GetTransformMatrix(
-    const JavaRef<jobject>& surface_texture) {
-  JNIEnv* env = AttachCurrentThread();
-
-  jni_zero::ScopedJavaLocalRef<jfloatArray> java_array(env,
-                                                       env->NewFloatArray(16));
-  SB_CHECK(java_array);
-
-  VideoSurfaceTextureBridge::GetTransformMatrix(
-      env, surface_texture,
-      jni_zero::JavaParamRef<jfloatArray>(env, java_array.obj()));
-
-  std::array<float, 16> matrix4x4;
-  env->GetFloatArrayRegion(java_array.obj(), 0, 16, matrix4x4.data());
-  return matrix4x4;
-}
-
 void StubDrmSessionUpdateRequestFunc(SbDrmSystem drm_system,
                                      void* context,
                                      int ticket,
