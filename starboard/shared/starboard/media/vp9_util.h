@@ -46,11 +46,9 @@ class Vp9FrameParser {
     return subframes_[index];
   }
   const uint8_t* address_of_subframe(size_t index) const {
-    return subframe(index).address;
+    return subframe(index).data();
   }
-  size_t size_of_subframe(size_t index) const {
-    return subframe(index).capacity;
-  }
+  size_t size_of_subframe(size_t index) const { return subframe(index).size(); }
 
  private:
   bool ParseSuperFrame(Span<const uint8_t> frame);

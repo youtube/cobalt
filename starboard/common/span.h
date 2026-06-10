@@ -18,15 +18,25 @@
 #include <cstddef>
 
 // A simple, lightweight alternative to C++20's std::span.
-// Designed to pass a pointer and capacity (size in bytes) together as a single
-// object. Used because Cobalt currently targets C++17 where std::span is not
-// available.
+// Designed to pass a pointer and size together as a single object.
+// Used because Cobalt currently targets C++17 where std::span is not available.
 namespace starboard {
 
 template <class T>
-struct Span {
-  T* address = nullptr;
-  size_t capacity = 0;
+class Span {
+ public:
+  constexpr Span() = default;
+  constexpr Span(T* data, size_t size) : data_(data), size_(size) {}
+
+  // Member functions are named to match C++20's std::span for future
+  // compatibility.
+  constexpr T* data() const { return data_; }
+  constexpr size_t size() const { return size_; }
+  constexpr bool empty() const { return size_ == 0; }
+
+ private:
+  T* data_ = nullptr;
+  size_t size_ = 0;
 };
 
 }  // namespace starboard

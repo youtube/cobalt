@@ -75,7 +75,7 @@ TEST(Vp9FrameParserTests, EmptyFrame) {
   Vp9FrameParser parser({});
 
   ASSERT_EQ(parser.number_of_subframes(), 1U);
-  EXPECT_EQ(parser.subframe(0).capacity, 0U);
+  EXPECT_EQ(parser.subframe(0).size(), 0U);
 }
 
 TEST(Vp9FrameParserTests, NonSuperFrame) {
@@ -83,8 +83,8 @@ TEST(Vp9FrameParserTests, NonSuperFrame) {
   Vp9FrameParser parser({kFrameData.data(), kFrameData.size()});
 
   ASSERT_EQ(parser.number_of_subframes(), 1U);
-  EXPECT_EQ(parser.subframe(0).address, kFrameData.data());
-  EXPECT_EQ(parser.subframe(0).capacity, kFrameData.size());
+  EXPECT_EQ(parser.subframe(0).data(), kFrameData.data());
+  EXPECT_EQ(parser.subframe(0).size(), kFrameData.size());
 }
 
 TEST(Vp9FrameParserTests, SuperFrames) {
@@ -117,9 +117,9 @@ TEST(Vp9FrameParserTests, SuperFrames) {
       ASSERT_EQ(parser.number_of_subframes(), number_of_subframes);
       for (size_t subframe_index = 0; subframe_index < number_of_subframes;
            ++subframe_index) {
-        EXPECT_EQ(parser.subframe(subframe_index).address,
+        EXPECT_EQ(parser.subframe(subframe_index).data(),
                   superframe.data() + subframe_index * kFrameData.size());
-        EXPECT_EQ(parser.subframe(subframe_index).capacity, kFrameData.size());
+        EXPECT_EQ(parser.subframe(subframe_index).size(), kFrameData.size());
       }
     }
   }
@@ -155,9 +155,9 @@ TEST(Vp9FrameParserTests, SuperFramesWithEmptySubframes) {
       ASSERT_EQ(parser.number_of_subframes(), number_of_subframes);
       for (size_t subframe_index = 0; subframe_index < number_of_subframes;
            ++subframe_index) {
-        EXPECT_EQ(parser.subframe(subframe_index).address,
+        EXPECT_EQ(parser.subframe(subframe_index).data(),
                   superframe.data() + subframe_index * kEmptyFrameData.size());
-        EXPECT_EQ(parser.subframe(subframe_index).capacity,
+        EXPECT_EQ(parser.subframe(subframe_index).size(),
                   kEmptyFrameData.size());
       }
     }
