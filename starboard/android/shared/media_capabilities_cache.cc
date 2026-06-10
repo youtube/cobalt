@@ -25,6 +25,7 @@
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
+#include "starboard/android/shared/safe_jni.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
@@ -155,14 +156,13 @@ class MediaCapabilitiesProviderImpl : public MediaCapabilitiesProvider {
     JNIEnv* env = AttachCurrentThread();
     ScopedJavaLocalRef<jobjectArray> j_codec_infos =
         Java_MediaCodecUtil_getAllCodecCapabilityInfos(env);
-    size_t length = base::android::SafeGetArrayLength(env, j_codec_infos);
+    std::vector<ScopedJavaLocalRef<jobject>> codec_infos =
+        JavaObjectArrayToVector(env, j_codec_infos);
 
     // Note: Codec infos are sorted by the framework such that the best
     // decoders come first.
     // This order is maintained in the cache.
-    for (size_t i = 0; i < length; i++) {
-      ScopedJavaLocalRef<jobject> j_codec_info(
-          env, env->GetObjectArrayElement(j_codec_infos.obj(), i));
+    for (auto& j_codec_info : codec_infos) {
       SB_CHECK(j_codec_info);
 
       ScopedJavaLocalRef<jstring> j_mime_type =

@@ -1,0 +1,56 @@
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef STARBOARD_ANDROID_SHARED_SAFE_JNI_H_
+#define STARBOARD_ANDROID_SHARED_SAFE_JNI_H_
+
+#include <jni.h>
+
+#include <vector>
+
+#include "base/android/scoped_java_ref.h"
+#include "third_party/jni_zero/jni_zero.h"
+
+// ============================================================================
+// JNI Safety Gatekeeper Philosophy
+// ============================================================================
+// This library serves as a safe boundary between Starboard C++ and raw Java
+// JNI.
+//
+// 1. Minimize Unsafe JNI: We want to minimize the use of raw, legacy JNI Env
+//    calls (like GetObjectArrayElement, GetMethodID) in our main media and
+//    platform logic. Raw JNI is highly error-prone, prone to local reference
+//    leaks, and difficult to review.
+// 2. Strict Isolation: If we absolutely must write raw JNI (because a safe
+//    helper does not exist in base::android or jni_zero), we isolate it here.
+// 3. Rigorous Audit: Every function in this library must undergo rigorous
+//    code review to ensure it is 100% leak-free, uses RAII (ScopedJavaLocalRef)
+//    correctly, and handles type/narrowing conversions safely.
+// 4. Mandated Reuse: All engineers should ALWAYS use the safe, high-level C++
+//    APIs exposed in this file instead of writing raw JNI in their own files.
+// ============================================================================
+
+namespace starboard {
+
+// Converts a Java object array (jobjectArray) to a C++ std::vector of
+// jni_zero::ScopedJavaLocalRef<jobject>.
+// This helper encapsulates the JNI array indexing and type-casting,
+// allowing business logic to use clean range-based for loops.
+std::vector<jni_zero::ScopedJavaLocalRef<jobject>> JavaObjectArrayToVector(
+    JNIEnv* env,
+    const jni_zero::JavaRef<jobjectArray>& array);
+
+}  // namespace starboard
+
+#endif  // STARBOARD_ANDROID_SHARED_SAFE_JNI_H_
