@@ -97,6 +97,7 @@ UpdaterModule* UpdaterModule::updater_module_ = nullptr;
 
 void UpdaterModule::CreateInstance(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+    const std::string& user_agent,
     base::TimeDelta update_check_delay) {
   if (updater_module_) {
     LOG(WARNING)
@@ -104,8 +105,8 @@ void UpdaterModule::CreateInstance(
            "to get the instance.";
     return;
   }
-  updater_module_ =
-      new UpdaterModule(std::move(url_loader_factory), update_check_delay);
+  updater_module_ = new UpdaterModule(std::move(url_loader_factory), user_agent,
+                                      update_check_delay);
 }
 
 UpdaterModule* UpdaterModule::GetInstance() {
@@ -165,9 +166,11 @@ void Observer::OnEvent(const update_client::CrxUpdateItem& item) {
 
 UpdaterModule::UpdaterModule(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+    const std::string& user_agent,
     base::TimeDelta update_check_delay)
     : url_loader_factory_(std::move(url_loader_factory)),
-      update_check_delay_(update_check_delay) {
+      update_check_delay_(update_check_delay),
+      user_agent_(user_agent) {
   LOG(INFO) << "UpdaterModule::UpdaterModule";
   // TODO(b/453693299): investigate using sequence to replace base::Thread
   updater_thread_.reset(new base::Thread("Updater"));
@@ -240,7 +243,8 @@ void UpdaterModule::Initialize(
   LOG(INFO) << "UpdaterModule::Initialize";
 
   updater_configurator_ = base::MakeRefCounted<Configurator>(
-      network::SharedURLLoaderFactory::Create(std::move(pending_factory)));
+      network::SharedURLLoaderFactory::Create(std::move(pending_factory)),
+      user_agent_);
   update_client_ = update_client::UpdateClientFactory(updater_configurator_);
 
   updater_observer_.reset(new Observer(update_client_, updater_configurator_));
