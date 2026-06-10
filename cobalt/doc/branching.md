@@ -29,7 +29,7 @@ for release.
      all greater than or equal to the specified minor version.  In particular, a
      single branch may host multiple releases/updates. Should another release
      branch be cut from master with a pre-existing (major version, purpose)
-     pair, the new branch will have an minor version equivalent to the most
+     pair, the new branch will have a minor version equivalent to the most
      recently released minor version, plus one.  Note that we expect it to be
      rare that we will need a branch other than the `1+` branch.
 
