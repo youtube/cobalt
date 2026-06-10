@@ -1865,6 +1865,7 @@ component("platform") {
   }
 
   if (is_cobalt) {
+    deps -= [ "//third_party/ced" ]
     if (use_dawn) {
       deps -= [ "//third_party/dawn/src/dawn/wire" ]
     } else {
@@ -2531,6 +2532,10 @@ source_set("blink_platform_unittests_sources") {
   defines = [ "INSIDE_BLINK" ]
   if (use_minikin_hyphenation) {
     defines += [ "USE_MINIKIN_HYPHENATION" ]
+  }
+
+  if (is_cobalt) {
+    sources -= [ "text/text_encoding_detector_test.cc" ]
   }
 }
 
