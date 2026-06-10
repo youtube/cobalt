@@ -12,6 +12,7 @@ import("//third_party/blink/public/public_features.gni")
 import("//third_party/blink/renderer/build/scripts/scripts.gni")
 import("//third_party/protobuf/proto_library.gni")
 import("//third_party/webrtc/webrtc.gni")
+import("//build/util/process_version.gni")
 
 if (is_android) {
   import("//build/config/android/rules.gni")
@@ -102,6 +103,13 @@ source_set("common_export") {
 source_set("preloading_headers") {
   deps = [ ":common_export" ]
   sources = [ "navigation/preloading_headers.h" ]
+}
+
+# If in the future privacy sandbox components are removed from the code base, ignore this if block.
+process_version("blink_milestone_features") {
+  sources = [ "//chrome/VERSION" ]
+  template_file = "blink_milestone_features.h.in"
+  output = "$target_gen_dir/blink_milestone_features.h"
 }
 
 source_set("headers") {
@@ -330,6 +338,7 @@ source_set("headers") {
   public_deps = [
     ":make_generated_permissions_policy_helper",
     ":make_runtime_feature_state_contexts_headers",
+    ":blink_milestone_features",
     ":preloading_headers",
     "//base",
     "//mojo/public/cpp/bindings",
