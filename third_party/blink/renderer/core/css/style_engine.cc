@@ -34,6 +34,11 @@
 #include "base/auto_reset.h"
 #include "base/containers/adapters.h"
 #include "base/hash/hash.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#include "cobalt/shell/buildflags.h"
+#endif
 #include "third_party/blink/public/mojom/timing/resource_timing.mojom-blink.h"
 #include "third_party/blink/renderer/core/css/cascade_layer_map.h"
 #include "third_party/blink/renderer/core/css/check_pseudo_has_cache_scope.h"
@@ -3858,6 +3863,9 @@ StyleRulePositionTry* StyleEngine::GetPositionTryRule(
 
 void StyleEngine::RecalcStyle(StyleRecalcChange change,
                               const StyleRecalcContext& style_recalc_context) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kLayout);
+#endif
   DCHECK(GetDocument().documentElement());
   ScriptForbiddenScope forbid_script;
   SkipStyleRecalcScope skip_scope(*this);
@@ -3919,6 +3927,9 @@ void StyleEngine::RebuildTransitionPseudoLayoutTrees() {
 }
 
 void StyleEngine::RecalcStyle() {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kLayout);
+#endif
   RecalcStyle(
       {}, StyleRecalcContext::FromAncestors(style_recalc_root_.RootElement()));
   RecalcTransitionPseudoStyle();

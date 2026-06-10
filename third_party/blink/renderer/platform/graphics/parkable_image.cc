@@ -4,6 +4,10 @@
 
 #include "third_party/blink/renderer/platform/graphics/parkable_image.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
+
 #include "base/debug/stack_trace.h"
 #include "base/feature_list.h"
 #include "base/memory/asan_interface.h"
@@ -301,6 +305,9 @@ void ParkableImageImpl::UnlockData() {
 void ParkableImageImpl::WriteToDiskInBackground(
     scoped_refptr<ParkableImageImpl> parkable_image,
     scoped_refptr<base::SingleThreadTaskRunner> callback_task_runner) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kGraphics);
+#endif
   DCHECK(!IsMainThread());
   base::AutoLock lock(parkable_image->lock_);
 

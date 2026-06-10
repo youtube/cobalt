@@ -65,9 +65,9 @@ blink_modules_sources("canvas") {
     "//third_party/blink/renderer/modules/webcodecs",
     "//third_party/blink/renderer/modules/webgpu",
   ]
-
   if (is_cobalt) {
     deps -= [ "//third_party/blink/renderer/modules/webgpu" ]
+    deps += [ "//cobalt/shell:buildflags" ]
   }
   allow_circular_includes_from =
       [ "//third_party/blink/renderer/modules/webcodecs" ]
