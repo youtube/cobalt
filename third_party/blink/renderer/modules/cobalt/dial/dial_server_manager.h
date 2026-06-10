@@ -64,8 +64,6 @@ class MODULES_EXPORT DialServerManager final
   void Trace(Visitor*) const override;
 
  private:
-  void EnsureConnection(scoped_refptr<base::SingleThreadTaskRunner>);
-
   // Called when either `dial_server_` or `receiver_` is disconnected.
   void OnConnectionError();
 
