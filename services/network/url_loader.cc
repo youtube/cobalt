@@ -1177,8 +1177,34 @@ void URLLoader::ContinueOnResponseStarted() {
     options.struct_size = sizeof(MojoCreateDataPipeOptions);
     options.flags = MOJO_CREATE_DATA_PIPE_FLAG_NONE;
     options.element_num_bytes = 1;
+#if BUILDFLAG(IS_COBALT)
+    // Dynamic allocation for Cobalt to save memory on low-end TVs.
+    // Video/audio streams get the large buffer; images and APIs get 128 KB.
+    bool is_media_stream = (request_destination_ == mojom::RequestDestination::kVideo ||
+                            request_destination_ == mojom::RequestDestination::kAudio);
+    // YouTube TV specific: check for /videoplayback URL path
+    if (!is_media_stream) {
+      is_media_stream = (url_request_->url().path() == "/videoplayback");
+    }
+    // General MSE: check for standard video/audio mime-types or YouTube's custom UMP format
+    if (!is_media_stream && response_ && !response_->mime_type.empty()) {
+      const std::string& mime = response_->mime_type;
+      is_media_stream = (base::StartsWith(mime, "video/", base::CompareCase::SENSITIVE) ||
+                         base::StartsWith(mime, "audio/", base::CompareCase::SENSITIVE) ||
+                         mime == "application/vnd.yt-ump");
+    }
+    if (!is_media_stream && base::FeatureList::IsEnabled(features::kCobaltDynamicMojoPipeSizing)) {
+      options.capacity_num_bytes = static_cast<uint32_t>(
+          features::kCobaltDynamicMojoPipeSizingSubresourceSize.Get());
+    } else {
+      options.capacity_num_bytes = GetDataPipeDefaultAllocationSize(
+          DataPipeAllocationSize::kLargerSizeIfPossible);
+    }
+
+#else
     options.capacity_num_bytes = GetDataPipeDefaultAllocationSize(
         DataPipeAllocationSize::kLargerSizeIfPossible);
+#endif  // BUILDFLAG(IS_COBALT)
     MojoResult result =
         mojo::CreateDataPipe(&options, response_body_stream_, consumer_handle_);
     if (result != MOJO_RESULT_OK) {
