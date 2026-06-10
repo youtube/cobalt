@@ -4,6 +4,11 @@
 
 #include "src/baseline/baseline-batch-compiler.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h" // nogncheck
+#include "cobalt/shell/buildflags.h"
+#endif
+
 #include <algorithm>
 
 #include "src/base/fpu.h"
@@ -158,6 +163,9 @@ class ConcurrentBaselineCompiler {
           outgoing_queue_(outcoming_queue) {}
 
     void Run(JobDelegate* delegate) override {
+#if BUILDFLAG(IS_COBALT)
+      ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
+#endif
       base::FlushDenormalsScope flush_denormals_scope(
           isolate_->flush_denormals());
       LocalIsolate local_isolate(isolate_, ThreadKind::kBackground);

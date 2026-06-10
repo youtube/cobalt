@@ -67,7 +67,9 @@
 #include "third_party/blink/renderer/platform/loader/fetch/cached_metadata.h"
 #include "third_party/blink/renderer/platform/loader/fetch/url_loader/cached_metadata_handler.h"
 #include "third_party/blink/renderer/platform/scheduler/public/event_loop.h"
-#include "third_party/blink/renderer/platform/wtf/text/text_encoding.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
 
 namespace blink {
 
@@ -126,6 +128,10 @@ v8::MaybeLocal<v8::Script> CompileScriptInternal(
     bool can_use_crowdsourced_compile_hints,
     std::optional<inspector_compile_script_event::V8ConsumeCacheResult>*
         cache_result) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kScript);
+#endif
   // Record the script compilation in ScriptState (accessible via
   // internals.idl).
   {
@@ -318,6 +324,10 @@ v8::MaybeLocal<v8::Script> V8ScriptRunner::CompileScript(
     v8::ScriptCompiler::CompileOptions compile_options,
     v8::ScriptCompiler::NoCacheReason no_cache_reason,
     bool can_use_crowdsourced_compile_hints) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kScript);
+#endif
   v8::Isolate* isolate = script_state->GetIsolate();
   if (classic_script.SourceText().length() >= v8::String::kMaxLength) {
     V8ThrowException::ThrowError(isolate, "Source file too large.");
@@ -364,6 +374,10 @@ v8::MaybeLocal<v8::Module> V8ScriptRunner::CompileModule(
     v8::ScriptCompiler::CompileOptions compile_options,
     v8::ScriptCompiler::NoCacheReason no_cache_reason,
     const ReferrerScriptInfo& referrer_info) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kScript);
+#endif
   const String file_name = params.SourceURL();
   constexpr const char* kTraceEventCategoryGroup = "v8,devtools.timeline";
   TRACE_EVENT_BEGIN1(kTraceEventCategoryGroup, "v8.compileModule", "fileName",
@@ -475,6 +489,11 @@ v8::MaybeLocal<v8::Value> V8ScriptRunner::RunCompiledScript(
     ExecutionContext* context) {
   DCHECK(!script.IsEmpty());
 
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kScript);
+#endif
+
   v8::Local<v8::Value> script_name =
       script->GetUnboundScript()->GetScriptName();
   TRACE_EVENT1("v8", "v8.run", "fileName",
@@ -540,6 +559,9 @@ ScriptEvaluationResult V8ScriptRunner::CompileAndRunScript(
     ClassicScript* classic_script,
     ExecuteScriptPolicy policy,
     RethrowErrorsOption rethrow_errors) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kScriptHeap);
+#endif
   CHECK(script_state);
 
   // |script_state->GetContext()| must be initialized here already, typically
@@ -897,6 +919,11 @@ ScriptEvaluationResult V8ScriptRunner::EvaluateModule(
   if (!execution_context->CanExecuteScripts(kAboutToExecuteScript)) {
     return ScriptEvaluationResult::FromModuleNotRun();
   }
+
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kScript);
+#endif
 
   // <spec step="4">Prepare to run script given settings.</spec>
   //
