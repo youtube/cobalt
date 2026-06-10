@@ -39,12 +39,13 @@
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
+#include "starboard/shared/starboard/cached_feature.h"
 #include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
+#include "starboard/shared/starboard/player/fixed_block_pool.h"
 #include "starboard/shared/starboard/player/lazy_initializer.h"
-#include "starboard/shared/starboard/player/memory_pool.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
@@ -56,23 +57,26 @@ using jni_zero::JavaRef;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
-LazyInitializer<MemoryPool, /*NoDestruct=*/true> g_pool;
-MemoryPool* GetPool();
+features::CachedFeature g_use_video_frame_pool_cached(
+    features::kVideoFrameImplMemoryPool);
 
-class VideoFrameImpl : public VideoFrame {
+LazyInitializer<FixedBlockPool, /*NoDestruct=*/true> g_pool;
+FixedBlockPool* GetPool();
+
+class VideoFrameImpl final : public VideoFrame {
  public:
   typedef std::function<void()> VideoFrameReleaseCallback;
 
   void* operator new(size_t size) {
-    if (FeatureList::IsEnabled(features::kVideoFrameImplMemoryPool) &&
-        size == sizeof(VideoFrameImpl)) {
+    if (size == sizeof(VideoFrameImpl) &&
+        g_use_video_frame_pool_cached.IsEnabled()) {
       return GetPool()->Allocate(size);
     }
     return ::operator new(size);
   }
 
   void operator delete(void* ptr) {
-    MemoryPool* pool = g_pool.GetIfInitialized();
+    FixedBlockPool* pool = g_pool.GetIfInitialized();
     if (pool) {
       pool->Free(ptr);
     } else {
@@ -134,12 +138,13 @@ const int kMaxPendingInputsSize = 128;
 
 const int kFpsGuesstimateRequiredInputBufferCount = 3;
 
-// kPoolSize (32) is chosen to accommodate the maximum number of video frames
+// kPoolSize (20) is chosen to accommodate the maximum number of video frames
 // that can be in-flight concurrently in the decoder and renderer pipeline.
-// This is a safe margin to avoid fallback to heap allocation.
-constexpr size_t kPoolSize = 32;
+// This is a safe margin to avoid fallback to heap allocation (peak observed:
+// 9).
+constexpr size_t kPoolSize = 20;
 
-MemoryPool* GetPool() {
+FixedBlockPool* GetPool() {
   return g_pool.Get("VideoFrameImpl", sizeof(VideoFrameImpl), kPoolSize);
 }
 

@@ -169,6 +169,8 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/audio_sink/audio_sink_is_valid.cc",
     "//starboard/shared/starboard/audio_sink/stub_audio_sink_type.cc",
     "//starboard/shared/starboard/audio_sink/stub_audio_sink_type.h",
+    "//starboard/shared/starboard/cached_feature.cc",
+    "//starboard/shared/starboard/cached_feature.h",
     "//starboard/shared/starboard/event_cancel.cc",
     "//starboard/shared/starboard/event_schedule.cc",
     "//starboard/shared/starboard/feature_list.cc",

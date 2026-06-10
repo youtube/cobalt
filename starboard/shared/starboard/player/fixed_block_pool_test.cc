@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/memory_pool.h"
+#include "starboard/shared/starboard/player/fixed_block_pool.h"
 
 #include <thread>
 #include <vector>
@@ -22,14 +22,14 @@
 namespace starboard {
 namespace {
 
-TEST(MemoryPoolTest, BasicAllocationAndFree) {
+TEST(FixedBlockPoolTest, BasicAllocationAndFree) {
   const size_t kBlockSize = 32;
   const size_t kTotalBlocks = 4;
-  MemoryPool pool("TestPool", kBlockSize, kTotalBlocks);
+  FixedBlockPool pool("TestPool", kBlockSize, kTotalBlocks);
 
-  EXPECT_EQ(pool.block_size(), kBlockSize);
-  EXPECT_EQ(pool.total_blocks(), kTotalBlocks);
-  EXPECT_EQ(pool.free_list_size(), kTotalBlocks);
+  EXPECT_EQ(pool.GetInfoForTesting().block_size, kBlockSize);
+  EXPECT_EQ(pool.GetInfoForTesting().total_blocks, kTotalBlocks);
+  EXPECT_EQ(pool.GetInfoForTesting().free_blocks, kTotalBlocks);
 
   std::vector<void*> allocated_blocks;
 
@@ -40,13 +40,13 @@ TEST(MemoryPoolTest, BasicAllocationAndFree) {
     EXPECT_TRUE(pool.IsFromPool(ptr));
     allocated_blocks.push_back(ptr);
   }
-  EXPECT_EQ(pool.free_list_size(), 0);
+  EXPECT_EQ(pool.GetInfoForTesting().free_blocks, 0);
 
   // 2. Try to allocate one more. Should fallback to heap (not from pool).
   void* extra_ptr = pool.Allocate(kBlockSize);
   ASSERT_NE(extra_ptr, nullptr);
   EXPECT_FALSE(pool.IsFromPool(extra_ptr));
-  EXPECT_EQ(pool.free_list_size(), 0);
+  EXPECT_EQ(pool.GetInfoForTesting().free_blocks, 0);
 
   // 3. Try to allocate with size exceeding block size. Should fallback to heap.
   void* large_ptr = pool.Allocate(kBlockSize * 2);
@@ -55,7 +55,7 @@ TEST(MemoryPoolTest, BasicAllocationAndFree) {
 
   // 4. Free extra_ptr (heap). Should be deleted, not returned to pool.
   pool.Free(extra_ptr);
-  EXPECT_EQ(pool.free_list_size(), 0);
+  EXPECT_EQ(pool.GetInfoForTesting().free_blocks, 0);
 
   // 5. Free large_ptr (heap). Should be deleted.
   pool.Free(large_ptr);
@@ -64,7 +64,7 @@ TEST(MemoryPoolTest, BasicAllocationAndFree) {
   for (void* ptr : allocated_blocks) {
     pool.Free(ptr);
   }
-  EXPECT_EQ(pool.free_list_size(), kTotalBlocks);
+  EXPECT_EQ(pool.GetInfoForTesting().free_blocks, kTotalBlocks);
 
   // 7. Allocate again. Should recycle.
   void* ptr = pool.Allocate(kBlockSize);
@@ -73,10 +73,10 @@ TEST(MemoryPoolTest, BasicAllocationAndFree) {
   pool.Free(ptr);
 }
 
-TEST(MemoryPoolTest, IsFromPool) {
+TEST(FixedBlockPoolTest, IsFromPool) {
   const size_t kBlockSize = 16;
   const size_t kTotalBlocks = 2;
-  MemoryPool pool("TestPool", kBlockSize, kTotalBlocks);
+  FixedBlockPool pool("TestPool", kBlockSize, kTotalBlocks);
 
   void* ptr1 = pool.Allocate(kBlockSize);
   void* ptr2 = pool.Allocate(kBlockSize);
@@ -112,10 +112,10 @@ TEST(MemoryPoolTest, IsFromPool) {
   pool.Free(ptr2);
 }
 
-TEST(MemoryPoolTest, ThreadSafety) {
+TEST(FixedBlockPoolTest, ThreadSafety) {
   const size_t kBlockSize = 64;
   const size_t kTotalBlocks = 10;
-  MemoryPool pool("TestPool", kBlockSize, kTotalBlocks);
+  FixedBlockPool pool("TestPool", kBlockSize, kTotalBlocks);
 
   const int kNumThreads = 4;
   const int kIterations = 100;
@@ -144,18 +144,18 @@ TEST(MemoryPoolTest, ThreadSafety) {
     thread.join();
   }
 
-  EXPECT_EQ(pool.free_list_size(), kTotalBlocks);
+  EXPECT_EQ(pool.GetInfoForTesting().free_blocks, kTotalBlocks);
 }
 
-using MemoryPoolDeathTest = ::testing::Test;
+using FixedBlockPoolDeathTest = ::testing::Test;
 
-TEST_F(MemoryPoolDeathTest, DeathTest_InvalidConstructorArgs) {
-  EXPECT_DEATH_IF_SUPPORTED(MemoryPool("TestPool", 0, 10), "");
-  EXPECT_DEATH_IF_SUPPORTED(MemoryPool("TestPool", 10, 0), "");
+TEST_F(FixedBlockPoolDeathTest, DeathTest_InvalidConstructorArgs) {
+  EXPECT_DEATH_IF_SUPPORTED(FixedBlockPool("TestPool", 0, 10), "");
+  EXPECT_DEATH_IF_SUPPORTED(FixedBlockPool("TestPool", 10, 0), "");
 }
 
-TEST_F(MemoryPoolDeathTest, DeathTest_FreeInvalidPointer) {
-  MemoryPool pool("TestPool", 16, 2);
+TEST_F(FixedBlockPoolDeathTest, DeathTest_FreeInvalidPointer) {
+  FixedBlockPool pool("TestPool", 16, 2);
   int x;
   EXPECT_DEATH_IF_SUPPORTED(pool.Free(&x), "");
 }

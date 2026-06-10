@@ -16,10 +16,10 @@
 #include "starboard/shared/starboard/player/buffer_internal.h"
 
 #include "build/build_config.h"
-#include "starboard/common/log.h"
+#include "starboard/shared/starboard/cached_feature.h"
 #include "starboard/shared/starboard/feature_list.h"
+#include "starboard/shared/starboard/player/fixed_block_pool.h"
 #include "starboard/shared/starboard/player/lazy_initializer.h"
-#include "starboard/shared/starboard/player/memory_pool.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "starboard/shared/starboard/features.h"
@@ -27,29 +27,35 @@
 
 namespace starboard {
 namespace {
-// kBufferSize (80KB) is chosen to be large enough to hold the maximum typical
+
+#if BUILDFLAG(IS_ANDROID)
+features::CachedFeature g_use_buffer_pool_cached(
+    features::kDecodedAudioBufferPool);
+#endif
+
+// kBufferKiB (80) is chosen to be large enough to hold the maximum typical
 // float32 PCM audio frame payloads, preventing frequent heap fallbacks:
 // - Stereo Float32 PCM at 48kHz (20ms packets) requires 7,680 bytes.
 // - 5.1 Surround Float32 PCM at 48kHz (20ms packets) requires 23,040 bytes.
 // - Opus software decoder initial frame safety buffer requires 76,800 bytes.
 // - Large renderer pull sizes (up to 66,560 bytes) driven by platform-specific
 //   audio sink minimum buffer requirements (e.g., 96KB AudioTrack on Android).
-constexpr size_t kBufferSize = 80 * 1024;
+constexpr size_t kBufferKiB = 80;
 
 // kPoolSize (40) provides a safe margin. Real-world playback tests show a
 // maximum of ~26 buffers in-flight concurrently (leaving 14+ free), while
-// consuming only ~1.25MB of RAM total (32KB * 40).
+// consuming ~3.12MiB of RAM total (80KiB * 40).
 constexpr size_t kPoolSize = 40;
 
-LazyInitializer<MemoryPool, /*NoDestruct=*/true> g_buffer_pool;
+LazyInitializer<FixedBlockPool, /*NoDestruct=*/true> g_buffer_pool;
 
-MemoryPool* GetPool() {
-  return g_buffer_pool.Get("DecodedAudioBuffer", kBufferSize, kPoolSize);
+FixedBlockPool* GetPool() {
+  return g_buffer_pool.Get("DecodedAudioBuffer", kBufferKiB * 1024, kPoolSize);
 }
 
 bool UseBufferPool() {
 #if BUILDFLAG(IS_ANDROID)
-  return features::FeatureList::IsEnabled(features::kDecodedAudioBufferPool);
+  return g_use_buffer_pool_cached.IsEnabled();
 #else
   if (features::FeatureList::HasOverrideForTesting("DecodedAudioBufferPool")) {
     return features::FeatureList::IsEnabledByName("DecodedAudioBufferPool");
@@ -60,11 +66,17 @@ bool UseBufferPool() {
 }  // namespace
 
 size_t Buffer::GetPoolFreeListSizeForTesting() {
-  return GetPool()->free_list_size();
+  return GetPool()->GetInfoForTesting().free_blocks;
 }
 
 size_t Buffer::GetPoolTotalBlocksForTesting() {
-  return GetPool()->total_blocks();
+  return GetPool()->GetInfoForTesting().total_blocks;
+}
+
+void Buffer::ClearCacheForTesting() {
+#if BUILDFLAG(IS_ANDROID)
+  g_use_buffer_pool_cached.ClearCacheForTesting();
+#endif
 }
 
 uint8_t* Buffer::AllocateData(size_t size) {
@@ -83,7 +95,7 @@ void Buffer::FreeData(uint8_t* ptr) {
     return;
   }
 
-  MemoryPool* pool = g_buffer_pool.GetIfInitialized();
+  FixedBlockPool* pool = g_buffer_pool.GetIfInitialized();
   if (pool) {
     pool->Free(ptr);
     return;

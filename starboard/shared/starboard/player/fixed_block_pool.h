@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_MEMORY_POOL_H_
-#define STARBOARD_SHARED_STARBOARD_PLAYER_MEMORY_POOL_H_
+#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FIXED_BLOCK_POOL_H_
+#define STARBOARD_SHARED_STARBOARD_PLAYER_FIXED_BLOCK_POOL_H_
 
 #include <cstddef>
 #include <cstdint>
@@ -33,18 +33,18 @@ namespace starboard {
 // automatically falls back to standard heap allocation (using ::operator new)
 // if the pool is exhausted, or if the requested allocation size exceeds the
 // pool's configured block size.
-class MemoryPool {
+class FixedBlockPool {
  public:
   // Constructor.
   // |name| is the name of the pool for logging.
   // |block_size| is the size of each block in bytes.
   // |total_blocks| is the number of blocks to pre-allocate. Must be > 0.
-  MemoryPool(std::string_view name, size_t block_size, size_t total_blocks);
-  ~MemoryPool();
+  FixedBlockPool(std::string_view name, size_t block_size, size_t total_blocks);
+  ~FixedBlockPool();
 
   // Disallow copy and assign.
-  MemoryPool(const MemoryPool&) = delete;
-  MemoryPool& operator=(const MemoryPool&) = delete;
+  FixedBlockPool(const FixedBlockPool&) = delete;
+  FixedBlockPool& operator=(const FixedBlockPool&) = delete;
 
   // Allocates a block of memory.
   // If |size| is <= block_size() and the pool has free blocks, allocates from
@@ -59,10 +59,14 @@ class MemoryPool {
   // Helper to check if a pointer belongs to this pool.
   bool IsFromPool(const void* ptr) const;
 
+  struct InfoForTesting {
+    size_t block_size;
+    size_t total_blocks;
+    size_t free_blocks;
+  };
+  InfoForTesting GetInfoForTesting() const;
+
   std::string_view name() const { return name_; }
-  size_t block_size() const { return block_size_; }
-  size_t total_blocks() const { return total_blocks_; }
-  size_t free_list_size() const;
 
  private:
   const std::string name_;
@@ -74,10 +78,9 @@ class MemoryPool {
 
   mutable std::mutex mutex_;
   std::vector<void*> free_list_;       // Guarded by |mutex_|.
-  int64_t last_logged_us_ = 0;         // Guarded by |mutex_|.
   int64_t last_status_logged_us_ = 0;  // Guarded by |mutex_|.
 };
 
 }  // namespace starboard
 
-#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_MEMORY_POOL_H_
+#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FIXED_BLOCK_POOL_H_
