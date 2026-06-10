@@ -18,6 +18,7 @@
 #include <X11/Xlib.h>
 #include <X11/extensions/Xrender.h>
 
+#include "starboard/common/rect.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
@@ -37,10 +38,7 @@ struct SbWindowPrivate {
   // BeginComposite() and EndComposite() to display frames from multiple videos.
   void BeginComposite();
   void CompositeVideoFrame(
-      int bounds_x,
-      int bounds_y,
-      int bounds_width,
-      int bounds_height,
+      const starboard::Rect& rect,
       const starboard::scoped_refptr<starboard::CpuVideoFrame>& frame);
   void EndComposite();
 

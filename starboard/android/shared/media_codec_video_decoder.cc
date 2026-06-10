@@ -42,7 +42,6 @@
 #include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
-#include "starboard/thread.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
@@ -217,7 +216,7 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
     render_cb_ = render_cb;
   }
 
-  void SetBounds(int z_index, int x, int y, int width, int height) override {}
+  void SetBounds(int z_index, const Rect& rect) override {}
 
   DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
                             int64_t release_time_in_nanoseconds) {

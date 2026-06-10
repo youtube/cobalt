@@ -12,6 +12,8 @@
 #include "third_party/jni_zero/common_apis.h"
 #include "third_party/jni_zero/jni_zero.h"
 
+#ifdef JNI_ZERO_ENABLE_TYPE_CONVERSIONS
+
 namespace jni_zero {
 
 // Allow conversions using std::optional by wrapping non-optional conversions.
@@ -254,4 +256,7 @@ inline ScopedJavaLocalRef<jobject> ToJniType<int64_t>(JNIEnv* env,
 }
 
 }  // namespace jni_zero
+
+#endif  // JNI_ZERO_ENABLE_TYPE_CONVERSIONS
+
 #endif  // JNI_ZERO_DEFAULT_CONVERSIONS_H_
