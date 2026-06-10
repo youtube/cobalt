@@ -92,61 +92,66 @@ def verify_cuj(cuj_name,
   if os.path.exists("uma_histos.txt"):
     os.remove("uma_histos.txt")
 
-  cobalt_proc = None
-  if platform == "linux":
-    run_cmd(["killall", "-9", "cobalt"], background=False)
-    storage_path = os.path.expanduser("~/.cobalt_storage")
-    run_cmd(["rm", "-rf", storage_path, "/tmp/cobalt_metrics"],
-            background=False)
-    cmd = [
-        "./out/linux-x64x11_devel/cobalt", "--remote-allow-origins=*",
-        f"--remote-debugging-port={port}", "--memory-metrics-interval=60",
-        "--enable-features=CobaltMemoryAttributionManager",
-        "--disable-features=PartitionAllocDanglingPtr", url
-    ]
-    cobalt_proc = run_cmd(cmd, background=True)
-  else:
-    adb_base = ["adb"]
-    if device_id:
-      adb_base += ["-s", device_id]
-
-    run_cmd(adb_base + ["forward", "--remove-all"])
-    run_cmd(adb_base + [
-        "forward", f"tcp:{port}", "localabstract:content_shell_devtools_remote"
-    ])
-    run_cmd(adb_base + ["shell", "am", "force-stop", "dev.cobalt.coat"])
-    target_args = (
-        f"--enable-features=CobaltMemoryAttributionManager,"
-        f"--memory-metrics-interval=60,--remote-debugging-port={port}")
-    run_cmd(adb_base + [
-        "shell", "am", "start", "-n",
-        "dev.cobalt.coat/dev.cobalt.app.MainActivity", "--esa", "url",
-        f"'{url}'", "--esa", "commandLineArgs", f"'{target_args}'"
-    ])
-
-  # Wait for startup
-  time.sleep(30)
-
   script_dir = os.path.dirname(os.path.abspath(__file__))
-
-  # Launch pull script in background
-  pull_cmd = [
-      sys.executable,
-      os.path.join(script_dir, "..", "uma",
-                   "pull_uma_histogram_set_via_cdp.py"), "--platform", platform,
-      "--port",
-      str(port), "--histogram-file", "cobalt_uma_histograms.txt",
-      "--output-file", "uma_histos.txt", "--poll-interval-s", "60",
-      "--no-manage-cobalt", "--package-name", "dev.cobalt.coat"
-  ]
+  adb_base = ["adb"]
   if device_id:
-    pull_cmd += ["--device", device_id]
-  pull_proc = run_cmd(pull_cmd, background=True)
+    adb_base += ["-s", device_id]
 
   res_code = 0
   for iter_num in range(1, iterations + 1):
     print(f"\n--- Starting Iteration {iter_num}/{iterations} "
           f"({duration_s}s) ---\n")
+
+    # Clear file at start of iteration
+    if os.path.exists("uma_histos.txt"):
+      os.remove("uma_histos.txt")
+
+    cobalt_proc = None
+    if platform == "linux":
+      run_cmd(["killall", "-9", "cobalt"], background=False)
+      storage_path = os.path.expanduser("~/.cobalt_storage")
+      run_cmd(["rm", "-rf", storage_path, "/tmp/cobalt_metrics"],
+              background=False)
+      cmd = [
+          "./out/linux-x64x11_devel/cobalt", "--remote-allow-origins=*",
+          f"--remote-debugging-port={port}", "--memory-metrics-interval=60",
+          "--enable-features=CobaltMemoryAttributionManager",
+          "--disable-features=PartitionAllocDanglingPtr", url
+      ]
+      cobalt_proc = run_cmd(cmd, background=True)
+    else:
+      run_cmd(adb_base + ["forward", "--remove-all"])
+      run_cmd(adb_base + [
+          "forward", f"tcp:{port}",
+          "localabstract:content_shell_devtools_remote"
+      ])
+      run_cmd(adb_base + ["shell", "am", "force-stop", "dev.cobalt.coat"])
+      target_args = (
+          f"--enable-features=CobaltMemoryAttributionManager,"
+          f"--memory-metrics-interval=60,--remote-debugging-port={port}")
+      run_cmd(adb_base + [
+          "shell", "am", "start", "-n",
+          "dev.cobalt.coat/dev.cobalt.app.MainActivity", "--esa", "url",
+          f"'{url}'", "--esa", "commandLineArgs", f"'{target_args}'"
+      ])
+
+    # Wait for startup
+    time.sleep(30)
+
+    # Launch pull script in background
+    pull_cmd = [
+        sys.executable,
+        os.path.join(script_dir, "..", "uma",
+                     "pull_uma_histogram_set_via_cdp.py"), "--platform",
+        platform, "--port",
+        str(port), "--histogram-file", "cobalt_uma_histograms.txt",
+        "--output-file", "uma_histos.txt", "--poll-interval-s", "60",
+        "--no-manage-cobalt", "--package-name", "dev.cobalt.coat"
+    ]
+    if device_id:
+      pull_cmd += ["--device", device_id]
+    pull_proc = run_cmd(pull_cmd, background=True)
+
     # Execute CUJ navigation
     start_time = time.time()
     while time.time() - start_time < duration_s:
@@ -156,6 +161,17 @@ def verify_cuj(cuj_name,
         else:
           send_adb_key(random.choice(KEYS_ADB), device_id)
       time.sleep(2)
+
+    # Terminate pull script
+    pull_proc.terminate()
+    pull_proc.wait()
+
+    # Terminate app
+    if cobalt_proc:
+      cobalt_proc.terminate()
+      cobalt_proc.wait()
+    elif platform == "android":
+      run_cmd(adb_base + ["shell", "am", "force-stop", "dev.cobalt.coat"])
 
     # Verify coverage at this milestone
     print(f"\n[COMPLETED] {cuj_name} - Iteration {iter_num}/{iterations} "
@@ -173,19 +189,6 @@ def verify_cuj(cuj_name,
             f"{cuj_name} during Iteration {iter_num}/{iterations}.\n")
       res_code = res.returncode
       break
-
-  # Terminate pull script
-  pull_proc.terminate()
-  pull_proc.wait()
-
-  if cobalt_proc:
-    cobalt_proc.terminate()
-    cobalt_proc.wait()
-  elif platform == "android":
-    adb_base = ["adb"]
-    if device_id:
-      adb_base += ["-s", device_id]
-    run_cmd(adb_base + ["shell", "am", "force-stop", "dev.cobalt.coat"])
 
   if res_code != 0:
     sys.exit(res_code)
