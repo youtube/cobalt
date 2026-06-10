@@ -370,7 +370,7 @@ class DecodedAudioNeonTest : public ::testing::Test {
  protected:
   scoped_refptr<DecodedAudio> CreateInt16PlanarRamp(int total_samples) {
     int size_in_bytes = total_samples * sizeof(int16_t);
-    scoped_refptr<DecodedAudio> base = make_scoped_refptr<DecodedAudio>(
+    auto base = make_scoped_refptr<DecodedAudio>(
         kChannels, kSbMediaAudioSampleTypeInt16Deprecated,
         kSbMediaAudioFrameStorageTypePlanar, kTimestampUsec, size_in_bytes);
     int16_t* data = base->data_as_int16();
@@ -382,7 +382,7 @@ class DecodedAudioNeonTest : public ::testing::Test {
 
   scoped_refptr<DecodedAudio> CreateFloat32InterleavedRamp(int total_samples) {
     int size_in_bytes = total_samples * sizeof(float);
-    scoped_refptr<DecodedAudio> base = make_scoped_refptr<DecodedAudio>(
+    auto base = make_scoped_refptr<DecodedAudio>(
         kChannels, kSbMediaAudioSampleTypeFloat32,
         kSbMediaAudioFrameStorageTypeInterleaved, kTimestampUsec,
         size_in_bytes);

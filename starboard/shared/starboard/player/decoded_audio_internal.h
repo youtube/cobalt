@@ -46,6 +46,8 @@ class DecodedAudio : public RefCountedThreadSafe<DecodedAudio> {
                int size_in_bytes,
                Buffer&& storage);
 
+  static void EnableSimdBasedAudioFormatSwitching();
+
   int channels() const { return channels_; }
   SbMediaAudioSampleType sample_type() const { return sample_type_; }
   SbMediaAudioFrameStorageType storage_type() const { return storage_type_; }
@@ -108,12 +110,12 @@ class DecodedAudio : public RefCountedThreadSafe<DecodedAudio> {
   // specific preprocessor macros (like USE_NEON_FOR_AUDIO) to this header
   // file. They are only defined and called in the implementation (.cc) file
   // when NEON is enabled on the target platform.
-  bool SwitchFormatTo_Neon(SbMediaAudioSampleType new_sample_type,
+  bool SwitchFormatTo_NEON(SbMediaAudioSampleType new_sample_type,
                            SbMediaAudioFrameStorageType new_storage_type,
                            DecodedAudio* destination_audio) const;
-  bool SwitchSampleTypeTo_Neon(SbMediaAudioSampleType new_sample_type,
+  bool SwitchSampleTypeTo_NEON(SbMediaAudioSampleType new_sample_type,
                                DecodedAudio* destination_audio) const;
-  bool SwitchStorageTypeTo_Neon(SbMediaAudioFrameStorageType new_storage_type,
+  bool SwitchStorageTypeTo_NEON(SbMediaAudioFrameStorageType new_storage_type,
                                 DecodedAudio* destination_audio) const;
 
   const int channels_;

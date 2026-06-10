@@ -24,7 +24,7 @@ constexpr int kNumFrames = 2048;  // Realistic audio frame size
 constexpr int kSizeInBytes = kNumFrames * kChannels * sizeof(int16_t);
 
 scoped_refptr<DecodedAudio> CreateInt16PlanarBuffer() {
-  scoped_refptr<DecodedAudio> buffer = make_scoped_refptr<DecodedAudio>(
+  auto buffer = make_scoped_refptr<DecodedAudio>(
       kChannels, kSbMediaAudioSampleTypeInt16Deprecated,
       kSbMediaAudioFrameStorageTypePlanar, kTimestampUsec, kSizeInBytes);
   int16_t* data = buffer->data_as_int16();
@@ -38,7 +38,7 @@ scoped_refptr<DecodedAudio> CreateInt16PlanarBuffer() {
 
 scoped_refptr<DecodedAudio> CreateFloatInterleavedBuffer() {
   int float_size = kNumFrames * kChannels * sizeof(float);
-  scoped_refptr<DecodedAudio> buffer = make_scoped_refptr<DecodedAudio>(
+  auto buffer = make_scoped_refptr<DecodedAudio>(
       kChannels, kSbMediaAudioSampleTypeFloat32,
       kSbMediaAudioFrameStorageTypeInterleaved, kTimestampUsec, float_size);
   float* data = buffer->data_as_float32();
@@ -51,7 +51,7 @@ scoped_refptr<DecodedAudio> CreateFloatInterleavedBuffer() {
 }
 
 scoped_refptr<DecodedAudio> CreateInt16InterleavedBuffer() {
-  scoped_refptr<DecodedAudio> buffer = make_scoped_refptr<DecodedAudio>(
+  auto buffer = make_scoped_refptr<DecodedAudio>(
       kChannels, kSbMediaAudioSampleTypeInt16Deprecated,
       kSbMediaAudioFrameStorageTypeInterleaved, kTimestampUsec, kSizeInBytes);
   int16_t* data = buffer->data_as_int16();
@@ -65,7 +65,7 @@ scoped_refptr<DecodedAudio> CreateInt16InterleavedBuffer() {
 
 scoped_refptr<DecodedAudio> CreateFloatPlanarBuffer() {
   int float_size = kNumFrames * kChannels * sizeof(float);
-  scoped_refptr<DecodedAudio> buffer = make_scoped_refptr<DecodedAudio>(
+  auto buffer = make_scoped_refptr<DecodedAudio>(
       kChannels, kSbMediaAudioSampleTypeFloat32,
       kSbMediaAudioFrameStorageTypePlanar, kTimestampUsec, float_size);
   float* data = buffer->data_as_float32();

@@ -15,14 +15,16 @@
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cstring>
+#include <optional>
+#include <type_traits>
 #include <utility>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/pointer_arithmetic.h"
-#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
 #if (SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)) && defined(USE_NEON)
@@ -35,6 +37,17 @@ namespace starboard {
 namespace {
 
 constexpr bool kIsSimdBasedAudioFormatSwitchingDefaultEnabled = false;
+
+static_assert(std::is_trivially_destructible<std::atomic<bool>>::value,
+              "g_enable_simd_based_audio_format_switching must be trivially "
+              "destructible.");
+std::atomic<bool> g_enable_simd_based_audio_format_switching{
+    kIsSimdBasedAudioFormatSwitchingDefaultEnabled};
+
+bool GetSimdBasedAudioFormatSwitchingSetting() {
+  return g_enable_simd_based_audio_format_switching.load(
+      std::memory_order_acquire);
+}
 
 void ConvertSample(const int16_t* source, float* destination) {
   *destination = static_cast<float>(*source) / 32768.f;
@@ -93,6 +106,11 @@ DecodedAudio::DecodedAudio(int channels,
   SB_DCHECK_GE(size_in_bytes_, 0);
   SB_DCHECK_EQ(size_in_bytes_ % (GetBytesPerSample(sample_type_) * channels_),
                0);
+}
+
+void DecodedAudio::EnableSimdBasedAudioFormatSwitching() {
+  g_enable_simd_based_audio_format_switching.store(true,
+                                                   std::memory_order_release);
 }
 
 int DecodedAudio::frames() const {
@@ -206,8 +224,7 @@ scoped_refptr<DecodedAudio> DecodedAudio::SwitchFormatTo(
 
 #if defined(USE_NEON_FOR_AUDIO)
   bool enable_simd =
-      force_simd.value_or(GetSimdBasedAudioFormatSwitchingSetting().value_or(
-          kIsSimdBasedAudioFormatSwitchingDefaultEnabled));
+      force_simd.value_or(GetSimdBasedAudioFormatSwitchingSetting());
 #else   // !defined(USE_NEON_FOR_AUDIO)
   bool enable_simd = false;
 #endif  // defined(USE_NEON_FOR_AUDIO)
@@ -222,13 +239,12 @@ scoped_refptr<DecodedAudio> DecodedAudio::SwitchFormatTo(
 
   // Both sample types and storage types are different, use the slowest way.
   int new_size = GetBytesPerSample(new_sample_type) * frames() * channels();
-  scoped_refptr<DecodedAudio> new_decoded_audio =
-      make_scoped_refptr<DecodedAudio>(channels(), new_sample_type,
-                                       new_storage_type, timestamp(), new_size);
+  auto new_decoded_audio = make_scoped_refptr<DecodedAudio>(
+      channels(), new_sample_type, new_storage_type, timestamp(), new_size);
 
 #if defined(USE_NEON_FOR_AUDIO)
   if (enable_simd && channels() == 2 && IsAligned(frames(), 8)) {
-    if (SwitchFormatTo_Neon(new_sample_type, new_storage_type,
+    if (SwitchFormatTo_NEON(new_sample_type, new_storage_type,
                             new_decoded_audio.get())) {
       return new_decoded_audio;
     }
@@ -294,7 +310,7 @@ scoped_refptr<DecodedAudio> DecodedAudio::SwitchFormatTo(
 }
 
 scoped_refptr<DecodedAudio> DecodedAudio::Clone() const {
-  scoped_refptr<DecodedAudio> copy = make_scoped_refptr<DecodedAudio>(
+  auto copy = make_scoped_refptr<DecodedAudio>(
       channels(), sample_type(), storage_type(), timestamp(), size_in_bytes());
 
   memcpy(copy->data(), data(), size_in_bytes());
@@ -306,9 +322,8 @@ scoped_refptr<DecodedAudio> DecodedAudio::SwitchSampleTypeTo(
     SbMediaAudioSampleType new_sample_type,
     bool enable_simd) const {
   int new_size = GetBytesPerSample(new_sample_type) * frames() * channels();
-  scoped_refptr<DecodedAudio> new_decoded_audio =
-      make_scoped_refptr<DecodedAudio>(channels(), new_sample_type,
-                                       storage_type(), timestamp(), new_size);
+  auto new_decoded_audio = make_scoped_refptr<DecodedAudio>(
+      channels(), new_sample_type, storage_type(), timestamp(), new_size);
 
   if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated &&
       new_sample_type == kSbMediaAudioSampleTypeFloat32) {
@@ -318,7 +333,7 @@ scoped_refptr<DecodedAudio> DecodedAudio::SwitchSampleTypeTo(
 
 #if defined(USE_NEON_FOR_AUDIO)
     if (enable_simd && IsAligned(total_samples, 16)) {
-      if (SwitchSampleTypeTo_Neon(new_sample_type, new_decoded_audio.get())) {
+      if (SwitchSampleTypeTo_NEON(new_sample_type, new_decoded_audio.get())) {
         return new_decoded_audio;
       }
     }
@@ -336,7 +351,7 @@ scoped_refptr<DecodedAudio> DecodedAudio::SwitchSampleTypeTo(
 
 #if defined(USE_NEON_FOR_AUDIO)
     if (enable_simd && IsAligned(total_samples, 16)) {
-      if (SwitchSampleTypeTo_Neon(new_sample_type, new_decoded_audio.get())) {
+      if (SwitchSampleTypeTo_NEON(new_sample_type, new_decoded_audio.get())) {
         return new_decoded_audio;
       }
     }
@@ -353,17 +368,16 @@ scoped_refptr<DecodedAudio> DecodedAudio::SwitchSampleTypeTo(
 scoped_refptr<DecodedAudio> DecodedAudio::SwitchStorageTypeTo(
     SbMediaAudioFrameStorageType new_storage_type,
     bool enable_simd) const {
-  scoped_refptr<DecodedAudio> new_decoded_audio =
-      make_scoped_refptr<DecodedAudio>(channels(), sample_type(),
-                                       new_storage_type, timestamp(),
-                                       size_in_bytes());
+  auto new_decoded_audio = make_scoped_refptr<DecodedAudio>(
+      channels(), sample_type(), new_storage_type, timestamp(),
+      size_in_bytes());
   int bytes_per_sample = GetBytesPerSample(sample_type());
   const uint8_t* old_samples = this->data();
   uint8_t* new_samples = new_decoded_audio->data();
 
 #if defined(USE_NEON_FOR_AUDIO)
   if (enable_simd && channels() == 2 && IsAligned(frames(), 8)) {
-    if (SwitchStorageTypeTo_Neon(new_storage_type, new_decoded_audio.get())) {
+    if (SwitchStorageTypeTo_NEON(new_storage_type, new_decoded_audio.get())) {
       return new_decoded_audio;
     }
   }
@@ -429,7 +443,7 @@ std::ostream& operator<<(std::ostream& os, const DecodedAudio& decoded_audio) {
 }
 
 #if defined(USE_NEON_FOR_AUDIO)
-bool DecodedAudio::SwitchFormatTo_Neon(
+bool DecodedAudio::SwitchFormatTo_NEON(
     SbMediaAudioSampleType new_sample_type,
     SbMediaAudioFrameStorageType new_storage_type,
     DecodedAudio* destination_audio) const {
@@ -522,7 +536,7 @@ bool DecodedAudio::SwitchFormatTo_Neon(
   return false;
 }
 
-bool DecodedAudio::SwitchSampleTypeTo_Neon(
+bool DecodedAudio::SwitchSampleTypeTo_NEON(
     SbMediaAudioSampleType new_sample_type,
     DecodedAudio* destination_audio) const {
   int total_samples = frames() * channels();
@@ -586,7 +600,7 @@ bool DecodedAudio::SwitchSampleTypeTo_Neon(
   return false;
 }
 
-bool DecodedAudio::SwitchStorageTypeTo_Neon(
+bool DecodedAudio::SwitchStorageTypeTo_NEON(
     SbMediaAudioFrameStorageType new_storage_type,
     DecodedAudio* destination_audio) const {
   SB_DCHECK_EQ(channels(), 2);

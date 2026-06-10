@@ -14,61 +14,16 @@
 
 #include "starboard/shared/starboard/experimental_features.h"
 
-#include <atomic>
 #include <optional>
 #include <type_traits>
 
 #include "starboard/common/log.h"
 #include "starboard/extension/experimental/experimental_features.h"
+#include "starboard/shared/starboard/player/decoded_audio_internal.h"
 
 namespace starboard {
 
 namespace {
-
-// A thread-safe wrapper around std::optional<bool> using std::atomic.
-// This class is used to store global experimental settings that can be
-// concurrently read from multiple threads (e.g., audio decoder threads)
-// and written during initialization.
-//
-// Lifetime: Matches the global static variable it is used for.
-// Threading Model: Thread-safe, can be read and written from any thread.
-class AtomicOptionalBool {
- public:
-  constexpr AtomicOptionalBool() : state_(OptionalBoolState::kUnset) {}
-  explicit AtomicOptionalBool(std::optional<bool> value)
-      : state_(OptionalBoolState::kUnset) {
-    *this = value;
-  }
-
-  AtomicOptionalBool(const AtomicOptionalBool&) = delete;
-  AtomicOptionalBool& operator=(const AtomicOptionalBool&) = delete;
-
-  void operator=(std::optional<bool> value) {
-    OptionalBoolState state_val = OptionalBoolState::kUnset;
-    if (value.has_value()) {
-      state_val =
-          value.value() ? OptionalBoolState::kTrue : OptionalBoolState::kFalse;
-    }
-    state_.store(state_val, std::memory_order_release);
-  }
-
-  operator std::optional<bool>() const {
-    OptionalBoolState val = state_.load(std::memory_order_acquire);
-    if (val == OptionalBoolState::kUnset) {
-      return std::nullopt;
-    }
-    return val == OptionalBoolState::kTrue;
-  }
-
- private:
-  enum class OptionalBoolState : int {
-    kUnset = -1,
-    kFalse = 0,
-    kTrue = 1,
-  };
-
-  std::atomic<OptionalBoolState> state_;
-};
 
 static_assert(
     std::is_trivially_destructible<std::optional<ExperimentalFeatures>>::value,
@@ -76,11 +31,6 @@ static_assert(
 static_assert(sizeof(ExperimentalFeatures) < 256,
               "ExperimentalFeatures is too large for thread-local storage.");
 thread_local std::optional<ExperimentalFeatures> g_experimental_features;
-
-static_assert(std::is_trivially_destructible<AtomicOptionalBool>::value,
-              "g_enable_simd_based_audio_format_switching must be trivially "
-              "destructible.");
-AtomicOptionalBool g_enable_simd_based_audio_format_switching;
 
 std::optional<int> FromIntPointer(const int* val) {
   if (!val) {
@@ -151,8 +101,10 @@ void SetExperimentalFeaturesForCurrentThread(
 
   g_experimental_features = experiment_features;
 
-  g_enable_simd_based_audio_format_switching =
-      experiment_features.enable_simd_based_audio_format_switching;
+  if (experiment_features.enable_simd_based_audio_format_switching.value_or(
+          false)) {
+    DecodedAudio::EnableSimdBasedAudioFormatSwitching();
+  }
 }
 
 const ExperimentalFeatures& GetExperimentalFeaturesForCurrentThread() {
@@ -164,10 +116,6 @@ const ExperimentalFeatures& GetExperimentalFeaturesForCurrentThread() {
 
 const void* GetExperimentalFeaturesConfigurationApi() {
   return &kExperimentalFeaturesConfigurationApi;
-}
-
-std::optional<bool> GetSimdBasedAudioFormatSwitchingSetting() {
-  return g_enable_simd_based_audio_format_switching;
 }
 
 }  // namespace starboard
