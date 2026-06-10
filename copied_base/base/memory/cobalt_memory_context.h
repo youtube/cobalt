@@ -13,6 +13,10 @@
 #include "copied_base/base/base_export.h"
 #include "build/build_config.h"
 
+#include <pthread.h>
+#include <stdint.h>
+#include <atomic>
+
 namespace base {
 namespace memory {
 

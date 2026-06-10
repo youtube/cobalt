@@ -13,6 +13,8 @@
 #include "base/base_export.h"
 #include "build/build_config.h"
 
+#include <pthread.h>
+
 namespace base {
 namespace memory {
 
