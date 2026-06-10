@@ -26,6 +26,9 @@
 #include "base/logging.h"
 #include "base/memory/discardable_memory_allocator.h"
 #include "base/memory/scoped_refptr.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
 #include "base/memory/structured_shared_memory.h"
 #include "base/message_loop/message_pump.h"
 #include "base/message_loop/message_pump_type.h"
@@ -871,6 +874,14 @@ void RenderThreadImpl::RemoveObserver(RenderThreadObserver* observer) {
 void RenderThreadImpl::InitializeCompositorThread() {
   blink_platform_impl_->CreateAndSetCompositorThread();
   compositor_task_runner_ = blink_platform_impl_->CompositorThreadTaskRunner();
+
+#if BUILDFLAG(IS_COBALT)
+  compositor_task_runner_->PostTask(
+      FROM_HERE, base::BindOnce([]() {
+        base::memory::SetCurrentMemoryContext(
+            base::memory::MemoryContext::kGraphicsCompositor);
+      }));
+#endif
 
   compositor_task_runner_->PostTask(FROM_HERE,
                                     base::BindOnce(&base::DisallowBlocking));

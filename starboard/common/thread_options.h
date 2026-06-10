@@ -19,6 +19,8 @@
 
 #include <optional>
 
+#include "copied_base/base/memory/cobalt_memory_context.h"  // nogncheck
+
 namespace starboard {
 
 // A spectrum of thread priorities. Platforms map them appropriately to their
@@ -77,6 +79,13 @@ struct ThreadOptions {
 
   std::optional<ThreadPriority> priority;
   std::optional<size_t> stack_size;
+
+  ::base::memory::MemoryContext memory_context =
+      ::base::memory::MemoryContext::kMedia;
+  ThreadOptions& SetMemoryContext(::base::memory::MemoryContext context) {
+    memory_context = context;
+    return *this;
+  }
 };
 
 }  // namespace starboard
