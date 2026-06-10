@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# TODO(b/522305776): Rewrite this script in Python to share common helper methods
-# with deploy_rdk.py (e.g., launching/deactivating plugins, restarting wpeframework).
-
 # Configuration
 readonly CALLSIGN="YouTube"
 readonly PROCESS_NAME="YouTube"
