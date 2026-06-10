@@ -1808,6 +1808,10 @@ component("net") {
       "base/platform_mime_util_starboard.cc",
     ]
   }
+
+  if (is_cobalt) {
+    deps += [ "//cobalt/shell:buildflags" ]
+  }
 }
 
 # net_export.h has its own build target so that code (eg
