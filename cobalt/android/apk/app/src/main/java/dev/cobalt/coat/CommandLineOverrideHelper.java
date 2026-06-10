@@ -149,7 +149,8 @@ public final class CommandLineOverrideHelper {
         if (params != null) {
             if (!params.mIsOfficialBuild) {
                 cliOverrides.add(
-                  "--remote-allow-origins=*");
+                  "--remote-allow-origins="
+                  + "https://chrome-devtools-frontend.appspot.com");
             }
 
             if (params.mCommandLineArgs != null) {

@@ -152,7 +152,6 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
   // PoissonAllocationSampler we have in the ContentShell. Do we really need to
   // enforce it?
   auto memory_initializer = memory_system::Initializer();
-#if BUILDFLAG(IS_COBALT)
   if (base::FeatureList::IsEnabled(
           cobalt::features::kCobaltMemoryAttributionManager)) {
     memory_initializer.SetDispatcherParameters(
@@ -170,14 +169,6 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
             kIgnore,
         process_type);
   }
-#else
-  memory_initializer.SetDispatcherParameters(
-      memory_system::DispatcherParameters::PoissonAllocationSamplerInclusion::
-          kEnforce,
-      memory_system::DispatcherParameters::AllocationTraceRecorderInclusion::
-          kIgnore,
-      process_type);
-#endif
   memory_initializer.Initialize(memory_system_);
 
   return std::nullopt;

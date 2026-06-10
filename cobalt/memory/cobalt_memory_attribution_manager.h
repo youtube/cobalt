@@ -32,6 +32,18 @@ namespace cobalt {
 class MemoryAttributionBrowserTest;
 namespace memory {
 
+// CobaltMemoryAttributionManager is a singleton that tracks memory allocations
+// and attributes them to different subsystems (contexts) within Cobalt.
+// It reports these metrics via UMA histograms and exposes them to the tracing
+// system.
+//
+// Lifetime and Ownership: This is a leaky singleton, and its lifetime is the
+// duration of the process.
+//
+// Threading: The manager is created and started on the main thread. The timer
+// for reporting UMA also fires on the main thread. The OnMemoryDump callback
+// is also called on the main thread. The underlying observer can be called from
+// any thread.
 class CobaltMemoryAttributionManager
     : public base::trace_event::MemoryDumpProvider {
  public:
