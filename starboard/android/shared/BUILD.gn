@@ -228,6 +228,8 @@ static_library("starboard_platform") {
 
     "runtime_resource_overlay.cc",
     "runtime_resource_overlay.h",
+    "safe_jni.cc",
+    "safe_jni.h",
     "sanitizer_options.cc",
 
     # TODO: (cobalt b/392178584) clean up speech synthesis code.
@@ -423,6 +425,7 @@ test("starboard_platform_tests") {
               "mock_media_capabilities_cache.h",
               "model_year_test.cc",
               "player_get_preferred_output_mode_test.cc",
+              "safe_jni_test.cc",
               "video_frame_tracker_test.cc",
             ]
 

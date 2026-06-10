@@ -22,6 +22,7 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/memory/raw_ref.h"
+#include "starboard/android/shared/safe_jni.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "third_party/jni_zero/jni_zero.h"
@@ -270,23 +271,23 @@ void MediaDrmBridge::OnKeyStatusChange(
     const JavaParamRef<jobjectArray>& key_information) {
   std::string session_id_bytes = JavaByteArrayToString(env, session_id);
 
-  // nullptr array indicates key status isn't supported (i.e. Android API < 23)
-  size_t length = key_information.is_null()
-                      ? 0
-                      : base::android::SafeGetArrayLength(env, key_information);
+  std::vector<ScopedJavaLocalRef<jobject>> key_statuses =
+      JavaObjectArrayToVector(env, key_information);
+
+  size_t length = key_statuses.size();
   std::vector<SbDrmKeyId> drm_key_ids(length);
   std::vector<SbDrmKeyStatus> drm_key_statuses(length);
 
   for (size_t i = 0; i < length; ++i) {
-    ScopedJavaLocalRef<jobject> j_key_status(
-        env, env->GetObjectArrayElement(key_information.obj(), i));
+    const auto& j_key_status = key_statuses[i];
     ScopedJavaLocalRef<jbyteArray> j_key_id =
         Java_KeyStatus_getKeyId(env, j_key_status);
-    std::string key_id = JavaByteArrayToString(env, j_key_id);
+    std::vector<uint8_t> key_id_bytes;
+    base::android::JavaByteArrayToByteVector(env, j_key_id, &key_id_bytes);
 
-    SB_DCHECK_LE(key_id.size(), sizeof(drm_key_ids[i].identifier));
-    memcpy(drm_key_ids[i].identifier, key_id.data(), key_id.size());
-    drm_key_ids[i].identifier_size = key_id.size();
+    SB_DCHECK_LE(key_id_bytes.size(), sizeof(drm_key_ids[i].identifier));
+    memcpy(drm_key_ids[i].identifier, key_id_bytes.data(), key_id_bytes.size());
+    drm_key_ids[i].identifier_size = key_id_bytes.size();
 
     drm_key_statuses[i] =
         ToSbDrmKeyStatus(Java_KeyStatus_getStatusCode(env, j_key_status));
