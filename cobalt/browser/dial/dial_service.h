@@ -25,6 +25,15 @@ namespace in_app_dial {
 
 class DialService final {
  public:
+  // This matches DialHttpServer::RequestHandler::HandleRequest()'s arguments.
+  using DialHttpHandlerCallback = base::RepeatingCallback<void(
+      const std::string&,
+      const std::string&,
+      const std::string&,
+      const std::string&,
+      const std::string&,
+      base::OnceCallback<void(std::optional<net::HttpServerResponseInfo>)>)>;
+
   static DialService* GetInstance();
 
   void Start();
@@ -34,9 +43,8 @@ class DialService final {
   // handler.
   void Restart();
 
-  void RegisterHandler(base::WeakPtr<DialHttpServer::RequestHandler> handler,
-                       scoped_refptr<base::SequencedTaskRunner> task_runner);
-  void ResetHandler();
+  void RegisterHandlerCallback(DialHttpHandlerCallback callback);
+  void ResetHandlerCallback();
 
  private:
   friend class base::NoDestructor<DialService>;

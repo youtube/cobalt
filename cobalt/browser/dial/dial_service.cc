@@ -22,6 +22,7 @@
 #include "base/no_destructor.h"
 #include "base/sequence_checker.h"
 #include "base/strings/stringprintf.h"
+#include "base/task/bind_post_task.h"
 #include "base/task/current_thread.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/thread_annotations.h"
@@ -33,100 +34,8 @@
 
 namespace in_app_dial {
 
-namespace {
-
-// This class multiplexes RequestHandler requests between two different
-// sequences: the blocking one where DialHttpServer runs and a non-blocking one
-// where the actual RequestHandler implementation (e.g. DialServerImpl) runs.
-//
-// It must be created on the blocking sequence where DialHttpServer runs.
-class RequestHandlerProxy final : public DialHttpServer::RequestHandler {
- public:
-  RequestHandlerProxy()
-      : blocking_task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {
-    CHECK(base::CurrentIOThread::IsSet());
-    DCHECK_CALLED_ON_VALID_SEQUENCE(blocking_sequence_checker_);
-    DETACH_FROM_SEQUENCE(request_handler_sequence_checker_);
-  }
-
-  ~RequestHandlerProxy() = default;
-
-  base::WeakPtr<RequestHandlerProxy> AsWeakPtrInBlockingTaskRunner() {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(blocking_sequence_checker_);
-    return blocking_weak_ptr_factory_.GetWeakPtr();
-  }
-
-  void RegisterHandler(base::WeakPtr<DialHttpServer::RequestHandler> handler,
-                       scoped_refptr<base::SequencedTaskRunner> task_runner) {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(blocking_sequence_checker_);
-    request_handler_ = std::move(handler);
-    request_handler_task_runner_ = std::move(task_runner);
-    request_handler_weak_ptr_factory_.InvalidateWeakPtrs();
-  }
-
-  void ResetHandler() {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(blocking_sequence_checker_);
-    request_handler_.reset();
-    request_handler_task_runner_.reset();
-    request_handler_weak_ptr_factory_.InvalidateWeakPtrs();
-  }
-
-  void OnRequestHandledInHandlerTaskRunner(
-      base::OnceCallback<void(std::optional<net::HttpServerResponseInfo>)>
-          http_server_callback,
-      std::optional<net::HttpServerResponseInfo> info) {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(request_handler_sequence_checker_);
-    DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(),
-              request_handler_task_runner_);
-    blocking_task_runner_->PostTask(
-        FROM_HERE,
-        base::BindOnce(std::move(http_server_callback), std::move(info)));
-  }
-
-  // DialHttpServer::RequestHandler overrides.
-  void HandleRequest(
-      const std::string& method,
-      const std::string& service_name,
-      const std::string& path,
-      const std::string& data,
-      const std::string& host_with_port,
-      base::OnceCallback<void(std::optional<net::HttpServerResponseInfo>)>
-          callback) override {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(blocking_sequence_checker_);
-    if (!request_handler_task_runner_) {
-      // No handler has been registered. We do not check `request_handler_`
-      // directly because that would bind it to the wrong sequence.
-      std::move(callback).Run(std::nullopt);
-      return;
-    }
-    request_handler_task_runner_->PostTask(
-        FROM_HERE,
-        base::BindOnce(
-            &DialHttpServer::RequestHandler::HandleRequest, request_handler_,
-            method, service_name, path, data, host_with_port,
-            base::BindOnce(
-                &RequestHandlerProxy::OnRequestHandledInHandlerTaskRunner,
-                request_handler_weak_ptr_factory_.GetWeakPtr(),
-                std::move(callback))));
-  }
-
- private:
-  scoped_refptr<base::SequencedTaskRunner> blocking_task_runner_;
-
-  base::WeakPtr<DialHttpServer::RequestHandler> request_handler_;
-  scoped_refptr<base::SequencedTaskRunner> request_handler_task_runner_;
-
-  SEQUENCE_CHECKER(blocking_sequence_checker_);
-  SEQUENCE_CHECKER(request_handler_sequence_checker_);
-
-  base::WeakPtrFactory<RequestHandlerProxy> request_handler_weak_ptr_factory_{
-      this};
-  base::WeakPtrFactory<RequestHandlerProxy> blocking_weak_ptr_factory_{this};
-};
-
-}  // namespace
-
-class DialService::BlockingHelper final {
+class DialService::BlockingHelper final
+    : public DialHttpServer::RequestHandler {
  public:
   BlockingHelper() = default;
   ~BlockingHelper() { DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_); }
@@ -139,7 +48,7 @@ class DialService::BlockingHelper final {
     }
 
     dial_http_server_ = std::make_unique<DialHttpServer>(
-        device_description_, handler_proxy_.AsWeakPtrInBlockingTaskRunner());
+        device_description_, weak_ptr_factory_.GetWeakPtr());
 
     const net::IPEndPoint http_server_address =
         dial_http_server_->GetLocalAddress();
@@ -164,19 +73,42 @@ class DialService::BlockingHelper final {
     Start();
   }
 
-  void RegisterHandler(base::WeakPtr<DialHttpServer::RequestHandler> handler,
-                       scoped_refptr<base::SequencedTaskRunner> task_runner) {
+  void RegisterHandlerCallback(DialHttpHandlerCallback callback) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    handler_proxy_.RegisterHandler(std::move(handler), std::move(task_runner));
+    handler_callback_ = std::move(callback);
   }
 
-  void ResetHandler() {
+  void ResetHandlerCallback() {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    handler_proxy_.ResetHandler();
+    handler_callback_.Reset();
+  }
+
+  // DialHttpServer::RequestHandler overrides.
+  void HandleRequest(
+      const std::string& method,
+      const std::string& service_name,
+      const std::string& path,
+      const std::string& data,
+      const std::string& host_with_port,
+      base::OnceCallback<void(std::optional<net::HttpServerResponseInfo>)>
+          callback) override {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+    if (!handler_callback_) {
+      // No handler has been registered.
+      std::move(callback).Run(std::nullopt);
+      return;
+    }
+
+    handler_callback_.Run(
+        method, service_name, path, data, host_with_port,
+        base::BindPostTask(base::SequencedTaskRunner::GetCurrentDefault(),
+                           std::move(callback)));
   }
 
  private:
-  RequestHandlerProxy handler_proxy_;
+  DialService::DialHttpHandlerCallback handler_callback_
+      GUARDED_BY_CONTEXT(sequence_checker_);
 
   const DialDeviceDescription device_description_
       GUARDED_BY_CONTEXT(sequence_checker_);
@@ -186,6 +118,8 @@ class DialService::BlockingHelper final {
       GUARDED_BY_CONTEXT(sequence_checker_);
 
   SEQUENCE_CHECKER(sequence_checker_);
+
+  base::WeakPtrFactory<BlockingHelper> weak_ptr_factory_{this};
 };
 
 DialService::DialService() : io_thread_("dial_io_thread") {
@@ -211,15 +145,13 @@ void DialService::Stop() {
   blocking_helper_.AsyncCall(&BlockingHelper::Stop);
 }
 
-void DialService::RegisterHandler(
-    base::WeakPtr<DialHttpServer::RequestHandler> handler,
-    scoped_refptr<base::SequencedTaskRunner> task_runner) {
-  blocking_helper_.AsyncCall(&BlockingHelper::RegisterHandler)
-      .WithArgs(std::move(handler), std::move(task_runner));
+void DialService::RegisterHandlerCallback(DialHttpHandlerCallback callback) {
+  blocking_helper_.AsyncCall(&BlockingHelper::RegisterHandlerCallback)
+      .WithArgs(std::move(callback));
 }
 
-void DialService::ResetHandler() {
-  blocking_helper_.AsyncCall(&BlockingHelper::ResetHandler);
+void DialService::ResetHandlerCallback() {
+  blocking_helper_.AsyncCall(&BlockingHelper::ResetHandlerCallback);
 }
 
 }  // namespace in_app_dial

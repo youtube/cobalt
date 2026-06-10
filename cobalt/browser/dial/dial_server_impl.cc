@@ -17,6 +17,7 @@
 #include <optional>
 
 #include "base/sequence_checker.h"
+#include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "cobalt/browser/dial/dial_service.h"
 #include "content/public/browser/render_frame_host.h"
@@ -37,14 +38,15 @@ DialServerImpl::DialServerImpl(
     : content::DocumentService<mojom::DialServer>(render_frame_host,
                                                   std::move(receiver)) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DialService::GetInstance()->RegisterHandler(
-      other_factory_.GetWeakPtr(),
-      base::SequencedTaskRunner::GetCurrentDefault());
+  DialService::GetInstance()->RegisterHandlerCallback(
+      base::BindPostTask(base::SequencedTaskRunner::GetCurrentDefault(),
+                         base::BindRepeating(&DialServerImpl::HandleRequest,
+                                             weak_ptr_factory_.GetWeakPtr())));
 }
 
 DialServerImpl::~DialServerImpl() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DialService::GetInstance()->ResetHandler();
+  DialService::GetInstance()->ResetHandlerCallback();
 }
 
 void DialServerImpl::RegisterHandler(
