@@ -528,7 +528,9 @@ AppActivity* CastActivityManager::AddAppActivity(const MediaRoute& route,
                                           session_tracker_, logger_.get(),
                                           debugger_.get()));
   auto* const activity_ptr = activity.get();
-  activities_.emplace(route.media_route_id(), std::move(activity));
+  // Use insert_or_assign to avoid Use-After-Free on route ID collision.
+  // See crbug.com/500091052.
+  activities_.insert_or_assign(route.media_route_id(), std::move(activity));
   app_activities_[route.media_route_id()] = activity_ptr;
   return activity_ptr;
 }
@@ -557,7 +559,10 @@ CastActivity* CastActivityManager::AddMirroringActivity(
   activity->BindChannelToServiceReceiver();
   activity->CreateMirroringServiceHost();
   auto* const activity_ptr = activity.get();
-  activities_.emplace(route.media_route_id(), std::move(activity));
+  // Use insert_or_assign to avoid Use-After-Free on route ID collision.
+  // See crbug.com/500091052.
+  activities_.insert_or_assign(route.media_route_id(), std::move(activity));
+  app_activities_.erase(route.media_route_id());
   return activity_ptr;
 }
 
@@ -1178,12 +1183,6 @@ CastActivityManager::DoLaunchSessionParams::DoLaunchSessionParams(
   if (app_params) {
     this->app_params = app_params->Clone();
   }
-}
-
-void CastActivityManager::AddMirroringActivityForTest(
-    const MediaRoute::Id& route_id,
-    std::unique_ptr<MirroringActivity> mirroring_activity) {
-  activities_.emplace(route_id, std::move(mirroring_activity));
 }
 
 void CastActivityManager::HandleMissingSinkOnJoin(
