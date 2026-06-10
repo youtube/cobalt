@@ -146,47 +146,46 @@ void DialUdpServer::AcceptAndProcessConnection() {
   if (!is_running_ || !socket_.get()) {
     return;
   }
-  auto result = socket_->RecvFrom(
+  int result = socket_->RecvFrom(
       read_buffer_.get(), read_buffer_->size(), &client_address_,
       base::BindOnce(&DialUdpServer::DidRead, weak_ptr_factory_.GetWeakPtr()));
-  if (result > 0) {
-    // RecvFrom can also return the number of received bytes right away as well.
-    DidRead(result);
-  } else if (result != net::ERR_IO_PENDING) {
-    CHECK(result == net::OK) << "RecvFrom returned bad error code: " << result;
+  if (result == net::ERR_IO_PENDING) {
+    return;
   }
-  // otherwise, RecvFrom returned -1 and will execute DidRead when any data is
-  // received.
+  DidRead(result);
 }
 
 void DialUdpServer::DidClose(net::UDPSocket* server) {}
 
-void DialUdpServer::DidRead(int bytes_read) {
+void DialUdpServer::DidRead(int result) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!socket_ || !read_buffer_.get() || !read_buffer_->data()) {
     LOG(INFO) << "Dial server socket read error: no socket or buffer";
   } else {
-    if (bytes_read <= 0) {
-      LOG(WARNING) << "Dial server socket reads no bytes: " << bytes_read;
+    if (result < 0) {
+      LOG(ERROR) << "DialUdpServer read failed: " << net::ErrorToString(result);
     }
 
     // ParseSearchRequest can be triggered when read bytes is zero, this will
     // prompt a response that updates the device picker.
-    if (ParseSearchRequest(std::string(read_buffer_->data()))) {
-      LOG(INFO) << "Dial server socket parses search request with "
-                << bytes_read << " bytes read";
-      auto buffer =
-          base::MakeRefCounted<net::StringIOBuffer>(ConstructSearchResponse());
-      int result =
+    if (result == 0 ||
+        ParseSearchRequest(std::string(read_buffer_->data(), result))) {
+      LOG(INFO) << "Dial server socket parses search request with " << result
+                << " bytes read";
+      LOG(INFO) << "In-App DIAL Discovery response : " << search_response_;
+      const auto buffer =
+          base::MakeRefCounted<net::StringIOBuffer>(search_response_);
+      int send_result =
           socket_->SendTo(buffer.get(), buffer->size(), client_address_,
                           base::BindOnce(&DialUdpServer::WriteComplete,
                                          weak_ptr_factory_.GetWeakPtr()));
-      if (result == net::ERR_IO_PENDING) {
+      if (send_result == net::ERR_IO_PENDING) {
         // WriteComplete is responsible for posting the next callback to accept
         // connection.
         return;
-      } else if (result < 0) {
-        LOG(ERROR) << "UDPSocket SendTo error: " << result;
+      } else if (send_result < 0) {
+        LOG(ERROR) << "UDPSocket SendTo error: "
+                   << net::ErrorToString(send_result);
       }
     }
   }

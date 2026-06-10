@@ -47,7 +47,7 @@ class DialUdpServer final {
   void CreateAndBind();
   void AcceptAndProcessConnection();
 
-  void DidRead(int rv);
+  void DidRead(int result);
   void DidClose(net::UDPSocket* sock);
   void WriteComplete(int rv);
 
