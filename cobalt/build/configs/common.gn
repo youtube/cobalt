@@ -3,6 +3,9 @@ is_cobalt = true
 # Disable Chrome Remote Desktop.
 enable_remoting = false
 
+# We know we can trust clients to use https.
+include_transport_security_state_preload_list = false
+
 # Build flag declared originally in build/config/features.gni
 # This flag is overridden to enable common video codecs playbacks.
 proprietary_codecs = true
