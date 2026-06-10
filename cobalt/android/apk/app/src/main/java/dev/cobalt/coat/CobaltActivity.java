@@ -376,12 +376,18 @@ public abstract class CobaltActivity extends Activity {
     if (KeyEvent.isGamepadButton(keyCode)) {
       return super.onKeyDown(keyCode, event);
     }
+    if (KeyboardUtils.isPartnerFallbackKey(keyCode)) {
+      return super.onKeyDown(keyCode, event);
+    }
     return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_DOWN) || super.onKeyDown(keyCode, event);
   }
 
   @Override
   public boolean onKeyUp(int keyCode, KeyEvent event) {
     if (KeyEvent.isGamepadButton(keyCode)) {
+      return super.onKeyUp(keyCode, event);
+    }
+    if (KeyboardUtils.isPartnerFallbackKey(keyCode)) {
       return super.onKeyUp(keyCode, event);
     }
     if (keyCode == KeyEvent.KEYCODE_BACK) {
