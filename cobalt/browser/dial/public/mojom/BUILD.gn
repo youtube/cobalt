@@ -1,4 +1,4 @@
-# Copyright 2024 The Cobalt Authors. All Rights Reserved.
+# Copyright 2026 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,12 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# is_cobalt is just declared here and potentially overridden while running gn gen.
-declare_args() {
-  is_cobalt = false
-  cobalt_is_release_build = false
+import("//mojo/public/tools/bindings/mojom.gni")
 
-  # Whether to enable the custom Dial Web APIs for second-screen use cases
-  # (currently only enabled on tvOS).
-  enable_in_app_dial = false
+mojom("mojom") {
+  sources = [ "in_app_dial.mojom" ]
+
+  deps = [ "//services/network/public/mojom" ]
 }
