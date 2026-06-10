@@ -18,8 +18,8 @@
 #include <limits.h>
 
 #include <optional>
+
 #include "copied_base/base/memory/cobalt_memory_context.h"  // nogncheck
-#include "starboard/thread.h"
 
 namespace starboard {
 

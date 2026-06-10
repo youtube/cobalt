@@ -130,7 +130,10 @@ struct Thread::Data {
 };
 
 Thread::Thread(std::string_view name, const ThreadOptions& options)
-    : name_(name), priority_(options.priority), d_(std::make_unique<Data>()) {}
+    : name_(name),
+      priority_(options.priority),
+      memory_context_(options.memory_context),
+      d_(std::make_unique<Data>()) {}
 
 Thread::~Thread() {
   // A started thread must be joined before destruction.
