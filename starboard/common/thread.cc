@@ -83,6 +83,7 @@ Thread::Thread(std::string_view name, const ThreadOptions& options)
       priority_(options.priority),
       stack_size_(options.stack_size ? options.stack_size
                                      : GetDefaultStackSize()),
+      memory_context_(options.memory_context),
       d_(std::make_unique<Data>()) {}
 
 Thread::~Thread() {

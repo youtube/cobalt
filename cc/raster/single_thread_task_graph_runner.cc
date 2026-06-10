@@ -16,6 +16,10 @@
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/typed_macros.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
+
 namespace cc {
 
 SingleThreadTaskGraphRunner::SingleThreadTaskGraphRunner()
@@ -175,6 +179,10 @@ bool SingleThreadTaskGraphRunner::RunTaskWithLockAcquired() {
                 perfetto::TerminatingFlow::Global(
                     prioritized_task.task->trace_task_id()));
     base::AutoUnlock unlock(lock_);
+#if BUILDFLAG(IS_COBALT)
+    base::memory::ScopedMemoryContext scoped_context(
+        base::memory::MemoryContext::kGraphicsCompositor);
+#endif
     prioritized_task.task->RunOnWorkerThread();
   }
 
