@@ -38,6 +38,7 @@
 #include "build/build_config.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/browser/shell_devtools_frontend.h"
@@ -1040,7 +1041,8 @@ bool Shell::ShouldAllowRunningInsecureContent(WebContents* web_contents,
 }
 
 PictureInPictureResult Shell::EnterPictureInPicture(WebContents* web_contents) {
-  return PictureInPictureResult::kSuccess;
+
+  return PictureInPictureWindowManager::GetInstance()->EnterVideoPictureInPicture(web_contents);
 }
 
 bool Shell::ShouldResumeRequestsForCreatedWindow() {
