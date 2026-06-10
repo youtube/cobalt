@@ -187,7 +187,7 @@ def _unit_test_files(args: argparse.Namespace, target_name: str) -> List[str]:
         f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.gz',
     ]
     if target_name == 'cobalt_browsertests':
-      res.append(f'host_bin={args.gcs_archive_path}/'
+      res.append(f'host_deps={args.gcs_archive_path}/'
                  'cobalt_browsertests_host_deps.tar.gz')
     return res
   elif is_modular_raspi and args.device_family == 'raspi':
