@@ -4,6 +4,11 @@
 
 #include "src/heap/cppgc/concurrent-marker.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h" // nogncheck
+#include "cobalt/shell/buildflags.h"
+#endif
+
 #include "include/cppgc/platform.h"
 #include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/heap-object-header.h"
@@ -78,6 +83,9 @@ ConcurrentMarkingTask::ConcurrentMarkingTask(
     : concurrent_marker_(concurrent_marker) {}
 
 void ConcurrentMarkingTask::Run(JobDelegate* job_delegate) {
+#if BUILDFLAG(IS_COBALT)
+  ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
+#endif
   StatsCollector::EnabledConcurrentScope stats_scope(
       concurrent_marker_.heap().stats_collector(),
       StatsCollector::kConcurrentMark);

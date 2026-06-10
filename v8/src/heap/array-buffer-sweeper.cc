@@ -8,6 +8,11 @@
 #include <memory>
 #include <utility>
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h" // nogncheck
+#include "cobalt/shell/buildflags.h"
+#endif
+
 #include "src/base/logging.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/gc-tracer-inl.h"
@@ -196,6 +201,9 @@ class ArrayBufferSweeper::SweepingState::SweepingJob final : public JobTask {
 
 void ArrayBufferSweeper::SweepingState::SweepingJob::Run(
     JobDelegate* delegate) {
+#if BUILDFLAG(IS_COBALT)
+  ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
+#endif
   // Set the current isolate such that trusted pointer tables etc are
   // available and the cage base is set correctly for multi-cage mode.
   SetCurrentIsolateScope isolate_scope(heap_->isolate());
