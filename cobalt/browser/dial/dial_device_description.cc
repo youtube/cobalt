@@ -124,6 +124,8 @@ std::string GetOrCreateFormattedUuid() {
   // For full representation we need 40 hex chars, but we reduce
   // it down to 20 hex chars and then print it out.
   std::array<uint8_t, crypto::hash::kSha1Size / 2> reduced_digest;
+  std::copy(sha1_digest.begin(), sha1_digest.begin() + reduced_digest.size(),
+            reduced_digest.begin());
   static_assert(reduced_digest.size() * 2 == sha1_digest.size());
   // Use base::as_byte_span() for bounds checking.
   base::span<uint8_t> sha1_digest_view(sha1_digest);
