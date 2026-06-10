@@ -133,6 +133,11 @@ class DialService::BlockingHelper final {
 
   void Start() {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    if (dial_http_server_) {
+      LOG(WARNING) << "Start() called with a running HTTP server. Exiting.";
+      return;
+    }
+
     dial_http_server_ = std::make_unique<DialHttpServer>(
         device_description_, handler_proxy_.AsWeakPtrInBlockingTaskRunner());
 
