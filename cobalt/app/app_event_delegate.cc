@@ -76,7 +76,8 @@ AppEventDelegate::AppEventDelegate(
             SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
   }
 
-  SetApplicationState(ApplicationState::kInitial);
+  application_state_ = ApplicationState::kInitial;
+  SetApplicationStateAnnotation(ApplicationState::kInitial);
   target_state_ = ApplicationState::kInitial;
   if (!runner_) {
     // If a special runner wasn't provided, use the default.
@@ -414,6 +415,9 @@ const char* AppEventDelegate::GetStateString(ApplicationState state) {
 }
 
 void AppEventDelegate::SetApplicationState(ApplicationState state) {
+  if (application_state_ == state) {
+    return;
+  }
   application_state_ = state;
   SetApplicationStateAnnotation(state);
 }
