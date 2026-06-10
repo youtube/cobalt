@@ -174,6 +174,23 @@ bool CobaltLifecycleManager::WebContentsTracker::IsComplete(
   }
 }
 
+bool CobaltLifecycleManager::WebContentsTracker::IsFrameComplete(
+    content::RenderFrameHost* frame,
+    PendingAck ack_type) const {
+  switch (ack_type) {
+    case PendingAck::kUnfreeze:
+      return resumed_frames_.find(frame) != resumed_frames_.end();
+    case PendingAck::kReveal:
+      return visible_frames_.find(frame) != visible_frames_.end();
+    case PendingAck::kConceal:
+      return visible_frames_.find(frame) == visible_frames_.end();
+    case PendingAck::kBlur:
+      return focused_frames_.find(frame) == focused_frames_.end();
+    default:
+      return false;
+  }
+}
+
 bool CobaltLifecycleManager::WebContentsTracker::IsConnected(
     content::RenderFrameHost* frame) const {
   auto it = controllers_.find(frame);
@@ -241,13 +258,21 @@ CobaltLifecycleManager::GetOrCreateTracker(content::WebContents* web_contents) {
 void CobaltLifecycleManager::RegisterFrame(content::WebContents* web_contents,
                                            content::RenderFrameHost* frame) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  LOG(INFO) << "RegisterFrame: frame=" << frame
+            << ", parent=" << frame->GetParent();
   frames_[web_contents].insert(frame);
-  GetOrCreateTracker(web_contents);
+  auto* tracker = GetOrCreateTracker(web_contents);
 
-  // Add to pending set if we are waiting for an ACK.
+  // Add to pending set if we are waiting for an ACK and the frame is not
+  // already in the target state.
   PendingAck pending_ack = pending_acks_[web_contents];
   if (pending_ack != PendingAck::kNone) {
-    pending_ack_frames_[web_contents].insert(frame);
+    bool complete = tracker->IsFrameComplete(frame, pending_ack);
+    LOG(INFO) << "RegisterFrame: pending_ack=" << static_cast<int>(pending_ack)
+              << ", IsFrameComplete=" << complete;
+    if (!complete) {
+      pending_ack_frames_[web_contents].insert(frame);
+    }
   }
 
   if (!frame->GetParent()) {
@@ -256,6 +281,7 @@ void CobaltLifecycleManager::RegisterFrame(content::WebContents* web_contents,
       observer.OnMainFrameRegistered(web_contents);
     }
   }
+  CheckCompletion(web_contents);
 }
 
 void CobaltLifecycleManager::UnregisterFrame(content::WebContents* web_contents,
@@ -284,6 +310,8 @@ void CobaltLifecycleManager::OnPageVisibilityChanged(bool visible) {
   content::WebContents* web_contents = context.web_contents;
 
   if (web_contents) {
+    LOG(INFO) << "Mojo: OnPageVisibilityChanged: visible=" << visible
+              << ", frame=" << frame;
     auto* tracker = GetOrCreateTracker(web_contents);
     tracker->SetVisible(frame, visible);
 
@@ -302,6 +330,7 @@ void CobaltLifecycleManager::OnPageBlurred() {
   content::WebContents* web_contents = context.web_contents;
 
   if (web_contents) {
+    LOG(INFO) << "Mojo: OnPageBlurred: frame=" << frame;
     auto* tracker = GetOrCreateTracker(web_contents);
     tracker->SetFocused(frame, false);
 
@@ -319,6 +348,7 @@ void CobaltLifecycleManager::OnPageFocused() {
   content::WebContents* web_contents = context.web_contents;
 
   if (web_contents) {
+    LOG(INFO) << "Mojo: OnPageFocused: frame=" << frame;
     auto* tracker = GetOrCreateTracker(web_contents);
     tracker->SetFocused(frame, true);
   }
@@ -331,6 +361,7 @@ void CobaltLifecycleManager::OnPageResumed() {
   content::WebContents* web_contents = context.web_contents;
 
   if (web_contents) {
+    LOG(INFO) << "Mojo: OnPageResumed: frame=" << frame;
     auto* tracker = GetOrCreateTracker(web_contents);
     tracker->SetResumed(frame);
 
@@ -348,6 +379,7 @@ void CobaltLifecycleManager::OnFrameReady() {
   content::WebContents* web_contents = context.web_contents;
 
   if (web_contents) {
+    LOG(INFO) << "Mojo: OnFrameReady: frame=" << frame;
     RegisterFrame(web_contents, frame);
   }
 }
@@ -401,7 +433,13 @@ void CobaltLifecycleManager::StartWaitingForAck(
     }
   }
 
-  if (pending_ack_frames_[web_contents].empty()) {
+  LOG(INFO) << "StartWaitingForAck: ack_type=" << static_cast<int>(ack_type)
+            << ", pending_frames_count="
+            << pending_ack_frames_[web_contents].size()
+            << ", main_frame=" << main_frames_[web_contents];
+
+  if (pending_ack_frames_[web_contents].empty() &&
+      main_frames_[web_contents] != nullptr) {
     // If there are no connected frames (e.g., during startup before any
     // frames are created or if all frames crashed), we complete the ACK
     // immediately to avoid hanging the transition.
@@ -413,6 +451,9 @@ void CobaltLifecycleManager::StartWaitingForAck(
         base::BindOnce(&CobaltLifecycleManager::CompleteAckImmediately,
                        weak_factory_.GetWeakPtr(), web_contents, ack_type));
     return;
+  } else if (pending_ack_frames_[web_contents].empty()) {
+    LOG(INFO) << "StartWaitingForAck: pending_ack_frames is empty but "
+                 "main_frame is NULL. Waiting for registration...";
   }
   // Post a 2-second timer as a fallback for all ACKs.
   content::GetUIThreadTaskRunner({})->PostDelayedTask(
@@ -471,7 +512,8 @@ void CobaltLifecycleManager::CheckCompletion(
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   PendingAck pending_ack = pending_acks_[web_contents];
   if (pending_ack != PendingAck::kNone &&
-      pending_ack_frames_[web_contents].empty()) {
+      pending_ack_frames_[web_contents].empty() &&
+      main_frames_[web_contents] != nullptr) {
     CompleteAckImmediately(web_contents, pending_ack);
   }
 }

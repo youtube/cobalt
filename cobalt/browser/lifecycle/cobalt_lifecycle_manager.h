@@ -202,6 +202,11 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
 
     bool IsComplete(PendingAck ack_type) const;
 
+    // Checks if the specified frame has completed the state required by the
+    // ACK.
+    bool IsFrameComplete(content::RenderFrameHost* frame,
+                         PendingAck ack_type) const;
+
     // Checks if the remote controller for the specified frame is bound and
     // connected.
     bool IsConnected(content::RenderFrameHost* frame) const;

@@ -108,14 +108,10 @@ void ShellPlatformDelegate::RevealShell(Shell* shell) {
   }
 }
 void ShellPlatformDelegate::MapWindowShell(Shell* shell) {
-  if (!platform_ || !platform_->aura || !platform_->aura->host()) {
+  if (!platform_ || !platform_->aura) {
     return;
   }
-  auto* host =
-      static_cast<aura::WindowTreeHostPlatform*>(platform_->aura->host());
-  if (host && host->platform_window()) {
-    host->platform_window()->Show(true);
-  }
+  platform_->aura->ShowWindow();
 }
 
 void ShellPlatformDelegate::ConcealShell(Shell* shell) {

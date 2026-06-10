@@ -136,6 +136,7 @@ void ShellPlatformDelegate::OnReveal() {
 #endif
     }
     RevealShell(shell);
+    shell->web_contents()->WasShown();
   }
   is_visible_ = true;
 }
