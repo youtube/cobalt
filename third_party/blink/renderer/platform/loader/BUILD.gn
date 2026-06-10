@@ -209,6 +209,11 @@ blink_platform_sources("loader") {
     "//third_party/blink/renderer/platform/network:network",
     "//third_party/blink/renderer/platform/scheduler:scheduler",
   ]
+
+  if (is_cobalt) {
+    deps += [ "//cobalt/shell:buildflags" ]
+  }
+
   public_deps = [
     "//third_party/blink/public/mojom:mojom_platform_headers",
     "//third_party/blink/renderer/platform/heap:heap",
