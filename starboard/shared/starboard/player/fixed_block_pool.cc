@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/memory_pool.h"
+#include "starboard/shared/starboard/player/fixed_block_pool.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -28,6 +28,11 @@
 namespace starboard {
 
 namespace {
+
+// When set, periodically logs the fullness status of the pool at the
+// specified interval in microseconds, and enables heap fallback warnings.
+// std::nullopt disables all logging and warnings.
+constexpr std::optional<int64_t> kStatusLogIntervalUs = std::nullopt;
 
 size_t AlignBlockSize(size_t block_size) {
   SB_CHECK_GT(block_size, 0U);
@@ -47,15 +52,11 @@ std::unique_ptr<uint8_t[]> AllocatePoolStorage(size_t block_size,
   return storage;
 }
 
-// When set, periodically logs the fullness status of the memory pool at the
-// specified interval in milliseconds. std::nullopt disables logging.
-constexpr std::optional<int64_t> kStatusLogIntervalMs = 5'000;
-
 }  // namespace
 
-MemoryPool::MemoryPool(std::string_view name,
-                       size_t block_size,
-                       size_t total_blocks)
+FixedBlockPool::FixedBlockPool(std::string_view name,
+                               size_t block_size,
+                               size_t total_blocks)
     : name_(name),
       block_size_(AlignBlockSize(block_size)),
       total_blocks_(ValidateTotalBlocks(total_blocks)),
@@ -66,17 +67,17 @@ MemoryPool::MemoryPool(std::string_view name,
   for (size_t i = 0; i < total_blocks_; ++i) {
     free_list_.push_back(base + i * block_size_);
   }
-  SB_LOG(INFO) << "MemoryPool created: name=" << name_
+  SB_LOG(INFO) << "FixedBlockPool created: name=" << name_
                << ", block_size(KiB)=" << block_size_ / 1024
                << ", total_blocks=" << total_blocks_;
 }
 
-MemoryPool::~MemoryPool() {
+FixedBlockPool::~FixedBlockPool() {
   SB_DCHECK_EQ(free_list_.size(), total_blocks_)
       << "Not all blocks were returned to the pool.";
 }
 
-void* MemoryPool::Allocate(size_t size) {
+void* FixedBlockPool::Allocate(size_t size) {
   if (size <= block_size_) {
     std::lock_guard lock(mutex_);
     if (!free_list_.empty()) {
@@ -87,26 +88,17 @@ void* MemoryPool::Allocate(size_t size) {
   }
 
   // Fallback to heap
-  {
-    std::lock_guard lock(mutex_);
-    int64_t now = CurrentMonotonicTime();
-    if (now - last_logged_us_ >= 1'000'000) {
-      if (size > block_size_) {
-        SB_LOG(WARNING) << "MemoryPool fallback allocation will occur: name="
-                        << name_ << ", requested_size(KiB)=" << (size / 1024)
-                        << ", block_size(KiB)=" << (block_size_ / 1024);
-      } else {
-        SB_LOG(WARNING) << "MemoryPool exhausted (fallback will occur): name="
-                        << name_ << ", block_size(KiB)=" << (block_size_ / 1024)
-                        << ", total_blocks=" << total_blocks_;
-      }
-      last_logged_us_ = now;
-    }
+  if constexpr (kStatusLogIntervalUs.has_value()) {
+    SB_LOG(WARNING) << "heap alloc will happen: name=" << name_ << ", reason="
+                    << (size > block_size_ ? "oversized" : "exhausted")
+                    << ", requested_size(KiB)=" << (size / 1024)
+                    << ", block_size(KiB)=" << (block_size_ / 1024)
+                    << ", total_blocks=" << total_blocks_;
   }
   return ::operator new(size);
 }
 
-void MemoryPool::Free(void* ptr) {
+void FixedBlockPool::Free(void* ptr) {
   if (!ptr) {
     return;
   }
@@ -122,15 +114,16 @@ void MemoryPool::Free(void* ptr) {
   MaybeLogStatus();
 }
 
-void MemoryPool::MaybeLogStatus() {
-  if constexpr (kStatusLogIntervalMs.has_value()) {
+void FixedBlockPool::MaybeLogStatus() {
+  if constexpr (kStatusLogIntervalUs.has_value()) {
     int64_t now = CurrentMonotonicTime();
     size_t free_blocks = 0;
     bool should_log = false;
 
     {
       std::lock_guard lock(mutex_);
-      if (now - last_status_logged_us_ >= kStatusLogIntervalMs.value() * 1000) {
+      int64_t elapsed = now - last_status_logged_us_;
+      if (elapsed >= kStatusLogIntervalUs.value()) {
         free_blocks = free_list_.size();
         last_status_logged_us_ = now;
         should_log = true;
@@ -138,7 +131,7 @@ void MemoryPool::MaybeLogStatus() {
     }
 
     if (should_log) {
-      SB_LOG(INFO) << "MemoryPool status: name=" << name_
+      SB_LOG(INFO) << "FixedBlockPool status: name=" << name_
                    << ", free_blocks=" << free_blocks
                    << ", total_blocks=" << total_blocks_ << " (fullness: "
                    << (total_blocks_ - free_blocks) * 100 / total_blocks_
@@ -147,7 +140,7 @@ void MemoryPool::MaybeLogStatus() {
   }
 }
 
-bool MemoryPool::IsFromPool(const void* ptr) const {
+bool FixedBlockPool::IsFromPool(const void* ptr) const {
   uintptr_t ptr_val = reinterpret_cast<uintptr_t>(ptr);
   uintptr_t start_val = reinterpret_cast<uintptr_t>(pool_storage_.get());
   uintptr_t end_val = start_val + block_size_ * total_blocks_;
@@ -155,9 +148,9 @@ bool MemoryPool::IsFromPool(const void* ptr) const {
          (ptr_val - start_val) % block_size_ == 0;
 }
 
-size_t MemoryPool::free_list_size() const {
+FixedBlockPool::InfoForTesting FixedBlockPool::GetInfoForTesting() const {
   std::lock_guard lock(mutex_);
-  return free_list_.size();
+  return InfoForTesting{block_size_, total_blocks_, free_list_.size()};
 }
 
 }  // namespace starboard
