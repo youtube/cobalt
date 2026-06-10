@@ -1,9 +1,15 @@
 #!/bin/bash
 
+# TODO(b/522305776): Rewrite this script in Python to share common helper methods
+# with deploy_rdk.py (e.g., launching/deactivating plugins, restarting wpeframework).
+
 # Configuration
-readonly PROCESS_NAME="loader_app"
+readonly CALLSIGN="YouTube"
+readonly PROCESS_NAME="YouTube"
 readonly INTERVAL=1
 readonly OUTPUT_FILE="memory_test_results.txt"
+# Delay to allow WPEFramework to process state changes and configuration updates
+readonly JSONRPC_DELAY=2
 
 # Initialize output file
 echo "Memory Test Started at $(date)" > "$OUTPUT_FILE"
@@ -11,13 +17,13 @@ echo "Memory Test Started at $(date)" > "$OUTPUT_FILE"
 # Redirect stdout and stderr to both terminal and output file
 exec > >(tee -a "$OUTPUT_FILE") 2>&1
 
-# Define scenarios: name|command|duration|rounds
+# Define scenarios: name|url|duration|rounds
 # If rounds is omitted, it defaults to 1.
 SCENARIOS=(
-    "Default Page|./out_cobalt/loader_app|60|3"
-    "About Blank|./out_cobalt/loader_app --url=\"about:blank\"|30|1"
-    "4K Video Playback|./out_cobalt/loader_app --url=\"https://www.youtube.com/tv#/watch?v=1La4QzGeaaQ\"|180|3"
-    "1080p Video Playback|./out_cobalt/loader_app --url=\"https://www.youtube.com/tv#/watch?v=ou0cmY8Fqd0\"|180|3"
+    "Default Page|https://www.youtube.com/tv|60|3"
+    "About Blank|about:blank|30|1"
+    "4K Video Playback|https://www.youtube.com/tv#/watch?v=1La4QzGeaaQ|180|3"
+    "1080p Video Playback|https://www.youtube.com/tv#/watch?v=ou0cmY8Fqd0|180|3"
 )
 
 # Function to calculate median
@@ -60,6 +66,101 @@ calculate_average() {
     printf '%s\n' "${arr[@]}" | awk '{sum+=$1} END {print sum/NR}'
 }
 
+# JSON-RPC Helpers
+send_jsonrpc() {
+    local method="$1"
+    local params="$2"
+    if [ -n "$params" ]; then
+        curl -s -m 2 http://127.0.0.1:9998/jsonrpc -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"$method\",\"params\":$params}"
+    else
+        curl -s -m 2 http://127.0.0.1:9998/jsonrpc -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"$method\"}"
+    fi
+}
+
+deactivate_plugin() {
+    send_jsonrpc "Controller.1.deactivate" "{\"callsign\":\"$CALLSIGN\"}"
+}
+
+activate_plugin() {
+    send_jsonrpc "Controller.1.activate" "{\"callsign\":\"$CALLSIGN\"}"
+}
+
+configure_plugin_url() {
+    local url="$1"
+    if [ -z "$ORIGINAL_CONFIG" ]; then
+        local default_config="{\"url\":\"$url\",\"clientidentifier\":\"wst-Cobalt-0\",\"closurepolicy\":\"quit\",\"contentdir\":\"/data/out_cobalt\",\"systemproperties\":{\"modelname\":\"AH212\",\"brandname\":\"RDKCommonPort\",\"modelyear\":2025},\"root\":{\"mode\":\"Local\",\"locator\":\"libWPEFrameworkCobaltImpl.so\"}}"
+        send_jsonrpc "Controller.1.configuration@$CALLSIGN" "$default_config"
+    else
+        local updated_config=$(python3 -c "
+import sys, json
+try:
+    data = json.loads(sys.argv[1])
+    config = data.get('result', data)
+    config['url'] = sys.argv[2]
+    if 'root' in config and config['root'].get('mode') == 'Container':
+        config['root']['mode'] = 'Local'
+    print(json.dumps(config))
+except Exception as e:
+    sys.exit(1)
+" "$ORIGINAL_CONFIG" "$url")
+
+        if [ $? -eq 0 ] && [ -n "$updated_config" ]; then
+            send_jsonrpc "Controller.1.configuration@$CALLSIGN" "$updated_config"
+        else
+            echo "Error updating config with python. Using fallback config."
+            local default_config="{\"url\":\"$url\",\"clientidentifier\":\"wst-Cobalt-0\",\"closurepolicy\":\"quit\",\"contentdir\":\"/data/out_cobalt\",\"systemproperties\":{\"modelname\":\"AH212\",\"brandname\":\"RDKCommonPort\",\"modelyear\":2025},\"root\":{\"mode\":\"Local\",\"locator\":\"libWPEFrameworkCobaltImpl.so\"}}"
+            send_jsonrpc "Controller.1.configuration@$CALLSIGN" "$default_config"
+        fi
+    fi
+}
+
+launch_youtube_plugin() {
+    local url="$1"
+    echo "Configuring URL: $url"
+    configure_plugin_url "$url"
+    sleep $JSONRPC_DELAY
+    echo "Activating YouTube plugin (callsign: $CALLSIGN)..."
+    activate_plugin
+    sleep 5
+    PID=$(pgrep -n "$PROCESS_NAME")
+}
+
+recover_wpeframework_and_launch() {
+    local url="$1"
+    echo "Warning: Process '$PROCESS_NAME' not found after launch. Attempting to recover by restarting wpeframework..."
+    systemctl restart wpeframework
+    echo "Waiting for WPEFramework JSON-RPC to become responsive..."
+    local max_wait=30
+    while [ $max_wait -gt 0 ]; do
+        if send_jsonrpc "Controller.1.configuration@$CALLSIGN" "" | grep -q "result"; then
+            echo "WPEFramework is ready!"
+            break
+        fi
+        sleep 2
+        ((max_wait--))
+    done
+    # Re-fetch the fresh configuration after restart
+    ORIGINAL_CONFIG=$(send_jsonrpc "Controller.1.configuration@$CALLSIGN" "")
+    if ! echo "$ORIGINAL_CONFIG" | grep -q '"result"'; then
+        ORIGINAL_CONFIG=""
+    fi
+
+    # Retry launch
+    launch_youtube_plugin "$url"
+
+    if [ -z "$PID" ]; then
+        return 1
+    fi
+    return 0
+}
+
+# Fetch original configuration at start
+ORIGINAL_CONFIG=$(send_jsonrpc "Controller.1.configuration@$CALLSIGN" "")
+if ! echo "$ORIGINAL_CONFIG" | grep -q '"result"'; then
+    echo "Warning: Could not fetch original configuration for $CALLSIGN. Using defaults."
+    ORIGINAL_CONFIG=""
+fi
+
 # Store final results for each scenario using parallel arrays for compatibility
 scenario_names_ordered=()
 scenario_data_ordered=()
@@ -68,7 +169,7 @@ scenario_rounds_ordered=()
 for scenario_info in "${SCENARIOS[@]}"; do
     IFS='|' read -r scenario_name scenario_command scenario_duration scenario_rounds <<< "$scenario_info"
 
-    # Default to 1 round if not specified
+    # If rounds is omitted, it defaults to 1.
     if [ -z "$scenario_rounds" ]; then
         scenario_rounds=1
     fi
@@ -76,7 +177,7 @@ for scenario_info in "${SCENARIOS[@]}"; do
     echo ""
     echo "##########################################################"
     echo "SCENARIO: $scenario_name"
-    echo "COMMAND:  $scenario_command"
+    echo "URL:      $scenario_command"
     echo "DURATION: $scenario_duration seconds"
     echo "ROUNDS:   $scenario_rounds"
     echo "##########################################################"
@@ -91,20 +192,20 @@ for scenario_info in "${SCENARIOS[@]}"; do
     for ((round=1; round<=$scenario_rounds; round++)); do
         echo "=========================================================="
         echo "Starting Round $round/$scenario_rounds"
-        echo "Launching $scenario_command..."
 
-        # Evaluate command to handle quotes correctly
-        eval "$scenario_command > /dev/null 2>&1 &"
-        LAUNCH_PID=$!
+        echo "Deactivating YouTube plugin (callsign: $CALLSIGN)..."
+        deactivate_plugin
+        sleep $JSONRPC_DELAY
 
-        # Wait for the process to be available
-        sleep 5 # Give it a bit more time to settle
-        PID=$(pgrep -n "$PROCESS_NAME")
+        # Attempt first launch
+        launch_youtube_plugin "$scenario_command"
 
+        # If the process is not found, restart wpeframework and attempt recovery
         if [ -z "$PID" ]; then
-            echo "Error: Process '$PROCESS_NAME' not found after launch."
-            kill $LAUNCH_PID 2>/dev/null
-            continue
+            if ! recover_wpeframework_and_launch "$scenario_command"; then
+                echo "Error: Process '$PROCESS_NAME' still not found after restart recovery. Skipping round."
+                continue
+            fi
         fi
 
         echo "Target PID: $PID"
@@ -172,8 +273,8 @@ for scenario_info in "${SCENARIOS[@]}"; do
         echo "  status RSS - Peak: $(kb_to_mb $r_status_peak) MB, Median: $(kb_to_mb $r_status_median) MB"
         echo "  gpu    MEM - Peak: $(kb_to_mb $r_gpu_peak) MB, Median: $(kb_to_mb $r_gpu_median) MB"
 
-        echo "Killing processes $PID and $LAUNCH_PID..."
-        kill $PID $LAUNCH_PID 2>/dev/null
+        echo "Deactivating YouTube plugin (callsign: $CALLSIGN) to stop scenario..."
+        deactivate_plugin
 
         # Wait for process to exit
         MAX_WAIT=20
@@ -181,10 +282,6 @@ for scenario_info in "${SCENARIOS[@]}"; do
             sleep 1
             ((MAX_WAIT--))
         done
-        if [ -d "/proc/$PID" ]; then
-            echo "Forcing kill -9 on $PID and $LAUNCH_PID..."
-            kill -9 $PID $LAUNCH_PID 2>/dev/null
-        fi
 
         sleep 5 # Cool down
     done
