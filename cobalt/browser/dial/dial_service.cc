@@ -75,6 +75,15 @@ class DialService::BlockingHelper final
 
   void RegisterHandlerCallback(DialHttpHandlerCallback callback) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    if (handler_callback_) {
+      // DialService exists as a singleton, while handlers (i.e. DialServerImpl)
+      // are per-Document. This works for Kabuki, which is an SPA with one
+      // frame, but will have to be revisited if multiple frames with their own
+      // DialServer objects are ever used.
+      LOG(ERROR) << __func__
+                 << " A handler callback is already registered and will be "
+                    "cleared. This is probably a mistake in the calling code.";
+    }
     handler_callback_ = std::move(callback);
   }
 
