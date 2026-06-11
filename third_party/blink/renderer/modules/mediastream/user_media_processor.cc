@@ -757,8 +757,7 @@ void UserMediaProcessor::SetupAudioInput() {
 
     SetupVideoInput();
     return;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
+#else
     SendLogMessage(
         base::StringPrintf("SetupAudioInput({request_id=%d}) => "
                            "(Requesting device capabilities)",
@@ -767,6 +766,7 @@ void UserMediaProcessor::SetupAudioInput() {
     GetMediaDevicesDispatcher()->GetAudioInputCapabilities(
         WTF::BindOnce(&UserMediaProcessor::SelectAudioDeviceSettings,
                       WrapWeakPersistent(this), WrapPersistent(request)));
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   } else {
     if (!blink::IsAudioInputMediaType(audio_controls.stream_type)) {
       String failed_constraint_name = String(

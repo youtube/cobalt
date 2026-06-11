@@ -23,7 +23,9 @@ namespace {
 
 // Default to stereo. This could change depending on the format of the
 // MediaStream's audio track.
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
 constexpr unsigned kDefaultNumberOfOutputChannels = 2;
+#endif
 
 // Default to mono for Cobalt/Starboard to avoid latency-inducing upmixing.
 // Standard Chromium defaults to stereo.
