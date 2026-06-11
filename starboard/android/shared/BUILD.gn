@@ -435,12 +435,14 @@ test("starboard_platform_tests") {
     ":media_codec_video_decoder_helpers",
     ":starboard_platform",
     ":test_support",
+    "//base",
     "//starboard:starboard_group",
     "//starboard/shared/starboard/drm:drm_test_helpers",
     "//starboard/shared/starboard/player/filter/testing:test_util",
     "//starboard/testing:scoped_feature_list",
     "//testing/gmock",
     "//testing/gtest",
+    "//third_party/jni_zero",
   ]
 }
 
