@@ -41,6 +41,12 @@ Usage Examples:
 
   8. Deploy only the libcobalt library:
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --only-lib
+
+  9. View device system logs (journalctl):
+     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --logs
+
+  10. Follow device system logs in real-time (journalctl -f):
+      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --logs --follow
 """
 
 import argparse
@@ -353,6 +359,16 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Disable Remote Build Execution (RBE) in GN configuration.",
     )
+    parser.add_argument(
+        "--logs",
+        action="store_true",
+        help="View system/Cobalt logs from the device.",
+    )
+    parser.add_argument(
+        "--follow",
+        action="store_true",
+        help="Follow log output in real-time (runs journalctl -f).",
+    )
     return parser.parse_args()
 
 
@@ -588,6 +604,14 @@ def main() -> None:
     if args.revert_c25:
         device_id = get_device_id()
         revert_to_cobalt_25(device_id)
+        return
+
+    if args.logs:
+        device_id = get_device_id()
+        cmd = ["adb", "-s", device_id, "shell", "journalctl"]
+        if args.follow:
+            cmd.append("-f")
+        run_command(cmd, stream_output=True)
         return
 
     device_id = get_device_id()
