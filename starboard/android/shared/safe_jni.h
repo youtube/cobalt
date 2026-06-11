@@ -52,12 +52,6 @@ std::vector<jni_zero::ScopedJavaLocalRef<jobject>> JavaObjectArrayToVector(
     JNIEnv* env,
     const jni_zero::JavaRef<jobjectArray>& array);
 
-// Converts a Java direct ByteBuffer to a C++ Span<uint8_t>.
-// Returns an empty Span if the buffer is not direct or if JNI calls fail.
-Span<uint8_t> JavaByteBufferToSpan(
-    JNIEnv* env,
-    const jni_zero::JavaRef<jobject>& byte_buffer);
-
 }  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_SAFE_JNI_H_
