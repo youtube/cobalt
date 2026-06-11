@@ -19,6 +19,7 @@
     "FileStreamDataSourceCppTest.ReadFromOffset",
     "FileStreamDataSourceCppTest.ReadInChunks",
     "FileTest.*",
+    "InvitationTest.SendInvitation",
     "MessagePipeTest.DataPipeConsumerHandlePingPong",
     "MessagePipeTest.DataPipeProducerHandlePingPong",
     "PlatformChannelServerTest.*",

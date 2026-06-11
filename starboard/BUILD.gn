@@ -161,7 +161,6 @@ source_set("starboard_headers_only") {
     "egl.h",
     "event.h",
     "export.h",
-    "file.h",
     "gles.h",
     "input.h",
     "key.h",
@@ -250,6 +249,8 @@ if (current_toolchain == starboard_toolchain) {
       ":starboard_test_main",
       "//starboard:starboard_headers_only",
       "//starboard/common:common_test",
+      "//starboard/shared/starboard:starboard_test",
+      "//starboard/testing:testing_test",
       "//testing/gtest",
     ]
 

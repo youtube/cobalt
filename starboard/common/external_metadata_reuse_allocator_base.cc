@@ -137,13 +137,14 @@ void ExternalMetadataReuseAllocatorBase::MemoryBlock::Allocate(
 }
 
 void* ExternalMetadataReuseAllocatorBase::Allocate(size_t size) {
-  return Allocate(size, 1);
+  return Allocate(size, kMinAlignment);
 }
 
 void* ExternalMetadataReuseAllocatorBase::Allocate(size_t size,
                                                    size_t alignment) {
   size = AlignUp(std::max(size, kMinAlignment), kMinAlignment);
-  alignment = AlignUp(std::max<size_t>(alignment, 1), kMinAlignment);
+  alignment =
+      AlignUp(std::max<size_t>(alignment, kMinAlignment), kMinAlignment);
 
   bool allocate_from_front;
   FreeBlockSet::iterator free_block_iter =
@@ -174,6 +175,7 @@ void* ExternalMetadataReuseAllocatorBase::Allocate(size_t size,
   }
   void* user_address = AlignUp(allocated_block.address(), alignment);
   AddAllocatedBlock(user_address, allocated_block);
+  TryToDecommitOneBlock();
 
   return user_address;
 }
@@ -293,7 +295,8 @@ bool ExternalMetadataReuseAllocatorBase::TryFree(void* memory) {
   allocated_blocks_.erase(it);
 
   if (enable_decommit_on_idle_ && total_allocated_ == 0) {
-    DecommitFallbackAllocations();
+    free_blocks_.clear();
+    ReclaimFallbackBlocks();
   }
 
   return true;
@@ -303,9 +306,31 @@ ExternalMetadataReuseAllocatorBase::ExternalMetadataReuseAllocatorBase(
     Allocator* fallback_allocator,
     size_t initial_capacity,
     size_t allocation_increment,
+    size_t max_capacity)
+    : ExternalMetadataReuseAllocatorBase(
+          fallback_allocator,
+          initial_capacity,
+          allocation_increment,
+          max_capacity,
+          /*enable_decommit_on_idle=*/false,
+          /*retain_blocks=*/0,
+          /*conservative_decommit_blocks=*/0,
+          /*aggressive_decommit_on_suspend=*/false) {}
+
+ExternalMetadataReuseAllocatorBase::ExternalMetadataReuseAllocatorBase(
+    Allocator* fallback_allocator,
+    size_t initial_capacity,
+    size_t allocation_increment,
     size_t max_capacity,
-    bool enable_decommit_on_idle)
-    : ReuseAllocatorBase(fallback_allocator, max_capacity),
+    bool enable_decommit_on_idle,
+    size_t retain_blocks,
+    size_t conservative_decommit_blocks,
+    bool aggressive_decommit_on_suspend)
+    : ReuseAllocatorBase(fallback_allocator,
+                         max_capacity,
+                         retain_blocks,
+                         conservative_decommit_blocks,
+                         aggressive_decommit_on_suspend),
       allocation_increment_(allocation_increment),
       enable_decommit_on_idle_(enable_decommit_on_idle) {
   if (initial_capacity > 0) {
@@ -421,7 +446,7 @@ ExternalMetadataReuseAllocatorBase::ExpandToFit(size_t size, size_t alignment) {
   // |free_address + free_size|  |aligned_address|
   size_t size_to_allocate = aligned_address + size - free_address - free_size;
   std::tie(fallback_address, fallback_index) =
-      AllocateFallbackBlock(&size_to_allocate, 1);
+      AllocateFallbackBlock(&size_to_allocate, kMinAlignment);
   if (fallback_address == nullptr) {
     return free_blocks_.end();
   }

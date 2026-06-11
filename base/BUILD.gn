@@ -2448,6 +2448,10 @@ component("base") {
 
   if (is_cobalt) {
     sources += [
+      "memory/cobalt_memory_context.cc",
+      "memory/cobalt_memory_context.h",
+      "memory/cobalt_memory_attribution_observer.cc",
+      "memory/cobalt_memory_attribution_observer.h",
       "system/sys_info_starboard.cc",
       "system/sys_info_starboard.h",
     ]
@@ -3059,6 +3063,9 @@ component("i18n") {
     "//third_party/ced",
     "//third_party/icu",
   ]
+  if (is_cobalt) {
+    public_deps -= [ "//third_party/ced" ]
+  }
   deps = [
     ":i18n_transliterator",
     "//build:chromecast_buildflags",
