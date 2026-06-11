@@ -14,10 +14,11 @@
 
 #include "cobalt/browser/dial/dial_device_description.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 
-#include "base/containers/heap_array.h"
+#include "base/containers/span.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/logging.h"
