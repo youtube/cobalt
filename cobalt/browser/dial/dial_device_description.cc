@@ -95,13 +95,13 @@ std::array<uint8_t, base::Uuid::kGuidV4InputLength> GetOrGenerateUuidBytes() {
     return GenerateUuidBytes();
   }
 
-  if (cache_file.ReadAtCurrentPosAndCheck(uuid_bytes)) {
+  if (cache_file.ReadAndCheck(0, uuid_bytes)) {
     return uuid_bytes;
   }
 
   uuid_bytes = GenerateUuidBytes();
   cache_file.SetLength(0);
-  if (!cache_file.WriteAtCurrentPosAndCheck(uuid_bytes)) {
+  if (!cache_file.WriteAndCheck(0, uuid_bytes)) {
     LOG(WARNING) << __func__ << " Unable to store device UUID to "
                  << cache_path;
   }
