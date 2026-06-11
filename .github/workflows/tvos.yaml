@@ -41,6 +41,9 @@ jobs:
           echo "Bypassing build wait for verification. Using hardcoded artifacts."
           exit 0
 
+      - name: Set Up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
       - name: Download Artifacts from GCS
         env:
           COMMIT_SHA: ${{ needs.get-sha.outputs.sha }}
