@@ -118,7 +118,8 @@ void InitLogging(const base::CommandLine& command_line) {
   }
 
   logging::LoggingSettings settings;
-  settings.logging_dest = logging::LOG_DEFAULT;
+  settings.logging_dest =
+      logging::LOG_TO_SYSTEM_DEBUG_LOG | logging::LOG_TO_STDERR;
   settings.log_file_path = log_filename.value().c_str();
   settings.delete_old = logging::DELETE_OLD_LOG_FILE;
   logging::InitLogging(settings);
