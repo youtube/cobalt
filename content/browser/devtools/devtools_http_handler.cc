@@ -836,7 +836,7 @@ DevToolsHttpHandler::DevToolsHttpHandler(
       new base::Thread(kDevToolsHandlerThreadName));
   base::Thread::Options options;
   options.message_pump_type = base::MessagePumpType::IO;
-  options.memory_context = base::memory::MemoryContext::kPlatformStarboard;
+  options.memory_context = base::memory::MemoryContext::kPlatformDevTools;
   if (thread->StartWithOptions(std::move(options))) {
     auto task_runner = thread->task_runner();
     task_runner->PostTask(

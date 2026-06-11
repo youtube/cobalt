@@ -109,6 +109,10 @@ std::string_view ContextToString(MemoryContext context) {
       return "PlatformIPC";
     case MemoryContext::kPlatformStarboard:
       return "PlatformStarboard";
+    case MemoryContext::kPlatformDevTools:
+      return "PlatformDevTools";
+    case MemoryContext::kBrowserMain:
+      return "BrowserMain";
     case MemoryContext::kCount:
       return "Unknown";
   }

@@ -24,7 +24,7 @@
 JNI_EXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 #if BUILDFLAG(IS_COBALT)
   base::memory::SetCurrentMemoryContext(
-      base::memory::MemoryContext::kPlatformStarboard);
+      base::memory::MemoryContext::kBrowserMain);
 #endif
   base::android::InitVM(vm);
   if (!content::android::OnJNIOnLoadInit()) {

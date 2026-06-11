@@ -45,6 +45,8 @@ enum class MemoryContext : uint8_t {
   kBlinkParser,
   kPlatformIPC,
   kPlatformStarboard,
+  kPlatformDevTools,
+  kBrowserMain,
 
   kCount
 };

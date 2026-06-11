@@ -13,6 +13,8 @@ Memory.Cobalt.AllocationVolume.NetworkCache
 Memory.Cobalt.AllocationVolume.NetworkLoader
 Memory.Cobalt.AllocationVolume.PlatformIPC
 Memory.Cobalt.AllocationVolume.PlatformStarboard
+Memory.Cobalt.AllocationVolume.PlatformDevTools
+Memory.Cobalt.AllocationVolume.BrowserMain
 Memory.Cobalt.AllocationVolume.Script
 Memory.Cobalt.AllocationVolume.ScriptBindings
 Memory.Cobalt.AllocationVolume.ScriptHeap

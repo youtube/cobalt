@@ -62,7 +62,7 @@ class PipeIOBase {
   bool Start() {
     base::Thread::Options options;
     options.message_pump_type = base::MessagePumpType::IO;
-    options.memory_context = base::memory::MemoryContext::kPlatformStarboard;
+    options.memory_context = base::memory::MemoryContext::kPlatformDevTools;
     if (!thread_->StartWithOptions(std::move(options)))
       return false;
     StartMainLoop();
