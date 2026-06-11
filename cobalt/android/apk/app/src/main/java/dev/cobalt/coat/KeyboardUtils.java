@@ -16,7 +16,19 @@ package dev.cobalt.coat;
 
 import android.view.KeyEvent;
 
-/** Utility methods for keyboard event handling. */
+/**
+ * Utility methods for keyboard event handling.
+ *
+ * Provides helper methods to identify specific key codes that require custom handling, such as
+ * partner-specific fallback keys that must be intercepted before IME dispatch to allow OS-level
+ * fallback.
+ *
+ * This is a utility class with static methods and cannot be instantiated. It is owned by the
+ * Cobalt Android runtime team and remains active throughout the application's lifetime.
+ *
+ * This class is stateless and thread-safe. All methods are static and can be
+ * safely called from any thread.
+ */
 public final class KeyboardUtils {
   private KeyboardUtils() {}
 
