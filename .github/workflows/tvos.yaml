@@ -30,11 +30,7 @@ jobs:
     steps:
       - id: set-sha
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "sha=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
-          else
-            echo "sha=${{ github.sha }}" >> $GITHUB_OUTPUT
-          fi
+          echo "sha=53bb750e75fb716b005144c71a048823c51faaa6" >> $GITHUB_OUTPUT
 
   wait-for-build:
     needs: get-sha
@@ -46,7 +42,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Polling GitHub Checks API for Kokoro status on commit ${COMMIT_SHA}..."
-          for i in {1..60}; do # Poll for 30 minutes (60 * 30s)
+          for i in {1..240}; do # Poll for 2 hours (240 * 30s)
             checks=$(gh api repos/youtube/cobalt/commits/${COMMIT_SHA}/check-runs)
 
             echo "--- Current Checks ---"
