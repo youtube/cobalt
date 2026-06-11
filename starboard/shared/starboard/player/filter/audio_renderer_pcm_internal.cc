@@ -79,6 +79,8 @@ AudioRendererPcm::AudioRendererPcm(
       min_frames_per_append_(min_frames_per_append),
       allow_audio_writing_on_pause_(
           experimental_features.GetBool(kMediaAllowAudioWritingOnPause)),
+      enable_decoded_audio_simd_optimizations_(experimental_features.GetBool(
+          kMediaEnableDecodedAudioSimdOptimizations)),
       decoder_(std::move(decoder)),
       frames_consumed_set_at_(CurrentMonotonicTime()),
       channels_(audio_stream_info.number_of_channels),
@@ -578,7 +580,8 @@ void AudioRendererPcm::OnFirstOutput(
       audio_renderer_sink_->GetNearestSupportedSampleFrequency(
           *decoder_sample_rate_);
   time_stretcher_.Initialize(kSbMediaAudioSampleTypeFloat32, channels_,
-                             destination_sample_rate);
+                             destination_sample_rate,
+                             enable_decoded_audio_simd_optimizations_);
 
   buffered_frames_to_start_ = std::min(
       destination_sample_rate / 5, max_cached_frames_ - min_frames_per_append_);
