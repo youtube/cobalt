@@ -99,6 +99,7 @@ def create_archive(
     flatten_deps: bool,
 ):
   """Main logic. Collects runtime dependencies for each target."""
+  os.makedirs(destination_dir, exist_ok=True)
   combined_deps = set()
   for target in targets:
     # TODO(b/483460300): Unify unittest and browsertest packaging
@@ -117,7 +118,8 @@ def create_archive(
           out_dir, 'gen.runtime', target_path,
           f'{target_name}__test_runner_script.runtime_deps')
       if not os.path.exists(deps_file):
-        # Fallback for robolectric tests which don't append '__test_runner_script'
+        # Fallback for robolectric tests which don't append
+        # '__test_runner_script'
         deps_file = os.path.join(out_dir, 'gen.runtime', target_path,
                                  f'{target_name}.runtime_deps')
     else:
@@ -127,6 +129,13 @@ def create_archive(
         # the starboard_toolchain. In that case, we should look in subfolders.
         # For the time being, just try with an extra starboard/ in the path.
         deps_file = os.path.join(out_dir, 'starboard',
+                                 f'{target_name}.runtime_deps')
+      if not os.path.exists(deps_file):
+        deps_file = os.path.join(
+            out_dir, 'gen.runtime', target_path,
+            f'{target_name}__test_runner_script.runtime_deps')
+      if not os.path.exists(deps_file):
+        deps_file = os.path.join(out_dir, 'gen.runtime', target_path,
                                  f'{target_name}.runtime_deps')
 
     print('Collecting runtime dependencies for', target)
