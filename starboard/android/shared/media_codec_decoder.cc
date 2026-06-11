@@ -170,11 +170,12 @@ MediaCodecDecoder::MediaCodecDecoder(PassKey<MediaCodecDecoder>,
   SB_CHECK(error_message);
 
   JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jobject> j_media_crypto =
-      drm_system_
-          ? ScopedJavaLocalRef<jobject>(env, drm_system_->GetMediaCrypto())
-          : nullptr;
-  SB_DCHECK(!drm_system_ || j_media_crypto.obj() != nullptr);
+  ScopedJavaLocalRef<jobject> j_media_crypto;
+  if (drm_system_) {
+    j_media_crypto =
+        ScopedJavaLocalRef<jobject>(env, drm_system_->GetMediaCrypto());
+  }
+  SB_DCHECK(!drm_system_ || j_media_crypto);
   media_codec_bridge_ = media_codec_factory.CreateAudioMediaCodec(
       audio_stream_info, this, j_media_crypto);
   if (!media_codec_bridge_) {
@@ -236,13 +237,14 @@ MediaCodecDecoder::MediaCodecDecoder(
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
   JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jobject> j_media_crypto =
-      drm_system_
-          ? ScopedJavaLocalRef<jobject>(env, drm_system_->GetMediaCrypto())
-          : nullptr;
+  ScopedJavaLocalRef<jobject> j_media_crypto;
+  if (drm_system_) {
+    j_media_crypto =
+        ScopedJavaLocalRef<jobject>(env, drm_system_->GetMediaCrypto());
+  }
   const bool require_secured_decoder =
       drm_system_ && drm_system_->require_secured_decoder();
-  SB_DCHECK(!drm_system_ || j_media_crypto.obj() != nullptr);
+  SB_DCHECK(!drm_system_ || j_media_crypto);
 
   auto media_codec_bridge = media_codec_factory.CreateVideoMediaCodec(
       video_codec, frame_size_hint, fps, max_frame_size,
