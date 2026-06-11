@@ -34,12 +34,28 @@ jobs:
 
   wait-for-build:
     needs: get-sha
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
       - name: Poll GitHub Checks API for Kokoro build
         run: |
           echo "Bypassing build wait for verification. Using hardcoded artifacts."
           exit 0
+
+      - name: Download Artifacts from GCS
+        env:
+          COMMIT_SHA: ${{ needs.get-sha.outputs.sha }}
+        run: |
+          BUCKET="cobalt-unittest-storage"
+          PLATFORM="tvos-arm64-simulator"
+          CONFIG="devel"
+          gcloud storage cp "gs://${BUCKET}/kokoro/build/${PLATFORM}_${CONFIG}/${COMMIT_SHA}/cobalt_browsertests.tar.gz" .
+
+      - name: Upload to GitHub Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: tvos-test-artifacts
+          path: cobalt_browsertests.tar.gz
+          retention-days: 1
 
   run-tests:
     needs: [get-sha, wait-for-build]
@@ -51,28 +67,14 @@ jobs:
           sparse-checkout: |
             cobalt/testing/filters
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+      - name: Download from GitHub Actions
+        uses: actions/download-artifact@v4
         with:
-          credentials_json: ${{ secrets.SCCACHE_GCS_KEY_TVOS }}
-
-      - name: Set Up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Download and Extract Tests
-        env:
-          COMMIT_SHA: ${{ needs.get-sha.outputs.sha }}
-        run: |
-          BUCKET="cobalt-unittest-storage"
-          PLATFORM="tvos-arm64-simulator"
-          CONFIG="devel"
-          GCS_DIR="gs://${BUCKET}/kokoro/build/${PLATFORM}_${CONFIG}/${COMMIT_SHA}"
-
-          gcloud storage cp "${GCS_DIR}/cobalt_browsertests.tar.gz" .
-          tar -xzf cobalt_browsertests.tar.gz
+          name: tvos-test-artifacts
 
       - name: Run Cobalt Browser Tests in Simulator
         run: |
+          tar -xzf cobalt_browsertests.tar.gz
           # We assume iossim is included in the tarball.
           ./iossim \
             -x tvos \
