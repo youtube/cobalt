@@ -115,14 +115,17 @@ def run_command(
     return process.stdout if capture_output else ""
 
 
-def configure_build(platform: str, config: str, out_dir: Path) -> None:
+def configure_build(platform: str, config: str, out_dir: Path, no_rbe: bool = False) -> None:
     """Runs GN configuration."""
     print(f"=== Configuring {platform} ({config}) ===")
-    run_command([
+    cmd = [
         "python3", "cobalt/build/gn.py", "-p", platform, "-C", config,
         "--out_directory",
         str(out_dir)
-    ])
+    ]
+    if no_rbe:
+        cmd.append("--no-rbe")
+    run_command(cmd)
 
 
 def build_targets(out_dir: Path, targets: List[str]) -> str:
@@ -344,6 +347,11 @@ def parse_args() -> argparse.Namespace:
         "--revert-c25",
         action="store_true",
         help="Revert the active Cobalt configuration on the device back to Cobalt 25.",
+    )
+    parser.add_argument(
+        "--no-rbe",
+        action="store_true",
+        help="Disable Remote Build Execution (RBE) in GN configuration.",
     )
     return parser.parse_args()
 
@@ -631,7 +639,7 @@ def main() -> None:
             print("Also, make sure to add it to your ~/.bashrc (e.g., export RDK_HOME=/workspaces/rdk/toolchain).")
             sys.exit(1)
 
-        configure_build(PLATFORM, config, out_dir)
+        configure_build(PLATFORM, config, out_dir, args.no_rbe)
         build_output = build_targets(out_dir, targets)
         is_up_to_date = build_output and any(
             msg in build_output for msg in ["Everything is up-to-date", "no work to do"])
