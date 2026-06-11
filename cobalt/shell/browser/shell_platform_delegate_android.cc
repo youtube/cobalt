@@ -75,7 +75,6 @@ void ShellPlatformDelegate::CleanUp(Shell* shell) {
     Java_Shell_onNativeDestroyed(env, shell_data.java_object);
   }
 
-  previously_visible_web_contents_.erase(shell->web_contents());
   shell_data_map_.erase(shell);
 }
 
