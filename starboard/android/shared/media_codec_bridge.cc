@@ -18,6 +18,7 @@
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/safe_jni.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
@@ -266,20 +267,8 @@ void MediaCodecBridge::Initialize(jobject j_media_codec_bridge) {
 Span<uint8_t> MediaCodecBridge::GetInputBufferAddress(jint index) {
   SB_DCHECK_GE(index, 0);
   JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jobject> byte_buffer =
-      Java_MediaCodecBridge_getInputBuffer(env, j_media_codec_bridge_, index);
-  if (byte_buffer.is_null()) {
-    return {};
-  }
-  jlong cap = env->GetDirectBufferCapacity(byte_buffer.obj());
-  if (cap < 0) {
-    return {};
-  }
-  void* address = env->GetDirectBufferAddress(byte_buffer.obj());
-  if (!address) {
-    return {};
-  }
-  return {static_cast<uint8_t*>(address), static_cast<size_t>(cap)};
+  return JavaByteBufferToSpan(env, Java_MediaCodecBridge_getInputBuffer(
+                                       env, j_media_codec_bridge_, index));
 }
 
 jint MediaCodecBridge::QueueInputBuffer(jint index,
@@ -343,20 +332,8 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
 Span<uint8_t> MediaCodecBridge::GetOutputBufferAddress(jint index) {
   SB_DCHECK_GE(index, 0);
   JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jobject> byte_buffer =
-      Java_MediaCodecBridge_getOutputBuffer(env, j_media_codec_bridge_, index);
-  if (byte_buffer.is_null()) {
-    return {};
-  }
-  jlong cap = env->GetDirectBufferCapacity(byte_buffer.obj());
-  if (cap < 0) {
-    return {};
-  }
-  void* address = env->GetDirectBufferAddress(byte_buffer.obj());
-  if (!address) {
-    return {};
-  }
-  return {static_cast<uint8_t*>(address), static_cast<size_t>(cap)};
+  return JavaByteBufferToSpan(env, Java_MediaCodecBridge_getOutputBuffer(
+                                       env, j_media_codec_bridge_, index));
 }
 
 void MediaCodecBridge::ReleaseOutputBuffer(jint index, jboolean render) {

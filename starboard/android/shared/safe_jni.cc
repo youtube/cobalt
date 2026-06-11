@@ -38,4 +38,24 @@ std::vector<ScopedJavaLocalRef<jobject>> JavaObjectArrayToVector(
   return out;
 }
 
+Span<uint8_t> JavaByteBufferToSpan(
+    JNIEnv* env,
+    const jni_zero::JavaRef<jobject>& byte_buffer) {
+  SB_CHECK(env);
+  if (byte_buffer.is_null()) {
+    return {};
+  }
+  jlong capacity = env->GetDirectBufferCapacity(byte_buffer.obj());
+  if (capacity < 0) {
+    SB_LOG(WARNING) << "ByteBuffer is not direct or capacity is invalid.";
+    return {};
+  }
+  void* address = env->GetDirectBufferAddress(byte_buffer.obj());
+  if (!address) {
+    SB_LOG(WARNING) << "Failed to get direct buffer address.";
+    return {};
+  }
+  return {static_cast<uint8_t*>(address), static_cast<size_t>(capacity)};
+}
+
 }  // namespace starboard
