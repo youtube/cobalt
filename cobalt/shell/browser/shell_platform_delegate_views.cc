@@ -455,9 +455,7 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
 void ShellPlatformDelegate::DidCreateOrAttachWebContents(
     Shell* shell,
     WebContents* web_contents) {
-  LOG(INFO) << "ShellPlatformDelegate::DidCreateOrAttachWebContents: is_visible_=" << is_visible_;
   if (!is_visible_) {
-    LOG(INFO) << "Inserting preloaded web_contents into previously_visible_web_contents_";
     previously_visible_web_contents_.insert(web_contents);
   }
   auto it = shell_data_map_.find(shell);
