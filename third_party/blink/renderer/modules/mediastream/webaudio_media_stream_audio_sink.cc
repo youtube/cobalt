@@ -38,9 +38,7 @@ WebAudioMediaStreamAudioSink::WebAudioMediaStreamAudioSink(
       platform_buffer_duration_(platform_buffer_duration),
       sink_params_(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-                   base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack)
-                       ? media::ChannelLayoutConfig::Mono()
-                       : media::ChannelLayoutConfig::Stereo(),
+                   media::ChannelLayoutConfig::Mono(),
 #else
                    media::ChannelLayoutConfig::Stereo(),
 #endif

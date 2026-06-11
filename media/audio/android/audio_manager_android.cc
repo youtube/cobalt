@@ -433,8 +433,7 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Check if this is a fast-track request by checking for our special prefix.
   static constexpr char kFastTrackPrefix[] = "fast-track-";
-  if (base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack) &&
-      base::StartsWith(device_id, kFastTrackPrefix)) {
+  if (base::StartsWith(device_id, kFastTrackPrefix)) {
     std::string session_id = device_id.substr(sizeof(kFastTrackPrefix) -1);
     std::unique_ptr<PreStartedEntry> entry;
     {
@@ -616,9 +615,7 @@ AudioInputStream* AudioManagerAndroid::MakeLinearInputStream(
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format());
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack)) {
-    return new StarboardAudioInputStream(this, params);
-  }
+  return new StarboardAudioInputStream(this, params);
 #endif
 
   if (__builtin_available(android AAUDIO_MIN_API, *)) {
@@ -647,9 +644,7 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack)) {
-    return new StarboardAudioInputStream(this, params);
-  }
+  return new StarboardAudioInputStream(this, params);
 #endif
   DLOG_IF(ERROR, device_id.empty()) << "Invalid device ID!";
 

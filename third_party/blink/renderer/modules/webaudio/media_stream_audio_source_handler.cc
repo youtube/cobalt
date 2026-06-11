@@ -40,21 +40,15 @@ MediaStreamAudioSourceHandler::MediaStreamAudioSourceHandler(
   SendLogMessage(__func__, "");
   
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  unsigned default_channels = kDefaultNumberOfOutputChannels;
-  if (base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack)) {
-    default_channels = 1;
-  }
-  AddOutput(default_channels);
+  AddOutput(1);
 #else
   AddOutput(kDefaultNumberOfOutputChannels);
 #endif
 
   // Force Mono mode end-to-end for Starboard to avoid latency-inducing upmixers.
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack)) {
-    SetInternalChannelCountMode(V8ChannelCountMode::Enum::kExplicit);
-    channel_count_ = 1;
-  }
+  SetInternalChannelCountMode(V8ChannelCountMode::Enum::kExplicit);
+  channel_count_ = 1;
 #endif
 
   Initialize();

@@ -162,9 +162,7 @@ void AudioInputDevice::Start() {
   state_ = CREATING_STREAM;
   int segment_count = kRequestedSharedMemoryCount;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack)) {
-    segment_count = kStarboardRequestedSharedMemoryCount;
-  }
+  segment_count = kStarboardRequestedSharedMemoryCount;
 #endif
   ipc_->CreateStream(this, audio_parameters_, agc_is_enabled_, segment_count);
 }
@@ -309,9 +307,7 @@ void AudioInputDevice::OnStreamCreated(
 
   int segment_count = kRequestedSharedMemoryCount;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack)) {
-    segment_count = kStarboardRequestedSharedMemoryCount;
-  }
+  segment_count = kStarboardRequestedSharedMemoryCount;
 #endif
   audio_callback_ = std::make_unique<AudioInputDevice::AudioThreadCallback>(
       audio_parameters_, std::move(shared_memory_region),

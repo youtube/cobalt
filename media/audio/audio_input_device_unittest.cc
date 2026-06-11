@@ -116,9 +116,7 @@ class AudioInputDeviceTest
 
     size_t segment_count = kMemorySegmentCount;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    if (base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack)) {
-      segment_count = 32u;
-    }
+    segment_count = 32u;
 #endif
 
     const uint32_t memory_size =
