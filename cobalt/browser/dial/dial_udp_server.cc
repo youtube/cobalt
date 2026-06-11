@@ -129,14 +129,12 @@ void DialUdpServer::CreateAndBind() {
 
 void DialUdpServer::Start() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  CHECK(!is_running_);
   is_running_ = true;
   CreateAndBind();
 }
 
 void DialUdpServer::Stop() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  CHECK(is_running_);
   socket_.reset();
   is_running_ = false;
 }
@@ -162,7 +160,10 @@ void DialUdpServer::DidRead(int result) {
   if (!socket_ || !read_buffer_.get() || !read_buffer_->data()) {
     LOG(INFO) << "Dial server socket read error: no socket or buffer";
   } else if (result < 0) {
-    LOG(ERROR) << "DialUdpServer read failed: " << net::ErrorToString(result);
+    LOG(ERROR) << "DialUdpServer read failed, stopping server: "
+               << net::ErrorToString(result);
+    Stop();
+    return;
   } else {
     // ParseSearchRequest can be triggered when read bytes is zero, this will
     // prompt a response that updates the device picker (see b/268088112).
