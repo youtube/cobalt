@@ -39,7 +39,7 @@ FakeMediaCodec::~FakeMediaCodec() {
   }
 }
 
-DataSpan FakeMediaCodec::GetInputBufferAddress(jint index) {
+Span<uint8_t> FakeMediaCodec::GetInputBufferAddress(jint index) {
   std::lock_guard lock(mutex_);
   if (index < 0 || index >= kNumBuffers) {
     return {};
@@ -79,7 +79,7 @@ jint FakeMediaCodec::QueueSecureInputBuffer(
   return -1;  // Not supported in Fake
 }
 
-DataSpan FakeMediaCodec::GetOutputBufferAddress(jint index) {
+Span<uint8_t> FakeMediaCodec::GetOutputBufferAddress(jint index) {
   std::lock_guard lock(mutex_);
   if (index < 0 || index >= kNumBuffers) {
     return {};
