@@ -38,21 +38,15 @@ runs:
         git config --global --add safe.directory "${GITHUB_WORKSPACE:-/github/workspace}"
         git config --global --add safe.directory "*"
         git sparse-checkout add --skip-checks testing build third_party/catapult third_party/logdog third_party/jdk
+        echo "${PWD}"
+        ls .
     - name: Extract Artifacts
       shell: bash
       run: |
         set -x
-        mkdir -p unit_test/out/
-        cd unit_test/out/
-        for f in ../../*.tar.*; do
-          if [ -f "$f" ]; then
-            if [[ "$f" == *.zstd || "$f" == *.zst ]]; then
-              tar -I 'zstd -T0' -xf "$f"
-            else
-              tar -xf "$f"
-            fi
-          fi
-        done
+        mkdir -p unit_test/
+        cd unit_test/
+        tar -I 'zstd -T0' -xf ../test_artifacts.tar.zstd
     - name: Prepare Test Execution
       id: prepare-test-execution
       shell: bash
@@ -93,7 +87,7 @@ runs:
         TEST_EXECUTABLES_JSON: ${{ inputs.test_executables_json }}
       run: |
         set -x
-        cd unit_test/out/
+        cd unit_test/
 
         failed_suites=""
 
@@ -153,6 +147,34 @@ runs:
           # Fail the job so it's easy to retrigger.
           exit 1
         fi
+    - name: Construct Unified Execution Workspace
+      id: construct-unified-workspace
+      if: ${{ inputs.test_type == 'junit' }}
+      shell: bash
+      run: |
+        set -x
+        echo "=== Constructing Unified Workspace Paths ==="
+
+        # 1. Overlay compiled runtime dependencies into the primary Git third_party directory
+        for target_dir in unit_test/third_party/*; do
+          dir_name=$(basename "$target_dir")
+          if [ -d "$target_dir" ] && [ "$dir_name" != "jdk" ]; then
+            ln -sf "../$target_dir" "third_party/$dir_name"
+          fi
+        done
+
+        # 2. Expose the hermetic Git JDK to the extracted execution runner
+        mkdir -p unit_test/third_party/jdk
+        ln -sf "${GITHUB_WORKSPACE}/third_party/jdk/current" unit_test/third_party/jdk/current
+
+        # 3. Expose the Git sparse checkout roots to the extracted unit_test/ workspace
+        ln -sf "${GITHUB_WORKSPACE}/testing" unit_test/testing
+        ln -sf "${GITHUB_WORKSPACE}/build" unit_test/build
+        ln -sf "${GITHUB_WORKSPACE}/cobalt" unit_test/cobalt
+        ln -sf "${GITHUB_WORKSPACE}/starboard" unit_test/starboard
+        ln -sf "${GITHUB_WORKSPACE}/.github" unit_test/.github
+        ln -sf "${GITHUB_WORKSPACE}/third_party/catapult" unit_test/third_party/catapult
+        ln -sf "${GITHUB_WORKSPACE}/third_party/logdog" unit_test/third_party/logdog
     - name: Run JUnit Suites
       if: ${{ inputs.test_type == 'junit' }}
       id: run-junit-suites
@@ -162,25 +184,7 @@ runs:
       run: |
         set -x
 
-        # Symlink all extracted third_party subdirectories into the git-checked-out third_party directory
-        for d in unit_test/out/third_party/*; do
-          if [ -d "$d" ]; then
-            if [ "$(basename "$d")" != "jdk" ]; then
-              ln -sf "../$d" "third_party/$(basename "$d")"
-            fi
-          fi
-        done
-
-        # Symlink the prebuilt Java 23 checked out in sparse checkout to unit_test/out/third_party/jdk/current
-        mkdir -p unit_test/out/third_party/jdk
-        ln -sf "${GITHUB_WORKSPACE}/third_party/jdk/current" unit_test/out/third_party/jdk/current
-
-        cd unit_test/out/
-
-        # Create the out/<config> redirect symlink directly from matrix parameters
-        build_config_dir="${{ matrix.platform }}_${{ matrix.config }}"
-        mkdir -p out
-        ln -sf .. "out/${build_config_dir}"
+        cd unit_test/
 
         failed_suites=""
 
