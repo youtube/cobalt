@@ -34,10 +34,21 @@ namespace {
 const char* GetCurrentOSThreadName() {
   static thread_local char tls_thread_name[32] = {0};
   if (tls_thread_name[0] == '\0') {
+#if BUILDFLAG(IS_ANDROID)
+    if (__builtin_available(android 26, *)) {
+      if (pthread_getname_np(pthread_self(), tls_thread_name, sizeof(tls_thread_name)) != 0) {
+        tls_thread_name[0] = '\0';
+        return nullptr;
+      }
+    } else {
+      return nullptr;
+    }
+#else
     if (pthread_getname_np(pthread_self(), tls_thread_name, sizeof(tls_thread_name)) != 0) {
       tls_thread_name[0] = '\0';
       return nullptr;
     }
+#endif
   }
   return tls_thread_name;
 }

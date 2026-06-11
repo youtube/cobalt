@@ -78,3 +78,16 @@ webnn_use_tflite = false
 
 # Disable dav1d in webrtc to reduce binary size (~533KB)
 rtc_include_dav1d_in_internal_decoder_factory = false
+
+# Prune the massive HSTS preloaded list to save 1.3 MB of
+# rodata. Cobalt is a closed app shell and does not need
+# a preloaded list of third-party domains.
+include_transport_security_state_preload_list = false
+
+# Disable Vulkan on Cobalt, this reduces binary size by ~1.2 MB.
+angle_enable_vulkan = false
+
+# Disable BackupRefPtr on Chrobalt, this reduces binary size by
+# ~0.5 MB.
+enable_backup_ref_ptr_support = false
+enable_backup_ref_ptr_feature_flag = false

@@ -28,7 +28,6 @@
 
 #include "starboard/common/thread_options.h"
 #include "starboard/configuration.h"
-#include "starboard/thread.h"
 
 namespace starboard {
 
@@ -83,7 +82,7 @@ class Thread {
   void operator=(const Thread&) = delete;
 };
 
-int SbPriorityToNice(ThreadPriority priority);
+int ThreadPriorityToNiceValue(ThreadPriority priority);
 
 }  // namespace starboard
 

@@ -163,7 +163,8 @@ GroupedSamples& GroupedSamples::AddAudioEOS() {
 }
 
 GroupedSamples& GroupedSamples::AddVideoSamples(int start_index,
-                                                int number_of_samples) {
+                                                int number_of_samples,
+                                                int64_t timestamp_offset) {
   SB_DCHECK_GE(start_index, 0);
   SB_DCHECK_GE(number_of_samples, 0);
   SB_DCHECK(video_samples_.empty() || !video_samples_.back().is_end_of_stream);
@@ -171,6 +172,7 @@ GroupedSamples& GroupedSamples::AddVideoSamples(int start_index,
   VideoSamplesDescriptor descriptor;
   descriptor.start_index = start_index;
   descriptor.samples_count = number_of_samples;
+  descriptor.timestamp_offset = timestamp_offset;
   video_samples_.push_back(descriptor);
 
   return *this;
@@ -314,8 +316,9 @@ void SbPlayerTestFixture::Write(const GroupedSamples& grouped_samples) {
 
         auto samples_to_write =
             std::min(max_video_samples_per_write, descriptor.samples_count);
-        ASSERT_NO_FATAL_FAILURE(
-            WriteVideoSamples(descriptor.start_index, samples_to_write));
+        ASSERT_NO_FATAL_FAILURE(WriteVideoSamples(descriptor.start_index,
+                                                  samples_to_write,
+                                                  descriptor.timestamp_offset));
         iterator.AdvanceVideo(samples_to_write);
       }
     }
@@ -352,6 +355,28 @@ int64_t SbPlayerTestFixture::GetCurrentMediaTime() const {
   SbPlayerInfo info = {};
   SbPlayerGetInfo(player_, &info);
   return info.current_media_timestamp;
+}
+
+void SbPlayerTestFixture::SwitchVideoDmp(const char* new_video_filename) {
+  SB_CHECK(thread_checker_.CalledOnValidThread());
+  SB_DCHECK(video_dmp_reader_);
+  SB_DCHECK(new_video_filename && strlen(new_video_filename) > 0);
+  if (video_dmp_reader_) {
+    retired_dmp_readers_.push_back(std::move(video_dmp_reader_));
+  }
+  video_dmp_reader_.reset(new VideoDmpReader(
+      new_video_filename, VideoDmpReader::kEnableReadOnDemand));
+}
+
+void SbPlayerTestFixture::SwitchAudioDmp(const char* new_audio_filename) {
+  SB_CHECK(thread_checker_.CalledOnValidThread());
+  SB_DCHECK(audio_dmp_reader_);
+  SB_DCHECK(new_audio_filename && strlen(new_audio_filename) > 0);
+  if (audio_dmp_reader_) {
+    retired_dmp_readers_.push_back(std::move(audio_dmp_reader_));
+  }
+  audio_dmp_reader_.reset(new VideoDmpReader(
+      new_audio_filename, VideoDmpReader::kEnableReadOnDemand));
 }
 
 void SbPlayerTestFixture::SetAudioWriteDuration(int64_t duration) {
@@ -549,7 +574,8 @@ void SbPlayerTestFixture::WriteAudioSamples(
 }
 
 void SbPlayerTestFixture::WriteVideoSamples(int start_index,
-                                            int samples_to_write) {
+                                            int samples_to_write,
+                                            int64_t timestamp_offset) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK_GE(start_index, 0);
   SB_DCHECK_GT(samples_to_write, 0);
@@ -561,7 +587,7 @@ void SbPlayerTestFixture::WriteVideoSamples(int start_index,
                video_dmp_reader_->number_of_video_buffers());
 
   CallSbPlayerWriteSamples(player_, kSbMediaTypeVideo, video_dmp_reader_.get(),
-                           start_index, samples_to_write);
+                           start_index, samples_to_write, timestamp_offset);
   can_accept_more_video_data_ = false;
 }
 
@@ -722,6 +748,14 @@ void SbPlayerTestFixture::AssertPlayerStateIsValid(SbPlayerState state) const {
       return;
   }
   FAIL() << "Received an invalid SbPlayerState.";
+}
+
+int64_t SbPlayerTestFixture::GetVideoSampleTimestamp(int index) const {
+  SB_DCHECK(HasVideo());
+  SB_DCHECK(static_cast<size_t>(index) <
+            video_dmp_reader_->number_of_video_buffers());
+  return video_dmp_reader_->GetPlayerSampleInfo(kSbMediaTypeVideo, index)
+      .timestamp;
 }
 
 }  // namespace nplb

@@ -53,17 +53,18 @@
 #include "starboard/decode_target.h"
 #include "starboard/egl.h"
 #include "starboard/event.h"
-#include "starboard/file.h"
 #include "starboard/gles.h"
 #include "starboard/log.h"
 #include "starboard/microphone.h"
 #include "starboard/player.h"
+#include "starboard/shared/modular/starboard_layer_posix__Exit_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_auxv_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_directory_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_errno_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_eventfd_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_fcntl_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_getrandom_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_inotify_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_ioctl_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pipe2_abi_wrappers.h"
@@ -85,7 +86,6 @@
 #include "starboard/speech_synthesis.h"
 #include "starboard/storage.h"
 #include "starboard/system.h"
-#include "starboard/thread.h"
 #include "starboard/time_zone.h"
 #include "starboard/window.h"
 
@@ -132,7 +132,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbDrmUpdateSession);
   REGISTER_SYMBOL(SbEventCancel);
   REGISTER_SYMBOL(SbEventSchedule);
-  REGISTER_SYMBOL(SbFileAtomicReplace);
   REGISTER_SYMBOL(SbGetEglInterface);
   REGISTER_SYMBOL(SbGetGlesInterface);
   REGISTER_SYMBOL(SbLog);
@@ -141,6 +140,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbLogRaw);
   REGISTER_SYMBOL(SbLogRawDumpStack);
   REGISTER_SYMBOL(SbLogRawFormat);
+  REGISTER_SYMBOL(SbMediaCanChangeType);
   REGISTER_SYMBOL(SbMediaCanPlayMimeAndKeySystem);
   REGISTER_SYMBOL(SbMediaGetAudioBufferBudget);
   REGISTER_SYMBOL(SbMediaGetAudioConfiguration);
@@ -218,6 +218,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbWindowSetDefaultOptions);
 
   // POSIX APIs
+  REGISTER_SYMBOL(alarm);
   REGISTER_SYMBOL(aligned_alloc);
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(close);
@@ -289,6 +290,7 @@ ExportedSymbols::ExportedSymbols() {
   // in //starboard/shared/modular.
   // TODO: b/316603042 - Detect via NPLB and only add the wrapper if needed.
 
+  REGISTER_WRAPPER(_Exit);
   REGISTER_WRAPPER(accept);
   REGISTER_WRAPPER(access);
   REGISTER_WRAPPER(bind);
@@ -324,6 +326,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(getrlimit);
   REGISTER_WRAPPER(if_indextoname);
   REGISTER_WRAPPER(if_nametoindex);
+  REGISTER_WRAPPER(inotify_init1);
+  REGISTER_WRAPPER(inotify_add_watch);
+  REGISTER_WRAPPER(inotify_rm_watch);
   REGISTER_WRAPPER(lseek);
   REGISTER_WRAPPER(mmap);
   REGISTER_WRAPPER(openat);
