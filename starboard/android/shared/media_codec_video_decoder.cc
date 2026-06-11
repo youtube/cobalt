@@ -302,7 +302,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                             : 0),
       skip_flush_on_decoder_teardown_(
           pipeline_config.experimental_features.skip_flush_on_decoder_teardown),
-      force_clear_surface_(platform_options.force_clear_surface),
+      force_clear_surface_(
+          pipeline_config.experimental_features.force_clear_surface_view),
       needs_fps_to_initialize_codec_(
           video_codec_ == kSbMediaVideoCodecAv1 &&
           MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30()),
