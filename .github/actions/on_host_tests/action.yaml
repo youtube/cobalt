@@ -77,10 +77,10 @@ runs:
         failed_suites=""
         cd unit_test/
 
-        # Parse the JSON array using readarray.
-        readarray -t test_executables < <(jq -r '.[]' <<< "${TEST_EXECUTABLES_JSON:-[]}")
+        # Parse the JSON array into a space-separated string using jq.
+        test_executables=$(jq -nr --arg json "${TEST_EXECUTABLES_JSON:-[]}" '$json | fromjson | join(" ")')
 
-        for test_executable_path in "${test_executables[@]}"; do
+        for test_executable_path in ${test_executables}; do
           filename=$(basename "${test_executable_path}")
           test_executable="${filename%%.*}"
 

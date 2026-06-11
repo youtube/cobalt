@@ -17,6 +17,7 @@ standard library."""
 # limitations under the License.
 
 import argparse
+from typing import Dict, List, Tuple
 import collections
 import json
 import logging
@@ -26,7 +27,7 @@ import xml.etree.ElementTree
 
 
 def find_failing_tests(
-    junit_xml_files: list[str]) -> tuple[dict[str, list[tuple[str, str]]], int]:
+    junit_xml_files: List[str]) -> Tuple[Dict[str, List[Tuple[str, str]]], int]:
   """Parses a list of JUnit XML files to find failing test cases.
 
   Args:
@@ -64,7 +65,7 @@ def find_failing_tests(
   return failing_tests, num_parsed
 
 
-def main(argv: list[str]) -> int:
+def main(argv: List[str]) -> int:
   """Main entry point.
 
   Args:
