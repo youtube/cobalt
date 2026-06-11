@@ -30,17 +30,64 @@ jobs:
     steps:
       - id: set-sha
         run: |
-          echo "sha=53bb750e75fb716b005144c71a048823c51faaa6" >> $GITHUB_OUTPUT
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "sha=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+          else
+            echo "sha=${{ github.sha }}" >> $GITHUB_OUTPUT
+          fi
 
   wait-for-build:
     needs: get-sha
-    runs-on: [self-hosted, chrobalt-linux-runner]
+    runs-on: ubuntu-latest
+    timeout-minutes: 150 # 2.5 hours timeout to ensure we don't block forever but allow 2h polling
     steps:
       - name: Poll GitHub Checks API for Kokoro build
+        env:
+          COMMIT_SHA: ${{ needs.get-sha.outputs.sha }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Bypassing build wait for verification. Using hardcoded artifacts."
-          exit 0
+          echo "Polling GitHub Checks API for Kokoro status on commit ${COMMIT_SHA}..."
+          for i in {1..240}; do # Poll for 2 hours (240 * 30s)
+            checks=$(gh api repos/youtube/cobalt/commits/${COMMIT_SHA}/check-runs)
 
+            echo "--- Current Checks ---"
+            echo "${checks}" | jq -r '.check_runs[] | "\(.name): \(.status) (\(.conclusion))"'
+            echo "----------------------"
+
+            # Select the tvos kokoro check (match 'tvos' and 'presubmit')
+            target_check=$(echo "${checks}" | jq -c '.check_runs[] | select(.name | ascii_downcase | (contains("tvos") and contains("presubmit")))')
+
+            if [[ -n "${target_check}" ]]; then
+              status=$(echo "${target_check}" | jq -r '.status')
+              conclusion=$(echo "${target_check}" | jq -r '.conclusion')
+              name=$(echo "${target_check}" | jq -r '.name')
+
+              echo "Found target check: ${name}"
+              echo "Status: ${status} | Conclusion: ${conclusion}"
+
+              if [[ "${status}" == "completed" ]]; then
+                if [[ "${conclusion}" == "success" ]]; then
+                  echo "Kokoro build succeeded!"
+                  exit 0
+                else
+                  echo "Kokoro build failed with conclusion: ${conclusion}"
+                  exit 1
+                fi
+              fi
+            else
+              echo "Kokoro tvos check not found yet."
+            fi
+
+            echo "Waiting 30 seconds..."
+            sleep 30
+          done
+          echo "Timeout waiting for Kokoro build."
+          exit 1
+
+  download-artifacts:
+    needs: [get-sha, wait-for-build]
+    runs-on: [self-hosted, chrobalt-linux-runner]
+    steps:
       - name: Set Up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
@@ -61,7 +108,7 @@ jobs:
           retention-days: 1
 
   run-tests:
-    needs: [get-sha, wait-for-build]
+    needs: download-artifacts
     runs-on: macos-latest
     steps:
       - name: Checkout Cobalt (Sparse)
