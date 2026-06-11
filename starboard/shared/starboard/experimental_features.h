@@ -35,6 +35,7 @@ struct ExperimentalFeatures {
   bool enable_video_renderer_vsp_adjustment = false;
   bool flush_audio_track_during_seek = false;
   bool flush_decoder_during_reset = false;
+  bool force_clear_surface_view = false;
   bool ignore_mediacodec_callbacks_during_flushing = false;
   bool reset_audio_decoder = false;
   bool skip_flush_on_decoder_teardown = false;

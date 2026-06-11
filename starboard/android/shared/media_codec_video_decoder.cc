@@ -384,8 +384,6 @@ MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
   // video distortion on some platforms. For details, see http://b/182610842.
   bool force_clear =
       !tunnel_mode_audio_session_id_.has_value() && force_clear_surface_;
-  // TODO: b/429021006 - Connect |decode_target_graphics_context_provider_| to
-  // H5VCC.
   CleanUpVideoWindow(force_clear, decode_target_graphics_context_provider_);
 }
 

@@ -584,8 +584,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     int64_t flush_delay_usec = features::kFlushDelayUsec.Get();
     int64_t reset_delay_usec = features::kResetDelayUsec.Get();
 
-    // TODO: b/429021006 - Connect this flag to H5VCC.
-    bool force_clear_surface = false;
+    bool force_clear_surface = experimental_features.force_clear_surface_view;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
         !creation_parameters.video_mime().empty()) {
       // Use mime param to determine endianness of HDR metadata. If param is

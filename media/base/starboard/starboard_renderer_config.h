@@ -39,6 +39,7 @@ struct MEDIA_EXPORT StarboardRendererConfig {
     bool enable_reset_audio_decoder = false;
     bool enable_video_renderer_vsp_adjustment = false;
     bool flush_audio_track_during_seek = false;
+    bool force_clear_surface_view = false;
     bool force_decode_to_texture = false;
     bool ignore_mediacodec_callbacks_during_flushing = false;
     bool skip_flush_on_decoder_teardown = false;

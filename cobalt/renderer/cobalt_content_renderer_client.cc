@@ -71,6 +71,8 @@ const char kH5vccSettingsKeyMediaFlushAudioTrackDuringSeek[] =
     "Media.FlushAudioTrackDuringSeek";
 const char kH5vccSettingsKeyMediaForceDecodeToTexture[] =
     "Media.ForceDecodeToTexture";
+const char kH5vccSettingsKeyMediaForceClearSurfaceView[] =
+    "Media.ForceClearSurfaceView";
 const char kH5vccSettingsKeyMediaIgnoreMediaCodecCallbacksDuringFlushing[] =
     "Media.IgnoreMediaCodecCallbacksDuringFlushing";
 const char kH5vccSettingsKeyMediaVideoDecoderInitialPrerollCount[] =
@@ -249,6 +251,10 @@ ExperimentalFeatures ProcessH5vccSettings(
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaForceDecodeToTexture)) {
     parsed.force_decode_to_texture = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaForceClearSurfaceView)) {
+    parsed.force_clear_surface_view = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
           settings,
