@@ -122,6 +122,7 @@ H5vccPlatformService* H5vccPlatformService::open(
 
   return instance;
 }
+
 H5vccPlatformService::H5vccPlatformService(LocalDOMWindow& window,
                                            const WTF::String& service_name,
                                            V8ReceiveCallback* receive_callback)
