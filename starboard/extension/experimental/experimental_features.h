@@ -45,7 +45,7 @@ typedef struct StarboardExtensionExperimentalFeatures {
   bool reset_audio_decoder;
   bool skip_flush_on_decoder_teardown;
   bool skip_video_frames_over_60_fps;
-  const bool* enable_simd_based_audio_format_switching;
+  const bool* enable_decoded_audio_simd_optimizations;
   const bool* enable_trivial_optimizations;
   const int* video_decoder_initial_preroll_count;
   const int* video_renderer_min_decoded_frames;

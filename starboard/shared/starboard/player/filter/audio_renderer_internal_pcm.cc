@@ -575,8 +575,10 @@ void AudioRendererPcm::OnFirstOutput(
   int destination_sample_rate =
       audio_renderer_sink_->GetNearestSupportedSampleFrequency(
           *decoder_sample_rate_);
-  time_stretcher_.Initialize(kSbMediaAudioSampleTypeFloat32, channels_,
-                             destination_sample_rate);
+  time_stretcher_.Initialize(
+      kSbMediaAudioSampleTypeFloat32, channels_, destination_sample_rate,
+      experimental_features_.enable_decoded_audio_simd_optimizations.value_or(
+          false));
 
   buffered_frames_to_start_ = std::min(
       destination_sample_rate / 5, max_cached_frames_ - min_frames_per_append_);

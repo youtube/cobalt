@@ -36,10 +36,12 @@ typedef std::pair<int, int> Interval;
 // Find the index of the block, within |search_block|, that is most similar
 // to |target_block|. Obviously, the returned index is w.r.t. |search_block|.
 // |exclude_interval| is an interval that is excluded from the search.
+// |enable_optimized| activates NEON de-interleaving SIMD paths when available.
 int OptimalIndex(const DecodedAudio* search_block,
                  const DecodedAudio* target_block,
                  SbMediaAudioFrameStorageType storage_type,
-                 Interval exclude_interval);
+                 Interval exclude_interval,
+                 bool enable_optimized);
 
 // Return a "periodic" Hann window(https://en.wikipedia.org/wiki/Hann_function).
 // This is the first L samples of an L+1 Hann window. It is perfect
