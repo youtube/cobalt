@@ -369,6 +369,9 @@ void AppEventDelegate::ExecuteStepOnUIThread(ApplicationState next_state,
 void AppEventDelegate::DoTeardown() {
   {
     base::AutoLock lock(lock_);
+    if (is_tearing_down_) {
+      return;
+    }
     is_tearing_down_ = true;
   }
   runner_->OnStop();
