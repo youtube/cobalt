@@ -38,6 +38,10 @@ static_library("common") {
     "//starboard/shared/media_session/playback_state.h",
     "allocator.cc",
     "allocator.h",
+    "app_key.cc",
+    "app_key.h",
+    "app_key_internal.cc",
+    "app_key_internal.h",
     "bidirectional_fit_reuse_allocator.h",
     "check.h",
     "check_op.cc",
@@ -112,6 +116,8 @@ static_library("common") {
     "time.h",
   ]
 
+  deps = [ "//third_party/modp_b64" ]
+
   if (!is_android) {
     sources += [ "thread_platform_base.cc" ]
   }
@@ -129,6 +135,7 @@ static_library("file_wrapper") {
 source_set("common_test") {
   testonly = true
   sources = [
+    "app_key_test.cc",
     "bidirectional_fit_reuse_allocator_test.cc",
     "drm_test.cc",
     "expected_test.cc",
