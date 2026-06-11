@@ -16,8 +16,6 @@
 #include "cobalt/app/app_event_delegate.h"
 #include "starboard/event.h"
 
-namespace {}  // namespace
-
 void SbEventHandle(const SbEvent* event) {
   // This object's lifetime extends beyond the function's lifetime, until the
   // function is called with kSbEventTypeStop at some time in the future.
