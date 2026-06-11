@@ -160,19 +160,31 @@ def verify_cuj(cuj_name,
     pattern = adb_pattern if platform == "android" else cdp_pattern
 
     start_time = time.time()
+
+    # Execute the initial sequence once
+    if is_random_nav:
+      for key in pattern:
+        if platform == "linux":
+          send_cdp_key(port, key)
+        else:
+          send_adb_key(key, device_id)
+        time.sleep(0.2)
+      # Wait 10 seconds before starting the repeat loop
+      time.sleep(10)
+
+    # Down key codes
+    down_key = 20 if platform == "android" else 40
+
     while time.time() - start_time < duration_s:
+      loop_start = time.time()
       if is_random_nav:
-        for key in pattern:
-          if platform == "linux":
-            send_cdp_key(port, key)
-          else:
-            send_adb_key(key, device_id)
-          time.sleep(0.2)  # 200ms delay between keypresses in the sequence
-        # Sequence duration is 9 * 0.2s = 1.8s.
-        # Sleep for remainder of the 10-second interval.
-        time.sleep(8.2)
-      else:
-        time.sleep(10)
+        if platform == "linux":
+          send_cdp_key(port, down_key)
+        else:
+          send_adb_key(down_key, device_id)
+      elapsed = time.time() - loop_start
+      sleep_time = max(0.1, 10.0 - elapsed)
+      time.sleep(sleep_time)
 
     # Terminate pull script
     pull_proc.terminate()
