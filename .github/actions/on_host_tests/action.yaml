@@ -37,7 +37,7 @@ runs:
       run: |
         git config --global --add safe.directory "${GITHUB_WORKSPACE:-/github/workspace}"
         git config --global --add safe.directory "*"
-        git sparse-checkout add testing build third_party/catapult third_party/logdog third_party/jdk
+        git sparse-checkout add --skip-checks testing build third_party/catapult third_party/logdog third_party/jdk
     - name: Extract Artifacts
       shell: bash
       run: |
