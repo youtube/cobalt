@@ -18,6 +18,7 @@
 #include <android/native_window.h>
 #include <jni.h>
 
+#include "starboard/decode_target.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
