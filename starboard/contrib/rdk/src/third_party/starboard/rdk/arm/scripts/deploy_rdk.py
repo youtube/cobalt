@@ -36,7 +36,7 @@ Usage Examples:
   6. Force deploy and run even if artifacts are up-to-date:
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run --force-deploy
 
-  7. Reset RDK display (fixes stuck sessions caused by executable mode):
+  7. Reset RDK display and restart WPEFramework (fixes stuck displays/frozen sessions):
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --reset
 
   8. Deploy only the libcobalt library:
@@ -73,10 +73,9 @@ MIN_SYSTEM_SOFTWARE_VERSION = "20260420"
 
 def run_command(
     command: Union[str, List[str]],
-    capture_output: bool = False,
     verbose: bool = True,
     check: bool = True,
-    stream_output: bool = False,
+    sleep_time: int = 0,
 ) -> str:
     """Utility to run shell commands."""
     if verbose:
@@ -84,41 +83,25 @@ def run_command(
         print(f">>> Executing: {cmd_str}")
 
     is_shell = isinstance(command, str)
-
-    if stream_output:
-        process = subprocess.Popen(
-            command,
-            shell=is_shell,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
-        )
-        full_output = []
-        if process.stdout:
-            for line in process.stdout:
-                print(line, end="", flush=True)
-                full_output.append(line)
-        process.wait()
-        if check and process.returncode != 0:
-            raise subprocess.CalledProcessError(process.returncode, command,
-                                              "".join(full_output))
-        return "".join(full_output)
-
-    process = subprocess.run(
-        command,
-        shell=is_shell,
-        check=False,
-        stdout=subprocess.PIPE if capture_output else None,
-        stderr=subprocess.PIPE if capture_output else None,
-        text=True,
+    process = subprocess.Popen(
+        command, shell=is_shell, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
     )
+    stdout_lines = []
+    for line in process.stdout:
+        print(line, end="", flush=True)
+        stdout_lines.append(line)
+    process.wait()
+    stdout = "".join(stdout_lines)
 
     if check and process.returncode != 0:
-        print(f"Error executing command: {process.stderr}")
         sys.exit(process.returncode)
 
-    return process.stdout if capture_output else ""
+    if sleep_time > 0:
+        if verbose:
+            print(f"Waiting {sleep_time} seconds...")
+        time.sleep(sleep_time)
+
+    return stdout
 
 
 def configure_build(platform: str, config: str, out_dir: Path, no_rbe: bool = False) -> None:
@@ -137,8 +120,7 @@ def configure_build(platform: str, config: str, out_dir: Path, no_rbe: bool = Fa
 def build_targets(out_dir: Path, targets: List[str]) -> str:
     """Builds the specified targets using autoninja."""
     print(f"=== Building {' '.join(targets)} ===")
-    return run_command(["autoninja", "-C", str(out_dir)] + targets,
-                       stream_output=True)
+    return run_command(["autoninja", "-C", str(out_dir)] + targets)
 
 
 def deploy_only_lib(device_id: str, out_dir: Path, remote_dir: str) -> None:
@@ -233,7 +215,7 @@ def launch_on_device(
 
         # Get configuration
         get_config_json = '{"jsonrpc":"2.0","id":1,"method":"Controller.1.configuration@YouTube"}'
-        res_str = run_command(["adb", "-s", device_id, "shell", f"curl -s http://127.0.0.1:9998/jsonrpc -d '{get_config_json}'"], capture_output=True)
+        res_str = run_command(["adb", "-s", device_id, "shell", f"curl -s http://127.0.0.1:9998/jsonrpc -d '{get_config_json}'"])
 
         rpc_deactivate = (
             r'{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"Controller.1.deactivate\",'
@@ -291,7 +273,7 @@ def launch_on_device(
         ]
 
     full_cmd = " && ".join(remote_cmds)
-    output = run_command(["adb", "-s", device_id, "shell", f"bash -l -c \"{full_cmd}\""], capture_output=True)
+    output = run_command(["adb", "-s", device_id, "shell", f"bash -l -c \"{full_cmd}\""])
     print(output)
     if "ERROR_OPENING_FAILED" in output or "error" in output.lower():
         print("\n[WARNING] Activation failed with error (e.g., ERROR_OPENING_FAILED).")
@@ -336,8 +318,8 @@ def parse_args() -> argparse.Namespace:
         "--reset",
         action="store_true",
         help=(
-            "Run rdkDisplay remove on device. Useful if the display is inactive "
-            "due to a previous executable mode session."),
+            "Run rdkDisplay remove and restart WPEFramework on the device. "
+            "Useful if the display is inactive or WPEFramework is stuck."),
     )
     parser.add_argument(
         "--devtools",
@@ -557,8 +539,7 @@ def check_and_switch_cobalt_version(device_id: str) -> None:
 def revert_to_cobalt_25(device_id: str) -> None:
     """Reverts the active Cobalt configuration on the device back to Cobalt 25."""
     target = run_command(
-        ["adb", "-s", device_id, "shell", "readlink /usr/lib/libloader_app.so"],
-        capture_output=True,
+        ["adb", "-s", device_id, "shell", "readlink /usr/lib/libloader_app.so"]
     ).strip()
 
     if target != "/data/out_cobalt/libloader_app.so":
@@ -611,22 +592,27 @@ def main() -> None:
         cmd = ["adb", "-s", device_id, "shell", "journalctl"]
         if args.follow:
             cmd.append("-f")
-        run_command(cmd, stream_output=True)
+        run_command(cmd)
         return
+
+    if args.reset:
+        device_id = get_device_id()
+        print("=== Resetting display ===")
+        run_command([
+            "adb", "-s", device_id, "shell", "bash -l -c 'rdkDisplay remove || true'"
+        ])
+        print("=== Restarting WPEFramework ===")
+        run_command([
+            "adb", "-s", device_id, "shell", "systemctl restart wpeframework"
+        ], sleep_time=5)
+        if not (args.run or args.tests or args.force_deploy):
+            print("=== Reset finished. ===")
+            return
 
     device_id = get_device_id()
     assert_software_version(device_id, MIN_SYSTEM_SOFTWARE_VERSION)
     if args.mode == "plugin" and not args.tests:
         check_and_switch_cobalt_version(device_id)
-
-    if args.reset:
-        print("=== Resetting display ===")
-        run_command([
-            "adb", "-s", device_id, "shell", "bash -l -c 'rdkDisplay remove || true'"
-        ])
-        if not (args.run or args.tests or args.force_deploy):
-            print("=== Reset finished. ===")
-            return
 
     # Setup Build Paths
     config = args.config or ("devel" if args.tests else "qa")
