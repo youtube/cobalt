@@ -90,9 +90,16 @@ bool PathProviderStarboard(int key, FilePath* result) {
       return false;
     }
 
-    case base::DIR_HOME:
-      // TODO: Add a home directory to SbSystemPathId and get it from there.
-      return PathProviderStarboard(base::DIR_CACHE, result);
+    case base::DIR_HOME: {
+      bool success = SbSystemGetPath(kSbSystemPathFilesDirectory, path.data(),
+                                     path.size());
+      if (success) {
+        *result = FilePath(path.data());
+        return true;
+      }
+      DLOG(INFO) << "DIR_HOME not defined.";
+      return false;
+    }
 
     case base::DIR_SYSTEM_FONTS:
       if (SbSystemGetPath(kSbSystemPathFontDirectory, path.data(),
