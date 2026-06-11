@@ -98,6 +98,7 @@ static_library("common") {
     "size.h",
     "source_location.cc",
     "source_location.h",
+    "span.h",
     "spin_lock.cc",
     "spin_lock.h",
     "storage.cc",
