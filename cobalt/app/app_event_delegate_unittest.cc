@@ -21,6 +21,7 @@
 
 #include "base/memory/weak_ptr.h"
 #include "base/rand_util.h"
+#include "base/run_loop.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "cobalt/app/app_event_runner.h"
@@ -212,8 +213,16 @@ class AppEventDelegateTest : public content::ShellTestBase {
       CreateDelegate();
     }
     SbEvent event = {type, 0, data};
-    delegate_->HandleEvent(&event);
-    base::RunLoop().RunUntilIdle();
+    if (type == kSbEventTypeStop) {
+      base::RunLoop run_loop;
+      delegate_->SetQuitClosure(run_loop.QuitClosure());
+      delegate_->HandleEvent(&event);
+      run_loop.Run();
+      delegate_->DoTeardown();
+    } else {
+      delegate_->HandleEvent(&event);
+      base::RunLoop().RunUntilIdle();
+    }
   }
 
   // Under the fully synchronous mock runner GTest execution flow,

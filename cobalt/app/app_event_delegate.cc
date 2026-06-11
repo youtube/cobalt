@@ -76,7 +76,8 @@ AppEventDelegate::AppEventDelegate(
             SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
   }
 
-  SetApplicationState(ApplicationState::kInitial);
+  application_state_ = ApplicationState::kInitial;
+  SetApplicationStateAnnotation(ApplicationState::kInitial);
   target_state_ = ApplicationState::kInitial;
   if (!runner_) {
     // If a special runner wasn't provided, use the default.
@@ -128,6 +129,11 @@ AppEventDelegate::ApplicationState AppEventDelegate::GetState() const {
 PendingAck AppEventDelegate::pending_ack() const {
   base::AutoLock lock(lock_);
   return runner_ ? runner_->pending_ack() : PendingAck::kNone;
+}
+
+void AppEventDelegate::SetQuitClosure(base::OnceClosure closure) {
+  base::AutoLock lock(lock_);
+  quit_closure_ = std::move(closure);
 }
 
 bool AppEventDelegate::IsFrozenLocked() const {
@@ -317,7 +323,6 @@ void AppEventDelegate::ExecuteEventRunner(ApplicationState next_state,
         runner_->OnFreeze(base::DoNothing());
         break;
       case ApplicationState::kStopped:
-        runner_->OnStop();
         break;
       default:
         NOTREACHED();
@@ -328,28 +333,47 @@ void AppEventDelegate::ExecuteEventRunner(ApplicationState next_state,
 void AppEventDelegate::ExecuteStepOnUIThread(ApplicationState next_state,
                                              bool is_activating) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  {
+    base::AutoLock lock(lock_);
+    if (is_tearing_down_) {
+      LOG(INFO) << "Ignoring ExecuteStepOnUIThread during teardown.";
+      return;
+    }
+  }
   // Note: ExecuteEventRunner does not change state nor rely on state of this
   // object, and always runs as a posted task on the UI thread, and therefore
   // the lock does not need to be held yet here.
   ExecuteEventRunner(next_state, is_activating);
 
-  base::AutoLock lock(lock_);
-  SetApplicationState(next_state);
+  base::OnceClosure quit_closure;
+  bool should_execute_next_step = false;
+  {
+    base::AutoLock lock(lock_);
+    SetApplicationState(next_state);
+    if (next_state == ApplicationState::kStopped) {
+      quit_closure = std::move(quit_closure_);
+    } else {
+      should_execute_next_step = true;
+    }
+  }
 
-  if (next_state == ApplicationState::kStopped) {
-    SbEventSchedule(&AppEventDelegate::TeardownCallback, this, 0);
-  } else {
+  if (quit_closure) {
+    std::move(quit_closure).Run();
+  }
+  if (should_execute_next_step) {
+    base::AutoLock lock(lock_);
     ExecuteNextStep();
   }
 }
 
-// static
-void AppEventDelegate::TeardownCallback(void* data) {
-  AppEventDelegate* delegate = static_cast<AppEventDelegate*>(data);
-  delegate->DoTeardown();
-}
-
 void AppEventDelegate::DoTeardown() {
+  {
+    base::AutoLock lock(lock_);
+    if (is_tearing_down_) {
+      return;
+    }
+    is_tearing_down_ = true;
+  }
   runner_->OnStop();
   base::AutoLock lock(lock_);
   SetApplicationState(ApplicationState::kStopped);
@@ -403,6 +427,9 @@ const char* AppEventDelegate::GetStateString(ApplicationState state) {
 }
 
 void AppEventDelegate::SetApplicationState(ApplicationState state) {
+  if (application_state_ == state) {
+    return;
+  }
   application_state_ = state;
   SetApplicationStateAnnotation(state);
 }
