@@ -122,7 +122,6 @@ H5vccPlatformService* H5vccPlatformService::open(
 
   return instance;
 }
-
 H5vccPlatformService::H5vccPlatformService(LocalDOMWindow& window,
                                            const WTF::String& service_name,
                                            V8ReceiveCallback* receive_callback)
@@ -131,11 +130,6 @@ H5vccPlatformService::H5vccPlatformService(LocalDOMWindow& window,
       receive_callback_(receive_callback),
       platform_service_remote_(GetExecutionContext()),
       observer_receiver_(this, GetExecutionContext()) {}
-
-H5vccPlatformService::~H5vccPlatformService() {
-  // Ensures mojo pipes are closed if not done already
-  close();
-}
 
 void H5vccPlatformService::OnManagerConnectionError() {
   DLOG(ERROR) << "H5vccPlatformServiceManager connection error";
