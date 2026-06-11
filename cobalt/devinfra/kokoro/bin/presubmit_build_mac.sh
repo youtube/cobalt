@@ -91,8 +91,9 @@ EOF
 
   # Package, archive, and upload to GCS.
   ##############################################################################
+  local commit_sha=$(git rev-parse HEAD)
   local bucket="${COBALT_GCS_BUCKET:-cobalt-unittest-storage}"
-  local gcs_archive_path="gs://${bucket}/kokoro/build/${TARGET_PLATFORM}_${CONFIG}/${KOKORO_BUILD_NUMBER:-local}/"
+  local gcs_archive_path="gs://${bucket}/kokoro/build/${TARGET_PLATFORM}_${CONFIG}/${commit_sha}/"
 
   for target in ${GN_TARGET}; do
     # Extract target name (e.g. base:base_unittests -> base_unittests)
@@ -124,8 +125,13 @@ EOF
       local archive_file="${WORKSPACE_COBALT}/package/${target_name}.tar.gz"
       mkdir -p "${WORKSPACE_COBALT}/package"
 
-      # Create tar.gz archive.
-      tar -czf "${archive_file}" -C "${out_dir}" "${target_name}.app"
+      # Create tar.gz archive including iossim if available.
+      if [[ -f "${out_dir}/iossim" ]]; then
+        echo "Including iossim in the archive..."
+        tar -czf "${archive_file}" -C "${out_dir}" "${target_name}.app" "iossim"
+      else
+        tar -czf "${archive_file}" -C "${out_dir}" "${target_name}.app"
+      fi
 
       # Upload to GCS.
       echo "Uploading archive ${target_name}.tar.gz to ${gcs_archive_path}..."

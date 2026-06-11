@@ -23,15 +23,103 @@ on:
 permissions: read-all
 
 jobs:
-  # This is default Chromium build config
-  tvos-arm64-simulator:
-    uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
-    with:
-      platform: tvos-arm64-simulator
-      nightly: ${{ github.event.inputs.nightly }}
-    secrets:
-      datadog_api_key: ${{ secrets.DD_API_KEY }}
-      sccache_gcs_key: ${{ secrets.SCCACHE_GCS_KEY_TVOS }}
+  get-sha:
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.set-sha.outputs.sha }}
+    steps:
+      - id: set-sha
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "sha=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+          else
+            echo "sha=${{ github.sha }}" >> $GITHUB_OUTPUT
+          fi
+
+  wait-for-build:
+    needs: get-sha
+    runs-on: ubuntu-latest
+    steps:
+      - name: Poll GitHub Checks API for Kokoro build
+        env:
+          COMMIT_SHA: ${{ needs.get-sha.outputs.sha }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Polling GitHub Checks API for Kokoro status on commit ${COMMIT_SHA}..."
+          for i in {1..60}; do # Poll for 30 minutes (60 * 30s)
+            checks=$(gh api repos/youtube/cobalt/commits/${COMMIT_SHA}/check-runs)
+
+            echo "--- Current Checks ---"
+            echo "${checks}" | jq -r '.check_runs[] | "\(.name): \(.status) (\(.conclusion))"'
+            echo "----------------------"
+
+            # Select the tvos kokoro check (case-insensitive match for 'kokoro' and 'tvos')
+            target_check=$(echo "${checks}" | jq -c '.check_runs[] | select(.name | ascii_downcase | (contains("kokoro") and contains("tvos")))')
+
+            if [[ -n "${target_check}" ]]; then
+              status=$(echo "${target_check}" | jq -r '.status')
+              conclusion=$(echo "${target_check}" | jq -r '.conclusion')
+              name=$(echo "${target_check}" | jq -r '.name')
+
+              echo "Found target check: ${name}"
+              echo "Status: ${status} | Conclusion: ${conclusion}"
+
+              if [[ "${status}" == "completed" ]]; then
+                if [[ "${conclusion}" == "success" ]]; then
+                  echo "Kokoro build succeeded!"
+                  exit 0
+                else
+                  echo "Kokoro build failed with conclusion: ${conclusion}"
+                  exit 1
+                fi
+              fi
+            else
+              echo "Kokoro tvos check not found yet."
+            fi
+
+            echo "Waiting 30 seconds..."
+            sleep 30
+          done
+          echo "Timeout waiting for Kokoro build."
+          exit 1
+
+  run-tests:
+    needs: [get-sha, wait-for-build]
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Cobalt (Sparse)
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            cobalt/testing/filters
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.SCCACHE_GCS_KEY_TVOS }}
+
+      - name: Set Up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Download and Extract Tests
+        env:
+          COMMIT_SHA: ${{ needs.get-sha.outputs.sha }}
+        run: |
+          BUCKET="cobalt-unittest-storage"
+          PLATFORM="tvos-arm64-simulator"
+          CONFIG="devel"
+          GCS_DIR="gs://${BUCKET}/kokoro/build/${PLATFORM}_${CONFIG}/${COMMIT_SHA}"
+
+          gcloud storage cp "${GCS_DIR}/cobalt_browsertests.tar.gz" .
+          tar -xzf cobalt_browsertests.tar.gz
+
+      - name: Run Cobalt Browser Tests in Simulator
+        run: |
+          # We assume iossim is included in the tarball.
+          ./iossim \
+            -x tvos \
+            -d "Apple TV 4K (3rd generation)" \
+            -v \
+            -i \
+            -c '--gtest_filter=ContentMainRunnerImplBrowserTest.*' \
+            ./cobalt_browsertests.app
