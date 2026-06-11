@@ -86,6 +86,9 @@ const int64_t kSecondsPerMinute = 60;
 constexpr base::TimeDelta kDefaultPrioritizeCompositingAfterDelay =
     base::Milliseconds(100);
 
+constexpr base::TimeDelta kBackgroundThrottlingGracePeriod =
+    base::Milliseconds(1500);
+
 constexpr TaskPriority kPrioritizeCompositingAfterDelayPriority =
     TaskPriority::kVeryHighPriority;
 
@@ -307,6 +310,9 @@ MainThreadSchedulerImpl::MainThreadSchedulerImpl(
       &MainThreadSchedulerImpl::UpdatePolicy, weak_factory_.GetWeakPtr());
   end_renderer_hidden_idle_period_closure_.Reset(base::BindRepeating(
       &MainThreadSchedulerImpl::EndIdlePeriod, weak_factory_.GetWeakPtr()));
+  do_renderer_hidden_throttling_callback_.Reset(base::BindRepeating(
+      &MainThreadSchedulerImpl::DoRendererHiddenThrottling,
+      weak_factory_.GetWeakPtr()));
 
   TRACE_EVENT_OBJECT_CREATED_WITH_ID(
       TRACE_DISABLED_BY_DEFAULT("renderer.scheduler"), "MainThreadScheduler",
@@ -933,6 +939,7 @@ void MainThreadSchedulerImpl::SetAllRenderWidgetsHidden(bool hidden) {
   }
 
   end_renderer_hidden_idle_period_closure_.Cancel();
+  do_renderer_hidden_throttling_callback_.Cancel();
 
   if (hidden) {
     idle_helper_.EnableLongIdlePeriod();
@@ -944,7 +951,10 @@ void MainThreadSchedulerImpl::SetAllRenderWidgetsHidden(bool hidden) {
     control_task_queue_->GetTaskRunnerWithDefaultTaskType()->PostDelayedTask(
         FROM_HERE, end_renderer_hidden_idle_period_closure_.GetCallback(),
         end_idle_when_hidden_delay);
-    main_thread_only().renderer_hidden = true;
+
+    control_task_queue_->GetTaskRunnerWithDefaultTaskType()->PostDelayedTask(
+        FROM_HERE, do_renderer_hidden_throttling_callback_.GetCallback(),
+        kBackgroundThrottlingGracePeriod);
   } else {
     main_thread_only().renderer_hidden = false;
     EndIdlePeriod();
@@ -1079,6 +1089,13 @@ void MainThreadSchedulerImpl::EndIdlePeriod() {
                "MainThreadSchedulerImpl::EndIdlePeriod");
   helper_.CheckOnValidThread();
   idle_helper_.EndIdlePeriod();
+}
+
+void MainThreadSchedulerImpl::DoRendererHiddenThrottling() {
+  helper_.CheckOnValidThread();
+  do_renderer_hidden_throttling_callback_.Cancel();
+  main_thread_only().renderer_hidden = true;
+  UpdatePolicy();
 }
 
 void MainThreadSchedulerImpl::EndIdlePeriodForTesting(

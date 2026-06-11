@@ -216,6 +216,7 @@ class PageSchedulerImplTest : public testing::Test {
         base::BindOnce(&IncrementCounter, base::Unretained(&counter)));
 
     page_scheduler_->SetPageVisible(false);
+    test_task_runner_->FastForwardBy(base::Milliseconds(1500));
     EXPECT_EQ(false, page_scheduler_->IsFrozen());
 
     // In a backgrounded active page, all queues should run.
@@ -336,6 +337,7 @@ TEST_F(PageSchedulerImplTest, RepeatingTimer_PageInForeground) {
 
 TEST_F(PageSchedulerImplTest, RepeatingTimer_PageInBackgroundThenForeground) {
   page_scheduler_->SetPageVisible(false);
+  test_task_runner_->FastForwardBy(base::Milliseconds(1500));
 
   int run_count = 0;
   ThrottleableTaskQueue()->GetTaskRunnerWithDefaultTaskType()->PostDelayedTask(
@@ -359,6 +361,7 @@ TEST_F(PageSchedulerImplTest, RepeatingTimer_PageInBackgroundThenForeground) {
 
 TEST_F(PageSchedulerImplTest, RepeatingLoadingTask_PageInBackground) {
   page_scheduler_->SetPageVisible(false);
+  test_task_runner_->FastForwardBy(base::Milliseconds(1500));
 
   int run_count = 0;
   LoadingTaskQueue()->GetTaskRunnerWithDefaultTaskType()->PostDelayedTask(
@@ -381,6 +384,7 @@ TEST_F(PageSchedulerImplTest, RepeatingTimers_OneBackgroundOneForeground) {
 
   page_scheduler_->SetPageVisible(true);
   page_scheduler2->SetPageVisible(false);
+  test_task_runner_->FastForwardBy(base::Milliseconds(1500));
 
   int run_count1 = 0;
   int run_count2 = 0;
@@ -535,6 +539,7 @@ TEST_F(PageSchedulerImplTest,
        RepeatingTimer_PageInBackground_MeansNothingForVirtualTime) {
   page_scheduler_->GetVirtualTimeController()->EnableVirtualTime(base::Time());
   page_scheduler_->SetPageVisible(false);
+  test_task_runner_->FastForwardBy(base::Milliseconds(1500));
   scheduler_->GetSchedulerHelperForTesting()->SetWorkBatchSizeForTesting(1);
   base::TimeTicks initial_real_time = scheduler_->NowTicks();
 
@@ -560,6 +565,7 @@ TEST_F(PageSchedulerImplTest,
 // page from being frozen if it wasn't already.
 TEST_F(PageSchedulerImplTest, PageBackgrounded_EnableVirtualTime) {
   page_scheduler_->SetPageVisible(false);
+  test_task_runner_->FastForwardBy(base::Milliseconds(1500));
   EXPECT_FALSE(page_scheduler_->IsFrozen());
 
   page_scheduler_->GetVirtualTimeController()->EnableVirtualTime(base::Time());
@@ -574,6 +580,7 @@ TEST_F(PageSchedulerImplTest, PageBackgrounded_EnableVirtualTime) {
 // unfreezes it.
 TEST_F(PageSchedulerImplTest, PageFrozen_EnableVirtualTime) {
   page_scheduler_->SetPageVisible(false);
+  test_task_runner_->FastForwardBy(base::Milliseconds(1500));
   test_task_runner_->FastForwardUntilNoTasksRemain();
   EXPECT_TRUE(page_scheduler_->IsFrozen());
 
@@ -668,6 +675,7 @@ TEST_F(PageSchedulerImplTest, VirtualTime_AllowedToAdvance) {
 TEST_F(PageSchedulerImplTest, RepeatingTimer_PageInBackground) {
   ScopedTimerThrottlingForBackgroundTabsForTest timer_throttling_enabler(false);
   page_scheduler_->SetPageVisible(false);
+  test_task_runner_->FastForwardBy(base::Milliseconds(1500));
 
   int run_count = 0;
   ThrottleableTaskQueue()->GetTaskRunnerWithDefaultTaskType()->PostDelayedTask(
@@ -741,6 +749,7 @@ TEST_F(PageSchedulerImplTest, DeletePageScheduler_InTask) {
 
 TEST_F(PageSchedulerImplTest, DeleteThrottledQueue_InTask) {
   page_scheduler_->SetPageVisible(false);
+  test_task_runner_->FastForwardBy(base::Milliseconds(1500));
 
   FrameSchedulerImpl* frame_scheduler =
       CreateFrameScheduler(page_scheduler_.get(), nullptr,
@@ -1372,6 +1381,7 @@ TEST_F(PageSchedulerImplTest, PageSchedulerDestroyedWhileAudioChangePending) {
 
 TEST_F(PageSchedulerImplTest, AudiblePagesAreNotThrottled) {
   page_scheduler_->SetPageVisible(false);
+  test_task_runner_->FastForwardBy(base::Milliseconds(1500));
   EXPECT_TRUE(ThrottleableTaskQueue()->IsThrottled());
 
   // No throttling when the page is audible.
@@ -1400,6 +1410,7 @@ TEST_F(PageSchedulerImplTest, TestPageBackgroundedTimerSuspension) {
 
   // The background signal will not immediately suspend the timer queue.
   page_scheduler_->SetPageVisible(false);
+  test_task_runner_->FastForwardBy(base::Milliseconds(1500));
   test_task_runner_->FastForwardBy(base::Milliseconds(1100));
   EXPECT_FALSE(page_scheduler_->IsFrozen());
   EXPECT_EQ(2, counter);
@@ -1445,6 +1456,7 @@ TEST_F(PageSchedulerImplTest, TestPageBackgroundedTimerSuspension) {
 TEST_F(PageSchedulerImplTest, PageFrozenOnlyWhileAudioSilent) {
   page_scheduler_->AudioStateChanged(true);
   page_scheduler_->SetPageVisible(false);
+  test_task_runner_->FastForwardBy(base::Milliseconds(1500));
   EXPECT_TRUE(page_scheduler_->IsAudioPlaying());
   EXPECT_FALSE(ShouldFreezePage());
   EXPECT_FALSE(page_scheduler_->IsFrozen());
@@ -1478,6 +1490,7 @@ TEST_F(PageSchedulerImplTest, PageFrozenOnlyWhileNotVisible) {
 
   // Page should freeze after delay.
   page_scheduler_->SetPageVisible(false);
+  test_task_runner_->FastForwardBy(base::Milliseconds(1500));
   EXPECT_TRUE(ShouldFreezePage());
   test_task_runner_->FastForwardBy(delay_for_background_tab_freezing() +
                                    base::Milliseconds(100));
@@ -1490,6 +1503,7 @@ TEST_F(PageSchedulerImplTest, PageFrozenOnlyWhileNotVisible) {
   // If the page becomes visible before the freezing delay expires, it should
   // not freeze after the delay elapses.
   page_scheduler_->SetPageVisible(false);
+  test_task_runner_->FastForwardBy(base::Milliseconds(1500));
   EXPECT_TRUE(ShouldFreezePage());
   test_task_runner_->FastForwardBy(delay_for_background_tab_freezing() -
                                    base::Milliseconds(100));

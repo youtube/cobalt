@@ -234,6 +234,9 @@ class PLATFORM_EXPORT PageSchedulerImpl : public PageScheduler {
   void DoIntensivelyThrottleWakeUps();
   void ResetHadRecentTitleOrFaviconUpdate();
 
+  // Callback for applying background throttling after a grace period.
+  void DoBackgroundThrottling();
+
   // Notify frames that the page scheduler state has been updated.
   void NotifyFrames();
 
@@ -323,6 +326,7 @@ class PLATFORM_EXPORT PageSchedulerImpl : public PageScheduler {
   PageScheduler::Delegate* delegate_;
   CancelableClosureHolder do_throttle_cpu_time_callback_;
   CancelableClosureHolder do_intensively_throttle_wake_ups_callback_;
+  CancelableClosureHolder do_background_throttling_callback_;
   CancelableClosureHolder reset_had_recent_title_or_favicon_update_;
   CancelableClosureHolder on_audio_silent_closure_;
   CancelableClosureHolder do_freeze_page_callback_;
