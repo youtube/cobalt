@@ -2,6 +2,8 @@ ARG BASE_IMAGE_SHA=sha256:be15f84c44c4ee68b4f187128f0278df1b0f424c04fb5f08b09896
 
 FROM marketplace.gcr.io/google/debian12@${BASE_IMAGE_SHA}
 
+ENV DEBIAN_FRONTEND=noninteractive
+
 # Install any necessary dependencies
 RUN apt-get update && apt-get install -y \
     curl \

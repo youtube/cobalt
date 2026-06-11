@@ -53,7 +53,7 @@ runs:
         cd cobalt/src
         json_file="${TEST_TARGETS_JSON_FILE}"
 
-        host_gtest_targets=$(jq -cr '[.[] | select(.target != null and .runs_on == "host" and .test_type == "gtest") | .target] | join(",")' "${json_file}")
+        host_gtest_targets=$(jq -cr '[.[] | select(.target != null and .runs_on == "host" and (.test_type == "gtest" or .test_type == "junit")) | .target] | join(",")' "${json_file}")
         echo "host_gtest_targets=${host_gtest_targets}" >> $GITHUB_OUTPUT
 
         device_gtest_targets=$(jq -cr '[.[] | select(.target != null and .runs_on == "device" and .test_type == "gtest") | .target] | join(",")' "${json_file}")

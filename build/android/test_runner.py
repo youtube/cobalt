@@ -247,6 +247,10 @@ def AddCommonOptions(parser):
       '--isolated-script-test-repeat',
       dest='repeat', type=int, default=0,
       help='Number of times to repeat the specified set of tests.')
+  parser.add_argument(
+      '--runtime-deps-path',
+      dest='runtime_deps_path', type=os.path.realpath,
+      help='Runtime data dependency file from GN.')
 
   # Not useful for junit tests.
   parser.add_argument(
@@ -449,10 +453,6 @@ def AddGTestOptions(parser):
       '--render-test-output-dir',
       help='If present, store rendering artifacts in this path.')
   parser.add_argument(
-      '--runtime-deps-path',
-      dest='runtime_deps_path', type=os.path.realpath,
-      help='Runtime data dependency file from GN.')
-  parser.add_argument(
       '-t', '--shard-timeout',
       dest='shard_timeout', type=int, default=120,
       help='Timeout to wait for each test (default: %(default)s).')
@@ -635,10 +635,6 @@ def AddInstrumentationTestOptions(parser):
       dest='run_teardown_commands',
       help='This can be used to run a custom shell command on the device as a '
       'teardown step')
-  parser.add_argument(
-      '--runtime-deps-path',
-      dest='runtime_deps_path', type=os.path.realpath,
-      help='Runtime data dependency file from GN.')
   parser.add_argument(
       '--screenshot-directory',
       dest='screenshot_dir', type=os.path.realpath,

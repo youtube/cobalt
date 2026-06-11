@@ -23,8 +23,6 @@ from typing import List, Tuple
 
 # Path prefixes that contain files we don't need to run tests.
 _EXCLUDE_DIRS = [
-    'obj/',
-    'lib.java/',
     './exe.unstripped/',
     './lib.unstripped/',
     '../../third_party/jdk/',
@@ -111,12 +109,17 @@ def create_archive(
         return
       continue
     target_path, target_name = target.split(':')
+    target_path = target_path.lstrip('/')
     # Paths are configured in test.gni:
     # https://github.com/youtube/cobalt/blob/main/testing/test.gni
     if use_android_deps_path:
       deps_file = os.path.join(
           out_dir, 'gen.runtime', target_path,
           f'{target_name}__test_runner_script.runtime_deps')
+      if not os.path.exists(deps_file):
+        # Fallback for robolectric tests which don't append '__test_runner_script'
+        deps_file = os.path.join(out_dir, 'gen.runtime', target_path,
+                                 f'{target_name}.runtime_deps')
     else:
       deps_file = os.path.join(out_dir, f'{target_name}.runtime_deps')
       if not os.path.exists(deps_file):
@@ -127,6 +130,9 @@ def create_archive(
                                  f'{target_name}.runtime_deps')
 
     print('Collecting runtime dependencies for', target)
+    if not os.path.exists(deps_file):
+      raise FileNotFoundError(f"Runtime deps file not found: {deps_file}")
+
     with open(deps_file, 'r', encoding='utf-8') as runtime_deps_file:
       # The paths in the runtime_deps files are relative to the out folder.
       # Android tests expects files both in the out and source root folders
@@ -140,6 +146,14 @@ def create_archive(
       test_targets_json = os.path.join(out_dir, 'test_targets.json')
       if os.path.exists(test_targets_json):
         target_deps.add(os.path.join(tar_root, 'test_targets.json'))
+
+      # Add JUnit wrapper scripts if they exist
+      junit_wrapper = os.path.join('bin', f'run_{target_name}')
+      junit_helper = os.path.join('bin', 'helper', target_name)
+      if os.path.exists(os.path.join(out_dir, junit_wrapper)):
+        target_deps.add(os.path.join(tar_root, junit_wrapper))
+      if os.path.exists(os.path.join(out_dir, junit_helper)):
+        target_deps.add(os.path.join(tar_root, junit_helper))
 
       for line in runtime_deps_file:
         if any(line.startswith(path) for path in _EXCLUDE_DIRS):
