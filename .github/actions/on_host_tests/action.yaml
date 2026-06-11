@@ -51,21 +51,6 @@ runs:
             fi
           fi
         done
-        if [ "${{ inputs.test_type }}" == "junit" ]; then
-          # Go to workspace root (/github/workspace)
-          cd ../..
-
-          # Symlink all extracted third_party subdirectories into the git-checked-out third_party directory
-          for d in unit_test/out/third_party/*; do
-            if [ "$(basename "$d")" != "jdk" ]; then
-              ln -sf "../$d" "third_party/$(basename "$d")"
-            fi
-          done
-
-          # Symlink the prebuilt Java 23 checked out in sparse checkout to unit_test/out/third_party/jdk/current
-          mkdir -p unit_test/out/third_party/jdk
-          ln -sf "${GITHUB_WORKSPACE}/third_party/jdk/current" unit_test/out/third_party/jdk/current
-        fi
     - name: Prepare Test Execution
       id: prepare-test-execution
       shell: bash
@@ -173,6 +158,20 @@ runs:
         TEST_EXECUTABLES_JSON: ${{ inputs.test_executables_json }}
       run: |
         set -x
+
+        # Symlink all extracted third_party subdirectories into the git-checked-out third_party directory
+        for d in unit_test/out/third_party/*; do
+          if [ -d "$d" ]; then
+            if [ "$(basename "$d")" != "jdk" ]; then
+              ln -sf "../$d" "third_party/$(basename "$d")"
+            fi
+          fi
+        done
+
+        # Symlink the prebuilt Java 23 checked out in sparse checkout to unit_test/out/third_party/jdk/current
+        mkdir -p unit_test/out/third_party/jdk
+        ln -sf "${GITHUB_WORKSPACE}/third_party/jdk/current" unit_test/out/third_party/jdk/current
+
         cd unit_test/out/
 
         # Dynamically create the out/<config> -> .. redirect symlink

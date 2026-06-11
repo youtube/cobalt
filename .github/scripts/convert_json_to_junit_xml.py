@@ -17,10 +17,18 @@
 import json
 import xml.etree.ElementTree as ET
 import sys
+import re
+
+
+def _sanitize_xml_string(s):
+  if not s:
+    return ''
+  # Remove invalid XML 1.0 characters
+  return re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x84\x86-\x9f]', '', s)
 
 
 def convert(json_path, xml_path):
-  with open(json_path, 'r') as f:
+  with open(json_path, 'r', encoding='utf-8') as f:
     data = json.load(f)
 
   testsuites = ET.Element('testsuites')
@@ -68,7 +76,7 @@ def convert(json_path, xml_path):
   testsuites.set('tests', str(total_tests))
   testsuites.set('failures', str(total_failures))
   testsuites.set('errors', str(total_errors))
-  testsuites.set('time', f"{total_time:.3f}")
+  testsuites.set('time', f'{total_time:.3f}')
   testsuites.set('name', 'AllTests')
 
   for suite_name, cases in suites.items():
@@ -84,31 +92,32 @@ def convert(json_path, xml_path):
     suite_el.set('tests', str(suite_tests))
     suite_el.set('failures', str(suite_failures))
     suite_el.set('errors', str(suite_errors))
-    suite_el.set('time', f"{suite_time:.3f}")
+    suite_el.set('time', f'{suite_time:.3f}')
 
     for case in cases:
       case_el = ET.SubElement(suite_el, 'testcase')
       case_el.set('name', case['name'])
       case_el.set('classname', suite_name)
-      case_el.set('time', f"{case['time']:.3f}")
+      case_time = case['time']
+      case_el.set('time', f'{case_time:.3f}')
 
       if case['status'] in ('FAILURE', 'FAIL'):
         fail_el = ET.SubElement(case_el, 'failure')
         fail_el.set('message', 'Test failed')
-        fail_el.text = case['output']
+        fail_el.text = _sanitize_xml_string(case['output'])
       elif case['status'] in ('CRASH', 'TIMEOUT', 'ERROR'):
         err_el = ET.SubElement(case_el, 'error')
-        err_el.set('message', f"Test {case['status']}")
-        err_el.text = case['output']
+        err_el.set('message', 'Test ' + case['status'])
+        err_el.text = _sanitize_xml_string(case['output'])
 
   tree = ET.ElementTree(testsuites)
   if hasattr(ET, 'indent'):
-    ET.indent(tree, space="  ", level=0)
+    ET.indent(tree, space='  ', level=0)
   tree.write(xml_path, encoding='utf-8', xml_declaration=True)
 
 
 if __name__ == '__main__':
   if len(sys.argv) < 3:
-    print("Usage: convert_json_to_junit_xml.py <input_json> <output_xml>")
+    print('Usage: convert_json_to_junit_xml.py <input_json> <output_xml>')
     sys.exit(1)
   convert(sys.argv[1], sys.argv[2])
