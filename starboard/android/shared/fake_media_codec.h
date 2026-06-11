@@ -17,12 +17,14 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <cstdint>
 #include <deque>
 #include <memory>
 #include <mutex>
 #include <vector>
 
 #include "starboard/android/shared/media_codec.h"
+#include "starboard/common/span.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "third_party/jni_zero/jni_zero.h"
 
@@ -54,7 +56,7 @@ class FakeMediaCodec : public MediaCodec {
   ~FakeMediaCodec() override;
 
   // MediaCodec implementation
-  DataSpan GetInputBufferAddress(jint index) override;
+  Span<uint8_t> GetInputBufferAddress(jint index) override;
   jint QueueInputBuffer(jint index,
                         jint offset,
                         jint size,
@@ -67,7 +69,7 @@ class FakeMediaCodec : public MediaCodec {
                               jlong presentation_time_microseconds,
                               jboolean is_decode_only) override;
 
-  DataSpan GetOutputBufferAddress(jint index) override;
+  Span<uint8_t> GetOutputBufferAddress(jint index) override;
   void ReleaseOutputBuffer(jint index, jboolean render) override;
   void ReleaseOutputBufferAtTimestamp(jint index,
                                       jlong render_timestamp_ns) override;

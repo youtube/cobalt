@@ -195,7 +195,7 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/window_set_default_options.cc",
     "//starboard/shared/stub/decode_target_get_info.cc",
     "//starboard/shared/stub/decode_target_release.cc",
-    "//starboard/shared/stub/log_raw_dump_stack.cc",
+    "//starboard/shared/starboard/log_raw_dump_stack.cc",
     "//starboard/shared/stub/media_can_change_type.cc",
     "//starboard/shared/stub/microphone_close.cc",
     "//starboard/shared/stub/microphone_create.cc",
@@ -206,7 +206,7 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/stub/microphone_read.cc",
     "//starboard/shared/stub/system_hide_splash_screen.cc",
     "//starboard/shared/stub/system_raise_platform_error.cc",
-    "//starboard/shared/stub/system_symbolize.cc",
+    "//starboard/shared/linux/system_symbolize.cc",
 
     # RDK implementation
     "accessibility_data.cc",
