@@ -241,7 +241,7 @@ void MediaCodecAudioDecoder::ProcessOutputBuffer(
   if (dequeue_output_result.num_bytes > 0) {
     void* address =
         media_codec_bridge->GetOutputBufferAddress(dequeue_output_result.index)
-            .address;
+            .data();
 
     if (!address) {
       ReportError(kSbPlayerErrorDecode,
