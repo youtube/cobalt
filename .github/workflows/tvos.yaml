@@ -29,11 +29,15 @@ jobs:
       sha: ${{ steps.set-sha.outputs.sha }}
     steps:
       - id: set-sha
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_SHA: ${{ github.sha }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "sha=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+          if [ "${EVENT_NAME}" = "pull_request" ]; then
+            echo "sha=${PR_SHA}" >> "$GITHUB_OUTPUT"
           else
-            echo "sha=${{ github.sha }}" >> $GITHUB_OUTPUT
+            echo "sha=${PUSH_SHA}" >> "$GITHUB_OUTPUT"
           fi
 
   wait-for-build:
@@ -48,7 +52,8 @@ jobs:
         run: |
           echo "Polling GitHub Checks API for Kokoro status on commit ${COMMIT_SHA}..."
           for i in {1..240}; do # Poll for 2 hours (240 * 30s)
-            checks=$(gh api repos/youtube/cobalt/commits/${COMMIT_SHA}/check-runs)
+            echo "Attempt ${i}/240..."
+            checks=$(gh api "repos/youtube/cobalt/commits/${COMMIT_SHA}/check-runs")
 
             echo "--- Current Checks ---"
             echo "${checks}" | jq -r '.check_runs[] | "\(.name): \(.status) (\(.conclusion))"'
