@@ -74,7 +74,9 @@ class MediaDrmBridge {
   MediaDrmBridge(const MediaDrmBridge&) = delete;
   MediaDrmBridge& operator=(const MediaDrmBridge&) = delete;
 
-  jobject GetMediaCrypto() const { return j_media_crypto_.obj(); }
+  const jni_zero::JavaRef<jobject>& GetMediaCrypto() const {
+    return j_media_crypto_;
+  }
 
   void CreateSession(int ticket,
                      std::string_view init_data,

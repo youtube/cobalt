@@ -121,7 +121,7 @@ MediaCodecDecoder::CreateForVideo(
     const Size& frame_size_hint,
     const std::optional<Size>& max_frame_size,
     int fps,
-    jobject j_output_surface,
+    const jni_zero::JavaRef<jobject>& j_output_surface,
     SbDrmSystem drm_system,
     const SbMediaColorMetadata* color_metadata,
     bool require_software_codec,
@@ -169,8 +169,12 @@ MediaCodecDecoder::MediaCodecDecoder(PassKey<MediaCodecDecoder>,
   SB_CHECK(host_);
   SB_CHECK(error_message);
 
-  jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
-  SB_DCHECK(!drm_system_ || j_media_crypto);
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> j_media_crypto =
+      drm_system_
+          ? ScopedJavaLocalRef<jobject>(env, drm_system_->GetMediaCrypto())
+          : nullptr;
+  SB_DCHECK(!drm_system_ || j_media_crypto.obj() != nullptr);
   media_codec_bridge_ = media_codec_factory.CreateAudioMediaCodec(
       audio_stream_info, this, j_media_crypto);
   if (!media_codec_bridge_) {
@@ -199,7 +203,7 @@ MediaCodecDecoder::MediaCodecDecoder(
     const Size& frame_size_hint,
     const std::optional<Size>& max_frame_size,
     int fps,
-    jobject j_output_surface,
+    const jni_zero::JavaRef<jobject>& j_output_surface,
     SbDrmSystem drm_system,
     const SbMediaColorMetadata* color_metadata,
     bool require_software_codec,
@@ -231,10 +235,14 @@ MediaCodecDecoder::MediaCodecDecoder(
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
-  jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> j_media_crypto =
+      drm_system_
+          ? ScopedJavaLocalRef<jobject>(env, drm_system_->GetMediaCrypto())
+          : nullptr;
   const bool require_secured_decoder =
       drm_system_ && drm_system_->require_secured_decoder();
-  SB_DCHECK(!drm_system_ || j_media_crypto);
+  SB_DCHECK(!drm_system_ || j_media_crypto.obj() != nullptr);
 
   auto media_codec_bridge = media_codec_factory.CreateVideoMediaCodec(
       video_codec, frame_size_hint, fps, max_frame_size,

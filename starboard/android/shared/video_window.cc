@@ -173,16 +173,18 @@ bool VideoSurfaceHolder::IsVideoSurfaceAvailable() {
   return !g_video_surface_holder && GetGlobalVideoSurface();
 }
 
-jobject VideoSurfaceHolder::AcquireVideoSurface() {
+jni_zero::ScopedJavaLocalRef<jobject>
+VideoSurfaceHolder::AcquireVideoSurface() {
   std::lock_guard lock(*GetViewSurfaceMutex());
   if (g_video_surface_holder != NULL) {
-    return NULL;
+    return {};
   }
   if (!GetGlobalVideoSurface()) {
-    return NULL;
+    return {};
   }
   g_video_surface_holder = this;
-  return GetGlobalVideoSurface().obj();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
+  return jni_zero::ScopedJavaLocalRef<jobject>(env, GetGlobalVideoSurface());
 }
 
 void VideoSurfaceHolder::ReleaseVideoSurface() {

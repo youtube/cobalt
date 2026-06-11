@@ -101,7 +101,7 @@ jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
 std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodec(
     const AudioStreamInfo& audio_stream_info,
     Handler* handler,
-    jobject j_media_crypto) {
+    const jni_zero::JavaRef<jobject>& j_media_crypto) {
   bool is_passthrough = false;
   const char* mime =
       SupportedAudioCodecToMimeType(audio_stream_info.codec, &is_passthrough);
@@ -138,9 +138,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodec(
           ConvertUTF8ToJavaString(env, mime),
           ConvertUTF8ToJavaString(env, decoder_name),
           audio_stream_info.samples_per_second,
-          audio_stream_info.number_of_channels,
-          ScopedJavaLocalRef<jobject>::Adopt(env,
-                                             env->NewLocalRef(j_media_crypto)),
+          audio_stream_info.number_of_channels, j_media_crypto,
           configuration_data);
 
   if (!j_media_codec_bridge) {
@@ -165,8 +163,8 @@ MediaCodecBridge::CreateVideoMediaCodec(
     int fps,
     const std::optional<Size>& max_frame_size,
     Handler* handler,
-    jobject j_surface,
-    jobject j_media_crypto,
+    const jni_zero::JavaRef<jobject>& j_surface,
+    const jni_zero::JavaRef<jobject>& j_media_crypto,
     const SbMediaColorMetadata* color_metadata,
     const MediaCodec::VideoPlatformOptions& platform_options) {
   JNIEnv* env = AttachCurrentThread();
@@ -209,9 +207,7 @@ MediaCodecBridge::CreateVideoMediaCodec(
       ConvertUTF8ToJavaString(env, mime),
       ConvertUTF8ToJavaString(env, decoder_name), frame_size_hint.width,
       frame_size_hint.height, fps, max_frame_size ? max_frame_size->width : -1,
-      max_frame_size ? max_frame_size->height : -1,
-      ScopedJavaLocalRef<jobject>::Adopt(env, env->NewLocalRef(j_surface)),
-      ScopedJavaLocalRef<jobject>::Adopt(env, env->NewLocalRef(j_media_crypto)),
+      max_frame_size ? max_frame_size->height : -1, j_surface, j_media_crypto,
       j_color_info,
       platform_options.tunnel_mode_audio_session_id.value_or(
           TUNNEL_MODE_AUDIO_SESSION_ID_NONE),
