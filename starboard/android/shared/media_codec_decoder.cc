@@ -169,9 +169,9 @@ MediaCodecDecoder::MediaCodecDecoder(PassKey<MediaCodecDecoder>,
   SB_CHECK(host_);
   SB_CHECK(error_message);
 
-  JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> j_media_crypto;
   if (drm_system_) {
+    JNIEnv* env = AttachCurrentThread();
     j_media_crypto =
         ScopedJavaLocalRef<jobject>(env, drm_system_->GetMediaCrypto());
   }
@@ -236,9 +236,9 @@ MediaCodecDecoder::MediaCodecDecoder(
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
-  JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> j_media_crypto;
   if (drm_system_) {
+    JNIEnv* env = AttachCurrentThread();
     j_media_crypto =
         ScopedJavaLocalRef<jobject>(env, drm_system_->GetMediaCrypto());
   }
