@@ -635,7 +635,11 @@ void DesktopWindowTreeHostPlatform::Minimize() {
 }
 
 void DesktopWindowTreeHostPlatform::Restore() {
+  auto weak_ptr = weak_factory_.GetWeakPtr();
   platform_window()->Restore();
+  if (!weak_ptr) {
+    return;
+  }
   Show(ui::mojom::WindowShowState::kNormal, gfx::Rect());
 }
 
@@ -1022,7 +1026,15 @@ void DesktopWindowTreeHostPlatform::OnActivationChanged(bool active) {
   }
   is_active_ = active;
   aura::WindowTreeHostPlatform::OnActivationChanged(active);
+
+  // HandleActivationChanged() notifications can cause the widget to be
+  // synchronously closed.
+  auto weak_this = weak_factory_.GetWeakPtr();
   desktop_native_widget_aura_->HandleActivationChanged(active);
+  if (!weak_this) {
+    return;
+  }
+
   ScheduleRelayout();
 }
 
