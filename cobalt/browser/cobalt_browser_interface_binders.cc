@@ -32,10 +32,9 @@
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl_base.h"
 #include "cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom.h"
 #include "cobalt/browser/h5vcc_updater/public/mojom/h5vcc_updater.mojom.h"
-#include "cobalt/browser/on_screen_keyboard/on_screen_keyboard_impl_base.h"
-#include "cobalt/browser/on_screen_keyboard/public/mojom/on_screen_keyboard.mojom.h"
 #include "cobalt/browser/performance/performance_impl.h"
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
+#include "cobalt/build/configs/buildflags.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
 #include "cobalt/media/service/platform_window_provider_service.h"
 
@@ -55,6 +54,11 @@
 #else
 #include "cobalt/browser/crash_annotator/crash_annotator_impl.h"
 #endif  // BUILDFLAG(IS_ANDROIDTV)
+
+#if BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
+#include "cobalt/browser/on_screen_keyboard/on_screen_keyboard_impl_base.h"
+#include "cobalt/browser/on_screen_keyboard/public/mojom/on_screen_keyboard.mojom.h"
+#endif  // BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
 
 #include "cobalt/browser/h5vcc_platform_service/h5vcc_platform_service_manager_impl.h"
 #include "cobalt/browser/h5vcc_platform_service/public/mojom/h5vcc_platform_service.mojom.h"
@@ -143,6 +147,12 @@ void PopulateCobaltFrameBinders(
         VLOG(1) << "Ignoring H5vccUpdaterSideloading request.";
       }));
 #endif
+
+#if BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
+  binder_map->Add<on_screen_keyboard::mojom::OnScreenKeyboard>(
+      base::BindRepeating(&on_screen_keyboard::OnScreenKeyboardImpl::Create));
+#endif  // BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
+
   binder_map->Add<h5vcc_storage::mojom::H5vccStorage>(
       base::BindRepeating(&h5vcc_storage::H5vccStorageImpl::Create));
   binder_map->Add<media::mojom::PlatformWindowProvider>(
@@ -150,8 +160,6 @@ void PopulateCobaltFrameBinders(
   binder_map->Add<h5vcc_platform_service::mojom::H5vccPlatformServiceManager>(
       base::BindRepeating(&h5vcc_platform_service::
                               H5vccPlatformServiceManagerImpl::GetOrCreate));
-  binder_map->Add<on_screen_keyboard::mojom::OnScreenKeyboard>(
-      base::BindRepeating(&on_screen_keyboard::OnScreenKeyboardImpl::Create));
 }
 
 }  // namespace cobalt

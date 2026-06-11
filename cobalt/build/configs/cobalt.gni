@@ -16,4 +16,8 @@
 declare_args() {
   is_cobalt = false
   cobalt_is_release_build = false
+
+  # Whether to enable the custom on-screen keyboard Web API and browser process
+  # implementation.
+  enable_native_on_screen_keyboard = false
 }
