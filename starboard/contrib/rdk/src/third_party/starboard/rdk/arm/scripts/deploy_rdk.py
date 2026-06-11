@@ -335,6 +335,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Enable Chrome DevTools remote debugging port (port 9222) in plugin mode.",
     )
+    parser.add_argument(
+        "--setup-toolchain",
+        action="store_true",
+        help="Download and install the RDK toolchain to RDK_HOME.",
+    )
     return parser.parse_args()
 
 
@@ -520,9 +525,35 @@ def check_and_switch_cobalt_version(device_id: str) -> None:
         sys.exit(1)
 
 
+def is_toolchain_installed(rdk_home: Optional[str]) -> bool:
+    """Checks if the RDK toolchain is installed in the target path."""
+    return bool(rdk_home and os.path.exists(os.path.join(rdk_home, "sysroots")))
+
+
+def setup_toolchain() -> None:
+    """Downloads and installs the RDK toolchain."""
+    rdk_home = os.environ.get("RDK_HOME")
+    if not rdk_home:
+        print("Error: RDK_HOME environment variable is not set.")
+        print("Please add it to your ~/.bashrc (e.g., export RDK_HOME=/workspaces/rdk/toolchain) and restart your shell.")
+        sys.exit(1)
+
+    if is_toolchain_installed(rdk_home):
+        print(f"RDK toolchain is already installed in: {rdk_home}. Skipping setup.")
+        return
+
+    url = "https://storage.googleapis.com/cobalt-static-storage-public/20250521_rdk-glibc-x86_64-arm-toolchain-2.0.sh"
+    print(f"=== Setting up toolchain in: {rdk_home} ===")
+    run_command(f"wget {url} -O installer.sh && sh installer.sh -d {rdk_home} -y && rm installer.sh")
+
+
 def main() -> None:
     """Main execution flow."""
     args = parse_args()
+
+    if args.setup_toolchain:
+        setup_toolchain()
+        return
 
     device_id = get_device_id()
     assert_software_version(device_id, MIN_SYSTEM_SOFTWARE_VERSION)
@@ -566,6 +597,13 @@ def main() -> None:
             remote_dir = EXECUTABLE_REMOTE_DIR
 
     if not args.skip_build:
+        rdk_home = os.environ.get("RDK_HOME")
+        if not is_toolchain_installed(rdk_home):
+            print(f"Error: RDK toolchain is not set up in RDK_HOME ({rdk_home}).")
+            print("Please run this script with --setup-toolchain to download and install the toolchain.")
+            print("Also, make sure to add it to your ~/.bashrc (e.g., export RDK_HOME=/workspaces/rdk/toolchain).")
+            sys.exit(1)
+
         configure_build(PLATFORM, config, out_dir)
         build_output = build_targets(out_dir, targets)
         is_up_to_date = build_output and any(
