@@ -634,8 +634,8 @@ AudioInputStream* AudioManagerAndroid::MakeLinearInputStream(
   return new OpenSLESInputStream(this, params);
 #else
   return nullptr;
-#endif
-#endif
+#endif  // BUILDFLAG(USE_OPENSLES)
+#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
@@ -682,8 +682,8 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
   return new OpenSLESInputStream(this, params);
 #else
   return nullptr;
-#endif
-#endif
+#endif  // BUILDFLAG(USE_OPENSLES)
+#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void AudioManagerAndroid::OnStartAAudioInputStream(AAudioInputStream* stream) {
