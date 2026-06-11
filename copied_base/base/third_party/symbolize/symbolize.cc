@@ -802,30 +802,23 @@ static ATTRIBUTE_NOINLINE bool SymbolizeAndDemangle(void* pc,
   out[0] = '\0';
   SafeAppendString("(", out, out_size);
 
-#if BUILDFLAG(IS_STARBOARD) && \
-    BUILDFLAG(USE_EVERGREEN) && \
+  const int object_fd = [&] {
+#if BUILDFLAG(IS_STARBOARD) && BUILDFLAG(USE_EVERGREEN) && \
     BUILDFLAG(IS_STARBOARD_TOOLCHAIN)
-  char* file_name = nullptr;
-  EvergreenInfo evergreen_info;
-  if (GetEvergreenInfo(&evergreen_info)) {
-    if (IS_EVERGREEN_ADDRESS(pc, evergreen_info)) {
-      file_name = evergreen_info.file_path_buf;
+    EvergreenInfo evergreen_info;
+    if (GetEvergreenInfo(&evergreen_info) &&
+        IS_EVERGREEN_ADDRESS(pc, evergreen_info)) {
+      char* file_name = evergreen_info.file_path_buf;
       start_address = evergreen_info.base_address;
       base_address = evergreen_info.base_address;
+      if (file_name)
+        return OpenFile(file_name);
     }
-  }
-  int object_fd = -1;
-  if (file_name) {
-    object_fd = OpenFile(file_name);
-  } else {
-    object_fd = OpenObjectFileContainingPcAndGetStartAddress(
-      pc0, start_address, base_address, out + 1, out_size - 1);
-
-  }
-#else
-  int object_fd = OpenObjectFileContainingPcAndGetStartAddress(
-      pc0, start_address, base_address, out + 1, out_size - 1);
 #endif
+
+    return OpenObjectFileContainingPcAndGetStartAddress(
+        pc0, start_address, base_address, out + 1, out_size - 1);
+  }();
 
   FileDescriptor wrapped_object_fd(object_fd);
 
