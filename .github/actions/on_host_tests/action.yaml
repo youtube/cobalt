@@ -34,29 +34,11 @@ runs:
         mkdir -p unit_test/
         cd unit_test/
         tar -I 'zstd -T0' -xf ../test_artifacts.tar.zstd
-    - name: Download Previous Results
-      if: github.run_attempt > 1
-      uses: actions/download-artifact@v4
-      continue-on-error: true
+    - name: Prepare Filters
+      uses: ./.github/actions/prepare_filters
       with:
-        name: ${{ inputs.test_results_key }}
-        path: previous_results/
-    - name: Prepare Filter Directory
-      env:
-        PLATFORM: ${{ matrix.platform }}
-      run: |
-        # Prepare resolved filter directory.
-        set -x
-        RESOLVED_FILTER_DIR="${GITHUB_WORKSPACE}/resolved_filters"
-        echo "RESOLVED_FILTER_DIR=${RESOLVED_FILTER_DIR}" >> $GITHUB_ENV
-
-        mkdir -p "${RESOLVED_FILTER_DIR}"
-        cp -r "${GITHUB_WORKSPACE}/cobalt/testing/filters/${PLATFORM}"/* "${RESOLVED_FILTER_DIR}/" || true
-
-        # Overwrite with retry filters from previous results if they exist.
-        if [ -d "${GITHUB_WORKSPACE}/previous_results/${PLATFORM}/retry_filters" ]; then
-          cp -r "${GITHUB_WORKSPACE}/previous_results/${PLATFORM}/retry_filters"/* "${RESOLVED_FILTER_DIR}/" || true
-        fi
+        test_results_key: ${{ inputs.test_results_key }}
+        platform: ${{ matrix.platform }}
     - name: Run Tests
       id: run-tests
       shell: bash
@@ -95,20 +77,20 @@ runs:
         failed_suites=""
         cd unit_test/
 
-        # Parse the JSON array into a space-separated string using jq.
-        test_executables=$(jq -nr --arg json "${TEST_EXECUTABLES_JSON:-[]}" '$json | fromjson | join(" ")')
+        # Parse the JSON array using readarray.
+        readarray -t test_executables < <(jq -r '.[]' <<< "${TEST_EXECUTABLES_JSON:-[]}")
 
-        for test_executable_path in ${test_executables}; do
+        for test_executable_path in "${test_executables[@]}"; do
           filename=$(basename "${test_executable_path}")
           test_executable="${filename%%.*}"
 
           echo "Running tests for suite: ${test_executable}"
 
           test_filter="*"
-          test_filter_json_dir="${RESOLVED_FILTER_DIR}/${test_executable}_filter.json"
-          if [ -f ${test_filter_json_dir} ]; then
-            positive_filters=$(jq -r '.tests_to_run // [] | join(":")' ${test_filter_json_dir})
-            negative_filters=$(jq -r '.failing_tests // [] | join(":")' ${test_filter_json_dir})
+          test_filter_json_file="${RESOLVED_FILTER_DIR}/${test_executable}_filter.json"
+          if [ -f "${test_filter_json_file}" ]; then
+            positive_filters=$(jq -r '.tests_to_run // [] | join(":")' "${test_filter_json_file}")
+            negative_filters=$(jq -r '.failing_tests // [] | join(":")' "${test_filter_json_file}")
             test_filter="${positive_filters}${negative_filters:+-${negative_filters}}"
             test_filter="${test_filter:-*}"
           fi

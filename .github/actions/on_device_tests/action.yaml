@@ -26,29 +26,11 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Download Previous Results
-      if: github.run_attempt > 1
-      uses: actions/download-artifact@v4
-      continue-on-error: true
+    - name: Prepare Filters
+      uses: ./.github/actions/prepare_filters
       with:
-        name: ${{ inputs.test_results_key }}
-        path: previous_results/
-    - name: Prepare Filter Directory
-      env:
-        PLATFORM: ${{ matrix.platform }}
-      run: |
-        # Prepare resolved filter directory.
-        RESOLVED_FILTER_DIR="${GITHUB_WORKSPACE}/resolved_filters"
-        mkdir -p "${RESOLVED_FILTER_DIR}"
-        echo "RESOLVED_FILTER_DIR=${RESOLVED_FILTER_DIR}" >> $GITHUB_ENV
-
-        cp -r "${GITHUB_WORKSPACE}/cobalt/testing/filters/${PLATFORM}"/* "${RESOLVED_FILTER_DIR}/" || true
-
-        # Overwrite with retry filters from previous results if they exist.
-        if [ -d "${GITHUB_WORKSPACE}/previous_results/${PLATFORM}/retry_filters" ]; then
-          cp -r "${GITHUB_WORKSPACE}/previous_results/${PLATFORM}/retry_filters"/* "${RESOLVED_FILTER_DIR}/" || true
-        fi
-      shell: bash
+        test_results_key: ${{ inputs.test_results_key }}
+        platform: ${{ matrix.platform }}
     - name: Install Requirements
       run: |
         pip3 install --require-hashes --no-deps -r ${GITHUB_WORKSPACE}/cobalt/tools/requirements.txt
