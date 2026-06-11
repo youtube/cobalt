@@ -20,6 +20,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time/default_tick_clock.h"
+#include "base/memory/cobalt_memory_context.h"
 #include "mojo/public/cpp/bindings/direct_receiver.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/platform/task_type.h"
@@ -181,6 +182,14 @@ void NonMainThreadImpl::SimpleThreadImpl::Run() {
   base::RunLoop run_loop;
   run_loop_ = &run_loop;
   Thread::UpdateThreadTLS(thread_);
+
+  base::memory::MemoryContext context = base::memory::MemoryContext::kUnknown;
+  if (thread_->thread_type_ == ThreadType::kCompositorThread) {
+    context = base::memory::MemoryContext::kGraphicsCompositor;
+  }
+  if (context != base::memory::MemoryContext::kUnknown) {
+    base::memory::SetCurrentMemoryContext(context);
+  }
 
   if (supports_gc_)
     gc_support_ = std::make_unique<GCSupport>(thread_);

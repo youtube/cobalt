@@ -33,6 +33,7 @@
 #include "base/task/thread_pool.h"
 #include "base/threading/thread.h"
 #include "base/uuid.h"
+#include "base/memory/cobalt_memory_context.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "components/embedder_support/user_agent_utils.h"
@@ -835,6 +836,7 @@ DevToolsHttpHandler::DevToolsHttpHandler(
       new base::Thread(kDevToolsHandlerThreadName));
   base::Thread::Options options;
   options.message_pump_type = base::MessagePumpType::IO;
+  options.memory_context = base::memory::MemoryContext::kPlatformStarboard;
   if (thread->StartWithOptions(std::move(options))) {
     auto task_runner = thread->task_runner();
     task_runner->PostTask(

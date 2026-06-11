@@ -22,6 +22,7 @@
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_features.h"
+#include "base/memory/cobalt_memory_context.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/task_scheduler/post_task_android.h"
@@ -286,6 +287,7 @@ std::unique_ptr<BrowserProcessIOThread> BrowserTaskExecutor::CreateIOThread() {
   // Up the priority of the |io_thread_| as some of its IPCs relate to
   // display tasks.
   options.thread_type = base::ThreadType::kDisplayCritical;
+  options.memory_context = base::memory::MemoryContext::kPlatformStarboard;
   if (!io_thread->StartWithOptions(std::move(options)))
     LOG(FATAL) << "Failed to start BrowserThread:IO";
   return io_thread;

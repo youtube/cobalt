@@ -32,6 +32,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread.h"
+#include "base/memory/cobalt_memory_context.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/devtools_agent_host.h"
@@ -61,6 +62,7 @@ class PipeIOBase {
   bool Start() {
     base::Thread::Options options;
     options.message_pump_type = base::MessagePumpType::IO;
+    options.memory_context = base::memory::MemoryContext::kPlatformStarboard;
     if (!thread_->StartWithOptions(std::move(options)))
       return false;
     StartMainLoop();
