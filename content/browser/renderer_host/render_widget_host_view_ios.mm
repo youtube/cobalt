@@ -4,7 +4,6 @@
 
 #include "content/browser/renderer_host/render_widget_host_view_ios.h"
 
-#include <CoreGraphics/CGGeometry.h>
 #import <UIKit/UIKit.h>
 
 #include <cstdint>
