@@ -16,19 +16,23 @@ package dev.cobalt.coat;
 
 import static dev.cobalt.util.Log.TAG;
 
-import android.util.Base64;
 import dev.cobalt.util.Log;
-import dev.cobalt.util.UsedByNative;
-import java.util.Locale;
-
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 /** Abstract class that provides an interface for Cobalt to interact with a platform service. */
 public abstract class CobaltService {
   // Indicate is the service opened, and be able to send data to client
   protected boolean opened = true;
   private final Object lock = new Object();
-  private StarboardBridge bridge;
-  protected CobaltActivity cobaltActivity;
+
+  @JNINamespace("starboard")
+  @NativeMethods
+  interface Natives {
+    // Can not set it as nativeService, JNI zero has template code to convert it to a Service object
+    void nativeSendToClient(long service, byte[] data);
+  }
 
   /** Interface that returns an object that extends CobaltService. */
   public interface Factory {
@@ -42,10 +46,6 @@ public abstract class CobaltService {
   /** Take in a reference to StarboardBridge & use it as needed. Default behavior is no-op. */
   public void receiveStarboardBridge(StarboardBridge bridge) {}
 
-  public void setCobaltActivity(CobaltActivity cobaltActivity) {
-    this.cobaltActivity = cobaltActivity;
-  }
-
   // Lifecycle
   /** Prepare service for start or resume. */
   public abstract void beforeStartOrResume();
@@ -58,23 +58,26 @@ public abstract class CobaltService {
 
   // Service API
   /** Response to client from calls to receiveFromClient(). */
-  @SuppressWarnings("unused")
-  @UsedByNative
   public static class ResponseToClient {
     /** Indicate if the service was unable to receive data because it is in an invalid state. */
-    @SuppressWarnings("unused")
-    @UsedByNative
     public boolean invalidState;
 
     /** The synchronous response data from the service. */
-    @SuppressWarnings("unused")
-    @UsedByNative
     public byte[] data;
+
+    @CalledByNative("ResponseToClient")
+    public boolean getInvalidState() {
+      return invalidState;
+    }
+
+    @CalledByNative("ResponseToClient")
+    public byte[] getData() {
+      return data;
+    }
   }
 
   /** Receive data from client of the service. */
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public abstract ResponseToClient receiveFromClient(byte[] data);
 
   /**
@@ -83,10 +86,12 @@ public abstract class CobaltService {
    * <p>Once this function returns, it is invalid to call sendToClient for the nativeService, so
    * synchronization must be used to protect against this.
    */
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public void onClose() {
     synchronized (lock) {
+      if (!opened) {
+        return;
+      }
       opened = false;
       close();
     }
@@ -94,25 +99,23 @@ public abstract class CobaltService {
 
   public abstract void close();
 
-  /** Send data from the service to the client. */
+  /**
+   * Send data from the service to the client.
+   *
+   * <p>This may be called from a separate thread, do not call nativeSendToClient() once onClose()
+   * is processed.
+   */
   protected void sendToClient(long nativeService, byte[] data) {
-    if (this.cobaltActivity == null) {
-      Log.e(TAG, "CobaltActivity is null, can not run evaluateJavaScript()");
-      return;
+    synchronized (lock) {
+      if (!opened) {
+        Log.w(
+            TAG,
+            "Platform service did not send data to client, because client already closed the"
+                + " platform service.");
+        return;
+      }
+
+      CobaltServiceJni.get().nativeSendToClient(nativeService, data);
     }
-
-    // Use Base64.NO_WRAP instead of Base64.DEFAULT to avoid adding a new line.
-    String base64Data = Base64.encodeToString(data, Base64.NO_WRAP);
-
-    // TODO(b/403638702): - Cobalt: Migrate away from Java Bridge for H5vccPlatformService.
-    // Workaround: Explicitly target the 'anchor' iframe for H5vccPlatformService callbacks.
-    // This is necessary because the polyfill is injected broadly, but callbacks
-    // are registered within the Kabuki app's iframe, which needs to be the
-    // execution context for CobaltService.sendToClient(). see b/403277033 for the details.
-    String jsCodeTemplate =
-        "window.H5vccPlatformService.callbackFromAndroid(%d, '%s');";
-
-    String jsCode = String.format(Locale.US, jsCodeTemplate, nativeService, base64Data);
-    this.cobaltActivity.evaluateJavaScript(jsCode);
   }
 }
