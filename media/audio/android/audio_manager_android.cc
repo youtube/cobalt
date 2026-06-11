@@ -616,7 +616,9 @@ AudioInputStream* AudioManagerAndroid::MakeLinearInputStream(
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   return new StarboardAudioInputStream(this, params);
-#else
+#endif
+
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
   if (__builtin_available(android AAUDIO_MIN_API, *)) {
     if (UseAAudioInput()) {
       std::optional<AudioDevice> device =
@@ -645,7 +647,9 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   return new StarboardAudioInputStream(this, params);
-#else
+#endif
+
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
   DLOG_IF(ERROR, device_id.empty()) << "Invalid device ID!";
 
   if (!UseAAudioPerStreamDeviceSelection()) {
