@@ -120,20 +120,29 @@ void ShellPlatformDelegate::OnReveal() {
   // Used to ensure we only register as observer once, even if there are
   // multiple windows to wait for.
   bool started_waiting = false;
+  LOG(INFO) << "ShellPlatformDelegate::OnReveal: previously_visible_web_contents_ size="
+            << previously_visible_web_contents_.size();
   for (auto* shell : Shell::windows()) {
-    if (!started_waiting) {
-      waiting_for_reveal_ack_ = true;
-      cobalt::CobaltLifecycleManager::GetInstance()->AddObserver(
-          static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
-      started_waiting = true;
-    }
+    bool contains = previously_visible_web_contents_.count(shell->web_contents());
+    LOG(INFO) << "ShellPlatformDelegate::OnReveal: shell=" << shell
+              << ", web_contents=" << shell->web_contents()
+              << ", contains=" << contains;
+    if (contains) {
+      if (!started_waiting) {
+        waiting_for_reveal_ack_ = true;
+        cobalt::CobaltLifecycleManager::GetInstance()->AddObserver(
+            static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
+        started_waiting = true;
+      }
 #if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
-    auto* platform_window = GetPlatformWindowStarboard(shell);
-    if (platform_window) {
-      platform_window->SetWaitingForRevealAck(true);
-    }
+      auto* platform_window = GetPlatformWindowStarboard(shell);
+      if (platform_window) {
+        platform_window->SetWaitingForRevealAck(true);
+      }
 #endif
+    }
     RevealShell(shell);
+    shell->web_contents()->WasShown();
   }
   is_visible_ = true;
 }

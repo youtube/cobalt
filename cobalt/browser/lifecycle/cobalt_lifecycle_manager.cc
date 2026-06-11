@@ -401,7 +401,8 @@ void CobaltLifecycleManager::StartWaitingForAck(
     }
   }
 
-  if (pending_ack_frames_[web_contents].empty()) {
+  if (pending_ack_frames_[web_contents].empty() &&
+      main_frames_[web_contents] != nullptr) {
     // If there are no connected frames (e.g., during startup before any
     // frames are created or if all frames crashed), we complete the ACK
     // immediately to avoid hanging the transition.
@@ -413,6 +414,9 @@ void CobaltLifecycleManager::StartWaitingForAck(
         base::BindOnce(&CobaltLifecycleManager::CompleteAckImmediately,
                        weak_factory_.GetWeakPtr(), web_contents, ack_type));
     return;
+  } else if (pending_ack_frames_[web_contents].empty()) {
+    LOG(INFO) << "StartWaitingForAck: pending_ack_frames is empty but "
+                 "main_frame is NULL. Waiting for registration...";
   }
   // Post a 2-second timer as a fallback for all ACKs.
   content::GetUIThreadTaskRunner({})->PostDelayedTask(
