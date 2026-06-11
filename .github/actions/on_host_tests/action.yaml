@@ -35,7 +35,8 @@ runs:
       if: ${{ inputs.test_type == 'junit' }}
       shell: bash
       run: |
-        git config --global --add safe.directory ${GITHUB_WORKSPACE}
+        git config --global --add safe.directory "${GITHUB_WORKSPACE:-/github/workspace}"
+        git config --global --add safe.directory "*"
         git sparse-checkout add testing build third_party/catapult third_party/logdog third_party/jdk
     - name: Extract Artifacts
       shell: bash
