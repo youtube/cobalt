@@ -86,6 +86,7 @@ gfx::NativeWindow ShellPlatformDelegate::GetNativeWindow(Shell* shell) {
 
 void ShellPlatformDelegate::CleanUp(Shell* shell) {
   DCHECK(base::Contains(shell_data_map_, shell));
+  previously_visible_web_contents_.erase(shell->web_contents());
   shell_data_map_.erase(shell);
 }
 
