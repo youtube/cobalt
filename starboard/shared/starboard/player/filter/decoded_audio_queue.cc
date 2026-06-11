@@ -167,4 +167,53 @@ int DecodedAudioQueue::InternalRead(int frames,
   return taken;
 }
 
+int DecodedAudioQueue::ReadFramesDirect(int frames,
+                                        uint8_t* dest_buffer,
+                                        int bytes_per_frame) {
+  int taken = 0;
+  BufferQueue::iterator current_buffer = current_buffer_;
+  int current_buffer_offset = current_buffer_offset_;
+
+  while (taken < frames) {
+    if (current_buffer == buffers_.end()) {
+      break;
+    }
+
+    scoped_refptr<DecodedAudio> buffer = *current_buffer;
+    int remaining_frames_in_buffer = buffer->frames() - current_buffer_offset;
+
+    int copied = std::min(frames - taken, remaining_frames_in_buffer);
+
+    if (dest_buffer) {
+      const uint8_t* source =
+          buffer->data() + current_buffer_offset * bytes_per_frame;
+      uint8_t* destination = dest_buffer + taken * bytes_per_frame;
+      memcpy(destination, source, copied * bytes_per_frame);
+    }
+
+    taken += copied;
+    current_buffer_offset += copied;
+
+    if (current_buffer_offset == buffer->frames()) {
+      BufferQueue::iterator next = current_buffer + 1;
+      if (next == buffers_.end()) {
+        break;
+      }
+      current_buffer = next;
+      current_buffer_offset = 0;
+    }
+  }
+
+  // Pruning logic is now unconditional and runs at the end of the read
+  frames_ -= taken;
+  SB_DCHECK_GE(frames_, 0);
+  SB_DCHECK(current_buffer_ != buffers_.end() || frames_ == 0);
+
+  buffers_.erase(buffers_.begin(), current_buffer);
+  current_buffer_ = buffers_.begin();
+  current_buffer_offset_ = current_buffer_offset;
+
+  return taken;
+}
+
 }  // namespace starboard

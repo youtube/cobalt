@@ -319,6 +319,7 @@ TEST_F(AudioRendererTest, SunnyDay) {
   Seek(0);
 
   int frames_written = FillRendererWithDecodedAudioAndWriteEOS(0);
+  EXPECT_TRUE(audio_renderer_->IsBypassingForTesting());
 
   bool is_playing = true;
   bool is_eos_played = true;
@@ -408,6 +409,7 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
   Seek(0);
 
   int frames_written = FillRendererWithDecodedAudioAndWriteEOS(0);
+  EXPECT_FALSE(audio_renderer_->IsBypassingForTesting());
   bool is_playing = false;
   bool is_eos_played = true;
   bool is_underflow = true;
@@ -890,6 +892,85 @@ TEST_F(AudioRendererTest, Seek) {
 }
 
 // TODO: Add more Seek tests.
+
+TEST_F(AudioRendererTest, TransitionFromBypassToNonBypass) {
+  if (HasAsyncAudioFramesReporting()) {
+    SB_LOG(INFO) << "Platform has async audio frames reporting. Test skipped.";
+    return;
+  }
+
+  {
+    ::testing::InSequence seq;
+    EXPECT_CALL(
+        *audio_renderer_sink_,
+        Start(0, kDefaultNumberOfChannels, kDefaultSamplesPerSecond,
+              kDefaultAudioSampleType, kDefaultAudioFrameStorageType, _, _, _));
+  }
+
+  Seek(0);
+
+  const int kFramesPerBuffer = 1024;
+  int frames_written = 0;
+
+  // Write some samples at 1.0 rate.
+  for (int i = 0; i < 5; ++i) {
+    int64_t timestamp = frames_written * 1'000'000LL / kDefaultSamplesPerSecond;
+    WriteSample(CreateInputBuffer(timestamp));
+    CallConsumedCB();
+    SendDecoderOutput(CreateDecodedAudio(timestamp, kFramesPerBuffer));
+    frames_written += kFramesPerBuffer;
+  }
+
+  // We should be in bypass mode.
+  EXPECT_TRUE(audio_renderer_->IsBypassingForTesting());
+
+  // Now change playback rate to 2.0. This should trigger transition.
+  EXPECT_CALL(*audio_renderer_sink_, SetPlaybackRate(1.0))
+      .Times(::testing::AnyNumber());
+  audio_renderer_->SetPlaybackRate(2.0);
+  job_queue_.RunUntilIdle();
+
+  // We should no longer be in bypass mode.
+  EXPECT_FALSE(audio_renderer_->IsBypassingForTesting());
+
+  // Fill the rest and write EOS.
+  while (!prerolled_) {
+    int64_t timestamp = frames_written * 1'000'000LL / kDefaultSamplesPerSecond;
+    WriteSample(CreateInputBuffer(timestamp));
+    CallConsumedCB();
+    SendDecoderOutput(CreateDecodedAudio(timestamp, kFramesPerBuffer));
+    frames_written += kFramesPerBuffer;
+  }
+
+  WriteEndOfStream();
+
+  // Play and consume.
+  audio_renderer_->Play();
+  SendDecoderOutput(new DecodedAudio);
+
+  bool is_playing = false;
+  bool is_eos_played = false;
+  bool is_underflow = false;
+  double playback_rate = -1.0;
+
+  int64_t media_time = audio_renderer_->GetCurrentMediaTime(
+      &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+
+  int frames_in_buffer;
+  int offset_in_frames;
+  bool is_eos_reached;
+  renderer_callback_->GetSourceStatus(&frames_in_buffer, &offset_in_frames,
+                                      &is_playing, &is_eos_reached);
+  EXPECT_GT(frames_in_buffer, 0);
+  EXPECT_TRUE(is_playing);
+  EXPECT_TRUE(is_eos_reached);
+
+  // Consume all.
+  renderer_callback_->ConsumeFrames(frames_in_buffer, CurrentMonotonicTime());
+  job_queue_.RunUntilIdle();
+
+  EXPECT_TRUE(audio_renderer_->IsEndOfStreamPlayed());
+}
 
 }  // namespace
 
