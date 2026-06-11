@@ -340,6 +340,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Download and install the RDK toolchain to RDK_HOME.",
     )
+    parser.add_argument(
+        "--revert-c25",
+        action="store_true",
+        help="Revert the active Cobalt configuration on the device back to Cobalt 25.",
+    )
     return parser.parse_args()
 
 
@@ -525,6 +530,23 @@ def check_and_switch_cobalt_version(device_id: str) -> None:
         sys.exit(1)
 
 
+def revert_to_cobalt_25(device_id: str) -> None:
+    """Reverts the active Cobalt configuration on the device back to Cobalt 25."""
+    target = run_command(
+        ["adb", "-s", device_id, "shell", "readlink /usr/lib/libloader_app.so"],
+        capture_output=True,
+    ).strip()
+
+    if target != "/data/out_cobalt/libloader_app.so":
+        print("Cobalt 25 is already active on the device.")
+        return
+
+    print("Running 'chCobalt c25' on the device...")
+    run_command(["adb", "-s", device_id, "shell", "chCobalt c25"])
+    run_command(["adb", "-s", device_id, "shell", "reboot -f"])
+    print("Revert to Cobalt 25 completed. The device is rebooting.")
+
+
 def is_toolchain_installed(rdk_home: Optional[str]) -> bool:
     """Checks if the RDK toolchain is installed in the target path."""
     return bool(rdk_home and os.path.exists(os.path.join(rdk_home, "sysroots")))
@@ -553,6 +575,11 @@ def main() -> None:
 
     if args.setup_toolchain:
         setup_toolchain()
+        return
+
+    if args.revert_c25:
+        device_id = get_device_id()
+        revert_to_cobalt_25(device_id)
         return
 
     device_id = get_device_id()
