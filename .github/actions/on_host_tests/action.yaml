@@ -177,8 +177,8 @@ runs:
 
         cd unit_test/out/
 
-        # Dynamically create the out/<config> -> .. redirect symlink
-        build_config_dir=$(jq -r '.[] | select(.test_type == "junit") | .executable' test_targets.json | head -n1 | cut -d'/' -f2)
+        # Create the out/<config> redirect symlink directly from matrix parameters
+        build_config_dir="${{ matrix.platform }}_${{ matrix.config }}"
         mkdir -p out
         ln -sf .. "out/${build_config_dir}"
 
