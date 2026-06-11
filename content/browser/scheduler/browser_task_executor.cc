@@ -287,7 +287,7 @@ std::unique_ptr<BrowserProcessIOThread> BrowserTaskExecutor::CreateIOThread() {
   // Up the priority of the |io_thread_| as some of its IPCs relate to
   // display tasks.
   options.thread_type = base::ThreadType::kDisplayCritical;
-  options.memory_context = base::memory::MemoryContext::kPlatformStarboard;
+  options.memory_context = base::memory::MemoryContext::kPlatformIPC;
   if (!io_thread->StartWithOptions(std::move(options)))
     LOG(FATAL) << "Failed to start BrowserThread:IO";
   return io_thread;

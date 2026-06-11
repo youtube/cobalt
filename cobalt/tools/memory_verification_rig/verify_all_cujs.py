@@ -22,7 +22,6 @@ endurance verification testing campaigns on Linux and Android.
 import argparse
 import json
 import os
-import random
 import subprocess
 import sys
 import time
@@ -153,14 +152,27 @@ def verify_cuj(cuj_name,
     pull_proc = run_cmd(pull_cmd, background=True)
 
     # Execute CUJ navigation
+    # Target sequence: Left x3, Up x3, Down x1, Right x1, Down x1
+    # ADB: Left=21, Up=19, Down=20, Right=22
+    # CDP: Left=37, Up=38, Down=40, Right=39
+    adb_pattern = [21, 21, 21, 19, 19, 19, 20, 22, 20]
+    cdp_pattern = [37, 37, 37, 38, 38, 38, 40, 39, 40]
+    pattern = adb_pattern if platform == "android" else cdp_pattern
+
     start_time = time.time()
     while time.time() - start_time < duration_s:
       if is_random_nav:
-        if platform == "linux":
-          send_cdp_key(port, random.choice(KEYS_CDP))
-        else:
-          send_adb_key(random.choice(KEYS_ADB), device_id)
-      time.sleep(2)
+        for key in pattern:
+          if platform == "linux":
+            send_cdp_key(port, key)
+          else:
+            send_adb_key(key, device_id)
+          time.sleep(0.2)  # 200ms delay between keypresses in the sequence
+        # Sequence duration is 9 * 0.2s = 1.8s.
+        # Sleep for remainder of the 10-second interval.
+        time.sleep(8.2)
+      else:
+        time.sleep(10)
 
     # Terminate pull script
     pull_proc.terminate()
