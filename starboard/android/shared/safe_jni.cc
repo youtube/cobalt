@@ -14,26 +14,10 @@
 
 #include "starboard/android/shared/safe_jni.h"
 
-#include <atomic>
-
 #include "base/android/jni_array.h"
-#include "base/android/jni_bytebuffer.h"
 #include "starboard/common/check_op.h"
-#include "starboard/common/log.h"
-#include "third_party/jni_zero/jni_zero_internal.h"
 
 namespace starboard {
-namespace {
-
-// Following the JNI Generator convention for class accessor naming:
-// [package]_[subpackage]_[ClassName]_clazz
-jclass java_nio_ByteBuffer_clazz(JNIEnv* env) {
-  static std::atomic<jclass> cached_class;
-  return jni_zero::internal::LazyGetClass(env, "java/nio/ByteBuffer",
-                                          &cached_class);
-}
-
-}  // namespace
 
 using jni_zero::ScopedJavaLocalRef;
 
@@ -51,25 +35,6 @@ std::vector<ScopedJavaLocalRef<jobject>> JavaObjectArrayToVector(
         env, env->GetObjectArrayElement(array.obj(), static_cast<jsize>(i)));
   }
   return out;
-}
-
-Span<uint8_t> JavaByteBufferToSpan(
-    JNIEnv* env,
-    const jni_zero::JavaRef<jobject>& byte_buffer) {
-  SB_CHECK(env);
-  if (!byte_buffer) {
-    return {};
-  }
-  if (!env->IsInstanceOf(byte_buffer.obj(), java_nio_ByteBuffer_clazz(env))) {
-    SB_LOG(WARNING) << "Object is not an instance of java/nio/ByteBuffer";
-    return {};
-  }
-  auto span =
-      base::android::MaybeJavaByteBufferToMutableSpan(env, byte_buffer.obj());
-  if (!span.has_value()) {
-    return {};
-  }
-  return {span->data(), span->size()};
 }
 
 }  // namespace starboard

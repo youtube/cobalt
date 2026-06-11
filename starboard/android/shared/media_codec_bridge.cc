@@ -15,10 +15,10 @@
 #include "starboard/android/shared/media_codec_bridge.h"
 
 #include "base/android/jni_array.h"
+#include "base/android/jni_bytebuffer.h"
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
-#include "starboard/android/shared/safe_jni.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
@@ -34,11 +34,17 @@ namespace {
 
 using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF8ToJavaString;
+using base::android::JavaByteBufferToMutableSpan;
 using base::android::ToJavaByteArray;
 using base::android::ToJavaIntArray;
 using jni_zero::AttachCurrentThread;
 using jni_zero::JavaParamRef;
 using jni_zero::ScopedJavaLocalRef;
+
+template <typename SpanType>
+starboard::Span<uint8_t> ToSpan(const SpanType& base_span) {
+  return starboard::Span<uint8_t>(base_span.data(), base_span.size());
+}
 
 // See
 // https://developer.android.com/reference/android/media/MediaFormat.html#COLOR_RANGE_FULL.
@@ -267,8 +273,10 @@ void MediaCodecBridge::Initialize(jobject j_media_codec_bridge) {
 Span<uint8_t> MediaCodecBridge::GetInputBufferAddress(jint index) {
   SB_DCHECK_GE(index, 0);
   JNIEnv* env = AttachCurrentThread();
-  return JavaByteBufferToSpan(env, Java_MediaCodecBridge_getInputBuffer(
-                                       env, j_media_codec_bridge_, index));
+  return ToSpan(JavaByteBufferToMutableSpan(
+      env,
+      Java_MediaCodecBridge_getInputBuffer(env, j_media_codec_bridge_, index)
+          .obj()));
 }
 
 jint MediaCodecBridge::QueueInputBuffer(jint index,
@@ -332,8 +340,10 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
 Span<uint8_t> MediaCodecBridge::GetOutputBufferAddress(jint index) {
   SB_DCHECK_GE(index, 0);
   JNIEnv* env = AttachCurrentThread();
-  return JavaByteBufferToSpan(env, Java_MediaCodecBridge_getOutputBuffer(
-                                       env, j_media_codec_bridge_, index));
+  return ToSpan(JavaByteBufferToMutableSpan(
+      env,
+      Java_MediaCodecBridge_getOutputBuffer(env, j_media_codec_bridge_, index)
+          .obj()));
 }
 
 void MediaCodecBridge::ReleaseOutputBuffer(jint index, jboolean render) {

@@ -78,49 +78,5 @@ TEST(SafeJniTest, JavaObjectArrayToVector_EmptyArray) {
   EXPECT_TRUE(result.empty());
 }
 
-TEST(SafeJniTest, JavaByteBufferToSpan_ValidBuffer) {
-  JNIEnv* env = AttachCurrentThread();
-  ASSERT_NE(env, nullptr);
-
-  uint8_t c_buffer[16] = {0};
-  ScopedJavaLocalRef<jobject> j_buffer(
-      env, env->NewDirectByteBuffer(c_buffer, sizeof(c_buffer)));
-  ASSERT_FALSE(j_buffer.is_null());
-
-  Span<uint8_t> result = JavaByteBufferToSpan(env, j_buffer);
-
-  EXPECT_EQ(result.data(), c_buffer);
-  EXPECT_EQ(result.size(), sizeof(c_buffer));
-  EXPECT_FALSE(result.empty());
-}
-
-TEST(SafeJniTest, JavaByteBufferToSpan_NullBuffer) {
-  JNIEnv* env = AttachCurrentThread();
-  ASSERT_NE(env, nullptr);
-
-  ScopedJavaLocalRef<jobject> j_buffer;  // Null
-  Span<uint8_t> result = JavaByteBufferToSpan(env, j_buffer);
-
-  EXPECT_EQ(result.data(), nullptr);
-  EXPECT_EQ(result.size(), 0U);
-  EXPECT_TRUE(result.empty());
-}
-
-TEST(SafeJniTest, JavaByteBufferToSpan_NonDirectBuffer) {
-  JNIEnv* env = AttachCurrentThread();
-  ASSERT_NE(env, nullptr);
-
-  // Create a regular Java byte array, which is NOT a direct ByteBuffer
-  ScopedJavaLocalRef<jbyteArray> j_array(env, env->NewByteArray(10));
-  ASSERT_FALSE(j_array.is_null());
-
-  // Pass the byte array (cast to jobject) to the helper
-  Span<uint8_t> result = JavaByteBufferToSpan(env, j_array);
-
-  EXPECT_EQ(result.data(), nullptr);
-  EXPECT_EQ(result.size(), 0U);
-  EXPECT_TRUE(result.empty());
-}
-
 }  // namespace
 }  // namespace starboard
