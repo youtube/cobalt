@@ -484,20 +484,7 @@ const char kAllTracingCategories[] = "*";
   [SBDGetApplication() setPlayerContainerView:playerContainerView];
 
   UIView* web_contents_view = _shell->web_contents()->GetNativeView().Get();
-  // web_contents_view.alpha = 0.75;
-  // web_contents_view.autoresizingMask = UIViewAutoresizingNone;
   [_contentView addSubview:web_contents_view];
-  // web_contents_view.translatesAutoresizingMaskIntoConstraints = NO;
-  // [NSLayoutConstraint activateConstraints:@[
-  //   [web_contents_view.topAnchor
-  //       constraintEqualToAnchor:_contentView.topAnchor],
-  //   [web_contents_view.leadingAnchor
-  //       constraintEqualToAnchor:_contentView.leadingAnchor],
-  //   [web_contents_view.trailingAnchor
-  //       constraintEqualToAnchor:_contentView.trailingAnchor],
-  //   [web_contents_view.bottomAnchor
-  //       constraintEqualToAnchor:_contentView.bottomAnchor],
-  // ]];
 }
 
 - (id)initWithShell:(content::Shell*)shell {
