@@ -15,6 +15,7 @@
 #include "starboard/android/shared/safe_jni.h"
 
 #include "base/android/jni_array.h"
+#include "base/android/jni_bytebuffer.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
@@ -26,7 +27,7 @@ std::vector<ScopedJavaLocalRef<jobject>> JavaObjectArrayToVector(
     JNIEnv* env,
     const jni_zero::JavaRef<jobjectArray>& array) {
   SB_CHECK(env);
-  if (array.is_null()) {
+  if (!array) {
     return {};
   }
   size_t length = base::android::SafeGetArrayLength(env, array);
@@ -42,20 +43,15 @@ Span<uint8_t> JavaByteBufferToSpan(
     JNIEnv* env,
     const jni_zero::JavaRef<jobject>& byte_buffer) {
   SB_CHECK(env);
-  if (byte_buffer.is_null()) {
+  if (!byte_buffer) {
     return {};
   }
-  jlong capacity = env->GetDirectBufferCapacity(byte_buffer.obj());
-  if (capacity < 0) {
-    SB_LOG(WARNING) << "ByteBuffer is not direct or capacity is invalid.";
+  auto span =
+      base::android::MaybeJavaByteBufferToMutableSpan(env, byte_buffer.obj());
+  if (!span.has_value()) {
     return {};
   }
-  void* address = env->GetDirectBufferAddress(byte_buffer.obj());
-  if (!address) {
-    SB_LOG(WARNING) << "Failed to get direct buffer address.";
-    return {};
-  }
-  return {static_cast<uint8_t*>(address), static_cast<size_t>(capacity)};
+  return {span->data(), span->size()};
 }
 
 }  // namespace starboard
