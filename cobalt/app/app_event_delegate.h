@@ -153,7 +153,7 @@ class AppEventDelegate {
   ApplicationState target_state_ GUARDED_BY(lock_) = ApplicationState::kInitial;
   bool is_transitioning_ GUARDED_BY(lock_) = false;
   bool is_tearing_down_ GUARDED_BY(lock_) = false;
-  base::OnceClosure quit_closure_;
+  base::OnceClosure quit_closure_ GUARDED_BY(lock_);
 
 #if BUILDFLAG(IS_STARBOARD)
   // Ozone-specific bridge that converts Starboard events to Chromium events.

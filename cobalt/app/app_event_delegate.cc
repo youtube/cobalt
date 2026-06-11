@@ -345,14 +345,23 @@ void AppEventDelegate::ExecuteStepOnUIThread(ApplicationState next_state,
   // the lock does not need to be held yet here.
   ExecuteEventRunner(next_state, is_activating);
 
-  base::AutoLock lock(lock_);
-  SetApplicationState(next_state);
-
-  if (next_state == ApplicationState::kStopped) {
-    if (quit_closure_) {
-      std::move(quit_closure_).Run();
+  base::OnceClosure quit_closure;
+  bool should_execute_next_step = false;
+  {
+    base::AutoLock lock(lock_);
+    SetApplicationState(next_state);
+    if (next_state == ApplicationState::kStopped) {
+      quit_closure = std::move(quit_closure_);
+    } else {
+      should_execute_next_step = true;
     }
-  } else {
+  }
+
+  if (quit_closure) {
+    std::move(quit_closure).Run();
+  }
+  if (should_execute_next_step) {
+    base::AutoLock lock(lock_);
     ExecuteNextStep();
   }
 }
