@@ -25,7 +25,9 @@
 namespace starboard {
 namespace {
 
-jclass GetByteBufferClass(JNIEnv* env) {
+// Following the JNI Generator convention for class accessor naming:
+// [package]_[subpackage]_[ClassName]_clazz
+jclass java_nio_ByteBuffer_clazz(JNIEnv* env) {
   static std::atomic<jclass> cached_class;
   return jni_zero::internal::LazyGetClass(env, "java/nio/ByteBuffer",
                                           &cached_class);
@@ -58,7 +60,7 @@ Span<uint8_t> JavaByteBufferToSpan(
   if (!byte_buffer) {
     return {};
   }
-  if (!env->IsInstanceOf(byte_buffer.obj(), GetByteBufferClass(env))) {
+  if (!env->IsInstanceOf(byte_buffer.obj(), java_nio_ByteBuffer_clazz(env))) {
     SB_LOG(WARNING) << "Object is not an instance of java/nio/ByteBuffer";
     return {};
   }
