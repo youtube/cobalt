@@ -23,11 +23,6 @@
 #include "starboard/event.h"
 #include "starboard/system.h"
 
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD) && \
-    !defined(STARBOARD_IMPLEMENTATION_TEST)
-#include <init_musl.h>
-#endif
-
 namespace starboard {
 namespace client_porting_internal {
 // A main-style function.
@@ -37,10 +32,6 @@ template <MainFunction main_function>
 void SimpleEventHandler(const SbEvent* event) {
   switch (event->type) {
     case kSbEventTypeStart: {
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD) && \
-    !defined(STARBOARD_IMPLEMENTATION_TEST)
-      init_musl();
-#endif
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
       SbSystemRequestStop(
           main_function(data->argument_count, data->argument_values));

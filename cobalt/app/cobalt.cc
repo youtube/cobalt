@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "base/run_loop.h"
 #include "build/buildflag.h"
 #include "cobalt/app/app_event_delegate.h"
 #include "starboard/event.h"
-
-namespace {}  // namespace
 
 void SbEventHandle(const SbEvent* event) {
   // This object's lifetime extends beyond the function's lifetime, until the
@@ -36,6 +35,10 @@ void SbEventHandle(const SbEvent* event) {
   s_lifecycle_delegate->HandleEvent(event);
 
   if (event->type == kSbEventTypeStop) {
+    base::RunLoop run_loop;
+    s_lifecycle_delegate->SetQuitClosure(run_loop.QuitClosure());
+    run_loop.Run();
+    s_lifecycle_delegate->DoTeardown();
     delete s_lifecycle_delegate;
     s_lifecycle_delegate = nullptr;
   }
