@@ -16,8 +16,6 @@
 
 #include "local_aows_server.h"
 
-#include "base/base64.h"
-#include "base/hash/sha1.h"
 #include "starboard/common/log.h"
 
 #include <arpa/inet.h>
@@ -71,6 +69,134 @@ std::string ToLowerAscii(std::string value) {
                    return static_cast<char>(character);
                  });
   return value;
+}
+
+uint32_t LeftRotate(uint32_t value, int bits) {
+  return (value << bits) | (value >> (32 - bits));
+}
+
+void ComputeSha1Digest(const std::string& input, uint8_t digest[20]) {
+  std::vector<uint8_t> message(input.begin(), input.end());
+  const uint64_t input_bits = static_cast<uint64_t>(message.size()) * 8;
+
+  message.push_back(0x80);
+  while ((message.size() % 64) != 56) {
+    message.push_back(0x00);
+  }
+
+  for (int shift = 56; shift >= 0; shift -= 8) {
+    message.push_back(static_cast<uint8_t>((input_bits >> shift) & 0xFF));
+  }
+
+  uint32_t h0 = 0x67452301;
+  uint32_t h1 = 0xEFCDAB89;
+  uint32_t h2 = 0x98BADCFE;
+  uint32_t h3 = 0x10325476;
+  uint32_t h4 = 0xC3D2E1F0;
+
+  for (size_t offset = 0; offset < message.size(); offset += 64) {
+    uint32_t w[80] = {0};
+    for (int i = 0; i < 16; ++i) {
+      const size_t base = offset + static_cast<size_t>(i) * 4;
+      w[i] = (static_cast<uint32_t>(message[base]) << 24) |
+             (static_cast<uint32_t>(message[base + 1]) << 16) |
+             (static_cast<uint32_t>(message[base + 2]) << 8) |
+             static_cast<uint32_t>(message[base + 3]);
+    }
+
+    for (int i = 16; i < 80; ++i) {
+      w[i] = LeftRotate(w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16], 1);
+    }
+
+    uint32_t a = h0;
+    uint32_t b = h1;
+    uint32_t c = h2;
+    uint32_t d = h3;
+    uint32_t e = h4;
+
+    for (int i = 0; i < 80; ++i) {
+      uint32_t f = 0;
+      uint32_t k = 0;
+      if (i < 20) {
+        f = (b & c) | ((~b) & d);
+        k = 0x5A827999;
+      } else if (i < 40) {
+        f = b ^ c ^ d;
+        k = 0x6ED9EBA1;
+      } else if (i < 60) {
+        f = (b & c) | (b & d) | (c & d);
+        k = 0x8F1BBCDC;
+      } else {
+        f = b ^ c ^ d;
+        k = 0xCA62C1D6;
+      }
+
+      const uint32_t temp = LeftRotate(a, 5) + f + e + k + w[i];
+      e = d;
+      d = c;
+      c = LeftRotate(b, 30);
+      b = a;
+      a = temp;
+    }
+
+    h0 += a;
+    h1 += b;
+    h2 += c;
+    h3 += d;
+    h4 += e;
+  }
+
+  const uint32_t h[5] = {h0, h1, h2, h3, h4};
+  for (int i = 0; i < 5; ++i) {
+    digest[i * 4] = static_cast<uint8_t>((h[i] >> 24) & 0xFF);
+    digest[i * 4 + 1] = static_cast<uint8_t>((h[i] >> 16) & 0xFF);
+    digest[i * 4 + 2] = static_cast<uint8_t>((h[i] >> 8) & 0xFF);
+    digest[i * 4 + 3] = static_cast<uint8_t>(h[i] & 0xFF);
+  }
+}
+
+std::string Base64Encode(const uint8_t* data, size_t size) {
+  static const char table[] =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+  std::string encoded;
+  encoded.reserve(((size + 2) / 3) * 4);
+
+  size_t index = 0;
+  while (index + 3 <= size) {
+    const uint32_t value = (static_cast<uint32_t>(data[index]) << 16) |
+                           (static_cast<uint32_t>(data[index + 1]) << 8) |
+                           static_cast<uint32_t>(data[index + 2]);
+    encoded.push_back(table[(value >> 18) & 0x3F]);
+    encoded.push_back(table[(value >> 12) & 0x3F]);
+    encoded.push_back(table[(value >> 6) & 0x3F]);
+    encoded.push_back(table[value & 0x3F]);
+    index += 3;
+  }
+
+  const size_t remaining = size - index;
+  if (remaining == 1) {
+    const uint32_t value = static_cast<uint32_t>(data[index]) << 16;
+    encoded.push_back(table[(value >> 18) & 0x3F]);
+    encoded.push_back(table[(value >> 12) & 0x3F]);
+    encoded.push_back('=');
+    encoded.push_back('=');
+  } else if (remaining == 2) {
+    const uint32_t value = (static_cast<uint32_t>(data[index]) << 16) |
+                           (static_cast<uint32_t>(data[index + 1]) << 8);
+    encoded.push_back(table[(value >> 18) & 0x3F]);
+    encoded.push_back(table[(value >> 12) & 0x3F]);
+    encoded.push_back(table[(value >> 6) & 0x3F]);
+    encoded.push_back('=');
+  }
+
+  return encoded;
+}
+
+std::string ComputeWebSocketAcceptKey(const std::string& websocket_key) {
+  uint8_t digest[20] = {0};
+  ComputeSha1Digest(websocket_key + kWebSocketGuid, digest);
+  return Base64Encode(digest, sizeof(digest));
 }
 
 int ParseAowsPort() {
@@ -214,9 +340,7 @@ bool PerformWebSocketHandshake(int socket_fd) {
     return false;
   }
 
-  std::string accept_key;
-  base::Base64Encode(base::SHA1HashString(websocket_key + kWebSocketGuid),
-                     &accept_key);
+  const std::string accept_key = ComputeWebSocketAcceptKey(websocket_key);
 
   const std::string response =
       "HTTP/1.1 101 Switching Protocols\r\n"
