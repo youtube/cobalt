@@ -14,10 +14,10 @@
 
 #include <string>
 
-#include "starboard/loader_app/app_key_internal.h"
+#include "starboard/common/app_key_internal.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace loader_app {
+namespace starboard {
 
 typedef struct URLWithExtractedAndEncoded {
   // The initial URL to be handled.
@@ -683,4 +683,4 @@ TEST(AppKeyTest, SunnyDayExtractAppKeySanitizesResult) {
   EXPECT_EQ("-_A=", EncodeAppKey(actual));
 }
 
-}  // namespace loader_app
+}  // namespace starboard
