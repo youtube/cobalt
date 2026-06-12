@@ -65,6 +65,12 @@ ScopedMemoryContext::~ScopedMemoryContext() {
   SetCurrentMemoryContext(prev_context_);
 }
 
+extern "C" {
+void CobaltSetMemoryContext(uint8_t context) {
+  SetCurrentMemoryContext(static_cast<MemoryContext>(context));
+}
+}
+
 std::string_view ContextToString(MemoryContext context) {
   switch (context) {
     case MemoryContext::kUnknown:

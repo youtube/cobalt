@@ -42,6 +42,8 @@
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform-posix.h"
 #include "src/base/platform/platform.h"
+
+#include "base/memory/cobalt_memory_context.h"
 #include "src/base/platform/time.h"
 #include "src/base/utils/random-number-generator.h"
 
@@ -1192,6 +1194,7 @@ static void SetThreadName(const char* name) {
 }
 
 static void* ThreadEntry(void* arg) {
+  ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
   Thread* thread = reinterpret_cast<Thread*>(arg);
   // We take the lock here to make sure that pthread_create finished first since
   // we don't know which thread will run first (the original thread or the new
