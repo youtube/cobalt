@@ -12,16 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_LOADER_APP_APP_KEY_H_
-#define STARBOARD_LOADER_APP_APP_KEY_H_
+#ifndef STARBOARD_COMMON_APP_KEY_H_
+#define STARBOARD_COMMON_APP_KEY_H_
 
 #include <string>
 
-namespace loader_app {
+namespace starboard {
+
+inline constexpr char kCobaltDefaultUrl[] = "https://www.youtube.com/tv";
 
 // Returns an app key generated from the provided |url|.
 std::string GetAppKey(const std::string& url);
 
-}  // namespace loader_app
+}  // namespace starboard
 
-#endif  // STARBOARD_LOADER_APP_APP_KEY_H_
+#endif  // STARBOARD_COMMON_APP_KEY_H_

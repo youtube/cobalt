@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/loader_app/app_key_internal.h"
+#include "starboard/common/app_key_internal.h"
 
 #include <algorithm>
 
@@ -20,7 +20,7 @@
 #include "starboard/types.h"
 #include "third_party/modp_b64/modp_b64.h"
 
-namespace loader_app {
+namespace starboard {
 namespace {
 
 // For general information on the URL format see:
@@ -129,4 +129,4 @@ std::string EncodeAppKey(const std::string& app_key) {
   return output;
 }
 
-}  // namespace loader_app
+}  // namespace starboard

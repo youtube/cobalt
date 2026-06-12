@@ -20,6 +20,8 @@
 #include <vector>
 
 #include "cobalt/version.h"
+#include "starboard/common/app_key.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
 #include "starboard/common/paths.h"
@@ -32,7 +34,6 @@
 #include "starboard/elf_loader/sabi_string.h"
 #include "starboard/event.h"
 #include "starboard/extension/loader_app_metrics.h"
-#include "starboard/loader_app/app_key.h"
 #include "starboard/loader_app/loader_app_switches.h"
 #include "starboard/loader_app/memory_tracker_thread.h"
 #include "starboard/loader_app/read_evergreen_version.h"
@@ -58,9 +59,6 @@ const char kSystemImageCompressedLibraryPath[] = "app/cobalt/lib/libcobalt.lz4";
 
 // Relative path to Cobalt's system image manifest.json.
 const char kSystemImageManifestPath[] = "app/cobalt/manifest.json";
-
-// Cobalt default URL.
-const char kCobaltDefaultUrl[] = "https://www.youtube.com/tv";
 
 // Portable ELF loader.
 elf_loader::ElfLoader g_elf_loader;
@@ -308,9 +306,9 @@ void SbEventHandle(const SbEvent* event) {
     } else {
       std::string url = command_line.GetSwitchValue(loader_app::kURL);
       if (url.empty()) {
-        url = kCobaltDefaultUrl;
+        url = starboard::kCobaltDefaultUrl;
       }
-      std::string app_key = loader_app::GetAppKey(url);
+      std::string app_key = starboard::GetAppKey(url);
       SB_CHECK(!app_key.empty());
 
       g_sb_event_func = reinterpret_cast<void (*)(const SbEvent*)>(

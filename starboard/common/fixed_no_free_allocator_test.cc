@@ -45,7 +45,9 @@ class FixedNoFreeAllocatorTest : public ::testing::Test {
 
 void* FixedNoFreeAllocatorTest::AllocatedAlligned() {
   void* tmp = nullptr;
-  posix_memalign(&tmp, starboard::Allocator::kMinAlignment, kBufferSize);
+  int result =
+      posix_memalign(&tmp, starboard::Allocator::kMinAlignment, kBufferSize);
+  (void)result;
   return tmp;
 }
 FixedNoFreeAllocatorTest::FixedNoFreeAllocatorTest()
@@ -63,7 +65,7 @@ TEST_F(FixedNoFreeAllocatorTest, CanDoSimpleAllocations) {
 
 TEST_F(FixedNoFreeAllocatorTest, CanDoMultipleAllocationsProperly) {
   void* buffers[kMaxAllocations];
-  for (int i = 0; i < kMaxAllocations; ++i) {
+  for (size_t i = 0; i < kMaxAllocations; ++i) {
     buffers[i] = allocator_.Allocate(kAllocationSize);
     EXPECT_GE(buffers[i], buffer_.get());
     EXPECT_LE(reinterpret_cast<uintptr_t>(buffers[i]),
@@ -71,7 +73,7 @@ TEST_F(FixedNoFreeAllocatorTest, CanDoMultipleAllocationsProperly) {
                   kAllocationSize);
 
     // Make sure this allocation doesn't overlap with any previous ones.
-    for (int j = 0; j < i; ++j) {
+    for (size_t j = 0; j < i; ++j) {
       EXPECT_NE(buffers[j], buffers[i]);
       if (buffers[j] < buffers[i]) {
         EXPECT_LE(starboard::AsInteger(buffers[j]) + kAllocationSize,
@@ -85,7 +87,7 @@ TEST_F(FixedNoFreeAllocatorTest, CanDoMultipleAllocationsProperly) {
 }
 
 TEST_F(FixedNoFreeAllocatorTest, CanDoMultipleAllocationsAndFreesProperly) {
-  for (int i = 0; i < kMaxAllocations; ++i) {
+  for (size_t i = 0; i < kMaxAllocations; ++i) {
     void* current_allocation = allocator_.Allocate(kAllocationSize);
 
     EXPECT_GE(current_allocation, buffer_.get());
@@ -98,7 +100,7 @@ TEST_F(FixedNoFreeAllocatorTest, CanDoMultipleAllocationsAndFreesProperly) {
 }
 
 TEST_F(FixedNoFreeAllocatorTest, CanHandleOutOfMemory) {
-  for (int i = 0; i < kMaxAllocations; ++i) {
+  for (size_t i = 0; i < kMaxAllocations; ++i) {
     void* current_allocation = allocator_.Allocate(kAllocationSize);
 
     EXPECT_GE(current_allocation, buffer_.get());
@@ -122,8 +124,8 @@ TEST_F(FixedNoFreeAllocatorTest, CanHandleAlignedMemory) {
   for (int i = 0; i < kMinimumAlignedMemoryAllocations; ++i) {
     void* current_allocation =
         allocator_.Allocate(kAllocationSize, kAllocationAlignment);
-    EXPECT_EQ(0, reinterpret_cast<uintptr_t>(current_allocation) %
-                     kAllocationAlignment);
+    EXPECT_EQ(0u, reinterpret_cast<uintptr_t>(current_allocation) %
+                      kAllocationAlignment);
 
     EXPECT_GE(current_allocation, buffer_.get());
     EXPECT_LE(reinterpret_cast<uintptr_t>(current_allocation),
