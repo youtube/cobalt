@@ -29,8 +29,6 @@ buildflag_header("buildflags") {
   ]
 }
 
-
-
 # See //content/BUILD.gn for how this works. Note that targets in `//content`
 # will want to include `:common_sources` directly.
 group("common") {
@@ -259,7 +257,6 @@ source_set("common_sources") {
     ":main_function_params",
     ":renderer_type",
     ":switches",
-
     "//content/common",
     "//content/public/common/zygote:buildflags",
     "//ipc",
