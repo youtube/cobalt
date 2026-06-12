@@ -59,6 +59,8 @@ std::ostream& operator<<(
             << ToString(features.enable_video_renderer_vsp_adjustment)
             << ", flush_audio_track_during_seek="
             << ToString(features.flush_audio_track_during_seek)
+            << ", force_clear_surface_view="
+            << ToString(features.force_clear_surface_view)
             << ", force_decode_to_texture="
             << ToString(features.force_decode_to_texture)
             << ", ignore_mediacodec_callbacks_during_flushing="
