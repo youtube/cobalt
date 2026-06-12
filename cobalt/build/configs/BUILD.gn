@@ -186,13 +186,4 @@ config("global_defines") {
   if (is_default_toolchain) {
     defines += [ "SB_IS_DEFAULT_TC" ]
   }
-
-  defines += [
-    "CHROMIUM_MILESTONE=$chromium_milestone",
-    "CHROMIUM_MILESTONE_LE_138=($chromium_milestone<=138)",
-  ]
-
-  if (enable_privacy_sandbox_apis) {
-    defines += [ "ENABLE_BUILDFLAG_ENABLE_PRIVACY_SANDBOX_APIS" ]
-  }
 }

@@ -1,0 +1,13 @@
+# Copyright 2026 The Cobalt Authors. All Rights Reserved.
+
+import("//cobalt/build/configs/cobalt.gni")
+
+config("global_defines_shared") {
+  defines = [
+    "CHROMIUM_MILESTONE=$chromium_milestone",
+    "CHROMIUM_MILESTONE_LE_138=($chromium_milestone<=138)",
+  ]
+  if (enable_privacy_sandbox_apis) {
+    defines += [ "ENABLE_BUILDFLAG_ENABLE_PRIVACY_SANDBOX_APIS" ]
+  }
+}
