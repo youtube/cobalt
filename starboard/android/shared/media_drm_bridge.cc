@@ -22,7 +22,6 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/memory/raw_ref.h"
-#include "starboard/android/shared/safe_jni.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "third_party/jni_zero/jni_zero.h"
@@ -268,29 +267,23 @@ void MediaDrmBridge::OnSessionMessage(
 void MediaDrmBridge::OnKeyStatusChange(
     JNIEnv* env,
     const JavaParamRef<jbyteArray>& session_id,
-    const JavaParamRef<jobjectArray>& key_information) {
+    const std::vector<DrmKeyStatusInfo>& key_statuses) {
   std::string session_id_bytes = JavaByteArrayToString(env, session_id);
-
-  std::vector<ScopedJavaLocalRef<jobject>> key_statuses =
-      JavaObjectArrayToVector(env, key_information);
 
   size_t length = key_statuses.size();
   std::vector<SbDrmKeyId> drm_key_ids(length);
   std::vector<SbDrmKeyStatus> drm_key_statuses(length);
 
   for (size_t i = 0; i < length; ++i) {
-    const auto& j_key_status = key_statuses[i];
-    ScopedJavaLocalRef<jbyteArray> j_key_id =
-        Java_KeyStatus_getKeyId(env, j_key_status);
-    std::vector<uint8_t> key_id_bytes;
-    base::android::JavaByteArrayToByteVector(env, j_key_id, &key_id_bytes);
+    const auto& key_status = key_statuses[i];
 
-    SB_DCHECK_LE(key_id_bytes.size(), sizeof(drm_key_ids[i].identifier));
-    memcpy(drm_key_ids[i].identifier, key_id_bytes.data(), key_id_bytes.size());
-    drm_key_ids[i].identifier_size = key_id_bytes.size();
-
-    drm_key_statuses[i] =
-        ToSbDrmKeyStatus(Java_KeyStatus_getStatusCode(env, j_key_status));
+    SB_CHECK_LE(key_status.key_id.size(), sizeof(drm_key_ids[i].identifier));
+    if (!key_status.key_id.empty()) {
+      memcpy(drm_key_ids[i].identifier, key_status.key_id.data(),
+             key_status.key_id.size());
+    }
+    drm_key_ids[i].identifier_size = key_status.key_id.size();
+    drm_key_statuses[i] = key_status.status;
   }
 
   host_->OnKeyStatusChange(session_id_bytes, drm_key_ids, drm_key_statuses);
@@ -329,8 +322,8 @@ bool MediaDrmBridge::Initialize(std::string_view key_system,
     return false;
   }
 
-  j_media_drm_bridge_.Reset(env, j_media_drm_bridge.obj());
-  j_media_crypto_.Reset(env, j_media_crypto.obj());
+  j_media_drm_bridge_.Reset(j_media_drm_bridge);
+  j_media_crypto_.Reset(j_media_crypto);
 
   return true;
 }
@@ -359,3 +352,20 @@ std::ostream& operator<<(std::ostream& os, const DrmOperationResult& result) {
 }
 
 }  // namespace starboard
+
+namespace jni_zero {
+template <>
+starboard::DrmKeyStatusInfo FromJniType<starboard::DrmKeyStatusInfo>(
+    JNIEnv* env,
+    const JavaRef<jobject>& j_key_status) {
+  ScopedJavaLocalRef<jbyteArray> j_key_id =
+      starboard::Java_KeyStatus_getKeyId(env, j_key_status);
+  std::vector<uint8_t> key_id_bytes;
+  if (j_key_id) {
+    base::android::JavaByteArrayToByteVector(env, j_key_id, &key_id_bytes);
+  }
+  SbDrmKeyStatus status = starboard::ToSbDrmKeyStatus(
+      starboard::Java_KeyStatus_getStatusCode(env, j_key_status));
+  return starboard::DrmKeyStatusInfo{std::move(key_id_bytes), status};
+}
+}  // namespace jni_zero

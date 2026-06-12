@@ -41,11 +41,6 @@ using jni_zero::AttachCurrentThread;
 using jni_zero::JavaParamRef;
 using jni_zero::ScopedJavaLocalRef;
 
-template <typename SpanType>
-starboard::Span<uint8_t> ToSpan(const SpanType& base_span) {
-  return starboard::Span<uint8_t>(base_span.data(), base_span.size());
-}
-
 // See
 // https://developer.android.com/reference/android/media/MediaFormat.html#COLOR_RANGE_FULL.
 const jint COLOR_RANGE_FULL = 1;
@@ -269,10 +264,13 @@ void MediaCodecBridge::Initialize(jobject j_media_codec_bridge) {
 Span<uint8_t> MediaCodecBridge::GetInputBufferAddress(jint index) {
   SB_DCHECK_GE(index, 0);
   JNIEnv* env = AttachCurrentThread();
-  return ToSpan(JavaByteBufferToMutableSpan(
-      env,
-      Java_MediaCodecBridge_getInputBuffer(env, j_media_codec_bridge_, index)
-          .obj()));
+  ScopedJavaLocalRef<jobject> byte_buffer =
+      Java_MediaCodecBridge_getInputBuffer(env, j_media_codec_bridge_, index);
+  if (!byte_buffer) {
+    return {};
+  }
+  auto span = JavaByteBufferToMutableSpan(env, byte_buffer.obj());
+  return {span.data(), span.size()};
 }
 
 jint MediaCodecBridge::QueueInputBuffer(jint index,
@@ -336,10 +334,13 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
 Span<uint8_t> MediaCodecBridge::GetOutputBufferAddress(jint index) {
   SB_DCHECK_GE(index, 0);
   JNIEnv* env = AttachCurrentThread();
-  return ToSpan(JavaByteBufferToMutableSpan(
-      env,
-      Java_MediaCodecBridge_getOutputBuffer(env, j_media_codec_bridge_, index)
-          .obj()));
+  ScopedJavaLocalRef<jobject> byte_buffer =
+      Java_MediaCodecBridge_getOutputBuffer(env, j_media_codec_bridge_, index);
+  if (!byte_buffer) {
+    return {};
+  }
+  auto span = JavaByteBufferToMutableSpan(env, byte_buffer.obj());
+  return {span.data(), span.size()};
 }
 
 void MediaCodecBridge::ReleaseOutputBuffer(jint index, jboolean render) {
