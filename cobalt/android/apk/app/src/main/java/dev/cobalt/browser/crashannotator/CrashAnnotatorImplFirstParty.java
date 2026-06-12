@@ -41,7 +41,7 @@ public class CrashAnnotatorImplFirstParty implements CrashAnnotator {
         CrashAnnotatorImplFirstPartyJni.get().setAnnotation(key, value);
 
         // The browser has no visibility into what occurs after it has provided
-        // the crash context to StarboardBridge. So we just assume the crash
+        // the crash context to BaseStarboardBridge. So we just assume the crash
         // context will be handled correctly.
         callback.call(true);
     }

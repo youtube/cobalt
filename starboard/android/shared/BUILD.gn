@@ -217,7 +217,6 @@ static_library("starboard_platform") {
 
     # TODO: b/374300500 - posix_emu things should not be used on Android anymore
     # "posix_emu/dirent.cc",
-    # "posix_emu/errno.cc",
     # "posix_emu/pthread.cc",
 
     "runtime_resource_overlay.cc",
@@ -315,6 +314,16 @@ static_library("starboard_platform") {
       "//cobalt/browser/h5vcc_accessibility:manager",
       "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     ]
+  }
+
+  # aosp (Evergreen Android ARM): PlatformError is dropped from
+  # //cobalt/android:jni_headers under is_starboard (its WebContents dep can't
+  # compile in the apk), so PlatformError_jni.h — which system_platform_error.cc
+  # includes — isn't generated. Use the SbSystemRaisePlatformError stub instead;
+  # the symbol stays defined (exported_symbols.cc registers it).
+  if (is_starboard) {
+    sources -= [ "system_platform_error.cc" ]
+    sources += [ "//starboard/shared/stub/system_raise_platform_error.cc" ]
   }
 
   if (is_starboard && current_toolchain == starboard_toolchain) {

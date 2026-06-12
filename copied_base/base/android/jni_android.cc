@@ -17,6 +17,7 @@
 #include "base/android/java_exception_reporter.h"
 #include "base/android/jni_string.h"
 #include "base/android/jni_utils.h"
+#include "third_party/jni_zero/jni_zero.h"
 #include "base/base_jni/PiiElider_jni.h"
 #include "base/debug/debugging_buildflags.h"
 #include "base/logging.h"
@@ -29,7 +30,6 @@ namespace base {
 namespace android {
 namespace {
 
-JavaVM* g_jvm = nullptr;
 jobject g_class_loader = nullptr;
 jmethodID g_class_loader_load_class_method_id = 0;
 
@@ -128,71 +128,38 @@ ScopedJavaLocalRef<jclass> GetClassInternal(JNIEnv* env,
   return ScopedJavaLocalRef<jclass>(env, clazz);
 }
 
+// jni_zero class resolver: route class lookups through the app ClassLoader
+// (via GetSplitClassLoader -> JNIUtils) rather than the calling thread's, so
+// Starboard's native (pthread-spawned) threads — attached to the system
+// ClassLoader — can still resolve app classes. Installed by InitVM below.
+// Mirrors //base's GetClassFromSplit.
+jclass GetClassFromSplit(JNIEnv* env,
+                         const char* class_name,
+                         const char* split_name) {
+  return GetClass(env, class_name, split_name).Release();
+}
+
 }  // namespace
 
-JNIEnv* AttachCurrentThread() {
-  DCHECK(g_jvm);
-  JNIEnv* env = nullptr;
-  jint ret = g_jvm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_2);
-  if (ret == JNI_EDETACHED || !env) {
-    JavaVMAttachArgs args;
-    args.version = JNI_VERSION_1_2;
-    args.group = nullptr;
-
-    // 16 is the maximum size for thread names on Android.
-    char thread_name[16];
-    int err = prctl(PR_GET_NAME, thread_name);
-    if (err < 0) {
-      DPLOG(ERROR) << "prctl(PR_GET_NAME)";
-      args.name = nullptr;
-    } else {
-      args.name = thread_name;
-    }
-
-#if BUILDFLAG(IS_ANDROID)
-    ret = g_jvm->AttachCurrentThread(&env, &args);
-#else
-    ret = g_jvm->AttachCurrentThread(reinterpret_cast<void**>(&env), &args);
-#endif
-    CHECK_EQ(JNI_OK, ret);
-  }
-  return env;
-}
-
-JNIEnv* AttachCurrentThreadWithName(const std::string& thread_name) {
-  DCHECK(g_jvm);
-  JavaVMAttachArgs args;
-  args.version = JNI_VERSION_1_2;
-  args.name = const_cast<char*>(thread_name.c_str());
-  args.group = nullptr;
-  JNIEnv* env = nullptr;
-#if BUILDFLAG(IS_ANDROID)
-  jint ret = g_jvm->AttachCurrentThread(&env, &args);
-#else
-  jint ret = g_jvm->AttachCurrentThread(reinterpret_cast<void**>(&env), &args);
-#endif
-  CHECK_EQ(JNI_OK, ret);
-  return env;
-}
-
-void DetachFromVM() {
-  // Ignore the return value, if the thread is not attached, DetachCurrentThread
-  // will fail. But it is ok as the native thread may never be attached.
-  if (g_jvm)
-    g_jvm->DetachCurrentThread();
-}
-
 void InitVM(JavaVM* vm) {
-  DCHECK(!g_jvm || g_jvm == vm);
-  g_jvm = vm;
-}
-
-bool IsVMInitialized() {
-  return g_jvm != nullptr;
-}
-
-JavaVM* GetVM() {
-  return g_jvm;
+  // Mirror //base's InitVM: bring jni_zero up, install the exception handler
+  // and the class resolver. (AttachCurrentThread/DetachFromVM/GetVM/
+  // IsJavaAvailable are now inline wrappers over jni_zero in the header, like
+  // //base, so there is no separate copied_base g_jvm to set.) Generated JNI
+  // uses jni_zero (org.jni_zero.*), whose default class lookup is
+  // env->FindClass — which fails for app classes on Starboard's native
+  // threads. Routing jni_zero lookups through the app ClassLoader
+  // (GetClassFromSplit) fixes that. InitGlobalClassLoader must run before
+  // SetClassResolver: it resolves JNIUtils via FindClass on this (main) thread
+  // while the resolver is still unset, caching the app ClassLoader for all
+  // later (any-thread) lookups. (The OOM-class warm-up //base does after is
+  // omitted: copied_base's CheckException uses g_fatal_exception_occurred, not
+  // g_out_of_memory_error_class.)
+  jni_zero::InitVM(vm);
+  jni_zero::SetExceptionHandler(CheckException);
+  JNIEnv* env = jni_zero::AttachCurrentThread();
+  InitGlobalClassLoader(env);
+  jni_zero::SetClassResolver(GetClassFromSplit);
 }
 
 void InitGlobalClassLoader(JNIEnv* env) {

@@ -130,6 +130,7 @@ android_library("cobalt_shell_test_apk_java") {
 
   sources = [
     "//cobalt/android/apk/app/src/app/java/dev/cobalt/app/CobaltApplication.java",
+    "//cobalt/android/apk/app/src/main/java/dev/cobalt/coat/BaseCobaltActivity.java",
     "//cobalt/android/apk/app/src/main/java/dev/cobalt/coat/CobaltActivity.java",
   ]
 }

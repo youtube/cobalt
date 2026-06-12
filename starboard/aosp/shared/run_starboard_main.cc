@@ -12,14 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <stdlib.h>
+
 #include "starboard/event.h"
 
-namespace starboard::aosp::shared {
+extern "C" SB_EXPORT int SbRunStarboardMain(int argc,
+                                            char** argv,
+                                            SbEventHandleCallback callback) {
+  SbEventStartData start_data = {};
+  start_data.argument_values = argv;
+  start_data.argument_count = argc;
+  start_data.link = nullptr;
 
-extern "C" int SbRunStarboardMain(int argc,
-                                  char** argv,
-                                  SbEventHandleCallback callback) {
-  // TODO(crbug.com/495203133): to be implemented.
+  SbEvent start_event = {};
+  start_event.type = kSbEventTypeStart;
+  start_event.data = &start_data;
+  callback(&start_event);
+
+  SbEvent stop_event = {};
+  stop_event.type = kSbEventTypeStop;
+  stop_event.data = nullptr;
+  callback(&stop_event);
+
+  return EXIT_SUCCESS;
 }
-
-}  // namespace starboard::aosp::shared

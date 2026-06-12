@@ -21,6 +21,7 @@ import android.view.WindowManager;
 
 import org.chromium.base.StrictModeContext;
 import dev.cobalt.coat.StarboardBridge;
+import dev.cobalt.coat.BaseStarboardBridge;
 import dev.cobalt.shell.ShellManager;
 import dev.cobalt.util.Holder;
 import org.chromium.base.library_loader.LibraryLoader;
@@ -35,20 +36,20 @@ import org.chromium.ui.base.WindowAndroid;
 
 /** An Activity base class for running browser tests against ContentShell. */
 public abstract class ContentShellBrowserTestActivity extends NativeBrowserTestActivity
-        implements StarboardBridge.HostApplication {
+        implements BaseStarboardBridge.HostApplication {
     private static final String TAG = "native_test";
 
     private ShellManager mShellManager;
     private WindowAndroid mWindowAndroid;
-    private StarboardBridge mStarboardBridge;
+    private BaseStarboardBridge mStarboardBridge;
 
     @Override
-    public void setStarboardBridge(StarboardBridge starboardBridge) {
+    public void setStarboardBridge(BaseStarboardBridge starboardBridge) {
         mStarboardBridge = starboardBridge;
     }
 
     @Override
-    public StarboardBridge getStarboardBridge() {
+    public BaseStarboardBridge getStarboardBridge() {
         return mStarboardBridge;
     }
 
@@ -83,7 +84,7 @@ public abstract class ContentShellBrowserTestActivity extends NativeBrowserTestA
                         /* trackOcclusion= */ true);
         mShellManager.setWindow(mWindowAndroid);
 
-        // Instantiate StarboardBridge. This is crucial for initializing the native Starboard
+        // Instantiate BaseStarboardBridge. This is crucial for initializing the native Starboard
         // environment that the storage migration relies on.
         mStarboardBridge = new StarboardBridge(getApplicationContext(),
                                                new Holder<Activity>(),
@@ -91,7 +92,7 @@ public abstract class ContentShellBrowserTestActivity extends NativeBrowserTestA
                                                null, // ArtworkDownloader is not needed for tests
                                                new String[0], // args
                                                ""); // startDeepLink
-        ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(mStarboardBridge);
+        ((BaseStarboardBridge.HostApplication) getApplication()).setStarboardBridge(mStarboardBridge);
 
         Window wind = this.getWindow();
         wind.addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);

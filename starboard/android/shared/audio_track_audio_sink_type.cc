@@ -498,7 +498,17 @@ int AudioTrackAudioSinkType::GetMinBufferSizeInFrames(
     int channels,
     SbMediaAudioSampleType sample_type,
     int sampling_frequency_hz) {
-  SB_CHECK(audio_track_audio_sink_type_);
+  if (!audio_track_audio_sink_type_) {
+    // The Java-side StarboardBridge constructor normally calls
+    // initializePlatformAudioSink, which lands in
+    // SbAudioSinkImpl::PlatformInitialize and constructs the singleton.
+    // On the aosp-arm nplb path there's no Java StarboardBridge, so the
+    // singleton stays null; return a sentinel here so individual audio
+    // sink tests can fail gracefully instead of aborting the whole
+    // nplb process.
+    SB_LOG(WARNING) << "AudioTrackAudioSinkType not initialized";
+    return -1;
+  }
   JNIEnv* env = AttachCurrentThread();
 
   return std::max(

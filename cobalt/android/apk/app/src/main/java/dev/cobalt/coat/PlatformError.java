@@ -181,7 +181,7 @@ public class PlatformError
           mResponse = POSITIVE;
           mDialog.dismiss();
           // cobaltActivity should not be null but could be if the Activity was stopped (e.g.
-          // backgrounded) and StarboardBridge cleared the Holder, but a pending dialog click was
+          // backgrounded) and BaseStarboardBridge cleared the Holder, but a pending dialog click was
           // still processed.
           if (cobaltActivity != null) {
             WebContents webContents = cobaltActivity.getActiveWebContents();

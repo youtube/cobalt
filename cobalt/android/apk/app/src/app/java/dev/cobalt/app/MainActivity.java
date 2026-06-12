@@ -16,11 +16,11 @@ package dev.cobalt.app;
 
 import android.app.Activity;
 import android.app.Service;
-import android.os.Bundle;
 import dev.cobalt.coat.ArtworkDownloaderDefault;
 import dev.cobalt.coat.CobaltActivity;
 import dev.cobalt.coat.CobaltService;
 import dev.cobalt.coat.StarboardBridge;
+import dev.cobalt.coat.BaseStarboardBridge;
 import dev.cobalt.libraries.services.clientloginfo.ClientLogInfoModule;
 import dev.cobalt.util.Holder;
 
@@ -33,7 +33,7 @@ import dev.cobalt.util.Holder;
 public class MainActivity extends CobaltActivity {
 
   @Override
-  protected StarboardBridge createStarboardBridge(String[] args, String startDeepLink) {
+  protected BaseStarboardBridge createStarboardBridge(String[] args, String startDeepLink) {
     Holder<Activity> activityHolder = new Holder<>();
     Holder<Service> serviceHolder = new Holder<>();
     StarboardBridge bridge =
@@ -50,10 +50,5 @@ public class MainActivity extends CobaltActivity {
     bridge.registerCobaltService(clientLogInfoFactory);
 
     return bridge;
-  }
-
-  @Override
-  public void onCreate(Bundle savedInstanceState) {
-    super.onCreate(savedInstanceState);
   }
 }
