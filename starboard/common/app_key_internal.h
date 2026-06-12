@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_LOADER_APP_APP_KEY_INTERNAL_H_
-#define STARBOARD_LOADER_APP_APP_KEY_INTERNAL_H_
+#ifndef STARBOARD_COMMON_APP_KEY_INTERNAL_H_
+#define STARBOARD_COMMON_APP_KEY_INTERNAL_H_
 
 #include <string>
 
-namespace loader_app {
+namespace starboard {
 
 // Returns an application key extracted from |url|. This function is not meant
 // to validate a URL, and operates assuming the URL provided is valid. This
@@ -27,6 +27,6 @@ std::string ExtractAppKey(const std::string& url);
 // Returns a base64 encoded |app_key|.
 std::string EncodeAppKey(const std::string& app_key);
 
-}  // namespace loader_app
+}  // namespace starboard
 
-#endif  // STARBOARD_LOADER_APP_APP_KEY_INTERNAL_H_
+#endif  // STARBOARD_COMMON_APP_KEY_INTERNAL_H_

@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/loader_app/app_key.h"
+#include "starboard/common/app_key.h"
 
+#include "starboard/common/app_key_internal.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/loader_app/app_key_internal.h"
 
-namespace loader_app {
+namespace starboard {
 namespace {
 
 // With the maximum length of an app key being 24 bytes less than the maximum
@@ -31,9 +31,14 @@ const size_t kAppKeyMax = kSbFileMaxName - 24;
 }  // namespace
 
 std::string GetAppKey(const std::string& url) {
-  SB_DCHECK_GT(kAppKeyMax, 0);
+  SB_DCHECK_GT(kAppKeyMax, 0u);
 
-  const std::string app_key = EncodeAppKey(ExtractAppKey(url));
+  std::string target_url = url;
+  if (target_url.empty()) {
+    target_url = kCobaltDefaultUrl;
+  }
+
+  const std::string app_key = EncodeAppKey(ExtractAppKey(target_url));
 
   if (app_key.size() > kAppKeyMax) {
     return app_key.substr(app_key.size() - kAppKeyMax, kAppKeyMax);
@@ -41,4 +46,4 @@ std::string GetAppKey(const std::string& url) {
   return app_key;
 }
 
-}  // namespace loader_app
+}  // namespace starboard

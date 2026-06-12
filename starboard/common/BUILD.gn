@@ -38,6 +38,10 @@ static_library("common") {
     "//starboard/shared/media_session/playback_state.h",
     "allocator.cc",
     "allocator.h",
+    "app_key.cc",
+    "app_key.h",
+    "app_key_internal.cc",
+    "app_key_internal.h",
     "check.h",
     "check_op.cc",
     "check_op.h",
@@ -97,6 +101,8 @@ static_library("common") {
     "time.cc",
     "time.h",
   ]
+
+  deps = [ "//third_party/modp_b64" ]
 }
 
 static_library("file_wrapper") {
@@ -111,6 +117,7 @@ static_library("file_wrapper") {
 source_set("common_test") {
   testonly = true
   sources = [
+    "app_key_test.cc",
     "drm_test.cc",
     "expected_test.cc",
     "fixed_no_free_allocator_test.cc",
