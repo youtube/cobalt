@@ -40,12 +40,15 @@ jobs:
             echo "sha=${PUSH_SHA}" >> "$GITHUB_OUTPUT"
           fi
 
-  wait-for-build:
+  wait-for-kokoro-build:
     needs: get-sha
     runs-on: ubuntu-latest
     timeout-minutes: 150 # 2.5 hours timeout to ensure we don't block forever but allow 2h polling
+    outputs:
+      invocation_id: ${{ steps.poll-status.outputs.invocation_id }}
     steps:
       - name: Poll GitHub Statuses API for Kokoro build
+        id: poll-status
         env:
           COMMIT_SHA: ${{ needs.get-sha.outputs.sha }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -65,12 +68,17 @@ jobs:
             if [[ -n "${target_status}" && "${target_status}" != "null" ]]; then
               state=$(echo "${target_status}" | jq -r '.state')
               description=$(echo "${target_status}" | jq -r '.description')
+              target_url=$(echo "${target_status}" | jq -r '.target_url')
+              invocation_id="${target_url##*/}"
 
               echo "Found target status: kokoro"
               echo "State: ${state} | Description: ${description}"
+              echo "Kokoro Invocation ID: ${invocation_id}"
+              echo "Kokoro ResultStore URL: ${target_url}"
 
               if [[ "${state}" == "success" ]]; then
                 echo "Kokoro build succeeded!"
+                echo "invocation_id=${invocation_id}" >> "$GITHUB_OUTPUT"
                 exit 0
               elif [[ "${state}" == "failure" || "${state}" == "error" ]]; then
                 echo "Kokoro build failed with state: ${state}"
@@ -88,7 +96,7 @@ jobs:
           exit 1
 
   download-artifacts:
-    needs: [get-sha, wait-for-build]
+    needs: [get-sha, wait-for-kokoro-build]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
       - name: Set Up Cloud SDK
@@ -96,12 +104,12 @@ jobs:
 
       - name: Download Artifacts from GCS
         env:
-          COMMIT_SHA: ${{ needs.get-sha.outputs.sha }}
+          INVOCATION_ID: ${{ needs.wait-for-kokoro-build.outputs.invocation_id }}
         run: |
           BUCKET="cobalt-unittest-storage"
           PLATFORM="tvos-arm64-simulator"
           CONFIG="devel"
-          gcloud storage cp "gs://${BUCKET}/kokoro/build/${PLATFORM}_${CONFIG}/${COMMIT_SHA}/cobalt_browsertests.tar.gz" .
+          gcloud storage cp "gs://${BUCKET}/kokoro/build/${PLATFORM}_${CONFIG}/${INVOCATION_ID}/cobalt_browsertests.tar.gz" .
 
       - name: Upload to GitHub Actions
         uses: actions/upload-artifact@v4

@@ -91,9 +91,13 @@ EOF
 
   # Package, archive, and upload to GCS.
   ##############################################################################
-  local commit_sha=$(git rev-parse HEAD)
+  if [[ -z "${KOKORO_BUILD_ID:-}" ]]; then
+    echo "ERROR: KOKORO_BUILD_ID environment variable is required."
+    exit 1
+  fi
+  local build_id="${KOKORO_BUILD_ID}"
   local bucket="${COBALT_GCS_BUCKET:-cobalt-unittest-storage}"
-  local gcs_archive_path="gs://${bucket}/kokoro/build/${TARGET_PLATFORM}_${CONFIG}/${commit_sha}/"
+  local gcs_archive_path="gs://${bucket}/kokoro/build/${TARGET_PLATFORM}_${CONFIG}/${build_id}/"
 
   for target in ${GN_TARGET}; do
     # Extract target name (e.g. base:base_unittests -> base_unittests)
