@@ -1,5 +1,4 @@
 // Copyright 2026 The Cobalt Authors. All Rights Reserved.
-// Force rebuild.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,68 +14,54 @@
 
 #include "starboard/shared/starboard/player/buffer_internal.h"
 
-#include "build/build_config.h"
-#include "starboard/shared/starboard/cached_feature.h"
-#include "starboard/shared/starboard/feature_list.h"
+#include <atomic>
+#include <cstddef>
+#include <cstdint>
+
 #include "starboard/shared/starboard/player/fixed_block_pool.h"
 #include "starboard/shared/starboard/player/lazy_initializer.h"
-
-#if BUILDFLAG(IS_ANDROID)
-#include "starboard/shared/starboard/features.h"
-#endif
 
 namespace starboard {
 namespace {
 
-#if BUILDFLAG(IS_ANDROID)
-features::CachedFeature g_use_buffer_pool_cached(
-    features::kDecodedAudioBufferPool);
-#endif
+// Two-Tiered Bounded Pool (Total pre-allocated memory: 960 KiB < 1 MB):
+// - Small Pool (8 KiB blocks, 40 blocks = 320 KiB): For Opus packets
+// - Large Pool (80 KiB blocks, 8 blocks = 640 KiB): For WSOLA/Renderer pull
+//
+// NOTE: Current setting is based on test 2-ch Opus encoded audio. It would
+// cover most common type of audio playback.
+constexpr size_t kSmallBlockSize = 8 * 1024;
+constexpr size_t kSmallPoolBlocks = 40;
+constexpr size_t kLargeBlockSize = 80 * 1024;
+constexpr size_t kLargePoolBlocks = 8;
 
-// kBufferKiB (80) is chosen to be large enough to hold the maximum typical
-// float32 PCM audio frame payloads, preventing frequent heap fallbacks:
-// - Stereo Float32 PCM at 48kHz (20ms packets) requires 7,680 bytes.
-// - 5.1 Surround Float32 PCM at 48kHz (20ms packets) requires 23,040 bytes.
-// - Opus software decoder initial frame safety buffer requires 76,800 bytes.
-// - Large renderer pull sizes (up to 66,560 bytes) driven by platform-specific
-//   audio sink minimum buffer requirements (e.g., 96KB AudioTrack on Android).
-constexpr size_t kBufferKiB = 80;
+LazyInitializer<FixedBlockPool, /*NoDestruct=*/true> g_small_pool;
+LazyInitializer<FixedBlockPool, /*NoDestruct=*/true> g_large_pool;
 
-// kPoolSize (40) provides a safe margin. Real-world playback tests show a
-// maximum of ~26 buffers in-flight concurrently (leaving 14+ free), while
-// consuming ~3.12MiB of RAM total (80KiB * 40).
-constexpr size_t kPoolSize = 40;
-
-LazyInitializer<FixedBlockPool, /*NoDestruct=*/true> g_buffer_pool;
-
-FixedBlockPool* GetPool() {
-  return g_buffer_pool.Get("DecodedAudioBuffer", kBufferKiB * 1024, kPoolSize);
+FixedBlockPool* GetSmallPool() {
+  return g_small_pool.Get("AudioSmallPool", kSmallBlockSize, kSmallPoolBlocks);
 }
 
-bool UseBufferPool() {
-#if BUILDFLAG(IS_ANDROID)
-  return g_use_buffer_pool_cached.IsEnabled();
-#else
-  if (features::FeatureList::HasOverrideForTesting("DecodedAudioBufferPool")) {
-    return features::FeatureList::IsEnabledByName("DecodedAudioBufferPool");
-  }
-  return false;
-#endif
+FixedBlockPool* GetLargePool() {
+  return g_large_pool.Get("AudioLargePool", kLargeBlockSize, kLargePoolBlocks);
 }
+
 }  // namespace
 
-size_t Buffer::GetPoolFreeListSizeForTesting() {
-  return GetPool()->GetInfoForTesting().free_blocks;
+std::atomic<bool> Buffer::s_pool_enabled{false};
+
+Buffer::PoolState Buffer::GetSmallPoolStateForTesting() {
+  auto info = GetSmallPool()->GetInfoForTesting();
+  return PoolState{info.free_blocks, info.total_blocks};
 }
 
-size_t Buffer::GetPoolTotalBlocksForTesting() {
-  return GetPool()->GetInfoForTesting().total_blocks;
+Buffer::PoolState Buffer::GetLargePoolStateForTesting() {
+  auto info = GetLargePool()->GetInfoForTesting();
+  return PoolState{info.free_blocks, info.total_blocks};
 }
 
-void Buffer::ClearCacheForTesting() {
-#if BUILDFLAG(IS_ANDROID)
-  g_use_buffer_pool_cached.ClearCacheForTesting();
-#endif
+void Buffer::SetPoolEnabled(bool enabled) {
+  s_pool_enabled.store(enabled, std::memory_order_relaxed);
 }
 
 uint8_t* Buffer::AllocateData(size_t size) {
@@ -84,8 +69,17 @@ uint8_t* Buffer::AllocateData(size_t size) {
     return nullptr;
   }
 
-  if (UseBufferPool()) {
-    return static_cast<uint8_t*>(GetPool()->Allocate(size));
+  if (s_pool_enabled.load(std::memory_order_relaxed)) {
+    void* ptr = nullptr;
+    if (size <= kSmallBlockSize) {
+      ptr = GetSmallPool()->Allocate(size);
+    } else if (size <= kLargeBlockSize) {
+      ptr = GetLargePool()->Allocate(size);
+    }
+
+    if (ptr) {
+      return static_cast<uint8_t*>(ptr);
+    }
   }
   return static_cast<uint8_t*>(::operator new(size));
 }
@@ -95,9 +89,14 @@ void Buffer::FreeData(uint8_t* ptr) {
     return;
   }
 
-  FixedBlockPool* pool = g_buffer_pool.GetIfInitialized();
-  if (pool) {
-    pool->Free(ptr);
+  if (FixedBlockPool* small_pool = g_small_pool.GetIfInitialized();
+      small_pool && small_pool->IsFromPool(ptr)) {
+    small_pool->Free(ptr);
+    return;
+  }
+  if (FixedBlockPool* large_pool = g_large_pool.GetIfInitialized();
+      large_pool && large_pool->IsFromPool(ptr)) {
+    large_pool->Free(ptr);
     return;
   }
   ::operator delete(ptr);

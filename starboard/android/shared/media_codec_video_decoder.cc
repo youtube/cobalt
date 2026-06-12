@@ -18,6 +18,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <functional>
@@ -39,8 +40,6 @@
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
-#include "starboard/shared/starboard/cached_feature.h"
-#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
@@ -51,14 +50,12 @@
 namespace starboard {
 namespace {
 
-using features::FeatureList;
 using jni_zero::AttachCurrentThread;
 using jni_zero::JavaRef;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
-features::CachedFeature g_use_video_frame_pool_cached(
-    features::kVideoFrameImplMemoryPool);
+std::atomic<bool> g_video_frame_pool_enabled{false};
 
 LazyInitializer<FixedBlockPool, /*NoDestruct=*/true> g_pool;
 FixedBlockPool* GetPool();
@@ -69,7 +66,7 @@ class VideoFrameImpl final : public VideoFrame {
 
   void* operator new(size_t size) {
     if (size == sizeof(VideoFrameImpl) &&
-        g_use_video_frame_pool_cached.IsEnabled()) {
+        g_video_frame_pool_enabled.load(std::memory_order_relaxed)) {
       return GetPool()->Allocate(size);
     }
     return ::operator new(size);
@@ -1200,6 +1197,11 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   //       VideoRenderer::Seek() after calling MediaCodecVideoDecoder::Reset()
   //       to update the seek status of |video_frame_tracker_|.  This is
   //       slightly flaky as it depends on the behavior of the video renderer.
+}
+
+// static
+void MediaCodecVideoDecoder::SetVideoFramePoolEnabled(bool enabled) {
+  g_video_frame_pool_enabled.store(enabled, std::memory_order_relaxed);
 }
 
 }  // namespace starboard

@@ -15,12 +15,7 @@
 #include <utility>
 #include <vector>
 
-#include "starboard/shared/starboard/feature_list.h"
 #include "starboard/shared/starboard/player/buffer_internal.h"
-#include "starboard/testing/scoped_feature_list.h"
-#if BUILDFLAG(IS_ANDROID)
-#include "starboard/shared/starboard/features.h"
-#endif
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -100,64 +95,37 @@ TEST(BufferTest, MoveAssignmentOperator) {
 }
 
 TEST(BufferTest, PoolAllocation) {
+  Buffer::SetPoolEnabled(true);
   {
-    starboard::features::ScopedFeatureList scoped_features;
-#if BUILDFLAG(IS_ANDROID)
-    scoped_features.InitAndEnableFeature(features::kDecodedAudioBufferPool);
-    Buffer::ClearCacheForTesting();
-#else
-    scoped_features.InitAndEnableFeature("DecodedAudioBufferPool");
-#endif
-    size_t total_blocks = Buffer::GetPoolTotalBlocksForTesting();
-    size_t initial_free = Buffer::GetPoolFreeListSizeForTesting();
-    EXPECT_EQ(initial_free, total_blocks);
+    Buffer::PoolState small_state = Buffer::GetSmallPoolStateForTesting();
+    Buffer::PoolState large_state = Buffer::GetLargePoolStateForTesting();
+    EXPECT_EQ(small_state.total_blocks, 40);
+    EXPECT_EQ(large_state.total_blocks, 8);
+    EXPECT_EQ(small_state.free_blocks, 40);
+    EXPECT_EQ(large_state.free_blocks, 8);
 
     {
       Buffer buffer1(100);
-      EXPECT_EQ(Buffer::GetPoolFreeListSizeForTesting(), initial_free - 1);
+      EXPECT_EQ(Buffer::GetSmallPoolStateForTesting().free_blocks, 39);
+      EXPECT_EQ(Buffer::GetLargePoolStateForTesting().free_blocks, 8);
 
       {
-        Buffer buffer2(200);
-        EXPECT_EQ(Buffer::GetPoolFreeListSizeForTesting(), initial_free - 2);
+        Buffer buffer2(16 * 1024);
+        EXPECT_EQ(Buffer::GetSmallPoolStateForTesting().free_blocks, 39);
+        EXPECT_EQ(Buffer::GetLargePoolStateForTesting().free_blocks, 7);
       }
-      EXPECT_EQ(Buffer::GetPoolFreeListSizeForTesting(), initial_free - 1);
+      EXPECT_EQ(Buffer::GetLargePoolStateForTesting().free_blocks, 8);
     }
-    EXPECT_EQ(Buffer::GetPoolFreeListSizeForTesting(), initial_free);
+    EXPECT_EQ(Buffer::GetSmallPoolStateForTesting().free_blocks, 40);
 
     {
-      Buffer large_buffer(130 * 1024);
-      EXPECT_EQ(Buffer::GetPoolFreeListSizeForTesting(), initial_free);
+      Buffer large_buffer(100 * 1024);
+      EXPECT_NE(large_buffer.data(), nullptr);
+      EXPECT_EQ(Buffer::GetSmallPoolStateForTesting().free_blocks, 40);
+      EXPECT_EQ(Buffer::GetLargePoolStateForTesting().free_blocks, 8);
     }
-    EXPECT_EQ(Buffer::GetPoolFreeListSizeForTesting(), initial_free);
-
-    std::vector<Buffer> buffers;
-    for (size_t i = 0; i < total_blocks; ++i) {
-      buffers.emplace_back(100);
-    }
-    EXPECT_EQ(Buffer::GetPoolFreeListSizeForTesting(), 0U);
-
-    {
-      Buffer extra_buffer(100);
-      EXPECT_NE(extra_buffer.data(), nullptr);
-      EXPECT_EQ(Buffer::GetPoolFreeListSizeForTesting(), 0U);
-    }
-
-    buffers.clear();
-    EXPECT_EQ(Buffer::GetPoolFreeListSizeForTesting(), initial_free);
   }
-  Buffer::ClearCacheForTesting();
-}
-
-TEST(FeatureListTest, ScopedOverride) {
-  std::string feature_name = "SomeDummyFeatureForTesting";
-  {
-    features::ScopedFeatureList scoped_features;
-    scoped_features.InitAndEnableFeature(feature_name);
-    EXPECT_TRUE(features::FeatureList::IsEnabledByName(feature_name));
-
-    scoped_features.InitAndDisableFeature(feature_name);
-    EXPECT_FALSE(features::FeatureList::IsEnabledByName(feature_name));
-  }
+  Buffer::SetPoolEnabled(false);
 }
 
 }  // namespace
