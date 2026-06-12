@@ -17,6 +17,7 @@
 #include "starboard/shared/starboard/microphone/microphone_internal.h"
 
 #include "local_aows_server.h"
+#include "starboard/common/log.h"
 
 #include <algorithm>
 #include <cstring>
