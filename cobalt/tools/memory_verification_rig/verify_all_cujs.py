@@ -127,11 +127,12 @@ def verify_cuj(cuj_name,
       run_cmd(adb_base + ["shell", "am", "force-stop", "dev.cobalt.coat"])
       target_args = (
           f"--enable-features=CobaltMemoryAttributionManager,"
-          f"--memory-metrics-interval=60,--remote-debugging-port={port}")
+          f"--memory-metrics-interval=60,--remote-debugging-port={port},"
+          f"--remote-allow-origins=*")
       run_cmd(adb_base + [
-          "shell", "am", "start", "-n",
-          "dev.cobalt.coat/dev.cobalt.app.MainActivity", "--esa", "url",
-          f"'{url}'", "--esa", "commandLineArgs", f"'{target_args}'"
+          "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d",
+          f"'{url}'", "-n", "dev.cobalt.coat/dev.cobalt.app.MainActivity",
+          "--esa", "commandLineArgs", f"'{target_args}'"
       ])
 
     # Wait for startup
@@ -168,7 +169,7 @@ def verify_cuj(cuj_name,
           send_cdp_key(port, key)
         else:
           send_adb_key(key, device_id)
-        time.sleep(0.2)
+        time.sleep(0.5)
       # Wait 10 seconds before starting the repeat loop
       time.sleep(10)
 
@@ -264,7 +265,7 @@ if __name__ == "__main__":
   if args.cuj in ["all", "watch"]:
     verify_cuj(
         "2. WATCH CUJ (Direct Video Playback)",
-        "https://www.youtube.com/tv#/watch?v=AB-4pS2Og1g",
+        "https://www.youtube.com/tv?v=AB-4pS2Og1g",
         args.platform,
         args.duration,
         args.port,
@@ -286,7 +287,7 @@ if __name__ == "__main__":
   if args.cuj in ["all", "combined"]:
     verify_cuj(
         "4. COMBINED CUJ (Watch Playback + UI Browse)",
-        "https://www.youtube.com/tv#/watch?v=AB-4pS2Og1g",
+        "https://www.youtube.com/tv?v=AB-4pS2Og1g",
         args.platform,
         args.duration,
         args.port,
