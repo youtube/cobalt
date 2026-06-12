@@ -217,6 +217,23 @@ int ParseAowsPort() {
   return static_cast<int>(parsed_port);
 }
 
+bool IsAowsNetworkModeEnabled() {
+  const char* value = std::getenv("SB_AOWS_LISTEN_ALL");
+  if (!value || !value[0]) {
+    return false;
+  }
+  return value[0] == '1' || value[0] == 'y' || value[0] == 'Y' ||
+         value[0] == 't' || value[0] == 'T';
+}
+
+uint32_t GetAowsBindAddress() {
+  if (IsAowsNetworkModeEnabled()) {
+    SB_LOG(INFO) << logtag << ": AOWS network mode enabled (SB_AOWS_LISTEN_ALL=1)";
+    return htonl(INADDR_ANY);
+  }
+  return htonl(INADDR_LOOPBACK);
+}
+
 bool ReadExact(int socket_fd, void* buffer, size_t size) {
   uint8_t* bytes = static_cast<uint8_t*>(buffer);
   size_t offset = 0;
@@ -477,7 +494,7 @@ class LocalAowsServer {
     std::memset(&address, 0, sizeof(address));
     address.sin_family = AF_INET;
     address.sin_port = htons(static_cast<uint16_t>(port_));
-    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    address.sin_addr.s_addr = GetAowsBindAddress();
 
     if (bind(listen_socket_fd, reinterpret_cast<const sockaddr*>(&address),
              sizeof(address)) != 0) {
@@ -515,11 +532,18 @@ class LocalAowsServer {
         continue;
       }
 
-      const bool is_loopback_peer =
-          peer_address.sin_family == AF_INET &&
-          ntohl(peer_address.sin_addr.s_addr) == INADDR_LOOPBACK;
-      if (!is_loopback_peer) {
-        SB_LOG(WARNING) << logtag << ": Rejected non-loopback AOWS connection.";
+      // Check loopback restriction (only enforced when network mode disabled)
+      if (!IsAowsNetworkModeEnabled()) {
+        const bool is_loopback_peer =
+            peer_address.sin_family == AF_INET &&
+            ntohl(peer_address.sin_addr.s_addr) == INADDR_LOOPBACK;
+        if (!is_loopback_peer) {
+          SB_LOG(WARNING) << logtag << ": Rejected non-loopback AOWS connection (enable SB_AOWS_LISTEN_ALL=1 for network mode).";
+          close(connection_fd);
+          continue;
+        }
+      } else if (peer_address.sin_family != AF_INET) {
+        SB_LOG(WARNING) << logtag << ": Rejected non-IPv4 AOWS connection.";
         close(connection_fd);
         continue;
       }

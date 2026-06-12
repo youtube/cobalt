@@ -20,6 +20,7 @@
 #include "starboard/common/log.h"
 
 #include <algorithm>
+#include <cstdio>
 #include <cstring>
 
 namespace {
@@ -95,6 +96,8 @@ SbMicrophone s_microphone = kSbMicrophoneInvalid;
 
 int SbMicrophonePrivate::GetAvailableMicrophones(SbMicrophoneInfo* out_info_array,
                                                  int info_array_size) {
+  fprintf(stderr, "[MICROPHONE DEBUG] GetAvailableMicrophones called!\n");
+  fflush(stderr);
   starboard::rdk::shared::microphone::EnsureLocalAowsServerStarted();
 
   if (out_info_array && info_array_size > 0) {
