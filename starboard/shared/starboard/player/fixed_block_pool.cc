@@ -60,7 +60,8 @@ FixedBlockPool::FixedBlockPool(std::string_view name,
     : name_(name),
       block_size_(AlignBlockSize(block_size)),
       total_blocks_(ValidateTotalBlocks(total_blocks)),
-      pool_storage_(AllocatePoolStorage(block_size_, total_blocks_)) {
+      pool_storage_(AllocatePoolStorage(block_size_, total_blocks_)),
+      is_block_allocated_(total_blocks_, false) {
   free_list_.reserve(total_blocks_);
 
   uint8_t* base = pool_storage_.get();
@@ -77,12 +78,36 @@ FixedBlockPool::~FixedBlockPool() {
       << "Not all blocks were returned to the pool.";
 }
 
+void FixedBlockPool::AssertValidPoolPtr(const void* ptr) const {
+  uintptr_t ptr_val = reinterpret_cast<uintptr_t>(ptr);
+  uintptr_t start_val = reinterpret_cast<uintptr_t>(pool_storage_.get());
+
+  SB_CHECK_GE(ptr_val, start_val);
+  SB_CHECK_LT(ptr_val, start_val + block_size_ * total_blocks_);
+  SB_CHECK(IsAligned(ptr_val - start_val, block_size_))
+      << "Pointer is misaligned inside pool range: " << ptr;
+}
+
+size_t FixedBlockPool::GetBlockIndex(const void* ptr) const {
+  uintptr_t ptr_val = reinterpret_cast<uintptr_t>(ptr);
+  uintptr_t start_val = reinterpret_cast<uintptr_t>(pool_storage_.get());
+
+  return (ptr_val - start_val) / block_size_;
+}
+
 void* FixedBlockPool::Allocate(size_t size) {
   if (size <= block_size_) {
     std::lock_guard lock(mutex_);
     if (!free_list_.empty()) {
       void* ptr = free_list_.back();
       free_list_.pop_back();
+
+      AssertValidPoolPtr(ptr);
+      size_t block_index = GetBlockIndex(ptr);
+      SB_CHECK(!is_block_allocated_[block_index])
+          << "Internal error: block already marked as allocated: " << ptr;
+      is_block_allocated_[block_index] = true;
+
       return ptr;
     }
   }
@@ -105,9 +130,32 @@ void FixedBlockPool::Free(void* ptr) {
 
   if (IsFromPool(ptr)) {
     std::lock_guard lock(mutex_);
+
+    AssertValidPoolPtr(ptr);  // Explicit validation!
+
+    size_t block_index = GetBlockIndex(ptr);
+    SB_CHECK(is_block_allocated_[block_index])
+        << "Double free detected in FixedBlockPool [" << name_
+        << "] for pointer: " << ptr;
+
+    is_block_allocated_[block_index] = false;
+
     SB_CHECK_LT(free_list_.size(), total_blocks_);
     free_list_.push_back(ptr);
   } else {
+    // If IsFromPool returned false, it could be a normal heap pointer OR a
+    // misaligned pool pointer. We must assert that the pointer is NOT inside
+    // the pool range (i.e. if it is >= start_val, it must be >= end_val).
+    uintptr_t ptr_val = reinterpret_cast<uintptr_t>(ptr);
+    uintptr_t start_val = reinterpret_cast<uintptr_t>(pool_storage_.get());
+    uintptr_t end_val = start_val + block_size_ * total_blocks_;
+
+    if (ptr_val >= start_val) {
+      SB_CHECK_GE(ptr_val, end_val)
+          << "Attempted to free a misaligned pointer inside the pool range ["
+          << name_ << "]: " << ptr;
+    }
+
     ::operator delete(ptr);
   }
 
@@ -115,29 +163,28 @@ void FixedBlockPool::Free(void* ptr) {
 }
 
 void FixedBlockPool::MaybeLogStatus() {
-  if constexpr (kStatusLogIntervalUs.has_value()) {
-    int64_t now = CurrentMonotonicTime();
-    size_t free_blocks = 0;
-    bool should_log = false;
-
-    {
-      std::lock_guard lock(mutex_);
-      int64_t elapsed = now - last_status_logged_us_;
-      if (elapsed >= kStatusLogIntervalUs.value()) {
-        free_blocks = free_list_.size();
-        last_status_logged_us_ = now;
-        should_log = true;
-      }
-    }
-
-    if (should_log) {
-      SB_LOG(INFO) << "FixedBlockPool status: name=" << name_
-                   << ", free_blocks=" << free_blocks
-                   << ", total_blocks=" << total_blocks_ << " (fullness: "
-                   << (total_blocks_ - free_blocks) * 100 / total_blocks_
-                   << "%)";
-    }
+  if constexpr (!kStatusLogIntervalUs.has_value()) {
+    return;
   }
+
+  int64_t now = CurrentMonotonicTime();
+  size_t free_blocks = 0;
+
+  {
+    std::lock_guard lock(mutex_);
+    int64_t elapsed = now - last_status_logged_us_;
+    if (elapsed < kStatusLogIntervalUs.value()) {
+      return;
+    }
+
+    free_blocks = free_list_.size();
+    last_status_logged_us_ = now;
+  }
+
+  SB_LOG(INFO) << "FixedBlockPool status: name=" << name_
+               << ", free_blocks=" << free_blocks
+               << ", total_blocks=" << total_blocks_ << " (fullness: "
+               << (total_blocks_ - free_blocks) * 100 / total_blocks_ << "%)";
 }
 
 bool FixedBlockPool::IsFromPool(const void* ptr) const {
@@ -145,7 +192,7 @@ bool FixedBlockPool::IsFromPool(const void* ptr) const {
   uintptr_t start_val = reinterpret_cast<uintptr_t>(pool_storage_.get());
   uintptr_t end_val = start_val + block_size_ * total_blocks_;
   return ptr_val >= start_val && ptr_val < end_val &&
-         (ptr_val - start_val) % block_size_ == 0;
+         IsAligned(ptr_val - start_val, block_size_);
 }
 
 FixedBlockPool::InfoForTesting FixedBlockPool::GetInfoForTesting() const {

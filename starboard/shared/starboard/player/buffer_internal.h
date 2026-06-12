@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_BUFFER_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_BUFFER_INTERNAL_H_
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -85,13 +86,20 @@ class Buffer {
     return size_ == 0 ? nullptr : data_ + kPaddingSize;
   }
 
-  static size_t GetPoolFreeListSizeForTesting();
-  static size_t GetPoolTotalBlocksForTesting();
-  static void ClearCacheForTesting();
+  static void SetPoolEnabled(bool enabled);
+
+  struct PoolState {
+    size_t free_blocks;
+    size_t total_blocks;
+  };
+  static PoolState GetSmallPoolStateForTesting();
+  static PoolState GetLargePoolStateForTesting();
 
  private:
   static uint8_t* AllocateData(size_t size);
   static void FreeData(uint8_t* ptr);
+
+  static std::atomic<bool> s_pool_enabled;
 
   int size_ = 0;
   uint8_t* data_ = nullptr;

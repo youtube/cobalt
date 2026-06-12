@@ -37,6 +37,7 @@
 #include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/media/mime_type.h"
+#include "starboard/shared/starboard/player/buffer_internal.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
@@ -279,6 +280,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     SB_LOG_IF(INFO, force_platform_opus_decoder_)
         << "kForcePlatformOpusDecoder is set to true, force using platform opus"
         << " codec instead of libopus.";
+
+    starboard::Buffer::SetPoolEnabled(
+        FeatureList::IsEnabled(features::kDecodedAudioBufferPool));
+    starboard::MediaCodecVideoDecoder::SetVideoFramePoolEnabled(
+        FeatureList::IsEnabled(features::kVideoFrameImplMemoryPool));
   }
 
   NonNullResult<std::unique_ptr<PlayerComponents>> CreateComponents(

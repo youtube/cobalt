@@ -21,28 +21,12 @@ static_library("feature_list") {
   deps = [ "//starboard/common" ]
 }
 
-static_library("cached_feature") {
-  sources = [
-    "cached_feature.cc",
-    "cached_feature.h",
-  ]
-
-  deps = [
-    ":feature_list",
-    "//starboard/common",
-  ]
-}
-
 source_set("starboard_test") {
   testonly = true
 
-  sources = [
-    "cached_feature_test.cc",
-    "feature_list_test.cc",
-  ]
+  sources = [ "feature_list_test.cc" ]
 
   deps = [
-    ":cached_feature",
     ":feature_list",
     "//starboard/common",
     "//testing/gtest",

@@ -33,6 +33,19 @@ namespace starboard {
 // automatically falls back to standard heap allocation (using ::operator new)
 // if the pool is exhausted, or if the requested allocation size exceeds the
 // pool's configured block size.
+//
+// Thread Safety:
+// This class is fully thread-safe. All public methods (Allocate, Free, etc.)
+// are protected by an internal mutex, allowing safe concurrent access from
+// multiple threads.
+//
+// Lifetime and Ownership:
+// This class does not manage its own lifetime. It is intended to be owned
+// by its creator—either as a long-lived global singleton (e.g., via
+// LazyInitializer) for shared subsystem-level pools, or tied to the lifetime
+// of specific player components (e.g., as a unique_ptr member). Users must
+// ensure the pool outlives all allocations made from it, as freeing a block
+// after the pool is destroyed is undefined behavior.
 class FixedBlockPool {
  public:
   // Constructor.
@@ -56,7 +69,6 @@ class FixedBlockPool {
   // Otherwise, it is freed from the heap (using ::operator delete).
   void Free(void* ptr);
 
-  // Helper to check if a pointer belongs to this pool.
   bool IsFromPool(const void* ptr) const;
 
   struct InfoForTesting {
@@ -69,6 +81,10 @@ class FixedBlockPool {
   std::string_view name() const { return name_; }
 
  private:
+  void AssertValidPoolPtr(const void* ptr) const;
+
+  size_t GetBlockIndex(const void* ptr) const;
+
   const std::string name_;
   const size_t block_size_;
   const size_t total_blocks_;
@@ -79,6 +95,8 @@ class FixedBlockPool {
   mutable std::mutex mutex_;
   std::vector<void*> free_list_;       // Guarded by |mutex_|.
   int64_t last_status_logged_us_ = 0;  // Guarded by |mutex_|.
+
+  std::vector<bool> is_block_allocated_;  // Guarded by |mutex_|.
 };
 
 }  // namespace starboard
