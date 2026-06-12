@@ -16,4 +16,9 @@
 declare_args() {
   is_cobalt = false
   cobalt_is_release_build = false
+  chromium_milestone = 138
+}
+
+declare_args() {
+  enable_privacy_sandbox_apis = !is_cobalt
 }
