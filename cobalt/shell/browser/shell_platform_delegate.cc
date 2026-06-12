@@ -56,7 +56,7 @@ ui::PlatformWindowStarboard* GetPlatformWindowStarboard(Shell* shell) {
 #endif
 }  // namespace
 
-class ShellPlatformDelegate::WebContentsTracker
+class ShellPlatformDelegate::WebContentsTracker final
     : public content::WebContentsObserver {
  public:
   WebContentsTracker(content::WebContents* web_contents,
@@ -72,6 +72,18 @@ class ShellPlatformDelegate::WebContentsTracker
   ShellPlatformDelegate* delegate_;
 };
 
+void ShellPlatformDelegate::WebContentsTrackerDeleter::operator()(
+    WebContentsTracker* ptr) const {
+  delete ptr;
+}
+
+void ShellPlatformDelegate::TrackPreviouslyVisibleWebContents(
+    content::WebContents* web_contents) {
+  previously_visible_web_contents_[web_contents] =
+      std::unique_ptr<WebContentsTracker, WebContentsTrackerDeleter>(
+          new WebContentsTracker(web_contents, this));
+}
+
 void ShellPlatformDelegate::RemovePreviouslyVisibleWebContents(
     content::WebContents* web_contents) {
   previously_visible_web_contents_.erase(web_contents);
@@ -79,8 +91,7 @@ void ShellPlatformDelegate::RemovePreviouslyVisibleWebContents(
 
 void ShellPlatformDelegate::AddPreviouslyVisibleWebContentsForTesting(
     content::WebContents* web_contents) {
-  previously_visible_web_contents_[web_contents] =
-      std::make_unique<WebContentsTracker>(web_contents, this);
+  TrackPreviouslyVisibleWebContents(web_contents);
 }
 
 bool ShellPlatformDelegate::IsVisible() const {
@@ -132,8 +143,7 @@ void ShellPlatformDelegate::OnConceal() {
   for (auto* shell : Shell::windows()) {
     if (shell->web_contents()->GetVisibility() ==
         content::Visibility::VISIBLE) {
-      previously_visible_web_contents_[shell->web_contents()] =
-          std::make_unique<WebContentsTracker>(shell->web_contents(), this);
+      TrackPreviouslyVisibleWebContents(shell->web_contents());
     }
     // Trigger logical JS conceal.
     shell->web_contents()->WasHidden();

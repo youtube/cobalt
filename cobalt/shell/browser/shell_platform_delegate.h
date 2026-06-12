@@ -222,15 +222,20 @@ class ShellPlatformDelegate : public cobalt::CobaltLifecycleManagerObserver {
   bool waiting_for_reveal_ack_ = false;
 
   class WebContentsTracker;
+  struct WebContentsTrackerDeleter {
+    void operator()(WebContentsTracker* ptr) const;
+  };
 
   // Set of WebContents that were visible before the application was concealed.
   // This is used on reveal to decide which WebContents we should wait for
   // Reveal ACK from. We only wait for those that were active before.
   // The map stores self-unregistering observers to guarantee clean container
   // state upon WebContents destruction.
-  std::map<content::WebContents*, std::unique_ptr<WebContentsTracker>>
+  base::flat_map<content::WebContents*,
+                 std::unique_ptr<WebContentsTracker, WebContentsTrackerDeleter>>
       previously_visible_web_contents_;
 
+  void TrackPreviouslyVisibleWebContents(content::WebContents* web_contents);
   void RemovePreviouslyVisibleWebContents(content::WebContents* web_contents);
   friend class WebContentsTracker;
 
