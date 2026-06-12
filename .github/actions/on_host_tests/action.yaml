@@ -147,10 +147,12 @@ runs:
           # Fail the job so it's easy to retrigger.
           exit 1
         fi
-    - name: Construct Unified Execution Workspace
-      id: construct-unified-workspace
+    - name: Run JUnit Suites
       if: ${{ inputs.test_type == 'junit' }}
+      id: run-junit-suites
       shell: bash
+      env:
+        TEST_EXECUTABLES_JSON: ${{ inputs.test_executables_json }}
       run: |
         set -x
         echo "=== Constructing Unified Workspace Paths ==="
@@ -175,14 +177,6 @@ runs:
         ln -sf "${GITHUB_WORKSPACE}/.github" unit_test/.github
         ln -sf "${GITHUB_WORKSPACE}/third_party/catapult" unit_test/third_party/catapult
         ln -sf "${GITHUB_WORKSPACE}/third_party/logdog" unit_test/third_party/logdog
-    - name: Run JUnit Suites
-      if: ${{ inputs.test_type == 'junit' }}
-      id: run-junit-suites
-      shell: bash
-      env:
-        TEST_EXECUTABLES_JSON: ${{ inputs.test_executables_json }}
-      run: |
-        set -x
 
         cd unit_test/
 
