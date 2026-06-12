@@ -81,8 +81,12 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
       return 0;
     }
 
-    return starboard::rdk::shared::microphone::ReadLocalAowsAudio(
+    const int bytes_read = starboard::rdk::shared::microphone::ReadLocalAowsAudio(
         out_audio_data, std::min(audio_data_size, buffer_size_bytes_));
+    if (bytes_read > 0) {
+      SB_LOG(INFO) << logtag << ": Read " << bytes_read << " bytes from AOWS buffer.";
+    }
+    return bytes_read;
   }
 
  private:
@@ -96,7 +100,7 @@ SbMicrophone s_microphone = kSbMicrophoneInvalid;
 
 int SbMicrophonePrivate::GetAvailableMicrophones(SbMicrophoneInfo* out_info_array,
                                                  int info_array_size) {
-  fprintf(stderr, "[MICROPHONE DEBUG] GetAvailableMicrophones called!\n");
+  fprintf(stderr, "%s GetAvailableMicrophones called!\n", logtag);
   fflush(stderr);
   starboard::rdk::shared::microphone::EnsureLocalAowsServerStarted();
 

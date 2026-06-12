@@ -380,6 +380,7 @@ bool ReadWebSocketFrame(int socket_fd,
   *opcode = frame_header[0] & 0x0F;
   const bool masked = (frame_header[1] & 0x80) != 0;
   uint64_t payload_size = frame_header[1] & 0x7F;
+  SB_LOG(INFO) << logtag << ": ReadWS: opcode=0x" << std::hex << static_cast<int>(*opcode) << std::dec << ", fin=" << fin << ", masked=" << masked;
 
   if (!fin) {
     return false;
@@ -419,6 +420,7 @@ bool ReadWebSocketFrame(int socket_fd,
       !ReadExact(socket_fd, payload->data(), static_cast<size_t>(payload_size))) {
     return false;
   }
+  SB_LOG(INFO) << logtag << ": ReadWS complete: got " << payload->size() << " bytes";
 
   if (masked) {
     for (size_t index = 0; index < payload->size(); ++index) {
@@ -567,6 +569,7 @@ class LocalAowsServer {
     SB_LOG(INFO) << logtag << ": Accepted local AOWS client connection.";
 
     std::vector<uint8_t> payload;
+    int frame_count = 0;
     while (!stop_requested_.load()) {
       uint8_t opcode = 0;
       if (!ReadWebSocketFrame(connection_fd, &opcode, &payload)) {
@@ -575,6 +578,8 @@ class LocalAowsServer {
 
       switch (opcode) {
         case 0x2:
+          frame_count++;
+          SB_LOG(INFO) << logtag << ": Received audio frame #" << frame_count << " (" << payload.size() << " bytes)";
           AppendAudio(payload);
           break;
         case 0x8:
@@ -593,7 +598,7 @@ class LocalAowsServer {
       }
     }
 
-    SB_LOG(INFO) << logtag << ": Local AOWS client connection closed.";
+    SB_LOG(INFO) << logtag << ": Local AOWS client connection closed (" << frame_count << " total audio frames).";
   }
 
   void AppendAudio(const std::vector<uint8_t>& payload) {
@@ -602,11 +607,13 @@ class LocalAowsServer {
     }
 
     std::lock_guard<std::mutex> lock(audio_mutex_);
+    const size_t prior_size = audio_buffer_.size();
     if (payload.size() >= kMaxBufferedAudioBytes) {
       audio_buffer_.clear();
       audio_buffer_.insert(audio_buffer_.end(),
                            payload.end() - kMaxBufferedAudioBytes,
                            payload.end());
+      SB_LOG(INFO) << logtag << ": AppendAudio: overflow, kept " << audio_buffer_.size() << " bytes";
       return;
     }
 
@@ -619,6 +626,7 @@ class LocalAowsServer {
     }
 
     audio_buffer_.insert(audio_buffer_.end(), payload.begin(), payload.end());
+    SB_LOG(INFO) << logtag << ": AppendAudio: " << payload.size() << " bytes added, buffer " << prior_size << " -> " << audio_buffer_.size();
   }
 
   const int port_;
