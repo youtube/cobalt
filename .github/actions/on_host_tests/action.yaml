@@ -38,6 +38,7 @@ runs:
         git config --global --add safe.directory "${GITHUB_WORKSPACE:-/github/workspace}"
         git config --global --add safe.directory "*"
         git sparse-checkout add --skip-checks testing build third_party/catapult third_party/logdog third_party/jdk
+        git submodule update --init third_party/catapult
         echo "${PWD}"
         ls .
     - name: Extract Artifacts
