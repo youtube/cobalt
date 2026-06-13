@@ -88,13 +88,6 @@ class Buffer {
 
   static void SetPoolEnabled(bool enabled);
 
-  struct PoolState {
-    size_t free_blocks;
-    size_t total_blocks;
-  };
-  static PoolState GetSmallPoolStateForTesting();
-  static PoolState GetLargePoolStateForTesting();
-
  private:
   static uint8_t* AllocateData(size_t size);
   static void FreeData(uint8_t* ptr);

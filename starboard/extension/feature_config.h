@@ -176,7 +176,7 @@ STARBOARD_FEATURE(kVideoDecoderDelayUsecOverride,
 
 // Enable thread-safe memory pool for VideoFrameImpl to eliminate steady-state
 // heap allocations.
-STARBOARD_FEATURE(kVideoFrameImplMemoryPool, "VideoFrameImplMemoryPool", false)
+STARBOARD_FEATURE(kVideoFrameImplPool, "VideoFrameImplPool", false)
 // keep-sorted end
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_LIST_END

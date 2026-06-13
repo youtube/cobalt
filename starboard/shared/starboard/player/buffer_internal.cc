@@ -18,8 +18,8 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "starboard/shared/starboard/player/fixed_block_pool.h"
-#include "starboard/shared/starboard/player/lazy_initializer.h"
+#include "starboard/common/no_destructor.h"
+#include "starboard/shared/starboard/player/pooled_allocator.h"
 
 namespace starboard {
 namespace {
@@ -27,59 +27,39 @@ namespace {
 // Two-Tiered Bounded Pool (Total pre-allocated memory: 960 KiB < 1 MB):
 // - Small Pool (8 KiB blocks, 40 blocks = 320 KiB): For Opus packets
 // - Large Pool (80 KiB blocks, 8 blocks = 640 KiB): For WSOLA/Renderer pull
-//
-// NOTE: Current setting is based on test 2-ch Opus encoded audio. It would
-// cover most common type of audio playback.
 constexpr size_t kSmallBlockSize = 8 * 1024;
 constexpr size_t kSmallPoolBlocks = 40;
 constexpr size_t kLargeBlockSize = 80 * 1024;
 constexpr size_t kLargePoolBlocks = 8;
 
-LazyInitializer<FixedBlockPool, /*NoDestruct=*/true> g_small_pool;
-LazyInitializer<FixedBlockPool, /*NoDestruct=*/true> g_large_pool;
+using DecodedBufferAllocator = PooledAllocator<DualBlockPool>;
 
-FixedBlockPool* GetSmallPool() {
-  return g_small_pool.Get("AudioSmallPool", kSmallBlockSize, kSmallPoolBlocks);
-}
+std::atomic<DecodedBufferAllocator*> g_audio_allocator_ptr{nullptr};
 
-FixedBlockPool* GetLargePool() {
-  return g_large_pool.Get("AudioLargePool", kLargeBlockSize, kLargePoolBlocks);
+DecodedBufferAllocator* GetDecodedBufferAllocator() {
+  static DecodedBufferAllocator* allocator_ptr = [] {
+    static NoDestructor<DecodedBufferAllocator> allocator(
+        "AudioPool",
+        DualBlockPool::PoolConfig{kSmallBlockSize, kSmallPoolBlocks},
+        DualBlockPool::PoolConfig{kLargeBlockSize, kLargePoolBlocks});
+    DecodedBufferAllocator* a = allocator.get();
+    g_audio_allocator_ptr.store(a, std::memory_order_release);
+    return a;
+  }();
+  return allocator_ptr;
 }
 
 }  // namespace
 
 std::atomic<bool> Buffer::s_pool_enabled{false};
 
-Buffer::PoolState Buffer::GetSmallPoolStateForTesting() {
-  auto info = GetSmallPool()->GetInfoForTesting();
-  return PoolState{info.free_blocks, info.total_blocks};
-}
-
-Buffer::PoolState Buffer::GetLargePoolStateForTesting() {
-  auto info = GetLargePool()->GetInfoForTesting();
-  return PoolState{info.free_blocks, info.total_blocks};
-}
-
 void Buffer::SetPoolEnabled(bool enabled) {
   s_pool_enabled.store(enabled, std::memory_order_relaxed);
 }
 
 uint8_t* Buffer::AllocateData(size_t size) {
-  if (size == 0) {
-    return nullptr;
-  }
-
   if (s_pool_enabled.load(std::memory_order_relaxed)) {
-    void* ptr = nullptr;
-    if (size <= kSmallBlockSize) {
-      ptr = GetSmallPool()->Allocate(size);
-    } else if (size <= kLargeBlockSize) {
-      ptr = GetLargePool()->Allocate(size);
-    }
-
-    if (ptr) {
-      return static_cast<uint8_t*>(ptr);
-    }
+    return static_cast<uint8_t*>(GetDecodedBufferAllocator()->Allocate(size));
   }
   return static_cast<uint8_t*>(::operator new(size));
 }
@@ -89,17 +69,13 @@ void Buffer::FreeData(uint8_t* ptr) {
     return;
   }
 
-  if (FixedBlockPool* small_pool = g_small_pool.GetIfInitialized();
-      small_pool && small_pool->IsFromPool(ptr)) {
-    small_pool->Free(ptr);
-    return;
+  DecodedBufferAllocator* allocator =
+      g_audio_allocator_ptr.load(std::memory_order_acquire);
+  if (allocator) {
+    allocator->Free(ptr);
+  } else {
+    ::operator delete(ptr);
   }
-  if (FixedBlockPool* large_pool = g_large_pool.GetIfInitialized();
-      large_pool && large_pool->IsFromPool(ptr)) {
-    large_pool->Free(ptr);
-    return;
-  }
-  ::operator delete(ptr);
 }
 
 }  // namespace starboard

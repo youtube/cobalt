@@ -284,7 +284,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     starboard::Buffer::SetPoolEnabled(
         FeatureList::IsEnabled(features::kDecodedAudioBufferPool));
     starboard::MediaCodecVideoDecoder::SetVideoFramePoolEnabled(
-        FeatureList::IsEnabled(features::kVideoFrameImplMemoryPool));
+        FeatureList::IsEnabled(features::kVideoFrameImplPool));
   }
 
   NonNullResult<std::unique_ptr<PlayerComponents>> CreateComponents(
