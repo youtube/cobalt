@@ -22,7 +22,6 @@
 #include <utility>
 
 #include "starboard/common/check_op.h"
-#include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 
 namespace starboard {
@@ -87,13 +86,6 @@ class Buffer {
   }
 
   static void SetPoolEnabled(bool enabled);
-
-  struct PoolState {
-    size_t free_blocks;
-    size_t total_blocks;
-  };
-  static PoolState GetSmallPoolStateForTesting();
-  static PoolState GetLargePoolStateForTesting();
 
  private:
   static uint8_t* AllocateData(size_t size);

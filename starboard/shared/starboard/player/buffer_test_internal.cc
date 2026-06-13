@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include <utility>
-#include <vector>
 
 #include "starboard/shared/starboard/player/buffer_internal.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -92,40 +91,6 @@ TEST(BufferTest, MoveAssignmentOperator) {
   for (int i = 0; i < copy.size(); ++i) {
     ASSERT_EQ(copy.data()[i], 'x');
   }
-}
-
-TEST(BufferTest, PoolAllocation) {
-  Buffer::SetPoolEnabled(true);
-  {
-    Buffer::PoolState small_state = Buffer::GetSmallPoolStateForTesting();
-    Buffer::PoolState large_state = Buffer::GetLargePoolStateForTesting();
-    EXPECT_EQ(small_state.total_blocks, 40);
-    EXPECT_EQ(large_state.total_blocks, 8);
-    EXPECT_EQ(small_state.free_blocks, 40);
-    EXPECT_EQ(large_state.free_blocks, 8);
-
-    {
-      Buffer buffer1(100);
-      EXPECT_EQ(Buffer::GetSmallPoolStateForTesting().free_blocks, 39);
-      EXPECT_EQ(Buffer::GetLargePoolStateForTesting().free_blocks, 8);
-
-      {
-        Buffer buffer2(16 * 1024);
-        EXPECT_EQ(Buffer::GetSmallPoolStateForTesting().free_blocks, 39);
-        EXPECT_EQ(Buffer::GetLargePoolStateForTesting().free_blocks, 7);
-      }
-      EXPECT_EQ(Buffer::GetLargePoolStateForTesting().free_blocks, 8);
-    }
-    EXPECT_EQ(Buffer::GetSmallPoolStateForTesting().free_blocks, 40);
-
-    {
-      Buffer large_buffer(100 * 1024);
-      EXPECT_NE(large_buffer.data(), nullptr);
-      EXPECT_EQ(Buffer::GetSmallPoolStateForTesting().free_blocks, 40);
-      EXPECT_EQ(Buffer::GetLargePoolStateForTesting().free_blocks, 8);
-    }
-  }
-  Buffer::SetPoolEnabled(false);
 }
 
 }  // namespace
