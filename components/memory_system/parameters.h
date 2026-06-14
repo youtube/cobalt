@@ -81,6 +81,8 @@ struct DispatcherParameters {
       AllocationTraceRecorderInclusion allocation_trace_recorder_inclusion,
       std::string_view process_type
 #if BUILDFLAG(IS_COBALT)
+      // Cobalt memory attribution can introduce performance overhead, so it is
+      // excluded by default unless explicitly requested.
       , CobaltMemoryAttributionInclusion cobalt_memory_attribution_inclusion =
             CobaltMemoryAttributionInclusion::kDoNotInclude
 #endif
