@@ -66,16 +66,10 @@ void CobaltMemoryAttributionManager::Start() {
       base::SingleThreadTaskRunner::GetCurrentDefault());
 
   last_report_time_ = base::TimeTicks::Now();
-  int interval_seconds = 300;
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "memory-metrics-interval")) {
-    base::StringToInt(
-        base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-            "memory-metrics-interval"),
-        &interval_seconds);
-  }
-  timer_.Start(FROM_HERE, base::Seconds(interval_seconds), this,
-               &CobaltMemoryAttributionManager::ReportUma);
+  timer_.Start(
+      FROM_HERE,
+      base::Seconds(cobalt::features::kMemoryMetricsIntervalParam.Get()), this,
+      &CobaltMemoryAttributionManager::ReportUma);
 }
 
 void CobaltMemoryAttributionManager::Stop() {
@@ -125,7 +119,10 @@ void CobaltMemoryAttributionManager::ReportUma() {
         base::StrCat({"Memory.Cobalt.AllocationVolume.",
                       base::memory::ContextToString(
                           static_cast<base::memory::MemoryContext>(i))}),
-        emitted_kb, 1, 67108864, 100);
+        emitted_kb,
+        /*minimum=*/1,
+        /*maximum=*/67108864,
+        /*bucket_count=*/100);
   }
 }
 
