@@ -30,14 +30,14 @@ pthread_key_t GetSharedMemoryContextKey() {
   // Use a static atomic to ensure lazy initialization happens safely.
   // Because this function is weak, the linker will merge all copies into a single instance,
   // meaning `g_key` will be identical across both `base` and `copied_base`.
-  static std::atomic<uint32_t> g_key{0xFFFFFFFF};
-  uint32_t key = g_key.load(std::memory_order_acquire);
-  if (key == 0xFFFFFFFF) {
+  static std::atomic<intptr_t> g_key{-1};
+  intptr_t key = g_key.load(std::memory_order_acquire);
+  if (key == -1) {
     pthread_key_t new_key;
     pthread_key_create(&new_key, nullptr);
-    uint32_t expected = 0xFFFFFFFF;
-    if (g_key.compare_exchange_strong(expected, static_cast<uint32_t>(new_key), std::memory_order_release)) {
-      key = static_cast<uint32_t>(new_key);
+    intptr_t expected = -1;
+    if (g_key.compare_exchange_strong(expected, static_cast<intptr_t>(new_key), std::memory_order_release)) {
+      key = static_cast<intptr_t>(new_key);
     } else {
       pthread_key_delete(new_key);
       key = expected;
