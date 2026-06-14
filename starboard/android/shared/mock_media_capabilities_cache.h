@@ -64,13 +64,7 @@ class MockMediaCapabilitiesProvider final : public MediaCapabilitiesProvider {
               GetAudioConfiguration,
               (int index, SbMediaAudioConfiguration* configuration),
               (override));
-  MOCK_METHOD(
-      void,
-      GetCodecCapabilities,
-      ((std::map<std::string, AudioCodecCapabilities>)&audio_codec_capabilities,
-       (std::map<std::string,
-                 VideoCodecCapabilities>)&video_codec_capabilities),
-      (override));
+  MOCK_METHOD(CodecCapabilities, GetCodecCapabilities, (), (override));
 };
 
 class MockMediaCapabilitiesCache final : public MediaCapabilitiesCache {

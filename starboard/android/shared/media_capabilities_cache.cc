@@ -149,10 +149,8 @@ class MediaCapabilitiesProviderImpl : public MediaCapabilitiesProvider {
     return AudioOutputManager::GetInstance()->GetAudioConfiguration(
         env, index, configuration);
   }
-  void GetCodecCapabilities(
-      std::map<std::string, AudioCodecCapabilities>& audio_codec_capabilities,
-      std::map<std::string, VideoCodecCapabilities>& video_codec_capabilities)
-      override {
+  CodecCapabilities GetCodecCapabilities() override {
+    CodecCapabilities capabilities;
     JNIEnv* env = AttachCurrentThread();
     ScopedJavaLocalRef<jobjectArray> j_codec_infos =
         Java_MediaCodecUtil_getAllCodecCapabilityInfos(env);
@@ -176,20 +174,19 @@ class MediaCapabilitiesProviderImpl : public MediaCapabilitiesProvider {
           Java_CodecCapabilityInfo_getAudioCapabilities(env, j_codec_info);
       if (j_audio_capabilities) {
         // Found an audio decoder.
-        audio_codec_capabilities[mime_type].push_back(
-            std::make_unique<AudioCodecCapability>(env, j_codec_info,
-                                                   j_audio_capabilities));
+        capabilities.audio[mime_type].emplace_back(env, j_codec_info,
+                                                   j_audio_capabilities);
         continue;
       }
       ScopedJavaLocalRef<jobject> j_video_capabilities =
           Java_CodecCapabilityInfo_getVideoCapabilities(env, j_codec_info);
       if (j_video_capabilities) {
         // Found a video decoder.
-        video_codec_capabilities[mime_type].push_back(
-            std::make_unique<VideoCodecCapability>(env, j_codec_info,
-                                                   j_video_capabilities));
+        capabilities.video[mime_type].emplace_back(env, j_codec_info,
+                                                   j_video_capabilities);
       }
     }
+    return capabilities;
   }
 };
 }  // namespace
@@ -460,12 +457,13 @@ std::string MediaCapabilitiesCache::FindAudioDecoder(
   std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
 
-  for (auto& audio_capability : audio_codec_capabilities_map_[mime_type]) {
+  for (const auto& audio_capability :
+       audio_codec_capabilities_map_[mime_type]) {
     // Reject if bitrate is not supported.
-    if (!audio_capability->IsBitrateSupported(bitrate)) {
+    if (!audio_capability.IsBitrateSupported(bitrate)) {
       continue;
     }
-    return audio_capability->name();
+    return audio_capability.name();
   }
 
   return "";
@@ -506,61 +504,62 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
   std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
 
-  for (auto& video_capability : video_codec_capabilities_map_[mime_type]) {
+  for (const auto& video_capability :
+       video_codec_capabilities_map_[mime_type]) {
     // Reject if secure decoder is required but codec doesn't support it.
-    if (must_support_secure && !video_capability->is_secure_supported()) {
+    if (must_support_secure && !video_capability.is_secure_supported()) {
       continue;
     }
     // Reject if non secure decoder is required but codec doesn't support it.
-    if (!must_support_secure && video_capability->is_secure_required()) {
+    if (!must_support_secure && video_capability.is_secure_required()) {
       continue;
     }
     // Reject if tunnel mode is required but codec doesn't support it.
     if (must_support_tunnel_mode &&
-        !video_capability->is_tunnel_mode_supported()) {
+        !video_capability.is_tunnel_mode_supported()) {
       continue;
     }
     // Reject if non tunnel mode is required but codec doesn't support it.
     if (!must_support_tunnel_mode &&
-        video_capability->is_tunnel_mode_required()) {
+        video_capability.is_tunnel_mode_required()) {
       continue;
     }
     // Reject if software codec is required but codec is not.
-    if (require_software_codec && !video_capability->is_software_decoder()) {
+    if (require_software_codec && !video_capability.is_software_decoder()) {
       continue;
     }
     // Reject low performance software codec if software codec is not required.
     const bool reject_low_performance_software_decoder =
         FeatureList::IsEnabled(features::kRejectLowPerformanceSoftwareDecoder);
     if ((reject_low_performance_software_decoder || !is_sw_decoder_enabled_) &&
-        !require_software_codec && video_capability->is_software_decoder()) {
+        !require_software_codec && video_capability.is_software_decoder()) {
       const int kMinimumWidth = 1920;
       const int kMinimumHeight = 1080;
-      if (!video_capability->AreResolutionAndRateSupported(kMinimumWidth,
-                                                           kMinimumHeight, 0)) {
+      if (!video_capability.AreResolutionAndRateSupported(kMinimumWidth,
+                                                          kMinimumHeight, 0)) {
         continue;
       }
     }
     // Reject if hdr is required but codec doesn't support it.
-    if (must_support_hdr && !video_capability->is_hdr_capable()) {
+    if (must_support_hdr && !video_capability.is_hdr_capable()) {
       continue;
     }
     // Reject if resolution or frame rate is not supported.
-    if (!video_capability->AreResolutionAndRateSupported(frame_width,
-                                                         frame_height, fps)) {
+    if (!video_capability.AreResolutionAndRateSupported(frame_width,
+                                                        frame_height, fps)) {
       continue;
     }
     // Reject if bitrate is not supported.
-    if (bitrate != 0 && !video_capability->IsBitrateSupported(bitrate)) {
+    if (bitrate != 0 && !video_capability.IsBitrateSupported(bitrate)) {
       continue;
     }
 
     // Append ".secure" for secure decoder if not represents.
     if (must_support_secure &&
-        !EndsWith(video_capability->name(), SECURE_DECODER_SUFFIX)) {
-      return video_capability->name() + SECURE_DECODER_SUFFIX;
+        !EndsWith(video_capability.name(), SECURE_DECODER_SUFFIX)) {
+      return video_capability.name() + SECURE_DECODER_SUFFIX;
     }
-    return video_capability->name();
+    return video_capability.name();
   }
 
   return "";
@@ -594,8 +593,9 @@ void MediaCapabilitiesCache::UpdateMediaCapabilities_Locked() {
   is_cbcs_supported_ = media_capabilities_provider_->GetIsCbcsSchemeSupported();
   supported_transfer_ids_ =
       media_capabilities_provider_->GetSupportedHdrTypes();
-  media_capabilities_provider_->GetCodecCapabilities(
-      audio_codec_capabilities_map_, video_codec_capabilities_map_);
+  auto capabilities = media_capabilities_provider_->GetCodecCapabilities();
+  audio_codec_capabilities_map_ = std::move(capabilities.audio);
+  video_codec_capabilities_map_ = std::move(capabilities.video);
   LoadAudioConfigurations_Locked();
   LoadIsAv18kCappedAt30_Locked();
 }
@@ -622,10 +622,10 @@ void MediaCapabilitiesCache::LoadIsAv18kCappedAt30_Locked() {
            kSbMediaVideoCodecAv1)]) {
     constexpr int kWidth8K = 7680;
     constexpr int kHeight8K = 4320;
-    if (video_capability->AreResolutionAndRateSupported(kWidth8K, kHeight8K,
-                                                        /*fps=*/0) &&
-        !video_capability->AreResolutionAndRateSupported(kWidth8K, kHeight8K,
-                                                         /*fps=*/60)) {
+    if (video_capability.AreResolutionAndRateSupported(kWidth8K, kHeight8K,
+                                                       /*fps=*/0) &&
+        !video_capability.AreResolutionAndRateSupported(kWidth8K, kHeight8K,
+                                                        /*fps=*/60)) {
       is_av1_8k_capped_at_30_ = true;
       break;
     }
