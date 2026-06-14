@@ -14,6 +14,7 @@
 
 #include "base/memory/cobalt_memory_attribution_observer.h"
 
+#include "base/compiler_specific.h"
 #if defined(OS_LINUX) || defined(OS_ANDROID)
 #include <sys/prctl.h>
 #endif
@@ -40,7 +41,7 @@ CobaltMemoryAttributionObserver* CobaltMemoryAttributionObserver::Get() {
 
 CobaltMemoryAttributionObserver::CobaltMemoryAttributionObserver() {
   for (size_t i = 0; i < static_cast<size_t>(MemoryContext::kCount); ++i) {
-    counters_[i].value.store(0, std::memory_order_relaxed);
+    UNSAFE_BUFFERS(counters_[i].value.store(0, std::memory_order_relaxed));
   }
   // Ensure ThreadLocalStorage is fully initialized and warmed up before the
   // observer hooks into Dispatcher, preventing reentrancy crashes during the
@@ -55,8 +56,8 @@ void CobaltMemoryAttributionObserver::OnAllocation(
   if (current_context >= MemoryContext::kCount) {
     current_context = MemoryContext::kUnknown;
   }
-  counters_[static_cast<size_t>(current_context)].value.fetch_add(
-      notification_data.size(), std::memory_order_relaxed);
+  UNSAFE_BUFFERS(counters_[static_cast<size_t>(current_context)].value.fetch_add(
+      notification_data.size(), std::memory_order_relaxed));
 }
 
 }  // namespace memory
