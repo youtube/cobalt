@@ -457,15 +457,18 @@ std::string MediaCapabilitiesCache::FindAudioDecoder(
   std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
 
-  for (const auto& audio_capability :
-       audio_codec_capabilities_map_[mime_type]) {
+  auto iter = audio_codec_capabilities_map_.find(mime_type);
+  if (iter == audio_codec_capabilities_map_.end()) {
+    return "";
+  }
+
+  for (const auto& audio_capability : iter->second) {
     // Reject if bitrate is not supported.
     if (!audio_capability.IsBitrateSupported(bitrate)) {
       continue;
     }
     return audio_capability.name();
   }
-
   return "";
 }
 
@@ -503,9 +506,12 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
 
   std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
+  auto iter = video_codec_capabilities_map_.find(mime_type);
+  if (iter == video_codec_capabilities_map_.end()) {
+    return "";
+  }
 
-  for (const auto& video_capability :
-       video_codec_capabilities_map_[mime_type]) {
+  for (const auto& video_capability : iter->second) {
     // Reject if secure decoder is required but codec doesn't support it.
     if (must_support_secure && !video_capability.is_secure_supported()) {
       continue;
@@ -617,9 +623,13 @@ void MediaCapabilitiesCache::LoadAudioConfigurations_Locked() {
 
 void MediaCapabilitiesCache::LoadIsAv18kCappedAt30_Locked() {
   is_av1_8k_capped_at_30_ = false;
-  for (const auto& video_capability :
-       video_codec_capabilities_map_[SupportedVideoCodecToMimeType(
-           kSbMediaVideoCodecAv1)]) {
+  auto mime_type = SupportedVideoCodecToMimeType(kSbMediaVideoCodecAv1);
+  auto iter = video_codec_capabilities_map_.find(mime_type);
+  if (iter == video_codec_capabilities_map_.end()) {
+    return;
+  }
+
+  for (const auto& video_capability : iter->second) {
     constexpr int kWidth8K = 7680;
     constexpr int kHeight8K = 4320;
     if (video_capability.AreResolutionAndRateSupported(kWidth8K, kHeight8K,

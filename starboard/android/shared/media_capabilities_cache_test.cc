@@ -260,8 +260,8 @@ TEST_F(MediaCapabilitiesCacheTest, ClearCacheClearsAllValues) {
 
   EXPECT_CALL(*mock_media_capabilities_provider_, GetCodecCapabilities())
       .Times(2)
-      .WillRepeatedly(testing::Return(
-          ByMove(MediaCapabilitiesProvider::CodecCapabilities())));
+      .WillRepeatedly(testing::Invoke(
+          [] { return MediaCapabilitiesProvider::CodecCapabilities(); }));
 
   EXPECT_TRUE(cache_->IsWidevineSupported());
   EXPECT_TRUE(cache_->IsCbcsSchemeSupported());
@@ -294,7 +294,7 @@ TEST_F(MediaCapabilitiesCacheTest, ClearCacheClearsAllValues) {
 
 TEST_F(MediaCapabilitiesCacheTest, HasVideoDecoderFor_ResolutionLimits) {
   EXPECT_CALL(*mock_media_capabilities_provider_, GetCodecCapabilities())
-      .WillOnce(testing::Invoke([]() {
+      .WillOnce(testing::Invoke([] {
         MediaCapabilitiesProvider::CodecCapabilities capabilities;
         capabilities.video["video/x-vnd.on2.vp9"] = CreateVp9DecoderCaps(
             /*is_tunnel_sup=*/true, /*is_secure_sup=*/true,
@@ -355,7 +355,7 @@ TEST_F(MediaCapabilitiesCacheTest, HasVideoDecoderFor_ResolutionLimits) {
 
 TEST_F(MediaCapabilitiesCacheTest, FindVideoDecoder_Overload) {
   EXPECT_CALL(*mock_media_capabilities_provider_, GetCodecCapabilities())
-      .WillOnce(testing::Invoke([]() {
+      .WillOnce(testing::Invoke([] {
         MediaCapabilitiesProvider::CodecCapabilities capabilities;
         capabilities.video["video/x-vnd.on2.vp9"] = CreateVp9DecoderCaps(
             /*is_tunnel_sup=*/true, /*is_secure_sup=*/true,
@@ -373,7 +373,7 @@ TEST_F(MediaCapabilitiesCacheTest, FindVideoDecoder_Overload) {
 
 TEST_F(MediaCapabilitiesCacheTest, RejectLowPerformanceSoftwareDecoder) {
   EXPECT_CALL(*mock_media_capabilities_provider_, GetCodecCapabilities())
-      .WillOnce(testing::Invoke([]() {
+      .WillOnce(testing::Invoke([] {
         MediaCapabilitiesProvider::CodecCapabilities capabilities;
         MediaCapabilitiesProvider::VideoCodecCapabilities caps;
         caps.push_back(MockVideoCodecCapability(

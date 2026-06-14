@@ -48,8 +48,8 @@ class CodecCapability {
   virtual ~CodecCapability() {}
 
   // Move-only.
-  CodecCapability(CodecCapability&&) = default;
-  CodecCapability& operator=(CodecCapability&&) = default;
+  CodecCapability(CodecCapability&&) noexcept = default;
+  CodecCapability& operator=(CodecCapability&&) noexcept = default;
   CodecCapability(const CodecCapability&) = delete;
   CodecCapability& operator=(const CodecCapability&) = delete;
 
@@ -83,8 +83,8 @@ class AudioCodecCapability : public CodecCapability {
   ~AudioCodecCapability() override {}
 
   // Move-only.
-  AudioCodecCapability(AudioCodecCapability&&) = default;
-  AudioCodecCapability& operator=(AudioCodecCapability&&) = default;
+  AudioCodecCapability(AudioCodecCapability&&) noexcept = default;
+  AudioCodecCapability& operator=(AudioCodecCapability&&) noexcept = default;
   AudioCodecCapability(const AudioCodecCapability&) = delete;
   AudioCodecCapability& operator=(const AudioCodecCapability&) = delete;
 
@@ -111,8 +111,8 @@ class VideoCodecCapability : public CodecCapability {
   ~VideoCodecCapability() override {}
 
   // Move-only.
-  VideoCodecCapability(VideoCodecCapability&&) = default;
-  VideoCodecCapability& operator=(VideoCodecCapability&&) = default;
+  VideoCodecCapability(VideoCodecCapability&&) noexcept = default;
+  VideoCodecCapability& operator=(VideoCodecCapability&&) noexcept = default;
   VideoCodecCapability(const VideoCodecCapability&) = delete;
   VideoCodecCapability& operator=(const VideoCodecCapability&) = delete;
 
