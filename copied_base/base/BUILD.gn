@@ -4289,7 +4289,6 @@ if (is_android) {
       "android/java/src/org/chromium/base/JniException.java",
       "android/java/src/org/chromium/base/JniStaticTestMocker.java",
       "android/java/src/org/chromium/base/NativeLibraryLoadedStatus.java",
-      "android/java/src/org.jni_zero/JniIgnoreNatives.java",
     ]
 
     # Public because @CheckDiscard is added to generated *Jni.java files.
