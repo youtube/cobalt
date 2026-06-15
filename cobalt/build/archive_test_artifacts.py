@@ -25,7 +25,6 @@ from typing import List, Tuple
 _EXCLUDE_DIRS = [
     './exe.unstripped/',
     './lib.unstripped/',
-    '../../third_party/jdk/',
 ]
 
 

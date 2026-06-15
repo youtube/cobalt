@@ -37,7 +37,7 @@ runs:
       run: |
         git config --global --add safe.directory "${GITHUB_WORKSPACE:-/github/workspace}"
         git config --global --add safe.directory "*"
-        git sparse-checkout add --skip-checks testing build third_party/catapult third_party/logdog third_party/jdk
+        git sparse-checkout add --skip-checks testing build third_party/catapult third_party/logdog
         git submodule update --init third_party/catapult
         echo "${PWD}"
         ls .
@@ -166,9 +166,6 @@ runs:
           fi
         done
 
-        # 2. Expose the hermetic Git JDK to the extracted execution runner
-        mkdir -p unit_test/third_party/jdk
-        ln -sf "${GITHUB_WORKSPACE}/third_party/jdk/current" unit_test/third_party/jdk/current
 
         # 3. Expose the Git sparse checkout roots to the extracted unit_test/ workspace
         ln -sf "${GITHUB_WORKSPACE}/testing" unit_test/testing
