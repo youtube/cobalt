@@ -39,8 +39,6 @@ runs:
         git config --global --add safe.directory "*"
         git sparse-checkout add --skip-checks testing build third_party/catapult third_party/logdog
         git submodule update --init third_party/catapult
-        echo "${PWD}"
-        ls .
     - name: Extract Artifacts
       shell: bash
       run: |
@@ -158,7 +156,9 @@ runs:
         set -x
         echo "=== Constructing Unified Workspace Paths ==="
 
-        # 1. Overlay compiled runtime dependencies into the primary Git third_party directory
+        # Overlay compiled runtime dependencies into the primary Git third_party directory
+        # This ensures that any missing ${GITHUB_WORKSPACE}/third_party directories are present by linking them from
+        # the archived runtime dependencies.
         for target_dir in unit_test/third_party/*; do
           dir_name=$(basename "$target_dir")
           if [ -d "$target_dir" ] && [ "$dir_name" != "jdk" ]; then
@@ -166,8 +166,9 @@ runs:
           fi
         done
 
-
-        # 3. Expose the Git sparse checkout roots to the extracted unit_test/ workspace
+        # Expose the Git sparse checkout roots to the extracted unit_test/ workspace
+        # This ensures that the corresponding directories that were checked out earlier are present in the unit_test
+        # directory at the same relative level to the JUnit test scripts and executables.
         ln -sf "${GITHUB_WORKSPACE}/testing" unit_test/testing
         ln -sf "${GITHUB_WORKSPACE}/build" unit_test/build
         ln -sf "${GITHUB_WORKSPACE}/cobalt" unit_test/cobalt
