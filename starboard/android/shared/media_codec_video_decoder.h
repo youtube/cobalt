@@ -74,6 +74,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   struct PipelineConfig {
     int max_input_size = 0;
     bool enable_flush_during_seek = false;
+    bool use_dual_threads = true;
     ExperimentalFeatures experimental_features;
   };
 
@@ -189,7 +190,10 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // Set the maximum size in bytes of an input buffer for video.
   const int max_video_input_size_;
 
-  const std::optional<bool> use_dual_threads_;
+  // Enable the use of dual-threading for video decoders. This separates the
+  // single threaded decoder thread into separate input and output processing
+  // threads when enabled.
+  const bool use_dual_threads_;
 
   // SurfaceView from AndroidOverlay passed from StarboardRenderer to SbPlayer.
   void* surface_view_;

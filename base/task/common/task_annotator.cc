@@ -4,6 +4,11 @@
 
 #include "base/task/common/task_annotator.h"
 
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
+
 #include <stdint.h>
 
 #include <algorithm>
@@ -206,6 +211,10 @@ void TaskAnnotator::RunTaskImpl(PendingTask& pending_task) {
     if (g_task_annotator_observer) {
       g_task_annotator_observer->BeforeRunTask(&pending_task);
     }
+#if BUILDFLAG(IS_COBALT)
+    base::memory::ScopedMemoryContext scoped_context(
+        pending_task.memory_context);
+#endif
     std::move(pending_task.task).Run();
   }
 
