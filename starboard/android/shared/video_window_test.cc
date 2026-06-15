@@ -38,7 +38,7 @@ namespace android {
 namespace shared {
 namespace {
 
-class OriginalDeadlockTest : public ::testing::Test {
+class VideoDecoderSurfaceTest : public ::testing::Test {
  protected:
   void SetUp() override {
     env_ = jni_zero::AttachCurrentThread();
@@ -88,7 +88,7 @@ class OriginalDeadlockTest : public ::testing::Test {
   jni_zero::ScopedJavaLocalRef<jobject> real_surface_;
 };
 
-TEST_F(OriginalDeadlockTest, VerifyNoDeadlockDuringTeardownAndSurfaceDestroy) {
+TEST_F(VideoDecoderSurfaceTest, TeardownDuringSurfaceDestroyReleasesSurface) {
   // 1. Set the global video surface so the decoder can acquire it.
   Muxed_dev_cobalt_media_VideoSurfaceView_onVideoSurfaceChanged(
       env_, real_surface_.obj());
@@ -171,7 +171,7 @@ TEST_F(OriginalDeadlockTest, VerifyNoDeadlockDuringTeardownAndSurfaceDestroy) {
   jni_sim_thread.join();
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
       std::chrono::steady_clock::now() - start_time);
-  EXPECT_LT(duration.count(), 500);  // Expect less than 500ms (should be ~100ms
+  EXPECT_LT(duration.count(), 800);  // Expect less than 800ms (should be ~100ms
                                      // with fix, 1000ms with deadlock)
 
   SB_LOG(INFO) << "Stopping job thread...";

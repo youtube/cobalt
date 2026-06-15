@@ -834,13 +834,13 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
 
 void MediaCodecVideoDecoder::TeardownCodec() {
   SB_CHECK(BelongsToCurrentThread());
-  if (surface_destroy_notifier_) {
-    surface_destroy_notifier_->Disconnect();
-    surface_destroy_notifier_ = nullptr;
-  }
   if (owns_video_surface_) {
     ReleaseVideoSurface();
     owns_video_surface_ = false;
+  }
+  if (surface_destroy_notifier_) {
+    surface_destroy_notifier_->Disconnect();
+    surface_destroy_notifier_ = nullptr;
   }
   media_decoder_.reset();
   color_metadata_ = std::nullopt;
