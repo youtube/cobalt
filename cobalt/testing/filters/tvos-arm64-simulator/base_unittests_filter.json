@@ -99,6 +99,7 @@
     "SysStrings.SysNativeMBAndWide",
     "SysStrings.SysNativeMBToWide",
     "SysStrings.SysWideToNativeMB",
+    "SystemMetrics2Test.GetSystemMemoryInfo",
     "Test.firstTest",
     "ThreadCollisionTest.MTSynchedScopedRecursiveBookCriticalSectionTest",
     "ThreadGroupImplBlockingTest.MayBlockIncreaseCapacityNestedWillBlock",
@@ -117,6 +118,8 @@
     "TraceEventTestFixture.DataCapturedManyThreads",
     "TraceEventTestFixture.SetCurrentThreadBlocksMessageLoopAfterTracing",
     "TransliteratorTest.*",
+    "TransliteratorTest.HiraganaKatakanaCorrect",
+    "TransliteratorTest.KatakanaHiraganaCorrect",
     "ValuesUtilTest.FilePath"
   ]
 }
