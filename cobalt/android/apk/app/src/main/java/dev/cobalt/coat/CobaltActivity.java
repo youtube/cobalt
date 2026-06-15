@@ -93,11 +93,7 @@ public abstract class CobaltActivity extends Activity {
   private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
 
   // How many seconds before the app exits if it fails to land YouTube home page.
-  private static final int HANG_APP_CRASH_TIMEOUT_SECONDS = 120;
-
-  // The probability (between 0.0 and 1.0) that the StartupGuard's hang-detection
-  // logic will be activated for a given session.
-  private static final double STARTUP_GUARD_PROBABILITY = 0.25;
+  private static final int DEFAULT_HANG_APP_CRASH_TIMEOUT_SECONDS = 120;
 
   // Maintain the list of JavaScript-exposed objects as a member variable
   // to prevent them from being garbage collected prematurely.
@@ -447,6 +443,26 @@ public abstract class CobaltActivity extends Activity {
     return webContents != null ? ImeAdapterImpl.fromWebContents(webContents) : null;
   }
 
+  @VisibleForTesting
+  void setupStartupGuard() {
+    if (getJavaSwitches().containsKey(JavaSwitches.DISABLE_STARTUP_GUARD)) {
+      Log.i(TAG, "StartupGuard is disabled by Java switch.");
+      return;
+    }
+
+    long timeout = DEFAULT_HANG_APP_CRASH_TIMEOUT_SECONDS;
+    String intervalStr = getJavaSwitches().get(JavaSwitches.STARTUP_GUARD_INTERVAL_IN_SECONDS);
+    if (intervalStr != null) {
+      try {
+        timeout = Long.parseLong(intervalStr);
+      } catch (NumberFormatException e) {
+        Log.w(TAG, "Invalid StartupGuard interval string: " + intervalStr);
+      }
+    }
+    Log.i(TAG, "Arming StartupGuard with " + timeout + " second timeout.");
+    StartupGuard.getInstance().scheduleCrash(timeout);
+  }
+
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     // Record the application start timestamp.
@@ -459,17 +475,7 @@ public abstract class CobaltActivity extends Activity {
 
     super.onCreate(savedInstanceState);
 
-    // Use a random check to run the StartupGuard logic only a certain percentage of the time.
-    if (Math.random() < STARTUP_GUARD_PROBABILITY) {
-      if (getJavaSwitches().containsKey(JavaSwitches.DISABLE_STARTUP_GUARD)) {
-        Log.i(TAG, "StartupGuard is disabled by Java switch.");
-      } else {
-        StartupGuard.getInstance().scheduleCrash(HANG_APP_CRASH_TIMEOUT_SECONDS);
-      }
-    } else {
-      Log.i(TAG, "StartupGuard skipped by random 25% rollout check.");
-    }
-
+    setupStartupGuard();
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
     MemoryPressureUma.initializeForBrowser();

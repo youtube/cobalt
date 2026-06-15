@@ -3,6 +3,7 @@ package dev.cobalt.shell;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import androidx.annotation.VisibleForTesting;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -112,5 +113,21 @@ public class StartupGuard {
             handler.removeCallbacks(crashRunnable);
             Log.i(TAG, "StartupGuard cancelled crash. " + getStartupStatusAndDiagnosisInfo());
         }
+    }
+
+    /**
+     * Checks if the forced crash is currently scheduled.
+     */
+    @VisibleForTesting
+    public boolean isArmed() {
+        return handler.hasCallbacks(crashRunnable);
+    }
+
+    /**
+     * Returns the runnable that triggers the forced crash.
+     */
+    @VisibleForTesting
+    public Runnable getCrashRunnable() {
+        return crashRunnable;
     }
 }
