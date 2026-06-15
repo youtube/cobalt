@@ -158,6 +158,8 @@ jobs:
         with:
           sparse-checkout: |
             cobalt/testing/filters
+            .github
+            cobalt/tools
 
       - name: Download from GitHub Actions
         uses: actions/download-artifact@v4
