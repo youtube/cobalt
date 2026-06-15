@@ -52,5 +52,8 @@ BASE_FEATURE(kCobaltMemoryAttributionManager,
              "CobaltMemoryAttributionManager",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+const base::FeatureParam<int> kCobaltMemoryAttributionReportIntervalParam{
+    &kCobaltMemoryAttributionManager, "report-interval", 600};
+
 }  // namespace features
 }  // namespace cobalt

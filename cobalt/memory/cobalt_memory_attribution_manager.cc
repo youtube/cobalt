@@ -68,8 +68,9 @@ void CobaltMemoryAttributionManager::Start() {
   last_report_time_ = base::TimeTicks::Now();
   timer_.Start(
       FROM_HERE,
-      base::Seconds(cobalt::features::kMemoryMetricsIntervalParam.Get()), this,
-      &CobaltMemoryAttributionManager::ReportUma);
+      base::Seconds(
+          cobalt::features::kCobaltMemoryAttributionReportIntervalParam.Get()),
+      this, &CobaltMemoryAttributionManager::ReportUma);
 }
 
 void CobaltMemoryAttributionManager::Stop() {
@@ -95,8 +96,11 @@ void CobaltMemoryAttributionManager::RequestReportUmaForTesting(
 void CobaltMemoryAttributionManager::ReportUma() {
   base::TimeTicks now = base::TimeTicks::Now();
   auto* observer = base::memory::CobaltMemoryAttributionObserver::Get();
-  if ((now - last_report_time_) > base::Minutes(10)) {
-    // Skip reporting if timer was delayed by device suspension
+  // Skip reporting if timer was significantly delayed (e.g. device suspension).
+  if ((now - last_report_time_) >
+      base::Seconds(
+          cobalt::features::kCobaltMemoryAttributionReportIntervalParam
+              .Get())) {
     last_report_time_ = now;
     for (size_t i = 0;
          i < static_cast<size_t>(base::memory::MemoryContext::kCount); ++i) {

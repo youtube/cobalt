@@ -51,6 +51,11 @@ extern const base::FeatureParam<int> kMemoryMetricsIntervalParam;
 // Enables Cobalt Memory Attribution Manager.
 extern const base::Feature kCobaltMemoryAttributionManager;
 
+// Sets Cobalt Memory Attribution reporting interval in seconds (default 10
+// min).
+extern const base::FeatureParam<int>
+    kCobaltMemoryAttributionReportIntervalParam;
+
 }  // namespace features
 }  // namespace cobalt
 
