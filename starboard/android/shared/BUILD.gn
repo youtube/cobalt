@@ -440,6 +440,7 @@ test("starboard_platform_tests") {
     "//starboard/testing:scoped_feature_list",
     "//testing/gmock",
     "//testing/gtest",
+    "//third_party/jni_zero:jni_zero",
   ]
 }
 
