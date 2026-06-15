@@ -102,7 +102,7 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
       bool force_big_endian_hdr_metadata,
       int max_video_input_size,
       int64_t flush_delay_usec,
-      std::optional<bool> use_dual_threads,
+      bool use_dual_threads,
       bool skip_video_frames_over_60_fps,
       bool ignore_mediacodec_callbacks_during_flushing);
 
@@ -136,7 +136,7 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
       bool force_big_endian_hdr_metadata,
       int max_video_input_size,
       int64_t flush_delay_usec,
-      std::optional<bool> use_dual_threads,
+      bool use_dual_threads,
       bool skip_video_frames_over_60_fps,
       bool ignore_mediacodec_callbacks_during_flushing,
       std::string* error_message);
