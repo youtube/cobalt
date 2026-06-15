@@ -418,6 +418,7 @@ class MediaCodecBridge {
       boolean enableFrameRendererListener,
       boolean skipVideoFramesOver60Fps,
       boolean ignoreCodecCallbacksDuringFlushing,
+      boolean enableLowLatency,
       CreateMediaCodecBridgeResult outCreateMediaCodecBridgeResult) {
     MediaCodec mediaCodec = null;
     outCreateMediaCodecBridgeResult.mMediaCodecBridge = null;
@@ -477,6 +478,18 @@ class MediaCodecBridge {
     MediaCodecOutputTracker.get().register(bridge);
     MediaFormat mediaFormat =
         createVideoDecoderFormat(mime, widthHint, heightHint, videoCapabilities);
+
+    if (enableLowLatency) {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        Log.i(TAG, "Enabling low-latency playback.");
+        mediaFormat.setInteger(MediaFormat.KEY_LOW_LATENCY, 1);
+      } else {
+        Log.i(
+            TAG,
+            "Low-latency playback requested but not supported on API level "
+                + Build.VERSION.SDK_INT);
+      }
+    }
 
     boolean shouldConfigureHdr =
         colorInfo != null && MediaCodecUtil.isHdrCapableVideoDecoder(mime, codecCapabilities);

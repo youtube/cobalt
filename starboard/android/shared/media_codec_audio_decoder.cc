@@ -14,6 +14,7 @@
 
 #include "starboard/android/shared/media_codec_audio_decoder.h"
 
+#include "starboard/android/shared/media_codec.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
@@ -215,8 +216,9 @@ void MediaCodecAudioDecoder::Reset() {
 
 Result<void> MediaCodecAudioDecoder::InitializeCodec() {
   SB_DCHECK(!media_decoder_);
+  DefaultMediaCodecFactory factory;
   auto result = MediaCodecDecoder::CreateForAudio(
-      job_queue(), this, audio_stream_info_, drm_system_);
+      factory, job_queue(), this, audio_stream_info_, drm_system_);
   if (result) {
     media_decoder_ = std::move(result.value());
     if (error_cb_) {
@@ -230,24 +232,23 @@ Result<void> MediaCodecAudioDecoder::InitializeCodec() {
 }
 
 void MediaCodecAudioDecoder::ProcessOutputBuffer(
-    MediaCodecBridge* media_codec_bridge,
+    MediaCodec* media_codec_bridge,
     const DequeueOutputResult& dequeue_output_result) {
   SB_DCHECK(media_codec_bridge);
   SB_DCHECK(output_cb_);
   SB_DCHECK_GE(dequeue_output_result.index, 0);
 
   if (dequeue_output_result.num_bytes > 0) {
-    ScopedJavaLocalRef<jobject> byte_buffer(
-        media_codec_bridge->GetOutputBuffer(dequeue_output_result.index));
+    void* address =
+        media_codec_bridge->GetOutputBufferAddress(dequeue_output_result.index)
+            .data();
 
-    if (byte_buffer.is_null()) {
+    if (!address) {
       ReportError(kSbPlayerErrorDecode,
                   "Failed to process audio output buffer.");
       return;
     }
 
-    JNIEnv* env = jni_zero::AttachCurrentThread();
-    void* address = env->GetDirectBufferAddress(byte_buffer.obj());
     int16_t* data = static_cast<int16_t*>(
         IncrementPointerByBytes(address, dequeue_output_result.offset));
     int size = dequeue_output_result.num_bytes;
@@ -282,7 +283,7 @@ void MediaCodecAudioDecoder::ProcessOutputBuffer(
   }
 
   // BUFFER_FLAG_END_OF_STREAM may come with the last valid output buffer.
-  if (dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM) {
+  if (dequeue_output_result.flags & MediaCodec::kBufferFlagEndOfStream) {
     {
       std::lock_guard lock(decoded_audios_mutex_);
       decoded_audios_.push(new DecodedAudio());
@@ -295,7 +296,7 @@ void MediaCodecAudioDecoder::ProcessOutputBuffer(
 }
 
 void MediaCodecAudioDecoder::RefreshOutputFormat(
-    MediaCodecBridge* media_codec_bridge) {
+    MediaCodec* media_codec_bridge) {
   std::optional<AudioOutputFormatResult> output_format =
       media_codec_bridge->GetAudioOutputFormat();
   if (!output_format) {

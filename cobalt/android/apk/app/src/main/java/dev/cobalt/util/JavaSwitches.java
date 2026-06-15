@@ -61,6 +61,14 @@ public class JavaSwitches {
   /** flag to allow scaling clipped images in GpuImageDecodeCache */
   public static final String ENABLE_SCALING_CLIPPED_IMAGES = "EnableScalingClippedImages";
 
+  /** flag to enable dynamic mojo pipe sizing. */
+  public static final String ENABLE_COBALT_DYNAMIC_MOJO_PIPE_SIZING =
+      "EnableCobaltDynamicMojoPipeSizing";
+
+  /** flag to tune cobalt dynamic mojo pipe sizing subresource size in bytes. */
+  public static final String COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE =
+      "CobaltDynamicMojoPipeSubresourceSize";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
 
@@ -103,6 +111,20 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_SCALING_CLIPPED_IMAGES)) {
       extraCommandLineArgs.add("--enable-scaling-clipped-images");
+    }
+
+    StringJoiner mojoPipeParams = new StringJoiner("/");
+    if (javaSwitches.containsKey(JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE)) {
+      String size = javaSwitches.get(JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE).replaceAll("[^0-9]", "");
+      mojoPipeParams.add("subresource_size/" + size);
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_COBALT_DYNAMIC_MOJO_PIPE_SIZING) || mojoPipeParams.length() > 0) {
+      if (mojoPipeParams.length() > 0) {
+        extraCommandLineArgs.add("--enable-features=CobaltDynamicMojoPipeSizing:" + mojoPipeParams.toString());
+      } else {
+        extraCommandLineArgs.add("--enable-features=CobaltDynamicMojoPipeSizing");
+      }
     }
 
     StringJoiner featureParams = new StringJoiner("/");

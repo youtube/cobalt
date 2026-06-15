@@ -130,10 +130,25 @@ const CobaltMemoryMetricsEmitter::Metric kAllocatorDumpNamesForMetrics[] = {
      kAllocatedObjectsSize,
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
      {}},
+    // ==========================================
+    // 1. Main Malloc Partition (General Heap under PA-E)
+    // ==========================================
     {"malloc/partitions/allocator",
-     "PartitionAlloc.CommittedSize.FastMalloc",
+     "Malloc.CommittedSize.Allocator",
      CobaltMemoryMetricsEmitter::MetricSize::kLarge,
      "virtual_committed_size",
+     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
+     {}},
+    {"malloc/partitions/allocator",
+     "Malloc.AllocatedObjects.Allocator",
+     CobaltMemoryMetricsEmitter::MetricSize::kLarge,
+     kAllocatedObjectsSize,
+     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
+     {}},
+    {"malloc/partitions/allocator",
+     "Malloc.MaxCommittedSize.Allocator",
+     CobaltMemoryMetricsEmitter::MetricSize::kLarge,
+     "max_committed_size",
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
      {}},
     {"partition_alloc",
@@ -148,16 +163,41 @@ const CobaltMemoryMetricsEmitter::Metric kAllocatorDumpNamesForMetrics[] = {
      kEffectiveSize,
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
      {}},
+    // ==========================================
+    // 2. ArrayBuffer (V8 Typed Arrays / Media Caching)
+    // ==========================================
     {"partition_alloc/partitions/array_buffer",
      "PartitionAlloc.CommittedSize.ArrayBuffer",
      CobaltMemoryMetricsEmitter::MetricSize::kLarge,
      "virtual_committed_size",
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
      {}},
+    {"partition_alloc/partitions/array_buffer",
+     "PartitionAlloc.AllocatedObjects.ArrayBuffer",
+     CobaltMemoryMetricsEmitter::MetricSize::kLarge,
+     kAllocatedObjectsSize,
+     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
+     {}},
+
+    // ==========================================
+    // 3. Buffer (Standard Vectors / Layout / Blink Core)
+    // ==========================================
     {"partition_alloc/partitions/buffer",
      "PartitionAlloc.CommittedSize.Buffer",
      CobaltMemoryMetricsEmitter::MetricSize::kLarge,
      "virtual_committed_size",
+     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
+     {}},
+    {"partition_alloc/partitions/buffer",
+     "PartitionAlloc.AllocatedObjects.Buffer",
+     CobaltMemoryMetricsEmitter::MetricSize::kLarge,
+     kAllocatedObjectsSize,
+     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
+     {}},
+    {"partition_alloc/partitions/buffer",
+     "PartitionAlloc.MaxCommittedSize.Buffer",
+     CobaltMemoryMetricsEmitter::MetricSize::kLarge,
+     "max_committed_size",
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
      {}},
 

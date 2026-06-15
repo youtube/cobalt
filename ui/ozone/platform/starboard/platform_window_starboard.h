@@ -46,6 +46,7 @@ class PlatformWindowStarboard : public PlatformWindow,
   void Hide() override;
   void Close() override;
   bool IsVisible() const override;
+  bool IsWaitingForRevealAck() const { return waiting_for_reveal_ack_; }
   void PrepareForShutdown() override;
   void SetBoundsInDIP(const gfx::Rect& bounds) override;
   gfx::Rect GetBoundsInDIP() const override;
@@ -56,6 +57,7 @@ class PlatformWindowStarboard : public PlatformWindow,
   bool HasCapture() const override;
   void Maximize() override;
   void Minimize() override;
+  void DestroySbWindowInstance();
   void Restore() override;
   PlatformWindowState GetPlatformWindowState() const override;
   void Activate() override;
@@ -83,6 +85,8 @@ class PlatformWindowStarboard : public PlatformWindow,
   static void SetWindowDestroyedCallback(WindowDestroyedCallback cb);
   static void ClearWindowDestroyedCallback();
 
+  void SetWaitingForRevealAck(bool waiting);
+
   // ui::PlatformEventObserverStarboard interface.
   void ProcessWindowSizeChangedEvent(int width, int height) override;
   void ProcessFocusEvent(bool is_focused) override;
@@ -106,6 +110,8 @@ class PlatformWindowStarboard : public PlatformWindow,
   raw_ptr<PlatformWindowDelegate> delegate_ = nullptr;
   ui::PlatformWindowState window_state_ = ui::PlatformWindowState::kUnknown;
   ActivationState activation_state_ = ActivationState::kUnknown;
+
+  bool waiting_for_reveal_ack_ = false;
 };
 
 }  // namespace ui
