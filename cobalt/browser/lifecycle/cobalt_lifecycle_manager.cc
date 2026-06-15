@@ -51,6 +51,9 @@ void CobaltLifecycleManager::BindReceiver(
     content::RenderFrameHost* frame,
     mojo::PendingReceiver<cobalt::mojom::CobaltLifecycleObserver> receiver) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (!frame) {
+    return;
+  }
   receivers_.Add(this, std::move(receiver), {frame->GetGlobalId()});
 }
 
