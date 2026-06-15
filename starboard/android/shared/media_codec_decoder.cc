@@ -133,7 +133,7 @@ MediaCodecDecoder::CreateForVideo(
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
-    std::optional<bool> use_dual_threads,
+    bool use_dual_threads,
     bool skip_video_frames_over_60_fps,
     bool ignore_mediacodec_callbacks_during_flushing) {
   std::string error_message;
@@ -211,7 +211,7 @@ MediaCodecDecoder::MediaCodecDecoder(
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
-    std::optional<bool> use_dual_threads,
+    bool use_dual_threads,
     bool skip_video_frames_over_60_fps,
     bool ignore_mediacodec_callbacks_during_flushing,
     std::string* error_message)
@@ -226,8 +226,7 @@ MediaCodecDecoder::MediaCodecDecoder(
       video_decoder_poll_interval_us_(
           tunnel_mode_enabled_ ? kDefaultVideoDecoderTunnelPollIntervalUs
                                : kDefaultVideoDecoderPollIntervalUs),
-      use_dual_threads_(use_dual_threads.value_or(false) &&
-                        !tunnel_mode_enabled_) {
+      use_dual_threads_(use_dual_threads && !tunnel_mode_enabled_) {
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 

@@ -290,8 +290,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
           platform_options.force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_config.audio_session_id),
       max_video_input_size_(pipeline_config.max_input_size),
-      use_dual_threads_(
-          pipeline_config.experimental_features.use_dual_threads_for_video),
+      use_dual_threads_(pipeline_config.use_dual_threads),
       surface_view_(stream_config.surface_view),
       enable_flush_during_seek_(pipeline_config.enable_flush_during_seek),
       reset_delay_usec_(android_get_device_api_level() < 34
