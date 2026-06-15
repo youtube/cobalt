@@ -65,12 +65,16 @@ const char kH5vccSettingsKeyMediaEnableResetAudioDecoder[] =
     "Media.EnableResetAudioDecoder";
 const char kH5vccSettingsKeyMediaEnableTrivialOptimizations[] =
     "Media.EnableTrivialOptimizations";
+const char kH5vccSettingsKeyMediaEnableSimdBasedAudioFormatSwitching[] =
+    "Media.EnableSimdBasedAudioFormatSwitching";
 const char kH5vccSettingsKeyMediaEnableVideoRendererVspAdjustment[] =
     "Media.EnableVideoRendererVspAdjustment";
 const char kH5vccSettingsKeyMediaFlushAudioTrackDuringSeek[] =
     "Media.FlushAudioTrackDuringSeek";
 const char kH5vccSettingsKeyMediaForceDecodeToTexture[] =
     "Media.ForceDecodeToTexture";
+const char kH5vccSettingsKeyMediaForceClearSurfaceView[] =
+    "Media.ForceClearSurfaceView";
 const char kH5vccSettingsKeyMediaIgnoreMediaCodecCallbacksDuringFlushing[] =
     "Media.IgnoreMediaCodecCallbacksDuringFlushing";
 const char kH5vccSettingsKeyMediaVideoDecoderInitialPrerollCount[] =
@@ -239,6 +243,11 @@ ExperimentalFeatures ProcessH5vccSettings(
     parsed.enable_trivial_optimizations = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
+          settings,
+          kH5vccSettingsKeyMediaEnableSimdBasedAudioFormatSwitching)) {
+    parsed.enable_simd_based_audio_format_switching = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableVideoRendererVspAdjustment)) {
     parsed.enable_video_renderer_vsp_adjustment = *val != 0;
   }
@@ -249,6 +258,10 @@ ExperimentalFeatures ProcessH5vccSettings(
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaForceDecodeToTexture)) {
     parsed.force_decode_to_texture = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaForceClearSurfaceView)) {
+    parsed.force_clear_surface_view = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
           settings,

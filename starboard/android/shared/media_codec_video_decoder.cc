@@ -302,7 +302,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                             : 0),
       skip_flush_on_decoder_teardown_(
           pipeline_config.experimental_features.skip_flush_on_decoder_teardown),
-      force_reset_surface_(platform_options.force_reset_surface),
+      force_clear_surface_(
+          pipeline_config.experimental_features.force_clear_surface_view),
       needs_fps_to_initialize_codec_(
           video_codec_ == kSbMediaVideoCodecAv1 &&
           MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30()),
@@ -380,13 +381,11 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
   TeardownCodec();
-  if (tunnel_mode_audio_session_id_) {
-    // Forces video surface to reset after tunnel mode playbacks. This prevents
-    // video distortion on some platforms. For details, see http://b/182610842.
-    ClearVideoWindow(/*force_reset_surface=*/true);
-  } else {
-    ClearVideoWindow(force_reset_surface_);
-  }
+  // The video surface must be reset after tunnel mode playbacks. This prevents
+  // video distortion on some platforms. For details, see http://b/182610842.
+  bool force_clear =
+      !tunnel_mode_audio_session_id_.has_value() && force_clear_surface_;
+  CleanUpVideoWindow(force_clear, decode_target_graphics_context_provider_);
 }
 
 scoped_refptr<VideoRendererSink> MediaCodecVideoDecoder::GetSink() {

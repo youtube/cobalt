@@ -584,8 +584,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     int64_t flush_delay_usec = features::kFlushDelayUsec.Get();
     int64_t reset_delay_usec = features::kResetDelayUsec.Get();
 
-    // The default value of |force_reset_surface| would be true.
-    bool force_reset_surface = true;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
         !creation_parameters.video_mime().empty()) {
       // Use mime param to determine endianness of HDR metadata. If param is
@@ -597,11 +595,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
             video_mime_type->GetParamStringValue("hdrinfoendianness",
                                                  /*default=*/"little");
         force_big_endian_hdr_metadata = hdr_info_endianness == "big";
-      }
-      if (video_mime_type &&
-          video_mime_type->ValidateBoolParameter("forceresetsurface")) {
-        force_reset_surface =
-            video_mime_type->GetParamBoolValue("forceresetsurface", true);
       }
       if (video_mime_type &&
           video_mime_type->ValidateBoolParameter("enableflushduringseek")) {
@@ -645,8 +638,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
          creation_parameters.max_video_capabilities()},
         {tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode},
         {max_video_input_size, enable_flush_during_seek, experimental_features},
-        {force_reset_surface, force_big_endian_hdr_metadata, reset_delay_usec,
-         flush_delay_usec});
+        {force_big_endian_hdr_metadata, reset_delay_usec, flush_delay_usec});
   }
 
   bool IsTunnelModeSupported(const CreationParameters& creation_parameters,

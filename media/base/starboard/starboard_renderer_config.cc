@@ -59,6 +59,8 @@ std::ostream& operator<<(
             << ToString(features.enable_video_renderer_vsp_adjustment)
             << ", flush_audio_track_during_seek="
             << ToString(features.flush_audio_track_during_seek)
+            << ", force_clear_surface_view="
+            << ToString(features.force_clear_surface_view)
             << ", force_decode_to_texture="
             << ToString(features.force_decode_to_texture)
             << ", ignore_mediacodec_callbacks_during_flushing="
@@ -69,6 +71,8 @@ std::ostream& operator<<(
             << ToString(features.skip_video_frames_over_60_fps)
             << ", enable_trivial_optimizations="
             << ToString(features.enable_trivial_optimizations)
+            << ", enable_simd_based_audio_format_switching="
+            << ToString(features.enable_simd_based_audio_format_switching)
             << ", use_dual_threads_for_video="
             << ToString(features.use_dual_threads_for_video)
             << ", max_samples_per_write="
