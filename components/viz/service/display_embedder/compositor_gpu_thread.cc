@@ -12,6 +12,11 @@
 #include "base/synchronization/waitable_event.h"
 #include "base/task/bind_post_task.h"
 #include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#include "cobalt/shell/buildflags.h"
+#endif
+
 #include "components/viz/common/features.h"
 #include "components/viz/common/gpu/vulkan_context_provider.h"
 #include "components/viz/common/switches.h"
@@ -253,6 +258,9 @@ void CompositorGpuThread::HandleMemoryPressure(
 }
 
 void CompositorGpuThread::Init() {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::SetCurrentMemoryContext(base::memory::MemoryContext::kGraphics);
+#endif
   const auto& gpu_preferences = gpu_channel_manager_->gpu_preferences();
   if (enable_watchdog_ && gpu_channel_manager_->watchdog()) {
     watchdog_thread_ = gpu::GpuWatchdogThread::Create(

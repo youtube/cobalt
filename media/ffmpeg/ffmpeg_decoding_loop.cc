@@ -5,6 +5,11 @@
 #include "media/ffmpeg/ffmpeg_decoding_loop.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
+#include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#include "cobalt/shell/buildflags.h"
+#endif
 #include "media/ffmpeg/ffmpeg_common.h"
 
 namespace media {
@@ -21,6 +26,9 @@ FFmpegDecodingLoop::~FFmpegDecodingLoop() = default;
 FFmpegDecodingLoop::DecodeStatus FFmpegDecodingLoop::DecodePacket(
     const AVPacket* packet,
     FrameReadyCB frame_ready_cb) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kMedia);
+#endif
   bool sent_packet = false, frames_remaining = true, decoder_error = false;
   while (!sent_packet || frames_remaining) {
     if (!sent_packet) {
