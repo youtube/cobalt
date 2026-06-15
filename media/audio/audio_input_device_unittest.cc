@@ -117,7 +117,7 @@ class AudioInputDeviceTest
     size_t segment_count = kMemorySegmentCount;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     segment_count = 32u;
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
     const uint32_t memory_size =
         ComputeAudioInputBufferSize(params, segment_count);

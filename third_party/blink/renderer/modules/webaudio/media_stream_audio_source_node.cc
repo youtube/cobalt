@@ -36,7 +36,7 @@
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/feature_list.h"
 #include "media/base/media_switches.h"
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 
 namespace blink {
@@ -113,7 +113,7 @@ MediaStreamAudioSourceNode* MediaStreamAudioSourceNode::Create(
   node->SetFormat(1, context.sampleRate());
 #else
   node->SetFormat(2, context.sampleRate());
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Lets the context know this source node started.
   context.NotifySourceNodeStartedProcessing(node);

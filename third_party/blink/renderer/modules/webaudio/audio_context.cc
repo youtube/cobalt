@@ -64,7 +64,7 @@
 #include "base/feature_list.h"
 #include "media/base/media_switches.h"
 #include "cobalt/media/audio/audio_input_constants.h"
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace blink {
 
@@ -224,7 +224,7 @@ AudioContext* AudioContext::Create(ExecutionContext* context,
       WebAudioSinkDescriptor(frame_token);
 #else
       WebAudioSinkDescriptor(g_empty_string, frame_token);
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   // In order to not break echo cancellation of PeerConnection audio, we must
   // not update the echo cancellation reference unless the sink ID is explicitly
   // specified.

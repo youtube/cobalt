@@ -43,7 +43,7 @@ namespace {
 const int kRequestedSharedMemoryCount = 10;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 const int kStarboardRequestedSharedMemoryCount = 32;
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // The number of seconds with missing callbacks before we report a capture
 // error. The value is based on that the Mac audio implementation can defer
@@ -145,7 +145,7 @@ void AudioInputDevice::Initialize(const AudioParameters& params,
   DCHECK(!callback_);
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   LOG(INFO) << "AudioInputDevice::Initialize: params=" << params.AsHumanReadableString();
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   audio_parameters_ = params;
   callback_ = callback;
 }
@@ -163,7 +163,7 @@ void AudioInputDevice::Start() {
   int segment_count = kRequestedSharedMemoryCount;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   segment_count = kStarboardRequestedSharedMemoryCount;
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   ipc_->CreateStream(this, audio_parameters_, agc_is_enabled_, segment_count);
 }
 
@@ -308,7 +308,7 @@ void AudioInputDevice::OnStreamCreated(
   int segment_count = kRequestedSharedMemoryCount;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   segment_count = kStarboardRequestedSharedMemoryCount;
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   audio_callback_ = std::make_unique<AudioInputDevice::AudioThreadCallback>(
       audio_parameters_, std::move(shared_memory_region),
       segment_count, enable_uma_, callback_,
