@@ -27,10 +27,8 @@ interface Renderer {
 
   // Supported only in single-process mode with the feature enabled.
   [EnableIf=use_starboard_media]
-  InitializeWithStreamPointers(pending_associated_remote<RendererClient> client,
-                               array<uint64>? stream_pointers,
-                               uint64 client_pointer,
-                               uint64 task_runner_pointer) => (bool success);
+  InitializeWithBypassBridge(pending_associated_remote<RendererClient> client,
+                             uint32 bypass_bridge_id) => (bool success);
 
   // Discards any buffered data, executing callback when completed.
   // NOTE: If an error occurs, RendererClient::OnError() can be called
