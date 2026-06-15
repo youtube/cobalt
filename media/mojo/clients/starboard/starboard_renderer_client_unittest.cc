@@ -55,12 +55,10 @@ class FakeMojomRenderer : public mojom::Renderer {
       InitializeCallback cb) override {
     std::move(cb).Run(true);
   }
-  void InitializeWithStreamPointers(
+  void InitializeWithBypassBridge(
       mojo::PendingAssociatedRemote<mojom::RendererClient>,
-      const std::optional<std::vector<uint64_t>>& stream_pointers,
-      uint64_t client_pointer,
-      uint64_t task_runner_pointer,
-      InitializeWithStreamPointersCallback cb) override {
+      uint32_t bypass_bridge_id,
+      InitializeWithBypassBridgeCallback cb) override {
     std::move(cb).Run(true);
   }
   MOCK_METHOD1(Flush, void(FlushCallback));
