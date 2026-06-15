@@ -23,6 +23,36 @@
 namespace blink {
 namespace scheduler {
 
+#if BUILDFLAG(IS_COBALT)
+#include "third_party/blink/public/platform/task_type.h"
+#include "base/memory/cobalt_memory_context.h"
+
+namespace {
+base::memory::MemoryContext TaskTypeToMemoryContext(blink::TaskType type) {
+  switch (type) {
+    case blink::TaskType::kDOMManipulation:
+    case blink::TaskType::kUserInteraction:
+      return base::memory::MemoryContext::kBlinkDOM;
+    case blink::TaskType::kJavascriptTimerImmediate:
+    case blink::TaskType::kJavascriptTimerDelayedLowNesting:
+    case blink::TaskType::kJavascriptTimerDelayedHighNesting:
+    case blink::TaskType::kLowPriorityScriptExecution:
+      return base::memory::MemoryContext::kScript;
+    case blink::TaskType::kNetworking:
+    case blink::TaskType::kNetworkingUnfreezable:
+    case blink::TaskType::kNetworkingControl:
+    case blink::TaskType::kNetworkingUnfreezableRenderBlockingLoading:
+      return base::memory::MemoryContext::kNetwork;
+    case blink::TaskType::kCanvasBlobSerialization:
+    case blink::TaskType::kMediaElementEvent:
+      return base::memory::MemoryContext::kMedia;
+    default:
+      return base::memory::MemoryContext::kBrowserMain;
+  }
+}
+}  // namespace
+#endif
+
 namespace internal {
 using base::sequence_manager::internal::TaskQueueImpl;
 }
@@ -127,6 +157,12 @@ MainThreadTaskQueue::~MainThreadTaskQueue() {
 void MainThreadTaskQueue::OnTaskStarted(
     const base::sequence_manager::Task& task,
     const base::sequence_manager::TaskQueue::TaskTiming& task_timing) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::MemoryContext prev = base::memory::GetCurrentMemoryContext();
+  cobalt_context_stack_.push_back(prev);
+  base::memory::SetCurrentMemoryContext(
+      TaskTypeToMemoryContext(static_cast<blink::TaskType>(task.task_type)));
+#endif
   if (main_thread_scheduler_) {
     main_thread_scheduler_->OnTaskStarted(this, task, task_timing);
   }
@@ -136,6 +172,12 @@ void MainThreadTaskQueue::OnTaskCompleted(
     const base::sequence_manager::Task& task,
     TaskQueue::TaskTiming* task_timing,
     base::LazyNow* lazy_now) {
+#if BUILDFLAG(IS_COBALT)
+  if (!cobalt_context_stack_.empty()) {
+    base::memory::SetCurrentMemoryContext(cobalt_context_stack_.back());
+    cobalt_context_stack_.pop_back();
+  }
+#endif
   if (main_thread_scheduler_) {
     main_thread_scheduler_->OnTaskCompleted(weak_ptr_factory_.GetWeakPtr(),
                                             task, task_timing, lazy_now);

@@ -29,6 +29,11 @@
 #include "third_party/blink/renderer/platform/wtf/thread_safe_ref_counted.h"
 #include "third_party/perfetto/include/perfetto/tracing/traced_value_forward.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#include <vector>
+#endif
+
 namespace base::sequence_manager {
 class SequenceManager;
 }  // namespace base::sequence_manager
@@ -591,6 +596,10 @@ class PLATFORM_EXPORT MainThreadTaskQueue
 
   std::unique_ptr<TaskQueue::OnTaskPostedCallbackHandle>
       on_ipc_task_posted_callback_handle_;
+
+#if BUILDFLAG(IS_COBALT)
+  std::vector<base::memory::MemoryContext> cobalt_context_stack_;
+#endif
 
   base::WeakPtrFactory<MainThreadTaskQueue> weak_ptr_factory_{this};
 };

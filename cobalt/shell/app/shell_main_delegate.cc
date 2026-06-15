@@ -35,6 +35,7 @@
 #include "base/trace_event/trace_log.h"
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
+#include "cobalt/shell/buildflags.h"
 #include "cobalt/shell/common/shell_content_client.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
@@ -293,6 +294,12 @@ std::optional<int> ShellMainDelegate::PostEarlyInitialization(
     InitializeMojoCore();
   }
 
+  InitializeMemorySystem();
+
+  return std::nullopt;
+}
+
+void ShellMainDelegate::InitializeMemorySystem() {
   const std::string process_type =
       base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
           switches::kProcessType);
@@ -308,14 +315,14 @@ std::optional<int> ShellMainDelegate::PostEarlyInitialization(
   // PoissonAllocationSampler we have in the ContentShell. Do we really need to
   // enforce it?
   memory_system::Initializer()
-      .SetDispatcherParameters(memory_system::DispatcherParameters::
-                                   PoissonAllocationSamplerInclusion::kEnforce,
-                               memory_system::DispatcherParameters::
-                                   AllocationTraceRecorderInclusion::kIgnore,
-                               process_type)
+      .SetDispatcherParameters(
+          memory_system::DispatcherParameters::
+              PoissonAllocationSamplerInclusion::kEnforce,
+          memory_system::DispatcherParameters::
+              AllocationTraceRecorderInclusion::kIgnore,
+          process_type,
+          memory_system::CobaltMemoryAttributionInclusion::kInclude)
       .Initialize(memory_system_);
-
-  return std::nullopt;
 }
 
 ContentClient* ShellMainDelegate::CreateContentClient() {

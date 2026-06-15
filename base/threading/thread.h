@@ -23,6 +23,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/platform_thread.h"
 #include "build/build_config.h"
+#include "base/memory/cobalt_memory_context.h"
 
 namespace base {
 
@@ -111,6 +112,9 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
     // TODO(gab): allow non-joinable instances to be deleted without causing
     // user-after-frees (proposal @ https://crbug.com/629139#c14)
     bool joinable = true;
+
+    // Specifies the memory context for the thread.
+    memory::MemoryContext memory_context = memory::MemoryContext::kUnknown;
 
     bool IsValid() const { return !moved_from; }
 
@@ -331,6 +335,9 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   // This class is not thread-safe, use this to verify access from the owning
   // sequence of the Thread.
   SequenceChecker owning_sequence_checker_;
+
+  // The memory context of this thread.
+  memory::MemoryContext memory_context_ = memory::MemoryContext::kUnknown;
 };
 
 }  // namespace base

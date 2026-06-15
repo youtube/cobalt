@@ -21,10 +21,12 @@
 
 #include "base/check_op.h"
 #include "base/command_line.h"
+#include "base/feature_list.h"
 #include "base/process/current_process.h"
 #include "base/threading/hang_watcher.h"
 #include "build/buildflag.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/common/cobalt_thread_checker.h"
 #include "cobalt/shell/app/shell_main_delegate.h"
 #include "cobalt/utility/cobalt_content_utility_client.h"
@@ -135,6 +137,10 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
 
   InitializeHangWatcher();
 
+  return std::nullopt;
+}
+
+void CobaltMainDelegate::InitializeMemorySystem() {
   const std::string process_type =
       base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
           switches::kProcessType);
@@ -149,15 +155,34 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
   // TODO(https://crbug.com/1411454): Clarify which users of
   // PoissonAllocationSampler we have in the ContentShell. Do we really need to
   // enforce it?
-  memory_system::Initializer()
-      .SetDispatcherParameters(memory_system::DispatcherParameters::
-                                   PoissonAllocationSamplerInclusion::kEnforce,
-                               memory_system::DispatcherParameters::
-                                   AllocationTraceRecorderInclusion::kIgnore,
-                               process_type)
-      .Initialize(memory_system_);
-
-  return std::nullopt;
+  auto memory_initializer = memory_system::Initializer();
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          cobalt::features::kCobaltMemoryAttributionManager)) {
+    memory_initializer.SetDispatcherParameters(
+        memory_system::DispatcherParameters::PoissonAllocationSamplerInclusion::
+            kEnforce,
+        memory_system::DispatcherParameters::AllocationTraceRecorderInclusion::
+            kIgnore,
+        process_type,
+        memory_system::CobaltMemoryAttributionInclusion::kInclude);
+  } else {
+    memory_initializer.SetDispatcherParameters(
+        memory_system::DispatcherParameters::PoissonAllocationSamplerInclusion::
+            kEnforce,
+        memory_system::DispatcherParameters::AllocationTraceRecorderInclusion::
+            kIgnore,
+        process_type);
+  }
+#else
+  memory_initializer.SetDispatcherParameters(
+      memory_system::DispatcherParameters::PoissonAllocationSamplerInclusion::
+          kEnforce,
+      memory_system::DispatcherParameters::AllocationTraceRecorderInclusion::
+          kIgnore,
+      process_type);
+#endif
+  memory_initializer.Initialize(memory_system_);
 }
 
 std::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(

@@ -37,6 +37,8 @@ enum class MemoryContext : uint8_t {
   kBlinkParser = 18,
   kPlatformIPC = 19,
   kPlatformStarboard = 20,
+  kPlatformDevTools = 21,
+  kBrowserMain = 22,
 
   kCount
 };
@@ -121,5 +123,9 @@ inline std::string_view ContextToString(MemoryContext context) {
 
 }  // namespace memory
 }  // namespace base
+
+extern "C" {
+BASE_EXPORT void CobaltSetMemoryContext(uint8_t context);
+}
 
 #endif  // BASE_MEMORY_COBALT_MEMORY_CONTEXT_H_

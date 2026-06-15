@@ -22,6 +22,10 @@
 #include "third_party/inspector_protocol/crdtp/dispatch.h"
 #include "third_party/inspector_protocol/crdtp/json.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
+
 namespace content {
 namespace {
 // Keep in sync with WebDevToolsAgent::ShouldInterruptForMethod.
@@ -254,6 +258,10 @@ void DevToolsSession::MojoConnectionDestroyed() {
 // to handlers / agents that the session is connected with.
 void DevToolsSession::DispatchProtocolMessage(
     base::span<const uint8_t> message) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_memory_context(
+      base::memory::MemoryContext::kPlatformDevTools);
+#endif
   if (client_->UsesBinaryProtocol()) {
     crdtp::Status status =
         crdtp::cbor::CheckCBORMessage(crdtp::SpanFrom(message));
@@ -414,6 +422,10 @@ void DevToolsSession::FallThrough(int call_id,
 // sends messages coming from the browser to the client.
 void DevToolsSession::DispatchProtocolMessageToClient(
     std::vector<uint8_t> message) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_memory_context(
+      base::memory::MemoryContext::kPlatformDevTools);
+#endif
   DCHECK(crdtp::cbor::IsCBORMessage(crdtp::SpanFrom(message)));
 
   if (!session_id_.empty()) {
