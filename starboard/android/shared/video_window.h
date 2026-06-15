@@ -44,8 +44,10 @@ class VideoSurfaceHolder {
  protected:
   ~VideoSurfaceHolder() {}
 
-  // Returns the surface to which video should be rendered. The surface
-  // cannot be acquired before last holder release the surface.
+  // Acquires the video surface and returns a SurfaceDestroyNotifier to monitor
+  // its lifetime. The actual surface is returned via the `out_surface` output
+  // parameter. The surface cannot be acquired before the previous holder
+  // releases it.
   scoped_refptr<SurfaceDestroyNotifier> AcquireVideoSurface(
       JobQueue* job_queue,
       jni_zero::ScopedJavaLocalRef<jobject>* out_surface);
