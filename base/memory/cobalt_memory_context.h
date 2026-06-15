@@ -44,16 +44,17 @@ enum class MemoryContext : uint8_t {
 BASE_EXPORT MemoryContext GetCurrentMemoryContext();
 BASE_EXPORT void SetCurrentMemoryContext(MemoryContext context);
 
-// Scoped helper class to temporarily set the current thread's MemoryContext.
-// The previous context is restored when this object goes out of scope.
+// ScopedMemoryContext is a helper class that sets the current thread's
+// memory context for the duration of its lifetime, restoring the previous
+// context upon destruction.
 //
 // Lifetime and Ownership:
-// Typically allocated on the stack as a local variable. It should not outlive
-// the scope in which it is defined.
+// This is a stack-allocated helper designed to be used as a local variable.
+// It should not be dynamically allocated or outlive its enclosing scope.
 //
 // Threading Model:
-// Thread-affine. This class only affects the thread on which it is constructed
-// and destroyed.
+// This class is thread-affine and must only be used on the thread where
+// it was constructed.
 class BASE_EXPORT ScopedMemoryContext {
  public:
   explicit ScopedMemoryContext(MemoryContext context);
@@ -68,7 +69,55 @@ class BASE_EXPORT ScopedMemoryContext {
   MemoryContext prev_context_;
 };
 
-BASE_EXPORT std::string_view ContextToString(MemoryContext context);
+inline std::string_view ContextToString(MemoryContext context) {
+  switch (context) {
+    case MemoryContext::kUnknown:
+      return "Unknown";
+    case MemoryContext::kDOM:
+      return "DOM";
+    case MemoryContext::kLayout:
+      return "Layout";
+    case MemoryContext::kMedia:
+      return "Media";
+    case MemoryContext::kScript:
+      return "Script";
+    case MemoryContext::kNetwork:
+      return "Network";
+    case MemoryContext::kGraphics:
+      return "Graphics";
+    case MemoryContext::kStorage:
+      return "Storage";
+    case MemoryContext::kGraphicsCanvas:
+      return "GraphicsCanvas";
+    case MemoryContext::kGraphicsCompositor:
+      return "GraphicsCompositor";
+    case MemoryContext::kGraphicsGlyphs:
+      return "GraphicsGlyphs";
+    case MemoryContext::kScriptHeap:
+      return "ScriptHeap";
+    case MemoryContext::kScriptJIT:
+      return "ScriptJIT";
+    case MemoryContext::kScriptBindings:
+      return "ScriptBindings";
+    case MemoryContext::kNetworkLoader:
+      return "NetworkLoader";
+    case MemoryContext::kNetworkCache:
+      return "NetworkCache";
+    case MemoryContext::kBlinkDOM:
+      return "BlinkDOM";
+    case MemoryContext::kBlinkStyle:
+      return "BlinkStyle";
+    case MemoryContext::kBlinkParser:
+      return "BlinkParser";
+    case MemoryContext::kPlatformIPC:
+      return "PlatformIPC";
+    case MemoryContext::kPlatformStarboard:
+      return "PlatformStarboard";
+    case MemoryContext::kCount:
+      return "Unknown";
+  }
+  return "Unknown";
+}
 
 }  // namespace memory
 }  // namespace base
