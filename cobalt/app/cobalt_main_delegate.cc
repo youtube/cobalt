@@ -137,6 +137,10 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
 
   InitializeHangWatcher();
 
+  return std::nullopt;
+}
+
+void CobaltMainDelegate::InitializeMemorySystem() {
   const std::string process_type =
       base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
           switches::kProcessType);
@@ -179,8 +183,6 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
       process_type);
 #endif
   memory_initializer.Initialize(memory_system_);
-
-  return std::nullopt;
 }
 
 std::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(

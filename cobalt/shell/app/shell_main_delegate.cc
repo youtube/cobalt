@@ -358,6 +358,12 @@ std::optional<int> ShellMainDelegate::PostEarlyInitialization(
     InitializeMojoCore();
   }
 
+  InitializeMemorySystem();
+
+  return std::nullopt;
+}
+
+void ShellMainDelegate::InitializeMemorySystem() {
   const std::string process_type =
       base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
           switches::kProcessType);
@@ -381,8 +387,6 @@ std::optional<int> ShellMainDelegate::PostEarlyInitialization(
           process_type,
           memory_system::CobaltMemoryAttributionInclusion::kInclude)
       .Initialize(memory_system_);
-
-  return std::nullopt;
 }
 
 ContentClient* ShellMainDelegate::CreateContentClient() {
