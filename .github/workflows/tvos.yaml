@@ -95,8 +95,32 @@ jobs:
           echo "Timeout waiting for Kokoro build."
           exit 1
 
+  get-targets:
+    runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.set-targets.outputs.targets }}
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            cobalt/build/testing/targets/tvos-arm64-simulator/test_targets.json
+          sparse-checkout-cone-mode: false
+
+      - name: Extract Targets
+        id: set-targets
+        run: |
+          json_file="cobalt/build/testing/targets/tvos-arm64-simulator/test_targets.json"
+          if [[ ! -f "${json_file}" ]]; then
+            echo "ERROR: ${json_file} not found!"
+            exit 1
+          fi
+          targets=$(jq -cr '[.[] | select(.target != null) | .target | split(":")[-1]]' "${json_file}")
+          echo "Targets found: ${targets}"
+          echo "targets=${targets}" >> "$GITHUB_OUTPUT"
+
   download-artifacts:
-    needs: [get-sha, wait-for-kokoro-build]
+    needs: [get-sha, wait-for-kokoro-build, get-targets]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
       - name: Set Up Cloud SDK
@@ -105,22 +129,29 @@ jobs:
       - name: Download Artifacts from GCS
         env:
           INVOCATION_ID: ${{ needs.wait-for-kokoro-build.outputs.invocation_id }}
+          TARGETS: ${{ needs.get-targets.outputs.targets }}
         run: |
           BUCKET="cobalt-unittest-storage"
           PLATFORM="tvos-arm64-simulator"
           CONFIG="devel"
-          gcloud storage cp "gs://${BUCKET}/kokoro/build/${PLATFORM}_${CONFIG}/${INVOCATION_ID}/cobalt_browsertests.tar.gz" .
+          for target in $(python3 -c "import json, os; print(' '.join(json.loads(os.environ['TARGETS'])))"); do
+            echo "Downloading ${target}.tar.gz..."
+            gcloud storage cp "gs://${BUCKET}/kokoro/build/${PLATFORM}_${CONFIG}/${INVOCATION_ID}/${target}.tar.gz" .
+          done
 
       - name: Upload to GitHub Actions
         uses: actions/upload-artifact@v4
         with:
           name: tvos-test-artifacts
-          path: cobalt_browsertests.tar.gz
+          path: "*.tar.gz"
           retention-days: 1
 
   run-tests:
-    needs: download-artifacts
+    needs: [get-targets, download-artifacts]
     runs-on: macos-latest
+    strategy:
+      matrix:
+        target: ${{ fromJSON(needs.get-targets.outputs.targets) }}
     steps:
       - name: Checkout Cobalt (Sparse)
         uses: actions/checkout@v4
@@ -133,14 +164,27 @@ jobs:
         with:
           name: tvos-test-artifacts
 
-      - name: Run Cobalt Browser Tests in Simulator
+      - name: Run Test in Simulator
+        env:
+          TARGET: ${{ matrix.target }}
         run: |
-          tar -xzf cobalt_browsertests.tar.gz
-          # We assume iossim is included in the tarball.
+          tar -xzf "${TARGET}.tar.gz"
+
+          filter_file="cobalt/testing/filters/tvos-arm64-simulator/${TARGET}_filter.json"
+          gtest_filter_arg=""
+          if [[ -f "${filter_file}" ]]; then
+            echo "Found filter file: ${filter_file}"
+            failing_tests=$(jq -r '.failing_tests | join(":")' "${filter_file}")
+            if [[ -n "${failing_tests}" ]]; then
+              gtest_filter_arg="-c '--gtest_filter=-${failing_tests}'"
+              echo "Applying gtest_filter: -${failing_tests}"
+            fi
+          fi
+
           ./iossim \
             -x tvos \
             -d "Apple TV 4K (3rd generation)" \
             -v \
             -i \
-            -c '--gtest_filter=ContentMainRunnerImplBrowserTest.*' \
-            ./cobalt_browsertests.app
+            ${gtest_filter_arg} \
+            "./${TARGET}.app"
