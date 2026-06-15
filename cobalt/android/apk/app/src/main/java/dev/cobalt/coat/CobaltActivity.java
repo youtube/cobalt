@@ -371,9 +371,9 @@ public abstract class CobaltActivity extends Activity {
     if (keyCode == KeyEvent.KEYCODE_BACK) {
       mPhysicalBackKeyPressed = true;
     }
-    // If input is a from a gamepad button, it shouldn't be dispatched to IME which incorrectly
-    // consumes the event as a VKEY_UNKNOWN
-    if (KeyEvent.isGamepadButton(keyCode)) {
+    // Gamepad buttons and certain partner-handled keys should bypass IME. The IME incorrectly
+    // consumes the events as VKEY_UNKNOWN and prevent proper handling by the OS.
+    if (KeyEvent.isGamepadButton(keyCode) || KeyboardUtils.isPartnerFallbackKey(keyCode)) {
       return super.onKeyDown(keyCode, event);
     }
     return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_DOWN) || super.onKeyDown(keyCode, event);
@@ -381,7 +381,7 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   public boolean onKeyUp(int keyCode, KeyEvent event) {
-    if (KeyEvent.isGamepadButton(keyCode)) {
+    if (KeyEvent.isGamepadButton(keyCode) || KeyboardUtils.isPartnerFallbackKey(keyCode)) {
       return super.onKeyUp(keyCode, event);
     }
     if (keyCode == KeyEvent.KEYCODE_BACK) {
