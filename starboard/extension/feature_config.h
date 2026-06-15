@@ -106,6 +106,11 @@ FEATURE_LIST_START
 // to enable app provisioning.
 STARBOARD_FEATURE(kEnableAppProvisioning, "EnableAppProvisioning", false)
 
+// Set to true to enable area-based video buffer budget calculation.
+STARBOARD_FEATURE(kEnableAreaBasedVideoBufferBudget,
+                  "EnableAreaBasedVideoBufferBudget",
+                  false)
+
 // Set the following variable to true to enable av1 startup optimization.
 STARBOARD_FEATURE(kEnableAv1StartupOptimization,
                   "EnableAv1StartupOptimization",

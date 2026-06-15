@@ -82,6 +82,10 @@ public class JavaSwitches {
   /** flag to specify ANGLE to use the OpenGL ES backend */
   public static final String COBALT_USE_ANGLE_GLES = "CobaltUseAngleGles";
 
+  /** flag to enable area-based video buffer budget calculation. */
+  public static final String ENABLE_AREA_BASED_VIDEO_BUFFER_BUDGET =
+      "EnableAreaBasedVideoBufferBudget";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     StringJoiner jsFlags = new StringJoiner(";");
@@ -169,6 +173,10 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_FONT_SRC_LOCAL_MATCHING)) {
       extraCommandLineArgs.add("--disable-features=FontSrcLocalMatching");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_AREA_BASED_VIDEO_BUFFER_BUDGET)) {
+      extraCommandLineArgs.add("--enable-features=EnableAreaBasedVideoBufferBudget");
     }
 
     if (jsFlags.length() > 0 ) {
