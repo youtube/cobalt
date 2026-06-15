@@ -513,7 +513,6 @@ BASE_FEATURE(kCobaltUsingAndroidOverlay,
              "CobaltUsingAndroidOverlay",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
-
 // Bypass Mojo for media pipeline in Cobalt single-process mode.
 BASE_FEATURE(kCobaltBypassMojoForMedia,
              "CobaltBypassMojoForMedia",
