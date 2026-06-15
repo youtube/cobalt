@@ -424,6 +424,7 @@ test("starboard_platform_tests") {
               "model_year_test.cc",
               "player_get_preferred_output_mode_test.cc",
               "video_frame_tracker_test.cc",
+              "video_window_test.cc",
             ]
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
