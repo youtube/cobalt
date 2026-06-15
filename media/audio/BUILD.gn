@@ -30,6 +30,7 @@ source_set("audio") {
   # is a roll-up target which is part of the //media component. Most other DEPs
   # should be using //media and not directly DEP this roll-up target.
   visibility = [
+    ":flac_audio_handler_fuzzer",
     ":wav_audio_handler_fuzzer",
     "//media",
     "//media/renderers",
@@ -127,6 +128,8 @@ source_set("audio") {
     "fake_audio_manager.h",
     "fake_audio_output_stream.cc",
     "fake_audio_output_stream.h",
+    "flac_audio_handler.cc",
+    "flac_audio_handler.h",
     "null_audio_sink.cc",
     "null_audio_sink.h",
     "power_observer_helper.cc",
@@ -147,6 +150,7 @@ source_set("audio") {
     "//build:android_buildflags",
     "//build:chromecast_buildflags",
     "//media/base",
+    "//third_party/flac",
     "//third_party/opus:opus",
     "//url",
   ]
@@ -532,6 +536,7 @@ source_set("unit_tests") {
 
   if (is_chromeos || is_castos || is_cast_android) {
     sources += [
+      "flac_audio_handler_unittest.cc",
       "test_data.h",
       "wav_audio_handler_unittest.cc",
     ]
