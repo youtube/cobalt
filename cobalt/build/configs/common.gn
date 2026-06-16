@@ -43,11 +43,9 @@ enable_vr = false
 # Disable screen/window/tab capture (Note: live capture, not screenshots).
 enable_screen_capture = false
 
-# Disable concurrent-marking due to b/415843979.
-v8_enable_concurrent_marking = false
-
-# This flag is also needed to disable concurrent marking.
-v8_enable_atomic_object_field_writes = false
+# Re-enable concurrent marking to monitor via experiment.
+v8_enable_concurrent_marking = true
+v8_enable_atomic_object_field_writes = true
 
 # This will force V8 to embed snapshot blob in binary.
 v8_use_external_startup_data = false
