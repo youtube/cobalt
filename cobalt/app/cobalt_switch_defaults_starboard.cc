@@ -117,9 +117,12 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       // Enable autoplay video/audio, as Cobalt may launch directly into media
       // playback before user interaction.
       {::switches::kAutoplayPolicy, "no-user-gesture-required"},
-      // Disable decommitting pooled pages to prevent virtual memory
-      // fragmentation.
-      {blink::switches::kJavaScriptFlags, "--no-decommit-pooled-pages"},
+      {blink::switches::kJavaScriptFlags,
+       // Disable decommitting pooled pages to prevent virtual memory
+       // fragmentation.
+       "--no-decommit-pooled-pages "
+       // Disable v8 concurrent marking by default.
+       "--no-concurrent-marking"},
       // Disable CC image cache items limit.
       {::switches::kCCImageCacheLimitItems, "0"},
   };
