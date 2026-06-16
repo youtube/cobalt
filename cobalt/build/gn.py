@@ -86,22 +86,7 @@ def write_build_args(build_args_path, platform_args_path, build_type, use_rbe,
   """ Write args file, modifying settings for config"""
   gen_comment = '# Set by gn.py'
 
-  # Read milestone from chrome/VERSION
-  script_dir = Path(__file__).resolve().parent
-  src_dir = script_dir.parents[1]
-  version_path = src_dir / 'chrome' / 'VERSION'
-
-  milestone = None
-  if version_path.exists():
-    with open(version_path, 'r', encoding='utf-8') as f:
-      for line in f:
-        if line.startswith('MAJOR='):
-          milestone = line.strip().split('=')[1]
-          break
-
   with open(build_args_path, 'w', encoding='utf-8') as f:
-    if milestone:
-      f.write(f'chromium_milestone = {milestone} {gen_comment}\n')
     if use_rbe:
       f.write(f'use_remoteexec = true {gen_comment}\n')
       f.write(f'use_siso = true {gen_comment}\n')

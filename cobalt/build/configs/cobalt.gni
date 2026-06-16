@@ -12,6 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+_version_file = "//chrome/VERSION"
+_result = exec_script("//build/util/version.py",
+                      [
+                        "-f",
+                        rebase_path(_version_file, root_build_dir),
+                        "-t",
+                        "major = @MAJOR@",
+                      ],
+                      "scope",
+                      [ _version_file ])
+
 # is_cobalt is just declared here and potentially overridden while running gn gen.
 declare_args() {
   is_cobalt = false
@@ -22,9 +33,8 @@ declare_args() {
   # because it allows Cobalt developers to build Cobalt on next
   # Chromium milestone while keeping the current implementations
   # unchanged.
-  # The build time value is assigned by gn.py when running gn gen. Set
-  # default to 138 to minimize the impact for 27.lts development.
-  chromium_milestone = 138
+  # The build time value is assigned by gn.py when running gn gen.
+  chromium_milestone = _result.major
 
   # This argument is not present in upstream Chromium, so we must declare it
   # here in a `.gni` file before it can be used in other GN files.
