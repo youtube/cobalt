@@ -16,6 +16,7 @@
 
 #include "base/base_switches.h"
 #include "build/buildflag.h"
+#include "cc/base/switches.h"
 #include "cobalt/app/cobalt_switch_defaults.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
@@ -119,6 +120,8 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       // Disable decommitting pooled pages to prevent virtual memory
       // fragmentation.
       {blink::switches::kJavaScriptFlags, "--no-decommit-pooled-pages"},
+      // Disable CC image cache items limit.
+      {::switches::kCCImageCacheLimitItems, "0"},
   };
   return kCobaltSwitchDefaults;
 }
