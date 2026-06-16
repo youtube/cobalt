@@ -56,6 +56,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import time
 from typing import List, Optional, Union
 
@@ -571,7 +572,10 @@ def setup_toolchain() -> None:
 
     url = "https://storage.googleapis.com/cobalt-static-storage-public/20250521_rdk-glibc-x86_64-arm-toolchain-2.0.sh"
     print(f"=== Setting up toolchain in: {rdk_home} ===")
-    run_command(f"wget {url} -O installer.sh && sh installer.sh -d {rdk_home} -y && rm installer.sh")
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        installer_path = os.path.join(tmp_dir, "installer.sh")
+        run_command(f"wget {url} -O '{installer_path}'")
+        run_command(f"sh '{installer_path}' -d '{rdk_home}' -y")
 
 
 def main() -> None:
@@ -592,7 +596,10 @@ def main() -> None:
         cmd = ["adb", "-s", device_id, "shell", "journalctl"]
         if args.follow:
             cmd.append("-f")
-        run_command(cmd)
+        try:
+            run_command(cmd)
+        except KeyboardInterrupt:
+            print("\nLog streaming stopped.")
         return
 
     if args.reset:
