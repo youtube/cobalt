@@ -2,7 +2,7 @@
 
 A description of the coding conventions for Starboard code and API headers.
 
-**Status:** REVIEWED\
+**Status:** REVIEWED
 **Created:** 2026-06-16
 
 Starboard generally tries to follow the coding conventions of Chromium,
