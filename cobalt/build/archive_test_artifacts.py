@@ -74,12 +74,13 @@ def _handle_browsertests(
     out_dir: str,
     destination_dir: str,
     compression: str,
+    archive_name: str = 'cobalt_browsertests_deps',
 ):
   # Handle cobalt_browsertests using the specialized script.
   collect_script = os.path.join(source_dir, 'cobalt', 'testing',
                                 'browser_tests', 'tools',
                                 'collect_test_artifacts.py')
-  output_name = f'cobalt_browsertests_deps.tar.{compression}'
+  output_name = f'{archive_name}.tar.{compression}'
   cmd = [
       sys.executable, collect_script, out_dir, '-o', output_name,
       '--output_dir', destination_dir, '--compression', compression
@@ -105,11 +106,20 @@ def create_archive(
   for target in targets:
     # TODO(b/483460300): Unify unittest and browsertest packaging
     if target.endswith(':cobalt_browsertests'):
-      _handle_browsertests(source_dir, out_dir, destination_dir, compression)
-      # If this was the only target, we are done.
-      if len(targets) == 1:
-        return
-      continue
+      if not use_android_deps_path:
+        _handle_browsertests(source_dir, out_dir, destination_dir, compression)
+        # If this was the only target, we are done.
+        if len(targets) == 1:
+          return
+        continue
+      else:
+        # Generate host runner archive and lightweight device archive
+        _handle_browsertests(
+            source_dir,
+            out_dir,
+            destination_dir,
+            compression,
+            archive_name='cobalt_browsertests_host_deps')
     target_path, target_name = target.split(':')
     # Paths are configured in test.gni:
     # https://github.com/youtube/cobalt/blob/main/testing/test.gni
