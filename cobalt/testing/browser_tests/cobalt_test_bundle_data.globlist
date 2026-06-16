@@ -5,6 +5,7 @@
 # See build/ios/update_bundle_filelist.py for details on how .globlist
 # files are used to update their .filelist counterparts.
 
+# push(ignore-relative)
 //content/test/data/**
 -//content/test/data/**/OWNERS
 -//content/test/data/**/DIR_METADATA
@@ -17,3 +18,7 @@
 -//content/test/data/layout_tests/**
 -//content/test/data/plugin/**
 -//content/test/data/fuzzer_*/**
+# pop(ignore-relative)
+
+//cobalt/testing/browser_tests/data/**
+
