@@ -121,7 +121,7 @@ MediaCodecDecoder::CreateForVideo(
     const Size& frame_size_hint,
     const std::optional<Size>& max_frame_size,
     int fps,
-    jobject j_output_surface,
+    const jni_zero::JavaRef<jobject>& j_output_surface,
     SbDrmSystem drm_system,
     const SbMediaColorMetadata* color_metadata,
     bool require_software_codec,
@@ -133,7 +133,7 @@ MediaCodecDecoder::CreateForVideo(
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
-    std::optional<bool> use_dual_threads,
+    bool use_dual_threads,
     bool skip_video_frames_over_60_fps,
     bool ignore_mediacodec_callbacks_during_flushing) {
   std::string error_message;
@@ -169,7 +169,12 @@ MediaCodecDecoder::MediaCodecDecoder(PassKey<MediaCodecDecoder>,
   SB_CHECK(host_);
   SB_CHECK(error_message);
 
-  jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
+  ScopedJavaLocalRef<jobject> j_media_crypto;
+  if (drm_system_) {
+    JNIEnv* env = AttachCurrentThread();
+    j_media_crypto =
+        ScopedJavaLocalRef<jobject>(env, drm_system_->GetMediaCrypto());
+  }
   SB_DCHECK(!drm_system_ || j_media_crypto);
   media_codec_bridge_ = media_codec_factory.CreateAudioMediaCodec(
       audio_stream_info, this, j_media_crypto);
@@ -199,7 +204,7 @@ MediaCodecDecoder::MediaCodecDecoder(
     const Size& frame_size_hint,
     const std::optional<Size>& max_frame_size,
     int fps,
-    jobject j_output_surface,
+    const jni_zero::JavaRef<jobject>& j_output_surface,
     SbDrmSystem drm_system,
     const SbMediaColorMetadata* color_metadata,
     bool require_software_codec,
@@ -211,7 +216,7 @@ MediaCodecDecoder::MediaCodecDecoder(
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
-    std::optional<bool> use_dual_threads,
+    bool use_dual_threads,
     bool skip_video_frames_over_60_fps,
     bool ignore_mediacodec_callbacks_during_flushing,
     std::string* error_message)
@@ -226,12 +231,16 @@ MediaCodecDecoder::MediaCodecDecoder(
       video_decoder_poll_interval_us_(
           tunnel_mode_enabled_ ? kDefaultVideoDecoderTunnelPollIntervalUs
                                : kDefaultVideoDecoderPollIntervalUs),
-      use_dual_threads_(use_dual_threads.value_or(false) &&
-                        !tunnel_mode_enabled_) {
+      use_dual_threads_(use_dual_threads && !tunnel_mode_enabled_) {
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
-  jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
+  ScopedJavaLocalRef<jobject> j_media_crypto;
+  if (drm_system_) {
+    JNIEnv* env = AttachCurrentThread();
+    j_media_crypto =
+        ScopedJavaLocalRef<jobject>(env, drm_system_->GetMediaCrypto());
+  }
   const bool require_secured_decoder =
       drm_system_ && drm_system_->require_secured_decoder();
   SB_DCHECK(!drm_system_ || j_media_crypto);

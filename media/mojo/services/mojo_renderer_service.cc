@@ -17,37 +17,75 @@
 #include "media/mojo/services/media_resource_shim.h"
 #include "media/mojo/services/mojo_cdm_service_context.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/mojo/common/starboard/mojo_renderer_bypass_bridge.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace media {
 
 // Time interval to update media time.
 constexpr auto kTimeUpdateInterval = base::Milliseconds(125);
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-// A simple implementation of MediaResource that holds raw pointers to local
-// DemuxerStreams. Used in single-process mode to bypass Mojo Data Pipes for
-// passing media data.
-//
-// Lifetime: Owned by MojoRendererService. It does not own the DemuxerStreams,
-// and the caller must ensure that the DemuxerStreams outlive this object.
-// This is safe in single-process mode as the cleanup order is ensured by
-// WebMediaPlayerImpl, which destroys MojoRenderer (and thus this service)
-// before destroying the DemuxerStreams.
-//
-// Threading: This class is not thread-safe and should be used on the same
-// sequence as MojoRendererService.
-class DirectMediaResource : public MediaResource {
+// A proxy DemuxerStream that forwards Read calls to the
+// MojoRendererBypassBridge.
+// This ensures that if the client is destroyed, the read will be safely aborted
+// without accessing the destroyed actual DemuxerStream.
+class ProxyDemuxerStream : public DemuxerStream {
  public:
-  explicit DirectMediaResource(std::vector<DemuxerStream*> streams)
-      : streams_(std::move(streams)) {}
-      
-  std::vector<DemuxerStream*> GetAllStreams() override {
-    return streams_;
+  ProxyDemuxerStream(scoped_refptr<MojoRendererBypassBridge> bridge,
+                     DemuxerStream::Type type)
+      : bridge_(bridge), type_(type) {}
+
+  void Read(uint32_t count, ReadCB read_cb) override {
+    bridge_->Read(type_, count, std::move(read_cb));
   }
+
+  AudioDecoderConfig audio_decoder_config() override {
+    return bridge_->GetAudioConfig();
+  }
+
+  VideoDecoderConfig video_decoder_config() override {
+    return bridge_->GetVideoConfig();
+  }
+
+  Type type() const override { return type_; }
   
+  StreamLiveness liveness() const override {
+    return bridge_->GetLiveness(type_);
+  }
+
+  bool SupportsConfigChanges() override {
+    return bridge_->SupportsConfigChanges(type_);
+  }
+
+  void EnableBitstreamConverter() override {}
+
  private:
-  std::vector<DemuxerStream*> streams_;
+  scoped_refptr<MojoRendererBypassBridge> bridge_;
+  Type type_;
 };
-#endif
+
+// A MediaResource implementation that holds ProxyDemuxerStreams.
+class ProxyMediaResource : public MediaResource {
+ public:
+  ProxyMediaResource(
+    std::unique_ptr<ProxyDemuxerStream> audio,
+    std::unique_ptr<ProxyDemuxerStream> video)
+    : audio_(std::move(audio)), video_(std::move(video)) {}
+
+  std::vector<DemuxerStream*> GetAllStreams() override {
+    std::vector<DemuxerStream*> streams;
+    if (audio_) streams.push_back(audio_.get());
+    if (video_) streams.push_back(video_.get());
+    return streams;
+  }
+
+ private:
+  std::unique_ptr<ProxyDemuxerStream> audio_;
+  std::unique_ptr<ProxyDemuxerStream> video_;
+};
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // static
 mojo::SelfOwnedReceiverRef<mojom::Renderer> MojoRendererService::Create(
@@ -98,37 +136,48 @@ void MojoRendererService::Initialize(
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-void MojoRendererService::InitializeWithStreamPointers(
+void MojoRendererService::InitializeWithBypassBridge(
     mojo::PendingAssociatedRemote<mojom::RendererClient> client,
-    const std::optional<std::vector<uint64_t>>& stream_pointers,
-    uint64_t client_pointer,
-    uint64_t task_runner_pointer,
-    InitializeWithStreamPointersCallback callback) {
+    uint32_t bypass_bridge_id,
+    InitializeWithBypassBridgeCallback callback) {
   DVLOG(1) << __func__;
   DCHECK_EQ(state_, STATE_UNINITIALIZED);
 
   client_.Bind(std::move(client));
   state_ = STATE_INITIALIZING;
 
-  DCHECK(stream_pointers.has_value());
-  std::vector<DemuxerStream*> streams;
-  for (uint64_t ptr : *stream_pointers) {
-    streams.push_back(reinterpret_cast<DemuxerStream*>(ptr));
+  // Retrieve the bypass bridge from the registry.
+  bypass_bridge_ = BypassBridgeRegistry::Get(bypass_bridge_id);
+  if (!bypass_bridge_) {
+    LOG(WARNING) << __func__
+                 << ": Bypass bridge not found for ID " << bypass_bridge_id;
+    std::move(callback).Run(false);
+    return;
   }
 
-  media_resource_ = std::make_unique<DirectMediaResource>(std::move(streams));
+  std::unique_ptr<ProxyDemuxerStream> audio_proxy;
+  std::unique_ptr<ProxyDemuxerStream> video_proxy;
 
-  client_pointer_ = client_pointer;
-  if (task_runner_pointer) {
-    client_task_runner_ = reinterpret_cast<base::SequencedTaskRunner*>(task_runner_pointer);
+  AudioDecoderConfig audio_config = bypass_bridge_->GetAudioConfig();
+  if (audio_config.IsValidConfig()) {
+    audio_proxy = std::make_unique<ProxyDemuxerStream>(
+        bypass_bridge_, DemuxerStream::AUDIO);
   }
+  VideoDecoderConfig video_config = bypass_bridge_->GetVideoConfig();
+  if (video_config.IsValidConfig()) {
+    video_proxy = std::make_unique<ProxyDemuxerStream>(
+        bypass_bridge_, DemuxerStream::VIDEO);
+  }
+
+  media_resource_ = std::make_unique<ProxyMediaResource>(
+      std::move(audio_proxy), std::move(video_proxy));
 
   renderer_->Initialize(
       media_resource_.get(), this,
       base::BindOnce(&MojoRendererService::OnRendererInitializeDone, weak_this_,
                      std::move(callback)));
 }
-#endif
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 void MojoRendererService::Flush(FlushCallback callback) {
   DVLOG(2) << __func__;
@@ -231,15 +280,11 @@ void MojoRendererService::OnEnded() {
 void MojoRendererService::OnStatisticsUpdate(const PipelineStatistics& stats) {
   DVLOG(3) << __func__;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (client_pointer_ && client_task_runner_) {
-    client_task_runner_->PostTask(
-        FROM_HERE,
-        base::BindOnce(&mojom::RendererClient::OnStatisticsUpdate,
-                       base::Unretained(reinterpret_cast<mojom::RendererClient*>(client_pointer_)),
-                       stats));
+  if (bypass_bridge_) {
+    bypass_bridge_->PostStatisticsUpdate(stats);
     return;
   }
-#endif
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   client_->OnStatisticsUpdate(stats);
 }
 
@@ -319,18 +364,15 @@ void MojoRendererService::UpdateMediaTime(bool force) {
     max_time += 2 * kTimeUpdateInterval;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (client_pointer_ && client_task_runner_) {
-    client_task_runner_->PostTask(
-        FROM_HERE,
-        base::BindOnce(&mojom::RendererClient::OnTimeUpdate,
-                       base::Unretained(reinterpret_cast<mojom::RendererClient*>(client_pointer_)),
-                       media_time, max_time, base::TimeTicks::Now()));
+  if (bypass_bridge_) {
+    bypass_bridge_->PostTimeUpdate(media_time, max_time,
+                                   base::TimeTicks::Now());
   } else {
-#endif
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   client_->OnTimeUpdate(media_time, max_time, base::TimeTicks::Now());
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   }
-#endif
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   last_media_time_ = media_time;
 }
 
