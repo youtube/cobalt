@@ -25,13 +25,21 @@ import static org.mockito.Mockito.when;
 
 import android.os.Bundle;
 import android.view.KeyEvent;
+import dev.cobalt.shell.StartupGuard;
+import dev.cobalt.util.JavaSwitches;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.chromium.content.browser.input.ImeAdapterImpl;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
+import org.robolectric.shadows.ShadowLooper;
 
 /** CobaltActivityTest. */
 @RunWith(RobolectricTestRunner.class)
@@ -265,5 +273,89 @@ public class CobaltActivityTest {
       // Expected when calling super method.
     }
     verify(mockImeAdapterImpl, never()).dispatchKeyEvent(any());
+  }
+
+  @Before
+  public void setUp() {
+    StartupGuard.getInstance().disarm();
+  }
+
+  @After
+  public void tearDown() {
+    StartupGuard.getInstance().disarm();
+  }
+
+  public CobaltActivity createActivityWithSwitches(final Map<String, String> switches) {
+    return new CobaltActivity() {
+      @Override
+      protected Map<String, String> getJavaSwitches() {
+        return switches;
+      }
+
+      @Override
+      protected ImeAdapterImpl getImeAdapterImpl() {
+        return null;
+      }
+
+      @Override
+      protected StarboardBridge createStarboardBridge(String[] args, String startDeepLink) {
+        return null;
+      }
+    };
+  }
+
+  @Test
+  public void testSetupStartupGuard_Disabled() throws Exception {
+    Map<String, String> switches = new HashMap<>();
+    switches.put(JavaSwitches.DISABLE_STARTUP_GUARD, "");
+    CobaltActivity activity = createActivityWithSwitches(switches);
+
+    activity.setupStartupGuard();
+
+    org.junit.Assert.assertFalse("StartupGuard should not be armed", StartupGuard.getInstance().isArmed());
+  }
+
+  @Test
+  public void testSetupStartupGuard_DefaultTimeout() throws Exception {
+    Map<String, String> switches = new HashMap<>();
+    CobaltActivity activity = createActivityWithSwitches(switches);
+
+    activity.setupStartupGuard();
+
+    org.junit.Assert.assertTrue("StartupGuard should be armed", StartupGuard.getInstance().isArmed());
+
+    ShadowLooper shadowLooper = ShadowLooper.shadowMainLooper();
+    Duration nextTaskDelay = shadowLooper.getNextScheduledTaskTime().minus(Duration.ofMillis(android.os.SystemClock.uptimeMillis()));
+    org.junit.Assert.assertEquals(Duration.ofSeconds(120), nextTaskDelay);
+  }
+
+  @Test
+  public void testSetupStartupGuard_CustomTimeout() throws Exception {
+    Map<String, String> switches = new HashMap<>();
+    switches.put(JavaSwitches.STARTUP_GUARD_INTERVAL_IN_SECONDS, "45");
+    CobaltActivity activity = createActivityWithSwitches(switches);
+
+    activity.setupStartupGuard();
+
+    org.junit.Assert.assertTrue("StartupGuard should be armed", StartupGuard.getInstance().isArmed());
+
+    ShadowLooper shadowLooper = ShadowLooper.shadowMainLooper();
+    Duration nextTaskDelay = shadowLooper.getNextScheduledTaskTime().minus(Duration.ofMillis(android.os.SystemClock.uptimeMillis()));
+    org.junit.Assert.assertEquals(Duration.ofSeconds(45), nextTaskDelay);
+  }
+
+  @Test
+  public void testSetupStartupGuard_InvalidTimeoutFallback() throws Exception {
+    Map<String, String> switches = new HashMap<>();
+    switches.put(JavaSwitches.STARTUP_GUARD_INTERVAL_IN_SECONDS, "invalid");
+    CobaltActivity activity = createActivityWithSwitches(switches);
+
+    activity.setupStartupGuard();
+
+    org.junit.Assert.assertTrue("StartupGuard should be armed", StartupGuard.getInstance().isArmed());
+
+    ShadowLooper shadowLooper = ShadowLooper.shadowMainLooper();
+    Duration nextTaskDelay = shadowLooper.getNextScheduledTaskTime().minus(Duration.ofMillis(android.os.SystemClock.uptimeMillis()));
+    org.junit.Assert.assertEquals(Duration.ofSeconds(120), nextTaskDelay);
   }
 }
