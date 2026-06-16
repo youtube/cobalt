@@ -389,14 +389,17 @@ void AppEventDelegate::TransitionToLifeCycleState(ApplicationState state) {
   CHECK_LE(state, ApplicationState::kStopped);
 
   LOG(INFO) << "AppEventDelegate::TransitionToLifeCycleState called, current="
-            << static_cast<int>(application_state_)
-            << " target=" << static_cast<int>(state);
+            << static_cast<int>(application_state_) << " ("
+            << GetStateString(application_state_)
+            << ") target=" << static_cast<int>(state) << " ("
+            << GetStateString(state) << ")";
 
   target_state_ = state;
 
   if (is_transitioning_) {
     LOG(INFO) << "Transition already in progress. Updated target_state_ to "
-              << static_cast<int>(state);
+              << static_cast<int>(state) << " (" << GetStateString(state)
+              << ")";
     return;
   } else {
     is_transitioning_ = true;

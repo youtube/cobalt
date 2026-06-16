@@ -17,13 +17,19 @@ echo "Memory Test Started at $(date)" > "$OUTPUT_FILE"
 # Redirect stdout and stderr to both terminal and output file
 exec > >(tee -a "$OUTPUT_FILE") 2>&1
 
-# Define scenarios: name|url|duration|rounds
+# Define scenarios: name|url|duration|rounds|action
 # If rounds is omitted, it defaults to 1.
+# Supported actions:
+#   - scroll: Presses the 'right' key (sendkey right) every second.
+#   - playback_scroll: Plays video for 1 minute, clicks down twice, then presses 'right' every second for 1 minutes.
 SCENARIOS=(
-    "Default Page|https://www.youtube.com/tv|60|3"
+    "Default Page|https://www.youtube.com/tv|60|5"
     "About Blank|about:blank|30|1"
-    "4K Video Playback|https://www.youtube.com/tv#/watch?v=1La4QzGeaaQ|180|3"
-    "1080p Video Playback|https://www.youtube.com/tv#/watch?v=ou0cmY8Fqd0|180|3"
+    "4K Video Playback|https://www.youtube.com/tv#/watch?v=1La4QzGeaaQ|180|5"
+    "1080p Video Playback|https://www.youtube.com/tv#/watch?v=ou0cmY8Fqd0|180|5"
+    "Home Page Scroll|https://www.youtube.com/tv|120|5|scroll"
+    "4K Playback Scroll|https://www.youtube.com/tv#/watch?v=1La4QzGeaaQ|120|5|playback_scroll"
+    "1080p Playback Scroll|https://www.youtube.com/tv#/watch?v=ou0cmY8Fqd0|120|5|playback_scroll"
 )
 
 # Function to calculate median
@@ -167,7 +173,7 @@ scenario_data_ordered=()
 scenario_rounds_ordered=()
 
 for scenario_info in "${SCENARIOS[@]}"; do
-    IFS='|' read -r scenario_name scenario_command scenario_duration scenario_rounds <<< "$scenario_info"
+    IFS='|' read -r scenario_name scenario_command scenario_duration scenario_rounds scenario_action <<< "$scenario_info"
 
     # If rounds is omitted, it defaults to 1.
     if [ -z "$scenario_rounds" ]; then
@@ -248,6 +254,20 @@ for scenario_info in "${SCENARIOS[@]}"; do
 
             printf "[%3d/%3d] smaps: RSS %s MB | status: RSS %s MB | gpu: %s MB\n" \
                 "$i" "$scenario_duration" "$(kb_to_mb $s_rss)" "$(kb_to_mb $t_rss)" "$(kb_to_mb $g_rss)"
+
+            # Inject scroll event if requested
+            if [ "$scenario_action" = "scroll" ]; then
+                echo "Injecting scroll event: sendkey right"
+                sendkey right > /dev/null 2>&1
+            elif [ "$scenario_action" = "playback_scroll" ]; then
+                if [ $i -eq 61 ] || [ $i -eq 62 ]; then
+                    echo "Injecting key event: sendkey down"
+                    sendkey down > /dev/null 2>&1
+                elif [ $i -ge 63 ]; then
+                    echo "Injecting scroll event: sendkey right"
+                    sendkey right > /dev/null 2>&1
+                fi
+            fi
 
             sleep $INTERVAL
         done
