@@ -30,8 +30,10 @@ runs:
 
         cp -r "${GITHUB_WORKSPACE}/cobalt/testing/filters/${PLATFORM}"/* "${RESOLVED_FILTER_DIR}/" || true
 
-        # Overwrite with retry filters from previous results if they exist.
-        if [ -d "${GITHUB_WORKSPACE}/previous_results/${PLATFORM}/retry_filters" ]; then
-          cp -r "${GITHUB_WORKSPACE}/previous_results/${PLATFORM}/retry_filters"/* "${RESOLVED_FILTER_DIR}/" || true
+        # Overwrite with retry filters from previous results if they exist (supporting sharded host tests).
+        if [ -d "${GITHUB_WORKSPACE}/previous_results" ]; then
+          find "${GITHUB_WORKSPACE}/previous_results" \
+            -type d -name "retry_filters" \
+            -exec cp -r {}/. "${RESOLVED_FILTER_DIR}/" \; || true
         fi
       shell: bash

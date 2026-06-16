@@ -96,6 +96,15 @@ runs:
           fi
 
           echo "Test filter evaluated to: ${test_filter}"
+
+          gtest_shard_index="${GTEST_SHARD_INDEX}"
+          gtest_total_shards="${GTEST_TOTAL_SHARDS}"
+          if [ -f "${test_filter_json_file}" ] && [ -n "${positive_filters}" ]; then
+            echo "Retrying specific failed tests for this shard. Disabling sharding."
+            gtest_shard_index="0"
+            gtest_total_shards="1"
+          fi
+
           xml_path="${test_output}/${test_executable}_result.xml"
           log_path="${test_output}/${test_executable}_log.txt"
           # TODO: Investigate test_runner.py
@@ -115,8 +124,8 @@ runs:
             /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
                 stdbuf -i0 -o0 -e0 "${ENTRYPOINT}" \
                 --single-process-tests \
-                --gtest_shard_index="${GTEST_SHARD_INDEX}" \
-                --gtest_total_shards="${GTEST_TOTAL_SHARDS}" \
+                --gtest_shard_index="${gtest_shard_index}" \
+                --gtest_total_shards="${gtest_total_shards}" \
                 --gtest_output="xml:${xml_path}" \
                 --gtest_filter="${test_filter}" 2>&1 | tee "${log_path}" || {
               failed_suites="${failed_suites} ${test_executable}"
