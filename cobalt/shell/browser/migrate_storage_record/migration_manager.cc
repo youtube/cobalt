@@ -443,6 +443,11 @@ std::string MigrationManager::GetMigrationStatusUrlParameter() {
 }
 
 // static
+void MigrationManager::ResetMigrationStatusForTesting() {
+  g_migration_status_param.clear();
+}
+
+// static
 // Groups multiple sequential asynchronous tasks into a single chain of
 // callbacks. When the returned Task is invoked, it will execute the first task,
 // which in turn will trigger the second, and so on, until all tasks are run.
@@ -575,7 +580,7 @@ Task MigrationManager::CookieTask(
         if (cookies.empty()) {
           std::move(callback).Run();
           return;
-        }
+      }
 
         auto* cookie_manager = GetCookieManager(partition);
         auto shared_state = base::MakeRefCounted<SharedClosureState>();
@@ -691,60 +696,32 @@ Task MigrationManager::LocalStorageTask(
         GetLocalStorageArea(partition, origin, *area);
         auto* raw_remote_ptr = area.get();
 
+        auto shared_state = base::MakeRefCounted<SharedClosureState>();
+        shared_state->cb = std::move(callback);
+
         // STEP 3: Purge memory handles.
         // Force the Storage Service to drop its handle for this origin so that
         // the newly spawned Renderer process sees the updated disk state.
         base::OnceClosure purge_memory_step = base::BindOnce(
             [](std::unique_ptr<mojo::Remote<blink::mojom::StorageArea>> area,
-               content::StoragePartition* partition, base::OnceClosure cb) {
+               content::StoragePartition* partition,
+               scoped_refptr<SharedClosureState> shared_state) {
               LOG(INFO) << "Purging Storage Service handles to force "
                            "Renderer synchronization.";
               partition->GetLocalStorageControl()->PurgeMemory();
-              std::move(cb).Run();
+              shared_state->Run();
             },
-            std::move(area), base::Unretained(partition), std::move(callback));
+            std::move(area), base::Unretained(partition), shared_state);
 
         // STEP 2: Flush step.
         // Tells the Storage Service to commit the LevelDB transactions to disk.
         base::OnceClosure flush_step = base::BindOnce(
             [](content::StoragePartition* partition,
-               scoped_refptr<MigrationState> state,
                base::OnceClosure next_step) {
               LOG(INFO) << "LocalStorage Puts complete. Flushing...";
-
-              auto shared_state = base::MakeRefCounted<SharedClosureState>();
-              shared_state->cb = std::move(next_step);
-
-              partition->GetLocalStorageControl()->Flush(base::BindOnce(
-                  [](scoped_refptr<SharedClosureState> state) {
-                    if (state->cb) {
-                      LOG(INFO) << "LocalStorage Flush complete callback "
-                                   "executed successfully.";
-                      state->Run();
-                    }
-                  },
-                  shared_state));
-
-              // Hard timeout fallback: if the disk IO hangs or the Storage
-              // Service crashes during flush, resume app startup after 2
-              // seconds.
-              base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-                  FROM_HERE,
-                  base::BindOnce(
-                      [](scoped_refptr<SharedClosureState> shared_state,
-                         scoped_refptr<MigrationState> migration_state) {
-                        if (shared_state->cb) {
-                          LOG(ERROR) << "LocalStorage Flush timed out "
-                                        "after 2 seconds. Proceeding anyway.";
-                          migration_state->UpdateLocalStorageResult(
-                              InjectionResult::kTimeout);
-                          shared_state->Run();
-                        }
-                      },
-                      shared_state, state),
-                  base::Seconds(2));
+              partition->GetLocalStorageControl()->Flush(std::move(next_step));
             },
-            base::Unretained(partition), state, std::move(purge_memory_step));
+            base::Unretained(partition), std::move(purge_memory_step));
 
         // STEP 1: Put keys step.
         // Iterates through all k/v pairs and sends Mojo Put commands.
@@ -780,6 +757,23 @@ Task MigrationManager::LocalStorageTask(
                         },
                         barrier, key_str, state));
         }
+
+        // Hard timeout fallback: if the whole chain hangs, resume app startup.
+        base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+            FROM_HERE,
+            base::BindOnce(
+                [](scoped_refptr<SharedClosureState> shared_state,
+                   scoped_refptr<MigrationState> migration_state) {
+                  if (shared_state->cb) {
+                    LOG(ERROR) << "LocalStorage migration timed out "
+                                  "after 2 seconds. Proceeding anyway.";
+                    migration_state->UpdateLocalStorageResult(
+                        InjectionResult::kTimeout);
+                    shared_state->Run();
+                  }
+                },
+                shared_state, state),
+            base::Seconds(2));
       },
       partition, origin, std::move(pairs), state);
 }
