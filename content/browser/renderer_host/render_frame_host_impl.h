@@ -2085,10 +2085,8 @@ class CONTENT_EXPORT RenderFrameHostImpl
   void GetFileSystemAccessManager(
       mojo::PendingReceiver<blink::mojom::FileSystemAccessManager> receiver);
 
-#if !BUILDFLAG(IS_ANDROID)
-#if !BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
   void GetHidService(mojo::PendingReceiver<blink::mojom::HidService> receiver);
-#endif
 #endif
 
 #if !BUILDFLAG(IS_COBALT)
@@ -2161,10 +2159,8 @@ class CONTENT_EXPORT RenderFrameHostImpl
       const net::NetworkIsolationKey& nik,
       const blink::StorageKey& storage_key);
 
-#if BUILDFLAG(IS_ANDROID)
-#if !BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
   void BindNFCReceiver(mojo::PendingReceiver<device::mojom::NFC> receiver);
-#endif
 #endif
 
   // Binds a `CacheStorage` object for the default bucket.

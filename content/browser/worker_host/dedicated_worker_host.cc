@@ -881,8 +881,7 @@ void DedicatedWorkerHost::BindSerialService(
 }
 #endif
 
-#if !BUILDFLAG(IS_ANDROID)
-#if !BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 void DedicatedWorkerHost::BindHidService(
     mojo::PendingReceiver<blink::mojom::HidService> receiver) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
@@ -896,7 +895,6 @@ void DedicatedWorkerHost::BindHidService(
 
   ancestor_render_frame_host->GetHidService(std::move(receiver));
 }
-#endif
 #endif
 
 void DedicatedWorkerHost::CreateBucketManagerHost(

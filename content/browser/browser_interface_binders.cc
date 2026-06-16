@@ -1108,12 +1108,12 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
 #if !BUILDFLAG(IS_COBALT)
   map->Add<device::mojom::NFC>(base::BindRepeating(
       &RenderFrameHostImpl::BindNFCReceiver, base::Unretained(host)));
-#endif
+#endif  // !BUILDFLAG(IS_COBALT)
 #else
 #if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::HidService>(base::BindRepeating(
       &RenderFrameHostImpl::GetHidService, base::Unretained(host)));
-#endif
+#endif  // !BUILDFLAG(IS_COBALT)
 
   map->Add<blink::mojom::InstalledAppProvider>(
       base::BindRepeating(&RenderFrameHostImpl::CreateInstalledAppProvider,
@@ -1430,12 +1430,10 @@ void PopulateDedicatedWorkerBinders(DedicatedWorkerHost* host,
   map->Add<blink::mojom::SerialService>(base::BindRepeating(
       &DedicatedWorkerHost::BindSerialService, base::Unretained(host)));
 #endif
-#if !BUILDFLAG(IS_ANDROID)
-#if !BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::HidService>(base::BindRepeating(
       &DedicatedWorkerHost::BindHidService, base::Unretained(host)));
-#endif
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::BucketManagerHost>(base::BindRepeating(
       &DedicatedWorkerHost::CreateBucketManagerHost, base::Unretained(host)));
   map->Add<blink::mojom::FileSystemAccessManager>(

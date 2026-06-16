@@ -14106,13 +14106,11 @@ void RenderFrameHostImpl::CreateDedicatedWorkerHostFactory(
       std::move(receiver));
 }
 
-#if BUILDFLAG(IS_ANDROID)
-#if !BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 void RenderFrameHostImpl::BindNFCReceiver(
     mojo::PendingReceiver<device::mojom::NFC> receiver) {
   delegate_->GetNFC(this, std::move(receiver));
 }
-#endif
 #endif
 
 #if !BUILDFLAG(IS_COBALT)
@@ -14145,13 +14143,11 @@ void RenderFrameHostImpl::BindSerialService(
 }
 #endif
 
-#if !BUILDFLAG(IS_ANDROID)
-#if !BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 void RenderFrameHostImpl::GetHidService(
     mojo::PendingReceiver<blink::mojom::HidService> receiver) {
   HidService::Create(this, std::move(receiver));
 }
-#endif
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)

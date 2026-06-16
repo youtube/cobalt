@@ -120,15 +120,13 @@ void ServiceWorkerHost::GetSandboxedFileSystemForBucket(
   }
 }
 
-#if !BUILDFLAG(IS_ANDROID)
-#if !BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 void ServiceWorkerHost::BindHidService(
     mojo::PendingReceiver<blink::mojom::HidService> receiver) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   version_->embedded_worker()->BindHidService(version_->key().origin(),
                                               std::move(receiver));
 }
-#endif
 #endif
 
 #if !BUILDFLAG(IS_COBALT)

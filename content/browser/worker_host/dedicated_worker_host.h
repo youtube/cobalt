@@ -179,10 +179,8 @@ class CONTENT_EXPORT DedicatedWorkerHost final
   void BindSerialService(
       mojo::PendingReceiver<blink::mojom::SerialService> receiver);
 #endif
-#if !BUILDFLAG(IS_ANDROID)
-#if !BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
   void BindHidService(mojo::PendingReceiver<blink::mojom::HidService> receiver);
-#endif
 #endif
 
   void StartScriptLoad(

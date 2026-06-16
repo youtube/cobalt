@@ -43,13 +43,13 @@
 #include "content/browser/service_worker/service_worker_container_host.h"
 #include "content/browser/service_worker/service_worker_context_core.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(IS_COBALT)
 #include "content/browser/service_worker/service_worker_hid_delegate_observer.h"
 #endif
 #include "content/browser/service_worker/service_worker_host.h"
 #include "content/browser/service_worker/service_worker_installed_scripts_sender.h"
 #include "content/browser/service_worker/service_worker_security_utils.h"
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(IS_COBALT)
 #include "content/browser/service_worker/service_worker_usb_delegate_observer.h"
 #endif
 #include "content/common/content_navigation_policy.h"
