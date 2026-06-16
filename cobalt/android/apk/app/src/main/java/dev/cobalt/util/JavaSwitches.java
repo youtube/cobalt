@@ -50,6 +50,9 @@ public class JavaSwitches {
   /** flag to disable v8 optimizing compilers (turbofan, maglev, sparkplug) */
   public static final String DISABLE_V8_OPTIMIZING_COMPILERS = "DisableV8OptimizingCompilers";
 
+  /** flag to enable concurrent marking for v8 garbage collection */
+  public static final String ENABLE_V8_CONCURRENT_MARKING = "EnableV8ConcurrentMarking";
+
   /** flag to limit GPU image cache items */
   public static final String GPU_IMAGE_CACHE_LIMIT_ITEMS = "GpuImageCacheLimitItems";
 
@@ -72,6 +75,7 @@ public class JavaSwitches {
 
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
+    StringJoiner jsFlags = new StringJoiner(";");
 
     if (javaSwitches.containsKey(JavaSwitches.USE_IPV4_FOR_DNS)) {
       extraCommandLineArgs.add("--enable-features=UseIPv4ForDNS");
@@ -90,7 +94,12 @@ public class JavaSwitches {
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_V8_OPTIMIZING_COMPILERS)) {
-      extraCommandLineArgs.add("--js-flags=--disable-optimizing-compilers;--no-sparkplug");
+      jsFlags.add("--disable-optimizing-compilers");
+      jsFlags.add("--no-sparkplug");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_V8_CONCURRENT_MARKING)) {
+      jsFlags.add("--concurrent-marking");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES)) {
@@ -142,6 +151,10 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.COBALT_USE_ANGLE_GLES)) {
       extraCommandLineArgs.add("--use-angle=gles");
+    }
+
+    if (jsFlags.length() > 0 ) {
+      extraCommandLineArgs.add("--js-flags=" + jsFlags.toString());
     }
 
     return extraCommandLineArgs;
