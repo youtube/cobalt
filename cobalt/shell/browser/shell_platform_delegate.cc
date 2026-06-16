@@ -26,6 +26,7 @@
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/visibility.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_contents_observer.h"
 #if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
 #include "ui/aura/window_tree_host_platform.h"
 #include "ui/ozone/platform/starboard/platform_window_starboard.h"
@@ -54,6 +55,44 @@ ui::PlatformWindowStarboard* GetPlatformWindowStarboard(Shell* shell) {
 }
 #endif
 }  // namespace
+
+class ShellPlatformDelegate::WebContentsTracker final
+    : public content::WebContentsObserver {
+ public:
+  WebContentsTracker(content::WebContents* web_contents,
+                     ShellPlatformDelegate* delegate)
+      : content::WebContentsObserver(web_contents), delegate_(delegate) {}
+  ~WebContentsTracker() override = default;
+
+  void WebContentsDestroyed() override {
+    delegate_->RemovePreviouslyVisibleWebContents(web_contents());
+  }
+
+ private:
+  ShellPlatformDelegate* delegate_;
+};
+
+void ShellPlatformDelegate::WebContentsTrackerDeleter::operator()(
+    WebContentsTracker* ptr) const {
+  delete ptr;
+}
+
+void ShellPlatformDelegate::TrackPreviouslyVisibleWebContents(
+    content::WebContents* web_contents) {
+  previously_visible_web_contents_[web_contents] =
+      std::unique_ptr<WebContentsTracker, WebContentsTrackerDeleter>(
+          new WebContentsTracker(web_contents, this));
+}
+
+void ShellPlatformDelegate::RemovePreviouslyVisibleWebContents(
+    content::WebContents* web_contents) {
+  previously_visible_web_contents_.erase(web_contents);
+}
+
+void ShellPlatformDelegate::AddPreviouslyVisibleWebContentsForTesting(
+    content::WebContents* web_contents) {
+  TrackPreviouslyVisibleWebContents(web_contents);
+}
 
 bool ShellPlatformDelegate::IsVisible() const {
   return is_visible_;
@@ -104,7 +143,7 @@ void ShellPlatformDelegate::OnConceal() {
   for (auto* shell : Shell::windows()) {
     if (shell->web_contents()->GetVisibility() ==
         content::Visibility::VISIBLE) {
-      previously_visible_web_contents_.insert(shell->web_contents());
+      TrackPreviouslyVisibleWebContents(shell->web_contents());
     }
     // Trigger logical JS conceal.
     shell->web_contents()->WasHidden();
