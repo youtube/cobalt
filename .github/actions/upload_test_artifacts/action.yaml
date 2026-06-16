@@ -59,8 +59,9 @@ runs:
         cd cobalt/src
         json_file="${TEST_TARGETS_JSON_FILE}"
 
-        host_gtest_targets=$(jq -cr '[.[] | select(.target != null and .runs_on == "host" and (.test_type == "gtest" or .test_type == "junit")) | .target] | join(",")' "${json_file}")
-        echo "host_gtest_targets=${host_gtest_targets}" >> $GITHUB_OUTPUT
+        # This includes both gtest and junit since both will be archived as though they were on-host tests.
+        host_targets=$(jq -cr '[.[] | select(.target != null and .runs_on == "host" and (.test_type == "gtest" or .test_type == "junit")) | .target] | join(",")' "${json_file}")
+        echo "host_targets=${host_targets}" >> $GITHUB_OUTPUT
 
         device_gtest_targets=$(jq -cr '[.[] | select(.target != null and .runs_on == "device" and .test_type == "gtest") | .target] | join(",")' "${json_file}")
         echo "device_gtest_targets=${device_gtest_targets}" >> $GITHUB_OUTPUT
@@ -82,9 +83,9 @@ runs:
         done
       shell: bash
     - name: Archive Host Tests
-      if: inputs.upload_on_host_test_artifacts == 'true' && steps.parse-targets.outputs.host_gtest_targets != ''
+      if: inputs.upload_on_host_test_artifacts == 'true' && steps.parse-targets.outputs.host_targets != ''
       env:
-        HOST_TARGETS: ${{ steps.parse-targets.outputs.host_gtest_targets }}
+        HOST_TARGETS: ${{ steps.parse-targets.outputs.host_targets }}
         PLATFORM: ${{ inputs.platform }}
         CONFIG: ${{ inputs.config }}
         ARCHIVE_FLAGS: ${{ steps.compute-flags.outputs.host_archive_flags }}
