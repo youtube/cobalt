@@ -85,7 +85,7 @@ from `musl` types to platform POSIX types is needed e.g.
 map_["clock_gettime"] = reinterpret_cast<const void*>(&__abi_wrap_clock_gettime);
 ```
 The symbol may be registered directly without a wrapper if there is no need
-for any translation or ajustements of the API e.g.
+for any translation or adjustments of the API e.g.
 ```
 REGISTER_SYMBOL(malloc);
 ```
