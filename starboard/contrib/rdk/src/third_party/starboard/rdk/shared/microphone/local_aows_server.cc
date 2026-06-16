@@ -487,7 +487,11 @@ class LocalAowsServer {
   LocalAowsServer()
       : port_(ParseAowsPort()),
         listen_socket_fd_(-1),
-        stop_requested_(false) {}
+        stop_requested_(false),
+        ws_frames_total_(0),
+        ws_bytes_total_(0),
+        read_bytes_total_(0),
+        dropped_bytes_total_(0) {}
 
   ~LocalAowsServer() {
     SB_LOG(WARNING) << logtag << ": Stopping local AOWS server.";
@@ -525,6 +529,9 @@ class LocalAowsServer {
     for (int index = 0; index < bytes_to_copy; ++index) {
       destination[index] = audio_buffer_.front();
       audio_buffer_.pop_front();
+    }
+    if (bytes_to_copy > 0) {
+      read_bytes_total_.fetch_add(static_cast<size_t>(bytes_to_copy));
     }
     return bytes_to_copy;
   }
@@ -627,11 +634,18 @@ class LocalAowsServer {
       return;
     }
 
+    ClearBufferedAudio();
+    ws_frames_total_.store(0);
+    ws_bytes_total_.store(0);
+    read_bytes_total_.store(0);
+    dropped_bytes_total_.store(0);
+
     SB_LOG(INFO) << logtag << ": Accepted local AOWS client connection.";
     AOWSLog(kInfo, "Accepted local AOWS client connection.\n");
 
     std::vector<uint8_t> payload;
     int frame_count = 0;
+    bool client_sent_close = false;
     while (!stop_requested_.load()) {
       uint8_t opcode = 0;
       if (!ReadWebSocketFrame(connection_fd, &opcode, &payload)) {
@@ -641,13 +655,16 @@ class LocalAowsServer {
       switch (opcode) {
         case 0x2:
           frame_count++;
+          ws_frames_total_.fetch_add(1);
+          ws_bytes_total_.fetch_add(payload.size());
           SB_LOG(INFO) << logtag << ": Received audio frame #" << frame_count << " (" << payload.size() << " bytes)";
           AOWSLog(kInfo, "Received audio frame #%d (%zu bytes)\n", frame_count, payload.size());
           AppendAudio(payload);
           break;
         case 0x8:
           SendCloseFrame(connection_fd);
-          return;
+          client_sent_close = true;
+          break;
         case 0x9:
           if (!SendControlFrame(connection_fd, 0xA, payload.data(),
                                 payload.size())) {
@@ -659,7 +676,30 @@ class LocalAowsServer {
         default:
           break;
       }
+
+      if (client_sent_close) {
+        break;
+      }
     }
+
+    const size_t ws_frames = ws_frames_total_.load();
+    const size_t ws_bytes = ws_bytes_total_.load();
+    const size_t read_bytes = read_bytes_total_.load();
+    const size_t dropped_bytes = dropped_bytes_total_.load();
+    if (dropped_bytes > 0) {
+      SB_LOG(WARNING) << logtag << ": Session metrics: frames=" << ws_frames
+                      << " rx_bytes=" << ws_bytes
+                      << " read_bytes=" << read_bytes
+                      << " dropped_bytes=" << dropped_bytes;
+    } else {
+      SB_LOG(INFO) << logtag << ": Session metrics: frames=" << ws_frames
+                   << " rx_bytes=" << ws_bytes
+                   << " read_bytes=" << read_bytes
+                   << " dropped_bytes=" << dropped_bytes;
+    }
+    AOWSLog(dropped_bytes > 0 ? kWarning : kInfo,
+            "Session metrics: frames=%zu rx_bytes=%zu read_bytes=%zu dropped_bytes=%zu\n",
+            ws_frames, ws_bytes, read_bytes, dropped_bytes);
 
     SB_LOG(INFO) << logtag << ": Local AOWS client connection closed (" << frame_count << " total audio frames).";
     AOWSLog(kInfo, "Local AOWS client connection closed (%d total audio frames).\n", frame_count);
@@ -686,6 +726,9 @@ class LocalAowsServer {
         audio_buffer_.size() + payload.size() > kMaxBufferedAudioBytes
             ? audio_buffer_.size() + payload.size() - kMaxBufferedAudioBytes
             : 0;
+    if (overflow > 0) {
+      dropped_bytes_total_.fetch_add(overflow);
+    }
     for (size_t index = 0; index < overflow; ++index) {
       audio_buffer_.pop_front();
     }
@@ -702,6 +745,10 @@ class LocalAowsServer {
   std::thread server_thread_;
   std::atomic<int> listen_socket_fd_;
   std::atomic<bool> stop_requested_;
+  std::atomic<size_t> ws_frames_total_;
+  std::atomic<size_t> ws_bytes_total_;
+  std::atomic<size_t> read_bytes_total_;
+  std::atomic<size_t> dropped_bytes_total_;
 };
 
 LocalAowsServer& GetLocalAowsServer() {

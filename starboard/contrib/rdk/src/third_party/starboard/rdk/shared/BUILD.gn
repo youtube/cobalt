@@ -411,11 +411,9 @@ static_library("starboard_platform_sources") {
     "//third_party/modp_b64",
   ]
 
-  deps = [
-    "//third_party/libevent",
-  ]
+  deps = []
   if (sb_evergreen_compatible_use_libunwind) {
-    deps = [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
+    deps += [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
   }
 }
 
