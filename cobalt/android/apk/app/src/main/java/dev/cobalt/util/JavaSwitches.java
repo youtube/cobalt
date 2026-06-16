@@ -25,6 +25,7 @@ import java.util.StringJoiner;
 public class JavaSwitches {
   public static final String ENABLE_QUIC = "EnableQUIC";
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
+  public static final String STARTUP_GUARD_INTERVAL_IN_SECONDS = "StartupGuardIntervalInSeconds";
   public static final String DISABLE_HTTP_CACHE = "DisableHttpCache";
 
   /** flag to re-enable freeze and resume events */
