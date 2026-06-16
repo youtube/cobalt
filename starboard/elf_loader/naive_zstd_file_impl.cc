@@ -18,6 +18,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <limits>
+
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "third_party/zstd/src/lib/zstd.h"
@@ -65,7 +67,13 @@ bool NaiveZstdFileImpl::Open(const char* name) {
     return false;
   }
 
-  decompressed_data_.resize(decompressed_size);
+  if (decompressed_size > std::numeric_limits<size_t>::max()) {
+    SB_LOG(ERROR) << "Decompressed size " << decompressed_size
+                  << " exceeds maximum representable size_t";
+    return false;
+  }
+
+  decompressed_data_.resize(static_cast<size_t>(decompressed_size));
 
   SB_LOG(INFO) << "Decompressing frame with content size " << decompressed_size;
   size_t const result =
@@ -93,10 +101,11 @@ bool NaiveZstdFileImpl::ReadFromOffset(int64_t offset, char* buffer, int size) {
   if (file_ < 0) {
     return false;
   }
-  if (offset < 0) {
+  if (offset < 0 || size < 0) {
     return false;
   }
-  if (offset + size > static_cast<int64_t>(decompressed_data_.size())) {
+  if (offset > static_cast<int64_t>(decompressed_data_.size()) ||
+      size > static_cast<int64_t>(decompressed_data_.size()) - offset) {
     return false;
   }
   memcpy(buffer, decompressed_data_.data() + offset, size);

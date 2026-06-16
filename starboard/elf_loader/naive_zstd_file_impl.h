@@ -27,6 +27,10 @@ namespace elf_loader {
 // This "naive" implementation uses a single thread for decompression and
 // should not be used in production. The .zst file must consist of a single
 // frame.
+//
+// Lifetime and Ownership:
+// This class is owned by the ElfLoaderImpl instance and its lifetime is tied
+// to it.
 class NaiveZstdFileImpl : public FileImpl {
  public:
   NaiveZstdFileImpl() = default;
