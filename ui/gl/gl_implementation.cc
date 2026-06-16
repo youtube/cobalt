@@ -22,6 +22,7 @@
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "build/buildflag.h"
+#include "ui/gfx/extension_set.h"
 #include "ui/gl/angle_implementation.h"
 #include "ui/gl/buildflags.h"
 #include "ui/gl/gl_bindings.h"
@@ -449,31 +450,49 @@ std::string GetGLExtensionsFromCurrentContext() {
 }
 
 std::string GetGLExtensionsFromCurrentContext(GLApi* api) {
+  if (!api)
+    return std::string();
+
 #if BUILDFLAG(IS_COBALT)
   // On OpenGL ES 3.0+, glGetString(GL_EXTENSIONS) is deprecated and can return
   // null while setting a GL_INVALID_ENUM error. This error can linger and cause
   // crashes later (e.g. in IsGL_REDSupportedOnFBOs). To prevent this, we query
   // extensions individually using glGetStringi if we detect an ES3 context.
-  const char* version_str =
-      reinterpret_cast<const char*>(api->glGetStringFn(GL_VERSION));
-  const char* renderer_str =
-      reinterpret_cast<const char*>(api->glGetStringFn(GL_RENDERER));
-  if (version_str && renderer_str) {
-    GLVersionInfo version_info(version_str, renderer_str, gfx::ExtensionSet());
-    if (version_info.is_es3) {
-      GLint num_extensions = 0;
-      api->glGetIntegervFn(GL_NUM_EXTENSIONS, &num_extensions);
-      std::string extensions;
-      for (GLint i = 0; i < num_extensions; ++i) {
-        const char* ext = reinterpret_cast<const char*>(
-            api->glGetStringiFn(GL_EXTENSIONS, i));
-        if (ext) {
-          if (!extensions.empty())
-            extensions += " ";
-          extensions += ext;
+  // We skip this in Mock/Stub GL implementations to avoid breaking unit tests
+  // that do not expect these glGetString calls.
+  if (GetGLImplementation() != kGLImplementationMockGL &&
+      GetGLImplementation() != kGLImplementationStubGL) {
+    const char* version_str =
+        reinterpret_cast<const char*>(api->glGetStringFn(GL_VERSION));
+    const char* renderer_str =
+        reinterpret_cast<const char*>(api->glGetStringFn(GL_RENDERER));
+    if (version_str && renderer_str) {
+      GLVersionInfo version_info(version_str, renderer_str, gfx::ExtensionSet());
+      if (version_info.is_es3) {
+        glGetStringiProc gl_stringi_fn = nullptr;
+        if (g_current_gl_driver) {
+          gl_stringi_fn = g_current_gl_driver->fn.glGetStringiFn;
+        }
+        if (!gl_stringi_fn) {
+          gl_stringi_fn = reinterpret_cast<glGetStringiProc>(
+              gl::GetGLProcAddress("glGetStringi"));
+        }
+        if (gl_stringi_fn) {
+          GLint num_extensions = 0;
+          api->glGetIntegervFn(GL_NUM_EXTENSIONS, &num_extensions);
+          std::string extensions;
+          for (GLint i = 0; i < num_extensions; ++i) {
+            const char* ext = reinterpret_cast<const char*>(
+                gl_stringi_fn(GL_EXTENSIONS, i));
+            if (ext) {
+              if (!extensions.empty())
+                extensions += " ";
+              extensions += ext;
+            }
+          }
+          return extensions;
         }
       }
-      return extensions;
     }
   }
 #endif
