@@ -197,8 +197,8 @@ void WriteSamples(const SbPlayerTestConfig& player_config,
     samples.AddVideoEOS();
   }
 
-  ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
-  ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
+  player_fixture.Write(samples);
+  player_fixture.WaitForPlayerEndOfStream();
 }
 
 TEST_F(MultiplePlayerTest, SunnyDay) {

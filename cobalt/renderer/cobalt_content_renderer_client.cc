@@ -73,6 +73,8 @@ const char kH5vccSettingsKeyMediaFlushAudioTrackDuringSeek[] =
     "Media.FlushAudioTrackDuringSeek";
 const char kH5vccSettingsKeyMediaForceDecodeToTexture[] =
     "Media.ForceDecodeToTexture";
+const char kH5vccSettingsKeyMediaForceClearSurfaceView[] =
+    "Media.ForceClearSurfaceView";
 const char kH5vccSettingsKeyMediaIgnoreMediaCodecCallbacksDuringFlushing[] =
     "Media.IgnoreMediaCodecCallbacksDuringFlushing";
 const char kH5vccSettingsKeyMediaVideoDecoderInitialPrerollCount[] =
@@ -87,8 +89,6 @@ const char kH5vccSettingsKeyMediaSkipFlushOnDecoderTeardown[] =
     "Media.SkipFlushOnDecoderTeardown";
 const char kH5vccSettingsKeyMediaSkipVideoFramesOver60Fps[] =
     "Media.SkipVideoFramesOver60Fps";
-const char kH5vccSettingsKeyMediaUseDualThreadsForVideo[] =
-    "Media.UseDualThreadsForVideo";
 
 using ExperimentalFeatures =
     ::media::StarboardRendererConfig::ExperimentalFeatures;
@@ -258,6 +258,10 @@ ExperimentalFeatures ProcessH5vccSettings(
     parsed.force_decode_to_texture = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaForceClearSurfaceView)) {
+    parsed.force_clear_surface_view = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
           settings,
           kH5vccSettingsKeyMediaIgnoreMediaCodecCallbacksDuringFlushing)) {
     parsed.ignore_mediacodec_callbacks_during_flushing = *val != 0;
@@ -269,10 +273,6 @@ ExperimentalFeatures ProcessH5vccSettings(
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaSkipVideoFramesOver60Fps)) {
     parsed.skip_video_frames_over_60_fps = *val != 0;
-  }
-  if (auto* val = GetSettingValue<int64_t>(
-          settings, kH5vccSettingsKeyMediaUseDualThreadsForVideo)) {
-    parsed.use_dual_threads_for_video = *val != 0;
   }
 
   parsed.video_decoder_initial_preroll_count = ProcessRangedIntH5vccSetting(

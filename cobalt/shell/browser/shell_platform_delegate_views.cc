@@ -466,6 +466,9 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
 void ShellPlatformDelegate::DidCreateOrAttachWebContents(
     Shell* shell,
     WebContents* web_contents) {
+  if (!is_visible_) {
+    TrackPreviouslyVisibleWebContents(web_contents);
+  }
   auto it = shell_data_map_.find(shell);
   if (it == shell_data_map_.end()) {
     return;

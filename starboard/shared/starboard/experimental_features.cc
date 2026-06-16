@@ -77,6 +77,8 @@ void SetExperimentalFeaturesForCurrentThread(
       extension_features->flush_audio_track_during_seek;
   experiment_features.flush_decoder_during_reset =
       extension_features->flush_decoder_during_reset;
+  experiment_features.force_clear_surface_view =
+      extension_features->force_clear_surface_view;
   experiment_features.ignore_mediacodec_callbacks_during_flushing =
       extension_features->ignore_mediacodec_callbacks_during_flushing;
   experiment_features.reset_audio_decoder =
@@ -90,8 +92,6 @@ void SetExperimentalFeaturesForCurrentThread(
           extension_features->enable_simd_based_audio_format_switching);
   experiment_features.enable_trivial_optimizations =
       FromBoolPointer(extension_features->enable_trivial_optimizations);
-  experiment_features.use_dual_threads_for_video =
-      FromBoolPointer(extension_features->use_dual_threads_for_video);
   experiment_features.video_decoder_initial_preroll_count =
       FromIntPointer(extension_features->video_decoder_initial_preroll_count);
   experiment_features.video_renderer_min_decoded_frames =

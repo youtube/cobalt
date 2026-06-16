@@ -19,6 +19,7 @@
 #include <mutex>
 #include <vector>
 
+#include "base/android/jni_string.h"
 #include "starboard/android/shared/fake_media_codec.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/starboard/player/job_queue.h"
@@ -28,6 +29,7 @@
 namespace starboard {
 namespace {
 
+using ::jni_zero::AttachCurrentThread;
 using ::testing::_;
 using ::testing::Invoke;
 using ::testing::NiceMock;
@@ -55,7 +57,7 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
         /*drm_system=*/kSbDrmSystemInvalid,
         kSbPlayerOutputModePunchOut,
         /*decode_target_graphics_context_provider=*/nullptr,
-        /*surface_view=*/reinterpret_cast<void*>(1),
+        /*surface_view=*/dummy_surface_.obj(),
         /*max_video_capabilities=*/""};
 
     MediaCodecVideoDecoder::TunnelModeConfig tunnel_config;
@@ -105,6 +107,9 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
 
   JobQueue job_queue_;
   FakeMediaCodecFactory* fake_factory_ = nullptr;
+  const jni_zero::ScopedJavaGlobalRef<jstring> dummy_surface_{
+      base::android::ConvertUTF8ToJavaString(AttachCurrentThread(),
+                                             "dummy_surface")};
 
   std::unique_ptr<MediaCodecVideoDecoder> decoder_;
 };

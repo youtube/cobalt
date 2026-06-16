@@ -41,7 +41,7 @@ class MediaCodecBridge : public MediaCodec {
   static std::unique_ptr<MediaCodecBridge> CreateAudioMediaCodec(
       const AudioStreamInfo& audio_stream_info,
       Handler* handler,
-      jobject j_media_crypto);
+      const jni_zero::JavaRef<jobject>& j_media_crypto);
 
   static NonNullResult<std::unique_ptr<MediaCodecBridge>> CreateVideoMediaCodec(
       SbMediaVideoCodec video_codec,
@@ -57,8 +57,8 @@ class MediaCodecBridge : public MediaCodec {
       // can decode.
       const std::optional<Size>& max_frame_size,
       Handler* handler,
-      jobject j_surface,
-      jobject j_media_crypto,
+      const jni_zero::JavaRef<jobject>& j_surface,
+      const jni_zero::JavaRef<jobject>& j_media_crypto,
       const SbMediaColorMetadata* color_metadata,
       const VideoPlatformOptions& platform_options);
 

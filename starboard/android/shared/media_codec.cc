@@ -33,7 +33,7 @@ namespace starboard {
 std::unique_ptr<MediaCodec> DefaultMediaCodecFactory::CreateAudioMediaCodec(
     const AudioStreamInfo& audio_stream_info,
     MediaCodec::Handler* handler,
-    jobject j_media_crypto) {
+    const jni_zero::JavaRef<jobject>& j_media_crypto) {
   return MediaCodecBridge::CreateAudioMediaCodec(audio_stream_info, handler,
                                                  j_media_crypto);
 }
@@ -45,8 +45,8 @@ DefaultMediaCodecFactory::CreateVideoMediaCodec(
     int fps,
     const std::optional<Size>& max_frame_size,
     MediaCodec::Handler* handler,
-    jobject j_surface,
-    jobject j_media_crypto,
+    const jni_zero::JavaRef<jobject>& j_surface,
+    const jni_zero::JavaRef<jobject>& j_media_crypto,
     const SbMediaColorMetadata* color_metadata,
     const MediaCodec::VideoPlatformOptions& platform_options) {
   if (max_frame_size) {
@@ -100,7 +100,7 @@ DefaultMediaCodecFactory::CreateVideoMediaCodec(
 std::unique_ptr<MediaCodec> MediaCodec::CreateAudioMediaCodec(
     const AudioStreamInfo& audio_stream_info,
     Handler* handler,
-    jobject j_media_crypto) {
+    const jni_zero::JavaRef<jobject>& j_media_crypto) {
   DefaultMediaCodecFactory factory;
   return factory.CreateAudioMediaCodec(audio_stream_info, handler,
                                        j_media_crypto);
@@ -113,8 +113,8 @@ NonNullResult<std::unique_ptr<MediaCodec>> MediaCodec::CreateVideoMediaCodec(
     int fps,
     const std::optional<Size>& max_frame_size,
     Handler* handler,
-    jobject j_surface,
-    jobject j_media_crypto,
+    const jni_zero::JavaRef<jobject>& j_surface,
+    const jni_zero::JavaRef<jobject>& j_media_crypto,
     const SbMediaColorMetadata* color_metadata,
     const MediaCodec::VideoPlatformOptions& platform_options) {
   DefaultMediaCodecFactory factory;
