@@ -19,7 +19,7 @@
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/feature_list.h"
 #include "media/base/media_switches.h"
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace blink {
 
@@ -38,18 +38,16 @@ WebAudioMediaStreamAudioSink::WebAudioMediaStreamAudioSink(
       platform_buffer_duration_(platform_buffer_duration),
       sink_params_(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-                   base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack)
-                       ? media::ChannelLayoutConfig::Mono()
-                       : media::ChannelLayoutConfig::Stereo(),
+                   media::ChannelLayoutConfig::Mono(),
 #else
                    media::ChannelLayoutConfig::Stereo(),
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
                    context_sample_rate,
                    kWebAudioRenderBufferSize)
 {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   LOG(INFO) << "WebAudioMediaStreamAudioSink: sink_params=" << sink_params_.AsHumanReadableString();
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   CHECK(sink_params_.IsValid());
   CHECK_GT(platform_buffer_duration_, base::TimeDelta());
 

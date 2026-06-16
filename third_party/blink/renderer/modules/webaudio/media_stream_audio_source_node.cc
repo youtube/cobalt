@@ -36,7 +36,7 @@
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/feature_list.h"
 #include "media/base/media_switches.h"
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 
 namespace blink {
@@ -110,12 +110,10 @@ MediaStreamAudioSourceNode* MediaStreamAudioSourceNode::Create(
 
   // Initializes the node with the stereo output channel.
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  node->SetFormat(
-      base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack) ? 1 : 2,
-      context.sampleRate());
+  node->SetFormat(1, context.sampleRate());
 #else
   node->SetFormat(2, context.sampleRate());
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Lets the context know this source node started.
   context.NotifySourceNodeStartedProcessing(node);
