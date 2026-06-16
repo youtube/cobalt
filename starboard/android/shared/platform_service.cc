@@ -81,12 +81,26 @@ CobaltExtensionPlatformService Open(void* context,
 }
 
 void Close(CobaltExtensionPlatformService service) {
+<<<<<<< HEAD
   JniEnvExt* env = JniEnvExt::Get();
   env->CallVoidMethodOrAbort(service->cobalt_service, "onClose", "()V");
   ScopedLocalJavaRef<jstring> j_name(
       env->NewStringStandardUTFOrAbort(service->name));
   env->CallStarboardVoidMethodOrAbort("closeCobaltService",
                                       "(Ljava/lang/String;)V", j_name.Get());
+=======
+  if (!service || !service->cobalt_service) {
+    return;
+  }
+
+  JNIEnv* env = base::android::AttachCurrentThread();
+  auto cobalt_service_local_ref = base::android::ScopedJavaLocalRef<jobject>(
+      env, env->NewLocalRef(service->cobalt_service));
+  Java_CobaltService_onClose(env, cobalt_service_local_ref);
+
+  starboard::StarboardBridge::GetInstance()->CloseCobaltService(
+      env, service->name.c_str());
+>>>>>>> c90fae3284 (android: Create local ref for Cobalt service (#9322))
   delete static_cast<CobaltExtensionPlatformServicePrivate*>(service);
 }
 
@@ -99,6 +113,7 @@ void* Send(CobaltExtensionPlatformService service,
   SB_DCHECK(output_length);
   SB_DCHECK(invalid_state);
 
+<<<<<<< HEAD
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jbyteArray> data_byte_array;
   data_byte_array.Reset(
@@ -109,6 +124,16 @@ void* Send(CobaltExtensionPlatformService service,
           "([B)Ldev/cobalt/coat/CobaltService$ResponseToClient;",
           data_byte_array.Get())));
   if (!j_response_from_client) {
+=======
+  JNIEnv* env = base::android::AttachCurrentThread();
+  auto cobalt_service_local_ref = base::android::ScopedJavaLocalRef<jobject>(
+      env, env->NewLocalRef(service->cobalt_service));
+  auto j_data = base::android::ToJavaByteArray(
+      env, reinterpret_cast<const uint8_t*>(data), length);
+  auto j_response = Java_CobaltService_receiveFromClient(
+      env, cobalt_service_local_ref, j_data);
+  if (j_response.is_null()) {
+>>>>>>> c90fae3284 (android: Create local ref for Cobalt service (#9322))
     *invalid_state = true;
     *output_length = 0;
     return 0;
