@@ -5,8 +5,6 @@ import dev.cobalt.shell.StartupGuard;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import android.os.Handler;
-import java.lang.reflect.Field;
 import java.time.Duration;
 import org.junit.After;
 import org.junit.Before;
@@ -22,17 +20,10 @@ import org.robolectric.shadows.ShadowLooper;
 public class StartupGuardTest {
 
     private StartupGuard startupGuard;
-    private Handler internalHandler;
-    private Runnable internalRunnable;
 
     @Before
     public void setUp() throws Exception {
         startupGuard = StartupGuard.getInstance();
-
-        // Use reflection to get access to the private Handler and Runnable
-        // This allows us to verify the internal state without changing the source code.
-        internalHandler = getPrivateField(startupGuard, "handler");
-        internalRunnable = getPrivateField(startupGuard, "crashRunnable");
 
         // Ensure a clean slate before each test
         startupGuard.disarm();
@@ -58,8 +49,7 @@ public class StartupGuardTest {
         startupGuard.scheduleCrash(delaySeconds);
 
         // Assert
-        assertTrue("Handler should have the crash runnable pending",
-                internalHandler.hasCallbacks(internalRunnable));
+        assertTrue("Handler should have the crash runnable pending", startupGuard.isArmed());
     }
 
     @Test
@@ -77,21 +67,20 @@ public class StartupGuardTest {
 
         // Advance time by 9.9 seconds -> Should NOT have run yet (still in queue)
         shadowLooper.idleFor(Duration.ofSeconds(9).plusMillis(900));
-        assertTrue(internalHandler.hasCallbacks(internalRunnable));
+        assertTrue(startupGuard.isArmed());
     }
 
     @Test
     public void disarm_removesRunnableFromHandler() {
         // Arrange
         startupGuard.scheduleCrash(5);
-        assertTrue(internalHandler.hasCallbacks(internalRunnable));
+        assertTrue(startupGuard.isArmed());
 
         // Act
         startupGuard.disarm();
 
         // Assert
-        assertFalse("Handler should NOT have the crash runnable after disarm",
-                internalHandler.hasCallbacks(internalRunnable));
+        assertFalse("Handler should NOT have the crash runnable after disarm", startupGuard.isArmed());
     }
 
     @Test(expected = RuntimeException.class)
@@ -99,7 +88,7 @@ public class StartupGuardTest {
         // Act
         // We run the runnable directly to verify it actually throws the exception
         // intended to crash the app.
-        internalRunnable.run();
+        startupGuard.getCrashRunnable().run();
     }
 
     @Test(expected = RuntimeException.class)
@@ -113,13 +102,5 @@ public class StartupGuardTest {
 
         // Assert
         // The test expects a RuntimeException (defined in @Test annotation)
-    }
-
-    // --- Helper for Reflection ---
-    @SuppressWarnings("unchecked")
-    private <T> T getPrivateField(Object target, String fieldName) throws Exception {
-        Field field = target.getClass().getDeclaredField(fieldName);
-        field.setAccessible(true);
-        return (T) field.get(target);
     }
 }
