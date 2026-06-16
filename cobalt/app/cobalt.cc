@@ -28,10 +28,11 @@ void SbEventHandle(const SbEvent* event) {
     return;
   }
 
-  // The lifecycle delegate is allocated on the heap on the first event call.
-  // Its lifetime extends beyond the scope of this function and is
-  // asynchronously deleted in AppEventDelegate::DoTeardown() on the UI thread
-  // once the stopped transition sequence has fully completed.
+  // This object's lifetime extends beyond the function's lifetime, until the
+  // function is called with kSbEventTypeStop at some time in the future.
+  // When the application is stopped, this object is destroyed and the pointer
+  // is reset to nullptr, to ensure that any spurious events received after the
+  // application is stopped are ignored.
   static cobalt::AppEventDelegate* s_lifecycle_delegate =
       new cobalt::AppEventDelegate();
 
