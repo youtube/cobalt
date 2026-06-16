@@ -160,7 +160,11 @@ While centralized C++ stubbing is a powerful way to avoid merge conflicts in cor
        return nullptr;
      }
      ```
-5. **Platform/Dawn Stubs (If third-party library is excluded)**:
+5. **Trace and Verify Call Sites (Null-Safety)**:
+   * **Crucial Rule**: Because stubbed entry points often return `nullptr` (or dummy/no-op implementations), you **must trace upstream** through all function calls that consume the stub's return value.
+   * Verify that every call site in the core codebase (which remains active in Cobalt) properly null-checks the returned pointer or handles the dummy state safely.
+   * For example, if `NavigatorWebNN::webnn(navigator)` is stubbed to return `nullptr`, ensure that core code calling `webnn(...)` does not dereference the pointer without checking (e.g., `webnn(navigator)->doSomething()` would crash; it must be protected by a null check).
+6. **Platform/Dawn Stubs (If third-party library is excluded)**:
    * If a third-party C library (like Dawn) is removed, add stub implementations of its C functions in [third_party/blink/renderer/platform/graphics/gpu/cobalt_webgpu_stubs.cc](../../../third_party/blink/renderer/platform/graphics/gpu/cobalt_webgpu_stubs.cc) to prevent unresolved platform link errors.
 
 ---
@@ -201,4 +205,5 @@ When reviewing a PR that implements hybrid feature removal and centralized stubb
 - [ ] Check if the module has no C++ integration references from the core Blink codebase. If there are no references, verify that **no stubs** are added (stubs are only required to resolve compilation/linker errors).
 - [ ] Verify that stub V8 wrapper class definitions are added using `STUB_V8_WRAPPER` in [third_party/blink/renderer/modules/cobalt_modules_stubs.cc](../../../third_party/blink/renderer/modules/cobalt_modules_stubs.cc).
 - [ ] Verify that stubbed C++ entry points (like `Navigator` getters or factory creators) return `nullptr` or dummy values.
+- [ ] **Null-Safety Check**: Verify that all callers of the stubbed entry points (specifically when returning `nullptr` or dummy objects) are traced and confirmed to be null-safe, ensuring they do not dereference null pointers or cause crashes.
 - [ ] If a third-party C library (like Dawn/WebGPU) is compiled out, verify that Dawn/WebGPU platform stub functions are declared in [third_party/blink/renderer/platform/graphics/gpu/cobalt_webgpu_stubs.cc](../../../third_party/blink/renderer/platform/graphics/gpu/cobalt_webgpu_stubs.cc) (or equivalent platform-level stubs file).
