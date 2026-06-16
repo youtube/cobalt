@@ -92,4 +92,4 @@ REGISTER_SYMBOL(malloc);
 
 # POSIX API Reference
 
-[starboard/elf_loader/exported_symbols.cc](../elf_loader/exported_symbols.cc).
+The complete list of supported POSIX APIs can be found in [starboard/elf_loader/exported_symbols.cc](../elf_loader/exported_symbols.cc).
