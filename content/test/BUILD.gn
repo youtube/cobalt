@@ -869,6 +869,13 @@ static_library("test_support") {
   if (is_fuchsia) {
     public_deps += [ "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.mediacodec:fuchsia.mediacodec_hlcpp" ]
   }
+
+  if (is_cobalt) {
+    sources -= [
+      "../public/test/embedded_worker_instance_test_harness.cc",
+      "../public/test/embedded_worker_instance_test_harness.h",
+    ]
+  }
 }
 
 # Fuchsia performance tests on smart displays use web_engine and a browser
@@ -3019,6 +3026,12 @@ test("content_unittests") {
     "ActionsParserFuzzTest.ParsesJSONCorrectly",
     "FirstPartySetFuzzer.ParsesSetsCorrectly",
   ]
+
+  if (is_cobalt) {
+    sources -= [
+      "../browser/service_worker/embedded_worker_instance_unittest.cc",
+    ]
+  }
 
   if (is_mac) {
     sources += [
