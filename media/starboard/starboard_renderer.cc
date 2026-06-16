@@ -742,8 +742,7 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
     }
 #endif  // 0
     color_space_ = decoder_config.color_space_info().ToGfxColorSpace();
-    paint_video_hole_frame_cb_.Run(
-        stream->video_decoder_config().visible_rect().size());
+    video_rect_ = stream->video_decoder_config().visible_rect();
   }
 }
 
@@ -824,8 +823,11 @@ void StarboardRenderer::OnDemuxerStreamRead(
       // TODO(b/375275033): Refine calling to OnVideoNaturalSizeChange().
       client_->OnVideoNaturalSizeChange(
           stream->video_decoder_config().visible_rect().size());
-      paint_video_hole_frame_cb_.Run(
-          stream->video_decoder_config().visible_rect().size());
+
+      video_rect_ = stream->video_decoder_config().visible_rect();
+      if (state_ == STATE_PLAYING) {
+        paint_video_hole_frame_cb_.Run(video_rect_.size());
+      }
     }
     UpdateDecoderConfig(stream);
     stream->Read(
@@ -976,6 +978,7 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
     case kSbPlayerStatePrerolling:
       break;
     case kSbPlayerStatePresenting:
+      paint_video_hole_frame_cb_.Run(video_rect_.size());
       buffering_state_ = BUFFERING_HAVE_ENOUGH;
       task_runner_->PostTask(
           FROM_HERE,

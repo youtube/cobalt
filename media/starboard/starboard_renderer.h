@@ -230,6 +230,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   OverlayInfo overlay_info_;
 
   std::optional<gfx::Rect> output_rect_;
+  gfx::Rect video_rect_;
 
   // Temporary callback used for Initialize().
   PipelineStatusCallback init_cb_;
