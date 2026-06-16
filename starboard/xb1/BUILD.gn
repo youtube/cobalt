@@ -101,8 +101,6 @@ static_library("starboard_platform") {
     "//starboard/shared/uwp/analog_thumbstick_input.h",
     "//starboard/shared/uwp/analog_thumbstick_input_thread.cc",
     "//starboard/shared/uwp/analog_thumbstick_input_thread.h",
-    "//starboard/shared/uwp/application_uwp.cc",
-    "//starboard/shared/uwp/application_uwp.h",
     "//starboard/shared/uwp/application_uwp_key_event.cc",
     "//starboard/shared/uwp/async_utils.h",
     "//starboard/shared/uwp/audio_renderer_passthrough.cc",
@@ -216,7 +214,14 @@ static_library("starboard_platform") {
 
   if (is_internal_build) {
     sources += [
+      "//internal/starboard/shared/uwp/application_uwp.cc",
+      "//internal/starboard/shared/uwp/application_uwp.h",
       "//internal/starboard/shared/uwp/keys.cc",
+      "//internal/starboard/shared/uwp/speech_synthesis_cancel.cc",
+      "//internal/starboard/shared/uwp/speech_synthesis_is_supported.cc",
+      "//internal/starboard/shared/uwp/speech_synthesis_speak.cc",
+      "//internal/starboard/shared/uwp/speech_synthesizer.cc",
+      "//internal/starboard/shared/uwp/speech_synthesizer.h",
       "//internal/starboard/xb1/dav1d_video_decoder.cc",
       "//internal/starboard/xb1/dav1d_video_decoder.h",
       "//internal/starboard/xb1/drm_create_system.cc",
@@ -246,6 +251,8 @@ static_library("starboard_platform") {
       "//starboard/shared/stub/drm_create_system.cc",
       "//starboard/shared/stub/media_is_supported.cc",
       "//starboard/shared/stub/system_sign_with_certification_secret_key.cc",
+      "//starboard/shared/uwp/application_uwp.cc",
+      "//starboard/shared/uwp/application_uwp.h",
       "//starboard/shared/uwp/keys.cc",
       "//starboard/xb1/public_system_properties.cc",
       "//starboard/xb1/shared/internal_stubs.cc",
