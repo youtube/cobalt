@@ -761,8 +761,33 @@ jobs:
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
           test_executables_json: ${{ steps.parse-host-targets.outputs.test_executables_json }}
+          test_type: gtest
+      - name: Parse Test Target JSON (Host JUnit)
+        id: parse-host-junit-targets
+        uses: ./.github/actions/test_targets_json
+        with:
+          test_type: junit
+          runs_on: host
+      - name: Run On-Host JUnit Tests
+        if: ${{ fromJson(steps.parse-host-junit-targets.outputs.test_targets_count) > 0 }}
+        uses: ./.github/actions/on_host_tests
+        with:
+          nightly: ${{ inputs.nightly }}
+          test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
+          test_results_key: ${{ env.TEST_RESULTS_KEY }}
+          num_gtest_shards: 1
+          test_executables_json: ${{ steps.parse-host-junit-targets.outputs.test_executables_json }}
+          test_type: junit
+      - name: Combine Host Targets
+        id: combine-targets
+        run: |
+          gtests='${{ steps.parse-host-targets.outputs.test_targets_json || '[]' }}'
+          junits='${{ steps.parse-host-junit-targets.outputs.test_targets_json || '[]' }}'
+          combined=$(jq -ncr --argjson g "$gtests" --argjson j "$junits" '$g + $j')
+          echo "combined_test_targets=${combined}" >> $GITHUB_OUTPUT
+        shell: bash
     outputs:
-      test_targets_json: ${{ steps.parse-host-targets.outputs.test_targets_json }}
+      test_targets_json: ${{ steps.combine-targets.outputs.combined_test_targets }}
 
   web-tests:
     needs: [initialize, docker-webtest-image, build]
