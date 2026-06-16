@@ -87,6 +87,7 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
   std::string deep_link_;
 
   void InitializeHangWatcher();
+  void InitializeMemorySystem();
 };
 
 }  // namespace cobalt
