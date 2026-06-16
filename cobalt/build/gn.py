@@ -85,7 +85,6 @@ def write_build_args(build_args_path, platform_args_path, build_type, use_rbe,
                      use_coverage, use_sccache):
   """ Write args file, modifying settings for config"""
   gen_comment = '# Set by gn.py'
-
   with open(build_args_path, 'w', encoding='utf-8') as f:
     if use_rbe:
       f.write(f'use_remoteexec = true {gen_comment}\n')
