@@ -598,10 +598,6 @@
                     "to_file": "jar/services_device_time_zone_monitor_java.jar"
                 },
                 {
-                    "from_file": "obj/services/device/usb/java.javac.jar",
-                    "to_file": "jar/services_device_usb_java.jar"
-                },
-                {
                     "from_file": "obj/services/device/vibration/android/vibration_manager_java.javac.jar",
                     "to_file": "jar/services_device_vibration_android_vibration_manager_java.jar"
                 },
@@ -716,10 +712,6 @@
                 {
                     "from_file": "obj/third_party/blink/public/mojom/tokens/tokens_java.javac.jar",
                     "to_file": "jar/third_party_blink_public_mojom_tokens_tokens_java.jar"
-                },
-                {
-                    "from_file": "obj/third_party/blink/public/mojom/usb/usb_java.javac.jar",
-                    "to_file": "jar/third_party_blink_public_mojom_usb_usb_java.jar"
                 },
                 {
                     "from_file": "obj/third_party/blink/public/mojom/web_feature_mojo_bindings_java.javac.jar",
