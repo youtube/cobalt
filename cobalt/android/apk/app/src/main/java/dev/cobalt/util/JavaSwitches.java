@@ -105,7 +105,8 @@ public class JavaSwitches {
     }
 
     if (javaSwitches.containsKey(JavaSwitches.USE_MINOR_MS_FOR_MINOR_GC)) {
-      extraCommandLineArgs.add("--js-flags=--minor-ms;--minor-ms-min-new-space-capacity-for-concurrent-marking-mb=0");
+      jsFlags.add("--minor-ms");
+      jsFlags.add("--minor-ms-min-new-space-capacity-for-concurrent-marking-mb=0");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES)) {
