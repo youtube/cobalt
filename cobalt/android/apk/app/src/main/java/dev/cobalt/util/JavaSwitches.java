@@ -53,6 +53,9 @@ public class JavaSwitches {
   /** flag to disable v8 optimizing compilers (turbofan, maglev, sparkplug) */
   public static final String DISABLE_V8_OPTIMIZING_COMPILERS = "DisableV8OptimizingCompilers";
 
+  /** flag to enable concurrent marking for v8 garbage collection */
+  public static final String ENABLE_V8_CONCURRENT_MARKING = "EnableV8ConcurrentMarking";
+
   /** flag to limit GPU image cache items */
   public static final String GPU_IMAGE_CACHE_LIMIT_ITEMS = "GpuImageCacheLimitItems";
 
@@ -95,6 +98,10 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_V8_OPTIMIZING_COMPILERS)) {
       extraCommandLineArgs.add("--js-flags=--disable-optimizing-compilers;--no-sparkplug");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_V8_CONCURRENT_MARKING)) {
+      extraCommandLineArgs.add("--js-flags=--concurrent-marking");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES)) {
