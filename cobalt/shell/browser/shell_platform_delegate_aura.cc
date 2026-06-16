@@ -126,7 +126,11 @@ void ShellPlatformDelegate::ConcealShell(Shell* shell) {
 }
 void ShellPlatformDelegate::DidCreateOrAttachWebContents(
     Shell* shell,
-    WebContents* web_contents) {}
+    WebContents* web_contents) {
+  if (!is_visible_) {
+    previously_visible_web_contents_.insert(web_contents);
+  }
+}
 
 void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {}
 
