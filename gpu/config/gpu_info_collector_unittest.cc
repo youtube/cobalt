@@ -25,8 +25,11 @@
 #include "ui/gl/gl_utils.h"
 #include "ui/gl/init/gl_factory.h"
 #include "ui/gl/test/gl_surface_test_support.h"
+#include "ui/gl/gl_version_info.h"
+#include "build/buildflag.h"
 
 using ::gl::MockGLInterface;
+using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::_;
@@ -144,15 +147,44 @@ class GPUInfoCollectorTest
     surface_ = new gl::GLSurfaceStub;
     context_->MakeCurrent(surface_.get());
 
+    split_extensions_ = base::SplitString(
+        test_values_.gl_extensions, " ",
+        base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+    gfx::ExtensionSet extension_set(gfx::MakeExtensionSet(test_values_.gl_extensions));
+
+    gl::GLVersionInfo gl_info(test_values_.gl_version.c_str(),
+                              test_values_.gl_renderer.c_str(),
+                              extension_set);
+
     EXPECT_CALL(*gl_, GetString(GL_VERSION))
         .WillRepeatedly(Return(
             reinterpret_cast<const GLubyte*>(test_values_.gl_version.c_str())));
     EXPECT_CALL(*gl_, GetString(GL_RENDERER))
         .WillRepeatedly(Return(reinterpret_cast<const GLubyte*>(
             test_values_.gl_renderer.c_str())));
+
+#if BUILDFLAG(IS_COBALT)
+    if (gl_info.is_es3) {
+      EXPECT_CALL(*gl_, GetIntegerv(GL_NUM_EXTENSIONS, _))
+          .WillRepeatedly(SetArgPointee<1>(split_extensions_.size()));
+      EXPECT_CALL(*gl_, GetStringi(GL_EXTENSIONS, _))
+          .WillRepeatedly(Invoke([this](GLenum name, GLuint index) -> const GLubyte* {
+            if (name == GL_EXTENSIONS && index < split_extensions_.size()) {
+              return reinterpret_cast<const GLubyte*>(split_extensions_[index].c_str());
+            }
+            return nullptr;
+          }));
+    } else {
+      EXPECT_CALL(*gl_, GetString(GL_EXTENSIONS))
+          .WillRepeatedly(Return(reinterpret_cast<const GLubyte*>(
+              test_values_.gl_extensions.c_str())));
+    }
+#else // !BUILDFLAG(IS_COBALT)
     EXPECT_CALL(*gl_, GetString(GL_EXTENSIONS))
         .WillRepeatedly(Return(reinterpret_cast<const GLubyte*>(
             test_values_.gl_extensions.c_str())));
+#endif
+
     EXPECT_CALL(*gl_, GetString(GL_SHADING_LANGUAGE_VERSION))
         .WillRepeatedly(Return(reinterpret_cast<const GLubyte*>(
             gl_shading_language_version_)));
