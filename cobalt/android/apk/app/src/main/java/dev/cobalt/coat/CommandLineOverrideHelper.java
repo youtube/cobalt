@@ -88,6 +88,9 @@ public final class CommandLineOverrideHelper {
         // Disable decommitting pooled pages to prevent virtual memory fragmentation.
         paramOverrides.add("--no-decommit-pooled-pages");
 
+        // Disable v8 concurrent marking by default.
+        paramOverrides.add("--no-concurrent-marking");
+
         return paramOverrides;
     }
 
