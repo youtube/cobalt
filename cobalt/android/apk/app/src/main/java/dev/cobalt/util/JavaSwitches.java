@@ -155,11 +155,11 @@ public class JavaSwitches {
       extraCommandLineArgs.add(
           "--enable-features=SmallerInterestArea:" + featureParams.toString());
     }
-    
+
     if (javaSwitches.containsKey(JavaSwitches.COBALT_USE_ANGLE_GLES)) {
       extraCommandLineArgs.add("--use-angle=gles");
     }
-    
+
     if (jsFlags.length() > 0 ) {
       extraCommandLineArgs.add("--js-flags=" + jsFlags.toString());
     }
