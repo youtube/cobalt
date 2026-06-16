@@ -95,3 +95,6 @@ enable_rust_png = false
 # ~0.5 MB.
 enable_backup_ref_ptr_support = false
 enable_backup_ref_ptr_feature_flag = false
+
+# Disable bundled fontconfig (use system/Starboard direct loading).
+use_bundled_fontconfig = false
