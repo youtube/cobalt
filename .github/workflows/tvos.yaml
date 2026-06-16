@@ -176,12 +176,12 @@ jobs:
             test_filter="$(jq -cr '.failing_tests[0]' "${filter_file}")"
             if [[ "${test_filter}" == '*' ]]; then
               echo "${{ matrix.target }} was skipped due to test filter."
-              echo "skipped=true" >> $GITHUB_OUTPUT
+              echo "skipped=true" >> "$GITHUB_OUTPUT"
             else
-              echo "skipped=false" >> $GITHUB_OUTPUT
+              echo "skipped=false" >> "$GITHUB_OUTPUT"
             fi
           else
-            echo "skipped=false" >> $GITHUB_OUTPUT
+            echo "skipped=false" >> "$GITHUB_OUTPUT"
           fi
         shell: bash
 
