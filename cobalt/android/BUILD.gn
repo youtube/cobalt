@@ -294,4 +294,5 @@ robolectric_binary("cobalt_coat_junit_tests") {
     "//third_party/junit",
     "//url:gurl_java",
   ]
+  ignore_all_data_deps = false
 }

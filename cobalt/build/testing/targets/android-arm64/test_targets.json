@@ -161,5 +161,11 @@
     "executable": "out/android-arm64_devel/url_unittests_apk/url_unittests-debug.apk",
     "runs_on": "device",
     "test_type": "gtest"
+  },
+  {
+    "target": "cobalt/android:cobalt_coat_junit_tests",
+    "executable": "out/android-arm64_devel/bin/run_cobalt_coat_junit_tests",
+    "runs_on": "host",
+    "test_type": "junit"
   }
 ]
