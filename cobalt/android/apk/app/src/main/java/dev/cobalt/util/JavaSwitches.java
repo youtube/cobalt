@@ -37,9 +37,6 @@ public class JavaSwitches {
   /** flag to delete stale leveldb LOCK file on startup. */
   public static final String LOCAL_STORAGE_DELETE_LOCK_FILE = "LocalStorageDeleteLockFile";
 
-  /** flag to enable fast track mic capture. */
-  public static final String ENABLE_COBALT_AUDIO_CAPTURE_FAST_TRACK = "EnableCobaltAudioCaptureFastTrack";
-
   /** flag to tune compositor offscreen interest area size in pixels. */
   public static final String INTEREST_AREA_SIZE_IN_PIXELS = "InterestAreaSizeInPixels";
 
@@ -70,6 +67,9 @@ public class JavaSwitches {
   public static final String COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE =
       "CobaltDynamicMojoPipeSubresourceSize";
 
+  /** flag to specify ANGLE to use the OpenGL ES backend */
+  public static final String COBALT_USE_ANGLE_GLES = "CobaltUseAngleGles";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
 
@@ -83,10 +83,6 @@ public class JavaSwitches {
 
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
       extraCommandLineArgs.add("--disable-quic");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_COBALT_AUDIO_CAPTURE_FAST_TRACK)) {
-      extraCommandLineArgs.add("--enable-features=CobaltAudioCaptureFastTrack");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_HTTP_CACHE)) {
@@ -142,6 +138,10 @@ public class JavaSwitches {
     if (featureParams.length() > 0) {
       extraCommandLineArgs.add(
           "--enable-features=SmallerInterestArea:" + featureParams.toString());
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.COBALT_USE_ANGLE_GLES)) {
+      extraCommandLineArgs.add("--use-angle=gles");
     }
 
     return extraCommandLineArgs;
