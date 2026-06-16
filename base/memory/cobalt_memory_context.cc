@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/memory/cobalt_memory_context.h"
+#include "copied_base/base/memory/cobalt_memory_context.h"
 
 #include <pthread.h>
 #include <stdint.h>
@@ -67,6 +67,12 @@ MAYBE_COBALT_WEAK ScopedMemoryContext::ScopedMemoryContext(MemoryContext context
 
 MAYBE_COBALT_WEAK ScopedMemoryContext::~ScopedMemoryContext() {
   SetCurrentMemoryContext(prev_context_);
+}
+
+extern "C" {
+MAYBE_COBALT_WEAK void CobaltSetMemoryContext(uint8_t context) {
+  SetCurrentMemoryContext(static_cast<MemoryContext>(context));
+}
 }
 
 MAYBE_COBALT_WEAK std::string_view ContextToString(MemoryContext context) {

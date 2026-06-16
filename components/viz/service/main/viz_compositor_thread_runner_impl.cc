@@ -9,6 +9,9 @@
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
 #include "base/message_loop/message_pump_type.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/bind_post_task.h"
@@ -84,6 +87,12 @@ VizCompositorThreadRunnerImpl::VizCompositorThreadRunnerImpl()
     : thread_(CreateAndStartCompositorThread()),
       task_runner_(thread_->task_runner()) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(gpu_sequence_checker_);
+#if BUILDFLAG(IS_COBALT)
+  task_runner_->PostTask(FROM_HERE, base::BindOnce([]() {
+                           base::memory::SetCurrentMemoryContext(
+                               base::memory::MemoryContext::kGraphicsCompositor);
+                         }));
+#endif
 }
 
 VizCompositorThreadRunnerImpl::~VizCompositorThreadRunnerImpl() {

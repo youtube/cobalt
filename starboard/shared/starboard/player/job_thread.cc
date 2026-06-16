@@ -30,6 +30,8 @@ class JobThread::WorkerThread : public Thread {
       : Thread(thread_name, options) {}
 
   void Run() override {
+    ::base::memory::ScopedMemoryContext scoped_context(
+        ::base::memory::MemoryContext::kMedia);
     auto job_queue = std::make_unique<JobQueue>();
     JobQueue* job_queue_ptr = job_queue.get();
     {

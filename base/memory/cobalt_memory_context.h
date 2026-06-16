@@ -76,5 +76,9 @@ BASE_EXPORT std::string_view ContextToString(MemoryContext context);
 }  // namespace memory
 }  // namespace base
 
+extern "C" {
+BASE_EXPORT void CobaltSetMemoryContext(uint8_t context);
+}
+
 #endif  // BASE_MEMORY_COBALT_MEMORY_CONTEXT_H_
 

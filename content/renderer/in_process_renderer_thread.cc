@@ -5,6 +5,9 @@
 #include "content/renderer/in_process_renderer_thread.h"
 
 #include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
 #include "content/public/common/content_client.h"
 #include "content/public/renderer/content_renderer_client.h"
 #include "content/renderer/render_process.h"

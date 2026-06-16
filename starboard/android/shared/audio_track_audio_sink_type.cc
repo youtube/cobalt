@@ -111,7 +111,9 @@ class AudioTrackAudioSink::AudioTrackOutThread : public Thread {
  public:
   explicit AudioTrackOutThread(AudioTrackAudioSink* sink)
       : Thread("audio_track_out",
-               ThreadOptions().SetPriority(ThreadPriority::kRealTime)),
+               ThreadOptions()
+                   .SetPriority(ThreadPriority::kRealTime)
+                   .SetMemoryContext(base::memory::MemoryContext::kMedia)),
         sink_(sink) {}
 
   void Run() override { sink_->AudioThreadFunc(); }
