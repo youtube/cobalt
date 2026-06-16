@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cmath>
 #include <string>
 #include <tuple>
 #include <vector>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "starboard/common/time.h"
 #include "starboard/media.h"
 #include "starboard/nplb/player_test_fixture.h"
 #include "starboard/nplb/player_test_util.h"
@@ -48,9 +50,23 @@ void CheckVerticalResolutionSupport(const char* mime) {
 }
 
 std::vector<SbPlayerTestConfig> GetVerticalVideoTestConfigs() {
-  const char* kVideoFilenames[] = {"vertical_1080p_30_fps_137_avc.dmp",
-                                   "vertical_4k_30_fps_313_vp9.dmp",
-                                   "vertical_8k_30_fps_571_av1.dmp"};
+  const char* kVideoFilenames[] = {
+      "vertical_1080p_30_fps_137_avc.dmp", "vertical_4k_30_fps_313_vp9.dmp",
+      "vertical_8k_30_fps_571_av1.dmp",    "vertical_144p_24_fps_278_vp9.dmp",
+      "vertical_240p_24_fps_242_vp9.dmp",  "vertical_360p_24_fps_243_vp9.dmp",
+      "vertical_480p_24_fps_244_vp9.dmp",  "vertical_720p_24_fps_247_vp9.dmp",
+      "vertical_1080p_24_fps_248_vp9.dmp", "vertical_144p_24_fps_394_av1.dmp",
+      "vertical_240p_24_fps_395_av1.dmp",  "vertical_360p_24_fps_396_av1.dmp",
+      "vertical_480p_24_fps_397_av1.dmp",  "vertical_720p_24_fps_398_av1.dmp",
+      "vertical_1080p_24_fps_399_av1.dmp", "vertical_144p_60_fps_278_vp9.dmp",
+      "vertical_240p_60_fps_242_vp9.dmp",  "vertical_360p_60_fps_243_vp9.dmp",
+      "vertical_480p_60_fps_244_vp9.dmp",  "vertical_720p_60_fps_302_vp9.dmp",
+      "vertical_1080p_60_fps_303_vp9.dmp", "vertical_144p_60_fps_394_av1.dmp",
+      "vertical_240p_60_fps_395_av1.dmp",  "vertical_360p_60_fps_396_av1.dmp",
+      "vertical_480p_60_fps_397_av1.dmp",  "vertical_720p_60_fps_398_av1.dmp",
+      "vertical_1080p_60_fps_399_av1.dmp",
+  };
+
   const char* kAudioFilename = "silence_aac_stereo.dmp";
 
   const SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
@@ -130,10 +146,12 @@ TEST_P(VerticalVideoTest, WriteSamples) {
   SB_DCHECK(player_fixture.HasVideo());
   SB_DCHECK(player_fixture.HasAudio());
 
+  const int64_t kDurationToPlay = 200'000;
+
   int audio_samples_to_write =
-      player_fixture.ConvertDurationToAudioBufferCount(200'000);
+      player_fixture.ConvertDurationToAudioBufferCount(kDurationToPlay);
   int video_samples_to_write =
-      player_fixture.ConvertDurationToVideoBufferCount(200'000);
+      player_fixture.ConvertDurationToVideoBufferCount(kDurationToPlay);
 
   GroupedSamples samples;
   samples.AddAudioSamples(0, audio_samples_to_write);
@@ -141,6 +159,54 @@ TEST_P(VerticalVideoTest, WriteSamples) {
   samples.AddVideoSamples(0, video_samples_to_write);
   samples.AddVideoEOS();
 
+  ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
+  ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerPresenting());
+
+  int64_t start_system_time = starboard::CurrentMonotonicTime();
+  int64_t start_media_time = player_fixture.GetCurrentMediaTime();
+
+  ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
+
+  int64_t end_system_time = starboard::CurrentMonotonicTime();
+  int64_t end_media_time = player_fixture.GetCurrentMediaTime();
+
+  const int64_t kDurationDifferenceAllowance = 500'000;  // 500ms
+  EXPECT_NEAR(end_media_time, kDurationToPlay, kDurationDifferenceAllowance);
+  EXPECT_NEAR(end_system_time - start_system_time + start_media_time,
+              kDurationToPlay, kDurationDifferenceAllowance);
+}
+
+TEST_P(VerticalVideoTest, Seek) {
+  SbPlayerTestFixture player_fixture(GetParam(),
+                                     &fake_graphics_context_provider_);
+  if (HasFatalFailure()) {
+    return;
+  }
+
+  SB_DCHECK(player_fixture.HasVideo());
+  SB_DCHECK(player_fixture.HasAudio());
+
+  const int64_t kDurationToPlay = 200'000;
+
+  int audio_samples_to_write =
+      player_fixture.ConvertDurationToAudioBufferCount(kDurationToPlay);
+  int video_samples_to_write =
+      player_fixture.ConvertDurationToVideoBufferCount(kDurationToPlay);
+
+  GroupedSamples samples;
+  samples.AddAudioSamples(0, audio_samples_to_write);
+  samples.AddAudioEOS();
+  samples.AddVideoSamples(0, video_samples_to_write);
+  samples.AddVideoEOS();
+
+  // Start initial playback
+  ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
+  ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerPresenting());
+
+  // Execute Seek to 0
+  ASSERT_NO_FATAL_FAILURE(player_fixture.Seek(0));
+
+  // Resume playback post seek
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
 }
