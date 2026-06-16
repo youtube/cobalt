@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cmath>
 #include <string>
 #include <tuple>
 #include <vector>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
-#include "starboard/common/time.h"
 #include "starboard/media.h"
 #include "starboard/nplb/player_test_fixture.h"
 #include "starboard/nplb/player_test_util.h"
@@ -161,19 +159,11 @@ TEST_P(VerticalVideoTest, WriteSamples) {
 
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerPresenting());
-
-  int64_t start_system_time = starboard::CurrentMonotonicTime();
-  int64_t start_media_time = player_fixture.GetCurrentMediaTime();
-
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
 
-  int64_t end_system_time = starboard::CurrentMonotonicTime();
   int64_t end_media_time = player_fixture.GetCurrentMediaTime();
-
-  const int64_t kDurationDifferenceAllowance = 500'000;  // 500ms
-  EXPECT_NEAR(end_media_time, kDurationToPlay, kDurationDifferenceAllowance);
-  EXPECT_NEAR(end_system_time - start_system_time + start_media_time,
-              kDurationToPlay, kDurationDifferenceAllowance);
+  const int64_t kMediaTimeAllowance = 100'000;  // 100ms
+  EXPECT_NEAR(end_media_time, kDurationToPlay, kMediaTimeAllowance);
 }
 
 TEST_P(VerticalVideoTest, Seek) {
@@ -199,16 +189,17 @@ TEST_P(VerticalVideoTest, Seek) {
   samples.AddVideoSamples(0, video_samples_to_write);
   samples.AddVideoEOS();
 
-  // Start initial playback
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerPresenting());
 
-  // Execute Seek to 0
   ASSERT_NO_FATAL_FAILURE(player_fixture.Seek(0));
 
-  // Resume playback post seek
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
+
+  int64_t end_media_time = player_fixture.GetCurrentMediaTime();
+  const int64_t kMediaTimeAllowance = 100'000;  // 100ms
+  EXPECT_NEAR(end_media_time, kDurationToPlay, kMediaTimeAllowance);
 }
 
 std::vector<SbPlayerTestConfig> GetSupportedTestConfigs() {
