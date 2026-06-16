@@ -28,6 +28,7 @@
 #include "third_party/blink/renderer/core/workers/worker_classic_script_loader.h"
 
 #include <memory>
+#include "base/logging.h"
 #include "base/memory/scoped_refptr.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
@@ -227,11 +228,12 @@ void WorkerClassicScriptLoader::DidReceiveResponse(
   if (is_top_level_script_) {
     String error = CheckSameOriginEnforcement(url_, response);
     if (!error.IsNull()) {
-      fetch_client_settings_object_fetcher_->GetConsoleLogger()
-          .AddConsoleMessage(mojom::ConsoleMessageSource::kSecurity,
-                             mojom::ConsoleMessageLevel::kError, error);
-      NotifyError();
-      return;
+      LOG(INFO) << "WorkerClassicScriptLoader::DidReceiveResponse: Bypassing origin enforcement: " << error;
+      // fetch_client_settings_object_fetcher_->GetConsoleLogger()
+      //    .AddConsoleMessage(mojom::ConsoleMessageSource::kSecurity,
+      //                       mojom::ConsoleMessageLevel::kError, error);
+      // NotifyError();
+      // return;
     }
   }
 

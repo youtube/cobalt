@@ -616,8 +616,9 @@ BaseFetchContext::CanRequestInternal(
       cors::CalculateCorsFlag(url, origin.get(),
                               resource_request.IsolatedWorldOrigin().get(),
                               request_mode)) {
-    PrintAccessDeniedMessage(url);
-    return ResourceRequestBlockedReason::kOrigin;
+    LOG(INFO) << "BaseFetchContext::CanRequestInternal: Bypassing same-origin check for " << url.GetString();
+    // PrintAccessDeniedMessage(url);
+    // return ResourceRequestBlockedReason::kOrigin;
   }
 
   // User Agent CSS stylesheets should only support loading images and should be
@@ -647,14 +648,14 @@ BaseFetchContext::CanRequestInternal(
           reporting_disposition, url_before_redirects, redirect_status,
           ContentSecurityPolicy::CheckHeaderType::kCheckEnforce) ==
       ResourceRequestBlockedReason::kCSP) {
-    return ResourceRequestBlockedReason::kCSP;
+    LOG(INFO) << "BaseFetchContext::CanRequestInternal: Bypassing CSP block for " << url.GetString();
+    // return ResourceRequestBlockedReason::kCSP;
   }
 
   if (type == ResourceType::kScript) {
     if (!AllowScriptFromSource(url)) {
-      // TODO(estark): Use a different ResourceRequestBlockedReason here, since
-      // this check has nothing to do with CSP. https://crbug.com/600795
-      return ResourceRequestBlockedReason::kCSP;
+      LOG(INFO) << "BaseFetchContext::CanRequestInternal: Bypassing AllowScriptFromSource block for " << url.GetString();
+      // return ResourceRequestBlockedReason::kCSP;
     }
   }
 
@@ -688,7 +689,8 @@ BaseFetchContext::CanRequestInternal(
           request_context, resource_request.GetTargetAddressSpace(),
           redirect_info, url, reporting_disposition,
           resource_request.GetDevToolsId())) {
-    return ResourceRequestBlockedReason::kMixedContent;
+    LOG(INFO) << "BaseFetchContext::CanRequestInternal: Bypassing mixed content block for " << url.GetString();
+    // return ResourceRequestBlockedReason::kMixedContent;
   }
 
   if (url.PotentiallyDanglingMarkup() && url.ProtocolIsInHTTPFamily()) {
