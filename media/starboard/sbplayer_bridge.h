@@ -74,12 +74,12 @@ class SbPlayerBridge {
   };
 
   // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
-  typedef base::RepeatingCallback<SbDecodeTargetGraphicsContextProvider*()>
-      GetDecodeTargetGraphicsContextProviderFunc;
+  using GetDecodeTargetGraphicsContextProviderFunc =
+      base::RepeatingCallback<SbDecodeTargetGraphicsContextProvider*()>;
 
 #if SB_HAS(PLAYER_WITH_URL)
-  typedef base::Callback<void(const char*, const unsigned char*, unsigned)>
-      OnEncryptedMediaInitDataEncounteredCB;
+  using OnEncryptedMediaInitDataEncounteredCB = base::RepeatingCallback<
+      void(const char*, const unsigned char*, unsigned)>;
   // Create an SbPlayerBridge with url-based player.
   SbPlayerBridge(SbPlayerInterface* interface,
                  const scoped_refptr<base::SequencedTaskRunner>& task_runner,
@@ -89,8 +89,12 @@ class SbPlayerBridge {
                  bool allow_resume_after_suspend,
                  SbPlayerOutputMode default_output_mode,
                  const OnEncryptedMediaInitDataEncounteredCB&
-                     encrypted_media_init_data_encountered_cb,
-                 std::string pipeline_identifier);
+                     encrypted_media_init_data_encountered_cb
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+                 ,
+                 std::string pipeline_identifier
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+  );
 #endif  // SB_HAS(PLAYER_WITH_URL)
   using ExperimentalFeatures = StarboardRendererConfig::ExperimentalFeatures;
   // Create a SbPlayerBridge with normal player

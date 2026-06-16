@@ -34,6 +34,10 @@
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "cobalt/app/app_event_delegate.h"
+
+#if BUILDFLAG(USE_EVERGREEN)
+#include "cobalt/updater/updater_module.h"
+#endif
 #include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
@@ -53,11 +57,8 @@
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 #endif
 
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-#include <init_musl.h>
 #if BUILDFLAG(USE_EVERGREEN)
 #include "cobalt/browser/loader_app_metrics.h"
-#endif
 #endif
 
 namespace cobalt {
@@ -120,9 +121,6 @@ class AppEventRunnerImpl : public AppEventRunner,
 
   void DoStart(const SbEvent* event) override {
     SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-    init_musl();
-#endif
     InitializeSystem();
 #if BUILDFLAG(IS_STARBOARD)
     platform_event_source_ =
@@ -221,11 +219,25 @@ class AppEventRunnerImpl : public AppEventRunner,
     content::Shell::OnFreeze();
     WaitForAck(PendingAck::kCookieFlush);
     std::move(callback).Run();
+#if BUILDFLAG(USE_EVERGREEN)
+    cobalt::updater::UpdaterModule* updater_module =
+        cobalt::updater::UpdaterModule::GetInstance();
+    if (updater_module) {
+      updater_module->Suspend();
+    }
+#endif
   }
 
   void DoUnfreeze() override {
     content::Shell::OnUnfreeze();
     WaitForAck(PendingAck::kUnfreeze);
+#if BUILDFLAG(USE_EVERGREEN)
+    cobalt::updater::UpdaterModule* updater_module =
+        cobalt::updater::UpdaterModule::GetInstance();
+    if (updater_module) {
+      updater_module->Resume();
+    }
+#endif
   }
 
   void OnInput(const SbEvent* event) override {

@@ -140,7 +140,7 @@ void EmbeddedMetadataReuseAllocatorBase::MemoryBlock::Allocate(
 }
 
 void* EmbeddedMetadataReuseAllocatorBase::Allocate(size_t size) {
-  return Allocate(size, 1);
+  return Allocate(size, kMinAlignment);
 }
 
 void* EmbeddedMetadataReuseAllocatorBase::Allocate(size_t size,
@@ -157,7 +157,8 @@ void* EmbeddedMetadataReuseAllocatorBase::Allocate(size_t size,
 
   size = AlignUp(std::max(size, kMinAlignment), kMinAlignment) +
          sizeof(BlockMetadata);
-  alignment = AlignUp(std::max<size_t>(alignment, 1), kMinAlignment);
+  alignment =
+      AlignUp(std::max<size_t>(alignment, kMinAlignment), kMinAlignment);
 
   bool allocate_from_front;
   FreeBlockSet::iterator free_block_iter =
@@ -528,7 +529,7 @@ EmbeddedMetadataReuseAllocatorBase::ExpandToFit(size_t size, size_t alignment) {
   // |free_address + free_size|  |aligned_address|
   size_t size_to_allocate = aligned_address + size - free_address - free_size;
   std::tie(fallback_address, fallback_index) =
-      AllocateFallbackBlock(&size_to_allocate, 1);
+      AllocateFallbackBlock(&size_to_allocate, kMinAlignment);
   if (fallback_address == nullptr) {
     return free_blocks_.end();
   }

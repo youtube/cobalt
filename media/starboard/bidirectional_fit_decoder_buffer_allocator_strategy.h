@@ -61,10 +61,8 @@ class BidirectionalFitDecoderBufferAllocatorStrategy
                                      conservative_decommit_blocks,
                                      aggressive_decommit_on_suspend) {}
 
-  void* Allocate(DemuxerStream::Type type,
-                 size_t size,
-                 size_t alignment) override {
-    return bidirectional_fit_allocator_.Allocate(size, alignment);
+  void* Allocate(DemuxerStream::Type type, size_t size) override {
+    return bidirectional_fit_allocator_.Allocate(size);
   }
   void Free(DemuxerStream::Type type, void* p) override {
     bidirectional_fit_allocator_.Free(p);

@@ -552,6 +552,9 @@ test("test_opus_encode") {
   ]
 
   deps = [ ":opus" ]
+  if (is_starboard) {
+    deps += [ ":sbeventhandle_opus_tests" ]
+  }
 }
 
 test("test_opus_decode") {
@@ -565,6 +568,9 @@ test("test_opus_decode") {
   ]
 
   deps = [ ":opus" ]
+  if (is_starboard) {
+    deps += [ ":sbeventhandle_opus_tests" ]
+  }
 }
 
 test("test_opus_padding") {
@@ -577,6 +583,9 @@ test("test_opus_padding") {
   ]
 
   deps = [ ":opus" ]
+  if (is_starboard) {
+    deps += [ ":sbeventhandle_opus_tests" ]
+  }
 }
 
 # Not all checkouts have a //base directory.

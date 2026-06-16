@@ -41,9 +41,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   class Strategy {
    public:
     virtual ~Strategy() {}
-    virtual void* Allocate(DemuxerStream::Type type,
-                           size_t size,
-                           size_t alignment) = 0;
+    virtual void* Allocate(DemuxerStream::Type type, size_t size) = 0;
     virtual void Free(DemuxerStream::Type type, void* p) = 0;
     virtual void Write(void* p, const void* data, size_t size) = 0;
 
@@ -70,13 +68,10 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   void DecommitAllDecommitableBlocks();
 
   // DecoderBuffer::Allocator methods.
-  Handle Allocate(DemuxerStream::Type type,
-                  size_t size,
-                  size_t alignment) override;
+  Handle Allocate(DemuxerStream::Type type, size_t size) override;
   void Free(DemuxerStream::Type type, Handle p, size_t size) override;
   void Write(Handle handle, const void* data, size_t size) override;
 
-  int GetBufferAlignment() const override;
   base::TimeDelta GetBufferGarbageCollectionDurationThreshold() const override;
 
   // DecoderBufferMemoryInfo methods.

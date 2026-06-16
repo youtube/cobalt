@@ -26,7 +26,6 @@ _common_loader_app_sources = [
 if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
   group("common_loader_app_dependencies") {
     public_deps = [
-      ":app_key",
       ":installation_manager",
       ":memory_tracker_thread",
       ":read_evergreen_version",
@@ -34,6 +33,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       ":reset_evergreen_update",
       ":slot_management",
       "//starboard:starboard_group",
+      "//starboard/common",
       "//starboard/common:common_headers_only",
       "//starboard/crashpad_wrapper",
       "//starboard/elf_loader:constants",
@@ -95,30 +95,6 @@ source_set("app_key_files_test") {
   deps = [
     ":app_key_files",
     "//starboard:starboard_group",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
-}
-
-static_library("app_key") {
-  sources = [
-    "app_key.cc",
-    "app_key.h",
-    "app_key_internal.cc",
-    "app_key_internal.h",
-  ]
-  deps = [
-    "//starboard:starboard_group",
-    "//starboard/common",
-    "//third_party/modp_b64",
-  ]
-}
-
-source_set("app_key_test") {
-  testonly = true
-  sources = [ "app_key_test.cc" ]
-  deps = [
-    ":app_key",
     "//testing/gmock",
     "//testing/gtest",
   ]

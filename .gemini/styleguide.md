@@ -25,11 +25,12 @@ To ensure high-quality Mojo changes, refer to these resources for best practices
 *   **Mojo Testing**: /docs/mojo_testing.md
 *   **Mojo Security**: /docs/security/mojo.md
 
-# JNI Best Practices
+# JNI Zero Best Practices
 
-For JNI (Java Native Interface) code, please adhere to the following best practices.
+For JNI (Java Native Interface) code, please adhere to the JNI Zero best practices.
 
-*   **JNI Best Practices**: /base/android/jni_generator/README.md#Best-Practices
+When reviewing pull requests that modify JNI code or use JNI Zero to call between C++ and Java, the changes **must** strictly observe the JNI conversion processes, coding guidelines, and rules documented in the project's dedicated guide: **[JNI Zero Skill Guide (SKILL.md)](/third_party/jni_zero/skills/jni-zero/SKILL.md)**.
+
 *   **JNI Zero**: /third_party/jni_zero/README.md
 *   **Android JNI Ownership Best Practices**: /docs/android_jni_ownership_best_practices.md
 *   **Android Accessing Cpp Features in Java**: /docs/android_accessing_cpp_features_in_java.md

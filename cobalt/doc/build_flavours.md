@@ -98,7 +98,7 @@ buildflag_header("foo_buildflags") {
   header = "foo_buildflags.h"
 
   flags = [
-    This uses the GN build flag enable_doom_melon as the definition.
+    # This uses the GN build flag enable_doom_melon as the definition.
     "ENABLE_DOOM_MELON=$enable_doom_melon",
   ]
 }
