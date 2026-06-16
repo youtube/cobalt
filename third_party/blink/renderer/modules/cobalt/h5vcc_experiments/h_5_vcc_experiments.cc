@@ -15,6 +15,7 @@
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_experiments/h_5_vcc_experiments.h"
 
 #include "base/metrics/field_trial_params.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/values.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/h5vcc_experiments/public/mojom/h5vcc_experiments.mojom-blink.h"
@@ -47,6 +48,9 @@ ScriptPromise<IDLUndefined> H5vccExperiments::setExperimentState(
       ParseConfigToDictionary(experiment_configuration);
 
   if (!experiment_config_dict.has_value()) {
+    base::UmaHistogramBoolean("Cobalt.Finch.SetExperimentState.ParseError",
+                              true);
+    base::UmaHistogramBoolean("Cobalt.Finch.SetExperimentState.Result", false);
     resolver->RejectWithDOMException(
         DOMExceptionCode::kInvalidStateError,
         "Unable to parse experiment configuration.");
@@ -196,6 +200,7 @@ void H5vccExperiments::OnGetLatestExperimentConfigHashData(
 
 void H5vccExperiments::OnSetExperimentState(
     ScriptPromiseResolver<IDLUndefined>* resolver) {
+  base::UmaHistogramBoolean("Cobalt.Finch.SetExperimentState.Result", true);
   ongoing_requests_.erase(resolver);
   resolver->Resolve();
 }
@@ -245,6 +250,9 @@ void H5vccExperiments::OnConnectionError() {
   // concurrent modification.
   ongoing_requests_.swap(h5vcc_experiments_promises);
   for (auto& resolver : h5vcc_experiments_promises) {
+    base::UmaHistogramBoolean("Cobalt.Finch.SetExperimentState.ConnectionError",
+                              true);
+    base::UmaHistogramBoolean("Cobalt.Finch.SetExperimentState.Result", false);
     resolver->Reject("Mojo connection error.");
   }
   ongoing_requests_.clear();

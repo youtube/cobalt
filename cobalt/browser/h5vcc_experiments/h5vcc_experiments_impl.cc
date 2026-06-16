@@ -67,6 +67,8 @@ H5vccExperimentsImpl::H5vccExperimentsImpl(
 void H5vccExperimentsImpl::SetExperimentState(
     base::Value::Dict experiment_config,
     SetExperimentStateCallback callback) {
+  base::UmaHistogramBoolean("Cobalt.Finch.SetExperimentState.BrowserCalled",
+                            true);
   auto* global_features = cobalt::GlobalFeatures::GetInstance();
   auto* experiment_config_ptr = global_features->experiment_config();
   // A valid experiment config is supplied by h5vcc and we store the current
