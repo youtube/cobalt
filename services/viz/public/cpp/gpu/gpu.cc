@@ -16,6 +16,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread_checker.h"
 #include "base/trace_event/trace_event.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -341,7 +342,12 @@ scoped_refptr<gpu::GpuChannelHost> Gpu::EstablishGpuChannelSync() {
   base::WaitableEvent event(base::WaitableEvent::ResetPolicy::MANUAL,
                             base::WaitableEvent::InitialState::SIGNALED);
   SendEstablishGpuChannelRequest(&event);
-  event.Wait();
+  if (!event.TimedWait(base::Seconds(1))) {
+    LOG(ERROR) << "Gpu::EstablishGpuChannelSync: Timed out waiting for GPU channel! (1s)";
+    pending_request_->Cancel();
+    pending_request_.reset();
+    return nullptr;
+  }
 
   // Running FinishOnMain() will create |gpu_channel_| and run any callbacks
   // from calls to EstablishGpuChannel() before we return from here.
