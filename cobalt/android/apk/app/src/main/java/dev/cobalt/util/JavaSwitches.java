@@ -33,6 +33,8 @@ public class JavaSwitches {
   /** flag to force use IPv4 for system host resolution. */
   public static final String USE_IPV4_FOR_DNS = "UseIPv4ForDNS";
 
+  public static final String USE_MINOR_MS_FOR_MINOR_GC = "UseMinorMSForMinorGC";
+
   /** flag to delete stale leveldb LOCK file on startup. */
   public static final String LOCAL_STORAGE_DELETE_LOCK_FILE = "LocalStorageDeleteLockFile";
 
@@ -94,6 +96,10 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_V8_OPTIMIZING_COMPILERS)) {
       extraCommandLineArgs.add("--js-flags=--disable-optimizing-compilers;--no-sparkplug");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.USE_MINOR_MS_FOR_MINOR_GC)) {
+      extraCommandLineArgs.add("--js-flags=--minor-ms;--minor-ms-min-new-space-capacity-for-concurrent-marking-mb=0");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES)) {
