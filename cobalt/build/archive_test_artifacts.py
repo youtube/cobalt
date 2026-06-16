@@ -184,7 +184,9 @@ def create_archive(
         target_deps.add(os.path.join(tar_root, 'test_targets.json'))
 
       # Add JUnit wrapper scripts if they exist (special case for these
-      # since they are missing from the runtime deps file.
+      # since they are missing from the runtime deps file).
+      # TODO(b/524712602): This special case handling could be removed with GN
+      # refactoring of the Robolectric binary.
       if is_junit_test:
         print(f'Adding Junit-specific test runner scripts for {target}.')
         junit_wrapper = os.path.join('bin', f'run_{target_name}')
