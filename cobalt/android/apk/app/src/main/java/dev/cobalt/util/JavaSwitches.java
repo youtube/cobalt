@@ -37,9 +37,6 @@ public class JavaSwitches {
   /** flag to delete stale leveldb LOCK file on startup. */
   public static final String LOCAL_STORAGE_DELETE_LOCK_FILE = "LocalStorageDeleteLockFile";
 
-  /** flag to enable fast track mic capture. */
-  public static final String ENABLE_COBALT_AUDIO_CAPTURE_FAST_TRACK = "EnableCobaltAudioCaptureFastTrack";
-
   /** flag to tune compositor offscreen interest area size in pixels. */
   public static final String INTEREST_AREA_SIZE_IN_PIXELS = "InterestAreaSizeInPixels";
 
@@ -86,10 +83,6 @@ public class JavaSwitches {
 
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
       extraCommandLineArgs.add("--disable-quic");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_COBALT_AUDIO_CAPTURE_FAST_TRACK)) {
-      extraCommandLineArgs.add("--enable-features=CobaltAudioCaptureFastTrack");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_HTTP_CACHE)) {
