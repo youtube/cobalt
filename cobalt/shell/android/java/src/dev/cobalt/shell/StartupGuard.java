@@ -3,8 +3,10 @@ package dev.cobalt.shell;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import androidx.annotation.VisibleForTesting;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -22,6 +24,7 @@ public class StartupGuard {
     private final Runnable crashRunnable;
     private final AtomicLong startupStatus = new AtomicLong(0L);
     private final Map<String, String> diagnosisInfo = new HashMap<>();
+    private final AtomicBoolean isArmed = new AtomicBoolean(false);
 
     private static class LazyHolder {
         private static final StartupGuard INSTANCE = new StartupGuard();
@@ -37,6 +40,7 @@ public class StartupGuard {
         crashRunnable = new Runnable() {
             @Override
             public void run() {
+                isArmed.set(false);
                 throw new RuntimeException(
                         "Application startup may not have succeeded, crash triggered by StartupGuard. "
                                 + getStartupStatusAndDiagnosisInfo());
@@ -96,7 +100,7 @@ public class StartupGuard {
      * @param delaySeconds The delay in seconds before the crash is triggered.
      */
     public void scheduleCrash(long delaySeconds) {
-        if (!handler.hasCallbacks(crashRunnable)) {
+        if (isArmed.compareAndSet(/*expect=*/ false, /*update=*/ true)) {
             handler.postDelayed(crashRunnable, delaySeconds * 1000);
             Log.i(TAG, "StartupGuard scheduled crash in " + delaySeconds + " seconds.");
         } else {
@@ -108,9 +112,25 @@ public class StartupGuard {
      * Cancels the pending crash job.
      */
     public void disarm() {
-        if (handler.hasCallbacks(crashRunnable)) {
+        if (isArmed.compareAndSet(/*expect=*/ true, /*update=*/ false)) {
             handler.removeCallbacks(crashRunnable);
             Log.i(TAG, "StartupGuard cancelled crash. " + getStartupStatusAndDiagnosisInfo());
         }
+    }
+
+    /**
+     * Checks if the forced crash is currently scheduled.
+     */
+    @VisibleForTesting
+    public boolean isArmed() {
+        return isArmed.get();
+    }
+
+    /**
+     * Returns the runnable that triggers the forced crash.
+     */
+    @VisibleForTesting
+    public Runnable getCrashRunnable() {
+        return crashRunnable;
     }
 }

@@ -89,8 +89,6 @@ const char kH5vccSettingsKeyMediaSkipFlushOnDecoderTeardown[] =
     "Media.SkipFlushOnDecoderTeardown";
 const char kH5vccSettingsKeyMediaSkipVideoFramesOver60Fps[] =
     "Media.SkipVideoFramesOver60Fps";
-const char kH5vccSettingsKeyMediaUseDualThreadsForVideo[] =
-    "Media.UseDualThreadsForVideo";
 
 using ExperimentalFeatures =
     ::media::StarboardRendererConfig::ExperimentalFeatures;
@@ -275,10 +273,6 @@ ExperimentalFeatures ProcessH5vccSettings(
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaSkipVideoFramesOver60Fps)) {
     parsed.skip_video_frames_over_60_fps = *val != 0;
-  }
-  if (auto* val = GetSettingValue<int64_t>(
-          settings, kH5vccSettingsKeyMediaUseDualThreadsForVideo)) {
-    parsed.use_dual_threads_for_video = *val != 0;
   }
 
   parsed.video_decoder_initial_preroll_count = ProcessRangedIntH5vccSetting(
