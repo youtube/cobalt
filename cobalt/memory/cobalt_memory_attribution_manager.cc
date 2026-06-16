@@ -143,9 +143,11 @@ bool CobaltMemoryAttributionManager::OnMemoryDump(
                       base::memory::ContextToString(
                           static_cast<base::memory::MemoryContext>(i))});
     auto* dump = pmd->CreateAllocatorDump(dump_name);
-    dump->AddScalar(base::trace_event::MemoryAllocatorDump::kNameSize,
-                    base::trace_event::MemoryAllocatorDump::kUnitsBytes,
-                    current);
+    if (dump) {
+      dump->AddScalar(base::trace_event::MemoryAllocatorDump::kNameSize,
+                      base::trace_event::MemoryAllocatorDump::kUnitsBytes,
+                      current);
+    }
   }
   return true;
 }

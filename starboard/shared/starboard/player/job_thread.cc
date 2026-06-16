@@ -18,6 +18,7 @@
 #include <mutex>
 #include <string>
 
+#include "copied_base/base/memory/cobalt_memory_context.h"
 #include "starboard/common/check_op.h"
 
 namespace starboard {
@@ -53,7 +54,10 @@ class JobThread::WorkerThread : public Thread {
 
 std::unique_ptr<JobThread> JobThread::Create(std::string_view thread_name,
                                              const ThreadOptions& options) {
-  auto thread = std::make_unique<WorkerThread>(thread_name, options);
+  ThreadOptions options_with_context = options;
+  options_with_context.SetMemoryContext(::base::memory::MemoryContext::kMedia);
+  auto thread =
+      std::make_unique<WorkerThread>(thread_name, options_with_context);
   thread->Start();
   auto job_queue = thread->TakeJobQueue();
   return std::unique_ptr<JobThread>(

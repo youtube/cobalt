@@ -25,6 +25,7 @@
 #include <string>
 #include <string_view>
 
+#include "copied_base/base/memory/cobalt_memory_context.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/semaphore.h"
@@ -130,7 +131,10 @@ struct Thread::Data {
 };
 
 Thread::Thread(std::string_view name, const ThreadOptions& options)
-    : name_(name), priority_(options.priority), d_(std::make_unique<Data>()) {}
+    : name_(name),
+      priority_(options.priority),
+      memory_context_(options.memory_context),
+      d_(std::make_unique<Data>()) {}
 
 Thread::~Thread() {
   // A started thread must be joined before destruction.
@@ -179,6 +183,8 @@ std::atomic_bool* Thread::joined_bool() {
 
 void* Thread::ThreadEntryPoint(void* context) {
   Thread* this_ptr = static_cast<Thread*>(context);
+
+  ::base::memory::SetCurrentMemoryContext(this_ptr->memory_context_);
 
 #if defined(__APPLE__)
   pthread_setname_np(this_ptr->name_.c_str());
