@@ -222,6 +222,10 @@
 #include "base/test/clang_profiling.h"
 #endif
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
+
 namespace content {
 
 namespace {
@@ -871,6 +875,14 @@ void RenderThreadImpl::RemoveObserver(RenderThreadObserver* observer) {
 void RenderThreadImpl::InitializeCompositorThread() {
   blink_platform_impl_->CreateAndSetCompositorThread();
   compositor_task_runner_ = blink_platform_impl_->CompositorThreadTaskRunner();
+
+#if BUILDFLAG(IS_COBALT)
+  compositor_task_runner_->PostTask(
+      FROM_HERE, base::BindOnce([]() {
+        base::memory::SetCurrentMemoryContext(
+            base::memory::MemoryContext::kGraphicsCompositor);
+      }));
+#endif
 
   compositor_task_runner_->PostTask(FROM_HERE,
                                     base::BindOnce(&base::DisallowBlocking));
