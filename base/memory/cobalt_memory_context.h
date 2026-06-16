@@ -37,6 +37,8 @@ enum class MemoryContext : uint8_t {
   kBlinkParser = 18,
   kPlatformIPC = 19,
   kPlatformStarboard = 20,
+  kPlatformDevTools = 21,
+  kBrowserMain = 22,
 
   kCount
 };
@@ -69,57 +71,10 @@ class BASE_EXPORT ScopedMemoryContext {
   MemoryContext prev_context_;
 };
 
-inline std::string_view ContextToString(MemoryContext context) {
-  switch (context) {
-    case MemoryContext::kUnknown:
-      return "Unknown";
-    case MemoryContext::kDOM:
-      return "DOM";
-    case MemoryContext::kLayout:
-      return "Layout";
-    case MemoryContext::kMedia:
-      return "Media";
-    case MemoryContext::kScript:
-      return "Script";
-    case MemoryContext::kNetwork:
-      return "Network";
-    case MemoryContext::kGraphics:
-      return "Graphics";
-    case MemoryContext::kStorage:
-      return "Storage";
-    case MemoryContext::kGraphicsCanvas:
-      return "GraphicsCanvas";
-    case MemoryContext::kGraphicsCompositor:
-      return "GraphicsCompositor";
-    case MemoryContext::kGraphicsGlyphs:
-      return "GraphicsGlyphs";
-    case MemoryContext::kScriptHeap:
-      return "ScriptHeap";
-    case MemoryContext::kScriptJIT:
-      return "ScriptJIT";
-    case MemoryContext::kScriptBindings:
-      return "ScriptBindings";
-    case MemoryContext::kNetworkLoader:
-      return "NetworkLoader";
-    case MemoryContext::kNetworkCache:
-      return "NetworkCache";
-    case MemoryContext::kBlinkDOM:
-      return "BlinkDOM";
-    case MemoryContext::kBlinkStyle:
-      return "BlinkStyle";
-    case MemoryContext::kBlinkParser:
-      return "BlinkParser";
-    case MemoryContext::kPlatformIPC:
-      return "PlatformIPC";
-    case MemoryContext::kPlatformStarboard:
-      return "PlatformStarboard";
-    case MemoryContext::kCount:
-      return "Unknown";
-  }
-  return "Unknown";
-}
+BASE_EXPORT std::string_view ContextToString(MemoryContext context);
 
 }  // namespace memory
 }  // namespace base
 
 #endif  // BASE_MEMORY_COBALT_MEMORY_CONTEXT_H_
+
