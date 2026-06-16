@@ -76,7 +76,7 @@ TEST(PosixFileUnlinkatTest, FailsInvalidDirfdRelativePath) {
 
 TEST(PosixFileUnlinkatTest, FailsInvalidFlags) {
   ScopedRandomFile file;
-  int invalid_flags = ~(AT_REMOVEDIR | AT_FDCWD);
+  int invalid_flags = ~AT_REMOVEDIR;
   EXPECT_EQ(unlinkat(AT_FDCWD, file.filename().c_str(), invalid_flags), -1);
   EXPECT_EQ(errno, EINVAL);
 }
