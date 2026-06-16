@@ -116,7 +116,7 @@ class FakeMediaCodecFactory : public MediaCodec::Factory {
   std::unique_ptr<MediaCodec> CreateAudioMediaCodec(
       const AudioStreamInfo& audio_stream_info,
       MediaCodec::Handler* handler,
-      jobject j_media_crypto) override;
+      const jni_zero::JavaRef<jobject>& j_media_crypto) override;
 
   NonNullResult<std::unique_ptr<MediaCodec>> CreateVideoMediaCodec(
       SbMediaVideoCodec video_codec,
@@ -124,8 +124,8 @@ class FakeMediaCodecFactory : public MediaCodec::Factory {
       int fps,
       const std::optional<Size>& max_frame_size,
       MediaCodec::Handler* handler,
-      jobject j_surface,
-      jobject j_media_crypto,
+      const jni_zero::JavaRef<jobject>& j_surface,
+      const jni_zero::JavaRef<jobject>& j_media_crypto,
       const SbMediaColorMetadata* color_metadata,
       const MediaCodec::VideoPlatformOptions& platform_options) override;
 

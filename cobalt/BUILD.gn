@@ -246,6 +246,7 @@ source_set("common") {
 
   deps = [
     "//base",
+    "//cc/base",
     "//cobalt/browser:features",
     "//cobalt/browser:switches",
     "//cobalt/browser/h5vcc_accessibility:manager",
