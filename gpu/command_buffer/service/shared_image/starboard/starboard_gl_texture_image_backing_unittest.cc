@@ -74,8 +74,7 @@ TEST_F(StarboardGLTextureBackingTest, Basic) {
 
   auto backing = std::make_unique<StarboardGLTextureBacking>(
       mailbox, format, size, color_space, surface_origin, alpha_type, usage,
-      texture_ids, texture_targets, decode_target,
-      context_state_->GetGLFormatCaps());
+      texture_ids, texture_targets, decode_target);
 
   EXPECT_EQ(backing->mailbox(), mailbox);
   EXPECT_EQ(backing->size(), size);
@@ -123,8 +122,7 @@ TEST_F(StarboardGLTextureBackingTest, Multiplanar) {
 
   auto backing = std::make_unique<StarboardGLTextureBacking>(
       mailbox, format, size, color_space, surface_origin, alpha_type, usage,
-      texture_ids, texture_targets, decode_target,
-      context_state_->GetGLFormatCaps());
+      texture_ids, texture_targets, decode_target);
 
   auto factory_rep =
       shared_image_manager_.Register(std::move(backing), &memory_type_tracker_);
@@ -158,8 +156,7 @@ TEST_F(StarboardGLTextureBackingTest, DrDcLock) {
 
   auto backing = std::make_unique<StarboardGLTextureBacking>(
       mailbox, format, size, color_space, surface_origin, alpha_type, usage,
-      texture_ids, texture_targets, decode_target,
-      context_state_->GetGLFormatCaps(), drdc_lock);
+      texture_ids, texture_targets, decode_target, drdc_lock);
 
   auto factory_rep =
       shared_image_manager_.Register(std::move(backing), &memory_type_tracker_);

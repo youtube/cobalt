@@ -48,8 +48,7 @@ class GPU_GLES2_EXPORT StarboardGLTextureBacking
                             SharedImageUsageSet usage,
                             std::vector<GLuint> texture_ids,
                             std::vector<uint32_t> texture_targets,
-                            uint64_t decode_target,
-                            const GLFormatCaps& gl_format_caps
+                            uint64_t decode_target
 #if BUILDFLAG(IS_ANDROID)
                             ,
                             scoped_refptr<gpu::RefCountedLock> drdc_lock
@@ -64,13 +63,8 @@ class GPU_GLES2_EXPORT StarboardGLTextureBacking
 
   SharedImageBackingType GetType() const override;
   void Update(std::unique_ptr<gfx::GpuFence> in_fence) override;
-  bool IsValid() const { return is_valid_; }
 
  protected:
-  std::unique_ptr<GLTextureImageRepresentation> ProduceGLTexture(
-      SharedImageManager* manager,
-      MemoryTypeTracker* tracker) override;
-
   std::unique_ptr<GLTexturePassthroughImageRepresentation>
   ProduceGLTexturePassthrough(SharedImageManager* manager,
                               MemoryTypeTracker* tracker) override;
@@ -81,15 +75,12 @@ class GPU_GLES2_EXPORT StarboardGLTextureBacking
       scoped_refptr<SharedContextState> context_state) override;
 
  private:
-  class GLTextureStarboardImageRepresentation;
   class GLTexturePassthroughStarboardImageRepresentation;
 
-  std::vector<gpu::gles2::Texture*> textures_;
   std::vector<scoped_refptr<gpu::gles2::TexturePassthrough>>
       passthrough_textures_;
 
   SbDecodeTarget decode_target_ = kSbDecodeTargetInvalid;
-  bool is_valid_ = true;
 
 #if BUILDFLAG(IS_ANDROID)
   scoped_refptr<gpu::RefCountedLock> drdc_lock_;

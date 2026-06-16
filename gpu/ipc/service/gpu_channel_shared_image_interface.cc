@@ -174,25 +174,19 @@ GpuChannelSharedImageInterface::CreateSharedImageForStarboardGLTexture(
     return nullptr;
   }
 
-  auto shared_context = shared_image_stub_->shared_context_state();
-  if (!shared_context || shared_context->context_lost()) {
-    return nullptr;
-  }
-
-  auto caps = shared_context->GetGLFormatCaps();
   auto mailbox = Mailbox::Generate();
 
   auto backing = std::make_unique<StarboardGLTextureBacking>(
       mailbox, format, size, color_space,
       kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType,
       SHARED_IMAGE_USAGE_DISPLAY_READ | SHARED_IMAGE_USAGE_GLES2_READ,
-      texture_service_ids, texture_targets, decode_target, caps
+      texture_service_ids, texture_targets, decode_target
 #if BUILDFLAG(IS_ANDROID)
       , std::move(drdc_lock)
 #endif
       );
 
-  if (!backing || !backing->IsValid()) {
+  if (!backing) {
     return nullptr;
   }
 
