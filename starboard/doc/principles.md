@@ -46,7 +46,7 @@ Here are the main goals of Starboard, stack-ranked from most-to-least important.
   * **G10** Maintain a loose binding between a Starboard Platform Implementation
     and a Starboard Client Application, such that they can be updated
     independently at a source level.
-  * **G11** Use POSIX wrappers to provide stable System ABI per CPU architecture.
+  * **G11** Use POSIX wrappers to provide a stable System ABI per CPU architecture.
 
 ## Principles
 
