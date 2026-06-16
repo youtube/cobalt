@@ -49,8 +49,11 @@ class VideoSurfaceHolder {
  protected:
   ~VideoSurfaceHolder() {}
 
-  // Returns the surface to which video should be rendered. The surface
-  // cannot be acquired before last holder release the surface.
+  // Returns the surface to which video should be rendered, along with a
+  // SurfaceDestroyNotifier to safely handle surface destruction.
+  // The surface cannot be acquired if it's already held by another player.
+  // |job_queue| is used by SurfaceDestroyNotifier to schedule the teardown
+  // task on the player worker thread when the surface is destroyed.
   AcquiredSurface AcquireVideoSurface(JobQueue* job_queue);
 
   // Release the surface to make the surface available for other holder.
