@@ -679,10 +679,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
     DrmSystem* drm_system_ptr =
         static_cast<DrmSystem*>(creation_parameters.drm_system());
-    jobject j_media_crypto =
-        drm_system_ptr ? drm_system_ptr->GetMediaCrypto() : nullptr;
-
-    bool is_encrypted = !!j_media_crypto;
+    bool is_encrypted = drm_system_ptr && drm_system_ptr->GetMediaCrypto();
     if (IsTunnelModeVideoDecoderSupported(mime, is_encrypted)) {
       return true;
     }

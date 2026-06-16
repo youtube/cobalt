@@ -732,11 +732,13 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
   // the passed in Android video surface.  If we are in decode-to-texture
   // mode, create a surface from a new texture target and use that as the
   // output surface.
-  jobject j_output_surface = NULL;
+  JNIEnv* env = AttachCurrentThread();
+  jni_zero::ScopedJavaLocalRef<jobject> j_output_surface;
   switch (output_mode_) {
     case kSbPlayerOutputModePunchOut: {
       if (surface_view_) {
-        j_output_surface = static_cast<jobject>(surface_view_);
+        j_output_surface = jni_zero::ScopedJavaLocalRef<jobject>::Adopt(
+            env, env->NewLocalRef(static_cast<jobject>(surface_view_)));
       } else {
         j_output_surface = AcquireVideoSurface();
       }
@@ -757,9 +759,9 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       if (!SbDecodeTargetIsValid(decode_target)) {
         return Failure("Could not acquire a decode target from provider.");
       }
-      j_output_surface = decode_target->surface().obj();
+      j_output_surface =
+          jni_zero::ScopedJavaLocalRef<jobject>(env, decode_target->surface());
 
-      JNIEnv* env = AttachCurrentThread();
       surface_texture_bridge_->SetOnFrameAvailableListener(
           env, decode_target->surface_texture());
 
