@@ -70,9 +70,10 @@ class VideoDecoder
                bool force_reset_surface,
                bool force_reset_surface_under_tunnel_mode,
                bool force_big_endian_hdr_metadata,
-               int max_input_size,
+               int max_video_input_size,
                void* surface_view,
                bool enable_flush_during_seek,
+               bool enable_flushless_seek,
                int64_t reset_delay_usec,
                int64_t flush_delay_usec,
                const ::starboard::shared::starboard::ExperimentalFeatures&
@@ -242,6 +243,16 @@ class VideoDecoder
 
   std::vector<scoped_refptr<InputBuffer>> pending_input_buffers_;
   int video_fps_ = 0;
+
+  // Variables for flush-less seek optimization
+  const bool enable_flushless_seek_;
+  std::atomic_bool is_flushless_seek_pending_{false};
+  // We use the minimum value of int64_t as a sentinel for 'no value' since
+  // std::atomic doesn't support std::optional.
+  static constexpr int64_t kInvalidSeekTargetPts =
+      std::numeric_limits<int64_t>::min();
+  std::atomic<int64_t> seek_target_keyframe_pts_us_{kInvalidSeekTargetPts};
+  int expected_total_frames_ = -1;  // -1 means EOS not written yet
 
   // The variables below are used to calculate platform max supported MediaCodec
   // output buffers.

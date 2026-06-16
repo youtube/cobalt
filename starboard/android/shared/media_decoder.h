@@ -121,6 +121,8 @@ class MediaDecoder final
   bool is_valid() const { return media_codec_bridge_ != NULL; }
 
   bool Flush();
+  void ClearPendingData();
+  void SetEnableFlushlessSeek(bool enable) { enable_flushless_seek_ = enable; }
 
  private:
   // Holding inputs to be processed.  They are mostly InputBuffer objects, but
@@ -220,6 +222,8 @@ class MediaDecoder final
   std::atomic_bool stream_ended_{false};
 
   std::atomic_bool destroying_{false};
+
+  bool enable_flushless_seek_ = false;
 
   std::optional<PendingInputToRetry> pending_input_to_retry_;
 

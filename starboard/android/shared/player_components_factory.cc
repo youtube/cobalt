@@ -670,6 +670,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         force_reset_surface, kForceResetSurfaceUnderTunnelMode,
         force_big_endian_hdr_metadata, max_video_input_size,
         creation_parameters.surface_view(), enable_flush_during_seek,
+        true, /* enable_flushless_seek */
         reset_delay_usec, flush_delay_usec, experimental_features,
         error_message);
     if ((*error_message).empty() &&
