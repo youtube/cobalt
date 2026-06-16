@@ -4,7 +4,7 @@
 ## Background
 Updating existing Chromium components in the Cobalt repository or
 bringing new ones requires porting to Starboard. To reduce the effort in this
-Starboardization process POSIX APIs are leverage by introducing a Stable
+Starboardization process POSIX APIs are leveraged by introducing a Stable
 POSIX ABI per CPU architecture.
 
 
