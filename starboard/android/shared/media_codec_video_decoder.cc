@@ -743,8 +743,9 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       if (surface_view_) {
         j_output_surface = surface_view_.AsLocalRef(env);
       } else {
-        surface_destroy_notifier_ =
-            AcquireVideoSurface(job_queue(), &j_output_surface);
+        AcquiredSurface acquired_surface = AcquireVideoSurface(job_queue());
+        surface_destroy_notifier_ = acquired_surface.destroy_notifier;
+        j_output_surface = acquired_surface.surface;
       }
       if (j_output_surface) {
         owns_video_surface_ = true;
