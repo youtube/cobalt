@@ -54,7 +54,8 @@ python3 compare_accuracy.py --uma_log uma_histos.txt --smaps_dir cobalt_smaps_lo
 This shell script is designed for RDK-based devices to measure memory usage across critical scenarios and establish a memory baseline. It automates the process of launching `loader_app`, collecting samples, and generating a final report.
 
 **Key Features:**
-- **Critical Scenarios:** Benchmarks Home Page, Blank Page, 1080p, and 4K video playback.
+- **Critical Scenarios:** Benchmarks Home Page (static & scrolling), Blank Page, 1080p and 4K video playback (standard & scrolling).
+- **Interactive Simulation:** Simulates user interactions such as continuous scrolling or playback navigation (via `sendkey` inputs) to measure dynamic memory characteristics.
 - **Multi-Source Metrics:** Collects Resident Set Size (RSS) from both `smaps` (or `smaps_rollup`) and `top`.
 - **GPU Monitoring:** Specifically tracks Mali GPU memory usage via debugfs.
 - **Statistical Analysis:** Calculates Median and Peak RSS for each round and provides averages across multiple rounds for robust benchmarking.

@@ -73,6 +73,9 @@ public class JavaSwitches {
   public static final String COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE =
       "CobaltDynamicMojoPipeSubresourceSize";
 
+  /** flag to specify ANGLE to use the OpenGL ES backend */
+  public static final String COBALT_USE_ANGLE_GLES = "CobaltUseAngleGles";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     StringJoiner jsFlags = new StringJoiner(";");
@@ -152,7 +155,11 @@ public class JavaSwitches {
       extraCommandLineArgs.add(
           "--enable-features=SmallerInterestArea:" + featureParams.toString());
     }
-
+    
+    if (javaSwitches.containsKey(JavaSwitches.COBALT_USE_ANGLE_GLES)) {
+      extraCommandLineArgs.add("--use-angle=gles");
+    }
+    
     if (jsFlags.length() > 0 ) {
       extraCommandLineArgs.add("--js-flags=" + jsFlags.toString());
     }
