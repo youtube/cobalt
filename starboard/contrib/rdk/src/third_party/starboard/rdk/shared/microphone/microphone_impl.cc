@@ -53,23 +53,32 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
     state_ = kClosed;
     starboard::rdk::shared::microphone::ClearLocalAowsBufferedAudio();
     SB_LOG(INFO) << logtag << ": Microphone closed.";
+    AOWSLog(kInfo, "Microphone closed.\n");
     return true;
   }
 
   int Read(void* out_audio_data, int audio_data_size) override {
     if (state_ == kClosed) {
+      SB_LOG(WARNING) << logtag << ": Read called on closed microphone.";
+      AOWSLog(kWarning, "Read called on closed microphone.\n");
       return -1;
     }
 
     if (audio_data_size < 0) {
+      SB_LOG(WARNING) << logtag << ": Read called with negative audio_data_size " << audio_data_size;
+      AOWSLog(kWarning, "Read called with negative audio_data_size %d\n", audio_data_size);
       return -1;
     }
 
     if (!out_audio_data) {
+      SB_LOG(WARNING) << logtag << ": Read called with null out_audio_data pointer.";
+      AOWSLog(kWarning, "Read called with null out_audio_data pointer.\n");
       return 0;
     }
 
     if (audio_data_size == 0) {
+      SB_LOG(WARNING) << logtag << ": Read called with zero audio_data_size.";
+      AOWSLog(kWarning, "Read called with zero audio_data_size.\n");
       return 0;
     }
 
@@ -77,6 +86,7 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
       SB_LOG(WARNING) << logtag << ": Read size " << audio_data_size
                       << " is less than minimum " << kMinReadSizeBytes
                       << ", clearing buffered audio.";
+      AOWSLog(kWarning, "Read size %d is less than minimum %d, clearing buffered audio.\n", audio_data_size, kMinReadSizeBytes);
       starboard::rdk::shared::microphone::ClearLocalAowsBufferedAudio();
       return 0;
     }
@@ -85,6 +95,7 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
         out_audio_data, std::min(audio_data_size, buffer_size_bytes_));
     if (bytes_read > 0) {
       SB_LOG(INFO) << logtag << ": Read " << bytes_read << " bytes from AOWS buffer.";
+      AOWSLog(kInfo, "Read %d bytes from AOWS buffer.\n", bytes_read);
     }
     return bytes_read;
   }
@@ -100,8 +111,9 @@ SbMicrophone s_microphone = kSbMicrophoneInvalid;
 
 int SbMicrophonePrivate::GetAvailableMicrophones(SbMicrophoneInfo* out_info_array,
                                                  int info_array_size) {
-  fprintf(stderr, "%s GetAvailableMicrophones called!\n", logtag);
-  fflush(stderr);
+  SB_LOG(INFO) << logtag << ": GetAvailableMicrophones called!";
+  AOWSLog(kInfo, "GetAvailableMicrophones called!\n");
+
   starboard::rdk::shared::microphone::EnsureLocalAowsServerStarted();
 
   if (out_info_array && info_array_size > 0) {
@@ -121,6 +133,8 @@ bool SbMicrophonePrivate::IsMicrophoneSampleRateSupported(SbMicrophoneId id,
   starboard::rdk::shared::microphone::EnsureLocalAowsServerStarted();
 
   if (!SbMicrophoneIdIsValid(id) || id != kMicrophoneId) {
+    SB_LOG(WARNING) << logtag << ": IsMicrophoneSampleRateSupported returning false for id " << id;
+    AOWSLog(kWarning, "IsMicrophoneSampleRateSupported returning false for id %p\n", id);
     return false;
   }
   return sample_rate_in_hz == kSampleRateInHz;
@@ -134,6 +148,12 @@ SbMicrophone SbMicrophonePrivate::CreateMicrophone(SbMicrophoneId id,
   if (!SbMicrophoneIdIsValid(id) || id != kMicrophoneId ||
       !IsMicrophoneSampleRateSupported(id, sample_rate_in_hz) ||
       buffer_size_bytes <= 0 || s_microphone != kSbMicrophoneInvalid) {
+    SB_LOG(WARNING) << logtag << ": CreateMicrophone failed for id " << id
+                    << ", sample_rate_in_hz " << sample_rate_in_hz
+                    << ", buffer_size_bytes " << buffer_size_bytes
+                    << ", existing microphone " << (s_microphone != kSbMicrophoneInvalid);
+    AOWSLog(kWarning, "CreateMicrophone failed for id %p, sample_rate_in_hz %d, buffer_size_bytes %d, existing microphone %s\n",
+            id, sample_rate_in_hz, buffer_size_bytes, (s_microphone != kSbMicrophoneInvalid) ? "true" : "false");
     return kSbMicrophoneInvalid;
   }
 
@@ -142,6 +162,8 @@ SbMicrophone SbMicrophonePrivate::CreateMicrophone(SbMicrophoneId id,
 }
 
 void SbMicrophonePrivate::DestroyMicrophone(SbMicrophone microphone) {
+  SB_LOG(INFO) << logtag << ": DestroyMicrophone called for microphone " << microphone;
+  AOWSLog(kInfo, "DestroyMicrophone called for microphone %p\n", microphone);
   if (!SbMicrophoneIsValid(microphone)) {
     return;
   }

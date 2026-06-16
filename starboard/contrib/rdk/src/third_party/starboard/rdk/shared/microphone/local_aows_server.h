@@ -22,6 +22,17 @@ namespace rdk {
 namespace shared {
 namespace microphone {
 
+// Module vice logger
+enum {
+  kInfo,
+  kDebug,
+  kWarning,
+  kError,
+  kFatal
+};
+void AOWSLogInit();
+void AOWSLog(int level, const char* format, ...);
+
 void EnsureLocalAowsServerStarted();
 void ClearLocalAowsBufferedAudio();
 int ReadLocalAowsAudio(void* out_audio_data, int audio_data_size);
