@@ -122,6 +122,7 @@ Java_dev_cobalt_media_MediaDrmBridge_nativeOnKeyStatusChange(
   std::vector<SbDrmKeyId> drm_key_ids(length);
   std::vector<SbDrmKeyStatus> drm_key_statuses(length);
 
+  bool has_usable_key = false;
   for (jsize i = 0; i < length; ++i) {
     jobject j_key_status =
         env->GetObjectArrayElementOrAbort(j_key_status_array, i);
@@ -149,6 +150,7 @@ Java_dev_cobalt_media_MediaDrmBridge_nativeOnKeyStatusChange(
       drm_key_statuses[i] = kSbDrmKeyStatusPending;
     } else if (j_status_code == MEDIA_DRM_KEY_STATUS_USABLE) {
       drm_key_statuses[i] = kSbDrmKeyStatusUsable;
+      has_usable_key = true;
     } else {
       SB_NOTREACHED();
       drm_key_statuses[i] = kSbDrmKeyStatusError;
@@ -157,6 +159,7 @@ Java_dev_cobalt_media_MediaDrmBridge_nativeOnKeyStatusChange(
 
   DrmSystem* drm_system = reinterpret_cast<DrmSystem*>(native_media_drm_bridge);
   SB_DCHECK(drm_system);
+  drm_system->SetHasUsableKey(has_usable_key);
   drm_system->CallDrmSessionKeyStatusesChangedCallback(
       session_id_elements, session_id_size, drm_key_ids, drm_key_statuses);
 
