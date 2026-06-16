@@ -23,6 +23,8 @@
 #include <cstdio>
 #include <cstring>
 
+using namespace starboard::rdk::shared::microphone;
+
 namespace {
 
 const SbMicrophoneId kMicrophoneId = reinterpret_cast<SbMicrophoneId>(1);

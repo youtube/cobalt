@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cerrno>
+#include <cstdarg>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -39,17 +40,7 @@ namespace starboard {
 namespace rdk {
 namespace shared {
 namespace microphone {
-namespace {
-
 const char logtag[] = "sbLAOWS";
-const char kAowsHost[] = "127.0.0.1";
-const char kWebSocketGuid[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-const int kDefaultAowsPort = 9880;
-const int kSocketBacklog = 1;
-const size_t kMaxHandshakeBytes = 8192;
-const size_t kMaxFramePayloadBytes = 64 * 1024;
-const size_t kMaxBufferedAudioBytes = 512 * 1024;
-
 static int log_level = kError;
 
 void AOWSLogInit() {
@@ -95,6 +86,16 @@ void AOWSLog(int level, const char* format, ...) {
   vfprintf(stderr, format, args);
   va_end(args);
 }
+
+namespace {
+
+const char kAowsHost[] = "127.0.0.1";
+const char kWebSocketGuid[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+const int kDefaultAowsPort = 9880;
+const int kSocketBacklog = 1;
+const size_t kMaxHandshakeBytes = 8192;
+const size_t kMaxFramePayloadBytes = 64 * 1024;
+const size_t kMaxBufferedAudioBytes = 512 * 1024;
 
 std::string TrimAsciiWhitespace(const std::string& value) {
   const size_t begin = value.find_first_not_of(" \t\r\n");
