@@ -120,7 +120,7 @@ jobs:
           echo "targets=${targets}" >> "$GITHUB_OUTPUT"
 
   download-artifacts:
-    needs: [get-sha, get-targets]
+    needs: [get-sha, wait-for-kokoro-build, get-targets]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
       - name: Set Up Cloud SDK
@@ -128,7 +128,7 @@ jobs:
 
       - name: Download Artifacts from GCS
         env:
-          INVOCATION_ID: "1c474943-0cbd-4878-a3d6-f927045b468c"
+          INVOCATION_ID: ${{ needs.wait-for-kokoro-build.outputs.invocation_id }}
           TARGETS: ${{ needs.get-targets.outputs.targets }}
         run: |
           BUCKET="cobalt-unittest-storage"

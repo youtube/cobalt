@@ -16,6 +16,7 @@
     "DeferSpeculativeRFHCreationReuseRFHTest*",
     "DeferSpeculativeRFHCreationTest*",
     "DocumentPolicyBrowserTest*",
+    "H5vccSchemeURLLoaderFactoryBrowserTest.LoadSplashHtml",
     "HstsUpgradeBrowserTest*",
     "MediaNavigationBrowserTest*",
     "NavigationBaseBrowserTest.AddRequestHeaderModifyOnRedirect",
