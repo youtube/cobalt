@@ -32,11 +32,10 @@ runs:
       with:
         name: ${{ inputs.test_artifacts_key }}
     - name: Checkout JUnit Dependencies
-      if: ${{ inputs.test_type == 'junit' }}
+      if: inputs.test_type == 'junit'
       shell: bash
       run: |
-        git config --global --add safe.directory "${GITHUB_WORKSPACE:-/github/workspace}"
-        git config --global --add safe.directory "*"
+        git config --global --add safe.directory "${GITHUB_WORKSPACE}"
         git sparse-checkout add --skip-checks testing build third_party/catapult third_party/logdog
         git submodule update --init third_party/catapult
     - name: Extract Artifacts
@@ -70,7 +69,6 @@ runs:
         test_output="${results_dir}/shard_${{ matrix.shard }}"
         mkdir -p ${test_output}
         echo "test_output=${test_output}" >> $GITHUB_ENV
-
 
     - name: Run GTest Suites
       if: ${{ inputs.test_type == 'gtest' }}
@@ -142,6 +140,7 @@ runs:
           # Fail the job so it's easy to retrigger.
           exit 1
         fi
+
     - name: Run JUnit Suites
       if: ${{ inputs.test_type == 'junit' }}
       id: run-junit-suites
@@ -176,7 +175,8 @@ runs:
 
           # Run JUnit tests and generate JSON report, then convert to XML.
           #
-          # NOTE: Even though these are junit tests, due to upstream implementation of the Robolectric tests they are
+          # TODO(b/524653685):
+          # Even though these are junit tests, due to upstream implementation of the Robolectric tests they are
           # only able to output JSON results. The rest of our CI pipeline is expecting XML so in the short term we are
           # taking a shortcut to convert JSON to XML for expediency. Given that the Robolectric JSON output is the how
           # Chromium infrastructure handles test results in general, we will eventually refactor the gtest results to
