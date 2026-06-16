@@ -712,6 +712,11 @@ LocalAowsServer& GetLocalAowsServer() {
 }  // namespace
 
 void EnsureLocalAowsServerStarted() {
+  static bool logging_initialized = false;
+  if (!logging_initialized) {
+    AOWSLogInit();
+    logging_initialized = true;
+  }
   GetLocalAowsServer().EnsureStarted();
 }
 
