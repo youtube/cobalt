@@ -74,7 +74,7 @@ to the Cobalt project.
 
 #### Exported Symbols Map
 The Exported Symbols Map is part of the Evergreen loader and provides all the unresolved
-external symbols required by the Coabalt Core binary. The map is defined as
+external symbols required by the Cobalt Core binary. The map is defined as
 `std::map<std::string, const void*>` and all the Starboard and POSIX symbols are
 registered there. The implementation resides in
 [starboard/elf_loader/exported_symbols.cc](../elf_loader/exported_symbols.cc).
