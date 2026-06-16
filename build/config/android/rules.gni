@@ -1246,6 +1246,8 @@ if (!is_robolectric && enable_java_templates) {
 
     java_library_impl(_java_binary_target_name) {
       if (is_cobalt) {
+        # TODO(b/524712602): Refactor runtime deps generation for Robolectric
+        # binaries for Cobalt.
         forward_variables_from(invoker,
                                "*",
                                TESTONLY_AND_VISIBILITY + [
@@ -1304,7 +1306,8 @@ if (!is_robolectric && enable_java_templates) {
       test_suite = invoker.target_name
       test_type = "junit"
       if (is_cobalt && defined(invoker.ignore_all_data_deps)) {
-        # This allows Cobalt Junit tests to generate runtime deps files.
+        # TODO(b/524712602): Refactor runtime deps generation for Robolectric
+        # binaries for Cobalt.
         ignore_all_data_deps = invoker.ignore_all_data_deps
       } else {
         ignore_all_data_deps = true

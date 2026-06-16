@@ -877,9 +877,10 @@ def AddJUnitTestOptions(parser):
       help='Path to .ap_ containing binary resources for Robolectric.')
   parser.add_argument('--shadows-allowlist',
                       help='Path to Allowlist file for Shadows.')
-  # This argument doesn't change anything for Junit tests, but because we allow
-  # generating the runtime deps file for the test runner scripts, we need to
-  # still accept this argument otherwise execution fails.
+  # TODO(b/524712602): Cobalt changed robolectric binaries to output runtime
+  # deps files but this means we now need to accept this argument in the helper
+  # scripts. It currently does nothing so we should aim to remove this flag by
+  # refactoring the GN and test runner script generation code.
   parser.add_argument(
       '--runtime-deps-path',
       dest='runtime_deps_path', type=os.path.realpath,
