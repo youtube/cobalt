@@ -32,6 +32,11 @@ class SurfaceDestroyNotifier;
 
 class VideoSurfaceHolder {
  public:
+  struct AcquiredSurface {
+    scoped_refptr<SurfaceDestroyNotifier> destroy_notifier;
+    jni_zero::ScopedJavaLocalRef<jobject> surface;
+  };
+
   // Return true only if the video surface is available.
   static bool IsVideoSurfaceAvailable();
 
@@ -44,13 +49,9 @@ class VideoSurfaceHolder {
  protected:
   ~VideoSurfaceHolder() {}
 
-  // Acquires the video surface and returns a SurfaceDestroyNotifier to monitor
-  // its lifetime. The actual surface is returned via the `out_surface` output
-  // parameter. The surface cannot be acquired before the previous holder
-  // releases it.
-  scoped_refptr<SurfaceDestroyNotifier> AcquireVideoSurface(
-      JobQueue* job_queue,
-      jni_zero::ScopedJavaLocalRef<jobject>* out_surface);
+  // Returns the surface to which video should be rendered. The surface
+  // cannot be acquired before last holder release the surface.
+  AcquiredSurface AcquireVideoSurface(JobQueue* job_queue);
 
   // Release the surface to make the surface available for other holder.
   void ReleaseVideoSurface();
@@ -92,16 +93,18 @@ class SurfaceDestroyNotifier
       : holder_(holder), job_queue_(job_queue) {}
 
   void Disconnect() {
-    std::lock_guard<std::mutex> lock(mutex_);
-    disconnected_ = true;
-    job_queue_ = nullptr;
-    holder_ = nullptr;
-    done_ = true;  // Mark as done_ so Notify() can exit immediately
+    {
+      std::lock_guard lock(mutex_);
+      disconnected_ = true;
+      job_queue_ = nullptr;
+      holder_ = nullptr;
+      done_ = true;  // Mark as done_ so Notify() can exit immediately
+    }
     cv_.notify_one();
   }
 
   void Notify() {
-    std::unique_lock<std::mutex> lock(mutex_);
+    std::unique_lock lock(mutex_);
     if (disconnected_ || !holder_ || !job_queue_) {
       return;
     }
@@ -115,11 +118,11 @@ class SurfaceDestroyNotifier
   }
 
   bool Holds(VideoSurfaceHolder* holder) const {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard lock(mutex_);
     return holder_ == holder;
   }
 
- protected:
+ private:
   ~SurfaceDestroyNotifier() = default;
   friend class RefCountedThreadSafe<SurfaceDestroyNotifier>;
 
