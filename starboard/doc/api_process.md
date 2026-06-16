@@ -5,7 +5,7 @@ The Starboard API is the contract between Starboard applications and
 implementers of the Starboard API. Changing existing APIs and adding new
 required APIs breaks that contract and increases the cost of implementers
 keeping their Starboard port up-to-date. Pushing a release to the Open Source
-repository signals to Starboard implementers that the  APIs in
+repository signals to Starboard implementers that the APIs in
 that version will not change for as long as that version of Starboard is
 supported by the Starboard applications. We cannot change those newly frozen
 APIs without causing a potentially significant disruption to any partners who
