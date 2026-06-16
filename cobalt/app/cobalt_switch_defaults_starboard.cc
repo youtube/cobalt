@@ -85,6 +85,8 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
   static const base::CommandLine::SwitchMap kCobaltSwitchDefaults{
       // Disable Vulkan.
       {::switches::kDisableFeatures, "Vulkan"},
+      // Force ANGLE to use GLES backend by default.
+      {::switches::kUseANGLE, "gles"},
       {::switches::kEnableFeatures,
        "LimitImageDecodeCacheSize:mb/24, "
        // When DefaultEnableANGLEValidation is disabled (e.g gold/qa), EGL
@@ -99,7 +101,6 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
   // Force some ozone settings.
 #if BUILDFLAG(IS_OZONE)
       {::switches::kUseGL, "angle"},
-      {::switches::kUseANGLE, "gles-egl"},
 #endif
       // Use passthrough command decoder.
       {::switches::kUseCmdDecoder, "passthrough"},
