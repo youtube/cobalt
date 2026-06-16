@@ -445,16 +445,22 @@ public abstract class CobaltActivity extends Activity {
 
   @VisibleForTesting
   void setupStartupGuard() {
-    if (getJavaSwitches().containsKey(JavaSwitches.DISABLE_STARTUP_GUARD)) {
+    Map<String, String> switches = getJavaSwitches();
+    if (switches.containsKey(JavaSwitches.DISABLE_STARTUP_GUARD)) {
       Log.i(TAG, "StartupGuard is disabled by Java switch.");
       return;
     }
 
     long timeout = DEFAULT_HANG_APP_CRASH_TIMEOUT_SECONDS;
-    String intervalStr = getJavaSwitches().get(JavaSwitches.STARTUP_GUARD_INTERVAL_IN_SECONDS);
+    String intervalStr = switches.get(JavaSwitches.STARTUP_GUARD_INTERVAL_IN_SECONDS);
     if (intervalStr != null) {
       try {
-        timeout = Long.parseLong(intervalStr);
+        long parsedTimeout = Long.parseLong(intervalStr);
+        if (parsedTimeout > 0) {
+          timeout = parsedTimeout;
+        } else {
+          Log.w(TAG, "Invalid StartupGuard interval (must be positive): " + intervalStr);
+        }
       } catch (NumberFormatException e) {
         Log.w(TAG, "Invalid StartupGuard interval string: " + intervalStr);
       }
