@@ -291,7 +291,7 @@ source_set("tests") {
         "public/cpp/hid/hid_device_filter_unittest.cc",
         "public/cpp/hid/hid_report_descriptor_unittest.cc",
       ]
-      if (is_linux || is_chromeos) {
+      if (!is_cobalt && (is_linux || is_chromeos)) {
         sources += [
           "hid/hid_service_linux_unittest.cc",
           "hid/input_service_linux_unittest.cc",
