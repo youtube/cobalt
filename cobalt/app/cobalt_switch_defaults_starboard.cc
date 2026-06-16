@@ -85,7 +85,7 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
   static const base::CommandLine::SwitchMap kCobaltSwitchDefaults{
       // Disable Vulkan.
       {::switches::kDisableFeatures, "Vulkan"},
-      // Force ANGLE to use GLES backend by default.
+  // Force ANGLE to use GLES backend by default.
 #if BUILDFLAG(IS_OZONE)
       {::switches::kUseANGLE, "gles-egl"},
 #else
