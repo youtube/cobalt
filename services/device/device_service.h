@@ -36,8 +36,8 @@
 #include "services/device/public/mojom/vibration_manager.mojom.h"
 #include "services/device/public/mojom/wake_lock_provider.mojom.h"
 #if !BUILDFLAG(IS_COBALT)
-#include "services/device/usb/mojo/device_manager_impl.h"
-#include "services/device/usb/mojo/device_manager_test.h"
+#include "services/device/usb/mojo/device_manager_impl.h"  // nogncheck
+#include "services/device/usb/mojo/device_manager_test.h"  // nogncheck
 #endif
 #include "services/device/wake_lock/wake_lock_context.h"
 #include "services/device/wake_lock/wake_lock_provider.h"

@@ -88,6 +88,7 @@ source_set("lib") {
 
   if (is_serial_enabled_platform) {
     deps += [ "//services/device/serial" ]
+    defines = [ "IS_SERIAL_ENABLED_PLATFORM" ]
   }
 
   if (is_cobalt) {
