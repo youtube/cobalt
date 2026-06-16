@@ -173,6 +173,7 @@ Types of video elementary streams that could be supported.
 *   `kSbMediaVideoCodecAv1`
 *   `kSbMediaVideoCodecVp8`
 *   `kSbMediaVideoCodecVp9`
+*   `kSbMediaVideoCodecAv2`
 
 ## Structs
 
@@ -435,6 +436,25 @@ The set of information required by the decoder or player for each video stream.
 
 ## Functions
 
+### SbMediaCanChangeType
+
+Returns whether the platform supports a transition from the stream configuration
+described by `current_mime` to `new_mime` for an active SbPlayer instance.
+Returns `true` if the transition is supported, and will return `false` if the
+platform cannot support the changeType() call.
+
+More information on SourceBuffer.ChangeType() can be found at the following
+link: [https://www.w3.org/TR/media-source/#dom-sourcebuffer-changetype](https://www.w3.org/TR/media-source/#dom-sourcebuffer-changetype)
+
+`current_mime`: The current active stream MIME configuration. Must not be NULL.
+`new_mime`: The target stream MIME configuration. Must not be NULL.
+
+#### Declaration
+
+```
+bool SbMediaCanChangeType(const char *current_mime, const char *new_mime)
+```
+
 ### SbMediaCanPlayMimeAndKeySystem
 
 Returns information about whether the playback of the specific media described
@@ -530,25 +550,6 @@ least stereo.
 int SbMediaGetAudioOutputCount()
 ```
 
-### SbMediaGetBufferAlignment
-
-DEPRECATED with SB_API_VERSION 16
-
-SbMediaGetBufferAlignment() was deprecated in Starboard 16, its return value is
-no longer used when allocating media buffers. This is verified explicitly in
-nplb tests by ensuring its return value is sizeof(void*).
-
-The app MAY take best effort to allocate media buffers aligned to an optimal
-alignment for the platform, but not guaranteed. An implementation that has
-specific alignment requirement should check the alignment of the incoming
-buffer, and make a copy when necessary.
-
-#### Declaration
-
-```
-int SbMediaGetBufferAlignment()
-```
-
 ### SbMediaGetBufferAllocationUnit
 
 When the media stack needs more memory to store media buffers, it will allocate
@@ -580,23 +581,6 @@ further reduced on systems with extremely low memory.
 int64_t SbMediaGetBufferGarbageCollectionDurationThreshold()
 ```
 
-### SbMediaGetBufferPadding
-
-DEPRECATED with SB_API_VERSION 16
-
-SbMediaGetBufferPadding() was deprecated in Starboard 16, its return value is no
-longer used when allocating media buffers. This is verified explicitly in nplb
-tests by ensuring its return value is 0.
-
-An implementation that has specific padding requirement should make a copy of
-the incoming buffer when necessary.
-
-#### Declaration
-
-```
-int SbMediaGetBufferPadding()
-```
-
 ### SbMediaGetInitialBufferCapacity
 
 The amount of memory that will be used to store media buffers allocated during
@@ -608,28 +592,6 @@ fragmentation and can avoid failures to allocate incrementally. This can return
 
 ```
 int SbMediaGetInitialBufferCapacity()
-```
-
-### SbMediaGetProgressiveBufferBudget
-
-The memory used when playing mp4 videos that is not in DASH format. The
-resolution of such videos shouldn't go beyond 1080p. Its value should be less
-than the sum of SbMediaGetAudioBufferBudget and
-'SbMediaGetVideoBufferBudget(..., 1920, 1080, ...) but not less than 8 MB.
-
-`codec`: the video codec associated with the buffer.
-
-`resolution_width`: the width of the video resolution.
-
-`resolution_height`: the height of the video resolution.
-
-`bits_per_pixel`: the bits per pixel. This value is larger for HDR than non-HDR
-video.
-
-#### Declaration
-
-```
-int SbMediaGetProgressiveBufferBudget(SbMediaVideoCodec codec, int resolution_width, int resolution_height, int bits_per_pixel)
 ```
 
 ### SbMediaGetVideoBufferBudget
@@ -671,17 +633,4 @@ fragmentation.
 
 ```
 bool SbMediaIsBufferPoolAllocateOnDemand()
-```
-
-### SbMediaIsBufferUsingMemoryPool
-
-DEPRECATED with SB_API_VERSION 16
-
-This function is deprecated in Starboard 16 and no longer used. It's not fully
-removed, only to emit warnings at build and test time.
-
-#### Declaration
-
-```
-bool SbMediaIsBufferUsingMemoryPool()
 ```

@@ -32,6 +32,7 @@ namespace starboard {
 namespace {
 
 using base::android::ConvertJavaStringToUTF8;
+using base::android::ConvertUTF8ToJavaString;
 using base::android::ToJavaByteArray;
 using base::android::ToJavaIntArray;
 using jni_zero::AttachCurrentThread;
@@ -131,17 +132,15 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodec(
 
   std::unique_ptr<MediaCodecBridge> native_media_codec_bridge(
       new MediaCodecBridge(handler));
-  ScopedJavaLocalRef<jstring> j_mime(env, env->NewStringUTF(mime));
-  ScopedJavaLocalRef<jstring> j_decoder_name(
-      env, env->NewStringUTF(decoder_name.c_str()));
-  ScopedJavaLocalRef<jobject> j_media_crypto_local(
-      env, env->NewLocalRef(j_media_crypto));
-
   ScopedJavaLocalRef<jobject> j_media_codec_bridge =
       Java_MediaCodecBridgeBuilder_createAudioDecoder(
-          env, reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime,
-          j_decoder_name, audio_stream_info.samples_per_second,
-          audio_stream_info.number_of_channels, j_media_crypto_local,
+          env, reinterpret_cast<jlong>(native_media_codec_bridge.get()),
+          ConvertUTF8ToJavaString(env, mime),
+          ConvertUTF8ToJavaString(env, decoder_name),
+          audio_stream_info.samples_per_second,
+          audio_stream_info.number_of_channels,
+          ScopedJavaLocalRef<jobject>::Adopt(env,
+                                             env->NewLocalRef(j_media_crypto)),
           configuration_data);
 
   if (!j_media_codec_bridge) {
@@ -171,10 +170,6 @@ MediaCodecBridge::CreateVideoMediaCodec(
     const SbMediaColorMetadata* color_metadata,
     const MediaCodec::VideoPlatformOptions& platform_options) {
   JNIEnv* env = AttachCurrentThread();
-
-  ScopedJavaLocalRef<jstring> j_mime(env, env->NewStringUTF(mime));
-  ScopedJavaLocalRef<jstring> j_decoder_name(
-      env, env->NewStringUTF(decoder_name.c_str()));
 
   ScopedJavaLocalRef<jobject> j_color_info(nullptr);
   if (color_metadata) {
@@ -209,23 +204,22 @@ MediaCodecBridge::CreateVideoMediaCodec(
 
   std::unique_ptr<MediaCodecBridge> native_media_codec_bridge(
       new MediaCodecBridge(handler));
-  ScopedJavaLocalRef<jobject> j_surface_local(env, env->NewLocalRef(j_surface));
-  ScopedJavaLocalRef<jobject> j_media_crypto_local(
-      env, env->NewLocalRef(j_media_crypto));
-
   Java_MediaCodecBridge_createVideoMediaCodecBridge(
-      env, reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime,
-      j_decoder_name, frame_size_hint.width, frame_size_hint.height, fps,
-      max_frame_size ? max_frame_size->width : -1,
-      max_frame_size ? max_frame_size->height : -1, j_surface_local,
-      j_media_crypto_local, j_color_info,
+      env, reinterpret_cast<jlong>(native_media_codec_bridge.get()),
+      ConvertUTF8ToJavaString(env, mime),
+      ConvertUTF8ToJavaString(env, decoder_name), frame_size_hint.width,
+      frame_size_hint.height, fps, max_frame_size ? max_frame_size->width : -1,
+      max_frame_size ? max_frame_size->height : -1,
+      ScopedJavaLocalRef<jobject>::Adopt(env, env->NewLocalRef(j_surface)),
+      ScopedJavaLocalRef<jobject>::Adopt(env, env->NewLocalRef(j_media_crypto)),
+      j_color_info,
       platform_options.tunnel_mode_audio_session_id.value_or(
           TUNNEL_MODE_AUDIO_SESSION_ID_NONE),
       platform_options.max_input_size,
       platform_options.enable_frame_renderer_listener,
       platform_options.skip_video_frames_over_60_fps,
       platform_options.ignore_mediacodec_callbacks_during_flushing,
-      j_create_media_codec_bridge_result);
+      platform_options.enable_low_latency, j_create_media_codec_bridge_result);
 
   ScopedJavaLocalRef<jobject> j_media_codec_bridge(
       Java_CreateMediaCodecBridgeResult_mediaCodecBridge(
@@ -269,7 +263,7 @@ void MediaCodecBridge::Initialize(jobject j_media_codec_bridge) {
   j_media_codec_bridge_.Reset(env, j_media_codec_bridge);
 }
 
-DataSpan MediaCodecBridge::GetInputBufferAddress(jint index) {
+Span<uint8_t> MediaCodecBridge::GetInputBufferAddress(jint index) {
   SB_DCHECK_GE(index, 0);
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> byte_buffer =
@@ -285,7 +279,7 @@ DataSpan MediaCodecBridge::GetInputBufferAddress(jint index) {
   if (!address) {
     return {};
   }
-  return {address, static_cast<size_t>(cap)};
+  return {static_cast<uint8_t*>(address), static_cast<size_t>(cap)};
 }
 
 jint MediaCodecBridge::QueueInputBuffer(jint index,
@@ -346,7 +340,7 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
       blocks_to_skip, presentation_time_microseconds, is_decode_only);
 }
 
-DataSpan MediaCodecBridge::GetOutputBufferAddress(jint index) {
+Span<uint8_t> MediaCodecBridge::GetOutputBufferAddress(jint index) {
   SB_DCHECK_GE(index, 0);
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> byte_buffer =
@@ -362,7 +356,7 @@ DataSpan MediaCodecBridge::GetOutputBufferAddress(jint index) {
   if (!address) {
     return {};
   }
-  return {address, static_cast<size_t>(cap)};
+  return {static_cast<uint8_t*>(address), static_cast<size_t>(cap)};
 }
 
 void MediaCodecBridge::ReleaseOutputBuffer(jint index, jboolean render) {

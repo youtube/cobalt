@@ -459,15 +459,16 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
                                  shell_data.content_size);
     }
 
-    SkColor bg_color = shell_data.window_widget->GetColorProvider()->GetColor(
-        ui::kColorWindowBackground);
     views::WebContentsSetBackgroundColor::CreateForWebContentsWithColor(
-        shell->web_contents(), bg_color);
+        shell->web_contents(), SK_ColorTRANSPARENT);
   }
 }
 void ShellPlatformDelegate::DidCreateOrAttachWebContents(
     Shell* shell,
     WebContents* web_contents) {
+  if (!is_visible_) {
+    previously_visible_web_contents_.insert(web_contents);
+  }
   auto it = shell_data_map_.find(shell);
   if (it == shell_data_map_.end()) {
     return;

@@ -57,14 +57,6 @@ std::string getRepackagedName(const char* signature) {
   return holder;
 }
 
-bool shouldAddCobaltPrefix() {
-  if (!g_checked_command_line && base::CommandLine::InitializedForCurrentProcess()) {
-    g_add_cobalt_prefix = base::CommandLine::ForCurrentProcess()->HasSwitch(switches::kCobaltJniPrefix);
-    g_checked_command_line = true;
-  }
-  return g_add_cobalt_prefix;
-}
-
 // Java exception stack trace example:
 //
 // java.lang.RuntimeException: Hello
@@ -105,21 +97,8 @@ std::string FindTopJavaMethodsAndFiles(const std::string& stack_trace, const siz
 #endif  // BUILDFLAG(IS_COBALT)
 
 ScopedJavaLocalRef<jclass> GetClassInternal(JNIEnv* env,
-#if BUILDFLAG(IS_COBALT)
-                                            const char* original_class_name,
-                                            jobject class_loader) {
-  const char* class_name;
-  std::string holder;
-  if (shouldAddCobaltPrefix()) {
-    holder = getRepackagedName(original_class_name);
-    class_name = holder.c_str();
-  } else {
-    class_name = original_class_name;
-  }
-#else
                                             const char* class_name,
                                             jobject class_loader) {
-#endif
   jclass clazz;
   if (class_loader != nullptr) {
     // ClassLoader.loadClass expects a classname with components separated by
@@ -316,17 +295,7 @@ jmethodID MethodID::LazyGet(JNIEnv* env,
   const jmethodID value = atomic_method_id->load(std::memory_order_acquire);
   if (value)
     return value;
-#if BUILDFLAG(IS_COBALT)
-  jmethodID id;
-  if (shouldAddCobaltPrefix()) {
-    std::string holder = getRepackagedName(jni_signature);
-    id = MethodID::Get<type>(env, clazz, method_name, holder.c_str());
-  } else {
-    id = MethodID::Get<type>(env, clazz, method_name, jni_signature);
-  }
-#else
   jmethodID id = MethodID::Get<type>(env, clazz, method_name, jni_signature);
-#endif
   atomic_method_id->store(id, std::memory_order_release);
   return id;
 }

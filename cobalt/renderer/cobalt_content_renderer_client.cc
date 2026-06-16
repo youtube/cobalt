@@ -31,7 +31,6 @@
 #include "media/base/media_log.h"
 #include "media/base/renderer_factory.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
-#include "media/starboard/decoder_buffer_allocator.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
@@ -55,24 +54,27 @@ const char kH5vccSettingsKeyMediaBypassMojoForMedia[] =
     "Media.BypassMojoForMedia";
 const char kH5vccSettingsKeyMediaDisableLowPerformanceSoftwareDecoder[] =
     "Media.DisableLowPerformanceSoftwareDecoder";
-const char kH5vccSettingsKeyMediaEnableAllocateOnDemand[] =
-    "Media.EnableAllocateOnDemand";
 const char kH5vccSettingsKeyMediaEnableAv1StartupOptimization[] =
     "Media.EnableAv1StartupOptimization";
 // TODO: b/474454335 - Remove once seek experiment is done.
 const char kH5vccSettingsKeyMediaEnableFlushDuringSeek[] =
     "Media.EnableFlushDuringSeek";
+const char kH5vccSettingsKeyMediaEnableLowLatency[] = "Media.EnableLowLatency";
 // TODO: b/474454335 - Remove once seek experiment is done.
 const char kH5vccSettingsKeyMediaEnableResetAudioDecoder[] =
     "Media.EnableResetAudioDecoder";
 const char kH5vccSettingsKeyMediaEnableTrivialOptimizations[] =
     "Media.EnableTrivialOptimizations";
+const char kH5vccSettingsKeyMediaEnableSimdBasedAudioFormatSwitching[] =
+    "Media.EnableSimdBasedAudioFormatSwitching";
 const char kH5vccSettingsKeyMediaEnableVideoRendererVspAdjustment[] =
     "Media.EnableVideoRendererVspAdjustment";
 const char kH5vccSettingsKeyMediaFlushAudioTrackDuringSeek[] =
     "Media.FlushAudioTrackDuringSeek";
 const char kH5vccSettingsKeyMediaForceDecodeToTexture[] =
     "Media.ForceDecodeToTexture";
+const char kH5vccSettingsKeyMediaForceClearSurfaceView[] =
+    "Media.ForceClearSurfaceView";
 const char kH5vccSettingsKeyMediaIgnoreMediaCodecCallbacksDuringFlushing[] =
     "Media.IgnoreMediaCodecCallbacksDuringFlushing";
 const char kH5vccSettingsKeyMediaVideoDecoderInitialPrerollCount[] =
@@ -87,8 +89,6 @@ const char kH5vccSettingsKeyMediaSkipFlushOnDecoderTeardown[] =
     "Media.SkipFlushOnDecoderTeardown";
 const char kH5vccSettingsKeyMediaSkipVideoFramesOver60Fps[] =
     "Media.SkipVideoFramesOver60Fps";
-const char kH5vccSettingsKeyMediaUseDualThreadsForVideo[] =
-    "Media.UseDualThreadsForVideo";
 
 using ExperimentalFeatures =
     ::media::StarboardRendererConfig::ExperimentalFeatures;
@@ -208,13 +208,6 @@ ExperimentalFeatures ProcessH5vccSettings(
     const std::map<std::string, H5vccSettingValue>& settings) {
   ExperimentalFeatures parsed;
   if (auto* val = GetSettingValue<int64_t>(
-          settings, kH5vccSettingsKeyMediaEnableAllocateOnDemand)) {
-    bool enable_allocate_on_demand = *val != 0;
-    auto* allocator = ::media::DecoderBufferAllocator::Get();
-    CHECK(allocator);
-    allocator->SetAllocateOnDemand(enable_allocate_on_demand);
-  }
-  if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaAllowAudioWritingOnPause)) {
     parsed.allow_audio_writing_on_pause = *val != 0;
   }
@@ -236,12 +229,21 @@ ExperimentalFeatures ProcessH5vccSettings(
     parsed.enable_flush_during_seek = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaEnableLowLatency)) {
+    parsed.enable_low_latency = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableResetAudioDecoder)) {
     parsed.enable_reset_audio_decoder = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableTrivialOptimizations)) {
     parsed.enable_trivial_optimizations = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings,
+          kH5vccSettingsKeyMediaEnableSimdBasedAudioFormatSwitching)) {
+    parsed.enable_simd_based_audio_format_switching = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableVideoRendererVspAdjustment)) {
@@ -256,6 +258,10 @@ ExperimentalFeatures ProcessH5vccSettings(
     parsed.force_decode_to_texture = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaForceClearSurfaceView)) {
+    parsed.force_clear_surface_view = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
           settings,
           kH5vccSettingsKeyMediaIgnoreMediaCodecCallbacksDuringFlushing)) {
     parsed.ignore_mediacodec_callbacks_during_flushing = *val != 0;
@@ -267,10 +273,6 @@ ExperimentalFeatures ProcessH5vccSettings(
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaSkipVideoFramesOver60Fps)) {
     parsed.skip_video_frames_over_60_fps = *val != 0;
-  }
-  if (auto* val = GetSettingValue<int64_t>(
-          settings, kH5vccSettingsKeyMediaUseDualThreadsForVideo)) {
-    parsed.use_dual_threads_for_video = *val != 0;
   }
 
   parsed.video_decoder_initial_preroll_count = ProcessRangedIntH5vccSetting(
