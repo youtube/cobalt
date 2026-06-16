@@ -458,10 +458,7 @@ std::string GetGLExtensionsFromCurrentContext(GLApi* api) {
   // null while setting a GL_INVALID_ENUM error. This error can linger and cause
   // crashes later (e.g. in IsGL_REDSupportedOnFBOs). To prevent this, we query
   // extensions individually using glGetStringi if we detect an ES3 context.
-  // We skip this in Mock/Stub GL implementations to avoid breaking unit tests
-  // that do not expect these glGetString calls.
-  if (GetGLImplementation() != kGLImplementationMockGL &&
-      GetGLImplementation() != kGLImplementationStubGL) {
+  {
     const char* version_str =
         reinterpret_cast<const char*>(api->glGetStringFn(GL_VERSION));
     const char* renderer_str =
@@ -469,21 +466,19 @@ std::string GetGLExtensionsFromCurrentContext(GLApi* api) {
     if (version_str && renderer_str) {
       GLVersionInfo version_info(version_str, renderer_str, gfx::ExtensionSet());
       if (version_info.is_es3) {
-        glGetStringiProc gl_stringi_fn = nullptr;
-        if (g_current_gl_driver) {
-          gl_stringi_fn = g_current_gl_driver->fn.glGetStringiFn;
+        bool has_stringi = false;
+        if (g_current_gl_driver && g_current_gl_driver->fn.glGetStringiFn) {
+          has_stringi = true;
+        } else if (gl::GetGLProcAddress("glGetStringi")) {
+          has_stringi = true;
         }
-        if (!gl_stringi_fn) {
-          gl_stringi_fn = reinterpret_cast<glGetStringiProc>(
-              gl::GetGLProcAddress("glGetStringi"));
-        }
-        if (gl_stringi_fn) {
+        if (has_stringi) {
           GLint num_extensions = 0;
           api->glGetIntegervFn(GL_NUM_EXTENSIONS, &num_extensions);
           std::string extensions;
           for (GLint i = 0; i < num_extensions; ++i) {
             const char* ext = reinterpret_cast<const char*>(
-                gl_stringi_fn(GL_EXTENSIONS, i));
+                api->glGetStringiFn(GL_EXTENSIONS, i));
             if (ext) {
               if (!extensions.empty())
                 extensions += " ";
