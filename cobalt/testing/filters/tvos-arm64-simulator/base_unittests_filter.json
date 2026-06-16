@@ -34,6 +34,7 @@
     "CaseConversionTest.TurkishLocaleConversion",
     "CaseConversionTest.UpperLower",
     "CharacterEncodingTest.GetCanonicalEncodingNameByAliasName",
+    "CheckDeathTest.Basics",
     "DriveInfoTest.GetFileDriveInfo",
     "FilePathTest.FromUTF8Unsafe_And_AsUTF8Unsafe",
     "FilePathWatcherWithChangeInfoTest.DeletedFileInDirectory/3",

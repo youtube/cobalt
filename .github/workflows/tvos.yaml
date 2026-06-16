@@ -120,7 +120,7 @@ jobs:
           echo "targets=${targets}" >> "$GITHUB_OUTPUT"
 
   download-artifacts:
-    needs: [get-sha, wait-for-kokoro-build, get-targets]
+    needs: [get-sha, get-targets]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
       - name: Set Up Cloud SDK
@@ -128,7 +128,7 @@ jobs:
 
       - name: Download Artifacts from GCS
         env:
-          INVOCATION_ID: ${{ needs.wait-for-kokoro-build.outputs.invocation_id }}
+          INVOCATION_ID: "1c474943-0cbd-4878-a3d6-f927045b468c"
           TARGETS: ${{ needs.get-targets.outputs.targets }}
         run: |
           BUCKET="cobalt-unittest-storage"
@@ -150,6 +150,7 @@ jobs:
     needs: [get-targets, download-artifacts]
     runs-on: macos-latest
     strategy:
+      fail-fast: false
       matrix:
         target: ${{ fromJSON(needs.get-targets.outputs.targets) }}
     steps:
@@ -166,8 +167,27 @@ jobs:
         with:
           name: tvos-test-artifacts
 
+      - name: Filter
+        id: filter
+        run: |
+          test_filter=""
+          filter_file="cobalt/testing/filters/tvos-arm64-simulator/${{ matrix.target }}_filter.json"
+          if [[ -f "${filter_file}" ]]; then
+            test_filter="$(jq -cr '.failing_tests[0]' "${filter_file}")"
+            if [[ "${test_filter}" == '*' ]]; then
+              echo "${{ matrix.target }} was skipped due to test filter."
+              echo "skipped=true" >> $GITHUB_OUTPUT
+            else
+              echo "skipped=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "skipped=false" >> $GITHUB_OUTPUT
+          fi
+        shell: bash
+
       - name: Run Test in Simulator
         id: run-tests
+        if: steps.filter.outputs.skipped != 'true'
         env:
           TARGET: ${{ matrix.target }}
         run: |
@@ -205,7 +225,7 @@ jobs:
           fi
 
       - name: Test Results
-        if: always()
+        if: always() && steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/process_test_results
         with:
           target_name: ${{ matrix.target }}
@@ -215,7 +235,7 @@ jobs:
           datadog_api_key: ""
 
       - name: Archive Test Results
-        if: always()
+        if: always() && steps.filter.outputs.skipped != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: tvos_${{ matrix.target }}_test_results
