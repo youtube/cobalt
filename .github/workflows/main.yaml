@@ -363,13 +363,12 @@ jobs:
           echo "run_on_device_test=${run_on_device_test}" >> $GITHUB_OUTPUT
           echo "run_browser_test_on_host=${run_browser_test_on_host}" >> $GITHUB_OUTPUT
 
-          # 2. Merge target lists using jq
+          # 2. Merge target lists using jq conditionally whether we expect the targets to run.
 
           device_targets='${{ steps.parse-device-targets.outputs.test_targets_json || '[]' }}'
           host_gtests='${{ steps.parse-host-gtest-targets.outputs.test_targets_json || '[]' }}'
           host_junits='${{ steps.parse-host-junit-targets.outputs.test_targets_json || '[]' }}'
 
-          # 3. Merge the above tests conditionally whether we expect the targets to run.
           jq_device="[]"
           if [[ "${run_on_device_test}" == "true" ]]; then
             jq_device="${device_targets}"
@@ -924,13 +923,12 @@ jobs:
           test_results_key: Blink Web Test Results ${{ github.workflow }}
 
   test-results:
-    needs: [initialize, build, on-device-test, on-host-test, browser-test-on-host]
+    needs: [initialize, build, on-device-test, on-host-test]
     if: |
       always() &&
       (
-        needs.on-device-test.result != 'skipped' ||
-        needs.on-host-test.result != 'skipped' ||
-        needs.browser-test-on-host.result != 'skipped'
+        needs.initialize.outputs.run_on_device_test ||
+        needs.initialize.outputs.run_on_host_test
       )
     permissions: {}
     runs-on: ubuntu-latest
