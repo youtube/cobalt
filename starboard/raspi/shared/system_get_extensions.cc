@@ -23,7 +23,7 @@
 #include "starboard/raspi/shared/configuration.h"
 #include "starboard/raspi/shared/graphics.h"
 
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
 #include "starboard/elf_loader/evergreen_config.h"
 #include "starboard/extension/loader_app_metrics.h"
 #include "starboard/shared/starboard/loader_app_metrics.h"
@@ -35,7 +35,7 @@
 #endif
 
 const void* SbSystemGetExtension(const char* name) {
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
   const elf_loader::EvergreenConfig* evergreen_config =
       elf_loader::EvergreenConfig::GetInstance();
   if (evergreen_config != NULL &&
@@ -58,7 +58,7 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::GetCrashHandlerApi();
   }
 #endif
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
   if (strcmp(name, kStarboardExtensionLoaderAppMetricsName) == 0) {
     return starboard::GetLoaderAppMetricsApi();
   }

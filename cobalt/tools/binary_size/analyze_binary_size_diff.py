@@ -18,7 +18,7 @@ Intended to be executed within the Supersize console environment.
 Usage:
   python3 tools/binary_size/supersize console rdk_26_27.sizediff \
     --query="exec(open( \
-    \"cobalt/tools/binary_size/analyze_size_diff.py\").read())"
+    \"cobalt/tools/binary_size/analyze_binary_size_diff.py\").read())"
 """
 # pylint: disable=undefined-variable
 

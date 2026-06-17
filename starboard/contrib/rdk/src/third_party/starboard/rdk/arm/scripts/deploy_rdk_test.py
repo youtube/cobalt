@@ -201,6 +201,26 @@ class TestDeployRdk(unittest.TestCase):
         self.assertTrue(found_remote_dir, "Did not create remote lib directory")
         self.assertTrue(found_push, "Did not push libcobalt.lz4 to correct folder")
 
+    def test_revert_c25(self):
+        """Verifies --revert-c25 runs chCobalt c25 and reboot -f."""
+        self.mock_run.return_value = "/data/out_cobalt/libloader_app.so"
+        with mock.patch("sys.argv", ["deploy_rdk.py", "--revert-c25"]):
+            deploy_rdk.main()
+
+        calls = [str(c) for c in self.mock_run.call_args_list]
+        self.assertTrue(any("chCobalt c25" in c for c in calls), "chCobalt c25 not called")
+        self.assertTrue(any("reboot -f" in c for c in calls), "reboot -f not called")
+
+    def test_no_rbe_flag(self):
+        """Verifies --no-rbe flag passes --no-rbe to GN."""
+        self.mock_run.side_effect = ["", "", "linking...", "", "", "", "", ""]
+        with mock.patch.dict(os.environ, {"RDK_HOME": "/mock/rdk/home"}):
+            with mock.patch("sys.argv", ["deploy_rdk.py", "--no-rbe", "--force-deploy"]):
+                deploy_rdk.main()
+
+        gn_call = next(c for c in self.mock_run.call_args_list if "gn.py" in str(c))
+        self.assertIn("--no-rbe", gn_call[0][0])
+
 
 class TestDeployRdkDeviceDetection(unittest.TestCase):
     """Unit tests for the device auto-detection logic in deploy_rdk script."""
@@ -371,8 +391,9 @@ class TestDeployRdkDeviceDetection(unittest.TestCase):
 
         self.mock_sub_run.side_effect = sub_run_side_effect
 
-        with mock.patch("sys.argv", ["deploy_rdk.py", "--reset"]):
-            deploy_rdk.main()
+        with mock.patch.dict(os.environ, {"RDK_HOME": "/mock/rdk/home"}):
+            with mock.patch("sys.argv", ["deploy_rdk.py", "--force-deploy"]):
+                deploy_rdk.main()
 
         # Check that chCobalt custom_cobalt, reboot, and echo ok were called
         sub_run_calls = [str(call) for call in self.mock_sub_run.call_args_list]
@@ -437,6 +458,33 @@ class TestDeployRdkDeviceDetection(unittest.TestCase):
                 deploy_rdk.main()
 
         self.mock_exit.assert_called_once_with(1)
+
+
+    @mock.patch("tempfile.TemporaryDirectory")
+    def test_setup_toolchain_uses_temporary_directory(self, mock_temp_dir):
+        mock_temp_dir.return_value.__enter__.return_value = "/tmp/mock_dir"
+        with mock.patch.dict(os.environ, {"RDK_HOME": "/mock/rdk/home"}):
+            with mock.patch("os.path.exists", return_value=False):
+                with mock.patch("sys.argv", ["deploy_rdk.py", "--setup-toolchain"]):
+                    deploy_rdk.main()
+        mock_temp_dir.assert_called_once()
+
+    def test_logs_streaming_handles_keyboard_interrupt(self):
+        self.mock_run.side_effect = KeyboardInterrupt
+        def sub_run_side_effect(cmd, *args, **kwargs):
+            cmd_str = " ".join(cmd) if isinstance(cmd, list) else cmd
+            if "adb devices" in cmd_str:
+                return mock.MagicMock(returncode=0, stdout="List of devices attached\nonly_device\tdevice\n")
+            elif "cat /etc/device.properties" in cmd_str:
+                return mock.MagicMock(returncode=0, stdout="MODEL_NAME=AH212\n")
+            return mock.MagicMock(returncode=0, stdout="")
+        self.mock_sub_run.side_effect = sub_run_side_effect
+
+        with mock.patch("sys.argv", ["deploy_rdk.py", "--logs"]):
+            try:
+                deploy_rdk.main()
+            except KeyboardInterrupt:
+                self.fail("KeyboardInterrupt was not caught by deploy_rdk --logs")
 
 
 if __name__ == "__main__":

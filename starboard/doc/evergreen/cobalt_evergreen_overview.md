@@ -105,10 +105,7 @@ changes are needed by the partner here.
 However, a few small changes are needed in the partner's port, which is used to
 build the partner-built components, to make it compatible with Evergreen.
 
-First, partners should set `sb_is_evergreen_compatible = true` in the platform's
-`platform_configuration/configuration.gni` file. (Please DO NOT set
-`sb_is_evergreen` to `true`, as this should only be set in the Evergreen
-platforms that are maintained by Google and used to build Cobalt core.)
+First, ensure that your platform is built with Starboard enabled (`is_starboard = true`, which is the default for all Starboard platforms). Please DO NOT set `sb_is_evergreen` to `true`, as this should only be set in the Evergreen platforms that are maintained by Google and used to build Cobalt core.
 
 Second, in the platform's `toolchain/BUILD.gn` file partners should copy their
 "starboard" toolchain to add a "native_target" toolchain that is identical
@@ -291,9 +288,7 @@ In order to verify the platform requirements you should run the
 `nplb_evergreen_compat_tests`. These tests ensure that the platform is
 configured appropriately for Evergreen.
 
-To enable the test, set the `sb_is_evergreen_compatible` GN variable to `true`
-in the platform's `configuration.gni`. For more details please take a look at
-the Raspberry Pi 2 GN files.
+These tests are enabled automatically for all Starboard platforms (`is_starboard = true`).
 
 There is a reference implementation available for Raspberry Pi 2 with
 instructions available [here](cobalt_evergreen_reference_port_raspi2.md).

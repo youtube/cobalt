@@ -34,11 +34,10 @@ public class JavaSwitches {
   /** flag to force use IPv4 for system host resolution. */
   public static final String USE_IPV4_FOR_DNS = "UseIPv4ForDNS";
 
+  public static final String USE_MINOR_MS_FOR_MINOR_GC = "UseMinorMSForMinorGC";
+
   /** flag to delete stale leveldb LOCK file on startup. */
   public static final String LOCAL_STORAGE_DELETE_LOCK_FILE = "LocalStorageDeleteLockFile";
-
-  /** flag to enable fast track mic capture. */
-  public static final String ENABLE_COBALT_AUDIO_CAPTURE_FAST_TRACK = "EnableCobaltAudioCaptureFastTrack";
 
   /** flag to tune compositor offscreen interest area size in pixels. */
   public static final String INTEREST_AREA_SIZE_IN_PIXELS = "InterestAreaSizeInPixels";
@@ -52,6 +51,9 @@ public class JavaSwitches {
 
   /** flag to disable v8 optimizing compilers (turbofan, maglev, sparkplug) */
   public static final String DISABLE_V8_OPTIMIZING_COMPILERS = "DisableV8OptimizingCompilers";
+
+  /** flag to enable concurrent marking for v8 garbage collection */
+  public static final String ENABLE_V8_CONCURRENT_MARKING = "EnableV8ConcurrentMarking";
 
   /** flag to limit GPU image cache items */
   public static final String GPU_IMAGE_CACHE_LIMIT_ITEMS = "GpuImageCacheLimitItems";
@@ -72,6 +74,7 @@ public class JavaSwitches {
 
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
+    StringJoiner jsFlags = new StringJoiner(";");
 
     if (javaSwitches.containsKey(JavaSwitches.USE_IPV4_FOR_DNS)) {
       extraCommandLineArgs.add("--enable-features=UseIPv4ForDNS");
@@ -85,16 +88,22 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--disable-quic");
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_COBALT_AUDIO_CAPTURE_FAST_TRACK)) {
-      extraCommandLineArgs.add("--enable-features=CobaltAudioCaptureFastTrack");
-    }
-
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_HTTP_CACHE)) {
       extraCommandLineArgs.add("--disable-http-cache");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_V8_OPTIMIZING_COMPILERS)) {
-      extraCommandLineArgs.add("--js-flags=--disable-optimizing-compilers;--no-sparkplug");
+      jsFlags.add("--disable-optimizing-compilers");
+      jsFlags.add("--no-sparkplug");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_V8_CONCURRENT_MARKING)) {
+      jsFlags.add("--concurrent-marking");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.USE_MINOR_MS_FOR_MINOR_GC)) {
+      jsFlags.add("--minor-ms");
+      jsFlags.add("--minor-ms-min-new-space-capacity-for-concurrent-marking-mb=0");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES)) {
@@ -144,6 +153,17 @@ public class JavaSwitches {
           "--enable-features=SmallerInterestArea:" + featureParams.toString());
     }
 
+<<<<<<< gles
+=======
+    if (javaSwitches.containsKey(JavaSwitches.COBALT_USE_ANGLE_GLES)) {
+      extraCommandLineArgs.add("--use-angle=gles");
+    }
+
+    if (jsFlags.length() > 0 ) {
+      extraCommandLineArgs.add("--js-flags=" + jsFlags.toString());
+    }
+
+>>>>>>> main
     return extraCommandLineArgs;
   }
 }
