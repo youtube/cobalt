@@ -14,6 +14,12 @@
 
 import("//cobalt/build/configs/cobalt.gni")
 
+declare_args() {
+  # The build time value is assigned by reading chrome/VERSION.
+  _version_info = read_file("//chrome/VERSION", "scope")
+  chromium_milestone = _version_info.MAJOR
+}
+
 config("global_defines_shared") {
   defines = [
     "CHROMIUM_MILESTONE=$chromium_milestone",
