@@ -26,6 +26,21 @@
 
 namespace viz {
 
+class SafeWaitableEvent : public base::RefCountedThreadSafe<SafeWaitableEvent> {
+ public:
+  SafeWaitableEvent()
+      : event_(base::WaitableEvent::ResetPolicy::MANUAL,
+               base::WaitableEvent::InitialState::NOT_SIGNALED) {}
+
+  base::WaitableEvent* event() { return &event_; }
+
+ private:
+  friend class base::RefCountedThreadSafe<SafeWaitableEvent>;
+  ~SafeWaitableEvent() = default;
+
+  base::WaitableEvent event_;
+};
+
 // Encapsulates a mojo::Remote<mojom::Gpu> object that will be used on the IO
 // thread. This is required because we can't install an error handler on a
 // mojo::SharedRemote<mojom::Gpu> to detect if the message pipe was closed. Only
@@ -124,9 +139,9 @@ class Gpu::EstablishRequest
     gpu->EstablishGpuChannel(this);
   }
 
-  // Sets a WaitableEvent so the main thread can block for a synchronous
+  // Sets a SafeWaitableEvent so the main thread can block for a synchronous
   // request. This must be called from main thread.
-  void SetWaitableEvent(base::WaitableEvent* establish_event) {
+  void SetWaitableEvent(scoped_refptr<SafeWaitableEvent> establish_event) {
     DCHECK(main_task_runner_->BelongsToCurrentThread());
     DCHECK(establish_event);
     base::AutoLock mutex(lock_);
@@ -137,8 +152,7 @@ class Gpu::EstablishRequest
     if (received_)
       return;
 
-    establish_event_ = establish_event;
-    establish_event_->Reset();
+    establish_event_ = std::move(establish_event);
   }
 
   // Cancels the pending request. Any asynchronous calls back into this object
@@ -189,10 +203,7 @@ class Gpu::EstablishRequest
     }
 
     if (establish_event_) {
-      // Gpu::EstablishGpuChannelSync() was called. Unblock the main thread and
-      // let it finish. The main thread owns the event and may destroy it as
-      // soon as the thread is unblocked, so avoid dangling references to it.
-      establish_event_.ExtractAsDangling()->Signal();
+      establish_event_->event()->Signal();
     } else {
       main_task_runner_->PostTask(
           FROM_HERE, base::BindOnce(&EstablishRequest::FinishOnMain, this));
@@ -206,7 +217,7 @@ class Gpu::EstablishRequest
 
   const raw_ptr<Gpu> parent_;
   scoped_refptr<base::SingleThreadTaskRunner> main_task_runner_;
-  raw_ptr<base::WaitableEvent> establish_event_ = nullptr;
+  scoped_refptr<SafeWaitableEvent> establish_event_;
 
   base::Lock lock_;
   bool received_ = false;
@@ -327,7 +338,7 @@ void Gpu::EstablishGpuChannel(gpu::GpuChannelEstablishedCallback callback) {
   }
 
   establish_callbacks_.push_back(std::move(callback));
-  SendEstablishGpuChannelRequest(/*waitable_event=*/nullptr);
+  SendEstablishGpuChannelRequest(nullptr);
 }
 
 scoped_refptr<gpu::GpuChannelHost> Gpu::EstablishGpuChannelSync() {
@@ -339,10 +350,9 @@ scoped_refptr<gpu::GpuChannelHost> Gpu::EstablishGpuChannelSync() {
     return channel;
 
   SCOPED_UMA_HISTOGRAM_TIMER("GPU.EstablishGpuChannelSyncTime");
-  base::WaitableEvent event(base::WaitableEvent::ResetPolicy::MANUAL,
-                            base::WaitableEvent::InitialState::SIGNALED);
-  SendEstablishGpuChannelRequest(&event);
-  if (!event.TimedWait(base::Seconds(1))) {
+  auto safe_event = base::MakeRefCounted<SafeWaitableEvent>();
+  SendEstablishGpuChannelRequest(safe_event);
+  if (!safe_event->event()->TimedWait(base::Seconds(1))) {
     LOG(ERROR) << "Gpu::EstablishGpuChannelSync: Timed out waiting for GPU channel! (1s)";
     pending_request_->Cancel();
     pending_request_.reset();
@@ -375,10 +385,10 @@ scoped_refptr<gpu::GpuChannelHost> Gpu::GetGpuChannel() {
   return gpu_channel_;
 }
 
-void Gpu::SendEstablishGpuChannelRequest(base::WaitableEvent* waitable_event) {
+void Gpu::SendEstablishGpuChannelRequest(scoped_refptr<SafeWaitableEvent> waitable_event) {
   if (pending_request_) {
     if (waitable_event) {
-      pending_request_->SetWaitableEvent(waitable_event);
+      pending_request_->SetWaitableEvent(std::move(waitable_event));
     }
     return;
   }
@@ -386,7 +396,7 @@ void Gpu::SendEstablishGpuChannelRequest(base::WaitableEvent* waitable_event) {
   pending_request_ =
       base::MakeRefCounted<EstablishRequest>(this, main_task_runner_);
   if (waitable_event) {
-    pending_request_->SetWaitableEvent(waitable_event);
+    pending_request_->SetWaitableEvent(std::move(waitable_event));
   }
   io_task_runner_->PostTask(
       FROM_HERE,

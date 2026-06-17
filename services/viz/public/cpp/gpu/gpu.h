@@ -24,6 +24,8 @@ class Connector;
 
 namespace viz {
 
+class SafeWaitableEvent;
+
 class Gpu : public gpu::GpuChannelEstablishFactory {
  public:
   // The Gpu has to be initialized in the main thread before establishing
@@ -74,7 +76,7 @@ class Gpu : public gpu::GpuChannelEstablishFactory {
 
   // Sends a request to establish a gpu channel. If a request is currently
   // pending this will do nothing.
-  void SendEstablishGpuChannelRequest(base::WaitableEvent* waitable_event);
+  void SendEstablishGpuChannelRequest(scoped_refptr<SafeWaitableEvent> waitable_event);
 
   // Handles results of request to establish a gpu channel in
   // |pending_request_|.
