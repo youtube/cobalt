@@ -93,11 +93,15 @@ void DecoderBufferAllocator::Suspend() {
     return;
   }
   base::AutoLock scoped_lock(mutex_);
+  is_suspended_ = true;
+  LOG(INFO) << "[MemShed] Suspend() ran. Active allocated memory: "
+            << (strategy_ ? strategy_->GetAllocated() : 0) << " bytes";
 
   if (strategy_ && strategy_->GetAllocated() == 0) {
-    LOG(INFO) << "Freeing " << strategy_->GetCapacity()
-              << " bytes of decoder buffer pool `on suspend`.";
+    LOG(INFO) << "[MemShed] Pool empty on Suspend(). Freeing "
+              << strategy_->GetCapacity() << " bytes.";
     strategy_.reset();
+    last_logged_capacity_ = 0;
   }
 }
 
@@ -112,6 +116,12 @@ void DecoderBufferAllocator::Resume() {
 
 void DecoderBufferAllocator::DecommitAllDecommitableBlocks() {
   base::AutoLock scoped_lock(mutex_);
+  is_decommit_pending_on_suspend_ = true;
+  LOG(INFO) << "[MemShed] DecommitAllDecommitableBlocks() ran. Active "
+               "allocated memory: "
+            << (strategy_ ? strategy_->GetAllocated() : 0)
+            << " bytes, Capacity: "
+            << (strategy_ ? strategy_->GetCapacity() : 0) << " bytes";
   if (strategy_) {
     strategy_->DecommitAllDecommitableBlocks();
   }
@@ -126,6 +136,15 @@ DecoderBuffer::Allocator::Handle DecoderBufferAllocator::Allocate(
 
   void* p = strategy_->Allocate(type, size);
   CHECK(p);
+
+  size_t current_cap = strategy_->GetCapacity();
+  if (current_cap > last_logged_capacity_) {
+    LOG(INFO) << "[MemShed] Pool capacity expanded in Allocate(). System "
+                 "allocated capacity: "
+              << current_cap << " bytes (" << current_cap / 1024 / 1024
+              << " MB)";
+    last_logged_capacity_ = current_cap;
+  }
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   if (starboard::Allocator::ExtraLogLevel() >= 2) {
@@ -162,15 +181,25 @@ void DecoderBufferAllocator::Free(DemuxerStream::Type type,
   }
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
-  bool should_reset_strategy =
-      is_strategy_switch_pending_ || is_memory_pool_allocated_on_demand_;
+  if (is_decommit_pending_on_suspend_) {
+    strategy_->DecommitAllDecommitableBlocks();
+    if (strategy_->GetAllocated() == 0) {
+      LOG(INFO) << "[MemShed] Asynchronous decommit drain complete on final "
+                   "buffer return!";
+      is_decommit_pending_on_suspend_ = false;
+    }
+  }
+
+  bool should_reset_strategy = is_strategy_switch_pending_ || is_suspended_ ||
+                               is_memory_pool_allocated_on_demand_;
 
   if (should_reset_strategy && strategy_->GetAllocated() == 0) {
     // `strategy_->PrintAllocations()` will be called inside the dtor when
     // supported, so it shouldn't be called here.
-    LOG(INFO) << "Freeing " << strategy_->GetCapacity()
-              << " bytes of decoder buffer pool.";
+    LOG(INFO) << "[MemShed] Final buffer freed in Free(). Reclaiming "
+              << strategy_->GetCapacity() << " bytes of decoder buffer pool.";
     strategy_.reset();
+    last_logged_capacity_ = 0;
   }
 }
 
@@ -295,26 +324,37 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
   }
 
   is_strategy_switch_pending_ = false;
+  is_suspended_ = false;
+  is_decommit_pending_on_suspend_ = false;
 
   if (!experimental_strategy_create_cb_.is_null()) {
     strategy_ = experimental_strategy_create_cb_.Run(initial_capacity_,
                                                      allocation_unit_);
     if (strategy_) {
-      LOG(INFO) << "Allocated " << initial_capacity_
-                << " bytes for decoder buffer pool.";
+      LOG(INFO) << "[MemShed] Strategy created (experimental). System "
+                   "allocated capacity: "
+                << strategy_->GetCapacity() << " bytes ("
+                << strategy_->GetCapacity() / 1024 / 1024 << " MB)";
+      last_logged_capacity_ = strategy_->GetCapacity();
       return;
     }
     LOG(WARNING) << "Failed to create the requested DecoderBufferAllocator "
                     "strategy. Falling back to default.";
   }
 
-  strategy_ = std::make_unique<DefaultReuseAllocatorStrategy>(initial_capacity_,
-                                                              allocation_unit_);
+  strategy_ = std::make_unique<DefaultReuseAllocatorStrategy>(
+      4 * 1024 * 1024, 4 * 1024 * 1024, /*enable_decommit_on_idle=*/true,
+      /*retain_blocks=*/2, /*conservative_decommit_blocks=*/0,
+      /*aggressive_decommit_on_suspend=*/true);
   LOG(INFO) << "DecoderBufferAllocator is using "
-               "DefaultReuseAllocatorStrategy.";
+               "DefaultReuseAllocatorStrategy (FORCE CONFIGURABLE DECOMMIT: 8M "
+               "Hot, Rest Cold).";
 
-  LOG(INFO) << "Allocated " << initial_capacity_
-            << " bytes for decoder buffer pool.";
+  LOG(INFO) << "[MemShed] Strategy created. System allocated capacity: "
+            << (strategy_ ? strategy_->GetCapacity() : 0) << " bytes ("
+            << (strategy_ ? strategy_->GetCapacity() / 1024 / 1024 : 0)
+            << " MB)";
+  last_logged_capacity_ = strategy_ ? strategy_->GetCapacity() : 0;
 }
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
