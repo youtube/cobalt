@@ -291,10 +291,34 @@ jobs:
           set -x
           docker_content_sha=$(find cobalt/docker docker-compose.yaml -type f -exec sha256sum -b {} + | LC_ALL=C sort | sha256sum | head -c 64)
           echo "docker_content_sha=${docker_content_sha}" >> $GITHUB_OUTPUT
+      - name: Get First Platform
+        id: get-first-platform
+        shell: bash
+        run: |
+          first_platform=$(jq -r '.platforms[0]' ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json)
+          echo "first_platform=${first_platform}" >> $GITHUB_OUTPUT
+      - name: Parse Device Targets
+        id: parse-device-targets
+        uses: ./.github/actions/test_targets_json
+        with:
+          runs_on: device
+          test_targets_json_path: cobalt/build/testing/targets/${{ steps.get-first-platform.outputs.first_platform }}/test_targets.json
+      - name: Parse Host GTest Targets
+        id: parse-host-gtest-targets
+        uses: ./.github/actions/test_targets_json
+        with:
+          runs_on: host
+          test_type: gtest
+          test_targets_json_path: cobalt/build/testing/targets/${{ steps.get-first-platform.outputs.first_platform }}/test_targets.json
+      - name: Parse Host JUnit Targets
+        id: parse-host-junit-targets
+        uses: ./.github/actions/test_targets_json
+        with:
+          runs_on: host
+          test_type: junit
+          test_targets_json_path: cobalt/build/testing/targets/${{ steps.get-first-platform.outputs.first_platform }}/test_targets.json
       - name: Generate Filtered Test Targets
         id: generate-targets
-        env:
-          PLATFORM_CONFIG: ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json
         run: |
           set -x
 
@@ -337,30 +361,25 @@ jobs:
           echo "run_on_device_test=${run_on_device_test}" >> $GITHUB_OUTPUT
           echo "run_browser_test_on_host=${run_browser_test_on_host}" >> $GITHUB_OUTPUT
 
-          # 2. Get platform and path
-          first_platform=$(jq -r '.platforms[0]' "${PLATFORM_CONFIG}")
-          targets_file="${GITHUB_WORKSPACE}/cobalt/build/testing/targets/${first_platform}/test_targets.json"
+          # 2. Merge target lists using jq
 
-          if [[ ! -f "${targets_file}" ]]; then
-            echo "Test targets file not found at ${targets_file}"
-            echo "targets=[]" >> $GITHUB_OUTPUT
-            exit 0
+          device_targets='${{ steps.parse-device-targets.outputs.test_targets_json || '[]' }}'
+          host_gtests='${{ steps.parse-host-gtest-targets.outputs.test_targets_json || '[]' }}'
+          host_junits='${{ steps.parse-host-junit-targets.outputs.test_targets_json || '[]' }}'
+
+          # Initialize lists as empty arrays if flags are false
+          jq_device="[]"
+          if [[ "${run_on_device_test}" == "true" ]]; then
+            jq_device="${device_targets}"
           fi
 
-          # 3. Filter targets (Select only gtest and junit that match run conditions)
-          filtered_targets=$(jq -c \
-            --arg run_device "${run_on_device_test}" \
-            --arg run_host "${run_on_host_test}" \
-            '[
-              .[] | select(
-                (.target != null) and
-                (.test_type == "gtest" or .test_type == "junit") and
-                (
-                  (.runs_on == "device" and $run_device == "true") or
-                  ((.runs_on == "host" or .runs_on == null or .runs_on == "") and $run_host == "true")
-                )
-              ) | .target
-            ]' "${targets_file}")
+          jq_host="[]"
+          if [[ "${run_on_host_test}" == "true" ]]; then
+            jq_host=$(jq -ncr --argjson g "${host_gtests}" --argjson j "${host_junits}" '$g + $j')
+          fi
+
+          # Merge them all
+          filtered_targets=$(jq -ncr --argjson d "${jq_device}" --argjson h "${jq_host}" '$d + $h')
 
           echo "targets=${filtered_targets}" >> $GITHUB_OUTPUT
         shell: bash
