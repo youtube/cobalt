@@ -37,6 +37,7 @@
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "ui/gl/gl_implementation.h"
+#include "ui/gl/gl_bindings.h"
 #include "ui/gl/gl_utils.h"
 #include "ui/gl/gl_version_info.h"
 #include "ui/gl/gpu_switching_manager.h"
@@ -974,6 +975,14 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().angle_webgl_compatibility ==
                        IsWebGLContextType(attrib_helper.context_type),
                    "missing GL_ANGLE_webgl_compatibility");
+#endif
+
+#if BUILDFLAG(IS_COBALT)
+  if (feature_info_->gl_version_info().is_es3) {
+    CHECK(gl::g_current_gl_driver);
+    FAIL_INIT_IF_NOT(gl::g_current_gl_driver->fn.glGetStringiFn,
+                     "GLES3 context missing glGetStringi");
+  }
 #endif
 
 // TODO: b/457746593 - Cobalt: Fix the crash on raspi2
