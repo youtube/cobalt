@@ -103,6 +103,7 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
   // Force some ozone settings.
 #if BUILDFLAG(IS_OZONE)
       {::switches::kUseGL, "angle"},
+      {::switches::kUseANGLE, "gles-egl"},
 #endif
       // Use passthrough command decoder.
       {::switches::kUseCmdDecoder, "passthrough"},
