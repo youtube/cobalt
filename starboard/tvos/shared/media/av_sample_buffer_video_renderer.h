@@ -23,6 +23,7 @@
 
 #include "base/memory/weak_ptr.h"
 #include "starboard/common/log.h"
+#include "starboard/common/rect.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -66,7 +67,7 @@ class AVSBVideoRenderer : public VideoRenderer, private JobQueue::JobOwner {
   bool CanAcceptMoreData() const override;
 
   // Both of the following two functions can be called on any threads.
-  void SetBounds(int z_index, int x, int y, int width, int height) override;
+  void SetBounds(int z_index, const Rect& rect) override;
   SbDecodeTarget GetCurrentDecodeTarget() override {
     return kSbDecodeTargetInvalid;
   }
@@ -115,7 +116,8 @@ class AVSBVideoRenderer : public VideoRenderer, private JobQueue::JobOwner {
   DrmSystemPlatform* drm_system_ = nullptr;
   std::unique_ptr<AVVideoSampleBufferBuilder> sample_buffer_builder_;
   std::queue<scoped_refptr<AVSampleBuffer>> video_sample_buffers_;
-  JobQueue::JobToken enqueue_sample_buffers_job_token_;
+  JobQueue::JobToken enqueue_sample_buffers_job_token_ =
+      JobQueue::JobToken::kUnscheduled;
 
   int64_t seek_to_time_ = 0;
   int64_t media_time_offset_ = 0;

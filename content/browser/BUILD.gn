@@ -3766,6 +3766,18 @@ source_set("browser") {
   if (is_chromeos) {
     deps += [ "//ash/constants:constants" ]
   }
+
+  # If in the future privacy sandbox components are removed from the code base, ignore this if block.
+  if (!enable_privacy_sandbox_apis) {
+    _filtered_sources = filter_exclude(sources,
+                                       [
+                                         "browsing_topics/*",
+                                         "attribution_reporting/*",
+                                       ])
+    sources = []
+    sources = _filtered_sources
+    deps -= [ "//components/browsing_topics/common:common" ]
+  }
 }
 
 if (is_android) {

@@ -26,13 +26,16 @@
 #include "base/task/thread_pool.h"
 #include "cobalt/app/cobalt_main_delegate.h"
 #include "cobalt/app/cobalt_switch_defaults.h"
+#include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "cobalt/shell/browser/shell.h"
 #include "components/crash/core/app/crashpad.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host.h"
+#include "net/base/apple/url_conversions.h"
 #include "starboard/common/command_line.h"
+#include "starboard/common/time.h"
 #include "starboard/tvos/shared/application_darwin.h"
 
 static int g_argc = 0;
@@ -46,6 +49,27 @@ static const char** g_argv = nullptr;
 - (content::WebContents*)getWebContents {
   CHECK_EQ(1u, content::Shell::windows().size());
   return content::Shell::windows()[0]->web_contents();
+}
+
+- (void)handleDeepLink:(NSSet<UIOpenURLContext*>*)URLContexts {
+  // URLContexts can contain multiple items, but since DeepLinkManager
+  // handles one link at a time, only a single context is used.
+  UIOpenURLContext* context = URLContexts.anyObject;
+  if (!context) {
+    return;
+  }
+  NSURL* url = context.URL;
+  if (!url) {
+    return;
+  }
+
+  GURL parsedURL = net::GURLWithNSURL(url);
+
+  if (!parsedURL.is_valid() || parsedURL.scheme().length() == 0) {
+    return;
+  }
+
+  cobalt::browser::DeepLinkManager::GetInstance()->OnDeepLink(parsedURL.spec());
 }
 
 - (void)scene:(UIScene*)scene
@@ -62,6 +86,17 @@ static const char** g_argv = nullptr;
   window.windowScene = (UIWindowScene*)scene;
   window.rootViewController = controller;
   [window makeKeyAndVisible];
+
+  // Handle deep link when the app is launched (cold start). The URL is
+  // delivered via connectionOptions.
+  [self handleDeepLink:connectionOptions.URLContexts];
+}
+
+- (void)scene:(UIScene*)scene
+    openURLContexts:(NSSet<UIOpenURLContext*>*)URLContexts {
+  // Handle deep link when the app is already running. (Cold start links are
+  // handled in willConnectToSession.)
+  [self handleDeepLink:URLContexts];
 }
 
 - (void)sceneWillEnterForeground:(UIScene*)scene {
@@ -153,7 +188,13 @@ static const char** g_argv = nullptr;
   std::ranges::transform(processed_argv, std::back_inserter(char_argv),
                          [](const std::string& arg) { return arg.c_str(); });
 
-  _mainDelegate = std::make_unique<cobalt::CobaltMainDelegate>();
+  // This is similar to base::TimeTicks::Now() and a call to ToInternalValue()
+  // and follows what Starboard platforms measure in
+  // starboard::Application::RunLoop().
+  const int64_t startup_time_in_us = starboard::CurrentMonotonicTime();
+
+  _mainDelegate =
+      std::make_unique<cobalt::CobaltMainDelegate>(startup_time_in_us);
   _mainRunner = content::ContentMainRunner::Create();
   content::ContentMainParams params(_mainDelegate.get());
   params.argc = char_argv.size();

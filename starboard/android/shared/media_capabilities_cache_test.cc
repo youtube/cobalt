@@ -19,6 +19,8 @@
 
 #include "starboard/android/shared/mock_media_capabilities_cache.h"
 #include "starboard/media.h"
+#include "starboard/shared/starboard/features.h"
+#include "starboard/testing/scoped_feature_list.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -27,6 +29,24 @@ namespace starboard {
 using ::testing::ByMove;
 using ::testing::Return;
 using ::testing::SetArgPointee;
+
+MediaCapabilitiesProvider::VideoCodecCapabilities CreateVp9DecoderCaps(
+    bool is_tunnel_sup,
+    bool is_secure_sup = true,
+    bool is_hdr_capable = false,
+    Range width = Range{0, 1920},
+    Range height = Range{0, 1080},
+    Range bitrate = Range{0, 10'000'000},
+    Range fps = Range{0, 30}) {
+  MediaCapabilitiesProvider::VideoCodecCapabilities caps;
+  caps.push_back(std::make_unique<MockVideoCodecCapability>(
+      "OMX.google.vp9.decoder",
+      /*is_secure_req=*/false, is_secure_sup,
+      /*is_tunnel_req=*/false, is_tunnel_sup,
+      /*is_software_decoder=*/false, is_hdr_capable, width, height, bitrate,
+      fps));
+  return caps;
+}
 
 class MediaCapabilitiesCacheTest : public ::testing::Test {
  protected:
@@ -271,4 +291,127 @@ TEST_F(MediaCapabilitiesCacheTest, ClearCacheClearsAllValues) {
   EXPECT_FALSE(cache_->GetAudioConfiguration(2, &config));
   EXPECT_FALSE(cache_->HasAudioDecoderFor("audio/mp4", 192000));
 }
+
+TEST_F(MediaCapabilitiesCacheTest, HasVideoDecoderFor_ResolutionLimits) {
+  EXPECT_CALL(*mock_media_capabilities_provider_,
+              GetCodecCapabilities(testing::_, testing::_))
+      .WillOnce(testing::Invoke([](auto&, auto& video_caps) {
+        video_caps["video/x-vnd.on2.vp9"] = CreateVp9DecoderCaps(
+            /*is_tunnel_sup=*/true, /*is_secure_sup=*/true,
+            /*is_hdr_capable=*/false, Range{0, 1920}, Range{0, 1080},
+            Range{0, 10'000'000}, Range{0, 30});
+      }));
+
+  EXPECT_TRUE(cache_->HasVideoDecoderFor("video/x-vnd.on2.vp9",
+                                         /*must_support_secure=*/false,
+                                         /*must_support_hdr=*/false,
+                                         /*must_support_tunnel_mode=*/false,
+                                         /*frame_width=*/1920,
+                                         /*frame_height=*/1080,
+                                         /*bitrate=*/5'000'000,
+                                         /*fps=*/30));
+
+  // Width exceeded
+  EXPECT_FALSE(cache_->HasVideoDecoderFor("video/x-vnd.on2.vp9",
+                                          /*must_support_secure=*/false,
+                                          /*must_support_hdr=*/false,
+                                          /*must_support_tunnel_mode=*/false,
+                                          /*frame_width=*/3840,
+                                          /*frame_height=*/1080,
+                                          /*bitrate=*/5'000'000,
+                                          /*fps=*/30));
+
+  // Height exceeded
+  EXPECT_FALSE(cache_->HasVideoDecoderFor("video/x-vnd.on2.vp9",
+                                          /*must_support_secure=*/false,
+                                          /*must_support_hdr=*/false,
+                                          /*must_support_tunnel_mode=*/false,
+                                          /*frame_width=*/1920,
+                                          /*frame_height=*/2160,
+                                          /*bitrate=*/5'000'000,
+                                          /*fps=*/30));
+
+  // Bitrate exceeded
+  EXPECT_FALSE(cache_->HasVideoDecoderFor("video/x-vnd.on2.vp9",
+                                          /*must_support_secure=*/false,
+                                          /*must_support_hdr=*/false,
+                                          /*must_support_tunnel_mode=*/false,
+                                          /*frame_width=*/1920,
+                                          /*frame_height=*/1080,
+                                          /*bitrate=*/20'000'000,
+                                          /*fps=*/30));
+
+  // FPS exceeded
+  EXPECT_FALSE(cache_->HasVideoDecoderFor("video/x-vnd.on2.vp9",
+                                          /*must_support_secure=*/false,
+                                          /*must_support_hdr=*/false,
+                                          /*must_support_tunnel_mode=*/false,
+                                          /*frame_width=*/1920,
+                                          /*frame_height=*/1080,
+                                          /*bitrate=*/5'000'000,
+                                          /*fps=*/60));
+}
+
+TEST_F(MediaCapabilitiesCacheTest, FindVideoDecoder_Overload) {
+  EXPECT_CALL(*mock_media_capabilities_provider_,
+              GetCodecCapabilities(testing::_, testing::_))
+      .WillOnce(testing::Invoke([](auto&, auto& video_caps) {
+        video_caps["video/x-vnd.on2.vp9"] = CreateVp9DecoderCaps(
+            /*is_tunnel_sup=*/true, /*is_secure_sup=*/true,
+            /*is_hdr_capable=*/true);
+      }));
+
+  EXPECT_EQ(cache_->FindVideoDecoder("video/x-vnd.on2.vp9",
+                                     /*must_support_secure=*/false,
+                                     /*must_support_hdr=*/true,
+                                     /*require_software_codec=*/false,
+                                     /*must_support_tunnel_mode=*/true),
+            "OMX.google.vp9.decoder");
+}
+
+TEST_F(MediaCapabilitiesCacheTest, RejectLowPerformanceSoftwareDecoder) {
+  EXPECT_CALL(*mock_media_capabilities_provider_,
+              GetCodecCapabilities(testing::_, testing::_))
+      .WillOnce(testing::Invoke([](auto&, auto& video_caps) {
+        MediaCapabilitiesProvider::VideoCodecCapabilities caps;
+        caps.push_back(std::make_unique<MockVideoCodecCapability>(
+            "OMX.test.soft.vp9.decoder",
+            /*is_secure_req=*/false, /*is_secure_sup=*/false,
+            /*is_tunnel_req=*/false, /*is_tunnel_sup=*/false,
+            /*is_software_decoder=*/true,
+            /*is_hdr_capable=*/false, Range{0, 1280}, Range{0, 720},
+            Range{0, 5'000'000}, Range{0, 30}));
+        video_caps["video/x-vnd.on2.vp9"] = std::move(caps);
+      }));
+
+  // Case 1: Feature is disabled (default). It should find the software decoder.
+  {
+    features::ScopedFeatureList scoped_features;
+    scoped_features.InitAndDisableFeature(
+        features::kRejectLowPerformanceSoftwareDecoder);
+
+    EXPECT_EQ(cache_->FindVideoDecoder("video/x-vnd.on2.vp9",
+                                       /*must_support_secure=*/false,
+                                       /*must_support_hdr=*/false,
+                                       /*require_software_codec=*/false,
+                                       /*must_support_tunnel_mode=*/false),
+              "OMX.test.soft.vp9.decoder");
+  }
+
+  // Case 2: Feature is enabled. It should reject the software decoder because
+  // it is low performance.
+  {
+    features::ScopedFeatureList scoped_features;
+    scoped_features.InitAndEnableFeature(
+        features::kRejectLowPerformanceSoftwareDecoder);
+
+    EXPECT_EQ(cache_->FindVideoDecoder("video/x-vnd.on2.vp9",
+                                       /*must_support_secure=*/false,
+                                       /*must_support_hdr=*/false,
+                                       /*require_software_codec=*/false,
+                                       /*must_support_tunnel_mode=*/false),
+              "");
+  }
+}
+
 }  // namespace starboard

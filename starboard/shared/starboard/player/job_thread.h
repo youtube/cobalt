@@ -45,7 +45,7 @@ class JobThread {
   static std::unique_ptr<JobThread> Create(
       std::string_view thread_name,
       const ThreadOptions& options =
-          ThreadOptions().SetPriority(kSbThreadPriorityNormal));
+          ThreadOptions().SetPriority(ThreadPriority::kNormal));
   ~JobThread();
 
   bool BelongsToCurrentThread() const {
@@ -72,8 +72,8 @@ class JobThread {
     job_queue_->ScheduleAndWait(std::move(job));
   }
 
-  void RemoveJobByToken(JobQueue::JobToken job_token) {
-    return job_queue_->RemoveJobByToken(job_token);
+  void RemoveJobByToken(JobQueue::JobToken* job_token) {
+    job_queue_->RemoveJobByToken(job_token);
   }
 
   JobQueue* job_queue() const { return job_queue_.get(); }

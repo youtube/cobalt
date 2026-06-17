@@ -110,6 +110,7 @@ public class StarboardBridge {
   private static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getTimeZone("America/Los_Angeles");
   private final long mTimeNanosecondsPerMicrosecond = 1000;
   private static final String YTS_CERT_SCOPE_SYSTEM_PROPERTY = "ro.vendor.youtube.cert_scope";
+  private static final String DEFAULT_DEVICE_NAME = "Android";
 
   public StarboardBridge(
       Context appContext,
@@ -201,11 +202,12 @@ public class StarboardBridge {
   }
 
   protected void onActivityDestroy(Activity activity) {
+    closeAllCobaltService();
     if (mApplicationStopped) {
       // We can't restart the starboard app, so kill the process for a clean start next time.
       Log.i(TAG, "Activity destroyed after shutdown; killing app.");
       StarboardBridgeJni.get().closeNativeStarboard(mNativeApp);
-      closeAllServices();
+      mTtsHelper.shutdown();
       mAdvertisingId.shutdown();
       System.exit(0);
     } else {
@@ -247,16 +249,10 @@ public class StarboardBridge {
     }
   }
 
-  private void closeAllServices() {
-    mTtsHelper.shutdown();
-    for (CobaltService service : mCobaltServices.values()) {
-      service.afterStopped();
-    }
-  }
-
   protected void afterStopped() {
     mApplicationStopped = true;
-    closeAllServices();
+    mTtsHelper.shutdown();
+    closeAllCobaltService();
     Activity activity = mActivityHolder.get();
     if (activity != null) {
       // Wait until the activity is destroyed to exit.
@@ -302,9 +298,9 @@ public class StarboardBridge {
   }
 
   @CalledByNative
-  void raisePlatformError(@PlatformError.ErrorType int errorType, long data) {
+  void raisePlatformError(@PlatformError.ErrorType int errorType, long data, String url) {
     StartupGuard.getInstance().setStartupMilestone(37);
-    mPlatformError = new PlatformError(mActivityHolder, errorType, data);
+    mPlatformError = new PlatformError(mActivityHolder, errorType, data, url);
     mPlatformError.raise();
   }
 
@@ -527,6 +523,24 @@ public class StarboardBridge {
   }
 
   @CalledByNative
+  protected String getFriendlyName() {
+    String deviceName = null;
+    try {
+      deviceName = android.provider.Settings.Global.getString(
+          mAppContext.getContentResolver(), android.provider.Settings.Global.DEVICE_NAME);
+    } catch (SecurityException e) {
+      Log.w(TAG, "SecurityException reading DEVICE_NAME setting", e);
+    }
+    if (deviceName == null || deviceName.isEmpty()) {
+      deviceName = android.os.Build.MODEL;
+    }
+    if (deviceName == null || deviceName.isEmpty()) {
+      deviceName = DEFAULT_DEVICE_NAME;
+    }
+    return deviceName;
+  }
+
+  @CalledByNative
   AudioOutputManager getAudioOutputManager() {
     if (mAudioOutputManager == null) {
       throw new IllegalArgumentException("mAudioOutputManager cannot be null for native code");
@@ -632,6 +646,7 @@ public class StarboardBridge {
   public void closeCobaltService(String serviceName) {
     CobaltService service = mCobaltServices.remove(serviceName);
     if (service != null) {
+      service.afterStopped();
       service.onClose();
     }
     Log.i(TAG, String.format("Closed platform service %s.", serviceName));

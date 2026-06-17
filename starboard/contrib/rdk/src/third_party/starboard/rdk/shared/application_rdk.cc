@@ -52,37 +52,30 @@
 using namespace std::chrono;
 using namespace std::chrono_literals;
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
 
-namespace libcobalt_api {
 void Initialize();
 void Teardown();
-}
 
-namespace player {
 void ForceStop();
-}  // namespace player
 
-EssTerminateListener Application::terminateListener = {
+EssTerminateListener ApplicationRdk::terminateListener = {
   //terminated
-  [](void* data) { reinterpret_cast<Application*>(data)->OnTerminated(); }
+  [](void* data) { reinterpret_cast<ApplicationRdk*>(data)->OnTerminated(); }
 };
 
-EssKeyListener Application::keyListener = {
+EssKeyListener ApplicationRdk::keyListener = {
   // keyPressed
-  [](void* data, unsigned int key) { reinterpret_cast<Application*>(data)->OnKeyPressed(key); },
+  [](void* data, unsigned int key) { reinterpret_cast<ApplicationRdk*>(data)->OnKeyPressed(key); },
   // keyReleased
-  [](void* data, unsigned int key) { reinterpret_cast<Application*>(data)->OnKeyReleased(key); },
+  [](void* data, unsigned int key) { reinterpret_cast<ApplicationRdk*>(data)->OnKeyReleased(key); },
   // keyRepeat
-  [](void* data, unsigned int key) { reinterpret_cast<Application*>(data)->OnKeyPressed(key); }
+  [](void* data, unsigned int key) { reinterpret_cast<ApplicationRdk*>(data)->OnKeyPressed(key); }
 };
 
-EssSettingsListener Application::settingsListener = {
+EssSettingsListener ApplicationRdk::settingsListener = {
   // displaySize
-  [](void *data, int width, int height ) { reinterpret_cast<Application*>(data)->OnDisplaySize(width, height); },
+  [](void *data, int width, int height ) { reinterpret_cast<ApplicationRdk*>(data)->OnDisplaySize(width, height); },
   // displaySafeArea
   nullptr
 };
@@ -101,21 +94,26 @@ static void setTimerInterval(int fd, microseconds time) {
   }
 }
 
-using ::starboard::SbAudioSinkImpl;
-
-Application::Application(SbEventHandleCallback sb_event_handle_callback)
+ApplicationRdk::ApplicationRdk(SbEventHandleCallback sb_event_handle_callback)
   : QueueApplication(sb_event_handle_callback)
   , input_handler_(new EssInput)
-  , hang_monitor_(new HangMonitor("Application")) {
-  essos_context_recycle_ = !!getenv("COBALT_ESSOS_CONTEXT_DESTROY");
+  , hang_monitor_(new HangMonitor("ApplicationRdk")) {
+  essos_context_destroy_ = !!getenv("COBALT_ESSOS_CONTEXT_DESTROY");
   BuildEssosContext();
 }
 
-Application::~Application() {
-  EssContextDestroy(ctx_);
+ApplicationRdk::~ApplicationRdk() {
+  if (native_window_) {
+    EssContextDestroyNativeWindow(ctx_, native_window_);
+    native_window_ = 0;
+  }
+  if (ctx_) {
+    EssContextDestroy(ctx_);
+    ctx_ = NULL;
+  }
 }
 
-void Application::Initialize() {
+void ApplicationRdk::Initialize() {
   wakeup_fd_ = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
   if ( wakeup_fd_ == -1 ) {
     SB_LOG(ERROR) << "Failed to create eventfd, error: " << errno << " (" << strerror(errno) << ')';
@@ -142,9 +140,7 @@ void Application::Initialize() {
 #endif
 
   SbAudioSinkImpl::Initialize();
-  libcobalt_api::Initialize();
-  using ::starboard::KeySystemSupportabilityCache;
-  using ::starboard::MimeSupportabilityCache;
+  ::starboard::Initialize();
   MimeSupportabilityCache::GetInstance()->SetCacheEnabled(true);
   KeySystemSupportabilityCache::GetInstance()->SetCacheEnabled(true);
 
@@ -152,9 +148,9 @@ void Application::Initialize() {
   NetworkInfo::Initialize();
 }
 
-void Application::Teardown() {
+void ApplicationRdk::Teardown() {
   SbAudioSinkImpl::TearDown();
-  libcobalt_api::Teardown();
+  ::starboard::Teardown();
   TeardownJSONRPCLink();
 
   close(ess_timer_fd_);
@@ -164,12 +160,11 @@ void Application::Teardown() {
   ess_timer_fd_ = wakeup_fd_ = monitor_timer_fd_ = -1;
 }
 
-bool Application::MayHaveSystemEvents() {
+bool ApplicationRdk::MayHaveSystemEvents() {
   return true;
 }
 
-::starboard::Application::Event*
-Application::PollNextSystemEvent() {
+ApplicationRdk::Event* ApplicationRdk::PollNextSystemEvent() {
   auto now = steady_clock::now();
   if ((now - ess_loop_last_ts_) > kEssRunLoopPeriod) {
     ess_loop_last_ts_ = now;
@@ -178,8 +173,7 @@ Application::PollNextSystemEvent() {
   return NULL;
 }
 
-::starboard::Application::Event*
-Application::WaitForSystemEventWithTimeout(int64_t time) {
+ApplicationRdk::Event* ApplicationRdk::WaitForSystemEventWithTimeout(int64_t time) {
   struct timespec timeout;
   struct pollfd fds[3];
   int fds_sz = 0;
@@ -229,12 +223,12 @@ Application::WaitForSystemEventWithTimeout(int64_t time) {
   return NULL;
 }
 
-void Application::WakeSystemEventWait() {
+void ApplicationRdk::WakeSystemEventWait() {
   uint64_t u = 1;
   write(wakeup_fd_, &u, sizeof(uint64_t));
 }
 
-SbWindow Application::CreateSbWindow(const SbWindowOptions* options) {
+SbWindow ApplicationRdk::CreateSbWindow(const SbWindowOptions* options) {
   SB_DCHECK(window_ == nullptr);
   if (window_ != nullptr)
     return kSbWindowInvalid;
@@ -243,7 +237,7 @@ SbWindow Application::CreateSbWindow(const SbWindowOptions* options) {
   return window_;
 }
 
-bool Application::DestroySbWindow(SbWindow window) {
+bool ApplicationRdk::DestroySbWindow(SbWindow window) {
   if (!SbWindowIsValid(window))
     return false;
   window_ = nullptr;
@@ -252,53 +246,71 @@ bool Application::DestroySbWindow(SbWindow window) {
   return true;
 }
 
-void Application::InjectInputEvent(SbInputData* data) {
+void ApplicationRdk::InjectInputEvent(SbInputData* data) {
   if (native_window_ == 0) {
-    Application::DeleteDestructor<SbInputData>(data);
+    ApplicationRdk::DeleteDestructor<SbInputData>(data);
     return;
   }
 
   data->window = window_;
   Inject(new Event(kSbEventTypeInput, data,
-                   &Application::DeleteDestructor<SbInputData>));
+                   &ApplicationRdk::DeleteDestructor<SbInputData>));
 }
 
-void Application::Inject(Event* e) {
+void ApplicationRdk::Inject(Event* e) {
   if (e && e->event && e->event->type == kSbEventTypeFreeze) {
-    player::ForceStop();
+    ForceStop();
   }
 
   QueueApplication::Inject(e);
 }
 
-void Application::OnSuspend() {
+void ApplicationRdk::OnSuspend() {
   SbSpeechSynthesisCancel();
-  DestroyNativeWindow();
+
+  if ( !(monitor_timer_fd_ < 0) ) {
+    setTimerInterval(monitor_timer_fd_, 0s);
+  }
+
+  // Unset the Essos terminate listener to prevent callback loops
+  // when the window is destroyed during suspend.
+  EssContextSetTerminateListener(ctx_, nullptr, nullptr);
+
+  if (essos_context_destroy_) {
+    DestroyNativeWindow();
+  }
+
   TeardownJSONRPCLink();
-  setTimerInterval(ess_timer_fd_, 1s);
 }
 
-void Application::OnResume() {
-  if ( essos_context_recycle_ )
+void ApplicationRdk::OnResume() {
+  if ( essos_context_destroy_ ) {
     BuildEssosContext();
+  } else {
+    EssContextSetTerminateListener(ctx_, this, &terminateListener);
+  }
 
+  if ( !(monitor_timer_fd_ < 0) && hang_monitor_ ) {
+    setTimerInterval(monitor_timer_fd_, hang_monitor_->GetResetInterval());
+  }
+
+  // Only restart the Essos timer run loop once the window is materialized.
   setTimerInterval(ess_timer_fd_, kEssRunLoopPeriod);
-  MaterializeNativeWindow();
 }
 
-void Application::OnTerminated() {
+void ApplicationRdk::OnTerminated() {
   Stop(0);
 }
 
-void Application::OnKeyPressed(unsigned int key) {
+void ApplicationRdk::OnKeyPressed(unsigned int key) {
   input_handler_->OnKeyPressed(key);
 }
 
-void Application::OnKeyReleased(unsigned int key) {
+void ApplicationRdk::OnKeyReleased(unsigned int key) {
   input_handler_->OnKeyReleased(key);
 }
 
-void Application::OnDisplaySize(int width, int height) {
+void ApplicationRdk::OnDisplaySize(int width, int height) {
   if (window_width_ == width && window_height_ == height) {
     resize_pending_ = false;
     return;
@@ -308,9 +320,10 @@ void Application::OnDisplaySize(int width, int height) {
   resize_pending_ = true;
 }
 
-void Application::MaterializeNativeWindow() {
-  if (native_window_ != 0)
+void ApplicationRdk::MaterializeNativeWindow() {
+  if (native_window_ != 0) {
     return;
+  }
 
   bool error = false;
 
@@ -337,26 +350,32 @@ void Application::MaterializeNativeWindow() {
   }
 }
 
-void Application::DestroyNativeWindow() {
-  if (native_window_ == 0)
+void ApplicationRdk::DestroyNativeWindow() {
+  if (native_window_ == 0) {
     return;
-
-  if ( !EssContextDestroyNativeWindow(ctx_, native_window_) ) {
-    const char *detail = EssContextGetLastErrorDetail(ctx_);
-    SB_LOG(ERROR) << "Essos error: '" <<  detail << '\'';
   }
 
-  native_window_ = 0;
-
-  if ( essos_context_recycle_ ) {
+  if ( essos_context_destroy_ ) {
+    // If recycling context, we must destroy the window now as it cannot
+    // survive without the context.
+    if ( !EssContextDestroyNativeWindow(ctx_, native_window_) ) {
+      const char *detail = EssContextGetLastErrorDetail(ctx_);
+      SB_LOG(ERROR) << "Essos error: '" <<  detail << '\'';
+    }
+    native_window_ = 0;
     EssContextDestroy(ctx_);
     ctx_ = NULL;
   }
-  else
+  else {
+    // Keep the underlying OS-level native window plane (EssWindow handle)
+    // alive inside ApplicationRdk. This ensures that Chromium's cached EGL
+    // surfaces have a valid window reference in memory during suspend, preventing
+    // graphics driver or Wayland marshalling segmentation faults upon unfreeze.
     EssContextStop(ctx_);
+  }
 }
 
-void Application::DisplayInfoChanged() {
+void ApplicationRdk::DisplayInfoChanged() {
   if (state() != kStateStarted)
     return;
 
@@ -365,10 +384,10 @@ void Application::DisplayInfoChanged() {
   auto *data = new SbEventWindowSizeChangedData();
   data->size = window_size;
   data->window = window_;
-  WindowSizeChanged(data, &Application::DeleteDestructor<SbEventWindowSizeChangedData>);
+  WindowSizeChanged(data, &ApplicationRdk::DeleteDestructor<SbEventWindowSizeChangedData>);
 }
 
-void Application::BuildEssosContext() {
+void ApplicationRdk::BuildEssosContext() {
   bool error = false;
   ctx_ = EssContextCreate();
 
@@ -392,29 +411,29 @@ void Application::BuildEssosContext() {
   }
 }
 
-void Application::FatalError() {
+void ApplicationRdk::FatalError() {
   SB_LOG(ERROR) << "Exiting due to fatal error.";
   ess_loop_last_ts_ = time_point<steady_clock>::max(); // Stop Essos run loop
   SbEventSchedule([](void* data) {
-    Application::Get()->Stop(0);
+    ApplicationRdk::Get()->Stop(0);
   }, nullptr, 0);
 }
 
-void Application::ReleaseMemory() {
+void ApplicationRdk::ReleaseMemory() {
   Inject(new Event(kSbEventTypeLowMemory, NULL, [](void*) {
     malloc_trim(0);
   }));
 }
 
-void Application::ScheduleMemoryUsageCheck(int64_t delay) {
+void ApplicationRdk::ScheduleMemoryUsageCheck(int64_t delay) {
   SbEventSchedule([](void* data) {
-    int64_t back_off_timeout = Application::Get()->CheckMemoryUsage();
+    int64_t back_off_timeout = ApplicationRdk::Get()->CheckMemoryUsage();
     if (back_off_timeout && back_off_timeout != std::numeric_limits<int64_t>::max())
-      Application::Get()->ScheduleMemoryUsageCheck(back_off_timeout);
+      ApplicationRdk::Get()->ScheduleMemoryUsageCheck(back_off_timeout);
   }, nullptr, delay);
 }
 
-int64_t Application::CheckMemoryUsage() {
+int64_t ApplicationRdk::CheckMemoryUsage() {
   static const int64_t kCPUMemoryPressureLimit = ([]() -> int64_t {
     const char* env = std::getenv("COBALT_CPU_MEM_PRESSURE_IN_MB");
     // For C25, default memory pressure threshold was 400 MB, but has been
@@ -444,14 +463,11 @@ int64_t Application::CheckMemoryUsage() {
   return kSbTimeSecond;
 }
 
-void Application::InjectAccessibilityTextToSpeechSettingsChanged(bool enabled) {
+void ApplicationRdk::InjectAccessibilityTextToSpeechSettingsChanged(bool enabled) {
   bool* enabled_data = new bool(enabled);
   Inject(new Event(kSbEventTypeAccessibilityTextToSpeechSettingsChanged,
                    enabled_data,
-                   &Application::DeleteDestructor<bool>));
+                   &ApplicationRdk::DeleteDestructor<bool>));
 }
 
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party

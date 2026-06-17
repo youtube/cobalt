@@ -37,27 +37,44 @@ namespace starboard {
 // Note that when using this class a significant |initial_capacity| should be
 // set as otherwise new allocations will almost always allocate from the front
 // of the fallback allocator.
-template <typename ReuseAllocatorBase>
-class BidirectionalFitReuseAllocator : public ReuseAllocatorBase {
+template <typename UnderlyingReuseAllocator>
+class BidirectionalFitReuseAllocator : public UnderlyingReuseAllocator {
  public:
-  typedef typename ReuseAllocatorBase::FreeBlockSet::iterator FreeBlockIterator;
-  typedef typename ReuseAllocatorBase::FreeBlockSet::reverse_iterator
+  typedef typename UnderlyingReuseAllocator::FreeBlockSet::iterator
+      FreeBlockIterator;
+  typedef typename UnderlyingReuseAllocator::FreeBlockSet::reverse_iterator
       FreeBlockReverseiterator;
 
   BidirectionalFitReuseAllocator(starboard::Allocator* fallback_allocator,
-                                 std::size_t initial_capacity,
-                                 std::size_t small_allocation_threshold,
-                                 std::size_t allocation_increment,
-                                 bool enable_decommit_on_idle)
-      : ReuseAllocatorBase(fallback_allocator,
-                           initial_capacity,
-                           allocation_increment,
-                           /*max_capacity=*/0,
-                           enable_decommit_on_idle),
+                                 size_t initial_capacity,
+                                 size_t small_allocation_threshold,
+                                 size_t allocation_increment)
+      : UnderlyingReuseAllocator(fallback_allocator,
+                                 initial_capacity,
+                                 allocation_increment,
+                                 /*max_capacity=*/0),
         small_allocation_threshold_(small_allocation_threshold) {}
 
-  FreeBlockIterator FindFreeBlock(std::size_t size,
-                                  std::size_t alignment,
+  BidirectionalFitReuseAllocator(starboard::Allocator* fallback_allocator,
+                                 size_t initial_capacity,
+                                 size_t small_allocation_threshold,
+                                 size_t allocation_increment,
+                                 bool enable_decommit_on_idle,
+                                 size_t retain_blocks,
+                                 size_t conservative_decommit_blocks,
+                                 bool aggressive_decommit_on_suspend = false)
+      : UnderlyingReuseAllocator(fallback_allocator,
+                                 initial_capacity,
+                                 allocation_increment,
+                                 /*max_capacity=*/0,
+                                 enable_decommit_on_idle,
+                                 retain_blocks,
+                                 conservative_decommit_blocks,
+                                 aggressive_decommit_on_suspend),
+        small_allocation_threshold_(small_allocation_threshold) {}
+
+  FreeBlockIterator FindFreeBlock(size_t size,
+                                  size_t alignment,
                                   FreeBlockIterator begin,
                                   FreeBlockIterator end,
                                   bool* allocate_from_front) override {
@@ -71,14 +88,14 @@ class BidirectionalFitReuseAllocator : public ReuseAllocatorBase {
           return it;
         }
       }
-    }
-
-    // Start looking through the free list from the back.
-    FreeBlockReverseiterator rbegin(end);
-    FreeBlockReverseiterator rend(begin);
-    for (FreeBlockReverseiterator it = rbegin; it != rend; ++it) {
-      if (it->CanFulfill(size, alignment)) {
-        return --it.base();
+    } else {
+      // Start looking through the free list from the back.
+      FreeBlockReverseiterator rbegin(end);
+      FreeBlockReverseiterator rend(begin);
+      for (FreeBlockReverseiterator it = rbegin; it != rend; ++it) {
+        if (it->CanFulfill(size, alignment)) {
+          return --it.base();
+        }
       }
     }
 
@@ -86,7 +103,7 @@ class BidirectionalFitReuseAllocator : public ReuseAllocatorBase {
   }
 
  private:
-  std::size_t small_allocation_threshold_;
+  size_t small_allocation_threshold_;
 };
 
 }  // namespace starboard

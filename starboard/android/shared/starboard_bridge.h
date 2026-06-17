@@ -42,7 +42,10 @@ class StarboardBridge {
 
   jni_zero::ScopedJavaLocalRef<jintArray> GetSupportedHdrTypes(JNIEnv* env);
 
-  void RaisePlatformError(JNIEnv* env, jint errorType, jlong data);
+  void RaisePlatformError(JNIEnv* env,
+                          jint errorType,
+                          jlong data,
+                          const std::string& url);
 
   bool IsPlatformErrorShowing(JNIEnv* env);
 
@@ -58,6 +61,7 @@ class StarboardBridge {
 
   std::string GetAdvertisingId(JNIEnv* env);
   bool GetLimitAdTracking(JNIEnv* env);
+  std::string GetFriendlyName(JNIEnv* env);
 
   void CloseApp(JNIEnv* env);
 
@@ -83,7 +87,7 @@ class StarboardBridge {
 
   jni_zero::ScopedJavaLocalRef<jobject> GetAudioOutputManager(JNIEnv* env);
 
-  base::android::ScopedJavaLocalRef<jobject> GetExoPlayerManager(JNIEnv* env);
+  jni_zero::ScopedJavaLocalRef<jobject> GetExoPlayerManager(JNIEnv* env);
 
   std::string GetUserAgentAuxField(JNIEnv* env) const;
 

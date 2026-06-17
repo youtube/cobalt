@@ -8,6 +8,7 @@
 #endif
 
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/os_metrics.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
 
 #include <mach/mach.h>
 #include <sys/param.h>
@@ -235,6 +236,22 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
   }
   return FillOSMemoryDump(current_handle, flags, nullptr, dump);
 }
+
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
+// static
+bool OSMetrics::FillOSMemoryDump(
+    base::ProcessHandle handle,
+    const MemDumpFlagSet& flags,
+    mojom::RawOSMemDump* dump,
+    base::WeakPtr<DetailedMetricsDelegate> delegate) {
+  // This is implemented in os_metrics_linux.cc using Linux-specific concepts
+  // and operations.
+  //
+  // On tvOS, just fall back to the original, non-Cobalt function that provides
+  // at least some information.
+  return FillOSMemoryDump(handle, flags, dump);
+}
+#endif
 
 // static
 bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,

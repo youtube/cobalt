@@ -28,6 +28,7 @@
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
@@ -90,7 +91,7 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
                             SbMediaType type);
   void WriteEOSInternal(JNIEnv* env, SbMediaType type) const;
 
-  base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_bridge_;
+  jni_zero::ScopedJavaGlobalRef<jobject> j_exoplayer_bridge_;
 
   std::atomic_bool player_is_releasing_ = false;
 

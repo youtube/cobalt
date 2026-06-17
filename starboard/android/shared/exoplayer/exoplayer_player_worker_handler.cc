@@ -177,7 +177,7 @@ void ExoPlayerPlayerWorkerHandler::Stop() {
   SB_CHECK(BelongsToCurrentThread());
   SB_CHECK(bridge_->is_valid());
 
-  RemoveJobByToken(update_job_token_);
+  RemoveJobByToken(&update_job_token_);
 
   bridge_->Stop();
 
@@ -199,7 +199,7 @@ void ExoPlayerPlayerWorkerHandler::Update() {
                           info.is_playing);
   }
 
-  RemoveJobByToken(update_job_token_);
+  RemoveJobByToken(&update_job_token_);
   update_job_token_ = Schedule(update_job_, kUpdateIntervalUsec);
 }
 

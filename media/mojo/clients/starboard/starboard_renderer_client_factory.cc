@@ -53,8 +53,7 @@ StarboardRendererClientFactory::StarboardRendererClientFactory(
       max_video_capabilities_(traits->max_video_capabilities),
       experimental_features_(traits->experimental_features),
       viewport_size_(traits->viewport_size),
-      get_sb_window_handle_callback_(traits->get_sb_window_handle_callback),
-      bind_host_receiver_callback_(traits->bind_host_receiver_callback) {}
+      get_sb_window_handle_callback_(traits->get_sb_window_handle_callback) {}
 
 StarboardRendererClientFactory::~StarboardRendererClientFactory() = default;
 

@@ -33,5 +33,17 @@
   <string>This identifier will be used to deliver personalized ads to you.</string>
   <key>YTApplicationURL</key>
   <string>https://www.youtube.com/tv</string>
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLName</key>
+      <string>${BUNDLE_IDENTIFIER}</string>
+      <key>CFBundleURLSchemes</key>
+      <array>
+        <string>YouTube</string>
+        <string>YouTubeTV</string>
+      </array>
+    </dict>
+  </array>
 </dict>
 </plist>

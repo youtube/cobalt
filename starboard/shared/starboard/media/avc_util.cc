@@ -24,15 +24,17 @@ namespace starboard {
 
 namespace {
 
-const uint8_t kAnnexBHeader[] = {0, 0, 0, 1};
-const auto kAnnexBHeaderSizeInBytes =
-    AvcParameterSets::kAnnexBHeaderSizeInBytes;
+constexpr uint8_t kAnnexBHeader[] = {0, 0, 0, 1};
+constexpr size_t kAnnexBHeaderSizeInBytes = 4;
+constexpr uint8_t kIdrStartCode = 0x65;
+constexpr uint8_t kSpsStartCode = 0x67;
+constexpr uint8_t kPpsStartCode = 0x68;
+constexpr uint8_t kAudStartCode = 0x09;
 
 bool StartsWithAnnexBHeader(const uint8_t* annex_b_data,
                             size_t annex_b_data_size) {
-  static_assert(
-      sizeof(kAnnexBHeader) == AvcParameterSets::kAnnexBHeaderSizeInBytes,
-      "sizeof(kAnnexBHeader) doesn't match kAnnexBHeaderSizeInBytes");
+  static_assert(sizeof(kAnnexBHeader) == kAnnexBHeaderSizeInBytes,
+                "sizeof(kAnnexBHeader) doesn't match kAnnexBHeaderSizeInBytes");
 
   if (annex_b_data_size < sizeof(kAnnexBHeader)) {
     return false;
@@ -83,47 +85,71 @@ bool ExtractAnnexBNalu(const uint8_t** annex_b_data,
 
 }  // namespace
 
-AvcParameterSets::AvcParameterSets(Format format,
-                                   const uint8_t* data,
-                                   size_t size)
-    : format_(format) {
-  SB_DCHECK_EQ(format, kAnnexB);
-
-  is_valid_ =
-      format == kAnnexB && (size == 0 || StartsWithAnnexBHeader(data, size));
-
-  if (!is_valid_) {
-    return;
+// static
+// static
+std::optional<AvcParameterSets> AvcParameterSets::CreateFromAnnexB(
+    const uint8_t* data,
+    size_t size) {
+  if (size > 0 && !StartsWithAnnexBHeader(data, size)) {
+    return std::nullopt;
   }
-
   if (size == 0) {
-    return;
+    return AvcParameterSets(
+        kAnnexB, /*parameter_sets=*/{}, /*first_sps_index=*/-1,
+        /*first_pps_index=*/-1, /*combined_size_in_bytes=*/0,
+        /*combined_size_with_optionals_in_bytes=*/0);
   }
+
+  std::vector<std::vector<uint8_t>> parameter_sets;
+  int first_sps_index = -1;
+  int first_pps_index = -1;
+  size_t combined_size_in_bytes = 0;
+  size_t combined_size_with_optionals_in_bytes = 0;
 
   std::vector<uint8_t> nalu;
   while (size > kAnnexBHeaderSizeInBytes &&
          ExtractAnnexBNalu(&data, &size, &nalu)) {
     if (nalu[kAnnexBHeaderSizeInBytes] == kSpsStartCode) {
-      if (first_sps_index_ == -1) {
-        first_sps_index_ = static_cast<int>(parameter_sets_.size());
+      if (first_sps_index == -1) {
+        first_sps_index = static_cast<int>(parameter_sets.size());
       }
-      parameter_sets_.push_back(nalu);
-      combined_size_in_bytes_ += nalu.size();
+      combined_size_in_bytes += nalu.size();
+      parameter_sets.push_back(std::move(nalu));
     } else if (nalu[kAnnexBHeaderSizeInBytes] == kPpsStartCode) {
-      if (first_pps_index_ == -1) {
-        first_pps_index_ = static_cast<int>(parameter_sets_.size());
+      if (first_pps_index == -1) {
+        first_pps_index = static_cast<int>(parameter_sets.size());
       }
-      parameter_sets_.push_back(nalu);
-      combined_size_in_bytes_ += nalu.size();
+      combined_size_in_bytes += nalu.size();
+      parameter_sets.push_back(std::move(nalu));
     } else if (nalu[kAnnexBHeaderSizeInBytes] == kIdrStartCode) {
       break;
     } else if (nalu[kAnnexBHeaderSizeInBytes] == kAudStartCode) {
-      combined_size_with_optionals_in_bytes_ += nalu.size();
+      combined_size_with_optionals_in_bytes += nalu.size();
     }
   }
-  SB_LOG_IF(ERROR, first_sps_index_ == -1 || first_pps_index_ == -1)
+
+  SB_LOG_IF(ERROR, first_sps_index == -1 || first_pps_index == -1)
       << "AVC parameter set NALUs not found.";
+
+  return AvcParameterSets(kAnnexB, std::move(parameter_sets), first_sps_index,
+                          first_pps_index, combined_size_in_bytes,
+                          combined_size_with_optionals_in_bytes);
 }
+
+AvcParameterSets::AvcParameterSets(
+    Format format,
+    std::vector<std::vector<uint8_t>> parameter_sets,
+    int first_sps_index,
+    int first_pps_index,
+    size_t combined_size_in_bytes,
+    size_t combined_size_with_optionals_in_bytes)
+    : format_(format),
+      first_sps_index_(first_sps_index),
+      first_pps_index_(first_pps_index),
+      parameter_sets_(std::move(parameter_sets)),
+      combined_size_in_bytes_(combined_size_in_bytes),
+      combined_size_with_optionals_in_bytes_(
+          combined_size_with_optionals_in_bytes) {}
 
 std::vector<uint8_t> AvcParameterSets::GetAllSpses() const {
   std::vector<uint8_t> result;
@@ -153,29 +179,22 @@ AvcParameterSets AvcParameterSets::ConvertTo(Format new_format) const {
   SB_DCHECK_EQ(format_, kAnnexB);
   SB_DCHECK_EQ(new_format, kHeadless);
 
-  AvcParameterSets new_parameter_sets(*this);
-  new_parameter_sets.format_ = new_format;
-  if (!new_parameter_sets.is_valid()) {
-    return new_parameter_sets;
-  }
-  for (auto& parameter_set : new_parameter_sets.parameter_sets_) {
+  std::vector<std::vector<uint8_t>> new_parameter_sets = parameter_sets_;
+  size_t new_combined_size_in_bytes = combined_size_in_bytes_;
+  for (auto& parameter_set : new_parameter_sets) {
     SB_DCHECK_GE(parameter_set.size(), kAnnexBHeaderSizeInBytes);
     parameter_set.erase(parameter_set.begin(),
                         parameter_set.begin() + kAnnexBHeaderSizeInBytes);
-    new_parameter_sets.combined_size_in_bytes_ -= kAnnexBHeaderSizeInBytes;
+    new_combined_size_in_bytes -= kAnnexBHeaderSizeInBytes;
   }
 
-  return new_parameter_sets;
+  return AvcParameterSets(new_format, std::move(new_parameter_sets),
+                          first_sps_index_, first_pps_index_,
+                          new_combined_size_in_bytes,
+                          combined_size_with_optionals_in_bytes_);
 }
 
 bool AvcParameterSets::operator==(const AvcParameterSets& that) const {
-  if (is_valid() != that.is_valid()) {
-    return false;
-  }
-  if (!is_valid()) {
-    return true;
-  }
-
   SB_DCHECK_EQ(format(), that.format());
 
   if (parameter_sets_ == that.parameter_sets_) {

@@ -32,7 +32,6 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
-#include "starboard/thread.h"
 
 namespace starboard {
 
@@ -91,7 +90,7 @@ class OpenMaxVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
   std::queue<OMX_BUFFERHEADERTYPE*> filled_buffers_;
   std::queue<OMX_BUFFERHEADERTYPE*> freed_buffers_;
 
-  JobQueue::JobToken update_job_token_;
+  JobQueue::JobToken update_job_token_ = JobQueue::JobToken::kUnscheduled;
   std::function<void()> update_job_;
 };
 

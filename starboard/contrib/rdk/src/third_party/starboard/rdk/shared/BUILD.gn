@@ -125,8 +125,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/linux/system_get_stack.cc",
     "//starboard/shared/linux/system_get_used_cpu_memory.cc",
     "//starboard/shared/linux/system_is_debugger_attached.cc",
-    "//starboard/shared/linux/thread_get_id.cc",
-    "//starboard/shared/posix/file_atomic_replace.cc",
     "//starboard/shared/posix/log.cc",
     "//starboard/shared/posix/log_flush.cc",
     "//starboard/shared/posix/log_format.cc",
@@ -168,7 +166,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/drm/drm_update_session.cc",
     "//starboard/shared/starboard/event_cancel.cc",
     "//starboard/shared/starboard/event_schedule.cc",
-    "//starboard/shared/starboard/file_atomic_replace_write_file.cc",
     "//starboard/shared/starboard/file_storage/storage_close_record.cc",
     "//starboard/shared/starboard/file_storage/storage_delete_record.cc",
     "//starboard/shared/starboard/file_storage/storage_get_record_size.cc",
@@ -198,7 +195,8 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/window_set_default_options.cc",
     "//starboard/shared/stub/decode_target_get_info.cc",
     "//starboard/shared/stub/decode_target_release.cc",
-    "//starboard/shared/stub/log_raw_dump_stack.cc",
+    "//starboard/shared/starboard/log_raw_dump_stack.cc",
+    "//starboard/shared/stub/media_can_change_type.cc",
     "//starboard/shared/stub/microphone_close.cc",
     "//starboard/shared/stub/microphone_create.cc",
     "//starboard/shared/stub/microphone_destroy.cc",
@@ -208,8 +206,7 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/stub/microphone_read.cc",
     "//starboard/shared/stub/system_hide_splash_screen.cc",
     "//starboard/shared/stub/system_raise_platform_error.cc",
-    "//starboard/shared/stub/system_symbolize.cc",
-    "//starboard/shared/stub/thread_priority.cc",
+    "//starboard/shared/linux/system_symbolize.cc",
 
     # RDK implementation
     "accessibility_data.cc",
@@ -238,17 +235,13 @@ static_library("starboard_platform_sources") {
     "media/gst_media_utils.cc",
     "media/media_get_audio_buffer_budget.cc",
     "media/media_get_audio_configuration.cc",
-    "media/media_get_buffer_alignment.cc",
     "media/media_get_buffer_allocation_unit.cc",
     "media/media_get_buffer_garbage_collection_duration_threshold.cc",
-    "media/media_get_buffer_padding.cc",
     "media/media_get_initial_buffer_capacity.cc",
     "media/media_get_max_buffer_capacity.cc",
-    "media/media_get_progressive_buffer_budget.cc",
     "media/media_get_video_buffer_budget.cc",
     "media/media_is_audio_supported.cc",
     "media/media_is_buffer_pool_allocate_on_demand.cc",
-    "media/media_is_buffer_using_memory_pool.cc",
     "media/media_is_output_protected.cc",
     "media/media_is_key_system_supported.cc",
     "media/media_is_video_supported.cc",
@@ -318,7 +311,7 @@ static_library("starboard_platform_sources") {
     ]
   }
 
-  if (!sb_is_modular || sb_is_evergreen_compatible) {
+  if (!sb_is_modular || is_starboard) {
     sources += [
       "main_rdk.cc",
     ]
@@ -383,10 +376,16 @@ group("loader_app_rdk_plugin") {
   data_deps = [":loader_app($starboard_toolchain)"]
 }
 
-if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
-  target("shared_library", "loader_app") {
-    output_dir = root_build_dir
-    deps = [ "//starboard/loader_app:loader_app_sources" ]
-    data_deps = [ "//starboard/content/fonts:copy_font_data" ]
+if (is_starboard && current_toolchain == starboard_toolchain) {
+  if (starboard_level_final_executable_type == "shared_library") {
+    group("loader_app") {
+      deps = [ "//starboard/loader_app:loader_app" ]
+    }
+  } else {
+    target("shared_library", "loader_app") {
+      output_dir = root_build_dir
+      deps = [ "//starboard/loader_app:loader_app_sources" ]
+      data_deps = [ "//starboard/content/fonts:copy_font_data" ]
+    }
   }
 }

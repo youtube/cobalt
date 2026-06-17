@@ -127,6 +127,12 @@ inline int GetAudioFormatSampleType(
   return 0u;
 }
 
+// GENERATED_JAVA_ENUM_PACKAGE: dev.cobalt.media
+// GENERATED_JAVA_PREFIX_TO_STRIP: TUNNEL_MODE_AUDIO_SESSION_ID_
+enum TunnelModeAudioSessionId {
+  TUNNEL_MODE_AUDIO_SESSION_ID_NONE = -1,
+};
+
 inline bool IsSDR(const SbMediaColorMetadata& color_metadata) {
   // Convenience HDR mastering metadata.
   const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
