@@ -51,7 +51,7 @@ constexpr int64_t kBackgroundDownloadSizeThreshold = 0;
 
 #if defined(IN_MEMORY_UPDATES)
 // Memory buffer required for downloading the update in memory.
-constexpr int64_t kMemoryBufferBytes = 20 * 1024 * 1024;
+constexpr int64_t kMemoryBufferBytes = 35 * 1024 * 1024;
 #endif
 
 #if !BUILDFLAG(IS_STARBOARD)
