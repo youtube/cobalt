@@ -414,7 +414,7 @@ const void* GetPleasantryApi() {
 +#include "starboard/linux/shared/pleasantry.h"
 
  const void* SbSystemGetExtension(const char* name) {
- #if SB_IS(EVERGREEN_COMPATIBLE)
+ #if BUILDFLAG(IS_STARBOARD)
 @@ -74,5 +76,8 @@ const void* SbSystemGetExtension(const char* name) {
      return use_ffmpeg_demuxer ? starboard::shared::ffmpeg::GetFFmpegDemuxerApi()
                                : NULL;
