@@ -87,7 +87,7 @@ public class AudioTrackBridge {
         return new byte[maxSamplesPerWrite];
       default:
         // Throwing RuntimeException crashes the app, which is intended since the invariant is broken.
-        throw new RuntimeException("Unsupported sample type: " + sampleType);
+        throw new IllegalArgumentException("Unsupported sample type: " + sampleType);
     }
   }
 
