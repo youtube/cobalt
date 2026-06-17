@@ -263,7 +263,9 @@ int TestStoragePartition::GetDataRemovalObserverCount() {
   return data_removal_observer_count_;
 }
 
+#if !BUILDFLAG(IS_COBALT)
 void TestStoragePartition::ClearBluetoothAllowedDevicesMapForTesting() {}
+#endif
 
 void TestStoragePartition::FlushNetworkInterfaceForTesting() {}
 
