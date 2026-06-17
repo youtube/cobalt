@@ -93,6 +93,14 @@ void DecoderBufferAllocator::Suspend() {
     return;
   }
   base::AutoLock scoped_lock(mutex_);
+  is_suspended_ = true;
+
+  if (strategy_) {
+    strategy_->DecommitAllDecommitableBlocks();
+  }
+  if (!should_release_memory_when_suspended_) {
+    return;
+  }
 
   if (strategy_ && strategy_->GetAllocated() == 0) {
     LOG(INFO) << "Freeing " << strategy_->GetCapacity()
@@ -162,15 +170,26 @@ void DecoderBufferAllocator::Free(DemuxerStream::Type type,
   }
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
+  // Handle deferred memory reclamation when suspended. Due to cross-thread
+  // timing (suspend events arrive on the UI thread whereas Free() runs on the
+  // media thread), buffers may still be inflight when Suspend() runs. Once
+  // inflight allocations drain to 0, we perform the deferred idle decommit or
+  // strategy reset.
+  if (is_suspended_ && strategy_ && strategy_->GetAllocated() == 0) {
+    strategy_->DecommitAllDecommitableBlocks();
+  }
+
   bool should_reset_strategy =
       is_strategy_switch_pending_ || is_memory_pool_allocated_on_demand_;
-
+  should_reset_strategy |=
+      should_release_memory_when_suspended_ && is_suspended_;
   if (should_reset_strategy && strategy_->GetAllocated() == 0) {
     // `strategy_->PrintAllocations()` will be called inside the dtor when
     // supported, so it shouldn't be called here.
     LOG(INFO) << "Freeing " << strategy_->GetCapacity()
               << " bytes of decoder buffer pool.";
     strategy_.reset();
+    return;
   }
 }
 
@@ -288,6 +307,14 @@ void DecoderBufferAllocator::EnableMediaBufferPoolStrategy() {
       }));
 }
 
+// static
+void DecoderBufferAllocator::EnableReleaseMemoryWhenSuspended() {
+  auto* allocator = Get();
+  CHECK(allocator);
+  base::AutoLock scoped_lock(allocator->mutex_);
+  allocator->should_release_memory_when_suspended_ = true;
+}
+
 void DecoderBufferAllocator::EnsureStrategyIsCreated() {
   mutex_.AssertAcquired();
   if (strategy_) {
@@ -295,6 +322,7 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
   }
 
   is_strategy_switch_pending_ = false;
+  is_suspended_ = false;
 
   if (!experimental_strategy_create_cb_.is_null()) {
     strategy_ = experimental_strategy_create_cb_.Run(initial_capacity_,

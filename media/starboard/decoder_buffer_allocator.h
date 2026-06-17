@@ -89,6 +89,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
       int conservative_decommit_blocks,
       bool aggressive_decommit_on_suspend);
   static void EnableMediaBufferPoolStrategy();
+  static void EnableReleaseMemoryWhenSuspended();
 
  private:
   void EnsureStrategyIsCreated() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
@@ -104,6 +105,12 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   mutable base::Lock mutex_;
   std::unique_ptr<Strategy> strategy_ GUARDED_BY(mutex_);
   bool is_strategy_switch_pending_ GUARDED_BY(mutex_) = false;
+  // Tracks application suspend state. Suspend() can be called on the UI thread
+  // while buffers are still actively decoding on the media thread. We defer
+  // idle memory reclamation (decommit or strategy reset) until buffers drain in
+  // Free().
+  bool is_suspended_ GUARDED_BY(mutex_) = false;
+  bool should_release_memory_when_suspended_ GUARDED_BY(mutex_) = false;
   StrategyCreateCB experimental_strategy_create_cb_ GUARDED_BY(mutex_);
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
