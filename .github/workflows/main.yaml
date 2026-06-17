@@ -331,7 +331,6 @@ jobs:
           TEST_TARGETS_JSON_PATH: ${{ steps.get-test-targets-json-path.outputs.test_targets_json_path }}
         run: |
           set -x
-
           run_on_host_test="false"
           run_on_device_test="false"
           run_browser_test_on_host="false"
@@ -1110,7 +1109,7 @@ jobs:
           pattern: ${{ matrix.platform }}_${{ matrix.name }}_browsertest_results
           path: results/
       - name: Failed Tests
-        if: always() && (needs.test-results.result != 'skipped' || needs.browser-test-results.result != 'skipped')
+        if: always() && (needs.initialize.outputs.run_on_host_test || needs.initialize.outputs.run_browser_test_on_host)
         run: |
           # Print test result summary.
           shopt -s globstar nullglob
