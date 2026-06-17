@@ -584,8 +584,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     int64_t flush_delay_usec = features::kFlushDelayUsec.Get();
     int64_t reset_delay_usec = features::kResetDelayUsec.Get();
 
-    // The default value of |force_reset_surface| would be true.
-    bool force_reset_surface = true;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
         !creation_parameters.video_mime().empty()) {
       // Use mime param to determine endianness of HDR metadata. If param is
@@ -597,11 +595,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
             video_mime_type->GetParamStringValue("hdrinfoendianness",
                                                  /*default=*/"little");
         force_big_endian_hdr_metadata = hdr_info_endianness == "big";
-      }
-      if (video_mime_type &&
-          video_mime_type->ValidateBoolParameter("forceresetsurface")) {
-        force_reset_surface =
-            video_mime_type->GetParamBoolValue("forceresetsurface", true);
       }
       if (video_mime_type &&
           video_mime_type->ValidateBoolParameter("enableflushduringseek")) {
@@ -621,10 +614,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << "`kResetDelayUsec` is set to > 0, force a delay of "
         << reset_delay_usec << "us during Reset().";
 
-    if (experimental_features.use_dual_threads_for_video.value_or(false) &&
-        creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
-      // `use_dual_threads_for_video` should be disabled if the libopus audio
-      // decoder isn't used, as we want to limit the initial experiment to
+    bool use_dual_threads = true;
+    if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
+      // `use_dual_threads` should be disabled if the libopus audio
+      // decoder isn't used, as we want to limit the initial behavior to
       // playbacks with software based audio where their threading behavior is
       // more straightforward.
       // TODO(b/329686979): Make this work better with AdaptiveAudioDecoder,
@@ -632,7 +625,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       if (!UseLibopusDecoder(creation_parameters.audio_codec(),
                              creation_parameters.drm_system(),
                              force_platform_opus_decoder_)) {
-        experimental_features.use_dual_threads_for_video = false;
+        use_dual_threads = false;
       }
     }
 
@@ -644,9 +637,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
          creation_parameters.surface_view(),
          creation_parameters.max_video_capabilities()},
         {tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode},
-        {max_video_input_size, enable_flush_during_seek, experimental_features},
-        {force_reset_surface, force_big_endian_hdr_metadata, reset_delay_usec,
-         flush_delay_usec});
+        {max_video_input_size, enable_flush_during_seek, use_dual_threads,
+         experimental_features},
+        {force_big_endian_hdr_metadata, reset_delay_usec, flush_delay_usec});
   }
 
   bool IsTunnelModeSupported(const CreationParameters& creation_parameters,
@@ -686,10 +679,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
     DrmSystem* drm_system_ptr =
         static_cast<DrmSystem*>(creation_parameters.drm_system());
-    jobject j_media_crypto =
-        drm_system_ptr ? drm_system_ptr->GetMediaCrypto() : nullptr;
-
-    bool is_encrypted = !!j_media_crypto;
+    bool is_encrypted = drm_system_ptr && drm_system_ptr->GetMediaCrypto();
     if (IsTunnelModeVideoDecoderSupported(mime, is_encrypted)) {
       return true;
     }

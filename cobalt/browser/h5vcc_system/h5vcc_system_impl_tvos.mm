@@ -111,6 +111,12 @@ void H5vccSystemImpl::RequestTrackingAuthorization(
       requestTrackingAuthorizationWithCompletionHandler:completion];
 }
 
+void H5vccSystemImpl::GetFriendlyName(GetFriendlyNameCallback callback) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  std::move(callback).Run(
+      base::SysNSStringToUTF8([UIDevice currentDevice].name));
+}
+
 void H5vccSystemImpl::GetUserOnExitStrategy(
     GetUserOnExitStrategyCallback callback) {
   std::move(callback).Run(h5vcc_system::mojom::UserOnExitStrategy::kMinimize);

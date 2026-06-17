@@ -27,9 +27,9 @@
 #include "starboard/linux/shared/pre_app_recommendation_service.h"
 #include "starboard/linux/shared/soft_mic_platform_service.h"
 #include "starboard/shared/starboard/application.h"
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
 #include "starboard/elf_loader/evergreen_config.h"
-#endif  // SB_IS(EVERGREEN_COMPATIBLE)
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 namespace starboard {
 

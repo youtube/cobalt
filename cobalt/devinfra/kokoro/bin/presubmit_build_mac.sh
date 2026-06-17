@@ -78,34 +78,70 @@ EOF
   local out_dir="${WORKSPACE_COBALT}/out/${TARGET_PLATFORM}_${CONFIG}"
 
   # Extract test targets from JSON.
+  local json_targets=""
   local test_targets_json="${WORKSPACE_COBALT}/cobalt/build/testing/targets/tvos-arm64-simulator/test_targets.json"
   if [[ -f "${test_targets_json}" ]]; then
     # Extract test targets from the JSON file (list of dicts schema)
     # and format them as a space-separated list of target names (after the colon).
-    local json_targets=$(python3 -c "import json, re; data=json.loads(re.sub(r'//.*', '', open('${test_targets_json}').read())); targets=[e['target'] for e in data if isinstance(e, dict) and 'target' in e]; print(' '.join(t.split(':')[-1] for t in targets))")
+    json_targets=$(python3 -c "import json, re; data=json.loads(re.sub(r'//.*', '', open('${test_targets_json}').read())); targets=[e['target'] for e in data if isinstance(e, dict) and 'target' in e]; print(' '.join(t.split(':')[-1] for t in targets))")
     GN_TARGET="${GN_TARGET:-} ${json_targets}"
   fi
 
   autoninja -C "${out_dir}" ${GN_TARGET}
 
-  if [[ "${GN_TARGET}" == *"cobalt_browsertests"* ]]; then
-    echo "Running Cobalt Browser Tests in Simulator..."
-    time "${out_dir}"/iossim \
-     -x tvos \
-     -d "Apple TV 4K (3rd generation)" \
-     -v \
-     -i \
-     -c '--gtest_filter=ContentMainRunnerImplBrowserTest.*' \
-     "${out_dir}"/cobalt_browsertests.app
+  # Package, archive, and upload to GCS.
+  ##############################################################################
+  if [[ -z "${KOKORO_BUILD_ID:-}" ]]; then
+    echo "ERROR: KOKORO_BUILD_ID environment variable is required."
+    exit 1
   fi
+  local build_id="${KOKORO_BUILD_ID}"
+  local bucket="${COBALT_GCS_BUCKET:-cobalt-unittest-storage}"
+  local gcs_archive_path="gs://${bucket}/kokoro/build/${TARGET_PLATFORM}_${CONFIG}/${build_id}/"
 
-  # TODO(b/507872651): Revisit this and see if we could shard tests on multiple bots.
-  # if has_simulator_tests; then
-  #   time python3 "${WORKSPACE_COBALT}/cobalt/tools/buildbot/run_unit_tests.py" \
-  #     --platform "${PLATFORM}" \
-  #     --config "${CONFIG}" \
-  #     --action run
-  # fi
+  for target in ${GN_TARGET}; do
+    # Extract target name (e.g. base:base_unittests -> base_unittests)
+    local target_name="${target##*:}"
+
+    if [[ "${target_name}" == "cobalt_archive" ]]; then
+      echo "Packaging and archiving tvOS library build (cobalt_archive)..."
+      local package_dir="${WORKSPACE_COBALT}/package/${TARGET_PLATFORM}_${CONFIG}"
+      mkdir -p "${package_dir}"
+      local build_info_path="${out_dir}/gen/build_info.json"
+
+      # Create release package.
+      python3 "${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/build/tvos/tvos_packager.py" \
+        "${out_dir}" \
+        "${package_dir}" \
+        "${build_info_path}"
+
+      # Create tar.gz archive.
+      local archive_file="${package_dir}.tar.gz"
+      echo "Creating archive ${archive_file}..."
+      tar -czf "${archive_file}" -C "${WORKSPACE_COBALT}/package" "${TARGET_PLATFORM}_${CONFIG}"
+
+      # Upload to GCS.
+      echo "Uploading archive to ${gcs_archive_path}..."
+      "${GSUTIL}" cp "${archive_file}" "${gcs_archive_path}"
+
+    elif [[ " ${json_targets} " == *" ${target_name} "* ]] && [[ -d "${out_dir}/${target_name}.app" ]]; then
+      echo "Archiving and uploading test package ${target_name}.app..."
+      local archive_file="${WORKSPACE_COBALT}/package/${target_name}.tar.gz"
+      mkdir -p "${WORKSPACE_COBALT}/package"
+
+      # Create tar.gz archive including iossim if available.
+      if [[ -f "${out_dir}/iossim" ]]; then
+        echo "Including iossim in the archive..."
+        tar -czf "${archive_file}" -C "${out_dir}" "${target_name}.app" "iossim"
+      else
+        tar -czf "${archive_file}" -C "${out_dir}" "${target_name}.app"
+      fi
+
+      # Upload to GCS.
+      echo "Uploading archive ${target_name}.tar.gz to ${gcs_archive_path}..."
+      "${GSUTIL}" cp "${archive_file}" "${gcs_archive_path}"
+    fi
+  done
 }
 
 
@@ -138,11 +174,6 @@ setup_mac () {
     export SISO_CREDENTIAL_HELPER="gcloud"
   fi
 }
-
-has_simulator_tests () {
-  [[ "${PLATFORM}" == "darwin-tvos-simulator" && "${CONFIG}" == "devel" ]]
-}
-
 
 # Run the pipeline.
 pipeline

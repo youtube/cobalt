@@ -35,15 +35,17 @@ struct MEDIA_EXPORT StarboardRendererConfig {
     bool disable_low_performance_sw_decoder = false;
     bool enable_av1_startup_optimization = false;
     bool enable_flush_during_seek = false;
+    bool enable_low_latency = false;
     bool enable_reset_audio_decoder = false;
     bool enable_video_renderer_vsp_adjustment = false;
     bool flush_audio_track_during_seek = false;
+    bool force_clear_surface_view = false;
     bool force_decode_to_texture = false;
     bool ignore_mediacodec_callbacks_during_flushing = false;
     bool skip_flush_on_decoder_teardown = false;
     bool skip_video_frames_over_60_fps = false;
+    std::optional<bool> enable_simd_based_audio_format_switching;
     std::optional<bool> enable_trivial_optimizations;
-    std::optional<bool> use_dual_threads_for_video;
     std::optional<int> max_samples_per_write;
     std::optional<int> video_decoder_initial_preroll_count;
     std::optional<int> video_renderer_min_decoded_frames;

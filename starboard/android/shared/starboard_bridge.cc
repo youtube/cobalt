@@ -49,6 +49,8 @@ using jni_zero::JavaParamRef;
 using jni_zero::ScopedJavaGlobalRef;
 using jni_zero::ScopedJavaLocalRef;
 
+// TODO(b/492704919): enable on AOSP when the layering violation is fixed.
+#if !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
 // Client Hint Header name constants
 constexpr char kAndroidOSExperienceHeader[] =
     "Sec-CH-UA-Co-Android-OS-Experience";
@@ -58,6 +60,7 @@ constexpr char kBuildFingerprintHeader[] =
     "Sec-CH-UA-Co-Android-Build-Fingerprint";
 constexpr char kYoutubeCertScopeHeader[] =
     "Sec-CH-UA-Co-Youtube-Certification-Scope";
+#endif  // !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
 
 // Global pointer to hold the single instance of ApplicationAndroid.
 ApplicationAndroid* g_native_app_instance = nullptr;
@@ -299,6 +302,13 @@ SB_EXPORT_ANDROID bool StarboardBridge::GetLimitAdTracking(JNIEnv* env) {
   jboolean limit_ad_tracking_java =
       Java_StarboardBridge_getLimitAdTracking(env, j_starboard_bridge_);
   return limit_ad_tracking_java == JNI_TRUE;
+}
+
+SB_EXPORT_ANDROID std::string StarboardBridge::GetFriendlyName(JNIEnv* env) {
+  SB_DCHECK(env);
+  ScopedJavaLocalRef<jstring> friendly_name_java =
+      Java_StarboardBridge_getFriendlyName(env, j_starboard_bridge_);
+  return ConvertJavaStringToUTF8(env, friendly_name_java);
 }
 
 SB_EXPORT_ANDROID void StarboardBridge::CloseApp(JNIEnv* env) {

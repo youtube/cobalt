@@ -71,6 +71,8 @@ jobs:
 
       - name: Cherry Pick Merged PRs
         id: autoroll
+        env:
+          MAX_COMMITS: ${{ inputs.max_commits || 25 }}
         run: |
           set -x
 
@@ -79,7 +81,7 @@ jobs:
             --source-branch "${{ matrix.branch.source }}" \
             --target-branch "${{ matrix.branch.target }}" \
             --start-commit "${{ matrix.branch.start_commit }}" \
-            --max-commits "${{ inputs.max_commits }}" \
+            --max-commits "${{ env.MAX_COMMITS }}" \
             --identifier-type "${{ matrix.branch.identifier_type }}")
 
           if [[ -n "${PR_LINKS}" ]]; then

@@ -96,12 +96,10 @@ class MEDIA_EXPORT DecoderBuffer
 
     // The function should never return kInvalidHandle.  It may terminate the
     // app on allocation failure.
-    virtual Handle Allocate(DemuxerStream::Type type, size_t size,
-                            size_t alignment) = 0;
+    virtual Handle Allocate(DemuxerStream::Type type, size_t size) = 0;
     virtual void Free(DemuxerStream::Type type, Handle handle, size_t size) = 0;
     virtual void Write(Handle handle, const void* data, size_t size) = 0;
 
-    virtual int GetBufferAlignment() const = 0;
     virtual base::TimeDelta GetBufferGarbageCollectionDurationThreshold()
         const = 0;
 
