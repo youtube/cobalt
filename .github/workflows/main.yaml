@@ -320,6 +320,23 @@ jobs:
             fi
           fi
 
+          # run_browser_tests
+          run_browser_tests="${{ steps.set-browser-test-targets.outputs.run_browser_tests }}"
+          run_browser_test_on_host="false"
+          if [[ "${run_browser_tests}" == "true" && "${test_on_host}" == "true" ]]; then
+            if [[ "${{ github.event_name == 'pull_request' }}" == "true" ]]; then
+              run_browser_test_on_host="true"
+            elif [[ "${{ (inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False' }}" == "true" ]]; then
+              run_browser_test_on_host="true"
+            elif [[ "${{ github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False' }}" == "true" ]]; then
+              run_browser_test_on_host="true"
+            fi
+          fi
+
+          echo "run_on_host_test=${run_on_host_test}" >> $GITHUB_OUTPUT
+          echo "run_on_device_test=${run_on_device_test}" >> $GITHUB_OUTPUT
+          echo "run_browser_test_on_host=${run_browser_test_on_host}" >> $GITHUB_OUTPUT
+
           # 2. Get platform and path
           first_platform=$(jq -r '.platforms[0]' "${PLATFORM_CONFIG}")
           targets_file="${GITHUB_WORKSPACE}/cobalt/build/testing/targets/${first_platform}/test_targets.json"
@@ -379,6 +396,9 @@ jobs:
       enable_sccache: ${{ steps.set-enable-sccache.outputs.enable_sccache }}
       docker_service: ${{ steps.set-docker-service.outputs.docker_service }}
       test_targets_json: ${{ steps.generate-targets.outputs.targets }}
+      run_on_host_test: ${{ steps.generate-targets.outputs.run_on_host_test }}
+      run_on_device_test: ${{ steps.generate-targets.outputs.run_on_device_test }}
+      run_browser_test_on_host: ${{ steps.generate-targets.outputs.run_browser_test_on_host }}
 
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
@@ -565,13 +585,7 @@ jobs:
 
   on-device-test:
     needs: [initialize, build]
-    if: |
-      needs.initialize.outputs.test_on_device == 'true' &&
-        (
-          (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
-          ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
-          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
-        )
+    if: needs.initialize.outputs.run_on_device_test == 'true'
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_on_device_tests
     permissions: {}
@@ -607,8 +621,6 @@ jobs:
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
           test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
           test_attempts: '${{ needs.initialize.outputs.test_attempts }}'
-    outputs:
-      test_targets_json: ${{ steps.parse-device-targets.outputs.test_targets_json }}
 
   e2e-test:
     needs: [initialize, build]
@@ -710,14 +722,7 @@ jobs:
 
   browser-test-on-host:
     needs: [initialize, build, docker-unittest-image]
-    if: |
-      needs.initialize.outputs.run_browser_tests == 'true' &&
-      needs.initialize.outputs.test_on_host == 'true' &&
-      (
-        github.event_name == 'pull_request' ||
-        ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
-        (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
-      )
+    if: needs.initialize.outputs.run_browser_test_on_host == 'true'
     runs-on: [self-hosted, chrobalt-linux-runner]
     name: ${{ matrix.name }}_browser_tests_on_host
     container:
@@ -743,9 +748,6 @@ jobs:
           platform: ${{ matrix.platform }}
           config: ${{ matrix.config }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
-    outputs:
-      # Browser tests are fixed to a single target.
-      test_targets_json: '["cobalt/testing/browser_tests:cobalt_browsertests"]'
 
   yts-wpt-test:
     needs: [initialize, build]
@@ -780,7 +782,7 @@ jobs:
 
   on-host-test:
     needs: [initialize, docker-unittest-image, build]
-    if: needs.initialize.outputs.test_on_host == 'true'
+    if: needs.initialize.outputs.run_on_host_test == 'true'
     permissions: {}
     runs-on: [self-hosted, chrobalt-linux-runner]
     name: ${{ matrix.name }}_on_host_tests_${{ matrix.shard }}
@@ -835,16 +837,6 @@ jobs:
           num_gtest_shards: 1
           test_executables_json: ${{ steps.parse-host-junit-targets.outputs.test_executables_json }}
           test_type: junit
-      - name: Combine Host Targets
-        id: combine-targets
-        run: |
-          gtests='${{ steps.parse-host-targets.outputs.test_targets_json || '[]' }}'
-          junits='${{ steps.parse-host-junit-targets.outputs.test_targets_json || '[]' }}'
-          combined=$(jq -ncr --argjson g "$gtests" --argjson j "$junits" '$g + $j')
-          echo "combined_test_targets=${combined}" >> $GITHUB_OUTPUT
-        shell: bash
-    outputs:
-      test_targets_json: ${{ steps.combine-targets.outputs.combined_test_targets }}
 
   web-tests:
     needs: [initialize, docker-webtest-image, build]
