@@ -58,24 +58,26 @@ jobs:
   get-targets:
     runs-on: ubuntu-latest
     outputs:
-      targets: ${{ steps.set-targets.outputs.targets }}
+      targets: ${{ steps.short-targets.outputs.targets }}
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
+            .github/actions/test_targets_json
             cobalt/build/testing/targets/tvos-arm64-simulator/test_targets.json
           sparse-checkout-cone-mode: false
 
-      - name: Extract Targets
-        id: set-targets
+      - name: Parse Test Targets JSON
+        id: parse-targets
+        uses: ./.github/actions/test_targets_json
+        with:
+          test_targets_json_file: cobalt/build/testing/targets/tvos-arm64-simulator/test_targets.json
+
+      - name: Convert Targets to Short Names
+        id: short-targets
         run: |
-          json_file="cobalt/build/testing/targets/tvos-arm64-simulator/test_targets.json"
-          if [[ ! -f "${json_file}" ]]; then
-            echo "ERROR: ${json_file} not found!"
-            exit 1
-          fi
-          targets=$(jq -cr '[.[] | select(.target != null) | .target | split(":")[-1]]' "${json_file}")
+          targets=$(echo '${{ steps.parse-targets.outputs.test_targets_json }}' | jq -cr 'map(split(":")[-1])')
           echo "Targets found: ${targets}"
           echo "targets=${targets}" >> "$GITHUB_OUTPUT"
 
