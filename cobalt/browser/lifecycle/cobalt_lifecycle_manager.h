@@ -18,6 +18,7 @@
 #include <map>
 #include <set>
 #include <utility>
+#include <vector>
 
 #include "base/containers/flat_set.h"
 #include "base/containers/small_map.h"
@@ -266,8 +267,19 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
 
   base::ObserverList<CobaltLifecycleManagerObserver>::Unchecked observers_;
 
+  // Mojo receiver set for the CobaltLifecycleObserver interface. Each receiver
+  // corresponds to a renderer-side frame that has registered to send back
+  // lifecycle ACKs. The FrameContext associated with each receiver tracks the
+  // frame's WebContents and RenderFrameHost.
   mojo::ReceiverSet<cobalt::mojom::CobaltLifecycleObserver, FrameContext>
       receivers_;
+
+  // Map tracking the Mojo ReceiverIds associated with each WebContents. Since
+  // mojo::ReceiverSet does not provide a public API to query or iterate over
+  // receivers by their associated context (WebContents*), we must track the
+  // ReceiverIds explicitly. This allows us to cleanly remove only the receivers
+  // associated with a specific WebContents when it is destroyed.
+  std::map<content::WebContents*, std::vector<mojo::ReceiverId>> receiver_ids_;
 
   base::WeakPtrFactory<CobaltLifecycleManager> weak_factory_{this};
 

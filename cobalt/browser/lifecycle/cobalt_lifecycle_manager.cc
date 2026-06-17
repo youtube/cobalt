@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 
+#include <algorithm>
+
 #include "base/no_destructor.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/navigation_handle.h"
@@ -40,6 +42,7 @@ CobaltLifecycleManager::~CobaltLifecycleManager() = default;
 void CobaltLifecycleManager::ResetForTesting() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   receivers_.Clear();
+  receiver_ids_.clear();
   trackers_.clear();
   main_frames_.clear();
   frames_.clear();
@@ -55,7 +58,9 @@ void CobaltLifecycleManager::BindReceiver(
   if (!frame) {
     return;
   }
-  receivers_.Add(this, std::move(receiver), {frame->GetGlobalId()});
+  content::WebContents* web_contents = content::WebContents::FromRenderFrameHost(frame);
+  mojo::ReceiverId id = receivers_.Add(this, std::move(receiver), {frame->GetGlobalId()});
+  receiver_ids_[web_contents].push_back(id);
 }
 
 std::pair<content::RenderFrameHost*, content::WebContents*>
@@ -79,8 +84,17 @@ void CobaltLifecycleManager::InitializeTracker(
 void CobaltLifecycleManager::OnMojoDisconnect() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   auto [frame, web_contents] = GetCurrentContext();
+  mojo::ReceiverId id = receivers_.current_receiver();
   if (web_contents) {
     UnregisterFrame(web_contents, frame);
+    auto it = receiver_ids_.find(web_contents);
+    if (it != receiver_ids_.end()) {
+      auto& ids = it->second;
+      ids.erase(std::remove(ids.begin(), ids.end(), id), ids.end());
+      if (ids.empty()) {
+        receiver_ids_.erase(it);
+      }
+    }
   }
 }
 
@@ -93,9 +107,6 @@ CobaltLifecycleManager::WebContentsTracker::~WebContentsTracker() = default;
 
 void CobaltLifecycleManager::WebContentsTracker::RenderFrameCreated(
     content::RenderFrameHost* render_frame_host) {
-  LOG(INFO) << "WebContentsTracker::RenderFrameCreated: frame="
-            << render_frame_host
-            << ", live=" << render_frame_host->IsRenderFrameLive();
   if (!render_frame_host->IsRenderFrameLive()) {
     return;
   }
@@ -107,8 +118,11 @@ void CobaltLifecycleManager::WebContentsTracker::RenderFrameCreated(
   // renderer-side CobaltLifecycleController. This establishes the two-way
   // communication channel needed for lifecycle ACKs.
   mojo::PendingRemote<cobalt::mojom::CobaltLifecycleObserver> observer;
-  manager_->receivers_.Add(manager_, observer.InitWithNewPipeAndPassReceiver(),
-                           {render_frame_host->GetGlobalId()});
+  // Track the ReceiverId associated with the WebContents for clean teardown.
+  mojo::ReceiverId id = manager_->receivers_.Add(
+      manager_, observer.InitWithNewPipeAndPassReceiver(),
+      {render_frame_host->GetGlobalId()});
+  manager_->receiver_ids_[web_contents()].push_back(id);
   controller->SetObserver(std::move(observer));
 
   controllers_[render_frame_host] = std::move(controller);
@@ -159,8 +173,6 @@ void CobaltLifecycleManager::WebContentsTracker::DidFinishNavigation(
   // re-bind the interface to the new frame host to resume lifecycle tracking.
   content::RenderFrameHost* rfh = navigation_handle->GetRenderFrameHost();
   if (rfh && rfh->IsRenderFrameLive()) {
-    LOG(INFO) << "WebContentsTracker::DidFinishNavigation: Re-binding frame="
-              << rfh;
     Rebind(rfh);
   }
 }
@@ -251,8 +263,11 @@ void CobaltLifecycleManager::WebContentsTracker::Rebind(
 
   // Re-register the browser as an observer after re-binding the interface.
   mojo::PendingRemote<cobalt::mojom::CobaltLifecycleObserver> observer;
-  manager_->receivers_.Add(manager_, observer.InitWithNewPipeAndPassReceiver(),
-                           {frame->GetGlobalId()});
+  // Track the ReceiverId associated with the WebContents for clean teardown.
+  mojo::ReceiverId id = manager_->receivers_.Add(
+      manager_, observer.InitWithNewPipeAndPassReceiver(),
+      {frame->GetGlobalId()});
+  manager_->receiver_ids_[web_contents()].push_back(id);
   controller->SetObserver(std::move(observer));
 
   controllers_[frame] = std::move(controller);
@@ -299,7 +314,6 @@ CobaltLifecycleManager::GetOrCreateTracker(content::WebContents* web_contents) {
 void CobaltLifecycleManager::RegisterFrame(content::WebContents* web_contents,
                                            content::RenderFrameHost* frame) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  LOG(INFO) << "CobaltLifecycleManager::RegisterFrame: frame=" << frame;
   frames_[web_contents].insert(frame);
   GetOrCreateTracker(web_contents);
 
@@ -320,7 +334,6 @@ void CobaltLifecycleManager::RegisterFrame(content::WebContents* web_contents,
 void CobaltLifecycleManager::UnregisterFrame(content::WebContents* web_contents,
                                              content::RenderFrameHost* frame) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  LOG(INFO) << "CobaltLifecycleManager::UnregisterFrame: frame=" << frame;
   frames_[web_contents].erase(frame);
   pending_ack_frames_[web_contents].erase(frame);
 
@@ -559,6 +572,16 @@ void CobaltLifecycleManager::OnAckTimeout(
 void CobaltLifecycleManager::OnWebContentsDestroyed(
     content::WebContents* web_contents) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  // The WebContents is being destroyed. Proactively remove all its Mojo
+  // receivers from `receivers_` BEFORE the WebContents and its RFHs go out of
+  // scope.
+  auto it = receiver_ids_.find(web_contents);
+  if (it != receiver_ids_.end()) {
+    for (auto id : it->second) {
+      receivers_.Remove(id);
+    }
+    receiver_ids_.erase(it);
+  }
   trackers_.erase(web_contents);
   main_frames_.erase(web_contents);
   frames_.erase(web_contents);
