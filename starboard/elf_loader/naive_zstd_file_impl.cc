@@ -14,10 +14,10 @@
 
 #include "starboard/elf_loader/naive_zstd_file_impl.h"
 
-#include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <cstring>
 #include <limits>
 
 #include "starboard/common/log.h"
@@ -36,7 +36,11 @@ bool NaiveZstdFileImpl::Open(const char* name) {
   if (fstat(file_, &st) != 0) {
     return false;
   }
-  size_t compressed_size = st.st_size;
+  if (st.st_size < 0 ||
+      static_cast<uint64_t>(st.st_size) > std::numeric_limits<size_t>::max()) {
+    return false;
+  }
+  size_t compressed_size = static_cast<size_t>(st.st_size);
 
   SB_LOG(INFO) << "Reading " << compressed_size << " bytes from zstd file...";
   int64_t read_start_time_us = CurrentMonotonicTime();
