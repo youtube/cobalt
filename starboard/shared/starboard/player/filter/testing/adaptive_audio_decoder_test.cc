@@ -35,7 +35,6 @@
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
-#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // TODO: Implement AudioDecoderMock and refactor the test accordingly.

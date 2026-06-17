@@ -50,6 +50,25 @@ This tool provides a bridge between UMA histograms and low-level OS `smaps` snap
 python3 compare_accuracy.py --uma_log uma_histos.txt --smaps_dir cobalt_smaps_logs --platform android
 ```
 
+### 4. `rdk_memory_benchmark.sh`
+This shell script is designed for RDK-based devices to measure memory usage across critical scenarios and establish a memory baseline. It automates the process of launching `loader_app`, collecting samples, and generating a final report.
+
+**Key Features:**
+- **Critical Scenarios:** Benchmarks Home Page (static & scrolling), Blank Page, 1080p and 4K video playback (standard & scrolling).
+- **Interactive Simulation:** Simulates user interactions such as continuous scrolling or playback navigation (via `sendkey` inputs) to measure dynamic memory characteristics.
+- **Multi-Source Metrics:** Collects Resident Set Size (RSS) from both `smaps` (or `smaps_rollup`) and `top`.
+- **GPU Monitoring:** Specifically tracks Mali GPU memory usage via debugfs.
+- **Statistical Analysis:** Calculates Median and Peak RSS for each round and provides averages across multiple rounds for robust benchmarking.
+
+**Usage:**
+```bash
+# Ensure execution permissions
+chmod +x rdk_memory_benchmark.sh
+
+# Run the benchmark
+./rdk_memory_benchmark.sh
+```
+
 ## Interpreting Results & Gotchas
 
 When using `compare_accuracy.py`, you may see significant differences in the "Max Error" column (e.g., >20%) even when the "Median Error" is very low (<5%). Here is how to interpret these results:

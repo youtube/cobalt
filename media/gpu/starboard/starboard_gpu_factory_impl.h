@@ -21,8 +21,6 @@
 
 namespace media {
 // Implement StarboardGpuFactory class.
-// TODO(b/375070492): wire the rest of the functionality with
-// decode-to-texture.
 class StarboardGpuFactoryImpl : public StarboardGpuFactory {
  public:
   explicit StarboardGpuFactoryImpl(GetStubCB get_stub_cb);
@@ -39,6 +37,20 @@ class StarboardGpuFactoryImpl : public StarboardGpuFactory {
       SbDecodeTargetGlesContextRunnerTarget target_function,
       void* target_function_context,
       base::WaitableEvent* done_event) override;
+  void RunCallbackOnGpu(base::OnceCallback<void()> callback,
+                        base::WaitableEvent* done_event) override;
+  void PostCallbackToGpu(base::OnceCallback<void()> callback) override;
+  void CreateImageOnGpu(const gfx::Size& coded_size,
+                        const gfx::ColorSpace& color_space,
+                        viz::SharedImageFormat format,
+                        scoped_refptr<gpu::ClientSharedImage>& shared_image,
+                        const std::vector<uint32_t>& texture_service_ids,
+                        const std::vector<uint32_t>& texture_targets,
+                        uint64_t decode_target,
+#if BUILDFLAG(IS_ANDROID)
+                        scoped_refptr<gpu::RefCountedLock> drdc_lock,
+#endif  // BUILDFLAG(IS_ANDROID)
+                        base::WaitableEvent* done_event) override;
 
  private:
   void OnWillDestroyStub(bool have_context) override;

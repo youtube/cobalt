@@ -53,7 +53,9 @@ using ::starboard::GetPlayerStateName;
 // buffer, this extra write during preroll can be eliminated.
 const int kPrerollGuardAudioBuffer = 1;
 
-constexpr int kDefaultMaxSamplePerWrite = 1;
+// The value of 12 was chosen after experimentation was done. For more
+// details, see b/497891900.
+constexpr int kDefaultMaxSamplePerWrite = 12;
 
 bool HasRemoteAudioOutputs(
     const std::vector<SbMediaAudioConfiguration>& configurations) {
@@ -500,6 +502,10 @@ void StarboardRenderer::SetStarboardRendererCallbacks(
 
 void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
   CHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (output_rect_ == output_rect) {
+    return;
+  }
+
   output_rect_ = output_rect;
 
 #if BUILDFLAG(IS_ANDROID)
@@ -739,6 +745,7 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
       content_size_change_cb_.Run();
     }
 #endif  // 0
+    color_space_ = decoder_config.color_space_info().ToGfxColorSpace();
     paint_video_hole_frame_cb_.Run(
         stream->video_decoder_config().visible_rect().size());
   }
@@ -1139,6 +1146,17 @@ void StarboardRenderer::OnBufferingStateChange(BufferingState buffering_state) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   client_->OnBufferingStateChange(buffering_state,
                                   BUFFERING_CHANGE_REASON_UNKNOWN);
+}
+
+SbDecodeTarget StarboardRenderer::GetSbDecodeTarget() {
+  // This function might be called from a different thread (e.g. GPU thread)
+  // to get the decode target for rendering.
+  if (player_bridge_ && player_bridge_->IsValid()) {
+    CHECK(player_bridge_->GetSbPlayerOutputMode() ==
+          kSbPlayerOutputModeDecodeToTexture);
+    return player_bridge_->GetCurrentSbDecodeTarget();
+  }
+  return kSbDecodeTargetInvalid;
 }
 
 void StarboardRenderer::set_decode_target_graphics_context_provider(

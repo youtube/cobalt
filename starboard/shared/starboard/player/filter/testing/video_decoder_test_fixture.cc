@@ -40,7 +40,6 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
-#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -72,7 +71,7 @@ VideoDecoderTestFixture::VideoDecoderTestFixture(
 
 void VideoDecoderTestFixture::Initialize() {
   ASSERT_NE(dmp_reader_.video_codec(), kSbMediaVideoCodecNone);
-  ASSERT_GT(dmp_reader_.number_of_video_buffers(), 0);
+  ASSERT_GT(dmp_reader_.number_of_video_buffers(), 0u);
   ASSERT_TRUE(GetVideoInputBuffer(0)->video_sample_info().is_key_frame);
 
   SbPlayerOutputMode output_mode = output_mode_;

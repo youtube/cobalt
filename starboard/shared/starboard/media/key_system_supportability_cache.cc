@@ -129,6 +129,7 @@ void KeySystemSupportabilityCache::CacheKeySystemSupportability(
 
   if (strlen(key_system) == 0) {
     SB_LOG(WARNING) << "Rejected empty key system as it's always supported.";
+    return;
   }
 
   GetContainer<SbMediaAudioCodec>()->CacheKeySystemSupportability(

@@ -414,7 +414,7 @@ const void* GetPleasantryApi() {
 +#include "starboard/linux/shared/pleasantry.h"
 
  const void* SbSystemGetExtension(const char* name) {
- #if SB_IS(EVERGREEN_COMPATIBLE)
+ #if BUILDFLAG(IS_STARBOARD)
 @@ -74,5 +76,8 @@ const void* SbSystemGetExtension(const char* name) {
      return use_ffmpeg_demuxer ? starboard::shared::ffmpeg::GetFFmpegDemuxerApi()
                                : NULL;
@@ -716,16 +716,10 @@ Once you've written your test you can execute it to confirm that it passes.
 from our `extension_test.cc` source file. We can build that target for our
 platform and then run the executable to run the tests.
 
-```
-$ cobalt/build/gn.py -p linux-x64x11
-```
-
-```
-$ ninja -C out/linux-x64x11_devel all
-```
-
-```
-$ out/linux-x64x11_devel/extension_test
+```bash
+cobalt/build/gn.py -p linux-x64x11 -c devel --no-rbe
+autoninja -C out/linux-x64x11_devel extension_test
+out/linux-x64x11_devel/extension_test
 ```
 
 Tip: because the `extension_test` has type `<(gtest_target_type)`, we can use

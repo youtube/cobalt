@@ -34,7 +34,7 @@ config("starboard") {
     }
 
     if (is_internal_build) {
-      defines += [ "INTERNAL_BUILD" ]
+      defines += [ "COBALT_INTERNAL_BUILD" ]
     }
 
     if (sb_enable_lib) {
@@ -47,10 +47,6 @@ config("starboard") {
 
     if (sb_is_evergreen) {
       defines += [ "SB_IS_EVERGREEN=1" ]
-    }
-
-    if (sb_is_evergreen_compatible) {
-      defines += [ "SB_IS_EVERGREEN_COMPATIBLE=1" ]
     }
 
     if (sb_evergreen_compatible_use_libunwind) {

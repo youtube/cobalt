@@ -17,7 +17,6 @@
 
 #include "starboard/android/shared/log_internal.h"
 #include "starboard/common/log.h"
-#include "starboard/thread.h"
 
 void SbLogRaw(const char* message) {
   __android_log_write(ANDROID_LOG_INFO, "starboard", message);

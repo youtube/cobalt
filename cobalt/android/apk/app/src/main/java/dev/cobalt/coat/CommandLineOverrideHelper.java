@@ -70,6 +70,8 @@ public final class CommandLineOverrideHelper {
         paramOverrides.add("--disable-accelerated-video-encode");
         // Rasterize Tiles directly to GPU memory.
         paramOverrides.add("--enable-zero-copy");
+        // Set default raster threads to 2 for smoother performance.
+        paramOverrides.add("--num-raster-threads=2");
 
         return paramOverrides;
     }
@@ -79,6 +81,15 @@ public final class CommandLineOverrideHelper {
 
         // Trades a little V8 performance for significant memory savings.
         paramOverrides.add("--optimize-for-size");
+        // Set initial old space size to 64MB and max old space size to 512MB.
+        paramOverrides.add("--initial-old-space-size=64");
+        paramOverrides.add("--max-old-space-size=512");
+
+        // Disable decommitting pooled pages to prevent virtual memory fragmentation.
+        paramOverrides.add("--no-decommit-pooled-pages");
+
+        // Disable v8 concurrent marking by default.
+        paramOverrides.add("--no-concurrent-marking");
 
         return paramOverrides;
     }
@@ -93,6 +104,10 @@ public final class CommandLineOverrideHelper {
         // It is important to use a feature override instead of the
         // rendering switch, to make sure certain devices are excluded.
         paramOverrides.add("DefaultPassthroughCommandDecoder");
+        // Compositor switch to reduce prepaint tile cache size
+        paramOverrides.add("SmallerInterestArea");
+        paramOverrides.add("ReclaimPrepaintTilesWhenIdle");
+        paramOverrides.add("ReclaimOldPrepaintTiles");
 
         return paramOverrides;
     }

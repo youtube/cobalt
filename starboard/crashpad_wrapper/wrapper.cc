@@ -124,7 +124,7 @@ bool InitializeCrashpadDatabase(const base::FilePath database_directory_path) {
 }
 
 std::string GetProductName() {
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
   return "Cobalt_Evergreen";
 #else
   return "Cobalt";

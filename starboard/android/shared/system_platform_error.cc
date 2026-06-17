@@ -63,7 +63,7 @@ bool SbSystemRaisePlatformError(SbSystemPlatformErrorType type,
                : nullptr;
 
   starboard::StarboardBridge::GetInstance()->RaisePlatformError(
-      env, jni_error_type, reinterpret_cast<jlong>(send_response_callback));
+      env, jni_error_type, reinterpret_cast<jlong>(send_response_callback), "");
   return true;
 }
 

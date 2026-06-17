@@ -88,10 +88,6 @@ MEDIA_EXPORT extern const char kForceVideoOverlays[];
 MEDIA_EXPORT extern const char kMSEAudioBufferSizeLimitMb[];
 MEDIA_EXPORT extern const char kMSEVideoBufferSizeLimitMb[];
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-MEDIA_EXPORT extern const char kMSEVideoBufferSizeLimitClampMb[];
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 MEDIA_EXPORT extern const char kClearKeyCdmPathForTesting[];
 MEDIA_EXPORT extern const char kOverrideEnabledCdmInterfaceVersion[];
 MEDIA_EXPORT extern const char kOverrideHardwareSecureCodecsForTesting[];
@@ -235,6 +231,7 @@ MEDIA_EXPORT extern const base::FeatureParam<base::TimeDelta> kAudioWriteDuratio
 #if BUILDFLAG(IS_ANDROID)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltUsingAndroidOverlay);
 #endif  // BUILDFLAG(IS_ANDROID)
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltBypassMojoForMedia);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #if BUILDFLAG(IS_CHROMEOS)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCrOSSystemAEC);

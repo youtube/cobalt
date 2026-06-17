@@ -20,8 +20,10 @@
 #include <iosfwd>
 #include <locale>
 #include <numeric>
+#include <optional>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "starboard/common/check_op.h"
@@ -134,48 +136,52 @@ bool MimeType::ParseParamString(const std::string& param_string, Param* param) {
   return true;
 }
 
-MimeType::MimeType(const std::string& content_type) {
+// static
+std::optional<MimeType> MimeType::Create(const std::string& content_type) {
   Strings components = SplitAndTrim(content_type, ';');
 
   if (components.empty()) {
-    return;
+    return std::nullopt;
   }
 
   // 1. Verify if there is a valid type/subtype in the very beginning.
   if (ContainsSpace(components.front())) {
-    return;
+    return std::nullopt;
   }
 
   std::vector<std::string> type_and_container =
       SplitAndTrim(components.front(), '/');
   if (type_and_container.size() != 2 || type_and_container[0].empty() ||
       type_and_container[1].empty()) {
-    return;
+    return std::nullopt;
   }
-  type_ = type_and_container[0];
-  subtype_ = type_and_container[1];
+  std::string type = std::move(type_and_container[0]);
+  std::string subtype = std::move(type_and_container[1]);
 
   components.erase(components.begin());
 
+  std::vector<std::string> codecs;
+  Params params;
+
   // 2. Verify the parameters have valid formats, we want to be strict here.
-  for (Strings::iterator iter = components.begin(); iter != components.end();
-       ++iter) {
+  for (const auto& component : components) {
     Param param;
-    if (!ParseParamString(*iter, &param)) {
-      return;
+    if (!ParseParamString(component, &param)) {
+      return std::nullopt;
     }
     // There can only be no more than one codecs parameter and it has to be
     // the first parameter if it is present.
     if (param.name == "codecs") {
-      if (!params_.empty()) {
-        return;
+      if (!params.empty()) {
+        return std::nullopt;
       }
-      codecs_ = SplitAndTrim(param.string_value, ',');
+      codecs = SplitAndTrim(param.string_value, ',');
     }
-    params_.push_back(param);
+    params.push_back(std::move(param));
   }
 
-  is_valid_ = true;
+  return MimeType(std::move(type), std::move(subtype), std::move(codecs),
+                  std::move(params));
 }
 
 int MimeType::GetParamCount() const {
@@ -275,10 +281,6 @@ bool MimeType::GetParamBoolValue(const char* name, bool default_value) const {
 }
 
 bool MimeType::ValidateIntParameter(const char* name) const {
-  if (!is_valid()) {
-    return false;
-  }
-
   int index = GetParamIndexByName(name);
   if (index == kInvalidParamIndex) {
     return true;
@@ -287,10 +289,6 @@ bool MimeType::ValidateIntParameter(const char* name) const {
 }
 
 bool MimeType::ValidateFloatParameter(const char* name) const {
-  if (!is_valid()) {
-    return false;
-  }
-
   int index = GetParamIndexByName(name);
   if (index == kInvalidParamIndex) {
     return true;
@@ -301,10 +299,6 @@ bool MimeType::ValidateFloatParameter(const char* name) const {
 
 bool MimeType::ValidateStringParameter(const char* name,
                                        const std::string& pattern) const {
-  if (!is_valid()) {
-    return false;
-  }
-
   int index = GetParamIndexByName(name);
   if (pattern.empty() || index == kInvalidParamIndex) {
     return true;
@@ -334,10 +328,6 @@ bool MimeType::ValidateStringParameter(const char* name,
 }
 
 bool MimeType::ValidateBoolParameter(const char* name) const {
-  if (!is_valid()) {
-    return false;
-  }
-
   int index = GetParamIndexByName(name);
   if (index == kInvalidParamIndex) {
     return true;
@@ -346,10 +336,16 @@ bool MimeType::ValidateBoolParameter(const char* name) const {
   return type == kParamTypeBoolean;
 }
 
+MimeType::MimeType(std::string type,
+                   std::string subtype,
+                   std::vector<std::string> codecs,
+                   Params params)
+    : type_(std::move(type)),
+      subtype_(std::move(subtype)),
+      codecs_(std::move(codecs)),
+      params_(std::move(params)) {}
+
 std::ostream& operator<<(std::ostream& os, const MimeType& mime_type) {
-  if (!mime_type.is_valid()) {
-    return os << "{ InvalidMimeType }; ";
-  }
   os << "{ type: " << mime_type.type();
   os << ", subtype: " << mime_type.subtype();
   os << ", codecs: ";

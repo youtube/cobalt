@@ -411,13 +411,6 @@ void ChunkDemuxerStream::SetStreamMemoryLimit(size_t memory_limit) {
   stream_->set_memory_limit(memory_limit);
 }
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-void ChunkDemuxerStream::SetStreamMemoryLimitClamp(size_t memory_limit_clamp) {
-  base::AutoLock auto_lock(lock_);
-  stream_->set_memory_limit_clamp(memory_limit_clamp);
-}
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 void ChunkDemuxerStream::SetLiveness(StreamLiveness liveness) {
   base::AutoLock auto_lock(lock_);
   liveness_ = liveness;
@@ -935,6 +928,9 @@ void ChunkDemuxer::RemoveId(const std::string& id) {
     CHECK(stream_found);
   }
   id_to_streams_map_.erase(id);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  id_to_mime_map_.erase(id);
+#endif
 }
 
 Ranges<base::TimeDelta> ChunkDemuxer::GetBufferedRanges(

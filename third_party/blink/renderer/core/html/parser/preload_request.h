@@ -11,6 +11,8 @@
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/script/script_type.mojom-blink-forward.h"
 #include "third_party/blink/renderer/core/core_export.h"
+#include "content/public/common/content_milestone_features.h"
+#include "third_party/blink/public/public_buildflags.h"
 #include "third_party/blink/renderer/core/script/script.h"
 #include "third_party/blink/renderer/platform/loader/fetch/cross_origin_attribute_value.h"
 #include "third_party/blink/renderer/platform/loader/fetch/fetch_parameters.h"
@@ -159,6 +161,7 @@ class CORE_EXPORT PreloadRequest {
     shared_storage_writable_opted_in_ = opted_in;
   }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   // Set whether the preload request is eligible for the Browsing Topics API.
   //
   // See https://github.com/patcg-individual-drafts/topics/blob/main/README.md
@@ -166,6 +169,7 @@ class CORE_EXPORT PreloadRequest {
   void SetBrowsingTopicsEligible(bool flag) {
     browsing_topics_eligible_ = flag;
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   bool IsPotentiallyLCPElement() const { return is_potentially_lcp_element_; }
 
@@ -225,7 +229,9 @@ class CORE_EXPORT PreloadRequest {
   bool is_potentially_lcp_element_ = false;
   bool is_potentially_lcp_influencer_ = false;
   bool shared_storage_writable_opted_in_ = false;
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   bool browsing_topics_eligible_ = false;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 };
 
 typedef Vector<std::unique_ptr<PreloadRequest>> PreloadRequestStream;

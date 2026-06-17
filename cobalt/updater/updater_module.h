@@ -15,6 +15,7 @@
 #ifndef COBALT_UPDATER_UPDATER_MODULE_H_
 #define COBALT_UPDATER_UPDATER_MODULE_H_
 
+#include <atomic>
 #include <map>
 #include <memory>
 #include <string>
@@ -83,9 +84,15 @@ class Observer : public update_client::UpdateClient::Observer {
 // thread.
 class UpdaterModule {
  public:
-  explicit UpdaterModule(scoped_refptr<network::SharedURLLoaderFactory>,
-                         base::TimeDelta update_check_delay);
-  ~UpdaterModule();
+  static void CreateInstance(
+      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+      const std::string& user_agent,
+      base::TimeDelta update_check_delay);
+
+  static UpdaterModule* GetInstance();
+
+  UpdaterModule(const UpdaterModule&) = delete;
+  UpdaterModule& operator=(const UpdaterModule&) = delete;
 
   void Suspend();
   void Resume();
@@ -120,14 +127,21 @@ class UpdaterModule {
   void MarkSuccessful();
 
  private:
+  // Private constructor and destructor to enforce singleton pattern.
+  UpdaterModule(scoped_refptr<network::SharedURLLoaderFactory>,
+                const std::string& user_agent,
+                base::TimeDelta update_check_delay);
+  ~UpdaterModule();
+
   std::unique_ptr<base::Thread> updater_thread_;
   scoped_refptr<update_client::UpdateClient> update_client_;
   std::unique_ptr<Observer> updater_observer_;
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
   scoped_refptr<Configurator> updater_configurator_;
   int update_check_count_ = 0;
-  bool is_updater_running_;
+  std::atomic<bool> is_updater_running_;
   base::TimeDelta update_check_delay_ = kDefaultUpdateCheckDelay;
+  std::string user_agent_;
 
   int GetUpdateCheckCount() { return update_check_count_; }
   void IncrementUpdateCheckCount() { update_check_count_++; }
@@ -137,6 +151,10 @@ class UpdaterModule {
   void Finalize();
   void MarkSuccessfulImpl();
   void Update();
+
+  // TODO: b/513314330 Investigate alternatives to Singleton
+  // Holds the single instance of UpdaterModule.
+  static UpdaterModule* updater_module_;
 };
 
 }  // namespace updater

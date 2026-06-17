@@ -31,6 +31,28 @@ Always run the pretty print utility on this file after editing:
 
 <histograms>
 
+<histogram name="Android.MemoryPressureNotification{AndroidProcessType}"
+    enum="Android.MemoryPressureNotification" expires_after="never">
+  <owner>sideboard@google.com</owner>
+  <summary>
+    Memory pressure notifications sent by Android through ComponentCallbacks2.
+    This metric is copied from android/histograms where it expired in 2021.
+  </summary>
+  <token key="AndroidProcessType">
+    <variant name=".Browser" summary="Browser process"/>
+    <variant name=".ChildService"
+        summary="Child service process (renderer, GPU, etc.)"/>
+  </token>
+</histogram>
+
+<histogram name="Cobalt.Android.ColdStart" enum="Boolean" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records whether the application startup was a cold start (true) or a warm
+    start (false). Recorded during activity initialization.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Finch.ConfigAgeInDays" units="days"
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
@@ -38,6 +60,15 @@ Always run the pretty print utility on this file after editing:
     Records the age of the Finch configuration in days each time it is checked
     at startup. This data is used to determine an appropriate expiration
     threshold.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Finch.ConfigOutcome" enum="FinchConfigOutcome"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the outcome of variations experiment configuration loading during
+    startup.
   </summary>
 </histogram>
 
@@ -50,13 +81,12 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Cobalt.Finch.RollbackDetected" enum="Boolean"
+<histogram name="Cobalt.Finch.TimeBetweenWrites" units="ms"
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
   <summary>
-    Records when a rollback is detected and prevented. This happens when the
-    cobalt version recorded for a previous Finch config is greater than the
-    current version of the Cobalt binary.
+    Records the duration since the last time the variations experiment configuration
+    was written to persistent storage.
   </summary>
 </histogram>
 
@@ -70,6 +100,7 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+
 <histogram name="Cobalt.LoaderApp.ElfDecompressionDuration" units="ms"
     expires_after="never">
   <owner>hwarriner@google.com</owner>
@@ -79,6 +110,15 @@ Always run the pretty print utility on this file after editing:
     file, to be decompressed. This metric is only recorded when the shared
     library is stored as a compressed file.
   </summary>
+</histogram>
+
+<histogram name="Cobalt.LoaderApp.SlotSelectionStatus"
+    enum="SlotSelectionStatus" expires_after="never">
+<!-- expires-never: Needed for Evergreen updates health metrics. -->
+
+  <owner>yuying@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Status of slot selection by the Loader App.</summary>
 </histogram>
 
 <histogram name="Cobalt.LocalStorage.DatabaseCommitError" enum="LevelDBStatus"

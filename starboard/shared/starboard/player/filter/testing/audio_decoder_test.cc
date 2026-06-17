@@ -41,7 +41,6 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/system.h"
-#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -107,7 +106,7 @@ class AudioDecoderTest
   }
   void SetUp() override {
     ASSERT_NE(dmp_reader_.audio_stream_info().codec, kSbMediaAudioCodecNone);
-    ASSERT_GT(dmp_reader_.number_of_audio_buffers(), 0);
+    ASSERT_GT(dmp_reader_.number_of_audio_buffers(), 0u);
 
     CreateComponents(dmp_reader_.audio_stream_info(), &audio_decoder_,
                      &audio_renderer_sink_);
@@ -189,8 +188,6 @@ class AudioDecoderTest
   void WriteSingleInput(size_t index,
                         int64_t discarded_duration_from_front,
                         int64_t discarded_duration_from_back) {
-    SB_DCHECK(IsPartialAudioSupported());
-
     ASSERT_TRUE(can_accept_more_input_);
     ASSERT_LT(index, dmp_reader_.number_of_audio_buffers());
 
@@ -274,12 +271,10 @@ class AudioDecoderTest
   }
 
   // The start_index will be updated to the new position.
-  void WriteTimeLimitedInputs(int* start_index, int64_t time_limit) {
+  void WriteTimeLimitedInputs(size_t* start_index, int64_t time_limit) {
     SB_DCHECK(start_index);
-    SB_DCHECK_GE(*start_index, 0);
     SB_DCHECK_LT(*start_index, dmp_reader_.number_of_audio_buffers());
-    ASSERT_NO_FATAL_FAILURE(
-        WriteSingleInput(static_cast<size_t>(*start_index)));
+    ASSERT_NO_FATAL_FAILURE(WriteSingleInput(*start_index));
     SB_DCHECK(last_input_buffer_);
     int64_t last_timestamp = last_input_buffer_->timestamp();
     int64_t first_timestamp = last_timestamp;
@@ -290,8 +285,7 @@ class AudioDecoderTest
       Event event = kError;
       ASSERT_NO_FATAL_FAILURE(WaitForNextEvent(&event));
       if (event == kConsumed) {
-        ASSERT_NO_FATAL_FAILURE(
-            WriteSingleInput(static_cast<size_t>(*start_index)));
+        ASSERT_NO_FATAL_FAILURE(WriteSingleInput(*start_index));
         SB_DCHECK(last_input_buffer_);
         last_timestamp = last_input_buffer_->timestamp();
         ++(*start_index);
@@ -425,8 +419,6 @@ class AudioDecoderTest
       size_t index,
       int64_t discarded_duration_from_front,
       int64_t discarded_duration_from_back) {
-    SB_DCHECK(IsPartialAudioSupported());
-
     auto input_buffer =
         GetAudioInputBuffer(&dmp_reader_, index, discarded_duration_from_front,
                             discarded_duration_from_back);
@@ -701,7 +693,7 @@ TEST_P(AudioDecoderTest, LimitedInput) {
   int64_t duration = 500'000;  // 0.5 seconds
 
   ASSERT_TRUE(decoded_audios_.empty());
-  int start_index = 0;
+  size_t start_index = 0;
   ASSERT_NO_FATAL_FAILURE(WriteTimeLimitedInputs(&start_index, duration));
 
   if (start_index >= dmp_reader_.number_of_audio_buffers()) {
@@ -713,16 +705,16 @@ TEST_P(AudioDecoderTest, LimitedInput) {
 }
 
 TEST_P(AudioDecoderTest, ContinuedLimitedInput) {
-  constexpr int kMaxAccessUnitsToDecode = 256;
+  constexpr size_t kMaxAccessUnitsToDecode = 256;
   int64_t duration = 500'000;  // 0.5 seconds
 
   int64_t start = CurrentMonotonicTime();
-  int start_index = 0;
+  size_t start_index = 0;
   Event event;
   while (true) {
     ASSERT_NO_FATAL_FAILURE(WriteTimeLimitedInputs(&start_index, duration));
-    if (start_index >= std::min<int>(dmp_reader_.number_of_audio_buffers(),
-                                     kMaxAccessUnitsToDecode)) {
+    if (start_index >= std::min<size_t>(dmp_reader_.number_of_audio_buffers(),
+                                        kMaxAccessUnitsToDecode)) {
       break;
     }
     SB_DCHECK(last_input_buffer_);
@@ -755,10 +747,6 @@ TEST_P(AudioDecoderTest, ContinuedLimitedInput) {
 }
 
 TEST_P(AudioDecoderTest, PartialAudio) {
-  if (!IsPartialAudioSupported()) {
-    return;
-  }
-
   const int max_number_of_input_to_write =
       std::min(7, static_cast<int>(dmp_reader_.number_of_audio_buffers()));
 
@@ -963,7 +951,7 @@ TEST_P(AudioDecoderTest, ResetInRunningStateWithEndOfStream) {
   ASSERT_NO_FATAL_FAILURE(AssertOutputFormatValid());
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     AudioDecoderTests,
     AudioDecoderTest,
     Combine(ValuesIn(GetSupportedAudioTestFiles(kIncludeHeaac,

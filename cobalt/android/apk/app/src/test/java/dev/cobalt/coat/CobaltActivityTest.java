@@ -25,13 +25,21 @@ import static org.mockito.Mockito.when;
 
 import android.os.Bundle;
 import android.view.KeyEvent;
+import dev.cobalt.shell.StartupGuard;
+import dev.cobalt.util.JavaSwitches;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.chromium.content.browser.input.ImeAdapterImpl;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
+import org.robolectric.shadows.ShadowLooper;
 
 /** CobaltActivityTest. */
 @RunWith(RobolectricTestRunner.class)
@@ -59,55 +67,71 @@ public class CobaltActivityTest {
   }
 
   @Test
-  public void testAppendEnableFeaturesIfNecessary_NullMetaData() {
+  public void testAppendArgsFromMetaData_NullMetaData() {
     String[] args = new String[] {"--arg1"};
-    String[] result = CobaltActivity.appendEnableFeaturesIfNecessary(/*metaData=*/null, args);
+    String[] result = CobaltActivity.appendArgsFromMetaData(/*metaData=*/null, args);
     assertArrayEquals(args, result);
   }
 
   @Test
-  public void testAppendEnableFeaturesIfNecessary_EmptyMetaData() {
+  public void testAppendArgsFromMetaData_EmptyMetaData() {
     Bundle metaData = mock(Bundle.class);
+    when(metaData.getBoolean("cobalt.ENABLE_SPLASH_SCREEN", true)).thenReturn(true);
     when(metaData.getString("cobalt.ENABLE_FEATURES")).thenReturn(null);
     String[] args = new String[] {"--arg1"};
-    String[] result = CobaltActivity.appendEnableFeaturesIfNecessary(metaData, args);
+    String[] result = CobaltActivity.appendArgsFromMetaData(metaData, args);
     assertArrayEquals(args, result);
   }
 
   @Test
-  public void testAppendEnableFeaturesIfNecessary_EmptyStringFeature() {
+  public void testAppendArgsFromMetaData_EmptyStringFeature() {
     Bundle metaData = mock(Bundle.class);
+    when(metaData.getBoolean("cobalt.ENABLE_SPLASH_SCREEN", true)).thenReturn(true);
     when(metaData.getString("cobalt.ENABLE_FEATURES")).thenReturn("");
     String[] args = new String[] {"--arg1"};
-    String[] result = CobaltActivity.appendEnableFeaturesIfNecessary(metaData, args);
+    String[] result = CobaltActivity.appendArgsFromMetaData(metaData, args);
     assertArrayEquals(args, result);
   }
 
   @Test
-  public void testAppendEnableFeaturesIfNecessary_WithFeature() {
+  public void testAppendArgsFromMetaData_WithFeature() {
     Bundle metaData = mock(Bundle.class);
+    when(metaData.getBoolean("cobalt.ENABLE_SPLASH_SCREEN", true)).thenReturn(true);
     when(metaData.getString("cobalt.ENABLE_FEATURES")).thenReturn("FeatureA");
     String[] args = new String[] {"--arg1"};
-    String[] result = CobaltActivity.appendEnableFeaturesIfNecessary(metaData, args);
+    String[] result = CobaltActivity.appendArgsFromMetaData(metaData, args);
     assertArrayEquals(new String[] {"--arg1", "--enable-features=FeatureA"}, result);
   }
 
   @Test
-  public void testAppendEnableFeaturesIfNecessary_WithMultipleFeatures() {
+  public void testAppendArgsFromMetaData_WithMultipleFeatures() {
     Bundle metaData = mock(Bundle.class);
+    when(metaData.getBoolean("cobalt.ENABLE_SPLASH_SCREEN", true)).thenReturn(true);
     when(metaData.getString("cobalt.ENABLE_FEATURES")).thenReturn("FeatureA;FeatureB");
     String[] args = new String[] {"--arg1"};
-    String[] result = CobaltActivity.appendEnableFeaturesIfNecessary(metaData, args);
+    String[] result = CobaltActivity.appendArgsFromMetaData(metaData, args);
     assertArrayEquals(new String[] {"--arg1", "--enable-features=FeatureA;FeatureB"}, result);
   }
 
   @Test
-  public void testAppendEnableFeaturesIfNecessary_NullArgs() {
+  public void testAppendArgsFromMetaData_NullArgs() {
     Bundle metaData = mock(Bundle.class);
+    when(metaData.getBoolean("cobalt.ENABLE_SPLASH_SCREEN", true)).thenReturn(true);
     when(metaData.getString("cobalt.ENABLE_FEATURES")).thenReturn("FeatureA");
-    String[] result = CobaltActivity.appendEnableFeaturesIfNecessary(metaData, /*commandLineArgs=*/null);
+    String[] result = CobaltActivity.appendArgsFromMetaData(metaData, /*commandLineArgs=*/null);
     assertArrayEquals(new String[] {"--enable-features=FeatureA"}, result);
   }
+
+  @Test
+  public void testAppendArgsFromMetaData_DisableSplashScreen() {
+    Bundle metaData = mock(Bundle.class);
+    when(metaData.getBoolean("cobalt.ENABLE_SPLASH_SCREEN", true)).thenReturn(false);
+    when(metaData.getString("cobalt.ENABLE_FEATURES")).thenReturn(null);
+    String[] args = new String[] {"--arg1"};
+    String[] result = CobaltActivity.appendArgsFromMetaData(metaData, args);
+    assertArrayEquals(new String[] {"--arg1", "--disable-splash-screen"}, result);
+  }
+
 
   @Test
   public void testAppendUrlParamsToUrl_NoUrlArg() {
@@ -249,5 +273,89 @@ public class CobaltActivityTest {
       // Expected when calling super method.
     }
     verify(mockImeAdapterImpl, never()).dispatchKeyEvent(any());
+  }
+
+  @Before
+  public void setUp() {
+    StartupGuard.getInstance().disarm();
+  }
+
+  @After
+  public void tearDown() {
+    StartupGuard.getInstance().disarm();
+  }
+
+  public CobaltActivity createActivityWithSwitches(final Map<String, String> switches) {
+    return new CobaltActivity() {
+      @Override
+      protected Map<String, String> getJavaSwitches() {
+        return switches;
+      }
+
+      @Override
+      protected ImeAdapterImpl getImeAdapterImpl() {
+        return null;
+      }
+
+      @Override
+      protected StarboardBridge createStarboardBridge(String[] args, String startDeepLink) {
+        return null;
+      }
+    };
+  }
+
+  @Test
+  public void testSetupStartupGuard_Disabled() throws Exception {
+    Map<String, String> switches = new HashMap<>();
+    switches.put(JavaSwitches.DISABLE_STARTUP_GUARD, "");
+    CobaltActivity activity = createActivityWithSwitches(switches);
+
+    activity.setupStartupGuard();
+
+    org.junit.Assert.assertFalse("StartupGuard should not be armed", StartupGuard.getInstance().isArmed());
+  }
+
+  @Test
+  public void testSetupStartupGuard_DefaultTimeout() throws Exception {
+    Map<String, String> switches = new HashMap<>();
+    CobaltActivity activity = createActivityWithSwitches(switches);
+
+    activity.setupStartupGuard();
+
+    org.junit.Assert.assertTrue("StartupGuard should be armed", StartupGuard.getInstance().isArmed());
+
+    ShadowLooper shadowLooper = ShadowLooper.shadowMainLooper();
+    Duration nextTaskDelay = shadowLooper.getNextScheduledTaskTime().minus(Duration.ofMillis(android.os.SystemClock.uptimeMillis()));
+    org.junit.Assert.assertEquals(Duration.ofSeconds(120), nextTaskDelay);
+  }
+
+  @Test
+  public void testSetupStartupGuard_CustomTimeout() throws Exception {
+    Map<String, String> switches = new HashMap<>();
+    switches.put(JavaSwitches.STARTUP_GUARD_INTERVAL_IN_SECONDS, "45");
+    CobaltActivity activity = createActivityWithSwitches(switches);
+
+    activity.setupStartupGuard();
+
+    org.junit.Assert.assertTrue("StartupGuard should be armed", StartupGuard.getInstance().isArmed());
+
+    ShadowLooper shadowLooper = ShadowLooper.shadowMainLooper();
+    Duration nextTaskDelay = shadowLooper.getNextScheduledTaskTime().minus(Duration.ofMillis(android.os.SystemClock.uptimeMillis()));
+    org.junit.Assert.assertEquals(Duration.ofSeconds(45), nextTaskDelay);
+  }
+
+  @Test
+  public void testSetupStartupGuard_InvalidTimeoutFallback() throws Exception {
+    Map<String, String> switches = new HashMap<>();
+    switches.put(JavaSwitches.STARTUP_GUARD_INTERVAL_IN_SECONDS, "invalid");
+    CobaltActivity activity = createActivityWithSwitches(switches);
+
+    activity.setupStartupGuard();
+
+    org.junit.Assert.assertTrue("StartupGuard should be armed", StartupGuard.getInstance().isArmed());
+
+    ShadowLooper shadowLooper = ShadowLooper.shadowMainLooper();
+    Duration nextTaskDelay = shadowLooper.getNextScheduledTaskTime().minus(Duration.ofMillis(android.os.SystemClock.uptimeMillis()));
+    org.junit.Assert.assertEquals(Duration.ofSeconds(120), nextTaskDelay);
   }
 }

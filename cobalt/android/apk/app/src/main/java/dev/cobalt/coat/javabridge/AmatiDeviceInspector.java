@@ -17,7 +17,7 @@ package dev.cobalt.coat.javabridge;
 import static dev.cobalt.util.Log.TAG;
 
 import android.content.Context;
-import android.util.Log;
+import org.chromium.base.Log;
 
 /**
  * A simple example to implement CobaltJavaScriptAndroidObject.

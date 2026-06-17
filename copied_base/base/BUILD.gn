@@ -451,6 +451,8 @@ component("base") {
     "memory/shared_memory_tracker.cc",
     "memory/shared_memory_tracker.h",
     "memory/singleton.h",
+    "memory/cobalt_memory_context.cc",
+    "memory/cobalt_memory_context.h",
     "memory/stack_allocated.h",
     "memory/unsafe_shared_memory_pool.cc",
     "memory/unsafe_shared_memory_pool.h",
@@ -1380,14 +1382,15 @@ component("base") {
       "android/library_loader/library_loader_hooks.cc",
       "android/library_loader/library_loader_hooks.h",
       "android/native_uma_recorder.cc",
-      "android/scoped_java_ref.cc",
       "android/scoped_java_ref.h",
       "android/trace_event_binding.cc",
       "android/trace_event_binding.h",
     ]
 
     public_configs += [ ":copied_base_jni_include_dir" ]
-    
+
+    public_deps += [ "//third_party/jni_zero:jni_zero" ]
+
     deps += [
       ":base_jni",
       ":process_launcher_jni",
@@ -1765,6 +1768,14 @@ component("base") {
       "//starboard:starboard_group",
       "//starboard/common",
     ]
+
+    # TODO(crbug.com/509811765): Android is the only platform whose starboard
+    # library depends on //base. On AOSP, `is_starboard` is true, so this leads
+    # to a circular dependency.
+    if (is_android) {
+      deps -= [ "//starboard:starboard_group" ]
+      deps += [ "//starboard:starboard_headers_only" ]
+    }
   }
 
   if (is_cobalt_hermetic_build) {
@@ -1776,6 +1787,10 @@ component("base") {
       "process/process_stubs.cc",
       "starboard/debugger_starboard.cc",
     ]
+
+    if (is_android) {
+      sources -= [ "process/process_android.cc" ]
+    }
 
     if (is_linux) {
       sources -= [ "process/process_linux.cc" ]
@@ -1808,7 +1823,6 @@ component("base") {
     ]
     sources += [
       "process/process_metrics_posix_starboard_stub.cc",
-      "starboard/linker_stub.h",
     ]
 
     # Find a way to fix the offending customizations instead.

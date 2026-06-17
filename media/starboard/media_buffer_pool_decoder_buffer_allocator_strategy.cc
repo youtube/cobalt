@@ -36,8 +36,7 @@ MediaBufferPoolDecoderBufferAllocatorStrategy::
           // avoid expansions in most scenarios.
           SbMediaGetAudioBufferBudget() + kAudioAllocationIncrement,
           kSmallAllocationThreshold,
-          kAudioAllocationIncrement,
-          /*enable_decommit_on_idle=*/false),
+          kAudioAllocationIncrement),
       video_allocator_(new MediaBufferPoolBidirectionalReuseAllocator(
           media_buffer_pool_,
           video_buffer_initial_capacity,
@@ -48,10 +47,9 @@ MediaBufferPoolDecoderBufferAllocatorStrategy::
 
 void* MediaBufferPoolDecoderBufferAllocatorStrategy::Allocate(
     DemuxerStream::Type type,
-    size_t size,
-    size_t alignment) {
+    size_t size) {
   if (type == DemuxerStream::AUDIO) {
-    return audio_allocator_.Allocate(size, alignment);
+    return audio_allocator_.Allocate(size);
   }
 
 #if !defined(OFFICIAL_BUILD)
@@ -59,7 +57,7 @@ void* MediaBufferPoolDecoderBufferAllocatorStrategy::Allocate(
 #endif  // !defined(OFFICIAL_BUILD)
 
   // The MediaBufferPoolMemoryAllocator handles pool expansion.
-  return video_allocator_->Allocate(size, alignment);
+  return video_allocator_->Allocate(size);
 }
 
 void MediaBufferPoolDecoderBufferAllocatorStrategy::Free(
@@ -102,6 +100,11 @@ size_t MediaBufferPoolDecoderBufferAllocatorStrategy::GetCapacity() const {
 
 size_t MediaBufferPoolDecoderBufferAllocatorStrategy::GetAllocated() const {
   return audio_allocator_.GetAllocated() + video_allocator_->GetAllocated();
+}
+
+void MediaBufferPoolDecoderBufferAllocatorStrategy::
+    DecommitAllDecommitableBlocks() {
+  audio_allocator_.DecommitAllDecommitableBlocks();
 }
 
 }  // namespace media

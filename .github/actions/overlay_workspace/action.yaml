@@ -5,6 +5,9 @@ inputs:
   path:
     description: Destination path (e.g. cobalt).
     required: true
+  use_gcloud:
+    description: "Whether to run gcloud config set account."
+    default: 'false'
 
 outputs:
   cache_hit:
@@ -16,10 +19,14 @@ runs:
   steps:
     - name: Authenticate with GoB
       uses: ./.github/actions/gob_auth
+      with:
+        use_gcloud: ${{ inputs.use_gcloud }}
 
     - name: Prepare OverlayFS Workspace
       id: prepare
       shell: bash
+      env:
+        REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
       run: |
         # LOWER_DIR (Read-Only): The pristine golden workspace (tip of tree) on the node's SSD. All pods read from this.
         LOWER_DIR="/runner-cache/golden-workspace"
@@ -54,15 +61,14 @@ runs:
           mkdir -p "$LOWER_DIR"
           cd "$LOWER_DIR"
 
-          git clone https://github.com/youtube/cobalt.git src
+          git clone "$REPO_URL" src
           # Clone depot_tools
           git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git depot_tools
           export PATH="$LOWER_DIR/depot_tools:$PATH"
 
           gclient config \
             --name=src \
-            --custom-var="rbe_instance=\"projects/cobalt-actions-prod/instances/default_instance\"" \
-            "https://github.com/youtube/cobalt.git"
+            --custom-var="rbe_instance=\"projects/cobalt-actions-prod/instances/default_instance\"" "$REPO_URL"
           echo "target_os=['android', 'linux']" >> .gclient
           echo "target_cpu=['x64', 'arm', 'arm64']" >> .gclient
           gclient sync -D --no-history

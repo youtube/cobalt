@@ -25,6 +25,7 @@
 #include "services/resource_coordinator/memory_instrumentation/switches.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/global_memory_dump.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/tracing_observer_proto.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
 #include "third_party/perfetto/include/perfetto/ext/trace_processor/importers/memory_tracker/graph_processor.h"
 #include "third_party/perfetto/protos/perfetto/trace/memory_graph.pbzero.h"
 #include "third_party/perfetto/protos/perfetto/trace/trace_packet.pbzero.h"
@@ -87,19 +88,9 @@ memory_instrumentation::mojom::OSMemDumpPtr CreatePublicOSDump(
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   os_dump->private_footprint_swap_kb =
       internal_os_dump.platform_private_footprint->vm_swap_bytes / 1024;
-#if BUILDFLAG(IS_COBALT)
-  // Cobalt-specific memory metrics start
-  os_dump->libchrobalt_pss_kb = internal_os_dump.libchrobalt_pss_kb;
-  os_dump->libchrobalt_rss_kb = internal_os_dump.libchrobalt_rss_kb;
-  os_dump->partition_alloc_rss_kb = internal_os_dump.partition_alloc_rss_kb;
-  os_dump->v8_rss_kb = internal_os_dump.v8_rss_kb;
-  os_dump->malloc_rss_kb = internal_os_dump.malloc_rss_kb;
-  os_dump->code_other_rss_kb = internal_os_dump.code_other_rss_kb;
-  os_dump->fonts_rss_kb = internal_os_dump.fonts_rss_kb;
-  os_dump->ashmem_jit_rss_kb = internal_os_dump.ashmem_jit_rss_kb;
-  os_dump->android_runtime_rss_kb = internal_os_dump.android_runtime_rss_kb;
-  os_dump->stacks_rss_kb = internal_os_dump.stacks_rss_kb;
-  // Cobalt-specific memory metrics end
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
+  os_dump->detailed_stats_kb = internal_os_dump.detailed_stats_kb;
+  os_dump->last_detailed_dump_time = internal_os_dump.last_detailed_dump_time;
 #endif
   os_dump->mappings_count = internal_os_dump.mappings_count;
   os_dump->pss_kb = internal_os_dump.pss_kb;

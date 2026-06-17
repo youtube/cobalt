@@ -16,7 +16,7 @@ GN variable          | Chromium (all platforms)        | Cobalt Android TV (`is_
 `is_cobalt`          | <p style='color: red'>false</p> | <p style='color: green'>true</p>   | <p style='color: green'>true</p>      | <p style='color: green'>true</p>                                                          | <p style='color: green'>true</p>
 `is_starboard`       | <p style='color: red'>false</p> | <p style='color: red'>false</p>    | <p style='color: red'>false</p>       | <p style='color: green'>true</p>                                                          | <p style='color: green'>true</p>
 `use_starboard_media`| <p style='color: red'>false</p> | <p style='color: green'>true</p>   | <p style='color: green'>true</p>      | <p style='color: green'>true</p>                                                          | <p style='color: green'>true</p>
-`use_evergreen`      | <p style='color: red'>false</p> | <p style='color: red'>false</p>    | <p style='color: red'>false</p>       | <p style='color: green'>Evergreen: true</p> <br> <p style='color: red'>Modular: false</p> | <p style='color: green'>true</p> ?
+`use_evergreen`      | <p style='color: red'>false</p> | <p style='color: red'>false</p>    | <p style='color: red'>false</p>       | <p style='color: green'>Evergreen: true</p> <br> <p style='color: red'>Modular: false</p> | <p style='color: green'>Evergreen: true</p> <br> <p style='color: red'>Modular: false</p>
 `sb_is_modular`      | <p style='color: red'>false</p> | <p style='color: red'>false</p>    | <p style='color: red'>false</p>       | <p style='color: green'>true</p>                                                          | <p style='color: green'>true</p>
 `is_android`         | <p >Depends on the OS</p>       | <p style='color: green'>true</p>   | <p style='color: red'>false</p>       | <p style='color: red'>false</p>                                                           | <p style='color: green'>true</p>
 `is_androidtv`       | <p style='color: red'>false</p> | <p style='color: green'>true</p>   | <p style='color: red'>false</p>       | <p style='color: red'>false</p>                                                           | <p style='color: green'>false</p>
@@ -98,7 +98,7 @@ buildflag_header("foo_buildflags") {
   header = "foo_buildflags.h"
 
   flags = [
-    This uses the GN build flag enable_doom_melon as the definition.
+    # This uses the GN build flag enable_doom_melon as the definition.
     "ENABLE_DOOM_MELON=$enable_doom_melon",
   ]
 }

@@ -42,6 +42,10 @@ runs:
           fi
           cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }} "${gn_flags[@]}"
         shell: bash
+      - name: Configure Siso Credential Helper
+        shell: bash
+        run: |
+          echo "SISO_CREDENTIAL_HELPER=gcloud" >> $GITHUB_ENV
       - name: List GN args
         run: |
           cd cobalt/src
@@ -106,7 +110,7 @@ runs:
           #     --json-output > "${DYN_TEST_TARGETS_JSON_FILE}"
 
 
-          test_targets_json=$(cat ${{ inputs.test_targets_json_file }} | jq -cr '.test_targets')
+          test_targets_json=$(jq -cr '[.[] | select(.target != null) | .target]' ${{ inputs.test_targets_json_file }})
           echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
 
           test_targets_count=$(echo ${test_targets_json} | jq -cr 'length')

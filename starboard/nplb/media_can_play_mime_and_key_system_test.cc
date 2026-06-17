@@ -260,8 +260,8 @@ TEST(SbMediaCanPlayMimeAndKeySystem, MinimumSupport) {
       "video/mp4; codecs=\"avc1.64002a\"; width=1920; height=1080; "
       "framerate=30",
       "video/webm; codecs=\"vp9\"; width=1920; height=1080; framerate=30",
-      "video/webm; codecs=\"vp09.02.41.10.01.09.16.09.00\"; width=1920; "
-      "height=1080; framerate=30",
+      "video/webm; codecs=\"vp09.00.41.08\"; width=1920; height=1080; "
+      "framerate=30",
   };
 
   std::vector<const char*> params_4k{
@@ -270,8 +270,8 @@ TEST(SbMediaCanPlayMimeAndKeySystem, MinimumSupport) {
       "video/mp4; codecs=\"avc1.64002a\"; width=1920; height=1080; "
       "framerate=30",
       "video/webm; codecs=\"vp9\"; width=3840; height=2160; framerate=30",
-      "video/webm; codecs=\"vp09.02.51.10.01.09.16.09.00\"; width=3840; "
-      "height=2160; framerate=30",
+      "video/webm; codecs=\"vp09.00.51.08\"; width=3840; height=2160; "
+      "framerate=30",
   };
 
   std::vector<const char*> params_8k{
@@ -320,6 +320,18 @@ TEST(SbMediaCanPlayMimeAndKeySystem, MinimumSupport) {
   const char* key_system = "";
   for (auto& param : mime_params) {
     EXPECT_TRUE(IsMimeAndKeySystemSupported(param, key_system));
+  }
+
+  // For FHD and 4K devices, VP9 Profile 2 is only required if HDR is supported.
+  if (device_type == kDeviceType4k) {
+    const char* kVp9Profile2FhdMime =
+        "video/webm; codecs=\"vp09.02.41.10.01.09.16.09.00\"; width=1920; "
+        "height=1080; framerate=30";
+    const char* kVp9Profile24kMime =
+        "video/webm; codecs=\"vp09.02.51.10.01.09.16.09.00\"; width=3840; "
+        "height=2160; framerate=30";
+    EXPECT_EQ(SbMediaCanPlayMimeAndKeySystem(kVp9Profile2FhdMime, key_system),
+              SbMediaCanPlayMimeAndKeySystem(kVp9Profile24kMime, key_system));
   }
 
   // AAC-LC
