@@ -72,6 +72,10 @@ public class JavaSwitches {
   public static final String COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE =
       "CobaltDynamicMojoPipeSubresourceSize";
 
+  /** flag to disable FontSrcLocalMatching lookup table. */
+  public static final String DISABLE_FONT_SRC_LOCAL_MATCHING =
+      "DisableFontSrcLocalMatching";
+
   /** flag to specify ANGLE to use the OpenGL ES backend */
   public static final String COBALT_USE_ANGLE_GLES = "CobaltUseAngleGles";
 
@@ -158,6 +162,10 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.COBALT_USE_ANGLE_GLES)) {
       extraCommandLineArgs.add("--use-angle=gles");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.DISABLE_FONT_SRC_LOCAL_MATCHING)) {
+      extraCommandLineArgs.add("--disable-features=FontSrcLocalMatching");
     }
 
     if (jsFlags.length() > 0 ) {
