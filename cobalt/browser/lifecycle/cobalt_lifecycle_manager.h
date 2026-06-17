@@ -34,6 +34,7 @@
 namespace content {
 class WebContents;
 class RenderFrameHost;
+class NavigationHandle;
 }  // namespace content
 
 namespace cobalt {
@@ -146,6 +147,10 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
       content::RenderFrameHost* frame,
       mojo::PendingReceiver<cobalt::mojom::CobaltLifecycleObserver> receiver);
 
+  // Proactively creates the tracker for the specified WebContents to monitor
+  // frame lifecycle events from startup.
+  void InitializeTracker(content::WebContents* web_contents);
+
   // cobalt::mojom::CobaltLifecycleObserver impl.
   void OnPageVisibilityChanged(bool visible) override;
   void OnPageBlurred() override;
@@ -197,6 +202,8 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
     void RenderFrameDeleted(
         content::RenderFrameHost* render_frame_host) override;
     void WebContentsDestroyed() override;
+    void DidFinishNavigation(
+        content::NavigationHandle* navigation_handle) override;
 
     // Methods to update the tracked state of a specific frame.
     void SetResumed(content::RenderFrameHost* frame);

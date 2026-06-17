@@ -16,6 +16,7 @@
 
 #include "base/no_destructor.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -69,6 +70,12 @@ CobaltLifecycleManager::GetCurrentContext() {
   return {frame, content::WebContents::FromRenderFrameHost(frame)};
 }
 
+void CobaltLifecycleManager::InitializeTracker(
+    content::WebContents* web_contents) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  GetOrCreateTracker(web_contents);
+}
+
 void CobaltLifecycleManager::OnMojoDisconnect() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   auto [frame, web_contents] = GetCurrentContext();
@@ -86,6 +93,9 @@ CobaltLifecycleManager::WebContentsTracker::~WebContentsTracker() = default;
 
 void CobaltLifecycleManager::WebContentsTracker::RenderFrameCreated(
     content::RenderFrameHost* render_frame_host) {
+  LOG(INFO) << "WebContentsTracker::RenderFrameCreated: frame="
+            << render_frame_host
+            << ", live=" << render_frame_host->IsRenderFrameLive();
   if (!render_frame_host->IsRenderFrameLive()) {
     return;
   }
@@ -119,6 +129,40 @@ void CobaltLifecycleManager::WebContentsTracker::RenderFrameDeleted(
 
 void CobaltLifecycleManager::WebContentsTracker::WebContentsDestroyed() {
   manager_->OnWebContentsDestroyed(web_contents());
+}
+
+void CobaltLifecycleManager::WebContentsTracker::DidFinishNavigation(
+    content::NavigationHandle* navigation_handle) {
+  // We only care about successful, committed cross-document navigations.
+  // - If the navigation was aborted or failed to commit, the document state
+  //   doesn't change, so we don't need to re-bind.
+  // - Error pages (e.g. net errors) do not load the Cobalt web application
+  //   and therefore do not host the renderer-side lifecycle controller.
+  if (!navigation_handle->HasCommitted() || navigation_handle->IsErrorPage()) {
+    return;
+  }
+
+  // Same-document navigations (e.g. hash changes) reuse the
+  // existing document and JS context. The existing Mojo pipe remains valid.
+  // We MUST skip re-binding here. If we re-bound:
+  // 1. The new remote binding on the renderer would close the old pipe.
+  // 2. The browser would receive a disconnect handler call for the old pipe
+  //    and call UnregisterFrame.
+  // 3. This would race with the new pipe's RegisterFrame call, potentially
+  //    leaving the frame permanently unregistered in the browser.
+  if (navigation_handle->IsSameDocument()) {
+    return;
+  }
+
+  // For cross-document navigations, the new document in the renderer gets a
+  // fresh JS context, invalidating the old Mojo pipe. We must proactively
+  // re-bind the interface to the new frame host to resume lifecycle tracking.
+  content::RenderFrameHost* rfh = navigation_handle->GetRenderFrameHost();
+  if (rfh && rfh->IsRenderFrameLive()) {
+    LOG(INFO) << "WebContentsTracker::DidFinishNavigation: Re-binding frame="
+              << rfh;
+    Rebind(rfh);
+  }
 }
 
 void CobaltLifecycleManager::WebContentsTracker::SetResumed(
@@ -255,6 +299,7 @@ CobaltLifecycleManager::GetOrCreateTracker(content::WebContents* web_contents) {
 void CobaltLifecycleManager::RegisterFrame(content::WebContents* web_contents,
                                            content::RenderFrameHost* frame) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  LOG(INFO) << "CobaltLifecycleManager::RegisterFrame: frame=" << frame;
   frames_[web_contents].insert(frame);
   GetOrCreateTracker(web_contents);
 
@@ -275,6 +320,7 @@ void CobaltLifecycleManager::RegisterFrame(content::WebContents* web_contents,
 void CobaltLifecycleManager::UnregisterFrame(content::WebContents* web_contents,
                                              content::RenderFrameHost* frame) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  LOG(INFO) << "CobaltLifecycleManager::UnregisterFrame: frame=" << frame;
   frames_[web_contents].erase(frame);
   pending_ack_frames_[web_contents].erase(frame);
 
