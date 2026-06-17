@@ -47,6 +47,15 @@ Usage Examples:
 
   10. Follow device system logs in real-time (journalctl -f):
       python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --logs --follow
+
+  11. Build, deploy, and run Cobalt plugin with Chrome DevTools remote debugging enabled:
+      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run --devtools
+
+  12. Download and install cross-compilation toolchain:
+      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --setup-toolchain
+
+  13. Revert active Cobalt loader configuration to Cobalt 25:
+      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --revert-c25
 """
 
 import argparse
