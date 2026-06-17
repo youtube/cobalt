@@ -109,7 +109,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   // while buffers are still actively decoding on the media thread. We defer
   // idle memory reclamation (decommit or strategy reset) until buffers drain in
   // Free().
-  bool is_suspended_ GUARDED_BY(mutex_) = false;
+  bool has_pending_release_ GUARDED_BY(mutex_) = false;
   bool should_release_memory_when_suspended_ GUARDED_BY(mutex_) = false;
   StrategyCreateCB experimental_strategy_create_cb_ GUARDED_BY(mutex_);
 

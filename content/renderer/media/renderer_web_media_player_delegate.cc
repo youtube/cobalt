@@ -239,11 +239,16 @@ void RendererWebMediaPlayerDelegate::OnPageVisibilityChanged(
     }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    if (auto allocator = ::media::DecoderBufferAllocator::Get(); allocator) {
+    if (::media::DecoderBufferAllocator::Get()) {
+      // Decommit all available memory blocks when the application transitions
+      // into a hidden state to free up system memory resources.
+      LOG(INFO) << "Decommitting memory blocks on page hidden.";
+      ::media::DecoderBufferAllocator::Get()->DecommitAllDecommitableBlocks();
+
       // Suspend the decoder buffer allocator when the application transitions
       // into a hidden state to shed unused system memory resources.
       LOG(INFO) << "Suspending DecoderBufferAllocator on page hidden.";
-      allocator->Suspend();
+      ::media::DecoderBufferAllocator::Get()->Suspend();
     }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
