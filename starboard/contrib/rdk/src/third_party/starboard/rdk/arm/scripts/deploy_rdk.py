@@ -56,6 +56,9 @@ Usage Examples:
 
   13. Revert active Cobalt loader configuration to Cobalt 25:
       python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --revert-c25
+
+  14. Launch Cobalt plugin with custom runtime parameters (e.g. YouTube TV URL):
+      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run --param --url=https://tv.youtube.com
 """
 
 import argparse
@@ -188,6 +191,7 @@ def launch_on_device(
     test_name: Optional[str],
     mode: str,
     devtools: bool = False,
+    param: Optional[List[str]] = None,
 ) -> None:
     """Executes remote commands to launch Cobalt or tests."""
     print("=== Launching on device ===")
@@ -246,7 +250,10 @@ def launch_on_device(
                 
                 if devtools:
                     sb_args.append("--remote-debugging-port=9222")
-                
+
+                if param:
+                    sb_args.extend(param)
+
                 config["sbmainargs"] = sb_args
 
                 # Set configuration
@@ -365,6 +372,12 @@ def parse_args() -> argparse.Namespace:
         "--follow",
         action="store_true",
         help="Follow log output in real-time (runs journalctl -f).",
+    )
+    parser.add_argument(
+        "--param",
+        nargs=argparse.REMAINDER,
+        default=[],
+        help="Additional runtime parameter(s) to pass to StarboardMain (must be specified last).",
     )
     return parser.parse_args()
 
@@ -697,6 +710,7 @@ def main() -> None:
             args.tests,
             args.mode,
             args.devtools,
+            args.param,
         )
 
     print("=== Finished ===")
