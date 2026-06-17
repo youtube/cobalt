@@ -62,7 +62,7 @@ if (!is_cobalt) {
     }
 
     if (!sb_is_evergreen) {
-      if (sb_is_evergreen_compatible) {
+      if (is_starboard) {
         deps += [
           "//starboard/elf_loader:elf_loader_test_install($starboard_toolchain)",
           "//starboard/loader_app:installation_manager_test_install($starboard_toolchain)",
@@ -89,7 +89,7 @@ if (!is_cobalt) {
       ":starboard_group",
       "//starboard/tools:build_app_launcher_zip",
     ]
-    if (sb_is_evergreen_compatible) {
+    if (is_starboard) {
       deps += [
         "//starboard/loader_app($starboard_toolchain)",
         "//third_party/crashpad/crashpad/handler:crashpad_handler($native_toolchain)",
@@ -259,7 +259,7 @@ if (current_toolchain == starboard_toolchain) {
     if (sb_filter_based_player) {
       deps += [ "//starboard/shared/starboard/player/filter/testing:player_filter_tests" ]
     }
-    if (sb_is_evergreen_compatible) {
+    if (is_starboard) {
       deps += [
         "//starboard/elf_loader:elf_loader_test",
         "//starboard/extension:extension_test",
