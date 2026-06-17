@@ -603,6 +603,8 @@ def main() -> None:
     if args.logs:
         device_id = get_device_id()
         cmd = ["adb", "-s", device_id, "shell", "journalctl"]
+        tag = "YouTube" if args.mode == "plugin" else "Cobalt"
+        cmd += ["-t", tag]
         if args.follow:
             cmd.append("-f")
         try:
