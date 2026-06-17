@@ -533,6 +533,9 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Parse All Test Targets JSON
+        id: parse-all-targets
+        uses: ./.github/actions/test_targets_json
       - name: Parse Test Target JSON (Device GTest)
         id: parse-device-targets
         uses: ./.github/actions/test_targets_json
@@ -551,7 +554,7 @@ jobs:
           test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
           test_attempts: '${{ needs.initialize.outputs.test_attempts }}'
     outputs:
-      test_targets_json: ${{ steps.parse-device-targets.outputs.test_targets_json }}
+      test_targets_json: ${{ steps.parse-all-targets.outputs.test_targets_json }}
 
   e2e-test:
     needs: [initialize, build]
@@ -678,6 +681,9 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Parse All Test Targets JSON
+        id: parse-all-targets
+        uses: ./.github/actions/test_targets_json
       - name: Run Browser Tests (Linux)
         uses: ./.github/actions/linux_browser_tests
         with:
@@ -687,8 +693,7 @@ jobs:
           config: ${{ matrix.config }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
     outputs:
-      # Browser tests are fixed to a single target.
-      test_targets_json: '["cobalt/testing/browser_tests:cobalt_browsertests"]'
+      test_targets_json: ${{ steps.parse-all-targets.outputs.test_targets_json }}
 
   yts-wpt-test:
     needs: [initialize, build]
@@ -746,6 +751,9 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Parse All Test Targets JSON
+        id: parse-all-targets
+        uses: ./.github/actions/test_targets_json
       - name: Parse Test Target JSON (Host GTest)
         id: parse-host-targets
         uses: ./.github/actions/test_targets_json
@@ -787,7 +795,7 @@ jobs:
           echo "combined_test_targets=${combined}" >> $GITHUB_OUTPUT
         shell: bash
     outputs:
-      test_targets_json: ${{ steps.combine-targets.outputs.combined_test_targets }}
+      test_targets_json: ${{ steps.parse-all-targets.outputs.test_targets_json }}
 
   web-tests:
     needs: [initialize, docker-webtest-image, build]
@@ -875,7 +883,7 @@ jobs:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
-        test_target: ${{ fromJson(needs.on-device-test.outputs.test_targets_json || needs.on-host-test.outputs.test_targets_json || '[]') }}
+        test_target: ${{ fromJson(needs.on-device-test.outputs.test_targets_json || needs.on-host-test.outputs.test_targets_json || needs.browser-test-on-host.outputs.test_targets_json || '[]') }}
     steps:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
@@ -883,14 +891,48 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Download Test Targets JSON
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ matrix.platform }}_test_targets_json
+      - name: Evaluate if target should be processed
+        id: check-target
+        env:
+          ON_DEVICE_TEST_RESULT: ${{ needs.on-device-test.result }}
+          ON_HOST_TEST_RESULT: ${{ needs.on-host-test.result }}
+        run: |
+          set -x
+          target="${{ matrix.test_target }}"
+          should_process="false"
+          if [ -f test_targets.json ]; then
+            target_info=$(jq --arg target "${target}" -c '.[] | select(.target == $target) | {runs_on, test_type}' test_targets.json)
+            if [ -n "${target_info}" ]; then
+              runs_on=$(echo "${target_info}" | jq -r '.runs_on')
+              test_type=$(echo "${target_info}" | jq -r '.test_type')
+
+              if [ "${runs_on}" = "device" ] && [ "${test_type}" = "gtest" ]; then
+                if [ "${ON_DEVICE_TEST_RESULT}" != "skipped" ] && [ -n "${ON_DEVICE_TEST_RESULT}" ]; then
+                  should_process="true"
+                fi
+              elif [ "${runs_on}" = "host" ] && { [ "${test_type}" = "gtest" ] || [ "${test_type}" = "junit" ]; }; then
+                if [ "${ON_HOST_TEST_RESULT}" != "skipped" ] && [ -n "${ON_HOST_TEST_RESULT}" ]; then
+                  should_process="true"
+                fi
+              fi
+            fi
+          fi
+          echo "should_process=${should_process}" >> $GITHUB_OUTPUT
+        shell: bash
       - name: Extract Test Target Name
         id: extract-target-name
+        if: steps.check-target.outputs.should_process == 'true'
         env:
           test_target_with_path: ${{ matrix.test_target }}
         run: echo "test_target=${test_target_with_path#*:}" >> $GITHUB_OUTPUT
         shell: bash
       - name: Check if ${{ matrix.test_target }} is skipped in test filters
         id: filter
+        if: steps.check-target.outputs.should_process == 'true'
         run: |
           set -x
           # Get first entry in test filters file.
@@ -908,13 +950,13 @@ jobs:
           fi
         shell: bash
       - name: Download Test Results
-        if: steps.filter.outputs.skipped != 'true'
+        if: steps.check-target.outputs.should_process == 'true' && steps.filter.outputs.skipped != 'true'
         uses: actions/download-artifact@v5
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
       - name: Test Results
-        if: steps.filter.outputs.skipped != 'true'
+        if: steps.check-target.outputs.should_process == 'true' && steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/process_test_results
         with:
           target_name: ${{ matrix.test_target }}
@@ -923,7 +965,7 @@ jobs:
           datadog_api_key: ${{ secrets.datadog_api_key }}
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
       - name: ${{ matrix.test_target }} Device Logs
-        if: always() && steps.filter.outputs.skipped != 'true' && needs.initialize.outputs.test_on_device == 'true'
+        if: always() && steps.check-target.outputs.should_process == 'true' && steps.filter.outputs.skipped != 'true' && needs.initialize.outputs.test_on_device == 'true'
         continue-on-error: true
         uses: ./.github/actions/print_logs
         with:
@@ -932,7 +974,7 @@ jobs:
           # symbolize: true
           symbolize: 'false'
       - name: ${{ matrix.test_target }} Test Logs
-        if: always() && steps.filter.outputs.skipped != 'true'
+        if: always() && steps.check-target.outputs.should_process == 'true' && steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/print_logs
         with:
           log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
