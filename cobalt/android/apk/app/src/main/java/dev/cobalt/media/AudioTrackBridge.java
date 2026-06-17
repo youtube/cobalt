@@ -59,7 +59,7 @@ public class AudioTrackBridge {
   private ByteBuffer mAvSyncHeader;
   private int mAvSyncPacketBytesRemaining;
 
-  // Pre-allocated byte[] or float[] shared with C++ via getPreAllocatedAudioData() to avoid
+  // Pre-allocated byte[] or float[] shared with C++ via getPreAllocatedAudioDataAs*Array() to avoid
   // allocation on every WriteSample(). C++ writes directly to this array,
   // which is then passed back to Java write*() methods.
   private Object mPreAllocatedAudioData;
@@ -86,8 +86,8 @@ public class AudioTrackBridge {
       case AudioFormat.ENCODING_E_AC3:
         return new byte[maxSamplesPerWrite];
       default:
-        Log.e(TAG, "Unsupported sample type: " + sampleType);
-        return null;
+        // Throwing RuntimeException crashes the app, which is intended since the invariant is broken.
+        throw new IllegalArgumentException("Unsupported sample type: " + sampleType);
     }
   }
 
@@ -292,7 +292,7 @@ public class AudioTrackBridge {
   }
 
   @CalledByNative
-  public float[] getPreAllocatedFloatArray() {
+  public float[] getPreAllocatedAudioDataAsFloatArray() {
     if (mPreAllocatedAudioData instanceof float[]) {
       return (float[]) mPreAllocatedAudioData;
     }
@@ -300,7 +300,7 @@ public class AudioTrackBridge {
   }
 
   @CalledByNative
-  public byte[] getPreAllocatedByteArray() {
+  public byte[] getPreAllocatedAudioDataAsByteArray() {
     if (mPreAllocatedAudioData instanceof byte[]) {
       return (byte[]) mPreAllocatedAudioData;
     }
