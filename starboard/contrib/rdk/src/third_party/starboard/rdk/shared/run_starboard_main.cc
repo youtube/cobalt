@@ -42,7 +42,7 @@
 
 #include "third_party/starboard/rdk/shared/application_rdk.h"
 
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
 #include "starboard/common/command_line.h"
 #include "starboard/common/paths.h"
 #include "starboard/crashpad_wrapper/wrapper.h"
