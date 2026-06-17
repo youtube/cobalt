@@ -52,6 +52,8 @@ class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
 
   void SetMaxVideoInputSize(int max_video_input_size) override {}
   void SetVideoSurfaceView(void* surface_view) override {}
+  void SetExperimentalFeatures(
+      const ExperimentalFeatures& experimental_features) override {}
   void Stop() override;
 
   SbDecodeTarget GetCurrentDecodeTarget() override {
@@ -75,7 +77,7 @@ class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
   UpdatePlayerStateCB update_player_state_cb_;
   UpdatePlayerErrorCB update_player_error_cb_;
 
-  JobQueue::JobToken update_job_token_;
+  JobQueue::JobToken update_job_token_ = JobQueue::JobToken::kUnscheduled;
   const std::function<void()> update_job_;
 
   std::unique_ptr<ExoPlayerBridge> bridge_;

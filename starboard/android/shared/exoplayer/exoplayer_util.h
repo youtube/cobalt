@@ -19,15 +19,16 @@
 
 #include "base/android/jni_android.h"
 #include "starboard/media.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
 bool ShouldEnableTunneledPlayback(const SbMediaVideoStreamInfo& stream_info);
 
-base::android::ScopedJavaLocalRef<jobject> CreateAudioMediaSource(
+jni_zero::ScopedJavaLocalRef<jobject> CreateAudioMediaSource(
     const SbMediaAudioStreamInfo& stream_info);
 
-base::android::ScopedJavaLocalRef<jobject> CreateVideoMediaSource(
+jni_zero::ScopedJavaLocalRef<jobject> CreateVideoMediaSource(
     const SbMediaVideoStreamInfo& stream_info);
 }  // namespace starboard
 

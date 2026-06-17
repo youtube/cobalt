@@ -17,10 +17,9 @@
 
 #include <jni.h>
 
-#include "base/android/jni_android.h"
-#include "base/android/scoped_java_ref.h"
 #include "base/memory/singleton.h"
 #include "starboard/common/size.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
@@ -33,9 +32,7 @@ class StarboardBridge {
 
   void Initialize(JNIEnv* env, jobject obj);
 
-  long GetAppStartTimestamp(JNIEnv* env);
-
-  long GetAppStartDuration(JNIEnv* env);
+  int64_t GetAppStartTimestamp(JNIEnv* env);
 
   void ApplicationStarted(JNIEnv* env);
 
@@ -43,31 +40,34 @@ class StarboardBridge {
 
   void AppendArgs(JNIEnv* env, std::vector<std::string>* args_vector);
 
-  base::android::ScopedJavaLocalRef<jintArray> GetSupportedHdrTypes(
-      JNIEnv* env);
+  jni_zero::ScopedJavaLocalRef<jintArray> GetSupportedHdrTypes(JNIEnv* env);
 
-  void RaisePlatformError(JNIEnv* env, jint errorType, jlong data);
+  void RaisePlatformError(JNIEnv* env,
+                          jint errorType,
+                          jlong data,
+                          const std::string& url);
 
   bool IsPlatformErrorShowing(JNIEnv* env);
 
   void RequestSuspend(JNIEnv* env);
 
-  base::android::ScopedJavaLocalRef<jobject> GetTextToSpeechHelper(JNIEnv* env);
+  jni_zero::ScopedJavaLocalRef<jobject> GetTextToSpeechHelper(JNIEnv* env);
 
-  base::android::ScopedJavaLocalRef<jobject> GetCaptionSettings(JNIEnv* env);
+  jni_zero::ScopedJavaLocalRef<jobject> GetCaptionSettings(JNIEnv* env);
 
-  base::android::ScopedJavaLocalRef<jobject> GetResourceOverlay(JNIEnv* env);
+  jni_zero::ScopedJavaLocalRef<jobject> GetResourceOverlay(JNIEnv* env);
 
-  base::android::ScopedJavaLocalRef<jstring> GetSystemLocaleId(JNIEnv* env);
+  jni_zero::ScopedJavaLocalRef<jstring> GetSystemLocaleId(JNIEnv* env);
 
   std::string GetAdvertisingId(JNIEnv* env);
   bool GetLimitAdTracking(JNIEnv* env);
+  std::string GetFriendlyName(JNIEnv* env);
 
   void CloseApp(JNIEnv* env);
 
   std::string GetTimeZoneId(JNIEnv* env);
 
-  base::android::ScopedJavaLocalRef<jobject> GetDisplayDpi(JNIEnv* env);
+  jni_zero::ScopedJavaLocalRef<jobject> GetDisplayDpi(JNIEnv* env);
 
   Size GetDeviceResolution(JNIEnv* env);
 
@@ -79,15 +79,15 @@ class StarboardBridge {
 
   bool IsMicrophoneDisconnected(JNIEnv* env);
   bool IsMicrophoneMute(JNIEnv* env);
-  base::android::ScopedJavaLocalRef<jobject> GetAudioPermissionRequester(
+  jni_zero::ScopedJavaLocalRef<jobject> GetAudioPermissionRequester(
       JNIEnv* env);
 
   void ResetVideoSurface(JNIEnv* env);
   void SetVideoSurfaceBounds(JNIEnv* env, int x, int y, int width, int height);
 
-  base::android::ScopedJavaLocalRef<jobject> GetAudioOutputManager(JNIEnv* env);
+  jni_zero::ScopedJavaLocalRef<jobject> GetAudioOutputManager(JNIEnv* env);
 
-  base::android::ScopedJavaLocalRef<jobject> GetExoPlayerManager(JNIEnv* env);
+  jni_zero::ScopedJavaLocalRef<jobject> GetExoPlayerManager(JNIEnv* env);
 
   std::string GetUserAgentAuxField(JNIEnv* env) const;
 
@@ -97,13 +97,18 @@ class StarboardBridge {
 
   int64_t GetPlayServicesVersion(JNIEnv* env) const;
 
-  base::android::ScopedJavaLocalRef<jobject> OpenCobaltService(
+  jni_zero::ScopedJavaLocalRef<jobject> OpenCobaltService(
       JNIEnv* env,
       jlong native_service,
       const char* service_name);
   void CloseCobaltService(JNIEnv* env, const char* service_name);
   bool HasCobaltService(JNIEnv* env, const char* service_name);
   void CloseAllCobaltService(JNIEnv* env) const;
+
+  void HideSplashScreen(JNIEnv* env) const;
+
+  void SetStartupMilestone(jint milestone) const;
+  void SetStartupDiagnosisInfo(const char* key, const char* value) const;
 
  private:
   StarboardBridge() = default;
@@ -116,7 +121,7 @@ class StarboardBridge {
   friend struct base::DefaultSingletonTraits<StarboardBridge>;
 
   // Java StarboardBridge instance.
-  base::android::ScopedJavaGlobalRef<jobject> j_starboard_bridge_;
+  jni_zero::ScopedJavaGlobalRef<jobject> j_starboard_bridge_;
 };
 
 }  // namespace starboard

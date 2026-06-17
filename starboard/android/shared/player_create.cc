@@ -28,7 +28,9 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/features.h"
+#include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
@@ -45,6 +47,10 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
                         SbPlayerErrorFunc player_error_func,
                         void* context,
                         SbDecodeTargetGraphicsContextProvider* provider) {
+  // Lazy initialization of media specific event tracing.  See comment in
+  // EnsureMediaTracingIsInitialized() for limitations.
+  EnsureMediaTracingIsInitialized();
+
   if (!player_error_func) {
     SB_LOG(ERROR) << "|player_error_func| cannot be null.";
     return kSbPlayerInvalid;
@@ -225,31 +231,10 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
 
   handler->SetMaxVideoInputSize(
       starboard::GetMaxVideoInputSizeForCurrentThread());
-  SbPlayer player = starboard::SbPlayerPrivateImpl::CreateInstance(
-      audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
-      player_status_func, player_error_func, context, std::move(handler));
-
-  if (SbPlayerIsValid(player)) {
-    if (creation_param->output_mode != kSbPlayerOutputModeDecodeToTexture) {
-      // TODO: accomplish this through more direct means.
-      // Set the bounds to initialize the VideoSurfaceView. The initial values
-      // don't matter.
-      SbPlayerSetBounds(player, 0, 0, 0, 0, 0);
-    }
-    return player;
-  }
-
-  std::unique_ptr<PlayerWorker::Handler> handler;
-  if (use_exoplayer) {
-    handler = std::make_unique<ExoPlayerPlayerWorkerHandler>(creation_param);
-  } else {
-    handler = std::make_unique<FilterBasedPlayerWorkerHandler>(creation_param,
-                                                               provider);
-  }
-
-  handler->SetMaxVideoInputSize(
-      starboard::GetMaxVideoInputSizeForCurrentThread());
+  handler->SetExperimentalFeatures(
+      starboard::GetExperimentalFeaturesForCurrentThread());
   handler->SetVideoSurfaceView(starboard::GetSurfaceViewForCurrentThread());
+
   auto player = std::make_unique<starboard::SbPlayerPrivateImpl>(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
       player_status_func, player_error_func, context, std::move(handler));

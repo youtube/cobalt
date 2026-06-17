@@ -18,8 +18,6 @@
 #include "base/android/jni_string.h"
 #include "base/strings/string_number_conversions.h"
 #include "build/build_config.h"
-#include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
-#include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/android/shared/log_internal.h"
@@ -27,6 +25,13 @@
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
+#include "third_party/jni_zero/jni_zero.h"
+
+// TODO(b/492704919): enable on AOSP when the layering violation is fixed.
+#if !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+#include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
+#include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
+#endif  // !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/StarboardBridge_jni.h"
@@ -35,16 +40,17 @@ namespace starboard {
 
 namespace {
 
-// TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AppendJavaStringArrayToStringVector;
-using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF8ToJavaString;
-using base::android::GetClass;
-using base::android::JavaParamRef;
-using base::android::ScopedJavaGlobalRef;
-using base::android::ScopedJavaLocalRef;
+using jni_zero::AttachCurrentThread;
+using jni_zero::GetClass;
+using jni_zero::JavaParamRef;
+using jni_zero::ScopedJavaGlobalRef;
+using jni_zero::ScopedJavaLocalRef;
 
+// TODO(b/492704919): enable on AOSP when the layering violation is fixed.
+#if !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
 // Client Hint Header name constants
 constexpr char kAndroidOSExperienceHeader[] =
     "Sec-CH-UA-Co-Android-OS-Experience";
@@ -54,6 +60,7 @@ constexpr char kBuildFingerprintHeader[] =
     "Sec-CH-UA-Co-Android-Build-Fingerprint";
 constexpr char kYoutubeCertScopeHeader[] =
     "Sec-CH-UA-Co-Youtube-Certification-Scope";
+#endif  // !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
 
 // Global pointer to hold the single instance of ApplicationAndroid.
 ApplicationAndroid* g_native_app_instance = nullptr;
@@ -79,6 +86,8 @@ jboolean JNI_StarboardBridge_InitJNI(
 
   // Initialize the singleton instance of StarboardBridge
   StarboardBridge::GetInstance()->Initialize(env, j_starboard_bridge.obj());
+
+  StarboardBridge::GetInstance()->SetStartupMilestone(5);
   return true;
 }
 
@@ -119,6 +128,8 @@ void JNI_StarboardBridge_InitializePlatformAudioSink(JNIEnv* env) {
 void JNI_StarboardBridge_HandleDeepLink(JNIEnv* env,
                                         const JavaParamRef<jstring>& jurl,
                                         jboolean applicationStarted) {
+  // TODO(b/492704919): enable on AOSP when the layering violation is fixed.
+#if !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
   const std::string& url = ConvertJavaStringToUTF8(env, jurl);
   LOG(INFO) << "StarboardBridge handling DeepLink: " << url;
 
@@ -130,40 +141,53 @@ void JNI_StarboardBridge_HandleDeepLink(JNIEnv* env,
     // Cold start deeplink
     manager->set_deep_link(url);
   }
+#endif  // !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
 }
 
 void JNI_StarboardBridge_SetAndroidOSExperience(JNIEnv* env,
                                                 jboolean isAmatiDevice) {
+  // TODO(b/492704919): enable on AOSP when the layering violation is fixed.
+#if !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
   std::string value = isAmatiDevice ? "Amati" : "Watson";
   auto header_value_provider =
       cobalt::browser::CobaltHeaderValueProvider::GetInstance();
   header_value_provider->SetHeaderValue(kAndroidOSExperienceHeader, value);
+#endif  // !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
 }
 
 void JNI_StarboardBridge_SetAndroidPlayServicesVersion(JNIEnv* env,
                                                        jlong version) {
+  // TODO(b/492704919): enable on AOSP when the layering violation is fixed.
+#if !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
   auto header_value_provider =
       cobalt::browser::CobaltHeaderValueProvider::GetInstance();
   header_value_provider->SetHeaderValue(kPlayServicesVersionHeader,
                                         base::NumberToString(version));
+#endif  // !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
 }
 
 void JNI_StarboardBridge_SetAndroidBuildFingerprint(
     JNIEnv* env,
     const JavaParamRef<jstring>& fingerprint) {
+  // TODO(b/492704919): enable on AOSP when the layering violation is fixed.
+#if !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
   auto header_value_provider =
       cobalt::browser::CobaltHeaderValueProvider::GetInstance();
   header_value_provider->SetHeaderValue(
       kBuildFingerprintHeader, ConvertJavaStringToUTF8(env, fingerprint));
+#endif  // !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
 }
 
 void JNI_StarboardBridge_SetYoutubeCertificationScope(
     JNIEnv* env,
     const JavaParamRef<jstring>& certScope) {
+  // TODO(b/492704919): enable on AOSP when the layering violation is fixed.
+#if !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
   auto header_value_provider =
       cobalt::browser::CobaltHeaderValueProvider::GetInstance();
   header_value_provider->SetHeaderValue(
       kYoutubeCertScopeHeader, ConvertJavaStringToUTF8(env, certScope));
+#endif  // !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
 }
 
 jboolean JNI_StarboardBridge_IsReleaseBuild(JNIEnv* env) {
@@ -196,14 +220,9 @@ void StarboardBridge::Initialize(JNIEnv* env, jobject obj) {
   j_starboard_bridge_.Reset(env, obj);
 }
 
-long StarboardBridge::GetAppStartTimestamp(JNIEnv* env) {
+int64_t StarboardBridge::GetAppStartTimestamp(JNIEnv* env) {
   SB_DCHECK(env);
   return Java_StarboardBridge_getAppStartTimestamp(env, j_starboard_bridge_);
-}
-
-long StarboardBridge::GetAppStartDuration(JNIEnv* env) {
-  SB_DCHECK(env);
-  return Java_StarboardBridge_getAppStartDuration(env, j_starboard_bridge_);
 }
 
 void StarboardBridge::ApplicationStarted(JNIEnv* env) {
@@ -232,10 +251,12 @@ ScopedJavaLocalRef<jintArray> StarboardBridge::GetSupportedHdrTypes(
 
 void StarboardBridge::RaisePlatformError(JNIEnv* env,
                                          jint errorType,
-                                         jlong data) {
+                                         jlong data,
+                                         const std::string& url) {
   SB_DCHECK(env);
   Java_StarboardBridge_raisePlatformError(env, j_starboard_bridge_, errorType,
-                                          data);
+                                          data,
+                                          ConvertUTF8ToJavaString(env, url));
 }
 
 bool StarboardBridge::IsPlatformErrorShowing(JNIEnv* env) {
@@ -283,6 +304,13 @@ SB_EXPORT_ANDROID bool StarboardBridge::GetLimitAdTracking(JNIEnv* env) {
   return limit_ad_tracking_java == JNI_TRUE;
 }
 
+SB_EXPORT_ANDROID std::string StarboardBridge::GetFriendlyName(JNIEnv* env) {
+  SB_DCHECK(env);
+  ScopedJavaLocalRef<jstring> friendly_name_java =
+      Java_StarboardBridge_getFriendlyName(env, j_starboard_bridge_);
+  return ConvertJavaStringToUTF8(env, friendly_name_java);
+}
+
 SB_EXPORT_ANDROID void StarboardBridge::CloseApp(JNIEnv* env) {
   SB_DCHECK(env);
   return Java_StarboardBridge_closeApp(env, j_starboard_bridge_);
@@ -321,17 +349,6 @@ void StarboardBridge::SetCrashContext(JNIEnv* env,
                                        ConvertUTF8ToJavaString(env, value));
 }
 
-ScopedJavaLocalRef<jobject> StarboardBridge::GetAudioOutputManager(
-    JNIEnv* env) {
-  SB_DCHECK(env);
-  return Java_StarboardBridge_getAudioOutputManager(env, j_starboard_bridge_);
-}
-
-ScopedJavaLocalRef<jobject> StarboardBridge::GetExoPlayerManager(JNIEnv* env) {
-  SB_CHECK(env);
-  return Java_StarboardBridge_getExoPlayerManager(env, j_starboard_bridge_);
-}
-
 bool StarboardBridge::IsMicrophoneDisconnected(JNIEnv* env) {
   SB_DCHECK(env);
   return Java_StarboardBridge_isMicrophoneDisconnected(env,
@@ -365,6 +382,17 @@ void StarboardBridge::SetVideoSurfaceBounds(JNIEnv* env,
                                                     y, width, height);
 }
 
+ScopedJavaLocalRef<jobject> StarboardBridge::GetAudioOutputManager(
+    JNIEnv* env) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_getAudioOutputManager(env, j_starboard_bridge_);
+}
+
+ScopedJavaLocalRef<jobject> StarboardBridge::GetExoPlayerManager(JNIEnv* env) {
+  SB_CHECK(env);
+  return Java_StarboardBridge_getExoPlayerManager(env, j_starboard_bridge_);
+}
+
 std::string StarboardBridge::GetUserAgentAuxField(JNIEnv* env) const {
   SB_DCHECK(env);
   return ConvertJavaStringToUTF8(
@@ -389,7 +417,7 @@ int64_t StarboardBridge::GetPlayServicesVersion(JNIEnv* env) const {
       Java_StarboardBridge_getPlayServicesVersion(env, j_starboard_bridge_));
 }
 
-base::android::ScopedJavaLocalRef<jobject> StarboardBridge::OpenCobaltService(
+ScopedJavaLocalRef<jobject> StarboardBridge::OpenCobaltService(
     JNIEnv* env,
     jlong native_service,
     const char* service_name) {
@@ -415,6 +443,24 @@ bool StarboardBridge::HasCobaltService(JNIEnv* env, const char* service_name) {
 void StarboardBridge::CloseAllCobaltService(JNIEnv* env) const {
   SB_DCHECK(env);
   Java_StarboardBridge_closeAllCobaltService(env, j_starboard_bridge_);
+}
+
+void StarboardBridge::HideSplashScreen(JNIEnv* env) const {
+  SB_DCHECK(env);
+  Java_StarboardBridge_hideSplashScreen(env, j_starboard_bridge_);
+}
+
+void StarboardBridge::SetStartupMilestone(jint milestone) const {
+  JNIEnv* env = AttachCurrentThread();
+  Java_StarboardBridge_setStartupMilestone(env, j_starboard_bridge_, milestone);
+}
+
+void StarboardBridge::SetStartupDiagnosisInfo(const char* key,
+                                              const char* value) const {
+  JNIEnv* env = AttachCurrentThread();
+  Java_StarboardBridge_setStartupDiagnosisInfo(
+      env, j_starboard_bridge_, ConvertUTF8ToJavaString(env, key),
+      ConvertUTF8ToJavaString(env, value));
 }
 
 }  // namespace starboard

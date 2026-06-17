@@ -30,10 +30,10 @@
 
 namespace starboard {
 namespace {
-using base::android::AttachCurrentThread;
 using base::android::ConvertUTF8ToJavaString;
-using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
+using jni_zero::AttachCurrentThread;
+using jni_zero::ScopedJavaLocalRef;
 
 ScopedJavaLocalRef<jobject> CreateExoPlayerColorInfo(
     const SbMediaColorMetadata& metadata) {
@@ -69,13 +69,13 @@ ScopedJavaLocalRef<jobject> CreateExoPlayerColorInfo(
 }  // namespace
 
 bool ShouldEnableTunneledPlayback(const SbMediaVideoStreamInfo& stream_info) {
-  MimeType mime_type(stream_info.mime);
-  if (stream_info.codec == kSbMediaVideoCodecNone || !mime_type.is_valid() ||
-      !mime_type.ValidateBoolParameter("tunnelmode")) {
+  auto mime_type = MimeType::Create(stream_info.mime);
+  if (stream_info.codec == kSbMediaVideoCodecNone || !mime_type ||
+      !mime_type->ValidateBoolParameter("tunnelmode")) {
     return false;
   }
 
-  return mime_type.GetParamBoolValue("tunnelmode", false);
+  return mime_type->GetParamBoolValue("tunnelmode", false);
 }
 
 ScopedJavaLocalRef<jobject> CreateAudioMediaSource(
@@ -86,7 +86,7 @@ ScopedJavaLocalRef<jobject> CreateAudioMediaSource(
     return ScopedJavaLocalRef<jobject>();
   }
 
-  if (!MimeType(stream_info.mime).is_valid()) {
+  if (!MimeType::Create(stream_info.mime)) {
     SB_LOG(ERROR) << "Invalid audio MIME: '" << stream_info.mime << "'";
     return ScopedJavaLocalRef<jobject>();
   }
@@ -129,8 +129,8 @@ ScopedJavaLocalRef<jobject> CreateVideoMediaSource(
     return ScopedJavaLocalRef<jobject>();
   }
 
-  starboard::MimeType mime_type(stream_info.mime);
-  if (!mime_type.is_valid()) {
+  auto mime_type = MimeType::Create(stream_info.mime);
+  if (!mime_type) {
     SB_LOG(ERROR) << "Invalid video MIME: '" << stream_info.mime << "'";
     return ScopedJavaLocalRef<jobject>();
   }
@@ -143,8 +143,8 @@ ScopedJavaLocalRef<jobject> CreateVideoMediaSource(
   ScopedJavaLocalRef<jstring> j_mime(ConvertUTF8ToJavaString(
       env, SupportedVideoCodecToMimeType(stream_info.codec)));
 
-  int framerate = mime_type.GetParamIntValue("framerate", 0);
-  int bitrate = mime_type.GetParamIntValue("bitrate", 0);
+  int framerate = mime_type->GetParamIntValue("framerate", 0);
+  int bitrate = mime_type->GetParamIntValue("bitrate", 0);
 
   ScopedJavaLocalRef<jobject> j_hdr_color_info =
       CreateExoPlayerColorInfo(stream_info.color_metadata);

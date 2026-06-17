@@ -43,11 +43,11 @@
 namespace starboard {
 namespace {
 
-using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
-using base::android::ScopedJavaGlobalRef;
-using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
+using jni_zero::AttachCurrentThread;
+using jni_zero::ScopedJavaGlobalRef;
+using jni_zero::ScopedJavaLocalRef;
 
 DECLARE_INSTANCE_COUNTER(ExoPlayerBridge)
 
@@ -91,7 +91,7 @@ ExoPlayerBridge::ExoPlayerBridge(
       return;
     }
 
-    j_output_surface.Reset(env, AcquireVideoSurface());
+    j_output_surface.Reset(AcquireVideoSurface());
     if (!j_output_surface) {
       init_error_msg_ = "Could not acquire video surface for ExoPlayer";
       SB_LOG(ERROR) << init_error_msg_;
@@ -136,7 +136,7 @@ ExoPlayerBridge::~ExoPlayerBridge() {
   }
 
   if (owns_surface_) {
-    ClearVideoWindow(true);
+    CleanUpVideoWindow(true);
     ReleaseVideoSurface();
   }
 }
@@ -147,7 +147,7 @@ void ExoPlayerBridge::OnSurfaceDestroyed() {
     std::string msg = "ExoPlayer surface is destroyed before playback ended";
     SB_LOG(ERROR) << msg;
     playback_error_occurred_.store(true);
-    ReportError(AttachCurrentThread(), kSbPlayerErrorDecode, msg);
+    ReportError(msg);
   }
 }
 
@@ -371,9 +371,7 @@ bool ExoPlayerBridge::ShouldAbortOperation() const {
   return false;
 }
 
-void ExoPlayerBridge::ReportError(JNIEnv* env,
-                                  SbPlayerError error,
-                                  const std::string& msg) const {
+void ExoPlayerBridge::ReportError(const std::string& msg) const {
   SB_CHECK(error_cb_);
   error_cb_(kSbPlayerErrorDecode, msg);
 }
