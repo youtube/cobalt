@@ -21,11 +21,11 @@
 #include <mutex>
 
 #include "starboard/common/check_op.h"
+#include "starboard/common/thread_options.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/shared/starboard/player/job_thread.h"
-#include "starboard/thread.h"
 
 namespace starboard {
 namespace {
@@ -70,8 +70,9 @@ StubAudioSink::StubAudioSink(
       update_source_status_func_(update_source_status_func),
       consume_frames_func_(consume_frames_func),
       context_(context),
-      audio_out_thread_(
-          JobThread::Create("stub_audio_out", kSbThreadPriorityRealTime)) {
+      audio_out_thread_(JobThread::Create(
+          "stub_audio_out",
+          ThreadOptions().SetPriority(ThreadPriority::kRealTime))) {
   SB_CHECK(audio_out_thread_);
 
   audio_out_thread_->Schedule([this] { AudioThreadFunc(); });

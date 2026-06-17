@@ -20,6 +20,8 @@ on:
         type: boolean
         default: false
 
+permissions: read-all
+
 jobs:
   chromium_android-arm64:
     uses: ./.github/workflows/main.yaml

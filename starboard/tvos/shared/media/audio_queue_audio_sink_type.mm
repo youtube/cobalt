@@ -24,12 +24,12 @@
 #include <vector>
 
 #include "starboard/common/log.h"
+#include "starboard/common/thread_options.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/job_thread.h"
-#include "starboard/thread.h"
 #include "starboard/tvos/shared/application_darwin.h"
 
 namespace starboard {
@@ -389,8 +389,9 @@ void TvosAudioSink::TryWriteFrames(int frames_in_buffer, int offset_in_frames) {
 }
 
 TvosAudioSinkType::TvosAudioSinkType()
-    : audio_thread_(
-          JobThread::Create("tvos_audio_out", kSbThreadPriorityRealTime)) {
+    : audio_thread_(JobThread::Create(
+          "tvos_audio_out",
+          ThreadOptions().SetPriority(ThreadPriority::kRealTime))) {
   SB_CHECK(audio_thread_);
 
   audio_thread_->Schedule([this] { ProcessAudio(); });

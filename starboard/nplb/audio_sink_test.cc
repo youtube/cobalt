@@ -19,110 +19,109 @@
 #include <algorithm>
 
 #include "starboard/nplb/audio_sink_helpers.h"
-#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {
 
 TEST(SbAudioSinkTest, UpdateStatusCalled) {
   AudioSinkTestFrameBuffers frame_buffers(SbAudioSinkGetMaxChannels());
-  AudioSinkTestEnvironment environment(frame_buffers);
-  ASSERT_TRUE(environment.is_valid());
+  auto environment = AudioSinkTestEnvironment::Create(frame_buffers);
+  ASSERT_TRUE(environment);
 
-  EXPECT_TRUE(environment.WaitUntilUpdateStatusCalled());
-  EXPECT_TRUE(environment.WaitUntilUpdateStatusCalled());
+  EXPECT_TRUE(environment->WaitUntilUpdateStatusCalled());
+  EXPECT_TRUE(environment->WaitUntilUpdateStatusCalled());
 }
 
 TEST(SbAudioSinkTest, SomeFramesConsumed) {
   AudioSinkTestFrameBuffers frame_buffers(SbAudioSinkGetMaxChannels());
-  AudioSinkTestEnvironment environment(frame_buffers);
-  ASSERT_TRUE(environment.is_valid());
+  auto environment = AudioSinkTestEnvironment::Create(frame_buffers);
+  ASSERT_TRUE(environment);
 
   // Audio sink need to be fully filled once to ensure it can start working.
   int frames_to_append = frame_buffers.frames_per_channel();
-  environment.AppendFrame(frames_to_append);
+  environment->AppendFrame(frames_to_append);
 
-  EXPECT_TRUE(environment.WaitUntilSomeFramesAreConsumed());
+  EXPECT_TRUE(environment->WaitUntilSomeFramesAreConsumed());
 }
 
 TEST(SbAudioSinkTest, AllFramesConsumed) {
   AudioSinkTestFrameBuffers frame_buffers(SbAudioSinkGetMaxChannels());
-  AudioSinkTestEnvironment environment(frame_buffers);
-  ASSERT_TRUE(environment.is_valid());
+  auto environment = AudioSinkTestEnvironment::Create(frame_buffers);
+  ASSERT_TRUE(environment);
 
   int frames_to_append = frame_buffers.frames_per_channel();
-  environment.AppendFrame(frames_to_append / 2);
+  environment->AppendFrame(frames_to_append / 2);
 
-  EXPECT_TRUE(environment.WaitUntilAllFramesAreConsumed());
+  EXPECT_TRUE(environment->WaitUntilAllFramesAreConsumed());
 }
 
 TEST(SbAudioSinkTest, MultipleAppendAndConsume) {
   AudioSinkTestFrameBuffers frame_buffers(SbAudioSinkGetMaxChannels());
-  AudioSinkTestEnvironment environment(frame_buffers);
-  ASSERT_TRUE(environment.is_valid());
+  auto environment = AudioSinkTestEnvironment::Create(frame_buffers);
+  ASSERT_TRUE(environment);
 
   // Audio sink need to be fully filled once to ensure it can start working.
   int frames_to_append = frame_buffers.frames_per_channel();
-  environment.AppendFrame(frames_to_append);
+  environment->AppendFrame(frames_to_append);
 
-  EXPECT_TRUE(environment.WaitUntilSomeFramesAreConsumed());
-  ASSERT_GT(environment.GetFrameBufferFreeSpaceInFrames(), 0);
-  environment.AppendFrame(environment.GetFrameBufferFreeSpaceInFrames());
-  EXPECT_TRUE(environment.WaitUntilAllFramesAreConsumed());
+  EXPECT_TRUE(environment->WaitUntilSomeFramesAreConsumed());
+  ASSERT_GT(environment->GetFrameBufferFreeSpaceInFrames(), 0);
+  environment->AppendFrame(environment->GetFrameBufferFreeSpaceInFrames());
+  EXPECT_TRUE(environment->WaitUntilAllFramesAreConsumed());
 }
 
 TEST(SbAudioSinkTest, Pause) {
   AudioSinkTestFrameBuffers frame_buffers(SbAudioSinkGetMaxChannels());
-  AudioSinkTestEnvironment environment(frame_buffers);
-  ASSERT_TRUE(environment.is_valid());
+  auto environment = AudioSinkTestEnvironment::Create(frame_buffers);
+  ASSERT_TRUE(environment);
 
-  environment.SetIsPlaying(false);
+  environment->SetIsPlaying(false);
 
   // Audio sink need to be fully filled once to ensure it can start working.
   int frames_to_append = frame_buffers.frames_per_channel();
-  environment.AppendFrame(frames_to_append);
+  environment->AppendFrame(frames_to_append);
 
-  int free_space = environment.GetFrameBufferFreeSpaceInFrames();
-  EXPECT_TRUE(environment.WaitUntilUpdateStatusCalled());
-  EXPECT_TRUE(environment.WaitUntilUpdateStatusCalled());
-  EXPECT_EQ(free_space, environment.GetFrameBufferFreeSpaceInFrames());
-  environment.SetIsPlaying(true);
-  EXPECT_TRUE(environment.WaitUntilSomeFramesAreConsumed());
+  int free_space = environment->GetFrameBufferFreeSpaceInFrames();
+  EXPECT_TRUE(environment->WaitUntilUpdateStatusCalled());
+  EXPECT_TRUE(environment->WaitUntilUpdateStatusCalled());
+  EXPECT_EQ(free_space, environment->GetFrameBufferFreeSpaceInFrames());
+  environment->SetIsPlaying(true);
+  EXPECT_TRUE(environment->WaitUntilSomeFramesAreConsumed());
 }
 
 TEST(SbAudioSinkTest, Underflow) {
   AudioSinkTestFrameBuffers frame_buffers(SbAudioSinkGetMaxChannels());
-  AudioSinkTestEnvironment environment(frame_buffers);
-  ASSERT_TRUE(environment.is_valid());
+  auto environment = AudioSinkTestEnvironment::Create(frame_buffers);
+  ASSERT_TRUE(environment);
 
   // Audio sink need to be fully filled once to ensure it can start working.
   int frames_to_append = frame_buffers.frames_per_channel();
-  environment.AppendFrame(frames_to_append);
+  environment->AppendFrame(frames_to_append);
 
-  EXPECT_TRUE(environment.WaitUntilSomeFramesAreConsumed());
+  EXPECT_TRUE(environment->WaitUntilSomeFramesAreConsumed());
   usleep(250'000);
-  ASSERT_GT(environment.GetFrameBufferFreeSpaceInFrames(), 0);
-  environment.AppendFrame(environment.GetFrameBufferFreeSpaceInFrames());
-  EXPECT_TRUE(environment.WaitUntilAllFramesAreConsumed());
+  ASSERT_GT(environment->GetFrameBufferFreeSpaceInFrames(), 0);
+  environment->AppendFrame(environment->GetFrameBufferFreeSpaceInFrames());
+  EXPECT_TRUE(environment->WaitUntilAllFramesAreConsumed());
 }
 
 TEST(SbAudioSinkTest, ContinuousAppend) {
   AudioSinkTestFrameBuffers frame_buffers(SbAudioSinkGetMaxChannels());
 
-  AudioSinkTestEnvironment environment(frame_buffers);
-  ASSERT_TRUE(environment.is_valid());
+  auto environment = AudioSinkTestEnvironment::Create(frame_buffers);
+  ASSERT_TRUE(environment);
 
-  int sample_rate = environment.sample_rate();
+  int sample_rate = environment->sample_rate();
   // We are trying to send 1/4s worth of audio samples.
   int frames_to_append = sample_rate / 4;
 
   while (frames_to_append > 0) {
-    int free_space = environment.GetFrameBufferFreeSpaceInFrames();
-    environment.AppendFrame(std::min(free_space, frames_to_append));
+    int free_space = environment->GetFrameBufferFreeSpaceInFrames();
+    environment->AppendFrame(std::min(free_space, frames_to_append));
     frames_to_append -= std::min(free_space, frames_to_append);
-    ASSERT_TRUE(environment.WaitUntilSomeFramesAreConsumed());
+    ASSERT_TRUE(environment->WaitUntilSomeFramesAreConsumed());
   }
-  EXPECT_TRUE(environment.WaitUntilAllFramesAreConsumed());
+  EXPECT_TRUE(environment->WaitUntilAllFramesAreConsumed());
 }
 
 }  // namespace nplb

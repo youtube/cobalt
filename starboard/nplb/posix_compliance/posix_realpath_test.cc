@@ -37,13 +37,11 @@ const mode_t kUserRwx = S_IRWXU;
 class PosixRealpathTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    char template_name[] = "/tmp/realpath_test_XXXXXX";
-    char* dir_name = mkdtemp(template_name);
-    ASSERT_NE(dir_name, nullptr) << "mkdtemp failed: " << strerror(errno);
-    test_dir_ = dir_name;
+    ASSERT_TRUE(temp_dir_.IsValid())
+        << "ScopedTempDir failed to create directory";
 
     // Create a known file/directory structure for tests:
-    // test_dir_
+    // temp_dir_.path()
     // |-- file1
     // |-- subdir1
     // |   `-- file2
@@ -58,13 +56,13 @@ class PosixRealpathTest : public ::testing::Test {
     // `-- loop_b -> "loop_a"
 
     // Create file1
-    std::string file1_path = test_dir_ + "/file1";
+    std::string file1_path = temp_dir_.path() + "/file1";
     int fd = open(file1_path.c_str(), O_CREAT | O_WRONLY, 0600);
     ASSERT_NE(fd, -1);
     ASSERT_EQ(close(fd), 0);
 
     // Create subdir1 and file2
-    std::string subdir1_path = test_dir_ + "/subdir1";
+    std::string subdir1_path = temp_dir_.path() + "/subdir1";
     ASSERT_EQ(mkdir(subdir1_path.c_str(), kUserRwx), 0);
     std::string file2_path = subdir1_path + "/file2";
     fd = open(file2_path.c_str(), O_CREAT | O_WRONLY, 0600);
@@ -72,17 +70,13 @@ class PosixRealpathTest : public ::testing::Test {
     ASSERT_EQ(close(fd), 0);
   }
 
-  void TearDown() override {
-    if (!test_dir_.empty()) {
-      RemoveFileOrDirectoryRecursively(test_dir_.c_str());
-    }
-  }
+  void TearDown() override {}
 
-  std::string test_dir_;
+  ScopedTempDir temp_dir_;
 };
 
 TEST_F(PosixRealpathTest, ResolvesBasicPath) {
-  std::string original_path = test_dir_ + "/file1";
+  std::string original_path = temp_dir_.path() + "/file1";
   std::string expected_path = original_path;
   char resolved_path[PATH_MAX];
 
@@ -94,8 +88,8 @@ TEST_F(PosixRealpathTest, ResolvesBasicPath) {
 }
 
 TEST_F(PosixRealpathTest, ResolvesPathWithDot) {
-  std::string original_path = test_dir_ + "/./file1";
-  std::string expected_path = test_dir_ + "/file1";
+  std::string original_path = temp_dir_.path() + "/./file1";
+  std::string expected_path = temp_dir_.path() + "/file1";
   char resolved_path[PATH_MAX];
 
   errno = 0;
@@ -105,8 +99,8 @@ TEST_F(PosixRealpathTest, ResolvesPathWithDot) {
 }
 
 TEST_F(PosixRealpathTest, ResolvesPathWithDotDot) {
-  std::string original_path = test_dir_ + "/subdir1/../file1";
-  std::string expected_path = test_dir_ + "/file1";
+  std::string original_path = temp_dir_.path() + "/subdir1/../file1";
+  std::string expected_path = temp_dir_.path() + "/file1";
   char resolved_path[PATH_MAX];
 
   errno = 0;
@@ -116,8 +110,8 @@ TEST_F(PosixRealpathTest, ResolvesPathWithDotDot) {
 }
 
 TEST_F(PosixRealpathTest, ResolvesPathWithMultipleSlashes) {
-  std::string original_path = test_dir_ + "///subdir1//file2";
-  std::string expected_path = test_dir_ + "/subdir1/file2";
+  std::string original_path = temp_dir_.path() + "///subdir1//file2";
+  std::string expected_path = temp_dir_.path() + "/subdir1/file2";
   char resolved_path[PATH_MAX];
 
   errno = 0;
@@ -127,8 +121,8 @@ TEST_F(PosixRealpathTest, ResolvesPathWithMultipleSlashes) {
 }
 
 TEST_F(PosixRealpathTest, ResolvesPathWithTrailingSlash) {
-  std::string original_path = test_dir_ + "/subdir1/";
-  std::string expected_path = test_dir_ + "/subdir1";
+  std::string original_path = temp_dir_.path() + "/subdir1/";
+  std::string expected_path = temp_dir_.path() + "/subdir1";
   char resolved_path[PATH_MAX];
 
   errno = 0;
@@ -146,12 +140,12 @@ TEST_F(PosixRealpathTest, ResolvesRootPath) {
 }
 
 TEST_F(PosixRealpathTest, ResolvesPathEndingInSymlink) {
-  std::string file1_path = test_dir_ + "/file1";
-  ASSERT_EQ(
-      symlink(file1_path.c_str(), (test_dir_ + "/symlink_to_file1").c_str()),
-      0);
-  std::string original_path = test_dir_ + "/symlink_to_file1";
-  std::string expected_path = test_dir_ + "/file1";
+  std::string file1_path = temp_dir_.path() + "/file1";
+  ASSERT_EQ(symlink(file1_path.c_str(),
+                    (temp_dir_.path() + "/symlink_to_file1").c_str()),
+            0);
+  std::string original_path = temp_dir_.path() + "/symlink_to_file1";
+  std::string expected_path = temp_dir_.path() + "/file1";
   char resolved_path[PATH_MAX];
 
   errno = 0;
@@ -161,12 +155,12 @@ TEST_F(PosixRealpathTest, ResolvesPathEndingInSymlink) {
 }
 
 TEST_F(PosixRealpathTest, ResolvesPathContainingSymlink) {
-  std::string subdir1_path = test_dir_ + "/subdir1";
+  std::string subdir1_path = temp_dir_.path() + "/subdir1";
   ASSERT_EQ(symlink(subdir1_path.c_str(),
-                    (test_dir_ + "/symlink_to_subdir1").c_str()),
+                    (temp_dir_.path() + "/symlink_to_subdir1").c_str()),
             0);
-  std::string original_path = test_dir_ + "/symlink_to_subdir1/file2";
-  std::string expected_path = test_dir_ + "/subdir1/file2";
+  std::string original_path = temp_dir_.path() + "/symlink_to_subdir1/file2";
+  std::string expected_path = temp_dir_.path() + "/subdir1/file2";
   char resolved_path[PATH_MAX];
 
   errno = 0;
@@ -190,7 +184,7 @@ TEST_F(PosixRealpathTest, FailsWithNullFileName) {
 }
 
 TEST_F(PosixRealpathTest, FailsIfComponentDoesNotExist) {
-  std::string original_path = test_dir_ + "/non_existent/file";
+  std::string original_path = temp_dir_.path() + "/non_existent/file";
   char resolved_path[PATH_MAX];
 
   errno = 0;
@@ -199,9 +193,10 @@ TEST_F(PosixRealpathTest, FailsIfComponentDoesNotExist) {
 }
 
 TEST_F(PosixRealpathTest, FailsWithDanglingSymlink) {
-  ASSERT_EQ(symlink("non_existent", (test_dir_ + "/dangling_symlink").c_str()),
-            0);
-  std::string original_path = test_dir_ + "/dangling_symlink";
+  ASSERT_EQ(
+      symlink("non_existent", (temp_dir_.path() + "/dangling_symlink").c_str()),
+      0);
+  std::string original_path = temp_dir_.path() + "/dangling_symlink";
   char resolved_path[PATH_MAX];
 
   errno = 0;
@@ -210,7 +205,7 @@ TEST_F(PosixRealpathTest, FailsWithDanglingSymlink) {
 }
 
 TEST_F(PosixRealpathTest, FailsIfPathComponentIsNotDirectory) {
-  std::string original_path = test_dir_ + "/file1/some_other_file";
+  std::string original_path = temp_dir_.path() + "/file1/some_other_file";
   char resolved_path[PATH_MAX];
 
   errno = 0;
@@ -220,9 +215,9 @@ TEST_F(PosixRealpathTest, FailsIfPathComponentIsNotDirectory) {
 
 TEST_F(PosixRealpathTest, FailsWithSymbolicLinkLoop) {
   // Create a symlink loop. Targets are relative as they are in the same dir.
-  ASSERT_EQ(symlink("loop_b", (test_dir_ + "/loop_a").c_str()), 0);
-  ASSERT_EQ(symlink("loop_a", (test_dir_ + "/loop_b").c_str()), 0);
-  std::string original_path = test_dir_ + "/loop_a";
+  ASSERT_EQ(symlink("loop_b", (temp_dir_.path() + "/loop_a").c_str()), 0);
+  ASSERT_EQ(symlink("loop_a", (temp_dir_.path() + "/loop_b").c_str()), 0);
+  std::string original_path = temp_dir_.path() + "/loop_a";
   char resolved_path[PATH_MAX];
 
   errno = 0;
@@ -232,7 +227,7 @@ TEST_F(PosixRealpathTest, FailsWithSymbolicLinkLoop) {
 
 TEST_F(PosixRealpathTest, FailsOnPathComponentTooLong) {
   std::string long_component(PATH_MAX, 'b');
-  std::string long_path = test_dir_ + "/" + long_component;
+  std::string long_path = temp_dir_.path() + "/" + long_component;
 
   char resolved_path[PATH_MAX];
   errno = 0;

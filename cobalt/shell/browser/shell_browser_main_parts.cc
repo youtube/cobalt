@@ -18,15 +18,8 @@
 
 #include "base/base_switches.h"
 #include "base/command_line.h"
-#include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#include "base/functional/bind.h"
-#include "base/functional/callback_helpers.h"
 #include "base/memory/ref_counted_memory.h"
-#include "base/strings/utf_string_conversions.h"
-#include "base/task/current_thread.h"
-#include "base/threading/thread.h"
-#include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "cc/base/switches.h"
 #include "cobalt/shell/android/shell_descriptors.h"
@@ -75,11 +68,32 @@
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "cobalt/shell/common/device_authentication.h"
+#include "net/base/network_change_notifier.h"
+#include "net/base/network_change_notifier_factory.h"
+#include "net/base/network_change_notifier_passive.h"
+#include "starboard/system.h"  // nogncheck
 #endif
 
 namespace content {
 
 namespace {
+#if BUILDFLAG(IS_STARBOARD)
+class NetworkChangeNotifierFactoryStarboard
+    : public net::NetworkChangeNotifierFactory {
+ public:
+  std::unique_ptr<net::NetworkChangeNotifier> CreateInstanceWithInitialTypes(
+      net::NetworkChangeNotifier::ConnectionType initial_type,
+      net::NetworkChangeNotifier::ConnectionSubtype initial_subtype) override {
+    // Override the initial type based on actual Starboard state.
+    initial_type = SbSystemNetworkIsDisconnected()
+                       ? net::NetworkChangeNotifier::CONNECTION_NONE
+                       : net::NetworkChangeNotifier::CONNECTION_UNKNOWN;
+    return std::make_unique<net::NetworkChangeNotifierPassive>(initial_type,
+                                                               initial_subtype);
+  }
+};
+#endif
+
 GURL GetStartupURL() {
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kBrowserTest)) {
@@ -141,6 +155,9 @@ int ShellBrowserMainParts::PreEarlyInitialization() {
 #if BUILDFLAG(IS_ANDROID)
   net::NetworkChangeNotifier::SetFactory(
       new net::NetworkChangeNotifierFactoryAndroid());
+#elif BUILDFLAG(IS_STARBOARD)
+  net::NetworkChangeNotifier::SetFactory(
+      new NetworkChangeNotifierFactoryStarboard());
 #endif
   return RESULT_CODE_NORMAL_EXIT;
 }
@@ -208,6 +225,7 @@ void ShellBrowserMainParts::PostMainMessageLoopRun() {
 #if BUILDFLAG(IS_LINUX)
   ui::LinuxUi::SetInstance(nullptr);
 #endif
+  base::RunLoop().RunUntilIdle();
   performance_manager_lifetime_.reset();
 }
 
@@ -216,6 +234,12 @@ void ShellBrowserMainParts::PostDestroyThreads() {
   device::BluetoothAdapterFactory::Shutdown();
   bluez::DBusBluezManagerWrapperLinux::Shutdown();
 #endif
+}
+
+void ShellBrowserMainParts::PostOrRunIfStorageMigrationFinished(
+    base::OnceClosure task) {
+  // Default implementation doesn't defer tasks.
+  std::move(task).Run();
 }
 
 std::unique_ptr<ShellPlatformDelegate>

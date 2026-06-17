@@ -88,12 +88,20 @@ class UrlFetcherDownloader : public CrxDownloader {
 #endif  // defined(IN_MEMORY_UPDATES)
 #endif  // BUILDFLAG(IS_STARBOARD)
 
+#if defined(IN_MEMORY_UPDATES)
+  // Does not take ownership of |dst|, which must refer to a valid string that
+  // outlives this object.
+  void OnNetworkFetcherComplete(std::string* dst,
+                                int net_error,
+                                int64_t content_size);
+#else
   void OnNetworkFetcherComplete(int net_error, int64_t content_size);
+#endif
   void OnResponseStarted(int response_code, int64_t content_length);
   void OnDownloadProgress(int64_t content_length);
   void Cancel();
 
-#if BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(IS_STARBOARD)
   void ReportDownloadFailure(const GURL& url, CrxDownloaderError error);
 #endif
 
@@ -124,9 +132,7 @@ class UrlFetcherDownloader : public CrxDownloader {
   int64_t total_bytes_ = -1;
 
 #if BUILDFLAG(IS_STARBOARD)
-#if BUILDFLAG(USE_EVERGREEN)
   CobaltSlotManagement cobalt_slot_management_;
-#endif
   scoped_refptr<Configurator> config_;
   // This variable tracks a Cancel() being called: all subsequent
   // download requests will be ignored.

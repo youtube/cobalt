@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//media/media_options.gni")
 if (is_cobalt) {
   import("//starboard/build/buildflags.gni")
 }
@@ -23,6 +24,13 @@ source_set("common") {
     "validation_utils.cc",
     "validation_utils.h",
   ]
+
+  if (is_cobalt && use_starboard_media) {
+    sources += [
+      "starboard/mojo_renderer_bypass_bridge.cc",
+      "starboard/mojo_renderer_bypass_bridge.h",
+    ]
+  }
 
   deps = [
     "//base",

@@ -19,6 +19,7 @@
 #include <sstream>
 
 #include "base/compiler_specific.h"
+#include "base/functional/callback.h"
 #include "base/synchronization/lock.h"
 #include "base/thread_annotations.h"
 #include "base/time/time.h"
@@ -40,14 +41,19 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   class Strategy {
    public:
     virtual ~Strategy() {}
-    virtual void* Allocate(DemuxerStream::Type type,
-                           size_t size,
-                           size_t alignment) = 0;
+    virtual void* Allocate(DemuxerStream::Type type, size_t size) = 0;
     virtual void Free(DemuxerStream::Type type, void* p) = 0;
+    virtual void Write(void* p, const void* data, size_t size) = 0;
 
     virtual size_t GetCapacity() const = 0;
     virtual size_t GetAllocated() const = 0;
+
+    virtual void DecommitAllDecommitableBlocks() = 0;
   };
+
+  using StrategyCreateCB =
+      base::RepeatingCallback<std::unique_ptr<Strategy>(int initial_capacity,
+                                                        int allocation_unit)>;
 
   explicit DecoderBufferAllocator();
   DecoderBufferAllocator(bool is_memory_pool_allocated_on_demand,
@@ -55,23 +61,34 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
                          int allocation_unit);
   ~DecoderBufferAllocator() override;
 
+  static DecoderBufferAllocator* Get();
+
   void Suspend();
   void Resume();
+  void DecommitAllDecommitableBlocks();
 
   // DecoderBuffer::Allocator methods.
-  void* Allocate(DemuxerStream::Type type,
-                 size_t size,
-                 size_t alignment) override;
-  void Free(void* p, size_t size) override;
+  Handle Allocate(DemuxerStream::Type type, size_t size) override;
+  void Free(DemuxerStream::Type type, Handle p, size_t size) override;
+  void Write(Handle handle, const void* data, size_t size) override;
 
-  int GetBufferAlignment() const override;
-  int GetBufferPadding() const override;
   base::TimeDelta GetBufferGarbageCollectionDurationThreshold() const override;
 
   // DecoderBufferMemoryInfo methods.
   size_t GetAllocatedMemory() const override LOCKS_EXCLUDED(mutex_);
   size_t GetCurrentMemoryCapacity() const override LOCKS_EXCLUDED(mutex_);
   size_t GetMaximumMemoryCapacity() const override LOCKS_EXCLUDED(mutex_);
+
+  void UpdateAllocatorStrategy(StrategyCreateCB create_cb);
+
+  // Utility functions for h5vcc settings.
+  // TODO(b/460292554): To be deprecated with h5vcc settings.
+  static void EnableConfigurableDecommitStrategy(
+      int block_size,
+      int retain_blocks,
+      int conservative_decommit_blocks,
+      bool aggressive_decommit_on_suspend);
+  static void EnableMediaBufferPoolStrategy();
 
  private:
   void EnsureStrategyIsCreated() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
@@ -86,6 +103,8 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
 
   mutable base::Lock mutex_;
   std::unique_ptr<Strategy> strategy_ GUARDED_BY(mutex_);
+  bool is_strategy_switch_pending_ GUARDED_BY(mutex_) = false;
+  StrategyCreateCB experimental_strategy_create_cb_ GUARDED_BY(mutex_);
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   // The following variables are used for comprehensive logging of allocation

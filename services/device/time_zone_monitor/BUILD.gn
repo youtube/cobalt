@@ -16,7 +16,7 @@ source_set("time_zone_monitor") {
   ]
 
   if (is_cobalt) {
-    visibility += [ "//cobalt" ]
+    visibility += [ "//cobalt:common" ]
   }
 
   sources = [

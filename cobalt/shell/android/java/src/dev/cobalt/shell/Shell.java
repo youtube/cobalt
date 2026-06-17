@@ -27,12 +27,12 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import dev.cobalt.shell.ContentViewRenderView;
 import org.chromium.base.Callback;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.components.embedder_support.view.ContentViewRenderView;
 import org.chromium.content_public.browser.ActionModeCallbackHelper;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.NavigationController;
@@ -75,6 +75,7 @@ public class Shell {
     private NavigationController mNavigationController;
 
     private long mNativeShell;
+    private @Nullable StartupGuardNavigationObserver mStartupGuardNavigationObserver;
     private @Nullable ContentViewRenderView mContentViewRenderView;
     private @Nullable WindowAndroid mWindow;
     private @Nullable ShellViewAndroidDelegate mViewAndroidDelegate;
@@ -241,6 +242,7 @@ public class Shell {
             mWebContents.updateWebContentsVisibility(Visibility.VISIBLE);
         }
         assumeNonNull(mContentViewRenderView).setCurrentWebContents(mWebContents);
+        mStartupGuardNavigationObserver = new StartupGuardNavigationObserver(mWebContents);
         if (mWebContentsReadyListener != null) {
             mWebContentsReadyListener.onWebContentsReady();
         }

@@ -23,11 +23,13 @@
 #include <utility>
 
 #include "starboard/common/log.h"
+#include "starboard/common/rect.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/result.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/job_thread.h"
@@ -51,10 +53,12 @@ class PlayerWorker {
 
   struct Bounds {
     int z_index;
-    int x;
-    int y;
-    int width;
-    int height;
+    Rect rect;
+
+    bool operator==(const Bounds& other) const {
+      return z_index == other.z_index && rect == other.rect;
+    }
+    bool operator!=(const Bounds& other) const { return !(*this == other); }
   };
 
   // All functions of this class will be called from the JobQueue thread.
@@ -103,6 +107,8 @@ class PlayerWorker {
     virtual void SetMaxVideoInputSize(int max_video_input_size) = 0;
 
     virtual void SetVideoSurfaceView(void* surface_view) = 0;
+    virtual void SetExperimentalFeatures(
+        const ExperimentalFeatures& experimental_features) = 0;
 
    private:
     Handler(const Handler&) = delete;
@@ -215,7 +221,8 @@ class PlayerWorker {
   SbPlayerState player_state_;
   InputBuffers pending_audio_buffers_;
   InputBuffers pending_video_buffers_;
-  JobQueue::JobToken write_pending_sample_job_token_;
+  JobQueue::JobToken write_pending_sample_job_token_ =
+      JobQueue::JobToken::kUnscheduled;
 };
 
 }  // namespace starboard

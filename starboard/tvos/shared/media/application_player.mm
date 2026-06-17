@@ -241,8 +241,7 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
 
 #if TARGET_OS_EMBEDDED
     _keySession = [AVContentKeySession
-        contentKeySessionWithKeySystem:AVContentKeySystemFairPlayStreaming
-                 storageDirectoryAtURL:nil];
+        contentKeySessionWithKeySystem:AVContentKeySystemFairPlayStreaming];
     [_keySession setDelegate:self
                        queue:dispatch_queue_create("keySessionQueue", NULL)];
 #endif  // TARGET_OS_EMBEDDED

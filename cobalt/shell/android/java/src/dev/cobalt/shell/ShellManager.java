@@ -15,12 +15,12 @@
 package dev.cobalt.shell;
 
 import android.content.Context;
+import dev.cobalt.shell.ContentViewRenderView;
 import org.chromium.base.ThreadUtils;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.build.annotations.RequiresNonNull;
-import org.chromium.components.embedder_support.view.ContentViewRenderView;
 import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
@@ -206,5 +206,11 @@ public class ShellManager {
          * @param deepLinkUrl The topic URL from the DeepLink URL.
          */
         void launchShell(String url, String deepLinkUrl);
+        /**
+         * Appends the migration status parameter to the given URL.
+         * @param url The URL to append the migration status to.
+         * @return The updated URL.
+         */
+        String appendMigrationStatus(String url);
     }
 }

@@ -51,8 +51,10 @@ class H5vccSystemImpl : public content::DocumentService<mojom::H5vccSystem> {
       GetTrackingAuthorizationStatusSyncCallback) override;
   void RequestTrackingAuthorization(
       RequestTrackingAuthorizationCallback) override;
+  void GetFriendlyName(GetFriendlyNameCallback) override;
   void GetUserOnExitStrategy(GetUserOnExitStrategyCallback) override;
   void Exit() override;
+  void HideSplashScreen() override;
 
  private:
   H5vccSystemImpl(content::RenderFrameHost& render_frame_host,

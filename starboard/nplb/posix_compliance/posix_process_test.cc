@@ -32,6 +32,11 @@ TEST(PosixProcessTest, GetEuid) {
   EXPECT_GE(euid, 0U) << "geteuid failed: " << strerror(errno);
 }
 
+TEST(PosixProcessTest, GetUid) {
+  uid_t uid = geteuid();
+  EXPECT_GE(uid, 0U) << "getuid failed: " << strerror(errno);
+}
+
 TEST(PosixProcessTest, SchedGetPriorityMax) {
   int max_priority = sched_get_priority_max(SCHED_FIFO);
   EXPECT_NE(max_priority, -1)

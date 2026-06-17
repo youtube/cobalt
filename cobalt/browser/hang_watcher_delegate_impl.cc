@@ -19,7 +19,7 @@
 
 #include "base/feature_list.h"
 #include "cobalt/browser/features.h"
-
+#include "cobalt/browser/global_features.h"
 namespace cobalt {
 namespace browser {
 
@@ -30,6 +30,26 @@ void CobaltHangWatcherDelegate::Initialize() {
 }
 
 bool CobaltHangWatcherDelegate::IsHangReportingEnabled() {
+  // First, check 'GlobalFeatures', which is a process-wide settings dictionary
+  // typically populated by the embedder via the JS H5VCC API.
+  // We prioritize this to allow embedders to enable hang reporting
+  // until the proper Finch bridge is fully functional. If the setting isn't
+  // explicitly provided, we fallback to the standard Chromium 'FeatureList'
+  // which is backed by Finch.
+  if (auto* global_features = GlobalFeatures::GetInstance()) {
+    const auto& settings = global_features->GetSettings();
+    auto it = settings.find("EnableHangReporting");
+    if (it != settings.end()) {
+      if (const auto* val = std::get_if<int64_t>(&it->second)) {
+        bool enabled = (*val != 0);
+        DLOG(INFO) << "CobaltHangWatcherDelegate: EnableHangReporting: "
+                   << enabled;
+        return enabled;
+      }
+    }
+  }
+  DLOG(INFO) << "CobaltHangWatcherDelegate: EnableHangReporting: using Finch";
+
   return base::FeatureList::IsEnabled(cobalt::features::kHangReporting);
 }
 

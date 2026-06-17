@@ -596,6 +596,14 @@ source_set("browser_sources") {
     "//ui/base/dragdrop/mojom:mojom_headers",
     "//ui/base/mojom:ui_base_types",
   ]
+
+  if (is_cobalt) {
+    public_deps -= [
+      "//services/on_device_model/public/cpp",
+      "//services/on_device_model/public/mojom",
+    ]
+  }
+
   deps = [
     "//cc",
     "//components/input",
@@ -626,6 +634,14 @@ source_set("browser_sources") {
     "//ui/shell_dialogs",
     "//ui/surface",
   ]
+
+  if (is_cobalt) {
+    deps -= [
+      "//components/language_detection/content/browser",
+      "//components/language_detection/content/common",
+      "//components/language_detection/core/browser:language_detection_model_service",
+    ]
+  }
 
   allow_circular_includes_from = [
     # This target is a pair with content / browser.They always go together and

@@ -16,6 +16,8 @@
 #include <stdarg.h>
 #include <sys/prctl.h>
 
+#include "starboard/shared/modular/starboard_layer_posix_prctl_abi_wrappers.h"
+
 extern "C" {
 
 int __abi_wrap_prctl(int op, ...);
@@ -37,6 +39,14 @@ int prctl(int op, ...) {
 #endif
     case PR_SET_PTRACER: {
       result = __abi_wrap_prctl(op, va_arg(ap, long));
+      break;
+    }
+    case MUSL_PR_SET_VMA: {
+      unsigned long arg2 = va_arg(ap, unsigned long);
+      unsigned long arg3 = va_arg(ap, unsigned long);
+      unsigned long arg4 = va_arg(ap, unsigned long);
+      unsigned long arg5 = va_arg(ap, unsigned long);
+      result = __abi_wrap_prctl(op, arg2, arg3, arg4, arg5);
       break;
     }
     // The following commands have an unsigned long second argument.
@@ -81,4 +91,5 @@ int prctl(int op, ...) {
   va_end(ap);
   return result;
 }
+
 }  // extern "C"

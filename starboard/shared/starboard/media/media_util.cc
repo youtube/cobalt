@@ -29,8 +29,7 @@ namespace starboard {
 
 namespace {
 
-template <typename StreamInfo>
-void Assign(const StreamInfo& source, AudioStreamInfo* dest) {
+void Assign(const SbMediaAudioStreamInfo& source, AudioStreamInfo* dest) {
   SB_DCHECK(dest);
 
   if (source.audio_specific_config_size > 0) {
@@ -57,8 +56,7 @@ void Assign(const StreamInfo& source, AudioStreamInfo* dest) {
       config, config + source.audio_specific_config_size);
 }
 
-template <typename StreamInfo>
-void Assign(const StreamInfo& source, VideoStreamInfo* dest) {
+void Assign(const SbMediaVideoStreamInfo& source, VideoStreamInfo* dest) {
   SB_DCHECK(dest);
 
   dest->codec = source.codec;
@@ -78,8 +76,7 @@ void Assign(const StreamInfo& source, VideoStreamInfo* dest) {
   dest->color_metadata = source.color_metadata;
 }
 
-template <typename StreamInfo>
-void Assign(const AudioStreamInfo& source, StreamInfo* dest) {
+void Assign(const AudioStreamInfo& source, SbMediaAudioStreamInfo* dest) {
   SB_DCHECK(dest);
 
   *dest = {};
@@ -96,8 +93,7 @@ void Assign(const AudioStreamInfo& source, StreamInfo* dest) {
   }
 }
 
-template <typename StreamInfo>
-void Assign(const VideoStreamInfo& source, StreamInfo* dest) {
+void Assign(const VideoStreamInfo& source, SbMediaVideoStreamInfo* dest) {
   SB_DCHECK(dest);
 
   *dest = {};
@@ -274,12 +270,12 @@ bool IsSDRVideo(const char* mime) {
     return true;
   }
 
-  MimeType mime_type(mime);
-  if (!mime_type.is_valid()) {
+  auto mime_type = MimeType::Create(mime);
+  if (!mime_type) {
     SB_LOG(WARNING) << mime << " is not a valid mime type, assuming sdr video.";
     return true;
   }
-  const std::vector<std::string> codecs = mime_type.GetCodecs();
+  const std::vector<std::string> codecs = mime_type->GetCodecs();
   if (codecs.empty()) {
     SB_LOG(WARNING) << mime << " contains no codecs, assuming sdr video.";
     return true;
@@ -384,6 +380,10 @@ int64_t AudioFramesToDuration(int frames, int samples_per_second) {
   SB_DCHECK_GT(samples_per_second, 0)
       << "samples_per_second has to be greater than 0";
   return frames * 1'000'000LL / std::max(samples_per_second, 1);
+}
+
+int AlignUp(int value, int alignment) {
+  return (value + alignment - 1) / alignment * alignment;
 }
 
 }  // namespace starboard

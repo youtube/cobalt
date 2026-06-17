@@ -27,13 +27,13 @@
 #include "base/stl_util.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_runner.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/threading/thread.h"
 #include "base/time/time.h"
 #include "base/version.h"
-#include "cobalt/browser/switches.h"
 #include "cobalt/updater/util.h"
 #include "components/crx_file/crx_verifier.h"
 #include "components/update_client/cobalt_slot_management.h"
@@ -67,8 +67,6 @@ ComponentStateToCobaltExtensionUpdaterNotificationState(
       return kCobaltExtensionUpdaterNotificationStateUpdateAvailable;
     case ComponentState::kDownloading:
       return kCobaltExtensionUpdaterNotificationStateDownloading;
-    case ComponentState::kDownloaded:
-      return kCobaltExtensionUpdaterNotificationStateDownloaded;
     case ComponentState::kUpdating:
       return kCobaltExtensionUpdaterNotificationStateInstalling;
     case ComponentState::kUpdated:
@@ -80,8 +78,6 @@ ComponentStateToCobaltExtensionUpdaterNotificationState(
     case ComponentState::kNew:
     case ComponentState::kDownloadingDiff:
     case ComponentState::kUpdatingDiff:
-    case ComponentState::kUninstalled:
-    case ComponentState::kRegistration:
     case ComponentState::kRun:
     case ComponentState::kLastStatus:
       return kCobaltExtensionUpdaterNotificationStateNone;
@@ -94,54 +90,87 @@ namespace cobalt {
 namespace updater {
 
 // The delay before the first update check.
-const base::TimeDelta kDefaultUpdateCheckDelay =
-    base::TimeDelta::FromSeconds(30);
+const base::TimeDelta kDefaultUpdateCheckDelay = base::Seconds(30);
 
-void Observer::OnEvent(Events event, const std::string& id) {
-  std::string status;
-  if (update_client_->GetCrxUpdateState(id, &crx_update_item_)) {
-    auto status_iterator =
-        component_to_updater_status_map.find(crx_update_item_.state);
-    if (status_iterator == component_to_updater_status_map.end()) {
-      status = "Status is unknown.";
-    } else if (crx_update_item_.state == ComponentState::kUpToDate &&
-               updater_configurator_->GetPreviousUpdaterStatus() ==
-                   updater_status_string_map.at(UpdaterStatus::kUpdated)) {
-      status = updater_status_string_map.at(UpdaterStatus::kUpdated);
-    } else {
-      status = updater_status_string_map.find(status_iterator->second)->second;
-    }
-    if (crx_update_item_.state == ComponentState::kUpdateError) {
-      // `QUICK_ROLL_FORWARD` update, adjust the message to "Updated locally,
-      // pending restart".
-      if (crx_update_item_.error_code ==
-          static_cast<int>(UpdateCheckError::QUICK_ROLL_FORWARD)) {
-        status = updater_status_string_map.at(UpdaterStatus::kRolledForward);
-      } else {
-        status +=
-            ", error category is " +
-            std::to_string(static_cast<int>(crx_update_item_.error_category)) +
-            ",  error code is " + std::to_string(crx_update_item_.error_code);
-      }
-    }
-    if (updater_notification_ext_ != nullptr) {
-      updater_notification_ext_->UpdaterState(
-          ComponentStateToCobaltExtensionUpdaterNotificationState(
-              crx_update_item_.state),
-          GetCurrentEvergreenVersion().c_str());
-    }
-  } else {
-    status = "No status available";
+// static
+UpdaterModule* UpdaterModule::updater_module_ = nullptr;
+
+void UpdaterModule::CreateInstance(
+    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+    const std::string& user_agent,
+    base::TimeDelta update_check_delay) {
+  if (updater_module_) {
+    LOG(WARNING)
+        << "UpdaterModule is already created. Use UpdaterModule::GetInstance() "
+           "to get the instance.";
+    return;
   }
+  updater_module_ = new UpdaterModule(std::move(url_loader_factory), user_agent,
+                                      update_check_delay);
+}
+
+UpdaterModule* UpdaterModule::GetInstance() {
+  if (!updater_module_) {
+    LOG(WARNING) << "UpdaterModule is not created yet, and cannot be "
+                    "retrieved by UpdaterModule::GetInstance().";
+    return nullptr;
+  }
+  return updater_module_;
+}
+
+void Observer::OnEvent(const update_client::CrxUpdateItem& item) {
+  std::string status;
+  crx_update_item_ = item;
+
+  auto status_iterator = update_client::GetComponentToUpdaterStatusMap().find(
+      crx_update_item_.state);
+  if (status_iterator ==
+      update_client::GetComponentToUpdaterStatusMap().end()) {
+    status = "Status is unknown.";
+  } else if (crx_update_item_.state == ComponentState::kUpToDate &&
+             updater_configurator_->GetPreviousUpdaterStatus() ==
+                 update_client::GetUpdaterStatusStringMap().at(
+                     update_client::UpdaterStatus::kUpdated)) {
+    status = update_client::GetUpdaterStatusStringMap().at(
+        update_client::UpdaterStatus::kUpdated);
+  } else {
+    status = update_client::GetUpdaterStatusStringMap()
+                 .find(status_iterator->second)
+                 ->second;
+  }
+  if (crx_update_item_.state == ComponentState::kUpdateError) {
+    // `QUICK_ROLL_FORWARD` update, adjust the message to "Updated locally,
+    // pending restart".
+    if (crx_update_item_.error_code ==
+        static_cast<int>(UpdateCheckError::QUICK_ROLL_FORWARD)) {
+      status = update_client::GetUpdaterStatusStringMap().at(
+          update_client::UpdaterStatus::kRolledForward);
+    } else {
+      status +=
+          ", error category is " +
+          std::to_string(static_cast<int>(crx_update_item_.error_category)) +
+          ",  error code is " + std::to_string(crx_update_item_.error_code);
+    }
+  }
+  if (updater_notification_ext_ != nullptr) {
+    updater_notification_ext_->UpdaterState(
+        ComponentStateToCobaltExtensionUpdaterNotificationState(
+            crx_update_item_.state),
+        GetCurrentEvergreenVersion().c_str());
+  }
+
   updater_configurator_->SetUpdaterStatus(status);
-  LOG_IF(INFO, status != "Downloading update") << "Updater status is" << status;
+  LOG_IF(INFO, status != "Downloading update")
+      << "Updater status is " << status;
 }
 
 UpdaterModule::UpdaterModule(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+    const std::string& user_agent,
     base::TimeDelta update_check_delay)
     : url_loader_factory_(std::move(url_loader_factory)),
-      update_check_delay_(update_check_delay) {
+      update_check_delay_(update_check_delay),
+      user_agent_(user_agent) {
   LOG(INFO) << "UpdaterModule::UpdaterModule";
   // TODO(b/453693299): investigate using sequence to replace base::Thread
   updater_thread_.reset(new base::Thread("Updater"));
@@ -159,8 +188,7 @@ UpdaterModule::UpdaterModule(
 
 UpdaterModule::~UpdaterModule() {
   LOG(INFO) << "UpdaterModule::~UpdaterModule";
-  if (is_updater_running_) {
-    is_updater_running_ = false;
+  if (is_updater_running_.exchange(false)) {
     // TODO(b/452142372): Investigate UpdaterModule destruction sequence
     {
       base::ScopedBlockingCall scoped_blocking_call(
@@ -179,14 +207,22 @@ UpdaterModule::~UpdaterModule() {
 }
 
 void UpdaterModule::Suspend() {
-  if (is_updater_running_) {
-    is_updater_running_ = false;
+  if (is_updater_running_.exchange(false)) {
+    base::WaitableEvent event(base::WaitableEvent::ResetPolicy::MANUAL,
+                              base::WaitableEvent::InitialState::NOT_SIGNALED);
     {
       base::ScopedBlockingCall scoped_blocking_call(
           FROM_HERE, base::BlockingType::MAY_BLOCK);
-      updater_thread_->task_runner()->PostTask(
-          FROM_HERE,
-          base::BindOnce(&UpdaterModule::Finalize, base::Unretained(this)));
+      if (updater_thread_->task_runner()->PostTask(
+              FROM_HERE,
+              base::BindOnce(
+                  [](UpdaterModule* module, base::WaitableEvent* event) {
+                    module->Finalize();
+                    event->Signal();
+                  },
+                  base::Unretained(this), base::Unretained(&event)))) {
+        event.Wait();
+      }
     }
   }
 }
@@ -203,11 +239,12 @@ void UpdaterModule::Resume() {
 
 void UpdaterModule::Initialize(
     std::unique_ptr<network::PendingSharedURLLoaderFactory> pending_factory) {
-  DCHECK(updater_thread_->GetDefaultTaskRunner()->BelongsToCurrentThread());
+  DCHECK(updater_thread_->task_runner()->RunsTasksInCurrentSequence());
   LOG(INFO) << "UpdaterModule::Initialize";
 
   updater_configurator_ = base::MakeRefCounted<Configurator>(
-      network::SharedURLLoaderFactory::Create(std::move(pending_factory)));
+      network::SharedURLLoaderFactory::Create(std::move(pending_factory)),
+      user_agent_);
   update_client_ = update_client::UpdateClientFactory(updater_configurator_);
 
   updater_observer_.reset(new Observer(update_client_, updater_configurator_));
@@ -223,7 +260,7 @@ void UpdaterModule::Initialize(
 }
 
 void UpdaterModule::Finalize() {
-  DCHECK(updater_thread_->GetDefaultTaskRunner()->BelongsToCurrentThread());
+  DCHECK(updater_thread_->task_runner()->RunsTasksInCurrentSequence());
   LOG(INFO) << "UpdaterModule::Finalize begin";
   update_client_->RemoveObserver(updater_observer_.get());
   updater_observer_.reset();
@@ -259,7 +296,7 @@ void UpdaterModule::MarkSuccessful() {
 }
 
 void UpdaterModule::MarkSuccessfulImpl() {
-  DCHECK(updater_thread_->GetDefaultTaskRunner()->BelongsToCurrentThread());
+  DCHECK(updater_thread_->task_runner()->RunsTasksInCurrentSequence());
   LOG(INFO) << "UpdaterModule::MarkSuccessfulImpl";
 
   auto installation_manager =
@@ -281,7 +318,7 @@ void UpdaterModule::MarkSuccessfulImpl() {
 }
 
 void UpdaterModule::Update() {
-  DCHECK(updater_thread_->GetDefaultTaskRunner()->BelongsToCurrentThread());
+  DCHECK(updater_thread_->task_runner()->RunsTasksInCurrentSequence());
   LOG(INFO) << "UpdaterModule::Update";
 
   // If updater_configurator_ is nullptr, the updater is suspended.
@@ -297,21 +334,23 @@ void UpdaterModule::Update() {
     return;
   }
 
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   bool skip_verify_public_key_hash = GetAllowSelfSignedPackages();
   bool require_network_encryption = GetRequireNetworkEncryption();
 #else
   bool skip_verify_public_key_hash = false;
   bool require_network_encryption = true;
-#endif  // defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
   update_client_->Update(
       app_ids,
       base::BindOnce(
           [](base::Version manifest_version, bool skip_verify_public_key_hash,
              bool require_network_encryption,
-             const std::vector<std::string>& ids)
-              -> std::vector<absl::optional<update_client::CrxComponent>> {
+             const std::vector<std::string>& ids,
+             base::OnceCallback<void(
+                 const std::vector<
+                     std::optional<update_client::CrxComponent>>&)> callback) {
             update_client::CrxComponent component;
             component.name = "cobalt";
             component.app_id = ids[0];
@@ -319,14 +358,14 @@ void UpdaterModule::Update() {
             component.pk_hash.assign(std::begin(kCobaltPublicKeyHash),
                                      std::end(kCobaltPublicKeyHash));
             component.requires_network_encryption = true;
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
             if (skip_verify_public_key_hash) {
               component.pk_hash.clear();
             }
             component.requires_network_encryption = require_network_encryption;
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
             component.crx_format_requirement = crx_file::VerifierFormat::CRX3;
-            return {component};
+            std::move(callback).Run({component});
           },
           manifest_version, skip_verify_public_key_hash,
           require_network_encryption),

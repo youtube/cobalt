@@ -13,11 +13,14 @@
 // limitations under the License.
 
 #include <pthread.h>
+#include <stdio.h>
 #include <sys/stat.h>
 
+#include <string>
 #include <vector>
 
 #include "cobalt/version.h"
+#include "starboard/common/app_key.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
@@ -33,9 +36,9 @@
 #include "starboard/elf_loader/sabi_string.h"
 #include "starboard/event.h"
 #include "starboard/extension/loader_app_metrics.h"
-#include "starboard/loader_app/app_key.h"
 #include "starboard/loader_app/loader_app_switches.h"
 #include "starboard/loader_app/memory_tracker_thread.h"
+#include "starboard/loader_app/read_evergreen_version.h"
 #include "starboard/loader_app/record_loader_app_status.h"
 #include "starboard/loader_app/reset_evergreen_update.h"
 #include "starboard/loader_app/slot_management.h"
@@ -52,8 +55,8 @@ const char kSystemImageLibraryPath[] = "app/cobalt/lib/libcobalt.so";
 // Relative path to the compressed Cobalt's system image library.
 const char kSystemImageCompressedLibraryPath[] = "app/cobalt/lib/libcobalt.lz4";
 
-// Cobalt default URL.
-const char kCobaltDefaultUrl[] = "https://www.youtube.com/tv";
+// Relative path to Cobalt's system image manifest.json.
+const char kSystemImageManifestPath[] = "app/cobalt/manifest.json";
 
 // Portable ELF loader.
 elf_loader::ElfLoader g_elf_loader;
@@ -89,6 +92,26 @@ bool GetContentDir(std::string* content) {
   return true;
 }
 
+void InsertVersionAnnotationFromManifest(const std::string& content_dir) {
+  std::vector<char> manifest_path(kSbFileMaxPath);
+  snprintf(manifest_path.data(), kSbFileMaxPath, "%s%s%s", content_dir.c_str(),
+           kSbFileSepString, kSystemImageManifestPath);
+
+  std::vector<char> version(loader_app::kMaxEgVersionSize);
+  if (!loader_app::ReadEvergreenVersion(manifest_path, version.data(),
+                                        loader_app::kMaxEgVersionSize)) {
+    SB_LOG(WARNING)
+        << "Failed to read the Evergreen version for the system image, not "
+        << "adding to Crashpad";
+    return;
+  }
+
+  if (!crashpad::InsertCrashpadAnnotation(crashpad::kCrashpadVersionKey,
+                                          version.data())) {
+    SB_LOG(WARNING) << "Failed to add ver annotation to Crashpad";
+  }
+}
+
 void LoadLibraryAndInitialize(const std::string& alternative_content_path,
                               bool use_memory_mapped_file) {
   std::string content_dir;
@@ -104,6 +127,9 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
   } else {
     content_path = alternative_content_path.c_str();
   }
+
+  InsertVersionAnnotationFromManifest(content_dir);
+
   std::string library_path = content_dir;
   library_path += kSbFileSepString;
 
@@ -278,9 +304,9 @@ void SbEventHandle(const SbEvent* event) {
     } else {
       std::string url = command_line.GetSwitchValue(loader_app::kURL);
       if (url.empty()) {
-        url = kCobaltDefaultUrl;
+        url = starboard::kCobaltDefaultUrl;
       }
-      std::string app_key = loader_app::GetAppKey(url);
+      std::string app_key = starboard::GetAppKey(url);
       SB_CHECK(!app_key.empty());
 
       g_sb_event_func = reinterpret_cast<void (*)(const SbEvent*)>(

@@ -15,7 +15,6 @@
 #ifndef MEDIA_MOJO_CLIENTS_STARBOARD_STARBOARD_RENDERER_CLIENT_FACTORY_H_
 #define MEDIA_MOJO_CLIENTS_STARBOARD_STARBOARD_RENDERER_CLIENT_FACTORY_H_
 
-#include <map>
 #include <string>
 
 #include "base/memory/raw_ptr.h"
@@ -23,7 +22,7 @@
 #include "media/base/renderer_factory.h"
 #include "media/base/starboard/renderer_factory_traits.h"
 #include "media/base/starboard/starboard_renderer_config.h"
-#include "media/starboard/bind_host_receiver_callback.h"
+#include "media/starboard/starboard_callbacks.h"
 
 namespace base {
 class TimeDelta;
@@ -74,10 +73,9 @@ class MEDIA_EXPORT StarboardRendererClientFactory final
   const base::TimeDelta audio_write_duration_local_;
   const base::TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
+  const StarboardRendererConfig::ExperimentalFeatures experimental_features_;
   const gfx::Size viewport_size_;
-  const std::map<std::string, H5vccSettingValue> h5vcc_settings_;
   const GetSbWindowHandleCallback get_sb_window_handle_callback_;
-  const BindHostReceiverCallback bind_host_receiver_callback_;
 };
 
 }  // namespace media

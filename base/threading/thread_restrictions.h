@@ -213,6 +213,11 @@ void SessionEnding();
 namespace chromecast {
 class CrashUtil;
 }
+#if BUILDFLAG(IS_COBALT)
+namespace cobalt {
+class AppEventRunnerImpl;
+}
+#endif  // BUILDFLAG(IS_COBALT)
 namespace chromeos {
 class BlockingMethodCaller;
 namespace system {
@@ -337,6 +342,9 @@ class GpuMojoMediaClientWin;
 class MailboxVideoFrameConverter;
 class MojoVideoEncodeAccelerator;
 class PaintCanvasVideoRenderer;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+class StarboardRendererWrapper;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 class V4L2DevicePoller;  // TODO(crbug.com/41486289): remove this.
 }  // namespace media
 namespace memory_instrumentation {
@@ -779,6 +787,9 @@ class BASE_EXPORT ScopedAllowBaseSyncPrimitives {
             WorkerStatus StatusWork>
   friend class media::CodecWorkerImpl;
   friend class media::MojoVideoEncodeAccelerator;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  friend class media::StarboardRendererWrapper;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   friend class mojo::core::ScopedIPCSupport;
   friend class net::MultiThreadedCertVerifierScopedAllowBaseSyncPrimitives;
   friend class rlz_lib::FinancialPing;
@@ -850,6 +861,15 @@ class BASE_EXPORT
   friend class cc::CategorizedWorkerPoolJob;
   friend class cc::CategorizedWorkerPool;
   friend class cc::TileTaskManagerImpl;
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt's platform deactivation lifecycle transitions (Reveal, Conceal,
+  // Freeze, Unfreeze) synchronously block the UI Main Thread using a nested
+  // base::RunLoop to guarantee atomic, linear state progression. Since
+  // Starboard's custom base::MessagePumpUIStarboard blocks using
+  // base::WaitableEvent under the hood, we must explicitly whitelist the modular
+  // platform shell runner here to authorize main-thread sync waiting.
+  friend class cobalt::AppEventRunnerImpl;
+#endif  // BUILDFLAG(IS_COBALT)
   friend class content::DesktopCaptureDevice;
   friend class content::EmergencyTraceFinalisationCoordinator;
   friend class content::InProcessUtilityThread;
@@ -864,6 +884,9 @@ class BASE_EXPORT
   friend class media::AudioOutputDevice;
   friend class media::MailboxVideoFrameConverter;
   friend class media::PaintCanvasVideoRenderer;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  friend class media::StarboardRendererWrapper;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   friend class media::V4L2DevicePoller;  // TODO(crbug.com/41486289): remove
                                          // this.
   friend class mojo::SyncCallRestrictions;

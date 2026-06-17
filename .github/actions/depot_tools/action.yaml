@@ -11,6 +11,9 @@ inputs:
   use_cache:
     description: Whether or not to use runner cache.
     default: 'true'
+  use_gcloud:
+    description: "Whether to run gcloud config set account."
+    default: 'false'
 
 runs:
   using: "composite"
@@ -33,11 +36,11 @@ runs:
         repository: https://chromium.googlesource.com/chromium/tools/depot_tools.git
         ref: main
         fetch_depth: 0
-        path: depot_tools
+        path: cobalt/depot_tools
         use_cache: ${{ inputs.use_cache }}
 
     - name: Add Depot Tools to PATH
-      run: echo "${GITHUB_WORKSPACE}/depot_tools" >> ${GITHUB_PATH}
+      run: echo "${GITHUB_WORKSPACE}/cobalt/depot_tools" >> ${GITHUB_PATH}
       shell: bash
 
     - name: Set CIPD Cache Directory
@@ -48,7 +51,7 @@ runs:
     - name: Bootstrap Bundled python3
       run: |
         # Must be run manually as $DEPOT_TOOLS_UPDATE is 0 in CI, skipping the bootstrap.
-        source ${GITHUB_WORKSPACE}/depot_tools/bootstrap_python3 && bootstrap_python3
+        source ${GITHUB_WORKSPACE}/cobalt/depot_tools/bootstrap_python3 && bootstrap_python3
       shell: bash
 
     - name: Disable Chromium client side build telemetry
@@ -64,25 +67,26 @@ runs:
         set -x
         cd cobalt
 
-        CACHE_ARG=()
-        if [[ -n "${CACHE_PATH}" ]]; then
-          CACHE_ARG=(--cache-dir="${CACHE_PATH}"/git-cache)
+        if [ ! -f .gclient ]; then
+          gclient config \
+            --name=src \
+            --custom-var="rbe_instance=\"${RBE_INSTANCE}\"" \
+            "${REPOSITORY}"
+        else
+          echo ".gclient already exists. Skipping gclient config."
         fi
-        gclient config \
-          --name=src \
-          "${CACHE_ARG[@]}" \
-          --custom-var="rbe_instance=\"${RBE_INSTANCE}\"" \
-          "${REPOSITORY}"
       shell: bash
 
     - name: Set target OS
       shell: bash
       run: |
         cd cobalt
-        if [[ "${{ matrix.platform }}" == *"android"* ]]; then
-          echo "target_os=['android']" >> .gclient
-        elif [[ "${{ matrix.platform }}" == *"tvos"* ]]; then
-          echo "target_os=['ios']" >> .gclient
+        if ! grep -q "target_os" .gclient; then
+          if [[ "${{ matrix.platform }}" == *"android"* ]]; then
+            echo "target_os=['android']" >> .gclient
+          elif [[ "${{ matrix.platform }}" == *"tvos"* ]]; then
+            echo "target_os=['ios']" >> .gclient
+          fi
         fi
         gclient validate
 
@@ -90,20 +94,38 @@ runs:
       shell: bash
       run: |
         cd cobalt
-
-        if [[ "${{ matrix.platform }}" == *"evergreen-arm64"* ]]; then
-          echo "target_cpu=['x64', 'arm64']" >> .gclient
-        elif [[ "${{ matrix.platform }}" == *"raspi-2"* || "${{ matrix.platform }}" == *"evergreen-arm"* ]]; then
-          echo "target_cpu=['x64', 'arm']" >> .gclient
+        if ! grep -q "target_cpu" .gclient; then
+          if [[ "${{ matrix.platform }}" == *"evergreen-arm64"* ]]; then
+            echo "target_cpu=['x64', 'arm64']" >> .gclient
+          elif [[ "${{ matrix.platform }}" == *"raspi-2"* || "${{ matrix.platform }}" == *"evergreen-arm"* ]]; then
+            echo "target_cpu=['x64', 'arm']" >> .gclient
+          fi
         fi
         gclient validate
 
+    - name: Authenticate with GoB
+      uses: ./.github/actions/gob_auth
+      with:
+        use_gcloud: ${{ inputs.use_gcloud }}
+
     - name: Run gclient sync
+      shell: bash
       if: inputs.run_sync == 'true'
       env:
         REF: ${{ github.sha }}
       run: |
-        cd cobalt
+        cd cobalt/src
+        # Identify and delete dirty sub-repositories
+        git -c core.quotepath=false status --porcelain -unormal | while IFS= read -r line; do
+          path="${line:3}"
+          clean_path="${path%/}"
+          if [[ -d "$clean_path" && -d "$clean_path/.git" ]]; then
+            echo "Deleting conflicting sub-repo: $clean_path"
+            rm -rf "$clean_path"
+          fi
+        done
+
+        cd ..
         gclient sync \
           --verbose \
           --shallow \
@@ -112,7 +134,6 @@ runs:
           --force \
           --delete_unversioned_trees \
           --revision "${REF}"
-      shell: bash
 
     - name: Run gclient runhooks
       if: inputs.run_sync == 'true'

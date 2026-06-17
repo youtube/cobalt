@@ -19,17 +19,16 @@
 #include <string>
 
 #include "starboard/common/check_op.h"
-#include "starboard/thread.h"
 
 namespace starboard {
 
 class JobThread::WorkerThread : public Thread {
  public:
-  WorkerThread(std::string_view thread_name, SbThreadPriority priority)
-      : Thread(std::string(thread_name)), priority_(priority) {}
+  explicit WorkerThread(std::string_view thread_name,
+                        const ThreadOptions& options)
+      : Thread(thread_name, options) {}
 
   void Run() override {
-    SbThreadSetPriority(priority_);
     auto job_queue = std::make_unique<JobQueue>();
     JobQueue* job_queue_ptr = job_queue.get();
     {
@@ -47,28 +46,19 @@ class JobThread::WorkerThread : public Thread {
   }
 
  private:
-  SbThreadPriority priority_;
   std::mutex mutex_;
   std::condition_variable cv_;
   std::unique_ptr<JobQueue> job_queue_to_transfer_;
 };
 
-std::unique_ptr<JobThread> JobThread::Create(std::string_view thread_name) {
-  return JobThread::Create(thread_name, kSbThreadPriorityNormal);
-}
-
 std::unique_ptr<JobThread> JobThread::Create(std::string_view thread_name,
-                                             SbThreadPriority priority) {
-  auto thread = std::make_unique<WorkerThread>(thread_name, priority);
+                                             const ThreadOptions& options) {
+  auto thread = std::make_unique<WorkerThread>(thread_name, options);
   thread->Start();
   auto job_queue = thread->TakeJobQueue();
   return std::unique_ptr<JobThread>(
       new JobThread(std::move(thread), std::move(job_queue)));
 }
-
-JobThread::JobThread(std::unique_ptr<WorkerThread> thread,
-                     std::unique_ptr<JobQueue> job_queue)
-    : thread_(std::move(thread)), job_queue_(std::move(job_queue)) {}
 
 JobThread::~JobThread() {
   std::lock_guard lock(stop_mutex_);
@@ -96,5 +86,9 @@ void JobThread::Stop() {
   job_queue_->StopSoon();
   thread_->Join();
 }
+
+JobThread::JobThread(std::unique_ptr<WorkerThread> thread,
+                     std::unique_ptr<JobQueue> job_queue)
+    : thread_(std::move(thread)), job_queue_(std::move(job_queue)) {}
 
 }  // namespace starboard

@@ -21,9 +21,10 @@
 #include <string>
 #include <vector>
 
-#include "base/android/jni_android.h"
+#include "base/memory/raw_ptr.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
+#include "starboard/android/shared/media_common.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/scoped_timer.h"
 #include "starboard/common/string.h"
@@ -31,12 +32,12 @@
 #include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
-#include "starboard/thread.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 namespace {
 
-using ::base::android::AttachCurrentThread;
+using jni_zero::AttachCurrentThread;
 
 // The maximum number of frames that can be written to android audio track per
 // write request. If we don't set this cap for writing frames to audio track,
@@ -109,18 +110,17 @@ bool HasRemoteAudioOutput() {
 class AudioTrackAudioSink::AudioTrackOutThread : public Thread {
  public:
   explicit AudioTrackOutThread(AudioTrackAudioSink* sink)
-      : Thread("audio_track_out"), sink_(sink) {}
+      : Thread("audio_track_out",
+               ThreadOptions().SetPriority(ThreadPriority::kRealTime)),
+        sink_(sink) {}
 
-  void Run() override {
-    SbThreadSetPriority(kSbThreadPriorityRealTime);
-    sink_->AudioThreadFunc();
-  }
+  void Run() override { sink_->AudioThreadFunc(); }
 
  private:
-  AudioTrackAudioSink* sink_;
+  const raw_ptr<AudioTrackAudioSink> sink_;
 };
 
-AudioTrackAudioSink::AudioTrackAudioSink(
+std::unique_ptr<AudioTrackAudioSink> AudioTrackAudioSink::Create(
     Type* type,
     int channels,
     int sampling_frequency_hz,
@@ -128,13 +128,45 @@ AudioTrackAudioSink::AudioTrackAudioSink(
     SbAudioSinkFrameBuffers frame_buffers,
     int frames_per_channel,
     int preferred_buffer_size_in_bytes,
-    SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
-    ConsumeFramesFunc consume_frames_func,
-    SbAudioSinkPrivate::ErrorFunc error_func,
+    AudioTrackAudioSinkType::Callbacks callbacks,
     int64_t start_time,
-    int tunnel_mode_audio_session_id,
+    std::optional<int> tunnel_mode_audio_session_id,
     bool is_web_audio,
-    bool pause_using_audio_track_state,
+    bool allow_audio_writing_on_pause,
+    void* context) {
+  std::unique_ptr<AudioTrackBridge> bridge = AudioTrackBridge::Create(
+      kSbMediaAudioCodingTypePcm, sample_type, channels, sampling_frequency_hz,
+      preferred_buffer_size_in_bytes, tunnel_mode_audio_session_id,
+      is_web_audio);
+  if (!bridge) {
+    return nullptr;
+  }
+
+  auto audio_sink = std::make_unique<AudioTrackAudioSink>(
+      PassKey<AudioTrackAudioSink>(), type, channels, sampling_frequency_hz,
+      sample_type, frame_buffers, frames_per_channel,
+      preferred_buffer_size_in_bytes, callbacks, start_time,
+      tunnel_mode_audio_session_id, allow_audio_writing_on_pause,
+      std::move(bridge), context);
+
+  audio_sink->SpawnThread();
+  return audio_sink;
+}
+
+AudioTrackAudioSink::AudioTrackAudioSink(
+    PassKey<AudioTrackAudioSink>,
+    Type* type,
+    int channels,
+    int sampling_frequency_hz,
+    SbMediaAudioSampleType sample_type,
+    SbAudioSinkFrameBuffers frame_buffers,
+    int frames_per_channel,
+    int preferred_buffer_size_in_bytes,
+    AudioTrackAudioSinkType::Callbacks callbacks,
+    int64_t start_time,
+    std::optional<int> tunnel_mode_audio_session_id,
+    bool allow_audio_writing_on_pause,
+    std::unique_ptr<AudioTrackBridge> bridge,
     void* context)
     : type_(type),
       channels_(channels),
@@ -142,50 +174,28 @@ AudioTrackAudioSink::AudioTrackAudioSink(
       sample_type_(sample_type),
       frame_buffer_(frame_buffers[0]),
       frames_per_channel_(frames_per_channel),
-      update_source_status_func_(update_source_status_func),
-      consume_frames_func_(consume_frames_func),
-      error_func_(error_func),
+      callbacks_(callbacks),
       start_time_(start_time),
-      pause_using_audio_track_state_(pause_using_audio_track_state),
       max_frames_per_request_(
-          tunnel_mode_audio_session_id == -1
+          !tunnel_mode_audio_session_id
               ? kMaxFramesPerRequest
               : GetMaxFramesPerRequestForTunnelMode(sampling_frequency_hz_)),
       context_(context),
-      bridge_(kSbMediaAudioCodingTypePcm,
-              sample_type,
-              channels,
-              sampling_frequency_hz,
-              preferred_buffer_size_in_bytes,
-              tunnel_mode_audio_session_id,
-              is_web_audio) {
-  SB_DCHECK(update_source_status_func_);
-  SB_DCHECK(consume_frames_func_);
+      allow_audio_writing_on_pause_(allow_audio_writing_on_pause),
+      bridge_(std::move(bridge)),
+      audio_out_thread_(std::make_unique<AudioTrackOutThread>(this)) {
+  SB_DCHECK(callbacks_.update_source_status);
+  SB_DCHECK(callbacks_.consume_frames);
   SB_DCHECK(frame_buffer_);
+  SB_CHECK(bridge_);
 
-  SB_LOG(INFO) << "Creating audio sink starts at " << start_time_;
-
-  if (!bridge_.is_valid()) {
-    // One of the cases that this may hit is when output happened to be switched
-    // to a device that doesn't support tunnel mode.
-    // TODO: Find a way to exclude the device from tunnel mode playback, to
-    //       avoid infinite loop in creating the audio sink on a device
-    //       claims to support tunnel mode but fails to create the audio sink.
-    // TODO: Currently this will be reported as a general decode error,
-    //       investigate if this can be reported as a capability changed error.
-    return;
-  }
-
-  audio_out_thread_ = std::make_unique<AudioTrackOutThread>(this);
-  audio_out_thread_->Start();
+  SB_LOG(INFO) << "Creating audio sink starts at " << start_time_.load();
 }
 
 AudioTrackAudioSink::~AudioTrackAudioSink() {
   quit_ = true;
 
-  if (audio_out_thread_) {
-    audio_out_thread_->Join();
-  }
+  audio_out_thread_->Join();
 }
 
 void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
@@ -201,14 +211,30 @@ void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
   if (playback_rate > 0.0) {
     // AudioTrackBridge.setPlaybackRate() currently is only enabled for tunnel
     // mode. It will be no-op for non tunnel player.
-    bridge_.SetPlaybackRate(playback_rate);
+    bridge_->SetPlaybackRate(playback_rate);
   }
+}
+
+void AudioTrackAudioSink::SetVolume(double volume) {
+  bridge_->SetVolume(volume);
+}
+
+int AudioTrackAudioSink::GetUnderrunCount() {
+  return bridge_->GetUnderrunCount();
+}
+
+int AudioTrackAudioSink::GetStartThresholdInFrames() {
+  return bridge_->GetStartThresholdInFrames();
+}
+
+bool AudioTrackAudioSink::Flush() {
+  flush_requested_ = true;
+  return true;
 }
 
 // TODO: Break down the function into manageable pieces.
 void AudioTrackAudioSink::AudioThreadFunc() {
-  JNIEnv* env = base::android::AttachCurrentThread();
-  bool was_playing = false;
+  JNIEnv* env = AttachCurrentThread();
   int frames_in_audio_track = 0;
   int audio_track_play_state = PLAYSTATE_STOPPED;
 
@@ -223,42 +249,53 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       features::kReleaseVideoFramesAfterAudioStarts);
 
   while (!quit_) {
+    if (flush_requested_) {
+      bridge_->PauseAndFlush();
+      frames_in_audio_track = 0;
+      accumulated_written_frames = 0;
+      last_playback_head_event_at = -1;
+      // Set to -1 to ignore the first playback head position read after a
+      // flush. This avoids using a stale value from before the reset, which
+      // could lead to incorrect frame consumption calculations.
+      last_playback_head_position = -1;
+      flush_requested_ = false;
+      continue;
+    }
+
     int playback_head_position = 0;
     int64_t frames_consumed_at = 0;
-    if (bridge_.GetAndResetHasAudioDeviceChanged(env)) {
+    if (bridge_->GetAndResetHasAudioDeviceChanged(env)) {
       SB_LOG(INFO) << "Audio device changed, raising a capability changed "
                       "error to restart playback.";
       ReportError(true, "Audio device capability changed");
       break;
     }
 
-    if (pause_using_audio_track_state_) {
-      // The audio data at the returned position by
-      // |bridge_.GetAudioTimestamp()| may either (1) already have been
-      // presented, or (2) may have not yet been presented but is committed to
-      // be presented. It is possible after |bridge_.Pause()|, the audio data
-      // is still committed to be presented as (2), which causes advancing
-      // media time gap when player resumes and dropping video frames, so
-      // player updates playback head positions when |bridge_| doesn't stop.
-      audio_track_play_state = bridge_.GetPlayState();
-    }
+    // The audio data at the returned position by
+    // |bridge_->GetAudioTimestamp()| may either (1) already have been
+    // presented, or (2) may have not yet been presented but is committed to
+    // be presented. It is possible after |bridge_->Pause()|, the audio data
+    // is still committed to be presented as (2), which causes advancing
+    // media time gap when player resumes and dropping video frames, so
+    // player updates playback head positions when |bridge_| doesn't stop.
+    audio_track_play_state = bridge_->GetPlayState();
 
-    // |pause_using_audio_track_state_| is enabled: update media time if
-    // |audio_track_play_state| is PLAYSTATE_PLAYING or PLAYSTATE_PAUSED.
-    // |pause_using_audio_track_state_| is disabled: by default, only use
-    // |was_playing|.
-    bool should_update_media_time = was_playing;
-    if (pause_using_audio_track_state_) {
-      should_update_media_time = (audio_track_play_state == PLAYSTATE_PLAYING ||
-                                  audio_track_play_state == PLAYSTATE_PAUSED);
-    }
+    bool should_update_media_time =
+        (audio_track_play_state == PLAYSTATE_PLAYING ||
+         audio_track_play_state == PLAYSTATE_PAUSED);
     if (should_update_media_time) {
       playback_head_position =
-          bridge_.GetAudioTimestamp(&frames_consumed_at, env);
-      SB_DCHECK_GE(playback_head_position, last_playback_head_position);
+          bridge_->GetAudioTimestamp(&frames_consumed_at, env);
 
-      int frames_consumed =
-          playback_head_position - last_playback_head_position;
+      int frames_consumed = 0;
+      if (last_playback_head_position == -1) {
+        last_playback_head_position = playback_head_position;
+      } else {
+        frames_consumed =
+            std::max(0, static_cast<int>(playback_head_position -
+                                         last_playback_head_position));
+      }
+
       int64_t now = CurrentMonotonicTime();
 
       if (last_playback_head_event_at == -1) {
@@ -282,7 +319,8 @@ void AudioTrackAudioSink::AudioThreadFunc() {
 
       if (frames_consumed != 0) {
         SB_DCHECK_GE(frames_consumed, 0);
-        consume_frames_func_(frames_consumed, frames_consumed_at, context_);
+        callbacks_.consume_frames(frames_consumed, frames_consumed_at,
+                                  context_);
         frames_in_audio_track -= frames_consumed;
       }
     }
@@ -291,8 +329,8 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     int offset_in_frames;
     bool is_playing;
     bool is_eos_reached;
-    update_source_status_func_(&frames_in_buffer, &offset_in_frames,
-                               &is_playing, &is_eos_reached, context_);
+    callbacks_.update_source_status(&frames_in_buffer, &offset_in_frames,
+                                    &is_playing, &is_eos_reached, context_);
     {
       std::lock_guard lock(mutex_);
       if (playback_rate_ == 0.0) {
@@ -300,23 +338,14 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       }
     }
 
-    // |pause_using_audio_track_state_| is enabled: pause/play AudioTrack
-    // depending on PLAYSTATE_PLAYING or not.
-    // |pause_using_audio_track_state_| is disabled: by default, only use
-    // |was_playing|.
-    bool is_currently_playing = was_playing;
-    if (pause_using_audio_track_state_) {
-      is_currently_playing = (audio_track_play_state == PLAYSTATE_PLAYING);
-    }
+    bool is_currently_playing = (audio_track_play_state == PLAYSTATE_PLAYING);
     if (is_currently_playing && !is_playing) {
-      was_playing = false;
       ScopedTimer timer("Pause");
-      bridge_.Pause();
+      bridge_->Pause();
     } else if (!is_currently_playing && is_playing) {
-      was_playing = true;
       last_playback_head_event_at = -1;
       ScopedTimer timer("Play");
-      bridge_.Play();
+      bridge_->Play();
       if (release_frames_after_audio_starts) {
         // To promptly re-evaluate and update audio state, we restart the loop
         // after calling AudioTrack.play() on Android, as this operation often
@@ -325,7 +354,10 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       }
     }
 
-    if (!is_playing || frames_in_buffer == 0) {
+    // When |allow_audio_writing_on_pause| feature is enabled, continue writing
+    // audio regardless of whether audio is playing.
+    if ((!is_playing && !allow_audio_writing_on_pause_) ||
+        frames_in_buffer == 0) {
       usleep(10'000);
       continue;
     }
@@ -359,8 +391,8 @@ void AudioTrackAudioSink::AudioThreadFunc() {
         std::vector<uint8_t> silence_buffer(channels_ *
                                             GetBytesPerSample(sample_type_) *
                                             silence_frames_per_append);
-        int64_t sync_time =
-            start_time_ + GetFramesDurationUs(accumulated_written_frames);
+        int64_t sync_time = start_time_.load() +
+                            GetFramesDurationUs(accumulated_written_frames);
         // Not necessary to handle error of WriteData(), as the audio has
         // reached the end of stream.
         WriteData(env, silence_buffer.data(), silence_frames_per_append,
@@ -372,7 +404,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     }
     SB_DCHECK_GT(expected_written_frames, 0);
     int64_t sync_time =
-        start_time_ + GetFramesDurationUs(accumulated_written_frames);
+        start_time_.load() + GetFramesDurationUs(accumulated_written_frames);
     SB_DCHECK_LE(start_position + expected_written_frames, frames_per_channel_)
         << "start_position: " << start_position
         << ", expected_written_frames: " << expected_written_frames
@@ -418,7 +450,11 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     }
   }
 
-  bridge_.PauseAndFlush();
+  bridge_->PauseAndFlush();
+}
+
+void AudioTrackAudioSink::SpawnThread() {
+  audio_out_thread_->Start();
 }
 
 int AudioTrackAudioSink::WriteData(JNIEnv* env,
@@ -428,12 +464,12 @@ int AudioTrackAudioSink::WriteData(JNIEnv* env,
   int samples_written = 0;
   if (sample_type_ == kSbMediaAudioSampleTypeFloat32) {
     samples_written =
-        bridge_.WriteSample(static_cast<const float*>(buffer),
-                            expected_written_frames * channels_, env);
+        bridge_->WriteSample(static_cast<const float*>(buffer),
+                             expected_written_frames * channels_, env);
   } else if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated) {
-    samples_written = bridge_.WriteSample(static_cast<const uint16_t*>(buffer),
-                                          expected_written_frames * channels_,
-                                          sync_time, env);
+    samples_written = bridge_->WriteSample(static_cast<const uint16_t*>(buffer),
+                                           expected_written_frames * channels_,
+                                           sync_time, env);
   } else {
     SB_NOTREACHED();
   }
@@ -448,25 +484,13 @@ int AudioTrackAudioSink::WriteData(JNIEnv* env,
 void AudioTrackAudioSink::ReportError(bool capability_changed,
                                       const std::string& error_message) {
   SB_LOG(INFO) << "AudioTrackAudioSink error: " << error_message;
-  if (error_func_) {
-    error_func_(capability_changed, error_message, context_);
+  if (callbacks_.error) {
+    callbacks_.error(capability_changed, error_message, context_);
   }
 }
 
 int64_t AudioTrackAudioSink::GetFramesDurationUs(int frames) const {
   return frames * 1'000'000LL / sampling_frequency_hz_;
-}
-
-void AudioTrackAudioSink::SetVolume(double volume) {
-  bridge_.SetVolume(volume);
-}
-
-int AudioTrackAudioSink::GetUnderrunCount() {
-  return bridge_.GetUnderrunCount();
-}
-
-int AudioTrackAudioSink::GetStartThresholdInFrames() {
-  return bridge_.GetStartThresholdInFrames();
 }
 
 // static
@@ -500,16 +524,13 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
     SbAudioSinkPrivate::ErrorFunc error_func,
     void* context) {
-  const int64_t kStartTime = 0;
-  // Disable tunnel mode.
-  const int kTunnelModeAudioSessionId = -1;
-  const bool kIsWebAudio = true;
-  const bool kPauseUsingAudioTrackState = false;
   return Create(channels, sampling_frequency_hz, audio_sample_type,
                 audio_frame_storage_type, frame_buffers, frames_per_channel,
-                update_source_status_func, consume_frames_func, error_func,
-                kStartTime, kTunnelModeAudioSessionId, kIsWebAudio,
-                kPauseUsingAudioTrackState, context);
+                {update_source_status_func, consume_frames_func, error_func},
+                /*start_media_time=*/0,
+                /*tunnel_mode_audio_session_id=*/std::nullopt,
+                /*is_web_audio=*/true,
+                /*allow_audio_writing_on_pause=*/false, context);
 }
 
 SbAudioSink AudioTrackAudioSinkType::Create(
@@ -519,13 +540,11 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     SbMediaAudioFrameStorageType audio_frame_storage_type,
     SbAudioSinkFrameBuffers frame_buffers,
     int frames_per_channel,
-    SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
-    SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
-    SbAudioSinkPrivate::ErrorFunc error_func,
+    Callbacks callbacks,
     int64_t start_media_time,
-    int tunnel_mode_audio_session_id,
+    std::optional<int> tunnel_mode_audio_session_id,
     bool is_web_audio,
-    bool pause_using_audio_track_state,
+    bool allow_audio_writing_on_pause,
     void* context) {
   int min_required_frames = SbAudioSinkGetMinBufferSizeInFrames(
       channels, audio_sample_type, sampling_frequency_hz);
@@ -533,19 +552,17 @@ SbAudioSink AudioTrackAudioSinkType::Create(
   int preferred_buffer_size_in_bytes =
       min_required_frames * channels * GetBytesPerSample(audio_sample_type);
 
-  AudioTrackAudioSink* audio_sink = new AudioTrackAudioSink(
+  auto audio_sink = AudioTrackAudioSink::Create(
       this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
-      frames_per_channel, preferred_buffer_size_in_bytes,
-      update_source_status_func, consume_frames_func, error_func,
+      frames_per_channel, preferred_buffer_size_in_bytes, callbacks,
       start_media_time, tunnel_mode_audio_session_id, is_web_audio,
-      pause_using_audio_track_state, context);
-  if (!audio_sink->IsAudioTrackValid()) {
+      allow_audio_writing_on_pause, context);
+  if (!audio_sink) {
     SB_DLOG(ERROR)
         << "AudioTrackAudioSinkType::Create failed to create audio track";
-    Destroy(audio_sink);
     return kSbAudioSinkInvalid;
   }
-  return audio_sink;
+  return audio_sink.release();
 }
 
 void AudioTrackAudioSinkType::TestMinRequiredFrames() {

@@ -20,8 +20,8 @@
 #import "starboard/tvos/shared/media/playback_capabilities.h"
 #import "starboard/tvos/shared/media/vp9_sw_av_video_sample_buffer_builder.h"  // nogncheck
 
-#if defined(INTERNAL_BUILD)
-#import "cobalt/internal/starboard/shared/uikit/vp9_hw_av_video_sample_buffer_builder.h"
+#if defined(COBALT_INTERNAL_BUILD)
+#import "cobalt/internal/starboard/shared/tvos/vp9_hw_av_video_sample_buffer_builder.h"
 #endif
 
 namespace starboard {
@@ -32,11 +32,11 @@ AVVideoSampleBufferBuilder* AVVideoSampleBufferBuilder::CreateBuilder(
   if (video_stream_info.codec == kSbMediaVideoCodecH264) {
     return new AvcAVVideoSampleBufferBuilder();
   } else if (video_stream_info.codec == kSbMediaVideoCodecVp9) {
-#if defined(INTERNAL_BUILD)
+#if defined(COBALT_INTERNAL_BUILD)
     if (PlaybackCapabilities::IsHwVp9Supported()) {
       return new Vp9HwAVVideoSampleBufferBuilder(video_stream_info);
     }
-#endif  // defined(INTERNAL_BUILD)
+#endif  // defined(COBALT_INTERNAL_BUILD)
     return new Vp9SwAVVideoSampleBufferBuilder(video_stream_info);
   }
   SB_NOTREACHED();

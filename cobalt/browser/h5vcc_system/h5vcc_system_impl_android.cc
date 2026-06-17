@@ -90,6 +90,12 @@ void H5vccSystemImpl::RequestTrackingAuthorization(
   std::move(callback).Run(false);
 }
 
+void H5vccSystemImpl::GetFriendlyName(GetFriendlyNameCallback callback) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  JNIEnv* env = base::android::AttachCurrentThread();
+  std::move(callback).Run(StarboardBridge::GetInstance()->GetFriendlyName(env));
+}
+
 void H5vccSystemImpl::GetUserOnExitStrategy(
     GetUserOnExitStrategyCallback callback) {
   std::move(callback).Run(h5vcc_system::mojom::UserOnExitStrategy::kMinimize);
@@ -99,6 +105,12 @@ void H5vccSystemImpl::PerformExitStrategy() {
   JNIEnv* env = base::android::AttachCurrentThread();
   StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
   starboard_bridge->RequestSuspend(env);
+}
+
+void H5vccSystemImpl::HideSplashScreen() {
+  LOG(INFO) << "H5vccSystem HideSplashScreen.";
+  JNIEnv* env = base::android::AttachCurrentThread();
+  StarboardBridge::GetInstance()->HideSplashScreen(env);
 }
 
 }  // namespace h5vcc_system

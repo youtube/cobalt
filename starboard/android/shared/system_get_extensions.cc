@@ -22,6 +22,7 @@
 #include "starboard/android/shared/crash_handler.h"
 #include "starboard/android/shared/features_extension.h"
 #include "starboard/android/shared/graphics.h"
+#include "starboard/android/shared/media_buffer_pool_extension.h"
 #include "starboard/android/shared/platform_info.h"
 #include "starboard/android/shared/platform_service.h"
 #include "starboard/android/shared/player_set_max_video_input_size.h"
@@ -30,6 +31,7 @@
 #include "starboard/common/string.h"
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/crash_handler.h"
+#include "starboard/extension/experimental/experimental_features.h"
 #include "starboard/extension/features.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/extension/media_session.h"
@@ -38,6 +40,7 @@
 #include "starboard/extension/player_set_max_video_input_size.h"
 #include "starboard/extension/player_set_video_surface_view.h"
 #include "starboard/extension/system_info.h"
+#include "starboard/shared/starboard/experimental_features.h"
 
 const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionPlatformServiceName) == 0) {
@@ -69,6 +72,10 @@ const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kStarboardExtensionPlayerSetMaxVideoInputSizeName) == 0) {
     return starboard::GetPlayerSetMaxVideoInputSizeApi();
   }
+  if (strcmp(name, kStarboardExtensionExperimentalFeaturesConfigurationName) ==
+      0) {
+    return starboard::GetExperimentalFeaturesConfigurationApi();
+  }
   if (strcmp(name, kStarboardExtensionPlayerSetVideoSurfaceViewName) == 0) {
     return starboard::GetPlayerSetVideoSurfaceViewApi();
   }
@@ -77,7 +84,9 @@ const void* SbSystemGetExtension(const char* name) {
     // return starboard::GetAccessibilityApi();
     return NULL;
   }
-
+  if (strcmp(name, kStarboardExtensionMediaBufferPoolApiName) == 0) {
+    return starboard::android::shared::GetMediaBufferPoolApi();
+  }
   if (strcmp(name, kStarboardExtensionSystemInfoName) == 0) {
     return starboard::GetSystemInfoApi();
   }

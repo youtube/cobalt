@@ -17,10 +17,11 @@
 
 #include <jni.h>
 
-#include "base/android/jni_android.h"
-#include "base/android/scoped_java_ref.h"
+#include <optional>
+
 #include "base/memory/singleton.h"
 #include "starboard/media.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
@@ -29,21 +30,22 @@ class AudioOutputManager {
   // Returns the singleton.
   static AudioOutputManager* GetInstance();
 
-  base::android::ScopedJavaLocalRef<jobject> CreateAudioTrackBridge(
+  jni_zero::ScopedJavaLocalRef<jobject> CreateAudioTrackBridge(
       JNIEnv* env,
       int sample_type,
       int sample_rate,
       int channel_count,
+      int max_samples_per_write,
       int preferred_buffer_size_in_bytes,
-      int tunnel_mode_audio_session_id,
+      std::optional<int> tunnel_mode_audio_session_id,
       jboolean is_web_audio);
 
   void DestroyAudioTrackBridge(JNIEnv* env,
-                               base::android::ScopedJavaLocalRef<jobject>& obj);
+                               jni_zero::ScopedJavaLocalRef<jobject>& obj);
 
   bool GetOutputDeviceInfo(JNIEnv* env,
                            jint index,
-                           base::android::ScopedJavaLocalRef<jobject>& obj);
+                           jni_zero::ScopedJavaLocalRef<jobject>& obj);
 
   int GetMinBufferSize(JNIEnv* env,
                        jint sample_type,
@@ -57,7 +59,8 @@ class AudioOutputManager {
 
   bool GetAndResetHasAudioDeviceChanged(JNIEnv* env);
 
-  int GenerateTunnelModeAudioSessionId(JNIEnv* env, int numberOfChannels);
+  std::optional<int> GenerateTunnelModeAudioSessionId(JNIEnv* env,
+                                                      int numberOfChannels);
 
   bool HasPassthroughSupportFor(JNIEnv* env, int encoding);
 
@@ -78,7 +81,7 @@ class AudioOutputManager {
   friend struct base::DefaultSingletonTraits<AudioOutputManager>;
 
   // Java AudioOutputManager instance.
-  base::android::ScopedJavaGlobalRef<jobject> j_audio_output_manager_;
+  jni_zero::ScopedJavaGlobalRef<jobject> j_audio_output_manager_;
 };
 
 }  // namespace starboard

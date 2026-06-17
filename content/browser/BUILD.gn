@@ -351,6 +351,10 @@ source_set("browser") {
     "//v8:v8_version",
   ]
 
+  if (is_cobalt) {
+    deps -= [ "//components/language_detection/content/common" ]
+  }
+
   public_deps = [
     "//base",
     "//components/memory_pressure",
@@ -2624,26 +2628,6 @@ source_set("browser") {
       "//third_party/blink/public/mojom:memory_usage_monitor_linux_mojo_bindings",
     ]
   }
-  if (is_cobalt_hermetic_build) {
-    sources -= [
-      "child_process_launcher_helper_linux.cc",
-      "font_access/font_enumeration_data_source_linux.cc",
-      "font_access/font_enumeration_data_source_linux.h",
-      "font_service.cc",
-      "font_service.h",
-      "sandbox_host_linux.cc",
-      "sandbox_host_linux.h",
-      "sandbox_ipc_linux.cc",
-      "sandbox_ipc_linux.h",
-      "zygote_host/zygote_host_impl_linux.cc",
-      "zygote_host/zygote_host_impl_linux.h",
-    ]
-    sources += [
-      "child_process_launcher_helper_starboard.cc",
-    ]
-    public_deps -= [ "//components/services/font/public/mojom" ]
-    deps -= [ "//components/services/font:lib" ]
-  }
 
   if (is_win) {
     deps += [
@@ -3605,6 +3589,32 @@ source_set("browser") {
     ]
   }
 
+  if (is_cobalt_hermetic_build) {
+    sources += [ "child_process_launcher_helper_starboard.cc" ]
+
+    if (is_android) {
+      sources -= [ "child_process_launcher_helper_android.cc" ]
+    }
+
+    if (is_linux) {
+      sources -= [
+        "child_process_launcher_helper_linux.cc",
+        "font_access/font_enumeration_data_source_linux.cc",
+        "font_access/font_enumeration_data_source_linux.h",
+        "font_service.cc",
+        "font_service.h",
+        "sandbox_host_linux.cc",
+        "sandbox_host_linux.h",
+        "sandbox_ipc_linux.cc",
+        "sandbox_ipc_linux.h",
+        "zygote_host/zygote_host_impl_linux.cc",
+        "zygote_host/zygote_host_impl_linux.h",
+      ]
+      public_deps -= [ "//components/services/font/public/mojom" ]
+      deps -= [ "//components/services/font:lib" ]
+    }
+  }
+
   if (enable_devtools_frontend) {
     sources += [
       # Devtools frontend not included in mobile Android and iOS
@@ -3755,6 +3765,18 @@ source_set("browser") {
   # TODO(crbug.com/371609830): Remove dep on experiment end.
   if (is_chromeos) {
     deps += [ "//ash/constants:constants" ]
+  }
+
+  # If in the future privacy sandbox components are removed from the code base, ignore this if block.
+  if (!enable_privacy_sandbox_apis) {
+    _filtered_sources = filter_exclude(sources,
+                                       [
+                                         "browsing_topics/*",
+                                         "attribution_reporting/*",
+                                       ])
+    sources = []
+    sources = _filtered_sources
+    deps -= [ "//components/browsing_topics/common:common" ]
   }
 }
 

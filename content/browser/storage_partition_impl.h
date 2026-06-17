@@ -12,6 +12,12 @@
 #include <set>
 #include <string>
 
+// clang-format off
+// Remove these two includes after CHROMIUM_MILESTONE_LE_138
+#include "content/public/common/buildflags.h"
+#include "content/public/common/content_milestone_features.h"
+// clang-format on
+
 #include "base/containers/flat_map.h"
 #include "base/dcheck_is_on.h"
 #include "base/files/file_path.h"
@@ -157,8 +163,10 @@ class CONTENT_EXPORT StoragePartitionImpl
           shared_storage_header_observer);
   void OverrideAggregationServiceForTesting(
       std::unique_ptr<AggregationService> aggregation_service);
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   void OverrideAttributionManagerForTesting(
       std::unique_ptr<AttributionManager> attribution_manager);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   void OverridePrivateAggregationManagerForTesting(
       std::unique_ptr<PrivateAggregationManagerImpl>
           private_aggregation_manager);
@@ -213,7 +221,9 @@ class CONTENT_EXPORT StoragePartitionImpl
   ZoomLevelDelegate* GetZoomLevelDelegate() override;
   PlatformNotificationContextImpl* GetPlatformNotificationContext() override;
   InterestGroupManager* GetInterestGroupManager() override;
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   BrowsingTopicsSiteDataManager* GetBrowsingTopicsSiteDataManager() override;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   leveldb_proto::ProtoDatabaseProvider* GetProtoDatabaseProvider() override;
   // Use outside content.
   AttributionDataModel* GetAttributionDataModel() override;
@@ -801,11 +811,15 @@ class CONTENT_EXPORT StoragePartitionImpl
   std::unique_ptr<leveldb_proto::ProtoDatabaseProvider>
       proto_database_provider_;
   scoped_refptr<ContentIndexContextImpl> content_index_context_;
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   std::unique_ptr<AttributionManager> attribution_manager_;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   std::unique_ptr<FontAccessManager> font_access_manager_;
   std::unique_ptr<InterestGroupManagerImpl> interest_group_manager_;
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   std::unique_ptr<BrowsingTopicsSiteDataManager>
       browsing_topics_site_data_manager_;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   std::unique_ptr<AggregationService> aggregation_service_;
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
   std::unique_ptr<CdmStorageManager> cdm_storage_manager_;

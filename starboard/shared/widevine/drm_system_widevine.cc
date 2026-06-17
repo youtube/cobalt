@@ -14,6 +14,8 @@
 
 #include "starboard/shared/widevine/drm_system_widevine.h"
 
+#include <unistd.h>
+
 #include <algorithm>
 #include <mutex>
 #include <string>
@@ -49,7 +51,7 @@ const char kWidevineStorageFileName[] = "wvcdm.dat";
 // get HDCP authentication complete. We set a timeout of 6 seconds for retries.
 const int64_t kUnblockKeyRetryTimeoutUsec = 6'000'000;
 
-DECLARE_INSTANCE_COUNTER(DrmSystemWidevine);
+DECLARE_INSTANCE_COUNTER(DrmSystemWidevine)
 
 class WidevineClock : public wv3cdm::IClock {
  public:
@@ -218,7 +220,7 @@ DrmSystemWidevine::DrmSystemWidevine(
           session_key_statuses_changed_callback),
       server_certificate_updated_callback_(server_certificate_updated_callback),
       session_closed_callback_(session_closed_callback),
-      ticket_thread_id_(SbThreadGetId()) {
+      ticket_thread_id_(gettid()) {
   SB_DCHECK(!company_name.empty());
   SB_DCHECK(!model_name.empty());
 
@@ -269,18 +271,19 @@ bool DrmSystemWidevine::IsKeySystemSupported(const char* key_system) {
   // It is possible that the |key_system| comes with extra attributes, like
   // `com.widevine.alpha; encryptionscheme="cenc"`.  We prepend "key_system/"
   // to it, so it can be parsed by MimeType.
-  starboard::MimeType mime_type(std::string("key_system/") + key_system);
+  auto mime_type =
+      starboard::MimeType::Create(std::string("key_system/") + key_system);
 
-  if (!mime_type.is_valid()) {
+  if (!mime_type) {
     return false;
   }
-  SB_DCHECK_EQ(mime_type.type(), "key_system");
+  SB_DCHECK_EQ(mime_type->type(), "key_system");
 
   for (auto wv_key_system : kWidevineKeySystems) {
-    if (mime_type.subtype() == wv_key_system) {
-      for (int i = 0; i < mime_type.GetParamCount(); ++i) {
-        if (mime_type.GetParamName(i) == "encryptionscheme") {
-          auto value = mime_type.GetParamStringValue(i);
+    if (mime_type->subtype() == wv_key_system) {
+      for (int i = 0; i < mime_type->GetParamCount(); ++i) {
+        if (mime_type->GetParamName(i) == "encryptionscheme") {
+          auto value = mime_type->GetParamStringValue(i);
           if (value != "cenc" && value != "cbcs" && value != "cbcs-1-9") {
             return false;
           }
@@ -374,20 +377,6 @@ void DrmSystemWidevine::CloseSession(const void* sb_drm_session_id,
                            sb_drm_session_id_size);
 }
 
-void DrmSystemWidevine::UpdateServerCertificate(int ticket,
-                                                const void* certificate,
-                                                int certificate_size) {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
-  const std::string str_certificate(static_cast<const char*>(certificate),
-                                    certificate_size);
-  wv3cdm::Status status = cdm_->setServiceCertificate(str_certificate);
-
-  is_server_certificate_set_ = (status == wv3cdm::kSuccess);
-
-  server_certificate_updated_callback_(this, context_, ticket,
-                                       CdmStatusToSbDrmStatus(status), "");
-}
-
 void IncrementIv(uint8_t* iv, size_t block_count) {
   if (0 == block_count) {
     return;
@@ -449,12 +438,13 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
   size_t block_counter = 0;
   size_t encrypted_offset = 0;
 
-  for (size_t i = 0; i < buffer->drm_info()->subsample_count; i++) {
+  const int32_t subsample_count = buffer->drm_info()->subsample_count;
+  for (int32_t i = 0; i < subsample_count; i++) {
     const SbDrmSubSampleMapping& subsample =
         buffer->drm_info()->subsample_mapping[i];
     if (subsample.clear_byte_count) {
-      input.last_subsample = i + 1 == buffer->drm_info()->subsample_count &&
-                             subsample.encrypted_byte_count == 0;
+      input.last_subsample =
+          i + 1 == subsample_count && subsample.encrypted_byte_count == 0;
       input.encryption_scheme = wv3cdm::EncryptionScheme::kClear;
       input.data_length = subsample.clear_byte_count;
 
@@ -479,7 +469,7 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
     }
 
     if (subsample.encrypted_byte_count) {
-      input.last_subsample = i + 1 == buffer->drm_info()->subsample_count;
+      input.last_subsample = i + 1 == subsample_count;
       input.encryption_scheme = wv3cdm::EncryptionScheme::kAesCtr;
       if (drm_info->encryption_scheme == kSbDrmEncryptionSchemeAesCbc) {
         input.encryption_scheme = wv3cdm::EncryptionScheme::kAesCbc;
@@ -544,6 +534,20 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
 
   buffer->SetDecryptedContent(std::move(output_data));
   return kSuccess;
+}
+
+void DrmSystemWidevine::UpdateServerCertificate(int ticket,
+                                                const void* certificate,
+                                                int certificate_size) {
+  SB_CHECK(thread_checker_.CalledOnValidThread());
+  const std::string str_certificate(static_cast<const char*>(certificate),
+                                    certificate_size);
+  wv3cdm::Status status = cdm_->setServiceCertificate(str_certificate);
+
+  is_server_certificate_set_ = (status == wv3cdm::kSuccess);
+
+  server_certificate_updated_callback_(this, context_, ticket,
+                                       CdmStatusToSbDrmStatus(status), "");
 }
 
 void DrmSystemWidevine::GenerateSessionUpdateRequestInternal(
@@ -680,7 +684,7 @@ void DrmSystemWidevine::onDirectIndividualizationRequest(
 
 void DrmSystemWidevine::SetTicket(const std::string& sb_drm_session_id,
                                   int ticket) {
-  SB_DCHECK_EQ(SbThreadGetId(), ticket_thread_id_)
+  SB_DCHECK_EQ(gettid(), ticket_thread_id_)
       << "Ticket should only be set from the constructor thread.";
   sb_drm_session_id_to_ticket_map_[sb_drm_session_id] = ticket;
 }
@@ -688,7 +692,7 @@ void DrmSystemWidevine::SetTicket(const std::string& sb_drm_session_id,
 int DrmSystemWidevine::GetAndResetTicket(const std::string& sb_drm_session_id) {
   // Returning no ticket is a valid way to indicate that a host's method was
   // called spontaneously by CDM, potentially from the timer thread.
-  if (SbThreadGetId() != ticket_thread_id_) {
+  if (gettid() != ticket_thread_id_) {
     return kSbDrmTicketInvalid;
   }
   auto iter = sb_drm_session_id_to_ticket_map_.find(sb_drm_session_id);

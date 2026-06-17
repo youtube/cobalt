@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import("//starboard/android/apk/apk_sources.gni")
-import("//starboard/android/shared/toolchain/toolchain.gni")
 import("//starboard/build/config/install.gni")
 
 declare_args() {
@@ -89,7 +88,7 @@ template("install_target") {
       "-P",
       "cobaltTarget=$installable_target_name",
       "-P",
-      "evergreenCompatible=$sb_is_evergreen_compatible",
+      "evergreenCompatible=$is_starboard",
       "assembleCobalt_$gradle_build_type",
       "-Dorg.gradle.workers.max=$num_gradle_workers",
       "-Dorg.gradle.workers.parallel=$use_parallel_build",

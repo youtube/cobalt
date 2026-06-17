@@ -245,6 +245,8 @@ BASE_FEATURE(kEnableHangWatcher,
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS) || \
     BUILDFLAG(IS_LINUX)
              FEATURE_ENABLED_BY_DEFAULT
+#elif BUILDFLAG(IS_COBALT)
+             FEATURE_ENABLED_BY_DEFAULT
 #else
              FEATURE_DISABLED_BY_DEFAULT
 #endif
@@ -446,6 +448,10 @@ void HangWatcher::InitializeOnMainThread(ProcessType process_type,
     return;
   }
 
+#if BUILDFLAG(IS_COBALT)
+  LOG(INFO) << "Freeze detection: HangWatcher initialized";
+#endif
+
   // Retrieve thread-specific config for hang watching.
   if (process_type == HangWatcher::ProcessType::kBrowserProcess) {
     // Crashes are set to always emit. Override any feature flags.
@@ -529,6 +535,32 @@ void HangWatcher::UninitializeOnMainThreadForTesting() {
 bool HangWatcher::IsEnabled() {
   return g_use_hang_watcher.load(std::memory_order_relaxed);
 }
+
+#if BUILDFLAG(IS_COBALT)
+// static
+void HangWatcher::Suspend() {
+  // suspends hang watching when the application is frozen.
+  g_use_hang_watcher.store(false, std::memory_order_relaxed);
+}
+
+// static
+void HangWatcher::Resume() {
+  if (g_instance) {
+    // resumes hang watching when the application is unfrozen, explicitly
+    // ignoring pre-freeze deadlines to prevent false hang reports.
+    base::AutoLock auto_lock(g_instance->watch_state_lock_);
+    base::TimeTicks latest_deadline;
+    for (const auto& state : g_instance->watch_states_) {
+      base::TimeTicks deadline = state->GetDeadline();
+      if (deadline > latest_deadline) {
+        latest_deadline = deadline;
+      }
+    }
+    g_instance->deadline_ignore_threshold_ = latest_deadline;
+  }
+  g_use_hang_watcher.store(true, std::memory_order_relaxed);
+}
+#endif
 
 // static
 bool HangWatcher::IsThreadPoolHangWatchingEnabled() {
@@ -786,6 +818,9 @@ HangWatcher* HangWatcher::GetInstance() {
 
 // static
 void HangWatcher::RecordHang() {
+#if BUILDFLAG(IS_COBALT)
+  LOG(INFO) << "Freeze detection: start reporting";
+#endif
   base::debug::DumpWithoutCrashing();
   NO_CODE_FOLDING();
 }
@@ -1028,6 +1063,14 @@ HangWatcher::WatchStateSnapShot HangWatcher::GrabWatchStateSnapshotForTesting()
 
 void HangWatcher::Monitor() {
   DCHECK_CALLED_ON_VALID_THREAD(hang_watcher_thread_checker_);
+
+#if BUILDFLAG(IS_COBALT)
+  // suspends monitoring when the application is frozen.
+  if (!IsEnabled()) {
+    return;
+  }
+#endif
+
   AutoLock auto_lock(watch_state_lock_);
 
   // If all threads unregistered since this function was invoked there's
@@ -1049,6 +1092,10 @@ void HangWatcher::Monitor() {
 void HangWatcher::DoDumpWithoutCrashing(
     const WatchStateSnapShot& watch_state_snapshot) {
   TRACE_EVENT("latency", "HangWatcher::DoDumpWithoutCrashing");
+
+#if BUILDFLAG(IS_COBALT)
+  LOG(INFO) << "Freeze detection: Triggering DumpWithoutCrashing. Actionable: " << watch_state_snapshot.IsActionable();
+#endif
 
   capture_in_progress_.store(true, std::memory_order_relaxed);
   base::AutoLock scope_lock(capture_lock_);
@@ -1102,6 +1149,8 @@ void HangWatcher::DoDumpWithoutCrashing(
     if (g_hang_watcher_delegate &&
         g_hang_watcher_delegate->IsHangReportingEnabled()) {
       RecordHang();
+    } else {
+      LOG(INFO) << "Freeze detection: RecordHang() skipped due to reporting disabled.";
     }
 #else
     RecordHang();

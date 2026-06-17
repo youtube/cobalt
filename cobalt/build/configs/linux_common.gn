@@ -1,6 +1,6 @@
 # Common configuration options for linux platforms. Values here should not
 # reference args set elsewhere (e.g. do not use `x = !is_cobalt`).
-import("//cobalt/build/configs/chromium_linux-x64x11/args.gn")
+import("//cobalt/build/configs/chromium_linux.gn")
 import("//cobalt/build/configs/common.gn")
 
 use_ozone = true
@@ -27,10 +27,6 @@ angle_enable_swiftshader = false
 # From gpu/vulkan/features.gni
 enable_swiftshader_vulkan = false
 
-# Overriding flag from components/nacl/features.gni
-# NACL platform is deprecated in 2022 : https://sites.google.com/a/google.com/sandboxing-mitigations/reviews/nacl
-enable_nacl = false
-
 # Overriding the flag from //ui/gl/features.gni
 use_static_angle = true
 
@@ -48,9 +44,6 @@ use_xkbcommon = false
 
 # Disable PipeWire in WebRTC
 rtc_use_pipewire = false
-
-# Disable Chrome Remote Desktop
-enable_remoting = false
 
 # Disable Wayland Ozone Backend
 ozone_platform_wayland = false
@@ -116,3 +109,9 @@ enable_media_remoting_rpc = false
 
 # Enable v8 snapshot compression to reduce binary size (~167KB) for a small startup cost (<10ms).
 v8_enable_snapshot_compression = true
+
+# Disable the Compute Pressure API to reduce binary size as it is not used in Cobalt.
+enable_compute_pressure = false
+
+# Disable shadow metadata since it depends on memfd, which is unsupported.
+enable_shadow_metadata = false

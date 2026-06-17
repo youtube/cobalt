@@ -16,7 +16,6 @@
 
 #include "starboard/microphone.h"
 #include "starboard/nplb/microphone_helpers.h"
-#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {
@@ -121,7 +120,7 @@ TEST(SbMicrophoneReadTest, RainyDayAudioBufferIsNULL) {
     EXPECT_TRUE(SbMicrophoneOpen(microphone));
 
     int read_bytes = SbMicrophoneRead(microphone, NULL, 0);
-    EXPECT_EQ(read_bytes, 0);
+    EXPECT_EQ(read_bytes, -1);
 
     EXPECT_TRUE(SbMicrophoneClose(microphone));
     SbMicrophoneDestroy(microphone);

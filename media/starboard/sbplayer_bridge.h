@@ -21,34 +21,32 @@
 #include <vector>
 
 #include "base/atomic_sequence_num.h"
+#include "base/containers/circular_deque.h"
 #include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
+#include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
-
-#if COBALT_MEDIA_ENABLE_CVAL
-#include "cobalt/media/base/cval_stats.h"
-#endif  // COBALT_MEDIA_ENABLE_CVAL
-
-#if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-#include "cobalt/media/base/decode_target_provider.h"
-#endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-
-#if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
-#include "cobalt/media/base/decoder_buffer_cache.h"
-#endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
-
 #include "media/base/audio_decoder_config.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
+#include "media/base/starboard/starboard_renderer_config.h"
 #include "media/base/video_decoder_config.h"
+#include "media/starboard/buildflags.h"
 #include "media/starboard/sbplayer_interface.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "ui/gfx/geometry/rect.h"
+
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+#include "cobalt/media/base/cval_stats.h"
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
+#include "cobalt/media/base/decoder_buffer_cache.h"
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
 
 namespace media {
 
@@ -76,12 +74,12 @@ class SbPlayerBridge {
   };
 
   // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
-  typedef base::RepeatingCallback<SbDecodeTargetGraphicsContextProvider*()>
-      GetDecodeTargetGraphicsContextProviderFunc;
+  using GetDecodeTargetGraphicsContextProviderFunc =
+      base::RepeatingCallback<SbDecodeTargetGraphicsContextProvider*()>;
 
 #if SB_HAS(PLAYER_WITH_URL)
-  typedef base::Callback<void(const char*, const unsigned char*, unsigned)>
-      OnEncryptedMediaInitDataEncounteredCB;
+  using OnEncryptedMediaInitDataEncounteredCB = base::RepeatingCallback<
+      void(const char*, const unsigned char*, unsigned)>;
   // Create an SbPlayerBridge with url-based player.
   SbPlayerBridge(SbPlayerInterface* interface,
                  const scoped_refptr<base::SequencedTaskRunner>& task_runner,
@@ -91,10 +89,14 @@ class SbPlayerBridge {
                  bool allow_resume_after_suspend,
                  SbPlayerOutputMode default_output_mode,
                  const OnEncryptedMediaInitDataEncounteredCB&
-                     encrypted_media_init_data_encountered_cb,
-                 DecodeTargetProvider* const decode_target_provider,
-                 std::string pipeline_identifier);
+                     encrypted_media_init_data_encountered_cb
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+                 ,
+                 std::string pipeline_identifier
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+  );
 #endif  // SB_HAS(PLAYER_WITH_URL)
+  using ExperimentalFeatures = StarboardRendererConfig::ExperimentalFeatures;
   // Create a SbPlayerBridge with normal player
   SbPlayerBridge(SbPlayerInterface* interface,
                  const scoped_refptr<base::SequencedTaskRunner>& task_runner,
@@ -109,19 +111,17 @@ class SbPlayerBridge {
                  Host* host,
                  bool allow_resume_after_suspend,
                  SbPlayerOutputMode default_output_mode,
-#if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-                 DecodeTargetProvider* const decode_target_provider,
-#endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
                  const std::string& max_video_capabilities,
-                 int max_video_input_size
+                 int max_video_input_size,
+                 const ExperimentalFeatures& experimental_features
 #if BUILDFLAG(IS_ANDROID)
                  ,
                  jobject surface_view
 #endif  // BUILDFLAG(IS_ANDROID)
-#if COBALT_MEDIA_ENABLE_CVAL
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
                  ,
                  std::string pipeline_identifier
-#endif  // COBALT_MEDIA_ENABLE_CVAL
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
   );
 
   ~SbPlayerBridge();
@@ -176,6 +176,17 @@ class SbPlayerBridge {
     set_drm_system_ready_cb_time_ = timestamp;
   }
 
+  // Queues of active DecoderBuffers currently being decoded in the pipeline.
+  // Since Starboard deallocates buffers mostly in FIFO order, separate circular
+  // deques are maintained for audio and video to provide O(1) deallocation and
+  // eliminate runtime memory allocations in steady state.
+  // Note: Only used when enable_batched_buffer_deallocation_ is true.
+  struct OptimizedDecodingBuffer {
+    DecoderBuffer::Allocator::Handle handle;
+    scoped_refptr<DecoderBuffer> buffer;
+  };
+  using DecodingBufferQueue = base::circular_deque<OptimizedDecodingBuffer>;
+
  private:
   enum State {
     kPlaying,
@@ -190,12 +201,15 @@ class SbPlayerBridge {
   // count indicates how many instances of the DecoderBuffer is currently
   // being used (== being decoded) in the pipeline. The type is used to report
   // playback statistics.
+  // Note: Only used when enable_batched_buffer_deallocation_ is false.
   struct DecodingBuffer {
     const scoped_refptr<DecoderBuffer> buffer;
     int usage_count;
     SbMediaType type;
   };
-  using DecodingBuffers = absl::flat_hash_map<const void*, DecodingBuffer>;
+  using DecodingBuffers =
+      absl::flat_hash_map<const DecoderBuffer::Allocator::Handle,
+                          DecodingBuffer>;
 
 #if SB_HAS(PLAYER_WITH_URL)
   OnEncryptedMediaInitDataEncounteredCB
@@ -212,10 +226,10 @@ class SbPlayerBridge {
 #endif  // SB_HAS(PLAYER_WITH_URL)
   void CreatePlayer();
 
-#if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
   void WriteNextBuffersFromCache(DemuxerStream::Type type,
                                  int max_buffers_per_write);
-#endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
 
   void WriteBuffersInternal(
       DemuxerStream::Type type,
@@ -247,7 +261,12 @@ class SbPlayerBridge {
   void OnPlayerErrorTask(void* player,
                          SbPlayerError error,
                          const std::string& message);
+  // Note: Only used when enable_batched_buffer_deallocation_ is false.
   void OnDeallocateSampleTask(const void* sample_buffer);
+
+  // Note: Only used when enable_batched_buffer_deallocation_ is true.
+  void ProcessPendingBatchedDeallocations();
+  void EnqueueSampleForBatchedDeallocation(const void* sample_buffer);
 
   static void DecoderStatusCB(SbPlayer player,
                               void* context,
@@ -289,9 +308,9 @@ class SbPlayerBridge {
   SbWindow window_;
   SbDrmSystem drm_system_ = kSbDrmSystemInvalid;
   Host* const host_;
-#if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
   const bool allow_resume_after_suspend_;
-#endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
 
   // The following variables are only changed or accessed from the
   // |task_runner_|.
@@ -301,14 +320,21 @@ class SbPlayerBridge {
   //                    wrapper classes.
   SbMediaAudioStreamInfo audio_stream_info_ = {};
   SbMediaVideoStreamInfo video_stream_info_ = {};
+
+  // Note: Only used when enable_batched_buffer_deallocation_ is false.
   DecodingBuffers decoding_buffers_;
+
+  // Note: Only used when enable_batched_buffer_deallocation_ is true.
+  DecodingBufferQueue audio_decoding_buffers_;
+  DecodingBufferQueue video_decoding_buffers_;
+
   int ticket_ = SB_PLAYER_INITIAL_TICKET;
   float volume_ = 1.0f;
   double playback_rate_ = 0.0;
   bool seek_pending_ = false;
-#if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
   DecoderBufferCache decoder_buffer_cache_;
-#endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
 
   // Stores the |z_index| and |rect| parameters of the latest SetBounds() call.
   std::optional<int> set_bounds_z_index_;
@@ -325,10 +351,6 @@ class SbPlayerBridge {
   // Keep track of the output mode we are supposed to output to.
   SbPlayerOutputMode output_mode_;
 
-#if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-  DecodeTargetProvider* const decode_target_provider_;
-#endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-
   // Keep copies of the mime type strings instead of using the ones in the
   // DemuxerStreams to ensure that the strings are always valid.
   std::string audio_mime_type_;
@@ -336,7 +358,10 @@ class SbPlayerBridge {
   // A string of video maximum capabilities.
   std::string max_video_capabilities_;
 
-#if COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
+  const ExperimentalFeatures experimental_features_;
+  const bool enable_batched_buffer_deallocation_;
+
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE)
   // Set the maximum size in bytes of an input buffer for video.
   int max_video_input_size_;
 #endif
@@ -367,10 +392,33 @@ class SbPlayerBridge {
   bool pending_audio_eos_buffer_ = false;
   bool pending_video_eos_buffer_ = false;
 
-#if COBALT_MEDIA_ENABLE_CVAL
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
   CValStats* cval_stats_;
   std::string pipeline_identifier_;
-#endif  // COBALT_MEDIA_ENABLE_CVAL
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+
+  // Pre-allocated vectors for WriteBuffersInternal to avoid allocations when
+  // enable_batched_buffer_deallocation_ is enabled.
+  std::vector<SbPlayerSampleInfo> gathered_sbplayer_sample_infos_;
+  std::vector<SbDrmSampleInfo> gathered_sbplayer_sample_infos_drm_info_;
+  std::vector<SbDrmSubSampleMapping>
+      gathered_sbplayer_sample_infos_subsample_mapping_;
+  std::vector<SbPlayerSampleSideData> gathered_sbplayer_sample_infos_side_data_;
+
+  // Note: Only used when enable_batched_buffer_deallocation_ is true.
+  base::Lock pending_deallocations_lock_;
+  std::vector<const void*> pending_deallocations_
+      GUARDED_BY(pending_deallocations_lock_);
+  bool deallocation_task_pending_ GUARDED_BY(pending_deallocations_lock_) =
+      false;
+  bool batch_deallocations_enabled_ GUARDED_BY(pending_deallocations_lock_) =
+      true;
+  // Pre-allocated vector utilized exclusively on task_runner_ during queue
+  // draining to swap storage with pending_deallocations_. By invoking clear()
+  // post-processing, established capacities are preserved across execution
+  // cycles, completely eliminating vector reallocations on Starboard threads.
+  std::vector<const void*> processing_deallocations_;
+  base::RepeatingClosure process_pending_deallocations_cb_;
 
   // NOTE: Do not add member variables after weak_factory_
   // It should be the first one destroyed among all members.

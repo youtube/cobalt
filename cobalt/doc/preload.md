@@ -58,12 +58,12 @@ it enters the application layer.
 
 ### Implementation Flow
 
-1.  **Entry Point:** `SbEventHandle` (in `cobalt/app/cobalt.cc`) receives
-    `kSbEventTypePreload`.
-2.  **State Propagation:** An `is_visible` boolean (set to `false`) is passed
-    through the constructor chain: `CobaltMainDelegate` ->
-    `CobaltContentBrowserClient` -> `CobaltBrowserMainParts` ->
-    `ShellBrowserMainParts`.
+1.  **Entry Point:** `AppLifecycleDelegate::HandleEvent` (called by `SbEventHandle`)
+    receives `kSbEventTypePreload`.
+2.  **State Propagation:** The delegate calls `Run()`, which initializes an
+    `is_visible` boolean (set to `false`) that is passed through the constructor
+    chain: `CobaltMainDelegate` -> `CobaltContentBrowserClient` ->
+    `CobaltBrowserMainParts` -> `ShellBrowserMainParts`.
 3.  **Initialization:** `ShellBrowserMainParts::PreMainMessageLoopRun` calls
     `Shell::Initialize`, passing the visibility state.
 4.  **Splash Screen Skip:** `Shell::CreateNewWindow` checks the visibility state
@@ -85,6 +85,9 @@ it enters the application layer.
 Application lifecycle and visibility transitions are covered by the following
 unit tests in the `cobalt_unittests` binary:
 
+-   **`AppLifecycleDelegateTest`** (`cobalt/app/app_lifecycle_delegate_unittest.cc`):
+    Verifies that Starboard events (Start, Preload, Reveal, Stop) are correctly
+    interpreted and translated into Cobalt actions.
 -   **`LifecycleTest`** (`cobalt/shell/browser/lifecycle_unittest.cc`): Verifies
     correct window creation and visibility state propagation during startup,
     revelation, and redundant signals.

@@ -15,6 +15,7 @@ namespace blink {
 
 namespace bindings::internal {
 
+template <bool kPerformDetachCheck>
 class CORE_EXPORT ByteSpanWithInlineStorage {
   STACK_ALLOCATED();
 
@@ -24,23 +25,50 @@ class CORE_EXPORT ByteSpanWithInlineStorage {
   ByteSpanWithInlineStorage() = default;
   ByteSpanWithInlineStorage(const ByteSpanWithInlineStorage& r) { *this = r; }
 
-  ByteSpanWithInlineStorage& operator=(const ByteSpanWithInlineStorage& r);
+  ByteSpanWithInlineStorage& operator=(const ByteSpanWithInlineStorage& r) {
+    if (r.span_.data() == r.inline_storage_) {
+      auto span = base::span(inline_storage_);
+      span.copy_from(base::span(r.inline_storage_));
+      span_ = span.first(r.span_.size());
+    } else {
+      span_ = r.span_;
+      orig_buffer_for_detach_check_ = r.orig_buffer_for_detach_check_;
+    }
+    return *this;
+  }
 
   void Assign(base::span<const uint8_t> span) { span_ = span; }
   void Assign(v8::MemorySpan<const uint8_t> span) { span_ = span; }
+  void MaybeSetArrayBuffer(v8::Local<v8::ArrayBuffer> array_buffer) {
+    if constexpr (kPerformDetachCheck) {
+      orig_buffer_for_detach_check_ = array_buffer;
+    }
+  }
+
   // This class allows implicit conversion to span, because it's an internal
   // class tightly coupled to the bindings generator that knows how to use it.
   // Note rvalue conversion is explicitly disabled.
   // NOLINTNEXTLINE(google-explicit-constructor)
-  operator base::span<const uint8_t>() const& { return span_; }
+  operator base::span<const uint8_t>() const& { return as_span(); }
   operator base::span<const uint8_t>() const&& = delete;
-  const base::span<const uint8_t> as_span() const { return span_; }
+  const base::span<const uint8_t> as_span() const {
+    if constexpr (kPerformDetachCheck) {
+      if (!orig_buffer_for_detach_check_.IsEmpty() &&
+          orig_buffer_for_detach_check_->WasDetached()) {
+        return {};
+      }
+    }
+    return span_;
+  }
 
   v8::MemorySpan<uint8_t> GetInlineStorage() { return inline_storage_; }
 
  private:
   base::span<const uint8_t> span_;
   uint8_t inline_storage_[kInlineStorageSize];
+  struct Void {};
+  std::conditional_t<kPerformDetachCheck, v8::Local<v8::ArrayBuffer>, Void>
+      orig_buffer_for_detach_check_;
 };
 
 template <typename T>
@@ -50,7 +78,7 @@ v8::MemorySpan<const uint8_t> GetArrayData(v8::Local<T> array) {
       static_cast<const uint8_t*>(array->Data()), array->ByteLength());
 }
 
-template <typename T>
+template <typename T, bool kPerformDetachCheck>
 class SpanWithInlineStorage {
   STACK_ALLOCATED();
 
@@ -68,16 +96,19 @@ class SpanWithInlineStorage {
                                      bytes.size() / sizeof(T)));
   }
 
+  void MaybeSetArrayBuffer(v8::Local<v8::ArrayBuffer> array_buffer) {
+    bytes_.MaybeSetArrayBuffer(array_buffer);
+  }
   void Assign(base::span<const uint8_t> span) { bytes_.Assign(span); }
   v8::MemorySpan<uint8_t> GetInlineStorage() {
     return bytes_.GetInlineStorage();
   }
 
  private:
-  ByteSpanWithInlineStorage bytes_;
+  ByteSpanWithInlineStorage<kPerformDetachCheck> bytes_;
 };
 
-template <typename T>
+template <typename T, bool kPerformDetachCheck>
 class SpanOrVector {
   STACK_ALLOCATED();
 
@@ -89,6 +120,9 @@ class SpanOrVector {
   operator base::span<const T>() const&& = delete;
   const base::span<const T> as_span() const { return span_.as_span(); }
 
+  void MaybeSetArrayBuffer(v8::Local<v8::ArrayBuffer> array_buffer) {
+    span_.MaybeSetArrayBuffer(array_buffer);
+  }
   void Assign(base::span<const uint8_t> span) { span_.Assign(span); }
   void Assign(Vector<T> vec) {
     vector_ = std::move(vec);
@@ -107,7 +141,7 @@ class SpanOrVector {
   }
 
  private:
-  SpanWithInlineStorage<T> span_;
+  SpanWithInlineStorage<T, kPerformDetachCheck> span_;
   Vector<T> vector_;
 };
 
@@ -167,6 +201,7 @@ struct PassAsSpanMarkerBase {
     kNone,
     kAllowShared = 1 << 0,
     kAllowSequence = 1 << 1,
+    kPerformDetachCheck = 1 << 2,
   };
 };
 
@@ -182,6 +217,9 @@ template <PassAsSpanMarkerBase::Flags flags =
 struct PassAsSpan : public PassAsSpanMarkerBase {
   static constexpr bool allow_shared = flags & Flags::kAllowShared;
   static constexpr bool allow_sequence = flags & Flags::kAllowSequence;
+  static constexpr bool perform_detach_check =
+      flags & Flags::kPerformDetachCheck;
+
   static constexpr bool is_typed = !std::is_same_v<T, void>;
 
   static_assert(is_typed || !allow_sequence);
@@ -189,10 +227,11 @@ struct PassAsSpan : public PassAsSpanMarkerBase {
   using ElementType = T;
   using ReturnType = std::conditional_t<
       allow_sequence,
-      bindings::internal::SpanOrVector<T>,
-      std::conditional_t<is_typed,
-                         bindings::internal::SpanWithInlineStorage<T>,
-                         bindings::internal::ByteSpanWithInlineStorage>>;
+      bindings::internal::SpanOrVector<T, perform_detach_check>,
+      std::conditional_t<
+          is_typed,
+          bindings::internal::SpanWithInlineStorage<T, perform_detach_check>,
+          bindings::internal::ByteSpanWithInlineStorage<perform_detach_check>>>;
 };
 
 }  // namespace blink

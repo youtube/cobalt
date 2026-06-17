@@ -44,6 +44,10 @@ if (!rdk_build_with_yocto) {
   } else {
     _rdk_toolchain_platform_cflags += " -mfloat-abi=hard"
   }
+
+  # Use the gold linker instead of default ld to avoid
+  # linker errors. see b/510541109
+ _rdk_toolchain_platform_cflags += " -fuse-ld=gold"
 }
 
 rdk_gcc_toolchain("starboard") {
@@ -74,7 +78,6 @@ rdk_gcc_toolchain("native_target") {
   }
   toolchain_args = {
     is_starboard = false
-    is_native_target_build = true
     sysroot = "$rdk_sysroot"
     build_base_with_cpp17 = true
     enable_base_tracing = false

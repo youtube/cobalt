@@ -47,6 +47,7 @@ if (is_android) {
 }
 
 if (is_ios) {
+  import("//build/config/apple/mobile_config.gni")
   import("//build/config/ios/bundle_data_from_filelist.gni")
 }
 
@@ -183,7 +184,6 @@ copy("cobalt_browsertests_runner_script") {
   testonly = true
   sources = [ "run_browser_tests.py" ]
   outputs = [ "$root_out_dir/cobalt_browsertests_runner" ]
-  deps = [ ":cobalt_browsertests" ]
 }
 
 if (is_ios) {
@@ -204,15 +204,6 @@ if (is_ios) {
   }
 }
 
-group("cobalt_browsertests_runner") {
-  testonly = true
-  data_deps = [
-    ":cobalt_browsertests",
-    ":cobalt_browsertests_runner_script",
-  ]
-  write_runtime_deps = "$root_out_dir/cobalt_browsertests_runner.runtime_deps"
-}
-
 # Note: Testing on official builds is not currently supported.
 test("cobalt_browsertests") {
   use_xvfb = use_xvfb_in_this_config
@@ -227,6 +218,9 @@ test("cobalt_browsertests") {
     # TODO(b/458665232): restore browser tests in M138.
     "//cobalt/browser/h5vcc_runtime_browsertest.cc",
     "//cobalt/browser/h5vcc_system_browsertest.cc",
+
+    # TODO(b/511244766): separate target for perf test.
+    "//cobalt/browser/metrics/cobalt_memory_threshold_browsertest.cc",
     "//cobalt/browser/metrics/cobalt_metrics_browsertest.cc",
     "//cobalt/browser/metrics/font_metrics_browsertest.cc",
     "content_main_runner_impl_browsertest.cc",
@@ -253,6 +247,11 @@ test("cobalt_browsertests") {
 
   if (is_starboard) {
     sources += [ "cobalt_browser_tests_main.cc" ]
+  }
+
+  if (is_linux || is_android) {
+    # This currently tests Linux/Android-specific information and operations.
+    sources += [ "granular_memory_browsertest.cc" ]
   }
 
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
@@ -353,6 +352,7 @@ test("cobalt_browsertests") {
     "//services/network:test_support",
     "//services/network/public/mojom",
     "//services/network/trust_tokens:test_support",
+    "//services/resource_coordinator/public/cpp/memory_instrumentation",
     "//services/service_manager/public/cpp",
     "//services/tracing:privacy_check",
     "//services/video_capture/public/cpp",
@@ -400,11 +400,12 @@ test("cobalt_browsertests") {
     "//third_party/mesa_headers",
   ]
 
-  if (is_ios) {
+  if (is_ios && target_platform == "tvos") {
     bundle_deps = [
       ":cobalt_shell_pak_bundle_data",
       ":cobalt_test_bundle_data",
     ]
+    deps += [ "//starboard/common:common" ]
   }
 
   if (is_android) {
@@ -440,6 +441,12 @@ test("cobalt_browsertests") {
       "//content/test:test_support",
       "//starboard:starboard_headers_only",
     ]
+    data_deps += [ ":cobalt_browsertests_runner_script" ]
+
+    # Modular build does not call generate_wrapper().
+    if (!use_custom_libc) {
+      custom_launcher = "$root_out_dir/cobalt_browsertests_runner"
+    }
   }
 
   if (is_posix) {

@@ -10,6 +10,7 @@
     "ZipTest.UnzipSjisAsUtf8",
     "ZipTest.UnzipWithFilter",
     "ZipTest.ZipNonASCIIDir",
+    "ZipTest.ZipTimeStamp",
     "ZlibTest.CRCHashBitsCollision",
     "ZlibTest.ZlibWrapper"
   ]

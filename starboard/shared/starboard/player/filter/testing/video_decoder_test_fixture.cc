@@ -32,6 +32,7 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/stub_player_components_factory.h"
@@ -39,7 +40,6 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
-#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -71,7 +71,7 @@ VideoDecoderTestFixture::VideoDecoderTestFixture(
 
 void VideoDecoderTestFixture::Initialize() {
   ASSERT_NE(dmp_reader_.video_codec(), kSbMediaVideoCodecNone);
-  ASSERT_GT(dmp_reader_.number_of_video_buffers(), 0);
+  ASSERT_GT(dmp_reader_.number_of_video_buffers(), 0u);
   ASSERT_TRUE(GetVideoInputBuffer(0)->video_sample_info().is_key_frame);
 
   SbPlayerOutputMode output_mode = output_mode_;
@@ -81,9 +81,8 @@ void VideoDecoderTestFixture::Initialize() {
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
       GetVideoInputBuffer(0)->video_stream_info(), &player_, output_mode,
-      max_video_input_size,
-      fake_graphics_context_provider_->decoder_target_provider(), nullptr,
-      job_queue_);
+      max_video_input_size, ExperimentalFeatures{}, /*surface_view=*/nullptr,
+      fake_graphics_context_provider_->decoder_target_provider(), job_queue_);
   ASSERT_EQ(creation_parameters.max_video_input_size(), max_video_input_size);
 
   std::unique_ptr<PlayerComponents::Factory> factory;

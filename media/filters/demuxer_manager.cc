@@ -27,15 +27,6 @@
 #include "media/filters/manifest_demuxer.h"
 #endif  // BUILDFLAG(ENABLE_HLS_DEMUXER)
 
-#if BUILDFLAG(ENABLE_FFMPEG)
-// The ProgressiveDemuxer is enabled when use_starboard_media=true and
-// media_use_ffmpeg=false. Cobalt enables the ProgressiveDemuxer by
-// default. This can disabled by the BASE_FEATURE
-// CobaltProgressivePlayback at runtime.
-#elif BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/starboard/progressive/progressive_demuxer.h"  // nogncheck
-#endif // BUILDFLAG(ENABLE_FFMPEG)
-
 namespace media {
 
 namespace {
@@ -356,12 +347,8 @@ PipelineStatus DemuxerManager::CreateDemuxer(
 #if BUILDFLAG(ENABLE_FFMPEG)
     SetDemuxer(CreateFFmpegDemuxer());
 #elif BUILDFLAG(USE_STARBOARD_MEDIA)
-    if (base::FeatureList::IsEnabled(media::kCobaltProgressivePlayback)) {
-      SetDemuxer(CreateProgressiveDemuxer());
-    } else {
-      LOG(INFO) << "Cobalt progressive playback is disabled via base features.";
-      return DEMUXER_ERROR_PROGRESSIVE_DISABLED;
-    }
+    LOG(INFO) << "Progressive streams are unsupported.";
+    return DEMUXER_ERROR_NO_SUPPORTED_STREAMS;
 #else
     return DEMUXER_ERROR_PROGRESSIVE_DISABLED;
 #endif
@@ -526,14 +513,6 @@ std::unique_ptr<Demuxer> DemuxerManager::CreateFFmpegDemuxer() {
           base::BindRepeating(&DemuxerManager::OnFFmpegMediaTracksUpdated,
                               weak_factory_.GetWeakPtr())),
       media_log_.get(), IsLocalFile(loaded_url_));
-}
-#elif BUILDFLAG(USE_STARBOARD_MEDIA)
-std::unique_ptr<Demuxer> DemuxerManager::CreateProgressiveDemuxer() {
-  DCHECK(data_source_);
-  DCHECK(base::FeatureList::IsEnabled(media::kCobaltProgressivePlayback));
-  LOG(INFO) << "Using ProgressiveDemuxer.";
-  return std::make_unique<ProgressiveDemuxer>(
-      media_task_runner_, data_source_.get(), media_log_.get());
 }
 #endif  // BUILDFLAG(ENABLE_FFMPEG)
 

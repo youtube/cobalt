@@ -26,16 +26,16 @@
 #include "starboard/shared/starboard/application.h"
 #include "starboard/system.h"
 
-#if SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
+#if BUILDFLAG(IS_STARBOARD) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 #include "starboard/loader_app/pending_restart.h"  // nogncheck
-#endif  // SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
+#endif  // BUILDFLAG(IS_STARBOARD) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 
 namespace starboard {
 
 namespace {
 
 const std::initializer_list<int> kAllSignals = {SIGUSR1, SIGUSR2, SIGCONT,
-                                                SIGTSTP, SIGPWR};
+                                                SIGTSTP, SIGPWR,  SIGWINCH};
 
 int SignalMask(std::initializer_list<int> signal_ids, int action) {
   sigset_t mask;
@@ -55,7 +55,7 @@ void SetSignalHandler(int signal_id, SignalHandlerFunction handler) {
   action.sa_flags = 0;
   ::sigemptyset(&action.sa_mask);
 
-  ::sigaction(signal_id, &action, NULL);
+  ::sigaction(signal_id, &action, nullptr);
 }
 
 void Conceal(int signal_id) {
@@ -65,11 +65,18 @@ void Conceal(int signal_id) {
   SignalMask(kAllSignals, SIG_UNBLOCK);
 }
 
+void Blur(int signal_id) {
+  SignalMask(kAllSignals, SIG_BLOCK);
+  LogSignalCaught(signal_id);
+  Application::Get()->Blur(nullptr, nullptr);
+  SignalMask(kAllSignals, SIG_UNBLOCK);
+}
+
 void Focus(int signal_id) {
   SignalMask(kAllSignals, SIG_BLOCK);
   LogSignalCaught(signal_id);
   // TODO: Unfreeze or Focus based on state before frozen?
-  Application::Get()->Focus(NULL, NULL);
+  Application::Get()->Focus(nullptr, nullptr);
   SignalMask(kAllSignals, SIG_UNBLOCK);
 }
 
@@ -147,6 +154,7 @@ void InstallSuspendSignalHandlers() {
   SignalMask(kAllSignals, SIG_BLOCK);
 
   SetSignalHandler(SIGUSR1, &Conceal);
+  SetSignalHandler(SIGWINCH, &Blur);
   SetSignalHandler(SIGUSR2, &LowMemory);
   SetSignalHandler(SIGCONT, &Focus);
   SetSignalHandler(SIGTSTP, &Freeze);
@@ -159,6 +167,7 @@ void UninstallSuspendSignalHandlers() {
   SetSignalHandler(SIGPIPE, SIG_DFL);
 #endif
   SetSignalHandler(SIGUSR1, SIG_DFL);
+  SetSignalHandler(SIGWINCH, SIG_DFL);
   SetSignalHandler(SIGUSR2, SIG_DFL);
   SetSignalHandler(SIGCONT, SIG_DFL);
   SetSignalHandler(SIGPWR, SIG_DFL);

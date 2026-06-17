@@ -327,6 +327,10 @@ group("dev_ui_resources") {
     ]
   }
 
+  if (!is_android && is_cobalt) {
+    public_deps -= [ "on_device_internals:resources" ]
+  }
+
   if (is_android || is_linux || is_chromeos || is_win) {
     public_deps += [ "//chrome/browser/resources/sandbox_internals:resources" ]
   }
@@ -388,6 +392,10 @@ repack("dev_ui_paks") {
       "$root_gen_dir/chrome/user_education_internals_resources.pak",
       "$root_gen_dir/chrome/webui_js_error_resources.pak",
     ]
+  }
+
+  if (!is_android && is_cobalt) {
+    sources -= [ "$root_gen_dir/chrome/on_device_internals_resources.pak" ]
   }
 
   if (is_android || is_linux || is_chromeos || is_win) {

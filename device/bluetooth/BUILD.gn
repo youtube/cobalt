@@ -64,7 +64,7 @@ source_set("deprecated_experimental_mojo") {
   }
 
   # TODO: b/384652502 - Cobalt: Fix linker errors.
-  if (is_starboard) {
+  if (is_starboard && (is_chromeos || is_linux)) {
     sources -= [
       "bluez/metrics_recorder.cc",
       "bluez/metrics_recorder.h",

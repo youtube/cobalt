@@ -36,6 +36,10 @@ enum {
 
 namespace {
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  std::atomic<int> g_max_pending_bytes_per_parse{StreamParser::kMaxPendingBytesPerParse};  // 128KiB
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 base::TimeDelta EndTimestamp(const StreamParser::BufferQueue& queue) {
   return queue.back()->timestamp() + queue.back()->duration();
 }
@@ -66,6 +70,13 @@ unsigned GetMSEBufferSizeLimitIfExists(std::string_view switch_string) {
 }
 
 }  // namespace
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// static
+void SourceBufferState::SetMaxPendingBytesPerParseOverride(int max_bytes) {
+  g_max_pending_bytes_per_parse = max_bytes;
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // List of time ranges for each SourceBuffer.
 // static
@@ -215,7 +226,11 @@ StreamParser::ParseStatus SourceBufferState::RunSegmentParserLoop(
   // TODO(wolenetz): Curry and pass a NewBuffersCB here bound with append window
   // and timestamp offset pointer. See http://crbug.com/351454.
   StreamParser::ParseStatus result =
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      stream_parser_->Parse(g_max_pending_bytes_per_parse);
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
       stream_parser_->Parse(StreamParser::kMaxPendingBytesPerParse);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   if (result == StreamParser::ParseStatus::kFailed) {
     MEDIA_LOG(ERROR, media_log_)
@@ -808,17 +823,6 @@ void SourceBufferState::SetStreamMemoryLimits() {
       it.second->SetStreamMemoryLimit(video_buf_size_limit);
   }
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
- size_t video_buf_size_limit_clamp =
-      GetMSEBufferSizeLimitIfExists(switches::kMSEVideoBufferSizeLimitClampMb);
-  if (video_buf_size_limit_clamp) {
-    MEDIA_LOG(INFO, media_log_)
-        << "Custom video per-track SourceBuffer size clamp limit(MiB)="
-        << (video_buf_size_limit_clamp / 1024 / 1024);
-    for (const auto& it : video_streams_)
-      it.second->SetStreamMemoryLimitClamp(video_buf_size_limit_clamp);
-  }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void SourceBufferState::OnNewMediaSegment() {

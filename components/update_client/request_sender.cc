@@ -137,12 +137,9 @@ void RequestSender::SendInternal() {
 #if BUILDFLAG(IS_STARBOARD)
 void RequestSender::Cancel() {
   LOG(INFO) << "RequestSender::Cancel";
-  // TODO(b/431862767): enable this in a follow-up PR with the Cobalt network
-  // fetcher implementation
-  NOTIMPLEMENTED();
-  // if (network_fetcher_.get()) {
-  //   network_fetcher_->Cancel();
-  // }
+  if (network_fetcher_.get()) {
+    network_fetcher_->Cancel();
+  }
 }
 #endif
 

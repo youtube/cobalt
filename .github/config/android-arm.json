@@ -4,15 +4,15 @@
     "android-arm"
   ],
   "test_package": true,
+  "test_on_host": true,
   "test_on_device": true,
   "test_device_family": "android",
   "test_e2e": true,
   "test_yts": true,
   "test_yts_playback": true,
   "test_browser": false,
-  "test_yts_wpt": false,
+  "test_yts_wpt": true,
   "test_root_target": "//cobalt/android:cobalt_apk",
-  "test_attempts": "3",
   "e2e_test_targets": [
     {
       "target": "web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_coat_sabrina",
@@ -99,7 +99,7 @@
   ],
   "yts_wpt_test_targets": [
     {
-      "target": "testing/container/wpt:wpt_yts_test",
+      "target": "testing/container/wpt:yts_wpt_test_android_arm_devices",
       "test_attempts": "3"
     }
   ],

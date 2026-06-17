@@ -15,6 +15,7 @@
 import("//build/config/arm.gni")
 import("//cobalt/build/configs/hacks.gni")
 import("//starboard/build/buildflags.gni")
+import("//starboard/build/config/toolchain_variables.gni")
 
 config("cobalt_config") {
   configs = [
@@ -25,12 +26,12 @@ config("cobalt_config") {
   if (enable_cobalt_hermetic_hacks) {
     configs += [ ":no_mallinfo" ]
   }
-  if ((current_toolchain == starboard_toolchain &&
-       starboard_toolchain != default_toolchain) ||
-      current_toolchain == native_target) {
+  if (is_partner_toolchain ||
+      # TODO(crbug.com/390675141): Remove this condition when the Linux
+      # monolithic build is removed.
+      (is_starboard_toolchain && !is_default_toolchain)) {
     configs += [ "//${starboard_path}/platform_configuration" ]
-  } else if (is_cobalt_hermetic_build &&
-             current_toolchain == cobalt_toolchain) {
+  } else if (is_cobalt_hermetic_build && is_cobalt_toolchain) {
     configs += [
       "//starboard/build/config:starboard",
       ":modular_platform_configuration",
@@ -38,7 +39,7 @@ config("cobalt_config") {
   }
 }
 
-if (is_cobalt_hermetic_build && current_toolchain == cobalt_toolchain) {
+if (is_cobalt_hermetic_build && is_cobalt_toolchain) {
   config("modular_platform_configuration") {
     cpu_path = current_cpu
     if (current_cpu == "arm") {
@@ -148,15 +149,11 @@ config("buildflag_defines") {
     defines += [ "ENABLE_BUILDFLAG_IS_ANDROIDTV" ]
   }
 
-  # Use is_native_target_build and BUILDFLAG(IS_NATIVE_TARGET_BUILD) for code
-  # that should only be built using the platform's "native_target" toolchain.
-  # This is for binaries that should run natively on the system, without
-  # Starboard.
-  # TODO: b/406511608 - consider removing the is_native_target_build variable
-  # since it's true iff current_toolchain == native_target. We may want to
-  # rename the build variable if we do.
-  if (is_native_target_build) {
-    defines += [ "ENABLE_BUILDFLAG_IS_NATIVE_TARGET_BUILD" ]
+  # Use is_native_toolchain and BUILDFLAG(IS_NATIVE_TOOLCHAIN) for code that
+  # should only be built using the platform's "native_target" toolchain. This is for
+  # binaries that should run natively on the system, without Starboard.
+  if (is_native_toolchain) {
+    defines += [ "ENABLE_BUILDFLAG_IS_NATIVE_TOOLCHAIN" ]
   }
 
   # Use build_base_with_cpp17 and BUILDFLAG(BUILD_BASE_WITH_CPP17) to guard
@@ -168,8 +165,15 @@ config("buildflag_defines") {
   # Use BUILDFLAG(IS_STARBOARD_TOOLCHAIN) to guard customizations that should
   # only be built for the starboard toolchain. Note that this is not the same
   # thing as BUILDFLAG(IS_STARBOARD).
-  if (current_toolchain == starboard_toolchain) {
+  if (is_starboard_toolchain) {
     defines += [ "ENABLE_BUILDFLAG_IS_STARBOARD_TOOLCHAIN" ]
+  }
+
+  # Use BUILDFLAG(IS_PARTNER_TOOLCHAIN) to guard customizations that should
+  # only be built for the partner toolchains, as defined at
+  # starboard/build/config/toolchain_variables.gni.
+  if (is_partner_toolchain) {
+    defines += [ "ENABLE_BUILDFLAG_IS_PARTNER_TOOLCHAIN" ]
   }
 }
 
@@ -179,7 +183,7 @@ config("no_mallinfo") {
 
 config("global_defines") {
   defines = []
-  if (current_toolchain == default_toolchain) {
+  if (is_default_toolchain) {
     defines += [ "SB_IS_DEFAULT_TC" ]
   }
 }

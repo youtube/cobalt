@@ -193,13 +193,6 @@ const char kForceVideoOverlays[] = "force-video-overlays";
 const char kMSEAudioBufferSizeLimitMb[] = "mse-audio-buffer-size-limit-mb";
 const char kMSEVideoBufferSizeLimitMb[] = "mse-video-buffer-size-limit-mb";
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-// Allows explicitly specifiying MSE video buffer size maximum as megabytes.
-// Any video buffer size greater than this value will be clamped down to the
-// associated switch value.
-const char kMSEVideoBufferSizeLimitClampMb[] = "mse-video-buffer-size-limit-clamp-mb";
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 // Specifies the path to the Clear Key CDM for testing, which is necessary to
 // support External Clear Key key system when library CDM is enabled. Note that
 // External Clear Key key system support is also controlled by feature
@@ -514,24 +507,16 @@ const base::FeatureParam<base::TimeDelta> kAudioWriteDurationLocal{
     &kCobaltAudioWriteDuration, "AudioWriteDurationLocal", base::Milliseconds(1000)};
 const base::FeatureParam<base::TimeDelta> kAudioWriteDurationRemote{
     &kCobaltAudioWriteDuration, "AudioWriteDurationRemote", base::Microseconds(kSbPlayerWriteDurationRemote)};
-// When enabled, Cobalt stores allocation meta data in place for DecoderBuffers.
-BASE_FEATURE(kCobaltDecoderBufferAllocatorWithInPlaceMetadata,
-             "CobaltDecoderBufferAllocatorWithInPlaceMetadata",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-// When disabled, Cobalt rejects progressive video formats.
-BASE_FEATURE(kCobaltProgressivePlayback,
-             "CobaltProgressivePlayback",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-// When enabled, Cobalt reports buffering state during flush.
-BASE_FEATURE(kCobaltReportBufferingStateDuringFlush,
-             "CobaltReportBufferingStateDuringFlush",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 #if BUILDFLAG(IS_ANDROID)
 // When enabled, Cobalt uses AndroidOverlay for SbPlayer, otherwise it uses VideoSurfaceView.
 BASE_FEATURE(kCobaltUsingAndroidOverlay,
              "CobaltUsingAndroidOverlay",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
+// Bypass Mojo for media pipeline in Cobalt single-process mode.
+BASE_FEATURE(kCobaltBypassMojoForMedia,
+             "CobaltBypassMojoForMedia",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_CHROMEOS)

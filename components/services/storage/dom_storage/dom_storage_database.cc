@@ -69,6 +69,14 @@ leveldb_env::Options MakeOptions() {
   return options;
 }
 
+#if BUILDFLAG(IS_COBALT)
+leveldb::WriteOptions CreateSyncWriteOptions() {
+  leveldb::WriteOptions options;
+  options.sync = true;
+  return options;
+}
+#endif
+
 std::unique_ptr<leveldb::DB> TryOpenDB(
     const leveldb_env::Options& options,
     const std::string& name,
@@ -289,7 +297,11 @@ DomStorageDatabase::Status DomStorageDatabase::Put(KeyView key,
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!db_)
     return Status::IOError(kInvalidDatabaseMessage);
+#if BUILDFLAG(IS_COBALT)
+  return db_->Put(CreateSyncWriteOptions(), MakeSlice(key), MakeSlice(value));
+#else
   return db_->Put(leveldb::WriteOptions(), MakeSlice(key), MakeSlice(value));
+#endif
 }
 
 DomStorageDatabase::Status DomStorageDatabase::GetPrefixed(
@@ -346,7 +358,11 @@ DomStorageDatabase::Status DomStorageDatabase::Commit(
     return Status::IOError(kInvalidDatabaseMessage);
   if (fail_commits_for_testing_)
     return Status::IOError("Simulated I/O Error");
+#if BUILDFLAG(IS_COBALT)
+  return db_->Write(CreateSyncWriteOptions(), batch);
+#else
   return db_->Write(leveldb::WriteOptions(), batch);
+#endif
 }
 
 DomStorageDatabase::Status DomStorageDatabase::RewriteDB() {

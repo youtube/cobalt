@@ -211,6 +211,8 @@
 #include "content/public/common/alternative_error_page_override_info.mojom.h"
 #include "content/public/common/bindings_policy.h"
 #include "content/public/common/content_client.h"
+#include "content/public/common/content_milestone_features.h"
+#include "content/public/common/buildflags.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/extra_mojo_js_features.mojom.h"
@@ -269,6 +271,7 @@
 #include "third_party/blink/public/common/loader/resource_type_util.h"
 #include "third_party/blink/public/common/messaging/transferable_message.h"
 #include "third_party/blink/public/common/navigation/navigation_params_mojom_traits.h"
+#include "third_party/blink/public/common/page_state/page_state_serialization.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
 #include "third_party/blink/public/common/permissions_policy/document_policy.h"
 #include "third_party/blink/public/common/privacy_budget/identifiability_study_document_created.h"
@@ -9263,12 +9266,19 @@ void RenderFrameHostImpl::DidChangeIframeAttributes(
     return;
   }
 
-  if (attributes->browsing_topics &&
-      !base::FeatureList::IsEnabled(network::features::kBrowsingTopics)) {
-    bad_message::ReceivedBadMessage(
-        GetProcess(),
-        bad_message::RFH_RECEIVED_INVALID_BROWSING_TOPICS_ATTRIBUTE);
-    return;
+  if (attributes->browsing_topics) {
+#if !BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) || !CHROMIUM_MILESTONE_LE_138
+    const bool topics_disabled = true;
+#else
+    const bool topics_disabled =
+        !base::FeatureList::IsEnabled(network::features::kBrowsingTopics);
+#endif  // !BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) || !CHROMIUM_MILESTONE_LE_138
+    if (topics_disabled) {
+      bad_message::ReceivedBadMessage(
+          GetProcess(),
+          bad_message::RFH_RECEIVED_INVALID_BROWSING_TOPICS_ATTRIBUTE);
+      return;
+    }
   }
 
   if (attributes->shared_storage_writable_opted_in &&
@@ -9640,6 +9650,13 @@ void RenderFrameHostImpl::CreateNewWindow(
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   TRACE_EVENT2("navigation", "RenderFrameHostImpl::CreateNewWindow",
                "render_frame_host", this, "url", params->target_url);
+
+  // TODO(crbug.com/487768779): Move all `params` validation from this function
+  // into VerifyCreateNewWindowParams.
+  if (!VerifyCreateNewWindowParams(*this, *params)) {
+    std::move(callback).Run(mojom::CreateNewWindowStatus::kBlocked, nullptr);
+    return;
+  }
 
   // These checks ensure malformed partitioned popins cannot be created.
   // Most of these checks should already have been done by the renderer.
@@ -13274,8 +13291,29 @@ RenderFrameHostImpl* RenderFrameHostImpl::GetOutermostMainFrame() {
 
 bool RenderFrameHostImpl::CanAccessFilesOfPageState(
     const blink::PageState& state) {
+  // Ensure that all of the files in the PageState were actually listed in the
+  // GetReferencedFiles list, using a set to prune duplicates.
+  // See https://crbug.com/487383169.
+  std::vector<base::FilePath> all_files;
+  if (!blink::GetAllFilesInPageState(state.ToEncodedData(), &all_files)) {
+    // All files in the PageState weren't recovered due to parsing failures.
+    // The renderer should be killed instead of proceeding with a PageState that
+    // might still contain files that could be used without being validated.
+    return false;
+  }
+  std::vector<base::FilePath> referenced_files = state.GetReferencedFiles();
+  std::set<base::FilePath> referenced_file_set(referenced_files.begin(),
+                                               referenced_files.end());
+  for (const base::FilePath& file : all_files) {
+    if (!referenced_file_set.contains(file)) {
+      // Found a file that was not in the list to be validated, so the renderer
+      // should be killed.
+      return false;
+    }
+  }
+
   return ChildProcessSecurityPolicyImpl::GetInstance()->CanReadAllFiles(
-      GetProcess()->GetDeprecatedID(), state.GetReferencedFiles());
+      GetProcess()->GetDeprecatedID(), referenced_files);
 }
 
 void RenderFrameHostImpl::GrantFileAccessFromPageState(

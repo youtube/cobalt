@@ -75,7 +75,7 @@ void H5vccSystemImpl::Exit() {
   // Flushes localStorage.
   base::ElapsedTimer local_storage_flush_timer;
   storage_partition->Flush();
-  UMA_HISTOGRAM_TIMES("Cobalt.Storage.Exit.LocalStorageFlushDuration",
+  UMA_HISTOGRAM_TIMES("Cobalt.Storage.Exit.LocalStorageFlushSchedulingDuration",
                       local_storage_flush_timer.Elapsed());
   auto* cookie_manager = storage_partition->GetCookieManagerForBrowserProcess();
   CHECK(cookie_manager);

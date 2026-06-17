@@ -15,9 +15,9 @@
 #ifndef MEDIA_BASE_STARBOARD_STARBOARD_RENDERER_CONFIG_H_
 #define MEDIA_BASE_STARBOARD_STARBOARD_RENDERER_CONFIG_H_
 
-#include <map>
+#include <optional>
+#include <ostream>
 #include <string>
-#include <variant>
 
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
@@ -26,18 +26,40 @@
 
 namespace media {
 
-using H5vccSettingValue = std::variant<std::string, int64_t>;
-
 // Configs for StarboardRenderer.
 struct MEDIA_EXPORT StarboardRendererConfig {
+  struct ExperimentalFeatures {
+    // keep-sorted start
+    bool allow_audio_writing_on_pause = false;
+    bool bypass_mojo_for_media = false;
+    bool disable_low_performance_sw_decoder = false;
+    bool enable_av1_startup_optimization = false;
+    bool enable_flush_during_seek = false;
+    bool enable_low_latency = false;
+    bool enable_reset_audio_decoder = false;
+    bool enable_video_renderer_vsp_adjustment = false;
+    bool flush_audio_track_during_seek = false;
+    bool force_clear_surface_view = false;
+    bool force_decode_to_texture = false;
+    bool ignore_mediacodec_callbacks_during_flushing = false;
+    bool skip_flush_on_decoder_teardown = false;
+    bool skip_video_frames_over_60_fps = false;
+    std::optional<bool> enable_simd_based_audio_format_switching;
+    std::optional<bool> enable_trivial_optimizations;
+    std::optional<int> max_samples_per_write;
+    std::optional<int> video_decoder_initial_preroll_count;
+    std::optional<int> video_renderer_min_decoded_frames;
+    std::optional<int> video_renderer_min_input_buffers;
+    // keep-sorted end
+  };
+
   StarboardRendererConfig();
-  StarboardRendererConfig(
-      const base::UnguessableToken& overlay_plane_id,
-      base::TimeDelta audio_write_duration_local,
-      base::TimeDelta audio_write_duration_remote,
-      const std::string& max_video_capabilities,
-      const gfx::Size& viewport_size,
-      const std::map<std::string, H5vccSettingValue>& h5vcc_settings);
+  StarboardRendererConfig(const base::UnguessableToken& overlay_plane_id,
+                          base::TimeDelta audio_write_duration_local,
+                          base::TimeDelta audio_write_duration_remote,
+                          const std::string& max_video_capabilities,
+                          const ExperimentalFeatures& experimental_features,
+                          const gfx::Size& viewport_size);
   StarboardRendererConfig(const StarboardRendererConfig&);
   StarboardRendererConfig& operator=(const StarboardRendererConfig&);
 
@@ -45,9 +67,13 @@ struct MEDIA_EXPORT StarboardRendererConfig {
   base::TimeDelta audio_write_duration_local;
   base::TimeDelta audio_write_duration_remote;
   std::string max_video_capabilities;
+  ExperimentalFeatures experimental_features;
   gfx::Size viewport_size;
-  std::map<std::string, H5vccSettingValue> h5vcc_settings;
 };
+
+MEDIA_EXPORT std::ostream& operator<<(
+    std::ostream& os,
+    const StarboardRendererConfig::ExperimentalFeatures& features);
 
 }  // namespace media
 

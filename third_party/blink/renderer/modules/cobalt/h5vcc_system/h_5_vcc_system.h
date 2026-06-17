@@ -50,6 +50,7 @@ class MODULES_EXPORT H5vccSystem final
   const String& advertisingId();
   ScriptPromise<IDLBoolean> getLimitAdTracking(ScriptState*, ExceptionState&);
   absl::optional<bool> limitAdTracking();
+  ScriptPromise<IDLString> getFriendlyName(ScriptState*, ExceptionState&);
   ScriptPromise<IDLString> getTrackingAuthorizationStatus(ScriptState*,
                                                           ExceptionState&);
   const String& trackingAuthorizationStatus();
@@ -57,12 +58,14 @@ class MODULES_EXPORT H5vccSystem final
                                                            ExceptionState&);
   void exit();
   uint32_t userOnExitStrategy();
+  void hideSplashScreen();
 
   void Trace(Visitor*) const override;
 
  private:
   void OnGetAdvertisingId(ScriptPromiseResolver<IDLString>*, const String&);
   void OnGetLimitAdTracking(ScriptPromiseResolver<IDLBoolean>*, bool);
+  void OnGetFriendlyName(ScriptPromiseResolver<IDLString>*, const String&);
   void OnGetTrackingAuthorizationStatus(ScriptPromiseResolver<IDLString>*,
                                         const String&);
   void OnRequestTrackingAuthorization(ScriptPromiseResolver<IDLUndefined>*,

@@ -31,7 +31,9 @@
 #include "services/audio/service_factory.h"
 #include "services/data_decoder/data_decoder_service.h"
 #include "services/network/network_service.h"
-#include "services/on_device_model/on_device_model_service.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "services/on_device_model/on_device_model_service.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "services/tracing/public/mojom/tracing_service.mojom.h"
 #include "services/tracing/tracing_service.h"
 #include "services/video_capture/public/mojom/video_capture_service.mojom.h"
@@ -361,11 +363,13 @@ auto RunVideoEffects(
 }
 #endif
 
+#if !BUILDFLAG(IS_COBALT)
 auto RunOnDeviceModel(
     mojo::PendingReceiver<on_device_model::mojom::OnDeviceModelService>
         receiver) {
   return on_device_model::OnDeviceModelService::Create(std::move(receiver));
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(ENABLE_VR) && !BUILDFLAG(IS_ANDROID)
 auto RunXrDeviceService(
@@ -425,25 +429,27 @@ void RegisterIOThreadServices(mojo::ServiceFactory& services) {
 void RegisterMainThreadServices(mojo::ServiceFactory& services) {
 #if !BUILDFLAG(IS_COBALT)
   services.Add(RunAuctionWorkletService);
-#endif
+#endif  // !BUILDFLAG(IS_COBALT)
   services.Add(RunAudio);
 
 #if !BUILDFLAG(IS_COBALT)
   services.Add(RunDataDecoder);
   services.Add(RunStorageService);
-#endif
+#endif  // !BUILDFLAG(IS_COBALT)
   services.Add(RunTracing);
 #if !BUILDFLAG(IS_COBALT)
   services.Add(RunVideoCapture);
-#endif
+#endif  // !BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
   services.Add(RunVideoEffects);
 #endif
 
+#if !BUILDFLAG(IS_COBALT)
   if (optimization_guide::features::CanLaunchOnDeviceModelService()) {
     services.Add(RunOnDeviceModel);
   }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING) && BUILDFLAG(IS_CHROMEOS)
   services.Add(RunShapeDetectionService);

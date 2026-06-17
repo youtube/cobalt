@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal_pcm.h"
 
 #include <algorithm>
+#include <limits>
 #include <mutex>
 #include <string>
 #include <utility>
@@ -70,10 +71,12 @@ AudioRendererPcm::AudioRendererPcm(
     std::unique_ptr<AudioRendererSink> audio_renderer_sink,
     const AudioStreamInfo& audio_stream_info,
     int max_cached_frames,
-    int min_frames_per_append)
+    int min_frames_per_append,
+    const ExperimentalFeatures& experimental_features)
     : JobOwner(job_queue),
       max_cached_frames_(max_cached_frames),
       min_frames_per_append_(min_frames_per_append),
+      experimental_features_(experimental_features),
       decoder_(std::move(decoder)),
       frames_consumed_set_at_(CurrentMonotonicTime()),
       channels_(audio_stream_info.number_of_channels),
@@ -222,10 +225,7 @@ void AudioRendererPcm::SetPlaybackRate(double playback_rate) {
   audio_renderer_sink_->SetPlaybackRate(adjusted_playback_rate);
   if (audio_renderer_sink_->HasStarted()) {
     if (playback_rate_ > 0.0) {
-      if (process_audio_data_job_token_.is_valid()) {
-        RemoveJobByToken(process_audio_data_job_token_);
-        process_audio_data_job_token_.ResetToInvalid();
-      }
+      RemoveJobByToken(&process_audio_data_job_token_);
       process_audio_data_job_token_ = Schedule(process_audio_data_job_);
     }
   }
@@ -235,7 +235,7 @@ void AudioRendererPcm::Seek(int64_t seek_to_time) {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK_GE(seek_to_time, 0);
 
-  audio_renderer_sink_->Stop();
+  audio_renderer_sink_->Reset();
 
   {
     // Set the following states under a lock first to ensure that from now on
@@ -246,30 +246,31 @@ void AudioRendererPcm::Seek(int64_t seek_to_time) {
     last_media_time_ = seek_to_time;
     ended_cb_called_ = false;
     seeking_ = true;
+
+    // The resampler maintains internal state and must be reset during a seek
+    // to avoid audio glitches. If the sink is flushed but not stopped,
+    // the callbacks might still be called by the audio thread, so the following
+    // modifications must be protected by the lock.
+    if (resampler_) {
+      resampler_.reset();
+      time_stretcher_.FlushBuffers();
+    }
+
+    total_frames_sent_to_sink_ = 0;
+    total_frames_consumed_by_sink_ = 0;
+    frames_consumed_by_sink_since_last_get_current_time_ = 0;
+    pending_decoder_outputs_ = 0;
+    audio_frame_tracker_.Reset();
+    frames_consumed_set_at_ = CurrentMonotonicTime();
+    can_accept_more_data_ = true;
+
+    is_eos_reached_on_sink_thread_ = false;
+    is_playing_on_sink_thread_ = false;
+    frames_in_buffer_on_sink_thread_ = 0;
+    offset_in_frames_on_sink_thread_ = 0;
+    frames_consumed_on_sink_thread_ = 0;
+    silence_frames_written_after_eos_on_sink_thread_ = 0;
   }
-
-  // Now the sink is stopped and the callbacks will no longer be called, so the
-  // following modifications are safe without lock.
-  if (resampler_) {
-    resampler_.reset();
-    time_stretcher_.FlushBuffers();
-  }
-
-  total_frames_sent_to_sink_ = 0;
-  total_frames_consumed_by_sink_ = 0;
-  frames_consumed_by_sink_since_last_get_current_time_ = 0;
-  pending_decoder_outputs_ = 0;
-  audio_frame_tracker_.Reset();
-  frames_consumed_set_at_ = CurrentMonotonicTime();
-  can_accept_more_data_ = true;
-  process_audio_data_job_token_.ResetToInvalid();
-
-  is_eos_reached_on_sink_thread_ = false;
-  is_playing_on_sink_thread_ = false;
-  frames_in_buffer_on_sink_thread_ = 0;
-  offset_in_frames_on_sink_thread_ = 0;
-  frames_consumed_on_sink_thread_ = 0;
-  silence_frames_written_after_eos_on_sink_thread_ = 0;
 
   if (first_input_written_) {
     decoder_->Reset();
@@ -338,9 +339,6 @@ int64_t AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
         audio_frame_tracker_.GetFutureFramesPlayedAdjustedToPlaybackRate(
             elapsed_frames, playback_rate);
     if (audio_renderer_sink_->AllowOverflowAudioSamples()) {
-      // A simple workaround to handle silence frames for tunnel mode player.
-      // |playback_rate| is ignored as tunnel mode doesn't support
-      // vsp.
       frames_played += audio_frame_tracker_.GetOverflowedFrames();
     }
     media_time =
@@ -380,6 +378,51 @@ int64_t AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
   return media_time;
 }
 
+int64_t AudioRendererPcm::GetAudioWriteHead() {
+  SB_CHECK(BelongsToCurrentThread());
+
+  if (!audio_renderer_sink_->HasStarted()) {
+    return 0;
+  }
+
+  if (eos_state_ == kEOSSentToSink) {
+    return std::numeric_limits<int64_t>::max();
+  }
+
+  SB_CHECK(decoder_sample_rate_);
+
+  std::lock_guard lock(mutex_);
+  return seeking_to_time_ + audio_frame_tracker_.GetTotalOriginalFrames() *
+                                1'000'000LL / *decoder_sample_rate_;
+}
+
+int64_t AudioRendererPcm::AdjustTimestampToAudioClock(int64_t timestamp) {
+  SB_CHECK(BelongsToCurrentThread());
+
+  // No need to adjust inputs before seeking to time.
+  if (timestamp <= seeking_to_time_) {
+    return timestamp;
+  }
+
+  if (!audio_renderer_sink_->HasStarted()) {
+    return -1;
+  }
+  SB_CHECK(decoder_sample_rate_);
+
+  std::lock_guard lock(mutex_);
+  int64_t frame_position =
+      (timestamp - seeking_to_time_) * *decoder_sample_rate_ / 1'000'000LL;
+  int64_t adjusted_frame_position =
+      audio_frame_tracker_.ConvertOriginalFramePositionToAdjustedFrames(
+          frame_position);
+  if (adjusted_frame_position < 0) {
+    // Returning a negative value as an error code.
+    return adjusted_frame_position;
+  }
+  return seeking_to_time_ +
+         adjusted_frame_position * 1'000'000LL / *decoder_sample_rate_;
+}
+
 void AudioRendererPcm::GetSourceStatus(int* frames_in_buffer,
                                        int* offset_in_frames,
                                        bool* is_playing,
@@ -395,7 +438,7 @@ void AudioRendererPcm::GetSourceStatus(int* frames_in_buffer,
   *is_eos_reached = is_eos_reached_on_sink_thread_;
   *is_playing = is_playing_on_sink_thread_;
 
-  if (*is_playing) {
+  if (*is_playing || experimental_features_.allow_audio_writing_on_pause) {
     *frames_in_buffer =
         frames_in_buffer_on_sink_thread_ - frames_consumed_on_sink_thread_;
     *offset_in_frames =
@@ -538,13 +581,17 @@ void AudioRendererPcm::OnFirstOutput(
   buffered_frames_to_start_ = std::min(
       destination_sample_rate / 5, max_cached_frames_ - min_frames_per_append_);
 
+  // |time_stretcher_| only supports kSbMediaAudioSampleTypeFloat32 and
+  // kSbMediaAudioFrameStorageTypeInterleaved, so we resample the audio to that
+  // format to avoid unnecessary extra conversion.
   if (decoded_sample_rate != destination_sample_rate ||
-      decoded_sample_type != sink_sample_type_ ||
+      decoded_sample_type != kSbMediaAudioSampleTypeFloat32 ||
       decoded_storage_type != kSbMediaAudioFrameStorageTypeInterleaved) {
     resampler_ = AudioResampler::Create(
         decoded_sample_type, decoded_storage_type, decoded_sample_rate,
-        sink_sample_type_, kSbMediaAudioFrameStorageTypeInterleaved,
-        destination_sample_rate, channels_);
+        kSbMediaAudioSampleTypeFloat32,
+        kSbMediaAudioFrameStorageTypeInterleaved, destination_sample_rate,
+        channels_);
     SB_DCHECK(resampler_);
   } else {
     resampler_.reset(new IdentityAudioResampler);
@@ -584,10 +631,7 @@ void AudioRendererPcm::OnDecoderOutput() {
 
   ++pending_decoder_outputs_;
 
-  if (process_audio_data_job_token_.is_valid()) {
-    RemoveJobByToken(process_audio_data_job_token_);
-    process_audio_data_job_token_.ResetToInvalid();
-  }
+  RemoveJobByToken(&process_audio_data_job_token_);
 
   ProcessAudioData();
 }
@@ -595,7 +639,7 @@ void AudioRendererPcm::OnDecoderOutput() {
 void AudioRendererPcm::ProcessAudioData() {
   SB_CHECK(BelongsToCurrentThread());
 
-  process_audio_data_job_token_.ResetToInvalid();
+  process_audio_data_job_token_ = JobQueue::JobToken::kUnscheduled;
 
   // Loop until no audio is appended, i.e. AppendAudioToFrameBuffer() returns
   // false.

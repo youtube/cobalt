@@ -33,37 +33,6 @@
 
 namespace blink {
 
-namespace {
-
-WTF::Vector<uint8_t> ToWTFVector(DOMArrayBuffer* array_buffer) {
-  if (!array_buffer || array_buffer->IsDetached()) {
-    return WTF::Vector<uint8_t>();
-  }
-
-  size_t byte_length = array_buffer->ByteLength();
-  if (byte_length == 0) {
-    return WTF::Vector<uint8_t>();
-  }
-
-  const uint8_t* data = static_cast<const uint8_t*>(array_buffer->Data());
-  DCHECK(data);
-
-  WTF::Vector<uint8_t> vector;
-  vector.Append(data, base::checked_cast<wtf_size_t>(byte_length));
-  return vector;
-}
-
-DOMArrayBuffer* ToDOMArrayBuffer(const WTF::Vector<uint8_t>& vector) {
-  if (vector.empty()) {
-    // Create a zero-byte ArrayBuffer using the (void*, size_t) overload.
-    return DOMArrayBuffer::Create(nullptr, static_cast<size_t>(0));
-  }
-
-  return DOMArrayBuffer::Create(vector.data(), vector.size());
-}
-
-}  // namespace
-
 using ServiceManager =
     h5vcc_platform_service::mojom::blink::H5vccPlatformServiceManager;
 using Service = h5vcc_platform_service::mojom::blink::PlatformService;
@@ -163,11 +132,6 @@ H5vccPlatformService::H5vccPlatformService(LocalDOMWindow& window,
       platform_service_remote_(GetExecutionContext()),
       observer_receiver_(this, GetExecutionContext()) {}
 
-H5vccPlatformService::~H5vccPlatformService() {
-  // Ensures mojo pipes are closed if not done already
-  close();
-}
-
 void H5vccPlatformService::OnManagerConnectionError() {
   DLOG(ERROR) << "H5vccPlatformServiceManager connection error";
   // If the manager connection drops, it doesn't necessarily mean the
@@ -191,8 +155,10 @@ DOMArrayBuffer* H5vccPlatformService::send(DOMArrayBuffer* data,
     return nullptr;
   }
 
-  WTF::Vector<uint8_t> input_data = ToWTFVector(data);
-  std::optional<WTF::Vector<uint8_t>> response_data;
+  base::span<const uint8_t> input_data = data && !data->IsDetached()
+                                             ? data->ByteSpan()
+                                             : base::span<const uint8_t>();
+  std::optional<base::span<const uint8_t>> response_data;
 
   bool mojo_result = platform_service_remote_->Send(input_data, &response_data);
 
@@ -216,7 +182,7 @@ DOMArrayBuffer* H5vccPlatformService::send(DOMArrayBuffer* data,
     return nullptr;
   }
 
-  return ToDOMArrayBuffer(response_data.value());
+  return DOMArrayBuffer::Create(response_data.value());
 }
 
 void H5vccPlatformService::close() {
@@ -233,7 +199,7 @@ void H5vccPlatformService::ContextDestroyed() {
   close();
 }
 
-void H5vccPlatformService::OnDataReceived(const WTF::Vector<uint8_t>& data) {
+void H5vccPlatformService::OnDataReceived(base::span<const uint8_t> data) {
   if (!receive_callback_) {
     DLOG(WARNING) << "H5vccPlatformService::OnDataReceived: dropping the "
                   << "message for " << service_name_ << " because the JS "
@@ -254,9 +220,8 @@ void H5vccPlatformService::OnDataReceived(const WTF::Vector<uint8_t>& data) {
   }
   ScriptState::Scope scope(script_state);  // For RAII
 
-  DOMArrayBuffer* dom_buffer = ToDOMArrayBuffer(data);
-  v8::Local<v8::Value> v8_data =
-      ToV8Traits<DOMArrayBuffer>::ToV8(script_state, dom_buffer);
+  v8::Local<v8::Value> v8_data = ToV8Traits<DOMArrayBuffer>::ToV8(
+      script_state, DOMArrayBuffer::Create(data));
   ScriptValue script_data(script_state->GetIsolate(), v8_data);
 
   // nullptr is passed since the JS callback is not on any object instance.

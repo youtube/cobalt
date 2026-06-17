@@ -22,11 +22,12 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 
+#include "starboard/common/thread_options.h"
 #include "starboard/configuration.h"
-#include "starboard/thread.h"
 
 namespace starboard {
 
@@ -34,9 +35,12 @@ class Semaphore;
 
 class Thread {
  public:
-  explicit Thread(std::string_view name);
+  explicit Thread(std::string_view name,
+                  const ThreadOptions& options = ThreadOptions());
   template <size_t N>
-  explicit Thread(char const (&name)[N]) : Thread(std::string_view(name)) {
+  explicit Thread(char const (&name)[N],
+                  const ThreadOptions& options = ThreadOptions())
+      : Thread(std::string_view(name), options) {
     // Common to all user code, limited by Linux pthreads default
     static_assert(N <= 16, "Thread name too long, max 16");
   }
@@ -68,12 +72,17 @@ class Thread {
   Semaphore* join_sema();
   std::atomic_bool* joined_bool();
 
+ private:
+  const std::string name_;
+  const std::optional<ThreadPriority> priority_;
   struct Data;
   const std::unique_ptr<Data> d_;
 
   Thread(const Thread&) = delete;
   void operator=(const Thread&) = delete;
 };
+
+int ThreadPriorityToNiceValue(ThreadPriority priority);
 
 }  // namespace starboard
 

@@ -1,3 +1,4 @@
+import("//cobalt/build/configs/chromium_android.gn")
 import("//cobalt/build/configs/common.gn")
 
 # This flag comes from build/config/compiler/compiler.gni
@@ -7,3 +8,8 @@ treat_warnings_as_errors = false
 # hashed jni names make build artifact opaque for Kimono build.
 use_hashed_jni_names = false
 use_errorprone_java_compiler = false
+
+# Enable OpenSL ES to provide a stable fallback path for microphone input
+# on Android TV, avoiding AAudio MMAP conflicts with virtual bridges.
+# See http://b/478022126#comment6
+media_use_opensles = true

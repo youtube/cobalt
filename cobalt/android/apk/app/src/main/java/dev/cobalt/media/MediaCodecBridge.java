@@ -30,14 +30,18 @@ import android.media.MediaCrypto;
 import android.media.MediaFormat;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Surface;
 import androidx.annotation.GuardedBy;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import dev.cobalt.media.MediaCodecFrameRateEstimator.FrameRateEstimator;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.SynchronizedHolder;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.Locale;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
@@ -60,13 +64,42 @@ class MediaCodecBridge {
   private final SynchronizedHolder<MediaCodec, IllegalStateException> mMediaCodec =
       new SynchronizedHolder<>(() -> new IllegalStateException("MediaCodec was destroyed"));
 
+  // mMainHandler is used to ensure that MediaCodec callbacks and state transitions
+  // (like resetting mIsFlushing) happen on the main thread, providing a consistent
+  // execution environment and avoiding potential race conditions with the native layer.
+  private final Handler mMainHandler = new Handler(Looper.getMainLooper());
+  private volatile boolean mIsFlushing = false;
+  private final boolean mEnableIgnoreCallbacksDuringFlushing;
+
   private MediaCodec.Callback mCallback;
   private double mPlaybackRate = 1.0;
   private int mFps = 30;
+  private double mOperatingRate = mPlaybackRate * mFps;
+  private boolean mSkipVideoFramesOver60Fps = false;
   private final boolean mIsTunnelingPlayback;
+  private final boolean mEnableFrameRendererListener;
 
   private MediaCodec.OnFrameRenderedListener mFrameRendererListener;
   private MediaCodec.OnFirstTunnelFrameReadyListener mFirstTunnelFrameReadyListener;
+
+  private boolean shouldSkipVideoFrame(long presentationTimeUs, boolean isDecodeOnly) {
+    final double kMaxAcceptedOperatingRate = 60.0;
+    if (isDecodeOnly) {
+      return true;
+    }
+    // |mOperatingRate| won't be 0, but to be cautious we still add a check here.
+    if (!mSkipVideoFramesOver60Fps || mOperatingRate <= kMaxAcceptedOperatingRate || mOperatingRate == 0) {
+      return false;
+    }
+    // Deterministically downsample to 60fps by picking one frame per 1/60s interval.
+    // Some visual jitter may occur briefly when the playback rate changes.
+    double frameIntervalUs = 1_000_000.0 / mOperatingRate;
+    if (Math.floor(presentationTimeUs * kMaxAcceptedOperatingRate / 1_000_000.0)
+        == Math.floor((presentationTimeUs - frameIntervalUs) * kMaxAcceptedOperatingRate / 1_000_000.0)) {
+      return true;
+    }
+    return false;
+  }
 
   public static final class MimeTypes {
     public static final String VIDEO_H264 = "video/avc";
@@ -76,45 +109,20 @@ class MediaCodecBridge {
     public static final String VIDEO_AV1 = "video/av01";
   }
 
-  private class FrameRateEstimator {
-    private static final int INVALID_FRAME_RATE = -1;
-    private static final long INVALID_FRAME_TIMESTAMP = -1;
-    private static final int MINIMUM_REQUIRED_FRAMES = 4;
-    private long mLastFrameTimestampUs = INVALID_FRAME_TIMESTAMP;
-    private long mNumberOfFrames = 0;
-    private long mTotalDurationUs = 0;
+  private FrameRateEstimator mFrameRateEstimator = null;
+  private final AtomicInteger mActiveOutputBuffers = new AtomicInteger(0);
+  private volatile MediaFormatWrapper mActiveFormat = null;
 
-    public int getEstimatedFrameRate() {
-      if (mTotalDurationUs <= 0 || mNumberOfFrames < MINIMUM_REQUIRED_FRAMES) {
-        return INVALID_FRAME_RATE;
-      }
-      return Math.round((mNumberOfFrames - 1) * 1000000.0f / mTotalDurationUs);
+  int getCurrentMediaFormatDimension() {
+    if (mActiveFormat == null) {
+      return 0;
     }
-
-    public void reset() {
-      mLastFrameTimestampUs = INVALID_FRAME_TIMESTAMP;
-      mNumberOfFrames = 0;
-      mTotalDurationUs = 0;
-    }
-
-    public void onNewFrame(long presentationTimeUs) {
-      mNumberOfFrames++;
-
-      if (mLastFrameTimestampUs == INVALID_FRAME_TIMESTAMP) {
-        mLastFrameTimestampUs = presentationTimeUs;
-        return;
-      }
-      if (presentationTimeUs <= mLastFrameTimestampUs) {
-        Log.v(TAG, "Invalid output presentation timestamp.");
-        return;
-      }
-
-      mTotalDurationUs += presentationTimeUs - mLastFrameTimestampUs;
-      mLastFrameTimestampUs = presentationTimeUs;
-    }
+    return mActiveFormat.width() * mActiveFormat.height();
   }
 
-  private FrameRateEstimator mFrameRateEstimator = null;
+  int sizeOfActiveOutputBuffers() {
+    return mActiveOutputBuffers.get();
+  }
 
    /** Wraps a {@link MediaFormat} object to expose its properties to native code */
    // Copied from Chromium's MediaCodecBridge.java
@@ -266,13 +274,19 @@ class MediaCodecBridge {
   }
 
   public MediaCodecBridge(
-      long nativeMediaCodecBridge, MediaCodec mediaCodec, int tunnelModeAudioSessionId) {
+      long nativeMediaCodecBridge,
+      MediaCodec mediaCodec,
+      int tunnelModeAudioSessionId,
+      boolean enableFrameRendererListener,
+      boolean enableIgnoreCallbacksDuringFlushing) {
     if (mediaCodec == null) {
       throw new IllegalArgumentException();
     }
     mNativeMediaCodecBridge = nativeMediaCodecBridge;
     mMediaCodec.set(mediaCodec);
-    mIsTunnelingPlayback = tunnelModeAudioSessionId != -1;
+    mIsTunnelingPlayback = tunnelModeAudioSessionId != TunnelModeAudioSessionId.NONE;
+    mEnableFrameRendererListener = enableFrameRendererListener;
+    mEnableIgnoreCallbacksDuringFlushing = enableIgnoreCallbacksDuringFlushing;
     mCallback =
         new MediaCodec.Callback() {
           @Override
@@ -281,6 +295,8 @@ class MediaCodecBridge {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
+              // Always report codec errors, even when we are flushing, as they indicate
+              // critical hardware/decoder level failures that should not be ignored.
               MediaCodecBridgeJni.get()
                   .onMediaCodecError(
                       mNativeMediaCodecBridge,
@@ -293,7 +309,7 @@ class MediaCodecBridge {
           @Override
           public void onInputBufferAvailable(MediaCodec codec, int index) {
             synchronized (mNativeBridgeLock) {
-              if (mNativeMediaCodecBridge == 0) {
+              if (mNativeMediaCodecBridge == 0 || mIsFlushing) {
                 return;
               }
               MediaCodecBridgeJni.get()
@@ -305,7 +321,7 @@ class MediaCodecBridge {
           public void onOutputBufferAvailable(
               MediaCodec codec, int index, MediaCodec.BufferInfo info) {
             synchronized (mNativeBridgeLock) {
-              if (mNativeMediaCodecBridge == 0) {
+              if (mNativeMediaCodecBridge == 0 || mIsFlushing) {
                 return;
               }
               MediaCodecBridgeJni.get()
@@ -316,13 +332,10 @@ class MediaCodecBridge {
                       info.offset,
                       info.presentationTimeUs,
                       info.size);
+              mActiveOutputBuffers.incrementAndGet();
               if (mFrameRateEstimator != null) {
-                mFrameRateEstimator.onNewFrame(info.presentationTimeUs);
-                int fps = mFrameRateEstimator.getEstimatedFrameRate();
-                if (fps != FrameRateEstimator.INVALID_FRAME_RATE && mFps != fps) {
-                  mFps = fps;
-                  updateOperatingRate();
-                }
+                mFrameRateEstimator.onNewOutput(info.presentationTimeUs);
+                updateFrameRate();
               }
             }
           }
@@ -330,9 +343,10 @@ class MediaCodecBridge {
           @Override
           public void onOutputFormatChanged(MediaCodec codec, MediaFormat format) {
             synchronized (mNativeBridgeLock) {
-              if (mNativeMediaCodecBridge == 0) {
+              if (mNativeMediaCodecBridge == 0 || mIsFlushing) {
                 return;
               }
+              mActiveFormat = new MediaFormatWrapper(format);
               MediaCodecBridgeJni.get().onMediaCodecOutputFormatChanged(mNativeMediaCodecBridge);
               if (mFrameRateEstimator != null) {
                 mFrameRateEstimator.reset();
@@ -340,15 +354,20 @@ class MediaCodecBridge {
             }
           }
         };
-    mMediaCodec.get().setCallback(mCallback);
 
-    if (isFrameRenderedCallbackEnabled() || mIsTunnelingPlayback) {
+    if (mEnableIgnoreCallbacksDuringFlushing) {
+      mMediaCodec.get().setCallback(mCallback, mMainHandler);
+    } else {
+      mMediaCodec.get().setCallback(mCallback);
+    }
+
+    if (mEnableFrameRendererListener) {
       mFrameRendererListener =
           new MediaCodec.OnFrameRenderedListener() {
             @Override
             public void onFrameRendered(MediaCodec codec, long presentationTimeUs, long nanoTime) {
               synchronized (mNativeBridgeLock) {
-                if (mNativeMediaCodecBridge == 0) {
+                if (mNativeMediaCodecBridge == 0 || mIsFlushing) {
                   return;
                 }
                 MediaCodecBridgeJni.get()
@@ -357,19 +376,17 @@ class MediaCodecBridge {
               }
             }
           };
-      mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, null);
+      if (mEnableIgnoreCallbacksDuringFlushing) {
+        mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, mMainHandler);
+      } else {
+        mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, null);
+      }
     }
 
     if (mIsTunnelingPlayback) {
       setupTunnelingPlayback();
     }
-  }
-
-  @CalledByNative
-  public static boolean isFrameRenderedCallbackEnabled() {
-    // Starting with Android 14, onFrameRendered should be called accurately for each rendered
-    // frame.
-    return Build.VERSION.SDK_INT >= 34;
+    mFrameRateEstimator = MediaCodecFrameRateEstimator.create(mIsTunnelingPlayback);
   }
 
   private boolean isDecodeOnlyFlagEnabled() {
@@ -398,6 +415,10 @@ class MediaCodecBridge {
       ColorInfo colorInfo,
       int tunnelModeAudioSessionId,
       int maxVideoInputSize,
+      boolean enableFrameRendererListener,
+      boolean skipVideoFramesOver60Fps,
+      boolean ignoreCodecCallbacksDuringFlushing,
+      boolean enableLowLatency,
       CreateMediaCodecBridgeResult outCreateMediaCodecBridgeResult) {
     MediaCodec mediaCodec = null;
     outCreateMediaCodecBridgeResult.mMediaCodecBridge = null;
@@ -447,9 +468,28 @@ class MediaCodecBridge {
     }
 
     MediaCodecBridge bridge =
-        new MediaCodecBridge(nativeMediaCodecBridge, mediaCodec, tunnelModeAudioSessionId);
+        new MediaCodecBridge(
+            nativeMediaCodecBridge,
+            mediaCodec,
+            tunnelModeAudioSessionId,
+            enableFrameRendererListener,
+            ignoreCodecCallbacksDuringFlushing);
+    bridge.mSkipVideoFramesOver60Fps = skipVideoFramesOver60Fps;
+    MediaCodecOutputTracker.get().register(bridge);
     MediaFormat mediaFormat =
         createVideoDecoderFormat(mime, widthHint, heightHint, videoCapabilities);
+
+    if (enableLowLatency) {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        Log.i(TAG, "Enabling low-latency playback.");
+        mediaFormat.setInteger(MediaFormat.KEY_LOW_LATENCY, 1);
+      } else {
+        Log.i(
+            TAG,
+            "Low-latency playback requested but not supported on API level "
+                + Build.VERSION.SDK_INT);
+      }
+    }
 
     boolean shouldConfigureHdr =
         colorInfo != null && MediaCodecUtil.isHdrCapableVideoDecoder(mime, codecCapabilities);
@@ -464,10 +504,14 @@ class MediaCodecBridge {
       mediaFormat.setByteBuffer(MediaFormat.KEY_HDR_STATIC_INFO, colorInfo.hdrStaticInfo);
     }
 
-    if (tunnelModeAudioSessionId != -1) {
+    if (tunnelModeAudioSessionId != TunnelModeAudioSessionId.NONE) {
       mediaFormat.setFeatureEnabled(CodecCapabilities.FEATURE_TunneledPlayback, true);
       mediaFormat.setInteger(MediaFormat.KEY_AUDIO_SESSION_ID, tunnelModeAudioSessionId);
       Log.d(TAG, "Enabled tunnel mode playback on audio session " + tunnelModeAudioSessionId);
+
+      // TODO (b/495868363): KEY_PRIORITY might be also needed for non tunnel playback.
+      // Set KEY_PRIORITY to realtime priority.
+      mediaFormat.setInteger(MediaFormat.KEY_PRIORITY, 0 /* realtime priority */);
     }
 
     if (maxWidth > 0 && maxHeight > 0) {
@@ -619,6 +663,17 @@ class MediaCodecBridge {
     }
   }
 
+  private void updateFrameRate() {
+    if (mFrameRateEstimator == null) {
+      return;
+    }
+    int fps = mFrameRateEstimator.getEstimatedFrameRate();
+    if (fps != FrameRateEstimator.INVALID_FRAME_RATE && mFps != fps) {
+      mFps = fps;
+      updateOperatingRate();
+    }
+  }
+
   private void updateOperatingRate() {
     // We needn't set operation rate if playback rate is 0 or less.
     if (Double.compare(mPlaybackRate, 0.0) <= 0) {
@@ -632,6 +687,11 @@ class MediaCodecBridge {
       return;
     }
     double operatingRate = mPlaybackRate * mFps;
+    if (mOperatingRate == operatingRate) {
+      return;
+    }
+
+    mOperatingRate = operatingRate;
     Bundle b = new Bundle();
     b.putFloat(MediaFormat.KEY_OPERATING_RATE, (float) operatingRate);
     try {
@@ -639,18 +699,39 @@ class MediaCodecBridge {
     } catch (IllegalStateException e) {
       Log.e(TAG, "Failed to set MediaCodec operating rate: ", e);
     }
+    Log.i(TAG, "Set operating rate to " + operatingRate);
   }
 
   @CalledByNative
   private int flush() {
+    // When a flush is initiated on the player thread, there could still be pending
+    // callbacks (e.g. onOutputBufferAvailable) already posted to the main thread's
+    // looper queue from before the flush.
+    // To prevent processing these stale callbacks after the flush starts, we set
+    // mIsFlushing to true here to discard them. Then we post a runnable to the main
+    // looper queue which will reset mIsFlushing to false once all prior pending
+    // callbacks have been sequentialized and discarded.
+    if (mEnableIgnoreCallbacksDuringFlushing) {
+      synchronized (mNativeBridgeLock) {
+        mIsFlushing = true;
+      }
+    }
     try {
       mMediaCodec.get().flush();
     } catch (Exception e) {
       Log.e(TAG, "Failed to flush MediaCodec", e);
       return MediaCodecStatus.ERROR;
     } finally {
+      mActiveOutputBuffers.set(0);
       if (mFrameRateEstimator != null) {
         mFrameRateEstimator.reset();
+      }
+      if (mEnableIgnoreCallbacksDuringFlushing) {
+        mMainHandler.post(() -> {
+          synchronized (mNativeBridgeLock) {
+            mIsFlushing = false;
+          }
+        });
       }
     }
     return MediaCodecStatus.OK;
@@ -658,6 +739,7 @@ class MediaCodecBridge {
 
   @CalledByNative
   public void release() {
+    MediaCodecOutputTracker.get().unregister(this);
     synchronized (mNativeBridgeLock) {
       mNativeMediaCodecBridge = 0;
     }
@@ -736,14 +818,20 @@ class MediaCodecBridge {
       int index, int offset, int size, long presentationTimeUs, int flags, boolean isDecodeOnly) {
     try {
       if (isDecodeOnlyFlagEnabled()
-          && isDecodeOnly
-          && (flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) == 0) {
+          && (flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) == 0
+          && shouldSkipVideoFrame(presentationTimeUs, isDecodeOnly)) {
         flags |= MediaCodec.BUFFER_FLAG_DECODE_ONLY;
       }
       mMediaCodec.get().queueInputBuffer(index, offset, size, presentationTimeUs, flags);
     } catch (Exception e) {
       Log.e(TAG, "Failed to queue input buffer", e);
       return MediaCodecStatus.ERROR;
+    }
+
+    // Avoid update frame rate for inputs when tunnel mode is not enabled for better performance.
+    if (mIsTunnelingPlayback && mFrameRateEstimator != null) {
+      mFrameRateEstimator.onNewInput(presentationTimeUs);
+      updateFrameRate();
     }
     return MediaCodecStatus.OK;
   }
@@ -775,7 +863,7 @@ class MediaCodecBridge {
       }
 
       int flags = 0;
-      if (isDecodeOnlyFlagEnabled() && isDecodeOnly) {
+      if (isDecodeOnlyFlagEnabled() && shouldSkipVideoFrame(presentationTimeUs, isDecodeOnly)) {
         flags |= MediaCodec.BUFFER_FLAG_DECODE_ONLY;
       }
 
@@ -806,6 +894,12 @@ class MediaCodecBridge {
       Log.e(TAG, "Failed to queue secure input buffer, IllegalStateException " + e);
       return MediaCodecStatus.ERROR;
     }
+
+    // Avoid update frame rate for inputs when tunnel mode is not enabled for better performance.
+    if (mIsTunnelingPlayback && mFrameRateEstimator != null) {
+      mFrameRateEstimator.onNewInput(presentationTimeUs);
+      updateFrameRate();
+    }
     return MediaCodecStatus.OK;
   }
 
@@ -813,6 +907,7 @@ class MediaCodecBridge {
   private void releaseOutputBuffer(int index, boolean render) {
     try {
       mMediaCodec.get().releaseOutputBuffer(index, render);
+      mActiveOutputBuffers.decrementAndGet();
     } catch (IllegalStateException e) {
       // TODO: May need to report the error to the caller. crbug.com/356498.
       Log.e(TAG, "Failed to release output buffer", e);
@@ -823,6 +918,7 @@ class MediaCodecBridge {
   private void releaseOutputBufferAtTimestamp(int index, long renderTimestampNs) {
     try {
       mMediaCodec.get().releaseOutputBuffer(index, renderTimestampNs);
+      mActiveOutputBuffers.decrementAndGet();
     } catch (IllegalStateException e) {
       // TODO: May need to report the error to the caller. crbug.com/356498.
       Log.e(TAG, "Failed to release output buffer", e);
@@ -855,7 +951,6 @@ class MediaCodecBridge {
 
       maybeSetMaxVideoInputSize(format);
       mMediaCodec.get().configure(format, surface, crypto, flags);
-      mFrameRateEstimator = new FrameRateEstimator();
       return true;
     } catch (IllegalArgumentException e) {
       Log.e(TAG, "Cannot configure the video codec with IllegalArgumentException: ", e);
@@ -986,7 +1081,7 @@ class MediaCodecBridge {
             @Override
             public void onFirstTunnelFrameReady(MediaCodec codec) {
               synchronized (mNativeBridgeLock) {
-                if (mNativeMediaCodecBridge == 0) {
+                if (mNativeMediaCodecBridge == 0 || mIsFlushing) {
                   return;
                 }
                 MediaCodecBridgeJni.get()
@@ -994,7 +1089,11 @@ class MediaCodecBridge {
               }
             }
           };
-      mMediaCodec.get().setOnFirstTunnelFrameReadyListener(null, mFirstTunnelFrameReadyListener);
+      if (mEnableIgnoreCallbacksDuringFlushing) {
+        mMediaCodec.get().setOnFirstTunnelFrameReadyListener(mMainHandler, mFirstTunnelFrameReadyListener);
+      } else {
+        mMediaCodec.get().setOnFirstTunnelFrameReadyListener(null, mFirstTunnelFrameReadyListener);
+      }
     } else {
       Log.w(
           TAG,

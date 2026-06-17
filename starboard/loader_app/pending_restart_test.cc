@@ -18,7 +18,7 @@
 #include "starboard/loader_app/installation_manager.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
 namespace loader_app {
 namespace {
 
@@ -48,4 +48,4 @@ TEST_F(PendingRestartTest, PendingRestart) {
 }  // namespace
 
 }  // namespace loader_app
-#endif  //  SB_IS(EVERGREEN_COMPATIBLE)
+#endif  //  BUILDFLAG(IS_STARBOARD)

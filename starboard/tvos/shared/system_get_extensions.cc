@@ -15,7 +15,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/extension/accessibility.h"
-#include "starboard/extension/crash_handler.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/extension/ifa.h"
 #include "starboard/extension/media_session.h"
@@ -23,7 +22,6 @@
 #include "starboard/extension/player_configuration.h"
 #include "starboard/system.h"
 #include "starboard/tvos/shared/accessibility_extension.h"
-#include "starboard/tvos/shared/crash_handler.h"
 #include "starboard/tvos/shared/media/player_configuration.h"
 #include "starboard/tvos/shared/uikit_media_session_client.h"
 
@@ -39,12 +37,6 @@ const void* SbSystemGetExtension(const char* name) {
     // Copied from Android's system_get_extensions.cc:
     // TODO: b/377019873 - Re-enable
     // return starboard::GetMediaSessionApi();
-    return nullptr;
-  }
-  if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
-    // TODO: b/477518757 - Re-enable once Crashpad support is in and if it
-    // needs to be exposed as an extension.
-    // return starboard::GetCrashHandlerApi();
     return nullptr;
   }
   if (strcmp(name, kCobaltExtensionPlatformServiceName) == 0) {

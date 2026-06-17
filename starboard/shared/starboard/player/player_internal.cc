@@ -108,12 +108,8 @@ void SbPlayerPrivateImpl::WriteEndOfStream(SbMediaType stream_type) {
   worker_->WriteEndOfStream(stream_type);
 }
 
-void SbPlayerPrivateImpl::SetBounds(int z_index,
-                                    int x,
-                                    int y,
-                                    int width,
-                                    int height) {
-  PlayerWorker::Bounds bounds = {z_index, x, y, width, height};
+void SbPlayerPrivateImpl::SetBounds(int z_index, const Rect& rect) {
+  PlayerWorker::Bounds bounds = {z_index, rect};
   worker_->SetBounds(bounds);
   // TODO: Wait until a frame is rendered with the updated bounds.
 }
@@ -153,20 +149,6 @@ void SbPlayerPrivateImpl::SetPlaybackRate(double playback_rate) {
 void SbPlayerPrivateImpl::SetVolume(double volume) {
   volume_ = volume;
   worker_->SetVolume(volume_);
-}
-
-void SbPlayerPrivateImpl::UpdateMediaInfo(int64_t media_time,
-                                          int dropped_video_frames,
-                                          int ticket,
-                                          bool is_progressing) {
-  std::lock_guard lock(mutex_);
-  if (ticket_ != ticket) {
-    return;
-  }
-  media_time_ = media_time;
-  is_progressing_ = is_progressing;
-  media_time_updated_at_ = CurrentMonotonicTime();
-  dropped_video_frames_ = dropped_video_frames;
 }
 
 SbDecodeTarget SbPlayerPrivateImpl::GetCurrentDecodeTarget() {
@@ -228,6 +210,20 @@ SbPlayerPrivateImpl::~SbPlayerPrivateImpl() {
   --number_of_players_;
   SB_LOG(INFO) << "Destroying SbPlayerPrivateImpl. There are "
                << number_of_players_ << " players.";
+}
+
+void SbPlayerPrivateImpl::UpdateMediaInfo(int64_t media_time,
+                                          int dropped_video_frames,
+                                          int ticket,
+                                          bool is_progressing) {
+  std::lock_guard lock(mutex_);
+  if (ticket_ != ticket) {
+    return;
+  }
+  media_time_ = media_time;
+  is_progressing_ = is_progressing;
+  media_time_updated_at_ = CurrentMonotonicTime();
+  dropped_video_frames_ = dropped_video_frames;
 }
 
 }  // namespace starboard

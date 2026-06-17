@@ -17,8 +17,11 @@
 #include <utility>
 #include <vector>
 
+#include "base/containers/to_vector.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/memory/free_deleter.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -129,7 +132,7 @@ bool PlatformServiceImpl::OpenStarboardService() {
   return true;
 }
 
-void PlatformServiceImpl::Send(const std::vector<uint8_t>& data,
+void PlatformServiceImpl::Send(base::span<const uint8_t> data,
                                SendCallback callback) {
   const CobaltExtensionPlatformServiceApi* api = GetPlatformServiceApi();
   if (!api) {
@@ -142,26 +145,20 @@ void PlatformServiceImpl::Send(const std::vector<uint8_t>& data,
   uint64_t output_length = 0;
   bool invalid_state = false;
 
-  void* response_ptr = api->Send(platform_service_, data.data(), data.size(),
-                                 &output_length, &invalid_state);
+  const std::unique_ptr<uint8_t, base::FreeDeleter> response_ptr(
+      static_cast<uint8_t*>(api->Send(platform_service_, data.data(),
+                                      data.size(), &output_length,
+                                      &invalid_state)));
 
   if (invalid_state) {
     LOG(ERROR) << "Send failed: Starboard service in invalid state for "
                << service_name_;
-    free(response_ptr);
     std::move(callback).Run(std::nullopt);  // Signal error to renderer
     return;
   }
 
-  std::vector<uint8_t> response_data;
-  if (response_ptr && output_length > 0) {
-    const uint8_t* response_bytes = static_cast<const uint8_t*>(response_ptr);
-    response_data =
-        std::vector<uint8_t>(response_bytes, response_bytes + output_length);
-  }
-  free(response_ptr);
-
-  std::move(callback).Run(response_data);
+  std::move(callback).Run(base::span<const uint8_t>(
+      response_ptr.get(), base::checked_cast<size_t>(output_length)));
 }
 
 void PlatformServiceImpl::OnDataReceivedFromStarboard(

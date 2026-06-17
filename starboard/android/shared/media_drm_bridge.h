@@ -22,9 +22,10 @@
 #include <string_view>
 #include <vector>
 
-#include "base/android/jni_android.h"
 #include "base/memory/raw_ref.h"
+#include "starboard/common/pass_key.h"
 #include "starboard/drm.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
@@ -61,19 +62,21 @@ class MediaDrmBridge {
     bool ok() const { return status == DRM_OPERATION_STATUS_SUCCESS; }
   };
 
-  MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host,
-                 std::string_view key_system,
-                 bool enable_app_provisioning);
+  static std::unique_ptr<MediaDrmBridge> Create(
+      base::raw_ref<MediaDrmBridge::Host> host,
+      std::string_view key_system,
+      bool enable_app_provisioning);
+
+  MediaDrmBridge(PassKey<MediaDrmBridge>,
+                 base::raw_ref<MediaDrmBridge::Host> host);
   ~MediaDrmBridge();
 
   MediaDrmBridge(const MediaDrmBridge&) = delete;
   MediaDrmBridge& operator=(const MediaDrmBridge&) = delete;
 
-  bool is_valid() const {
-    return !j_media_drm_bridge_.is_null() && !j_media_crypto_.is_null();
+  const jni_zero::JavaRef<jobject>& GetMediaCrypto() const {
+    return j_media_crypto_;
   }
-
-  jobject GetMediaCrypto() const { return j_media_crypto_.obj(); }
 
   void CreateSession(int ticket,
                      std::string_view init_data,
@@ -92,26 +95,33 @@ class MediaDrmBridge {
   const void* GetMetrics(int* size);
   bool CreateMediaCryptoSession();
 
-  void OnSessionMessage(
-      JNIEnv* env,
-      jint ticket,
-      const base::android::JavaParamRef<jbyteArray>& session_id,
-      jint request_type,
-      const base::android::JavaParamRef<jbyteArray>& message);
+  void OnSessionMessage(JNIEnv* env,
+                        jint ticket,
+                        const jni_zero::JavaParamRef<jbyteArray>& session_id,
+                        jint request_type,
+                        const jni_zero::JavaParamRef<jbyteArray>& message);
   void OnKeyStatusChange(
       JNIEnv* env,
-      const base::android::JavaParamRef<jbyteArray>& session_id,
-      const base::android::JavaParamRef<jobjectArray>& key_information);
+      const jni_zero::JavaParamRef<jbyteArray>& session_id,
+      const jni_zero::JavaParamRef<jobjectArray>& key_information);
 
   static bool IsWidevineSupported(JNIEnv* env);
   static bool IsCbcsSupported(JNIEnv* env);
 
  private:
-  const raw_ref<MediaDrmBridge::Host> host_;
+  bool Initialize(std::string_view key_system, bool enable_app_provisioning);
+
+  const base::raw_ref<MediaDrmBridge::Host> host_;
   std::vector<uint8_t> metrics_;
 
-  base::android::ScopedJavaGlobalRef<jobject> j_media_drm_bridge_;
-  base::android::ScopedJavaGlobalRef<jobject> j_media_crypto_;
+  // The factory method guarantees that |j_media_drm_bridge_| is non-null.
+  // Instances are only returned if initialization succeeds; therefore, this
+  // member is guaranteed to be valid for the lifetime of the object.
+  jni_zero::ScopedJavaGlobalRef<jobject> j_media_drm_bridge_;
+
+  // |j_media_crypto_| is non-null after initialization, but may be reset
+  // via CreateMediaCryptoSession() if a session creation failure occurs.
+  jni_zero::ScopedJavaGlobalRef<jobject> j_media_crypto_;
 };
 
 std::ostream& operator<<(std::ostream& os, DrmOperationStatus);

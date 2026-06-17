@@ -801,6 +801,15 @@ static_library("test_support") {
     libs = [ "oleacc.lib" ]
   }
 
+  if (!enable_privacy_sandbox_apis) {
+    sources -= [
+      "../browser/browsing_topics/test_util.cc",
+      "../browser/browsing_topics/test_util.h",
+      "../public/test/browsing_topics_test_util.cc",
+      "../public/test/browsing_topics_test_util.h",
+    ]
+  }
+
   if (is_android) {
     sources += [
       "mock_overscroll_refresh_handler_android.cc",

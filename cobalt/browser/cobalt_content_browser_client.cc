@@ -74,14 +74,23 @@
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 
+#if BUILDFLAG(USE_EVERGREEN)
+#include "cobalt/updater/updater_module.h"  //nogncheck
+#include "content/public/browser/storage_partition.h"
+#endif  // BUILDFLAG(USE_EVERGREEN)
+
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/locale_utils.h"
 #include "cobalt/android/browser_jni_headers/CobaltContentBrowserClient_jni.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if !BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_STARBOARD)
 #include "starboard/extension/crash_handler.h"
 #include "starboard/system.h"
+#elif BUILDFLAG(IS_IOS_TVOS)
+#include "cobalt/browser/cobalt_crash_annotations.h"  // nogncheck
+#endif                                                // BUILDFLAG(IS_STARBOARD)
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 
 namespace cobalt {
@@ -172,21 +181,28 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
 }
 
 CobaltContentBrowserClient::CobaltContentBrowserClient(
+    absl::optional<int64_t> startup_timestamp,
     const std::string& deep_link,
     bool is_visible)
-    : deep_link_(deep_link), is_visible_(is_visible) {
+    : startup_timestamp_(startup_timestamp),
+      deep_link_(deep_link),
+      is_visible_(is_visible) {
   COBALT_DETACH_FROM_THREAD(thread_checker_);
 #if BUILDFLAG(IS_STARBOARD)
   // TODO: b/476434249 - Revisit if Cobalt supports multiple tabs/windows.
   ui::PlatformWindowStarboard::SetWindowCreatedCallback(
       base::BindRepeating(&CobaltContentBrowserClient::OnSbWindowCreated,
                           weak_factory_.GetWeakPtr()));
+  ui::PlatformWindowStarboard::SetWindowDestroyedCallback(
+      base::BindRepeating(&CobaltContentBrowserClient::OnSbWindowDestroyed,
+                          weak_factory_.GetWeakPtr()));
 #endif  // BUILDFLAG(IS_STARBOARD)
 }
 
 CobaltContentBrowserClient::~CobaltContentBrowserClient() {
 #if BUILDFLAG(IS_STARBOARD)
-  ui::PlatformWindowStarboard::SetWindowCreatedCallback(base::NullCallback());
+  ui::PlatformWindowStarboard::ClearWindowCreatedCallback();
+  ui::PlatformWindowStarboard::ClearWindowDestroyedCallback();
 #endif  // BUILDFLAG(IS_STARBOARD)
 }
 
@@ -297,9 +313,6 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   network_context_params->enable_referrers = true;
   network_context_params->accept_language = GetApplicationLocale();
 
-  // Always enable the HTTP cache.
-  network_context_params->http_cache_enabled = true;
-
   auto cookie_manager_params = network::mojom::CookieManagerParams::New();
   cookie_manager_params->block_third_party_cookies = true;
   network_context_params->cookie_manager_params =
@@ -365,13 +378,24 @@ void CobaltContentBrowserClient::OnWebContentsCreated(
   }
   VLOG(1) << "NativeSplash: Observing main frame WebContents.";
   web_contents_observer_.reset(new CobaltWebContentsObserver(web_contents));
+#if BUILDFLAG(USE_EVERGREEN)
+  // Create the updater module singleton if not already created.
+  auto* storage_partition =
+      web_contents->GetPrimaryMainFrame()->GetStoragePartition();
+  if (storage_partition && !updater::UpdaterModule::GetInstance()) {
+    LOG(INFO) << "Creating UpdaterModule singleton.";
+    updater::UpdaterModule::CreateInstance(
+        storage_partition->GetURLLoaderFactoryForBrowserProcess(),
+        GetUserAgent(), updater::kDefaultUpdateCheckDelay);
+  }
+#endif
 }
 
 void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
     content::RenderFrameHost* render_frame_host,
     mojo::BinderMapWithContext<content::RenderFrameHost*>* map) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  PopulateCobaltFrameBinders(render_frame_host, map);
+  PopulateCobaltFrameBinders(startup_timestamp_, render_frame_host, map);
   ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
       render_frame_host, map);
 }
@@ -454,6 +478,11 @@ void CobaltContentBrowserClient::OnSbWindowCreated(SbWindow window) {
     BindPlatformWindowProviderService(cached_sb_window_, std::move(receiver));
   }
   pending_window_receivers_.clear();
+}
+
+void CobaltContentBrowserClient::OnSbWindowDestroyed(SbWindow window) {
+  DCHECK_EQ(cached_sb_window_, reinterpret_cast<uint64_t>(window));
+  cached_sb_window_ = 0;
 }
 
 void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
@@ -597,6 +626,7 @@ void CobaltContentBrowserClient::SetUserAgentCrashAnnotation() {
     return;
   }
 
+#if BUILDFLAG(IS_STARBOARD)
   auto crash_handler_extension =
       static_cast<const CobaltExtensionCrashHandlerApi*>(
           SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
@@ -608,6 +638,10 @@ void CobaltContentBrowserClient::SetUserAgentCrashAnnotation() {
                << "the CrashHandler Starboard extension; not setting the user "
                << "agent annotation";
   }
+#elif BUILDFLAG(IS_IOS_TVOS)
+  cobalt::browser::CobaltCrashAnnotations::GetInstance()->SetAnnotation(
+      kUserAgentAnnotationKey, user_agent_string);
+#endif  // BUILDFLAG(IS_STARBOARD)
 }
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 

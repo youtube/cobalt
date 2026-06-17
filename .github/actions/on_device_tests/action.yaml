@@ -61,6 +61,7 @@ runs:
         GITHUB_PR_NUMBER: ${{ github.event.pull_request.number }}
         GITHUB_RUN_NUMBER: ${{ github.run_number }}
         GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        GITHUB_BASE_REF: ${{ github.base_ref || github.ref_name }}
         GITHUB_WORKFLOW: ${{ github.workflow }}
         TEST_ATTEMPTS: ${{ inputs.test_attempts }}
         TEST_TYPE: unit_test
@@ -73,7 +74,7 @@ runs:
           trigger \
           --test_type ${TEST_TYPE} \
           --device_family '${{ inputs.test_device_family }}' \
-          --targets '${{ inputs.test_targets_json }}' \
+          --targets "${TEST_TARGETS_JSON}" \
           --filter_json_dir "${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}" \
           --label chrobalt_on_device_test \
           --label github_${GITHUB_PR_NUMBER:-postsubmit} \
@@ -91,6 +92,7 @@ runs:
           --label author-${GITHUB_PR_HEAD_USER_LOGIN:-$GITHUB_COMMIT_AUTHOR_USERNAME} \
           --label author_id-${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL} \
           --label branch:${GITHUB_REF_NAME} \
+          --label target_branch:${GITHUB_BASE_REF} \
           --dimensions '${{ inputs.test_dimensions }}' \
           ${TEST_ATTEMPTS:+"--test_attempts" "$TEST_ATTEMPTS"} \
           --gcs_archive_path "${GCS_ARTIFACTS_PATH}" \
@@ -119,11 +121,12 @@ runs:
         gsutil -q cp -r "${{ inputs.gcs_results_path }}/" "${test_output}/${{ matrix.platform }}"
 
         # Check for missing result xml files.
+        exit_code=0
         readarray -t test_targets < <(echo "$TEST_TARGETS_JSON" | jq -r '.[]')
         for test_target_with_path in "${test_targets[@]}"; do
           # Trim path prefix (before :).
           test_target=${test_target_with_path#*:}
-          xml_files=("${test_output}"/${{ matrix.platform }}/**/"${test_target}"_testoutput.xml)
+          xml_files=("${test_output}"/${{ matrix.platform }}/**/"${test_target}"*.xml)
           if [[ "${#xml_files[@]}" -eq 0 ]]; then
             # No matching XML results found. Check if the test target is filtered.
             test_filter_file="${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}/${test_target}_filter.json"
@@ -134,14 +137,15 @@ runs:
               log_path=("${test_output}"/${{ matrix.platform }}/**/"${test_target}"_log.txt)
               xml_path=("${test_output}"/${{ matrix.platform }}/1/"${test_target}"_testoutput.xml)
               python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
-              exit 1
+              exit_code=1
             fi
           elif grep -e '<failure' -e '<error' ${xml_files}; then
             # Double-check the result XML for failures. ODT service has been known to report incorrect status.
             echo "::error::Found failures in the test xml."
-            exit 1
+            exit_code=1
           fi
         done
+        exit ${exit_code}
       shell: bash
     - name: Archive Test Results
       uses: actions/upload-artifact@v4

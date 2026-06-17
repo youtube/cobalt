@@ -32,12 +32,10 @@
 #include "starboard/loader_app/drain_file.h"
 #include "starboard/loader_app/installation_manager.h"
 #include "starboard/loader_app/installation_store.pb.h"
+#include "starboard/loader_app/read_evergreen_version.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/jsoncpp/source/include/json/reader.h"
-#include "third_party/jsoncpp/source/include/json/value.h"
-#include "third_party/jsoncpp/source/include/json/writer.h"
 
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
 
 namespace loader_app {
 namespace {
@@ -50,17 +48,6 @@ const char kTestEvergreenVersion2[] = "1.2.1";
 const char kTestEvergreenVersion3[] = "1.2.3";
 const char kTestEvergreenVersion4[] = "2.2.3";
 const int kTestSlotIndex = 0;
-// The max length of Evergreen version string.
-const int kMaxEgVersionLength = 20;
-
-// Filename for the manifest file which contains the Evergreen version.
-const char kManifestFileName[] = "manifest.json";
-
-// Deliminator of the Evergreen version string segments.
-const char kEgVersionDeliminator = '.';
-
-// Evergreen version key in the manifest file.
-const char kVersionKey[] = "version";
 
 void SbEventFake(const SbEvent*) {}
 
@@ -491,7 +478,7 @@ TEST_P(SlotManagementTest, CompareEvergreenVersion) {
                        kTestEvergreenVersion1 + strlen(kTestEvergreenVersion1));
   std::vector<char> v2(kTestEvergreenVersion2,
                        kTestEvergreenVersion2 + strlen(kTestEvergreenVersion2));
-  std::vector<char> v3(kMaxEgVersionLength);
+  std::vector<char> v3(kMaxEgVersionSize);
   ASSERT_EQ(0, CompareEvergreenVersion(v1, v3));
   ASSERT_EQ(0, CompareEvergreenVersion(v1, v1));
   ASSERT_EQ(-1, CompareEvergreenVersion(v1, v2));
@@ -503,94 +490,10 @@ TEST_P(SlotManagementTest, CompareEvergreenVersion) {
   ASSERT_EQ(1, CompareEvergreenVersion(v4, v3));
 }
 
-TEST_P(SlotManagementTest, ReadEvergreenVersionReturnsFalseIfAbsent) {
-  if (!storage_path_implemented_) {
-    return;
-  }
-  ImInitialize(3, kTestAppKey);
-  ImReset();
-
-  std::vector<char> current_version(kMaxEgVersionLength);
-  Json::Value root;
-  root["manifest_version"] = 2;
-
-  std::vector<char> installation_path(kSbFileMaxPath);
-  if (ImGetInstallationPath(kTestSlotIndex, installation_path.data(),
-                            kSbFileMaxPath) == IM_ERROR) {
-    SB_LOG(WARNING) << "Failed to get installation path.";
-    return;
-  }
-  std::vector<char> test_dir_path(kSbFileMaxPath);
-  snprintf(test_dir_path.data(), kSbFileMaxPath, "%s%s%s",
-           installation_path.data(), kSbFileSepString, "test_dir");
-  std::vector<char> manifest_file_path(kSbFileMaxPath);
-  snprintf(manifest_file_path.data(), kSbFileMaxPath, "%s%s%s",
-           test_dir_path.data(), kSbFileSepString, kManifestFileName);
-
-  ASSERT_EQ(mkdir(test_dir_path.data(), 0700), 0);
-  starboard::ScopedFile manifest_file(manifest_file_path.data(),
-                                      O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
-  ASSERT_TRUE(manifest_file.IsValid());
-  Json::StreamWriterBuilder builder;
-  std::string manifest_file_str = Json::writeString(builder, root);
-  ASSERT_EQ(manifest_file.WriteAll(manifest_file_str.c_str(),
-                                   manifest_file_str.length()),
-            manifest_file_str.length());
-
-  ASSERT_FALSE(ReadEvergreenVersion(manifest_file_path, current_version.data(),
-                                    kMaxEgVersionLength));
-
-  ImUninitialize();
-  SbFileDeleteRecursive(test_dir_path.data(), false);
-}
-
-TEST_P(SlotManagementTest, ReadEvergreenVersionReadsInVersionFromManifest) {
-  if (!storage_path_implemented_) {
-    return;
-  }
-  ImInitialize(3, kTestAppKey);
-  ImReset();
-
-  std::vector<char> current_version(kMaxEgVersionLength);
-  Json::Value root;
-  root["manifest_version"] = 2;
-  root[kVersionKey] = kTestEvergreenVersion2;
-
-  std::vector<char> installation_path(kSbFileMaxPath);
-  if (ImGetInstallationPath(kTestSlotIndex, installation_path.data(),
-                            kSbFileMaxPath) == IM_ERROR) {
-    SB_LOG(WARNING) << "Failed to get installation path.";
-    return;
-  }
-  std::vector<char> test_dir_path(kSbFileMaxPath);
-  snprintf(test_dir_path.data(), kSbFileMaxPath, "%s%s%s",
-           installation_path.data(), kSbFileSepString, "test_dir");
-  std::vector<char> manifest_file_path(kSbFileMaxPath);
-  snprintf(manifest_file_path.data(), kSbFileMaxPath, "%s%s%s",
-           test_dir_path.data(), kSbFileSepString, kManifestFileName);
-
-  ASSERT_EQ(mkdir(test_dir_path.data(), 0700), 0);
-  starboard::ScopedFile manifest_file(manifest_file_path.data(),
-                                      O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
-  ASSERT_TRUE(manifest_file.IsValid());
-  Json::StreamWriterBuilder builder;
-  std::string manifest_file_str = Json::writeString(builder, root);
-  ASSERT_EQ(manifest_file.WriteAll(manifest_file_str.c_str(),
-                                   manifest_file_str.length()),
-            manifest_file_str.length());
-
-  ASSERT_TRUE(ReadEvergreenVersion(manifest_file_path, current_version.data(),
-                                   kMaxEgVersionLength));
-  ASSERT_STREQ(kTestEvergreenVersion2, current_version.data());
-
-  ImUninitialize();
-  SbFileDeleteRecursive(test_dir_path.data(), false);
-}
-
 INSTANTIATE_TEST_CASE_P(SlotManagementTests,
                         SlotManagementTest,
                         ::testing::Bool());
 
 }  // namespace
 }  // namespace loader_app
-#endif  // #if SB_IS(EVERGREEN_COMPATIBLE)
+#endif  // #if BUILDFLAG(IS_STARBOARD)

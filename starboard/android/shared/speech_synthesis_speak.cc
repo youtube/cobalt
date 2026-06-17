@@ -16,14 +16,15 @@
 #include "starboard/speech_synthesis.h"
 // clang-format on
 
+#include "base/android/jni_string.h"
 #include "starboard/android/shared/starboard_bridge.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/CobaltTextToSpeechHelper_jni.h"
 
-// TODO: (cobalt b/372559388) Update namespace to jni_zero.
-using base::android::AttachCurrentThread;
-using base::android::ScopedJavaLocalRef;
+using jni_zero::AttachCurrentThread;
+using jni_zero::ScopedJavaLocalRef;
 
 void SbSpeechSynthesisSpeak(const char* text) {
   if (!text) {
@@ -33,9 +34,6 @@ void SbSpeechSynthesisSpeak(const char* text) {
 
   ScopedJavaLocalRef<jobject> j_tts_helper =
       starboard::StarboardBridge::GetInstance()->GetTextToSpeechHelper(env);
-
-  jstring text_string = env->NewStringUTF(text);
-  ScopedJavaLocalRef<jstring> j_text_string(env, text_string);
-
-  Java_CobaltTextToSpeechHelper_speak(env, j_tts_helper, j_text_string);
+  Java_CobaltTextToSpeechHelper_speak(
+      env, j_tts_helper, base::android::ConvertUTF8ToJavaString(env, text));
 }

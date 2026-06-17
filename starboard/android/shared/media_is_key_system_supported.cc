@@ -31,9 +31,9 @@ bool MediaIsKeySystemSupported(SbMediaVideoCodec video_codec,
   // It is possible that the |key_system| comes with extra attributes, like
   // `com.widevine.alpha; encryptionscheme="cenc"`. We prepend "key_system/"
   // to it, so it can be parsed by MimeType.
-  MimeType mime_type(std::string("key_system/") + key_system);
-  if (!mime_type.is_valid() || !mime_type.ValidateStringParameter(
-                                   "encryptionscheme", "cenc|cbcs|cbcs-1-9")) {
+  auto mime_type = MimeType::Create(std::string("key_system/") + key_system);
+  if (!mime_type || !mime_type->ValidateStringParameter("encryptionscheme",
+                                                        "cenc|cbcs|cbcs-1-9")) {
     return false;
   }
 
@@ -46,7 +46,7 @@ bool MediaIsKeySystemSupported(SbMediaVideoCodec video_codec,
       audio_codec != kSbMediaAudioCodecEac3) {
     return false;
   }
-  const char* key_system_type = mime_type.subtype().c_str();
+  const char* key_system_type = mime_type->subtype().c_str();
   if (!IsWidevineL1(key_system_type) && !IsWidevineL3(key_system_type)) {
     return false;
   }
@@ -56,7 +56,7 @@ bool MediaIsKeySystemSupported(SbMediaVideoCodec video_codec,
   }
 
   std::string encryption_scheme =
-      mime_type.GetParamStringValue("encryptionscheme", "");
+      mime_type->GetParamStringValue("encryptionscheme", "");
   if (encryption_scheme == "cbcs" || encryption_scheme == "cbcs-1-9") {
     return MediaCapabilitiesCache::GetInstance()->IsCbcsSchemeSupported();
   }

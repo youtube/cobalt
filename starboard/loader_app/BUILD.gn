@@ -23,16 +23,17 @@ _common_loader_app_sources = [
   "system_get_extension_shim.h",
 ]
 
-if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+if (is_starboard && current_toolchain == starboard_toolchain) {
   group("common_loader_app_dependencies") {
     public_deps = [
-      ":app_key",
       ":installation_manager",
       ":memory_tracker_thread",
+      ":read_evergreen_version",
       ":record_loader_app_status",
       ":reset_evergreen_update",
       ":slot_management",
       "//starboard:starboard_group",
+      "//starboard/common",
       "//starboard/common:common_headers_only",
       "//starboard/crashpad_wrapper",
       "//starboard/elf_loader:constants",
@@ -55,44 +56,26 @@ static_library("record_loader_app_status") {
   deps = [ "//starboard:starboard_group" ]
 }
 
-if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+if (is_starboard && current_toolchain == starboard_toolchain) {
+  source_set("loader_app_sources") {
+    sources = _common_loader_app_sources
+    deps = [
+      ":common_loader_app_dependencies",
+      "//starboard:starboard_with_main",
+      "//starboard/content/fonts:copy_font_data",
+      "//starboard/elf_loader",
+    ]
+  }
+
   target(starboard_level_final_executable_type, "loader_app") {
     output_dir = root_build_dir
     if (target_cpu == "x64" || target_cpu == "arm" || target_cpu == "arm64") {
-      sources = _common_loader_app_sources
-      deps = [
-        ":common_loader_app_dependencies",
-        "//starboard:starboard_with_main",
-        "//starboard/content/fonts:copy_font_data",
-        "//starboard/elf_loader",
-      ]
+      deps = [ ":loader_app_sources" ]
       data_deps = [ "//starboard/content/fonts:copy_font_data" ]
     }
   }
 } else {
   not_needed([ "_common_loader_app_sources" ])
-}
-
-if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
-  # TODO: b/261635039 enable this target on Android
-  target(starboard_level_final_executable_type, "loader_app_sys") {
-    if ((target_cpu == "x64" || target_cpu == "arm" || target_cpu == "arm64") &&
-        target_os != "android") {
-      sources = _common_loader_app_sources
-
-      starboard_syms_path =
-          rebase_path("//starboard/starboard.syms", root_build_dir)
-      ldflags = [
-        "-Wl,--dynamic-list=$starboard_syms_path",
-        "-ldl",
-      ]
-      deps = [
-        ":common_loader_app_dependencies",
-        "//starboard/content/fonts:copy_font_data",
-        "//starboard/elf_loader:elf_loader_sys",
-      ]
-    }
-  }
 }
 
 static_library("app_key_files") {
@@ -112,30 +95,6 @@ source_set("app_key_files_test") {
   deps = [
     ":app_key_files",
     "//starboard:starboard_group",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
-}
-
-static_library("app_key") {
-  sources = [
-    "app_key.cc",
-    "app_key.h",
-    "app_key_internal.cc",
-    "app_key_internal.h",
-  ]
-  deps = [
-    "//starboard:starboard_group",
-    "//starboard/common",
-    "//third_party/modp_b64",
-  ]
-}
-
-source_set("app_key_test") {
-  testonly = true
-  sources = [ "app_key_test.cc" ]
-  deps = [
-    ":app_key",
     "//testing/gmock",
     "//testing/gtest",
   ]
@@ -174,6 +133,31 @@ source_set("drain_file_test") {
   ]
 }
 
+static_library("read_evergreen_version") {
+  sources = [
+    "read_evergreen_version.cc",
+    "read_evergreen_version.h",
+  ]
+  deps = [
+    "//starboard/common",
+    "//third_party/jsoncpp",
+  ]
+  configs += [ "//third_party/jsoncpp:jsoncpp_config" ]
+}
+
+source_set("read_evergreen_version_test") {
+  testonly = true
+  sources = [ "read_evergreen_version_test.cc" ]
+  deps = [
+    ":read_evergreen_version",
+    "//starboard/common",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//third_party/jsoncpp",
+  ]
+  configs += [ "//third_party/jsoncpp:jsoncpp_config" ]
+}
+
 proto_library("installation_store_proto") {
   sources = [ "installation_store.proto" ]
   generate_python = false
@@ -199,7 +183,7 @@ static_library("installation_manager") {
   ]
 }
 
-if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+if (is_starboard && current_toolchain == starboard_toolchain) {
   source_set("installation_manager_test") {
     testonly = true
     sources = [
@@ -227,22 +211,20 @@ static_library("slot_management") {
     ":app_key_files",
     ":drain_file",
     ":installation_manager",
+    ":read_evergreen_version",
     "//starboard:starboard_group",
     "//starboard/common",
     "//starboard/elf_loader",
     "//starboard/elf_loader:constants",
     "//starboard/elf_loader:sabi_string",
-    "//third_party/jsoncpp:jsoncpp",
   ]
 
-  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain &&
+  if (is_starboard && current_toolchain == starboard_toolchain &&
       use_crashpad) {
     deps += [ "//starboard/crashpad_wrapper" ]
   } else {
     deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
   }
-
-  configs += [ "//third_party/jsoncpp:jsoncpp_config" ]
 }
 if (current_toolchain == starboard_toolchain) {
   source_set("slot_management_test") {
@@ -254,15 +236,14 @@ if (current_toolchain == starboard_toolchain) {
       ":drain_file",
       ":installation_manager",
       ":installation_store_proto",
+      ":read_evergreen_version",
       ":slot_management",
       "//starboard:starboard_with_main",
       "//starboard/common",
       "//starboard/elf_loader:sabi_string",
       "//testing/gmock",
       "//testing/gtest",
-      "//third_party/jsoncpp:jsoncpp",
     ]
-    configs += [ "//third_party/jsoncpp:jsoncpp_config" ]
   }
 }
 
@@ -275,7 +256,7 @@ static_library("pending_restart") {
   public_deps = [ "//starboard:starboard_headers_only" ]
 }
 
-if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+if (is_starboard && current_toolchain == starboard_toolchain) {
   static_library("memory_tracker_thread") {
     sources = [
       "memory_tracker_thread.cc",
@@ -295,7 +276,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
     ]
     deps = [
       "//starboard:starboard_group",
-      "//starboard/common:common",
+      "//starboard/common",
     ]
   }
 

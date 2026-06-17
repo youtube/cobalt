@@ -21,6 +21,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/player.h"
+#include "starboard/common/thread_options.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 
 namespace starboard {
@@ -42,24 +43,6 @@ DECLARE_INSTANCE_COUNTER(PlayerWorker)
 
 }  // namespace
 
-PlayerWorker::~PlayerWorker() {
-  ON_INSTANCE_RELEASED(PlayerWorker);
-
-  job_thread_->ScheduleAndWait([this] {
-    handler_->Stop();
-    handler_.reset();
-
-    if (!error_occurred_) {
-      UpdatePlayerState(kSbPlayerStateDestroyed);
-    }
-  });
-  job_thread_->Stop();
-
-  // Now the whole pipeline has been torn down and no callback will be called.
-  // The caller can ensure that upon the return of SbPlayerDestroy() all side
-  // effects are gone.
-}
-
 PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
                            SbMediaVideoCodec video_codec,
                            std::unique_ptr<Handler> handler,
@@ -69,7 +52,9 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
                            SbPlayerErrorFunc player_error_func,
                            SbPlayer player,
                            void* context)
-    : job_thread_(JobThread::Create("player_worker", kSbThreadPriorityHigh)),
+    : job_thread_(JobThread::Create(
+          "player_worker",
+          ThreadOptions().SetPriority(ThreadPriority::kHigh))),
       audio_codec_(audio_codec),
       video_codec_(video_codec),
       handler_(std::move(handler)),
@@ -88,6 +73,24 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
   ON_INSTANCE_CREATED(PlayerWorker);
 
   job_thread_->Schedule([this] { DoInit(); });
+}
+
+PlayerWorker::~PlayerWorker() {
+  ON_INSTANCE_RELEASED(PlayerWorker);
+
+  job_thread_->ScheduleAndWait([this] {
+    handler_->Stop();
+    handler_.reset();
+
+    if (!error_occurred_) {
+      UpdatePlayerState(kSbPlayerStateDestroyed);
+    }
+  });
+  job_thread_->Stop();
+
+  // Now the whole pipeline has been torn down and no callback will be called.
+  // The caller can ensure that upon the return of SbPlayerDestroy() all side
+  // effects are gone.
 }
 
 void PlayerWorker::UpdateMediaInfo(int64_t time,
@@ -167,10 +170,7 @@ void PlayerWorker::DoSeek(int64_t seek_to_time, int ticket) {
 
   SB_DLOG(INFO) << "Try to seek to " << seek_to_time << " microseconds.";
 
-  if (write_pending_sample_job_token_.is_valid()) {
-    job_thread_->RemoveJobByToken(write_pending_sample_job_token_);
-    write_pending_sample_job_token_.ResetToInvalid();
-  }
+  job_thread_->RemoveJobByToken(&write_pending_sample_job_token_);
 
   pending_audio_buffers_.clear();
   pending_video_buffers_.clear();
@@ -239,7 +239,7 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
       pending_video_buffers_ = std::move(input_buffers);
       SB_DCHECK_EQ(pending_video_buffers_.size(), num_of_pending_buffers);
     }
-    if (!write_pending_sample_job_token_.is_valid()) {
+    if (!write_pending_sample_job_token_) {
       write_pending_sample_job_token_ = job_thread_->Schedule(
           [this] { DoWritePendingSamples(); }, kWritePendingSampleDelayUsec);
     }
@@ -248,8 +248,12 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
 
 void PlayerWorker::DoWritePendingSamples() {
   SB_CHECK(job_thread_->BelongsToCurrentThread());
-  SB_DCHECK(write_pending_sample_job_token_.is_valid());
-  write_pending_sample_job_token_.ResetToInvalid();
+  SB_DCHECK(write_pending_sample_job_token_);
+
+  // We must manually invalidate the token here to signal the pending task has
+  // executed. This needs to happen BEFORE calling DoWriteSamples() so that any
+  // partial writes can correctly reschedule the next pending job.
+  write_pending_sample_job_token_ = JobQueue::JobToken::kUnscheduled;
 
   if (!pending_audio_buffers_.empty()) {
     SB_DCHECK_NE(audio_codec_, kSbMediaAudioCodecNone);

@@ -19,6 +19,7 @@
 
 #include <atomic>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -64,8 +65,9 @@ namespace updater {
 // mechanisms (locks, atomics) are used to ensure thread safety.
 class Configurator : public update_client::Configurator {
  public:
-  explicit Configurator(
-      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory);
+  Configurator(
+      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+      const std::string& user_agent);
 
   // Configurator for update_client::Configurator.
   base::TimeDelta InitialDelay() const override;
@@ -88,17 +90,19 @@ class Configurator : public update_client::Configurator {
       override;
   scoped_refptr<update_client::UnzipperFactory> GetUnzipperFactory() override;
   scoped_refptr<update_client::PatcherFactory> GetPatcherFactory() override;
-  bool EnabledDeltas() const override;
   bool EnabledBackgroundDownloader() const override;
   bool EnabledCupSigning() const override;
   PrefService* GetPrefService() const override;
-  update_client::ActivityDataService* GetActivityDataService() const override;
-  absl::optional<bool> IsMachineExternallyManaged() const override;
+  std::optional<bool> IsMachineExternallyManaged() const override;
   bool IsPerUserInstall() const override;
   std::string GetAppGuid() const override;
   std::unique_ptr<update_client::ProtocolHandlerFactory>
   GetProtocolHandlerFactory() const override;
   update_client::UpdaterStateProvider GetUpdaterStateProvider() const override;
+  update_client::PersistedData* GetPersistedData() const override;
+  // TODO(b/508346610): investigate support for CRX cache.
+  scoped_refptr<update_client::CrxCache> GetCrxCache() const override;
+  bool IsConnectionMetered() const override;
 
   void SetChannel(const std::string& updater_channel) override;
 
@@ -138,22 +142,23 @@ class Configurator : public update_client::Configurator {
   scoped_refptr<update_client::CrxDownloaderFactory> crx_downloader_factory_;
   scoped_refptr<update_client::UnzipperFactory> unzip_factory_;
   scoped_refptr<update_client::PatcherFactory> patch_factory_;
+  scoped_refptr<update_client::CrxCache> crx_cache_;
   // TODO(b/449220798): Consider using PostTask and thread checker
   std::string updater_channel_ GUARDED_BY(updater_channel_lock_);
-  base::Lock updater_channel_lock_;
+  mutable base::Lock updater_channel_lock_;
   std::atomic<int32_t> is_forced_update_;
   std::string updater_status_ GUARDED_BY(updater_status_lock_);
-  base::Lock updater_status_lock_;
+  mutable base::Lock updater_status_lock_;
   std::string previous_updater_status_
       GUARDED_BY(previous_updater_status_lock_);
-  base::Lock previous_updater_status_lock_;
+  mutable base::Lock previous_updater_status_lock_;
   std::string user_agent_string_;
   uint64_t min_free_space_bytes_ GUARDED_BY(min_free_space_bytes_lock_);
-  base::Lock min_free_space_bytes_lock_;
+  mutable base::Lock min_free_space_bytes_lock_;
   std::atomic_bool use_compressed_updates_;
   std::atomic_bool allow_self_signed_packages_;
   std::string update_server_url_ GUARDED_BY(update_server_url_lock_);
-  base::Lock update_server_url_lock_;
+  mutable base::Lock update_server_url_lock_;
   std::atomic_bool require_network_encryption_;
 };
 
