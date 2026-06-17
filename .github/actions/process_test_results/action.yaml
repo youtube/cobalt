@@ -50,10 +50,10 @@ runs:
         # Enable globstar shell option for globstar paths e.g. /**/*.xml and
         # nullglob to return empty string if the glob matches no files.
         shopt -s nullglob
-        # globstar is not supported on macOS default bash (3.2). We attempt to enable it
-        # but use || true to prevent the script from exiting on macOS, while still
-        # enabling it on Linux (where it is supported but disabled by default).
-        shopt -s globstar 2>/dev/null || true
+        # globstar is not supported on macOS default bash (3.2), so we only enable it on non-macOS platforms.
+        if [[ "$OSTYPE" != "darwin"* ]]; then
+          shopt -s globstar
+        fi
 
         result_xmls=(${RESULTS_GLOB})
         result_logs=(${LOG_GLOB})
@@ -119,6 +119,9 @@ runs:
       run: |
         set -x
         # Enable globstar shell option for globstar paths e.g. /**/*.xml
-        shopt -s globstar
+        # globstar is not supported on macOS default bash (3.2), so we only enable it on non-macOS platforms.
+        if [[ "$OSTYPE" != "darwin"* ]]; then
+          shopt -s globstar
+        fi
         ./datadog-ci junit upload --service ${DD_SERVICE} ${RESULTS_GLOB}
       shell: bash
