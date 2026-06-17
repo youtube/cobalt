@@ -579,6 +579,8 @@ class GPU_GLES2_EXPORT GLES2DecoderPassthroughImpl
   // Use a limit that is at least ANGLE's IMPLEMENTATION_MAX_ACTIVE_TEXTURES
   // constant
 #if BUILDFLAG(IS_COBALT)
+  // Cobalt: Increase kMaxTextureUnits from 64 to 96 to match the hardware limits
+  // of the RDK device and prevent initialization failure of the passthrough command decoder.
   static constexpr size_t kMaxTextureUnits = 96;
 #else
   static constexpr size_t kMaxTextureUnits = 64;
