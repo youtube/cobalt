@@ -17,6 +17,7 @@
 
 #include <array>
 
+#include "starboard/common/log.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 // ============================================================================
@@ -50,5 +51,29 @@ inline std::array<float, 16> FromJniArray<std::array<float, 16>>(
   return ret;
 }
 }  // namespace jni_zero
+
+namespace starboard {
+
+inline void SetFloatArrayRegion(JNIEnv* env,
+                                const jni_zero::JavaRef<jfloatArray>& array,
+                                jsize start,
+                                jsize len,
+                                const jfloat* buf) {
+  SB_CHECK(env);
+  SB_CHECK(!array.is_null());
+  env->SetFloatArrayRegion(array.obj(), start, len, buf);
+}
+
+inline void SetByteArrayRegion(JNIEnv* env,
+                               const jni_zero::JavaRef<jbyteArray>& array,
+                               jsize start,
+                               jsize len,
+                               const jbyte* buf) {
+  SB_CHECK(env);
+  SB_CHECK(!array.is_null());
+  env->SetByteArrayRegion(array.obj(), start, len, buf);
+}
+
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_SAFE_JNI_H_
