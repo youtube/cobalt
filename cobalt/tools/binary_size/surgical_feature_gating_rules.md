@@ -275,3 +275,46 @@ autoninja -C out/android-arm_gold cobalt_apk
 
 ### Step 3: Assert size savings
 Compare the resulting binary size of the shared object with the baseline to verify that the proportional size savings match the expectations computed by the SuperSize tool.
+
+---
+
+## 4. Code Review Checklist (PR Audit Guidelines)
+
+When reviewing a PR that disables or removes a feature in Cobalt/Chrobalt using surgical gating, the reviewer (human or AI) **must** verify the following points to ensure safety, merge-ability, and correctness:
+
+### 1. Build Flag Selection
+- [ ] Verify if the feature's expected size savings are $> 500\text{ KB}$.
+  - If yes, verify a custom build argument (e.g., `enable_<feature_name>`) is declared inside [public_features.gni](../../../third_party/blink/public/public_features.gni).
+  - If no ($< 500\text{ KB}$), verify the global `is_cobalt` build flag is used directly.
+
+### 2. C++ Preprocessor Expose & IWYU
+- [ ] Verify that any new custom build arguments are added to the `buildflag_header("buildflags")` target in [third_party/blink/public/common/BUILD.gn](../../../third_party/blink/public/common/BUILD.gn) (or equivalent).
+- [ ] **Strict IWYU Check**: For every C++ file (`.cc`, `.h`) modified to include `#if BUILDFLAG(ENABLE_<FEATURE_NAME>)`, verify that the buildflags header is explicitly and directly included:
+  ```cpp
+  #include "third_party/blink/public/common/buildflags.h"
+  ```
+  *Never allow relying on transitive/indirect includes of this header.*
+
+### 3. GN target pruning
+- [ ] For **Dedicated Targets**: Verify that targets are subtracted using the `deps -=` operator inside conditional blocks. *Never delete/remove lines directly from the static dependencies list.*
+- [ ] For **Shared Targets**: Verify that files are pruned using `filter_exclude` on the `sources` list rather than editing the list statically.
+- [ ] For **Mojo Typemaps**: Ensure production C++ data structures mapped by Mojo are **not** stripped if referenced in Mojom typemaps.
+
+### 4. C++ Integration Gating
+- [ ] Verify that `#include` statements for feature headers in core C++ files are gated with `#if BUILDFLAG(ENABLE_<FEATURE_NAME>)`.
+- [ ] Ensure gated includes of gated targets have **`// nogncheck`** appended.
+- [ ] Verify that all class/method usages are cleanly gated.
+- [ ] Verify that all closing `#endif` statements are documented with a trailing comment (e.g., `#endif  // BUILDFLAG(ENABLE_<FEATURE_NAME>)`).
+- [ ] Verify that no `-Wunused-function` or `-Wunused-variable` warnings are introduced by the gating (i.e. ensure unused helper functions or variables are also gated).
+
+### 5. Web IDL & bindings Modularity
+- [ ] Verify that any core IDL files (e.g., `navigator.idl`) are **not** modified. If the feature adds attributes/methods to core classes, verify they are implemented as a `partial interface` inside the feature's gated directory.
+- [ ] Verify that `idl_in_modules.gni` uses `filter_exclude` under the conditional flag to exclude IDL files from the build.
+- [ ] Verify that `bindings.gni` uses `cobalt_bindings_exclude_patterns` to exclude the generated V8 files instead of editing the static `generated_in_modules.gni` file.
+
+### 6. Mojo IPC Binders and Overrides
+- [ ] Verify that Mojo binder registrations in [browser_interface_binders.cc](../../../content/browser/browser_interface_binders.cc) are gated.
+- [ ] Verify that Mojo-overridden interface methods are stubbed (i.e., return dummy value or call `mojo::ReportBadMessage`) rather than removed, preserving the Mojo class contracts.
+
+### 7. Unit Tests
+- [ ] Verify that unit test files (`*test.cc`, `*unittest.cc`) and test support targets are filtered out from the test targets (such as `source_set("unit_tests")`) under the negative condition.
