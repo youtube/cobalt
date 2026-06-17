@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <limits>
 
+#include "build/build_config.h"
 #include "partition_alloc/build_config.h"
 #include "partition_alloc/buildflags.h"
 #include "partition_alloc/dangling_raw_ptr_checks.h"
@@ -130,8 +131,15 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) InSlotMetadata {
   static constexpr CountType kMaxPtrCount = BitField<CountType>::Mask(1, 28);
   static constexpr CountType kRequestQuarantineBit =
       BitField<CountType>::Bit(30);
+#if BUILDFLAG(IS_COBALT) && PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
+  // Cobalt uses the 31st bit for Resident Memory Sampling
+  static constexpr CountType kSampledBitMask = BitField<CountType>::Bit(31);
+  static constexpr CountType kNeedsMac11MallocSizeHackBit =
+      BitField<CountType>::None();
+#else
   static constexpr CountType kNeedsMac11MallocSizeHackBit =
       BitField<CountType>::Bit(31);
+#endif
   static constexpr CountType kDanglingRawPtrDetectedBit =
       BitField<CountType>::None();
   static constexpr CountType kUnprotectedPtrCountMask =
@@ -145,8 +153,15 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) InSlotMetadata {
   static constexpr auto kMaxPtrCount = BitField<CountType>::Mask(1, 30);
   static constexpr auto kDanglingRawPtrDetectedBit =
       BitField<CountType>::Bit(32);
+#if BUILDFLAG(IS_COBALT) && PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
+  // Cobalt uses the 33rd bit for Resident Memory Sampling
+  static constexpr auto kSampledBitMask = BitField<CountType>::Bit(33);
+  static constexpr auto kNeedsMac11MallocSizeHackBit =
+      BitField<CountType>::None();
+#else
   static constexpr auto kNeedsMac11MallocSizeHackBit =
       BitField<CountType>::Bit(33);
+#endif
   static constexpr CountType kRequestQuarantineBit =
       BitField<CountType>::Bit(34);
   static constexpr auto kUnprotectedPtrCountMask =
@@ -160,7 +175,11 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) InSlotMetadata {
   // Quick check to assert these masks do not overlap.
   static_assert((kMemoryHeldByAllocatorBit + kPtrCountMask +
                  kUnprotectedPtrCountMask + kDanglingRawPtrDetectedBit +
-                 kRequestQuarantineBit + kNeedsMac11MallocSizeHackBit) ==
+                 kRequestQuarantineBit + kNeedsMac11MallocSizeHackBit
+#if BUILDFLAG(IS_COBALT) && PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
+                 + kSampledBitMask
+#endif
+                 ) ==
                 std::numeric_limits<CountType>::max());
 
   static constexpr auto kPtrInc =
@@ -376,6 +395,18 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) InSlotMetadata {
   }
   PA_ALWAYS_INLINE uint32_t requested_size() const { return requested_size_; }
 #endif  // PA_CONFIG(IN_SLOT_METADATA_STORE_REQUESTED_SIZE)
+
+#if BUILDFLAG(IS_COBALT) && PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
+  PA_ALWAYS_INLINE void SetSampled() {
+    count_.fetch_or(kSampledBitMask, std::memory_order_release);
+  }
+  PA_ALWAYS_INLINE void ClearSampled() {
+    count_.fetch_and(~kSampledBitMask, std::memory_order_relaxed);
+  }
+  PA_ALWAYS_INLINE bool IsSampled() const {
+    return count_.load(std::memory_order_acquire) & kSampledBitMask;
+  }
+#endif
 
  private:
   // If there are some dangling raw_ptr<>. Turn on the error flag, and

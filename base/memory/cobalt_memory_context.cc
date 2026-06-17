@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "copied_base/base/memory/cobalt_memory_context.h"
+#include "copied_base/base/memory/cobalt_memory_context.h" // nogncheck
 
 #include <pthread.h>
 #include <stdint.h>

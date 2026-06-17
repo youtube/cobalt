@@ -40,6 +40,7 @@
 #include "partition_alloc/allocation_guard.h"
 #include "partition_alloc/bucket_lookup.h"
 #include "partition_alloc/build_config.h"
+#include "build/build_config.h"
 #include "partition_alloc/buildflags.h"
 #include "partition_alloc/in_slot_metadata.h"
 #include "partition_alloc/lightweight_quarantine.h"
@@ -75,6 +76,7 @@
 #include "partition_alloc/tagging.h"
 #include "partition_alloc/thread_cache.h"
 #include "partition_alloc/thread_isolation/thread_isolation.h"
+#include "partition_alloc/resident_memory_profiler.h"
 
 namespace partition_alloc::internal {
 
@@ -1511,6 +1513,14 @@ PA_ALWAYS_INLINE void PartitionRoot::FreeInline(void* object) {
     return;
   }
 
+#if BUILDFLAG(IS_COBALT) && PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
+  auto* metadata = InSlotMetadataPointerFromSlotStartAndSize(
+      slot_start.untagged_slot_start_, slot_span->bucket->slot_size);
+  if (metadata->IsSampled()) {
+    OnFreeSampled(object);
+  }
+#endif
+
   FreeNoHooksImmediate(object, slot_span, slot_start.untagged_slot_start_);
 }
 
@@ -2087,6 +2097,16 @@ PA_ALWAYS_INLINE void* PartitionRoot::AllocInternal(size_t requested_size,
           CreateAllocationNotificationData(object, requested_size, type_name));
     }
   }
+
+#if BUILDFLAG(IS_COBALT) && PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
+  if (object) [[likely]] {
+    ThreadLocalData* tld = GetThreadLocalData();
+    tld->bytes_until_next_sample -= requested_size;
+    if (tld->bytes_until_next_sample <= 0) [[unlikely]] {
+      SampleAllocation(object, requested_size, tld);
+    }
+  }
+#endif
 
   return object;
 }
