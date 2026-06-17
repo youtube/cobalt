@@ -36,11 +36,26 @@ Usage Examples:
   6. Force deploy and run even if artifacts are up-to-date:
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run --force-deploy
 
-  7. Reset RDK display (fixes stuck sessions caused by executable mode):
+  7. Reset RDK display and restart WPEFramework (fixes stuck displays/frozen sessions):
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --reset
 
   8. Deploy only the libcobalt library:
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --only-lib
+
+  9. View device system logs (journalctl):
+     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --logs
+
+  10. Follow device system logs in real-time (journalctl -f):
+      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --logs --follow
+
+  11. Build, deploy, and run Cobalt plugin with Chrome DevTools remote debugging enabled:
+      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run --devtools
+
+  12. Download and install cross-compilation toolchain:
+      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --setup-toolchain
+
+  13. Revert active Cobalt loader configuration to Cobalt 25:
+      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --revert-c25
 """
 
 import argparse
@@ -50,6 +65,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import time
 from typing import List, Optional, Union
 
@@ -67,10 +83,9 @@ MIN_SYSTEM_SOFTWARE_VERSION = "20260420"
 
 def run_command(
     command: Union[str, List[str]],
-    capture_output: bool = False,
     verbose: bool = True,
     check: bool = True,
-    stream_output: bool = False,
+    sleep_time: int = 0,
 ) -> str:
     """Utility to run shell commands."""
     if verbose:
@@ -78,58 +93,44 @@ def run_command(
         print(f">>> Executing: {cmd_str}")
 
     is_shell = isinstance(command, str)
-
-    if stream_output:
-        process = subprocess.Popen(
-            command,
-            shell=is_shell,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
-        )
-        full_output = []
-        if process.stdout:
-            for line in process.stdout:
-                print(line, end="", flush=True)
-                full_output.append(line)
-        process.wait()
-        if check and process.returncode != 0:
-            raise subprocess.CalledProcessError(process.returncode, command,
-                                              "".join(full_output))
-        return "".join(full_output)
-
-    process = subprocess.run(
-        command,
-        shell=is_shell,
-        check=False,
-        stdout=subprocess.PIPE if capture_output else None,
-        stderr=subprocess.PIPE if capture_output else None,
-        text=True,
+    process = subprocess.Popen(
+        command, shell=is_shell, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
     )
+    stdout_lines = []
+    for line in process.stdout:
+        print(line, end="", flush=True)
+        stdout_lines.append(line)
+    process.wait()
+    stdout = "".join(stdout_lines)
 
     if check and process.returncode != 0:
-        print(f"Error executing command: {process.stderr}")
         sys.exit(process.returncode)
 
-    return process.stdout if capture_output else ""
+    if sleep_time > 0:
+        if verbose:
+            print(f"Waiting {sleep_time} seconds...")
+        time.sleep(sleep_time)
+
+    return stdout
 
 
-def configure_build(platform: str, config: str, out_dir: Path) -> None:
+def configure_build(platform: str, config: str, out_dir: Path, no_rbe: bool = False) -> None:
     """Runs GN configuration."""
     print(f"=== Configuring {platform} ({config}) ===")
-    run_command([
+    cmd = [
         "python3", "cobalt/build/gn.py", "-p", platform, "-C", config,
         "--out_directory",
         str(out_dir)
-    ])
+    ]
+    if no_rbe:
+        cmd.append("--no-rbe")
+    run_command(cmd)
 
 
 def build_targets(out_dir: Path, targets: List[str]) -> str:
     """Builds the specified targets using autoninja."""
     print(f"=== Building {' '.join(targets)} ===")
-    return run_command(["autoninja", "-C", str(out_dir)] + targets,
-                       stream_output=True)
+    return run_command(["autoninja", "-C", str(out_dir)] + targets)
 
 
 def deploy_only_lib(device_id: str, out_dir: Path, remote_dir: str) -> None:
@@ -224,7 +225,7 @@ def launch_on_device(
 
         # Get configuration
         get_config_json = '{"jsonrpc":"2.0","id":1,"method":"Controller.1.configuration@YouTube"}'
-        res_str = run_command(["adb", "-s", device_id, "shell", f"curl -s http://127.0.0.1:9998/jsonrpc -d '{get_config_json}'"], capture_output=True)
+        res_str = run_command(["adb", "-s", device_id, "shell", f"curl -s http://127.0.0.1:9998/jsonrpc -d '{get_config_json}'"])
 
         rpc_deactivate = (
             r'{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"Controller.1.deactivate\",'
@@ -282,7 +283,7 @@ def launch_on_device(
         ]
 
     full_cmd = " && ".join(remote_cmds)
-    output = run_command(["adb", "-s", device_id, "shell", f"bash -l -c \"{full_cmd}\""], capture_output=True)
+    output = run_command(["adb", "-s", device_id, "shell", f"bash -l -c \"{full_cmd}\""])
     print(output)
     if "ERROR_OPENING_FAILED" in output or "error" in output.lower():
         print("\n[WARNING] Activation failed with error (e.g., ERROR_OPENING_FAILED).")
@@ -327,13 +328,38 @@ def parse_args() -> argparse.Namespace:
         "--reset",
         action="store_true",
         help=(
-            "Run rdkDisplay remove on device. Useful if the display is inactive "
-            "due to a previous executable mode session."),
+            "Run rdkDisplay remove and restart WPEFramework on the device. "
+            "Useful if the display is inactive or WPEFramework is stuck."),
     )
     parser.add_argument(
         "--devtools",
         action="store_true",
         help="Enable Chrome DevTools remote debugging port (port 9222) in plugin mode.",
+    )
+    parser.add_argument(
+        "--setup-toolchain",
+        action="store_true",
+        help="Download and install the RDK toolchain to RDK_HOME.",
+    )
+    parser.add_argument(
+        "--revert-c25",
+        action="store_true",
+        help="Revert the active Cobalt configuration on the device back to Cobalt 25.",
+    )
+    parser.add_argument(
+        "--no-rbe",
+        action="store_true",
+        help="Disable Remote Build Execution (RBE) in GN configuration.",
+    )
+    parser.add_argument(
+        "--logs",
+        action="store_true",
+        help="View system/Cobalt logs from the device.",
+    )
+    parser.add_argument(
+        "--follow",
+        action="store_true",
+        help="Follow log output in real-time (runs journalctl -f).",
     )
     return parser.parse_args()
 
@@ -520,23 +546,89 @@ def check_and_switch_cobalt_version(device_id: str) -> None:
         sys.exit(1)
 
 
+def revert_to_cobalt_25(device_id: str) -> None:
+    """Reverts the active Cobalt configuration on the device back to Cobalt 25."""
+    target = run_command(
+        ["adb", "-s", device_id, "shell", "readlink /usr/lib/libloader_app.so"]
+    ).strip()
+
+    if target != "/data/out_cobalt/libloader_app.so":
+        print("Cobalt 25 is already active on the device.")
+        return
+
+    print("Running 'chCobalt c25' on the device...")
+    run_command(["adb", "-s", device_id, "shell", "chCobalt c25"])
+    run_command(["adb", "-s", device_id, "shell", "reboot -f"])
+    print("Revert to Cobalt 25 completed. The device is rebooting.")
+
+
+def is_toolchain_installed(rdk_home: Optional[str]) -> bool:
+    """Checks if the RDK toolchain is installed in the target path."""
+    return bool(rdk_home and os.path.exists(os.path.join(rdk_home, "sysroots")))
+
+
+def setup_toolchain() -> None:
+    """Downloads and installs the RDK toolchain."""
+    rdk_home = os.environ.get("RDK_HOME")
+    if not rdk_home:
+        print("Error: RDK_HOME environment variable is not set.")
+        print("Please add it to your ~/.bashrc (e.g., export RDK_HOME=/workspaces/rdk/toolchain) and restart your shell.")
+        sys.exit(1)
+
+    if is_toolchain_installed(rdk_home):
+        print(f"RDK toolchain is already installed in: {rdk_home}. Skipping setup.")
+        return
+
+    url = "https://storage.googleapis.com/cobalt-static-storage-public/20250521_rdk-glibc-x86_64-arm-toolchain-2.0.sh"
+    print(f"=== Setting up toolchain in: {rdk_home} ===")
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        installer_path = os.path.join(tmp_dir, "installer.sh")
+        run_command(f"wget {url} -O '{installer_path}'")
+        run_command(f"sh '{installer_path}' -d '{rdk_home}' -y")
+
+
 def main() -> None:
     """Main execution flow."""
     args = parse_args()
+
+    if args.setup_toolchain:
+        setup_toolchain()
+        return
+
+    if args.revert_c25:
+        device_id = get_device_id()
+        revert_to_cobalt_25(device_id)
+        return
+
+    if args.logs:
+        device_id = get_device_id()
+        cmd = ["adb", "-s", device_id, "shell", "journalctl"]
+        if args.follow:
+            cmd.append("-f")
+        try:
+            run_command(cmd)
+        except KeyboardInterrupt:
+            print("\nLog streaming stopped.")
+        return
+
+    if args.reset:
+        device_id = get_device_id()
+        print("=== Resetting display ===")
+        run_command([
+            "adb", "-s", device_id, "shell", "bash -l -c 'rdkDisplay remove || true'"
+        ])
+        print("=== Restarting WPEFramework ===")
+        run_command([
+            "adb", "-s", device_id, "shell", "systemctl restart wpeframework"
+        ], sleep_time=5)
+        if not (args.run or args.tests or args.force_deploy):
+            print("=== Reset finished. ===")
+            return
 
     device_id = get_device_id()
     assert_software_version(device_id, MIN_SYSTEM_SOFTWARE_VERSION)
     if args.mode == "plugin" and not args.tests:
         check_and_switch_cobalt_version(device_id)
-
-    if args.reset:
-        print("=== Resetting display ===")
-        run_command([
-            "adb", "-s", device_id, "shell", "bash -l -c 'rdkDisplay remove || true'"
-        ])
-        if not (args.run or args.tests or args.force_deploy):
-            print("=== Reset finished. ===")
-            return
 
     # Setup Build Paths
     config = args.config or ("devel" if args.tests else "qa")
@@ -566,7 +658,14 @@ def main() -> None:
             remote_dir = EXECUTABLE_REMOTE_DIR
 
     if not args.skip_build:
-        configure_build(PLATFORM, config, out_dir)
+        rdk_home = os.environ.get("RDK_HOME")
+        if not is_toolchain_installed(rdk_home):
+            print(f"Error: RDK toolchain is not set up in RDK_HOME ({rdk_home}).")
+            print("Please run this script with --setup-toolchain to download and install the toolchain.")
+            print("Also, make sure to add it to your ~/.bashrc (e.g., export RDK_HOME=/workspaces/rdk/toolchain).")
+            sys.exit(1)
+
+        configure_build(PLATFORM, config, out_dir, args.no_rbe)
         build_output = build_targets(out_dir, targets)
         is_up_to_date = build_output and any(
             msg in build_output for msg in ["Everything is up-to-date", "no work to do"])
