@@ -1245,7 +1245,15 @@ if (!is_robolectric && enable_java_templates) {
     }
 
     java_library_impl(_java_binary_target_name) {
-      if (is_cobalt) {
+      if (!is_cobalt) {
+      forward_variables_from(invoker,
+                             "*",
+                             TESTONLY_AND_VISIBILITY + [
+                                   "deps",
+                                   "extra_args",
+                                   "shared_libraries",
+                                 ])
+      } else {
         # TODO(b/524712602): Refactor runtime deps generation for Robolectric
         # binaries for Cobalt.
         forward_variables_from(invoker,
@@ -1254,14 +1262,6 @@ if (!is_robolectric && enable_java_templates) {
                                      "deps",
                                      "extra_args",
                                      "ignore_all_data_deps",
-                                     "shared_libraries",
-                                   ])
-      } else {
-        forward_variables_from(invoker,
-                               "*",
-                               TESTONLY_AND_VISIBILITY + [
-                                     "deps",
-                                     "extra_args",
                                      "shared_libraries",
                                    ])
       }
@@ -1305,12 +1305,11 @@ if (!is_robolectric && enable_java_templates) {
       test_name = invoker.target_name
       test_suite = invoker.target_name
       test_type = "junit"
+      ignore_all_data_deps = true
       if (is_cobalt && defined(invoker.ignore_all_data_deps)) {
         # TODO(b/524712602): Refactor runtime deps generation for Robolectric
         # binaries for Cobalt.
         ignore_all_data_deps = invoker.ignore_all_data_deps
-      } else {
-        ignore_all_data_deps = true
       }
       resource_apk = _apkbuilder_output
       deps = [
