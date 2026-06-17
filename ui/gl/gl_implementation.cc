@@ -459,36 +459,24 @@ std::string GetGLExtensionsFromCurrentContext(GLApi* api) {
   // crashes later (e.g. in IsGL_REDSupportedOnFBOs). To prevent this, we query
   // extensions individually using glGetStringi if we detect an ES3 context.
   {
-    const char* version_str =
-        reinterpret_cast<const char*>(api->glGetStringFn(GL_VERSION));
-    const char* renderer_str =
-        reinterpret_cast<const char*>(api->glGetStringFn(GL_RENDERER));
-    if (version_str && renderer_str) {
-      GLVersionInfo version_info(version_str, renderer_str, gfx::ExtensionSet());
-      if (version_info.is_es3) {
-        bool has_stringi = false;
-        if (!g_current_gl_driver) {
-          // In unit tests, g_current_gl_driver is null, but api is mocked.
-          has_stringi = true;
-        } else if (g_current_gl_driver->fn.glGetStringiFn) {
-          has_stringi = true;
-        }
-        if (has_stringi) {
-          GLint num_extensions = 0;
-          api->glGetIntegervFn(GL_NUM_EXTENSIONS, &num_extensions);
-          std::string extensions;
-          for (GLint i = 0; i < num_extensions; ++i) {
-            const char* ext = reinterpret_cast<const char*>(
-                api->glGetStringiFn(GL_EXTENSIONS, i));
-            if (ext) {
-              if (!extensions.empty())
-                extensions += " ";
-              extensions += ext;
-            }
-          }
-          return extensions;
+    GLVersionInfo version_info(
+        reinterpret_cast<const char*>(api->glGetStringFn(GL_VERSION)),
+        reinterpret_cast<const char*>(api->glGetStringFn(GL_RENDERER)),
+        gfx::ExtensionSet());
+    if (version_info.is_es3) {
+      GLint num_extensions = 0;
+      api->glGetIntegervFn(GL_NUM_EXTENSIONS, &num_extensions);
+      std::string extensions;
+      for (GLint i = 0; i < num_extensions; ++i) {
+        const char* ext = reinterpret_cast<const char*>(
+            api->glGetStringiFn(GL_EXTENSIONS, i));
+        if (ext) {
+          if (!extensions.empty())
+            extensions += " ";
+          extensions += ext;
         }
       }
+      return extensions;
     }
   }
 #endif
