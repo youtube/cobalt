@@ -30,7 +30,9 @@
 #include "content/browser/service_worker/service_worker_container_host.h"
 #include "content/browser/service_worker/service_worker_context_core_observer.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "content/browser/service_worker/service_worker_hid_delegate_observer.h"
+#endif
 #include "content/browser/service_worker/service_worker_host.h"
 #include "content/browser/service_worker/service_worker_info.h"
 #include "content/browser/service_worker/service_worker_job_coordinator.h"
@@ -39,7 +41,9 @@
 #include "content/browser/service_worker/service_worker_register_job.h"
 #include "content/browser/service_worker/service_worker_registration.h"
 #include "content/browser/service_worker/service_worker_security_utils.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "content/browser/service_worker/service_worker_usb_delegate_observer.h"
+#endif
 #include "content/browser/service_worker/service_worker_version.h"
 #include "content/browser/storage_partition_impl.h"
 #include "content/common/content_navigation_policy.h"

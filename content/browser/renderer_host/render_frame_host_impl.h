@@ -202,7 +202,7 @@
 #include "base/containers/id_map.h"
 #include "content/browser/webauth/webauth_request_security_checker.h"
 #include "services/device/public/mojom/nfc.mojom.h"
-#else
+#elif !BUILDFLAG(IS_COBALT)
 #include "third_party/blink/public/mojom/hid/hid.mojom-forward.h"
 #endif
 
@@ -226,7 +226,9 @@ class CacheStorage;
 class DeviceAPIService;
 class GeolocationService;
 class ManagedConfigurationService;
+#if !BUILDFLAG(IS_COBALT)
 class WebUsbService;
+#endif
 }  // namespace mojom
 }  // namespace blink
 
