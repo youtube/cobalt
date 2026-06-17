@@ -114,14 +114,14 @@ std::unique_ptr<AudioTrackBridge> AudioTrackBridge::Create(
     if (coding_type == kSbMediaAudioCodingTypePcm &&
         sample_type == kSbMediaAudioSampleTypeFloat32) {
       ScopedJavaLocalRef<jfloatArray> j_float_array =
-          Java_AudioTrackBridge_getPreAllocatedFloatArray(env,
-                                                          j_audio_track_bridge);
+          Java_AudioTrackBridge_getPreAllocatedAudioDataAsFloatArray(
+              env, j_audio_track_bridge);
       SB_CHECK(j_float_array);
       return FloatArray(env, j_float_array);
     }
     ScopedJavaLocalRef<jbyteArray> j_byte_array =
-        Java_AudioTrackBridge_getPreAllocatedByteArray(env,
-                                                       j_audio_track_bridge);
+        Java_AudioTrackBridge_getPreAllocatedAudioDataAsByteArray(
+            env, j_audio_track_bridge);
     SB_CHECK(j_byte_array);
     return ByteArray(env, j_byte_array);
   }();
