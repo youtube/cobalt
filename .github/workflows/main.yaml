@@ -291,48 +291,62 @@ jobs:
           set -x
           docker_content_sha=$(find cobalt/docker docker-compose.yaml -type f -exec sha256sum -b {} + | LC_ALL=C sort | sha256sum | head -c 64)
           echo "docker_content_sha=${docker_content_sha}" >> $GITHUB_OUTPUT
-      - name: Parse All Test Targets JSON
-        id: parse-all-targets
-        uses: ./.github/actions/test_targets_json
-        with:
-          test_targets_json_path: cobalt/build/testing/targets/${{ fromJson(steps.set-platforms.outputs.platforms)[0] }}/test_targets.json
-      - name: Evaluate run flags
-        id: run-flags
-        shell: bash
+      - name: Generate Filtered Test Targets
+        id: generate-targets
+        env:
+          PLATFORM_CONFIG: ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json
         run: |
           set -x
-          event_name="${{ github.event_name }}"
-          is_draft="${{ github.event.pull_request.draft }}"
-          nightly="${{ inputs.nightly }}"
-          run_odt_nightly="${{ vars.RUN_ODT_TESTS_ON_NIGHTLY }}"
-          run_odt_postsubmit="${{ vars.RUN_ODT_TESTS_ON_POSTSUBMIT }}"
 
+          # 1. Evaluate conditions (local variables)
+
+          # test_on_host
+          test_on_host="${{ steps.set-test-on-host.outputs.test_on_host }}"
+          run_on_host_test="false"
+          if [[ "${test_on_host}" == "true" ]]; then
+            run_on_host_test="true"
+          fi
+
+          # test_on_device
+          test_on_device="${{ steps.set-test-on-device.outputs.test_on_device }}"
           run_on_device_test="false"
-          if [[ "${{ steps.set-test-on-device.outputs.test_on_device }}" == "true" ]]; then
-            if [[ "${event_name}" == "pull_request" && "${is_draft}" != "true" ]]; then
+          if [[ "${test_on_device}" == "true" ]]; then
+            if [[ "${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false }}" == "true" ]]; then
               run_on_device_test="true"
-            elif [[ ( "${nightly}" == "true" || "${event_name}" == "schedule" ) && "${run_odt_nightly}" != "False" ]]; then
+            elif [[ "${{ (inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False' }}" == "true" ]]; then
               run_on_device_test="true"
-            elif [[ "${event_name}" == "push" && "${run_odt_postsubmit}" != "False" ]]; then
+            elif [[ "${{ github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False' }}" == "true" ]]; then
               run_on_device_test="true"
             fi
           fi
-          echo "run_on_device_test=${run_on_device_test}" >> $GITHUB_OUTPUT
 
-          run_on_host_test="${{ steps.set-test-on-host.outputs.test_on_host }}"
-          echo "run_on_host_test=${run_on_host_test}" >> $GITHUB_OUTPUT
+          # 2. Get platform and path
+          first_platform=$(jq -r '.platforms[0]' "${PLATFORM_CONFIG}")
+          targets_file="${GITHUB_WORKSPACE}/cobalt/build/testing/targets/${first_platform}/test_targets.json"
 
-          run_browser_tests="false"
-          if [[ "${{ steps.set-browser-test-targets.outputs.run_browser_tests }}" == "true" && "${run_on_host_test}" == "true" ]]; then
-            if [[ "${event_name}" == "pull_request" ]]; then
-              run_browser_tests="true"
-            elif [[ ( "${nightly}" == "true" || "${event_name}" == "schedule" ) && "${run_odt_nightly}" != "False" ]]; then
-              run_browser_tests="true"
-            elif [[ "${event_name}" == "push" && "${run_odt_postsubmit}" != "False" ]]; then
-              run_browser_tests="true"
-            fi
+          if [[ ! -f "${targets_file}" ]]; then
+            echo "Test targets file not found at ${targets_file}"
+            echo "targets=[]" >> $GITHUB_OUTPUT
+            exit 0
           fi
-          echo "run_browser_tests=${run_browser_tests}" >> $GITHUB_OUTPUT
+
+          # 3. Filter targets (Select only gtest and junit that match run conditions)
+          filtered_targets=$(jq -c \
+            --arg run_device "${run_on_device_test}" \
+            --arg run_host "${run_on_host_test}" \
+            '[
+              .[] | select(
+                (.target != null) and
+                (.test_type == "gtest" or .test_type == "junit") and
+                (
+                  (.runs_on == "device" and $run_device == "true") or
+                  ((.runs_on == "host" or .runs_on == null or .runs_on == "") and $run_host == "true")
+                )
+              ) | .target
+            ]' "${targets_file}")
+
+          echo "targets=${filtered_targets}" >> $GITHUB_OUTPUT
+        shell: bash
     outputs:
       platforms: ${{ steps.set-platforms.outputs.platforms }}
       build_runners: ${{ steps.set-build-runners.outputs.build_runners }}
@@ -355,7 +369,7 @@ jobs:
       yts_test_targets: ${{ steps.set-yts-test-targets.outputs.yts_test_targets }}
       yts_playback_test_targets: ${{ steps.set-yts-playback-test-targets.outputs.yts_playback_test_targets }}
       browser_test_targets: ${{ steps.set-browser-test-targets.outputs.browser_test_targets }}
-      run_browser_tests: ${{ steps.run-flags.outputs.run_browser_tests }}
+      run_browser_tests: ${{ steps.set-browser-test-targets.outputs.run_browser_tests }}
       yts_wpt_test_targets: ${{ steps.set-yts-wpt-test-targets.outputs.yts_wpt_test_targets }}
       e2e_test_targets: ${{ steps.set-e2e-test-targets.outputs.e2e_test_targets }}
       browser_test_targets_json: ${{ steps.set-browser-test-targets.outputs.browser_test_targets_json }}
@@ -364,9 +378,7 @@ jobs:
       num_gtest_shards: ${{ steps.set-gtest-shards.outputs.num_gtest_shards }}
       enable_sccache: ${{ steps.set-enable-sccache.outputs.enable_sccache }}
       docker_service: ${{ steps.set-docker-service.outputs.docker_service }}
-      test_targets_json: ${{ steps.parse-all-targets.outputs.test_targets_json }}
-      run_on_device_test: ${{ steps.run-flags.outputs.run_on_device_test }}
-      run_on_host_test: ${{ steps.run-flags.outputs.run_on_host_test }}
+      test_targets_json: ${{ steps.generate-targets.outputs.targets }}
 
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
@@ -553,7 +565,13 @@ jobs:
 
   on-device-test:
     needs: [initialize, build]
-    if: needs.initialize.outputs.run_on_device_test == 'true'
+    if: |
+      needs.initialize.outputs.test_on_device == 'true' &&
+        (
+          (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
+          ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
+          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
+        )
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_on_device_tests
     permissions: {}
@@ -589,11 +607,8 @@ jobs:
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
           test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
           test_attempts: '${{ needs.initialize.outputs.test_attempts }}'
-      - name: Parse All Test Targets JSON
-        id: parse-all-targets
-        uses: ./.github/actions/test_targets_json
     outputs:
-      test_targets_json: ${{ steps.parse-all-targets.outputs.test_targets_json }}
+      test_targets_json: ${{ steps.parse-device-targets.outputs.test_targets_json }}
 
   e2e-test:
     needs: [initialize, build]
@@ -695,7 +710,14 @@ jobs:
 
   browser-test-on-host:
     needs: [initialize, build, docker-unittest-image]
-    if: needs.initialize.outputs.run_browser_tests == 'true'
+    if: |
+      needs.initialize.outputs.run_browser_tests == 'true' &&
+      needs.initialize.outputs.test_on_host == 'true' &&
+      (
+        github.event_name == 'pull_request' ||
+        ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
+        (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
+      )
     runs-on: [self-hosted, chrobalt-linux-runner]
     name: ${{ matrix.name }}_browser_tests_on_host
     container:
@@ -721,11 +743,9 @@ jobs:
           platform: ${{ matrix.platform }}
           config: ${{ matrix.config }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
-      - name: Parse All Test Targets JSON
-        id: parse-all-targets
-        uses: ./.github/actions/test_targets_json
     outputs:
-      test_targets_json: ${{ steps.parse-all-targets.outputs.test_targets_json }}
+      # Browser tests are fixed to a single target.
+      test_targets_json: '["cobalt/testing/browser_tests:cobalt_browsertests"]'
 
   yts-wpt-test:
     needs: [initialize, build]
@@ -760,7 +780,7 @@ jobs:
 
   on-host-test:
     needs: [initialize, docker-unittest-image, build]
-    if: needs.initialize.outputs.run_on_host_test == 'true'
+    if: needs.initialize.outputs.test_on_host == 'true'
     permissions: {}
     runs-on: [self-hosted, chrobalt-linux-runner]
     name: ${{ matrix.name }}_on_host_tests_${{ matrix.shard }}
@@ -823,11 +843,8 @@ jobs:
           combined=$(jq -ncr --argjson g "$gtests" --argjson j "$junits" '$g + $j')
           echo "combined_test_targets=${combined}" >> $GITHUB_OUTPUT
         shell: bash
-      - name: Parse All Test Targets JSON
-        id: parse-all-targets
-        uses: ./.github/actions/test_targets_json
     outputs:
-      test_targets_json: ${{ steps.parse-all-targets.outputs.test_targets_json }}
+      test_targets_json: ${{ steps.combine-targets.outputs.combined_test_targets }}
 
   web-tests:
     needs: [initialize, docker-webtest-image, build]
@@ -899,10 +916,10 @@ jobs:
     needs: [initialize, build, on-device-test, on-host-test, browser-test-on-host]
     if: |
       always() &&
-      needs.initialize.result == 'success' &&
       (
-        needs.initialize.outputs.run_on_device_test == 'true' ||
-        needs.initialize.outputs.run_on_host_test == 'true'
+        needs.on-device-test.result != 'skipped' ||
+        needs.on-host-test.result != 'skipped' ||
+        needs.browser-test-on-host.result != 'skipped'
       )
     permissions: {}
     runs-on: ubuntu-latest
@@ -915,7 +932,7 @@ jobs:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
-        test_target: ${{ fromJson(needs.initialize.outputs.test_targets_json || '[]') }}
+        test_target: ${{ fromJson(needs.initialize.outputs.test_targets_json) }}
     steps:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
@@ -923,51 +940,14 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-      - name: Download Test Targets JSON
-        uses: actions/download-artifact@v5
-        with:
-          name: ${{ matrix.platform }}_test_targets_json
-      - name: Evaluate if target should be processed
-        id: check-target
-        env:
-          RUN_ON_DEVICE_TEST: ${{ needs.initialize.outputs.run_on_device_test }}
-          RUN_ON_HOST_TEST: ${{ needs.initialize.outputs.run_on_host_test }}
-        run: |
-          set -x
-          target="${{ matrix.test_target }}"
-          should_process="false"
-          if [ -f test_targets.json ]; then
-            target_info=$(jq --arg target "${target}" -c '.[] | select(.target == $target) | {runs_on, test_type}' test_targets.json)
-            if [ -n "${target_info}" ]; then
-              runs_on=$(echo "${target_info}" | jq -r '.runs_on')
-              if [ "${runs_on}" = "null" ] || [ -z "${runs_on}" ]; then
-                runs_on="host"
-              fi
-              test_type=$(echo "${target_info}" | jq -r '.test_type')
-
-              if [ "${runs_on}" = "device" ] && [ "${test_type}" = "gtest" ]; then
-                if [ "${RUN_ON_DEVICE_TEST}" = "true" ]; then
-                  should_process="true"
-                fi
-              elif [ "${runs_on}" = "host" ] && { [ "${test_type}" = "gtest" ] || [ "${test_type}" = "junit" ]; }; then
-                if [ "${RUN_ON_HOST_TEST}" = "true" ]; then
-                  should_process="true"
-                fi
-              fi
-            fi
-          fi
-          echo "should_process=${should_process}" >> $GITHUB_OUTPUT
-        shell: bash
       - name: Extract Test Target Name
         id: extract-target-name
-        if: steps.check-target.outputs.should_process == 'true'
         env:
           test_target_with_path: ${{ matrix.test_target }}
         run: echo "test_target=${test_target_with_path#*:}" >> $GITHUB_OUTPUT
         shell: bash
       - name: Check if ${{ matrix.test_target }} is skipped in test filters
         id: filter
-        if: steps.check-target.outputs.should_process == 'true'
         run: |
           set -x
           # Get first entry in test filters file.
@@ -985,13 +965,13 @@ jobs:
           fi
         shell: bash
       - name: Download Test Results
-        if: steps.check-target.outputs.should_process == 'true' && steps.filter.outputs.skipped != 'true'
+        if: steps.filter.outputs.skipped != 'true'
         uses: actions/download-artifact@v5
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
       - name: Test Results
-        if: steps.check-target.outputs.should_process == 'true' && steps.filter.outputs.skipped != 'true'
+        if: steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/process_test_results
         with:
           target_name: ${{ matrix.test_target }}
@@ -1000,7 +980,7 @@ jobs:
           datadog_api_key: ${{ secrets.datadog_api_key }}
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
       - name: ${{ matrix.test_target }} Device Logs
-        if: always() && steps.check-target.outputs.should_process == 'true' && steps.filter.outputs.skipped != 'true' && needs.initialize.outputs.test_on_device == 'true'
+        if: always() && steps.filter.outputs.skipped != 'true' && needs.initialize.outputs.test_on_device == 'true'
         continue-on-error: true
         uses: ./.github/actions/print_logs
         with:
@@ -1009,7 +989,7 @@ jobs:
           # symbolize: true
           symbolize: 'false'
       - name: ${{ matrix.test_target }} Test Logs
-        if: always() && steps.check-target.outputs.should_process == 'true' && steps.filter.outputs.skipped != 'true'
+        if: always() && steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/print_logs
         with:
           log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
