@@ -357,8 +357,10 @@ class CONTENT_EXPORT StoragePartition {
 
   virtual void RemoveObserver(DataRemovalObserver* observer) = 0;
 
+#if !BUILDFLAG(IS_COBALT)
   // Clear the bluetooth allowed devices map. For test use only.
   virtual void ClearBluetoothAllowedDevicesMapForTesting() = 0;
+#endif
 
   // Call |FlushForTesting()| on Network Service related interfaces. For test
   // use only.
