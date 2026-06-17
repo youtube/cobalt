@@ -297,9 +297,13 @@ jobs:
         run: |
           first_platform=$(jq -r '.platforms[0]' ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json)
           test_targets_json_path="cobalt/build/testing/targets/${first_platform}/test_targets.json"
+          if [ ! -f "$test_targets_json_path" ]; then
+            test_targets_json_path=""
+          fi
           echo "test_targets_json_path=${test_targets_json_path}" >> $GITHUB_OUTPUT
       - name: Parse Device Targets
         id: parse-device-targets
+        if: steps.get-test-targets-json-path.outputs.test_targets_json_path != ''
         uses: ./.github/actions/test_targets_json
         with:
           runs_on: device
@@ -307,6 +311,7 @@ jobs:
           test_targets_json_path: ${{ steps.get-test-targets-json-path.outputs.test_targets_json_path }}
       - name: Parse Host GTest Targets
         id: parse-host-gtest-targets
+        if: steps.get-test-targets-json-path.outputs.test_targets_json_path != ''
         uses: ./.github/actions/test_targets_json
         with:
           runs_on: host
@@ -314,6 +319,7 @@ jobs:
           test_targets_json_path: ${{ steps.get-test-targets-json-path.outputs.test_targets_json_path }}
       - name: Parse Host JUnit Targets
         id: parse-host-junit-targets
+        if: steps.get-test-targets-json-path.outputs.test_targets_json_path != ''
         uses: ./.github/actions/test_targets_json
         with:
           runs_on: host
@@ -321,66 +327,72 @@ jobs:
           test_targets_json_path: ${{ steps.get-test-targets-json-path.outputs.test_targets_json_path }}
       - name: Generate Expected Test Targets Json
         id: generate-expected-test-targets-json
+        env:
+          TEST_TARGETS_JSON_PATH: ${{ steps.get-test-targets-json-path.outputs.test_targets_json_path }}
         run: |
           set -x
 
-          # 1. Evaluate conditions (local variables)
-
-          # test_on_host
-          test_on_host="${{ steps.set-test-on-host.outputs.test_on_host }}"
           run_on_host_test="false"
-          if [[ "${test_on_host}" == "true" ]]; then
-            run_on_host_test="true"
-          fi
-
-          # test_on_device
-          test_on_device="${{ steps.set-test-on-device.outputs.test_on_device }}"
           run_on_device_test="false"
-          if [[ "${test_on_device}" == "true" ]]; then
-            if [[ "${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false }}" == "true" ]]; then
-              run_on_device_test="true"
-            elif [[ "${{ (inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False' }}" == "true" ]]; then
-              run_on_device_test="true"
-            elif [[ "${{ github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False' }}" == "true" ]]; then
-              run_on_device_test="true"
-            fi
-          fi
-
-          # run_browser_tests
-          run_browser_tests="${{ steps.set-browser-test-targets.outputs.run_browser_tests }}"
           run_browser_test_on_host="false"
-          if [[ "${run_browser_tests}" == "true" && "${test_on_host}" == "true" ]]; then
-            if [[ "${{ github.event_name == 'pull_request' }}" == "true" ]]; then
-              run_browser_test_on_host="true"
-            elif [[ "${{ (inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False' }}" == "true" ]]; then
-              run_browser_test_on_host="true"
-            elif [[ "${{ github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False' }}" == "true" ]]; then
-              run_browser_test_on_host="true"
+          expected_targets="[]"
+
+          if [[ "$TEST_TARGETS_JSON_PATH" != "" ]]; then
+            # 1. Evaluate conditions (local variables)
+
+            # test_on_host
+            test_on_host="${{ steps.set-test-on-host.outputs.test_on_host }}"
+            if [[ "${test_on_host}" == "true" ]]; then
+              run_on_host_test="true"
             fi
+
+            # test_on_device
+            test_on_device="${{ steps.set-test-on-device.outputs.test_on_device }}"
+            if [[ "${test_on_device}" == "true" ]]; then
+              if [[ "${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false }}" == "true" ]]; then
+                run_on_device_test="true"
+              elif [[ "${{ (inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False' }}" == "true" ]]; then
+                run_on_device_test="true"
+              elif [[ "${{ github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False' }}" == "true" ]]; then
+                run_on_device_test="true"
+              fi
+            fi
+
+            # run_browser_tests
+            run_browser_tests="${{ steps.set-browser-test-targets.outputs.run_browser_tests }}"
+            if [[ "${run_browser_tests}" == "true" && "${test_on_host}" == "true" ]]; then
+              if [[ "${{ github.event_name == 'pull_request' }}" == "true" ]]; then
+                run_browser_test_on_host="true"
+              elif [[ "${{ (inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False' }}" == "true" ]]; then
+                run_browser_test_on_host="true"
+              elif [[ "${{ github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False' }}" == "true" ]]; then
+                run_browser_test_on_host="true"
+              fi
+            fi
+
+            # 2. Merge target lists using jq conditionally whether we expect the targets to run.
+
+            device_targets='${{ steps.parse-device-targets.outputs.test_targets_json || '[]' }}'
+            host_gtests='${{ steps.parse-host-gtest-targets.outputs.test_targets_json || '[]' }}'
+            host_junits='${{ steps.parse-host-junit-targets.outputs.test_targets_json || '[]' }}'
+
+            jq_device="[]"
+            if [[ "${run_on_device_test}" == "true" ]]; then
+              jq_device="${device_targets}"
+            fi
+
+            jq_host="[]"
+            if [[ "${run_on_host_test}" == "true" ]]; then
+              jq_host=$(jq -ncr --argjson g "${host_gtests}" --argjson j "${host_junits}" '$g + $j')
+            fi
+
+            expected_targets=$(jq -ncr --argjson d "${jq_device}" --argjson h "${jq_host}" '$d + $h')
           fi
 
           echo "run_on_host_test=${run_on_host_test}" >> $GITHUB_OUTPUT
           echo "run_on_device_test=${run_on_device_test}" >> $GITHUB_OUTPUT
           echo "run_browser_test_on_host=${run_browser_test_on_host}" >> $GITHUB_OUTPUT
-
-          # 2. Merge target lists using jq conditionally whether we expect the targets to run.
-
-          device_targets='${{ steps.parse-device-targets.outputs.test_targets_json || '[]' }}'
-          host_gtests='${{ steps.parse-host-gtest-targets.outputs.test_targets_json || '[]' }}'
-          host_junits='${{ steps.parse-host-junit-targets.outputs.test_targets_json || '[]' }}'
-
-          jq_device="[]"
-          if [[ "${run_on_device_test}" == "true" ]]; then
-            jq_device="${device_targets}"
-          fi
-
-          jq_host="[]"
-          if [[ "${run_on_host_test}" == "true" ]]; then
-            jq_host=$(jq -ncr --argjson g "${host_gtests}" --argjson j "${host_junits}" '$g + $j')
-          fi
-
-          filtered_targets=$(jq -ncr --argjson d "${jq_device}" --argjson h "${jq_host}" '$d + $h')
-          echo "expected_test_targets_json=${filtered_targets}" >> $GITHUB_OUTPUT
+          echo "expected_test_targets_json=${expected_targets}" >> $GITHUB_OUTPUT
         shell: bash
     outputs:
       platforms: ${{ steps.set-platforms.outputs.platforms }}
