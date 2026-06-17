@@ -4,12 +4,6 @@
 
 #include "content/browser/renderer_host/navigation_request.h"
 
-// clang-format off
-// Remove these two includes after CHROMIUM_MILESTONE_LE_138
-#include "content/public/common/buildflags.h"
-#include "content/public/common/content_milestone_features.h"
-// clang-format on
-
 #include <memory>
 #include <optional>
 #include <string>
@@ -46,7 +40,6 @@
 #include "base/types/optional_util.h"
 #include "base/types/pass_key.h"
 #include "build/build_config.h"
-#include "build/buildflag.h"
 #include "components/viz/host/host_frame_sink_manager.h"
 #include "content/browser/agent_cluster_key.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"

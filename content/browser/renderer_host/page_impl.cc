@@ -4,12 +4,6 @@
 
 #include "content/browser/renderer_host/page_impl.h"
 
-// clang-format off
-// Remove these two includes after CHROMIUM_MILESTONE_LE_138
-#include "content/public/common/buildflags.h"
-#include "content/public/common/content_milestone_features.h"
-// clang-format on
-
 #include "base/barrier_closure.h"
 #include "base/feature_list.h"
 #include "base/i18n/character_encoding.h"

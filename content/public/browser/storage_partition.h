@@ -9,12 +9,6 @@
 
 #include <set>
 
-// clang-format off
-// Remove these two includes after CHROMIUM_MILESTONE_LE_138
-#include "content/public/common/buildflags.h"
-#include "content/public/common/content_milestone_features.h"
-// clang-format on
-
 #include "base/functional/callback_forward.h"
 #include "base/observer_list_types.h"
 #include "base/time/time.h"

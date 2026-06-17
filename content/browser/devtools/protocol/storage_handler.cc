@@ -4,12 +4,6 @@
 
 #include "content/browser/devtools/protocol/storage_handler.h"
 
-// clang-format off
-// Remove these two includes after CHROMIUM_MILESTONE_LE_138
-#include "content/public/common/buildflags.h"
-#include "content/public/common/content_milestone_features.h"
-// clang-format on
-
 #include <stdint.h>
 
 #include <memory>
@@ -19,12 +13,6 @@
 #include <utility>
 #include <variant>
 #include <vector>
-
-// clang-format off
-// Remove these two includes after CHROMIUM_MILESTONE_LE_138
-#include "content/public/common/buildflags.h"
-#include "content/public/common/content_milestone_features.h"
-// clang-format on
 
 #include "base/barrier_closure.h"
 #include "base/functional/bind.h"

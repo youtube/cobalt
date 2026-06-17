@@ -4,11 +4,7 @@
 
 #include "content/browser/browser_interface_binders.h"
 
-// clang-format off
-// Remove these two includes after CHROMIUM_MILESTONE_LE_138
 #include "third_party/blink/public/public_buildflags.h"
-#include "content/public/common/content_milestone_features.h"
-// clang-format on
 
 #include "base/check_op.h"
 #include "base/command_line.h"

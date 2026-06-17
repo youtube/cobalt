@@ -7,12 +7,6 @@
 
 #include <optional>
 
-// clang-format off
-// Remove these two includes after CHROMIUM_MILESTONE_LE_138
-#include "third_party/blink/public/public_buildflags.h"
-#include "third_party/blink/public/common/blink_milestone_features.h"
-// clang-format on
-
 #include "base/memory/scoped_refptr.h"
 #include "base/unguessable_token.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"

@@ -10,12 +10,6 @@
 #include <set>
 #include <vector>
 
-// clang-format off
-// Remove these two includes after CHROMIUM_MILESTONE_LE_138
-#include "content/public/common/buildflags.h"
-#include "content/public/common/content_milestone_features.h"
-// clang-format on
-
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"

@@ -4,12 +4,6 @@
 
 #include "third_party/blink/renderer/core/html/parser/preload_request.h"
 
-// clang-format off
-// Remove these two includes after CHROMIUM_MILESTONE_LE_138
-#include "third_party/blink/public/public_buildflags.h"
-#include "third_party/blink/public/common/blink_milestone_features.h"
-// clang-format on
-
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_functions.h"
 #include "services/network/public/mojom/attribution.mojom-blink.h"

@@ -4,12 +4,6 @@
 
 #include "content/browser/loader/subresource_proxying_url_loader_service.h"
 
-// clang-format off
-// Remove these two includes after CHROMIUM_MILESTONE_LE_138
-#include "content/public/common/buildflags.h"
-#include "content/public/common/content_milestone_features.h"
-// clang-format on
-
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "content/browser/loader/prefetch_url_loader_service_context.h"

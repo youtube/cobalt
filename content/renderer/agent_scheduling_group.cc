@@ -4,12 +4,6 @@
 
 #include "content/renderer/agent_scheduling_group.h"
 
-// clang-format off
-// Remove these two includes after CHROMIUM_MILESTONE_LE_138
-#include "content/public/common/buildflags.h"
-#include "content/public/common/content_milestone_features.h"
-// clang-format on
-
 #include <utility>
 
 #include "base/containers/map_util.h"

@@ -4,12 +4,6 @@
 
 #include "content/browser/interest_group/auction_shared_storage_host.h"
 
-// clang-format off
-// Remove these two includes after CHROMIUM_MILESTONE_LE_138
-#include "content/public/common/buildflags.h"
-#include "content/public/common/content_milestone_features.h"
-// clang-format on
-
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/shared_storage/shared_storage_lock_manager.h"
