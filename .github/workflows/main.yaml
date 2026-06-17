@@ -302,6 +302,7 @@ jobs:
         uses: ./.github/actions/test_targets_json
         with:
           runs_on: device
+          test_type: gtest
           test_targets_json_path: cobalt/build/testing/targets/${{ steps.get-first-platform.outputs.first_platform }}/test_targets.json
       - name: Parse Host GTest Targets
         id: parse-host-gtest-targets
