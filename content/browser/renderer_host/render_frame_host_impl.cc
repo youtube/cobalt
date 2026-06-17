@@ -67,7 +67,9 @@
 #include "content/browser/accessibility/render_accessibility_host.h"
 #include "content/browser/bad_message.h"
 #include "content/browser/blob_storage/file_backed_blob_factory_frame_impl.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "content/browser/bluetooth/web_bluetooth_service_impl.h"
+#endif
 #include "content/browser/broadcast_channel/broadcast_channel_provider.h"
 #include "content/browser/broadcast_channel/broadcast_channel_service.h"
 #include "content/browser/browser_main_loop.h"
@@ -152,7 +154,9 @@
 #include "content/browser/renderer_host/view_transition_opt_in_state.h"
 #include "content/browser/scoped_active_url.h"
 #include "content/browser/security/coop/cross_origin_opener_policy_reporter.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "content/browser/serial/serial_service.h"
+#endif
 #include "content/browser/service_worker/service_worker_client.h"
 #include "content/browser/site_info.h"
 #include "content/browser/sms/webotp_service.h"
@@ -160,7 +164,9 @@
 #include "content/browser/storage_access/storage_access_handle.h"
 #include "content/browser/storage_partition_impl.h"
 #include "content/browser/url_loader_factory_params_helper.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "content/browser/usb/web_usb_service_impl.h"
+#endif
 #include "content/browser/web_exposed_isolation_info.h"
 #include "content/browser/web_package/prefetched_signed_exchange_cache.h"
 #include "content/browser/webauth/authenticator_impl.h"
@@ -321,7 +327,9 @@
 #include "content/public/browser/android/java_interfaces.h"
 #include "content/public/browser/authenticator_request_client_delegate.h"
 #else
+#if !BUILDFLAG(IS_COBALT)
 #include "content/browser/hid/hid_service.h"
+#endif
 #include "content/browser/host_zoom_map_impl.h"
 #endif
 
@@ -13703,6 +13711,7 @@ void RenderFrameHostImpl::CreateSecurePaymentConfirmationService(
   }
 }
 
+#if !BUILDFLAG(IS_COBALT)
 void RenderFrameHostImpl::CreateWebUsbService(
     mojo::PendingReceiver<blink::mojom::WebUsbService> receiver) {
   if (!base::FeatureList::IsEnabled(features::kWebUsb)) {
@@ -13723,6 +13732,7 @@ void RenderFrameHostImpl::CreateWebUsbService(
                 BackForwardCacheDisable::DisabledReasonId::kWebUSB));
   WebUsbServiceImpl::Create(*this, std::move(receiver));
 }
+#endif
 
 void RenderFrameHostImpl::ResetPermissionsPolicy(
     const network::ParsedPermissionsPolicy& header_policy) {
@@ -14075,13 +14085,14 @@ void RenderFrameHostImpl::CreateDedicatedWorkerHostFactory(
       std::move(receiver));
 }
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 void RenderFrameHostImpl::BindNFCReceiver(
     mojo::PendingReceiver<device::mojom::NFC> receiver) {
   delegate_->GetNFC(this, std::move(receiver));
 }
 #endif
 
+#if !BUILDFLAG(IS_COBALT)
 void RenderFrameHostImpl::BindSerialService(
     mojo::PendingReceiver<blink::mojom::SerialService> receiver) {
   if (!IsFeatureEnabled(network::mojom::PermissionsPolicyFeature::kSerial)) {
@@ -14109,8 +14120,9 @@ void RenderFrameHostImpl::BindSerialService(
 
   SerialService::GetOrCreateForCurrentDocument(this)->Bind(std::move(receiver));
 }
+#endif
 
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 void RenderFrameHostImpl::GetHidService(
     mojo::PendingReceiver<blink::mojom::HidService> receiver) {
   HidService::Create(this, std::move(receiver));

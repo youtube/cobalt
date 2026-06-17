@@ -92,7 +92,9 @@ class AggregationService;
 class AttributionManager;
 class BackgroundFetchContext;
 class BlobRegistryWrapper;
+#if !BUILDFLAG(IS_COBALT)
 class BluetoothAllowedDevicesMap;
+#endif
 class BroadcastChannelService;
 class BrowsingDataFilterBuilder;
 class KeepAliveURLLoaderService;
@@ -271,7 +273,9 @@ class CONTENT_EXPORT StoragePartitionImpl
       base::OnceClosure callback) override;
   void Flush() override;
   void ResetURLLoaderFactories() override;
+#if !BUILDFLAG(IS_COBALT)
   void ClearBluetoothAllowedDevicesMapForTesting() override;
+#endif
   void AddObserver(DataRemovalObserver* observer) override;
   void RemoveObserver(DataRemovalObserver* observer) override;
   void FlushNetworkInterfaceForTesting() override;
@@ -292,7 +296,9 @@ class CONTENT_EXPORT StoragePartitionImpl
   BackgroundFetchContext* GetBackgroundFetchContext();
   PaymentAppContextImpl* GetPaymentAppContext();
   BroadcastChannelService* GetBroadcastChannelService();
+#if !BUILDFLAG(IS_COBALT)
   BluetoothAllowedDevicesMap* GetBluetoothAllowedDevicesMap();
+#endif
   BlobRegistryWrapper* GetBlobRegistry();
   storage::BlobUrlRegistry* GetBlobUrlRegistry();
   SubresourceProxyingURLLoaderService* GetSubresourceProxyingURLLoaderService();
@@ -788,7 +794,9 @@ class CONTENT_EXPORT StoragePartitionImpl
   scoped_refptr<BackgroundSyncContextImpl> background_sync_context_;
   scoped_refptr<PaymentAppContextImpl> payment_app_context_;
   std::unique_ptr<BroadcastChannelService> broadcast_channel_service_;
+#if !BUILDFLAG(IS_COBALT)
   std::unique_ptr<BluetoothAllowedDevicesMap> bluetooth_allowed_devices_map_;
+#endif
   scoped_refptr<BlobRegistryWrapper> blob_registry_;
   std::unique_ptr<storage::BlobUrlRegistry> blob_url_registry_;
   std::unique_ptr<SubresourceProxyingURLLoaderService>
