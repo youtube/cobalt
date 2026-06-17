@@ -433,6 +433,7 @@ test("starboard_platform_tests") {
     ":media_codec_video_decoder_helpers",
     ":starboard_platform",
     ":test_support",
+    "//base",
     "//starboard:starboard_group",
     "//starboard/shared/starboard/drm:drm_test_helpers",
     "//starboard/shared/starboard/player/filter/testing:test_util",
