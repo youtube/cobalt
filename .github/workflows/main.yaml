@@ -296,7 +296,7 @@ jobs:
         shell: bash
         run: |
           first_platform=$(jq -r '.platforms[0]' ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json)
-          test_targets_json_path="cobalt/build/testing/targets/${first_platform }/test_targets.json"
+          test_targets_json_path="cobalt/build/testing/targets/${first_platform}/test_targets.json"
           echo "test_targets_json_path=${test_targets_json_path}" >> $GITHUB_OUTPUT
       - name: Parse Device Targets
         id: parse-device-targets
