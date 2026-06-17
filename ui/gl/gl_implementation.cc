@@ -450,10 +450,10 @@ std::string GetGLExtensionsFromCurrentContext() {
 }
 
 std::string GetGLExtensionsFromCurrentContext(GLApi* api) {
+#if BUILDFLAG(IS_COBALT)
   if (!api)
     return std::string();
 
-#if BUILDFLAG(IS_COBALT)
   // On OpenGL ES 3.0+, glGetString(GL_EXTENSIONS) is deprecated and can return
   // null while setting a GL_INVALID_ENUM error. This error can linger and cause
   // crashes later (e.g. in IsGL_REDSupportedOnFBOs). To prevent this, we query
@@ -467,9 +467,10 @@ std::string GetGLExtensionsFromCurrentContext(GLApi* api) {
       GLVersionInfo version_info(version_str, renderer_str, gfx::ExtensionSet());
       if (version_info.is_es3) {
         bool has_stringi = false;
-        if (g_current_gl_driver && g_current_gl_driver->fn.glGetStringiFn) {
+        if (!g_current_gl_driver) {
+          // In unit tests, g_current_gl_driver is null, but api is mocked.
           has_stringi = true;
-        } else if (gl::GetGLProcAddress("glGetStringi")) {
+        } else if (g_current_gl_driver->fn.glGetStringiFn) {
           has_stringi = true;
         }
         if (has_stringi) {
@@ -502,6 +503,16 @@ gfx::ExtensionSet GetRequestableGLExtensionsFromCurrentContext() {
 }
 
 gfx::ExtensionSet GetRequestableGLExtensionsFromCurrentContext(GLApi* api) {
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt on some platforms (like RDK) runs on native GL without ANGLE,
+  // but uses the passthrough command decoder. Querying requestable extensions
+  // (which is ANGLE-specific) on native GL will generate GL errors.
+  const char* version =
+      reinterpret_cast<const char*>(api->glGetStringFn(GL_VERSION));
+  if (!version || !strstr(version, "ANGLE")) {
+    return gfx::ExtensionSet();
+  }
+#endif
   return GetGLExtensionsFromCurrentContext(api,
                                            GL_REQUESTABLE_EXTENSIONS_ANGLE);
 }

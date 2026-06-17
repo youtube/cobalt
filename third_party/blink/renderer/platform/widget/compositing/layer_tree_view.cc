@@ -4,6 +4,8 @@
 
 #include "third_party/blink/renderer/platform/widget/compositing/layer_tree_view.h"
 
+#include "build/buildflag.h"
+
 #include <stddef.h>
 
 #include <string>
@@ -433,10 +435,17 @@ void LayerTreeView::DidPresentCompositorFrame(
   DCHECK(layer_tree_host_->GetTaskRunnerProvider()
              ->MainThreadTaskRunner()
              ->RunsTasksInCurrentSequence());
+
+#if !BUILDFLAG(IS_COBALT)
   // Only run callbacks on successful presentations.
   if (frame_timing_details.presentation_feedback.failed()) {
     return;
   }
+#else
+  // Cobalt: Run presentation callbacks even if presentation failed, to prevent
+  // callback queue leaks and subsequent DCHECK crashes (e.g. during navigation).
+#endif
+
   while (!presentation_callbacks_.empty()) {
     const auto& front = presentation_callbacks_.begin();
     if (viz::FrameTokenGT(front->first, frame_token))

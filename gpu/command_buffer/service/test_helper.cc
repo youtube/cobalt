@@ -464,12 +464,16 @@ void TestHelper::SetupFeatureInfoInitExpectationsWithGLVersion(
     const char* gl_renderer,
     const char* gl_version,
     ContextType context_type) {
+  InSequence sequence;
+
+  bool enable_es3 = context_type == CONTEXT_TYPE_WEBGL2 ||
+      context_type == CONTEXT_TYPE_OPENGLES3;
+
   gfx::ExtensionSet extension_set(gfx::MakeExtensionSet(extensions));
   // Persistent storage is needed for the split extension string.
   split_extensions_ =
       std::vector<std::string>(extension_set.begin(), extension_set.end());
-
-  InSequence sequence;
+  gl::GLVersionInfo gl_info(gl_version, gl_renderer, extension_set);
 
 #if BUILDFLAG(IS_COBALT)
   // In Cobalt, we query version/renderer during extension query, which happens first.
@@ -479,13 +483,7 @@ void TestHelper::SetupFeatureInfoInitExpectationsWithGLVersion(
   EXPECT_CALL(*gl, GetString(GL_RENDERER))
       .WillOnce(Return(reinterpret_cast<const uint8_t*>(gl_renderer)))
       .RetiresOnSaturation();
-#endif
 
-  bool enable_es3 = context_type == CONTEXT_TYPE_WEBGL2 ||
-      context_type == CONTEXT_TYPE_OPENGLES3;
-  gl::GLVersionInfo gl_info(gl_version, gl_renderer, extension_set);
-
-#if BUILDFLAG(IS_COBALT)
   // In Cobalt, if we detect an ES3 context, we query extensions individually.
   if (gl_info.is_es3) {
     EXPECT_CALL(*gl, GetIntegerv(GL_NUM_EXTENSIONS, _))
@@ -507,7 +505,6 @@ void TestHelper::SetupFeatureInfoInitExpectationsWithGLVersion(
       .RetiresOnSaturation();
 #endif
 
-  // Both Cobalt and non-Cobalt query version/renderer during FeatureInfo::Initialize.
   EXPECT_CALL(*gl, GetString(GL_VERSION))
       .WillOnce(Return(reinterpret_cast<const uint8_t*>(gl_version)))
       .RetiresOnSaturation();
