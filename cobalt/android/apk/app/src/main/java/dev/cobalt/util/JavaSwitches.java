@@ -153,17 +153,10 @@ public class JavaSwitches {
           "--enable-features=SmallerInterestArea:" + featureParams.toString());
     }
 
-<<<<<<< gles
-=======
-    if (javaSwitches.containsKey(JavaSwitches.COBALT_USE_ANGLE_GLES)) {
-      extraCommandLineArgs.add("--use-angle=gles");
-    }
-
     if (jsFlags.length() > 0 ) {
       extraCommandLineArgs.add("--js-flags=" + jsFlags.toString());
     }
 
->>>>>>> main
     return extraCommandLineArgs;
   }
 }
