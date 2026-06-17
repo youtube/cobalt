@@ -94,3 +94,7 @@ enable_rust_png = false
 # ~0.5 MB.
 enable_backup_ref_ptr_support = false
 enable_backup_ref_ptr_feature_flag = false
+
+# Disable vectorized HTML scanning (SIMD speedups for HTML parsing
+# are not needed).
+enable_vectorized_html_scanning = false
