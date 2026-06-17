@@ -502,6 +502,10 @@ void StarboardRenderer::SetStarboardRendererCallbacks(
 
 void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
   CHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (output_rect_ == output_rect) {
+    return;
+  }
+
   output_rect_ = output_rect;
 
 #if BUILDFLAG(IS_ANDROID)
