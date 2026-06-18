@@ -37,6 +37,16 @@ enum DrmOperationStatus {
   DRM_OPERATION_STATUS_NOT_PROVISIONED,
 };
 
+/**
+ * Holds the key ID and its corresponding status for DRM.
+ * This struct is used to transfer key status information from Java to C++ via
+ * JNI. It is owned by the caller and can be used from any thread.
+ */
+struct DrmKeyStatusInfo {
+  std::vector<uint8_t> key_id;
+  SbDrmKeyStatus status;
+};
+
 class MediaDrmBridge {
  public:
   class Host {
@@ -100,10 +110,9 @@ class MediaDrmBridge {
                         const jni_zero::JavaParamRef<jbyteArray>& session_id,
                         jint request_type,
                         const jni_zero::JavaParamRef<jbyteArray>& message);
-  void OnKeyStatusChange(
-      JNIEnv* env,
-      const jni_zero::JavaParamRef<jbyteArray>& session_id,
-      const jni_zero::JavaParamRef<jobjectArray>& key_information);
+  void OnKeyStatusChange(JNIEnv* env,
+                         const jni_zero::JavaParamRef<jbyteArray>& session_id,
+                         const std::vector<DrmKeyStatusInfo>& key_information);
 
   static bool IsWidevineSupported(JNIEnv* env);
   static bool IsCbcsSupported(JNIEnv* env);
@@ -129,5 +138,12 @@ std::ostream& operator<<(std::ostream& os,
                          const MediaDrmBridge::OperationResult& result);
 
 }  // namespace starboard
+
+namespace jni_zero {
+template <>
+starboard::DrmKeyStatusInfo FromJniType<starboard::DrmKeyStatusInfo>(
+    JNIEnv* env,
+    const JavaRef<jobject>& j_key_status);
+}  // namespace jni_zero
 
 #endif  // STARBOARD_ANDROID_SHARED_MEDIA_DRM_BRIDGE_H_
