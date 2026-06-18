@@ -159,19 +159,14 @@ runs:
           filename=$(basename "${test_executable_path}")
           test_executable="${filename%%.*}"
 
+          # JUnit tests are executed by their wrapper script "out/PLATFORM_CONFIG/bin/run_NAME".
+          # We use the test executable's base name for naming its logs and results.
+          test_executable_name="${test_executable#run_}"
+
           echo "Running tests for suite: ${test_executable}"
 
-          xml_path="${test_output}/${test_executable}_result.xml"
-          log_path="${test_output}/${test_executable}_log.txt"
-
-          # Check if a wrapper script was generated for the test (e.g. by test_runner_script).
-          # If so, use it as the entrypoint to run tests.
-          wrapper_path="$(dirname "${test_executable_path}")/bin/run_${test_executable}"
-          if [[ -x "${wrapper_path}" ]]; then
-            ENTRYPOINT="./${wrapper_path}"
-          else
-            ENTRYPOINT="./${test_executable_path}"
-          fi
+          xml_path="${test_output}/${test_executable_name}_result.xml"
+          log_path="${test_output}/${test_executable_name}_log.txt"
 
           # Run JUnit tests and generate JSON report, then convert to XML.
           #
