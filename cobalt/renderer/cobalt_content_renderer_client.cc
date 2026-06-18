@@ -43,6 +43,10 @@
 #include "third_party/blink/public/web/web_security_policy.h"
 #include "third_party/blink/public/web/web_view.h"
 #include "ui/gfx/geometry/size_conversions.h"
+#if BUILDFLAG(USE_STARBOARD_URL_PLAYER)
+#include "media/starboard/url_player_demuxer.h"
+#endif  // BUILDFLAG(USE_STARBOARD_URL_PLAYER)
+
 namespace cobalt {
 
 namespace {
@@ -515,7 +519,12 @@ CobaltContentRendererClient::OverrideDemuxerForUrl(
     content::RenderFrame* render_frame,
     const GURL& url,
     scoped_refptr<base::SequencedTaskRunner> task_runner) {
-  // TODO(512045535): Override with UrlPlayerDemuxer for HLS URLs.
+#if BUILDFLAG(USE_STARBOARD_URL_PLAYER)
+  if (::media::IsHlsUrl(url)) {
+    return std::make_unique<::media::UrlPlayerDemuxer>(std::move(task_runner),
+                                                       url);
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_URL_PLAYER)
   return nullptr;
 }
 
