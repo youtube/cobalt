@@ -37,7 +37,6 @@
 #include "starboard/decode_target.h"
 
 #if BUILDFLAG(IS_ANDROID)
-#include "gpu/command_buffer/service/ref_counted_lock.h"
 #include "media/base/android_overlay_mojo_factory.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -59,21 +58,13 @@ class StarboardGpuFactory;
 class StarboardRendererWrapper
     : public Renderer,
       public mojom::StarboardRendererExtension,
-#if BUILDFLAG(IS_ANDROID)
-      public gpu::RefCountedLockHelperDrDc,
-#endif  // BUILDFLAG(IS_ANDROID)
       public cobalt::media::mojom::VideoGeometryChangeClient {
  public:
   using RendererExtension = mojom::StarboardRendererExtension;
   using ClientExtension = mojom::StarboardRendererClientExtension;
   using GetStarboardCommandBufferStubCB = StarboardGpuFactory::GetStubCB;
 
-#if BUILDFLAG(IS_ANDROID)
-  StarboardRendererWrapper(StarboardRendererTraits traits,
-                           scoped_refptr<gpu::RefCountedLock> drdc_lock);
-#else   // BUILDFLAG(IS_ANDROID)
   explicit StarboardRendererWrapper(StarboardRendererTraits traits);
-#endif  // BUILDFLAG(IS_ANDROID)
 
   StarboardRendererWrapper(const StarboardRendererWrapper&) = delete;
   StarboardRendererWrapper& operator=(const StarboardRendererWrapper&) = delete;

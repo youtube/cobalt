@@ -162,12 +162,7 @@ GpuChannelSharedImageInterface::CreateSharedImageForStarboardGLTexture(
     const gfx::ColorSpace& color_space,
     const std::vector<uint32_t>& texture_service_ids,
     const std::vector<uint32_t>& texture_targets,
-    uint64_t decode_target
-#if BUILDFLAG(IS_ANDROID)
-    ,
-    scoped_refptr<RefCountedLock> drdc_lock
-#endif
-) {
+    uint64_t decode_target) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(gpu_sequence_checker_);
 
   if (!shared_image_stub_) {
@@ -180,11 +175,7 @@ GpuChannelSharedImageInterface::CreateSharedImageForStarboardGLTexture(
       mailbox, format, size, color_space,
       kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType,
       SHARED_IMAGE_USAGE_DISPLAY_READ | SHARED_IMAGE_USAGE_GLES2_READ,
-      texture_service_ids, texture_targets, decode_target
-#if BUILDFLAG(IS_ANDROID)
-      , std::move(drdc_lock)
-#endif
-      );
+      texture_service_ids, texture_targets, decode_target);
   
   SharedImageMetadata metadata{backing->format(),
                                backing->size(),

@@ -94,9 +94,6 @@ void StarboardGpuFactoryImpl::CreateImageOnGpu(
     const std::vector<uint32_t>& texture_service_ids,
     const std::vector<uint32_t>& texture_targets,
     uint64_t decode_target,
-#if BUILDFLAG(IS_ANDROID)
-    scoped_refptr<gpu::RefCountedLock> drdc_lock,
-#endif  // BUILDFLAG(IS_ANDROID)
     base::WaitableEvent* done_event) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (MakeContextCurrent(stub_)) {
@@ -109,12 +106,7 @@ void StarboardGpuFactoryImpl::CreateImageOnGpu(
     shared_image = gpu_channel_shared_image_interface
                        ->CreateSharedImageForStarboardGLTexture(
                            format, coded_size, color_space, texture_service_ids,
-                           texture_targets, decode_target
-#if BUILDFLAG(IS_ANDROID)
-                           ,
-                           std::move(drdc_lock)
-#endif
-                       );
+                           texture_targets, decode_target);
   }
   done_event->Signal();
 }
