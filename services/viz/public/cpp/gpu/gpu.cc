@@ -30,9 +30,11 @@ class GpuChannelWaitableEvent : public base::RefCountedThreadSafe<GpuChannelWait
  public:
   GpuChannelWaitableEvent()
       : event_(base::WaitableEvent::ResetPolicy::MANUAL,
-               base::WaitableEvent::InitialState::NOT_SIGNALED) {}
+               base::WaitableEvent::InitialState::SIGNALED) {}
 
-  base::WaitableEvent* event() { return &event_; }
+  void Reset() { event_.Reset(); }
+  void Signal() { event_.Signal(); }
+  bool TimedWait(base::TimeDelta max_time) { return event_.TimedWait(max_time); }
 
  private:
   friend class base::RefCountedThreadSafe<GpuChannelWaitableEvent>;
@@ -153,6 +155,7 @@ class Gpu::EstablishRequest
       return;
 
     establish_event_ = establish_event;
+    establish_event_->Reset();
   }
 
   // Cancels the pending request. Any asynchronous calls back into this object
@@ -203,7 +206,7 @@ class Gpu::EstablishRequest
     }
 
     if (establish_event_) {
-      establish_event_->event()->Signal();
+      establish_event_->Signal();
     } else {
       main_task_runner_->PostTask(
           FROM_HERE, base::BindOnce(&EstablishRequest::FinishOnMain, this));
@@ -352,7 +355,7 @@ scoped_refptr<gpu::GpuChannelHost> Gpu::EstablishGpuChannelSync() {
   SCOPED_UMA_HISTOGRAM_TIMER("GPU.EstablishGpuChannelSyncTime");
   auto safe_event = base::MakeRefCounted<GpuChannelWaitableEvent>();
   SendEstablishGpuChannelRequest(safe_event);
-  if (!safe_event->event()->TimedWait(base::Seconds(1))) {
+  if (!safe_event->TimedWait(base::Seconds(1))) {
     LOG(ERROR) << "Gpu::EstablishGpuChannelSync: Timed out waiting for GPU channel! (1s)";
     pending_request_->Cancel();
     pending_request_.reset();
