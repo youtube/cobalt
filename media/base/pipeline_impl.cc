@@ -33,10 +33,6 @@
 #include "media/base/renderer_client.h"
 #include "media/base/serial_runner.h"
 #include "media/base/timestamp_constants.h"
-
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
-#endif
 #include "media/base/video_decoder_config.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -301,10 +297,6 @@ void PipelineImpl::RendererWrapper::Start(
     Demuxer* demuxer,
     std::unique_ptr<Renderer> default_renderer,
     base::WeakPtr<PipelineImpl> weak_pipeline) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kMedia);
-#endif
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
   DCHECK(state_ == State::kCreated || state_ == State::kStopped)
       << "Received start in unexpected state: " << GetStateString(state_);
@@ -1295,10 +1287,6 @@ void PipelineImpl::Start(StartType start_type,
                          Demuxer* demuxer,
                          Client* client,
                          PipelineStatusCallback seek_cb) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kMedia);
-#endif
   DVLOG(2) << __func__ << ": start_type=" << static_cast<int>(start_type);
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(demuxer);
@@ -1599,10 +1587,6 @@ void PipelineImpl::AsyncCreateRenderer(
 }
 
 void PipelineImpl::OnError(PipelineStatus error) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kMedia);
-#endif
   DVLOG(2) << __func__;
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(!error.is_ok()) << "PIPELINE_OK isn't an error!";
@@ -1630,10 +1614,6 @@ void PipelineImpl::OnFallback(PipelineStatus status) {
 }
 
 void PipelineImpl::OnEnded() {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kMedia);
-#endif
   DVLOG(2) << __func__;
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(IsRunning());
@@ -1643,10 +1623,6 @@ void PipelineImpl::OnEnded() {
 }
 
 void PipelineImpl::OnMetadata(const PipelineMetadata& metadata) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kMedia);
-#endif
   DVLOG(2) << __func__;
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(IsRunning());
@@ -1657,10 +1633,6 @@ void PipelineImpl::OnMetadata(const PipelineMetadata& metadata) {
 
 void PipelineImpl::OnBufferingStateChange(BufferingState state,
                                           BufferingStateChangeReason reason) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kMedia);
-#endif
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(IsRunning());
 
@@ -1669,10 +1641,6 @@ void PipelineImpl::OnBufferingStateChange(BufferingState state,
 }
 
 void PipelineImpl::OnDurationChange(base::TimeDelta duration) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kMedia);
-#endif
   DVLOG(2) << __func__;
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(IsRunning());
@@ -1684,10 +1652,6 @@ void PipelineImpl::OnDurationChange(base::TimeDelta duration) {
 }
 
 void PipelineImpl::OnWaiting(WaitingReason reason) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kMedia);
-#endif
   DVLOG(2) << __func__;
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(IsRunning());
@@ -1697,10 +1661,6 @@ void PipelineImpl::OnWaiting(WaitingReason reason) {
 }
 
 void PipelineImpl::OnVideoNaturalSizeChange(const gfx::Size& size) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kMedia);
-#endif
   DVLOG(2) << __func__;
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(IsRunning());
@@ -1710,10 +1670,6 @@ void PipelineImpl::OnVideoNaturalSizeChange(const gfx::Size& size) {
 }
 
 void PipelineImpl::OnVideoOpacityChange(bool opaque) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kMedia);
-#endif
   DVLOG(2) << __func__;
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(IsRunning());
@@ -1723,10 +1679,6 @@ void PipelineImpl::OnVideoOpacityChange(bool opaque) {
 }
 
 void PipelineImpl::OnVideoFrameRateChange(std::optional<int> fps) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kMedia);
-#endif
   DVLOG(2) << __func__;
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(IsRunning());
@@ -1736,10 +1688,6 @@ void PipelineImpl::OnVideoFrameRateChange(std::optional<int> fps) {
 }
 
 void PipelineImpl::OnAudioConfigChange(const AudioDecoderConfig& config) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kMedia);
-#endif
   DVLOG(2) << __func__;
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(IsRunning());
@@ -1749,10 +1697,6 @@ void PipelineImpl::OnAudioConfigChange(const AudioDecoderConfig& config) {
 }
 
 void PipelineImpl::OnVideoConfigChange(const VideoDecoderConfig& config) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kMedia);
-#endif
   DVLOG(2) << __func__;
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(IsRunning());

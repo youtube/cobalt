@@ -15,11 +15,6 @@
 #include <memory>
 #include <numeric>
 
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
-#include "cobalt/shell/buildflags.h"
-#endif
-
 #include "base/bits.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -269,9 +264,6 @@ void FFmpegVideoDecoder::Initialize(const VideoDecoderConfig& config,
 
 void FFmpegVideoDecoder::Decode(scoped_refptr<DecoderBuffer> buffer,
                                 DecodeCB decode_cb) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kMedia);
-#endif
   DVLOG(3) << __func__;
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(buffer.get());
@@ -353,9 +345,6 @@ FFmpegVideoDecoder::~FFmpegVideoDecoder() {
 }
 
 bool FFmpegVideoDecoder::FFmpegDecode(const DecoderBuffer& buffer) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kMedia);
-#endif
   // Create a packet for input data.
   // Due to FFmpeg API changes we no longer have const read-only pointers.
   // av_init_packet is deprecated and being removed, and ffmpeg clearly does
