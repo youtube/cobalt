@@ -14,11 +14,6 @@
 #include <functional>
 #include <memory>
 
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
-#include "cobalt/shell/buildflags.h"
-#endif
-
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/task/bind_post_task.h"
@@ -125,9 +120,6 @@ void FFmpegAudioDecoder::Initialize(const AudioDecoderConfig& config,
 
 void FFmpegAudioDecoder::Decode(scoped_refptr<DecoderBuffer> buffer,
                                 DecodeCB decode_cb) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kMedia);
-#endif
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(decode_cb);
   CHECK_NE(state_, DecoderState::kUninitialized);
@@ -159,9 +151,6 @@ void FFmpegAudioDecoder::Reset(base::OnceClosure closure) {
 
 void FFmpegAudioDecoder::DecodeBuffer(const DecoderBuffer& buffer,
                                       DecodeCB decode_cb) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kMedia);
-#endif
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK_NE(state_, DecoderState::kUninitialized);
   DCHECK_NE(state_, DecoderState::kDecodeFinished);

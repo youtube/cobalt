@@ -4,10 +4,6 @@
 
 #include "net/http/http_cache_transaction.h"
 
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
-#endif
-
 #include "build/build_config.h"  // For IS_POSIX
 
 #if BUILDFLAG(IS_POSIX)
@@ -47,9 +43,6 @@
 #include "base/trace_event/trace_id_helper.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"  // nogncheck
-#endif
 #include "net/base/auth.h"
 #include "net/base/features.h"
 #include "net/base/load_flags.h"
@@ -186,12 +179,6 @@ int HttpCache::Transaction::Start(const HttpRequestInfo* request,
   DCHECK(request);
   DCHECK(request->IsConsistent());
   DCHECK(!callback.is_null());
-
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kNetworkCache);
-#endif
-
   TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("net"),
                     "HttpCacheTransactionState", track_for_state_change_, "url",
                     request->url.spec());
@@ -816,9 +803,6 @@ void HttpCache::Transaction::AddDiskCacheWriteTime(base::TimeDelta elapsed) {
 //   Like examples 2-4, only CacheToggleUnusedSincePrefetch* is inserted between
 //   CacheReadResponse* and CacheDispatchValidation.
 int HttpCache::Transaction::DoLoop(int result) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kNetworkCache);
-#endif
   DCHECK_NE(STATE_UNSET, next_state_);
   DCHECK_NE(STATE_NONE, next_state_);
   DCHECK(!in_do_loop_);
@@ -3950,9 +3934,6 @@ void HttpCache::Transaction::SaveNetworkTransactionInfo(
 }
 
 void HttpCache::Transaction::OnIOComplete(int result) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kNetworkCache);
-#endif
   if (waiting_for_cache_io_) {
     CHECK_NE(result, ERR_CACHE_RACE);
     // If the HttpCache IO hasn't completed yet, queue the IO result
@@ -3964,9 +3945,6 @@ void HttpCache::Transaction::OnIOComplete(int result) {
 }
 
 void HttpCache::Transaction::OnCacheIOComplete(int result) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kNetworkCache);
-#endif
   if (waiting_for_cache_io_) {
     // Handle the case of parallel HttpCache transactions being run against
     // network IO.

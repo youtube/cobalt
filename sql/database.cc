@@ -58,9 +58,6 @@
 #include "base/tracing/protos/chrome_track_event.pbzero.h"  // IWYU pragma: keep
 #include "base/types/pass_key.h"
 #include "build/build_config.h"
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"  // nogncheck
-#endif
 #include "sql/database_memory_dump_provider.h"
 #include "sql/initialization.h"
 #include "sql/internal_api_token.h"
@@ -381,11 +378,6 @@ Database::~Database() {
 }
 
 bool Database::Open(const base::FilePath& path) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kStorage);
-#endif
-
   std::string path_string = AsUTF8ForSQL(path);
   TRACE_EVENT1("sql", "Database::Open", "path", path_string);
 

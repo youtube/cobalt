@@ -29,11 +29,6 @@
 #include "media/filters/source_buffer_stream.h"
 #include "media/filters/stream_parser_factory.h"
 
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
-#include "cobalt/shell/buildflags.h"
-#endif
-
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/containers/contains.h"
 #include "base/strings/string_split.h"
@@ -181,9 +176,6 @@ void ChunkDemuxerStream::Seek(base::TimeDelta time) {
 }
 
 bool ChunkDemuxerStream::Append(const StreamParser::BufferQueue& buffers) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kMedia);
-#endif
   if (append_observer_cb_)
     append_observer_cb_.Run(&buffers);
 
@@ -1071,9 +1063,6 @@ base::TimeDelta ChunkDemuxer::GetWriteHead(const std::string& id) const {
 
 bool ChunkDemuxer::AppendToParseBuffer(const std::string& id,
                                        base::span<const uint8_t> data) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kMedia);
-#endif
   DVLOG(1) << "AppendToParseBuffer(" << id << ", " << data.size() << ")";
 
   DCHECK(!id.empty());
