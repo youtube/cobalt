@@ -270,7 +270,7 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
   // Mojo receiver set for the CobaltLifecycleObserver interface. Each receiver
   // corresponds to a renderer-side frame that has registered to send back
   // lifecycle ACKs. The FrameContext associated with each receiver tracks the
-  // frame's WebContents and RenderFrameHost.
+  // frame's WebContents and GlobalRenderFrameHostId.
   mojo::ReceiverSet<cobalt::mojom::CobaltLifecycleObserver, FrameContext>
       receivers_;
 
@@ -280,6 +280,13 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
   // ReceiverIds explicitly. This allows us to cleanly remove only the receivers
   // associated with a specific WebContents when it is destroyed.
   std::map<content::WebContents*, std::vector<mojo::ReceiverId>> receiver_ids_;
+
+  // Map tracking the active Mojo ReceiverId for each RenderFrameHost (by its
+  // GlobalId). This prevents race conditions where an asynchronous disconnect
+  // handler for an old Mojo pipe unregisters a frame that has already been
+  // re-bound to a new pipe.
+  std::map<content::GlobalRenderFrameHostId, mojo::ReceiverId>
+      active_receivers_;
 
   base::WeakPtrFactory<CobaltLifecycleManager> weak_factory_{this};
 

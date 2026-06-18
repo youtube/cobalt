@@ -55,11 +55,11 @@ void CobaltLifecycleManager::BindReceiver(
     content::RenderFrameHost* frame,
     mojo::PendingReceiver<cobalt::mojom::CobaltLifecycleObserver> receiver) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  if (!frame) {
-    return;
-  }
-  content::WebContents* web_contents = content::WebContents::FromRenderFrameHost(frame);
-  mojo::ReceiverId id = receivers_.Add(this, std::move(receiver), {frame->GetGlobalId()});
+  content::WebContents* web_contents =
+      content::WebContents::FromRenderFrameHost(frame);
+  mojo::ReceiverId id =
+      receivers_.Add(this, std::move(receiver), {frame->GetGlobalId()});
+  active_receivers_[frame->GetGlobalId()] = id;
   receiver_ids_[web_contents].push_back(id);
 }
 
@@ -85,8 +85,15 @@ void CobaltLifecycleManager::OnMojoDisconnect() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   auto [frame, web_contents] = GetCurrentContext();
   mojo::ReceiverId id = receivers_.current_receiver();
+  FrameContext context = receivers_.current_context();
   if (web_contents) {
-    UnregisterFrame(web_contents, frame);
+    auto active_it = active_receivers_.find(context.frame_id);
+    if (active_it != active_receivers_.end() && active_it->second == id) {
+      if (frame) {
+        UnregisterFrame(web_contents, frame);
+      }
+      active_receivers_.erase(active_it);
+    }
     auto it = receiver_ids_.find(web_contents);
     if (it != receiver_ids_.end()) {
       auto& ids = it->second;
@@ -122,6 +129,7 @@ void CobaltLifecycleManager::WebContentsTracker::RenderFrameCreated(
   mojo::ReceiverId id = manager_->receivers_.Add(
       manager_, observer.InitWithNewPipeAndPassReceiver(),
       {render_frame_host->GetGlobalId()});
+  manager_->active_receivers_[render_frame_host->GetGlobalId()] = id;
   manager_->receiver_ids_[web_contents()].push_back(id);
   controller->SetObserver(std::move(observer));
 
@@ -267,6 +275,7 @@ void CobaltLifecycleManager::WebContentsTracker::Rebind(
   mojo::ReceiverId id = manager_->receivers_.Add(
       manager_, observer.InitWithNewPipeAndPassReceiver(),
       {frame->GetGlobalId()});
+  manager_->active_receivers_[frame->GetGlobalId()] = id;
   manager_->receiver_ids_[web_contents()].push_back(id);
   controller->SetObserver(std::move(observer));
 
@@ -354,7 +363,7 @@ void CobaltLifecycleManager::OnPageVisibilityChanged(bool visible) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   auto [frame, web_contents] = GetCurrentContext();
 
-  if (web_contents) {
+  if (web_contents && frame) {
     auto* tracker = GetOrCreateTracker(web_contents);
     tracker->SetVisible(frame, visible);
 
@@ -370,7 +379,7 @@ void CobaltLifecycleManager::OnPageBlurred() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   auto [frame, web_contents] = GetCurrentContext();
 
-  if (web_contents) {
+  if (web_contents && frame) {
     auto* tracker = GetOrCreateTracker(web_contents);
     tracker->SetFocused(frame, false);
 
@@ -385,7 +394,7 @@ void CobaltLifecycleManager::OnPageFocused() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   auto [frame, web_contents] = GetCurrentContext();
 
-  if (web_contents) {
+  if (web_contents && frame) {
     auto* tracker = GetOrCreateTracker(web_contents);
     tracker->SetFocused(frame, true);
   }
@@ -395,7 +404,7 @@ void CobaltLifecycleManager::OnPageResumed() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   auto [frame, web_contents] = GetCurrentContext();
 
-  if (web_contents) {
+  if (web_contents && frame) {
     auto* tracker = GetOrCreateTracker(web_contents);
     tracker->SetResumed(frame);
 
@@ -410,7 +419,7 @@ void CobaltLifecycleManager::OnFrameReady() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   auto [frame, web_contents] = GetCurrentContext();
 
-  if (web_contents) {
+  if (web_contents && frame) {
     RegisterFrame(web_contents, frame);
   }
 }
@@ -575,6 +584,14 @@ void CobaltLifecycleManager::OnWebContentsDestroyed(
   // The WebContents is being destroyed. Proactively remove all its Mojo
   // receivers from `receivers_` BEFORE the WebContents and its RFHs go out of
   // scope.
+  // Proactively clean up the active_receivers_ map for all frames belonging to
+  // this WebContents to avoid memory leaks.
+  auto frames_it = frames_.find(web_contents);
+  if (frames_it != frames_.end()) {
+    for (auto* frame : frames_it->second) {
+      active_receivers_.erase(frame->GetGlobalId());
+    }
+  }
   auto it = receiver_ids_.find(web_contents);
   if (it != receiver_ids_.end()) {
     for (auto id : it->second) {
