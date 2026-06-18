@@ -63,11 +63,6 @@ struct AudioOutputFormatResult {
   jint channel_count;
 };
 
-struct DequeueInputResult {
-  int32_t status;
-  int32_t index;
-};
-
 struct DequeueOutputResult {
   int32_t status;
   int32_t index;
