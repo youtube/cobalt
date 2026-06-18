@@ -14,10 +14,6 @@
 
 #include "starboard/android/shared/media_codec_audio_decoder.h"
 
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
-#endif
-
 #include "starboard/android/shared/media_codec.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
@@ -129,10 +125,6 @@ void MediaCodecAudioDecoder::Initialize(const OutputCB& output_cb,
 
 void MediaCodecAudioDecoder::Decode(const InputBuffers& input_buffers,
                                     const ConsumedCB& consumed_cb) {
-#if BUILDFLAG(IS_COBALT)
-  ::base::memory::ScopedMemoryContext scoped_context(
-      ::base::memory::MemoryContext::kMedia);
-#endif
   SB_DCHECK(BelongsToCurrentThread());
 
   SB_DCHECK(!input_buffers.empty());
@@ -243,10 +235,6 @@ Result<void> MediaCodecAudioDecoder::InitializeCodec() {
 void MediaCodecAudioDecoder::ProcessOutputBuffer(
     MediaCodec* media_codec_bridge,
     const DequeueOutputResult& dequeue_output_result) {
-#if BUILDFLAG(IS_COBALT)
-  ::base::memory::ScopedMemoryContext scoped_context(
-      ::base::memory::MemoryContext::kMedia);
-#endif
   SB_DCHECK(media_codec_bridge);
   SB_DCHECK(output_cb_);
   SB_DCHECK_GE(dequeue_output_result.index, 0);

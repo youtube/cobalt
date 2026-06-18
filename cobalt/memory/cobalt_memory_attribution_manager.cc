@@ -99,9 +99,22 @@ void CobaltMemoryAttributionManager::RequestReportUmaForTesting(
 void CobaltMemoryAttributionManager::ReportUma() {
   base::TimeTicks now = base::TimeTicks::Now();
   auto* observer = base::memory::CobaltMemoryAttributionObserver::Get();
-  auto counters = observer->GetCounters();
+  // Skip reporting if timer was significantly delayed (e.g. device suspension).
+  if ((now - last_report_time_) >
+      base::Seconds(
+          cobalt::features::kCobaltMemoryAttributionReportIntervalParam.Get()) *
+          2) {
+    last_report_time_ = now;
+    for (size_t i = 0;
+         i < static_cast<size_t>(base::memory::MemoryContext::kCount); ++i) {
+      last_snapshots_[i] =
+          observer->GetCounters()[i].value.load(std::memory_order_relaxed);
+    }
+    return;
+  }
   last_report_time_ = now;
 
+  auto counters = observer->GetCounters();
   for (size_t i = 0; i < counters.size(); ++i) {
     uint64_t current = counters[i].value.load(std::memory_order_relaxed);
     uint64_t delta = current - last_snapshots_[i];

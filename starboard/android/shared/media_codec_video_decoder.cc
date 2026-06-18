@@ -24,7 +24,6 @@
 #include <limits>
 #include <list>
 
-#include "base/memory/cobalt_memory_context.h"
 #include "build/build_config.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_codec_video_decoder_helpers.h"
@@ -457,10 +456,6 @@ int64_t MediaCodecVideoDecoder::GetPrerollTimeout() const {
 
 void MediaCodecVideoDecoder::WriteInputBuffers(
     const InputBuffers& input_buffers) {
-#if BUILDFLAG(IS_COBALT)
-  ::base::memory::ScopedMemoryContext scoped_context(
-      ::base::memory::MemoryContext::kMedia);
-#endif
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK_EQ(input_buffers.front()->sample_type(), kSbMediaTypeVideo);
@@ -700,10 +695,6 @@ void MediaCodecVideoDecoder::SetPlaybackRate(double playback_rate) {
 }
 
 void MediaCodecVideoDecoder::OnFrameAvailable() {
-#if BUILDFLAG(IS_COBALT)
-  ::base::memory::ScopedMemoryContext scoped_context(
-      ::base::memory::MemoryContext::kMedia);
-#endif
   has_new_texture_available_.store(true);
 }
 
@@ -929,10 +920,6 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
 void MediaCodecVideoDecoder::ProcessOutputBuffer(
     MediaCodec* media_codec_bridge,
     const DequeueOutputResult& dequeue_output_result) {
-#if BUILDFLAG(IS_COBALT)
-  ::base::memory::ScopedMemoryContext scoped_context(
-      ::base::memory::MemoryContext::kMedia);
-#endif
   SB_DCHECK(decoder_status_cb_);
   SB_DCHECK_GE(dequeue_output_result.index, 0);
 
