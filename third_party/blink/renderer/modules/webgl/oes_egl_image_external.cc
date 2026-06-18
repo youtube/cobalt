@@ -16,6 +16,8 @@
 
 #include "build/build_config.h"
 
+#include <array>
+
 #include "gpu/command_buffer/client/client_shared_image.h"
 #include "gpu/command_buffer/client/gles2_interface.h"
 #include "media/base/video_frame.h"
@@ -135,20 +137,23 @@ void OESEGLImageExternal::EGLImageTargetTexture2DOES(
     return;
   }
 
-  static const GLenum kParametersToPreserve[] = {
-      GL_TEXTURE_MIN_FILTER,
-      GL_TEXTURE_MAG_FILTER,
-      GL_TEXTURE_WRAP_S,
-      GL_TEXTURE_WRAP_T,
+  struct TextureParameter {
+    GLenum pname;
+    GLint value;
   };
+  std::array<TextureParameter, 4> preserved_parameters = {{
+      {GL_TEXTURE_MIN_FILTER, 0},
+      {GL_TEXTURE_MAG_FILTER, 0},
+      {GL_TEXTURE_WRAP_S, 0},
+      {GL_TEXTURE_WRAP_T, 0},
+  }};
 
-  GLint preserved_values[4];
   const bool has_object = texture->Object() != 0;
 
   if (has_object) {
     gl->BindTexture(GL_TEXTURE_EXTERNAL_OES, texture->Object());
-    for (size_t i = 0; i < 4; ++i) {
-      gl->GetTexParameteriv(GL_TEXTURE_EXTERNAL_OES, kParametersToPreserve[i], &preserved_values[i]);
+    for (auto& param : preserved_parameters) {
+      gl->GetTexParameteriv(GL_TEXTURE_EXTERNAL_OES, param.pname, &param.value);
     }
   }
 
@@ -170,8 +175,8 @@ void OESEGLImageExternal::EGLImageTargetTexture2DOES(
   gl->BindTexture(GL_TEXTURE_EXTERNAL_OES, new_texture_id);
 
   if (has_object) {
-    for (size_t i = 0; i < 4; ++i) {
-      gl->TexParameteri(GL_TEXTURE_EXTERNAL_OES, kParametersToPreserve[i], preserved_values[i]);
+    for (const auto& param : preserved_parameters) {
+      gl->TexParameteri(GL_TEXTURE_EXTERNAL_OES, param.pname, param.value);
     }
   }
 
