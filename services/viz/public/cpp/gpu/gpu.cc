@@ -26,17 +26,17 @@
 
 namespace viz {
 
-class SafeWaitableEvent : public base::RefCountedThreadSafe<SafeWaitableEvent> {
+class GpuChannelWaitableEvent : public base::RefCountedThreadSafe<GpuChannelWaitableEvent> {
  public:
-  SafeWaitableEvent()
+  GpuChannelWaitableEvent()
       : event_(base::WaitableEvent::ResetPolicy::MANUAL,
                base::WaitableEvent::InitialState::NOT_SIGNALED) {}
 
   base::WaitableEvent* event() { return &event_; }
 
  private:
-  friend class base::RefCountedThreadSafe<SafeWaitableEvent>;
-  ~SafeWaitableEvent() = default;
+  friend class base::RefCountedThreadSafe<GpuChannelWaitableEvent>;
+  ~GpuChannelWaitableEvent() = default;
 
   base::WaitableEvent event_;
 };
@@ -141,7 +141,7 @@ class Gpu::EstablishRequest
 
   // Sets a SafeWaitableEvent so the main thread can block for a synchronous
   // request. This must be called from main thread.
-  void SetWaitableEvent(scoped_refptr<SafeWaitableEvent> establish_event) {
+  void SetWaitableEvent(const scoped_refptr<GpuChannelWaitableEvent>& establish_event) {
     DCHECK(main_task_runner_->BelongsToCurrentThread());
     DCHECK(establish_event);
     base::AutoLock mutex(lock_);
@@ -152,7 +152,7 @@ class Gpu::EstablishRequest
     if (received_)
       return;
 
-    establish_event_ = std::move(establish_event);
+    establish_event_ = establish_event;
   }
 
   // Cancels the pending request. Any asynchronous calls back into this object
@@ -217,7 +217,7 @@ class Gpu::EstablishRequest
 
   const raw_ptr<Gpu> parent_;
   scoped_refptr<base::SingleThreadTaskRunner> main_task_runner_;
-  scoped_refptr<SafeWaitableEvent> establish_event_;
+  scoped_refptr<GpuChannelWaitableEvent> establish_event_;
 
   base::Lock lock_;
   bool received_ = false;
@@ -350,7 +350,7 @@ scoped_refptr<gpu::GpuChannelHost> Gpu::EstablishGpuChannelSync() {
     return channel;
 
   SCOPED_UMA_HISTOGRAM_TIMER("GPU.EstablishGpuChannelSyncTime");
-  auto safe_event = base::MakeRefCounted<SafeWaitableEvent>();
+  auto safe_event = base::MakeRefCounted<GpuChannelWaitableEvent>();
   SendEstablishGpuChannelRequest(safe_event);
   if (!safe_event->event()->TimedWait(base::Seconds(1))) {
     LOG(ERROR) << "Gpu::EstablishGpuChannelSync: Timed out waiting for GPU channel! (1s)";
@@ -385,10 +385,10 @@ scoped_refptr<gpu::GpuChannelHost> Gpu::GetGpuChannel() {
   return gpu_channel_;
 }
 
-void Gpu::SendEstablishGpuChannelRequest(scoped_refptr<SafeWaitableEvent> waitable_event) {
+void Gpu::SendEstablishGpuChannelRequest(const scoped_refptr<GpuChannelWaitableEvent>& waitable_event) {
   if (pending_request_) {
     if (waitable_event) {
-      pending_request_->SetWaitableEvent(std::move(waitable_event));
+      pending_request_->SetWaitableEvent(waitable_event);
     }
     return;
   }
@@ -396,7 +396,7 @@ void Gpu::SendEstablishGpuChannelRequest(scoped_refptr<SafeWaitableEvent> waitab
   pending_request_ =
       base::MakeRefCounted<EstablishRequest>(this, main_task_runner_);
   if (waitable_event) {
-    pending_request_->SetWaitableEvent(std::move(waitable_event));
+    pending_request_->SetWaitableEvent(waitable_event);
   }
   io_task_runner_->PostTask(
       FROM_HERE,

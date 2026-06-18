@@ -24,7 +24,7 @@ class Connector;
 
 namespace viz {
 
-class SafeWaitableEvent;
+class GpuChannelWaitableEvent;
 
 class Gpu : public gpu::GpuChannelEstablishFactory {
  public:
@@ -76,7 +76,7 @@ class Gpu : public gpu::GpuChannelEstablishFactory {
 
   // Sends a request to establish a gpu channel. If a request is currently
   // pending this will do nothing.
-  void SendEstablishGpuChannelRequest(scoped_refptr<SafeWaitableEvent> waitable_event);
+  void SendEstablishGpuChannelRequest(const scoped_refptr<GpuChannelWaitableEvent>& waitable_event);
 
   // Handles results of request to establish a gpu channel in
   // |pending_request_|.
