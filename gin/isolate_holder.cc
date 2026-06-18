@@ -12,6 +12,11 @@
 #include <optional>
 #include <utility>
 
+#include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
+
 #include "base/check_op.h"
 #include "base/system/sys_info.h"
 #include "base/task/current_thread.h"
@@ -103,6 +108,9 @@ IsolateHolder::IsolateHolder(
     scoped_refptr<base::SingleThreadTaskRunner> user_visible_task_runner,
     scoped_refptr<base::SingleThreadTaskRunner> best_effort_task_runner)
     : access_mode_(access_mode), isolate_type_(isolate_type) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kScriptHeap);
+#endif
   CHECK(Initialized())
       << "You need to invoke gin::IsolateHolder::Initialize first";
 

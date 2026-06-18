@@ -18,6 +18,10 @@
 #include <string_view>
 #include "copied_base/base/base_export.h"
 
+#include <pthread.h>
+#include <stdint.h>
+#include <atomic>
+
 namespace base {
 namespace memory {
 
@@ -51,10 +55,17 @@ enum class MemoryContext : uint8_t {
   kCount
 };
 
-BASE_EXPORT MemoryContext GetCurrentMemoryContext();
-BASE_EXPORT void SetCurrentMemoryContext(MemoryContext context);
+#if defined(__GNUC__)
+#define MAYBE_COBALT_WEAK __attribute__((weak))
+#else
+#define MAYBE_COBALT_WEAK
+#endif
 
-class BASE_EXPORT ScopedMemoryContext {
+MAYBE_COBALT_WEAK pthread_key_t GetSharedMemoryContextKey();
+MAYBE_COBALT_WEAK MemoryContext GetCurrentMemoryContext();
+MAYBE_COBALT_WEAK void SetCurrentMemoryContext(MemoryContext context);
+
+class ScopedMemoryContext {
  public:
   explicit ScopedMemoryContext(MemoryContext context);
   ~ScopedMemoryContext();
@@ -66,7 +77,7 @@ class BASE_EXPORT ScopedMemoryContext {
   MemoryContext prev_context_;
 };
 
-BASE_EXPORT std::string_view ContextToString(MemoryContext context);
+MAYBE_COBALT_WEAK std::string_view ContextToString(MemoryContext context);
 
 }  // namespace memory
 }  // namespace base
