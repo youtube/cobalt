@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "copied_base/base/memory/cobalt_memory_context.h"
+#include "base/memory/cobalt_memory_context.h"
 
 #include <pthread.h>
 #include <stdint.h>
@@ -21,12 +21,14 @@
 namespace base {
 namespace memory {
 
-
-// Weak symbol to allow the linker to merge this TLS getter across base and copied_base.
+// Weak symbol to allow the linker to merge these functions across base and copied_base.
 #if defined(__GNUC__)
-__attribute__((weak))
+#define MAYBE_COBALT_WEAK __attribute__((weak))
+#else
+#define MAYBE_COBALT_WEAK
 #endif
-pthread_key_t GetSharedMemoryContextKey() {
+
+MAYBE_COBALT_WEAK pthread_key_t GetSharedMemoryContextKey() {
   // Use a static atomic to ensure lazy initialization happens safely.
   // Because this function is weak, the linker will merge all copies into a single instance,
   // meaning `g_key` will be identical across both `base` and `copied_base`.
@@ -36,7 +38,9 @@ pthread_key_t GetSharedMemoryContextKey() {
     pthread_key_t new_key;
     pthread_key_create(&new_key, nullptr);
     intptr_t expected = -1;
-    if (g_key.compare_exchange_strong(expected, static_cast<intptr_t>(new_key), std::memory_order_release)) {
+    if (g_key.compare_exchange_strong(expected,
+                                      static_cast<intptr_t>(new_key),
+                                      std::memory_order_acq_rel)) {
       key = static_cast<intptr_t>(new_key);
     } else {
       pthread_key_delete(new_key);
@@ -46,32 +50,26 @@ pthread_key_t GetSharedMemoryContextKey() {
   return static_cast<pthread_key_t>(key);
 }
 
-MemoryContext GetCurrentMemoryContext() {
+MAYBE_COBALT_WEAK MemoryContext GetCurrentMemoryContext() {
   void* ptr = pthread_getspecific(GetSharedMemoryContextKey());
   return static_cast<MemoryContext>(reinterpret_cast<intptr_t>(ptr));
 }
 
-void SetCurrentMemoryContext(MemoryContext context) {
+MAYBE_COBALT_WEAK void SetCurrentMemoryContext(MemoryContext context) {
   pthread_setspecific(GetSharedMemoryContextKey(),
                       reinterpret_cast<void*>(static_cast<intptr_t>(context)));
 }
 
-ScopedMemoryContext::ScopedMemoryContext(MemoryContext context) {
+MAYBE_COBALT_WEAK ScopedMemoryContext::ScopedMemoryContext(MemoryContext context) {
   prev_context_ = GetCurrentMemoryContext();
   SetCurrentMemoryContext(context);
 }
 
-ScopedMemoryContext::~ScopedMemoryContext() {
+MAYBE_COBALT_WEAK ScopedMemoryContext::~ScopedMemoryContext() {
   SetCurrentMemoryContext(prev_context_);
 }
 
-extern "C" {
-void CobaltSetMemoryContext(uint8_t context) {
-  SetCurrentMemoryContext(static_cast<MemoryContext>(context));
-}
-}
-
-std::string_view ContextToString(MemoryContext context) {
+MAYBE_COBALT_WEAK std::string_view ContextToString(MemoryContext context) {
   switch (context) {
     case MemoryContext::kUnknown:
       return "Unknown";
@@ -122,7 +120,9 @@ std::string_view ContextToString(MemoryContext context) {
     case MemoryContext::kCount:
       return "Unknown";
   }
+  return "Unknown";
 }
 
 }  // namespace memory
 }  // namespace base
+

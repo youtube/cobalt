@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "cobalt/memory/cobalt_memory_attribution_manager.h"
 
 #include <string>
@@ -143,9 +148,11 @@ bool CobaltMemoryAttributionManager::OnMemoryDump(
                       base::memory::ContextToString(
                           static_cast<base::memory::MemoryContext>(i))});
     auto* dump = pmd->CreateAllocatorDump(dump_name);
-    dump->AddScalar(base::trace_event::MemoryAllocatorDump::kNameSize,
-                    base::trace_event::MemoryAllocatorDump::kUnitsBytes,
-                    current);
+    if (dump) {
+      dump->AddScalar(base::trace_event::MemoryAllocatorDump::kNameSize,
+                      base::trace_event::MemoryAllocatorDump::kUnitsBytes,
+                      current);
+    }
   }
   return true;
 }
