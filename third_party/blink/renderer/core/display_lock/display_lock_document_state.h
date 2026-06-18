@@ -5,6 +5,10 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_DISPLAY_LOCK_DISPLAY_LOCK_DOCUMENT_STATE_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_DISPLAY_LOCK_DISPLAY_LOCK_DOCUMENT_STATE_H_
 
+#ifndef COBALT_DEFAULT_DISPLAY_LOCK_MARGIN_PERCENTAGE
+#define COBALT_DEFAULT_DISPLAY_LOCK_MARGIN_PERCENTAGE 150.0f
+#endif
+
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/display_lock/display_lock_utilities.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
@@ -187,7 +191,7 @@ class CORE_EXPORT DisplayLockDocumentState final
 
   base::TimeTicks GetLockUpdateTimestamp();
 
-  static constexpr float kViewportMarginPercentage = 150.f;
+  static constexpr float kViewportMarginPercentage = COBALT_DEFAULT_DISPLAY_LOCK_MARGIN_PERCENTAGE;
 
   void IssueForcedRenderWarning(Element*);
 

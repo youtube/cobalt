@@ -243,6 +243,10 @@ CC_BASE_EXPORT extern const base::FeatureParam<int>
 // disabled if need be to override this.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kUseLayerListsByDefault);
 
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kConfigureMaxPrerasterDistance);
+CC_BASE_EXPORT extern const base::FeatureParam<int>
+    kMaxPrerasterDistanceInScreenPixels;
+
 // When enabled, the default programmatic scroll animation curve can be
 // overridden with extra params.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kProgrammaticScrollAnimationOverride);
