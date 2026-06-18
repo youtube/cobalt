@@ -7,6 +7,8 @@
 #include "base/task/current_thread.h"
 #include "base/threading/thread_id_name_manager.h"
 #include "base/trace_event/base_tracing.h"
+#include "base/memory/cobalt_memory_context.h"
+#include "base/strings/string_util.h"
 
 #if BUILDFLAG(IS_FUCHSIA)
 #include "base/fuchsia/scheduler.h"
@@ -60,6 +62,17 @@ std::optional<TimeDelta> PlatformThreadBase::GetThreadLeewayOverride() {
 // static
 void PlatformThreadBase::SetNameCommon(const std::string& name) {
   ThreadIdNameManager::GetInstance()->SetName(name);
+
+  if (base::memory::GetCurrentMemoryContext() == base::memory::MemoryContext::kUnknown) {
+    if (base::StartsWith(name, "V8", base::CompareCase::SENSITIVE)) {
+      base::memory::SetCurrentMemoryContext(base::memory::MemoryContext::kScriptHeap);
+    } else if (base::StartsWith(name, "Compositor", base::CompareCase::SENSITIVE) ||
+               name == "CrGpuMain" || name == "RasterWorker" || name == "GpuMemoryThread") {
+      base::memory::SetCurrentMemoryContext(base::memory::MemoryContext::kGraphics);
+    } else if (name == "Media" || name == "VideoDecoder" || base::StartsWith(name, "FFmpeg", base::CompareCase::INSENSITIVE_ASCII)) {
+      base::memory::SetCurrentMemoryContext(base::memory::MemoryContext::kMedia);
+    }
+  }
 }
 
 namespace internal {
