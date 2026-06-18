@@ -74,6 +74,10 @@
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "cobalt/browser/h5vcc_system/h5vcc_system_impl_base.h"
+#endif
+
 #if BUILDFLAG(USE_EVERGREEN)
 #include "cobalt/updater/updater_module.h"  //nogncheck
 #include "content/public/browser/storage_partition.h"
@@ -474,6 +478,9 @@ void CobaltContentBrowserClient::OnSbWindowCreated(SbWindow window) {
   // assumes only single PlatformWindowStarboard() in Cobalt.
   CHECK(!cached_sb_window_);
   cached_sb_window_ = reinterpret_cast<uint64_t>(window);
+#if BUILDFLAG(IS_STARBOARD)
+  h5vcc_system::H5vccSystemImpl::SetPrimarySbWindow(window);
+#endif
   for (auto& receiver : pending_window_receivers_) {
     BindPlatformWindowProviderService(cached_sb_window_, std::move(receiver));
   }
@@ -483,6 +490,9 @@ void CobaltContentBrowserClient::OnSbWindowCreated(SbWindow window) {
 void CobaltContentBrowserClient::OnSbWindowDestroyed(SbWindow window) {
   DCHECK_EQ(cached_sb_window_, reinterpret_cast<uint64_t>(window));
   cached_sb_window_ = 0;
+#if BUILDFLAG(IS_STARBOARD)
+  h5vcc_system::H5vccSystemImpl::SetPrimarySbWindow(kSbWindowInvalid);
+#endif
 }
 
 void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
