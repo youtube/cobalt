@@ -42,6 +42,7 @@ import java.util.UUID;
 import org.chromium.base.Log;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 /** A wrapper of the android MediaDrm class. */
@@ -953,6 +954,6 @@ public class MediaDrmBridge {
     void onKeyStatusChange(
         long nativeMediaDrmBridge,
         byte[] sessionId,
-        KeyStatus[] keyInformation);
+        @JniType("std::vector<DrmKeyStatusInfo>") KeyStatus[] keyInformation);
   }
 }
