@@ -14,10 +14,6 @@
 
 #include "starboard/shared/starboard/player/job_queue.h"
 
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
-#endif
-
 #include <atomic>
 #include <chrono>
 
@@ -223,10 +219,6 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
   int64_t start = CurrentMonotonicTime();
 #endif  // ENABLE_JOB_QUEUE_PROFILING
 
-#if BUILDFLAG(IS_COBALT)
-  ::base::memory::ScopedMemoryContext scoped_context(
-      ::base::memory::MemoryContext::kMedia);
-#endif
   job_record.job();
 
 #if ENABLE_JOB_QUEUE_PROFILING

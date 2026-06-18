@@ -17,10 +17,6 @@
 
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder_impl.h"
 
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
-#endif
-
 #include <memory>
 #include <string>
 
@@ -134,10 +130,6 @@ void FfmpegAudioDecoderImpl<FFMPEG>::Initialize(const OutputCB& output_cb,
 
 void FfmpegAudioDecoderImpl<FFMPEG>::Decode(const InputBuffers& input_buffers,
                                             const ConsumedCB& consumed_cb) {
-#if BUILDFLAG(IS_COBALT)
-  ::base::memory::ScopedMemoryContext scoped_context(
-      ::base::memory::MemoryContext::kMedia);
-#endif
   SB_DCHECK(BelongsToCurrentThread());
 
   SB_DCHECK_EQ(input_buffers.size(), 1);
@@ -231,10 +223,6 @@ void FfmpegAudioDecoderImpl<FFMPEG>::Decode(const InputBuffers& input_buffers,
 void FfmpegAudioDecoderImpl<FFMPEG>::ProcessDecodedFrame(
     const InputBuffer& input_buffer,
     const AVFrame& av_frame) {
-#if BUILDFLAG(IS_COBALT)
-  ::base::memory::ScopedMemoryContext scoped_context(
-      ::base::memory::MemoryContext::kMedia);
-#endif
 #if LIBAVCODEC_VERSION_MAJOR >= 61
   const int channel_count = codec_context_->ch_layout.nb_channels;
 #else
