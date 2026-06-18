@@ -366,6 +366,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Follow log output in real-time (runs journalctl -f).",
     )
+    parser.add_argument(
+        "--system-logs",
+        action="store_true",
+        help="View global OS/kernel/systemd logs from the device (runs raw journalctl).",
+    )
     return parser.parse_args()
 
 
@@ -605,11 +610,18 @@ def main() -> None:
         revert_to_cobalt_25(device_id)
         return
 
-    if args.logs:
+    if args.logs or args.system_logs:
         device_id = get_device_id()
         cmd = ["adb", "-s", device_id, "shell", "journalctl"]
-        tag = "YouTube" if args.mode == "plugin" else "Cobalt"
-        cmd += ["-t", tag]
+        if args.logs:
+            cmd.extend([
+                "-t",
+                "YouTube",
+                "-t",
+                "Cobalt",
+                "-t",
+                "loader_app",
+            ])
         if args.follow:
             cmd.append("-f")
         try:
