@@ -47,6 +47,10 @@
 
 #include "build/build_config.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
+
 #ifdef V8_FAST_TLS_SUPPORTED
 #include <atomic>
 #endif
@@ -1192,6 +1196,9 @@ static void SetThreadName(const char* name) {
 }
 
 static void* ThreadEntry(void* arg) {
+#if BUILDFLAG(IS_COBALT)
+  ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
+#endif
   Thread* thread = reinterpret_cast<Thread*>(arg);
   // We take the lock here to make sure that pthread_create finished first since
   // we don't know which thread will run first (the original thread or the new

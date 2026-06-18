@@ -85,7 +85,7 @@ class FfmpegVideoDecoderImpl<FFMPEG> : public FfmpegVideoDecoder {
    public:
     explicit DecoderThread(FfmpegVideoDecoderImpl<FFMPEG>* decoder)
         : Thread("ff_video_dec",
-                 ThreadOptions().SetPriority(ThreadPriority::kHigh)),
+                 ThreadOptions().SetPriority(ThreadPriority::kHigh).SetMemoryContext(::base::memory::MemoryContext::kMedia)),
           decoder_(decoder) {
       SB_CHECK(decoder_);
     }
