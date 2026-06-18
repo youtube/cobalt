@@ -351,10 +351,12 @@ jobs:
               ]' "${test_targets_json_file}")
           fi
 
-          echo "run_on_host_test=${run_on_host_test}" >> $GITHUB_OUTPUT
-          echo "run_on_device_test=${run_on_device_test}" >> $GITHUB_OUTPUT
-          echo "run_browser_test_on_host=${run_browser_test_on_host}" >> $GITHUB_OUTPUT
-          echo "expected_test_targets_json=${expected_targets}" >> $GITHUB_OUTPUT
+          {
+            echo "run_on_host_test=${run_on_host_test}"
+            echo "run_on_device_test=${run_on_device_test}"
+            echo "run_browser_test_on_host=${run_browser_test_on_host}"
+            echo "expected_test_targets_json=${expected_targets}"
+          } >> $GITHUB_OUTPUT
         shell: bash
     outputs:
       platforms: ${{ steps.set-platforms.outputs.platforms }}
