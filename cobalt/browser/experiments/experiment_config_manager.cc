@@ -146,6 +146,8 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
 
   int num_crashes = metrics_local_state_->GetInteger(
       variations::prefs::kVariationsCrashStreak);
+  base::UmaHistogramExactLinear("Cobalt.Finch.CrashStreakAtStartup",
+                                num_crashes, 20);
   static_assert(kDefaultCrashStreakEmptyConfigThreshold >
                     kDefaultCrashStreakSafeConfigThreshold,
                 "Threshold to use an empty experiment config should be larger "
