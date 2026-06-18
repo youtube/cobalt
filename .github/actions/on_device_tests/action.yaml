@@ -135,35 +135,30 @@ runs:
         target_failed=0
         readarray -t test_targets < <(echo "$TEST_TARGETS_JSON" | jq -r '.[]')
         for test_target_with_path in "${test_targets[@]}"; do
-          # Trim path prefix (before :).
           test_target=${test_target_with_path#*:}
+          test_filter_file="${RESOLVED_FILTER_DIR}/${test_target}_filter.json"
+          if [ -f "${test_filter_file}" ] && jq -e '(.failing_tests // []) | any(. == "*")' "${test_filter_file}" >/dev/null 2>&1; then
+            # Target was skipped. Preserve the filter for subsequent attempts.
+            mkdir -p "${test_output}/${PLATFORM}/retry_filters"
+            cp "${test_filter_file}" "${test_output}/${PLATFORM}/retry_filters/"
+            continue
+          fi
+
           xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
           if [[ "${#xml_files[@]}" -eq 0 ]]; then
-            # Case A: XML is missing. Check if it was because the test was skipped.
-            test_filter_file="${RESOLVED_FILTER_DIR}/${test_target}_filter.json"
-            if [ -f "${test_filter_file}" ] && jq -e '(.failing_tests // []) | any(. == "*")' "${test_filter_file}" >/dev/null 2>&1; then
-              # Target was skipped. Preserve the filter for subsequent attempts.
-              mkdir -p "${test_output}/${PLATFORM}/retry_filters"
-              cp "${test_filter_file}" "${test_output}/${PLATFORM}/retry_filters/"
-            else
-              # Target was NOT skipped, but XML is missing -> Crash.
-              echo "Test result xml is missing for ${test_target}."
-              log_paths=("${test_output}/${PLATFORM}"/**/"${test_target}"_log.txt)
-              xml_path="${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml"
-              if [[ "${#log_paths[@]}" -gt 0 ]]; then
-                python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" "${log_paths[0]}" "${xml_path}"
-              else
-                echo "No log file found for ${test_target}."
-              fi
-              target_failed=1
+            # Target was NOT skipped, but XML is missing -> Crash.
+            echo "Test result xml is missing for ${test_target}."
+            log_paths=("${test_output}/${PLATFORM}"/**/"${test_target}"_log.txt)
+            if [ -f "${log_paths[0]:-}" ]; then
+              python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" "${log_paths[0]}" "${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml"
             fi
+            target_failed=1
           else
-            # Case B: XML exists. Check for failures and generate new filter.
+            # XML exists. Check for failures and generate new filter.
             if grep -q -e '<failure' -e '<error' "${xml_files[@]}"; then
               echo "::error::Found failures in the test xml."
               target_failed=1
             fi
-
             python3 ${GITHUB_WORKSPACE}/cobalt/tools/junit_mini_parser.py \
                 --mode generate-filter \
                 --target "${test_target}" \

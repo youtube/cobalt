@@ -156,8 +156,6 @@ runs:
               # Test binary crashed. Generate a fake JUnit XML report with the last run test.
               if [ -f "${log_path}" ]; then
                 python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" "${log_path}" "${xml_path}"
-              else
-                echo "No log file found for ${test_executable}."
               fi
             else
               # Record results into retry filters directory.
@@ -219,8 +217,6 @@ runs:
           else
             if [ -f "${log_path}" ]; then
               python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
-            else
-              echo "No log file found for ${test_executable}."
             fi
           fi
         done
