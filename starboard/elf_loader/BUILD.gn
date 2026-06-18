@@ -84,7 +84,7 @@ if (current_toolchain == starboard_toolchain) {
       "//starboard/content/fonts:copy_font_data",
     ]
 
-    if (sb_is_evergreen_compatible && use_crashpad) {
+    if (is_starboard && use_crashpad) {
       deps += [ "//starboard/crashpad_wrapper" ]
     } else {
       deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]

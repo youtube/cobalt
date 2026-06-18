@@ -4,7 +4,6 @@
 
 #include "content/browser/loader/subresource_proxying_url_loader.h"
 
-#include "build/buildflag.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/browsing_topics/browsing_topics_url_loader_interceptor.h"
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138

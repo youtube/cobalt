@@ -144,8 +144,7 @@ class VoidifyStream {
 #define SB_LAZY_STREAM(stream, condition) \
   !(condition) ? (void)0 : ::starboard::LogMessageVoidify() & (stream)
 
-#if SB_LOGGING_IS_OFFICIAL_BUILD && !SB_IS(MODULAR) && \
-    !SB_IS(EVERGREEN_COMPATIBLE)
+#if SB_LOGGING_IS_OFFICIAL_BUILD && !SB_IS(MODULAR) && !BUILDFLAG(IS_STARBOARD)
 #define SB_LOG_IS_ON(severity)                                               \
   ((::starboard::SB_LOG_##severity >= ::starboard::SB_LOG_FATAL)             \
        ? ((::starboard::SB_LOG_##severity) >= ::starboard::GetMinLogLevel()) \
