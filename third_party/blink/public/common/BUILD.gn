@@ -12,7 +12,6 @@ import("//third_party/blink/public/public_features.gni")
 import("//third_party/blink/renderer/build/scripts/scripts.gni")
 import("//third_party/protobuf/proto_library.gni")
 import("//third_party/webrtc/webrtc.gni")
-import("//build/util/process_version.gni")
 
 if (is_android) {
   import("//build/config/android/rules.gni")
@@ -104,7 +103,6 @@ source_set("preloading_headers") {
   deps = [ ":common_export" ]
   sources = [ "navigation/preloading_headers.h" ]
 }
-
 
 source_set("headers") {
   visibility = [

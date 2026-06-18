@@ -801,7 +801,6 @@ static_library("test_support") {
     libs = [ "oleacc.lib" ]
   }
 
-  # If in the future privacy sandbox components are removed from the code base, ignore this if block.
   if (!enable_privacy_sandbox_apis) {
     sources -= [
       "../browser/browsing_topics/test_util.cc",
