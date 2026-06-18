@@ -11,8 +11,10 @@
 #include "content/browser/webid/digital_credentials/cross_device_request_dispatcher.h"
 #include "content/public/browser/cross_device_request_info.h"
 #include "content/public/browser/digital_credentials_cross_device.h"
-#include "device/bluetooth/bluetooth_adapter_factory.h"
-#include "device/bluetooth/test/mock_bluetooth_adapter.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "device/bluetooth/bluetooth_adapter_factory.h"  // nogncheck
+#include "device/bluetooth/test/mock_bluetooth_adapter.h"  // nogncheck
+#endif
 #include "device/fido/cable/fido_cable_discovery.h"
 #include "device/fido/cable/v2_authenticator.h"
 #include "device/fido/cable/v2_constants.h"
@@ -51,9 +53,11 @@ class DigitalCredentialsCrossDeviceRequestDispatcherTest
                  POINT_CONVERSION_UNCOMPRESSED, peer_identity_x962_,
                  sizeof(peer_identity_x962_), /*ctx=*/nullptr));
 
+#if !BUILDFLAG(IS_COBALT)
     mock_adapter_ =
         base::MakeRefCounted<NiceMock<device::MockBluetoothAdapter>>();
     device::BluetoothAdapterFactory::SetAdapterForTesting(mock_adapter_);
+#endif
   }
 
  protected:
@@ -129,7 +133,9 @@ class DigitalCredentialsCrossDeviceRequestDispatcherTest
       0};
   const std::array<uint8_t, device::cablev2::kQRSeedSize> zero_seed_ = {0};
 
+#if !BUILDFLAG(IS_COBALT)
   scoped_refptr<NiceMock<device::MockBluetoothAdapter>> mock_adapter_;
+#endif
 
   base::test::TaskEnvironment task_environment;
 };

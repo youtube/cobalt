@@ -11,8 +11,6 @@
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/web_package/prefetched_signed_exchange_cache.h"
 #include "content/public/common/content_client.h"
-#include "content/public/common/content_milestone_features.h"
-#include "content/public/common/buildflags.h"
 #include "mojo/public/cpp/bindings/message.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
