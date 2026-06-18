@@ -754,6 +754,9 @@ template("mojom") {
     if (is_posix) {
       enabled_features += [ "is_posix" ]
     }
+    if (is_cobalt) {
+      enabled_features += [ "is_cobalt" ]
+    }
     if (is_android) {
       enabled_features += [ "is_android" ]
     } else if (is_chromeos) {
