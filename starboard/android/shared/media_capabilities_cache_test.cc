@@ -39,12 +39,12 @@ MediaCapabilitiesProvider::VideoCodecCapabilities CreateVp9DecoderCaps(
     Range bitrate = Range{0, 10'000'000},
     Range fps = Range{0, 30}) {
   MediaCapabilitiesProvider::VideoCodecCapabilities caps;
-  caps.push_back(std::make_unique<MockVideoCodecCapability>(
-      "OMX.google.vp9.decoder",
-      /*is_secure_req=*/false, is_secure_sup,
-      /*is_tunnel_req=*/false, is_tunnel_sup,
-      /*is_software_decoder=*/false, is_hdr_capable, width, height, bitrate,
-      fps));
+  caps.push_back(
+      MockVideoCodecCapability("OMX.google.vp9.decoder",
+                               /*is_secure_req=*/false, is_secure_sup,
+                               /*is_tunnel_req=*/false, is_tunnel_sup,
+                               /*is_software_decoder=*/false, is_hdr_capable,
+                               width, height, bitrate, fps));
   return caps;
 }
 
@@ -258,10 +258,10 @@ TEST_F(MediaCapabilitiesCacheTest, ClearCacheClearsAllValues) {
       .WillOnce(Return(true))
       .WillOnce(Return(false));
 
-  EXPECT_CALL(*mock_media_capabilities_provider_,
-              GetCodecCapabilities(testing::_, testing::_))
+  EXPECT_CALL(*mock_media_capabilities_provider_, GetCodecCapabilities())
       .Times(2)
-      .WillRepeatedly(Return());
+      .WillRepeatedly(testing::Invoke(
+          [] { return MediaCapabilitiesProvider::CodecCapabilities(); }));
 
   EXPECT_TRUE(cache_->IsWidevineSupported());
   EXPECT_TRUE(cache_->IsCbcsSchemeSupported());
@@ -293,13 +293,14 @@ TEST_F(MediaCapabilitiesCacheTest, ClearCacheClearsAllValues) {
 }
 
 TEST_F(MediaCapabilitiesCacheTest, HasVideoDecoderFor_ResolutionLimits) {
-  EXPECT_CALL(*mock_media_capabilities_provider_,
-              GetCodecCapabilities(testing::_, testing::_))
-      .WillOnce(testing::Invoke([](auto&, auto& video_caps) {
-        video_caps["video/x-vnd.on2.vp9"] = CreateVp9DecoderCaps(
+  EXPECT_CALL(*mock_media_capabilities_provider_, GetCodecCapabilities())
+      .WillOnce(testing::Invoke([] {
+        MediaCapabilitiesProvider::CodecCapabilities capabilities;
+        capabilities.video["video/x-vnd.on2.vp9"] = CreateVp9DecoderCaps(
             /*is_tunnel_sup=*/true, /*is_secure_sup=*/true,
             /*is_hdr_capable=*/false, Range{0, 1920}, Range{0, 1080},
             Range{0, 10'000'000}, Range{0, 30});
+        return capabilities;
       }));
 
   EXPECT_TRUE(cache_->HasVideoDecoderFor("video/x-vnd.on2.vp9",
@@ -353,12 +354,13 @@ TEST_F(MediaCapabilitiesCacheTest, HasVideoDecoderFor_ResolutionLimits) {
 }
 
 TEST_F(MediaCapabilitiesCacheTest, FindVideoDecoder_Overload) {
-  EXPECT_CALL(*mock_media_capabilities_provider_,
-              GetCodecCapabilities(testing::_, testing::_))
-      .WillOnce(testing::Invoke([](auto&, auto& video_caps) {
-        video_caps["video/x-vnd.on2.vp9"] = CreateVp9DecoderCaps(
+  EXPECT_CALL(*mock_media_capabilities_provider_, GetCodecCapabilities())
+      .WillOnce(testing::Invoke([] {
+        MediaCapabilitiesProvider::CodecCapabilities capabilities;
+        capabilities.video["video/x-vnd.on2.vp9"] = CreateVp9DecoderCaps(
             /*is_tunnel_sup=*/true, /*is_secure_sup=*/true,
             /*is_hdr_capable=*/true);
+        return capabilities;
       }));
 
   EXPECT_EQ(cache_->FindVideoDecoder("video/x-vnd.on2.vp9",
@@ -370,18 +372,19 @@ TEST_F(MediaCapabilitiesCacheTest, FindVideoDecoder_Overload) {
 }
 
 TEST_F(MediaCapabilitiesCacheTest, RejectLowPerformanceSoftwareDecoder) {
-  EXPECT_CALL(*mock_media_capabilities_provider_,
-              GetCodecCapabilities(testing::_, testing::_))
-      .WillOnce(testing::Invoke([](auto&, auto& video_caps) {
+  EXPECT_CALL(*mock_media_capabilities_provider_, GetCodecCapabilities())
+      .WillOnce(testing::Invoke([] {
+        MediaCapabilitiesProvider::CodecCapabilities capabilities;
         MediaCapabilitiesProvider::VideoCodecCapabilities caps;
-        caps.push_back(std::make_unique<MockVideoCodecCapability>(
+        caps.push_back(MockVideoCodecCapability(
             "OMX.test.soft.vp9.decoder",
             /*is_secure_req=*/false, /*is_secure_sup=*/false,
             /*is_tunnel_req=*/false, /*is_tunnel_sup=*/false,
             /*is_software_decoder=*/true,
             /*is_hdr_capable=*/false, Range{0, 1280}, Range{0, 720},
             Range{0, 5'000'000}, Range{0, 30}));
-        video_caps["video/x-vnd.on2.vp9"] = std::move(caps);
+        capabilities.video["video/x-vnd.on2.vp9"] = std::move(caps);
+        return capabilities;
       }));
 
   // Case 1: Feature is disabled (default). It should find the software decoder.

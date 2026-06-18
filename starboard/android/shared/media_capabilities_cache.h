@@ -47,6 +47,12 @@ class CodecCapability {
                   jni_zero::ScopedJavaLocalRef<jobject>& j_codec_info);
   virtual ~CodecCapability() {}
 
+  // Move-only.
+  CodecCapability(CodecCapability&&) noexcept = default;
+  CodecCapability& operator=(CodecCapability&&) noexcept = default;
+  CodecCapability(const CodecCapability&) = delete;
+  CodecCapability& operator=(const CodecCapability&) = delete;
+
   const std::string& name() const { return name_; }
   bool is_secure_required() const { return is_secure_required_; }
   bool is_secure_supported() const { return is_secure_supported_; }
@@ -61,14 +67,11 @@ class CodecCapability {
                   bool is_tunnel_sup);
 
  private:
-  CodecCapability(const CodecCapability&) = delete;
-  CodecCapability& operator=(const CodecCapability&) = delete;
-
-  const std::string name_;
-  const bool is_secure_required_;
-  const bool is_secure_supported_;
-  const bool is_tunnel_mode_required_;
-  const bool is_tunnel_mode_supported_;
+  std::string name_;
+  bool is_secure_required_;
+  bool is_secure_supported_;
+  bool is_tunnel_mode_required_;
+  bool is_tunnel_mode_supported_;
 };
 
 class AudioCodecCapability : public CodecCapability {
@@ -78,6 +81,12 @@ class AudioCodecCapability : public CodecCapability {
       jni_zero::ScopedJavaLocalRef<jobject>& j_codec_info,
       jni_zero::ScopedJavaLocalRef<jobject>& j_audio_capabilities);
   ~AudioCodecCapability() override {}
+
+  // Move-only.
+  AudioCodecCapability(AudioCodecCapability&&) noexcept = default;
+  AudioCodecCapability& operator=(AudioCodecCapability&&) noexcept = default;
+  AudioCodecCapability(const AudioCodecCapability&) = delete;
+  AudioCodecCapability& operator=(const AudioCodecCapability&) = delete;
 
   bool IsBitrateSupported(int bitrate) const;
 
@@ -90,10 +99,7 @@ class AudioCodecCapability : public CodecCapability {
                        Range supported_bitrates);
 
  private:
-  AudioCodecCapability(const AudioCodecCapability&) = delete;
-  AudioCodecCapability& operator=(const AudioCodecCapability&) = delete;
-
-  const Range supported_bitrates_;
+  Range supported_bitrates_;
 };
 
 class VideoCodecCapability : public CodecCapability {
@@ -103,6 +109,12 @@ class VideoCodecCapability : public CodecCapability {
       jni_zero::ScopedJavaLocalRef<jobject>& j_codec_info,
       jni_zero::ScopedJavaLocalRef<jobject>& j_video_capabilities);
   ~VideoCodecCapability() override {}
+
+  // Move-only.
+  VideoCodecCapability(VideoCodecCapability&&) noexcept = default;
+  VideoCodecCapability& operator=(VideoCodecCapability&&) noexcept = default;
+  VideoCodecCapability(const VideoCodecCapability&) = delete;
+  VideoCodecCapability& operator=(const VideoCodecCapability&) = delete;
 
   bool is_software_decoder() const { return is_software_decoder_; }
   bool is_hdr_capable() const { return is_hdr_capable_; }
@@ -132,16 +144,13 @@ class VideoCodecCapability : public CodecCapability {
                        Range supported_frame_rates);
 
  private:
-  VideoCodecCapability(const VideoCodecCapability&) = delete;
-  VideoCodecCapability& operator=(const VideoCodecCapability&) = delete;
-
-  const bool is_software_decoder_;
-  const bool is_hdr_capable_;
-  const jni_zero::ScopedJavaGlobalRef<jobject> j_video_capabilities_;
-  const Range supported_widths_;
-  const Range supported_heights_;
-  const Range supported_bitrates_;
-  const Range supported_frame_rates_;
+  bool is_software_decoder_;
+  bool is_hdr_capable_;
+  jni_zero::ScopedJavaGlobalRef<jobject> j_video_capabilities_;
+  Range supported_widths_;
+  Range supported_heights_;
+  Range supported_bitrates_;
+  Range supported_frame_rates_;
 };
 
 class MediaCapabilitiesProvider {
@@ -155,14 +164,15 @@ class MediaCapabilitiesProvider {
       int index,
       SbMediaAudioConfiguration* configuration) = 0;
 
-  typedef std::vector<std::unique_ptr<AudioCodecCapability>>
-      AudioCodecCapabilities;
-  typedef std::vector<std::unique_ptr<VideoCodecCapability>>
-      VideoCodecCapabilities;
-  virtual void GetCodecCapabilities(
-      std::map<std::string, AudioCodecCapabilities>& audio_codec_capabilities,
-      std::map<std::string, VideoCodecCapabilities>&
-          video_codec_capabilities) = 0;
+  using AudioCodecCapabilities = std::vector<AudioCodecCapability>;
+  using VideoCodecCapabilities = std::vector<VideoCodecCapability>;
+
+  struct CodecCapabilities {
+    std::map<std::string, AudioCodecCapabilities> audio;
+    std::map<std::string, VideoCodecCapabilities> video;
+  };
+
+  virtual CodecCapabilities GetCodecCapabilities() = 0;
 };
 
 class MediaCapabilitiesCache {
@@ -251,10 +261,8 @@ class MediaCapabilitiesCache {
   std::set<SbMediaTransferId> supported_transfer_ids_;
   std::map<SbMediaAudioCodec, bool> passthrough_supportabilities_;
 
-  typedef std::vector<std::unique_ptr<AudioCodecCapability>>
-      AudioCodecCapabilities;
-  typedef std::vector<std::unique_ptr<VideoCodecCapability>>
-      VideoCodecCapabilities;
+  using AudioCodecCapabilities = std::vector<AudioCodecCapability>;
+  using VideoCodecCapabilities = std::vector<VideoCodecCapability>;
   std::map<std::string, AudioCodecCapabilities> audio_codec_capabilities_map_;
   std::map<std::string, VideoCodecCapabilities> video_codec_capabilities_map_;
   std::vector<SbMediaAudioConfiguration> audio_configurations_;
