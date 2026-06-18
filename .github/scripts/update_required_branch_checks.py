@@ -21,7 +21,6 @@ Requires PyGithub to run:
 import argparse
 import github
 import os
-import typing
 
 _GITHUB_TOKEN = os.getenv('GITHUB_TOKEN', '')
 assert _GITHUB_TOKEN != '', (
@@ -31,6 +30,13 @@ assert _GITHUB_TOKEN != '', (
 TARGET_REPO = 'youtube/cobalt'
 
 EXCLUDED_CHECK_PATTERNS = [
+    # Not ready yet/temporary excludes.
+    '_yts_wpt_',
+    'browser_tests_on_host',
+
+    # Excludes docker jobs. Build jobs depend on docker jobs and are required.
+    'docker-',
+
     # Excludes non build/test checks.
     'feedback/copybara',
     'prepare_branch_list',
@@ -40,13 +46,16 @@ EXCLUDED_CHECK_PATTERNS = [
     'upload-release-artifacts',
     'generate_commit_message',
 
-    # Excludes coverage and test reports.
+    # Excludes coverage, test logs and other report jobs.
     'linux-coverage',
     'codecov',
     'on-host-unit-test-report',
+    'Test Report',
 
-    # Excludes blackbox, web platform, and unit tests run on-device.
+    # Excludes the actual test jobs. The requiredness
+    # is determined by the tests_passing job.
     '_on_device_',
+    '_on_host_',
 
     # Excludes slow and flaky evergreen tests.
     'evergreen-as-blackbox_test',
@@ -54,6 +63,7 @@ EXCLUDED_CHECK_PATTERNS = [
 
     # Excludes templated check names.
     '${{',
+    'matrix.test_target',
 
     # Old compiler versions have started failing due to node/glibc
     # incompatibilities.
@@ -78,37 +88,35 @@ def initialize_repo_connection():
   return g.get_repo(TARGET_REPO)
 
 
-def get_checks_for_branch(repo, branch: str) -> typing.Iterable[typing.Any]:
+def get_required_checks_for_branch(repo, branch: str) -> list[str]:
   # The 'merged' sort order is not listed in public docs but still works.
   # If this functionality is removed the alternative is to loop through all
   # PRs and use the 'merged_at' property to determine which is the latest one.
-  # https://docs.github.com/en/rest/pulls/pulls#list-pull-requests
+  # https://docs.github.com/en/rest/pulls/pulls#list-pull-requests.
+  # The equivalent query in the UI is: state:merged base:{branch} sort:desc.
   prs = repo.get_pulls(
       state='closed', sort='merged', base=branch, direction='desc')
 
-  for pr in prs:
+  for pr in prs[:20]:
     if pr.merged:
+      print(f'Checking #{pr.number}')
       latest_pr_commit = repo.get_commit(pr.head.sha)
       checks = latest_pr_commit.get_check_runs()
-      checks_complete = all(c.status == 'completed' for c in checks)
-      if checks_complete:
-        return checks
+      req_checks = [c for c in checks if should_include_run(c)]
+      # Ensure all required jobs passed as downstream jobs of
+      # failed/cancelled jobs don't appear in the list.
+      if len(req_checks) and all(c.conclusion == 'success' for c in req_checks):
+        return list({run.name for run in req_checks})
+      else:
+        print('\n'.join(f'  {c.name}: {c.conclusion}' for c in req_checks
+                        if c.conclusion != 'success'))
 
   raise RuntimeError(f'Could not find any completed checks for branch {branch}')
 
 
 def should_include_run(check_run) -> bool:
-  for pattern in EXCLUDED_CHECK_PATTERNS:
-    if pattern in check_run.name:
-      return False
-  return True
-
-
-def get_required_checks_for_branch(repo, branch: str) -> list[str]:
-  checks = get_checks_for_branch(repo, branch)
-  filtered_check_runs = [run for run in checks if should_include_run(run)]
-  check_names = set(run.name for run in filtered_check_runs)
-  return list(check_names)
+  return not any(
+      pattern in check_run.name for pattern in EXCLUDED_CHECK_PATTERNS)
 
 
 def print_checks(repo, branch_name: str, new_checks: list[str],
@@ -121,18 +129,21 @@ def print_checks(repo, branch_name: str, new_checks: list[str],
       print(check_name)
     print()
 
-  added_checks = set(new_checks) - set(current_checks)
+  new_checks_set = set(new_checks)
+  current_checks_set = set(current_checks)
+
+  added_checks = new_checks_set - current_checks_set
   if added_checks:
     print(f'Required checks to be ADDED for {branch_name}:')
     print_check_list(added_checks)
 
-  removed_checks = set(current_checks) - set(new_checks)
+  removed_checks = current_checks_set - new_checks_set
   if removed_checks:
     print(f'Required checks to be REMOVED for {branch_name}:')
     print_check_list(removed_checks)
 
   if print_unchanged:
-    unchanged_checks = set(current_checks).intersection(set(new_checks))
+    unchanged_checks = current_checks_set.intersection(new_checks_set)
     print(f'Required checks that will REMAIN for {branch_name}:')
     print_check_list(unchanged_checks)
 

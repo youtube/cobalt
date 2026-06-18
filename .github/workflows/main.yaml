@@ -866,7 +866,7 @@ jobs:
       )
     permissions: {}
     runs-on: ubuntu-latest
-    name: ${{ matrix.test_target }}
+    name: ${{ matrix.test_target }} Test Report
     env:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     strategy:
