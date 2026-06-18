@@ -52,6 +52,10 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kComputePressureRateObfuscationMitigation);
 
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kConfigureDisplayLockMargin);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(double,
+                                               kDisplayLockMarginPercentage);
+
 // Enables more context data to crash reports reported via the Crash Reporting
 // API. See https://crbug.com/400432195.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCrashReportingAPIMoreContextData);

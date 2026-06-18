@@ -21,7 +21,14 @@ LayerTreeSettings::LayerTreeSettings()
           base::FeatureList::IsEnabled(features::kUseLayerListsByDefault)),
       memory_policy(64 * 1024 * 1024,
                     gpu::MemoryAllocation::CUTOFF_ALLOW_EVERYTHING,
-                    ManagedMemoryPolicy::kDefaultNumResourcesLimit) {}
+                    ManagedMemoryPolicy::kDefaultNumResourcesLimit) {
+  if (base::FeatureList::IsEnabled(features::kConfigureMaxPrerasterDistance)) {
+    int config_val = features::kMaxPrerasterDistanceInScreenPixels.Get();
+    if (config_val >= 0) {
+      max_preraster_distance_in_screen_pixels = config_val;
+    }
+  }
+}
 
 LayerTreeSettings::LayerTreeSettings(const LayerTreeSettings& other) = default;
 LayerTreeSettings::~LayerTreeSettings() = default;

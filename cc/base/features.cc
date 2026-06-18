@@ -10,6 +10,10 @@
 #include "base/feature_list.h"
 #include "build/build_config.h"
 
+#ifndef COBALT_DEFAULT_MAX_PRERASTER_DISTANCE_IN_SCREEN_PIXELS
+#define COBALT_DEFAULT_MAX_PRERASTER_DISTANCE_IN_SCREEN_PIXELS 1000
+#endif
+
 namespace features {
 
 namespace {
@@ -248,6 +252,13 @@ const base::FeatureParam<int>
 BASE_FEATURE(kUseLayerListsByDefault,
              "UseLayerListsByDefault",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kConfigureMaxPrerasterDistance,
+             "ConfigureMaxPrerasterDistance",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<int> kMaxPrerasterDistanceInScreenPixels{
+    &kConfigureMaxPrerasterDistance, "distance_in_pixels",
+    COBALT_DEFAULT_MAX_PRERASTER_DISTANCE_IN_SCREEN_PIXELS};
 
 BASE_FEATURE(kProgrammaticScrollAnimationOverride,
              "ProgrammaticScrollAnimationOverride",

@@ -5,6 +5,8 @@
 #include "third_party/blink/renderer/core/display_lock/display_lock_document_state.h"
 
 #include "base/trace_event/trace_event.h"
+#include "base/feature_list.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/renderer/core/display_lock/display_lock_context.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/element.h"
@@ -119,6 +121,14 @@ IntersectionObserver& DisplayLockDocumentState::EnsureIntersectionObserver() {
     //
     // Paint containment requires using the overflow clip edge. To do otherwise
     // results in overflow-clip-margin not being painted in certain scenarios.
+    double margin_percent = kViewportMarginPercentage;
+    if (base::FeatureList::IsEnabled(features::kConfigureDisplayLockMargin)) {
+      double config_margin = features::kDisplayLockMarginPercentage.Get();
+      if (config_margin >= 0.0) {
+        margin_percent = config_margin;
+      }
+    }
+
     intersection_observer_ = IntersectionObserver::Create(
         *document_,
         WTF::BindRepeating(
@@ -126,7 +136,7 @@ IntersectionObserver& DisplayLockDocumentState::EnsureIntersectionObserver() {
             WrapWeakPersistent(this)),
         LocalFrameUkmAggregator::kDisplayLockIntersectionObserver,
         IntersectionObserver::Params{
-            .margin = {Length::Percent(kViewportMarginPercentage)},
+            .margin = {Length::Percent(margin_percent)},
             .margin_target = IntersectionObserver::kApplyMarginToTarget,
             .thresholds = {std::numeric_limits<float>::min()},
             .behavior = IntersectionObserver::kDeliverDuringPostLayoutSteps,

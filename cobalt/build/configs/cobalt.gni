@@ -23,4 +23,10 @@ declare_args() {
   # TODO(b/505811196): Remove this argument once Cobalt rebased to the milestone
   # where the privacy sandbox components are fully removed.
   enable_privacy_sandbox_apis = true
+
+  # Default maximum pre-raster distance in screen pixels.
+  cobalt_max_preraster_distance_in_screen_pixels = 1000
+
+  # Default display lock viewport margin percentage.
+  cobalt_display_lock_margin_percentage = 150
 }

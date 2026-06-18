@@ -17,6 +17,10 @@
 #include "third_party/blink/public/common/interest_group/ad_auction_constants.h"
 #include "third_party/blink/public/common/switches.h"
 
+#ifndef COBALT_DEFAULT_DISPLAY_LOCK_MARGIN_PERCENTAGE
+#define COBALT_DEFAULT_DISPLAY_LOCK_MARGIN_PERCENTAGE 150.0
+#endif
+
 namespace blink::features {
 
 // -----------------------------------------------------------------------------
@@ -54,6 +58,15 @@ BASE_FEATURE(kBlockMidiByDefault,
 BASE_FEATURE(kComputePressureRateObfuscationMitigation,
              "ComputePressureRateObfuscationMitigation",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kConfigureDisplayLockMargin,
+             "ConfigureDisplayLockMargin",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(double,
+                   kDisplayLockMarginPercentage,
+                   &kConfigureDisplayLockMargin,
+                   "margin_percentage",
+                   COBALT_DEFAULT_DISPLAY_LOCK_MARGIN_PERCENTAGE);
 
 BASE_FEATURE(kCrashReportingAPIMoreContextData,
              "CrashReportingAPIMoreContextData",
