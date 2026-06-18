@@ -371,7 +371,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--system-logs",
-        action="store_false",
+        action="store_true",
         help="View global OS/kernel/systemd logs from the device (runs raw journalctl).",
     )
     return parser.parse_args()
