@@ -20,9 +20,6 @@
 #include "base/types/optional_util.h"
 #include "base/types/pass_key.h"
 #include "base/values.h"
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"  // nogncheck
-#endif
 #include "net/base/auth.h"
 #include "net/base/features.h"
 #include "net/base/io_buffer.h"
@@ -589,11 +586,6 @@ void URLRequest::set_allow_credentials(bool allow_credentials) {
 void URLRequest::Start() {
   DCHECK(delegate_);
 
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kNetwork);
-#endif
-
   // We do not support credentials with a non-general
   // NetworkIsolationPartition.
   CHECK(isolation_info_.GetNetworkIsolationPartition() ==
@@ -830,10 +822,6 @@ int URLRequest::DoCancel(int error, const SSLInfo& ssl_info) {
 }
 
 int URLRequest::Read(IOBuffer* dest, int dest_size) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kNetwork);
-#endif
   DCHECK(job_.get());
   DCHECK_NE(ERR_IO_PENDING, status_);
 

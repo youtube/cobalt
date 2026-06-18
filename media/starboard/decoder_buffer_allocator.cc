@@ -20,9 +20,6 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "build/build_config.h"
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
-#endif
 #include "media/base/media_switches.h"
 #include "media/base/video_codecs.h"
 #include "media/starboard/bidirectional_fit_decoder_buffer_allocator_strategy.h"
@@ -119,10 +116,6 @@ void DecoderBufferAllocator::DecommitAllDecommitableBlocks() {
 DecoderBuffer::Allocator::Handle DecoderBufferAllocator::Allocate(
     DemuxerStream::Type type,
     size_t size) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kMedia);
-#endif
   base::AutoLock scoped_lock(mutex_);
   has_pending_release_ = false;
 

@@ -78,10 +78,6 @@ component("sql") {
       "vfs_wrapper_fuchsia.h",
     ]
   }
-
-  if (is_cobalt) {
-    deps += [ "//cobalt/shell:buildflags" ]
-  }
 }
 
 static_library("test_support") {
