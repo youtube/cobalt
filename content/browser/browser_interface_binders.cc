@@ -4,12 +4,6 @@
 
 #include "content/browser/browser_interface_binders.h"
 
-// clang-format off
-// Remove these two includes after CHROMIUM_MILESTONE_LE_138
-#include "third_party/blink/public/public_buildflags.h"
-#include "content/public/common/content_milestone_features.h"
-// clang-format on
-
 #include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
@@ -210,6 +204,7 @@
 #include "third_party/blink/public/mojom/webtransport/web_transport_connector.mojom.h"
 #include "third_party/blink/public/mojom/worker/dedicated_worker_host_factory.mojom.h"
 #include "third_party/blink/public/mojom/worker/shared_worker_connector.mojom.h"
+#include "third_party/blink/public/public_buildflags.h"
 #include "url/origin.h"
 
 #if BUILDFLAG(IS_ANDROID)
