@@ -1109,7 +1109,7 @@ jobs:
           pattern: ${{ matrix.platform }}_${{ matrix.name }}_browsertest_results
           path: results/
       - name: Failed Tests
-        if: always() && (needs.initialize.outputs.run_on_host_test || needs.initialize.outputs.run_browser_test_on_host)
+        if: always() && (needs.initialize.outputs.run_on_host_test == 'true' || needs.initialize.outputs.run_browser_test_on_host == 'true')
         run: |
           # Print test result summary.
           shopt -s globstar nullglob
