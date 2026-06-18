@@ -15,6 +15,7 @@
 #include "starboard/android/shared/media_codec_bridge.h"
 
 #include "base/android/jni_array.h"
+#include "base/android/jni_bytebuffer.h"
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
@@ -33,6 +34,7 @@ namespace {
 
 using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF8ToJavaString;
+using base::android::JavaByteBufferToMutableSpan;
 using base::android::ToJavaByteArray;
 using base::android::ToJavaIntArray;
 using jni_zero::AttachCurrentThread;
@@ -264,18 +266,11 @@ Span<uint8_t> MediaCodecBridge::GetInputBufferAddress(jint index) {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> byte_buffer =
       Java_MediaCodecBridge_getInputBuffer(env, j_media_codec_bridge_, index);
-  if (byte_buffer.is_null()) {
+  if (!byte_buffer) {
     return {};
   }
-  jlong cap = env->GetDirectBufferCapacity(byte_buffer.obj());
-  if (cap < 0) {
-    return {};
-  }
-  void* address = env->GetDirectBufferAddress(byte_buffer.obj());
-  if (!address) {
-    return {};
-  }
-  return {static_cast<uint8_t*>(address), static_cast<size_t>(cap)};
+  auto span = JavaByteBufferToMutableSpan(env, byte_buffer.obj());
+  return {span.data(), span.size()};
 }
 
 jint MediaCodecBridge::QueueInputBuffer(jint index,
@@ -341,18 +336,11 @@ Span<uint8_t> MediaCodecBridge::GetOutputBufferAddress(jint index) {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> byte_buffer =
       Java_MediaCodecBridge_getOutputBuffer(env, j_media_codec_bridge_, index);
-  if (byte_buffer.is_null()) {
+  if (!byte_buffer) {
     return {};
   }
-  jlong cap = env->GetDirectBufferCapacity(byte_buffer.obj());
-  if (cap < 0) {
-    return {};
-  }
-  void* address = env->GetDirectBufferAddress(byte_buffer.obj());
-  if (!address) {
-    return {};
-  }
-  return {static_cast<uint8_t*>(address), static_cast<size_t>(cap)};
+  auto span = JavaByteBufferToMutableSpan(env, byte_buffer.obj());
+  return {span.data(), span.size()};
 }
 
 void MediaCodecBridge::ReleaseOutputBuffer(jint index, jboolean render) {

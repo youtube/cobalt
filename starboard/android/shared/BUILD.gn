@@ -228,6 +228,7 @@ static_library("starboard_platform") {
 
     "runtime_resource_overlay.cc",
     "runtime_resource_overlay.h",
+    "safe_jni.h",
     "sanitizer_options.cc",
 
     # TODO: (cobalt b/392178584) clean up speech synthesis code.

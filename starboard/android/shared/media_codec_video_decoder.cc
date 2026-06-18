@@ -291,7 +291,11 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       tunnel_mode_audio_session_id_(tunnel_mode_config.audio_session_id),
       max_video_input_size_(pipeline_config.max_input_size),
       use_dual_threads_(pipeline_config.use_dual_threads),
-      surface_view_(stream_config.surface_view),
+      surface_view_(stream_config.surface_view
+                        ? jni_zero::ScopedJavaGlobalRef<jobject>(
+                              jni_zero::AttachCurrentThread(),
+                              static_cast<jobject>(stream_config.surface_view))
+                        : nullptr),
       enable_flush_during_seek_(pipeline_config.enable_flush_during_seek),
       reset_delay_usec_(android_get_device_api_level() < 34
                             ? platform_options.reset_delay_usec
@@ -737,8 +741,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
   switch (output_mode_) {
     case kSbPlayerOutputModePunchOut: {
       if (surface_view_) {
-        j_output_surface = jni_zero::ScopedJavaLocalRef<jobject>::Adopt(
-            env, env->NewLocalRef(static_cast<jobject>(surface_view_)));
+        j_output_surface = surface_view_.AsLocalRef(env);
       } else {
         j_output_surface = AcquireVideoSurface();
       }
