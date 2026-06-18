@@ -27,6 +27,11 @@
 #include "base/numerics/safe_math.h"
 #include "base/strings/stringprintf.h"
 #if BUILDFLAG(IS_COBALT)
+#include <list>
+
+#include "base/bits.h"
+#include "base/metrics/statistics_recorder.h"
+#include "base/no_destructor.h"
 #include "base/strings/string_number_conversions.h"
 #endif
 #include "base/synchronization/lock.h"
@@ -455,6 +460,181 @@ sk_sp<SkImage> MakeTextureImage(viz::RasterContextProvider* context,
 
   return uploaded_image;
 }
+
+#if BUILDFLAG(IS_COBALT)
+// A simple arena allocator for image decodes.
+class ImageDecodeMemoryPool {
+ public:
+  static ImageDecodeMemoryPool* GetInstance() {
+    static base::NoDestructor<ImageDecodeMemoryPool> instance;
+    return instance.get();
+  }
+
+  ImageDecodeMemoryPool() {
+    // Size the pool to match the decoded image working set budget.
+    pool_size_ = ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
+        /*for_renderer=*/false);
+    arena_ = std::make_unique<char[]>(pool_size_);
+    blocks_.push_back({0, pool_size_, true});
+    LOG(INFO) << "COBALT_IMAGE_CACHE: POOL_CREATED: size=" << pool_size_;
+  }
+
+  ~ImageDecodeMemoryPool() = default;
+
+  void* Allocate(size_t size, size_t* allocated_size) {
+    base::AutoLock lock(mutex_);
+    // Align size to 8 bytes using Chromium helper.
+    size = base::bits::AlignUp<size_t>(size, 8);
+
+    for (auto it = blocks_.begin(); it != blocks_.end(); ++it) {
+      if (it->free && it->size >= size) {
+        // Split block if it is larger than needed.
+        if (it->size > size + 1024) {
+          Block leftover = {it->offset + size, it->size - size, true};
+          it->size = size;
+          it->free = false;
+          blocks_.insert(std::next(it), leftover);
+        } else {
+          it->free = false;
+        }
+        *allocated_size = it->size;
+        void* ptr = arena_.get() + it->offset;
+        VLOG(2) << "COBALT_IMAGE_CACHE: ALLOC: size=" << size
+                << ", actual=" << *allocated_size << ", offset=" << it->offset;
+        total_allocs_++;
+        return ptr;
+      }
+    }
+    LOG(ERROR) << "COBALT_IMAGE_CACHE: POOL_OOM: size=" << size;
+    total_fails_++;
+    return nullptr;
+  }
+
+  void Free(void* ptr) {
+    base::AutoLock lock(mutex_);
+    if (!ptr) {
+      return;
+    }
+
+    size_t offset = static_cast<char*>(ptr) - arena_.get();
+    for (auto it = blocks_.begin(); it != blocks_.end(); ++it) {
+      if (it->offset == offset) {
+        DCHECK(!it->free);
+        it->free = true;
+        VLOG(2) << "COBALT_IMAGE_CACHE: FREE: offset=" << offset
+                << ", size=" << it->size;
+        Coalesce();
+        return;
+      }
+    }
+    NOTREACHED()
+        << "COBALT_IMAGE_CACHE: Attempted to free pointer not in pool: " << ptr;
+  }
+
+  size_t GetPoolSize() const { return pool_size_; }
+
+  struct PoolStats {
+    size_t total_allocs;
+    size_t total_fails;
+    size_t free_size;
+    size_t pool_size;
+    size_t min_free_block_size;
+    size_t max_free_block_size;
+  };
+  PoolStats GetStats() {
+    base::AutoLock lock(mutex_);
+    size_t free_size = 0;
+    size_t min_free = pool_size_;
+    size_t max_free = 0;
+    bool has_free = false;
+    for (const auto& block : blocks_) {
+      if (block.free) {
+        has_free = true;
+        free_size += block.size;
+        if (block.size < min_free) {
+          min_free = block.size;
+        }
+        if (block.size > max_free) {
+          max_free = block.size;
+        }
+      }
+    }
+    if (!has_free) {
+      min_free = 0;
+      max_free = 0;
+    }
+    return {total_allocs_, total_fails_, free_size,
+            pool_size_,    min_free,     max_free};
+  }
+
+ private:
+  struct Block {
+    size_t offset;
+    size_t size;
+    bool free;
+  };
+
+  void Coalesce() {
+    auto it = blocks_.begin();
+    while (it != blocks_.end() && std::next(it) != blocks_.end()) {
+      auto next = std::next(it);
+      if (it->free && next->free) {
+        it->size += next->size;
+        blocks_.erase(next);
+      } else {
+        ++it;
+      }
+    }
+  }
+
+  size_t pool_size_;
+  std::unique_ptr<char[]> arena_;
+  std::list<Block> blocks_;
+  base::Lock mutex_;
+  size_t total_allocs_ = 0;
+  size_t total_fails_ = 0;
+};
+
+class PooledDiscardableMemory : public base::DiscardableMemory {
+ public:
+  explicit PooledDiscardableMemory(size_t size) : size_(size) {
+    data_ =
+        ImageDecodeMemoryPool::GetInstance()->Allocate(size, &allocated_size_);
+  }
+
+  ~PooledDiscardableMemory() override {
+    if (data_) {
+      ImageDecodeMemoryPool::GetInstance()->Free(data_);
+    }
+  }
+
+  [[nodiscard]] bool Lock() override { return data_ != nullptr; }
+
+  void Unlock() override {
+    // Keep locked until destroyed.
+  }
+
+  void* data() const override { return data_; }
+
+  void DiscardForTesting() override {
+    // Not implemented.
+  }
+
+  base::trace_event::MemoryAllocatorDump* CreateMemoryAllocatorDump(
+      const char* name,
+      base::trace_event::ProcessMemoryDump* pmd) const override {
+    auto* dump = pmd->CreateAllocatorDump(name);
+    dump->AddScalar(base::trace_event::MemoryAllocatorDump::kNameSize,
+                    base::trace_event::MemoryAllocatorDump::kUnitsBytes, size_);
+    return dump;
+  }
+
+ private:
+  void* data_ = nullptr;
+  size_t size_;
+  size_t allocated_size_ = 0;
+};
+#endif  // BUILDFLAG(IS_COBALT)
 
 // We use this below, instead of just a std::unique_ptr, so that we can run
 // a Finch experiment to check the impact of not using discardable memory on the
@@ -1293,6 +1473,28 @@ GpuImageDecodeCache::GpuImageDecodeCache(
   TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("cc.debug"),
                "GpuImageDecodeCache::DarkModeFilter", "dark_mode_filter",
                static_cast<void*>(dark_mode_filter_));
+#if BUILDFLAG(IS_COBALT)
+  // Only enable the preallocated pool if this cache instance is the main UI
+  // cache. We identify the main UI cache by checking if its budget matches the
+  // configured main budget.
+  size_t main_budget = ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
+      /*for_renderer=*/false);
+  use_pooled_memory_ =
+      (max_working_set_bytes == main_budget) &&
+      base::FeatureList::IsEnabled(features::kPreallocatedImageCachePool);
+
+  if (use_pooled_memory_) {
+    LOG(INFO) << "COBALT_IMAGE_CACHE: POOL_INITIALIZED: size(mib)="
+              << (max_working_set_bytes / (1024 * 1024));
+  } else {
+    LOG(INFO) << "COBALT_IMAGE_CACHE: POOL_BYPASSED: budget(mib)="
+              << (max_working_set_bytes / (1024 * 1024));
+  }
+
+  stats_timer_.Start(FROM_HERE, base::Seconds(5),
+                     base::BindRepeating(&GpuImageDecodeCache::LogStatsPeriodic,
+                                         base::Unretained(this)));
+#endif
 }
 
 GpuImageDecodeCache::~GpuImageDecodeCache() {
@@ -2382,6 +2584,62 @@ bool GpuImageDecodeCache::ExceedsCacheLimits() const {
   return persistent_cache_.size() > items_limit;
 }
 
+#if BUILDFLAG(IS_COBALT)
+void GpuImageDecodeCache::LogStatsPeriodic() {
+  base::AutoLock lock(lock_);
+
+  elapsed_seconds_ += 5;
+
+  if (elapsed_seconds_ == 300) {
+    auto* histogram = base::StatisticsRecorder::FindHistogram(
+        "Cobalt.ImageCache.DecodedImageSizeKB");
+    if (histogram) {
+      std::string ascii_chart;
+      histogram->WriteAscii(&ascii_chart);
+      LOG(INFO) << "\n==================================================\n"
+                << "COBALT_IMAGE_CACHE: 5-MINUTE HISTOGRAM DUMP:\n"
+                << ascii_chart
+                << "\n==================================================";
+    } else {
+      LOG(WARNING) << "COBALT_IMAGE_CACHE: Histogram "
+                      "'Cobalt.ImageCache.DecodedImageSizeKB' not found!";
+    }
+  }
+
+  size_t items_limit = aggressively_freeing_resources_
+                           ? kSuspendedMaxItemsInCacheForGpu
+                           : max_working_set_items_;
+
+  // Calculate the true total memory consumed by all cached images (locked +
+  // unlocked)
+  size_t total_cached_bytes = 0;
+  for (const auto& it : persistent_cache_) {
+    total_cached_bytes += it.second->GetTotalSize();
+  }
+
+  if (use_pooled_memory_) {
+    auto pool_stats = ImageDecodeMemoryPool::GetInstance()->GetStats();
+    LOG(INFO) << "COBALT_IMAGE_CACHE: STATS: pool=enabled"
+              << ", items=" << persistent_cache_.size()
+              << ", limit=" << items_limit
+              << ", used_mb=" << (total_cached_bytes / (1024 * 1024))
+              << ", budget_mb=" << (max_working_set_bytes_ / (1024 * 1024))
+              << ", pool_allocs=" << pool_stats.total_allocs
+              << ", pool_fails=" << pool_stats.total_fails
+              << ", pool_free=" << pool_stats.free_size
+              << ", pool_size=" << pool_stats.pool_size
+              << ", min_block_kb=" << (pool_stats.min_free_block_size / 1024)
+              << ", max_block_kb=" << (pool_stats.max_free_block_size / 1024);
+  } else {
+    LOG(INFO) << "COBALT_IMAGE_CACHE: STATS: pool=disabled"
+              << ", items=" << persistent_cache_.size()
+              << ", limit=" << items_limit
+              << ", used_mb=" << (total_cached_bytes / (1024 * 1024))
+              << ", budget_mb=" << (max_working_set_bytes_ / (1024 * 1024));
+  }
+}
+#endif
+
 void GpuImageDecodeCache::InsertTransferCacheEntry(
     const ClientImageTransferCacheEntry& image_entry,
     ImageData* image_data) {
@@ -2509,15 +2767,38 @@ void GpuImageDecodeCache::DecodeImageIfNecessary(
 
       // Allocate the backing memory for the decode.
       std::unique_ptr<base::DiscardableMemory> backing_memory;
-      if (base::FeatureList::IsEnabled(
-              features::kNoDiscardableMemoryForGpuDecodePath)) {
-        backing_memory = std::make_unique<HeapDiscardableMemory>(info.size);
-      } else {
-        auto* allocator = base::DiscardableMemoryAllocator::GetInstance();
-        backing_memory =
-            allocator->AllocateLockedDiscardableMemoryWithRetryOrDie(
-                info.size, base::BindOnce(&GpuImageDecodeCache::ClearCache,
-                                          base::Unretained(this)));
+#if BUILDFLAG(IS_COBALT)
+      const size_t kPoolSizeGate = 1024 * 1024;  // 1 MB
+      bool fits_in_gate = (info.size < kPoolSizeGate);
+
+      if (use_pooled_memory_ && fits_in_gate) {
+        auto pooled_memory =
+            std::make_unique<PooledDiscardableMemory>(info.size);
+        if (pooled_memory->Lock()) {
+          backing_memory = std::move(pooled_memory);
+        } else {
+          LOG(WARNING) << "COBALT_IMAGE_CACHE: POOL_FULL: size_kb="
+                       << (info.size / 1024)
+                       << ", falling back to system heap.";
+        }
+      } else if (use_pooled_memory_ && !fits_in_gate) {
+        LOG(INFO) << "COBALT_IMAGE_CACHE: POOL_GATE_BYPASS: size_kib="
+                  << (info.size / 1024)
+                  << ", limit_kib=" << (kPoolSizeGate / 1024);
+      }
+#endif
+
+      if (!backing_memory) {
+        if (base::FeatureList::IsEnabled(
+                features::kNoDiscardableMemoryForGpuDecodePath)) {
+          backing_memory = std::make_unique<HeapDiscardableMemory>(info.size);
+        } else {
+          auto* allocator = base::DiscardableMemoryAllocator::GetInstance();
+          backing_memory =
+              allocator->AllocateLockedDiscardableMemoryWithRetryOrDie(
+                  info.size, base::BindOnce(&GpuImageDecodeCache::ClearCache,
+                                            base::Unretained(this)));
+        }
       }
 
       // Do the decode.
@@ -2591,6 +2872,15 @@ void GpuImageDecodeCache::DecodeImageIfNecessary(
 
   image_data->decode.SetLockedData(aux_image_data,
                                    task_type == TaskType::kOutOfRaster);
+#if BUILDFLAG(IS_COBALT)
+  size_t size_in_kb = image_data->GetTotalSize() / 1024;
+  UMA_HISTOGRAM_CUSTOM_COUNTS("Cobalt.ImageCache.DecodedImageSizeKB",
+                              size_in_kb, 100, 10240, 50);
+#endif
+  // LOG(INFO) << "COBALT_IMAGE_CACHE: SW_DECODE: id="
+  //           << image_data->paint_image_id
+  //           << ", size=" << draw_image.paint_image().width() << "x"
+  //           << draw_image.paint_image().height();
 }
 
 void GpuImageDecodeCache::GenerateDarkModeFilter(const DrawImage& draw_image,
@@ -2728,6 +3018,9 @@ void GpuImageDecodeCache::UploadImageIfNecessary_TransferCache_HardwareDecode(
       draw_image.paint_image().GetSwSkImage()->refEncodedData();
   DCHECK(encoded_data);
   const uint32_t transfer_cache_id = ClientImageTransferCacheEntry::GetNextId();
+  LOG(INFO) << "COBALT_IMAGE_CACHE: HW_DECODE: id="
+            << image_data->paint_image_id << ", size=" << output_size.ToString()
+            << ", encoded_size=" << encoded_data->size();
   const gpu::SyncToken decode_sync_token =
       context_->RasterInterface()->ScheduleImageDecode(
           gfx::SkDataToSpan(encoded_data), output_size, transfer_cache_id,

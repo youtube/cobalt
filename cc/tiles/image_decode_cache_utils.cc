@@ -45,7 +45,7 @@ size_t ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
     bool for_renderer) {
 #if BUILDFLAG(IS_COBALT)
   static const size_t cobalt_decoded_image_working_set_budget_bytes = []() {
-    size_t budget = 128 * 1024 * 1024;
+    size_t budget = 50 * 1024 * 1024;
     auto* command_line = base::CommandLine::ForCurrentProcess();
     if (command_line->HasSwitch(switches::kDecodedImageWorkingSetBudgetBytes)) {
       std::string value = command_line->GetSwitchValueASCII(
