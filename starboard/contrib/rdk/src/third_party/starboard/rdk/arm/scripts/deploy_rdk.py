@@ -194,7 +194,12 @@ def launch_on_device(
     remote_cmds = [f"cd {remote_dir}"]
 
     if not is_up_to_date or force_deploy:
-        remote_cmds += ["tar -xzf archive.tar.gz", "rm archive.tar.gz"]
+        # Ensure unprivileged container users have access to extracted artifacts.
+        remote_cmds += [
+            "tar -xzf archive.tar.gz",
+            "rm archive.tar.gz",
+            f"chmod -R 777 {remote_dir}",
+        ]
 
     if test_name:
         remote_cmds += ["rdkDisplay remove || true", "sleep 2", "mkdir -p results"]

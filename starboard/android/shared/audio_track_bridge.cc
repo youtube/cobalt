@@ -19,6 +19,7 @@
 
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/safe_jni.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
@@ -38,22 +39,6 @@ using jni_zero::ScopedJavaGlobalRef;
 using jni_zero::ScopedJavaLocalRef;
 
 const jint kNoOffset = 0;
-
-void SetFloatArrayRegion(JNIEnv* env,
-                         const jni_zero::JavaRef<jfloatArray>& array,
-                         jsize start,
-                         jsize len,
-                         const jfloat* buf) {
-  env->SetFloatArrayRegion(array.obj(), start, len, buf);
-}
-
-void SetByteArrayRegion(JNIEnv* env,
-                        const jni_zero::JavaRef<jbyteArray>& array,
-                        jsize start,
-                        jsize len,
-                        const jbyte* buf) {
-  env->SetByteArrayRegion(array.obj(), start, len, buf);
-}
 
 }  // namespace
 
@@ -114,14 +99,14 @@ std::unique_ptr<AudioTrackBridge> AudioTrackBridge::Create(
     if (coding_type == kSbMediaAudioCodingTypePcm &&
         sample_type == kSbMediaAudioSampleTypeFloat32) {
       ScopedJavaLocalRef<jfloatArray> j_float_array =
-          Java_AudioTrackBridge_getPreAllocatedFloatArray(env,
-                                                          j_audio_track_bridge);
+          Java_AudioTrackBridge_getPreAllocatedAudioDataAsFloatArray(
+              env, j_audio_track_bridge);
       SB_CHECK(j_float_array);
       return FloatArray(env, j_float_array);
     }
     ScopedJavaLocalRef<jbyteArray> j_byte_array =
-        Java_AudioTrackBridge_getPreAllocatedByteArray(env,
-                                                       j_audio_track_bridge);
+        Java_AudioTrackBridge_getPreAllocatedAudioDataAsByteArray(
+            env, j_audio_track_bridge);
     SB_CHECK(j_byte_array);
     return ByteArray(env, j_byte_array);
   }();
