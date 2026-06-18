@@ -61,6 +61,8 @@ source_set("starboard") {
   }
   if (use_starboard_url_player) {
     sources += [
+      "url_player_demuxer.cc",
+      "url_player_demuxer.h",
       "url_player_renderer.cc",
       "url_player_renderer.h",
     ]
