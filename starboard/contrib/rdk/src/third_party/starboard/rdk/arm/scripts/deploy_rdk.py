@@ -42,19 +42,22 @@ Usage Examples:
   8. Deploy only the libcobalt library:
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --only-lib
 
-  9. View device system logs (journalctl):
+  9. View filtered application logs (YouTube/Cobalt):
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --logs
 
-  10. Follow device system logs in real-time (journalctl -f):
+  10. Follow application logs in real-time (journalctl -f):
       python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --logs --follow
 
-  11. Build, deploy, and run Cobalt plugin with Chrome DevTools remote debugging enabled:
+  11. View raw global OS/system logs (journalctl):
+      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --system-logs
+
+  12. Build, deploy, and run Cobalt plugin with Chrome DevTools remote debugging enabled:
       python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run --devtools
 
-  12. Download and install cross-compilation toolchain:
+  13. Download and install cross-compilation toolchain:
       python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --setup-toolchain
 
-  13. Revert active Cobalt loader configuration to Cobalt 25:
+  14. Revert active Cobalt loader configuration to Cobalt 25:
       python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --revert-c25
 """
 
