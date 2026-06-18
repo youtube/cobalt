@@ -122,6 +122,7 @@ jobs:
           exit 1
 
   download-artifacts:
+    # TODO(b/519669027): consider odt-runner for fetching the artifacts.
     needs: [get-sha, wait-for-kokoro-build, get-targets]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
@@ -148,6 +149,7 @@ jobs:
           path: "*.tar.gz"
           retention-days: 1
 
+  # TODO(b/519669027): Refactor below steps to reuse the logic from main.yaml.
   run-tests:
     needs: [get-targets, download-artifacts]
     runs-on: macos-latest

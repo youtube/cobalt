@@ -12,12 +12,12 @@ inputs:
   test_targets_json_file:
     description: "Path to the test targets JSON file. If provided, skip downloading."
     required: false
-    default: ""
+    default: "test_targets.json"
 runs:
   using: "composite"
   steps:
     - name: Download Test Targets Json
-      if: ${{ inputs.test_targets_json_file == '' }}
+      if: inputs.test_targets_json_file == 'test_targets.json'
       uses: actions/download-artifact@v5
       with:
         name: ${{ matrix.platform }}_test_targets_json
@@ -27,7 +27,7 @@ runs:
       env:
         TEST_TYPE: ${{ inputs.test_type }}
         RUNS_ON: ${{ inputs.runs_on }}
-        JSON_FILE: ${{ inputs.test_targets_json_file || 'test_targets.json' }}
+        JSON_FILE: ${{ inputs.test_targets_json_file }}
       run: |
         filtered_json="$(jq -cr \
           --arg test_type "${TEST_TYPE}" \
