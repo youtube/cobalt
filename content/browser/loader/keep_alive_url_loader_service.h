@@ -8,12 +8,16 @@
 #include <memory>
 #include <optional>
 
+<<<<<<< HEAD
 // clang-format off
 // Remove these two includes after CHROMIUM_MILESTONE_LE_138
 #include "content/public/common/buildflags.h"
 #include "content/public/common/content_milestone_features.h"
 // clang-format on
 
+=======
+#include "base/containers/lru_cache.h"
+>>>>>>> 2cef2d45d (Refactor Privacy Sandbox and Milestone macro gating to minimize Chromium changes (#10896))
 #include "base/memory/scoped_refptr.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/attribution_reporting/attribution_suitable_context.h"
