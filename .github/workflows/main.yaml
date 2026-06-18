@@ -291,44 +291,8 @@ jobs:
           set -x
           docker_content_sha=$(find cobalt/docker docker-compose.yaml -type f -exec sha256sum -b {} + | LC_ALL=C sort | sha256sum | head -c 64)
           echo "docker_content_sha=${docker_content_sha}" >> $GITHUB_OUTPUT
-      - name: Get Test Targets Json Path
-        id: get-test-targets-json-path
-        shell: bash
-        run: |
-          first_platform=$(jq -r '.platforms[0]' ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json)
-          test_targets_json_path="cobalt/build/testing/targets/${first_platform}/test_targets.json"
-          if [ ! -f "$test_targets_json_path" ]; then
-            test_targets_json_path=""
-          fi
-          echo "test_targets_json_path=${test_targets_json_path}" >> $GITHUB_OUTPUT
-      - name: Parse Device Targets
-        id: parse-device-targets
-        if: steps.get-test-targets-json-path.outputs.test_targets_json_path != ''
-        uses: ./.github/actions/test_targets_json
-        with:
-          runs_on: device
-          test_type: gtest
-          test_targets_json_path: ${{ steps.get-test-targets-json-path.outputs.test_targets_json_path }}
-      - name: Parse Host GTest Targets
-        id: parse-host-gtest-targets
-        if: steps.get-test-targets-json-path.outputs.test_targets_json_path != ''
-        uses: ./.github/actions/test_targets_json
-        with:
-          runs_on: host
-          test_type: gtest
-          test_targets_json_path: ${{ steps.get-test-targets-json-path.outputs.test_targets_json_path }}
-      - name: Parse Host JUnit Targets
-        id: parse-host-junit-targets
-        if: steps.get-test-targets-json-path.outputs.test_targets_json_path != ''
-        uses: ./.github/actions/test_targets_json
-        with:
-          runs_on: host
-          test_type: junit
-          test_targets_json_path: ${{ steps.get-test-targets-json-path.outputs.test_targets_json_path }}
       - name: Generate Expected Test Targets Json
         id: generate-expected-test-targets-json
-        env:
-          TEST_TARGETS_JSON_PATH: ${{ steps.get-test-targets-json-path.outputs.test_targets_json_path }}
         run: |
           set -x
           run_on_host_test="false"
@@ -336,7 +300,10 @@ jobs:
           run_browser_test_on_host="false"
           expected_targets="[]"
 
-          if [[ "$TEST_TARGETS_JSON_PATH" != "" ]]; then
+          first_platform=$(jq -r '.platforms[0]' ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json)
+          test_targets_json_file="cobalt/build/testing/targets/${first_platform}/test_targets.json"
+
+          if [ -f "$test_targets_json_file" ]; then
             # 1. Evaluate conditions (local variables)
 
             # test_on_host
@@ -369,23 +336,19 @@ jobs:
               fi
             fi
 
-            # 2. Merge target lists using jq conditionally whether we expect the targets to run.
-
-            device_targets='${{ steps.parse-device-targets.outputs.test_targets_json || '[]' }}'
-            host_gtests='${{ steps.parse-host-gtest-targets.outputs.test_targets_json || '[]' }}'
-            host_junits='${{ steps.parse-host-junit-targets.outputs.test_targets_json || '[]' }}'
-
-            jq_device="[]"
-            if [[ "${run_on_device_test}" == "true" ]]; then
-              jq_device="${device_targets}"
-            fi
-
-            jq_host="[]"
-            if [[ "${run_on_host_test}" == "true" ]]; then
-              jq_host=$(jq -ncr --argjson g "${host_gtests}" --argjson j "${host_junits}" '$g + $j')
-            fi
-
-            expected_targets=$(jq -ncr --argjson d "${jq_device}" --argjson h "${jq_host}" '$d + $h')
+            expected_targets=$(jq -c \
+              --arg run_on_device_test "${run_on_device_test}" \
+              --arg run_on_host_test "${run_on_host_test}" \
+              '[
+                .[] | select(
+                  (.target != null) and
+                  (.test_type == "gtest" or .test_type == "junit") and
+                  (
+                    (.runs_on == "device" and $run_on_device_test == "true") or
+                    (.runs_on == "host"  and $run_on_host_test == "true")
+                  )
+                ) | .target
+              ]' "${test_targets_json_file}")
           fi
 
           echo "run_on_host_test=${run_on_host_test}" >> $GITHUB_OUTPUT
