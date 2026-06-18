@@ -84,13 +84,7 @@ jobs:
           # PR Event URL + Issue Comment URL
           PR_API_URL="${{ github.event.pull_request.url }}${{ github.event.issue.pull_request.url }}"
 
-          diff_content=$(curl -fsSL -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3.diff" "$PR_API_URL")
-
-          {
-            echo "diff_content<<EOF"
-            echo "$diff_content"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
+          curl -fsSL -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3.diff" "$PR_API_URL" > pr_diff.txt
 
       # --- Step 2: Call Gemini API ---
       - name: 'Generate Commit Message with Gemini'
@@ -101,30 +95,25 @@ jobs:
           PR_URL: ${{ github.event.pull_request.html_url }}${{ github.event.issue.html_url }}
           PR_TITLE: ${{ github.event.pull_request.title }}${{ github.event.issue.title }}
           PR_BODY: ${{ github.event.pull_request.body }}${{ github.event.issue.body }}
-          PR_DIFF: ${{ steps.diff.outputs.diff_content }}
           GEMINI_SECRET: ${{ secrets.GEMINI_ACTIONS_API_KEY }}
         run: |
           set -eux
 
           # Use jq to safely combine the instructions with the variables
-          json_payload=$(jq -n \
-            --arg instr "$PROMPT" \
-            --arg url "$PR_URL" \
-            --arg title "$PR_TITLE" \
-            --arg body "$PR_BODY" \
-            --arg diff "$PR_DIFF" \
+          jq -n \
+            --rawfile diff pr_diff.txt \
             '{
               contents: [{
                 parts: [{
-                  text: ($instr + "\n\n**Pull Request URL:** " + $url + "\n**Pull Request Title:** " + $title + "\n**Original PR Description:**\n" + $body + "\n\n**Code Diff to Analyze:**\n" + $diff)
+                  text: (env.PROMPT + "\n\n**Pull Request URL:** " + env.PR_URL + "\n**Pull Request Title:** " + env.PR_TITLE + "\n**Original PR Description:**\n" + env.PR_BODY + "\n\n**Code Diff to Analyze:**\n" + $diff)
                 }]
               }]
-            }')
+            }' > payload.json
 
           api_response=$(curl -s -X POST \
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=$GEMINI_SECRET" \
             -H "Content-Type: application/json" \
-            -d "$json_payload")
+            -d @payload.json)
 
           gemini_text_response=$(echo "$api_response" | jq -r '.candidates[0].content.parts[0].text // "Error: Could not parse a valid response from the Gemini API. Please check the API response logs in the workflow run."')
 
