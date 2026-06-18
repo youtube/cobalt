@@ -660,11 +660,14 @@ ANGLE_INLINE bool ValidateBindTexture(const Context *context,
     {
 #if defined(STARBOARD)
         if (target != TextureType::External)
-#endif
         {
             ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, err::kObjectNotGenerated);
             return false;
         }
+#else  // defined(STARBOARD)
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, err::kObjectNotGenerated);
+        return false;
+#endif  // defined(STARBOARD)
     }
 
     return true;

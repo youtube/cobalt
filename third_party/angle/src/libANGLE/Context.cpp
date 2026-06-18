@@ -4075,7 +4075,7 @@ Extensions Context::generateSupportedExtensions() const
 
 #if defined(STARBOARD) && defined(__ANDROID__)
     supportedExtensions.EGLImageExternalOES = true;
-#endif
+#endif  // defined(STARBOARD) && defined(__ANDROID__)
 
     return supportedExtensions;
 }
@@ -4129,7 +4129,7 @@ void Context::initCaps()
     *extensions            = mSupportedExtensions;
 #if defined(STARBOARD) && defined(__ANDROID__)
     extensions->EGLImageExternalOES = true;
-#endif
+#endif  // defined(STARBOARD) && defined(__ANDROID__)
 
 
     // GLES1 emulation: Initialize caps (Table 6.20 / 6.22 in the ES 1.1 spec)
@@ -4316,7 +4316,7 @@ void Context::initCaps()
 
 #if defined(STARBOARD) && defined(__ANDROID__)
     extensions->EGLImageExternalOES = true;
-#endif
+#endif  // defined(STARBOARD) && defined(__ANDROID__)
 
     // Hide emulated ETC1 extension from WebGL contexts.
     if (mWebGLContext && limitations.emulatedEtc1)

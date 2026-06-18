@@ -23,7 +23,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "build/build_config.h"
 #include "third_party/blink/renderer/modules/webgl/webgl_rendering_context.h"
 
 #include <memory>
@@ -47,9 +46,9 @@
 #include "third_party/blink/renderer/modules/webgl/ext_texture_filter_anisotropic.h"
 #include "third_party/blink/renderer/modules/webgl/ext_texture_mirror_clamp_to_edge.h"
 #include "third_party/blink/renderer/modules/webgl/khr_parallel_shader_compile.h"
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "third_party/blink/renderer/modules/webgl/oes_egl_image_external.h"
-#endif
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "third_party/blink/renderer/modules/webgl/oes_element_index_uint.h"
 #include "third_party/blink/renderer/modules/webgl/oes_fbo_render_mipmap.h"
 #include "third_party/blink/renderer/modules/webgl/oes_standard_derivatives.h"
@@ -123,9 +122,9 @@ void WebGLRenderingContext::RegisterContextExtensions() {
   RegisterExtension<EXTTextureMirrorClampToEdge>();
   RegisterExtension<EXTsRGB>();
   RegisterExtension<KHRParallelShaderCompile>();
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
   RegisterExtension<OESEGLImageExternal>();
-#endif
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   RegisterExtension<OESElementIndexUint>();
   RegisterExtension<OESFboRenderMipmap>();
   RegisterExtension<OESStandardDerivatives>();

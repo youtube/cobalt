@@ -23,7 +23,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "build/build_config.h"
 #include "third_party/blink/renderer/modules/webgl/webgl_texture.h"
 
 #include "gpu/command_buffer/client/gles2_interface.h"
@@ -58,7 +57,7 @@ void WebGLTexture::SetTarget(GLenum target) {
   target_ = target;
 }
 
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
 void WebGLTexture::UpdateUnderlyingObject(GLuint new_object,
                                           scoped_refptr<media::VideoFrame> video_frame,
                                           bool has_shared_image_access) {
@@ -78,10 +77,10 @@ void WebGLTexture::UpdateUnderlyingObject(GLuint new_object,
   video_frame_ = std::move(video_frame);
   has_shared_image_access_ = has_shared_image_access;
 }
-#endif
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 void WebGLTexture::DeleteObjectImpl(gpu::gles2::GLES2Interface* gl) {
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
   if (has_shared_image_access_) {
     gl->EndSharedImageAccessDirectCHROMIUM(Object());
     has_shared_image_access_ = false;
@@ -89,7 +88,7 @@ void WebGLTexture::DeleteObjectImpl(gpu::gles2::GLES2Interface* gl) {
   video_frame_ = nullptr;
   shared_image_ = nullptr;
   mailbox_ = gpu::Mailbox();
-#endif
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   GLuint texture_id = Object();
   gl->DeleteTextures(1, &texture_id);
 }

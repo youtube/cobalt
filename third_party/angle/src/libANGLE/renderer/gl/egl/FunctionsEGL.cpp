@@ -297,9 +297,9 @@ egl::Error FunctionsEGL::initialize(EGLAttrib platformType, EGLNativeDisplayType
 
 #if defined(STARBOARD) && defined(__ANDROID__)
     if (hasExtension("EGL_KHR_image_base") || getProcAddress("eglCreateImageKHR") != nullptr)
-#else
+#else  // defined(STARBOARD) && defined(__ANDROID__)
     if (hasExtension("EGL_KHR_image_base"))
-#endif
+#endif  // defined(STARBOARD) && defined(__ANDROID__)
     {
         ANGLE_GET_PROC_OR_ERROR(&mFnPtrs->createImageKHRPtr, eglCreateImageKHR);
         ANGLE_GET_PROC_OR_ERROR(&mFnPtrs->destroyImageKHRPtr, eglDestroyImageKHR);

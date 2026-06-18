@@ -32,7 +32,9 @@ enum WebGLExtensionName {
   kKHRParallelShaderCompileName,
   kNVShaderNoperspectiveInterpolationName,
   kOESDrawBuffersIndexedName,
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
   kOESEGLImageExternalName,
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   kOESElementIndexUintName,
   kOESFboRenderMipmapName,
   kOESSampleVariablesName,
