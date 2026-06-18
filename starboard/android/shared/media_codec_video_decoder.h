@@ -47,6 +47,7 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
@@ -196,7 +197,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const bool use_dual_threads_;
 
   // SurfaceView from AndroidOverlay passed from StarboardRenderer to SbPlayer.
-  void* surface_view_;
+  jni_zero::ScopedJavaGlobalRef<jobject> surface_view_;
 
   const bool enable_flush_during_seek_;
   const int64_t reset_delay_usec_;

@@ -19,6 +19,7 @@ import static dev.cobalt.util.Log.TAG;
 import dev.cobalt.util.Log;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 /** Abstract class that provides an interface for Cobalt to interact with a platform service. */
@@ -78,7 +79,7 @@ public abstract class CobaltService {
 
   /** Receive data from client of the service. */
   @CalledByNative
-  public abstract ResponseToClient receiveFromClient(byte[] data);
+  public abstract @JniType("ResponseToClientInfo") ResponseToClient receiveFromClient(byte[] data);
 
   /**
    * Close the service.
