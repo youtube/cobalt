@@ -154,15 +154,19 @@ runs:
 
             if [[ ! -f "${xml_path}" ]]; then
               # Test binary crashed. Generate a fake JUnit XML report with the last run test.
-              python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" "${log_path}" "${xml_path}"
+              if [ -f "${log_path}" ]; then
+                python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" "${log_path}" "${xml_path}"
+              else
+                echo "No log file found for ${test_executable}."
+              fi
+            else
+              # Record results into retry filters directory.
+              python3 "${GITHUB_WORKSPACE}/cobalt/tools/junit_mini_parser.py" \
+                  --mode generate-filter \
+                  --target "${test_executable}" \
+                  --output-dir "${test_output}/retry_filters" \
+                  "${xml_path}"
             fi
-
-            # Record results into retry filters directory.
-            python3 "${GITHUB_WORKSPACE}/cobalt/tools/junit_mini_parser.py" \
-                --mode generate-filter \
-                --target "${test_executable}" \
-                --output-dir "${test_output}/retry_filters" \
-                "${xml_path}"
           fi
         done
 
@@ -213,7 +217,11 @@ runs:
           if [[ -f ${json_path} ]]; then
             python3 ${GITHUB_WORKSPACE}/.github/scripts/convert_json_to_junit_xml.py "${json_path}" "${xml_path}"
           else
-            python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
+            if [ -f "${log_path}" ]; then
+              python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
+            else
+              echo "No log file found for ${test_executable}."
+            fi
           fi
         done
 
