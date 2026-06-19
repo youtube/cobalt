@@ -162,7 +162,7 @@ void JNI_VideoSurfaceView_OnVideoSurfaceChanged(
     GetGlobalVideoSurface().Reset();
     if (g_native_video_window) {
       ANativeWindow_release(g_native_video_window);
-      g_native_video_window = NULL;
+      g_native_video_window = nullptr;
     }
     if (surface) {
       GetGlobalVideoSurface().Reset(env, surface);
@@ -179,7 +179,32 @@ void JNI_VideoSurfaceView_SetNeedResetSurface(JNIEnv* env) {
   g_reset_surface_on_clear_window = true;
 }
 
-void SurfaceDestroyNotifier::RunTask() {
+void SurfaceDestroyNotifier::Disconnect() {
+  {
+    std::lock_guard lock(mutex_);
+    disconnected_ = true;
+    job_queue_ = nullptr;
+    holder_ = nullptr;
+    done_ = true;  // Mark as done_ so Notify() can exit immediately
+  }
+  done_cv_.notify_one();
+}
+
+void SurfaceDestroyNotifier::Notify() {
+  std::unique_lock lock(mutex_);
+  if (disconnected_ || !holder_ || !job_queue_) {
+    return;
+  }
+
+  done_ = false;
+  scoped_refptr<SurfaceDestroyNotifier> self(this);
+  job_queue_->Schedule([self]() { self->NotifyDestroyed(); });
+
+  // Wait for the task to complete with a 1-second timeout.
+  done_cv_.wait_for(lock, std::chrono::seconds(1), [this] { return done_; });
+}
+
+void SurfaceDestroyNotifier::NotifyDestroyed() {
   VideoSurfaceHolder* holder_to_notify = nullptr;
   {
     std::lock_guard lock(mutex_);
@@ -196,14 +221,14 @@ void SurfaceDestroyNotifier::RunTask() {
     std::lock_guard lock(mutex_);
     done_ = true;
   }
-  cv_.notify_one();
+  done_cv_.notify_one();
 }
 
 // static
 bool VideoSurfaceHolder::IsVideoSurfaceAvailable() {
   // We only consider video surface is available when there is a video
   // surface and it is not held by any decoder, i.e.
-  // g_surface_destroy_notifier is NULL.
+  // g_surface_destroy_notifier is nullptr.
   std::lock_guard lock(*GetViewSurfaceMutex());
   return !GetGlobalSurfaceDestroyNotifier() && GetGlobalVideoSurface();
 }
@@ -212,33 +237,35 @@ VideoSurfaceHolder::AcquiredSurface VideoSurfaceHolder::AcquireVideoSurface(
     JobQueue* job_queue) {
   std::lock_guard lock(*GetViewSurfaceMutex());
   if (GetGlobalSurfaceDestroyNotifier() != nullptr) {
+    // Other VideoSurfaceHolder has already acquired destroyer
     return {};
   }
   if (!GetGlobalVideoSurface()) {
+    // Video Surface not created yet
     return {};
   }
   GetGlobalSurfaceDestroyNotifier() =
-      new SurfaceDestroyNotifier(this, job_queue);
+      make_scoped_refptr<SurfaceDestroyNotifier>(this, job_queue);
   JNIEnv* env = jni_zero::AttachCurrentThread();
-  AcquiredSurface result;
-  result.destroy_notifier = GetGlobalSurfaceDestroyNotifier();
-  result.surface =
-      jni_zero::ScopedJavaLocalRef<jobject>(env, GetGlobalVideoSurface());
-  return result;
+
+  return {GetGlobalSurfaceDestroyNotifier(),
+          jni_zero::ScopedJavaLocalRef<jobject>(env, GetGlobalVideoSurface())};
 }
 
 void VideoSurfaceHolder::ReleaseVideoSurface() {
   std::lock_guard lock(*GetViewSurfaceMutex());
-  if (GetGlobalSurfaceDestroyNotifier() &&
-      GetGlobalSurfaceDestroyNotifier()->Holds(this)) {
-    GetGlobalSurfaceDestroyNotifier()->Disconnect();
-    GetGlobalSurfaceDestroyNotifier() = nullptr;
+
+  auto& notifier = GetGlobalSurfaceDestroyNotifier();
+  if (!notifier || !notifier->Holds(this)) {
+    return;
   }
+  notifier->Disconnect();
+  notifier = nullptr;
 }
 
 bool VideoSurfaceHolder::GetVideoWindowSize(int* width, int* height) {
   std::lock_guard lock(*GetViewSurfaceMutex());
-  if (g_native_video_window == NULL) {
+  if (g_native_video_window == nullptr) {
     return false;
   } else {
     *width = ANativeWindow_getWidth(g_native_video_window);

@@ -86,39 +86,17 @@ class VideoSurfaceHolder {
 // The task scheduled on the JobQueue also retains a reference to ensure
 // the object stays alive until execution completes.
 //
-// Threading Model: `Notify()` is called from the JNI thread. `RunTask()`
-// executes on the player worker thread. Internal state is protected by its
-// own mutex.
+// Threading Model: `Notify()` is called from the JNI thread.
+// `NotifyDestroyed()` executes on the player worker thread. Internal state is
+// protected by its own mutex.
 class SurfaceDestroyNotifier
     : public RefCountedThreadSafe<SurfaceDestroyNotifier> {
  public:
   SurfaceDestroyNotifier(VideoSurfaceHolder* holder, JobQueue* job_queue)
       : holder_(holder), job_queue_(job_queue) {}
 
-  void Disconnect() {
-    {
-      std::lock_guard lock(mutex_);
-      disconnected_ = true;
-      job_queue_ = nullptr;
-      holder_ = nullptr;
-      done_ = true;  // Mark as done_ so Notify() can exit immediately
-    }
-    cv_.notify_one();
-  }
-
-  void Notify() {
-    std::unique_lock lock(mutex_);
-    if (disconnected_ || !holder_ || !job_queue_) {
-      return;
-    }
-
-    done_ = false;
-    scoped_refptr<SurfaceDestroyNotifier> self(this);
-    job_queue_->Schedule([self]() { self->RunTask(); });
-
-    // Wait for the task to complete with a 1-second timeout.
-    cv_.wait_for(lock, std::chrono::seconds(1), [this] { return done_; });
-  }
+  void Disconnect();
+  void Notify();
 
   bool Holds(VideoSurfaceHolder* holder) const {
     std::lock_guard lock(mutex_);
@@ -129,15 +107,14 @@ class SurfaceDestroyNotifier
   ~SurfaceDestroyNotifier() = default;
   friend class RefCountedThreadSafe<SurfaceDestroyNotifier>;
 
- private:
-  void RunTask();
+  void NotifyDestroyed();
 
   mutable std::mutex mutex_;
-  std::condition_variable cv_;
-  bool done_ = false;
-  bool disconnected_ = false;
-  VideoSurfaceHolder* holder_;
-  JobQueue* job_queue_;
+  std::condition_variable done_cv_;
+  bool done_ = false;           // Guarded by |mutex_|
+  bool disconnected_ = false;   // Guarded by |mutex_|
+  VideoSurfaceHolder* holder_;  // Guarded by |mutex_|
+  JobQueue* job_queue_;         // Guarded by |mutex_|
 };
 
 }  // namespace starboard
