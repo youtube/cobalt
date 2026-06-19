@@ -7,8 +7,9 @@
 #pragma allow_unsafe_libc_calls
 #endif
 
+#include "content/public/common/zygote/zygote_buildflags.h"
+#if BUILDFLAG(USE_ZYGOTE)
 #include "content/browser/zygote_host/zygote_host_impl_linux.h"
-
 #include <stdlib.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -323,3 +324,4 @@ void ZygoteHostImpl::ReinitializeLogging(uint32_t logging_dest,
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace content
+#endif  // BUILDFLAG(USE_ZYGOTE)
