@@ -63,11 +63,11 @@ group("gn_all") {
     deps += [ ":strip_cobalt_binary" ]
   }
   if (is_cobalt_hermetic_build) {
-    deps += [
-      ":cobalt_loader",
-      "//starboard/elf_loader:elf_loader_sandbox($starboard_toolchain)",
-      "//starboard/loader_app:loader_app($starboard_toolchain)",
-    ]
+    deps += [ ":cobalt_loader" ]
+
+    if (!cobalt_is_release_build) {
+      deps += [ "//starboard/nplb:nplb_loader" ]
+    }
   }
   if (is_starboard && build_updater_sandbox) {
     deps += [ "//chrome/updater/cobalt:updater_sandbox" ]
