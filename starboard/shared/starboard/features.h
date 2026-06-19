@@ -52,4 +52,10 @@
 #undef FEATURE_PARAM_LIST_END
 #undef STARBOARD_FEATURE_PARAM_TIME_TYPE
 
+namespace starboard::features {
+
+void InitializeStarboardFeatureListWithDefaults();
+
+}  // namespace starboard::features
+
 #endif  // STARBOARD_SHARED_STARBOARD_FEATURES_H_
