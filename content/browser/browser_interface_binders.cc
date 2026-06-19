@@ -285,9 +285,8 @@ shape_detection::mojom::ShapeDetectionService* GetShapeDetectionService() {
             .Pass());
 #else
     auto* gpu = GpuProcessHost::Get();
-    if (gpu) {
+    if (gpu)
       gpu->RunService(remote->BindNewPipeAndPassReceiver());
-    }
 #endif
     remote->reset_on_disconnect();
   }
@@ -392,9 +391,8 @@ void BindTextSuggestionHostForFrame(
     mojo::PendingReceiver<blink::mojom::TextSuggestionHost> receiver) {
   auto* view =
       RenderWidgetHostViewAndroid::FromRenderWidgetHostView(host->GetView());
-  if (!view || !view->text_suggestion_host()) {
+  if (!view || !view->text_suggestion_host())
     return;
-  }
 
   view->text_suggestion_host()->BindTextSuggestionHost(std::move(receiver));
 }
@@ -484,9 +482,8 @@ BindWorkerReceiver(
          mojo::PendingReceiver<Interface> receiver) {
         auto* process_host =
             static_cast<RenderProcessHostImpl*>(host->GetProcessHost());
-        if (process_host) {
+        if (process_host)
           (process_host->*method)(std::move(receiver));
-        }
       },
       base::Unretained(host), method);
 }
@@ -505,9 +502,8 @@ BindWorkerReceiverForOrigin(
          const url::Origin& origin, mojo::PendingReceiver<Interface> receiver) {
         auto* process_host =
             static_cast<RenderProcessHostImpl*>(host->GetProcessHost());
-        if (process_host) {
+        if (process_host)
           (process_host->*method)(origin, std::move(receiver));
-        }
       },
       base::Unretained(host), method);
 }
@@ -525,9 +521,8 @@ BindWorkerReceiverForStorageKey(
          mojo::PendingReceiver<Interface> receiver) {
         auto* process_host =
             static_cast<RenderProcessHostImpl*>(host->GetProcessHost());
-        if (process_host) {
+        if (process_host)
           (process_host->*method)(host->GetStorageKey(), std::move(receiver));
-        }
       },
       base::Unretained(host), method);
 }
@@ -548,10 +543,9 @@ BindWorkerReceiverForStorageKeyAndBucketContext(
          mojo::PendingReceiver<Interface> receiver) {
         auto* process_host =
             static_cast<RenderProcessHostImpl*>(host->GetProcessHost());
-        if (process_host) {
+        if (process_host)
           (process_host->*method)(host->GetStorageKey(), *host,
                                   std::move(receiver));
-        }
       },
       base::Unretained(host), method);
 }
@@ -570,9 +564,8 @@ BindServiceWorkerReceiver(
         DCHECK_CURRENTLY_ON(BrowserThread::UI);
         auto* process_host = static_cast<RenderProcessHostImpl*>(
             RenderProcessHost::FromID(host->worker_process_id()));
-        if (!process_host) {
+        if (!process_host)
           return;
-        }
         (process_host->*method)(std::move(receiver));
       },
       base::Unretained(host), method);
@@ -596,9 +589,8 @@ BindServiceWorkerReceiverForOrigin(
         auto origin = info.storage_key.origin();
         auto* process_host = static_cast<RenderProcessHostImpl*>(
             RenderProcessHost::FromID(host->worker_process_id()));
-        if (!process_host) {
+        if (!process_host)
           return;
-        }
         (process_host->*method)(origin, std::move(receiver));
       },
       base::Unretained(host), method);
@@ -621,9 +613,8 @@ BindServiceWorkerReceiverForStorageKey(
         DCHECK_CURRENTLY_ON(BrowserThread::UI);
         auto* process_host = static_cast<RenderProcessHostImpl*>(
             RenderProcessHost::FromID(host->worker_process_id()));
-        if (!process_host) {
+        if (!process_host)
           return;
-        }
         (process_host->*method)(info.storage_key, std::move(receiver));
       },
       base::Unretained(host), method);
@@ -676,11 +667,10 @@ void BindBatteryMonitor(
                                 BIBI_BIND_BATTERY_MONITOR_FOR_FENCED_FRAME);
     return;
   }
-  if (binder) {
+  if (binder)
     binder.Run(std::move(receiver));
-  } else {
+  else
     GetDeviceService().BindBatteryMonitor(std::move(receiver));
-  }
 }
 
 #if BUILDFLAG(ENABLE_COMPUTE_PRESSURE)
