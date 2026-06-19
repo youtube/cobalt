@@ -11,6 +11,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/threading/hang_watcher.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/memory/cobalt_memory_context.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "build/build_config.h"
 #include "content/browser/browser_child_process_host_impl.h"
@@ -90,6 +91,11 @@ void BrowserProcessIOThread::CleanUp() {
 }
 
 void BrowserProcessIOThread::IOThreadRun(base::RunLoop* run_loop) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kPlatformIPC);
+#endif
+
   // Register the IO thread for hang watching before it starts running and set
   // up a closure to automatically unregister it when Run() returns.
   base::ScopedClosureRunner unregister_thread_closure;
