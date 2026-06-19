@@ -154,10 +154,12 @@ bool Partitions::InitializeOnce() {
   static base::NoDestructor<partition_alloc::PartitionAllocator>
       buffer_allocator(options);
   buffer_root_ = buffer_allocator->root();
+#if !BUILDFLAG(IS_COBALT)
   if (base::FeatureList::IsEnabled(
           kBlinkUseLargeEmptySlotSpanRingForBufferRoot)) {
     buffer_root_->EnableLargeEmptySlotSpanRing();
   }
+#endif
 
   if (base::FeatureList::IsEnabled(
           base::features::kPartitionAllocDisableBRPInBufferPartition)) {
@@ -193,7 +195,7 @@ void Partitions::InitializeArrayBufferPartition() {
   // Merge array_buffer_root_ with buffer_root_
   array_buffer_root_ = buffer_root_;
   return;
-#endif
+#else
   static base::NoDestructor<partition_alloc::PartitionAllocator>
       array_buffer_allocator([]() {
         partition_alloc::PartitionOptions opts;
@@ -211,8 +213,8 @@ void Partitions::InitializeArrayBufferPartition() {
             .enabled = partition_alloc::PartitionOptions::kDisabled};
         return opts;
       }());
-
-  array_buffer_root_ = array_buffer_allocator->root();
+array_buffer_root_ = array_buffer_allocator->root();
+#endif
 }
 
 // static
