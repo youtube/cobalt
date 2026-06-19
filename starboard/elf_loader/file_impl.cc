@@ -51,7 +51,7 @@ bool FileImpl::Open(const char* name) {
 }
 
 bool FileImpl::ReadFromOffset(int64_t offset, char* buffer, int size) {
-  if (!file_) {
+  if (file_ < 0) {
     return false;
   }
   int64_t ret = lseek(file_, offset, SEEK_SET);
@@ -71,7 +71,7 @@ bool FileImpl::ReadFromOffset(int64_t offset, char* buffer, int size) {
 }
 
 void FileImpl::Close() {
-  if (file_) {
+  if (file_ >= 0) {
     close(file_);
   }
 }
