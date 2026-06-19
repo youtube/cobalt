@@ -32,6 +32,7 @@
 #include "base/task/task_runner.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/threading/thread.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "base/version.h"
 #include "cobalt/updater/util.h"
@@ -208,21 +209,18 @@ UpdaterModule::~UpdaterModule() {
 
 void UpdaterModule::Suspend() {
   if (is_updater_running_.exchange(false)) {
+    base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_sync;
     base::WaitableEvent event(base::WaitableEvent::ResetPolicy::MANUAL,
                               base::WaitableEvent::InitialState::NOT_SIGNALED);
-    {
-      base::ScopedBlockingCall scoped_blocking_call(
-          FROM_HERE, base::BlockingType::MAY_BLOCK);
-      if (updater_thread_->task_runner()->PostTask(
-              FROM_HERE,
-              base::BindOnce(
-                  [](UpdaterModule* module, base::WaitableEvent* event) {
-                    module->Finalize();
-                    event->Signal();
-                  },
-                  base::Unretained(this), base::Unretained(&event)))) {
-        event.Wait();
-      }
+    if (updater_thread_->task_runner()->PostTask(
+            FROM_HERE,
+            base::BindOnce(
+                [](UpdaterModule* module, base::WaitableEvent* event) {
+                  module->Finalize();
+                  event->Signal();
+                },
+                base::Unretained(this), base::Unretained(&event)))) {
+      event.Wait();
     }
   }
 }

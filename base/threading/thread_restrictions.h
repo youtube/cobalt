@@ -216,6 +216,9 @@ class CrashUtil;
 #if BUILDFLAG(IS_COBALT)
 namespace cobalt {
 class AppEventRunnerImpl;
+namespace updater {
+class UpdaterModule;
+}
 }
 #endif  // BUILDFLAG(IS_COBALT)
 namespace chromeos {
@@ -869,6 +872,7 @@ class BASE_EXPORT
   // base::WaitableEvent under the hood, we must explicitly whitelist the modular
   // platform shell runner here to authorize main-thread sync waiting.
   friend class cobalt::AppEventRunnerImpl;
+  friend class cobalt::updater::UpdaterModule;
 #endif  // BUILDFLAG(IS_COBALT)
   friend class content::DesktopCaptureDevice;
   friend class content::EmergencyTraceFinalisationCoordinator;
