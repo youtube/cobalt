@@ -228,6 +228,7 @@ static_library("starboard_platform") {
 
     "runtime_resource_overlay.cc",
     "runtime_resource_overlay.h",
+    "safe_jni.h",
     "sanitizer_options.cc",
 
     # TODO: (cobalt b/392178584) clean up speech synthesis code.
@@ -322,7 +323,7 @@ static_library("starboard_platform") {
     ]
   }
 
-  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  if (is_starboard && current_toolchain == starboard_toolchain) {
     sources -= [
       "crash_handler.cc",
       "crash_handler.h",
@@ -365,7 +366,7 @@ static_library("starboard_base_symbolize") {
     "//starboard:starboard_headers_only",
     "//starboard/common:common_headers_only",
   ]
-  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  if (is_starboard && current_toolchain == starboard_toolchain) {
     public_deps = [ "//starboard/elf_loader:evergreen_info" ]
   }
 

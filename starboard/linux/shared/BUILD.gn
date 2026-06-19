@@ -30,7 +30,7 @@ group("starboard_platform") {
     "//third_party/opus",
   ]
 
-  if (sb_is_evergreen_compatible) {
+  if (is_starboard) {
     public_deps += [
       "//starboard/elf_loader:constants",
       "//starboard/elf_loader:evergreen_config",
@@ -52,7 +52,7 @@ static_library("starboard_base_symbolize") {
     "//starboard:starboard_headers_only",
     "//starboard/common:common_headers_only",
   ]
-  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  if (is_starboard && current_toolchain == starboard_toolchain) {
     public_deps = [ "//starboard/elf_loader:evergreen_info" ]
   }
 
@@ -220,7 +220,7 @@ static_library("starboard_platform_sources") {
 
   sources -= [ "//starboard/shared/starboard/player/player_set_bounds.cc" ]
 
-  if (sb_is_evergreen_compatible) {
+  if (is_starboard) {
     sources += [
       "//starboard/shared/starboard/loader_app_metrics.cc",
       "//starboard/shared/starboard/loader_app_metrics.h",
