@@ -8,6 +8,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "base/memory/cobalt_memory_context.h"
 #include "base/dcheck_is_on.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -367,6 +368,11 @@ void Thread::ThreadMain() {
   // See https://crbug.com/333597498.
   PlatformThread::SetName(name_.c_str());
   ABSL_ANNOTATE_THREAD_NAME(name_.c_str());  // Tell the name to race detector.
+
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kBrowserMain);
+#endif
 
   // Make GetThreadId() available to avoid deadlocks. It could be called any
   // place in the following thread initialization code.
