@@ -43,8 +43,8 @@ FileImpl::~FileImpl() {
 bool FileImpl::Open(const char* name) {
   SB_DLOG(INFO) << "Loading: " << name;
   name_ = name;
-  file_ = open(name, O_RDONLY, S_IRUSR | S_IWUSR);
-  if (!file_) {
+  file_ = open(name, O_RDONLY, 0);
+  if (file_ < 0) {
     return false;
   }
   return true;
