@@ -23,6 +23,10 @@
 namespace cobalt {
 namespace browser {
 
+// A bridge that listens to Chromium's base::MemoryPressureListener events
+// and propagates them to the Starboard MemoryPressure extension if available.
+// This allows Cobalt's browser-level memory pressure signals to be routed
+// to Starboard-level allocators for memory reclaiming (e.g. decommitting pages).
 class MemoryPressureBridge {
  public:
   MemoryPressureBridge();

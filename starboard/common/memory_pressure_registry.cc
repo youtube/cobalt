@@ -27,22 +27,57 @@ MemoryPressureRegistry* MemoryPressureRegistry::GetInstance() {
 void MemoryPressureRegistry::RegisterObserver(
     MemoryPressureObserver* observer) {
   std::lock_guard<std::mutex> lock(mutex_);
-  observers_.push_back(observer);
+  if (std::find(observers_.begin(), observers_.end(), observer) == observers_.end()) {
+    observers_.push_back(observer);
+  }
 }
 
 void MemoryPressureRegistry::UnregisterObserver(
     MemoryPressureObserver* observer) {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::unique_lock<std::mutex> lock(mutex_);
   auto it = std::find(observers_.begin(), observers_.end(), observer);
   if (it != observers_.end()) {
     observers_.erase(it);
   }
+
+  // Block until any active notification callback running on another thread
+  // for this observer completes. This guarantees that the observer object
+  // is no longer being accessed by the registry and can be safely destroyed.
+  cv_.wait(lock, [this, observer] {
+    return std::find(active_notifications_.begin(),
+                     active_notifications_.end(),
+                     observer) == active_notifications_.end();
+  });
 }
 
 void MemoryPressureRegistry::NotifyMemoryPressure(SbMemoryPressureLevel level) {
-  std::lock_guard<std::mutex> lock(mutex_);
-  for (auto* observer : observers_) {
+  std::vector<MemoryPressureObserver*> observers_copy;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    observers_copy = observers_;
+  }
+
+  for (MemoryPressureObserver* observer : observers_copy) {
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      // Check if the observer was unregistered while we were looping.
+      if (std::find(observers_.begin(), observers_.end(), observer) == observers_.end()) {
+        continue;
+      }
+      active_notifications_.push_back(observer);
+    }
+
+    // Invoke the callback outside the registry lock to prevent lock inversion/deadlocks.
     observer->OnMemoryPressure(level);
+
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      auto it = std::find(active_notifications_.begin(), active_notifications_.end(), observer);
+      if (it != active_notifications_.end()) {
+        active_notifications_.erase(it);
+      }
+    }
+    cv_.notify_all();
   }
 }
 

@@ -15,6 +15,7 @@
 #ifndef STARBOARD_COMMON_MEMORY_PRESSURE_REGISTRY_H_
 #define STARBOARD_COMMON_MEMORY_PRESSURE_REGISTRY_H_
 
+#include <condition_variable>
 #include <mutex>
 #include <vector>
 
@@ -22,17 +23,29 @@
 
 namespace starboard {
 
+// Interface for classes that wish to observe memory pressure signals.
+// Implementations must be thread-safe.
 class MemoryPressureObserver {
  public:
   virtual ~MemoryPressureObserver() = default;
+
+  // Called when memory pressure level changes.
+  // Implementations must be thread-safe.
   virtual void OnMemoryPressure(SbMemoryPressureLevel level) = 0;
 };
 
+// Thread-safe registry that routes memory pressure events to observers.
+// Ensures that no locks are held while calling external observer callbacks
+// to prevent lock inversion deadlocks.
 class MemoryPressureRegistry {
  public:
   static MemoryPressureRegistry* GetInstance();
 
+  // Thread-safe registration. Prevent duplicate registration.
   void RegisterObserver(MemoryPressureObserver* observer);
+  
+  // Thread-safe unregistration. Blocks if the observer is currently being notified
+  // to ensure it can be safely destroyed after this call returns.
   void UnregisterObserver(MemoryPressureObserver* observer);
 
   void NotifyMemoryPressure(SbMemoryPressureLevel level);
@@ -45,7 +58,9 @@ class MemoryPressureRegistry {
   MemoryPressureRegistry& operator=(const MemoryPressureRegistry&) = delete;
 
   std::mutex mutex_;
+  std::condition_variable cv_;
   std::vector<MemoryPressureObserver*> observers_;
+  std::vector<MemoryPressureObserver*> active_notifications_;
 };
 
 }  // namespace starboard
