@@ -185,14 +185,14 @@ OSHELPERS = python $(NACL_SDK_ROOT)/tools/oshelpers.py
 GETOS := python $(NACL_SDK_ROOT)/tools/getos.py
 WHICH := $(OSHELPERS) which
 
-# Try the location of gsutil on the bots first...
-BOT_GSUTIL = /b/build/scripts/slave/gsutil
-ifneq (,$(wildcard $(BOT_GSUTIL)))
-  GSUTIL = $(BOT_GSUTIL)
+# Try the location of gcloud on the bots first...
+BOT_GCLOUD = /b/build/scripts/slave/gcloud
+ifneq (,$(wildcard $(BOT_GCLOUD)))
+  GCLOUD = $(BOT_GCLOUD)
 else
-  GSUTIL = $(shell $(WHICH) gsutil)
-  ifeq (,$(wildcard $(GSUTIL)))
-    $(error Unable to find gstuil)
+  GCLOUD = $(shell $(WHICH) gcloud)
+  ifeq (,$(wildcard $(GCLOUD)))
+    $(error Unable to find gcloud)
   endif
 endif
 
@@ -235,7 +235,7 @@ define UPLOAD_RULE
 .PHONY: upload-$(1)
 upload-$(1): revision-check
 	@echo "Uploading $$(notdir $$($(1)_UPLOADS)) to $$($(1)_CONTINUOUS_DIR)"
-	@$(GSUTIL) cp -q -a public-read $$($(1)_UPLOADS) $$($(1)_CONTINUOUS_DIR)
+	@$(GCLOUD) storage cp --predefined-acl=publicRead $$($(1)_UPLOADS) $$($(1)_CONTINUOUS_DIR)
 
 upload: upload-$(1)
 endef
@@ -250,7 +250,7 @@ define PUBLISH_RULE
 .PHONY: publish-$(1)
 publish-$(1): revision-check
 	@echo "Testing that files to publish '$(1)' exist on CDS..."
-	@$(GSUTIL) ls $$($(1)_CONTINUOUS_UPLOADS)
+	@$(GCLOUD) storage ls $$($(1)_CONTINUOUS_UPLOADS)
 	@echo OK.
 	@echo "About to publish revision $(REVISION) of '$(1)'..."
 	@read -p "Continue? " -n 1 -r && \
@@ -259,7 +259,7 @@ publish-$(1): revision-check
 	    exit 1; \
 	  fi;
 	@echo "Publishing..."
-	@$(GSUTIL) cp -q -p $$($(1)_CONTINUOUS_UPLOADS) $$($(1)_PUBLISH_DIR)
+	@$(GCLOUD) storage cp --preserve-acl $$($(1)_CONTINUOUS_UPLOADS) $$($(1)_PUBLISH_DIR)
 	@echo "Done."
 
 publish: publish-$(1)
