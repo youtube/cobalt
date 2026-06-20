@@ -115,6 +115,7 @@ class PulseAudioSink : public SbAudioSinkImpl {
   size_t last_request_size_ = 0;
   int64_t total_frames_played_ = 0;
   int64_t total_frames_written_ = 0;
+  int64_t last_sync_time_us_ = 0;
   std::atomic<double> volume_{1.0};
   std::atomic_bool volume_updated_{true};
   std::atomic_bool is_paused_{false};
@@ -187,7 +188,8 @@ PulseAudioSink::PulseAudioSink(
       consume_frames_func_(consume_frames_func),
       context_(context),
       bytes_per_frame_(static_cast<size_t>(channels) *
-                       GetBytesPerSample(sample_type)) {
+                       GetBytesPerSample(sample_type)),
+      last_sync_time_us_(0) {
   SB_DCHECK(update_source_status_func_);
   SB_DCHECK(consume_frames_func_);
   SB_DCHECK(frame_buffer_);
@@ -264,24 +266,42 @@ bool PulseAudioSink::WriteFrameIfNecessary(pa_context* context) {
     pa_operation_unref(op);
   }
   bool pulse_paused = pa_stream_is_corked(stream_) == 1;
-  // Calculate consumed frames.
+  // Calculate consumed frames using system clock to override hardware drift.
   if (!pulse_paused) {
-    pa_usec_t time_played;
-    // If cannot get timing information, skip.
-    if (pa_stream_get_time(stream_, &time_played) == 0) {
-      int64_t new_total_frames_played =
-          time_played * sampling_frequency_hz_ / 1000000;
-      // |time_played| is an estimation. Sometimes it would be larger than
-      // |total_frames_written_|.
-      new_total_frames_played =
-          std::min(new_total_frames_played, total_frames_written_);
-      SB_DCHECK_LE(total_frames_played_, new_total_frames_played);
-      int64_t consume = new_total_frames_played - total_frames_played_;
+    int64_t now_us = CurrentMonotonicTime();
+    if (last_sync_time_us_ == 0) {
+      last_sync_time_us_ = now_us;
+    }
+
+    int64_t delta_us = now_us - last_sync_time_us_;
+    int64_t consume = delta_us * sampling_frequency_hz_ / 1000000;
+
+    if (consume > 0) {
+      // Ensure we don't report more consumption than we have actually written
+      // to Pulse.
+      consume = std::min(consume, total_frames_written_ - total_frames_played_);
       if (consume > 0) {
-        consume_frames_func_(consume, CurrentMonotonicTime(), context_);
-        total_frames_played_ = new_total_frames_played;
+        static int64_t last_log_time_us = 0;
+        static int64_t total_consumed_since_log = 0;
+        total_consumed_since_log += consume;
+        if (now_us - last_log_time_us >= 1000000) {
+          double rate = total_consumed_since_log * 1000000.0 /
+                        (now_us - last_log_time_us);
+          SB_LOG(INFO) << "KJ: Pulse Sink Rate (FIXED): " << rate
+                       << " Hz, total=" << total_frames_played_;
+          last_log_time_us = now_us;
+          total_consumed_since_log = 0;
+        }
+
+        consume_frames_func_(consume, now_us, context_);
+        total_frames_played_ += consume;
+        // Advance sync clock by the exact duration of frames consumed to
+        // prevent accumulation error.
+        last_sync_time_us_ += (consume * 1000000 / sampling_frequency_hz_);
       }
     }
+  } else {
+    last_sync_time_us_ = 0;
   }
   // Get updated source information.
   int frames_in_buffer, offset_in_frames;
