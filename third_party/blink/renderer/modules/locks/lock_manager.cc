@@ -237,6 +237,7 @@ class LockManager::LockRequestImpl final
 
 const char LockManager::kSupplementName[] = "LockManager";
 
+// static
 LockManager* LockManager::locks(NavigatorBase& navigator,
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
                                 ExceptionState& exception_state) {
