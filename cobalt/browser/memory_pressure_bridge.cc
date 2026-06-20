@@ -14,14 +14,19 @@
 
 #include "cobalt/browser/memory_pressure_bridge.h"
 
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
+#include "cobalt/common/features/features.h"
 #include "starboard/system.h"
 
 namespace cobalt {
 namespace browser {
 
 MemoryPressureBridge::MemoryPressureBridge() {
+  if (!base::FeatureList::IsEnabled(cobalt::features::kEnableAndroidTrimMemory)) {
+    return;
+  }
   extension_ = static_cast<const StarboardExtensionMemoryPressureApi*>(
       SbSystemGetExtension(kStarboardExtensionMemoryPressureName));
 
