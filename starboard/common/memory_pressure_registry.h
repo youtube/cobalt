@@ -31,6 +31,8 @@ class MemoryPressureObserver {
 
   // Called when memory pressure level changes.
   // Implementations must be thread-safe.
+  // WARNING: Observers MUST NOT register or unregister themselves from within
+  // this callback, as it will lead to a deadlock.
   virtual void OnMemoryPressure(SbMemoryPressureLevel level) = 0;
 };
 

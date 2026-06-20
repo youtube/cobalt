@@ -16,6 +16,8 @@
 
 #include <algorithm>
 
+#include "starboard/common/log.h"
+
 namespace starboard {
 
 // static
@@ -27,6 +29,7 @@ MemoryPressureRegistry* MemoryPressureRegistry::GetInstance() {
 void MemoryPressureRegistry::RegisterObserver(
     MemoryPressureObserver* observer) {
   std::lock_guard<std::mutex> lock(mutex_);
+  SB_DCHECK(std::find(observers_.begin(), observers_.end(), observer) == observers_.end());
   if (std::find(observers_.begin(), observers_.end(), observer) == observers_.end()) {
     observers_.push_back(observer);
   }

@@ -14,7 +14,7 @@
 
 #include "starboard/common/external_metadata_reuse_allocator_base.h"
 
-#include "starboard/configuration_constants.h"
+#include "starboard/system.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -539,7 +539,7 @@ void ExternalMetadataReuseAllocatorBase::RemoveFreeBlock(
 
 void ExternalMetadataReuseAllocatorBase::DecommitFreeBlocks(
     size_t min_size_to_decommit) {
-  size_t page_size = kSbMemoryPageSize;
+  size_t page_size = SbSystemGetPageSize();
   for (const auto& block : free_blocks_) {
     if (block.size() >= min_size_to_decommit) {
       uintptr_t start = reinterpret_cast<uintptr_t>(block.address());
