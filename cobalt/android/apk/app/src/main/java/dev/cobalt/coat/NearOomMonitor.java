@@ -39,7 +39,15 @@ class NearOomMonitor implements ComponentCallbacks2 {
     }
 
     @Override
-    public void onTrimMemory(int level) {}
+    public void onTrimMemory(int level) {
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND) {
+            System.gc();
+        }
+        if (level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL
+                || level == ComponentCallbacks2.TRIM_MEMORY_COMPLETE) {
+            onLowMemory();
+        }
+    }
 
     @Override
     public void onLowMemory() {
