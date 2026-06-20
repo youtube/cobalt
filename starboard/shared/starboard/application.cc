@@ -117,10 +117,6 @@ int Application::Run(CommandLine command_line) {
   return RunLoop();
 }
 
-const CommandLine* Application::GetCommandLine() {
-  return command_line_.get();
-}
-
 void Application::Blur(void* context, EventHandledCallback callback) {
   Inject(new Event(kSbEventTypeBlur, context, callback));
 }

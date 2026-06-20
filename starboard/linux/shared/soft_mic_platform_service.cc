@@ -22,7 +22,8 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/linux/shared/platform_service.h"
-#include "starboard/shared/starboard/application.h"
+#include "starboard/shared/starboard/feature_list.h"
+#include "starboard/shared/starboard/features.h"
 
 namespace starboard {
 
@@ -99,30 +100,14 @@ void* Send(PlatformServiceImpl* service,
     auto mic_gesture_tap = false;
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-    // Check for explicit true or false switch value for kHasHardMicSupport,
-    // kHasSoftMicSupport, kMicGestureHold, and kMicGestureTap optional target
-    // params. Use default values if none are set.
-    auto command_line = Application::Get()->GetCommandLine();
+    has_hard_mic =
+        features::FeatureList::IsEnabled(features::kHasHardMicSupport);
+    has_soft_mic =
+        features::FeatureList::IsEnabled(features::kHasSoftMicSupport);
 
-    auto hard_mic_switch_value =
-        command_line->GetSwitchValue(kHasHardMicSupport);
-    if (hard_mic_switch_value == kJSONTrue) {
-      has_hard_mic = true;
-    } else if (hard_mic_switch_value == kJSONFalse) {
-      has_hard_mic = false;
-    }
-
-    auto soft_mic_switch_value =
-        command_line->GetSwitchValue(kHasSoftMicSupport);
-    if (soft_mic_switch_value == kJSONTrue) {
-      has_soft_mic = true;
-    } else if (soft_mic_switch_value == kJSONFalse) {
-      has_soft_mic = false;
-    }
-
-    auto mic_gesture_switch_value = command_line->GetSwitchValue(kMicGesture);
-    mic_gesture_hold = mic_gesture_switch_value == "hold";
-    mic_gesture_tap = mic_gesture_switch_value == "tap";
+    std::string mic_gesture_str = features::kMicGesture.Get();
+    mic_gesture_hold = mic_gesture_str == "hold";
+    mic_gesture_tap = mic_gesture_str == "tap";
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
     auto mic_gesture = "null";

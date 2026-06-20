@@ -35,6 +35,8 @@
 #include "starboard/player.h"
 #include "starboard/shared/linux/system_network_status.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
+#include "starboard/shared/starboard/feature_list.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 #include "starboard/shared/x11/window_internal.h"
 
@@ -711,7 +713,8 @@ SbWindow ApplicationX11::CreateWindow(const SbWindowOptions* options) {
     // evdev input will be sent to the first created window only.
     dev_input_.reset(DevInput::Create(window, ConnectionNumber(display_)));
   }
-  touchscreen_pointer_ = GetCommandLine()->HasSwitch(kTouchscreenPointerSwitch);
+  touchscreen_pointer_ =
+      features::FeatureList::IsEnabled(features::kTouchscreenPointer);
   return window;
 }
 

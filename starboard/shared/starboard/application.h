@@ -168,16 +168,6 @@ class SB_EXPORT_ANDROID Application {
   }
   int Run(int argc, char** argv) { return Run(CommandLine(argc, argv)); }
 
-// Prevents GetCommandLine from being redefined.  For example, Windows
-// defines it to GetCommandLineW, which causes link errors.
-#if defined(GetCommandLine)
-#undef GetCommandLine
-#endif  // defined(GetCommandLine)
-
-  // Retrieves the CommandLine for the application.
-  // NULL until Run() is called.
-  const CommandLine* GetCommandLine();
-
   // Signals that the application should transition from STARTED to BLURRED as
   // soon as possible. Does nothing if already BLURRED or CONCEALED. May be
   // called from an external thread.

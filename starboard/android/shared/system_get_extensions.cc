@@ -20,7 +20,6 @@
 #include "starboard/android/shared/android_media_session_client.h"
 #include "starboard/android/shared/configuration.h"
 #include "starboard/android/shared/crash_handler.h"
-#include "starboard/android/shared/features_extension.h"
 #include "starboard/android/shared/graphics.h"
 #include "starboard/android/shared/media_buffer_pool_extension.h"
 #include "starboard/android/shared/platform_info.h"
@@ -41,6 +40,7 @@
 #include "starboard/extension/player_set_video_surface_view.h"
 #include "starboard/extension/system_info.h"
 #include "starboard/shared/starboard/experimental_features.h"
+#include "starboard/shared/starboard/features_extension.h"
 
 const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionPlatformServiceName) == 0) {
