@@ -74,7 +74,7 @@ class DeviceBoundSessionAccessObserver;
 namespace storage {
 struct BucketClientInfo;
 class SharedStorageManager;
-}  // namespace storage
+}
 
 namespace content {
 
