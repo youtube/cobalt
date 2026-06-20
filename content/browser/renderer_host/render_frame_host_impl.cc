@@ -12054,24 +12054,24 @@ bool RenderFrameHostImpl::is_initial_empty_document() const {
 uint32_t RenderFrameHostImpl::FindSuddenTerminationHandlers(bool same_origin) {
   uint32_t navigation_termination = 0;
   // Search this frame and subframes for sudden termination disablers
-  ForEachRenderFrameHostImplWithAction(
-      [this, same_origin, &navigation_termination](RenderFrameHostImpl* rfh) {
-        if (same_origin &&
-            GetLastCommittedOrigin() != rfh->GetLastCommittedOrigin()) {
-          return FrameIterationAction::kSkipChildren;
-        }
-        if (rfh->GetSuddenTerminationDisablerState(
-                blink::mojom::SuddenTerminationDisablerType::kUnloadHandler)) {
-          navigation_termination =
-              navigation_termination |
-              NavigationSuddenTerminationDisablerType::kUnload;
-          // We can stop when we find the first unload handler. If we ever start
-          // reporting other types of sudden termination handler, we will need
-          // to continue.
-          return FrameIterationAction::kStop;
-        }
-        return FrameIterationAction::kContinue;
-      });
+  ForEachRenderFrameHostImplWithAction([this, same_origin,
+                                        &navigation_termination](
+                                           RenderFrameHostImpl* rfh) {
+    if (same_origin &&
+        GetLastCommittedOrigin() != rfh->GetLastCommittedOrigin()) {
+      return FrameIterationAction::kSkipChildren;
+    }
+    if (rfh->GetSuddenTerminationDisablerState(
+            blink::mojom::SuddenTerminationDisablerType::kUnloadHandler)) {
+      navigation_termination = navigation_termination |
+                               NavigationSuddenTerminationDisablerType::kUnload;
+      // We can stop when we find the first unload handler. If we ever start
+      // reporting other types of sudden termination handler, we will need to
+      // continue.
+      return FrameIterationAction::kStop;
+    }
+    return FrameIterationAction::kContinue;
+  });
   return navigation_termination;
 }
 
