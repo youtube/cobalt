@@ -41,17 +41,14 @@ PreloadRequest::ExclusionInfo::~ExclusionInfo() = default;
 bool PreloadRequest::ExclusionInfo::ShouldExclude(
     const KURL& base_url,
     const String& resource_url) const {
-  if (resources_.empty() && scopes_.empty()) {
+  if (resources_.empty() && scopes_.empty())
     return false;
-  }
   KURL url = KURL(base_url.IsEmpty() ? document_url_ : base_url, resource_url);
-  if (resources_.Contains(url)) {
+  if (resources_.Contains(url))
     return true;
-  }
   for (const auto& scope : scopes_) {
-    if (url.GetString().StartsWith(scope.GetString())) {
+    if (url.GetString().StartsWith(scope.GetString()))
       return true;
-    }
   }
   return false;
 }
@@ -87,9 +84,8 @@ std::unique_ptr<PreloadRequest> PreloadRequest::CreateIfNeeded(
     return nullptr;
   }
 
-  if (exclusion_info && exclusion_info->ShouldExclude(base_url, resource_url)) {
+  if (exclusion_info && exclusion_info->ShouldExclude(base_url, resource_url))
     return nullptr;
-  }
 
   return base::WrapUnique(new PreloadRequest(
       initiator_name, resource_url, base_url, resource_type, resource_width,
@@ -173,9 +169,8 @@ Resource* PreloadRequest::Start(Document* document) {
   params.SetContentSecurityPolicyNonce(nonce_);
   params.SetParserDisposition(kParserInserted);
 
-  if (request_type_ == kRequestTypeLinkRelPreload) {
+  if (request_type_ == kRequestTypeLinkRelPreload)
     params.SetLinkPreload(true);
-  }
 
   if (script_type_ == mojom::blink::ScriptType::kModule) {
     DCHECK_EQ(resource_type_, ResourceType::kScript);

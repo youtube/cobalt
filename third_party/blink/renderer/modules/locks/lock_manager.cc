@@ -23,10 +23,10 @@
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/workers/worker_global_scope.h"
-#include "third_party/blink/renderer/modules/locks/lock.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
-#include "third_party/blink/renderer/modules/shared_storage/shared_storage_worklet_global_scope.h"
+#include "third_party/blink/renderer/modules/locks/lock.h"
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#include "third_party/blink/renderer/modules/shared_storage/shared_storage_worklet_global_scope.h"
 #include "third_party/blink/renderer/platform/bindings/name_client.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
@@ -59,9 +59,8 @@ HeapVector<Member<LockInfo>> ToLockInfos(
     const Vector<mojom::blink::LockInfoPtr>& records) {
   HeapVector<Member<LockInfo>> out;
   out.ReserveInitialCapacity(records.size());
-  for (const auto& record : records) {
+  for (const auto& record : records)
     out.push_back(ToLockInfo(record));
-  }
   return out;
 }
 
@@ -150,9 +149,8 @@ class LockManager::LockRequestImpl final
     abort_handle_.Clear();
 
     ScriptState* script_state = resolver_->GetScriptState();
-    if (!script_state->ContextIsValid()) {
+    if (!script_state->ContextIsValid())
       return;
-    }
 
     // Lock was not granted e.g. because ifAvailable was specified but
     // the lock was not available.
@@ -240,9 +238,10 @@ class LockManager::LockRequestImpl final
 const char LockManager::kSupplementName[] = "LockManager";
 
 LockManager* LockManager::locks(NavigatorBase& navigator,
-                                ExceptionState& exception_state) {
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+                                ExceptionState& exception_state) {
   ExecutionContext* context = navigator.GetExecutionContext();
+
   auto* shared_storage_worklet_global_scope =
       DynamicTo<SharedStorageWorkletGlobalScope>(context);
 
@@ -252,8 +251,8 @@ LockManager* LockManager::locks(NavigatorBase& navigator,
         DOMExceptionCode::kNotAllowedError,
         "navigator.locks cannot be accessed during addModule().");
     return nullptr;
-  }
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+  }
 
   auto* supplement = Supplement<NavigatorBase>::From<LockManager>(navigator);
   if (!supplement) {
@@ -527,9 +526,8 @@ void LockManager::Trace(Visitor* visitor) const {
 }
 
 void LockManager::ContextDestroyed() {
-  for (auto request : pending_requests_) {
+  for (auto request : pending_requests_)
     request->Cancel();
-  }
   pending_requests_.clear();
   held_locks_.clear();
 }
