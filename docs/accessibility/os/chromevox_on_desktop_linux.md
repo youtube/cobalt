@@ -97,7 +97,7 @@ If you want speech, you just need to copy the speech synthesis data files to
 /usr/share like it would be on a ChromeOS device:
 
 ```
-gsutil ls gs://chromeos-localmirror/distfiles/espeak\*
+gcloud storage ls gs://chromeos-localmirror/distfiles/espeak\*
 ```
 
 Pick the latest version and
@@ -105,7 +105,7 @@ Pick the latest version and
 ```
 VERSION=1.51
 TMPDIR=$(mktemp -d)
-gsutil cp gs://chromeos-localmirror/distfiles/espeak-ng-$VERSION.tar.xz $TMPDIR
+gcloud storage cp gs://chromeos-localmirror/distfiles/espeak-ng-$VERSION.tar.xz $TMPDIR
 mkdir $TMPDIR/extract
 tar -C $TMPDIR/extract -xvf $TMPDIR/espeak-ng-$VERSION.tar.xz
 sudo mkdir -p /usr/share/chromeos-assets/speech_synthesis/espeak-ng/
