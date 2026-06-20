@@ -100,6 +100,24 @@ FEATURE_LIST_START
 //   STARBOARD_FEATURE(kCobaltVideoDebug, "CobaltVideoDebug", false)
 // #endif // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 
+// Common features starts
+// keep-sorted start newline_separated=yes
+STARBOARD_FEATURE(kDumpVideoData, "DumpVideoData", false)
+
+STARBOARD_FEATURE(kDumpVideoInputHash, "DumpVideoInputHash", false)
+
+STARBOARD_FEATURE(kLimitDrmSessionUpdates, "LimitDrmSessionUpdates", false)
+
+// By default, stub audio decoder is disabled.
+STARBOARD_FEATURE(kUseStubAudioDecoder, "UseStubAudioDecoder", false)
+
+STARBOARD_FEATURE(kUseStubAudioSink, "UseStubAudioSink", false)
+
+// By default, stub video decoder is disabled.
+STARBOARD_FEATURE(kUseStubVideoDecoder, "UseStubVideoDecoder", false)
+// keep-sorted end
+// Common features end
+
 #if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 // keep-sorted start newline_separated=yes
 // When enabled, Cobalt pools physical memory allocations for decoded audio
@@ -151,12 +169,6 @@ STARBOARD_FEATURE(kReleaseVideoFramesAfterAudioStarts,
                   "ReleaseVideoFramesAfterAudioStarts",
                   false)
 
-// By default, stub audio decoder is disabled.
-STARBOARD_FEATURE(kUseStubAudioDecoder, "UseStubAudioDecoder", false)
-
-// By default, stub video decoder is disabled.
-STARBOARD_FEATURE(kUseStubVideoDecoder, "UseStubVideoDecoder", false)
-
 // By default, Cobalt restarts MediaCodec after stops/flushes during
 // Reset()/Flush(). Set the following variable to true with parameters
 // kResetDelayUsec and kFlushDelayUsec to force it to wait during
@@ -171,6 +183,19 @@ STARBOARD_FEATURE(kVideoDecoderDelayUsecOverride,
 STARBOARD_FEATURE(kVideoFrameImplPool, "VideoFrameImplPool", false)
 // keep-sorted end
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+
+#if BUILDFLAG(IS_LINUX)
+// Linux feature starts
+// keep-sorted start newline_separated=yes
+STARBOARD_FEATURE(kHasHardMicSupport, "HasHardMicSupport", false)
+
+STARBOARD_FEATURE(kHasSoftMicSupport, "HasSoftMicSupport", true)
+
+STARBOARD_FEATURE(kTouchscreenPointer, "TouchscreenPointer", false)
+// keep-sorted end
+// Linux feature ends
+#endif  // BUILDFLAG(IS_LINUX)
+
 FEATURE_LIST_END
 
 // To add a parameter to Starboard, use the macro:
@@ -233,6 +258,12 @@ FEATURE_PARAM_LIST_START
 //                           "standard")
 // #endif // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 
+STARBOARD_FEATURE_PARAM(int,
+                        kMaxDrmSessionUpdates,
+                        kLimitDrmSessionUpdates,
+                        "MaximumDrmSessionUpdates",
+                        0)
+
 #if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 // By default, Cobalt restarts MediaCodec after stops/flushes during
 // Reset()/Flush(). Set the following variable to > 0 to force it to
@@ -248,4 +279,13 @@ STARBOARD_FEATURE_PARAM(STARBOARD_FEATURE_PARAM_TIME_TYPE,
                         "ResetDelayUsec",
                         base::Microseconds(0))
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+
+#if BUILDFLAG(IS_LINUX)
+STARBOARD_FEATURE_PARAM(std::string,
+                        kMicGesture,
+                        kHasSoftMicSupport,
+                        "MicGesture",
+                        "")
+#endif  // BUILDFLAG(IS_LINUX)
+
 FEATURE_PARAM_LIST_END
