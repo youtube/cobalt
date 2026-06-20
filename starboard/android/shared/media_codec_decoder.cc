@@ -18,6 +18,9 @@
 #include <sys/resource.h>
 #include <unistd.h>
 
+#include <chrono>
+#include <cstdlib>
+
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/memfd_media_buffer_pool.h"
 #include "starboard/audio_sink.h"
@@ -25,6 +28,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/common/thread.h"
+#include "starboard/shared/starboard/features.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
@@ -304,7 +308,27 @@ void MediaCodecDecoder::Initialize(const ErrorCB& error_cb) {
   }
 }
 
+constexpr int kMaxList = 1000;
+
 void MediaCodecDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
+  if (features::FeatureList::IsEnabled(features::kTestMemoryFragment)) {
+    // Variable size allocation (e.g., 10KB to 40KB)
+    size_t allocation_size = 10240 + (std::rand() % 30720);
+    fragmentation_list_.push_back(std::vector<char>(allocation_size));
+    fragmentation_list_.back().front() = 1;  // Force dirty page
+
+    if (fragmentation_list_.size() > kMaxList) {
+      // Random eviction to scatter holes
+      if (std::rand() % 10 == 0) {
+        auto it = fragmentation_list_.begin();
+        std::advance(it, std::rand() % fragmentation_list_.size());
+        fragmentation_list_.erase(it);
+      } else {
+        fragmentation_list_.pop_front();
+      }
+    }
+  }
+
   SB_CHECK(thread_checker_.CalledOnValidThread());
   if (stream_ended_.load()) {
     SB_LOG(ERROR) << "Decode() is called after WriteEndOfStream() is called.";

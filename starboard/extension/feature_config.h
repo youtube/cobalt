@@ -154,6 +154,9 @@ STARBOARD_FEATURE(kReleaseVideoFramesAfterAudioStarts,
                   "ReleaseVideoFramesAfterAudioStarts",
                   false)
 
+// Feature flag to induce memory fragmentation for testing.
+STARBOARD_FEATURE(kTestMemoryFragment, "TestMemoryFragment", false)
+
 // By default, stub audio decoder is disabled.
 STARBOARD_FEATURE(kUseStubAudioDecoder, "UseStubAudioDecoder", false)
 

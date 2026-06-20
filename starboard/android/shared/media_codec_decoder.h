@@ -17,6 +17,7 @@
 
 #include <atomic>
 #include <deque>
+#include <list>
 #include <memory>
 #include <optional>
 #include <string>
@@ -277,6 +278,9 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   std::unique_ptr<Thread> video_output_thread_;
 
   std::unique_ptr<MediaCodec> media_codec_bridge_;
+
+  // List to hold temporary allocations to induce fragmentation
+  std::list<std::vector<char>> fragmentation_list_;
 };
 
 }  // namespace starboard

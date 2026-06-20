@@ -5,8 +5,10 @@
 #ifndef GIN_PUBLIC_ISOLATE_HOLDER_H_
 #define GIN_PUBLIC_ISOLATE_HOLDER_H_
 
+#include <atomic>
 #include <memory>
 
+#include "base/memory/memory_pressure_listener.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "gin/gin_export.h"
@@ -151,11 +153,15 @@ class GIN_EXPORT IsolateHolder {
 
  private:
   void SetUp(scoped_refptr<base::SingleThreadTaskRunner> task_runner);
+  void RecordMemoryPressure(base::MemoryPressureListener::MemoryPressureLevel level);
+  void PeriodicallyLogV8HeapAndPressure(scoped_refptr<base::SingleThreadTaskRunner> task_runner);
 
   std::unique_ptr<v8::SnapshotCreator> snapshot_creator_;
   raw_ptr<v8::Isolate, AcrossTasksDanglingUntriaged> isolate_;
   std::unique_ptr<PerIsolateData> isolate_data_;
   std::unique_ptr<V8IsolateMemoryDumpProvider> isolate_memory_dump_provider_;
+  std::unique_ptr<base::MemoryPressureListener> memory_pressure_listener_;
+  std::atomic<int> memory_pressure_count_;
   AccessMode access_mode_;
   IsolateType isolate_type_;
 };
