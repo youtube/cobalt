@@ -19,6 +19,7 @@
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/command_line.h"
+#include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/features.h"
@@ -154,7 +155,9 @@ PlayerComponents::Factory::CreateComponents(
   use_stub_video_decoder =
       features::FeatureList::IsEnabled(features::kUseStubVideoDecoder);
   SB_LOG(INFO) << __func__ << ": use_stub_audio_decoder="
-               << (use_stub_audio_decoder ? "true" : "false");
+               << ToString(use_stub_audio_decoder)
+               << ", use_stub_video_decoder="
+               << ToString(use_stub_video_decoder);
 
   MediaComponents components;
   if (use_stub_audio_decoder && use_stub_video_decoder) {

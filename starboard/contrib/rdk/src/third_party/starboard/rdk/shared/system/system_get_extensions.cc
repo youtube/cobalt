@@ -39,6 +39,8 @@
 #include "starboard/extension/crash_handler.h"
 #include "starboard/extension/loader_app_metrics.h"
 #include "starboard/extension/graphics.h"
+#include "starboard/extension/features.h"
+#include "starboard/shared/starboard/features_extension.h"
 #include "third_party/starboard/rdk/shared/graphics.h"
 #include "starboard/extension/platform_service.h"
 #include "third_party/starboard/rdk/shared/accessibility_extension.h"
@@ -79,6 +81,9 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kStarboardExtensionAccessibilityName) == 0) {
     return starboard::GetAccessibilityApi();
+  }
+  if (strcmp(name, kStarboardExtensionFeaturesName) == 0) {
+    return starboard::GetFeaturesApi();
   }
   return NULL;
 }

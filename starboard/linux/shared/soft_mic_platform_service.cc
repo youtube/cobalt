@@ -105,7 +105,7 @@ void* Send(PlatformServiceImpl* service,
     has_soft_mic =
         features::FeatureList::IsEnabled(features::kHasSoftMicSupport);
 
-    std::string mic_gesture_str = features::kMicGesture.Get();
+    const std::string& mic_gesture_str = features::kMicGesture.Get();
     mic_gesture_hold = mic_gesture_str == "hold";
     mic_gesture_tap = mic_gesture_str == "tap";
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
