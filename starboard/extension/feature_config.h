@@ -102,6 +102,9 @@ FEATURE_LIST_START
 
 #if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 // keep-sorted start newline_separated=yes
+// Set the following variable to true to enable responding to Android onTrimMemory events.
+STARBOARD_FEATURE(kEnableAndroidTrimMemory, "EnableAndroidTrimMemory", false)
+
 // By default, app provisioning is disabled. Set the following variable to true
 // to enable app provisioning.
 STARBOARD_FEATURE(kEnableAppProvisioning, "EnableAppProvisioning", false)
