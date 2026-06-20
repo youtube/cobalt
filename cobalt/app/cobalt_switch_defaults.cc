@@ -70,6 +70,20 @@ CommandLinePreprocessor::CommandLinePreprocessor(int argc,
     }
   }
 
+  // Merge all enabled feature lists together.
+  if (cmd_line_.HasSwitch(::switches::kEnableFeatures)) {
+    std::string enabled_features(
+        cmd_line_.GetSwitchValueASCII(::switches::kEnableFeatures));
+    auto old_value =
+        cobalt_param_switch_defaults.find(::switches::kEnableFeatures);
+    if (old_value != cobalt_param_switch_defaults.end()) {
+      enabled_features += std::string(",");
+      enabled_features += std::string(old_value->second);
+      cmd_line_.AppendSwitchNative(::switches::kEnableFeatures,
+                                   enabled_features);
+    }
+  }
+
   // Override kContentShellHostWindowSize if the user sets kWindowSize.
   if (cmd_line_.HasSwitch(switches::kWindowSize)) {
     std::string window_size =
