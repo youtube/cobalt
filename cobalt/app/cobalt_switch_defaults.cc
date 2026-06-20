@@ -77,10 +77,10 @@ CommandLinePreprocessor::CommandLinePreprocessor(int argc,
     auto old_value =
         cobalt_param_switch_defaults.find(::switches::kEnableFeatures);
     if (old_value != cobalt_param_switch_defaults.end()) {
-      enabled_features += std::string(",");
-      enabled_features += std::string(old_value->second);
-      cmd_line_.AppendSwitchNative(::switches::kEnableFeatures,
-                                   enabled_features);
+      enabled_features += ",";
+      enabled_features += old_value->second;
+      cmd_line_.AppendSwitchASCII(::switches::kEnableFeatures,
+                                  enabled_features);
     }
   }
 
