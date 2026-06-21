@@ -19,6 +19,5 @@
     SecureContext
 ]
 interface H5vccRuntime : EventTarget {
-    readonly attribute DOMString? initialDeepLink;
     attribute EventHandler ondeeplink;
 };
