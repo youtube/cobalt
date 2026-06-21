@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "base/containers/small_map.h"
+#include "base/memory/memory_pressure_listener.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontStyleSet_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontUtil_cobalt.h"
@@ -148,6 +149,9 @@ class SkFontMgr_Cobalt : public SkFontMgr {
   bool CheckIfFamilyMatchesLocaleScript(sk_sp<SkFontStyleSet_Cobalt> new_family,
                                         const char* script);
 
+  void OnMemoryPressure(
+      base::MemoryPressureListener::MemoryPressureLevel level);
+
   // Returns the first encountered fallback family that matches the language tag
   // and supports the specified character.
   // NOTE: |style_sets_mutex_| should be locked prior to calling this function.
@@ -191,6 +195,8 @@ class SkFontMgr_Cobalt : public SkFontMgr {
 
   // Mutex shared by all families for accessing their modifiable data.
   mutable SkMutex family_mutex_;
+
+  std::unique_ptr<base::MemoryPressureListener> memory_pressure_listener_;
 };
 
 SK_API sk_sp<SkFontMgr> SkFontMgr_New_Cobalt();

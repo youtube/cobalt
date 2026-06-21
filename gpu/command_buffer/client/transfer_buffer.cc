@@ -20,6 +20,10 @@
 #include "base/trace_event/trace_event.h"
 #include "gpu/command_buffer/client/cmd_buffer_helper.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/command_line.h"
+#endif
+
 namespace gpu {
 
 TransferBuffer::TransferBuffer(CommandBufferHelper* helper)
@@ -210,19 +214,27 @@ void TransferBuffer::ShrinkOrExpandRingBufferIfNecessary(
   if (size_to_allocate > available_size) {
     // Try to expand the ring buffer.
     ReallocateRingBuffer(high_water_mark_);
-  } else if (bytes_since_last_shrink_ > high_water_mark_ * kShrinkThreshold) {
-    // The intent of the above check is to limit the frequency of buffer shrink
-    // attempts. Unfortunately if an application uploads a large amount of data
-    // once and from then on uploads only a small amount per frame, it will be a
-    // very long time before we attempt to shrink (or forever, if no data is
-    // uploaded).
-    // TODO(jdarpinian): Change this heuristic to be based on frame number
-    // instead, and consider shrinking at the end of each frame (for clients
-    // that have a notion of frames).
-    bytes_since_last_shrink_ = 0;
-    ReallocateRingBuffer(high_water_mark_ + high_water_mark_ / 4,
-                         true /* shrink */);
-    high_water_mark_ = size_to_allocate + GetPreviousRingBufferUsedBytes();
+  } else {
+    int shrink_threshold = kShrinkThreshold;
+#if BUILDFLAG(IS_COBALT)
+    if (base::CommandLine::ForCurrentProcess()->HasSwitch("enable-cobalt-gpu-transfer-buffer-fix")) {
+      shrink_threshold = 5;
+    }
+#endif
+    if (bytes_since_last_shrink_ > high_water_mark_ * shrink_threshold) {
+      // The intent of the above check is to limit the frequency of buffer shrink
+      // attempts. Unfortunately if an application uploads a large amount of data
+      // once and from then on uploads only a small amount per frame, it will be a
+      // very long time before we attempt to shrink (or forever, if no data is
+      // uploaded).
+      // TODO(jdarpinian): Change this heuristic to be based on frame number
+      // instead, and consider shrinking at the end of each frame (for clients
+      // that have a notion of frames).
+      bytes_since_last_shrink_ = 0;
+      ReallocateRingBuffer(high_water_mark_ + high_water_mark_ / 4,
+                           true /* shrink */);
+      high_water_mark_ = size_to_allocate + GetPreviousRingBufferUsedBytes();
+    }
   }
 }
 

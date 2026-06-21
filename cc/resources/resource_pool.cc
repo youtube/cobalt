@@ -32,6 +32,10 @@
 #include "gpu/command_buffer/common/capabilities.h"
 #include "gpu/command_buffer/common/mailbox.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/command_line.h"
+#endif
+
 using base::trace_event::MemoryAllocatorDump;
 using base::trace_event::MemoryDumpLevelOfDetail;
 
@@ -179,7 +183,11 @@ ResourcePool::ResourcePool(
     : resource_provider_(resource_provider),
       context_provider_(context_provider),
       task_runner_(std::move(task_runner)),
-      resource_expiration_delay_(expiration_delay),
+      resource_expiration_delay_(
+#if BUILDFLAG(IS_COBALT)
+          base::CommandLine::ForCurrentProcess()->HasSwitch("enable-cobalt-cc-resource-pool-fix") ? base::Seconds(1) :
+#endif
+          expiration_delay),
       disallow_non_exact_reuse_(disallow_non_exact_reuse),
       tracing_id_(g_next_tracing_id.GetNext()),
       flush_evicted_resources_deadline_(base::TimeTicks::Max()),

@@ -1,0 +1,222 @@
+[SignalHandlTh/2918176:0618/001048.078633(UTC):INFO:thread.cc(197)] Thread started: name=SignalHandlTh, priority=(default)
+[pulse_audio/2918177:0618/001048.086372(UTC):WARNING:thread.cc(192)] Failed to set thread priority (unsupported on this platform): requested_priority=5
+[pulse_audio/2918177:0618/001048.086426(UTC):INFO:thread.cc(197)] Thread started: name=pulse_audio, priority=(default)
+[cobalt/2918174:0618/001048.086501(UTC):INFO:audio_sink_type_dispatcher.cc(30)] Use PulseAudio
+[NetworkNotifier/2918178:0618/001048.086754(UTC):INFO:thread.cc(197)] Thread started: name=NetworkNotifier, priority=1
+[LinkReceiver/2918179:0618/001048.086821(UTC):INFO:thread.cc(197)] Thread started: name=LinkReceiver, priority=(default)
+[TimeZoneMonitor/2918180:0618/001048.087575(UTC):INFO:thread.cc(197)] Thread started: name=TimeZoneMonitor, priority=(default)
+[TimeZoneMonitor/2918180:0618/001048.087647(UTC):INFO:time_zone_monitor.cc(156)] Monitoring /etc/localtime for time zone changes.
+[0618/001048.087591:WARNING:cobalt/app/app_event_delegate.cc:440] Crash handler extension not implemented or version too low.
+[2918174:/2918174:0618/001048.088784:INFO:cobalt/media/audio/cobalt_audio_device_factory.cc:24] Register CobaltAudioDeviceFactory
+[2918174:/2918174:0618/001048.090506:ERROR:base/process/launch_starboard.cc:12] Not implemented reached in void base::CheckPThreadStackMinIsSafe()
+[2918174:/2918174:0618/001048.092944:INFO:cobalt/browser/cobalt_content_browser_client.cc:605] CobaltCommandLine: enable_features=[LimitImageDecodeCacheSize:mb/24, DefaultEnableANGLEValidation, SmallerInterestArea, ReclaimPrepaintTilesWhenIdle, ReclaimOldPrepaintTiles], disable_features=[Vulkan]
+[2918174:/2918174:0618/001048.092975:INFO:cobalt/browser/cobalt_content_browser_client.cc:610] CobaltCommandLine: 'autoplay-policy': 'no-user-gesture-required'
+'cc-image-cache-limit-items': '0'
+'content-shell-hide-toolbar': ''
+'content-shell-host-window-size': '1920x1080'
+'disable-accelerated-video-decode': ''
+'disable-accelerated-video-encode': ''
+'disable-features': 'Vulkan'
+'disable-gpu-shader-disk-cache': ''
+'disable-in-process-stack-traces': ''
+'disable-rgba-4444-textures': ''
+'enable-aggressive-domstorage-flushing': ''
+'enable-blink-features': 'PreciseMemoryInfo'
+'enable-features': 'LimitImageDecodeCacheSize:mb/24, DefaultEnableANGLEValidation, SmallerInterestArea, ReclaimPrepaintTilesWhenIdle, ReclaimOldPrepaintTiles'
+'enable-low-end-device-mode': ''
+'enable-zero-copy': ''
+'force-dark-mode': ''
+'force-video-overlays': ''
+'gpu-rasterization-msaa-sample-count': '4'
+'ignore-gpu-blocklist': ''
+'js-flags': '--no-decommit-pooled-pages --no-concurrent-marking'
+'memory-metrics-interval': '5'
+'no-sandbox': ''
+'no-zygote': ''
+'remote-allow-origins': '*'
+'remote-debugging-port': '9222'
+'single-process': ''
+'use-angle': 'gles-egl'
+'use-cmd-decoder': 'passthrough'
+'use-gl': 'angle'
+[2918174:/2918174:0618/001048.093031:WARNING:cobalt/common/features/starboard_features_initialization.cc:168] Optional kStarboardExtension 'kStarboardExtensionFeaturesName' is not present. No features or parameters have been pushed to Starboard.
+[2918174:/2918174:0618/001048.093113:INFO:base/threading/hang_watcher.cc:452] Freeze detection: HangWatcher initialized
+[2918174:CrBrowserMain/2918174:0618/001048.097228:INFO:cobalt/browser/metrics/cobalt_metrics_service_client.cc:178] Starting refresh timer for: 150 seconds
+[2918174:CrBrowserMain/2918174:0618/001048.097386:INFO:cobalt/browser/cobalt_browser_main_parts.cc:217] Cobalt Metrics Service initialized.
+[2918174:ThreadPoolForegroundWorker/2918184:0618/001048.098725:ERROR:base/files/file_path_watcher_stub.cc:34] Not implemented reached in virtual bool base::(anonymous namespace)::FilePathWatcherImpl::Watch(const FilePath &, Type, const FilePathWatcher::Callback &)
+[2918174:ThreadPoolForegroundWorker/2918184:0618/001048.098810:ERROR:net/dns/dns_config_service_linux.cc:352] DNS config (resolv.conf) watch failed to start.
+[2918174:ThreadPoolForegroundWorker/2918184:0618/001048.098833:ERROR:net/dns/dns_config_service_linux.cc:361] DNS nsswitch.conf watch failed to start.
+[2918174:ThreadPoolForegroundWorker/2918184:0618/001048.098878:ERROR:net/dns/dns_config_service_linux.cc:370] DNS hosts watch failed to start.
+[2918174:CrBrowserMain/2918174:0618/001048.131596:INFO:cobalt/browser/cobalt_browser_main_parts.cc:228] Metrics Service is now running/recording.
+[2918174:CrBrowserMain/2918174:0618/001048.131729:ERROR:cobalt/browser/cobalt_content_browser_client.cc:637] The plaform does not implement (the required version of) the CrashHandler Starboard extension; not setting the user agent annotation
+[2918174:CrBrowserMain/2918174:0618/001048.132231:ERROR:cobalt/shell/common/device_authentication.cc:91] Unable to get kSbSystemPropertyCertificationScope
+[2918174:CrBrowserMain/2918174:0618/001048.132260:WARNING:cobalt/shell/common/device_authentication.cc:136] Error retrieving certification scope required for device authentication.
+
+DevTools listening on ws://127.0.0.1:9222/devtools/browser/0828c4e1-e950-4e54-849a-6c52748435cf
+libEGL warning: DRI3 error: Could not get DRI3 device
+libEGL warning: Ensure your X server supports DRI3 to get accelerated rendering
+[2918174:CrBrowserMain/2918174:0618/001048.142715:INFO:cobalt/shell/browser/shell.cc:618] JS injection for filename: html_media_element_extension_on_java_bridge.js
+[2918174:CrBrowserMain/2918174:0618/001048.147405:ERROR:ui/ozone/platform/starboard/platform_window_starboard.cc:308] Not implemented reached in virtual void ui::PlatformWindowStarboard::SizeConstraintsChanged()
+[2918174:CrBrowserMain/2918174:0618/001048.147817:ERROR:ui/ozone/platform/starboard/platform_window_starboard.cc:304] Not implemented reached in virtual void ui::PlatformWindowStarboard::SetWindowIcons(const gfx::ImageSkia &, const gfx::ImageSkia &)
+[2918174:CrBrowserMain/2918174:0618/001048.150656:WARNING:components/input/render_input_router.cc:43] Input request on unbound interface
+[2918174:CrBrowserMain/2918174:0618/001048.153661:ERROR:third_party/skia/src/core/SkStream.cpp:959] Mapped font file /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf and stores it in cache (size = 0).
+
+[2918174:CrBrowserMain/2918174:0618/001048.163475:WARNING:components/input/render_input_router.cc:43] Input request on unbound interface
+[2918174:CrBrowserMain/2918174:0618/001048.169663:INFO:cobalt/browser/cobalt_browser_main_parts.cc:159] CobaltBrowserMainParts::StartStorageMigration started.
+[2918174:CrBrowserMain/2918174:0618/001048.169726:INFO:cobalt/shell/browser/migrate_storage_record/migration_manager.cc:476] Starting Pre-MainLoop Migration.
+[2918174:CrBrowserMain/2918174:0618/001048.169765:INFO:cobalt/shell/browser/migrate_storage_record/migration_manager.cc:494] Migration sentinel file found. Skipping migration.
+[2918174:CrBrowserMain/2918174:0618/001048.169783:INFO:cobalt/shell/browser/migrate_storage_record/migration_manager.cc:495] RunMigration fast path took 0 ms.
+[2918174:CrBrowserMain/2918174:0618/001048.170060:WARNING:cobalt/app/app_event_delegate.cc:440] Crash handler extension not implemented or version too low.
+[2918174:CrBrowserMain/2918174:0618/001048.172165:ERROR:ui/ozone/platform/starboard/platform_window_starboard.cc:284] Not implemented reached in virtual void ui::PlatformWindowStarboard::SetCursor(scoped_refptr<PlatformCursor>)
+[2918174:CrBrowserMain/2918174:0618/001048.174916:INFO:media/base/mime_util_internal.cc:456] IsSupportedMediaMimeType(text/html) -> false
+[2918174:CrBrowserMain/2918174:0618/001048.180613:INFO:cobalt/browser/cobalt_browser_main_parts.cc:186] Migration complete. Proceeding with deferred launchShell.
+[2918174:ThreadPoolForegroundWorker/2918185:0618/001048.185825:WARNING:net/disk_cache/simple/simple_synchronous_entry.cc:1444] Could not open platform files for entry.
+[2918174:Chrome_InProcRendererThread/2918265:0618/001048.191621:INFO:media/starboard/decoder_buffer_allocator.cc:69] Allocated decoder buffer pool on demand.
+[2918174:ThreadPoolForegroundWorker/2918185:0618/001048.216628:WARNING:net/cert/ev_root_ca_metadata.cc:119] Not implemented
+[2918174:Chrome_InProcRendererThread/2918265:0618/001048.218564:INFO:media/base/mime_util_internal.cc:456] IsSupportedMediaMimeType(text/html) -> false
+[2918174:Chrome_InProcRendererThread/2918265:0618/001048.220338:INFO:media/base/mime_util_internal.cc:456] IsSupportedMediaMimeType(text/html) -> false
+[2918174:CrBrowserMain/2918174:0618/001048.283960:INFO:cobalt/shell/browser/h5vcc_scheme_url_loader_factory.cc:232] Fallback splash: splash.png
+[2918174:CrBrowserMain/2918174:0618/001048.287564:INFO:cobalt/shell/browser/h5vcc_scheme_url_loader_factory.cc:381] Did not find splash video from cache default, reason: 5
+[2918174:Chrome_InProcRendererThread/2918265:0618/001048.299457:ERROR:third_party/skia/src/core/SkStream.cpp:959] Mapped font file /usr/share/fonts/truetype/msttcorefonts/Times_New_Roman.ttf and stores it in cache (size = 1).
+
+[2918174:Chrome_InProcRendererThread/2918265:0618/001048.300089:ERROR:third_party/skia/src/core/SkStream.cpp:953] Found font file /usr/share/fonts/truetype/msttcorefonts/Times_New_Roman.ttf in cache.
+
+[2918174:Chrome_InProcRendererThread/2918265:0618/001048.305836:INFO:cobalt/renderer/cobalt_content_renderer_client.cc:372] Renderer received SbWindow handle: 0x1898008a1480
+[2918174:CrBrowserMain/2918174:0618/001048.336205:INFO:media/base/mime_util_internal.cc:456] IsSupportedMediaMimeType(text/html) -> false
+[2918174:Chrome_InProcRendererThread/2918265:0618/001048.369144:INFO:media/base/mime_util_internal.cc:456] IsSupportedMediaMimeType(text/html) -> false
+[2918174:Chrome_InProcRendererThread/2918265:0618/001048.375256:INFO:media/base/mime_util_internal.cc:456] IsSupportedMediaMimeType(text/html) -> false
+[2918174:CrBrowserMain/2918174:0618/001048.379615:INFO:cobalt/shell/browser/shell.cc:585] Navigated to https://www.youtube.com/tv
+[2918174:CrBrowserMain/2918174:0618/001048.452487:ERROR:ui/ozone/platform/starboard/platform_window_starboard.cc:198] Not implemented reached in virtual void ui::PlatformWindowStarboard::SetTitle(const std::u16string &)
+[2918174:Chrome_InProcRendererThread/2918265:0618/001048.628861:INFO:third_party/blink/renderer/modules/cobalt/h5vcc_runtime/h_5_vcc_runtime.cc:30] H5vccRuntime initial DeepLink: ""
+[2918174:CrBrowserMain/2918174:0618/001048.688450:INFO:cobalt/browser/h5vcc_system/h5vcc_system_impl_starboard.cc:45] Failed to get kSbSystemPropertyAdvertisingId.
+[2918174:CrBrowserMain/2918174:0618/001048.690951:INFO:cobalt/browser/h5vcc_system/h5vcc_system_impl_starboard.cc:55] Failed to get kSbSystemPropertyLimitAdTracking.
+[2918174:CrBrowserMain/2918174:0618/001048.916138:INFO:cobalt/browser/global_features.cc:106] SetSettings: key=httpProtocolFilter, value=""
+[2918174:CrBrowserMain/2918174:0618/001048.917451:INFO:cobalt/browser/global_features.cc:106] SetSettings: key=EnableHangReporting, value=0
+[2918174:CrBrowserMain/2918174:0618/001048.980574:INFO:cobalt/browser/h5vcc_system/h5vcc_system_impl_starboard.cc:45] Failed to get kSbSystemPropertyAdvertisingId.
+[2918174:CrBrowserMain/2918174:0618/001048.981679:INFO:cobalt/browser/h5vcc_system/h5vcc_system_impl_starboard.cc:55] Failed to get kSbSystemPropertyLimitAdTracking.
+[2918174:CrBrowserMain/2918174:0618/001048.985547:INFO:cobalt/browser/h5vcc_system/h5vcc_system_impl_starboard.cc:45] Failed to get kSbSystemPropertyAdvertisingId.
+[2918174:CrBrowserMain/2918174:0618/001048.986226:INFO:cobalt/browser/h5vcc_system/h5vcc_system_impl_starboard.cc:55] Failed to get kSbSystemPropertyLimitAdTracking.
+[2918174:CrBrowserMain/2918174:0618/001049.040902:INFO:cobalt/shell/browser/shell.cc:585] Navigated to https://www.youtube.com/tv#/
+[2918174:Chrome_InProcRendererThread/2918265:0618/001049.091790:INFO:media/base/mime_util_internal.cc:456] IsSupportedMediaMimeType(text/css) -> false
+[2918174:Chrome_InProcRendererThread/2918265:0618/001049.141079:ERROR:third_party/blink/renderer/platform/fonts/linux/font_unique_name_lookup_linux.cc:21] @font-face src: local() instantiation only available when connected to browser process.
+[2918174:Chrome_InProcRendererThread/2918265:0618/001049.141145:ERROR:third_party/blink/renderer/platform/fonts/linux/font_unique_name_lookup_linux.cc:21] @font-face src: local() instantiation only available when connected to browser process.
+[2918174:Chrome_InProcRendererThread/2918265:0618/001049.141404:ERROR:third_party/blink/renderer/platform/fonts/linux/font_unique_name_lookup_linux.cc:21] @font-face src: local() instantiation only available when connected to browser process.
+[2918174:Chrome_InProcRendererThread/2918265:0618/001049.141434:ERROR:third_party/blink/renderer/platform/fonts/linux/font_unique_name_lookup_linux.cc:21] @font-face src: local() instantiation only available when connected to browser process.
+[2918174:Chrome_InProcRendererThread/2918265:0618/001049.141628:ERROR:third_party/blink/renderer/platform/fonts/linux/font_unique_name_lookup_linux.cc:21] @font-face src: local() instantiation only available when connected to browser process.
+[2918174:Chrome_InProcRendererThread/2918265:0618/001049.141654:ERROR:third_party/blink/renderer/platform/fonts/linux/font_unique_name_lookup_linux.cc:21] @font-face src: local() instantiation only available when connected to browser process.
+[2918174:Chrome_InProcRendererThread/2918265:0618/001049.145424:ERROR:third_party/skia/src/core/SkStream.cpp:953] Found font file /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf in cache.
+
+[2918174:Chrome_InProcRendererThread/2918265:0618/001049.149275:ERROR:third_party/skia/src/core/SkStream.cpp:959] Mapped font file /usr/share/fonts/truetype/msttcorefonts/Arial.ttf and stores it in cache (size = 2).
+
+[2918174:Chrome_InProcRendererThread/2918265:0618/001049.149659:ERROR:third_party/skia/src/core/SkStream.cpp:953] Found font file /usr/share/fonts/truetype/msttcorefonts/Arial.ttf in cache.
+
+[2918174:Chrome_InProcRendererThread/2918265:0618/001049.159126:ERROR:third_party/skia/src/core/SkStream.cpp:959] Mapped font file /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf and stores it in cache (size = 3).
+
+[2918174:Chrome_InProcRendererThread/2918265:0618/001049.159481:ERROR:third_party/skia/src/core/SkStream.cpp:953] Found font file /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf in cache.
+
+[2918174:Chrome_InProcRendererThread/2918265:0618/001049.159629:ERROR:third_party/blink/renderer/platform/fonts/linux/font_unique_name_lookup_linux.cc:21] @font-face src: local() instantiation only available when connected to browser process.
+[2918174:Chrome_InProcRendererThread/2918265:0618/001049.159654:ERROR:third_party/blink/renderer/platform/fonts/linux/font_unique_name_lookup_linux.cc:21] @font-face src: local() instantiation only available when connected to browser process.
+[2918174:Chrome_InProcRendererThread/2918265:0618/001049.164150:ERROR:third_party/skia/src/core/SkStream.cpp:959] Mapped font file /usr/share/fonts/truetype/msttcorefonts/Arial_Bold.ttf and stores it in cache (size = 4).
+
+[2918174:Chrome_InProcRendererThread/2918265:0618/001049.164524:ERROR:third_party/skia/src/core/SkStream.cpp:953] Found font file /usr/share/fonts/truetype/msttcorefonts/Arial_Bold.ttf in cache.
+
+[2918174:Chrome_InProcRendererThread/2918265:0618/001049.191240:INFO:media/base/mime_util_internal.cc:456] IsSupportedMediaMimeType(font/ttf) -> false
+[2918174:Chrome_InProcRendererThread/2918265:0618/001049.191839:INFO:media/base/mime_util_internal.cc:456] IsSupportedMediaMimeType(font/woff2) -> false
+[2918174:Chrome_InProcRendererThread/2918265:0618/001049.192248:INFO:media/base/mime_util_internal.cc:456] IsSupportedMediaMimeType(font/ttf) -> false
+[2918174:CrBrowserMain/2918174:0618/001049.325949:INFO:CONSOLE:157] "splash animation completed!", source: h5vcc-embedded://splash.html/?force_image=true (157)
+[2918174:CrBrowserMain/2918174:0618/001049.400986:INFO:cobalt/browser/h5vcc_system/h5vcc_system_impl_starboard.cc:45] Failed to get kSbSystemPropertyAdvertisingId.
+[2918174:CrBrowserMain/2918174:0618/001049.401353:INFO:cobalt/browser/h5vcc_system/h5vcc_system_impl_starboard.cc:55] Failed to get kSbSystemPropertyLimitAdTracking.
+[2918174:ThreadPoolForegroundWorker/2918189:0618/001049.438182:WARNING:net/cert/ev_root_ca_metadata.cc:119] Not implemented
+[2918174:CrBrowserMain/2918174:0618/001049.447555:INFO:cobalt/browser/h5vcc_system/h5vcc_system_impl_starboard.cc:45] Failed to get kSbSystemPropertyAdvertisingId.
+[2918174:CrBrowserMain/2918174:0618/001049.448994:INFO:cobalt/browser/h5vcc_system/h5vcc_system_impl_starboard.cc:55] Failed to get kSbSystemPropertyLimitAdTracking.
+[2918174:CrBrowserMain/2918174:0618/001049.580544:INFO:cobalt/browser/h5vcc_platform_service/h5vcc_platform_service_manager_impl.cc:53] H5vccPlatformServiceManagerImpl created for RFH ID: GlobalRenderFrameHostId(3, 1)
+[2918174:CrBrowserMain/2918174:0618/001049.580751:WARNING:cobalt/browser/h5vcc_platform_service/h5vcc_platform_service_manager_impl.cc:86] The platform service extension is not implemented on this platform
+[2918174:CrBrowserMain/2918174:0618/001049.581053:INFO:cobalt/browser/h5vcc_platform_service/h5vcc_platform_service_manager_impl.cc:76] A H5vccPlatformServiceManagerImpl receiver disconnected for RFH ID: GlobalRenderFrameHostId(3, 1)
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.183295:INFO:media/base/mime_util_internal.cc:456] IsSupportedMediaMimeType(text/html) -> false
+[2918174:CrBrowserMain/2918174:0618/001050.559909:ERROR:services/device/battery/battery_status_manager_default.cc:29] Not implemented reached in virtual bool device::(anonymous namespace)::BatteryStatusManagerDefault::StartListeningBatteryChange()
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.678855:INFO:cobalt/renderer/cobalt_content_renderer_client.cc:456] IsDecoderSupportedVideoType(av1) -> true
+[2918174:ThreadPoolForegroundWorker/2918189:0618/001050.698622:WARNING:net/cert/ev_root_ca_metadata.cc:119] Not implemented
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.715952:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/mp4; codecs=\"avc1.42001E\"; decode-to-texture=true") -> true
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.725776:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/mp4; codecs=\"avc1.42001E\"") -> true
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.725866:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("audio/mp4; codecs=\"mp4a.40.2\"") -> true
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.730393:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"") -> true
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.730488:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"; width=640") -> true
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.730555:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"; width=99999") -> false
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.730597:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"") -> true
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.730657:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"; height=360") -> true
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.730707:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"; height=99999") -> false
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.730762:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"") -> true
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.730809:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"; framerate=30") -> true
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.730859:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"; framerate=9999") -> false
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.730940:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"; width=3840; height=2160; bitrate=2000000") -> true
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.731000:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"; width=3840; height=2160; bitrate=20000000") -> true
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.731040:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"") -> true
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.731078:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"; bitrate=300000") -> true
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.731116:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"; bitrate=2000000000") -> false
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.731159:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"") -> true
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.731272:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"; eotf=bt709") -> true
+[Chrome_InProcRe/2918265:0618/001050.731318(UTC):WARNING:parsed_mime_info.cc(168)] Unknown eotf catavision.
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.731340:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"; eotf=catavision") -> false
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.731411:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("audio/webm; codecs=\"opus\"") -> true
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.731451:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("audio/webm; codecs=\"opus\"; channels=2") -> true
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.731487:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("audio/webm; codecs=\"opus\"; channels=99") -> false
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.731634:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"") -> true
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.731682:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"; cryptoblockformat=subsample") -> true
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.731721:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"; cryptoblockformat=invalidformat") -> false
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.731757:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"") -> true
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.731796:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"; decode-to-texture=false") -> true
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.731829:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"; decode-to-texture=nope") -> false
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.731876:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/mp4; codecs=av01.0.05M.08") -> true
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.731906:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/mp4; codecs=av99.0.05M.08") -> false
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.731969:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"") -> true
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.732022:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"; experimental=allowed") -> true
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.732063:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"; experimental=invalid") -> true
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.732106:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"") -> true
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.732144:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"; tunnelmode=true") -> true
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.732182:INFO:third_party/blink/renderer/modules/mediasource/media_source.cc:571] isTypeSupported("video/webm; codecs=\"vp9\"; tunnelmode=false") -> true
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.742814:INFO:media/base/mime_util_internal.cc:456] IsSupportedMediaMimeType(text/plain) -> false
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.763194:INFO:third_party/blink/renderer/platform/media/web_media_player_impl.cc:3005] Renderer Type is StarboardRenderer.
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.763435:INFO:media/mojo/clients/starboard/starboard_renderer_client.cc:67] StarboardRendererClient constructed.
+[2918174:ThreadPoolSingleThreadSharedForeground0/2918200:0618/001050.764565:INFO:media/starboard/starboard_renderer.cc:162] StarboardRenderer constructed: audio_write_duration_local=1 s, audio_write_duration_remote=10 s, max_video_capabilities="", max_samples_per_write=12, view_port_size=1920x1080, experimental_features={allow_audio_writing_on_pause=false, bypass_mojo_for_media=false, disable_low_performance_sw_decoder=false, enable_av1_startup_optimization=false, enable_flush_during_seek=false, enable_low_latency=false, enable_reset_audio_decoder=false, enable_video_renderer_vsp_adjustment=false, flush_audio_track_during_seek=false, force_clear_surface_view=false, force_decode_to_texture=false, ignore_mediacodec_callbacks_during_flushing=false, skip_flush_on_decoder_teardown=false, skip_video_frames_over_60_fps=false, enable_trivial_optimizations=(nullopt), enable_simd_based_audio_format_switching=(nullopt), max_samples_per_write=(nullopt), video_decoder_initial_preroll_count=(nullopt), video_renderer_min_decoded_frames=(nullopt), video_renderer_min_input_buffers=(nullopt)}
+[2918174:ThreadPoolForegroundWorker/2918184:0618/001050.796390:WARNING:net/cert/ev_root_ca_metadata.cc:119] Not implemented
+[2918174:Chrome_InProcRendererThread/2918265:0618/001050.851107:INFO:media/base/mime_util_internal.cc:456] IsSupportedMediaMimeType(multipart/byteranges) -> false
+[2918174:CrBrowserMain/2918174:0618/001051.158390:WARNING:cobalt/browser/h5vcc_platform_service/h5vcc_platform_service_manager_impl.cc:86] The platform service extension is not implemented on this platform
+[2918174:CrBrowserMain/2918174:0618/001051.159250:INFO:cobalt/browser/h5vcc_platform_service/h5vcc_platform_service_manager_impl.cc:76] A H5vccPlatformServiceManagerImpl receiver disconnected for RFH ID: GlobalRenderFrameHostId(3, 1)
+[2918174:CrBrowserMain/2918174:0618/001051.176473:WARNING:cobalt/browser/h5vcc_platform_service/h5vcc_platform_service_manager_impl.cc:86] The platform service extension is not implemented on this platform
+[2918174:CrBrowserMain/2918174:0618/001051.177314:INFO:cobalt/browser/h5vcc_platform_service/h5vcc_platform_service_manager_impl.cc:76] A H5vccPlatformServiceManagerImpl receiver disconnected for RFH ID: GlobalRenderFrameHostId(3, 1)
+[2918174:CrBrowserMain/2918174:0618/001051.227168:INFO:cobalt/browser/h5vcc_system/h5vcc_system_impl_starboard.cc:45] Failed to get kSbSystemPropertyAdvertisingId.
+[2918174:CrBrowserMain/2918174:0618/001051.228131:INFO:cobalt/browser/h5vcc_system/h5vcc_system_impl_starboard.cc:55] Failed to get kSbSystemPropertyLimitAdTracking.
+[2918174:CrBrowserMain/2918174:0618/001051.232275:INFO:cobalt/browser/h5vcc_system/h5vcc_system_impl_starboard.cc:45] Failed to get kSbSystemPropertyAdvertisingId.
+[2918174:CrBrowserMain/2918174:0618/001051.232942:INFO:cobalt/browser/h5vcc_system/h5vcc_system_impl_starboard.cc:55] Failed to get kSbSystemPropertyLimitAdTracking.
+[2918174:CrBrowserMain/2918174:0618/001051.263118:INFO:cobalt/browser/global_features.cc:106] SetSettings: key=Media.BackgroundPlaybackEnabled, value=1
+[2918174:ThreadPoolForegroundWorker/2918184:0618/001051.321802:WARNING:net/cert/ev_root_ca_metadata.cc:119] Not implemented
+[2918174:Chrome_InProcRendererThread/2918265:0618/001051.470865:INFO:media/base/mime_util_internal.cc:456] IsSupportedMediaMimeType(text/plain) -> false
+[2918174:CrBrowserMain/2918174:0618/001051.474513:INFO:CONSOLE:997] "Refused to set unsafe header "Connection"", source: https://www.youtube.com/s/_/kabuki/_/js/k=kabuki.base_cr.en_US.SVo48hn9Jcg.es6.O/am=AAAAAAAaBMCEAEAADBQIEgo/d=1/excm=main/br=1/rs=ANjRhVl2f9m3w4FOMg4dbDGmAnfTgX1Ymw/m=base (997)
+[2918174:Chrome_InProcRendererThread/2918265:0618/001051.611362:INFO:media/base/mime_util_internal.cc:456] IsSupportedMediaMimeType(text/plain) -> false
+[2918174:CrBrowserMain/2918174:0618/001051.614071:INFO:CONSOLE:997] "Refused to set unsafe header "Connection"", source: https://www.youtube.com/s/_/kabuki/_/js/k=kabuki.base_cr.en_US.SVo48hn9Jcg.es6.O/am=AAAAAAAaBMCEAEAADBQIEgo/d=1/excm=main/br=1/rs=ANjRhVl2f9m3w4FOMg4dbDGmAnfTgX1Ymw/m=base (997)
+[2918174:Chrome_InProcRendererThread/2918265:0618/001051.637021:INFO:media/base/mime_util_internal.cc:456] IsSupportedMediaMimeType(text/plain) -> false
+[2918174:CrBrowserMain/2918174:0618/001051.710905:WARNING:cobalt/browser/h5vcc_platform_service/h5vcc_platform_service_manager_impl.cc:86] The platform service extension is not implemented on this platform
+[2918174:CrBrowserMain/2918174:0618/001051.711825:INFO:cobalt/browser/h5vcc_platform_service/h5vcc_platform_service_manager_impl.cc:76] A H5vccPlatformServiceManagerImpl receiver disconnected for RFH ID: GlobalRenderFrameHostId(3, 1)
+[2918174:AudioThread/2918196:0618/001051.724059:ERROR:media/audio/starboard/audio_manager_starboard.cc:58] Not implemented reached in virtual void media::AudioManagerStarboard::GetAudioOutputDeviceNames(AudioDeviceNames *)
+[2918174:Chrome_InProcRendererThread/2918265:0618/001052.075411:INFO:third_party/blink/renderer/platform/media/key_system_config_selector.cc:428] IsSupportedContentType(video/webm; codecs="vp9" and com.youtube.widevine.l3) are unsupported.
+[2918174:Chrome_InProcRendererThread/2918265:0618/001052.075467:INFO:third_party/blink/renderer/platform/media/key_system_config_selector.cc:428] IsSupportedContentType(video/webm; codecs="vp9" and com.youtube.widevine.l3) are unsupported.
+[2918174:Chrome_InProcRendererThread/2918265:0618/001052.075549:INFO:third_party/blink/renderer/platform/media/key_system_config_selector.cc:428] IsSupportedContentType(video/webm; codecs="vp09.00.21.08" and com.youtube.widevine.l3) are unsupported.
+[2918174:Chrome_InProcRendererThread/2918265:0618/001052.075573:INFO:third_party/blink/renderer/platform/media/key_system_config_selector.cc:428] IsSupportedContentType(video/webm; codecs="vp09.00.21.08" and com.youtube.widevine.l3) are unsupported.
+[2918174:Chrome_InProcRendererThread/2918265:0618/001052.076476:INFO:third_party/blink/renderer/platform/media/key_system_config_selector.cc:428] IsSupportedContentType(video/webm; codecs="vp9" and com.widevine.alpha) are unsupported.
+[2918174:Chrome_InProcRendererThread/2918265:0618/001052.076512:INFO:third_party/blink/renderer/platform/media/key_system_config_selector.cc:428] IsSupportedContentType(video/webm; codecs="vp9" and com.widevine.alpha) are unsupported.
+[2918174:Chrome_InProcRendererThread/2918265:0618/001052.076544:INFO:third_party/blink/renderer/platform/media/key_system_config_selector.cc:428] IsSupportedContentType(video/webm; codecs="vp09.00.21.08" and com.widevine.alpha) are unsupported.
+[2918174:Chrome_InProcRendererThread/2918265:0618/001052.076581:INFO:third_party/blink/renderer/platform/media/key_system_config_selector.cc:428] IsSupportedContentType(video/webm; codecs="vp09.00.21.08" and com.widevine.alpha) are unsupported.
+[2918174:ThreadPoolForegroundWorker/2918189:0618/001052.106145:WARNING:net/cert/ev_root_ca_metadata.cc:119] Not implemented
+[2918174:Chrome_InProcRendererThread/2918265:0618/001057.078597:INFO:third_party/blink/renderer/platform/media/key_system_config_selector.cc:428] IsSupportedContentType(video/webm; codecs="vp9" and com.youtube.widevine.l3) are unsupported.
+[2918174:Chrome_InProcRendererThread/2918265:0618/001057.078693:INFO:third_party/blink/renderer/platform/media/key_system_config_selector.cc:428] IsSupportedContentType(video/webm; codecs="vp9" and com.youtube.widevine.l3) are unsupported.
+[2918174:Chrome_InProcRendererThread/2918265:0618/001057.078758:INFO:third_party/blink/renderer/platform/media/key_system_config_selector.cc:428] IsSupportedContentType(video/webm; codecs="vp09.00.21.08" and com.youtube.widevine.l3) are unsupported.
+[2918174:Chrome_InProcRendererThread/2918265:0618/001057.078789:INFO:third_party/blink/renderer/platform/media/key_system_config_selector.cc:428] IsSupportedContentType(video/webm; codecs="vp09.00.21.08" and com.youtube.widevine.l3) are unsupported.
+[2918174:Chrome_InProcRendererThread/2918265:0618/001057.079557:INFO:third_party/blink/renderer/platform/media/key_system_config_selector.cc:428] IsSupportedContentType(video/webm; codecs="vp9" and com.widevine.alpha) are unsupported.
+[2918174:Chrome_InProcRendererThread/2918265:0618/001057.079621:INFO:third_party/blink/renderer/platform/media/key_system_config_selector.cc:428] IsSupportedContentType(video/webm; codecs="vp9" and com.widevine.alpha) are unsupported.
+[2918174:Chrome_InProcRendererThread/2918265:0618/001057.079705:INFO:third_party/blink/renderer/platform/media/key_system_config_selector.cc:428] IsSupportedContentType(video/webm; codecs="vp09.00.21.08" and com.widevine.alpha) are unsupported.
+[2918174:Chrome_InProcRendererThread/2918265:0618/001057.079741:INFO:third_party/blink/renderer/platform/media/key_system_config_selector.cc:428] IsSupportedContentType(video/webm; codecs="vp09.00.21.08" and com.widevine.alpha) are unsupported.
+[2918174:Chrome_InProcRendererThread/2918265:0618/001115.787826:INFO:media/base/mime_util_internal.cc:456] IsSupportedMediaMimeType(multipart/byteranges) -> false
+
+Caught signal: SIGTERM (15)
+
+Caught signal: SIGHUP (1)

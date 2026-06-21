@@ -1,0 +1,4 @@
+Memory.Experimental.Browser2.Small.Malloc.ThreadCache
+Memory.Experimental.Browser2.Malloc.MaxAllocatedSize
+Memory.Total.ResidentSet
+Memory.Total.Resident

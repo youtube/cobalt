@@ -3852,10 +3852,20 @@ scoped_refptr<TileTask> GpuImageDecodeCache::GetTaskFromMapForClientId(
 }
 
 base::TimeDelta GpuImageDecodeCache::get_purge_interval() {
+#if BUILDFLAG(IS_COBALT)
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch("enable-cobalt-image-cache-fix")) {
+    return base::Seconds(1);
+  }
+#endif
   return base::Seconds(30);
 }
 
 base::TimeDelta GpuImageDecodeCache::get_max_purge_age() {
+#if BUILDFLAG(IS_COBALT)
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch("enable-cobalt-image-cache-fix")) {
+    return base::Seconds(1);
+  }
+#endif
   return base::Seconds(30);
 }
 
