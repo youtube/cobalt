@@ -66,9 +66,9 @@ class PlayerComponentsImpl : public PlayerComponents {
 
  private:
   // |media_time_provider_| will only be used when |audio_renderer_| is nullptr.
-  std::unique_ptr<MediaTimeProviderImpl> media_time_provider_;
-  std::unique_ptr<AudioRendererPcm> audio_renderer_;
-  std::unique_ptr<VideoRendererImpl> video_renderer_;
+  const std::unique_ptr<MediaTimeProviderImpl> media_time_provider_;
+  const std::unique_ptr<AudioRendererPcm> audio_renderer_;
+  const std::unique_ptr<VideoRendererImpl> video_renderer_;
 };
 
 }  // namespace
@@ -196,16 +196,15 @@ PlayerComponents::Factory::CreateComponents(
     SB_DCHECK(components.audio.decoder);
     SB_DCHECK(components.audio.renderer_sink);
 
-    int max_cached_frames, min_frames_per_append;
-    components.audio.renderer_sink->GetAudioRendererParams(
-        creation_parameters.audio_stream_info(), &max_cached_frames,
-        &min_frames_per_append);
+    auto audio_renderer_params =
+        components.audio.renderer_sink->GetAudioRendererParams(
+            creation_parameters.audio_stream_info());
 
     audio_renderer = std::make_unique<AudioRendererPcm>(
         creation_parameters.job_queue(), std::move(components.audio.decoder),
         std::move(components.audio.renderer_sink),
-        creation_parameters.audio_stream_info(), max_cached_frames,
-        min_frames_per_append, creation_parameters.experimental_features());
+        creation_parameters.audio_stream_info(), audio_renderer_params,
+        creation_parameters.experimental_features());
   }
 
   if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
