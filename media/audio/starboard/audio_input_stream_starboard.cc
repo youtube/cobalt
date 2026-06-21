@@ -14,11 +14,17 @@
 
 #include "media/audio/starboard/audio_input_stream_starboard.h"
 
+#include <algorithm>
+
 #include "base/logging.h"
 #include "media/audio/audio_manager.h"
 #include "media/audio/audio_manager_base.h"
 
 namespace media {
+
+namespace {
+constexpr int kMinReadBytes = 2048;
+}
 
 AudioInputStreamStarboard::AudioInputStreamStarboard(
     AudioManagerBase* audio_manager,
@@ -93,7 +99,6 @@ void AudioInputStreamStarboard::Start(AudioInputCallback* callback) {
   // driver. This could also give us a smooth read sequence going forward.
   base::TimeDelta delay = buffer_duration_ + buffer_duration_ / 2;
   next_read_time_ = base::TimeTicks::Now() + delay;
-  frames_in_buffer_ = 0;
   running_ = true;
   StartAgc();
 
@@ -171,65 +176,65 @@ void AudioInputStreamStarboard::ReadAudio() {
     return;
   }
 
-  const int frames_to_read = params_.frames_per_buffer() - frames_in_buffer_;
-  const int bytes_to_read =
-      frames_to_read * params_.channels() * sizeof(int16_t);
+  const size_t target_buffer_size_bytes =
+      params_.frames_per_buffer() * params_.channels() * sizeof(int16_t);
+  const size_t max_fifo_size_bytes = target_buffer_size_bytes * kMaxFifoBuffers;
+  const size_t read_size_bytes =
+      std::max(static_cast<size_t>(kMinReadBytes), target_buffer_size_bytes);
 
+  // Read directly into the FIFO to avoid extra allocation and copy.
+  size_t current_fifo_size = audio_fifo_.size();
+  audio_fifo_.resize(current_fifo_size + read_size_bytes);
   int bytes_read = SbMicrophoneRead(
-      microphone_, buffer_.data() + frames_in_buffer_ * params_.channels(),
-      bytes_to_read);
+      microphone_,
+      reinterpret_cast<char*>(audio_fifo_.data() + current_fifo_size),
+      read_size_bytes);
 
   if (bytes_read > 0) {
-    int frames_read = bytes_read / (params_.channels() * sizeof(int16_t));
-    frames_in_buffer_ += frames_read;
-    DCHECK_LE(frames_in_buffer_, params_.frames_per_buffer());
-
-    if (frames_in_buffer_ == params_.frames_per_buffer()) {
-      audio_bus_->FromInterleaved<SignedInt16SampleTypeTraits>(
-          buffer_.data(), params_.frames_per_buffer());
-
-      callback_->OnData(audio_bus_.get(), base::TimeTicks::Now(), 1.0, {});
-      frames_in_buffer_ = 0;
-
-      // If the read callback is behind schedule. Schedule the next one to run
-      // immediately to catch up.
-      next_read_time_ =
-          std::max(base::TimeTicks::Now(), next_read_time_ + buffer_duration_);
-
-      // base::Unretained is safe here because the AudioInputStreamStarboard
-      // owns capture_thread_, and the thread is stopped before this object is
-      // destroyed, guaranteeing the callback will not run on a dangling
-      // pointer.
-      capture_thread_.task_runner()->PostDelayedTaskAt(
-          base::subtle::PostDelayedTaskPassKey(), FROM_HERE,
-          base::BindOnce(&AudioInputStreamStarboard::ReadAudio,
-                         base::Unretained(this)),
-          next_read_time_, base::subtle::DelayPolicy::kPrecise);
-    } else {
-      // Partial read. Check again in a little bit to fill the rest of the
-      // buffer.
-      capture_thread_.task_runner()->PostDelayedTaskAt(
-          base::subtle::PostDelayedTaskPassKey(), FROM_HERE,
-          base::BindOnce(&AudioInputStreamStarboard::ReadAudio,
-                         base::Unretained(this)),
-          base::TimeTicks::Now() + buffer_duration_ / 2,
-          base::subtle::DelayPolicy::kPrecise);
+    audio_fifo_.resize(current_fifo_size + bytes_read);
+    if (audio_fifo_.size() > max_fifo_size_bytes) {
+      size_t bytes_to_drop = audio_fifo_.size() - max_fifo_size_bytes;
+      audio_fifo_.erase(audio_fifo_.begin(),
+                        audio_fifo_.begin() + bytes_to_drop);
+      DLOG(WARNING) << "Audio FIFO overflow, dropped " << bytes_to_drop
+                    << " bytes.";
     }
-  } else if (bytes_read == 0) {
-    // No data available yet. Check again in a little bit.
-    base::TimeTicks next_check_time =
-        base::TimeTicks::Now() + buffer_duration_ / 2;
-    capture_thread_.task_runner()->PostDelayedTaskAt(
-        base::subtle::PostDelayedTaskPassKey(), FROM_HERE,
-        base::BindOnce(&AudioInputStreamStarboard::ReadAudio,
-                       base::Unretained(this)),
-        next_check_time, base::subtle::DelayPolicy::kPrecise);
   } else {
-    DLOG(WARNING) << "SbMicrophoneRead returned " << bytes_read
-                  << ". Dropping this buffer.";
-    HandleError("SbMicrophoneRead");
-    return;
+    audio_fifo_.resize(current_fifo_size);
+    if (bytes_read < 0) {
+      DLOG(WARNING) << "SbMicrophoneRead returned " << bytes_read << ".";
+      HandleError("SbMicrophoneRead");
+      return;
+    }
   }
+
+  bool data_pushed = false;
+  // Process all available complete buffers to minimize latency.
+  while (audio_fifo_.size() >= target_buffer_size_bytes) {
+    std::copy(audio_fifo_.begin(),
+              audio_fifo_.begin() + target_buffer_size_bytes,
+              reinterpret_cast<uint8_t*>(buffer_.data()));
+    audio_fifo_.erase(audio_fifo_.begin(),
+                      audio_fifo_.begin() + target_buffer_size_bytes);
+
+    audio_bus_->FromInterleaved<SignedInt16SampleTypeTraits>(
+        buffer_.data(), params_.frames_per_buffer());
+
+    callback_->OnData(audio_bus_.get(), base::TimeTicks::Now(), 1.0, {});
+    data_pushed = true;
+    next_read_time_ =
+        std::max(base::TimeTicks::Now(), next_read_time_ + buffer_duration_);
+  }
+
+  if (!data_pushed) {
+    next_read_time_ = base::TimeTicks::Now() + buffer_duration_ / 2;
+  }
+
+  capture_thread_.task_runner()->PostDelayedTaskAt(
+      base::subtle::PostDelayedTaskPassKey(), FROM_HERE,
+      base::BindOnce(&AudioInputStreamStarboard::ReadAudio,
+                     base::Unretained(this)),
+      next_read_time_, base::subtle::DelayPolicy::kPrecise);
 }
 
 void AudioInputStreamStarboard::StopRunningOnCaptureThread() {
