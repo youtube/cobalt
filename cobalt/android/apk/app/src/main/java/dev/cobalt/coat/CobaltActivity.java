@@ -106,7 +106,7 @@ public abstract class CobaltActivity extends Activity {
   private VideoSurfaceView mVideoSurfaceView;
 
   private boolean mForceCreateNewVideoSurfaceView;
-
+  private boolean mIsStopping = false;
   private long mTimeInNanoseconds;
 
   private ShellManager mShellManager;
@@ -550,6 +550,7 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onStart() {
+    mIsStopping = false;
     StartupGuard.getInstance().setStartupMilestone(10);
     if (isDevelopmentBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
@@ -591,6 +592,7 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onStop() {
+    mIsStopping = true;
     getStarboardBridge().onActivityStop(this);
     super.onStop();
 
@@ -761,6 +763,7 @@ public abstract class CobaltActivity extends Activity {
   }
 
   public void resetVideoSurface() {
+    Log.i(TAG, "resetVideoSurface called", new Throwable());
     if (mIsCobaltUsingAndroidOverlay) {
       return;
     }
@@ -769,22 +772,41 @@ public abstract class CobaltActivity extends Activity {
           @Override
           public void run() {
             createNewSurfaceView();
+            setUiResourceZOrder(false);
           }
         });
   }
 
+  private void setUiResourceZOrder(boolean onTop) {
+    Log.i(TAG, "setUiResourceZOrder: " + onTop);
+    if (mShellManager != null && mShellManager.getContentViewRenderView() != null) {
+      Log.i(TAG, "setUiResourceZOrder: setting to " + onTop);
+      mShellManager.getContentViewRenderView().setUiResourceZOrder(onTop);
+    } else {
+      Log.i(TAG, "setUiResourceZOrder: mShellManager or ContentViewRenderView is null");
+    }
+  }
+
   public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {
+    Log.i(TAG, "setVideoSurfaceBounds called: x=" + x + " y=" + y + " w=" + width + " h=" + height, new Throwable());
     if (mIsCobaltUsingAndroidOverlay) {
       return;
     }
-    if (width == 0 || height == 0) {
-      // The SurfaceView should be covered by our UI layer in this case.
+    if (width == 0 || height == 0 || mIsStopping) {
+      runOnUiThread(
+          new Runnable() {
+            @Override
+            public void run() {
+              setUiResourceZOrder(false);
+            }
+          });
       return;
     }
     runOnUiThread(
         new Runnable() {
           @Override
           public void run() {
+            setUiResourceZOrder(true);
             LayoutParams layoutParams = mVideoSurfaceView.getLayoutParams();
             // Since mVideoSurfaceView is added directly to the Activity's content view, which is a
             // FrameLayout, we expect its layout params to become FrameLayout.LayoutParams.
