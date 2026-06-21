@@ -136,9 +136,18 @@ BytesConsumer::Result DataPipeBytesConsumer::EndRead(size_t read) {
 
   if (has_pending_notification_) {
     has_pending_notification_ = false;
+#if BUILDFLAG(IS_STARBOARD)
+    // Same weak-reference reasoning as the constructor's watcher_.Watch():
+    // a strong Persistent here would re-pin an abandoned consumer for this
+    // task's lifetime. No-ops if the consumer is already collected.
+    task_runner_->PostTask(FROM_HERE,
+                           WTF::BindOnce(&DataPipeBytesConsumer::Notify,
+                                         WrapWeakPersistent(this), MOJO_RESULT_OK));
+#else
     task_runner_->PostTask(FROM_HERE,
                            WTF::BindOnce(&DataPipeBytesConsumer::Notify,
                                          WrapPersistent(this), MOJO_RESULT_OK));
+#endif
   }
   return Result::kOk;
 }
