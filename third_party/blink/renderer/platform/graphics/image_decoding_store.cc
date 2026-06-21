@@ -27,6 +27,7 @@
 
 #include <memory>
 
+#include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/synchronization/lock.h"
 #include "third_party/blink/renderer/platform/graphics/image_frame_generator.h"
@@ -37,12 +38,19 @@ namespace blink {
 
 namespace {
 
-static const size_t kDefaultMaxTotalSizeOfHeapEntries = 32 * 1024 * 1024;
+static size_t GetDefaultMaxTotalSizeOfHeapEntries() {
+#if BUILDFLAG(IS_COBALT)
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch("enable-cobalt-blink-image-store-fix")) {
+    return 24 * 1024 * 1024;
+  }
+#endif
+  return 32 * 1024 * 1024;
+}
 
 }  // namespace
 
 ImageDecodingStore::ImageDecodingStore()
-    : heap_limit_in_bytes_(kDefaultMaxTotalSizeOfHeapEntries),
+    : heap_limit_in_bytes_(GetDefaultMaxTotalSizeOfHeapEntries()),
       heap_memory_usage_in_bytes_(0),
       memory_pressure_listener_(
           FROM_HERE,

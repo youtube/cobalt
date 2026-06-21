@@ -17,6 +17,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/bind.h"
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
@@ -130,6 +131,20 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
   GeneratePriorityOrderedFallbackFamilies(priority_fallback_families);
   FindDefaultFamily(default_families);
   initial_families_ = default_families_;
+
+  auto command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch("enable-cobalt-font-purge-fix")) {
+    memory_pressure_listener_ = std::make_unique<base::MemoryPressureListener>(
+        FROM_HERE, base::BindRepeating(&SkFontMgr_Cobalt::OnMemoryPressure,
+                                       base::Unretained(this)));
+  }
+}
+
+void SkFontMgr_Cobalt::OnMemoryPressure(
+    base::MemoryPressureListener::MemoryPressureLevel level) {
+  if (level == base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL) {
+    PurgeCaches();
+  }
 }
 
 void SkFontMgr_Cobalt::PurgeCaches() {

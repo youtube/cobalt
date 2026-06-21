@@ -47,6 +47,9 @@ size_t ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
   static const size_t cobalt_decoded_image_working_set_budget_bytes = []() {
     size_t budget = 128 * 1024 * 1024;
     auto* command_line = base::CommandLine::ForCurrentProcess();
+    if (command_line->HasSwitch("enable-cobalt-image-cache-fix")) {
+      budget = 32 * 1024 * 1024;
+    }
     if (command_line->HasSwitch(switches::kDecodedImageWorkingSetBudgetBytes)) {
       std::string value = command_line->GetSwitchValueASCII(
           switches::kDecodedImageWorkingSetBudgetBytes);
