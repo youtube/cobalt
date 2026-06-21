@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "base/containers/span.h"
+#include "build/build_config.h"
 #include "base/location.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/task/single_thread_task_runner.h"
@@ -50,7 +51,15 @@ DataPipeBytesConsumer::DataPipeBytesConsumer(
   watcher_.Watch(
       data_pipe_.get(),
       MOJO_HANDLE_SIGNAL_READABLE | MOJO_HANDLE_SIGNAL_PEER_CLOSED,
+#if BUILDFLAG(IS_STARBOARD)
+      // Weak self-reference so an abandoned consumer (e.g. a canceled media
+      // fetch dropped without Cancel()) can be garbage collected instead of
+      // being pinned alive forever, leaking its response-body data pipe's fd.
+      WTF::BindRepeating(&DataPipeBytesConsumer::Notify,
+                         WrapWeakPersistent(this)));
+#else
       WTF::BindRepeating(&DataPipeBytesConsumer::Notify, WrapPersistent(this)));
+#endif
 }
 
 DataPipeBytesConsumer::~DataPipeBytesConsumer() {}
