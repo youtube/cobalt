@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <android/asset_manager.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 
@@ -37,6 +38,11 @@ int __wrap_stat(const char* path, struct stat* info) {
 int __wrap_fstatat(int dirfd, const char* path, struct stat* info, int flags) {
   if (!IsAndroidAssetPath(path)) {
     return __real_fstatat(dirfd, path, info, flags);
+  }
+
+  if (info == NULL) {
+    errno = EFAULT;
+    return -1;
   }
 
   // Asset paths are absolute (/cobalt/assets/...), so `dirfd` is irrelevant.
