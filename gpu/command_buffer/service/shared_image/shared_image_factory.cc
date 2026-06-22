@@ -10,6 +10,9 @@
 
 #include "base/containers/contains.h"
 #include "base/debug/crash_logging.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
 #include "base/metrics/histogram_functions.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "build/build_config.h"
@@ -336,6 +339,10 @@ bool SharedImageFactory::CreateSharedImage(
     SharedImageUsageSet usage,
     std::string debug_label,
     std::optional<SharedImagePoolId> pool_id) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kGraphics);
+#endif
   auto* factory = GetFactoryByUsage(usage, format, size,
                                     /*pixel_data=*/{}, gfx::EMPTY_BUFFER);
   if (!factory) {
@@ -389,6 +396,10 @@ bool SharedImageFactory::CreateSharedImage(const Mailbox& mailbox,
                                            SharedImageUsageSet usage,
                                            std::string debug_label,
                                            gfx::BufferUsage buffer_usage) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kGraphics);
+#endif
   if (!viz::HasEquivalentBufferFormat(format)) {
     // Client GMB code still operates on BufferFormat so the SharedImageFormat
     // received here must have an equivalent BufferFormat.
@@ -487,6 +498,10 @@ bool SharedImageFactory::CreateSharedImage(const Mailbox& mailbox,
                                            SharedImageUsageSet usage,
                                            std::string debug_label,
                                            base::span<const uint8_t> data) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kGraphics);
+#endif
   if (!format.is_single_plane()) {
     // Pixel upload path only supports single-planar formats.
     LOG(ERROR) << "Invalid format " << format.ToString();
@@ -524,6 +539,10 @@ bool SharedImageFactory::CreateSharedImage(
     std::string debug_label,
     gfx::GpuMemoryBufferHandle buffer_handle,
     std::optional<SharedImagePoolId> pool_id) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kGraphics);
+#endif
   gfx::GpuMemoryBufferType gmb_type = buffer_handle.type;
 
   bool use_compound = false;
