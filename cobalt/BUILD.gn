@@ -166,7 +166,7 @@ if (is_ios && target_platform == "tvos") {
 
     outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
   }
-} else if (!is_android) {
+} else if (!is_androidtv) {
   if (is_cobalt_hermetic_build) {
     cobalt_target_type = "modular_executable"
   } else {

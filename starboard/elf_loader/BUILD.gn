@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//cobalt/build/configs/hacks.gni")
+import("//starboard/build/config/starboard_executable.gni")
 
 _elf_loader_sources = [
   "dynamic_section.cc",
@@ -71,31 +72,30 @@ static_library("elf_loader") {
 
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
 if (current_toolchain == starboard_toolchain) {
-  target(starboard_level_final_executable_type, "elf_loader_sandbox") {
+  starboard_executable("elf_loader_sandbox") {
     testonly = true
-    output_dir = root_build_dir
-
     sources = [ "elf_loader_sandbox.cc" ]
     configs += [ ":elf_loader_config" ]
 
-    data_deps = [ "//starboard/content/fonts:copy_font_data" ]
     deps = [
       ":constants",
       ":elf_loader",
       ":evergreen_info",
       ":sabi_string",
       "//starboard:starboard_group",
-      "//starboard/content/fonts:copy_font_data",
     ]
 
     if (is_android) {
       deps += [ "//starboard/android/shared:test_support" ]
-    }
-
-    if (is_starboard && use_crashpad) {
-      deps += [ "//starboard/crashpad_wrapper" ]
     } else {
-      deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
+      data_deps = [ "//starboard/content/fonts:copy_font_data" ]
+      deps += [ "//starboard/content/fonts:copy_font_data" ]
+
+      if (is_starboard && use_crashpad) {
+        deps += [ "//starboard/crashpad_wrapper" ]
+      } else {
+        deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
+      }
     }
   }
 }

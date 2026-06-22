@@ -12,23 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-static_library("starboard_platform") {
-  sources = [ "run_starboard_main.cc" ]
-
-  configs += [ "//starboard/build/config:starboard_implementation" ]
-
-  public_deps = [ "//starboard/android/shared:starboard_platform" ]
-}
-
-source_set("aosp_loader_glue") {
-  sources = [
-    "main_activity.cc",
-    "starboard_library_loader.cc",
-  ]
-
-  deps = [
-    "//base",
-    "//cobalt/aosp:jni_headers",
-    "//starboard:starboard_group",
-  ]
-}
+cobalt_manifest =
+    "$root_gen_dir/cobalt/android/cobalt_manifest/AndroidManifest.xml"

@@ -10,7 +10,7 @@
     "gold"
   ],
   "targets": [
-    "buildflag_header_h"
+    "nplb_loader"
   ],
   "includes": [
     {

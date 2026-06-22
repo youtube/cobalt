@@ -51,7 +51,9 @@ void LoadLibraryAndInitialize(const std::string& library_path,
                   << "=path/to/content/relative/to/loader/content.";
     return;
   }
-  if (!g_elf_loader.Load(library_path, content_path, true)) {
+  if (!g_elf_loader.Load(library_path, content_path, /*is_relative_path=*/true,
+                         /*custom_get_extension=*/nullptr,
+                         elf_loader::CompressionType::kLz4)) {
     SB_NOTREACHED() << "Failed to load library at '"
                     << g_elf_loader.GetLibraryPath() << "'.";
     return;
