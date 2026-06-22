@@ -44,3 +44,17 @@ source_set("starboard_test") {
     "//testing/gtest",
   ]
 }
+
+source_set("test_environment") {
+  testonly = true
+
+  sources = [
+    "starboard_test_environment.cc",
+    "starboard_test_environment.h",
+  ]
+
+  deps = [
+    ":features",
+    "//testing/gtest",
+  ]
+}

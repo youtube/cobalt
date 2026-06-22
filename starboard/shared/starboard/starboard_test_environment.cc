@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/linux/shared/starboard_test_environment.h"
+#include "starboard/shared/starboard/starboard_test_environment.h"
 
 #include <cstdint>
 #include <iterator>

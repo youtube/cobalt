@@ -203,8 +203,8 @@ source_set("starboard_test_main") {
     deps += [ "//starboard/android/shared:test_support" ]
   }
 
-  if (is_linux) {
-    deps += [ "//starboard/linux/shared:test_support" ]
+  if (!is_android && !is_ios) {
+    deps += [ "//starboard/shared/starboard:test_environment" ]
   }
 }
 
