@@ -302,6 +302,21 @@ static_library("starboard_platform_sources") {
   }
 }
 
+static_library("test_support") {
+  testonly = true
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+  deps = [
+    ":starboard_platform",
+    "//starboard/shared/starboard:features",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+  sources = [
+    "starboard_test_environment.cc",
+    "starboard_test_environment.h",
+  ]
+}
+
 if (current_toolchain == starboard_toolchain) {
   source_set("starboard_platform_tests") {
     testonly = true
