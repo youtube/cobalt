@@ -23,7 +23,10 @@ static_library("test_support") {
 
   public_deps = [ "//testing/gtest" ]
 
-  deps = [ ":starboard_platform" ]
+  deps = [
+    ":starboard_platform",
+    "//starboard/shared/starboard:features",
+  ]
 
   sources = [
     "starboard_test_environment.h",

@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/tvos/shared/starboard_test_environment.h"
+#include "starboard/linux/shared/starboard_test_environment.h"
 
 #include <cstdint>
 #include <iterator>
 
 #include "starboard/shared/starboard/feature_list.h"
 #include "starboard/shared/starboard/features.h"
-#import "starboard/tvos/shared/application_darwin.h"
 
 namespace starboard {
 
@@ -56,21 +55,13 @@ namespace starboard {
 #undef FEATURE_PARAM_LIST_END
 #undef STARBOARD_FEATURE_PARAM_TIME_TYPE
 
-StarboardTestEnvironment::StarboardTestEnvironment(int argc, char** argv)
-    : command_line_(argc, argv) {}
+StarboardTestEnvironment::StarboardTestEnvironment() = default;
 
 StarboardTestEnvironment::~StarboardTestEnvironment() = default;
 
 void StarboardTestEnvironment::SetUp() {
-  application_darwin_ = std::make_unique<ApplicationDarwin>(
-      std::make_unique<CommandLine>(command_line_));
   features::FeatureList::InitializeFeatureList(
       kStarboardFeatures, std::size(kStarboardFeatures), kStarboardParams,
       std::size(kStarboardParams));
 }
-
-void StarboardTestEnvironment::TearDown() {
-  application_darwin_.reset();
-}
-
 }  // namespace starboard
