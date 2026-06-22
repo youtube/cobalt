@@ -26,11 +26,21 @@ using starboard::AssetManager;
 using starboard::IsAndroidAssetPath;
 using starboard::OpenAndroidAsset;
 
+namespace {
+
+bool OpenNeedsMode(int oflag) {
+  // O_TMPFILE shares the O_DIRECTORY bit, so it must be masked exactly.
+  return (oflag & O_CREAT) || (oflag & O_TMPFILE) == O_TMPFILE;
+}
+
+}  // namespace
+
 // ///////////////////////////////////////////////////////////////////////////////
 // // Implementations below exposed externally in pure C for emulation.
 // ///////////////////////////////////////////////////////////////////////////////
 
 extern "C" {
+
 int __real_close(int fildes);
 int __real_open(const char* path, int oflag, ...);
 int __real_openat(int dirfd, const char* path, int oflag, ...);
@@ -45,7 +55,7 @@ int __wrap_close(int fildes) {
 
 int __wrap_openat(int dirfd, const char* path, int oflag, ...) {
   if (!IsAndroidAssetPath(path)) {
-    if (oflag & O_CREAT) {
+    if (OpenNeedsMode(oflag)) {
       va_list args;
       va_start(args, oflag);
       mode_t mode = va_arg(args, int);
@@ -58,7 +68,7 @@ int __wrap_openat(int dirfd, const char* path, int oflag, ...) {
 }
 
 int __wrap_open(const char* path, int oflag, ...) {
-  if (oflag & O_CREAT) {
+  if (OpenNeedsMode(oflag)) {
     va_list args;
     va_start(args, oflag);
     mode_t mode = va_arg(args, int);
