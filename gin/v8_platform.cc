@@ -14,6 +14,9 @@
 #include "base/location.h"
 #include "base/memory/stack_allocated.h"
 #include "base/no_destructor.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
 #include "base/system/sys_info.h"
 #include "base/task/post_job.h"
 #include "base/task/task_traits.h"
@@ -257,9 +260,20 @@ void V8Platform::PostTaskOnWorkerThreadImpl(
     v8::TaskPriority priority,
     std::unique_ptr<v8::Task> task,
     const v8::SourceLocation& location) {
-  base::ThreadPool::PostTask(V8ToBaseLocation(location),
-                             {ToBaseTaskPriority(priority)},
-                             base::BindOnce(&v8::Task::Run, std::move(task)));
+  base::ThreadPool::PostTask(
+      V8ToBaseLocation(location), {ToBaseTaskPriority(priority)},
+#if BUILDFLAG(IS_COBALT)
+      base::BindOnce(
+          [](std::unique_ptr<v8::Task> task) {
+            ::base::memory::ScopedMemoryContext scoped_context(
+                ::base::memory::MemoryContext::kScript);
+            task->Run();
+          },
+          std::move(task))
+#else
+      base::BindOnce(&v8::Task::Run, std::move(task))
+#endif
+  );
 }
 
 void V8Platform::PostDelayedTaskOnWorkerThreadImpl(
@@ -269,7 +283,17 @@ void V8Platform::PostDelayedTaskOnWorkerThreadImpl(
     const v8::SourceLocation& location) {
   base::ThreadPool::PostDelayedTask(
       V8ToBaseLocation(location), {ToBaseTaskPriority(priority)},
+#if BUILDFLAG(IS_COBALT)
+      base::BindOnce(
+          [](std::unique_ptr<v8::Task> task) {
+            ::base::memory::ScopedMemoryContext scoped_context(
+                ::base::memory::MemoryContext::kScript);
+            task->Run();
+          },
+          std::move(task)),
+#else
       base::BindOnce(&v8::Task::Run, std::move(task)),
+#endif
       base::Seconds(delay_in_seconds));
 }
 
@@ -286,6 +310,10 @@ std::unique_ptr<v8::JobHandle> V8Platform::CreateJobImpl(
       base::BindRepeating(
           [](const std::unique_ptr<v8::JobTask>& job_task,
              base::JobDelegate* delegate) {
+#if BUILDFLAG(IS_COBALT)
+            ::base::memory::ScopedMemoryContext scoped_context(
+                ::base::memory::MemoryContext::kScript);
+#endif
             JobDelegateImpl delegate_impl(delegate);
             job_task->Run(&delegate_impl);
           },
