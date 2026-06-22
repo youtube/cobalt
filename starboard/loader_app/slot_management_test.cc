@@ -226,7 +226,7 @@ class SlotManagementTest : public testing::TestWithParam<bool> {
     path += kSbFileSepString;
     path += "libcobalt";
     AddFileExtension(path);
-    int sb_file = open(path.c_str(), O_CREAT | O_RDONLY);
+    int sb_file = open(path.c_str(), O_CREAT | O_RDONLY, S_IRUSR | S_IWUSR);
     EXPECT_TRUE(starboard::IsValid(sb_file));
     close(sb_file);
 

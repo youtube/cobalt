@@ -658,7 +658,7 @@ bool InstallationManager::LoadInstallationStore() {
   int file;
 
   SB_LOG(INFO) << "StorePath=" << store_path_;
-  file = open(store_path_.c_str(), O_RDONLY, S_IRUSR | S_IWUSR);
+  file = open(store_path_.c_str(), O_RDONLY);
   if (!starboard::IsValid(file)) {
     SB_LOG(WARNING) << "Failed to open file: " << store_path_;
     return false;
