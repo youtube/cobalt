@@ -194,6 +194,7 @@ static_library("starboard_platform") {
 
   deps = [
     "//base",
+    "//starboard/shared/starboard:features",
     "//starboard/shared/starboard/player:video_dmp",
     "//third_party/angle:includes",
     "//third_party/libvpx",
