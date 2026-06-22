@@ -15,7 +15,7 @@
 namespace blink {
 
 namespace {
-constexpr uint32_t kVersion = 3u;
+constexpr uint32_t kVersion = 4u;
 }  // namespace
 
 UserAgentBrandVersion::UserAgentBrandVersion(const std::string& ua_brand,
@@ -98,6 +98,7 @@ std::optional<std::string> UserAgentMetadata::Marshal(
   for (const auto& form_factors : in->form_factors) {
     out.WriteString(form_factors);
   }
+  out.WriteString(in->youtube_certification_scope);
   return std::string(reinterpret_cast<const char*>(out.data()), out.size());
 }
 
@@ -113,7 +114,7 @@ std::optional<UserAgentMetadata> UserAgentMetadata::Demarshal(
 
   uint32_t version;
   UserAgentMetadata out;
-  if (!in.ReadUInt32(&version) || version != kVersion)
+  if (!in.ReadUInt32(&version) || version < 3u || version > kVersion)
     return std::nullopt;
 
   uint32_t brand_version_size;
@@ -168,6 +169,11 @@ std::optional<UserAgentMetadata> UserAgentMetadata::Demarshal(
     }
     out.form_factors.push_back(std::move(form_factors));
   }
+  if (version >= 4u) {
+    if (!in.ReadString(&out.youtube_certification_scope)) {
+      return std::nullopt;
+    }
+  }
   return std::make_optional(std::move(out));
 }
 
@@ -182,7 +188,8 @@ bool operator==(const UserAgentMetadata& a, const UserAgentMetadata& b) {
          a.platform_version == b.platform_version &&
          a.architecture == b.architecture && a.model == b.model &&
          a.mobile == b.mobile && a.bitness == b.bitness && a.wow64 == b.wow64 &&
-         a.form_factors == b.form_factors;
+         a.form_factors == b.form_factors &&
+         a.youtube_certification_scope == b.youtube_certification_scope;
 }
 
 // static

@@ -30,6 +30,7 @@ blink::UserAgentMetadata MakeToEncode() {
   to_encode.bitness = "8";
   to_encode.wow64 = true;
   to_encode.form_factors = {"tubular"};
+  to_encode.youtube_certification_scope = "cert_scope_test";
   return to_encode;
 }
 

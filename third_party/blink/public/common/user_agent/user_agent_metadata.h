@@ -78,6 +78,7 @@ struct BLINK_COMMON_EXPORT UserAgentMetadata {
   // compliant with the w3c draft spec:
   // https://wicg.github.io/ua-client-hints/#sec-ch-ua-form-factors.
   std::vector<std::string> form_factors;
+  std::string youtube_certification_scope;
 };
 
 // Used when customizing the sent User-Agent and Sec-CH-UA-* for

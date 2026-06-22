@@ -32,6 +32,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
+#include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
@@ -176,6 +177,16 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
 
   metadata.bitness = embedder_support::GetCpuBitness();
   metadata.wow64 = embedder_support::IsWoW64();
+
+  auto* header_value_provider =
+      cobalt::browser::CobaltHeaderValueProvider::GetInstance();
+  if (header_value_provider) {
+    const auto& headers = header_value_provider->GetHeaderValues();
+    auto it = headers.find("Sec-CH-UA-Co-Youtube-Certification-Scope");
+    if (it != headers.end()) {
+      metadata.youtube_certification_scope = it->second;
+    }
+  }
 
   return metadata;
 }

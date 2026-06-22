@@ -81,6 +81,11 @@ struct BLINK_COMMON_EXPORT StructTraits<blink::mojom::UserAgentMetadataDataView,
     return data.form_factors;
   }
 
+  static const std::string& youtube_certification_scope(
+      const ::blink::UserAgentMetadata& data) {
+    return data.youtube_certification_scope;
+  }
+
   static bool Read(blink::mojom::UserAgentMetadataDataView data,
                    ::blink::UserAgentMetadata* out);
 };

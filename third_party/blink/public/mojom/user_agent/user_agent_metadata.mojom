@@ -24,6 +24,7 @@ struct UserAgentMetadata {
   string bitness;
   bool wow64;
   array<string> form_factors;
+  string youtube_certification_scope;
 };
 
 // See UserAgentOverride in

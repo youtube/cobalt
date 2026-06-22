@@ -42,7 +42,7 @@
            "jsEngineVersion", "rasterizer", "evergreenVersion",
            "starboardVersion", "originalDesignManufacturer",
            "deviceType", "chipset", "modelYear", "deviceBrand",
-           "connectionType", "aux"])
+           "connectionType", "aux", "youtubeCertificationScope"])
           .then(ua => {
             // Cobalt returns a CobaltUADataValuesInterface object instead of a
             // dictionary as dictionary promises are currently not supported.
@@ -67,6 +67,7 @@
             full_JSON.deviceBrand = ua.deviceBrand;
             full_JSON.connectionType = ua.connectionType;
             full_JSON.aux = ua.aux;
+            full_JSON.youtubeCertificationScope = ua.youtubeCertificationScope;
 
             var full_result = document.createElement("div");
             full_result.innerHTML = JSON.stringify(full_JSON, null, " ");

@@ -140,6 +140,10 @@ void NavigatorUAData::SetFormFactors(Vector<String> form_factors) {
   form_factors_ = std::move(form_factors);
 }
 
+void NavigatorUAData::SetYoutubeCertificationScope(const String& youtube_certification_scope) {
+  youtube_certification_scope_ = youtube_certification_scope;
+}
+
 bool NavigatorUAData::mobile() const {
   if (GetExecutionContext()) {
     return is_mobile_;
@@ -276,6 +280,10 @@ ScriptPromise<UADataValues> NavigatorUAData::getHighEntropyValues(
       } else if (hint == "formFactors") {
         values->setFormFactors(form_factors_);
         MaybeRecordMetric(record_identifiability, hint, form_factors_,
+                          execution_context);
+      } else if (hint == "youtubeCertificationScope") {
+        values->setYoutubeCertificationScope(youtube_certification_scope_);
+        MaybeRecordMetric(record_identifiability, hint, youtube_certification_scope_,
                           execution_context);
       }
     }

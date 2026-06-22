@@ -39,6 +39,7 @@ class NavigatorUAData : public ScriptWrappable, ExecutionContextClient {
   void SetBitness(const String& bitness);
   void SetWoW64(bool wow64);
   void SetFormFactors(Vector<String> form_factors);
+  void SetYoutubeCertificationScope(const String& youtube_certification_scope);
 
   // IDL implementation
   const HeapVector<Member<NavigatorUABrandVersion>>& brands() const;
@@ -63,6 +64,7 @@ class NavigatorUAData : public ScriptWrappable, ExecutionContextClient {
   String bitness_;
   bool is_wow64_ = false;
   Vector<String> form_factors_;
+  String youtube_certification_scope_;
 
   void AddBrandVersion(const String& brand, const String& version);
   void AddBrandFullVersion(const String& brand, const String& version);

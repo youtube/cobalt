@@ -67,6 +67,10 @@ bool StructTraits<blink::mojom::UserAgentMetadataDataView,
     return false;
   }
 
+  if (!data.ReadYoutubeCertificationScope(&out->youtube_certification_scope)) {
+    return false;
+  }
+
   return true;
 }
 

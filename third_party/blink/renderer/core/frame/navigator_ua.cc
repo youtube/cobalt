@@ -33,6 +33,8 @@ NavigatorUAData* NavigatorUA::userAgentData() {
     form_factors.push_back(String::FromUTF8(ff));
   }
   ua_data->SetFormFactors(std::move(form_factors));
+  ua_data->SetYoutubeCertificationScope(
+      String::FromUTF8(metadata.youtube_certification_scope));
 
   return ua_data;
 }

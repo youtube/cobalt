@@ -16,4 +16,5 @@ dictionary UADataValues {
   sequence<NavigatorUABrandVersion> fullVersionList;
   boolean wow64;
   sequence<DOMString> formFactors;
+  DOMString youtubeCertificationScope;
 };
