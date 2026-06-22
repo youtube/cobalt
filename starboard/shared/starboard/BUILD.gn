@@ -55,6 +55,7 @@ source_set("test_environment") {
 
   deps = [
     ":features",
+    "//starboard:starboard_headers_only",
     "//testing/gtest",
   ]
 }
