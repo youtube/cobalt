@@ -403,10 +403,6 @@ TEST(LayerTreeViewTest, RunPresentationCallbackOnSuccess) {
   viz::FrameTimingDetails frame_timing_details;
   frame_timing_details.presentation_feedback = fail_feedback;
   layer_tree_view.DidPresentCompositorFrame(1, frame_timing_details);
-#if BUILDFLAG(IS_COBALT)
-  EXPECT_FALSE(callback_timestamp.is_null());
-  EXPECT_EQ(callback_timestamp, fail_timestamp);
-#else
   EXPECT_TRUE(callback_timestamp.is_null());
 
   // Respond with a successful presentation feedback for frame 2 and verify that
@@ -421,7 +417,6 @@ TEST(LayerTreeViewTest, RunPresentationCallbackOnSuccess) {
   EXPECT_FALSE(callback_timestamp.is_null());
   EXPECT_NE(callback_timestamp, fail_timestamp);
   EXPECT_EQ(callback_timestamp, success_timestamp);
-#endif
 }
 
 class LayerTreeViewDelegateChangeTest : public testing::Test {

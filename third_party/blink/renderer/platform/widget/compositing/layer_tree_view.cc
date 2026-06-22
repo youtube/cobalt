@@ -134,6 +134,14 @@ void LayerTreeView::Disconnect() {
   layer_tree_host_->SetVisible(false);
   layer_tree_host_->ReleaseLayerTreeFrameSink();
   delegate_ = nullptr;
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt: Clear pending presentation callbacks when disconnecting to prevent
+  // leaks and avoid running them with a null delegate.
+  presentation_callbacks_.clear();
+#if BUILDFLAG(IS_APPLE)
+  core_animation_error_code_callbacks_.clear();
+#endif
+#endif
 }
 
 void LayerTreeView::ClearPreviousDelegateAndReattachIfNeeded(
@@ -171,6 +179,16 @@ void LayerTreeView::ClearPreviousDelegateAndReattachIfNeeded(
 
   // Invalidate weak ptrs so callbacks from the previous delegate are dropped.
   weak_factory_for_delegate_.InvalidateWeakPtrs();
+
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt: Clear pending presentation callbacks from the previous delegate
+  // to prevent them from leaking or running when the new delegate is attached
+  // (e.g., during navigation).
+  presentation_callbacks_.clear();
+#if BUILDFLAG(IS_APPLE)
+  core_animation_error_code_callbacks_.clear();
+#endif
+#endif
 
   if (!delegate) {
     return;
@@ -436,15 +454,10 @@ void LayerTreeView::DidPresentCompositorFrame(
              ->MainThreadTaskRunner()
              ->RunsTasksInCurrentSequence());
 
-#if !BUILDFLAG(IS_COBALT)
   // Only run callbacks on successful presentations.
   if (frame_timing_details.presentation_feedback.failed()) {
     return;
   }
-#else
-  // Cobalt: Run presentation callbacks even if presentation failed, to prevent
-  // callback queue leaks and subsequent DCHECK crashes (e.g. during navigation).
-#endif
 
   while (!presentation_callbacks_.empty()) {
     const auto& front = presentation_callbacks_.begin();
