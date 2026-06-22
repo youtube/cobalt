@@ -104,6 +104,9 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   mutable base::Lock mutex_;
   std::unique_ptr<Strategy> strategy_ GUARDED_BY(mutex_);
   bool is_strategy_switch_pending_ GUARDED_BY(mutex_) = false;
+  bool is_suspended_ GUARDED_BY(mutex_) = false;
+  bool is_decommit_pending_on_suspend_ GUARDED_BY(mutex_) = false;
+  size_t last_logged_capacity_ GUARDED_BY(mutex_) = 0;
   StrategyCreateCB experimental_strategy_create_cb_ GUARDED_BY(mutex_);
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
