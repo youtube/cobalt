@@ -30,6 +30,7 @@ using starboard::OpenAndroidAssetDir;
 extern "C" {
 
 int __real_fstatat(int dirfd, const char* path, struct stat* info, int flags);
+int __wrap_fstatat(int dirfd, const char* path, struct stat* info, int flags);
 
 int __wrap_stat(const char* path, struct stat* info) {
   return __wrap_fstatat(AT_FDCWD, path, info, 0);
