@@ -25,9 +25,9 @@
 #include "base/test/test_support_ios.h"
 #include "starboard/tvos/shared/starboard_test_environment.h"
 #elif BUILDFLAG(IS_ANDROID)
-#include "starboard/android/shared/starboard_test_environment.h"  // nogncheck
+#include "starboard/android/shared/starboard_test_environment.h"
 #else
-#include "starboard/shared/starboard/starboard_test_environment.h"  // nogncheck
+#include "starboard/shared/starboard/starboard_test_environment.h"
 #endif
 
 namespace {
