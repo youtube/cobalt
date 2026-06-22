@@ -20,6 +20,9 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(IS_IOS_TVOS)
+#include <string>
+#include <vector>
+
 #include "base/command_line.h"     // nogncheck
 #include "base/functional/bind.h"  // nogncheck
 #include "base/test/test_support_ios.h"
@@ -45,7 +48,32 @@ int RunTests(int argc, char** argv) {
 }
 
 int InitAndRunAllTests(int argc, char** argv) {
-  ::testing::InitGoogleTest(&argc, argv);
+#if BUILDFLAG(IS_IOS_TVOS)
+  std::vector<std::string> arg_strings;
+  std::vector<char*> new_argv;
+  char cache_dir[512] = {0};
+  bool has_cache_dir = SbSystemGetPath(kSbSystemPathCacheDirectory, cache_dir,
+                                       sizeof(cache_dir));
+
+  for (int i = 0; i < argc; ++i) {
+    std::string arg(argv[i]);
+    if (has_cache_dir && arg.rfind("--gtest_output=xml:", 0) == 0) {
+      std::string file_path = arg.substr(19);
+      if (!file_path.empty() && file_path[0] != '/') {
+        arg = "--gtest_output=xml:" + std::string(cache_dir) + "/" + file_path;
+      }
+    }
+    arg_strings.push_back(arg);
+  }
+  for (size_t i = 0; i < arg_strings.size(); ++i) {
+    new_argv.push_back(const_cast<char*>(arg_strings[i].c_str()));
+  }
+  char** final_argv = new_argv.data();
+#else
+  char** final_argv = argv;
+#endif
+
+  ::testing::InitGoogleTest(&argc, final_argv);
 #if BUILDFLAG(IS_IOS_TVOS)
   // tvOS tests need to invoke UIApplicationMain() to set up the main loop and
   // the rest of the expected infrastructure. Invoke InitAndRunAllTests() via
