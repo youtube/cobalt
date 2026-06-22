@@ -2,6 +2,10 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 import("//third_party/blink/renderer/modules/modules.gni")
 
 blink_modules_sources("webgl") {
@@ -205,7 +209,7 @@ blink_modules_sources("webgl") {
 
   allow_circular_includes_from = deps
 
-  if (is_cobalt) {
+  if (is_cobalt && use_starboard_media) {
     sources += [
       "oes_egl_image_external.cc",
       "oes_egl_image_external.h",

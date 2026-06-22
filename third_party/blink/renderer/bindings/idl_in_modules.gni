@@ -1285,10 +1285,13 @@ static_idl_files_in_modules = [
   "//third_party/blink/renderer/modules/xr/xr_webgl_sub_image.idl",
 ]
 
-if (is_cobalt) {
+if (is_cobalt && use_starboard_media) {
   static_idl_files_in_modules += [
     "//third_party/blink/renderer/modules/webgl/oes_egl_image_external.idl",
   ]
+}
+
+if (is_cobalt) {
   static_idl_files_in_modules += get_path_info(
           [
             "//third_party/blink/renderer/modules/cobalt/crash_log/crash_log.idl",
