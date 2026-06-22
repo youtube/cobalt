@@ -98,7 +98,7 @@ class SurfaceDestroyNotifier
   void Disconnect();
   void Notify();
 
-  bool Holds(VideoSurfaceHolder* holder) const {
+  bool IsCurrentHolder(VideoSurfaceHolder* holder) const {
     std::lock_guard lock(mutex_);
     return holder_ == holder;
   }
@@ -116,6 +116,9 @@ class SurfaceDestroyNotifier
   VideoSurfaceHolder* holder_;  // Guarded by |mutex_|
   JobQueue* job_queue_;         // Guarded by |mutex_|
 };
+
+// Set the global video surface. Exposed for unit testing.
+void SetVideoSurfaceForTesting(JNIEnv* env, jobject surface);
 
 }  // namespace starboard
 

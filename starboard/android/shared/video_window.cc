@@ -256,7 +256,7 @@ void VideoSurfaceHolder::ReleaseVideoSurface() {
   std::lock_guard lock(*GetViewSurfaceMutex());
 
   auto& notifier = GetGlobalSurfaceDestroyNotifier();
-  if (!notifier || !notifier->Holds(this)) {
+  if (!notifier || !notifier->IsCurrentHolder(this)) {
     return;
   }
   notifier->Disconnect();
@@ -302,6 +302,11 @@ void VideoSurfaceHolder::CleanUpVideoWindow(
 
   StarboardBridge::GetInstance()->ResetVideoSurface(env);
   SB_LOG(INFO) << "Video surface has been reset (default behavior).";
+}
+
+void SetVideoSurfaceForTesting(JNIEnv* env, jobject surface) {
+  JNI_VideoSurfaceView_OnVideoSurfaceChanged(
+      env, jni_zero::JavaParamRef<jobject>(env, surface));
 }
 
 }  // namespace starboard
