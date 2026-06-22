@@ -156,8 +156,7 @@ runs:
         test_executables=$(jq -nr --arg json "${TEST_EXECUTABLES_JSON:-[]}" '$json | fromjson | join(" ")')
 
         for test_executable_path in ${test_executables}; do
-          filename=$(basename "${test_executable_path}")
-          test_executable="${filename%%.*}"
+          test_exectuable=$(basename "${test_executable_path}")
 
           # JUnit tests are executed by their wrapper script "out/PLATFORM_CONFIG/bin/run_NAME".
           # We use the test executable's base name for naming its logs and results.
@@ -166,7 +165,7 @@ runs:
           xml_path="${test_output}/${test_executable_name}_result.xml"
           log_path="${test_output}/${test_executable_name}_log.txt"
 
-          echo "Running tests for suite: ${test_executable_name}"
+          echo "Running tests for target: ${test_executable_name}"
 
           # Run JUnit tests and generate JSON report, then convert to XML.
           #

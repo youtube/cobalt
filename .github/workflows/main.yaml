@@ -39,6 +39,10 @@ env:
     cobalt/testing/browser_tests/tools
     cobalt/testing/filters
     cobalt/tools
+  PR_ODT_ENABLED: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false }}
+  NIGHTLY_ODT_ENABLED: ${{ (inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False' }}
+  POSTSUBMIT_ODT_ENABLED: ${{ github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False' }}
+  PR_BROWSERTEST_ENABELD: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # Retrieves configuration from json file.
@@ -315,11 +319,11 @@ jobs:
             # test_on_device
             test_on_device="${{ steps.set-test-on-device.outputs.test_on_device }}"
             if [[ "${test_on_device}" == "true" ]]; then
-              if [[ "${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false }}" == "true" ]]; then
+              if [[ "$PR_ODT_ENABLED" == "true" ]]; then
                 run_on_device_test="true"
-              elif [[ "${{ (inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False' }}" == "true" ]]; then
+              elif [[ "$NIGHTLY_ODT_ENABLED" == "true" ]]; then
                 run_on_device_test="true"
-              elif [[ "${{ github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False' }}" == "true" ]]; then
+              elif [[ "$POSTSUBMIT_ODT_ENABLED" == "true" ]]; then
                 run_on_device_test="true"
               fi
             fi
@@ -327,15 +331,20 @@ jobs:
             # run_browser_tests
             run_browser_tests="${{ steps.set-browser-test-targets.outputs.run_browser_tests }}"
             if [[ "${run_browser_tests}" == "true" && "${test_on_host}" == "true" ]]; then
-              if [[ "${{ github.event_name == 'pull_request' }}" == "true" ]]; then
+              if [[ "$PR_BROWSERTEST_ENABLED" == "true" ]]; then
                 run_browser_test_on_host="true"
-              elif [[ "${{ (inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False' }}" == "true" ]]; then
+              elif [[ "$NIGHTLY_ODT_ENABLED" == "true" ]]; then
                 run_browser_test_on_host="true"
-              elif [[ "${{ github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False' }}" == "true" ]]; then
+              elif [[ "$POSTSUBMIT_ODT_ENABLED" == "true" ]]; then
                 run_browser_test_on_host="true"
               fi
             fi
 
+
+            # The expected test targets is a list of all those targets that we
+            # want standard results processing jobs to apply to. Currently this
+            # includes all gtest and junit test targets that will be executed
+            # in this run.
             expected_targets=$(jq -c \
               --arg run_on_device_test "${run_on_device_test}" \
               --arg run_on_host_test "${run_on_host_test}" \
@@ -390,6 +399,8 @@ jobs:
       enable_sccache: ${{ steps.set-enable-sccache.outputs.enable_sccache }}
       docker_service: ${{ steps.set-docker-service.outputs.docker_service }}
       expected_test_targets_json: ${{ steps.generate-expected-test-targets-json.outputs.expected_test_targets_json }}
+      # TODO(b/526724005): The run_on_host_test and test_on_host outputs are redundant but it's added here for clarity.
+      # This should ideally be cleaned up in a future PR in order to make it obvious.
       run_on_host_test: ${{ steps.generate-expected-test-targets-json.outputs.run_on_host_test }}
       run_on_device_test: ${{ steps.generate-expected-test-targets-json.outputs.run_on_device_test }}
       run_browser_test_on_host: ${{ steps.generate-expected-test-targets-json.outputs.run_browser_test_on_host }}
