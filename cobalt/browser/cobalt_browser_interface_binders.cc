@@ -39,11 +39,10 @@
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "cobalt/browser/h5vcc_updater/h5vcc_updater_impl.h"
-// TODO(b/458483469): Remove the ALLOW_EVERGREEN_SIDELOADING check after
-// security review.
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 #include "cobalt/browser/h5vcc_updater/h5vcc_updater_sideloading_impl.h"
-#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 #include "cobalt/browser/h5vcc_updater/public/mojom/h5vcc_updater.mojom.h"
 #endif  // BUILDFLAG(USE_EVERGREEN)
 
@@ -123,14 +122,11 @@ void PopulateCobaltFrameBinders(
       }));
 #endif
 
-// Always register a binder for H5vccUpdaterSideloading to prevent the browser
-// from killing the Mojo connection if the renderer probes for this interface.
-// If this is not registered, it disconnects the overall BrowserInterfaceBroker
-// for the frame.
-// TODO(b/458483469): Remove the ALLOW_EVERGREEN_SIDELOADING check after
-// security review.
-#if BUILDFLAG(USE_EVERGREEN) && !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && \
-    ALLOW_EVERGREEN_SIDELOADING
+  // Always register a binder for H5vccUpdaterSideloading to prevent the browser
+  // from killing the Mojo connection if the renderer probes for this interface.
+  // If this is not registered, it disconnects the overall
+  // BrowserInterfaceBroker for the frame.
+#if BUILDFLAG(USE_EVERGREEN) && !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   binder_map->Add<h5vcc_updater::mojom::H5vccUpdaterSideloading>(
       base::BindRepeating(&h5vcc_updater::H5vccUpdaterSideloadingImpl::Create));
 #else
