@@ -13,6 +13,7 @@
 #include <optional>
 
 #include "base/android/build_info.h"
+#include "base/command_line.h"
 #include "base/android/jni_android.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
@@ -120,6 +121,13 @@ void TerminateOnThread() {
 
 size_t GetDefaultThreadStackSize(const pthread_attr_t& attributes) {
 #if !defined(ADDRESS_SANITIZER)
+  if (base::CommandLine::InitializedForCurrentProcess()) {
+    std::string enabled_features =
+        base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII("enable-features");
+    if (enabled_features.find("ReduceNonMediaThreadStackSize") != std::string::npos) {
+      return 256 * 1024;
+    }
+  }
   return 0;
 #else
   // AddressSanitizer bloats the stack approximately 2x. Default stack size of

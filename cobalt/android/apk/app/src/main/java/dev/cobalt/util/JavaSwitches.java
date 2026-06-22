@@ -62,6 +62,7 @@ public class JavaSwitches {
   public static final String ENABLE_SCALING_CLIPPED_IMAGES = "EnableScalingClippedImages";
 
   public static final String REDUCE_MEDIA_THREAD_STACK_SIZE = "ReduceMediaThreadStackSize";
+  public static final String REDUCE_NON_MEDIA_THREAD_STACK_SIZE = "ReduceNonMediaThreadStackSize";
 
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
@@ -125,6 +126,10 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.REDUCE_MEDIA_THREAD_STACK_SIZE)) {
       extraCommandLineArgs.add("--enable-features=ReduceMediaThreadStackSize");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.REDUCE_NON_MEDIA_THREAD_STACK_SIZE)) {
+      extraCommandLineArgs.add("--enable-features=ReduceNonMediaThreadStackSize");
     }
 
     return extraCommandLineArgs;
