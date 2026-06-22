@@ -90,6 +90,7 @@ runs:
         for test_executable_path in ${test_executables}; do
           filename=$(basename "${test_executable_path}")
           test_executable="${filename%%.*}"
+          test_executable="${test_executable#run_}"
 
           echo "Running tests for suite: ${test_executable}"
 
@@ -158,6 +159,7 @@ runs:
         for test_executable_path in ${test_executables}; do
           filename=$(basename "${test_executable_path}")
           test_executable="${filename%%.*}"
+          test_executable="${test_executable#run_}"
 
           echo "Running tests for suite: ${test_executable}"
 
