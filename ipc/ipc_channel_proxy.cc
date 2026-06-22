@@ -13,9 +13,7 @@
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
-#if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h"
-#endif
 #include "base/memory/ptr_util.h"
 #include "base/memory/ref_counted.h"
 #include "base/task/single_thread_task_runner.h"
@@ -122,10 +120,8 @@ void ChannelProxy::Context::FlushChannel() {
 
 // Called on the IPC::Channel thread
 bool ChannelProxy::Context::OnMessageReceived(const Message& message) {
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(
       base::memory::MemoryContext::kPlatformIPC);
-#endif
   // First give a chance to the filters to process this message.
   if (!TryFilters(message))
     OnMessageReceivedNoFilter(message);
@@ -311,10 +307,8 @@ void ChannelProxy::Context::AddFilter(MessageFilter* filter) {
 
 // Called on the listener's thread
 void ChannelProxy::Context::OnDispatchMessage(const Message& message) {
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(
       base::memory::MemoryContext::kPlatformIPC);
-#endif
   if (!listener_)
     return;
 

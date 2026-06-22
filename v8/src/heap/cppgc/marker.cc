@@ -4,10 +4,7 @@
 
 #include "src/heap/cppgc/marker.h"
 
-#if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h" // nogncheck
-#include "cobalt/shell/buildflags.h"
-#endif
 
 #include <cstddef>
 #include <cstdint>
@@ -355,9 +352,7 @@ class WeakCallbackJobTask final : public cppgc::JobTask {
         broker_(broker) {}
 
   void Run(JobDelegate* delegate) override {
-#if BUILDFLAG(IS_COBALT)
     ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
-#endif
     StatsCollector::EnabledConcurrentScope stats_scope(
         marker_->heap().stats_collector(),
         StatsCollector::kConcurrentWeakCallback);

@@ -4,9 +4,7 @@
 
 #include "src/heap/heap.h"
 
-#if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h"  // nogncheck
-#endif
 
 #include <algorithm>
 #include <atomic>
@@ -2240,10 +2238,8 @@ void ClearStubCaches(Isolate* isolate) {
 void Heap::PerformGarbageCollection(GarbageCollector collector,
                                     GarbageCollectionReason gc_reason,
                                     const char* collector_reason) {
-#if BUILDFLAG(IS_COBALT)
   ::base::memory::ScopedMemoryContext scoped_context(
       ::base::memory::MemoryContext::kScript);
-#endif
   if (IsYoungGenerationCollector(collector)) {
     if (v8_flags.sticky_mark_bits) {
       DCHECK_EQ(GarbageCollector::MINOR_MARK_SWEEPER, collector);

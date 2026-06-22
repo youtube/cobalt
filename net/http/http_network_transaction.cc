@@ -15,9 +15,7 @@
 #include "base/feature_list.h"
 #include "base/format_macros.h"
 #include "base/functional/bind.h"
-#if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h"
-#endif
 #include "base/functional/callback_helpers.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram_functions.h"
@@ -362,10 +360,8 @@ HttpNetworkTransaction::~HttpNetworkTransaction() {
 int HttpNetworkTransaction::Start(const HttpRequestInfo* request_info,
                                   CompletionOnceCallback callback,
                                   const NetLogWithSource& net_log) {
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(
       base::memory::MemoryContext::kNetwork);
-#endif
   TRACE_EVENT("net", "HttpNetworkTransaction::Start",
               NetLogWithSourceToFlow(net_log), "url", request_info->url);
 
@@ -618,10 +614,8 @@ bool HttpNetworkTransaction::IsReadyToRestartForAuth() {
 int HttpNetworkTransaction::Read(IOBuffer* buf,
                                  int buf_len,
                                  CompletionOnceCallback callback) {
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(
       base::memory::MemoryContext::kNetwork);
-#endif
   DCHECK(buf);
   DCHECK_LT(0, buf_len);
 
@@ -1008,10 +1002,8 @@ void HttpNetworkTransaction::OnIOComplete(int result) {
 }
 
 int HttpNetworkTransaction::DoLoop(int result) {
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(
       base::memory::MemoryContext::kNetwork);
-#endif
   DCHECK(next_state_ != STATE_NONE);
 
   int rv = result;

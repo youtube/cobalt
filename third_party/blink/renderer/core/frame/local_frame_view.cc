@@ -31,10 +31,8 @@
 #include <utility>
 
 #include "base/auto_reset.h"
-#include "base/feature_list.h"
-#if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h"
-#endif
+#include "base/feature_list.h"
 #include "base/functional/callback.h"
 #include "base/functional/function_ref.h"
 #include "base/memory/ptr_util.h"
@@ -207,9 +205,7 @@
     }                               \
   } while (false)
 
-#if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h"
-#endif
 
 namespace blink {
 namespace {

@@ -34,10 +34,7 @@
 #include <optional>
 #include <utility>
 
-#if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h"
-#include "cobalt/shell/buildflags.h"
-#endif
 
 #include "base/auto_reset.h"
 #include "base/containers/adapters.h"
@@ -1366,10 +1363,8 @@ Element* TreeScope::createElementNS(
 Element* TreeScope::CreateElement(const QualifiedName& q_name,
                                   const CreateElementFlags flags,
                                   const AtomicString& is) {
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(
       base::memory::MemoryContext::kBlinkDOM);
-#endif
   CustomElementDefinition* definition = nullptr;
   if (flags.IsCustomElements() &&
       q_name.NamespaceURI() == html_names::xhtmlNamespaceURI) {
@@ -1391,10 +1386,8 @@ DocumentFragment* Document::createDocumentFragment() {
 }
 
 Text* Document::createTextNode(const String& data) {
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(
       base::memory::MemoryContext::kBlinkDOM);
-#endif
   return Text::Create(*this, data);
 }
 

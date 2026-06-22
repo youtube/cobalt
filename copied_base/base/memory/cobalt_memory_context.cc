@@ -12,57 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "copied_base/base/memory/cobalt_memory_context.h"
+#include "base/memory/cobalt_memory_context.h"
 
-#include <pthread.h>
 #include <stdint.h>
-#include <atomic>
+#include "build/build_config.h"
+
+#if BUILDFLAG(IS_COBALT)
 
 namespace base {
 namespace memory {
 
-
-// Weak symbol to allow the linker to merge this TLS getter across base and copied_base.
-#if defined(__GNUC__)
-__attribute__((weak))
-#endif
-pthread_key_t GetSharedMemoryContextKey() {
-  // Use a static atomic to ensure lazy initialization happens safely.
-  // Because this function is weak, the linker will merge all copies into a single instance,
-  // meaning `g_key` will be identical across both `base` and `copied_base`.
-  static std::atomic<intptr_t> g_key{-1};
-  intptr_t key = g_key.load(std::memory_order_acquire);
-  if (key == -1) {
-    pthread_key_t new_key;
-    pthread_key_create(&new_key, nullptr);
-    intptr_t expected = -1;
-    if (g_key.compare_exchange_strong(expected, static_cast<intptr_t>(new_key), std::memory_order_release)) {
-      key = static_cast<intptr_t>(new_key);
-    } else {
-      pthread_key_delete(new_key);
-      key = expected;
-    }
-  }
-  return static_cast<pthread_key_t>(key);
-}
-
 MemoryContext GetCurrentMemoryContext() {
-  void* ptr = pthread_getspecific(GetSharedMemoryContextKey());
-  return static_cast<MemoryContext>(reinterpret_cast<intptr_t>(ptr));
+  return internal::g_cobalt_memory_context;
 }
 
 void SetCurrentMemoryContext(MemoryContext context) {
-  pthread_setspecific(GetSharedMemoryContextKey(),
-                      reinterpret_cast<void*>(static_cast<intptr_t>(context)));
-}
-
-ScopedMemoryContext::ScopedMemoryContext(MemoryContext context) {
-  prev_context_ = GetCurrentMemoryContext();
-  SetCurrentMemoryContext(context);
-}
-
-ScopedMemoryContext::~ScopedMemoryContext() {
-  SetCurrentMemoryContext(prev_context_);
+  internal::g_cobalt_memory_context = context;
 }
 
 std::string_view ContextToString(MemoryContext context) {
@@ -121,3 +86,4 @@ std::string_view ContextToString(MemoryContext context) {
 }  // namespace memory
 }  // namespace base
 
+#endif  // BUILDFLAG(IS_COBALT)

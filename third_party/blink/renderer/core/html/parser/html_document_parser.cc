@@ -35,10 +35,7 @@
 #include "base/strings/strcat.h"
 #include "base/synchronization/lock.h"
 
-#if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h"
-#include "cobalt/shell/buildflags.h"
-#endif
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/types/optional_util.h"
