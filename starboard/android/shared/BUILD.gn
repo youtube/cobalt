@@ -435,6 +435,7 @@ test("starboard_platform_tests") {
     ":starboard_platform",
     ":test_support",
     "//base",
+    "//cobalt/android:cobalt_main_java",
     "//starboard:starboard_group",
     "//starboard/shared/starboard/drm:drm_test_helpers",
     "//starboard/shared/starboard/player/filter/testing:test_util",
