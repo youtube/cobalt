@@ -689,6 +689,10 @@ void HTMLDocumentParser::ForcePlaintextForTextDocument() {
 }
 
 bool HTMLDocumentParser::PumpTokenizer() {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kBlinkParser);
+#endif
   DCHECK(!GetDocument()->IsPrefetchOnly());
   DCHECK(!IsStopped());
 
