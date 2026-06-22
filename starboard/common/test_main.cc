@@ -27,7 +27,7 @@
 #elif BUILDFLAG(IS_ANDROID)
 #include "starboard/android/shared/starboard_test_environment.h"
 #else
-#include "starboard/shared/starboard/starboard_test_environment.h"
+#include "starboard/shared/starboard/starboard_test_environment.h"  // nogncheck
 #endif
 
 namespace {
