@@ -842,13 +842,13 @@ void DisplayEGL::generateExtensions(egl::DisplayExtensions *outExtensions) const
     // supported, so indicate support here to keep validation happy.
     outExtensions->swapBuffersWithDamage = true;
 
-#if defined(STARBOARD) && defined(__ANDROID__)
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
     outExtensions->image     = true;
     outExtensions->imageBase = true;
-#else  // defined(STARBOARD) && defined(__ANDROID__)
+#else  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
     outExtensions->image     = mEGL->hasExtension("EGL_KHR_image");
     outExtensions->imageBase = mEGL->hasExtension("EGL_KHR_image_base");
-#endif  // defined(STARBOARD) && defined(__ANDROID__)
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
     // Pixmaps are not supported in ANGLE's EGL implementation.
     // outExtensions->imagePixmap = mEGL->hasExtension("EGL_KHR_image_pixmap");
     outExtensions->glTexture2DImage      = mEGL->hasExtension("EGL_KHR_gl_texture_2D_image");

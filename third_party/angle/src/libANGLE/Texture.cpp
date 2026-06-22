@@ -678,7 +678,7 @@ GLint ImageDesc::getMemorySize() const
 const ImageDesc &TextureState::getImageDesc(TextureTarget target, size_t level) const
 {
     size_t descIndex = GetImageDescIndex(target, level);
-#if defined(STARBOARD) && defined(__ANDROID__)
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
     // For external textures on Android Starboard, the actual dimensions and format
     // are managed by the external image sibling (SbDecodeTarget). ANGLE might not
     // have these details immediately in its TextureState. Returning a 1x1
@@ -689,7 +689,7 @@ const ImageDesc &TextureState::getImageDesc(TextureTarget target, size_t level) 
         static const ImageDesc kPlaceholderExternalDesc(Extents(1, 1, 1), Format(GL_RGBA, GL_UNSIGNED_BYTE), InitState::Initialized);
         return kPlaceholderExternalDesc;
     }
-#endif  // defined(STARBOARD) && defined(__ANDROID__)
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
     ASSERT(descIndex < mImageDescs.size());
     return mImageDescs[descIndex];
 }

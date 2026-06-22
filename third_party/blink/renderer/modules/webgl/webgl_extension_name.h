@@ -5,6 +5,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGL_WEBGL_EXTENSION_NAME_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGL_WEBGL_EXTENSION_NAME_H_
 
+#include "build/build_config.h"
+
 namespace blink {
 
 // Extension names are needed to properly wrap instances in JavaScript objects.

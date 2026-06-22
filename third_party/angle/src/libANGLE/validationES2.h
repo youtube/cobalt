@@ -658,16 +658,16 @@ ANGLE_INLINE bool ValidateBindTexture(const Context *context,
     if (!context->getState().isBindGeneratesResourceEnabled() &&
         !context->isTextureGenerated(texture))
     {
-#if defined(STARBOARD)
+#if defined(ENABLE_BUILDFLAG_IS_COBALT)
         if (target != TextureType::External)
         {
             ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, err::kObjectNotGenerated);
             return false;
         }
-#else  // defined(STARBOARD)
+#else  // defined(ENABLE_BUILDFLAG_IS_COBALT)
         ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, err::kObjectNotGenerated);
         return false;
-#endif  // defined(STARBOARD)
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT)
     }
 
     return true;
