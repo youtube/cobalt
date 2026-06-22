@@ -237,6 +237,11 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
     AudioRendererSink::Reset();
   }
 
+  void Stop() override {
+    is_flushed_ = false;
+    AudioRendererSinkImpl::Stop();
+  }
+
   const bool is_tunnel_mode_enabled_;
   const bool enable_video_renderer_vsp_adjustment_;
   const bool allow_flush_during_seek_;
