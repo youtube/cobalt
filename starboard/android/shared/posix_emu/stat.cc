@@ -38,8 +38,8 @@ int __wrap_stat(const char* path, struct stat* info) {
     return __real_stat(path, info);  // Using system level stat call
   }
 
-  // Keep a 0 mode so fortification does not rewrite open() to __open_2 and
-  // bypass the POSIX emulation wrappers needed to read the asset.
+  // Don't use the 2-arg open() since _FORTIFY_SOURCE rewrites it to __open_2,
+  // which bypasses -Wl,--wrap=open.
   int file = open(path, O_RDONLY, 0);
   if (file >= 0) {
     int result = fstat(file, info);

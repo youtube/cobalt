@@ -43,8 +43,8 @@ FileImpl::~FileImpl() {
 bool FileImpl::Open(const char* name) {
   SB_DLOG(INFO) << "Loading: " << name;
   name_ = name;
-  // Keep a 0 mode so fortification does not rewrite open() to __open_2 and
-  // bypass the POSIX emulation wrappers needed to read the asset.
+  // Don't use the 2-arg open() since _FORTIFY_SOURCE rewrites it to __open_2,
+  // which bypasses -Wl,--wrap=open.
   file_ = open(name, O_RDONLY, 0);
   if (file_ < 0) {
     return false;
