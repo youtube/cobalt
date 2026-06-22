@@ -23,6 +23,7 @@
 
 #include "starboard/android/shared/fake_media_codec.h"
 #include "starboard/android/shared/media_codec_video_decoder.h"
+#include "starboard/android/shared/video_surface_texture_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -37,37 +38,8 @@ class VideoDecoderSurfaceTest : public ::testing::Test {
     env_ = jni_zero::AttachCurrentThread();
     ASSERT_NE(env_, nullptr);
 
-    // Create a real Java Surface to pass to ANativeWindow_fromSurface.
-    // We use standard Android framework classes (SurfaceTexture, Surface)
-    // rather than Cobalt wrappers because Cobalt Java classes are not packaged
-    // inside the standalone starboard_platform_tests_apk.
-    //
-    // All local references are wrapped in ScopedJavaLocalRef to prevent leaks.
-    jni_zero::ScopedJavaLocalRef<jclass> surface_texture_class(
-        env_, env_->FindClass("android/graphics/SurfaceTexture"));
-    ASSERT_FALSE(surface_texture_class.is_null());
-
-    jmethodID surface_texture_ctor =
-        env_->GetMethodID(surface_texture_class.obj(), "<init>", "(I)V");
-    ASSERT_NE(surface_texture_ctor, nullptr);
-
-    jni_zero::ScopedJavaLocalRef<jobject> surface_texture(
-        env_,
-        env_->NewObject(surface_texture_class.obj(), surface_texture_ctor, 1));
-    ASSERT_FALSE(surface_texture.is_null());
-
-    jni_zero::ScopedJavaLocalRef<jclass> surface_class(
-        env_, env_->FindClass("android/view/Surface"));
-    ASSERT_FALSE(surface_class.is_null());
-
-    jmethodID surface_ctor = env_->GetMethodID(
-        surface_class.obj(), "<init>", "(Landroid/graphics/SurfaceTexture;)V");
-    ASSERT_NE(surface_ctor, nullptr);
-
-    real_surface_ = jni_zero::ScopedJavaLocalRef<jobject>(
-        env_, env_->NewObject(surface_class.obj(), surface_ctor,
-                              surface_texture.obj()));
-    ASSERT_FALSE(real_surface_.is_null());
+    real_surface_ = VideoSurfaceTextureBridge::CreateSurfaceForTesting(env_);
+    ASSERT_TRUE(real_surface_);
   }
 
   void TearDown() override {
