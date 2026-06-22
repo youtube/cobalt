@@ -43,8 +43,15 @@ struct PLATFORM_EXPORT AudioProcessingProperties {
   media::AudioProcessingSettings ToAudioProcessingSettings(
       bool multi_channel_capture_processing) const;
 
+  // On Cobalt, audio processing (AEC, NS, AGC, etc.) is disabled by default to
+  // avoid CPU-intensive tasks on embedded devices.
+#if BUILDFLAG(IS_COBALT)
+  EchoCancellationType echo_cancellation_type =
+      EchoCancellationType::kEchoCancellationDisabled;
+#else
   EchoCancellationType echo_cancellation_type =
       EchoCancellationType::kEchoCancellationAec3;
+#endif
   // Indicates whether system-level gain control and noise suppression
   // functionalities are active that fill a role comparable to the browser
   // counterparts.
@@ -60,21 +67,33 @@ struct PLATFORM_EXPORT AudioProcessingProperties {
   bool disable_hw_noise_suppression = false;
 
   bool goog_audio_mirroring = false;
+#if BUILDFLAG(IS_COBALT)
+  bool goog_auto_gain_control = false;
+#else
   bool goog_auto_gain_control = true;
+#endif
   // TODO(https://crbug.com/1269723): Deprecate this constraint. The flag no
   // longer toggles meaningful processing effects, but it still forces the audio
   // processing module to be created and used.
   bool goog_experimental_echo_cancellation =
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_COBALT)
       false;
 #else
       true;
 #endif
+#if BUILDFLAG(IS_COBALT)
+  bool goog_noise_suppression = false;
+  // Experimental noise suppression maps to transient suppression (keytap
+  // removal).
+  bool goog_experimental_noise_suppression = false;
+  bool goog_highpass_filter = false;
+#else
   bool goog_noise_suppression = true;
   // Experimental noise suppression maps to transient suppression (keytap
   // removal).
   bool goog_experimental_noise_suppression = true;
   bool goog_highpass_filter = true;
+#endif
 };
 }  // namespace blink
 

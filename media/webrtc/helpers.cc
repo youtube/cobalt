@@ -149,6 +149,8 @@ rtc::scoped_refptr<webrtc::AudioProcessing> CreateWebRtcAudioProcessingModule(
   if (!settings.NeedWebrtcAudioProcessing())
     return nullptr;
 
+  LOG(INFO) << "KJ: WebRTC AudioProcessingModule is BEING CREATED.";
+
   webrtc::AudioProcessingBuilder ap_builder;
 
   webrtc::AudioProcessing::Config apm_config;

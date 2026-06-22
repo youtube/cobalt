@@ -239,6 +239,11 @@ std::unique_ptr<AudioProcessor> AudioProcessor::Create(
     const AudioProcessingSettings& settings,
     const media::AudioParameters& input_format,
     const media::AudioParameters& output_format) {
+  LOG(INFO) << "KJ: AudioProcessor::Create - "
+            << "input_rate: " << input_format.sample_rate()
+            << ", output_rate: " << output_format.sample_rate()
+            << ", settings: " << settings.ToString();
+
   log_callback.Run(base::StringPrintf(
       "AudioProcessor::Create({multi_channel_capture_processing=%s})",
       settings.multi_channel_capture_processing ? "true" : "false"));
@@ -626,10 +631,18 @@ AudioParameters AudioProcessor::GetDefaultOutputFormat(
 #if BUILDFLAG(IS_CASTOS) || BUILDFLAG(IS_CAST_ANDROID)
                                    std::min(media::kAudioProcessingSampleRateHz,
                                             input_format.sample_rate())
+#elif BUILDFLAG(IS_COBALT)
+                                   input_format.sample_rate()
 #else
                                    media::kAudioProcessingSampleRateHz
 #endif
                                    : input_format.sample_rate();
+
+  LOG(INFO) << "KJ: AudioProcessor::GetDefaultOutputFormat - "
+          << "input_rate: " << input_format.sample_rate()
+          << ", need_apm: " << need_webrtc_audio_processing
+          << ", output_rate: " << output_sample_rate
+          << ", settings: " << settings.ToString();
 
   media::ChannelLayoutConfig output_channel_layout_config;
   if (!need_webrtc_audio_processing) {
