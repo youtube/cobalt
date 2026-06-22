@@ -148,16 +148,10 @@ PlayerComponents::Factory::CreateComponents(
             creation_parameters.video_codec() != kSbMediaVideoCodecNone);
   SB_CHECK(creation_parameters.job_queue());
 
-  bool use_stub_audio_decoder = false;
-  bool use_stub_video_decoder = false;
-  use_stub_audio_decoder =
+  bool use_stub_audio_decoder =
       features::FeatureList::IsEnabled(features::kUseStubAudioDecoder);
-  use_stub_video_decoder =
+  bool use_stub_video_decoder =
       features::FeatureList::IsEnabled(features::kUseStubVideoDecoder);
-  SB_LOG(INFO) << __func__ << ": use_stub_audio_decoder="
-               << ToString(use_stub_audio_decoder)
-               << ", use_stub_video_decoder="
-               << ToString(use_stub_video_decoder);
 
   MediaComponents components;
   if (use_stub_audio_decoder && use_stub_video_decoder) {
