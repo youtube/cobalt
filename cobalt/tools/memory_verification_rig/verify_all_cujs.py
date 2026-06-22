@@ -26,6 +26,59 @@ import subprocess
 import sys
 import time
 import urllib.request
+import websocket
+
+
+def wait_for_video_playback(port, timeout=30):
+  """Waits for a video element to exist and start playing (currentTime > 0)."""
+  print(f"[WAIT] Ensuring video playback on port {port}...")
+  start_wait = time.time()
+  while time.time() - start_wait < timeout:
+    try:
+      with urllib.request.urlopen(
+          f"http://127.0.0.1:{port}/json", timeout=2) as response:
+        targets = json.loads(response.read().decode("utf-8"))
+      ws_url = None
+      for t in targets:
+        if t.get("webSocketDebuggerUrl"):
+          ws_url = t["webSocketDebuggerUrl"]
+          break
+
+      if ws_url:
+        ws = None
+        try:
+          ws = websocket.create_connection(ws_url, timeout=2)
+          # Check if video is playing by checking currentTime twice
+          js_cmd = "document.getElementsByTagName('video')[0].currentTime"
+          msg = json.dumps({
+              "id": 1,
+              "method": "Runtime.evaluate",
+              "params": {
+                  "expression": js_cmd,
+                  "returnByValue": True
+              }
+          })
+          ws.send(msg)
+          res1 = json.loads(ws.recv())
+          time.sleep(1)
+          ws.send(msg)
+          res2 = json.loads(ws.recv())
+
+          t1 = res1.get("result", {}).get("result", {}).get("value")
+          t2 = res2.get("result", {}).get("result", {}).get("value")
+
+          if t1 is not None and t2 is not None and t2 > t1:
+            print(f"  -> Video playing detected (t1={t1}, t2={t2})")
+            return True
+        finally:
+          if ws:
+            ws.close()
+    except Exception:  # pylint: disable=broad-exception-caught
+      pass
+    time.sleep(2)
+  print("  !! WARNING: Video playback NOT detected within timeout.")
+  return False
+
 
 # Key mappings
 # Linux CDP windowsVirtualKeyCode: Up=38, Down=40, Left=37, Right=39, Enter=13
@@ -113,7 +166,7 @@ def verify_cuj(cuj_name,
               background=False)
       cmd = [
           "./out/linux-x64x11_devel/cobalt", "--remote-allow-origins=*",
-          f"--remote-debugging-port={port}", "--memory-metrics-interval=60",
+          f"--remote-debugging-port={port}", "--memory-metrics-interval=10",
           "--enable-features=CobaltMemoryAttributionManager",
           "--disable-features=PartitionAllocDanglingPtr", url
       ]
@@ -127,8 +180,8 @@ def verify_cuj(cuj_name,
       run_cmd(adb_base + ["shell", "am", "force-stop", "dev.cobalt.coat"])
       target_args = (
           "--enable-features="
-          "CobaltMemoryAttributionManager:report-interval/60,"
-          f"--memory-metrics-interval=60,--remote-debugging-port={port},"
+          "CobaltMemoryAttributionManager:report-interval/10,"
+          f"--memory-metrics-interval=10,--remote-debugging-port={port},"
           "--remote-allow-origins=*")
       run_cmd(adb_base + [
           "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d",
@@ -137,7 +190,10 @@ def verify_cuj(cuj_name,
       ])
 
     # Wait for startup
-    time.sleep(30)
+    time.sleep(15)
+
+    if "WATCH" in cuj_name.upper():
+      wait_for_video_playback(port)
 
     # Launch pull script in background
     pull_cmd = [
@@ -146,7 +202,7 @@ def verify_cuj(cuj_name,
                      "pull_uma_histogram_set_via_cdp.py"), "--platform",
         platform, "--port",
         str(port), "--histogram-file", "cobalt_uma_histograms.txt",
-        "--output-file", "uma_histos.txt", "--poll-interval-s", "60",
+        "--output-file", "uma_histos.txt", "--poll-interval-s", "10",
         "--no-manage-cobalt", "--package-name", "dev.cobalt.coat"
     ]
     if device_id:
@@ -236,8 +292,8 @@ if __name__ == "__main__":
   parser.add_argument(
       "--duration",
       type=int,
-      default=60,
-      help="Duration in seconds for each CUJ (default: 60)")
+      default=10,
+      help="Duration in seconds for each CUJ (default: 10)")
   parser.add_argument(
       "--cuj",
       default="all",
