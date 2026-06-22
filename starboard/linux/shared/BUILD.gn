@@ -306,7 +306,6 @@ static_library("test_support") {
   testonly = true
   configs += [ "//starboard/build/config:starboard_implementation" ]
   deps = [
-    ":starboard_platform",
     "//starboard/shared/starboard:features",
     "//testing/gmock",
     "//testing/gtest",
