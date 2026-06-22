@@ -14,6 +14,7 @@
 
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_constants.h"
+#include "starboard/shared/starboard/media/media_video_budget.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -26,23 +27,23 @@ TEST(SbMediaGetVideoBufferBudgetTest, InvalidResolution) {
   EXPECT_EQ(SbMediaGetVideoBufferBudget(kSbMediaVideoCodecAv1,
                                         kSbMediaVideoResolutionDimensionInvalid,
                                         1080, 8),
-            starboard::media::g_video_buffer_budget_1080p);
+            starboard::media::g_video_buffer_budget_1080p.load());
   EXPECT_EQ(
       SbMediaGetVideoBufferBudget(kSbMediaVideoCodecAv1, 1920,
                                   kSbMediaVideoResolutionDimensionInvalid, 8),
-      starboard::media::g_video_buffer_budget_1080p);
+      starboard::media::g_video_buffer_budget_1080p.load());
 }
 
 TEST(SbMediaGetVideoBufferBudgetTest, UnderOrEqual1080p) {
   // Standard 1080p
   EXPECT_EQ(SbMediaGetVideoBufferBudget(kSbMediaVideoCodecAv1, 1920, 1080, 8),
-            starboard::media::g_video_buffer_budget_1080p);
+            starboard::media::g_video_buffer_budget_1080p.load());
   EXPECT_EQ(SbMediaGetVideoBufferBudget(kSbMediaVideoCodecAv1, 1920, 1080, 10),
-            starboard::media::g_video_buffer_budget_1080p);
+            starboard::media::g_video_buffer_budget_1080p.load());
 
   // Lower resolution (720p)
   EXPECT_EQ(SbMediaGetVideoBufferBudget(kSbMediaVideoCodecAv1, 1280, 720, 8),
-            starboard::media::g_video_buffer_budget_1080p);
+            starboard::media::g_video_buffer_budget_1080p.load());
 }
 
 TEST(SbMediaGetVideoBufferBudgetTest, UnderOrEqual4K) {
@@ -50,34 +51,34 @@ TEST(SbMediaGetVideoBufferBudgetTest, UnderOrEqual4K) {
   // 1440p (2560x1440) -> area is 3,686,400 (> 2,073,600 and <= 8,294,400)
   // SDR (8 bits)
   EXPECT_EQ(SbMediaGetVideoBufferBudget(kSbMediaVideoCodecAv1, 2560, 1440, 8),
-            starboard::media::g_video_buffer_budget_4k_sdr);
+            starboard::media::g_video_buffer_budget_4k_sdr.load());
   // HDR (10 bits)
   EXPECT_EQ(SbMediaGetVideoBufferBudget(kSbMediaVideoCodecAv1, 2560, 1440, 10),
-            starboard::media::g_video_buffer_budget_4k_hdr);
+            starboard::media::g_video_buffer_budget_4k_hdr.load());
 
   // Standard 4K (3840x2160)
   EXPECT_EQ(SbMediaGetVideoBufferBudget(kSbMediaVideoCodecAv1, 3840, 2160, 8),
-            starboard::media::g_video_buffer_budget_4k_sdr);
+            starboard::media::g_video_buffer_budget_4k_sdr.load());
   EXPECT_EQ(SbMediaGetVideoBufferBudget(kSbMediaVideoCodecAv1, 3840, 2160, 10),
-            starboard::media::g_video_buffer_budget_4k_hdr);
+            starboard::media::g_video_buffer_budget_4k_hdr.load());
 }
 
 TEST(SbMediaGetVideoBufferBudgetTest, Vertical1080pShorts) {
   // Vertical 1080p (Shorts) - area is same as 1080p, should be 1080p budget.
   EXPECT_EQ(SbMediaGetVideoBufferBudget(kSbMediaVideoCodecAv1, 1080, 1920, 8),
-            starboard::media::g_video_buffer_budget_1080p);
+            starboard::media::g_video_buffer_budget_1080p.load());
   EXPECT_EQ(SbMediaGetVideoBufferBudget(kSbMediaVideoCodecAv1, 1080, 1920, 10),
-            starboard::media::g_video_buffer_budget_1080p);
+            starboard::media::g_video_buffer_budget_1080p.load());
 }
 
 TEST(SbMediaGetVideoBufferBudgetTest, Vertical1440pShorts) {
   // Vertical 1440p (Shorts) -> area is same as 1440p, should be 4K budget.
   // SDR (8 bits)
   EXPECT_EQ(SbMediaGetVideoBufferBudget(kSbMediaVideoCodecAv1, 1440, 2560, 8),
-            starboard::media::g_video_buffer_budget_4k_sdr);
+            starboard::media::g_video_buffer_budget_4k_sdr.load());
   // HDR (10 bits)
   EXPECT_EQ(SbMediaGetVideoBufferBudget(kSbMediaVideoCodecAv1, 1440, 2560, 10),
-            starboard::media::g_video_buffer_budget_4k_hdr);
+            starboard::media::g_video_buffer_budget_4k_hdr.load());
 }
 
 TEST(SbMediaGetVideoBufferBudgetTest, HighResShorts) {
@@ -85,26 +86,26 @@ TEST(SbMediaGetVideoBufferBudgetTest, HighResShorts) {
   // This is > 1080p area and <= 4K area.
   // SDR (8 bits)
   EXPECT_EQ(SbMediaGetVideoBufferBudget(kSbMediaVideoCodecAv1, 2160, 2160, 8),
-            starboard::media::g_video_buffer_budget_4k_sdr);
+            starboard::media::g_video_buffer_budget_4k_sdr.load());
   // HDR (10 bits)
   EXPECT_EQ(SbMediaGetVideoBufferBudget(kSbMediaVideoCodecAv1, 2160, 2160, 10),
-            starboard::media::g_video_buffer_budget_4k_hdr);
+            starboard::media::g_video_buffer_budget_4k_hdr.load());
 
   // Vertical 4K Shorts (2160x3840) -> area is same as 4K, should be 4K budget.
   // SDR (8 bits)
   EXPECT_EQ(SbMediaGetVideoBufferBudget(kSbMediaVideoCodecAv1, 2160, 3840, 8),
-            starboard::media::g_video_buffer_budget_4k_sdr);
+            starboard::media::g_video_buffer_budget_4k_sdr.load());
   // HDR (10 bits)
   EXPECT_EQ(SbMediaGetVideoBufferBudget(kSbMediaVideoCodecAv1, 2160, 3840, 10),
-            starboard::media::g_video_buffer_budget_4k_hdr);
+            starboard::media::g_video_buffer_budget_4k_hdr.load());
 }
 
 TEST(SbMediaGetVideoBufferBudgetTest, Above4K) {
   // 8K (7680x4320)
   EXPECT_EQ(SbMediaGetVideoBufferBudget(kSbMediaVideoCodecAv1, 7680, 4320, 8),
-            starboard::media::g_video_buffer_budget_above_4k);
+            starboard::media::g_video_buffer_budget_above_4k.load());
   EXPECT_EQ(SbMediaGetVideoBufferBudget(kSbMediaVideoCodecAv1, 7680, 4320, 10),
-            starboard::media::g_video_buffer_budget_above_4k);
+            starboard::media::g_video_buffer_budget_above_4k.load());
 }
 
 }  // namespace

@@ -15,7 +15,7 @@
 #include "starboard/media.h"
 
 #include "starboard/common/log.h"
-#include "starboard/shared/starboard/media/media_constants.h"
+#include "starboard/shared/starboard/media/media_video_budget.h"
 
 int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
                                 int resolution_width,
@@ -23,6 +23,6 @@ int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
                                 int bits_per_pixel) {
   SB_UNREFERENCED_PARAMETER(codec);
   return starboard::media::GetDefaultVideoBufferBudget(
-      resolution_width, resolution_height, bits_per_pixel);
+      {resolution_width, resolution_height}, bits_per_pixel);
 }
 
