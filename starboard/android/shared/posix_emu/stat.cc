@@ -67,6 +67,7 @@ int __wrap_fstatat(int dirfd, const char* path, struct stat* info, int flags) {
     return 0;
   }
 
+  errno = ENOENT;
   return -1;
 }
 
