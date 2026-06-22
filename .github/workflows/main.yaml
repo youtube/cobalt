@@ -297,6 +297,10 @@ jobs:
           echo "docker_content_sha=${docker_content_sha}" >> $GITHUB_OUTPUT
       - name: Generate Expected Test Targets Json
         id: generate-expected-test-targets-json
+        env:
+          TEST_ON_HOST: ${{ steps.set-test-on-host.outputs.test_on_host }}
+          TEST_ON_DEVICE: ${{ steps.set-test-on-device.outputs.test_on_device }}
+          RUN_BROWSER_TESTS: ${{ steps.set-browser-test-targets.outputs.run_browser_tests }}
         run: |
           set -x
           run_on_host_test="false"
@@ -309,37 +313,21 @@ jobs:
 
           if [ -f "$test_targets_json_file" ]; then
             # 1. Evaluate conditions (local variables)
+            run_on_host_test="${TEST_ON_HOST}"
 
-            # test_on_host
-            test_on_host="${{ steps.set-test-on-host.outputs.test_on_host }}"
-            if [[ "${test_on_host}" == "true" ]]; then
-              run_on_host_test="true"
+            if [[ "$TEST_ON_DEVICE" == "true" && (
+                  "$PR_ODT_ENABLED" == "true" ||
+                  "$NIGHTLY_ODT_ENABLED" == "true" ||
+                  "$POSTSUBMIT_ODT_ENABLED" == "true" ) ]]; then
+              run_on_device_test="true"
             fi
 
-            # test_on_device
-            test_on_device="${{ steps.set-test-on-device.outputs.test_on_device }}"
-            if [[ "${test_on_device}" == "true" ]]; then
-              if [[ "$PR_ODT_ENABLED" == "true" ]]; then
-                run_on_device_test="true"
-              elif [[ "$NIGHTLY_ODT_ENABLED" == "true" ]]; then
-                run_on_device_test="true"
-              elif [[ "$POSTSUBMIT_ODT_ENABLED" == "true" ]]; then
-                run_on_device_test="true"
-              fi
+            if [[ "$RUN_BROWSER_TESTS" == "true" && (
+                  "$PR_BROWSERTEST_ENABLED" == "true" ||
+                  "$NIGHTLY_ODT_ENABLED" == "true" ||
+                  "$POSTSUBMIT_ODT_ENABLED" == "true" ) ]]; then
+              run_browser_test_on_host="true"
             fi
-
-            # run_browser_tests
-            run_browser_tests="${{ steps.set-browser-test-targets.outputs.run_browser_tests }}"
-            if [[ "${run_browser_tests}" == "true" && "${test_on_host}" == "true" ]]; then
-              if [[ "$PR_BROWSERTEST_ENABLED" == "true" ]]; then
-                run_browser_test_on_host="true"
-              elif [[ "$NIGHTLY_ODT_ENABLED" == "true" ]]; then
-                run_browser_test_on_host="true"
-              elif [[ "$POSTSUBMIT_ODT_ENABLED" == "true" ]]; then
-                run_browser_test_on_host="true"
-              fi
-            fi
-
 
             # The expected test targets is a list of all those targets that we
             # want standard results processing jobs to apply to. Currently this
