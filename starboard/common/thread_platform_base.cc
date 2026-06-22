@@ -20,4 +20,8 @@ namespace starboard {
 
 void TerminateOnThread() {}
 
+size_t GetDefaultThreadStackSize() {
+  return 0;
+}
+
 }  // namespace starboard

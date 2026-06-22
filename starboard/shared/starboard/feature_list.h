@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_FEATURE_LIST_H_
 #define STARBOARD_SHARED_STARBOARD_FEATURE_LIST_H_
 
+#include <atomic>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -80,7 +81,9 @@ class FeatureList {
   // Helper function to check if the singleton instance of the FeatureList is
   // initialized. Called by other FeatureList class functions. If the
   // FeatureList is accessed before it is initialized, the app will crash.
-  bool IsInitialized() { return is_initialized_; }
+  bool IsInitialized() {
+    return is_initialized_.load(std::memory_order_acquire);
+  }
 
   // Mutex to ensure that in the rare chance that the FeatureList is
   // being accessed while it is initializing, we can let the instance
@@ -104,7 +107,7 @@ class FeatureList {
 
   // When InitializeStarboardFeatures() is completed, this value will be set to
   // true.
-  bool is_initialized_ = false;
+  std::atomic<bool> is_initialized_{false};
 };
 
 // SbFeatureParamExt is a bridge structure used in starboard to support params

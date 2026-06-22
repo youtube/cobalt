@@ -17,10 +17,13 @@
 #ifndef STARBOARD_COMMON_THREAD_PLATFORM_H_
 #define STARBOARD_COMMON_THREAD_PLATFORM_H_
 
+#include <stddef.h>
+
 namespace starboard {
 
 void TerminateOnThread();
+size_t GetDefaultThreadStackSize();
 
-}
+}  // namespace starboard
 
 #endif  // STARBOARD_COMMON_THREAD_PLATFORM_H_

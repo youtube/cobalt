@@ -139,6 +139,9 @@ STARBOARD_FEATURE(kForceResetAudioDecoder, "ForceResetAudioDecoder", false)
 // enabling tunnel mode on all playbacks.
 STARBOARD_FEATURE(kForceTunnelMode, "ForceTunnelMode", false)
 
+// Set the following variable to true to reduce thread stack sizes to 256KB.
+STARBOARD_FEATURE(kReduceThreadStackSize, "ReduceThreadStackSize", false)
+
 // By default, software video codec can be selected when software codec is not
 // required. Set the following variable to true to prevent using low performance
 // software video decoder in MediaCapabilitiesCache when software codec is not

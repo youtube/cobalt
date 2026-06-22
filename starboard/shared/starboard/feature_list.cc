@@ -114,7 +114,7 @@ void FeatureList::InitializeFeatureList(const SbFeature* features,
     feature_param_map[param.feature_name][param.param_name] =
         std::make_pair(param.type, value);
   }
-  instance->is_initialized_ = true;
+  instance->is_initialized_.store(true, std::memory_order_release);
 }
 
 void FeatureList::ValidateParam(const std::string& feature_name,
@@ -147,6 +147,10 @@ void FeatureList::ValidateParam(const std::string& feature_name,
 
 // static
 bool FeatureList::IsEnabled(const SbFeature& feature) {
+  FeatureList* instance = GetInstance();
+  if (!instance->is_initialized_.load(std::memory_order_acquire)) {
+    return feature.is_enabled;
+  }
   return IsEnabledByName(feature.name);
 }
 

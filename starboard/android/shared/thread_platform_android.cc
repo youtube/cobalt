@@ -16,12 +16,24 @@
 
 #include "starboard/common/thread_platform.h"
 
+#include "starboard/configuration.h"
+#include "starboard/shared/starboard/features.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
 void TerminateOnThread() {
   jni_zero::DetachFromVM();
+}
+
+size_t GetDefaultThreadStackSize() {
+#if SB_API_VERSION >= 17
+  if (starboard::features::FeatureList::IsEnabled(
+          starboard::features::kReduceThreadStackSize)) {
+    return 256 * 1024;
+  }
+#endif
+  return 0;
 }
 
 }  // namespace starboard

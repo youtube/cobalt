@@ -61,6 +61,8 @@ public class JavaSwitches {
   /** flag to allow scaling clipped images in GpuImageDecodeCache */
   public static final String ENABLE_SCALING_CLIPPED_IMAGES = "EnableScalingClippedImages";
 
+  public static final String REDUCE_THREAD_STACK_SIZE = "ReduceThreadStackSize";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
 
@@ -119,6 +121,10 @@ public class JavaSwitches {
     if (featureParams.length() > 0) {
       extraCommandLineArgs.add(
           "--enable-features=SmallerInterestArea:" + featureParams.toString());
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.REDUCE_THREAD_STACK_SIZE)) {
+      extraCommandLineArgs.add("--enable-features=ReduceThreadStackSize");
     }
 
     return extraCommandLineArgs;

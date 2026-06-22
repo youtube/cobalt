@@ -130,7 +130,10 @@ struct Thread::Data {
 };
 
 Thread::Thread(std::string_view name, const ThreadOptions& options)
-    : name_(name), priority_(options.priority), d_(std::make_unique<Data>()) {}
+    : name_(name),
+      priority_(options.priority),
+      stack_size_(options.stack_size),
+      d_(std::make_unique<Data>()) {}
 
 Thread::~Thread() {
   // A started thread must be joined before destruction.
@@ -146,6 +149,16 @@ void Thread::Start() {
 
   pthread_attr_t attributes;
   pthread_attr_init(&attributes);
+
+  size_t stack_size =
+      stack_size_ > 0 ? stack_size_ : GetDefaultThreadStackSize();
+  if (stack_size > 0) {
+    int err = pthread_attr_setstacksize(&attributes, stack_size);
+    if (err != 0) {
+      SB_LOG(WARNING) << "Failed to set stack size to " << stack_size
+                      << ", error: " << err << ". Falling back to default.";
+    }
+  }
 
   const int result =
       pthread_create(&d_->thread_, &attributes, ThreadEntryPoint, this);

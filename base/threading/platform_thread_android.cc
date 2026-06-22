@@ -18,6 +18,7 @@
 #include "base/logging.h"
 #include "base/threading/platform_thread_internal_posix.h"
 #include "base/threading/thread_id_name_manager.h"
+#include "starboard/common/thread_platform.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "base/tasks_jni/ThreadUtils_jni.h"
@@ -120,6 +121,10 @@ void TerminateOnThread() {
 
 size_t GetDefaultThreadStackSize(const pthread_attr_t& attributes) {
 #if !defined(ADDRESS_SANITIZER)
+  size_t starboard_default = starboard::GetDefaultThreadStackSize();
+  if (starboard_default > 0) {
+    return starboard_default;
+  }
   return 0;
 #else
   // AddressSanitizer bloats the stack approximately 2x. Default stack size of
