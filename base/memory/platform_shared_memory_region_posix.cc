@@ -4,6 +4,10 @@
 
 #include "base/memory/platform_shared_memory_region.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
+
 #include <fcntl.h>
 #include <sys/mman.h>
 
@@ -191,6 +195,10 @@ PlatformSharedMemoryRegion PlatformSharedMemoryRegion::Create(Mode mode,
                                                               bool executable
 #endif
 ) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kPlatformIPC);
+#endif
 #if BUILDFLAG(IS_NACL)
   // Untrusted code can't create descriptors or handles.
   return {};
