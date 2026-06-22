@@ -20,10 +20,6 @@
 #include "gpu/config/gpu_preferences.h"
 #include "third_party/perfetto/include/perfetto/tracing/traced_value.h"
 
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
-#endif
-
 namespace gpu {
 namespace {
 uint64_t GetTaskFlowId(uint32_t sequence_id, uint32_t order_num) {
@@ -673,10 +669,6 @@ void Scheduler::ExecuteSequence(const SequenceId sequence_id) {
 
     order_data->BeginProcessingOrderNumber(order_num);
 
-#if BUILDFLAG(IS_COBALT)
-    base::memory::ScopedMemoryContext scoped_context(
-        base::memory::MemoryContext::kGraphics);
-#endif
     std::move(task_closure).Run();
 
     if (order_data->IsProcessingOrderNumber()) {

@@ -31,10 +31,6 @@
 #include "partition_alloc/buildflags.h"
 #include "v8_platform_page_allocator.h"
 
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
-#endif
-
 namespace gin {
 
 namespace {
@@ -261,17 +257,9 @@ void V8Platform::PostTaskOnWorkerThreadImpl(
     v8::TaskPriority priority,
     std::unique_ptr<v8::Task> task,
     const v8::SourceLocation& location) {
-  base::ThreadPool::PostTask(
-      V8ToBaseLocation(location), {ToBaseTaskPriority(priority)},
-      base::BindOnce(
-          [](std::unique_ptr<v8::Task> task) {
-#if BUILDFLAG(IS_COBALT)
-            base::memory::ScopedMemoryContext scoped_context(
-                base::memory::MemoryContext::kScriptHeap);
-#endif
-            task->Run();
-          },
-          std::move(task)));
+  base::ThreadPool::PostTask(V8ToBaseLocation(location),
+                             {ToBaseTaskPriority(priority)},
+                             base::BindOnce(&v8::Task::Run, std::move(task)));
 }
 
 void V8Platform::PostDelayedTaskOnWorkerThreadImpl(
@@ -281,15 +269,7 @@ void V8Platform::PostDelayedTaskOnWorkerThreadImpl(
     const v8::SourceLocation& location) {
   base::ThreadPool::PostDelayedTask(
       V8ToBaseLocation(location), {ToBaseTaskPriority(priority)},
-      base::BindOnce(
-          [](std::unique_ptr<v8::Task> task) {
-#if BUILDFLAG(IS_COBALT)
-            base::memory::ScopedMemoryContext scoped_context(
-                base::memory::MemoryContext::kScriptHeap);
-#endif
-            task->Run();
-          },
-          std::move(task)),
+      base::BindOnce(&v8::Task::Run, std::move(task)),
       base::Seconds(delay_in_seconds));
 }
 
@@ -306,10 +286,6 @@ std::unique_ptr<v8::JobHandle> V8Platform::CreateJobImpl(
       base::BindRepeating(
           [](const std::unique_ptr<v8::JobTask>& job_task,
              base::JobDelegate* delegate) {
-#if BUILDFLAG(IS_COBALT)
-            base::memory::ScopedMemoryContext scoped_context(
-                base::memory::MemoryContext::kScriptHeap);
-#endif
             JobDelegateImpl delegate_impl(delegate);
             job_task->Run(&delegate_impl);
           },
