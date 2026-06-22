@@ -32,6 +32,9 @@
 
 #include "base/auto_reset.h"
 #include "base/feature_list.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
 #include "base/functional/callback.h"
 #include "base/functional/function_ref.h"
 #include "base/memory/ptr_util.h"
@@ -2087,6 +2090,10 @@ void LocalFrameView::PrepareForLifecycleUpdateRecursive() {
 bool LocalFrameView::UpdateLifecyclePhases(
     DocumentLifecycle::LifecycleState target_state,
     DocumentUpdateReason reason) {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kBlinkDOM);
+#endif
   // If the lifecycle is postponed, which can happen if the inspector requests
   // it, then we shouldn't update any lifecycle phases.
   if (frame_->GetDocument() &&
