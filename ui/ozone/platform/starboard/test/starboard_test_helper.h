@@ -17,6 +17,7 @@
 
 #include "starboard/common/thread.h"
 #include "starboard/event.h"
+#include "starboard/shared/starboard/starboard_test_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
@@ -25,9 +26,20 @@
 using ::starboard::Thread;
 
 namespace ui {
+
+inline void EnsureStarboardTestEnvironmentInitialized() {
+  static bool s_initialized = false;
+  if (s_initialized) {
+    return;
+  }
+  s_initialized = true;
+  static starboard::StarboardTestEnvironment env;
+  env.SetUp();
+}
+
 class TestPlatformWindowDelegate : public ui::PlatformWindowDelegate {
  public:
-  TestPlatformWindowDelegate() = default;
+  TestPlatformWindowDelegate() { EnsureStarboardTestEnvironmentInitialized(); }
   ~TestPlatformWindowDelegate() override = default;
   // Test ui::PlatformWindowDelegate implementation.
   void OnBoundsChanged(const BoundsChange& change) override {
