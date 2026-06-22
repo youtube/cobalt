@@ -54,6 +54,8 @@
 #include "ui/gfx/geometry/axis_transform2d.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 
+#include "base/memory/cobalt_memory_context.h"
+
 namespace cc {
 namespace {
 
@@ -674,6 +676,8 @@ void TileManager::ExternalDependencyCompletedForRasterTask(
 
 bool TileManager::PrepareTiles(
     const GlobalStateThatImpactsTilePriority& state) {
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kGraphics);
   ++prepare_tiles_count_;
   last_active_time_ = NowWithOverride();
   ScheduleReduceTileMemoryWhenIdle(base::TimeDelta());

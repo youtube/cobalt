@@ -27,6 +27,7 @@
 #include "base/functional/bind.h"
 #include "base/memory/cobalt_memory_attribution_observer.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/power_monitor/power_monitor.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
@@ -70,6 +71,8 @@ void CobaltMemoryAttributionManager::Start() {
       this, "CobaltMemoryAttributionManager",
       base::SingleThreadTaskRunner::GetCurrentDefault());
 
+  base::PowerMonitor::GetInstance()->AddPowerSuspendObserver(this);
+
   last_report_time_ = base::TimeTicks::Now();
   timer_.Start(
       FROM_HERE,
@@ -88,6 +91,8 @@ void CobaltMemoryAttributionManager::Stop() {
   base::trace_event::MemoryDumpManager::GetInstance()->UnregisterDumpProvider(
       this);
 
+  base::PowerMonitor::GetInstance()->RemovePowerSuspendObserver(this);
+
   timer_.Stop();
 }
 
@@ -101,19 +106,7 @@ void CobaltMemoryAttributionManager::RequestReportUmaForTesting(
 void CobaltMemoryAttributionManager::ReportUma() {
   base::TimeTicks now = base::TimeTicks::Now();
   auto* observer = base::memory::CobaltMemoryAttributionObserver::Get();
-  // Skip reporting if timer was significantly delayed (e.g. device suspension).
-  if ((now - last_report_time_) >
-      2 * base::Seconds(
-              cobalt::features::kCobaltMemoryAttributionReportIntervalParam
-                  .Get())) {
-    last_report_time_ = now;
-    for (size_t i = 0;
-         i < static_cast<size_t>(base::memory::MemoryContext::kCount); ++i) {
-      last_snapshots_[i] =
-          observer->GetCounters()[i].value.load(std::memory_order_relaxed);
-    }
-    return;
-  }
+
   last_report_time_ = now;
 
   for (size_t i = 0;
@@ -133,6 +126,23 @@ void CobaltMemoryAttributionManager::ReportUma() {
         /*maximum=*/67108864,
         /*bucket_count=*/100);
   }
+}
+
+void CobaltMemoryAttributionManager::OnSuspend() {
+  // Capture current snapshots upon suspension so that when we resume,
+  // the first report only covers allocations that happened after resume.
+  auto* observer = base::memory::CobaltMemoryAttributionObserver::Get();
+  for (size_t i = 0;
+       i < static_cast<size_t>(base::memory::MemoryContext::kCount); ++i) {
+    last_snapshots_[i] =
+        observer->GetCounters()[i].value.load(std::memory_order_relaxed);
+  }
+}
+
+void CobaltMemoryAttributionManager::OnResume() {
+  last_report_time_ = base::TimeTicks::Now();
+  // Restart the timer to align with resume time.
+  timer_.Reset();
 }
 
 bool CobaltMemoryAttributionManager::OnMemoryDump(

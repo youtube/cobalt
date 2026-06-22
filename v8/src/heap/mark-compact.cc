@@ -4,9 +4,7 @@
 
 #include "src/heap/mark-compact.h"
 
-#if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h" // nogncheck
-#endif
 
 #include <algorithm>
 #include <atomic>
@@ -2588,9 +2586,7 @@ class ParallelClearingJob final : public v8::JobTask {
 
   // v8::JobTask overrides.
   void Run(JobDelegate* delegate) override {
-#if BUILDFLAG(IS_COBALT)
     ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
-#endif
     std::unique_ptr<ClearingItem> item;
     {
       base::MutexGuard guard(&items_mutex_);
@@ -4711,9 +4707,7 @@ class PageEvacuationJob : public v8::JobTask {
                   tracer_->CurrentEpoch(GCTracer::Scope::MC_EVACUATE)) {}
 
   void Run(JobDelegate* delegate) override {
-#if BUILDFLAG(IS_COBALT)
     ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
-#endif
     // Set the current isolate such that trusted pointer tables etc are
     // available and the cage base is set correctly for multi-cage mode.
     SetCurrentIsolateScope isolate_scope(collector_->heap()->isolate());
@@ -5162,9 +5156,7 @@ class PointersUpdatingJob : public v8::JobTask {
                   tracer_->CurrentEpoch(GCTracer::Scope::MC_EVACUATE)) {}
 
   void Run(JobDelegate* delegate) override {
-#if BUILDFLAG(IS_COBALT)
     ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
-#endif
     // Set the current isolate such that trusted pointer tables etc are
     // available and the cage base is set correctly for multi-cage mode.
     SetCurrentIsolateScope isolate_scope(collector_->heap()->isolate());

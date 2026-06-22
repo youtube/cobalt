@@ -23,6 +23,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/cobalt_memory_context.h"
 #include "base/memory/singleton.h"
+#include "base/power_monitor/power_observer.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
@@ -45,7 +46,8 @@ namespace memory {
 // is also called on the main thread. The underlying observer can be called from
 // any thread.
 class CobaltMemoryAttributionManager
-    : public base::trace_event::MemoryDumpProvider {
+    : public base::trace_event::MemoryDumpProvider,
+      public base::PowerSuspendObserver {
  public:
   static CobaltMemoryAttributionManager* Get();
 
@@ -65,6 +67,10 @@ class CobaltMemoryAttributionManager
   // base::trace_event::MemoryDumpProvider implementation.
   bool OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
                     base::trace_event::ProcessMemoryDump* pmd) override;
+
+  // base::PowerSuspendObserver implementation.
+  void OnSuspend() override;
+  void OnResume() override;
 
  private:
   friend struct base::DefaultSingletonTraits<CobaltMemoryAttributionManager>;

@@ -28,10 +28,7 @@
 #include <memory>
 #include <utility>
 
-#if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h"
-#include "cobalt/shell/buildflags.h"
-#endif
 
 #include "base/auto_reset.h"
 #include "base/format_macros.h"

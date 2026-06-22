@@ -4,10 +4,7 @@
 
 #include "src/maglev/maglev-concurrent-dispatcher.h"
 
-#if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h" // nogncheck
-#include "cobalt/shell/buildflags.h"
-#endif
 
 #include "src/base/fpu.h"
 #include "src/codegen/compiler.h"
@@ -268,9 +265,7 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
       : dispatcher_(dispatcher) {}
 
   void Run(JobDelegate* delegate) override {
-#if BUILDFLAG(IS_COBALT)
     ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
-#endif
     if (incoming_queue()->IsEmpty() && destruction_queue()->IsEmpty()) {
       return;
     }
