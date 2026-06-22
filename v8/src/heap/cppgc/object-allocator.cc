@@ -4,6 +4,10 @@
 
 #include "src/heap/cppgc/object-allocator.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"  // nogncheck
+#endif
+
 #include "include/cppgc/allocation.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -174,6 +178,10 @@ constexpr GCConfig kOnAllocationFailureGCConfig = {
 void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace& space,
                                              size_t size, AlignVal alignment,
                                              GCInfoIndex gcinfo) {
+#if BUILDFLAG(IS_COBALT)
+  ::base::memory::ScopedMemoryContext scoped_context(
+      ::base::memory::MemoryContext::kBlinkDOM);
+#endif
   DCHECK_EQ(0, size & kAllocationMask);
   DCHECK_LE(kFreeListEntrySize, size);
   // Out-of-line allocation allows for checking this is all situations.
