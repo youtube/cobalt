@@ -15,6 +15,7 @@
 #include "starboard/android/shared/video_window.h"
 
 #include <jni.h>
+#include <unistd.h>
 
 #include <chrono>
 #include <memory>
@@ -28,14 +29,6 @@
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
-extern "C" void Muxed_dev_cobalt_media_VideoSurfaceView_onVideoSurfaceChanged(
-    JNIEnv* env,
-    jobject surface);
-}
-
-namespace starboard {
-namespace android {
-namespace shared {
 namespace {
 
 class VideoDecoderSurfaceTest : public ::testing::Test {
@@ -45,43 +38,41 @@ class VideoDecoderSurfaceTest : public ::testing::Test {
     ASSERT_NE(env_, nullptr);
 
     // Create a real Java Surface to pass to ANativeWindow_fromSurface.
-    // 1. Find SurfaceTexture class
-    jclass surface_texture_class =
-        env_->FindClass("android/graphics/SurfaceTexture");
-    ASSERT_NE(surface_texture_class, nullptr);
+    // We use standard Android framework classes (SurfaceTexture, Surface)
+    // rather than Cobalt wrappers because Cobalt Java classes are not packaged
+    // inside the standalone starboard_platform_tests_apk.
+    //
+    // All local references are wrapped in ScopedJavaLocalRef to prevent leaks.
+    jni_zero::ScopedJavaLocalRef<jclass> surface_texture_class(
+        env_, env_->FindClass("android/graphics/SurfaceTexture"));
+    ASSERT_FALSE(surface_texture_class.is_null());
 
-    // 2. Get constructor SurfaceTexture(int texName)
     jmethodID surface_texture_ctor =
-        env_->GetMethodID(surface_texture_class, "<init>", "(I)V");
+        env_->GetMethodID(surface_texture_class.obj(), "<init>", "(I)V");
     ASSERT_NE(surface_texture_ctor, nullptr);
 
-    // 3. Create SurfaceTexture instance with dummy texture ID 1
-    jobject surface_texture =
-        env_->NewObject(surface_texture_class, surface_texture_ctor, 1);
-    ASSERT_NE(surface_texture, nullptr);
+    jni_zero::ScopedJavaLocalRef<jobject> surface_texture(
+        env_,
+        env_->NewObject(surface_texture_class.obj(), surface_texture_ctor, 1));
+    ASSERT_FALSE(surface_texture.is_null());
 
-    // 4. Find Surface class
-    jclass surface_class = env_->FindClass("android/view/Surface");
-    ASSERT_NE(surface_class, nullptr);
+    jni_zero::ScopedJavaLocalRef<jclass> surface_class(
+        env_, env_->FindClass("android/view/Surface"));
+    ASSERT_FALSE(surface_class.is_null());
 
-    // 5. Get constructor Surface(SurfaceTexture surfaceTexture)
     jmethodID surface_ctor = env_->GetMethodID(
-        surface_class, "<init>", "(Landroid/graphics/SurfaceTexture;)V");
+        surface_class.obj(), "<init>", "(Landroid/graphics/SurfaceTexture;)V");
     ASSERT_NE(surface_ctor, nullptr);
 
-    // 6. Create Surface instance
-    jobject surface =
-        env_->NewObject(surface_class, surface_ctor, surface_texture);
-    ASSERT_NE(surface, nullptr);
-
-    real_surface_ = jni_zero::ScopedJavaLocalRef<jobject>(env_, surface);
+    real_surface_ = jni_zero::ScopedJavaLocalRef<jobject>(
+        env_, env_->NewObject(surface_class.obj(), surface_ctor,
+                              surface_texture.obj()));
     ASSERT_FALSE(real_surface_.is_null());
   }
 
   void TearDown() override {
     // Clean up global surface state
-    Muxed_dev_cobalt_media_VideoSurfaceView_onVideoSurfaceChanged(env_,
-                                                                  nullptr);
+    starboard::SetVideoSurfaceForTesting(env_, nullptr);
   }
 
   JNIEnv* env_ = nullptr;
@@ -90,8 +81,7 @@ class VideoDecoderSurfaceTest : public ::testing::Test {
 
 TEST_F(VideoDecoderSurfaceTest, TeardownDuringSurfaceDestroyReleasesSurface) {
   // 1. Set the global video surface so the decoder can acquire it.
-  Muxed_dev_cobalt_media_VideoSurfaceView_onVideoSurfaceChanged(
-      env_, real_surface_.obj());
+  starboard::SetVideoSurfaceForTesting(env_, real_surface_.obj());
 
   // 2. Create JobThread for the decoder.
   std::unique_ptr<JobThread> job_thread = JobThread::Create("decoder_thread");
@@ -124,11 +114,11 @@ TEST_F(VideoDecoderSurfaceTest, TeardownDuringSurfaceDestroyReleasesSurface) {
   bool init_done = false;
   bool init_success = false;
 
-  job_thread->job_queue()->Schedule([&]() {
+  job_thread->Schedule([&]() {
     auto result = MediaCodecVideoDecoder::CreateForTesting(
         std::move(factory), job_thread->job_queue(), stream_config,
         tunnel_config, pipeline_config, platform_options);
-    std::lock_guard<std::mutex> lock(init_mutex);
+    std::lock_guard lock(init_mutex);
     if (result) {
       decoder = std::move(result.value());
       init_success = true;
@@ -138,7 +128,7 @@ TEST_F(VideoDecoderSurfaceTest, TeardownDuringSurfaceDestroyReleasesSurface) {
   });
 
   {
-    std::unique_lock<std::mutex> lock(init_mutex);
+    std::unique_lock lock(init_mutex);
     init_cv.wait(lock, [&] { return init_done; });
   }
   ASSERT_TRUE(init_success);
@@ -150,8 +140,7 @@ TEST_F(VideoDecoderSurfaceTest, TeardownDuringSurfaceDestroyReleasesSurface) {
   auto start_time = std::chrono::steady_clock::now();
   std::thread jni_sim_thread([&]() {
     SB_LOG(INFO) << "JNI thread: Calling OnVideoSurfaceChanged(nullptr)...";
-    Muxed_dev_cobalt_media_VideoSurfaceView_onVideoSurfaceChanged(env_,
-                                                                  nullptr);
+    starboard::SetVideoSurfaceForTesting(env_, nullptr);
     SB_LOG(INFO) << "JNI thread: OnVideoSurfaceChanged returned.";
     jni_thread_done = true;
   });
@@ -160,9 +149,9 @@ TEST_F(VideoDecoderSurfaceTest, TeardownDuringSurfaceDestroyReleasesSurface) {
   // We add a small delay to ensure the JNI thread can acquire the lock first,
   // which is necessary to trigger the deadlock on the unpatched code.
   MediaCodecVideoDecoder* raw_decoder = decoder.release();
-  job_thread->job_queue()->Schedule([raw_decoder]() {
+  job_thread->Schedule([raw_decoder]() {
     SB_LOG(INFO) << "Decoder thread: Waiting before destroying...";
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    usleep(100'000);
     SB_LOG(INFO) << "Decoder thread: Destroying decoder...";
     delete raw_decoder;
     SB_LOG(INFO) << "Decoder thread: Decoder destroyed.";
@@ -183,6 +172,4 @@ TEST_F(VideoDecoderSurfaceTest, TeardownDuringSurfaceDestroyReleasesSurface) {
 }
 
 }  // namespace
-}  // namespace shared
-}  // namespace android
 }  // namespace starboard
