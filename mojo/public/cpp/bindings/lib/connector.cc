@@ -13,10 +13,8 @@
 #include "base/debug/alias.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/memory/raw_ptr.h"
-#if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h"
-#endif
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
@@ -504,10 +502,8 @@ MojoResult Connector::ReadMessage(ScopedMessageHandle& message) {
 }
 
 bool Connector::DispatchMessage(ScopedMessageHandle handle) {
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(
       base::memory::MemoryContext::kPlatformIPC);
-#endif
   DCHECK(!paused_);
 
   Message message = Message::CreateFromMessageHandle(&handle);
@@ -612,10 +608,8 @@ void Connector::ScheduleDispatchOfPendingMessagesOrWaitForMore(
 }
 
 void Connector::ReadAllAvailableMessages() {
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(
       base::memory::MemoryContext::kPlatformIPC);
-#endif
   if (paused_ || error_)
     return;
 

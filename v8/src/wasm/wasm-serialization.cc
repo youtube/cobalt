@@ -4,10 +4,7 @@
 
 #include "src/wasm/wasm-serialization.h"
 
-#if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h" // nogncheck
-#include "cobalt/shell/buildflags.h"
-#endif
 
 #include "src/codegen/assembler-arch.h"
 #include "src/codegen/assembler-inl.h"
@@ -747,9 +744,7 @@ class DeserializeCodeTask : public JobTask {
       : deserializer_(deserializer), reloc_queue_(reloc_queue) {}
 
   void Run(JobDelegate* delegate) override {
-#if BUILDFLAG(IS_COBALT)
     ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
-#endif
     bool finished = false;
     while (!finished) {
       // Repeatedly publish everything that was copied already.

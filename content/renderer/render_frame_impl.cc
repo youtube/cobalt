@@ -307,6 +307,8 @@ using blink::WebView;
 using blink::mojom::SelectionMenuBehavior;
 using network::mojom::ReferrerPolicy;
 
+#include "base/memory/cobalt_memory_context.h"
+
 namespace content {
 
 namespace {
@@ -2000,6 +2002,8 @@ RenderFrameImpl::~RenderFrameImpl() {
 }
 
 void RenderFrameImpl::Initialize(blink::WebFrame* parent) {
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kDOM);
   initialized_ = true;
   is_main_frame_ = !parent;
   if (is_main_frame_)
@@ -2726,6 +2730,8 @@ void RenderFrameImpl::CommitNavigation(
     mojom::CookieManagerInfoPtr cookie_manager_info,
     mojom::StorageInfoPtr storage_info,
     mojom::NavigationClient::CommitNavigationCallback commit_callback) {
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kDOM);
   if (!response_head->client_side_content_decoding_types.empty()) {
     // Attempt to create the data pipe needed for content decoding.
     auto data_pipe_pair =

@@ -34,10 +34,7 @@
 #include <utility>
 #include <variant>
 
-#if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h"
-#include "cobalt/shell/buildflags.h"
-#endif
 
 #include "base/compiler_specific.h"
 #include "base/containers/span.h"
@@ -318,9 +315,7 @@ void ResourceLoader::Trace(Visitor* visitor) const {
 }
 
 void ResourceLoader::Start() {
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kNetworkLoader);
-#endif
   const ResourceRequestHead& request = resource_->GetResourceRequest();
 
   if (request.GetKeepalive()) {
@@ -780,9 +775,7 @@ void ResourceLoader::DidReceiveResponse(
     const WebURLResponse& response,
     std::variant<mojo::ScopedDataPipeConsumerHandle, SegmentedBuffer> body,
     std::optional<mojo_base::BigBuffer> cached_metadata) {
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kNetworkLoader);
-#endif
   DCHECK(!response.IsNull());
 
   if (resource_->GetResourceRequest().GetKeepalive()) {
@@ -1090,9 +1083,7 @@ void ResourceLoader::DidReceiveResponseInternal(
 }
 
 void ResourceLoader::DidReceiveData(base::span<const char> data) {
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kNetworkLoader);
-#endif
   DidReceiveDataImpl(data);
 }
 

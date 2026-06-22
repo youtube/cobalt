@@ -22,6 +22,7 @@
 #include <memory>
 #include <string>
 
+#include "base/memory/cobalt_memory_context.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"
@@ -479,6 +480,10 @@ int FfmpegVideoDecoderImpl<FFMPEG>::AllocateBuffer(
     AVCodecContext* codec_context,
     AVFrame* frame,
     int flags) {
+#if BUILDFLAG(IS_COBALT)
+  ::base::memory::ScopedMemoryContext scoped_context(
+      ::base::memory::MemoryContext::kMedia);
+#endif
   if (codec_context->pix_fmt != PIX_FMT_YUV420P &&
       codec_context->pix_fmt != PIX_FMT_YUVJ420P) {
     SB_DLOG(WARNING) << "Unsupported pix_fmt " << codec_context->pix_fmt;
@@ -536,11 +541,15 @@ int FfmpegVideoDecoderImpl<FFMPEG>::AllocateBuffer(
   return 0;
 }
 
-#else   // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
+#else  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
 
 int FfmpegVideoDecoderImpl<FFMPEG>::AllocateBuffer(
     AVCodecContext* codec_context,
     AVFrame* frame) {
+#if BUILDFLAG(IS_COBALT)
+  ::base::memory::ScopedMemoryContext scoped_context(
+      ::base::memory::MemoryContext::kMedia);
+#endif
   if (codec_context->pix_fmt != PIX_FMT_YUV420P &&
       codec_context->pix_fmt != PIX_FMT_YUVJ420P) {
     SB_DLOG(WARNING) << "Unsupported pix_fmt " << codec_context->pix_fmt;

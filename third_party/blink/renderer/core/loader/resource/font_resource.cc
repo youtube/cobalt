@@ -36,10 +36,7 @@
 #include "base/trace_event/memory_dump_manager.h"
 #include "base/types/expected.h"
 
-#if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h"
-#include "cobalt/shell/buildflags.h"
-#endif
 #include "build/build_config.h"
 #include "mojo/public/cpp/system/data_pipe_drainer.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"

@@ -4,10 +4,7 @@
 
 #include "src/wasm/module-decoder.h"
 
-#if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h" // nogncheck
-#include "cobalt/shell/buildflags.h"
-#endif
 
 #include "src/logging/metrics.h"
 #include "src/tracing/trace-event.h"
@@ -534,9 +531,7 @@ class ValidateFunctionsTask : public JobTask {
   }
 
   void Run(JobDelegate* delegate) override {
-#if BUILDFLAG(IS_COBALT)
     ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
-#endif
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                  "wasm.ValidateFunctionsTask");
 

@@ -21,6 +21,7 @@ endurance verification testing campaigns on Linux and Android.
 
 import argparse
 import json
+import logging
 import os
 import subprocess
 import sys
@@ -28,10 +29,17 @@ import time
 import urllib.request
 import websocket
 
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(levelname)s] %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)])
+logger = logging.getLogger(__name__)
+
 
 def wait_for_video_playback(port, timeout=30):
   """Waits for a video element to exist and start playing (currentTime > 0)."""
-  print(f"[WAIT] Ensuring video playback on port {port}...")
+  logger.info("Ensuring video playback on port %s...", port)
   start_wait = time.time()
   while time.time() - start_wait < timeout:
     try:
@@ -68,7 +76,7 @@ def wait_for_video_playback(port, timeout=30):
           t2 = res2.get("result", {}).get("result", {}).get("value")
 
           if t1 is not None and t2 is not None and t2 > t1:
-            print(f"  -> Video playing detected (t1={t1}, t2={t2})")
+            logger.info("  -> Video playing detected (t1=%s, t2=%s)", t1, t2)
             return True
         finally:
           if ws:
@@ -76,7 +84,7 @@ def wait_for_video_playback(port, timeout=30):
     except Exception:  # pylint: disable=broad-exception-caught
       pass
     time.sleep(2)
-  print("  !! WARNING: Video playback NOT detected within timeout.")
+  logger.warning("Video playback NOT detected within timeout.")
   return False
 
 
@@ -89,7 +97,7 @@ KEYS_ADB = [19, 20, 21, 22, 66]
 
 def run_cmd(cmd, background=False):
   """Runs a subprocess command either synchronously or in the background."""
-  print(f"[RUN] {' '.join(cmd)}")
+  logger.debug("Running command: %s", ' '.join(cmd))
   if background:
     # pylint: disable=consider-using-with
     return subprocess.Popen(cmd)
@@ -105,13 +113,43 @@ def send_cdp_key(port, key_code):
       pages = json.loads(response.read().decode())
       if not pages:
         return
-      ws_url = pages[0].get("webSocketDebuggerUrl")
+      ws_url = None
+      for page in pages:
+        if page.get("webSocketDebuggerUrl"):
+          ws_url = page["webSocketDebuggerUrl"]
+          break
       if not ws_url:
         return
-      print(f"  -> Dispatched CDP Key Code: {key_code}")
-      # Websocket transmission bypassed. Live monitoring is done by pull script.
+
+      ws = websocket.create_connection(ws_url, timeout=2)
+      try:
+        # Input.dispatchKeyEvent
+        msg = json.dumps({
+            "id": 1,
+            "method": "Input.dispatchKeyEvent",
+            "params": {
+                "type": "rawKeyDown",
+                "windowsVirtualKeyCode": key_code,
+                "nativeVirtualKeyCode": key_code,
+            }
+        })
+        ws.send(msg)
+        time.sleep(0.1)
+        msg = json.dumps({
+            "id": 2,
+            "method": "Input.dispatchKeyEvent",
+            "params": {
+                "type": "keyUp",
+                "windowsVirtualKeyCode": key_code,
+                "nativeVirtualKeyCode": key_code,
+            }
+        })
+        ws.send(msg)
+        logger.info("  -> Dispatched CDP Key Code: %s", key_code)
+      finally:
+        ws.close()
   except Exception:  # pylint: disable=broad-exception-caught
-    pass
+    logger.exception("Failed to send CDP key %s", key_code)
 
 
 def send_adb_key(key_code, device_id=None):
@@ -121,7 +159,7 @@ def send_adb_key(key_code, device_id=None):
     cmd += ["-s", device_id]
   cmd += ["shell", "input", "keyevent", str(key_code)]
   run_cmd(cmd)
-  print(f"  -> Dispatched ADB Key Event: {key_code}")
+  logger.info("  -> Dispatched ADB Key Event: %s", key_code)
 
 
 def verify_cuj(cuj_name,
@@ -131,14 +169,14 @@ def verify_cuj(cuj_name,
                port,
                is_random_nav,
                device_id=None,
-               iterations=1):
+               iterations=1,
+               cobalt_bin=None):
   """Executes a complete verification loop for a specific CUJ."""
-  print("=" * 80)
-  print(f" STARTING CUJ VERIFICATION: {cuj_name}".center(80))
-  row_info = (f" URL: {url} | Platform: {platform} | "
-              f"Duration: {duration_s}s | Iterations: {iterations}")
-  print(row_info.center(80))
-  print("=" * 80)
+  logger.info("=" * 80)
+  logger.info(" STARTING CUJ VERIFICATION: %s", cuj_name.center(70))
+  logger.info(" URL: %s | Platform: %s | Duration: %ss | Iterations: %s", url,
+              platform, duration_s, iterations)
+  logger.info("=" * 80)
 
   # Ensure old logs are cleared
   if os.path.exists("uma_histos.txt"):
@@ -151,8 +189,8 @@ def verify_cuj(cuj_name,
 
   res_code = 0
   for iter_num in range(1, iterations + 1):
-    print(f"\n--- Starting Iteration {iter_num}/{iterations} "
-          f"({duration_s}s) ---\n")
+    logger.info("--- Starting Iteration %s/%s (%ss) ---", iter_num, iterations,
+                duration_s)
 
     # Clear file at start of iteration
     if os.path.exists("uma_histos.txt"):
@@ -160,12 +198,20 @@ def verify_cuj(cuj_name,
 
     cobalt_proc = None
     if platform == "linux":
-      run_cmd(["killall", "-9", "cobalt"], background=False)
+      if not cobalt_bin:
+        cobalt_bin = "./out/linux-x64x11_devel/cobalt"
+
+      # Try to kill existing cobalt processes gracefully first
+      subprocess.run(["pkill", "cobalt"], check=False)
+      time.sleep(1)
+
       storage_path = os.path.expanduser("~/.cobalt_storage")
-      run_cmd(["rm", "-rf", storage_path, "/tmp/cobalt_metrics"],
-              background=False)
+      if os.path.exists(storage_path) and storage_path.endswith(
+          ".cobalt_storage"):
+        run_cmd(["rm", "-rf", storage_path], background=False)
+
       cmd = [
-          "./out/linux-x64x11_devel/cobalt", "--remote-allow-origins=*",
+          cobalt_bin, "--remote-allow-origins=*",
           f"--remote-debugging-port={port}", "--memory-metrics-interval=10",
           "--enable-features=CobaltMemoryAttributionManager",
           "--disable-features=PartitionAllocDanglingPtr", url
@@ -256,8 +302,9 @@ def verify_cuj(cuj_name,
       run_cmd(adb_base + ["shell", "am", "force-stop", "dev.cobalt.coat"])
 
     # Verify coverage at this milestone
-    print(f"\n[COMPLETED] {cuj_name} - Iteration {iter_num}/{iterations} "
-          f"execution finished. Analyzing coverage numbers...\n")
+    logger.info(
+        "[COMPLETED] %s - Iteration %s/%s execution finished. "
+        "Analyzing coverage numbers...", cuj_name, iter_num, iterations)
     verify_cmd = [
         sys.executable,
         os.path.join(script_dir,
@@ -265,10 +312,11 @@ def verify_cuj(cuj_name,
         "--cuj-name", cuj_name, "--iteration", f"{iter_num}/{iterations}"
     ]
     res = subprocess.run(verify_cmd, check=False)
-    print("=" * 80 + "\n")
+    logger.info("=" * 80)
     if res.returncode != 0:
-      print(f"[ABORTING CUJ EXECUTION] Overall failure detected in "
-            f"{cuj_name} during Iteration {iter_num}/{iterations}.\n")
+      logger.error(
+          "[ABORTING CUJ EXECUTION] Overall failure detected in %s "
+          "during Iteration %s/%s.", cuj_name, iter_num, iterations)
       res_code = res.returncode
       break
 
@@ -284,6 +332,7 @@ if __name__ == "__main__":
       default="linux",
       choices=["linux", "android"],
       help="Target platform (default: linux)")
+  parser.add_argument("--cobalt-bin", help="Path to Cobalt binary (Linux only)")
   parser.add_argument(
       "--port",
       type=int,
@@ -317,7 +366,8 @@ if __name__ == "__main__":
         args.port,
         is_random_nav=True,
         device_id=args.device,
-        iterations=args.iterations)
+        iterations=args.iterations,
+        cobalt_bin=args.cobalt_bin)
 
   if args.cuj in ["all", "watch"]:
     verify_cuj(
@@ -328,7 +378,8 @@ if __name__ == "__main__":
         args.port,
         is_random_nav=False,
         device_id=args.device,
-        iterations=args.iterations)
+        iterations=args.iterations,
+        cobalt_bin=args.cobalt_bin)
 
   if args.cuj in ["all", "baseline"]:
     verify_cuj(
@@ -339,7 +390,8 @@ if __name__ == "__main__":
         args.port,
         is_random_nav=False,
         device_id=args.device,
-        iterations=args.iterations)
+        iterations=args.iterations,
+        cobalt_bin=args.cobalt_bin)
 
   if args.cuj in ["all", "combined"]:
     verify_cuj(
@@ -350,4 +402,5 @@ if __name__ == "__main__":
         args.port,
         is_random_nav=True,
         device_id=args.device,
-        iterations=args.iterations)
+        iterations=args.iterations,
+        cobalt_bin=args.cobalt_bin)

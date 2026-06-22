@@ -4,9 +4,7 @@
 
 #include "src/heap/sweeper.h"
 
-#if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h" // nogncheck
-#endif
 
 #include <algorithm>
 #include <atomic>
@@ -133,9 +131,7 @@ class Sweeper::MajorSweeperJob final : public JobTask {
   MajorSweeperJob& operator=(const MajorSweeperJob&) = delete;
 
   void Run(JobDelegate* delegate) final {
-#if BUILDFLAG(IS_COBALT)
     ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
-#endif
     DCHECK_IMPLIES(
         delegate->IsJoiningThread(),
         sweeper_->heap_->IsMainThread() ||
@@ -207,9 +203,7 @@ class Sweeper::MinorSweeperJob final : public JobTask {
   MinorSweeperJob& operator=(const MinorSweeperJob&) = delete;
 
   void Run(JobDelegate* delegate) final {
-#if BUILDFLAG(IS_COBALT)
     ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
-#endif
     DCHECK_IMPLIES(
         delegate->IsJoiningThread(),
         sweeper_->heap_->IsMainThread() ||

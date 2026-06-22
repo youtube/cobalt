@@ -8,9 +8,7 @@
 
 #include "base/check_op.h"
 #include "base/compiler_specific.h"
-#if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h"
-#endif
 #include "base/containers/heap_array.h"
 #include "base/numerics/safe_math.h"
 #include "base/pickle.h"
@@ -50,15 +48,11 @@ void IOBuffer::ClearSpan() {
 IOBufferWithSize::IOBufferWithSize() = default;
 
 IOBufferWithSize::IOBufferWithSize(size_t buffer_size)
-#if BUILDFLAG(IS_COBALT)
     : storage_([&] {
         base::memory::ScopedMemoryContext scoped_context(
             base::memory::MemoryContext::kNetwork);
         return base::HeapArray<uint8_t>::Uninit(buffer_size);
       }()) {
-#else
-    : storage_(base::HeapArray<uint8_t>::Uninit(buffer_size)) {
-#endif
   SetSpan(storage_);
 }
 
@@ -129,16 +123,13 @@ DrainableIOBuffer::~DrainableIOBuffer() {
 GrowableIOBuffer::GrowableIOBuffer() = default;
 
 void GrowableIOBuffer::SetCapacity(int capacity) {
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(
       base::memory::MemoryContext::kNetwork);
-#endif
   CHECK_GE(capacity, 0);
 
 // Calling reallocate with size 0 and a non-null pointer causes memory leaks
 // on many platforms, since it may return nullptr while also not deallocating
 // the previously allocated memory.
-#if BUILDFLAG(IS_COBALT)
   if (capacity == 0) {
     ClearSpan();
     real_data_.reset();
@@ -146,7 +137,6 @@ void GrowableIOBuffer::SetCapacity(int capacity) {
     offset_ = 0;
     return;
   }
-#endif
 
   // The span will be set again in `set_offset()`. Need to clear raw pointers to
   // the data before reallocating the buffer.

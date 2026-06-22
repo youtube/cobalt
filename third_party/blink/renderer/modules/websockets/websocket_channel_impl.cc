@@ -37,10 +37,7 @@
 #include <limits>
 #include <memory>
 
-#if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h"
-#include "cobalt/shell/buildflags.h"
-#endif
 
 #include "base/compiler_specific.h"
 #include "base/containers/span.h"

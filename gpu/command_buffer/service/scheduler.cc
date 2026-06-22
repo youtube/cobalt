@@ -11,9 +11,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
-#if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h"
-#endif
 #include "base/metrics/histogram_macros.h"
 #include "base/synchronization/lock.h"
 #include "base/task/single_thread_task_runner.h"
@@ -672,10 +670,8 @@ void Scheduler::ExecuteSequence(const SequenceId sequence_id) {
 
     order_data->BeginProcessingOrderNumber(order_num);
 
-#if BUILDFLAG(IS_COBALT)
     ::base::memory::ScopedMemoryContext scoped_context(
         ::base::memory::MemoryContext::kGraphics);
-#endif
     std::move(task_closure).Run();
 
     if (order_data->IsProcessingOrderNumber()) {

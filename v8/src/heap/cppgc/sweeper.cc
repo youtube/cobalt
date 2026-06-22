@@ -12,10 +12,7 @@
 #include <vector>
 
 #include "build/build_config.h"
-#if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h" // nogncheck
-#include "cobalt/shell/buildflags.h"
-#endif
 
 #include "include/cppgc/platform.h"
 #include "src/base/platform/mutex.h"
@@ -788,9 +785,7 @@ class ConcurrentSweepTask final : public cppgc::JobTask,
         sticky_bits_(heap.sticky_bits()) {}
 
   void Run(cppgc::JobDelegate* delegate) final {
-#if BUILDFLAG(IS_COBALT)
     base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kScript);
-#endif
     StatsCollector::EnabledConcurrentScope stats_scope(
         heap_.stats_collector(), StatsCollector::kConcurrentSweep);
 

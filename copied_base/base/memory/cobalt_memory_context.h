@@ -1,85 +1,115 @@
-// Copyright 2026 The Cobalt Authors. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2026 The Chromium Authors and Cobalt Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
-#ifndef COPIED_BASE_BASE_MEMORY_COBALT_MEMORY_CONTEXT_H_
-#define COPIED_BASE_BASE_MEMORY_COBALT_MEMORY_CONTEXT_H_
+#ifndef BASE_MEMORY_COBALT_MEMORY_CONTEXT_H_
+#define BASE_MEMORY_COBALT_MEMORY_CONTEXT_H_
 
-#include <string_view>
-#include "copied_base/base/base_export.h"
-
-#include <pthread.h>
-#include <stdint.h>
 #include <atomic>
+#include <cstdint>
+#include <string_view>
+
+#include "base/base_export.h"
+#include "build/build_config.h"
 
 namespace base {
 namespace memory {
 
 enum class MemoryContext : uint8_t {
   kUnknown = 0,
-  kDOM,
-  kLayout,
-  kMedia,
-  kScript,
-  kNetwork,
-  kGraphics,
-  kStorage,
+  kDOM = 1,
+  kLayout = 2,
+  kMedia = 3,
+  kScript = 4,
+  kNetwork = 5,
+  kGraphics = 6,
+  kStorage = 7,
 
   // Next-Generation Granular Sub-Regions
-  kGraphicsCanvas,
-  kGraphicsCompositor,
-  kGraphicsGlyphs,
-  kScriptHeap,
-  kScriptJIT,
-  kScriptBindings,
-  kNetworkLoader,
-  kNetworkCache,
-  kBlinkDOM,
-  kBlinkStyle,
-  kBlinkParser,
-  kPlatformIPC,
-  kPlatformStarboard,
-  kPlatformDevTools,
-  kBrowserMain,
+  kGraphicsCanvas = 8,
+  kGraphicsCompositor = 9,
+  kGraphicsGlyphs = 10,
+  kScriptHeap = 11,
+  kScriptJIT = 12,
+  kScriptBindings = 13,
+  kNetworkLoader = 14,
+  kNetworkCache = 15,
+  kBlinkDOM = 16,
+  kBlinkStyle = 17,
+  kBlinkParser = 18,
+  kPlatformIPC = 19,
+  kPlatformStarboard = 20,
+  kPlatformDevTools = 21,
+  kBrowserMain = 22,
 
   kCount
 };
 
-#if defined(__GNUC__)
-#define MAYBE_COBALT_WEAK __attribute__((weak))
+#if BUILDFLAG(IS_COBALT)
+
+BASE_EXPORT MemoryContext GetCurrentMemoryContext();
+BASE_EXPORT void SetCurrentMemoryContext(MemoryContext context);
+
+namespace internal {
+inline thread_local MemoryContext g_cobalt_memory_context =
+    MemoryContext::kUnknown;
+}  // namespace internal
+
 #else
-#define MAYBE_COBALT_WEAK
+
+inline MemoryContext GetCurrentMemoryContext() {
+  return MemoryContext::kUnknown;
+}
+inline void SetCurrentMemoryContext(MemoryContext context) {}
+
 #endif
 
-MAYBE_COBALT_WEAK pthread_key_t GetSharedMemoryContextKey();
-MAYBE_COBALT_WEAK MemoryContext GetCurrentMemoryContext();
-MAYBE_COBALT_WEAK void SetCurrentMemoryContext(MemoryContext context);
-
-class ScopedMemoryContext {
+// ScopedMemoryContext is a helper class that sets the current thread's
+// memory context for the duration of its lifetime, restoring the previous
+// context upon destruction.
+//
+// Lifetime and Ownership:
+// This is a stack-allocated helper designed to be used as a local variable.
+// It should not be dynamically allocated or outlive its enclosing scope.
+//
+// Threading Model:
+// This class is thread-affine and must only be used on the thread where
+// it was constructed.
+class BASE_EXPORT ScopedMemoryContext {
  public:
-  explicit ScopedMemoryContext(MemoryContext context);
-  ~ScopedMemoryContext();
+  explicit ScopedMemoryContext(MemoryContext context) {
+#if BUILDFLAG(IS_COBALT)
+    prev_context_ = GetCurrentMemoryContext();
+    SetCurrentMemoryContext(context);
+#endif
+  }
+
+  ~ScopedMemoryContext() {
+#if BUILDFLAG(IS_COBALT)
+    SetCurrentMemoryContext(prev_context_);
+#endif
+  }
 
   ScopedMemoryContext(const ScopedMemoryContext&) = delete;
   ScopedMemoryContext& operator=(const ScopedMemoryContext&) = delete;
+  ScopedMemoryContext(ScopedMemoryContext&&) = delete;
+  ScopedMemoryContext& operator=(ScopedMemoryContext&&) = delete;
 
  private:
+#if BUILDFLAG(IS_COBALT)
   MemoryContext prev_context_;
+#endif
 };
 
-MAYBE_COBALT_WEAK std::string_view ContextToString(MemoryContext context);
+#if BUILDFLAG(IS_COBALT)
+BASE_EXPORT std::string_view ContextToString(MemoryContext context);
+#else
+inline std::string_view ContextToString(MemoryContext context) {
+  return "Unknown";
+}
+#endif
 
 }  // namespace memory
 }  // namespace base
 
-#endif  // COPIED_BASE_BASE_MEMORY_COBALT_MEMORY_CONTEXT_H_
+#endif  // BASE_MEMORY_COBALT_MEMORY_CONTEXT_H_

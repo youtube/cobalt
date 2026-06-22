@@ -262,18 +262,13 @@ void V8Platform::PostTaskOnWorkerThreadImpl(
     const v8::SourceLocation& location) {
   base::ThreadPool::PostTask(
       V8ToBaseLocation(location), {ToBaseTaskPriority(priority)},
-#if BUILDFLAG(IS_COBALT)
       base::BindOnce(
           [](std::unique_ptr<v8::Task> task) {
             ::base::memory::ScopedMemoryContext scoped_context(
                 ::base::memory::MemoryContext::kScript);
             task->Run();
           },
-          std::move(task))
-#else
-      base::BindOnce(&v8::Task::Run, std::move(task))
-#endif
-  );
+          std::move(task)));
 }
 
 void V8Platform::PostDelayedTaskOnWorkerThreadImpl(
@@ -283,7 +278,6 @@ void V8Platform::PostDelayedTaskOnWorkerThreadImpl(
     const v8::SourceLocation& location) {
   base::ThreadPool::PostDelayedTask(
       V8ToBaseLocation(location), {ToBaseTaskPriority(priority)},
-#if BUILDFLAG(IS_COBALT)
       base::BindOnce(
           [](std::unique_ptr<v8::Task> task) {
             ::base::memory::ScopedMemoryContext scoped_context(
@@ -291,9 +285,6 @@ void V8Platform::PostDelayedTaskOnWorkerThreadImpl(
             task->Run();
           },
           std::move(task)),
-#else
-      base::BindOnce(&v8::Task::Run, std::move(task)),
-#endif
       base::Seconds(delay_in_seconds));
 }
 
@@ -310,10 +301,8 @@ std::unique_ptr<v8::JobHandle> V8Platform::CreateJobImpl(
       base::BindRepeating(
           [](const std::unique_ptr<v8::JobTask>& job_task,
              base::JobDelegate* delegate) {
-#if BUILDFLAG(IS_COBALT)
             ::base::memory::ScopedMemoryContext scoped_context(
                 ::base::memory::MemoryContext::kScript);
-#endif
             JobDelegateImpl delegate_impl(delegate);
             job_task->Run(&delegate_impl);
           },
