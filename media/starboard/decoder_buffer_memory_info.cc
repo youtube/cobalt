@@ -14,6 +14,8 @@
 
 #include "media/starboard/decoder_buffer_memory_info.h"
 
+#include "base/debug/stack_trace.h"
+#include "base/logging.h"
 #include "media/base/video_codecs.h"
 #include "media/starboard/starboard_utils.h"
 #include "starboard/media.h"
@@ -28,9 +30,16 @@ int GetAudioDecoderBufferLimitBytes() {
 int GetVideoDecoderBufferLimitBytes(VideoCodec codec,
                                     const gfx::Size& resolution,
                                     int bits_per_pixel) {
-  return SbMediaGetVideoBufferBudget(MediaVideoCodecToSbMediaVideoCodec(codec),
-                                     resolution.width(), resolution.height(),
-                                     bits_per_pixel);
+  int budget = SbMediaGetVideoBufferBudget(
+      MediaVideoCodecToSbMediaVideoCodec(codec), resolution.width(),
+      resolution.height(), bits_per_pixel);
+  LOG(INFO) << "GetVideoDecoderBufferLimitBytes called: codec="
+            << static_cast<int>(codec)
+            << ", resolution=" << resolution.ToString()
+            << ", bits_per_pixel=" << bits_per_pixel
+            << ", returned budget=" << budget << " bytes ("
+            << (budget / 1024 / 1024) << " MB)\n";
+  return budget;
 }
 
 }  // namespace media

@@ -790,8 +790,18 @@ bool SourceBufferStream::GarbageCollectIfNeeded(base::TimeDelta media_time,
   }
 
   // Return if we're under or at the memory limit.
-  if (ranges_size + newDataSize <= effective_memory_limit)
+  if (ranges_size + newDataSize <= effective_memory_limit) {
+    static base::TimeDelta last_log_time;
+    if (media_time - last_log_time > base::Seconds(5) || media_time < last_log_time) {
+      LOG(INFO) << "SourceBufferStream [" << GetStreamTypeName()
+                << "] state: buffered_duration_sec="
+                << (GetBufferedDuration().InSecondsF())
+                << "s, buffered_bytes=" << (ranges_size / 1024) << " KB"
+                << " (Limit=" << (memory_limit_ / 1024 / 1024) << " MB)";
+      last_log_time = media_time;
+    }
     return true;
+  }
 
   size_t bytes_over_hard_memory_limit = 0;
   if (ranges_size + newDataSize > memory_limit_)
