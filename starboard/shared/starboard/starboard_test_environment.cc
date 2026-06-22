@@ -17,8 +17,10 @@
 #include <cstdint>
 #include <iterator>
 
+#include "starboard/extension/features.h"
 #include "starboard/shared/starboard/feature_list.h"
 #include "starboard/shared/starboard/features.h"
+#include "starboard/system.h"
 
 namespace starboard {
 
@@ -60,6 +62,13 @@ StarboardTestEnvironment::StarboardTestEnvironment() = default;
 StarboardTestEnvironment::~StarboardTestEnvironment() = default;
 
 void StarboardTestEnvironment::SetUp() {
+  const auto* extension_api = static_cast<const StarboardExtensionFeaturesApi*>(
+      SbSystemGetExtension(kStarboardExtensionFeaturesName));
+  if (extension_api && extension_api->InitializeStarboardFeatures) {
+    extension_api->InitializeStarboardFeatures(
+        kStarboardFeatures, std::size(kStarboardFeatures), kStarboardParams,
+        std::size(kStarboardParams));
+  }
   features::FeatureList::InitializeFeatureList(
       kStarboardFeatures, std::size(kStarboardFeatures), kStarboardParams,
       std::size(kStarboardParams));
