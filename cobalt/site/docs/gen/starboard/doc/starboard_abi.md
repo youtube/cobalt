@@ -89,7 +89,7 @@ The Cobalt team provides, and maintains, Starboard ABI files for the following
 architectures:
 
 *   x86\_64
-*   ARM v7 (32-bit)
+*   ARM v7 (32-bit, hardfp and softfp)
 *   ARM v8 (64-bit)
 
 If you find that no valid Starboard ABI file exists for your architecture, or
@@ -103,7 +103,7 @@ of verification that occur:
 
 1.  When configuring your build, the Starboard ABI file that was specified will
     have its values sanity checked against a provided
-    [schema](../sabi/sabi.schema.json).
+    [schema](../sabi/test/sabi.schema.json).
 1.  When building, a number of static assertions will assert correctness of a
     number of features generated from the Starboard ABI file against the
     features of the binary.
