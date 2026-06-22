@@ -45,6 +45,7 @@ if (current_toolchain == android_toolchain) {
     deps = [
       "//base",
       "//tools/android/common",
+      "//starboard:starboard_group",
     ]
   }
 

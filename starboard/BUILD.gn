@@ -173,9 +173,7 @@ source_set("starboard_headers_only") {
     "socket.h",
     "storage.h",
     "system.h",
-    "thread.h",
     "time_zone.h",
-    "types.h",
     "window.h",
   ]
 
