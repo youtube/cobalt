@@ -139,12 +139,8 @@ STARBOARD_FEATURE(kForceResetAudioDecoder, "ForceResetAudioDecoder", false)
 // enabling tunnel mode on all playbacks.
 STARBOARD_FEATURE(kForceTunnelMode, "ForceTunnelMode", false)
 
-// Cobalt VideoRenderAlgorithm used to release video frames immediately after
-// playback starts. Set the following variable to true to make it release video
-// frames until the underlying audio sink actually starts.
-// Set the following variable to true to reduce media thread stack sizes.
-STARBOARD_FEATURE(kReduceMediaThreadStackSize,
-                  "ReduceMediaThreadStackSize",
+STARBOARD_FEATURE(kReduceStarboardThreadStackSize,
+                  "ReduceStarboardThreadStackSize",
                   false)
 
 // By default, software video codec can be selected when software codec is not
@@ -155,6 +151,9 @@ STARBOARD_FEATURE(kRejectLowPerformanceSoftwareDecoder,
                   "RejectLowPerformanceSoftwareDecoder",
                   false)
 
+// Cobalt VideoRenderAlgorithm used to release video frames immediately after
+// playback starts. Set the following variable to true to make it release video
+// frames until the underlying audio sink actually starts.
 STARBOARD_FEATURE(kReleaseVideoFramesAfterAudioStarts,
                   "ReleaseVideoFramesAfterAudioStarts",
                   false)

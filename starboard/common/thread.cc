@@ -31,6 +31,10 @@
 #include "starboard/common/thread_platform.h"
 #include "starboard/system.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "starboard/shared/starboard/features.h"
+#endif
+
 namespace starboard {
 
 namespace {
@@ -129,10 +133,22 @@ struct Thread::Data {
   Semaphore join_sema_;
 };
 
+// static
+size_t Thread::GetDefaultStackSize() {
+#if BUILDFLAG(IS_ANDROID)
+  if (starboard::features::FeatureList::IsEnabled(
+          starboard::features::kReduceStarboardThreadStackSize)) {
+    return 256 * 1024;
+  }
+#endif
+  return 0;
+}
+
 Thread::Thread(std::string_view name, const ThreadOptions& options)
     : name_(name),
       priority_(options.priority),
-      stack_size_(options.stack_size),
+      stack_size_(options.stack_size > 0 ? options.stack_size
+                                         : GetDefaultStackSize()),
       d_(std::make_unique<Data>()) {}
 
 Thread::~Thread() {

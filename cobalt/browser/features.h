@@ -38,9 +38,6 @@ extern const base::Feature kHangReporting;
 // Use IPv4 for system host resolution.
 extern const base::Feature kUseIPv4ForDNS;
 
-// Reduces non-media thread stack sizes.
-extern const base::Feature kReduceNonMediaThreadStackSize;
-
 // Enables overriding the default metrics collection interval with a fixed
 // value.
 extern const base::Feature kCobaltMetricsIntervalFeature;

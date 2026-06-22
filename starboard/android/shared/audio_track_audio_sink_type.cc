@@ -105,26 +105,13 @@ bool HasRemoteAudioOutput() {
   return false;
 }
 
-size_t GetAudioTrackOutStackSize() {
-  size_t stack_size = 0;
-#if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
-  if (starboard::features::FeatureList::IsEnabled(
-          starboard::features::kReduceMediaThreadStackSize)) {
-    stack_size = 256 * 1024;
-  }
-#endif
-  return stack_size;
-}
-
 }  // namespace
 
 class AudioTrackAudioSink::AudioTrackOutThread : public Thread {
  public:
   explicit AudioTrackOutThread(AudioTrackAudioSink* sink)
       : Thread("audio_track_out",
-               ThreadOptions()
-                   .SetPriority(ThreadPriority::kRealTime)
-                   .SetStackSize(GetAudioTrackOutStackSize())),
+               ThreadOptions().SetPriority(ThreadPriority::kRealTime)),
         sink_(sink) {}
 
   void Run() override { sink_->AudioThreadFunc(); }

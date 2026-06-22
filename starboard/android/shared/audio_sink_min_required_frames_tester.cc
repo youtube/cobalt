@@ -21,7 +21,6 @@
 
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 #include "starboard/common/check_op.h"
-#include "starboard/shared/starboard/features.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
@@ -42,27 +41,13 @@ size_t GetSampleSize(SbMediaAudioSampleType sample_type) {
   SB_NOTREACHED();
   return 0u;
 }
-
-size_t GetMinFramesTestStackSize() {
-  size_t stack_size = 0;
-#if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
-  if (starboard::features::FeatureList::IsEnabled(
-          starboard::features::kReduceMediaThreadStackSize)) {
-    stack_size = 128 * 1024;
-  }
-#endif
-  return stack_size;
-}
-
 }  // namespace
 
 class AudioSinkMinRequiredFramesTester::TesterThread : public Thread {
  public:
   explicit TesterThread(AudioSinkMinRequiredFramesTester* tester)
       : Thread("min_frames_test",
-               ThreadOptions()
-                   .SetPriority(ThreadPriority::kLowest)
-                   .SetStackSize(GetMinFramesTestStackSize())),
+               ThreadOptions().SetPriority(ThreadPriority::kLowest)),
         tester_(tester) {}
 
   void Run() override { tester_->TesterThreadFunc(); }

@@ -25,7 +25,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/common/thread.h"
-#include "starboard/shared/starboard/features.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
@@ -75,17 +74,6 @@ const char* GetDecoderName(SbMediaType media_type) {
   return media_type == kSbMediaTypeAudio ? "audio_decoder" : "video_decoder";
 }
 
-size_t GetDecoderThreadStackSize() {
-  size_t stack_size = 0;
-#if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
-  if (starboard::features::FeatureList::IsEnabled(
-          starboard::features::kReduceMediaThreadStackSize)) {
-    stack_size = 256 * 1024;
-  }
-#endif
-  return stack_size;
-}
-
 }  // namespace
 
 class MediaCodecDecoder::DecoderThread : public Thread {
@@ -94,9 +82,8 @@ class MediaCodecDecoder::DecoderThread : public Thread {
                 std::function<void()> runnable,
                 std::optional<ThreadPriority> priority = std::nullopt)
       : Thread(name,
-               (priority ? ThreadOptions().SetPriority(priority.value())
-                         : ThreadOptions())
-                   .SetStackSize(GetDecoderThreadStackSize())),
+               priority ? ThreadOptions().SetPriority(priority.value())
+                        : ThreadOptions()),
         runnable_(std::move(runnable)) {
     SB_CHECK(runnable_);
   }

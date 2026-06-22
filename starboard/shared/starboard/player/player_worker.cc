@@ -22,7 +22,6 @@
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/player.h"
 #include "starboard/common/thread_options.h"
-#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 
 namespace starboard {
@@ -42,17 +41,6 @@ const int64_t kWritePendingSampleDelayUsec = 8'000;  // 8ms
 
 DECLARE_INSTANCE_COUNTER(PlayerWorker)
 
-size_t GetPlayerWorkerStackSize() {
-  size_t stack_size = 0;
-#if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
-  if (starboard::features::FeatureList::IsEnabled(
-          starboard::features::kReduceMediaThreadStackSize)) {
-    stack_size = 256 * 1024;
-  }
-#endif
-  return stack_size;
-}
-
 }  // namespace
 
 PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
@@ -64,11 +52,9 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
                            SbPlayerErrorFunc player_error_func,
                            SbPlayer player,
                            void* context)
-    : job_thread_(
-          JobThread::Create("player_worker",
-                            ThreadOptions()
-                                .SetPriority(ThreadPriority::kHigh)
-                                .SetStackSize(GetPlayerWorkerStackSize()))),
+    : job_thread_(JobThread::Create(
+          "player_worker",
+          ThreadOptions().SetPriority(ThreadPriority::kHigh))),
       audio_codec_(audio_codec),
       video_codec_(video_codec),
       handler_(std::move(handler)),

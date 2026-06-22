@@ -46,6 +46,11 @@ class Thread {
   }
   virtual ~Thread();
 
+  // Returns the default stack size for threads. If the stack size reduction
+  // feature is enabled, this will return 256KB, otherwise 0 (which triggers
+  // the system default, e.g. 1MB on Android).
+  static size_t GetDefaultStackSize();
+
   // Subclasses should override the Run method.
   // Example:
   //  void Run() {
