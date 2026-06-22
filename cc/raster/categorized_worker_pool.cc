@@ -25,10 +25,6 @@
 #include "cc/base/switches.h"
 #include "cc/raster/task_category.h"
 
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
-#endif
-
 namespace cc {
 namespace {
 
@@ -278,10 +274,6 @@ void CategorizedWorkerPoolJob::Run(base::span<const TaskCategory> categories,
         });
 
     base::ScopedAllowBaseSyncPrimitives allow;
-#if BUILDFLAG(IS_COBALT)
-    base::memory::ScopedMemoryContext scoped_context(
-        base::memory::MemoryContext::kGraphics);
-#endif
     prioritized_task->task->RunOnWorkerThread();
 
     {
@@ -317,9 +309,6 @@ void CategorizedWorkerPoolJob::FlushForTesting() {
 
 void CategorizedWorkerPoolJob::ScheduleTasks(NamespaceToken token,
                                              TaskGraph* graph) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kGraphicsCompositor);
-#endif
   TRACE_EVENT2("disabled-by-default-cc.debug",
                "CategorizedWorkerPool::ScheduleTasks", "num_nodes",
                graph->nodes.size(), "num_edges", graph->edges.size());
