@@ -42,7 +42,7 @@ env:
   PR_ODT_ENABLED: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false }}
   NIGHTLY_ODT_ENABLED: ${{ (inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False' }}
   POSTSUBMIT_ODT_ENABLED: ${{ github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False' }}
-  PR_BROWSERTEST_ENABELD: ${{ github.event_name == 'pull_request' }}
+  PR_BROWSERTEST_ENABLED: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # Retrieves configuration from json file.
