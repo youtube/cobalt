@@ -158,7 +158,6 @@ class CONTENT_EXPORT StoragePartitionImpl
   void OverrideSharedStorageHeaderObserverForTesting(
       std::unique_ptr<SharedStorageHeaderObserver>
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
-
           shared_storage_header_observer);
   void OverrideAggregationServiceForTesting(
       std::unique_ptr<AggregationService> aggregation_service);
@@ -824,7 +823,9 @@ class CONTENT_EXPORT StoragePartitionImpl
   std::unique_ptr<AttributionManager> attribution_manager_;
   std::unique_ptr<BrowsingTopicsSiteDataManager>
       browsing_topics_site_data_manager_;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   std::unique_ptr<FontAccessManager> font_access_manager_;
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   std::unique_ptr<InterestGroupManagerImpl> interest_group_manager_;
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   std::unique_ptr<AggregationService> aggregation_service_;

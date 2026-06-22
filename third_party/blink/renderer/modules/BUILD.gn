@@ -216,6 +216,7 @@ component("modules") {
         "//third_party/blink/renderer/modules/cobalt/mediasource",
       ]
     }
+
   }
 
   if (!use_webrtc_peer_connection) {

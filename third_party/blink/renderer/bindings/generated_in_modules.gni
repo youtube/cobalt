@@ -3669,29 +3669,3 @@ generated_interface_extra_sources_for_testing_in_modules = [
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/properties_per_feature_installer_for_testing.cc",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/properties_per_feature_installer_for_testing.h",
 ]
-
-# If in the future privacy sandbox components are removed from the code base, ignore this if block.
-if (!enable_privacy_sandbox_apis) {
-  _privacy_sandbox_generated_patterns = [
-    "*shared_storage*",
-    "*browsing_topic*",
-    "*private_aggregation*",
-    "*private_attribution*",
-    "*storage_access*",
-  ]
-  generated_async_iterator_sources_in_modules = filter_exclude(
-      generated_async_iterator_sources_in_modules,
-      _privacy_sandbox_generated_patterns)
-  generated_callback_function_sources_in_modules = filter_exclude(
-      generated_callback_function_sources_in_modules,
-      _privacy_sandbox_generated_patterns)
-  generated_dictionary_sources_in_modules = filter_exclude(
-      generated_dictionary_sources_in_modules,
-      _privacy_sandbox_generated_patterns)
-  generated_enumeration_sources_in_modules = filter_exclude(
-      generated_enumeration_sources_in_modules,
-      _privacy_sandbox_generated_patterns)
-  generated_interface_sources_in_modules = filter_exclude(
-      generated_interface_sources_in_modules,
-      _privacy_sandbox_generated_patterns)
-}

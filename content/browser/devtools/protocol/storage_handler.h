@@ -13,6 +13,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/types/optional_ref.h"
+#include "build/buildflag.h"
 #include "components/services/storage/shared_storage/shared_storage_manager.h"
 #include "content/browser/attribution_reporting/attribution_observer.h"
 #include "content/browser/devtools/protocol/devtools_domain_handler.h"
