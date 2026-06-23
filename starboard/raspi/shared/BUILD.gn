@@ -211,12 +211,10 @@ static_library("starboard_platform_sources") {
     "//starboard/common",
     "//starboard/linux/shared:starboard_base_symbolize",
     "//starboard/shared/ffmpeg:ffmpeg_dynamic_load",
+    "//starboard/shared/starboard:features",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
 
-  deps = [
-    "//starboard/shared/starboard:features",
-    "//third_party/opus",
-  ]
+  deps = [ "//third_party/opus" ]
 }

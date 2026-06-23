@@ -15,6 +15,8 @@
 #ifndef UI_OZONE_PLATFORM_STARBOARD_TEST_STARBOARD_TEST_HELPER_H_
 #define UI_OZONE_PLATFORM_STARBOARD_TEST_STARBOARD_TEST_HELPER_H_
 
+#include <mutex>
+
 #include "starboard/common/thread.h"
 #include "starboard/event.h"
 #include "starboard/shared/starboard/starboard_test_environment.h"
@@ -28,13 +30,11 @@ using ::starboard::Thread;
 namespace ui {
 
 inline void EnsureStarboardTestEnvironmentInitialized() {
-  static bool s_initialized = false;
-  if (s_initialized) {
-    return;
-  }
-  s_initialized = true;
-  static starboard::StarboardTestEnvironment env;
-  env.SetUp();
+  static std::once_flag s_flag;
+  std::call_once(s_flag, [] {
+    static starboard::StarboardTestEnvironment env;
+    env.SetUp();
+  });
 }
 
 class TestPlatformWindowDelegate : public ui::PlatformWindowDelegate {
