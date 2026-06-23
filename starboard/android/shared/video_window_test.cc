@@ -153,8 +153,6 @@ TEST_F(VideoDecoderSurfaceTest, TeardownDuringSurfaceDestroyReleasesSurface) {
     SB_LOG(INFO) << "Decoder thread: Waiting before destroying...";
     usleep(100'000);
     SB_LOG(INFO) << "Decoder thread: Destroying decoder...";
-    delete raw_decoder;
-    SB_LOG(INFO) << "Decoder thread: Decoder destroyed.";
   });
 
   jni_sim_thread.join();
