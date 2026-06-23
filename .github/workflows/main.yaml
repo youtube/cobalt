@@ -930,17 +930,6 @@ jobs:
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
-      - name: DEBUG Print results directory contents
-        if: always()
-        continue-on-error: true
-        id: debug-print-results-directory
-        run: |
-          tree_bin="$(which tree)"
-          if [[ -d "results/" && "$tree_bin" != "" ]]; then
-            set -x
-            tree results/
-          fi
-        shell: bash
       - name: Test Results
         if: steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/process_test_results
