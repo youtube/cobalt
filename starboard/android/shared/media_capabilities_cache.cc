@@ -495,10 +495,8 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
       continue;
     }
     // Reject low performance software codec if software codec is not required.
-    const bool reject_low_performance_software_decoder =
-        FeatureList::IsEnabled(features::kRejectLowPerformanceSoftwareDecoder);
-    if ((reject_low_performance_software_decoder || !is_sw_decoder_enabled_) &&
-        !require_software_codec && video_capability->is_software_decoder()) {
+    // See b/456473829 for more details.
+    if (!require_software_codec && video_capability->is_software_decoder()) {
       const int kMinimumWidth = 1920;
       const int kMinimumHeight = 1080;
       if (!video_capability->AreResolutionAndRateSupported(kMinimumWidth,
