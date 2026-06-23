@@ -45,6 +45,7 @@ runs:
         GTEST_SHARDS: ${{ inputs.num_gtest_shards }}
       run: |
         # Check test status.
+        set -x
         exit_code=0
 
         # Enable globstar shell option for globstar paths e.g. /**/*.xml and
