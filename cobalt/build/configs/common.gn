@@ -50,6 +50,9 @@ v8_enable_atomic_object_field_writes = true
 # This will force V8 to embed snapshot blob in binary.
 v8_use_external_startup_data = false
 
+# disable maglev, see Justification on b/513264006
+v8_enable_maglev = false
+
 # Disable hls_demuxer so that enable_mse_mpeg2ts_stream_parser=false
 enable_hls_demuxer = false
 
