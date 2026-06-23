@@ -65,23 +65,22 @@ TEST(PosixFstatatTest, SuccessRelativeDirfd) {
 }
 
 TEST(PosixFstatatTest, SuccessSymlinkNoFollow) {
-  std::string temp_dir_path = GetTempDir();
-  ASSERT_FALSE(temp_dir_path.empty());
-
-  int dirfd = open(temp_dir_path.c_str(), O_RDONLY);
-  ASSERT_GE(dirfd, 0) << "Failed to open temp dir: " << strerror(errno);
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.IsValid());
 
   ScopedRandomFile random_file;
   std::string target_filename =
-      random_file.filename().substr(temp_dir_path.length() + 1);
-
+      random_file.filename().substr(GetTempDir().length() + 1);
   std::string link_filename = target_filename + ".link";
-  std::string link_filepath = temp_dir_path + "/" + link_filename;
+  std::string link_path = temp_dir.path() + kSbFileSepString + link_filename;
 
-  ASSERT_EQ(symlink(target_filename.c_str(), link_filepath.c_str()), 0)
+  ASSERT_EQ(symlink(random_file.filename().c_str(), link_path.c_str()), 0)
       << "Failed to create symlink: " << strerror(errno);
 
   struct stat sb;
+
+  int dirfd = open(temp_dir.path().c_str(), O_RDONLY);
+  ASSERT_GE(dirfd, 0) << "Failed to open temp dir: " << strerror(errno);
 
   // 1. With AT_SYMLINK_NOFOLLOW, it should stat the link itself.
   memset(&sb, 0, sizeof(sb));
@@ -96,7 +95,6 @@ TEST(PosixFstatatTest, SuccessSymlinkNoFollow) {
   EXPECT_TRUE(S_ISREG(sb.st_mode));
   EXPECT_EQ(sb.st_size, random_file.size());
 
-  unlink(link_filepath.c_str());
   close(dirfd);
 }
 
@@ -154,7 +152,8 @@ TEST(PosixFstatatTest, ErrorNotDir) {
 
   struct stat sb;
   errno = 0;
-  // `dirfd` is a regular file (not a directory), so resolving a relative path should fail with ENOTDIR.
+  // `dirfd` is a regular file (not a directory), so resolving a relative path
+  // should fail with ENOTDIR.
   EXPECT_EQ(fstatat(file_fd, "relative_path", &sb, 0), -1);
   EXPECT_EQ(errno, ENOTDIR);
 
@@ -222,9 +221,9 @@ TEST(PosixFstatatTest, ErrorNameTooLong) {
 }
 
 TEST(PosixFstatatTest, ErrorLoop) {
-  std::string temp_dir_path = GetTempDir();
-  int dirfd = open(temp_dir_path.c_str(), O_RDONLY);
-  ASSERT_GE(dirfd, 0);
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.IsValid());
+  const std::string& temp_dir_path = temp_dir.path();
 
   std::string link_a = "link_a";
   std::string link_b = "link_b";
@@ -234,13 +233,14 @@ TEST(PosixFstatatTest, ErrorLoop) {
   ASSERT_EQ(symlink(link_b.c_str(), link_a_path.c_str()), 0);
   ASSERT_EQ(symlink(link_a.c_str(), link_b_path.c_str()), 0);
 
+  int dirfd = open(temp_dir_path.c_str(), O_RDONLY);
+  ASSERT_GE(dirfd, 0);
+
   struct stat sb;
   errno = 0;
   EXPECT_EQ(fstatat(dirfd, link_a.c_str(), &sb, 0), -1);
   EXPECT_EQ(errno, ELOOP);
 
-  unlink(link_a_path.c_str());
-  unlink(link_b_path.c_str());
   close(dirfd);
 }
 
