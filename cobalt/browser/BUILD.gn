@@ -159,7 +159,7 @@ source_set("global_features") {
   ]
 }
 
-if (is_androidtv) {
+if (is_starboard || is_androidtv) {
   source_set("hang_watcher_delegate") {
     sources = [
       "hang_watcher_delegate_impl.cc",
