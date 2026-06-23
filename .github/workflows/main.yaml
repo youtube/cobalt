@@ -935,7 +935,8 @@ jobs:
         continue-on-error: true
         id: debug-print-results-directory
         run: |
-          if [ "$(which tree)" == "0" && -d "results/" ]; then
+          tree_bin="$(which tree)"
+          if [[ -d "results/" && "$tree_bin" != "" ]]; then
             set -x
             tree results/
           fi
