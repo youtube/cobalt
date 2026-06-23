@@ -253,7 +253,10 @@ if (current_toolchain == starboard_toolchain) {
       "//testing/gtest",
     ]
 
-    if (platform_tests_path != "" && !is_android) {
+    # On AOSP, the platform tests are built as a
+    # standalone modular_executable, whose target only exists in the default
+    # toolchain.
+    if (platform_tests_path != "" && !(is_android && is_starboard)) {
       deps += [ platform_tests_path ]
     }
     if (sb_filter_based_player) {
