@@ -14,17 +14,16 @@
 
 #include "starboard/android/shared/video_window.h"
 
-#include <jni.h>
 #include <unistd.h>
 
 #include <chrono>
 #include <memory>
-#include <thread>
 
 #include "starboard/android/shared/fake_media_codec.h"
 #include "starboard/android/shared/media_codec_video_decoder.h"
 #include "starboard/android/shared/video_surface_texture_bridge.h"
 #include "starboard/common/log.h"
+#include "starboard/common/thread.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/jni_zero/jni_zero.h"
@@ -109,25 +108,39 @@ TEST_F(VideoDecoderSurfaceTest, TeardownDuringSurfaceDestroyReleasesSurface) {
   std::atomic<bool> jni_thread_done{false};
 
   // Thread A: Simulate JNI thread receiving surface destroyed event.
+  struct JniSimThread : public starboard::Thread {
+    explicit JniSimThread(std::atomic<bool>& done)
+        : Thread("JniSimThread"), done_(done) {}
+    void Run() override {
+      // JNIEnv is thread-local. Background threads must obtain their own local
+      // JNIEnv pointer by attaching to the JVM.
+      JNIEnv* env = jni_zero::AttachCurrentThread();
+      SB_LOG(INFO) << "JNI thread: Calling OnVideoSurfaceChanged(nullptr)...";
+      starboard::SetVideoSurfaceForTesting(env, nullptr);
+      SB_LOG(INFO) << "JNI thread: OnVideoSurfaceChanged returned.";
+      done_ = true;
+    }
+    std::atomic<bool>& done_;
+  };
+
   auto start_time = std::chrono::steady_clock::now();
-  std::thread jni_sim_thread([&]() {
-    SB_LOG(INFO) << "JNI thread: Calling OnVideoSurfaceChanged(nullptr)...";
-    starboard::SetVideoSurfaceForTesting(env_, nullptr);
-    SB_LOG(INFO) << "JNI thread: OnVideoSurfaceChanged returned.";
-    jni_thread_done = true;
-  });
+  JniSimThread jni_sim_thread(jni_thread_done);
+  jni_sim_thread.Start();
 
   // Thread B: Simulate decoder teardown on the decoder thread.
   // We add a small delay to ensure the JNI thread can acquire the lock first,
   // which is necessary to trigger the deadlock on the unpatched code.
-  MediaCodecVideoDecoder* raw_decoder = decoder.release();
-  job_thread->Schedule([raw_decoder]() {
+  std::shared_ptr<MediaCodecVideoDecoder> shared_decoder = std::move(decoder);
+  job_thread->Schedule([shared_decoder]() mutable {
     SB_LOG(INFO) << "Decoder thread: Waiting before destroying...";
     usleep(100'000);
     SB_LOG(INFO) << "Decoder thread: Destroying decoder...";
+    shared_decoder.reset();
+    SB_LOG(INFO) << "Decoder thread: Decoder destroyed.";
   });
+  shared_decoder.reset();
 
-  jni_sim_thread.join();
+  jni_sim_thread.Join();
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
       std::chrono::steady_clock::now() - start_time);
   EXPECT_LT(duration.count(), 800);  // Expect less than 800ms (should be ~100ms
