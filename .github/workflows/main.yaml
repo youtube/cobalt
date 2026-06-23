@@ -300,33 +300,20 @@ jobs:
         env:
           TEST_ON_HOST: ${{ steps.set-test-on-host.outputs.test_on_host }}
           TEST_ON_DEVICE: ${{ steps.set-test-on-device.outputs.test_on_device }}
-          RUN_BROWSER_TESTS: ${{ steps.set-browser-test-targets.outputs.run_browser_tests }}
         run: |
           set -x
-          run_on_host_test="false"
           run_on_device_test="false"
-          run_browser_test_on_host="false"
           expected_targets="[]"
 
           first_platform=$(jq -r '.platforms[0]' ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json)
           test_targets_json_file="cobalt/build/testing/targets/${first_platform}/test_targets.json"
 
           if [ -f "$test_targets_json_file" ]; then
-            run_on_host_test="${TEST_ON_HOST}"
-
             if [[ "$TEST_ON_DEVICE" == "true" && (
                   "$IS_NON_DRAFT_PULL_REQUEST" == "true" ||
                   "$RUN_ODT_ON_NIGHTLY" == "true" ||
                   "$RUN_ODT_ON_PUSH" == "true" ) ]]; then
               run_on_device_test="true"
-            fi
-
-            if [[ "$RUN_BROWSER_TESTS" == "true" &&
-                  "$TEST_ON_HOST" == "true" && (
-                  "$IS_PULL_REQUEST" == "true" ||
-                  "$RUN_ODT_ON_NIGHTLY" == "true" ||
-                  "$RUN_ODT_ON_PUSH" == "true" ) ]]; then
-              run_browser_test_on_host="true"
             fi
 
             # The expected test targets is a list of all those targets that we
@@ -335,7 +322,7 @@ jobs:
             # in this run.
             expected_targets=$(jq -c \
               --arg run_on_device_test "${run_on_device_test}" \
-              --arg run_on_host_test "${run_on_host_test}" \
+              --arg run_on_host_test "${TEST_ON_HOST}" \
               '[
                 .[] | select(
                   (.target != null) and
@@ -349,9 +336,7 @@ jobs:
           fi
 
           {
-            echo "run_on_host_test=${run_on_host_test}"
             echo "run_on_device_test=${run_on_device_test}"
-            echo "run_browser_test_on_host=${run_browser_test_on_host}"
             echo "expected_test_targets_json=${expected_targets}"
           } >> $GITHUB_OUTPUT
         shell: bash
@@ -387,11 +372,7 @@ jobs:
       enable_sccache: ${{ steps.set-enable-sccache.outputs.enable_sccache }}
       docker_service: ${{ steps.set-docker-service.outputs.docker_service }}
       expected_test_targets_json: ${{ steps.generate-expected-test-targets-json.outputs.expected_test_targets_json }}
-      # TODO(b/526724005): The run_on_host_test and test_on_host outputs are redundant but it's added here for clarity.
-      # This should ideally be cleaned up in a future PR in order to make it obvious.
-      run_on_host_test: ${{ steps.generate-expected-test-targets-json.outputs.run_on_host_test }}
       run_on_device_test: ${{ steps.generate-expected-test-targets-json.outputs.run_on_device_test }}
-      run_browser_test_on_host: ${{ steps.generate-expected-test-targets-json.outputs.run_browser_test_on_host }}
 
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
@@ -715,7 +696,7 @@ jobs:
 
   browser-test-on-host:
     needs: [initialize, build, docker-unittest-image]
-    if: needs.initialize.outputs.run_browser_test_on_host == 'true'
+    if: needs.initialize.outputs.run_browser_tests == 'true' && needs.initialize.outputs.test_on_host == 'true'
     runs-on: [self-hosted, chrobalt-linux-runner]
     name: ${{ matrix.name }}_browser_tests_on_host
     container:
@@ -775,7 +756,7 @@ jobs:
 
   on-host-test:
     needs: [initialize, docker-unittest-image, build]
-    if: needs.initialize.outputs.run_on_host_test == 'true'
+    if: needs.initialize.outputs.test_on_host == 'true'
     permissions: {}
     runs-on: [self-hosted, chrobalt-linux-runner]
     name: ${{ matrix.name }}_on_host_tests_${{ matrix.shard }}
@@ -1070,7 +1051,7 @@ jobs:
           pattern: ${{ matrix.platform }}_${{ matrix.name }}_browsertest_results
           path: results/
       - name: Failed Tests
-        if: always() && (needs.initialize.outputs.run_on_host_test == 'true' || needs.initialize.outputs.run_browser_test_on_host == 'true')
+        if: always() && (needs.initialize.outputs.test_on_host == 'true' || needs.initialize.outputs.run_browser_tests == 'true')
         run: |
           # Print test result summary.
           shopt -s globstar nullglob
