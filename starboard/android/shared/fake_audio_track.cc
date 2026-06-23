@@ -32,25 +32,24 @@ FakeAudioTrack::FakeAudioTrack(int channels,
 
 void FakeAudioTrack::Play() {
   std::lock_guard lock(mutex_);
-  play_state_ = PLAYSTATE_PLAYING;
+  play_state_ = PlayState::kPlaying;
 }
 
 void FakeAudioTrack::Pause() {
   std::lock_guard lock(mutex_);
-  play_state_ = PLAYSTATE_PAUSED;
+  play_state_ = PlayState::kPaused;
 }
 
 void FakeAudioTrack::Stop() {
   std::lock_guard lock(mutex_);
-  play_state_ = PLAYSTATE_STOPPED;
+  play_state_ = PlayState::kStopped;
 }
 
 void FakeAudioTrack::PauseAndFlush() {
   std::lock_guard lock(mutex_);
-  play_state_ = PLAYSTATE_PAUSED;
+  play_state_ = PlayState::kPaused;
   written_frames_ = 0;
   consumed_frames_ = 0;
-  written_data_.clear();
 }
 
 int FakeAudioTrack::WriteSample(Span<const float> samples) {
@@ -60,11 +59,6 @@ int FakeAudioTrack::WriteSample(Span<const float> samples) {
   }
   SB_CHECK_EQ(sample_type_, kSbMediaAudioSampleTypeFloat32);
   SB_CHECK_EQ(samples.size() % channels_, 0u);
-
-  size_t bytes_to_append = samples.size() * sizeof(float);
-  const uint8_t* byte_ptr = reinterpret_cast<const uint8_t*>(samples.data());
-  written_data_.insert(written_data_.end(), byte_ptr,
-                       byte_ptr + bytes_to_append);
 
   written_frames_ += samples.size() / channels_;
   return static_cast<int>(samples.size());
@@ -79,11 +73,6 @@ int FakeAudioTrack::WriteSample(Span<const uint16_t> samples,
   SB_CHECK_EQ(sample_type_, kSbMediaAudioSampleTypeInt16Deprecated);
   SB_CHECK_EQ(samples.size() % channels_, 0u);
 
-  size_t bytes_to_append = samples.size() * sizeof(uint16_t);
-  const uint8_t* byte_ptr = reinterpret_cast<const uint8_t*>(samples.data());
-  written_data_.insert(written_data_.end(), byte_ptr,
-                       byte_ptr + bytes_to_append);
-
   written_frames_ += samples.size() / channels_;
   return static_cast<int>(samples.size());
 }
@@ -93,8 +82,6 @@ int FakeAudioTrack::WriteSample(Span<const uint8_t> buffer, int64_t sync_time) {
   if (write_error_code_ != 0) {
     return write_error_code_;
   }
-  written_data_.insert(written_data_.end(), buffer.data(),
-                       buffer.data() + buffer.size());
   written_frames_ += buffer.size() / channels_;
   return static_cast<int>(buffer.size());
 }
@@ -134,7 +121,7 @@ int FakeAudioTrack::GetStartThresholdInFrames() {
   return start_threshold_;
 }
 
-int FakeAudioTrack::GetPlayState() {
+AudioTrack::PlayState FakeAudioTrack::GetPlayState() {
   std::lock_guard lock(mutex_);
   return play_state_;
 }
@@ -159,7 +146,7 @@ double FakeAudioTrack::volume() const {
   return volume_;
 }
 
-int FakeAudioTrack::play_state() const {
+AudioTrack::PlayState FakeAudioTrack::play_state() const {
   std::lock_guard lock(mutex_);
   return play_state_;
 }

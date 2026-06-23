@@ -284,9 +284,10 @@ int AudioTrackBridge::GetStartThresholdInFrames() {
                                                          j_audio_track_bridge_);
 }
 
-int AudioTrackBridge::GetPlayState() {
+AudioTrack::PlayState AudioTrackBridge::GetPlayState() {
   JNIEnv* env = AttachCurrentThread();
-  return Java_AudioTrackBridge_getPlayState(env, j_audio_track_bridge_);
+  return static_cast<PlayState>(
+      Java_AudioTrackBridge_getPlayState(env, j_audio_track_bridge_));
 }
 
 }  // namespace starboard

@@ -16,6 +16,7 @@
 
 #include <unistd.h>
 
+#include <atomic>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -62,11 +63,11 @@ class AudioTrackAudioSinkTest : public ::testing::Test {
 
   std::vector<uint8_t> frame_buffer_;
   void* frame_buffers_[1];
-  int frames_in_buffer_ = 512;
-  int offset_in_frames_ = 0;
-  bool is_playing_ = true;
-  bool is_eos_reached_ = false;
-  int total_frames_consumed_ = 0;
+  std::atomic<int> frames_in_buffer_ = 512;
+  std::atomic<int> offset_in_frames_ = 0;
+  std::atomic<bool> is_playing_ = true;
+  std::atomic<bool> is_eos_reached_ = false;
+  std::atomic<int> total_frames_consumed_ = 0;
 };
 
 TEST_F(AudioTrackAudioSinkTest, CreateAndDestroy) {
@@ -121,27 +122,30 @@ TEST_F(AudioTrackAudioSinkTest, PauseAndResumePlayback) {
 
   ASSERT_NE(sink, nullptr);
   int elapsed_ms = 0;
-  while (track_ptr->play_state() != PLAYSTATE_PLAYING && elapsed_ms < 1000) {
+  while (track_ptr->play_state() != AudioTrack::PlayState::kPlaying &&
+         elapsed_ms < 1000) {
     usleep(10'000);
     elapsed_ms += 10;
   }
-  EXPECT_EQ(track_ptr->play_state(), PLAYSTATE_PLAYING);
+  EXPECT_EQ(track_ptr->play_state(), AudioTrack::PlayState::kPlaying);
 
   is_playing_ = false;
   elapsed_ms = 0;
-  while (track_ptr->play_state() != PLAYSTATE_PAUSED && elapsed_ms < 1000) {
+  while (track_ptr->play_state() != AudioTrack::PlayState::kPaused &&
+         elapsed_ms < 1000) {
     usleep(10'000);
     elapsed_ms += 10;
   }
-  EXPECT_EQ(track_ptr->play_state(), PLAYSTATE_PAUSED);
+  EXPECT_EQ(track_ptr->play_state(), AudioTrack::PlayState::kPaused);
 
   is_playing_ = true;
   elapsed_ms = 0;
-  while (track_ptr->play_state() != PLAYSTATE_PLAYING && elapsed_ms < 1000) {
+  while (track_ptr->play_state() != AudioTrack::PlayState::kPlaying &&
+         elapsed_ms < 1000) {
     usleep(10'000);
     elapsed_ms += 10;
   }
-  EXPECT_EQ(track_ptr->play_state(), PLAYSTATE_PLAYING);
+  EXPECT_EQ(track_ptr->play_state(), AudioTrack::PlayState::kPlaying);
 }
 
 }  // namespace

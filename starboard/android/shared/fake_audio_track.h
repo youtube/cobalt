@@ -51,14 +51,14 @@ class FakeAudioTrack : public AudioTrack {
   bool GetAndResetHasAudioDeviceChanged() override;
   int GetUnderrunCount() override;
   int GetStartThresholdInFrames() override;
-  int GetPlayState() override;
+  PlayState GetPlayState() override;
 
   // Test control & inspection methods
   int64_t written_frames() const;
   int64_t consumed_frames() const;
   double playback_rate() const;
   double volume() const;
-  int play_state() const;
+  PlayState play_state() const;
   void set_consumed_frames(int64_t consumed);
   void simulate_device_change(bool changed);
   void set_underrun_count(int count);
@@ -69,7 +69,7 @@ class FakeAudioTrack : public AudioTrack {
   const SbMediaAudioSampleType sample_type_;
 
   mutable std::mutex mutex_;
-  int play_state_ = PLAYSTATE_STOPPED;
+  PlayState play_state_ = PlayState::kStopped;
   int64_t written_frames_ = 0;
   int64_t consumed_frames_ = 0;
   double playback_rate_ = 1.0;
@@ -78,7 +78,6 @@ class FakeAudioTrack : public AudioTrack {
   int underrun_count_ = 0;
   int start_threshold_ = 1024;
   int write_error_code_ = 0;
-  std::vector<uint8_t> written_data_;
 };
 
 }  // namespace starboard

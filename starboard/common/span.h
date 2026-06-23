@@ -29,6 +29,7 @@ class Span {
   constexpr Span() = default;
   constexpr Span(T* data, size_t size) : data_(data), size_(size) {}
 
+  // Permits safe qualification conversions (e.g. Span<T> to Span<const T>).
   template <class U,
             class = std::enable_if_t<std::is_convertible_v<U (*)[], T (*)[]>>>
   constexpr Span(const Span<U>& other)

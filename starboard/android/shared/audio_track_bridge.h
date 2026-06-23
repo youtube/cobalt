@@ -37,13 +37,6 @@ class AudioTrackBridge : public AudioTrack {
   using ByteArray = jni_zero::ScopedJavaGlobalRef<jbyteArray>;
   using DataArray = std::variant<FloatArray, ByteArray>;
 
-  // The maximum number of frames that can be written to android audio track per
-  // write request.  It is used to pre-allocate |j_audio_data_|.
-  static constexpr int kMaxFramesPerRequest = AudioTrack::kMaxFramesPerRequest;
-  // The same as Android AudioTrack.ERROR_DEAD_OBJECT.
-  static constexpr int kAudioTrackErrorDeadObject =
-      AudioTrack::kAudioTrackErrorDeadObject;
-
   static std::unique_ptr<AudioTrackBridge> Create(
       SbMediaAudioCodingType coding_type,
       std::optional<SbMediaAudioSampleType> sample_type,
@@ -83,7 +76,7 @@ class AudioTrackBridge : public AudioTrack {
   bool GetAndResetHasAudioDeviceChanged() override;
   int GetUnderrunCount() override;
   int GetStartThresholdInFrames() override;
-  int GetPlayState() override;
+  PlayState GetPlayState() override;
 
  private:
   const int max_samples_per_write_;

@@ -24,12 +24,6 @@
 
 namespace starboard {
 
-// These must be in sync with AudioTrack.PLAYSTATE_XXX constants in
-// AudioTrack.java.
-constexpr int PLAYSTATE_STOPPED = 1;
-constexpr int PLAYSTATE_PAUSED = 2;
-constexpr int PLAYSTATE_PLAYING = 3;
-
 // AudioTrack is an abstract interface for Android audio playback functionality,
 // providing a unified API for both JNI-based (AudioTrackBridge) and NDK-based
 // (NdkAudioTrack) implementations.
@@ -43,10 +37,19 @@ constexpr int PLAYSTATE_PLAYING = 3;
 // are expected to be called on a single audio thread.
 class AudioTrack {
  public:
+  // These must be in sync with AudioTrack.PLAYSTATE_XXX constants in
+  // AudioTrack.java.
+  enum class PlayState {
+    kStopped = 1,
+    kPaused = 2,
+    kPlaying = 3,
+  };
+
   // The maximum number of frames that can be written to android audio track per
   // write request.
-  static constexpr int kMaxFramesPerRequest = 65536;
+  static constexpr int kMaxFramesPerRequest = 65'536;
   // Error code returned as negative value from WriteSample().
+  // The same as Android AudioTrack.ERROR_DEAD_OBJECT.
   static constexpr int kAudioTrackErrorDeadObject = -6;
 
   static std::unique_ptr<AudioTrack> Create(
@@ -86,7 +89,7 @@ class AudioTrack {
   virtual bool GetAndResetHasAudioDeviceChanged() = 0;
   virtual int GetUnderrunCount() = 0;
   virtual int GetStartThresholdInFrames() = 0;
-  virtual int GetPlayState() = 0;
+  virtual PlayState GetPlayState() = 0;
 };
 
 }  // namespace starboard
