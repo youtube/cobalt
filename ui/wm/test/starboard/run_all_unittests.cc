@@ -23,6 +23,7 @@
 #include "base/test/test_suite.h"
 #include "mojo/core/embedder/embedder.h"
 #include "starboard/client_porting/wrap_main/wrap_main.h"
+#include "starboard/shared/starboard/starboard_test_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/aura/env.h"
 #include "ui/base/resource/resource_bundle.h"
@@ -42,6 +43,9 @@ class WMTestSuite : public base::TestSuite {
     base::TestSuite::Initialize();
     gl::GLSurfaceTestSupport::InitializeOneOff();
     ui::RegisterPathProvider();
+
+    static starboard::StarboardTestEnvironment starboard_env;
+    starboard_env.SetUp();
 
     base::FilePath ui_test_pak_path;
     ASSERT_TRUE(base::PathService::Get(ui::UI_TEST_PAK, &ui_test_pak_path));
