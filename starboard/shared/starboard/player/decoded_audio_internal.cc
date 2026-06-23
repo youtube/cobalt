@@ -44,10 +44,12 @@ static_assert(std::is_trivially_destructible<std::atomic<bool>>::value,
 std::atomic<bool> g_enable_simd_based_audio_format_switching{
     kIsSimdBasedAudioFormatSwitchingDefaultEnabled};
 
+#if defined(USE_NEON_FOR_AUDIO)
 bool GetSimdBasedAudioFormatSwitchingSetting() {
   return g_enable_simd_based_audio_format_switching.load(
       std::memory_order_acquire);
 }
+#endif  // defined(USE_NEON_FOR_AUDIO)
 
 void ConvertSample(const int16_t* source, float* destination) {
   *destination = static_cast<float>(*source) / 32768.f;
