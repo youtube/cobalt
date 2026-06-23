@@ -803,8 +803,6 @@ void SbPlayerBridge::CreatePlayer() {
 
     extension_features.allow_audio_writing_on_pause =
         experimental_features_.allow_audio_writing_on_pause;
-    extension_features.disable_low_performance_sw_decoder =
-        experimental_features_.disable_low_performance_sw_decoder;
     extension_features.enable_av1_startup_optimization =
         experimental_features_.enable_av1_startup_optimization;
     extension_features.enable_low_latency =
