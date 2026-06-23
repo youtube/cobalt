@@ -49,7 +49,8 @@ TEST(PosixFileOpenatTest, DirFdRelativePath) {
   ASSERT_GE(dir_fd, 0);
 
   const std::string filename = "test_file.txt";
-  int fd = openat(dir_fd, filename.c_str(), O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+  int fd =
+      openat(dir_fd, filename.c_str(), O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
   EXPECT_GE(fd, 0);
 
   if (fd >= 0) {
@@ -147,12 +148,14 @@ TEST(PosixFileOpenatTest, FailsAlreadyExists) {
   ASSERT_GE(dir_fd, 0);
 
   const std::string filename = "existing_file.txt";
-  int fd = openat(dir_fd, filename.c_str(), O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+  int fd =
+      openat(dir_fd, filename.c_str(), O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
   ASSERT_GE(fd, 0);
   close(fd);
 
   errno = 0;
-  fd = openat(dir_fd, filename.c_str(), O_CREAT | O_EXCL | O_RDWR, S_IRUSR | S_IWUSR);
+  fd = openat(dir_fd, filename.c_str(), O_CREAT | O_EXCL | O_RDWR,
+              S_IRUSR | S_IWUSR);
   EXPECT_EQ(fd, -1);
   EXPECT_EQ(errno, EEXIST);
   if (fd >= 0) {
@@ -188,7 +191,7 @@ TEST(PosixFileOpenatTest, FailsIsDir) {
   }
 
   errno = 0;
-  fd = openat(dir_fd, ".", O_CREAT);
+  fd = openat(dir_fd, ".", O_CREAT | O_RDWR);
   EXPECT_EQ(fd, -1);
   EXPECT_EQ(errno, EISDIR);
   if (fd >= 0) {
@@ -248,16 +251,14 @@ TEST(PosixFileOpenatTest, FailsNoAccessWrite) {
   ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.IsValid());
 
-  // Remove write permission from the directory.
-  ASSERT_EQ(chmod(temp_dir.path().c_str(), S_IRUSR), 0);
-
   int dir_fd = open(temp_dir.path().c_str(), O_RDONLY);
   ASSERT_GE(dir_fd, 0);
 
-  std::string relative_path =
-      "no_access_sub" + std::string(kSbFileSepString) + "test.txt";
+  // Remove write permission from the directory.
+  ASSERT_EQ(chmod(temp_dir.path().c_str(), S_IRUSR | S_IXUSR), 0);
+
   errno = 0;
-  int fd = openat(dir_fd, relative_path.c_str(), O_WRONLY | O_CREAT, S_IRUSR);
+  int fd = openat(dir_fd, "test.txt", O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
   EXPECT_EQ(fd, -1);
   EXPECT_EQ(errno, EACCES);
   if (fd >= 0) {
@@ -265,8 +266,6 @@ TEST(PosixFileOpenatTest, FailsNoAccessWrite) {
   }
 
   close(dir_fd);
-
-  // Restore permissions to allow ScopedTempDir to clean up.
   chmod(temp_dir.path().c_str(), kUserRwx);
 }
 
