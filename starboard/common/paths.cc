@@ -74,6 +74,13 @@ std::string GetCACertificatesPath(const std::string& content_subdir) {
   std::string ca_certificates_path =
       GetCACertificatesPathFromSubdir(content_subdir);
   if (stat(ca_certificates_path.c_str(), &info) != 0) {
+    // Fall back to the content root, like the no-argument overload. On some
+    // platforms (e.g. Android, where the content directory resolves to the
+    // asset root) the certs are packaged at <content>/ssl/certs rather than
+    // <content>/<content_subdir>/ssl/certs.
+    ca_certificates_path = GetCACertificatesPathFromSubdir("");
+  }
+  if (stat(ca_certificates_path.c_str(), &info) != 0) {
     SB_LOG(ERROR) << "Failed to get CA certificates path";
     return "";
   }

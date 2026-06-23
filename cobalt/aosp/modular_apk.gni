@@ -14,6 +14,7 @@
 
 import("//build/config/android/rules.gni")
 import("//cobalt/android/manifest.gni")
+import("//starboard/content/ssl/certs.gni")
 
 # Every apk is the same android_apk; only the loader core and inner lib differ.
 template("modular_apk") {
@@ -44,6 +45,19 @@ template("modular_apk") {
       ":copy_${_name}_empty_fonts($default_toolchain)",
       ":copy_${_name}_lib($default_toolchain)",
     ]
+
+    # CA certificates, packaged once at assets/ssl/certs. The inner library's TLS
+    # trust store (net::TrustStoreInMemoryStarboard) reads base::DIR_EXE/ssl/certs
+    # and on Android base::DIR_EXE and SbSystemGetPath(content) both resolve to
+    # the asset root (/cobalt/assets), so this is the location it uses. The
+    # loader's crashpad cert lookup also finds them here via the content-root
+    # fallback in starboard::GetCACertificatesPath().
+    foreach(_cert, network_certs) {
+      _cert_file = get_path_info(_cert, "file")
+      renaming_sources += [ "$root_build_dir/ssl/certs/$_cert_file" ]
+      renaming_destinations += [ "ssl/certs/$_cert_file" ]
+    }
+    deps += [ "//starboard/content/ssl:copy_ssl_certificates_evergreen($default_toolchain)" ]
 
     if (_name == "cobalt") {
       sources = [ "$root_build_dir/cobalt_shell.pak" ]
