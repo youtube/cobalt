@@ -228,9 +228,6 @@ class MediaCapabilitiesCache {
   bool IsEnabled() const { return is_enabled_; }
   void SetCacheEnabled(bool enabled) { is_enabled_ = enabled; }
   void SetAv1OptEnabled(bool enabled) { is_av1_opt_enabled_ = enabled; }
-  void SetSoftwareDecoderEnabled(bool enabled) {
-    is_sw_decoder_enabled_ = enabled;
-  }
   void ClearCache() { capabilities_is_dirty_ = true; }
 
  protected:
@@ -279,7 +276,6 @@ class MediaCapabilitiesCache {
 
   std::atomic_bool is_enabled_{true};
   std::atomic_bool is_av1_opt_enabled_{false};
-  std::atomic_bool is_sw_decoder_enabled_{true};
   std::atomic_bool capabilities_is_dirty_{true};
 };
 
