@@ -906,17 +906,6 @@ jobs:
           test_target_with_path: ${{ matrix.test_info.target }}
         run: echo "test_target=${test_target_with_path#*:}" >> $GITHUB_OUTPUT
         shell: bash
-      - name: Check if ${{ matrix.test_info.target }} ran on device
-        id: check-test-on-device
-        env:
-          TEST_RUNS_ON: ${{ matrix.test_info.runs_on }}
-        run: |
-          if [[ "$TEST_RUNS_ON" == "device" ]]; then
-            echo "test_runs_on_device=true" >> $GITHUB_OUTPUT
-          else
-            echo "test_runs_on_device=false" >> $GITHUB_OUTPUT
-          fi
-        shell: bash
       - name: Check if ${{ matrix.test_info.target }} is skipped in test filters
         id: filter
         run: |
@@ -954,13 +943,13 @@ jobs:
         if: steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/process_test_results
         with:
-          target_name: ${{ matrix.test_target }}
+          target_name: ${{ matrix.test_info.target }}
           results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
           log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
           datadog_api_key: ${{ secrets.datadog_api_key }}
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
-      - name: ${{ matrix.test_target }} Device Logs
-        if: always() && steps.filter.outputs.skipped != 'true' && needs.initialize.outputs.test_on_device == 'true' && steps.check-test-on-device.outputs.test_runs_on_device == 'true'
+      - name: ${{ matrix.test_info.target }} Device Logs
+        if: always() && steps.filter.outputs.skipped != 'true' && needs.initialize.outputs.test_on_device == 'true' && matrix.test_info.runs_on == 'device'
         continue-on-error: true
         uses: ./.github/actions/print_logs
         with:
@@ -968,7 +957,7 @@ jobs:
           # TODO: Enable symbolization when it works.
           # symbolize: true
           symbolize: 'false'
-      - name: ${{ matrix.test_target }} Test Logs
+      - name: ${{ matrix.test_info.target }} Test Logs
         if: always() && steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/print_logs
         with:
