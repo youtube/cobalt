@@ -53,17 +53,6 @@ template("starboard_platform_target") {
     if (is_android) {
       # TODO(b/374300500): - Find a way to avoid wrapping this.
       ldflags = [ "-Wl,--wrap=eglSwapBuffers" ]
-
-      if (is_starboard) {
-        ldflags += [
-          "-Wl,--wrap=access",
-          "-Wl,--wrap=close",
-          "-Wl,--wrap=fstatat",
-          "-Wl,--wrap=open",
-          "-Wl,--wrap=openat",
-          "-Wl,--wrap=stat",
-        ]
-      }
     }
 
     public_deps = [
