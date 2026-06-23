@@ -21,8 +21,11 @@
 
 #include "base/containers/contains.h"
 #include "base/files/file.h"
+#include "base/functional/callback_helpers.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/trace_event/trace_config.h"
+#include "cobalt/browser/on_screen_keyboard/platform_on_screen_keyboard.h"
+#include "cobalt/browser/on_screen_keyboard/public/mojom/on_screen_keyboard.mojom.h"
 #include "cobalt/shell/app/resource.h"
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/browser/render_widget_host_view.h"
@@ -75,6 +78,64 @@ const char kAllTracingCategories[] = "*";
               categories:(const char*)categories;
 - (void)stop;
 - (BOOL)isTracing;
+
+@end
+
+@protocol PlatformOnScreenKeyboardDelegate <NSObject>
+
+- (void)keyboardBlurred;
+
+- (void)keyboardFocused;
+
+- (void)keyboardTextChanged:(NSString*)text;
+
+@end
+
+@interface OnScreenKeyboardObserver
+    : NSObject <PlatformOnScreenKeyboardDelegate>
+
+- (instancetype)initWithCallbacks:(base::RepeatingClosure)blurredCallback
+                  focusedCallback:(base::RepeatingClosure)focusedCallback
+              textChangedCallback:
+                  (base::RepeatingCallback<void(const std::string&)>)
+                      textChangedCallback;
+
+@end
+
+@implementation OnScreenKeyboardObserver {
+ @private
+  base::RepeatingClosure _blurredCallback;
+  base::RepeatingClosure _focusedCallback;
+  base::RepeatingCallback<void(const std::string&)> _textChangedCallback;
+}
+
+- (instancetype)initWithCallbacks:(base::RepeatingClosure)blurredCallback
+                  focusedCallback:(base::RepeatingClosure)focusedCallback
+              textChangedCallback:
+                  (base::RepeatingCallback<void(const std::string&)>)
+                      textChangedCallback {
+  if (!(self = [super init])) {
+    return nil;
+  }
+  _blurredCallback = std::move(blurredCallback);
+  _focusedCallback = std::move(focusedCallback);
+  _textChangedCallback = std::move(textChangedCallback);
+  return self;
+}
+
+#pragma mark - SBDOnScreenKeyboardManagerDelegate
+
+- (void)keyboardBlurred {
+  _blurredCallback.Run();
+}
+
+- (void)keyboardFocused {
+  _focusedCallback.Run();
+}
+
+- (void)keyboardTextChanged:(NSString*)text {
+  _textChangedCallback.Run(base::SysNSStringToUTF8(text));
+}
 
 @end
 
@@ -261,7 +322,6 @@ const char kAllTracingCategories[] = "*";
 @interface ContentShellWindowDelegate
     : UIViewController <UITextFieldDelegate,
                         UISearchResultsUpdating,
-                        SBDOnScreenKeyboardManager,
                         CobaltSearchControllerPressesDelegate,
                         CobaltSearchResultsControllerFocusDelegate,
                         CobaltSearchContainerViewControllerDelegate> {
@@ -303,8 +363,8 @@ const char kAllTracingCategories[] = "*";
 // Manages tracing and tracing state.
 @property(nonatomic, strong) TracingHandler* tracingHandler;
 // SBDOnScreenKeyboardManagerDelegate implementation.
-@property(nonatomic, weak) id<SBDOnScreenKeyboardManagerDelegate>
-    keyboardManagerDelegate;
+@property(nonatomic, weak) id<PlatformOnScreenKeyboardDelegate>
+    platformOnScreenKeyboardDelegate;
 
 + (UIColor*)backgroundColorDefault;
 + (UIColor*)backgroundColorTracing;
@@ -462,7 +522,7 @@ const char kAllTracingCategories[] = "*";
   ]];
 
   // The native search bar, shown only in the main search page.
-  SBDGetApplication().onScreenKeyboardManager = self;
+  // SBDGetApplication().onScreenKeyboardManager = self;
   _searchView = [[UIView alloc] initWithFrame:_contentView.bounds];
   _searchView.accessibilityIdentifier = @"Search Container";
   // _searchContainer.backgroundColor = [UIColor redColor];
@@ -888,7 +948,7 @@ const char kAllTracingCategories[] = "*";
                     static_cast<int>(keyboardFrame.size.height * scale));
 }
 
-- (BOOL)isShowing {
+- (BOOL)isShowingKeyboard {
   return _keyboardVisibilityState != SearchKeyboardVisibilityState::kHidden;
 }
 
@@ -911,11 +971,13 @@ const char kAllTracingCategories[] = "*";
 #pragma mark - CobaltSearchResultsControllerFocusDelegate
 
 - (void)resultsDidLoseFocus {
-  [_keyboardManagerDelegate keyboardFocused];
+  LOG(ERROR) << __func__;
+  [_platformOnScreenKeyboardDelegate keyboardFocused];
 }
 
 - (void)resultsDidReceiveFocus {
-  [_keyboardManagerDelegate keyboardBlurred];
+  LOG(ERROR) << __func__;
+  [_platformOnScreenKeyboardDelegate keyboardBlurred];
 }
 
 #pragma mark - UISearchResultsUpdating
@@ -937,8 +999,8 @@ const char kAllTracingCategories[] = "*";
   static NSDate* searchResultLastDate;
   static NSString* searchResultLastString;
   searchResultLastDate = [NSDate date];
-  __weak id<SBDOnScreenKeyboardManagerDelegate> weakKeyboardManagerDelegate =
-      _keyboardManagerDelegate;
+  __weak id<PlatformOnScreenKeyboardDelegate> weakDelegate =
+      _platformOnScreenKeyboardDelegate;
   dispatch_after(
       dispatch_time(DISPATCH_TIME_NOW,
                     (int64_t)(kSearchResultDebounceTime * NSEC_PER_SEC)),
@@ -953,7 +1015,8 @@ const char kAllTracingCategories[] = "*";
           return;
         }
         searchResultLastString = searchString;
-        [weakKeyboardManagerDelegate keyboardTextChanged:[searchString copy]];
+        LOG(ERROR) << __func__;
+        [weakDelegate keyboardTextChanged:[searchString copy]];
       });
 }
 
@@ -1119,9 +1182,155 @@ const char kAllTracingCategories[] = "*";
 
 namespace content {
 
+namespace {
+
+// Computes the default background color for the on-screen keyboard by first
+// trying to read it from the bundle and then falling back to a hardcoded
+// default.
+//
+// Note: this logic was copied from C25. In practice, Kabuki always ends up
+// overriding the background color to a specific value.
+UIColor* defaultKeyboardBackgroundColor() {
+  static UIColor* background_color;
+  if (!background_color) {
+    NSString* colorFromPList = [[NSBundle mainBundle]
+        objectForInfoDictionaryKey:@"YTOSKBackgroundColor"];
+    if (!colorFromPList) {
+      colorFromPList = [[NSBundle mainBundle]
+          objectForInfoDictionaryKey:@"YTApplicationBackgroundColor"];
+    }
+    NSArray<NSString*>* colorComponents =
+        [colorFromPList componentsSeparatedByString:@", "];
+    if (colorComponents.count == 4) {
+      background_color =
+          [UIColor colorWithRed:[colorComponents[0] floatValue] / 255.0
+                          green:[colorComponents[1] floatValue] / 255.0
+                           blue:[colorComponents[2] floatValue] / 255.0
+                          alpha:[colorComponents[3] floatValue]];
+    } else {
+      background_color = [UIColor colorWithRed:30 / 255.0
+                                         green:30 / 255.0
+                                          blue:30 / 255.0
+                                         alpha:1];
+    }
+  }
+  return background_color;
+}
+
+class PlatformOnScreenKeyboardTvos final
+    : public on_screen_keyboard::PlatformOnScreenKeyboard {
+ public:
+  explicit PlatformOnScreenKeyboardTvos(
+      ContentShellWindowDelegate* window_delegate)
+      : window_delegate_(window_delegate) {
+    on_screen_keyboard_observer_ = [[OnScreenKeyboardObserver alloc]
+          initWithCallbacks:base::BindRepeating(
+                                &PlatformOnScreenKeyboardTvos::KeyboardBlurred,
+                                GetWeakPtr())
+            focusedCallback:base::BindRepeating(
+                                &PlatformOnScreenKeyboardTvos::KeyboardFocused,
+                                GetWeakPtr())
+        textChangedCallback:base::BindRepeating(&PlatformOnScreenKeyboardTvos::
+                                                    KeyboardTextChanged,
+                                                GetWeakPtr())];
+    window_delegate_.platformOnScreenKeyboardDelegate =
+        on_screen_keyboard_observer_;
+  }
+
+  ~PlatformOnScreenKeyboardTvos() override {
+    if (window_delegate_.platformOnScreenKeyboardDelegate ==
+        on_screen_keyboard_observer_) {
+      window_delegate_.platformOnScreenKeyboardDelegate = nil;
+    }
+  }
+
+  // on_screen_keyboard::PlatformOnScreenKeyboardTvos overrides.
+  void Show(const std::string& text,
+            on_screen_keyboard::mojom::KeyboardOptionsPtr options,
+            base::OnceClosure done_callback) override {
+    UIUserInterfaceStyle theme_override = UIUserInterfaceStyleUnspecified;
+    if (options->theme_override.has_value()) {
+      theme_override =
+          *options->theme_override ==
+                  on_screen_keyboard::mojom::ThemeOverride::kDarkTheme
+              ? UIUserInterfaceStyleDark
+              : UIUserInterfaceStyleLight;
+    }
+    UIColor* color_override = defaultKeyboardBackgroundColor();
+    if (options->background_color) {
+      color_override =
+          [UIColor colorWithRed:options->background_color->red / 255.0
+                          green:options->background_color->green / 255.0
+                           blue:options->background_color->blue / 255.0
+                          alpha:1];
+    }
+
+    [window_delegate_
+        showOnScreenKeyboard:base::SysUTF8ToNSString(text)
+               keyboardStyle:theme_override
+               colorOverride:color_override
+           completionHandler:base::CallbackToBlock(std::move(done_callback))];
+  }
+
+  void Hide(base::OnceClosure done_callback) override {
+    [window_delegate_ hideOnScreenKeyboard];
+    std::move(done_callback).Run();
+  }
+
+  void Focus(base::OnceClosure done_callback) override {
+    [window_delegate_
+        focusOnScreenKeyboard:base::CallbackToBlock(std::move(done_callback))];
+  }
+
+  void Blur(base::OnceClosure done_callback) override {
+    // TODO: b/513162149 - This method was present in C25 and added here for
+    // backward compatibility. The current implementation is empty because not
+    // only is it not called from Kabuki but it is not entirely clear what
+    // should happen here given how the tvOS search keyboard is presented on the
+    // screen: if this is called from Kabuki, the web view already has focus
+    // anyway.
+    std::move(done_callback).Run();
+  }
+
+  void UpdateSuggestions(const std::vector<std::string>& suggestions,
+                         base::OnceClosure done_callback) override {
+    // Not supported on tvOS.
+    std::move(done_callback).Run();
+  }
+
+  void SetKeepFocusOnKeyboard(bool keep_focus) override {
+    // Do nothing on tvOS. Focus handling works as expected without having to
+    // force it to be on the keyboard (and having to deal with
+    // -preferredFocusEnvironments when focus() and blur() are called).
+  }
+
+  void SupportsSuggestions(
+      base::OnceCallback<void(bool)> done_callback) override {
+    std::move(done_callback).Run(false);
+  }
+
+  void IsBeingShown(base::OnceCallback<void(bool)> done_callback) override {
+    std::move(done_callback).Run(window_delegate_.isShowingKeyboard);
+  }
+
+  void BoundingRect(
+      base::OnceCallback<void(const gfx::RectF&)> done_callback) override {
+    std::move(done_callback).Run(gfx::RectF(window_delegate_.boundingRect));
+  }
+
+ private:
+  OnScreenKeyboardObserver* __strong on_screen_keyboard_observer_;
+
+  ContentShellWindowDelegate* __weak window_delegate_;
+};
+
+}  // namespace
+
 struct ShellPlatformDelegate::ShellData {
   UIWindow* window;
   bool fullscreen = false;
+  std::unique_ptr<on_screen_keyboard::PlatformOnScreenKeyboard>
+      on_screen_keyboard;
 };
 
 struct ShellPlatformDelegate::PlatformData {};
@@ -1297,6 +1506,18 @@ bool ShellPlatformDelegate::IsFullscreenForTabOrPending(
   DCHECK(base::Contains(shell_data_map_, shell));
   auto iter = shell_data_map_.find(shell);
   return iter->second.fullscreen;
+}
+
+base::WeakPtr<on_screen_keyboard::PlatformOnScreenKeyboard>
+ShellPlatformDelegate::GetOrCreatePlatformOnScreenKeyboard(Shell* shell) {
+  DCHECK(base::Contains(shell_data_map_, shell));
+  ShellData& shell_data = shell_data_map_[shell];
+  if (!shell_data.on_screen_keyboard) {
+    shell_data.on_screen_keyboard =
+        std::make_unique<PlatformOnScreenKeyboardTvos>(
+            shell_data.window.rootViewController);
+  }
+  return shell_data.on_screen_keyboard->GetWeakPtr();
 }
 
 }  // namespace content

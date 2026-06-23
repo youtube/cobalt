@@ -14,8 +14,10 @@
 
 source_set("on_screen_keyboard") {
   sources = [
-    "on_screen_keyboard_impl_base.cc",
-    "on_screen_keyboard_impl_base.h",
+    "on_screen_keyboard_impl.cc",
+    "on_screen_keyboard_impl.h",
+    "platform_on_screen_keyboard.cc",
+    "platform_on_screen_keyboard.h",
   ]
 
   deps = [
@@ -24,17 +26,4 @@ source_set("on_screen_keyboard") {
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
   ]
-
-  if (is_ios) {
-    sources += [
-      "on_screen_keyboard_impl_tvos.h",
-      "on_screen_keyboard_impl_tvos.mm",
-    ]
-    deps += [ "//starboard:starboard_group" ]
-  } else {
-    sources += [
-      "on_screen_keyboard_impl_stub.cc",
-      "on_screen_keyboard_impl_stub.h",
-    ]
-  }
 }
