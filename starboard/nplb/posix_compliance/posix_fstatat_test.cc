@@ -33,9 +33,12 @@ TEST(PosixFstatatTest, SuccessAbsolutePathEmptyFlags) {
   memset(&sb, 0, sizeof(sb));
 
   // If path is absolute, dirfd is ignored. We pass an invalid fd to prove it.
-  EXPECT_EQ(fstatat(-1, random_file.filename().c_str(), &sb, 0), 0);
-  EXPECT_TRUE(S_ISREG(sb.st_mode));
-  EXPECT_EQ(sb.st_size, random_file.size());
+  int result = fstatat(-1, random_file.filename().c_str(), &sb, 0);
+  EXPECT_EQ(result, 0);
+  if (result == 0) {
+    EXPECT_TRUE(S_ISREG(sb.st_mode));
+    EXPECT_EQ(sb.st_size, random_file.size());
+  }
 }
 
 TEST(PosixFstatatTest, SuccessRelativeDirfd) {
@@ -51,10 +54,12 @@ TEST(PosixFstatatTest, SuccessRelativeDirfd) {
 
   struct stat sb;
   memset(&sb, 0, sizeof(sb));
-  EXPECT_EQ(fstatat(dirfd, filename.c_str(), &sb, 0), 0)
-      << "fstatat failed: " << strerror(errno);
-  EXPECT_TRUE(S_ISREG(sb.st_mode));
-  EXPECT_EQ(sb.st_size, random_file.size());
+  int result = fstatat(dirfd, filename.c_str(), &sb, 0);
+  EXPECT_EQ(result, 0) << "fstatat failed: " << strerror(errno);
+  if (result == 0) {
+    EXPECT_TRUE(S_ISREG(sb.st_mode));
+    EXPECT_EQ(sb.st_size, random_file.size());
+  }
 
   close(dirfd);
 }
@@ -115,11 +120,13 @@ TEST(PosixFstatatTest, SuccessEmptyPath) {
   struct stat sb_fstatat;
   memset(&sb_fstatat, 0, sizeof(sb_fstatat));
 
-  EXPECT_EQ(fstatat(dirfd, "", &sb_fstatat, AT_EMPTY_PATH), 0)
-      << "fstatat failed: " << strerror(errno);
-  EXPECT_EQ(sb_fstatat.st_ino, sb_dirfd.st_ino);
-  EXPECT_EQ(sb_fstatat.st_dev, sb_dirfd.st_dev);
-  EXPECT_TRUE(S_ISDIR(sb_fstatat.st_mode));
+  int result = fstatat(dirfd, "", &sb_fstatat, AT_EMPTY_PATH);
+  EXPECT_EQ(result, 0) << "fstatat failed: " << strerror(errno);
+  if (result == 0) {
+    EXPECT_EQ(sb_fstatat.st_ino, sb_dirfd.st_ino);
+    EXPECT_EQ(sb_fstatat.st_dev, sb_dirfd.st_dev);
+    EXPECT_TRUE(S_ISDIR(sb_fstatat.st_mode));
+  }
 
   close(dirfd);
 }
@@ -147,7 +154,7 @@ TEST(PosixFstatatTest, ErrorNotDir) {
 
   struct stat sb;
   errno = 0;
-  // `dirfd` is a regular file, so `path` should be ignored.
+  // `dirfd` is a regular file (not a directory), so resolving a relative path should fail with ENOTDIR.
   EXPECT_EQ(fstatat(file_fd, "relative_path", &sb, 0), -1);
   EXPECT_EQ(errno, ENOTDIR);
 
