@@ -34,6 +34,7 @@
 #include "starboard/extension/loader_app_metrics.h"
 #include "starboard/system.h"
 #include "third_party/crashpad/crashpad/snapshot/sanitized/sanitization_information.h"
+#include "util/misc/capture_context.h"
 
 using starboard::kSystemPropertyMaxLength;
 
@@ -124,7 +125,7 @@ bool InitializeCrashpadDatabase(const base::FilePath database_directory_path) {
 }
 
 std::string GetProductName() {
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
   return "Cobalt_Evergreen";
 #else
   return "Cobalt";
@@ -284,9 +285,15 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
   auto crash_handler_extension =
       static_cast<const CobaltExtensionCrashHandlerApi*>(
           SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
-  if (crash_handler_extension && crash_handler_extension->version >= 3) {
+  if (crash_handler_extension && crash_handler_extension->version >= 3 &&
+      crash_handler_extension->RegisterSetStringCallback) {
     crash_handler_extension->RegisterSetStringCallback(
         &InsertCrashpadAnnotation);
+  }
+  if (crash_handler_extension && crash_handler_extension->version >= 4 &&
+      crash_handler_extension->RegisterDumpWithoutCrashingCallback) {
+    crash_handler_extension->RegisterDumpWithoutCrashingCallback(
+        &DumpWithoutCrashingWrapper);
   }
 
   RecordStatus(CrashpadInstallationStatus::kSucceeded);
@@ -300,6 +307,12 @@ bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info) {
 bool InsertCrashpadAnnotation(const char* key, const char* value) {
   ::crashpad::CrashpadClient* client = GetCrashpadClient();
   return client->InsertAnnotationForHandler(key, value);
+}
+
+void DumpWithoutCrashingWrapper() {
+  ::crashpad::NativeCPUContext context;
+  ::crashpad::CaptureContext(&context);
+  ::crashpad::CrashpadClient::DumpWithoutCrash(&context);
 }
 
 }  // namespace crashpad

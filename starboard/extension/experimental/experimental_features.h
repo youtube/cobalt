@@ -40,12 +40,13 @@ typedef struct StarboardExtensionExperimentalFeatures {
   bool enable_video_renderer_vsp_adjustment;
   bool flush_audio_track_during_seek;
   bool flush_decoder_during_reset;
+  bool force_clear_surface_view;
   bool ignore_mediacodec_callbacks_during_flushing;
   bool reset_audio_decoder;
   bool skip_flush_on_decoder_teardown;
   bool skip_video_frames_over_60_fps;
+  const bool* enable_simd_based_audio_format_switching;
   const bool* enable_trivial_optimizations;
-  const bool* use_dual_threads_for_video;
   const int* video_decoder_initial_preroll_count;
   const int* video_renderer_min_decoded_frames;
   const int* video_renderer_min_input_buffers;

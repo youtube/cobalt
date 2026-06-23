@@ -47,6 +47,7 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
@@ -74,11 +75,11 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   struct PipelineConfig {
     int max_input_size = 0;
     bool enable_flush_during_seek = false;
+    bool use_dual_threads = true;
     ExperimentalFeatures experimental_features;
   };
 
   struct PlatformOptions {
-    bool force_reset_surface = false;
     bool force_big_endian_hdr_metadata = false;
     int64_t reset_delay_usec = 0;
     int64_t flush_delay_usec = 0;
@@ -190,18 +191,22 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // Set the maximum size in bytes of an input buffer for video.
   const int max_video_input_size_;
 
-  const std::optional<bool> use_dual_threads_;
+  // Enable the use of dual-threading for video decoders. This separates the
+  // single threaded decoder thread into separate input and output processing
+  // threads when enabled.
+  const bool use_dual_threads_;
 
   // SurfaceView from AndroidOverlay passed from StarboardRenderer to SbPlayer.
-  void* surface_view_;
+  jni_zero::ScopedJavaGlobalRef<jobject> surface_view_;
 
   const bool enable_flush_during_seek_;
   const int64_t reset_delay_usec_;
   const int64_t flush_delay_usec_;
   const bool skip_flush_on_decoder_teardown_;
 
-  // Force resetting the video surface after every playback.
-  const bool force_reset_surface_;
+  // By default, we reset the surface view after every playback. This flag
+  // enables clearing the surface view, instead of resetting it.
+  const bool force_clear_surface_;
 
   // Codec initialization will be delayed until the decoder receives enough
   // inputs to estimate video fps when |needs_fps_to_initialize_codec_| is true.

@@ -18,6 +18,9 @@
 #include <android/native_window.h>
 #include <jni.h>
 
+#include "starboard/decode_target.h"
+#include "third_party/jni_zero/jni_zero.h"
+
 namespace starboard {
 
 class VideoSurfaceHolder {
@@ -36,7 +39,7 @@ class VideoSurfaceHolder {
 
   // Returns the surface which video should be rendered. Surface cannot be
   // acquired before last holder release the surface.
-  jobject AcquireVideoSurface();
+  jni_zero::ScopedJavaLocalRef<jobject> AcquireVideoSurface();
 
   // Release the surface to make the surface available for other holder.
   void ReleaseVideoSurface();
@@ -45,8 +48,13 @@ class VideoSurfaceHolder {
   // window.
   bool GetVideoWindowSize(int* width, int* height);
 
-  // Clear the video window by painting it Black.
-  void ClearVideoWindow(bool force_reset_surface);
+  // Cleans up the video surface. If |force_clear| is enabled, we will only
+  // clear the video window, and post the clearing task to |gpu_provider|.
+  // If |force_clear| is false, we will forcefully destroy the surface view,
+  // which will then be recreated.
+  void CleanUpVideoWindow(
+      bool force_clear,
+      SbDecodeTargetGraphicsContextProvider* gpu_provider = nullptr);
 };
 
 }  // namespace starboard

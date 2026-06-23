@@ -23,7 +23,6 @@
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/shared_storage/shared_storage_runtime_manager.h"
 #include "content/public/browser/global_routing_id.h"
-#include "content/public/common/content_milestone_features.h"
 #include "storage/browser/quota/quota_manager.h"
 #include "third_party/blink/public/common/shared_storage/shared_storage_utils.h"
 

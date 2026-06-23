@@ -133,6 +133,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/coat/CrashContext.java",
     "apk/app/src/main/java/dev/cobalt/coat/CrashContextUpdateHandler.java",
     "apk/app/src/main/java/dev/cobalt/coat/ErrorDialog.java",
+    "apk/app/src/main/java/dev/cobalt/coat/KeyboardUtils.java",
     "apk/app/src/main/java/dev/cobalt/coat/NetworkStatus.java",
     "apk/app/src/main/java/dev/cobalt/coat/NullCobaltFactory.java",
     "apk/app/src/main/java/dev/cobalt/coat/PlatformError.java",
@@ -293,4 +294,5 @@ robolectric_binary("cobalt_coat_junit_tests") {
     "//third_party/junit",
     "//url:gurl_java",
   ]
+  ignore_all_data_deps = false
 }

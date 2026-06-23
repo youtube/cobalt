@@ -33,8 +33,6 @@
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
 #include "content/browser/worker_host/dedicated_worker_service_impl.h"
 #include "content/common/content_export.h"
-#include "content/public/common/content_milestone_features.h"
-#include "content/public/common/buildflags.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/storage_partition_config.h"
 #include "media/media_buildflags.h"
@@ -88,7 +86,9 @@ class AggregationService;
 class AttributionManager;
 class BackgroundFetchContext;
 class BlobRegistryWrapper;
+#if !BUILDFLAG(IS_COBALT)
 class BluetoothAllowedDevicesMap;
+#endif
 class BroadcastChannelService;
 class BrowsingDataFilterBuilder;
 class KeepAliveURLLoaderService;
@@ -159,8 +159,10 @@ class CONTENT_EXPORT StoragePartitionImpl
           shared_storage_header_observer);
   void OverrideAggregationServiceForTesting(
       std::unique_ptr<AggregationService> aggregation_service);
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   void OverrideAttributionManagerForTesting(
       std::unique_ptr<AttributionManager> attribution_manager);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   void OverridePrivateAggregationManagerForTesting(
       std::unique_ptr<PrivateAggregationManagerImpl>
           private_aggregation_manager);
@@ -265,7 +267,9 @@ class CONTENT_EXPORT StoragePartitionImpl
       base::OnceClosure callback) override;
   void Flush() override;
   void ResetURLLoaderFactories() override;
+#if !BUILDFLAG(IS_COBALT)
   void ClearBluetoothAllowedDevicesMapForTesting() override;
+#endif
   void AddObserver(DataRemovalObserver* observer) override;
   void RemoveObserver(DataRemovalObserver* observer) override;
   void FlushNetworkInterfaceForTesting() override;
@@ -286,7 +290,9 @@ class CONTENT_EXPORT StoragePartitionImpl
   BackgroundFetchContext* GetBackgroundFetchContext();
   PaymentAppContextImpl* GetPaymentAppContext();
   BroadcastChannelService* GetBroadcastChannelService();
+#if !BUILDFLAG(IS_COBALT)
   BluetoothAllowedDevicesMap* GetBluetoothAllowedDevicesMap();
+#endif
   BlobRegistryWrapper* GetBlobRegistry();
   storage::BlobUrlRegistry* GetBlobUrlRegistry();
   SubresourceProxyingURLLoaderService* GetSubresourceProxyingURLLoaderService();
@@ -790,7 +796,9 @@ class CONTENT_EXPORT StoragePartitionImpl
   scoped_refptr<BackgroundSyncContextImpl> background_sync_context_;
   scoped_refptr<PaymentAppContextImpl> payment_app_context_;
   std::unique_ptr<BroadcastChannelService> broadcast_channel_service_;
+#if !BUILDFLAG(IS_COBALT)
   std::unique_ptr<BluetoothAllowedDevicesMap> bluetooth_allowed_devices_map_;
+#endif
   scoped_refptr<BlobRegistryWrapper> blob_registry_;
   std::unique_ptr<storage::BlobUrlRegistry> blob_url_registry_;
   std::unique_ptr<SubresourceProxyingURLLoaderService>
@@ -805,7 +813,9 @@ class CONTENT_EXPORT StoragePartitionImpl
   std::unique_ptr<leveldb_proto::ProtoDatabaseProvider>
       proto_database_provider_;
   scoped_refptr<ContentIndexContextImpl> content_index_context_;
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   std::unique_ptr<AttributionManager> attribution_manager_;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   std::unique_ptr<FontAccessManager> font_access_manager_;
   std::unique_ptr<InterestGroupManagerImpl> interest_group_manager_;
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138

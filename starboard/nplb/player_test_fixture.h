@@ -104,6 +104,8 @@ class SbPlayerTestFixture {
   int ConvertDurationToAudioBufferCount(int64_t duration) const;
   int ConvertDurationToVideoBufferCount(int64_t duration) const;
 
+  bool HasError() const { return error_occurred_.load(); }
+
  private:
   static constexpr int64_t kDefaultWaitForPlayerStateTimeout = 5'000'000LL;
   static constexpr int64_t kDefaultWaitForCallbackEventTimeout = 15'000;
