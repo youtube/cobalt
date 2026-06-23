@@ -65,8 +65,6 @@ void SetExperimentalFeaturesForCurrentThread(
 
   experiment_features.allow_audio_writing_on_pause =
       extension_features->allow_audio_writing_on_pause;
-  experiment_features.disable_low_performance_sw_decoder =
-      extension_features->disable_low_performance_sw_decoder;
   experiment_features.enable_av1_startup_optimization =
       extension_features->enable_av1_startup_optimization;
   experiment_features.enable_low_latency =
