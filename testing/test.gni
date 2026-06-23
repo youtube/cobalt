@@ -376,7 +376,17 @@ template("test") {
            "allow_cleartext_traffic can be set only for Android tests")
   }
 
-  if (is_android) {
+  # TODO: b/384652502 - Cobalt: Remove use_custom_libc after setting
+  # is_starboard as a toolchain arg.
+  if (is_starboard && use_custom_libc) {
+    mixed_test(target_name) {
+      target_type = "modular_executable"
+      forward_variables_from(invoker,
+                             "*",
+                             TESTONLY_AND_VISIBILITY + [ "use_xvfb" ])
+      testonly = true
+    }
+  } else if (is_android) {
     assert(!defined(invoker.use_xvfb) || !invoker.use_xvfb)
 
     _use_default_launcher =
@@ -1026,16 +1036,6 @@ template("test") {
       if (use_rts) {
         data_deps += [ ":${invoker.target_name}__rts_filters" ]
       }
-    }
-    # TODO: b/384652502 - Cobalt: Remove use_custom_libc after setting
-    # is_starboard as a toolchain arg.
-  } else if (is_starboard && use_custom_libc) {
-    mixed_test(target_name) {
-      target_type = "modular_executable"
-      forward_variables_from(invoker,
-                             "*",
-                             TESTONLY_AND_VISIBILITY + [ "use_xvfb" ])
-      testonly = true
     }
   } else if (!is_nacl) {
     if (is_mac || is_win) {
