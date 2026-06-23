@@ -25,6 +25,7 @@
 #include "starboard/elf_loader/file_impl.h"
 #include "starboard/elf_loader/log.h"
 #include "starboard/elf_loader/lz4_file_impl.h"
+#include "starboard/elf_loader/naive_zstd_file_impl.h"
 #include "starboard/extension/loader_app_metrics.h"
 #include "starboard/system.h"
 
@@ -47,18 +48,22 @@ ElfLoaderImpl::ElfLoaderImpl() {
 }
 
 bool ElfLoaderImpl::Load(const char* name,
-                         bool use_compression,
+                         CompressionType compression_type,
                          bool use_memory_mapped_files) {
-  if (use_compression && use_memory_mapped_files) {
+  if (compression_type != CompressionType::kNone && use_memory_mapped_files) {
     SB_LOG(ERROR) << "Loading " << name
                   << " Compression is not supported with memory mapped files.";
     return false;
   }
 
   std::unique_ptr<File> elf_file;
-  if (use_compression && EndsWith(name, kCompressionSuffix)) {
+  if (compression_type == CompressionType::kLz4 && EndsWith(name, kLz4Suffix)) {
     elf_file.reset(new LZ4FileImpl());
-    SB_LOG(INFO) << "Loading " << name << " using compression";
+    SB_LOG(INFO) << "Loading " << name << " using LZ4 decompression";
+  } else if (compression_type == CompressionType::kZstd &&
+             EndsWith(name, kZstdSuffix)) {
+    elf_file.reset(new NaiveZstdFileImpl());
+    SB_LOG(INFO) << "Loading " << name << " using Naive Zstd decompression";
   } else {
     SB_LOG(INFO) << "Loading " << name;
     elf_file.reset(new FileImpl());
