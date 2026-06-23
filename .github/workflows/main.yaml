@@ -947,7 +947,7 @@ jobs:
         run: |
           which tree
           has_tree="$?"
-          if [ "$?" == "0" ]; then
+          if [ "$has_tree" == "0" ]; then
             set -x
             tree results/
           fi
