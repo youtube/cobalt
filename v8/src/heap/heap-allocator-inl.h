@@ -19,7 +19,7 @@
 #include "src/heap/read-only-spaces.h"
 #include "src/heap/zapping.h"
 
-#include "base/memory/cobalt_memory_context.h" // nogncheck
+#include "src/base/memory-context.h"
 
 namespace v8 {
 namespace internal {
@@ -76,7 +76,7 @@ template <AllocationType type>
 V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
 HeapAllocator::AllocateRaw(int size_in_bytes, AllocationOrigin origin,
                            AllocationAlignment alignment, AllocationHint hint) {
-  ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
+  ::v8::base::ScopedMemoryContext scoped_context(::v8::base::MemoryContext::kScript);
   DCHECK(!heap_->IsInGC());
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());

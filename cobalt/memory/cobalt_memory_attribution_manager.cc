@@ -12,17 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "cobalt/memory/cobalt_memory_attribution_manager.h"
 
 #include <string>
 #include <string_view>
 
 #include "base/command_line.h"
+#include "base/containers/span.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/memory/cobalt_memory_attribution_observer.h"
@@ -47,10 +43,7 @@ CobaltMemoryAttributionManager* CobaltMemoryAttributionManager::Get() {
 }
 
 CobaltMemoryAttributionManager::CobaltMemoryAttributionManager() {
-  for (size_t i = 0;
-       i < static_cast<size_t>(base::memory::MemoryContext::kCount); ++i) {
-    last_snapshots_[i] = 0;
-  }
+  last_snapshots_.fill(0);
 }
 
 CobaltMemoryAttributionManager::~CobaltMemoryAttributionManager() = default;
@@ -106,13 +99,11 @@ void CobaltMemoryAttributionManager::RequestReportUmaForTesting(
 void CobaltMemoryAttributionManager::ReportUma() {
   base::TimeTicks now = base::TimeTicks::Now();
   auto* observer = base::memory::CobaltMemoryAttributionObserver::Get();
-
+  auto counters = observer->GetCounters();
   last_report_time_ = now;
 
-  for (size_t i = 0;
-       i < static_cast<size_t>(base::memory::MemoryContext::kCount); ++i) {
-    uint64_t current =
-        observer->GetCounters()[i].value.load(std::memory_order_relaxed);
+  for (size_t i = 0; i < counters.size(); ++i) {
+    uint64_t current = counters[i].value.load(std::memory_order_relaxed);
     uint64_t delta = current - last_snapshots_[i];
     uint64_t emitted_kb = delta / 1024;
     last_snapshots_[i] += emitted_kb * 1024;
@@ -132,10 +123,9 @@ void CobaltMemoryAttributionManager::OnSuspend() {
   // Capture current snapshots upon suspension so that when we resume,
   // the first report only covers allocations that happened after resume.
   auto* observer = base::memory::CobaltMemoryAttributionObserver::Get();
-  for (size_t i = 0;
-       i < static_cast<size_t>(base::memory::MemoryContext::kCount); ++i) {
-    last_snapshots_[i] =
-        observer->GetCounters()[i].value.load(std::memory_order_relaxed);
+  auto counters = observer->GetCounters();
+  for (size_t i = 0; i < counters.size(); ++i) {
+    last_snapshots_[i] = counters[i].value.load(std::memory_order_relaxed);
   }
 }
 
@@ -149,10 +139,9 @@ bool CobaltMemoryAttributionManager::OnMemoryDump(
     const base::trace_event::MemoryDumpArgs& args,
     base::trace_event::ProcessMemoryDump* pmd) {
   auto* observer = base::memory::CobaltMemoryAttributionObserver::Get();
-  for (size_t i = 0;
-       i < static_cast<size_t>(base::memory::MemoryContext::kCount); ++i) {
-    uint64_t current =
-        observer->GetCounters()[i].value.load(std::memory_order_relaxed);
+  auto counters = observer->GetCounters();
+  for (size_t i = 0; i < counters.size(); ++i) {
+    uint64_t current = counters[i].value.load(std::memory_order_relaxed);
     std::string dump_name =
         base::StrCat({"cobalt/memory_attribution/",
                       base::memory::ContextToString(

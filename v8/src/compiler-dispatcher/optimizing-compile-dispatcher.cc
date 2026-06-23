@@ -4,7 +4,7 @@
 
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 
-#include "base/memory/cobalt_memory_context.h" // nogncheck
+#include "src/base/memory-context.h"
 
 #include "src/base/atomicops.h"
 #include "src/base/fpu.h"
@@ -34,7 +34,7 @@ class OptimizingCompileTaskExecutor::CompileTask : public v8::JobTask {
       : task_executor_(task_executor) {}
 
   void Run(JobDelegate* delegate) override {
-    ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
+    ::v8::base::ScopedMemoryContext scoped_context(::v8::base::MemoryContext::kScript);
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.TurbofanTask");
     DCHECK_LT(delegate->GetTaskId(), task_executor_->task_states_.size());
     OptimizingCompileTaskState& task_state =

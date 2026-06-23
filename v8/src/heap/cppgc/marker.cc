@@ -4,7 +4,7 @@
 
 #include "src/heap/cppgc/marker.h"
 
-#include "base/memory/cobalt_memory_context.h" // nogncheck
+#include "src/base/memory-context.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -352,7 +352,7 @@ class WeakCallbackJobTask final : public cppgc::JobTask {
         broker_(broker) {}
 
   void Run(JobDelegate* delegate) override {
-    ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
+    ::v8::base::ScopedMemoryContext scoped_context(::v8::base::MemoryContext::kScript);
     StatsCollector::EnabledConcurrentScope stats_scope(
         marker_->heap().stats_collector(),
         StatsCollector::kConcurrentWeakCallback);

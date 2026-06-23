@@ -6607,6 +6607,8 @@ v8_component("v8_libbase") {
     "src/base/logging.cc",
     "src/base/logging.h",
     "src/base/macros.h",
+    "src/base/memory-context.cc",
+    "src/base/memory-context.h",
     "src/base/memory.h",
     "src/base/numbers/bignum-dtoa.cc",
     "src/base/numbers/bignum-dtoa.h",

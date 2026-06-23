@@ -4,7 +4,7 @@
 
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 
-#include "base/memory/cobalt_memory_context.h" // nogncheck
+#include "src/base/memory-context.h"
 
 #include <atomic>
 
@@ -39,7 +39,7 @@ class LazyCompileDispatcher::JobTask : public v8::JobTask {
       : lazy_compile_dispatcher_(lazy_compile_dispatcher) {}
 
   void Run(JobDelegate* delegate) final {
-    ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
+    ::v8::base::ScopedMemoryContext scoped_context(::v8::base::MemoryContext::kScript);
     lazy_compile_dispatcher_->DoBackgroundWork(delegate);
   }
 
