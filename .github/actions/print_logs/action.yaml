@@ -15,23 +15,38 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Set Up Cloud SDK
+    - name: Prepare gclient cache directory
       if: inputs.symbolize == 'true'
-      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
-    - name: Set GCS Project Name
-      if: inputs.symbolize == 'true'
-      id: gcs-project
       run: |
-        echo "name=$(gcloud config get-value project)" >> $GITHUB_OUTPUT
+        mkdir -p /runner-cache/cobalt/src
+        ln -s /runner-cache/cobalt ${GITHUB_WORKSPACE}/cobalt
       shell: bash
-    - name: Download Test Symbols
+    - name: Prepare Workspace for Checkout
       if: inputs.symbolize == 'true'
-      env:
-        WORKFLOW: ${{ github.workflow }}
       run: |
-        gsutil -m cp "gs://${{ steps.gcs-project.outputs.name }}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/symbols/*" \
-          "${GITHUB_WORKSPACE}/out/${{ matrix.platform }}_${{ matrix.config }}/lib.unstripped/
+        CHECKOUT_PATH="${GITHUB_WORKSPACE}/cobalt/src"
+        # Check src already exists by earlier runners:
+        if [ -d "${CHECKOUT_PATH}/.git" ]; then
+          cd "${CHECKOUT_PATH}"
+          git reset --hard
+          # Remove unmerged/conflict markers if any merge was aborted
+          git merge --abort || true
+        fi
       shell: bash
+    - name: Add safe directory for git
+      if: inputs.symbolize == 'true'
+      run: git config --global --add safe.directory /runner-cache/cobalt/src
+      shell: bash
+    - name: Checkout
+      if: inputs.symbolize == 'true'
+      uses: actions/checkout@v4
+      with:
+        path: cobalt/src
+        fetch-depth: ${{ ( github.event_name == 'pull_request' || github.repository == 'youtube/cobalt_sandbox' ) && 2 || 0 }}
+        clean: false
+    - name: Set Up Depot Tools
+      if: inputs.symbolize == 'true'
+      uses: ./cobalt/src/.github/actions/depot_tools
     - name: Print Logs and Test Summary
       run: |
         # Print logs and failing tests.
@@ -46,8 +61,7 @@ runs:
         else
           for log_file in ${log_files[@]}; do
             if [ "${{ inputs.symbolize }}" == "true" ]; then
-              # TODO: stack.py fails import packages. Perhaps needs depot tools setup?
-              cat ../${log_file} | python3 third_party/android_platform/development/scripts/stack.py --pass-through --output-directory out/${{ matrix.platform }}_${{ matrix.config }}/
+              cat ../${log_file} | python3 cobalt/src/third_party/android_platform/development/scripts/stack.py --pass-through --output-directory out/${{ matrix.platform }}_${{ matrix.config }}/
             else
               echo "=== ${log_file} ==="
               cat ${log_file}

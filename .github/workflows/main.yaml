@@ -914,6 +914,7 @@ jobs:
           pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
       - name: Test Results
+        id: results
         if: steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/process_test_results
         with:
@@ -928,18 +929,14 @@ jobs:
         uses: ./.github/actions/print_logs
         with:
           log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*logcat.txt
-          # TODO: Enable symbolization when it works.
-          # symbolize: true
-          symbolize: 'false'
+          symbolize: ${{ steps.results.outputs.crash_detected }}
       - name: ${{ matrix.test_target }} Test Logs
         if: always() && steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/print_logs
         with:
           log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
           results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
-          # TODO: Enable symbolization when it works.
-          # symbolize: ${{ needs.initialize.outputs.test_on_device == 'true' }}
-          symbolize: 'false'
+          symbolize: ${{ steps.results.outputs.crash_detected }}
 
   browser-test-results:
     needs: [initialize, build, browser-test-on-host]
