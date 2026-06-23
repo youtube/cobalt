@@ -12,7 +12,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/marking-state-inl.h"
 
-#include "base/memory/cobalt_memory_context.h" // nogncheck
+#include "src/base/memory-context.h"
 
 namespace v8 {
 namespace internal {
@@ -21,7 +21,7 @@ AllocationResult MainAllocator::AllocateRaw(int size_in_bytes,
                                             AllocationAlignment alignment,
                                             AllocationOrigin origin,
                                             AllocationHint hint) {
-  ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
+  ::v8::base::ScopedMemoryContext scoped_context(::v8::base::MemoryContext::kScript);
   size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
 
   DCHECK_EQ(in_gc(), origin == AllocationOrigin::kGC);

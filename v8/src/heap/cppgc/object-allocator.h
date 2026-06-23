@@ -18,7 +18,7 @@
 #include "src/heap/cppgc/object-start-bitmap.h"
 #include "src/heap/cppgc/raw-heap.h"
 
-#include "base/memory/cobalt_memory_context.h"  // nogncheck
+#include "src/base/memory-context.h"
 
 namespace cppgc {
 
@@ -189,8 +189,8 @@ void* ObjectAllocator::OutOfLineAllocate(NormalPageSpace& space, size_t size,
 void* ObjectAllocator::AllocateObjectOnSpace(NormalPageSpace& space,
                                              size_t size, AlignVal alignment,
                                              GCInfoIndex gcinfo) {
-  ::base::memory::ScopedMemoryContext scoped_context(
-      ::base::memory::MemoryContext::kBlinkDOM);
+  ::v8::base::ScopedMemoryContext scoped_context(
+      ::v8::base::MemoryContext::kBlinkDOM);
   // The APIs are set up to support general alignment. Since we want to keep
   // track of the actual usage there the alignment support currently only covers
   // double-world alignment (8 bytes on 32bit and 16 bytes on 64bit
@@ -238,8 +238,8 @@ void* ObjectAllocator::AllocateObjectOnSpace(NormalPageSpace& space,
 
 void* ObjectAllocator::AllocateObjectOnSpace(NormalPageSpace& space,
                                              size_t size, GCInfoIndex gcinfo) {
-  ::base::memory::ScopedMemoryContext scoped_context(
-      ::base::memory::MemoryContext::kBlinkDOM);
+  ::v8::base::ScopedMemoryContext scoped_context(
+      ::v8::base::MemoryContext::kBlinkDOM);
   DCHECK_LT(0u, gcinfo);
 
   NormalPageSpace::LinearAllocationBuffer& current_lab =

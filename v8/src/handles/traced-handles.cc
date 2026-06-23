@@ -9,7 +9,7 @@
 #include "include/v8-embedder-heap.h"
 #include "include/v8-internal.h"
 #include "include/v8-traced-handle.h"
-#include "base/memory/cobalt_memory_context.h" // nogncheck
+#include "src/base/memory-context.h"
 #include "src/base/logging.h"
 #include "src/base/platform/memory.h"
 #include "src/common/globals.h"
@@ -390,7 +390,7 @@ class ParallelWeakHandlesProcessor {
     explicit Job(Derived& derived) : derived_(derived) {}
 
     void Run(JobDelegate* delegate) override {
-      ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
+      ::v8::base::ScopedMemoryContext scoped_context(::v8::base::MemoryContext::kScript);
       if (delegate->IsJoiningThread()) {
         TRACE_GC_WITH_FLOW(derived_.heap()->tracer(), Derived::kMainThreadScope,
                            derived_.trace_id_, TRACE_EVENT_FLAG_FLOW_IN);

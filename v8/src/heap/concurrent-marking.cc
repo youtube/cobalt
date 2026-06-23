@@ -4,7 +4,7 @@
 
 #include "src/heap/concurrent-marking.h"
 
-#include "base/memory/cobalt_memory_context.h" // nogncheck
+#include "src/base/memory-context.h"
 
 #include <algorithm>
 #include <atomic>
@@ -248,7 +248,7 @@ class ConcurrentMarking::JobTaskMajor : public v8::JobTask {
 
   // v8::JobTask overrides.
   void Run(JobDelegate* delegate) override {
-    ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
+    ::v8::base::ScopedMemoryContext scoped_context(::v8::base::MemoryContext::kScript);
     // Set the current isolate such that trusted pointer tables etc are
     // available and the cage base is set correctly for multi-cage mode.
     SetCurrentIsolateScope isolate_scope(concurrent_marking_->heap_->isolate());
@@ -297,7 +297,7 @@ class ConcurrentMarking::JobTaskMinor : public v8::JobTask {
 
   // v8::JobTask overrides.
   void Run(JobDelegate* delegate) override {
-    ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
+    ::v8::base::ScopedMemoryContext scoped_context(::v8::base::MemoryContext::kScript);
     // Set the current isolate such that trusted pointer tables etc are
     // available and the cage base is set correctly for multi-cage mode.
     SetCurrentIsolateScope isolate_scope(concurrent_marking_->heap_->isolate());

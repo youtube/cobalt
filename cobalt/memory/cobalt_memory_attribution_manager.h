@@ -15,6 +15,7 @@
 #ifndef COBALT_MEMORY_COBALT_MEMORY_ATTRIBUTION_MANAGER_H_
 #define COBALT_MEMORY_COBALT_MEMORY_ATTRIBUTION_MANAGER_H_
 
+#include <array>
 #include <atomic>
 #include <cstdint>
 #include <memory>
@@ -83,8 +84,8 @@ class CobaltMemoryAttributionManager
 
   void ReportUma();
 
-  uint64_t
-      last_snapshots_[static_cast<size_t>(base::memory::MemoryContext::kCount)];
+  std::array<uint64_t, static_cast<size_t>(base::memory::MemoryContext::kCount)>
+      last_snapshots_;
   base::TimeTicks last_report_time_;
   base::RepeatingTimer timer_;
   bool is_observing_ = false;

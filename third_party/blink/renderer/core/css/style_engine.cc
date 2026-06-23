@@ -3860,9 +3860,8 @@ StyleRulePositionTry* StyleEngine::GetPositionTryRule(
 
 void StyleEngine::RecalcStyle(StyleRecalcChange change,
                               const StyleRecalcContext& style_recalc_context) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kLayout);
-#endif
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kBlinkStyle);
   DCHECK(GetDocument().documentElement());
   ScriptForbiddenScope forbid_script;
   SkipStyleRecalcScope skip_scope(*this);
@@ -3924,9 +3923,8 @@ void StyleEngine::RebuildTransitionPseudoLayoutTrees() {
 }
 
 void StyleEngine::RecalcStyle() {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kLayout);
-#endif
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kBlinkStyle);
   RecalcStyle(
       {}, StyleRecalcContext::FromAncestors(style_recalc_root_.RootElement()));
   RecalcTransitionPseudoStyle();

@@ -25,7 +25,7 @@ enum class MemoryContext : uint8_t {
   kGraphics = 6,
   kStorage = 7,
 
-  // Next-Generation Granular Sub-Regions
+  // Granular Sub-Regions
   kGraphicsCanvas = 8,
   kGraphicsCompositor = 9,
   kGraphicsGlyphs = 10,
@@ -35,7 +35,7 @@ enum class MemoryContext : uint8_t {
   kNetworkLoader = 14,
   kNetworkCache = 15,
   kBlinkDOM = 16,
-  kBlinkStyle = 17,
+  kBlinkStyle = 17,  // CSS Style resolution
   kBlinkParser = 18,
   kPlatformIPC = 19,
   kPlatformStarboard = 20,
