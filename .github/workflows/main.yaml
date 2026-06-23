@@ -1051,7 +1051,7 @@ jobs:
           pattern: ${{ matrix.platform }}_${{ matrix.name }}_browsertest_results
           path: results/
       - name: Failed Tests
-        if: always() && (needs.initialize.outputs.test_on_host == 'true' || needs.initialize.outputs.run_browser_tests == 'true')
+        if: always() && (needs.test-results.result != 'skipped' || needs.browser-test-results.result != 'skipped')
         run: |
           # Print test result summary.
           shopt -s globstar nullglob
