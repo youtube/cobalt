@@ -8,7 +8,7 @@
 #include <memory>
 #include <utility>
 
-#include "base/memory/cobalt_memory_context.h" // nogncheck
+#include "src/base/memory-context.h"
 
 #include "src/base/logging.h"
 #include "src/execution/isolate-inl.h"
@@ -198,7 +198,7 @@ class ArrayBufferSweeper::SweepingState::SweepingJob final : public JobTask {
 
 void ArrayBufferSweeper::SweepingState::SweepingJob::Run(
     JobDelegate* delegate) {
-  ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
+  ::v8::base::ScopedMemoryContext scoped_context(::v8::base::MemoryContext::kScript);
   // Set the current isolate such that trusted pointer tables etc are
   // available and the cage base is set correctly for multi-cage mode.
   SetCurrentIsolateScope isolate_scope(heap_->isolate());

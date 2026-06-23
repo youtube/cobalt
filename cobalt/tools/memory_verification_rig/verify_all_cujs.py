@@ -105,51 +105,77 @@ def run_cmd(cmd, background=False):
     return subprocess.run(cmd, capture_output=True, text=True, check=False)
 
 
-def send_cdp_key(port, key_code):
-  """Dispatches a key code over Cobalt CDP websocket connection."""
-  try:
-    req = urllib.request.Request(f"http://127.0.0.1:{port}/json/list")
-    with urllib.request.urlopen(req, timeout=2) as response:
-      pages = json.loads(response.read().decode())
-      if not pages:
-        return
-      ws_url = None
-      for page in pages:
-        if page.get("webSocketDebuggerUrl"):
-          ws_url = page["webSocketDebuggerUrl"]
-          break
-      if not ws_url:
-        return
+class CobaltCDPClient:
+  """Manages a persistent CDP connection to Cobalt."""
 
-      ws = websocket.create_connection(ws_url, timeout=2)
+  def __init__(self, port):
+    self.port = port
+    self.ws = None
+    self.msg_id = 1
+
+  def _ensure_connected(self):
+    if self.ws:
+      return True
+    try:
+      req = urllib.request.Request(f"http://127.0.0.1:{self.port}/json/list")
+      with urllib.request.urlopen(req, timeout=2) as response:
+        pages = json.loads(response.read().decode())
+        if not pages:
+          return False
+        ws_url = None
+        for page in pages:
+          if page.get("webSocketDebuggerUrl"):
+            ws_url = page["webSocketDebuggerUrl"]
+            break
+        if not ws_url:
+          return False
+        self.ws = websocket.create_connection(ws_url, timeout=5)
+        return True
+    except Exception:  # pylint: disable=broad-exception-caught
+      return False
+
+  def send_key(self, key_code):
+    """Dispatches a key event."""
+    if not self._ensure_connected():
+      return
+    try:
+      # rawKeyDown
+      self.ws.send(
+          json.dumps({
+              "id": self.msg_id,
+              "method": "Input.dispatchKeyEvent",
+              "params": {
+                  "type": "rawKeyDown",
+                  "windowsVirtualKeyCode": key_code,
+                  "nativeVirtualKeyCode": key_code,
+              }
+          }))
+      self.msg_id += 1
+      time.sleep(0.05)
+      # keyUp
+      self.ws.send(
+          json.dumps({
+              "id": self.msg_id,
+              "method": "Input.dispatchKeyEvent",
+              "params": {
+                  "type": "keyUp",
+                  "windowsVirtualKeyCode": key_code,
+                  "nativeVirtualKeyCode": key_code,
+              }
+          }))
+      self.msg_id += 1
+      logger.info("  -> Dispatched CDP Key Code: %s", key_code)
+    except Exception:  # pylint: disable=broad-exception-caught
+      self.ws = None  # Force reconnect on next attempt
+
+  def close(self):
+    """Closes the connection."""
+    if self.ws:
       try:
-        # Input.dispatchKeyEvent
-        msg = json.dumps({
-            "id": 1,
-            "method": "Input.dispatchKeyEvent",
-            "params": {
-                "type": "rawKeyDown",
-                "windowsVirtualKeyCode": key_code,
-                "nativeVirtualKeyCode": key_code,
-            }
-        })
-        ws.send(msg)
-        time.sleep(0.1)
-        msg = json.dumps({
-            "id": 2,
-            "method": "Input.dispatchKeyEvent",
-            "params": {
-                "type": "keyUp",
-                "windowsVirtualKeyCode": key_code,
-                "nativeVirtualKeyCode": key_code,
-            }
-        })
-        ws.send(msg)
-        logger.info("  -> Dispatched CDP Key Code: %s", key_code)
-      finally:
-        ws.close()
-  except Exception:  # pylint: disable=broad-exception-caught
-    logger.exception("Failed to send CDP key %s", key_code)
+        self.ws.close()
+      except Exception:  # pylint: disable=broad-exception-caught
+        pass
+      self.ws = None
 
 
 def send_adb_key(key_code, device_id=None):
@@ -265,37 +291,39 @@ def verify_cuj(cuj_name,
 
     start_time = time.time()
 
-    # Execute the initial sequence once
-    if is_random_nav:
-      for key in pattern:
-        if platform == "linux":
-          send_cdp_key(port, key)
-        else:
-          send_adb_key(key, device_id)
-        time.sleep(0.5)
-      # Wait 10 seconds before starting the repeat loop
-      time.sleep(10)
-
     # Down key codes
     down_key = 20 if platform == "android" else 40
+    cdp_client = CobaltCDPClient(port) if platform == "linux" else None
 
-    while time.time() - start_time < duration_s:
-      loop_start = time.time()
+    try:
+      # Execute the initial sequence once
       if is_random_nav:
-        if platform == "linux":
-          send_cdp_key(port, down_key)
-        else:
-          send_adb_key(down_key, device_id)
-      elapsed = time.time() - loop_start
-      sleep_time = max(0.1, 10.0 - elapsed)
-      time.sleep(sleep_time)
+        for key in pattern:
+          if platform == "linux":
+            cdp_client.send_key(key)
+          else:
+            send_adb_key(key, device_id)
+          time.sleep(0.5)
+        # Wait 10 seconds before starting the repeat loop
+        time.sleep(10)
+
+      while time.time() - start_time < duration_s:
+        if is_random_nav:
+          if platform == "linux":
+            cdp_client.send_key(down_key)
+          else:
+            send_adb_key(down_key, device_id)
+        time.sleep(2)
+    finally:
+      if cdp_client:
+        cdp_client.close()
 
     # Terminate pull script
     pull_proc.terminate()
     pull_proc.wait()
 
     # Terminate app
-    if cobalt_proc:
+    if platform == "linux" and cobalt_proc:
       cobalt_proc.terminate()
       cobalt_proc.wait()
     elif platform == "android":

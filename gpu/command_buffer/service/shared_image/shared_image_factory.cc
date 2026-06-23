@@ -10,9 +10,7 @@
 
 #include "base/containers/contains.h"
 #include "base/debug/crash_logging.h"
-#if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h"
-#endif
 #include "base/metrics/histogram_functions.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "build/build_config.h"

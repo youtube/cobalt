@@ -14,9 +14,7 @@
 #include "base/location.h"
 #include "base/memory/stack_allocated.h"
 #include "base/no_destructor.h"
-#if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h"
-#endif
 #include "base/system/sys_info.h"
 #include "base/task/post_job.h"
 #include "base/task/task_traits.h"
@@ -32,6 +30,7 @@
 #include "gin/thread_isolation.h"
 #include "gin/v8_platform_thread_isolated_allocator.h"
 #include "partition_alloc/buildflags.h"
+#include "v8/src/base/memory-context.h"
 #include "v8_platform_page_allocator.h"
 
 namespace gin {
@@ -190,7 +189,19 @@ class V8Platform::TracingControllerImpl : public v8::TracingController {
 // static
 V8Platform* V8Platform::Get() { return g_v8_platform.Pointer(); }
 
-V8Platform::V8Platform() : tracing_controller_(new TracingControllerImpl) {}
+V8Platform::V8Platform() : tracing_controller_(new TracingControllerImpl) {
+#if BUILDFLAG(IS_COBALT)
+  v8::base::SetMemoryContextCallbacks(
+      [](v8::MemoryContext context) {
+        base::memory::SetCurrentMemoryContext(
+            static_cast<base::memory::MemoryContext>(context));
+      },
+      []() {
+        return static_cast<v8::MemoryContext>(
+            base::memory::GetCurrentMemoryContext());
+      });
+#endif
+}
 
 V8Platform::~V8Platform() = default;
 
@@ -352,6 +363,16 @@ v8::Platform::StackTracePrinter V8Platform::GetStackTracePrinter() {
 
 void V8Platform::DumpWithoutCrashing() {
   base::debug::DumpWithoutCrashing();
+}
+
+void V8Platform::SetMemoryContext(v8::MemoryContext context) {
+  base::memory::SetCurrentMemoryContext(
+      static_cast<base::memory::MemoryContext>(context));
+}
+
+v8::MemoryContext V8Platform::GetMemoryContext() {
+  return static_cast<v8::MemoryContext>(
+      base::memory::GetCurrentMemoryContext());
 }
 
 }  // namespace gin

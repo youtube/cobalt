@@ -4,7 +4,7 @@
 
 #include "src/heap/heap.h"
 
-#include "base/memory/cobalt_memory_context.h"  // nogncheck
+#include "src/base/memory-context.h"
 
 #include <algorithm>
 #include <atomic>
@@ -2238,8 +2238,8 @@ void ClearStubCaches(Isolate* isolate) {
 void Heap::PerformGarbageCollection(GarbageCollector collector,
                                     GarbageCollectionReason gc_reason,
                                     const char* collector_reason) {
-  ::base::memory::ScopedMemoryContext scoped_context(
-      ::base::memory::MemoryContext::kScript);
+  ::v8::base::ScopedMemoryContext scoped_context(
+      ::v8::base::MemoryContext::kScript);
   if (IsYoungGenerationCollector(collector)) {
     if (v8_flags.sticky_mark_bits) {
       DCHECK_EQ(GarbageCollector::MINOR_MARK_SWEEPER, collector);

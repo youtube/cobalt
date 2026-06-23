@@ -4,7 +4,7 @@
 
 #include "src/baseline/baseline-batch-compiler.h"
 
-#include "base/memory/cobalt_memory_context.h" // nogncheck
+#include "src/base/memory-context.h"
 
 #include <algorithm>
 
@@ -160,7 +160,7 @@ class ConcurrentBaselineCompiler {
           outgoing_queue_(outcoming_queue) {}
 
     void Run(JobDelegate* delegate) override {
-      ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
+      ::v8::base::ScopedMemoryContext scoped_context(::v8::base::MemoryContext::kScript);
       base::FlushDenormalsScope flush_denormals_scope(
           isolate_->flush_denormals());
       LocalIsolate local_isolate(isolate_, ThreadKind::kBackground);

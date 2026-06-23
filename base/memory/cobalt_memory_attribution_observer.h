@@ -20,6 +20,7 @@
 #include "base/allocator/dispatcher/notification_data.h"
 #include "base/allocator/dispatcher/subsystem.h"
 #include "base/base_export.h"
+#include "base/containers/span.h"
 #include "base/memory/cobalt_memory_context.h"
 #include "base/no_destructor.h"
 
@@ -46,7 +47,9 @@ class BASE_EXPORT CobaltMemoryAttributionObserver {
   // No-op. Dispatcher does not provide size or context on free.
   void OnFree(const base::allocator::dispatcher::FreeNotificationData& notification_data) {}
 
-  AlignedCounter* GetCounters() { return counters_; }
+  base::span<AlignedCounter> GetCounters() {
+    return base::span<AlignedCounter>(counters_);
+  }
 
  private:
   friend class base::NoDestructor<CobaltMemoryAttributionObserver>;

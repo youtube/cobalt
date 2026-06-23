@@ -406,9 +406,7 @@ bool WebSocketChannelImpl::Connect(const KURL& url, const String& protocol) {
 WebSocketChannel::SendResult WebSocketChannelImpl::Send(
     const std::string& message,
     base::OnceClosure completion_callback) {
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kNetwork);
-#endif
   DVLOG(1) << this << " Send(" << message << ") (std::string argument)";
   probe::DidSendWebSocketMessage(execution_context_, identifier_,
                                  WebSocketOpCode::kOpCodeText, true, message);
@@ -444,9 +442,7 @@ WebSocketChannel::SendResult WebSocketChannelImpl::Send(
 
 void WebSocketChannelImpl::Send(
     scoped_refptr<BlobDataHandle> blob_data_handle) {
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kNetwork);
-#endif
   DVLOG(1) << this << " Send(" << blob_data_handle->Uuid() << ", "
            << blob_data_handle->GetType() << ", " << blob_data_handle->size()
            << ") "
@@ -469,9 +465,7 @@ WebSocketChannel::SendResult WebSocketChannelImpl::Send(
     size_t byte_offset,
     size_t byte_length,
     base::OnceClosure completion_callback) {
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kNetwork);
-#endif
   DVLOG(1) << this << " Send(" << buffer.Data() << ", " << byte_offset << ", "
            << byte_length << ") "
            << "(DOMArrayBuffer argument)";
@@ -673,9 +667,7 @@ void WebSocketChannelImpl::OnDataFrame(
     bool fin,
     network::mojom::blink::WebSocketMessageType type,
     uint64_t data_length) {
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kNetwork);
-#endif
   DCHECK_EQ(GetState(), State::kOpen);
   DVLOG(1) << this << " OnDataFrame(" << fin << ", " << type << ", "
            << "(data_length = " << data_length << "))";

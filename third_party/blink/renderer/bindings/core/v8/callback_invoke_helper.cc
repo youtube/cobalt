@@ -15,9 +15,7 @@
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/scheduler/public/task_attribution_tracker.h"
 
-#if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h"
-#endif
 
 namespace blink {
 
@@ -129,10 +127,8 @@ bool CallbackInvokeHelper<CallbackBase, mode, return_type_is_promise>::
   probe::InvokeCallback probe_scope(*script_state, class_like_name_,
                                     /*callback=*/nullptr, function_);
 
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(
       base::memory::MemoryContext::kScript);
-#endif
 
   if constexpr (mode == CallbackInvokeHelperMode::kConstructorCall) {
     // step 10. Let callResult be Construct(F, esArgs).

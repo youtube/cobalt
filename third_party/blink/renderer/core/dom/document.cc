@@ -2885,9 +2885,7 @@ void Document::MarkHasFindInPageBeforematchExpandedHiddenMatchable() {
 }
 
 void Document::UpdateStyleAndLayout(DocumentUpdateReason reason) {
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kLayout);
-#endif
   DCHECK(IsMainThread());
   // TODO(paint-dev): LifecyclePostponed() and
   // LocalFrameView::IsUpdatingLifecycle() overlap in functionality, but with

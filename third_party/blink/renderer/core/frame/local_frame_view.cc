@@ -667,9 +667,7 @@ bool LocalFrameView::LayoutFromRootObject(LayoutObject& root) {
   "blink,benchmark,rail," TRACE_DISABLED_BY_DEFAULT("blink.debug.layout")
 
 void LocalFrameView::PerformLayout() {
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kLayout);
-#endif
   ScriptForbiddenScope forbid_script;
 
   has_pending_layout_ = false;
@@ -814,10 +812,8 @@ void LocalFrameView::UpdateLayout() {
   DCHECK_EQ(frame_->View(), this);
   DCHECK(frame_->GetPage());
 
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(
       base::memory::MemoryContext::kLayout);
-#endif
 
   Lifecycle().EnsureStateAtMost(DocumentLifecycle::kStyleClean);
 
@@ -2086,10 +2082,8 @@ void LocalFrameView::PrepareForLifecycleUpdateRecursive() {
 bool LocalFrameView::UpdateLifecyclePhases(
     DocumentLifecycle::LifecycleState target_state,
     DocumentUpdateReason reason) {
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(
       base::memory::MemoryContext::kBlinkDOM);
-#endif
   // If the lifecycle is postponed, which can happen if the inspector requests
   // it, then we shouldn't update any lifecycle phases.
   if (frame_->GetDocument() &&
@@ -2674,10 +2668,8 @@ void LocalFrameView::RunPaintLifecyclePhase(PaintBenchmarkMode benchmark_mode) {
   DCHECK(ScriptForbiddenScope::WillBeScriptForbidden());
   DCHECK(LocalFrameTreeAllowsThrottling());
 
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(
       base::memory::MemoryContext::kGraphics);
-#endif
 
   TRACE_EVENT0("blink,benchmark", "LocalFrameView::RunPaintLifecyclePhase");
   // While printing or capturing a paint preview of a document, the paint walk

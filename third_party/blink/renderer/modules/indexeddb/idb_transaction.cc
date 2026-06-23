@@ -399,9 +399,7 @@ void IDBTransaction::UnregisterRequest(IDBRequest* request) {
 
 void IDBTransaction::EnqueueResult(
     std::unique_ptr<IDBRequestQueueItem> result) {
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kStorage);
-#endif
   result_queue_.push_back(std::move(result));
   // StartLoading() may complete post-processing synchronously, so the result
   // needs to be in the queue before StartLoading() is called.
@@ -525,9 +523,7 @@ void IDBTransaction::Put(int64_t object_store_id,
                          mojom::blink::IDBPutMode put_mode,
                          Vector<IDBIndexKeys> index_keys,
                          mojom::blink::IDBTransaction::PutCallback callback) {
-#if BUILDFLAG(IS_COBALT)
   base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kStorage);
-#endif
   if (!remote_.is_connected()) {
     std::move(callback).Run(
         mojom::blink::IDBTransactionPutResult::NewErrorResult(

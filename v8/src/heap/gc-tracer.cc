@@ -28,7 +28,7 @@
 #include "src/logging/tracing-flags.h"
 #include "src/tracing/tracing-category-observer.h"
 
-#include "base/memory/cobalt_memory_context.h" // nogncheck
+#include "src/base/memory-context.h"
 
 namespace v8 {
 namespace internal {
@@ -230,7 +230,7 @@ void GCTracer::UpdateCurrentEvent(GarbageCollectionReason gc_reason,
 void GCTracer::StartCycle(GarbageCollector collector,
                           GarbageCollectionReason gc_reason,
                           const char* collector_reason, MarkingType marking) {
-  ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
+  ::v8::base::ScopedMemoryContext scoped_context(::v8::base::MemoryContext::kScript);
   // We cannot start a new cycle while there's another one in its atomic pause.
   DCHECK_NE(Event::State::ATOMIC, current_.state);
   // We cannot start a new cycle while a young generation GC cycle has
