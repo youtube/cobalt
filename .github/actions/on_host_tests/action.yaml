@@ -156,7 +156,7 @@ runs:
         test_executables=$(jq -nr --arg json "${TEST_EXECUTABLES_JSON:-[]}" '$json | fromjson | join(" ")')
 
         for test_executable_path in ${test_executables}; do
-          test_exectuable=$(basename "${test_executable_path}")
+          test_executable=$(basename "${test_executable_path}")
 
           # JUnit tests are executed by their wrapper script "out/PLATFORM_CONFIG/bin/run_NAME".
           # We use the test executable's base name for naming its logs and results.
