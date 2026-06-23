@@ -161,10 +161,12 @@ bool FeatureList::IsEnabled(const SbFeature& feature) {
 
   const auto& feature_map = instance->features_;
   auto feature_it = feature_map.find(feature.name);
-  SB_CHECK(feature_it != feature_map.end())
-      << "Feature " << feature.name
-      << " is not initialized in the Starboard level. Is the feature "
-         "initialized in starboard/extension/feature_config.h?";
+  if (feature_it == feature_map.end()) {
+    SB_LOG(WARNING) << "Feature " << feature.name
+                    << " is not initialized in Starboard. Using default: "
+                    << feature.is_enabled;
+    return feature.is_enabled;
+  }
   return feature_it->second;
 }
 
@@ -184,10 +186,11 @@ bool FeatureList::IsEnabledByName(const std::string& feature_name) {
 
   const auto& feature_map = instance->features_;
   auto feature_it = feature_map.find(feature_name);
-  SB_CHECK(feature_it != feature_map.end())
-      << "Feature " << feature_name
-      << " is not initialized in the Starboard level. Is the feature "
-         "initialized in starboard/extension/feature_config.h?";
+  if (feature_it == feature_map.end()) {
+    SB_LOG(WARNING) << "Feature " << feature_name
+                    << " is not initialized in Starboard.";
+    return false;
+  }
   return feature_it->second;
 }
 
