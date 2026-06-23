@@ -13,10 +13,10 @@ runs:
   steps:
     - name: Download Previous Results
       if: github.run_attempt > 1
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       continue-on-error: true
       with:
-        name: ${{ inputs.test_results_key }}
+        pattern: ${{ inputs.test_results_key }}*
         path: previous_results/
     - name: Prepare Filter Directory
       env:

@@ -138,9 +138,7 @@ runs:
           test_target=${test_target_with_path#*:}
           test_filter_file="${RESOLVED_FILTER_DIR}/${test_target}_filter.json"
           if [ -f "${test_filter_file}" ] && jq -e '(.failing_tests // []) | any(. == "*")' "${test_filter_file}" >/dev/null 2>&1; then
-            # Target was skipped. Preserve the filter for subsequent attempts.
-            mkdir -p "${test_output}/${PLATFORM}/retry_filters"
-            cp "${test_filter_file}" "${test_output}/${PLATFORM}/retry_filters/"
+            # Target was skipped.
             continue
           fi
 
@@ -154,19 +152,13 @@ runs:
             fi
             target_failed=1
           else
-            # XML exists. Check for failures and generate new filter.
+            # XML exists. Check for failures.
             if grep -q -e '<failure' -e '<error' "${xml_files[@]}"; then
               echo "::error::Found failures in the test xml."
               target_failed=1
             fi
-            python3 ${GITHUB_WORKSPACE}/cobalt/tools/junit_mini_parser.py \
-                --mode generate-filter \
-                --target "${test_target}" \
-                --output-dir "${test_output}/${PLATFORM}/retry_filters" \
-                "${xml_files[@]}"
           fi
         done
-
         exit ${target_failed}
       shell: bash
     - name: Archive Test Results

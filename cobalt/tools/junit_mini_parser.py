@@ -118,8 +118,8 @@ def main(argv: List[str]) -> int:
         'tests_to_run': failed_test_names,
     }
 
-    os.makedirs(args.output_dir, exist_ok=True)
     filter_file = os.path.join(args.output_dir, f'{args.target}_filter.json')
+    os.makedirs(os.path.dirname(filter_file), exist_ok=True)
     try:
       with open(filter_file, 'w', encoding='utf-8') as f:
         json.dump(filter_data, f, indent=2)
