@@ -28,6 +28,7 @@
 #include "starboard/elf_loader/evergreen_info.h"
 #include "starboard/elf_loader/sabi_string.h"
 #include "starboard/event.h"
+#include "starboard/shared/starboard/features.h"
 
 elf_loader::ElfLoader g_elf_loader;
 
@@ -137,5 +138,11 @@ void SbEventHandle(const SbEvent* event) {
 }
 
 int main(int argc, char** argv) {
+  // The evergreen inner library's static initializers query Starboard
+  // features, so seed the FeatureList with defaults before it is loaded (via
+  // SbEventHandle -> LoadLibraryAndInitialize). This bootstrap lives in the
+  // nplb loader core, not the shared android_main.cc, so the Cobalt app
+  // (loader_app) is left to initialize its own FeatureList.
+  starboard::features::InitializeStarboardFeatureListWithDefaults();
   return SbRunStarboardMain(argc, argv, SbEventHandle);
 }

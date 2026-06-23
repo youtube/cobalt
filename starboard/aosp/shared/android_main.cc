@@ -20,7 +20,6 @@
 #include "base/threading/platform_thread.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
-#include "starboard/shared/starboard/features.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 int main(int argc, char** argv);
@@ -43,10 +42,6 @@ class StarboardMainDelegate : public base::PlatformThread::Delegate {
       argv.push_back(arg.data());
     }
     argv.push_back(nullptr);
-
-    // Features might be queried during static initialization of the library. To
-    // avoid a crash, initialize them before the loader app does its work.
-    starboard::features::InitializeStarboardFeatureListWithDefaults();
 
     SB_LOG(INFO) << "cobalt_loader: entering main() with " << args.size()
                  << " args";
