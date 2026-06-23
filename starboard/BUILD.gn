@@ -253,7 +253,7 @@ if (current_toolchain == starboard_toolchain) {
       "//testing/gtest",
     ]
 
-    if (platform_tests_path != "") {
+    if (platform_tests_path != "" && !is_android) {
       deps += [ platform_tests_path ]
     }
     if (sb_filter_based_player) {
@@ -270,9 +270,6 @@ if (current_toolchain == starboard_toolchain) {
         "//starboard/loader_app:read_evergreen_version_test",
         "//starboard/loader_app:slot_management_test",
       ]
-    }
-    if (is_android) {
-      deps += [ "//starboard/android/shared:starboard_platform_tests" ]
     }
     if (build_with_separate_cobalt_toolchain && use_contrib_cast) {
       deps += [ "//starboard/contrib/cast/cast_starboard_api/samples:cast_starboard_api_test" ]
