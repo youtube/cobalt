@@ -186,11 +186,9 @@ GpuChannelSharedImageInterface::CreateSharedImageForStarboardGLTexture(
 #endif
       );
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
   if (!backing) {
     return nullptr;
   }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   SharedImageMetadata metadata{backing->format(),
                                backing->size(),

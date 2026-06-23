@@ -88,9 +88,11 @@ void WebGLTexture::DeleteObjectImpl(gpu::gles2::GLES2Interface* gl) {
   video_frame_ = nullptr;
   shared_image_ = nullptr;
   mailbox_ = gpu::Mailbox();
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   GLuint texture_id = Object();
   gl->DeleteTextures(1, &texture_id);
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
+  gl->DeleteTextures(1, &Object());
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 int WebGLTexture::MapTargetToIndex(GLenum target) const {

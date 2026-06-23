@@ -56,7 +56,9 @@ class WebGLTexture : public WebGLObject {
   virtual bool IsOpaqueTexture() const { return false; }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void UpdateUnderlyingObject(GLuint new_object, scoped_refptr<media::VideoFrame> video_frame, bool has_shared_image_access);
+  void UpdateUnderlyingObject(GLuint new_object,
+                              scoped_refptr<media::VideoFrame> video_frame,
+                              bool has_shared_image_access);
   const gpu::Mailbox& GetMailbox() const { return mailbox_; }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
