@@ -45,11 +45,10 @@ runs:
         GTEST_SHARDS: ${{ inputs.num_gtest_shards }}
       run: |
         # Check test status.
-        set -x
+        if [ "$RUNNER_DEBUG" == "1" ]; then
+          set -x
+        fi
         exit_code=0
-
-        results_tree=$(find results/ -print | sed -e 's;[^/]*/;|____;g;s;____|; |;g')
-        echo $results_tree
 
         # Enable globstar shell option for globstar paths e.g. /**/*.xml and
         # nullglob to return empty string if the glob matches no files.

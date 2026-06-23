@@ -303,7 +303,7 @@ jobs:
         run: |
           set -x
           run_on_device_test="false"
-          expected_targets="[]"
+          expected_tests="[]"
 
           first_platform=$(jq -r '.platforms[0]' ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json)
           test_targets_json_file="cobalt/build/testing/targets/${first_platform}/test_targets.json"
@@ -320,7 +320,7 @@ jobs:
             # want standard results processing jobs to apply to. Currently this
             # includes all gtest and junit test targets that will be executed
             # in this run.
-            expected_targets=$(jq -c \
+            expected_tests=$(jq -c \
               --arg run_on_device_test "${run_on_device_test}" \
               --arg run_on_host_test "${TEST_ON_HOST}" \
               '[
@@ -331,13 +331,13 @@ jobs:
                     (.runs_on == "device" and $run_on_device_test == "true") or
                     (.runs_on == "host"  and $run_on_host_test == "true")
                   )
-                ) | .target
+                )
               ]' "${test_targets_json_file}")
           fi
 
           {
             echo "run_on_device_test=${run_on_device_test}"
-            echo "expected_test_targets_json=${expected_targets}"
+            echo "expected_tests_json=${expected_tests}"
           } >> $GITHUB_OUTPUT
         shell: bash
     outputs:
@@ -371,7 +371,7 @@ jobs:
       num_gtest_shards: ${{ steps.set-gtest-shards.outputs.num_gtest_shards }}
       enable_sccache: ${{ steps.set-enable-sccache.outputs.enable_sccache }}
       docker_service: ${{ steps.set-docker-service.outputs.docker_service }}
-      expected_test_targets_json: ${{ steps.generate-expected-test-targets-json.outputs.expected_test_targets_json }}
+      expected_tests_json: ${{ steps.generate-expected-test-targets-json.outputs.expected_tests_json }}
       run_on_device_test: ${{ steps.generate-expected-test-targets-json.outputs.run_on_device_test }}
 
   # Builds, tags, and pushes Cobalt docker build images to ghr.
@@ -880,10 +880,10 @@ jobs:
 
   test-results:
     needs: [initialize, build, on-device-test, on-host-test]
-    if: always() && needs.initialize.outputs.expected_test_targets_json != '[]'
+    if: always() && needs.initialize.outputs.expected_tests_json != '[]'
     permissions: {}
     runs-on: ubuntu-latest
-    name: ${{ matrix.test_target }}
+    name: ${{ matrix.test_info.target }}
     env:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     strategy:
@@ -892,7 +892,7 @@ jobs:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
-        test_target: ${{ fromJson(needs.initialize.outputs.expected_test_targets_json) }}
+        test_info: ${{ fromJson(needs.initialize.outputs.expected_tests_json) }}
     steps:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
@@ -903,10 +903,21 @@ jobs:
       - name: Extract Test Target Name
         id: extract-target-name
         env:
-          test_target_with_path: ${{ matrix.test_target }}
+          test_target_with_path: ${{ matrix.test_info.target }}
         run: echo "test_target=${test_target_with_path#*:}" >> $GITHUB_OUTPUT
         shell: bash
-      - name: Check if ${{ matrix.test_target }} is skipped in test filters
+      - name: Check if ${{ matrix.test_info.target }} ran on device
+        id: check-test-on-device
+        env:
+          TEST_RUNS_ON: ${{ matrix.test_info.runs_on }}
+        run: |
+          if [[ "$TEST_RUNS_ON" == "device" ]]; then
+            echo "test_runs_on_device=true" >> $GITHUB_OUTPUT
+          else
+            echo "test_runs_on_device=false" >> $GITHUB_OUTPUT
+          fi
+        shell: bash
+      - name: Check if ${{ matrix.test_info.target }} is skipped in test filters
         id: filter
         run: |
           set -x
@@ -930,6 +941,17 @@ jobs:
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
+      - name: DEBUG Print results directory contents
+        if: always()
+        id: debug-print-results-directory
+        run: |
+          which tree
+          has_tree="$?"
+          if [ "$?" == "0" ]; then
+            set -x
+            tree results/
+          fi
+        shell: bash
       - name: Test Results
         if: steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/process_test_results
@@ -940,7 +962,7 @@ jobs:
           datadog_api_key: ${{ secrets.datadog_api_key }}
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
       - name: ${{ matrix.test_target }} Device Logs
-        if: always() && steps.filter.outputs.skipped != 'true' && needs.initialize.outputs.test_on_device == 'true'
+        if: always() && steps.filter.outputs.skipped != 'true' && needs.initialize.outputs.test_on_device == 'true' && steps.check-test-on-device.outputs.test_runs_on_device == 'true'
         continue-on-error: true
         uses: ./.github/actions/print_logs
         with:
