@@ -301,13 +301,15 @@ SB_EXPORT int __abi_wrap_fcntl(int fildes, int cmd, ...) {
 
 int __abi_wrap_openat(int fildes, const char* path, int oflag, ...) {
   fildes = (fildes == MUSL_AT_FDCWD) ? AT_FDCWD : fildes;
+  musl_mode_t mode = 0;
   if ((oflag & O_CREAT) || (oflag & O_TMPFILE) == O_TMPFILE) {
     va_list ap;
     va_start(ap, oflag);
-    musl_mode_t mode = va_arg(ap, musl_mode_t);
-    return openat(fildes, path, oflag,
-                  starboard::musl_mode_to_platform_mode(mode));
-  } else {
-    return openat(fildes, path, oflag);
+    mode = va_arg(ap, musl_mode_t);
+    va_end(ap);
   }
+  // Don't use the 3-arg openat() since _FORTIFY_SOURCE rewrites it to
+  // __openat_2, which bypasses -Wl,--wrap=openat.
+  return openat(fildes, path, oflag,
+                starboard::musl_mode_to_platform_mode(mode));
 }
