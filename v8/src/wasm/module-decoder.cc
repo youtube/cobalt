@@ -4,6 +4,8 @@
 
 #include "src/wasm/module-decoder.h"
 
+#include "src/base/memory-context.h"
+
 #include "src/logging/metrics.h"
 #include "src/tracing/trace-event.h"
 #include "src/wasm/constant-expression.h"
@@ -529,6 +531,7 @@ class ValidateFunctionsTask : public JobTask {
   }
 
   void Run(JobDelegate* delegate) override {
+    ::v8::base::ScopedMemoryContext scoped_context(::v8::base::MemoryContext::kScript);
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                  "wasm.ValidateFunctionsTask");
 

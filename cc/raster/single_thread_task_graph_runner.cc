@@ -13,6 +13,7 @@
 
 #include "base/threading/simple_thread.h"
 #include "base/trace_event/base_tracing.h"
+#include "base/memory/cobalt_memory_context.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/typed_macros.h"
 
@@ -175,6 +176,8 @@ bool SingleThreadTaskGraphRunner::RunTaskWithLockAcquired() {
                 perfetto::TerminatingFlow::Global(
                     prioritized_task.task->trace_task_id()));
     base::AutoUnlock unlock(lock_);
+    base::memory::ScopedMemoryContext scoped_context(
+        base::memory::MemoryContext::kGraphics);
     prioritized_task.task->RunOnWorkerThread();
   }
 

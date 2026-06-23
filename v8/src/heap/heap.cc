@@ -4,6 +4,8 @@
 
 #include "src/heap/heap.h"
 
+#include "src/base/memory-context.h"
+
 #include <algorithm>
 #include <atomic>
 #include <cinttypes>
@@ -2236,6 +2238,8 @@ void ClearStubCaches(Isolate* isolate) {
 void Heap::PerformGarbageCollection(GarbageCollector collector,
                                     GarbageCollectionReason gc_reason,
                                     const char* collector_reason) {
+  ::v8::base::ScopedMemoryContext scoped_context(
+      ::v8::base::MemoryContext::kScript);
   if (IsYoungGenerationCollector(collector)) {
     if (v8_flags.sticky_mark_bits) {
       DCHECK_EQ(GarbageCollector::MINOR_MARK_SWEEPER, collector);

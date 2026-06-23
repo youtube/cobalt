@@ -8,7 +8,9 @@
 #include <atomic>
 #include <cstdint>
 #include <string_view>
+
 #include "base/base_export.h"
+#include "build/build_config.h"
 
 namespace base {
 namespace memory {
@@ -23,7 +25,7 @@ enum class MemoryContext : uint8_t {
   kGraphics = 6,
   kStorage = 7,
 
-  // Next-Generation Granular Sub-Regions
+  // Granular Sub-Regions
   kGraphicsCanvas = 8,
   kGraphicsCompositor = 9,
   kGraphicsGlyphs = 10,
@@ -33,7 +35,7 @@ enum class MemoryContext : uint8_t {
   kNetworkLoader = 14,
   kNetworkCache = 15,
   kBlinkDOM = 16,
-  kBlinkStyle = 17,
+  kBlinkStyle = 17,  // CSS Style resolution
   kBlinkParser = 18,
   kPlatformIPC = 19,
   kPlatformStarboard = 20,
@@ -43,8 +45,24 @@ enum class MemoryContext : uint8_t {
   kCount
 };
 
+#if BUILDFLAG(IS_COBALT)
+
 BASE_EXPORT MemoryContext GetCurrentMemoryContext();
 BASE_EXPORT void SetCurrentMemoryContext(MemoryContext context);
+
+namespace internal {
+inline thread_local MemoryContext g_cobalt_memory_context =
+    MemoryContext::kUnknown;
+}  // namespace internal
+
+#else
+
+inline MemoryContext GetCurrentMemoryContext() {
+  return MemoryContext::kUnknown;
+}
+inline void SetCurrentMemoryContext(MemoryContext context) {}
+
+#endif
 
 // ScopedMemoryContext is a helper class that sets the current thread's
 // memory context for the duration of its lifetime, restoring the previous
@@ -59,8 +77,18 @@ BASE_EXPORT void SetCurrentMemoryContext(MemoryContext context);
 // it was constructed.
 class BASE_EXPORT ScopedMemoryContext {
  public:
-  explicit ScopedMemoryContext(MemoryContext context);
-  ~ScopedMemoryContext();
+  explicit ScopedMemoryContext(MemoryContext context) {
+#if BUILDFLAG(IS_COBALT)
+    prev_context_ = GetCurrentMemoryContext();
+    SetCurrentMemoryContext(context);
+#endif
+  }
+
+  ~ScopedMemoryContext() {
+#if BUILDFLAG(IS_COBALT)
+    SetCurrentMemoryContext(prev_context_);
+#endif
+  }
 
   ScopedMemoryContext(const ScopedMemoryContext&) = delete;
   ScopedMemoryContext& operator=(const ScopedMemoryContext&) = delete;
@@ -68,13 +96,20 @@ class BASE_EXPORT ScopedMemoryContext {
   ScopedMemoryContext& operator=(ScopedMemoryContext&&) = delete;
 
  private:
+#if BUILDFLAG(IS_COBALT)
   MemoryContext prev_context_;
+#endif
 };
 
+#if BUILDFLAG(IS_COBALT)
 BASE_EXPORT std::string_view ContextToString(MemoryContext context);
+#else
+inline std::string_view ContextToString(MemoryContext context) {
+  return "Unknown";
+}
+#endif
 
 }  // namespace memory
 }  // namespace base
 
 #endif  // BASE_MEMORY_COBALT_MEMORY_CONTEXT_H_
-

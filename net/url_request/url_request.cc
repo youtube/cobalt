@@ -56,6 +56,8 @@
 #include "url/gurl.h"
 #include "url/origin.h"
 
+#include "base/memory/cobalt_memory_context.h"
+
 namespace net {
 
 namespace {
@@ -584,6 +586,8 @@ void URLRequest::set_allow_credentials(bool allow_credentials) {
 }
 
 void URLRequest::Start() {
+  base::memory::ScopedMemoryContext scoped_context(
+      base::memory::MemoryContext::kNetwork);
   DCHECK(delegate_);
 
   // We do not support credentials with a non-general

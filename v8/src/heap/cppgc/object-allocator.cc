@@ -4,6 +4,8 @@
 
 #include "src/heap/cppgc/object-allocator.h"
 
+#include "src/base/memory-context.h"
+
 #include "include/cppgc/allocation.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -174,6 +176,8 @@ constexpr GCConfig kOnAllocationFailureGCConfig = {
 void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace& space,
                                              size_t size, AlignVal alignment,
                                              GCInfoIndex gcinfo) {
+  ::v8::base::ScopedMemoryContext scoped_context(
+      ::v8::base::MemoryContext::kBlinkDOM);
   DCHECK_EQ(0, size & kAllocationMask);
   DCHECK_LE(kFreeListEntrySize, size);
   // Out-of-line allocation allows for checking this is all situations.

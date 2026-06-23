@@ -4,6 +4,8 @@
 
 #include "src/wasm/wasm-serialization.h"
 
+#include "src/base/memory-context.h"
+
 #include "src/codegen/assembler-arch.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/debug/debug.h"
@@ -742,6 +744,7 @@ class DeserializeCodeTask : public JobTask {
       : deserializer_(deserializer), reloc_queue_(reloc_queue) {}
 
   void Run(JobDelegate* delegate) override {
+    ::v8::base::ScopedMemoryContext scoped_context(::v8::base::MemoryContext::kScript);
     bool finished = false;
     while (!finished) {
       // Repeatedly publish everything that was copied already.
