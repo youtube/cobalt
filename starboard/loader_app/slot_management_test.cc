@@ -64,7 +64,7 @@ class MockLibraryLoader : public LibraryLoader {
   MOCK_METHOD4(Load,
                bool(const std::string& library_path,
                     const std::string& content_path,
-                    bool use_compression,
+                    elf_loader::CompressionType compression_type,
                     bool use_memory_mapped_file));
   MOCK_METHOD1(Resolve, void*(const std::string& symbol));
 };
@@ -159,9 +159,12 @@ class SlotManagementTest : public testing::TestWithParam<bool> {
 
     std::string full_lib_path = lib;
     AddFileExtension(full_lib_path);
-    EXPECT_CALL(library_loader,
-                Load(testing::EndsWith(full_lib_path),
-                     testing::EndsWith(content), use_compression, false))
+    elf_loader::CompressionType expected_compression_type =
+        use_compression ? elf_loader::CompressionType::kLz4
+                        : elf_loader::CompressionType::kNone;
+    EXPECT_CALL(library_loader, Load(testing::EndsWith(full_lib_path),
+                                     testing::EndsWith(content),
+                                     expected_compression_type, false))
         .Times(1)
         .WillOnce(testing::Return(true));
     EXPECT_CALL(library_loader, Resolve("GetEvergreenSabiString"))
@@ -385,9 +388,12 @@ TEST_P(SlotManagementTest, DISABLED_AlternativeContent) {
 
   std::string full_lib_path = slot_0_libcobalt_path_;
   AddFileExtension(full_lib_path);
+  elf_loader::CompressionType expected_compression_type =
+      GetParam() ? elf_loader::CompressionType::kLz4
+                 : elf_loader::CompressionType::kNone;
   EXPECT_CALL(library_loader,
               Load(testing::EndsWith(full_lib_path), testing::EndsWith("/foo"),
-                   GetParam(), false))
+                   expected_compression_type, false))
       .Times(1)
       .WillOnce(testing::Return(true));
   EXPECT_CALL(library_loader, Resolve("GetEvergreenSabiString"))
@@ -431,11 +437,15 @@ TEST_P(SlotManagementTest, DISABLED_BadSabi) {
 
   MockLibraryLoader library_loader;
 
+  elf_loader::CompressionType expected_compression_type =
+      GetParam() ? elf_loader::CompressionType::kLz4
+                 : elf_loader::CompressionType::kNone;
+
   std::string slot2_libcobalt_full = slot_2_libcobalt_path_;
   AddFileExtension(slot2_libcobalt_full);
-  EXPECT_CALL(library_loader,
-              Load(testing::EndsWith(slot2_libcobalt_full),
-                   testing::EndsWith(slot_2_content_path_), GetParam(), false))
+  EXPECT_CALL(library_loader, Load(testing::EndsWith(slot2_libcobalt_full),
+                                   testing::EndsWith(slot_2_content_path_),
+                                   expected_compression_type, false))
       .Times(1)
       .WillOnce(testing::Return(true));
 
@@ -448,9 +458,9 @@ TEST_P(SlotManagementTest, DISABLED_BadSabi) {
 
   std::string slot1_libcobalt_full = slot_1_libcobalt_path_;
   AddFileExtension(slot1_libcobalt_full);
-  EXPECT_CALL(library_loader,
-              Load(testing::EndsWith(slot1_libcobalt_full),
-                   testing::EndsWith(slot_1_content_path_), GetParam(), false))
+  EXPECT_CALL(library_loader, Load(testing::EndsWith(slot1_libcobalt_full),
+                                   testing::EndsWith(slot_1_content_path_),
+                                   expected_compression_type, false))
       .Times(1)
       .WillOnce(testing::Return(true));
 

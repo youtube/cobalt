@@ -64,7 +64,7 @@ bool ElfLoader::Load(const std::string& library_path,
                      const std::string& content_path,
                      bool is_relative_path,
                      const void* (*custom_get_extension)(const char* name),
-                     bool use_compression,
+                     CompressionType compression_type,
                      bool use_memory_mapped_file) {
   if (is_relative_path) {
     library_path_ = PrependContentPath(library_path);
@@ -82,7 +82,7 @@ bool ElfLoader::Load(const std::string& library_path,
                           custom_get_extension);
   SB_LOG(INFO) << "evergreen_config: content_path=" << content_path_;
   starboard::ScopedTimer timer("Loading");
-  bool res = impl_->Load(library_path_.c_str(), use_compression,
+  bool res = impl_->Load(library_path_.c_str(), compression_type,
                          use_memory_mapped_file);
   int64_t elf_load_duration_us = timer.Stop();
   auto metrics_extension =
@@ -92,7 +92,10 @@ bool ElfLoader::Load(const std::string& library_path,
       strcmp(metrics_extension->name,
              kStarboardExtensionLoaderAppMetricsName) == 0 &&
       metrics_extension->version >= 2) {
-    metrics_extension->SetElfLibraryStoredCompressed(use_compression);
+    // TODO: b/497012299 - Extend Loader App Metrics extension with
+    // compression type.
+    metrics_extension->SetElfLibraryStoredCompressed(compression_type !=
+                                                     CompressionType::kNone);
     metrics_extension->SetElfLoadDurationMicroseconds(elf_load_duration_us);
   }
 
