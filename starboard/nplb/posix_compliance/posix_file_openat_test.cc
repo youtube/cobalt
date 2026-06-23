@@ -49,7 +49,7 @@ TEST(PosixFileOpenatTest, DirFdRelativePath) {
   ASSERT_GE(dir_fd, 0);
 
   const std::string filename = "test_file.txt";
-  int fd = openat(dir_fd, filename.c_str(), O_CREAT | O_RDWR);
+  int fd = openat(dir_fd, filename.c_str(), O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
   EXPECT_GE(fd, 0);
 
   if (fd >= 0) {
@@ -147,12 +147,12 @@ TEST(PosixFileOpenatTest, FailsAlreadyExists) {
   ASSERT_GE(dir_fd, 0);
 
   const std::string filename = "existing_file.txt";
-  int fd = openat(dir_fd, filename.c_str(), O_CREAT | O_RDWR);
+  int fd = openat(dir_fd, filename.c_str(), O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
   ASSERT_GE(fd, 0);
   close(fd);
 
   errno = 0;
-  fd = openat(dir_fd, filename.c_str(), O_CREAT | O_EXCL | O_RDWR);
+  fd = openat(dir_fd, filename.c_str(), O_CREAT | O_EXCL | O_RDWR, S_IRUSR | S_IWUSR);
   EXPECT_EQ(fd, -1);
   EXPECT_EQ(errno, EEXIST);
   if (fd >= 0) {
