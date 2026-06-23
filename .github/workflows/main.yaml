@@ -945,9 +945,7 @@ jobs:
         if: always()
         id: debug-print-results-directory
         run: |
-          which tree
-          has_tree="$?"
-          if [ "$has_tree" == "0" ]; then
+          if [ "$(which tree)" == "0" ]; then
             set -x
             tree results/
           fi
