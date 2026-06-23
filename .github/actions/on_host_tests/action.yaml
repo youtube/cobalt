@@ -196,6 +196,7 @@ runs:
           fi
 
           # Run JUnit tests and generate JSON report, then convert to XML.
+          # TODO(b/524653685): Eventually refactor tests to output JSON natively and remove this XML conversion shortcut.
           json_path="${test_output}/${test_executable}_result.json"
           stdbuf -i0 -o0 -e0 $ENTRYPOINT --json-results-file="${json_path}" 2>&1 | tee ${log_path} || {
             failed_suites="${failed_suites} ${test_executable}"
