@@ -529,8 +529,7 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
       use_safe_config ? kSafeConfigFeatureParams
                       : kExperimentConfigFeatureParams);
 
-  bool has_invalid_feature_type = false;
-  int features_applied = 0;
+  size_t features_applied = 0;
   for (const auto feature_name_and_value : feature_map) {
     if (feature_name_and_value.second.is_bool()) {
       auto override_value =
@@ -541,20 +540,18 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
           feature_name_and_value.first, override_value, cobalt_field_trial);
       features_applied++;
     } else {
-      has_invalid_feature_type = true;
-      // TODO(b/407734134): Register UMA here for non boolean feature value.
       LOG(ERROR) << "Failed to apply override for feature "
                  << feature_name_and_value.first;
       base::debug::DumpWithoutCrashing();
     }
   }
+  const bool has_invalid_feature_type = feature_map.size() != features_applied;
   base::UmaHistogramBoolean("Cobalt.Finch.HasInvalidFeatureType",
                             has_invalid_feature_type);
   base::UmaHistogramCounts100("Cobalt.Finch.NumFeaturesApplied",
-                              features_applied);
+                              static_cast<int>(features_applied));
 
-  bool has_invalid_param_type = false;
-  int params_applied = 0;
+  size_t params_applied = 0;
   base::FieldTrialParams params;
   for (const auto param_name_and_value : param_map) {
     if (param_name_and_value.second.is_string()) {
@@ -562,17 +559,17 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
                      param_name_and_value.second.GetString());
       params_applied++;
     } else {
-      has_invalid_param_type = true;
-      // TODO(b/407734134): Register UMA here for non string param value.
       LOG(ERROR) << "Failed to associate field trial param "
                  << param_name_and_value.first << " with string value "
                  << param_name_and_value.second;
       base::debug::DumpWithoutCrashing();
     }
   }
+  const bool has_invalid_param_type = param_map.size() != params_applied;
   base::UmaHistogramBoolean("Cobalt.Finch.HasInvalidParamType",
                             has_invalid_param_type);
-  base::UmaHistogramCounts100("Cobalt.Finch.NumParamsApplied", params_applied);
+  base::UmaHistogramCounts100("Cobalt.Finch.NumParamsApplied",
+                              static_cast<int>(params_applied));
   base::AssociateFieldTrialParams(kCobaltExperimentName, kCobaltGroupName,
                                   params);
 }

@@ -50,7 +50,6 @@ ScriptPromise<IDLUndefined> H5vccExperiments::setExperimentState(
   if (!experiment_config_dict.has_value()) {
     base::UmaHistogramBoolean("Cobalt.Finch.SetExperimentState.ParseError",
                               true);
-    base::UmaHistogramBoolean("Cobalt.Finch.SetExperimentState.Result", false);
     resolver->RejectWithDOMException(
         DOMExceptionCode::kInvalidStateError,
         "Unable to parse experiment configuration.");
@@ -200,7 +199,6 @@ void H5vccExperiments::OnGetLatestExperimentConfigHashData(
 
 void H5vccExperiments::OnSetExperimentState(
     ScriptPromiseResolver<IDLUndefined>* resolver) {
-  base::UmaHistogramBoolean("Cobalt.Finch.SetExperimentState.Result", true);
   ongoing_requests_.erase(resolver);
   resolver->Resolve();
 }
@@ -250,9 +248,6 @@ void H5vccExperiments::OnConnectionError() {
   // concurrent modification.
   ongoing_requests_.swap(h5vcc_experiments_promises);
   for (auto& resolver : h5vcc_experiments_promises) {
-    base::UmaHistogramBoolean("Cobalt.Finch.SetExperimentState.ConnectionError",
-                              true);
-    base::UmaHistogramBoolean("Cobalt.Finch.SetExperimentState.Result", false);
     resolver->Reject("Mojo connection error.");
   }
   ongoing_requests_.clear();
