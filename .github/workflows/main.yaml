@@ -39,10 +39,10 @@ env:
     cobalt/testing/browser_tests/tools
     cobalt/testing/filters
     cobalt/tools
-  PR_ODT_ENABLED: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false }}
-  NIGHTLY_ODT_ENABLED: ${{ (inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False' }}
-  POSTSUBMIT_ODT_ENABLED: ${{ github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False' }}
-  PR_BROWSERTEST_ENABLED: ${{ github.event_name == 'pull_request' }}
+  IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
+  IS_NON_DRAFT_PULL_REQUEST: = ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false }}
+  RUN_ODT_ON_NIGHTLY: ${{ (inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False' }}
+  RUN_ODT_ON_PUSH: ${{ github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False' }}
 
 jobs:
   # Retrieves configuration from json file.
@@ -312,20 +312,20 @@ jobs:
           test_targets_json_file="cobalt/build/testing/targets/${first_platform}/test_targets.json"
 
           if [ -f "$test_targets_json_file" ]; then
-            # 1. Evaluate conditions (local variables)
             run_on_host_test="${TEST_ON_HOST}"
 
             if [[ "$TEST_ON_DEVICE" == "true" && (
-                  "$PR_ODT_ENABLED" == "true" ||
-                  "$NIGHTLY_ODT_ENABLED" == "true" ||
-                  "$POSTSUBMIT_ODT_ENABLED" == "true" ) ]]; then
+                  "$IS_NON_DRAFT_PULL_REQUEST" == "true" ||
+                  "$RUN_ODT_ON_NIGHTLY" == "true" ||
+                  "$RUN_ODT_ON_PUSH" == "true" ) ]]; then
               run_on_device_test="true"
             fi
 
-            if [[ "$RUN_BROWSER_TESTS" == "true" && (
-                  "$PR_BROWSERTEST_ENABLED" == "true" ||
-                  "$NIGHTLY_ODT_ENABLED" == "true" ||
-                  "$POSTSUBMIT_ODT_ENABLED" == "true" ) ]]; then
+            if [[ "$RUN_BROWSER_TESTS" == "true" &&
+                  "$TEST_ON_HOST" == "true" && (
+                  "$IS_PULL_REQUEST" == "true" ||
+                  "$RUN_ODT_ON_NIGHTLY" == "true" ||
+                  "$RUN_ODT_ON_PUSH" == "true" ) ]]; then
               run_browser_test_on_host="true"
             fi
 
