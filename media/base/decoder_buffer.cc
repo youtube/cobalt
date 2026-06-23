@@ -111,10 +111,7 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type, size_t size)
           return std::nullopt;
         }
         CHECK(s_allocator);
-        return AllocatorData(type,
-                             s_allocator->Allocate(
-                                 type, size, s_allocator->GetBufferAlignment()),
-                             size);
+        return AllocatorData(type, s_allocator->Allocate(type, size), size);
       }()) {}
 
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)

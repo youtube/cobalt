@@ -31,6 +31,11 @@
 #include "base/trace_event/base_tracing.h"
 #include "build/build_config.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/extension/crash_handler.h"
+#include "starboard/system.h"
+#endif
+
 namespace base {
 
 namespace {
@@ -536,6 +541,32 @@ bool HangWatcher::IsEnabled() {
   return g_use_hang_watcher.load(std::memory_order_relaxed);
 }
 
+#if BUILDFLAG(IS_COBALT)
+// static
+void HangWatcher::Suspend() {
+  // suspends hang watching when the application is frozen.
+  g_use_hang_watcher.store(false, std::memory_order_relaxed);
+}
+
+// static
+void HangWatcher::Resume() {
+  if (g_instance) {
+    // resumes hang watching when the application is unfrozen, explicitly
+    // ignoring pre-freeze deadlines to prevent false hang reports.
+    base::AutoLock auto_lock(g_instance->watch_state_lock_);
+    base::TimeTicks latest_deadline;
+    for (const auto& state : g_instance->watch_states_) {
+      base::TimeTicks deadline = state->GetDeadline();
+      if (deadline > latest_deadline) {
+        latest_deadline = deadline;
+      }
+    }
+    g_instance->deadline_ignore_threshold_ = latest_deadline;
+  }
+  g_use_hang_watcher.store(true, std::memory_order_relaxed);
+}
+#endif
+
 // static
 bool HangWatcher::IsThreadPoolHangWatchingEnabled() {
   return g_threadpool_log_level.load(std::memory_order_relaxed) !=
@@ -1037,6 +1068,14 @@ HangWatcher::WatchStateSnapShot HangWatcher::GrabWatchStateSnapshotForTesting()
 
 void HangWatcher::Monitor() {
   DCHECK_CALLED_ON_VALID_THREAD(hang_watcher_thread_checker_);
+
+#if BUILDFLAG(IS_COBALT)
+  // suspends monitoring when the application is frozen.
+  if (!IsEnabled()) {
+    return;
+  }
+#endif
+
   AutoLock auto_lock(watch_state_lock_);
 
   // If all threads unregistered since this function was invoked there's
@@ -1085,6 +1124,26 @@ void HangWatcher::DoDumpWithoutCrashing(
 
   SCOPED_CRASH_KEY_BOOL("HangWatcher", "shutting-down",
                         g_shutting_down.load(std::memory_order_relaxed));
+
+#if BUILDFLAG(IS_STARBOARD)
+  // Evergreen builds cannot currently use the crash key system directly and we
+  // instead use a Starboard extension to pass annotations from the Cobalt layer
+  // to Crashpad.
+  auto* crash_handler_extension =
+      static_cast<const CobaltExtensionCrashHandlerApi*>(
+          SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
+  if (crash_handler_extension && crash_handler_extension->version >= 2 &&
+      crash_handler_extension->SetString) {
+    crash_handler_extension->SetString("list-of-hung-threads",
+                                       list_of_hung_thread_ids.c_str());
+    crash_handler_extension->SetString(
+        "seconds-since-last-resume",
+        GetTimeSinceLastSystemPowerResumeCrashKeyValue().c_str());
+    crash_handler_extension->SetString(
+        "shutting-down",
+        g_shutting_down.load(std::memory_order_relaxed) ? "true" : "false");
+  }
+#endif
 #endif
 
   // To avoid capturing more than one hang that blames a subset of the same

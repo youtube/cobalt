@@ -32,5 +32,14 @@ ssize_t __abi_wrap_getrandom(void* buf, size_t buflen, unsigned flags) {
     return -1;
   }
 
+#if __ANDROID_API__ < 28 && defined(__clang__)
+// The API doesn exist before API Level 26
+// TODO(b/374300500): add back posix emulation
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunguarded-availability"
+#endif
   return getrandom(buf, buflen, platform_flags);
+#if __ANDROID_API__ < 28 && defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 }

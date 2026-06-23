@@ -24,6 +24,7 @@
       "IntersectingVideoQuadPixelTest.*",
       "VideoRendererPixelTest.*",
       "IntersectingMultiplanarVideoQuadPixelTest.*",
-      "VideoRendererPixelHiLoColorSpaceTest.SimpleYUVRect*"
+      "VideoRendererPixelHiLoColorSpaceTest.SimpleYUVRect*",
+      "VisualDebuggerTest.MultipleBuffersAsync*"
     ]
   }

@@ -1094,6 +1094,10 @@ component("base") {
     }
   }
 
+  if (is_cobalt_hermetic_build) {
+    deps += [ "//starboard/common" ]
+  }
+
   # `raw_ptr` cannot be made a component due to CRT symbol issues.
   # Its gateway to being a component is through `//base`, so we have
   # to provide the appropriate `#define` here.
@@ -2456,7 +2460,10 @@ component("base") {
       "system/sys_info_starboard.h",
     ]
 
-    deps += [ "//starboard/common:common_headers_only" ]
+    deps += [
+      "//starboard/common:common_headers_only",
+      "//starboard:starboard_headers_only",
+    ]
   }
 
   if (use_blink) {
@@ -3063,6 +3070,9 @@ component("i18n") {
     "//third_party/ced",
     "//third_party/icu",
   ]
+  if (is_cobalt) {
+    public_deps -= [ "//third_party/ced" ]
+  }
   deps = [
     ":i18n_transliterator",
     "//build:chromecast_buildflags",
