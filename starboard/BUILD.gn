@@ -191,6 +191,10 @@ source_set("starboard_test_main") {
   public_deps = [ "//testing/gtest" ]
   deps = [ ":starboard_headers_only" ]
 
+  if (!is_android && !is_ios) {
+    deps += [ "//starboard/shared/starboard:test_environment" ]
+  }
+
   if (is_ios) {
     deps += [
       "//base",
@@ -201,10 +205,6 @@ source_set("starboard_test_main") {
 
   if (is_android) {
     deps += [ "//starboard/android/shared:test_support" ]
-  }
-
-  if (!is_android && !is_ios) {
-    deps += [ "//starboard/shared/starboard:test_environment" ]
   }
 }
 

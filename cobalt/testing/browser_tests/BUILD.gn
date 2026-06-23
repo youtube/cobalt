@@ -101,7 +101,6 @@ static_library("cobalt_browsertests_test_runner") {
     "//base/test:test_config",
     "//build:chromeos_buildflags",
     "//cobalt/browser:browser",
-    "//cobalt/common/features",
     "//cobalt/shell:cobalt_shell_app",
     "//components/network_session_configurator/common:common",
     "//components/services/storage:storage",

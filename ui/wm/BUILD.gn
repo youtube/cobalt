@@ -168,7 +168,6 @@ test("wm_unittests") {
     "//base/test:test_support",
     "//mojo/core/embedder",
     "//skia",
-    "//starboard/shared/starboard:test_environment",
     "//testing/gtest",
     "//ui/aura:test_support",
     "//ui/base",
