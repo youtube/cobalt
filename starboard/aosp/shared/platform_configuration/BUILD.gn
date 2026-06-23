@@ -17,6 +17,17 @@ config("platform_configuration") {
     "//starboard/android/shared/platform_configuration",
     ":no_pedantic_warnings",
   ]
+
+  if (current_toolchain == starboard_toolchain) {
+    ldflags = [
+      "-Wl,--wrap=access",
+      "-Wl,--wrap=close",
+      "-Wl,--wrap=fstatat",
+      "-Wl,--wrap=open",
+      "-Wl,--wrap=openat",
+      "-Wl,--wrap=stat",
+    ]
+  }
 }
 
 config("no_pedantic_warnings") {
