@@ -932,9 +932,10 @@ jobs:
           path: results/
       - name: DEBUG Print results directory contents
         if: always()
+        continue-on-error: true
         id: debug-print-results-directory
         run: |
-          if [ "$(which tree)" == "0" ]; then
+          if [ "$(which tree)" == "0" && -d "results/" ]; then
             set -x
             tree results/
           fi
