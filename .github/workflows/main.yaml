@@ -923,8 +923,6 @@ jobs:
               echo "skipped=false" >> $GITHUB_OUTPUT
             fi
           fi
-          results_tree=$(find results/ -print | sed -e 's;[^/]*/;|____;g;s;____|; |;g')
-          echo $results_tree
         shell: bash
       - name: Download Test Results
         if: steps.filter.outputs.skipped != 'true'
