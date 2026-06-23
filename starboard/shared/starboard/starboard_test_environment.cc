@@ -16,6 +16,7 @@
 
 #include <cstdint>
 #include <iterator>
+#include <mutex>
 
 #include "starboard/extension/features.h"
 #include "starboard/shared/starboard/feature_list.h"
@@ -62,15 +63,20 @@ StarboardTestEnvironment::StarboardTestEnvironment() = default;
 StarboardTestEnvironment::~StarboardTestEnvironment() = default;
 
 void StarboardTestEnvironment::SetUp() {
-  const auto* extension_api = static_cast<const StarboardExtensionFeaturesApi*>(
-      SbSystemGetExtension(kStarboardExtensionFeaturesName));
-  if (extension_api && extension_api->InitializeStarboardFeatures) {
-    extension_api->InitializeStarboardFeatures(
-        kStarboardFeatures, std::size(kStarboardFeatures), kStarboardParams,
-        std::size(kStarboardParams));
-  }
-  features::FeatureList::InitializeFeatureList(
-      kStarboardFeatures, std::size(kStarboardFeatures), kStarboardParams,
-      std::size(kStarboardParams));
+  static std::once_flag s_flag;
+  std::call_once(s_flag, [] {
+    const auto* extension_api =
+        static_cast<const StarboardExtensionFeaturesApi*>(
+            SbSystemGetExtension(kStarboardExtensionFeaturesName));
+    if (extension_api && extension_api->InitializeStarboardFeatures) {
+      extension_api->InitializeStarboardFeatures(
+          kStarboardFeatures, std::size(kStarboardFeatures), kStarboardParams,
+          std::size(kStarboardParams));
+    } else {
+      features::FeatureList::InitializeFeatureList(
+          kStarboardFeatures, std::size(kStarboardFeatures), kStarboardParams,
+          std::size(kStarboardParams));
+    }
+  });
 }
 }  // namespace starboard
