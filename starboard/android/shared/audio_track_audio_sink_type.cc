@@ -14,6 +14,7 @@
 
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 
+#include <android/api-level.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -22,6 +23,8 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "starboard/android/shared/aaudio_audio_sink.h"
+#include "starboard/android/shared/aaudio_loader.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
@@ -103,6 +106,23 @@ bool HasRemoteAudioOutput() {
     index++;
   }
   return false;
+}
+
+bool CanUseAAudio(std::optional<int> tunnel_mode_audio_session_id) {
+  if (!features::FeatureList::IsEnabled(features::kEnableNdkAudio)) {
+    return false;
+  }
+
+  // AAudio does not support tunnel mode.
+  if (tunnel_mode_audio_session_id) {
+    return false;
+  }
+  // AAudio requires Android API level >= 26 (Oreo).
+  if (android_get_device_api_level() < 26) {
+    return false;
+  }
+
+  return true;
 }
 
 }  // namespace
@@ -546,6 +566,17 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     bool is_web_audio,
     bool allow_audio_writing_on_pause,
     void* context) {
+  if (CanUseAAudio(tunnel_mode_audio_session_id)) {
+    auto native_sink = AAudioAudioSink::Create(
+        this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
+        frames_per_channel, callbacks, context);
+    if (native_sink) {
+      return native_sink.release();
+    }
+    SB_LOG(WARNING)
+        << "Failed to create AAudio stream. Falling back to Java AudioTrack.";
+  }
+
   int min_required_frames = SbAudioSinkGetMinBufferSizeInFrames(
       channels, audio_sample_type, sampling_frequency_hz);
   SB_DCHECK_GE(frames_per_channel, min_required_frames);
@@ -558,7 +589,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
       start_media_time, tunnel_mode_audio_session_id, is_web_audio,
       allow_audio_writing_on_pause, context);
   if (!audio_sink) {
-    SB_DLOG(ERROR)
+    SB_LOG(ERROR)
         << "AudioTrackAudioSinkType::Create failed to create audio track";
     return kSbAudioSinkInvalid;
   }
