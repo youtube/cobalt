@@ -29,7 +29,8 @@ class Span {
   constexpr Span() = default;
   constexpr Span(T* data, size_t size) : data_(data), size_(size) {}
 
-  template <class U, class = std::enable_if_t<std::is_convertible_v<U*, T*>>>
+  template <class U,
+            class = std::enable_if_t<std::is_convertible_v<U (*)[], T (*)[]>>>
   constexpr Span(const Span<U>& other)
       : data_(other.data()), size_(other.size()) {}
 
