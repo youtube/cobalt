@@ -167,6 +167,7 @@ test("nplb") {
       "posix_compliance/posix_file_unlinkat_test.cc",
       "posix_compliance/posix_file_write_test.cc",
       "posix_compliance/posix_free_test.cc",
+      "posix_compliance/posix_fstatat_test.cc",
       "posix_compliance/posix_getcwd_test.cc",
       "posix_compliance/posix_gettid_test.cc",
       "posix_compliance/posix_inotify_test.cc",
