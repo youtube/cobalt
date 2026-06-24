@@ -82,6 +82,7 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/locale_utils.h"
 #include "cobalt/android/browser_jni_headers/CobaltContentBrowserClient_jni.h"
+#include "components/navigation_interception/intercept_navigation_delegate.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if !BUILDFLAG(IS_ANDROIDTV)
@@ -153,6 +154,21 @@ static void JNI_CobaltContentBrowserClient_DispatchFocus(JNIEnv*) {
     return;
   }
   client->DispatchFocus();
+}
+
+static void JNI_CobaltContentBrowserClient_AssociateInterceptNavigationDelegate(
+    JNIEnv* env,
+    const base::android::JavaParamRef<jobject>& jweb_contents,
+    const base::android::JavaParamRef<jobject>& jdelegate) {
+  content::WebContents* web_contents =
+      content::WebContents::FromJavaWebContents(jweb_contents);
+  if (!web_contents) {
+    return;
+  }
+  navigation_interception::InterceptNavigationDelegate::Associate(
+      web_contents,
+      std::make_unique<navigation_interception::InterceptNavigationDelegate>(
+          env, jdelegate, /*escape_external_handler_value=*/true));
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -237,6 +253,10 @@ void CobaltContentBrowserClient::CreateThrottlesForNavigation(
   registry.AddThrottle(
       std::make_unique<content::CobaltSecureNavigationThrottle>(
           &navigation_handle));
+#if BUILDFLAG(IS_ANDROID)
+  navigation_interception::InterceptNavigationDelegate::MaybeCreateAndAdd(
+      registry, navigation_interception::SynchronyMode::kSync);
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 content::GeneratedCodeCacheSettings
