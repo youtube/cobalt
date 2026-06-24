@@ -52,8 +52,8 @@ enum class MemoryContext : uint8_t {
 #endif
 
 MAYBE_COBALT_WEAK pthread_key_t GetSharedMemoryContextKey();
-BASE_EXPORT MemoryContext GetCurrentMemoryContext();
-BASE_EXPORT void SetCurrentMemoryContext(MemoryContext context);
+MAYBE_COBALT_WEAK MemoryContext GetCurrentMemoryContext();
+MAYBE_COBALT_WEAK void SetCurrentMemoryContext(MemoryContext context);
 
 // ScopedMemoryContext is a helper class that sets the current thread's
 // memory context for the duration of its lifetime, restoring the previous
@@ -86,7 +86,7 @@ class BASE_EXPORT ScopedMemoryContext {
   MemoryContext prev_context_;
 };
 
-BASE_EXPORT std::string_view ContextToString(MemoryContext context);
+MAYBE_COBALT_WEAK std::string_view ContextToString(MemoryContext context);
 
 }  // namespace memory
 }  // namespace base
