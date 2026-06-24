@@ -15,12 +15,8 @@
 #include "base/memory/cobalt_memory_context.h"
 
 #include <stdint.h>
-#include "build/build_config.h"
-
-#if BUILDFLAG(IS_COBALT)
-
-#include "base/no_destructor.h"
-#include "base/threading/thread_local_storage.h"
+#include <pthread.h>
+#include <atomic>
 
 #if defined(OS_LINUX) || defined(OS_ANDROID)
 #include <sys/prctl.h>
@@ -30,15 +26,28 @@
 namespace base {
 namespace memory {
 
-namespace {
-ThreadLocalStorage::Slot& MemoryContextSlot() {
-  static NoDestructor<ThreadLocalStorage::Slot> slot;
-  return *slot;
+#if defined(__GNUC__)
+__attribute__((weak))
+#endif
+pthread_key_t GetSharedMemoryContextKey() {
+  static std::atomic<intptr_t> g_key{-1};
+  intptr_t key = g_key.load(std::memory_order_acquire);
+  if (key == -1) {
+    pthread_key_t new_key;
+    pthread_key_create(&new_key, nullptr);
+    intptr_t expected = -1;
+    if (g_key.compare_exchange_strong(expected, static_cast<intptr_t>(new_key), std::memory_order_release)) {
+      key = static_cast<intptr_t>(new_key);
+    } else {
+      pthread_key_delete(new_key);
+      key = expected;
+    }
+  }
+  return static_cast<pthread_key_t>(key);
 }
-}  // namespace
 
 MemoryContext GetCurrentMemoryContext() {
-  uintptr_t val = reinterpret_cast<uintptr_t>(MemoryContextSlot().Get());
+  uintptr_t val = reinterpret_cast<uintptr_t>(pthread_getspecific(GetSharedMemoryContextKey()));
   if (val == 0) {
     MemoryContext context = MemoryContext::kUnknown;
     char thread_name[16] = {0};
@@ -61,15 +70,15 @@ MemoryContext GetCurrentMemoryContext() {
     }
 #endif
     val = static_cast<uintptr_t>(context) + 1;
-    MemoryContextSlot().Set(reinterpret_cast<void*>(val));
+    pthread_setspecific(GetSharedMemoryContextKey(), reinterpret_cast<void*>(val));
     return context;
   }
   return static_cast<MemoryContext>(val - 1);
 }
 
 void SetCurrentMemoryContext(MemoryContext context) {
-  MemoryContextSlot().Set(
-      reinterpret_cast<void*>(static_cast<uintptr_t>(context) + 1));
+  pthread_setspecific(GetSharedMemoryContextKey(),
+                      reinterpret_cast<void*>(static_cast<uintptr_t>(context) + 1));
 }
 
 std::string_view ContextToString(MemoryContext context) {
@@ -127,5 +136,3 @@ std::string_view ContextToString(MemoryContext context) {
 
 }  // namespace memory
 }  // namespace base
-
-#endif  // BUILDFLAG(IS_COBALT)
