@@ -123,5 +123,5 @@ jobs:
             PR_NUMBER=$(gh pr view "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" --json number --jq .number)
             gh api -X PATCH "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" -f title="${PR_TITLE}" -f body="$(cat "${PR_BODY_FILE}")" --jq .html_url
           else
-            gh pr create --base "${TARGET_BRANCH}" --head "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" --title "${PR_TITLE}" --body-file "${PR_BODY_FILE}" --reviewer linxinan-chops,oxve,briantting
+            gh pr create --base "${TARGET_BRANCH}" --head "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" --title "${PR_TITLE}" --body-file "${PR_BODY_FILE}" --reviewer linxinan-yt,oxve,briantting
           fi
