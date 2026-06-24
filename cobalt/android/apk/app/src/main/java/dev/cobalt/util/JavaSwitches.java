@@ -31,6 +31,9 @@ public class JavaSwitches {
   /** flag to re-enable freeze and resume events */
   public static final String ENABLE_FREEZE = "EnableFreeze";
 
+  /** flag to enable a 1.5s delay before firing the freeze event on background. */
+  public static final String DELAY_FREEZE_ON_BACKGROUND = "DelayFreezeOnBackground";
+
   /** flag to force use IPv4 for system host resolution. */
   public static final String USE_IPV4_FOR_DNS = "UseIPv4ForDNS";
 
