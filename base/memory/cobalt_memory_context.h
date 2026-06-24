@@ -8,6 +8,7 @@
 #include <atomic>
 #include <cstdint>
 #include <string_view>
+#include <pthread.h>
 
 #include "base/base_export.h"
 #include "build/build_config.h"
@@ -47,10 +48,15 @@ enum class MemoryContext : uint8_t {
 
 #if BUILDFLAG(IS_COBALT)
 
+#if defined(__GNUC__)
+#define MAYBE_COBALT_WEAK __attribute__((weak))
+#else
+#define MAYBE_COBALT_WEAK
+#endif
+
+MAYBE_COBALT_WEAK pthread_key_t GetSharedMemoryContextKey();
 BASE_EXPORT MemoryContext GetCurrentMemoryContext();
 BASE_EXPORT void SetCurrentMemoryContext(MemoryContext context);
-
-
 
 #else
 
