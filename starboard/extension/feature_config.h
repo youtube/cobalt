@@ -139,6 +139,11 @@ STARBOARD_FEATURE(kForceResetAudioDecoder, "ForceResetAudioDecoder", false)
 // enabling tunnel mode on all playbacks.
 STARBOARD_FEATURE(kForceTunnelMode, "ForceTunnelMode", false)
 
+// Set the following variable to true to reduce android thread stack size.
+STARBOARD_FEATURE(kReduceAndroidThreadStackSize,
+                  "ReduceAndroidThreadStackSize",
+                  false)
+
 // Set the following variable to true to reduce starboard thread stack size.
 STARBOARD_FEATURE(kReduceStarboardThreadStackSize,
                   "ReduceStarboardThreadStackSize",
