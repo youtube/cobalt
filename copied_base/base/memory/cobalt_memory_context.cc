@@ -19,15 +19,57 @@
 
 #if BUILDFLAG(IS_COBALT)
 
+#include "base/no_destructor.h"
+#include "base/threading/thread_local_storage.h"
+
+#if defined(OS_LINUX) || defined(OS_ANDROID)
+#include <sys/prctl.h>
+#endif
+#include <string_view>
+
 namespace base {
 namespace memory {
 
+namespace {
+ThreadLocalStorage::Slot& MemoryContextSlot() {
+  static NoDestructor<ThreadLocalStorage::Slot> slot;
+  return *slot;
+}
+}  // namespace
+
 MemoryContext GetCurrentMemoryContext() {
-  return internal::g_cobalt_memory_context;
+  uintptr_t val = reinterpret_cast<uintptr_t>(MemoryContextSlot().Get());
+  if (val == 0) {
+    MemoryContext context = MemoryContext::kUnknown;
+    char thread_name[16] = {0};
+#if defined(OS_LINUX) || defined(OS_ANDROID)
+    if (prctl(PR_GET_NAME, thread_name) == 0) {
+      std::string_view name(thread_name);
+      if (name.find("Media") != std::string_view::npos || name.find("Audio") != std::string_view::npos || name.find("Video") != std::string_view::npos || name.find("FFmpeg") != std::string_view::npos || name.find("Decoder") != std::string_view::npos || name.find("Vpx") != std::string_view::npos) {
+        context = MemoryContext::kMedia;
+      } else if (name.find("Network") != std::string_view::npos || name.find("IOThread") != std::string_view::npos || name.find("Socket") != std::string_view::npos) {
+        context = MemoryContext::kNetwork;
+      } else if (name.find("Script") != std::string_view::npos || name.find("V8") != std::string_view::npos || name.find("JS") != std::string_view::npos || name.find("GC") != std::string_view::npos || name.find("Scavenger") != std::string_view::npos) {
+        context = MemoryContext::kScript;
+      } else if (name.find("Graphics") != std::string_view::npos || name.find("Compositor") != std::string_view::npos || name.find("Skia") != std::string_view::npos || name.find("Ganesh") != std::string_view::npos || name.find("Raster") != std::string_view::npos) {
+        context = MemoryContext::kGraphics;
+      } else if (name.find("Browser") != std::string_view::npos || name.find("CrBrowserMain") != std::string_view::npos || name.find("CrRendererMain") != std::string_view::npos) {
+        context = MemoryContext::kBrowserMain;
+      } else if (name.find("IPC") != std::string_view::npos || name.find("Mojo") != std::string_view::npos || name.find("MessagePump") != std::string_view::npos) {
+        context = MemoryContext::kPlatformIPC;
+      }
+    }
+#endif
+    val = static_cast<uintptr_t>(context) + 1;
+    MemoryContextSlot().Set(reinterpret_cast<void*>(val));
+    return context;
+  }
+  return static_cast<MemoryContext>(val - 1);
 }
 
 void SetCurrentMemoryContext(MemoryContext context) {
-  internal::g_cobalt_memory_context = context;
+  MemoryContextSlot().Set(
+      reinterpret_cast<void*>(static_cast<uintptr_t>(context) + 1));
 }
 
 std::string_view ContextToString(MemoryContext context) {
