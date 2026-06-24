@@ -16,86 +16,66 @@
 
 #include "build/build_config.h"
 #include "starboard/shared/starboard/media/media_constants.h"
+#include "starboard/shared/starboard/media/resolutions.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "starboard/shared/starboard/features.h"
 #endif
 
 namespace starboard {
-namespace media {
 
-// The following budget variables are mutable (non-const) to allow runtime
-// experimentation and overrides (e.g., via JS web player / H5VCC).
-std::atomic<int> g_video_buffer_budget_1080p{30 * 1024 * 1024};
-std::atomic<int> g_video_buffer_budget_4k_sdr{100 * 1024 * 1024};
-std::atomic<int> g_video_buffer_budget_4k_hdr{160 * 1024 * 1024};
+namespace {
+constexpr int k1080pArea = Resolution::k1080p.width * Resolution::k1080p.height;
+constexpr int k4KArea = Resolution::k4k.width * Resolution::k4k.height;
+}  // namespace
 
-// We set the maximum memory budget to 200MB on Android (and 300MB on other
-// platforms), balancing the following factors:
-//
-// 1. 8K Video Playback
-// Playing 8K video requires significant memory for decoded frames. For
-// instance, a specific device needs to hold up to 6 frames inside its decoder,
-// which can take almost 300MB. See b/405467220#comment46 for details. Because
-// of this large requirement for decoded frames, we can't allocate too much
-// budget for encoded frames.
-//
-// 2. Chromium's Budget
-// Chromium has a max memory budget of 150MB.
-// https://github.com/youtube/cobalt/blob/a3c966f929aabea1d71813c31d404e1b319c2fcd/media/base/demuxer_memory_limit.h#L44
-#if BUILDFLAG(IS_ANDROID)
-std::atomic<int> g_video_buffer_budget_above_4k{200 * 1024 * 1024};
-#else
-std::atomic<int> g_video_buffer_budget_above_4k{300 * 1024 * 1024};
-#endif
-
-int GetAreaBasedVideoBufferBudget(Size resolution, int bits_per_pixel) {
+int GetAreaBasedVideoBufferBudget(Size video_size, int bits_per_pixel) {
   int64_t resolution_area =
-      (resolution.width <= 0 || resolution.height <= 0)
+      (video_size.width <= 0 || video_size.height <= 0)
           ? 0
-          : static_cast<int64_t>(resolution.width) * resolution.height;
+          : static_cast<int64_t>(video_size.width) * video_size.height;
 
   if (resolution_area == 0 || resolution_area <= k1080pArea) {
-    return g_video_buffer_budget_1080p.load();
+    return g_video_buffer_budget_1080p;
   } else if (resolution_area <= k4KArea) {
     if (bits_per_pixel <= 8) {
-      return g_video_buffer_budget_4k_sdr.load();
+      return g_video_buffer_budget_4k_sdr;
     } else {
-      return g_video_buffer_budget_4k_hdr.load();
+      return g_video_buffer_budget_4k_hdr;
     }
   } else {
-    return g_video_buffer_budget_above_4k.load();
+    return g_video_buffer_budget_above_4k;
   }
 }
 
-int GetLegacyVideoBufferBudget(Size resolution, int bits_per_pixel) {
-  if ((resolution.width <= 1920 && resolution.height <= 1080) ||
-      resolution.width <= 0 || resolution.height <= 0) {
-    return g_video_buffer_budget_1080p.load();
-  } else if (resolution.width <= 3840 && resolution.height <= 2160) {
+int GetLegacyVideoBufferBudget(Size video_size, int bits_per_pixel) {
+  starboard::Size resolution(video_size.width, video_size.height);
+  if (resolution.FitsWithin(starboard::Resolution::k1080p) ||
+      video_size.width <= 0 || video_size.height <= 0) {
+    return g_video_buffer_budget_1080p;
+  } else if (resolution.FitsWithin(starboard::Resolution::k4k)) {
     if (bits_per_pixel <= 8) {
-      return g_video_buffer_budget_4k_sdr.load();
+      return g_video_buffer_budget_4k_sdr;
     } else {
-      return g_video_buffer_budget_4k_hdr.load();
+      return g_video_buffer_budget_4k_hdr;
     }
   } else {
-    return g_video_buffer_budget_above_4k.load();
+    return g_video_buffer_budget_above_4k;
   }
 }
 
-int GetDefaultVideoBufferBudget(Size resolution, int bits_per_pixel) {
+int GetDefaultVideoBufferBudget(Size video_size, int bits_per_pixel) {
 #if BUILDFLAG(IS_ANDROID)
   if (starboard::features::FeatureList::IsEnabled(
           starboard::features::kAreaBasedVideoBufferBudget)) {
-    return GetAreaBasedVideoBufferBudget(resolution, bits_per_pixel);
+    return GetAreaBasedVideoBufferBudget(video_size, bits_per_pixel);
   } else {
-    return GetLegacyVideoBufferBudget(resolution, bits_per_pixel);
+    return GetLegacyVideoBufferBudget(video_size, bits_per_pixel);
   }
 #else
   // Non-Android platforms use the new area-based logic directly.
-  return GetAreaBasedVideoBufferBudget(resolution, bits_per_pixel);
+  return GetAreaBasedVideoBufferBudget(video_size, bits_per_pixel);
 #endif
 }
 
-}  // namespace media
 }  // namespace starboard

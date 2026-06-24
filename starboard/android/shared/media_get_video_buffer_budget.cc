@@ -28,7 +28,7 @@ int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
     int buffer_budget = starboard::RuntimeResourceOverlay::GetInstance()
                             ->max_video_buffer_budget();
     if (buffer_budget == 0) {
-      return starboard::media::g_video_buffer_budget_above_4k.load();
+      return starboard::g_video_buffer_budget_above_4k;
     }
     SB_LOG(INFO) << "RRO \"max_video_buffer_budget\" is set to "
                  << buffer_budget << " MB.";
@@ -38,7 +38,7 @@ int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
   static const int overlaid_video_buffer_budget =
       get_overlaid_video_buffer_budget();
 
-  int video_buffer_budget = starboard::media::GetDefaultVideoBufferBudget(
+  int video_buffer_budget = starboard::GetDefaultVideoBufferBudget(
       {resolution_width, resolution_height}, bits_per_pixel);
 
   return std::min(video_buffer_budget, overlaid_video_buffer_budget);

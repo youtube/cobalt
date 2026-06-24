@@ -18,7 +18,6 @@
 #include "starboard/common/size.h"
 
 namespace starboard {
-namespace media {
 
 // Calculates the video buffer budget based on the resolution area (width *
 // height).
@@ -32,7 +31,6 @@ int GetLegacyVideoBufferBudget(Size resolution, int bits_per_pixel);
 // and features (e.g. Android's AreaBasedVideoBufferBudget feature flag).
 int GetDefaultVideoBufferBudget(Size resolution, int bits_per_pixel);
 
-}  // namespace media
 }  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_MEDIA_MEDIA_VIDEO_BUDGET_H_
