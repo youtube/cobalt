@@ -271,7 +271,7 @@ void OnScreenKeyboard::DidUpdateSuggestions(
 }
 
 void OnScreenKeyboard::EnsureReceiverIsBound() {
-  DCHECK(GetExecutionContext());
+  CHECK(GetExecutionContext());
 
   if (on_screen_keyboard_remote_.is_bound()) {
     return;
