@@ -50,10 +50,7 @@ enum class MemoryContext : uint8_t {
 BASE_EXPORT MemoryContext GetCurrentMemoryContext();
 BASE_EXPORT void SetCurrentMemoryContext(MemoryContext context);
 
-namespace internal {
-inline thread_local MemoryContext g_cobalt_memory_context =
-    MemoryContext::kUnknown;
-}  // namespace internal
+
 
 #else
 
