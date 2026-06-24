@@ -27,7 +27,7 @@ int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
     int buffer_budget = starboard::RuntimeResourceOverlay::GetInstance()
                             ->max_video_buffer_budget();
     if (buffer_budget == 0) {
-      return starboard::g_video_buffer_budget_above_4k;
+      return starboard::kVideoBufferBudgetAbove4K;
     }
     SB_LOG(INFO) << "RRO \"max_video_buffer_budget\" is set to "
                  << buffer_budget << " MB.";

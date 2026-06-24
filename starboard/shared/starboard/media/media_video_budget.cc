@@ -35,15 +35,15 @@ int GetAreaBasedVideoBufferBudget(Size video_size, int bits_per_pixel) {
           : static_cast<int64_t>(video_size.width) * video_size.height;
 
   if (resolution_area == 0 || resolution_area <= k1080pArea) {
-    return g_video_buffer_budget_1080p;
+    return kVideoBufferBudget1080p;
   } else if (resolution_area <= k4KArea) {
     if (bits_per_pixel <= 8) {
-      return g_video_buffer_budget_4k_sdr;
+      return kVideoBufferBudget4KSdr;
     } else {
-      return g_video_buffer_budget_4k_hdr;
+      return kVideoBufferBudget4KHdr;
     }
   } else {
-    return g_video_buffer_budget_above_4k;
+    return kVideoBufferBudgetAbove4K;
   }
 }
 
@@ -51,15 +51,15 @@ int GetLegacyVideoBufferBudget(Size video_size, int bits_per_pixel) {
   starboard::Size resolution(video_size.width, video_size.height);
   if (resolution.FitsWithin(starboard::Resolution::k1080p) ||
       video_size.width <= 0 || video_size.height <= 0) {
-    return g_video_buffer_budget_1080p;
+    return kVideoBufferBudget1080p;
   } else if (resolution.FitsWithin(starboard::Resolution::k4k)) {
     if (bits_per_pixel <= 8) {
-      return g_video_buffer_budget_4k_sdr;
+      return kVideoBufferBudget4KSdr;
     } else {
-      return g_video_buffer_budget_4k_hdr;
+      return kVideoBufferBudget4KHdr;
     }
   } else {
-    return g_video_buffer_budget_above_4k;
+    return kVideoBufferBudgetAbove4K;
   }
 }
 

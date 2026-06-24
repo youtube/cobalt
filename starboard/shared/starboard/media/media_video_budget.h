@@ -20,9 +20,9 @@
 
 namespace starboard {
 
-constexpr int g_video_buffer_budget_1080p = 30 * 1024 * 1024;
-constexpr int g_video_buffer_budget_4k_sdr = 100 * 1024 * 1024;
-constexpr int g_video_buffer_budget_4k_hdr = 160 * 1024 * 1024;
+constexpr int kVideoBufferBudget1080p = 30 * 1024 * 1024;
+constexpr int kVideoBufferBudget4KSdr = 100 * 1024 * 1024;
+constexpr int kVideoBufferBudget4KHdr = 160 * 1024 * 1024;
 
 // We set the maximum memory budget to 200MB on Android (and 300MB on other
 // platforms), balancing the following factors:
@@ -38,9 +38,9 @@ constexpr int g_video_buffer_budget_4k_hdr = 160 * 1024 * 1024;
 // Chromium has a max memory budget of 150MB.
 // https://github.com/youtube/cobalt/blob/a3c966f929aabea1d71813c31d404e1b319c2fcd/media/base/demuxer_memory_limit.h#L44
 #if BUILDFLAG(IS_ANDROID)
-constexpr int g_video_buffer_budget_above_4k = 200 * 1024 * 1024;
+constexpr int kVideoBufferBudgetAbove4K = 200 * 1024 * 1024;
 #else
-constexpr int g_video_buffer_budget_above_4k = 300 * 1024 * 1024;
+constexpr int kVideoBufferBudgetAbove4K = 300 * 1024 * 1024;
 #endif  // BUILDFLAG(IS_ANDROID)
 
 // Calculates the video buffer budget based on the resolution area (width *
