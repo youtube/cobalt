@@ -1515,7 +1515,8 @@ ShellPlatformDelegate::GetOrCreatePlatformOnScreenKeyboard(Shell* shell) {
   if (!shell_data.on_screen_keyboard) {
     shell_data.on_screen_keyboard =
         std::make_unique<PlatformOnScreenKeyboardTvos>(
-            shell_data.window.rootViewController);
+            static_cast<ContentShellWindowDelegate*>(
+                shell_data.window.rootViewController));
   }
   return shell_data.on_screen_keyboard->GetWeakPtr();
 }
