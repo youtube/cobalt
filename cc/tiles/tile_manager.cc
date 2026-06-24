@@ -31,6 +31,7 @@
 #include "base/time/time.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "base/trace_event/traced_value.h"
+#include "build/build_config.h"
 #include "cc/base/devtools_instrumentation.h"
 #include "cc/base/features.h"
 #include "cc/base/histograms.h"
@@ -475,6 +476,11 @@ void TileManager::ScheduleTrimPrepaintTiles() {
 void TileManager::ReduceTileMemoryWhenIdle() {
   has_pending_idle_task_ = false;
 
+#if BUILDFLAG(IS_COBALT)
+  if (!resource_pool_)
+    return;
+#endif
+
   base::TimeDelta time_since_last_active =
       NowWithOverride() - last_active_time_;
 
@@ -500,6 +506,11 @@ void TileManager::ReduceTileMemoryWhenIdle() {
 
 void TileManager::TrimPrepaintTiles() {
   has_pending_tile_trimming_task_ = false;
+
+#if BUILDFLAG(IS_COBALT)
+  if (!resource_pool_)
+    return;
+#endif
 
   std::unique_ptr<EvictionTilePriorityQueue> eviction_priority_queue =
       client_->BuildEvictionQueue(global_state_.tree_priority);
