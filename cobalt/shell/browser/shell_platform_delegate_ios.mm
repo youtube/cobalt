@@ -956,16 +956,18 @@ const char kAllTracingCategories[] = "*";
 
 - (void)searchControllerMenuPressesBegan:(NSSet<UIPress*>*)presses
                                withEvent:(UIPressesEvent*)event {
-  UIView* native_rwhv =
-      _shell->web_contents()->GetRenderWidgetHostView()->GetNativeView().Get();
-  [native_rwhv pressesBegan:presses withEvent:event];
+  if (auto* rwhv = _shell->web_contents()->GetRenderWidgetHostView()) {
+    UIView* native_rwhv = rwhv->GetNativeView().Get();
+    [native_rwhv pressesBegan:presses withEvent:event];
+  }
 }
 
 - (void)searchControllerMenuPressesEnded:(NSSet<UIPress*>*)presses
                                withEvent:(UIPressesEvent*)event {
-  UIView* native_rwhv =
-      _shell->web_contents()->GetRenderWidgetHostView()->GetNativeView().Get();
-  [native_rwhv pressesEnded:presses withEvent:event];
+  if (auto* rwhv = _shell->web_contents()->GetRenderWidgetHostView()) {
+    UIView* native_rwhv = rwhv->GetNativeView().Get();
+    [native_rwhv pressesEnded:presses withEvent:event];
+  }
 }
 
 #pragma mark - CobaltSearchResultsControllerFocusDelegate
@@ -1051,9 +1053,9 @@ const char kAllTracingCategories[] = "*";
         constraintEqualToAnchor:_searchResultsViewController.view.bottomAnchor],
   ]];
 
-  _shell->web_contents()
-      ->GetRenderWidgetHostView()
-      ->SetAllowAutomaticViewBoundsUpdates(false);
+  if (auto* rwhv = _shell->web_contents()->GetRenderWidgetHostView()) {
+    rwhv->SetAllowAutomaticViewBoundsUpdates(false);
+  }
 
   _keyboardVisibilityState = SearchKeyboardVisibilityState::kVisible;
   if (_showOnScreenKeyboardCompletionHandler) {
@@ -1089,9 +1091,9 @@ const char kAllTracingCategories[] = "*";
         constraintEqualToAnchor:_contentView.bottomAnchor],
   ]];
 
-  _shell->web_contents()
-      ->GetRenderWidgetHostView()
-      ->SetAllowAutomaticViewBoundsUpdates(true);
+  if (auto* rwhv = _shell->web_contents()->GetRenderWidgetHostView()) {
+    rwhv->SetAllowAutomaticViewBoundsUpdates(true);
+  }
 
   _searchResultsViewController = nil;
   _keyboardVisibilityState = SearchKeyboardVisibilityState::kHidden;
