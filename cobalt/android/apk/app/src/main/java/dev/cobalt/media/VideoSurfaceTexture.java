@@ -19,7 +19,6 @@ import android.view.Surface;
 import androidx.annotation.GuardedBy;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
-import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 /**
@@ -80,7 +79,7 @@ public class VideoSurfaceTexture extends SurfaceTexture {
   }
 
   @CalledByNative
-  public @JniType("std::array<float, 16>") float[] getTransformMatrix() {
+  public float[] getTransformMatrix() {
     super.getTransformMatrix(mTransformMatrix);
     return mTransformMatrix;
   }

@@ -32,7 +32,6 @@ import java.util.Map;
 import java.util.Set;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
-import org.jni_zero.JniType;
 
 /** Utility functions for dealing with MediaCodec related things. */
 @JNINamespace("starboard")
@@ -452,8 +451,7 @@ public class MediaCodecUtil {
 
   /** Returns an array of CodecCapabilityInfo for all available decoders. */
   @CalledByNative
-  public static @JniType("std::vector<CodecCapabilityInfo>") CodecCapabilityInfo[]
-      getAllCodecCapabilityInfos() {
+  public static CodecCapabilityInfo[] getAllCodecCapabilityInfos() {
     List<CodecCapabilityInfo> codecCapabilityInfos = new ArrayList<>();
 
     for (MediaCodecInfo codecInfo : new MediaCodecList(MediaCodecList.ALL_CODECS).getCodecInfos()) {
