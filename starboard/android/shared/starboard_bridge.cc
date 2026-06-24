@@ -311,6 +311,11 @@ SB_EXPORT_ANDROID std::string StarboardBridge::GetFriendlyName(JNIEnv* env) {
   return ConvertJavaStringToUTF8(env, friendly_name_java);
 }
 
+SB_EXPORT_ANDROID double StarboardBridge::GetScreenDiagonal(JNIEnv* env) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_getScreenDiagonal(env, j_starboard_bridge_);
+}
+
 SB_EXPORT_ANDROID void StarboardBridge::CloseApp(JNIEnv* env) {
   SB_DCHECK(env);
   return Java_StarboardBridge_closeApp(env, j_starboard_bridge_);
