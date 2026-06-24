@@ -24,6 +24,13 @@ struct Size {
   constexpr Size() : width(0), height(0) {}
   constexpr Size(int width, int height) : width(width), height(height) {}
 
+  constexpr bool IsEmpty() const { return width <= 0 || height <= 0; }
+  constexpr int GetArea() const { return width * height; }
+
+  constexpr bool FitsWithin(Size other) const {
+    return width <= other.width && height <= other.height;
+  }
+
   constexpr bool operator==(const Size& other) const {
     return width == other.width && height == other.height;
   }

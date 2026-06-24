@@ -19,6 +19,7 @@
 #include "starboard/android/shared/max_media_codec_output_buffers_lookup_table.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/common/size.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -107,7 +108,7 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
 
   return MediaCapabilitiesCache::GetInstance()->HasVideoDecoderFor(
       mime, require_secure_playback, must_support_hdr, must_support_tunnel_mode,
-      frame_width, frame_height, bitrate, fps);
+      Size(frame_width, frame_height), bitrate, fps);
 }
 
 }  // namespace starboard
