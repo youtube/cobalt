@@ -2,13 +2,13 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/features.gni")
+import("//chrome/common/features.gni")
 import("//content/browser/devtools/features.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//printing/buildflags/buildflags.gni")
 
 if (enable_devtools_frontend) {
-  import("//build/config/features.gni")
-  import("//chrome/common/features.gni")
   import("//tools/grit/grit_rule.gni")
 }
 
@@ -127,20 +127,34 @@ static_library("devtools") {
     # Similar bandaid as the above. Since we cannot depend on
     # //chrome/browser:browser, we include indirect dependencies here.
     ":protocol_generated_sources",
-    "//chrome/browser/autofill:autofill",
+    "//chrome/browser:browser_process",
+    "//chrome/browser/autofill",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/profiles:profile_util",
     "//chrome/browser/profiles/keep_alive",
-    "//components/autofill/content/browser:browser",
-    "//components/autofill/core/browser:browser",
+    "//chrome/browser/task_manager",
+    "//chrome/browser/ui/hats",
+    "//chrome/browser/ui/prefs",
+    "//components/autofill/content/browser",
+    "//components/autofill/core/browser",
     "//components/enterprise/buildflags",
-    "//components/paint_preview/buildflags:buildflags",
-    "//components/variations/service:service",
-    "//components/webapps/common:common",
+    "//components/infobars/content",
+    "//components/infobars/core",
+    "//components/javascript_dialogs",
+    "//components/language/core/browser",
+    "//components/metrics/structured:structured_events",
+    "//components/paint_preview/buildflags",
+    "//components/privacy_sandbox:tracking_protection_settings",
+    "//components/variations/service",
+    "//components/viz/host",
+    "//components/webapps/common",
     "//content/public/browser",
     "//net",
     "//services/metrics/public/cpp:ukm_builders",
     "//services/viz/privileged/mojom/compositing",
     "//third_party/blink/public:buildflags",
     "//ui/events:dom_keycode_converter",
+    "//ui/shell_dialogs",
   ]
 
   if (enable_devtools_frontend) {
@@ -179,22 +193,6 @@ static_library("devtools") {
       "url_constants.h",
       "visual_logging.cc",
       "visual_logging.h",
-    ]
-    deps += [
-      "//chrome/browser:browser_process",
-      "//chrome/browser/profiles:profile",
-      "//chrome/browser/profiles:profile_util",
-      "//chrome/browser/task_manager",
-      "//chrome/browser/ui/hats",
-      "//chrome/browser/ui/prefs",
-      "//components/infobars/content",
-      "//components/infobars/core",
-      "//components/javascript_dialogs",
-      "//components/language/core/browser",
-      "//components/metrics/structured:structured_events",
-      "//components/privacy_sandbox:tracking_protection_settings",
-      "//components/viz/host",
-      "//ui/shell_dialogs",
     ]
   }
 
@@ -235,9 +233,9 @@ static_library("devtools") {
       "//components/keyed_service/content",
       "//components/pref_registry",
       "//components/prefs",
-      "//components/search_engines:search_engines",
+      "//components/search_engines",
       "//components/sessions",
-      "//components/signin/public/identity_manager:identity_manager",
+      "//components/signin/public/identity_manager",
       "//components/sync/service",
       "//components/sync_preferences",
       "//components/web_modal",
@@ -331,7 +329,7 @@ static_library("devtools") {
       "//components/payments/content",
       "//components/privacy_sandbox/privacy_sandbox_attestations",
       "//components/security_state/content",
-      "//components/subresource_filter/content/browser:browser",
+      "//components/subresource_filter/content/browser",
       "//components/webapps/browser",
       "//third_party/blink/public/common:headers",
       "//third_party/inspector_protocol:crdtp",

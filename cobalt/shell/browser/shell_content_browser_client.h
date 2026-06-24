@@ -119,8 +119,10 @@ class ShellContentBrowserClient : public ContentBrowserClient {
   void OverrideWebPreferences(WebContents* web_contents,
                               SiteInstance& main_frame_site,
                               blink::web_pref::WebPreferences* prefs) override;
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   std::unique_ptr<content::DevToolsManagerDelegate>
   CreateDevToolsManagerDelegate() override;
+#endif
   void ExposeInterfacesToRenderer(
       service_manager::BinderRegistry* registry,
       blink::AssociatedInterfaceRegistry* associated_registry,

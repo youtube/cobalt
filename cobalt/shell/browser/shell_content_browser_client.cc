@@ -438,10 +438,12 @@ void ShellContentBrowserClient::OverrideWebPreferences(
   }
 }
 
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 std::unique_ptr<content::DevToolsManagerDelegate>
 ShellContentBrowserClient::CreateDevToolsManagerDelegate() {
   return std::make_unique<ShellDevToolsManagerDelegate>(browser_context());
 }
+#endif
 
 void ShellContentBrowserClient::ExposeInterfacesToRenderer(
     service_manager::BinderRegistry* registry,

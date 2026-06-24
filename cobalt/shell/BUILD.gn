@@ -15,6 +15,8 @@
 import("//build/buildflag_header.gni")
 import("//build/config/cast.gni")
 import("//build/config/ui.gni")
+import("//cobalt/build/configs/cobalt.gni")
+import("//content/browser/devtools/features.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 import("//starboard/build/buildflags.gni")
 import("//tools/grit/grit_rule.gni")
@@ -65,9 +67,9 @@ group("cobalt_shell_lib_deps") {
     "//base:base_static",
     "//cc/base",
     "//cobalt/browser:switches",
-    "//cobalt/browser/crash_annotator/public/mojom:mojom",
+    "//cobalt/browser/crash_annotator/public/mojom",
     "//cobalt/browser/h5vcc_runtime",
-    "//cobalt/browser/lifecycle:lifecycle",
+    "//cobalt/browser/lifecycle",
     "//cobalt/shell/browser/migrate_storage_record",
     "//components/cdm/renderer",
     "//components/crash/content/browser",
@@ -220,12 +222,6 @@ static_library("cobalt_shell_lib") {
     "browser/shell_content_browser_client.h",
     "browser/shell_content_index_provider.cc",
     "browser/shell_content_index_provider.h",
-    "browser/shell_devtools_bindings.cc",
-    "browser/shell_devtools_bindings.h",
-    "browser/shell_devtools_frontend.cc",
-    "browser/shell_devtools_frontend.h",
-    "browser/shell_devtools_manager_delegate.cc",
-    "browser/shell_devtools_manager_delegate.h",
     "browser/shell_javascript_dialog.h",
     "browser/shell_javascript_dialog_manager.cc",
     "browser/shell_javascript_dialog_manager.h",
@@ -247,6 +243,17 @@ static_library("cobalt_shell_lib") {
     "renderer/shell_content_renderer_client.cc",
     "renderer/shell_content_renderer_client.h",
   ]
+
+  if (!cobalt_is_release_build) {
+    sources += [
+      "browser/shell_devtools_bindings.cc",
+      "browser/shell_devtools_bindings.h",
+      "browser/shell_devtools_frontend.cc",
+      "browser/shell_devtools_frontend.h",
+      "browser/shell_devtools_manager_delegate.cc",
+      "browser/shell_devtools_manager_delegate.h",
+    ]
+  }
 
   if (is_android) {
     sources += [
@@ -435,7 +442,7 @@ repack("pak") {
     sources +=
         [ "$root_gen_dir/ui/views/resources/views_resources_100_percent.pak" ]
   }
-  if (!is_android && !is_ios) {
+  if (!is_android && !is_ios && enable_devtools_frontend) {
     sources +=
         [ "$root_gen_dir/content/browser/devtools/devtools_resources.pak" ]
     deps += [ "//content/browser/devtools:devtools_resources" ]
