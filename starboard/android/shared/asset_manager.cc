@@ -26,6 +26,7 @@
 #include <mutex>
 
 #include "starboard/android/shared/file_internal.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
@@ -95,9 +96,9 @@ int AssetManager::Open(const char* path, int oflag) {
   int fd =
       open(filepath.c_str(), O_RDWR | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR);
   if (fd < 0) {
-    mutex_.Acquire();
+    mutex_.lock();
     in_use_internal_fd_set_.erase(internal_fd);
-    mutex_.Release();
+    mutex_.unlock();
     return -1;
   }
 
@@ -106,29 +107,29 @@ int AssetManager::Open(const char* path, int oflag) {
   const void* const data = AAsset_getBuffer(asset);
   if (write(fd, data, size) != size || lseek(fd, 0, SEEK_SET) != 0) {
     SB_LOG(WARNING) << "Failed to write temporary file for asset: " << path;
-    mutex_.Acquire();
+    mutex_.lock();
     in_use_internal_fd_set_.erase(internal_fd);
-    mutex_.Release();  // Can't hold lock when calling close();
+    mutex_.unlock();  // Can't hold lock when calling close();
     close(fd);
     return -1;
   }
   AAsset_close(asset);
 
   // Keep track of the internal fd so we can delete its file on close();
-  mutex_.Acquire();
+  mutex_.lock();
   fd_to_internal_fd_map_[fd] = internal_fd;
-  mutex_.Release();
+  mutex_.unlock();
   return fd;
 }
 
 int AssetManager::Close(int fd) {
-  mutex_.Acquire();
+  mutex_.lock();
   if (auto search = fd_to_internal_fd_map_.find(fd);
       search != fd_to_internal_fd_map_.end()) {
     uint64_t internal_fd = search->second;
     fd_to_internal_fd_map_.erase(search);
     in_use_internal_fd_set_.erase(internal_fd);
-    mutex_.Release();  // Can't hold lock when calling close();
+    mutex_.unlock();  // Can't hold lock when calling close();
     int retval = close(fd);
     std::string filepath = TempFilepath(internal_fd);
     if (unlink(filepath.c_str()) != 0) {
@@ -136,7 +137,7 @@ int AssetManager::Close(int fd) {
     }
     return retval;
   }
-  mutex_.Release();
+  mutex_.unlock();
   return -1;
 }
 
