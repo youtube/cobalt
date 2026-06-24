@@ -123,10 +123,6 @@ static_library("starboard_platform") {
     "android_media_session_client.cc",
     "application_android.cc",
     "application_android.h",
-
-    # TODO: b/374300500 - posix_emu things should not be used on Android anymore
-    # "asset_manager.cc",
-    # "asset_manager.h",
     "audio_decoder_passthrough.h",
     "audio_output_manager.cc",
     "audio_output_manager.h",
@@ -222,9 +218,7 @@ static_library("starboard_platform") {
     # TODO: b/374300500 - posix_emu things should not be used on Android anymore
     # "posix_emu/dirent.cc",
     # "posix_emu/errno.cc",
-    # "posix_emu/file.cc",
     # "posix_emu/pthread.cc",
-    # "posix_emu/stat.cc",
 
     "runtime_resource_overlay.cc",
     "runtime_resource_overlay.h",
@@ -333,6 +327,11 @@ static_library("starboard_platform") {
       "//starboard/shared/starboard/crash_handler.h",
       "//starboard/shared/starboard/loader_app_metrics.cc",
       "//starboard/shared/starboard/loader_app_metrics.h",
+      "asset_manager.cc",
+      "asset_manager.h",
+      "posix_emu/access.cc",
+      "posix_emu/file.cc",
+      "posix_emu/stat.cc",
     ]
 
     public_deps += [
