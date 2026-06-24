@@ -27,9 +27,12 @@ namespace base {
 namespace memory {
 
 #if defined(__GNUC__)
-__attribute__((weak))
+#define MAYBE_COBALT_WEAK __attribute__((weak))
+#else
+#define MAYBE_COBALT_WEAK
 #endif
-pthread_key_t GetSharedMemoryContextKey() {
+
+MAYBE_COBALT_WEAK pthread_key_t GetSharedMemoryContextKey() {
   static std::atomic<intptr_t> g_key{-1};
   intptr_t key = g_key.load(std::memory_order_acquire);
   if (key == -1) {
@@ -46,7 +49,7 @@ pthread_key_t GetSharedMemoryContextKey() {
   return static_cast<pthread_key_t>(key);
 }
 
-MemoryContext GetCurrentMemoryContext() {
+MAYBE_COBALT_WEAK MemoryContext GetCurrentMemoryContext() {
   uintptr_t val = reinterpret_cast<uintptr_t>(pthread_getspecific(GetSharedMemoryContextKey()));
   if (val == 0) {
     MemoryContext context = MemoryContext::kUnknown;
@@ -76,12 +79,12 @@ MemoryContext GetCurrentMemoryContext() {
   return static_cast<MemoryContext>(val - 1);
 }
 
-void SetCurrentMemoryContext(MemoryContext context) {
+MAYBE_COBALT_WEAK void SetCurrentMemoryContext(MemoryContext context) {
   pthread_setspecific(GetSharedMemoryContextKey(),
                       reinterpret_cast<void*>(static_cast<uintptr_t>(context) + 1));
 }
 
-std::string_view ContextToString(MemoryContext context) {
+MAYBE_COBALT_WEAK std::string_view ContextToString(MemoryContext context) {
   switch (context) {
     case MemoryContext::kUnknown:
       return "Unknown";

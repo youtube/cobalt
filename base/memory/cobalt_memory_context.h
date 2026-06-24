@@ -55,8 +55,8 @@ enum class MemoryContext : uint8_t {
 #endif
 
 MAYBE_COBALT_WEAK pthread_key_t GetSharedMemoryContextKey();
-BASE_EXPORT MemoryContext GetCurrentMemoryContext();
-BASE_EXPORT void SetCurrentMemoryContext(MemoryContext context);
+MAYBE_COBALT_WEAK MemoryContext GetCurrentMemoryContext();
+MAYBE_COBALT_WEAK void SetCurrentMemoryContext(MemoryContext context);
 
 #else
 
@@ -105,7 +105,7 @@ class BASE_EXPORT ScopedMemoryContext {
 };
 
 #if BUILDFLAG(IS_COBALT)
-BASE_EXPORT std::string_view ContextToString(MemoryContext context);
+MAYBE_COBALT_WEAK std::string_view ContextToString(MemoryContext context);
 #else
 inline std::string_view ContextToString(MemoryContext context) {
   return "Unknown";
