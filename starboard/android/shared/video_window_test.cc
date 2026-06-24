@@ -35,7 +35,6 @@ class VideoDecoderSurfaceTest : public ::testing::Test {
  protected:
   void SetUp() override {
     env_ = jni_zero::AttachCurrentThread();
-    ASSERT_NE(env_, nullptr);
 
     real_surface_ = VideoSurfaceTextureBridge::CreateSurfaceForTesting(env_);
     ASSERT_TRUE(real_surface_);
@@ -123,7 +122,7 @@ TEST_F(VideoDecoderSurfaceTest, TeardownDuringSurfaceDestroyReleasesSurface) {
     std::atomic<bool>& done_;
   };
 
-  auto start_time = std::chrono::steady_clock::now();
+  auto start_time = CurrentMonotonicTime();
   JniSimThread jni_sim_thread(jni_thread_done);
   jni_sim_thread.Start();
 
@@ -141,10 +140,9 @@ TEST_F(VideoDecoderSurfaceTest, TeardownDuringSurfaceDestroyReleasesSurface) {
   shared_decoder.reset();
 
   jni_sim_thread.Join();
-  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-      std::chrono::steady_clock::now() - start_time);
-  EXPECT_LT(duration.count(), 800);  // Expect less than 800ms (should be ~100ms
-                                     // with fix, 1000ms with deadlock)
+  auto duration = CurrentMonotonicTime() - start_time;
+  EXPECT_LT(duration, 800'000);  // Expect less than 800ms (should be ~100ms
+                                 // with fix, 1000ms with deadlock)
 
   SB_LOG(INFO) << "Stopping job thread...";
   job_thread->Stop();
