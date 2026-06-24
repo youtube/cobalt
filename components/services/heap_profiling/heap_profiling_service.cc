@@ -124,6 +124,10 @@ mojo::PendingRemote<mojom::ProfilingService> LaunchService(
     mojo::PendingRemote<memory_instrumentation::mojom::HeapProfilerHelper>
         helper) {
   mojo::PendingRemote<mojom::ProfilingService> remote;
+#if BUILDFLAG(SUPPORT_SINGLE_PROCESS_PROFILING)
+  RunHeapProfilingService(remote.InitWithNewPipeAndPassReceiver(),
+                          std::move(profiler_receiver), std::move(helper));
+#else
   auto task_runner = base::ThreadPool::CreateSingleThreadTaskRunner(
       {base::TaskPriority::BEST_EFFORT, base::WithBaseSyncPrimitives()},
       base::SingleThreadTaskRunnerThreadMode::DEDICATED);
@@ -132,6 +136,7 @@ mojo::PendingRemote<mojom::ProfilingService> LaunchService(
       base::BindOnce(&RunHeapProfilingService,
                      remote.InitWithNewPipeAndPassReceiver(),
                      std::move(profiler_receiver), std::move(helper)));
+#endif
   return remote;
 }
 

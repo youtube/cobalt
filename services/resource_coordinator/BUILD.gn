@@ -94,6 +94,7 @@ if (is_cobalt) {
       "public/cpp/memory_instrumentation/smaps_categorizer_unittest.cc",
       "public/cpp/memory_instrumentation/tracing_observer_proto_unittest.cc",
       "public/cpp/memory_instrumentation/os_metrics_unittest.cc",
+      "memory_instrumentation/coordinator_impl_unittest.cc",
     ]
     deps = [
       ":lib",

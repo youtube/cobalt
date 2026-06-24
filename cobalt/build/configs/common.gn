@@ -1,3 +1,5 @@
+import("//cobalt/build/configs/cobalt.gni")
+
 is_cobalt = true
 
 # Disable Chrome Remote Desktop.
@@ -98,3 +100,6 @@ enable_backup_ref_ptr_feature_flag = false
 # Disable vectorized HTML scanning (SIMD speedups for HTML parsing
 # are not needed).
 enable_vectorized_html_scanning = false
+
+# Enable in-process heap profiling for Cobalt in non-official/devel builds.
+support_single_process_profiling = !cobalt_is_release_build

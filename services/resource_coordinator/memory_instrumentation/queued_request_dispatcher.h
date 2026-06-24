@@ -15,6 +15,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/trace_event/memory_dump_request_args.h"
 #include "services/resource_coordinator/memory_instrumentation/coordinator_impl.h"
+#include "mojo/public/cpp/bindings/shared_remote.h"
 #include "services/resource_coordinator/memory_instrumentation/queued_request.h"
 #include "third_party/perfetto/include/perfetto/ext/trace_processor/importers/memory_tracker/graph.h"
 
@@ -39,14 +40,25 @@ class QueuedRequestDispatcher {
                      std::vector<memory_instrumentation::mojom::VmRegionPtr>>;
 
   struct ClientInfo {
+#if BUILDFLAG(SUPPORT_SINGLE_PROCESS_PROFILING)
+    ClientInfo(mojo::SharedRemote<mojom::ClientProcess> client,
+               base::ProcessId pid,
+               mojom::ProcessType process_type,
+               std::optional<std::string> service_name);
+#else
     ClientInfo(mojom::ClientProcess* client,
                base::ProcessId pid,
                mojom::ProcessType process_type,
                std::optional<std::string> service_name);
+#endif
     ClientInfo(ClientInfo&& other);
     ~ClientInfo();
 
+#if BUILDFLAG(SUPPORT_SINGLE_PROCESS_PROFILING)
+    const mojo::SharedRemote<mojom::ClientProcess> client;
+#else
     const raw_ptr<mojom::ClientProcess> client;
+#endif
     const base::ProcessId pid;
     const mojom::ProcessType process_type;
     const std::optional<std::string> service_name;

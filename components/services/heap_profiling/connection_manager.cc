@@ -275,6 +275,11 @@ void ConnectionManager::HeapProfileRetrieved(
     bool strip_path_from_mapped_files,
     uint32_t sampling_rate,
     mojom::HeapProfilePtr profile) {
+#if BUILDFLAG(SUPPORT_SINGLE_PROCESS_PROFILING)
+  LOG(INFO) << "ConnectionManager::HeapProfileRetrieved: Retrieved profile with "
+            << (profile ? profile->samples.size() : 0)
+            << " samples for PID " << pid;
+#endif
   // All code paths through here must issue the callback when waiting_responses
   // is 0 or the browser will wait forever for the dump.
   DCHECK(tracking->waiting_responses > 0);

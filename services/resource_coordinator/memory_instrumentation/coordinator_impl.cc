@@ -96,12 +96,23 @@ void CoordinatorImpl::RegisterClientProcess(
     base::ProcessId process_id,
     const std::optional<std::string>& service_name) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if BUILDFLAG(SUPPORT_SINGLE_PROCESS_PROFILING)
+  mojo::SharedRemote<mojom::ClientProcess> process(std::move(client_process));
+#else
   mojo::Remote<mojom::ClientProcess> process(std::move(client_process));
+#endif
   if (receiver.is_valid())
     coordinator_receivers_.Add(this, std::move(receiver), process_id);
+#if BUILDFLAG(SUPPORT_SINGLE_PROCESS_PROFILING)
+  process.set_disconnect_handler(
+      base::BindOnce(&CoordinatorImpl::UnregisterClientProcess,
+                     weak_ptr_factory_.GetWeakPtr(), process_id),
+      base::SequencedTaskRunner::GetCurrentDefault());
+#else
   process.set_disconnect_handler(
       base::BindOnce(&CoordinatorImpl::UnregisterClientProcess,
                      base::Unretained(this), process_id));
+#endif
   auto result = clients_.emplace(
       process_id, std::make_unique<ClientInfo>(std::move(process), process_type,
                                                service_name));
@@ -212,9 +223,15 @@ void CoordinatorImpl::GetVmRegionsForHeapProfiler(
   std::vector<QueuedRequestDispatcher::ClientInfo> clients;
   for (const auto& entry : clients_) {
     const base::ProcessId pid = entry.first;
+#if BUILDFLAG(SUPPORT_SINGLE_PROCESS_PROFILING)
+    clients.emplace_back(entry.second->client, pid,
+                         entry.second->process_type,
+                         entry.second->service_name);
+#else
     clients.emplace_back(entry.second->client.get(), pid,
                          entry.second->process_type,
                          entry.second->service_name);
+#endif
   }
 
   QueuedVmRegionRequest* request_ptr =
@@ -365,9 +382,15 @@ void CoordinatorImpl::PerformNextQueuedGlobalMemoryDump() {
   std::vector<QueuedRequestDispatcher::ClientInfo> clients;
   for (const auto& entry : clients_) {
     const base::ProcessId pid = entry.first;
+#if BUILDFLAG(SUPPORT_SINGLE_PROCESS_PROFILING)
+    clients.emplace_back(entry.second->client, pid,
+                         entry.second->process_type,
+                         entry.second->service_name);
+#else
     clients.emplace_back(entry.second->client.get(), pid,
                          entry.second->process_type,
                          entry.second->service_name);
+#endif
   }
 
   auto chrome_callback =
@@ -515,6 +538,9 @@ void CoordinatorImpl::OnDumpProcessesForTracing(
     uint64_t dump_guid,
     std::vector<mojom::HeapProfileResultPtr> heap_profile_results) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if BUILDFLAG(SUPPORT_SINGLE_PROCESS_PROFILING)
+  LOG(INFO) << "CoordinatorImpl::OnDumpProcessesForTracing: Received " << heap_profile_results.size() << " heap profile results for dump " << dump_guid;
+#endif
   QueuedRequest* request = GetCurrentRequest();
   if (!request || request->dump_guid != dump_guid) {
     return;
@@ -528,10 +554,23 @@ void CoordinatorImpl::OnDumpProcessesForTracing(
 
     // Using the same id merges all of the heap dumps into a single detailed
     // dump node in the UI.
+#if BUILDFLAG(SUPPORT_SINGLE_PROCESS_PROFILING)
+    // Force enable the memory-infra category group state byte in Cobalt to
+    // ensure periodic dumps are added to the trace regardless of local tracing
+    // session category filter state.
+    const unsigned char* category_enabled =
+        base::trace_event::TraceLog::GetCategoryGroupEnabled(
+            base::trace_event::MemoryDumpManager::kTraceCategory);
+    *const_cast<unsigned char*>(category_enabled) = 1;
+#else
+    const unsigned char* category_enabled =
+        base::trace_event::TraceLog::GetCategoryGroupEnabled(
+            base::trace_event::MemoryDumpManager::kTraceCategory);
+#endif
+
     TRACE_EVENT_API_ADD_TRACE_EVENT_WITH_PROCESS_ID(
         TRACE_EVENT_PHASE_MEMORY_DUMP,
-        base::trace_event::TraceLog::GetCategoryGroupEnabled(
-            base::trace_event::MemoryDumpManager::kTraceCategory),
+        category_enabled,
         "periodic_interval", trace_event_internal::kGlobalScope, dump_guid,
         result->pid, &args, TRACE_EVENT_FLAG_HAS_ID);
   }
@@ -581,7 +620,7 @@ void CoordinatorImpl::FinalizeGlobalMemoryDumpIfAllManagersReplied() {
 }
 
 CoordinatorImpl::ClientInfo::ClientInfo(
-    mojo::Remote<mojom::ClientProcess> client,
+    mojo::SharedRemote<mojom::ClientProcess> client,
     mojom::ProcessType process_type,
     std::optional<std::string> service_name)
     : client(std::move(client)),

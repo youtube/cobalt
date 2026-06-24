@@ -93,6 +93,13 @@ source_set("browser") {
     "//starboard:starboard_group",
   ]
 
+  if (support_single_process_profiling) {
+    deps += [
+      "//components/services/heap_profiling",
+      "//components/services/heap_profiling/public/cpp",
+    ]
+  }
+
   if (is_androidtv) {
     deps += [
       "//cobalt/android:browser_jni_headers",

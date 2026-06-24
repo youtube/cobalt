@@ -18,11 +18,13 @@
 
 #include "base/check.h"
 #include "base/command_line.h"
+#include "base/location.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/sequence_checker.h"
 #include "base/task/bind_post_task.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
@@ -34,11 +36,20 @@
 #include "cobalt/shell/common/shell_paths.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
+#if !defined(OFFICIAL_BUILD)
+#include "components/services/heap_profiling/heap_profiling_service.h"
+#include "components/services/heap_profiling/public/cpp/profiling_client.h"
+#include "components/services/heap_profiling/public/mojom/heap_profiling_service.mojom.h"
+#endif
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/resource_coordinator_service.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/client_process_impl.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
+#if !defined(OFFICIAL_BUILD)
+#include "services/tracing/public/cpp/trace_startup.h"
+#endif
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "base/android/memory_pressure_listener_android.h"
@@ -57,38 +68,61 @@ namespace cobalt {
 
 namespace {
 
-void InitializeBrowserMemoryInstrumentationClient() {
-  if (memory_instrumentation::MemoryInstrumentation::GetInstance()) {
+#if BUILDFLAG(SUPPORT_SINGLE_PROCESS_PROFILING)
+void RegisterCobaltHeapProfilerOnDumpThread() {
+  LOG(INFO) << "RegisterCobaltHeapProfilerOnDumpThread: Initializing heap "
+               "profiling service on Dump Thread...";
+
+  // 1. Register the heap profiler with the memory instrumentation registry
+  // (safely on Dump Thread).
+  mojo::PendingRemote<memory_instrumentation::mojom::HeapProfilerHelper> helper;
+  mojo::PendingRemote<memory_instrumentation::mojom::HeapProfiler> profiler;
+  auto profiler_receiver = profiler.InitWithNewPipeAndPassReceiver();
+  content::GetMemoryInstrumentationRegistry()->RegisterHeapProfiler(
+      std::move(profiler), helper.InitWithNewPipeAndPassReceiver());
+
+  // 2. Launch the heap profiling service, passing the receiver and helper.
+  static base::NoDestructor<
+      mojo::Remote<heap_profiling::mojom::ProfilingService>>
+      g_profiling_service;
+  g_profiling_service->Bind(heap_profiling::LaunchService(
+      std::move(profiler_receiver), std::move(helper)));
+
+  // 3. Create and bind our local ProfilingClient.
+  static base::NoDestructor<heap_profiling::ProfilingClient> g_profiling_client;
+  mojo::PendingRemote<heap_profiling::mojom::ProfilingClient> client_remote;
+  g_profiling_client->BindToInterface(
+      client_remote.InitWithNewPipeAndPassReceiver());
+
+  // 4. Add our process as a profiling client to the profiling service.
+  auto params = heap_profiling::mojom::ProfilingParams::New();
+  params->sampling_rate = 128 * 1024;  // 128KB sampling rate
+  params->stack_mode =
+      heap_profiling::mojom::StackMode::NATIVE_WITHOUT_THREAD_NAMES;
+
+  (*g_profiling_service)
+      ->AddProfilingClient(
+          base::GetCurrentProcId(), std::move(client_remote),
+          heap_profiling::mojom::ProcessType::BROWSER, std::move(params),
+          base::BindOnce([](bool success) {
+            LOG(INFO) << "Cobalt Heap Profiler Client added successfully: "
+                      << success;
+          }));
+}
+
+void InitializeCobaltHeapProfiler() {
+  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "enable-heap-profiling")) {
     return;
   }
-
+  LOG(INFO) << "InitializeCobaltHeapProfiler: Posting initialization task to "
+               "Dump Thread...";
   auto task_runner = base::trace_event::MemoryDumpManager::GetInstance()
                          ->GetDumpThreadTaskRunner();
-  if (!task_runner->RunsTasksInCurrentSequence()) {
-    task_runner->PostTask(
-        FROM_HERE,
-        base::BindOnce(&InitializeBrowserMemoryInstrumentationClient));
-    return;
-  }
-
-  if (memory_instrumentation::MemoryInstrumentation::GetInstance()) {
-    return;
-  }
-
-  // Register the browser process as a memory-instrumentation client.
-  // This replicates content::InitializeBrowserMemoryInstrumentationClient()
-  // while avoiding unauthorized header includes.
-  mojo::PendingRemote<memory_instrumentation::mojom::Coordinator> coordinator;
-  mojo::PendingRemote<memory_instrumentation::mojom::ClientProcess> process;
-  auto process_receiver = process.InitWithNewPipeAndPassReceiver();
-  content::GetMemoryInstrumentationRegistry()->RegisterClientProcess(
-      coordinator.InitWithNewPipeAndPassReceiver(), std::move(process),
-      memory_instrumentation::mojom::ProcessType::BROWSER,
-      base::GetCurrentProcId(), /*service_name=*/std::nullopt);
-  memory_instrumentation::ClientProcessImpl::CreateInstance(
-      std::move(process_receiver), std::move(coordinator),
-      /*is_browser_process=*/true);
+  task_runner->PostTask(
+      FROM_HERE, base::BindOnce(&RegisterCobaltHeapProfilerOnDumpThread));
 }
+#endif  // BUILDFLAG(SUPPORT_SINGLE_PROCESS_PROFILING)
 
 }  // namespace
 
@@ -107,12 +141,24 @@ CobaltBrowserMainParts::CobaltBrowserMainParts(const std::string& deep_link,
     : ShellBrowserMainParts(deep_link, is_visible) {}
 
 int CobaltBrowserMainParts::PreCreateThreads() {
+  LOG(INFO) << "Native CommandLine: "
+            << base::CommandLine::ForCurrentProcess()->GetCommandLineString();
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(17);
 #endif
   SetupMetrics();
 
-  InitializeBrowserMemoryInstrumentationClient();
+#if !defined(OFFICIAL_BUILD)
+  // Manually initialize Perfetto tracing post-FeatureList on Android.
+  // This is required because Cobalt bypasses
+  // ContentMainRunnerImpl::RunBrowser() which normally initializes tracing in
+  // standard Chromium.
+  tracing::InitTracingPostFeatureList(/*enable_consumer=*/true);
+#endif
+
+#if BUILDFLAG(SUPPORT_SINGLE_PROCESS_PROFILING)
+  InitializeCobaltHeapProfiler();
+#endif
 
 #if BUILDFLAG(IS_ANDROIDTV)
   base::android::MemoryPressureListenerAndroid::Initialize(
