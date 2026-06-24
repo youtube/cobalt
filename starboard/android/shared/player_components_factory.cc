@@ -237,6 +237,11 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
     AudioRendererSink::Reset();
   }
 
+  void Stop() override {
+    is_flushed_ = false;
+    AudioRendererSinkImpl::Stop();
+  }
+
   const bool is_tunnel_mode_enabled_;
   const bool enable_video_renderer_vsp_adjustment_;
   const bool allow_flush_during_seek_;
@@ -289,10 +294,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     if (experimental_features.enable_av1_startup_optimization) {
       MediaCapabilitiesCache::GetInstance()->SetAv1OptEnabled(true);
       SB_LOG(INFO) << "`enable_av1_startup_optimization` is set to true.";
-    }
-    if (experimental_features.disable_low_performance_sw_decoder) {
-      MediaCapabilitiesCache::GetInstance()->SetSoftwareDecoderEnabled(false);
-      SB_LOG(INFO) << "`disable_low_performance_sw_decoder` is set to true.";
     }
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecAc3 &&
         creation_parameters.audio_codec() != kSbMediaAudioCodecEac3) {

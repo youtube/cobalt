@@ -12,12 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This is automatically generated. Do not edit.
+#include <errno.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
-#ifndef CONTENT_PUBLIC_COMMON_CONTENT_MILESTONE_FEATURES_H_
-#define CONTENT_PUBLIC_COMMON_CONTENT_MILESTONE_FEATURES_H_
+extern "C" {
 
-#define CHROMIUM_MILESTONE @MAJOR@
-#define CHROMIUM_MILESTONE_LE_138 (@MAJOR@ <= 138)
+int __wrap_access(const char* path, int mode) {
+  struct stat info;
+  if (fstatat(AT_FDCWD, path, &info, 0) != 0) {
+    return -1;
+  }
 
-#endif  // CONTENT_PUBLIC_COMMON_CONTENT_MILESTONE_FEATURES_H_
+  if (mode == F_OK) {
+    return 0;
+  }
+
+  if ((mode & R_OK) && !(info.st_mode & S_IRUSR)) {
+    errno = EACCES;
+    return -1;
+  }
+  if ((mode & W_OK) && !(info.st_mode & S_IWUSR)) {
+    errno = EACCES;
+    return -1;
+  }
+  if ((mode & X_OK) && !(info.st_mode & S_IXUSR)) {
+    errno = EACCES;
+    return -1;
+  }
+
+  return 0;
+}
+
+}  // extern "C"

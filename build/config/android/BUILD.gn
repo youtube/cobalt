@@ -6,8 +6,9 @@ import("//build/config/android/rules.gni")
 import("//build/config/c++/c++.gni")
 import("//build/config/compiler/compiler.gni")
 import("//build/config/sanitizers/sanitizers.gni")
+import("//starboard/build/config/android_toolchain.gni")
 
-if (current_toolchain == default_toolchain) {
+if (current_toolchain == android_toolchain) {
   import("//build/toolchain/concurrent_links.gni")
 }
 
@@ -137,7 +138,7 @@ config("default_orderfile_instrumentation") {
   }
 }
 
-if (current_toolchain == default_toolchain) {
+if (current_toolchain == android_toolchain) {
   # nocompile tests share output directory to avoid them all needing to rebuild
   # things. But this also means they can't run in parallel.
   pool("nocompile_pool") {

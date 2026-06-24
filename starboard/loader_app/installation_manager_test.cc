@@ -73,7 +73,7 @@ class InstallationManagerTest : public ::testing::TestWithParam<int> {
   void ReadStorageState(cobalt::loader::InstallationStore* installation_store) {
     int file;
 
-    file = open(installation_store_path_.c_str(), O_RDONLY, S_IRUSR | S_IWUSR);
+    file = open(installation_store_path_.c_str(), O_RDONLY);
     ASSERT_TRUE(file >= 0);
 
     char buf[IM_MAX_INSTALLATION_STORE_SIZE];

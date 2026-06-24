@@ -208,8 +208,14 @@ bool LZ4FileImpl::Decompress(size_t file_size,
 
 bool LZ4FileImpl::ReadFromOffset(int64_t offset, char* buffer, int size) {
   SB_DCHECK(lz4f_context_);
-
-  if ((offset < 0) || (offset + size >= decompressed_data_.size())) {
+  if (file_ < 0) {
+    return false;
+  }
+  if (offset < 0 || size < 0) {
+    return false;
+  }
+  if (offset > static_cast<int64_t>(decompressed_data_.size()) ||
+      size > static_cast<int64_t>(decompressed_data_.size()) - offset) {
     return false;
   }
   memcpy(buffer, decompressed_data_.data() + offset, size);
