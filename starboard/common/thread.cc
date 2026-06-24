@@ -29,11 +29,8 @@
 #include "starboard/common/log.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/thread_platform.h"
-#include "starboard/system.h"
-
-#if BUILDFLAG(IS_ANDROID)
 #include "starboard/shared/starboard/features.h"
-#endif
+#include "starboard/system.h"
 
 namespace starboard {
 
@@ -135,12 +132,10 @@ struct Thread::Data {
 
 // static
 size_t Thread::GetDefaultStackSize() {
-#if BUILDFLAG(IS_ANDROID)
   if (starboard::features::FeatureList::IsEnabled(
           starboard::features::kReduceStarboardThreadStackSize)) {
     return 256 * 1024;
   }
-#endif
   return 0;
 }
 
