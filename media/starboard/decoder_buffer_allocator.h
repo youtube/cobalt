@@ -41,9 +41,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   class Strategy {
    public:
     virtual ~Strategy() {}
-    virtual void* Allocate(DemuxerStream::Type type,
-                           size_t size,
-                           size_t alignment) = 0;
+    virtual void* Allocate(DemuxerStream::Type type, size_t size) = 0;
     virtual void Free(DemuxerStream::Type type, void* p) = 0;
     virtual void Write(void* p, const void* data, size_t size) = 0;
 
@@ -70,13 +68,10 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   void DecommitAllDecommitableBlocks();
 
   // DecoderBuffer::Allocator methods.
-  Handle Allocate(DemuxerStream::Type type,
-                  size_t size,
-                  size_t alignment) override;
+  Handle Allocate(DemuxerStream::Type type, size_t size) override;
   void Free(DemuxerStream::Type type, Handle p, size_t size) override;
   void Write(Handle handle, const void* data, size_t size) override;
 
-  int GetBufferAlignment() const override;
   base::TimeDelta GetBufferGarbageCollectionDurationThreshold() const override;
 
   // DecoderBufferMemoryInfo methods.
@@ -88,7 +83,6 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
 
   // Utility functions for h5vcc settings.
   // TODO(b/460292554): To be deprecated with h5vcc settings.
-  void SetAllocateOnDemand(bool enabled);
   static void EnableConfigurableDecommitStrategy(
       int block_size,
       int retain_blocks,
@@ -103,7 +97,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   void TryFlushAllocationLog_Locked() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
-  bool is_memory_pool_allocated_on_demand_ GUARDED_BY(mutex_);
+  const bool is_memory_pool_allocated_on_demand_;
   const int initial_capacity_;
   const int allocation_unit_;
 

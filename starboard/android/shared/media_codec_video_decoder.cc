@@ -110,23 +110,6 @@ const int kMaxPendingInputsSize = 128;
 
 const int kFpsGuesstimateRequiredInputBufferCount = 3;
 
-std::array<float, 16> GetTransformMatrix(
-    const JavaRef<jobject>& surface_texture) {
-  JNIEnv* env = AttachCurrentThread();
-
-  jni_zero::ScopedJavaLocalRef<jfloatArray> java_array(env,
-                                                       env->NewFloatArray(16));
-  SB_CHECK(java_array);
-
-  VideoSurfaceTextureBridge::GetTransformMatrix(
-      env, surface_texture,
-      jni_zero::JavaParamRef<jfloatArray>(env, java_array.obj()));
-
-  std::array<float, 16> matrix4x4;
-  env->GetFloatArrayRegion(java_array.obj(), 0, 16, matrix4x4.data());
-  return matrix4x4;
-}
-
 void StubDrmSessionUpdateRequestFunc(SbDrmSystem drm_system,
                                      void* context,
                                      int ticket,
@@ -307,9 +290,12 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
           platform_options.force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_config.audio_session_id),
       max_video_input_size_(pipeline_config.max_input_size),
-      use_dual_threads_(
-          pipeline_config.experimental_features.use_dual_threads_for_video),
-      surface_view_(stream_config.surface_view),
+      use_dual_threads_(pipeline_config.use_dual_threads),
+      surface_view_(stream_config.surface_view
+                        ? jni_zero::ScopedJavaGlobalRef<jobject>(
+                              jni_zero::AttachCurrentThread(),
+                              static_cast<jobject>(stream_config.surface_view))
+                        : nullptr),
       enable_flush_during_seek_(pipeline_config.enable_flush_during_seek),
       reset_delay_usec_(android_get_device_api_level() < 34
                             ? platform_options.reset_delay_usec
@@ -319,7 +305,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                             : 0),
       skip_flush_on_decoder_teardown_(
           pipeline_config.experimental_features.skip_flush_on_decoder_teardown),
-      force_reset_surface_(platform_options.force_reset_surface),
+      force_clear_surface_(
+          pipeline_config.experimental_features.force_clear_surface_view),
       needs_fps_to_initialize_codec_(
           video_codec_ == kSbMediaVideoCodecAv1 &&
           MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30()),
@@ -328,6 +315,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       ignore_mediacodec_callbacks_during_flushing_(
           pipeline_config.experimental_features
               .ignore_mediacodec_callbacks_during_flushing),
+      enable_low_latency_(
+          pipeline_config.experimental_features.enable_low_latency),
       is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
                                       tunnel_mode_audio_session_id_),
       media_codec_factory_(std::move(media_codec_factory)),
@@ -395,13 +384,11 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
   TeardownCodec();
-  if (tunnel_mode_audio_session_id_) {
-    // Forces video surface to reset after tunnel mode playbacks. This prevents
-    // video distortion on some platforms. For details, see http://b/182610842.
-    ClearVideoWindow(/*force_reset_surface=*/true);
-  } else {
-    ClearVideoWindow(force_reset_surface_);
-  }
+  // The video surface must be reset after tunnel mode playbacks. This prevents
+  // video distortion on some platforms. For details, see http://b/182610842.
+  bool force_clear =
+      !tunnel_mode_audio_session_id_.has_value() && force_clear_surface_;
+  CleanUpVideoWindow(force_clear, decode_target_graphics_context_provider_);
 }
 
 scoped_refptr<VideoRendererSink> MediaCodecVideoDecoder::GetSink() {
@@ -622,10 +609,13 @@ SbDecodeTarget MediaCodecVideoDecoder::GetCurrentDecodeTarget() {
 void MediaCodecVideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
   SB_DCHECK(!frame_sizes_.empty());
 
+  JNIEnv* env = AttachCurrentThread();
+
   while (!frame_sizes_.empty()) {
     const auto& frame_size = frame_sizes_.front();
     if (frame_size.has_crop_values) {
-      auto matrix4x4 = GetTransformMatrix(decode_target_->surface_texture());
+      auto matrix4x4 = VideoSurfaceTextureBridge::GetTransformMatrix(
+          env, decode_target_->surface_texture());
       auto [content_region, coded_size] =
           GetDecodeTargetGeometryFromMatrix(matrix4x4, frame_size.display_size);
 
@@ -685,7 +675,8 @@ void MediaCodecVideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
   // the video texture, which is true for most of the playbacks.
   // Leaving the legacy logic in place in case the new logic above doesn't work
   // on some devices, so at least the majority of playbacks still work.
-  auto matrix4x4 = GetTransformMatrix(decode_target_->surface_texture());
+  auto matrix4x4 = VideoSurfaceTextureBridge::GetTransformMatrix(
+      env, decode_target_->surface_texture());
   auto [content_region, coded_size] = GetDecodeTargetGeometryFromMatrix(
       matrix4x4, frame_sizes_.back().display_size);
   decode_target_->set_dimension(coded_size);
@@ -745,11 +736,12 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
   // the passed in Android video surface.  If we are in decode-to-texture
   // mode, create a surface from a new texture target and use that as the
   // output surface.
-  jobject j_output_surface = NULL;
+  JNIEnv* env = AttachCurrentThread();
+  jni_zero::ScopedJavaLocalRef<jobject> j_output_surface;
   switch (output_mode_) {
     case kSbPlayerOutputModePunchOut: {
       if (surface_view_) {
-        j_output_surface = static_cast<jobject>(surface_view_);
+        j_output_surface = surface_view_.AsLocalRef(env);
       } else {
         j_output_surface = AcquireVideoSurface();
       }
@@ -770,9 +762,9 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       if (!SbDecodeTargetIsValid(decode_target)) {
         return Failure("Could not acquire a decode target from provider.");
       }
-      j_output_surface = decode_target->surface().obj();
+      j_output_surface =
+          jni_zero::ScopedJavaLocalRef<jobject>(env, decode_target->surface());
 
-      JNIEnv* env = AttachCurrentThread();
       surface_texture_bridge_->SetOnFrameAvailableListener(
           env, decode_target->surface_texture());
 
@@ -812,8 +804,9 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, is_video_frame_tracker_enabled_,
-      force_big_endian_hdr_metadata_, max_video_input_size_, flush_delay_usec_,
-      use_dual_threads_, skip_video_frames_over_60_fps_,
+      enable_low_latency_, force_big_endian_hdr_metadata_,
+      max_video_input_size_, flush_delay_usec_, use_dual_threads_,
+      skip_video_frames_over_60_fps_,
       ignore_mediacodec_callbacks_during_flushing_);
   if (result) {
     media_decoder_ = std::move(result.value());

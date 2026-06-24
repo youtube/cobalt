@@ -36,6 +36,9 @@ interface H5vccSystem {
   GetTrackingAuthorizationStatusSync() => (string tracking_authorization_status);
   RequestTrackingAuthorization() => (bool is_tracking_authorization_supported);
 
+  // Gets the friendly name of the device from the platform.
+  GetFriendlyName() => (string friendly_name);
+
   // Returns the platform-specific user on exit strategy.
   [Sync]
   GetUserOnExitStrategy() => (UserOnExitStrategy userOnExitStrategy);

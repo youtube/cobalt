@@ -15,6 +15,7 @@
 #ifndef STARBOARD_ANDROID_SHARED_MEDIA_CODEC_H_
 #define STARBOARD_ANDROID_SHARED_MEDIA_CODEC_H_
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <ostream>
@@ -22,6 +23,7 @@
 
 #include "starboard/common/result.h"
 #include "starboard/common/size.h"
+#include "starboard/common/span.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "third_party/jni_zero/jni_zero.h"
@@ -75,11 +77,6 @@ struct DequeueOutputResult {
   int32_t num_bytes;
 };
 
-struct DataSpan {
-  void* address = nullptr;
-  size_t capacity = 0;
-};
-
 // MediaCodec is an abstract interface for Android MediaCodec functionality,
 // providing a unified API for both JNI-based (MediaCodecBridge) and NDK-based
 // (NdkMediaCodec) implementations. It is typically owned by MediaCodecDecoder.
@@ -92,6 +89,7 @@ class MediaCodec {
     bool skip_video_frames_over_60_fps = false;
     bool ignore_mediacodec_callbacks_during_flushing = false;
     bool enable_frame_renderer_listener = false;
+    bool enable_low_latency = false;
     bool require_secured_decoder = false;
     bool require_software_codec = false;
     bool force_big_endian_hdr_metadata = false;
@@ -124,15 +122,15 @@ class MediaCodec {
     virtual std::unique_ptr<MediaCodec> CreateAudioMediaCodec(
         const AudioStreamInfo& audio_stream_info,
         Handler* handler,
-        jobject j_media_crypto) = 0;
+        const jni_zero::JavaRef<jobject>& j_media_crypto) = 0;
     virtual NonNullResult<std::unique_ptr<MediaCodec>> CreateVideoMediaCodec(
         SbMediaVideoCodec video_codec,
         const Size& frame_size_hint,
         int fps,
         const std::optional<Size>& max_frame_size,
         Handler* handler,
-        jobject j_surface,
-        jobject j_media_crypto,
+        const jni_zero::JavaRef<jobject>& j_surface,
+        const jni_zero::JavaRef<jobject>& j_media_crypto,
         const SbMediaColorMetadata* color_metadata,
         const VideoPlatformOptions& platform_options) = 0;
   };
@@ -140,7 +138,7 @@ class MediaCodec {
   static std::unique_ptr<MediaCodec> CreateAudioMediaCodec(
       const AudioStreamInfo& audio_stream_info,
       Handler* handler,
-      jobject j_media_crypto);
+      const jni_zero::JavaRef<jobject>& j_media_crypto);
 
   static NonNullResult<std::unique_ptr<MediaCodec>> CreateVideoMediaCodec(
       SbMediaVideoCodec video_codec,
@@ -148,8 +146,8 @@ class MediaCodec {
       int fps,
       const std::optional<Size>& max_frame_size,
       Handler* handler,
-      jobject j_surface,
-      jobject j_media_crypto,
+      const jni_zero::JavaRef<jobject>& j_surface,
+      const jni_zero::JavaRef<jobject>& j_media_crypto,
       const SbMediaColorMetadata* color_metadata,
       const VideoPlatformOptions& platform_options);
 
@@ -157,7 +155,7 @@ class MediaCodec {
 
   virtual ~MediaCodec() = default;
 
-  virtual DataSpan GetInputBufferAddress(jint index) = 0;
+  virtual Span<uint8_t> GetInputBufferAddress(jint index) = 0;
   virtual jint QueueInputBuffer(jint index,
                                 jint offset,
                                 jint size,
@@ -170,7 +168,7 @@ class MediaCodec {
                                       jlong presentation_time_microseconds,
                                       jboolean is_decode_only) = 0;
 
-  virtual DataSpan GetOutputBufferAddress(jint index) = 0;
+  virtual Span<uint8_t> GetOutputBufferAddress(jint index) = 0;
   virtual void ReleaseOutputBuffer(jint index, jboolean render) = 0;
   virtual void ReleaseOutputBufferAtTimestamp(jint index,
                                               jlong render_timestamp_ns) = 0;
@@ -195,7 +193,7 @@ class DefaultMediaCodecFactory : public MediaCodec::Factory {
   std::unique_ptr<MediaCodec> CreateAudioMediaCodec(
       const AudioStreamInfo& audio_stream_info,
       MediaCodec::Handler* handler,
-      jobject j_media_crypto) override;
+      const jni_zero::JavaRef<jobject>& j_media_crypto) override;
 
   NonNullResult<std::unique_ptr<MediaCodec>> CreateVideoMediaCodec(
       SbMediaVideoCodec video_codec,
@@ -203,8 +201,8 @@ class DefaultMediaCodecFactory : public MediaCodec::Factory {
       int fps,
       const std::optional<Size>& max_frame_size,
       MediaCodec::Handler* handler,
-      jobject j_surface,
-      jobject j_media_crypto,
+      const jni_zero::JavaRef<jobject>& j_surface,
+      const jni_zero::JavaRef<jobject>& j_media_crypto,
       const SbMediaColorMetadata* color_metadata,
       const MediaCodec::VideoPlatformOptions& platform_options) override;
 };

@@ -301,6 +301,12 @@ config("zlib_warnings") {
       "-Wno-incompatible-pointer-types",
       "-Wunused-variable",
     ]
+    if (is_cobalt && is_partner_toolchain) {
+      # needed because _cpu_check_features is defined under __ARM_NEON
+      # but its only caller isn't defined for ARMv7 when building using
+      # the partner toolchains
+      cflags += [ "-Wno-unused-function" ]
+    }
   }
 }
 

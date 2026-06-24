@@ -35,7 +35,7 @@
 #include "starboard/loader_app/read_evergreen_version.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
 
 namespace loader_app {
 namespace {
@@ -226,7 +226,7 @@ class SlotManagementTest : public testing::TestWithParam<bool> {
     path += kSbFileSepString;
     path += "libcobalt";
     AddFileExtension(path);
-    int sb_file = open(path.c_str(), O_CREAT | O_RDONLY);
+    int sb_file = open(path.c_str(), O_CREAT | O_RDONLY, S_IRUSR | S_IWUSR);
     EXPECT_TRUE(starboard::IsValid(sb_file));
     close(sb_file);
 
@@ -496,4 +496,4 @@ INSTANTIATE_TEST_CASE_P(SlotManagementTests,
 
 }  // namespace
 }  // namespace loader_app
-#endif  // #if SB_IS(EVERGREEN_COMPATIBLE)
+#endif  // #if BUILDFLAG(IS_STARBOARD)

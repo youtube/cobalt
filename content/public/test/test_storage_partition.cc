@@ -7,8 +7,6 @@
 #include <tuple>
 
 #include "components/leveldb_proto/public/proto_database_provider.h"
-#include "content/public/common/content_milestone_features.h"
-#include "content/public/common/buildflags.h"
 #include "content/public/browser/file_system_access_entry_factory.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
@@ -171,12 +169,12 @@ TestStoragePartition::GetDeviceBoundSessionManager() {
   return device_bound_session_manager_;
 }
 
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 BrowsingTopicsSiteDataManager*
 TestStoragePartition::GetBrowsingTopicsSiteDataManager() {
   return browsing_topics_site_data_manager_;
 }
-#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 DevToolsBackgroundServicesContext*
 TestStoragePartition::GetDevToolsBackgroundServicesContext() {
@@ -263,7 +261,9 @@ int TestStoragePartition::GetDataRemovalObserverCount() {
   return data_removal_observer_count_;
 }
 
+#if !BUILDFLAG(IS_COBALT)
 void TestStoragePartition::ClearBluetoothAllowedDevicesMapForTesting() {}
+#endif
 
 void TestStoragePartition::FlushNetworkInterfaceForTesting() {}
 

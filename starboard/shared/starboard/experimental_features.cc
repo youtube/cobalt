@@ -18,7 +18,8 @@
 #include <type_traits>
 
 #include "starboard/common/log.h"
-#include "starboard/extension/experimental_features.h"
+#include "starboard/extension/experimental/experimental_features.h"
+#include "starboard/shared/starboard/player/decoded_audio_internal.h"
 
 namespace starboard {
 
@@ -68,12 +69,16 @@ void SetExperimentalFeaturesForCurrentThread(
       extension_features->disable_low_performance_sw_decoder;
   experiment_features.enable_av1_startup_optimization =
       extension_features->enable_av1_startup_optimization;
+  experiment_features.enable_low_latency =
+      extension_features->enable_low_latency;
   experiment_features.enable_video_renderer_vsp_adjustment =
       extension_features->enable_video_renderer_vsp_adjustment;
   experiment_features.flush_audio_track_during_seek =
       extension_features->flush_audio_track_during_seek;
   experiment_features.flush_decoder_during_reset =
       extension_features->flush_decoder_during_reset;
+  experiment_features.force_clear_surface_view =
+      extension_features->force_clear_surface_view;
   experiment_features.ignore_mediacodec_callbacks_during_flushing =
       extension_features->ignore_mediacodec_callbacks_during_flushing;
   experiment_features.reset_audio_decoder =
@@ -82,10 +87,11 @@ void SetExperimentalFeaturesForCurrentThread(
       extension_features->skip_flush_on_decoder_teardown;
   experiment_features.skip_video_frames_over_60_fps =
       extension_features->skip_video_frames_over_60_fps;
+  experiment_features.enable_simd_based_audio_format_switching =
+      FromBoolPointer(
+          extension_features->enable_simd_based_audio_format_switching);
   experiment_features.enable_trivial_optimizations =
       FromBoolPointer(extension_features->enable_trivial_optimizations);
-  experiment_features.use_dual_threads_for_video =
-      FromBoolPointer(extension_features->use_dual_threads_for_video);
   experiment_features.video_decoder_initial_preroll_count =
       FromIntPointer(extension_features->video_decoder_initial_preroll_count);
   experiment_features.video_renderer_min_decoded_frames =
@@ -94,6 +100,11 @@ void SetExperimentalFeaturesForCurrentThread(
       FromIntPointer(extension_features->video_renderer_min_input_buffers);
 
   g_experimental_features = experiment_features;
+
+  if (experiment_features.enable_simd_based_audio_format_switching.value_or(
+          false)) {
+    DecodedAudio::EnableSimdBasedAudioFormatSwitching();
+  }
 }
 
 const ExperimentalFeatures& GetExperimentalFeaturesForCurrentThread() {

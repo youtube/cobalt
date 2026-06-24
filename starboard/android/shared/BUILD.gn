@@ -80,8 +80,6 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/drm/drm_update_session.cc",
     "//starboard/shared/starboard/experimental_features.cc",
     "//starboard/shared/starboard/experimental_features.h",
-    "//starboard/shared/starboard/feature_list.cc",
-    "//starboard/shared/starboard/feature_list.h",
     "//starboard/shared/starboard/features.cc",
     "//starboard/shared/starboard/features.h",
     "//starboard/shared/starboard/file_storage/storage_close_record.cc",
@@ -230,6 +228,7 @@ static_library("starboard_platform") {
 
     "runtime_resource_overlay.cc",
     "runtime_resource_overlay.h",
+    "safe_jni.h",
     "sanitizer_options.cc",
 
     # TODO: (cobalt b/392178584) clean up speech synthesis code.
@@ -302,6 +301,7 @@ static_library("starboard_platform") {
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//starboard/common",
     "//starboard/extension:feature_config_header",
+    "//starboard/shared/starboard:feature_list",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
@@ -323,7 +323,7 @@ static_library("starboard_platform") {
     ]
   }
 
-  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  if (is_starboard && current_toolchain == starboard_toolchain) {
     sources -= [
       "crash_handler.cc",
       "crash_handler.h",
@@ -366,7 +366,7 @@ static_library("starboard_base_symbolize") {
     "//starboard:starboard_headers_only",
     "//starboard/common:common_headers_only",
   ]
-  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  if (is_starboard && current_toolchain == starboard_toolchain) {
     public_deps = [ "//starboard/elf_loader:evergreen_info" ]
   }
 
@@ -414,6 +414,7 @@ test("starboard_platform_tests") {
   sources = media_tests_sources + player_tests_sources + [
               "//starboard/common/test_main.cc",
               "drm_session_id_mapper_test.cc",
+              "features_extension_test.cc",
               "media_capabilities_cache_test.cc",
               "media_codec_decoder_test.cc",
               "media_codec_video_decoder_helpers_test.cc",
@@ -426,19 +427,17 @@ test("starboard_platform_tests") {
               "video_frame_tracker_test.cc",
             ]
 
-  # Add starboard_feature_test to Android's starboard_platform_tests,
-  # since Android is the only platform that includes starboard_feature.
-  sources += [ "//starboard/shared/starboard/starboard_feature_test.cc" ]
-
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
   deps = [
     ":media_codec_video_decoder_helpers",
     ":starboard_platform",
     ":test_support",
+    "//base",
     "//starboard:starboard_group",
     "//starboard/shared/starboard/drm:drm_test_helpers",
     "//starboard/shared/starboard/player/filter/testing:test_util",
+    "//starboard/testing:scoped_feature_list",
     "//testing/gmock",
     "//testing/gtest",
   ]
