@@ -22,19 +22,6 @@
 
 namespace content {
 
-namespace {
-
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
-RenderFrameHostImpl* ContainingLocalRoot(RenderFrameHostImpl* frame) {
-  while (!frame->is_local_root()) {
-    frame = frame->GetParent();
-  }
-  return frame;
-}
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
-
-}  // namespace
-
 SharedStorageWorkletDevToolsAgentHost::SharedStorageWorkletDevToolsAgentHost(
     SharedStorageWorkletHost& worklet_host,
     const base::UnguessableToken& devtools_worklet_token)
@@ -48,41 +35,8 @@ SharedStorageWorkletDevToolsAgentHost::SharedStorageWorkletDevToolsAgentHost(
 SharedStorageWorkletDevToolsAgentHost::
     ~SharedStorageWorkletDevToolsAgentHost() = default;
 
-BrowserContext* SharedStorageWorkletDevToolsAgentHost::GetBrowserContext() {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
-  if (!worklet_host_ || !worklet_host_->GetProcessHost()) {
-    return nullptr;
-  }
-
-  return worklet_host_->GetProcessHost()->GetBrowserContext();
-#else
-  return nullptr;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
-}
-
 std::string SharedStorageWorkletDevToolsAgentHost::GetType() {
   return kTypeSharedStorageWorklet;
-}
-
-std::string SharedStorageWorkletDevToolsAgentHost::GetTitle() {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
-  if (!worklet_host_) {
-    return std::string();
-  }
-
-  return base::StrCat({"Shared storage worklet for ",
-                       worklet_host_->script_source_url().spec()});
-#else
-  return std::string();
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
-}
-
-GURL SharedStorageWorkletDevToolsAgentHost::GetURL() {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
-  return worklet_host_ ? worklet_host_->script_source_url() : GURL();
-#else
-  return GURL();
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 bool SharedStorageWorkletDevToolsAgentHost::Activate() {
@@ -104,11 +58,49 @@ bool SharedStorageWorkletDevToolsAgentHost::AttachSession(
   return true;
 }
 
+protocol::TargetAutoAttacher*
+SharedStorageWorkletDevToolsAgentHost::auto_attacher() {
+  return auto_attacher_.get();
+}
+
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+
+namespace {
+
+RenderFrameHostImpl* ContainingLocalRoot(RenderFrameHostImpl* frame) {
+  while (!frame->is_local_root()) {
+    frame = frame->GetParent();
+  }
+  return frame;
+}
+
+}  // namespace
+
+BrowserContext* SharedStorageWorkletDevToolsAgentHost::GetBrowserContext() {
+  if (!worklet_host_ || !worklet_host_->GetProcessHost()) {
+    return nullptr;
+  }
+
+  return worklet_host_->GetProcessHost()->GetBrowserContext();
+}
+
+std::string SharedStorageWorkletDevToolsAgentHost::GetTitle() {
+  if (!worklet_host_) {
+    return std::string();
+  }
+
+  return base::StrCat({"Shared storage worklet for ",
+                       worklet_host_->script_source_url().spec()});
+}
+
+GURL SharedStorageWorkletDevToolsAgentHost::GetURL() {
+  return worklet_host_ ? worklet_host_->script_source_url() : GURL();
+}
+
 void SharedStorageWorkletDevToolsAgentHost::WorkletReadyForInspection(
     mojo::PendingRemote<blink::mojom::DevToolsAgent> agent_remote,
     mojo::PendingReceiver<blink::mojom::DevToolsAgentHost>
         agent_host_receiver) {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   // The process can be null here when the worklet is in its keep-alive stage
   // and the browser is shutting down.
   if (!worklet_host_->GetProcessHost()) {
@@ -118,7 +110,6 @@ void SharedStorageWorkletDevToolsAgentHost::WorkletReadyForInspection(
   GetRendererChannel()->SetRenderer(
       std::move(agent_remote), std::move(agent_host_receiver),
       worklet_host_->GetProcessHost()->GetDeprecatedID());
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void SharedStorageWorkletDevToolsAgentHost::WorkletDestroyed() {
@@ -134,21 +125,40 @@ void SharedStorageWorkletDevToolsAgentHost::WorkletDestroyed() {
 
 bool SharedStorageWorkletDevToolsAgentHost::IsRelevantTo(
     RenderFrameHostImpl* frame) {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (!worklet_host_->GetFrame()) {
     return false;
   }
 
   return ContainingLocalRoot(frame) ==
          ContainingLocalRoot(worklet_host_->GetFrame());
-#else
-  return false;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
-protocol::TargetAutoAttacher*
-SharedStorageWorkletDevToolsAgentHost::auto_attacher() {
-  return auto_attacher_.get();
+#else  // !ENABLE_PRIVACY_SANDBOX_APIS
+
+BrowserContext* SharedStorageWorkletDevToolsAgentHost::GetBrowserContext() {
+  return nullptr;
 }
+
+std::string SharedStorageWorkletDevToolsAgentHost::GetTitle() {
+  return std::string();
+}
+
+GURL SharedStorageWorkletDevToolsAgentHost::GetURL() {
+  return GURL();
+}
+
+void SharedStorageWorkletDevToolsAgentHost::WorkletReadyForInspection(
+    mojo::PendingRemote<blink::mojom::DevToolsAgent> agent_remote,
+    mojo::PendingReceiver<blink::mojom::DevToolsAgentHost>
+        agent_host_receiver) {}
+
+void SharedStorageWorkletDevToolsAgentHost::WorkletDestroyed() {}
+
+bool SharedStorageWorkletDevToolsAgentHost::IsRelevantTo(
+    RenderFrameHostImpl* frame) {
+  return false;
+}
+
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 }  // namespace content
