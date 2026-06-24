@@ -823,10 +823,12 @@ void SbPlayerBridge::CreatePlayer() {
         experimental_features_.skip_flush_on_decoder_teardown;
     extension_features.skip_video_frames_over_60_fps =
         experimental_features_.skip_video_frames_over_60_fps;
+    extension_features.force_clear_surface_view =
+        experimental_features_.force_clear_surface_view;
     extension_features.enable_trivial_optimizations =
         ToBoolPointer(experimental_features_.enable_trivial_optimizations);
-    extension_features.use_dual_threads_for_video =
-        ToBoolPointer(experimental_features_.use_dual_threads_for_video);
+    extension_features.enable_simd_based_audio_format_switching = ToBoolPointer(
+        experimental_features_.enable_simd_based_audio_format_switching);
     extension_features.video_decoder_initial_preroll_count = ToIntPointer(
         experimental_features_.video_decoder_initial_preroll_count);
     extension_features.video_renderer_min_decoded_frames =
@@ -841,13 +843,15 @@ void SbPlayerBridge::CreatePlayer() {
         &extension_features);
   }
 
+  const bool should_get_decode_target_graphics_context_provider =
+      (output_mode_ == kSbPlayerOutputModeDecodeToTexture ||
+       experimental_features_.force_clear_surface_view);
+
   player_ = sbplayer_interface_->Create(
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
       &SbPlayerBridge::PlayerErrorCB, this,
-      // TODO: b/429021006 - Add H5vcc flag to post egl calls on gpu thread to
-      // clear SurfaceView.
-      output_mode_ == kSbPlayerOutputModeDecodeToTexture
+      should_get_decode_target_graphics_context_provider
           ? get_decode_target_graphics_context_provider_func_.Run()
           : nullptr);
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)

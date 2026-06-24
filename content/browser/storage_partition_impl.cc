@@ -56,7 +56,9 @@
 #include "content/browser/background_fetch/background_fetch_context.h"
 #include "content/browser/blob_storage/blob_registry_wrapper.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "content/browser/bluetooth/bluetooth_allowed_devices_map.h"
+#endif
 #include "content/browser/broadcast_channel/broadcast_channel_service.h"
 #include "content/browser/browsing_data/clear_site_data_handler.h"
 #include "content/browser/browsing_data/storage_partition_code_cache_data_remover.h"
@@ -131,8 +133,6 @@
 #include "content/public/browser/storage_partition_config.h"
 #include "content/public/browser/storage_usage_info.h"
 #include "content/public/common/content_client.h"
-#include "content/public/common/content_milestone_features.h"
-#include "content/public/common/buildflags.h"
 #include "content/public/common/content_constants.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
@@ -1422,8 +1422,10 @@ void StoragePartitionImpl::Initialize(
 
   broadcast_channel_service_ = std::make_unique<BroadcastChannelService>();
 
+#if !BUILDFLAG(IS_COBALT)
   bluetooth_allowed_devices_map_ =
       std::make_unique<BluetoothAllowedDevicesMap>();
+#endif
 
   // Must be initialized before the
   // `shared_url_loader_factory_for_browser_process_`. Cookie deprecation
@@ -1473,6 +1475,7 @@ void StoragePartitionImpl::Initialize(
 
   bucket_manager_ = std::make_unique<BucketManager>(this);
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (base::FeatureList::IsEnabled(
           attribution_reporting::features::kConversionMeasurement)) {
     // The Conversion Measurement API is not available in Incognito mode, but
@@ -1481,6 +1484,7 @@ void StoragePartitionImpl::Initialize(
     attribution_manager_ = std::make_unique<AttributionManagerImpl>(
         this, path, special_storage_policy_);
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   if (base::FeatureList::IsEnabled(network::features::kInterestGroupStorage)) {
     // Auction worklets on non-Android use dedicated processes; on Android due
@@ -1780,11 +1784,13 @@ BroadcastChannelService* StoragePartitionImpl::GetBroadcastChannelService() {
   return broadcast_channel_service_.get();
 }
 
+#if !BUILDFLAG(IS_COBALT)
 BluetoothAllowedDevicesMap*
 StoragePartitionImpl::GetBluetoothAllowedDevicesMap() {
   DCHECK(initialized_);
   return bluetooth_allowed_devices_map_.get();
 }
+#endif
 
 BlobRegistryWrapper* StoragePartitionImpl::GetBlobRegistry() {
   DCHECK(initialized_);
@@ -1838,12 +1844,20 @@ StoragePartitionImpl::GetFileSystemAccessManager() {
 
 AttributionManager* StoragePartitionImpl::GetAttributionManager() {
   DCHECK(initialized_);
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   return attribution_manager_.get();
+#else
+  return nullptr;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 AttributionDataModel* StoragePartitionImpl::GetAttributionDataModel() {
   DCHECK(initialized_);
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   return attribution_manager_.get();
+#else
+  return nullptr;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 FontAccessManager* StoragePartitionImpl::GetFontAccessManager() {
@@ -2767,7 +2781,12 @@ void StoragePartitionImpl::ClearDataImpl(
       std::move(cookie_deletion_filter), GetPath(), dom_storage_context_.get(),
       quota_manager_.get(), special_storage_policy_.get(),
       filesystem_context_.get(), GetCookieManagerForBrowserProcess(),
-      interest_group_manager_.get(), attribution_manager_.get(),
+      interest_group_manager_.get(),
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+      attribution_manager_.get(),
+#else
+      nullptr,
+#endif
       aggregation_service_.get(), private_aggregation_manager_.get(),
       shared_storage_manager_.get(),
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
@@ -3125,6 +3144,7 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
     }
   }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   // It is not expected to only delete internal attribution reporting data.
   DCHECK(!(remove_mask_ & REMOVE_DATA_MASK_ATTRIBUTION_REPORTING_INTERNAL) ||
          remove_mask_ & REMOVE_DATA_MASK_ATTRIBUTION_REPORTING_SITE_CREATED);
@@ -3149,6 +3169,7 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
               CreateTaskCompletionClosure(TracingDataType::kConversions)));
     }
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   if (aggregation_service &&
       (remove_mask_ & REMOVE_DATA_MASK_AGGREGATION_SERVICE)) {
@@ -3346,10 +3367,12 @@ void StoragePartitionImpl::ResetURLLoaderFactories() {
       ->Reset();
 }
 
+#if !BUILDFLAG(IS_COBALT)
 void StoragePartitionImpl::ClearBluetoothAllowedDevicesMapForTesting() {
   DCHECK(initialized_);
   bluetooth_allowed_devices_map_->Clear();
 }
+#endif
 
 void StoragePartitionImpl::AddObserver(DataRemovalObserver* observer) {
   data_removal_observers_.AddObserver(observer);
@@ -3550,11 +3573,13 @@ void StoragePartitionImpl::OverrideAggregationServiceForTesting(
   aggregation_service_ = std::move(aggregation_service);
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 void StoragePartitionImpl::OverrideAttributionManagerForTesting(
     std::unique_ptr<AttributionManager> attribution_manager) {
   DCHECK(initialized_);
   attribution_manager_ = std::move(attribution_manager);
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 void StoragePartitionImpl::OverridePrivateAggregationManagerForTesting(
     std::unique_ptr<PrivateAggregationManagerImpl>

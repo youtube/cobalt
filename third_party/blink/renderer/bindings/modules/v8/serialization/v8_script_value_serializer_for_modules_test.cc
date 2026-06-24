@@ -124,6 +124,7 @@ testing::AssertionResult HadDOMExceptionInModulesTest(const StringView& name,
   return testing::AssertionSuccess();
 }
 
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 static const char kEcdsaPrivateKey[] =
     "-----BEGIN PRIVATE KEY-----\n"
     "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQghHwQ1xYtCoEhFk7r\n"
@@ -201,7 +202,6 @@ static const uint8_t kEcdsaCertificateEncoded[] = {
     0x54, 0x49, 0x46, 0x49, 0x43, 0x41, 0x54, 0x45, 0x2d, 0x2d, 0x2d, 0x2d,
     0x2d, 0x0a};
 
-#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 TEST(V8ScriptValueSerializerForModulesTest, RoundTripRTCCertificate) {
   test::TaskEnvironment task_environment;
   // If WebRTC is not supported in this build, this test is meaningless.

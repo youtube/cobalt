@@ -123,10 +123,6 @@ static_library("starboard_platform") {
     "android_media_session_client.cc",
     "application_android.cc",
     "application_android.h",
-
-    # TODO: b/374300500 - posix_emu things should not be used on Android anymore
-    # "asset_manager.cc",
-    # "asset_manager.h",
     "audio_decoder_passthrough.h",
     "audio_output_manager.cc",
     "audio_output_manager.h",
@@ -222,12 +218,11 @@ static_library("starboard_platform") {
     # TODO: b/374300500 - posix_emu things should not be used on Android anymore
     # "posix_emu/dirent.cc",
     # "posix_emu/errno.cc",
-    # "posix_emu/file.cc",
     # "posix_emu/pthread.cc",
-    # "posix_emu/stat.cc",
 
     "runtime_resource_overlay.cc",
     "runtime_resource_overlay.h",
+    "safe_jni.h",
     "sanitizer_options.cc",
 
     # TODO: (cobalt b/392178584) clean up speech synthesis code.
@@ -322,7 +317,7 @@ static_library("starboard_platform") {
     ]
   }
 
-  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  if (is_starboard && current_toolchain == starboard_toolchain) {
     sources -= [
       "crash_handler.cc",
       "crash_handler.h",
@@ -332,6 +327,11 @@ static_library("starboard_platform") {
       "//starboard/shared/starboard/crash_handler.h",
       "//starboard/shared/starboard/loader_app_metrics.cc",
       "//starboard/shared/starboard/loader_app_metrics.h",
+      "asset_manager.cc",
+      "asset_manager.h",
+      "posix_emu/access.cc",
+      "posix_emu/file.cc",
+      "posix_emu/stat.cc",
     ]
 
     public_deps += [
@@ -365,7 +365,7 @@ static_library("starboard_base_symbolize") {
     "//starboard:starboard_headers_only",
     "//starboard/common:common_headers_only",
   ]
-  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  if (is_starboard && current_toolchain == starboard_toolchain) {
     public_deps = [ "//starboard/elf_loader:evergreen_info" ]
   }
 
@@ -432,6 +432,7 @@ test("starboard_platform_tests") {
     ":media_codec_video_decoder_helpers",
     ":starboard_platform",
     ":test_support",
+    "//base",
     "//starboard:starboard_group",
     "//starboard/shared/starboard/drm:drm_test_helpers",
     "//starboard/shared/starboard/player/filter/testing:test_util",

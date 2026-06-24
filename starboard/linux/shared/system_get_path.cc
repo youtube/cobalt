@@ -27,7 +27,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
 #include "starboard/elf_loader/evergreen_config.h"
 #endif
 #include "starboard/shared/starboard/get_home_directory.h"
@@ -109,7 +109,7 @@ bool GetExecutablePath(char* out_path, int path_size) {
   return true;
 }
 
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
 // May override the content path if there is EvergreenConfig published.
 // The override allows for switching to different content paths based
 // on the Evergreen binary executed.
@@ -211,7 +211,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       if (!GetContentDirectory(path.data(), kPathSize)) {
         return false;
       }
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
       if (!GetEvergreenContentPathOverride(path.data(), kPathSize)) {
         return false;
       }
@@ -256,7 +256,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
 
     case kSbSystemPathFontConfigurationDirectory:
     case kSbSystemPathFontDirectory:
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
       if (!GetContentDirectory(path.data(), kPathSize)) {
         return false;
       }
