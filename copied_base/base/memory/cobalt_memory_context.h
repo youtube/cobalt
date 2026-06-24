@@ -11,6 +11,7 @@
 #include <pthread.h>
 
 #include "base/base_export.h"
+#include "build/build_config.h"
 
 namespace base {
 namespace memory {
@@ -25,7 +26,7 @@ enum class MemoryContext : uint8_t {
   kGraphics = 6,
   kStorage = 7,
 
-  // Next-Generation Granular Sub-Regions
+  // Granular Sub-Regions
   kGraphicsCanvas = 8,
   kGraphicsCompositor = 9,
   kGraphicsGlyphs = 10,
@@ -35,7 +36,7 @@ enum class MemoryContext : uint8_t {
   kNetworkLoader = 14,
   kNetworkCache = 15,
   kBlinkDOM = 16,
-  kBlinkStyle = 17,
+  kBlinkStyle = 17,  // CSS Style resolution
   kBlinkParser = 18,
   kPlatformIPC = 19,
   kPlatformStarboard = 20,
@@ -44,6 +45,8 @@ enum class MemoryContext : uint8_t {
 
   kCount
 };
+
+#if BUILDFLAG(IS_COBALT)
 
 #if defined(__GNUC__)
 #define MAYBE_COBALT_WEAK __attribute__((weak))
@@ -54,6 +57,15 @@ enum class MemoryContext : uint8_t {
 MAYBE_COBALT_WEAK pthread_key_t GetSharedMemoryContextKey();
 MAYBE_COBALT_WEAK MemoryContext GetCurrentMemoryContext();
 MAYBE_COBALT_WEAK void SetCurrentMemoryContext(MemoryContext context);
+
+#else
+
+inline MemoryContext GetCurrentMemoryContext() {
+  return MemoryContext::kUnknown;
+}
+inline void SetCurrentMemoryContext(MemoryContext context) {}
+
+#endif
 
 // ScopedMemoryContext is a helper class that sets the current thread's
 // memory context for the duration of its lifetime, restoring the previous
@@ -69,12 +81,16 @@ MAYBE_COBALT_WEAK void SetCurrentMemoryContext(MemoryContext context);
 class BASE_EXPORT ScopedMemoryContext {
  public:
   explicit ScopedMemoryContext(MemoryContext context) {
+#if BUILDFLAG(IS_COBALT)
     prev_context_ = GetCurrentMemoryContext();
     SetCurrentMemoryContext(context);
+#endif
   }
 
   ~ScopedMemoryContext() {
+#if BUILDFLAG(IS_COBALT)
     SetCurrentMemoryContext(prev_context_);
+#endif
   }
 
   ScopedMemoryContext(const ScopedMemoryContext&) = delete;
@@ -83,10 +99,18 @@ class BASE_EXPORT ScopedMemoryContext {
   ScopedMemoryContext& operator=(ScopedMemoryContext&&) = delete;
 
  private:
+#if BUILDFLAG(IS_COBALT)
   MemoryContext prev_context_;
+#endif
 };
 
+#if BUILDFLAG(IS_COBALT)
 MAYBE_COBALT_WEAK std::string_view ContextToString(MemoryContext context);
+#else
+inline std::string_view ContextToString(MemoryContext context) {
+  return "Unknown";
+}
+#endif
 
 }  // namespace memory
 }  // namespace base
