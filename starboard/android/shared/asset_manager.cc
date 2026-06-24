@@ -96,9 +96,8 @@ int AssetManager::Open(const char* path, int oflag) {
   int fd =
       open(filepath.c_str(), O_RDWR | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR);
   if (fd < 0) {
-    mutex_.lock();
+    std::lock_guard lock(mutex_);
     in_use_internal_fd_set_.erase(internal_fd);
-    mutex_.unlock();
     return -1;
   }
 
@@ -107,29 +106,31 @@ int AssetManager::Open(const char* path, int oflag) {
   const void* const data = AAsset_getBuffer(asset);
   if (write(fd, data, size) != size || lseek(fd, 0, SEEK_SET) != 0) {
     SB_LOG(WARNING) << "Failed to write temporary file for asset: " << path;
-    mutex_.lock();
-    in_use_internal_fd_set_.erase(internal_fd);
-    mutex_.unlock();  // Can't hold lock when calling close();
+    {
+      std::lock_guard lock(mutex_);
+      in_use_internal_fd_set_.erase(internal_fd);
+    }  // Can't hold lock when calling close();
     close(fd);
     return -1;
   }
   AAsset_close(asset);
 
   // Keep track of the internal fd so we can delete its file on close();
-  mutex_.lock();
-  fd_to_internal_fd_map_[fd] = internal_fd;
-  mutex_.unlock();
+  {
+    std::lock_guard scoped_lock(mutex_);
+    fd_to_internal_fd_map_[fd] = internal_fd;
+  }
   return fd;
 }
 
 int AssetManager::Close(int fd) {
-  mutex_.lock();
+  std::unique_lock lock(mutex_);
   if (auto search = fd_to_internal_fd_map_.find(fd);
       search != fd_to_internal_fd_map_.end()) {
     uint64_t internal_fd = search->second;
     fd_to_internal_fd_map_.erase(search);
     in_use_internal_fd_set_.erase(internal_fd);
-    mutex_.unlock();  // Can't hold lock when calling close();
+    lock.unlock();  // Can't hold lock when calling close();
     int retval = close(fd);
     std::string filepath = TempFilepath(internal_fd);
     if (unlink(filepath.c_str()) != 0) {
@@ -137,7 +138,6 @@ int AssetManager::Close(int fd) {
     }
     return retval;
   }
-  mutex_.unlock();
   return -1;
 }
 
