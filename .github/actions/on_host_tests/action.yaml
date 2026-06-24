@@ -156,22 +156,16 @@ runs:
         test_executables=$(jq -nr --arg json "${TEST_EXECUTABLES_JSON:-[]}" '$json | fromjson | join(" ")')
 
         for test_executable_path in ${test_executables}; do
-          filename=$(basename "${test_executable_path}")
-          test_executable="${filename%%.*}"
+          test_executable=$(basename "${test_executable_path}")
 
-          echo "Running tests for suite: ${test_executable}"
+          # JUnit tests are executed by their wrapper script "out/PLATFORM_CONFIG/bin/run_NAME".
+          # We use the test executable's base name for naming its logs and results.
+          test_executable_name="${test_executable#run_}"
 
-          xml_path="${test_output}/${test_executable}_result.xml"
-          log_path="${test_output}/${test_executable}_log.txt"
+          xml_path="${test_output}/${test_executable_name}_result.xml"
+          log_path="${test_output}/${test_executable_name}_log.txt"
 
-          # Check if a wrapper script was generated for the test (e.g. by test_runner_script).
-          # If so, use it as the entrypoint to run tests.
-          wrapper_path="$(dirname "${test_executable_path}")/bin/run_${test_executable}"
-          if [[ -x "${wrapper_path}" ]]; then
-            ENTRYPOINT="./${wrapper_path}"
-          else
-            ENTRYPOINT="./${test_executable_path}"
-          fi
+          echo "Running tests for target: ${test_executable_name}"
 
           # Run JUnit tests and generate JSON report, then convert to XML.
           #
@@ -182,9 +176,9 @@ runs:
           # Chromium infrastructure handles test results in general, we will eventually refactor the gtest results to
           # also output JSON and then subsequently remove this conversion script after adopting JSON as a universal
           # test result format in our testing workflow.
-          json_path="${test_output}/${test_executable}_result.json"
-          stdbuf -i0 -o0 -e0 $ENTRYPOINT --json-results-file="${json_path}" 2>&1 | tee ${log_path} || {
-            failed_suites="${failed_suites} ${test_executable}"
+          json_path="${test_output}/${test_executable_name}_result.json"
+          stdbuf -i0 -o0 -e0 ./${test_executable_path} --json-results-file="${json_path}" 2>&1 | tee ${log_path} || {
+            failed_suites="${failed_suites} ${test_executable_name}"
           }
           if [[ -f ${json_path} ]]; then
             python3 ${GITHUB_WORKSPACE}/.github/scripts/convert_json_to_junit_xml.py "${json_path}" "${xml_path}"

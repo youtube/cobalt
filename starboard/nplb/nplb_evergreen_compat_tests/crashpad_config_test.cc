@@ -53,9 +53,17 @@ TEST(CrashpadConfigTest, VerifyUploadCert) {
 #endif  // !defined(ANDROID)
 
 TEST(CrashpadConfigTest, VerifyCrashHandlerExtension) {
-  auto crash_handler_extension =
-      SbSystemGetExtension(kCobaltExtensionCrashHandlerName);
+  auto* crash_handler_extension =
+      static_cast<const CobaltExtensionCrashHandlerApi*>(
+          SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
   ASSERT_TRUE(crash_handler_extension != nullptr);
+  EXPECT_STREQ(crash_handler_extension->name, kCobaltExtensionCrashHandlerName);
+  EXPECT_GE(crash_handler_extension->version, 4u);
+  EXPECT_TRUE(crash_handler_extension->SetString != nullptr);
+  EXPECT_TRUE(crash_handler_extension->RegisterSetStringCallback != nullptr);
+  EXPECT_TRUE(crash_handler_extension->DumpWithoutCrashing != nullptr);
+  EXPECT_TRUE(crash_handler_extension->RegisterDumpWithoutCrashingCallback !=
+              nullptr);
 }
 
 }  // namespace
