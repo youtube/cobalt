@@ -541,8 +541,8 @@ public class StarboardBridge {
   protected double getScreenDiagonal() {
     android.util.Size size = DisplayUtil.getSystemDisplaySize();
     DisplayUtil.DisplayDpi dpi = DisplayUtil.getDisplayDpi();
-    if (dpi.getX() < 0.1f || dpi.getY() < 0.1f) {
-      Log.e(TAG, "getScreenDiagonal: Invalid display DPI values");
+    if (size == null || dpi == null || dpi.getX() < 0.1f || dpi.getY() < 0.1f) {
+      Log.e(TAG, "getScreenDiagonal: Invalid display size or DPI values");
       return 0.0;
     }
     double widthInches = size.getWidth() / (double) dpi.getX();
