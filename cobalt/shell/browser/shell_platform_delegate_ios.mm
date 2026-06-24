@@ -84,6 +84,8 @@ const char kAllTracingCategories[] = "*";
 
 @end
 
+// Protocol used by ContentShellWindowDelegate to notify that certain on-screen
+// keyboard events have occurred.
 @protocol PlatformOnScreenKeyboardDelegate <NSObject>
 
 - (void)keyboardBlurred;
@@ -94,6 +96,8 @@ const char kAllTracingCategories[] = "*";
 
 @end
 
+// Translates the notifications sent by PlatformOnScreenKeyboardDelegate to
+// Chromium callbacks.
 @interface OnScreenKeyboardObserver
     : NSObject <PlatformOnScreenKeyboardDelegate>
 
