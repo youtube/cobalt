@@ -9,6 +9,10 @@
 #include "include/v8-embedder-heap.h"
 #include "include/v8-internal.h"
 #include "include/v8-traced-handle.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h" // nogncheck
+#include "cobalt/shell/buildflags.h"
+#endif
 #include "src/base/logging.h"
 #include "src/base/platform/memory.h"
 #include "src/common/globals.h"
@@ -389,6 +393,9 @@ class ParallelWeakHandlesProcessor {
     explicit Job(Derived& derived) : derived_(derived) {}
 
     void Run(JobDelegate* delegate) override {
+#if BUILDFLAG(IS_COBALT)
+      ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kScript);
+#endif
       if (delegate->IsJoiningThread()) {
         TRACE_GC_WITH_FLOW(derived_.heap()->tracer(), Derived::kMainThreadScope,
                            derived_.trace_id_, TRACE_EVENT_FLAG_FLOW_IN);

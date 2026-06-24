@@ -62,6 +62,8 @@ class ShellMainDelegate : public ContentMainDelegate {
   static void InitializeResourceBundle();
 
  protected:
+  virtual void InitializeMemorySystem();
+
   // Only present when running content_browsertests, which run inside Content
   // Shell.
   //

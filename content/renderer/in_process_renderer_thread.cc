@@ -5,6 +5,9 @@
 #include "content/renderer/in_process_renderer_thread.h"
 
 #include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#endif
 #include "content/public/common/content_client.h"
 #include "content/public/renderer/content_renderer_client.h"
 #include "content/renderer/render_process.h"
@@ -15,6 +18,10 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/jni_android.h"
+#endif
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
 #endif
 
 namespace content {
@@ -31,6 +38,10 @@ InProcessRendererThread::~InProcessRendererThread() {
 }
 
 void InProcessRendererThread::Init() {
+#if BUILDFLAG(IS_COBALT)
+  base::memory::SetCurrentMemoryContext(
+      base::memory::MemoryContext::kBlinkDOM);
+#endif
   // In single-process mode, we never enter the sandbox, so run the post-sandbox
   // code now.
   content::ContentRendererClient* client = GetContentClient()->renderer();

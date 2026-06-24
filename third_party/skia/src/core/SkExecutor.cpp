@@ -11,6 +11,8 @@
 #include "include/private/base/SkTArray.h"
 #include "src/base/SkNoDestructor.h"
 
+#include "base/memory/cobalt_memory_context.h"
+
 #include <deque>
 #include <thread>
 #include <utility>
@@ -127,6 +129,7 @@ private:
     }
 
     static void Loop(void* ctx) {
+        ::base::memory::ScopedMemoryContext scoped_context(::base::memory::MemoryContext::kGraphics);
         auto pool = (SkThreadPool*)ctx;
         do {
             pool->fWorkAvailable.wait();

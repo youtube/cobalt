@@ -66,6 +66,10 @@ blink_modules_sources("indexeddb") {
     "//third_party/blink/public/mojom:mojom_modules_blink",
     "//third_party/snappy",
   ]
+
+  if (is_cobalt) {
+    deps = [ "//cobalt/shell:buildflags" ]
+  }
 }
 
 source_set("unit_tests") {

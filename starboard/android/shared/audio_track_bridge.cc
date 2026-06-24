@@ -55,7 +55,8 @@ std::unique_ptr<AudioTrackBridge> AudioTrackBridge::Create(
 
     // TODO: Support query if platform supports float type for tunnel mode.
     if (tunnel_mode_audio_session_id) {
-      SB_DCHECK_EQ(sample_type.value(), kSbMediaAudioSampleTypeInt16Deprecated);
+      SB_DCHECK(sample_type.value() == kSbMediaAudioSampleTypeInt16Deprecated ||
+                sample_type.value() == kSbMediaAudioSampleTypeFloat32);
     }
   } else {
     SB_DCHECK(coding_type == kSbMediaAudioCodingTypeAc3 ||

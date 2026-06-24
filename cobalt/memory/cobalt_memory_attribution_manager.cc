@@ -33,6 +33,18 @@
 namespace cobalt {
 namespace memory {
 
+namespace {
+
+// The UMA histogram configuration for the Memory.Cobalt.AllocationVolume
+// metric. We record the cumulative allocation volume (not peak memory) over the
+// reporting interval. A busy thread could easily allocate several
+// gigabytes in that time. We set the maximum bucket to 64 GB.
+constexpr int kUmaAllocationVolumeMinKB = 1;
+constexpr int kUmaAllocationVolumeMaxKB = 64 * 1024 * 1024;  // 64 GB
+constexpr int kUmaAllocationVolumeBuckets = 100;
+
+}  // namespace
+
 // static
 CobaltMemoryAttributionManager* CobaltMemoryAttributionManager::Get() {
   return base::Singleton<
@@ -123,10 +135,8 @@ void CobaltMemoryAttributionManager::ReportUma() {
         base::StrCat({"Memory.Cobalt.AllocationVolume.",
                       base::memory::ContextToString(
                           static_cast<base::memory::MemoryContext>(i))}),
-        emitted_kb,
-        /*minimum=*/1,
-        /*maximum=*/67108864,
-        /*bucket_count=*/100);
+        emitted_kb, kUmaAllocationVolumeMinKB, kUmaAllocationVolumeMaxKB,
+        kUmaAllocationVolumeBuckets);
   }
 }
 
@@ -143,9 +153,11 @@ bool CobaltMemoryAttributionManager::OnMemoryDump(
                       base::memory::ContextToString(
                           static_cast<base::memory::MemoryContext>(i))});
     auto* dump = pmd->CreateAllocatorDump(dump_name);
-    dump->AddScalar(base::trace_event::MemoryAllocatorDump::kNameSize,
-                    base::trace_event::MemoryAllocatorDump::kUnitsBytes,
-                    current);
+    if (dump) {
+      dump->AddScalar(base::trace_event::MemoryAllocatorDump::kNameSize,
+                      base::trace_event::MemoryAllocatorDump::kUnitsBytes,
+                      current);
+    }
   }
   return true;
 }
