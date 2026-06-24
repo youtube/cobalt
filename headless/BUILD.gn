@@ -7,6 +7,7 @@ import("//build/config/chrome_build.gni")
 import("//build/config/python.gni")
 import("//build/util/lastchange.gni")
 import("//build/util/process_version.gni")
+import("//content/browser/devtools/features.gni")
 import("//headless/headless.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 import("//pdf/features.gni")
@@ -118,7 +119,7 @@ repack("resource_pack_strings") {
     "//ui/strings",
   ]
 
-  if (!is_fuchsia) {
+  if (!is_fuchsia && enable_devtools_frontend) {
     sources +=
         [ "$root_gen_dir/content/browser/devtools/devtools_resources.pak" ]
     deps += [ "//content/browser/devtools:devtools_resources" ]
@@ -353,7 +354,7 @@ component("headless_non_renderer") {
     "//build:branding_buildflags",
     "//build/config/linux/dbus:buildflags",
     "//components/cookie_config",
-    "//components/crash/core/common:common",
+    "//components/crash/core/common",
     "//components/devtools/devtools_pipe",
     "//components/embedder_support",
     "//components/embedder_support:user_agent",
@@ -430,7 +431,7 @@ component("headless_non_renderer") {
       "//components/printing/browser/headless",
       "//components/printing/browser/print_to_pdf",
       "//components/printing/common:mojo_interfaces",
-      "//components/printing/renderer:renderer",
+      "//components/printing/renderer",
       "//components/services/print_compositor",
       "//components/services/print_compositor/public/mojom",
       "//printing",
@@ -572,7 +573,7 @@ test("headless_unittests") {
     "//components/embedder_support:user_agent",
     "//components/security_state/content",
     "//content/public/app",
-    "//content/public/child:child",
+    "//content/public/child",
     "//content/public/common",
     "//device/bluetooth/public/cpp",
     "//testing/gmock",
@@ -778,7 +779,7 @@ if (is_win) {
       ":headless_non_renderer",
       "//base/version_info",
       "//build:branding_buildflags",
-      "//components/crash/core/app:app",
+      "//components/crash/core/app",
       "//components/crash/core/app:run_as_crashpad_handler",
       "//components/devtools/simple_devtools_protocol_client",
       "//components/embedder_support",
@@ -797,7 +798,7 @@ if (is_win) {
       ]
     }
     if (enable_printing) {
-      deps += [ "//components/printing/browser/headless:headless" ]
+      deps += [ "//components/printing/browser/headless" ]
     }
     if (headless_enable_commands) {
       deps += [ "//components/headless/command_handler" ]
@@ -836,7 +837,7 @@ static_library("headless_shell_lib") {
     "//content",
     "//content/public/app",
     "//content/public/browser",
-    "//content/public/child:child",
+    "//content/public/child",
     "//content/public/common",
     "//content/public/utility",
     "//printing/buildflags",
@@ -859,7 +860,7 @@ static_library("headless_shell_lib") {
   if (enable_printing) {
     deps += [
       "//components/printing/browser",
-      "//components/printing/browser/headless:headless",
+      "//components/printing/browser/headless",
       "//components/printing/renderer",
       "//components/services/print_compositor",
       "//components/services/print_compositor/public/mojom",
