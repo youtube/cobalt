@@ -17,7 +17,6 @@
 #include "starboard/android/shared/runtime_resource_overlay.h"
 #include "starboard/common/log.h"
 #include "starboard/media.h"
-#include "starboard/shared/starboard/media/media_constants.h"
 #include "starboard/shared/starboard/media/media_video_budget.h"
 
 int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,

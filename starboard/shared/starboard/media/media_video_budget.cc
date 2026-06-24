@@ -15,7 +15,6 @@
 #include "starboard/shared/starboard/media/media_video_budget.h"
 
 #include "build/build_config.h"
-#include "starboard/shared/starboard/media/media_constants.h"
 #include "starboard/shared/starboard/media/resolutions.h"
 
 #if BUILDFLAG(IS_ANDROID)
