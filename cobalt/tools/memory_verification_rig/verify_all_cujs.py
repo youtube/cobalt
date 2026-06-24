@@ -250,14 +250,17 @@ def verify_cuj(cuj_name,
           "localabstract:content_shell_devtools_remote"
       ])
       run_cmd(adb_base + ["shell", "am", "force-stop", "dev.cobalt.coat"])
+      time.sleep(2)
       target_args = (f"--enable-features=CobaltMemoryAttributionManager:"
                      f"report-interval/60,--memory-metrics-interval=60,"
                      f"--remote-debugging-port={port},--remote-allow-origins=*")
-      run_cmd(adb_base + [
-          "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d",
-          f"'{url}'", "-n", "dev.cobalt.coat/dev.cobalt.app.MainActivity",
-          "--esa", "commandLineArgs", f"'{target_args}'"
-      ])
+      cmd_str = (f"am start -a android.intent.action.VIEW -d '{url}' "
+                 f"-n dev.cobalt.coat/dev.cobalt.app.MainActivity "
+                 f"--esa commandLineArgs '{target_args}'")
+      res = run_cmd(adb_base + ["shell", cmd_str])
+      if res.returncode != 0 or "Error" in res.stderr or "Error" in res.stdout:
+        logger.error("am start failed: stdout=%s stderr=%s", res.stdout,
+                     res.stderr)
 
     # Wait for startup
     time.sleep(15)
