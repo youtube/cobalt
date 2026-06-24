@@ -23,6 +23,7 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/event.h"
+#include "starboard/shared/starboard/features.h"
 
 namespace starboard {
 
@@ -42,6 +43,40 @@ void DeleteStartData(void* data) {
     delete[] start_data->argument_values;
   }
   delete start_data;
+}
+
+void CheckForDeprecatedSwitches(const CommandLine* command_line) {
+  if (!command_line) {
+    return;
+  }
+
+  struct DeprecatedSwitch {
+    const char* old_flag;
+    const char* new_feature;
+  };
+  const DeprecatedSwitch kDeprecatedSwitches[] = {
+      {"dump_video_data", features::kDumpVideoData.name},
+      {"dump_video_input_hash", features::kDumpVideoInputHash.name},
+      {"maximum_drm_session_updates", features::kLimitDrmSessionUpdates.name},
+      {"use_stub_audio_decoder", features::kUseStubAudioDecoder.name},
+      {"use_stub_audio_sink", features::kUseStubAudioSink.name},
+      {"use_stub_video_decoder", features::kUseStubVideoDecoder.name},
+#if BUILDFLAG(IS_LINUX)
+      {"HasHardMicSupport", features::kHasHardMicSupport.name},
+      {"HasSoftMicSupport", features::kHasSoftMicSupport.name},
+      {"MicGesture", features::kHasSoftMicSupport.name},
+      {"touchscreen_pointer", features::kTouchscreenPointer.name},
+#endif  // BUILDFLAG(IS_LINUX)
+  };
+  for (const auto& entry : kDeprecatedSwitches) {
+    if (command_line->HasSwitch(entry.old_flag)) {
+      SB_LOG(WARNING)
+          << "Old-style command-line flag --" << entry.old_flag
+          << " is no longer recognized. Please use --enable-features="
+          << entry.new_feature
+          << " (or Starboard features configuration) instead.";
+    }
+  }
 }
 
 // The single application instance.
@@ -453,6 +488,7 @@ void Application::CallTeardownCallbacks() {
 Application::Event* Application::CreateInitialEvent(SbEventType type,
                                                     int64_t timestamp) {
   SB_DCHECK(type == kSbEventTypePreload || type == kSbEventTypeStart);
+  CheckForDeprecatedSwitches(command_line_.get());
   SbEventStartData* start_data = new SbEventStartData();
   memset(start_data, 0, sizeof(SbEventStartData));
   const CommandLine::StringVector& args = command_line_->argv();
