@@ -492,7 +492,8 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
       continue;
     }
     // Reject low performance software codec if software codec is not required.
-    // See b/456473829 for more details.
+    // This can help ensure that a hardware decoder is chosen when a device
+    // reports support for a low performing software decoder.
     if (!require_software_codec && video_capability->is_software_decoder()) {
       if (!video_capability->AreResolutionAndRateSupported(Resolution::k1080p,
                                                            /*fps=*/0)) {
