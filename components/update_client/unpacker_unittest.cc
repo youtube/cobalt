@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 #include "components/update_client/unpacker.h"
+#if BUILDFLAG(IS_STARBOARD)
+#include "components/update_client/pipeline.h"
+#endif
 
 #include <iterator>
 #include <utility>
@@ -33,9 +36,19 @@ class UnpackerTest : public testing::Test {
 TEST_F(UnpackerTest, UnpackFullCrx) {
   SEQUENCE_CHECKER(sequence_checker);
   base::RunLoop loop;
+#if BUILDFLAG(IS_STARBOARD)
+  OperationResult op_result1;
+  base::FilePath temp_dir1;
+  EXPECT_TRUE(base::CreateNewTempDirectory(FILE_PATH_LITERAL("unpacker_test"), &temp_dir1));
+  op_result1.response = DuplicateTestFile(temp_dir1, "jebgalgnebhfojomionfpkfelancnnkf.crx");
+  Unpacker::Unpack(
+      std::vector<uint8_t>(std::begin(jebg_hash), std::end(jebg_hash)),
+      op_result1,
+#else
   Unpacker::Unpack(
       std::vector<uint8_t>(std::begin(jebg_hash), std::end(jebg_hash)),
       GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"),
+#endif
       base::MakeRefCounted<update_client::UnzipChromiumFactory>(
           base::BindRepeating(&unzip::LaunchInProcessUnzipper))
           ->Create(),
@@ -67,9 +80,17 @@ TEST_F(UnpackerTest, UnpackFullCrx) {
 TEST_F(UnpackerTest, UnpackFileNotFound) {
   SEQUENCE_CHECKER(sequence_checker);
   base::RunLoop loop;
+#if BUILDFLAG(IS_STARBOARD)
+  OperationResult op_result2;
+  op_result2.response = GetTestFilePath("file_not_found.crx");
+  Unpacker::Unpack(
+      std::vector<uint8_t>(std::begin(jebg_hash), std::end(jebg_hash)),
+      op_result2, nullptr,
+#else
   Unpacker::Unpack(
       std::vector<uint8_t>(std::begin(jebg_hash), std::end(jebg_hash)),
       GetTestFilePath("file_not_found.crx"), nullptr,
+#endif
       crx_file::VerifierFormat::CRX3,
       base::BindLambdaForTesting([&](const Unpacker::Result& result) {
         DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker);
@@ -88,9 +109,17 @@ TEST_F(UnpackerTest, UnpackFileNotFound) {
 TEST_F(UnpackerTest, UnpackFileHashMismatch) {
   SEQUENCE_CHECKER(sequence_checker);
   base::RunLoop loop;
+#if BUILDFLAG(IS_STARBOARD)
+  OperationResult op_result3;
+  op_result3.response = GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx");
+  Unpacker::Unpack(
+      std::vector<uint8_t>(std::begin(abag_hash), std::end(abag_hash)),
+      op_result3, nullptr,
+#else
   Unpacker::Unpack(
       std::vector<uint8_t>(std::begin(abag_hash), std::end(abag_hash)),
       GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), nullptr,
+#endif
       crx_file::VerifierFormat::CRX3,
       base::BindLambdaForTesting([&](const Unpacker::Result& result) {
         DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker);
@@ -108,9 +137,19 @@ TEST_F(UnpackerTest, UnpackFileHashMismatch) {
 TEST_F(UnpackerTest, UnpackWithVerifiedContents) {
   SEQUENCE_CHECKER(sequence_checker);
   base::RunLoop loop;
+#if BUILDFLAG(IS_STARBOARD)
+  OperationResult op_result4;
+  base::FilePath temp_dir4;
+  EXPECT_TRUE(base::CreateNewTempDirectory(FILE_PATH_LITERAL("unpacker_test"), &temp_dir4));
+  op_result4.response = DuplicateTestFile(temp_dir4, "gndmhdcefbhlchkhipcnnbkcmicncehk_22_314.crx3");
+  Unpacker::Unpack(
+      std::vector<uint8_t>(),
+      op_result4,
+#else
   Unpacker::Unpack(
       std::vector<uint8_t>(),
       GetTestFilePath("gndmhdcefbhlchkhipcnnbkcmicncehk_22_314.crx3"),
+#endif
       base::MakeRefCounted<update_client::UnzipChromiumFactory>(
           base::BindRepeating(&unzip::LaunchInProcessUnzipper))
           ->Create(),

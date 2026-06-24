@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "components/update_client/test_configurator.h"
+#include "build/build_config.h"
 
 #include <memory>
 #include <optional>
@@ -25,7 +26,11 @@
 #include "components/update_client/activity_data_service.h"
 #include "components/update_client/crx_cache.h"
 #include "components/update_client/crx_downloader_factory.h"
-#include "components/update_client/net/network_chromium.h"
+#if BUILDFLAG(IS_STARBOARD)
+#include "cobalt/updater/network_fetcher.h"
+#else
+#include "components/update_client/net/network_chromium.h"  // nogncheck
+#endif
 #include "components/update_client/patch/patch_impl.h"
 #include "components/update_client/patcher.h"
 #include "components/update_client/persisted_data.h"
@@ -59,10 +64,16 @@ TestConfigurator::TestConfigurator(PrefService* pref_service)
       test_shared_loader_factory_(
           base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
               &test_url_loader_factory_)),
+#if BUILDFLAG(IS_STARBOARD)
+      network_fetcher_factory_(
+          base::MakeRefCounted<cobalt::updater::NetworkFetcherFactoryCobalt>(
+              test_shared_loader_factory_)),
+#else
       network_fetcher_factory_(
           base::MakeRefCounted<NetworkFetcherChromiumFactory>(
               test_shared_loader_factory_,
               base::BindRepeating([](const GURL& url) { return false; }))),
+#endif
       updater_state_provider_(base::BindRepeating(
           [](bool /*is_machine*/) { return UpdaterStateAttributes(); })),
       is_network_connection_metered_(false) {
