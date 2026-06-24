@@ -18,8 +18,10 @@
 #include <condition_variable>
 #include <functional>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <optional>
+#include <type_traits>
 #include <utility>
 
 #include "starboard/common/check_op.h"
@@ -44,7 +46,65 @@ namespace starboard {
 // A thread can only have one job queue.
 class JobQueue {
  public:
-  using Job = std::function<void()>;
+  class Job {
+   public:
+    Job() = default;
+    Job(std::nullptr_t) {}
+
+    template <
+        typename F,
+        typename = std::enable_if_t<!std::is_same_v<std::decay_t<F>, Job> &&
+                                    std::is_invocable_v<std::decay_t<F>&>>>
+    Job(F&& f)
+        : impl_(
+              std::make_unique<ImplType<std::decay_t<F>>>(std::forward<F>(f))) {
+    }
+
+    Job(const Job&) = delete;
+    Job& operator=(const Job&) = delete;
+    Job(Job&&) = default;
+    Job& operator=(Job&&) = default;
+
+    Job& operator=(std::nullptr_t) {
+      impl_.reset();
+      return *this;
+    }
+
+    void operator()() {
+      SB_CHECK(impl_);
+      impl_->Run();
+    }
+
+    explicit operator bool() const { return impl_ != nullptr; }
+    friend bool operator==(const Job& job, std::nullptr_t) {
+      return job.impl_ == nullptr;
+    }
+    friend bool operator==(std::nullptr_t, const Job& job) {
+      return job.impl_ == nullptr;
+    }
+    friend bool operator!=(const Job& job, std::nullptr_t) {
+      return job.impl_ != nullptr;
+    }
+    friend bool operator!=(std::nullptr_t, const Job& job) {
+      return job.impl_ != nullptr;
+    }
+
+   private:
+    struct ImplBase {
+      virtual ~ImplBase() = default;
+      virtual void Run() = 0;
+    };
+
+    template <typename F>
+    struct ImplType : public ImplBase {
+      template <typename U>
+      explicit ImplType(U&& f) : f_(std::forward<U>(f)) {}
+      void Run() override { f_(); }
+      F f_;
+    };
+
+    std::unique_ptr<ImplBase> impl_;
+  };
 
   class JobToken {
    public:
@@ -81,10 +141,7 @@ class JobQueue {
       return job_queue_->BelongsToCurrentThread();
     }
 
-    JobToken Schedule(const Job& job, int64_t delay_usec = 0) {
-      return job_queue_->Schedule(job, this, delay_usec);
-    }
-    JobToken Schedule(Job&& job, int64_t delay_usec = 0) {
+    JobToken Schedule(Job job, int64_t delay_usec = 0) {
       return job_queue_->Schedule(std::move(job), this, delay_usec);
     }
 
@@ -124,10 +181,8 @@ class JobQueue {
   JobQueue();
   ~JobQueue();
 
-  JobToken Schedule(const Job& job, int64_t delay_usec = 0);
-  JobToken Schedule(Job&& job, int64_t delay_usec = 0);
-  void ScheduleAndWait(const Job& job);
-  void ScheduleAndWait(Job&& job);
+  JobToken Schedule(Job job, int64_t delay_usec = 0);
+  void ScheduleAndWait(Job job);
   void RemoveJobByToken(JobToken* job_token);
 
   // The processing of jobs may not be stopped when this function returns, but
@@ -158,8 +213,7 @@ class JobQueue {
   };
   typedef std::multimap<int64_t, JobRecord> TimeToJobRecordMap;
 
-  JobToken Schedule(const Job& job, JobOwner* owner, int64_t delay_usec);
-  JobToken Schedule(Job&& job, JobOwner* owner, int64_t delay_usec);
+  JobToken Schedule(Job job, JobOwner* owner, int64_t delay_usec);
   void RemoveJobsByOwner(JobOwner* owner);
   // Return true if a job is run, otherwise return false.  When there is no job
   // ready to run currently and |wait_for_next_job| is true, the function will

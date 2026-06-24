@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include <atomic>
+#include <memory>
 #include <vector>
 
 #include "testing/gmock/include/gmock/gmock.h"
@@ -160,6 +161,19 @@ TEST_F(JobQueueTest, JobsAreMovedAndNotCopied) {
 
   EXPECT_FALSE(copied);
   EXPECT_TRUE(moved);
+}
+
+TEST_F(JobQueueTest, MoveOnlyLambdaIsAccepted) {
+  std::atomic_bool executed = false;
+  auto move_only_obj = std::make_unique<int>(42);
+
+  job_queue_.Schedule([ptr = std::move(move_only_obj), &executed]() {
+    EXPECT_EQ(*ptr, 42);
+    executed = true;
+  });
+  job_queue_.RunUntilIdle();
+
+  EXPECT_TRUE(executed);
 }
 
 TEST_F(JobQueueTest, QueueBelongsToCorrectThread) {
