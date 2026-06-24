@@ -17,6 +17,12 @@ echo "Memory Test Started at $(date)" > "$OUTPUT_FILE"
 # Redirect stdout and stderr to both terminal and output file
 exec > >(tee -a "$OUTPUT_FILE") 2>&1
 
+# Ensure debugfs is mounted if we are root and it's not already mounted
+if [ "$EUID" -eq 0 ] && [ ! -d "/sys/kernel/debug/mali0" ]; then
+    echo "Mali debugfs not found. Trying to mount debugfs..."
+    mount -t debugfs none /sys/kernel/debug >/dev/null 2>&1
+fi
+
 # Define scenarios: name|url|duration|rounds|action
 # If rounds is omitted, it defaults to 1.
 # Supported actions:
@@ -194,6 +200,10 @@ for scenario_info in "${SCENARIOS[@]}"; do
     round_status_peak_rss=()
     round_gpu_median_rss=()
     round_gpu_peak_rss=()
+    round_gpu_profile_median=()
+    round_gpu_profile_peak=()
+    round_gpu_allocs_median=()
+    round_gpu_allocs_peak=()
 
     for ((round=1; round<=$scenario_rounds; round++)); do
         echo "=========================================================="
@@ -220,6 +230,8 @@ for scenario_info in "${SCENARIOS[@]}"; do
         smaps_rss_samples=()
         status_rss_samples=()
         gpu_rss_samples=()
+        gpu_profile_samples=()
+        gpu_allocs_samples=()
 
         for ((i=1; i<=$scenario_duration; i++)); do
             if [ ! -d "/proc/$PID" ]; then
@@ -247,13 +259,44 @@ for scenario_info in "${SCENARIOS[@]}"; do
                 fi
             fi
 
+            # Find Mali context directory for this PID
+            ctx_dir=""
+            for d in /sys/kernel/debug/mali0/ctx/${PID}_*; do
+                if [ -d "$d" ]; then
+                    ctx_dir="$d"
+                    break
+                fi
+            done
+
+            # --- GPU Memory Profile (Channels) ---
+            gp_rss=0
+            if [ -n "$ctx_dir" ] && [ -f "$ctx_dir/mem_profile" ]; then
+                gp_val=$(awk '/Total allocated GPU memory:/ {print $NF}' "$ctx_dir/mem_profile" 2>/dev/null)
+                if [[ "$gp_val" =~ ^[0-9]+$ ]]; then
+                    gp_rss=$((gp_val / 1024)) # Convert to KB
+                fi
+            fi
+
+            # --- GPU Memory Allocs (Detailed) ---
+            ga_rss=0
+            if [ -n "$ctx_dir" ] && [ -f "$ctx_dir/mem_allocs" ]; then
+                ga_val=$(awk '{sum += $2} END {print sum}' "$ctx_dir/mem_allocs" 2>/dev/null)
+                if [[ "$ga_val" =~ ^[0-9]+$ ]]; then
+                    ga_rss=$((ga_val / 1024)) # Convert to KB
+                fi
+            fi
+
             # Record samples
             if [[ "$s_rss" =~ ^[0-9]+$ ]]; then smaps_rss_samples+=($s_rss); fi
             if [[ "$t_rss" =~ ^[0-9]+$ ]]; then status_rss_samples+=($t_rss); fi
             gpu_rss_samples+=($g_rss)
+            gpu_profile_samples+=($gp_rss)
+            gpu_allocs_samples+=($ga_rss)
 
-            printf "[%3d/%3d] smaps: RSS %s MB | status: RSS %s MB | gpu: %s MB\n" \
-                "$i" "$scenario_duration" "$(kb_to_mb $s_rss)" "$(kb_to_mb $t_rss)" "$(kb_to_mb $g_rss)"
+            printf "[%3d/%3d] smaps: RSS %s MB | status: RSS %s MB | gpu (page tables): %s MB | gpu (allocs): %s MB | gpu (profile): %s MB\n" \
+                "$i" "$scenario_duration" \
+                "$(kb_to_mb $s_rss)" "$(kb_to_mb $t_rss)" "$(kb_to_mb $g_rss)" \
+                "$(kb_to_mb $ga_rss)" "$(kb_to_mb $gp_rss)"
 
             # Inject scroll event if requested
             if [ "$scenario_action" = "scroll" ]; then
@@ -279,6 +322,10 @@ for scenario_info in "${SCENARIOS[@]}"; do
         r_status_peak=$(calculate_peak "${status_rss_samples[@]}")
         r_gpu_median=$(calculate_median "${gpu_rss_samples[@]}")
         r_gpu_peak=$(calculate_peak "${gpu_rss_samples[@]}")
+        r_gpu_profile_median=$(calculate_median "${gpu_profile_samples[@]}")
+        r_gpu_profile_peak=$(calculate_peak "${gpu_profile_samples[@]}")
+        r_gpu_allocs_median=$(calculate_median "${gpu_allocs_samples[@]}")
+        r_gpu_allocs_peak=$(calculate_peak "${gpu_allocs_samples[@]}")
 
         round_smaps_median_rss+=($r_smaps_median)
         round_smaps_peak_rss+=($r_smaps_peak)
@@ -286,12 +333,22 @@ for scenario_info in "${SCENARIOS[@]}"; do
         round_status_peak_rss+=($r_status_peak)
         round_gpu_median_rss+=($r_gpu_median)
         round_gpu_peak_rss+=($r_gpu_peak)
+        round_gpu_profile_median+=($r_gpu_profile_median)
+        round_gpu_profile_peak+=($r_gpu_profile_peak)
+        round_gpu_allocs_median+=($r_gpu_allocs_median)
+        round_gpu_allocs_peak+=($r_gpu_allocs_peak)
 
         echo ""
         echo "Round $round Results:"
-        echo "  smaps  RSS - Peak: $(kb_to_mb $r_smaps_peak) MB, Median: $(kb_to_mb $r_smaps_median) MB"
-        echo "  status RSS - Peak: $(kb_to_mb $r_status_peak) MB, Median: $(kb_to_mb $r_status_median) MB"
-        echo "  gpu    MEM - Peak: $(kb_to_mb $r_gpu_peak) MB, Median: $(kb_to_mb $r_gpu_median) MB"
+        echo "  smaps         RSS - Peak: $(kb_to_mb $r_smaps_peak) MB, Median: $(kb_to_mb $r_smaps_median) MB"
+        echo "  status        RSS - Peak: $(kb_to_mb $r_status_peak) MB, Median: $(kb_to_mb $r_status_median) MB"
+        echo "  gpu (page tab) MEM - Peak: $(kb_to_mb $r_gpu_peak) MB, Median: $(kb_to_mb $r_gpu_median) MB"
+        if [ "$(kb_to_mb $r_gpu_allocs_peak)" != "0.00" ]; then
+            echo "  gpu (allocs)   MEM - Peak: $(kb_to_mb $r_gpu_allocs_peak) MB, Median: $(kb_to_mb $r_gpu_allocs_median) MB"
+        fi
+        if [ "$(kb_to_mb $r_gpu_profile_peak)" != "0.00" ]; then
+            echo "  gpu (profile)  MEM - Peak: $(kb_to_mb $r_gpu_profile_peak) MB, Median: $(kb_to_mb $r_gpu_profile_median) MB"
+        fi
 
         echo "Deactivating YouTube plugin (callsign: $CALLSIGN) to stop scenario..."
         deactivate_plugin
@@ -313,11 +370,15 @@ for scenario_info in "${SCENARIOS[@]}"; do
     avg_t_peak=$(calculate_average "${round_status_peak_rss[@]}")
     avg_g_med=$(calculate_average "${round_gpu_median_rss[@]}")
     avg_g_peak=$(calculate_average "${round_gpu_peak_rss[@]}")
+    avg_gp_med=$(calculate_average "${round_gpu_profile_median[@]}")
+    avg_gp_peak=$(calculate_average "${round_gpu_profile_peak[@]}")
+    avg_ga_med=$(calculate_average "${round_gpu_allocs_median[@]}")
+    avg_ga_peak=$(calculate_average "${round_gpu_allocs_peak[@]}")
 
     # Store for final report
     scenario_names_ordered+=("$scenario_name")
     scenario_rounds_ordered+=("$scenario_rounds")
-    scenario_data_ordered+=("smaps_median:$avg_s_med;smaps_peak:$avg_s_peak;status_median:$avg_t_med;status_peak:$avg_t_peak;gpu_median:$avg_g_med;gpu_peak:$avg_g_peak")
+    scenario_data_ordered+=("smaps_median:$avg_s_med;smaps_peak:$avg_s_peak;status_median:$avg_t_med;status_peak:$avg_t_peak;gpu_median:$avg_g_med;gpu_peak:$avg_g_peak;gpu_profile_median:$avg_gp_med;gpu_profile_peak:$avg_gp_peak;gpu_allocs_median:$avg_ga_med;gpu_allocs_peak:$avg_ga_peak")
 done
 
 echo ""
@@ -337,6 +398,10 @@ for ((i=0; i<${#scenario_names_ordered[@]}; i++)); do
     avg_t_peak=$(echo "$report_data" | awk -F'[;:]' '{print $8}')
     avg_g_med=$(echo "$report_data" | awk -F'[;:]' '{print $10}')
     avg_g_peak=$(echo "$report_data" | awk -F'[;:]' '{print $12}')
+    avg_gp_med=$(echo "$report_data" | awk -F'[;:]' '{print $14}')
+    avg_gp_peak=$(echo "$report_data" | awk -F'[;:]' '{print $16}')
+    avg_ga_med=$(echo "$report_data" | awk -F'[;:]' '{print $18}')
+    avg_ga_peak=$(echo "$report_data" | awk -F'[;:]' '{print $20}')
 
     echo "Scenario: $scenario_name ($scenario_rounds rounds)"
     printf "  Source: smaps\n"
@@ -345,9 +410,19 @@ for ((i=0; i<${#scenario_names_ordered[@]}; i++)); do
     printf "  Source: status\n"
     printf "    Average Median RSS: %s MB\n" "$(kb_to_mb $avg_t_med)"
     printf "    Average Peak RSS:   %s MB\n" "$(kb_to_mb $avg_t_peak)"
-    printf "  Source: gpu\n"
+    printf "  Source: gpu (page tables)\n"
     printf "    Average Median RSS: %s MB\n" "$(kb_to_mb $avg_g_med)"
     printf "    Average Peak RSS:   %s MB\n" "$(kb_to_mb $avg_g_peak)"
+    if [ "$(kb_to_mb $avg_ga_peak)" != "0.00" ]; then
+        printf "  Source: gpu (allocs)\n"
+        printf "    Average Median RSS: %s MB\n" "$(kb_to_mb $avg_ga_med)"
+        printf "    Average Peak RSS:   %s MB\n" "$(kb_to_mb $avg_ga_peak)"
+    fi
+    if [ "$(kb_to_mb $avg_gp_peak)" != "0.00" ]; then
+        printf "  Source: gpu (profile)\n"
+        printf "    Average Median RSS: %s MB\n" "$(kb_to_mb $avg_gp_med)"
+        printf "    Average Peak RSS:   %s MB\n" "$(kb_to_mb $avg_gp_peak)"
+    fi
     echo "----------------------------------------------------------"
 done
 echo "=========================================================="
