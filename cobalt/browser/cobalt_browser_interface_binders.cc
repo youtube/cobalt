@@ -32,7 +32,6 @@
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl_base.h"
 #include "cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom.h"
 #include "cobalt/browser/h5vcc_updater/public/mojom/h5vcc_updater.mojom.h"
-#include "cobalt/browser/on_screen_keyboard/on_screen_keyboard_impl.h"
 #include "cobalt/browser/performance/performance_impl.h"
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
 #include "cobalt/build/configs/buildflags.h"
@@ -56,6 +55,7 @@
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 
 #if BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
+#include "cobalt/browser/on_screen_keyboard/on_screen_keyboard_impl.h"
 #include "cobalt/browser/on_screen_keyboard/public/mojom/on_screen_keyboard.mojom.h"
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/browser/web_contents.h"
