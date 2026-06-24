@@ -26,6 +26,7 @@
 namespace base {
 namespace memory {
 
+// Weak symbol to allow the linker to merge these functions across base and copied_base.
 #if defined(__GNUC__)
 #define MAYBE_COBALT_WEAK __attribute__((weak))
 #else
@@ -33,13 +34,18 @@ namespace memory {
 #endif
 
 MAYBE_COBALT_WEAK pthread_key_t GetSharedMemoryContextKey() {
+  // Use a static atomic to ensure lazy initialization happens safely.
+  // Because this function is weak, the linker will merge all copies into a single instance,
+  // meaning `g_key` will be identical across both `base` and `copied_base`.
   static std::atomic<intptr_t> g_key{-1};
   intptr_t key = g_key.load(std::memory_order_acquire);
   if (key == -1) {
     pthread_key_t new_key;
     pthread_key_create(&new_key, nullptr);
     intptr_t expected = -1;
-    if (g_key.compare_exchange_strong(expected, static_cast<intptr_t>(new_key), std::memory_order_release)) {
+    if (g_key.compare_exchange_strong(expected,
+                                      static_cast<intptr_t>(new_key),
+                                      std::memory_order_acq_rel)) {
       key = static_cast<intptr_t>(new_key);
     } else {
       pthread_key_delete(new_key);
