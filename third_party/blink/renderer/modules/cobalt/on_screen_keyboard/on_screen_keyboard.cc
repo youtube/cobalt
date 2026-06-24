@@ -230,6 +230,7 @@ void OnScreenKeyboard::setBackgroundColor(const String& background_color) {
   if (!CSSParser::ParseColor(parsed_color, background_color)) {
     LOG(WARNING) << "Invalid on-screen keyboard background color "
                  << background_color;
+    parsed_background_color_.reset();
   } else {
     parsed_background_color_ = parsed_color;
   }
