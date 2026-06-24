@@ -87,13 +87,5 @@ TEST(SizeTest, FitsWithin) {
   EXPECT_FALSE(size.FitsWithin(Size(10, 9)));
   EXPECT_FALSE(size.FitsWithin(Size(5, 5)));
 }
-
-TEST(SizeTest, Zero) {
-  EXPECT_EQ(0, Size::Zero().width);
-  EXPECT_EQ(0, Size::Zero().height);
-  EXPECT_TRUE(Size::Zero().IsEmpty());
-  EXPECT_EQ(0, Size::Zero().GetArea());
-}
-
 }  // namespace
 }  // namespace starboard

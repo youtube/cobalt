@@ -21,8 +21,6 @@
 namespace starboard {
 
 struct Size {
-  static constexpr Size Zero() { return Size(); }
-
   constexpr Size() : width(0), height(0) {}
   constexpr Size(int width, int height) : width(width), height(height) {}
 

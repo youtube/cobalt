@@ -405,7 +405,7 @@ bool MediaCapabilitiesCache::HasVideoDecoderFor(const std::string& mime_type,
                                                 bool must_support_hdr,
                                                 bool must_support_tunnel_mode) {
   return HasVideoDecoderFor(mime_type, must_support_secure, must_support_hdr,
-                            must_support_tunnel_mode, Size::Zero(),
+                            must_support_tunnel_mode, Size(),
                             /*bitrate=*/0, /*fps=*/0);
 }
 
@@ -442,7 +442,7 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
     bool must_support_tunnel_mode) {
   return FindVideoDecoder(mime_type, must_support_secure, must_support_hdr,
                           require_software_codec, must_support_tunnel_mode,
-                          Size::Zero(), /*bitrate=*/0, /*fps=*/0);
+                          Size(), /*bitrate=*/0, /*fps=*/0);
 }
 
 std::string MediaCapabilitiesCache::FindVideoDecoder(
