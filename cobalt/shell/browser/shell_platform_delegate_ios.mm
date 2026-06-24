@@ -362,7 +362,7 @@ const char kAllTracingCategories[] = "*";
 @property(nonatomic, strong) UIView* contentView;
 // Manages tracing and tracing state.
 @property(nonatomic, strong) TracingHandler* tracingHandler;
-// SBDOnScreenKeyboardManagerDelegate implementation.
+// PlatformOnScreenKeyboardDelegate implementation.
 @property(nonatomic, weak) id<PlatformOnScreenKeyboardDelegate>
     platformOnScreenKeyboardDelegate;
 
