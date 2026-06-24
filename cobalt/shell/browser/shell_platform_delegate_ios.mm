@@ -123,7 +123,7 @@ const char kAllTracingCategories[] = "*";
   return self;
 }
 
-#pragma mark - SBDOnScreenKeyboardManagerDelegate
+#pragma mark - PlatformOnScreenKeyboardDelegate
 
 - (void)keyboardBlurred {
   _blurredCallback.Run();
