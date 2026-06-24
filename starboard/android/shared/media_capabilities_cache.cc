@@ -32,6 +32,7 @@
 #include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/key_system_supportability_cache.h"
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
+#include "starboard/shared/starboard/media/resolutions.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
@@ -270,24 +271,23 @@ bool VideoCodecCapability::IsBitrateSupported(int bitrate) const {
   return supported_bitrates_.Contains(bitrate);
 }
 
-bool VideoCodecCapability::AreResolutionAndRateSupported(int frame_width,
-                                                         int frame_height,
+bool VideoCodecCapability::AreResolutionAndRateSupported(Size size,
                                                          int fps) const {
   if (!(j_video_capabilities_.is_null())) {
     JNIEnv* env = AttachCurrentThread();
-    if (frame_width != 0 && frame_height != 0 && fps != 0) {
+    if (!size.IsEmpty() && fps != 0) {
       return Java_MediaCodecUtil_areSizeAndRateSupported(
-          env, j_video_capabilities_, frame_width, frame_height,
+          env, j_video_capabilities_, size.width, size.height,
           static_cast<jdouble>(fps));
-    } else if (frame_width != 0 && frame_height != 0) {
+    } else if (!size.IsEmpty()) {
       return Java_MediaCodecUtil_isSizeSupported(env, j_video_capabilities_,
-                                                 frame_width, frame_height);
+                                                 size.width, size.height);
     }
   }
-  if (frame_width != 0 && !supported_widths_.Contains(frame_width)) {
+  if (size.width != 0 && !supported_widths_.Contains(size.width)) {
     return false;
   }
-  if (frame_height != 0 && !supported_heights_.Contains(frame_height)) {
+  if (size.height != 0 && !supported_heights_.Contains(size.height)) {
     return false;
   }
   if (fps != 0 && !supported_frame_rates_.Contains(fps)) {
@@ -391,14 +391,12 @@ bool MediaCapabilitiesCache::HasVideoDecoderFor(const std::string& mime_type,
                                                 bool must_support_secure,
                                                 bool must_support_hdr,
                                                 bool must_support_tunnel_mode,
-                                                int frame_width,
-                                                int frame_height,
+                                                Size frame_size,
                                                 int bitrate,
                                                 int fps) {
   return !FindVideoDecoder(mime_type, must_support_secure, must_support_hdr,
                            /*require_software_codec=*/false,
-                           must_support_tunnel_mode, frame_width, frame_height,
-                           bitrate, fps)
+                           must_support_tunnel_mode, frame_size, bitrate, fps)
               .empty();
 }
 
@@ -407,8 +405,8 @@ bool MediaCapabilitiesCache::HasVideoDecoderFor(const std::string& mime_type,
                                                 bool must_support_hdr,
                                                 bool must_support_tunnel_mode) {
   return HasVideoDecoderFor(mime_type, must_support_secure, must_support_hdr,
-                            must_support_tunnel_mode, /*frame_width=*/0,
-                            /*frame_height=*/0, /*bitrate=*/0, /*fps=*/0);
+                            must_support_tunnel_mode, Size(),
+                            /*bitrate=*/0, /*fps=*/0);
 }
 
 std::string MediaCapabilitiesCache::FindAudioDecoder(
@@ -444,8 +442,7 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
     bool must_support_tunnel_mode) {
   return FindVideoDecoder(mime_type, must_support_secure, must_support_hdr,
                           require_software_codec, must_support_tunnel_mode,
-                          /*frame_width=*/0, /*frame_height=*/0, /*bitrate=*/0,
-                          /*fps=*/0);
+                          Size(), /*bitrate=*/0, /*fps=*/0);
 }
 
 std::string MediaCapabilitiesCache::FindVideoDecoder(
@@ -454,8 +451,7 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
     bool must_support_hdr,
     bool require_software_codec,
     bool must_support_tunnel_mode,
-    int frame_width,
-    int frame_height,
+    Size frame_size,
     int bitrate,
     int fps) {
   if (!is_enabled_) {
@@ -464,7 +460,8 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
     auto j_decoder_name = Java_MediaCodecUtil_findVideoDecoder(
         env, j_mime, must_support_secure, must_support_hdr,
         /*mustSupportSoftwareCodec=*/false, must_support_tunnel_mode,
-        /*decoderCacheTtlMs=*/-1, frame_width, frame_height, bitrate, fps);
+        /*decoderCacheTtlMs=*/-1, frame_size.width, frame_size.height, bitrate,
+        fps);
     return ConvertJavaStringToUTF8(env, j_decoder_name);
   }
 
@@ -497,10 +494,8 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
     // Reject low performance software codec if software codec is not required.
     // See b/456473829 for more details.
     if (!require_software_codec && video_capability->is_software_decoder()) {
-      const int kMinimumWidth = 1920;
-      const int kMinimumHeight = 1080;
-      if (!video_capability->AreResolutionAndRateSupported(kMinimumWidth,
-                                                           kMinimumHeight, 0)) {
+      if (!video_capability->AreResolutionAndRateSupported(Resolution::k1080p,
+                                                           /*fps=*/0)) {
         continue;
       }
     }
@@ -509,8 +504,7 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
       continue;
     }
     // Reject if resolution or frame rate is not supported.
-    if (!video_capability->AreResolutionAndRateSupported(frame_width,
-                                                         frame_height, fps)) {
+    if (!video_capability->AreResolutionAndRateSupported(frame_size, fps)) {
       continue;
     }
     // Reject if bitrate is not supported.
@@ -583,11 +577,9 @@ void MediaCapabilitiesCache::LoadIsAv18kCappedAt30_Locked() {
   for (const auto& video_capability :
        video_codec_capabilities_map_[SupportedVideoCodecToMimeType(
            kSbMediaVideoCodecAv1)]) {
-    constexpr int kWidth8K = 7680;
-    constexpr int kHeight8K = 4320;
-    if (video_capability->AreResolutionAndRateSupported(kWidth8K, kHeight8K,
+    if (video_capability->AreResolutionAndRateSupported(Resolution::k8k,
                                                         /*fps=*/0) &&
-        !video_capability->AreResolutionAndRateSupported(kWidth8K, kHeight8K,
+        !video_capability->AreResolutionAndRateSupported(Resolution::k8k,
                                                          /*fps=*/60)) {
       is_av1_8k_capped_at_30_ = true;
       break;
