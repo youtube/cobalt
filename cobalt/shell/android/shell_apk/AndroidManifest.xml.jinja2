@@ -17,6 +17,7 @@
 -->
 
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="{{ manifest_package }}">
 
     <uses-feature android:name="android.hardware.microphone" android:required="false"/>
@@ -142,6 +143,12 @@
         {% block extra_application_definitions_for_test %}
         {% endblock %}
 
+        <!-- Disables at startup init of Emoji2. See http://crbug.com/1205141 -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:exported="false"
+            tools:node="remove">
+        </provider>
     </application>
     {% block extra_root_definitions %}
     {% endblock %}
