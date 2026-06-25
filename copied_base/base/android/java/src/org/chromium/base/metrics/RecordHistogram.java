@@ -8,7 +8,6 @@ import android.text.format.DateUtils;
 
 import androidx.annotation.VisibleForTesting;
 
-
 import java.util.List;
 
 /**
