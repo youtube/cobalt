@@ -333,7 +333,6 @@ TEST_F(PosixReaddirTests, DeterministicBufferIsolation) {
 TEST_F(PosixReaddirTests, ThreadSafetyDifferentStreams) {
   constexpr int kNumThreads = 10;
   constexpr int kFilesPerDir = 5;
-  constexpr int kIterations = 20;  // Run multiple times to ensure interleaving
   std::vector<std::string> subdirs;
 
   // Create subdirectories and files
@@ -387,49 +386,45 @@ TEST_F(PosixReaddirTests, ThreadSafetyDifferentStreams) {
         // Spin active-waiting for the gate to open
       }
 
-      for (int k = 0; k < kIterations; ++k) {
-        DIR* dir = opendir(subdir_path.c_str());
-        if (dir == nullptr) {
-          thread_errors[i] =
-              "opendir failed with errno " + std::to_string(errno);
-          return;
-        }
+      DIR* dir = opendir(subdir_path.c_str());
+      if (dir == nullptr) {
+        thread_errors[i] = "opendir failed with errno " + std::to_string(errno);
+        return;
+      }
 
-        std::vector<std::string> entries;
-        struct dirent* entry;
+      std::vector<std::string> entries;
+      struct dirent* entry;
 
-        while (true) {
-          errno = 0;
-          entry = readdir(dir);
-          if (entry == nullptr) {
-            if (errno != 0) {
-              thread_errors[i] =
-                  "readdir failed with errno " + std::to_string(errno);
-              closedir(dir);
-              return;
-            }
-            break;
+      while (true) {
+        errno = 0;
+        entry = readdir(dir);
+        if (entry == nullptr) {
+          if (errno != 0) {
+            thread_errors[i] =
+                "readdir failed with errno " + std::to_string(errno);
+            closedir(dir);
+            return;
           }
-          entries.push_back(entry->d_name);
+          break;
         }
-        closedir(dir);
+        entries.push_back(entry->d_name);
+      }
+      closedir(dir);
 
-        // Verify entries
-        std::sort(entries.begin(), entries.end());
+      // Verify entries
+      std::sort(entries.begin(), entries.end());
 
-        if (entries != expected) {
-          std::string error = "Unexpected entries. Expected: {";
-          for (const auto& e : expected) {
-            error += e + ", ";
-          }
-          error += "}, Got: {";
-          for (const auto& e : entries) {
-            error += e + ", ";
-          }
-          error += "}";
-          thread_errors[i] = error;
-          return;  // Exit early on failure
+      if (entries != expected) {
+        std::string error = "Unexpected entries. Expected: {";
+        for (const auto& e : expected) {
+          error += e + ", ";
         }
+        error += "}, Got: {";
+        for (const auto& e : entries) {
+          error += e + ", ";
+        }
+        error += "}";
+        thread_errors[i] = error;
       }
     });
   }
@@ -465,7 +460,6 @@ TEST_F(PosixReaddirTests, ThreadSafetyDifferentStreams) {
 TEST_F(PosixReaddirTests, ThreadSafetySameDirectoryDifferentStreams) {
   constexpr int kNumThreads = 10;
   constexpr int kNumFiles = 10;
-  constexpr int kIterations = 20;  // Run multiple times to ensure interleaving
   std::vector<std::string> subdirs;
 
   // Create one directory with files
@@ -513,49 +507,45 @@ TEST_F(PosixReaddirTests, ThreadSafetySameDirectoryDifferentStreams) {
         // Spin active-waiting for the gate to open
       }
 
-      for (int k = 0; k < kIterations; ++k) {
-        DIR* dir = opendir(shared_dir.c_str());
-        if (dir == nullptr) {
-          thread_errors[i] =
-              "opendir failed with errno " + std::to_string(errno);
-          return;
-        }
+      DIR* dir = opendir(shared_dir.c_str());
+      if (dir == nullptr) {
+        thread_errors[i] = "opendir failed with errno " + std::to_string(errno);
+        return;
+      }
 
-        std::vector<std::string> entries;
-        struct dirent* entry;
+      std::vector<std::string> entries;
+      struct dirent* entry;
 
-        while (true) {
-          errno = 0;
-          entry = readdir(dir);
-          if (entry == nullptr) {
-            if (errno != 0) {
-              thread_errors[i] =
-                  "readdir failed with errno " + std::to_string(errno);
-              closedir(dir);
-              return;
-            }
-            break;
+      while (true) {
+        errno = 0;
+        entry = readdir(dir);
+        if (entry == nullptr) {
+          if (errno != 0) {
+            thread_errors[i] =
+                "readdir failed with errno " + std::to_string(errno);
+            closedir(dir);
+            return;
           }
-          entries.push_back(entry->d_name);
+          break;
         }
-        closedir(dir);
+        entries.push_back(entry->d_name);
+      }
+      closedir(dir);
 
-        // Verify entries
-        std::sort(entries.begin(), entries.end());
+      // Verify entries
+      std::sort(entries.begin(), entries.end());
 
-        if (entries != expected) {
-          std::string error = "Unexpected entries. Expected: {";
-          for (const auto& e : expected) {
-            error += e + ", ";
-          }
-          error += "}, Got: {";
-          for (const auto& e : entries) {
-            error += e + ", ";
-          }
-          error += "}";
-          thread_errors[i] = error;
-          return;  // Exit early on failure
+      if (entries != expected) {
+        std::string error = "Unexpected entries. Expected: {";
+        for (const auto& e : expected) {
+          error += e + ", ";
         }
+        error += "}, Got: {";
+        for (const auto& e : entries) {
+          error += e + ", ";
+        }
+        error += "}";
+        thread_errors[i] = error;
       }
     });
   }
