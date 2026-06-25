@@ -203,7 +203,11 @@ def cherry_pick(sha, num, title, first_cherry_pick):
         return CherryPickStatus.FAILED
 
       msg = f'Conflicted {msg}'
-      run(['git', 'add'] + list(unmerged))
+      res = subprocess.run(
+          ['git', 'add'] + list(unmerged), capture_output=True, text=True)
+      print(res.returncode)
+      print(res.stdout)
+      print(res.stderr)
       result = CherryPickStatus.CONFLICTED
 
   # Check if there are changes to commit.
