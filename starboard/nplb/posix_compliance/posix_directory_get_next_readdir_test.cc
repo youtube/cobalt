@@ -438,11 +438,6 @@ TEST_F(PosixReaddirTests, ThreadSafetyDifferentStreams) {
     EXPECT_TRUE(thread_errors[i].empty())
         << "Thread " << i << " failed: " << thread_errors[i];
   }
-
-  // Clean up subdirectories.
-  for (const auto& subdir_path : subdirs) {
-    RemoveFileOrDirectoryRecursively(subdir_path);
-  }
 }
 
 // Test readdir's thread safety when called concurrently on the same directory
@@ -568,9 +563,6 @@ TEST_F(PosixReaddirTests, ThreadSafetySameDirectoryDifferentStreams) {
     EXPECT_TRUE(thread_errors[i].empty())
         << "Thread " << i << " failed: " << thread_errors[i];
   }
-
-  // Clean up shared directory.
-  RemoveFileOrDirectoryRecursively(shared_dir);
 }
 
 }  // namespace
