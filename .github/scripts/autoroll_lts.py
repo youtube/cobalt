@@ -203,11 +203,20 @@ def cherry_pick(sha, num, title, first_cherry_pick):
         return CherryPickStatus.FAILED
 
       msg = f'Conflicted {msg}'
-      res = subprocess.run(
-          ['git', 'add'] + list(unmerged), capture_output=True, text=True)
-      print(res.returncode)
-      print(res.stdout)
-      print(res.stderr)
+      try:
+        res = subprocess.run(
+            ['git', 'add'] + list(unmerged), capture_output=True, text=True)
+        print(res.returncode)
+        print(res.stdout)
+        print(res.stderr)
+      except subprocess.CalledProcessError as e:
+        print(f"\n--- COMMAND FAILED ---", file=sys.stderr)
+        print(f"Command: {' '.join(cmd)}", file=sys.stderr)
+        print(f"Exit Code: {e.returncode}", file=sys.stderr)
+        print(f"Error (stderr): {e.stderr}", file=sys.stderr)
+        print(f"Output (stdout): {e.stdout}", file=sys.stderr)
+        print(f"----------------------\n", file=sys.stderr)
+        raise # Re-raises the error so the script still stops
       result = CherryPickStatus.CONFLICTED
 
   # Check if there are changes to commit.
