@@ -270,6 +270,64 @@ TEST_F(PosixReaddirTests, SeparateDirectoriesSeparateReaddir) {
   RemoveFileOrDirectoryRecursively(dir2_path);
 }
 
+// Test deterministically that readdir does not use a global static buffer
+// shared across different directory streams.
+TEST_F(PosixReaddirTests, DeterministicBufferIsolation) {
+  // Create two subdirectories
+  std::string dir1_path = test_dir_ + "/det_dir1";
+  std::string dir2_path = test_dir_ + "/det_dir2";
+  ASSERT_EQ(mkdir(dir1_path.c_str(), 0777), 0);
+  ASSERT_EQ(mkdir(dir2_path.c_str(), 0777), 0);
+
+  // Create a unique file in each
+  std::string file1_path = dir1_path + "/file_in_dir1.txt";
+  int fd1 = open(file1_path.c_str(), flags_, 0666);
+  ASSERT_NE(fd1, -1);
+  close(fd1);
+
+  std::string file2_path = dir2_path + "/file_in_dir2.txt";
+  int fd2 = open(file2_path.c_str(), flags_, 0666);
+  ASSERT_NE(fd2, -1);
+  close(fd2);
+
+  DIR* dir1 = opendir(dir1_path.c_str());
+  ASSERT_NE(dir1, nullptr);
+  DIR* dir2 = opendir(dir2_path.c_str());
+  ASSERT_NE(dir2, nullptr);
+
+  // Read first entry from dir1
+  struct dirent* entry1 = readdir(dir1);
+  ASSERT_NE(entry1, nullptr);
+
+  // Save the pointer and copy the content
+  const struct dirent* entry1_ptr = entry1;
+  std::string entry1_name_before = entry1->d_name;
+  unsigned char entry1_type_before = entry1->d_type;
+  ino_t entry1_ino_before = entry1->d_ino;
+
+  // Interleave: Read from dir2.
+  // If the implementation uses a global static buffer, this call will
+  // overwrite the memory pointed to by entry1.
+  struct dirent* entry2 = readdir(dir2);
+  ASSERT_NE(entry2, nullptr);
+
+  // Verify that entry1's memory was NOT modified
+  EXPECT_NE(entry1_ptr, entry2) << "readdir returned the same pointer for "
+                                   "different streams (global static buffer!)";
+  EXPECT_EQ(entry1->d_name, entry1_name_before)
+      << "readdir on dir2 overwrote d_name of dir1";
+  EXPECT_EQ(entry1->d_type, entry1_type_before)
+      << "readdir on dir2 overwrote d_type of dir1";
+  EXPECT_EQ(entry1->d_ino, entry1_ino_before)
+      << "readdir on dir2 overwrote d_ino of dir1";
+
+  closedir(dir1);
+  closedir(dir2);
+
+  RemoveFileOrDirectoryRecursively(dir1_path);
+  RemoveFileOrDirectoryRecursively(dir2_path);
+}
+
 // Test readdir's thread safety when called concurrently on different directory
 // streams.
 TEST_F(PosixReaddirTests, ThreadSafetyDifferentStreams) {
