@@ -57,6 +57,7 @@ struct SbPlayerPrivate {
   virtual bool GetAudioConfiguration(
       int index,
       SbMediaAudioConfiguration* out_audio_configuration) = 0;
+  virtual SbWindow GetWindow() const = 0;
 };
 
 namespace starboard {
@@ -64,6 +65,7 @@ namespace starboard {
 class SbPlayerPrivateImpl final : public SbPlayerPrivate {
  public:
   SbPlayerPrivateImpl(
+      SbWindow window,
       SbMediaAudioCodec audio_codec,
       SbMediaVideoCodec video_codec,
       SbPlayerDeallocateSampleFunc sample_deallocate_func,
@@ -91,6 +93,7 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
   bool GetAudioConfiguration(
       int index,
       SbMediaAudioConfiguration* out_audio_configuration) final;
+  SbWindow GetWindow() const final { return window_; }
 
   ~SbPlayerPrivateImpl() final;
 
@@ -117,6 +120,7 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
   // we may extrapolate the media time in GetInfo().
   bool is_progressing_ = false;
 
+  SbWindow window_;
   const std::unique_ptr<PlayerWorker> worker_;
 
   std::mutex audio_configurations_mutex_;

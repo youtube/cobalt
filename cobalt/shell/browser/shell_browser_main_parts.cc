@@ -33,7 +33,9 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/first_party_sets_handler.h"
+#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/storage_partition.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/result_codes.h"
 #include "content/public/common/url_constants.h"
@@ -176,6 +178,12 @@ void ShellBrowserMainParts::InitializeMessageLoopContext() {
                          switches::ShouldCreateSplashScreen(), deep_link_
 #endif  // BUILDFLAG(IS_ANDROID)
   );
+
+  // HACK FOR TESTING: Spawn a second 400x300 window pointing to Google
+  // Shell::CreateNewWindow(browser_context_.get(),
+  //                        GURL("https://www.google.com"), nullptr,
+  //                        gfx::Size(400, 300),
+  //                        /*create_splash_screen_web_contents=*/false);
 }
 
 void ShellBrowserMainParts::ToolkitInitialized() {

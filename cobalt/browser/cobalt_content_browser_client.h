@@ -137,9 +137,10 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   void DispatchFocus();
 
   void AddPendingWindowReceiver(
+      content::RenderFrameHost* rfh,
       mojo::PendingReceiver<cobalt::media::mojom::PlatformWindowProvider>
           receiver);
-  uint64_t GetSbWindowHandle() const { return cached_sb_window_; }
+  uint64_t GetSbWindowHandle() const;
 
 #if !BUILDFLAG(IS_ANDROIDTV)
   void SetUserAgentCrashAnnotation();
@@ -155,7 +156,7 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
 
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
 
-  uint64_t cached_sb_window_ = 0;
+  std::vector<SbWindow> active_sb_windows_;
   std::vector<
       mojo::PendingReceiver<cobalt::media::mojom::PlatformWindowProvider>>
       pending_window_receivers_;
