@@ -71,6 +71,8 @@ declare_args() {
   root_extra_deps = []
 }
 
+print("ROOT BUILD.GN: is_cobalt =", is_cobalt, "toolchain =", current_toolchain)
+
 if (is_official_build) {
   # An official (maximally optimized!) component (optimized for build times)
   # build doesn't make sense and usually doesn't work.
@@ -87,8 +89,17 @@ if (is_official_build) {
 # `all`, and no tooling should depend directly on this target. Tools should
 # should depend on either an explicit list of targets, or `all`.
 
-group("gn_all") {
-  testonly = true
+if (is_cobalt) {
+  group("gn_all") {
+    testonly = true
+    deps = [
+      "//cobalt:gn_all",
+      "//cobalt:cobalt_browsertests",
+    ]
+  }
+} else {
+  group("gn_all") {
+    testonly = true
 
   if (is_cronet_build) {
     if (is_android) {
@@ -149,7 +160,7 @@ group("gn_all") {
     }
 
     if (!is_ios && !is_android && !is_castos) {
-      if (!is_fuchsia) {
+      if (!is_fuchsia && !is_cobalt) {
         deps += [
           "//chrome",
           "//chrome/browser/ui/actions:dump_actions",
@@ -1645,28 +1656,7 @@ if (use_blink && !is_cronet_build) {
     ]
   }
 
-  copy("layout_test_data_mojo_bindings") {
-    testonly = true
 
-    sources = [ "$root_gen_dir/mojo/public/js/mojo_bindings.js" ]
-
-    outputs =
-        [ "$root_gen_dir/layout_test_data/mojo/public/js/mojo_bindings.js" ]
-
-    deps = [ "//mojo/public/js:bindings" ]
-  }
-
-  copy("layout_test_data_mojo_bindings_lite") {
-    testonly = true
-
-    sources = [ "$root_gen_dir/mojo/public/js/mojo_bindings_lite.js" ]
-
-    outputs = [
-      "$root_gen_dir/layout_test_data/mojo/public/js/mojo_bindings_lite.js",
-    ]
-
-    deps = [ "//mojo/public/js:bindings_lite" ]
-  }
 
   script_test("blink_python_tests") {
     script = "//testing/scripts/run_isolated_script_test.py"
@@ -1850,6 +1840,31 @@ if (is_chromeos && enable_js_type_check) {
       "mojo/public/tools/bindings/generators/js_templates/lite/test:closure_compile_modules",
     ]
   }
+}
+
+}
+
+copy("layout_test_data_mojo_bindings") {
+  testonly = true
+
+  sources = [ "$root_gen_dir/mojo/public/js/mojo_bindings.js" ]
+
+  outputs =
+      [ "$root_gen_dir/layout_test_data/mojo/public/js/mojo_bindings.js" ]
+
+  deps = [ "//mojo/public/js:bindings" ]
+}
+
+copy("layout_test_data_mojo_bindings_lite") {
+  testonly = true
+
+  sources = [ "$root_gen_dir/mojo/public/js/mojo_bindings_lite.js" ]
+
+  outputs = [
+    "$root_gen_dir/layout_test_data/mojo/public/js/mojo_bindings_lite.js",
+  ]
+
+  deps = [ "//mojo/public/js:bindings_lite" ]
 }
 
 if (use_remoteexec && target_os != "chromeos" && rbe_exec_root != "/") {

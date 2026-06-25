@@ -2113,3 +2113,11 @@ generated_union_sources_for_testing_in_core = [
   "$root_gen_dir/third_party/blink/renderer/bindings/core/v8/v8_union_internalenum_internalenumsequence.cc",
   "$root_gen_dir/third_party/blink/renderer/bindings/core/v8/v8_union_internalenum_internalenumsequence.h",
 ]
+
+if (is_cobalt) {
+  _filtered_core = filter_exclude(generated_union_sources_in_core, [
+    "*v8_union_dommatrix_float32array_float64array*",
+  ])
+  generated_union_sources_in_core = []
+  generated_union_sources_in_core = _filtered_core
+}
