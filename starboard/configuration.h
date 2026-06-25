@@ -123,6 +123,10 @@ struct CompileAssert {};
 // targets and all configurations.
 #include STARBOARD_CONFIGURATION_INCLUDE
 
+#ifndef ALLOW_EVERGREEN_SIDELOADING
+#define ALLOW_EVERGREEN_SIDELOADING 1
+#endif
+
 // --- Overridable Helper Macros ---------------------------------------------
 
 // The following macros can be overridden in STARBOARD_CONFIGURATION_INCLUDE
@@ -412,16 +416,5 @@ struct CompileAssert {};
 #else
 #define SB_FUNCTION __FUNCTION__
 #endif
-
-// --- Deprecated Feature Macros -----------------------------------------------
-
-// Deprecated feature macros are no longer referenced by application code, and
-// will be removed in a later Starboard API version. Any Starboard
-// implementation that supports any of these macros should be modified to no
-// longer rely on them, and operate with the assumption that their values are
-// always 1.
-
-// This will be removed in subsequent API releases and should be ignored.
-#define ALLOW_EVERGREEN_SIDELOADING 0
 
 #endif  // STARBOARD_CONFIGURATION_H_
