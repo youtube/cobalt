@@ -1,4 +1,5 @@
 is_cobalt = true
+is_component_build = false
 
 # Disable Chrome Remote Desktop.
 enable_remoting = false
@@ -42,6 +43,13 @@ enable_vr = false
 
 # Disable screen/window/tab capture (Note: live capture, not screenshots).
 enable_screen_capture = false
+
+# Disable printing.
+enable_printing = false
+enable_pdf = false
+
+# Disable Safe Browsing.
+safe_browsing_mode = 0
 
 # Re-enable concurrent marking to monitor via experiment.
 v8_enable_concurrent_marking = true

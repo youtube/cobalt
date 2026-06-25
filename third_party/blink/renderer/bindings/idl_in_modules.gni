@@ -1457,3 +1457,20 @@ if (!use_webrtc_peer_connection) {
   static_idl_files_in_modules_for_testing = []
   static_idl_files_in_modules_for_testing = _filtered_testing_idl
 }
+
+if (is_cobalt) {
+  _filtered_idl_cobalt = filter_exclude(static_idl_files_in_modules, [
+    "//third_party/blink/renderer/modules/webmidi/*",
+    "//third_party/blink/renderer/modules/sensor/*",
+    "//third_party/blink/renderer/modules/battery/*",
+    "//third_party/blink/renderer/modules/webshare/*",
+  ])
+  static_idl_files_in_modules = []
+  static_idl_files_in_modules = _filtered_idl_cobalt
+
+  _filtered_testing_idl_cobalt = filter_exclude(static_idl_files_in_modules_for_testing, [
+    "//third_party/blink/renderer/modules/sensor/testing/*",
+  ])
+  static_idl_files_in_modules_for_testing = []
+  static_idl_files_in_modules_for_testing = _filtered_testing_idl_cobalt
+}

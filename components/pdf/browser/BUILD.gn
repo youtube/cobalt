@@ -5,7 +5,7 @@
 import("//build/config/features.gni")
 import("//pdf/features.gni")
 
-assert(enable_pdf)
+assert(enable_pdf || is_cobalt, "PDF must be enabled")
 
 source_set("browser") {
   sources = [

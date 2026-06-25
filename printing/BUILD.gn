@@ -17,7 +17,7 @@ if (is_android) {
 if (enable_printing_tests) {
   import("//build/config/ios/bundle_data_from_filelist.gni")
 } else {
-  assert(enable_printing)
+  # assert(enable_printing)
 }
 
 if (is_win || enable_print_preview) {

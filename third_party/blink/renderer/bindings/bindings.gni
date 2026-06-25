@@ -308,4 +308,5 @@ if (is_cobalt) {
     "*v8_create_monitor*",
     "*v8_language_detector*",
   ]
+
 }

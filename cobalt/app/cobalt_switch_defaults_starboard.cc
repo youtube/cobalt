@@ -76,6 +76,10 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
       ::switches::kDisableAcceleratedVideoEncode,
       // Force to use dark mode.
       ::switches::kForceDarkMode,
+      // Disable unused features at runtime.
+      ::switches::kDisableWebGL,
+      ::switches::kDisableWebGL2,
+      ::switches::kDisableNotifications,
   };
   return kCobaltToggleSwitches;
 }
