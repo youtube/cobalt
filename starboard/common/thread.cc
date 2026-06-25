@@ -97,6 +97,14 @@ bool SetThreadPriority(ThreadPriority priority) {
 #endif  // defined(__APPLE__)
 }
 
+std::optional<size_t> GetOverriddenStackSize() {
+  if (features::FeatureList::IsEnabled(
+          features::kReduceStarboardThreadStackSize)) {
+    return 256 * 1024;
+  }
+  return std::nullopt;
+}
+
 }  // namespace
 
 int ThreadPriorityToNiceValue(ThreadPriority priority) {
@@ -130,20 +138,12 @@ struct Thread::Data {
   Semaphore join_sema_;
 };
 
-// static
-size_t Thread::GetDefaultStackSize() {
-  if (starboard::features::FeatureList::IsEnabled(
-          starboard::features::kReduceStarboardThreadStackSize)) {
-    return 256 * 1024;
-  }
-  return 0;
-}
-
 Thread::Thread(std::string_view name, const ThreadOptions& options)
     : name_(name),
       priority_(options.priority),
-      stack_size_(options.stack_size > 0 ? options.stack_size
-                                         : GetDefaultStackSize()),
+      stack_size_(options.stack_size > 0
+                      ? std::make_optional(options.stack_size)
+                      : GetOverriddenStackSize()),
       d_(std::make_unique<Data>()) {}
 
 Thread::~Thread() {
@@ -161,10 +161,10 @@ void Thread::Start() {
   pthread_attr_t attributes;
   pthread_attr_init(&attributes);
 
-  if (stack_size_ > 0) {
-    int err = pthread_attr_setstacksize(&attributes, stack_size_);
+  if (stack_size_) {
+    int err = pthread_attr_setstacksize(&attributes, *stack_size_);
     if (err != 0) {
-      SB_LOG(WARNING) << "Failed to set stack size to " << stack_size_
+      SB_LOG(WARNING) << "Failed to set stack size to " << *stack_size_
                       << ", error: " << err << ". Falling back to default.";
     }
   }
