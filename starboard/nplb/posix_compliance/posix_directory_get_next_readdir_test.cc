@@ -351,18 +351,21 @@ TEST_F(PosixReaddirTests, ThreadSafetyDifferentStreams) {
     }
   }
 
-  // Synchronization primitives for the hybrid barrier
+  // Synchronization primitives for the barrier
   std::mutex ready_mutex;
   std::condition_variable ready_cv;
   int ready_count = 0;
-  std::atomic<bool> start_signal(false);  // Atomic gate for parallel release
+  std::mutex start_mutex;
+  std::condition_variable start_cv;
+  bool start_signal = false;
 
   std::vector<std::string> thread_errors(kNumThreads);
   std::vector<std::thread> threads;
 
   for (int i = 0; i < kNumThreads; ++i) {
     threads.emplace_back([i, &subdirs, &ready_mutex, &ready_cv, &ready_count,
-                          &start_signal, &thread_errors]() {
+                          &start_mutex, &start_cv, &start_signal,
+                          &thread_errors]() {
       std::string subdir_path = subdirs[i];
 
       // Open the directory stream before synchronizing to maximize concurrent
@@ -384,9 +387,10 @@ TEST_F(PosixReaddirTests, ThreadSafetyDifferentStreams) {
         return;
       }
 
-      // Phase 2: Spin-lock for simultaneous, parallel release
-      while (!start_signal.load(std::memory_order_acquire)) {
-        // Spin active-waiting for the gate to open
+      // Phase 2: Wait for start signal (CPU-friendly)
+      {
+        std::unique_lock<std::mutex> lock(start_mutex);
+        start_cv.wait(lock, [&] { return start_signal; });
       }
 
       // Construct expected entries for this specific directory (unique
@@ -441,8 +445,12 @@ TEST_F(PosixReaddirTests, ThreadSafetyDifferentStreams) {
     ready_cv.wait(lock, [&] { return ready_count == kNumThreads; });
   }
 
-  // Trigger parallel release of all spinning threads
-  start_signal.store(true, std::memory_order_release);
+  // Trigger parallel release of all waiting threads
+  {
+    std::unique_lock<std::mutex> lock(start_mutex);
+    start_signal = true;
+  }
+  start_cv.notify_all();
 
   // Join all threads
   for (auto& thread : threads) {
@@ -466,7 +474,6 @@ TEST_F(PosixReaddirTests, ThreadSafetyDifferentStreams) {
 TEST_F(PosixReaddirTests, ThreadSafetySameDirectoryDifferentStreams) {
   constexpr int kNumThreads = 10;
   constexpr int kNumFiles = 10;
-  std::vector<std::string> subdirs;
 
   // Create one directory with files
   std::string shared_dir = test_dir_ + "/shared_thread_dir";
@@ -487,18 +494,21 @@ TEST_F(PosixReaddirTests, ThreadSafetySameDirectoryDifferentStreams) {
   }
   std::sort(expected.begin(), expected.end());
 
-  // Synchronization primitives for the hybrid barrier
+  // Synchronization primitives for the barrier
   std::mutex ready_mutex;
   std::condition_variable ready_cv;
   int ready_count = 0;
-  std::atomic<bool> start_signal(false);  // Atomic gate for parallel release
+  std::mutex start_mutex;
+  std::condition_variable start_cv;
+  bool start_signal = false;
 
   std::vector<std::string> thread_errors(kNumThreads);
   std::vector<std::thread> threads;
 
   for (int i = 0; i < kNumThreads; ++i) {
     threads.emplace_back([i, &shared_dir, &ready_mutex, &ready_cv, &ready_count,
-                          &start_signal, &thread_errors, &expected]() {
+                          &start_mutex, &start_cv, &start_signal,
+                          &thread_errors, &expected]() {
       // Open the directory stream before synchronizing to maximize concurrent
       // readdir start
       DIR* dir = opendir(shared_dir.c_str());
@@ -518,9 +528,10 @@ TEST_F(PosixReaddirTests, ThreadSafetySameDirectoryDifferentStreams) {
         return;
       }
 
-      // Phase 2: Spin-lock for simultaneous, parallel release
-      while (!start_signal.load(std::memory_order_acquire)) {
-        // Spin active-waiting for the gate to open
+      // Phase 2: Wait for start signal (CPU-friendly)
+      {
+        std::unique_lock<std::mutex> lock(start_mutex);
+        start_cv.wait(lock, [&] { return start_signal; });
       }
 
       std::vector<std::string> entries;
@@ -566,8 +577,12 @@ TEST_F(PosixReaddirTests, ThreadSafetySameDirectoryDifferentStreams) {
     ready_cv.wait(lock, [&] { return ready_count == kNumThreads; });
   }
 
-  // Trigger parallel release of all spinning threads
-  start_signal.store(true, std::memory_order_release);
+  // Trigger parallel release of all waiting threads
+  {
+    std::unique_lock<std::mutex> lock(start_mutex);
+    start_signal = true;
+  }
+  start_cv.notify_all();
 
   // Join all threads
   for (auto& thread : threads) {
