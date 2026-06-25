@@ -27,6 +27,9 @@ namespace {
 constexpr int kVideoBufferBudget1080p = 30 * 1024 * 1024;
 constexpr int kVideoBufferBudget4KSdr = 100 * 1024 * 1024;
 constexpr int kVideoBufferBudget4KHdr = 160 * 1024 * 1024;
+// note - this is defined for android as 200 in:
+// starboard/android/shared/media_get_video_buffer_budget.cc
+constexpr int kVideoBufferBudgetAbove4K = 300 * 1024 * 1024;
 }  // namespace
 
 int GetAreaBasedVideoBufferBudget(Size video_size, int bits_per_pixel) {
