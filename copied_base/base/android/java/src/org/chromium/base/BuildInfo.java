@@ -20,7 +20,7 @@ import androidx.annotation.OptIn;
 import androidx.annotation.VisibleForTesting;
 import androidx.core.os.BuildCompat;
 
-import org.chromium.base.annotations.CalledByNative;
+import org.jni_zero.CalledByNative;
 import org.chromium.base.compat.ApiHelperForP;
 import org.chromium.build.BuildConfig;
 

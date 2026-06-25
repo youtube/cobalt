@@ -17,8 +17,8 @@ import androidx.annotation.VisibleForTesting;
 import org.chromium.base.Log;
 import org.chromium.base.StreamUtil;
 import org.chromium.base.TimeUtils.UptimeMillisTimer;
-import org.chromium.base.annotations.AccessedByNative;
-import org.chromium.base.annotations.JniIgnoreNatives;
+import org.jni_zero.AccessedByNative;
+import org.jni_zero.JniIgnoreNatives;
 import org.chromium.base.metrics.RecordHistogram;
 
 import java.io.BufferedReader;
