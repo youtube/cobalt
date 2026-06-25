@@ -29,7 +29,9 @@
 #include "starboard/common/log.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/thread_platform.h"
+#if BUILDFLAG(IS_ANDROID)
 #include "starboard/shared/starboard/features.h"
+#endif
 #include "starboard/system.h"
 
 namespace starboard {
@@ -98,10 +100,12 @@ bool SetThreadPriority(ThreadPriority priority) {
 }
 
 std::optional<size_t> GetOverriddenStackSize() {
+#if BUILDFLAG(IS_ANDROID)
   if (features::FeatureList::IsEnabled(
           features::kReduceStarboardThreadStackSize)) {
     return 256 * 1024;
   }
+#endif
   return std::nullopt;
 }
 
