@@ -1948,6 +1948,10 @@ void PlayerImpl::SetupElement(GstElement* pipeline,
         GST_INFO_OBJECT(pipeline, "Setting westerossink zoom-mode to 0");
         g_object_set(element, "zoom-mode", 0, nullptr);
       }
+      if (g_object_class_find_property(G_OBJECT_GET_CLASS(element), "stop-keep-frame")) {
+        GST_INFO_OBJECT(pipeline, "Setting westerossink stop-keep-frame to true");
+        g_object_set(element, "stop-keep-frame", true, nullptr);
+      }
       g_signal_connect_swapped(
         G_OBJECT(element), "buffer-underflow-callback",
         G_CALLBACK(OnVideoBufferUnderflow), self);
