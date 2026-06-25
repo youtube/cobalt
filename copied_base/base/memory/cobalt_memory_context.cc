@@ -26,12 +26,7 @@
 namespace base {
 namespace memory {
 
-// Weak symbol to allow the linker to merge these functions across base and copied_base.
-#if defined(__GNUC__)
-#define MAYBE_COBALT_WEAK __attribute__((weak))
-#else
-#define MAYBE_COBALT_WEAK
-#endif
+
 
 MAYBE_COBALT_WEAK pthread_key_t GetSharedMemoryContextKey() {
   // Use a static atomic to ensure lazy initialization happens safely.
