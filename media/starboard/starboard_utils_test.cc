@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if !defined(STARBOARD)
+#if !defined(ENABLE_BUILDFLAG_IS_COBALT)
 #error "This file only works with Cobalt/Starboard."
 #endif  // !defined(STARBOARD)
 
