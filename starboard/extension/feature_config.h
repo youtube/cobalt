@@ -118,7 +118,7 @@ STARBOARD_FEATURE(kUseStubVideoDecoder, "UseStubVideoDecoder", false)
 // keep-sorted end
 // Common features end
 
-#if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+#if BUILDFLAG(IS_ANDROID)
 // keep-sorted start newline_separated=yes
 // When enabled, Cobalt pools physical memory allocations for decoded audio
 // buffers inside a thread-safe fixed-size pool, preventing progressive heap

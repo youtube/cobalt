@@ -70,11 +70,10 @@ void CheckForDeprecatedSwitches(const CommandLine* command_line) {
   };
   for (const auto& entry : kDeprecatedSwitches) {
     if (command_line->HasSwitch(entry.old_flag)) {
-      SB_LOG(WARNING)
-          << "Old-style command-line flag --" << entry.old_flag
-          << " is no longer recognized. Please use --enable-features="
-          << entry.new_feature
-          << " (or Starboard features configuration) instead.";
+      SB_LOG(FATAL) << "Old-style command-line flag --" << entry.old_flag
+                    << " is no longer recognized. Please use --enable-features="
+                    << entry.new_feature
+                    << " (or Starboard features configuration) instead.";
     }
   }
 }

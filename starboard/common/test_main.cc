@@ -24,11 +24,9 @@
 #include "base/functional/bind.h"  // nogncheck
 #include "base/test/test_support_ios.h"
 #include "starboard/tvos/shared/starboard_test_environment.h"
-#elif BUILDFLAG(IS_ANDROID)
-#include "starboard/android/shared/starboard_test_environment.h"
-#else
+#else  // BUILDFLAG(IS_IOS_TVOS)
 #include "starboard/shared/starboard/starboard_test_environment.h"  // nogncheck
-#endif
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 namespace {
 
@@ -36,10 +34,10 @@ int RunTests(int argc, char** argv) {
 #if BUILDFLAG(IS_IOS_TVOS)
   ::testing::AddGlobalTestEnvironment(
       new starboard::StarboardTestEnvironment(argc, argv));
-#else
+#else   // BUILDFLAG(IS_IOS_TVOS)
   ::testing::AddGlobalTestEnvironment(
       new starboard::StarboardTestEnvironment());
-#endif
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
   return RUN_ALL_TESTS();
 }
