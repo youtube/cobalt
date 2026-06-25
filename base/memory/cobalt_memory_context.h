@@ -46,8 +46,6 @@ enum class MemoryContext : uint8_t {
   kCount
 };
 
-#if BUILDFLAG(IS_COBALT)
-
 #if defined(__GNUC__)
 #define MAYBE_COBALT_WEAK __attribute__((weak))
 #else
@@ -57,15 +55,6 @@ enum class MemoryContext : uint8_t {
 MAYBE_COBALT_WEAK pthread_key_t GetSharedMemoryContextKey();
 MAYBE_COBALT_WEAK MemoryContext GetCurrentMemoryContext();
 MAYBE_COBALT_WEAK void SetCurrentMemoryContext(MemoryContext context);
-
-#else
-
-inline MemoryContext GetCurrentMemoryContext() {
-  return MemoryContext::kUnknown;
-}
-inline void SetCurrentMemoryContext(MemoryContext context) {}
-
-#endif
 
 // ScopedMemoryContext is a helper class that sets the current thread's
 // memory context for the duration of its lifetime, restoring the previous
@@ -81,16 +70,12 @@ inline void SetCurrentMemoryContext(MemoryContext context) {}
 class BASE_EXPORT ScopedMemoryContext {
  public:
   explicit ScopedMemoryContext(MemoryContext context) {
-#if BUILDFLAG(IS_COBALT)
     prev_context_ = GetCurrentMemoryContext();
     SetCurrentMemoryContext(context);
-#endif
   }
 
   ~ScopedMemoryContext() {
-#if BUILDFLAG(IS_COBALT)
     SetCurrentMemoryContext(prev_context_);
-#endif
   }
 
   ScopedMemoryContext(const ScopedMemoryContext&) = delete;
@@ -99,18 +84,10 @@ class BASE_EXPORT ScopedMemoryContext {
   ScopedMemoryContext& operator=(ScopedMemoryContext&&) = delete;
 
  private:
-#if BUILDFLAG(IS_COBALT)
   MemoryContext prev_context_;
-#endif
 };
 
-#if BUILDFLAG(IS_COBALT)
 MAYBE_COBALT_WEAK std::string_view ContextToString(MemoryContext context);
-#else
-inline std::string_view ContextToString(MemoryContext context) {
-  return "Unknown";
-}
-#endif
 
 }  // namespace memory
 }  // namespace base
