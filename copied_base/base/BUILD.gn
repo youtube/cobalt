@@ -1232,6 +1232,8 @@ component("base") {
       "android/java_heap_dump_generator.h",
       "android/java_runtime.cc",
       "android/java_runtime.h",
+      "android/jni_bytebuffer.cc",
+      "android/jni_bytebuffer.h",
       "android/library_loader/anchor_functions.cc",
       "android/library_loader/anchor_functions.h",
       "android/library_loader/library_prefetcher.cc",
