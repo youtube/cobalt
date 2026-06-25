@@ -51,15 +51,29 @@ void CobaltLifecycleManager::BindReceiver(
     content::RenderFrameHost* frame,
     mojo::PendingReceiver<cobalt::mojom::CobaltLifecycleObserver> receiver) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  receivers_.Add(this, std::move(receiver),
-                 {content::WebContents::FromRenderFrameHost(frame), frame});
+  if (!frame) {
+    return;
+  }
+  receivers_.Add(this, std::move(receiver), {frame->GetGlobalId()});
+}
+
+std::pair<content::RenderFrameHost*, content::WebContents*>
+CobaltLifecycleManager::GetCurrentContext() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  FrameContext context = receivers_.current_context();
+  content::RenderFrameHost* frame =
+      content::RenderFrameHost::FromID(context.frame_id);
+  if (!frame) {
+    return {nullptr, nullptr};
+  }
+  return {frame, content::WebContents::FromRenderFrameHost(frame)};
 }
 
 void CobaltLifecycleManager::OnMojoDisconnect() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  FrameContext context = receivers_.current_context();
-  if (context.web_contents) {
-    UnregisterFrame(context.web_contents, context.frame);
+  auto [frame, web_contents] = GetCurrentContext();
+  if (web_contents) {
+    UnregisterFrame(web_contents, frame);
   }
 }
 
@@ -84,7 +98,7 @@ void CobaltLifecycleManager::WebContentsTracker::RenderFrameCreated(
   // communication channel needed for lifecycle ACKs.
   mojo::PendingRemote<cobalt::mojom::CobaltLifecycleObserver> observer;
   manager_->receivers_.Add(manager_, observer.InitWithNewPipeAndPassReceiver(),
-                           {web_contents(), render_frame_host});
+                           {render_frame_host->GetGlobalId()});
   controller->SetObserver(std::move(observer));
 
   controllers_[render_frame_host] = std::move(controller);
@@ -194,7 +208,7 @@ void CobaltLifecycleManager::WebContentsTracker::Rebind(
   // Re-register the browser as an observer after re-binding the interface.
   mojo::PendingRemote<cobalt::mojom::CobaltLifecycleObserver> observer;
   manager_->receivers_.Add(manager_, observer.InitWithNewPipeAndPassReceiver(),
-                           {web_contents(), frame});
+                           {frame->GetGlobalId()});
   controller->SetObserver(std::move(observer));
 
   controllers_[frame] = std::move(controller);
@@ -279,9 +293,7 @@ void CobaltLifecycleManager::UnregisterFrame(content::WebContents* web_contents,
 
 void CobaltLifecycleManager::OnPageVisibilityChanged(bool visible) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  FrameContext context = receivers_.current_context();
-  content::RenderFrameHost* frame = context.frame;
-  content::WebContents* web_contents = context.web_contents;
+  auto [frame, web_contents] = GetCurrentContext();
 
   if (web_contents) {
     auto* tracker = GetOrCreateTracker(web_contents);
@@ -297,9 +309,7 @@ void CobaltLifecycleManager::OnPageVisibilityChanged(bool visible) {
 
 void CobaltLifecycleManager::OnPageBlurred() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  FrameContext context = receivers_.current_context();
-  content::RenderFrameHost* frame = context.frame;
-  content::WebContents* web_contents = context.web_contents;
+  auto [frame, web_contents] = GetCurrentContext();
 
   if (web_contents) {
     auto* tracker = GetOrCreateTracker(web_contents);
@@ -314,9 +324,7 @@ void CobaltLifecycleManager::OnPageBlurred() {
 
 void CobaltLifecycleManager::OnPageFocused() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  FrameContext context = receivers_.current_context();
-  content::RenderFrameHost* frame = context.frame;
-  content::WebContents* web_contents = context.web_contents;
+  auto [frame, web_contents] = GetCurrentContext();
 
   if (web_contents) {
     auto* tracker = GetOrCreateTracker(web_contents);
@@ -326,9 +334,7 @@ void CobaltLifecycleManager::OnPageFocused() {
 
 void CobaltLifecycleManager::OnPageResumed() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  FrameContext context = receivers_.current_context();
-  content::RenderFrameHost* frame = context.frame;
-  content::WebContents* web_contents = context.web_contents;
+  auto [frame, web_contents] = GetCurrentContext();
 
   if (web_contents) {
     auto* tracker = GetOrCreateTracker(web_contents);
@@ -343,9 +349,7 @@ void CobaltLifecycleManager::OnPageResumed() {
 
 void CobaltLifecycleManager::OnFrameReady() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  FrameContext context = receivers_.current_context();
-  content::RenderFrameHost* frame = context.frame;
-  content::WebContents* web_contents = context.web_contents;
+  auto [frame, web_contents] = GetCurrentContext();
 
   if (web_contents) {
     RegisterFrame(web_contents, frame);
