@@ -16,7 +16,11 @@
 #include <fcntl.h>
 
 #include <algorithm>
+#include <condition_variable>
+#include <mutex>
 #include <string>
+#include <thread>
+#include <vector>
 
 #include "starboard/configuration_constants.h"
 #include "starboard/nplb/file_helpers.h"
@@ -263,6 +267,235 @@ TEST_F(PosixReaddirTests, SeparateDirectoriesSeparateReaddir) {
   // Clean up the additional directories
   RemoveFileOrDirectoryRecursively(dir1_path);
   RemoveFileOrDirectoryRecursively(dir2_path);
+}
+
+// Test readdir's thread safety when called concurrently on different directory
+// streams.
+TEST_F(PosixReaddirTests, ThreadSafetyDifferentStreams) {
+  const int kNumThreads = 10;
+  const int kFilesPerDir = 5;
+  std::vector<std::string> subdirs;
+
+  // Create subdirectories and files
+  for (int i = 0; i < kNumThreads; ++i) {
+    std::string subdir_path = test_dir_ + "/thread_dir_" + std::to_string(i);
+    ASSERT_EQ(mkdir(subdir_path.c_str(), 0777), 0)
+        << "Failed to create subdir " << i;
+    subdirs.push_back(subdir_path);
+
+    for (int j = 0; j < kFilesPerDir; ++j) {
+      std::string file_path =
+          subdir_path + "/file_" + std::to_string(j) + ".txt";
+      int fd = open(file_path.c_str(), flags_, 0666);
+      ASSERT_NE(fd, -1) << "Failed to create file " << j << " in subdir " << i;
+      close(fd);
+    }
+  }
+
+  // Construct expected entries once
+  std::vector<std::string> expected = {".", ".."};
+  for (int j = 0; j < kFilesPerDir; ++j) {
+    expected.push_back("file_" + std::to_string(j) + ".txt");
+  }
+  std::sort(expected.begin(), expected.end());
+
+  // Synchronization primitives for the thread gate
+  std::mutex ready_mutex;
+  std::condition_variable ready_cv;
+  int ready_count = 0;
+  bool start_signal = false;
+
+  std::vector<std::string> thread_errors(kNumThreads);
+  std::vector<std::thread> threads;
+
+  for (int i = 0; i < kNumThreads; ++i) {
+    threads.emplace_back([i, &subdirs, &ready_mutex, &ready_cv, &ready_count,
+                          &start_signal, &thread_errors, &expected]() {
+      std::string subdir_path = subdirs[i];
+
+      // Block until all threads are ready, then start together to maximize
+      // concurrency
+      {
+        std::unique_lock<std::mutex> lock(ready_mutex);
+        ready_count++;
+        if (ready_count == kNumThreads) {
+          ready_cv.notify_all();
+        }
+        ready_cv.wait(lock, [&] { return start_signal; });
+      }
+
+      DIR* dir = opendir(subdir_path.c_str());
+      if (dir == nullptr) {
+        thread_errors[i] = "opendir failed with errno " + std::to_string(errno);
+        return;
+      }
+
+      std::vector<std::string> entries;
+      struct dirent* entry;
+
+      while (true) {
+        errno = 0;
+        entry = readdir(dir);
+        if (entry == nullptr) {
+          if (errno != 0) {
+            thread_errors[i] =
+                "readdir failed with errno " + std::to_string(errno);
+            closedir(dir);
+            return;
+          }
+          break;
+        }
+        entries.push_back(entry->d_name);
+      }
+      closedir(dir);
+
+      // Verify entries
+      std::sort(entries.begin(), entries.end());
+
+      if (entries != expected) {
+        std::string error = "Unexpected entries. Expected: {";
+        for (const auto& e : expected) {
+          error += e + ", ";
+        }
+        error += "}, Got: {";
+        for (const auto& e : entries) {
+          error += e + ", ";
+        }
+        error += "}";
+        thread_errors[i] = error;
+      }
+    });
+  }
+
+  // Wait for all threads to be ready to start
+  {
+    std::unique_lock<std::mutex> lock(ready_mutex);
+    ready_cv.wait(lock, [&] { return ready_count == kNumThreads; });
+    start_signal = true;
+    ready_cv.notify_all();
+  }
+
+  // Join all threads
+  for (auto& thread : threads) {
+    thread.join();
+  }
+
+  // Verify all threads succeeded
+  for (int i = 0; i < kNumThreads; ++i) {
+    EXPECT_TRUE(thread_errors[i].empty())
+        << "Thread " << i << " failed: " << thread_errors[i];
+  }
+}
+
+// Test readdir's thread safety when called concurrently on the same directory
+// (different DIR* handles).
+TEST_F(PosixReaddirTests, ThreadSafetySameDirectoryDifferentStreams) {
+  const int kNumThreads = 10;
+  const int kNumFiles = 10;
+
+  // Create one directory with files
+  std::string shared_dir = test_dir_ + "/shared_thread_dir";
+  ASSERT_EQ(mkdir(shared_dir.c_str(), 0777), 0)
+      << "Failed to create shared dir";
+
+  for (int j = 0; j < kNumFiles; ++j) {
+    std::string file_path = shared_dir + "/file_" + std::to_string(j) + ".txt";
+    int fd = open(file_path.c_str(), flags_, 0666);
+    ASSERT_NE(fd, -1) << "Failed to create file " << j << " in shared dir";
+    close(fd);
+  }
+
+  // Construct expected entries once
+  std::vector<std::string> expected = {".", ".."};
+  for (int j = 0; j < kNumFiles; ++j) {
+    expected.push_back("file_" + std::to_string(j) + ".txt");
+  }
+  std::sort(expected.begin(), expected.end());
+
+  // Synchronization primitives for the thread gate
+  std::mutex ready_mutex;
+  std::condition_variable ready_cv;
+  int ready_count = 0;
+  bool start_signal = false;
+
+  std::vector<std::string> thread_errors(kNumThreads);
+  std::vector<std::thread> threads;
+
+  for (int i = 0; i < kNumThreads; ++i) {
+    threads.emplace_back([i, &shared_dir, &ready_mutex, &ready_cv, &ready_count,
+                          &start_signal, &thread_errors, &expected]() {
+      // Block until all threads are ready, then start together to maximize
+      // concurrency
+      {
+        std::unique_lock<std::mutex> lock(ready_mutex);
+        ready_count++;
+        if (ready_count == kNumThreads) {
+          ready_cv.notify_all();
+        }
+        ready_cv.wait(lock, [&] { return start_signal; });
+      }
+
+      DIR* dir = opendir(shared_dir.c_str());
+      if (dir == nullptr) {
+        thread_errors[i] = "opendir failed with errno " + std::to_string(errno);
+        return;
+      }
+
+      std::vector<std::string> entries;
+      struct dirent* entry;
+
+      while (true) {
+        errno = 0;
+        entry = readdir(dir);
+        if (entry == nullptr) {
+          if (errno != 0) {
+            thread_errors[i] =
+                "readdir failed with errno " + std::to_string(errno);
+            closedir(dir);
+            return;
+          }
+          break;
+        }
+        entries.push_back(entry->d_name);
+      }
+      closedir(dir);
+
+      // Verify entries
+      std::sort(entries.begin(), entries.end());
+
+      if (entries != expected) {
+        std::string error = "Unexpected entries. Expected: {";
+        for (const auto& e : expected) {
+          error += e + ", ";
+        }
+        error += "}, Got: {";
+        for (const auto& e : entries) {
+          error += e + ", ";
+        }
+        error += "}";
+        thread_errors[i] = error;
+      }
+    });
+  }
+
+  // Wait for all threads to be ready to start
+  {
+    std::unique_lock<std::mutex> lock(ready_mutex);
+    ready_cv.wait(lock, [&] { return ready_count == kNumThreads; });
+    start_signal = true;
+    ready_cv.notify_all();
+  }
+
+  // Join all threads
+  for (auto& thread : threads) {
+    thread.join();
+  }
+
+  // Verify all threads succeeded
+  for (int i = 0; i < kNumThreads; ++i) {
+    EXPECT_TRUE(thread_errors[i].empty())
+        << "Thread " << i << " failed: " << thread_errors[i];
+  }
 }
 
 }  // namespace
