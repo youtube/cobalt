@@ -14,6 +14,9 @@
 
 #include "starboard/common/external_metadata_reuse_allocator_base.h"
 
+#include "starboard/system.h"
+#include "starboard/configuration_constants.h"
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -142,6 +145,7 @@ void* ExternalMetadataReuseAllocatorBase::Allocate(size_t size) {
 
 void* ExternalMetadataReuseAllocatorBase::Allocate(size_t size,
                                                    size_t alignment) {
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   size = AlignUp(std::max(size, kMinAlignment), kMinAlignment);
   alignment =
       AlignUp(std::max<size_t>(alignment, kMinAlignment), kMinAlignment);
@@ -280,6 +284,7 @@ bool ExternalMetadataReuseAllocatorBase::TryFree(void* memory) {
     return true;
   }
 
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   AllocatedBlockMap::iterator it = allocated_blocks_.find(memory);
   if (it == allocated_blocks_.end()) {
     return false;
@@ -532,6 +537,25 @@ ExternalMetadataReuseAllocatorBase::AddFreeBlock(MemoryBlock block_to_add) {
 void ExternalMetadataReuseAllocatorBase::RemoveFreeBlock(
     FreeBlockSet::iterator it) {
   free_blocks_.erase(it);
+}
+
+void ExternalMetadataReuseAllocatorBase::DecommitFreeBlocks(
+    size_t min_size_to_decommit) {
+  size_t page_size = kSbMemoryPageSize;
+  for (const auto& block : free_blocks_) {
+    if (block.size() >= min_size_to_decommit) {
+      uintptr_t start = reinterpret_cast<uintptr_t>(block.address());
+      uintptr_t end = start + block.size();
+      uintptr_t aligned_start = AlignUp(start, page_size);
+      if (aligned_start < end) {
+        size_t aligned_size = AlignDown(end - aligned_start, page_size);
+        if (aligned_size > 0) {
+          fallback_allocator()->Decommit(reinterpret_cast<void*>(aligned_start),
+                                         aligned_size, /*conservative=*/false);
+        }
+      }
+    }
+  }
 }
 
 }  // namespace starboard

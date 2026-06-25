@@ -1,0 +1,60 @@
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "cobalt/browser/memory_pressure_bridge.h"
+
+#include "base/feature_list.h"
+#include "base/functional/bind.h"
+#include "base/location.h"
+#include "cobalt/common/features/features.h"
+#include "starboard/system.h"
+
+namespace cobalt {
+namespace browser {
+
+MemoryPressureBridge::MemoryPressureBridge() {
+  if (!base::FeatureList::IsEnabled(cobalt::features::kEnableAndroidTrimMemory)) {
+    return;
+  }
+  extension_ = static_cast<const StarboardExtensionMemoryPressureApi*>(
+      SbSystemGetExtension(kStarboardExtensionMemoryPressureName));
+
+  if (extension_) {
+    listener_ = std::make_unique<base::MemoryPressureListener>(
+        FROM_HERE,
+        base::BindRepeating(&MemoryPressureBridge::OnMemoryPressure,
+                            base::Unretained(this)));
+  }
+}
+
+MemoryPressureBridge::~MemoryPressureBridge() = default;
+
+void MemoryPressureBridge::OnMemoryPressure(
+    base::MemoryPressureListener::MemoryPressureLevel level) {
+  if (!extension_) return;
+
+  SbMemoryPressureLevel sb_level = kSbMemoryPressureLevelNone;
+  if (level == base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE) {
+    sb_level = kSbMemoryPressureLevelModerate;
+  } else if (level == base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL) {
+    sb_level = kSbMemoryPressureLevelCritical;
+  }
+
+  if (sb_level != kSbMemoryPressureLevelNone) {
+    extension_->NotifyMemoryPressure(sb_level);
+  }
+}
+
+}  // namespace browser
+}  // namespace cobalt

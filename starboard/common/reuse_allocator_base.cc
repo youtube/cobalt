@@ -34,9 +34,11 @@ ReuseAllocatorBase::ReuseAllocatorBase(Allocator* fallback_allocator,
       conservative_decommit_blocks_(conservative_decommit_blocks),
       aggressive_decommit_on_suspend_(aggressive_decommit_on_suspend) {
   SB_DCHECK(fallback_allocator_);
+  MemoryPressureRegistry::GetInstance()->RegisterObserver(this);
 }
 
 ReuseAllocatorBase::~ReuseAllocatorBase() {
+  MemoryPressureRegistry::GetInstance()->UnregisterObserver(this);
   for (const auto& fallback_allocation : fallback_allocations_) {
     fallback_allocator_->Free(fallback_allocation.address);
   }
@@ -149,6 +151,55 @@ void ReuseAllocatorBase::TryToDecommitOneBlock() {
       }
     }
     has_pending_decommits_ = false;
+  }
+}
+
+void ReuseAllocatorBase::OnMemoryPressure(SbMemoryPressureLevel level) {
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
+  FlushPendingFrees();
+
+  size_t min_size = 0;
+  bool decommit_retained = false;
+  if (level == kSbMemoryPressureLevelModerate) {
+    min_size = 1024 * 1024;  // 1MB
+    decommit_retained = false;
+  } else if (level == kSbMemoryPressureLevelCritical) {
+    min_size = 0;
+    decommit_retained = true;
+  } else {
+    return;
+  }
+
+  DecommitFreeBlocks(min_size);
+
+  for (auto& fallback_block : fallback_allocations_) {
+    if (fallback_block.size >= min_size) {
+      if (fallback_block.state == kIdlePendingDecommit) {
+        fallback_allocator_->Decommit(fallback_block.address,
+                                      fallback_block.size,
+                                      /*conservative=*/false);
+        fallback_block.state = kIdleDecommitted;
+      } else if (fallback_block.state == kIdlePendingFree) {
+        fallback_allocator_->Decommit(fallback_block.address,
+                                      fallback_block.size,
+                                      /*conservative=*/true);
+        fallback_block.state = kIdleFreed;
+      } else if (decommit_retained && fallback_block.state == kIdleRetained) {
+        fallback_allocator_->Decommit(fallback_block.address,
+                                      fallback_block.size,
+                                      /*conservative=*/false);
+        fallback_block.state = kIdleDecommitted;
+      }
+    }
+  }
+
+  has_pending_decommits_ = false;
+  for (const auto& fallback_block : fallback_allocations_) {
+    if (fallback_block.state == kIdlePendingDecommit ||
+        fallback_block.state == kIdlePendingFree) {
+      has_pending_decommits_ = true;
+      break;
+    }
   }
 }
 

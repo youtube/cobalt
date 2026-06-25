@@ -41,6 +41,12 @@ class CobaltMetricsServiceClient;
 class CobaltMetricsServicesManagerClient;
 class GlobalFeatures;
 
+#if defined(ENABLE_MEMORY_PRESSURE_BRIDGE)
+namespace browser {
+class MemoryPressureBridge;
+}
+#endif
+
 // TODO(b/390021478): When CobaltContentBrowserClient stops deriving from
 // ShellContentBrowserClient, this should implement BrowserMainParts.
 class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
@@ -51,7 +57,7 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   CobaltBrowserMainParts(const CobaltBrowserMainParts&) = delete;
   CobaltBrowserMainParts& operator=(const CobaltBrowserMainParts&) = delete;
 
-  ~CobaltBrowserMainParts() override = default;
+  ~CobaltBrowserMainParts() override;
 
   // ShellBrowserMainParts overrides.
   int PreCreateThreads() override;
@@ -89,6 +95,10 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
 
   bool migration_finished_ GUARDED_BY_CONTEXT(sequence_checker_) = false;
   base::OnceClosure pending_task_ GUARDED_BY_CONTEXT(sequence_checker_);
+
+#if defined(ENABLE_MEMORY_PRESSURE_BRIDGE)
+  std::unique_ptr<browser::MemoryPressureBridge> memory_pressure_bridge_;
+#endif
 
   base::WeakPtrFactory<CobaltBrowserMainParts> weak_ptr_factory_{this};
 };

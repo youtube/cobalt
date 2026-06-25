@@ -145,6 +145,8 @@ class ExternalMetadataReuseAllocatorBase : public ReuseAllocatorBase {
                                                FreeBlockSet::iterator end,
                                                bool* allocate_from_front) = 0;
 
+  void DecommitFreeBlocks(size_t min_size_to_decommit) override;
+
  private:
   // Map from pointers we returned to the user, back to memory blocks.
   typedef std::map<void*, MemoryBlock> AllocatedBlockMap;

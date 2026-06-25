@@ -48,6 +48,10 @@
 #include "cobalt/browser/cobalt_content_browser_client.h"
 #endif
 
+#if defined(ENABLE_MEMORY_PRESSURE_BRIDGE)
+#include "cobalt/browser/memory_pressure_bridge.h"
+#endif
+
 #if BUILDFLAG(IS_LINUX)
 #include "components/os_crypt/sync/key_storage_config_linux.h"
 #include "components/os_crypt/sync/os_crypt.h"
@@ -106,6 +110,8 @@ CobaltBrowserMainParts::CobaltBrowserMainParts(const std::string& deep_link,
                                                bool is_visible)
     : ShellBrowserMainParts(deep_link, is_visible) {}
 
+CobaltBrowserMainParts::~CobaltBrowserMainParts() = default;
+
 int CobaltBrowserMainParts::PreCreateThreads() {
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(17);
@@ -149,6 +155,10 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
                << ". Aborting storage migration.";
     return result;
   }
+
+#if defined(ENABLE_MEMORY_PRESSURE_BRIDGE)
+  memory_pressure_bridge_ = std::make_unique<browser::MemoryPressureBridge>();
+#endif
 
   StartStorageMigration();
 

@@ -18,6 +18,12 @@ if (is_ios) {
   import("//build/config/apple/mobile_config.gni")
 }
 
+declare_args() {
+  # Enables the memory pressure bridge that forwards Chromium memory pressure
+  # signals to Starboard allocators.
+  enable_memory_pressure_bridge = true
+}
+
 source_set("browser") {
   sources = [
     "captured_surface_controller_stub.cc",
@@ -34,6 +40,14 @@ source_set("browser") {
     "h5vcc_settings_impl.cc",
     "h5vcc_settings_impl.h",
   ]
+
+  if (enable_memory_pressure_bridge) {
+    defines = [ "ENABLE_MEMORY_PRESSURE_BRIDGE" ]
+    sources += [
+      "memory_pressure_bridge.cc",
+      "memory_pressure_bridge.h",
+    ]
+  }
 
   if (is_androidtv) {
     sources += [

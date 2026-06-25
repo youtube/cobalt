@@ -17,7 +17,9 @@ package dev.cobalt.coat;
 import android.content.ComponentCallbacks2;
 import android.content.res.Configuration;
 
+import dev.cobalt.features.StarboardFeatureList;
 import org.chromium.base.ContextUtils;
+import org.chromium.base.FeatureList;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.NativeMethods;
 
@@ -39,7 +41,21 @@ class NearOomMonitor implements ComponentCallbacks2 {
     }
 
     @Override
-    public void onTrimMemory(int level) {}
+    public void onTrimMemory(int level) {
+        if (!FeatureList.isNativeInitialized()) {
+            return;
+        }
+        if (!StarboardFeatureList.isEnabled("EnableAndroidTrimMemory")) {
+            return;
+        }
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND) {
+            System.gc();
+        }
+        if (level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL
+                || level == ComponentCallbacks2.TRIM_MEMORY_COMPLETE) {
+            onLowMemory();
+        }
+    }
 
     @Override
     public void onLowMemory() {
