@@ -137,6 +137,8 @@ static_library("starboard_platform") {
     "audio_sink_is_audio_sample_type_supported.cc",
     "audio_sink_min_required_frames_tester.cc",
     "audio_sink_min_required_frames_tester.h",
+    "audio_track.cc",
+    "audio_track.h",
     "audio_track_audio_sink_type.cc",
     "audio_track_audio_sink_type.h",
     "audio_track_bridge.cc",
@@ -399,6 +401,8 @@ static_library("test_support") {
   ]
 
   sources = [
+    "fake_audio_track.cc",
+    "fake_audio_track.h",
     "fake_media_codec.cc",
     "fake_media_codec.h",
     "starboard_test_environment.cc",
@@ -411,6 +415,7 @@ test("starboard_platform_tests") {
 
   sources = media_tests_sources + player_tests_sources + [
               "//starboard/common/test_main.cc",
+              "audio_track_audio_sink_type_test.cc",
               "drm_session_id_mapper_test.cc",
               "features_extension_test.cc",
               "media_capabilities_cache_test.cc",
