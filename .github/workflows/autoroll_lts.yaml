@@ -107,6 +107,8 @@ jobs:
 
           git push origin "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"
 
+          PR_TITLE="Autoroll from ${SOURCE_BRANCH} to ${TARGET_BRANCH}"
+
           PR_BODY_FILE=$(mktemp)
           {
             echo "Automated cherry-pick roll to ${TARGET_BRANCH}."
@@ -115,11 +117,22 @@ jobs:
             echo "${PR_LINKS}"
           } > "${PR_BODY_FILE}"
 
-          PR_TITLE="Autoroll from ${SOURCE_BRANCH} to ${TARGET_BRANCH}"
+          if [[ "${PR_LINKS}" == CONFLICTED:* ]]; then
+            PR_TITLE="CONFLICTED: ${PR_TITLE}"
+            {
+              echo ""
+              echo "⚠️ This PR has conflicts that must be resolved manually. Use the following commands to check out the branch locally and resolve the conflicts in a separate commit:"
+              echo '```bash'
+              echo "gh pr checkout \${PR_NUMBER} -R ${{ github.repository }}"
+              echo "git commit -a"
+              echo "git push origin autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"
+              echo '```'
+            } >> "${PR_BODY_FILE}"
+          fi
 
           PR_STATE=$(gh pr view "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" --json state --template '{{.state}}' 2>/dev/null || echo "NOT_FOUND")
 
-          if [[ "$PR_STATE" == "OPEN" ]]; then
+          if [[ "${PR_STATE}" == "OPEN" ]]; then
             PR_NUMBER=$(gh pr view "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" --json number --jq .number)
             gh api -X PATCH "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" -f title="${PR_TITLE}" -f body="$(cat "${PR_BODY_FILE}")" --jq .html_url
           else
