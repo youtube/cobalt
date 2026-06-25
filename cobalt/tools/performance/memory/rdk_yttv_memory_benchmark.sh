@@ -7,7 +7,7 @@
 readonly CALLSIGN="YouTube"
 readonly PROCESS_NAME="YouTube"
 readonly INTERVAL=1
-readonly OUTPUT_FILE="memory_test_results.txt"
+readonly OUTPUT_FILE="memory_test_results_yttv_$(date +%Y%m%d).txt"
 # Delay to allow WPEFramework to process state changes and configuration updates
 readonly JSONRPC_DELAY=2
 
@@ -19,17 +19,18 @@ exec > >(tee -a "$OUTPUT_FILE") 2>&1
 
 # Define scenarios: name|url|duration|rounds|action
 # If rounds is omitted, it defaults to 1.
+# Note: For non-playback scenarios, 'okay' is pressed at 3s in the loop. For playback scenarios, 'okay'
+# is pressed 3s after launch, and the measurement starts immediately (no okay in loop).
 # Supported actions:
-#   - scroll: Presses the 'right' key (sendkey right) every second.
-#   - playback_scroll: Plays video for 1 minute, clicks down twice, then presses 'right' every second for 1 minutes.
+#   - scroll: Presses 'down' at 4s and 5s, then alternates between 10 'right' presses and 1 'down' press.
+#   - playback_scroll: Plays video for 1 minute, clicks down three times, then presses 'right' every second for the rest of the duration.
 SCENARIOS=(
-    "Default Page|https://www.youtube.com/tv|60|5"
-    "About Blank|about:blank|30|1"
-    "4K Video Playback|https://www.youtube.com/tv#/watch?v=1La4QzGeaaQ|180|5"
-    "1080p Video Playback|https://www.youtube.com/tv#/watch?v=ou0cmY8Fqd0|180|5"
-    "Home Page Scroll|https://www.youtube.com/tv|120|5|scroll"
-    "4K Playback Scroll|https://www.youtube.com/tv#/watch?v=1La4QzGeaaQ|120|5|playback_scroll"
-    "1080p Playback Scroll|https://www.youtube.com/tv#/watch?v=ou0cmY8Fqd0|120|5|playback_scroll"
+    "Default Page|https://www.youtube.com/tv/upg|60|5"
+    "4K Video Playback|https://www.youtube.com/tv/upg#/watch?v=LDnsjoylfrY|180|5"
+    "1080p Video Playback|https://www.youtube.com/tv/upg#/watch?v=ou0cmY8Fqd0|180|5"
+    "Home Page Scroll|https://www.youtube.com/tv/upg|120|5|scroll"
+    "4K Playback Scroll|https://www.youtube.com/tv/upg#/watch?v=1La4QzGeaaQ|120|5|playback_scroll"
+    "1080p Playback Scroll|https://www.youtube.com/tv/upg#/watch?v=ou0cmY8Fqd0|120|5|playback_scroll"
 )
 
 # Function to calculate median
@@ -59,7 +60,9 @@ calculate_peak() {
 # Function to convert KB to MB
 kb_to_mb() {
     local kb=$1
-    if [ -z "$kb" ] || [ "$kb" -eq 0 ]; then echo "0.00"; else
+    if [ -z "$kb" ]; then
+        echo "0.00"
+    else
         echo "$kb" | awk '{printf "%.2f", $1 / 1024}'
     fi
 }
@@ -97,7 +100,8 @@ configure_plugin_url() {
         local default_config="{\"url\":\"$url\",\"clientidentifier\":\"wst-Cobalt-0\",\"closurepolicy\":\"quit\",\"contentdir\":\"/data/out_cobalt\",\"systemproperties\":{\"modelname\":\"AH212\",\"brandname\":\"RDKCommonPort\",\"modelyear\":2025},\"root\":{\"mode\":\"Local\",\"locator\":\"libWPEFrameworkCobaltImpl.so\"}}"
         send_jsonrpc "Controller.1.configuration@$CALLSIGN" "$default_config"
     else
-        local updated_config=$(python3 -c "
+        local updated_config
+        updated_config=$(python3 -c "
 import sys, json
 try:
     data = json.loads(sys.argv[1])
@@ -190,6 +194,8 @@ for scenario_info in "${SCENARIOS[@]}"; do
 
     round_smaps_median_rss=()
     round_smaps_peak_rss=()
+    round_v8_median_rss=()
+    round_v8_peak_rss=()
     round_status_median_rss=()
     round_status_peak_rss=()
     round_gpu_median_rss=()
@@ -215,9 +221,18 @@ for scenario_info in "${SCENARIOS[@]}"; do
         fi
 
         echo "Target PID: $PID"
+
+        if [[ "$scenario_name" =~ [Pp]layback ]]; then
+            # Wait a few seconds for the app to initialize/load the URL
+            sleep 3
+            echo "Injecting initial key event: sendkey okay (to trigger playback)"
+            sendkey okay > /dev/null 2>&1
+        fi
+
         echo "Collecting samples for $scenario_duration seconds..."
 
         smaps_rss_samples=()
+        v8_rss_samples=()
         status_rss_samples=()
         gpu_rss_samples=()
 
@@ -232,6 +247,12 @@ for scenario_info in "${SCENARIOS[@]}"; do
                 s_rss=$(awk '/^Rss:/ {rss+=$2} END {printf "%.0f", rss}' "/proc/$PID/smaps_rollup")
             else
                 s_rss=$(awk '/^Rss:/ {rss+=$2} END {printf "%.0f", rss}' "/proc/$PID/smaps")
+            fi
+
+            # --- V8 RSS from smaps ---
+            v8_rss=0
+            if [ -f "/proc/$PID/smaps" ]; then
+                v8_rss=$(awk '/^[0-9a-f]+-[0-9a-f]+/ {if (tolower($0) ~ /v8/) is_v8=1; else is_v8=0} /^Rss:/ {if (is_v8) sum+=$2} END {printf "%.0f", sum}' "/proc/$PID/smaps")
             fi
 
             # --- /proc/$PID/status ---
@@ -249,21 +270,39 @@ for scenario_info in "${SCENARIOS[@]}"; do
 
             # Record samples
             if [[ "$s_rss" =~ ^[0-9]+$ ]]; then smaps_rss_samples+=($s_rss); fi
+            if [[ "$v8_rss" =~ ^[0-9]+$ ]]; then v8_rss_samples+=($v8_rss); fi
             if [[ "$t_rss" =~ ^[0-9]+$ ]]; then status_rss_samples+=($t_rss); fi
             gpu_rss_samples+=($g_rss)
 
-            printf "[%3d/%3d] smaps: RSS %s MB | status: RSS %s MB | gpu: %s MB\n" \
-                "$i" "$scenario_duration" "$(kb_to_mb $s_rss)" "$(kb_to_mb $t_rss)" "$(kb_to_mb $g_rss)"
+            printf "[%3d/%3d] smaps: RSS %s MB | v8: %s MB | status: RSS %s MB | gpu: %s MB\n" \
+                "$i" "$scenario_duration" "$(kb_to_mb $s_rss)" "$(kb_to_mb $v8_rss)" "$(kb_to_mb $t_rss)" "$(kb_to_mb $g_rss)"
+
+            # Inject okay event at 3s for non-playback scenarios
+            if [ $i -eq 3 ] && [[ ! "$scenario_name" =~ [Pp]layback ]]; then
+                echo "Injecting key event: sendkey okay"
+                sendkey okay > /dev/null 2>&1
+            fi
 
             # Inject scroll event if requested
             if [ "$scenario_action" = "scroll" ]; then
-                echo "Injecting scroll event: sendkey right"
-                sendkey right > /dev/null 2>&1
-            elif [ "$scenario_action" = "playback_scroll" ]; then
-                if [ $i -eq 61 ] || [ $i -eq 62 ]; then
+                if [ $i -eq 4 ] || [ $i -eq 5 ]; then
                     echo "Injecting key event: sendkey down"
                     sendkey down > /dev/null 2>&1
-                elif [ $i -ge 63 ]; then
+                elif [ $i -ge 6 ]; then
+                    # Scroll pattern: 10 times right, then 1 time down, and repeat
+                    if [ $(( (i - 6) % 11 )) -lt 10 ]; then
+                        echo "Injecting scroll event: sendkey right"
+                        sendkey right > /dev/null 2>&1
+                    else
+                        echo "Injecting scroll event: sendkey down"
+                        sendkey down > /dev/null 2>&1
+                    fi
+                fi
+            elif [ "$scenario_action" = "playback_scroll" ]; then
+                if [ $i -eq 61 ] || [ $i -eq 62 ] || [ $i -eq 63 ]; then
+                    echo "Injecting key event: sendkey down"
+                    sendkey down > /dev/null 2>&1
+                elif [ $i -ge 64 ]; then
                     echo "Injecting scroll event: sendkey right"
                     sendkey right > /dev/null 2>&1
                 fi
@@ -275,6 +314,8 @@ for scenario_info in "${SCENARIOS[@]}"; do
         # Calculate metrics for this round
         r_smaps_median=$(calculate_median "${smaps_rss_samples[@]}")
         r_smaps_peak=$(calculate_peak "${smaps_rss_samples[@]}")
+        r_v8_median=$(calculate_median "${v8_rss_samples[@]}")
+        r_v8_peak=$(calculate_peak "${v8_rss_samples[@]}")
         r_status_median=$(calculate_median "${status_rss_samples[@]}")
         r_status_peak=$(calculate_peak "${status_rss_samples[@]}")
         r_gpu_median=$(calculate_median "${gpu_rss_samples[@]}")
@@ -282,6 +323,8 @@ for scenario_info in "${SCENARIOS[@]}"; do
 
         round_smaps_median_rss+=($r_smaps_median)
         round_smaps_peak_rss+=($r_smaps_peak)
+        round_v8_median_rss+=($r_v8_median)
+        round_v8_peak_rss+=($r_v8_peak)
         round_status_median_rss+=($r_status_median)
         round_status_peak_rss+=($r_status_peak)
         round_gpu_median_rss+=($r_gpu_median)
@@ -290,6 +333,7 @@ for scenario_info in "${SCENARIOS[@]}"; do
         echo ""
         echo "Round $round Results:"
         echo "  smaps  RSS - Peak: $(kb_to_mb $r_smaps_peak) MB, Median: $(kb_to_mb $r_smaps_median) MB"
+        echo "  v8     RSS - Peak: $(kb_to_mb $r_v8_peak) MB, Median: $(kb_to_mb $r_v8_median) MB"
         echo "  status RSS - Peak: $(kb_to_mb $r_status_peak) MB, Median: $(kb_to_mb $r_status_median) MB"
         echo "  gpu    MEM - Peak: $(kb_to_mb $r_gpu_peak) MB, Median: $(kb_to_mb $r_gpu_median) MB"
 
@@ -309,6 +353,8 @@ for scenario_info in "${SCENARIOS[@]}"; do
     # Calculate averages for this scenario
     avg_s_med=$(calculate_average "${round_smaps_median_rss[@]}")
     avg_s_peak=$(calculate_average "${round_smaps_peak_rss[@]}")
+    avg_v_med=$(calculate_average "${round_v8_median_rss[@]}")
+    avg_v_peak=$(calculate_average "${round_v8_peak_rss[@]}")
     avg_t_med=$(calculate_average "${round_status_median_rss[@]}")
     avg_t_peak=$(calculate_average "${round_status_peak_rss[@]}")
     avg_g_med=$(calculate_average "${round_gpu_median_rss[@]}")
@@ -317,7 +363,7 @@ for scenario_info in "${SCENARIOS[@]}"; do
     # Store for final report
     scenario_names_ordered+=("$scenario_name")
     scenario_rounds_ordered+=("$scenario_rounds")
-    scenario_data_ordered+=("smaps_median:$avg_s_med;smaps_peak:$avg_s_peak;status_median:$avg_t_med;status_peak:$avg_t_peak;gpu_median:$avg_g_med;gpu_peak:$avg_g_peak")
+    scenario_data_ordered+=("smaps_median:$avg_s_med;smaps_peak:$avg_s_peak;v8_median:$avg_v_med;v8_peak:$avg_v_peak;status_median:$avg_t_med;status_peak:$avg_t_peak;gpu_median:$avg_g_med;gpu_peak:$avg_g_peak")
 done
 
 echo ""
@@ -333,15 +379,20 @@ for ((i=0; i<${#scenario_names_ordered[@]}; i++)); do
     # Extract values from report_data string using awk for BusyBox compatibility
     avg_s_med=$(echo "$report_data" | awk -F'[;:]' '{print $2}')
     avg_s_peak=$(echo "$report_data" | awk -F'[;:]' '{print $4}')
-    avg_t_med=$(echo "$report_data" | awk -F'[;:]' '{print $6}')
-    avg_t_peak=$(echo "$report_data" | awk -F'[;:]' '{print $8}')
-    avg_g_med=$(echo "$report_data" | awk -F'[;:]' '{print $10}')
-    avg_g_peak=$(echo "$report_data" | awk -F'[;:]' '{print $12}')
+    avg_v_med=$(echo "$report_data" | awk -F'[;:]' '{print $6}')
+    avg_v_peak=$(echo "$report_data" | awk -F'[;:]' '{print $8}')
+    avg_t_med=$(echo "$report_data" | awk -F'[;:]' '{print $10}')
+    avg_t_peak=$(echo "$report_data" | awk -F'[;:]' '{print $12}')
+    avg_g_med=$(echo "$report_data" | awk -F'[;:]' '{print $14}')
+    avg_g_peak=$(echo "$report_data" | awk -F'[;:]' '{print $16}')
 
     echo "Scenario: $scenario_name ($scenario_rounds rounds)"
     printf "  Source: smaps\n"
     printf "    Average Median RSS: %s MB\n" "$(kb_to_mb $avg_s_med)"
     printf "    Average Peak RSS:   %s MB\n" "$(kb_to_mb $avg_s_peak)"
+    printf "  Source: v8\n"
+    printf "    Average Median RSS: %s MB\n" "$(kb_to_mb $avg_v_med)"
+    printf "    Average Peak RSS:   %s MB\n" "$(kb_to_mb $avg_v_peak)"
     printf "  Source: status\n"
     printf "    Average Median RSS: %s MB\n" "$(kb_to_mb $avg_t_med)"
     printf "    Average Peak RSS:   %s MB\n" "$(kb_to_mb $avg_t_peak)"

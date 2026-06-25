@@ -17,6 +17,7 @@
 
 #include <map>
 #include <set>
+#include <utility>
 
 #include "base/containers/flat_set.h"
 #include "base/containers/small_map.h"
@@ -25,6 +26,7 @@
 #include "base/observer_list.h"
 #include "cobalt/browser/lifecycle/public/mojom/cobalt_lifecycle.mojom.h"
 #include "cobalt/common/cobalt_thread_checker.h"
+#include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -39,8 +41,7 @@ namespace cobalt {
 class H5vccRuntimeImpl;
 
 struct FrameContext {
-  content::WebContents* web_contents;
-  content::RenderFrameHost* frame;
+  content::GlobalRenderFrameHostId frame_id;
 };
 
 enum class PendingAck {
@@ -166,6 +167,8 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
   CobaltLifecycleManager();
   ~CobaltLifecycleManager();
 
+  std::pair<content::RenderFrameHost*, content::WebContents*>
+  GetCurrentContext();
   void OnMojoDisconnect();
 
   void CompleteAckImmediately(content::WebContents* web_contents,
