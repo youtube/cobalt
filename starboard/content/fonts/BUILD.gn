@@ -58,7 +58,7 @@ if (current_toolchain == default_toolchain) {
     }
 
     group("copy_font_data") {
-      data_deps = [
+      public_deps = [
         ":copy_fonts",
         ":fonts_xml",
       ]
