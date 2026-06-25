@@ -20,10 +20,6 @@
 
 namespace starboard {
 
-constexpr int kVideoBufferBudget1080p = 30 * 1024 * 1024;
-constexpr int kVideoBufferBudget4KSdr = 100 * 1024 * 1024;
-constexpr int kVideoBufferBudget4KHdr = 160 * 1024 * 1024;
-
 // We set the maximum memory budget to 200MB on Android (and 300MB on other
 // platforms), balancing the following factors:
 //

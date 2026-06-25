@@ -24,19 +24,16 @@
 namespace starboard {
 
 namespace {
-constexpr int k1080pArea = Resolution::k1080p.width * Resolution::k1080p.height;
-constexpr int k4KArea = Resolution::k4k.width * Resolution::k4k.height;
+constexpr int kVideoBufferBudget1080p = 30 * 1024 * 1024;
+constexpr int kVideoBufferBudget4KSdr = 100 * 1024 * 1024;
+constexpr int kVideoBufferBudget4KHdr = 160 * 1024 * 1024;
 }  // namespace
 
 int GetAreaBasedVideoBufferBudget(Size video_size, int bits_per_pixel) {
-  int64_t resolution_area =
-      (video_size.width <= 0 || video_size.height <= 0)
-          ? 0
-          : static_cast<int64_t>(video_size.width) * video_size.height;
-
-  if (resolution_area == 0 || resolution_area <= k1080pArea) {
+  if (video_size.IsEmpty() ||
+      video_size.GetArea() <= Resolution::k1080p.GetArea()) {
     return kVideoBufferBudget1080p;
-  } else if (resolution_area <= k4KArea) {
+  } else if (video_size.GetArea() <= Resolution::k4k.GetArea()) {
     if (bits_per_pixel <= 8) {
       return kVideoBufferBudget4KSdr;
     } else {
@@ -48,11 +45,10 @@ int GetAreaBasedVideoBufferBudget(Size video_size, int bits_per_pixel) {
 }
 
 int GetLegacyVideoBufferBudget(Size video_size, int bits_per_pixel) {
-  starboard::Size resolution(video_size.width, video_size.height);
-  if (resolution.FitsWithin(starboard::Resolution::k1080p) ||
-      video_size.width <= 0 || video_size.height <= 0) {
+  if (video_size.FitsWithin(starboard::Resolution::k1080p) ||
+      video_size.IsEmpty()) {
     return kVideoBufferBudget1080p;
-  } else if (resolution.FitsWithin(starboard::Resolution::k4k)) {
+  } else if (video_size.FitsWithin(starboard::Resolution::k4k)) {
     if (bits_per_pixel <= 8) {
       return kVideoBufferBudget4KSdr;
     } else {

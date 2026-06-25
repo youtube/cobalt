@@ -19,6 +19,12 @@
 namespace starboard {
 namespace {
 
+// duplicated values from starboard/shared/starboard/media/media_video_budget.cc
+constexpr int kVideoBufferBudget1080p = 30 * 1024 * 1024;
+constexpr int kVideoBufferBudget4KSdr = 100 * 1024 * 1024;
+constexpr int kVideoBufferBudget4KHdr = 160 * 1024 * 1024;
+constexpr int kVideoBufferBudgetAbove4K = 300 * 1024 * 1024;
+
 TEST(SbMediaGetVideoBufferBudgetTest, InvalidResolution) {
   // Invalid resolutions should fall back to 1080p budget.
   EXPECT_EQ(SbMediaGetVideoBufferBudget(kSbMediaVideoCodecAv1,
