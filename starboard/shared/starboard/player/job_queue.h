@@ -16,10 +16,12 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_JOB_QUEUE_H_
 
 #include <condition_variable>
+#include <cstddef>
 #include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
+#include <new>
 #include <optional>
 #include <type_traits>
 #include <utility>
@@ -46,6 +48,16 @@ namespace starboard {
 // A thread can only have one job queue.
 class JobQueue {
  public:
+  // A move-only type-erased wrapper for callables with signature void().
+  // This is similar to C++23 std::move_only_function. It allows capturing
+  // move-only objects like std::unique_ptr.
+  //
+  // Lifetime: A Job object owns the wrapped callable. When the Job is
+  // destroyed, the wrapped callable is also destroyed.
+  //
+  // Threading: A Job can be constructed and moved on any thread, but it
+  // should only be invoked once. Typically, Jobs are scheduled and executed
+  // on the JobQueue's thread.
   class Job {
    public:
     Job() = default;
@@ -55,41 +67,93 @@ class JobQueue {
         typename F,
         typename = std::enable_if_t<!std::is_same_v<std::decay_t<F>, Job> &&
                                     std::is_invocable_v<std::decay_t<F>&>>>
-    Job(F&& f)
-        : impl_(
-              std::make_unique<ImplType<std::decay_t<F>>>(std::forward<F>(f))) {
+    Job(F&& f) {
+      if (IsNull(f)) {
+        return;
+      }
+
+      using DecayedF = std::decay_t<F>;
+      if constexpr (sizeof(DecayedF) <= kInlineStorageSize &&
+                    alignof(DecayedF) <= kInlineStorageAlignment &&
+                    std::is_nothrow_move_constructible_v<DecayedF>) {
+        new (storage_.buffer) DecayedF(std::forward<F>(f));
+        invoke_ = [](Buffer& buf) {
+          (*reinterpret_cast<DecayedF*>(buf.buffer))();
+        };
+        destroy_ = [](Buffer& buf) {
+          reinterpret_cast<DecayedF*>(buf.buffer)->~DecayedF();
+        };
+        move_ = [](Buffer& src, Buffer& dest) {
+          new (dest.buffer)
+              DecayedF(std::move(*reinterpret_cast<DecayedF*>(src.buffer)));
+          reinterpret_cast<DecayedF*>(src.buffer)->~DecayedF();
+        };
+      } else {
+        using Impl = ImplType<DecayedF>;
+        storage_.ptr = new Impl(std::forward<F>(f));
+        invoke_ = [](Buffer& buf) { static_cast<Impl*>(buf.ptr)->Run(); };
+        destroy_ = [](Buffer& buf) { delete static_cast<Impl*>(buf.ptr); };
+        move_ = [](Buffer& src, Buffer& dest) {
+          dest.ptr = src.ptr;
+          src.ptr = nullptr;
+        };
+      }
     }
 
     Job(const Job&) = delete;
     Job& operator=(const Job&) = delete;
-    Job(Job&&) = default;
-    Job& operator=(Job&&) = default;
+
+    Job(Job&& other) noexcept { MoveFrom(std::move(other)); }
+
+    Job& operator=(Job&& other) noexcept {
+      if (this != &other) {
+        Reset();
+        MoveFrom(std::move(other));
+      }
+      return *this;
+    }
+
+    ~Job() { Reset(); }
 
     Job& operator=(std::nullptr_t) {
-      impl_.reset();
+      Reset();
       return *this;
     }
 
     void operator()() {
-      SB_CHECK(impl_);
-      impl_->Run();
+      SB_CHECK(invoke_);
+      invoke_(storage_);
     }
 
-    explicit operator bool() const { return impl_ != nullptr; }
+    explicit operator bool() const { return invoke_ != nullptr; }
+
     friend bool operator==(const Job& job, std::nullptr_t) {
-      return job.impl_ == nullptr;
+      return job.invoke_ == nullptr;
     }
     friend bool operator==(std::nullptr_t, const Job& job) {
-      return job.impl_ == nullptr;
+      return job.invoke_ == nullptr;
     }
     friend bool operator!=(const Job& job, std::nullptr_t) {
-      return job.impl_ != nullptr;
+      return job.invoke_ != nullptr;
     }
     friend bool operator!=(std::nullptr_t, const Job& job) {
-      return job.impl_ != nullptr;
+      return job.invoke_ != nullptr;
     }
 
    private:
+    // 24 bytes is large enough to fit most common callables, such as:
+    // - Standard function pointers (8 bytes)
+    // - Member function pointers (up to 16 bytes)
+    // - Small lambdas capturing up to 3 pointers (e.g., 'this' and a couple of
+    //   arguments)
+    static constexpr size_t kInlineStorageSize = 24;
+    static constexpr size_t kInlineStorageAlignment = alignof(std::max_align_t);
+
+    union Buffer {
+      alignas(kInlineStorageAlignment) char buffer[kInlineStorageSize];
+      void* ptr;
+    };
+
     struct ImplBase {
       virtual ~ImplBase() = default;
       virtual void Run() = 0;
@@ -103,7 +167,40 @@ class JobQueue {
       F f_;
     };
 
-    std::unique_ptr<ImplBase> impl_;
+    void Reset() {
+      if (destroy_) {
+        destroy_(storage_);
+        invoke_ = nullptr;
+        destroy_ = nullptr;
+        move_ = nullptr;
+      }
+    }
+
+    void MoveFrom(Job&& other) {
+      invoke_ = other.invoke_;
+      destroy_ = other.destroy_;
+      move_ = other.move_;
+
+      if (other.move_) {
+        other.move_(other.storage_, storage_);
+        other.invoke_ = nullptr;
+        other.destroy_ = nullptr;
+        other.move_ = nullptr;
+      }
+    }
+
+    template <typename T>
+    static constexpr bool IsNull(const T& t) {
+      if constexpr (std::is_pointer_v<T> || std::is_member_pointer_v<T>) {
+        return t == nullptr;
+      }
+      return false;
+    }
+
+    Buffer storage_;
+    void (*invoke_)(Buffer&) = nullptr;
+    void (*destroy_)(Buffer&) = nullptr;
+    void (*move_)(Buffer&, Buffer&) = nullptr;
   };
 
   class JobToken {

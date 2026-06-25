@@ -176,6 +176,12 @@ TEST_F(JobQueueTest, MoveOnlyLambdaIsAccepted) {
   EXPECT_TRUE(executed);
 }
 
+TEST_F(JobQueueTest, NullFunctionPointerIsInvalidJob) {
+  void (*null_func)() = nullptr;
+  JobQueue::Job job(null_func);
+  EXPECT_FALSE(job);
+}
+
 TEST_F(JobQueueTest, QueueBelongsToCorrectThread) {
   EXPECT_TRUE(job_queue_.BelongsToCurrentThread());
 }
