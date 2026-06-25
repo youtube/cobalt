@@ -26,7 +26,6 @@ config("platform_configuration") {
       "-Wl,--wrap=open",
       "-Wl,--wrap=openat",
       "-Wl,--wrap=stat",
-      "-Wl,--wrap=writev",
     ]
   }
 }

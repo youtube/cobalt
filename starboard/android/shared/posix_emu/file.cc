@@ -13,10 +13,7 @@
 // limitations under the License.
 
 #include <fcntl.h>
-#include <sys/uio.h>
-#include <unistd.h>
 
-#include <string>
 #include <vector>
 
 #include "starboard/android/shared/asset_manager.h"
@@ -47,7 +44,6 @@ extern "C" {
 int __real_close(int fildes);
 int __real_open(const char* path, int oflag, ...);
 int __real_openat(int dirfd, const char* path, int oflag, ...);
-ssize_t __real_writev(int fd, const struct iovec* iov, int iovcnt);
 
 int __wrap_close(int fildes) {
   AssetManager* asset_manager = AssetManager::GetInstance();
@@ -80,34 +76,6 @@ int __wrap_open(const char* path, int oflag, ...) {
     return __wrap_openat(AT_FDCWD, path, oflag, mode);
   }
   return __wrap_openat(AT_FDCWD, path, oflag);
-}
-
-// Route stdout/stderr writes, which musl flushes via writev, through SbLogRaw
-// so they reach Android logcat.
-ssize_t __wrap_writev(int fd, const struct iovec* iov, int iovcnt) {
-  if (fd == STDOUT_FILENO || fd == STDERR_FILENO) {
-    std::string buffer;
-    for (int i = 0; i < iovcnt; ++i) {
-      if (iov[i].iov_base && iov[i].iov_len > 0) {
-        buffer.append(static_cast<const char*>(iov[i].iov_base),
-                      iov[i].iov_len);
-      }
-    }
-    // SbLogRaw is line-oriented; split on newlines and drop the terminators.
-    size_t start = 0, pos;
-    while ((pos = buffer.find('\n', start)) != std::string::npos) {
-      buffer[pos] = '\0';
-      if (pos > start) {
-        SbLogRaw(buffer.c_str() + start);
-      }
-      start = pos + 1;
-    }
-    if (start < buffer.size()) {
-      SbLogRaw(buffer.c_str() + start);
-    }
-    return static_cast<ssize_t>(buffer.size());
-  }
-  return __real_writev(fd, iov, iovcnt);
 }
 
 }  // extern "C"
