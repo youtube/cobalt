@@ -12,17 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/starboard_test_environment.h"
+#ifndef STARBOARD_SHARED_STARBOARD_FEATURES_TEST_UTIL_H_
+#define STARBOARD_SHARED_STARBOARD_FEATURES_TEST_UTIL_H_
 
-#include "starboard/shared/starboard/features_test_util.h"
+namespace starboard::features {
 
-namespace starboard {
+void InitializeStarboardFeatureListWithDefaults();
 
-StarboardTestEnvironment::StarboardTestEnvironment() = default;
+}  // namespace starboard::features
 
-StarboardTestEnvironment::~StarboardTestEnvironment() = default;
-
-void StarboardTestEnvironment::SetUp() {
-  features::InitializeStarboardFeatureListWithDefaults();
-}
-}  // namespace starboard
+#endif  // STARBOARD_SHARED_STARBOARD_FEATURES_TEST_UTIL_H_

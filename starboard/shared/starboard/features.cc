@@ -24,13 +24,6 @@
 
 #include "starboard/shared/starboard/features.h"
 
-#include <stdint.h>
-
-#include <iterator>
-
-#include "starboard/extension/features.h"
-#include "starboard/shared/starboard/feature_list.h"
-
 #define STARBOARD_FEATURE(feature, name, default_state) \
   SB_FEATURE(feature, name, default_state)
 
@@ -55,45 +48,3 @@
 #undef FEATURE_PARAM_LIST_START
 #undef FEATURE_PARAM_LIST_END
 #undef STARBOARD_FEATURE_PARAM_TIME_TYPE
-
-namespace starboard::features {
-
-namespace {
-
-// Aggregate the just-defined features/params into arrays for the FeatureList
-// initializer.
-// clang-format off
-#define FEATURE_LIST_START const SbFeature kStarboardFeatures[] = {
-#define FEATURE_LIST_END };
-
-#define FEATURE_PARAM_LIST_START const SbFeatureParam kStarboardParams[] = {
-#define FEATURE_PARAM_LIST_END };
-// clang-format on
-
-#define STARBOARD_FEATURE(feature, name, default_state) feature,
-
-#define STARBOARD_FEATURE_PARAM(T, param_object_name, feature, name, \
-                                default_value)                       \
-  param_object_name,
-
-#define STARBOARD_FEATURE_PARAM_TIME_TYPE int64_t
-
-#include "starboard/extension/feature_config.h"
-
-#undef STARBOARD_FEATURE
-#undef STARBOARD_FEATURE_PARAM
-#undef FEATURE_LIST_START
-#undef FEATURE_LIST_END
-#undef FEATURE_PARAM_LIST_START
-#undef FEATURE_PARAM_LIST_END
-#undef STARBOARD_FEATURE_PARAM_TIME_TYPE
-
-}  // namespace
-
-void InitializeStarboardFeatureListWithDefaults() {
-  FeatureList::InitializeFeatureList(
-      kStarboardFeatures, std::size(kStarboardFeatures), kStarboardParams,
-      std::size(kStarboardParams));
-}
-
-}  // namespace starboard::features
