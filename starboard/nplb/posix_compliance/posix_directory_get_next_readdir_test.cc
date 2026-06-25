@@ -335,7 +335,7 @@ TEST_F(PosixReaddirTests, ThreadSafetyDifferentStreams) {
   constexpr int kFilesPerDir = 5;
   std::vector<std::string> subdirs;
 
-  // Create subdirectories and files
+  // Create subdirectories and files with unique names per directory
   for (int i = 0; i < kNumThreads; ++i) {
     std::string subdir_path = test_dir_ + "/thread_dir_" + std::to_string(i);
     ASSERT_EQ(mkdir(subdir_path.c_str(), 0777), 0)
@@ -343,20 +343,13 @@ TEST_F(PosixReaddirTests, ThreadSafetyDifferentStreams) {
     subdirs.push_back(subdir_path);
 
     for (int j = 0; j < kFilesPerDir; ++j) {
-      std::string file_path =
-          subdir_path + "/file_" + std::to_string(j) + ".txt";
+      std::string file_path = subdir_path + "/file_" + std::to_string(i) + "_" +
+                              std::to_string(j) + ".txt";
       int fd = open(file_path.c_str(), flags_, 0666);
       ASSERT_NE(fd, -1) << "Failed to create file " << j << " in subdir " << i;
       close(fd);
     }
   }
-
-  // Construct expected entries once
-  std::vector<std::string> expected = {".", ".."};
-  for (int j = 0; j < kFilesPerDir; ++j) {
-    expected.push_back("file_" + std::to_string(j) + ".txt");
-  }
-  std::sort(expected.begin(), expected.end());
 
   // Synchronization primitives for the hybrid barrier
   std::mutex ready_mutex;
@@ -369,10 +362,15 @@ TEST_F(PosixReaddirTests, ThreadSafetyDifferentStreams) {
 
   for (int i = 0; i < kNumThreads; ++i) {
     threads.emplace_back([i, &subdirs, &ready_mutex, &ready_cv, &ready_count,
-                          &start_signal, &thread_errors, &expected]() {
+                          &start_signal, &thread_errors]() {
       std::string subdir_path = subdirs[i];
 
-      // Phase 1: Block until all threads are spawned (CPU-friendly)
+      // Open the directory stream before synchronizing to maximize concurrent
+      // readdir start
+      DIR* dir = opendir(subdir_path.c_str());
+
+      // Phase 1: Signal ready. We must do this even if opendir failed to avoid
+      // deadlocking the barrier.
       {
         std::unique_lock<std::mutex> lock(ready_mutex);
         ready_count++;
@@ -381,16 +379,24 @@ TEST_F(PosixReaddirTests, ThreadSafetyDifferentStreams) {
         }
       }  // Lock is released immediately
 
+      if (dir == nullptr) {
+        thread_errors[i] = "opendir failed with errno " + std::to_string(errno);
+        return;
+      }
+
       // Phase 2: Spin-lock for simultaneous, parallel release
       while (!start_signal.load(std::memory_order_acquire)) {
         // Spin active-waiting for the gate to open
       }
 
-      DIR* dir = opendir(subdir_path.c_str());
-      if (dir == nullptr) {
-        thread_errors[i] = "opendir failed with errno " + std::to_string(errno);
-        return;
+      // Construct expected entries for this specific directory (unique
+      // filenames)
+      std::vector<std::string> expected = {".", ".."};
+      for (int j = 0; j < kFilesPerDir; ++j) {
+        expected.push_back("file_" + std::to_string(i) + "_" +
+                           std::to_string(j) + ".txt");
       }
+      std::sort(expected.begin(), expected.end());
 
       std::vector<std::string> entries;
       struct dirent* entry;
@@ -493,7 +499,12 @@ TEST_F(PosixReaddirTests, ThreadSafetySameDirectoryDifferentStreams) {
   for (int i = 0; i < kNumThreads; ++i) {
     threads.emplace_back([i, &shared_dir, &ready_mutex, &ready_cv, &ready_count,
                           &start_signal, &thread_errors, &expected]() {
-      // Phase 1: Block until all threads are spawned (CPU-friendly)
+      // Open the directory stream before synchronizing to maximize concurrent
+      // readdir start
+      DIR* dir = opendir(shared_dir.c_str());
+
+      // Phase 1: Signal ready. We must do this even if opendir failed to avoid
+      // deadlocking the barrier.
       {
         std::unique_lock<std::mutex> lock(ready_mutex);
         ready_count++;
@@ -502,15 +513,14 @@ TEST_F(PosixReaddirTests, ThreadSafetySameDirectoryDifferentStreams) {
         }
       }  // Lock is released immediately
 
-      // Phase 2: Spin-lock for simultaneous, parallel release
-      while (!start_signal.load(std::memory_order_acquire)) {
-        // Spin active-waiting for the gate to open
-      }
-
-      DIR* dir = opendir(shared_dir.c_str());
       if (dir == nullptr) {
         thread_errors[i] = "opendir failed with errno " + std::to_string(errno);
         return;
+      }
+
+      // Phase 2: Spin-lock for simultaneous, parallel release
+      while (!start_signal.load(std::memory_order_acquire)) {
+        // Spin active-waiting for the gate to open
       }
 
       std::vector<std::string> entries;
