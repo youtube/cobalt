@@ -193,6 +193,7 @@ void ShellContentRendererTestClient::DidInitializeWorkerContextOnWorkerThread(
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 void ShellContentRendererTestClient::GetStarboardRendererFactoryTraits(
+    RenderFrame* render_frame,
     media::RendererFactoryTraits* renderer_factory_traits) {}
 #endif
 
