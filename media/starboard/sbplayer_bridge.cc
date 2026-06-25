@@ -331,7 +331,7 @@ SbPlayerBridge::~SbPlayerBridge() {
 }
 
 void SbPlayerBridge::UpdateAudioConfig(const AudioDecoderConfig& audio_config,
-                                       const std::string& mime_type) {
+                                       std::string_view mime_type) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(audio_config.IsValidConfig());
 
@@ -346,7 +346,7 @@ void SbPlayerBridge::UpdateAudioConfig(const AudioDecoderConfig& audio_config,
 }
 
 void SbPlayerBridge::UpdateVideoConfig(const VideoDecoderConfig& video_config,
-                                       const std::string& mime_type) {
+                                       std::string_view mime_type) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(video_config.IsValidConfig());
 
@@ -360,10 +360,10 @@ void SbPlayerBridge::UpdateVideoConfig(const VideoDecoderConfig& video_config,
       static_cast<int>(video_config_.natural_size().height());
   video_stream_info_.codec =
       MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
-  video_stream_info_.color_metadata =
-      MediaToSbMediaColorMetadata(video_config_.color_space_info(),
-                                  video_config_.hdr_metadata(), mime_type);
   video_mime_type_ = mime_type;
+  video_stream_info_.color_metadata = MediaToSbMediaColorMetadata(
+      video_config_.color_space_info(), video_config_.hdr_metadata(),
+      video_mime_type_);
   video_stream_info_.mime = video_mime_type_.c_str();
   video_stream_info_.max_video_capabilities = max_video_capabilities_.c_str();
   LOG(INFO) << "Converted to SbMediaVideoStreamInfo -- " << video_stream_info_;
