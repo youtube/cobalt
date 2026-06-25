@@ -23,8 +23,6 @@
 #include "client/simulate_crash_ios.h"
 #elif BUILDFLAG(IS_WIN)
 #include "client/simulate_crash_win.h"
-#elif BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-#include "client/cobalt/simulate_crash_hermetic_stub.h"
 #elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 #include "client/simulate_crash_linux.h"
 #endif
