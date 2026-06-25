@@ -24,6 +24,7 @@
 
 namespace {
 
+/*
 struct StackCrawlState {
   StackCrawlState(uintptr_t* frames, size_t max_depth)
       : frames(frames),
@@ -52,6 +53,7 @@ _Unwind_Reason_Code TraceStackFrame(_Unwind_Context* context, void* arg) {
     return _URC_END_OF_STACK;
   return _URC_NO_REASON;
 }
+*/
 
 bool EndsWith(const std::string& s, const std::string& suffix) {
   return s.size() >= suffix.size() &&
@@ -76,9 +78,7 @@ bool EnableInProcessStackDumping() {
 }
 
 size_t CollectStackTrace(void** trace, size_t count) {
-  StackCrawlState state(reinterpret_cast<uintptr_t*>(trace), count);
-  _Unwind_Backtrace(&TraceStackFrame, &state);
-  return state.frame_count;
+  return 0;
 }
 
 void StackTrace::PrintWithPrefix(const char* prefix_string) const {
