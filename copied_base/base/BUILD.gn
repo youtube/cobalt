@@ -1388,7 +1388,10 @@ component("base") {
 
     public_configs += [ ":copied_base_jni_include_dir" ]
 
-    public_deps += [ "//third_party/jni_zero:jni_zero" ]
+    public_deps += [
+      "//build:robolectric_buildflags",
+      "//third_party/jni_zero:jni_zero",
+    ]
 
     deps += [
       ":base_jni",
