@@ -306,6 +306,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       MediaCapabilitiesCache::GetInstance()->SetAv1OptEnabled(true);
       SB_LOG(INFO) << "`enable_av1_startup_optimization` is set to true.";
     }
+    if (experimental_features.GetBool(kMediaNdkAudio)) {
+      MediaCapabilitiesCache::GetInstance()->SetNdkAudioEnabled(true);
+      SB_LOG(INFO) << "`ndk_audio` is set to true.";
+    }
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecAc3 &&
         creation_parameters.audio_codec() != kSbMediaAudioCodecEac3) {
       SB_LOG(INFO) << "Creating non-passthrough components.";

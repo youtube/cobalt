@@ -230,6 +230,8 @@ class MediaCapabilitiesCache {
     is_app_provisioning_enabled_ = enabled;
   }
   bool IsAppProvisioningEnabled() const { return is_app_provisioning_enabled_; }
+  void SetNdkAudioEnabled(bool enabled) { is_ndk_audio_enabled_ = enabled; }
+  bool IsNdkAudioEnabled() const { return is_ndk_audio_enabled_; }
   void ClearCache() { capabilities_is_dirty_ = true; }
 
  protected:
@@ -278,6 +280,7 @@ class MediaCapabilitiesCache {
   std::atomic_bool is_enabled_{true};
   std::atomic_bool is_av1_opt_enabled_{false};
   std::atomic_bool is_app_provisioning_enabled_{false};
+  std::atomic_bool is_ndk_audio_enabled_{false};
   std::atomic_bool capabilities_is_dirty_{true};
 };
 
