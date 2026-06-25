@@ -1369,7 +1369,6 @@ component("base") {
       "android/jni_android.h",
       "android/jni_array.cc",
       "android/jni_array.h",
-      "android/jni_generator/jni_generator_helper.h",
       "android/jni_int_wrapper.h",
       "android/jni_registrar.cc",
       "android/jni_registrar.h",
@@ -1389,7 +1388,10 @@ component("base") {
 
     public_configs += [ ":copied_base_jni_include_dir" ]
 
-    public_deps += [ "//third_party/jni_zero:jni_zero" ]
+    public_deps += [
+      "//build:robolectric_buildflags",
+      "//third_party/jni_zero:jni_zero",
+    ]
 
     deps += [
       ":base_jni",
@@ -4290,15 +4292,6 @@ if (is_android) {
       "android/java/src/org/chromium/base/JniException.java",
       "android/java/src/org/chromium/base/JniStaticTestMocker.java",
       "android/java/src/org/chromium/base/NativeLibraryLoadedStatus.java",
-      "android/java/src/org/chromium/base/annotations/AccessedByNative.java",
-      "android/java/src/org/chromium/base/annotations/CalledByNative.java",
-      "android/java/src/org/chromium/base/annotations/CalledByNativeForTesting.java",
-      "android/java/src/org/chromium/base/annotations/CalledByNativeUnchecked.java",
-      "android/java/src/org/chromium/base/annotations/JNIAdditionalImport.java",
-      "android/java/src/org/chromium/base/annotations/JNINamespace.java",
-      "android/java/src/org/chromium/base/annotations/JniIgnoreNatives.java",
-      "android/java/src/org/chromium/base/annotations/NativeClassQualifiedName.java",
-      "android/java/src/org/chromium/base/annotations/NativeMethods.java",
     ]
 
     # Public because @CheckDiscard is added to generated *Jni.java files.
@@ -4371,6 +4364,7 @@ if (is_android) {
       "//third_party/androidx:androidx_annotation_annotation_java",
       "//third_party/androidx:androidx_collection_collection_java",
       "//third_party/androidx:androidx_core_core_java",
+      "//third_party/jni_zero:jni_zero_java",
     ]
 
     sources = [

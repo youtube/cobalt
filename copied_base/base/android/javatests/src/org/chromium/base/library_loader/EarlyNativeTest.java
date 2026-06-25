@@ -14,8 +14,8 @@ import org.junit.runner.RunWith;
 
 import org.chromium.base.JniException;
 import org.chromium.base.NativeLibraryLoadedStatus;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 import org.chromium.base.test.BaseJUnit4ClassRunner;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CallbackHelper;

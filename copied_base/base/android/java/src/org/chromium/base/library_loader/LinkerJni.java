@@ -6,8 +6,8 @@ package org.chromium.base.library_loader;
 
 import androidx.annotation.NonNull;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JniIgnoreNatives;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JniIgnoreNatives;
 
 /**
  * Mockable stub for all native methods in Linker.

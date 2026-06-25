@@ -6,7 +6,6 @@
 
 #include <cstring>
 #include <stddef.h>
-#include <sys/prctl.h>
 
 #if BUILDFLAG(IS_COBALT)
 #include <string>
@@ -23,13 +22,14 @@
 #include "base/base_switches.h"
 #include "base/command_line.h"
 #include "build/build_config.h"
+#include "build/robolectric_buildflags.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace base {
 namespace android {
 namespace {
 
-JavaVM* g_jvm = nullptr;
 jobject g_class_loader = nullptr;
 jmethodID g_class_loader_load_class_method_id = 0;
 
@@ -128,71 +128,25 @@ ScopedJavaLocalRef<jclass> GetClassInternal(JNIEnv* env,
   return ScopedJavaLocalRef<jclass>(env, clazz);
 }
 
+jclass GetClassFromSplit(JNIEnv* env,
+                         const char* class_name,
+                         const char* split_name) {
+  return GetClass(env, class_name, split_name).Release();
+}
+
 }  // namespace
 
-JNIEnv* AttachCurrentThread() {
-  DCHECK(g_jvm);
-  JNIEnv* env = nullptr;
-  jint ret = g_jvm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_2);
-  if (ret == JNI_EDETACHED || !env) {
-    JavaVMAttachArgs args;
-    args.version = JNI_VERSION_1_2;
-    args.group = nullptr;
-
-    // 16 is the maximum size for thread names on Android.
-    char thread_name[16];
-    int err = prctl(PR_GET_NAME, thread_name);
-    if (err < 0) {
-      DPLOG(ERROR) << "prctl(PR_GET_NAME)";
-      args.name = nullptr;
-    } else {
-      args.name = thread_name;
-    }
-
-#if BUILDFLAG(IS_ANDROID)
-    ret = g_jvm->AttachCurrentThread(&env, &args);
-#else
-    ret = g_jvm->AttachCurrentThread(reinterpret_cast<void**>(&env), &args);
-#endif
-    CHECK_EQ(JNI_OK, ret);
-  }
-  return env;
-}
-
-JNIEnv* AttachCurrentThreadWithName(const std::string& thread_name) {
-  DCHECK(g_jvm);
-  JavaVMAttachArgs args;
-  args.version = JNI_VERSION_1_2;
-  args.name = const_cast<char*>(thread_name.c_str());
-  args.group = nullptr;
-  JNIEnv* env = nullptr;
-#if BUILDFLAG(IS_ANDROID)
-  jint ret = g_jvm->AttachCurrentThread(&env, &args);
-#else
-  jint ret = g_jvm->AttachCurrentThread(reinterpret_cast<void**>(&env), &args);
-#endif
-  CHECK_EQ(JNI_OK, ret);
-  return env;
-}
-
-void DetachFromVM() {
-  // Ignore the return value, if the thread is not attached, DetachCurrentThread
-  // will fail. But it is ok as the native thread may never be attached.
-  if (g_jvm)
-    g_jvm->DetachCurrentThread();
-}
-
 void InitVM(JavaVM* vm) {
-  DCHECK(!g_jvm || g_jvm == vm);
-  g_jvm = vm;
-}
-
-bool IsVMInitialized() {
-  return g_jvm != nullptr;
-}
-
-JavaVM* GetVM() {
-  return g_jvm;
+  jni_zero::InitVM(vm);
+  jni_zero::SetExceptionHandler(CheckException);
+  JNIEnv* env = jni_zero::AttachCurrentThread();
+#if !BUILDFLAG(IS_ROBOLECTRIC)
+  // Warm-up needed for GetClassFromSplit, must be called before we set the
+  // resolver, since GetClassFromSplit won't work until after
+  // PrepareClassLoaders has happened.
+  InitGlobalClassLoader(env);
+  jni_zero::SetClassResolver(GetClassFromSplit);
+#endif
 }
 
 void InitGlobalClassLoader(JNIEnv* env) {
