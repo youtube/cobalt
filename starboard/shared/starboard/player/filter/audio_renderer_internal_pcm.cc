@@ -188,7 +188,9 @@ bool AudioRendererPcm::IsEndOfStreamPlayed() const {
 bool AudioRendererPcm::CanAcceptMoreData() const {
   SB_CHECK(BelongsToCurrentThread());
   return eos_state_ == kEOSNotReceived && can_accept_more_data_ &&
-         (!decoder_sample_rate_ || !time_stretcher_.IsQueueFull());
+         (!decoder_sample_rate_ ||
+          (bypass_ ? bypass_->queue.frames() < max_cached_frames_
+                   : !time_stretcher_.IsQueueFull()));
 }
 
 void AudioRendererPcm::Play() {
@@ -213,6 +215,25 @@ void AudioRendererPcm::SetPlaybackRate(double playback_rate) {
 
   if (playback_rate_ == 0.f && playback_rate > 0.f) {
     consume_frames_called_ = false;
+  }
+
+  if (bypass_ && playback_rate != 1.0) {
+    SB_LOG(INFO) << "AudioRendererPcm: Exiting bypass mode, moving "
+                 << bypass_->queue.frames() << " frames to time stretcher.";
+    int frames_to_move = bypass_->queue.frames();
+    if (frames_to_move > 0) {
+      auto moved_audio = make_scoped_refptr<DecodedAudio>(
+          channels_, kSbMediaAudioSampleTypeFloat32,
+          kSbMediaAudioFrameStorageTypeInterleaved, /*timestamp=*/0,
+          frames_to_move * bypass_->bytes_per_frame);
+      int frames_read = bypass_->queue.ReadFrames(
+          frames_to_move, /*dest_frame_offset=*/0, moved_audio.get());
+      SB_CHECK_EQ(frames_read, frames_to_move);
+      time_stretcher_.EnqueueBuffer(moved_audio);
+    }
+    // Exit bypass mode permanently. We do not support re-entering
+    // bypass mode after this.
+    bypass_.reset();
   }
 
   playback_rate_ = playback_rate;
@@ -254,6 +275,7 @@ void AudioRendererPcm::Seek(int64_t seek_to_time) {
     if (resampler_) {
       resampler_.reset();
       time_stretcher_.FlushBuffers();
+      bypass_.reset();
     }
 
     total_frames_sent_to_sink_ = 0;
@@ -595,6 +617,11 @@ void AudioRendererPcm::OnFirstOutput(
     SB_DCHECK(resampler_);
   } else {
     resampler_.reset(new IdentityAudioResampler);
+    if (playback_rate_ == 1.0) {
+      bypass_.emplace(sizeof(float) * channels_);
+      SB_LOG(INFO)
+          << "AudioRendererPcm: Bypassing resampler and time stretcher";
+    }
   }
 
   // TODO: Support planar only audio sink.
@@ -689,18 +716,23 @@ void AudioRendererPcm::ProcessAudioData() {
           Schedule(prerolled_cb_);
         }
       }
-
-      resampled_audio = resampler_->WriteEndOfStream();
+      if (!bypass_) {
+        resampled_audio = resampler_->WriteEndOfStream();
+      }
     } else {
       // Discard any audio data before the seeking target.
       if (seeking_ && decoded_audio->timestamp() < seeking_to_time_) {
         continue;
       }
 
-      resampled_audio = resampler_->Resample(decoded_audio);
+      if (bypass_) {
+        bypass_->queue.Append(decoded_audio);
+      } else {
+        resampled_audio = resampler_->Resample(decoded_audio);
+      }
     }
 
-    if (resampled_audio && resampled_audio->size_in_bytes() > 0) {
+    if (!bypass_ && resampled_audio && resampled_audio->size_in_bytes() > 0) {
       // |time_stretcher_| only support kSbMediaAudioSampleTypeFloat32 and
       // kSbMediaAudioFrameStorageTypeInterleaved.
       if (!resampled_audio->IsFormat(
@@ -744,7 +776,10 @@ bool AudioRendererPcm::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
 
   *is_frame_buffer_full = false;
 
-  if (time_stretcher_.IsQueueFull()) {
+  bool preroll_completed =
+      bypass_ ? bypass_->queue.frames() >= max_cached_frames_ / 2
+              : time_stretcher_.IsQueueFull();
+  if (preroll_completed) {
     std::lock_guard lock(mutex_);
     if (seeking_) {
       seeking_ = false;
@@ -769,6 +804,11 @@ bool AudioRendererPcm::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
   double adjusted_playback_rate = playback_rate_;
   if (audio_renderer_sink_->AllowDirectPlaybackRateSetting()) {
     adjusted_playback_rate = 1.0;
+  }
+
+  if (bypass_) {
+    return AppendBypassAudioToFrameBuffer(frames_in_buffer, offset_to_append,
+                                          adjusted_playback_rate);
   }
 
   scoped_refptr<DecodedAudio> decoded_audio = time_stretcher_.Read(
@@ -810,6 +850,54 @@ bool AudioRendererPcm::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
 
   total_frames_sent_to_sink_ += frames_appended;
 
+  return frames_appended > 0;
+}
+
+bool AudioRendererPcm::AppendBypassAudioToFrameBuffer(
+    int frames_in_buffer,
+    int offset_to_append,
+    double adjusted_playback_rate) {
+  SB_CHECK(bypass_);
+
+  int frames_to_read = max_cached_frames_ - frames_in_buffer;
+  frames_to_read = std::min(frames_to_read, bypass_->queue.frames());
+  if (frames_to_read == 0 && eos_state_ != kEOSDecoded) {
+    return false;
+  }
+
+  int frames_appended = 0;
+  if (frames_to_read > 0) {
+    int frames_to_append = frames_to_read;
+    if (frames_to_append > max_cached_frames_ - offset_to_append) {
+      int first_chunk = max_cached_frames_ - offset_to_append;
+      int read = bypass_->queue.ReadFramesDirect(
+          first_chunk, &frame_buffer_[offset_to_append * bytes_per_frame_],
+          bytes_per_frame_);
+      SB_CHECK_EQ(read, first_chunk);
+
+      frames_to_append -= first_chunk;
+      frames_appended += first_chunk;
+      offset_to_append = 0;
+    }
+
+    if (frames_to_append > 0) {
+      int read = bypass_->queue.ReadFramesDirect(
+          frames_to_append, &frame_buffer_[offset_to_append * bytes_per_frame_],
+          bytes_per_frame_);
+      SB_CHECK_EQ(read, frames_to_append);
+      frames_appended += frames_to_append;
+    }
+  }
+
+  if (frames_appended > 0 || eos_state_ == kEOSDecoded) {
+    std::lock_guard lock(mutex_);
+    if (frames_appended == 0 && eos_state_ == kEOSDecoded) {
+      eos_state_ = kEOSSentToSink;
+    }
+    audio_frame_tracker_.AddFrames(frames_appended, adjusted_playback_rate);
+  }
+
+  total_frames_sent_to_sink_ += frames_appended;
   return frames_appended > 0;
 }
 

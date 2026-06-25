@@ -51,6 +51,13 @@ class DecodedAudioQueue {
   // into the destination DecodedAudio.
   int ReadFrames(int frames, int dest_frame_offset, DecodedAudio* dest);
 
+  // Reads a maximum of |frames| from the current position and copies them
+  // directly into the raw |dest_buffer|. The data is assumed to be in the
+  // queue's native sample type and Interleaved storage type.
+  // Returns the number of frames read. The current position will advance by the
+  // amount of frames read.
+  int ReadFramesDirect(int frames, uint8_t* dest_buffer, int bytes_per_frame);
+
   // Copies up to |frames| frames from current position to |dest|. Returns
   // number of frames copied. Doesn't advance current position. Starts at
   // |source_frame_offset| from current position. |dest_frame_offset| specifies

@@ -98,7 +98,16 @@ class AudioRendererPcm : public AudioRenderer,
   int64_t GetAudioWriteHead() override;
   int64_t AdjustTimestampToAudioClock(int64_t timestamp) override;
 
+  bool IsBypassingForTesting() const { return bypass_.has_value(); }
+
  private:
+  struct BypassContext {
+    explicit BypassContext(int bytes_per_frame)
+        : bytes_per_frame(bytes_per_frame) {}
+    DecodedAudioQueue queue;
+    const int bytes_per_frame;
+  };
+
   enum EOSState {
     kEOSNotReceived,
     kEOSWrittenToDecoder,
@@ -158,6 +167,9 @@ class AudioRendererPcm : public AudioRenderer,
   void ProcessAudioData();
   void FillResamplerAndTimeStretcher();
   bool AppendAudioToFrameBuffer(bool* is_frame_buffer_full);
+  bool AppendBypassAudioToFrameBuffer(int frames_in_buffer,
+                                      int offset_to_append,
+                                      double adjusted_playback_rate);
 
   EOSState eos_state_ = kEOSNotReceived;
   const int channels_;
@@ -167,6 +179,16 @@ class AudioRendererPcm : public AudioRenderer,
   std::unique_ptr<AudioResampler> resampler_;
   std::optional<int> decoder_sample_rate_;
   AudioTimeStretcher time_stretcher_;
+
+  // When it has a value, indicates that the renderer is in "bypass mode",
+  // skipping the resampler and time stretcher. This is only enabled
+  // at the start of playback if the input format natively matches the
+  // sink format and the playback rate is 1.0.
+  // Once we exit bypass mode (e.g. due to a playback rate change),
+  // the context is destroyed (reset to std::nullopt) and we never re-enter
+  // bypass mode for the remainder of the playback session to avoid
+  // the complexity of draining the time stretcher back into the queue.
+  std::optional<BypassContext> bypass_;
 
   std::vector<uint8_t> frame_buffer_;
   uint8_t* frame_buffers_[1];
