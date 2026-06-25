@@ -180,9 +180,18 @@ inline ScopedJavaLocalRef<jarray> ToJniArray(JNIEnv* env, const T& obj) {
   static_assert(sizeof(T) == 0, JNI_ZERO_CONVERSION_FAILED_MSG("ToJniArray"));
 }
 
-template <typename T, std::enable_if_t<!std::is_class_v<T>, int> = 0>
+namespace internal {
+template <typename T, typename Enable = void>
+struct FromJniArrayImpl {
+  static T Act(JNIEnv* env, const JavaRef<jobject>& obj) {
+    static_assert(sizeof(T) == 0, JNI_ZERO_CONVERSION_FAILED_MSG("FromJniArray"));
+  }
+};
+}  // namespace internal
+
+template <typename T>
 inline T FromJniArray(JNIEnv* env, const JavaRef<jobject>& obj) {
-  static_assert(sizeof(T) == 0, JNI_ZERO_CONVERSION_FAILED_MSG("FromJniArray"));
+  return internal::FromJniArrayImpl<T>::Act(env, obj);
 }
 #endif
 

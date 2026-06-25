@@ -93,27 +93,28 @@ ToJniArray(JNIEnv* env, const ContainerType& collection, jclass clazz) {
   return ScopedJavaLocalRef<jobjectArray>(env, j_array);
 }
 #else
-template <typename ContainerType,
-          std::enable_if_t<std::is_class_v<ContainerType>, int> = 0>
-inline ContainerType FromJniArray(
-    JNIEnv* env,
-    const JavaRef<jobject>& j_object) {
-  jobjectArray j_array = static_cast<jobjectArray>(j_object.obj());
-  using ElementType = std::remove_const_t<typename ContainerType::value_type>;
-  jsize array_jsize = env->GetArrayLength(j_array);
+namespace internal {
+template <typename ContainerType>
+struct FromJniArrayImpl<ContainerType, std::enable_if_t<std::is_class_v<ContainerType>>> {
+  static ContainerType Act(JNIEnv* env, const JavaRef<jobject>& j_object) {
+    jobjectArray j_array = static_cast<jobjectArray>(j_object.obj());
+    using ElementType = std::remove_const_t<typename ContainerType::value_type>;
+    jsize array_jsize = env->GetArrayLength(j_array);
 
-  ContainerType ret;
-  for (jsize i = 0; i < array_jsize; ++i) {
-    jobject j_element = env->GetObjectArrayElement(j_array, i);
-    if constexpr (std::is_base_of_v<JavaRef<jobject>, ElementType>) {
-      ret.emplace_back(env, j_element);
-    } else {
-      auto element = ScopedJavaLocalRef<jobject>::Adopt(env, j_element);
-      ret.push_back(FromJniType<ElementType>(env, element));
+    ContainerType ret;
+    for (jsize i = 0; i < array_jsize; ++i) {
+      jobject j_element = env->GetObjectArrayElement(j_array, i);
+      if constexpr (std::is_base_of_v<JavaRef<jobject>, ElementType>) {
+        ret.emplace_back(env, j_element);
+      } else {
+        auto element = ScopedJavaLocalRef<jobject>::Adopt(env, j_element);
+        ret.push_back(FromJniType<ElementType>(env, element));
+      }
     }
+    return ret;
   }
-  return ret;
-}
+};
+}  // namespace internal
 
 template <typename ContainerType,
           std::enable_if_t<std::is_class_v<ContainerType>, int> = 0>
