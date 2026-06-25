@@ -272,8 +272,8 @@ TEST_F(PosixReaddirTests, SeparateDirectoriesSeparateReaddir) {
 // Test readdir's thread safety when called concurrently on different directory
 // streams.
 TEST_F(PosixReaddirTests, ThreadSafetyDifferentStreams) {
-  const int kNumThreads = 10;
-  const int kFilesPerDir = 5;
+  constexpr int kNumThreads = 10;
+  constexpr int kFilesPerDir = 5;
   std::vector<std::string> subdirs;
 
   // Create subdirectories and files
@@ -385,13 +385,18 @@ TEST_F(PosixReaddirTests, ThreadSafetyDifferentStreams) {
     EXPECT_TRUE(thread_errors[i].empty())
         << "Thread " << i << " failed: " << thread_errors[i];
   }
+
+  // Clean up subdirectories
+  for (const auto& subdir_path : subdirs) {
+    RemoveFileOrDirectoryRecursively(subdir_path);
+  }
 }
 
 // Test readdir's thread safety when called concurrently on the same directory
 // (different DIR* handles).
 TEST_F(PosixReaddirTests, ThreadSafetySameDirectoryDifferentStreams) {
-  const int kNumThreads = 10;
-  const int kNumFiles = 10;
+  constexpr int kNumThreads = 10;
+  constexpr int kNumFiles = 10;
 
   // Create one directory with files
   std::string shared_dir = test_dir_ + "/shared_thread_dir";
@@ -496,6 +501,9 @@ TEST_F(PosixReaddirTests, ThreadSafetySameDirectoryDifferentStreams) {
     EXPECT_TRUE(thread_errors[i].empty())
         << "Thread " << i << " failed: " << thread_errors[i];
   }
+
+  // Clean up shared directory
+  RemoveFileOrDirectoryRecursively(shared_dir);
 }
 
 }  // namespace
