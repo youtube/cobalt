@@ -4370,6 +4370,7 @@ if (is_android) {
       "//third_party/androidx:androidx_annotation_annotation_java",
       "//third_party/androidx:androidx_collection_collection_java",
       "//third_party/androidx:androidx_core_core_java",
+      "//third_party/jni_zero:jni_zero_java",
     ]
 
     sources = [
