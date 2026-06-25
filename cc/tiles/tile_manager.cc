@@ -476,9 +476,11 @@ void TileManager::ScheduleTrimPrepaintTiles() {
 void TileManager::ReduceTileMemoryWhenIdle() {
   has_pending_idle_task_ = false;
 
+// TODO(b/528003761): short term solution for now, will upstream this fix.
 #if BUILDFLAG(IS_COBALT)
-  if (!resource_pool_)
+  if (!resource_pool_) {
     return;
+  }
 #endif
 
   base::TimeDelta time_since_last_active =
@@ -507,9 +509,11 @@ void TileManager::ReduceTileMemoryWhenIdle() {
 void TileManager::TrimPrepaintTiles() {
   has_pending_tile_trimming_task_ = false;
 
+// TODO(b/528003761): short term solution for now, will upstream this fix.
 #if BUILDFLAG(IS_COBALT)
-  if (!resource_pool_)
+  if (!resource_pool_) {
     return;
+  }
 #endif
 
   std::unique_ptr<EvictionTilePriorityQueue> eviction_priority_queue =
