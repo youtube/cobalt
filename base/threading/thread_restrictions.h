@@ -214,10 +214,14 @@ namespace chromecast {
 class CrashUtil;
 }
 #if BUILDFLAG(IS_COBALT)
+namespace base {
+class Version;
+}
 namespace cobalt {
 class AppEventRunnerImpl;
 namespace updater {
 class UpdaterModule;
+base::Version ReadEvergreenVersion(base::FilePath installation_dir);
 }
 }
 #endif  // BUILDFLAG(IS_COBALT)
@@ -691,6 +695,10 @@ class BASE_EXPORT ScopedAllowBlocking {
   friend void chrome::SessionEnding();
   friend bool chromeos::system::IsCoreSchedulingAvailable();
   friend int chromeos::system::NumberOfPhysicalCores();
+#if BUILDFLAG(IS_COBALT)
+  friend base::Version cobalt::updater::ReadEvergreenVersion(
+    base::FilePath installation_dir);
+#endif  // BUILDFLAG(IS_COBALT)
   friend base::File content::CreateFileForDrop(
       base::FilePath* file_path);  // http://crbug.com/110709
   friend bool disk_cache::CleanupDirectorySync(const base::FilePath&);
