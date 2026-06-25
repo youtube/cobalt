@@ -510,7 +510,7 @@ void UpdateEngine::Cancel(const std::string& update_context_session_id,
     LOG(WARNING) << "UpdateEngine::Cancel: context not found or already completed.";
     return;
   }
-  const auto& context = it->second;
+  const scoped_refptr<UpdateContext> context = it->second;
   if (context->update_checker.get()) {
     context->update_checker->Cancel();
   }
