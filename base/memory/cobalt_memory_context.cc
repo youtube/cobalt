@@ -54,9 +54,10 @@ MAYBE_COBALT_WEAK MemoryContext GetCurrentMemoryContext() {
   uintptr_t val = reinterpret_cast<uintptr_t>(pthread_getspecific(GetSharedMemoryContextKey()));
   if (val == 0) {
     MemoryContext context = MemoryContext::kUnknown;
-    char thread_name[16] = {0};
 #if defined(OS_LINUX) || defined(OS_ANDROID)
+    char thread_name[17] = {0};
     if (prctl(PR_GET_NAME, thread_name) == 0) {
+      thread_name[16] = '\0';
       std::string_view name(thread_name);
       if (name.find("Media") != std::string_view::npos || name.find("Audio") != std::string_view::npos || name.find("Video") != std::string_view::npos || name.find("FFmpeg") != std::string_view::npos || name.find("Decoder") != std::string_view::npos || name.find("Vpx") != std::string_view::npos) {
         context = MemoryContext::kMedia;
