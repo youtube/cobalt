@@ -71,7 +71,7 @@ bool SetCurrentThreadPriority(ThreadPriority priority) {
   // higher priority is required.
   param.sched_priority = static_cast<int>(
       min_priority + relative_priority * (max_priority - min_priority));
-  return (pthread_setschedparam(pthread_self(), policy, &param) == 0);
+  return pthread_setschedparam(pthread_self(), policy, &param) == 0;
 }
 
 void TerminateOnThread() {}

@@ -14,11 +14,14 @@
  * limitations under the License.
  */
 
+// clang-format off
+#include "starboard/common/thread_platform.h"
+// clang-format on
+
 #include <pthread.h>
 #include <sys/resource.h>
 
 #include "starboard/common/thread.h"
-#include "starboard/common/thread_platform.h"
 
 namespace starboard {
 
@@ -29,8 +32,7 @@ void SetCurrentThreadName(const char* name) {
 bool SetCurrentThreadPriority(ThreadPriority priority) {
   // setpriority returns 0 on success and -1 on failure. The default nice value
   // is 0. See https://linux.die.net/man/2/setpriority
-  return (setpriority(PRIO_PROCESS, 0, ThreadPriorityToNiceValue(priority)) ==
-          0);
+  return setpriority(PRIO_PROCESS, 0, ThreadPriorityToNiceValue(priority)) == 0;
 }
 
 void TerminateOnThread() {}
