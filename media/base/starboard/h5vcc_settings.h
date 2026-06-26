@@ -21,6 +21,7 @@
 #include <string>
 #include <string_view>
 
+#include "base/strings/string_number_conversions.h"
 #include "media/base/media_export.h"
 
 namespace media {
@@ -38,20 +39,43 @@ class MEDIA_EXPORT H5vccSettingsKey {
 
   bool GetBool(const H5vccSettingsMap& settings) const;
 
-  std::optional<bool> GetOptionalBool(const H5vccSettingsMap& settings) const;
-
-  std::optional<int> GetRangedInt(const H5vccSettingsMap& settings,
-                                  int min_val,
-                                  int max_val) const;
-
-  std::optional<int> GetRangedInt(const H5vccSettingsMap& settings,
-                                  int min_val,
-                                  int max_val,
-                                  int unset_sentinel) const;
+  template <typename T>
+  std::optional<T> Get(const H5vccSettingsMap& settings) const {
+    static_assert(sizeof(T) == 0,
+                  "Unsupported type for H5vccSettingsKey::Get<T>");
+    return std::nullopt;
+  }
 
  private:
   std::string_view key_;
 };
+
+template <>
+inline std::optional<bool> H5vccSettingsKey::Get<bool>(
+    const H5vccSettingsMap& settings) const {
+  auto it = settings.find(key_);
+  if (it == settings.end()) {
+    return std::nullopt;
+  }
+  return it->second != "0" && it->second != "false";
+}
+
+template <>
+inline std::optional<int> H5vccSettingsKey::Get<int>(
+    const H5vccSettingsMap& settings) const {
+  auto it = settings.find(key_);
+  if (it == settings.end()) {
+    return std::nullopt;
+  }
+  int64_t val = 0;
+  if (!base::StringToInt64(it->second, &val)) {
+    return std::nullopt;
+  }
+  if (val == 0) {
+    return std::nullopt;
+  }
+  return static_cast<int>(val);
+}
 
 // -----------------------------------------------------------------------------
 // Setting Key Constants

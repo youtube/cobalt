@@ -29,6 +29,7 @@
 #include "base/task/bind_post_task.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
+#include "media/base/starboard/h5vcc_settings.h"
 #include "media/starboard/buildflags.h"
 #include "media/starboard/starboard_utils.h"
 #include "starboard/common/media.h"

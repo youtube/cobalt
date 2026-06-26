@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_STARBOARD_EXPERIMENTAL_FEATURES_H_
 #define STARBOARD_SHARED_STARBOARD_EXPERIMENTAL_FEATURES_H_
 
+#include <cerrno>
+#include <cstdlib>
 #include <functional>
 #include <map>
 #include <optional>
@@ -80,16 +82,45 @@ class ExperimentalFeatures {
   ~ExperimentalFeatures() = default;
 
   bool GetBool(const ExperimentalFeatureKey& key) const;
-  std::optional<bool> GetOptionalBool(const ExperimentalFeatureKey& key) const;
-  std::optional<int> GetRangedInt(const ExperimentalFeatureKey& key,
-                                  int min_val,
-                                  int max_val) const;
+
+  template <typename T>
+  std::optional<T> Get(const ExperimentalFeatureKey& key) const {
+    static_assert(sizeof(T) == 0,
+                  "Unsupported type for ExperimentalFeatures::Get<T>");
+    return std::nullopt;
+  }
 
   const Map& settings() const { return settings_; }
 
  private:
   Map settings_;
 };
+
+template <>
+inline std::optional<bool> ExperimentalFeatures::Get<bool>(
+    const ExperimentalFeatureKey& key) const {
+  auto it = settings().find(key.key());
+  if (it == settings().end()) {
+    return std::nullopt;
+  }
+  return it->second != "0" && it->second != "false";
+}
+
+template <>
+inline std::optional<int> ExperimentalFeatures::Get<int>(
+    const ExperimentalFeatureKey& key) const {
+  auto it = settings().find(key.key());
+  if (it == settings().end()) {
+    return std::nullopt;
+  }
+  char* end = nullptr;
+  errno = 0;
+  long val = strtol(it->second.c_str(), &end, /*base=*/10);
+  if (errno == ERANGE || end == it->second.c_str() || *end != '\0') {
+    return std::nullopt;
+  }
+  return static_cast<int>(val);
+}
 
 // Sets the experimental features for the current thread.
 void SetExperimentalFeaturesForCurrentThread(

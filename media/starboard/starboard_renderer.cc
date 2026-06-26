@@ -25,6 +25,7 @@
 #include "media/base/audio_codecs.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/media_switches.h"
+#include "media/base/starboard/h5vcc_settings.h"
 #include "media/base/video_codecs.h"
 #include "media/starboard/buildflags.h"
 #include "media/starboard/decoder_buffer_allocator.h"
@@ -148,11 +149,9 @@ StarboardRenderer::StarboardRenderer(
       audio_write_duration_remote_(audio_write_duration_remote),
       max_video_capabilities_(max_video_capabilities),
       experimental_features_(experimental_features),
-      max_samples_per_write_(kMediaMaxSamplesPerWrite
-                                 .GetRangedInt(experimental_features,
-                                               /*min_val=*/1,
-                                               /*max_val=*/100'000)
-                                 .value_or(kDefaultMaxSamplePerWrite)),
+      max_samples_per_write_(
+          kMediaMaxSamplesPerWrite.Get<int>(experimental_features)
+              .value_or(kDefaultMaxSamplePerWrite)),
       viewport_size_(viewport_size)
 #if BUILDFLAG(IS_ANDROID)
       ,

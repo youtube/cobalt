@@ -326,7 +326,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       has_new_texture_available_(false),
       initial_number_of_preroll_frames_(
           pipeline_config.experimental_features
-              .GetRangedInt(kMediaVideoDecoderInitialPrerollCount, 1, 100000)
+              .Get<int>(kMediaVideoDecoderInitialPrerollCount)
               .value_or(kInitialPrerollFrameCount)),
       number_of_preroll_frames_(initial_number_of_preroll_frames_),
       surface_texture_bridge_(

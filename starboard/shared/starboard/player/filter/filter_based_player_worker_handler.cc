@@ -76,7 +76,6 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
       audio_stream_info_(creation_param->audio_stream_info),
       output_mode_(creation_param->output_mode),
       max_video_input_size_(0),
-      experimental_features_(ExperimentalFeatures{}),
       decode_target_graphics_context_provider_(provider),
       video_stream_info_(creation_param->video_stream_info) {
   update_job_ = std::bind(&FilterBasedPlayerWorkerHandler::Update, this);

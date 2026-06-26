@@ -28,30 +28,17 @@ TEST(H5vccSettingsTest, GetBool) {
   EXPECT_FALSE(kMediaMaxSamplesPerWrite.GetBool(map));
 }
 
-TEST(H5vccSettingsTest, GetOptionalBool) {
+TEST(H5vccSettingsTest, GenericGet) {
   H5vccSettingsMap map;
   map["Media.ForceDecodeToTexture"] = "1";
   map["Media.BypassMojoForMedia"] = "0";
-
-  EXPECT_EQ(kMediaForceDecodeToTexture.GetOptionalBool(map),
-            std::optional<bool>(true));
-  EXPECT_EQ(kMediaBypassMojoForMedia.GetOptionalBool(map),
-            std::optional<bool>(false));
-  EXPECT_EQ(kMediaMaxSamplesPerWrite.GetOptionalBool(map), std::nullopt);
-}
-
-TEST(H5vccSettingsTest, GetRangedInt) {
-  H5vccSettingsMap map;
   map["Media.MaxSamplesPerWrite"] = "50";
 
-  EXPECT_EQ(kMediaMaxSamplesPerWrite.GetRangedInt(map, 1, 100),
-            std::optional<int>(50));
-
-  // Test custom sentinel overload (-1)
-  map["Media.MaxSamplesPerWrite"] = "-1";
-  EXPECT_EQ(
-      kMediaMaxSamplesPerWrite.GetRangedInt(map, 1, 100, /*unset_sentinel=*/-1),
-      std::nullopt);
+  EXPECT_EQ(kMediaForceDecodeToTexture.Get<bool>(map),
+            std::optional<bool>(true));
+  EXPECT_EQ(kMediaBypassMojoForMedia.Get<bool>(map),
+            std::optional<bool>(false));
+  EXPECT_EQ(kMediaMaxSamplesPerWrite.Get<int>(map), std::optional<int>(50));
 }
 
 }  // namespace media
