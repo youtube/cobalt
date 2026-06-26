@@ -14,6 +14,7 @@
 
 #include "starboard/shared/starboard/experimental_features.h"
 
+#include <cerrno>
 #include <cstdlib>
 #include <optional>
 #include <utility>
@@ -67,8 +68,9 @@ std::optional<int> ExperimentalFeatures::GetRangedInt(
     return std::nullopt;
   }
   char* end = nullptr;
+  errno = 0;
   long val = std::strtol(it->second.c_str(), &end, 10);
-  if (end == it->second.c_str() || *end != '\0') {
+  if (errno == ERANGE || end == it->second.c_str() || *end != '\0') {
     return std::nullopt;
   }
   if (val == 0 || val < min_val || val > max_val) {

@@ -23,7 +23,7 @@ constexpr int kH5vccUnsetSentinel = 0;
 }  // namespace
 
 bool H5vccSettingsKey::GetBool(const H5vccSettingsMap& settings) const {
-  auto it = settings.find(std::string(key_));
+  auto it = settings.find(key_);
   if (it == settings.end()) {
     return false;
   }
@@ -32,7 +32,7 @@ bool H5vccSettingsKey::GetBool(const H5vccSettingsMap& settings) const {
 
 std::optional<bool> H5vccSettingsKey::GetOptionalBool(
     const H5vccSettingsMap& settings) const {
-  auto it = settings.find(std::string(key_));
+  auto it = settings.find(key_);
   if (it == settings.end()) {
     return std::nullopt;
   }
@@ -51,7 +51,7 @@ std::optional<int> H5vccSettingsKey::GetRangedInt(
     int min_val,
     int max_val,
     int unset_sentinel) const {
-  auto it = settings.find(std::string(key_));
+  auto it = settings.find(key_);
   if (it == settings.end()) {
     return std::nullopt;
   }

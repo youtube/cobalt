@@ -15,6 +15,7 @@
 #ifndef MEDIA_BASE_STARBOARD_H5VCC_SETTINGS_H_
 #define MEDIA_BASE_STARBOARD_H5VCC_SETTINGS_H_
 
+#include <functional>
 #include <map>
 #include <optional>
 #include <string>
@@ -24,7 +25,7 @@
 
 namespace media {
 
-using H5vccSettingsMap = std::map<std::string, std::string>;
+using H5vccSettingsMap = std::map<std::string, std::string, std::less<>>;
 
 // -----------------------------------------------------------------------------
 // H5vccSettingsKey Class

@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_EXPERIMENTAL_FEATURES_H_
 #define STARBOARD_SHARED_STARBOARD_EXPERIMENTAL_FEATURES_H_
 
+#include <functional>
 #include <map>
 #include <optional>
 #include <string>
