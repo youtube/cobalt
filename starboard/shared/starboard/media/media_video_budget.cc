@@ -15,11 +15,8 @@
 #include "starboard/shared/starboard/media/media_video_budget.h"
 
 #include "build/build_config.h"
-#include "starboard/shared/starboard/media/resolutions.h"
-
-#if BUILDFLAG(IS_ANDROID)
 #include "starboard/shared/starboard/features.h"
-#endif
+#include "starboard/shared/starboard/media/resolutions.h"
 
 namespace starboard {
 
@@ -27,53 +24,48 @@ namespace {
 constexpr int kVideoBufferBudget1080p = 30 * 1024 * 1024;
 constexpr int kVideoBufferBudget4KSdr = 100 * 1024 * 1024;
 constexpr int kVideoBufferBudget4KHdr = 160 * 1024 * 1024;
-// note - this is defined for android as 200 in:
+// note - android has its own limit in:
 // starboard/android/shared/media_get_video_buffer_budget.cc
 constexpr int kVideoBufferBudgetAbove4K = 300 * 1024 * 1024;
-}  // namespace
 
 int GetAreaBasedVideoBufferBudget(Size video_size, int bits_per_pixel) {
   if (video_size.IsEmpty() ||
       video_size.GetArea() <= Resolution::k1080p.GetArea()) {
     return kVideoBufferBudget1080p;
-  } else if (video_size.GetArea() <= Resolution::k4k.GetArea()) {
+  }
+  if (video_size.GetArea() <= Resolution::k4k.GetArea()) {
     if (bits_per_pixel <= 8) {
       return kVideoBufferBudget4KSdr;
-    } else {
-      return kVideoBufferBudget4KHdr;
     }
-  } else {
-    return kVideoBufferBudgetAbove4K;
+    return kVideoBufferBudget4KHdr;
   }
+  return kVideoBufferBudgetAbove4K;
 }
 
 int GetLegacyVideoBufferBudget(Size video_size, int bits_per_pixel) {
   if (video_size.FitsWithin(starboard::Resolution::k1080p) ||
       video_size.IsEmpty()) {
     return kVideoBufferBudget1080p;
-  } else if (video_size.FitsWithin(starboard::Resolution::k4k)) {
+  }
+  if (video_size.FitsWithin(starboard::Resolution::k4k)) {
     if (bits_per_pixel <= 8) {
       return kVideoBufferBudget4KSdr;
-    } else {
-      return kVideoBufferBudget4KHdr;
     }
-  } else {
-    return kVideoBufferBudgetAbove4K;
+    return kVideoBufferBudget4KHdr;
   }
+  return kVideoBufferBudgetAbove4K;
 }
 
-int GetDefaultVideoBufferBudget(Size video_size, int bits_per_pixel) {
-#if BUILDFLAG(IS_ANDROID)
+}  // namespace
+
+int GetVideoBufferBudget(Size video_size, int bits_per_pixel) {
+#if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
   if (starboard::features::FeatureList::IsEnabled(
           starboard::features::kAreaBasedVideoBufferBudget)) {
     return GetAreaBasedVideoBufferBudget(video_size, bits_per_pixel);
-  } else {
-    return GetLegacyVideoBufferBudget(video_size, bits_per_pixel);
   }
-#else
-  // Non-Android platforms use the new area-based logic directly.
-  return GetAreaBasedVideoBufferBudget(video_size, bits_per_pixel);
 #endif
+  return GetLegacyVideoBufferBudget(video_size, bits_per_pixel);
 }
 
 }  // namespace starboard

@@ -54,7 +54,7 @@ int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
   static const int overlaid_video_buffer_budget =
       get_overlaid_video_buffer_budget();
 
-  int video_buffer_budget = starboard::GetDefaultVideoBufferBudget(
+  int video_buffer_budget = starboard::GetVideoBufferBudget(
       {resolution_width, resolution_height}, bits_per_pixel);
 
   return std::min(video_buffer_budget, overlaid_video_buffer_budget);

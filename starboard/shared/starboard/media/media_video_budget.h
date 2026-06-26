@@ -20,17 +20,7 @@
 
 namespace starboard {
 
-// Calculates the video buffer budget based on the resolution area (width *
-// height).
-int GetAreaBasedVideoBufferBudget(Size resolution, int bits_per_pixel);
-
-// Calculates the video buffer budget based on the legacy logic (width and
-// height thresholds).
-int GetLegacyVideoBufferBudget(Size resolution, int bits_per_pixel);
-
-// Returns either the area-based or legacy budget based on platform capabilities
-// and features (e.g. Android's AreaBasedVideoBufferBudget feature flag).
-int GetDefaultVideoBufferBudget(Size resolution, int bits_per_pixel);
+int GetVideoBufferBudget(Size resolution, int bits_per_pixel);
 
 }  // namespace starboard
 

@@ -19,6 +19,6 @@ int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
                                 int resolution_width,
                                 int resolution_height,
                                 int bits_per_pixel) {
-  return starboard::GetDefaultVideoBufferBudget(
-      {resolution_width, resolution_height}, bits_per_pixel);
+  return starboard::GetVideoBufferBudget({resolution_width, resolution_height},
+                                         bits_per_pixel);
 }
