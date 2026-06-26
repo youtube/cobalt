@@ -161,6 +161,11 @@ void ParseAndApplyH5vccSettings(std::string_view settings_value,
 
 }  // namespace
 
+void ParseAndApplyH5vccSettingsForTesting(std::string_view settings_value,
+                                          GlobalFeatures* global_features) {
+  ParseAndApplyH5vccSettings(settings_value, global_features);
+}
+
 #if BUILDFLAG(IS_ANDROID)
 static void JNI_CobaltContentBrowserClient_FlushCookiesAndLocalStorage(
     JNIEnv*) {
