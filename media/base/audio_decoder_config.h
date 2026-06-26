@@ -129,9 +129,6 @@ class MEDIA_EXPORT AudioDecoderConfig {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   void set_is_change_type_transition(bool value) { is_change_type_transition_ = value; }
   bool is_change_type_transition() const { return is_change_type_transition_; }
-
-  void set_mime_type(std::string_view mime_type) { mime_type_ = mime_type; }
-  std::string_view mime_type() const { return mime_type_; }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  private:
@@ -187,11 +184,6 @@ class MEDIA_EXPORT AudioDecoderConfig {
   // Designates whether the received config was caused by a
   // SourceBuffer.changeType() call.
   bool is_change_type_transition_ = false;
-
-  // Mime string of the config. Can help better distinguish subtle codec
-  // differences in a SourceBuffer.changeType() call if the change is made for
-  // codecs in the same family.
-  std::string mime_type_ = "";
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Not using DISALLOW_COPY_AND_ASSIGN here intentionally to allow the compiler

@@ -686,7 +686,6 @@ bool SourceBufferState::OnNewConfigs(std::unique_ptr<MediaTracks> tracks) {
       if (state_ == PENDING_PARSER_RECONFIG) {
         audio_config.set_is_change_type_transition(true);
       }
-      audio_config.set_mime_type(stream->mime_type());
 #endif
       frame_processor_->OnPossibleAudioConfigUpdate(audio_config);
       success &= stream->UpdateAudioConfig(audio_config, allow_codec_changes,
@@ -779,7 +778,6 @@ bool SourceBufferState::OnNewConfigs(std::unique_ptr<MediaTracks> tracks) {
       if (state_ == PENDING_PARSER_RECONFIG) {
         video_config.set_is_change_type_transition(true);
       }
-      video_config.set_mime_type(stream->mime_type());
 #endif
       success &= stream->UpdateVideoConfig(video_config, allow_codec_changes,
                                            media_log_);

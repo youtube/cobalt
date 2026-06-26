@@ -89,10 +89,6 @@ struct StructTraits<media::mojom::VideoDecoderConfigDataView,
   static bool is_change_type_transition(const media::VideoDecoderConfig& input) {
     return input.is_change_type_transition();
   }
-
-  static std::string_view mime_type(const media::VideoDecoderConfig& input) {
-    return input.mime_type();
-  }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   static bool Read(media::mojom::VideoDecoderConfigDataView input,

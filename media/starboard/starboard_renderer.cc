@@ -729,14 +729,12 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
 
   if (stream->type() == DemuxerStream::AUDIO) {
     const AudioDecoderConfig& decoder_config = stream->audio_decoder_config();
-    player_bridge_->UpdateAudioConfig(decoder_config,
-                                      decoder_config.mime_type());
+    player_bridge_->UpdateAudioConfig(decoder_config, stream->mime_type());
   } else {
     DCHECK_EQ(stream->type(), DemuxerStream::VIDEO);
     const VideoDecoderConfig& decoder_config = stream->video_decoder_config();
 
-    player_bridge_->UpdateVideoConfig(decoder_config,
-                                      decoder_config.mime_type());
+    player_bridge_->UpdateVideoConfig(decoder_config, stream->mime_type());
 
     // TODO(b/375275033): Refine natural size change handling.
 #if 0
@@ -876,6 +874,7 @@ void StarboardRenderer::OnDemuxerStreamRead(
         LOG(INFO) << "Pending Audio config change recorded. "
                      "is_change_type_transition=true";
       } else {
+        pending_audio_config_.reset();
         client_->OnAudioConfigChange(config);
         UpdateDecoderConfig(stream);
       }
@@ -887,7 +886,9 @@ void StarboardRenderer::OnDemuxerStreamRead(
         LOG(INFO) << "Pending Video config change recorded. "
                      "is_change_type_transition=true";
       } else {
+        pending_video_config_.reset();
         client_->OnVideoConfigChange(config);
+        // TODO(b/375275033): Refine calling to OnVideoNaturalSizeChange().
         client_->OnVideoNaturalSizeChange(config.visible_rect().size());
         paint_video_hole_frame_cb_.Run(config.visible_rect().size());
         UpdateDecoderConfig(stream);
