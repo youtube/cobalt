@@ -18,6 +18,7 @@
 #include <array>
 
 #include "starboard/common/log.h"
+#include "third_party/jni_zero/default_conversions.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 // ============================================================================
