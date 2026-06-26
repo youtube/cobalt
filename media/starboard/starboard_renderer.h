@@ -233,6 +233,10 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 
   std::optional<gfx::Rect> output_rect_;
 
+  // Stored video/audio configs to store the new config from a
+  // SourceBuffer.changeType() call. Configs from changeType() are not applied
+  // to StarboardRenderer when DemuxerStream::kConfigChanged occurs, but when
+  // the first sample of the updated player config is applied.
   std::optional<VideoDecoderConfig> pending_video_config_;
   std::optional<AudioDecoderConfig> pending_audio_config_;
 
