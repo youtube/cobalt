@@ -18,14 +18,14 @@
 
 #include "base/check.h"
 #include "base/command_line.h"
-#include "base/location.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/sequence_checker.h"
 #include "base/task/bind_post_task.h"
-#include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/memory_dump_manager.h"
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
@@ -36,18 +36,18 @@
 #include "cobalt/shell/common/shell_paths.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
-#if !defined(OFFICIAL_BUILD)
-#include "components/services/heap_profiling/heap_profiling_service.h"
-#include "components/services/heap_profiling/public/cpp/profiling_client.h"
-#include "components/services/heap_profiling/public/mojom/heap_profiling_service.mojom.h"
-#endif
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/resource_coordinator_service.h"
-#include "mojo/public/cpp/bindings/remote.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/client_process_impl.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
-#if !defined(OFFICIAL_BUILD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+#include "base/location.h"
+#include "base/task/single_thread_task_runner.h"
+#include "components/services/heap_profiling/heap_profiling_service.h"  // nogncheck
+#include "components/services/heap_profiling/public/cpp/profiling_client.h"  // nogncheck
+#include "components/services/heap_profiling/public/mojom/heap_profiling_service.mojom.h"  // nogncheck
+#include "mojo/public/cpp/bindings/remote.h"
 #include "services/tracing/public/cpp/trace_startup.h"
 #endif
 
@@ -68,8 +68,50 @@ namespace cobalt {
 
 namespace {
 
-#if BUILDFLAG(SUPPORT_SINGLE_PROCESS_PROFILING)
+void InitializeBrowserMemoryInstrumentationClient() {
+  if (memory_instrumentation::MemoryInstrumentation::GetInstance()) {
+    return;
+  }
+
+  auto task_runner = base::trace_event::MemoryDumpManager::GetInstance()
+                         ->GetDumpThreadTaskRunner();
+  if (!task_runner->RunsTasksInCurrentSequence()) {
+    task_runner->PostTask(
+        FROM_HERE,
+        base::BindOnce(&InitializeBrowserMemoryInstrumentationClient));
+    return;
+  }
+
+  if (memory_instrumentation::MemoryInstrumentation::GetInstance()) {
+    return;
+  }
+
+  // Register the browser process as a memory-instrumentation client.
+  // This replicates content::InitializeBrowserMemoryInstrumentationClient()
+  // while avoiding unauthorized header includes.
+  mojo::PendingRemote<memory_instrumentation::mojom::Coordinator> coordinator;
+  mojo::PendingRemote<memory_instrumentation::mojom::ClientProcess> process;
+  auto process_receiver = process.InitWithNewPipeAndPassReceiver();
+  content::GetMemoryInstrumentationRegistry()->RegisterClientProcess(
+      coordinator.InitWithNewPipeAndPassReceiver(), std::move(process),
+      memory_instrumentation::mojom::ProcessType::BROWSER,
+      base::GetCurrentProcId(), /*service_name=*/std::nullopt);
+  memory_instrumentation::ClientProcessImpl::CreateInstance(
+      std::move(process_receiver), std::move(coordinator),
+      /*is_browser_process=*/true);
+}
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 void RegisterCobaltHeapProfilerOnDumpThread() {
+  [[maybe_unused]] static base::SequenceChecker sequence_checker;
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker);
+
+  static bool initialized = false;
+  if (initialized) {
+    return;
+  }
+  initialized = true;
+
   LOG(INFO) << "RegisterCobaltHeapProfilerOnDumpThread: Initializing heap "
                "profiling service on Dump Thread...";
 
@@ -122,7 +164,7 @@ void InitializeCobaltHeapProfiler() {
   task_runner->PostTask(
       FROM_HERE, base::BindOnce(&RegisterCobaltHeapProfilerOnDumpThread));
 }
-#endif  // BUILDFLAG(SUPPORT_SINGLE_PROCESS_PROFILING)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 }  // namespace
 
@@ -141,22 +183,23 @@ CobaltBrowserMainParts::CobaltBrowserMainParts(const std::string& deep_link,
     : ShellBrowserMainParts(deep_link, is_visible) {}
 
 int CobaltBrowserMainParts::PreCreateThreads() {
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   LOG(INFO) << "Native CommandLine: "
             << base::CommandLine::ForCurrentProcess()->GetCommandLineString();
+#endif
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(17);
 #endif
   SetupMetrics();
 
-#if !defined(OFFICIAL_BUILD)
+  InitializeBrowserMemoryInstrumentationClient();
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   // Manually initialize Perfetto tracing post-FeatureList for Cobalt.
   // This is required because Cobalt bypasses
   // ContentMainRunnerImpl::RunBrowser() which normally initializes tracing in
   // standard Chromium.
   tracing::InitTracingPostFeatureList(/*enable_consumer=*/true);
-#endif
-
-#if BUILDFLAG(SUPPORT_SINGLE_PROCESS_PROFILING)
   InitializeCobaltHeapProfiler();
 #endif
 

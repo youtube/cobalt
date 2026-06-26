@@ -23,9 +23,4 @@ declare_args() {
   # TODO(b/505811196): Remove this argument once Cobalt rebased to the milestone
   # where the privacy sandbox components are fully removed.
   enable_privacy_sandbox_apis = true
-
-  # Enable in-process heap profiling adaptations for single-process containers
-  # (like Cobalt) in non-official/devel builds.
-  # Overridden in cobalt/build/configs/common.gn.
-  support_single_process_profiling = false
 }

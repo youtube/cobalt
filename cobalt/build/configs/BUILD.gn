@@ -85,10 +85,6 @@ config("buildflag_defines") {
     defines += [ "ENABLE_BUILDFLAG_IS_COBALT" ]
   }
 
-  if (support_single_process_profiling) {
-    defines += [ "ENABLE_BUILDFLAG_SUPPORT_SINGLE_PROCESS_PROFILING" ]
-  }
-
   # is_starboard and BUILDFLAG(IS_STARBOARD) should be used for platforms that
   # treat Starboard as their OS layer (Evergreen and hermetic linux). Use this
   # when calling Starboard OS-replacement functions. Note that

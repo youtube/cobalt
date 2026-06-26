@@ -18,7 +18,6 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
-#include "mojo/public/cpp/bindings/shared_remote.h"
 #include "services/resource_coordinator/memory_instrumentation/queued_request.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/registry.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/tracing_observer.h"
@@ -95,21 +94,12 @@ class CoordinatorImpl : public Registry,
 
   // Holds metadata and a client pipe connected to every client process.
   struct ClientInfo {
-#if BUILDFLAG(SUPPORT_SINGLE_PROCESS_PROFILING)
-    ClientInfo(mojo::SharedRemote<mojom::ClientProcess> client,
-               mojom::ProcessType,
-               std::optional<std::string> service_name);
-    ~ClientInfo();
-
-    const mojo::SharedRemote<mojom::ClientProcess> client;
-#else
     ClientInfo(mojo::Remote<mojom::ClientProcess> client,
                mojom::ProcessType,
                std::optional<std::string> service_name);
     ~ClientInfo();
 
     const mojo::Remote<mojom::ClientProcess> client;
-#endif
     const mojom::ProcessType process_type;
     const std::optional<std::string> service_name;
   };

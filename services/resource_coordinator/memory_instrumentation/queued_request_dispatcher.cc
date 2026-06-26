@@ -197,11 +197,7 @@ void QueuedRequestDispatcher::SetUpAndDispatch(
   request->pending_responses.clear();
 
   for (const auto& client_info : clients) {
-#if BUILDFLAG(SUPPORT_SINGLE_PROCESS_PROFILING)
-    const mojo::SharedRemote<mojom::ClientProcess>& client = client_info.client;
-#else
     mojom::ClientProcess* client = client_info.client;
-#endif
 
     // If we're only looking for a single pid process, then ignore clients
     // with different pid.
@@ -249,11 +245,7 @@ void QueuedRequestDispatcher::SetUpAndDispatch(
 // get around to sandboxing/selinux restrictions (see crbug.com/461788).
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   std::vector<base::ProcessId> pids;
-#if BUILDFLAG(SUPPORT_SINGLE_PROCESS_PROFILING)
-  mojo::SharedRemote<mojom::ClientProcess> browser_client;
-#else
   mojom::ClientProcess* browser_client = nullptr;
-#endif
   base::ProcessId browser_client_pid = base::kNullProcessId;
   pids.reserve(request->args.pid == base::kNullProcessId ? clients.size() : 1);
   for (const auto& client_info : clients) {
@@ -267,17 +259,9 @@ void QueuedRequestDispatcher::SetUpAndDispatch(
     }
   }
   if (clients.size() > 0) {
-#if BUILDFLAG(SUPPORT_SINGLE_PROCESS_PROFILING)
-    DCHECK(browser_client.is_bound());
-#else
     DCHECK(browser_client);
-#endif
   }
-#if BUILDFLAG(SUPPORT_SINGLE_PROCESS_PROFILING)
-  if (browser_client.is_bound() && pids.size() > 0) {
-#else
   if (browser_client && pids.size() > 0) {
-#endif
     request->pending_responses.insert(
         {browser_client_pid, ResponseType::kOSDump});
     auto callback = base::BindOnce(os_callback, browser_client_pid);
@@ -307,11 +291,7 @@ void QueuedRequestDispatcher::SetUpAndDispatchVmRegionRequest(
 // On Linux, OS stats can only be dumped from a privileged process to
 // get around to sandboxing/selinux restrictions (see crbug.com/461788).
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-#if BUILDFLAG(SUPPORT_SINGLE_PROCESS_PROFILING)
-  mojo::SharedRemote<mojom::ClientProcess> browser_client;
-#else
   mojom::ClientProcess* browser_client = nullptr;
-#endif
   base::ProcessId browser_client_pid = 0;
   for (const auto& client_info : clients) {
     if (client_info.process_type == mojom::ProcessType::BROWSER) {
@@ -321,11 +301,7 @@ void QueuedRequestDispatcher::SetUpAndDispatchVmRegionRequest(
     }
   }
 
-#if BUILDFLAG(SUPPORT_SINGLE_PROCESS_PROFILING)
-  if (!browser_client.is_bound()) {
-#else
   if (!browser_client) {
-#endif
     DLOG(ERROR) << "Missing browser client.";
     return;
   }
@@ -338,11 +314,7 @@ void QueuedRequestDispatcher::SetUpAndDispatchVmRegionRequest(
 #else
   for (const auto& client_info : clients) {
     if (base::Contains(desired_pids, client_info.pid)) {
-#if BUILDFLAG(SUPPORT_SINGLE_PROCESS_PROFILING)
-      const mojo::SharedRemote<mojom::ClientProcess>& client = client_info.client;
-#else
       mojom::ClientProcess* client = client_info.client;
-#endif
       request->pending_responses.insert(client_info.pid);
       request->responses[client_info.pid].process_id = client_info.pid;
       request->responses[client_info.pid].service_name =
@@ -641,17 +613,6 @@ bool QueuedRequestDispatcher::AddChromeMemoryDumpToTrace(
       args, pid, &raw_chrome_dump, timestamp);
 }
 
-#if BUILDFLAG(SUPPORT_SINGLE_PROCESS_PROFILING)
-QueuedRequestDispatcher::ClientInfo::ClientInfo(
-    mojo::SharedRemote<mojom::ClientProcess> client,
-    base::ProcessId pid,
-    mojom::ProcessType process_type,
-    std::optional<std::string> service_name)
-    : client(std::move(client)),
-      pid(pid),
-      process_type(process_type),
-      service_name(std::move(service_name)) {}
-#else
 QueuedRequestDispatcher::ClientInfo::ClientInfo(
     mojom::ClientProcess* client,
     base::ProcessId pid,
@@ -661,7 +622,6 @@ QueuedRequestDispatcher::ClientInfo::ClientInfo(
       pid(pid),
       process_type(process_type),
       service_name(std::move(service_name)) {}
-#endif
 
 QueuedRequestDispatcher::ClientInfo::ClientInfo(ClientInfo&& other) = default;
 
