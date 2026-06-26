@@ -14,6 +14,7 @@
 
 import("//build/config/arm.gni")
 import("//cobalt/build/configs/hacks.gni")
+import("//cobalt/build/configs/cobalt.gni")
 import("//starboard/build/buildflags.gni")
 import("//starboard/build/config/toolchain_variables.gni")
 
@@ -175,6 +176,11 @@ config("buildflag_defines") {
   if (is_partner_toolchain) {
     defines += [ "ENABLE_BUILDFLAG_IS_PARTNER_TOOLCHAIN" ]
   }
+
+  defines += [
+    "COBALT_DEFAULT_MAX_PRERASTER_DISTANCE_IN_SCREEN_PIXELS=$cobalt_max_preraster_distance_in_screen_pixels",
+    "COBALT_DEFAULT_DISPLAY_LOCK_MARGIN_PERCENTAGE=$cobalt_display_lock_margin_percentage",
+  ]
 }
 
 config("no_mallinfo") {

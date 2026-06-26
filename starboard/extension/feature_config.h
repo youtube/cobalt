@@ -162,6 +162,15 @@ STARBOARD_FEATURE(kVideoDecoderDelayUsecOverride,
                   false)
 // keep-sorted end
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+
+// Viewport optimization features
+STARBOARD_FEATURE(kConfigureMaxPrerasterDistance,
+                  "ConfigureMaxPrerasterDistance",
+                  true)
+
+STARBOARD_FEATURE(kConfigureDisplayLockMargin,
+                  "ConfigureDisplayLockMargin",
+                  true)
 FEATURE_LIST_END
 
 // To add a parameter to Starboard, use the macro:
@@ -239,4 +248,25 @@ STARBOARD_FEATURE_PARAM(STARBOARD_FEATURE_PARAM_TIME_TYPE,
                         "ResetDelayUsec",
                         base::Microseconds(0))
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+
+// Viewport optimization parameters
+#ifndef COBALT_DEFAULT_MAX_PRERASTER_DISTANCE_IN_SCREEN_PIXELS
+#define COBALT_DEFAULT_MAX_PRERASTER_DISTANCE_IN_SCREEN_PIXELS 1000
+#endif
+
+#ifndef COBALT_DEFAULT_DISPLAY_LOCK_MARGIN_PERCENTAGE
+#define COBALT_DEFAULT_DISPLAY_LOCK_MARGIN_PERCENTAGE 150.0
+#endif
+
+STARBOARD_FEATURE_PARAM(int,
+                        kMaxPrerasterDistanceInScreenPixels,
+                        kConfigureMaxPrerasterDistance,
+                        "distance_in_pixels",
+                        COBALT_DEFAULT_MAX_PRERASTER_DISTANCE_IN_SCREEN_PIXELS)
+
+STARBOARD_FEATURE_PARAM(double,
+                        kDisplayLockMarginPercentage,
+                        kConfigureDisplayLockMargin,
+                        "margin_percentage",
+                        COBALT_DEFAULT_DISPLAY_LOCK_MARGIN_PERCENTAGE)
 FEATURE_PARAM_LIST_END
