@@ -20,43 +20,38 @@ namespace media {
 
 TEST(H5vccSettingsTest, GetBool) {
   H5vccSettingsMap map;
-  map["Media.AllowAudioWritingOnPause"] = "1";
+  map["Media.ForceDecodeToTexture"] = "1";
   map["Media.BypassMojoForMedia"] = "0";
 
-  EXPECT_TRUE(kMediaAllowAudioWritingOnPause.GetBool(map));
+  EXPECT_TRUE(kMediaForceDecodeToTexture.GetBool(map));
   EXPECT_FALSE(kMediaBypassMojoForMedia.GetBool(map));
-  EXPECT_FALSE(kMediaEnableLowLatency.GetBool(map));
+  EXPECT_FALSE(kMediaMaxSamplesPerWrite.GetBool(map));
 }
 
 TEST(H5vccSettingsTest, GetOptionalBool) {
   H5vccSettingsMap map;
-  map["Media.AllowAudioWritingOnPause"] = "1";
+  map["Media.ForceDecodeToTexture"] = "1";
   map["Media.BypassMojoForMedia"] = "0";
 
-  EXPECT_EQ(kMediaAllowAudioWritingOnPause.GetOptionalBool(map),
+  EXPECT_EQ(kMediaForceDecodeToTexture.GetOptionalBool(map),
             std::optional<bool>(true));
   EXPECT_EQ(kMediaBypassMojoForMedia.GetOptionalBool(map),
             std::optional<bool>(false));
-  EXPECT_EQ(kMediaEnableLowLatency.GetOptionalBool(map), std::nullopt);
+  EXPECT_EQ(kMediaMaxSamplesPerWrite.GetOptionalBool(map), std::nullopt);
 }
 
 TEST(H5vccSettingsTest, GetRangedInt) {
   H5vccSettingsMap map;
   map["Media.MaxSamplesPerWrite"] = "50";
-  map["Media.VideoDecoderInitialPrerollCount"] = "0";
 
   EXPECT_EQ(kMediaMaxSamplesPerWrite.GetRangedInt(map, 1, 100),
             std::optional<int>(50));
-  EXPECT_EQ(kMediaVideoDecoderInitialPrerollCount.GetRangedInt(map, 1, 100),
-            std::nullopt);
-  EXPECT_EQ(kMediaVideoRendererMinDecodedFrames.GetRangedInt(map, 1, 100),
-            std::nullopt);
 
   // Test custom sentinel overload (-1)
-  map["Media.VideoRendererMinInputBuffers"] = "-1";
-  EXPECT_EQ(kMediaVideoRendererMinInputBuffers.GetRangedInt(
-                map, 1, 100, /*unset_sentinel=*/-1),
-            std::nullopt);
+  map["Media.MaxSamplesPerWrite"] = "-1";
+  EXPECT_EQ(
+      kMediaMaxSamplesPerWrite.GetRangedInt(map, 1, 100, /*unset_sentinel=*/-1),
+      std::nullopt);
 }
 
 }  // namespace media

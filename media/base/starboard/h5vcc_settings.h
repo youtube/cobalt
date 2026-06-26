@@ -55,44 +55,18 @@ class MEDIA_EXPORT H5vccSettingsKey {
 // -----------------------------------------------------------------------------
 // Setting Key Constants
 // -----------------------------------------------------------------------------
-inline constexpr H5vccSettingsKey kMediaAllowAudioWritingOnPause(
-    "Media.AllowAudioWritingOnPause");
+// keep-sorted start
 inline constexpr H5vccSettingsKey kMediaBypassMojoForMedia(
     "Media.BypassMojoForMedia");
-inline constexpr H5vccSettingsKey kMediaEnableAv1StartupOptimization(
-    "Media.EnableAv1StartupOptimization");
-inline constexpr H5vccSettingsKey kMediaEnableFlushDuringSeek(
-    "Media.EnableFlushDuringSeek");
-inline constexpr H5vccSettingsKey kMediaEnableLowLatency(
-    "Media.EnableLowLatency");
-inline constexpr H5vccSettingsKey kMediaEnableResetAudioDecoder(
-    "Media.EnableResetAudioDecoder");
-inline constexpr H5vccSettingsKey kMediaEnableSimdBasedAudioFormatSwitching(
-    "Media.EnableSimdBasedAudioFormatSwitching");
 inline constexpr H5vccSettingsKey kMediaEnableTrivialOptimizations(
     "Media.EnableTrivialOptimizations");
-inline constexpr H5vccSettingsKey kMediaEnableVideoRendererVspAdjustment(
-    "Media.EnableVideoRendererVspAdjustment");
-inline constexpr H5vccSettingsKey kMediaFlushAudioTrackDuringSeek(
-    "Media.FlushAudioTrackDuringSeek");
 inline constexpr H5vccSettingsKey kMediaForceClearSurfaceView(
     "Media.ForceClearSurfaceView");
 inline constexpr H5vccSettingsKey kMediaForceDecodeToTexture(
     "Media.ForceDecodeToTexture");
-inline constexpr H5vccSettingsKey kMediaIgnoreMediaCodecCallbacksDuringFlushing(
-    "Media.IgnoreMediaCodecCallbacksDuringFlushing");
 inline constexpr H5vccSettingsKey kMediaMaxSamplesPerWrite(
     "Media.MaxSamplesPerWrite");
-inline constexpr H5vccSettingsKey kMediaSkipFlushOnDecoderTeardown(
-    "Media.SkipFlushOnDecoderTeardown");
-inline constexpr H5vccSettingsKey kMediaSkipVideoFramesOver60Fps(
-    "Media.SkipVideoFramesOver60Fps");
-inline constexpr H5vccSettingsKey kMediaVideoDecoderInitialPrerollCount(
-    "Media.VideoDecoderInitialPrerollCount");
-inline constexpr H5vccSettingsKey kMediaVideoRendererMinDecodedFrames(
-    "Media.VideoRendererMinDecodedFrames");
-inline constexpr H5vccSettingsKey kMediaVideoRendererMinInputBuffers(
-    "Media.VideoRendererMinInputBuffers");
+// keep-sorted end
 
 }  // namespace media
 

@@ -15,36 +15,79 @@
 #ifndef STARBOARD_SHARED_STARBOARD_EXPERIMENTAL_FEATURES_H_
 #define STARBOARD_SHARED_STARBOARD_EXPERIMENTAL_FEATURES_H_
 
+#include <map>
 #include <optional>
+#include <string>
+#include <string_view>
 
 #include "starboard/extension/experimental/experimental_features.h"
 
 namespace starboard {
 
-// Internal C++ representation of temporary experimental features.
-// Once an experiment is concluded and the feature is launched, the
-// corresponding field should be removed from this struct and moved to its own
-// dedicated function.
-struct ExperimentalFeatures {
-  // The fields should be in alphabetical order.
-  // keep-sorted start
-  bool allow_audio_writing_on_pause = false;
-  bool enable_av1_startup_optimization = false;
-  bool enable_low_latency = false;
-  bool enable_video_renderer_vsp_adjustment = false;
-  bool flush_audio_track_during_seek = false;
-  bool flush_decoder_during_reset = false;
-  bool force_clear_surface_view = false;
-  bool ignore_mediacodec_callbacks_during_flushing = false;
-  bool reset_audio_decoder = false;
-  bool skip_flush_on_decoder_teardown = false;
-  bool skip_video_frames_over_60_fps = false;
-  std::optional<bool> enable_simd_based_audio_format_switching;
-  std::optional<bool> enable_trivial_optimizations;
-  std::optional<int> video_decoder_initial_preroll_count;
-  std::optional<int> video_renderer_min_decoded_frames;
-  std::optional<int> video_renderer_min_input_buffers;
-  // keep-sorted end
+class ExperimentalFeatureKey {
+ public:
+  constexpr explicit ExperimentalFeatureKey(std::string_view key) : key_(key) {}
+  constexpr std::string_view key() const { return key_; }
+
+ private:
+  std::string_view key_;
+};
+
+// keep-sorted start
+inline constexpr ExperimentalFeatureKey kMediaAllowAudioWritingOnPause(
+    "Media.AllowAudioWritingOnPause");
+inline constexpr ExperimentalFeatureKey kMediaEnableAv1StartupOptimization(
+    "Media.EnableAv1StartupOptimization");
+inline constexpr ExperimentalFeatureKey kMediaEnableFlushDuringSeek(
+    "Media.EnableFlushDuringSeek");
+inline constexpr ExperimentalFeatureKey kMediaEnableLowLatency(
+    "Media.EnableLowLatency");
+inline constexpr ExperimentalFeatureKey kMediaEnableResetAudioDecoder(
+    "Media.EnableResetAudioDecoder");
+inline constexpr ExperimentalFeatureKey
+    kMediaEnableSimdBasedAudioFormatSwitching(
+        "Media.EnableSimdBasedAudioFormatSwitching");
+inline constexpr ExperimentalFeatureKey kMediaEnableTrivialOptimizations(
+    "Media.EnableTrivialOptimizations");
+inline constexpr ExperimentalFeatureKey kMediaEnableVideoRendererVspAdjustment(
+    "Media.EnableVideoRendererVspAdjustment");
+inline constexpr ExperimentalFeatureKey kMediaFlushAudioTrackDuringSeek(
+    "Media.FlushAudioTrackDuringSeek");
+inline constexpr ExperimentalFeatureKey kMediaForceClearSurfaceView(
+    "Media.ForceClearSurfaceView");
+inline constexpr ExperimentalFeatureKey
+    kMediaIgnoreMediaCodecCallbacksDuringFlushing(
+        "Media.IgnoreMediaCodecCallbacksDuringFlushing");
+inline constexpr ExperimentalFeatureKey kMediaSkipFlushOnDecoderTeardown(
+    "Media.SkipFlushOnDecoderTeardown");
+inline constexpr ExperimentalFeatureKey kMediaSkipVideoFramesOver60Fps(
+    "Media.SkipVideoFramesOver60Fps");
+inline constexpr ExperimentalFeatureKey kMediaVideoDecoderInitialPrerollCount(
+    "Media.VideoDecoderInitialPrerollCount");
+inline constexpr ExperimentalFeatureKey kMediaVideoRendererMinDecodedFrames(
+    "Media.VideoRendererMinDecodedFrames");
+inline constexpr ExperimentalFeatureKey kMediaVideoRendererMinInputBuffers(
+    "Media.VideoRendererMinInputBuffers");
+// keep-sorted end
+
+class ExperimentalFeatures {
+ public:
+  ExperimentalFeatures() = default;
+  explicit ExperimentalFeatures(std::map<std::string, std::string> settings);
+  ~ExperimentalFeatures() = default;
+
+  bool GetBool(const ExperimentalFeatureKey& key) const;
+  std::optional<bool> GetOptionalBool(const ExperimentalFeatureKey& key) const;
+  std::optional<int> GetRangedInt(const ExperimentalFeatureKey& key,
+                                  int min_val,
+                                  int max_val) const;
+
+  const std::map<std::string, std::string>& settings() const {
+    return settings_;
+  }
+
+ private:
+  std::map<std::string, std::string> settings_;
 };
 
 // Sets the experimental features for the current thread.

@@ -148,20 +148,6 @@ void SetDiscardPadding(
       discard_padding.second.InMicroseconds();
 }
 
-const int* ToIntPointer(const std::optional<int>& val) {
-  if (!val) {
-    return nullptr;
-  }
-  return &*val;
-}
-
-const bool* ToBoolPointer(const std::optional<bool>& val) {
-  if (!val) {
-    return nullptr;
-  }
-  return &*val;
-}
-
 }  // namespace
 
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING)
@@ -801,48 +787,7 @@ void SbPlayerBridge::CreatePlayer() {
              kStarboardExtensionExperimentalFeaturesConfigurationName) == 0 &&
       experimental_features_extension->version >= 1) {
     StarboardExtensionExperimentalFeatures extension_features = {};
-
-    extension_features.allow_audio_writing_on_pause =
-        kMediaAllowAudioWritingOnPause.GetBool(experimental_features_);
-    extension_features.enable_av1_startup_optimization =
-        kMediaEnableAv1StartupOptimization.GetBool(experimental_features_);
-    extension_features.enable_low_latency =
-        kMediaEnableLowLatency.GetBool(experimental_features_);
-    extension_features.enable_video_renderer_vsp_adjustment =
-        kMediaEnableVideoRendererVspAdjustment.GetBool(experimental_features_);
-    extension_features.flush_decoder_during_reset =
-        kMediaEnableFlushDuringSeek.GetBool(experimental_features_);
-    extension_features.ignore_mediacodec_callbacks_during_flushing =
-        kMediaIgnoreMediaCodecCallbacksDuringFlushing.GetBool(
-            experimental_features_);
-    extension_features.reset_audio_decoder =
-        kMediaEnableResetAudioDecoder.GetBool(experimental_features_);
-    extension_features.flush_audio_track_during_seek =
-        kMediaFlushAudioTrackDuringSeek.GetBool(experimental_features_);
-    extension_features.skip_flush_on_decoder_teardown =
-        kMediaSkipFlushOnDecoderTeardown.GetBool(experimental_features_);
-    extension_features.skip_video_frames_over_60_fps =
-        kMediaSkipVideoFramesOver60Fps.GetBool(experimental_features_);
-    extension_features.force_clear_surface_view =
-        kMediaForceClearSurfaceView.GetBool(experimental_features_);
-    extension_features.enable_trivial_optimizations =
-        ToBoolPointer(kMediaEnableTrivialOptimizations.GetOptionalBool(
-            experimental_features_));
-    extension_features.enable_simd_based_audio_format_switching =
-        ToBoolPointer(kMediaEnableSimdBasedAudioFormatSwitching.GetOptionalBool(
-            experimental_features_));
-    extension_features.video_decoder_initial_preroll_count =
-        ToIntPointer(kMediaVideoDecoderInitialPrerollCount.GetRangedInt(
-            experimental_features_, 1, 100000));
-    extension_features.video_renderer_min_decoded_frames =
-        ToIntPointer(kMediaVideoRendererMinDecodedFrames.GetRangedInt(
-            experimental_features_, 1, 100000));
-    extension_features.video_renderer_min_input_buffers =
-        ToIntPointer(kMediaVideoRendererMinInputBuffers.GetRangedInt(
-            experimental_features_, 1, 100000));
-
-    // Note: Some flags (e.g., 'max_samples_per_write') are not mapped here as
-    // they are directly consumed by StarboardRenderer.
+    extension_features.settings_map = &experimental_features_;
 
     experimental_features_extension->SetExperimentalFeaturesForCurrentThread(
         &extension_features);
