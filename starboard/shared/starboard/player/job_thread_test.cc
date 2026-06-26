@@ -22,6 +22,7 @@
 #include <mutex>
 #include <vector>
 
+#include "base/memory/cobalt_memory_context.h"
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/player/job_queue.h"
