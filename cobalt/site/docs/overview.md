@@ -1,20 +1,21 @@
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Getting started
 
-Cobalt is a lightweight HTML5/CSS/JS application container that is designed
-to provide a rich application development environment with minimal resource
-consumption (deployment size, RAM, CPU, GPU). At the same time, Cobalt enables
-a rich, low-latency user experience across a wide variety of platforms and
-devices.
+Cobalt is a lightweight HTML5/CSS/JS application container designed to provide
+a rich application development environment with minimal resource consumption
+(deployment size, RAM, CPU, and GPU). It enables a rich, low-latency user
+experience across a wide variety of platforms and devices.
 
 #### Target audiences
 
 Cobalt's documentation is written with two audiences in mind:
 
-*   **Porters** enable Cobalt to work on other platforms by using Starboard,
-    Cobalt's porting layer and OS abstraction, to implement the
-    platform-specific functionality that Cobalt uses. Each Starboard module
-    (memory, socket, thread, etc.) defines functions that must be implemented
-    for the porter's platform.
+*   **Porters** enable Cobalt to run on new platforms by using Starboard,
+    Cobalt's porting layer and OS abstraction. Each Starboard module
+    (such as memory, socket, and thread) defines functions that porters must
+    implement.
 
 *   **Developers** want to build applications in familiar environments with
     advanced debugging tools without having to worry about compatibility with
@@ -24,10 +25,10 @@ Cobalt's documentation is written with two audiences in mind:
 
 ## Benefits of Cobalt
 
-Cobalt significantly reduces the cost of supporting a browser on non-standard
-and resource-constrained platforms. In addition, since Cobalt operates at a
-consolidated, versioned platform abstraction layer, its porting effort is
-man-weeks, and subsequent rebases are near-free.
+Cobalt significantly reduces the cost of supporting a browser on non-standard,
+resource-constrained platforms. Because Cobalt operates at a consolidated,
+versioned platform abstraction layer, porting takes only a few weeks, and subsequent
+rebases are straightforward.
 
 These are some other benefits that Cobalt provides:
 
@@ -46,9 +47,9 @@ These are some other benefits that Cobalt provides:
     *   Cobalt is optimized for memory. Its surface cache never exceeds a
         predefined budget, and it never creates duplicate layers, reducing
         the likelihood of out-of-memory crashes.
-    *   Cobalt's small binary is designed to take up as little space as
-        possible. By supporting a subset of HTML5/CSS/JS, Cobalt's reduced
-        package size even allows bundling of CJK fonts on low-end devices.
+    *   Cobalt's small binary footprint minimizes storage requirements. By
+        supporting a subset of HTML5/CSS/JS, Cobalt reduces package size, even
+        allowing CJK fonts to be bundled on low-end devices.
 
 *   **Reduced input latency**
 
@@ -75,10 +76,11 @@ Starboard's compliance test suite.
 
 ### Developers
 
-Developers can follow the setup instructions for
-[Linux](development/setup-linux.md) or
-[RasPi](development/setup-raspi.md) to set up their Cobalt development
-environment, clone a copy of the Cobalt code repository, and build a Cobalt
-binary. The [Cobalt support](development/reference/supported-features.md)
-guide lists the HTML elements, CSS properties, CSS selectors, and JavaScript Web
-APIs that developers can use in their Cobalt applications.
+Developers can use the setup instructions for
+[Linux](development/setup-linux.md),
+[RDK](development/setup-rdk.md), or
+[Android](development/setup-android.md) to set up their Cobalt development
+environment, clone the repository, and build a binary. The
+[Cobalt support](development/reference/supported-features.md) guide lists
+supported HTML elements, CSS properties, CSS selectors, and JavaScript Web
+APIs.
