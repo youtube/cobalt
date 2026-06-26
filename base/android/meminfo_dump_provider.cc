@@ -15,6 +15,10 @@
 #include "base/memory_jni/MemoryInfoBridge_jni.h"
 #endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory_jni/CobaltMemoryInfoBridge_jni.h"
+#endif
+
 namespace base::android {
 
 MeminfoDumpProvider::MeminfoDumpProvider() {
@@ -99,7 +103,7 @@ bool MeminfoDumpProvider::OnMemoryDump(
                   static_cast<uint64_t>(other_pss_kb) * 1024);
 
 #if BUILDFLAG(IS_COBALT)
-  int graphics_kb = Java_MemoryInfoBridge_getGraphicsMemoryKb(env, memory_info);
+  int graphics_kb = Java_CobaltMemoryInfoBridge_getGraphicsMemoryKb(env, memory_info);
   dump->AddScalar(kGraphicsMetricName, "bytes",
                   static_cast<uint64_t>(graphics_kb) * 1024);
 #endif
