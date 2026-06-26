@@ -35,12 +35,11 @@ extern "C" SB_EXPORT int SbRunStarboardMain(int argc,
   SbEvent start_event = {};
   start_event.type = kSbEventTypeStart;
   start_event.data = &start_data;
+  // AOSP has no Starboard event loop: the inner library pumps the Chromium UI
+  // message loop in the started state inside this callback (see
+  // cobalt/app/cobalt.cc), so this call does not return until the app stops. Do
+  // not send a Stop event here; that would tear the app down immediately.
   callback(&start_event);
-
-  SbEvent stop_event = {};
-  stop_event.type = kSbEventTypeStop;
-  stop_event.data = nullptr;
-  callback(&stop_event);
 
   return 0;
 }
