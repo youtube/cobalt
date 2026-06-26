@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/global_features.h"
 
+#include <string_view>
 #include <variant>
 
 #include "base/command_line.h"
@@ -103,10 +104,10 @@ GlobalFeatures::GetSettings() const {
   return settings_;
 }
 
-void GlobalFeatures::SetSettings(const std::string& key,
+void GlobalFeatures::SetSettings(std::string_view key,
                                  const SettingValue& value) {
   base::AutoLock auto_lock(lock_);
-  settings_[key] = value;
+  settings_[std::string(key)] = value;
 
   LOG(INFO) << "SetSettings: key=" << key << ", value=" << [&value] {
     if (const auto* s = std::get_if<std::string>(&value)) {
@@ -116,37 +117,6 @@ void GlobalFeatures::SetSettings(const std::string& key,
     }
     NOTREACHED();
   }();
-}
-
-void GlobalFeatures::ApplyCommandLineOverrides(
-    const base::CommandLine& command_line) {
-  if (!command_line.HasSwitch(switches::kEnableH5vccSettings)) {
-    return;
-  }
-  std::string switch_val =
-      command_line.GetSwitchValueASCII(switches::kEnableH5vccSettings);
-  std::vector<std::string> pairs = base::SplitString(
-      switch_val, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-  for (const std::string& pair : pairs) {
-    size_t eq_pos = pair.find('=');
-    if (eq_pos == std::string::npos || eq_pos == 0) {
-      LOG(WARNING) << "Skipping value: switch="
-                   << switches::kEnableH5vccSettings << ", pair=" << pair;
-      continue;
-    }
-    std::string key = std::string(
-        base::TrimWhitespaceASCII(pair.substr(0, eq_pos), base::TRIM_ALL));
-    std::string val_str = std::string(
-        base::TrimWhitespaceASCII(pair.substr(eq_pos + 1), base::TRIM_ALL));
-    // SettingValue is std::variant<std::string, int64_t>.
-    // Hence the value is either int64_t or std::string.
-    int64_t int_val = 0;
-    if (base::StringToInt64(val_str, &int_val)) {
-      SetSettings(key, int_val);
-    } else {
-      SetSettings(key, val_str);
-    }
-  }
 }
 
 void GlobalFeatures::CreateExperimentConfig() {

@@ -29,6 +29,9 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/path_service.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
@@ -130,6 +133,30 @@ void BindPlatformWindowProviderService(
           base::BindRepeating([](uint64_t handle) { return handle; },
                               window_handle)),
       std::move(receiver));
+}
+
+void ParseAndApplyH5vccSettings(std::string_view settings_value,
+                                GlobalFeatures* global_features) {
+  std::vector<std::string> pairs = base::SplitString(
+      settings_value, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+  for (const std::string& pair : pairs) {
+    size_t eq_pos = pair.find('=');
+    if (eq_pos == std::string::npos || eq_pos == 0) {
+      LOG(WARNING) << "Skipping value: pair=" << pair;
+      continue;
+    }
+    std::string_view pair_view(pair);
+    std::string_view key =
+        base::TrimWhitespaceASCII(pair_view.substr(0, eq_pos), base::TRIM_ALL);
+    std::string_view val_str =
+        base::TrimWhitespaceASCII(pair_view.substr(eq_pos + 1), base::TRIM_ALL);
+    int64_t int_val = 0;
+    if (base::StringToInt64(val_str, &int_val)) {
+      global_features->SetSettings(key, int_val);
+    } else {
+      global_features->SetSettings(key, std::string(val_str));
+    }
+  }
 }
 
 }  // namespace
@@ -590,8 +617,11 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   const base::CommandLine& command_line =
       *base::CommandLine::ForCurrentProcess();
 
-  GlobalFeatures::GetInstance()->ApplyCommandLineOverrides(command_line);
-
+  if (command_line.HasSwitch(switches::kEnableH5vccSettings)) {
+    ParseAndApplyH5vccSettings(
+        command_line.GetSwitchValueASCII(switches::kEnableH5vccSettings),
+        global_features);
+  }
   // Overrides for content/common and lower layers' switches.
   std::vector<base::FeatureList::FeatureOverrideInfo> feature_overrides =
       content::GetSwitchDependentFeatureOverrides(command_line);
@@ -620,8 +650,7 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
             << "], disable_features=["
             << command_line.GetSwitchValueASCII(::switches::kDisableFeatures)
             << "], enable_h5vcc_settings=["
-            << command_line.GetSwitchValueASCII(
-                   cobalt::switches::kEnableH5vccSettings)
+            << command_line.GetSwitchValueASCII(switches::kEnableH5vccSettings)
             << "]";
   LOG(INFO) << "CobaltCommandLine: "
             << CommandLineSwitchesToString(
