@@ -37,11 +37,14 @@ jobs:
             .pre-commit-config.yaml
       - name: Set Docker files checksum
         id: set-docker-hash
+        env:
+          DOCKER_FILES: cobalt/docker docker-compose.yaml .pre-commit-config.yaml
         shell: bash
         run: |
           set -x
-          docker_content_sha=$( (find cobalt/docker -type f ! -name .pre-commit-config.yaml -exec sha256sum -b {} +; sha256sum -b docker-compose.yaml .pre-commit-config.yaml) | LC_ALL=C sort | sha256sum | head -c 64 )
-          echo "docker_content_sha=${docker_content_sha}" >> $GITHUB_OUTPUT
+          read -r -a docker_files <<< "${DOCKER_FILES}"
+          docker_content_sha=$(find "${docker_files[@]}" -type f -exec sha256sum -b {} + | LC_ALL=C sort | sha256sum | head -c 64)
+          echo "docker_content_sha=${docker_content_sha}" >> "$GITHUB_OUTPUT"
 
   docker-pre-commit-image:
     name: Build Linter Image
