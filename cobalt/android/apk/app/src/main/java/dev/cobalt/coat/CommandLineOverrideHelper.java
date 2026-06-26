@@ -148,6 +148,7 @@ public final class CommandLineOverrideHelper {
             getDefaultDisableFeatureOverridesList();
         StringJoiner blinkEnableFeatureOverrides =
             getDefaultBlinkEnableFeatureOverridesList();
+        StringJoiner enableH5vccSettings = new StringJoiner(";");
 
         if (params != null) {
             if (!params.mIsOfficialBuild) {
@@ -175,6 +176,8 @@ public final class CommandLineOverrideHelper {
                                 disableFeatureOverrides.add(v);
                             } else if (key.equals("--enable-blink-features")) {
                                 blinkEnableFeatureOverrides.add(v);
+                            } else if (key.equals("--enable-h5vcc-settings")) {
+                                enableH5vccSettings.add(v);
                             } else {
                                 cliOverrides.add(param);
                                 break; // Avoid adding the same param multiple times
@@ -199,5 +202,10 @@ public final class CommandLineOverrideHelper {
         CommandLine.getInstance().appendSwitchesAndArguments(
             new String[]{"--enable-blink-features="
             + blinkEnableFeatureOverrides.toString() });
+        if (enableH5vccSettings.length() > 0) {
+            CommandLine.getInstance().appendSwitchesAndArguments(
+                new String[]{"--enable-h5vcc-settings="
+                + enableH5vccSettings.toString() });
+        }
     }
 }
