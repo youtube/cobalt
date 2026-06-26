@@ -17,13 +17,21 @@
 #include <string>
 #include <variant>
 
+#include "base/test/task_environment.h"
 #include "cobalt/browser/global_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
 namespace {
 
-TEST(CobaltContentBrowserClientTest, ParseAndApplyH5vccSettingsForTesting) {
+class CobaltContentBrowserClientTest : public testing::Test {
+ protected:
+  base::test::TaskEnvironment task_environment_{
+      base::test::TaskEnvironment::MainThreadType::DEFAULT,
+      base::test::TaskEnvironment::ThreadPoolExecutionMode::QUEUED};
+};
+
+TEST_F(CobaltContentBrowserClientTest, ParseAndApplyH5vccSettingsForTesting) {
   auto* instance = GlobalFeatures::GetInstance();
   ASSERT_NE(instance, nullptr);
 
