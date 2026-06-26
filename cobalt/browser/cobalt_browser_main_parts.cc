@@ -149,7 +149,7 @@ int CobaltBrowserMainParts::PreCreateThreads() {
   SetupMetrics();
 
 #if !defined(OFFICIAL_BUILD)
-  // Manually initialize Perfetto tracing post-FeatureList on Android.
+  // Manually initialize Perfetto tracing post-FeatureList for Cobalt.
   // This is required because Cobalt bypasses
   // ContentMainRunnerImpl::RunBrowser() which normally initializes tracing in
   // standard Chromium.
