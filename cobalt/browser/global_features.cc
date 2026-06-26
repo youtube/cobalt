@@ -16,14 +16,19 @@
 
 #include <variant>
 
+#include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/files/file_util.h"
 #include "base/json/string_escape.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
+#include "cobalt/browser/switches.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -111,6 +116,37 @@ void GlobalFeatures::SetSettings(const std::string& key,
     }
     NOTREACHED();
   }();
+}
+
+void GlobalFeatures::ApplyCommandLineOverrides(
+    const base::CommandLine& command_line) {
+  if (!command_line.HasSwitch(switches::kEnableH5vccSettings)) {
+    return;
+  }
+  std::string switch_val =
+      command_line.GetSwitchValueASCII(switches::kEnableH5vccSettings);
+  std::vector<std::string> pairs = base::SplitString(
+      switch_val, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+  for (const std::string& pair : pairs) {
+    size_t eq_pos = pair.find('=');
+    if (eq_pos == std::string::npos || eq_pos == 0) {
+      LOG(WARNING) << "Skipping value: switch="
+                   << switches::kEnableH5vccSettings << ", pair=" << pair;
+      continue;
+    }
+    std::string key = std::string(
+        base::TrimWhitespaceASCII(pair.substr(0, eq_pos), base::TRIM_ALL));
+    std::string val_str = std::string(
+        base::TrimWhitespaceASCII(pair.substr(eq_pos + 1), base::TRIM_ALL));
+    // SettingValue is std::variant<std::string, int64_t>.
+    // Hence the value is either int64_t or std::string.
+    int64_t int_val = 0;
+    if (base::StringToInt64(val_str, &int_val)) {
+      SetSettings(key, int_val);
+    } else {
+      SetSettings(key, val_str);
+    }
+  }
 }
 
 void GlobalFeatures::CreateExperimentConfig() {

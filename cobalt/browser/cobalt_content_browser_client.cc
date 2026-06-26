@@ -43,6 +43,7 @@
 #include "cobalt/browser/h5vcc_settings_impl.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
+#include "cobalt/browser/switches.h"
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/common/features/starboard_features_initialization.h"
 #include "cobalt/media/service/platform_window_provider_service.h"
@@ -589,6 +590,8 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   const base::CommandLine& command_line =
       *base::CommandLine::ForCurrentProcess();
 
+  GlobalFeatures::GetInstance()->ApplyCommandLineOverrides(command_line);
+
   // Overrides for content/common and lower layers' switches.
   std::vector<base::FeatureList::FeatureOverrideInfo> feature_overrides =
       content::GetSwitchDependentFeatureOverrides(command_line);
@@ -616,6 +619,9 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
             << command_line.GetSwitchValueASCII(::switches::kEnableFeatures)
             << "], disable_features=["
             << command_line.GetSwitchValueASCII(::switches::kDisableFeatures)
+            << "], enable_h5vcc_settings=["
+            << command_line.GetSwitchValueASCII(
+                   cobalt::switches::kEnableH5vccSettings)
             << "]";
   LOG(INFO) << "CobaltCommandLine: "
             << CommandLineSwitchesToString(

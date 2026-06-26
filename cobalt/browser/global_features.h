@@ -27,6 +27,10 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
+namespace base {
+class CommandLine;
+}
+
 class PrefService;
 
 namespace metrics {
@@ -81,6 +85,7 @@ class GlobalFeatures {
 
   const absl::flat_hash_map<std::string, SettingValue>& GetSettings() const;
   void SetSettings(const std::string& key, const SettingValue& value);
+  void ApplyCommandLineOverrides(const base::CommandLine& command_line);
 
  private:
   friend class base::NoDestructor<GlobalFeatures>;
