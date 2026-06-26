@@ -8,31 +8,8 @@ import subprocess
 import sys
 
 _SKIP_LIST = {
-    '27.lts': [
-        # Reorders deleted BUILD_STATUS.md file (#9476, #9508).
-        '7e6524981fdd6ab3c87bc55785343d40116a05e5',
-        'adda40a0d3b08b9302f441e76eef0391c70e0462',
-        # Modifies deleted workflow trigger files (#9473, #10110).
-        'b24037232cbc7a74bf01dbc4c93dbe9701328b5e',
-        '234bf5073b12bcd7a08e44eaeb42f809137a440e',
-        # Skia import commits, already applied in #9625 (#9624).
-        'b77e86a96022541455c239778a4a62462d790c73',
-        '8ed51696a04da8b51b82d6540b3b314347c43794',
-        # Change to deleted workflow file
-        # (#9670, #9934, #10080, #9593, #10235, #10213, #10186).
-        'f69b1d1e21f3340d9c963846ed4e1cbef8fa2fb9',
-        '478e5c52cf4872407ed855a100165e93b02d9eee',
-        '00531389e019a835f49fb3bf56364b244a0d3acd',
-        '9b2c106aa54a05640705a3603ebc6821e1adebf8',
-        'bdaf3a31f53759ca21c82bb5ede628ab71194db5',
-        'ec31efdbdb0c173bb11bb9747808d7c50cd9db81',
-        '4434b9dc99b223ffe54b779565b6d48bd4446e19',
-        # Accidentally pushed commits to main and the revert PR (#10812).
-        '04197f4caa9bd9b0c4d2efb189f00675a9dd03cc',
-        '849e7534a0fdc1f5167764830b6255819ad0e02d',
-        '5e27d0370b0691495fc05ef0d8e6dfcfeaf2a565',
-        'f0ef063d30589b39dc4a1433b0dde659d2fb5eea',
-    ],
+    '27.lts': [],
+    'staging': [],
 }
 
 
@@ -203,7 +180,7 @@ def cherry_pick(sha, num, title, first_cherry_pick):
         return CherryPickStatus.FAILED
 
       msg = f'Conflicted {msg}'
-      run(['git', 'add'] + list(unmerged))
+      run(['git', 'add', '--sparse'] + list(unmerged))
       result = CherryPickStatus.CONFLICTED
 
   # Check if there are changes to commit.
@@ -278,6 +255,8 @@ def main():
       # Cherry pick PR.
       first_cherry_pick = not commits_added
       result = cherry_pick(sha, pr_num, title, first_cherry_pick)
+      if result == CherryPickStatus.CONFLICTED:
+        commits_added.append('CONFLICTED:')
       if result in (CherryPickStatus.SUCCESS, CherryPickStatus.CONFLICTED):
         autoroll_change_ids.add(change_id)
         commits_added.append(f'- {prefix}{change_id}')
