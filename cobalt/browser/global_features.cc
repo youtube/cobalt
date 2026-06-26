@@ -17,19 +17,14 @@
 #include <string_view>
 #include <variant>
 
-#include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/files/file_util.h"
 #include "base/json/string_escape.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
-#include "base/strings/string_number_conversions.h"
-#include "base/strings/string_split.h"
-#include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
-#include "cobalt/browser/switches.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -107,7 +102,7 @@ GlobalFeatures::GetSettings() const {
 void GlobalFeatures::SetSettings(std::string_view key,
                                  const SettingValue& value) {
   base::AutoLock auto_lock(lock_);
-  settings_[std::string(key)] = value;
+  settings_[key] = value;
 
   LOG(INFO) << "SetSettings: key=" << key << ", value=" << [&value] {
     if (const auto* s = std::get_if<std::string>(&value)) {
