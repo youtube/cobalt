@@ -41,4 +41,17 @@ public class MemoryInfoBridge {
             return null;
         }
     }
+
+    @CalledByNative
+    public static int getGraphicsMemoryKb(Debug.MemoryInfo info) {
+        String stat = info.getMemoryStat("summary.graphics");
+        if (stat != null) {
+            try {
+                return Integer.parseInt(stat);
+            } catch (NumberFormatException e) {
+                // Ignore parsing errors
+            }
+        }
+        return 0;
+    }
 }

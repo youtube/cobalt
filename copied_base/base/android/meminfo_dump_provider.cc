@@ -96,6 +96,10 @@ bool MeminfoDumpProvider::OnMemoryDump(
   dump->AddScalar(kPssMetricName, "bytes",
                   static_cast<uint64_t>(other_pss_kb) * 1024);
 
+  int graphics_kb = Java_MemoryInfoBridge_getGraphicsMemoryKb(env, memory_info);
+  dump->AddScalar(kGraphicsMetricName, "bytes",
+                  static_cast<uint64_t>(graphics_kb) * 1024);
+
   return true;
 #else   // BUILDFLAG(ENABLE_BASE_TRACING)
   return false;
