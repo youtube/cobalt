@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "cobalt/common/libc/no_destructor.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/system.h"
 #include "starboard/time_zone.h"
 
@@ -103,6 +104,12 @@ char** Environment::InitializeGlobalEnviron() {
 
   // Initialize the LANG variable from the Starboard API.
   setenv("LANG", SbSystemGetLocaleId(), 0);
+
+  // Initialize the TMPDIR variable from the Starboard API.
+  std::vector<char> path(kSbFileMaxPath + 1);
+  if (SbSystemGetPath(kSbSystemPathTempDirectory, path.data(), path.size())) {
+    setenv("TMPDIR", path.data(), /*overwrite=*/0);
+  }
 
   RebuildAndSetGlobalEnviron();
   return ::environ;
