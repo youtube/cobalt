@@ -298,6 +298,31 @@ TEST_F(ExperimentConfigManagerTest,
             ExperimentConfigType::kEmptyConfig);
 }
 
+TEST_F(ExperimentConfigManagerTest, GetExperimentConfigTypeIsCached) {
+  base::Value::Dict feature_map;
+  feature_map.Set(features::kExperimentConfigExpiration.name, true);
+  pref_service_->SetDict(kExperimentConfigFeatures, std::move(feature_map));
+
+  base::Value::Dict finch_params;
+  finch_params.Set("experiment_expiration_threshold_days", 30);
+  pref_service_->SetDict(kFinchParameters, std::move(finch_params));
+
+  pref_service_->SetTime(variations::prefs::kVariationsLastFetchTime,
+                         base::Time::Now() - base::Days(10));
+
+  // Call GetExperimentConfigType multiple times.
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kRegularConfig);
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kRegularConfig);
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kRegularConfig);
+
+  // The UMA should only be logged once.
+  histogram_tester_.ExpectUniqueSample("Cobalt.Finch.ConfigState", 0, 1);
+  histogram_tester_.ExpectUniqueSample("Cobalt.Finch.ConfigAgeInDays", 10, 1);
+}
+
 TEST_F(ExperimentConfigManagerTest, GetExperimentConfigTypeReturnsRegular) {
   metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
                                     0);
@@ -602,4 +627,67 @@ TEST_F(ExperimentConfigManagerTest, CompareVersions) {
                                       false, 4);
 }
 
+<<<<<<< HEAD
+=======
+TEST_F(ExperimentConfigManagerTest,
+       GetExperimentConfigTypeUsesServerConfiguredThresholds_Regular) {
+  base::Value::Dict finch_params;
+  finch_params.Set(kCrashStreakSafeConfigThreshold, 5);
+  finch_params.Set(kCrashStreakEmptyConfigThreshold, 10);
+  pref_service_->SetDict(kFinchParameters, std::move(finch_params));
+
+  // Crash streak is 4, which is less than the server-configured safe threshold
+  // of 5. Expect kRegularConfig.
+  metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    4);
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kRegularConfig);
+}
+
+TEST_F(ExperimentConfigManagerTest,
+       GetExperimentConfigTypeUsesServerConfiguredThresholds_Safe) {
+  base::Value::Dict finch_params;
+  finch_params.Set(kCrashStreakSafeConfigThreshold, 5);
+  finch_params.Set(kCrashStreakEmptyConfigThreshold, 10);
+  pref_service_->SetDict(kFinchParameters, std::move(finch_params));
+
+  // Crash streak is 5, which is equal to the server-configured safe threshold.
+  // Expect kSafeConfig.
+  metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    5);
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kSafeConfig);
+}
+
+TEST_F(ExperimentConfigManagerTest,
+       GetExperimentConfigTypeUsesServerConfiguredThresholds_SafeBetween) {
+  base::Value::Dict finch_params;
+  finch_params.Set(kCrashStreakSafeConfigThreshold, 5);
+  finch_params.Set(kCrashStreakEmptyConfigThreshold, 10);
+  pref_service_->SetDict(kFinchParameters, std::move(finch_params));
+
+  // Crash streak is 9, which is between the safe and empty thresholds.
+  // Expect kSafeConfig.
+  metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    9);
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kSafeConfig);
+}
+
+TEST_F(ExperimentConfigManagerTest,
+       GetExperimentConfigTypeUsesServerConfiguredThresholds_Empty) {
+  base::Value::Dict finch_params;
+  finch_params.Set(kCrashStreakSafeConfigThreshold, 5);
+  finch_params.Set(kCrashStreakEmptyConfigThreshold, 10);
+  pref_service_->SetDict(kFinchParameters, std::move(finch_params));
+
+  // Crash streak is 10, which is equal to the server-configured empty
+  // threshold. Expect kEmptyConfig.
+  metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    10);
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kEmptyConfig);
+}
+
+>>>>>>> 739b80d103 (cobalt: Cache GetExperimentConfigType result (#9134))
 }  // namespace cobalt
