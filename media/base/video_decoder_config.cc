@@ -78,7 +78,6 @@ void VideoDecoderConfig::Initialize(VideoCodec codec,
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   is_change_type_transition_ = false;
-  mime_type_ = "";
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
@@ -99,13 +98,7 @@ bool VideoDecoderConfig::Matches(const VideoDecoderConfig& config) const {
          extra_data() == config.extra_data() &&
          encryption_scheme() == config.encryption_scheme() &&
          color_space_info() == config.color_space_info() &&
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-         hdr_metadata() == config.hdr_metadata() &&
-         level() == config.level() &&
-         mime_type() == config.mime_type();
-#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
          hdr_metadata() == config.hdr_metadata() && level() == config.level();
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 std::string VideoDecoderConfig::AsHumanReadableString() const {
@@ -127,7 +120,6 @@ std::string VideoDecoderConfig::AsHumanReadableString() const {
     << ", rotation: " << VideoRotationToString(video_transformation().rotation)
     << ", flipped: " << video_transformation().mirrored
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    << ", mime: \"" << mime_type() << "\"" 
     << ", is_change_type_transition: "
     << base::ToString(is_change_type_transition())
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)

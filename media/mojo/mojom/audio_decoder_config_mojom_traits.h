@@ -78,10 +78,6 @@ struct StructTraits<media::mojom::AudioDecoderConfigDataView,
   static bool is_change_type_transition(const media::AudioDecoderConfig& input) {
     return input.is_change_type_transition();
   }
-
-  static std::string_view mime_type(const media::AudioDecoderConfig& input) {
-    return input.mime_type();
-  }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   static bool Read(media::mojom::AudioDecoderConfigDataView input,
