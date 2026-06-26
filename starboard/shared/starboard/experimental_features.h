@@ -73,8 +73,10 @@ inline constexpr ExperimentalFeatureKey kMediaVideoRendererMinInputBuffers(
 
 class ExperimentalFeatures {
  public:
+  using Map = std::map<std::string, std::string, std::less<>>;
+
   ExperimentalFeatures() = default;
-  explicit ExperimentalFeatures(std::map<std::string, std::string> settings);
+  explicit ExperimentalFeatures(const Map& settings);
   ~ExperimentalFeatures() = default;
 
   bool GetBool(const ExperimentalFeatureKey& key) const;
@@ -83,12 +85,10 @@ class ExperimentalFeatures {
                                   int min_val,
                                   int max_val) const;
 
-  const std::map<std::string, std::string>& settings() const {
-    return settings_;
-  }
+  const Map& settings() const { return settings_; }
 
  private:
-  std::map<std::string, std::string> settings_;
+  Map settings_;
 };
 
 // Sets the experimental features for the current thread.

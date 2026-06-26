@@ -26,8 +26,7 @@ namespace starboard {
 
 namespace {
 
-thread_local const ExperimentalFeatures* g_experimental_features = nullptr;
-const ExperimentalFeatures g_empty_features;
+thread_local std::optional<ExperimentalFeatures> g_experimental_features;
 
 const StarboardExtensionExperimentalFeaturesConfigurationApi
     kExperimentalFeaturesConfigurationApi = {
@@ -38,12 +37,11 @@ const StarboardExtensionExperimentalFeaturesConfigurationApi
 
 }  // namespace
 
-ExperimentalFeatures::ExperimentalFeatures(
-    std::map<std::string, std::string> settings)
-    : settings_(std::move(settings)) {}
+ExperimentalFeatures::ExperimentalFeatures(const Map& settings)
+    : settings_(settings) {}
 
 bool ExperimentalFeatures::GetBool(const ExperimentalFeatureKey& key) const {
-  auto it = settings_.find(std::string(key.key()));
+  auto it = settings_.find(key.key());
   if (it == settings_.end()) {
     return false;
   }
@@ -52,7 +50,7 @@ bool ExperimentalFeatures::GetBool(const ExperimentalFeatureKey& key) const {
 
 std::optional<bool> ExperimentalFeatures::GetOptionalBool(
     const ExperimentalFeatureKey& key) const {
-  auto it = settings_.find(std::string(key.key()));
+  auto it = settings_.find(key.key());
   if (it == settings_.end()) {
     return std::nullopt;
   }
@@ -63,7 +61,7 @@ std::optional<int> ExperimentalFeatures::GetRangedInt(
     const ExperimentalFeatureKey& key,
     int min_val,
     int max_val) const {
-  auto it = settings_.find(std::string(key.key()));
+  auto it = settings_.find(key.key());
   if (it == settings_.end()) {
     return std::nullopt;
   }
@@ -82,19 +80,16 @@ std::optional<int> ExperimentalFeatures::GetRangedInt(
 void SetExperimentalFeaturesForCurrentThread(
     const StarboardExtensionExperimentalFeatures* extension_features) {
   SB_CHECK(extension_features);
+  SB_CHECK(extension_features->settings_map);
 
-  if (extension_features->settings_map) {
-    g_experimental_features = static_cast<const ExperimentalFeatures*>(
-        extension_features->settings_map);
-  } else {
-    g_experimental_features = &g_empty_features;
-  }
+  g_experimental_features.emplace(
+      *static_cast<const ExperimentalFeatures::Map*>(
+          extension_features->settings_map));
 }
 
 const ExperimentalFeatures& GetExperimentalFeaturesForCurrentThread() {
-  if (!g_experimental_features) {
-    return g_empty_features;
-  }
+  SB_CHECK(g_experimental_features.has_value())
+      << "ExperimentalFeatures are not set for the current thread.";
   return *g_experimental_features;
 }
 
