@@ -65,6 +65,8 @@ void SetExperimentalFeaturesForCurrentThread(
 
   experiment_features.allow_audio_writing_on_pause =
       extension_features->allow_audio_writing_on_pause;
+  experiment_features.enable_app_provisioning =
+      extension_features->enable_app_provisioning;
   experiment_features.enable_av1_startup_optimization =
       extension_features->enable_av1_startup_optimization;
   experiment_features.enable_low_latency =

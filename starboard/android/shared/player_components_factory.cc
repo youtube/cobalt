@@ -291,6 +291,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     const auto& experimental_features =
         creation_parameters.experimental_features();
 
+    if (experimental_features.enable_app_provisioning) {
+      MediaCapabilitiesCache::GetInstance()->SetAppProvisioningEnabled(true);
+      SB_LOG(INFO) << "`enable_app_provisioning` is set to true.";
+    }
     if (experimental_features.enable_av1_startup_optimization) {
       MediaCapabilitiesCache::GetInstance()->SetAv1OptEnabled(true);
       SB_LOG(INFO) << "`enable_av1_startup_optimization` is set to true.";

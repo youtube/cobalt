@@ -46,6 +46,8 @@ std::ostream& operator<<(
             << ToString(features.allow_audio_writing_on_pause)
             << ", bypass_mojo_for_media="
             << ToString(features.bypass_mojo_for_media)
+            << ", enable_app_provisioning="
+            << ToString(features.enable_app_provisioning)
             << ", enable_av1_startup_optimization="
             << ToString(features.enable_av1_startup_optimization)
             << ", enable_flush_during_seek="

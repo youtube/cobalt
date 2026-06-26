@@ -52,6 +52,8 @@ const char kH5vccSettingsKeyMediaAllowAudioWritingOnPause[] =
     "Media.AllowAudioWritingOnPause";
 const char kH5vccSettingsKeyMediaBypassMojoForMedia[] =
     "Media.BypassMojoForMedia";
+const char kH5vccSettingsKeyMediaEnableAppProvisioning[] =
+    "Media.EnableAppProvisioning";
 const char kH5vccSettingsKeyMediaEnableAv1StartupOptimization[] =
     "Media.EnableAv1StartupOptimization";
 // TODO: b/474454335 - Remove once seek experiment is done.
@@ -212,6 +214,10 @@ ExperimentalFeatures ProcessH5vccSettings(
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaBypassMojoForMedia)) {
     parsed.bypass_mojo_for_media = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaEnableAppProvisioning)) {
+    parsed.enable_app_provisioning = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableAv1StartupOptimization)) {
