@@ -168,25 +168,28 @@ class JobQueue {
     };
 
     void Reset() {
-      if (destroy_) {
-        destroy_(storage_);
-        invoke_ = nullptr;
-        destroy_ = nullptr;
-        move_ = nullptr;
+      if (!destroy_) {
+        return;
       }
+
+      destroy_(storage_);
+      invoke_ = nullptr;
+      destroy_ = nullptr;
+      move_ = nullptr;
     }
 
     void MoveFrom(Job&& other) {
       invoke_ = other.invoke_;
       destroy_ = other.destroy_;
       move_ = other.move_;
-
-      if (other.move_) {
-        other.move_(other.storage_, storage_);
-        other.invoke_ = nullptr;
-        other.destroy_ = nullptr;
-        other.move_ = nullptr;
+      if (!other.move_) {
+        return;
       }
+
+      other.move_(other.storage_, storage_);
+      other.invoke_ = nullptr;
+      other.destroy_ = nullptr;
+      other.move_ = nullptr;
     }
 
     template <typename T>
@@ -198,6 +201,7 @@ class JobQueue {
     }
 
     Buffer storage_;
+    // Function pointers for type-erased operations:
     void (*invoke_)(Buffer&) = nullptr;
     void (*destroy_)(Buffer&) = nullptr;
     void (*move_)(Buffer&, Buffer&) = nullptr;
