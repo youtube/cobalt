@@ -401,6 +401,8 @@ static_library("test_support") {
   ]
 
   sources = [
+    "//starboard/shared/starboard/features_test_util.cc",
+    "//starboard/shared/starboard/features_test_util.h",
     "fake_audio_track.cc",
     "fake_audio_track.h",
     "fake_media_codec.cc",
