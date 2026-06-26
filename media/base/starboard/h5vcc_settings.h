@@ -59,6 +59,8 @@ inline constexpr H5vccSettingsKey kMediaAllowAudioWritingOnPause(
     "Media.AllowAudioWritingOnPause");
 inline constexpr H5vccSettingsKey kMediaBypassMojoForMedia(
     "Media.BypassMojoForMedia");
+inline constexpr H5vccSettingsKey kMediaEnableAppProvisioning(
+    "Media.EnableAppProvisioning");
 inline constexpr H5vccSettingsKey kMediaEnableAv1StartupOptimization(
     "Media.EnableAv1StartupOptimization");
 inline constexpr H5vccSettingsKey kMediaEnableFlushDuringSeek(

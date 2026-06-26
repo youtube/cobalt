@@ -804,6 +804,8 @@ void SbPlayerBridge::CreatePlayer() {
 
     extension_features.allow_audio_writing_on_pause =
         kMediaAllowAudioWritingOnPause.GetBool(experimental_features_);
+    extension_features.enable_app_provisioning =
+        kMediaEnableAppProvisioning.GetBool(experimental_features_);
     extension_features.enable_av1_startup_optimization =
         kMediaEnableAv1StartupOptimization.GetBool(experimental_features_);
     extension_features.enable_low_latency =
