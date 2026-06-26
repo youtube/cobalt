@@ -23,8 +23,8 @@ jobs:
       fail-fast: false
       matrix:
         branch: [
-          {source: main, target: 27.lts, start_commit: 2079b05a9fee4de18abd188fa4a6aceb01a77d7e, identifier_type: pr},
-          {source: main, target: staging, start_commit: 4087dbd1a873f1f4bb7ca59a64c8fc0fc1a1dbc7, identifier_type: pr},
+          {source: main, target: 27.lts, start_commit: 7da7391967914a586724a107102c06d0f81280b5, identifier_type: pr},
+          {source: main, target: staging, start_commit: 7da7391967914a586724a107102c06d0f81280b5, identifier_type: pr},
         ]
     steps:
       - name: Checkout code

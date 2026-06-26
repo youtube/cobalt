@@ -8,29 +8,8 @@ import subprocess
 import sys
 
 _SKIP_LIST = {
-    '27.lts': [
-        # Modifies deleted workflow files (#9473, #10110).
-        'b24037232cbc7a74bf01dbc4c93dbe9701328b5e',
-        '234bf5073b12bcd7a08e44eaeb42f809137a440e',
-        # Skia import commits, already applied in #9625 (#9624).
-        'b77e86a96022541455c239778a4a62462d790c73',
-        '8ed51696a04da8b51b82d6540b3b314347c43794',
-        # Modifies deleted workflow files (#9593, #10235).
-        '9b2c106aa54a05640705a3603ebc6821e1adebf8',
-        'bdaf3a31f53759ca21c82bb5ede628ab71194db5',
-        # Accidentally pushed commits to main and the revert PR (#10812).
-        '04197f4caa9bd9b0c4d2efb189f00675a9dd03cc',
-        '849e7534a0fdc1f5167764830b6255819ad0e02d',
-        '5e27d0370b0691495fc05ef0d8e6dfcfeaf2a565',
-        'f0ef063d30589b39dc4a1433b0dde659d2fb5eea',
-    ],
-    'staging': [
-        # Accidentally pushed commits to main and the revert PR (#10812).
-        '04197f4caa9bd9b0c4d2efb189f00675a9dd03cc',
-        '849e7534a0fdc1f5167764830b6255819ad0e02d',
-        '5e27d0370b0691495fc05ef0d8e6dfcfeaf2a565',
-        'f0ef063d30589b39dc4a1433b0dde659d2fb5eea',
-    ],
+    '27.lts': [],
+    'staging': [],
 }
 
 
