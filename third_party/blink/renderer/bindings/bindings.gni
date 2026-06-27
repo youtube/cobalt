@@ -313,7 +313,7 @@ if (is_cobalt) {
     cobalt_bindings_exclude_patterns += [
       "*shared_storage*",
       "*browsing_topic*",
-      "*private_aggregation*",
+      "*v8_private_aggregation*",
       "*private_attribution*",
       "*storage_access*",
     ]

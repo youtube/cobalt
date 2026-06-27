@@ -150,15 +150,15 @@ class CONTENT_EXPORT StoragePartitionImpl
   void OverrideBackgroundSyncContextForTesting(
       BackgroundSyncContextImpl* background_sync_context);
   void OverrideSharedWorkerServiceForTesting(
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
       std::unique_ptr<SharedWorkerServiceImpl> shared_worker_service);
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   void OverrideSharedStorageRuntimeManagerForTesting(
       std::unique_ptr<SharedStorageRuntimeManager>
           shared_storage_runtime_manager);
   void OverrideSharedStorageHeaderObserverForTesting(
       std::unique_ptr<SharedStorageHeaderObserver>
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
           shared_storage_header_observer);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   void OverrideAggregationServiceForTesting(
       std::unique_ptr<AggregationService> aggregation_service);
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
@@ -417,11 +417,13 @@ class CONTENT_EXPORT StoragePartitionImpl
 
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   SharedStorageHeaderObserver* shared_storage_header_observer() {
-#else
-    return nullptr;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
     return shared_storage_header_observer_.get();
   }
+#else
+  SharedStorageHeaderObserver* shared_storage_header_observer() {
+    return nullptr;
+  }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 #if BUILDFLAG(IS_MAC)
   bool IsStorageServiceRemoteValid() const;
@@ -835,7 +837,6 @@ class CONTENT_EXPORT StoragePartitionImpl
   mojo::Remote<network::mojom::DeviceBoundSessionManager>
       device_bound_session_manager_;
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
-
   // Owning pointer to the SharedStorageManager for this partition.
   std::unique_ptr<storage::SharedStorageManager> shared_storage_manager_;
 
@@ -846,8 +847,8 @@ class CONTENT_EXPORT StoragePartitionImpl
   std::unique_ptr<SharedStorageRuntimeManager> shared_storage_runtime_manager_;
 
   // Owning pointer to the `SharedStorageHeaderObserver` for this partition.
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   std::unique_ptr<SharedStorageHeaderObserver> shared_storage_header_observer_;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   std::unique_ptr<PrivateAggregationManagerImpl> private_aggregation_manager_;
 

@@ -266,8 +266,8 @@ void RenderFrameHostImpl::SetUpMojoConnection() {
               ->Bind(std::move(receiver));
         },
         base::Unretained(this)));
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   if (is_main_frame()) {
     associated_registry_->AddInterface<blink::mojom::LocalMainFrameHost>(

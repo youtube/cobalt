@@ -30,9 +30,7 @@
 #include "third_party/blink/public/mojom/shared_storage/shared_storage_worklet_service.mojom.h"
 #include "third_party/blink/public/mojom/worker/worklet_global_scope_creation_params.mojom.h"
 #include "third_party/blink/public/platform/scheduler/web_thread_scheduler.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "third_party/blink/public/web/web_remote_frame.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "third_party/blink/public/web/web_shared_storage_worklet_thread.h"
 #include "third_party/blink/public/web/web_view.h"
 #include "third_party/blink/public/web/web_view_client.h"
@@ -453,12 +451,12 @@ void AgentSchedulingGroup::CreateFrame(mojom::CreateFrameParamsPtr params) {
 void AgentSchedulingGroup::CreateSharedStorageWorkletService(
     mojo::PendingReceiver<blink::mojom::SharedStorageWorkletService> receiver,
     blink::mojom::WorkletGlobalScopeCreationParamsPtr
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
         global_scope_creation_params) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   blink::WebSharedStorageWorkletThread::Start(
       agent_group_scheduler_->DefaultTaskRunner(), std::move(receiver),
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
       std::move(global_scope_creation_params));
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void AgentSchedulingGroup::BindAssociatedInterfaces(
