@@ -25,14 +25,18 @@ extern "C" {
 #define kStarboardExtensionExperimentalFeaturesConfigurationName \
   "dev.starboard.extension.ExperimentalFeaturesConfiguration"
 
+typedef struct StarboardExperimentalFeatureEntry {
+  const char* key;
+  int64_t value;
+} StarboardExperimentalFeatureEntry;
+
 // This extension is intended ONLY for temporary experiments. Once an experiment
 // is concluded and the feature is launched, the corresponding field should be
 // removed from this struct and moved to a dedicated extension or a permanent
 // Starboard function.
 typedef struct StarboardExtensionExperimentalFeatures {
-  // Opaque pointer to std::map<std::string, std::string> containing H5VCC
-  // settings.
-  const void* settings_map;
+  const StarboardExperimentalFeatureEntry* entries;
+  size_t entry_count;
 } StarboardExtensionExperimentalFeatures;
 
 typedef struct StarboardExtensionExperimentalFeaturesConfigurationApi {

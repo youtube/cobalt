@@ -149,6 +149,21 @@ void SetDiscardPadding(
       discard_padding.second.InMicroseconds();
 }
 
+std::pair<StarboardExtensionExperimentalFeatures,
+          std::vector<StarboardExperimentalFeatureEntry>>
+GetStarboardExtensionExperimentalFeatures(
+    const SbPlayerBridge::ExperimentalFeatures& experimental_features) {
+  std::vector<StarboardExperimentalFeatureEntry> entries;
+  entries.reserve(experimental_features.size());
+  for (const auto& [key, val] : experimental_features) {
+    entries.push_back({key.c_str(), val});
+  }
+  StarboardExtensionExperimentalFeatures extension_features = {};
+  extension_features.entries = entries.data();
+  extension_features.entry_count = entries.size();
+  return {extension_features, std::move(entries)};
+}
+
 }  // namespace
 
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING)
@@ -787,9 +802,8 @@ void SbPlayerBridge::CreatePlayer() {
       strcmp(experimental_features_extension->name,
              kStarboardExtensionExperimentalFeaturesConfigurationName) == 0 &&
       experimental_features_extension->version >= 1) {
-    StarboardExtensionExperimentalFeatures extension_features = {};
-    extension_features.settings_map = &experimental_features_;
-
+    const auto [extension_features, entries_storage] =
+        GetStarboardExtensionExperimentalFeatures(experimental_features_);
     experimental_features_extension->SetExperimentalFeaturesForCurrentThread(
         &extension_features);
   }

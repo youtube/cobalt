@@ -18,7 +18,6 @@
 #include <type_traits>
 
 #include "starboard/common/log.h"
-#include "starboard/common/no_destructor.h"
 #include "starboard/extension/experimental/experimental_features.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 
@@ -26,13 +25,9 @@ namespace starboard {
 
 namespace {
 
-thread_local NoDestructor<std::optional<ExperimentalFeatures>>
-    g_experimental_features;
+thread_local std::optional<ExperimentalFeatures> g_experimental_features;
 static_assert(sizeof(ExperimentalFeatures) < 256,
               "ExperimentalFeatures is too large for thread-local storage.");
-static_assert(
-    std::is_trivially_destructible<decltype(g_experimental_features)>::value,
-    "g_experimental_features must be trivially destructible.");
 
 const StarboardExtensionExperimentalFeaturesConfigurationApi
     kExperimentalFeaturesConfigurationApi = {
@@ -56,23 +51,28 @@ void SetExperimentalFeaturesForCurrentThread(
   // |extension_features| cannot be null. We use a pointer here to support C API
   // compatibility.
   SB_CHECK(extension_features);
-  SB_CHECK(extension_features->settings_map);
+  ExperimentalFeatures::Map map;
+  if (extension_features->entries && extension_features->entry_count > 0) {
+    for (size_t i = 0; i < extension_features->entry_count; ++i) {
+      const auto& entry = extension_features->entries[i];
+      if (entry.key) {
+        map[entry.key] = entry.value;
+      }
+    }
+  }
+  g_experimental_features = ExperimentalFeatures(map);
 
-  *g_experimental_features =
-      ExperimentalFeatures(*static_cast<const ExperimentalFeatures::Map*>(
-          extension_features->settings_map));
-
-  if ((*g_experimental_features)
-          ->GetBool(kMediaEnableSimdBasedAudioFormatSwitching)) {
+  if (g_experimental_features->GetBool(
+          kMediaEnableSimdBasedAudioFormatSwitching)) {
     DecodedAudio::EnableSimdBasedAudioFormatSwitching();
   }
 }
 
 const ExperimentalFeatures& GetExperimentalFeaturesForCurrentThread() {
-  SB_CHECK((*g_experimental_features).has_value())
+  SB_CHECK(g_experimental_features.has_value())
       << "ExperimentalFeatures are not set. This method was likely "
          "called on the wrong thread or a race condition occurred.";
-  return **g_experimental_features;
+  return *g_experimental_features;
 }
 
 const void* GetExperimentalFeaturesConfigurationApi() {
