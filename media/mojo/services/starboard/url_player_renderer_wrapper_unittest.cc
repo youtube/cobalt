@@ -86,6 +86,11 @@ class MockStarboardRendererClientExtension
               (StarboardRenderingMode),
               (override));
   MOCK_METHOD(void, GetSbWindowHandle, (), (override));
+  MOCK_METHOD(void, OnDurationChange, (base::TimeDelta), (override));
+  MOCK_METHOD(void,
+              OnBufferedTimeRangesChange,
+              (base::TimeDelta, base::TimeDelta),
+              (override));
 };
 
 class MockSbPlayerInterface : public SbPlayerInterface {
@@ -333,7 +338,7 @@ TEST_F(UrlPlayerRendererWrapperIntegrationTest,
   task_environment_.RunUntilIdle();
 
   EXPECT_CALL(mock_sbplayer_interface_, GetInfo(player, _))
-      .WillOnce(Invoke([](SbPlayer, SbPlayerInfo* info) {
+      .WillRepeatedly(Invoke([](SbPlayer, SbPlayerInfo* info) {
         *info = {};
         info->frame_width = 1920;
         info->frame_height = 1080;
@@ -344,6 +349,8 @@ TEST_F(UrlPlayerRendererWrapperIntegrationTest,
               OnBufferingStateChange(BUFFERING_HAVE_ENOUGH,
                                      BUFFERING_CHANGE_REASON_UNKNOWN));
   EXPECT_CALL(client_extension_, PaintVideoHoleFrame(gfx::Size(1920, 1080)));
+  // Zero duration from GetInfo maps to kInfiniteDuration (live HLS stream).
+  EXPECT_CALL(client_extension_, OnDurationChange(kInfiniteDuration));
   player_status_cb(player, player_context, kSbPlayerStatePresenting,
                    SB_PLAYER_INITIAL_TICKET);
   task_environment_.RunUntilIdle();

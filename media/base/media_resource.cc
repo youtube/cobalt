@@ -30,6 +30,13 @@ DemuxerStream* MediaResource::GetFirstStream(DemuxerStream::Type type) {
 GURL MediaResource::GetMediaUrl() const {
   return GURL();
 }
+
+void MediaResource::ForwardDurationChangeToDemuxerHost(
+    base::TimeDelta duration) {}
+
+void MediaResource::ForwardBufferedTimeRangesToDemuxerHost(
+    base::TimeDelta start,
+    base::TimeDelta length) {}
 #endif  // BUILDFLAG(USE_STARBOARD_URL_PLAYER)
 
 }  // namespace media

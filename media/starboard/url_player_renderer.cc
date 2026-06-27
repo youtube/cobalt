@@ -236,6 +236,16 @@ TimeDelta UrlPlayerRenderer::GetMediaTime() {
     TryReportVideoDimensions();
   }
 
+  // Poll buffered ranges from the native URL player.
+  if (buffered_ranges_cb_) {
+    TimeDelta buffer_start, buffer_length;
+    player_bridge_->GetUrlPlayerBufferedTimeRanges(&buffer_start,
+                                                   &buffer_length);
+    if (buffer_length > TimeDelta()) {
+      buffered_ranges_cb_.Run(buffer_start, buffer_length);
+    }
+  }
+
   StoreMediaTime(media_time);
   return media_time;
 }
@@ -406,6 +416,16 @@ void UrlPlayerRenderer::OnPlayerStatus(SbPlayerState state) {
       if (!has_reported_dimensions_) {
         LOG(WARNING) << "Dimensions not yet available at presenting; "
                         "will retry during GetMediaTime() polling.";
+      }
+
+      // Report duration from native player to the pipeline.
+      // For HLS, zero duration indicates a live/infinite stream.
+      if (duration_change_cb_) {
+        TimeDelta duration = player_bridge_->GetDuration();
+        if (duration.is_zero()) {
+          duration = kInfiniteDuration;
+        }
+        duration_change_cb_.Run(duration);
       }
 
       // Re-apply playback rate. AVPlayer silently ignores rate changes

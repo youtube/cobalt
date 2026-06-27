@@ -90,6 +90,13 @@ void UrlPlayerRendererWrapper::Initialize(MediaResource* media_resource,
           weak_factory_.GetWeakPtr()),
       base::BindRepeating(&UrlPlayerRendererWrapper::OnGetSbWindowHandle,
                           weak_factory_.GetWeakPtr()));
+
+  // Wire duration and buffered ranges callbacks.
+  GetRenderer()->SetDurationChangeCB(base::BindRepeating(
+      &UrlPlayerRendererWrapper::OnDurationChange, weak_factory_.GetWeakPtr()));
+  GetRenderer()->SetBufferedRangesCB(
+      base::BindRepeating(&UrlPlayerRendererWrapper::OnBufferedTimeRangesChange,
+                          weak_factory_.GetWeakPtr()));
 }
 
 void UrlPlayerRendererWrapper::InitializeWithUrl(
@@ -193,6 +200,18 @@ void UrlPlayerRendererWrapper::OnUpdateStarboardRenderingMode(
 void UrlPlayerRendererWrapper::OnGetSbWindowHandle() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   client_extension_remote_->GetSbWindowHandle();
+}
+
+void UrlPlayerRendererWrapper::OnDurationChange(base::TimeDelta duration) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  client_extension_remote_->OnDurationChange(duration);
+}
+
+void UrlPlayerRendererWrapper::OnBufferedTimeRangesChange(
+    base::TimeDelta start,
+    base::TimeDelta length) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  client_extension_remote_->OnBufferedTimeRangesChange(start, length);
 }
 
 void UrlPlayerRendererWrapper::OnSubscribeToVideoGeometryChange(

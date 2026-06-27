@@ -89,6 +89,11 @@ class MEDIA_EXPORT UrlPlayerDemuxer : public Demuxer {
                        TrackChangeCB change_completed_cb) override;
   void SetPlaybackRate(double rate) override;
 
+  // MediaResource overrides.
+  void ForwardDurationChangeToDemuxerHost(base::TimeDelta duration) override;
+  void ForwardBufferedTimeRangesToDemuxerHost(base::TimeDelta start,
+                                              base::TimeDelta length) override;
+
  private:
   scoped_refptr<base::SequencedTaskRunner> media_task_runner_;
   raw_ptr<DemuxerHost> host_ = nullptr;

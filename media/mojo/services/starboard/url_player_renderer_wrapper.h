@@ -109,6 +109,9 @@ class UrlPlayerRendererWrapper
   void OnPaintVideoHoleFrame(const gfx::Size& size);
   void OnUpdateStarboardRenderingMode(StarboardRenderingMode mode);
   void OnGetSbWindowHandle();
+  void OnDurationChange(base::TimeDelta duration);
+  void OnBufferedTimeRangesChange(base::TimeDelta start,
+                                  base::TimeDelta length);
   void OnSubscribeToVideoGeometryChange(MediaResource* media_resource,
                                         RendererClient* client,
                                         PipelineStatusCallback init_cb);

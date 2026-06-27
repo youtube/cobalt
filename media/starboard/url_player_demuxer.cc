@@ -24,6 +24,7 @@
 #include "media/base/channel_layout.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/media_track.h"
+#include "media/base/ranges.h"
 #include "media/base/sample_format.h"
 #include "media/base/video_decoder_config.h"
 
@@ -154,5 +155,22 @@ void UrlPlayerDemuxer::OnTracksChanged(
 }
 
 void UrlPlayerDemuxer::SetPlaybackRate(double rate) {}
+
+void UrlPlayerDemuxer::ForwardDurationChangeToDemuxerHost(
+    base::TimeDelta duration) {
+  if (host_) {
+    host_->SetDuration(duration);
+  }
+}
+
+void UrlPlayerDemuxer::ForwardBufferedTimeRangesToDemuxerHost(
+    base::TimeDelta start,
+    base::TimeDelta length) {
+  if (host_) {
+    Ranges<base::TimeDelta> ranges;
+    ranges.Add(start, start + length);
+    host_->OnBufferedTimeRangesChanged(ranges);
+  }
+}
 
 }  // namespace media

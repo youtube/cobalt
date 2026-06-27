@@ -58,6 +58,7 @@ void UrlPlayerRendererClient::Initialize(MediaResource* media_resource,
   DCHECK(!init_cb_);
 
   client_ = client;
+  media_resource_ = media_resource;
   init_cb_ = std::move(init_cb);
 
   DCHECK(!AreMojoPipesConnected());
@@ -133,6 +134,22 @@ void UrlPlayerRendererClient::GetSbWindowHandle() {
     sb_window_handle = get_sb_window_handle_callback_.Run();
   }
   renderer_extension_->OnSbWindowHandleReady(sb_window_handle);
+}
+
+void UrlPlayerRendererClient::OnDurationChange(base::TimeDelta duration) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  if (media_resource_) {
+    media_resource_->ForwardDurationChangeToDemuxerHost(duration);
+  }
+}
+
+void UrlPlayerRendererClient::OnBufferedTimeRangesChange(
+    base::TimeDelta start,
+    base::TimeDelta length) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  if (media_resource_) {
+    media_resource_->ForwardBufferedTimeRangesToDemuxerHost(start, length);
+  }
 }
 
 void UrlPlayerRendererClient::OnConnectionError() {

@@ -77,6 +77,18 @@ class MEDIA_EXPORT UrlPlayerRenderer : public Renderer,
   using UpdateStarboardRenderingModeCallback =
       base::RepeatingCallback<void(const StarboardRenderingMode mode)>;
   using GetSbWindowHandleCallback = base::RepeatingCallback<void()>;
+  using DurationChangeCB =
+      base::RepeatingCallback<void(base::TimeDelta duration)>;
+  using BufferedRangesCB =
+      base::RepeatingCallback<void(base::TimeDelta start,
+                                   base::TimeDelta length)>;
+
+  void SetDurationChangeCB(DurationChangeCB cb) {
+    duration_change_cb_ = std::move(cb);
+  }
+  void SetBufferedRangesCB(BufferedRangesCB cb) {
+    buffered_ranges_cb_ = std::move(cb);
+  }
 
   void SetUrlPlayerRendererCallbacks(
       PaintVideoHoleFrameCallback paint_video_hole_frame_cb,
@@ -136,6 +148,8 @@ class MEDIA_EXPORT UrlPlayerRenderer : public Renderer,
   PaintVideoHoleFrameCallback paint_video_hole_frame_cb_;
   UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb_;
   GetSbWindowHandleCallback get_sb_window_handle_cb_;
+  DurationChangeCB duration_change_cb_;
+  BufferedRangesCB buffered_ranges_cb_;
 
   std::optional<gfx::Rect> output_rect_;
   base::TimeDelta seek_time_;

@@ -73,6 +73,9 @@ class MEDIA_EXPORT UrlPlayerRendererClient
   void PaintVideoHoleFrame(const gfx::Size& size) override;
   void UpdateStarboardRenderingMode(StarboardRenderingMode mode) override;
   void GetSbWindowHandle() override;
+  void OnDurationChange(base::TimeDelta duration) override;
+  void OnBufferedTimeRangesChange(base::TimeDelta start,
+                                  base::TimeDelta length) override;
 
  private:
   void OnConnectionError();
@@ -101,6 +104,7 @@ class MEDIA_EXPORT UrlPlayerRendererClient
   mojo::Remote<RendererExtension> renderer_extension_;
 
   raw_ptr<RendererClient> client_ = nullptr;
+  raw_ptr<MediaResource> media_resource_ = nullptr;
   PipelineStatusCallback init_cb_;
 
   StarboardRenderingMode rendering_mode_ = StarboardRenderingMode::kInvalid;
