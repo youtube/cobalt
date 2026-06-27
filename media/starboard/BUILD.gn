@@ -107,7 +107,10 @@ source_set("unit_tests") {
     ]
   }
   if (use_starboard_url_player) {
-    sources += [ "url_player_renderer_unittest.cc" ]
+    sources += [
+      "url_player_demuxer_unittest.cc",
+      "url_player_renderer_unittest.cc",
+    ]
   }
   configs += [ "//media:media_config" ]
   deps = [

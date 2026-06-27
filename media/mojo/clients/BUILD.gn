@@ -222,4 +222,11 @@ source_set("unit_tests") {
     sources += [ "starboard/starboard_renderer_client_unittest.cc" ]
   }
 
+  if (is_cobalt && use_starboard_url_player) {
+    sources += [
+      "starboard/url_player_renderer_client_factory_unittest.cc",
+      "starboard/url_player_renderer_client_unittest.cc",
+    ]
+  }
+
 }
