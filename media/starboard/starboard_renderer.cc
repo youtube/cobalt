@@ -26,6 +26,7 @@
 #include "media/base/decoder_buffer.h"
 #include "media/base/media_switches.h"
 #include "media/base/starboard/experimental_features.h"
+#include "media/base/timestamp_constants.h"
 #include "media/base/video_codecs.h"
 #include "media/starboard/buildflags.h"
 #include "media/starboard/decoder_buffer_allocator.h"
@@ -483,6 +484,17 @@ TimeDelta StarboardRenderer::GetMediaTime() {
         FROM_HERE, base::BindOnce(&StarboardRenderer::OnStatisticsUpdate,
                                   weak_factory_.GetWeakPtr(), statistics));
   }
+#if BUILDFLAG(IS_IOS_TVOS)
+  if (IsUrlPlayer() && player_bridge_ && buffered_ranges_cb_) {
+    TimeDelta buffer_start, buffer_length;
+    player_bridge_->GetUrlPlayerBufferedTimeRanges(&buffer_start,
+                                                   &buffer_length);
+    if (buffer_length > TimeDelta()) {
+      buffered_ranges_cb_.Run(buffer_start, buffer_length);
+    }
+  }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
   StoreMediaTime(media_time);
 
   return media_time;
@@ -565,6 +577,15 @@ void StarboardRenderer::OnUrlPlayerPresenting() {
     LOG(WARNING) << "Platform player reported invalid dimensions (" << width
                  << "x" << height
                  << ") at presenting; skipping video hole update.";
+  }
+
+  // Forward duration; zero is treated as infinite.
+  if (duration_change_cb_) {
+    TimeDelta duration = player_bridge_->GetDuration();
+    if (duration.is_zero()) {
+      duration = kInfiniteDuration;
+    }
+    duration_change_cb_.Run(duration);
   }
 
   // Re-apply playback rate; the platform player ignores rate changes

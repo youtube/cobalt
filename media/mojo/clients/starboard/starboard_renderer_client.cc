@@ -107,6 +107,9 @@ void StarboardRendererClient::Initialize(MediaResource* media_resource,
   DCHECK(!init_cb_);
 
   client_ = client;
+#if BUILDFLAG(IS_IOS_TVOS)
+  media_resource_ = media_resource;
+#endif  // BUILDFLAG(IS_IOS_TVOS)
   init_cb_ = std::move(init_cb);
 
   DCHECK(!AreMojoPipesConnected());
@@ -284,6 +287,24 @@ void StarboardRendererClient::GetSbWindowHandle() {
   }
   renderer_extension_->OnSbWindowHandleReady(sb_window_handle);
 }
+
+#if BUILDFLAG(IS_IOS_TVOS)
+void StarboardRendererClient::OnDurationChange(base::TimeDelta duration) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  if (media_resource_) {
+    media_resource_->ForwardDurationChangeToDemuxerHost(duration);
+  }
+}
+
+void StarboardRendererClient::OnBufferedTimeRangesChange(
+    base::TimeDelta start,
+    base::TimeDelta length) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  if (media_resource_) {
+    media_resource_->ForwardBufferedTimeRangesToDemuxerHost(start, length);
+  }
+}
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 #if BUILDFLAG(IS_ANDROID)
 void StarboardRendererClient::RequestOverlayInfo(bool restart_for_transitions) {
