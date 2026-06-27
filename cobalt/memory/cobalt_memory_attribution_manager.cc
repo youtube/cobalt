@@ -64,6 +64,9 @@ void CobaltMemoryAttributionManager::Start() {
       this, "CobaltMemoryAttributionManager",
       base::SingleThreadTaskRunner::GetCurrentDefault());
 
+  // Register for power suspend events so we can discard partial allocation
+  // intervals prior to sleep and establish a fresh baseline upon waking up.
+  // This ensures our UMA reports cover clean, uninterrupted time intervals.
   base::PowerMonitor::GetInstance()->AddPowerSuspendObserver(this);
 
   last_report_time_ = base::TimeTicks::Now();
