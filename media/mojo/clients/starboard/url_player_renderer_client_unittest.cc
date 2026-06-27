@@ -238,24 +238,35 @@ TEST_F(UrlPlayerRendererClientTest, DisconnectDuringInitFailsInit) {
   task_environment_.RunUntilIdle();
 }
 
-TEST_F(UrlPlayerRendererClientTest, RejectsDecodeToTextureDuringInit) {
+// URL player only supports punch-out mode. The rendering mode is determined
+// at the Starboard layer by SbUrlPlayerOutputModeSupported() which returns
+// true only for kSbPlayerOutputModePunchOut. DTT and invalid modes cannot
+// arrive in production, so UpdateStarboardRenderingMode() ignores them.
+// See the protocol comment in url_player_renderer_client.cc.
+TEST_F(UrlPlayerRendererClientTest, IgnoresDecodeToTextureDuringInit) {
   base::MockOnceCallback<void(PipelineStatus)> init_cb;
-  EXPECT_CALL(init_cb, Run(HasStatusCode(DECODER_ERROR_NOT_SUPPORTED)));
+  EXPECT_CALL(init_cb, Run(_)).Times(0);
 
   InitializeClient(init_cb.Get());
-  // DTT mode fires init_cb_ immediately with an error, short-circuiting
-  // the two-event protocol. No need to complete mojo init afterwards.
+  // DTT is ignored by URL player. init_cb_ should not fire.
   client_->UpdateStarboardRenderingMode(
       StarboardRenderingMode::kDecodeToTexture);
   task_environment_.RunUntilIdle();
+  testing::Mock::VerifyAndClearExpectations(&init_cb);
+
+  // Mojo init completing afterwards should also not fire init_cb_
+  // because rendering_mode_ is not kPunchOut.
+  EXPECT_CALL(init_cb, Run(_)).Times(0);
+  fake_renderer_.CompleteInitialize(true);
+  task_environment_.RunUntilIdle();
 }
 
-TEST_F(UrlPlayerRendererClientTest, RejectsInvalidRenderingModeDuringInit) {
+TEST_F(UrlPlayerRendererClientTest, IgnoresInvalidRenderingModeDuringInit) {
   base::MockOnceCallback<void(PipelineStatus)> init_cb;
-  EXPECT_CALL(init_cb,
-              Run(HasStatusCode(PIPELINE_ERROR_INITIALIZATION_FAILED)));
+  EXPECT_CALL(init_cb, Run(_)).Times(0);
 
   InitializeClient(init_cb.Get());
+  // Invalid mode is ignored. init_cb_ should not fire.
   client_->UpdateStarboardRenderingMode(StarboardRenderingMode::kInvalid);
   task_environment_.RunUntilIdle();
 }

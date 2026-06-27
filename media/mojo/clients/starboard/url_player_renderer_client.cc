@@ -78,34 +78,46 @@ void UrlPlayerRendererClient::PaintVideoHoleFrame(const gfx::Size& size) {
       video_overlay_factory_->CreateFrame(size));
 }
 
+// Two-event initialization protocol:
+//
+// UrlPlayerRendererClient initialization requires two independent events
+// before firing init_cb_:
+//   Event A: Mojo init response (OnMojoRendererInitialized) - response to
+//            InitializeWithUrl sent over mojom::Renderer pipe.
+//   Event B: Rendering mode update (UpdateStarboardRenderingMode) - sent by
+//            UrlPlayerRendererWrapper over
+//            mojom::StarboardRendererClientExtension pipe after
+//            UrlPlayerRenderer creates the SbPlayerBridge.
+//
+// These arrive on different Mojo pipes with no ordering guarantee.
+// Whichever arrives second sees the first's state and fires init_cb_.
+//
+// URL player only supports punch-out mode. The rendering mode is determined
+// at the Starboard layer by SbUrlPlayerOutputModeSupported()
+// (starboard/tvos/shared/media/url_player_output_mode_supported.mm), which
+// returns true only for kSbPlayerOutputModePunchOut. This is called via
+// SbPlayerBridge::ComputeSbUrlPlayerOutputMode() (media/starboard/
+// sbplayer_bridge.cc) before player creation. After creation,
+// UrlPlayerRenderer::CreatePlayerBridge() (media/starboard/
+// url_player_renderer.cc) validates the mode and always sends kPunchOut
+// through the callback chain:
+//   UrlPlayerRenderer -> UrlPlayerRendererWrapper::
+//   OnUpdateStarboardRenderingMode -> Mojo -> here.
+//
+// Because the rendering mode is always kPunchOut for URL player,
+// DTT and invalid modes are not expected. LOG(WARNING) is used to flag
+// unexpected values without crashing, since the platform guarantees
+// punch-out.
 void UrlPlayerRendererClient::UpdateStarboardRenderingMode(
     const StarboardRenderingMode mode) {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
   rendering_mode_ = mode;
 
-  switch (rendering_mode_) {
-    case StarboardRenderingMode::kPunchOut:
-      // URL player always uses punch-out. Nothing to do.
-      break;
-    case StarboardRenderingMode::kDecodeToTexture:
-      // URL player does not support DTT. Fail initialization.
-      LOG(ERROR) << "DTT mode not supported for URL player.";
-      SetMojoRendererInitialized(
-          PipelineStatus(DECODER_ERROR_NOT_SUPPORTED,
-                         "URL player does not support decode-to-texture"));
-      if (!init_cb_.is_null()) {
-        std::move(init_cb_).Run(pipeline_status());
-      }
-      return;
-    case StarboardRenderingMode::kInvalid:
-      LOG(ERROR) << "Invalid rendering mode.";
-      SetMojoRendererInitialized(
-          PipelineStatus(PIPELINE_ERROR_INITIALIZATION_FAILED,
-                         "Invalid rendering mode for URL player"));
-      if (!init_cb_.is_null()) {
-        std::move(init_cb_).Run(pipeline_status());
-      }
-      return;
+  if (rendering_mode_ != StarboardRenderingMode::kPunchOut) {
+    LOG(WARNING) << "URL player received unexpected rendering mode: "
+                 << static_cast<int>(rendering_mode_)
+                 << ". Only punch-out is supported.";
+    return;
   }
 
   // Two-event protocol: if Mojo init already completed, run init_cb_ now.
@@ -176,13 +188,15 @@ void UrlPlayerRendererClient::InitializeMojoRenderer(
 void UrlPlayerRendererClient::OnMojoRendererInitialized(PipelineStatus status) {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
 
-  // Two-event protocol: if rendering mode already arrived, complete now.
-  // Otherwise, UpdateStarboardRenderingMode() will complete when it arrives.
-  if (rendering_mode_ != StarboardRenderingMode::kInvalid) {
-    DCHECK(!init_cb_.is_null());
+  SetMojoRendererInitialized(status);
+
+  // Two-event protocol: if punch-out rendering mode already arrived, complete
+  // now. Otherwise, UpdateStarboardRenderingMode() will fire init_cb_ when it
+  // arrives. See the protocol comment above UpdateStarboardRenderingMode().
+  if (rendering_mode_ == StarboardRenderingMode::kPunchOut &&
+      !init_cb_.is_null()) {
     std::move(init_cb_).Run(status);
   }
-  SetMojoRendererInitialized(status);
 }
 
 void UrlPlayerRendererClient::SetMojoRendererInitialized(
