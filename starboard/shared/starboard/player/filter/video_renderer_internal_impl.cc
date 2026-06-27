@@ -68,9 +68,9 @@ VideoRendererImpl::VideoRendererImpl(
   time_of_last_lag_warning_ = CurrentMonotonicTime() - kMinLagWarningInterval;
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   auto min_input_buffers =
-      experimental_features_.Get<int>(kMediaVideoRendererMinInputBuffers);
+      experimental_features_.Get(kMediaVideoRendererMinInputBuffers);
   auto min_decoded_frames =
-      experimental_features_.Get<int>(kMediaVideoRendererMinDecodedFrames);
+      experimental_features_.Get(kMediaVideoRendererMinDecodedFrames);
   if (min_input_buffers && min_decoded_frames) {
     SB_LOG(INFO) << "VideoRendererImpl is created: preroll_params="
                  << "{min_input_buffers=" << *min_input_buffers
@@ -382,9 +382,9 @@ void VideoRendererImpl::OnDecoderStatus(
 
     bool preroll_completed = false;
     auto min_input_buffers =
-        experimental_features_.Get<int>(kMediaVideoRendererMinInputBuffers);
+        experimental_features_.Get(kMediaVideoRendererMinInputBuffers);
     auto min_decoded_frames =
-        experimental_features_.Get<int>(kMediaVideoRendererMinDecodedFrames);
+        experimental_features_.Get(kMediaVideoRendererMinDecodedFrames);
     if (min_input_buffers && min_decoded_frames) {
       preroll_completed = input_buffers_sent_.load() >= *min_input_buffers &&
                           number_of_frames_.load() >= *min_decoded_frames;

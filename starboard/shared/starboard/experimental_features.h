@@ -1,4 +1,4 @@
-// Copyright 2026 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,19 +16,23 @@
 #define STARBOARD_SHARED_STARBOARD_EXPERIMENTAL_FEATURES_H_
 
 #include <cerrno>
+#include <cstdint>
 #include <cstdlib>
 #include <functional>
 #include <map>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <type_traits>
 
 #include "starboard/extension/experimental/experimental_features.h"
 
 namespace starboard {
 
+template <typename T>
 class ExperimentalFeatureKey {
  public:
+  using ValueType = T;
   constexpr explicit ExperimentalFeatureKey(std::string_view key) : key_(key) {}
   constexpr std::string_view key() const { return key_; }
 
@@ -37,57 +41,79 @@ class ExperimentalFeatureKey {
 };
 
 // keep-sorted start
-inline constexpr ExperimentalFeatureKey kMediaAllowAudioWritingOnPause(
+inline constexpr ExperimentalFeatureKey<bool> kMediaAllowAudioWritingOnPause(
     "Media.AllowAudioWritingOnPause");
-inline constexpr ExperimentalFeatureKey kMediaEnableAv1StartupOptimization(
-    "Media.EnableAv1StartupOptimization");
-inline constexpr ExperimentalFeatureKey kMediaEnableFlushDuringSeek(
+inline constexpr ExperimentalFeatureKey<bool> kMediaEnableFlushDuringSeek(
     "Media.EnableFlushDuringSeek");
-inline constexpr ExperimentalFeatureKey kMediaEnableLowLatency(
+inline constexpr ExperimentalFeatureKey<bool> kMediaEnableLowLatency(
     "Media.EnableLowLatency");
-inline constexpr ExperimentalFeatureKey kMediaEnableResetAudioDecoder(
+inline constexpr ExperimentalFeatureKey<bool> kMediaEnableResetAudioDecoder(
     "Media.EnableResetAudioDecoder");
-inline constexpr ExperimentalFeatureKey
+inline constexpr ExperimentalFeatureKey<bool> kMediaEnableTrivialOptimizations(
+    "Media.EnableTrivialOptimizations");
+inline constexpr ExperimentalFeatureKey<bool> kMediaFlushAudioTrackDuringSeek(
+    "Media.FlushAudioTrackDuringSeek");
+inline constexpr ExperimentalFeatureKey<bool> kMediaForceClearSurfaceView(
+    "Media.ForceClearSurfaceView");
+inline constexpr ExperimentalFeatureKey<bool> kMediaSkipFlushOnDecoderTeardown(
+    "Media.SkipFlushOnDecoderTeardown");
+inline constexpr ExperimentalFeatureKey<bool> kMediaSkipVideoFramesOver60Fps(
+    "Media.SkipVideoFramesOver60Fps");
+inline constexpr ExperimentalFeatureKey<bool>
+    kMediaEnableAv1StartupOptimization("Media.EnableAv1StartupOptimization");
+inline constexpr ExperimentalFeatureKey<bool>
     kMediaEnableSimdBasedAudioFormatSwitching(
         "Media.EnableSimdBasedAudioFormatSwitching");
-inline constexpr ExperimentalFeatureKey kMediaEnableTrivialOptimizations(
-    "Media.EnableTrivialOptimizations");
-inline constexpr ExperimentalFeatureKey kMediaEnableVideoRendererVspAdjustment(
-    "Media.EnableVideoRendererVspAdjustment");
-inline constexpr ExperimentalFeatureKey kMediaFlushAudioTrackDuringSeek(
-    "Media.FlushAudioTrackDuringSeek");
-inline constexpr ExperimentalFeatureKey kMediaForceClearSurfaceView(
-    "Media.ForceClearSurfaceView");
-inline constexpr ExperimentalFeatureKey
+inline constexpr ExperimentalFeatureKey<bool>
+    kMediaEnableVideoRendererVspAdjustment(
+        "Media.EnableVideoRendererVspAdjustment");
+inline constexpr ExperimentalFeatureKey<bool>
     kMediaIgnoreMediaCodecCallbacksDuringFlushing(
         "Media.IgnoreMediaCodecCallbacksDuringFlushing");
-inline constexpr ExperimentalFeatureKey kMediaSkipFlushOnDecoderTeardown(
-    "Media.SkipFlushOnDecoderTeardown");
-inline constexpr ExperimentalFeatureKey kMediaSkipVideoFramesOver60Fps(
-    "Media.SkipVideoFramesOver60Fps");
-inline constexpr ExperimentalFeatureKey kMediaVideoDecoderInitialPrerollCount(
-    "Media.VideoDecoderInitialPrerollCount");
-inline constexpr ExperimentalFeatureKey kMediaVideoRendererMinDecodedFrames(
-    "Media.VideoRendererMinDecodedFrames");
-inline constexpr ExperimentalFeatureKey kMediaVideoRendererMinInputBuffers(
+inline constexpr ExperimentalFeatureKey<int> kMediaVideoRendererMinInputBuffers(
     "Media.VideoRendererMinInputBuffers");
+inline constexpr ExperimentalFeatureKey<int>
+    kMediaVideoDecoderInitialPrerollCount(
+        "Media.VideoDecoderInitialPrerollCount");
+inline constexpr ExperimentalFeatureKey<int>
+    kMediaVideoRendererMinDecodedFrames("Media.VideoRendererMinDecodedFrames");
 // keep-sorted end
 
 class ExperimentalFeatures {
  public:
-  using Map = std::map<std::string, std::string, std::less<>>;
+  using Map = std::map<std::string, int64_t, std::less<>>;
 
   ExperimentalFeatures() = default;
   explicit ExperimentalFeatures(const Map& settings);
   ~ExperimentalFeatures() = default;
 
-  bool GetBool(const ExperimentalFeatureKey& key) const;
+  // Returns the boolean value for the given key, falling back to false if the
+  // key is missing or unset.
+  bool GetBool(const ExperimentalFeatureKey<bool>& key) const;
 
   template <typename T>
-  std::optional<T> Get(const ExperimentalFeatureKey& key) const {
-    static_assert(sizeof(T) == 0,
-                  "Unsupported type for ExperimentalFeatures::Get<T>");
-    return std::nullopt;
+  std::optional<T> Get(const ExperimentalFeatureKey<T>& key) const {
+    auto it = settings().find(key.key());
+    if (it == settings().end()) {
+      return std::nullopt;
+    }
+    if constexpr (std::is_same_v<T, bool>) {
+      return it->second != 0;
+    } else if constexpr (std::is_same_v<T, int>) {
+      int64_t val = it->second;
+      // Experiment framework uses 0 as the sentinel value for unset.
+      // e.g.)
+      // http://go/latestexpcl/player_web/features/player_web_cobalt.impl.gcl;l=332;rcl=862772714
+      constexpr int kH5vccUnsetSentinel = 0;
+      if (val == kH5vccUnsetSentinel) {
+        return std::nullopt;
+      }
+      return static_cast<int>(val);
+    } else {
+      static_assert(sizeof(T) == 0,
+                    "Unsupported type for ExperimentalFeatures::Get<T>");
+      return std::nullopt;
+    }
   }
 
   const Map& settings() const { return settings_; }
@@ -95,32 +121,6 @@ class ExperimentalFeatures {
  private:
   Map settings_;
 };
-
-template <>
-inline std::optional<bool> ExperimentalFeatures::Get<bool>(
-    const ExperimentalFeatureKey& key) const {
-  auto it = settings().find(key.key());
-  if (it == settings().end()) {
-    return std::nullopt;
-  }
-  return it->second != "0" && it->second != "false";
-}
-
-template <>
-inline std::optional<int> ExperimentalFeatures::Get<int>(
-    const ExperimentalFeatureKey& key) const {
-  auto it = settings().find(key.key());
-  if (it == settings().end()) {
-    return std::nullopt;
-  }
-  char* end = nullptr;
-  errno = 0;
-  long val = strtol(it->second.c_str(), &end, /*base=*/10);
-  if (errno == ERANGE || end == it->second.c_str() || *end != '\0') {
-    return std::nullopt;
-  }
-  return static_cast<int>(val);
-}
 
 // Sets the experimental features for the current thread.
 void SetExperimentalFeaturesForCurrentThread(

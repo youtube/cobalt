@@ -46,8 +46,9 @@ const StarboardExtensionExperimentalFeaturesConfigurationApi
 ExperimentalFeatures::ExperimentalFeatures(const Map& settings)
     : settings_(settings) {}
 
-bool ExperimentalFeatures::GetBool(const ExperimentalFeatureKey& key) const {
-  return Get<bool>(key).value_or(false);
+bool ExperimentalFeatures::GetBool(
+    const ExperimentalFeatureKey<bool>& key) const {
+  return Get(key).value_or(false);
 }
 
 void SetExperimentalFeaturesForCurrentThread(

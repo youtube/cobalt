@@ -30,8 +30,8 @@ TEST(StarboardRendererConfigTest, SunnyDay) {
   const std::string max_video_capabilities =
       "width=1920; height=1080; framerate=15;";
   StarboardRendererConfig::ExperimentalFeatures experimental_features;
-  experimental_features["Media.ForceDecodeToTexture"] = "1";
-  experimental_features["Media.BypassMojoForMedia"] = "0";
+  experimental_features["Media.ForceDecodeToTexture"] = 1;
+  experimental_features["Media.BypassMojoForMedia"] = 0;
 
   StarboardRendererConfig config(
       base::UnguessableToken::Create(), audio_write_duration_local,
@@ -42,9 +42,9 @@ TEST(StarboardRendererConfigTest, SunnyDay) {
   EXPECT_EQ(config.max_video_capabilities, max_video_capabilities);
   EXPECT_TRUE(kMediaForceDecodeToTexture.GetBool(config.experimental_features));
   EXPECT_FALSE(kMediaBypassMojoForMedia.GetBool(config.experimental_features));
-  EXPECT_EQ(kMediaForceDecodeToTexture.Get<bool>(config.experimental_features),
+  EXPECT_EQ(kMediaForceDecodeToTexture.Get(config.experimental_features),
             std::optional<bool>(true));
-  EXPECT_EQ(kMediaBypassMojoForMedia.Get<bool>(config.experimental_features),
+  EXPECT_EQ(kMediaBypassMojoForMedia.Get(config.experimental_features),
             std::optional<bool>(false));
   EXPECT_EQ(config.viewport_size, gfx::Size(1920, 1080));
 }

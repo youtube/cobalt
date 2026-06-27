@@ -20,25 +20,23 @@ namespace media {
 
 TEST(H5vccSettingsTest, GetBool) {
   H5vccSettingsMap map;
-  map["Media.ForceDecodeToTexture"] = "1";
-  map["Media.BypassMojoForMedia"] = "0";
+  map["Media.ForceDecodeToTexture"] = 1;
+  map["Media.BypassMojoForMedia"] = 0;
 
   EXPECT_TRUE(kMediaForceDecodeToTexture.GetBool(map));
   EXPECT_FALSE(kMediaBypassMojoForMedia.GetBool(map));
-  EXPECT_FALSE(kMediaMaxSamplesPerWrite.GetBool(map));
+  EXPECT_FALSE(kMediaForceClearSurfaceView.GetBool(map));
 }
 
 TEST(H5vccSettingsTest, GenericGet) {
   H5vccSettingsMap map;
-  map["Media.ForceDecodeToTexture"] = "1";
-  map["Media.BypassMojoForMedia"] = "0";
-  map["Media.MaxSamplesPerWrite"] = "50";
+  map["Media.ForceDecodeToTexture"] = 1;
+  map["Media.BypassMojoForMedia"] = 0;
+  map["Media.MaxSamplesPerWrite"] = 50;
 
-  EXPECT_EQ(kMediaForceDecodeToTexture.Get<bool>(map),
-            std::optional<bool>(true));
-  EXPECT_EQ(kMediaBypassMojoForMedia.Get<bool>(map),
-            std::optional<bool>(false));
-  EXPECT_EQ(kMediaMaxSamplesPerWrite.Get<int>(map), std::optional<int>(50));
+  EXPECT_EQ(kMediaForceDecodeToTexture.Get(map), std::optional<bool>(true));
+  EXPECT_EQ(kMediaBypassMojoForMedia.Get(map), std::optional<bool>(false));
+  EXPECT_EQ(kMediaMaxSamplesPerWrite.Get(map), std::optional<int>(50));
 }
 
 }  // namespace media

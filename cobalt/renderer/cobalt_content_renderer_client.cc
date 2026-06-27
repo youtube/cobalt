@@ -53,10 +53,12 @@ using H5vccSettingsMap = ::media::H5vccSettingsMap;
 H5vccSettingsMap ParseH5vccSettings(cobalt::mojom::SettingsPtr settings) {
   H5vccSettingsMap h5vcc_settings;
   for (auto& [key, value] : settings->settings) {
-    if (value->is_string_value()) {
-      h5vcc_settings.emplace(key, std::move(value->get_string_value()));
-    } else if (value->is_int_value()) {
-      h5vcc_settings.emplace(key, std::to_string(value->get_int_value()));
+    if (value->is_int_value()) {
+      h5vcc_settings.emplace(key, value->get_int_value());
+    } else if (value->is_string_value()) {
+      // Currently, no H5VCC settings use string values.
+      // Support for string values will be added if needed in the future.
+      LOG(WARNING) << "Ignoring non-integer H5vcc setting: " << key;
     } else {
       NOTREACHED();
     }
@@ -318,10 +320,11 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   EnsureH5vccSettingsRemoteInitialized();
 
   cobalt::mojom::SettingsPtr settings;
+  ::media::StarboardRendererConfig::ExperimentalFeatures experimental_features;
   if ((*h5vcc_settings_remote_)->GetSettings(&settings) && settings) {
-    renderer_factory_traits->experimental_features =
-        ParseH5vccSettings(std::move(settings));
+    experimental_features = ParseH5vccSettings(std::move(settings));
   }
+  renderer_factory_traits->experimental_features = experimental_features;
 }
 
 void CobaltContentRendererClient::PostSandboxInitialized() {
