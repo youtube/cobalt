@@ -91,7 +91,7 @@ class JobQueue {
       } else {
         using Impl = ImplType<DecayedF>;
         storage_.ptr = new Impl(std::forward<F>(f));
-        invoke_ = [](Buffer& buf) { static_cast<Impl*>(buf.ptr)->Run(); };
+        invoke_ = [](Buffer& buf) { static_cast<Impl*>(buf.ptr)->f_(); };
         destroy_ = [](Buffer& buf) { delete static_cast<Impl*>(buf.ptr); };
         move_ = [](Buffer& src, Buffer& dest) {
           dest.ptr = src.ptr;
@@ -154,16 +154,10 @@ class JobQueue {
       void* ptr;
     };
 
-    struct ImplBase {
-      virtual ~ImplBase() = default;
-      virtual void Run() = 0;
-    };
-
     template <typename F>
-    struct ImplType : public ImplBase {
+    struct ImplType {
       template <typename U>
       explicit ImplType(U&& f) : f_(std::forward<U>(f)) {}
-      void Run() override { f_(); }
       F f_;
     };
 
