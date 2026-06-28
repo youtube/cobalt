@@ -30,6 +30,11 @@
 
 namespace starboard {
 
+// Strongly typed identifier for an experimental feature key used within
+// Starboard.
+//
+// Threading & Lifetime: Lightweight constexpr wrappers around a compile-time
+// string_view. Thread-safe and intended to be used as static constants.
 template <typename T>
 class ExperimentalFeatureKey {
  public:
@@ -85,6 +90,10 @@ inline constexpr ExperimentalFeatureKey<int>
     kMediaVideoRendererMinDecodedFrames("Media.VideoRendererMinDecodedFrames");
 // keep-sorted end
 
+// Container for experimental feature settings stored per-thread in Starboard.
+//
+// Threading & Lifetime: Managed per thread via function-scoped thread-local
+// storage. Instances are copyable and owned by the thread-local accessor.
 class ExperimentalFeatures {
  public:
   using Value = std::variant<int64_t, std::string>;
@@ -104,39 +113,15 @@ class ExperimentalFeatures {
     if (it == settings().end()) {
       return std::nullopt;
     }
-    if constexpr (std::is_same_v<T, bool>) {
-      if (auto* int_val = std::get_if<int64_t>(&it->second)) {
-        return *int_val != 0;
-      }
-      return std::nullopt;
-    } else if constexpr (std::is_same_v<T, int>) {
-      if (auto* int_val = std::get_if<int64_t>(&it->second)) {
-        int64_t val = *int_val;
-        // Experiment framework uses 0 as the sentinel value for unset.
-        // e.g.)
-        // http://go/latestexpcl/player_web/features/player_web_cobalt.impl.gcl;l=332;rcl=862772714
-        constexpr int kH5vccUnsetSentinel = 0;
-        if (val == kH5vccUnsetSentinel) {
-          return std::nullopt;
-        }
-        return static_cast<int>(val);
-      }
-      return std::nullopt;
-    } else if constexpr (std::is_same_v<T, std::string>) {
-      if (auto* str_val = std::get_if<std::string>(&it->second)) {
-        return *str_val;
-      }
-      return std::nullopt;
-    } else {
-      static_assert(sizeof(T) == 0,
-                    "Unsupported type for ExperimentalFeatures::Get<T>");
-      return std::nullopt;
-    }
+    return GetValue<T>(it->second);
   }
 
   const Map& settings() const { return settings_; }
 
  private:
+  template <typename T>
+  std::optional<T> GetValue(const Value& val) const;
+
   Map settings_;
 };
 

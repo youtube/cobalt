@@ -14,4 +14,64 @@
 
 #include "media/base/starboard/experimental_features.h"
 
-namespace media {}  // namespace media
+#include <utility>
+
+namespace media {
+namespace {
+
+// Experiment framework uses 0 as the sentinel value for unset.
+// e.g.)
+// http://go/latestexpcl/player_web/features/player_web_cobalt.impl.gcl;l=332;rcl=862772714
+constexpr int kH5vccUnsetSentinel = 0;
+
+}  // namespace
+
+ExperimentalFeatures::ExperimentalFeatures() = default;
+ExperimentalFeatures::ExperimentalFeatures(Map settings)
+    : settings_(std::move(settings)) {}
+ExperimentalFeatures::ExperimentalFeatures(const ExperimentalFeatures&) =
+    default;
+ExperimentalFeatures& ExperimentalFeatures::operator=(
+    const ExperimentalFeatures&) = default;
+ExperimentalFeatures::ExperimentalFeatures(ExperimentalFeatures&&) = default;
+ExperimentalFeatures& ExperimentalFeatures::operator=(ExperimentalFeatures&&) =
+    default;
+ExperimentalFeatures::~ExperimentalFeatures() = default;
+
+template <typename T>
+std::optional<T> ExperimentalFeatures::GetValue(const Value& val) const {
+  static_assert(sizeof(T) == 0,
+                "Unsupported type for ExperimentalFeatures::Get");
+  return std::nullopt;
+}
+
+template <>
+std::optional<bool> ExperimentalFeatures::GetValue<bool>(
+    const Value& val) const {
+  auto* int_val = std::get_if<int64_t>(&val);
+  if (!int_val) {
+    return std::nullopt;
+  }
+  return *int_val != 0;
+}
+
+template <>
+std::optional<int> ExperimentalFeatures::GetValue<int>(const Value& val) const {
+  auto* int_val = std::get_if<int64_t>(&val);
+  if (!int_val || *int_val == kH5vccUnsetSentinel) {
+    return std::nullopt;
+  }
+  return static_cast<int>(*int_val);
+}
+
+template <>
+std::optional<std::string> ExperimentalFeatures::GetValue<std::string>(
+    const Value& val) const {
+  auto* str_val = std::get_if<std::string>(&val);
+  if (!str_val) {
+    return std::nullopt;
+  }
+  return *str_val;
+}
+
+}  // namespace media

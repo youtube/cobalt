@@ -22,12 +22,19 @@
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 
 namespace starboard {
-
 namespace {
 
-thread_local std::optional<ExperimentalFeatures> g_experimental_features;
-static_assert(sizeof(ExperimentalFeatures) < 256,
-              "ExperimentalFeatures is too large for thread-local storage.");
+// Experiment framework uses 0 as the sentinel value for unset.
+// e.g.)
+// http://go/latestexpcl/player_web/features/player_web_cobalt.impl.gcl;l=332;rcl=862772714
+constexpr int kH5vccUnsetSentinel = 0;
+
+std::optional<ExperimentalFeatures>& GetThreadLocalExperimentalFeatures() {
+  thread_local std::optional<ExperimentalFeatures> instance;
+  static_assert(sizeof(instance) < 256,
+                "ExperimentalFeatures is too large for thread-local storage.");
+  return instance;
+}
 
 const StarboardExtensionExperimentalFeaturesConfigurationApi
     kExperimentalFeaturesConfigurationApi = {
@@ -46,6 +53,42 @@ bool ExperimentalFeatures::GetBool(
   return Get(key).value_or(false);
 }
 
+template <typename T>
+std::optional<T> ExperimentalFeatures::GetValue(const Value& val) const {
+  static_assert(sizeof(T) == 0,
+                "Unsupported type for ExperimentalFeatures::Get");
+  return std::nullopt;
+}
+
+template <>
+std::optional<bool> ExperimentalFeatures::GetValue<bool>(
+    const Value& val) const {
+  auto* int_val = std::get_if<int64_t>(&val);
+  if (!int_val) {
+    return std::nullopt;
+  }
+  return *int_val != 0;
+}
+
+template <>
+std::optional<int> ExperimentalFeatures::GetValue<int>(const Value& val) const {
+  auto* int_val = std::get_if<int64_t>(&val);
+  if (!int_val || *int_val == kH5vccUnsetSentinel) {
+    return std::nullopt;
+  }
+  return static_cast<int>(*int_val);
+}
+
+template <>
+std::optional<std::string> ExperimentalFeatures::GetValue<std::string>(
+    const Value& val) const {
+  auto* str_val = std::get_if<std::string>(&val);
+  if (!str_val) {
+    return std::nullopt;
+  }
+  return *str_val;
+}
+
 void SetExperimentalFeaturesForCurrentThread(
     const StarboardExtensionExperimentalFeatures* extension_features) {
   // |extension_features| cannot be null. We use a pointer here to support C API
@@ -59,19 +102,21 @@ void SetExperimentalFeaturesForCurrentThread(
       }
     }
   }
-  g_experimental_features = ExperimentalFeatures(map);
+  auto& experimental_features = GetThreadLocalExperimentalFeatures();
+  experimental_features = ExperimentalFeatures(map);
 
-  if (g_experimental_features->GetBool(
+  if (experimental_features->GetBool(
           kMediaEnableSimdBasedAudioFormatSwitching)) {
     DecodedAudio::EnableSimdBasedAudioFormatSwitching();
   }
 }
 
 const ExperimentalFeatures& GetExperimentalFeaturesForCurrentThread() {
-  SB_CHECK(g_experimental_features.has_value())
+  const auto& experimental_features = GetThreadLocalExperimentalFeatures();
+  SB_CHECK(experimental_features.has_value())
       << "ExperimentalFeatures are not set. This method was likely "
          "called on the wrong thread or a race condition occurred.";
-  return *g_experimental_features;
+  return *experimental_features;
 }
 
 const void* GetExperimentalFeaturesConfigurationApi() {

@@ -51,5 +51,31 @@ TEST(ExperimentalFeaturesTest, GenericGet) {
   EXPECT_EQ(settings.Get(kFooStringFeature), std::optional<std::string>("bar"));
 }
 
+TEST(ExperimentalFeaturesTest, IntSentinelReturnsNullopt) {
+  ExperimentalFeatures::Map map;
+  map["Foo.IntFeature"] = static_cast<int64_t>(0);  // 0 is unset sentinel
+  ExperimentalFeatures settings(map);
+
+  EXPECT_EQ(settings.Get(kFooIntFeature), std::nullopt);
+}
+
+TEST(ExperimentalFeaturesTest, MissingKeyReturnsNullopt) {
+  ExperimentalFeatures settings;
+
+  EXPECT_EQ(settings.Get(kFooFeatureA), std::nullopt);
+  EXPECT_EQ(settings.Get(kFooIntFeature), std::nullopt);
+  EXPECT_EQ(settings.Get(kFooStringFeature), std::nullopt);
+}
+
+TEST(ExperimentalFeaturesTest, TypeMismatchReturnsNullopt) {
+  ExperimentalFeatures::Map map;
+  map["Foo.IntFeature"] = std::string("not_an_int");
+  map["Foo.StringFeature"] = static_cast<int64_t>(123);
+  ExperimentalFeatures settings(map);
+
+  EXPECT_EQ(settings.Get(kFooIntFeature), std::nullopt);
+  EXPECT_EQ(settings.Get(kFooStringFeature), std::nullopt);
+}
+
 }  // namespace
 }  // namespace media

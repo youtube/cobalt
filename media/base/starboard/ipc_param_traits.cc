@@ -27,11 +27,7 @@ void ParamTraits<ExperimentalFeatures::Value>::Write(
     base::Pickle* m,
     const ExperimentalFeatures::Value& p) {
   m->WriteInt(static_cast<int>(p.index()));
-  if (auto* int_val = std::get_if<int64_t>(&p)) {
-    WriteParam(m, *int_val);
-  } else if (auto* str_val = std::get_if<std::string>(&p)) {
-    WriteParam(m, *str_val);
-  }
+  std::visit([m](const auto& val) { WriteParam(m, val); }, p);
 }
 
 bool ParamTraits<ExperimentalFeatures::Value>::Read(

@@ -28,6 +28,11 @@
 
 namespace media {
 
+// Strongly typed identifier for an experimental feature key.
+//
+// Threading & Lifetime: Instances are lightweight constexpr wrappers around a
+// compile-time string_view. They are thread-safe and can be safely shared
+// across any thread or passed by value.
 template <typename T>
 class MEDIA_EXPORT ExperimentalFeatureKey {
  public:
@@ -41,18 +46,25 @@ class MEDIA_EXPORT ExperimentalFeatureKey {
   std::string_view key_;
 };
 
+// Encapsulates a key-value mapping of experimental feature settings configured
+// via H5vcc settings and passed to Starboard platform media components.
+//
+// Threading & Lifetime: Copyable and movable value container initialized during
+// renderer startup or Mojo IPC configuration. Instances are not thread-safe for
+// concurrent mutation; each component or thread should maintain its own
+// instance.
 class MEDIA_EXPORT ExperimentalFeatures {
  public:
   using Value = std::variant<int64_t, std::string>;
   using Map = std::map<std::string, Value, std::less<>>;
 
-  ExperimentalFeatures() = default;
-  ExperimentalFeatures(Map settings) : settings_(std::move(settings)) {}
-  ExperimentalFeatures& operator=(Map settings) {
-    settings_ = std::move(settings);
-    return *this;
-  }
-  ~ExperimentalFeatures() = default;
+  ExperimentalFeatures();
+  ExperimentalFeatures(Map settings);
+  ExperimentalFeatures(const ExperimentalFeatures&);
+  ExperimentalFeatures& operator=(const ExperimentalFeatures&);
+  ExperimentalFeatures(ExperimentalFeatures&&);
+  ExperimentalFeatures& operator=(ExperimentalFeatures&&);
+  ~ExperimentalFeatures();
 
   // Returns the boolean value for the given key, falling back to false if the
   // key is missing or unset.
@@ -66,38 +78,15 @@ class MEDIA_EXPORT ExperimentalFeatures {
     if (it == settings_.end()) {
       return std::nullopt;
     }
-    if constexpr (std::is_same_v<T, bool>) {
-      if (auto* int_val = std::get_if<int64_t>(&it->second)) {
-        return *int_val != 0;
-      }
-      return std::nullopt;
-    } else if constexpr (std::is_same_v<T, int>) {
-      if (auto* int_val = std::get_if<int64_t>(&it->second)) {
-        int64_t val = *int_val;
-        // Experiment framework uses 0 as the sentinel value for unset.
-        // http://go/latestexpcl/player_web/features/player_web_cobalt.impl.gcl;l=332;rcl=862772714
-        constexpr int kH5vccUnsetSentinel = 0;
-        if (val == kH5vccUnsetSentinel) {
-          return std::nullopt;
-        }
-        return static_cast<int>(val);
-      }
-      return std::nullopt;
-    } else if constexpr (std::is_same_v<T, std::string>) {
-      if (auto* str_val = std::get_if<std::string>(&it->second)) {
-        return *str_val;
-      }
-      return std::nullopt;
-    } else {
-      static_assert(sizeof(T) == 0,
-                    "Unsupported type for ExperimentalFeatures::Get");
-      return std::nullopt;
-    }
+    return GetValue<T>(it->second);
   }
 
   const Map& settings() const { return settings_; }
 
  private:
+  template <typename T>
+  std::optional<T> GetValue(const Value& val) const;
+
   Map settings_;
 };
 
