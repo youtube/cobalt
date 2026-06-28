@@ -45,9 +45,11 @@ class ExperimentalFeatureKey {
 // -----------------------------------------------------------------------------
 // Key constants for experimental features consumed directly within the
 // Starboard platform implementation layer. For Chromium media layer settings,
-// see media/base/starboard/h5vcc_settings.h. keep-sorted start
+// see media/base/starboard/experimental_features.h. keep-sorted start
 inline constexpr ExperimentalFeatureKey<bool> kMediaAllowAudioWritingOnPause(
     "Media.AllowAudioWritingOnPause");
+inline constexpr ExperimentalFeatureKey<bool> kMediaEnableAppProvisioning(
+    "Media.EnableAppProvisioning");
 inline constexpr ExperimentalFeatureKey<bool> kMediaEnableFlushDuringSeek(
     "Media.EnableFlushDuringSeek");
 inline constexpr ExperimentalFeatureKey<bool> kMediaEnableLowLatency(
