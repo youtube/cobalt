@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_STARBOARD_EXPERIMENTAL_FEATURES_H_
-#define STARBOARD_SHARED_STARBOARD_EXPERIMENTAL_FEATURES_H_
+#ifndef MEDIA_BASE_STARBOARD_EXPERIMENTAL_FEATURES_H_
+#define MEDIA_BASE_STARBOARD_EXPERIMENTAL_FEATURES_H_
 
-#include <cerrno>
 #include <cstdint>
-#include <cstdlib>
 #include <functional>
 #include <limits>
 #include <map>
@@ -28,9 +26,9 @@
 #include <type_traits>
 #include <variant>
 
-#include "starboard/extension/experimental/experimental_features.h"
+#include "media/base/media_export.h"
 
-namespace starboard {
+namespace media {
 namespace internal {
 
 // Experiment framework uses 0 as the sentinel value for unset.
@@ -40,34 +38,43 @@ constexpr int kH5vccUnsetSentinel = 0;
 
 }  // namespace internal
 
-// Strongly typed identifier for an experimental feature key used within
-// Starboard.
+// Strongly typed identifier for an experimental feature key.
 //
-// Threading & Lifetime: Lightweight constexpr wrappers around a compile-time
-// string_view. Thread-safe and intended to be used as static constants.
+// Threading & Lifetime: Instances are lightweight constexpr wrappers around a
+// compile-time string_view. They are thread-safe and can be safely shared
+// across any thread or passed by value.
 template <typename T>
-class ExperimentalFeatureKey {
+class MEDIA_EXPORT ExperimentalFeatureKey {
  public:
   using ValueType = T;
+
   constexpr explicit ExperimentalFeatureKey(std::string_view key) : key_(key) {}
+
   constexpr std::string_view key() const { return key_; }
 
  private:
   std::string_view key_;
 };
 
-// Container for experimental feature settings stored per-thread in Starboard.
+// Encapsulates a key-value mapping of experimental feature settings configured
+// via H5vcc settings and passed to Starboard platform media components.
 //
-// Threading & Lifetime: Managed per thread via function-scoped thread-local
-// storage. Instances are copyable and owned by the thread-local accessor.
-class ExperimentalFeatures {
+// Threading & Lifetime: Copyable and movable value container initialized during
+// renderer startup or Mojo IPC configuration. Instances are not thread-safe for
+// concurrent mutation; each component or thread should maintain its own
+// instance.
+class MEDIA_EXPORT ExperimentalFeatures {
  public:
   using Value = std::variant<int64_t, std::string>;
   using Map = std::map<std::string, Value, std::less<>>;
 
-  ExperimentalFeatures() = default;
+  ExperimentalFeatures();
   explicit ExperimentalFeatures(Map settings);
-  ~ExperimentalFeatures() = default;
+  ExperimentalFeatures(const ExperimentalFeatures&);
+  ExperimentalFeatures& operator=(const ExperimentalFeatures&);
+  ExperimentalFeatures(ExperimentalFeatures&&);
+  ExperimentalFeatures& operator=(ExperimentalFeatures&&);
+  ~ExperimentalFeatures();
 
   // Returns the boolean value for the given key, falling back to false if the
   // key is missing or unset.
@@ -84,8 +91,11 @@ class ExperimentalFeatures {
     return GetValue<T>(it->second);
   }
 
-  friend std::ostream& operator<<(std::ostream& os,
-                                  const ExperimentalFeatures& features);
+  const Map& settings() const { return settings_; }
+
+  friend MEDIA_EXPORT std::ostream& operator<<(
+      std::ostream& os,
+      const ExperimentalFeatures& features);
 
  private:
   template <typename T>
@@ -135,60 +145,25 @@ inline std::optional<std::string> ExperimentalFeatures::GetValue<std::string>(
   return *str_val;
 }
 
-// Sets the experimental features for the current thread.
-void SetExperimentalFeaturesForCurrentThread(
-    const StarboardExtensionExperimentalFeatures* experimental_features);
-
-// Gets the experimental features for the current thread.
-const ExperimentalFeatures& GetExperimentalFeaturesForCurrentThread();
-
-// Get the extension API for configuring experimental features.
-const void* GetExperimentalFeaturesConfigurationApi();
-
 // -----------------------------------------------------------------------------
-// Experimental Feature Key Constants
+// Setting Key Constants
 // -----------------------------------------------------------------------------
-// Key constants for experimental features consumed directly within the
-// Starboard platform implementation layer. For Chromium media layer settings,
-// see media/base/starboard/experimental_features.h. keep-sorted start
-inline constexpr ExperimentalFeatureKey<bool> kMediaAllowAudioWritingOnPause(
-    "Media.AllowAudioWritingOnPause");
-inline constexpr ExperimentalFeatureKey<bool> kMediaEnableFlushDuringSeek(
-    "Media.EnableFlushDuringSeek");
-inline constexpr ExperimentalFeatureKey<bool> kMediaEnableLowLatency(
-    "Media.EnableLowLatency");
-inline constexpr ExperimentalFeatureKey<bool> kMediaEnableResetAudioDecoder(
-    "Media.EnableResetAudioDecoder");
+// Key constants for experimental features and settings consumed within the
+// Chromium media layer. For platform-level Starboard features, see
+// starboard/shared/starboard/experimental_features.h.
+// keep-sorted start
+inline constexpr ExperimentalFeatureKey<bool> kMediaBypassMojoForMedia(
+    "Media.BypassMojoForMedia");
 inline constexpr ExperimentalFeatureKey<bool> kMediaEnableTrivialOptimizations(
     "Media.EnableTrivialOptimizations");
-inline constexpr ExperimentalFeatureKey<bool> kMediaFlushAudioTrackDuringSeek(
-    "Media.FlushAudioTrackDuringSeek");
 inline constexpr ExperimentalFeatureKey<bool> kMediaForceClearSurfaceView(
     "Media.ForceClearSurfaceView");
-inline constexpr ExperimentalFeatureKey<bool> kMediaSkipFlushOnDecoderTeardown(
-    "Media.SkipFlushOnDecoderTeardown");
-inline constexpr ExperimentalFeatureKey<bool> kMediaSkipVideoFramesOver60Fps(
-    "Media.SkipVideoFramesOver60Fps");
-inline constexpr ExperimentalFeatureKey<bool>
-    kMediaEnableAv1StartupOptimization("Media.EnableAv1StartupOptimization");
-inline constexpr ExperimentalFeatureKey<bool>
-    kMediaEnableSimdBasedAudioFormatSwitching(
-        "Media.EnableSimdBasedAudioFormatSwitching");
-inline constexpr ExperimentalFeatureKey<bool>
-    kMediaEnableVideoRendererVspAdjustment(
-        "Media.EnableVideoRendererVspAdjustment");
-inline constexpr ExperimentalFeatureKey<bool>
-    kMediaIgnoreMediaCodecCallbacksDuringFlushing(
-        "Media.IgnoreMediaCodecCallbacksDuringFlushing");
-inline constexpr ExperimentalFeatureKey<int> kMediaVideoRendererMinInputBuffers(
-    "Media.VideoRendererMinInputBuffers");
-inline constexpr ExperimentalFeatureKey<int>
-    kMediaVideoDecoderInitialPrerollCount(
-        "Media.VideoDecoderInitialPrerollCount");
-inline constexpr ExperimentalFeatureKey<int>
-    kMediaVideoRendererMinDecodedFrames("Media.VideoRendererMinDecodedFrames");
+inline constexpr ExperimentalFeatureKey<bool> kMediaForceDecodeToTexture(
+    "Media.ForceDecodeToTexture");
+inline constexpr ExperimentalFeatureKey<int> kMediaMaxSamplesPerWrite(
+    "Media.MaxSamplesPerWrite");
 // keep-sorted end
 
-}  // namespace starboard
+}  // namespace media
 
-#endif  // STARBOARD_SHARED_STARBOARD_EXPERIMENTAL_FEATURES_H_
+#endif  // MEDIA_BASE_STARBOARD_EXPERIMENTAL_FEATURES_H_
