@@ -47,7 +47,9 @@
 #include "components/services/storage/public/cpp/filesystem/filesystem_impl.h"
 #include "components/services/storage/public/mojom/filesystem/directory.mojom.h"
 #include "components/services/storage/public/mojom/storage_service.mojom.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "components/services/storage/shared_storage/shared_storage_manager.h"
+#endif
 #include "components/services/storage/storage_service_impl.h"
 #include "components/variations/net/variations_http_headers.h"
 #include "content/browser/aggregation_service/aggregation_service.h"
@@ -84,7 +86,9 @@
 #include "content/browser/guest_page_holder_impl.h"
 #include "content/browser/host_zoom_level_context.h"
 #include "content/browser/indexed_db/indexed_db_control_wrapper.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/interest_group/interest_group_manager_impl.h"
+#endif
 #include "content/browser/loader/keep_alive_url_loader_service.h"
 #include "content/browser/loader/reconnectable_url_loader_factory.h"
 #include "content/browser/loader/subresource_proxying_url_loader_service.h"
@@ -1562,6 +1566,7 @@ void StoragePartitionImpl::Initialize(
         partition_path_.Append(kCdmStorageDatabaseFileName));
   }
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
+
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (base::FeatureList::IsEnabled(network::features::kSharedStorageAPI)) {
     base::FilePath shared_storage_path =
@@ -2809,14 +2814,19 @@ void StoragePartitionImpl::ClearDataImpl(
       std::move(cookie_deletion_filter), GetPath(), dom_storage_context_.get(),
       quota_manager_.get(), special_storage_policy_.get(),
       filesystem_context_.get(), GetCookieManagerForBrowserProcess(),
-      static_cast<InterestGroupManagerImpl*>(GetInterestGroupManager()),
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+      interest_group_manager_.get(),
       attribution_manager_.get(),
 #else
       nullptr,
+      nullptr,
 #endif
       aggregation_service_.get(), private_aggregation_manager_.get(),
-      GetSharedStorageManager(),
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+      shared_storage_manager_.get(),
+#else
+      nullptr,
+#endif
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
       cdm_storage_manager_.get(),
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
@@ -3073,6 +3083,7 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
                 CreateTaskCompletionClosure(TracingDataType::kCookies))));
   }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   // It is not expected to only delete internal interest group data, or to
   // request interest group removal to be extra-thorough w/o asking for
   // interest group removal.
@@ -3105,6 +3116,7 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
       interest_group_manager->ClearPermissionsCache();
     }
   }
+#endif
 
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
   if ((remove_mask_ & REMOVE_DATA_MASK_MEDIA_LICENSES)) {

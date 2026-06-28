@@ -827,6 +827,7 @@ class CONTENT_EXPORT StoragePartitionImpl
       browsing_topics_site_data_manager_;
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   std::unique_ptr<FontAccessManager> font_access_manager_;
+
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   std::unique_ptr<InterestGroupManagerImpl> interest_group_manager_;
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
