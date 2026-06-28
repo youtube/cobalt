@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,6 +27,14 @@
 #include "media/base/media_export.h"
 
 namespace media {
+namespace internal {
+
+// Experiment framework uses 0 as the sentinel value for unset.
+// e.g.)
+// http://go/latestexpcl/player_web/features/player_web_cobalt.impl.gcl;l=332;rcl=862772714
+constexpr int kH5vccUnsetSentinel = 0;
+
+}  // namespace internal
 
 // Strongly typed identifier for an experimental feature key.
 //
@@ -59,7 +67,7 @@ class MEDIA_EXPORT ExperimentalFeatures {
   using Map = std::map<std::string, Value, std::less<>>;
 
   ExperimentalFeatures();
-  ExperimentalFeatures(Map settings);
+  explicit ExperimentalFeatures(Map settings);
   ExperimentalFeatures(const ExperimentalFeatures&);
   ExperimentalFeatures& operator=(const ExperimentalFeatures&);
   ExperimentalFeatures(ExperimentalFeatures&&);
@@ -89,6 +97,43 @@ class MEDIA_EXPORT ExperimentalFeatures {
 
   Map settings_;
 };
+
+template <typename T>
+inline std::optional<T> ExperimentalFeatures::GetValue(const Value& val) const {
+  static_assert(sizeof(T) == 0,
+                "Unsupported type for ExperimentalFeatures::Get");
+  return std::nullopt;
+}
+
+template <>
+inline std::optional<bool> ExperimentalFeatures::GetValue<bool>(
+    const Value& val) const {
+  auto* int_val = std::get_if<int64_t>(&val);
+  if (!int_val) {
+    return std::nullopt;
+  }
+  return *int_val != 0;
+}
+
+template <>
+inline std::optional<int> ExperimentalFeatures::GetValue<int>(
+    const Value& val) const {
+  auto* int_val = std::get_if<int64_t>(&val);
+  if (!int_val || *int_val == internal::kH5vccUnsetSentinel) {
+    return std::nullopt;
+  }
+  return static_cast<int>(*int_val);
+}
+
+template <>
+inline std::optional<std::string> ExperimentalFeatures::GetValue<std::string>(
+    const Value& val) const {
+  auto* str_val = std::get_if<std::string>(&val);
+  if (!str_val) {
+    return std::nullopt;
+  }
+  return *str_val;
+}
 
 // -----------------------------------------------------------------------------
 // Setting Key Constants

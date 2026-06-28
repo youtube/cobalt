@@ -24,11 +24,6 @@
 namespace starboard {
 namespace {
 
-// Experiment framework uses 0 as the sentinel value for unset.
-// e.g.)
-// http://go/latestexpcl/player_web/features/player_web_cobalt.impl.gcl;l=332;rcl=862772714
-constexpr int kH5vccUnsetSentinel = 0;
-
 std::optional<ExperimentalFeatures>& GetThreadLocalExperimentalFeatures() {
   thread_local std::optional<ExperimentalFeatures> instance;
   static_assert(sizeof(instance) < 256,
@@ -45,49 +40,8 @@ const StarboardExtensionExperimentalFeaturesConfigurationApi
 
 }  // namespace
 
-ExperimentalFeatures::ExperimentalFeatures(const Map& settings)
-    : settings_(settings) {}
-
-bool ExperimentalFeatures::GetBool(
-    const ExperimentalFeatureKey<bool>& key) const {
-  return Get(key).value_or(false);
-}
-
-template <typename T>
-std::optional<T> ExperimentalFeatures::GetValue(const Value& val) const {
-  static_assert(sizeof(T) == 0,
-                "Unsupported type for ExperimentalFeatures::Get");
-  return std::nullopt;
-}
-
-template <>
-std::optional<bool> ExperimentalFeatures::GetValue<bool>(
-    const Value& val) const {
-  auto* int_val = std::get_if<int64_t>(&val);
-  if (!int_val) {
-    return std::nullopt;
-  }
-  return *int_val != 0;
-}
-
-template <>
-std::optional<int> ExperimentalFeatures::GetValue<int>(const Value& val) const {
-  auto* int_val = std::get_if<int64_t>(&val);
-  if (!int_val || *int_val == kH5vccUnsetSentinel) {
-    return std::nullopt;
-  }
-  return static_cast<int>(*int_val);
-}
-
-template <>
-std::optional<std::string> ExperimentalFeatures::GetValue<std::string>(
-    const Value& val) const {
-  auto* str_val = std::get_if<std::string>(&val);
-  if (!str_val) {
-    return std::nullopt;
-  }
-  return *str_val;
-}
+ExperimentalFeatures::ExperimentalFeatures(Map settings)
+    : settings_(std::move(settings)) {}
 
 void SetExperimentalFeaturesForCurrentThread(
     const StarboardExtensionExperimentalFeatures* extension_features) {
@@ -103,7 +57,7 @@ void SetExperimentalFeaturesForCurrentThread(
     }
   }
   auto& experimental_features = GetThreadLocalExperimentalFeatures();
-  experimental_features = ExperimentalFeatures(map);
+  experimental_features = ExperimentalFeatures(std::move(map));
 
   if (experimental_features->GetBool(
           kMediaEnableSimdBasedAudioFormatSwitching)) {

@@ -46,14 +46,16 @@
 namespace cobalt {
 
 namespace {
+using ::media::ExperimentalFeatures;
 
 const char kWidevineL3KeySystem[] = "com.youtube.widevine.l3";
 
-using ExperimentalFeaturesMap = ::media::ExperimentalFeatures::Map;
-
-ExperimentalFeaturesMap ParseH5vccSettings(mojom::SettingsPtr settings) {
-  ExperimentalFeaturesMap h5vcc_settings;
+ExperimentalFeatures ParseH5vccSettings(mojom::SettingsPtr settings) {
+  ExperimentalFeatures::Map h5vcc_settings;
   for (auto& [key, value] : settings->settings) {
+    if (!value) {
+      continue;
+    }
     if (value->is_int_value()) {
       h5vcc_settings.emplace(key, value->get_int_value());
     } else if (value->is_string_value()) {
@@ -62,7 +64,7 @@ ExperimentalFeaturesMap ParseH5vccSettings(mojom::SettingsPtr settings) {
       NOTREACHED();
     }
   }
-  return h5vcc_settings;
+  return ExperimentalFeatures(std::move(h5vcc_settings));
 }
 
 // TODO(b/376542844): Eliminate the usage of hardcoded MIME string once we
@@ -319,7 +321,7 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   EnsureH5vccSettingsRemoteInitialized();
 
   cobalt::mojom::SettingsPtr settings;
-  ::media::StarboardRendererConfig::ExperimentalFeatures experimental_features;
+  ExperimentalFeatures experimental_features;
   if ((*h5vcc_settings_remote_)->GetSettings(&settings) && settings) {
     experimental_features = ParseH5vccSettings(std::move(settings));
   }

@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,6 +29,14 @@
 #include "starboard/extension/experimental/experimental_features.h"
 
 namespace starboard {
+namespace internal {
+
+// Experiment framework uses 0 as the sentinel value for unset.
+// e.g.)
+// http://go/latestexpcl/player_web/features/player_web_cobalt.impl.gcl;l=332;rcl=862772714
+constexpr int kH5vccUnsetSentinel = 0;
+
+}  // namespace internal
 
 // Strongly typed identifier for an experimental feature key used within
 // Starboard.
@@ -45,6 +53,90 @@ class ExperimentalFeatureKey {
  private:
   std::string_view key_;
 };
+
+// Container for experimental feature settings stored per-thread in Starboard.
+//
+// Threading & Lifetime: Managed per thread via function-scoped thread-local
+// storage. Instances are copyable and owned by the thread-local accessor.
+class ExperimentalFeatures {
+ public:
+  using Value = std::variant<int64_t, std::string>;
+  using Map = std::map<std::string, Value, std::less<>>;
+
+  ExperimentalFeatures() = default;
+  explicit ExperimentalFeatures(Map settings);
+  ~ExperimentalFeatures() = default;
+
+  // Returns the boolean value for the given key, falling back to false if the
+  // key is missing or unset.
+  bool GetBool(const ExperimentalFeatureKey<bool>& key) const {
+    return Get(key).value_or(false);
+  }
+
+  template <typename T>
+  std::optional<T> Get(const ExperimentalFeatureKey<T>& key) const {
+    auto it = settings().find(key.key());
+    if (it == settings().end()) {
+      return std::nullopt;
+    }
+    return GetValue<T>(it->second);
+  }
+
+  const Map& settings() const { return settings_; }
+
+ private:
+  template <typename T>
+  std::optional<T> GetValue(const Value& val) const;
+
+  Map settings_;
+};
+
+template <typename T>
+inline std::optional<T> ExperimentalFeatures::GetValue(const Value& val) const {
+  static_assert(sizeof(T) == 0,
+                "Unsupported type for ExperimentalFeatures::Get");
+  return std::nullopt;
+}
+
+template <>
+inline std::optional<bool> ExperimentalFeatures::GetValue<bool>(
+    const Value& val) const {
+  auto* int_val = std::get_if<int64_t>(&val);
+  if (!int_val) {
+    return std::nullopt;
+  }
+  return *int_val != 0;
+}
+
+template <>
+inline std::optional<int> ExperimentalFeatures::GetValue<int>(
+    const Value& val) const {
+  auto* int_val = std::get_if<int64_t>(&val);
+  if (!int_val || *int_val == internal::kH5vccUnsetSentinel) {
+    return std::nullopt;
+  }
+  return static_cast<int>(*int_val);
+}
+
+template <>
+inline std::optional<std::string> ExperimentalFeatures::GetValue<std::string>(
+    const Value& val) const {
+  auto* str_val = std::get_if<std::string>(&val);
+  if (!str_val) {
+    return std::nullopt;
+  }
+  return *str_val;
+}
+
+// Sets the experimental features for the current thread.
+void SetExperimentalFeaturesForCurrentThread(
+    const StarboardExtensionExperimentalFeatures* experimental_features);
+
+// Gets the experimental features for the current thread.
+const ExperimentalFeatures& GetExperimentalFeaturesForCurrentThread();
+
+// Get the extension API for configuring experimental features.
+const void* GetExperimentalFeaturesConfigurationApi();
 
 // -----------------------------------------------------------------------------
 // Experimental Feature Key Constants
@@ -89,51 +181,6 @@ inline constexpr ExperimentalFeatureKey<int>
 inline constexpr ExperimentalFeatureKey<int>
     kMediaVideoRendererMinDecodedFrames("Media.VideoRendererMinDecodedFrames");
 // keep-sorted end
-
-// Container for experimental feature settings stored per-thread in Starboard.
-//
-// Threading & Lifetime: Managed per thread via function-scoped thread-local
-// storage. Instances are copyable and owned by the thread-local accessor.
-class ExperimentalFeatures {
- public:
-  using Value = std::variant<int64_t, std::string>;
-  using Map = std::map<std::string, Value, std::less<>>;
-
-  ExperimentalFeatures() = default;
-  explicit ExperimentalFeatures(const Map& settings);
-  ~ExperimentalFeatures() = default;
-
-  // Returns the boolean value for the given key, falling back to false if the
-  // key is missing or unset.
-  bool GetBool(const ExperimentalFeatureKey<bool>& key) const;
-
-  template <typename T>
-  std::optional<T> Get(const ExperimentalFeatureKey<T>& key) const {
-    auto it = settings().find(key.key());
-    if (it == settings().end()) {
-      return std::nullopt;
-    }
-    return GetValue<T>(it->second);
-  }
-
-  const Map& settings() const { return settings_; }
-
- private:
-  template <typename T>
-  std::optional<T> GetValue(const Value& val) const;
-
-  Map settings_;
-};
-
-// Sets the experimental features for the current thread.
-void SetExperimentalFeaturesForCurrentThread(
-    const StarboardExtensionExperimentalFeatures* experimental_features);
-
-// Gets the experimental features for the current thread.
-const ExperimentalFeatures& GetExperimentalFeaturesForCurrentThread();
-
-// Get the extension API for configuring experimental features.
-const void* GetExperimentalFeaturesConfigurationApi();
 
 }  // namespace starboard
 

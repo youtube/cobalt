@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -75,7 +75,7 @@ bool ParamTraits<ExperimentalFeatures>::Read(const base::Pickle* m,
   if (!ReadParam(m, iter, &settings)) {
     return false;
   }
-  *r = ExperimentalFeatures(settings);
+  *r = ExperimentalFeatures(std::move(settings));
   return true;
 }
 
