@@ -156,6 +156,9 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaAllowAudioWritingOnPause(
 inline constexpr ExperimentalFeatureKey<bool> kMediaDecodedAudioBufferPool(
     "Media.DecodedAudioBufferPool");
 
+inline constexpr ExperimentalFeatureKey<bool> kMediaEnableAppProvisioning(
+    "Media.EnableAppProvisioning");
+
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaEnableAv1StartupOptimization("Media.EnableAv1StartupOptimization");
 
