@@ -98,9 +98,9 @@ void CobaltMemoryAttributionManager::ReportUma() {
   auto* observer = base::memory::CobaltMemoryAttributionObserver::Get();
   // Skip reporting if timer was significantly delayed (e.g. device suspension).
   if ((now - last_report_time_) >
-      base::Seconds(
-          cobalt::features::kCobaltMemoryAttributionReportIntervalParam
-              .Get())) {
+      2 * base::Seconds(
+              cobalt::features::kCobaltMemoryAttributionReportIntervalParam
+                  .Get())) {
     last_report_time_ = now;
     for (size_t i = 0;
          i < static_cast<size_t>(base::memory::MemoryContext::kCount); ++i) {

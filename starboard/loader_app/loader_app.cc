@@ -49,11 +49,16 @@ namespace {
 // Relative path to the Cobalt's system image content path.
 const char kSystemImageContentPath[] = "app/cobalt/content";
 
-// Relative path to the Cobalt's system image library.
+// Relative path to an uncompressed Cobalt system image library.
 const char kSystemImageLibraryPath[] = "app/cobalt/lib/libcobalt.so";
 
-// Relative path to the compressed Cobalt's system image library.
-const char kSystemImageCompressedLibraryPath[] = "app/cobalt/lib/libcobalt.lz4";
+// Relative path to an LZ4 compressed Cobalt system image library.
+const char kSystemImageLz4CompressedLibraryPath[] =
+    "app/cobalt/lib/libcobalt.lz4";
+
+// Relative path to a Zstd compressed Cobalt system image library.
+const char kSystemImageZstdCompressedLibraryPath[] =
+    "app/cobalt/lib/libcobalt.zst";
 
 // Relative path to Cobalt's system image manifest.json.
 const char kSystemImageManifestPath[] = "app/cobalt/manifest.json";
@@ -69,11 +74,11 @@ class CobaltLibraryLoader : public loader_app::LibraryLoader {
  public:
   virtual bool Load(const std::string& library_path,
                     const std::string& content_path,
-                    bool use_compression,
+                    elf_loader::CompressionType compression_type,
                     bool use_memory_mapped_file) {
     return g_elf_loader.Load(library_path, content_path, false,
                              &loader_app::SbSystemGetExtensionShim,
-                             use_compression, use_memory_mapped_file);
+                             compression_type, use_memory_mapped_file);
   }
   virtual void* Resolve(const std::string& symbol) {
     return g_elf_loader.LookupSymbol(symbol.c_str());
@@ -133,34 +138,42 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
   std::string library_path = content_dir;
   library_path += kSbFileSepString;
 
-  std::string compressed_library_path(library_path);
-  compressed_library_path += kSystemImageCompressedLibraryPath;
+  std::string zstd_compressed_library_path(library_path);
+  zstd_compressed_library_path += kSystemImageZstdCompressedLibraryPath;
+
+  std::string lz4_compressed_library_path(library_path);
+  lz4_compressed_library_path += kSystemImageLz4CompressedLibraryPath;
 
   std::string uncompressed_library_path(library_path);
   uncompressed_library_path += kSystemImageLibraryPath;
 
-  bool use_compression;
+  elf_loader::CompressionType compression_type =
+      elf_loader::CompressionType::kNone;
   struct stat info;
-  if (stat(compressed_library_path.c_str(), &info) == 0) {
-    library_path = compressed_library_path;
-    use_compression = true;
+  if (stat(lz4_compressed_library_path.c_str(), &info) == 0) {
+    library_path = lz4_compressed_library_path;
+    compression_type = elf_loader::CompressionType::kLz4;
+  } else if (stat(zstd_compressed_library_path.c_str(), &info) == 0) {
+    library_path = zstd_compressed_library_path;
+    compression_type = elf_loader::CompressionType::kZstd;
   } else if (stat(uncompressed_library_path.c_str(), &info) == 0) {
     library_path = uncompressed_library_path;
-    use_compression = false;
   } else {
     SB_LOG(ERROR) << "No library found at compressed "
-                  << compressed_library_path << " or uncompressed "
+                  << zstd_compressed_library_path << " or "
+                  << lz4_compressed_library_path << " or uncompressed "
                   << uncompressed_library_path << " path";
     return;
   }
 
-  if (use_compression && use_memory_mapped_file) {
+  if (compression_type != elf_loader::CompressionType::kNone &&
+      use_memory_mapped_file) {
     SB_LOG(ERROR) << "Using both compression and mmap files is not supported";
     return;
   }
 
   if (!g_elf_loader.Load(library_path, content_path, false, nullptr,
-                         use_compression, use_memory_mapped_file)) {
+                         compression_type, use_memory_mapped_file)) {
     SB_NOTREACHED() << "Failed to load library at '"
                     << g_elf_loader.GetLibraryPath() << "'.";
     return;

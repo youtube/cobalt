@@ -27,6 +27,7 @@ import androidx.annotation.RequiresApi;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /** Utility functions for querying display attributes. */
 public class DisplayUtil {
@@ -180,21 +181,44 @@ public class DisplayUtil {
     return sCachedDisplayMetrics;
   }
 
+  public interface Listener {
+    void onDisplayChanged(int displayId);
+  }
+
+  private static final CopyOnWriteArrayList<Listener> sListeners = new CopyOnWriteArrayList<>();
+
+  public static void registerListener(Listener listener) {
+    sListeners.add(listener);
+  }
+
+  public static void unregisterListener(Listener listener) {
+    sListeners.remove(listener);
+  }
+
   private static DisplayListener sDisplayerListener =
       new DisplayListener() {
+        private void notifyListeners(int displayId) {
+          for (Listener listener : sListeners) {
+            listener.onDisplayChanged(displayId);
+          }
+        }
+
         @Override
         public void onDisplayAdded(int displayId) {
           DisplayUtilJni.get().onDisplayChanged();
+          notifyListeners(displayId);
         }
 
         @Override
         public void onDisplayChanged(int displayId) {
           DisplayUtilJni.get().onDisplayChanged();
+          notifyListeners(displayId);
         }
 
         @Override
         public void onDisplayRemoved(int displayId) {
           DisplayUtilJni.get().onDisplayChanged();
+          notifyListeners(displayId);
         }
       };
 
