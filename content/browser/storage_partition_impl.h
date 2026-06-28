@@ -827,7 +827,6 @@ class CONTENT_EXPORT StoragePartitionImpl
       browsing_topics_site_data_manager_;
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   std::unique_ptr<FontAccessManager> font_access_manager_;
-
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   std::unique_ptr<InterestGroupManagerImpl> interest_group_manager_;
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
@@ -837,6 +836,7 @@ class CONTENT_EXPORT StoragePartitionImpl
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
   mojo::Remote<network::mojom::DeviceBoundSessionManager>
       device_bound_session_manager_;
+
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   // Owning pointer to the SharedStorageManager for this partition.
   std::unique_ptr<storage::SharedStorageManager> shared_storage_manager_;

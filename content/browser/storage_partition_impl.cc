@@ -3236,6 +3236,7 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
         mojo::WrapCallbackWithDefaultInvokeIfNotRun(
             CreateTaskCompletionClosure(TracingDataType::kPrivateAggregation)));
   }
+
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (base::FeatureList::IsEnabled(network::features::kSharedStorageAPI) &&
       shared_storage_manager &&
