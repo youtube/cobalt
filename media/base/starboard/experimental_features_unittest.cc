@@ -12,31 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "media/base/starboard/h5vcc_settings.h"
+#include "media/base/starboard/experimental_features.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {
 
-TEST(H5vccSettingsTest, GetBool) {
-  H5vccSettingsMap map;
+TEST(ExperimentalFeaturesTest, GetBool) {
+  ExperimentalFeatures::Map map;
   map["Media.ForceDecodeToTexture"] = 1;
   map["Media.BypassMojoForMedia"] = 0;
+  ExperimentalFeatures settings(map);
 
-  EXPECT_TRUE(kMediaForceDecodeToTexture.GetBool(map));
-  EXPECT_FALSE(kMediaBypassMojoForMedia.GetBool(map));
-  EXPECT_FALSE(kMediaForceClearSurfaceView.GetBool(map));
+  EXPECT_TRUE(settings.GetBool(kMediaForceDecodeToTexture));
+  EXPECT_FALSE(settings.GetBool(kMediaBypassMojoForMedia));
+  EXPECT_FALSE(settings.GetBool(kMediaForceClearSurfaceView));
 }
 
-TEST(H5vccSettingsTest, GenericGet) {
-  H5vccSettingsMap map;
+TEST(ExperimentalFeaturesTest, GenericGet) {
+  ExperimentalFeatures::Map map;
   map["Media.ForceDecodeToTexture"] = 1;
   map["Media.BypassMojoForMedia"] = 0;
   map["Media.MaxSamplesPerWrite"] = 50;
+  ExperimentalFeatures settings(map);
 
-  EXPECT_EQ(kMediaForceDecodeToTexture.Get(map), std::optional<bool>(true));
-  EXPECT_EQ(kMediaBypassMojoForMedia.Get(map), std::optional<bool>(false));
-  EXPECT_EQ(kMediaMaxSamplesPerWrite.Get(map), std::optional<int>(50));
+  EXPECT_EQ(settings.Get(kMediaForceDecodeToTexture),
+            std::optional<bool>(true));
+  EXPECT_EQ(settings.Get(kMediaBypassMojoForMedia), std::optional<bool>(false));
+  EXPECT_EQ(settings.Get(kMediaMaxSamplesPerWrite), std::optional<int>(50));
 }
 
 }  // namespace media

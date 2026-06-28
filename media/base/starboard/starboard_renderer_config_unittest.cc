@@ -29,9 +29,10 @@ TEST(StarboardRendererConfigTest, SunnyDay) {
       base::Microseconds(100000);
   const std::string max_video_capabilities =
       "width=1920; height=1080; framerate=15;";
-  StarboardRendererConfig::ExperimentalFeatures experimental_features;
-  experimental_features["Media.ForceDecodeToTexture"] = 1;
-  experimental_features["Media.BypassMojoForMedia"] = 0;
+  ExperimentalFeatures::Map map;
+  map["Media.ForceDecodeToTexture"] = 1;
+  map["Media.BypassMojoForMedia"] = 0;
+  StarboardRendererConfig::ExperimentalFeatures experimental_features(map);
 
   StarboardRendererConfig config(
       base::UnguessableToken::Create(), audio_write_duration_local,
@@ -40,11 +41,11 @@ TEST(StarboardRendererConfigTest, SunnyDay) {
   EXPECT_EQ(config.audio_write_duration_local, audio_write_duration_local);
   EXPECT_EQ(config.audio_write_duration_remote, audio_write_duration_remote);
   EXPECT_EQ(config.max_video_capabilities, max_video_capabilities);
-  EXPECT_TRUE(kMediaForceDecodeToTexture.GetBool(config.experimental_features));
-  EXPECT_FALSE(kMediaBypassMojoForMedia.GetBool(config.experimental_features));
-  EXPECT_EQ(kMediaForceDecodeToTexture.Get(config.experimental_features),
+  EXPECT_TRUE(config.experimental_features.GetBool(kMediaForceDecodeToTexture));
+  EXPECT_FALSE(config.experimental_features.GetBool(kMediaBypassMojoForMedia));
+  EXPECT_EQ(config.experimental_features.Get(kMediaForceDecodeToTexture),
             std::optional<bool>(true));
-  EXPECT_EQ(kMediaBypassMojoForMedia.Get(config.experimental_features),
+  EXPECT_EQ(config.experimental_features.Get(kMediaBypassMojoForMedia),
             std::optional<bool>(false));
   EXPECT_EQ(config.viewport_size, gfx::Size(1920, 1080));
 }

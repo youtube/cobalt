@@ -30,6 +30,7 @@
 #include "media/base/key_systems_support_registration.h"
 #include "media/base/media_log.h"
 #include "media/base/renderer_factory.h"
+#include "media/base/starboard/experimental_features.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "starboard/media.h"
@@ -48,10 +49,10 @@ namespace {
 
 const char kWidevineL3KeySystem[] = "com.youtube.widevine.l3";
 
-using H5vccSettingsMap = ::media::H5vccSettingsMap;
+using ExperimentalFeaturesMap = ::media::ExperimentalFeatures::Map;
 
-H5vccSettingsMap ParseH5vccSettings(cobalt::mojom::SettingsPtr settings) {
-  H5vccSettingsMap h5vcc_settings;
+ExperimentalFeaturesMap ParseH5vccSettings(mojom::SettingsPtr settings) {
+  ExperimentalFeaturesMap h5vcc_settings;
   for (auto& [key, value] : settings->settings) {
     if (value->is_int_value()) {
       h5vcc_settings.emplace(key, value->get_int_value());

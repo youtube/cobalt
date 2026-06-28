@@ -40,7 +40,12 @@ class ExperimentalFeatureKey {
   std::string_view key_;
 };
 
-// keep-sorted start
+// -----------------------------------------------------------------------------
+// Experimental Feature Key Constants
+// -----------------------------------------------------------------------------
+// Key constants for experimental features consumed directly within the
+// Starboard platform implementation layer. For Chromium media layer settings,
+// see media/base/starboard/h5vcc_settings.h. keep-sorted start
 inline constexpr ExperimentalFeatureKey<bool> kMediaAllowAudioWritingOnPause(
     "Media.AllowAudioWritingOnPause");
 inline constexpr ExperimentalFeatureKey<bool> kMediaEnableFlushDuringSeek(

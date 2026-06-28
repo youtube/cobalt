@@ -21,14 +21,14 @@
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
 #include "media/base/media_export.h"
-#include "media/base/starboard/h5vcc_settings.h"
+#include "media/base/starboard/experimental_features.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace media {
 
 // Configs for StarboardRenderer.
 struct MEDIA_EXPORT StarboardRendererConfig {
-  using ExperimentalFeatures = H5vccSettingsMap;
+  using ExperimentalFeatures = media::ExperimentalFeatures;
 
   StarboardRendererConfig();
   StarboardRendererConfig(const base::UnguessableToken& overlay_plane_id,
@@ -48,9 +48,8 @@ struct MEDIA_EXPORT StarboardRendererConfig {
   gfx::Size viewport_size;
 };
 
-MEDIA_EXPORT std::ostream& operator<<(
-    std::ostream& os,
-    const StarboardRendererConfig::ExperimentalFeatures& features);
+MEDIA_EXPORT std::ostream& operator<<(std::ostream& os,
+                                      const ExperimentalFeatures& features);
 
 }  // namespace media
 

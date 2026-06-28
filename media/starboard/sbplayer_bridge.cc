@@ -29,7 +29,7 @@
 #include "base/task/bind_post_task.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
-#include "media/base/starboard/h5vcc_settings.h"
+#include "media/base/starboard/experimental_features.h"
 #include "media/starboard/buildflags.h"
 #include "media/starboard/starboard_utils.h"
 #include "starboard/common/media.h"
@@ -154,8 +154,8 @@ std::pair<StarboardExtensionExperimentalFeatures,
 GetStarboardExtensionExperimentalFeatures(
     const SbPlayerBridge::ExperimentalFeatures& experimental_features) {
   std::vector<StarboardExperimentalFeatureEntry> entries;
-  entries.reserve(experimental_features.size());
-  for (const auto& [key, val] : experimental_features) {
+  entries.reserve(experimental_features.settings().size());
+  for (const auto& [key, val] : experimental_features.settings()) {
     entries.push_back({key.c_str(), val});
   }
   StarboardExtensionExperimentalFeatures extension_features = {};
@@ -259,7 +259,7 @@ SbPlayerBridge::SbPlayerBridge(
       max_video_capabilities_(max_video_capabilities),
       experimental_features_(experimental_features),
       enable_batched_buffer_deallocation_(
-          kMediaEnableTrivialOptimizations.GetBool(experimental_features_))
+          experimental_features_.GetBool(kMediaEnableTrivialOptimizations))
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE)
       ,
       max_video_input_size_(max_video_input_size)
@@ -809,7 +809,7 @@ void SbPlayerBridge::CreatePlayer() {
   }
 
   const bool force_clear_surface_view =
-      kMediaForceClearSurfaceView.GetBool(experimental_features_);
+      experimental_features_.GetBool(kMediaForceClearSurfaceView);
 
   const bool should_get_decode_target_graphics_context_provider =
       (output_mode_ == kSbPlayerOutputModeDecodeToTexture ||
@@ -890,7 +890,7 @@ void SbPlayerBridge::WriteBuffersInternal(
   }
 
   const bool enable_trivial_optimizations =
-      kMediaEnableTrivialOptimizations.GetBool(experimental_features_);
+      experimental_features_.GetBool(kMediaEnableTrivialOptimizations);
 
   std::vector<SbPlayerSampleInfo> local_sample_infos;
   std::vector<SbDrmSampleInfo> local_drm_infos;
@@ -1490,7 +1490,7 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
     // TODO(b/232559177): Make the check below more flexible, to work with
     //                    other well formed inputs (e.g. with extra space).
     const bool force_decode_to_texture =
-        kMediaForceDecodeToTexture.GetBool(experimental_features_);
+        experimental_features_.GetBool(kMediaForceDecodeToTexture);
     bool is_decode_to_texture_preferred =
         force_decode_to_texture ||
         strstr(video_stream_info_.mime, "decode-to-texture=true") ||

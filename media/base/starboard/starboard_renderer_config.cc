@@ -38,12 +38,11 @@ StarboardRendererConfig::StarboardRendererConfig(
       experimental_features(experimental_features),
       viewport_size(viewport_size) {}
 
-std::ostream& operator<<(
-    std::ostream& os,
-    const StarboardRendererConfig::ExperimentalFeatures& features) {
+std::ostream& operator<<(std::ostream& os,
+                         const ExperimentalFeatures& features) {
   os << "{";
   const char* delim = "";
-  for (const auto& [key, value] : features) {
+  for (const auto& [key, value] : features.settings()) {
     os << std::exchange(delim, ", ") << key << "=" << value;
   }
   return os << "}";

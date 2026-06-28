@@ -45,6 +45,7 @@
 #undef IPC_MESSAGE_EXPORT
 #define IPC_MESSAGE_EXPORT
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/starboard/ipc_param_traits.h"
 #include "media/base/starboard/starboard_renderer_config.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 

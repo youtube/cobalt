@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef MEDIA_BASE_STARBOARD_H5VCC_SETTINGS_H_
-#define MEDIA_BASE_STARBOARD_H5VCC_SETTINGS_H_
+#ifndef MEDIA_BASE_STARBOARD_EXPERIMENTAL_FEATURES_H_
+#define MEDIA_BASE_STARBOARD_EXPERIMENTAL_FEATURES_H_
 
 #include <cstdint>
 #include <functional>
@@ -27,34 +27,41 @@
 
 namespace media {
 
-using H5vccSettingsMap = std::map<std::string, int64_t, std::less<>>;
-
-// -----------------------------------------------------------------------------
-// H5vccSettingsKey Class
-// -----------------------------------------------------------------------------
 template <typename T>
-class MEDIA_EXPORT H5vccSettingsKey {
+class MEDIA_EXPORT ExperimentalFeatureKey {
  public:
   using ValueType = T;
 
-  constexpr explicit H5vccSettingsKey(std::string_view key) : key_(key) {}
+  constexpr explicit ExperimentalFeatureKey(std::string_view key) : key_(key) {}
 
   constexpr std::string_view key() const { return key_; }
 
+ private:
+  std::string_view key_;
+};
+
+class MEDIA_EXPORT ExperimentalFeatures {
+ public:
+  using Map = std::map<std::string, int64_t, std::less<>>;
+
+  ExperimentalFeatures() = default;
+  ExperimentalFeatures(Map settings) : settings_(std::move(settings)) {}
+  ExperimentalFeatures& operator=(Map settings) {
+    settings_ = std::move(settings);
+    return *this;
+  }
+  ~ExperimentalFeatures() = default;
+
   // Returns the boolean value for the given key, falling back to false if the
   // key is missing or unset.
-  bool GetBool(const H5vccSettingsMap& settings) const {
-    static_assert(std::is_same_v<T, bool>, "GetBool called on non-boolean key");
-    auto it = settings.find(key_);
-    if (it == settings.end()) {
-      return false;
-    }
-    return it->second != 0;
+  bool GetBool(const ExperimentalFeatureKey<bool>& key) const {
+    return Get(key).value_or(false);
   }
 
-  std::optional<T> Get(const H5vccSettingsMap& settings) const {
-    auto it = settings.find(key_);
-    if (it == settings.end()) {
+  template <typename T>
+  std::optional<T> Get(const ExperimentalFeatureKey<T>& key) const {
+    auto it = settings_.find(key.key());
+    if (it == settings_.end()) {
       return std::nullopt;
     }
     if constexpr (std::is_same_v<T, bool>) {
@@ -70,31 +77,36 @@ class MEDIA_EXPORT H5vccSettingsKey {
       return static_cast<int>(val);
     } else {
       static_assert(sizeof(T) == 0,
-                    "Unsupported type for H5vccSettingsKey::Get");
+                    "Unsupported type for ExperimentalFeatures::Get");
       return std::nullopt;
     }
   }
 
+  const Map& settings() const { return settings_; }
+
  private:
-  std::string_view key_;
+  Map settings_;
 };
 
 // -----------------------------------------------------------------------------
 // Setting Key Constants
 // -----------------------------------------------------------------------------
+// Key constants for experimental features and settings consumed within the
+// Chromium media layer. For platform-level Starboard features, see
+// starboard/shared/starboard/experimental_features.h.
 // keep-sorted start
-inline constexpr H5vccSettingsKey<bool> kMediaBypassMojoForMedia(
+inline constexpr ExperimentalFeatureKey<bool> kMediaBypassMojoForMedia(
     "Media.BypassMojoForMedia");
-inline constexpr H5vccSettingsKey<bool> kMediaEnableTrivialOptimizations(
+inline constexpr ExperimentalFeatureKey<bool> kMediaEnableTrivialOptimizations(
     "Media.EnableTrivialOptimizations");
-inline constexpr H5vccSettingsKey<bool> kMediaForceClearSurfaceView(
+inline constexpr ExperimentalFeatureKey<bool> kMediaForceClearSurfaceView(
     "Media.ForceClearSurfaceView");
-inline constexpr H5vccSettingsKey<bool> kMediaForceDecodeToTexture(
+inline constexpr ExperimentalFeatureKey<bool> kMediaForceDecodeToTexture(
     "Media.ForceDecodeToTexture");
-inline constexpr H5vccSettingsKey<int> kMediaMaxSamplesPerWrite(
+inline constexpr ExperimentalFeatureKey<int> kMediaMaxSamplesPerWrite(
     "Media.MaxSamplesPerWrite");
 // keep-sorted end
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_STARBOARD_H5VCC_SETTINGS_H_
+#endif  // MEDIA_BASE_STARBOARD_EXPERIMENTAL_FEATURES_H_

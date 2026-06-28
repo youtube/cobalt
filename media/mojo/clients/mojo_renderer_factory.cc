@@ -9,7 +9,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
-#include "media/base/starboard/h5vcc_settings.h"
+#include "media/base/starboard/experimental_features.h"
 #include "media/mojo/clients/mojo_renderer.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
 #include "media/renderers/decrypting_renderer.h"
@@ -128,12 +128,10 @@ std::unique_ptr<MojoRenderer> MojoRendererFactory::CreateStarboardRenderer(
       std::move(renderer_extension_receiver),
       std::move(client_extension_remote));
 
-  bool bypass_mojo_for_media =
-      kMediaBypassMojoForMedia.GetBool(config.experimental_features);
-
   return std::make_unique<MojoRenderer>(
       media_task_runner, nullptr, video_renderer_sink,
-      std::move(renderer_remote), bypass_mojo_for_media);
+      std::move(renderer_remote),
+      config.experimental_features.GetBool(kMediaBypassMojoForMedia));
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
