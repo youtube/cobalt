@@ -25,10 +25,10 @@ namespace starboard {
 
 bool ShouldEnableTunneledPlayback(const SbMediaVideoStreamInfo& stream_info);
 
-jni_zero::ScopedJavaLocalRef<jobject> CreateAudioMediaSource(
+jni_zero::ScopedJavaLocalRef<jobject> CreateAudioFormat(
     const SbMediaAudioStreamInfo& stream_info);
 
-jni_zero::ScopedJavaLocalRef<jobject> CreateVideoMediaSource(
+jni_zero::ScopedJavaLocalRef<jobject> CreateVideoFormat(
     const SbMediaVideoStreamInfo& stream_info);
 }  // namespace starboard
 

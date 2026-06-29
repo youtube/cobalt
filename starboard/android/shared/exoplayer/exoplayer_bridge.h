@@ -18,6 +18,7 @@
 #include <jni.h>
 
 #include <atomic>
+#include <deque>
 #include <mutex>
 
 #include "base/android/jni_android.h"
@@ -50,7 +51,8 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   };
 
   ExoPlayerBridge(const SbMediaAudioStreamInfo& audio_stream_info,
-                  const SbMediaVideoStreamInfo& video_stream_info);
+                  const SbMediaVideoStreamInfo& video_stream_info,
+                  JobQueue* job_queue = nullptr);
 
   ~ExoPlayerBridge();
 
@@ -70,6 +72,14 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   MediaInfo GetMediaInfo() const;
   bool CanAcceptMoreData(SbMediaType type);
 
+  int ReadSample(JNIEnv* env,
+                 jint j_type,
+                 jobject j_buffer,
+                 jlongArray j_metadata);
+  bool IsReady(JNIEnv* env, jint j_type) const;
+  int SkipData(JNIEnv* env, jint j_type, jlong position_us);
+  jlong GetBufferedPositionUs(JNIEnv* env, jint j_type) const;
+
   // Native callbacks.
   void OnInitialized(JNIEnv*);
   void OnReady(JNIEnv*);
@@ -86,19 +96,13 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   bool ShouldAbortOperation() const;
   void ReportError(const std::string& msg) const;
 
-  void WriteSamplesInternal(JNIEnv* env,
-                            const InputBuffers& input_buffers,
-                            SbMediaType type);
-  void WriteEOSInternal(JNIEnv* env, SbMediaType type) const;
-
   jni_zero::ScopedJavaGlobalRef<jobject> j_exoplayer_bridge_;
 
   std::atomic_bool player_is_releasing_ = false;
 
-  // Queues to buffer samples that arrive before the player is initialized.
   // Guarded by |mutex_|.
-  std::vector<scoped_refptr<InputBuffer>> pending_audio_samples_;
-  std::vector<scoped_refptr<InputBuffer>> pending_video_samples_;
+  std::deque<scoped_refptr<InputBuffer>> pending_audio_samples_;
+  std::deque<scoped_refptr<InputBuffer>> pending_video_samples_;
   bool audio_eos_pending_ = false;
   bool video_eos_pending_ = false;
 
@@ -117,6 +121,7 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   std::mutex mutex_;
 
   bool owns_surface_ = false;
+  scoped_refptr<SurfaceDestroyNotifier> surface_destroy_notifier_;
   std::string init_error_msg_;
 
   ThreadChecker thread_checker_;

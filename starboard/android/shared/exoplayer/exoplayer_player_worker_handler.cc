@@ -63,8 +63,9 @@ Result<void> ExoPlayerPlayerWorkerHandler::Init(
 
   Attach(job_queue);
 
-  bridge_ = std::make_unique<ExoPlayerBridge>(
-      creation_param_.audio_stream_info, creation_param_.video_stream_info);
+  bridge_ = std::make_unique<ExoPlayerBridge>(creation_param_.audio_stream_info,
+                                              creation_param_.video_stream_info,
+                                              job_queue);
 
   if (!bridge_->is_valid() ||
       !bridge_->Init(
@@ -101,8 +102,6 @@ Result<void> ExoPlayerPlayerWorkerHandler::WriteSamples(
   SB_CHECK(!input_buffers.empty());
   SB_CHECK(bridge_->is_valid());
   SB_CHECK(samples_written);
-  SB_DCHECK_EQ(input_buffers.size(), 1U)
-      << "ExoPlayer accepts only one sample per write";
 
   for (const auto& input_buffer : input_buffers) {
     SB_DCHECK(input_buffer);
