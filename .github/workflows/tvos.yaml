@@ -66,7 +66,6 @@ jobs:
           echo "targets=${targets}" >> "$GITHUB_OUTPUT"
 
   wait-for-kokoro-build:
-    if: github.event_name == 'pull_request'
     needs: get-sha
     runs-on: ubuntu-latest
     timeout-minutes: 150 # 2.5 hours timeout to ensure we don't block forever but allow 2h polling
@@ -122,7 +121,6 @@ jobs:
           exit 1
 
   download-artifacts:
-    if: github.event_name == 'pull_request'
     # TODO(b/519669027): consider odt-runner for fetching the artifacts.
     needs: [get-sha, wait-for-kokoro-build, get-targets]
     runs-on: [self-hosted, chrobalt-linux-runner]
@@ -150,75 +148,9 @@ jobs:
           path: "*.tar.gz"
           retention-days: 1
 
-  build-gha:
-    if: github.event_name != 'pull_request'
-    needs: [get-sha, get-targets]
-    runs-on: macos-latest-large
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [tvos-arm64-simulator]
-        config: [devel]
-    steps:
-      - name: Checkout
-        uses: ./.github/actions/checkout
-        with:
-          path: cobalt/src
-          ref: ${{ needs.get-sha.outputs.sha }}
-          fetch_depth: 0
-
-      - name: Set Up Depot Tools
-        uses: ./.github/actions/depot_tools
-        with:
-          use_gcloud: false
-
-      - name: Build Cobalt
-        uses: ./.github/actions/build
-        with:
-          targets: '[]'
-          test_root_target: 'cobalt'
-          test_targets_json_file: cobalt/src/out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
-          enable_sccache: false
-
-      - name: Package and Archive tvOS Tests
-        run: |
-          set -x
-          cd cobalt/src
-          out_dir="out/${{ matrix.platform }}_${{ matrix.config }}"
-          mkdir -p package
-
-          json_file="out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json"
-          targets=$(jq -r '.[] | select(.target != null) | .target | split(":")[-1]' "${json_file}")
-
-          for target_name in ${targets}; do
-            if [[ -d "${out_dir}/${target_name}.app" ]]; then
-              echo "Archiving test package ${target_name}.app..."
-              archive_file="package/${target_name}.tar.gz"
-
-              if [[ -f "${out_dir}/iossim" ]]; then
-                echo "Including iossim in the archive..."
-                tar -czf "${archive_file}" -C "${out_dir}" "${target_name}.app" "iossim"
-              else
-                tar -czf "${archive_file}" -C "${out_dir}" "${target_name}.app"
-              fi
-            fi
-          done
-        shell: bash
-
-      - name: Upload tvOS Test Artifacts to GHA
-        uses: actions/upload-artifact@v4
-        with:
-          name: tvos-test-artifacts
-          path: cobalt/src/package/*.tar.gz
-          retention-days: 1
-
   # TODO(b/519669027): Refactor below steps to reuse the logic from main.yaml.
   run-tests:
-    needs: [get-targets, download-artifacts, build-gha]
-    if: |
-      always() &&
-      (needs.download-artifacts.result == 'success' || needs.build-gha.result == 'success') &&
-      !cancelled()
+    needs: [get-targets, download-artifacts]
     runs-on: macos-latest
     strategy:
       fail-fast: false
