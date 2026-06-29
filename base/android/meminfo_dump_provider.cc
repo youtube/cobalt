@@ -13,11 +13,12 @@
 
 #if BUILDFLAG(ENABLE_BASE_TRACING)
 #include "base/memory_jni/MemoryInfoBridge_jni.h"
-#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 
 #if BUILDFLAG(IS_COBALT)
 #include "base/memory_jni/CobaltMemoryInfoBridge_jni.h"
-#endif
+#endif  // BUILDFLAG(IS_COBALT)
+
+#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 
 namespace base::android {
 
