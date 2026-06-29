@@ -19,7 +19,7 @@
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_video_budget.h"
 
-// this is different than max budget defined in
+// This is different than max budget defined in
 // starboard/shared/starboard/media/media_video_budget.cc
 // We set the maximum memory budget to 200MB on Android (and 300MB on other
 // platforms), balancing the following factors:
