@@ -96,6 +96,13 @@ void H5vccSystemImpl::GetFriendlyName(GetFriendlyNameCallback callback) {
   std::move(callback).Run(StarboardBridge::GetInstance()->GetFriendlyName(env));
 }
 
+void H5vccSystemImpl::GetScreenDiagonal(GetScreenDiagonalCallback callback) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  JNIEnv* env = base::android::AttachCurrentThread();
+  std::move(callback).Run(
+      StarboardBridge::GetInstance()->GetScreenDiagonal(env));
+}
+
 void H5vccSystemImpl::GetUserOnExitStrategy(
     GetUserOnExitStrategyCallback callback) {
   std::move(callback).Run(h5vcc_system::mojom::UserOnExitStrategy::kMinimize);

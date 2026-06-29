@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This is automatically generated. Do not edit.
+#ifndef STARBOARD_SHARED_STARBOARD_FEATURES_TEST_UTIL_H_
+#define STARBOARD_SHARED_STARBOARD_FEATURES_TEST_UTIL_H_
 
-#ifndef CONTENT_PUBLIC_COMMON_CONTENT_MILESTONE_FEATURES_H_
-#define CONTENT_PUBLIC_COMMON_CONTENT_MILESTONE_FEATURES_H_
+namespace starboard::features {
 
-#define CHROMIUM_MILESTONE @MAJOR@
-#define CHROMIUM_MILESTONE_LE_138 (@MAJOR@ <= 138)
+void InitializeStarboardFeatureListWithDefaults();
 
-#endif  // CONTENT_PUBLIC_COMMON_CONTENT_MILESTONE_FEATURES_H_
+}  // namespace starboard::features
+
+#endif  // STARBOARD_SHARED_STARBOARD_FEATURES_TEST_UTIL_H_

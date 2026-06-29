@@ -32,6 +32,7 @@
 #include "base/task/task_runner.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/threading/thread.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "base/version.h"
 #include "cobalt/updater/util.h"
@@ -188,15 +189,16 @@ UpdaterModule::UpdaterModule(
 
 UpdaterModule::~UpdaterModule() {
   LOG(INFO) << "UpdaterModule::~UpdaterModule";
+
+  // This is necessary to allow blocking for proper cleanup and to prevent
+  // a crash due to blocking restrictions at app exit.
+  base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope
+      allow_blocking_outside;
   if (is_updater_running_.exchange(false)) {
     // TODO(b/452142372): Investigate UpdaterModule destruction sequence
-    {
-      base::ScopedBlockingCall scoped_blocking_call(
-          FROM_HERE, base::BlockingType::MAY_BLOCK);
-      updater_thread_->task_runner()->PostTask(
-          FROM_HERE,
-          base::BindOnce(&UpdaterModule::Finalize, base::Unretained(this)));
-    }
+    updater_thread_->task_runner()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&UpdaterModule::Finalize, base::Unretained(this)));
   }
 
   // Upon destruction the thread will allow all queued tasks to complete before
@@ -208,21 +210,18 @@ UpdaterModule::~UpdaterModule() {
 
 void UpdaterModule::Suspend() {
   if (is_updater_running_.exchange(false)) {
+    base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_sync;
     base::WaitableEvent event(base::WaitableEvent::ResetPolicy::MANUAL,
                               base::WaitableEvent::InitialState::NOT_SIGNALED);
-    {
-      base::ScopedBlockingCall scoped_blocking_call(
-          FROM_HERE, base::BlockingType::MAY_BLOCK);
-      if (updater_thread_->task_runner()->PostTask(
-              FROM_HERE,
-              base::BindOnce(
-                  [](UpdaterModule* module, base::WaitableEvent* event) {
-                    module->Finalize();
-                    event->Signal();
-                  },
-                  base::Unretained(this), base::Unretained(&event)))) {
-        event.Wait();
-      }
+    if (updater_thread_->task_runner()->PostTask(
+            FROM_HERE,
+            base::BindOnce(
+                [](UpdaterModule* module, base::WaitableEvent* event) {
+                  module->Finalize();
+                  event->Signal();
+                },
+                base::Unretained(this), base::Unretained(&event)))) {
+      event.Wait();
     }
   }
 }

@@ -410,6 +410,11 @@ default_compiler_configs = [
   "//build/config/sanitizers:default_sanitizer_flags",
 ]
 
+# Add global defines shared by Cobalt and Chromium/Blink builds (e.g. milestone
+# version and Privacy Sandbox flags). This is applied unconditionally so that
+# standard Chromium builds in the Cobalt repository also compile correctly.
+default_compiler_configs += [ "//cobalt/build/configs/shared:global_defines_shared" ]
+
 if (is_cobalt) {
   default_compiler_configs += [ "//cobalt/build/configs:cobalt_config" ]
 }

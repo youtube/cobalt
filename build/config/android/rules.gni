@@ -441,7 +441,7 @@ if (!is_robolectric && enable_java_templates) {
     }
 
     action_with_pydeps(target_name) {
-      forward_variables_from(invoker, TESTONLY_AND_VISIBILITY + [ "deps" ])
+      forward_variables_from(invoker, TESTONLY_AND_VISIBILITY + [ "deps", "gen_deps" ])
       script = "//build/android/gyp/write_native_libraries_java.py"
       outputs = [ _native_libraries_file ]
       args = [
@@ -2684,8 +2684,11 @@ if (!is_robolectric && enable_java_templates) {
         } else if (defined(_use_secondary_abi)) {
           if (_use_secondary_abi) {
             native_libraries_list_file = _secondary_abi_shared_library_list_file
+            gen_deps =
+                [ ":${_template_name}__secondary_abi_shared_library_list" ]
           } else {
             native_libraries_list_file = _shared_library_list_file
+            gen_deps = [ ":${_template_name}__shared_library_list" ]
           }
         }
 

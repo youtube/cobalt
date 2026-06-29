@@ -538,6 +538,19 @@ public class StarboardBridge {
   }
 
   @CalledByNative
+  protected double getScreenDiagonal() {
+    android.util.Size size = DisplayUtil.getSystemDisplaySize();
+    DisplayUtil.DisplayDpi dpi = DisplayUtil.getDisplayDpi();
+    if (size == null || dpi == null || dpi.getX() < 0.1f || dpi.getY() < 0.1f) {
+      Log.e(TAG, "getScreenDiagonal: Invalid display size or DPI values");
+      return 0.0;
+    }
+    double widthInches = size.getWidth() / (double) dpi.getX();
+    double heightInches = size.getHeight() / (double) dpi.getY();
+    return Math.sqrt(widthInches * widthInches + heightInches * heightInches);
+  }
+
+  @CalledByNative
   AudioOutputManager getAudioOutputManager() {
     if (mAudioOutputManager == null) {
       throw new IllegalArgumentException("mAudioOutputManager cannot be null for native code");

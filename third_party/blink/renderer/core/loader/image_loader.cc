@@ -28,8 +28,6 @@
 #include "services/network/public/mojom/attribution.mojom-blink.h"
 #include "services/network/public/mojom/web_client_hints_types.mojom-blink.h"
 #include "third_party/blink/public/common/features.h"
-#include "content/public/common/content_milestone_features.h"
-#include "third_party/blink/public/public_buildflags.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/platform/web_url_request.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_controller.h"
@@ -797,7 +795,6 @@ void ImageLoader::ImageNotifyFinished(ImageResourceContent* content) {
       svg_image->MaybeRecordSvgImageProcessingTime(GetElement()->GetDocument());
     }
   }
-
 
   DispatchDecodeRequestsIfComplete();
 

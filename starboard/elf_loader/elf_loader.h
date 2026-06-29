@@ -20,6 +20,7 @@
 #include <string>
 
 #include "starboard/configuration.h"
+#include "starboard/elf_loader/elf_loader_constants.h"
 
 namespace elf_loader {
 
@@ -38,14 +39,13 @@ class ElfLoader {
   // Loads the shared library. Returns false if |library_path| or |content_path|
   // is empty, or if the library could not be loaded.
   // An optional |custom_get_extension| function pointer can be passed in order
-  // to override the |SbSystemGetExtension| function. The flags
-  // |use_compression| and |use_memory_mapped_file| are not compatible so only
-  // one of those can be turned on.
+  // to override the |SbSystemGetExtension| function.
+  // |compression_type| must be kNone if |use_memory_mapped_file| is true.
   bool Load(const std::string& library_path,
             const std::string& content_path,
             bool is_relative_path,
             const void* (*custom_get_extension)(const char* name) = NULL,
-            bool use_compression = false,
+            CompressionType compression_type = CompressionType::kNone,
             bool use_memory_mapped_file = false);
 
   // Looks up the symbol address in the

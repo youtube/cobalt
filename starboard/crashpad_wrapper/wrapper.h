@@ -48,6 +48,9 @@ bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info);
 // key. Returns true on success and false on failure.
 bool InsertCrashpadAnnotation(const char* key, const char* value);
 
+// Captures CPU context and triggers a non-crashing dump report.
+void DumpWithoutCrashingWrapper();
+
 }  // namespace crashpad
 
 #endif  // STARBOARD_CRASHPAD_WRAPPER_WRAPPER_H_
