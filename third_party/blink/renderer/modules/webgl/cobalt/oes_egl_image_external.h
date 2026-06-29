@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGL_OES_EGL_IMAGE_EXTERNAL_H_
-#define THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGL_OES_EGL_IMAGE_EXTERNAL_H_
+#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGL_COBALT_OES_EGL_IMAGE_EXTERNAL_H_
+#define THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGL_COBALT_OES_EGL_IMAGE_EXTERNAL_H_
 
 #include "third_party/blink/renderer/modules/webgl/webgl_extension.h"
 #include "third_party/khronos/GLES2/gl2.h"
@@ -49,4 +49,4 @@ class OESEGLImageExternal final : public WebGLExtension {
 
 }  // namespace blink
 
-#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGL_OES_EGL_IMAGE_EXTERNAL_H_
+#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGL_COBALT_OES_EGL_IMAGE_EXTERNAL_H_

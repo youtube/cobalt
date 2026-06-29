@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "third_party/blink/renderer/modules/webgl/oes_egl_image_external.h"
+#include "third_party/blink/renderer/modules/webgl/cobalt/oes_egl_image_external.h"
 
 #include <array>
 
@@ -32,7 +32,8 @@ namespace blink {
 
 OESEGLImageExternal::OESEGLImageExternal(WebGLRenderingContextBase* context)
     : WebGLExtension(context) {
-  context->ExtensionsUtil()->EnsureExtensionEnabled("GL_OES_EGL_image_external");
+  context->ExtensionsUtil()->EnsureExtensionEnabled(
+      "GL_OES_EGL_image_external");
 }
 
 WebGLExtensionName OESEGLImageExternal::GetName() const {
@@ -41,7 +42,8 @@ WebGLExtensionName OESEGLImageExternal::GetName() const {
 
 bool OESEGLImageExternal::Supported(WebGLRenderingContextBase* context) {
 #if BUILDFLAG(IS_ANDROID)
-  return context->ExtensionsUtil()->SupportsExtension("GL_OES_EGL_image_external");
+  return context->ExtensionsUtil()->SupportsExtension(
+      "GL_OES_EGL_image_external");
 #else
   return false;
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -56,12 +58,14 @@ void OESEGLImageExternal::EGLImageTargetTexture2DOES(
     HTMLVideoElement* video,
     ExceptionState& exception_state) {
   WebGLExtensionScopedContext scoped(this);
-  if (scoped.IsLost())
+  if (scoped.IsLost()) {
     return;
+  }
 
   WebGLRenderingContextBase* context = scoped.Context();
-  if (context->isContextLost())
+  if (context->isContextLost()) {
     return;
+  }
 
   if (target != GL_TEXTURE_EXTERNAL_OES) {
     context->SynthesizeGLError(GL_INVALID_ENUM, "EGLImageTargetTexture2DOES",
@@ -76,8 +80,9 @@ void OESEGLImageExternal::EGLImageTargetTexture2DOES(
   }
 
   auto* execution_context = context->Host()->GetTopExecutionContext();
-  if (!execution_context)
+  if (!execution_context) {
     return;
+  }
 
   if (!context->ValidateHTMLVideoElement(execution_context->GetSecurityOrigin(),
                                          "EGLImageTargetTexture2DOES", video,
@@ -85,10 +90,11 @@ void OESEGLImageExternal::EGLImageTargetTexture2DOES(
     return;
   }
 
-  WebGLTexture* texture = context->ValidateTextureBinding(
-      "EGLImageTargetTexture2DOES", target);
-  if (!texture)
+  WebGLTexture* texture =
+      context->ValidateTextureBinding("EGLImageTargetTexture2DOES", target);
+  if (!texture) {
     return;
+  }
 
   auto* wmp = video->GetWebMediaPlayer();
   if (!wmp) {
@@ -112,9 +118,9 @@ void OESEGLImageExternal::EGLImageTargetTexture2DOES(
 
   viz::SharedImageFormat format = client_shared_image->format();
   if (format.is_multi_plane() && !format.PrefersExternalSampler()) {
-    context->SynthesizeGLError(GL_INVALID_OPERATION,
-                               "EGLImageTargetTexture2DOES",
-                               "video frame format is not compatible with external texture");
+    context->SynthesizeGLError(
+        GL_INVALID_OPERATION, "EGLImageTargetTexture2DOES",
+        "video frame format is not compatible with external texture");
     return;
   }
 

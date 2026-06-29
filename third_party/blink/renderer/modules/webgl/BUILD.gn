@@ -211,8 +211,8 @@ blink_modules_sources("webgl") {
 
   if (is_cobalt && use_starboard_media) {
     sources += [
-      "oes_egl_image_external.cc",
-      "oes_egl_image_external.h",
+      "cobalt/oes_egl_image_external.cc",
+      "cobalt/oes_egl_image_external.h",
     ]
   }
 }

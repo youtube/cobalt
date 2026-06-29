@@ -51,7 +51,7 @@
 #include "third_party/blink/renderer/modules/webgl/webgl_stencil_texturing.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "third_party/blink/renderer/modules/webgl/oes_egl_image_external.h"
+#include "third_party/blink/renderer/modules/webgl/cobalt/oes_egl_image_external.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace blink {
