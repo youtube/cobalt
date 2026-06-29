@@ -478,6 +478,15 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Memory.Experimental.Browser2.AndroidGraphicsMemory" units="MiB"
+    expires_after="never">
+  <owner>tasunny@google.com</owner>
+  <summary>
+    Graphics memory usage (GPU) on Android for cobalt. This data comes from graphics
+    section of dumpsys meminfo.
+  </summary>
+</histogram>
+
 <histogram name="Memory.Experimental.Browser2.AndroidRuntime" units="MiB"
     expires_after="never">
   <owner>avvall@google.com</owner>
