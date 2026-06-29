@@ -91,6 +91,12 @@ class ZstdFileImpl : public FileImpl {
   bool ScanFrames();
   bool HasTasksToProcess() const;
   static void* ClaimDecompressionTasks(void* context);
+  static bool DecompressFrame(ZSTD_DCtx* dctx,
+                              void* dst,
+                              size_t dst_capacity,
+                              const void* src,
+                              size_t src_size,
+                              size_t expected_decompressed_size);
 
   // Maximum decompressed payload size allowed per frame. Compression tooling
   // must guarantee frames do not exceed this limit so that worker threads can

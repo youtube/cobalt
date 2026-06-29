@@ -188,41 +188,24 @@ void* ZstdFileImpl::ClaimDecompressionTasks(void* context) {
     const char* src = static_cast<const char*>(impl->compressed_data_) +
                       item.frame_metadata->compressed_offset;
 
-    bool local_failure = false;
+    bool success = false;
     if (item.direct) {
-      size_t const result = ZSTD_decompressDCtx(
-          dctx, item.destination, item.frame_metadata->decompressed_size, src,
-          item.frame_metadata->compressed_size);
-      if (ZSTD_isError(result)) {
-        SB_LOG(ERROR) << "Zstd decompression error: "
-                      << ZSTD_getErrorName(result);
-        local_failure = true;
-      } else if (result != item.frame_metadata->decompressed_size) {
-        SB_LOG(ERROR) << "Zstd decompression size mismatch. Expected "
-                      << item.frame_metadata->decompressed_size << " but got "
-                      << result;
-        local_failure = true;
-      }
+      success = DecompressFrame(dctx, item.destination,
+                                item.frame_metadata->decompressed_size, src,
+                                item.frame_metadata->compressed_size,
+                                item.frame_metadata->decompressed_size);
     } else {
-      size_t const result = ZSTD_decompressDCtx(
-          dctx, scratch.get(), impl->kMaxFrameDecompressedSize, src,
-          item.frame_metadata->compressed_size);
-      if (ZSTD_isError(result)) {
-        SB_LOG(ERROR) << "Zstd scratch decompression error: "
-                      << ZSTD_getErrorName(result);
-        local_failure = true;
-      } else if (result != item.frame_metadata->decompressed_size) {
-        SB_LOG(ERROR) << "Zstd scratch decompression size mismatch. Expected "
-                      << item.frame_metadata->decompressed_size << " but got "
-                      << result;
-        local_failure = true;
-      } else {
+      success =
+          DecompressFrame(dctx, scratch.get(), impl->kMaxFrameDecompressedSize,
+                          src, item.frame_metadata->compressed_size,
+                          item.frame_metadata->decompressed_size);
+      if (success) {
         memcpy(item.destination, scratch.get() + item.copy_offset,
                item.copy_size);
       }
     }
 
-    if (local_failure) {
+    if (!success) {
       impl->worker_failure_ = true;
     }
 
@@ -301,6 +284,26 @@ bool ZstdFileImpl::ReadFromOffset(int64_t offset, char* buffer, int size) {
                << ") took " << read_duration_ms
                << " ms. (Frames=" << tasks.size() << ")";
 
+  return true;
+}
+
+bool ZstdFileImpl::DecompressFrame(ZSTD_DCtx* dctx,
+                                   void* dst,
+                                   size_t dst_capacity,
+                                   const void* src,
+                                   size_t src_size,
+                                   size_t expected_decompressed_size) {
+  size_t const result =
+      ZSTD_decompressDCtx(dctx, dst, dst_capacity, src, src_size);
+  if (ZSTD_isError(result)) {
+    SB_LOG(ERROR) << "Zstd decompression error: " << ZSTD_getErrorName(result);
+    return false;
+  }
+  if (result != expected_decompressed_size) {
+    SB_LOG(ERROR) << "Zstd decompression size mismatch. Expected "
+                  << expected_decompressed_size << " but got " << result;
+    return false;
+  }
   return true;
 }
 
