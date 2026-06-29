@@ -40,21 +40,26 @@ AudioInputStream::OpenOutcome AudioInputStreamStarboard::Open() {
   }
 
   SbMicrophoneInfo info;
-
   if (SbMicrophoneGetAvailable(&info, 1) < 1) {
     LOG(ERROR) << "AudioInputStreamStarboard::Open() - No mics";
     return OpenOutcome::kFailed;
   }
+  int min_read_size = info.min_read_size;
 
-  const int buffer_size_bytes =
-      params_.GetBytesPerBuffer(media::SampleFormat::kSampleFormatS16) *
-      kMicrophoneBufferSizeMultiplier;
+  const int requested_bytes =
+      params_.GetBytesPerBuffer(media::SampleFormat::kSampleFormatS16);
+
+  int mic_buffer_size_bytes = requested_bytes * kMicrophoneBufferSizeMultiplier;
+  if (min_read_size > 0) {
+    mic_buffer_size_bytes = std::max(
+        mic_buffer_size_bytes, min_read_size * kMicrophoneBufferSizeMultiplier);
+  }
 
   LOG(INFO) << "AudioInputStreamStarboard::Open() - Creating mic with rate="
             << params_.sample_rate() << ", channels=" << params_.channels()
-            << ", buffer_size=" << buffer_size_bytes;
+            << ", buffer_size=" << mic_buffer_size_bytes;
   microphone_ =
-      SbMicrophoneCreate(info.id, params_.sample_rate(), buffer_size_bytes);
+      SbMicrophoneCreate(info.id, params_.sample_rate(), mic_buffer_size_bytes);
 
   if (!SbMicrophoneIsValid(microphone_)) {
     LOG(ERROR) << "AudioInputStreamStarboard::Open() - Mic invalid";
@@ -62,10 +67,23 @@ AudioInputStream::OpenOutcome AudioInputStreamStarboard::Open() {
     return OpenOutcome::kFailed;
   }
 
-  audio_bus_ = AudioBus::Create(params_);
-  buffer_.resize(params_.frames_per_buffer() * params_.channels());
+  read_size_in_bytes_ = std::max(requested_bytes, min_read_size);
+  temp_buffer_.resize(read_size_in_bytes_ / sizeof(int16_t));
 
-  LOG(INFO) << "AudioInputStreamStarboard::Open() - Success";
+  int temp_audio_bus_frames = temp_buffer_.size() / params_.channels();
+  temp_audio_bus_ = AudioBus::Create(params_.channels(), temp_audio_bus_frames);
+
+  int fifo_capacity_frames =
+      params_.frames_per_buffer() * 2 + temp_audio_bus_frames;
+  fifo_ = std::make_unique<AudioFifo>(params_.channels(), fifo_capacity_frames);
+
+  audio_bus_ = AudioBus::Create(params_);
+
+  LOG(INFO) << "AudioInputStreamStarboard::Open() - Success. "
+            << "min_read_size=" << min_read_size
+            << ", requested_bytes=" << requested_bytes
+            << ", read_size_in_bytes=" << read_size_in_bytes_
+            << ", temp_buffer_samples=" << temp_buffer_.size();
   return OpenOutcome::kSuccess;
 }
 
@@ -166,37 +184,45 @@ void AudioInputStreamStarboard::ReadAudio() {
     return;
   }
 
-  const int buffer_size_bytes =
-      params_.frames_per_buffer() * params_.channels() * sizeof(int16_t);
-
   int bytes_read =
-      SbMicrophoneRead(microphone_, buffer_.data(), buffer_size_bytes);
+      SbMicrophoneRead(microphone_, temp_buffer_.data(), read_size_in_bytes_);
+
+  LOG(INFO) << "SbMicrophoneRead requested=" << read_size_in_bytes_
+            << " returned=" << bytes_read;
+
+  if (bytes_read < 0) {
+    DLOG(WARNING) << "SbMicrophoneRead returned " << bytes_read;
+    HandleError("SbMicrophoneRead");
+    return;
+  }
 
   if (bytes_read > 0) {
     int frames_read = bytes_read / (params_.channels() * sizeof(int16_t));
-    CHECK_LE(frames_read, params_.frames_per_buffer());
+    temp_audio_bus_->FromInterleaved<SignedInt16SampleTypeTraits>(
+        temp_buffer_.data(), frames_read);
+    fifo_->Push(temp_audio_bus_.get(), frames_read);
+    LOG(INFO) << "FIFO pushed " << frames_read << " frames, total now "
+              << fifo_->frames();
+  }
 
-    audio_bus_->FromInterleaved<SignedInt16SampleTypeTraits>(buffer_.data(),
-                                                             frames_read);
-
+  if (fifo_->frames() >= params_.frames_per_buffer()) {
+    fifo_->Consume(audio_bus_.get(), 0, params_.frames_per_buffer());
+    LOG(INFO) << "FIFO consumed " << params_.frames_per_buffer()
+              << " frames, left " << fifo_->frames();
     callback_->OnData(audio_bus_.get(), base::TimeTicks::Now(), 1.0, {});
 
-    // If the read callback is behind schedule. Schedule the next one to run
-    // immediately to catch up.
     next_read_time_ =
         std::max(base::TimeTicks::Now(), next_read_time_ + buffer_duration_);
-
-    // base::Unretained is safe here because the AudioInputStreamStarboard owns
-    // capture_thread_, and the thread is stopped before this object is
-    // destroyed, guaranteeing the callback will not run on a dangling pointer.
     capture_thread_.task_runner()->PostDelayedTaskAt(
         base::subtle::PostDelayedTaskPassKey(), FROM_HERE,
         base::BindOnce(&AudioInputStreamStarboard::ReadAudio,
                        base::Unretained(this)),
         next_read_time_, base::subtle::DelayPolicy::kPrecise);
-
-  } else if (bytes_read == 0) {
-    // No data available yet. Check again in a little bit.
+  } else {
+    // Not enough data yet. Check again soon.
+    LOG(INFO) << "FIFO only has " << fifo_->frames()
+              << " frames, waiting for more (need "
+              << params_.frames_per_buffer() << ")";
     base::TimeTicks next_check_time =
         base::TimeTicks::Now() + buffer_duration_ / 2;
     capture_thread_.task_runner()->PostDelayedTaskAt(
@@ -204,11 +230,6 @@ void AudioInputStreamStarboard::ReadAudio() {
         base::BindOnce(&AudioInputStreamStarboard::ReadAudio,
                        base::Unretained(this)),
         next_check_time, base::subtle::DelayPolicy::kPrecise);
-  } else {
-    DLOG(WARNING) << "SbMicrophoneRead returned " << bytes_read
-                  << ". Dropping this buffer.";
-    HandleError("SbMicrophoneRead");
-    return;
   }
 }
 
