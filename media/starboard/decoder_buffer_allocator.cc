@@ -293,6 +293,7 @@ void DecoderBufferAllocator::EnableReleaseIdleMemory() {
   CHECK(allocator);
   base::AutoLock scoped_lock(allocator->mutex_);
   allocator->should_release_idle_memory_ = true;
+  LOG(INFO) << "DecoderBufferAllocator: ReleaseIdleMemory feature enabled.";
 }
 
 void DecoderBufferAllocator::EnsureStrategyIsCreated() {
