@@ -19,6 +19,7 @@
 #include <X11/extensions/Xrender.h>
 
 #include "starboard/common/rect.h"
+#include "starboard/common/size.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
@@ -57,11 +58,8 @@ struct SbWindowPrivate {
   // |composition_pixmap|. This is done so that we can stretch it with XRender.
   Pixmap video_pixmap;
 
-  // The width of the |video_pixmap|.
-  int video_pixmap_width;
-
-  // The height of the allocated |video_pixmap|.
-  int video_pixmap_height;
+  // The size of the allocated |video_pixmap|.
+  starboard::Size video_pixmap_size;
 
   // A cached GC for the |video_pixmap| to upload the frame.
   GC video_pixmap_gc;

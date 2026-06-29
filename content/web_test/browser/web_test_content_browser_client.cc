@@ -43,13 +43,17 @@
 #include "content/test/data/mojo_web_test_helper.test-mojom.h"
 #include "content/test/mock_badge_service.h"
 #include "content/test/mock_clipboard_host.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "content/web_test/browser/fake_bluetooth_chooser.h"
 #include "content/web_test/browser/fake_bluetooth_chooser_factory.h"
 #include "content/web_test/browser/fake_bluetooth_delegate.h"
+#endif
 #include "content/web_test/browser/mojo_echo.h"
 #include "content/web_test/browser/mojo_optional_numerics_unittest.h"
 #include "content/web_test/browser/mojo_web_test_helper.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "content/web_test/browser/web_test_bluetooth_fake_adapter_setter_impl.h"
+#endif
 #include "content/web_test/browser/web_test_browser_context.h"
 #include "content/web_test/browser/web_test_browser_main_parts.h"
 #include "content/web_test/browser/web_test_control_host.h"
@@ -62,11 +66,15 @@
 #include "content/web_test/browser/web_test_sensor_provider_manager.h"
 #include "content/web_test/browser/web_test_storage_access_manager.h"
 #include "content/web_test/browser/web_test_tts_platform.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "content/web_test/common/web_test_bluetooth_fake_adapter_setter.mojom.h"
+#endif
 #include "content/web_test/common/web_test_string_util.h"
 #include "content/web_test/common/web_test_switches.h"
-#include "device/bluetooth/emulation/fake_bluetooth.h"
-#include "device/bluetooth/public/mojom/emulation/fake_bluetooth.mojom.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "device/bluetooth/emulation/fake_bluetooth.h"  // nogncheck
+#include "device/bluetooth/public/mojom/emulation/fake_bluetooth.mojom.h"  // nogncheck
+#endif
 #include "gpu/config/gpu_switches.h"
 #include "mojo/public/cpp/bindings/associated_receiver_set.h"
 #include "mojo/public/cpp/bindings/binder_map.h"
@@ -329,12 +337,14 @@ void WebTestContentBrowserClient::ResetMockClipboardHosts() {
     mock_clipboard_host_->Reset();
 }
 
+#if !BUILDFLAG(IS_COBALT)
 std::unique_ptr<FakeBluetoothChooser>
 WebTestContentBrowserClient::GetNextFakeBluetoothChooser() {
   if (!fake_bluetooth_chooser_factory_)
     return nullptr;
   return fake_bluetooth_chooser_factory_->GetNextFakeBluetoothChooser();
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 void WebTestContentBrowserClient::BrowserChildProcessHostCreated(
     BrowserChildProcessHost* host) {
@@ -359,6 +369,7 @@ void WebTestContentBrowserClient::ExposeInterfacesToRenderer(
   registry->AddInterface(
       base::BindRepeating(&optional_numerics_unittest::ResponseParams::Bind),
       ui_task_runner);
+#if !BUILDFLAG(IS_COBALT)
   registry->AddInterface(
       base::BindRepeating(&WebTestBluetoothFakeAdapterSetterImpl::Create),
       ui_task_runner);
@@ -373,6 +384,7 @@ void WebTestContentBrowserClient::ExposeInterfacesToRenderer(
           &WebTestContentBrowserClient::CreateFakeBluetoothChooserFactory,
           base::Unretained(this)),
       ui_task_runner);
+#endif  // !BUILDFLAG(IS_COBALT)
   registry->AddInterface(base::BindRepeating(&MojoWebTestHelper::Create));
 
   registry->AddInterface(
@@ -600,6 +612,7 @@ bool WebTestContentBrowserClient::CanAcceptUntrustedExchangesIfNeeded() {
   return true;
 }
 
+#if !BUILDFLAG(IS_COBALT)
 BluetoothDelegate* WebTestContentBrowserClient::GetBluetoothDelegate() {
   if (!fake_bluetooth_delegate_)
     fake_bluetooth_delegate_ = std::make_unique<FakeBluetoothDelegate>();
@@ -609,6 +622,7 @@ BluetoothDelegate* WebTestContentBrowserClient::GetBluetoothDelegate() {
 void WebTestContentBrowserClient::ResetFakeBluetoothDelegate() {
   fake_bluetooth_delegate_.reset();
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 content::TtsPlatform* WebTestContentBrowserClient::GetTtsPlatform() {
   return WebTestTtsPlatform::GetInstance();
@@ -752,11 +766,13 @@ void WebTestContentBrowserClient::ConfigureNetworkContextParamsForShell(
   }
 }
 
+#if !BUILDFLAG(IS_COBALT)
 void WebTestContentBrowserClient::CreateFakeBluetoothChooserFactory(
     mojo::PendingReceiver<mojom::FakeBluetoothChooserFactory> receiver) {
   fake_bluetooth_chooser_factory_ =
       FakeBluetoothChooserFactory::Create(std::move(receiver));
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 void WebTestContentBrowserClient::BindWebTestControlHost(
     int render_process_id,

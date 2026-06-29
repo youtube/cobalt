@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/global_features.h"
 
+#include <string_view>
 #include <variant>
 
 #include "base/feature_list.h"
@@ -98,7 +99,7 @@ GlobalFeatures::GetSettings() const {
   return settings_;
 }
 
-void GlobalFeatures::SetSettings(const std::string& key,
+void GlobalFeatures::SetSettings(std::string_view key,
                                  const SettingValue& value) {
   base::AutoLock auto_lock(lock_);
   settings_[key] = value;

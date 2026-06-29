@@ -103,10 +103,8 @@ bool AnyGoodAppKeyFile(const std::string& dir) {
       break;
     }
 
-    struct dirent dirent_buffer;
-    struct dirent* dirent;
-    int result = readdir_r(directory, &dirent_buffer, &dirent);
-    if (result || !dirent) {
+    struct dirent* dirent = readdir(directory);
+    if (!dirent) {
       break;
     }
 
