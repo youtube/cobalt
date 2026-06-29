@@ -1193,9 +1193,16 @@ void URLLoader::ContinueOnResponseStarted() {
                          base::StartsWith(mime, "audio/", base::CompareCase::SENSITIVE) ||
                          mime == "application/vnd.yt-ump");
     }
-    if (!is_media_stream && base::FeatureList::IsEnabled(features::kCobaltDynamicMojoPipeSizing)) {
-      options.capacity_num_bytes = static_cast<uint32_t>(
-          features::kCobaltDynamicMojoPipeSizingSubresourceSize.Get());
+    if (base::FeatureList::IsEnabled(features::kCobaltDynamicMojoPipeSizing)) {
+      int configured_size = is_media_stream
+                                ? features::kCobaltDynamicMojoPipeSizingMediaSize.Get()
+                                : features::kCobaltDynamicMojoPipeSizingSubresourceSize.Get();
+      if (configured_size > 0) {
+        options.capacity_num_bytes = static_cast<uint32_t>(configured_size);
+      } else {
+        options.capacity_num_bytes = GetDataPipeDefaultAllocationSize(
+            DataPipeAllocationSize::kLargerSizeIfPossible);
+      }
     } else {
       options.capacity_num_bytes = GetDataPipeDefaultAllocationSize(
           DataPipeAllocationSize::kLargerSizeIfPossible);
