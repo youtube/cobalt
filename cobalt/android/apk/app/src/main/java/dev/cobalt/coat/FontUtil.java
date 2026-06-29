@@ -45,18 +45,23 @@ public class FontUtil {
 
   public static void copyFontsXml(Context context) {
     File storageDir = new File(PathUtils.getDataDirectory(), "storage");
-    if (!storageDir.exists()) {
-      storageDir.mkdirs();
+    if (!storageDir.exists() && !storageDir.mkdirs()) {
+      Log.e(TAG, "Failed to create directory: " + storageDir.getAbsolutePath());
+      return;
     }
     String asset = "fonts/fonts.xml";
     String fileName = "cobalt_android_fonts.xml";
     File targetFile = new File(storageDir, fileName);
-    try (InputStream is = context.getAssets().open(asset);
-         FileOutputStream fos = new FileOutputStream(targetFile)) {
-      byte[] buf = new byte[8192];
-      int len;
-      while ((len = is.read(buf)) != -1) {
-        fos.write(buf, 0, len);
+    try (InputStream is = context.getAssets().open(asset)) {
+      if (targetFile.exists() && targetFile.length() == is.available()) {
+        return;
+      }
+      try (FileOutputStream fos = new FileOutputStream(targetFile)) {
+        byte[] buf = new byte[8192];
+        int len;
+        while ((len = is.read(buf)) != -1) {
+          fos.write(buf, 0, len);
+        }
       }
     } catch (IOException e) {
       Log.e(TAG, "Failed copying asset: " + asset, e);
