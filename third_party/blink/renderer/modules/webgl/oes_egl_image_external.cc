@@ -14,10 +14,9 @@
 
 #include "third_party/blink/renderer/modules/webgl/oes_egl_image_external.h"
 
-#include "build/build_config.h"
-
 #include <array>
 
+#include "build/build_config.h"
 #include "gpu/command_buffer/client/client_shared_image.h"
 #include "gpu/command_buffer/client/gles2_interface.h"
 #include "media/base/video_frame.h"

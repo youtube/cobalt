@@ -684,9 +684,11 @@ const ImageDesc &TextureState::getImageDesc(TextureTarget target, size_t level) 
     // have these details immediately in its TextureState. Returning a 1x1
     // placeholder prevents assertion failures in ANGLE validation during setup,
     // which is safe since external textures are sampled using normalized coordinates.
-    if (mType == TextureType::External && (descIndex >= mImageDescs.size() || mImageDescs[descIndex].size.empty()))
+    if (mType == TextureType::External &&
+        (descIndex >= mImageDescs.size() || mImageDescs[descIndex].size.empty()))
     {
-        static const ImageDesc kPlaceholderExternalDesc(Extents(1, 1, 1), Format(GL_RGBA, GL_UNSIGNED_BYTE), InitState::Initialized);
+        static const ImageDesc kPlaceholderExternalDesc(
+            Extents(1, 1, 1), Format(GL_RGBA, GL_UNSIGNED_BYTE), InitState::Initialized);
         return kPlaceholderExternalDesc;
     }
 #endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
@@ -968,7 +970,9 @@ GLenum Texture::getWrapS() const
 void Texture::setWrapT(const Context *context, GLenum wrapT)
 {
     if (mState.mSamplerState.getWrapT() == wrapT)
+    {
         return;
+    }
     if (mState.mSamplerState.setWrapT(wrapT))
     {
         signalDirtyState(DIRTY_BIT_WRAP_T);
@@ -1840,8 +1844,8 @@ angle::Result Texture::setStorageExternalMemory(Context *context,
                                                  imageCreateInfoPNext));
 
     mState.mIsExternalMemoryTexture = true;
-    mState.mImmutableFormat = true;
-    mState.mImmutableLevels = static_cast<GLuint>(levels);
+    mState.mImmutableFormat         = true;
+    mState.mImmutableLevels         = static_cast<GLuint>(levels);
     mState.clearImageDescs();
     mState.setImageDescChain(0, static_cast<GLuint>(levels - 1), size, Format(internalFormat),
                              InitState::Initialized);
