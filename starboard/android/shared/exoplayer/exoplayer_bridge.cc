@@ -75,7 +75,8 @@ int GetSampleOffset(SbMediaType type, scoped_refptr<InputBuffer> input_buffer) {
 
 ExoPlayerBridge::ExoPlayerBridge(
     const SbMediaAudioStreamInfo& audio_stream_info,
-    const SbMediaVideoStreamInfo& video_stream_info) {
+    const SbMediaVideoStreamInfo& video_stream_info,
+    JobQueue* job_queue) {
   ON_INSTANCE_CREATED(ExoPlayerBridge);
 
   JNIEnv* env = AttachCurrentThread();
@@ -99,7 +100,9 @@ ExoPlayerBridge::ExoPlayerBridge(
       return;
     }
 
-    j_output_surface.Reset(AcquireVideoSurface());
+    AcquiredSurface acquired_surface = AcquireVideoSurface(job_queue);
+    surface_destroy_notifier_ = acquired_surface.destroy_notifier;
+    j_output_surface = acquired_surface.surface;
     if (!j_output_surface) {
       init_error_msg_ = "Could not acquire video surface for ExoPlayer";
       SB_LOG(ERROR) << init_error_msg_;
@@ -146,6 +149,10 @@ ExoPlayerBridge::~ExoPlayerBridge() {
   if (owns_surface_) {
     CleanUpVideoWindow(false);
     ReleaseVideoSurface();
+    if (surface_destroy_notifier_) {
+      surface_destroy_notifier_->Disconnect();
+      surface_destroy_notifier_ = nullptr;
+    }
   }
 }
 
