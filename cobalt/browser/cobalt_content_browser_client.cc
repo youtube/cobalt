@@ -29,6 +29,9 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/path_service.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
@@ -43,6 +46,7 @@
 #include "cobalt/browser/h5vcc_settings_impl.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
+#include "cobalt/browser/switches.h"
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/common/features/starboard_features_initialization.h"
 #include "cobalt/media/service/platform_window_provider_service.h"
@@ -131,7 +135,36 @@ void BindPlatformWindowProviderService(
       std::move(receiver));
 }
 
+void ParseAndApplyH5vccSettings(std::string_view settings_value,
+                                GlobalFeatures* global_features) {
+  std::vector<std::string> pairs = base::SplitString(
+      settings_value, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+  for (const std::string& pair : pairs) {
+    size_t eq_pos = pair.find('=');
+    if (eq_pos == std::string::npos || eq_pos == 0) {
+      LOG(WARNING) << "Skipping value: pair=" << pair;
+      continue;
+    }
+    std::string_view pair_view(pair);
+    std::string_view key =
+        base::TrimWhitespaceASCII(pair_view.substr(0, eq_pos), base::TRIM_ALL);
+    std::string_view val_str =
+        base::TrimWhitespaceASCII(pair_view.substr(eq_pos + 1), base::TRIM_ALL);
+    int64_t int_val = 0;
+    if (base::StringToInt64(val_str, &int_val)) {
+      global_features->SetSettings(key, int_val);
+    } else {
+      global_features->SetSettings(key, std::string(val_str));
+    }
+  }
+}
+
 }  // namespace
+
+void ParseAndApplyH5vccSettingsForTesting(std::string_view settings_value,
+                                          GlobalFeatures* global_features) {
+  ParseAndApplyH5vccSettings(settings_value, global_features);
+}
 
 #if BUILDFLAG(IS_ANDROID)
 static void JNI_CobaltContentBrowserClient_FlushCookiesAndLocalStorage(
@@ -589,6 +622,11 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   const base::CommandLine& command_line =
       *base::CommandLine::ForCurrentProcess();
 
+  if (command_line.HasSwitch(switches::kEnableH5vccSettings)) {
+    ParseAndApplyH5vccSettings(
+        command_line.GetSwitchValueASCII(switches::kEnableH5vccSettings),
+        global_features);
+  }
   // Overrides for content/common and lower layers' switches.
   std::vector<base::FeatureList::FeatureOverrideInfo> feature_overrides =
       content::GetSwitchDependentFeatureOverrides(command_line);
@@ -616,6 +654,8 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
             << command_line.GetSwitchValueASCII(::switches::kEnableFeatures)
             << "], disable_features=["
             << command_line.GetSwitchValueASCII(::switches::kDisableFeatures)
+            << "], enable_h5vcc_settings=["
+            << command_line.GetSwitchValueASCII(switches::kEnableH5vccSettings)
             << "]";
   LOG(INFO) << "CobaltCommandLine: "
             << CommandLineSwitchesToString(
