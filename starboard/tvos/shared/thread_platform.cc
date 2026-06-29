@@ -19,6 +19,7 @@
 #include <pthread.h>
 #include <sched.h>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
 namespace starboard {
