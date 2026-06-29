@@ -1,17 +1,17 @@
 Project: /youtube/cobalt/_project.yaml
 Book: /youtube/cobalt/_book.yaml
 
-# Set up your environment - Cobalt 27.lts for RDK
+# Set up your environment: Cobalt 27.lts for RDK
 
-These instructions explain how to set up the build environment and build Cobalt 27.lts for the RDK platform (`evergreen-arm-hardfp-rdk`). These steps have been verified inside a clean Ubuntu 22.04 environment and on the Amlogic (AH212) reference device.
+These instructions explain how to set up the build environment and build Cobalt 27.lts for the RDK platform (`evergreen-arm-hardfp-rdk`). The steps are verified on a clean Ubuntu 22.04 environment and on the Amlogic (AH212) reference device.
 
-Starboard for RDK is now integrated into the Cobalt 27.lts branch. The RDK `loader_app`, which includes Starboard, can be built using the Cobalt build mechanism. These instructions explain how to build it and update the library on an RDK device.
+Starboard for RDK is integrated into the Cobalt 27.lts branch. You can build the RDK `loader_app` (which includes Starboard) using the Cobalt build mechanism. These instructions explain how to build it and update the library on an RDK device.
 
-For the RDK Starboard implementation, you can find the source in the [RDK Central repository](https://github.com/rdkcentral/larboard). Cobalt merges and customizes it in [starboard/contrib/rdk](/starboard/contrib/rdk/).
+The source for the RDK Starboard implementation is in the [RDK Central repository](https://github.com/rdkcentral/larboard). Cobalt merges and customizes it in [starboard/contrib/rdk](/starboard/contrib/rdk/).
 
 ## Prerequisites
 
-These instructions assume you are running on Ubuntu 22.04. Required libraries can differ depending on your Linux distribution and version.
+These instructions assume you are running Ubuntu 22.04. Required libraries might vary depending on your Linux distribution.
 
 ### Install Initial Dependencies
 First, install the basic tools required to download the toolchain and manage packages.
@@ -22,9 +22,9 @@ sudo apt install -y wget curl git python3-dev xz-utils lsb-release file sudo
 ```
 
 ### Get an RDK device running the correct image
-You need to have a YouTube reference device (Amlogic S905X4 (AH212)) to run the commands.
+You need a YouTube reference device (Amlogic S905X4 (AH212)) to run the commands.
 
-Please get the device information from the YouTube Partner portal: [AH212](https://developers.google.com/youtube/devices/living-room/compliance/ah212). Note that if you do not have access to the page above, please see [Accessing Living Room Partnership Resources](https://developers.google.com/youtube/devices/living-room/access/accessing-lr-partnership-resources).
+Retrieve the device information from the YouTube Partner portal: [AH212](https://developers.google.com/youtube/devices/living-room/compliance/ah212). Note that if you do not have access to the page above, please see [Accessing Living Room Partnership Resources](https://developers.google.com/youtube/devices/living-room/access/accessing-lr-partnership-resources).
 
 More information about the RDK reference box can be found on the RDK Central wiki: [RDK-Google IPSTB profile stack on Amlogic reference board](https://wiki.rdkcentral.com/display/RDK/RDK-Google+IPSTB+profile+stack+on+Amlogic+reference+board).
 
@@ -32,7 +32,7 @@ More information about the RDK reference box can be found on the RDK Central wik
 
 ### Install RDK Toolchain
 
-We need to install the specific RDK toolchain required for building Cobalt.
+Install the specific RDK toolchain required to build Cobalt.
 
 1.  **Define environment variables**:
     ```sh
@@ -102,7 +102,7 @@ python3 build/linux/sysroot_scripts/install-sysroot.py --arch=arm
 
 ### Build Cobalt binary for the RDK platform
 
-Now you can generate the build files and compile Cobalt.
+Generate the build files and compile Cobalt:
 
 1.  **Ensure environment variables are set**:
     ```sh
@@ -121,7 +121,7 @@ Now you can generate the build files and compile Cobalt.
     ```
 
 > [!NOTE]
-> Do not be concerned that the compile target name contains `_plugin` (`loader_app_rdk_plugin`). This target compiles both the standalone executable (`loader_app`) and the WPE plugin library (`libloader_app.so`). Both are built successfully under this target.
+> The compile target name contains `_plugin` (`loader_app_rdk_plugin`) because this target compiles both the standalone executable (`loader_app`) and the WPE plugin library (`libloader_app.so`). Both build successfully.
 
 
 ### Generate Archive
@@ -136,7 +136,7 @@ tar -czvf archive.tar.gz -C out/evergreen-arm-hardfp-rdk_qa/ \
 
 ## Using Cobalt
 
-To run Cobalt in executable mode, you need to push the built archive to the device, extract it, set up the required environment variables, configure the display layer, and then launch the application directly from the console.
+To run Cobalt in executable mode: push the built archive to the device, extract it, configure the environment variables, set up the display layer, and launch the application from the console.
 
 ### Push the Archive to Device
 
@@ -166,7 +166,7 @@ cd /data && tar -xzvf archive.tar.gz -C out_cobalt
 
 
 ### Set Up Environment Variables on Device
-Before launching Cobalt in executable mode, you need to configure the environment variables on the device:
+Configure the environment variables on the device before launching Cobalt:
 
 ```sh
 export WESTEROS_GL_USE_BEST_MODE=1
@@ -190,7 +190,7 @@ export WAYLAND_DISPLAY=test-0
 ```
 
 ### Create Display and Set Focus
-Run the following commands on the device to create the display layer and focus it. This registers the `test-0` display layer and routes system inputs to it:
+Create the display layer and set focus on the device. This registers the `test-0` display layer and routes system inputs to it:
 
 ```sh
 curl 'http://127.0.0.1:9998/jsonrpc' -d '{"jsonrpc": "2.0","id": 4,"method": "org.rdk.RDKShell.1.createDisplay", "params": { "client": "test-0", "displayName": "test-0" }}'; echo ""
@@ -201,7 +201,7 @@ curl 'http://127.0.0.1:9998/jsonrpc' -d '{"jsonrpc": "2.0","id": 4,"method": "or
 > The RDK UI will freeze after executing these focus commands. Please use the console to navigate to `/data/out_cobalt` and launch the application as described below.
 
 ### Launch Cobalt (Executable Mode)
-Navigate to `/data/out_cobalt` and start the application using `loader_app`. Note that executable mode does not support launching via the UI:
+Navigate to `/data/out_cobalt` and launch the application using `loader_app` (executable mode does not support launching via the UI):
 
 ```sh
 cd /data/out_cobalt
@@ -209,7 +209,7 @@ cd /data/out_cobalt
 ```
 
 ### Restoring RDK UI Control
-Once the `loader_app` is closed, the UI will freeze and you will not be able to control the RDK UI via the RCU because the control focus has been passed to the custom display layer. To bring back the RDK UI control, run:
+After closing `loader_app`, the UI freezes because control focus remains with the custom display layer. To restore RDK UI control, run:
 
 ```sh
 curl 'http://127.0.0.1:9998/jsonrpc' -d '{"jsonrpc": "2.0","id": 4,"method": "org.rdk.RDKShell.1.setFocus", "params": { "client": "residentapp" }}' ; echo ""
@@ -217,7 +217,7 @@ curl 'http://127.0.0.1:9998/jsonrpc' -d '{"jsonrpc": "2.0","id": 4,"method": "or
 
 ## Launch NPLB with elf_loader_sandbox
 
-As mentioned in Evergreen documentation, `elf_loader_sandbox` is a lightweight loader compared to `loader_app`. It can be used to load NPLB or other libraries by providing paths via command line switches: `--evergreen_library` and `--evergreen_content`.
+The `elf_loader_sandbox` is a lightweight loader compared to `loader_app`. Use it to load NPLB or other libraries by providing paths via the `--evergreen_library` and `--evergreen_content` command-line switches.
 
 ### Directory Structure (Visual Reference)
 
@@ -266,7 +266,7 @@ cd /data/out_cobalt/
 
 ### Using gtest arguments
 
-You can pass standard gtest arguments as usual.
+You can pass standard Google Test (gtest) arguments.
 
 **Output test result as XML file:**
 ```sh
