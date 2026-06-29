@@ -59,6 +59,11 @@ typedef struct CobaltExtensionCrashHandlerApi {
   // injected dependency to implement |SetString|, does not expect this function
   // to be called.
   void (*RegisterSetStringCallback)(SetStringCallback callback);
+
+  // The fields below this point were added in version 4 or later.
+
+  // Instructs Crashpad to write a minidump without crashing.
+  void (*DumpWithoutCrashing)(void);
 } CobaltExtensionCrashHandlerApi;
 
 #ifdef __cplusplus
