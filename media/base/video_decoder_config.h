@@ -22,10 +22,6 @@
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/hdr_metadata.h"
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include <string_view>
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 namespace media {
 
 // Describes the content of a video stream, as described by the media container

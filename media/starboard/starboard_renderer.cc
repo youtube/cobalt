@@ -759,8 +759,7 @@ void StarboardRenderer::ApplyPendingVideoConfig() {
   DCHECK(video_stream_);
 
   LOG(INFO)
-      << "Applying pending Video config change. is_change_type_transition="
-      << pending_video_config_->is_change_type_transition();
+      << "Applying pending Video config change from changeType transition.";
 
   client_->OnVideoConfigChange(*pending_video_config_);
   client_->OnVideoNaturalSizeChange(
@@ -780,8 +779,7 @@ void StarboardRenderer::ApplyPendingAudioConfig() {
   DCHECK(audio_stream_);
 
   LOG(INFO)
-      << "Applying pending Audio config change. is_change_type_transition="
-      << pending_audio_config_->is_change_type_transition();
+      << "Applying pending Audio config change from changeType transition.";
 
   client_->OnAudioConfigChange(*pending_audio_config_);
 
