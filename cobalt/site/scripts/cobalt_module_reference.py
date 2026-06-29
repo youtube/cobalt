@@ -175,9 +175,11 @@ def _node_to_markdown(out, node):
   elif node.tag == 'bold':
     assert len(node) == 0
     out.bold(text)
+    text = ''
   elif node.tag == 'computeroutput':
     assert len(node) == 0
     out.code(text)
+    text = ''
   elif node.tag == 'ulink':
     url = node.get('url')
     assert url
