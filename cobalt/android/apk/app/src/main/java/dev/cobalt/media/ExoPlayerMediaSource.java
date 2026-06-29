@@ -37,14 +37,16 @@ import javax.annotation.concurrent.GuardedBy;
 public final class ExoPlayerMediaSource extends BaseMediaSource {
   private final Format mFormat;
   private final Object mLock = new Object();
+  private final ExoPlayerBridge mBridge;
 
   @GuardedBy("mLock")
   private ExoPlayerMediaPeriod mMediaPeriod;
 
   private final MediaItem mMediaItem;
 
-  ExoPlayerMediaSource(Format format) {
+  ExoPlayerMediaSource(Format format, ExoPlayerBridge bridge) {
     mFormat = format;
+    mBridge = bridge;
     mMediaItem = new MediaItem.Builder().setMediaMetadata(MediaMetadata.EMPTY).build();
   }
 
@@ -79,7 +81,7 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
   public MediaPeriod createPeriod(MediaPeriodId id, Allocator allocator, long startPositionUs) {
     synchronized (mLock) {
       if (mMediaPeriod == null) {
-        mMediaPeriod = new ExoPlayerMediaPeriod(mFormat, allocator);
+        mMediaPeriod = new ExoPlayerMediaPeriod(mFormat, mBridge);
         return mMediaPeriod;
       }
     }
@@ -92,39 +94,14 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
     synchronized (mLock) {
       if (mMediaPeriod != null) {
         if (mediaPeriod != mMediaPeriod) {
-          throw new IllegalStateException(
-              "Called MediaSource.releasePeriod on an unknown MediaPeriod");
+            throw new IllegalStateException(
+                "Called MediaSource.releasePeriod on an unknown MediaPeriod");
         }
-        // Ignore the passed-in MediaPeriod and call the ExoPlayerMediaPeriod directly. As
-        // there's only a single MediaPeriod, this will match the passed MediaPeriod.
-        mMediaPeriod.destroySampleStream();
         mMediaPeriod = null;
         return;
       }
     }
     throw new IllegalStateException(
         "Called MediaSource.releasePeriod() after period was already released");
-  }
-
-  public void writeSample(ExoPlayerMediaSample sample) {
-    synchronized (mLock) {
-      if (mMediaPeriod != null) {
-        mMediaPeriod.writeSample(sample);
-      }
-    }
-  }
-
-  public void writeEndOfStream() {
-    synchronized (mLock) {
-      if (mMediaPeriod != null) {
-        mMediaPeriod.writeEndOfStream();
-      }
-    }
-  }
-
-  public boolean canAcceptMoreData() {
-    synchronized (mLock) {
-      return mMediaPeriod != null && mMediaPeriod.canAcceptMoreData();
-    }
   }
 }

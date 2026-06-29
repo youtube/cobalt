@@ -24,18 +24,17 @@ import androidx.media3.exoplayer.source.MediaPeriod;
 import androidx.media3.exoplayer.source.SampleStream;
 import androidx.media3.exoplayer.source.TrackGroupArray;
 import androidx.media3.exoplayer.trackselection.ExoTrackSelection;
-import androidx.media3.exoplayer.upstream.Allocator;
 import java.io.IOException;
 
 /** Implements the ExoPlayer MediaPeriod interface to write samples to the ExoPlayerSampleStream. */
 public class ExoPlayerMediaPeriod implements MediaPeriod {
   private final Format mFormat;
-  private final Allocator mAllocator;
+  private final ExoPlayerBridge mBridge;
   private ExoPlayerSampleStream mStream;
 
-  ExoPlayerMediaPeriod(Format format, Allocator allocator) {
+  ExoPlayerMediaPeriod(Format format, ExoPlayerBridge bridge) {
     mFormat = format;
-    mAllocator = allocator;
+    mBridge = bridge;
   }
 
   @Override
@@ -51,11 +50,6 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
     return new TrackGroupArray(new TrackGroup(mFormat));
   }
 
-  /**
-   * Initializes the {@link ExoPlayerSampleStream} for the selected track.
-   *
-   * Cobalt's implementation assumes a single track per period (either audio or video).
-   */
   @Override
   public long selectTracks(
       ExoTrackSelection[] selections,
@@ -63,14 +57,23 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
       SampleStream[] streams,
       boolean[] streamResetFlags,
       long positionUs) {
-    if (mStream != null) {
-      throw new IllegalStateException(
-          "Tried to initialize the SampleStream after it has already been created");
+
+    // First pass: Release and null out existing streams if their track is deselected or if
+    // ExoPlayer indicates the stream cannot be retained. This prevents using stale stream
+    // references and ensures the second pass creates a fresh SampleStream and sets streamResetFlags
+    // appropriately.
+    for (int i = 0; i < selections.length; ++i) {
+      if (streams[i] != null && (selections[i] == null || !mayRetainStreamFlags[i])) {
+        if (streams[i] == mStream) {
+            mStream = null;
+        }
+        streams[i] = null;
+      }
     }
 
     for (int i = 0; i < selections.length; ++i) {
-      if (selections[i] != null) {
-        mStream = new ExoPlayerSampleStream(mAllocator, selections[i].getSelectedFormat());
+      if (streams[i] == null && selections[i] != null) {
+        mStream = new ExoPlayerSampleStream(selections[i].getSelectedFormat(), mBridge);
         streams[i] = mStream;
         streamResetFlags[i] = true;
       }
@@ -79,11 +82,7 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
   }
 
   @Override
-  public void discardBuffer(long positionUs, boolean toKeyframe) {
-    if (mStream != null) {
-      mStream.discardBuffer(positionUs, toKeyframe);
-    }
-  }
+  public void discardBuffer(long positionUs, boolean toKeyframe) {}
 
   @Override
   public long readDiscontinuity() {
@@ -92,7 +91,6 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
 
   @Override
   public long seekToUs(long positionUs) {
-    mStream.seek(positionUs, mFormat);
     return positionUs;
   }
 
@@ -113,40 +111,14 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
 
   @Override
   public boolean continueLoading(@NonNull LoadingInfo loadingInfo) {
-    return mStream == null || (!mStream.endOfStreamWritten() && mStream.canAcceptMoreData());
+    return true;
   }
 
   @Override
   public boolean isLoading() {
-    return mStream == null || !mStream.endOfStreamWritten();
+    return getBufferedPositionUs() != C.TIME_END_OF_SOURCE;
   }
 
   @Override
   public void reevaluateBuffer(long positionUs) {}
-
-  public void destroySampleStream() {
-    if (mStream != null) {
-      mStream.destroy();
-    }
-  }
-
-  /**
-   * Writes a sample to the sample stream.
-   *
-   * @param sample The media sample data and its metadata.
-   */
-  public void writeSample(ExoPlayerMediaSample sample) {
-    mStream.writeSample(sample);
-  }
-
-  public void writeEndOfStream() {
-    mStream.writeEndOfStream();
-  }
-
-  public boolean canAcceptMoreData() {
-    if (mStream == null) {
-      return false;
-    }
-    return mStream.canAcceptMoreData();
-  }
 }

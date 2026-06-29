@@ -23,6 +23,7 @@ import android.os.SystemClock;
 import android.view.Surface;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.media3.common.Format;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.PlaybackParameters;
 import androidx.media3.common.Player;
@@ -42,6 +43,10 @@ import org.jni_zero.NativeMethods;
 /** Facilitates communication between the native ExoPlayerBridge and the Java ExoPlayer */
 @JNINamespace("starboard")
 public class ExoPlayerBridge {
+  // Used in ExoPlayerSampleStream.
+  public static final int TYPE_AUDIO = 0;
+  public static final int TYPE_VIDEO = 1;
+
   private ExoPlayer mPlayer;
   private ExoPlayerMediaSource mAudioMediaSource;
   private ExoPlayerMediaSource mVideoMediaSource;
@@ -136,8 +141,8 @@ public class ExoPlayerBridge {
    * @param nativeExoPlayerBridge The pointer to the native Starboard ExoPlayerBridge.
    * @param context The application context.
    * @param renderersFactory The factory for creating media renderers.
-   * @param audioSource The audio MediaSource, or null if audio-only playback.
-   * @param videoSource The video MediaSource, or null if video-only playback.
+   * @param audioFormat The audio Format, or null if audio-only playback.
+   * @param videoFormat The video Format, or null if video-only playback.
    * @param surface The rendering surface for video.
    * @param enableTunnelMode Whether to enable low-latency tunneling mode.
    */
@@ -145,8 +150,8 @@ public class ExoPlayerBridge {
       long nativeExoPlayerBridge,
       Context context,
       DefaultRenderersFactory renderersFactory,
-      @Nullable ExoPlayerMediaSource audioSource,
-      @Nullable ExoPlayerMediaSource videoSource,
+      @Nullable Format audioFormat,
+      @Nullable Format videoFormat,
       @Nullable Surface surface,
       boolean enableTunnelMode) {
     mExoPlayerHandler = new Handler(Looper.getMainLooper());
@@ -162,8 +167,12 @@ public class ExoPlayerBridge {
             .setTunnelingEnabled(enableTunnelMode)
             .build());
 
-    mAudioMediaSource = audioSource;
-    mVideoMediaSource = videoSource;
+    if (audioFormat != null) {
+      mAudioMediaSource = new ExoPlayerMediaSource(audioFormat, this);
+    }
+    if (videoFormat != null) {
+      mVideoMediaSource = new ExoPlayerMediaSource(videoFormat, this);
+    }
 
     MediaSource playbackMediaSource;
     if (mAudioMediaSource != null && mVideoMediaSource != null) {
@@ -256,42 +265,6 @@ public class ExoPlayerBridge {
     mSeekTimeUsec = seekToTimeUsec;
   }
 
-  /**
-   * Writes a media sample to the appropriate media source.
-   * @param sample The media sample to write.
-   */
-  @CalledByNative
-  public void writeSample(ExoPlayerMediaSample sample) {
-    ExoPlayerMediaSource mediaSource =
-        sample.getType() == ExoPlayerRendererType.AUDIO ? mAudioMediaSource : mVideoMediaSource;
-    if (mediaSource == null || mIsReleased) {
-      reportError(
-          String.format(
-              "Tried to write %s sample while ExoPlayer is in an invalid state",
-              sample.getType() == ExoPlayerRendererType.AUDIO ? "audio" : "video"));
-      return;
-    }
-    mediaSource.writeSample(sample);
-  }
-
-  /**
-   * Writes the end-of-stream signal to the appropriate media source.
-   * @param type The type of stream (audio or video).
-   */
-  @CalledByNative
-  public void writeEndOfStream(int type) {
-    ExoPlayerMediaSource mediaSource =
-        type == ExoPlayerRendererType.AUDIO ? mAudioMediaSource : mVideoMediaSource;
-    if (mediaSource == null || mIsReleased) {
-      reportError(
-          String.format(
-              "Tried to write %s EOS sample while ExoPlayer is in an invalid state",
-              type == ExoPlayerRendererType.AUDIO ? "audio" : "video"));
-      return;
-    }
-    mediaSource.writeEndOfStream();
-  }
-
   @CalledByNative
   private void pause() {
     if (mPlayer == null || mIsReleased) {
@@ -364,21 +337,6 @@ public class ExoPlayerBridge {
   }
 
   /**
-   * Returns true if the specified media source can accept more data.
-   * @param type The type of stream (audio or video).
-   * @return True if more data can be accepted.
-   */
-  @CalledByNative
-  public boolean canAcceptMoreData(int type) {
-    if (mIsReleased) {
-      return false;
-    }
-    ExoPlayerMediaSource mediaSource =
-        type == ExoPlayerRendererType.AUDIO ? mAudioMediaSource : mVideoMediaSource;
-    return mediaSource.canAcceptMoreData();
-  }
-
-  /**
    * Returns the current playback position in microseconds.
    *
    * This method provides a high-resolution estimate of the playback position. Since ExoPlayer
@@ -413,6 +371,34 @@ public class ExoPlayerBridge {
     ExoPlayerBridgeJni.get().onError(mNativeExoPlayerBridge, errorMessage);
   }
 
+  public int readSample(int type, java.nio.ByteBuffer outBuffer, long[] outMetadata) {
+    if (mIsReleased) {
+      return androidx.media3.common.C.RESULT_NOTHING_READ;
+    }
+    return ExoPlayerBridgeJni.get().readSample(mNativeExoPlayerBridge, type, outBuffer, outMetadata);
+  }
+
+  public boolean isReady(int type) {
+    if (mIsReleased) {
+      return false;
+    }
+    return ExoPlayerBridgeJni.get().isReady(mNativeExoPlayerBridge, type);
+  }
+
+  public int skipData(int type, long positionUs) {
+    if (mIsReleased) {
+      return 0;
+    }
+    return ExoPlayerBridgeJni.get().skipData(mNativeExoPlayerBridge, type, positionUs);
+  }
+
+  public long getBufferedPositionUs(int type) {
+    if (mIsReleased) {
+      return androidx.media3.common.C.TIME_END_OF_SOURCE;
+    }
+    return ExoPlayerBridgeJni.get().getBufferedPositionUs(mNativeExoPlayerBridge, type);
+  }
+
   @NativeMethods
   interface Natives {
     void onInitialized(long nativeExoPlayerBridge);
@@ -426,5 +412,13 @@ public class ExoPlayerBridge {
     void onDroppedVideoFrames(long nativeExoPlayerBridge, int count);
 
     void onIsPlayingChanged(long nativeExoPlayerBridge, boolean isPlaying);
+
+    int readSample(long nativeExoPlayerBridge, int type, java.nio.ByteBuffer outBuffer, long[] outMetadata);
+
+    boolean isReady(long nativeExoPlayerBridge, int type);
+
+    int skipData(long nativeExoPlayerBridge, int type, long positionUs);
+
+    long getBufferedPositionUs(long nativeExoPlayerBridge, int type);
   }
 }
