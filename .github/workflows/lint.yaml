@@ -14,7 +14,8 @@ on:
       - feature/*
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }} @ ${{ github.event.label.name || github.event.pull_request.number || github.sha }} @ ${{ github.event.label.name && github.event.pull_request.number || github.event.action }}
+  # Cancel existing jobs on the same workflow, platform, and branch (or sha if merged).
+  group: ${{ github.workflow }}-${{ github.event_name }} @ ${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
 permissions: {}
@@ -34,11 +35,11 @@ jobs:
           sparse-checkout: |
             cobalt/docker
             docker-compose.yaml
-            .pre-commit-config.yaml
       - name: Set Docker files checksum
         id: set-docker-hash
         env:
-          DOCKER_FILES: cobalt/docker docker-compose.yaml .pre-commit-config.yaml
+          # Explicitly exclude .pre-commit-config.yaml to make edits testable without rebuilding the image.
+          DOCKER_FILES: cobalt/docker/pre-commit docker-compose.yaml
         shell: bash
         run: |
           set -x

@@ -6,8 +6,6 @@ ARG BASE_IMAGE_SHA=sha256:be15f84c44c4ee68b4f187128f0278df1b0f424c04fb5f08b09896
 
 FROM marketplace.gcr.io/google/debian12@${BASE_IMAGE_SHA}
 
-WORKDIR /app
-COPY .pre-commit-config.yaml /app/
 
 ### Install dependencies.
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -19,12 +17,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt /tmp/
 RUN python3 -m pip install --break-system-packages --require-hashes -r /tmp/requirements.txt
 
+WORKDIR /app
+COPY .pre-commit-config.yaml /app/
+
 # Setup pre-commit environment, install hooks, and clean up in one go to save layers.
 ENV PRE_COMMIT_HOME=/var/cache/pre-commit
 RUN git config --system --add safe.directory '*' \
     && git init \
-    && mkdir -p $PRE_COMMIT_HOME && chmod 777 $PRE_COMMIT_HOME \
+    && mkdir -p "$PRE_COMMIT_HOME" && chmod 777 "$PRE_COMMIT_HOME" \
     && pre-commit install-hooks \
     && rm -rf .git .pre-commit-config.yaml /tmp/requirements.txt /root/.cache \
-    && find $PRE_COMMIT_HOME -type d -name ".go" -exec rm -rf {} + \
-    && chmod -R 777 $PRE_COMMIT_HOME
+    && find "$PRE_COMMIT_HOME" -type d -name ".go" -exec rm -rf {} + \
+    && chmod -R 777 "$PRE_COMMIT_HOME"
