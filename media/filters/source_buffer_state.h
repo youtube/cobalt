@@ -20,10 +20,6 @@
 #include "media/base/video_codecs.h"
 #include "media/filters/source_buffer_parse_warnings.h"
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include <string_view>
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 namespace media {
 
 
@@ -64,7 +60,7 @@ class MEDIA_EXPORT SourceBufferState {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   void ChangeType(std::unique_ptr<StreamParser> new_stream_parser,
                   const std::string& new_expected_codecs,
-                  std::string_view new_mime_type);
+                  const std::string& new_mime_type);
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   void ChangeType(std::unique_ptr<StreamParser> new_stream_parser,
                   const std::string& new_expected_codecs);

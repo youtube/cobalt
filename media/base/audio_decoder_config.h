@@ -17,10 +17,6 @@
 #include "media/base/media_export.h"
 #include "media/base/sample_format.h"
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include <string_view>
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 namespace media {
 
 class MEDIA_EXPORT AudioDecoderConfig {

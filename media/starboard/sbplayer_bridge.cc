@@ -331,7 +331,7 @@ SbPlayerBridge::~SbPlayerBridge() {
 }
 
 void SbPlayerBridge::UpdateAudioConfig(const AudioDecoderConfig& audio_config,
-                                       std::string_view mime_type) {
+                                       const std::string& mime_type) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(audio_config.IsValidConfig());
 
@@ -346,7 +346,7 @@ void SbPlayerBridge::UpdateAudioConfig(const AudioDecoderConfig& audio_config,
 }
 
 void SbPlayerBridge::UpdateVideoConfig(const VideoDecoderConfig& video_config,
-                                       std::string_view mime_type) {
+                                       const std::string& mime_type) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(video_config.IsValidConfig());
 
