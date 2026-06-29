@@ -16,9 +16,11 @@
 #include "base/run_loop.h"
 #include "build/buildflag.h"
 #include "cobalt/app/app_event_delegate.h"
+#include "base/memory/cobalt_memory_context.h"
 #include "starboard/event.h"
 
 void SbEventHandle(const SbEvent* event) {
+  base::memory::SetCurrentMemoryContext(base::memory::MemoryContext::kBrowserMain);
   // This object's lifetime extends beyond the function's lifetime, until the
   // function is called with kSbEventTypeStop at some time in the future.
   // When the application is stopped, this object is destroyed and the pointer
@@ -53,6 +55,7 @@ void SbEventHandle(const SbEvent* event) {
 
 #if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 int main(int argc, char** argv) {
+  base::memory::SetCurrentMemoryContext(base::memory::MemoryContext::kBrowserMain);
   return SbRunStarboardMain(argc, argv, SbEventHandle);
 }
 #endif
