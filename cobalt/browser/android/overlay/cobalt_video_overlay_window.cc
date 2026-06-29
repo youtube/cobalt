@@ -17,7 +17,7 @@
 #include "base/android/jni_android.h"
 #include "base/logging.h"
 #include "cc/slim/surface_layer.h"
-#include "cobalt/android/jni_headers/CobaltPictureInPictureActivity_jni.h"
+#include "cobalt/android/pip_jni_headers/CobaltPictureInPictureActivity_jni.h"
 #include "components/viz/common/surfaces/surface_id.h"
 #include "content/public/browser/overlay_window.h"
 #include "content/public/browser/video_picture_in_picture_window_controller.h"
@@ -25,6 +25,7 @@
 #include "ui/android/view_android.h"
 #include "ui/android/window_android.h"
 #include "ui/android/window_android_compositor.h"
+#include "ui/android/window_android_observer.h"
 
 // The static factory method remains in the global namespace (or content
 // namespace). static
@@ -52,10 +53,20 @@ CobaltVideoOverlayWindow::CobaltVideoOverlayWindow(
 CobaltVideoOverlayWindow::~CobaltVideoOverlayWindow() {
   LOG(INFO) << "CobaltVideoOverlayWindow destructor called";
   if (window_android_) {
+    window_android_->RemoveObserver(this);
     window_android_ = nullptr;
   }
   Close();
 }
+
+void CobaltVideoOverlayWindow::OnRootWindowVisibilityChanged(bool visible) {}
+void CobaltVideoOverlayWindow::OnAttachCompositor() {}
+void CobaltVideoOverlayWindow::OnDetachCompositor() {}
+void CobaltVideoOverlayWindow::OnAnimate(base::TimeTicks frame_begin_time) {}
+void CobaltVideoOverlayWindow::OnActivityStopped() {
+  Close();
+}
+void CobaltVideoOverlayWindow::OnActivityStarted() {}
 
 bool CobaltVideoOverlayWindow::IsActive() const {
   return is_visible_;
@@ -144,17 +155,22 @@ void CobaltVideoOverlayWindow::SetSurfaceId(const viz::SurfaceId& surface_id) {
   LOG(INFO) << "CobaltVideoOverlayWindow::SetSurfaceId called: "
             << surface_id.ToString();
 
-  const viz::SurfaceId& old_surface_id = surface_layer_->surface_id().is_valid()
-                                             ? surface_layer_->surface_id()
-                                             : surface_id;
+  bool frame_sink_id_changed = true;
+  if (surface_layer_->surface_id().is_valid()) {
+    frame_sink_id_changed = surface_layer_->surface_id().frame_sink_id() !=
+                            surface_id.frame_sink_id();
+  }
+
   if (window_android_ && window_android_->GetCompositor() &&
-      old_surface_id.frame_sink_id() != surface_id.frame_sink_id()) {
+      frame_sink_id_changed) {
     // On Android, the new frame sink needs to be added before
     // removing the previous surface sink.
     window_android_->GetCompositor()->AddChildFrameSink(
         surface_id.frame_sink_id());
-    window_android_->GetCompositor()->RemoveChildFrameSink(
-        old_surface_id.frame_sink_id());
+    if (surface_layer_->surface_id().is_valid()) {
+      window_android_->GetCompositor()->RemoveChildFrameSink(
+          surface_layer_->surface_id().frame_sink_id());
+    }
   }
   // Set the surface after frame sink hierarchy update.
   surface_layer_->SetSurfaceId(surface_id,
@@ -174,6 +190,7 @@ void CobaltVideoOverlayWindow::OnActivityDestroyed(JNIEnv* env) {
   LOG(INFO) << "CobaltVideoOverlayWindow::OnActivityDestroyed called, clearing "
                "reference";
   if (window_android_) {
+    window_android_->RemoveObserver(this);
     window_android_ = nullptr;
   }
   java_activity_ref_.Reset();
@@ -200,10 +217,14 @@ void CobaltVideoOverlayWindow::CompositorViewCreated(
     const base::android::JavaParamRef<jobject>& compositor_view) {
   LOG(INFO) << "CobaltVideoOverlayWindow::CompositorViewCreated called";
 
+  if (java_activity_ref_.is_null()) {
+    LOG(ERROR) << "java_activity_ref_ is null in CompositorViewCreated";
+    return;
+  }
+
   compositor_view_ =
       thin_webview::android::CompositorView::FromJavaObject(compositor_view);
   DCHECK(compositor_view_);
-  compositor_view_->SetRootLayer(surface_layer_);
 
   base::android::ScopedJavaLocalRef<jobject> j_window_android =
       Java_CobaltPictureInPictureActivity_getWindowAndroid(env,
@@ -212,7 +233,17 @@ void CobaltVideoOverlayWindow::CompositorViewCreated(
   if (!j_window_android.is_null()) {
     window_android_ = ui::WindowAndroid::FromJavaWindowAndroid(
         base::android::JavaParamRef<jobject>(env, j_window_android.obj()));
+    if (window_android_) {
+      window_android_->AddObserver(this);
+      if (window_android_->GetCompositor() &&
+          surface_layer_->surface_id().is_valid()) {
+        window_android_->GetCompositor()->AddChildFrameSink(
+            surface_layer_->surface_id().frame_sink_id());
+      }
+    }
   }
+
+  compositor_view_->SetRootLayer(surface_layer_);
 }
 
 void CobaltVideoOverlayWindow::CreateJavaActivity() {
@@ -230,8 +261,8 @@ void CobaltVideoOverlayWindow::CreateJavaActivity() {
   base::android::ScopedJavaLocalRef<jobject> j_web_contents =
       web_contents->GetJavaWebContents();
   JNIEnv* env = base::android::AttachCurrentThread();
-  LOG(INFO) << "CoAT PiP Step 12: Calling JNI launchActivity with WebContents="
-            << web_contents << ", window_ptr=" << this;
+  LOG(INFO) << "Calling JNI launchActivity with WebContents=" << web_contents
+            << ", window_ptr=" << this;
   Java_CobaltPictureInPictureActivity_launchActivity(
       env, j_web_contents, reinterpret_cast<jlong>(this));
 }
