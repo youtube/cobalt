@@ -14,6 +14,7 @@
 
 #include "media/base/starboard/ipc_param_traits.h"
 
+#include <type_traits>
 #include <variant>
 
 #include "base/strings/stringprintf.h"
@@ -22,6 +23,15 @@
 namespace IPC {
 
 using media::ExperimentalFeatures;
+
+static_assert(
+    std::is_same_v<std::variant_alternative_t<0, ExperimentalFeatures::Value>,
+                   int64_t>,
+    "Index 0 of ExperimentalFeatures::Value must be int64_t");
+static_assert(
+    std::is_same_v<std::variant_alternative_t<1, ExperimentalFeatures::Value>,
+                   std::string>,
+    "Index 1 of ExperimentalFeatures::Value must be std::string");
 
 void ParamTraits<ExperimentalFeatures::Value>::Write(
     base::Pickle* m,

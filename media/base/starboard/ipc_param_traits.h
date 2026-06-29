@@ -17,12 +17,13 @@
 
 #include "ipc/ipc_message.h"
 #include "ipc/ipc_param_traits.h"
+#include "media/base/media_export.h"
 #include "media/base/starboard/experimental_features.h"
 
 namespace IPC {
 
 template <>
-struct ParamTraits<media::ExperimentalFeatures::Value> {
+struct MEDIA_EXPORT ParamTraits<media::ExperimentalFeatures::Value> {
   static void Write(base::Pickle* m,
                     const media::ExperimentalFeatures::Value& p);
   static bool Read(const base::Pickle* m,
@@ -32,7 +33,7 @@ struct ParamTraits<media::ExperimentalFeatures::Value> {
 };
 
 template <>
-struct ParamTraits<media::ExperimentalFeatures> {
+struct MEDIA_EXPORT ParamTraits<media::ExperimentalFeatures> {
   static void Write(base::Pickle* m, const media::ExperimentalFeatures& p);
   static bool Read(const base::Pickle* m,
                    base::PickleIterator* iter,

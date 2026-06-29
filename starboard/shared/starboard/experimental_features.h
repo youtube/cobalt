@@ -96,7 +96,7 @@ class ExperimentalFeatures {
 
 template <typename T>
 inline std::optional<T> ExperimentalFeatures::GetValue(const Value& val) const {
-  static_assert(sizeof(T) == 0,
+  static_assert(!std::is_same_v<T, T>,
                 "Unsupported type for ExperimentalFeatures::Get");
   return std::nullopt;
 }
@@ -150,7 +150,8 @@ const void* GetExperimentalFeaturesConfigurationApi();
 // -----------------------------------------------------------------------------
 // Key constants for experimental features consumed directly within the
 // Starboard platform implementation layer. For Chromium media layer settings,
-// see media/base/starboard/experimental_features.h. keep-sorted start
+// see media/base/starboard/experimental_features.h.
+// keep-sorted start
 inline constexpr ExperimentalFeatureKey<bool> kMediaAllowAudioWritingOnPause(
     "Media.AllowAudioWritingOnPause");
 inline constexpr ExperimentalFeatureKey<bool> kMediaEnableFlushDuringSeek(
