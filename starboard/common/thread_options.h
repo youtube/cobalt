@@ -80,7 +80,7 @@ struct ThreadOptions {
   }
 
   std::optional<ThreadPriority> priority;
-  size_t stack_size = 0;
+  std::optional<size_t> stack_size;
 };
 
 }  // namespace starboard

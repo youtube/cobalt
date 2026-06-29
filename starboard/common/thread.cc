@@ -145,9 +145,8 @@ struct Thread::Data {
 Thread::Thread(std::string_view name, const ThreadOptions& options)
     : name_(name),
       priority_(options.priority),
-      stack_size_(options.stack_size > 0
-                      ? std::make_optional(options.stack_size)
-                      : GetOverriddenStackSize()),
+      stack_size_(options.stack_size ? options.stack_size
+                                     : GetOverriddenStackSize()),
       d_(std::make_unique<Data>()) {}
 
 Thread::~Thread() {
