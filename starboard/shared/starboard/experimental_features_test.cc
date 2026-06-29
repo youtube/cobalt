@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/experimental_features.h"
 
 #include <optional>
+#include <sstream>
 #include <string>
 
 #include "testing/gtest/include/gtest/gtest.h"
@@ -48,6 +49,15 @@ TEST(StarboardExperimentalFeaturesTest, IntSentinelReturnsNullopt) {
   EXPECT_EQ(features.Get(kTestIntKey), std::nullopt);
 }
 
+TEST(StarboardExperimentalFeaturesTest, IntOutOfBoundsReturnsNullopt) {
+  ExperimentalFeatures::Map map;
+  map["Test.IntKey"] =
+      static_cast<int64_t>(3000000000LL);  // Exceeds 32-bit int
+  ExperimentalFeatures features(map);
+
+  EXPECT_EQ(features.Get(kTestIntKey), std::nullopt);
+}
+
 TEST(StarboardExperimentalFeaturesTest, MissingKeysAndTypeMismatch) {
   ExperimentalFeatures::Map map;
   map["Test.IntKey"] = std::string("not_an_int");
@@ -55,6 +65,16 @@ TEST(StarboardExperimentalFeaturesTest, MissingKeysAndTypeMismatch) {
 
   EXPECT_EQ(features.Get(kTestBoolKey), std::nullopt);
   EXPECT_EQ(features.Get(kTestIntKey), std::nullopt);
+}
+
+TEST(StarboardExperimentalFeaturesTest, OutputStreamOperatorFormatsCorrectly) {
+  ExperimentalFeatures::Map map;
+  map["Test.IntKey"] = static_cast<int64_t>(42);
+  ExperimentalFeatures features(map);
+
+  std::ostringstream ss;
+  ss << features;
+  EXPECT_EQ(ss.str(), "{Test.IntKey=42}");
 }
 
 }  // namespace

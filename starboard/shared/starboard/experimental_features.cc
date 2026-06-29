@@ -15,7 +15,9 @@
 #include "starboard/shared/starboard/experimental_features.h"
 
 #include <optional>
+#include <ostream>
 #include <type_traits>
+#include <utility>
 
 #include "starboard/common/log.h"
 #include "starboard/extension/experimental/experimental_features.h"
@@ -75,6 +77,17 @@ const ExperimentalFeatures& GetExperimentalFeaturesForCurrentThread() {
 
 const void* GetExperimentalFeaturesConfigurationApi() {
   return &kExperimentalFeaturesConfigurationApi;
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const ExperimentalFeatures& features) {
+  os << "{";
+  const char* delim = "";
+  for (const auto& [key, value] : features.settings_) {
+    os << std::exchange(delim, ", ") << key << "=";
+    std::visit([&os](const auto& val) { os << val; }, value);
+  }
+  return os << "}";
 }
 
 }  // namespace starboard

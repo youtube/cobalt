@@ -30,4 +30,15 @@ ExperimentalFeatures& ExperimentalFeatures::operator=(ExperimentalFeatures&&) =
     default;
 ExperimentalFeatures::~ExperimentalFeatures() = default;
 
+std::ostream& operator<<(std::ostream& os,
+                         const ExperimentalFeatures& features) {
+  os << "{";
+  const char* delim = "";
+  for (const auto& [key, value] : features.settings_) {
+    os << std::exchange(delim, ", ") << key << "=";
+    std::visit([&os](const auto& val) { os << val; }, value);
+  }
+  return os << "}";
+}
+
 }  // namespace media

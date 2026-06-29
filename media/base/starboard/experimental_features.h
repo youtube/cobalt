@@ -17,8 +17,10 @@
 
 #include <cstdint>
 #include <functional>
+#include <limits>
 #include <map>
 #include <optional>
+#include <ostream>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -91,6 +93,10 @@ class MEDIA_EXPORT ExperimentalFeatures {
 
   const Map& settings() const { return settings_; }
 
+  friend MEDIA_EXPORT std::ostream& operator<<(
+      std::ostream& os,
+      const ExperimentalFeatures& features);
+
  private:
   template <typename T>
   std::optional<T> GetValue(const Value& val) const;
@@ -120,6 +126,10 @@ inline std::optional<int> ExperimentalFeatures::GetValue<int>(
     const Value& val) const {
   auto* int_val = std::get_if<int64_t>(&val);
   if (!int_val || *int_val == internal::kH5vccUnsetSentinel) {
+    return std::nullopt;
+  }
+  if (*int_val < std::numeric_limits<int>::min() ||
+      *int_val > std::numeric_limits<int>::max()) {
     return std::nullopt;
   }
   return static_cast<int>(*int_val);

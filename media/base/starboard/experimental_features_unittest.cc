@@ -59,6 +59,15 @@ TEST(ExperimentalFeaturesTest, IntSentinelReturnsNullopt) {
   EXPECT_EQ(settings.Get(kFooIntFeature), std::nullopt);
 }
 
+TEST(ExperimentalFeaturesTest, IntOutOfBoundsReturnsNullopt) {
+  ExperimentalFeatures::Map map;
+  map["Foo.IntFeature"] =
+      static_cast<int64_t>(3000000000LL);  // Exceeds 32-bit int
+  ExperimentalFeatures settings(map);
+
+  EXPECT_EQ(settings.Get(kFooIntFeature), std::nullopt);
+}
+
 TEST(ExperimentalFeaturesTest, MissingKeyReturnsNullopt) {
   ExperimentalFeatures settings;
 

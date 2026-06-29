@@ -48,9 +48,6 @@ struct MEDIA_EXPORT StarboardRendererConfig {
   gfx::Size viewport_size;
 };
 
-MEDIA_EXPORT std::ostream& operator<<(std::ostream& os,
-                                      const ExperimentalFeatures& features);
-
 }  // namespace media
 
 #endif  // MEDIA_BASE_STARBOARD_STARBOARD_RENDERER_CONFIG_H_

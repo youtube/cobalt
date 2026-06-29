@@ -19,8 +19,10 @@
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
+#include <limits>
 #include <map>
 #include <optional>
+#include <ostream>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -75,14 +77,15 @@ class ExperimentalFeatures {
 
   template <typename T>
   std::optional<T> Get(const ExperimentalFeatureKey<T>& key) const {
-    auto it = settings().find(key.key());
-    if (it == settings().end()) {
+    auto it = settings_.find(key.key());
+    if (it == settings_.end()) {
       return std::nullopt;
     }
     return GetValue<T>(it->second);
   }
 
-  const Map& settings() const { return settings_; }
+  friend std::ostream& operator<<(std::ostream& os,
+                                  const ExperimentalFeatures& features);
 
  private:
   template <typename T>
@@ -113,6 +116,10 @@ inline std::optional<int> ExperimentalFeatures::GetValue<int>(
     const Value& val) const {
   auto* int_val = std::get_if<int64_t>(&val);
   if (!int_val || *int_val == internal::kH5vccUnsetSentinel) {
+    return std::nullopt;
+  }
+  if (*int_val < std::numeric_limits<int>::min() ||
+      *int_val > std::numeric_limits<int>::max()) {
     return std::nullopt;
   }
   return static_cast<int>(*int_val);

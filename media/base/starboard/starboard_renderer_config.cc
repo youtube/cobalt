@@ -39,15 +39,4 @@ StarboardRendererConfig::StarboardRendererConfig(
       experimental_features(experimental_features),
       viewport_size(viewport_size) {}
 
-std::ostream& operator<<(std::ostream& os,
-                         const ExperimentalFeatures& features) {
-  os << "{";
-  const char* delim = "";
-  for (const auto& [key, value] : features.settings()) {
-    os << std::exchange(delim, ", ") << key << "=";
-    std::visit([&os](const auto& val) { os << val; }, value);
-  }
-  return os << "}";
-}
-
 }  // namespace media
