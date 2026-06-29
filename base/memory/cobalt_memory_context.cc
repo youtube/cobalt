@@ -157,7 +157,7 @@ MAYBE_COBALT_WEAK std::string_view ContextToString(MemoryContext context) {
 }  // namespace memory
 }  // namespace base
 
-extern "C" MAYBE_COBALT_WEAK void CobaltSetMemoryContextForThread(const char* name) {
+extern "C" __attribute__((visibility("default"))) MAYBE_COBALT_WEAK void CobaltSetMemoryContextForThread(const char* name) {
   if (!name) return;
   std::string_view name_view(name);
   base::memory::MemoryContext context = base::memory::MemoryContext::kUnknown;
