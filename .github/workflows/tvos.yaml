@@ -9,7 +9,6 @@ on:
       - feature/*
   push:
     branches:
-      - main
       - experimental/*
       - feature/*
   workflow_dispatch:
