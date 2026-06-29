@@ -164,14 +164,16 @@ void SourceBufferState::Init(StreamParser::InitCB init_cb,
   InitializeParser(expected_codecs);
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
 void SourceBufferState::ChangeType(
     std::unique_ptr<StreamParser> new_stream_parser,
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-    std::string_view new_expected_codecs,
+    const std::string& new_expected_codecs,
     std::string_view new_mime_type) {
-#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+void SourceBufferState::ChangeType(
+    std::unique_ptr<StreamParser> new_stream_parser,
     const std::string& new_expected_codecs) {
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   DCHECK_GE(state_, PENDING_PARSER_CONFIG);
   DCHECK_NE(state_, PENDING_PARSER_INIT);

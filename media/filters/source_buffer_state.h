@@ -61,13 +61,14 @@ class MEDIA_EXPORT SourceBufferState {
   // Reconfigures this source buffer to use |new_stream_parser|. Caller must
   // first ensure that ResetParserState() was done to flush any pending frames
   // from the old stream parser.
-  void ChangeType(std::unique_ptr<StreamParser> new_stream_parser,
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-                  std::string_view new_expected_codecs,
+  void ChangeType(std::unique_ptr<StreamParser> new_stream_parser,
+                  const std::string& new_expected_codecs,
                   std::string_view new_mime_type);
-#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+  void ChangeType(std::unique_ptr<StreamParser> new_stream_parser,
                   const std::string& new_expected_codecs);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Appends media data to the StreamParser, but no parsing is done of it yet,
   // just buffering the media data for future parsing via RunSegmentParserLoop()
