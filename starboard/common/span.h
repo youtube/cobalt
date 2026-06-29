@@ -16,6 +16,7 @@
 #define STARBOARD_COMMON_SPAN_H_
 
 #include <cstddef>
+#include <type_traits>
 
 // A simple, lightweight alternative to C++20's std::span.
 // Designed to pass a pointer and size together as a single object.
@@ -28,6 +29,12 @@ class Span {
   constexpr Span() = default;
   constexpr Span(T* data, size_t size) : data_(data), size_(size) {}
 
+  // Permits safe qualification conversions (e.g. Span<T> to Span<const T>).
+  template <class U,
+            class = std::enable_if_t<std::is_convertible_v<U (*)[], T (*)[]>>>
+  constexpr Span(const Span<U>& other)
+      : data_(other.data()), size_(other.size()) {}
+
   // Member functions are named to match C++20's std::span for future
   // compatibility.
   constexpr T* data() const { return data_; }
@@ -38,6 +45,12 @@ class Span {
   T* data_ = nullptr;
   size_t size_ = 0;
 };
+
+// Helper function analogous to absl::MakeSpan or base::make_span.
+template <class T>
+constexpr Span<T> MakeSpan(T* data, size_t size) {
+  return Span<T>(data, size);
+}
 
 }  // namespace starboard
 

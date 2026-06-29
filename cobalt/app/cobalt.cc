@@ -32,15 +32,16 @@ void SbEventHandle(const SbEvent* event) {
     return;
   }
 
-  s_lifecycle_delegate->HandleEvent(event);
-
   if (event->type == kSbEventTypeStop) {
     base::RunLoop run_loop;
     s_lifecycle_delegate->SetQuitClosure(run_loop.QuitClosure());
+    s_lifecycle_delegate->HandleEvent(event);
     run_loop.Run();
     s_lifecycle_delegate->DoTeardown();
     delete s_lifecycle_delegate;
     s_lifecycle_delegate = nullptr;
+  } else {
+    s_lifecycle_delegate->HandleEvent(event);
   }
 }
 
