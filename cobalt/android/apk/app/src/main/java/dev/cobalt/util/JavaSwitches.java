@@ -182,11 +182,11 @@ public class JavaSwitches {
     }
 
     if (javaSwitches.containsKey(JavaSwitches.REDUCE_STARBOARD_THREAD_STACK_SIZE)) {
-      extraCommandLineArgs.add("--enable-features=ReduceStarboardThreadStackSize");
+      extraCommandLineArgs.add("--enable-features=" + JavaSwitches.REDUCE_STARBOARD_THREAD_STACK_SIZE);
     }
 
     if (javaSwitches.containsKey(JavaSwitches.REDUCE_ANDROID_THREAD_STACK_SIZE)) {
-      extraCommandLineArgs.add("--enable-features=ReduceAndroidThreadStackSize");
+      extraCommandLineArgs.add("--enable-features=" + JavaSwitches.REDUCE_ANDROID_THREAD_STACK_SIZE);
     }
 
     return extraCommandLineArgs;

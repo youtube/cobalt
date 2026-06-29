@@ -11,14 +11,11 @@ namespace base {
 
 size_t GetDefaultThreadStackSize(const pthread_attr_t& attributes) {
 #if BUILDFLAG(IS_STARBOARD)
-  if (base::CommandLine::InitializedForCurrentProcess()) {
-    std::string enabled_features =
-        base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-            "enable-features");
-    if (enabled_features.find("ReduceAndroidThreadStackSize") !=
-        std::string::npos) {
-      return 256 * 1024;
-    }
+  if (base::CommandLine::InitializedForCurrentProcess() &&
+      base::CommandLine::ForCurrentProcess()
+          ->GetSwitchValueASCII("enable-features")
+          .find("ReduceAndroidThreadStackSize") != std::string::npos) {
+    return 256 * 1024;
   }
 #endif
 

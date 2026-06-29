@@ -29,10 +29,11 @@
 #include "starboard/common/log.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/thread_platform.h"
+#include "starboard/system.h"
+
 #if BUILDFLAG(IS_ANDROID)
 #include "starboard/shared/starboard/features.h"
 #endif
-#include "starboard/system.h"
 
 namespace starboard {
 
@@ -100,8 +101,8 @@ void Thread::Start() {
   pthread_attr_init(&attributes);
 
   if (stack_size_) {
-    int err = pthread_attr_setstacksize(&attributes, *stack_size_);
-    if (err != 0) {
+    if (int err = pthread_attr_setstacksize(&attributes, *stack_size_);
+        err != 0) {
       SB_LOG(WARNING) << "Failed to set stack size to " << *stack_size_
                       << ", error: " << err << ". Falling back to default.";
     }
