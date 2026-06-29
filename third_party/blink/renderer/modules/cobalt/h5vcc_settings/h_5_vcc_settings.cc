@@ -200,10 +200,10 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
           return true;
         });
   }
-  if (name == "DecoderBuffer.ReleaseMemoryWhenSuspended") {
+  if (name == "DecoderBuffer.ReleaseMemoryOnBackground") {
     return ProcessSettingAsEnableOnly(
         script_state, exception_context, name, *value, [] {
-          ::media::DecoderBufferAllocator::EnableReleaseMemoryWhenSuspended();
+          ::media::DecoderBufferAllocator::EnableReleaseIdleMemory();
           return true;
         });
   }

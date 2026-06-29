@@ -88,32 +88,22 @@ DecoderBufferAllocator* DecoderBufferAllocator::Get() {
   return static_cast<DecoderBufferAllocator*>(DecoderBuffer::Allocator::Get());
 }
 
-void DecoderBufferAllocator::Suspend() {
+void DecoderBufferAllocator::ReleaseIdleMemory() {
   if (is_memory_pool_allocated_on_demand_) {
     return;
   }
   base::AutoLock scoped_lock(mutex_);
-  if (!should_release_memory_when_suspended_) {
+  if (!should_release_idle_memory_) {
     return;
   }
 
   if (strategy_ && strategy_->GetAllocated() == 0) {
     LOG(INFO) << "Freeing " << strategy_->GetCapacity()
-              << " bytes of decoder buffer pool `on suspend`.";
+              << " bytes of decoder buffer pool.";
     strategy_.reset();
   } else {
     has_pending_release_ = true;
   }
-}
-
-void DecoderBufferAllocator::Resume() {
-  if (is_memory_pool_allocated_on_demand_) {
-    return;
-  }
-  base::AutoLock scoped_lock(mutex_);
-  has_pending_release_ = false;
-
-  EnsureStrategyIsCreated();
 }
 
 void DecoderBufferAllocator::DecommitAllDecommitableBlocks() {
@@ -298,11 +288,11 @@ void DecoderBufferAllocator::EnableMediaBufferPoolStrategy() {
 }
 
 // static
-void DecoderBufferAllocator::EnableReleaseMemoryWhenSuspended() {
+void DecoderBufferAllocator::EnableReleaseIdleMemory() {
   auto* allocator = Get();
   CHECK(allocator);
   base::AutoLock scoped_lock(allocator->mutex_);
-  allocator->should_release_memory_when_suspended_ = true;
+  allocator->should_release_idle_memory_ = true;
 }
 
 void DecoderBufferAllocator::EnsureStrategyIsCreated() {
