@@ -46,9 +46,6 @@
 #include "third_party/blink/renderer/modules/webgl/ext_texture_filter_anisotropic.h"
 #include "third_party/blink/renderer/modules/webgl/ext_texture_mirror_clamp_to_edge.h"
 #include "third_party/blink/renderer/modules/webgl/khr_parallel_shader_compile.h"
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "third_party/blink/renderer/modules/webgl/oes_egl_image_external.h"
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "third_party/blink/renderer/modules/webgl/oes_element_index_uint.h"
 #include "third_party/blink/renderer/modules/webgl/oes_fbo_render_mipmap.h"
 #include "third_party/blink/renderer/modules/webgl/oes_standard_derivatives.h"
@@ -74,6 +71,10 @@
 #include "third_party/blink/renderer/modules/webgl/webgl_multi_draw.h"
 #include "third_party/blink/renderer/modules/webgl/webgl_multi_draw_instanced_base_vertex_base_instance.h"
 #include "third_party/blink/renderer/modules/webgl/webgl_polygon_mode.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "third_party/blink/renderer/modules/webgl/oes_egl_image_external.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace blink {
 

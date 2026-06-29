@@ -24,9 +24,6 @@
 #include "third_party/blink/renderer/modules/webgl/khr_parallel_shader_compile.h"
 #include "third_party/blink/renderer/modules/webgl/nv_shader_noperspective_interpolation.h"
 #include "third_party/blink/renderer/modules/webgl/oes_draw_buffers_indexed.h"
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "third_party/blink/renderer/modules/webgl/oes_egl_image_external.h"
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "third_party/blink/renderer/modules/webgl/oes_sample_variables.h"
 #include "third_party/blink/renderer/modules/webgl/oes_shader_multisample_interpolation.h"
 #include "third_party/blink/renderer/modules/webgl/oes_texture_float_linear.h"
@@ -52,6 +49,10 @@
 #include "third_party/blink/renderer/modules/webgl/webgl_render_shared_exponent.h"
 #include "third_party/blink/renderer/modules/webgl/webgl_shader_pixel_local_storage.h"
 #include "third_party/blink/renderer/modules/webgl/webgl_stencil_texturing.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "third_party/blink/renderer/modules/webgl/oes_egl_image_external.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace blink {
 
