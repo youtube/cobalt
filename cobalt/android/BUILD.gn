@@ -27,7 +27,6 @@ generate_jni("jni_headers") {
     "apk/app/src/main/java/dev/cobalt/coat/AudioPermissionRequester.java",
     "apk/app/src/main/java/dev/cobalt/coat/BaseStarboardBridge.java",
     "apk/app/src/main/java/dev/cobalt/coat/CaptionSettings.java",
-    "apk/app/src/main/java/dev/cobalt/coat/CobaltPictureInPictureActivity.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltService.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltSystemConfigChangeReceiver.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltTextToSpeechHelper.java",
@@ -123,7 +122,6 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/coat/CobaltActivity.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltHttpHelper.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltMediaSession.java",
-    "apk/app/src/main/java/dev/cobalt/coat/CobaltPictureInPictureActivity.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltService.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltSystemConfigChangeReceiver.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltTextToSpeechHelper.java",
@@ -212,11 +210,36 @@ android_library("cobalt_main_java") {
   }
 }
 
+generate_jni("pip_jni_headers") {
+  sources = []
+  if (is_androidtv) {
+    sources += [ "apk/app/src/main/java/dev/cobalt/coat/CobaltPictureInPictureActivity.java" ]
+  }
+}
+
+android_library("cobalt_pip_java") {
+  sources = []
+  if (is_androidtv) {
+    sources += [ "apk/app/src/main/java/dev/cobalt/coat/CobaltPictureInPictureActivity.java" ]
+  }
+  srcjar_deps = [ ":pip_jni_headers" ]
+  deps = [
+    ":cobalt_main_java",
+    "//base:base_java",
+    "//components/thin_webview:factory_java",
+    "//components/thin_webview:java",
+    "//content/public/android:content_java",
+    "//third_party/jni_zero:jni_zero_java",
+    "//ui/android:ui_java",
+  ]
+}
+
 android_library("cobalt_apk_java") {
   resources_package = "dev.cobalt.coat"
 
   deps = [
     ":cobalt_main_java",
+    ":cobalt_pip_java",
     "//base:base_java",
   ]
 

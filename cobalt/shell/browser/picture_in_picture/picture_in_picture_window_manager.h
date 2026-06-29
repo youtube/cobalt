@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_BROWSER_PICTURE_IN_PICTURE_PICTURE_IN_PICTURE_WINDOW_MANAGER_H_
-#define COBALT_BROWSER_PICTURE_IN_PICTURE_PICTURE_IN_PICTURE_WINDOW_MANAGER_H_
+#ifndef COBALT_SHELL_BROWSER_PICTURE_IN_PICTURE_PICTURE_IN_PICTURE_WINDOW_MANAGER_H_
+#define COBALT_SHELL_BROWSER_PICTURE_IN_PICTURE_PICTURE_IN_PICTURE_WINDOW_MANAGER_H_
 
 #include <memory>
 
@@ -57,6 +57,7 @@ class PictureInPictureWindowManager {
   PictureInPictureWindowManager();
   ~PictureInPictureWindowManager();
 
+  void CreateWindowInternal(content::WebContents* web_contents);
   void CloseWindowInternal();
 
   // The active Picture-in-Picture window controller.
@@ -68,4 +69,4 @@ class PictureInPictureWindowManager {
   std::unique_ptr<VideoWebContentsObserver> video_web_contents_observer_;
 };
 
-#endif  // COBALT_BROWSER_PICTURE_IN_PICTURE_PICTURE_IN_PICTURE_WINDOW_MANAGER_H_
+#endif  // COBALT_SHELL_BROWSER_PICTURE_IN_PICTURE_PICTURE_IN_PICTURE_WINDOW_MANAGER_H_

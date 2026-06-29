@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/picture_in_picture/picture_in_picture_window_manager.h"
+#include "cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager.h"
 
 #include "content/public/browser/picture_in_picture_window_controller.h"
 #include "content/public/browser/video_picture_in_picture_window_controller.h"
@@ -46,8 +46,7 @@ PictureInPictureWindowManager::EnterVideoPictureInPicture(
       CloseWindowInternal();
     }
 
-    pip_window_controller_ = content::PictureInPictureWindowController::
-        GetOrCreateVideoPictureInPictureController(web_contents);
+    CreateWindowInternal(web_contents);
   }
 
   return content::PictureInPictureResult::kSuccess;
@@ -63,13 +62,38 @@ void PictureInPictureWindowManager::EnterPictureInPictureWithController(
 }
 
 class PictureInPictureWindowManager::VideoWebContentsObserver final
-    : public content::WebContentsObserver {};
+    : public content::WebContentsObserver {
+ public:
+  VideoWebContentsObserver(PictureInPictureWindowManager* owner,
+                           content::WebContents* web_contents)
+      : content::WebContentsObserver(web_contents), owner_(owner) {}
+
+  ~VideoWebContentsObserver() final = default;
+
+  void PrimaryPageChanged(content::Page& page) final {
+    owner_->CloseWindowInternal();
+  }
+
+  void WebContentsDestroyed() final { owner_->CloseWindowInternal(); }
+
+ private:
+  raw_ptr<PictureInPictureWindowManager> owner_ = nullptr;
+};
 
 void PictureInPictureWindowManager::ExitPictureInPicture() {
   CloseWindowInternal();
 }
 
+void PictureInPictureWindowManager::CreateWindowInternal(
+    content::WebContents* web_contents) {
+  video_web_contents_observer_ =
+      std::make_unique<VideoWebContentsObserver>(this, web_contents);
+  pip_window_controller_ = content::PictureInPictureWindowController::
+      GetOrCreateVideoPictureInPictureController(web_contents);
+}
+
 void PictureInPictureWindowManager::CloseWindowInternal() {
+  video_web_contents_observer_.reset();
   if (pip_window_controller_) {
     pip_window_controller_->Close(false /* should_pause_video */);
     pip_window_controller_ = nullptr;

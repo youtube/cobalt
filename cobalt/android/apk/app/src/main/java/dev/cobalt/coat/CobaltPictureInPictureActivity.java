@@ -14,27 +14,29 @@
 
 package dev.cobalt.coat;
 
+import static dev.cobalt.util.Log.TAG;
+
 import android.app.Activity;
 import android.app.PictureInPictureParams;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
-import android.content.Context;
 import android.util.Rational;
-import org.jni_zero.CalledByNative;
-import org.jni_zero.JNINamespace;
-import org.jni_zero.NativeMethods;
+import android.view.View;
+import android.view.ViewGroup;
+import dev.cobalt.util.Log;
 import org.chromium.base.ContextUtils;
-import org.chromium.content_public.browser.WebContents;
-import org.chromium.ui.base.WindowAndroid;
 import org.chromium.components.thinwebview.CompositorView;
 import org.chromium.components.thinwebview.CompositorViewFactory;
 import org.chromium.components.thinwebview.ThinWebViewConstraints;
-import android.view.View;
-import android.view.ViewGroup;
+import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
-import static dev.cobalt.util.Log.TAG;
+import org.chromium.ui.base.WindowAndroid;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 /**
  * A simple Activity to host the Video Picture-in-Picture window on Android TV.
@@ -47,9 +49,18 @@ public class CobaltPictureInPictureActivity extends Activity {
   private CompositorView mCompositorView;
   private ActivityWindowAndroid mWindowAndroid;
 
+  /**
+   * Called by C++ to launch the Picture-in-Picture window.
+   *
+   * @param webContents   Used to retrieve the foreground Activity (the main Cobalt app). This Activity
+   *                      serves as the Context needed to construct and start the Intent.
+   * @param nativePointer The memory address of the C++ CobaltVideoOverlayWindow that initiated the PiP
+   *                      request. We pack this into the Intent so that when the new Java Activity starts,
+   *                      it can extract the pointer and use JNI to bind itself back to the C++ object.
+   */
   @CalledByNative
   public static void launchActivity(WebContents webContents, long nativePointer) {
-    android.util.Log.i("CobaltPiP", "CoAT PiP Step 13: Reached Java launchActivity! nativePtr=" + nativePointer);
+    Log.d(TAG, "Reached Java launchActivity! nativePtr=" + nativePointer);
     Activity activity = null;
     WindowAndroid window = webContents.getTopLevelNativeWindow();
     if (window != null) {
@@ -59,7 +70,6 @@ public class CobaltPictureInPictureActivity extends Activity {
 
     Intent intent = new Intent(context, CobaltPictureInPictureActivity.class);
     intent.putExtra("native_pointer", nativePointer);
-    intent.putExtra("web_contents", webContents);
     context.startActivity(intent);
   }
 
@@ -77,7 +87,7 @@ public class CobaltPictureInPictureActivity extends Activity {
     }
 
     mWindowAndroid = new ActivityWindowAndroid(
-        this, /* listenToActivityState= */ false,
+        this, /* listenToActivityState= */ true,
         IntentRequestTracker.createFromActivity(this), null, /* trackOcclusion= */ false);
 
     mCompositorView = CompositorViewFactory.create(this, mWindowAndroid, new ThinWebViewConstraints());

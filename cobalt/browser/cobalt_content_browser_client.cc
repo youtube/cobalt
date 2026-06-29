@@ -65,13 +65,13 @@
 #include "components/variations/pref_names.h"
 #include "components/variations/service/variations_service.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/overlay_window.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
-#include "content/public/browser/overlay_window.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "services/network/public/cpp/features.h"
@@ -254,7 +254,14 @@ CobaltContentBrowserClient* CobaltContentBrowserClient::Get() {
 std::unique_ptr<content::VideoOverlayWindow>
 CobaltContentBrowserClient::CreateWindowForVideoPictureInPicture(
     content::VideoPictureInPictureWindowController* controller) {
+  // TODO: b/532158001 - Support PiP on Linux.
+  // PiP is currently only supported on Android. On other platforms, calling
+  // Create() allocates a dummy object that leaks memory, so we return nullptr.
+#if BUILDFLAG(IS_ANDROID)
   return content::VideoOverlayWindow::Create(controller);
+#else
+  return nullptr;
+#endif
 }
 
 std::unique_ptr<content::BrowserMainParts>
