@@ -15,7 +15,6 @@
 #ifndef STARBOARD_SHARED_STARBOARD_MEDIA_MEDIA_VIDEO_BUDGET_H_
 #define STARBOARD_SHARED_STARBOARD_MEDIA_MEDIA_VIDEO_BUDGET_H_
 
-#include "build/build_config.h"
 #include "starboard/common/size.h"
 
 namespace starboard {

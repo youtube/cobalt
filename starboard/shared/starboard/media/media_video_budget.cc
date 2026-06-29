@@ -28,7 +28,6 @@ constexpr int kVideoBufferBudget4KHdr = 160 * 1024 * 1024;
 // starboard/android/shared/media_get_video_buffer_budget.cc
 constexpr int kVideoBufferBudgetAbove4K = 300 * 1024 * 1024;
 
-#if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 int GetAreaBasedVideoBufferBudget(Size video_size, int bits_per_pixel) {
   if (video_size.IsEmpty() ||
       video_size.GetArea() <= Resolution::k1080p.GetArea()) {
@@ -42,8 +41,8 @@ int GetAreaBasedVideoBufferBudget(Size video_size, int bits_per_pixel) {
   }
   return kVideoBufferBudgetAbove4K;
 }
-#endif
 
+#if BUILDFLAG(IS_ANDROID)
 int GetLegacyVideoBufferBudget(Size video_size, int bits_per_pixel) {
   if (video_size.FitsWithin(starboard::Resolution::k1080p) ||
       video_size.IsEmpty()) {
@@ -57,17 +56,21 @@ int GetLegacyVideoBufferBudget(Size video_size, int bits_per_pixel) {
   }
   return kVideoBufferBudgetAbove4K;
 }
+#endif
 
 }  // namespace
 
 int GetVideoBufferBudget(Size video_size, int bits_per_pixel) {
-#if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+#if BUILDFLAG(IS_ANDROID)
+#if SB_API_VERSION >= 17
   if (starboard::features::FeatureList::IsEnabled(
           starboard::features::kAreaBasedVideoBufferBudget)) {
     return GetAreaBasedVideoBufferBudget(video_size, bits_per_pixel);
   }
 #endif
   return GetLegacyVideoBufferBudget(video_size, bits_per_pixel);
+#endif
+  return GetAreaBasedVideoBufferBudget(video_size, bits_per_pixel);
 }
 
 }  // namespace starboard
