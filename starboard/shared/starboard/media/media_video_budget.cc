@@ -69,8 +69,9 @@ int GetVideoBufferBudget(Size video_size, int bits_per_pixel) {
   }
 #endif
   return GetLegacyVideoBufferBudget(video_size, bits_per_pixel);
-#endif
+#else
   return GetAreaBasedVideoBufferBudget(video_size, bits_per_pixel);
+#endif
 }
 
 }  // namespace starboard
