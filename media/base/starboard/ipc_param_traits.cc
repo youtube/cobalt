@@ -17,7 +17,6 @@
 #include <type_traits>
 #include <variant>
 
-#include "base/strings/stringprintf.h"
 #include "ipc/ipc_message_utils.h"
 
 namespace IPC {
@@ -70,7 +69,7 @@ bool ParamTraits<ExperimentalFeatures::Value>::Read(
 void ParamTraits<ExperimentalFeatures::Value>::Log(
     const ExperimentalFeatures::Value& p,
     std::string* l) {
-  l->append(base::StringPrintf("<ExperimentalFeatures::Value>"));
+  l->append("<ExperimentalFeatures::Value>");
 }
 
 void ParamTraits<ExperimentalFeatures>::Write(base::Pickle* m,
@@ -91,7 +90,7 @@ bool ParamTraits<ExperimentalFeatures>::Read(const base::Pickle* m,
 
 void ParamTraits<ExperimentalFeatures>::Log(const ExperimentalFeatures& p,
                                             std::string* l) {
-  l->append(base::StringPrintf("<ExperimentalFeatures>"));
+  l->append("<ExperimentalFeatures>");
 }
 
 }  // namespace IPC

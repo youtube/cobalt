@@ -15,9 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_EXPERIMENTAL_FEATURES_H_
 #define STARBOARD_SHARED_STARBOARD_EXPERIMENTAL_FEATURES_H_
 
-#include <cerrno>
 #include <cstdint>
-#include <cstdlib>
 #include <functional>
 #include <limits>
 #include <map>
@@ -151,43 +149,58 @@ const void* GetExperimentalFeaturesConfigurationApi();
 // Key constants for experimental features consumed directly within the
 // Starboard platform implementation layer. For Chromium media layer settings,
 // see media/base/starboard/experimental_features.h.
-// keep-sorted start
+// keep-sorted start by_regex=k\w+ newline_separated=yes
 inline constexpr ExperimentalFeatureKey<bool> kMediaAllowAudioWritingOnPause(
     "Media.AllowAudioWritingOnPause");
-inline constexpr ExperimentalFeatureKey<bool> kMediaEnableFlushDuringSeek(
-    "Media.EnableFlushDuringSeek");
-inline constexpr ExperimentalFeatureKey<bool> kMediaEnableLowLatency(
-    "Media.EnableLowLatency");
-inline constexpr ExperimentalFeatureKey<bool> kMediaEnableResetAudioDecoder(
-    "Media.EnableResetAudioDecoder");
-inline constexpr ExperimentalFeatureKey<bool> kMediaEnableTrivialOptimizations(
-    "Media.EnableTrivialOptimizations");
-inline constexpr ExperimentalFeatureKey<bool> kMediaFlushAudioTrackDuringSeek(
-    "Media.FlushAudioTrackDuringSeek");
-inline constexpr ExperimentalFeatureKey<bool> kMediaForceClearSurfaceView(
-    "Media.ForceClearSurfaceView");
-inline constexpr ExperimentalFeatureKey<bool> kMediaSkipFlushOnDecoderTeardown(
-    "Media.SkipFlushOnDecoderTeardown");
-inline constexpr ExperimentalFeatureKey<bool> kMediaSkipVideoFramesOver60Fps(
-    "Media.SkipVideoFramesOver60Fps");
+
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaEnableAv1StartupOptimization("Media.EnableAv1StartupOptimization");
+
+inline constexpr ExperimentalFeatureKey<bool> kMediaEnableFlushDuringSeek(
+    "Media.EnableFlushDuringSeek");
+
+inline constexpr ExperimentalFeatureKey<bool> kMediaEnableLowLatency(
+    "Media.EnableLowLatency");
+
+inline constexpr ExperimentalFeatureKey<bool> kMediaEnableResetAudioDecoder(
+    "Media.EnableResetAudioDecoder");
+
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaEnableSimdBasedAudioFormatSwitching(
         "Media.EnableSimdBasedAudioFormatSwitching");
+
+inline constexpr ExperimentalFeatureKey<bool> kMediaEnableTrivialOptimizations(
+    "Media.EnableTrivialOptimizations");
+
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaEnableVideoRendererVspAdjustment(
         "Media.EnableVideoRendererVspAdjustment");
+
+inline constexpr ExperimentalFeatureKey<bool> kMediaFlushAudioTrackDuringSeek(
+    "Media.FlushAudioTrackDuringSeek");
+
+inline constexpr ExperimentalFeatureKey<bool> kMediaForceClearSurfaceView(
+    "Media.ForceClearSurfaceView");
+
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaIgnoreMediaCodecCallbacksDuringFlushing(
         "Media.IgnoreMediaCodecCallbacksDuringFlushing");
-inline constexpr ExperimentalFeatureKey<int> kMediaVideoRendererMinInputBuffers(
-    "Media.VideoRendererMinInputBuffers");
+
+inline constexpr ExperimentalFeatureKey<bool> kMediaSkipFlushOnDecoderTeardown(
+    "Media.SkipFlushOnDecoderTeardown");
+
+inline constexpr ExperimentalFeatureKey<bool> kMediaSkipVideoFramesOver60Fps(
+    "Media.SkipVideoFramesOver60Fps");
+
 inline constexpr ExperimentalFeatureKey<int>
     kMediaVideoDecoderInitialPrerollCount(
         "Media.VideoDecoderInitialPrerollCount");
+
 inline constexpr ExperimentalFeatureKey<int>
     kMediaVideoRendererMinDecodedFrames("Media.VideoRendererMinDecodedFrames");
+
+inline constexpr ExperimentalFeatureKey<int> kMediaVideoRendererMinInputBuffers(
+    "Media.VideoRendererMinInputBuffers");
 // keep-sorted end
 
 }  // namespace starboard

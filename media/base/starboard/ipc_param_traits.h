@@ -15,7 +15,7 @@
 #ifndef MEDIA_BASE_STARBOARD_IPC_PARAM_TRAITS_H_
 #define MEDIA_BASE_STARBOARD_IPC_PARAM_TRAITS_H_
 
-#include "ipc/ipc_message.h"
+#include "base/pickle.h"
 #include "ipc/ipc_param_traits.h"
 #include "media/base/media_export.h"
 #include "media/base/starboard/experimental_features.h"

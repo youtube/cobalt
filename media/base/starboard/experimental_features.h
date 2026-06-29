@@ -151,15 +151,19 @@ inline std::optional<std::string> ExperimentalFeatures::GetValue<std::string>(
 // Key constants for experimental features and settings consumed within the
 // Chromium media layer. For platform-level Starboard features, see
 // starboard/shared/starboard/experimental_features.h.
-// keep-sorted start
+// keep-sorted start by_regex=k\w+ newline_separated=yes
 inline constexpr ExperimentalFeatureKey<bool> kMediaBypassMojoForMedia(
     "Media.BypassMojoForMedia");
+
 inline constexpr ExperimentalFeatureKey<bool> kMediaEnableTrivialOptimizations(
     "Media.EnableTrivialOptimizations");
+
 inline constexpr ExperimentalFeatureKey<bool> kMediaForceClearSurfaceView(
     "Media.ForceClearSurfaceView");
+
 inline constexpr ExperimentalFeatureKey<bool> kMediaForceDecodeToTexture(
     "Media.ForceDecodeToTexture");
+
 inline constexpr ExperimentalFeatureKey<int> kMediaMaxSamplesPerWrite(
     "Media.MaxSamplesPerWrite");
 // keep-sorted end
