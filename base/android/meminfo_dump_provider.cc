@@ -105,8 +105,10 @@ bool MeminfoDumpProvider::OnMemoryDump(
 
 #if BUILDFLAG(IS_COBALT)
   int graphics_kb = Java_CobaltMemoryInfoBridge_getGraphicsMemoryKb(env, memory_info);
-  dump->AddScalar(kGraphicsMetricName, "bytes",
-                  static_cast<uint64_t>(graphics_kb) * 1024);
+  if (graphics_kb > 0) {
+    dump->AddScalar(kGraphicsMetricName, "bytes",
+                    static_cast<uint64_t>(graphics_kb) * 1024);
+  }
 #endif
 
   return true;

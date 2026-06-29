@@ -98,8 +98,10 @@ bool MeminfoDumpProvider::OnMemoryDump(
                   static_cast<uint64_t>(other_pss_kb) * 1024);
 
   int graphics_kb = Java_CobaltMemoryInfoBridge_getGraphicsMemoryKb(env, memory_info);
-  dump->AddScalar(kGraphicsMetricName, "bytes",
-                  static_cast<uint64_t>(graphics_kb) * 1024);
+  if (graphics_kb > 0) {
+    dump->AddScalar(kGraphicsMetricName, "bytes",
+                    static_cast<uint64_t>(graphics_kb) * 1024);
+  }
 
   return true;
 #else   // BUILDFLAG(ENABLE_BASE_TRACING)
