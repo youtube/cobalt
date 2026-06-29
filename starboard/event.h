@@ -195,7 +195,7 @@ typedef enum SbEventType {
   kSbEventTypeLowMemory,
 
   // The size or position of a SbWindow has changed. The data is
-  // SbEventWindowSizeChangedData .
+  // SbEventWindowSizeChangedData.
   kSbEventTypeWindowSizeChanged,
 
   // The platform has detected a network disconnection. There are likely to be
@@ -213,7 +213,7 @@ typedef enum SbEventType {
 
   // The platform has detected a date and/or time configuration change (such as
   // a change in the timezone setting). This should trigger the application to
-  // re- query the relevant APIs to update the date and time.
+  // re-query the relevant APIs to update the date and time.
   kSbEventDateTimeConfigurationChanged,
 
   // The platform's text-to-speech settings have changed. The data field of this

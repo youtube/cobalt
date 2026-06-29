@@ -386,7 +386,7 @@ SB_EXPORT int SbSystemGetErrorString(SbSystemError error,
 // entry point are truncated.
 //
 // This function is used in crash signal handlers and, therefore, it must be
-// async- signal-safe on platforms that support signals. The following document
+// async-signal-safe on platforms that support signals. The following document
 // discusses what it means to be async-signal-safe on POSIX:
 // http://pubs.opengroup.org/onlinepubs/009695399/functions/xsh_chap02_04.html#tag_02_04_03
 //
@@ -405,7 +405,7 @@ SB_EXPORT int SbSystemGetStack(void** out_stack, int stack_size);
 // |address|. If the return value is `false`, then |out_buffer| is not modified.
 //
 // This function is used in crash signal handlers and, therefore, it must be
-// async- signal-safe on platforms that support signals.
+// async-signal-safe on platforms that support signals.
 SB_EXPORT bool SbSystemSymbolize(const void* address,
                                  char* out_buffer,
                                  int buffer_size);

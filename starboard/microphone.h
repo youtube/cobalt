@@ -24,15 +24,14 @@
 //
 // API Usage:
 //
-// 1. Query available microphones by calling `SbMicrophoneGetAvailableInfos`. 1.
-// Create a supported microphone using |SbMicrophoneCreate|, specifying a
-//
-// supported sample rate and buffer size. Verify the sample rate with
-//
-// |SbMicrophoneIsSampleRateSupported|. 1. Open the microphone port and start
-// recording using |SbMicrophoneOpen|. 1. Periodically read audio data using
-// |SbMicrophoneRead|. 1. Close the port and stop recording using
-// |SbMicrophoneClose|. 1. Destroy the microphone with |SbMicrophoneDestroy|.
+// 1. Query available microphones by calling |SbMicrophoneGetAvailable|.
+// 2. Create a supported microphone using |SbMicrophoneCreate|, specifying a
+//    supported sample rate and buffer size. Verify the sample rate with
+//    |SbMicrophoneIsSampleRateSupported|.
+// 3. Open the microphone port and start recording using |SbMicrophoneOpen|.
+// 4. Periodically read audio data using |SbMicrophoneRead|.
+// 5. Close the port and stop recording using |SbMicrophoneClose|.
+// 6. Destroy the microphone with |SbMicrophoneDestroy|.
 
 #ifndef STARBOARD_MICROPHONE_H_
 #define STARBOARD_MICROPHONE_H_

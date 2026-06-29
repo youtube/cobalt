@@ -28,13 +28,14 @@ extern "C" {
 // A standard set of key codes, ordered by value, that represent each possible
 // input key across all kinds of devices. Starboard uses the semi-standard
 // Windows virtual key codes documented at:
-// [https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731%28v=vs.85%29.aspx](https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731%28v=vs.85%29.aspx)
+// [MSDN Virtual key
+// codes](https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731%28v=vs.85%29.aspx)
 typedef enum SbKey {
   kSbKeyUnknown = 0,
   kSbKeyCancel = 0x03,
   kSbKeyBackspace = 0x08,
-  // semantic "back".
-  kSbKeyBack = kSbKeyBackspace,  // You probably want kSbKeyEscape for a
+  kSbKeyBack =
+      kSbKeyBackspace,  // You probably want kSbKeyEscape for a semantic "back".
   kSbKeyTab = 0x09,
   kSbKeyBacktab = 0x0A,
   kSbKeyClear = 0x0C,
