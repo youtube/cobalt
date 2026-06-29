@@ -17,7 +17,7 @@
 #include "base/android/jni_android.h"
 #include "base/logging.h"
 #include "cc/slim/surface_layer.h"
-#include "cobalt/android/jni_headers/CobaltPictureInPictureActivity_jni.h"
+#include "cobalt/android/pip_jni_headers/CobaltPictureInPictureActivity_jni.h"
 #include "components/viz/common/surfaces/surface_id.h"
 #include "content/public/browser/overlay_window.h"
 #include "content/public/browser/video_picture_in_picture_window_controller.h"
@@ -25,6 +25,7 @@
 #include "ui/android/view_android.h"
 #include "ui/android/window_android.h"
 #include "ui/android/window_android_compositor.h"
+#include "ui/android/window_android_observer.h"
 
 // The static factory method remains in the global namespace (or content
 // namespace). static
@@ -52,10 +53,20 @@ CobaltVideoOverlayWindow::CobaltVideoOverlayWindow(
 CobaltVideoOverlayWindow::~CobaltVideoOverlayWindow() {
   LOG(INFO) << "CobaltVideoOverlayWindow destructor called";
   if (window_android_) {
+    window_android_->RemoveObserver(this);
     window_android_ = nullptr;
   }
   Close();
 }
+
+void CobaltVideoOverlayWindow::OnRootWindowVisibilityChanged(bool visible) {}
+void CobaltVideoOverlayWindow::OnAttachCompositor() {}
+void CobaltVideoOverlayWindow::OnDetachCompositor() {}
+void CobaltVideoOverlayWindow::OnAnimate(base::TimeTicks frame_begin_time) {}
+void CobaltVideoOverlayWindow::OnActivityStopped() {
+  Close();
+}
+void CobaltVideoOverlayWindow::OnActivityStarted() {}
 
 bool CobaltVideoOverlayWindow::IsActive() const {
   return is_visible_;
@@ -174,6 +185,7 @@ void CobaltVideoOverlayWindow::OnActivityDestroyed(JNIEnv* env) {
   LOG(INFO) << "CobaltVideoOverlayWindow::OnActivityDestroyed called, clearing "
                "reference";
   if (window_android_) {
+    window_android_->RemoveObserver(this);
     window_android_ = nullptr;
   }
   java_activity_ref_.Reset();
@@ -212,6 +224,9 @@ void CobaltVideoOverlayWindow::CompositorViewCreated(
   if (!j_window_android.is_null()) {
     window_android_ = ui::WindowAndroid::FromJavaWindowAndroid(
         base::android::JavaParamRef<jobject>(env, j_window_android.obj()));
+    if (window_android_) {
+      window_android_->AddObserver(this);
+    }
   }
 }
 

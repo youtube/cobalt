@@ -33,8 +33,6 @@ source_set("browser") {
     "cobalt_web_contents_observer.h",
     "h5vcc_settings_impl.cc",
     "h5vcc_settings_impl.h",
-    "picture_in_picture/picture_in_picture_window_manager.cc",
-    "picture_in_picture/picture_in_picture_window_manager.h",
   ]
 
   if (is_androidtv) {
@@ -89,24 +87,26 @@ source_set("browser") {
     "//cobalt/memory",
     "//cobalt/shell:cobalt_shell_lib",
     "//components/embedder_support:user_agent",
-    "//components/embedder_support/android:web_contents_delegate",
     "//components/metrics",
     "//components/metrics_services_manager",
     "//components/os_crypt/sync",
     "//components/prefs",
-    "//components/thin_webview",
     "//components/variations/service:service",
     "//components/viz/common",
     "//services/resource_coordinator/public/cpp/memory_instrumentation",
     "//starboard:starboard_group",
-    "//ui/android",
   ]
 
   if (is_androidtv) {
     deps += [
       "//cobalt/android:browser_jni_headers",
       "//cobalt/android:jni_headers",
+      "//cobalt/android:pip_jni_headers",
+      "//components/embedder_support/android:web_contents_delegate",
+      "//components/thin_webview",
+      "//components/thin_webview/internal",
       "//components/variations:variations_associated_data",
+      "//ui/android",
     ]
   } else {
     deps += [ "//cobalt/browser/crash_annotator" ]

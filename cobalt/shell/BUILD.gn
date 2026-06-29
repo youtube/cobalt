@@ -210,6 +210,8 @@ static_library("cobalt_shell_lib") {
   sources = [
     "browser/h5vcc_scheme_url_loader_factory.cc",
     "browser/h5vcc_scheme_url_loader_factory.h",
+    "browser/picture_in_picture/picture_in_picture_window_manager.cc",
+    "browser/picture_in_picture/picture_in_picture_window_manager.h",
     "browser/shell.cc",
     "browser/shell.h",
     "browser/shell_browser_context.cc",

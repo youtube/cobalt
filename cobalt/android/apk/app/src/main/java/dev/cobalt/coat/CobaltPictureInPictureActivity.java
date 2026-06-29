@@ -47,6 +47,15 @@ public class CobaltPictureInPictureActivity extends Activity {
   private CompositorView mCompositorView;
   private ActivityWindowAndroid mWindowAndroid;
 
+  /**
+   * Called by C++ to launch the Picture-in-Picture window.
+   *
+   * @param webContents   Used to retrieve the foreground Activity (the main Cobalt app). This Activity
+   *                      serves as the Context needed to construct and start the Intent.
+   * @param nativePointer The memory address of the C++ CobaltVideoOverlayWindow that initiated the PiP
+   *                      request. We pack this into the Intent so that when the new Java Activity starts,
+   *                      it can extract the pointer and use JNI to bind itself back to the C++ object.
+   */
   @CalledByNative
   public static void launchActivity(WebContents webContents, long nativePointer) {
     android.util.Log.i("CobaltPiP", "CoAT PiP Step 13: Reached Java launchActivity! nativePtr=" + nativePointer);
@@ -59,7 +68,6 @@ public class CobaltPictureInPictureActivity extends Activity {
 
     Intent intent = new Intent(context, CobaltPictureInPictureActivity.class);
     intent.putExtra("native_pointer", nativePointer);
-    intent.putExtra("web_contents", webContents);
     context.startActivity(intent);
   }
 
@@ -77,7 +85,7 @@ public class CobaltPictureInPictureActivity extends Activity {
     }
 
     mWindowAndroid = new ActivityWindowAndroid(
-        this, /* listenToActivityState= */ false,
+        this, /* listenToActivityState= */ true,
         IntentRequestTracker.createFromActivity(this), null, /* trackOcclusion= */ false);
 
     mCompositorView = CompositorViewFactory.create(this, mWindowAndroid, new ThinWebViewConstraints());
