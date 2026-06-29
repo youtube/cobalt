@@ -16,10 +16,6 @@
 #include "ui/gfx/geometry/mojom/geometry_mojom_traits.h"
 #include "ui/gfx/mojom/hdr_metadata_mojom_traits.h"
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include <string_view>
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 namespace mojo {
 
 template <>

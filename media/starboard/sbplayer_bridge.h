@@ -17,7 +17,6 @@
 
 #include <optional>
 #include <string>
-#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -130,9 +129,9 @@ class SbPlayerBridge {
   bool IsValid() const { return SbPlayerIsValid(player_); }
 
   void UpdateAudioConfig(const AudioDecoderConfig& audio_config,
-                         std::string_view mime_type);
+                         const std::string& mime_type);
   void UpdateVideoConfig(const VideoDecoderConfig& video_config,
-                         std::string_view mime_type);
+                         const std::string& mime_type);
 
   void WriteBuffers(DemuxerStream::Type type,
                     const std::vector<scoped_refptr<DecoderBuffer>>& buffers);

@@ -9,10 +9,6 @@
 #include "media/base/ipc/media_param_traits.h"
 #include "media/mojo/mojom/media_types.mojom.h"
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include <string_view>
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 namespace mojo {
 
 template <>
