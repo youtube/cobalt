@@ -43,8 +43,7 @@ extern "C" {
 #endif
 
 // The following type definitions were adapted from the types declared in
-// [https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h](https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h)
-// .
+// [gl2.h](https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h).
 typedef uint8_t SbGlBoolean;
 typedef uint32_t SbGlBitfield;
 typedef char SbGlChar;
@@ -69,6 +68,7 @@ typedef void SbGlVoid;
 // perspective. Starboard checks the platform configuration and sets the types
 // to match those used by OpenGL ES 2.0 (see
 // [gl2ext.h](https://www.khronos.org/registry/OpenGL/api/GLES2/gl2ext.h)).
+#if (SB_SIZE_OF(POINTER) == 8) && (SB_SIZE_OF(LONG) == 4)
 typedef long long int SbGlIntPtr;    // NOLINT
 typedef long long int SbGlSizeiPtr;  // NOLINT
 #else   // (SB_SIZE_OF(POINTER) != 8) || (SB_SIZE_OF(LONG) != 4)
@@ -765,8 +765,8 @@ typedef struct SbGlesInterface {
 
 SB_EXPORT const SbGlesInterface* SbGetGlesInterface();
 
-// Previously defined in
-// [https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h](https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h)
+// Previously defined
+// in[gl2.h](https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h)
 #define SB_GL_DEPTH_BUFFER_BIT 0x00000100
 #define SB_GL_STENCIL_BUFFER_BIT 0x00000400
 #define SB_GL_COLOR_BUFFER_BIT 0x00004000
@@ -1072,8 +1072,7 @@ SB_EXPORT const SbGlesInterface* SbGetGlesInterface();
 #define SB_GL_INVALID_FRAMEBUFFER_OPERATION 0x0506
 
 // Previously defined in
-// [https://www.khronos.org/registry/OpenGL/api/GLES3/gl3.h](https://www.khronos.org/registry/OpenGL/api/GLES3/gl3.h)
-// .
+// [gl3.h](https://www.khronos.org/registry/OpenGL/api/GLES3/gl3.h).
 #define SB_GL_READ_BUFFER 0x0C02
 #define SB_GL_UNPACK_ROW_LENGTH 0x0CF2
 #define SB_GL_UNPACK_SKIP_ROWS 0x0CF3

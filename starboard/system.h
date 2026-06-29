@@ -339,10 +339,10 @@ SB_EXPORT bool SbSystemHasCapability(SbSystemCapabilityId capability_id);
 // Starboard exposes only one locale at a time.
 //
 // RFC 5646 describes BCP 47 language codes:
-// [https://tools.ietf.org/html/bcp47](https://tools.ietf.org/html/bcp47)
+// https://tools.ietf.org/html/bcp47
 //
 // For more information than you probably want about POSIX locales, see:
-// [http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap07.html](http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap07.html)
+// http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap07.html
 SB_EXPORT const char* SbSystemGetLocaleId();
 
 // A cryptographically secure random number generator that generates 64 random
@@ -388,7 +388,7 @@ SB_EXPORT int SbSystemGetErrorString(SbSystemError error,
 // This function is used in crash signal handlers and, therefore, it must be
 // async- signal-safe on platforms that support signals. The following document
 // discusses what it means to be async-signal-safe on POSIX:
-// [http://pubs.opengroup.org/onlinepubs/009695399/functions/xsh_chap02_04.html#tag_02_04_03](http://pubs.opengroup.org/onlinepubs/009695399/functions/xsh_chap02_04.html#tag_02_04_03)
+// http://pubs.opengroup.org/onlinepubs/009695399/functions/xsh_chap02_04.html#tag_02_04_03
 //
 // * |out_stack|: A buffer to store the instruction pointer addresses. Must not
 //   be

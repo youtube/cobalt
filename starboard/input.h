@@ -39,8 +39,8 @@ typedef enum SbInputDeviceType {
   // Produces `Move`, `Press` and `Unpress` events.
   kSbInputDeviceTypeGesture,
 
-  // Input from a gamepad, following the layout provided in the W3C Web Gamepad
-  // API. [ [https://www.w3.org/TR/gamepad/](https://www.w3.org/TR/gamepad/) ]
+  // Input from a gamepad, following the layout provided in the
+  // [W3C Web Gamepad API](https://www.w3.org/TR/gamepad/).
   //
   // Produces `Move`, `Press` and `Unpress` events.
   kSbInputDeviceTypeGamepad,
@@ -98,7 +98,7 @@ typedef enum SbInputEventType {
   kSbInputEventTypeWheel,
 
   //
-  // [https://w3c.github.io/uievents/#event-type-input](https://w3c.github.io/uievents/#event-type-input)
+  // [W3C Event Type Input](https://w3c.github.io/uievents/#event-type-input)
   kSbInputEventTypeInput,
 } SbInputEventType;
 

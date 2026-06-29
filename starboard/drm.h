@@ -34,7 +34,7 @@ extern "C" {
 // --- Types -----------------------------------------------------------------
 
 // The type of the session request.
-// [https://www.w3.org/TR/encrypted-media/#idl-def-mediakeymessagetype](https://www.w3.org/TR/encrypted-media/#idl-def-mediakeymessagetype)
+// https://www.w3.org/TR/encrypted-media/#idl-def-mediakeymessagetype
 typedef enum SbDrmSessionRequestType {
   kSbDrmSessionRequestTypeLicenseRequest,
   kSbDrmSessionRequestTypeLicenseRenewal,
@@ -45,7 +45,7 @@ typedef enum SbDrmSessionRequestType {
 // The status of session related operations. Used by
 // |SbDrmSessionUpdateRequestFunc|, |SbDrmSessionUpdatedFunc|, and
 // |SbDrmServerCertificateUpdatedFunc| to indicate the status of the operation.
-// [https://w3c.github.io/encrypted-media/#error-names](https://w3c.github.io/encrypted-media/#error-names)
+// https://w3c.github.io/encrypted-media/#error-names
 typedef enum SbDrmStatus {
   kSbDrmStatusSuccess,
   kSbDrmStatusTypeError,
@@ -58,7 +58,7 @@ typedef enum SbDrmStatus {
 } SbDrmStatus;
 
 // Status of a particular media key.
-// [https://www.w3.org/TR/encrypted-media/#idl-def-mediakeystatus](https://www.w3.org/TR/encrypted-media/#idl-def-mediakeystatus)
+// https://www.w3.org/TR/encrypted-media/#idl-def-mediakeystatus
 typedef enum SbDrmKeyStatus {
   kSbDrmKeyStatusUsable,
   kSbDrmKeyStatusExpired,
@@ -245,7 +245,7 @@ SB_C_FORCE_INLINE bool SbDrmTicketIsValid(int ticket) {
 //   lowercase and will be matched exactly with known DRM key systems of the
 //   platform. Note the key system will be matched case sensitive. For more
 //   details, refer to
-//   [https://w3c.github.io/encrypted-media/#dfn-key-system-s](https://w3c.github.io/encrypted-media/#dfn-key-system-s)
+//   https://w3c.github.io/encrypted-media/#dfn-key-system-s
 // * |context|: An opaque value passed to the callbacks.
 // * |update_request_callback|: A callback invoked after calling
 //   `SbDrmGenerateSessionUpdateRequest()`.
