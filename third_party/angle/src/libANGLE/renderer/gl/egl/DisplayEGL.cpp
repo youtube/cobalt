@@ -845,7 +845,7 @@ void DisplayEGL::generateExtensions(egl::DisplayExtensions *outExtensions) const
 #if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
     outExtensions->image     = true;
     outExtensions->imageBase = true;
-#else  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+#else
     outExtensions->image     = mEGL->hasExtension("EGL_KHR_image");
     outExtensions->imageBase = mEGL->hasExtension("EGL_KHR_image_base");
 #endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)

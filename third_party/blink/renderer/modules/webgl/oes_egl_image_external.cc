@@ -45,7 +45,7 @@ bool OESEGLImageExternal::Supported(WebGLRenderingContextBase* context) {
   return context->ExtensionsUtil()->SupportsExtension("GL_OES_EGL_image_external");
 #else
   return false;
-#endif
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 const char* OESEGLImageExternal::ExtensionName() {

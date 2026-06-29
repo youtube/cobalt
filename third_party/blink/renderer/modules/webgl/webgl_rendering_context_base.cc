@@ -2301,7 +2301,7 @@ void WebGLRenderingContextBase::bindTexture(GLenum target,
       return;
     }
     texture_units_[active_texture_unit_].texture_external_oes_binding_ = texture;
-#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else
     SynthesizeGLError(GL_INVALID_ENUM, "bindTexture",
                       "GL_TEXTURE_EXTERNAL_OES textures not supported");
     return;

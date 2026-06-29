@@ -297,7 +297,7 @@ egl::Error FunctionsEGL::initialize(EGLAttrib platformType, EGLNativeDisplayType
 
 #if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
     if (hasExtension("EGL_KHR_image_base") || getProcAddress("eglCreateImageKHR") != nullptr)
-#else  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+#else
     if (hasExtension("EGL_KHR_image_base"))
 #endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
     {
