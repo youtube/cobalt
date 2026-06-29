@@ -138,6 +138,8 @@ copy("copy_elf_loader_testdata") {
     "testdata/compressed_multi_frame.zst",
     "testdata/compressed_no_content_size.lz4",
     "testdata/compressed_no_content_size.zst",
+    "testdata/compressed_with_garbage.zst",
+    "testdata/empty.zst",
     "testdata/uncompressed",
   ]
   subdir = "starboard/elf_loader"

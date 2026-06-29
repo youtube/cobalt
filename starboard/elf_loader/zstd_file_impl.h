@@ -52,6 +52,9 @@ class ZstdFileImpl : public FileImpl {
 
   // A single thread opens the specified file, reads it into a memory buffer,
   // and scans the buffer to construct metadata describing the Zstandard frames.
+  //
+  // Returns false if the file cannot be opened or read, or if any Zstandard
+  // frame header in the file is invalid or corrupted.
   bool Open(const char* name) override;
 
   // A single thread determines which frames are needed to satisfy the request,
@@ -76,8 +79,6 @@ class ZstdFileImpl : public FileImpl {
     const FrameMetadata* frame_metadata;
     // Destination buffer where decompressed bytes will be written.
     char* destination;
-    // Allocated byte capacity of the destination buffer.
-    size_t destination_size;
     // True if frame is completely enclosed within the read request, allowing
     // decompression directly into the caller's target buffer.
     bool direct;
@@ -94,7 +95,7 @@ class ZstdFileImpl : public FileImpl {
   // Maximum decompressed payload size allowed per frame. Compression tooling
   // must guarantee frames do not exceed this limit so that worker threads can
   // safely decompress non-direct frames into pre-allocated scratch buffers.
-  const size_t kMaxFrameDecompressedSize = 4 * 1024 * 1024;
+  static constexpr size_t kMaxFrameDecompressedSize = 4 * 1024 * 1024;
 
   std::vector<FrameMetadata> metadata_;
   size_t total_decompressed_size_;
@@ -107,7 +108,7 @@ class ZstdFileImpl : public FileImpl {
   size_t compressed_data_size_;
 
   // Persistent Thread Pool state
-  const int kNumWorkers = 4;
+  static constexpr int kNumWorkers = 4;
   std::vector<pthread_t> workers_;
   pthread_mutex_t worker_mutex_;
   pthread_cond_t work_ready_cv_;
@@ -119,10 +120,10 @@ class ZstdFileImpl : public FileImpl {
   const std::vector<DecompressionTask>* current_tasks_;
   // Index of the next task to be claimed by a worker for this ReadFromOffset()
   // request. Incremented when a worker attempts to claim a task.
-  std::atomic<size_t> next_task_index_;
+  std::atomic<size_t> next_task_index_{0};
   // Number of remaining decompression tasks for this ReadFromOffset() request.
   // Decremented when a worker completes a decompression task.
-  std::atomic<size_t> tasks_remaining_;
+  std::atomic<size_t> tasks_remaining_{0};
   bool stop_workers_;
   // Set to true by any worker thread if a frame decompression error occurs.
   std::atomic<bool> worker_failure_;

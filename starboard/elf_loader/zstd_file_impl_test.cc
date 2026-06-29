@@ -138,5 +138,22 @@ TEST(ZstdFileImplTest, ValidFileDecompressionSucceeds) {
   EXPECT_EQ(strcmp(decompressed, kUncompressedData), 0);
 }
 
+TEST(ZstdFileImplTest, OpenEmptyFileFails) {
+  std::string file_path = GetTestFilePath("empty.zst");
+  ASSERT_FALSE(file_path.empty()) << "Test file empty.zst not found.";
+
+  ZstdFileImpl file;
+  EXPECT_FALSE(file.Open(file_path.c_str()));
+}
+
+TEST(ZstdFileImplTest, OpenPartiallyCorruptedFileFails) {
+  std::string file_path = GetTestFilePath("compressed_with_garbage.zst");
+  ASSERT_FALSE(file_path.empty())
+      << "Test file compressed_with_garbage.zst not found.";
+
+  ZstdFileImpl file;
+  EXPECT_FALSE(file.Open(file_path.c_str()));
+}
+
 }  // namespace
 }  // namespace elf_loader

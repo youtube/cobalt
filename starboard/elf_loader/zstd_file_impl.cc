@@ -69,7 +69,7 @@ bool ZstdFileImpl::Open(const char* name) {
   if (fstat(file_, &st) != 0) {
     return false;
   }
-  if (st.st_size < 0 ||
+  if (st.st_size <= 0 ||
       static_cast<uint64_t>(st.st_size) > std::numeric_limits<size_t>::max()) {
     return false;
   }
@@ -121,7 +121,7 @@ bool ZstdFileImpl::ScanFrames() {
     if (ZSTD_isError(frame_compressed_size)) {
       SB_LOG(ERROR) << "Zstd frame header error: "
                     << ZSTD_getErrorName(frame_compressed_size);
-      break;
+      return false;
     }
 
     unsigned long long const frame_decompressed_size = ZSTD_getFrameContentSize(
@@ -159,6 +159,7 @@ bool ZstdFileImpl::HasTasksToProcess() const {
 void* ZstdFileImpl::ClaimDecompressionTasks(void* context) {
   ZstdFileImpl* impl = static_cast<ZstdFileImpl*>(context);
   ZSTD_DCtx* dctx = ZSTD_createDCtx();
+  SB_CHECK(dctx) << "ZSTD_createDCtx() failed!";
 
   std::unique_ptr<char[]> scratch(new char[impl->kMaxFrameDecompressedSize]);
 
@@ -196,6 +197,11 @@ void* ZstdFileImpl::ClaimDecompressionTasks(void* context) {
         SB_LOG(ERROR) << "Zstd decompression error: "
                       << ZSTD_getErrorName(result);
         local_failure = true;
+      } else if (result != item.frame_metadata->decompressed_size) {
+        SB_LOG(ERROR) << "Zstd decompression size mismatch. Expected "
+                      << item.frame_metadata->decompressed_size << " but got "
+                      << result;
+        local_failure = true;
       }
     } else {
       size_t const result = ZSTD_decompressDCtx(
@@ -204,6 +210,11 @@ void* ZstdFileImpl::ClaimDecompressionTasks(void* context) {
       if (ZSTD_isError(result)) {
         SB_LOG(ERROR) << "Zstd scratch decompression error: "
                       << ZSTD_getErrorName(result);
+        local_failure = true;
+      } else if (result != item.frame_metadata->decompressed_size) {
+        SB_LOG(ERROR) << "Zstd scratch decompression size mismatch. Expected "
+                      << item.frame_metadata->decompressed_size << " but got "
+                      << result;
         local_failure = true;
       } else {
         memcpy(item.destination, scratch.get() + item.copy_offset,
