@@ -78,7 +78,7 @@ bool ShouldEnableTunneledPlayback(const SbMediaVideoStreamInfo& stream_info) {
   return mime_type->GetParamBoolValue("tunnelmode", false);
 }
 
-ScopedJavaLocalRef<jobject> CreateAudioMediaSource(
+ScopedJavaLocalRef<jobject> CreateAudioFormat(
     const SbMediaAudioStreamInfo& stream_info) {
   if (stream_info.codec == kSbMediaAudioCodecNone) {
     SB_LOG(ERROR)
@@ -117,11 +117,11 @@ ScopedJavaLocalRef<jobject> CreateAudioMediaSource(
                                            &is_passthrough_unused));
   }
 
-  return Java_ExoPlayerManager_createAudioMediaSource(
+  return Java_ExoPlayerManager_createAudioFormat(
       env, j_audio_mime, configuration_data, sample_rate, channels);
 }
 
-ScopedJavaLocalRef<jobject> CreateVideoMediaSource(
+ScopedJavaLocalRef<jobject> CreateVideoFormat(
     const SbMediaVideoStreamInfo& stream_info) {
   if (stream_info.codec == kSbMediaVideoCodecNone) {
     SB_LOG(ERROR)
@@ -149,7 +149,7 @@ ScopedJavaLocalRef<jobject> CreateVideoMediaSource(
   ScopedJavaLocalRef<jobject> j_hdr_color_info =
       CreateExoPlayerColorInfo(stream_info.color_metadata);
 
-  return Java_ExoPlayerManager_createVideoMediaSource(
+  return Java_ExoPlayerManager_createVideoFormat(
       env, j_mime, width, height, framerate, bitrate, j_hdr_color_info);
 }
 

@@ -119,8 +119,8 @@ public class ExoPlayerManager {
    * Creates and initializes a new ExoPlayerBridge.
    *
    * @param nativeExoPlayerBridge The pointer to the native ExoPlayerBridge.
-   * @param audioSource The audio source.
-   * @param videoSource The video source.
+   * @param audioFormat The audio Format.
+   * @param videoFormat The video Format.
    * @param surface The rendering surface.
    * @param enableTunnelMode Whether to enable tunnel mode.
    * @return A new ExoPlayerBridge instance.
@@ -128,11 +128,11 @@ public class ExoPlayerManager {
   @CalledByNative
   public synchronized ExoPlayerBridge createExoPlayerBridge(
       long nativeExoPlayerBridge,
-      ExoPlayerMediaSource audioSource,
-      ExoPlayerMediaSource videoSource,
+      Format audioFormat,
+      Format videoFormat,
       Surface surface,
       boolean enableTunnelMode) {
-    if (videoSource != null && (surface == null || !surface.isValid())) {
+    if (videoFormat != null && (surface == null || !surface.isValid())) {
       Log.e(TAG, "Cannot initialize ExoPlayer with an invalid surface.");
       return null;
     }
@@ -141,22 +141,22 @@ public class ExoPlayerManager {
         nativeExoPlayerBridge,
         mContext,
         mRenderersFactory,
-        audioSource,
-        videoSource,
+        audioFormat,
+        videoFormat,
         surface,
         enableTunnelMode);
   }
 
   /**
-   * Creates an ExoPlayerMediaSource for audio.
+   * Creates an ExoPlayer Format for audio.
    * @param mime The mime type of the audio stream.
    * @param audioConfigurationData Configuration data (e.g. CSD).
    * @param sampleRate The sample rate.
    * @param channelCount The number of channels.
-   * @return A new ExoPlayerMediaSource instance.
+   * @return A new ExoPlayer Format instance.
    */
   @CalledByNative
-  public static ExoPlayerMediaSource createAudioMediaSource(
+  public static Format createAudioFormat(
       String mime, byte[] audioConfigurationData, int sampleRate, int channelCount) {
     Format.Builder builder =
         new Format.Builder()
@@ -183,21 +183,21 @@ public class ExoPlayerManager {
       builder.setAverageBitrate(PASSTHROUGH_CODEC_BITRATE);
     }
 
-    return new ExoPlayerMediaSource(builder.build());
+    return builder.build();
   }
 
   /**
-   * Creates an ExoPlayerMediaSource for video.
+   * Creates an ExoPlayer Format for video.
    * @param mime The mime type of the video stream.
    * @param width The width of the video.
    * @param height The height of the video.
    * @param fps The frame rate.
    * @param bitrate The bitrate.
    * @param colorInfo HDR color info, if applicable.
-   * @return A new ExoPlayerMediaSource instance.
+   * @return A new ExoPlayer Format instance.
    */
   @CalledByNative
-  public static ExoPlayerMediaSource createVideoMediaSource(
+  public static Format createVideoFormat(
       String mime, int width, int height, int fps, int bitrate, ColorInfo colorInfo) {
     Format.Builder builder = new Format.Builder();
     builder.setSampleMimeType(mime).setWidth(width).setHeight(height);
@@ -214,7 +214,7 @@ public class ExoPlayerManager {
       builder.setColorInfo(colorInfo);
     }
 
-    return new ExoPlayerMediaSource(builder.build());
+    return builder.build();
   }
 
   /** Creates a {@link ColorInfo} object including HDR static metadata. */

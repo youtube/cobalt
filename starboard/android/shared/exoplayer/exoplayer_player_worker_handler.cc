@@ -101,8 +101,6 @@ Result<void> ExoPlayerPlayerWorkerHandler::WriteSamples(
   SB_CHECK(!input_buffers.empty());
   SB_CHECK(bridge_->is_valid());
   SB_CHECK(samples_written);
-  SB_DCHECK_EQ(input_buffers.size(), 1U)
-      << "ExoPlayer accepts only one sample per write";
 
   for (const auto& input_buffer : input_buffers) {
     SB_DCHECK(input_buffer);
