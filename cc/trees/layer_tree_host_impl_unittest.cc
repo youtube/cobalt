@@ -13093,6 +13093,9 @@ TEST_P(LayerTreeHostImplTest, ExternalTransformSetNeedsRedraw) {
 }
 
 TEST_P(LayerTreeHostImplTest, OnMemoryPressure) {
+#if BUILDFLAG(IS_COBALT)
+  GTEST_SKIP() << "Cobalt doesn't support resource reuse.";
+#else
   gfx::Size size(200, 200);
   viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_8888;
   gfx::ColorSpace color_space = gfx::ColorSpace::CreateSRGB();
@@ -13119,6 +13122,7 @@ TEST_P(LayerTreeHostImplTest, OnMemoryPressure) {
 
   // Memory usage after the memory pressure should be less than previous one.
   EXPECT_LT(memory_usage_after_memory_pressure, current_memory_usage);
+#endif
 }
 
 TEST_P(LayerTreeHostImplTest, OnDrawConstraintSetNeedsRedraw) {
