@@ -119,13 +119,13 @@ jobs:
             PR_TITLE="CONFLICTED: ${PR_TITLE}"
             {
               echo ""
-              echo "⚠️ This PR has conflicts that must be resolved manually (don't forget to update the `.github/AUTOROLL` file). Use the following commands to checkout the branch locally and resolve the conflicts in a separate commit:"
+              echo '⚠️ This PR has conflicts that must be resolved manually (don't forget to update the `.github/AUTOROLL` file). Use the following commands to checkout the branch locally and resolve the conflicts in a separate commit:'
               echo '```bash'
               echo "gh pr checkout \${PR_NUMBER} -R ${{ github.repository }}"
               echo "git commit -a"
               echo "git push origin autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"
               echo '```'
-              echo "This PR must be `rebased and merged` and not `squashed and merged` to preserve conflict resolution history."
+              echo 'This PR must be `rebased and merged` and not `squashed and merged` to preserve conflict resolution history.'
             } >> "${PR_BODY_FILE}"
           fi
 
