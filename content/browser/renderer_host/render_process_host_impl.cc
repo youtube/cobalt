@@ -1812,6 +1812,15 @@ bool RenderProcessHostImpl::Init() {
         base::checked_cast<int32_t>(id_.GetUnsafeValue())));
 
     base::Thread::Options options;
+#if BUILDFLAG(IS_COBALT)
+    // When "ReduceAndroidThreadStackSize" is enabled, the default stack size for
+    // helper threads is reduced to 256KB to save virtual memory. However, the
+    // in-process renderer thread is a high-risk thread that can use a
+    // significant portion of its stack (observed up to 252KB RSS in testing).
+    // We explicitly set it to 1MB to exclude it from the reduction and prevent
+    // stack overflow crashes.
+    options.stack_size = 1024 * 1024;
+#endif
 #if BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_MAC)
     // In-process plugins require this to be a UI message loop.
     options.message_pump_type = base::MessagePumpType::UI;
