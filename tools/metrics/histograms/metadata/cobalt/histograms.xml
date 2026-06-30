@@ -53,6 +53,24 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Features.TestFinchFeature" enum="Boolean"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records whether the test Finch feature is enabled. Used for validating feature
+    deployment.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Features.TestFinchFeatureParam" units="hash"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the hash of the parameter value for the test Finch feature. Used
+    for validating parameter propagation.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Finch.ConfigAgeInDays" units="days"
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
@@ -81,6 +99,55 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Finch.CrashStreakAtStartup" units="crashes"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the variations crash streak number at startup. This helps track
+    system stability and safe config activation.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Finch.HasInvalidFeatureType" enum="Boolean"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records whether any features in the variations configuration had an invalid (non-boolean) type.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Finch.HasInvalidParamType" enum="Boolean"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records whether any parameters in the variations configuration had an invalid (non-string) type.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Finch.NumFeaturesApplied" units="features"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the number of experiment features successfully registered and applied at startup.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Finch.NumParamsApplied" units="parameters"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the number of experiment parameters successfully registered and applied at startup.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Finch.SetExperimentState.ParseError" enum="Boolean"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records when SetExperimentState fails because the variations config dictionary could not be parsed.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Finch.TimeBetweenWrites" units="ms"
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
@@ -99,7 +166,6 @@ Always run the pretty print utility on this file after editing:
     received.
   </summary>
 </histogram>
-
 
 <histogram name="Cobalt.LoaderApp.ElfDecompressionDuration" units="ms"
     expires_after="never">
