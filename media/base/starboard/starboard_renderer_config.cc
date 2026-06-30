@@ -46,6 +46,8 @@ std::ostream& operator<<(
             << ToString(features.allow_audio_writing_on_pause)
             << ", bypass_mojo_for_media="
             << ToString(features.bypass_mojo_for_media)
+            << ", decoded_audio_buffer_pool="
+            << ToString(features.decoded_audio_buffer_pool)
             << ", enable_av1_startup_optimization="
             << ToString(features.enable_av1_startup_optimization)
             << ", enable_flush_during_seek="
@@ -67,6 +69,8 @@ std::ostream& operator<<(
             << ToString(features.skip_flush_on_decoder_teardown)
             << ", skip_video_frames_over_60_fps="
             << ToString(features.skip_video_frames_over_60_fps)
+            << ", video_frame_impl_pool="
+            << ToString(features.video_frame_impl_pool)
             << ", enable_trivial_optimizations="
             << ToString(features.enable_trivial_optimizations)
             << ", enable_simd_based_audio_format_switching="
