@@ -2,6 +2,10 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 import("//services/device/public/cpp/compute_pressure/buildflags.gni")
 import("//third_party/blink/renderer/config.gni")
 
@@ -3204,6 +3208,13 @@ generated_interface_sources_in_modules = [
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_xr_webgl_sub_image.cc",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_xr_webgl_sub_image.h",
 ]
+
+if (is_cobalt && use_starboard_media) {
+  generated_interface_sources_in_modules += [
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_oesegl_image_external.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_oesegl_image_external.h",
+  ]
+}
 
 if (is_cobalt) {
   generated_interface_sources_in_modules += [
