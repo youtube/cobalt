@@ -285,17 +285,17 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     SB_LOG_IF(INFO, force_platform_opus_decoder_)
         << "kForcePlatformOpusDecoder is set to true, force using platform opus"
         << " codec instead of libopus.";
-
-    starboard::Buffer::SetPoolEnabled(
-        FeatureList::IsEnabled(features::kDecodedAudioBufferPool));
-    starboard::MediaCodecVideoDecoder::SetVideoFramePoolEnabled(
-        FeatureList::IsEnabled(features::kVideoFrameImplPool));
   }
 
   NonNullResult<std::unique_ptr<PlayerComponents>> CreateComponents(
       const CreationParameters& creation_parameters) override {
     const auto& experimental_features =
         creation_parameters.experimental_features();
+
+    starboard::Buffer::SetPoolEnabled(
+        experimental_features.decoded_audio_buffer_pool);
+    starboard::MediaCodecVideoDecoder::SetVideoFramePoolEnabled(
+        experimental_features.video_frame_impl_pool);
 
     if (experimental_features.enable_av1_startup_optimization) {
       MediaCapabilitiesCache::GetInstance()->SetAv1OptEnabled(true);
