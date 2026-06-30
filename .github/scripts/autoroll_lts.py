@@ -32,29 +32,24 @@ def get_out(cmd):
   return res.stdout
 
 
-def get_start_commit(target):
-  """Returns a start commit hash or None if CONFLICTED."""
-  start = get_out(['git', 'show', f'{target}:{_AUTOROLL_FILE}']).strip()
+def get_start_sha(branch):
+  """Returns an autoroll start SHA or None if CONFLICTED."""
+  start = get_out(['git', 'show', f'{branch}:{_AUTOROLL_FILE}']).strip()
 
   if start.startswith('CONFLICTED:'):
     return None
   return start
 
 
-def get_commits(source, target):
-  """Returns a list of commits in chronological order or None if CONFLICTED.
+def get_commits(branch, start):
+  """Returns a list of commits in chronological order.
 
-  Retrieves commits that are on the source branch but not on the target branch.
-  Uses the target branch's AUTOROLL file as the non-inclusive starting commit.
-  Commits are represented as a (sha, title, pr_num) tuple.
+  Starting from the non-inclusive start, the commits are represented as a
+  (sha, title, pr_num) tuple.
   """
-  start = get_start_commit(target)
-  if start is None:
-    return None
-
   cmd = [
       'git', 'rev-list', '--oneline', '--no-abbrev-commit', '--reverse',
-      f'{start}^..{source}'
+      f'{start}^..{branch}'
   ]
   lines = get_out(cmd).splitlines()
 
@@ -206,15 +201,16 @@ def main():
   p.add_argument('--identifier-type', required=True)
   args = p.parse_args()
 
-  # Commits in source but not in target
-  commits_to_target = get_commits(args.source_branch, args.target_branch)
-  # Commits in source but not in autoroll
-  commits_to_autoroll = get_commits(args.source_branch, 'HEAD')
-
-  if commits_to_autoroll is None:
-    log('Autoroll branch has unresolved CONFLICTED cherry pick.')
+  target_start = get_start_sha(args.target_branch)
+  autoroll_start = get_start_sha('HEAD')
+  if autoroll_start is None:
+    log('Autoroll branch has an unresolved CONFLICTED cherry pick.')
     return
 
+  # Commits in source but not in target
+  commits_to_target = get_commits(args.source_branch, target_start)
+  # Commits in source but not in autoroll
+  commits_to_autoroll = get_commits(args.source_branch, autoroll_start)
   # SHAs in source but not in autoroll
   shas_to_autoroll = {sha for sha, _, _ in commits_to_autoroll}
 
