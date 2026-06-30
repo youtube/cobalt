@@ -7,7 +7,7 @@ These instructions explain how to set up the build environment and build Cobalt 
 
 Starboard for RDK is integrated into the Cobalt 27.lts branch. You can build the RDK `loader_app` (which includes Starboard) using the Cobalt build mechanism. These instructions explain how to build it and update the library on an RDK device.
 
-The source for the RDK Starboard implementation is in the [RDK Central repository](https://github.com/rdkcentral/larboard). Cobalt merges and customizes it in [starboard/contrib/rdk](/starboard/contrib/rdk/).
+The source for the RDK Starboard implementation is in the [RDK Central repository](https://github.com/rdkcentral/larboard). Cobalt merges and customizes it in [`starboard/contrib/rdk/`](https://github.com/youtube/cobalt/tree/27.lts/starboard/contrib/rdk).
 
 ## Prerequisites
 
@@ -16,7 +16,7 @@ These instructions assume you are running Ubuntu 22.04. Required libraries might
 ### Install Initial Dependencies
 First, install the basic tools required to download the toolchain and manage packages.
 
-```sh
+```
 sudo apt update
 sudo apt install -y wget curl git python3-dev xz-utils lsb-release file sudo
 ```
@@ -35,21 +35,21 @@ More information about the RDK reference box can be found on the RDK Central wik
 Install the specific RDK toolchain required to build Cobalt.
 
 1.  **Define environment variables**:
-    ```sh
+
+    ```
     export RDK_HOME=$HOME/rdk/toolchain
     ```
 
 2.  **Create the target directory**:
-    ```sh
+
+    ```
     mkdir -p ${RDK_HOME}
     ```
 
 3.  **Download and install the toolchain**:
-    ```sh
-    # Download toolchain installer
-    wget https://storage.googleapis.com/cobalt-static-storage-public/20250521_rdk-glibc-x86_64-arm-toolchain-2.0.sh
 
-    # Run the installer
+    ```
+    wget https://storage.googleapis.com/cobalt-static-storage-public/20250521_rdk-glibc-x86_64-arm-toolchain-2.0.sh
     sh 20250521_rdk-glibc-x86_64-arm-toolchain-2.0.sh -d ${RDK_HOME} -y
     ```
 
@@ -57,7 +57,7 @@ Install the specific RDK toolchain required to build Cobalt.
 
 Chromium and Cobalt use `depot_tools` for package management and code retrieval.
 
-```sh
+```
 git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git ~/depot_tools
 export PATH="$HOME/depot_tools:$PATH"
 ```
@@ -66,7 +66,7 @@ export PATH="$HOME/depot_tools:$PATH"
 
 Clone the Cobalt source code repository and checkout the `27.lts` branch.
 
-```sh
+```
 mkdir -p ~/chromium
 cd ~/chromium
 git clone --branch 27.lts --single-branch https://github.com/youtube/cobalt.git src
@@ -77,7 +77,7 @@ git -C src remote add _gclient https://github.com/youtube/cobalt.git
 
 Use `gclient` to fetch all external dependencies required by Cobalt.
 
-```sh
+```
 cd ~/chromium
 gclient config --unmanaged --name=src https://github.com/youtube/cobalt.git
 gclient sync --no-history -r src@$(git -C src rev-parse @)
@@ -87,7 +87,7 @@ gclient sync --no-history -r src@$(git -C src rev-parse @)
 
 Run the installer script provided by Cobalt to install all necessary system libraries.
 
-```sh
+```
 cd ~/chromium/src
 
 # Run installer
@@ -105,18 +105,21 @@ python3 build/linux/sysroot_scripts/install-sysroot.py --arch=arm
 Generate the build files and compile Cobalt:
 
 1.  **Ensure environment variables are set**:
-    ```sh
+
+    ```
     export PATH="$HOME/depot_tools:$PATH"
     export RDK_HOME=$HOME/rdk/toolchain
     ```
 
 2.  **Generate build files**:
-    ```sh
+
+    ```
     cobalt/build/gn.py -p evergreen-arm-hardfp-rdk -c qa --no-rbe
     ```
 
 3.  **Compile targets**:
-    ```sh
+
+    ```
     autoninja -C out/evergreen-arm-hardfp-rdk_qa/ cobalt_loader nplb_loader loader_app_rdk_plugin
     ```
 
@@ -128,7 +131,7 @@ Generate the build files and compile Cobalt:
 
 Bundle the build artifacts into a tarball for deployment.
 
-```sh
+```
 tar -czvf archive.tar.gz -C out/evergreen-arm-hardfp-rdk_qa/ \
   -T out/evergreen-arm-hardfp-rdk_qa/cobalt_loader.runtime_deps libloader_app.so \
   -T out/evergreen-arm-hardfp-rdk_qa/nplb_loader.runtime_deps gen/build_info.json
@@ -143,12 +146,14 @@ To run Cobalt in executable mode: push the built archive to the device, extract 
 You can use either `adb` or `scp` to push the `archive.tar.gz` to the device's `/data` directory.
 
 **Option A: Using ADB**
-```sh
+
+```
 adb push path/to/c27/archive.tar.gz /data/archive.tar.gz
 ```
 
 **Option B: Using SCP**
-```sh
+
+```
 scp path/to/c27/archive.tar.gz root@{RDK IP address}:/data/archive.tar.gz
 ```
 
@@ -156,7 +161,7 @@ scp path/to/c27/archive.tar.gz root@{RDK IP address}:/data/archive.tar.gz
 
 Connect to the device and extract the archive to `/data/out_cobalt/`:
 
-```sh
+```
 # Clean up previous files and create directory
 rm -rf /data/out_cobalt && mkdir -p /data/out_cobalt
 
@@ -168,7 +173,7 @@ cd /data && tar -xzvf archive.tar.gz -C out_cobalt
 ### Set Up Environment Variables on Device
 Configure the environment variables on the device before launching Cobalt:
 
-```sh
+```
 export WESTEROS_GL_USE_BEST_MODE=1
 export WESTEROS_GL_MAX_MODE=3840x2160
 export WESTEROS_GL_GRAPHICS_MAX_SIZE=1920x1080
@@ -192,7 +197,7 @@ export WAYLAND_DISPLAY=test-0
 ### Create Display and Set Focus
 Create the display layer and set focus on the device. This registers the `test-0` display layer and routes system inputs to it:
 
-```sh
+```
 curl 'http://127.0.0.1:9998/jsonrpc' -d '{"jsonrpc": "2.0","id": 4,"method": "org.rdk.RDKShell.1.createDisplay", "params": { "client": "test-0", "displayName": "test-0" }}'; echo ""
 curl 'http://127.0.0.1:9998/jsonrpc' -d '{"jsonrpc": "2.0","id": 4,"method": "org.rdk.RDKShell.1.setFocus", "params": { "client": "test-0" }}' ; echo ""
 ```
@@ -203,7 +208,7 @@ curl 'http://127.0.0.1:9998/jsonrpc' -d '{"jsonrpc": "2.0","id": 4,"method": "or
 ### Launch Cobalt (Executable Mode)
 Navigate to `/data/out_cobalt` and launch the application using `loader_app` (executable mode does not support launching via the UI):
 
-```sh
+```
 cd /data/out_cobalt
 ./loader_app
 ```
@@ -211,7 +216,7 @@ cd /data/out_cobalt
 ### Restoring RDK UI Control
 After closing `loader_app`, the UI freezes because control focus remains with the custom display layer. To restore RDK UI control, run:
 
-```sh
+```
 curl 'http://127.0.0.1:9998/jsonrpc' -d '{"jsonrpc": "2.0","id": 4,"method": "org.rdk.RDKShell.1.setFocus", "params": { "client": "residentapp" }}' ; echo ""
 ```
 
@@ -257,7 +262,7 @@ out_cobalt/
 
 To run NPLB with a filter and output the result to an XML file, use the following command:
 
-```sh
+```
 cd /data/out_cobalt/
 ./elf_loader_sandbox \
   --evergreen_content=. \
@@ -269,7 +274,8 @@ cd /data/out_cobalt/
 You can pass standard Google Test (gtest) arguments.
 
 **Output test result as XML file:**
-```sh
+
+```
 ./elf_loader_sandbox \
   --evergreen_library=libnplb.so \
   --evergreen_content=. \
@@ -277,7 +283,8 @@ You can pass standard Google Test (gtest) arguments.
 ```
 
 **Run test cases by filter:**
-```sh
+
+```
 ./elf_loader_sandbox \
   --evergreen_library=libnplb.so \
   --evergreen_content=. \
