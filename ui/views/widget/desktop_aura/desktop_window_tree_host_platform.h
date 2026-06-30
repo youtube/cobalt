@@ -151,6 +151,9 @@ class VIEWS_EXPORT DesktopWindowTreeHostPlatform
                             ui::PlatformWindowState new_state) override;
   void OnCloseRequest() override;
   void OnAcceleratedWidgetAvailable(gfx::AcceleratedWidget widget) override;
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_COBALT)
+  void OnAcceleratedWidgetDestroyed() override;
+#endif
   void OnWillDestroyAcceleratedWidget() override;
   void OnActivationChanged(bool active) override;
   absl::optional<gfx::Size> GetMinimumSizeForWindow() override;

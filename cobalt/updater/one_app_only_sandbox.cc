@@ -20,7 +20,6 @@
 #include <string>
 #include <vector>
 
-#include "base/allocator/partition_allocator/memory_reclaimer.h"
 #include "base/at_exit.h"
 #include "base/command_line.h"
 #include "base/files/file_path.h"
@@ -30,10 +29,13 @@
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "build/build_config.h"
-#include "cobalt/app/app_lifecycle_delegate.h"
+#include "cobalt/app/app_event_delegate.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/shell/browser/shell.h"
+#include "content/public/app/content_main.h"
+#include "content/public/app/content_main_runner.h"
+#include "starboard/common/app_key.h"
 #include "starboard/event.h"
-#include "starboard/loader_app/app_key.h"
 #include "starboard/system.h"
 
 #include <init_musl.h>
@@ -59,7 +61,7 @@ void SbEventHandle(const SbEvent* event) {
     if (command_line.HasSwitch(cobalt::switches::kInitialURL)) {
       std::string url =
           command_line.GetSwitchValueASCII(cobalt::switches::kInitialURL);
-      if (loader_app::GetAppKey(url) != kMainAppKey &&
+      if (starboard::GetAppKey(url) != kMainAppKey &&
           url.find(kEvergreenCertTestHtml) == std::string::npos) {
         // If the app is not the main app nor Evergreen cert test page, stop the
         // app.
@@ -73,9 +75,9 @@ void SbEventHandle(const SbEvent* event) {
 
   // This object's lifetime extends beyond the function's lifetime, until the
   // function is called with kSbEventTypeStop at some time in the future.
-  static cobalt::AppLifecycleDelegate* s_lifecycle_delegate = nullptr;
+  static cobalt::AppEventDelegate* s_lifecycle_delegate = nullptr;
   if (!s_lifecycle_delegate) {
-    s_lifecycle_delegate = new cobalt::AppLifecycleDelegate();
+    s_lifecycle_delegate = new cobalt::AppEventDelegate();
   }
   s_lifecycle_delegate->HandleEvent(event);
   if (event->type == kSbEventTypeStop) {

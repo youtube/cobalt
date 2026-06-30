@@ -21,11 +21,15 @@
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback.h"
+#include "base/hash/hash.h"
 #include "base/i18n/rtl.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/path_service.h"
 #include "base/time/time.h"
+#include "base/timer/elapsed_timer.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
@@ -123,7 +127,13 @@ static void JNI_CobaltActivity_FlushCookiesAndLocalStorage(JNIEnv*) {
   if (!client) {
     return;
   }
-  client->FlushCookiesAndLocalStorage(base::DoNothing());
+  auto timer = std::make_unique<base::ElapsedTimer>();
+  client->FlushCookiesAndLocalStorage(base::BindOnce(
+      [](std::unique_ptr<base::ElapsedTimer> timer) {
+        UMA_HISTOGRAM_TIMES("Cobalt.Storage.OnPause.FlushDuration",
+                            timer->Elapsed());
+      },
+      std::move(timer)));
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -151,20 +161,29 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
   return metadata;
 }
 
-CobaltContentBrowserClient::CobaltContentBrowserClient(bool is_visible)
-    : is_visible_(is_visible) {
+CobaltContentBrowserClient::CobaltContentBrowserClient(
+    absl::optional<int64_t> startup_time,
+    bool is_visible,
+    const std::string& deep_link)
+    : startup_timestamp_(startup_time),
+      is_visible_(is_visible),
+      deep_link_(deep_link) {
   DETACH_FROM_THREAD(thread_checker_);
 #if BUILDFLAG(IS_STARBOARD)
   // TODO: b/476434249 - Revisit if Cobalt supports multiple tabs/windows.
   ui::PlatformWindowStarboard::SetWindowCreatedCallback(
       base::BindRepeating(&CobaltContentBrowserClient::OnSbWindowCreated,
                           weak_factory_.GetWeakPtr()));
+  ui::PlatformWindowStarboard::SetWindowDestroyedCallback(
+      base::BindRepeating(&CobaltContentBrowserClient::OnSbWindowDestroyed,
+                          weak_factory_.GetWeakPtr()));
 #endif  // BUILDFLAG(IS_STARBOARD)
 }
 
 CobaltContentBrowserClient::~CobaltContentBrowserClient() {
 #if BUILDFLAG(IS_STARBOARD)
-  ui::PlatformWindowStarboard::SetWindowCreatedCallback(base::NullCallback());
+  ui::PlatformWindowStarboard::ClearWindowCreatedCallback();
+  ui::PlatformWindowStarboard::ClearWindowDestroyedCallback();
 #endif  // BUILDFLAG(IS_STARBOARD)
 }
 
@@ -179,7 +198,7 @@ CobaltContentBrowserClient::CreateBrowserMainParts(
     bool /* is_integration_test */) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   auto browser_main_parts =
-      std::make_unique<CobaltBrowserMainParts>(is_visible_);
+      std::make_unique<CobaltBrowserMainParts>(is_visible_, deep_link_);
   set_browser_main_parts(browser_main_parts.get());
   return browser_main_parts;
 }
@@ -364,7 +383,7 @@ void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
     content::RenderFrameHost* render_frame_host,
     mojo::BinderMapWithContext<content::RenderFrameHost*>* map) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  PopulateCobaltFrameBinders(render_frame_host, map);
+  PopulateCobaltFrameBinders(startup_timestamp_, render_frame_host, map);
   ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
       render_frame_host, map);
 }
@@ -411,6 +430,11 @@ void CobaltContentBrowserClient::OnSbWindowCreated(SbWindow window) {
     BindPlatformWindowProviderService(cached_sb_window_, std::move(receiver));
   }
   pending_window_receivers_.clear();
+}
+
+void CobaltContentBrowserClient::OnSbWindowDestroyed(SbWindow window) {
+  DCHECK_EQ(cached_sb_window_, reinterpret_cast<uint64_t>(window));
+  cached_sb_window_ = 0;
 }
 
 void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
@@ -538,6 +562,11 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   SetUpCobaltFeaturesAndParams(feature_list.get());
 
   base::FeatureList::SetInstance(std::move(feature_list));
+  UMA_HISTOGRAM_BOOLEAN(
+      "Cobalt.Features.TestFinchFeature",
+      base::FeatureList::IsEnabled(features::kTestFinchFeature));
+  base::UmaHistogramSparse("Cobalt.Features.TestFinchFeatureParam",
+                           base::Hash(features::kTestFinchFeatureParam.Get()));
   LOG(INFO) << "CobaltCommandLine: enable_features=["
             << command_line.GetSwitchValueASCII(::switches::kEnableFeatures)
             << "], disable_features=["

@@ -37,7 +37,8 @@ class ShellPlatformDelegate;
 
 class ShellBrowserMainParts : public BrowserMainParts {
  public:
-  explicit ShellBrowserMainParts(bool is_visible = true);
+  explicit ShellBrowserMainParts(bool is_visible = true,
+                                 const std::string& deep_link = "");
 
   ShellBrowserMainParts(const ShellBrowserMainParts&) = delete;
   ShellBrowserMainParts& operator=(const ShellBrowserMainParts&) = delete;
@@ -56,12 +57,19 @@ class ShellBrowserMainParts : public BrowserMainParts {
   void PostMainMessageLoopRun() override;
   void PostDestroyThreads() override;
 
+  // Called to defer tasks (e.g. creating WebContents) until migration is
+  // finished.
+  virtual void PostOrRunIfStorageMigrationFinished(base::OnceClosure task);
+
   ShellBrowserContext* browser_context() { return browser_context_.get(); }
   ShellBrowserContext* off_the_record_browser_context() {
     return off_the_record_browser_context_.get();
   }
 
  protected:
+  virtual GURL GetStartupURL() const;
+  const std::string& deep_link() const { return deep_link_; }
+
   virtual void InitializeBrowserContexts();
   virtual void InitializeMessageLoopContext();
   // Gets the ShellPlatformDelegate to be used. May be a subclass of
@@ -82,6 +90,7 @@ class ShellBrowserMainParts : public BrowserMainParts {
   std::unique_ptr<performance_manager::PerformanceManagerLifetime>
       performance_manager_lifetime_;
   bool is_visible_;
+  std::string deep_link_;
 #if BUILDFLAG(IS_ANDROID)
   std::unique_ptr<crash_reporter::ChildExitObserver> child_exit_observer_;
 #endif

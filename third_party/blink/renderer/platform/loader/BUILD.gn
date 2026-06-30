@@ -220,7 +220,8 @@ source_set("unit_tests") {
     "fetch/raw_resource_test.cc",
     "fetch/resource_fetcher_properties_test.cc",
     "fetch/resource_fetcher_test.cc",
-    "fetch/resource_load_scheduler_test.cc",
+    # resource_load_schedule is disabled, see b/484394054
+    # "fetch/resource_load_scheduler_test.cc",
     "fetch/resource_loader_defer_loading_test.cc",
     "fetch/resource_loader_test.cc",
     "fetch/resource_request_test.cc",

@@ -58,7 +58,9 @@ class CobaltWebContentsObserver;
 // a demo around Content.
 class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
  public:
-  explicit CobaltContentBrowserClient(bool is_visible = true);
+  explicit CobaltContentBrowserClient(absl::optional<int64_t> startup_timestamp,
+                                      bool is_visible = true,
+                                      const std::string& deep_link = "");
 
   CobaltContentBrowserClient(const CobaltContentBrowserClient&) = delete;
   CobaltContentBrowserClient& operator=(const CobaltContentBrowserClient&) =
@@ -123,7 +125,7 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       bool* disable_secure_dns,
       network::mojom::URLLoaderFactoryOverridePtr* factory_override) override;
 
-  void FlushCookiesAndLocalStorage(base::OnceClosure);
+  void FlushCookiesAndLocalStorage(base::OnceClosure callback);
 
   void AddPendingWindowReceiver(
       mojo::PendingReceiver<cobalt::media::mojom::PlatformWindowProvider>
@@ -136,8 +138,11 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
 
  private:
   void OnSbWindowCreated(SbWindow window);
+  void OnSbWindowDestroyed(SbWindow window);
 
+  const absl::optional<int64_t> startup_timestamp_;
   bool is_visible_;
+  const std::string deep_link_;
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
 
   uint64_t cached_sb_window_ = 0;

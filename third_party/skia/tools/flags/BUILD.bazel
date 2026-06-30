@@ -1,0 +1,32 @@
+load("//bazel:skia_rules.bzl", "exports_files_legacy", "skia_filegroup")
+
+licenses(["notice"])
+
+exports_files_legacy()
+
+skia_filegroup(
+    name = "flags",
+    testonly = True,
+    srcs = [
+        "CommandLineFlags.cpp",
+        "CommandLineFlags.h",
+    ],
+    visibility = [
+        "//modules/skottie:__pkg__",
+        "//tests:__subpackages__",
+        "//tools:__subpackages__",
+    ],
+)
+
+skia_filegroup(
+    name = "common_flags",
+    testonly = True,
+    srcs = [
+        "CommonFlags.h",
+        "CommonFlagsFontMgr.cpp",
+        "CommonFlagsGpu.cpp",
+    ],
+    visibility = [
+        "//tools:__subpackages__",
+    ],
+)

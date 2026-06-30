@@ -12,22 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/app/app_lifecycle_delegate.h"
+#include "base/run_loop.h"
+#include "cobalt/app/app_event_delegate.h"
 #include "starboard/event.h"
-
-namespace {}  // namespace
 
 void SbEventHandle(const SbEvent* event) {
   // This object's lifetime extends beyond the function's lifetime, until the
   // function is called with kSbEventTypeStop at some time in the future.
-  static cobalt::AppLifecycleDelegate* s_lifecycle_delegate = nullptr;
+  // When the application is stopped, this object is destroyed and the pointer
+  // is reset to nullptr, to ensure that any spurious events received after the
+  // application is stopped are ignored.
+  static cobalt::AppEventDelegate* s_lifecycle_delegate =
+      new cobalt::AppEventDelegate();
+
   if (!s_lifecycle_delegate) {
-    s_lifecycle_delegate = new cobalt::AppLifecycleDelegate();
+    LOG(WARNING) << "Received spurious SbEventHandle(type = " << event->type
+                 << ") call after kSbEventTypeStop, ignoring.";
+    return;
   }
-  s_lifecycle_delegate->HandleEvent(event);
+
   if (event->type == kSbEventTypeStop) {
+    base::RunLoop run_loop;
+    s_lifecycle_delegate->SetQuitClosure(run_loop.QuitClosure());
+    s_lifecycle_delegate->HandleEvent(event);
+    run_loop.Run();
+    s_lifecycle_delegate->DoTeardown();
     delete s_lifecycle_delegate;
     s_lifecycle_delegate = nullptr;
+  } else {
+    s_lifecycle_delegate->HandleEvent(event);
   }
 }
 

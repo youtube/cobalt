@@ -30,15 +30,19 @@ using ::starboard::StarboardBridge;
 namespace performance {
 
 PerformanceImpl::PerformanceImpl(
+    absl::optional<int64_t> app_startup_timestamp,
     content::RenderFrameHost& render_frame_host,
     mojo::PendingReceiver<mojom::CobaltPerformance> receiver)
     : content::DocumentService<mojom::CobaltPerformance>(render_frame_host,
-                                                         std::move(receiver)) {}
+                                                         std::move(receiver)),
+      app_startup_timestamp_(app_startup_timestamp) {}
 
 void PerformanceImpl::Create(
+    absl::optional<int64_t> app_startup_timestamp,
     content::RenderFrameHost* render_frame_host,
     mojo::PendingReceiver<mojom::CobaltPerformance> receiver) {
-  new PerformanceImpl(*render_frame_host, std::move(receiver));
+  new PerformanceImpl(app_startup_timestamp, *render_frame_host,
+                      std::move(receiver));
 }
 
 void PerformanceImpl::MeasureAvailableCpuMemory(
@@ -54,19 +58,20 @@ void PerformanceImpl::MeasureUsedCpuMemory(
   std::move(callback).Run(used_memory);
 }
 
-void PerformanceImpl::GetAppStartupTime(GetAppStartupTimeCallback callback) {
+void PerformanceImpl::GetAppStartupTimeStamp(
+    GetAppStartupTimeStampCallback callback) {
 #if BUILDFLAG(IS_ANDROIDTV)
-  JNIEnv* env = base::android::AttachCurrentThread();
-  StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
-  auto startup_duration = starboard_bridge->GetAppStartDuration(env);
-#elif BUILDFLAG(IS_STARBOARD)
-  // TODO: b/389132127 - Startup time for 3P needs a place to be saved.
-  NOTIMPLEMENTED();
-  int64_t startup_duration = 0;
-#else
-#error Unsupported platform.
+  if (!app_startup_timestamp_.has_value()) {
+    JNIEnv* env = base::android::AttachCurrentThread();
+    app_startup_timestamp_ =
+        StarboardBridge::GetInstance()->GetAppStartTimestamp(env);
+  }
 #endif
-  std::move(callback).Run(startup_duration);
+#if BUILDFLAG(IS_IOS_TVOS)
+  // TODO - b/487001977: Implement this method.
+  NOTIMPLEMENTED();
+#endif
+  std::move(callback).Run(app_startup_timestamp_.value_or(0));
 }
 
 }  // namespace performance

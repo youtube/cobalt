@@ -1,0 +1,19 @@
+load("//bazel:skia_rules.bzl", "exports_files_legacy", "skia_cc_library")
+
+licenses(["notice"])
+
+exports_files_legacy()
+
+skia_cc_library(
+    name = "skparagraph",
+    srcs = ["//modules/skparagraph/src:srcs"],
+    hdrs = ["//modules/skparagraph/include:hdrs"],
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//:skia_internal",
+        "//modules/skshaper",
+        "//modules/skunicode",
+        "@harfbuzz",
+        "@icu",
+    ],
+)

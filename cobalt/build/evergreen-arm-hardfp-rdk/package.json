@@ -19,6 +19,8 @@
                 "app/noop_sandbox/lib/libnoop_sandbox.lz4",
                 "app/one_app_only_sandbox/lib/libone_app_only_sandbox.lz4",
                 "loader_app",
+                "libloader_app.so",
+                "native_target/crashpad_handler",
                 {
                     "from_file": "cobalt_shell.pak",
                     "to_file": "content/cobalt_shell.pak"

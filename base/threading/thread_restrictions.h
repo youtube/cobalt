@@ -204,6 +204,11 @@ void SessionEnding();
 namespace chromecast {
 class CrashUtil;
 }
+#if BUILDFLAG(IS_COBALT)
+namespace cobalt {
+class AppEventRunnerImpl;
+}
+#endif  // BUILDFLAG(IS_COBALT)
 namespace chromeos {
 class BlockingMethodCaller;
 namespace system {
@@ -861,6 +866,15 @@ class BASE_EXPORT
 #if BUILDFLAG(IS_STARBOARD)
   friend class cobalt::updater::UpdaterModule;
 #endif  // BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt's platform deactivation lifecycle transitions (Reveal, Conceal,
+  // Freeze, Unfreeze) synchronously block the UI Main Thread using a nested
+  // base::RunLoop to guarantee atomic, linear state progression. Since
+  // Starboard's custom base::MessagePumpUIStarboard blocks using
+  // base::WaitableEvent under the hood, we must explicitly whitelist the modular
+  // platform shell runner here to authorize main-thread sync waiting.
+  friend class cobalt::AppEventRunnerImpl;
+#endif  // BUILDFLAG(IS_COBALT)
   friend class content::DesktopCaptureDevice;
   friend class content::EmergencyTraceFinalisationCoordinator;
   friend class content::InProcessUtilityThread;

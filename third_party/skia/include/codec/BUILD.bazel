@@ -1,0 +1,19 @@
+load("//bazel:skia_rules.bzl", "exports_files_legacy", "skia_filegroup")
+
+licenses(["notice"])
+
+exports_files_legacy()
+
+skia_filegroup(
+    name = "public_hdrs",
+    srcs = [
+        "SkAndroidCodec.h",
+        "SkCodec.h",
+        "SkCodecAnimation.h",
+        "SkEncodedImageFormat.h",
+        "SkEncodedOrigin.h",
+        "SkPixmapUtils.h",
+        "SkPngChunkReader.h",
+    ],
+    visibility = ["//include:__pkg__"],
+)

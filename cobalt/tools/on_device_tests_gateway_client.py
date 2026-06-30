@@ -47,6 +47,7 @@ _DEPS_ARCH_MAP = {
     'raspi': '/home/pi/test/',
     'rdk': '/data/test/',
 }
+_GCS_ARCHIVE_DEVICE_FAMILIES = ('rdk', 'raspi')
 
 # This is needed because driver expects cobalt.apk, but we publish
 # Cobalt.apk
@@ -121,8 +122,12 @@ def _get_test_args_and_dimensions(
       f'job_timeout_sec={args.job_timeout_sec}',
       f'test_timeout_sec={args.test_timeout_sec}',
       f'start_timeout_sec={args.start_timeout_sec}',
-      f'retry_level={args.retry_level}',
   ]
+
+  if args.retry_level:
+    test_args.extend([
+        f'retry_level={args.retry_level}',
+    ])
 
   if args.test_attempts:
     test_args.extend([
@@ -184,7 +189,7 @@ def _unit_test_files(args: argparse.Namespace, target_name: str) -> List[str]:
         f'bin={args.gcs_archive_path}/{target_name}',
         f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.gz',
     ]
-  elif args.device_family in ['rdk', 'raspi']:
+  elif args.device_family in _GCS_ARCHIVE_DEVICE_FAMILIES:
     return [
         f'bin={args.gcs_archive_path}/{target_name}.py',
         f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.gz',
@@ -206,8 +211,13 @@ def _unit_test_params(args: argparse.Namespace, target_name: str,
   if args.gcs_result_path:
     params.append(f'gcs_result_path={args.gcs_result_path}')
   if args.test_attempts:
-    # Must delete existing results when retries are enabled.
-    params.append('gcs_delete_before_upload=true')
+    try:
+      if int(args.test_attempts) > 1:
+        # Must delete existing results when retries are enabled.
+        params.append('gcs_delete_before_upload=true')
+    except ValueError:
+      logging.warning('Invalid test_attempts value: %s', args.test_attempts)
+
   return params
 
 
@@ -251,8 +261,13 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       elif args.test_attempts:
         test_args.extend([f'test_attempts={args.test_attempts}'])
       test_cmd_args = []
-      files = [f'cobalt_path={args.cobalt_path}']
       params = [f'yt_binary_name={_E2E_DEFAULT_YT_BINARY_NAME}']
+      files = []
+      if args.device_family in _GCS_ARCHIVE_DEVICE_FAMILIES:
+        params.append(f'gcs_cobalt_archive=gs://{args.cobalt_path}.zip')
+      else:
+        bigstore_path = f'/bigstore/{args.cobalt_path}/{args.artifact_name}'
+        files.append(f'cobalt_path={bigstore_path}')
 
     else:
       raise ValueError(f'Unsupported test type: {args.test_type}')
@@ -315,7 +330,6 @@ def main() -> int:
   trigger_args.add_argument(
       '--device_family',
       type=str,
-      choices=['android', 'raspi', 'rdk'],
       help='Family of device to run tests on.',
   )
   trigger_args.add_argument(
@@ -334,12 +348,12 @@ def main() -> int:
   trigger_args.add_argument(
       '--test_attempts',
       type=str,
+      default='1',
       help='The maximum number of times a test can retry.',
   )
   trigger_args.add_argument(
       '--retry_level',
       type=str,
-      default='ERROR',
       choices=['ERROR', 'FAIL'],
       help='Retry level for failed tests.',
   )
@@ -393,6 +407,12 @@ def main() -> int:
       '--cobalt_path',
       type=str,
       help='Path to Cobalt apk.',
+  )
+  e2e_test_group.add_argument(
+      '--artifact_name',
+      type=str,
+      help=('Artifact name, used to specify the cobalt path in non-evergreen'
+            ' workflows'),
   )
 
   # Watch command

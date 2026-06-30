@@ -163,7 +163,7 @@ std::string SbSysInfo::Brand() {
 
 std::string SbSysInfo::OSFriendlyName() {
   NOTIMPLEMENTED();
-  return ""
+  return "";
 }
 
 #endif  // BUILDFLAG(IS_ANDROID)

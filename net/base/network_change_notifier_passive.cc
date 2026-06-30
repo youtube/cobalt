@@ -19,7 +19,7 @@
 #include "net/android/network_change_notifier_android.h"
 #endif
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include <linux/rtnetlink.h>
 
 #include "net/base/network_change_notifier_linux.h"
@@ -96,7 +96,7 @@ void NetworkChangeNotifierPassive::GetCurrentMaxBandwidthAndConnectionType(
   *max_bandwidth_mbps = max_bandwidth_mbps_;
 }
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 AddressMapOwnerLinux*
 NetworkChangeNotifierPassive::GetAddressMapOwnerInternal() {
   return &address_map_cache_;
@@ -116,6 +116,13 @@ NetworkChangeNotifierPassive::NetworkChangeCalculatorParamsPassive() {
   params.connection_type_online_delay_ = base::Milliseconds(500);
 #elif BUILDFLAG(IS_ANDROID)
   params = NetworkChangeNotifierAndroid::NetworkChangeCalculatorParamsAndroid();
+#elif BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+  // TODO: b/490129788, Cobalt - Adjust these values with experimentation.
+  // Right now they just follow linux.
+  params.ip_address_offline_delay_ = base::Milliseconds(2000);
+  params.ip_address_online_delay_ = base::Milliseconds(2000);
+  params.connection_type_offline_delay_ = base::Milliseconds(1500);
+  params.connection_type_online_delay_ = base::Milliseconds(500);
 #elif BUILDFLAG(IS_LINUX)
   params = NetworkChangeNotifierLinux::NetworkChangeCalculatorParamsLinux();
 #else

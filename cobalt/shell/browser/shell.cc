@@ -19,6 +19,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/command_line.h"
@@ -26,12 +27,13 @@
 #include "base/location.h"
 #include "base/no_destructor.h"
 #include "base/run_loop.h"
+#include "base/strings/escape.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "build/build_config.h"
-#include "cobalt/shell/app/resource.h"
+#include "cobalt/browser/switches.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/browser/shell_devtools_frontend.h"
@@ -92,6 +94,67 @@ using ::starboard::StarboardBridge;
 namespace content {
 
 namespace {
+
+constexpr char kMusicTopic[] = "music";
+
+// Helper function to check if a URL is a valid deep link for a specific topic.
+// It requires both a "launch" parameter and a matching "topic" parameter.
+bool IsDeepLinkTopic(const GURL& link_url, std::string_view target_topic) {
+  if (!link_url.is_valid()) {
+    return false;
+  }
+
+  // Helper lambda to check a query string
+  auto check_query_string = [&](std::string_view query_str) {
+    std::string unescaped_query = base::UnescapeURLComponent(
+        query_str,
+        base::UnescapeRule::REPLACE_PLUS_WITH_SPACE |
+            base::UnescapeRule::URL_SPECIAL_CHARS_EXCEPT_PATH_SEPARATORS);
+
+    // Use GURL::Replacements to safely set the query string without worrying
+    // about special characters like '#' truncating the query.
+    GURL dummy_url("http://dummy/");
+    GURL::Replacements replacements;
+    replacements.SetQueryStr(unescaped_query);
+    dummy_url = dummy_url.ReplaceComponents(replacements);
+
+    bool has_launch = false;
+    bool has_target_topic = false;
+
+    for (net::QueryIterator it(dummy_url); !it.IsAtEnd(); it.Advance()) {
+      if (!has_launch && it.GetKey() == "launch") {
+        has_launch = true;
+      } else if (!has_target_topic && it.GetKey() == "topic" &&
+                 it.GetUnescapedValue() == target_topic) {
+        has_target_topic = true;
+      }
+
+      if (has_launch && has_target_topic) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // 1. Check the standard query part
+  if (link_url.has_query() && check_query_string(link_url.query())) {
+    return true;
+  }
+
+  // 2. Check the fragment part if it looks like a query (starts with '?')
+  if (link_url.has_ref()) {
+    std::string ref = link_url.ref();
+    if (!ref.empty() && ref[0] == '?') {
+      // Skip the leading '?'
+      if (check_query_string(std::string_view(ref).substr(1))) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 // Null until/unless the default main message loop is running.
 base::OnceClosure& GetMainMessageLoopQuitClosure() {
   static base::NoDestructor<base::OnceClosure> closure;
@@ -133,7 +196,7 @@ constexpr int kSplashTimeoutMs = 1500;
 // Owning pointer. We can not use unique_ptr as a global. That introduces a
 // static constructor/destructor.
 // Acquired in Shell::Init(), released in Shell::Shutdown().
-ShellPlatformDelegate* g_platform;
+ShellPlatformDelegate* g_platform = nullptr;
 }  // namespace
 
 std::vector<Shell*> Shell::windows_;
@@ -149,7 +212,10 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
       splash_screen_web_contents_(std::move(splash_screen_web_contents)),
       splash_state_(STATE_SPLASH_SCREEN_UNINITIALIZED),
       splash_topic_(topic),
-      skip_for_testing_(skip_for_testing) {
+      skip_for_testing_(skip_for_testing),
+      is_video_splash_screen_(
+          !base::CommandLine::ForCurrentProcess()->HasSwitch(
+              switches::kForceImageSplashScreen)) {
   if (should_set_delegate) {
     web_contents_->SetDelegate(this);
   }
@@ -177,7 +243,9 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
     splash_state_ = STATE_SPLASH_SCREEN_INITIALIZED;
     splash_screen_web_contents_observer_ =
         std::make_unique<SplashScreenWebContentsObserver>(
-            splash_screen_web_contents_.get());
+            splash_screen_web_contents_.get(),
+            base::BindOnce(&Shell::OnSplashScreenLoadComplete,
+                           weak_factory_.GetWeakPtr()));
     splash_screen_web_contents_delegate_ =
         std::make_unique<SplashScreenWebContentsDelegate>(
             base::BindPostTaskToCurrentDefault(
@@ -199,6 +267,7 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
 }
 
 Shell::~Shell() {
+  CHECK(g_platform);
   g_platform->CleanUp(this);
 
   for (size_t i = 0; i < windows_.size(); ++i) {
@@ -222,10 +291,53 @@ ShellPlatformDelegate* Shell::GetPlatform() {
 }
 
 // static
+void Shell::OnBlur() {
+  CHECK(g_platform);
+  if (g_platform->IsVisible()) {
+    g_platform->OnBlur();
+  }
+}
+
+// static
+void Shell::OnFocus() {
+  CHECK(g_platform);
+  if (g_platform->IsVisible()) {
+    g_platform->OnFocus();
+  }
+}
+
+// static
+void Shell::OnConceal() {
+  CHECK(g_platform);
+  if (g_platform->IsVisible()) {
+    g_platform->OnConceal();
+  }
+}
+
+// static
 void Shell::OnReveal() {
-  if (g_platform) {
+  CHECK(g_platform);
+  if (!g_platform->IsVisible()) {
     g_platform->OnReveal();
   }
+}
+
+// static
+void Shell::OnFreeze() {
+  CHECK(g_platform);
+  g_platform->OnFreeze();
+}
+
+// static
+void Shell::OnUnfreeze() {
+  CHECK(g_platform);
+  g_platform->OnUnfreeze();
+}
+
+// static
+void Shell::OnStop() {
+  CHECK(g_platform);
+  g_platform->OnStop();
 }
 
 void Shell::FinishShellInitialization(Shell* shell) {
@@ -359,7 +471,7 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
                               const scoped_refptr<SiteInstance>& site_instance,
                               const gfx::Size& initial_size,
                               const bool create_splash_screen_web_contents,
-                              const std::string& topic) {
+                              const std::string& deep_link) {
   WebContents::CreateParams create_params(browser_context, site_instance);
   bool is_visible = GetPlatform()->IsVisible();
   create_params.initially_hidden = !is_visible;
@@ -380,6 +492,21 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
     splash_screen_web_contents =
         WebContents::Create(splash_screen_create_params);
   }
+  // Handle deeplink from url on all devices.
+  std::string topic;
+  GURL link_url;
+  if (!deep_link.empty()) {
+    link_url = GURL(deep_link);
+  } else if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+                 cobalt::switches::kInitialURL)) {
+    link_url = GURL(base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+        cobalt::switches::kInitialURL));
+  }
+  if (link_url.is_valid()) {
+    if (IsDeepLinkTopic(link_url, kMusicTopic)) {
+      topic = kMusicTopic;
+    }
+  }
   Shell* shell = CreateShell(
       std::move(web_contents), std::move(splash_screen_web_contents),
       AdjustWindowSize(initial_size), true /* should_set_delegate */, topic);
@@ -397,8 +524,6 @@ void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
 }
 
 void Shell::PrimaryMainDocumentElementAvailable() {
-  cobalt::migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
-      web_contents());
 #if BUILDFLAG(USE_EVERGREEN)
   cobalt::updater::UpdaterModule* updater_module =
       cobalt::updater::UpdaterModule::GetInstance();
@@ -415,11 +540,6 @@ void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
 }
 
 void Shell::DidStopLoading() {
-  // Set initial focus to the web content.
-  if (web_contents()->GetRenderWidgetHostView()) {
-    web_contents()->GetRenderWidgetHostView()->Focus();
-  }
-
   if (!is_main_frame_loaded_ &&
       splash_state_ != STATE_SPLASH_SCREEN_UNINITIALIZED) {
     VLOG(1) << "NativeSplash: Main frame WebContents DidStopLoading.";
@@ -466,10 +586,13 @@ void Shell::LoadSplashScreenWebContents() {
     // Display splash screen.
     VLOG(1) << "NativeSplash: Loading splash screen WebContents.";
     splash_state_ = STATE_SPLASH_SCREEN_STARTED;
-    splash_screen_start_time_ = base::TimeTicks::Now();
     GetPlatform()->LoadSplashScreenContents(this);
 
     GURL splash_screen_url = GURL(switches::kSplashScreenURL);
+    if (!is_video_splash_screen_) {
+      splash_screen_url =
+          net::AppendQueryParameter(splash_screen_url, "force_image", "true");
+    }
     if (!splash_topic_.empty()) {
       splash_screen_url =
           net::AppendQueryParameter(splash_screen_url, "cache", splash_topic_);
@@ -748,6 +871,7 @@ void Shell::RequestToLockMouse(WebContents* web_contents,
 void Shell::Close() {
   // Shell is "self-owned" and destroys itself. The ShellPlatformDelegate
   // has the chance to co-opt this and do its own destruction.
+  CHECK(g_platform);
   if (!g_platform->DestroyShell(this)) {
     delete this;
   }
@@ -803,8 +927,9 @@ void Shell::RendererUnresponsive(
 }
 
 void Shell::ActivateContents(WebContents* contents) {
-  // TODO(danakj): Move this to ShellPlatformDelegate.
-  contents->Focus();
+  if (!g_platform->IsWaitingForRevealAck()) {
+    contents->GetPrimaryMainFrame()->GetRenderWidgetHost()->Focus();
+  }
 }
 
 void Shell::RunFileChooser(RenderFrameHost* render_frame_host,
@@ -927,6 +1052,10 @@ bool Shell::CheckMediaAccessPermission(RenderFrameHost*,
   return true;
 }
 
+bool Shell::ShouldFocusPageAfterCrash() {
+  return !g_platform->IsWaitingForRevealAck();
+}
+
 gfx::Size Shell::GetShellDefaultSize() {
   static gfx::Size default_shell_size;  // Only go through this method once.
 
@@ -955,6 +1084,25 @@ gfx::Size Shell::GetShellDefaultSize() {
   return default_shell_size;
 }
 
+void Shell::Focus() {
+  // Aura silently ignores focus requests for hidden windows. If the shell is
+  // not yet visible (e.g. during a rapid Reveal -> Focus sequence), we defer
+  // the focus until the WebContents signals it has become visible.
+  if (web_contents_->GetVisibility() == Visibility::VISIBLE) {
+    web_contents_->Focus();
+    pending_focus_ = false;
+  } else {
+    pending_focus_ = true;
+  }
+}
+
+void Shell::OnVisibilityChanged(Visibility visibility) {
+  if (visibility == Visibility::VISIBLE && pending_focus_) {
+    // Retry the pending focus now that the window is visible in Aura.
+    Focus();
+  }
+}
+
 void Shell::LoadProgressChanged(double progress) {
 #if BUILDFLAG(IS_ANDROID)
   if (!skip_for_testing_) {
@@ -981,6 +1129,10 @@ void Shell::LoadProgressChanged(double progress) {
 }
 
 void Shell::ScheduleSwitchToMainWebContents() {
+  if (splash_screen_start_time_.is_null()) {
+    LOG(INFO) << "NativeSplash: Splash screen not loaded yet, waiting.";
+    return;
+  }
   base::TimeDelta splash_screen_elapsed =
       base::TimeTicks::Now() - splash_screen_start_time_;
 
@@ -1008,7 +1160,10 @@ void Shell::ScheduleSwitchToMainWebContents() {
           << "ms, remaining delay: " << remaining_delay.InMilliseconds()
           << "ms.";
   if (web_contents_) {
-    web_contents_->WasHidden();
+    if (is_video_splash_screen_) {
+      // Send hidden event to WebApp if it's video-based splash screen.
+      web_contents_->WasHidden();
+    }
     content::GetUIThreadTaskRunner({})->PostDelayedTask(
         FROM_HERE,
         base::BindOnce(&Shell::SwitchToMainWebContents,
@@ -1032,8 +1187,10 @@ void Shell::SwitchToMainWebContents() {
     VLOG(1) << "NativeSplash: Switching to main frame WebContents.";
     has_switched_to_main_frame_ = true;
     if (web_contents_) {
+      CHECK(GetPlatform());
       GetPlatform()->UpdateContents(this);
-      if (GetPlatform()->IsVisible()) {
+      if (GetPlatform()->IsVisible() && is_video_splash_screen_) {
+        // Send shown event to WebApp if it's video-based splash screen.
         web_contents_->WasShown();
       }
       if (web_contents()->GetRenderWidgetHostView()) {
@@ -1044,6 +1201,16 @@ void Shell::SwitchToMainWebContents() {
       splash_screen_web_contents_.reset();
       splash_screen_web_contents_observer_.reset();
       splash_screen_web_contents_delegate_.reset();
+    }
+  }
+}
+
+void Shell::OnSplashScreenLoadComplete() {
+  if (splash_state_ >= STATE_SPLASH_SCREEN_STARTED &&
+      splash_screen_start_time_.is_null()) {
+    splash_screen_start_time_ = base::TimeTicks::Now();
+    if (is_main_frame_loaded_) {
+      ScheduleSwitchToMainWebContents();
     }
   }
 }

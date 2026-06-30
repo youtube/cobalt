@@ -1360,7 +1360,7 @@ component("net") {
     }
   }
 
-  if ((is_android || is_chromeos || is_linux) && !is_cobalt_hermetic_build) {
+  if (is_android || is_chromeos || is_linux || is_starboard) {
     sources += [
       "base/network_change_notifier_passive.cc",
       "base/network_change_notifier_passive.h",
@@ -1657,14 +1657,6 @@ component("net") {
     sources += [
       "base/network_interfaces_starboard.cc",
       "base/platform_mime_util_starboard.cc",
-      "base/network_change_notifier_starboard.h",
-      "base/network_change_notifier_passive_starboard_stub.cc",
-    ]
-  }
-  if (is_cobalt && is_linux && current_toolchain == host_toolchain) {
-    sources -= [
-      #  # TODO: b/413491685 - Cobalt: Fix errors building host tools.
-      "base/network_change_notifier_passive.cc",
     ]
   }
 }
@@ -2975,7 +2967,7 @@ test("net_unittests") {
     sources += [ "base/sockaddr_util_posix_unittest.cc" ]
   }
 
-  if (is_android || is_chromeos_ash) {
+  if (is_android || is_chromeos_ash || is_starboard) {
     sources += [ "base/network_change_notifier_passive_unittest.cc" ]
   }
 

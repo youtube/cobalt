@@ -16,11 +16,12 @@
 #define COBALT_SHELL_BROWSER_SHELL_PLATFORM_DELEGATE_H_
 
 #include <memory>
+#include <set>
 #include <string>
 
 #include "base/containers/flat_map.h"
-#include "base/memory/scoped_refptr.h"
 #include "build/build_config.h"
+#include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "third_party/blink/public/mojom/choosers/file_chooser.mojom-forward.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/native_widget_types.h"
@@ -42,11 +43,11 @@ class FileSelectListener;
 class JavaScriptDialogManager;
 class Shell;
 class ShellPlatformDataAura;
-class ShellTestBase;
+class CobaltShellTestBase;
 class RenderFrameHost;
 class WebContents;
 
-class ShellPlatformDelegate {
+class ShellPlatformDelegate : public cobalt::CobaltLifecycleManagerObserver {
  public:
   enum UIControl { BACK_BUTTON, FORWARD_BUTTON, STOP_BUTTON };
 
@@ -61,7 +62,19 @@ class ShellPlatformDelegate {
   bool IsVisible() const;
 
   // Lifecycle signals called from the application.
+  virtual void OnBlur();
+  virtual void OnFocus();
+  virtual void OnConceal();
   virtual void OnReveal();
+  virtual void OnFreeze();
+  virtual void OnUnfreeze();
+  virtual void OnStop();
+
+  virtual void RevealShell(Shell* shell);
+#if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
+  virtual void MapWindowShell(Shell* shell);
+#endif
+  virtual void ConcealShell(Shell* shell);
 
   // Called after creating a Shell instance, with its initial size.
   virtual void CreatePlatformWindow(Shell* shell,
@@ -110,6 +123,9 @@ class ShellPlatformDelegate {
   // from WebContentsObserver. If navigation creates a new main frame, this may
   // occur more than once.
   virtual void MainFrameCreated(Shell* shell);
+  virtual void OnPageVisibilityVisible(Shell* shell);
+  bool IsWaitingForRevealAck() const;
+  void ClearWaitingForRevealAck();
 
   // Allows platforms to override the JavascriptDialogManager. By default
   // returns null, which signals that the Shell should use its own instance.
@@ -138,6 +154,9 @@ class ShellPlatformDelegate {
                               scoped_refptr<FileSelectListener> listener,
                               const blink::mojom::FileChooserParams& params);
 
+  void AddPreviouslyVisibleWebContentsForTesting(
+      content::WebContents* web_contents);
+
 #if !BUILDFLAG(IS_ANDROID)
   // Returns the native window. Valid after calling CreatePlatformWindow().
   virtual gfx::NativeWindow GetNativeWindow(Shell* shell);
@@ -165,12 +184,8 @@ class ShellPlatformDelegate {
 #endif
 
  protected:
-  virtual void RevealShell(Shell* shell);
-
   void CreatePlatformWindowInternal(Shell* shell,
                                     const gfx::Size& initial_size);
-
-  void set_is_visible(bool is_visible) { is_visible_ = is_visible; }
 
 #if defined(USE_AURA) && defined(SHELL_USE_TOOLKIT_VIEWS)
   // Allows the test subclasses to override the ViewsDelegate.
@@ -185,6 +200,17 @@ class ShellPlatformDelegate {
 #endif
 
  private:
+  // CobaltLifecycleManagerObserver implementation.
+#if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
+  void OnProactiveMapWindow(content::WebContents* web_contents) override;
+#endif
+  void OnAllFramesVisible(content::WebContents* web_contents) override;
+  void OnAllFramesConcealed(content::WebContents* web_contents) override;
+
+  // Flag to remember that an OS-initiated focus event arrived while we were
+  // waiting for Reveal ACK. If true, focus will be applied to the window
+  // as soon as OnAllFramesVisible is called.
+  bool deferred_focus_ = false;
   friend class ShellTestBase;
 #if BUILDFLAG(IS_APPLE)
   std::unique_ptr<display::ScopedNativeScreen> screen_;
@@ -197,6 +223,29 @@ class ShellPlatformDelegate {
   base::flat_map<Shell*, ShellData> shell_data_map_;
 
   bool is_visible_ = true;
+  // This flag tracks whether we are waiting for the web app to acknowledge
+  // becoming visible (Reveal ACK). We need this local copy because the
+  // source of truth in PlatformWindowStarboard is not accessible during
+  // early resume stages (root_window is null).
+  bool waiting_for_reveal_ack_ = false;
+
+  class WebContentsTracker;
+  struct WebContentsTrackerDeleter {
+    void operator()(WebContentsTracker* ptr) const;
+  };
+
+  // Set of WebContents that were visible before the application was concealed.
+  // This is used on reveal to decide which WebContents we should wait for
+  // Reveal ACK from. We only wait for those that were active before.
+  // The map stores self-unregistering observers to guarantee clean container
+  // state upon WebContents destruction.
+  base::flat_map<content::WebContents*,
+                 std::unique_ptr<WebContentsTracker, WebContentsTrackerDeleter>>
+      previously_visible_web_contents_;
+
+  void TrackPreviouslyVisibleWebContents(content::WebContents* web_contents);
+  void RemovePreviouslyVisibleWebContents(content::WebContents* web_contents);
+  friend class WebContentsTracker;
 
   // Data held in ShellPlatformDelegate that is shared between all Shells. This
   // is created in Initialize(), and is defined for each platform

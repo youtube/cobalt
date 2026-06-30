@@ -897,9 +897,9 @@ Application::Event* ApplicationX11::WaitForSystemEventWithTimeout(
 }
 
 void ApplicationX11::WakeSystemEventWait() {
-  SB_DCHECK(!windows_.empty());
+  SB_CHECK(!windows_.empty());
   XSendAtom((*windows_.begin())->window, wake_up_atom_);
-  SB_DCHECK(dev_input_);
+  SB_CHECK(dev_input_);
   dev_input_->WakeSystemEventWait();
 }
 

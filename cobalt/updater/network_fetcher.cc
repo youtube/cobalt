@@ -136,7 +136,7 @@ void NetworkFetcher::PostRequest(
              PostRequestCompleteCallback post_request_complete_callback,
              std::unique_ptr<std::string> response_body) {
             LOG(INFO) << "post_request_complete_callback, response_body="
-                      << response_body->c_str();
+                      << (response_body ? response_body->c_str() : "nullptr");
             std::move(post_request_complete_callback)
                 .Run(std::move(response_body), simple_url_loader->NetError(),
                      GetStringHeader(simple_url_loader, kHeaderEtag),

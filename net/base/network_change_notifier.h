@@ -331,7 +331,7 @@ class NET_EXPORT NetworkChangeNotifier {
         observer_list_;
   };
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_CHROMEOS_LACROS) || BUILDFLAG(IS_STARBOARD)
   // TODO(crbug.com/1347382): Remove this section and align the behavior
   // with other platforms or confirm that Lacros needs to be separated.
   static constexpr ConnectionType kDefaultInitialConnectionType =

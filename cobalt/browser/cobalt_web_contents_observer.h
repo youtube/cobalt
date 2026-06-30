@@ -15,7 +15,17 @@
 #ifndef COBALT_BROWSER_COBALT_WEB_CONTENTS_OBSERVER_H_
 #define COBALT_BROWSER_COBALT_WEB_CONTENTS_OBSERVER_H_
 
+#include <map>
+
+#include "base/memory/weak_ptr.h"
+#include "base/timer/timer.h"
+#include "cobalt/browser/lifecycle/public/mojom/cobalt_lifecycle.mojom.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "mojo/public/cpp/bindings/remote.h"
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/system.h"
+#endif
 
 namespace cobalt {
 
@@ -33,6 +43,35 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
       delete;
 
   ~CobaltWebContentsObserver() override;
+
+#if BUILDFLAG(IS_STARBOARD)
+  void DidStartNavigation(
+      content::NavigationHandle* navigation_handle) override;
+  void DidFinishNavigation(
+      content::NavigationHandle* navigation_handle) override;
+  void RaisePlatformError(int64_t navigation_id);
+#endif  // BUILDFLAG(IS_STARBOARD)
+
+ private:
+  std::map<content::RenderFrameHost*,
+           mojo::Remote<cobalt::mojom::CobaltLifecycleController>>
+      controllers_;
+
+#if BUILDFLAG(IS_STARBOARD)
+  class PlatformErrorBridge;
+  static void HandlePlatformErrorResponse(
+      SbSystemPlatformErrorResponse response,
+      void* user_data);
+  void OnPlatformErrorResponse(SbSystemPlatformErrorResponse response,
+                               int64_t navigation_id);
+  bool is_platform_error_showing_ = false;
+  int platform_error_raised_count_ = 0;
+  PlatformErrorBridge* pending_platform_error_bridge_ = nullptr;
+  int64_t latest_navigation_id_ = 0;
+
+  base::OneShotTimer timeout_timer_;
+  base::WeakPtrFactory<CobaltWebContentsObserver> weak_factory_{this};
+#endif  // BUILDFLAG(IS_STARBOARD)
 };
 
 }  // namespace cobalt

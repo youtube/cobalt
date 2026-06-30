@@ -506,7 +506,8 @@ Image required for all slot configurations:
 │           │   └── libcobalt.lz4 <--(System image version of Cobalt Core)
 │           └── manifest.json
 └── loader_app <--(Cobalt launcher binary)
-└── crashpad_handler <--(Cobalt crash handler)
+└── native_target
+    ├── crashpad_handler <--(Cobalt crash handler)
 ```
 
 Structure for `kSbSystemPathStorageDirectory` used for future Cobalt Evergreen

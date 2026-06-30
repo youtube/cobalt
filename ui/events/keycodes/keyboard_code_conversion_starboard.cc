@@ -938,6 +938,8 @@ DomKey SbKeyToDomKey(SbKey sb_key, bool shift) {
       return DomKey::GUIDE;
     case kSbKeyInstantReplay:
       return DomKey::INSTANT_REPLAY;
+    case kSbKeyLaunchThisApplication:
+      return DomKey::LAUNCH_THIS_APPLICATION;
     case kSbKeyMediaAudioTrack:
       return DomKey::MEDIA_AUDIO_TRACK;
     case kSbKeyMicrophone:
@@ -960,7 +962,6 @@ DomKey SbKeyToDomKey(SbKey sb_key, bool shift) {
     case kSbKeyKbdBrightnessUp:
     case kSbKeyDbeSbcschar:
     case kSbKeyDbeDbcschar:
-    case kSbKeyLaunchThisApplication:
     case kSbKeyMouse1:
     case kSbKeyMouse2:
     case kSbKeyMouse3:
