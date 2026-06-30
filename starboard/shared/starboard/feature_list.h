@@ -144,28 +144,8 @@ struct SbFeatureParamExt : public SbFeatureParam {
                     std::is_same_v<int64_t, T>,
                 "Unsupported Starboard FeatureParam<> type");
 
-  static constexpr SbFeatureParam MakeBase(const char* feat_name,
-                                           const char* param_name) {
-    SbFeatureParam p{};
-    p.feature_name = feat_name;
-    p.param_name = param_name;
-    if constexpr (std::is_same_v<bool, T>) {
-      p.type = SbFeatureParamTypeBool;
-    } else if constexpr (std::is_same_v<int, T>) {
-      p.type = SbFeatureParamTypeInt;
-    } else if constexpr (std::is_same_v<double, T>) {
-      p.type = SbFeatureParamTypeDouble;
-    } else if constexpr (std::is_same_v<std::string, T>) {
-      p.type = SbFeatureParamTypeString;
-      p.value.string_value = "";
-    } else if constexpr (std::is_same_v<int64_t, T>) {
-      p.type = SbFeatureParamTypeTime;
-    }
-    return p;
-  }
-
   constexpr SbFeatureParamExt(const SbFeature& feature, const char* name)
-      : SbFeatureParam(MakeBase(feature.name, name)) {}
+      : SbFeatureParam{feature.name, name} {}
 
   // Function used to retrieve the parameter value for a given param. Outside
   // code will call this function, which will then call the corresponding
