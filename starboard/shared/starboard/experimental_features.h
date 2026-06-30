@@ -29,6 +29,7 @@ struct ExperimentalFeatures {
   // The fields should be in alphabetical order.
   // keep-sorted start
   bool allow_audio_writing_on_pause = false;
+  bool decoded_audio_buffer_pool = false;
   bool enable_av1_startup_optimization = false;
   bool enable_low_latency = false;
   bool enable_video_renderer_vsp_adjustment = false;
@@ -39,6 +40,7 @@ struct ExperimentalFeatures {
   bool reset_audio_decoder = false;
   bool skip_flush_on_decoder_teardown = false;
   bool skip_video_frames_over_60_fps = false;
+  bool video_frame_impl_pool = false;
   std::optional<bool> enable_simd_based_audio_format_switching;
   std::optional<bool> enable_trivial_optimizations;
   std::optional<int> video_decoder_initial_preroll_count;
