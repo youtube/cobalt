@@ -2454,8 +2454,7 @@ component("base") {
     sources += [
       "memory/cobalt_memory_context.cc",
       "memory/cobalt_memory_context.h",
-      "memory/cobalt_memory_attribution_observer.cc",
-      "memory/cobalt_memory_attribution_observer.h",
+
       "system/sys_info_starboard.cc",
       "system/sys_info_starboard.h",
     ]

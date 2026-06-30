@@ -28,7 +28,7 @@ import time
 from collections import defaultdict
 
 
-def parse_uma_histos(file_path):
+def parse_uma_histos(file_path, target_metric_prefix):
   """Parses UMA snapshots file mapping metric name to count snapshots."""
   # Maps metric_name -> dict of { count -> sum }
   metrics_data = defaultdict(dict)
@@ -48,7 +48,7 @@ def parse_uma_histos(file_path):
         continue
 
       metric_name, json_str = parts[1], parts[2]
-      if not metric_name.startswith("Memory.Cobalt.AllocationVolume."):
+      if not metric_name.startswith(target_metric_prefix):
         continue
 
       try:
@@ -71,11 +71,12 @@ def parse_uma_histos(file_path):
 
 
 def verify_accounting(file_path,
+                      target_metric_prefix="Memory.Cobalt.AllocationVolume.",
                       is_monitoring=False,
                       cuj_name=None,
                       iteration=None):
   """Evaluates granular memory tracking coverage milestones."""
-  metrics_data = parse_uma_histos(file_path)
+  metrics_data = parse_uma_histos(file_path, target_metric_prefix)
 
   if not metrics_data:
     if is_monitoring:
@@ -83,7 +84,7 @@ def verify_accounting(file_path,
       print(f"[{now_str}] Waiting for UMA metrics in {file_path}...")
       return False
     else:
-      print(f"ERROR: No AllocationVolume metrics in {file_path}")
+      print(f"ERROR: No metrics matching {target_metric_prefix} in {file_path}")
       sys.exit(1)
 
   print("=" * 80)
@@ -106,12 +107,13 @@ def verify_accounting(file_path,
     finals[metric] = counts[max_count]
     deltas[metric] = finals[metric] - baselines[metric]
 
-  unknown_delta = deltas.get("Memory.Cobalt.AllocationVolume.Unknown", 0)
+  unknown_metric = f"{target_metric_prefix}Unknown"
+  unknown_delta = deltas.get(unknown_metric, 0)
   subsystems_delta = sum(d for m, d in deltas.items() if "Unknown" not in m)
   total_delta = unknown_delta + subsystems_delta
 
   total_final = sum(finals.values())
-  unknown_final = finals.get("Memory.Cobalt.AllocationVolume.Unknown", 0)
+  unknown_final = finals.get(unknown_metric, 0)
   unknown_final_pct = (unknown_final / total_final *
                        100.0) if total_final > 0 else 0.0
 
@@ -122,7 +124,7 @@ def verify_accounting(file_path,
   print("-" * 80)
 
   for metric in sorted(deltas.keys()):
-    subsystem = metric.replace("Memory.Cobalt.AllocationVolume.", "")
+    subsystem = metric.replace(target_metric_prefix, "")
     base_val = int(baselines[metric] / 1024.0)
     final_val = int(finals[metric] / 1024.0)
     delta_val = int(deltas[metric] / 1024.0)
@@ -169,8 +171,8 @@ def verify_accounting(file_path,
   for label, target_count in milestones.items():
     # Find nearest available poll count <= target_count
     available_counts = [
-        c for c in metrics_data.get("Memory.Cobalt.AllocationVolume.Unknown",
-                                    {}).keys() if c <= target_count
+        c for c in metrics_data.get(unknown_metric, {}).keys()
+        if c <= target_count
     ]
     if not available_counts or max(available_counts) < int(target_count * 0.8):
       print(f"{label:<15} | {target_count:<12} | {'-':<12} | "
@@ -178,8 +180,7 @@ def verify_accounting(file_path,
       continue
 
     closest_count = max(available_counts)
-    m_unknown = metrics_data.get("Memory.Cobalt.AllocationVolume.Unknown",
-                                 {}).get(closest_count, 0)
+    m_unknown = metrics_data.get(unknown_metric, {}).get(closest_count, 0)
     m_total = 0
     for counts in metrics_data.values():
       avail = [c for c in counts.keys() if c <= target_count]
@@ -223,9 +224,13 @@ def verify_accounting(file_path,
     return False
 
 
-def monitor_accounting(file_path, interval_seconds, p_process=None):
+def monitor_accounting(file_path,
+                       interval_seconds,
+                       target_metric_prefix,
+                       p_process=None):
   """Runs live tracking metrics coverage monitoring loop."""
-  print(f"Starting live monitoring dashboard for {file_path}...")
+  print(f"Starting live monitoring dashboard for {file_path} "
+        f"(Metric: {target_metric_prefix})...")
   print("Press Ctrl+C to exit.")
   time.sleep(1)
 
@@ -233,7 +238,10 @@ def monitor_accounting(file_path, interval_seconds, p_process=None):
     try:
       # Clear screen for live dashboard effect
       os.system("cls" if os.name == "nt" else "clear")
-      verify_accounting(file_path, is_monitoring=True)
+      verify_accounting(
+          file_path,
+          target_metric_prefix=target_metric_prefix,
+          is_monitoring=True)
       time.sleep(interval_seconds)
     except KeyboardInterrupt:
       print("\nMonitoring dashboard stopped by user.")
@@ -279,7 +287,14 @@ if __name__ == "__main__":
       help="Target histogram list file (default: cobalt_uma_histograms.txt)")
   parser.add_argument("--cuj-name", help="Name of the CUJ being verified")
   parser.add_argument("--iteration", help="Iteration identifier (e.g. 1/4)")
+  parser.add_argument(
+      "--metric",
+      default="ResidentSize",
+      choices=["ResidentSize"],
+      help="Metric to track (default: ResidentSize)")
   args = parser.parse_args()
+
+  global_target_metric_prefix = f"Memory.Cobalt.{args.metric}."
 
   pull_process = None
   if args.pull:
@@ -301,10 +316,12 @@ if __name__ == "__main__":
 
   if args.monitor is not None or args.pull:
     monitor_interval = args.monitor if args.monitor is not None else 10
-    monitor_accounting(args.file_path, monitor_interval, pull_process)
+    monitor_accounting(args.file_path, monitor_interval,
+                       global_target_metric_prefix, pull_process)
   else:
     success = verify_accounting(
         args.file_path,
+        target_metric_prefix=global_target_metric_prefix,
         is_monitoring=False,
         cuj_name=args.cuj_name,
         iteration=args.iteration)

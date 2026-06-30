@@ -196,7 +196,8 @@ def verify_cuj(cuj_name,
                is_random_nav,
                device_id=None,
                iterations=1,
-               cobalt_bin=None):
+               cobalt_bin=None,
+               metric_name="AllocationVolume"):
   """Executes a complete verification loop for a specific CUJ."""
   logger.info("=" * 80)
   logger.info(" STARTING CUJ VERIFICATION: %s", cuj_name.center(70))
@@ -336,9 +337,9 @@ def verify_cuj(cuj_name,
         "Analyzing coverage numbers...", cuj_name, iter_num, iterations)
     verify_cmd = [
         sys.executable,
-        os.path.join(script_dir,
-                     "verify_memory_accounting_coverage.py"), "uma_histos.txt",
-        "--cuj-name", cuj_name, "--iteration", f"{iter_num}/{iterations}"
+        os.path.join(script_dir, "verify_memory_accounting_coverage.py"),
+        "uma_histos.txt", "--cuj-name", cuj_name, "--iteration",
+        f"{iter_num}/{iterations}", "--metric", metric_name
     ]
     res = subprocess.run(verify_cmd, check=False)
     logger.info("=" * 80)
@@ -384,6 +385,11 @@ if __name__ == "__main__":
       type=int,
       default=1,
       help="Number of continuous iterations to run each CUJ (default: 1)")
+  parser.add_argument(
+      "--metric",
+      default="ResidentSize",
+      choices=["ResidentSize"],
+      help="Metric to track (default: ResidentSize)")
   args = parser.parse_args()
 
   if args.cuj in ["all", "browse"]:
@@ -396,7 +402,8 @@ if __name__ == "__main__":
         is_random_nav=True,
         device_id=args.device,
         iterations=args.iterations,
-        cobalt_bin=args.cobalt_bin)
+        cobalt_bin=args.cobalt_bin,
+        metric_name=args.metric)
 
   if args.cuj in ["all", "watch"]:
     verify_cuj(
@@ -408,7 +415,8 @@ if __name__ == "__main__":
         is_random_nav=False,
         device_id=args.device,
         iterations=args.iterations,
-        cobalt_bin=args.cobalt_bin)
+        cobalt_bin=args.cobalt_bin,
+        metric_name=args.metric)
 
   if args.cuj in ["all", "baseline"]:
     verify_cuj(
@@ -420,7 +428,8 @@ if __name__ == "__main__":
         is_random_nav=False,
         device_id=args.device,
         iterations=args.iterations,
-        cobalt_bin=args.cobalt_bin)
+        cobalt_bin=args.cobalt_bin,
+        metric_name=args.metric)
 
   if args.cuj in ["all", "combined"]:
     verify_cuj(
@@ -432,4 +441,5 @@ if __name__ == "__main__":
         is_random_nav=True,
         device_id=args.device,
         iterations=args.iterations,
-        cobalt_bin=args.cobalt_bin)
+        cobalt_bin=args.cobalt_bin,
+        metric_name=args.metric)

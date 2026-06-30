@@ -36,12 +36,7 @@ class Initializer {
           poisson_allocation_sampler_inclusion,
       DispatcherParameters::AllocationTraceRecorderInclusion
           allocation_trace_recorder_inclusion,
-      std::string_view process_type
-#if BUILDFLAG(IS_COBALT)
-      , CobaltMemoryAttributionInclusion cobalt_memory_attribution_inclusion =
-            CobaltMemoryAttributionInclusion::kDoNotInclude
-#endif
-  );
+      std::string_view process_type);
 
   void Initialize(MemorySystem& memory_system) const;
 

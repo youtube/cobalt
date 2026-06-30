@@ -309,13 +309,11 @@ std::optional<int> ShellMainDelegate::PostEarlyInitialization(
   // PoissonAllocationSampler we have in the ContentShell. Do we really need to
   // enforce it?
   memory_system::Initializer()
-      .SetDispatcherParameters(
-          memory_system::DispatcherParameters::
-              PoissonAllocationSamplerInclusion::kEnforce,
-          memory_system::DispatcherParameters::
-              AllocationTraceRecorderInclusion::kIgnore,
-          process_type,
-          memory_system::CobaltMemoryAttributionInclusion::kInclude)
+      .SetDispatcherParameters(memory_system::DispatcherParameters::
+                                   PoissonAllocationSamplerInclusion::kEnforce,
+                               memory_system::DispatcherParameters::
+                                   AllocationTraceRecorderInclusion::kIgnore,
+                               process_type)
       .Initialize(memory_system_);
 
   return std::nullopt;
