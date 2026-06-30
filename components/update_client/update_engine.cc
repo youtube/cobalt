@@ -505,7 +505,12 @@ void UpdateEngine::Cancel(const std::string& update_context_session_id,
     ping_manager_->Cancel();
   }
 
-  const auto& context = update_contexts_.at(update_context_session_id);
+  const auto it = update_contexts_.find(update_context_session_id);
+  if (it == update_contexts_.end()) {
+    LOG(WARNING) << "UpdateEngine::Cancel: context not found or already completed.";
+    return;
+  }
+  const scoped_refptr<UpdateContext> context = it->second;
   if (context->update_checker.get()) {
     context->update_checker->Cancel();
   }
