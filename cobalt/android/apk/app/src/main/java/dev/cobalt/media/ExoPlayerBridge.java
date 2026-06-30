@@ -50,7 +50,8 @@ public class ExoPlayerBridge {
   private ExoPlayer mPlayer;
   private ExoPlayerMediaSource mAudioMediaSource;
   private ExoPlayerMediaSource mVideoMediaSource;
-  private final long mNativeExoPlayerBridge;
+  private long mNativeExoPlayerBridge;
+  private final Object mNativeLock = new Object();
   private final Handler mExoPlayerHandler;
   // The following variables are accessed on both the Handler and native threads
   private volatile long mLastPlaybackPosUsec = 0;
@@ -64,8 +65,6 @@ public class ExoPlayerBridge {
   private final DroppedFramesListener mDroppedFramesListener;
 
   private static final long PLAYER_RELEASE_TIMEOUT_MS = 2000; // 2 seconds.
-  private static final int MIN_BUFFER_DURATION_MS = 1000; // 1 second.
-  private static final int MAX_BUFFER_DURATION_MS = 5000; // 5 seconds
 
   private class ExoPlayerListener implements Player.Listener {
     @Override
@@ -76,10 +75,18 @@ public class ExoPlayerBridge {
           case Player.STATE_IDLE:
             return;
           case Player.STATE_READY:
-            ExoPlayerBridgeJni.get().onReady(mNativeExoPlayerBridge);
+            synchronized (mNativeLock) {
+              if (mNativeExoPlayerBridge != 0) {
+                ExoPlayerBridgeJni.get().onReady(mNativeExoPlayerBridge);
+              }
+            }
             break;
           case Player.STATE_ENDED:
-            ExoPlayerBridgeJni.get().onEnded(mNativeExoPlayerBridge);
+            synchronized (mNativeLock) {
+              if (mNativeExoPlayerBridge != 0) {
+                ExoPlayerBridgeJni.get().onEnded(mNativeExoPlayerBridge);
+              }
+            }
             break;
         }
       }
@@ -88,7 +95,11 @@ public class ExoPlayerBridge {
     @Override
     public void onTracksChanged(Tracks tracks) {
       if (!mIsReleased) {
-        ExoPlayerBridgeJni.get().onInitialized(mNativeExoPlayerBridge);
+        synchronized (mNativeLock) {
+          if (mNativeExoPlayerBridge != 0) {
+            ExoPlayerBridgeJni.get().onInitialized(mNativeExoPlayerBridge);
+          }
+        }
       }
     }
 
@@ -97,7 +108,11 @@ public class ExoPlayerBridge {
       updatePositionAnchor();
       mIsProgressing = isPlaying;
       if (!mIsReleased) {
-        ExoPlayerBridgeJni.get().onIsPlayingChanged(mNativeExoPlayerBridge, isPlaying);
+        synchronized (mNativeLock) {
+          if (mNativeExoPlayerBridge != 0) {
+            ExoPlayerBridgeJni.get().onIsPlayingChanged(mNativeExoPlayerBridge, isPlaying);
+          }
+        }
       }
     }
 
@@ -130,7 +145,11 @@ public class ExoPlayerBridge {
     public void onDroppedVideoFrames(
         @NonNull EventTime eventTime, int droppedFrames, long elapsedMs) {
       if (!mIsReleased) {
-        ExoPlayerBridgeJni.get().onDroppedVideoFrames(mNativeExoPlayerBridge, droppedFrames);
+        synchronized (mNativeLock) {
+          if (mNativeExoPlayerBridge != 0) {
+            ExoPlayerBridgeJni.get().onDroppedVideoFrames(mNativeExoPlayerBridge, droppedFrames);
+          }
+        }
       }
     }
   }
@@ -145,6 +164,9 @@ public class ExoPlayerBridge {
    * @param videoFormat The video Format, or null if video-only playback.
    * @param surface The rendering surface for video.
    * @param enableTunnelMode Whether to enable low-latency tunneling mode.
+   * @param minBufferDurationMs Minimum buffer duration in milliseconds.
+   * @param maxBufferDurationMs Maximum buffer duration in milliseconds.
+   * @param minBufferDurationForPlaybackAfterRebufferMs Minimum buffer duration to resume playback after rebuffer.
    */
   public ExoPlayerBridge(
       long nativeExoPlayerBridge,
@@ -153,7 +175,10 @@ public class ExoPlayerBridge {
       @Nullable Format audioFormat,
       @Nullable Format videoFormat,
       @Nullable Surface surface,
-      boolean enableTunnelMode) {
+      boolean enableTunnelMode,
+      int minBufferDurationMs,
+      int maxBufferDurationMs,
+      int minBufferDurationForPlaybackAfterRebufferMs) {
     mExoPlayerHandler = new Handler(Looper.getMainLooper());
     mNativeExoPlayerBridge = nativeExoPlayerBridge;
 
@@ -187,10 +212,10 @@ public class ExoPlayerBridge {
             .setLoadControl(
                 new DefaultLoadControl.Builder()
                     .setBufferDurationsMs(
-                        MIN_BUFFER_DURATION_MS,
-                        MAX_BUFFER_DURATION_MS,
-                        MIN_BUFFER_DURATION_MS,
-                        MIN_BUFFER_DURATION_MS)
+                        minBufferDurationMs,
+                        maxBufferDurationMs,
+                        minBufferDurationMs,
+                        minBufferDurationForPlaybackAfterRebufferMs)
                     .build())
             .setLooper(mExoPlayerHandler.getLooper())
             .setTrackSelector(trackSelector)
@@ -230,6 +255,9 @@ public class ExoPlayerBridge {
   public void release() {
     mIsReleased = true;
     mIsProgressing = false;
+    synchronized (mNativeLock) {
+      mNativeExoPlayerBridge = 0;
+    }
     if (mPlayer == null) {
       Log.w(TAG, "Attempted to destroy ExoPlayer after it has already been released.");
       return;
@@ -368,35 +396,59 @@ public class ExoPlayerBridge {
       return;
     }
 
-    ExoPlayerBridgeJni.get().onError(mNativeExoPlayerBridge, errorMessage);
+    synchronized (mNativeLock) {
+      if (mNativeExoPlayerBridge != 0) {
+        ExoPlayerBridgeJni.get().onError(mNativeExoPlayerBridge, errorMessage);
+      }
+    }
   }
 
   public int readSample(int type, java.nio.ByteBuffer outBuffer, long[] outMetadata) {
     if (mIsReleased) {
       return androidx.media3.common.C.RESULT_NOTHING_READ;
     }
-    return ExoPlayerBridgeJni.get().readSample(mNativeExoPlayerBridge, type, outBuffer, outMetadata);
+    synchronized (mNativeLock) {
+      if (mNativeExoPlayerBridge == 0) {
+        return androidx.media3.common.C.RESULT_NOTHING_READ;
+      }
+      return ExoPlayerBridgeJni.get().readSample(mNativeExoPlayerBridge, type, outBuffer, outMetadata);
+    }
   }
 
   public boolean isReady(int type) {
     if (mIsReleased) {
       return false;
     }
-    return ExoPlayerBridgeJni.get().isReady(mNativeExoPlayerBridge, type);
+    synchronized (mNativeLock) {
+      if (mNativeExoPlayerBridge == 0) {
+        return false;
+      }
+      return ExoPlayerBridgeJni.get().isReady(mNativeExoPlayerBridge, type);
+    }
   }
 
   public int skipData(int type, long positionUs) {
     if (mIsReleased) {
       return 0;
     }
-    return ExoPlayerBridgeJni.get().skipData(mNativeExoPlayerBridge, type, positionUs);
+    synchronized (mNativeLock) {
+      if (mNativeExoPlayerBridge == 0) {
+        return 0;
+      }
+      return ExoPlayerBridgeJni.get().skipData(mNativeExoPlayerBridge, type, positionUs);
+    }
   }
 
   public long getBufferedPositionUs(int type) {
     if (mIsReleased) {
       return androidx.media3.common.C.TIME_END_OF_SOURCE;
     }
-    return ExoPlayerBridgeJni.get().getBufferedPositionUs(mNativeExoPlayerBridge, type);
+    synchronized (mNativeLock) {
+      if (mNativeExoPlayerBridge == 0) {
+        return androidx.media3.common.C.TIME_END_OF_SOURCE;
+      }
+      return ExoPlayerBridgeJni.get().getBufferedPositionUs(mNativeExoPlayerBridge, type);
+    }
   }
 
   @NativeMethods

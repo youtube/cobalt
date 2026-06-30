@@ -123,6 +123,9 @@ public class ExoPlayerManager {
    * @param videoFormat The video Format.
    * @param surface The rendering surface.
    * @param enableTunnelMode Whether to enable tunnel mode.
+   * @param minBufferDurationMs Minimum buffer duration in milliseconds.
+   * @param maxBufferDurationMs Maximum buffer duration in milliseconds.
+   * @param minBufferDurationForPlaybackAfterRebufferMs Minimum buffer duration to resume playback after rebuffer.
    * @return A new ExoPlayerBridge instance.
    */
   @CalledByNative
@@ -131,7 +134,10 @@ public class ExoPlayerManager {
       Format audioFormat,
       Format videoFormat,
       Surface surface,
-      boolean enableTunnelMode) {
+      boolean enableTunnelMode,
+      int minBufferDurationMs,
+      int maxBufferDurationMs,
+      int minBufferDurationForPlaybackAfterRebufferMs) {
     if (videoFormat != null && (surface == null || !surface.isValid())) {
       Log.e(TAG, "Cannot initialize ExoPlayer with an invalid surface.");
       return null;
@@ -144,7 +150,10 @@ public class ExoPlayerManager {
         audioFormat,
         videoFormat,
         surface,
-        enableTunnelMode);
+        enableTunnelMode,
+        minBufferDurationMs,
+        maxBufferDurationMs,
+        minBufferDurationForPlaybackAfterRebufferMs);
   }
 
   /**

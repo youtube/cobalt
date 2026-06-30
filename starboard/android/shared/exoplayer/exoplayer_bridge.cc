@@ -127,7 +127,10 @@ ExoPlayerBridge::ExoPlayerBridge(
            (audio_stream_info.codec == kSbMediaAudioCodecAc3 ||
             audio_stream_info.codec == kSbMediaAudioCodecEac3) &&
            ShouldEnableTunneledPlayback(video_stream_info)) ||
-              kForceTunneledPlayback);
+              kForceTunneledPlayback,
+          /* min_buffer_duration_ms */ 500,
+          /* max_buffer_duration_ms */ 10000,
+          /* min_buffer_duration_for_playback_after_rebuffer_ms */ 500);
   if (!j_exoplayer_bridge) {
     init_error_msg_ = "Could not create Java ExoPlayerBridge";
     SB_LOG(ERROR) << init_error_msg_;
@@ -193,9 +196,11 @@ void ExoPlayerBridge::Seek(int64_t timestamp) {
     std::lock_guard lock(mutex_);
     pending_audio_samples_.clear();
     audio_eos_pending_ = false;
+    last_audio_timestamp_ = timestamp;
 
     pending_video_samples_.clear();
     video_eos_pending_ = false;
+    last_video_timestamp_ = timestamp;
   }
 
   seeking_.store(true);
@@ -310,9 +315,9 @@ bool ExoPlayerBridge::CanAcceptMoreData(SbMediaType type) {
                                  pending_samples.front()->timestamp();
 
   if (type == kSbMediaTypeAudio) {
-    // Max buffer duration 5 seconds, memory pressure 250ms
-    int64_t max_duration = 5 * 1000 * 1000 - 250 * 1000;
-    if (buffered_duration_us >= max_duration) {
+    // Max buffer duration 10 seconds, memory pressure 500ms
+    constexpr int64_t kMaxAudioduration = 10 * 1000 * 1000 - 500 * 1000;
+    if (buffered_duration_us >= kMaxAudioduration) {
       return false;
     }
     return true;
@@ -336,43 +341,58 @@ bool ExoPlayerBridge::CanAcceptMoreData(SbMediaType type) {
 }
 
 int ExoPlayerBridge::ReadSample(JNIEnv* env,
-                                jint j_type,
+                                int type_int,
                                 jobject j_buffer,
                                 jlongArray j_metadata) {
-  SbMediaType type = static_cast<SbMediaType>(j_type);
+  SbMediaType type = static_cast<SbMediaType>(type_int);
   std::lock_guard lock(mutex_);
   auto& pending_samples = type == kSbMediaTypeAudio ? pending_audio_samples_
                                                     : pending_video_samples_;
   bool eos_pending =
       type == kSbMediaTypeAudio ? audio_eos_pending_ : video_eos_pending_;
 
+  // 1. Handle empty queues.
   if (pending_samples.empty()) {
     if (eos_pending) {
+      // If we have no more samples but EOS was signaled, emit the EOS flag.
       jlong metadata[3] = {0, 0, kBufferFlagEndOfStream};
       env->SetLongArrayRegion(j_metadata, 0, std::size(metadata), metadata);
       return kResultBufferRead;
     }
+    // Otherwise, tell ExoPlayer there's no data available yet.
     return kResultNothingRead;
   }
 
+  // 2. Peek at the next sample to determine its metadata requirements.
   auto input_buffer = pending_samples.front();
   int offset = GetSampleOffset(type, input_buffer);
   int size = input_buffer->size() - offset;
 
+  // Determine flags for this sample.
   bool is_key_frame = type == kSbMediaTypeAudio
                           ? true
                           : input_buffer->video_sample_info().is_key_frame;
   int flags = is_key_frame ? kBufferFlagKeyFrame : 0;
+
+  // If this is the absolute last sample and EOS was signaled, piggyback the EOS
+  // flag.
   if (eos_pending && pending_samples.size() == 1) {
     flags |= kBufferFlagEndOfStream;
   }
+
+  // The metadata array schema is: [0] = timestampUs, [1] = sizeBytes, [2] =
+  // flags.
   jlong metadata[3] = {input_buffer->timestamp(), size, flags};
 
+  // 3. Handle Lazy Allocation Queries.
+  // If ExoPlayer passes a null buffer, it's querying for the required buffer
+  // size.
   if (!j_buffer) {
     env->SetLongArrayRegion(j_metadata, 0, std::size(metadata), metadata);
     return kResultNeedsAllocation;
   }
 
+  // 4. Validate the provided direct buffer.
   void* direct_buffer = env->GetDirectBufferAddress(j_buffer);
   if (!direct_buffer) {
     ReportError("Failed to get direct buffer address");
@@ -380,20 +400,32 @@ int ExoPlayerBridge::ReadSample(JNIEnv* env,
   }
 
   jlong capacity = env->GetDirectBufferCapacity(j_buffer);
+
+  // If the buffer is too small, reject the read and request reallocation.
+  // We embed the needed size into the metadata array so Java can resize.
   if (capacity < size) {
-    ReportError("Decoder buffer is too small");
-    return kResultNothingRead;
+    env->SetLongArrayRegion(j_metadata, 0, std::size(metadata), metadata);
+    return kResultNeedsAllocation;
   }
 
+  // 5. Zero-copy transfer: memcpy directly into the JVM's ByteBuffer memory.
   memcpy(direct_buffer, input_buffer->data() + offset, size);
   env->SetLongArrayRegion(j_metadata, 0, std::size(metadata), metadata);
 
+  // 6. Update high-water mark trackers to prevent PREROLL stalling.
+  if (type == kSbMediaTypeAudio) {
+    last_audio_timestamp_ = input_buffer->timestamp();
+  } else {
+    last_video_timestamp_ = input_buffer->timestamp();
+  }
+
+  // Finally, consume the sample from our native queue.
   pending_samples.pop_front();
   return kResultBufferRead;
 }
 
-bool ExoPlayerBridge::IsReady(JNIEnv* env, jint j_type) const {
-  SbMediaType type = static_cast<SbMediaType>(j_type);
+bool ExoPlayerBridge::IsReady(JNIEnv* env, int type_int) const {
+  SbMediaType type = static_cast<SbMediaType>(type_int);
   std::lock_guard lock(const_cast<std::mutex&>(mutex_));
   const auto& pending_samples = type == kSbMediaTypeAudio
                                     ? pending_audio_samples_
@@ -404,8 +436,8 @@ bool ExoPlayerBridge::IsReady(JNIEnv* env, jint j_type) const {
   return !pending_samples.empty() || eos_pending;
 }
 
-int ExoPlayerBridge::SkipData(JNIEnv* env, jint j_type, jlong position_us) {
-  SbMediaType type = static_cast<SbMediaType>(j_type);
+int ExoPlayerBridge::SkipData(JNIEnv* env, int type_int, int64_t position_us) {
+  SbMediaType type = static_cast<SbMediaType>(type_int);
   std::lock_guard lock(mutex_);
   auto& pending_samples = type == kSbMediaTypeAudio ? pending_audio_samples_
                                                     : pending_video_samples_;
@@ -413,14 +445,20 @@ int ExoPlayerBridge::SkipData(JNIEnv* env, jint j_type, jlong position_us) {
   int skip_count = 0;
   while (!pending_samples.empty() &&
          pending_samples.front()->timestamp() < position_us) {
+    if (type == kSbMediaTypeAudio) {
+      last_audio_timestamp_ = pending_samples.front()->timestamp();
+    } else {
+      last_video_timestamp_ = pending_samples.front()->timestamp();
+    }
     pending_samples.pop_front();
     skip_count++;
   }
   return skip_count;
 }
 
-jlong ExoPlayerBridge::GetBufferedPositionUs(JNIEnv* env, jint j_type) const {
-  SbMediaType type = static_cast<SbMediaType>(j_type);
+int64_t ExoPlayerBridge::GetBufferedPositionUs(JNIEnv* env,
+                                               int type_int) const {
+  SbMediaType type = static_cast<SbMediaType>(type_int);
   std::lock_guard lock(const_cast<std::mutex&>(mutex_));
   const auto& pending_samples = type == kSbMediaTypeAudio
                                     ? pending_audio_samples_
@@ -432,7 +470,8 @@ jlong ExoPlayerBridge::GetBufferedPositionUs(JNIEnv* env, jint j_type) const {
     return kTimeEndOfSource;
   }
   if (pending_samples.empty()) {
-    return 0;
+    return type == kSbMediaTypeAudio ? last_audio_timestamp_
+                                     : last_video_timestamp_;
   }
   return pending_samples.back()->timestamp();
 }
@@ -467,11 +506,11 @@ void ExoPlayerBridge::OnEnded(JNIEnv*) const {
   ended_cb_();
 }
 
-void ExoPlayerBridge::OnDroppedVideoFrames(JNIEnv* env, jint count) {
+void ExoPlayerBridge::OnDroppedVideoFrames(JNIEnv* env, int count) {
   dropped_frames_.fetch_add(count);
 }
 
-void ExoPlayerBridge::OnIsPlayingChanged(JNIEnv*, jboolean is_playing) {
+void ExoPlayerBridge::OnIsPlayingChanged(JNIEnv*, bool is_playing) {
   is_playing_.store(is_playing);
 }
 

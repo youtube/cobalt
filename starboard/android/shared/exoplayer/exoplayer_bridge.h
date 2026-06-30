@@ -73,20 +73,20 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   bool CanAcceptMoreData(SbMediaType type);
 
   int ReadSample(JNIEnv* env,
-                 jint j_type,
+                 int type,
                  jobject j_buffer,
                  jlongArray j_metadata);
-  bool IsReady(JNIEnv* env, jint j_type) const;
-  int SkipData(JNIEnv* env, jint j_type, jlong position_us);
-  jlong GetBufferedPositionUs(JNIEnv* env, jint j_type) const;
+  bool IsReady(JNIEnv* env, int type) const;
+  int SkipData(JNIEnv* env, int type, int64_t position_us);
+  int64_t GetBufferedPositionUs(JNIEnv* env, int type) const;
 
   // Native callbacks.
   void OnInitialized(JNIEnv*);
   void OnReady(JNIEnv*);
   void OnError(JNIEnv* env, jstring msg);
   void OnEnded(JNIEnv*) const;
-  void OnDroppedVideoFrames(JNIEnv* env, jint count);
-  void OnIsPlayingChanged(JNIEnv*, jboolean is_playing);
+  void OnDroppedVideoFrames(JNIEnv* env, int count);
+  void OnIsPlayingChanged(JNIEnv*, bool is_playing);
 
   bool is_valid() const { return !j_exoplayer_bridge_.is_null(); }
 
@@ -105,6 +105,8 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   std::deque<scoped_refptr<InputBuffer>> pending_video_samples_;
   bool audio_eos_pending_ = false;
   bool video_eos_pending_ = false;
+  int64_t last_audio_timestamp_ = 0;
+  int64_t last_video_timestamp_ = 0;
 
   // The following variables may be accessed by the ExoPlayer Looper
   // thread.
