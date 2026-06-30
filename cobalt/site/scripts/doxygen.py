@@ -92,12 +92,65 @@ def _doxygenate_line(line):
   return indent + '/' + stripped
 
 
+def _is_empty_comment(line):
+  """Checks if a line is an empty comment line."""
+  stripped = line.strip()
+  return stripped == '//' or stripped == '///' or not stripped
+
+
 def _doxygenate_lines(lines):
   """Makes a list of comment lines visible to Doxygen."""
   if not lines:
     return []
   indent, _ = _split(lines[0])
-  return [_doxygenate_line(x) for x in lines] + [indent + '///']
+
+  # Split lines into sub-blocks separated by empty comment lines
+  sub_blocks = []
+  current_block = []
+
+  for line in lines:
+    if _is_empty_comment(line):
+      if current_block:
+        sub_blocks.append(('block', current_block))
+        current_block = []
+      sub_blocks.append(('separator', line))
+    else:
+      current_block.append(line)
+  if current_block:
+    sub_blocks.append(('block', current_block))
+
+  output_lines = []
+  for block_type, val in sub_blocks:
+    if block_type == 'separator':
+      output_lines.append(_doxygenate_line(val))
+    else:
+      # Check if the block is a diagram based on the first line's indentation
+      is_diagram = False
+      if val:
+        _, stripped = _split(val[0])
+        if stripped.startswith('///'):
+          content = stripped[3:]
+        elif stripped.startswith('//'):
+          content = stripped[2:]
+        else:
+          content = stripped
+        if content.startswith('    '):
+          is_diagram = True
+
+      doxygenated_block = [_doxygenate_line(l) for l in val]
+      if is_diagram:
+        # Wrap in verbatim, but only if it doesn't already contain verbatim tags
+        block_text = '\n'.join(val)
+        if '@verbatim' not in block_text and '\\verbatim' not in block_text:
+          output_lines.append(indent + '/// \\verbatim')
+          output_lines.extend(doxygenated_block)
+          output_lines.append(indent + '/// \\endverbatim')
+        else:
+          output_lines.extend(doxygenated_block)
+      else:
+        output_lines.extend(doxygenated_block)
+
+  return output_lines + [indent + '///']
 
 
 def _is_comment(line):

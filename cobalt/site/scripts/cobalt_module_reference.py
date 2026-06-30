@@ -213,6 +213,17 @@ def _node_to_markdown(out, node):
     assert len(node) == 0
     # Don't replace pipes in verbatim text.
     text = node.text if node.text else ''
+    # Strip doxygen comment prefix '///' and one space if present
+    lines = text.split('\n')
+    cleaned_lines = []
+    for line in lines:
+      if line.startswith('/// '):
+        cleaned_lines.append(line[4:])
+      elif line.startswith('///'):
+        cleaned_lines.append(line[3:])
+      else:
+        cleaned_lines.append(line)
+    text = '\n'.join(cleaned_lines)
     out.code_block(text)
     text = ''
   else:
