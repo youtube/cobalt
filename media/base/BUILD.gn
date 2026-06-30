@@ -483,6 +483,8 @@ source_set("base") {
   if (is_cobalt && use_starboard_media) {
     sources += [
         "starboard/demuxer_memory_limit_starboard.cc",
+        "starboard/h5vcc_settings.cc",
+        "starboard/h5vcc_settings.h",
         "starboard/renderer_factory_traits.h",
         "starboard/starboard_renderer_config.cc",
         "starboard/starboard_renderer_config.h",
@@ -718,6 +720,7 @@ source_set("unit_tests") {
 
   if (is_cobalt && use_starboard_media) {
     sources += [
+      "starboard/h5vcc_settings_unittest.cc",
       "starboard/starboard_renderer_config_unittest.cc"
     ]
   }
