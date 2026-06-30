@@ -19,7 +19,9 @@
 #include <sys/types.h>
 
 #include <atomic>
+#include <condition_variable>
 #include <memory>
+#include <mutex>
 #include <vector>
 
 #include "starboard/elf_loader/file_impl.h"
@@ -112,9 +114,9 @@ class ZstdFileImpl : public FileImpl {
   // Persistent Thread Pool state
   static constexpr int kNumWorkers = 4;
   std::vector<pthread_t> workers_;
-  pthread_mutex_t worker_mutex_;
-  pthread_cond_t work_ready_cv_;
-  pthread_cond_t work_done_cv_;
+  std::mutex worker_mutex_;
+  std::condition_variable work_ready_cv_;
+  std::condition_variable work_done_cv_;
 
   // Shared work state between threads
   // Points to the vector of tasks for the active ReadFromOffset() request.

@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <cstring>
 #include <limits>
+#include <mutex>
 #include <vector>
 
 #include "starboard/common/check_op.h"
@@ -35,17 +36,14 @@ ZstdFileImpl::ZstdFileImpl()
       compressed_data_size_(0),
       current_tasks_(nullptr),
       stop_workers_(false),
-      worker_failure_(false) {
-  SB_CHECK_EQ(pthread_mutex_init(&worker_mutex_, nullptr), 0);
-  SB_CHECK_EQ(pthread_cond_init(&work_ready_cv_, nullptr), 0);
-  SB_CHECK_EQ(pthread_cond_init(&work_done_cv_, nullptr), 0);
-}
+      worker_failure_(false) {}
 
 ZstdFileImpl::~ZstdFileImpl() {
-  SB_CHECK_EQ(pthread_mutex_lock(&worker_mutex_), 0);
-  stop_workers_ = true;
-  SB_CHECK_EQ(pthread_cond_broadcast(&work_ready_cv_), 0);
-  SB_CHECK_EQ(pthread_mutex_unlock(&worker_mutex_), 0);
+  {
+    std::lock_guard<std::mutex> lock(worker_mutex_);
+    stop_workers_ = true;
+    work_ready_cv_.notify_all();
+  }
 
   for (pthread_t thread : workers_) {
     pthread_join(thread, nullptr);
@@ -54,10 +52,6 @@ ZstdFileImpl::~ZstdFileImpl() {
   if (compressed_data_) {
     free(compressed_data_);
   }
-
-  SB_CHECK_EQ(pthread_mutex_destroy(&worker_mutex_), 0);
-  SB_CHECK_EQ(pthread_cond_destroy(&work_ready_cv_), 0);
-  SB_CHECK_EQ(pthread_cond_destroy(&work_done_cv_), 0);
 }
 
 bool ZstdFileImpl::Open(const char* name) {
@@ -164,19 +158,19 @@ void* ZstdFileImpl::ClaimDecompressionTasks(void* context) {
   std::unique_ptr<char[]> scratch(new char[impl->kMaxFrameDecompressedSize]);
 
   while (true) {
-    SB_CHECK_EQ(pthread_mutex_lock(&impl->worker_mutex_), 0);
-    while (!impl->HasTasksToProcess() && !impl->stop_workers_) {
-      SB_CHECK_EQ(
-          pthread_cond_wait(&impl->work_ready_cv_, &impl->worker_mutex_), 0);
-    }
+    size_t total_current_tasks = 0;  // For a ReadFromOffset() request
+    {
+      std::unique_lock<std::mutex> lock(impl->worker_mutex_);
+      while (!impl->HasTasksToProcess() && !impl->stop_workers_) {
+        impl->work_ready_cv_.wait(lock);
+      }
 
-    if (impl->stop_workers_) {
-      SB_CHECK_EQ(pthread_mutex_unlock(&impl->worker_mutex_), 0);
-      break;
-    }
+      if (impl->stop_workers_) {
+        break;
+      }
 
-    size_t total_current_tasks = impl->current_tasks_->size();
-    SB_CHECK_EQ(pthread_mutex_unlock(&impl->worker_mutex_), 0);
+      total_current_tasks = impl->current_tasks_->size();
+    }
 
     size_t index = impl->next_task_index_.fetch_add(1);
     if (index >= total_current_tasks) {
@@ -211,9 +205,8 @@ void* ZstdFileImpl::ClaimDecompressionTasks(void* context) {
 
     if (impl->tasks_remaining_.fetch_sub(1) == 1) {
       // The final decompression task for this ReadFromOffset() request is done.
-      SB_CHECK_EQ(pthread_mutex_lock(&impl->worker_mutex_), 0);
-      SB_CHECK_EQ(pthread_cond_signal(&impl->work_done_cv_), 0);
-      SB_CHECK_EQ(pthread_mutex_unlock(&impl->worker_mutex_), 0);
+      std::lock_guard<std::mutex> lock(impl->worker_mutex_);
+      impl->work_done_cv_.notify_one();
     }
   }
 
@@ -261,18 +254,19 @@ bool ZstdFileImpl::ReadFromOffset(int64_t offset, char* buffer, int size) {
     tasks.push_back(item);
   }
 
-  SB_CHECK_EQ(pthread_mutex_lock(&worker_mutex_), 0);
-  current_tasks_ = &tasks;
-  next_task_index_ = 0;
-  tasks_remaining_ = tasks.size();
-  worker_failure_ = false;
-  SB_CHECK_EQ(pthread_cond_broadcast(&work_ready_cv_), 0);
+  {
+    std::unique_lock<std::mutex> lock(worker_mutex_);
+    current_tasks_ = &tasks;
+    next_task_index_ = 0;
+    tasks_remaining_ = tasks.size();
+    worker_failure_ = false;
+    work_ready_cv_.notify_all();
 
-  while (tasks_remaining_ > 0) {
-    SB_CHECK_EQ(pthread_cond_wait(&work_done_cv_, &worker_mutex_), 0);
+    while (tasks_remaining_ > 0) {
+      work_done_cv_.wait(lock);
+    }
+    current_tasks_ = nullptr;
   }
-  current_tasks_ = nullptr;
-  SB_CHECK_EQ(pthread_mutex_unlock(&worker_mutex_), 0);
 
   if (worker_failure_) {
     return false;
