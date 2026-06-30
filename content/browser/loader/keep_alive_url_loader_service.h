@@ -8,16 +8,12 @@
 #include <memory>
 #include <optional>
 
-<<<<<<< HEAD
-=======
 // clang-format off
 // Remove these two includes after CHROMIUM_MILESTONE_LE_138
 #include "content/public/common/buildflags.h"
 #include "content/public/common/content_milestone_features.h"
 // clang-format on
 
-#include "base/containers/lru_cache.h"
->>>>>>> ddb73cb51 ([Reland] Gate Attribution Reporting API under enable_privacy_sandbox_apis (#10813))
 #include "base/memory/scoped_refptr.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/attribution_reporting/attribution_suitable_context.h"
