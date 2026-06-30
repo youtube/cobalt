@@ -142,10 +142,14 @@ android_aidl("content_javatests_aidl") {
 
 android_assets("cobalt_shell_assets") {
   sources = [ "$root_out_dir/cobalt_shell.pak" ]
+  renaming_sources = [ "$root_out_dir/content/data/fonts/fonts.xml" ]
+  renaming_destinations = [ "fonts/fonts.xml" ]
   disable_compression = true
   deps = [
     "//cobalt/shell:pak",
     "//gin:v8_snapshot_assets",
+    "//starboard/content/fonts:copy_font_data",
+    "//starboard/content/fonts:fonts_xml",
     "//third_party/icu:icu_assets",
   ]
 }
