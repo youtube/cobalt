@@ -21,6 +21,7 @@
 #include "starboard/extension/features.h"
 #include "starboard/shared/starboard/feature_list.h"
 #include "starboard/shared/starboard/features.h"
+#include "starboard/system.h"
 
 namespace starboard::features {
 
@@ -63,6 +64,20 @@ namespace {
 }  // namespace
 
 void InitializeStarboardFeatureListWithDefaults() {
+  // Use the Starboard extension API if available so that feature flags are
+  // initialized in the host application / loader process (e.g., in Evergreen
+  // builds where test libraries run in a separate shared object from the host
+  // loader).
+  if (const auto* extension_api =
+          static_cast<const StarboardExtensionFeaturesApi*>(
+              SbSystemGetExtension(kStarboardExtensionFeaturesName));
+      extension_api && extension_api->InitializeStarboardFeatures) {
+    extension_api->InitializeStarboardFeatures(
+        kStarboardFeatures, std::size(kStarboardFeatures), kStarboardParams,
+        std::size(kStarboardParams));
+    return;
+  }
+
   FeatureList::InitializeFeatureList(
       kStarboardFeatures, std::size(kStarboardFeatures), kStarboardParams,
       std::size(kStarboardParams));
