@@ -117,6 +117,8 @@ const char kCCScrollAnimationDurationForTesting[] =
 const char kCCImageCacheLimitItems[] = "cc-image-cache-limit-items";
 const char kDecodedImageWorkingSetBudgetBytes[] =
     "decoded-image-working-set-budget-bytes";
+// Avoid reuse resource.
+const char kAvoidCCReuseResource[] = "avoid-cc-reuse-resource";
 #endif
 
 }  // namespace switches
