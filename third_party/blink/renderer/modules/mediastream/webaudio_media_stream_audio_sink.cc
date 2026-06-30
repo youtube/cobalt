@@ -155,6 +155,9 @@ void WebAudioMediaStreamAudioSink::OnData(
     // This can happen if the data in FIFO is too slowly consumed or
     // WebAudio stops consuming data.
 
+    LOG(INFO) << "SAMSUNG DEBUG - Sink FIFO full (Level: " << fifo_->frames()
+              << "). Dropped " << audio_bus.frames() << " frames.";
+
     DVLOG(2) << "WARNING: Overrun, FIFO has available "
              << (fifo_->max_frames() - fifo_->frames()) << " samples but "
              << audio_bus.frames() << " samples are needed";
@@ -201,6 +204,9 @@ void WebAudioMediaStreamAudioSink::ProvideInput(
   if (!audio_converter_)
     return;
 
+  LOG(INFO) << "SAMSUNG DEBUG - Sink ProvideInput: " << number_of_frames
+            << " frames. FIFO Level: " << (fifo_ ? (int)fifo_->frames() : -1);
+
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("mediastream"),
               "WebAudioMediaStreamAudioSink::ProvideInput under lock",
               "delay (frames)", fifo_->frames());
@@ -242,6 +248,8 @@ double WebAudioMediaStreamAudioSink::ProvideInput(
                       "WebAudioMediaStreamAudioSink fifo space", this,
                       fifo_->max_frames() - fifo_->frames());
   } else {
+    LOG(INFO) << "SAMSUNG DEBUG - Sink Starvation! FIFO has " << fifo_->frames()
+              << ", need " << audio_bus->frames();
     DVLOG(2) << "WARNING: Underrun, FIFO has data " << fifo_->frames()
              << " samples but " << audio_bus->frames() << " samples are needed";
     audio_bus->Zero();
