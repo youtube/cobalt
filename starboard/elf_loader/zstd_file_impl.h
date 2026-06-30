@@ -38,10 +38,6 @@ namespace elf_loader {
 // decompressed size limit and to promote smooth parallelization, it is
 // recommended to break the compressed ELF file into at least 64 frames.
 //
-// Lifetime and Ownership:
-// This class is owned by the ElfLoaderImpl instance and its lifetime is tied
-// to it.
-//
 // Threading Model:
 // While this class has a multithreaded implementation it is not itself thread-
 // safe for concurrent use by multiple threads.
