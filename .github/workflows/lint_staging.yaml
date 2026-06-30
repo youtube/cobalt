@@ -4,21 +4,10 @@ on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
     branches:
-<<<<<<< HEAD:.github/workflows/lint_staging.yaml
       - staging
   push:
     branches:
       - staging
-=======
-      - main
-      - experimental/*
-      - feature/*
-  push:
-    branches:
-      - main
-      - experimental/*
-      - feature/*
->>>>>>> 71aa84ed4 (ci: Dockerize pre-commit and pin pip deps (#10980)):.github/workflows/lint.yaml
 
 concurrency:
   # Cancel existing jobs on the same workflow, platform, and branch (or sha if merged).
