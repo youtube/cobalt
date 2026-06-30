@@ -55,6 +55,24 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Features.TestFinchFeature" enum="Boolean"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records whether the test Finch feature is enabled. Used for validating feature
+    deployment.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Features.TestFinchFeatureParam" units="hash"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the hash of the parameter value for the test Finch feature. Used
+    for validating parameter propagation.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Finch.ConfigAgeInDays" units="days"
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
@@ -74,7 +92,60 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<<<<<<< HEAD
 <histogram name="Cobalt.Finch.RollbackDetected" enum="Boolean"
+=======
+<histogram name="Cobalt.Finch.CrashStreakAtStartup" units="crashes"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the variations crash streak number at startup. This helps track
+    system stability and safe config activation.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Finch.HasInvalidFeatureType" enum="Boolean"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records whether any features in the variations configuration had an invalid (non-boolean) type.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Finch.HasInvalidParamType" enum="Boolean"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records whether any parameters in the variations configuration had an invalid (non-string) type.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Finch.NumFeaturesApplied" units="features"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the number of experiment features successfully registered and applied at startup.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Finch.NumParamsApplied" units="parameters"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the number of experiment parameters successfully registered and applied at startup.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Finch.SetExperimentState.ParseError" enum="Boolean"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records when SetExperimentState fails because the variations config dictionary could not be parsed.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Finch.TimeBetweenWrites" units="ms"
+>>>>>>> 6ed26381bc (cobalt: Add UMA metrics for Finch configurations (#10982))
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
   <summary>
@@ -94,6 +165,53 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<<<<<<< HEAD
+=======
+<histogram name="Cobalt.LoaderApp.ElfDecompressionDuration" units="ms"
+    expires_after="never">
+  <owner>hwarriner@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    The time it takes for the ELF dynamic shared library, stored as a compressed
+    file, to be decompressed. This metric is only recorded when the shared
+    library is stored as a compressed file.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LoaderApp.SlotSelectionStatus"
+    enum="SlotSelectionStatus" expires_after="never">
+<!-- expires-never: Needed for Evergreen updates health metrics. -->
+
+  <owner>yuying@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Status of slot selection by the Loader App.</summary>
+</histogram>
+
+<histogram name="Cobalt.LocalStorage.DatabaseCommitError" enum="LevelDBStatus"
+    expires_after="never">
+  <owner>colinliang@google.com</owner>
+  <summary>
+    Records the leveldb error when a commit fails in Local Storage.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LocalStorage.DatabaseOpenError" enum="LevelDBStatus"
+    expires_after="never">
+  <owner>colinliang@google.com</owner>
+  <summary>
+    Records the leveldb error when opening the Local Storage database fails.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LocalStorage.DatabaseReadError" enum="LevelDBStatus"
+    expires_after="never">
+  <owner>colinliang@google.com</owner>
+  <summary>
+    Records the leveldb error when a read fails in Local Storage.
+  </summary>
+</histogram>
+
+>>>>>>> 6ed26381bc (cobalt: Add UMA metrics for Finch configurations (#10982))
 <histogram name="Cobalt.LocalStorage.DatabaseResetReason"
     enum="LocalStorageDatabaseResetReason" expires_after="never">
   <owner>charleykim@google.com</owner>
