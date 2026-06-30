@@ -82,6 +82,9 @@ public class JavaSwitches {
   /** flag to specify ANGLE to use the OpenGL ES backend */
   public static final String COBALT_USE_ANGLE_GLES = "CobaltUseAngleGles";
 
+  /** Avoid reuse resource. */
+  public static final String AVOID_CC_REUSE_RESOURCE = "AvoidCCReuseResource";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     StringJoiner jsFlags = new StringJoiner(";");
@@ -173,6 +176,10 @@ public class JavaSwitches {
 
     if (jsFlags.length() > 0 ) {
       extraCommandLineArgs.add("--js-flags=" + jsFlags.toString());
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.AVOID_CC_REUSE_RESOURCE)) {
+      extraCommandLineArgs.add("--avoid-cc-reuse-resource");
     }
 
     return extraCommandLineArgs;
