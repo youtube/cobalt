@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//build/config/ozone.gni")
+import("//ui/gl/features.gni")
 
 assert(is_starboard)
 
@@ -47,13 +48,21 @@ source_set("starboard") {
     "//starboard:starboard_headers_only",
     "//ui/base/ime",
     "//ui/display",
-    "//ui/events/ozone/layout:layout",
+    "//ui/events/ozone/layout",
     "//ui/gfx:native_widget_types",
+    "//ui/gl:buildflags",
     "//ui/ozone:ozone_base",
     "//ui/ozone/common",
     "//ui/platform_window",
     "//ui/platform_window/stub",
   ]
+
+  if (use_static_angle) {
+    deps += [
+      "//third_party/angle:libEGL_static",
+      "//third_party/angle:libGLESv2_static",
+    ]
+  }
 }
 
 source_set("starboard_unittests") {
@@ -70,15 +79,15 @@ source_set("starboard_unittests") {
   deps = [
     ":starboard",
     "//starboard:starboard_headers_only",
-    "//starboard/common:common",
+    "//starboard/common",
     "//testing/gmock",
     "//testing/gtest",
-    "//ui/events:events",
+    "//ui/events",
     "//ui/events:events_base",
     "//ui/events/types:headers",
     "//ui/gl",
     "//ui/ozone:platform",
-    "//ui/platform_window:platform_window",
+    "//ui/platform_window",
   ]
 }
 

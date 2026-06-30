@@ -982,8 +982,6 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
   }
 #endif
 
-// TODO: b/457746593 - Cobalt: Fix the crash on raspi2
-#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS) || !defined(__arm__)
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().angle_request_extension,
                    "missing GL_ANGLE_request_extension");
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().khr_debug,
