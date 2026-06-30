@@ -24,7 +24,7 @@ typedef int SbTimeZone
 
 ### SbTimeZoneGetName
 
-Gets a string representation of the current timezone in [IANA format](https://data.iana.org/time-zones/theory.html#naming) . Names typically
+Gets a string representation of the current timezone in [IANA format](https://data.iana.org/time-zones/theory.html#naming). Names typically
 follow the `AREA/LOCATION` format, where `AREA` is a continent or ocean, and
 `LOCATION` is a specific location within that area (for example, 'Africa/Cairo',
 'America/New_York', or 'Pacific/Honolulu').

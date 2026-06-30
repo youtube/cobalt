@@ -102,10 +102,10 @@ function cannot return.
 
 Include the platform-specific configuration. This macro is set by GN in
 starboard/build/config/BUILD.gn and passed in on the command line for all
-targets and all configurations. Tells the compiler a function is using a printf-
-style format string. `format_param` is the one-based index of the format string
-parameter; `dots_param` is the one-based index of the "..." parameter. For
-v*printf functions (which take a va_list), pass 0 for dots_param. (This is
+targets and all configurations. Tells the compiler a function is using a
+printf-style format string. `format_param` is the one-based index of the format
+string parameter; `dots_param` is the one-based index of the "..." parameter.
+For v*printf functions (which take a va_list), pass 0 for dots_param. (This is
 undocumented but matches what the system C headers do.) (Partially taken from
 base/compiler_specific.h)
 

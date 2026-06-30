@@ -37,8 +37,8 @@ Options that can be requested at window creation time.
     ignored.
 *   `bool windowed`
 
-    Specifies whether the new window is windowed. If `false` , the requested
-    size represents the requested resolution.
+    Specifies whether the new window is windowed. If `false`, the requested size
+    represents the requested resolution.
 *   `const char * name`
 
     The name of the window to create.
@@ -74,14 +74,14 @@ drawing.
     the graphics resolution.
 
     A value of `0.0f` means the ratio cannot be determined; it is assumed to be
-    the same as the graphics resolution (i.e., `1.0f` ).
+    the same as the graphics resolution (i.e., `1.0f`).
 
 ## Functions
 
 ### SbWindowCreate
 
 Creates and returns a new system window with the specified `options` (which can
-be `NULL` ). Returns `kSbWindowInvalid` if the window cannot be created due to
+be `NULL`). Returns `kSbWindowInvalid` if the window cannot be created due to
 policy, unsatisfiable options, or other reasons.
 
 If `options` are not specified, the function uses default values that must work
@@ -133,8 +133,8 @@ float SbWindowGetDiagonalSizeInInches(SbWindow window)
 ### SbWindowGetPlatformHandle
 
 Gets the platform-specific handle for `window`, which can be passed as an
-`EGLNativeWindowType` to initialize EGL/GLES. The return value is platform-
-specific, with no constraints on expected ranges.
+`EGLNativeWindowType` to initialize EGL/GLES. The return value is
+platform-specific, with no constraints on expected ranges.
 
 *   `window`: The `SbWindow` to query.
 
@@ -174,7 +174,7 @@ static bool SbWindowIsValid(SbWindow window)
 Sets the default options for system windows in `options`.
 
 *   `options`: The destination buffer for the default options. Must not be
-    `NULL` .
+    `NULL`.
 
 #### Declaration
 

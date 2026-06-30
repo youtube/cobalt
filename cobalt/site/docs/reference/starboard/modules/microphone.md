@@ -145,7 +145,7 @@ buffer size is invalid.
     audio data is temporarily cached during capture. Audio data is removed from
     the buffer after it is read. New data can be read from this buffer in chunks
     smaller than the buffer size. This parameter must be greater than zero, and
-    ideally a power of two ( `2^n` ).
+    ideally a power of two (`2^n`).
 
 #### Declaration
 

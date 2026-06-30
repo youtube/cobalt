@@ -25,13 +25,13 @@ Previously defined in [gl2.h](https://www.khronos.org/registry/OpenGL/api/GLES2/
 
 ### SB_GL_READ_BUFFER
 
-Previously defined in [gl3.h](https://www.khronos.org/registry/OpenGL/api/GLES3/gl3.h) .
+Previously defined in [gl3.h](https://www.khronos.org/registry/OpenGL/api/GLES3/gl3.h).
 
 ## Typedefs
 
 ### SbGlBoolean
 
-The following type definitions were adapted from the types declared in [gl2.h](https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h) .
+The following type definitions were adapted from the types declared in [gl2.h](https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h).
 
 #### Definition
 
@@ -41,10 +41,10 @@ typedef uint8_t SbGlBoolean
 
 ### SbGlIntPtr
 
-Some compilers implicitly convert `intptr_t` to `int` . However, this is not
+Some compilers implicitly convert `intptr_t` to `int`. However, this is not
 equivalent to a `long int` or `long long int` from the compiler's perspective.
 Starboard checks the platform configuration and sets the types to match those
-used by OpenGL ES 2.0 (see [gl2ext.h](https://www.khronos.org/registry/OpenGL/api/GLES2/gl2ext.h) ).
+used by OpenGL ES 2.0 (see [gl2ext.h](https://www.khronos.org/registry/OpenGL/api/GLES2/gl2ext.h)).
 
 #### Definition
 
@@ -60,8 +60,7 @@ typedef long int SbGlIntPtr
 
 *   `void(*glActiveTexture)(SbGlEnum texture)`
 
-    The following prototypes were adapted from the prototypes declared in [https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h](https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h)
-    .
+    The following prototypes were adapted from the prototypes declared in [https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h](https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h).
 *   `void(*glAttachShader)(SbGlUInt32 program, SbGlUInt32 shader)`
 *   `void(*glBindAttribLocation)(SbGlUInt32 program, SbGlUInt32 index, const
     SbGlChar *name)`
@@ -275,8 +274,7 @@ typedef long int SbGlIntPtr
     height)`
 *   `void(*glReadBuffer)(SbGlEnum src)`
 
-    The following prototypes were adapted from the prototypes declared in [https://www.khronos.org/registry/OpenGL/api/GLES3/gl3.h](https://www.khronos.org/registry/OpenGL/api/GLES3/gl3.h)
-    .
+    The following prototypes were adapted from the prototypes declared in [https://www.khronos.org/registry/OpenGL/api/GLES3/gl3.h](https://www.khronos.org/registry/OpenGL/api/GLES3/gl3.h).
 *   `void(*glDrawRangeElements)(SbGlEnum mode, SbGlUInt32 start, SbGlUInt32 end,
     SbGlSizei count, SbGlEnum type, const void *indices)`
 *   `void(*glTexImage3D)(SbGlEnum target, SbGlInt32 level, SbGlInt32

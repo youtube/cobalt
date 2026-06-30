@@ -31,7 +31,7 @@ and ensures that output from multiple threads is not interleaved.
     passing `kSbLogPriorityFatal` does not terminate the program; the
     application must enforce termination. Many platforms ignore this parameter.
 
-*   `message`: The message to log. Must not be `NULL` . No formatting is
+*   `message`: The message to log. Must not be `NULL`. No formatting is
     required, including newline termination. Platforms can adjust the message to
     fit their output method. For example, they can wrap the text or strip
     unprintable characters.

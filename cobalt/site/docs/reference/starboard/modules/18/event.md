@@ -101,19 +101,19 @@ value it points to.
     The first event an application receives during a normal startup.
     Applications must perform initialization, start running, and prepare for
     subsequent events. To terminate, applications must call
-    `SbSystemRequestStop()` . The system sends this event only once per process
+    `SbSystemRequestStop()`. The system sends this event only once per process
     launch. The data argument contains `SbEventStartData`.
 *   `kSbEventTypeBlur`
 
-    Sent when a dialog is raised or the application enters a background-but-
-    visible or partially-obscured state ( `BLURRED` ). Graphics and video
-    resources remain available, but the application should pause foreground
-    activity, such as animations and video playback. This event is sent only
-    after a `Start` event. Only `Focus` or `Conceal` events can follow a `Blur`
-    event. This event has no data argument.
+    Sent when a dialog is raised or the application enters a
+    background-but-visible or partially-obscured state (`BLURRED`). Graphics and
+    video resources remain available, but the application should pause
+    foreground activity, such as animations and video playback. This event is
+    sent only after a `Start` event. Only `Focus` or `Conceal` events can follow
+    a `Blur` event. This event has no data argument.
 *   `kSbEventTypeFocus`
 
-    Sent when the application returns to the foreground ( `STARTED` ) from the
+    Sent when the application returns to the foreground (`STARTED`) from the
     `BLURRED` state. The application should resume foreground activity (such as
     animations and video playback). This event is only sent after a `Blur` or
     `Reveal` event. This event has no data argument.
@@ -166,7 +166,7 @@ value it points to.
 *   `kSbEventTypeScheduled`
 
     Reserved for scheduled callbacks. The system sends this event only in
-    response to `SbEventSchedule()` , which invokes the callback directly.
+    response to `SbEventSchedule()`, which invokes the callback directly.
     Consequently, `SbEventHandle` never receives this event. The data type is an
     internally-defined structure.
 *   `kSbEventTypeLowMemory`
@@ -178,7 +178,7 @@ value it points to.
 *   `kSbEventTypeWindowSizeChanged`
 
     The size or position of a SbWindow has changed. The data is
-    SbEventWindowSizeChangedData .
+    SbEventWindowSizeChangedData.
 *   `kSbEventTypeOsNetworkDisconnected`
 
     The platform has detected a network disconnection. There are likely to be
@@ -195,8 +195,8 @@ value it points to.
 *   `kSbEventDateTimeConfigurationChanged`
 
     The platform has detected a date and/or time configuration change (such as a
-    change in the timezone setting). This should trigger the application to re-
-    query the relevant APIs to update the date and time.
+    change in the timezone setting). This should trigger the application to
+    re-query the relevant APIs to update the date and time.
 *   `kSbEventTypeAccessibilityTextToSpeechSettingsChanged`
 
     The platform's text-to-speech settings have changed. The data field of this
@@ -320,7 +320,7 @@ Schedules an event `callback` into the main Starboard event loop. Any thread can
 call this function, but `callback` is always invoked on the main Starboard
 thread, queued with other pending events.
 
-*   `callback`: The callback function to call. Must not be `NULL` .
+*   `callback`: The callback function to call. Must not be `NULL`.
 
 *   `context`: The context passed to the `callback` function.
 

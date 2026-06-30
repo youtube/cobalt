@@ -55,9 +55,9 @@ bool SbStorageCloseRecord(SbStorageRecord record)
 ### SbStorageDeleteRecord
 
 Deletes the `SbStorageRecord` specified by `name`. Returns `true` if the record
-existed and was successfully deleted; otherwise, returns `false` .
+existed and was successfully deleted; otherwise, returns `false`.
 
-If `name` is `NULL` , this function deletes the default storage record (matching
+If `name` is `NULL`, this function deletes the default storage record (matching
 the behavior of previous API versions).
 
 Do not call this function while the storage record is open. This function
@@ -101,7 +101,7 @@ calling thread until the operation completes. Returns an empty `SbStorageRecord`
 (size zero) if the record does not exist. Opening an already-open
 `SbStorageRecord` results in undefined behavior.
 
-If `name` is `NULL` , opens the default storage record (matching the behavior of
+If `name` is `NULL`, opens the default storage record (matching the behavior of
 previous API versions).
 
 *   `name`: The filesystem-safe name of the record to open.
@@ -135,13 +135,13 @@ int64_t SbStorageReadRecord(SbStorageRecord record, char *out_data, int64_t data
 ### SbStorageWriteRecord
 
 Replaces the data in `record` with `data_size` bytes from `data`, deleting any
-previous data. Returns whether the write succeeded. This function makes a best-
-effort to write the entire record, and may perform blocking I/O on the calling
-thread.
+previous data. Returns whether the write succeeded. This function makes a
+best-effort to write the entire record, and may perform blocking I/O on the
+calling thread.
 
 Although `SbStorageWriteRecord()` may defer persistence, a subsequent
 `SbStorageReadRecord()` call must immediately reflect the write, even without
-calling `SbStorageCloseRecord()` . Data should persist shortly after writing,
+calling `SbStorageCloseRecord()`. Data should persist shortly after writing,
 even in the event of unexpected process termination.
 
 *   `record`: The record to write.

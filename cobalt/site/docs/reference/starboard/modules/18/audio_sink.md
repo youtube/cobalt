@@ -54,14 +54,14 @@ first two output parameters indicate the fill level of the audio frame buffer
 passed to `SbAudioSinkCreate` as `frame_buffers`. Because `frame_buffers` is a
 circular buffer, use `offset_in_frames` to calculate the number of continuous
 frames towards the end of the buffer. The audio sink can play the frames only
-when `is_playing` is `true` . It should pause playback when `is_playing` is
-`false` . The audio sink may cache a certain amount of audio frames before
+when `is_playing` is `true`. It should pause playback when `is_playing` is
+`false`. The audio sink may cache a certain amount of audio frames before
 starting playback. It starts playback immediately when `is_eos_reached` is
-`true` , even if there are not enough cached audio frames, because no more
-frames will be appended to the buffer. The host can set `is_eos_reached` to
-`false` after setting it to `true` (typically due to a seek). All parameters
-except `context` must not be `NULL` . This function only reports source status;
-it does not remove audio data from the source frame buffer.
+`true`, even if there are not enough cached audio frames, because no more frames
+will be appended to the buffer. The host can set `is_eos_reached` to `false`
+after setting it to `true` (typically due to a seek). All parameters except
+`context` must not be `NULL`. This function only reports source status; it does
+not remove audio data from the source frame buffer.
 
 #### Definition
 
@@ -112,10 +112,10 @@ Multiple calls to `SbAudioSinkCreate` must not cause a crash.
 *   `update_source_status_func`: A callback invoked by the audio sink on an
     internal thread to query the status of the source. It is called immediately
     during `SbAudioSinkCreate` (before it returns). The caller must ensure that
-    the callback returns meaningful values. Must not be `NULL` .
+    the callback returns meaningful values. Must not be `NULL`.
 
 *   `consume_frames_func`: A callback invoked by the audio sink on an internal
-    thread to report consumed frames. Must not be `NULL` .
+    thread to report consumed frames. Must not be `NULL`.
 
 *   `context`: An opaque value passed to all callbacks, typically pointing to
     state associated with the audio sink.

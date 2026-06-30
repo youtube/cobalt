@@ -19,12 +19,12 @@ correspond to `SbInputEventType` values.
     Input from a gesture-detection mechanism. Examples include Kinect and
     Wiimotes.
 
-    Produces `Move` , `Press` and `Unpress` events.
+    Produces `Move`, `Press` and `Unpress` events.
 *   `kSbInputDeviceTypeGamepad`
 
-    Input from a gamepad, following the layout provided in the [W3C Web Gamepad API](https://www.w3.org/TR/gamepad/) .
+    Input from a gamepad, following the layout provided in the [W3C Web Gamepad API](https://www.w3.org/TR/gamepad/).
 
-    Produces `Move` , `Press` and `Unpress` events.
+    Produces `Move`, `Press` and `Unpress` events.
 *   `kSbInputDeviceTypeKeyboard`
 
     Keyboard input from a traditional keyboard or game controller chatpad.
@@ -34,7 +34,7 @@ correspond to `SbInputEventType` values.
 
     Input from a traditional mouse.
 
-    Produces `Move` , `Press` , and `Unpress` events.
+    Produces `Move`, `Press`, and `Unpress` events.
 *   `kSbInputDeviceTypeRemote`
 
     Input from a TV remote-control-style device.
@@ -44,12 +44,12 @@ correspond to `SbInputEventType` values.
 
     Input from a single- or multi-touchscreen.
 
-    Produces `Move` , `Press` , and `Unpress` events.
+    Produces `Move`, `Press`, and `Unpress` events.
 *   `kSbInputDeviceTypeTouchPad`
 
     Input from a touchpad that is not masquerading as a mouse.
 
-    Produces `Move` , `Press` , and `Unpress` events.
+    Produces `Move`, `Press`, and `Unpress` events.
 *   `kSbInputDeviceTypeOnScreenKeyboard`
 
     Keyboard input from an on-screen keyboard.
@@ -75,7 +75,7 @@ The action that an input event represents.
     the finger). The client is responsible for generating repeat press events.
 *   `kSbInputEventTypeUnpress`
 
-    Key or button release. The counterpart to `Press` , this event is sent when
+    Key or button release. The counterpart to `Press`, this event is sent when
     the pressed key or button is released.
 *   `kSbInputEventTypeWheel`
 
@@ -108,7 +108,7 @@ Event data for `kSbEventTypeInput` events.
 
     An identifier that indicates which keyboard key or mouse button was involved
     in this event, if any. All known keys for all devices are mapped to a single
-    ID space, defined by the `SbKey` enum in `key.h` .
+    ID space, defined by the `SbKey` enum in `key.h`.
 *   `wchar_t character`
 
     The character that corresponds to the key. For external keyboards, this
@@ -120,13 +120,13 @@ Event data for `kSbEventTypeInput` events.
     (for example, left and right "Shift" keys).
 *   `unsigned int key_modifiers`
 
-    Key modifiers (e.g. `Ctrl` , `Shift` ) held down during this input event.
+    Key modifiers (e.g. `Ctrl`, `Shift`) held down during this input event.
 *   `SbInputVector position`
 
     The (x, y) coordinates of the persistent cursor controlled by this device.
     The value is `0` if this data is not applicable. For `kSbInputEventTypeMove`
     events from `kSbInputDeviceTypeGamepad` devices, this field represents stick
-    position in the range `[-1, 1]` , where positive values indicate down and
+    position in the range `[-1, 1]`, where positive values indicate down and
     right directions.
 *   `SbInputVector delta`
 
@@ -134,7 +134,7 @@ Event data for `kSbEventTypeInput` events.
     not applicable.
 *   `float pressure`
 
-    The normalized pointer pressure in the range `[0, 1]` , where `0` and `1`
+    The normalized pointer pressure in the range `[0, 1]`, where `0` and `1`
     represent minimum and maximum detectable pressure. Use `NaN` if the device
     does not report pressure. This value applies to mouse and touchscreen input
     events.
@@ -151,7 +151,7 @@ Event data for `kSbEventTypeInput` events.
     to mouse and touchscreen input events.
 *   `const char * input_text`
 
-    The text to input for events of type `Input` .
+    The text to input for events of type `Input`.
 *   `bool is_composing`
 
     Set to `true` if the input event is part of an ongoing composition.

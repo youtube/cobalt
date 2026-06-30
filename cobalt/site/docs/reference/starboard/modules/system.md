@@ -175,7 +175,7 @@ User-Agent string.
 
     The Google Speech API key. Platform manufacturers must register a Google
     Speech API key for their products. You can enable the Speech APIs and
-    generate a key in the [Google API Console](http://developers.google.com/console) .
+    generate a key in the [Google API Console](http://developers.google.com/console).
 *   `kSbSystemPropertyUserAgentAuxField`
 
     A field that, if available, is appended to the User-Agent.
@@ -270,7 +270,7 @@ length of the generated string.
 *   `error`: The error for which to generate a string.
 
 *   `out_string`: The destination buffer for the generated string. This can be
-    `NULL` . The output is always null-terminated.
+    `NULL`. The output is always null-terminated.
 
 *   `string_length`: The maximum length of the error string.
 
@@ -284,7 +284,7 @@ int SbSystemGetErrorString(SbSystemError error, char *out_string, int string_len
 
 Returns a pointer to the constant global structure implementing the extension
 specified by `name`. If the extension is not implemented, the function returns
-`NULL` . The `name` parameter must not be `NULL` .
+`NULL`. The `name` parameter must not be `NULL`.
 
 Extensions implement behaviors specific to a particular application and platform
 combination. They rely on a header file in the application's `extension/`
@@ -327,11 +327,11 @@ Gets the system's current POSIX-style locale ID. The locale represents the
 location, language, and cultural conventions of the system, which determine how
 text is displayed and how numbers, dates, and currency are formatted.
 
-At its simplest, the locale ID can be a BCP 47 language code, such as `en_US` .
-POSIX also includes the encoding (for example, `en_US.UTF8` ). POSIX allows
-basic locales like "C" or "POSIX", but Starboard does not support them. While
-POSIX supports different locale settings for various purposes, Starboard exposes
-only one locale at a time.
+At its simplest, the locale ID can be a BCP 47 language code, such as `en_US`.
+POSIX also includes the encoding (for example, `en_US.UTF8`). POSIX allows basic
+locales like "C" or "POSIX", but Starboard does not support them. While POSIX
+supports different locale settings for various purposes, Starboard exposes only
+one locale at a time.
 
 RFC 5646 describes BCP 47 language codes: [https://tools.ietf.org/html/bcp47](https://tools.ietf.org/html/bcp47)
 
@@ -391,7 +391,7 @@ random bytes and places them in `out_buffer`. This function does not require
 manual seeding.
 
 *   `out_buffer`: The destination buffer for the generated random bytes. Must
-    not be `NULL` .
+    not be `NULL`.
 
 *   `buffer_size`: The number of random bytes to generate.
 
@@ -404,8 +404,7 @@ void SbSystemGetRandomData(void *out_buffer, int buffer_size)
 ### SbSystemGetRandomUInt64
 
 A cryptographically secure random number generator that generates 64 random bits
-and returns them as a `uint64_t` . This function does not require manual
-seeding.
+and returns them as a `uint64_t`. This function does not require manual seeding.
 
 #### Declaration
 
@@ -422,9 +421,9 @@ The returned stack frames are in downward order from the calling frame toward
 the thread's entry point. If the buffer is too small, frames near the thread
 entry point are truncated.
 
-This function is used in crash signal handlers and, therefore, it must be async-
-signal-safe on platforms that support signals. The following document discusses
-what it means to be async-signal-safe on POSIX: [http://pubs.opengroup.org/onlinepubs/009695399/functions/xsh_chap02_04.html#tag_02_04_03](http://pubs.opengroup.org/onlinepubs/009695399/functions/xsh_chap02_04.html#tag_02_04_03)
+This function is used in crash signal handlers and, therefore, it must be
+async-signal-safe on platforms that support signals. The following document
+discusses what it means to be async-signal-safe on POSIX: [http://pubs.opengroup.org/onlinepubs/009695399/functions/xsh_chap02_04.html#tag_02_04_03](http://pubs.opengroup.org/onlinepubs/009695399/functions/xsh_chap02_04.html#tag_02_04_03)
 
 *   `out_stack`: A buffer to store the instruction pointer addresses. Must not
     be `NULL` and must hold at least `stack_size` entries.
@@ -455,7 +454,7 @@ int64_t SbSystemGetTotalCPUMemory()
 Returns the total GPU memory (in bytes) available to the application. This
 function can only be called if
 `SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)` returns
-`true` .
+`true`.
 
 #### Declaration
 
@@ -466,7 +465,7 @@ int64_t SbSystemGetTotalGPUMemory()
 ### SbSystemGetUsedCPUMemory
 
 Returns the total physical CPU memory (in bytes) used by this application. This
-value should always be less than or equal to `SbSystemGetTotalCPUMemory()` .
+value should always be less than or equal to `SbSystemGetTotalCPUMemory()`.
 
 #### Declaration
 
@@ -479,7 +478,7 @@ int64_t SbSystemGetUsedCPUMemory()
 Returns the amount of GPU memory (in bytes) used by the application. This
 function can only be called if
 `SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)` returns
-`true` .
+`true`.
 
 #### Declaration
 
@@ -541,7 +540,7 @@ Called by Cobalt to notify the platform of an application error that may require
 platform handling. The platform should notify the user and provide necessary
 interaction (for example, by showing a dialog).
 
-Returns `true` if the platform handles the error; otherwise, returns `false` .
+Returns `true` if the platform handles the error; otherwise, returns `false`.
 
 This function can be called from any thread. The platform must decide how to
 handle concurrent errors. If it can only handle one error at a time, it can
@@ -664,7 +663,7 @@ void SbSystemRequestStop(int error_level)
 
 Computes a HMAC-SHA256 digest of `message` using the application's certification
 secret, and writes it to `digest`. The `message` and `digest` pointers must not
-be `NULL` .
+be `NULL`.
 
 The `digest_size_in_bytes` parameter must be at least 32. Returns `false` if an
 error occurs or if the function is not implemented; in these cases, the contents
@@ -692,14 +691,14 @@ bool SbSystemSupportsResume()
 ### SbSystemSymbolize
 
 Looks up `address` as an instruction pointer and places up to `buffer_size - 1`
-characters of its associated symbol in `out_buffer`. The output is always null-
-terminated. `out_buffer` must not be `NULL` .
+characters of its associated symbol in `out_buffer`. The output is always
+null-terminated. `out_buffer` must not be `NULL`.
 
 The return value indicates whether the function found a reasonable match for
-`address`. If the return value is `false` , then `out_buffer` is not modified.
+`address`. If the return value is `false`, then `out_buffer` is not modified.
 
-This function is used in crash signal handlers and, therefore, it must be async-
-signal-safe on platforms that support signals.
+This function is used in crash signal handlers and, therefore, it must be
+async-signal-safe on platforms that support signals.
 
 #### Declaration
 
