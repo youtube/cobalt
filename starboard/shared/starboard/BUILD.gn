@@ -49,6 +49,8 @@ source_set("test_environment") {
   testonly = true
 
   sources = [
+    "features_test_util.cc",
+    "features_test_util.h",
     "starboard_test_environment.cc",
     "starboard_test_environment.h",
   ]
