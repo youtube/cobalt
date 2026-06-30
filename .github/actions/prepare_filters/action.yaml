@@ -18,7 +18,7 @@ runs:
       with:
         pattern: ${{ inputs.test_results_key }}*
         path: previous_results/
-    - name: Prepare Filter Directory
+    - name: Prepare test filters
       env:
         PLATFORM: ${{ inputs.platform }}
       run: |

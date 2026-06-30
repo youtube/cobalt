@@ -99,11 +99,17 @@ runs:
         for test_executable_path in ${test_executables}; do
           filename=$(basename "${test_executable_path}")
           test_executable="${filename%%.*}"
+          test_executable_name="${test_executable#run_}"
 
-          echo "Running tests for suite: ${test_executable}"
+          echo "Running tests for suite: ${test_executable_name}"
 
           test_filter="*"
-          test_filter_json_file="${RESOLVED_FILTER_DIR}/${test_executable}_filter.json"
+          # Try shard-specific filter file first, then fall back to global filter file.
+          test_filter_json_file="${RESOLVED_FILTER_DIR}/${test_executable_name}_${GTEST_SHARD_INDEX}_filter.json"
+          if [ ! -f "${test_filter_json_file}" ]; then
+            test_filter_json_file="${RESOLVED_FILTER_DIR}/${test_executable_name}_filter.json"
+          fi
+
           if [ -f "${test_filter_json_file}" ]; then
             positive_filters=$(jq -r '.tests_to_run // [] | join(":")' "${test_filter_json_file}")
             negative_filters=$(jq -r '.failing_tests // [] | join(":")' "${test_filter_json_file}")
@@ -169,6 +175,7 @@ runs:
       shell: bash
       env:
         TEST_EXECUTABLES_JSON: ${{ inputs.test_executables_json }}
+        GTEST_SHARD_INDEX: ${{ matrix.shard }}
       run: |
         set -x
 
@@ -184,22 +191,35 @@ runs:
           # We use the test executable's base name for naming its logs and results.
           test_executable_name="${test_executable#run_}"
 
+          test_filter="*"
+          # Try shard-specific filter file first, then fall back to global filter file.
+          test_filter_json_file="${RESOLVED_FILTER_DIR}/${test_executable_name}_${GTEST_SHARD_INDEX}_filter.json"
+          if [ ! -f "${test_filter_json_file}" ]; then
+            test_filter_json_file="${RESOLVED_FILTER_DIR}/${test_executable_name}_filter.json"
+          fi
+
+          if [ -f "${test_filter_json_file}" ] && jq -e '(.failing_tests // []) | any(. == "*")' "${test_filter_json_file}" >/dev/null 2>&1; then
+            test_filter="-*"
+          fi
+
           xml_path="${test_output}/${test_executable_name}_result.xml"
           log_path="${test_output}/${test_executable_name}_log.txt"
 
-          echo "Running tests for target: ${test_executable_name}"
-
-          # Run JUnit tests and generate JSON report, then convert to XML.
-          # TODO(b/524653685): Eventually refactor tests to output JSON natively and remove this XML conversion shortcut.
-          json_path="${test_output}/${test_executable_name}_result.json"
-          stdbuf -i0 -o0 -e0 ./${test_executable_path} --json-results-file="${json_path}" 2>&1 | tee ${log_path} || {
-            failed_suites="${failed_suites} ${test_executable_name}"
-            failed_suites="${failed_suites} ${test_executable}"
-          }
-          if [[ -f ${json_path} ]]; then
-            python3 ${GITHUB_WORKSPACE}/.github/scripts/convert_json_to_junit_xml.py "${json_path}" "${xml_path}"
+          if [ "${test_filter}" == "-*" ]; then
+            echo "Skipped due to test filter." > ${log_path}
           else
-            if [ -f "${log_path}" ]; then
+            echo "Running tests for target: ${test_executable_name}"
+
+            # Run JUnit tests and generate JSON report, then convert to XML.
+            # TODO(b/524653685): Eventually refactor tests to output JSON natively and remove this XML conversion shortcut.
+            json_path="${test_output}/${test_executable_name}_result.json"
+            stdbuf -i0 -o0 -e0 ./${test_executable_path} --json-results-file="${json_path}" 2>&1 | tee ${log_path} || {
+              failed_suites="${failed_suites} ${test_executable_name}"
+              failed_suites="${failed_suites} ${test_executable}"
+            }
+            if [[ -f ${json_path} ]]; then
+              python3 ${GITHUB_WORKSPACE}/.github/scripts/convert_json_to_junit_xml.py "${json_path}" "${xml_path}"
+            elif [ -f "${log_path}" ]; then
               python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
             fi
           fi

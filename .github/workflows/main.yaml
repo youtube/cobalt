@@ -905,7 +905,7 @@ jobs:
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
-      - name: Prepare Filter Directory
+      - name: Prepare test filters
         env:
           PLATFORM: ${{ matrix.platform }}
         run: |
@@ -975,11 +975,24 @@ jobs:
           shopt -s globstar nullglob
           xml_files=("results"/**/"${TEST_TARGET}"*.xml)
           if [ ${#xml_files[@]} -gt 0 ]; then
+            # Write a global filter file first (for fallback/non-sharded runners).
             python3 cobalt/tools/junit_mini_parser.py \
                 --mode generate-filter \
                 --target "${TEST_TARGET}" \
                 --output-dir "${GITHUB_WORKSPACE}/retry_filters_artifact/retry_filters" \
                 "${xml_files[@]}"
+
+            # Also write shard-specific filter files if they come from shards.
+            for xml_file in "${xml_files[@]}"; do
+              if [[ "${xml_file}" =~ /shard_([0-9]+)/ ]]; then
+                shard_suffix="_${BASH_REMATCH[1]}"
+                python3 cobalt/tools/junit_mini_parser.py \
+                    --mode generate-filter \
+                    --target "${TEST_TARGET}${shard_suffix}" \
+                    --output-dir "${GITHUB_WORKSPACE}/retry_filters_artifact/retry_filters" \
+                    "${xml_file}"
+              fi
+            done
           fi
         shell: bash
       - name: Upload Retry Filter

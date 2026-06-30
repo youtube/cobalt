@@ -19,6 +19,7 @@ standard library."""
 import argparse
 from typing import Dict, List, Tuple
 import collections
+import dataclasses
 import json
 import logging
 import os
@@ -26,8 +27,14 @@ import sys
 import xml.etree.ElementTree
 
 
+@dataclasses.dataclass
+class TestFailure:
+  name: str
+  message: str
+
+
 def find_failing_tests(
-    junit_xml_files: List[str]) -> Tuple[Dict[str, List[Tuple[str, str]]], int]:
+    junit_xml_files: List[str]) -> Tuple[Dict[str, List[TestFailure]], int]:
   """Parses a list of JUnit XML files to find failing test cases.
 
   Args:
@@ -35,8 +42,7 @@ def find_failing_tests(
 
   Returns:
     A tuple of:
-      - A map of test target -> list of (failing test name,
-        failure message) tuples.
+      - A map of test target -> list of TestFailure objects.
       - The number of XML files successfully parsed.
   """
   failing_tests = collections.defaultdict(list)
@@ -61,7 +67,8 @@ def find_failing_tests(
               case.attrib.get('message', '').strip() + '\n' +
               (case.text or '').strip() for case in failures + errors)
           rel_path = os.path.relpath(filename)
-          failing_tests[rel_path].append((f'{suite_name}.{test_name}', message))
+          failing_tests[rel_path].append(
+              TestFailure(name=f'{suite_name}.{test_name}', message=message))
   return failing_tests, num_parsed
 
 
@@ -108,8 +115,8 @@ def main(argv: List[str]) -> int:
     # Collect all unique failed tests.
     failed_test_names = set()
     for file_failures in failing_tests.values():
-      for test_name, _ in file_failures:
-        failed_test_names.add(test_name)
+      for failure in file_failures:
+        failed_test_names.add(failure.name)
 
     failed_test_names = sorted(list(failed_test_names))
 
@@ -137,10 +144,10 @@ def main(argv: List[str]) -> int:
     logging.info('Failing Tests:')
     for target, test_status in sorted(failing_tests.items()):
       logging.info('%s', target)
-      for test, message in sorted(test_status):
-        logging.info('[  FAILED  ] %s', test)
-        if message:
-          logging.info('%s', message)
+      for failure in sorted(test_status, key=lambda x: x.name):
+        logging.info('[  FAILED  ] %s', failure.name)
+        if failure.message:
+          logging.info('%s', failure.message)
       logging.info('')  # Blank line between targets
     return 1
 
