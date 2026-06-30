@@ -100,7 +100,7 @@
  | there is no bold font available and a bold weight (>500) is specified.
  |==============================================================================
  -->
-<familyset version="1">
+<familyset version="21">
     <!-- first family is default -->
     <family name="sans-serif">
         <font weight="100" style="normal" font_name="Roboto Thin" postscript_name="Roboto-Thin">Roboto-Thin.ttf</font>
@@ -130,6 +130,12 @@
     </family>
     <!-- Note that aliases must come after the fonts they reference. -->
     <alias name="roboto" to="sans-serif" />
+    <alias name="sans" to="sans-serif" />
+    <alias name="Sans" to="sans-serif" />
+    <alias name="arial" to="sans-serif" />
+    <alias name="Arial" to="sans-serif" />
+    <alias name="helvetica" to="sans-serif" />
+    <alias name="Helvetica" to="sans-serif" />
     <!-- This is the default font when Roboto is unavailable. -->
     <family pages="0">
         <font weight="400" style="normal">Roboto-Regular-Subsetted.ttf</font>
