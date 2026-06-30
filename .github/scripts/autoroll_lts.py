@@ -49,7 +49,7 @@ def get_commits(branch, start):
   """
   cmd = [
       'git', 'rev-list', '--oneline', '--no-abbrev-commit', '--reverse',
-      f'{start}^..{branch}'
+      f'{start}..{branch}'
   ]
   lines = get_out(cmd).splitlines()
 
