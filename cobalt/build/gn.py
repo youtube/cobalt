@@ -47,7 +47,8 @@ _BUILD_TYPES = {
         'symbol_level': 1,
         'is_official_build': 'true',
         'cobalt_is_release_build': 'true',
-        'enable_devtools_frontend': 'false'
+        'enable_devtools_frontend': 'false',
+        'enable_devtools_backend': 'false'
     }
 }
 

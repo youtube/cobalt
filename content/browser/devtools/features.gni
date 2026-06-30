@@ -8,4 +8,7 @@ declare_args() {
   # Android (non-desktop) and iOS don't support DevTools front-end.
   enable_devtools_frontend =
       (!is_android || is_desktop_android) && !is_ios && !is_fuchsia
+
+  # Controls whether the DevTools backend (debugging agent) is enabled.
+  enable_devtools_backend = true
 }

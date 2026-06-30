@@ -259,7 +259,10 @@ CoreProbeSink* WorkletGlobalScope::GetProbeSink() {
       return probe::ToCoreProbeSink(frame_);
     case ThreadType::kOffMainThread:
       DCHECK(worker_thread_);
-      return worker_thread_->GetWorkerInspectorController()->GetProbeSink();
+      if (auto* controller = worker_thread_->GetWorkerInspectorController()) {
+        return controller->GetProbeSink();
+      }
+      return nullptr;
   }
 }
 

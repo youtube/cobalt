@@ -293,7 +293,11 @@ component("core") {
   sources += rebase_path(blink_core_sources_html, "", "html")
   sources += rebase_path(blink_core_sources_imagebitmap, "", "imagebitmap")
   sources += rebase_path(blink_core_sources_input, "", "input")
-  sources += rebase_path(blink_core_sources_inspector, "", "inspector")
+  if (enable_devtools_backend) {
+    sources += rebase_path(blink_core_sources_inspector, "", "inspector")
+  } else {
+    sources += [ "inspector/inspector_stubs.cc" ]
+  }
   sources += rebase_path(blink_core_sources_intersection_observer,
                          "",
                          "intersection_observer")
