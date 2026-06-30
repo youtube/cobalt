@@ -88,7 +88,7 @@ documents to help porters customize configuration files and to implement
 module-specific functionality. The [Testing with NPLB](starboard/testing.md)
 document provides an overview of Starboard's compliance test suite.
 
-*   NOTE: Cobalt requires a compliant C++17 compiler.
+> Note: Cobalt requires a compliant C++17 compiler.
 
 ### Developers
 
