@@ -803,6 +803,8 @@ void SbPlayerBridge::CreatePlayer() {
 
     extension_features.allow_audio_writing_on_pause =
         experimental_features_.allow_audio_writing_on_pause;
+    extension_features.decoded_audio_buffer_pool =
+        experimental_features_.decoded_audio_buffer_pool;
     extension_features.enable_av1_startup_optimization =
         experimental_features_.enable_av1_startup_optimization;
     extension_features.enable_low_latency =
@@ -821,6 +823,8 @@ void SbPlayerBridge::CreatePlayer() {
         experimental_features_.skip_flush_on_decoder_teardown;
     extension_features.skip_video_frames_over_60_fps =
         experimental_features_.skip_video_frames_over_60_fps;
+    extension_features.video_frame_impl_pool =
+        experimental_features_.video_frame_impl_pool;
     extension_features.force_clear_surface_view =
         experimental_features_.force_clear_surface_view;
     extension_features.enable_trivial_optimizations =

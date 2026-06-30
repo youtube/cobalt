@@ -52,6 +52,8 @@ const char kH5vccSettingsKeyMediaAllowAudioWritingOnPause[] =
     "Media.AllowAudioWritingOnPause";
 const char kH5vccSettingsKeyMediaBypassMojoForMedia[] =
     "Media.BypassMojoForMedia";
+const char kH5vccSettingsKeyMediaDecodedAudioBufferPool[] =
+    "Media.DecodedAudioBufferPool";
 const char kH5vccSettingsKeyMediaEnableAv1StartupOptimization[] =
     "Media.EnableAv1StartupOptimization";
 // TODO: b/474454335 - Remove once seek experiment is done.
@@ -77,6 +79,8 @@ const char kH5vccSettingsKeyMediaIgnoreMediaCodecCallbacksDuringFlushing[] =
     "Media.IgnoreMediaCodecCallbacksDuringFlushing";
 const char kH5vccSettingsKeyMediaVideoDecoderInitialPrerollCount[] =
     "Media.VideoDecoderInitialPrerollCount";
+const char kH5vccSettingsKeyMediaVideoFrameImplPool[] =
+    "Media.VideoFrameImplPool";
 const char kH5vccSettingsKeyMediaVideoRendererMinInputBuffers[] =
     "Media.VideoRendererMinInputBuffers";
 const char kH5vccSettingsKeyMediaVideoRendererMinDecodedFrames[] =
@@ -214,6 +218,10 @@ ExperimentalFeatures ProcessH5vccSettings(
     parsed.bypass_mojo_for_media = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaDecodedAudioBufferPool)) {
+    parsed.decoded_audio_buffer_pool = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableAv1StartupOptimization)) {
     parsed.enable_av1_startup_optimization = *val != 0;
   }
@@ -266,6 +274,10 @@ ExperimentalFeatures ProcessH5vccSettings(
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaSkipVideoFramesOver60Fps)) {
     parsed.skip_video_frames_over_60_fps = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaVideoFrameImplPool)) {
+    parsed.video_frame_impl_pool = *val != 0;
   }
 
   parsed.video_decoder_initial_preroll_count = ProcessRangedIntH5vccSetting(
