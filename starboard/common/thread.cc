@@ -68,7 +68,7 @@ struct Thread::Data {
   Semaphore join_sema_;
 };
 
-std::optional<size_t> GetOverriddenStackSize() {
+std::optional<size_t> GetDefaultStackSize() {
 #if BUILDFLAG(IS_ANDROID)
   if (features::FeatureList::IsEnabled(
           features::kReduceStarboardThreadStackSize)) {
@@ -82,7 +82,7 @@ Thread::Thread(std::string_view name, const ThreadOptions& options)
     : name_(name),
       priority_(options.priority),
       stack_size_(options.stack_size ? options.stack_size
-                                     : GetOverriddenStackSize()),
+                                     : GetDefaultStackSize()),
       d_(std::make_unique<Data>()) {}
 
 Thread::~Thread() {

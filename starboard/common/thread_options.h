@@ -74,10 +74,6 @@ struct ThreadOptions {
     priority = priority_in;
     return *this;
   }
-  ThreadOptions& SetStackSize(size_t stack_size_in) {
-    stack_size = stack_size_in;
-    return *this;
-  }
 
   std::optional<ThreadPriority> priority;
   std::optional<size_t> stack_size;
