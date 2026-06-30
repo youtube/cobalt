@@ -112,6 +112,15 @@ class ZstdFileImpl : public FileImpl {
   size_t compressed_data_size_;
 
   // Persistent Thread Pool state
+
+  // This value is based on the 2028 HW requirement that devices have at least
+  // four CPU cores, and our desire to smoothly parallelize decompression across
+  // those cores.
+  // TODO: b/497012299 - Consider sizing the thread pool at runtime based on
+  // SbSystemGetNumberOfProcessors(), optionally with some sensible upper and
+  // lower bounds. If devices have fewer than four available cores, we may be
+  // incurring some unnecessary synchronization overhead; if devices have more
+  // than four available cores, we may be under utilizing them.
   static constexpr int kNumWorkers = 4;
   std::vector<pthread_t> workers_;
   std::mutex worker_mutex_;
