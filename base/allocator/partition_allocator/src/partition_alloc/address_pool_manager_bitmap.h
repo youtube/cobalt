@@ -74,8 +74,8 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) AddressPoolManagerBitmap {
   // ends, as this is a BackupRefPtr-specific concern, hence no need to lower
   // the granularity to partition page size.
 #if PA_BUILDFLAG(IS_ANDROID)
-  static constexpr size_t kBitShiftOfRegularPoolBitmap = 14;
-  static constexpr size_t kBytesPer1BitOfRegularPoolBitmap = 16384;
+  static constexpr size_t kBitShiftOfRegularPoolBitmap = 12;
+  static constexpr size_t kBytesPer1BitOfRegularPoolBitmap = 4096;
 #else
   static constexpr size_t kBitShiftOfRegularPoolBitmap =
       DirectMapAllocationGranularityShift();
