@@ -14,6 +14,8 @@
 
 static_library("features") {
   sources = [
+    "command_line_preprocessor.cc",
+    "command_line_preprocessor.h",
     "feature_list.cc",
     "feature_list.h",
     "features.cc",
@@ -34,6 +36,7 @@ source_set("starboard_test") {
   testonly = true
 
   sources = [
+    "command_line_preprocessor_test.cc",
     "feature_list_test.cc",
     "features_extension_test.cc",
   ]
