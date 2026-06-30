@@ -75,6 +75,7 @@ class Thread {
  private:
   const std::string name_;
   const std::optional<ThreadPriority> priority_;
+  const std::optional<size_t> stack_size_;
   struct Data;
   const std::unique_ptr<Data> d_;
 
