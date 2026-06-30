@@ -27,6 +27,7 @@ public class JavaSwitches {
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
   public static final String STARTUP_GUARD_INTERVAL_IN_SECONDS = "StartupGuardIntervalInSeconds";
   public static final String DISABLE_HTTP_CACHE = "DisableHttpCache";
+  public static final String ENABLE_OPTIMIZED_FONT_LOADING = "EnableOptimizedFontLoading";
 
   /** flag to re-enable freeze and resume events */
   public static final String ENABLE_FREEZE = "EnableFreeze";
@@ -172,6 +173,10 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_FONT_SRC_LOCAL_MATCHING)) {
       extraCommandLineArgs.add("--disable-features=FontSrcLocalMatching");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_OPTIMIZED_FONT_LOADING)) {
+      extraCommandLineArgs.add("--enable-optimized-font-loading");
     }
 
     if (jsFlags.length() > 0 ) {
