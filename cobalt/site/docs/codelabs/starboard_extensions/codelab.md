@@ -11,8 +11,11 @@ This tutorial uses coding exercises to guide you through creating a simple
 Starboard Extension.
 
 By the end, you will learn:
+
 * What Starboard Extensions are and when to use them.
+
 * How to write Starboard Extensions.
+
 * How to collaborate with the Cobalt team to contribute your extensions to the repository.
 
 ## Prerequisites
