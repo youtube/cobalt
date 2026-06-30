@@ -55,11 +55,11 @@ TEST(FixedBlockPoolTest, BasicAllocationAndFree) {
     ASSERT_NE(ptr, nullptr);
     allocated_blocks.push_back(ptr);
   }
-  EXPECT_EQ(pool.GetInfoForTesting().free_blocks, 0);
+  EXPECT_EQ(pool.GetInfoForTesting().free_blocks, 0U);
 
   // 2. Try to allocate one more. Should return nullptr (exhausted).
   EXPECT_EQ(pool.TryAllocate(), nullptr);
-  EXPECT_EQ(pool.GetInfoForTesting().free_blocks, 0);
+  EXPECT_EQ(pool.GetInfoForTesting().free_blocks, 0U);
 
   // 3. Freeing nullptr should return false.
   EXPECT_FALSE(pool.TryFree(nullptr));
@@ -183,22 +183,22 @@ TEST(PooledAllocatorTest, SinglePoolFallbackBehavior) {
   const size_t kTotalBlocks = 2;
 
   PooledAllocator allocator("TestPool", kBlockSize, kTotalBlocks);
-  ASSERT_EQ(allocator.pools_for_testing().size(), 1);
+  ASSERT_EQ(allocator.pools_for_testing().size(), 1U);
   const FixedBlockPool& pool = *allocator.pools_for_testing()[0];
 
   // 1. Should allocate from pool.
   void* pool_ptr1 = allocator.Allocate(kBlockSize);
   ASSERT_NE(pool_ptr1, nullptr);
-  EXPECT_EQ(pool.GetInfoForTesting().free_blocks, 1);
+  EXPECT_EQ(pool.GetInfoForTesting().free_blocks, 1U);
 
   void* pool_ptr2 = allocator.Allocate(kBlockSize);
   ASSERT_NE(pool_ptr2, nullptr);
-  EXPECT_EQ(pool.GetInfoForTesting().free_blocks, 0);
+  EXPECT_EQ(pool.GetInfoForTesting().free_blocks, 0U);
 
   // 2. Pool is full. Should fallback to heap.
   void* fallback_ptr = allocator.Allocate(kBlockSize);
   ASSERT_NE(fallback_ptr, nullptr);
-  EXPECT_EQ(pool.GetInfoForTesting().free_blocks, 0);
+  EXPECT_EQ(pool.GetInfoForTesting().free_blocks, 0U);
 
   // 3. Oversized allocation. Should fallback to heap.
   void* oversized_ptr = allocator.Allocate(kBlockSize * 2);
@@ -206,15 +206,15 @@ TEST(PooledAllocatorTest, SinglePoolFallbackBehavior) {
 
   // 4. Free everything.
   allocator.Free(fallback_ptr);  // heap
-  EXPECT_EQ(pool.GetInfoForTesting().free_blocks, 0);
+  EXPECT_EQ(pool.GetInfoForTesting().free_blocks, 0U);
 
   allocator.Free(oversized_ptr);  // heap
 
   allocator.Free(pool_ptr1);  // pool
-  EXPECT_EQ(pool.GetInfoForTesting().free_blocks, 1);
+  EXPECT_EQ(pool.GetInfoForTesting().free_blocks, 1U);
 
   allocator.Free(pool_ptr2);  // pool
-  EXPECT_EQ(pool.GetInfoForTesting().free_blocks, 2);
+  EXPECT_EQ(pool.GetInfoForTesting().free_blocks, 2U);
 }
 
 TEST(PooledAllocatorTest, N_TieredRoutingAndNoFallback) {
@@ -229,7 +229,7 @@ TEST(PooledAllocatorTest, N_TieredRoutingAndNoFallback) {
       {"Pool_Large", kLargeBlockSize, kLargeTotalBlocks},
       {"Pool_Small", kSmallBlockSize, kSmallTotalBlocks}});
 
-  ASSERT_EQ(allocator.pools_for_testing().size(), 2);
+  ASSERT_EQ(allocator.pools_for_testing().size(), 2U);
   // Verification that they were sorted ascending by block size:
   const FixedBlockPool& small_pool = *allocator.pools_for_testing()[0];
   const FixedBlockPool& large_pool = *allocator.pools_for_testing()[1];
@@ -239,40 +239,40 @@ TEST(PooledAllocatorTest, N_TieredRoutingAndNoFallback) {
   // 1. Allocate small block (should go to small pool).
   void* small_ptr1 = allocator.Allocate(10);
   ASSERT_NE(small_ptr1, nullptr);
-  EXPECT_EQ(small_pool.GetInfoForTesting().free_blocks, 1);
-  EXPECT_EQ(large_pool.GetInfoForTesting().free_blocks, 2);
+  EXPECT_EQ(small_pool.GetInfoForTesting().free_blocks, 1U);
+  EXPECT_EQ(large_pool.GetInfoForTesting().free_blocks, 2U);
 
   // 2. Allocate another small block (fills small pool).
   void* small_ptr2 = allocator.Allocate(16);
   ASSERT_NE(small_ptr2, nullptr);
-  EXPECT_EQ(small_pool.GetInfoForTesting().free_blocks, 0);
+  EXPECT_EQ(small_pool.GetInfoForTesting().free_blocks, 0U);
 
   // 3. Allocate third small block. Small pool is exhausted, and since we use
   // strict routing, it should NOT overflow into the large pool. It must
   // fallback to the heap directly.
   void* small_fallback_ptr = allocator.Allocate(8);
   ASSERT_NE(small_fallback_ptr, nullptr);
-  EXPECT_EQ(small_pool.GetInfoForTesting().free_blocks, 0);
+  EXPECT_EQ(small_pool.GetInfoForTesting().free_blocks, 0U);
   EXPECT_EQ(large_pool.GetInfoForTesting().free_blocks,
-            2);  // Large pool remains untouched!
+            2U);  // Large pool remains untouched!
 
   // 4. Allocate large block (should go to large pool).
   void* large_ptr1 = allocator.Allocate(100);
   ASSERT_NE(large_ptr1, nullptr);
-  EXPECT_EQ(large_pool.GetInfoForTesting().free_blocks, 1);
+  EXPECT_EQ(large_pool.GetInfoForTesting().free_blocks, 1U);
 
   // Free everything.
   allocator.Free(small_ptr1);
-  EXPECT_EQ(small_pool.GetInfoForTesting().free_blocks, 1);
+  EXPECT_EQ(small_pool.GetInfoForTesting().free_blocks, 1U);
 
   allocator.Free(small_ptr2);
-  EXPECT_EQ(small_pool.GetInfoForTesting().free_blocks, 2);
+  EXPECT_EQ(small_pool.GetInfoForTesting().free_blocks, 2U);
 
   allocator.Free(small_fallback_ptr);  // heap
-  EXPECT_EQ(small_pool.GetInfoForTesting().free_blocks, 2);
+  EXPECT_EQ(small_pool.GetInfoForTesting().free_blocks, 2U);
 
   allocator.Free(large_ptr1);
-  EXPECT_EQ(large_pool.GetInfoForTesting().free_blocks, 2);
+  EXPECT_EQ(large_pool.GetInfoForTesting().free_blocks, 2U);
 }
 
 }  // namespace
