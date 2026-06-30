@@ -234,6 +234,7 @@ def main():
     if result in (CherryPickStatus.SUCCESS, CherryPickStatus.CONFLICTED):
       commits_added.append(identifier)
       if result == CherryPickStatus.CONFLICTED:
+        commits_added.append('')
         commits_added.append('CONFLICTED files:')
         commits_added.append('```')
         commits_added.extend(unmerged_files)
