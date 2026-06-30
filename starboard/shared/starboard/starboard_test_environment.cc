@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_FEATURES_EXTENSION_H_
-#define STARBOARD_ANDROID_SHARED_FEATURES_EXTENSION_H_
+#include "starboard/shared/starboard/starboard_test_environment.h"
+
+#include <mutex>
+
+#include "starboard/shared/starboard/features_test_util.h"
 
 namespace starboard {
 
-// Starboard extension function to receive the Starboard
-// FeaturesAPI.
-const void* GetFeaturesApi();
+StarboardTestEnvironment::StarboardTestEnvironment() = default;
 
+StarboardTestEnvironment::~StarboardTestEnvironment() = default;
+
+void StarboardTestEnvironment::SetUp() {
+  static std::once_flag s_flag;
+  std::call_once(
+      s_flag, [] { features::InitializeStarboardFeatureListWithDefaults(); });
+}
 }  // namespace starboard
-
-#endif  // STARBOARD_ANDROID_SHARED_FEATURES_EXTENSION_H_

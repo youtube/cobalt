@@ -19,9 +19,11 @@
 #include "build/build_config.h"
 #include "starboard/common/string.h"
 #include "starboard/extension/configuration.h"
+#include "starboard/extension/features.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/raspi/shared/configuration.h"
 #include "starboard/raspi/shared/graphics.h"
+#include "starboard/shared/starboard/features_extension.h"
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "starboard/elf_loader/evergreen_config.h"
@@ -63,5 +65,8 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::GetLoaderAppMetricsApi();
   }
 #endif
+  if (strcmp(name, kStarboardExtensionFeaturesName) == 0) {
+    return starboard::GetFeaturesApi();
+  }
   return NULL;
 }

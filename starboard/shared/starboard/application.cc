@@ -15,7 +15,9 @@
 #include "starboard/shared/starboard/application.h"
 
 #include <atomic>
+#include <memory>
 #include <string>
+#include <vector>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/command_line.h"
@@ -23,6 +25,7 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/event.h"
+#include "starboard/shared/starboard/command_line_preprocessor.h"
 
 namespace starboard {
 
@@ -80,6 +83,7 @@ Application* Application::Get() {
 
 int Application::Run(CommandLine command_line, const char* link_data) {
   Initialize();
+  ConvertDeprecatedSwitches(&command_line);
   command_line_.reset(new CommandLine(command_line));
   if (link_data) {
     SetStartLink(link_data);
@@ -90,6 +94,7 @@ int Application::Run(CommandLine command_line, const char* link_data) {
 
 int Application::Run(CommandLine command_line) {
   Initialize();
+  ConvertDeprecatedSwitches(&command_line);
   command_line_.reset(new CommandLine(command_line));
 
   if (command_line_->HasSwitch(kLinkSwitch)) {
@@ -115,10 +120,6 @@ int Application::Run(CommandLine command_line) {
   }
 
   return RunLoop();
-}
-
-const CommandLine* Application::GetCommandLine() {
-  return command_line_.get();
 }
 
 void Application::Blur(void* context, EventHandledCallback callback) {
@@ -194,6 +195,17 @@ void Application::HandleFrame(SbPlayer player,
                               int z_index,
                               const Rect& rect) {
   AcceptFrame(player, frame, z_index, rect);
+}
+
+void Application::SetCommandLine(int argc, const char** argv) {
+  auto command_line = std::make_unique<CommandLine>(argc, argv);
+  ConvertDeprecatedSwitches(command_line.get());
+  command_line_ = std::move(command_line);
+}
+
+void Application::SetCommandLine(std::unique_ptr<CommandLine> command_line) {
+  ConvertDeprecatedSwitches(command_line.get());
+  command_line_ = std::move(command_line);
 }
 
 void Application::SetStartLink(const char* start_link) {
