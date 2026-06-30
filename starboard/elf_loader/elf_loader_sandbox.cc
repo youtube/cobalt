@@ -28,6 +28,7 @@
 #include "starboard/elf_loader/evergreen_info.h"
 #include "starboard/elf_loader/sabi_string.h"
 #include "starboard/event.h"
+#include "starboard/shared/starboard/feature_defaults.h"
 
 elf_loader::ElfLoader g_elf_loader;
 
@@ -135,5 +136,6 @@ void SbEventHandle(const SbEvent* event) {
 }
 
 int main(int argc, char** argv) {
+  starboard::features::InitializeStarboardFeatureListWithDefaults();
   return SbRunStarboardMain(argc, argv, SbEventHandle);
 }

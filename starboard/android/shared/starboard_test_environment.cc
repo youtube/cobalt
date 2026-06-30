@@ -14,7 +14,7 @@
 
 #include "starboard/android/shared/starboard_test_environment.h"
 
-#include "starboard/shared/starboard/features_test_util.h"
+#include "starboard/shared/starboard/feature_defaults.h"
 
 namespace starboard {
 

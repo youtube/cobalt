@@ -80,6 +80,8 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/drm/drm_update_session.cc",
     "//starboard/shared/starboard/experimental_features.cc",
     "//starboard/shared/starboard/experimental_features.h",
+    "//starboard/shared/starboard/feature_defaults.cc",
+    "//starboard/shared/starboard/feature_defaults.h",
     "//starboard/shared/starboard/file_storage/storage_close_record.cc",
     "//starboard/shared/starboard/file_storage/storage_delete_record.cc",
     "//starboard/shared/starboard/file_storage/storage_get_record_size.cc",
@@ -399,8 +401,6 @@ static_library("test_support") {
   ]
 
   sources = [
-    "//starboard/shared/starboard/features_test_util.cc",
-    "//starboard/shared/starboard/features_test_util.h",
     "fake_audio_track.cc",
     "fake_audio_track.h",
     "fake_media_codec.cc",
