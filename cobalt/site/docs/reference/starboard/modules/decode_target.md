@@ -346,7 +346,7 @@ static void SbDecodeTargetReleaseInGlesContext(SbDecodeTargetGraphicsContextProv
 
 Inline convenience function to run an arbitrary
 SbDecodeTargetGlesContextRunnerTarget function through a
-SbDecodeTargetGraphicsContextProvider . This is intended to be called by
+SbDecodeTargetGraphicsContextProvider. This is intended to be called by
 Starboard implementations, if it is necessary.
 
 #### Declaration
