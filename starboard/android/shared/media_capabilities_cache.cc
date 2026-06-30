@@ -364,6 +364,11 @@ bool MediaCapabilitiesCache::IsAv18kCappedAt30() {
   return is_av1_8k_capped_at_30_;
 }
 
+bool MediaCapabilitiesCache::IsAppProvisioningEnabled() {
+  return FeatureList::IsEnabled(features::kEnableAppProvisioning) ||
+         is_app_provisioning_enabled_;
+}
+
 bool MediaCapabilitiesCache::GetAudioConfiguration(
     int index,
     SbMediaAudioConfiguration* configuration) {

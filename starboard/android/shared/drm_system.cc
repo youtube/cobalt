@@ -20,6 +20,7 @@
 #include <utility>
 
 #include "starboard/android/shared/drm_session_id_mapper.h"
+#include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/common/instance_counter.h"
@@ -75,7 +76,7 @@ DrmSystem::DrmSystem(PassKey<DrmSystem>,
     : Thread("DrmSystemThread"),
       key_system_(key_system),
       enable_app_provisioning_(
-          features::FeatureList::IsEnabled(features::kEnableAppProvisioning)),
+          MediaCapabilitiesCache::GetInstance()->IsAppProvisioningEnabled()),
       context_(context),
       callbacks_(callbacks),
       hdcp_lost_(false),
