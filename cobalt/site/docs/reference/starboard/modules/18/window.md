@@ -37,8 +37,8 @@ Options that can be requested at window creation time.
     ignored.
 *   `bool windowed`
 
-    Specifies whether the new window is windowed. If `false` false , the
-    requested size represents the requested resolution.
+    Specifies whether the new window is windowed. If `false` , the requested
+    size represents the requested resolution.
 *   `const char * name`
 
     The name of the window to create.
@@ -73,16 +73,16 @@ drawing.
     Values less than 1.0f mean that the maximum video resolution is smaller than
     the graphics resolution.
 
-    A value of `0.0f` 0.0f means the ratio cannot be determined; it is assumed
-    to be the same as the graphics resolution (i.e., `1.0f` 1.0f ).
+    A value of `0.0f` means the ratio cannot be determined; it is assumed to be
+    the same as the graphics resolution (i.e., `1.0f` ).
 
 ## Functions
 
 ### SbWindowCreate
 
 Creates and returns a new system window with the specified `options` (which can
-be `NULL` NULL ). Returns `kSbWindowInvalid` if the window cannot be created due
-to policy, unsatisfiable options, or other reasons.
+be `NULL` ). Returns `kSbWindowInvalid` if the window cannot be created due to
+policy, unsatisfiable options, or other reasons.
 
 If `options` are not specified, the function uses default values that must work
 on all platforms. By default, it creates a fullscreen window at the highest
@@ -122,7 +122,7 @@ bool SbWindowDestroy(SbWindow window)
 
 Gets the size of the diagonal between two opposing screen corners.
 
-Returns `0` 0 if Starboard cannot determine the screen diagonal.
+Returns `0` if Starboard cannot determine the screen diagonal.
 
 #### Declaration
 
@@ -133,8 +133,8 @@ float SbWindowGetDiagonalSizeInInches(SbWindow window)
 ### SbWindowGetPlatformHandle
 
 Gets the platform-specific handle for `window`, which can be passed as an
-`EGLNativeWindowType` EGLNativeWindowType to initialize EGL/GLES. The return
-value is platform-specific, with no constraints on expected ranges.
+`EGLNativeWindowType` to initialize EGL/GLES. The return value is platform-
+specific, with no constraints on expected ranges.
 
 *   `window`: The `SbWindow` to query.
 
@@ -147,8 +147,7 @@ void * SbWindowGetPlatformHandle(SbWindow window)
 ### SbWindowGetSize
 
 Retrieves the dimensions of `window` and writes them to `size`. Returns `true`
-true if successful; otherwise, returns `false` false and leaves `size`
-unchanged.
+if successful; otherwise, returns `false` and leaves `size` unchanged.
 
 *   `window`: The `SbWindow` to query.
 
@@ -175,7 +174,7 @@ static bool SbWindowIsValid(SbWindow window)
 Sets the default options for system windows in `options`.
 
 *   `options`: The destination buffer for the default options. Must not be
-    `NULL` NULL .
+    `NULL` .
 
 #### Declaration
 

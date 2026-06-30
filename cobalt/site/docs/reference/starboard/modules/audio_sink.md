@@ -54,14 +54,14 @@ first two output parameters indicate the fill level of the audio frame buffer
 passed to `SbAudioSinkCreate` as `frame_buffers`. Because `frame_buffers` is a
 circular buffer, use `offset_in_frames` to calculate the number of continuous
 frames towards the end of the buffer. The audio sink can play the frames only
-when `is_playing` is `true` true . It should pause playback when `is_playing` is
-`false` false . The audio sink may cache a certain amount of audio frames before
+when `is_playing` is `true` . It should pause playback when `is_playing` is
+`false` . The audio sink may cache a certain amount of audio frames before
 starting playback. It starts playback immediately when `is_eos_reached` is
-`true` true , even if there are not enough cached audio frames, because no more
+`true` , even if there are not enough cached audio frames, because no more
 frames will be appended to the buffer. The host can set `is_eos_reached` to
-`false` false after setting it to `true` true (typically due to a seek). All
-parameters except `context` must not be `NULL` NULL . This function only reports
-source status; it does not remove audio data from the source frame buffer.
+`false` after setting it to `true` (typically due to a seek). All parameters
+except `context` must not be `NULL` . This function only reports source status;
+it does not remove audio data from the source frame buffer.
 
 #### Definition
 
@@ -82,7 +82,7 @@ If the platform does not support the requested audio sink, the function returns
 coexisting audio sinks is exceeded, this function returns `kSbAudioSinkInvalid`.
 Multiple calls to `SbAudioSinkCreate` must not cause a crash.
 
-*   `channels`: The number of audio channels (for example, `2` 2 for stereo).
+*   `channels`: The number of audio channels (for example, `2` for stereo).
 
 *   `sampling_frequency_hz`: The sample frequency of the audio data being
     streamed. For example, 22,000 Hz means 22,000 sample elements represent one
@@ -112,10 +112,10 @@ Multiple calls to `SbAudioSinkCreate` must not cause a crash.
 *   `update_source_status_func`: A callback invoked by the audio sink on an
     internal thread to query the status of the source. It is called immediately
     during `SbAudioSinkCreate` (before it returns). The caller must ensure that
-    the callback returns meaningful values. Must not be `NULL` NULL .
+    the callback returns meaningful values. Must not be `NULL` .
 
 *   `consume_frames_func`: A callback invoked by the audio sink on an internal
-    thread to report consumed frames. Must not be `NULL` NULL .
+    thread to report consumed frames. Must not be `NULL` .
 
 *   `context`: An opaque value passed to all callbacks, typically pointing to
     state associated with the audio sink.
@@ -148,7 +148,7 @@ void SbAudioSinkDestroy(SbAudioSink audio_sink)
 ### SbAudioSinkGetMaxChannels
 
 Returns the maximum number of channels supported on the platform. For example,
-the number would be `2` 2 if the platform only supports stereo.
+the number would be `2` if the platform only supports stereo.
 
 #### Declaration
 
@@ -159,7 +159,7 @@ int SbAudioSinkGetMaxChannels()
 ### SbAudioSinkGetMinBufferSizeInFrames
 
 Returns the minimum frames required by the audio sink to play without
-underflows. Returns `-1` -1 if `channels`, `sample_type`, or
+underflows. Returns `-1` if `channels`, `sample_type`, or
 `sampling_frequency_hz` is not supported. The caller must ensure that enough
 frames are written to the audio sink during playback to prevent underflows.
 

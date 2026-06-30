@@ -22,9 +22,8 @@ during a single execution. They often dictate specific behaviors of other APIs.
 *   `kSbSystemCapabilityCanQueryGPUMemoryStats`
 
     Indicates whether the system can report GPU memory usage. You can only call
-    `SbSystemGetTotalGPUMemory()` SbSystemGetTotalGPUMemory() and
-    `SbSystemGetUsedGPUMemory()` SbSystemGetUsedGPUMemory() if this capability
-    is present.
+    `SbSystemGetTotalGPUMemory()` and `SbSystemGetUsedGPUMemory()` if this
+    capability is present.
 
 ### SbSystemDeviceType
 
@@ -100,7 +99,6 @@ Enumerates special paths that the platform can define.
     Path to the directory dedicated to Evergreen permanent file storage.
     Requires both read and write access. Use this directory only to store
     updates. See `starboard/doc/evergreen/cobalt_evergreen_overview.md`
-    starboard/doc/evergreen/cobalt_evergreen_overview.md
 *   `kSbSystemPathFilesDirectory`
 
     Path to the directory for permanent files. Used for cookies and
@@ -185,12 +183,11 @@ User-Agent string.
 
     The Advertising ID or Identifier for Advertising (IFA), typically a 128-bit
     UUID. See [IAB Tech Lab](https://iabtechlab.com/OTT-IFA) for details. This
-    corresponds to the `ifa` ifa field. Note: the `ifa_type` ifa_type field is
-    not provided.
+    corresponds to the `ifa` field. Note: the `ifa_type` field is not provided.
 *   `kSbSystemPropertyLimitAdTracking`
 
     Limits advertising tracking, treated as a boolean (non-zero indicates true).
-    Corresponds to the `lmt` lmt field.
+    Corresponds to the `lmt` field.
 *   `kSbSystemPropertyDeviceType`
 
     The device type, such as "TV", "STB", or "OTT". See the YouTube Technical
@@ -201,13 +198,13 @@ User-Agent string.
 ### SbSystemComparator
 
 Pointer to a function that compares two items. The return value uses standard
-`strcmp` strcmp -like semantics:
+`strcmp` -like semantics:
 
-*   `< 0` < 0 if `a` is less than `b`
+*   `< 0` if `a` is less than `b`
 
-*   `0` 0 if the two items are equal
+*   `0` if the two items are equal
 
-*   `> 1` > 1 if `a` is greater than `b`
+*   `> 1` if `a` is greater than `b`
 
 *   `a`: The first value to compare.
 
@@ -273,7 +270,7 @@ length of the generated string.
 *   `error`: The error for which to generate a string.
 
 *   `out_string`: The destination buffer for the generated string. This can be
-    `NULL` NULL . The output is always null-terminated.
+    `NULL` . The output is always null-terminated.
 
 *   `string_length`: The maximum length of the error string.
 
@@ -287,19 +284,18 @@ int SbSystemGetErrorString(SbSystemError error, char *out_string, int string_len
 
 Returns a pointer to the constant global structure implementing the extension
 specified by `name`. If the extension is not implemented, the function returns
-`NULL` NULL . The `name` parameter must not be `NULL` NULL .
+`NULL` . The `name` parameter must not be `NULL` .
 
 Extensions implement behaviors specific to a particular application and platform
 combination. They rely on a header file in the application's `extension/`
-extension/ subdirectory to define the extension API structure. Because this
-header is used both by the application and the Starboard platform, it must not
-include any application-level headers. It can, however, depend on Starboard
-headers.
+subdirectory to define the extension API structure. Because this header is used
+both by the application and the Starboard platform, it must not include any
+application-level headers. It can, however, depend on Starboard headers.
 
 The API structure must begin with two required fields: a `const char* name`
-const char* name (storing the extension name) and a `uint32_t version` uint32_t
-version (storing the extension version). Remaining fields can be C types
-(including custom structures) or function pointers.
+(storing the extension name) and a `uint32_t version` (storing the extension
+version). Remaining fields can be C types (including custom structures) or
+function pointers.
 
 The application queries for the extension by name using `SbSystemGetExtension`,
 and the platform returns a pointer to a singleton structure instance. This
@@ -331,11 +327,11 @@ Gets the system's current POSIX-style locale ID. The locale represents the
 location, language, and cultural conventions of the system, which determine how
 text is displayed and how numbers, dates, and currency are formatted.
 
-At its simplest, the locale ID can be a BCP 47 language code, such as `en_US`
-en_US . POSIX also includes the encoding (for example, `en_US.UTF8` en_US.UTF8
-). POSIX allows basic locales like "C" or "POSIX", but Starboard does not
-support them. While POSIX supports different locale settings for various
-purposes, Starboard exposes only one locale at a time.
+At its simplest, the locale ID can be a BCP 47 language code, such as `en_US` .
+POSIX also includes the encoding (for example, `en_US.UTF8` ). POSIX allows
+basic locales like "C" or "POSIX", but Starboard does not support them. While
+POSIX supports different locale settings for various purposes, Starboard exposes
+only one locale at a time.
 
 RFC 5646 describes BCP 47 language codes: [https://tools.ietf.org/html/bcp47](https://tools.ietf.org/html/bcp47)
 
@@ -366,8 +362,8 @@ places its value as a null-terminated string into the user-allocated `out_value`
 (unless the value is longer than `value_length` - 1). This implementation must
 be thread-safe.
 
-This function returns `true` true if the property is retrieved successfully. It
-returns `false` false under any of the following conditions, leaving `out_value`
+This function returns `true` if the property is retrieved successfully. It
+returns `false` under any of the following conditions, leaving `out_value`
 unchanged:
 
 *   `property_id` is invalid for this platform
@@ -395,7 +391,7 @@ random bytes and places them in `out_buffer`. This function does not require
 manual seeding.
 
 *   `out_buffer`: The destination buffer for the generated random bytes. Must
-    not be `NULL` NULL .
+    not be `NULL` .
 
 *   `buffer_size`: The number of random bytes to generate.
 
@@ -408,8 +404,8 @@ void SbSystemGetRandomData(void *out_buffer, int buffer_size)
 ### SbSystemGetRandomUInt64
 
 A cryptographically secure random number generator that generates 64 random bits
-and returns them as a `uint64_t` uint64_t . This function does not require
-manual seeding.
+and returns them as a `uint64_t` . This function does not require manual
+seeding.
 
 #### Declaration
 
@@ -431,7 +427,7 @@ signal-safe on platforms that support signals. The following document discusses
 what it means to be async-signal-safe on POSIX: [http://pubs.opengroup.org/onlinepubs/009695399/functions/xsh_chap02_04.html#tag_02_04_03](http://pubs.opengroup.org/onlinepubs/009695399/functions/xsh_chap02_04.html#tag_02_04_03)
 
 *   `out_stack`: A buffer to store the instruction pointer addresses. Must not
-    be `NULL` NULL and must hold at least `stack_size` entries.
+    be `NULL` and must hold at least `stack_size` entries.
 
 *   `stack_size`: The maximum number of instruction pointer addresses to
     retrieve.
@@ -458,9 +454,8 @@ int64_t SbSystemGetTotalCPUMemory()
 
 Returns the total GPU memory (in bytes) available to the application. This
 function can only be called if
-`SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)`
-SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats) returns `true`
-true .
+`SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)` returns
+`true` .
 
 #### Declaration
 
@@ -471,8 +466,7 @@ int64_t SbSystemGetTotalGPUMemory()
 ### SbSystemGetUsedCPUMemory
 
 Returns the total physical CPU memory (in bytes) used by this application. This
-value should always be less than or equal to `SbSystemGetTotalCPUMemory()`
-SbSystemGetTotalCPUMemory() .
+value should always be less than or equal to `SbSystemGetTotalCPUMemory()` .
 
 #### Declaration
 
@@ -484,9 +478,8 @@ int64_t SbSystemGetUsedCPUMemory()
 
 Returns the amount of GPU memory (in bytes) used by the application. This
 function can only be called if
-`SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)`
-SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats) returns `true`
-true .
+`SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)` returns
+`true` .
 
 #### Declaration
 
@@ -497,8 +490,8 @@ int64_t SbSystemGetUsedGPUMemory()
 ### SbSystemHasCapability
 
 Returns whether the platform supports the runtime capability specified by
-`capability_id`. Returns `false` false for unknown capabilities. This
-implementation must be thread-safe.
+`capability_id`. Returns `false` for unknown capabilities. This implementation
+must be thread-safe.
 
 *   `capability_id`: The runtime capability to check.
 
@@ -522,7 +515,7 @@ void SbSystemHideSplashScreen()
 ### SbSystemIsDebuggerAttached
 
 Determines whether the program is running inside or attached to a debugger.
-Returns `false` false otherwise.
+Returns `false` otherwise.
 
 #### Declaration
 
@@ -548,8 +541,7 @@ Called by Cobalt to notify the platform of an application error that may require
 platform handling. The platform should notify the user and provide necessary
 interaction (for example, by showing a dialog).
 
-Returns `true` true if the platform handles the error; otherwise, returns
-`false` false .
+Returns `true` if the platform handles the error; otherwise, returns `false` .
 
 This function can be called from any thread. The platform must decide how to
 handle concurrent errors. If it can only handle one error at a time, it can
@@ -569,13 +561,13 @@ bool SbSystemRaisePlatformError(SbSystemPlatformErrorType type, SbSystemPlatform
 
 ### SbSystemRequestBlur
 
-Requests that the application transition to the `BLURRED` BLURRED state. This
+Requests that the application transition to the `BLURRED` state. This
 corresponds to an unfocused application in a traditional window manager, where
 it may remain partially visible.
 
-This function triggers a `kSbEventTypeBlur` kSbEventTypeBlur event. Before the
-event is dispatched, the application may continue working and receive other
-system events.
+This function triggers a `kSbEventTypeBlur` event. Before the event is
+dispatched, the application may continue working and receive other system
+events.
 
 #### Declaration
 
@@ -585,17 +577,17 @@ void SbSystemRequestBlur()
 
 ### SbSystemRequestConceal
 
-Requests that the application transition to the `CONCEALED` CONCEALED state.
-This corresponds to minimizing the application, where it is no longer visible
-but background tasks can continue running.
+Requests that the application transition to the `CONCEALED` state. This
+corresponds to minimizing the application, where it is no longer visible but
+background tasks can continue running.
 
-This function triggers a `kSbEventTypeConceal` kSbEventTypeConceal event. Before
-the event is dispatched, the application may continue working and receive other
-system events.
+This function triggers a `kSbEventTypeConceal` event. Before the event is
+dispatched, the application may continue working and receive other system
+events.
 
-In the `CONCEALED` CONCEALED state, the application is invisible but may
-continue running background tasks. An external system event is expected to
-restore the application.
+In the `CONCEALED` state, the application is invisible but may continue running
+background tasks. An external system event is expected to restore the
+application.
 
 #### Declaration
 
@@ -605,13 +597,13 @@ void SbSystemRequestConceal()
 
 ### SbSystemRequestFocus
 
-Requests that the application transition to the `STARTED` STARTED (focused)
-state. This corresponds to focusing the application, making it fully visible and
-ready to receive input.
+Requests that the application transition to the `STARTED` (focused) state. This
+corresponds to focusing the application, making it fully visible and ready to
+receive input.
 
-This function triggers a `kSbEventTypeFocus` kSbEventTypeFocus event. Before the
-event is dispatched, the application may continue working and receive other
-system events.
+This function triggers a `kSbEventTypeFocus` event. Before the event is
+dispatched, the application may continue working and receive other system
+events.
 
 #### Declaration
 
@@ -621,14 +613,14 @@ void SbSystemRequestFocus()
 
 ### SbSystemRequestFreeze
 
-Requests that the application transition to the `FROZEN` FROZEN state.
+Requests that the application transition to the `FROZEN` state.
 
-This function triggers a `kSbEventTypeFreeze` kSbEventTypeFreeze event. Before
-the event is dispatched, the application may continue working and receive other
-system events.
+This function triggers a `kSbEventTypeFreeze` event. Before the event is
+dispatched, the application may continue working and receive other system
+events.
 
-In the `FROZEN` FROZEN state, the application remains in memory but does not
-run. An external system event is expected to resume the application.
+In the `FROZEN` state, the application remains in memory but does not run. An
+external system event is expected to resume the application.
 
 #### Declaration
 
@@ -638,13 +630,13 @@ void SbSystemRequestFreeze()
 
 ### SbSystemRequestReveal
 
-Requests that the application transition to the `BLURRED` BLURRED state. This
+Requests that the application transition to the `BLURRED` state. This
 corresponds to revealing the application, making it visible again after being
 concealed.
 
-This function triggers a `kSbEventTypeReveal` kSbEventTypeReveal event. Before
-the event is dispatched, the application may continue working and receive other
-system events.
+This function triggers a `kSbEventTypeReveal` event. Before the event is
+dispatched, the application may continue working and receive other system
+events.
 
 #### Declaration
 
@@ -656,8 +648,8 @@ void SbSystemRequestReveal()
 
 Requests that the application terminate gracefully. Before termination, the
 application may continue working and receive other system events. This function
-triggers a `kSbEventTypeStop` kSbEventTypeStop event. When the process
-terminates, it returns `error_level` (if supported by the platform).
+triggers a `kSbEventTypeStop` event. When the process terminates, it returns
+`error_level` (if supported by the platform).
 
 *   `error_level`: An integer that serves as the return value for the process
     that is eventually terminated as a result of a call to this function.
@@ -672,11 +664,11 @@ void SbSystemRequestStop(int error_level)
 
 Computes a HMAC-SHA256 digest of `message` using the application's certification
 secret, and writes it to `digest`. The `message` and `digest` pointers must not
-be `NULL` NULL .
+be `NULL` .
 
-The `digest_size_in_bytes` parameter must be at least 32. Returns `false` false
-if an error occurs or if the function is not implemented; in these cases, the
-contents of `digest` are undefined.
+The `digest_size_in_bytes` parameter must be at least 32. Returns `false` if an
+error occurs or if the function is not implemented; in these cases, the contents
+of `digest` are undefined.
 
 #### Declaration
 
@@ -686,10 +678,10 @@ bool SbSystemSignWithCertificationSecretKey(const uint8_t *message, size_t messa
 
 ### SbSystemSupportsResume
 
-Returns `false` false if the platform does not support resuming after
-suspension. In this case, Cobalt frees resources retained for resumption, and
-the platform must not send `kSbEventTypeResume` kSbEventTypeResume events. The
-return value must remain constant for the lifetime of the application.
+Returns `false` if the platform does not support resuming after suspension. In
+this case, Cobalt frees resources retained for resumption, and the platform must
+not send `kSbEventTypeResume` events. The return value must remain constant for
+the lifetime of the application.
 
 #### Declaration
 
@@ -700,12 +692,11 @@ bool SbSystemSupportsResume()
 ### SbSystemSymbolize
 
 Looks up `address` as an instruction pointer and places up to `buffer_size - 1`
-buffer_size - 1 characters of its associated symbol in `out_buffer`. The output
-is always null-terminated. `out_buffer` must not be `NULL` NULL .
+characters of its associated symbol in `out_buffer`. The output is always null-
+terminated. `out_buffer` must not be `NULL` .
 
 The return value indicates whether the function found a reasonable match for
-`address`. If the return value is `false` false , then `out_buffer` is not
-modified.
+`address`. If the return value is `false` , then `out_buffer` is not modified.
 
 This function is used in crash signal handlers and, therefore, it must be async-
 signal-safe on platforms that support signals.

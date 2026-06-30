@@ -31,7 +31,7 @@ and ensures that output from multiple threads is not interleaved.
     passing `kSbLogPriorityFatal` does not terminate the program; the
     application must enforce termination. Many platforms ignore this parameter.
 
-*   `message`: The message to log. Must not be `NULL` NULL . No formatting is
+*   `message`: The message to log. Must not be `NULL` . No formatting is
     required, including newline termination. Platforms can adjust the message to
     fit their output method. For example, they can wrap the text or strip
     unprintable characters.
@@ -76,8 +76,8 @@ void static void static void SbLogFormatF(const char *format,...) SB_PRINTF_FORM
 ### SbLogRaw
 
 A bare-bones log output method that is async-signal-safe, i.e. safe to call from
-an asynchronous signal handler (e.g. a `SIGSEGV` SIGSEGV handler). It should not
-do any additional formatting.
+an asynchronous signal handler (e.g. a `SIGSEGV` handler). It should not do any
+additional formatting.
 
 *   `message`: The message to be logged. Must not be NULL.
 
@@ -90,7 +90,7 @@ void SbLogRaw(const char *message)
 ### SbLogRawDumpStack
 
 Dumps the stack of the current thread to the log in an async-signal-safe manner,
-i.e. safe to call from an asynchronous signal handler (e.g. a `SIGSEGV` SIGSEGV
+i.e. safe to call from an asynchronous signal handler (e.g. a `SIGSEGV`
 handler). Does not include SbLogRawDumpStack itself.
 
 *   `frames_to_skip`: The number of frames to skip from the top of the stack
@@ -108,7 +108,7 @@ void SbLogRawDumpStack(int frames_to_skip)
 ### SbLogRawFormat
 
 A formatted log output method that is async-signal-safe, i.e. safe to call from
-an asynchronous signal handler (e.g. a `SIGSEGV` SIGSEGV handler).
+an asynchronous signal handler (e.g. a `SIGSEGV` handler).
 
 #### Declaration
 

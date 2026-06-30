@@ -41,10 +41,10 @@ typedef uint8_t SbGlBoolean
 
 ### SbGlIntPtr
 
-Some compilers implicitly convert `intptr_t` intptr_t to `int` int . However,
-this is not equivalent to a `long int` long int or `long long int` long long int
-from the compiler's perspective. Starboard checks the platform configuration and
-sets the types to match those used by OpenGL ES 2.0 (see [gl2ext.h](https://www.khronos.org/registry/OpenGL/api/GLES2/gl2ext.h) ).
+Some compilers implicitly convert `intptr_t` to `int` . However, this is not
+equivalent to a `long int` or `long long int` from the compiler's perspective.
+Starboard checks the platform configuration and sets the types to match those
+used by OpenGL ES 2.0 (see [gl2ext.h](https://www.khronos.org/registry/OpenGL/api/GLES2/gl2ext.h) ).
 
 #### Definition
 

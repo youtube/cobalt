@@ -117,7 +117,7 @@ Microphone information.
 
 Closes the microphone port, stops recording on `microphone`, and clears any
 unread data from the buffer. If the microphone is already stopped, this call is
-ignored. Returns `true` true if the microphone is successfully closed.
+ignored. Returns `true` if the microphone is successfully closed.
 
 *   `microphone`: The microphone to close.
 
@@ -145,7 +145,7 @@ buffer size is invalid.
     audio data is temporarily cached during capture. Audio data is removed from
     the buffer after it is read. New data can be read from this buffer in chunks
     smaller than the buffer size. This parameter must be greater than zero, and
-    ideally a power of two ( `2^n` 2^n ).
+    ideally a power of two ( `2^n` ).
 
 #### Declaration
 
@@ -216,7 +216,7 @@ static bool SbMicrophoneIsValid(SbMicrophone microphone)
 
 Opens the microphone port and starts recording on `microphone`. Once started,
 call `SbMicrophoneRead` periodically to retrieve audio data. If the microphone
-is already open, this call clears the unread buffer. Returns `true` true if the
+is already open, this call clears the unread buffer. Returns `true` if the
 microphone is successfully opened.
 
 *   `microphone`: The microphone to open.

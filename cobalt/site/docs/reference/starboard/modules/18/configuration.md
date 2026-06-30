@@ -60,8 +60,7 @@ SB_EXPORT_PLATFORM annotates symbols as exported from shared libraries.
 
 ### SB_FUNCTION
 
-Whether we use **PRETTY_FUNCTION** PRETTY_FUNCTION or **FUNCTION** FUNCTION for
-logging.
+Whether we use **PRETTY_FUNCTION** or **FUNCTION** for logging.
 
 ### SB_HAS(SB_FEATURE)
 

@@ -54,11 +54,11 @@ bool SbStorageCloseRecord(SbStorageRecord record)
 
 ### SbStorageDeleteRecord
 
-Deletes the `SbStorageRecord` specified by `name`. Returns `true` true if the
-record existed and was successfully deleted; otherwise, returns `false` false .
+Deletes the `SbStorageRecord` specified by `name`. Returns `true` if the record
+existed and was successfully deleted; otherwise, returns `false` .
 
-If `name` is `NULL` NULL , this function deletes the default storage record
-(matching the behavior of previous API versions).
+If `name` is `NULL` , this function deletes the default storage record (matching
+the behavior of previous API versions).
 
 Do not call this function while the storage record is open. This function
 performs blocking I/O on the calling thread.
@@ -73,8 +73,8 @@ bool SbStorageDeleteRecord(const char *name)
 
 ### SbStorageGetRecordSize
 
-Returns the size of `record`, or `-1` -1 on error. This function performs
-blocking I/O on the calling thread.
+Returns the size of `record`, or `-1` on error. This function performs blocking
+I/O on the calling thread.
 
 *   `record`: The record to retrieve the size of.
 
@@ -101,8 +101,8 @@ calling thread until the operation completes. Returns an empty `SbStorageRecord`
 (size zero) if the record does not exist. Opening an already-open
 `SbStorageRecord` results in undefined behavior.
 
-If `name` is `NULL` NULL , opens the default storage record (matching the
-behavior of previous API versions).
+If `name` is `NULL` , opens the default storage record (matching the behavior of
+previous API versions).
 
 *   `name`: The filesystem-safe name of the record to open.
 
@@ -116,7 +116,7 @@ SbStorageRecord SbStorageOpenRecord(const char *name)
 
 Reads up to `data_size` bytes from `record`, starting at the beginning of the
 record. Returns the actual number of bytes read (which is less than or equal to
-`data_size`), or `-1` -1 on error. This function makes a best-effort to read the
+`data_size`), or `-1` on error. This function makes a best-effort to read the
 entire record, blocking the calling thread until the operation completes or
 fails.
 
@@ -139,11 +139,10 @@ previous data. Returns whether the write succeeded. This function makes a best-
 effort to write the entire record, and may perform blocking I/O on the calling
 thread.
 
-Although `SbStorageWriteRecord()` SbStorageWriteRecord() may defer persistence,
-a subsequent `SbStorageReadRecord()` SbStorageReadRecord() call must immediately
-reflect the write, even without calling `SbStorageCloseRecord()`
-SbStorageCloseRecord() . Data should persist shortly after writing, even in the
-event of unexpected process termination.
+Although `SbStorageWriteRecord()` may defer persistence, a subsequent
+`SbStorageReadRecord()` call must immediately reflect the write, even without
+calling `SbStorageCloseRecord()` . Data should persist shortly after writing,
+even in the event of unexpected process termination.
 
 *   `record`: The record to write.
 
