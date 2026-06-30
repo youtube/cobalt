@@ -9,8 +9,8 @@ Defines core debug logging functions.
 
 ### SbLogPriority
 
-The priority at which a message should be logged. The platform may be configured
-to filter logs by priority, or render them differently.
+Specifies the priority at which a message is logged. The platform can filter
+logs by priority or render them differently.
 
 #### Values
 
@@ -24,16 +24,17 @@ to filter logs by priority, or render them differently.
 
 ### SbLog
 
-Writes `message` to the platform's debug output log. This method is thread-safe,
-and responsible for ensuring that the output from multiple threads is not mixed.
+Writes `message` to the platform's debug output log. This method is thread-safe
+and ensures that output from multiple threads is not interleaved.
 
-`priority`: The SbLogPriority at which the message should be logged. Note that
-passing `kSbLogPriorityFatal` does not terminate the program. Such a policy must
-be enforced at the application level. In fact, `priority` may be completely
-ignored on many platforms. `message`: The message to be logged. Must not be
-NULL. No formatting is required to be done on the value, including newline
-termination. That said, platforms can adjust the message to be more suitable for
-their output method by wrapping the text, stripping unprintable characters, etc.
+*   `priority`: The `SbLogPriority` at which the message is logged. Note that
+    passing `kSbLogPriorityFatal` does not terminate the program; the
+    application must enforce termination. Many platforms ignore this parameter.
+
+*   `message`: The message to log. Must not be `NULL` NULL . No formatting is
+    required, including newline termination. Platforms can adjust the message to
+    fit their output method. For example, they can wrap the text or strip
+    unprintable characters.
 
 #### Declaration
 
@@ -54,8 +55,7 @@ void SbLogFlush()
 
 ### SbLogFormat
 
-A log output method that additionally performs a string format on the data being
-logged.
+A log output method that also formats the logged data.
 
 #### Declaration
 
@@ -76,10 +76,10 @@ void static void static void SbLogFormatF(const char *format,...) SB_PRINTF_FORM
 ### SbLogRaw
 
 A bare-bones log output method that is async-signal-safe, i.e. safe to call from
-an asynchronous signal handler (e.g. a `SIGSEGV` handler). It should not do any
-additional formatting.
+an asynchronous signal handler (e.g. a `SIGSEGV` SIGSEGV handler). It should not
+do any additional formatting.
 
-`message`: The message to be logged. Must not be NULL.
+*   `message`: The message to be logged. Must not be NULL.
 
 #### Declaration
 
@@ -90,13 +90,14 @@ void SbLogRaw(const char *message)
 ### SbLogRawDumpStack
 
 Dumps the stack of the current thread to the log in an async-signal-safe manner,
-i.e. safe to call from an asynchronous signal handler (e.g. a `SIGSEGV`
+i.e. safe to call from an asynchronous signal handler (e.g. a `SIGSEGV` SIGSEGV
 handler). Does not include SbLogRawDumpStack itself.
 
-`frames_to_skip`: The number of frames to skip from the top of the stack when
-dumping the current thread to the log. This parameter lets you remove noise from
-helper functions that might end up on top of every stack dump so that the stack
-dump is just the relevant function stack where the problem occurred.
+*   `frames_to_skip`: The number of frames to skip from the top of the stack
+    when dumping the current thread to the log. This parameter lets you remove
+    noise from helper functions that might end up on top of every stack dump so
+    that the stack dump is just the relevant function stack where the problem
+    occurred.
 
 #### Declaration
 
@@ -107,7 +108,7 @@ void SbLogRawDumpStack(int frames_to_skip)
 ### SbLogRawFormat
 
 A formatted log output method that is async-signal-safe, i.e. safe to call from
-an asynchronous signal handler (e.g. a `SIGSEGV` handler).
+an asynchronous signal handler (e.g. a `SIGSEGV` SIGSEGV handler).
 
 #### Declaration
 
