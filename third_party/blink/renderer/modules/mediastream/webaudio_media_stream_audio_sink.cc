@@ -15,7 +15,7 @@
 #include "third_party/blink/renderer/platform/media/web_audio_source_provider_client.h"
 
 namespace {
-static const size_t kMaxNumberOfAudioFifoBuffers = 10;
+static const size_t kMaxNumberOfAudioFifoBuffers = 50;
 }
 
 namespace blink {
