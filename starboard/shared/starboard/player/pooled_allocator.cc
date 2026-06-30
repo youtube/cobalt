@@ -38,12 +38,6 @@ namespace {
 // std::nullopt disables all logging and warnings.
 constexpr std::optional<int64_t> kStatusLogIntervalUs = std::nullopt;
 
-// Checks if a value is aligned to an arbitrary boundary (supports
-// non-power-of-two).
-bool IsAlignedTo(uintptr_t value, size_t alignment) {
-  return value % alignment == 0;
-}
-
 size_t AlignBlockSize(size_t block_size) {
   SB_CHECK_GT(block_size, 0U);
   return AlignUp(block_size, alignof(std::max_align_t));
@@ -94,20 +88,21 @@ FixedBlockPool::~FixedBlockPool() {
       << "Not all blocks were returned to the pool.";
 }
 
-TryAllocateResult FixedBlockPool::TryAllocate(size_t size) {
-  if (size > block_size_) {
-    return TryAllocateError::kNotEligible;
-  }
-
+void* FixedBlockPool::TryAllocate() {
   std::lock_guard lock(mutex_);
   if (free_list_.empty()) {
-    return TryAllocateError::kExhausted;
+    if constexpr (kStatusLogIntervalUs.has_value()) {
+      SB_LOG(WARNING) << "heap alloc will happen: reason=exhausted"
+                      << ", name=" << name_
+                      << ", block_size(KiB)=" << (block_size_ / 1024)
+                      << ", total_blocks=" << total_blocks_;
+    }
+    return nullptr;
   }
 
   void* ptr = free_list_.back();
   free_list_.pop_back();
 
-  AssertValidPoolPtr(ptr);
   size_t block_index = GetBlockIndex(ptr);
   SB_CHECK(!is_block_allocated_[block_index])
       << "Internal error: block already marked as allocated: " << ptr;
@@ -131,8 +126,6 @@ bool FixedBlockPool::TryFree(void* ptr) {
 
   std::lock_guard lock(mutex_);
 
-  AssertValidPoolPtr(ptr);  // Explicit validation!
-
   size_t block_index = GetBlockIndex(ptr);
   SB_CHECK(is_block_allocated_[block_index])
       << "Double free detected in FixedBlockPool [" << name_
@@ -151,19 +144,14 @@ FixedBlockPool::InfoForTesting FixedBlockPool::GetInfoForTesting() const {
   return InfoForTesting{block_size_, total_blocks_, free_list_.size()};
 }
 
-void FixedBlockPool::AssertValidPoolPtr(const void* ptr) const {
+size_t FixedBlockPool::GetBlockIndex(const void* ptr) const {
   uintptr_t ptr_val = reinterpret_cast<uintptr_t>(ptr);
   uintptr_t start_val = reinterpret_cast<uintptr_t>(pool_storage_.get());
 
   SB_CHECK_GE(ptr_val, start_val);
   SB_CHECK_LT(ptr_val, start_val + block_size_ * total_blocks_);
-  SB_CHECK(IsAlignedTo(ptr_val - start_val, block_size_))
+  SB_CHECK(IsAligned(ptr_val - start_val, block_size_))
       << "Pointer is misaligned inside pool range: " << ptr;
-}
-
-size_t FixedBlockPool::GetBlockIndex(const void* ptr) const {
-  uintptr_t ptr_val = reinterpret_cast<uintptr_t>(ptr);
-  uintptr_t start_val = reinterpret_cast<uintptr_t>(pool_storage_.get());
 
   return (ptr_val - start_val) / block_size_;
 }
@@ -218,41 +206,27 @@ void* PooledAllocator::Allocate(size_t size) {
     return ::operator new(size);
   }
 
-  const internal::FixedBlockPool* target_pool = nullptr;
-  const char* fallback_reason = nullptr;
-
   for (const auto& pool : pools_) {
-    auto result = pool->TryAllocate(size);
-
-    if (auto* ptr = std::get_if<void*>(&result)) {
-      return *ptr;
+    if (size <= pool->block_size()) {
+      void* ptr = pool->TryAllocate();
+      if (ptr) {
+        return ptr;
+      }
+      // Pool matched size requirement but is exhausted -> fallback to heap.
+      return ::operator new(size);
     }
-
-    auto* error = std::get_if<internal::TryAllocateError>(&result);
-    SB_CHECK(error);
-    if (*error == internal::TryAllocateError::kNotEligible) {
-      continue;
-    }
-
-    target_pool = pool.get();
-    fallback_reason = "exhausted";
-    break;
   }
 
+  // Oversized allocation (exceeds all configured pools).
   if constexpr (kStatusLogIntervalUs.has_value()) {
-    if (!fallback_reason && !pools_.empty() &&
-        size > pools_.back()->block_size()) {
-      target_pool = pools_.back().get();
-      fallback_reason = "oversized";
-    }
-
-    if (fallback_reason && target_pool) {
-      SB_LOG(WARNING) << "heap alloc will happen: reason=" << fallback_reason
-                      << ", name=" << target_pool->name()
+    if (!pools_.empty() && size > pools_.back()->block_size()) {
+      const auto& last_pool = pools_.back();
+      SB_LOG(WARNING) << "heap alloc will happen: reason=oversized"
+                      << ", name=" << last_pool->name()
                       << ", requested_size(KiB)=" << (size / 1024)
                       << ", block_size(KiB)="
-                      << (target_pool->block_size() / 1024)
-                      << ", total_blocks=" << target_pool->total_blocks();
+                      << (last_pool->block_size() / 1024)
+                      << ", total_blocks=" << last_pool->total_blocks();
     }
   }
 

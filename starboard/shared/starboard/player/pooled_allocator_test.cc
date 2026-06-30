@@ -23,25 +23,15 @@
 namespace starboard {
 namespace {
 using FixedBlockPool = internal::FixedBlockPool;
-using TryAllocateError = internal::TryAllocateError;
 
-// Helpers for FixedBlockPool tests to handle variant results
-void* AllocateOrDie(FixedBlockPool& pool, size_t size) {
-  auto result = pool.TryAllocate(size);
-  if (std::holds_alternative<void*>(result)) {
-    return std::get<void*>(result);
+// Helpers for FixedBlockPool tests
+void* AllocateOrDie(FixedBlockPool& pool) {
+  void* ptr = pool.TryAllocate();
+  if (ptr) {
+    return ptr;
   }
   ADD_FAILURE() << "Allocation failed when success was expected.";
   return nullptr;
-}
-
-TryAllocateError AllocateFailOrDie(FixedBlockPool& pool, size_t size) {
-  auto result = pool.TryAllocate(size);
-  if (std::holds_alternative<TryAllocateError>(result)) {
-    return std::get<TryAllocateError>(result);
-  }
-  ADD_FAILURE() << "Allocation succeeded when failure was expected.";
-  return TryAllocateError::kNotEligible;  // dummy return
 }
 
 // ============================================================================
@@ -61,32 +51,27 @@ TEST(FixedBlockPoolTest, BasicAllocationAndFree) {
 
   // 1. Allocate all blocks.
   for (size_t i = 0; i < kTotalBlocks; ++i) {
-    void* ptr = AllocateOrDie(pool, kBlockSize);
+    void* ptr = AllocateOrDie(pool);
     ASSERT_NE(ptr, nullptr);
     allocated_blocks.push_back(ptr);
   }
   EXPECT_EQ(pool.GetInfoForTesting().free_blocks, 0);
 
-  // 2. Try to allocate one more. Should return kExhausted.
-  EXPECT_EQ(AllocateFailOrDie(pool, kBlockSize), TryAllocateError::kExhausted);
+  // 2. Try to allocate one more. Should return nullptr (exhausted).
+  EXPECT_EQ(pool.TryAllocate(), nullptr);
   EXPECT_EQ(pool.GetInfoForTesting().free_blocks, 0);
 
-  // 3. Try to allocate with size exceeding block size. Should return
-  // kNotEligible.
-  EXPECT_EQ(AllocateFailOrDie(pool, kBlockSize * 2),
-            TryAllocateError::kNotEligible);
-
-  // 4. Freeing nullptr should return false.
+  // 3. Freeing nullptr should return false.
   EXPECT_FALSE(pool.TryFree(nullptr));
 
-  // 5. Free all pool blocks. Should return true for all.
+  // 4. Free all pool blocks. Should return true for all.
   for (void* ptr : allocated_blocks) {
     EXPECT_TRUE(pool.TryFree(ptr));
   }
   EXPECT_EQ(pool.GetInfoForTesting().free_blocks, kTotalBlocks);
 
-  // 6. Allocate again. Should recycle.
-  void* ptr = AllocateOrDie(pool, kBlockSize);
+  // 5. Allocate again. Should recycle.
+  void* ptr = AllocateOrDie(pool);
   EXPECT_NE(ptr, nullptr);
   EXPECT_TRUE(pool.TryFree(ptr));
 }
@@ -97,8 +82,8 @@ TEST(FixedBlockPoolTest, FreeRouting) {
   const size_t kTotalBlocks = 2;
   FixedBlockPool pool("TestPool", kBlockSize, kTotalBlocks);
 
-  void* ptr1 = AllocateOrDie(pool, kBlockSize);
-  void* ptr2 = AllocateOrDie(pool, kBlockSize);
+  void* ptr1 = AllocateOrDie(pool);
+  void* ptr2 = AllocateOrDie(pool);
 
   ASSERT_NE(ptr1, nullptr);
   ASSERT_NE(ptr2, nullptr);
@@ -128,12 +113,12 @@ TEST(FixedBlockPoolTest, NonPowerOfTwoBlockSize) {
 
   std::vector<void*> allocated;
   for (size_t i = 0; i < kTotalBlocks; ++i) {
-    void* ptr = AllocateOrDie(pool, kBlockSize);
+    void* ptr = AllocateOrDie(pool);
     ASSERT_NE(ptr, nullptr);
     allocated.push_back(ptr);
   }
 
-  // Free them all. If IsAlignedTo (modulo) works, this will NOT crash!
+  // Free them all. If IsAligned (modulo) works, this will NOT crash!
   for (void* ptr : allocated) {
     EXPECT_TRUE(pool.TryFree(ptr));
   }
@@ -155,7 +140,7 @@ TEST(FixedBlockPoolTest, ThreadSafety) {
         std::vector<void*> allocated;
         // Allocate up to 2 blocks per thread.
         for (size_t j = 0; j < 2; ++j) {
-          void* ptr = AllocateOrDie(pool, kBlockSize);
+          void* ptr = AllocateOrDie(pool);
           ASSERT_NE(ptr, nullptr);
           allocated.push_back(ptr);
         }
@@ -183,7 +168,7 @@ TEST_F(FixedBlockPoolDeathTest, DeathTest_InvalidConstructorArgs) {
 
 TEST_F(FixedBlockPoolDeathTest, DeathTest_FreeMisalignedPoolPointer) {
   FixedBlockPool pool("TestPool", 16, 2);
-  void* ptr = AllocateOrDie(pool, 16);
+  void* ptr = AllocateOrDie(pool);
   void* misaligned = static_cast<uint8_t*>(ptr) + 1;
   EXPECT_DEATH_IF_SUPPORTED(pool.TryFree(misaligned), "");
   pool.TryFree(ptr);  // Cleanup

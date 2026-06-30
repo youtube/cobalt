@@ -21,21 +21,11 @@
 #include <mutex>
 #include <string>
 #include <string_view>
-#include <variant>
 #include <vector>
 
 namespace starboard {
 
 namespace internal {
-
-enum class TryAllocateError {
-  kNotEligible,  // Request size exceeds this pool's block size.
-  kExhausted,    // Size matches, but pool has no free blocks.
-};
-
-// Variant holds either a valid void* pointer on success, or a TryAllocateError
-// on failure.
-using TryAllocateResult = std::variant<void*, TryAllocateError>;
 
 // A thread-safe memory pool that prioritizes allocating memory blocks of a
 // constant size from a single pre-allocated contiguous block to eliminate
@@ -46,13 +36,12 @@ using TryAllocateResult = std::variant<void*, TryAllocateError>;
 //
 // Expected Lifetime & Ownership: Typically wrapped inside a `PooledAllocator`
 // and owned as a global singleton (e.g. using
-// `starboard::common::NoDestructor`) by specific media components (like
-// decoders or buffers) to ensure the pre-allocated memory persists for the
-// entire execution lifetime of the app.
+// `starboard::NoDestructor`) by specific media components (like decoders or
+// buffers) to ensure the pre-allocated memory persists for the  entire
+// execution lifetime of the app.
 //
-// This is a "pure" pool: it returns TryAllocError on exhaustion or oversized
-// requests, and does not handle heap fallback itself. Fallback is handled by
-// PooledAllocator.
+// This is a "pure" pool: it returns nullptr on exhaustion, and does not handle
+// heap fallback itself. Fallback is handled by PooledAllocator.
 class FixedBlockPool {
  public:
   struct InfoForTesting {
@@ -68,8 +57,10 @@ class FixedBlockPool {
   FixedBlockPool(const FixedBlockPool&) = delete;
   FixedBlockPool& operator=(const FixedBlockPool&) = delete;
 
-  // Attempts to allocate a block of memory.
-  TryAllocateResult TryAllocate(size_t size);
+  // Attempts to allocate a block of memory from the pool.
+  // Returns a pointer to the allocated block on success, or nullptr if
+  // exhausted.
+  void* TryAllocate();
 
   // Attempts to free a block of memory.
   // If |ptr| belongs to the pool, it is returned to the pool and returns true.
@@ -84,7 +75,6 @@ class FixedBlockPool {
   InfoForTesting GetInfoForTesting() const;
 
  private:
-  void AssertValidPoolPtr(const void* ptr) const;
   size_t GetBlockIndex(const void* ptr) const;
 
   const std::string name_;
@@ -107,6 +97,15 @@ class FixedBlockPool {
 // fallback logic (::operator new/delete) when the pools are disabled,
 // exhausted, or the request is oversized.
 // It supports N-tiered pooling with strict best-fit routing.
+//
+// Threading Model: Thread-safe. It does not modify its own state after
+// construction, and delegates allocations/deallocations to thread-safe
+// FixedBlockPool instances.
+//
+// Expected Lifetime & Ownership: Typically owned as a global singleton
+// (e.g. using `starboard::NoDestructor` or `starboard::LazyInitializer`) by
+// specific media components to ensure the pools persist for the entire
+// execution lifetime.
 class PooledAllocator {
  public:
   struct PoolConfig {
