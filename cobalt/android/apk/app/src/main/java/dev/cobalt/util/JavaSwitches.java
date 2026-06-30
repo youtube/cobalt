@@ -76,6 +76,10 @@ public class JavaSwitches {
   public static final String COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE =
       "CobaltDynamicMojoPipeSubresourceSize";
 
+  /** flag to tune cobalt dynamic mojo pipe sizing media size in bytes. */
+  public static final String COBALT_DYNAMIC_MOJO_PIPE_MEDIA_SIZE =
+      "CobaltDynamicMojoPipeMediaSize";
+
   /** flag to disable FontSrcLocalMatching lookup table. */
   public static final String DISABLE_FONT_SRC_LOCAL_MATCHING =
       "DisableFontSrcLocalMatching";
@@ -138,9 +142,20 @@ public class JavaSwitches {
     }
 
     StringJoiner mojoPipeParams = new StringJoiner("/");
-    if (javaSwitches.containsKey(JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE)) {
-      String size = javaSwitches.get(JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE).replaceAll("[^0-9]", "");
-      mojoPipeParams.add("subresource_size/" + size);
+    String subresourceSize = javaSwitches.get(JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE);
+    if (subresourceSize != null) {
+      String size = subresourceSize.replaceAll("[^0-9]", "");
+      if (!size.isEmpty()) {
+        mojoPipeParams.add("subresource_size/" + size);
+      }
+    }
+
+    String mediaSize = javaSwitches.get(JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_MEDIA_SIZE);
+    if (mediaSize != null) {
+      String size = mediaSize.replaceAll("[^0-9]", "");
+      if (!size.isEmpty()) {
+        mojoPipeParams.add("media_size/" + size);
+      }
     }
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_COBALT_DYNAMIC_MOJO_PIPE_SIZING) || mojoPipeParams.length() > 0) {
