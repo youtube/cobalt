@@ -65,6 +65,8 @@ void SetExperimentalFeaturesForCurrentThread(
 
   experiment_features.allow_audio_writing_on_pause =
       extension_features->allow_audio_writing_on_pause;
+  experiment_features.decoded_audio_buffer_pool =
+      extension_features->decoded_audio_buffer_pool;
   experiment_features.enable_av1_startup_optimization =
       extension_features->enable_av1_startup_optimization;
   experiment_features.enable_low_latency =
@@ -85,6 +87,8 @@ void SetExperimentalFeaturesForCurrentThread(
       extension_features->skip_flush_on_decoder_teardown;
   experiment_features.skip_video_frames_over_60_fps =
       extension_features->skip_video_frames_over_60_fps;
+  experiment_features.video_frame_impl_pool =
+      extension_features->video_frame_impl_pool;
   experiment_features.enable_simd_based_audio_format_switching =
       FromBoolPointer(
           extension_features->enable_simd_based_audio_format_switching);
