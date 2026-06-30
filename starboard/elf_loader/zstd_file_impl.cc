@@ -42,8 +42,8 @@ ZstdFileImpl::~ZstdFileImpl() {
   {
     std::lock_guard<std::mutex> lock(worker_mutex_);
     stop_workers_ = true;
-    work_ready_cv_.notify_all();
   }
+  work_ready_cv_.notify_all();
 
   for (pthread_t thread : workers_) {
     pthread_join(thread, nullptr);
@@ -255,13 +255,16 @@ bool ZstdFileImpl::ReadFromOffset(int64_t offset, char* buffer, int size) {
   }
 
   {
-    std::unique_lock<std::mutex> lock(worker_mutex_);
+    std::lock_guard<std::mutex> lock(worker_mutex_);
     current_tasks_ = &tasks;
     next_task_index_ = 0;
     tasks_remaining_ = tasks.size();
     worker_failure_ = false;
-    work_ready_cv_.notify_all();
+  }
+  work_ready_cv_.notify_all();
 
+  {
+    std::unique_lock<std::mutex> lock(worker_mutex_);
     while (tasks_remaining_ > 0) {
       work_done_cv_.wait(lock);
     }
