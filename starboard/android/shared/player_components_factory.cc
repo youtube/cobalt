@@ -293,6 +293,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     const auto& experimental_features =
         creation_parameters.experimental_features();
 
+    Buffer::SetPoolEnabled(
+        experimental_features.GetBool(kMediaDecodedAudioBufferPool));
+    MediaCodecVideoDecoder::SetVideoFramePoolEnabled(
+        experimental_features.GetBool(kMediaVideoFrameImplPool));
+
     if (experimental_features.GetBool(kMediaEnableAv1StartupOptimization)) {
       MediaCapabilitiesCache::GetInstance()->SetAv1OptEnabled(true);
       SB_LOG(INFO) << "`enable_av1_startup_optimization` is set to true.";

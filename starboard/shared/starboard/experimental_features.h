@@ -153,6 +153,9 @@ const void* GetExperimentalFeaturesConfigurationApi();
 inline constexpr ExperimentalFeatureKey<bool> kMediaAllowAudioWritingOnPause(
     "Media.AllowAudioWritingOnPause");
 
+inline constexpr ExperimentalFeatureKey<bool> kMediaDecodedAudioBufferPool(
+    "Media.DecodedAudioBufferPool");
+
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaEnableAv1StartupOptimization("Media.EnableAv1StartupOptimization");
 
@@ -195,6 +198,9 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaSkipVideoFramesOver60Fps(
 inline constexpr ExperimentalFeatureKey<int>
     kMediaVideoDecoderInitialPrerollCount(
         "Media.VideoDecoderInitialPrerollCount");
+
+inline constexpr ExperimentalFeatureKey<bool> kMediaVideoFrameImplPool(
+    "Media.VideoFrameImplPool");
 
 inline constexpr ExperimentalFeatureKey<int>
     kMediaVideoRendererMinDecodedFrames("Media.VideoRendererMinDecodedFrames");
