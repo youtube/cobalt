@@ -20,9 +20,11 @@ import("//starboard/build/config/toolchain_variables.gni")
 config("starboard") {
   if (is_starboardized_toolchain) {
     defines = [
-      "STARBOARD",
       "COBALT",  # TODO: See if this can be replaced by STARBOARD macro.
     ]
+    if (is_starboard) {
+      defines += [ "STARBOARD" ]
+    }
 
     if (!is_gold) {
       defines += [
@@ -47,10 +49,6 @@ config("starboard") {
 
     if (sb_is_evergreen) {
       defines += [ "SB_IS_EVERGREEN=1" ]
-    }
-
-    if (sb_is_evergreen_compatible) {
-      defines += [ "SB_IS_EVERGREEN_COMPATIBLE=1" ]
     }
 
     if (sb_evergreen_compatible_use_libunwind) {

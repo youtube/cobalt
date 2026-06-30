@@ -31,10 +31,20 @@
 #include "cobalt/browser/h5vcc_storage/public/mojom/h5vcc_storage.mojom.h"
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl_base.h"
 #include "cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom.h"
+#include "cobalt/browser/h5vcc_updater/public/mojom/h5vcc_updater.mojom.h"
 #include "cobalt/browser/performance/performance_impl.h"
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
 #include "cobalt/media/service/platform_window_provider_service.h"
+
+#if BUILDFLAG(USE_EVERGREEN)
+#include "cobalt/browser/h5vcc_updater/h5vcc_updater_impl.h"
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+#include "cobalt/browser/h5vcc_updater/h5vcc_updater_sideloading_impl.h"
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+#include "cobalt/browser/h5vcc_updater/public/mojom/h5vcc_updater.mojom.h"
+#endif  // BUILDFLAG(USE_EVERGREEN)
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "content/public/browser/render_frame_host.h"
@@ -97,6 +107,36 @@ void PopulateCobaltFrameBinders(
       base::BindRepeating(&h5vcc_settings::H5vccSettingsImpl::Create));
   binder_map->Add<performance::mojom::CobaltPerformance>(base::BindRepeating(
       &performance::PerformanceImpl::Create, app_startup_timestamp));
+#if BUILDFLAG(USE_EVERGREEN)
+  binder_map->Add<h5vcc_updater::mojom::H5vccUpdater>(
+      base::BindRepeating(&h5vcc_updater::H5vccUpdaterImpl::Create));
+#else
+  // Always register a binder for H5vccUpdater to prevent the browser
+  // from killing the Mojo connection if the renderer probes for this interface.
+  // If this is not registered, it disconnects the overall
+  // BrowserInterfaceBroker for the frame.
+  binder_map->Add<h5vcc_updater::mojom::H5vccUpdater>(base::BindRepeating(
+      [](content::RenderFrameHost*,
+         mojo::PendingReceiver<h5vcc_updater::mojom::H5vccUpdater>) {
+        VLOG(1) << "Ignoring H5vccUpdater request for non-Evergreen build.";
+      }));
+#endif
+
+  // Always register a binder for H5vccUpdaterSideloading to prevent the browser
+  // from killing the Mojo connection if the renderer probes for this interface.
+  // If this is not registered, it disconnects the overall
+  // BrowserInterfaceBroker for the frame.
+#if BUILDFLAG(USE_EVERGREEN) && !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  binder_map->Add<h5vcc_updater::mojom::H5vccUpdaterSideloading>(
+      base::BindRepeating(&h5vcc_updater::H5vccUpdaterSideloadingImpl::Create));
+#else
+  binder_map->Add<
+      h5vcc_updater::mojom::H5vccUpdaterSideloading>(base::BindRepeating(
+      [](content::RenderFrameHost*,
+         mojo::PendingReceiver<h5vcc_updater::mojom::H5vccUpdaterSideloading>) {
+        VLOG(1) << "Ignoring H5vccUpdaterSideloading request.";
+      }));
+#endif
   binder_map->Add<h5vcc_storage::mojom::H5vccStorage>(
       base::BindRepeating(&h5vcc_storage::H5vccStorageImpl::Create));
   binder_map->Add<media::mojom::PlatformWindowProvider>(

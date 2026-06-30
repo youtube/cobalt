@@ -25,7 +25,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/common/thread.h"
-#include "starboard/thread.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
@@ -81,7 +80,7 @@ class MediaCodecDecoder::DecoderThread : public Thread {
  public:
   DecoderThread(std::string_view name,
                 std::function<void()> runnable,
-                std::optional<SbThreadPriority> priority = std::nullopt)
+                std::optional<ThreadPriority> priority = std::nullopt)
       : Thread(name,
                priority ? ThreadOptions().SetPriority(priority.value())
                         : ThreadOptions()),
@@ -97,14 +96,15 @@ class MediaCodecDecoder::DecoderThread : public Thread {
 
 // static
 NonNullResult<std::unique_ptr<MediaCodecDecoder>>
-MediaCodecDecoder::CreateForAudio(JobQueue* job_queue,
+MediaCodecDecoder::CreateForAudio(MediaCodec::Factory& media_codec_factory,
+                                  JobQueue* job_queue,
                                   Host* host,
                                   const AudioStreamInfo& audio_stream_info,
                                   SbDrmSystem drm_system) {
   std::string error_message;
   auto decoder = std::make_unique<MediaCodecDecoder>(
-      PassKey<MediaCodecDecoder>(), job_queue, host, audio_stream_info,
-      drm_system, &error_message);
+      PassKey<MediaCodecDecoder>(), media_codec_factory, job_queue, host,
+      audio_stream_info, drm_system, &error_message);
   if (!decoder->media_codec_bridge_) {
     return Failure(error_message);
   }
@@ -114,13 +114,14 @@ MediaCodecDecoder::CreateForAudio(JobQueue* job_queue,
 // static
 NonNullResult<std::unique_ptr<MediaCodecDecoder>>
 MediaCodecDecoder::CreateForVideo(
+    MediaCodec::Factory& media_codec_factory,
     JobQueue* job_queue,
     Host* host,
     SbMediaVideoCodec video_codec,
     const Size& frame_size_hint,
     const std::optional<Size>& max_frame_size,
     int fps,
-    jobject j_output_surface,
+    const jni_zero::JavaRef<jobject>& j_output_surface,
     SbDrmSystem drm_system,
     const SbMediaColorMetadata* color_metadata,
     bool require_software_codec,
@@ -128,20 +129,23 @@ MediaCodecDecoder::CreateForVideo(
     const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
     std::optional<int> tunnel_mode_audio_session_id,
     bool enable_frame_renderer_listener,
+    bool enable_low_latency,
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
-    std::optional<bool> use_dual_threads,
-    bool skip_video_frames_over_60_fps) {
+    bool use_dual_threads,
+    bool skip_video_frames_over_60_fps,
+    bool ignore_mediacodec_callbacks_during_flushing) {
   std::string error_message;
   auto decoder = std::make_unique<MediaCodecDecoder>(
-      PassKey<MediaCodecDecoder>(), job_queue, host, video_codec,
-      frame_size_hint, max_frame_size, fps, j_output_surface, drm_system,
-      color_metadata, require_software_codec, frame_rendered_cb,
+      PassKey<MediaCodecDecoder>(), media_codec_factory, job_queue, host,
+      video_codec, frame_size_hint, max_frame_size, fps, j_output_surface,
+      drm_system, color_metadata, require_software_codec, frame_rendered_cb,
       first_tunnel_frame_ready_cb, tunnel_mode_audio_session_id,
-      enable_frame_renderer_listener, force_big_endian_hdr_metadata,
-      max_video_input_size, flush_delay_usec, use_dual_threads,
-      skip_video_frames_over_60_fps, &error_message);
+      enable_frame_renderer_listener, enable_low_latency,
+      force_big_endian_hdr_metadata, max_video_input_size, flush_delay_usec,
+      use_dual_threads, skip_video_frames_over_60_fps,
+      ignore_mediacodec_callbacks_during_flushing, &error_message);
   if (!decoder->media_codec_bridge_) {
     return Failure(error_message);
   }
@@ -149,6 +153,7 @@ MediaCodecDecoder::CreateForVideo(
 }
 
 MediaCodecDecoder::MediaCodecDecoder(PassKey<MediaCodecDecoder>,
+                                     MediaCodec::Factory& media_codec_factory,
                                      JobQueue* job_queue,
                                      Host* host,
                                      const AudioStreamInfo& audio_stream_info,
@@ -164,18 +169,23 @@ MediaCodecDecoder::MediaCodecDecoder(PassKey<MediaCodecDecoder>,
   SB_CHECK(host_);
   SB_CHECK(error_message);
 
-  jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
+  ScopedJavaLocalRef<jobject> j_media_crypto;
+  if (drm_system_) {
+    JNIEnv* env = AttachCurrentThread();
+    j_media_crypto =
+        ScopedJavaLocalRef<jobject>(env, drm_system_->GetMediaCrypto());
+  }
   SB_DCHECK(!drm_system_ || j_media_crypto);
-  media_codec_bridge_ = MediaCodecBridge::CreateAudioMediaCodecBridge(
+  media_codec_bridge_ = media_codec_factory.CreateAudioMediaCodec(
       audio_stream_info, this, j_media_crypto);
   if (!media_codec_bridge_) {
-    *error_message = "Failed to create audio media codec bridge.";
+    *error_message = "Failed to create audio media codec.";
     SB_LOG(ERROR) << *error_message;
     return;
   }
   // When |audio_stream_info.codec| == kSbMediaAudioCodecOpus, we instead send
   // the audio specific configuration when we create the MediaCodec object in
-  // the call to MediaCodecBridge::CreateAudioMediaCodecBridge() above.
+  // the call to MediaCodec::CreateAudioMediaCodec() above.
   // TODO: Determine if we should send the audio specific configuration here
   // only when |audio_codec| == kSbMediaAudioCodecAac.
   if (audio_stream_info.codec != kSbMediaAudioCodecOpus &&
@@ -187,13 +197,14 @@ MediaCodecDecoder::MediaCodecDecoder(PassKey<MediaCodecDecoder>,
 
 MediaCodecDecoder::MediaCodecDecoder(
     PassKey<MediaCodecDecoder>,
+    MediaCodec::Factory& media_codec_factory,
     JobQueue* job_queue,
     Host* host,
     SbMediaVideoCodec video_codec,
     const Size& frame_size_hint,
     const std::optional<Size>& max_frame_size,
     int fps,
-    jobject j_output_surface,
+    const jni_zero::JavaRef<jobject>& j_output_surface,
     SbDrmSystem drm_system,
     const SbMediaColorMetadata* color_metadata,
     bool require_software_codec,
@@ -201,11 +212,13 @@ MediaCodecDecoder::MediaCodecDecoder(
     const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
     std::optional<int> tunnel_mode_audio_session_id,
     bool enable_frame_renderer_listener,
+    bool enable_low_latency,
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
-    std::optional<bool> use_dual_threads,
+    bool use_dual_threads,
     bool skip_video_frames_over_60_fps,
+    bool ignore_mediacodec_callbacks_during_flushing,
     std::string* error_message)
     : JobOwner(job_queue),
       media_type_(kSbMediaTypeVideo),
@@ -218,27 +231,34 @@ MediaCodecDecoder::MediaCodecDecoder(
       video_decoder_poll_interval_us_(
           tunnel_mode_enabled_ ? kDefaultVideoDecoderTunnelPollIntervalUs
                                : kDefaultVideoDecoderPollIntervalUs),
-      use_dual_threads_(use_dual_threads.value_or(false) &&
-                        !tunnel_mode_enabled_) {
+      use_dual_threads_(use_dual_threads && !tunnel_mode_enabled_) {
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
-  jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
+  ScopedJavaLocalRef<jobject> j_media_crypto;
+  if (drm_system_) {
+    JNIEnv* env = AttachCurrentThread();
+    j_media_crypto =
+        ScopedJavaLocalRef<jobject>(env, drm_system_->GetMediaCrypto());
+  }
   const bool require_secured_decoder =
       drm_system_ && drm_system_->require_secured_decoder();
   SB_DCHECK(!drm_system_ || j_media_crypto);
-  auto media_codec_bridge = MediaCodecBridge::CreateVideoMediaCodecBridge(
-      video_codec, frame_size_hint, fps, max_frame_size, /*handler=*/this,
-      j_output_surface, j_media_crypto, color_metadata,
-      enable_frame_renderer_listener, require_secured_decoder,
-      require_software_codec, tunnel_mode_audio_session_id,
-      force_big_endian_hdr_metadata, max_video_input_size,
-      skip_video_frames_over_60_fps);
+
+  auto media_codec_bridge = media_codec_factory.CreateVideoMediaCodec(
+      video_codec, frame_size_hint, fps, max_frame_size,
+      /*handler=*/this, j_output_surface, j_media_crypto, color_metadata,
+      {max_video_input_size, skip_video_frames_over_60_fps,
+       ignore_mediacodec_callbacks_during_flushing,
+       enable_frame_renderer_listener, enable_low_latency,
+       require_secured_decoder, require_software_codec,
+       force_big_endian_hdr_metadata, tunnel_mode_audio_session_id});
+
   if (media_codec_bridge) {
     media_codec_bridge_ = std::move(media_codec_bridge.value());
   } else {
     *error_message = media_codec_bridge.error();
-    SB_LOG(ERROR) << "Failed to create video media codec bridge with error: "
+    SB_LOG(ERROR) << "Failed to create video media codec with error: "
                   << *error_message;
     return;
   }
@@ -303,14 +323,14 @@ void MediaCodecDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
           "VidDecIn", [this] { InputThreadFunc(); });
       video_input_thread_->Start();
       video_output_thread_ = std::make_unique<DecoderThread>(
-          "VidDecOut", [this] { OutputThreadFunc(); }, kSbThreadPriorityHigh);
+          "VidDecOut", [this] { OutputThreadFunc(); }, ThreadPriority::kHigh);
       video_output_thread_->Start();
     }
   } else if (!decoder_thread_) {
     decoder_thread_ = std::make_unique<DecoderThread>(
         GetDecoderName(media_type_), [this] { DecoderThreadFunc(); },
-        media_type_ == kSbMediaTypeAudio ? kSbThreadPriorityNormal
-                                         : kSbThreadPriorityHigh);
+        media_type_ == kSbMediaTypeAudio ? ThreadPriority::kNormal
+                                         : ThreadPriority::kHigh);
     decoder_thread_->Start();
   }
 
@@ -414,9 +434,10 @@ void MediaCodecDecoder::DecoderThreadFunc() {
   if (media_type_ == kSbMediaTypeAudio) {
     std::deque<PendingInput> pending_inputs;
     std::vector<int> input_buffer_indices;
+    std::vector<DequeueOutputResult> dequeue_output_results;
 
     while (!destroying_.load()) {
-      std::vector<DequeueOutputResult> dequeue_output_results;
+      dequeue_output_results.clear();
       {
         std::unique_lock lock(mutex_);
         bool has_pending_input =
@@ -750,11 +771,11 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
   // were called and had it stored in |pending_input_to_retry_|.
   if (!input_buffer_already_written &&
       pending_input.type != PendingInput::kWriteEndOfStream) {
-    ScopedJavaLocalRef<jobject> byte_buffer(
-        media_codec_bridge_->GetInputBuffer(dequeue_input_result.index));
-    if (byte_buffer.is_null()) {
-      SB_LOG(ERROR) << "Unable to get MediaCodec input buffer, |byte_buffer| is"
-                    << " null.";
+    const auto codec_input_buffer =
+        media_codec_bridge_->GetInputBufferAddress(dequeue_input_result.index);
+    auto* address = codec_input_buffer.data();
+    if (!address) {
+      SB_LOG(ERROR) << "Unable to get MediaCodec input buffer address.";
       // There could be dirty callbacks right after flush, thus the
       // MediaCodec.InputBuffer could be unavailable. In that case, we should
       // re-write the input buffer with a different MediaCodec.InputBuffer.
@@ -763,21 +784,19 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
       return false;
     }
 
-    JNIEnv* env = AttachCurrentThread();
-    jint capacity = env->GetDirectBufferCapacity(byte_buffer.obj());
-    if (capacity < size) {
+    const auto capacity = codec_input_buffer.size();
+    if (capacity < static_cast<size_t>(size)) {
       auto error_message = FormatString(
           "Unable to write to MediaCodec buffer, input buffer size (%d) is"
-          " greater than |byte_buffer.capacity()| (%d).",
-          size, static_cast<int>(capacity));
+          " greater than buffer capacity (%zu).",
+          size, capacity);
       SB_LOG(ERROR) << error_message;
       ReportError(kSbPlayerErrorDecode, error_message);
       return false;
     }
 
     SB_DCHECK_GE(size, 0);
-    SB_DCHECK_LE(size, capacity);
-    void* address = env->GetDirectBufferAddress(byte_buffer.obj());
+    SB_DCHECK_LE(static_cast<size_t>(size), capacity);
 
     using ::starboard::experimental::IsPointerAnnotated;
     using ::starboard::experimental::UnannotatePointer;
@@ -803,7 +822,7 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
   } else if (pending_input.type == PendingInput::kWriteCodecConfig) {
     status = media_codec_bridge_->QueueInputBuffer(
         dequeue_input_result.index, kNoOffset, size, kNoPts,
-        BUFFER_FLAG_CODEC_CONFIG, false);
+        MediaCodec::kBufferFlagCodecConfig, false);
   } else if (pending_input.type == PendingInput::kWriteInputBuffer) {
     jlong pts_us = input_buffer->timestamp();
     if (drm_system_ && input_buffer->drm_info()) {
@@ -818,7 +837,7 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
   } else {
     status = media_codec_bridge_->QueueInputBuffer(
         dequeue_input_result.index, kNoOffset, size, kNoPts,
-        BUFFER_FLAG_END_OF_STREAM, false);
+        MediaCodec::kBufferFlagEndOfStream, false);
     host_->OnEndOfStreamWritten(media_codec_bridge_.get());
   }
 
@@ -903,31 +922,32 @@ void MediaCodecDecoder::ReportError(const SbPlayerError error,
 
 void MediaCodecDecoder::OnMediaCodecError(bool is_recoverable,
                                           bool is_transient,
-                                          const std::string& diagnostic_info) {
+                                          const std::string& error_message) {
   SB_LOG(WARNING) << "MediaCodecDecoder encountered "
                   << (is_recoverable ? "recoverable, " : "unrecoverable, ")
                   << (is_transient ? "transient " : "intransient ")
-                  << " error with message: " << diagnostic_info;
+                  << " error with message: " << error_message;
   // The callback may be called on a different thread and before |error_cb_| is
   // initialized.
   if (!is_transient) {
     if (media_type_ == kSbMediaTypeAudio) {
       ReportError(kSbPlayerErrorDecode,
-                  "OnMediaCodecError (audio): " + diagnostic_info +
+                  "OnMediaCodecError (audio): " + error_message +
                       (is_recoverable ? ", recoverable " : ", unrecoverable "));
     } else {
       ReportError(kSbPlayerErrorDecode,
-                  "OnMediaCodecError (video): " + diagnostic_info +
+                  "OnMediaCodecError (video): " + error_message +
                       (is_recoverable ? ", recoverable " : ", unrecoverable "));
     }
   }
 }
 
-void MediaCodecDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
+void MediaCodecDecoder::OnMediaCodecInputBufferAvailable(int32_t buffer_index) {
   if (media_type_ == kSbMediaTypeVideo && first_call_on_handler_thread_) {
     // Set the thread priority of the Handler thread to dispatch the async
     // decoder callbacks to high.
-    setpriority(PRIO_PROCESS, 0, SbPriorityToNice(kSbThreadPriorityHigh));
+    setpriority(PRIO_PROCESS, 0,
+                ThreadPriorityToNiceValue(ThreadPriority::kHigh));
     first_call_on_handler_thread_ = false;
   }
   std::lock_guard lock(mutex_);
@@ -942,11 +962,11 @@ void MediaCodecDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
 }
 
 void MediaCodecDecoder::OnMediaCodecOutputBufferAvailable(
-    int buffer_index,
-    int flags,
-    int offset,
+    int32_t buffer_index,
+    int32_t flags,
+    int32_t offset,
     int64_t presentation_time_us,
-    int size) {
+    int32_t size) {
   SB_DCHECK_GE(buffer_index, 0);
 
   // TODO(b/291959069): After the output thread is destroyed, it may still

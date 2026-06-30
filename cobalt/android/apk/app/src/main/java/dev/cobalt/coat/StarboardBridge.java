@@ -108,6 +108,7 @@ public class StarboardBridge {
   private static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getTimeZone("America/Los_Angeles");
   private final long mTimeNanosecondsPerMicrosecond = 1000;
   private static final String YTS_CERT_SCOPE_SYSTEM_PROPERTY = "ro.vendor.youtube.cert_scope";
+  private static final String DEFAULT_DEVICE_NAME = "Android";
 
   public StarboardBridge(
       Context appContext,
@@ -516,6 +517,37 @@ public class StarboardBridge {
   @CalledByNative
   protected boolean getLimitAdTracking() {
     return mAdvertisingId.isLimitAdTrackingEnabled();
+  }
+
+  @CalledByNative
+  protected String getFriendlyName() {
+    String deviceName = null;
+    try {
+      deviceName = android.provider.Settings.Global.getString(
+          mAppContext.getContentResolver(), android.provider.Settings.Global.DEVICE_NAME);
+    } catch (SecurityException e) {
+      Log.w(TAG, "SecurityException reading DEVICE_NAME setting", e);
+    }
+    if (deviceName == null || deviceName.isEmpty()) {
+      deviceName = android.os.Build.MODEL;
+    }
+    if (deviceName == null || deviceName.isEmpty()) {
+      deviceName = DEFAULT_DEVICE_NAME;
+    }
+    return deviceName;
+  }
+
+  @CalledByNative
+  protected double getScreenDiagonal() {
+    android.util.Size size = DisplayUtil.getSystemDisplaySize();
+    DisplayUtil.DisplayDpi dpi = DisplayUtil.getDisplayDpi();
+    if (size == null || dpi == null || dpi.getX() < 0.1f || dpi.getY() < 0.1f) {
+      Log.e(TAG, "getScreenDiagonal: Invalid display size or DPI values");
+      return 0.0;
+    }
+    double widthInches = size.getWidth() / (double) dpi.getX();
+    double heightInches = size.getHeight() / (double) dpi.getY();
+    return Math.sqrt(widthInches * widthInches + heightInches * heightInches);
   }
 
   @CalledByNative

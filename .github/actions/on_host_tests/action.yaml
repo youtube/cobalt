@@ -13,6 +13,13 @@ inputs:
   num_gtest_shards:
     description: "Total number of shards used to run the steps in this file."
     required: true
+  test_executables_json:
+    description: "JSON array of test executables to run."
+    required: true
+  test_type:
+    description: "The test type (gtest or junit)."
+    required: false
+    default: "gtest"
 runs:
   using: "composite"
   steps:
@@ -24,33 +31,33 @@ runs:
       uses: actions/download-artifact@v5
       with:
         name: ${{ inputs.test_artifacts_key }}
+    - name: Checkout JUnit Dependencies
+      if: inputs.test_type == 'junit'
+      shell: bash
+      run: |
+        git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+        git sparse-checkout add --skip-checks testing build third_party/catapult third_party/logdog
+        git submodule update --init third_party/catapult
     - name: Extract Artifacts
       shell: bash
       run: |
         set -x
-        mkdir -p unit_test/
-        cd unit_test/
-        tar -I 'zstd -T0' -xf ../test_artifacts.tar.zstd
-    - name: Run Tests
-      id: run-tests
+        tar -I 'zstd -T0' -xf test_artifacts.tar.zstd
+    - name: Prepare Test Execution
+      id: prepare-test-execution
       shell: bash
-      env:
-        XVFB_SERVER_ARGS: "-screen 0 1920x1080x24i +render +extension GLX -noreset"
-        GTEST_SHARD_INDEX: ${{ matrix.shard }}
-        GTEST_TOTAL_SHARDS: ${{ inputs.num_gtest_shards }}
       run: |
         set -x
         env
 
-        out_dir="${GITHUB_WORKSPACE}/unit_test/out/${{ matrix.platform}}_${{ matrix.config }}"
+        out_dir="${GITHUB_WORKSPACE}/out/${{ matrix.platform }}_${{ matrix.config }}"
         # TODO: LD_LIBRARY_PATH should not include the starboard subdirectory.
-        LD_LIBRARY_PATH="${out_dir}/starboard"
-        LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${out_dir}"
-        export LD_LIBRARY_PATH
+        LD_LIBRARY_PATH="${out_dir}/starboard:${out_dir}"
+        echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
 
         # TODO: b/467135717 - Remove this once tests don't have asan leaks.
         # Don't fail if only asan fails.
-        export ASAN_OPTIONS=exitcode=0
+        echo "ASAN_OPTIONS=exitcode=0" >> $GITHUB_ENV
 
         # Make results dir available to the archiving step below.
         results_dir="${GITHUB_WORKSPACE}/results"
@@ -61,38 +68,54 @@ runs:
         # This also prevents accidental overwriting when collecting results.
         test_output="${results_dir}/shard_${{ matrix.shard }}"
         mkdir -p ${test_output}
+        echo "test_output=${test_output}" >> $GITHUB_ENV
+
+    - name: Run GTest Suites
+      if: ${{ inputs.test_type == 'gtest' }}
+      id: run-gtest-suites
+      shell: bash
+      env:
+        XVFB_SERVER_ARGS: "-screen 0 1920x1080x24i +render +extension GLX -noreset"
+        GTEST_SHARD_INDEX: ${{ matrix.shard }}
+        GTEST_TOTAL_SHARDS: ${{ inputs.num_gtest_shards }}
+        TEST_EXECUTABLES_JSON: ${{ inputs.test_executables_json }}
+      run: |
+        set -x
 
         failed_suites=""
-        cd unit_test/
 
-        for test_binary_path in $(cat out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json | jq -cr '.executables | join(" ")'); do
-          filename=$(basename "${test_binary_path}")
-          test_binary="${filename%%.*}"
+        # Parse the JSON array into a space-separated string using jq.
+        test_executables=$(jq -nr --arg json "${TEST_EXECUTABLES_JSON:-[]}" '$json | fromjson | join(" ")')
 
-          echo "Running tests for suite: ${test_binary}"
+        for test_executable_path in ${test_executables}; do
+          filename=$(basename "${test_executable_path}")
+          test_executable="${filename%%.*}"
+
+          echo "Running tests for suite: ${test_executable}"
 
           test_filter="*"
-          test_filter_json_dir="${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}/${test_binary}_filter.json"
+          test_filter_json_dir="${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}/${test_executable}_filter.json"
           if [ -f ${test_filter_json_dir} ]; then
             test_filter=`jq -r '"-" + (.failing_tests | join(":"))' ${test_filter_json_dir}`
           fi
 
           echo "Test filter evaluated to: ${test_filter}"
-          xml_path="${test_output}/${test_binary}_result.xml"
-          log_path="${test_output}/${test_binary}_log.txt"
+
+          xml_path="${test_output}/${test_executable}_result.xml"
+          log_path="${test_output}/${test_executable}_log.txt"
           # TODO: Investigate test_runner.py
 
           # Check if a wrapper script was generated for the test (e.g. by test_runner_script).
           # If so, use it as the entrypoint to run tests.
-          wrapper_path="$(dirname "${test_binary_path}")/bin/run_${test_binary}"
+          wrapper_path="$(dirname "${test_executable_path}")/bin/run_${test_executable}"
           if [[ -x "${wrapper_path}" ]]; then
             ENTRYPOINT="./${wrapper_path}"
           else
-            ENTRYPOINT="./${test_binary_path}"
+            ENTRYPOINT="./${test_executable_path}"
           fi
 
           if [ "${test_filter}" == "-*" ]; then
-            echo "Skipped due to test filter." >  ${log_path}
+            echo "Skipped due to test filter." > ${log_path}
           else
             /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
                 stdbuf -i0 -o0 -e0 $ENTRYPOINT \
@@ -101,7 +124,7 @@ runs:
                 --gtest_total_shards="${GTEST_TOTAL_SHARDS}" \
                 --gtest_output="xml:${xml_path}" \
                 --gtest_filter="${test_filter}" 2>&1 | tee ${log_path} || {
-              failed_suites="${failed_suites} ${test_binary}"
+              failed_suites="${failed_suites} ${test_executable}"
             }
 
             if [[ ! -f ${xml_path} ]]; then
@@ -110,7 +133,61 @@ runs:
             fi
           fi
         done
-        echo "Finished running tests..."
+
+        echo "Finished running GTest tests..."
+        if [[ -n "${failed_suites}" ]]; then
+          echo "Test suites failed:${failed_suites}"
+          # Fail the job so it's easy to retrigger.
+          exit 1
+        fi
+
+    - name: Run JUnit Suites
+      if: ${{ inputs.test_type == 'junit' }}
+      id: run-junit-suites
+      shell: bash
+      env:
+        TEST_EXECUTABLES_JSON: ${{ inputs.test_executables_json }}
+      run: |
+        set -x
+
+        failed_suites=""
+
+        # Parse the JSON array into a space-separated string using jq.
+        test_executables=$(jq -nr --arg json "${TEST_EXECUTABLES_JSON:-[]}" '$json | fromjson | join(" ")')
+
+        for test_executable_path in ${test_executables}; do
+          test_executable=$(basename "${test_executable_path}")
+
+          # JUnit tests are executed by their wrapper script "out/PLATFORM_CONFIG/bin/run_NAME".
+          # We use the test executable's base name for naming its logs and results.
+          test_executable_name="${test_executable#run_}"
+
+          xml_path="${test_output}/${test_executable_name}_result.xml"
+          log_path="${test_output}/${test_executable_name}_log.txt"
+
+          echo "Running tests for target: ${test_executable_name}"
+
+          # Run JUnit tests and generate JSON report, then convert to XML.
+          #
+          # TODO(b/524653685):
+          # Even though these are junit tests, due to upstream implementation of the Robolectric tests they are
+          # only able to output JSON results. The rest of our CI pipeline is expecting XML so in the short term we are
+          # taking a shortcut to convert JSON to XML for expediency. Given that the Robolectric JSON output is the how
+          # Chromium infrastructure handles test results in general, we will eventually refactor the gtest results to
+          # also output JSON and then subsequently remove this conversion script after adopting JSON as a universal
+          # test result format in our testing workflow.
+          json_path="${test_output}/${test_executable_name}_result.json"
+          stdbuf -i0 -o0 -e0 ./${test_executable_path} --json-results-file="${json_path}" 2>&1 | tee ${log_path} || {
+            failed_suites="${failed_suites} ${test_executable_name}"
+          }
+          if [[ -f ${json_path} ]]; then
+            python3 ${GITHUB_WORKSPACE}/.github/scripts/convert_json_to_junit_xml.py "${json_path}" "${xml_path}"
+          else
+            python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
+          fi
+        done
+
+        echo "Finished running JUnit tests..."
         if [[ -n "${failed_suites}" ]]; then
           echo "Test suites failed:${failed_suites}"
           # Fail the job so it's easy to retrigger.

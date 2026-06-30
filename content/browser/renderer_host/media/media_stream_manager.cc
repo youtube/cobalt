@@ -110,7 +110,7 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "media/audio/android/starboard_audio_input_stream.h"
 #endif
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 using ::blink::mojom::MediaDeviceType;
 
@@ -2640,8 +2640,7 @@ void MediaStreamManager::SetUpRequest(const std::string& label) {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // FAST-TRACK for Cobalt Audio Capture
-  if (base::FeatureList::IsEnabled(media::kCobaltAudioCaptureFastTrack) &&
-      request->audio_type() == MediaStreamType::DEVICE_AUDIO_CAPTURE &&
+  if (request->audio_type() == MediaStreamType::DEVICE_AUDIO_CAPTURE &&
       request->video_type() == MediaStreamType::NO_SERVICE) {
     LOG(INFO) << "SetUpRequest: FAST-TRACKING Cobalt Audio Request";
 
@@ -2662,7 +2661,7 @@ void MediaStreamManager::SetUpRequest(const std::string& label) {
 #endif
     return;
   }
-#endif
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   const bool is_display_capture =
       request->video_type() == MediaStreamType::DISPLAY_VIDEO_CAPTURE ||
@@ -2793,7 +2792,7 @@ void MediaStreamManager::CompleteFastTrackSetUp(
   HandleAccessRequestResponse(label, params, stream_devices_set,
                               blink::mojom::MediaStreamRequestResult::OK);
 }
-#endif
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 bool MediaStreamManager::SetUpDisplayCaptureRequest(DeviceRequest* request) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);

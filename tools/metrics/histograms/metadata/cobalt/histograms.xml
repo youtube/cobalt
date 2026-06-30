@@ -63,6 +63,15 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Finch.ConfigOutcome" enum="FinchConfigOutcome"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the outcome of variations experiment configuration loading during
+    startup.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Finch.ConfigState" enum="VariationsConfigState"
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
@@ -72,13 +81,12 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Cobalt.Finch.RollbackDetected" enum="Boolean"
+<histogram name="Cobalt.Finch.TimeBetweenWrites" units="ms"
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
   <summary>
-    Records when a rollback is detected and prevented. This happens when the
-    cobalt version recorded for a previous Finch config is greater than the
-    current version of the Cobalt binary.
+    Records the duration since the last time the variations experiment configuration
+    was written to persistent storage.
   </summary>
 </histogram>
 
@@ -91,6 +99,7 @@ Always run the pretty print utility on this file after editing:
     received.
   </summary>
 </histogram>
+
 
 <histogram name="Cobalt.LoaderApp.ElfDecompressionDuration" units="ms"
     expires_after="never">
@@ -466,6 +475,15 @@ Always run the pretty print utility on this file after editing:
   <summary>
     The physical memory (RSS) consumed by all thread stacks and Thread-Local
     Storage (TLS) regions within the process.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Experimental.Browser2.AndroidGraphicsMemory" units="MiB"
+    expires_after="never">
+  <owner>tasunny@google.com</owner>
+  <summary>
+    Graphics memory usage (GPU) on Android for cobalt. This data comes from graphics
+    section of dumpsys meminfo.
   </summary>
 </histogram>
 

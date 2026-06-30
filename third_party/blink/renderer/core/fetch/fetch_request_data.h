@@ -18,8 +18,6 @@
 #include "services/network/public/mojom/url_loader_factory.mojom-blink.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/platform/web_url_request.h"
-#include "content/public/common/content_milestone_features.h"
-#include "third_party/blink/public/public_buildflags.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/fetch/body_stream_buffer.h"
@@ -147,10 +145,10 @@ class CORE_EXPORT FetchRequestData final
   bool Keepalive() const { return keepalive_; }
   void SetKeepalive(bool b) { keepalive_ = b; }
 
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   bool BrowsingTopics() const { return browsing_topics_; }
   void SetBrowsingTopics(bool b) { browsing_topics_ = b; }
-#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   bool AdAuctionHeaders() const { return ad_auction_headers_; }
   void SetAdAuctionHeaders(bool b) { ad_auction_headers_ = b; }
@@ -266,9 +264,9 @@ class CORE_EXPORT FetchRequestData final
   network::mojom::RequestDestination original_destination_ =
       network::mojom::RequestDestination::kEmpty;
   bool keepalive_ = false;
-#if !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   bool browsing_topics_ = false;
-#endif  // !BUILDFLAG(DISABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   bool ad_auction_headers_ = false;
   bool shared_storage_writable_ = false;
   bool is_history_navigation_ = false;

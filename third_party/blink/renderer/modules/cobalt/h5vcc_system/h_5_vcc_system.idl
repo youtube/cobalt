@@ -38,6 +38,21 @@ interface H5vccSystem : EventTarget {
   Promise<boolean> getLimitAdTracking();
   readonly attribute boolean? limitAdTracking;
 
+  // Gets the device friendly name from the platform.
+  // Note: since there is some performance overhead involved in fetching the
+  // value from the platform via the browser, web clients should be careful not
+  // to call this API excessively. The value is unlikely to be changed during a
+  // Cobalt application lifecycle, anyway.
+  [CallWith=ScriptState, RaisesException, RuntimeEnabled=CobaltFriendlyName]
+  Promise<DOMString> getFriendlyName();
+
+  // Gets the physical screen diagonal in inches from the platform.
+  // Returns 0.0 if the platform does not know the physical screen diagonal.
+  // Ported forward from the GetDiagonal() API from:
+  // https://github.com/youtube/cobalt/blob/25.lts.stable/cobalt/h5vcc/h5vcc_screen.idl
+  [CallWith=ScriptState, RaisesException]
+  Promise<double> getScreenDiagonal();
+
   [CallWith=ScriptState, RaisesException]
   Promise<DOMString> getTrackingAuthorizationStatus();
   readonly attribute DOMString? trackingAuthorizationStatus;

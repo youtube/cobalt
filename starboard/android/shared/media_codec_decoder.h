@@ -23,7 +23,7 @@
 #include <vector>
 
 #include "starboard/android/shared/drm_system.h"
-#include "starboard/android/shared/media_codec_bridge.h"
+#include "starboard/android/shared/media_codec.h"
 #include "starboard/common/pass_key.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/thread.h"
@@ -39,11 +39,13 @@ namespace starboard {
 
 // TODO: Better encapsulation the MediaCodecBridge so the decoders no longer
 //       need to talk directly to the MediaCodecBridge.
-class MediaCodecDecoder final : private MediaCodecBridge::Handler,
+class MediaCodecDecoder final : private MediaCodec::Handler,
                                 protected JobQueue::JobOwner {
  public:
   using FrameRenderedCB = std::function<void(int64_t)>;
   using FirstTunnelFrameReadyCB = std::function<void(void)>;
+
+  MediaCodec* media_codec() const { return media_codec_bridge_.get(); }
 
   // This class should be implemented by the users of MediaCodecDecoder to
   // receive various notifications.  Note that all such functions are called on
@@ -51,15 +53,15 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   // TODO: Replace this with std::function<> based callbacks.
   class Host {
    public:
-    virtual void ProcessOutputBuffer(MediaCodecBridge* media_codec_bridge,
+    virtual void ProcessOutputBuffer(MediaCodec* media_codec,
                                      const DequeueOutputResult& output) = 0;
-    virtual void OnEndOfStreamWritten(MediaCodecBridge* media_codec_bridge) = 0;
-    virtual void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) = 0;
+    virtual void OnEndOfStreamWritten(MediaCodec* media_codec) = 0;
+    virtual void RefreshOutputFormat(MediaCodec* media_codec) = 0;
     // This function gets called frequently on the decoding thread to give the
     // Host a chance to process when the MediaCodecDecoder is decoding.
     // TODO: Revise the scheduling logic to give the host a chance to process in
     //       a more elegant way.
-    virtual bool Tick(MediaCodecBridge* media_codec_bridge) = 0;
+    virtual bool Tick(MediaCodec* media_codec) = 0;
     // This function gets called before calling Flush() on the contained
     // MediaCodecBridge so the host can have a chance to do necessary cleanups
     // before the MediaCodecBridge is flushed.
@@ -73,11 +75,13 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   };
 
   static NonNullResult<std::unique_ptr<MediaCodecDecoder>> CreateForAudio(
+      MediaCodec::Factory& media_codec_factory,
       JobQueue* job_queue,
       Host* host,
       const AudioStreamInfo& audio_stream_info,
       SbDrmSystem drm_system);
   static NonNullResult<std::unique_ptr<MediaCodecDecoder>> CreateForVideo(
+      MediaCodec::Factory& media_codec_factory,
       JobQueue* job_queue,
       Host* host,
       SbMediaVideoCodec video_codec,
@@ -86,7 +90,7 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       const Size& frame_size_hint,
       const std::optional<Size>& max_frame_size,
       int fps,
-      jobject j_output_surface,
+      const jni_zero::JavaRef<jobject>& j_output_surface,
       SbDrmSystem drm_system,
       const SbMediaColorMetadata* color_metadata,
       bool require_software_codec,
@@ -94,13 +98,16 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
       std::optional<int> tunnel_mode_audio_session_id,
       bool enable_frame_renderer_listener,
+      bool enable_low_latency,
       bool force_big_endian_hdr_metadata,
       int max_video_input_size,
       int64_t flush_delay_usec,
-      std::optional<bool> use_dual_threads,
-      bool skip_video_frames_over_60_fps);
+      bool use_dual_threads,
+      bool skip_video_frames_over_60_fps,
+      bool ignore_mediacodec_callbacks_during_flushing);
 
   MediaCodecDecoder(PassKey<MediaCodecDecoder>,
+                    MediaCodec::Factory& media_codec_factory,
                     JobQueue* job_queue,
                     Host* host,
                     const AudioStreamInfo& audio_stream_info,
@@ -108,6 +115,7 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
                     std::string* error_message);
   MediaCodecDecoder(
       PassKey<MediaCodecDecoder>,
+      MediaCodec::Factory& media_codec_factory,
       JobQueue* job_queue,
       Host* host,
       SbMediaVideoCodec video_codec,
@@ -116,7 +124,7 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       const Size& frame_size_hint,
       const std::optional<Size>& max_frame_size,
       int fps,
-      jobject j_output_surface,
+      const jni_zero::JavaRef<jobject>& j_output_surface,
       SbDrmSystem drm_system,
       const SbMediaColorMetadata* color_metadata,
       bool require_software_codec,
@@ -124,11 +132,13 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
       std::optional<int> tunnel_mode_audio_session_id,
       bool enable_frame_renderer_listener,
+      bool enable_low_latency,
       bool force_big_endian_hdr_metadata,
       int max_video_input_size,
       int64_t flush_delay_usec,
-      std::optional<bool> use_dual_threads,
+      bool use_dual_threads,
       bool skip_video_frames_over_60_fps,
+      bool ignore_mediacodec_callbacks_during_flushing,
       std::string* error_message);
   ~MediaCodecDecoder();
 
@@ -204,20 +214,18 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   void HandleError(const char* action_name, jint status);
   void ReportError(const SbPlayerError error, const std::string error_message);
 
-  // MediaCodecBridge::Handler methods
-  // Note that these methods are called from the default looper and is not on
-  // the decoder thread.
+  // MediaCodec::Handler methods
   void OnMediaCodecError(bool is_recoverable,
                          bool is_transient,
-                         const std::string& diagnostic_info) override;
-  void OnMediaCodecInputBufferAvailable(int buffer_index) override;
-  void OnMediaCodecOutputBufferAvailable(int buffer_index,
-                                         int flags,
-                                         int offset,
+                         const std::string& error_message) override;
+  void OnMediaCodecInputBufferAvailable(int32_t index) override;
+  void OnMediaCodecOutputBufferAvailable(int32_t index,
+                                         int32_t flags,
+                                         int32_t offset,
                                          int64_t presentation_time_us,
-                                         int size) override;
+                                         int32_t size) override;
   void OnMediaCodecOutputFormatChanged() override;
-  void OnMediaCodecFrameRendered(int64_t frame_timestamp) override;
+  void OnMediaCodecFrameRendered(int64_t presentation_time_us) override;
   void OnMediaCodecFirstTunnelFrameReady() override;
 
   ThreadChecker thread_checker_;
@@ -268,7 +276,7 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   // Only used when |use_dual_threads_| is true.
   std::unique_ptr<Thread> video_output_thread_;
 
-  std::unique_ptr<MediaCodecBridge> media_codec_bridge_;
+  std::unique_ptr<MediaCodec> media_codec_bridge_;
 };
 
 }  // namespace starboard

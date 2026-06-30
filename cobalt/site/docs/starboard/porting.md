@@ -3,18 +3,15 @@ Book: /youtube/cobalt/_book.yaml
 
 # Porting Cobalt 27 to your Platform with Starboard 18
 
-This document provides step-by-step instructions for porting Cobalt 27 to run
-on your platform. To do so, you'll use Starboard 18, which is Cobalt's porting
-layer and OS abstraction. Starboard encapsulates only the platform-specific
-functionality that Cobalt uses.
+This document provides step-by-step instructions for porting Cobalt 27 to your
+platform. You will use Starboard 18, Cobalt's porting layer and OS abstraction,
+to do this. Starboard encapsulates only the platform-specific functionality
+that Cobalt requires.
 
-To complete a port, you need to add code to the Cobalt source tree. We
-recognize that many porters will not want to actually share details of
-their Starboard implementation with external users. These porters likely
-have their own source control and will fork Cobalt into their software
-configuration management (SCM) tools. These instructions take that use
-case into account and explain how to add your port in a way that will not
-conflict with future Cobalt source code changes.
+To complete a port, you must add code to the Cobalt source tree. Because many
+porters prefer not to share details of their Starboard implementation, these
+instructions explain how to add your port without conflicting with future
+Cobalt updates.
 
 ## Prerequisites
 
@@ -39,13 +36,13 @@ Additionally, you should identify your target architecture (e.g., x86_64, ARMv7,
 
 ### 1. Enumerate and name your platform configurations
 
-Your first step is to define canonical names for your set of platform
-configurations. You will later use these names to organize the code
-for your platforms and to specify the target when building.
+Your first step is to define canonical names for your platform configurations.
+You will later use these names to organize the code for your platform and to
+specify the target when building.
 
-A platform configuration has a one-to-one mapping to a production binary.
-As such, you will need to create a new platform configuration any time you
-need to produce a new binary.
+A platform configuration maps one-to-one to a production binary. Consequently,
+you must create a new platform configuration whenever you need to produce a
+new binary.
 
 A platform configuration name has two components:
 
@@ -132,30 +129,30 @@ among the required files for each `binary-variant` directory:
 *   `application_stub.h`
 *   `main.cc`
 
-The Starboard `Application` class is designed to do the following:
+The Starboard `Application` class is designed to:
 
 *   Integrate a generic task runner function with a system message pump that
-    can deliver either input or application lifecycle events like
-    suspend/resume.
-*   Provide a place for graceful platform-specific initialization and teardown.
-*   Provide a universally accessible place to store global platform-specific
+    can deliver either input or application lifecycle events, such as suspend
+    and resume.
+*   Provide a hook for graceful platform-specific initialization and teardown.
+*   Provide a universally accessible storage for global platform-specific
     state, such as managed UI windows.
 
-Thus, these files provide a framework for fulfilling Starboard's event
-dispatching requirements, even though they don't implement any specific
-Starboard interface and aren't strictly necessary for any given port. Even so,
-anyone who is porting Cobalt will likely need to adapt a copy of
-`application_stub.cc` and `application_stub.h` to their platforms needs.
+These files provide a framework for fulfilling Starboard's event
+dispatching requirements. Although they do not implement a specific Starboard
+interface and are not strictly necessary for a port, you will likely need to
+adapt a copy of `application_stub.cc` and `application_stub.h` to your platform's
+needs.
 
-The `application` files do not necessarily need to be per-variant files. Even
-if you have multiple variants, it's still possible that you only need one copy
-of these files in your `shared` directory. Similarly, you might have a shared
-base class along with variant-specific subclasses.
+The `application` files do not need to be per-variant files. Even with multiple
+variants, you may only need one copy of these files in your `shared` directory.
+Alternatively, you can use a shared base class with variant-specific
+subclasses.
 
 ### 4. Make required file modifications
 
-To port your code, you must add your platform to `starboard/build/platforms.py`
-then make the following modifications to the files that you copied in step 3:
+To port your code, add your platform to `starboard/build/platforms.py`
+and then make the following modifications to the files copied in step 3:
 
 Note that [cobalt/build/gn.py](cobalt/build/gn.py) is the main entry point for configuring your build. You will use it to specify your platform configuration name when running GN.
 
@@ -177,49 +174,47 @@ Porters should also be aware of [cobalt/app/cobalt_switch_defaults_starboard.cc]
         `starboard/build/config/base_configuration.gni` if necessary:
         *   `gl_type` - Set to `system_gles2` if you are using the system EGL
             \+ GLES2 implementation and otherwise set the value to `none`.
-        *   `enable_in_app_dial` - Enables (or disables) the DIAL server that
-            runs inside Cobalt. (This server only runs when Cobalt is running.)
-            The [DIAL protocol](http://www.dial-multiscreen.org/home) enables
-            second-screen devices (like tablets and phones) to discover,
-            launch, and interface with applications on first-screen devices
-            (like televisions, set-top boxes, and Blu-ray players).
+        *   `enable_in_app_dial` - Enables or disables the DIAL server that
+            runs inside Cobalt (only when Cobalt is running).
+            The [DIAL protocol](https://www.dial-multiscreen.org/) allows
+            devices like tablets and phones to discover,
+            launch, and interface with applications on devices, including
+            televisions, set-top boxes, and Blu-ray players.
             *   Set this value to `false` if you already have system-wide DIAL
                 support. In that case, a DIAL server running inside Cobalt
-                would be redundant.
+                is redundant.
             *   Set this value to `true` if you want Cobalt to run a DIAL
-                server whenever it is running. That server could only be used
-                to connect with the current Cobalt application (e.g. YouTube).
+                server. That server can be used only to connect with the
+                current Cobalt application (for example, YouTube).
         *   `sabi_path` - Set this to the path of your Starboard ABI file (e.g., `"//starboard/sabi/x64/sabi.json"`). This is required for ABI verification.
 
 1.  **`toolchain/BUILD.gn`**
-    1.  If your platform uses a simple clang toolchain, simply pass the path to
-        the toolchain to the `clang_toolchain` template. This template will
-        assume names for each of the tools, i.e. the `clang++` executable
-        should be at `${clang_base_path}/clang++`.
+    1.  If your platform uses a simple clang toolchain, pass the path to the
+        toolchain to the `clang_toolchain` template. This template assumes
+        names for each of the tools; for example, the `clang++` executable
+        must be at `${clang_base_path}/clang++`.
 
         Modify the host's `toolchain_args` to pass the correct OS and CPU for
         your host platform.
 
         If your toolchain uses GCC or has tool names that differ from what
         the `clang_toolchain` template assumes, use the `gcc_toolchain`
-        template (also provided in `"//build/toolchain/gcc_toolchain.gni"`).
-        To use this template, pass full paths to each of the required tools
-        (`ar`, `cc`, `cxx`, and `ld`), as well as any optional tools you want
-        to use. If your toolchain uses clang, make sure you pass
-        `is_clang = true` in `toolchain_args`.
+        template (also provided in `//build/toolchain/gcc_toolchain.gni`).
+        To use this template, pass full paths to each required tool
+        (`ar`, `cc`, `cxx`, and `ld`), as well as any optional tools. If your
+        toolchain uses clang, ensure you pass `is_clang = true` in
+        `toolchain_args`.
 
-    1.  Update your toolchain command-line flags and libraries. Ensure that
-        you do not assume a particular workstation layout since that layout
-        may vary from user to user.
+    2.  Update your toolchain command-line flags and libraries. Do not assume
+        a particular workstation layout, as it might vary between users.
 
 ### 5. Port modules to work on your platform
 
-The `BUILD.gn` file points to all of the source files included
-in your new Starboard implementation. If you are starting with a copy of the
-Stub implementation, then that file will initially include a lot of files
-from the `starboard/shared/stub/` directory. Similarly, if you are starting
-starting with a copy of the Desktop Linux port, then that file will initially
-point to files in the `starboard/shared/posix` directory.
+The `BUILD.gn` file specifies all source files included in your Starboard
+implementation. If you start with a copy of the Stub implementation, this file
+initially includes many files from `starboard/shared/stub/`. If you start with
+the Desktop Linux port, it initially references files in
+`starboard/shared/posix/`.
 
 The modules are defined so that each one has a set of functions, and each
 function is defined in its own file with a consistent naming convention.
@@ -230,15 +225,13 @@ supported functions.
 
 **Recommendation:** When porting modules, strongly prefer reusing existing implementations in [starboard/shared](starboard/shared) (such as `starboard/shared/posix` and `starboard/shared/pthread`) to minimize the burden on the porter and maintain consistency.
 
-Function-by-function and module-by-module, you can now replace stub
-implementations with either custom implementations or with other ported
-implementations from the `starboard/shared/` directory until you have
-gone through all of the modules. As you do, update the
-`BUILD.gn` file to identify the appropriate source files.
+Replace stub implementations function-by-function and
+module-by-module until you have gone through all of the modules. Use either custom implementations or existing ports from
+`starboard/shared/`. As you proceed, update `BUILD.gn` to reference the correct
+source files.
 
-Due to dependencies between modules, you will find it easier to get some
-modules to pass the NPLB tests before other modules. We recommend porting
-modules in the following order to account for such dependencies:
+Because of dependencies between modules, some are easier to verify with NPLB
+before others. We recommend porting modules in the following order:
 
 1.  Configuration
 1.  main(), Application, and Event Pump - This is the call into `SbEventHandle`.

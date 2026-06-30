@@ -29,7 +29,6 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/extension/loader_app_metrics.h"
-#include "starboard/file.h"
 #include "starboard/loader_app/installation_store.pb.h"
 #if !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 #include "starboard/loader_app/pending_restart.h"  // nogncheck
@@ -587,13 +586,13 @@ int InstallationManager::RequestRollForwardToInstallation(
 bool InstallationManager::SaveInstallationStore() {
   ValidatePriorities();
 
-  if (IM_MAX_INSTALLATION_STORE_SIZE < installation_store_.ByteSize()) {
+  if (IM_MAX_INSTALLATION_STORE_SIZE < installation_store_.ByteSizeLong()) {
     SB_LOG(ERROR) << "SaveInstallationStore: Data too large"
-                  << installation_store_.ByteSize();
+                  << installation_store_.ByteSizeLong();
     return false;
   }
 
-  const size_t buf_size = installation_store_.ByteSize();
+  const size_t buf_size = installation_store_.ByteSizeLong();
   std::vector<char> buf(buf_size, 0);
 
   int result = installation_store_.roll_forward_to_installation();
@@ -602,10 +601,10 @@ bool InstallationManager::SaveInstallationStore() {
 #endif
 
   installation_store_.SerializeToArray(buf.data(),
-                                       installation_store_.ByteSize());
+                                       installation_store_.ByteSizeLong());
 
-  if (!SbFileAtomicReplace(store_path_.c_str(), buf.data(),
-                           installation_store_.ByteSize())) {
+  if (!starboard::FileAtomicReplace(store_path_.c_str(), buf.data(),
+                                    installation_store_.ByteSizeLong())) {
     SB_LOG(ERROR)
         << "SaveInstallationStore: Failed to store installation store: "
         << store_path_;
@@ -659,7 +658,7 @@ bool InstallationManager::LoadInstallationStore() {
   int file;
 
   SB_LOG(INFO) << "StorePath=" << store_path_;
-  file = open(store_path_.c_str(), O_RDONLY, S_IRUSR | S_IWUSR);
+  file = open(store_path_.c_str(), O_RDONLY);
   if (!starboard::IsValid(file)) {
     SB_LOG(WARNING) << "Failed to open file: " << store_path_;
     return false;

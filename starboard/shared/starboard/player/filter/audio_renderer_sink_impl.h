@@ -60,6 +60,7 @@ class AudioRendererSinkImpl : public AudioRendererSink {
              SbAudioSinkFrameBuffers frame_buffers,
              int frames_per_channel,
              RenderCallback* render_callback) override;
+  void Stop() override;
 
   SbAudioSinkPrivate* audio_sink_ = kSbAudioSinkInvalid;
   RenderCallback* render_callback_ = NULL;
@@ -74,8 +75,6 @@ class AudioRendererSinkImpl : public AudioRendererSink {
       SbMediaAudioFrameStorageType audio_frame_storage_type) const override;
   int GetNearestSupportedSampleFrequency(
       int sampling_frequency_hz) const override;
-
-  void Stop() override;
 
   void SetVolume(double volume) override;
   void SetPlaybackRate(double playback_rate) override;

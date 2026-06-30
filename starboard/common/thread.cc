@@ -33,87 +33,23 @@
 
 namespace starboard {
 
-namespace {
-
-#if defined(__APPLE__)
-// Returns a value between 0 and 1 that is used by SetThreadPriority() to scale
-// the desired thread priority between what sched_get_priority_min() and
-// sched_get_priority_max() return.
-float SbThreadPriorityToRelativeSchedPriority(SbThreadPriority priority) {
-  switch (priority) {
-    case kSbThreadPriorityLowest:
-      return 0.1f;
-    case kSbThreadPriorityLow:
-      return 0.3f;
-    case kSbThreadNoPriority:
-    case kSbThreadPriorityNormal:
-      return 0.5f;
-    case kSbThreadPriorityHigh:
-      return 0.7f;
-    case kSbThreadPriorityHighest:
-      return 0.9f;
-    case kSbThreadPriorityRealTime:
-      return 0.99f;
-  }
-  SB_NOTREACHED();
-}
-#endif  // defined(__APPLE__)
-
-// Wrapper for changing a thread's priority. On Linux kernel-based platforms
-// (including Android), this code relies on setpriority(2), which on Linux
-// deviates from the standard and changes per-thread attributes (rather tha
-// per-process).
-//
-// On tvOS, use pthread_setschedparam() by translating SbThreadPriority into an
-// integer between what sched_get_priority_min() and sched_get_priority_max()
-// return.
-bool SetThreadPriority(SbThreadPriority priority) {
-#if defined(__APPLE__)
-  const float relative_priority =
-      SbThreadPriorityToRelativeSchedPriority(priority);
-
-  int policy;
-  struct sched_param param;
-
-  // Get the current thread scheduling parameters. Only the thread priority
-  // will be changed.
-  SB_CHECK_EQ(pthread_getschedparam(pthread_self(), &policy, &param), 0);
-  const int min_priority = sched_get_priority_min(policy);
-  const int max_priority = sched_get_priority_max(policy);
-
-  // Thread priority set with pthread does not appear to have the same range
-  // as NSThread priorities. A pthread set to sched_get_priority_max() won't
-  // have NSThread.threadPriority == 1.0. Consider switching to NSThread if a
-  // higher priority is required.
-  param.sched_priority = static_cast<int>(
-      min_priority + relative_priority * (max_priority - min_priority));
-  return (pthread_setschedparam(pthread_self(), policy, &param) == 0);
-#else
-  // setpriority returns 0 on success and -1 on failure. The default nice value
-  // is 0. See https://linux.die.net/man/2/setpriority
-  return (setpriority(PRIO_PROCESS, 0, SbPriorityToNice(priority)) == 0);
-#endif  // defined(__APPLE__)
-}
-
-}  // namespace
-
-int SbPriorityToNice(SbThreadPriority priority) {
+int ThreadPriorityToNiceValue(ThreadPriority priority) {
   // Nice value settings are shared between Android and Linux.
   // They are selected from looking at:
   // https://android.googlesource.com/platform/frameworks/native/+/jb-dev/include/utils/ThreadDefs.h#35
   switch (priority) {
-    case kSbThreadPriorityLowest:
+    case ThreadPriority::kLowest:
       return 19;
-    case kSbThreadPriorityLow:
+    case ThreadPriority::kLow:
       return 10;
-    case kSbThreadNoPriority:
-    case kSbThreadPriorityNormal:
+    case ThreadPriority::kNoPriority:
+    case ThreadPriority::kNormal:
       return 0;
-    case kSbThreadPriorityHigh:
+    case ThreadPriority::kHigh:
       return -8;
-    case kSbThreadPriorityHighest:
+    case ThreadPriority::kHighest:
       return -16;
-    case kSbThreadPriorityRealTime:
+    case ThreadPriority::kRealTime:
       return -19;
     default:
       SB_NOTREACHED();
@@ -179,14 +115,10 @@ std::atomic_bool* Thread::joined_bool() {
 void* Thread::ThreadEntryPoint(void* context) {
   Thread* this_ptr = static_cast<Thread*>(context);
 
-#if defined(__APPLE__)
-  pthread_setname_np(this_ptr->name_.c_str());
-#else
-  pthread_setname_np(pthread_self(), this_ptr->name_.c_str());
-#endif
+  SetCurrentThreadName(this_ptr->name_.c_str());
   bool priority_set = false;
   if (this_ptr->priority_) {
-    priority_set = SetThreadPriority(*this_ptr->priority_);
+    priority_set = SetCurrentThreadPriority(*this_ptr->priority_);
     if (!priority_set) {
       SB_LOG(WARNING) << "Failed to set thread priority (unsupported on this "
                          "platform): requested_priority="

@@ -18,7 +18,9 @@ import android.graphics.SurfaceTexture;
 import android.view.Surface;
 import androidx.annotation.GuardedBy;
 import org.jni_zero.CalledByNative;
+import org.jni_zero.CalledByNativeForTesting;
 import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 /**
@@ -31,6 +33,11 @@ public class VideoSurfaceTexture extends SurfaceTexture {
 
   @GuardedBy("mLock")
   private long mNativeVideoSurfaceTextureBridge;
+
+  // Cache the matrix to avoid allocating a new float[16] array on every call
+  // to getTransformMatrix(), which is called on the rendering hot path (60fps)
+  // and would cause significant Garbage Collection (GC) churn.
+  private final float[] mTransformMatrix = new float[16];
 
   @CalledByNative
   VideoSurfaceTexture(int texName) {
@@ -68,14 +75,20 @@ public class VideoSurfaceTexture extends SurfaceTexture {
     return new Surface(surfaceTexture);
   }
 
+  @CalledByNativeForTesting
+  static Surface createSurfaceForTesting() {
+    return new Surface(new SurfaceTexture(1));
+  }
+
   @CalledByNative
   public void updateTexImage() {
     super.updateTexImage();
   }
 
   @CalledByNative
-  public void getTransformMatrix(float[] mtx) {
-    super.getTransformMatrix(mtx);
+  public @JniType("std::array<float, 16>") float[] getTransformMatrix() {
+    super.getTransformMatrix(mTransformMatrix);
+    return mTransformMatrix;
   }
 
   @NativeMethods

@@ -38,6 +38,10 @@ static_library("common") {
     "//starboard/shared/media_session/playback_state.h",
     "allocator.cc",
     "allocator.h",
+    "app_key.cc",
+    "app_key.h",
+    "app_key_internal.cc",
+    "app_key_internal.h",
     "bidirectional_fit_reuse_allocator.h",
     "check.h",
     "check_op.cc",
@@ -65,6 +69,7 @@ static_library("common") {
     "fixed_no_free_allocator.cc",
     "fixed_no_free_allocator.h",
     "flat_map.h",
+    "gettid.h",
     "log.cc",
     "media.cc",
     "media.h",
@@ -72,6 +77,7 @@ static_library("common") {
     "metrics/stats_tracker.h",
     "murmurhash2.cc",
     "murmurhash2.h",
+    "no_destructor.h",
     "pass_key.h",
     "paths.cc",
     "paths.h",
@@ -96,6 +102,7 @@ static_library("common") {
     "size.h",
     "source_location.cc",
     "source_location.h",
+    "span.h",
     "spin_lock.cc",
     "spin_lock.h",
     "storage.cc",
@@ -109,7 +116,9 @@ static_library("common") {
     "time.h",
   ]
 
-  if (!is_android) {
+  deps = [ "//third_party/modp_b64" ]
+
+  if (!is_android && !is_ios) {
     sources += [ "thread_platform_base.cc" ]
   }
 }
@@ -126,13 +135,16 @@ static_library("file_wrapper") {
 source_set("common_test") {
   testonly = true
   sources = [
+    "app_key_test.cc",
     "bidirectional_fit_reuse_allocator_test.cc",
     "drm_test.cc",
     "expected_test.cc",
+    "file_atomic_replace_test.cc",
     "fixed_no_free_allocator_test.cc",
     "log_unittest.cc",
     "media_test.cc",
     "memory_test.cc",
+    "no_destructor_test.cc",
     "player_test.cc",
     "queue_test.cc",
     "rect_test.cc",

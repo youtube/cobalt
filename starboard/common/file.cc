@@ -19,7 +19,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <cstring>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -39,7 +41,73 @@ bool DirectoryCloseLogFailure(const char* path, DIR* dir) {
   return true;
 }
 
+bool FileAtomicReplaceWriteFile(const char* path,
+                                const char* data,
+                                int64_t data_size) {
+  int temp_file = open(path, O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
+
+  if (temp_file < 0) {
+    return false;
+  }
+
+  if (ftruncate(temp_file, 0) != 0) {
+    close(temp_file);
+    unlink(path);
+    return false;
+  }
+
+  const char* source = data;
+  int64_t to_write = data_size;
+
+  while (to_write > 0) {
+    const int to_write_max = static_cast<int>(std::min(
+        to_write, static_cast<int64_t>(std::numeric_limits<int32_t>::max())));
+    const int bytes_written = write(temp_file, source, to_write_max);
+    RecordFileWriteStat(bytes_written);
+
+    if (bytes_written < 0) {
+      close(temp_file);
+      unlink(path);
+      return false;
+    }
+
+    source += bytes_written;
+    to_write -= bytes_written;
+  }
+
+  fsync(temp_file);
+
+  if (close(temp_file)) {
+    return false;
+  }
+  return true;
+}
+
 }  // namespace
+
+bool FileAtomicReplace(const char* path, const char* data, int64_t data_size) {
+  if ((data_size < 0) || ((data_size > 0) && !data)) {
+    return false;
+  }
+
+  struct stat file_info;
+  const bool file_exists = stat(path, &file_info) == 0;
+  std::vector<char> temp_path(kSbFileMaxPath + 1, 0);
+
+  starboard::strlcpy(temp_path.data(), path, kSbFileMaxPath);
+  starboard::strlcat(temp_path.data(), ".temp", kSbFileMaxPath);
+
+  if (!FileAtomicReplaceWriteFile(temp_path.data(), data, data_size)) {
+    return false;
+  }
+  if (file_exists && unlink(path)) {
+    return false;
+  }
+  if (rename(temp_path.data(), path) != 0) {
+    return false;
+  }
+  return true;
+}
 
 bool FileCanOpen(const char* path, int flags) {
   struct stat file_info;
@@ -115,18 +183,14 @@ bool SbFileDeleteRecursive(const char* path, bool preserve_root) {
 
   std::vector<char> entry(kSbFileMaxName);
 
-  struct dirent dirent_buffer;
   struct dirent* dirent;
   while (true) {
     if (entry.size() < static_cast<size_t>(kSbFileMaxName) || !dir ||
         !entry.data()) {
       break;
     }
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-    int result = readdir_r(dir, &dirent_buffer, &dirent);
-#pragma GCC diagnostic pop
-    if (result || !dirent) {
+    dirent = readdir(dir);
+    if (!dirent) {
       break;
     }
     starboard::strlcpy(entry.data(), dirent->d_name, kSbFileMaxName);

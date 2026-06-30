@@ -160,9 +160,6 @@ void AudioRendererSinkImpl::SetVolume(double volume) {
 
 void AudioRendererSinkImpl::SetPlaybackRate(double playback_rate) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  SB_DCHECK(playback_rate == 0.0 || playback_rate == 1.0)
-      << "Playback rate on audio sink can only be set to 0 or 1, "
-      << "but is now set to " << playback_rate;
 
   playback_rate_ = playback_rate;
   if (HasStarted()) {

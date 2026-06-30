@@ -35,6 +35,8 @@ import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.view.WindowManager;
+import android.view.Display;
+import android.hardware.display.DisplayManager;
 import android.window.OnBackInvokedCallback;
 import android.window.OnBackInvokedDispatcher;
 import android.widget.FrameLayout;
@@ -93,11 +95,7 @@ public abstract class CobaltActivity extends Activity {
   private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
 
   // How many seconds before the app exits if it fails to land YouTube home page.
-  private static final int HANG_APP_CRASH_TIMEOUT_SECONDS = 120;
-
-  // The probability (between 0.0 and 1.0) that the StartupGuard's hang-detection
-  // logic will be activated for a given session.
-  private static final double STARTUP_GUARD_PROBABILITY = 0.25;
+  private static final int DEFAULT_HANG_APP_CRASH_TIMEOUT_SECONDS = 120;
 
   // Maintain the list of JavaScript-exposed objects as a member variable
   // to prevent them from being garbage collected prematurely.
@@ -120,7 +118,8 @@ public abstract class CobaltActivity extends Activity {
   private IntentRequestTracker mIntentRequestTracker;
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
   private Boolean mIsKeepScreenOnEnabled = false;
-
+  private Runnable mFreezeRunnable;
+  private final Handler mHandler = new Handler(Looper.getMainLooper());
   private boolean mIsCobaltUsingAndroidOverlay;
 
   private boolean mEnableSplashScreen;
@@ -135,6 +134,15 @@ public abstract class CobaltActivity extends Activity {
   // to Escape), this flag is used by OnBackInvokedCallback to detect physical key presses and
   // bypass simulated key dispatching.
   private boolean mPhysicalBackKeyPressed = false;
+  private final DisplayUtil.Listener mDisplayListener = new DisplayUtil.Listener() {
+    @Override
+    public void onDisplayChanged(int displayId) {
+      if (displayId == Display.DEFAULT_DISPLAY) {
+        checkDisplayState();
+      }
+    }
+  };
+  private boolean mWasDisplayOn = true;
 
   private Bundle getActivityMetaData() {
     ComponentName componentName = getIntent().getComponent();
@@ -236,6 +244,10 @@ public abstract class CobaltActivity extends Activity {
     if (getStarboardBridge() == null) {
       // Cold start - Instantiate the singleton StarboardBridge.
       RecordHistogram.recordBooleanHistogram("Cobalt.Android.ColdStart", true);
+      if (CommandLine.getInstance().hasSwitch("enable-optimized-font-loading")
+          || getJavaSwitches().containsKey(JavaSwitches.ENABLE_OPTIMIZED_FONT_LOADING)) {
+        FontUtil.copyFontsXml(getApplicationContext());
+      }
       StarboardBridge starboardBridge = createStarboardBridge(getArgs(), mStartDeepLink);
       ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(starboardBridge);
     } else {
@@ -371,9 +383,9 @@ public abstract class CobaltActivity extends Activity {
     if (keyCode == KeyEvent.KEYCODE_BACK) {
       mPhysicalBackKeyPressed = true;
     }
-    // If input is a from a gamepad button, it shouldn't be dispatched to IME which incorrectly
-    // consumes the event as a VKEY_UNKNOWN
-    if (KeyEvent.isGamepadButton(keyCode)) {
+    // Gamepad buttons and certain partner-handled keys should bypass IME. The IME incorrectly
+    // consumes the events as VKEY_UNKNOWN and prevent proper handling by the OS.
+    if (KeyEvent.isGamepadButton(keyCode) || KeyboardUtils.isPartnerFallbackKey(keyCode)) {
       return super.onKeyDown(keyCode, event);
     }
     return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_DOWN) || super.onKeyDown(keyCode, event);
@@ -381,7 +393,7 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   public boolean onKeyUp(int keyCode, KeyEvent event) {
-    if (KeyEvent.isGamepadButton(keyCode)) {
+    if (KeyEvent.isGamepadButton(keyCode) || KeyboardUtils.isPartnerFallbackKey(keyCode)) {
       return super.onKeyUp(keyCode, event);
     }
     if (keyCode == KeyEvent.KEYCODE_BACK) {
@@ -447,6 +459,32 @@ public abstract class CobaltActivity extends Activity {
     return webContents != null ? ImeAdapterImpl.fromWebContents(webContents) : null;
   }
 
+  @VisibleForTesting
+  void setupStartupGuard() {
+    Map<String, String> switches = getJavaSwitches();
+    if (switches.containsKey(JavaSwitches.DISABLE_STARTUP_GUARD)) {
+      Log.i(TAG, "StartupGuard is disabled by Java switch.");
+      return;
+    }
+
+    long timeout = DEFAULT_HANG_APP_CRASH_TIMEOUT_SECONDS;
+    String intervalStr = switches.get(JavaSwitches.STARTUP_GUARD_INTERVAL_IN_SECONDS);
+    if (intervalStr != null) {
+      try {
+        long parsedTimeout = Long.parseLong(intervalStr);
+        if (parsedTimeout > 0) {
+          timeout = parsedTimeout;
+        } else {
+          Log.w(TAG, "Invalid StartupGuard interval (must be positive): " + intervalStr);
+        }
+      } catch (NumberFormatException e) {
+        Log.w(TAG, "Invalid StartupGuard interval string: " + intervalStr);
+      }
+    }
+    Log.i(TAG, "Arming StartupGuard with " + timeout + " second timeout.");
+    StartupGuard.getInstance().scheduleCrash(timeout);
+  }
+
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     // Record the application start timestamp.
@@ -459,17 +497,7 @@ public abstract class CobaltActivity extends Activity {
 
     super.onCreate(savedInstanceState);
 
-    // Use a random check to run the StartupGuard logic only a certain percentage of the time.
-    if (Math.random() < STARTUP_GUARD_PROBABILITY) {
-      if (getJavaSwitches().containsKey(JavaSwitches.DISABLE_STARTUP_GUARD)) {
-        Log.i(TAG, "StartupGuard is disabled by Java switch.");
-      } else {
-        StartupGuard.getInstance().scheduleCrash(HANG_APP_CRASH_TIMEOUT_SECONDS);
-      }
-    } else {
-      Log.i(TAG, "StartupGuard skipped by random 25% rollout check.");
-    }
-
+    setupStartupGuard();
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
     MemoryPressureUma.initializeForBrowser();
@@ -538,6 +566,10 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onStart() {
+    DisplayUtil.cacheDefaultDisplay(this);
+    DisplayUtil.addDisplayListener(this);
+    mWasDisplayOn = isDisplayOn();
+    registerDisplayListener();
     StartupGuard.getInstance().setStartupMilestone(10);
     if (isDevelopmentBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
@@ -550,21 +582,24 @@ public abstract class CobaltActivity extends Activity {
       createNewSurfaceView();
     }
 
-    DisplayUtil.cacheDefaultDisplay(this);
-    DisplayUtil.addDisplayListener(this);
     AudioOutputManager.addAudioDeviceListener(this);
 
     getStarboardBridge().onActivityStart(this);
     super.onStart();
 
+    if (mFreezeRunnable != null) {
+      mHandler.removeCallbacks(mFreezeRunnable);
+      mFreezeRunnable = null;
+    }
     WebContents webContents = getActiveWebContents();
-    // If ENABLE_FREEZE is not specified, disable corresponding resume event by default.
-    if (webContents != null && getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE)) {
+    if (webContents != null &&
+        (getJavaSwitches().containsKey(JavaSwitches.DELAY_FREEZE_ON_BACKGROUND) ||
+         getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE))) {
       // document.onresume event
       webContents.onResume();
     }
     // visibility:visible event
-    updateShellActivityVisible(true);
+    updateShellActivityVisible(mWasDisplayOn);
     MemoryPressureMonitor.INSTANCE.enablePolling(false);
 
     StartupGuard.getInstance().setStartupMilestone(11);
@@ -579,16 +614,33 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onStop() {
+    unregisterDisplayListener();
     getStarboardBridge().onActivityStop(this);
     super.onStop();
 
     // visibility:hidden event
     updateShellActivityVisible(false);
     WebContents webContents = getActiveWebContents();
-    // If ENABLE_FREEZE is not specified, disable freeze event by default.
-    if (webContents != null && getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE)) {
-      // document.onfreeze event
-      webContents.onFreeze();
+    if (webContents != null) {
+      if (getJavaSwitches().containsKey(JavaSwitches.DELAY_FREEZE_ON_BACKGROUND)) {
+        if (mFreezeRunnable != null) {
+          mHandler.removeCallbacks(mFreezeRunnable);
+        }
+        mFreezeRunnable = new Runnable() {
+          @Override
+          public void run() {
+            WebContents currentWebContents = getActiveWebContents();
+            if (currentWebContents != null) {
+              currentWebContents.onFreeze();
+            }
+            mFreezeRunnable = null;
+          }
+        };
+        mHandler.postDelayed(mFreezeRunnable, 1500);
+      } else if (getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE)) {
+        // If ENABLE_FREEZE is specified, fire freeze event immediately
+        webContents.onFreeze();
+      }
     }
 
     if (VideoSurfaceView.getCurrentSurface() != null) {
@@ -616,6 +668,11 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onDestroy() {
+    unregisterDisplayListener();
+    if (mFreezeRunnable != null) {
+      mHandler.removeCallbacks(mFreezeRunnable);
+      mFreezeRunnable = null;
+    }
     if (mShellManager != null) {
       mShellManager.destroy();
     }
@@ -859,6 +916,39 @@ public abstract class CobaltActivity extends Activity {
     if (mShellManager != null) {
       mShellManager.onActivityVisible(isVisible);
     }
+  }
+
+  private boolean isDisplayOn() {
+    Display defaultDisplay = DisplayUtil.getDefaultDisplay();
+    if (defaultDisplay == null) {
+      DisplayUtil.cacheDefaultDisplay(this);
+      defaultDisplay = DisplayUtil.getDefaultDisplay();
+    }
+    if (defaultDisplay == null) {
+      // Fail-safe: assume display is ON if we cannot query it
+      return true;
+    }
+    int state = defaultDisplay.getState();
+    // If the state is unknown, we fail-safe to true (display ON) to prevent
+    // rendering freezes or black screens on devices that do not report display state correctly.
+    return state == Display.STATE_ON || state == Display.STATE_UNKNOWN;
+  }
+
+  private void checkDisplayState() {
+    boolean isDisplayOn = isDisplayOn();
+    if (isDisplayOn != mWasDisplayOn) {
+      mWasDisplayOn = isDisplayOn;
+      Log.i(TAG, "Display state changed: isDisplayOn = " + isDisplayOn);
+      updateShellActivityVisible(isDisplayOn);
+    }
+  }
+
+  private void registerDisplayListener() {
+    DisplayUtil.registerListener(mDisplayListener);
+  }
+
+  private void unregisterDisplayListener() {
+    DisplayUtil.unregisterListener(mDisplayListener);
   }
 
   @RequiresApi(api = 33)

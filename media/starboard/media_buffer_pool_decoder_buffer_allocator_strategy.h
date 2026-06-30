@@ -36,9 +36,7 @@ class MediaBufferPoolDecoderBufferAllocatorStrategy
       size_t video_buffer_initial_capacity,
       size_t video_buffer_allocation_increment);
 
-  void* Allocate(DemuxerStream::Type type,
-                 size_t size,
-                 size_t alignment) override;
+  void* Allocate(DemuxerStream::Type type, size_t size) override;
 
   void Free(DemuxerStream::Type type, void* p) override;
 
@@ -47,6 +45,8 @@ class MediaBufferPoolDecoderBufferAllocatorStrategy
   size_t GetCapacity() const override;
 
   size_t GetAllocated() const override;
+
+  void DecommitAllDecommitableBlocks() override;
 
  private:
   typedef starboard::experimental::MediaBufferPoolBidirectionalReuseAllocator
