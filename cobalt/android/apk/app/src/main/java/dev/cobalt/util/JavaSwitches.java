@@ -53,9 +53,6 @@ public class JavaSwitches {
   public static final String DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES =
       "DisableGpuMemoryBufferCompositorResources";
 
-  /** flag to disable v8 optimizing compilers (turbofan, maglev, sparkplug) */
-  public static final String DISABLE_V8_OPTIMIZING_COMPILERS = "DisableV8OptimizingCompilers";
-
   /** flag to enable concurrent marking for v8 garbage collection */
   public static final String ENABLE_V8_CONCURRENT_MARKING = "EnableV8ConcurrentMarking";
 
