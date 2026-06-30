@@ -58,6 +58,7 @@ python3 .agent/skills/cobalt-new-checkout/scripts/cobalt_new_checkout.py --non-i
 If you prefer to manage the checkout manually or are converting an existing Linux Chromium checkout:
 
 1. **Fetch the Android Source Tree**
+
    ```bash
    mkdir ~/chromium && cd ~/chromium
    fetch --nohooks android
@@ -66,6 +67,7 @@ If you prefer to manage the checkout manually or are converting an existing Linu
 
 2. **Converting an Existing Checkout**
    If you already have a Linux checkout, append `android` to `target_os` in your root `.gclient` configuration:
+
    ```python
    target_os = [ 'linux', 'android' ]
    ```
@@ -73,6 +75,7 @@ If you prefer to manage the checkout manually or are converting an existing Linu
 
 3. **Install System and Android Dependencies**
    Execute Chromium's automated dependency script to install required Linux packages, the Android SDK, and NDK toolchains:
+
    ```bash
    cd src
    build/install-build-deps.sh
@@ -81,6 +84,7 @@ If you prefer to manage the checkout manually or are converting an existing Linu
 
 4. **Set Up Android Debug Keystore**
    Generate a local debug keystore required for signing development APKs:
+
    ```bash
    keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000
    ```
@@ -149,6 +153,7 @@ autoninja -C out/android-arm_qa cobalt_apk
 ```
 
 Upon successful compilation, the output APK will be available at:
+
 ```bash
 out/android-arm_qa/apks/Cobalt.apk
 ```
@@ -163,6 +168,7 @@ out/android-arm_qa/apks/Cobalt.apk
 2. Highlight **Android TV OS build** and press the select button seven times until the "You are now a developer" toast appears.
 3. Return to **Settings > System > Developer options** and enable **USB debugging**.
 4. Connect your workstation to the device via USB or Wi-Fi debugging and authorize the connection. Verify connectivity:
+
    ```bash
    adb devices
    ```
@@ -180,6 +186,7 @@ adb install -r out/android-arm_qa/apks/Cobalt.apk
 Chrobalt ATV uses the `--esa commandLineArgs` parameter to pass configuration switches and feature flags to the runtime.
 
 **Basic Launch**:
+
 ```bash
 adb shell am start dev.cobalt.coat/dev.cobalt.app.MainActivity
 ```
@@ -196,6 +203,7 @@ adb shell am start --esa commandLineArgs 'enable-features=FeatureA;FeatureB,disa
 ```
 
 To force-stop the running instance before relaunching:
+
 ```bash
 adb shell am force-stop dev.cobalt.coat
 ```
