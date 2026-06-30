@@ -391,6 +391,10 @@ struct EnumTraits<media::mojom::RendererType, ::media::RendererType> {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
       case ::media::RendererType::kStarboard:
         return media::mojom::RendererType::kStarboard;
+#if BUILDFLAG(USE_STARBOARD_URL_PLAYER)
+      case ::media::RendererType::kUrlPlayer:
+        return media::mojom::RendererType::kUrlPlayer;
+#endif  // BUILDFLAG(USE_STARBOARD_URL_PLAYER)
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
     }
 
@@ -436,6 +440,11 @@ struct EnumTraits<media::mojom::RendererType, ::media::RendererType> {
       case media::mojom::RendererType::kStarboard:
         *output = ::media::RendererType::kStarboard;
         return true;
+#if BUILDFLAG(USE_STARBOARD_URL_PLAYER)
+      case media::mojom::RendererType::kUrlPlayer:
+        *output = ::media::RendererType::kUrlPlayer;
+        return true;
+#endif  // BUILDFLAG(USE_STARBOARD_URL_PLAYER)
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
     }
 
