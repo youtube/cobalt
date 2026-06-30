@@ -220,6 +220,7 @@ test("cobalt_browsertests") {
     "//cobalt/browser/h5vcc_system_browsertest.cc",
 
     # TODO(b/511244766): separate target for perf test.
+    "//cobalt/browser/metrics/cobalt_memory_attribution_browsertest.cc",
     "//cobalt/browser/metrics/cobalt_memory_threshold_browsertest.cc",
     "//cobalt/browser/metrics/cobalt_metrics_browsertest.cc",
     "//cobalt/browser/metrics/font_metrics_browsertest.cc",
@@ -283,6 +284,7 @@ test("cobalt_browsertests") {
     "//cobalt/browser:global_features",
     "//cobalt/browser:metrics",
     "//cobalt/browser:switches",
+    "//cobalt/memory:memory",
     "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:pak",
     "//components/attribution_reporting:mojom",

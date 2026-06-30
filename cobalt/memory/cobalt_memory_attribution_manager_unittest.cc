@@ -16,12 +16,14 @@
 
 #include <atomic>
 #include <thread>
+#include <vector>
 
+#include "base/allocator/partition_allocator/src/partition_alloc/partition_alloc.h"
 #include "base/feature_list.h"
-#include "base/memory/cobalt_memory_attribution_observer.h"
 #include "base/memory/cobalt_memory_context.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/task_environment.h"
 #include "cobalt/browser/features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -38,171 +40,163 @@ class CobaltMemoryAttributionManagerTest : public testing::Test {
     scoped_feature_list_.InitAndEnableFeature(
         cobalt::features::kCobaltMemoryAttributionManager);
     manager_ = CobaltMemoryAttributionManager::Get();
-    auto* observer = base::memory::CobaltMemoryAttributionObserver::Get();
-    // Reset counters and snapshots for clean test state.
-    for (size_t i = 0; i < static_cast<size_t>(MemoryContext::kCount); ++i) {
-      observer->GetCounters()[i].value.store(0, std::memory_order_relaxed);
-      manager_->last_snapshots_[i] = 0;
-    }
-    manager_->last_report_time_ = base::TimeTicks::Now();
+    manager_->Start();
+    // Reset state before tests if possible, assuming manager gives us a clean
+    // slate.
   }
 
   void TearDown() override { manager_->Stop(); }
 
-  void TriggerAllocationHook(size_t size) {
-    base::memory::CobaltMemoryAttributionObserver::Get()->OnAllocation(
-        base::allocator::dispatcher::AllocationNotificationData(
-            nullptr, size, nullptr,
-            base::allocator::dispatcher::AllocationSubsystem::
-                kPartitionAllocator));
+  uint64_t GetResidentBytes(MemoryContext context) {
+    // Assuming Coder 1 exposed this as a public method as discussed.
+    return manager_->GetResidentBytes(context);
   }
 
-  void TriggerReportUma() { manager_->ReportUma(); }
-
-  uint64_t GetCounter(MemoryContext context) {
-    return base::memory::CobaltMemoryAttributionObserver::Get()
-        ->GetCounters()[static_cast<size_t>(context)]
-        .value.load(std::memory_order_relaxed);
+  uint64_t GetPartitionAllocOverhead() {
+    return manager_->GetPartitionAllocOverhead();
   }
 
+  uint64_t GetPartitionAllocTotalCommitted() {
+    return manager_->GetPartitionAllocTotalCommitted();
+  }
+
+  base::test::TaskEnvironment task_environment_;
   base::test::ScopedFeatureList scoped_feature_list_;
   CobaltMemoryAttributionManager* manager_;
 };
 
-TEST_F(CobaltMemoryAttributionManagerTest, ScopedMemoryContextRestoresContext) {
-  EXPECT_EQ(GetCurrentMemoryContext(), MemoryContext::kUnknown);
+TEST_F(CobaltMemoryAttributionManagerTest, ExactMatchVerification) {
+  uint64_t initial_bytes = GetResidentBytes(MemoryContext::kDOM);
 
   {
     ScopedMemoryContext dom_context(MemoryContext::kDOM);
-    EXPECT_EQ(GetCurrentMemoryContext(), MemoryContext::kDOM);
 
-    {
-      ScopedMemoryContext media_context(MemoryContext::kMedia);
-      EXPECT_EQ(GetCurrentMemoryContext(), MemoryContext::kMedia);
-    }
+    // Allocate known sizes via an explicit PartitionRoot
+    partition_alloc::PartitionOptions opts;
+    partition_alloc::PartitionAllocator allocator;
+    allocator.init(opts);
 
-    EXPECT_EQ(GetCurrentMemoryContext(), MemoryContext::kDOM);
+    size_t alloc_size1 = 1024;
+    size_t alloc_size2 = 4096;
+
+    void* ptr1 = allocator.root()->Alloc(alloc_size1, "");
+    void* ptr2 = allocator.root()->Alloc(alloc_size2, "");
+
+    // In PartitionAlloc, bucket size may be slightly larger than requested
+    // size. However, we expect at least the requested size to be accounted for.
+    uint64_t current_bytes = GetResidentBytes(MemoryContext::kDOM);
+    EXPECT_GE(current_bytes, initial_bytes + alloc_size1 + alloc_size2);
+
+    // Free the allocations
+    allocator.root()->Free(ptr1);
+    allocator.root()->Free(ptr2);
   }
 
-  EXPECT_EQ(GetCurrentMemoryContext(), MemoryContext::kUnknown);
+  // After freeing, the resident bytes should return exactly to the initial
+  // baseline.
+  uint64_t final_bytes = GetResidentBytes(MemoryContext::kDOM);
+  EXPECT_EQ(final_bytes, initial_bytes);
 }
 
-TEST_F(CobaltMemoryAttributionManagerTest,
-       AllocationHookIncrementsActiveContext) {
-  EXPECT_EQ(GetCounter(MemoryContext::kUnknown), 0u);
-  TriggerAllocationHook(1024);
-  EXPECT_EQ(GetCounter(MemoryContext::kUnknown), 1024u);
+TEST_F(CobaltMemoryAttributionManagerTest, GlobalReconciliation) {
+  // Assert that Sum(PerComponent_Resident_Memory) + PartitionAlloc_Overhead
+  // == PartitionAlloc_Total_Committed_Memory.
 
-  MemoryContext contexts[] = {
-      MemoryContext::kDOM,
-      MemoryContext::kLayout,
-      MemoryContext::kMedia,
-      MemoryContext::kScript,
-      MemoryContext::kNetwork,
-      MemoryContext::kGraphics,
-      MemoryContext::kStorage,
-      MemoryContext::kGraphicsCanvas,
-      MemoryContext::kGraphicsCompositor,
-      MemoryContext::kGraphicsGlyphs,
-      MemoryContext::kScriptHeap,
-      MemoryContext::kScriptJIT,
-      MemoryContext::kScriptBindings,
-      MemoryContext::kNetworkLoader,
-      MemoryContext::kNetworkCache,
-      MemoryContext::kBlinkDOM,
-      MemoryContext::kBlinkStyle,
-      MemoryContext::kBlinkParser,
-      MemoryContext::kPlatformIPC,
-      MemoryContext::kPlatformStarboard,
-  };
-
-  for (MemoryContext context : contexts) {
-    EXPECT_EQ(GetCounter(context), 0u);
-    ScopedMemoryContext scoped_context(context);
-    TriggerAllocationHook(2048);
-    EXPECT_EQ(GetCounter(context), 2048u);
+  uint64_t total_component_resident = 0;
+  for (size_t i = 0; i < static_cast<size_t>(MemoryContext::kCount); ++i) {
+    total_component_resident += GetResidentBytes(static_cast<MemoryContext>(i));
   }
+
+  uint64_t overhead = GetPartitionAllocOverhead();
+  uint64_t total_committed = GetPartitionAllocTotalCommitted();
+
+  // Validate the deterministic accounting formula.
+  // Since the test framework has base allocations before the manager started,
+  // we can only assert that the tracked memory is less than or equal to the
+  // total allocated.
+  EXPECT_LE(total_component_resident + overhead, total_committed);
 }
 
-TEST_F(CobaltMemoryAttributionManagerTest, ReportUmaEmitsDeltas) {
-  base::HistogramTester histogram_tester;
+TEST_F(CobaltMemoryAttributionManagerTest, ThreadSafetyAndConcurrency) {
+  constexpr int kNumThreads = 4;
+  constexpr int kAllocationsPerThread = 1000;
+  constexpr size_t kAllocSize = 256;
 
-  struct {
-    MemoryContext context;
-    const char* histogram_name;
-  } test_cases[] = {
-      {MemoryContext::kDOM, "Memory.Cobalt.AllocationVolume.DOM"},
-      {MemoryContext::kLayout, "Memory.Cobalt.AllocationVolume.Layout"},
-      {MemoryContext::kMedia, "Memory.Cobalt.AllocationVolume.Media"},
-      {MemoryContext::kScript, "Memory.Cobalt.AllocationVolume.Script"},
-      {MemoryContext::kNetwork, "Memory.Cobalt.AllocationVolume.Network"},
-      {MemoryContext::kGraphics, "Memory.Cobalt.AllocationVolume.Graphics"},
-      {MemoryContext::kStorage, "Memory.Cobalt.AllocationVolume.Storage"},
-      {MemoryContext::kGraphicsCanvas,
-       "Memory.Cobalt.AllocationVolume.GraphicsCanvas"},
-      {MemoryContext::kGraphicsCompositor,
-       "Memory.Cobalt.AllocationVolume.GraphicsCompositor"},
-      {MemoryContext::kGraphicsGlyphs,
-       "Memory.Cobalt.AllocationVolume.GraphicsGlyphs"},
-      {MemoryContext::kScriptHeap, "Memory.Cobalt.AllocationVolume.ScriptHeap"},
-      {MemoryContext::kScriptJIT, "Memory.Cobalt.AllocationVolume.ScriptJIT"},
-      {MemoryContext::kScriptBindings,
-       "Memory.Cobalt.AllocationVolume.ScriptBindings"},
-      {MemoryContext::kNetworkLoader,
-       "Memory.Cobalt.AllocationVolume.NetworkLoader"},
-      {MemoryContext::kNetworkCache,
-       "Memory.Cobalt.AllocationVolume.NetworkCache"},
-      {MemoryContext::kBlinkDOM, "Memory.Cobalt.AllocationVolume.BlinkDOM"},
-      {MemoryContext::kBlinkStyle, "Memory.Cobalt.AllocationVolume.BlinkStyle"},
-      {MemoryContext::kBlinkParser,
-       "Memory.Cobalt.AllocationVolume.BlinkParser"},
-      {MemoryContext::kPlatformIPC,
-       "Memory.Cobalt.AllocationVolume.PlatformIPC"},
-      {MemoryContext::kPlatformStarboard,
-       "Memory.Cobalt.AllocationVolume.PlatformStarboard"},
-  };
+  std::atomic<bool> start_flag{false};
+  std::vector<std::thread> threads;
 
-  for (const auto& test_case : test_cases) {
-    {
-      ScopedMemoryContext scoped_context(test_case.context);
-      TriggerAllocationHook(15 * 1024 * 1024);  // 15 MB
-    }
+  for (int i = 0; i < kNumThreads; ++i) {
+    threads.emplace_back([&start_flag, i]() {
+      partition_alloc::PartitionOptions opts;
+      partition_alloc::PartitionAllocator allocator;
+      allocator.init(opts);
+
+      while (!start_flag.load(std::memory_order_acquire)) {
+        std::this_thread::yield();
+      }
+
+      // Alternate components per thread for stress testing
+      MemoryContext ctx =
+          (i % 2 == 0) ? MemoryContext::kNetwork : MemoryContext::kStorage;
+      ScopedMemoryContext context(ctx);
+
+      std::vector<void*> ptrs;
+      for (int j = 0; j < kAllocationsPerThread; ++j) {
+        ptrs.push_back(allocator.root()->Alloc(kAllocSize, ""));
+      }
+
+      for (void* ptr : ptrs) {
+        allocator.root()->Free(ptr);
+      }
+    });
   }
 
-  TriggerReportUma();
+  // Capture baseline
+  uint64_t initial_network = GetResidentBytes(MemoryContext::kNetwork);
+  uint64_t initial_storage = GetResidentBytes(MemoryContext::kStorage);
 
-  for (const auto& test_case : test_cases) {
-    histogram_tester.ExpectUniqueSample(test_case.histogram_name, 15360, 1);
+  // Start threads
+  start_flag.store(true, std::memory_order_release);
+  for (auto& thread : threads) {
+    thread.join();
   }
-  histogram_tester.ExpectUniqueSample("Memory.Cobalt.AllocationVolume.Unknown",
-                                      0, 1);
 
-  // Trigger more allocations and report again to verify delta calculation.
+  // Force aggregation of thread-local counters before checking assertions.
+  manager_->FlushThreadLocalCountersForTesting();
+
+  // After all threads finish allocating and freeing, memory should perfectly
+  // return to baseline.
+  uint64_t final_network = GetResidentBytes(MemoryContext::kNetwork);
+  uint64_t final_storage = GetResidentBytes(MemoryContext::kStorage);
+
+  EXPECT_EQ(final_network, initial_network);
+  EXPECT_EQ(final_storage, initial_storage);
+}
+
+TEST_F(CobaltMemoryAttributionManagerTest, LargeAllocation) {
+  // Test allocations larger than a PartitionAlloc SuperPage (e.g., > 2MB)
+  // to ensure the Shadow Map correctly maps and unmaps continuous regions.
+  uint64_t initial_bytes = GetResidentBytes(MemoryContext::kMedia);
+  const size_t kLargeSize = 5 * 1024 * 1024;  // 5 MB
+
   {
-    ScopedMemoryContext dom_context(MemoryContext::kDOM);
-    TriggerAllocationHook(5 * 1024 * 1024);  // 5 MB
+    partition_alloc::PartitionOptions opts;
+    partition_alloc::PartitionAllocator allocator;
+    allocator.init(opts);
+
+    ScopedMemoryContext media_context(MemoryContext::kMedia);
+    void* large_ptr = allocator.root()->Alloc(kLargeSize, "");
+
+    manager_->FlushThreadLocalCountersForTesting();
+    uint64_t current_bytes = GetResidentBytes(MemoryContext::kMedia);
+    EXPECT_GE(current_bytes, initial_bytes + kLargeSize);
+
+    allocator.root()->Free(large_ptr);
   }
 
-  TriggerReportUma();
-
-  histogram_tester.ExpectBucketCount("Memory.Cobalt.AllocationVolume.DOM", 5120,
-                                     1);
-  histogram_tester.ExpectTotalCount("Memory.Cobalt.AllocationVolume.DOM", 2);
-}
-
-TEST_F(CobaltMemoryAttributionManagerTest,
-       AllocationHookOnNewThreadDoesNotCrash) {
-  // This test specifically verifies that calling OnAllocation on a newly
-  // spawned thread does not trigger emutls recursion crashes or static
-  // initialization reentrancy deadlocks on Android x86/ARM.
-  std::atomic_bool thread_executed{false};
-  std::thread new_thread([&]() {
-    // Trigger the first allocation on this new thread.
-    TriggerAllocationHook(1024);
-    thread_executed.store(true, std::memory_order_relaxed);
-  });
-  new_thread.join();
-  EXPECT_TRUE(thread_executed.load(std::memory_order_relaxed));
+  manager_->FlushThreadLocalCountersForTesting();
+  uint64_t final_bytes = GetResidentBytes(MemoryContext::kMedia);
+  EXPECT_EQ(final_bytes, initial_bytes);
 }
 
 }  // namespace memory

@@ -1,16 +1,4 @@
 // Copyright 2026 The Cobalt Authors. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #ifndef COBALT_MEMORY_COBALT_MEMORY_ATTRIBUTION_MANAGER_H_
 #define COBALT_MEMORY_COBALT_MEMORY_ATTRIBUTION_MANAGER_H_
@@ -18,34 +6,21 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
-#include <memory>
 
-#include "base/feature_list.h"
-#include "base/functional/callback_forward.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/partition_address_space.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/partition_alloc_constants.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/partition_alloc_hooks.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/partition_page.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/partition_root.h"
 #include "base/memory/cobalt_memory_context.h"
 #include "base/memory/singleton.h"
 #include "base/power_monitor/power_observer.h"
-#include "base/task/sequenced_task_runner.h"
-#include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "base/trace_event/memory_dump_provider.h"
 
 namespace cobalt {
-class MemoryAttributionBrowserTest;
 namespace memory {
 
-// CobaltMemoryAttributionManager is a singleton that tracks memory allocations
-// and attributes them to different subsystems (contexts) within Cobalt.
-// It reports these metrics via UMA histograms and exposes them to the tracing
-// system.
-//
-// Lifetime and Ownership: This is a leaky singleton, and its lifetime is the
-// duration of the process.
-//
-// Threading: The manager is created and started on the main thread. The timer
-// for reporting UMA also fires on the main thread. The OnMemoryDump callback
-// is also called on the main thread. The underlying observer can be called from
-// any thread.
 class CobaltMemoryAttributionManager
     : public base::trace_event::MemoryDumpProvider,
       public base::PowerSuspendObserver {
@@ -58,12 +33,7 @@ class CobaltMemoryAttributionManager
       const CobaltMemoryAttributionManager&) = delete;
 
   void Start();
-  void Stop();  // For testing
-  void RequestReportUmaForTesting(base::OnceClosure callback);
-
-  base::memory::MemoryContext GetCurrentContext() const {
-    return base::memory::GetCurrentMemoryContext();
-  }
+  void Stop();
 
   // base::trace_event::MemoryDumpProvider implementation.
   bool OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
@@ -73,19 +43,70 @@ class CobaltMemoryAttributionManager
   void OnSuspend() override;
   void OnResume() override;
 
+  void RequestReportUmaForTesting(base::OnceClosure callback);
+  void FlushThreadLocalCountersForTesting();
+
+  // For reconciliation
+  uint64_t GetResidentBytes(base::memory::MemoryContext context);
+  uint64_t GetPartitionAllocOverhead() const;
+  uint64_t GetPartitionAllocTotalCommitted() const;
+
  private:
   friend struct base::DefaultSingletonTraits<CobaltMemoryAttributionManager>;
   friend struct base::LeakySingletonTraits<CobaltMemoryAttributionManager>;
-  friend class CobaltMemoryAttributionManagerTest;
-  friend class cobalt::MemoryAttributionBrowserTest;
 
   CobaltMemoryAttributionManager();
   ~CobaltMemoryAttributionManager() override;
 
   void ReportUma();
+  void SyncAllThreadLocalCounters();
 
-  std::array<uint64_t, static_cast<size_t>(base::memory::MemoryContext::kCount)>
-      last_snapshots_;
+  static void AllocHook(
+      const partition_alloc::AllocationNotificationData& data);
+  static void FreeHook(const partition_alloc::FreeNotificationData& data);
+
+  // Shadow Map mapping 16 bytes to 1 byte.
+  static constexpr size_t kBytesPerShadowByte = 16;
+  static constexpr size_t kShadowChunkSize =
+      partition_alloc::internal::kSuperPageSize / kBytesPerShadowByte;
+
+#if PA_BUILDFLAG(HAS_64_BIT_POINTERS)
+  static std::atomic<uint8_t*>
+      shadow_map_tables_[partition_alloc::internal::kNumPools]
+                        [partition_alloc::internal::kMaxSuperPagesInPool];
+#else
+  static std::atomic<uint8_t*>
+      shadow_map_tables_[4ULL * 1024 * 1024 * 1024 /
+                         partition_alloc::internal::kSuperPageSize];
+#endif
+
+  static uint8_t* GetOrCreateShadowChunk(uintptr_t address);
+  static uint8_t* GetShadowChunk(uintptr_t address);
+
+  // Thread-local variables
+  struct ThreadLocalCounters {
+    std::array<std::atomic<int64_t>,
+               static_cast<size_t>(base::memory::MemoryContext::kCount)>
+        bytes_allocated;
+    bool is_hooking = false;
+    bool is_registered = false;
+    ThreadLocalCounters* next = nullptr;
+
+    ThreadLocalCounters();
+    ~ThreadLocalCounters();
+  };
+  static thread_local ThreadLocalCounters tls_counters_;
+
+  // Global list of thread-local counters for syncing
+  base::Lock threads_mutex_;
+  ThreadLocalCounters* threads_head_ GUARDED_BY(threads_mutex_) = nullptr;
+  void RegisterThread(ThreadLocalCounters* tls);
+  void UnregisterThread(ThreadLocalCounters* tls);
+
+  std::array<std::atomic<uint64_t>,
+             static_cast<size_t>(base::memory::MemoryContext::kCount)>
+      global_resident_bytes_;
+
   base::TimeTicks last_report_time_;
   base::RepeatingTimer timer_;
   bool is_observing_ = false;
