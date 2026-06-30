@@ -713,8 +713,10 @@ SbWindow ApplicationX11::CreateWindow(const SbWindowOptions* options) {
     // evdev input will be sent to the first created window only.
     dev_input_.reset(DevInput::Create(window, ConnectionNumber(display_)));
   }
+#if 0
   touchscreen_pointer_ =
       features::FeatureList::IsEnabled(features::kTouchscreenPointer);
+#endif
   return window;
 }
 
