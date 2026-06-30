@@ -67,6 +67,8 @@ void SetExperimentalFeaturesForCurrentThread(
       extension_features->allow_audio_writing_on_pause;
   experiment_features.enable_av1_startup_optimization =
       extension_features->enable_av1_startup_optimization;
+  experiment_features.enable_decoded_audio_simd_optimizations = FromBoolPointer(
+      extension_features->enable_decoded_audio_simd_optimizations);
   experiment_features.enable_low_latency =
       extension_features->enable_low_latency;
   experiment_features.enable_video_renderer_vsp_adjustment =
@@ -85,9 +87,6 @@ void SetExperimentalFeaturesForCurrentThread(
       extension_features->skip_flush_on_decoder_teardown;
   experiment_features.skip_video_frames_over_60_fps =
       extension_features->skip_video_frames_over_60_fps;
-  experiment_features.enable_simd_based_audio_format_switching =
-      FromBoolPointer(
-          extension_features->enable_simd_based_audio_format_switching);
   experiment_features.enable_trivial_optimizations =
       FromBoolPointer(extension_features->enable_trivial_optimizations);
   experiment_features.video_decoder_initial_preroll_count =
@@ -99,7 +98,7 @@ void SetExperimentalFeaturesForCurrentThread(
 
   g_experimental_features = experiment_features;
 
-  if (experiment_features.enable_simd_based_audio_format_switching.value_or(
+  if (experiment_features.enable_decoded_audio_simd_optimizations.value_or(
           false)) {
     DecodedAudio::EnableSimdBasedAudioFormatSwitching();
   }

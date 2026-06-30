@@ -449,6 +449,12 @@ test("starboard_platform_tests") {
     "//testing/gtest",
     "//third_party/jni_zero:jni_zero",
   ]
+
+  if (sb_filter_based_player) {
+    deps += [
+      "//starboard/shared/starboard/player/filter/testing:player_filter_tests",
+    ]
+  }
 }
 
 java_cpp_enum("java_enums") {

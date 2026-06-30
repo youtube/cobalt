@@ -805,6 +805,8 @@ void SbPlayerBridge::CreatePlayer() {
         experimental_features_.allow_audio_writing_on_pause;
     extension_features.enable_av1_startup_optimization =
         experimental_features_.enable_av1_startup_optimization;
+    extension_features.enable_decoded_audio_simd_optimizations = ToBoolPointer(
+        experimental_features_.enable_decoded_audio_simd_optimizations);
     extension_features.enable_low_latency =
         experimental_features_.enable_low_latency;
     extension_features.enable_video_renderer_vsp_adjustment =
@@ -825,8 +827,7 @@ void SbPlayerBridge::CreatePlayer() {
         experimental_features_.force_clear_surface_view;
     extension_features.enable_trivial_optimizations =
         ToBoolPointer(experimental_features_.enable_trivial_optimizations);
-    extension_features.enable_simd_based_audio_format_switching = ToBoolPointer(
-        experimental_features_.enable_simd_based_audio_format_switching);
+
     extension_features.video_decoder_initial_preroll_count = ToIntPointer(
         experimental_features_.video_decoder_initial_preroll_count);
     extension_features.video_renderer_min_decoded_frames =

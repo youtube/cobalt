@@ -67,10 +67,10 @@ std::ostream& operator<<(
             << ToString(features.skip_flush_on_decoder_teardown)
             << ", skip_video_frames_over_60_fps="
             << ToString(features.skip_video_frames_over_60_fps)
+            << ", enable_decoded_audio_simd_optimizations="
+            << ToString(features.enable_decoded_audio_simd_optimizations)
             << ", enable_trivial_optimizations="
             << ToString(features.enable_trivial_optimizations)
-            << ", enable_simd_based_audio_format_switching="
-            << ToString(features.enable_simd_based_audio_format_switching)
             << ", max_samples_per_write="
             << ToString(features.max_samples_per_write)
             << ", video_decoder_initial_preroll_count="
