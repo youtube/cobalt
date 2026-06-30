@@ -34,6 +34,7 @@ typedef struct StarboardExtensionExperimentalFeatures {
   // The fields should be in alphabetical order.
   // keep-sorted start
   bool allow_audio_writing_on_pause;
+  bool decoded_audio_buffer_pool;
   bool enable_av1_startup_optimization;
   bool enable_low_latency;
   bool enable_video_renderer_vsp_adjustment;
@@ -44,6 +45,7 @@ typedef struct StarboardExtensionExperimentalFeatures {
   bool reset_audio_decoder;
   bool skip_flush_on_decoder_teardown;
   bool skip_video_frames_over_60_fps;
+  bool video_frame_impl_pool;
   const bool* enable_simd_based_audio_format_switching;
   const bool* enable_trivial_optimizations;
   const int* video_decoder_initial_preroll_count;
