@@ -110,11 +110,6 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--disable-http-cache");
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.DISABLE_V8_OPTIMIZING_COMPILERS)) {
-      jsFlags.add("--disable-optimizing-compilers");
-      jsFlags.add("--no-sparkplug");
-    }
-
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_V8_CONCURRENT_MARKING)) {
       jsFlags.add("--concurrent-marking");
     }

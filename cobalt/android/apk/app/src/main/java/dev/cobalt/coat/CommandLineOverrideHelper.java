@@ -91,6 +91,10 @@ public final class CommandLineOverrideHelper {
         // Disable v8 concurrent marking by default.
         paramOverrides.add("--no-concurrent-marking");
 
+        // Disable v8 optimizing compilers (maglev, turbofan, sparkplug).
+        paramOverrides.add("--disable-optimizing-compilers");
+        paramOverrides.add("--no-sparkplug");
+
         return paramOverrides;
     }
 
