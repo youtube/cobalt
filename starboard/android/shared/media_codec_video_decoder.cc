@@ -964,8 +964,9 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
   }
 
   media_decoder_->WriteInputBuffers(input_buffers);
-  bool need_more_input = SignalIfNeedMoreInput();
-  if (!need_more_input && tunnel_mode_audio_session_id_) {
+  if (media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize) {
+    decoder_status_cb_(kNeedMoreInput, NULL);
+  } else if (tunnel_mode_audio_session_id_) {
     // In tunnel mode playback when need data is not signaled above, it is
     // possible that the VideoDecoder won't get a chance to send kNeedMoreInput
     // to the renderer again.  Schedule a task to check back.
@@ -1012,17 +1013,15 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
       }
     }
   }
-  auto video_frame = make_scoped_refptr<VideoFrameImpl>(
-      dequeue_output_result, media_codec_bridge,
-      std::bind(&MediaCodecVideoDecoder::OnVideoFrameRelease, this));
 
-  bool need_more_input = false;
-  if (!is_end_of_stream) {
-    need_more_input = SignalIfNeedMoreInput(video_frame);
-  }
-  if (!need_more_input) {
-    decoder_status_cb_(kBufferFull, std::move(video_frame));
-  }
+  bool need_more_input =
+      !is_end_of_stream &&
+      media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize;
+  decoder_status_cb_(
+      need_more_input ? kNeedMoreInput : kBufferFull,
+      make_scoped_refptr<VideoFrameImpl>(
+          dequeue_output_result, media_codec_bridge,
+          std::bind(&MediaCodecVideoDecoder::OnVideoFrameRelease, this)));
 }
 
 void MediaCodecVideoDecoder::OnEndOfStreamWritten(
@@ -1152,7 +1151,8 @@ void MediaCodecVideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
     return;
   }
 
-  if (SignalIfNeedMoreInput()) {
+  if (media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize) {
+    decoder_status_cb_(kNeedMoreInput, NULL);
     return;
   }
 
@@ -1224,23 +1224,6 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   //       VideoRenderer::Seek() after calling MediaCodecVideoDecoder::Reset()
   //       to update the seek status of |video_frame_tracker_|.  This is
   //       slightly flaky as it depends on the behavior of the video renderer.
-}
-
-bool MediaCodecVideoDecoder::SignalIfNeedMoreInput(
-    const scoped_refptr<VideoFrame>& frame) {
-  if (!decoder_status_cb_) {
-    return false;
-  }
-  if (!media_decoder_) {
-    return false;
-  }
-
-  bool need_more_input =
-      media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize;
-  if (need_more_input) {
-    decoder_status_cb_(kNeedMoreInput, frame);
-  }
-  return need_more_input;
 }
 
 }  // namespace starboard
