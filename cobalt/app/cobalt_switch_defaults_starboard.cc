@@ -76,6 +76,7 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
       ::switches::kDisableAcceleratedVideoEncode,
       // Force to use dark mode.
       ::switches::kForceDarkMode,
+      ::switches::kHideScrollbars,
   };
   return kCobaltToggleSwitches;
 }
