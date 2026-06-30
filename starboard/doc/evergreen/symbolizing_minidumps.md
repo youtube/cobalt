@@ -72,9 +72,9 @@ This will build the processor (`src/processor/minidump_stackwalk`), and when
 building on Linux it will also build the `dump_syms` tool
 (`src/tools/linux/dump_syms/dump_syms`).
 
-**IMPORTANT:** Once you have fetched Breakpad, you should remove the path to
-depot_tools from your `$PATH` environment variable, as it can conflict with
-Cobalt's depot_tools.
+> Warning: Once you have fetched Breakpad, you should remove the path to
+> depot_tools from your `$PATH` environment variable, as it can conflict with
+> Cobalt's depot_tools.
 
 ### Symbolizing Minidumps
 
