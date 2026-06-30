@@ -4,7 +4,13 @@ on:
   pull_request:
     types: [opened, reopened, synchronize, labeled]
     branches:
+<<<<<<< HEAD:.github/workflows/tvos_27.lts.yaml
       - 27.lts
+=======
+      - main
+      - experimental/*
+      - feature/*
+>>>>>>> 5aeb69e88 (Temporarily disable tvOS post-submit workflow (#11109)):.github/workflows/tvos.yaml
   workflow_dispatch:
     inputs:
       nightly:
