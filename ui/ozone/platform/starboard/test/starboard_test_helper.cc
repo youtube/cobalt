@@ -12,21 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/starboard_test_environment.h"
+#include "ui/ozone/platform/starboard/test/starboard_test_helper.h"
 
 #include <mutex>
 
 #include "starboard/shared/starboard/features_test_util.h"
 
-namespace starboard {
+namespace ui {
+namespace {
 
-StarboardTestEnvironment::StarboardTestEnvironment() = default;
-
-StarboardTestEnvironment::~StarboardTestEnvironment() = default;
-
-void StarboardTestEnvironment::SetUp() {
+void EnsureStarboardTestEnvironmentInitialized() {
   static std::once_flag s_flag;
-  std::call_once(
-      s_flag, [] { features::InitializeStarboardFeatureListWithDefaults(); });
+  std::call_once(s_flag, [] {
+    starboard::features::InitializeStarboardFeatureListWithDefaults();
+  });
 }
-}  // namespace starboard
+
+}  // namespace
+
+TestPlatformWindowDelegate::TestPlatformWindowDelegate() {
+  EnsureStarboardTestEnvironmentInitialized();
+}
+
+TestPlatformWindowDelegate::~TestPlatformWindowDelegate() = default;
+
+}  // namespace ui

@@ -25,7 +25,7 @@ static_library("test_support") {
 
   deps = [
     ":starboard_platform",
-    "//starboard/shared/starboard:features",
+    "//starboard/shared/starboard:test_environment",
   ]
 
   sources = [

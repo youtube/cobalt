@@ -17,6 +17,7 @@
 #include <optional>
 
 #include "base/test/task_environment.h"
+#include "cobalt/common/features/starboard_features_initialization.h"
 #include "cobalt/testing/browser_tests/browser/shell_content_browser_test_client.h"
 #include "cobalt/testing/browser_tests/content_browser_test_content_browser_client.h"
 
@@ -27,6 +28,16 @@ ContentBrowserTestShellMainDelegate::ContentBrowserTestShellMainDelegate()
 
 ContentBrowserTestShellMainDelegate::~ContentBrowserTestShellMainDelegate() =
     default;
+
+std::optional<int> ContentBrowserTestShellMainDelegate::BasicStartupComplete() {
+  std::optional<int> result = ShellMainTestDelegate::BasicStartupComplete();
+  if (result.has_value()) {
+    return result;
+  }
+
+  cobalt::features::InitializeStarboardFeatures();
+  return std::nullopt;
+}
 
 void ContentBrowserTestShellMainDelegate::CreateThreadPool(
     std::string_view name) {

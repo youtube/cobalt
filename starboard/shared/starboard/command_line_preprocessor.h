@@ -12,21 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/starboard_test_environment.h"
+#ifndef STARBOARD_SHARED_STARBOARD_COMMAND_LINE_PREPROCESSOR_H_
+#define STARBOARD_SHARED_STARBOARD_COMMAND_LINE_PREPROCESSOR_H_
 
-#include <mutex>
-
-#include "starboard/shared/starboard/features_test_util.h"
+#include "starboard/common/command_line.h"
 
 namespace starboard {
 
-StarboardTestEnvironment::StarboardTestEnvironment() = default;
+// Preprocesses command-line switches by converting deprecated legacy flags
+// (e.g., --dump_video_data) into equivalent --enable-features and
+// --disable-features switches.
+void ConvertDeprecatedSwitches(CommandLine* command_line);
 
-StarboardTestEnvironment::~StarboardTestEnvironment() = default;
-
-void StarboardTestEnvironment::SetUp() {
-  static std::once_flag s_flag;
-  std::call_once(
-      s_flag, [] { features::InitializeStarboardFeatureListWithDefaults(); });
-}
 }  // namespace starboard
+
+#endif  // STARBOARD_SHARED_STARBOARD_COMMAND_LINE_PREPROCESSOR_H_

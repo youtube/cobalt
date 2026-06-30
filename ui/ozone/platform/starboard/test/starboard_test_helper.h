@@ -19,16 +19,18 @@
 #include "starboard/event.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/events/event.h"
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 #include "ui/platform_window/platform_window_delegate.h"
 
 using ::starboard::Thread;
 
 namespace ui {
+
 class TestPlatformWindowDelegate : public ui::PlatformWindowDelegate {
  public:
-  TestPlatformWindowDelegate() = default;
-  ~TestPlatformWindowDelegate() override = default;
+  TestPlatformWindowDelegate();
+  ~TestPlatformWindowDelegate() override;
   // Test ui::PlatformWindowDelegate implementation.
   void OnBoundsChanged(const BoundsChange& change) override {
     bounds_changed_count_++;

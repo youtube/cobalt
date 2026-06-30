@@ -63,6 +63,7 @@ source_set("starboard_unittests") {
 
   sources = [
     "test/platform_window_starboard_unittest.cc",
+    "test/starboard_test_helper.cc",
     "test/starboard_test_helper.h",
     "test/surface_factory_starboard_unittest.cc",
   ]
@@ -71,6 +72,7 @@ source_set("starboard_unittests") {
     ":starboard",
     "//starboard:starboard_headers_only",
     "//starboard/common:common",
+    "//starboard/shared/starboard:test_environment",
     "//testing/gmock",
     "//testing/gtest",
     "//ui/events:events",

@@ -23,6 +23,7 @@
 #include "base/test/test_suite.h"
 #include "mojo/core/embedder/embedder.h"
 #include "starboard/client_porting/wrap_main/wrap_main.h"
+#include "starboard/shared/starboard/features_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/aura/env.h"
 #include "ui/base/resource/resource_bundle.h"
@@ -40,6 +41,7 @@ class WMTestSuite : public base::TestSuite {
  protected:
   void Initialize() override {
     base::TestSuite::Initialize();
+    starboard::features::InitializeStarboardFeatureListWithDefaults();
     gl::GLSurfaceTestSupport::InitializeOneOff();
     ui::RegisterPathProvider();
 
