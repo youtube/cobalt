@@ -23,8 +23,8 @@ jobs:
       fail-fast: false
       matrix:
         branch: [
-          {source: main, target: 27.lts, identifier_type: pr},
-          {source: main, target: staging, identifier_type: pr},
+          {source: main, target: 27.lts},
+          {source: main, target: staging},
         ]
     steps:
       - name: Checkout code
@@ -80,8 +80,7 @@ jobs:
           PR_LINKS=$(python3 "${RUNNER_TEMP}/autoroll_lts.py" \
             --source-branch "${{ matrix.branch.source }}" \
             --target-branch "${{ matrix.branch.target }}" \
-            --max-commits "${{ env.MAX_COMMITS }}" \
-            --identifier-type "${{ matrix.branch.identifier_type }}")
+            --max-commits "${{ env.MAX_COMMITS }}")
 
           if [[ -n "${PR_LINKS}" ]]; then
             echo "cherry_picked=true" >> "$GITHUB_OUTPUT"

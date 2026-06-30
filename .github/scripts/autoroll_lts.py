@@ -198,7 +198,6 @@ def main():
   p.add_argument('--source-branch', required=True)
   p.add_argument('--target-branch', required=True)
   p.add_argument('--max-commits', type=int, required=True)
-  p.add_argument('--identifier-type', required=True)
   args = p.parse_args()
 
   target_start = get_start_sha(args.target_branch)
@@ -221,7 +220,7 @@ def main():
       log(f'Reached commit limit ({args.max_commits}).')
       break
 
-    identifier = f'- #{pr_num}' if args.identifier_type == 'pr' else f'- {sha}'
+    identifier = f'- #{pr_num}' if pr_num else f'- {sha}'
 
     # Skip if already in autoroll
     if sha not in shas_to_autoroll:
