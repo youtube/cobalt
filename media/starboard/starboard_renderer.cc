@@ -18,6 +18,7 @@
 #include "base/json/string_escape.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
@@ -147,9 +148,11 @@ StarboardRenderer::StarboardRenderer(
       audio_write_duration_remote_(audio_write_duration_remote),
       max_video_capabilities_(max_video_capabilities),
       experimental_features_(experimental_features),
-      max_samples_per_write_(
-          experimental_features.max_samples_per_write.value_or(
-              kDefaultMaxSamplePerWrite)),
+      max_samples_per_write_(kMediaMaxSamplesPerWrite
+                                 .GetRangedInt(experimental_features,
+                                               /*min_val=*/1,
+                                               /*max_val=*/100'000)
+                                 .value_or(kDefaultMaxSamplePerWrite)),
       viewport_size_(viewport_size)
 #if BUILDFLAG(IS_ANDROID)
       ,

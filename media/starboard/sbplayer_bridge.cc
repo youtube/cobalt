@@ -25,6 +25,7 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
@@ -256,7 +257,7 @@ SbPlayerBridge::SbPlayerBridge(
       max_video_capabilities_(max_video_capabilities),
       experimental_features_(experimental_features),
       enable_batched_buffer_deallocation_(
-          experimental_features_.enable_trivial_optimizations.value_or(false))
+          kMediaEnableTrivialOptimizations.GetBool(experimental_features_))
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE)
       ,
       max_video_input_size_(max_video_input_size)
@@ -802,37 +803,45 @@ void SbPlayerBridge::CreatePlayer() {
     StarboardExtensionExperimentalFeatures extension_features = {};
 
     extension_features.allow_audio_writing_on_pause =
-        experimental_features_.allow_audio_writing_on_pause;
+        kMediaAllowAudioWritingOnPause.GetBool(experimental_features_);
+    extension_features.enable_app_provisioning =
+        kMediaEnableAppProvisioning.GetBool(experimental_features_);
     extension_features.enable_av1_startup_optimization =
-        experimental_features_.enable_av1_startup_optimization;
+        kMediaEnableAv1StartupOptimization.GetBool(experimental_features_);
     extension_features.enable_low_latency =
-        experimental_features_.enable_low_latency;
+        kMediaEnableLowLatency.GetBool(experimental_features_);
     extension_features.enable_video_renderer_vsp_adjustment =
-        experimental_features_.enable_video_renderer_vsp_adjustment;
+        kMediaEnableVideoRendererVspAdjustment.GetBool(experimental_features_);
     extension_features.flush_decoder_during_reset =
-        experimental_features_.enable_flush_during_seek;
+        kMediaEnableFlushDuringSeek.GetBool(experimental_features_);
     extension_features.ignore_mediacodec_callbacks_during_flushing =
-        experimental_features_.ignore_mediacodec_callbacks_during_flushing;
+        kMediaIgnoreMediaCodecCallbacksDuringFlushing.GetBool(
+            experimental_features_);
     extension_features.reset_audio_decoder =
-        experimental_features_.enable_reset_audio_decoder;
+        kMediaEnableResetAudioDecoder.GetBool(experimental_features_);
     extension_features.flush_audio_track_during_seek =
-        experimental_features_.flush_audio_track_during_seek;
+        kMediaFlushAudioTrackDuringSeek.GetBool(experimental_features_);
     extension_features.skip_flush_on_decoder_teardown =
-        experimental_features_.skip_flush_on_decoder_teardown;
+        kMediaSkipFlushOnDecoderTeardown.GetBool(experimental_features_);
     extension_features.skip_video_frames_over_60_fps =
-        experimental_features_.skip_video_frames_over_60_fps;
+        kMediaSkipVideoFramesOver60Fps.GetBool(experimental_features_);
     extension_features.force_clear_surface_view =
-        experimental_features_.force_clear_surface_view;
+        kMediaForceClearSurfaceView.GetBool(experimental_features_);
     extension_features.enable_trivial_optimizations =
-        ToBoolPointer(experimental_features_.enable_trivial_optimizations);
-    extension_features.enable_simd_based_audio_format_switching = ToBoolPointer(
-        experimental_features_.enable_simd_based_audio_format_switching);
-    extension_features.video_decoder_initial_preroll_count = ToIntPointer(
-        experimental_features_.video_decoder_initial_preroll_count);
+        ToBoolPointer(kMediaEnableTrivialOptimizations.GetOptionalBool(
+            experimental_features_));
+    extension_features.enable_simd_based_audio_format_switching =
+        ToBoolPointer(kMediaEnableSimdBasedAudioFormatSwitching.GetOptionalBool(
+            experimental_features_));
+    extension_features.video_decoder_initial_preroll_count =
+        ToIntPointer(kMediaVideoDecoderInitialPrerollCount.GetRangedInt(
+            experimental_features_, 1, 100000));
     extension_features.video_renderer_min_decoded_frames =
-        ToIntPointer(experimental_features_.video_renderer_min_decoded_frames);
+        ToIntPointer(kMediaVideoRendererMinDecodedFrames.GetRangedInt(
+            experimental_features_, 1, 100000));
     extension_features.video_renderer_min_input_buffers =
-        ToIntPointer(experimental_features_.video_renderer_min_input_buffers);
+        ToIntPointer(kMediaVideoRendererMinInputBuffers.GetRangedInt(
+            experimental_features_, 1, 100000));
 
     // Note: Some flags (e.g., 'max_samples_per_write') are not mapped here as
     // they are directly consumed by StarboardRenderer.
@@ -841,9 +850,12 @@ void SbPlayerBridge::CreatePlayer() {
         &extension_features);
   }
 
+  const bool force_clear_surface_view =
+      kMediaForceClearSurfaceView.GetBool(experimental_features_);
+
   const bool should_get_decode_target_graphics_context_provider =
       (output_mode_ == kSbPlayerOutputModeDecodeToTexture ||
-       experimental_features_.force_clear_surface_view);
+       force_clear_surface_view);
 
   player_ = sbplayer_interface_->Create(
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
@@ -920,7 +932,7 @@ void SbPlayerBridge::WriteBuffersInternal(
   }
 
   const bool enable_trivial_optimizations =
-      experimental_features_.enable_trivial_optimizations.value_or(false);
+      kMediaEnableTrivialOptimizations.GetBool(experimental_features_);
 
   std::vector<SbPlayerSampleInfo> local_sample_infos;
   std::vector<SbDrmSampleInfo> local_drm_infos;
@@ -1519,8 +1531,10 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
     // any of the mime associated with it has `decode-to-texture=true` set.
     // TODO(b/232559177): Make the check below more flexible, to work with
     //                    other well formed inputs (e.g. with extra space).
+    const bool force_decode_to_texture =
+        kMediaForceDecodeToTexture.GetBool(experimental_features_);
     bool is_decode_to_texture_preferred =
-        experimental_features_.force_decode_to_texture ||
+        force_decode_to_texture ||
         strstr(video_stream_info_.mime, "decode-to-texture=true") ||
         strstr(video_stream_info_.max_video_capabilities,
                "decode-to-texture=true");
@@ -1530,8 +1544,7 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
                 << GetPlayerOutputModeName(default_output_mode) << "\" to \""
                 << GetPlayerOutputModeName(kSbPlayerOutputModeDecodeToTexture)
                 << "\" because force_decode_to_texture is "
-                << (experimental_features_.force_decode_to_texture ? "true"
-                                                                   : "false")
+                << starboard::ToString(force_decode_to_texture)
                 << ", mime is set to \"" << video_stream_info_.mime
                 << "\", and max_video_capabilities is set to \""
                 << video_stream_info_.max_video_capabilities << "\"";

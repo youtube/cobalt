@@ -29,6 +29,7 @@ struct ExperimentalFeatures {
   // The fields should be in alphabetical order.
   // keep-sorted start
   bool allow_audio_writing_on_pause = false;
+  bool enable_app_provisioning = false;
   bool enable_av1_startup_optimization = false;
   bool enable_low_latency = false;
   bool enable_video_renderer_vsp_adjustment = false;
