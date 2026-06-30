@@ -75,6 +75,8 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
   ~CobaltMainDelegate() override;
 
  private:
+  void InitializeMemorySystem();
+
   absl::optional<int64_t> startup_timestamp_;
   bool is_visible_;
   std::unique_ptr<content::BrowserMainRunner> main_runner_;
@@ -87,7 +89,6 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
   std::string deep_link_;
 
   void InitializeHangWatcher();
-  void InitializeMemorySystem();
 };
 
 }  // namespace cobalt

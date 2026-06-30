@@ -22,7 +22,7 @@
 #include <mutex>
 #include <vector>
 
-#include "copied_base/base/memory/cobalt_memory_context.h"
+#include "base/memory/cobalt_memory_context.h"
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/player/job_queue.h"
@@ -43,7 +43,6 @@ TEST(JobThreadTest, PropagatesMediaMemoryContext) {
   EXPECT_EQ(context, base::memory::MemoryContext::kMedia);
   job_thread->Stop();
 }
-
 // Require at least millisecond-level precision.
 constexpr int64_t kPrecisionUsec = 1000;
 

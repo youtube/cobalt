@@ -118,8 +118,7 @@ void CobaltMemoryAttributionManager::ReportUma() {
   last_report_time_ = now;
 
   auto counters = observer->GetCounters();
-  for (size_t i = 0;
-       i < static_cast<size_t>(base::memory::MemoryContext::kCount); ++i) {
+  for (size_t i = 0; i < counters.size(); ++i) {
     uint64_t current = counters[i].value.load(std::memory_order_relaxed);
     uint64_t delta = current - last_snapshots_[i];
     uint64_t emitted_kb = delta / 1024;
@@ -141,8 +140,7 @@ void CobaltMemoryAttributionManager::OnSuspend() {
   // the first report only covers allocations that happened after resume.
   auto* observer = base::memory::CobaltMemoryAttributionObserver::Get();
   auto counters = observer->GetCounters();
-  for (size_t i = 0;
-       i < static_cast<size_t>(base::memory::MemoryContext::kCount); ++i) {
+  for (size_t i = 0; i < counters.size(); ++i) {
     last_snapshots_[i] = counters[i].value.load(std::memory_order_relaxed);
   }
 }
@@ -158,8 +156,7 @@ bool CobaltMemoryAttributionManager::OnMemoryDump(
     base::trace_event::ProcessMemoryDump* pmd) {
   auto* observer = base::memory::CobaltMemoryAttributionObserver::Get();
   auto counters = observer->GetCounters();
-  for (size_t i = 0;
-       i < static_cast<size_t>(base::memory::MemoryContext::kCount); ++i) {
+  for (size_t i = 0; i < counters.size(); ++i) {
     uint64_t current = counters[i].value.load(std::memory_order_relaxed);
     std::string dump_name =
         base::StrCat({"cobalt/memory_attribution/",

@@ -14,14 +14,15 @@
 
 #include "copied_base/base/memory/cobalt_memory_context.h"
 
-#include <stdint.h>
-#include <pthread.h>
+
 #include <atomic>
+#include <pthread.h>
+#include <stdint.h>
+#include <string_view>
 
 #if defined(OS_LINUX) || defined(OS_ANDROID)
 #include <sys/prctl.h>
 #endif
-#include <string_view>
 
 namespace base {
 namespace memory {
@@ -52,33 +53,95 @@ MAYBE_COBALT_WEAK pthread_key_t GetSharedMemoryContextKey() {
 
 MAYBE_COBALT_WEAK MemoryContext GetCurrentMemoryContext() {
   uintptr_t val = reinterpret_cast<uintptr_t>(pthread_getspecific(GetSharedMemoryContextKey()));
-  if (val == 0) {
+  uintptr_t context_val = val & 0xFFFF;
+  uintptr_t checks = val >> 16;
+  if (context_val == 0) {
     MemoryContext context = MemoryContext::kUnknown;
 #if defined(OS_LINUX) || defined(OS_ANDROID)
     char thread_name[17] = {0};
     if (prctl(PR_GET_NAME, thread_name) == 0) {
       thread_name[16] = '\0';
       std::string_view name(thread_name);
-      if (name.find("Media") != std::string_view::npos || name.find("Audio") != std::string_view::npos || name.find("Video") != std::string_view::npos || name.find("FFmpeg") != std::string_view::npos || name.find("Decoder") != std::string_view::npos || name.find("Vpx") != std::string_view::npos) {
-        context = MemoryContext::kMedia;
-      } else if (name.find("Network") != std::string_view::npos || name.find("IOThread") != std::string_view::npos || name.find("Socket") != std::string_view::npos) {
-        context = MemoryContext::kNetwork;
-      } else if (name.find("Script") != std::string_view::npos || name.find("V8") != std::string_view::npos || name.find("JS") != std::string_view::npos || name.find("GC") != std::string_view::npos || name.find("Scavenger") != std::string_view::npos) {
-        context = MemoryContext::kScript;
-      } else if (name.find("Graphics") != std::string_view::npos || name.find("Compositor") != std::string_view::npos || name.find("Skia") != std::string_view::npos || name.find("Ganesh") != std::string_view::npos || name.find("Raster") != std::string_view::npos) {
-        context = MemoryContext::kGraphics;
-      } else if (name.find("Browser") != std::string_view::npos || name.find("CrBrowserMain") != std::string_view::npos || name.find("CrRendererMain") != std::string_view::npos) {
-        context = MemoryContext::kBrowserMain;
-      } else if (name.find("IPC") != std::string_view::npos || name.find("Mojo") != std::string_view::npos || name.find("MessagePump") != std::string_view::npos) {
-        context = MemoryContext::kPlatformIPC;
+      struct ThreadPatternMapping {
+        std::string_view pattern;
+        MemoryContext context;
+        bool exact_match;
+      };
+
+      constexpr ThreadPatternMapping kThreadPatterns[] = {
+          // Media
+          {"Media", MemoryContext::kMedia, false},
+          {"Audio", MemoryContext::kMedia, false},
+          {"Video", MemoryContext::kMedia, false},
+          {"FFmpeg", MemoryContext::kMedia, false},
+          {"Decoder", MemoryContext::kMedia, false},
+          {"Vpx", MemoryContext::kMedia, false},
+
+          // Network
+          {"Network", MemoryContext::kNetwork, false},
+          {"IOThread", MemoryContext::kNetwork, false},
+          {"Socket", MemoryContext::kNetwork, false},
+
+          // Script
+          {"Script", MemoryContext::kScript, false},
+          {"V8", MemoryContext::kScript, false},
+          {"JS", MemoryContext::kScript, false},
+          {"GC", MemoryContext::kScript, false},
+          {"Scavenger", MemoryContext::kScript, false},
+
+          // Graphics
+          {"Graphics", MemoryContext::kGraphics, false},
+          {"Compositor", MemoryContext::kGraphics, false},
+          {"Skia", MemoryContext::kGraphics, false},
+          {"Ganesh", MemoryContext::kGraphics, false},
+          {"Raster", MemoryContext::kGraphics, false},
+          {"Gpu", MemoryContext::kGraphics, false},
+
+          // BrowserMain
+          {"Browser", MemoryContext::kBrowserMain, false},
+          {"CrBrowserMain", MemoryContext::kBrowserMain, false},
+          {"CrRendererMain", MemoryContext::kBrowserMain, false},
+          {"cobalt", MemoryContext::kBrowserMain, true},
+
+          // PlatformIPC
+          {"IPC", MemoryContext::kPlatformIPC, false},
+          {"Mojo", MemoryContext::kPlatformIPC, false},
+          {"MessagePump", MemoryContext::kPlatformIPC, false},
+      };
+
+      for (const auto& entry : kThreadPatterns) {
+        if (entry.exact_match) {
+          if (name == entry.pattern) {
+            context = entry.context;
+            break;
+          }
+        } else {
+          if (name.find(entry.pattern) != std::string_view::npos) {
+            context = entry.context;
+            break;
+          }
+        }
       }
     }
 #endif
-    val = static_cast<uintptr_t>(context) + 1;
-    pthread_setspecific(GetSharedMemoryContextKey(), reinterpret_cast<void*>(val));
-    return context;
+    if (context != MemoryContext::kUnknown) {
+      val = static_cast<uintptr_t>(context) + 1;
+      pthread_setspecific(GetSharedMemoryContextKey(), reinterpret_cast<void*>(val));
+      return context;
+    } else {
+      if (checks < 60000) {
+        checks++;
+        val = (checks << 16) | 0; // context_val remains 0
+        pthread_setspecific(GetSharedMemoryContextKey(), reinterpret_cast<void*>(val));
+        return MemoryContext::kUnknown;
+      } else {
+        val = static_cast<uintptr_t>(MemoryContext::kUnknown) + 1;
+        pthread_setspecific(GetSharedMemoryContextKey(), reinterpret_cast<void*>(val));
+        return MemoryContext::kUnknown;
+      }
+    }
   }
-  return static_cast<MemoryContext>(val - 1);
+  return static_cast<MemoryContext>(context_val - 1);
 }
 
 MAYBE_COBALT_WEAK void SetCurrentMemoryContext(MemoryContext context) {
@@ -141,3 +204,27 @@ MAYBE_COBALT_WEAK std::string_view ContextToString(MemoryContext context) {
 
 }  // namespace memory
 }  // namespace base
+
+extern "C" __attribute__((visibility("default"))) MAYBE_COBALT_WEAK void CobaltSetMemoryContextForThread(const char* name) {
+  if (!name) return;
+  std::string_view name_view(name);
+  base::memory::MemoryContext context = base::memory::MemoryContext::kUnknown;
+  
+  if (name_view.find("Media") != std::string_view::npos || name_view.find("Audio") != std::string_view::npos || name_view.find("Video") != std::string_view::npos || name_view.find("FFmpeg") != std::string_view::npos || name_view.find("Decoder") != std::string_view::npos || name_view.find("Vpx") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kMedia;
+  } else if (name_view.find("Network") != std::string_view::npos || name_view.find("IOThread") != std::string_view::npos || name_view.find("Socket") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kNetwork;
+  } else if (name_view.find("Script") != std::string_view::npos || name_view.find("V8") != std::string_view::npos || name_view.find("JS") != std::string_view::npos || name_view.find("GC") != std::string_view::npos || name_view.find("Scavenger") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kScript;
+  } else if (name_view.find("Graphics") != std::string_view::npos || name_view.find("Compositor") != std::string_view::npos || name_view.find("Skia") != std::string_view::npos || name_view.find("Ganesh") != std::string_view::npos || name_view.find("Raster") != std::string_view::npos || name_view.find("Gpu") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kGraphics;
+  } else if (name_view.find("Browser") != std::string_view::npos || name_view.find("CrBrowserMain") != std::string_view::npos || name_view.find("CrRendererMain") != std::string_view::npos || name_view == "cobalt") {
+    context = base::memory::MemoryContext::kBrowserMain;
+  } else if (name_view.find("IPC") != std::string_view::npos || name_view.find("Mojo") != std::string_view::npos || name_view.find("MessagePump") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kPlatformIPC;
+  }
+
+  if (context != base::memory::MemoryContext::kUnknown) {
+    base::memory::SetCurrentMemoryContext(context);
+  }
+}
