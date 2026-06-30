@@ -12,23 +12,55 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-static_library("feature_list") {
+static_library("features") {
   sources = [
+    "command_line_preprocessor.cc",
+    "command_line_preprocessor.h",
     "feature_list.cc",
     "feature_list.h",
+    "features.cc",
+    "features.h",
+    "features_extension.cc",
+    "features_extension.h",
   ]
 
-  deps = [ "//starboard/common" ]
+  public_deps = [ "//starboard/extension:feature_config_header" ]
+
+  deps = [
+    "//starboard:starboard_headers_only",
+    "//starboard/common",
+  ]
 }
 
 source_set("starboard_test") {
   testonly = true
 
-  sources = [ "feature_list_test.cc" ]
+  sources = [
+    "command_line_preprocessor_test.cc",
+    "feature_list_test.cc",
+    "features_extension_test.cc",
+  ]
 
   deps = [
-    ":feature_list",
+    ":features",
     "//starboard/common",
+    "//testing/gtest",
+  ]
+}
+
+source_set("test_environment") {
+  testonly = true
+
+  sources = [
+    "features_test_util.cc",
+    "features_test_util.h",
+    "starboard_test_environment.cc",
+    "starboard_test_environment.h",
+  ]
+
+  deps = [
+    ":features",
+    "//starboard:starboard_headers_only",
     "//testing/gtest",
   ]
 }

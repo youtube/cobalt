@@ -12,19 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_STARBOARD_TEST_ENVIRONMENT_H_
-#define STARBOARD_ANDROID_SHARED_STARBOARD_TEST_ENVIRONMENT_H_
-
-#include "testing/gtest/include/gtest/gtest.h"
+#ifndef STARBOARD_SHARED_STARBOARD_FEATURES_EXTENSION_H_
+#define STARBOARD_SHARED_STARBOARD_FEATURES_EXTENSION_H_
 
 namespace starboard {
-class StarboardTestEnvironment final : public ::testing::Environment {
- public:
-  StarboardTestEnvironment();
-  ~StarboardTestEnvironment() override;
 
-  void SetUp() override;
-};
+// Starboard extension function to receive the Starboard
+// FeaturesAPI.
+const void* GetFeaturesApi();
+
 }  // namespace starboard
 
-#endif  // STARBOARD_ANDROID_SHARED_STARBOARD_TEST_ENVIRONMENT_H_
+#endif  // STARBOARD_SHARED_STARBOARD_FEATURES_EXTENSION_H_

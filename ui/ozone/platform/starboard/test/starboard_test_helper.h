@@ -15,8 +15,11 @@
 #ifndef UI_OZONE_PLATFORM_STARBOARD_TEST_STARBOARD_TEST_HELPER_H_
 #define UI_OZONE_PLATFORM_STARBOARD_TEST_STARBOARD_TEST_HELPER_H_
 
+#include <mutex>
+
 #include "starboard/common/thread.h"
 #include "starboard/event.h"
+#include "starboard/shared/starboard/features_test_util.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
@@ -25,9 +28,17 @@
 using ::starboard::Thread;
 
 namespace ui {
+
+inline void EnsureStarboardTestEnvironmentInitialized() {
+  static std::once_flag s_flag;
+  std::call_once(s_flag, [] {
+    starboard::features::InitializeStarboardFeatureListWithDefaults();
+  });
+}
+
 class TestPlatformWindowDelegate : public ui::PlatformWindowDelegate {
  public:
-  TestPlatformWindowDelegate() = default;
+  TestPlatformWindowDelegate() { EnsureStarboardTestEnvironmentInitialized(); }
   ~TestPlatformWindowDelegate() override = default;
   // Test ui::PlatformWindowDelegate implementation.
   void OnBoundsChanged(const BoundsChange& change) override {

@@ -71,6 +71,7 @@ source_set("starboard_unittests") {
     ":starboard",
     "//starboard:starboard_headers_only",
     "//starboard/common:common",
+    "//starboard/shared/starboard:test_environment",
     "//testing/gmock",
     "//testing/gtest",
     "//ui/events:events",

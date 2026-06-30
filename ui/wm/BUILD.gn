@@ -192,6 +192,10 @@ test("wm_unittests") {
     "//ui/wm/public",
   ]
 
+  if (is_cobalt_hermetic_build) {
+    deps += [ "//starboard/shared/starboard:test_environment" ]
+  }
+
   data_deps = [ "//ui/resources:ui_test_pak_data" ]
 
   if (enable_hidpi) {
