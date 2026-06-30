@@ -119,7 +119,7 @@ jobs:
             PR_TITLE="CONFLICTED: ${PR_TITLE}"
             {
               echo ""
-              echo '⚠️ This PR has conflicts that must be resolved manually (don't forget to update the `.github/AUTOROLL` file). Use the following commands to checkout the branch locally and resolve the conflicts in a separate commit:'
+              echo '⚠️ This PR has conflicts that must be resolved manually (do not forget to update the `.github/AUTOROLL` file). Use the following commands to checkout the branch locally and resolve the conflicts in a separate commit:'
               echo '```bash'
               echo "gh pr checkout \${PR_NUMBER} -R ${{ github.repository }}"
               echo "git commit -a"
