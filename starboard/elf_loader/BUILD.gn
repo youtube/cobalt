@@ -31,12 +31,12 @@ _elf_loader_sources = [
   "gnu_hash_table.h",
   "lz4_file_impl.cc",
   "lz4_file_impl.h",
-  "naive_zstd_file_impl.cc",
-  "naive_zstd_file_impl.h",
   "program_table.cc",
   "program_table.h",
   "relocations.cc",
   "relocations.h",
+  "zstd_file_impl.cc",
+  "zstd_file_impl.h",
 ]
 
 config("elf_loader_config") {
@@ -114,9 +114,9 @@ if (current_toolchain == starboard_toolchain) {
         "elf_header_test.cc",
         "elf_loader_test.cc",
         "lz4_file_impl_test.cc",
-        "naive_zstd_file_impl_test.cc",
         "program_table_test.cc",
         "relocations_test.cc",
+        "zstd_file_impl_test.cc",
       ]
       deps += [
         ":copy_elf_loader_testdata",
@@ -138,6 +138,8 @@ copy("copy_elf_loader_testdata") {
     "testdata/compressed_multi_frame.zst",
     "testdata/compressed_no_content_size.lz4",
     "testdata/compressed_no_content_size.zst",
+    "testdata/compressed_with_garbage.zst",
+    "testdata/empty.zst",
     "testdata/uncompressed",
   ]
   subdir = "starboard/elf_loader"

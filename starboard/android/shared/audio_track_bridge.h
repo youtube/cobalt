@@ -23,6 +23,7 @@
 #include <optional>
 #include <variant>
 
+#include "starboard/android/shared/audio_track.h"
 #include "starboard/common/pass_key.h"
 #include "starboard/media.h"
 #include "third_party/jni_zero/jni_zero.h"
@@ -30,17 +31,11 @@
 namespace starboard {
 
 // The C++ encapsulation of the Java class AudioTrackBridge.
-class AudioTrackBridge {
+class AudioTrackBridge : public AudioTrack {
  public:
   using FloatArray = jni_zero::ScopedJavaGlobalRef<jfloatArray>;
   using ByteArray = jni_zero::ScopedJavaGlobalRef<jbyteArray>;
   using DataArray = std::variant<FloatArray, ByteArray>;
-
-  // The maximum number of frames that can be written to android audio track per
-  // write request.  It is used to pre-allocate |j_audio_data_|.
-  static constexpr int kMaxFramesPerRequest = 65536;
-  // The same as Android AudioTrack.ERROR_DEAD_OBJECT.
-  static constexpr int kAudioTrackErrorDeadObject = -6;
 
   static std::unique_ptr<AudioTrackBridge> Create(
       SbMediaAudioCodingType coding_type,
@@ -56,43 +51,32 @@ class AudioTrackBridge {
       int max_samples_per_write,
       const jni_zero::ScopedJavaLocalRef<jobject>& j_audio_track_bridge,
       const DataArray& j_audio_data);
-  ~AudioTrackBridge();
+  ~AudioTrackBridge() override;
 
-  void Play(JNIEnv* env = jni_zero::AttachCurrentThread());
-  void Pause(JNIEnv* env = jni_zero::AttachCurrentThread());
-  void Stop(JNIEnv* env = jni_zero::AttachCurrentThread());
-  void PauseAndFlush(JNIEnv* env = jni_zero::AttachCurrentThread());
+  void Play() override;
+  void Pause() override;
+  void Stop() override;
+  void PauseAndFlush() override;
 
   // Returns zero or the positive number of samples written, or a negative error
   // code.
-  int WriteSample(const float* samples,
-                  int num_of_samples,
-                  JNIEnv* env = jni_zero::AttachCurrentThread());
-  int WriteSample(const uint16_t* samples,
-                  int num_of_samples,
-                  int64_t sync_time,
-                  JNIEnv* env = jni_zero::AttachCurrentThread());
+  int WriteSample(Span<const float> samples) override;
+  int WriteSample(Span<const uint16_t> samples, int64_t sync_time) override;
   // This is used by passthrough, it treats samples as if they are in bytes.
   // Returns zero or the positive number of samples written, or a negative error
   // code.
-  int WriteSample(const uint8_t* buffer,
-                  int num_of_samples,
-                  int64_t sync_time,
-                  JNIEnv* env = jni_zero::AttachCurrentThread());
+  int WriteSample(Span<const uint8_t> buffer, int64_t sync_time) override;
 
-  void SetPlaybackRate(double playback_rate,
-                       JNIEnv* env = jni_zero::AttachCurrentThread());
-  void SetVolume(double volume, JNIEnv* env = jni_zero::AttachCurrentThread());
+  void SetPlaybackRate(double playback_rate) override;
+  void SetVolume(double volume) override;
 
   // |updated_at| contains the timestamp when the audio timestamp is updated on
   // return.  It can be nullptr.
-  int64_t GetAudioTimestamp(int64_t* updated_at,
-                            JNIEnv* env = jni_zero::AttachCurrentThread());
-  bool GetAndResetHasAudioDeviceChanged(
-      JNIEnv* env = jni_zero::AttachCurrentThread());
-  int GetUnderrunCount(JNIEnv* env = jni_zero::AttachCurrentThread());
-  int GetStartThresholdInFrames(JNIEnv* env = jni_zero::AttachCurrentThread());
-  int GetPlayState(JNIEnv* env = jni_zero::AttachCurrentThread());
+  int64_t GetAudioTimestamp(int64_t* updated_at) override;
+  bool GetAndResetHasAudioDeviceChanged() override;
+  int GetUnderrunCount() override;
+  int GetStartThresholdInFrames() override;
+  PlayState GetPlayState() override;
 
  private:
   const int max_samples_per_write_;

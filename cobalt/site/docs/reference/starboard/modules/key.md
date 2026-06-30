@@ -11,7 +11,7 @@ Defines the canonical set of Starboard key codes.
 
 A standard set of key codes, ordered by value, that represent each possible
 input key across all kinds of devices. Starboard uses the semi-standard Windows
-virtual key codes documented at: [https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731%28v=vs.85%29.aspx](https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731%28v=vs.85%29.aspx)
+virtual key codes documented at: [MSDN Virtual key codes](https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731%28v=vs.85%29.aspx)
 
 #### Values
 
@@ -20,8 +20,6 @@ virtual key codes documented at: [https://msdn.microsoft.com/en-us/library/windo
 *   `kSbKeyBackspace`
 *   `kSbKeyBack`
 *   `kSbKeyTab`
-
-    semantic "back".
 *   `kSbKeyBacktab`
 *   `kSbKeyClear`
 *   `kSbKeyReturn`
@@ -212,13 +210,13 @@ virtual key codes documented at: [https://msdn.microsoft.com/en-us/library/windo
     Also from OCAP
 *   `kSbKeyLaunchThisApplication`
 
-    A button that will directly launch the current application.
+    A button that launches the application.
 *   `kSbKeyMediaAudioTrack`
 
-    A button that will switch between different available audio tracks.
+    A button that switches between available audio tracks.
 *   `kSbKeyMicrophone`
 
-    A button that will trigger voice input.
+    A button that triggers voice input.
 *   `kSbKeyMouse1`
 
     Mouse buttons, starting with the left mouse button.
@@ -240,8 +238,8 @@ virtual key codes documented at: [https://msdn.microsoft.com/en-us/library/windo
     Xbox Y, PS triangle, Switch Y
 *   `kSbKeyGamepadLeftBumper`
 
-    Pretty much every gamepad has bumpers at the top front of the controller,
-    and triggers at the bottom front of the controller.
+    Gamepads typically have bumpers at the top front and triggers at the bottom
+    front.
 *   `kSbKeyGamepadRightBumper`
 *   `kSbKeyGamepadLeftTrigger`
 *   `kSbKeyGamepadRightTrigger`
@@ -263,7 +261,7 @@ virtual key codes documented at: [https://msdn.microsoft.com/en-us/library/windo
 *   `kSbKeyGamepadDPadRight`
 *   `kSbKeyGamepadSystem`
 
-    The system key in the middle of the gamepad, if it exists.
+    The system key in the middle of the gamepad (if available).
 *   `kSbKeyGamepadLeftStickUp`
 
     Codes for thumbstick to virtual dpad conversions.
