@@ -251,6 +251,11 @@ void DialHttpServer::OnReceivedResponse(
 
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
   TRACE_EVENT0("net::dial", __FUNCTION__);
+
+  if (!http_server_) {
+    return;
+  }
+
   if (response) {
     http_server_->SendResponse(conn_id, *(response.get()),
                                kNetworkTrafficAnnotation);
