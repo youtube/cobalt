@@ -207,4 +207,61 @@ TEST_F(CobaltLifecycleManagerTest, DISABLED_RevealTimeout) {
   manager_->RemoveObserver(&observer);
 }
 
+TEST_F(CobaltLifecycleManagerTest,
+       StartWaitingForUnfreezeWithDeadFrameDoesNotCrash) {
+  std::unique_ptr<content::WebContents> contents =
+      CreateScopedTestWebContents();
+  // Do NOT call InitializeRenderFrameIfNeeded(), so IsRenderFrameLive() returns
+  // false. This simulates the state of mock frames in unit tests or extremely
+  // early startup, where Rebind() would crash if called.
+
+  // Start waiting for unfreeze. This shouldn't crash.
+  manager_->StartWaitingForAck(contents.get(), PendingAck::kUnfreeze);
+  base::RunLoop().RunUntilIdle();
+}
+
+TEST_F(CobaltLifecycleManagerTest,
+       ReceiverDisconnectDoesNotUnregisterActiveFrame) {
+  std::unique_ptr<content::WebContents> contents =
+      CreateScopedTestWebContents();
+  content::RenderFrameHostTester::For(contents->GetPrimaryMainFrame())
+      ->InitializeRenderFrameIfNeeded();
+
+  mojo::Remote<cobalt::mojom::CobaltLifecycleObserver> remote1;
+  manager_->BindReceiver(contents->GetPrimaryMainFrame(),
+                         remote1.BindNewPipeAndPassReceiver());
+  remote1->OnFrameReady();
+  base::RunLoop().RunUntilIdle();
+
+  // Simulate a re-bind by creating a second remote for the SAME frame.
+  mojo::Remote<cobalt::mojom::CobaltLifecycleObserver> remote2;
+  manager_->BindReceiver(contents->GetPrimaryMainFrame(),
+                         remote2.BindNewPipeAndPassReceiver());
+  base::RunLoop().RunUntilIdle();
+
+  // Disconnect the FIRST remote (simulating the async disconnect of the old
+  // pipe).
+  remote1.reset();
+  base::RunLoop().RunUntilIdle();
+
+  // The frame should STILL be waiting/registered because remote2 is active!
+  MockCobaltLifecycleObserver observer;
+  manager_->AddObserver(&observer);
+
+  manager_->StartWaitingForAck(contents.get(), PendingAck::kReveal);
+
+  // If it was unregistered, it would trigger immediate completion (call times
+  // 1). Because it's still registered, it waits (call times 0).
+  EXPECT_CALL(observer, OnAllFramesVisible(contents.get())).Times(0);
+  base::RunLoop().RunUntilIdle();
+  testing::Mock::VerifyAndClearExpectations(&observer);
+
+  // Disconnect the second remote, NOW it should unregister and complete.
+  EXPECT_CALL(observer, OnAllFramesVisible(contents.get())).Times(1);
+  remote2.reset();
+  base::RunLoop().RunUntilIdle();
+
+  manager_->RemoveObserver(&observer);
+}
+
 }  // namespace cobalt
