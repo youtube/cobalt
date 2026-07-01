@@ -114,10 +114,7 @@ Result<void> ExoPlayerPlayerWorkerHandler::WriteSamples(
                     << (sample_type == kSbMediaTypeAudio ? "audio" : "video")
                     << " sample after EOS is written.";
   } else {
-    if (bridge_->CanAcceptMoreData(sample_type)) {
-      bridge_->WriteSamples(input_buffers, sample_type);
-      *samples_written = static_cast<int>(input_buffers.size());
-    }
+    *samples_written = bridge_->WriteSamples(input_buffers, sample_type);
   }
 
   return Success();

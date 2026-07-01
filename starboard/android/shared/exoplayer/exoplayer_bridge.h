@@ -62,15 +62,15 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   bool Init(ErrorCB error_cb, PrerolledCB prerolled_cb, EndedCB ended_cb);
 
   void Seek(int64_t timestamp);
-  void WriteSamples(const InputBuffers& input_buffers, SbMediaType type);
-  void WriteEOS(SbMediaType type);
   void SetPause(bool pause) const;
   void SetPlaybackRate(const double playback_rate) const;
   void SetVolume(const double volume) const;
   void Stop() const;
 
   MediaInfo GetMediaInfo() const;
-  bool CanAcceptMoreData(SbMediaType type);
+
+  int WriteSamples(const InputBuffers& input_buffers, SbMediaType type);
+  void WriteEOS(SbMediaType type);
 
   int ReadSample(JNIEnv* env,
                  int type,

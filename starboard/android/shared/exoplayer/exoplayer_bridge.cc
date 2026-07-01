@@ -208,38 +208,6 @@ void ExoPlayerBridge::Seek(int64_t timestamp) {
                             timestamp);
 }
 
-void ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers,
-                                   SbMediaType type) {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
-  // TODO: It's possible that a video sample may contain valid
-  // SbMediaColorMetadata after codec creation. When that happens,
-  // we should recreate the video decoder to use the new metadata.
-  if (ShouldAbortOperation()) {
-    return;
-  }
-
-  std::lock_guard lock(mutex_);
-  auto& pending_samples = type == kSbMediaTypeAudio ? pending_audio_samples_
-                                                    : pending_video_samples_;
-  for (auto& input_buffer : input_buffers) {
-    pending_samples.push_back(input_buffer);
-  }
-}
-
-void ExoPlayerBridge::WriteEOS(SbMediaType type) {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
-  if (ShouldAbortOperation()) {
-    return;
-  }
-
-  std::lock_guard lock(mutex_);
-  if (type == kSbMediaTypeAudio) {
-    audio_eos_pending_ = true;
-  } else {
-    video_eos_pending_ = true;
-  }
-}
-
 void ExoPlayerBridge::SetPause(bool pause) const {
   SB_CHECK(thread_checker_.CalledOnValidThread());
   if (ShouldAbortOperation()) {
@@ -296,47 +264,63 @@ ExoPlayerBridge::MediaInfo ExoPlayerBridge::GetMediaInfo() const {
   return MediaInfo{media_time_usec, dropped_frames_.load(), is_playing_.load()};
 }
 
-bool ExoPlayerBridge::CanAcceptMoreData(SbMediaType type) {
+int ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers,
+                                  SbMediaType type) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
   if (ShouldAbortOperation()) {
-    return false;
+    return 0;
   }
 
   std::lock_guard lock(mutex_);
-  const auto& pending_samples = type == kSbMediaTypeAudio
-                                    ? pending_audio_samples_
-                                    : pending_video_samples_;
+  auto& pending_samples = type == kSbMediaTypeAudio ? pending_audio_samples_
+                                                    : pending_video_samples_;
 
-  if (pending_samples.empty()) {
-    return true;
+  int64_t max_duration = 0;
+  if (type == kSbMediaTypeAudio) {
+    max_duration = 10 * 1000 * 1000 - 500 * 1000;
+  } else {
+    max_duration = 3 * 1000 * 1000 - 250 * 1000;
+    if (!pending_samples.empty() || !input_buffers.empty()) {
+      auto& info = pending_samples.empty()
+                       ? input_buffers.front()->video_sample_info()
+                       : pending_samples.front()->video_sample_info();
+      bool is_hdr = info.stream_info.color_metadata.transfer ==
+                    kSbMediaTransferIdSmpteSt2084;
+      bool is_over_1080p = info.stream_info.frame_size.width > 1920 ||
+                           info.stream_info.frame_size.height > 1080;
+      if (is_hdr || is_over_1080p) {
+        max_duration = 2 * 1000 * 1000 - 250 * 1000;
+      }
+    }
   }
 
-  int64_t buffered_duration_us = pending_samples.back()->timestamp() -
-                                 pending_samples.front()->timestamp();
+  int samples_written = 0;
+  for (const auto& input_buffer : input_buffers) {
+    if (!pending_samples.empty()) {
+      int64_t buffered_duration_us =
+          input_buffer->timestamp() - pending_samples.front()->timestamp();
+      if (buffered_duration_us >= max_duration) {
+        break;
+      }
+    }
+    pending_samples.push_back(input_buffer);
+    samples_written++;
+  }
 
+  return samples_written;
+}
+
+void ExoPlayerBridge::WriteEOS(SbMediaType type) {
+  SB_CHECK(thread_checker_.CalledOnValidThread());
+  if (ShouldAbortOperation()) {
+    return;
+  }
+
+  std::lock_guard lock(mutex_);
   if (type == kSbMediaTypeAudio) {
-    // Max buffer duration 10 seconds, memory pressure 500ms
-    constexpr int64_t kMaxAudioduration = 10 * 1000 * 1000 - 500 * 1000;
-    if (buffered_duration_us >= kMaxAudioduration) {
-      return false;
-    }
-    return true;
+    audio_eos_pending_ = true;
   } else {
-    int64_t max_duration = 3 * 1000 * 1000 - 250 * 1000;
-    // Adjust max duration based on HDR or >1080p if available
-    auto& info = pending_samples.front()->video_sample_info();
-    bool is_hdr = info.stream_info.color_metadata.transfer ==
-                  kSbMediaTransferIdSmpteSt2084;
-    bool is_over_1080p = info.stream_info.frame_size.width > 1920 ||
-                         info.stream_info.frame_size.height > 1080;
-    if (is_hdr || is_over_1080p) {
-      max_duration = 2 * 1000 * 1000 - 250 * 1000;
-    }
-
-    if (buffered_duration_us >= max_duration) {
-      return false;
-    }
-    return true;
+    video_eos_pending_ = true;
   }
 }
 
