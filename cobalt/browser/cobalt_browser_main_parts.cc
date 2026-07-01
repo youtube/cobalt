@@ -140,7 +140,7 @@ void RegisterCobaltHeapProfilerOnDumpThread() {
   auto params = heap_profiling::mojom::ProfilingParams::New();
   params->sampling_rate = 128 * 1024;  // 128KB sampling rate
   params->stack_mode =
-      heap_profiling::mojom::StackMode::NATIVE_WITHOUT_THREAD_NAMES;
+      heap_profiling::mojom::StackMode::NATIVE_WITH_THREAD_NAMES;
 
   (*g_profiling_service)
       ->AddProfilingClient(
