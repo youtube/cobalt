@@ -43,7 +43,7 @@ interface H5vccSystem : EventTarget {
   // value from the platform via the browser, web clients should be careful not
   // to call this API excessively. The value is unlikely to be changed during a
   // Cobalt application lifecycle, anyway.
-  [CallWith=ScriptState, RaisesException, RuntimeEnabled=CobaltFriendlyName]
+  [CallWith=ScriptState, RaisesException]
   Promise<DOMString> getFriendlyName();
 
   // Gets the physical screen diagonal in inches from the platform.
