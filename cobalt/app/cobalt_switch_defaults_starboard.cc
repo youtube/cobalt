@@ -76,6 +76,8 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
       ::switches::kDisableAcceleratedVideoEncode,
       // Force to use dark mode.
       ::switches::kForceDarkMode,
+      // Hide scrollbars to avoid memory allocation.
+      ::switches::kHideScrollbars,
   };
   return kCobaltToggleSwitches;
 }

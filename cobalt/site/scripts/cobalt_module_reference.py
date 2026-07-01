@@ -175,9 +175,11 @@ def _node_to_markdown(out, node):
   elif node.tag == 'bold':
     assert len(node) == 0
     out.bold(text)
+    text = ''
   elif node.tag == 'computeroutput':
     assert len(node) == 0
     out.code(text)
+    text = ''
   elif node.tag == 'ulink':
     url = node.get('url')
     assert url
@@ -211,6 +213,17 @@ def _node_to_markdown(out, node):
     assert len(node) == 0
     # Don't replace pipes in verbatim text.
     text = node.text if node.text else ''
+    # Strip doxygen comment prefix '///' and one space if present
+    lines = text.split('\n')
+    cleaned_lines = []
+    for line in lines:
+      if line.startswith('/// '):
+        cleaned_lines.append(line[4:])
+      elif line.startswith('///'):
+        cleaned_lines.append(line[3:])
+      else:
+        cleaned_lines.append(line)
+    text = '\n'.join(cleaned_lines)
     out.code_block(text)
     text = ''
   else:

@@ -30,7 +30,7 @@ If you prefer, you can instead complete the instructions for
 [setting up a Cobalt development environment on Linux](../development/setup-linux.md).
 Checking out the Cobalt source code is one step in that process.
 
-Additionally, you should identify your target architecture (e.g., x86_64, ARMv7, ARMv8) and check if a valid Starboard ABI (SABI) file exists for it in [starboard/sabi](starboard/sabi). If not, you may need to create one based on the schema provided there. See [starboard/doc/starboard_abi.md](starboard/doc/starboard_abi.md) for details.
+Additionally, you should identify your target architecture (e.g., x86_64, ARMv7, ARMv8) and check if a valid Starboard ABI (SABI) file exists for it in [starboard/sabi](https://github.com/youtube/cobalt/tree/27.lts/starboard/sabi). If not, you may need to create one based on the schema provided there. See [starboard/doc/starboard_abi.md](https://github.com/youtube/cobalt/blob/27.lts/starboard/doc/starboard_abi.md) for details.
 
 ## Porting steps
 
@@ -102,13 +102,13 @@ the following configuration and build files:
 *   `platform_configuration/BUILD.gn`
 *   `platform_configuration/configuration.gni`
 *   `toolchain/BUILD.gn`
-*   `starboard_abi.json` (or a reference to an existing one in [starboard/sabi](starboard/sabi))
+*   `starboard_abi.json` (or a reference to an existing one in [starboard/sabi](https://github.com/youtube/cobalt/tree/27.lts/starboard/sabi))
 
 To populate these files, you should select a baseline that best matches your platform instead of starting from scratch:
 
-*   **Stub Baseline**: Copy files from [starboard/stub](starboard/stub) to your `binary-variant` directory. This provides a clean slate of stub interfaces that need to be modified. This is the most generalized starting point.
-*   **Reference Baseline (Linux)**: If your platform is POSIX-compliant, you can reference or copy from [starboard/linux/x64x11](starboard/linux/x64x11) or [starboard/linux/shared](starboard/linux/shared).
-*   **Shared Modules**: Regardless of the baseline, strongly consider reusing common implementations located in [starboard/shared](starboard/shared) (e.g., `posix`, `pthread`, `egl`, `gles`) by referencing them in your `BUILD.gn` file, as seen in `starboard/linux/shared/BUILD.gn`.
+*   **Stub Baseline**: Copy files from [starboard/stub](https://github.com/youtube/cobalt/tree/27.lts/starboard/stub) to your `binary-variant` directory. This provides a clean slate of stub interfaces that need to be modified. This is the most generalized starting point.
+*   **Reference Baseline (Linux)**: If your platform is POSIX-compliant, you can reference or copy from [starboard/linux/x64x11](https://github.com/youtube/cobalt/tree/27.lts/starboard/linux/x64x11) or [starboard/linux/shared](https://github.com/youtube/cobalt/tree/27.lts/starboard/linux/shared).
+*   **Shared Modules**: Regardless of the baseline, strongly consider reusing common implementations located in [starboard/shared](https://github.com/youtube/cobalt/tree/27.lts/starboard/shared) (e.g., `posix`, `pthread`, `egl`, `gles`) by referencing them in your `BUILD.gn` file, as seen in `starboard/linux/shared/BUILD.gn`.
 
 If you are copying the Stub implementation, you would run the following
 command for each `binary-variant` directory:
@@ -154,9 +154,9 @@ subclasses.
 To port your code, add your platform to `starboard/build/platforms.py`
 and then make the following modifications to the files copied in step 3:
 
-Note that [cobalt/build/gn.py](cobalt/build/gn.py) is the main entry point for configuring your build. You will use it to specify your platform configuration name when running GN.
+Note that [cobalt/build/gn.py](https://github.com/youtube/cobalt/blob/27.lts/cobalt/build/gn.py) is the main entry point for configuring your build. You will use it to specify your platform configuration name when running GN.
 
-Porters should also be aware of [cobalt/app/cobalt_switch_defaults_starboard.cc](cobalt/app/cobalt_switch_defaults_starboard.cc), which sets default command-line switches for Starboard platforms. You may need to review or override these for your platform.
+Porters should also be aware of [cobalt/app/cobalt_switch_defaults_starboard.cc](https://github.com/youtube/cobalt/blob/27.lts/cobalt/app/cobalt_switch_defaults_starboard.cc), which sets default command-line switches for Starboard platforms. You may need to review or override these for your platform.
 
 1.  **`atomic_public.h`** - Ensure that this file points at the appropriate
     shared or custom implementation.
@@ -223,7 +223,7 @@ For example, the `SbSystemBreakIntoDebugger()` function is defined in the
 `starboard/shared/stub/` directory represents an authoritative list of
 supported functions.
 
-**Recommendation:** When porting modules, strongly prefer reusing existing implementations in [starboard/shared](starboard/shared) (such as `starboard/shared/posix` and `starboard/shared/pthread`) to minimize the burden on the porter and maintain consistency.
+**Recommendation:** When porting modules, strongly prefer reusing existing implementations in [starboard/shared](https://github.com/youtube/cobalt/tree/27.lts/starboard/shared) (such as `starboard/shared/posix` and `starboard/shared/pthread`) to minimize the burden on the porter and maintain consistency.
 
 Replace stub implementations function-by-function and
 module-by-module until you have gone through all of the modules. Use either custom implementations or existing ports from
@@ -265,7 +265,7 @@ before others. We recommend porting modules in the following order:
 Once you have implemented the modules, you need to verify your port.
 
 ### Running Tests
-Cobalt provides a script to build and run tests. You can use [cobalt/tools/build_and_run_tests.sh](cobalt/tools/build_and_run_tests.sh) to execute the test suite (including NPLB) on your platform.
+Cobalt provides a script to build and run tests. You can use [cobalt/tools/build_and_run_tests.sh](https://github.com/youtube/cobalt/blob/27.lts/cobalt/tools/build_and_run_tests.sh) to execute the test suite (including NPLB) on your platform.
 
 ### Test Filters
-It is common for some tests to fail on new platforms or to be inapplicable. You can manage test expectations by adding filters in the [cobalt/testing/filters](cobalt/testing/filters) directory for your platform. This allows you to track known issues and ignore failures that are not critical for your port.
+It is common for some tests to fail on new platforms or to be inapplicable. You can manage test expectations by adding filters in the [cobalt/testing/filters](https://github.com/youtube/cobalt/tree/27.lts/cobalt/testing/filters) directory for your platform. This allows you to track known issues and ignore failures that are not critical for your port.

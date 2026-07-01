@@ -184,14 +184,17 @@ class MarkdownWriter(object):
     if wrap:
       contents = contents.strip()
       if self.current_line and self.current_line[-1] != ' ':
-        contents = ' ' + contents
+        if self.current_line[-1] not in ['(', '[', '{']:
+          if contents[0] not in ['.', ',', ';', ':', ')', ']', '}', '?', '!']:
+            contents = ' ' + contents
       if not contents:
         return
       current_line_length = len(self.current_line)
       contents = textwrap.fill(
           self.current_line + contents,
           self._get_wrap_width(),
-          break_long_words=False)
+          break_long_words=False,
+          break_on_hyphens=False)
       contents = contents[current_line_length:]
 
     lines = contents.split('\n')
