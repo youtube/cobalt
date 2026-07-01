@@ -23,6 +23,8 @@
 
 namespace media {
 
+MEDIA_EXPORT void EnableAreaBasedVideoBufferBudget();
+
 class DecoderBufferMemoryInfo {
  public:
   virtual ~DecoderBufferMemoryInfo() {}

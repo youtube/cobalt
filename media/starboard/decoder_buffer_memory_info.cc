@@ -14,12 +14,73 @@
 
 #include "media/starboard/decoder_buffer_memory_info.h"
 
+#include <algorithm>
+#include <atomic>
+
+#include "base/logging.h"
 #include "media/base/video_codecs.h"
 #include "media/starboard/starboard_utils.h"
 #include "starboard/media.h"
+#include "starboard/shared/starboard/media/resolutions.h"
 #include "ui/gfx/geometry/size.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "starboard/android/shared/runtime_resource_overlay.h"
+#endif  // BUILDFLAG(IS_ANDROID)
+
 namespace media {
+
+namespace {
+std::atomic<bool> g_enable_area_based_video_buffer_budget{false};
+constexpr int kMaxVideoBufferBudget = 200 * 1024 * 1024;
+
+#if BUILDFLAG(IS_ANDROID)
+// this is duplicated from
+// starboard/android/shared/media_get_video_buffer_budget.cc in order to allow
+// h5vcc experimentation.
+int ExperimentalAreaBasedVideoBufferBudget(int resolution_width,
+                                           int resolution_height,
+                                           int bits_per_pixel) {
+  auto get_overlaid_video_buffer_budget = []() {
+    auto* overlay = starboard::RuntimeResourceOverlay::GetInstance();
+    if (!overlay) {
+      return kMaxVideoBufferBudget;
+    }
+
+    int buffer_budget = overlay->max_video_buffer_budget();
+    if (buffer_budget <= 0 || buffer_budget > 2047) {
+      return kMaxVideoBufferBudget;
+    }
+    LOG(INFO) << "RRO \"max_video_buffer_budget\" is set to " << buffer_budget
+              << " MB.";
+    return buffer_budget * 1024 * 1024;
+  };
+
+  static const int overlaid_video_buffer_budget =
+      get_overlaid_video_buffer_budget();
+
+  int video_buffer_budget = 0;
+  starboard::Size resolution(resolution_width, resolution_height);
+  if (resolution.IsEmpty() ||
+      resolution.GetArea() <= starboard::Resolution::k1080p.GetArea()) {
+    video_buffer_budget = 30 * 1024 * 1024;
+  } else if (resolution.GetArea() <= starboard::Resolution::k4k.GetArea()) {
+    if (bits_per_pixel <= 8) {
+      video_buffer_budget = 100 * 1024 * 1024;
+    } else {
+      video_buffer_budget = 160 * 1024 * 1024;
+    }
+  } else {
+    video_buffer_budget = kMaxVideoBufferBudget;
+  }
+  return std::min(video_buffer_budget, overlaid_video_buffer_budget);
+}
+#endif  // BUILDFLAG(IS_ANDROID)
+}  // namespace
+
+void EnableAreaBasedVideoBufferBudget() {
+  g_enable_area_based_video_buffer_budget.store(true);
+}
 
 int GetAudioDecoderBufferLimitBytes() {
   return SbMediaGetAudioBufferBudget();
@@ -28,6 +89,12 @@ int GetAudioDecoderBufferLimitBytes() {
 int GetVideoDecoderBufferLimitBytes(VideoCodec codec,
                                     const gfx::Size& resolution,
                                     int bits_per_pixel) {
+#if BUILDFLAG(IS_ANDROID)
+  if (g_enable_area_based_video_buffer_budget.load()) {
+    return ExperimentalAreaBasedVideoBufferBudget(
+        resolution.width(), resolution.height(), bits_per_pixel);
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
   return SbMediaGetVideoBufferBudget(MediaVideoCodecToSbMediaVideoCodec(codec),
                                      resolution.width(), resolution.height(),
                                      bits_per_pixel);
