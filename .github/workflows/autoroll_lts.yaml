@@ -25,6 +25,7 @@ jobs:
         branch: [
           {source: main, target: 27.lts},
           {source: main, target: staging},
+          {source: chromium/main, target: staging},
         ]
     steps:
       - name: Checkout code
