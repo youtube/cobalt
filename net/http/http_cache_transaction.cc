@@ -3991,20 +3991,18 @@ bool HttpCache::Transaction::UpdateAndReportCacheability(
   }
 
 #if BUILDFLAG(IS_COBALT)
-  // If disable-http-cache is set, only allow HTML and JS/ECMAScript
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch("disable-http-cache")) {
-    std::string mime_type;
-    if (headers.GetMimeType(&mime_type)) {
-      bool is_html = (mime_type == "text/html");
-      bool is_js = base::EndsWith(mime_type, "javascript", base::CompareCase::SENSITIVE)
-          || base::EndsWith(mime_type, "ecmascript", base::CompareCase::SENSITIVE);
-      if (!is_html && !is_js) {
-        return true; // Do not write to cache / doom existing entry
-      }
-    } else {
-      // If we cannot determine the MIME type, err on the side of caution and do not cache.
-      return true;
+  // Only allow HTML and JS/ECMAScript in Cobalt's HTTP cache.
+  std::string mime_type;
+  if (headers.GetMimeType(&mime_type)) {
+    bool is_html = (mime_type == "text/html");
+    bool is_js = base::EndsWith(mime_type, "javascript", base::CompareCase::SENSITIVE)
+        || base::EndsWith(mime_type, "ecmascript", base::CompareCase::SENSITIVE);
+    if (!is_html && !is_js) {
+      return true; // Do not write to cache / doom existing entry
     }
+  } else {
+    // If we cannot determine the MIME type, err on the side of caution and do not cache.
+    return true;
   }
 #endif
 
