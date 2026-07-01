@@ -32,6 +32,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.HandlerThread;
 import android.view.Surface;
 import androidx.annotation.GuardedBy;
 import androidx.annotation.NonNull;
@@ -64,10 +65,12 @@ class MediaCodecBridge {
   private final SynchronizedHolder<MediaCodec, IllegalStateException> mMediaCodec =
       new SynchronizedHolder<>(() -> new IllegalStateException("MediaCodec was destroyed"));
 
-  // mMainHandler is used to ensure that MediaCodec callbacks and state transitions
-  // (like resetting mIsFlushing) happen on the main thread, providing a consistent
-  // execution environment and avoiding potential race conditions with the native layer.
-  private final Handler mMainHandler = new Handler(Looper.getMainLooper());
+  // mMediaCodecThread and mMediaCodecHandler are used to ensure that MediaCodec callbacks
+  // and state transitions (like resetting mIsFlushing) happen on a dedicated single-threaded
+  // HandlerThread, providing a consistent, ordered execution environment without stalling the
+  // main UI thread (CrBrowserMain).
+  private final HandlerThread mMediaCodecThread;
+  private final Handler mMediaCodecHandler;
   private volatile boolean mIsFlushing = false;
   private final boolean mEnableIgnoreCallbacksDuringFlushing;
 
@@ -273,14 +276,46 @@ class MediaCodecBridge {
     }
   }
 
+  public static MediaCodec createMediaCodecOnHandlerThread(String decoderName, HandlerThread handlerThread) {
+    if (decoderName.equals("")) {
+      return null;
+    }
+    final MediaCodec[] result = new MediaCodec[1];
+    final Exception[] exception = new Exception[1];
+    Handler handler = new Handler(handlerThread.getLooper());
+    java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+    handler.post(() -> {
+      try {
+        result[0] = MediaCodec.createByCodecName(decoderName);
+      } catch (Exception e) {
+        exception[0] = e;
+      } finally {
+        latch.countDown();
+      }
+    });
+    try {
+      latch.await();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+    if (exception[0] != null) {
+      Log.e(TAG, "Failed to create MediaCodec on HandlerThread: %s", decoderName, exception[0]);
+    }
+    return result[0];
+  }
+
   public MediaCodecBridge(
       long nativeMediaCodecBridge,
-      MediaCodec mediaCodec,
+      String decoderName,
       int tunnelModeAudioSessionId,
       boolean enableFrameRendererListener,
       boolean enableIgnoreCallbacksDuringFlushing) {
+    mMediaCodecThread = new HandlerThread("MediaCodecBridgeThread");
+    mMediaCodecThread.start();
+    mMediaCodecHandler = new Handler(mMediaCodecThread.getLooper());
+    MediaCodec mediaCodec = createMediaCodecOnHandlerThread(decoderName, mMediaCodecThread);
     if (mediaCodec == null) {
-      throw new IllegalArgumentException();
+      throw new IllegalArgumentException("Failed to create MediaCodec for " + decoderName);
     }
     mNativeMediaCodecBridge = nativeMediaCodecBridge;
     mMediaCodec.set(mediaCodec);
@@ -356,7 +391,7 @@ class MediaCodecBridge {
         };
 
     if (mEnableIgnoreCallbacksDuringFlushing) {
-      mMediaCodec.get().setCallback(mCallback, mMainHandler);
+      mMediaCodec.get().setCallback(mCallback, mMediaCodecHandler);
     } else {
       mMediaCodec.get().setCallback(mCallback);
     }
@@ -377,7 +412,7 @@ class MediaCodecBridge {
             }
           };
       if (mEnableIgnoreCallbacksDuringFlushing) {
-        mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, mMainHandler);
+        mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, mMediaCodecHandler);
       } else {
         mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, null);
       }
@@ -420,24 +455,21 @@ class MediaCodecBridge {
       boolean ignoreCodecCallbacksDuringFlushing,
       boolean enableLowLatency,
       CreateMediaCodecBridgeResult outCreateMediaCodecBridgeResult) {
-    MediaCodec mediaCodec = null;
-    outCreateMediaCodecBridgeResult.mMediaCodecBridge = null;
-
-    if (decoderName.equals("")) {
-      String message = "Invalid decoder name.";
-      Log.e(TAG, message);
-      outCreateMediaCodecBridgeResult.mErrorMessage = message;
-      return;
-    }
-
+    MediaCodecBridge bridge;
     try {
       Log.i(TAG, "Creating \"%s\" decoder.", decoderName);
-      mediaCodec = MediaCodec.createByCodecName(decoderName);
+      bridge =
+          new MediaCodecBridge(
+              nativeMediaCodecBridge,
+              decoderName,
+              tunnelModeAudioSessionId,
+              enableFrameRendererListener,
+              ignoreCodecCallbacksDuringFlushing);
     } catch (Exception e) {
       String message =
           String.format(
               Locale.US,
-              "Failed to create MediaCodec: %s, mustSupportSecure: %s," + " DecoderName: %s",
+              "Failed to create MediaCodecBridge: %s, mustSupportSecure: %s," + " DecoderName: %s",
               mime,
               crypto != null,
               decoderName);
@@ -446,6 +478,8 @@ class MediaCodecBridge {
       outCreateMediaCodecBridgeResult.mErrorMessage = message;
       return;
     }
+
+    MediaCodec mediaCodec = bridge.getMediaCodec();
     if (mediaCodec == null) {
       outCreateMediaCodecBridgeResult.mErrorMessage = "mediaCodec is null";
       return;
@@ -467,13 +501,6 @@ class MediaCodecBridge {
       return;
     }
 
-    MediaCodecBridge bridge =
-        new MediaCodecBridge(
-            nativeMediaCodecBridge,
-            mediaCodec,
-            tunnelModeAudioSessionId,
-            enableFrameRendererListener,
-            ignoreCodecCallbacksDuringFlushing);
     bridge.mSkipVideoFramesOver60Fps = skipVideoFramesOver60Fps;
     MediaCodecOutputTracker.get().register(bridge);
     MediaFormat mediaFormat =
@@ -727,7 +754,7 @@ class MediaCodecBridge {
         mFrameRateEstimator.reset();
       }
       if (mEnableIgnoreCallbacksDuringFlushing) {
-        mMainHandler.post(() -> {
+        mMediaCodecHandler.post(() -> {
           synchronized (mNativeBridgeLock) {
             mIsFlushing = false;
           }
@@ -735,6 +762,14 @@ class MediaCodecBridge {
       }
     }
     return MediaCodecStatus.OK;
+  }
+
+  public MediaCodec getMediaCodec() {
+    try {
+      return mMediaCodec.get();
+    } catch (Exception e) {
+      return null;
+    }
   }
 
   @CalledByNative
@@ -766,6 +801,9 @@ class MediaCodecBridge {
       Log.w(TAG, "Failed to release MediaCodec", e);
     }
     mMediaCodec.set(null);
+    if (mMediaCodecThread != null) {
+      mMediaCodecThread.quitSafely();
+    }
   }
 
   @CalledByNative
@@ -1090,7 +1128,7 @@ class MediaCodecBridge {
             }
           };
       if (mEnableIgnoreCallbacksDuringFlushing) {
-        mMediaCodec.get().setOnFirstTunnelFrameReadyListener(mMainHandler, mFirstTunnelFrameReadyListener);
+        mMediaCodec.get().setOnFirstTunnelFrameReadyListener(mMediaCodecHandler, mFirstTunnelFrameReadyListener);
       } else {
         mMediaCodec.get().setOnFirstTunnelFrameReadyListener(null, mFirstTunnelFrameReadyListener);
       }
