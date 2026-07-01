@@ -18,7 +18,7 @@ import static dev.cobalt.media.Log.TAG;
 
 import android.content.Context;
 import android.os.Handler;
-import android.os.Looper;
+import android.os.HandlerThread;
 import android.os.SystemClock;
 import android.view.Surface;
 import androidx.annotation.NonNull;
@@ -52,6 +52,7 @@ public class ExoPlayerBridge {
   private ExoPlayerMediaSource mVideoMediaSource;
   private long mNativeExoPlayerBridge;
   private final Object mNativeLock = new Object();
+  private final HandlerThread mExoPlayerThread;
   private final Handler mExoPlayerHandler;
   // The following variables are accessed on both the Handler and native threads
   private volatile long mLastPlaybackPosUsec = 0;
@@ -179,7 +180,9 @@ public class ExoPlayerBridge {
       int minBufferDurationMs,
       int maxBufferDurationMs,
       int minBufferDurationForPlaybackAfterRebufferMs) {
-    mExoPlayerHandler = new Handler(Looper.getMainLooper());
+    mExoPlayerThread = new HandlerThread("ExoPlayerBridgeThread");
+    mExoPlayerThread.start();
+    mExoPlayerHandler = new Handler(mExoPlayerThread.getLooper());
     mNativeExoPlayerBridge = nativeExoPlayerBridge;
 
     if (enableTunnelMode) {
@@ -272,6 +275,7 @@ public class ExoPlayerBridge {
           mPlayer = null;
           mAudioMediaSource = null;
           mVideoMediaSource = null;
+          mExoPlayerThread.quit();
         });
   }
 
