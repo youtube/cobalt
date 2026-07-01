@@ -61,9 +61,11 @@ int ExperimentalAreaBasedVideoBufferBudget(const gfx::Size& resolution,
   constexpr int64_t k4kArea = 3840 * 2160;
 
   int video_buffer_budget = 0;
-  if (resolution.IsEmpty() || resolution.GetArea() <= k1080pArea) {
+  const int64_t area =
+      static_cast<int64_t>(resolution.width()) * resolution.height();
+  if (resolution.IsEmpty() || area <= k1080pArea) {
     video_buffer_budget = 30 * 1024 * 1024;
-  } else if (resolution.GetArea() <= k4kArea) {
+  } else if (area <= k4kArea) {
     if (bits_per_pixel <= 8) {
       video_buffer_budget = 100 * 1024 * 1024;
     } else {
