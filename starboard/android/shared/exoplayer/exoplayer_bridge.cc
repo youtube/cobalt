@@ -352,6 +352,11 @@ int ExoPlayerBridge::ReadSample(JNIEnv* env,
   int offset = GetSampleOffset(type, input_buffer);
   int size = input_buffer->size() - offset;
 
+  if (size < 0) {
+    ReportError("Input buffer size is smaller than the required offset.");
+    return kResultNothingRead;
+  }
+
   // Determine flags for this sample.
   bool is_key_frame = type == kSbMediaTypeAudio
                           ? true
@@ -410,7 +415,7 @@ int ExoPlayerBridge::ReadSample(JNIEnv* env,
 
 bool ExoPlayerBridge::IsReady(JNIEnv* env, int type_int) const {
   SbMediaType type = static_cast<SbMediaType>(type_int);
-  std::lock_guard lock(const_cast<std::mutex&>(mutex_));
+  std::lock_guard lock(mutex_);
   const auto& pending_samples = type == kSbMediaTypeAudio
                                     ? pending_audio_samples_
                                     : pending_video_samples_;
@@ -443,7 +448,7 @@ int ExoPlayerBridge::SkipData(JNIEnv* env, int type_int, int64_t position_us) {
 int64_t ExoPlayerBridge::GetBufferedPositionUs(JNIEnv* env,
                                                int type_int) const {
   SbMediaType type = static_cast<SbMediaType>(type_int);
-  std::lock_guard lock(const_cast<std::mutex&>(mutex_));
+  std::lock_guard lock(mutex_);
   const auto& pending_samples = type == kSbMediaTypeAudio
                                     ? pending_audio_samples_
                                     : pending_video_samples_;

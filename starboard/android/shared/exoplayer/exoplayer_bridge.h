@@ -120,7 +120,7 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   PrerolledCB prerolled_cb_;
   EndedCB ended_cb_;
 
-  std::mutex mutex_;
+  mutable std::mutex mutex_;
 
   bool owns_surface_ = false;
   scoped_refptr<SurfaceDestroyNotifier> surface_destroy_notifier_;

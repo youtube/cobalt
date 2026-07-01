@@ -140,7 +140,7 @@ inline bool IsSDR(const SbMediaColorMetadata& color_metadata) {
          color_metadata.transfer == kSbMediaTransferIdBt709 &&
          color_metadata.matrix == kSbMediaMatrixIdBt709 &&
          color_metadata.range == kSbMediaRangeIdLimited &&
-         memcmp(&color_metadata, &kEmptyMasteringMetadata,
+         memcmp(&color_metadata.mastering_metadata, &kEmptyMasteringMetadata,
                 sizeof(SbMediaMasteringMetadata)) == 0;
 }
 
