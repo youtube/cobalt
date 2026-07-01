@@ -77,6 +77,8 @@ public final class CommandLineOverrideHelper {
         if (!"arm64".equals(BuildInfo.getArch())) {
             paramOverrides.add("--use-angle=gles");
         }
+        // Hide scrollbars to avoid memory allocation.
+        paramOverrides.add("--hide-scrollbars");
 
         return paramOverrides;
     }
@@ -95,6 +97,10 @@ public final class CommandLineOverrideHelper {
 
         // Disable v8 concurrent marking by default.
         paramOverrides.add("--no-concurrent-marking");
+
+        // Disable v8 optimizing compilers (maglev, turbofan, sparkplug).
+        paramOverrides.add("--disable-optimizing-compilers");
+        paramOverrides.add("--no-sparkplug");
 
         return paramOverrides;
     }
@@ -153,6 +159,7 @@ public final class CommandLineOverrideHelper {
             getDefaultDisableFeatureOverridesList();
         StringJoiner blinkEnableFeatureOverrides =
             getDefaultBlinkEnableFeatureOverridesList();
+        StringJoiner enableH5vccSettings = new StringJoiner(";");
 
         if (params != null) {
             if (!params.mIsOfficialBuild) {
@@ -180,6 +187,8 @@ public final class CommandLineOverrideHelper {
                                 disableFeatureOverrides.add(v);
                             } else if (key.equals("--enable-blink-features")) {
                                 blinkEnableFeatureOverrides.add(v);
+                            } else if (key.equals("--enable-h5vcc-settings")) {
+                                enableH5vccSettings.add(v);
                             } else {
                                 cliOverrides.add(param);
                                 break; // Avoid adding the same param multiple times
@@ -204,5 +213,10 @@ public final class CommandLineOverrideHelper {
         CommandLine.getInstance().appendSwitchesAndArguments(
             new String[]{"--enable-blink-features="
             + blinkEnableFeatureOverrides.toString() });
+        if (enableH5vccSettings.length() > 0) {
+            CommandLine.getInstance().appendSwitchesAndArguments(
+                new String[]{"--enable-h5vcc-settings="
+                + enableH5vccSettings.toString() });
+        }
     }
 }

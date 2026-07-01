@@ -102,6 +102,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
                    const PipelineConfig& pipeline_config,
                    const PlatformOptions& platform_options);
 
+  static void SetVideoFramePoolEnabled(bool enabled);
+
   MediaCodecVideoDecoder(
       PassKey<MediaCodecVideoDecoder>,
       std::unique_ptr<MediaCodec::Factory> media_codec_factory,
@@ -273,9 +275,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // invocation of ReleaseVideoSurface(), though ReleaseVideoSurface() would
   // do nothing if not own the surface.
   bool owns_video_surface_ = false;
-  std::mutex surface_destroy_mutex_;
-  std::condition_variable surface_condition_variable_;
-  bool surface_destroyed_ = false;  // Guarded by |surface_destroy_mutex_|.
+  scoped_refptr<SurfaceDestroyNotifier> surface_destroy_notifier_;
 
   std::vector<scoped_refptr<InputBuffer>> pending_input_buffers_;
   int video_fps_ = 0;

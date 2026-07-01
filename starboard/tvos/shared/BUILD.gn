@@ -154,6 +154,7 @@ static_library("starboard_platform") {
     "system_get_path.mm",
     "system_get_property.mm",
     "system_request_conceal.mm",
+    "thread_platform.cc",
     "uikit_media_session_client.h",
     "uikit_media_session_client.mm",
   ]

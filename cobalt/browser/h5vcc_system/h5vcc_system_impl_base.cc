@@ -17,6 +17,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "build/build_config.h"
+#include "content/public/browser/browser_thread.h"
 #include "content/public/browser/storage_partition.h"
 #include "services/network/public/mojom/cookie_manager.mojom.h"
 
@@ -27,6 +28,23 @@ using ::starboard::StarboardBridge;
 #endif
 
 namespace h5vcc_system {
+
+namespace {
+// Accessed solely on the Browser UI thread.
+SbWindow g_primary_sb_window = kSbWindowInvalid;
+}  // namespace
+
+// static
+void H5vccSystemImpl::SetPrimarySbWindow(SbWindow window) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  g_primary_sb_window = window;
+}
+
+// static
+SbWindow H5vccSystemImpl::GetPrimarySbWindow() {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  return g_primary_sb_window;
+}
 
 H5vccSystemImpl::H5vccSystemImpl(
     content::RenderFrameHost& render_frame_host,

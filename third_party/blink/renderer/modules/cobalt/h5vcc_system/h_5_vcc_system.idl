@@ -46,6 +46,13 @@ interface H5vccSystem : EventTarget {
   [CallWith=ScriptState, RaisesException, RuntimeEnabled=CobaltFriendlyName]
   Promise<DOMString> getFriendlyName();
 
+  // Gets the physical screen diagonal in inches from the platform.
+  // Returns 0.0 if the platform does not know the physical screen diagonal.
+  // Ported forward from the GetDiagonal() API from:
+  // https://github.com/youtube/cobalt/blob/25.lts.stable/cobalt/h5vcc/h5vcc_screen.idl
+  [CallWith=ScriptState, RaisesException]
+  Promise<double> getScreenDiagonal();
+
   [CallWith=ScriptState, RaisesException]
   Promise<DOMString> getTrackingAuthorizationStatus();
   readonly attribute DOMString? trackingAuthorizationStatus;

@@ -18,13 +18,25 @@
 #include <android/native_window.h>
 #include <jni.h>
 
+#include <condition_variable>
+#include <mutex>
+
+#include "starboard/common/ref_counted.h"
 #include "starboard/decode_target.h"
+#include "starboard/shared/starboard/player/job_queue.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
+class SurfaceDestroyNotifier;
+
 class VideoSurfaceHolder {
  public:
+  struct AcquiredSurface {
+    scoped_refptr<SurfaceDestroyNotifier> destroy_notifier;
+    jni_zero::ScopedJavaLocalRef<jobject> surface;
+  };
+
   // Return true only if the video surface is available.
   static bool IsVideoSurfaceAvailable();
 
@@ -37,9 +49,12 @@ class VideoSurfaceHolder {
  protected:
   ~VideoSurfaceHolder() {}
 
-  // Returns the surface which video should be rendered. Surface cannot be
-  // acquired before last holder release the surface.
-  jni_zero::ScopedJavaLocalRef<jobject> AcquireVideoSurface();
+  // Returns the surface to which video should be rendered, along with a
+  // SurfaceDestroyNotifier to safely handle surface destruction.
+  // The surface cannot be acquired if it's already held by another player.
+  // |job_queue| is used by SurfaceDestroyNotifier to schedule the teardown
+  // task on the player worker thread when the surface is destroyed.
+  AcquiredSurface AcquireVideoSurface(JobQueue* job_queue);
 
   // Release the surface to make the surface available for other holder.
   void ReleaseVideoSurface();
@@ -56,6 +71,54 @@ class VideoSurfaceHolder {
       bool force_clear,
       SbDecodeTargetGraphicsContextProvider* gpu_provider = nullptr);
 };
+
+// SurfaceDestroyNotifier is used to safely handle the destruction of the video
+// surface from JNI without causing deadlocks.
+//
+// Purpose: Decouples the JNI thread (which notifies about surface destruction)
+// from the player worker thread (which performs the teardown). It schedules
+// the teardown task on the player worker thread and waits for it with a timeout
+// to avoid hanging the JNI thread.
+//
+// Lifetime/Ownership: This class is RefCountedThreadSafe. It is created by
+// VideoSurfaceHolder when acquiring the surface, and references are held by
+// the global `g_surface_destroy_notifier` and the `MediaCodecVideoDecoder`.
+// The task scheduled on the JobQueue also retains a reference to ensure
+// the object stays alive until execution completes.
+//
+// Threading Model: `Notify()` is called from the JNI thread.
+// `NotifyDestroyed()` executes on the player worker thread. Internal state is
+// protected by its own mutex.
+class SurfaceDestroyNotifier
+    : public RefCountedThreadSafe<SurfaceDestroyNotifier> {
+ public:
+  SurfaceDestroyNotifier(VideoSurfaceHolder* holder, JobQueue* job_queue)
+      : holder_(holder), job_queue_(job_queue) {}
+
+  void Disconnect();
+  void Notify();
+
+  bool IsCurrentHolder(VideoSurfaceHolder* holder) const {
+    std::lock_guard lock(mutex_);
+    return holder_ == holder;
+  }
+
+ private:
+  ~SurfaceDestroyNotifier() = default;
+  friend class RefCountedThreadSafe<SurfaceDestroyNotifier>;
+
+  void NotifyDestroyed();
+
+  mutable std::mutex mutex_;
+  std::condition_variable done_cv_;
+  bool done_ = false;           // Guarded by |mutex_|
+  bool disconnected_ = false;   // Guarded by |mutex_|
+  VideoSurfaceHolder* holder_;  // Guarded by |mutex_|
+  JobQueue* job_queue_;         // Guarded by |mutex_|
+};
+
+// Set the global video surface. Exposed for unit testing.
+void SetVideoSurfaceForTesting(JNIEnv* env, jobject surface);
 
 }  // namespace starboard
 

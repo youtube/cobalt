@@ -183,18 +183,14 @@ bool SbFileDeleteRecursive(const char* path, bool preserve_root) {
 
   std::vector<char> entry(kSbFileMaxName);
 
-  struct dirent dirent_buffer;
   struct dirent* dirent;
   while (true) {
     if (entry.size() < static_cast<size_t>(kSbFileMaxName) || !dir ||
         !entry.data()) {
       break;
     }
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-    int result = readdir_r(dir, &dirent_buffer, &dirent);
-#pragma GCC diagnostic pop
-    if (result || !dirent) {
+    dirent = readdir(dir);
+    if (!dirent) {
       break;
     }
     starboard::strlcpy(entry.data(), dirent->d_name, kSbFileMaxName);

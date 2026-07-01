@@ -6,13 +6,11 @@ package org.chromium.base;
 
 import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
-import org.chromium.build.annotations.MainDex;
 
 /**
  * Java accessor for base/feature_list.h state.
  */
 @JNINamespace("base::android")
-@MainDex
 public final class BaseFeatureList {
     // Do not instantiate this class.
     private BaseFeatureList() {}

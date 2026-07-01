@@ -383,7 +383,7 @@ TEST_F(MediaCapabilitiesCacheTest, RejectLowPerformanceSoftwareDecoder) {
 
   // Case 1: Software codec is NOT required.
   // The software decoder should be rejected because it is low performance (does
-  // not support 1080p). See b/456473829 for better context.
+  // not support 1080p).
   EXPECT_EQ(cache_->FindVideoDecoder("video/x-vnd.on2.vp9",
                                      /*must_support_secure=*/false,
                                      /*must_support_hdr=*/false,
