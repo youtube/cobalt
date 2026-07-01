@@ -82,8 +82,9 @@ int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
     } else if (resolution.GetArea() <= starboard::Resolution::k4k.GetArea()) {
       if (bits_per_pixel <= 8) {
         video_buffer_budget = kVideoBufferBudget4KSdr;
+      } else {
+        video_buffer_budget = kVideoBufferBudget4KHdr;
       }
-      video_buffer_budget = kVideoBufferBudget4KHdr;
     } else {
       video_buffer_budget = kMaxVideoBufferBudget;
     }
