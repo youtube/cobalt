@@ -277,7 +277,7 @@ class MediaCodecBridge {
   }
 
   public static MediaCodec createMediaCodecOnHandlerThread(String decoderName, HandlerThread handlerThread) {
-    if (decoderName.equals("")) {
+    if (decoderName == null || decoderName.isEmpty()) {
       return null;
     }
     final MediaCodec[] result = new MediaCodec[1];
@@ -310,11 +310,12 @@ class MediaCodecBridge {
       int tunnelModeAudioSessionId,
       boolean enableFrameRendererListener,
       boolean enableIgnoreCallbacksDuringFlushing) {
-    mMediaCodecThread = new HandlerThread("MediaCodecBridgeThread");
+    mMediaCodecThread = new HandlerThread("MediaCodecBridgeThread_" + decoderName);
     mMediaCodecThread.start();
     mMediaCodecHandler = new Handler(mMediaCodecThread.getLooper());
     MediaCodec mediaCodec = createMediaCodecOnHandlerThread(decoderName, mMediaCodecThread);
     if (mediaCodec == null) {
+      mMediaCodecThread.quitSafely();
       throw new IllegalArgumentException("Failed to create MediaCodec for " + decoderName);
     }
     mNativeMediaCodecBridge = nativeMediaCodecBridge;
@@ -455,6 +456,15 @@ class MediaCodecBridge {
       boolean ignoreCodecCallbacksDuringFlushing,
       boolean enableLowLatency,
       CreateMediaCodecBridgeResult outCreateMediaCodecBridgeResult) {
+    outCreateMediaCodecBridgeResult.mMediaCodecBridge = null;
+
+    if (decoderName == null || decoderName.isEmpty()) {
+      String message = "Invalid decoder name.";
+      Log.e(TAG, message);
+      outCreateMediaCodecBridgeResult.mErrorMessage = message;
+      return;
+    }
+
     MediaCodecBridge bridge;
     try {
       Log.i(TAG, "Creating \"%s\" decoder.", decoderName);
@@ -482,22 +492,26 @@ class MediaCodecBridge {
     MediaCodec mediaCodec = bridge.getMediaCodec();
     if (mediaCodec == null) {
       outCreateMediaCodecBridgeResult.mErrorMessage = "mediaCodec is null";
+      bridge.release();
       return;
     }
 
     MediaCodecInfo codecInfo = mediaCodec.getCodecInfo();
     if (codecInfo == null) {
       outCreateMediaCodecBridgeResult.mErrorMessage = "codecInfo is null";
+      bridge.release();
       return;
     }
     CodecCapabilities codecCapabilities = codecInfo.getCapabilitiesForType(mime);
     if (codecCapabilities == null) {
       outCreateMediaCodecBridgeResult.mErrorMessage = "codecCapabilities is null";
+      bridge.release();
       return;
     }
     VideoCapabilities videoCapabilities = codecCapabilities.getVideoCapabilities();
     if (videoCapabilities == null) {
       outCreateMediaCodecBridgeResult.mErrorMessage = "videoCapabilities is null";
+      bridge.release();
       return;
     }
 
