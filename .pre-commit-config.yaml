@@ -50,6 +50,12 @@ repos:
         files: ^.github/workflows
 -   repo: local
     hooks:
+    -   id: autoroll-format
+        name: autoroll-format
+        entry: python3 ./cobalt/precommit/autoroll_check.py
+        language: python
+        files: ^.github/AUTOROLL$
+        pass_filenames: false
     -   id: chromium-pre-commit
         name: Chromium presubmit bridge
         entry: ./third_party/depot_tools/vpython3 --vpython-spec=./third_party/depot_tools/.vpython3 ./cobalt/precommit/run_chromium_presubmits.py
