@@ -49,10 +49,12 @@ class TestMergeAutorollLts(unittest.TestCase):
 
     # Verify key subprocess calls
     mock_run.assert_any_call([
-        'git', 'fetch', merge_autoroll_lts.REPO_URL,
-        '+27.lts:refs/remotes/origin/27.lts',
+        'git', '-c', 'credential.helper=', '-c',
+        'credential.helper=!gh auth git-credential', 'fetch',
+        merge_autoroll_lts.REPO_URL, '+27.lts:refs/remotes/origin/27.lts',
         '+autoroll-main-to-27.lts:refs/remotes/origin/autoroll-main-to-27.lts'
     ],
+                             env=unittest.mock.ANY,
                              check=True)
     mock_run.assert_any_call([
         'git', 'worktree', 'add', '--no-checkout', unittest.mock.ANY,
@@ -84,19 +86,12 @@ class TestMergeAutorollLts(unittest.TestCase):
         'directly to 27.lts.')
     mock_run.assert_any_call([
         'gh', 'pr', 'close', '1', '--repo', merge_autoroll_lts.REPO_OWNER_PATH,
-        '--comment', close_comment
+        '--comment', close_comment, '--delete-branch'
     ],
                              env=unittest.mock.ANY,
+                             capture_output=True,
+                             text=True,
                              check=True)
-    mock_run.assert_any_call([
-        'git', '-c', 'credential.helper=', '-c',
-        'credential.helper=!gh auth git-credential', 'push',
-        merge_autoroll_lts.REPO_URL, '--delete', 'autoroll-main-to-27.lts'
-    ],
-                             env=unittest.mock.ANY,
-                             check=True,
-                             stdout=subprocess.DEVNULL,
-                             stderr=subprocess.DEVNULL)
 
   @patch('subprocess.run')
   @patch('subprocess.check_output')

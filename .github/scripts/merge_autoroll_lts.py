@@ -188,9 +188,12 @@ def merge_and_push(target, pr, env):
   try:
     print('>> Fetching branches...')
     subprocess.run([
-        'git', 'fetch', REPO_URL, f'+{target}:refs/remotes/origin/{target}',
+        'git', '-c', 'credential.helper=', '-c',
+        'credential.helper=!gh auth git-credential', 'fetch', REPO_URL,
+        f'+{target}:refs/remotes/origin/{target}',
         f'+{head}:refs/remotes/origin/{head}'
     ],
+                   env=env,
                    check=True)
 
     print('>> Creating temporary worktree...')
@@ -236,33 +239,31 @@ def close_pr(pr, target, env):
   comment = (
       f'Closing this PR because the changes have been rebased and pushed '
       f'directly to {target}.')
-
-  # Close PR (without --delete-branch flag)
-  subprocess.run([
-      'gh', 'pr', 'close',
-      str(pr_num), '--repo', REPO_OWNER_PATH, '--comment', comment
-  ],
-                 env=env,
-                 check=True)
-  print('>> PR closed successfully.')
-
-  # Delete remote branch (non-fatal)
   head = pr['headRefName']
-  print(f'>> Deleting remote branch {head}...')
+
   try:
     subprocess.run([
-        'git', '-c', 'credential.helper=', '-c',
-        'credential.helper=!gh auth git-credential', 'push', REPO_URL,
-        '--delete', head
+        'gh', 'pr', 'close',
+        str(pr_num), '--repo', REPO_OWNER_PATH, '--comment', comment,
+        '--delete-branch'
     ],
                    env=env,
-                   check=True,
-                   stdout=subprocess.DEVNULL,
-                   stderr=subprocess.DEVNULL)
-    print('>> Remote branch deleted successfully.')
-  except subprocess.CalledProcessError:
-    print(f'>> Warning: Failed to delete remote branch {head} (it may have '
-          f'already been deleted or you may lack permissions).')
+                   capture_output=True,
+                   text=True,
+                   check=True)
+    print('>> PR closed and branch deleted successfully.')
+  except subprocess.CalledProcessError as e:
+    # If the PR was successfully closed but deleting the branch failed,
+    # gh prints the PR closure confirmation to stdout, and the branch deletion
+    # failure to stderr.
+    if ('Closed pull request' in e.stdout or
+        'failed to delete remote branch' in e.stderr):
+      print('>> PR closed successfully.')
+      print(f'>> Warning: Failed to delete remote branch {head} (it may have '
+            f'already been deleted or you may lack permissions).')
+    else:
+      print(f'>> Error closing PR: {e.stderr}')
+      sys.exit(1)
 
 
 def main():
