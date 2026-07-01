@@ -93,12 +93,20 @@ void AudioInputStreamDataInterceptor::OnData(
     base::TimeTicks capture_time,
     double volume,
     const AudioGlitchInfo& audio_glitch_info) {
-  callback_->OnData(source, capture_time, volume, audio_glitch_info);
-  debug_recorder_->OnData(source);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (callback_) {
+    callback_->OnData(source, capture_time, volume, audio_glitch_info);
+  }
+  if (debug_recorder_) {
+    debug_recorder_->OnData(source);
+  }
 }
 
 void AudioInputStreamDataInterceptor::OnError() {
-  callback_->OnError();
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (callback_) {
+    callback_->OnError();
+  }
 }
 
 }  // namespace media

@@ -316,4 +316,26 @@ TEST(AudioInputStreamDataInterceptorTest, IsMuted_False) {
   interceptor->Close();
 }
 
+TEST(AudioInputStreamDataInterceptorTest, OnDataAndOnErrorWhenNullCallbackOrRecorder) {
+  MockDebugRecorderFactory factory;
+  StrictMock<MockStream> stream;
+  std::unique_ptr<AudioBus> audio_bus = AudioBus::Create(1, 1);
+  AudioInputStreamDataInterceptor* interceptor =
+      new AudioInputStreamDataInterceptor(
+          base::BindRepeating(&MockDebugRecorderFactory::CreateDebugRecorder,
+                              base::Unretained(&factory)),
+          &stream);
+
+  base::TimeTicks time = base::TimeTicks::Now();
+  AudioGlitchInfo glitch_info{.duration = base::Milliseconds(123), .count = 5};
+
+  // Calling OnData and OnError when callback_ and debug_recorder_ are null
+  // (before Start() or after Stop()) should not crash.
+  interceptor->OnData(audio_bus.get(), time, kVolume, glitch_info);
+  interceptor->OnError();
+
+  EXPECT_CALL(stream, Close());
+  interceptor->Close();
+}
+
 }  // namespace media
