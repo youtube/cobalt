@@ -9,6 +9,7 @@
 
 #include <optional>
 
+#include "build/build_config.h"
 #include "media/base/media_export.h"
 #include "media/media_buildflags.h"
 
@@ -21,6 +22,13 @@ enum class EmeInitDataType {
   UNKNOWN,
   WEBM,
   CENC,
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+  // FairPlay init data types (sinf/skd from WebKit CDMFairPlayStreaming.cpp,
+  // fairplay from Cobalt C25 application_player.mm).
+  SINF,      // sinf box init data: key IDs embedded in sinf atoms (WebKit)
+  SKD,       // skd:// URI init data: FairPlay key request URI (WebKit)
+  FAIRPLAY,  // Cobalt AVPlayer encrypted event init data (packed skd:// URI)
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
   KEYIDS,
   kMaxValue = KEYIDS,
 };

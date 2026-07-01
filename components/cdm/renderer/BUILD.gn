@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("//components/cdm/common/playready.gni")
+import("//media/media_options.gni")
 import("//third_party/widevine/cdm/widevine.gni")
 
 static_library("renderer") {
@@ -62,5 +63,12 @@ static_library("renderer") {
       "playready_key_system_info.h",
     ]
     deps += [ "//components/cdm/common" ]
+  }
+
+  if (is_cobalt && use_starboard_media && is_ios) {
+    sources += [
+      "starboard/fairplay_key_system_info.cc",
+      "starboard/fairplay_key_system_info.h",
+    ]
   }
 }
