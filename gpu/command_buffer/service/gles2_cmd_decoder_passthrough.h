@@ -576,8 +576,18 @@ class GPU_GLES2_EXPORT GLES2DecoderPassthroughImpl
   };
 
   // Use a limit that is at least ANGLE's IMPLEMENTATION_MAX_ACTIVE_TEXTURES
-  // constant
+  // constant.
+#if BUILDFLAG(IS_STARBOARD)
+  // Starboard/RDK reaches this decoder through ANGLE's GL backend over the
+  // native GLES driver (e.g. Mali), which advertises a GLES 3.2 combined
+  // GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS of 96 -- above the upstream limit of
+  // 64, so context init fails and forces a new media GPU context (and leaked
+  // command buffer) per video. 96 is also ANGLE's own ceiling for this value
+  // (IMPLEMENTATION_MAX_ACTIVE_TEXTURES), so it can never report more.
+  static constexpr size_t kMaxTextureUnits = 96;
+#else
   static constexpr size_t kMaxTextureUnits = 64;
+#endif
   static constexpr size_t kNumTextureTypes =
       static_cast<size_t>(TextureTarget::kCount);
   std::array<std::array<BoundTexture, kMaxTextureUnits>, kNumTextureTypes>
