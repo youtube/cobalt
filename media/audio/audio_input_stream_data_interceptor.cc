@@ -94,8 +94,8 @@ void AudioInputStreamDataInterceptor::OnData(
     base::TimeTicks capture_time,
     double volume,
     const AudioGlitchInfo& audio_glitch_info) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #if BUILDFLAG(IS_STARBOARD)
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (callback_) {
     callback_->OnData(source, capture_time, volume, audio_glitch_info);
   }
@@ -109,8 +109,8 @@ void AudioInputStreamDataInterceptor::OnData(
 }
 
 void AudioInputStreamDataInterceptor::OnError() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #if BUILDFLAG(IS_STARBOARD)
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (callback_) {
     callback_->OnError();
   }
