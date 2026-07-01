@@ -64,6 +64,9 @@ void PerformanceImpl::MeasureUsedCpuMemory(
       base::BindOnce([]() -> uint64_t {
         auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
             base::GetCurrentProcessHandle());
+        if (!process_metrics) {
+          return 0;
+        }
         auto info = process_metrics->GetMemoryInfo();
         return info.has_value() ? info->resident_set_bytes : 0;
       }),
@@ -81,6 +84,9 @@ void PerformanceImpl::MeasureUsedSwapMemory(
       base::BindOnce([]() -> uint64_t {
         auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
             base::GetCurrentProcessHandle());
+        if (!process_metrics) {
+          return 0;
+        }
         auto info = process_metrics->GetMemoryInfo();
         return info.has_value() ? info->vm_swap_bytes : 0;
       }),
@@ -95,6 +101,9 @@ void PerformanceImpl::MeasureReservedVirtualMemory(
       base::BindOnce([]() -> uint64_t {
         auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
             base::GetCurrentProcessHandle());
+        if (!process_metrics) {
+          return 0;
+        }
         auto info = process_metrics->GetMemoryInfo();
         return info.has_value() ? info->vm_size_bytes : 0;
       }),
