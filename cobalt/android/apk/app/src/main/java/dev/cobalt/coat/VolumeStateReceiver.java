@@ -24,6 +24,7 @@ final class VolumeStateReceiver extends BroadcastReceiver {
       "android.media.STREAM_MUTE_CHANGED_ACTION";
 
   private WebContents mWebContents;
+  private volatile boolean mTcasActive = false;
 
   VolumeStateReceiver(Context appContext) {
     IntentFilter filter = new IntentFilter();
@@ -32,7 +33,12 @@ final class VolumeStateReceiver extends BroadcastReceiver {
     appContext.registerReceiver(this, filter);
   }
 
-  protected void dispatchKeyDownEvent(int keyCode) {
+  public void setTcasActive(boolean tcasActive) {
+    this.mTcasActive = tcasActive;
+  }
+
+  public void dispatchKeyDownEvent(int keyCode) {
+    Log.i(TAG, "Charley: VolumeStateReceiver executing dispatchKeyDownEvent with keyCode: " + keyCode);
     long eventTime = SystemClock.uptimeMillis();
     if (mWebContents == null) {
       return;
@@ -43,7 +49,6 @@ final class VolumeStateReceiver extends BroadcastReceiver {
     }
     imeAdapter.dispatchKeyEvent(new KeyEvent(eventTime, eventTime, KeyEvent.ACTION_DOWN, keyCode, 0));
     imeAdapter.dispatchKeyEvent(new KeyEvent(eventTime, eventTime, KeyEvent.ACTION_UP, keyCode, 0));
-
   }
 
   public void setWebContents(WebContents webContents) {
@@ -52,16 +57,21 @@ final class VolumeStateReceiver extends BroadcastReceiver {
 
   @Override
   public void onReceive(Context context, Intent intent) {
+    if (mTcasActive) {
+      Log.i(TAG, "Charley: VolumeStateReceiver broadcast IGNORED because TCAS is active. Action: " + intent.getAction());
+      return;
+    }
+    Log.i(TAG, "Charley: VolumeStateReceiver handling broadcast (TCAS not active). Action: " + intent.getAction());
     if (intent.getAction().equals(VOLUME_CHANGED_ACTION)) {
       int newVolume = intent.getIntExtra(EXTRA_VOLUME_STREAM_VALUE, 0);
       int oldVolume = intent.getIntExtra(EXTRA_PREV_VOLUME_STREAM_VALUE, 0);
 
       int volumeDelta = newVolume - oldVolume;
-      Log.d(TAG, "VolumeStateReceiver capture volume changed, volumeDelta:" + volumeDelta);
+      Log.i(TAG, "Charley: VolumeStateReceiver captured volume change, delta: " + volumeDelta);
       int keyCode = volumeDelta > 0 ? KeyEvent.KEYCODE_VOLUME_UP : KeyEvent.KEYCODE_VOLUME_DOWN;
       dispatchKeyDownEvent(keyCode);
     } else if (intent.getAction().equals(STREAM_MUTE_CHANGED_ACTION)) {
-      Log.d(TAG, "VolumeStateReceiver capture mute changed.");
+      Log.i(TAG, "Charley: VolumeStateReceiver captured mute change.");
       dispatchKeyDownEvent(KeyEvent.KEYCODE_VOLUME_MUTE);
     }
   }

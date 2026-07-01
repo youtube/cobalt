@@ -149,6 +149,7 @@ android {
             java.srcDir "src/app/java"
             res.srcDir "src/app/res"
             assets.srcDir "src/app/assets"
+            aidl.srcDir "src/main/java"
         }
         // Add the directories symlinked by the CMake "cobalt_content" custom command.
         debug {

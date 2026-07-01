@@ -72,6 +72,7 @@ public class StarboardBridge {
   private ResourceOverlay mResourceOverlay;
   private AdvertisingId mAdvertisingId;
   private VolumeStateReceiver mVolumeStateReceiver;
+  private CobaltTcasKeyListenerService mCobaltTcasKeyListenerService;
   private PlatformError mPlatformError;
   private final Context mAppContext;
   private final Holder<Activity> mActivityHolder;
@@ -136,6 +137,7 @@ public class StarboardBridge {
     mResourceOverlay = new ResourceOverlay(appContext);
     mAdvertisingId = new AdvertisingId(appContext);
     mVolumeStateReceiver = new VolumeStateReceiver(appContext);
+    mCobaltTcasKeyListenerService = new CobaltTcasKeyListenerService(appContext, mVolumeStateReceiver);
     mIsAmatiDevice = appContext.getPackageManager().hasSystemFeature(AMATI_EXPERIENCE_FEATURE);
 
     mNativeApp =
@@ -186,6 +188,9 @@ public class StarboardBridge {
     mActivityHolder.set(activity);
     mSysConfigChangeReceiver.setForeground(true);
     beforeStartOrResume();
+    if (mCobaltTcasKeyListenerService != null) {
+      mCobaltTcasKeyListenerService.start();
+    }
   }
 
   protected void onActivityStop(Activity activity) {
@@ -196,6 +201,9 @@ public class StarboardBridge {
       mActivityHolder.set(null);
     }
     mSysConfigChangeReceiver.setForeground(false);
+    if (mCobaltTcasKeyListenerService != null) {
+      mCobaltTcasKeyListenerService.stop();
+    }
   }
 
   protected void onActivityDestroy(Activity activity) {
@@ -768,6 +776,9 @@ public class StarboardBridge {
   public void setWebContents(WebContents webContents) {
     mCobaltMediaSession.setWebContents(webContents);
     mVolumeStateReceiver.setWebContents(webContents);
+    if (mCobaltTcasKeyListenerService != null) {
+      mCobaltTcasKeyListenerService.setWebContents(webContents);
+    }
   }
 
   @CalledByNative
