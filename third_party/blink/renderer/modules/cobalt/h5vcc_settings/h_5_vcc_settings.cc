@@ -20,6 +20,7 @@
 #include "media/base/demuxer_memory_limit.h"
 #include "media/base/stream_parser.h"
 #include "media/filters/source_buffer_state.h"
+#include "media/starboard/decoder_buffer_memory_info.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
@@ -225,6 +226,13 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
     return ProcessSettingAsPositiveInt(
         script_state, exception_context, name, *value, [](int int_value) {
           ::media::Set720pVideoBufferSizeClamp(int_value);
+          return true;
+        });
+  }
+  if (name == "Media.EnableAreaBasedVideoBufferBudget") {
+    return ProcessSettingAsEnableOnly(
+        script_state, exception_context, name, *value, [] {
+          ::media::EnableAreaBasedVideoBufferBudget();
           return true;
         });
   }
