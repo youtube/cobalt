@@ -7,9 +7,14 @@
 #include <memory>
 
 // clang-format off
-// Remove these two includes after CHROMIUM_MILESTONE_LE_138
-#include "content/public/common/buildflags.h"
-#include "content/public/common/content_milestone_features.h"
+// In Cobalt, we gate Privacy Sandbox WebUIs (like Attribution Reporting).
+// Gating these includes breaks the transitive include chain that previously
+// provided `buildflag.h` and `build_config.h` for the platform checks below.
+// We include them explicitly here to ensure they are defined.
+// TODO: If Privacy Sandbox is removed upstream, this custom gating and these
+// includes should be ignored/removed during rebase.
+#include "build/build_config.h"
+#include "build/buildflag.h"
 // clang-format on
 
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138

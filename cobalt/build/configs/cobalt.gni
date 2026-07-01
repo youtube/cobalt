@@ -16,4 +16,11 @@
 declare_args() {
   is_cobalt = false
   cobalt_is_release_build = false
+
+  # This argument is not present in upstream Chromium, so we must declare it
+  # here in a `.gni` file before it can be used in other GN files.
+  # We keep it enabled (true) for now until all components are gated.
+  # TODO(b/505811196): Remove this argument once Cobalt rebased to the milestone
+  # where the privacy sandbox components are fully removed.
+  enable_privacy_sandbox_apis = true
 }

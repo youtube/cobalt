@@ -15,12 +15,6 @@
 #include <variant>
 #include <vector>
 
-// clang-format off
-// Remove these two includes after CHROMIUM_MILESTONE_LE_138
-#include "content/public/common/buildflags.h"
-#include "content/public/common/content_milestone_features.h"
-// clang-format on
-
 #include "base/atomic_sequence_num.h"
 #include "base/check.h"
 #include "base/check_op.h"
