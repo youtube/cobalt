@@ -10,8 +10,11 @@
 #include "base/feature_list.h"
 #include "base/memory/safety_checks.h"
 #include "base/metrics/histogram_functions.h"
+#include "third_party/blink/public/common/buildflags.h"
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/devtools_throttle_handle.h"
 #include "content/browser/devtools/worker_devtools_manager.h"
+#endif
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/storage_partition_impl.h"
 #include "content/browser/worker_host/dedicated_worker_host.h"
@@ -140,6 +143,7 @@ void DedicatedWorkerHostFactoryImpl::CreateWorkerHostAndStartScriptLoad(
                           base::TimeTicks::Now() - start_time);
 
   base::TimeTicks host_created_time = base::TimeTicks::Now();
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   auto devtools_throttle_handle =
       base::MakeRefCounted<DevToolsThrottleHandle>(base::BindOnce(
           &DedicatedWorkerHost::StartScriptLoad, host->GetWeakPtr(), script_url,
@@ -153,6 +157,13 @@ void DedicatedWorkerHostFactoryImpl::CreateWorkerHostAndStartScriptLoad(
   WorkerDevToolsManager::GetInstance().WorkerCreated(
       host, worker_process_host->GetDeprecatedID(),
       ancestor_render_frame_host_id_, std::move(devtools_throttle_handle));
+#else
+  host->StartScriptLoad(
+      script_url, credentials_mode,
+      std::move(outside_fetch_client_settings_object),
+      std::move(blob_url_token), std::move(remote_client),
+      storage_access_api_status);
+#endif
   base::UmaHistogramTimes("Worker.BrowserProcess.StartScriptLoadTime",
                           base::TimeTicks::Now() - start_time);
   base::UmaHistogramTimes("Worker.BrowserProcess.DevToolsCreateTime",

@@ -25,7 +25,9 @@
 #include "cobalt/shell/android/shell_descriptors.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_browser_context.h"
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 #include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
+#endif
 #include "cobalt/shell/browser/shell_platform_delegate.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/performance_manager/embedder/graph_features.h"
@@ -207,7 +209,9 @@ int ShellBrowserMainParts::PreMainMessageLoopRun() {
   InitializeBrowserContexts();
   Shell::Initialize(CreateShellPlatformDelegate(), is_visible_);
   net::NetModule::SetResourceProvider(PlatformResourceProvider);
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   ShellDevToolsManagerDelegate::StartHttpHandler(browser_context_.get());
+#endif
   InitializeMessageLoopContext();
   return 0;
 }
@@ -219,7 +223,9 @@ void ShellBrowserMainParts::WillRunMainMessageLoop(
 
 void ShellBrowserMainParts::PostMainMessageLoopRun() {
   DCHECK_EQ(Shell::windows().size(), 0u);
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   ShellDevToolsManagerDelegate::StopHttpHandler();
+#endif
   browser_context_.reset();
   off_the_record_browser_context_.reset();
 #if BUILDFLAG(IS_LINUX)

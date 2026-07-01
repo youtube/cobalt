@@ -37,7 +37,9 @@
 #include "third_party/blink/public/platform/web_security_origin.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/modules/storage/cached_storage_area.h"
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "third_party/blink/renderer/modules/storage/inspector_dom_storage_agent.h"
+#endif
 #include "third_party/blink/renderer/modules/storage/storage_area.h"
 #include "third_party/blink/renderer/modules/storage/storage_controller.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
@@ -196,6 +198,7 @@ void StorageNamespace::CleanUpUnusedAreas() {
   cached_areas_.RemoveAll(to_remove);
 }
 
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 void StorageNamespace::AddInspectorStorageAgent(
     InspectorDOMStorageAgent* agent) {
   inspector_agents_.insert(agent);
@@ -204,9 +207,12 @@ void StorageNamespace::RemoveInspectorStorageAgent(
     InspectorDOMStorageAgent* agent) {
   inspector_agents_.erase(agent);
 }
+#endif
 
 void StorageNamespace::Trace(Visitor* visitor) const {
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   visitor->Trace(inspector_agents_);
+#endif
   visitor->Trace(namespace_);
   Supplement<Page>::Trace(visitor);
 }
@@ -216,6 +222,7 @@ void StorageNamespace::DidDispatchStorageEvent(
     const String& key,
     const String& old_value,
     const String& new_value) {
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   for (InspectorDOMStorageAgent* agent : inspector_agents_) {
     agent->DidDispatchDOMStorageEvent(
         key, old_value, new_value,
@@ -223,6 +230,7 @@ void StorageNamespace::DidDispatchStorageEvent(
                            : StorageArea::StorageType::kLocalStorage,
         storage_key);
   }
+#endif
 }
 
 void StorageNamespace::BindStorageArea(

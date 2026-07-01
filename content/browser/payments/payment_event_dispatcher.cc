@@ -54,6 +54,7 @@ void OnResponseForPaymentRequest(
     const std::string& payment_request_id,
     PaymentAppProvider::InvokePaymentAppCallback callback,
     PaymentHandlerResponsePtr response) {
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   DevToolsBackgroundServicesContextImpl* dev_tools =
       provider ? provider->GetDevTools(sw_origin) : nullptr;
   if (dev_tools) {
@@ -67,6 +68,7 @@ void OnResponseForPaymentRequest(
          {"Details", response->stringified_details},
          {"Type", response_type.str()}});
   }
+#endif
 
   std::move(callback).Run(std::move(response));
 }
@@ -78,6 +80,7 @@ void OnResponseForCanMakePayment(
     const std::string& payment_request_id,
     PaymentAppProvider::CanMakePaymentCallback callback,
     CanMakePaymentResponsePtr response) {
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   DevToolsBackgroundServicesContextImpl* dev_tools =
       provider ? provider->GetDevTools(sw_origin) : nullptr;
   if (dev_tools) {
@@ -91,6 +94,7 @@ void OnResponseForCanMakePayment(
         DevToolsBackgroundService::kPaymentHandler, "Can make payment response",
         /*instance_id=*/payment_request_id, data);
   }
+#endif
 
   std::move(callback).Run(std::move(response));
 }
@@ -101,6 +105,7 @@ void OnResponseForAbortPayment(base::WeakPtr<PaymentAppProviderImpl> provider,
                                const std::string& payment_request_id,
                                PaymentAppProvider::AbortCallback callback,
                                bool payment_aborted) {
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   DevToolsBackgroundServicesContextImpl* dev_tools =
       provider ? provider->GetDevTools(sw_origin) : nullptr;
   if (dev_tools) {
@@ -110,6 +115,7 @@ void OnResponseForAbortPayment(base::WeakPtr<PaymentAppProviderImpl> provider,
         /*instance_id=*/payment_request_id,
         {{"Payment Aborted", base::ToString(payment_aborted)}});
   }
+#endif
 
   std::move(callback).Run(payment_aborted);
 }

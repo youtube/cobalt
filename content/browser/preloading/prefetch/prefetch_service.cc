@@ -22,7 +22,10 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/timer/timer.h"
 #include "content/browser/browser_context_impl.h"
+#include "third_party/blink/public/common/buildflags.h"
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
+#endif
 #include "content/browser/preloading/prefetch/no_vary_search_helper.h"
 #include "content/browser/preloading/prefetch/prefetch_container.h"
 #include "content/browser/preloading/prefetch/prefetch_document_manager.h"
@@ -214,7 +217,11 @@ bool CheckAndSetPrefetchHoldbackStatus(
     RenderFrameHostImpl* initiator_rfh = RenderFrameHostImpl::FromID(
         prefetch_container->GetReferringRenderFrameHostId());
     return initiator_rfh &&
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
            RenderFrameDevToolsAgentHost::GetFor(initiator_rfh) != nullptr;
+#else
+           false;
+#endif
   }();
 
   // Normally PreloadingAttemptImpl::ShouldHoldback() eventually computes its

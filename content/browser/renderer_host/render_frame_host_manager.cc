@@ -33,7 +33,10 @@
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
 #include "content/browser/child_process_security_policy_impl.h"
+#include "third_party/blink/public/common/buildflags.h"
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
+#endif
 #include "content/browser/preloading/prefetch/prefetch_features.h"
 #include "content/browser/process_lock.h"
 #include "content/browser/process_reuse_policy.h"
@@ -407,6 +410,7 @@ void UpdateProcessReusePolicyForProcessPerSiteWithMainFrameThreshold(
         ProcessPerSiteWithMainFrameThresholdBlockReason::kDisableProcessResuse);
     return;
   }
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   if (!features::kProcessPerSiteMainFrameAllowDevToolsAttached.Get() &&
       RenderFrameDevToolsAgentHost::WasEverAttachedToAnyFrame()) {
     RecordProcessPerSiteWithMainFrameThresholdBlockReason(
@@ -414,6 +418,7 @@ void UpdateProcessReusePolicyForProcessPerSiteWithMainFrameThreshold(
             kDevToolsWasEverAttached);
     return;
   }
+#endif
   if (!site_instance->RequiresDedicatedProcess()) {
     RecordProcessPerSiteWithMainFrameThresholdBlockReason(
         ProcessPerSiteWithMainFrameThresholdBlockReason::

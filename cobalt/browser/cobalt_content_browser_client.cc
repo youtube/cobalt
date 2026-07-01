@@ -260,14 +260,12 @@ CobaltContentBrowserClient::CreateBrowserMainParts(
   return browser_main_parts;
 }
 
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 std::unique_ptr<content::DevToolsManagerDelegate>
 CobaltContentBrowserClient::CreateDevToolsManagerDelegate() {
-#if defined(COBALT_IS_RELEASE_BUILD)
-  return nullptr;
-#else
   return content::ShellContentBrowserClient::CreateDevToolsManagerDelegate();
-#endif
 }
+#endif
 
 void CobaltContentBrowserClient::CreateThrottlesForNavigation(
     content::NavigationThrottleRegistry& registry) {

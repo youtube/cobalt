@@ -88,7 +88,10 @@
 #include "content/public/test/navigation_handle_observer.h"
 #include "content/public/test/no_renderer_crashes_assertion.h"
 #include "content/public/test/slow_http_response.h"
+#include "third_party/blink/public/common/buildflags.h"
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/public/test/test_devtools_protocol_client.h"
+#endif
 #include "content/public/test/test_frame_navigation_observer.h"
 #include "content/public/test/test_navigation_throttle.h"
 #include "content/public/test/test_navigation_throttle_inserter.h"
@@ -7637,6 +7640,7 @@ class NavigationBrowserTestCredentiallessIframe : public NavigationBrowserTest {
   }
 };
 
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTestCredentiallessIframe,
                        CheckCookiesForCredentiallessIframeNavigation) {
   GURL main_url =
@@ -7707,6 +7711,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTestCredentiallessIframe,
 
   fenced_frame_devtools_client.DetachProtocolClient();
 }
+#endif
 
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTestCredentiallessIframe,
                        CredentiallessAttributeIsHonoredByNavigation) {
