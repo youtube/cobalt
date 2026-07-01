@@ -10,7 +10,10 @@
 #include "base/functional/bind.h"
 #include "base/task/single_thread_task_runner.h"
 #include "content/browser/data_url_loader_factory.h"
+#include "third_party/blink/public/common/buildflags.h"
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/devtools_agent_host_impl.h"
+#endif
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/devtools/network_service_devtools_observer.h"
 #include "content/browser/file_system/file_system_url_loader_factory.h"
@@ -252,7 +255,9 @@ void WorkerScriptFetcher::CreateAndStart(
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   DCHECK(client_security_state);
   DCHECK(storage_partition);
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   DCHECK(devtools_agent_host);
+#endif
   DCHECK(request_destination == network::mojom::RequestDestination::kWorker ||
          request_destination ==
              network::mojom::RequestDestination::kSharedWorker)
@@ -396,7 +401,9 @@ void WorkerScriptFetcher::CreateScriptLoader(
     bool require_cross_site_request_for_cookies,
     WorkerScriptFetcher::CompletionCallback callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   DCHECK(devtools_agent_host);
+#endif
   DCHECK(client_security_state);
   TRACE_EVENT("loading", "WorkerScriptFetcher::CreateScriptLoader");
 

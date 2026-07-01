@@ -16,7 +16,10 @@
 #include "content/browser/broadcast_channel/broadcast_channel_service.h"
 #include "content/browser/code_cache/generated_code_cache_context.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
+#include "third_party/blink/public/common/buildflags.h"
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/shared_worker_devtools_manager.h"
+#endif
 #include "content/browser/loader/url_loader_factory_utils.h"
 #include "content/browser/network/cross_origin_embedder_policy_reporter.h"
 #include "content/browser/renderer_host/code_cache_host_impl.h"
@@ -79,23 +82,29 @@ namespace content {
 class SharedWorkerHost::ScopedDevToolsHandle {
  public:
   explicit ScopedDevToolsHandle(SharedWorkerHost* owner) : owner_(owner) {
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
     SharedWorkerDevToolsManager::GetInstance()->WorkerCreated(
         owner, &pause_on_start_, &dev_tools_token_);
+#endif
   }
 
   ScopedDevToolsHandle(const ScopedDevToolsHandle&) = delete;
   ScopedDevToolsHandle& operator=(const ScopedDevToolsHandle&) = delete;
 
   ~ScopedDevToolsHandle() {
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
     SharedWorkerDevToolsManager::GetInstance()->WorkerDestroyed(owner_);
+#endif
   }
 
   void WorkerReadyForInspection(
       mojo::PendingRemote<blink::mojom::DevToolsAgent> agent_remote,
       mojo::PendingReceiver<blink::mojom::DevToolsAgentHost>
           agent_host_receiver) {
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
     SharedWorkerDevToolsManager::GetInstance()->WorkerReadyForInspection(
         owner_, std::move(agent_remote), std::move(agent_host_receiver));
+#endif
   }
 
   bool pause_on_start() const { return pause_on_start_; }

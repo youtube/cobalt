@@ -294,6 +294,7 @@ std::string GetSyncEventName(const BackgroundSyncType sync_type) {
     return "periodicsync";
 }
 
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 DevToolsBackgroundService GetDevToolsBackgroundService(
     BackgroundSyncType sync_type) {
   if (sync_type == BackgroundSyncType::ONE_SHOT)
@@ -301,6 +302,7 @@ DevToolsBackgroundService GetDevToolsBackgroundService(
   else
     return DevToolsBackgroundService::kPeriodicBackgroundSync;
 }
+#endif
 
 std::string GetDelayAsString(base::TimeDelta delay) {
   if (delay.is_max())
@@ -1038,6 +1040,7 @@ void BackgroundSyncManager::RegisterDidGetDelay(
     return;
   }
 
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   if (registration.sync_type() == BackgroundSyncType::PERIODIC &&
       ShouldLogToDevTools(registration.sync_type())) {
     devtools_context_->LogBackgroundServiceEvent(
@@ -1049,6 +1052,7 @@ void BackgroundSyncManager::RegisterDidGetDelay(
         {{"Next Attempt Delay (ms)",
           GetDelayAsString(registration.delay_until() - clock_->Now())}});
   }
+#endif
 
   AddOrUpdateActiveRegistration(sw_registration_id,
                                 sw_registration->key().origin(), registration);
@@ -1317,6 +1321,7 @@ void BackgroundSyncManager::RemoveActiveRegistration(
       proxy_->RemoveFromTrackedOrigins(origin);
   }
 
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   if (registration_info.sync_type == BackgroundSyncType::PERIODIC &&
       ShouldLogToDevTools(registration_info.sync_type)) {
     devtools_context_->LogBackgroundServiceEvent(
@@ -1327,6 +1332,7 @@ void BackgroundSyncManager::RemoveActiveRegistration(
         /* instance_id= */ registration_info.tag,
         /* event_metadata= */ {});
   }
+#endif
 }
 
 void BackgroundSyncManager::AddOrUpdateActiveRegistration(
@@ -1344,6 +1350,7 @@ void BackgroundSyncManager::AddOrUpdateActiveRegistration(
       ->registration_map[{sync_registration.options()->tag, sync_type}] =
       sync_registration;
 
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   if (ShouldLogToDevTools(sync_registration.sync_type())) {
     std::map<std::string, std::string> event_metadata;
     if (sync_registration.sync_type() == BackgroundSyncType::PERIODIC) {
@@ -1356,6 +1363,7 @@ void BackgroundSyncManager::AddOrUpdateActiveRegistration(
         /* event_name= */ "Registered " + GetSyncEventName(sync_type),
         /* instance_id= */ sync_registration.options()->tag, event_metadata);
   }
+#endif
 }
 
 void BackgroundSyncManager::StoreDataInBackend(
@@ -1412,6 +1420,7 @@ void BackgroundSyncManager::DispatchSyncEvent(
       base::BindOnce(&OnSyncEventFinished, active_version, request_id,
                      std::move(split_callback.second)));
 
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   if (devtools_context_->IsRecording(
           DevToolsBackgroundService::kBackgroundSync)) {
     devtools_context_->LogBackgroundServiceEvent(
@@ -1422,6 +1431,7 @@ void BackgroundSyncManager::DispatchSyncEvent(
         /* event_metadata= */
         {{"Last Chance", last_chance ? "Yes" : "No"}});
   }
+#endif
 }
 
 void BackgroundSyncManager::DispatchPeriodicSyncEvent(
@@ -1455,6 +1465,7 @@ void BackgroundSyncManager::DispatchPeriodicSyncEvent(
       base::BindOnce(&OnSyncEventFinished, active_version, request_id,
                      std::move(split_callback.second)));
 
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   if (devtools_context_->IsRecording(
           DevToolsBackgroundService::kPeriodicBackgroundSync)) {
     devtools_context_->LogBackgroundServiceEvent(
@@ -1464,6 +1475,7 @@ void BackgroundSyncManager::DispatchPeriodicSyncEvent(
         /* instance_id= */ tag,
         /* event_metadata= */ {});
   }
+#endif
 }
 
 void BackgroundSyncManager::HasMainFrameWindowClient(
@@ -2210,6 +2222,7 @@ void BackgroundSyncManager::EventCompleteDidGetDelay(
     registration->set_sync_state(blink::mojom::BackgroundSyncState::PENDING);
     registration->set_num_attempts(0);
     registration_completed = false;
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
     if (ShouldLogToDevTools(registration->sync_type())) {
       devtools_context_->LogBackgroundServiceEvent(
           registration_info->service_worker_registration_id, storage_key,
@@ -2218,6 +2231,7 @@ void BackgroundSyncManager::EventCompleteDidGetDelay(
           /* instance_id= */ registration_info->tag,
           /* event_metadata= */ {});
     }
+#endif
   } else if ((!succeeded && can_retry) ||
              registration->sync_type() == BackgroundSyncType::PERIODIC) {
     registration->set_sync_state(blink::mojom::BackgroundSyncState::PENDING);
@@ -2237,18 +2251,21 @@ void BackgroundSyncManager::EventCompleteDidGetDelay(
                              GetEventStatusString(status_code));
     }
 
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
     if (ShouldLogToDevTools(registration->sync_type())) {
       devtools_context_->LogBackgroundServiceEvent(
           registration_info->service_worker_registration_id, storage_key,
           GetDevToolsBackgroundService(registration->sync_type()), event_name,
           /* instance_id= */ registration_info->tag, event_metadata);
     }
+#endif
   }
 
   if (registration_completed) {
     BackgroundSyncMetrics::RecordRegistrationComplete(
         succeeded, registration->num_attempts());
 
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
     if (ShouldLogToDevTools(registration->sync_type())) {
       devtools_context_->LogBackgroundServiceEvent(
           registration_info->service_worker_registration_id, storage_key,
@@ -2257,6 +2274,7 @@ void BackgroundSyncManager::EventCompleteDidGetDelay(
           /* instance_id= */ registration_info->tag,
           {{"Status", GetEventStatusString(status_code)}});
     }
+#endif
 
     if (registration_info->sync_type ==
         blink::mojom::BackgroundSyncType::ONE_SHOT) {
@@ -2378,8 +2396,12 @@ blink::ServiceWorkerStatusCode BackgroundSyncManager::CanEmulateSyncEvent(
 }
 
 bool BackgroundSyncManager::ShouldLogToDevTools(BackgroundSyncType sync_type) {
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   return devtools_context_->IsRecording(
       GetDevToolsBackgroundService(sync_type));
+#else
+  return false;
+#endif
 }
 
 }  // namespace content

@@ -21,6 +21,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
+#include "third_party/blink/public/common/buildflags.h"
 #include "components/services/storage/privileged/mojom/indexed_db_client_state_checker.mojom.h"
 #include "components/services/storage/public/mojom/partition.mojom.h"
 #include "components/services/storage/public/mojom/storage_service.mojom-forward.h"

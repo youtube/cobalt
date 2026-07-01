@@ -78,8 +78,12 @@
 #include "content/browser/closewatcher/close_listener_manager.h"
 #include "content/browser/compositor/surface_utils.h"
 #include "content/browser/device_posture/device_posture_provider_impl.h"
+#include "content/public/browser/devtools_agent_host.h"
+#include "third_party/blink/public/common/buildflags.h"
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/protocol/page_handler.h"
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
+#endif
 #include "content/browser/display_cutout/display_cutout_host_impl.h"
 #include "content/browser/dom_storage/dom_storage_context_wrapper.h"
 #include "content/browser/dom_storage/session_storage_namespace_impl.h"
@@ -1811,7 +1815,9 @@ void WebContentsImpl::SetDelegate(WebContentsDelegate* delegate) {
     // RenderFrameDevToolsAgentHost should not be told about the WebContents
     // until there is a `delegate_`.
     if (!had_delegate) {
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
       RenderFrameDevToolsAgentHost::AttachToWebContents(this);
+#endif
     }
   }
 
@@ -8706,8 +8712,10 @@ void WebContentsImpl::RunJavaScriptDialog(
       render_frame_host->GetRoutingID(), std::move(response_callback),
       std::move(fullscreen_block));
 
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   std::vector<protocol::PageHandler*> page_handlers =
       protocol::PageHandler::EnabledForWebContents(this);
+#endif
 
   bool should_suppress = false;
   JavaScriptDialogManager* dialog_manager = nullptr;
@@ -8728,7 +8736,11 @@ void WebContentsImpl::RunJavaScriptDialog(
 
   // Suppress JavaScript dialogs when requested.
   bool has_non_devtools_handlers = delegate_ && dialog_manager;
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   bool has_handlers = page_handlers.size() || has_non_devtools_handlers;
+#else
+  bool has_handlers = has_non_devtools_handlers;
+#endif
   bool suppress_this_message = should_suppress || !has_handlers;
 
   if (!disable_third_party_subframe_suppresion &&
@@ -8769,6 +8781,7 @@ void WebContentsImpl::RunJavaScriptDialog(
 
   std::u16string normalized_message = NormalizeLineBreaks(message);
 
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   for (auto* handler : page_handlers) {
     handler->DidRunJavaScriptDialog(
         render_frame_host->GetLastCommittedURL(),
@@ -8776,6 +8789,7 @@ void WebContentsImpl::RunJavaScriptDialog(
         default_prompt, dialog_type, has_non_devtools_handlers,
         base::BindOnce(&CloseDialogCallbackWrapper::Run, wrapper, false));
   }
+#endif
 
   if (dialog_manager) {
     created_dialog_since_last_cancel_ = true;
@@ -8839,8 +8853,10 @@ void WebContentsImpl::RunBeforeUnloadConfirm(
       render_frame_host->GetRoutingID(), std::move(response_callback),
       std::move(fullscreen_block));
 
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   std::vector<protocol::PageHandler*> page_handlers =
       protocol::PageHandler::EnabledForWebContents(this);
+#endif
 
   JavaScriptDialogManager* dialog_manager = nullptr;
   bool should_suppress = false;
@@ -8861,7 +8877,11 @@ void WebContentsImpl::RunBeforeUnloadConfirm(
       std::make_unique<JavaScriptDialogDismissNotifier>();
 
   bool has_non_devtools_handlers = delegate_ && dialog_manager;
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   bool has_handlers = page_handlers.size() || has_non_devtools_handlers;
+#else
+  bool has_handlers = has_non_devtools_handlers;
+#endif
   if (should_suppress || !has_handlers) {
     std::move(callback).Run(false, true, std::u16string());
     return;
@@ -8873,12 +8893,14 @@ void WebContentsImpl::RunBeforeUnloadConfirm(
       new CloseDialogCallbackWrapper(std::move(callback));
 
   GURL frame_url = render_frame_host->GetLastCommittedURL();
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   for (auto* handler : page_handlers) {
     handler->DidRunBeforeUnloadConfirm(
         frame_url, render_frame_host->devtools_frame_token(),
         has_non_devtools_handlers,
         base::BindOnce(&CloseDialogCallbackWrapper::Run, wrapper, false));
   }
+#endif
 
   if (dialog_manager) {
     created_dialog_since_last_cancel_ = true;
@@ -10604,12 +10626,14 @@ void WebContentsImpl::OnDialogClosed(int render_process_id,
 
   std::move(response_callback).Run(success, user_input);
 
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   std::vector<protocol::PageHandler*> page_handlers =
       protocol::PageHandler::EnabledForWebContents(this);
   for (auto* handler : page_handlers) {
     handler->DidCloseJavaScriptDialog(rfh->devtools_frame_token(),
                                       success, user_input);
   }
+#endif
 
   is_showing_javascript_dialog_ = false;
   is_showing_before_unload_dialog_ = false;

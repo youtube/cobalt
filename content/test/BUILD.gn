@@ -3636,7 +3636,7 @@ test("content_unittests") {
     }
 
     if (!enable_devtools_backend) {
-      deps -= [
+      sources -= [
         "../browser/devtools/protocol/webauthn_handler_unittest.cc",
       ]
     }
