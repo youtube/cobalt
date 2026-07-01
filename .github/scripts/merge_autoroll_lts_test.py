@@ -84,10 +84,19 @@ class TestMergeAutorollLts(unittest.TestCase):
         'directly to 27.lts.')
     mock_run.assert_any_call([
         'gh', 'pr', 'close', '1', '--repo', merge_autoroll_lts.REPO_OWNER_PATH,
-        '--comment', close_comment, '--delete-branch'
+        '--comment', close_comment
     ],
                              env=unittest.mock.ANY,
                              check=True)
+    mock_run.assert_any_call([
+        'git', '-c', 'credential.helper=', '-c',
+        'credential.helper=!gh auth git-credential', 'push',
+        merge_autoroll_lts.REPO_URL, '--delete', 'autoroll-main-to-27.lts'
+    ],
+                             env=unittest.mock.ANY,
+                             check=True,
+                             stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL)
 
   @patch('subprocess.run')
   @patch('subprocess.check_output')

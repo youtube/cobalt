@@ -236,14 +236,33 @@ def close_pr(pr, target, env):
   comment = (
       f'Closing this PR because the changes have been rebased and pushed '
       f'directly to {target}.')
+
+  # Close PR (without --delete-branch flag)
   subprocess.run([
       'gh', 'pr', 'close',
-      str(pr_num), '--repo', REPO_OWNER_PATH, '--comment', comment,
-      '--delete-branch'
+      str(pr_num), '--repo', REPO_OWNER_PATH, '--comment', comment
   ],
                  env=env,
                  check=True)
-  print('>> Successfully merged and closed PR!')
+  print('>> PR closed successfully.')
+
+  # Delete remote branch (non-fatal)
+  head = pr['headRefName']
+  print(f'>> Deleting remote branch {head}...')
+  try:
+    subprocess.run([
+        'git', '-c', 'credential.helper=', '-c',
+        'credential.helper=!gh auth git-credential', 'push', REPO_URL,
+        '--delete', head
+    ],
+                   env=env,
+                   check=True,
+                   stdout=subprocess.DEVNULL,
+                   stderr=subprocess.DEVNULL)
+    print('>> Remote branch deleted successfully.')
+  except subprocess.CalledProcessError:
+    print(f'>> Warning: Failed to delete remote branch {head} (it may have '
+          f'already been deleted or you may lack permissions).')
 
 
 def main():
