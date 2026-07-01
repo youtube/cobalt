@@ -19,7 +19,10 @@
 #include "base/time/time.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/devtools/devtools_throttle_handle.h"
+#include "third_party/blink/public/common/buildflags.h"
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/service_worker_devtools_manager.h"
+#endif
 #include "content/browser/renderer_host/private_network_access_util.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/service_worker/embedded_worker_instance.h"
@@ -481,6 +484,7 @@ void ServiceWorkerRegisterJob::
 void ServiceWorkerRegisterJob::
     MaybeThrottleForDevToolsBeforeStartingScriptFetch(
         scoped_refptr<ServiceWorkerVersion> version) {
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   int64_t version_id = version->version_id();
   const GURL& script_url = version->script_url();
   const GURL& scope = version->scope();
@@ -494,6 +498,9 @@ void ServiceWorkerRegisterJob::
   ServiceWorkerDevToolsManager::GetInstance()->WorkerMainScriptFetchingStarting(
       context_->wrapper(), version_id, script_url, scope, requesting_frame_id_,
       std::move(devtools_throttle_handle));
+#else
+  StartScriptFetchForNewWorker(std::move(version));
+#endif
 }
 
 void ServiceWorkerRegisterJob::StartScriptFetchForNewWorker(
@@ -525,8 +532,10 @@ void ServiceWorkerRegisterJob::OnScriptFetchCompleted(
     blink::mojom::WorkerMainScriptLoadParamsPtr main_script_load_params) {
   if (!main_script_load_params) {
     // Null `main_script_load_params` means the main script failed to be loaded.
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
     ServiceWorkerDevToolsManager::GetInstance()->WorkerMainScriptFetchingFailed(
         context_->wrapper(), version->version_id());
+#endif
 
     // Use DeduceStartWorkerFailureReason() because it returns an error code
     // based on the main script's net error.

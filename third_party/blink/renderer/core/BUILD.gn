@@ -296,7 +296,27 @@ component("core") {
   if (enable_devtools_backend) {
     sources += rebase_path(blink_core_sources_inspector, "", "inspector")
   } else {
-    sources += [ "inspector/inspector_stubs.cc" ]
+    sources += [
+      "inspector/console_message.cc",
+      "inspector/console_message_storage.cc",
+      "inspector/dev_tools_emulator.cc",
+      "inspector/dev_tools_host.cc",
+      "inspector/exception_metadata.cc",
+      "inspector/identifiers_factory.cc",
+      "inspector/inspector_audits_issue.cc",
+      "inspector/inspector_issue.cc",
+      "inspector/inspector_issue_conversion.cc",
+      "inspector/inspector_issue_reporter.cc",
+      "inspector/inspector_issue_storage.cc",
+      "inspector/inspector_stubs.cc",
+      "inspector/inspector_task_runner.cc",
+      "inspector/inspector_trace_events.cc",
+      "inspector/invalidation_set_to_selector_map.cc",
+      "inspector/request_debug_header_scope.cc",
+      "inspector/style_rule_to_style_sheet_contents_map.cc",
+      "inspector/thread_debugger_common_impl.cc",
+      "inspector/v8_inspector_string.cc",
+    ]
   }
   sources += rebase_path(blink_core_sources_intersection_observer,
                          "",

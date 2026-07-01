@@ -14,6 +14,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/supports_user_data.h"
 #include "base/trace_event/optional_trace_event.h"
+#include "third_party/blink/public/common/buildflags.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/navigation_or_document_handle.h"
 #include "content/browser/navigation_subresource_loader_params.h"
@@ -360,11 +361,13 @@ void SSLManager::OnCertErrorInternal(std::unique_ptr<SSLErrorHandler> handler) {
           controller_->frame_tree().GetMainFrame()->GetStoragePartition(),
           ssl_host_state_delegate_);
 
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   if (devtools_instrumentation::HandleCertificateError(
           web_contents, cert_error, request_url,
           base::BindRepeating(callback, false))) {
     return;
   }
+#endif
 
   GetContentClient()->browser()->AllowCertificateError(
       web_contents, cert_error, ssl_info, request_url,

@@ -405,7 +405,9 @@ void ModulesInitializer::ProvideModulesToPage(
     Page& page,
     const SessionStorageNamespaceId& namespace_id) const {
   StorageNamespace::ProvideSessionStorageNamespaceTo(page, namespace_id);
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   AudioGraphTracer::ProvideAudioGraphTracerTo(page);
+#endif
 #if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_DESKTOP_ANDROID)
   page.ProvideSupplement(MakeGarbageCollected<SuspendCaptureObserver>(page));
 #endif  // BUILDFLAG(IS_ANDROID)  && !BUILDFLAG(IS_DESKTOP_ANDROID)

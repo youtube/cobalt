@@ -14,7 +14,10 @@
 #include "content/browser/background_sync/background_sync_manager.h"
 #include "content/browser/background_sync/one_shot_background_sync_service_impl.h"
 #include "content/browser/background_sync/periodic_background_sync_service_impl.h"
+#include "third_party/blink/public/common/buildflags.h"
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/devtools_background_services_context_impl.h"
+#endif
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"

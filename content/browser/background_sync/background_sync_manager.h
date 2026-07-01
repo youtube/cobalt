@@ -54,6 +54,7 @@ class StorageKey;
 namespace content {
 
 class BackgroundSyncNetworkObserver;
+class DevToolsBackgroundServicesContextImpl;
 class ServiceWorkerContextWrapper;
 
 // BackgroundSyncManager manages and stores the set of background sync
