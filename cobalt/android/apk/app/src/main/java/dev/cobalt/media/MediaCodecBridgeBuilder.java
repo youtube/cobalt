@@ -41,24 +41,19 @@ class MediaCodecBridgeBuilder {
       Log.e(TAG, "Invalid decoder name.");
       return null;
     }
-    MediaCodec mediaCodec = null;
+    MediaCodecBridge bridge;
     try {
-      Log.i(TAG, "Creating \"%s\" decoder.", decoderName);
-      mediaCodec = MediaCodec.createByCodecName(decoderName);
+      bridge =
+          new MediaCodecBridge(
+              nativeMediaCodecBridge,
+              decoderName,
+              TunnelModeAudioSessionId.NONE,
+              /*enableFrameRendererListener=*/false,
+              /*enableIgnoreCallbacksDuringFlushing=*/false);
     } catch (Exception e) {
-      Log.e(TAG, "Failed to create MediaCodec: %s, DecoderName: %s", mime, decoderName, e);
+      Log.e(TAG, "Failed to create MediaCodecBridge: %s, DecoderName: %s", mime, decoderName, e);
       return null;
     }
-    if (mediaCodec == null) {
-      return null;
-    }
-    MediaCodecBridge bridge =
-        new MediaCodecBridge(
-            nativeMediaCodecBridge,
-            mediaCodec,
-            TunnelModeAudioSessionId.NONE,
-            /*enableFrameRendererListener=*/false,
-            /*enableIgnoreCallbacksDuringFlushing=*/false);
 
     byte[][] csds = {};
     boolean frameHasAdtsHeader = false;
