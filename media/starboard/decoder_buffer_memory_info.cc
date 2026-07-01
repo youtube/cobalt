@@ -21,7 +21,6 @@
 #include "media/base/video_codecs.h"
 #include "media/starboard/starboard_utils.h"
 #include "starboard/media.h"
-#include "starboard/shared/starboard/media/resolutions.h"
 #include "ui/gfx/geometry/size.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -32,14 +31,13 @@ namespace media {
 
 namespace {
 std::atomic<bool> g_enable_area_based_video_buffer_budget{false};
-constexpr int kMaxVideoBufferBudget = 200 * 1024 * 1024;
 
 #if BUILDFLAG(IS_ANDROID)
+constexpr int kMaxVideoBufferBudget = 200 * 1024 * 1024;
 // this is duplicated from
 // starboard/android/shared/media_get_video_buffer_budget.cc in order to allow
 // h5vcc experimentation.
-int ExperimentalAreaBasedVideoBufferBudget(int resolution_width,
-                                           int resolution_height,
+int ExperimentalAreaBasedVideoBufferBudget(const gfx::Size& resolution,
                                            int bits_per_pixel) {
   auto get_overlaid_video_buffer_budget = []() {
     auto* overlay = starboard::RuntimeResourceOverlay::GetInstance();
@@ -59,12 +57,13 @@ int ExperimentalAreaBasedVideoBufferBudget(int resolution_width,
   static const int overlaid_video_buffer_budget =
       get_overlaid_video_buffer_budget();
 
+  constexpr int64_t k1080pArea = 1920 * 1080;
+  constexpr int64_t k4kArea = 3840 * 2160;
+
   int video_buffer_budget = 0;
-  starboard::Size resolution(resolution_width, resolution_height);
-  if (resolution.IsEmpty() ||
-      resolution.GetArea() <= starboard::Resolution::k1080p.GetArea()) {
+  if (resolution.IsEmpty() || resolution.GetArea() <= k1080pArea) {
     video_buffer_budget = 30 * 1024 * 1024;
-  } else if (resolution.GetArea() <= starboard::Resolution::k4k.GetArea()) {
+  } else if (resolution.GetArea() <= k4kArea) {
     if (bits_per_pixel <= 8) {
       video_buffer_budget = 100 * 1024 * 1024;
     } else {
@@ -91,8 +90,7 @@ int GetVideoDecoderBufferLimitBytes(VideoCodec codec,
                                     int bits_per_pixel) {
 #if BUILDFLAG(IS_ANDROID)
   if (g_enable_area_based_video_buffer_budget.load()) {
-    return ExperimentalAreaBasedVideoBufferBudget(
-        resolution.width(), resolution.height(), bits_per_pixel);
+    return ExperimentalAreaBasedVideoBufferBudget(resolution, bits_per_pixel);
   }
 #endif  // BUILDFLAG(IS_ANDROID)
   return SbMediaGetVideoBufferBudget(MediaVideoCodecToSbMediaVideoCodec(codec),
