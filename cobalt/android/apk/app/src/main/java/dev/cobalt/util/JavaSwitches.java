@@ -26,7 +26,6 @@ public class JavaSwitches {
   public static final String ENABLE_QUIC = "EnableQUIC";
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
   public static final String STARTUP_GUARD_INTERVAL_IN_SECONDS = "StartupGuardIntervalInSeconds";
-  public static final String DISABLE_HTTP_CACHE = "DisableHttpCache";
   public static final String ENABLE_OPTIMIZED_FONT_LOADING = "EnableOptimizedFontLoading";
 
   /** flag to re-enable freeze and resume events */
@@ -103,10 +102,6 @@ public class JavaSwitches {
 
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
       extraCommandLineArgs.add("--disable-quic");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.DISABLE_HTTP_CACHE)) {
-      extraCommandLineArgs.add("--disable-http-cache");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_V8_CONCURRENT_MARKING)) {
