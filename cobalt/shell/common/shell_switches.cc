@@ -31,9 +31,6 @@ const char kCrashDumpsDir[] = "crash-dumps-dir";
 // Disables showing splash screen.
 const char kDisableSplashScreen[] = "disable-splash-screen";
 
-// Disables the HTTP cache.
-const char kDisableHttpCache[] = "disable-http-cache";
-
 // Disables the check for the system font when specified.
 const char kDisableSystemFontCheck[] = "disable-system-font-check";
 
