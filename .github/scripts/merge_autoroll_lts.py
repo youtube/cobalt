@@ -16,7 +16,7 @@ import urllib.error
 import urllib.request
 
 # Global configuration for target repository
-REPO_OWNER_PATH = 'youtube/cobalt_sandbox'
+REPO_OWNER_PATH = os.environ.get('GITHUB_REPOSITORY', 'youtube/cobalt')
 REPO_URL = f'https://github.com/{REPO_OWNER_PATH}.git'
 
 

@@ -3,6 +3,7 @@
 
 import json
 import os
+import subprocess
 import sys
 import unittest
 from unittest.mock import MagicMock, patch
@@ -178,6 +179,75 @@ class TestGetGithubToken(unittest.TestCase):
       token = merge_autoroll_lts.get_github_token()
     self.assertEqual(token, 'app_token')
     mock_get_app_token.assert_called_once_with('12345', '/tmp/fake_key.pem')
+
+  # pylint: enable=unused-argument
+
+
+class TestAppCredentialExchange(unittest.TestCase):
+  """Test cases for generating JWT and fetching App access tokens."""
+
+  # pylint: disable=unused-argument
+
+  @patch('subprocess.Popen')
+  def test_generate_jwt_success(self, mock_popen):
+    mock_proc = MagicMock()
+    mock_proc.communicate.return_value = (b'fake_signature', b'')
+    mock_proc.returncode = 0
+    mock_popen.return_value.__enter__.return_value = mock_proc
+
+    with patch('time.time', return_value=100000):
+      jwt = merge_autoroll_lts.generate_jwt('12345', '/tmp/fake.pem')
+
+    self.assertTrue(jwt.startswith('eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.'))
+    mock_popen.assert_called_once_with(
+        ['openssl', 'dgst', '-sha256', '-sign', '/tmp/fake.pem'],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE)
+
+  @patch('subprocess.Popen')
+  def test_generate_jwt_openssl_not_found(self, mock_popen):
+    mock_popen.side_effect = FileNotFoundError('openssl not found')
+
+    with patch('sys.stdout'), patch('sys.stderr'):
+      with self.assertRaises(SystemExit) as cm:
+        merge_autoroll_lts.generate_jwt('12345', '/tmp/fake.pem')
+
+    self.assertEqual(cm.exception.code, 1)
+
+  @patch('subprocess.Popen')
+  def test_generate_jwt_openssl_error(self, mock_popen):
+    mock_proc = MagicMock()
+    mock_proc.communicate.return_value = (b'', b'some error')
+    mock_proc.returncode = 1
+    mock_popen.return_value.__enter__.return_value = mock_proc
+
+    with patch('sys.stdout'), patch('sys.stderr'):
+      with self.assertRaises(SystemExit) as cm:
+        merge_autoroll_lts.generate_jwt('12345', '/tmp/fake.pem')
+
+    self.assertEqual(cm.exception.code, 1)
+
+  @patch('urllib.request.urlopen')
+  @patch('merge_autoroll_lts.generate_jwt', return_value='fake_jwt')
+  def test_get_installation_access_token_success(self, mock_generate_jwt,
+                                                 mock_urlopen):
+    mock_res_inst = MagicMock()
+    mock_res_inst.__enter__.return_value = mock_res_inst
+    mock_res_inst.read.return_value = b'{"id": 98765}'
+
+    mock_res_tok = MagicMock()
+    mock_res_tok.__enter__.return_value = mock_res_tok
+    mock_res_tok.read.return_value = b'{"token": "app_installed_token"}'
+
+    mock_urlopen.side_effect = [mock_res_inst, mock_res_tok]
+
+    with patch('sys.stdout'), patch('sys.stderr'):
+      token = merge_autoroll_lts.get_installation_access_token(
+          '12345', '/tmp/fake.pem')
+
+    self.assertEqual(token, 'app_installed_token')
+    mock_generate_jwt.assert_called_once_with('12345', '/tmp/fake.pem')
 
   # pylint: enable=unused-argument
 
