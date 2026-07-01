@@ -543,12 +543,12 @@ void PartitionAddressSpace::UnmapShadowMetadata(uintptr_t super_page,
 
 #endif  // PA_CONFIG(ENABLE_SHADOW_METADATA)
 
+#endif  // PA_BUILDFLAG(HAS_64_BIT_POINTERS)
+
 #if defined(PARTITION_ALLOCATOR_CONSTANTS_POSIX_NONCONST_PAGE_SIZE)
 
 PageCharacteristics page_characteristics;
 
 #endif
-
-#endif  // PA_BUILDFLAG(HAS_64_BIT_POINTERS)
 
 }  // namespace partition_alloc::internal

@@ -22,7 +22,7 @@ runs:
   steps:
     - name: Set up Cloud SDK
       uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
-      if: ${{ inputs.is_pr == 'true' }}
+      if: inputs.is_pr == 'true'
 
     - name: Set Docker Build Vars
       env:

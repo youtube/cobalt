@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "base/functional/bind.h"
 #include "base/run_loop.h"
 #include "build/buildflag.h"
 #include "cobalt/app/app_event_delegate.h"
@@ -37,6 +38,11 @@ void SbEventHandle(const SbEvent* event) {
     s_lifecycle_delegate->SetQuitClosure(run_loop.QuitClosure());
     s_lifecycle_delegate->HandleEvent(event);
     run_loop.Run();
+
+    // Run pending tasks until idle before teardown.
+    base::RunLoop().RunUntilIdle();
+
+    // Start synchronous teardown.
     s_lifecycle_delegate->DoTeardown();
     delete s_lifecycle_delegate;
     s_lifecycle_delegate = nullptr;

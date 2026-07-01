@@ -7,11 +7,6 @@ on:
       - main
       - experimental/*
       - feature/*
-  push:
-    branches:
-      - main
-      - experimental/*
-      - feature/*
   workflow_dispatch:
     inputs:
       nightly:
