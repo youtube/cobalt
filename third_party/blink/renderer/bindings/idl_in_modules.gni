@@ -1424,7 +1424,8 @@ if (enable_compute_pressure) {
   ]
 }
 
-# If in the future privacy sandbox components are removed from the code base, ignore this if block.
+# If in the future privacy sandbox components are removed from the code base, we should
+# delete this if block.
 if (!enable_privacy_sandbox_apis) {
   _filtered_static_idl_files = filter_exclude(
       static_idl_files_in_modules,
