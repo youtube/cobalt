@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "build/build_config.h"
 #include "media/audio/audio_debug_recording_helper.h"
 
 namespace media {
@@ -93,12 +94,29 @@ void AudioInputStreamDataInterceptor::OnData(
     base::TimeTicks capture_time,
     double volume,
     const AudioGlitchInfo& audio_glitch_info) {
+#if BUILDFLAG(IS_STARBOARD)
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (callback_) {
+    callback_->OnData(source, capture_time, volume, audio_glitch_info);
+  }
+  if (debug_recorder_) {
+    debug_recorder_->OnData(source);
+  }
+#else
   callback_->OnData(source, capture_time, volume, audio_glitch_info);
   debug_recorder_->OnData(source);
+#endif
 }
 
 void AudioInputStreamDataInterceptor::OnError() {
+#if BUILDFLAG(IS_STARBOARD)
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (callback_) {
+    callback_->OnError();
+  }
+#else
   callback_->OnError();
+#endif
 }
 
 }  // namespace media

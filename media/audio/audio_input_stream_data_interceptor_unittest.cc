@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "build/build_config.h"
 #include "base/functional/callback.h"
 #include "base/memory/ptr_util.h"
 #include "base/time/time.h"
@@ -315,5 +316,29 @@ TEST(AudioInputStreamDataInterceptorTest, IsMuted_False) {
   EXPECT_CALL(stream, Close());
   interceptor->Close();
 }
+
+#if BUILDFLAG(IS_STARBOARD)
+TEST(AudioInputStreamDataInterceptorTest, OnDataAndOnErrorWhenNullCallbackOrRecorder) {
+  MockDebugRecorderFactory factory;
+  StrictMock<MockStream> stream;
+  std::unique_ptr<AudioBus> audio_bus = AudioBus::Create(1, 1);
+  AudioInputStreamDataInterceptor* interceptor =
+      new AudioInputStreamDataInterceptor(
+          base::BindRepeating(&MockDebugRecorderFactory::CreateDebugRecorder,
+                              base::Unretained(&factory)),
+          &stream);
+
+  base::TimeTicks time = base::TimeTicks::Now();
+  AudioGlitchInfo glitch_info{.duration = base::Milliseconds(123), .count = 5};
+
+  // Calling OnData and OnError when callback_ and debug_recorder_ are null
+  // (before Start() or after Stop()) should not crash.
+  interceptor->OnData(audio_bus.get(), time, kVolume, glitch_info);
+  interceptor->OnError();
+
+  EXPECT_CALL(stream, Close());
+  interceptor->Close();
+}
+#endif
 
 }  // namespace media
