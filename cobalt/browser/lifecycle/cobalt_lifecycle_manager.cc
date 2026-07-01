@@ -464,23 +464,7 @@ void CobaltLifecycleManager::StartWaitingForAck(
         base::BindOnce(&CobaltLifecycleManager::NotifyStartWaitingForReveal,
                        base::Unretained(this), web_contents->GetWeakPtr()));
   } else {
-    // For downward transitions, only track the active Primary Main Frame.
-    // This excludes subframes (which can be aggressively throttled or paused
-    // by Blink's scheduler) and older, navigated-away main frames that are
-    // still leaking in memory pending deletion.
-    auto* primary_main_frame = web_contents->GetPrimaryMainFrame();
-    if (primary_main_frame) {
-      if (tracker->IsConnected(primary_main_frame)) {
-        pending_ack_frames_[web_contents].insert(primary_main_frame);
-      } else if (ack_type == PendingAck::kUnfreeze &&
-                 primary_main_frame->IsRenderFrameLive()) {
-        LOG(WARNING) << __func__
-                     << ": Primary Main Frame not connected during Unfreeze! "
-                        "Re-binding frame="
-                     << primary_main_frame;
-        tracker->Rebind(primary_main_frame);
-      }
-    }
+    TrackPrimaryMainFrameForAck(web_contents, tracker, ack_type);
   }
 
   if (pending_ack_frames_[web_contents].empty()) {
@@ -503,6 +487,31 @@ void CobaltLifecycleManager::StartWaitingForAck(
                      base::Unretained(this), web_contents->GetWeakPtr(),
                      ack_type),
       base::Seconds(2));
+}
+
+void CobaltLifecycleManager::TrackPrimaryMainFrameForAck(
+    content::WebContents* web_contents,
+    WebContentsTracker* tracker,
+    PendingAck ack_type) {
+  // For downward transitions, only track the active Primary Main Frame.
+  // This excludes subframes (which can be aggressively throttled or paused
+  // by Blink's scheduler) and older, navigated-away main frames that are
+  // still leaking in memory pending deletion.
+  auto* primary_main_frame = web_contents->GetPrimaryMainFrame();
+  if (!primary_main_frame) {
+    return;
+  }
+
+  if (tracker->IsConnected(primary_main_frame)) {
+    pending_ack_frames_[web_contents].insert(primary_main_frame);
+  } else if (ack_type == PendingAck::kUnfreeze &&
+             primary_main_frame->IsRenderFrameLive()) {
+    LOG(WARNING) << __func__
+                 << ": Primary Main Frame not connected during Unfreeze! "
+                    "Re-binding frame="
+                 << primary_main_frame;
+    tracker->Rebind(primary_main_frame);
+  }
 }
 
 // If we are waiting for reveal on this WebContents and all its registered
