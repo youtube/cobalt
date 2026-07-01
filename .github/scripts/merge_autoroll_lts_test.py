@@ -167,18 +167,21 @@ class TestGetGithubToken(unittest.TestCase):
     token = merge_autoroll_lts.get_github_token()
     self.assertEqual(token, 'env_token')
 
-  @patch('builtins.input', side_effect=['12345', '/tmp/fake_key.pem'])
-  @patch('os.path.exists', return_value=True)
+  @patch(
+      'builtins.input',
+      side_effect=[
+          '-----BEGIN RSA PRIVATE KEY-----', 'MIIEowIBAAKCAQEA08...',
+          '-----END RSA PRIVATE KEY-----'
+      ])
   @patch(
       'merge_autoroll_lts.get_installation_access_token',
       return_value='app_token')
   @patch.dict('os.environ', {}, clear=True)
-  def test_token_from_app_inputs(self, mock_get_app_token, mock_path_exists,
-                                 mock_input):
+  def test_token_from_app_inputs(self, mock_get_app_token, mock_input):
     with patch('sys.stdout'), patch('sys.stderr'):
       token = merge_autoroll_lts.get_github_token()
     self.assertEqual(token, 'app_token')
-    mock_get_app_token.assert_called_once_with('12345', '/tmp/fake_key.pem')
+    mock_get_app_token.assert_called_once_with('3203510', unittest.mock.ANY)
 
   # pylint: enable=unused-argument
 

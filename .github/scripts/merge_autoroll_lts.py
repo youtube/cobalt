@@ -19,6 +19,9 @@ import urllib.request
 REPO_OWNER_PATH = os.environ.get('GITHUB_REPOSITORY', 'youtube/cobalt')
 REPO_URL = f'https://github.com/{REPO_OWNER_PATH}.git'
 
+# Hardcoded GitHub App ID for cobalt-github-releaser
+APP_ID = '3203510'
+
 
 def get_target_branch():
   if len(sys.argv) < 2:
@@ -105,27 +108,43 @@ def get_github_token():
   if token:
     return token
 
-  # Otherwise, look for GitHub App credentials
-  app_id = os.environ.get('GITHUB_APP_ID')
-  private_key_path = os.environ.get('GITHUB_APP_PRIVATE_KEY_PATH')
+  print('>> Authenticating using GitHub App (cobalt-github-releaser).')
+  print('>> Please paste the content of the App Private Key (.pem file):')
+  print('>> (Paste the full block including BEGIN/END headers)')
 
-  if not app_id or not private_key_path:
-    print('>> Authenticating using GitHub App (cobalt-github-releaser).')
-    if not app_id:
-      app_id = input('>> Enter GitHub App ID: ').strip()
-    if not private_key_path:
-      private_key_path = input(
-          '>> Enter path to GitHub App Private Key (.pem): ').strip()
+  key_lines = []
+  while True:
+    try:
+      line = input()
+    except EOFError:
+      break
+    key_lines.append(line)
+    if '-----END' in line:
+      break
 
-    if not app_id or not private_key_path:
-      print('>> Error: Both App ID and Private Key Path are required.')
-      sys.exit(1)
-
-  if not os.path.exists(private_key_path):
-    print(f'>> Error: Private key file not found at {private_key_path}')
+  key_content = '\n'.join(key_lines).strip()
+  if not key_content:
+    print('>> Error: Private key content cannot be empty.')
     sys.exit(1)
 
-  return get_installation_access_token(app_id, private_key_path)
+  # Create a secure temporary file to write the key content to,
+  # so openssl can read it.
+  temp_fd, temp_path = tempfile.mkstemp(suffix='.pem')
+  try:
+    with os.fdopen(temp_fd, 'w') as f:
+      f.write(key_content)
+
+    return get_installation_access_token(APP_ID, temp_path)
+  finally:
+    # Overwrite the temp file with zeros (shred it) to protect the
+    # key content before deleting.
+    if os.path.exists(temp_path):
+      try:
+        with open(temp_path, 'wb') as f:
+          f.write(b'\0' * len(key_content))
+      except IOError:
+        pass
+      os.unlink(temp_path)
 
 
 def find_open_autoroll_pr(target, env):
