@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+# Copyright 2026 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """Tests for merge_autoroll_lts.py."""
 
 import json
@@ -157,6 +170,60 @@ class TestMergeAutorollLts(unittest.TestCase):
 
     self.assertEqual(cm.exception.code, 1)
     mock_run.assert_not_called()
+
+  @patch('subprocess.run')
+  @patch('subprocess.check_output')
+  @patch('merge_autoroll_lts.get_github_token', return_value='fake_token')
+  @patch('sys.argv', ['merge_autoroll_lts.py', '27.lts'])
+  def test_main_close_pr_delete_branch_fails_warning(self, mock_get_token,
+                                                     mock_check_output,
+                                                     mock_run):
+    mock_check_output.return_value = json.dumps([{
+        'number': 1,
+        'title': 'Autoroll from main to 27.lts',
+        'headRefName': 'autoroll-main-to-27.lts',
+        'baseRefName': '27.lts',
+    }])
+
+    def run_side_effect(cmd, *args, **kwargs):
+      if 'close' in cmd:
+        raise subprocess.CalledProcessError(
+            returncode=1,
+            cmd=cmd,
+            output='✓ Closed pull request\n',
+            stderr='failed to delete remote branch: HTTP 404')
+      return MagicMock(returncode=0)
+
+    mock_run.side_effect = run_side_effect
+
+    with patch('sys.stdout'), patch('sys.stderr'):
+      merge_autoroll_lts.main()
+
+  @patch('subprocess.run')
+  @patch('subprocess.check_output')
+  @patch('merge_autoroll_lts.get_github_token', return_value='fake_token')
+  @patch('sys.argv', ['merge_autoroll_lts.py', '27.lts'])
+  def test_main_close_pr_fails_error(self, mock_get_token, mock_check_output,
+                                     mock_run):
+    mock_check_output.return_value = json.dumps([{
+        'number': 1,
+        'title': 'Autoroll from main to 27.lts',
+        'headRefName': 'autoroll-main-to-27.lts',
+        'baseRefName': '27.lts',
+    }])
+
+    def run_side_effect(cmd, *args, **kwargs):
+      if 'close' in cmd:
+        raise subprocess.CalledProcessError(
+            returncode=1, cmd=cmd, output='', stderr='HTTP 403: Forbidden')
+      return MagicMock(returncode=0)
+
+    mock_run.side_effect = run_side_effect
+
+    with patch('sys.stdout'), patch('sys.stderr'):
+      with self.assertRaises(SystemExit) as cm:
+        merge_autoroll_lts.main()
+    self.assertEqual(cm.exception.code, 1)
 
   # pylint: enable=unused-argument
 
