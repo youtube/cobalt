@@ -80,6 +80,7 @@ public class CommandLineOverrideHelperTest {
         Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-accelerated-video-decode"));
         Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-accelerated-video-encode"));
         Assert.assertTrue(CommandLine.getInstance().hasSwitch("enable-zero-copy"));
+        Assert.assertTrue(CommandLine.getInstance().hasSwitch("hide-scrollbars"));
 
         String expected = "no-user-gesture-required";
         String actual = CommandLine.getInstance().getSwitchValue("autoplay-policy");
@@ -101,6 +102,8 @@ public class CommandLineOverrideHelperTest {
         expected =
             CommandLineOverrideHelper.getDefaultBlinkEnableFeatureOverridesList().toString();
         Assert.assertEquals(expected, actual);
+
+        Assert.assertFalse(CommandLine.getInstance().hasSwitch("enable-h5vcc-settings"));
     }
 
     @Test
@@ -123,7 +126,8 @@ public class CommandLineOverrideHelperTest {
         String[] commandLineArgs = {
         "--enable-features=TestFeature1;TestFeature2",
         "--disable-features=TestFeature3",
-        "--js-flags=--test-flag;--another-flag"
+        "--js-flags=--test-flag;--another-flag",
+        "--enable-h5vcc-settings=TestSetting1;TestSetting2"
         };
         CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
             new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
@@ -147,6 +151,10 @@ public class CommandLineOverrideHelperTest {
             CommandLineOverrideHelper.getDefaultJsFlagOverridesList().toString()
                 + ",--test-flag,--another-flag";
         Assert.assertEquals(expectedJs, jsFlags);
+
+        String h5vccSettings = CommandLine.getInstance().getSwitchValue("enable-h5vcc-settings");
+        String expectedH5vcc = "TestSetting1;TestSetting2";
+        Assert.assertEquals(expectedH5vcc, h5vccSettings);
     }
 
     @Test
@@ -198,5 +206,17 @@ public class CommandLineOverrideHelperTest {
             CommandLineOverrideHelper.getDefaultEnableFeatureOverridesList().toString()
                 + ",TestFeature1=value1,TestFeature2=value2";
         Assert.assertEquals(expectedEnable, enableFeatures);
+    }
+
+    @Test
+    public void testFlagOverrides_EnableH5vccSettings() {
+        String[] commandLineArgs = {"--enable-h5vcc-settings=Setting1=val1;Setting2=val2"};
+        CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
+            new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
+                true, commandLineArgs);
+        CommandLineOverrideHelper.getFlagOverrides(params);
+
+        String h5vccSettings = CommandLine.getInstance().getSwitchValue("enable-h5vcc-settings");
+        Assert.assertEquals("Setting1=val1;Setting2=val2", h5vccSettings);
     }
 }

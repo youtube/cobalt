@@ -18,6 +18,7 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <memory>
 #include <mutex>
 #include <vector>
 
@@ -72,6 +73,20 @@ TEST(JobThreadTest, ScheduleAndWaitWaits) {
   // Verify that the job ran and that it took at least as long as it slept.
   EXPECT_TRUE(job_1);
   EXPECT_GE(CurrentMonotonicTime() - start, 1 * kPrecisionUsec);
+  job_thread->Stop();
+}
+
+TEST(JobThreadTest, AcceptsMoveOnlyLambda) {
+  std::atomic_bool executed = false;
+  auto move_only_obj = std::make_unique<int>(100);
+  auto job_thread = JobThread::Create("JobThreadTests");
+
+  job_thread->ScheduleAndWait([ptr = std::move(move_only_obj), &executed]() {
+    EXPECT_EQ(*ptr, 100);
+    executed = true;
+  });
+
+  EXPECT_TRUE(executed);
   job_thread->Stop();
 }
 

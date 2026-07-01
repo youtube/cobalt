@@ -129,15 +129,11 @@ TEST_F(VideoDecoderSurfaceTest, TeardownDuringSurfaceDestroyReleasesSurface) {
   // Thread B: Simulate decoder teardown on the decoder thread.
   // We add a small delay to ensure the JNI thread can acquire the lock first,
   // which is necessary to trigger the deadlock on the unpatched code.
-  std::shared_ptr<MediaCodecVideoDecoder> shared_decoder = std::move(decoder);
-  job_thread->Schedule([shared_decoder]() mutable {
+  job_thread->Schedule([decoder = std::move(decoder)] {
     SB_LOG(INFO) << "Decoder thread: Waiting before destroying...";
     usleep(100'000);
     SB_LOG(INFO) << "Decoder thread: Destroying decoder...";
-    shared_decoder.reset();
-    SB_LOG(INFO) << "Decoder thread: Decoder destroyed.";
   });
-  shared_decoder.reset();
 
   jni_sim_thread.Join();
   auto duration = CurrentMonotonicTime() - start_time;

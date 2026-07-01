@@ -286,26 +286,23 @@ TEST(PartitionAllocAddressPoolManagerTest, IsManagedByRegularPool) {
   uintptr_t addrs[kAllocCount];
   for (size_t i = 0; i < kAllocCount; ++i) {
     addrs[i] = AddressPoolManager::GetInstance().Reserve(
-        kRegularPoolHandle, 0,
-        AddressPoolManagerBitmap::kBytesPer1BitOfRegularPoolBitmap *
-            kNumPages[i]);
+        kRegularPoolHandle, 0, DirectMapAllocationGranularity() * kNumPages[i]);
     EXPECT_TRUE(addrs[i]);
     EXPECT_TRUE(!(addrs[i] & kSuperPageOffsetMask));
     AddressPoolManager::GetInstance().MarkUsed(
         kRegularPoolHandle, addrs[i],
-        AddressPoolManagerBitmap::kBytesPer1BitOfRegularPoolBitmap *
-            kNumPages[i]);
+        DirectMapAllocationGranularity() * kNumPages[i]);
   }
   for (size_t i = 0; i < kAllocCount; ++i) {
     uintptr_t address = addrs[i];
-    size_t num_pages =
-        base::bits::AlignUp(
-            kNumPages[i] *
-                AddressPoolManagerBitmap::kBytesPer1BitOfRegularPoolBitmap,
-            kSuperPageSize) /
+    size_t alloc_size = DirectMapAllocationGranularity() * kNumPages[i];
+    size_t allocated_bits =
+        alloc_size / AddressPoolManagerBitmap::kBytesPer1BitOfRegularPoolBitmap;
+    size_t reserved_bits =
+        base::bits::AlignUp(alloc_size, kSuperPageSize) /
         AddressPoolManagerBitmap::kBytesPer1BitOfRegularPoolBitmap;
-    for (size_t j = 0; j < num_pages; ++j) {
-      if (j < kNumPages[i]) {
+    for (size_t j = 0; j < reserved_bits; ++j) {
+      if (j < allocated_bits) {
         EXPECT_TRUE(AddressPoolManager::IsManagedByRegularPool(address));
       } else {
         EXPECT_FALSE(AddressPoolManager::IsManagedByRegularPool(address));
@@ -317,12 +314,10 @@ TEST(PartitionAllocAddressPoolManagerTest, IsManagedByRegularPool) {
   for (size_t i = 0; i < kAllocCount; ++i) {
     AddressPoolManager::GetInstance().MarkUnused(
         kRegularPoolHandle, addrs[i],
-        AddressPoolManagerBitmap::kBytesPer1BitOfRegularPoolBitmap *
-            kNumPages[i]);
+        DirectMapAllocationGranularity() * kNumPages[i]);
     AddressPoolManager::GetInstance().UnreserveAndDecommit(
         kRegularPoolHandle, addrs[i],
-        AddressPoolManagerBitmap::kBytesPer1BitOfRegularPoolBitmap *
-            kNumPages[i]);
+        DirectMapAllocationGranularity() * kNumPages[i]);
     EXPECT_FALSE(AddressPoolManager::IsManagedByRegularPool(addrs[i]));
     EXPECT_FALSE(AddressPoolManager::IsManagedByBRPPool(addrs[i]));
   }

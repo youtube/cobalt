@@ -47,8 +47,7 @@ EGL_VERSION_1_4
 
 ### SbEglCastsToProperFunctionPointerType
 
-The following type definitions were adapted from the types declared in [https://www.khronos.org/registry/EGL/api/EGL/egl.h](https://www.khronos.org/registry/EGL/api/EGL/egl.h)
-.
+The following type definitions were adapted from the types declared in [https://www.khronos.org/registry/EGL/api/EGL/egl.h](https://www.khronos.org/registry/EGL/api/EGL/egl.h).
 
 #### Definition
 
@@ -58,8 +57,7 @@ typedef void(* SbEglCastsToProperFunctionPointerType) (void)
 
 ### SbEglInt32
 
-The following type definitions were adapted from the types declared in [https://www.khronos.org/registry/EGL/api/EGL/eglplatform.h](https://www.khronos.org/registry/EGL/api/EGL/eglplatform.h)
-.
+The following type definitions were adapted from the types declared in [https://www.khronos.org/registry/EGL/api/EGL/eglplatform.h](https://www.khronos.org/registry/EGL/api/EGL/eglplatform.h).
 
 #### Definition
 
