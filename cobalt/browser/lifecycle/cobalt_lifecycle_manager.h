@@ -15,12 +15,9 @@
 #ifndef COBALT_BROWSER_LIFECYCLE_COBALT_LIFECYCLE_MANAGER_H_
 #define COBALT_BROWSER_LIFECYCLE_COBALT_LIFECYCLE_MANAGER_H_
 
-#include <map>
-#include <set>
 #include <utility>
 #include <vector>
 
-#include "base/containers/flat_set.h"
 #include "base/memory/weak_ptr.h"
 #include "base/no_destructor.h"
 #include "base/observer_list.h"
@@ -228,8 +225,8 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
     CobaltLifecycleManager* manager_;
 
     // Map of active frames to their remote controllers.
-    std::map<content::RenderFrameHost*,
-             mojo::Remote<cobalt::mojom::CobaltLifecycleController>>
+    absl::flat_hash_map<content::RenderFrameHost*,
+                        mojo::Remote<cobalt::mojom::CobaltLifecycleController>>
         controllers_;
 
     // Sets to track the current state of each frame. A frame is considered
@@ -240,6 +237,9 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
   };
 
   WebContentsTracker* GetOrCreateTracker(content::WebContents* web_contents);
+  void TrackPrimaryMainFrameForAck(content::WebContents* web_contents,
+                                   WebContentsTracker* tracker,
+                                   PendingAck ack_type);
 
   // Note: We use raw WebContents* as keys here instead of WeakPtr<WebContents>
   // because base::WeakPtr does not implement operator< in this version of base,
