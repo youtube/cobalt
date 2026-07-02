@@ -35,8 +35,8 @@ namespace {
 
 bool CanUseNdkMediaCodec(std::optional<int> tunnel_mode_audio_session_id,
                          bool require_secured_decoder,
-                         jobject j_media_crypto) {
-  if (!features::FeatureList::IsEnabled(features::kEnableNdkVideo)) {
+                         const jni_zero::JavaRef<jobject>& j_media_crypto) {
+  if (!features::FeatureList::IsEnabled(features::kNdkVideo)) {
     return false;
   }
 

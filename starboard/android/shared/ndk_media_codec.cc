@@ -102,8 +102,8 @@ std::unique_ptr<NdkMediaCodec> NdkMediaCodec::Create(
     int fps,
     const std::optional<Size>& max_frame_size,
     Handler* handler,
-    jobject j_surface,
-    jobject j_media_crypto,
+    const jni_zero::JavaRef<jobject>& j_surface,
+    const jni_zero::JavaRef<jobject>& j_media_crypto,
     const SbMediaColorMetadata* color_metadata,
     bool enable_frame_renderer_listener,
     bool require_secured_decoder,
@@ -145,7 +145,7 @@ std::unique_ptr<NdkMediaCodec> NdkMediaCodec::Create(
   }
 
   ScopedANativeWindow native_window(
-      j_surface ? ANativeWindow_fromSurface(env, j_surface) : nullptr,
+      j_surface ? ANativeWindow_fromSurface(env, j_surface.obj()) : nullptr,
       ANativeWindowDeleter());
 
   if (j_surface && !native_window) {
@@ -274,7 +274,7 @@ void NdkMediaCodec::ReleaseOutputBufferAtTimestamp(jint index,
 }
 
 void NdkMediaCodec::SetPlaybackRate(double playback_rate) {
-  SB_LOG(INFO) << "NdkMediaCodec::SetPlaybackRate: " << playback_rate;
+  SB_LOG(INFO) << __func__ << ": playback_rate=" << playback_rate;
   if (!codec_) {
     return;
   }
