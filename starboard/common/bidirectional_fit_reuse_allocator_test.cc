@@ -388,7 +388,7 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, DecommitExactFallbackBlocks) {
 
   EXPECT_TRUE(block1 != nullptr);
   EXPECT_TRUE(block2 != nullptr);
-  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0U);
 
   // Free them. The allocator may merge the free blocks internally,
   // but it must still decommit the original exact fallback blocks.
@@ -397,7 +397,7 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, DecommitExactFallbackBlocks) {
   this->allocator_->DecommitAllDecommitableBlocks();
 
   // We should have exactly 2 decommits matching the original blocks.
-  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 2);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 2U);
 
   // They might be decommitted in any order, so check if both exist.
   // Note: For EmbeddedMetadataReuseAllocatorBase, `block1` and `block2` are
@@ -442,7 +442,7 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, DecommitOnBatchedFree) {
     blocks.push_back(block);
   }
 
-  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0U);
 
   for (void* block : blocks) {
     this->allocator_->Free(block);
@@ -451,7 +451,7 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, DecommitOnBatchedFree) {
 
   // EmbeddedMetadataReuseAllocatorBase batches frees and processes them all at
   // once when idle.
-  EXPECT_GT(this->mock_fallback_allocator_->decommits.size(), 0);
+  EXPECT_GT(this->mock_fallback_allocator_->decommits.size(), 0U);
 
   size_t total_decommitted_size = 0;
   for (const auto& decommit : this->mock_fallback_allocator_->decommits) {
@@ -487,7 +487,7 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, TieredDecommit) {
   EXPECT_TRUE(block2 != nullptr);
   EXPECT_TRUE(block3 != nullptr);
   EXPECT_TRUE(block4 != nullptr);
-  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0U);
 
   // Free them. The allocator should batch them and process when idle.
   this->allocator_->Free(block1);
@@ -497,7 +497,7 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, TieredDecommit) {
   this->allocator_->DecommitAllDecommitableBlocks();
 
   // Block 1 (retain) is skipped. Block 2, 3, 4 should be decommitted.
-  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 3);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 3U);
 
   bool found_block2 = false;
   bool found_block3 = false;

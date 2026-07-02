@@ -29,7 +29,7 @@ TEST(MemoryIsAlignedTest, CheckAlignmentVariousSizes) {
 }
 
 TEST(MemoryAlignToPageSizeTest, AlignsVariousSizes) {
-  EXPECT_EQ(0, MemoryAlignToPageSize(0));
+  EXPECT_EQ(0U, MemoryAlignToPageSize(0));
   EXPECT_EQ(kSbMemoryPageSize, MemoryAlignToPageSize(1));
   EXPECT_EQ(kSbMemoryPageSize, MemoryAlignToPageSize(kSbMemoryPageSize - 1));
   EXPECT_EQ(kSbMemoryPageSize, MemoryAlignToPageSize(kSbMemoryPageSize));
