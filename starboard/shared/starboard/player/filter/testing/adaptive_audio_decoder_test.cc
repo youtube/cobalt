@@ -176,7 +176,7 @@ class AdaptiveAudioDecoderTest
       return;
     }
     ASSERT_LE(static_cast<size_t>(
-                  abs(expected_output_frames - num_of_output_frames_)),
+                  std::abs(expected_output_frames - num_of_output_frames_)),
               dmp_readers_.size());
   }
 
