@@ -18,8 +18,9 @@
 #include <utility>
 
 #include "base/command_line.h"
-#include "base/functional/bind.h"
+#include "base/test/bind.h"
 #include "base/test/test_support_ios.h"
+#include "starboard/common/log.h"
 #include "starboard/tvos/shared/run_in_background_thread_and_wait.h"
 #include "starboard/tvos/shared/starboard_test_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -35,19 +36,11 @@ void RegisterPlatformTestEnvironments(int argc, char** argv) {
       std::make_unique<StarboardTestEnvironment>(argc, argv).release());
 }
 
-namespace {
-int RunTestsCallbackAdapter(RunTestsCallback run_tests_cb,
-                            int argc,
-                            char** argv) {
-  return run_tests_cb(argc, argv);
-}
-}  // namespace
-
 int RunPlatformTestSuite(int argc, char** argv, RunTestsCallback run_tests_cb) {
-  CHECK(base::CommandLine::InitializedForCurrentProcess() ||
-        base::CommandLine::Init(argc, argv));
+  SB_CHECK(base::CommandLine::InitializedForCurrentProcess() ||
+           base::CommandLine::Init(argc, argv));
   base::InitIOSRunHook(
-      base::BindOnce(&RunTestsCallbackAdapter, run_tests_cb, argc, argv));
+      base::BindLambdaForTesting([&]() { return run_tests_cb(argc, argv); }));
   return base::RunTestsFromIOSApp();
 }
 

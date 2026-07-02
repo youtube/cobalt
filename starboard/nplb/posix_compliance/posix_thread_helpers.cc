@@ -18,7 +18,6 @@
 
 #include <cstddef>
 
-#include "build/build_config.h"
 #include "starboard/common/thread_platform.h"
 #include "starboard/testing/test_runner.h"
 #include "testing/gtest/include/gtest/gtest.h"

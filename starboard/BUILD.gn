@@ -195,11 +195,7 @@ source_set("starboard_test_main") {
   deps = [ ":starboard_headers_only" ]
 
   if (is_ios) {
-    deps += [
-      "//base",
-      "//base/test:test_support",
-      "//starboard/tvos/shared:test_support",
-    ]
+    deps += [ "//starboard/tvos/shared:test_support" ]
   }
 
   if (is_android) {

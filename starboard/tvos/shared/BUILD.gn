@@ -26,7 +26,11 @@ static_library("test_support") {
     "//testing/gtest",
   ]
 
-  deps = [ ":starboard_platform" ]
+  deps = [
+    ":starboard_platform",
+    "//base",
+    "//base/test:test_support",
+  ]
 
   sources = [
     "starboard_test_environment.h",
