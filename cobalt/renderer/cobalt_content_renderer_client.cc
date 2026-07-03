@@ -14,6 +14,7 @@
 
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
 
+#include <memory>
 #include <string>
 #include <variant>
 
@@ -399,7 +400,7 @@ void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
   const base::flat_set<::media::CdmSessionType> kSessionTypes = {
       ::media::CdmSessionType::kTemporary};
 
-  key_system_infos->emplace_back(new cdm::WidevineKeySystemInfo(
+  key_system_infos->push_back(std::make_unique<cdm::WidevineKeySystemInfo>(
       codecs,                        // Regular codecs.
       kEncryptionSchemes,            // Encryption schemes.
       kSessionTypes,                 // Session types.
@@ -411,17 +412,20 @@ void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
       ::media::EmeFeatureSupport::ALWAYS_ENABLED,    // Persistent state.
       ::media::EmeFeatureSupport::ALWAYS_ENABLED));  // Distinctive identifier.
 
-  key_system_infos->emplace_back(new CobaltWidevineL3KeySystemInfo(
-      codecs,                        // Regular codecs.
-      kEncryptionSchemes,            // Encryption schemes.
-      kSessionTypes,                 // Session types.
-      {},                            // Hardware secure codecs.
-      {},                            // Hardware secure encryption schemes.
-      {},                            // Hardware secure session types.
-      Robustness::SW_SECURE_CRYPTO,  // Max audio robustness.
-      Robustness::SW_SECURE_DECODE,  // Max video robustness.
+  key_system_infos->push_back(std::make_unique<CobaltWidevineL3KeySystemInfo>(
+      codecs,                                        // Regular codecs.
+      kEncryptionSchemes,                            // Encryption schemes.
+      kSessionTypes,                                 // Session types.
+      ::media::SupportedCodecs{},                    // Hardware secure codecs.
+      base::flat_set<::media::EncryptionScheme>{},   // Hardware secure
+                                                     // encryption schemes.
+      base::flat_set<::media::CdmSessionType>{},     // Hardware secure session
+                                                     // types.
+      Robustness::SW_SECURE_CRYPTO,                  // Max audio robustness.
+      Robustness::SW_SECURE_DECODE,                  // Max video robustness.
       ::media::EmeFeatureSupport::ALWAYS_ENABLED,    // Persistent state.
-      ::media::EmeFeatureSupport::ALWAYS_ENABLED));  // Distinctive identifier.
+      ::media::EmeFeatureSupport::ALWAYS_ENABLED));  // Distinctive
+                                                     // identifier.
 }
 
 std::unique_ptr<::media::KeySystemSupportRegistration>
