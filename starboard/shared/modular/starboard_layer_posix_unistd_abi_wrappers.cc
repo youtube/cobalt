@@ -146,6 +146,32 @@ int musl_unlink_flag_to_platform_flag(int musl_flag) {
       return -1;
   }
 }
+
+#if defined(__ANDROID__)
+// Recognized musl names bionic can't resolve. POSIX reserves EINVAL for invalid
+// names, so return -1 (unsupported) without EINVAL translating bionic's correct
+// semantics to a still conformant implementation to match the tests expectations.
+bool IsUnsupportedAndroidSysconfName(int name) {
+  // Options: _SC_V6_* aren't defined in the NDK; legacy _SC_XBS5_* defined but
+  // rejected by bionic. <unistd.h> uses value -1 for "not supported"; POSIX
+  // leaves an unsupported option's result unspecified, so -1/no-EINVAL is
+  // conformant.
+  return name == MUSL_SC_V6_ILP32_OFF32 || name == MUSL_SC_V6_ILP32_OFFBIG ||
+         name == MUSL_SC_V6_LP64_OFF64 || name == MUSL_SC_V6_LPBIG_OFFBIG ||
+         name == MUSL_SC_XBS5_ILP32_OFF32 ||
+         name == MUSL_SC_XBS5_ILP32_OFFBIG ||
+         name == MUSL_SC_XBS5_LP64_OFF64 || name == MUSL_SC_XBS5_LPBIG_OFFBIG;
+}
+
+bool IsUnsupportedAndroidPathconfName(int name) {
+  // _PC_REC_*_XFER_SIZE: <limits.h> vars with no limit for the file -> -1
+  // without errno. Translates bionic's EINVAL to conformant behavior that
+  // matches NPLB tests expectations.
+  // _PC_SOCK_MAXBUF: non-POSIX extension the NDK lacks, handled the same way.
+  return name == MUSL_PC_SOCK_MAXBUF || name == MUSL_PC_REC_INCR_XFER_SIZE ||
+         name == MUSL_PC_REC_MAX_XFER_SIZE;
+}
+#endif  // defined(__ANDROID__)
 }  // namespace
 
 int __abi_wrap_ftruncate(int fildes, musl_off_t length) {
@@ -157,6 +183,11 @@ musl_off_t __abi_wrap_lseek(int fildes, musl_off_t offset, int whence) {
 }
 
 long __abi_wrap_sysconf(int name) {
+#if defined(__ANDROID__)
+  if (IsUnsupportedAndroidSysconfName(name)) {
+    return -1;
+  }
+#endif
   switch (name) {
 #if defined(_SC_ARG_MAX)
     case MUSL_SC_ARG_MAX:
@@ -683,6 +714,11 @@ long __abi_wrap_sysconf(int name) {
 // If |musl_conf_to_platform_conf| returns -1,
 // just return -1 (errno is set to EINVAL by musl_conf_to_platform_conf()).
 long __abi_wrap_pathconf(const char* path, int name) {
+#if defined(__ANDROID__)
+  if (IsUnsupportedAndroidPathconfName(name)) {
+    return -1;
+  }
+#endif
   int converted_name = musl_conf_to_platform_conf(name);
   return (converted_name == -1) ? -1 : pathconf(path, converted_name);
 }
