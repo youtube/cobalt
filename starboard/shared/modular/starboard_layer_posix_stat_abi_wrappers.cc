@@ -16,8 +16,10 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 static_assert(S_ISUID == 04000,
               "The Starboard layer wrapper expects this value from musl");
@@ -204,5 +206,22 @@ int __abi_wrap_fstatat(int fildes,
   }
   struct stat stat_info;  // The type from platform toolchain.
   int retval = fstatat(fildes, path, &stat_info, flag);
-  return stat_helper(retval, &stat_info, musl_info);
+  int result = stat_helper(retval, &stat_info, musl_info);
+  if (result == 0 && (flag & AT_SYMLINK_NOFOLLOW) &&
+      S_ISLNK(stat_info.st_mode)) {
+    // POSIX requires a symlink's st_size to be the length of the target path.
+    // Android's /data filesystem reports a different value, so normalize it via
+    // readlink for the inner (musl) library. On platforms that already report
+    // the POSIX value this is a no-op (same length).
+    // Save and restore errno so a readlinkat failure doesn't pollute it while
+    // the wrapper returns success.
+    int saved_errno = errno;
+    char buf[PATH_MAX];
+    ssize_t len = readlinkat(fildes, path, buf, sizeof(buf));
+    if (len >= 0) {
+      musl_info->st_size = len;
+    }
+    errno = saved_errno;
+  }
+  return result;
 }
