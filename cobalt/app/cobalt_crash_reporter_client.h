@@ -38,9 +38,11 @@ class CobaltCrashReporterClient : public crash_reporter::CrashReporterClient {
 
   std::string GetUploadUrl() override;
 
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   void GetSanitizationInformation(const char* const** allowed_annotations,
                                   void** target_module,
                                   bool* sanitize_stacks) override;
+#endif
 
  private:
   friend class base::NoDestructor<CobaltCrashReporterClient>;

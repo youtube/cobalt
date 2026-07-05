@@ -316,6 +316,10 @@ if (is_cobalt) {
       "*v8_private_aggregation*",
       "*private_attribution*",
       "*storage_access*",
+      "*ad_auction*",
+      "*navigator_auction*",
+      "*protected_audience*",
+      "*interest_group*",
     ]
   }
 }
