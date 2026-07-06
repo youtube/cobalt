@@ -29,6 +29,10 @@
 #include "starboard/elf_loader/sabi_string.h"
 #include "starboard/event.h"
 
+#if defined(IS_ANDROID)
+#include "starboard/shared/starboard/features_test_util.h"
+#endif
+
 elf_loader::ElfLoader g_elf_loader;
 
 void (*g_sb_event_func)(const SbEvent*) = NULL;
@@ -135,5 +139,10 @@ void SbEventHandle(const SbEvent* event) {
 }
 
 int main(int argc, char** argv) {
+#if defined(IS_ANDROID)
+  // The evergreen inner library's static initializers query Starboard
+  // features, so seed the FeatureList with defaults before it is loaded.
+  starboard::features::InitializeStarboardFeatureListWithDefaults();
+#endif
   return SbRunStarboardMain(argc, argv, SbEventHandle);
 }

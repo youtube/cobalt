@@ -92,11 +92,15 @@ template("evergreen_final_target") {
     data_deps = [
       ":${original_target_name}_loaded_content",
       ":${original_target_name}_runfile_gen",
-      "//starboard/elf_loader:elf_loader_sandbox($starboard_toolchain)",
-      "//starboard/loader_app($starboard_toolchain)",
     ]
     deps = [ "//starboard/loader_app($starboard_toolchain)" ]
     write_runtime_deps = "$root_build_dir/${target_name}.runtime_deps"
+
+    if (original_target_name == "cobalt") {
+      data_deps += [ "//starboard/loader_app($starboard_toolchain)" ]
+    } else {
+      data_deps += [ "//starboard/elf_loader:elf_loader_sandbox($starboard_toolchain)" ]
+    }
   }
 
   group("${original_target_name}_loaded_content") {
