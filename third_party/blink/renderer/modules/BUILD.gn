@@ -322,6 +322,7 @@ source_set("modules_testing") {
     "webaudio/testing/internals_web_audio.h",
   ]
 
+  # If in the future privacy sandbox components are removed from the code base, ignore this if block.
   if (!enable_privacy_sandbox_apis) {
     _ad_auction_testing_filtered_sources = filter_exclude(sources, [ "ad_auction/testing/*" ])
     sources = []
