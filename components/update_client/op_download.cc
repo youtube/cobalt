@@ -35,6 +35,8 @@
 
 #if BUILDFLAG(IS_STARBOARD)
 #include <algorithm>
+#include "base/feature_list.h"
+#include "cobalt/browser/features.h"  // nogncheck
 #include "starboard/system.h"  // nogncheck
 #endif
 
@@ -47,11 +49,6 @@ namespace {
 constexpr int64_t kBackgroundDownloadSizeThreshold = 10'000'000; /*10 MB*/
 #elif !BUILDFLAG(IS_STARBOARD)
 constexpr int64_t kBackgroundDownloadSizeThreshold = 0;
-#endif
-
-#if defined(IN_MEMORY_UPDATES)
-// Memory buffer required for downloading the update in memory.
-constexpr int64_t kMemoryBufferBytes = 20 * 1024 * 1024;
 #endif
 
 #if !BUILDFLAG(IS_STARBOARD)
@@ -203,9 +200,17 @@ void HandleAvailableSpace(
   int64_t used_memory = SbSystemGetUsedCPUMemory();
   int64_t available_memory = std::max(int64_t{0}, total_memory - used_memory);
 
-  if (total_memory > 0 && available_memory < size + kMemoryBufferBytes) {
+  // Get() returns the C++ default (35MB) if the feature is disabled,
+  // or the Finch-provided value if the feature is enabled. This buffer
+  // acts as a safety margin in case memory usage fluctuates elsewhere
+  // on the system while the download is in progress.
+  int64_t memory_buffer_bytes = cobalt::features::kInMemoryUpdatesMemoryBufferParam.Get();
+
+  if (total_memory > 0 && available_memory < size + memory_buffer_bytes) {
     VLOG(1)
-        << "Insufficient memory for the update plus 20MB buffer. Available memory: "
+        << "Insufficient memory for the update plus "
+        << (memory_buffer_bytes / (1024 * 1024))
+        << "MB buffer. Available memory: "
         << available_memory << ", download size: " << size;
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
