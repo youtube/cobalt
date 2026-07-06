@@ -282,11 +282,21 @@ class MediaCodecBridge {
     }
     final MediaCodec[] result = new MediaCodec[1];
     final Exception[] exception = new Exception[1];
+    final boolean[] cancelled = new boolean[1];
     Handler handler = new Handler(handlerThread.getLooper());
     java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
     boolean posted = handler.post(() -> {
       try {
-        result[0] = MediaCodec.createByCodecName(decoderName);
+        MediaCodec codec = MediaCodec.createByCodecName(decoderName);
+        synchronized (latch) {
+          if (cancelled[0]) {
+            if (codec != null) {
+              codec.release();
+            }
+          } else {
+            result[0] = codec;
+          }
+        }
       } catch (Exception e) {
         exception[0] = e;
       } finally {
@@ -300,6 +310,9 @@ class MediaCodecBridge {
     try {
       latch.await();
     } catch (InterruptedException e) {
+      synchronized (latch) {
+        cancelled[0] = true;
+      }
       Thread.currentThread().interrupt();
     }
     if (exception[0] != null) {
@@ -317,8 +330,9 @@ class MediaCodecBridge {
     mMediaCodecThread = new HandlerThread("MediaCodecBridgeThread_" + decoderName);
     mMediaCodecThread.start();
     mMediaCodecHandler = new Handler(mMediaCodecThread.getLooper());
+    MediaCodec mediaCodec = null;
     try {
-      MediaCodec mediaCodec = createMediaCodecOnHandlerThread(decoderName, mMediaCodecThread);
+      mediaCodec = createMediaCodecOnHandlerThread(decoderName, mMediaCodecThread);
       if (mediaCodec == null) {
         throw new IllegalArgumentException("Failed to create MediaCodec for " + decoderName);
       }
@@ -428,6 +442,13 @@ class MediaCodecBridge {
       }
       mFrameRateEstimator = MediaCodecFrameRateEstimator.create(mIsTunnelingPlayback);
     } catch (Throwable t) {
+      if (mediaCodec != null) {
+        try {
+          mediaCodec.release();
+        } catch (Exception e) {
+          Log.e(TAG, "Failed to release MediaCodec during cleanup", e);
+        }
+      }
       mMediaCodecThread.quitSafely();
       throw t;
     }
@@ -531,157 +552,163 @@ class MediaCodecBridge {
       return;
     }
 
-    bridge.mSkipVideoFramesOver60Fps = skipVideoFramesOver60Fps;
-    MediaCodecOutputTracker.get().register(bridge);
-    MediaFormat mediaFormat =
-        createVideoDecoderFormat(mime, widthHint, heightHint, videoCapabilities);
+    try {
+      bridge.mSkipVideoFramesOver60Fps = skipVideoFramesOver60Fps;
+      MediaCodecOutputTracker.get().register(bridge);
+      MediaFormat mediaFormat =
+          createVideoDecoderFormat(mime, widthHint, heightHint, videoCapabilities);
 
-    if (enableLowLatency) {
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        Log.i(TAG, "Enabling low-latency playback.");
-        mediaFormat.setInteger(MediaFormat.KEY_LOW_LATENCY, 1);
-      } else {
-        Log.i(
-            TAG,
-            "Low-latency playback requested but not supported on API level "
-                + Build.VERSION.SDK_INT);
-      }
-    }
-
-    boolean shouldConfigureHdr =
-        colorInfo != null && MediaCodecUtil.isHdrCapableVideoDecoder(mime, codecCapabilities);
-    if (shouldConfigureHdr) {
-      Log.d(TAG, "Setting HDR info.");
-      mediaFormat.setInteger(MediaFormat.KEY_COLOR_TRANSFER, colorInfo.colorTransfer);
-      mediaFormat.setInteger(MediaFormat.KEY_COLOR_STANDARD, colorInfo.colorStandard);
-      // If color range is unspecified, don't set it.
-      if (colorInfo.colorRange != 0) {
-        mediaFormat.setInteger(MediaFormat.KEY_COLOR_RANGE, colorInfo.colorRange);
-      }
-      mediaFormat.setByteBuffer(MediaFormat.KEY_HDR_STATIC_INFO, colorInfo.hdrStaticInfo);
-    }
-
-    if (tunnelModeAudioSessionId != TunnelModeAudioSessionId.NONE) {
-      mediaFormat.setFeatureEnabled(CodecCapabilities.FEATURE_TunneledPlayback, true);
-      mediaFormat.setInteger(MediaFormat.KEY_AUDIO_SESSION_ID, tunnelModeAudioSessionId);
-      Log.d(TAG, "Enabled tunnel mode playback on audio session " + tunnelModeAudioSessionId);
-
-      // TODO (b/495868363): KEY_PRIORITY might be also needed for non tunnel playback.
-      // Set KEY_PRIORITY to realtime priority.
-      mediaFormat.setInteger(MediaFormat.KEY_PRIORITY, 0 /* realtime priority */);
-    }
-
-    if (maxWidth > 0 && maxHeight > 0) {
-      Log.i(TAG, "Evaluate maxWidth and maxHeight (%d, %d) passed in", maxWidth, maxHeight);
-    } else {
-      maxWidth = videoCapabilities.getSupportedWidths().getUpper();
-      maxHeight = videoCapabilities.getSupportedHeights().getUpper();
-      Log.i(
-          TAG,
-          "maxWidth and maxHeight not passed in, using result of getSupportedWidths()/Heights()"
-              + " (%d, %d)",
-          maxWidth,
-          maxHeight);
-    }
-
-    if (fps > 0) {
-      if (videoCapabilities.areSizeAndRateSupported(maxWidth, maxHeight, fps)) {
-        Log.i(
-            TAG,
-            "Set maxWidth and maxHeight to (%d, %d)@%d per `areSizeAndRateSupported()`",
-            maxWidth,
-            maxHeight,
-            fps);
-      } else {
-        Log.w(
-            TAG,
-            "maxWidth and maxHeight (%d, %d)@%d not supported per `areSizeAndRateSupported()`,"
-                + " continue searching",
-            maxWidth,
-            maxHeight,
-            fps);
-        if (maxHeight >= 4320 && videoCapabilities.areSizeAndRateSupported(7680, 4320, fps)) {
-          maxWidth = 7680;
-          maxHeight = 4320;
-        } else if (maxHeight >= 2160
-            && videoCapabilities.areSizeAndRateSupported(3840, 2160, fps)) {
-          maxWidth = 3840;
-          maxHeight = 2160;
-        } else if (maxHeight >= 1080
-            && videoCapabilities.areSizeAndRateSupported(1920, 1080, fps)) {
-          maxWidth = 1920;
-          maxHeight = 1080;
+      if (enableLowLatency) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+          Log.i(TAG, "Enabling low-latency playback.");
+          mediaFormat.setInteger(MediaFormat.KEY_LOW_LATENCY, 1);
         } else {
-          Log.e(TAG, "Failed to find a compatible resolution");
-          maxWidth = 1920;
-          maxHeight = 1080;
+          Log.i(
+              TAG,
+              "Low-latency playback requested but not supported on API level "
+                  + Build.VERSION.SDK_INT);
         }
-        Log.i(
-            TAG,
-            "Set maxWidth and maxHeight to (%d, %d)@%d per `areSizeAndRateSupported()`",
-            maxWidth,
-            maxHeight,
-            fps);
       }
-    } else {
-      if (maxHeight >= 480 && videoCapabilities.isSizeSupported(maxWidth, maxHeight)) {
-        // Technically we can do this check for all resolutions, but only check for resolution with
-        // height more than 480p to minimize production impact.  To use a lower resolution is more
-        // to reduce memory footprint, and optimize for lower resolution isn't as helpful anyway.
-        Log.i(
-            TAG,
-            "Set maxWidth and maxHeight to (%d, %d) per `isSizeSupported()`",
-            maxWidth,
-            maxHeight);
-      } else {
-        if (maxHeight >= 2160 && videoCapabilities.isSizeSupported(3840, 2160)) {
-          maxWidth = 3840;
-          maxHeight = 2160;
-        } else if (maxHeight >= 1080 && videoCapabilities.isSizeSupported(1920, 1080)) {
-          maxWidth = 1920;
-          maxHeight = 1080;
-        } else {
-          Log.e(TAG, "Failed to find a compatible resolution");
-          maxWidth = 1920;
-          maxHeight = 1080;
+
+      boolean shouldConfigureHdr =
+          colorInfo != null && MediaCodecUtil.isHdrCapableVideoDecoder(mime, codecCapabilities);
+      if (shouldConfigureHdr) {
+        Log.d(TAG, "Setting HDR info.");
+        mediaFormat.setInteger(MediaFormat.KEY_COLOR_TRANSFER, colorInfo.colorTransfer);
+        mediaFormat.setInteger(MediaFormat.KEY_COLOR_STANDARD, colorInfo.colorStandard);
+        // If color range is unspecified, don't set it.
+        if (colorInfo.colorRange != 0) {
+          mediaFormat.setInteger(MediaFormat.KEY_COLOR_RANGE, colorInfo.colorRange);
         }
+        mediaFormat.setByteBuffer(MediaFormat.KEY_HDR_STATIC_INFO, colorInfo.hdrStaticInfo);
+      }
+
+      if (tunnelModeAudioSessionId != TunnelModeAudioSessionId.NONE) {
+        mediaFormat.setFeatureEnabled(CodecCapabilities.FEATURE_TunneledPlayback, true);
+        mediaFormat.setInteger(MediaFormat.KEY_AUDIO_SESSION_ID, tunnelModeAudioSessionId);
+        Log.d(TAG, "Enabled tunnel mode playback on audio session " + tunnelModeAudioSessionId);
+
+        // TODO (b/495868363): KEY_PRIORITY might be also needed for non tunnel playback.
+        // Set KEY_PRIORITY to realtime priority.
+        mediaFormat.setInteger(MediaFormat.KEY_PRIORITY, 0 /* realtime priority */);
+      }
+
+      if (maxWidth > 0 && maxHeight > 0) {
+        Log.i(TAG, "Evaluate maxWidth and maxHeight (%d, %d) passed in", maxWidth, maxHeight);
+      } else {
+        maxWidth = videoCapabilities.getSupportedWidths().getUpper();
+        maxHeight = videoCapabilities.getSupportedHeights().getUpper();
         Log.i(
             TAG,
-            "Set maxWidth and maxHeight to (%d, %d) per `isSizeSupported()`",
+            "maxWidth and maxHeight not passed in, using result of getSupportedWidths()/Heights()"
+                + " (%d, %d)",
             maxWidth,
             maxHeight);
       }
-    }
 
-    if (maxVideoInputSize > 0) {
-      mediaFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, maxVideoInputSize);
-      try {
-        Log.i(
-            TAG,
-            "Overwrite KEY_MAX_INPUT_SIZE to "
-                + maxVideoInputSize
-                + " (actual: "
-                + mediaFormat.getInteger(android.media.MediaFormat.KEY_MAX_INPUT_SIZE)
-                + ").");
-      } catch (Exception e) {
-        Log.e(TAG, "MediaFormat.getInteger(KEY_MAX_INPUT_SIZE) failed with exception: ", e);
+      if (fps > 0) {
+        if (videoCapabilities.areSizeAndRateSupported(maxWidth, maxHeight, fps)) {
+          Log.i(
+              TAG,
+              "Set maxWidth and maxHeight to (%d, %d)@%d per `areSizeAndRateSupported()`",
+              maxWidth,
+              maxHeight,
+              fps);
+        } else {
+          Log.w(
+              TAG,
+              "maxWidth and maxHeight (%d, %d)@%d not supported per `areSizeAndRateSupported()`,"
+                  + " continue searching",
+              maxWidth,
+              maxHeight,
+              fps);
+          if (maxHeight >= 4320 && videoCapabilities.areSizeAndRateSupported(7680, 4320, fps)) {
+            maxWidth = 7680;
+            maxHeight = 4320;
+          } else if (maxHeight >= 2160
+              && videoCapabilities.areSizeAndRateSupported(3840, 2160, fps)) {
+            maxWidth = 3840;
+            maxHeight = 2160;
+          } else if (maxHeight >= 1080
+              && videoCapabilities.areSizeAndRateSupported(1920, 1080, fps)) {
+            maxWidth = 1920;
+            maxHeight = 1080;
+          } else {
+            Log.e(TAG, "Failed to find a compatible resolution");
+            maxWidth = 1920;
+            maxHeight = 1080;
+          }
+          Log.i(
+              TAG,
+              "Set maxWidth and maxHeight to (%d, %d)@%d per `areSizeAndRateSupported()`",
+              maxWidth,
+              maxHeight,
+              fps);
+        }
+      } else {
+        if (maxHeight >= 480 && videoCapabilities.isSizeSupported(maxWidth, maxHeight)) {
+          // Technically we can do this check for all resolutions, but only check for resolution with
+          // height more than 480p to minimize production impact.  To use a lower resolution is more
+          // to reduce memory footprint, and optimize for lower resolution isn't as helpful anyway.
+          Log.i(
+              TAG,
+              "Set maxWidth and maxHeight to (%d, %d) per `isSizeSupported()`",
+              maxWidth,
+              maxHeight);
+        } else {
+          if (maxHeight >= 2160 && videoCapabilities.isSizeSupported(3840, 2160)) {
+            maxWidth = 3840;
+            maxHeight = 2160;
+          } else if (maxHeight >= 1080 && videoCapabilities.isSizeSupported(1920, 1080)) {
+            maxWidth = 1920;
+            maxHeight = 1080;
+          } else {
+            Log.e(TAG, "Failed to find a compatible resolution");
+            maxWidth = 1920;
+            maxHeight = 1080;
+          }
+          Log.i(
+              TAG,
+              "Set maxWidth and maxHeight to (%d, %d) per `isSizeSupported()`",
+              maxWidth,
+              maxHeight);
+        }
       }
-    }
-    if (!bridge.configureVideo(
-        mediaFormat, surface, crypto, 0, maxWidth, maxHeight, outCreateMediaCodecBridgeResult)) {
-      Log.e(TAG, "Failed to configure video codec.");
-      bridge.release();
-      // outCreateMediaCodecBridgeResult.mErrorMessage is set inside configureVideo() on error.
-      return;
-    }
-    if (!bridge.start(outCreateMediaCodecBridgeResult)) {
-      Log.e(TAG, "Failed to start video codec.");
-      bridge.release();
-      // outCreateMediaCodecBridgeResult.mErrorMessage is set inside start() on error.
-      return;
-    }
 
-    outCreateMediaCodecBridgeResult.mMediaCodecBridge = bridge;
+      if (maxVideoInputSize > 0) {
+        mediaFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, maxVideoInputSize);
+        try {
+          Log.i(
+              TAG,
+              "Overwrite KEY_MAX_INPUT_SIZE to "
+                  + maxVideoInputSize
+                  + " (actual: "
+                  + mediaFormat.getInteger(android.media.MediaFormat.KEY_MAX_INPUT_SIZE)
+                  + ").");
+        } catch (Exception e) {
+          Log.e(TAG, "MediaFormat.getInteger(KEY_MAX_INPUT_SIZE) failed with exception: ", e);
+        }
+      }
+      if (!bridge.configureVideo(
+          mediaFormat, surface, crypto, 0, maxWidth, maxHeight, outCreateMediaCodecBridgeResult)) {
+        Log.e(TAG, "Failed to configure video codec.");
+        bridge.release();
+        // outCreateMediaCodecBridgeResult.mErrorMessage is set inside configureVideo() on error.
+        return;
+      }
+      if (!bridge.start(outCreateMediaCodecBridgeResult)) {
+        Log.e(TAG, "Failed to start video codec.");
+        bridge.release();
+        // outCreateMediaCodecBridgeResult.mErrorMessage is set inside start() on error.
+        return;
+      }
+
+      outCreateMediaCodecBridgeResult.mMediaCodecBridge = bridge;
+    } catch (Throwable t) {
+      Log.e(TAG, "Unexpected exception during video decoder creation: ", t);
+      outCreateMediaCodecBridgeResult.mErrorMessage = "Unexpected exception during creation: " + t.getMessage();
+      bridge.release();
+    }
   }
 
   public boolean start() {
