@@ -12,10 +12,6 @@ config build = common.build {
       value = 'devel'
     },
     {
-      key = 'ENABLE_RBE'
-      value = 'true'
-    },
-    {
       key = 'GN_TARGET'
       value = 'cobalt'
     }
