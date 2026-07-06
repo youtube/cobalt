@@ -18,7 +18,11 @@
 #include <dlfcn.h>
 #include <media/NdkMediaFormat.h>
 
+#include <cmath>
+#include <limits>
+
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/ndk_media_utils.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
@@ -93,6 +97,10 @@ void OnErrorCallback(AMediaCodec* codec,
   bridge->OnError(error, actionCode, detail);
 }
 
+bool AlmostEqual(double a, double b) {
+  return std::abs(a - b) <= std::numeric_limits<double>::epsilon();
+}
+
 }  // namespace
 
 std::unique_ptr<NdkMediaCodec> NdkMediaCodec::Create(
@@ -163,8 +171,8 @@ std::unique_ptr<NdkMediaCodec> NdkMediaCodec::Create(
   }
 
   AMediaCodec* codec = scoped_codec.release();
-  auto bridge =
-      std::make_unique<NdkMediaCodec>(PassKey<NdkMediaCodec>(), handler, codec);
+  auto bridge = std::make_unique<NdkMediaCodec>(PassKey<NdkMediaCodec>(),
+                                                 handler, codec, fps);
 
   AMediaCodecOnAsyncNotifyCallback callbacks = {
       OnInputBufferAvailableCallback,
@@ -212,8 +220,9 @@ std::unique_ptr<NdkMediaCodec> NdkMediaCodec::Create(
 
 NdkMediaCodec::NdkMediaCodec(PassKey<NdkMediaCodec>,
                              Handler* handler,
-                             AMediaCodec* codec)
-    : handler_(handler), codec_(codec) {
+                             AMediaCodec* codec,
+                             int fps)
+    : handler_(handler), codec_(codec), fps_(fps) {
   SB_CHECK(handler_);
 }
 
@@ -275,17 +284,24 @@ void NdkMediaCodec::ReleaseOutputBufferAtTimestamp(jint index,
 
 void NdkMediaCodec::SetPlaybackRate(double playback_rate) {
   SB_LOG(INFO) << __func__ << ": playback_rate=" << playback_rate;
-  if (!codec_) {
+  if (!codec_ || playback_rate <= 0.0 || AlmostEqual(playback_rate, 0.0)) {
     return;
   }
+  if (AlmostEqual(playback_rate_, playback_rate)) {
+    return;
+  }
+  playback_rate_ = playback_rate;
+
+  float operating_rate =
+      static_cast<float>(fps_ > 0 ? (playback_rate * fps_) : playback_rate);
   ScopedAMediaFormat params(AMediaFormat_new(), AMediaFormatDeleter());
   AMediaFormat_setFloat(params.get(), AMEDIAFORMAT_KEY_OPERATING_RATE,
-                        static_cast<float>(playback_rate));
+                        operating_rate);
   media_status_t status = AMediaCodec_setParameters(codec_, params.get());
   if (status != AMEDIA_OK) {
     SB_LOG(WARNING)
-        << "AMediaCodec_setParameters failed to set operating-rate to "
-        << playback_rate << " with status " << status;
+        << "AMediaCodec_setParameters failed: operating_rate="
+        << operating_rate << ", status=" << ToString(status);
   }
 }
 

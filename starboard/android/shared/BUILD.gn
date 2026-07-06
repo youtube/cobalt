@@ -206,6 +206,8 @@ static_library("starboard_platform") {
     "ndk_audio_track.h",
     "ndk_media_codec.cc",
     "ndk_media_codec.h",
+    "ndk_media_utils.cc",
+    "ndk_media_utils.h",
     "platform_info.cc",
     "platform_info.h",
     "platform_service.cc",

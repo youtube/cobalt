@@ -35,7 +35,8 @@ namespace {
 
 bool CanUseNdkMediaCodec(std::optional<int> tunnel_mode_audio_session_id,
                          bool require_secured_decoder,
-                         const jni_zero::JavaRef<jobject>& j_media_crypto) {
+                         const jni_zero::JavaRef<jobject>& j_media_crypto,
+                         const SbMediaColorMetadata* color_metadata) {
   if (!features::FeatureList::IsEnabled(features::kNdkVideo)) {
     return false;
   }
@@ -47,6 +48,11 @@ bool CanUseNdkMediaCodec(std::optional<int> tunnel_mode_audio_session_id,
   }
   // NDK AMediaCodec does not support tunnel mode.
   if (tunnel_mode_audio_session_id) {
+    return false;
+  }
+  // NDK AMediaCodec does not support HDR yet.
+  // TODO: b/515461431 - Make NDK impl. suppport HDR.
+  if (color_metadata) {
     return false;
   }
   // NDK AMediaCodec requires API level >= 28.
@@ -116,7 +122,7 @@ DefaultMediaCodecFactory::CreateVideoMediaCodec(
 
   if (CanUseNdkMediaCodec(platform_options.tunnel_mode_audio_session_id,
                           platform_options.require_secured_decoder,
-                          j_media_crypto)) {
+                          j_media_crypto, color_metadata)) {
     auto ndk_bridge = NdkMediaCodec::Create(
         video_codec, decoder_name, frame_size_hint, fps, max_frame_size,
         handler, j_surface, j_media_crypto, color_metadata,
