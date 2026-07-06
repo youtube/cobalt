@@ -82,9 +82,6 @@ public class JavaSwitches {
   /** flag to disable FontSrcLocalMatching lookup table. */
   public static final String DISABLE_FONT_SRC_LOCAL_MATCHING = "DisableFontSrcLocalMatching";
 
-  /** flag to specify ANGLE to use the OpenGL ES backend */
-  public static final String COBALT_USE_ANGLE_GLES = "CobaltUseAngleGles";
-
   /** Avoid reuse resource. */
   public static final String AVOID_CC_REUSE_RESOURCE = "AvoidCCReuseResource";
 
@@ -169,10 +166,6 @@ public class JavaSwitches {
     if (featureParams.length() > 0) {
       extraCommandLineArgs.add(
           "--enable-features=SmallerInterestArea:" + featureParams.toString());
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.COBALT_USE_ANGLE_GLES)) {
-      extraCommandLineArgs.add("--use-angle=gles");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_FONT_SRC_LOCAL_MATCHING)) {
