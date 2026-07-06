@@ -36,3 +36,14 @@ To regenerate the Zstandard test data, use the standard `zstd` command line tool
     cat chunk_00.zst chunk_01.zst > compressed_multi_frame.zst
     rm chunk_00 chunk_01 chunk_00.zst chunk_01.zst
     ```
+
+*   `empty.zst`: An empty file (0 bytes).
+    ```bash
+    touch empty.zst
+    ```
+
+*   `compressed_with_garbage.zst`: A Zstd compressed file with trailing garbage data.
+    ```bash
+    cp compressed.zst compressed_with_garbage.zst
+    echo "garbage_data" >> compressed_with_garbage.zst
+    ```

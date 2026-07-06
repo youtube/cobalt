@@ -17,6 +17,7 @@
 #include <array>
 #include <optional>
 
+#include "starboard/shared/starboard/media/resolutions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -43,7 +44,7 @@ TEST(MediaCodecVideoDecoderHelpersTest, IsSoftwareDecoderRequired) {
 }
 
 TEST(MediaCodecVideoDecoderHelpersTest, ParseMaxResolution) {
-  Size frame_size = {1920, 1080};
+  Size frame_size = Resolution::k1080p;
 
   // Both dimensions provided
   auto res = ParseMaxResolution("width=1280; height=720", frame_size);
@@ -94,7 +95,7 @@ TEST(MediaCodecVideoDecoderHelpersTest, GetDecodeTargetGeometryFromMatrix) {
   std::array<float, 16> identity = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,
                                     0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
                                     0.0f, 0.0f, 0.0f, 1.0f};
-  Size display_size = {1920, 1080};
+  Size display_size = Resolution::k1080p;
 
   auto geom = GetDecodeTargetGeometryFromMatrix(identity, display_size);
   EXPECT_EQ(geom.coded_size.width, 1920);
@@ -116,7 +117,7 @@ TEST(MediaCodecVideoDecoderHelpersTest,
   std::array<float, 16> flipped = {-1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,
                                    0.0f,  0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
                                    1.0f,  0.0f, 0.0f, 1.0f};
-  Size display_size = {1920, 1080};
+  Size display_size = Resolution::k1080p;
 
   auto geom = GetDecodeTargetGeometryFromMatrix(flipped, display_size);
   EXPECT_EQ(geom.coded_size.width, 1920);
@@ -138,7 +139,7 @@ TEST(MediaCodecVideoDecoderHelpersTest,
   std::array<float, 16> scaled = {0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f,
                                   0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
                                   0.0f, 0.0f, 0.0f, 1.0f};
-  Size display_size = {1920, 1080};
+  Size display_size = Resolution::k1080p;
 
   auto geom = GetDecodeTargetGeometryFromMatrix(scaled, display_size);
   // 2x scaling means coded_size resolves to 3840x2160.
@@ -159,7 +160,7 @@ TEST(MediaCodecVideoDecoderHelpersTest,
   std::array<float, 16> translated = {0.8f, 0.0f, 0.0f, 0.0f, 0.0f, 0.8f,
                                       0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
                                       0.1f, 0.1f, 0.0f, 1.0f};
-  Size display_size = {1920, 1080};
+  Size display_size = Resolution::k1080p;
 
   auto geom = GetDecodeTargetGeometryFromMatrix(translated, display_size);
   EXPECT_EQ(geom.coded_size.width, 2398);

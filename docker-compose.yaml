@@ -22,3 +22,7 @@ services:
     build:
       context: cobalt/docker/webtest
     image: "${DOCKER_COMPOSE_IMAGE:-webtest}"
+  pre-commit:
+    build:
+      context: cobalt/docker/pre-commit
+    image: "${DOCKER_COMPOSE_IMAGE:-pre-commit}"

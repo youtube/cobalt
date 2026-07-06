@@ -118,7 +118,7 @@ static_library("common") {
 
   deps = [ "//third_party/modp_b64" ]
 
-  if (!is_android) {
+  if (!is_android && !is_ios) {
     sources += [ "thread_platform_base.cc" ]
   }
 }

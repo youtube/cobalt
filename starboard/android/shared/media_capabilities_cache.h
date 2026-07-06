@@ -25,6 +25,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/size.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "third_party/jni_zero/jni_zero.h"
@@ -128,9 +129,7 @@ class VideoCodecCapability : public CodecCapability {
   // VideoCapabilities.areSizeAndRateSupported() or
   // VideoCapabilities.isSizeSupported() will be used to check the
   // supportability.
-  bool AreResolutionAndRateSupported(int frame_width,
-                                     int frame_height,
-                                     int fps) const;
+  bool AreResolutionAndRateSupported(Size size, int fps) const;
 
  protected:
   VideoCodecCapability(std::string name,
@@ -208,8 +207,7 @@ class MediaCapabilitiesCache {
                           bool must_support_secure,
                           bool must_support_hdr,
                           bool must_support_tunnel_mode,
-                          int frame_width,
-                          int frame_height,
+                          Size frame_size,
                           int bitrate,
                           int fps);
   bool HasVideoDecoderFor(const std::string& mime_type,
@@ -245,8 +243,7 @@ class MediaCapabilitiesCache {
                                bool must_support_hdr,
                                bool require_software_codec,
                                bool must_support_tunnel_mode,
-                               int frame_width,
-                               int frame_height,
+                               Size frame_size,
                                int bitrate,
                                int fps);
 

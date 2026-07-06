@@ -586,13 +586,13 @@ int InstallationManager::RequestRollForwardToInstallation(
 bool InstallationManager::SaveInstallationStore() {
   ValidatePriorities();
 
-  if (IM_MAX_INSTALLATION_STORE_SIZE < installation_store_.ByteSize()) {
+  if (IM_MAX_INSTALLATION_STORE_SIZE < installation_store_.ByteSizeLong()) {
     SB_LOG(ERROR) << "SaveInstallationStore: Data too large"
-                  << installation_store_.ByteSize();
+                  << installation_store_.ByteSizeLong();
     return false;
   }
 
-  const size_t buf_size = installation_store_.ByteSize();
+  const size_t buf_size = installation_store_.ByteSizeLong();
   std::vector<char> buf(buf_size, 0);
 
   int result = installation_store_.roll_forward_to_installation();
@@ -601,10 +601,10 @@ bool InstallationManager::SaveInstallationStore() {
 #endif
 
   installation_store_.SerializeToArray(buf.data(),
-                                       installation_store_.ByteSize());
+                                       installation_store_.ByteSizeLong());
 
   if (!starboard::FileAtomicReplace(store_path_.c_str(), buf.data(),
-                                    installation_store_.ByteSize())) {
+                                    installation_store_.ByteSizeLong())) {
     SB_LOG(ERROR)
         << "SaveInstallationStore: Failed to store installation store: "
         << store_path_;

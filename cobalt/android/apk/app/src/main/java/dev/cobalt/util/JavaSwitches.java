@@ -26,7 +26,7 @@ public class JavaSwitches {
   public static final String ENABLE_QUIC = "EnableQUIC";
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
   public static final String STARTUP_GUARD_INTERVAL_IN_SECONDS = "StartupGuardIntervalInSeconds";
-  public static final String DISABLE_HTTP_CACHE = "DisableHttpCache";
+  public static final String ENABLE_OPTIMIZED_FONT_LOADING = "EnableOptimizedFontLoading";
 
   /** flag to re-enable freeze and resume events */
   public static final String ENABLE_FREEZE = "EnableFreeze";
@@ -49,11 +49,7 @@ public class JavaSwitches {
   public static final String RECLAIM_DELAY_IN_SECONDS = "ReclaimDelayInSeconds";
 
   /** flag to disable GPU memory buffer compositor resources. */
-  public static final String DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES =
-      "DisableGpuMemoryBufferCompositorResources";
-
-  /** flag to disable v8 optimizing compilers (turbofan, maglev, sparkplug) */
-  public static final String DISABLE_V8_OPTIMIZING_COMPILERS = "DisableV8OptimizingCompilers";
+  public static final String DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES = "DisableGpuMemoryBufferCompositorResources";
 
   /** flag to enable concurrent marking for v8 garbage collection */
   public static final String ENABLE_V8_CONCURRENT_MARKING = "EnableV8ConcurrentMarking";
@@ -67,20 +63,30 @@ public class JavaSwitches {
   /** flag to allow scaling clipped images in GpuImageDecodeCache */
   public static final String ENABLE_SCALING_CLIPPED_IMAGES = "EnableScalingClippedImages";
 
+  /** flag to reduce starboard thread stack size. */
+  public static final String REDUCE_STARBOARD_THREAD_STACK_SIZE = "ReduceStarboardThreadStackSize";
+
+  /** flag to reduce android thread stack size. */
+  public static final String REDUCE_ANDROID_THREAD_STACK_SIZE = "ReduceAndroidThreadStackSize";
+
   /** flag to enable dynamic mojo pipe sizing. */
-  public static final String ENABLE_COBALT_DYNAMIC_MOJO_PIPE_SIZING =
-      "EnableCobaltDynamicMojoPipeSizing";
+  public static final String ENABLE_COBALT_DYNAMIC_MOJO_PIPE_SIZING = "EnableCobaltDynamicMojoPipeSizing";
 
   /** flag to tune cobalt dynamic mojo pipe sizing subresource size in bytes. */
-  public static final String COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE =
-      "CobaltDynamicMojoPipeSubresourceSize";
+  public static final String COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE = "CobaltDynamicMojoPipeSubresourceSize";
+
+  /** flag to tune cobalt dynamic mojo pipe sizing media size in bytes. */
+  public static final String COBALT_DYNAMIC_MOJO_PIPE_MEDIA_SIZE =
+      "CobaltDynamicMojoPipeMediaSize";
 
   /** flag to disable FontSrcLocalMatching lookup table. */
-  public static final String DISABLE_FONT_SRC_LOCAL_MATCHING =
-      "DisableFontSrcLocalMatching";
+  public static final String DISABLE_FONT_SRC_LOCAL_MATCHING = "DisableFontSrcLocalMatching";
 
   /** flag to specify ANGLE to use the OpenGL ES backend */
   public static final String COBALT_USE_ANGLE_GLES = "CobaltUseAngleGles";
+
+  /** Avoid reuse resource. */
+  public static final String AVOID_CC_REUSE_RESOURCE = "AvoidCCReuseResource";
 
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
@@ -96,15 +102,6 @@ public class JavaSwitches {
 
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
       extraCommandLineArgs.add("--disable-quic");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.DISABLE_HTTP_CACHE)) {
-      extraCommandLineArgs.add("--disable-http-cache");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.DISABLE_V8_OPTIMIZING_COMPILERS)) {
-      jsFlags.add("--disable-optimizing-compilers");
-      jsFlags.add("--no-sparkplug");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_V8_CONCURRENT_MARKING)) {
@@ -134,9 +131,20 @@ public class JavaSwitches {
     }
 
     StringJoiner mojoPipeParams = new StringJoiner("/");
-    if (javaSwitches.containsKey(JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE)) {
-      String size = javaSwitches.get(JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE).replaceAll("[^0-9]", "");
-      mojoPipeParams.add("subresource_size/" + size);
+    String subresourceSize = javaSwitches.get(JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE);
+    if (subresourceSize != null) {
+      String size = subresourceSize.replaceAll("[^0-9]", "");
+      if (!size.isEmpty()) {
+        mojoPipeParams.add("subresource_size/" + size);
+      }
+    }
+
+    String mediaSize = javaSwitches.get(JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_MEDIA_SIZE);
+    if (mediaSize != null) {
+      String size = mediaSize.replaceAll("[^0-9]", "");
+      if (!size.isEmpty()) {
+        mojoPipeParams.add("media_size/" + size);
+      }
     }
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_COBALT_DYNAMIC_MOJO_PIPE_SIZING) || mojoPipeParams.length() > 0) {
@@ -171,8 +179,24 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--disable-features=FontSrcLocalMatching");
     }
 
-    if (jsFlags.length() > 0 ) {
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_OPTIMIZED_FONT_LOADING)) {
+      extraCommandLineArgs.add("--enable-optimized-font-loading");
+    }
+
+    if (jsFlags.length() > 0) {
       extraCommandLineArgs.add("--js-flags=" + jsFlags.toString());
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.REDUCE_STARBOARD_THREAD_STACK_SIZE)) {
+      extraCommandLineArgs.add("--enable-features=" + JavaSwitches.REDUCE_STARBOARD_THREAD_STACK_SIZE);
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.REDUCE_ANDROID_THREAD_STACK_SIZE)) {
+      extraCommandLineArgs.add("--enable-features=" + JavaSwitches.REDUCE_ANDROID_THREAD_STACK_SIZE);
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.AVOID_CC_REUSE_RESOURCE)) {
+      extraCommandLineArgs.add("--avoid-cc-reuse-resource");
     }
 
     return extraCommandLineArgs;

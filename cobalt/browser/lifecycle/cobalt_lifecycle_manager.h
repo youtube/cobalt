@@ -17,6 +17,8 @@
 
 #include <map>
 #include <set>
+#include <utility>
+#include <vector>
 
 #include "base/containers/flat_set.h"
 #include "base/containers/small_map.h"
@@ -25,6 +27,7 @@
 #include "base/observer_list.h"
 #include "cobalt/browser/lifecycle/public/mojom/cobalt_lifecycle.mojom.h"
 #include "cobalt/common/cobalt_thread_checker.h"
+#include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -32,6 +35,7 @@
 namespace content {
 class WebContents;
 class RenderFrameHost;
+class NavigationHandle;
 }  // namespace content
 
 namespace cobalt {
@@ -39,8 +43,7 @@ namespace cobalt {
 class H5vccRuntimeImpl;
 
 struct FrameContext {
-  content::WebContents* web_contents;
-  content::RenderFrameHost* frame;
+  content::GlobalRenderFrameHostId frame_id;
 };
 
 enum class PendingAck {
@@ -145,6 +148,10 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
       content::RenderFrameHost* frame,
       mojo::PendingReceiver<cobalt::mojom::CobaltLifecycleObserver> receiver);
 
+  // Proactively creates the tracker for the specified WebContents to monitor
+  // frame lifecycle events from startup.
+  void InitializeTracker(content::WebContents* web_contents);
+
   // cobalt::mojom::CobaltLifecycleObserver impl.
   void OnPageVisibilityChanged(bool visible) override;
   void OnPageBlurred() override;
@@ -166,6 +173,8 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
   CobaltLifecycleManager();
   ~CobaltLifecycleManager();
 
+  std::pair<content::RenderFrameHost*, content::WebContents*>
+  GetCurrentContext();
   void OnMojoDisconnect();
 
   void CompleteAckImmediately(content::WebContents* web_contents,
@@ -194,6 +203,8 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
     void RenderFrameDeleted(
         content::RenderFrameHost* render_frame_host) override;
     void WebContentsDestroyed() override;
+    void DidFinishNavigation(
+        content::NavigationHandle* navigation_handle) override;
 
     // Methods to update the tracked state of a specific frame.
     void SetResumed(content::RenderFrameHost* frame);
@@ -256,8 +267,26 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
 
   base::ObserverList<CobaltLifecycleManagerObserver>::Unchecked observers_;
 
+  // Mojo receiver set for the CobaltLifecycleObserver interface. Each receiver
+  // corresponds to a renderer-side frame that has registered to send back
+  // lifecycle ACKs. The FrameContext associated with each receiver tracks the
+  // frame's WebContents and GlobalRenderFrameHostId.
   mojo::ReceiverSet<cobalt::mojom::CobaltLifecycleObserver, FrameContext>
       receivers_;
+
+  // Map tracking the Mojo ReceiverIds associated with each WebContents. Since
+  // mojo::ReceiverSet does not provide a public API to query or iterate over
+  // receivers by their associated context (WebContents*), we must track the
+  // ReceiverIds explicitly. This allows us to cleanly remove only the receivers
+  // associated with a specific WebContents when it is destroyed.
+  std::map<content::WebContents*, std::vector<mojo::ReceiverId>> receiver_ids_;
+
+  // Map tracking the active Mojo ReceiverId for each RenderFrameHost (by its
+  // GlobalId). This prevents race conditions where an asynchronous disconnect
+  // handler for an old Mojo pipe unregisters a frame that has already been
+  // re-bound to a new pipe.
+  std::map<content::GlobalRenderFrameHostId, mojo::ReceiverId>
+      active_receivers_;
 
   base::WeakPtrFactory<CobaltLifecycleManager> weak_factory_{this};
 
