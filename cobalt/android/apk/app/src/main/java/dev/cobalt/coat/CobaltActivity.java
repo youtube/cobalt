@@ -563,6 +563,8 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   @Override
   protected void onStop() {
     unregisterDisplayListener();
+    DisplayUtil.removeDisplayListener(this);
+    AudioOutputManager.removeAudioDeviceListener(this);
     super.onStop();
 
     // visibility:hidden event
@@ -617,6 +619,8 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   @Override
   protected void onDestroy() {
     unregisterDisplayListener();
+    DisplayUtil.removeDisplayListener(this);
+    AudioOutputManager.removeAudioDeviceListener(this);
     if (mFreezeRunnable != null) {
       mHandler.removeCallbacks(mFreezeRunnable);
       mFreezeRunnable = null;

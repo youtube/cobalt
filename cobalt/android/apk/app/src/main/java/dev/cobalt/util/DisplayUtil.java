@@ -237,4 +237,17 @@ public class DisplayUtil {
     // Display created.
     DisplayUtilJni.get().onDisplayChanged();
   }
+
+  public static void removeDisplayListener(Context context) {
+    if (!sDisplayerListenerAdded || context == null) {
+      return;
+    }
+
+    DisplayManager displayManager = (DisplayManager) context.getSystemService(Context.DISPLAY_SERVICE);
+    if (displayManager == null) {
+      return;
+    }
+    displayManager.unregisterDisplayListener(sDisplayerListener);
+    sDisplayerListenerAdded = false;
+  }
 }
