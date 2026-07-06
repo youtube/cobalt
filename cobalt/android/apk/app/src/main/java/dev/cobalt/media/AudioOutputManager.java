@@ -551,6 +551,19 @@ public class AudioOutputManager {
     sAudioDeviceListenerAdded = true;
   }
 
+  public static void removeAudioDeviceListener(Context context) {
+    if (!sAudioDeviceListenerAdded || context == null) {
+      return;
+    }
+
+    AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+    if (audioManager == null) {
+      return;
+    }
+    audioManager.unregisterAudioDeviceCallback(sAudioDeviceCallback);
+    sAudioDeviceListenerAdded = false;
+  }
+
   @NativeMethods
   interface Natives {
     void onAudioDeviceChanged();
