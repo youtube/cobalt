@@ -24,6 +24,13 @@ import org.chromium.content_public.browser.WebContents;
 /** Content-dependent StarboardBridge subclass used by AndroidTV. */
 public class BrowserStarboardBridge extends StarboardBridge {
 
+  /** Interface to be implemented by the Android Application hosting the browser app. */
+  public interface HostApplication {
+    void setStarboardBridge(BrowserStarboardBridge starboardBridge);
+
+    BrowserStarboardBridge getStarboardBridge();
+  }
+
   private CobaltMediaSession mCobaltMediaSession;
   private VolumeStateReceiver mVolumeStateReceiver;
   private PlatformError mPlatformError;
