@@ -68,6 +68,13 @@ bool ExternalClearKeyKeySystemInfo::IsSupportedInitDataType(
     case media::EmeInitDataType::KEYIDS:
       return true;
 
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+    // Listed for -Wswitch exhaustiveness only. External Clear Key does not
+    // support platform DRM init data types.
+    case media::EmeInitDataType::SINF:
+    case media::EmeInitDataType::SKD:
+    case media::EmeInitDataType::PLATFORM_DRM:
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
     case media::EmeInitDataType::UNKNOWN:
       return false;
   }
