@@ -2833,14 +2833,14 @@ void StoragePartitionImpl::ClearDataImpl(
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
       interest_group_manager_.get(),
       attribution_manager_.get(),
-#else
-      nullptr,
-      nullptr,
-#endif
-      aggregation_service_.get(), private_aggregation_manager_.get(),
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+      aggregation_service_.get(),
+      private_aggregation_manager_.get(),
       shared_storage_manager_.get(),
 #else
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
       nullptr,
 #endif
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
@@ -3225,7 +3225,6 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
               CreateTaskCompletionClosure(TracingDataType::kConversions)));
     }
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   if (aggregation_service &&
       (remove_mask_ & REMOVE_DATA_MASK_AGGREGATION_SERVICE)) {
@@ -3252,6 +3251,7 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
         mojo::WrapCallbackWithDefaultInvokeIfNotRun(
             CreateTaskCompletionClosure(TracingDataType::kPrivateAggregation)));
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (base::FeatureList::IsEnabled(network::features::kSharedStorageAPI) &&

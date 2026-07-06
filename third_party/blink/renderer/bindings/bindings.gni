@@ -320,6 +320,12 @@ if (is_cobalt) {
       "*navigator_auction*",
       "*protected_audience*",
       "*interest_group*",
+      "*auction*",
+      "*v8_ads*",
+      "*fencedframeconfig*",
+      "*adproperties*",
+      "*v8_ad_*",
+      "*view_or_click_counts*",
     ]
   }
 }
