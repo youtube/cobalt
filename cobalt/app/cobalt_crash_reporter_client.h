@@ -20,6 +20,7 @@
 #include "base/files/file_path.h"
 #include "base/no_destructor.h"
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "client/crash_report_database.h"
 #include "components/crash/core/app/crash_reporter_client.h"
 
@@ -38,9 +39,11 @@ class CobaltCrashReporterClient : public crash_reporter::CrashReporterClient {
 
   std::string GetUploadUrl() override;
 
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   void GetSanitizationInformation(const char* const** allowed_annotations,
                                   void** target_module,
                                   bool* sanitize_stacks) override;
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
  private:
   friend class base::NoDestructor<CobaltCrashReporterClient>;
