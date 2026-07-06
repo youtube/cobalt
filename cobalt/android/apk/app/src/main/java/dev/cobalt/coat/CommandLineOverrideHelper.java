@@ -79,6 +79,8 @@ public final class CommandLineOverrideHelper {
         }
         // Hide scrollbars to avoid memory allocation.
         paramOverrides.add("--hide-scrollbars");
+        // Force GPU memory available to 64MB.
+        paramOverrides.add("--force-gpu-mem-available-mb=64");
 
         return paramOverrides;
     }
