@@ -202,6 +202,14 @@ public class StarboardBridge {
   }
 
   protected void onActivityDestroy(Activity activity) {
+    // Note: During rapid restarts or configuration changes, Android allows a new Activity instance's
+    // onCreate()/onStart() to run before the old instance's onDestroy() executes. When that happens,
+    // mActivityHolder will already point to the new activity instance. We must avoid cleaning up
+    // shared platform services or killing the process if another active instance has taken over.
+    if (mActivityHolder.get() != activity && mActivityHolder.get() != null) {
+      Log.i(TAG, "Activity destroyed but another activity is active; skipping service cleanup.");
+      return;
+    }
     closeAllCobaltService();
     if (mApplicationStopped) {
       // We can't restart the starboard app, so kill the process for a clean start next time.

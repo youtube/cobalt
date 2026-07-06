@@ -37,6 +37,7 @@
 #include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/media/mime_type.h"
+#include "starboard/shared/starboard/player/buffer_internal.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
@@ -290,6 +291,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       const CreationParameters& creation_parameters) override {
     const auto& experimental_features =
         creation_parameters.experimental_features();
+
+    starboard::Buffer::SetPoolEnabled(
+        experimental_features.decoded_audio_buffer_pool);
+    starboard::MediaCodecVideoDecoder::SetVideoFramePoolEnabled(
+        experimental_features.video_frame_impl_pool);
 
     if (experimental_features.enable_av1_startup_optimization) {
       MediaCapabilitiesCache::GetInstance()->SetAv1OptEnabled(true);

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/elf_loader/naive_zstd_file_impl.h"
+#include "starboard/elf_loader/zstd_file_impl.h"
 
 #include <sys/stat.h>
 
@@ -26,7 +26,7 @@
 namespace elf_loader {
 namespace {
 
-// TODO: b/497012299 - Because LZ4FileImplTest and NaiveZstdFileImplTest share
+// TODO: b/497012299 - Because LZ4FileImplTest and ZstdFileImplTest share
 // many behaviors, their unit test cases and implementations are quite similar.
 // We should refactor the tests - maybe leveraging GoogleTest's Typed Tests -
 // so that common test cases need only be written once.
@@ -67,33 +67,33 @@ std::string GetTestFilePath(const std::string& filename) {
   return "";
 }
 
-TEST(NaiveZstdFileImplTest, OpenNonExistentFileFails) {
-  NaiveZstdFileImpl file;
+TEST(ZstdFileImplTest, OpenNonExistentFileFails) {
+  ZstdFileImpl file;
   EXPECT_FALSE(file.Open("thisfiledoesnotexist"));
 }
 
-TEST(NaiveZstdFileImplTest, ReadBeforeOpeningFails) {
-  NaiveZstdFileImpl file;
+TEST(ZstdFileImplTest, ReadBeforeOpeningFails) {
+  ZstdFileImpl file;
   char buf[10];
   EXPECT_FALSE(file.ReadFromOffset(/*offset=*/0, buf, /*size=*/10));
 }
 
-TEST(NaiveZstdFileImplTest, ReadNegativeOffsetFails) {
+TEST(ZstdFileImplTest, ReadNegativeOffsetFails) {
   std::string file_path = GetTestFilePath("compressed.zst");
   ASSERT_FALSE(file_path.empty()) << "Test file compressed.zst not found.";
 
-  NaiveZstdFileImpl file;
+  ZstdFileImpl file;
   ASSERT_TRUE(file.Open(file_path.c_str()));
 
   char buf[10];
   EXPECT_FALSE(file.ReadFromOffset(/*offset=*/-1, buf, /*size=*/10));
 }
 
-TEST(NaiveZstdFileImplTest, ReadOutOfBoundsFails) {
+TEST(ZstdFileImplTest, ReadOutOfBoundsFails) {
   std::string file_path = GetTestFilePath("compressed.zst");
   ASSERT_FALSE(file_path.empty()) << "Test file compressed.zst not found.";
 
-  NaiveZstdFileImpl file;
+  ZstdFileImpl file;
   ASSERT_TRUE(file.Open(file_path.c_str()));
 
   char buf[10];
@@ -102,35 +102,57 @@ TEST(NaiveZstdFileImplTest, ReadOutOfBoundsFails) {
   EXPECT_FALSE(file.ReadFromOffset(/*offset=*/10, buf, /*size=*/60));
 }
 
-TEST(NaiveZstdFileImplTest, FrameHeaderMissingContentSizeDecompressionFails) {
+TEST(ZstdFileImplTest, FrameHeaderMissingContentSizeDecompressionFails) {
   std::string file_path = GetTestFilePath("compressed_no_content_size.zst");
   ASSERT_FALSE(file_path.empty())
       << "Test file compressed_no_content_size.zst not found.";
 
-  NaiveZstdFileImpl file;
+  ZstdFileImpl file;
   EXPECT_FALSE(file.Open(file_path.c_str()));
 }
 
-TEST(NaiveZstdFileImplTest, MultiFrameFileDecompressionFails) {
+TEST(ZstdFileImplTest, MultiFrameFileDecompressionSucceeds) {
   std::string file_path = GetTestFilePath("compressed_multi_frame.zst");
   ASSERT_FALSE(file_path.empty())
       << "Test file compressed_multi_frame.zst not found.";
 
-  NaiveZstdFileImpl file;
-  EXPECT_FALSE(file.Open(file_path.c_str()));
-}
-
-TEST(NaiveZstdFileImplTest, ValidFileDecompressionSucceeds) {
-  std::string file_path = GetTestFilePath("compressed.zst");
-  ASSERT_FALSE(file_path.empty()) << "Test file compressed.zst not found.";
-
-  NaiveZstdFileImpl file;
+  ZstdFileImpl file;
   ASSERT_TRUE(file.Open(file_path.c_str()));
 
   char decompressed[SB_ARRAY_SIZE(kUncompressedData)]{0};
   EXPECT_TRUE(file.ReadFromOffset(0, decompressed,
                                   SB_ARRAY_SIZE(kUncompressedData) - 1));
   EXPECT_EQ(strcmp(decompressed, kUncompressedData), 0);
+}
+
+TEST(ZstdFileImplTest, ValidFileDecompressionSucceeds) {
+  std::string file_path = GetTestFilePath("compressed.zst");
+  ASSERT_FALSE(file_path.empty()) << "Test file compressed.zst not found.";
+
+  ZstdFileImpl file;
+  ASSERT_TRUE(file.Open(file_path.c_str()));
+
+  char decompressed[SB_ARRAY_SIZE(kUncompressedData)]{0};
+  EXPECT_TRUE(file.ReadFromOffset(0, decompressed,
+                                  SB_ARRAY_SIZE(kUncompressedData) - 1));
+  EXPECT_EQ(strcmp(decompressed, kUncompressedData), 0);
+}
+
+TEST(ZstdFileImplTest, OpenEmptyFileFails) {
+  std::string file_path = GetTestFilePath("empty.zst");
+  ASSERT_FALSE(file_path.empty()) << "Test file empty.zst not found.";
+
+  ZstdFileImpl file;
+  EXPECT_FALSE(file.Open(file_path.c_str()));
+}
+
+TEST(ZstdFileImplTest, OpenPartiallyCorruptedFileFails) {
+  std::string file_path = GetTestFilePath("compressed_with_garbage.zst");
+  ASSERT_FALSE(file_path.empty())
+      << "Test file compressed_with_garbage.zst not found.";
+
+  ZstdFileImpl file;
+  EXPECT_FALSE(file.Open(file_path.c_str()));
 }
 
 }  // namespace

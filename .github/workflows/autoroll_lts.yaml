@@ -23,8 +23,8 @@ jobs:
       fail-fast: false
       matrix:
         branch: [
-          {source: main, target: 27.lts, start_commit: 7da7391967914a586724a107102c06d0f81280b5, identifier_type: pr},
-          {source: main, target: staging, start_commit: 7da7391967914a586724a107102c06d0f81280b5, identifier_type: pr},
+          {source: main, target: 27.lts},
+          {source: main, target: staging},
         ]
     steps:
       - name: Checkout code
@@ -80,9 +80,7 @@ jobs:
           PR_LINKS=$(python3 "${RUNNER_TEMP}/autoroll_lts.py" \
             --source-branch "${{ matrix.branch.source }}" \
             --target-branch "${{ matrix.branch.target }}" \
-            --start-commit "${{ matrix.branch.start_commit }}" \
-            --max-commits "${{ env.MAX_COMMITS }}" \
-            --identifier-type "${{ matrix.branch.identifier_type }}")
+            --max-commits "${{ env.MAX_COMMITS }}")
 
           if [[ -n "${PR_LINKS}" ]]; then
             echo "cherry_picked=true" >> "$GITHUB_OUTPUT"
@@ -117,14 +115,22 @@ jobs:
             echo "${PR_LINKS}"
           } > "${PR_BODY_FILE}"
 
-          if [[ "${PR_LINKS}" == CONFLICTED:* ]]; then
+          if [[ -f .github/AUTOROLL ]] && grep -q "^CONFLICTED:" .github/AUTOROLL; then
             PR_TITLE="CONFLICTED: ${PR_TITLE}"
             {
               echo ""
-              echo "⚠️ This PR has conflicts that must be resolved manually. Use the following commands to check out the branch locally and resolve the conflicts in a separate commit:"
+              echo "⚠️ This PR has conflicts that must be resolved manually (don't forget to update the \`.github/AUTOROLL\` file). Use the following commands to checkout the branch locally and resolve the conflicts in a separate commit:"
+              echo ""
               echo '```bash'
-              echo "gh pr checkout \${PR_NUMBER} -R ${{ github.repository }}"
-              echo "git commit -a"
+              echo "gh pr checkout <pull_request_number> -R ${{ github.repository }}"
+              echo ""
+              echo "# Resolve conflicts and update .github/AUTOROLL then"
+              echo "git add <resolved_files>"
+              echo ""
+              echo "# Copy CONFLICTED commit's message and metadata"
+              echo "# Replace CONFLICTED in title with RESOLVED"
+              echo "git commit -c <conflicted_sha>"
+              echo ""
               echo "git push origin autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"
               echo '```'
             } >> "${PR_BODY_FILE}"

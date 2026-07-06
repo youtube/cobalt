@@ -54,6 +54,12 @@ source_set("unit_tests") {
     "mojo_decoder_buffer_converter_unittest.cc",
   ]
 
+  if (is_cobalt && use_starboard_media) {
+    sources += [
+      "starboard/mojo_renderer_bypass_bridge_unittest.cc",
+    ]
+  }
+
   deps = [
     "//base",
     "//base/test:test_support",

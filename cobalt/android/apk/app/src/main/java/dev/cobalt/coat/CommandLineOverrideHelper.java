@@ -17,6 +17,7 @@ package dev.cobalt.coat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.StringJoiner;
+import org.chromium.base.BuildInfo;
 import org.chromium.base.CommandLine;
 
 
@@ -72,6 +73,12 @@ public final class CommandLineOverrideHelper {
         paramOverrides.add("--enable-zero-copy");
         // Set default raster threads to 2 for smoother performance.
         paramOverrides.add("--num-raster-threads=2");
+        // Enforce ANGLE to use GLES backend by default on Android platforms excluding arm64.
+        if (!"arm64".equals(BuildInfo.getArch())) {
+            paramOverrides.add("--use-angle=gles");
+        }
+        // Hide scrollbars to avoid memory allocation.
+        paramOverrides.add("--hide-scrollbars");
 
         return paramOverrides;
     }
@@ -90,6 +97,10 @@ public final class CommandLineOverrideHelper {
 
         // Disable v8 concurrent marking by default.
         paramOverrides.add("--no-concurrent-marking");
+
+        // Disable v8 optimizing compilers (maglev, turbofan, sparkplug).
+        paramOverrides.add("--disable-optimizing-compilers");
+        paramOverrides.add("--no-sparkplug");
 
         return paramOverrides;
     }
