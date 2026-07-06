@@ -4,7 +4,6 @@
 #ifndef CONTENT_BROWSER_DEVTOOLS_FRAME_AUTO_ATTACHER_H_
 #define CONTENT_BROWSER_DEVTOOLS_FRAME_AUTO_ATTACHER_H_
 
-#include "build/build_config.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "content/browser/devtools/protocol/target_auto_attacher.h"

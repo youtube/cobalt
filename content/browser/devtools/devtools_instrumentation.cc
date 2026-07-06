@@ -4,7 +4,6 @@
 
 #include "content/browser/devtools/devtools_instrumentation.h"
 
-#include "build/build_config.h"
 #include "base/containers/adapters.h"
 #include "base/feature_list.h"
 #include "base/notreached.h"

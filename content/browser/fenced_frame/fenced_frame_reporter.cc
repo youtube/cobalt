@@ -4,7 +4,6 @@
 
 #include "content/browser/fenced_frame/fenced_frame_reporter.h"
 
-#include "build/build_config.h"
 #include <iterator>
 #include <map>
 #include <memory>

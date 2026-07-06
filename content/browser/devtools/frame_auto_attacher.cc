@@ -4,7 +4,6 @@
 
 #include "content/browser/devtools/frame_auto_attacher.h"
 
-#include "build/build_config.h"
 #include "base/containers/contains.h"
 #include "base/time/time.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138

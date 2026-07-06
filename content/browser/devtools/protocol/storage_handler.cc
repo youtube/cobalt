@@ -4,7 +4,6 @@
 
 #include "content/browser/devtools/protocol/storage_handler.h"
 
-#include "build/build_config.h"
 #include <stdint.h>
 
 #include <memory>
@@ -47,17 +46,19 @@
 #include "components/services/storage/privileged/mojom/indexed_db_control.mojom.h"
 #include "components/services/storage/public/cpp/buckets/bucket_locator.h"
 #include "components/services/storage/public/mojom/cache_storage_control.mojom.h"
-#include "content/browser/attribution_reporting/aggregatable_result.mojom.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#include "content/browser/attribution_reporting/aggregatable_result.mojom.h"  // nogncheck
 #include "content/browser/attribution_reporting/attribution_manager.h"
 #include "content/browser/attribution_reporting/attribution_observer.h"
 #include "content/browser/attribution_reporting/attribution_report.h"
 #include "content/browser/attribution_reporting/attribution_trigger.h"
 #include "content/browser/attribution_reporting/common_source_info.h"
 #include "content/browser/attribution_reporting/create_report_result.h"
-#include "content/browser/attribution_reporting/event_level_result.mojom.h"
+#include "content/browser/attribution_reporting/event_level_result.mojom.h"  // nogncheck
 #include "content/browser/attribution_reporting/send_result.h"
 #include "content/browser/attribution_reporting/storable_source.h"
-#include "content/browser/attribution_reporting/store_source_result.mojom.h"
+#include "content/browser/attribution_reporting/store_source_result.mojom.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/devtools/protocol/browser_handler.h"
 #include "content/browser/devtools/protocol/handler_helpers.h"
 #include "content/browser/devtools/protocol/network.h"
@@ -1123,9 +1124,7 @@ void StorageHandler::OnInterestGroupAccessed(
           : std::nullopt,
       bid, bid_currency.CopyAsOptional(), auction_id.CopyAsOptional());
 }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 namespace {
 void SendGetInterestGroup(
     std::unique_ptr<StorageHandler::GetInterestGroupDetailsCallback> callback,
@@ -1950,9 +1949,7 @@ void StorageHandler::ResetAttributionReporting() {
 
   manager->SetDebugMode(/*enabled=*/std::nullopt, base::DoNothing());
 }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 namespace {
 
 using ::attribution_reporting::mojom::AggregatableResult;
@@ -2405,9 +2402,7 @@ ToNamedBudgetCandidates(
 }
 
 }  // namespace
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 void StorageHandler::OnSourceHandled(
     const StorableSource& source,
     base::Time source_time,

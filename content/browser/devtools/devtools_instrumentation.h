@@ -13,7 +13,6 @@
 #include <optional>
 #include <vector>
 
-#include "build/build_config.h"
 #include "base/memory/stack_allocated.h"
 #include "base/values.h"
 #include "content/browser/devtools/devtools_device_request_prompt_info.h"

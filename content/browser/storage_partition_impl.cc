@@ -3610,6 +3610,7 @@ void StoragePartitionImpl::OverrideSharedWorkerServiceForTesting(
   DCHECK(initialized_);
   shared_worker_service_ = std::move(shared_worker_service);
 }
+
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 void StoragePartitionImpl::OverrideSharedStorageRuntimeManagerForTesting(
     std::unique_ptr<SharedStorageRuntimeManager>

@@ -4,7 +4,6 @@
 
 #include "content/browser/renderer_host/navigator.h"
 
-#include "build/build_config.h"
 #include <utility>
 
 #include "base/check_op.h"
