@@ -12,27 +12,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-static_library("feature_list") {
+static_library("features") {
   sources = [
     "feature_list.cc",
     "feature_list.h",
     "features.cc",
     "features.h",
+    "features_extension.cc",
+    "features_extension.h",
   ]
 
+  public_deps = [ "//starboard/extension:feature_config_header" ]
+
   deps = [
+    "//starboard:starboard_headers_only",
     "//starboard/common",
-    "//starboard/extension:feature_config_header",
   ]
 }
 
 source_set("starboard_test") {
   testonly = true
 
-  sources = [ "feature_list_test.cc" ]
+  sources = [
+    "feature_list_test.cc",
+    "features_extension_test.cc",
+  ]
 
   deps = [
-    ":feature_list",
+    ":features",
     "//starboard/common",
     "//testing/gtest",
   ]
