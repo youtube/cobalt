@@ -18,12 +18,14 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/mock_callback.h"
+#include "base/test/scoped_command_line.h"
 #include "base/test/task_environment.h"
 #include "media/base/fake_demuxer_stream.h"
 #include "media/base/media_switches.h"
 #include "media/base/mock_media_log.h"
 #include "media/base/test_helpers.h"
 #include "media/base/video_renderer_sink.h"
+#include "media/mojo/common/starboard/mojo_renderer_bypass_bridge.h"
 #include "media/mojo/mojom/renderer.mojom.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
 #include "media/renderers/video_overlay_factory.h"
@@ -44,9 +46,15 @@ using ::testing::StrictMock;
 
 namespace {
 
+struct FakeMojomRendererCallRecord {
+  bool initialize_with_bypass_bridge_called = false;
+  uint32_t last_bypass_bridge_id = 0;
+};
+
 class FakeMojomRenderer : public mojom::Renderer {
  public:
-  FakeMojomRenderer() = default;
+  explicit FakeMojomRenderer(FakeMojomRendererCallRecord* record)
+      : record_(record) {}
   ~FakeMojomRenderer() override = default;
 
   void Initialize(
@@ -59,6 +67,10 @@ class FakeMojomRenderer : public mojom::Renderer {
       mojo::PendingAssociatedRemote<mojom::RendererClient>,
       uint32_t bypass_bridge_id,
       InitializeWithBypassBridgeCallback cb) override {
+    if (record_) {
+      record_->initialize_with_bypass_bridge_called = true;
+      record_->last_bypass_bridge_id = bypass_bridge_id;
+    }
     std::move(cb).Run(true);
   }
   MOCK_METHOD1(Flush, void(FlushCallback));
@@ -69,6 +81,9 @@ class FakeMojomRenderer : public mojom::Renderer {
                void(const absl::optional<base::UnguessableToken>&,
                     SetCdmCallback));
   void SetLatencyHint(std::optional<::base::TimeDelta> latency_hint) override {}
+
+ private:
+  FakeMojomRendererCallRecord* record_;
 };
 
 class FakeStarboardRendererExtension
@@ -134,10 +149,11 @@ class StarboardRendererClientTest : public ::testing::Test {
     media_resource_ = std::make_unique<FakeMediaResource>(3, 9, false);
   }
 
-  void InitializeStarboardRendererClient(bool with_gpu_factories = true) {
+  void InitializeStarboardRendererClient(bool with_gpu_factories = true,
+                                         bool bypass_mojo_for_media = false) {
     mojo::PendingRemote<mojom::Renderer> renderer_remote;
     mojo::MakeSelfOwnedReceiver(
-        std::make_unique<FakeMojomRenderer>(),
+        std::make_unique<FakeMojomRenderer>(&fake_mojom_renderer_record_),
         renderer_remote.InitWithNewPipeAndPassReceiver());
 
     mojo::PendingRemote<mojom::StarboardRendererExtension>
@@ -153,7 +169,8 @@ class StarboardRendererClientTest : public ::testing::Test {
     auto mojo_renderer = std::make_unique<MojoRenderer>(
         task_environment_.GetMainThreadTaskRunner(),
         /*video_overlay_factory=*/nullptr,
-        /*video_renderer_sink=*/nullptr, std::move(renderer_remote));
+        /*video_renderer_sink=*/nullptr, std::move(renderer_remote),
+        bypass_mojo_for_media);
     auto overlay_factory = std::make_unique<VideoOverlayFactory>();
     starboard_renderer_client_ = std::make_unique<StarboardRendererClient>(
         task_environment_.GetMainThreadTaskRunner(), media_log_.Clone(),
@@ -180,6 +197,7 @@ class StarboardRendererClientTest : public ::testing::Test {
   base::MockOnceCallback<void(PipelineStatus)> renderer_init_cb_;
   std::unique_ptr<FakeMediaResource> media_resource_;
   std::unique_ptr<StarboardRendererClient> starboard_renderer_client_;
+  FakeMojomRendererCallRecord fake_mojom_renderer_record_;
 };
 
 TEST_F(StarboardRendererClientTest, CreateAndDestroy) {
@@ -263,6 +281,33 @@ TEST_F(StarboardRendererClientTest,
   EXPECT_CALL(mock_video_renderer_sink_, Stop()).Times(0);
   starboard_renderer_client_->OnEnded();
   task_environment_.RunUntilIdle();
+}
+
+TEST_F(StarboardRendererClientTest, InitializeWithBypassBridge) {
+  base::test::ScopedCommandLine scoped_command_line;
+  scoped_command_line.GetProcessCommandLine()->AppendSwitch("single-process");
+
+  InitializeStarboardRendererClient(/*with_gpu_factories=*/true,
+                                    /*bypass_mojo_for_media=*/true);
+
+  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
+  starboard_renderer_client_->Initialize(
+      media_resource_.get(), &renderer_client_, renderer_init_cb_.Get());
+  starboard_renderer_client_->UpdateStarboardRenderingMode(
+      StarboardRenderingMode::kPunchOut);
+
+  task_environment_.RunUntilIdle();
+
+  EXPECT_TRUE(fake_mojom_renderer_record_.initialize_with_bypass_bridge_called);
+  uint32_t bridge_id = fake_mojom_renderer_record_.last_bypass_bridge_id;
+  EXPECT_NE(bridge_id, 0u);
+
+  auto bridge = BypassBridgeRegistry::Get(bridge_id);
+  ASSERT_TRUE(bridge);
+  EXPECT_TRUE(bridge->IsActive());
+
+  starboard_renderer_client_.reset();
+  EXPECT_EQ(BypassBridgeRegistry::Get(bridge_id), nullptr);
 }
 
 }  // namespace
