@@ -175,6 +175,11 @@ void HandleAvailableSpace(
 #endif
         callback,
     int64_t available_bytes) {
+#if !BUILDFLAG(IS_STARBOARD)
+  // Cobalt implementation doesn't use the temp dir for the download,
+  // and relies on UpdateChecker::SkipUpdate to handle this error case when
+  // available space is insufficient. It sends UpdateCheckError::OUT_OF_SPACE
+  // error to the server.
   if (available_bytes / 2 <= size) {
     VLOG(1) << "available_bytes: " << available_bytes
             << ", download size: " << size;
@@ -187,6 +192,7 @@ void HandleAvailableSpace(
                  .code = static_cast<int>(CrxDownloaderError::DISK_FULL)})));
     return;
   }
+#endif
   scoped_refptr<CrxDownloader> crx_downloader =
 #if BUILDFLAG(IS_STARBOARD)
       config->GetCrxDownloaderFactory()->MakeCrxDownloader(config);
