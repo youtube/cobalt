@@ -16,6 +16,11 @@
 package dev.cobalt.coat;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import android.app.Activity;
@@ -28,6 +33,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.robolectric.Robolectric;
+import org.robolectric.util.ReflectionHelpers;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 
@@ -66,5 +72,30 @@ public class ShellManagerTest {
     shell.setContentViewRenderView(null);
 
     assertEquals(0, mRootView.getChildCount());
+  }
+
+  @Test
+  public void testDestroyDetachesActiveShellWithoutClosingAndClearsContext() {
+    Shell mockShell = mock(Shell.class);
+    ReflectionHelpers.setField(mShellManager, "mActiveShell", mockShell);
+
+    mShellManager.destroy();
+
+    verify(mockShell, never()).close();
+    verify(mMockShellManagerNatives).destroy();
+    assertNull(ReflectionHelpers.getField(mShellManager, "mActiveShell"));
+    assertNull(ReflectionHelpers.getField(mShellManager, "mContext"));
+  }
+
+  @Test
+  public void testDestroyHandlesBeingCalledTwice() {
+    Shell mockShell = mock(Shell.class);
+    ReflectionHelpers.setField(mShellManager, "mActiveShell", mockShell);
+
+    mShellManager.destroy();
+    mShellManager.destroy();
+
+    verify(mockShell, never()).close();
+    verify(mMockShellManagerNatives, times(1)).destroy();
   }
 }

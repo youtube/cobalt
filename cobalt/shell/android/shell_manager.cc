@@ -67,6 +67,10 @@ static void JNI_ShellManager_Init(JNIEnv* env,
   g_global_state.Get().j_shell_manager.Reset(obj);
 }
 
+static void JNI_ShellManager_Destroy(JNIEnv* env) {
+  g_global_state.Get().j_shell_manager.Reset();
+}
+
 void JNI_ShellManager_LaunchShell(JNIEnv* env,
                                   const JavaParamRef<jstring>& jurl,
                                   const JavaParamRef<jstring>& jdeeplink_url) {
@@ -99,8 +103,13 @@ void JNI_ShellManager_LaunchShell(JNIEnv* env,
 }
 
 void DestroyShellManager() {
+  auto& j_shell_manager = g_global_state.Get().j_shell_manager;
+  if (j_shell_manager.is_null()) {
+    return;
+  }
+
   JNIEnv* env = base::android::AttachCurrentThread();
-  Java_ShellManager_destroy(env, g_global_state.Get().j_shell_manager);
+  Java_ShellManager_destroy(env, j_shell_manager);
 }
 
 base::android::ScopedJavaLocalRef<jstring>
