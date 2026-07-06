@@ -98,6 +98,17 @@ source_set("capture_device_specific") {
     "video/video_capture_metrics.h",
   ]
 
+  if (is_cobalt) {
+    sources -= [
+      "video/blob_utils.cc",
+      "video/blob_utils.h",
+      "video/file_video_capture_device.cc",
+      "video/file_video_capture_device.h",
+      "video/file_video_capture_device_factory.cc",
+      "video/file_video_capture_device_factory.h",
+    ]
+  }
+
   public_deps = [ ":capture_base" ]
   deps = [
     "//base",
@@ -175,7 +186,7 @@ component("capture_lib") {
     ]
   }
 
-  if (is_android) {
+  if (is_android && !is_cobalt) {
     public_deps += [ "video/android" ]
     deps += [ "video/android:capture_jni_headers" ]
   }
