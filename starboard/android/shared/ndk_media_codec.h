@@ -62,8 +62,13 @@ class NdkMediaCodec : public MediaCodec {
 
   explicit NdkMediaCodec(PassKey<NdkMediaCodec>,
                          Handler* handler,
-                         AMediaCodec* codec);
+                         AMediaCodec* codec,
+                         int fps);
   ~NdkMediaCodec() override;
+
+  // Disallow copy and assign.
+  NdkMediaCodec(const NdkMediaCodec&) = delete;
+  void operator=(const NdkMediaCodec&) = delete;
 
   Span<uint8_t> GetInputBufferAddress(jint index) override;
   jint QueueInputBuffer(jint index,
@@ -98,6 +103,8 @@ class NdkMediaCodec : public MediaCodec {
  private:
   Handler* const handler_;
   AMediaCodec* codec_ = nullptr;
+  int fps_ = 0;
+  double playback_rate_ = 1.0;
   bool is_frame_rendered_callback_enabled_ = false;
 };
 
