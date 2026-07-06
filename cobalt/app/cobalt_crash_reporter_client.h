@@ -39,6 +39,8 @@ class CobaltCrashReporterClient : public crash_reporter::CrashReporterClient {
 
   std::string GetUploadUrl() override;
 
+// Follow the build flags used in
+// components/crash/core/app/crash_reporter_client.h.
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   void GetSanitizationInformation(const char* const** allowed_annotations,
                                   void** target_module,

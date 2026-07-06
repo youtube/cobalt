@@ -117,4 +117,4 @@ void CobaltCrashReporterClient::GetSanitizationInformation(
     *sanitize_stacks = true;
   }
 }
-#endif
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
