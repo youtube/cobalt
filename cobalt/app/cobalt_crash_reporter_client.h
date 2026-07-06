@@ -45,7 +45,8 @@ class CobaltCrashReporterClient : public crash_reporter::CrashReporterClient {
   void GetSanitizationInformation(const char* const** allowed_annotations,
                                   void** target_module,
                                   bool* sanitize_stacks) override;
-#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_CHROMEOS)
 
  private:
   friend class base::NoDestructor<CobaltCrashReporterClient>;
