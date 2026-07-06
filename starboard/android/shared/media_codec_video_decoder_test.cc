@@ -217,7 +217,7 @@ TEST_F(MediaCodecVideoDecoderTest, BackpressureOnOutputFrame) {
       },
       [](SbPlayerError error, const std::string& msg) {});
 
-  const int kMaxPendingInputs = 128;
+  constexpr int kMaxPendingInputs = 128;
 
   // Write `kMaxPendingInputs + 1` buffers to fill the queue and go beyond.
   // We expect signals for the first `kMaxPendingInputs - 1` writes.

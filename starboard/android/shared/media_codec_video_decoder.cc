@@ -135,7 +135,7 @@ const int kTunnelModePrerollFrameCount = 1;
 // The maximum number of pending inputs allowed in the decoder queue.
 // We set this to 128 frames (approx 2.1 seconds of 60fps video or 4.2 seconds
 // of 30fps video) to provide a buffer safety cushion that helps survive
-// V8 JavaScript main-thread congestion without video starvation,
+// V8 JavaScript main-thread congestion without video starvation.
 constexpr int kMaxPendingInputsSize = 128;
 
 // VideoFrameTracker tracks frames in the entire media pipeline (decoder queue,
@@ -1015,7 +1015,7 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
   }
 
   bool need_more_input =
-      !is_end_of_stream &&
+      !is_end_of_stream && media_decoder_ &&
       media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize;
   decoder_status_cb_(
       need_more_input ? kNeedMoreInput : kBufferFull,
