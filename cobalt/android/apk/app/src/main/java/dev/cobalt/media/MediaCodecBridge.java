@@ -281,14 +281,15 @@ class MediaCodecBridge {
       return null;
     }
     final MediaCodec[] result = new MediaCodec[1];
-    final Exception[] exception = new Exception[1];
+    final Throwable[] exception = new Throwable[1];
     final boolean[] cancelled = new boolean[1];
+    final Object lock = new Object();
     Handler handler = new Handler(handlerThread.getLooper());
     java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
     boolean posted = handler.post(() -> {
       try {
         MediaCodec codec = MediaCodec.createByCodecName(decoderName);
-        synchronized (latch) {
+        synchronized (lock) {
           if (cancelled[0]) {
             if (codec != null) {
               codec.release();
@@ -297,8 +298,8 @@ class MediaCodecBridge {
             result[0] = codec;
           }
         }
-      } catch (Exception e) {
-        exception[0] = e;
+      } catch (Throwable t) {
+        exception[0] = t;
       } finally {
         latch.countDown();
       }
@@ -310,8 +311,16 @@ class MediaCodecBridge {
     try {
       latch.await();
     } catch (InterruptedException e) {
-      synchronized (latch) {
+      synchronized (lock) {
         cancelled[0] = true;
+        if (result[0] != null) {
+          try {
+            result[0].release();
+          } catch (Exception ex) {
+            Log.e(TAG, "Failed to release MediaCodec after interruption", ex);
+          }
+          result[0] = null;
+        }
       }
       Thread.currentThread().interrupt();
     }
@@ -410,9 +419,9 @@ class MediaCodecBridge {
           };
 
       if (mEnableIgnoreCallbacksDuringFlushing) {
-        mMediaCodec.get().setCallback(mCallback, mMediaCodecHandler);
+        mediaCodec.setCallback(mCallback, mMediaCodecHandler);
       } else {
-        mMediaCodec.get().setCallback(mCallback);
+        mediaCodec.setCallback(mCallback);
       }
 
       if (mEnableFrameRendererListener) {
@@ -431,14 +440,14 @@ class MediaCodecBridge {
               }
             };
         if (mEnableIgnoreCallbacksDuringFlushing) {
-          mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, mMediaCodecHandler);
+          mediaCodec.setOnFrameRenderedListener(mFrameRendererListener, mMediaCodecHandler);
         } else {
-          mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, null);
+          mediaCodec.setOnFrameRenderedListener(mFrameRendererListener, null);
         }
       }
 
       if (mIsTunnelingPlayback) {
-        setupTunnelingPlayback();
+        setupTunnelingPlayback(mediaCodec);
       }
       mFrameRateEstimator = MediaCodecFrameRateEstimator.create(mIsTunnelingPlayback);
     } catch (Throwable t) {
@@ -1149,7 +1158,7 @@ class MediaCodecBridge {
     }
   }
 
-  private void setupTunnelingPlayback() {
+  private void setupTunnelingPlayback(MediaCodec mediaCodec) {
     // PARAMETER_KEY_TUNNEL_PEEK is added in Android 12.
     if (Build.VERSION.SDK_INT >= 31) {
       // |PARAMETER_KEY_TUNNEL_PEEK| should be default to enabled according to the API
@@ -1158,7 +1167,7 @@ class MediaCodecBridge {
       Bundle bundle = new Bundle();
       bundle.putInt(MediaCodec.PARAMETER_KEY_TUNNEL_PEEK, 1);
       try {
-        mMediaCodec.get().setParameters(bundle);
+        mediaCodec.setParameters(bundle);
       } catch (IllegalStateException e) {
         Log.e(TAG, "Failed to set MediaCodec PARAMETER_KEY_TUNNEL_PEEK: ", e);
       }
@@ -1185,9 +1194,9 @@ class MediaCodecBridge {
             }
           };
       if (mEnableIgnoreCallbacksDuringFlushing) {
-        mMediaCodec.get().setOnFirstTunnelFrameReadyListener(mMediaCodecHandler, mFirstTunnelFrameReadyListener);
+        mediaCodec.setOnFirstTunnelFrameReadyListener(mMediaCodecHandler, mFirstTunnelFrameReadyListener);
       } else {
-        mMediaCodec.get().setOnFirstTunnelFrameReadyListener(null, mFirstTunnelFrameReadyListener);
+        mediaCodec.setOnFirstTunnelFrameReadyListener(null, mFirstTunnelFrameReadyListener);
       }
     } else {
       Log.w(
