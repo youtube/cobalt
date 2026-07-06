@@ -279,23 +279,15 @@ void StarboardAudioInputStream::SimpleBufferQueueCallback(
 }
 
 void StarboardAudioInputStream::ReadBufferQueue() {
+  // Holding `lock_` during OnData prevents a race condition where Stop() or Close()
+  // on the AudioManager thread clears `callback_` mid-execution.
+  // Re-entrant deadlocks are impossible because Stop()/Close() are thread-checked to
+  // the AudioManager thread, while ReadBufferQueue runs on the OpenSLES thread.
   base::AutoLock lock(lock_);
+
   if (!started_ || !callback_) {
     return;
   }
-
-  // Calling external callbacks under a lock is not recommended as it
-  // can lead to deadlocks if the callback tries to re-enter
-  // the class or blocks on a thread that is waiting for the lock.
-  // Without this lock however, we can run into a race condition between
-  // the OpenSLES audio callback thread (executing ReadBufferQueue ) and the
-  // AudioManager/Main thread (executing Stop or Close)
-  //
-  // In this case Stop() and Close() have CHECK(thread_checker_.
-  // CalledOnValidThread()) , meaning they must be called from the AudioManager
-  // thread. ReadBufferQueue runs on the OpenSLES thread. Thus, OnData (running
-  // on OpenSLES thread) cannot synchronously call Stop() or Close() on the same
-  // thread, avoiding direct re-entrancy deadlocks.
 
   // Convert from interleaved format to deinterleaved audio bus format while
   // still under the lock to protect audio_bus_ and audio_data_.
