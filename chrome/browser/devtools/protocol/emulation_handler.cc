@@ -4,9 +4,14 @@
 
 #include <memory>
 
+#include "build/build_config.h"
+#include "chrome/browser/devtools/features.h"
 #include "chrome/browser/devtools/protocol/emulation_handler.h"
+#include "content/public/common/buildflags.h"
+#if BUILDFLAG(ENABLE_DEVTOOLS_FRONTEND)
 #include "chrome/browser/infobars/confirm_infobar_creator.h"
 #include "chrome/browser/ui/startup/automation_infobar_delegate.h"
+#endif
 
 EmulationHandler::EmulationHandler(content::DevToolsAgentHost* agent_host,
                                    protocol::UberDispatcher* dispatcher)
@@ -23,6 +28,7 @@ protocol::Response EmulationHandler::Disable() {
 }
 
 protocol::Response EmulationHandler::SetAutomationOverride(bool enabled) {
+  #if BUILDFLAG(ENABLE_DEVTOOLS_FRONTEND)
   if (!enabled) {
     if (automation_info_bar_) {
       automation_info_bar_->RemoveSelf();
@@ -48,9 +54,11 @@ protocol::Response EmulationHandler::SetAutomationOverride(bool enabled) {
   if (automation_info_bar_) {
     info_bar_manager->AddObserver(this);
   }
+  #endif  // BUILDFLAG(ENABLE_DEVTOOLS_FRONTEND)
   return protocol::Response::FallThrough();
 }
 
+#if BUILDFLAG(ENABLE_DEVTOOLS_FRONTEND)
 infobars::ContentInfoBarManager* EmulationHandler::GetContentInfoBarManager() {
   content::WebContents* web_contents = agent_host_->GetWebContents();
   if (!web_contents) {
@@ -67,3 +75,4 @@ void EmulationHandler::OnInfoBarRemoved(infobars::InfoBar* infobar,
     automation_info_bar_ = nullptr;
   }
 }
+#endif  // BUILDFLAG(ENABLE_DEVTOOLS_FRONTEND)

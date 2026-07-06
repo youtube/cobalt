@@ -2,13 +2,13 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//chrome/common/features.gni")
 import("//content/browser/devtools/features.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//printing/buildflags/buildflags.gni")
 
 if (enable_devtools_frontend) {
   import("//build/config/features.gni")
-  import("//chrome/common/features.gni")
   import("//tools/grit/grit_rule.gni")
 }
 
@@ -127,6 +127,7 @@ static_library("devtools") {
     # Similar bandaid as the above. Since we cannot depend on
     # //chrome/browser:browser, we include indirect dependencies here.
     ":protocol_generated_sources",
+    "//chrome/browser:browser_process",
     "//chrome/browser/autofill:autofill",
     "//chrome/browser/profiles/keep_alive",
     "//components/autofill/content/browser:browser",
@@ -179,9 +180,14 @@ static_library("devtools") {
       "url_constants.h",
       "visual_logging.cc",
       "visual_logging.h",
+      "devtools_infobar_delegate.cc",
+      "devtools_infobar_delegate.h",
+      "process_sharing_infobar_delegate.cc",
+      "process_sharing_infobar_delegate.h",
+      "global_confirm_info_bar.cc",
+      "global_confirm_info_bar.h",
     ]
     deps += [
-      "//chrome/browser:browser_process",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/profiles:profile_util",
       "//chrome/browser/task_manager",
@@ -293,15 +299,9 @@ static_library("devtools") {
       "devtools_browser_context_manager.cc",
       "devtools_browser_context_manager.h",
       "devtools_dock_tile.h",
-      "devtools_infobar_delegate.cc",
-      "devtools_infobar_delegate.h",
       "devtools_targets_ui.cc",
       "devtools_targets_ui.h",
       "devtools_window_views.cc",
-      "global_confirm_info_bar.cc",
-      "global_confirm_info_bar.h",
-      "process_sharing_infobar_delegate.cc",
-      "process_sharing_infobar_delegate.h",
       "remote_debugging_server.cc",
       "remote_debugging_server.h",
       "serialize_host_descriptions.cc",
