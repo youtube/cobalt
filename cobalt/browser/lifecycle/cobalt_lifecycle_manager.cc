@@ -89,6 +89,7 @@ void CobaltLifecycleManager::OnMojoDisconnect() {
       active_it != active_receiver_counts_.end()) {
     active_it->second--;
     if (active_it->second <= 0) {
+      DCHECK(active_it->second == 0);
       active_receiver_counts_.erase(active_it);
       content::RenderFrameHost* frame =
           content::RenderFrameHost::FromID(context.frame_id);
