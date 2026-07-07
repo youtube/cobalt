@@ -4,8 +4,6 @@
 
 #include "src/heap/cppgc/concurrent-marker.h"
 
-#include "src/base/memory-context.h"
-
 #include "include/cppgc/platform.h"
 #include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/heap-object-header.h"
@@ -80,7 +78,6 @@ ConcurrentMarkingTask::ConcurrentMarkingTask(
     : concurrent_marker_(concurrent_marker) {}
 
 void ConcurrentMarkingTask::Run(JobDelegate* job_delegate) {
-  ::v8::base::ScopedMemoryContext scoped_context(::v8::base::MemoryContext::kScript);
   StatsCollector::EnabledConcurrentScope stats_scope(
       concurrent_marker_.heap().stats_collector(),
       StatsCollector::kConcurrentMark);

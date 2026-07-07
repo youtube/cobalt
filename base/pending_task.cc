@@ -6,9 +6,6 @@
 
 #include "base/task/task_features.h"
 
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
-#endif
 
 namespace base {
 
@@ -24,10 +21,6 @@ TaskMetadata::TaskMetadata(const Location& posted_from,
       delayed_run_time(delayed_run_time),
       leeway(leeway),
       delay_policy(delay_policy)
-#if BUILDFLAG(IS_COBALT)
-      ,
-      memory_context(::base::memory::GetCurrentMemoryContext())
-#endif
 {}
 
 TaskMetadata::TaskMetadata(TaskMetadata&& other) = default;

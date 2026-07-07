@@ -16,6 +16,8 @@ source_set("memory") {
   sources = [
     "cobalt_memory_attribution_manager.cc",
     "cobalt_memory_attribution_manager.h",
+    "cobalt_memory_task_observer.cc",
+    "cobalt_memory_task_observer.h",
   ]
 
   deps = [
@@ -26,7 +28,10 @@ source_set("memory") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "cobalt_memory_attribution_manager_unittest.cc" ]
+  sources = [
+    "cobalt_memory_attribution_manager_unittest.cc",
+    "cobalt_memory_task_observer_unittest.cc",
+  ]
 
   deps = [
     ":memory",

@@ -4,8 +4,6 @@
 
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 
-#include "src/base/memory-context.h"
-
 #include <atomic>
 
 #include "include/v8-platform.h"
@@ -39,7 +37,6 @@ class LazyCompileDispatcher::JobTask : public v8::JobTask {
       : lazy_compile_dispatcher_(lazy_compile_dispatcher) {}
 
   void Run(JobDelegate* delegate) final {
-    ::v8::base::ScopedMemoryContext scoped_context(::v8::base::MemoryContext::kScript);
     lazy_compile_dispatcher_->DoBackgroundWork(delegate);
   }
 

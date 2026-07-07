@@ -273,10 +273,6 @@ component("modules") {
         [ "/wd4334" ]  # Result of 32-bit shift implicitly converted to 64 bits.
   }
 
-  if (is_cobalt) {
-    deps += [ "//cobalt/shell:buildflags" ]
-  }
-
   configs -= [ "//build/config/compiler:default_symbols" ]
   configs += blink_symbols_config
 }

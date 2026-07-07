@@ -1191,8 +1191,6 @@ static void SetThreadName(const char* name) {
 #endif
 }
 
-extern "C" __attribute__((weak)) void CobaltSetMemoryContextForThread(const char* name);
-
 static void* ThreadEntry(void* arg) {
   Thread* thread = reinterpret_cast<Thread*>(arg);
   // We take the lock here to make sure that pthread_create finished first since
@@ -1200,10 +1198,6 @@ static void* ThreadEntry(void* arg) {
   // one).
   { MutexGuard lock_guard(&thread->data()->thread_creation_mutex_); }
   SetThreadName(thread->name());
-
-  if (CobaltSetMemoryContextForThread) {
-    CobaltSetMemoryContextForThread(thread->name());
-  }
 #if V8_OS_DARWIN
   switch (thread->priority()) {
     case Thread::Priority::kBestEffort:

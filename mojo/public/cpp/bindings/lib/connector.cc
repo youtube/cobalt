@@ -13,7 +13,6 @@
 #include "base/debug/alias.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/memory/cobalt_memory_context.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_macros.h"
@@ -502,8 +501,6 @@ MojoResult Connector::ReadMessage(ScopedMessageHandle& message) {
 }
 
 bool Connector::DispatchMessage(ScopedMessageHandle handle) {
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kPlatformIPC);
   DCHECK(!paused_);
 
   Message message = Message::CreateFromMessageHandle(&handle);
@@ -608,8 +605,6 @@ void Connector::ScheduleDispatchOfPendingMessagesOrWaitForMore(
 }
 
 void Connector::ReadAllAvailableMessages() {
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kPlatformIPC);
   if (paused_ || error_)
     return;
 

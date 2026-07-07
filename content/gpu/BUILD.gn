@@ -134,8 +134,4 @@ target(link_target_type, "gpu_sources") {
       !is_castos && !is_starboard) {
     configs += [ "//build/config/linux/dri" ]
   }
-
-  if (is_cobalt) {
-    deps += [ "//cobalt/shell:buildflags" ]
-  }
 }

@@ -4,8 +4,6 @@
 
 #include "src/maglev/maglev-concurrent-dispatcher.h"
 
-#include "src/base/memory-context.h"
-
 #include "src/base/fpu.h"
 #include "src/codegen/compiler.h"
 #include "src/compiler/compilation-dependencies.h"
@@ -265,7 +263,6 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
       : dispatcher_(dispatcher) {}
 
   void Run(JobDelegate* delegate) override {
-    ::v8::base::ScopedMemoryContext scoped_context(::v8::base::MemoryContext::kScript);
     if (incoming_queue()->IsEmpty() && destruction_queue()->IsEmpty()) {
       return;
     }

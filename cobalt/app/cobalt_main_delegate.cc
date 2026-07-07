@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,8 +39,11 @@
 #if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROIDTV)
 #include "cobalt/browser/hang_watcher_delegate_impl.h"
 #endif
+#include "base/no_destructor.h"
+#include "base/task/current_thread.h"
 #include "cobalt/app/cobalt_crash_reporter_client.h"
 #include "cobalt/gpu/cobalt_content_gpu_client.h"
+#include "cobalt/memory/cobalt_memory_task_observer.h"
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
 #include "components/crash/core/app/crashpad.h"
 #include "components/memory_system/initializer.h"
@@ -176,6 +179,14 @@ void CobaltMainDelegate::InitializeMemorySystem() {
               ? memory_system::CobaltMemoryAttributionInclusion::kInclude
               : memory_system::CobaltMemoryAttributionInclusion::kDoNotInclude)
       .Initialize(memory_system_);
+
+  if (base::CurrentThread::IsSet() &&
+      base::FeatureList::IsEnabled(
+          cobalt::features::kCobaltMemoryAttributionManager)) {
+    static base::NoDestructor<cobalt::memory::CobaltMemoryTaskObserver>
+        task_observer;
+    base::CurrentThread::Get()->AddTaskObserver(task_observer.get());
+  }
 
   return;
 }

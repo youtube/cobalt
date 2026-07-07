@@ -57,6 +57,7 @@ constexpr char kFakeAudioOutput2[] = "fake_audio_output_2";
 constexpr char kInvalidAudioOutput[] = "INVALID_AUDIO_OUTPUT";
 constexpr char kSecurityOrigin[] = "https://example.com";
 constexpr char kTestData[] = "simple_div.html";
+
 #if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 constexpr char kDefaultDeviceId[] = "";
 #endif

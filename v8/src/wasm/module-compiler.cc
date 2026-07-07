@@ -4,8 +4,6 @@
 
 #include "src/wasm/module-compiler.h"
 
-#include "src/base/memory-context.h"
-
 #include <algorithm>
 #include <atomic>
 #include <memory>
@@ -2352,7 +2350,6 @@ class BackgroundCompileJob final : public JobTask {
         tier_(tier) {}
 
   void Run(JobDelegate* delegate) override {
-    ::v8::base::ScopedMemoryContext scoped_context(::v8::base::MemoryContext::kScript);
     auto engine_scope = engine_barrier_->TryLock();
     if (!engine_scope) return;
     ExecuteCompilationUnits(native_module_, async_counters_.get(), delegate,
@@ -2587,7 +2584,6 @@ class ValidateFunctionsStreamingJob final : public JobTask {
       : module_(module), enabled_features_(enabled_features), data_(data) {}
 
   void Run(JobDelegate* delegate) override {
-    ::v8::base::ScopedMemoryContext scoped_context(::v8::base::MemoryContext::kScript);
     TRACE_EVENT0("v8.wasm", "wasm.ValidateFunctionsStreaming");
     using Unit = ValidateFunctionsStreamingJobData::Unit;
     Zone validation_zone{GetWasmEngine()->allocator(), ZONE_NAME};

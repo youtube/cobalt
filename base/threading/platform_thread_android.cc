@@ -23,9 +23,6 @@
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "base/tasks_jni/ThreadUtils_jni.h"
 
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
-#endif
 
 namespace base {
 

@@ -6426,10 +6426,6 @@ v8_source_set("v8_base_without_compiler") {
     ]
     deps += [ "third_party/vtune:v8_vtune_trace_mark" ]
   }
-
-  if (is_cobalt) {
-    deps += [ "//cobalt/shell:buildflags" ]
-  }
 }
 
 group("v8_base") {
@@ -6607,8 +6603,6 @@ v8_component("v8_libbase") {
     "src/base/logging.cc",
     "src/base/logging.h",
     "src/base/macros.h",
-    "src/base/memory-context.cc",
-    "src/base/memory-context.h",
     "src/base/memory.h",
     "src/base/numbers/bignum-dtoa.cc",
     "src/base/numbers/bignum-dtoa.h",
@@ -7447,10 +7441,6 @@ if (current_toolchain == v8_snapshot_toolchain) {
       ":v8_tracing",
       "//build/win:default_exe_manifest",
     ]
-
-    if (is_cobalt) {
-      deps += [ "//base" ]
-    }
   }
 
   # This config disables a link time optimization "ICF", which may merge

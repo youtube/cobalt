@@ -4,8 +4,6 @@
 
 #include "src/heap/scavenger.h"
 
-#include "src/base/memory-context.h"
-
 #include <algorithm>
 #include <atomic>
 #include <optional>
@@ -228,7 +226,6 @@ ScavengerCollector::JobTask::JobTask(
                     GCTracer::Scope::SCAVENGER)) {}
 
 void ScavengerCollector::JobTask::Run(JobDelegate* delegate) {
-  ::v8::base::ScopedMemoryContext scoped_context(::v8::base::MemoryContext::kScript);
   DCHECK_LT(delegate->GetTaskId(), scavengers_->size());
   // Set the current isolate such that trusted pointer tables etc are
   // available and the cage base is set correctly for multi-cage mode.
@@ -681,7 +678,6 @@ ScavengerCollector::QuarantinedPageSweeper::JobTask::JobTask(
 
 void ScavengerCollector::QuarantinedPageSweeper::JobTask::Run(
     JobDelegate* delegate) {
-  ::v8::base::ScopedMemoryContext scoped_context(::v8::base::MemoryContext::kScript);
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   SetCurrentIsolateScope current_isolate_scope(heap_->isolate());
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES

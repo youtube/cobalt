@@ -30,8 +30,4 @@ blink_modules_sources("websockets") {
   ]
 
   deps = [ "//services/network/public/mojom:websocket_mojom" ]
-
-  if (is_cobalt) {
-    deps += [ "//cobalt/shell:buildflags" ]
-  }
 }

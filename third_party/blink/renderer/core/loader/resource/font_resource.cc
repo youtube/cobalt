@@ -35,8 +35,6 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "base/types/expected.h"
-
-#include "base/memory/cobalt_memory_context.h"
 #include "build/build_config.h"
 #include "mojo/public/cpp/system/data_pipe_drainer.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
@@ -225,9 +223,6 @@ void FontResource::BackgroundFontProcessor::DecodeOnBackgroundThread(
     SegmentedBuffer data,
     scoped_refptr<base::SequencedTaskRunner> background_task_runner,
     base::WeakPtr<BackgroundFontProcessor> weak_this) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kGraphics);
-#endif
   base::expected<DecodedResult, String> result_or_error = DecodeFont(&data);
   PostCrossThreadTask(
       *background_task_runner, FROM_HERE,
@@ -458,9 +453,6 @@ FontResource::MaybeCreateBackgroundResponseProcessorFactory() {
 
 void FontResource::OnBackgroundDecodeFinished(
     base::expected<DecodedResult, String> result_or_error) {
-#if BUILDFLAG(IS_COBALT)
-  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kGraphics);
-#endif
   background_decode_result_or_error_ = std::move(result_or_error);
 }
 

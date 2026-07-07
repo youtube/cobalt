@@ -34,8 +34,6 @@
 #include <optional>
 #include <utility>
 
-#include "base/memory/cobalt_memory_context.h"
-
 #include "base/auto_reset.h"
 #include "base/containers/adapters.h"
 #include "base/containers/contains.h"
@@ -1363,8 +1361,6 @@ Element* TreeScope::createElementNS(
 Element* TreeScope::CreateElement(const QualifiedName& q_name,
                                   const CreateElementFlags flags,
                                   const AtomicString& is) {
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kBlinkDOM);
   CustomElementDefinition* definition = nullptr;
   if (flags.IsCustomElements() &&
       q_name.NamespaceURI() == html_names::xhtmlNamespaceURI) {
@@ -1386,8 +1382,6 @@ DocumentFragment* Document::createDocumentFragment() {
 }
 
 Text* Document::createTextNode(const String& data) {
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kBlinkDOM);
   return Text::Create(*this, data);
 }
 
@@ -2885,7 +2879,6 @@ void Document::MarkHasFindInPageBeforematchExpandedHiddenMatchable() {
 }
 
 void Document::UpdateStyleAndLayout(DocumentUpdateReason reason) {
-  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kLayout);
   DCHECK(IsMainThread());
   // TODO(paint-dev): LifecyclePostponed() and
   // LocalFrameView::IsUpdatingLifecycle() overlap in functionality, but with

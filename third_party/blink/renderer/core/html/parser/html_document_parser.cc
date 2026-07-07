@@ -34,8 +34,6 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/strcat.h"
 #include "base/synchronization/lock.h"
-
-#include "base/memory/cobalt_memory_context.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/types/optional_util.h"
@@ -686,8 +684,6 @@ void HTMLDocumentParser::ForcePlaintextForTextDocument() {
 }
 
 bool HTMLDocumentParser::PumpTokenizer() {
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kBlinkParser);
   DCHECK(!GetDocument()->IsPrefetchOnly());
   DCHECK(!IsStopped());
 
@@ -951,7 +947,6 @@ bool HTMLDocumentParser::HasInsertionPoint() {
 }
 
 void HTMLDocumentParser::insert(const String& source) {
-  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kBlinkParser);
   // No need to do any processing if the supplied text is empty.
   if (IsStopped() || source.empty())
     return;
@@ -988,7 +983,6 @@ void HTMLDocumentParser::insert(const String& source) {
 }
 
 void HTMLDocumentParser::Append(const String& input_source) {
-  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kBlinkParser);
   TRACE_EVENT_WITH_FLOW2("blink", "HTMLDocumentParser::append",
                          TRACE_ID_LOCAL(this),
                          TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT,
@@ -1412,7 +1406,6 @@ void HTMLDocumentParser::ParseDocumentFragment(
 }
 
 void HTMLDocumentParser::AppendBytes(base::span<const uint8_t> data) {
-  base::memory::ScopedMemoryContext scoped_context(base::memory::MemoryContext::kBlinkParser);
   TRACE_EVENT_WITH_FLOW2(
       "blink", "HTMLDocumentParser::appendBytes", TRACE_ID_LOCAL(this),
       TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT, "size",

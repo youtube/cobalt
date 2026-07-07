@@ -17,7 +17,6 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/memory/cobalt_memory_context.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/notreached.h"
@@ -418,8 +417,6 @@ SkiaOutputSurfaceImplOnGpu::~SkiaOutputSurfaceImplOnGpu() {
 
 void SkiaOutputSurfaceImplOnGpu::Reshape(
     const SkiaOutputDevice::ReshapeParams& params) {
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kGraphics);
   TRACE_EVENT0("viz", "SkiaOutputSurfaceImplOnGpu::Reshape");
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(gr_context() || graphite_shared_context());
@@ -460,8 +457,6 @@ void SkiaOutputSurfaceImplOnGpu::FinishPaintCurrentFrame(
     std::vector<gpu::SyncToken> sync_tokens,
     base::OnceClosure on_finished,
     base::OnceCallback<void(gfx::GpuFenceHandle)> return_release_fence_cb) {
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kGraphics);
   TRACE_EVENT0("viz", "SkiaOutputSurfaceImplOnGpu::FinishPaintCurrentFrame");
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!scoped_output_device_paint_);
@@ -620,8 +615,6 @@ void SkiaOutputSurfaceImplOnGpu::FinishPaintRenderPass(
     base::OnceCallback<void(gfx::GpuFenceHandle)> return_release_fence_cb,
     const gfx::Rect& update_rect,
     bool is_overlay) {
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kGraphics);
   TRACE_EVENT0("viz", "SkiaOutputSurfaceImplOnGpu::FinishPaintRenderPass");
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
@@ -1635,8 +1628,6 @@ void SkiaOutputSurfaceImplOnGpu::CopyOutput(
     const gfx::ColorSpace& color_space,
     std::unique_ptr<CopyOutputRequest> request,
     const gpu::Mailbox& mailbox) {
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kGraphics);
   TRACE_EVENT0("viz", "SkiaOutputSurfaceImplOnGpu::CopyOutput");
   // TODO(crbug.com/41422493): Do this on the GPU instead of CPU with
   // Vulkan.
@@ -2296,8 +2287,6 @@ bool SkiaOutputSurfaceImplOnGpu::MakeCurrent(bool need_framebuffer) {
 
 void SkiaOutputSurfaceImplOnGpu::SwapBuffersInternal(
     std::optional<OutputSurfaceFrame> frame) {
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kGraphics);
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(output_device_);
 

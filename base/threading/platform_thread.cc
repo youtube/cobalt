@@ -3,8 +3,6 @@
 // found in the LICENSE file.
 
 #include "base/threading/platform_thread.h"
-
-#include "base/memory/cobalt_memory_context.h"
 #include "base/strings/string_util.h"
 #include "base/task/current_thread.h"
 #include "base/threading/thread_id_name_manager.h"
@@ -61,18 +59,6 @@ std::optional<TimeDelta> PlatformThreadBase::GetThreadLeewayOverride() {
 
 // static
 void PlatformThreadBase::SetNameCommon(const std::string& name) {
-  if (memory::GetCurrentMemoryContext() == memory::MemoryContext::kUnknown) {
-    if (StartsWith(name, "V8", CompareCase::SENSITIVE)) {
-      memory::SetCurrentMemoryContext(memory::MemoryContext::kScriptHeap);
-    } else if (StartsWith(name, "Compositor", CompareCase::SENSITIVE) ||
-               name == "CrGpuMain" || name == "RasterWorker" ||
-               name == "GpuMemoryThread") {
-      memory::SetCurrentMemoryContext(memory::MemoryContext::kGraphics);
-    } else if (name == "Media" || name == "VideoDecoder" ||
-               StartsWith(name, "FFmpeg", CompareCase::INSENSITIVE_ASCII)) {
-      memory::SetCurrentMemoryContext(memory::MemoryContext::kMedia);
-    }
-  }
   ThreadIdNameManager::GetInstance()->SetName(name);
 }
 

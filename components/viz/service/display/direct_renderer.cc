@@ -53,8 +53,6 @@
 #include "ui/gfx/geometry/transform.h"
 #include "ui/gfx/geometry/transform_util.h"
 
-#include "base/memory/cobalt_memory_context.h"
-
 namespace viz {
 
 namespace {
@@ -215,8 +213,6 @@ void DirectRenderer::DrawFrame(
     const gfx::Size& device_viewport_size,
     const gfx::DisplayColorSpaces& display_color_spaces,
     SurfaceDamageRectList surface_damage_rect_list) {
-  base::memory::ScopedMemoryContext scoped_context(
-      base::memory::MemoryContext::kGraphics);
   DCHECK(visible_);
   TRACE_EVENT0("viz,benchmark", "DirectRenderer::DrawFrame");
 
