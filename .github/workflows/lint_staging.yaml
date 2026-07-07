@@ -10,30 +10,83 @@ on:
       - staging
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }} @ ${{ github.event.label.name || github.event.pull_request.number || github.sha }} @ ${{ github.event.label.name && github.event.pull_request.number || github.event.action }}
+  # Cancel existing jobs on the same workflow, platform, and branch (or sha if merged).
+  group: ${{ github.workflow }}-${{ github.event_name }} @ ${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
 permissions: {}
 
 jobs:
-  lint:
-    name: Pre-Commit
+  initialize:
+    name: Initialize
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    outputs:
+      docker_content_sha: ${{ steps.set-docker-hash.outputs.docker_content_sha }}
     steps:
-      - name: Install pre-commit
-        run: |
-          sudo apt update
-          sudo apt install python3 gn pipx
-          pipx install pre-commit
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          # GitHub's actions/checkout action, by default, checks out the merge commit when
-          # a pull request event triggers a workflow. This merge commit represents the state
-          # of the code as if the pull request had been merged into the base branch.
-          # Setting fetch-depth to 2 effectively gets a merge commit (i.e. HEAD) and the
-          # HEAD commit from the base branch (i.e. HEAD~1).
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: |
+            cobalt/docker
+            docker-compose.yaml
+      - name: Set Docker files checksum
+        id: set-docker-hash
+        env:
+          # Explicitly exclude .pre-commit-config.yaml to make edits testable without rebuilding the image.
+          DOCKER_FILES: cobalt/docker/pre-commit docker-compose.yaml
+        shell: bash
+        run: |
+          set -x
+          read -r -a docker_files <<< "${DOCKER_FILES}"
+          docker_content_sha=$(find "${docker_files[@]}" -type f -exec sha256sum -b {} + | LC_ALL=C sort | sha256sum | head -c 64)
+          echo "docker_content_sha=${docker_content_sha}" >> "$GITHUB_OUTPUT"
+
+  docker-pre-commit-image:
+    name: Build Linter Image
+    needs: [initialize]
+    runs-on: [self-hosted, odt-runner]
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Restore CI Essentials
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: |
+            .github
+            cobalt/docker
+            docker-compose.yaml
+            .pre-commit-config.yaml
+      - name: Copy pre-commit config to build context
+        run: cp .pre-commit-config.yaml cobalt/docker/pre-commit/
+      - name: Build and Push Docker image
+        uses: ./.github/actions/docker
+        with:
+          docker_service: pre-commit
+          is_pr: false
+          docker_content_sha: ${{ needs.initialize.outputs.docker_content_sha }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Clean up build context
+        run: rm -f cobalt/docker/pre-commit/.pre-commit-config.yaml
+        if: always()
+
+  lint:
+    name: Pre-Commit
+    needs: initialize
+    if: github.event_name == 'pull_request' && github.event.action != 'edited'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/youtube/cobalt/pre-commit:${{ needs.initialize.outputs.docker_content_sha }}
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
           fetch-depth: 2
           filter: blob:none
           sparse-checkout: |
@@ -50,8 +103,10 @@ jobs:
           export SKIP=chromium-pre-commit
           pre-commit install --hook-type pre-commit --hook-type pre-push
           pre-commit run --show-diff-on-failure --color=always --from-ref HEAD~1 --to-ref HEAD
+
   check-bug-id:
     name: Bug ID Check
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Bug ID Check
