@@ -59,7 +59,7 @@ void CobaltLifecycleManager::BindReceiver(
       content::WebContents::FromRenderFrameHost(frame);
   mojo::ReceiverId id =
       receivers_.Add(this, std::move(receiver), {frame->GetGlobalId()});
-  active_receivers_[frame->GetGlobalId()] = id;
+  active_receiver_counts_[frame->GetGlobalId()]++;
   receiver_ids_[web_contents].push_back(id);
 }
 
@@ -83,17 +83,26 @@ void CobaltLifecycleManager::InitializeTracker(
 
 void CobaltLifecycleManager::OnMojoDisconnect() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  FrameContext context = receivers_.current_context();
+
+  if (auto active_it = active_receiver_counts_.find(context.frame_id);
+      active_it != active_receiver_counts_.end()) {
+    active_it->second--;
+    if (active_it->second <= 0) {
+      DCHECK(active_it->second == 0);
+      active_receiver_counts_.erase(active_it);
+      content::RenderFrameHost* frame =
+          content::RenderFrameHost::FromID(context.frame_id);
+      if (frame) {
+        UnregisterFrame(content::WebContents::FromRenderFrameHost(frame),
+                        frame);
+      }
+    }
+  }
+
   auto [frame, web_contents] = GetCurrentContext();
   mojo::ReceiverId id = receivers_.current_receiver();
-  FrameContext context = receivers_.current_context();
   if (web_contents) {
-    auto active_it = active_receivers_.find(context.frame_id);
-    if (active_it != active_receivers_.end() && active_it->second == id) {
-      if (frame) {
-        UnregisterFrame(web_contents, frame);
-      }
-      active_receivers_.erase(active_it);
-    }
     auto it = receiver_ids_.find(web_contents);
     if (it != receiver_ids_.end()) {
       auto& ids = it->second;
@@ -125,12 +134,8 @@ void CobaltLifecycleManager::WebContentsTracker::RenderFrameCreated(
   // renderer-side CobaltLifecycleController. This establishes the two-way
   // communication channel needed for lifecycle ACKs.
   mojo::PendingRemote<cobalt::mojom::CobaltLifecycleObserver> observer;
-  // Track the ReceiverId associated with the WebContents for clean teardown.
-  mojo::ReceiverId id = manager_->receivers_.Add(
-      manager_, observer.InitWithNewPipeAndPassReceiver(),
-      {render_frame_host->GetGlobalId()});
-  manager_->active_receivers_[render_frame_host->GetGlobalId()] = id;
-  manager_->receiver_ids_[web_contents()].push_back(id);
+  manager_->BindReceiver(render_frame_host,
+                         observer.InitWithNewPipeAndPassReceiver());
   controller->SetObserver(std::move(observer));
 
   controllers_[render_frame_host] = std::move(controller);
@@ -263,8 +268,7 @@ bool CobaltLifecycleManager::WebContentsTracker::IsConnected(
 
 void CobaltLifecycleManager::WebContentsTracker::Rebind(
     content::RenderFrameHost* frame) {
-  LOG(INFO) << "WebContentsTracker::Rebind: Proactively re-binding frame="
-            << frame;
+  LOG(INFO) << __func__ << ": Proactively re-binding frame=" << frame;
   mojo::Remote<cobalt::mojom::CobaltLifecycleController> controller;
   frame->GetRemoteInterfaces()->GetInterface(
       controller.BindNewPipeAndPassReceiver());
@@ -272,11 +276,7 @@ void CobaltLifecycleManager::WebContentsTracker::Rebind(
   // Re-register the browser as an observer after re-binding the interface.
   mojo::PendingRemote<cobalt::mojom::CobaltLifecycleObserver> observer;
   // Track the ReceiverId associated with the WebContents for clean teardown.
-  mojo::ReceiverId id = manager_->receivers_.Add(
-      manager_, observer.InitWithNewPipeAndPassReceiver(),
-      {frame->GetGlobalId()});
-  manager_->active_receivers_[frame->GetGlobalId()] = id;
-  manager_->receiver_ids_[web_contents()].push_back(id);
+  manager_->BindReceiver(frame, observer.InitWithNewPipeAndPassReceiver());
   controller->SetObserver(std::move(observer));
 
   controllers_[frame] = std::move(controller);
@@ -288,8 +288,7 @@ void CobaltLifecycleManager::WebContentsTracker::Rebind(
 
 void CobaltLifecycleManager::WebContentsTracker::OnControllerDisconnect(
     content::RenderFrameHost* frame) {
-  LOG(WARNING) << "WebContentsTracker::OnControllerDisconnect for frame="
-               << frame;
+  LOG(WARNING) << __func__ << " for frame=" << frame;
   resumed_frames_.erase(frame);
   visible_frames_.erase(frame);
   focused_frames_.erase(frame);
@@ -326,17 +325,21 @@ void CobaltLifecycleManager::RegisterFrame(content::WebContents* web_contents,
   frames_[web_contents].insert(frame);
   GetOrCreateTracker(web_contents);
 
-  // Add to pending set if we are waiting for an ACK.
+  if (frame->GetParent()) {
+    // We only need to track and notify observers about Main Frames. Subframes
+    // (iframes) must be excluded from pending ACKs to prevent Blink scheduler
+    // throttling deadlocks.
+    return;
+  }
+
   PendingAck pending_ack = pending_acks_[web_contents];
   if (pending_ack != PendingAck::kNone) {
     pending_ack_frames_[web_contents].insert(frame);
   }
 
-  if (!frame->GetParent()) {
-    main_frames_[web_contents] = frame;
-    for (auto& observer : observers_) {
-      observer.OnMainFrameRegistered(web_contents);
-    }
+  main_frames_[web_contents] = frame;
+  for (auto& observer : observers_) {
+    observer.OnMainFrameRegistered(web_contents);
   }
 }
 
@@ -349,6 +352,8 @@ void CobaltLifecycleManager::UnregisterFrame(content::WebContents* web_contents,
   if (main_frames_[web_contents] == frame) {
     main_frames_.erase(web_contents);
   }
+
+  active_receiver_counts_.erase(frame->GetGlobalId());
 
   if (frames_[web_contents].empty()) {
     frames_.erase(web_contents);
@@ -460,25 +465,15 @@ void CobaltLifecycleManager::StartWaitingForAck(
         base::BindOnce(&CobaltLifecycleManager::NotifyStartWaitingForReveal,
                        base::Unretained(this), web_contents->GetWeakPtr()));
   } else {
-    for (auto* frame : frames_[web_contents]) {
-      bool connected = tracker->IsConnected(frame);
-      if (connected) {
-        pending_ack_frames_[web_contents].insert(frame);
-      } else if (ack_type == PendingAck::kUnfreeze) {
-        LOG(WARNING) << "StartWaitingForAck: Frame not connected during "
-                        "Unfreeze! Re-binding frame="
-                     << frame;
-        tracker->Rebind(frame);
-      }
-    }
+    TrackPrimaryMainFrameForAck(web_contents, tracker, ack_type);
   }
 
   if (pending_ack_frames_[web_contents].empty()) {
     // If there are no connected frames (e.g., during startup before any
     // frames are created or if all frames crashed), we complete the ACK
     // immediately to avoid hanging the transition.
-    LOG(WARNING) << "StartWaitingForAck: No connected frames! Completing "
-                    "immediately for "
+    LOG(WARNING) << __func__
+                 << ": No connected frames! Completing immediately for "
                  << static_cast<int>(ack_type);
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
@@ -493,6 +488,31 @@ void CobaltLifecycleManager::StartWaitingForAck(
                      base::Unretained(this), web_contents->GetWeakPtr(),
                      ack_type),
       base::Seconds(2));
+}
+
+void CobaltLifecycleManager::TrackPrimaryMainFrameForAck(
+    content::WebContents* web_contents,
+    WebContentsTracker* tracker,
+    PendingAck ack_type) {
+  // For downward transitions, only track the active Primary Main Frame.
+  // This excludes subframes (which can be aggressively throttled or paused
+  // by Blink's scheduler) and older, navigated-away main frames that are
+  // still leaking in memory pending deletion.
+  auto* primary_main_frame = web_contents->GetPrimaryMainFrame();
+  if (!primary_main_frame) {
+    return;
+  }
+
+  if (tracker->IsConnected(primary_main_frame)) {
+    pending_ack_frames_[web_contents].insert(primary_main_frame);
+  } else if (ack_type == PendingAck::kUnfreeze &&
+             primary_main_frame->IsRenderFrameLive()) {
+    LOG(WARNING) << __func__
+                 << ": Primary Main Frame not connected during Unfreeze! "
+                    "Re-binding frame="
+                 << primary_main_frame;
+    tracker->Rebind(primary_main_frame);
+  }
 }
 
 // If we are waiting for reveal on this WebContents and all its registered
@@ -571,7 +591,8 @@ void CobaltLifecycleManager::OnAckTimeout(
   }
   content::WebContents* wc = web_contents.get();
   if (pending_acks_[wc] == ack_type) {
-    LOG(WARNING) << "Timeout fired for ack = " << static_cast<int>(ack_type)
+    LOG(WARNING) << __func__
+                 << ": Timeout fired for ack = " << static_cast<int>(ack_type)
                  << ". Proceeding anyway.";
     pending_ack_frames_[wc].clear();
     CheckCompletion(wc);
@@ -584,12 +605,12 @@ void CobaltLifecycleManager::OnWebContentsDestroyed(
   // The WebContents is being destroyed. Proactively remove all its Mojo
   // receivers from `receivers_` BEFORE the WebContents and its RFHs go out of
   // scope.
-  // Proactively clean up the active_receivers_ map for all frames belonging to
-  // this WebContents to avoid memory leaks.
+  // Proactively clean up the active_receiver_counts_ map for all frames
+  // belonging to this WebContents to avoid memory leaks.
   auto frames_it = frames_.find(web_contents);
   if (frames_it != frames_.end()) {
     for (auto* frame : frames_it->second) {
-      active_receivers_.erase(frame->GetGlobalId());
+      active_receiver_counts_.erase(frame->GetGlobalId());
     }
   }
   auto it = receiver_ids_.find(web_contents);
