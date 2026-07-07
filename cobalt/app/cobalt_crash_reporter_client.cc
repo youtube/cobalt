@@ -97,7 +97,7 @@ std::string CobaltCrashReporterClient::GetUploadUrl() {
   return kCrashReportUrl;
 }
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if !BUILDFLAG(IS_IOS_TVOS)
 // Overrides the default behavior to explicitly enable stack sanitization.
 // Setting *sanitize_stacks = true ensures that all stack memory in the
 // minidump is overwritten with the 0x0DEFACED pattern.
@@ -117,4 +117,4 @@ void CobaltCrashReporterClient::GetSanitizationInformation(
     *sanitize_stacks = true;
   }
 }
-#endif
+#endif  // !BUILDFLAG(IS_IOS_TVOS)
