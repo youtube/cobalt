@@ -109,8 +109,6 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       // Enable remote DevTools, reachable from the network (e.g. SSH tunnel to
       // the container IP) - matches the c25 dev experience, no on-device config.
       {::switches::kRemoteDebuggingPort, "9222"},
-      {::switches::kRemoteDebuggingAddress, "0.0.0.0"},
-      {::switches::kRemoteAllowOrigins, "*"},
 #else
       // Enable remote Devtools access only locally for safety.
       {::switches::kRemoteDebuggingPort, "9222"},
