@@ -34,6 +34,7 @@
 #include "starboard/extension/experimental/experimental_features.h"
 #include "starboard/extension/features.h"
 #include "starboard/extension/graphics.h"
+#include "starboard/extension/loader_app_metrics.h"
 #include "starboard/extension/media_session.h"
 #include "starboard/extension/platform_info.h"
 #include "starboard/extension/platform_service.h"
@@ -41,6 +42,7 @@
 #include "starboard/extension/player_set_video_surface_view.h"
 #include "starboard/extension/system_info.h"
 #include "starboard/shared/starboard/experimental_features.h"
+#include "starboard/shared/starboard/loader_app_metrics.h"
 
 const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionPlatformServiceName) == 0) {
@@ -89,6 +91,9 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kStarboardExtensionSystemInfoName) == 0) {
     return starboard::GetSystemInfoApi();
+  }
+  if (strcmp(name, kStarboardExtensionLoaderAppMetricsName) == 0) {
+    return starboard::GetLoaderAppMetricsApi();
   }
   return NULL;
 }
