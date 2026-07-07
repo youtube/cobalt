@@ -49,11 +49,12 @@ void PerformanceImpl::Create(
 
 void PerformanceImpl::MeasureAvailableCpuMemory(
     MeasureAvailableCpuMemoryCallback callback) {
+  // Use lambda to resolve overload resolution ambiguity on platforms like
+  // Android.
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
-      base::BindOnce([]() -> uint64_t {
-        return base::SysInfo::AmountOfAvailablePhysicalMemory();
-      }),
+      base::BindOnce(
+          [] { return base::SysInfo::AmountOfAvailablePhysicalMemory(); }),
       std::move(callback));
 }
 
