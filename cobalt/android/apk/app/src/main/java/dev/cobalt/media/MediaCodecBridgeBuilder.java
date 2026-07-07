@@ -59,7 +59,8 @@ class MediaCodecBridgeBuilder {
       byte[][] csds = {};
       boolean frameHasAdtsHeader = false;
       if (mime.contains("opus")) {
-        csds = MediaFormatBuilder.starboardParseOpusConfigurationData(sampleRate, configurationData);
+        csds = MediaFormatBuilder.starboardParseOpusConfigurationData(
+            sampleRate, configurationData);
         if (csds == null) {
           bridge.release();
           return null;

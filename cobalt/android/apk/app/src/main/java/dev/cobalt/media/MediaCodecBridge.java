@@ -723,7 +723,8 @@ class MediaCodecBridge {
       outCreateMediaCodecBridgeResult.mMediaCodecBridge = bridge;
     } catch (Throwable t) {
       Log.e(TAG, "Unexpected exception during video decoder creation: ", t);
-      outCreateMediaCodecBridgeResult.mErrorMessage = "Unexpected exception during creation: " + t.getMessage();
+      outCreateMediaCodecBridgeResult.mErrorMessage =
+          "Unexpected exception during creation: " + t.getMessage();
       bridge.release();
     }
   }
@@ -1201,7 +1202,8 @@ class MediaCodecBridge {
               }
             }
           };
-      mediaCodec.setOnFirstTunnelFrameReadyListener(mMediaCodecHandler, mFirstTunnelFrameReadyListener);
+      mediaCodec.setOnFirstTunnelFrameReadyListener(
+          mMediaCodecHandler, mFirstTunnelFrameReadyListener);
     } else {
       Log.w(
           TAG,
