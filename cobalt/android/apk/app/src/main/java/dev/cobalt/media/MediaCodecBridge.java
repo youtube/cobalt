@@ -285,7 +285,12 @@ class MediaCodecBridge {
     final Throwable[] exception = new Throwable[1];
     final boolean[] cancelled = new boolean[1];
     final Object lock = new Object();
-    Handler handler = new Handler(handlerThread.getLooper());
+    Looper looper = handlerThread.getLooper();
+    if (looper == null) {
+      Log.e(TAG, "HandlerThread looper is null for decoder: %s", decoderName);
+      return null;
+    }
+    Handler handler = new Handler(looper);
     java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
     boolean posted = handler.post(() -> {
       try {
@@ -324,6 +329,7 @@ class MediaCodecBridge {
         }
       }
       Thread.currentThread().interrupt();
+      throw new RuntimeException("MediaCodec creation was interrupted", e);
     }
     if (exception[0] != null) {
       Log.e(TAG, "Failed to create MediaCodec on HandlerThread: %s", decoderName, exception[0]);
@@ -340,7 +346,12 @@ class MediaCodecBridge {
       boolean enableIgnoreCallbacksDuringFlushing) {
     mMediaCodecThread = new HandlerThread("MediaCodecBridgeThread_" + decoderName);
     mMediaCodecThread.start();
-    mMediaCodecHandler = new Handler(mMediaCodecThread.getLooper());
+    Looper looper = mMediaCodecThread.getLooper();
+    if (looper == null) {
+      mMediaCodecThread.quitSafely();
+      throw new RuntimeException("Failed to obtain Looper for MediaCodecBridgeThread");
+    }
+    mMediaCodecHandler = new Handler(looper);
     MediaCodec mediaCodec = null;
     try {
       mediaCodec = createMediaCodecOnHandlerThread(decoderName, mMediaCodecThread);
