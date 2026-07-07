@@ -16,6 +16,8 @@
 
 #if SB_HAS_IPV6
 
+#include <string.h>
+
 #include "starboard/common/log.h"
 
 namespace {
@@ -31,7 +33,7 @@ bool ProbeIpv6Support() {
     SB_LOG(WARNING) << "IPv6 Probe: Failed to set reuse address.";
   }
 
-  SbSocketAddress probe_address = {0};
+  SbSocketAddress probe_address; memset(&probe_address, 0, sizeof(probe_address));
   probe_address.type = kSbSocketAddressTypeIpv6;
 
   SbSocketError bind_status = SbSocketBind(probe_socket, &probe_address);
@@ -50,7 +52,10 @@ bool ProbeIpv6Support() {
 
 bool SbSocketIsIpv6Supported() {
 #if SB_HAS_IPV6
-  return ProbeIpv6Support();
+  static bool s_is_ipv6_supported = []() {
+    return ProbeIpv6Support();
+  }();
+  return s_is_ipv6_supported;
 #else
   return false;
 #endif
