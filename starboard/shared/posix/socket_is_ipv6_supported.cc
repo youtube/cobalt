@@ -20,6 +20,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "starboard/common/log.h"
 #include "starboard/shared/posix/handle_eintr.h"
