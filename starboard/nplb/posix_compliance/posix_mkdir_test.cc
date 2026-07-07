@@ -72,7 +72,7 @@ TEST_F(PosixMkdirTest, SuccessfulCreation) {
 
   // The requested mode is masked by the process's umask. We can only check
   // that the resulting permissions are a subset of the requested ones.
-  EXPECT_EQ((sb.st_mode & ~S_IFMT) & mode, (sb.st_mode & ~S_IFMT));
+  EXPECT_TRUE(PermissionsAreSubsetOf(sb.st_mode, mode));
 
   // Verify the directory is empty (contains only "." and "..").
   DIR* dirp = opendir(dir_path.c_str());

@@ -16,6 +16,7 @@
 #define STARBOARD_NPLB_FILE_HELPERS_H_
 
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include <string>
@@ -25,6 +26,14 @@ namespace nplb {
 
 constexpr mode_t kUserRwx = S_IRUSR | S_IWUSR | S_IXUSR;
 constexpr mode_t kUserRw = S_IRUSR | S_IWUSR;
+
+// Returns whether the permission bits reported by stat() in st_mode are a
+// subset of the requested creation mode.
+// The comparison is restricted to the standard rw permission bits (0777)
+// because some filesystems may set them independently.
+// e.g.: Android's fuse/sdcardfs adds S_ISGID to created
+// directories on top of the mode passed to mkdir().
+bool PermissionsAreSubsetOf(mode_t st_mode, mode_t requested);
 
 // Gets the temporary directory in which ScopedRandomFile places its files.
 std::string GetTempDir();
