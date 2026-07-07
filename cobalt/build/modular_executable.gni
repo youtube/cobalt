@@ -99,7 +99,8 @@ template("evergreen_final_target") {
     if (original_target_name == "cobalt") {
       data_deps += [ "//starboard/loader_app($starboard_toolchain)" ]
     } else {
-      data_deps += [ "//starboard/elf_loader:elf_loader_sandbox($starboard_toolchain)" ]
+      data_deps +=
+          [ "//starboard/elf_loader:elf_loader_sandbox($starboard_toolchain)" ]
     }
   }
 

@@ -29,7 +29,7 @@
 #include "starboard/elf_loader/sabi_string.h"
 #include "starboard/event.h"
 
-#if defined(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
 #include "starboard/shared/starboard/features_test_util.h"
 #endif
 
@@ -139,10 +139,10 @@ void SbEventHandle(const SbEvent* event) {
 }
 
 int main(int argc, char** argv) {
-#if defined(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
   // The evergreen inner library's static initializers query Starboard
   // features, so seed the FeatureList with defaults before it is loaded.
   starboard::features::InitializeStarboardFeatureListWithDefaults();
-#endif
+#endif  // BUILDFLAG(IS_ANDROID)
   return SbRunStarboardMain(argc, argv, SbEventHandle);
 }
