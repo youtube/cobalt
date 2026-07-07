@@ -248,8 +248,9 @@ public abstract class CobaltActivity extends Activity {
           || getJavaSwitches().containsKey(JavaSwitches.ENABLE_OPTIMIZED_FONT_LOADING)) {
         FontUtil.copyFontsXml(getApplicationContext());
       }
-      StarboardBridge starboardBridge = createStarboardBridge(getArgs(), mStartDeepLink);
-      ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(starboardBridge);
+      BrowserStarboardBridge starboardBridge = createStarboardBridge(getArgs(), mStartDeepLink);
+      ((BrowserStarboardBridge.HostApplication) getApplication())
+          .setStarboardBridge(starboardBridge);
     } else {
       // Warm start - Pass the deep link to the running Starboard app.
       if (savedInstanceState == null) {
@@ -558,10 +559,11 @@ public abstract class CobaltActivity extends Activity {
    * Instantiates the StarboardBridge. Apps not supporting sign-in should inject an instance of
    * NoopUserAuthorizer. Apps may subclass StarboardBridge if they need to override anything.
    */
-  protected abstract StarboardBridge createStarboardBridge(String[] args, String startDeepLink);
+  protected abstract BrowserStarboardBridge createStarboardBridge(
+      String[] args, String startDeepLink);
 
-  protected StarboardBridge getStarboardBridge() {
-    return ((StarboardBridge.HostApplication) getApplication()).getStarboardBridge();
+  protected BrowserStarboardBridge getStarboardBridge() {
+    return ((BrowserStarboardBridge.HostApplication) getApplication()).getStarboardBridge();
   }
 
   @Override
