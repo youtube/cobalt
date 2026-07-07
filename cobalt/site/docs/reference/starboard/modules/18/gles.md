@@ -162,7 +162,7 @@ typedef long int SbGlIntPtr
     precisiontype, SbGlInt32 *range, SbGlInt32 *precision)`
 *   `void(*glGetShaderSource)(SbGlUInt32 shader, SbGlSizei bufSize, SbGlSizei
     *length, SbGlChar *source)`
-*   `const SbGlUInt8 *(*glGetString)(SbGlEnum name)`
+*   `const SbGlUInt8*(*glGetString)(SbGlEnum name)`
 *   `void(*glGetTexParameterfv)(SbGlEnum target, SbGlEnum pname, SbGlFloat
     *params)`
 *   `void(*glGetTexParameteriv)(SbGlEnum target, SbGlEnum pname, SbGlInt32
@@ -323,7 +323,7 @@ typedef long int SbGlIntPtr
     SbGlEnum internalformat, SbGlSizei width, SbGlSizei height)`
 *   `void(*glFramebufferTextureLayer)(SbGlEnum target, SbGlEnum attachment,
     SbGlUInt32 texture, SbGlInt32 level, SbGlInt32 layer)`
-*   `void *(*glMapBufferRange)(SbGlEnum target, SbGlIntPtr offset, SbGlSizeiPtr
+*   `void*(*glMapBufferRange)(SbGlEnum target, SbGlIntPtr offset, SbGlSizeiPtr
     length, SbGlBitfield access)`
 *   `void(*glFlushMappedBufferRange)(SbGlEnum target, SbGlIntPtr offset,
     SbGlSizeiPtr length)`
@@ -381,7 +381,7 @@ typedef long int SbGlIntPtr
     SbGlFloat *value)`
 *   `void(*glClearBufferfi)(SbGlEnum buffer, SbGlInt32 drawbuffer, SbGlFloat
     depth, SbGlInt32 stencil)`
-*   `const SbGlUInt8 *(*glGetStringi)(SbGlEnum name, SbGlUInt32 index)`
+*   `const SbGlUInt8*(*glGetStringi)(SbGlEnum name, SbGlUInt32 index)`
 *   `void(*glCopyBufferSubData)(SbGlEnum readTarget, SbGlEnum writeTarget,
     SbGlIntPtr readOffset, SbGlIntPtr writeOffset, SbGlSizeiPtr size)`
 *   `void(*glGetUniformIndices)(SbGlUInt32 program, SbGlSizei uniformCount,
