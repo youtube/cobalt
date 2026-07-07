@@ -315,7 +315,20 @@ class MediaCodecBridge {
       return null;
     }
     try {
-      latch.await();
+      if (!latch.await(5000, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+        synchronized (lock) {
+          cancelled[0] = true;
+          if (result[0] != null) {
+            try {
+              result[0].release();
+            } catch (Exception ex) {
+              Log.e(TAG, "Failed to release MediaCodec after timeout", ex);
+            }
+            result[0] = null;
+          }
+        }
+        throw new RuntimeException("Timeout waiting for MediaCodec creation on HandlerThread");
+      }
     } catch (InterruptedException e) {
       synchronized (lock) {
         cancelled[0] = true;
@@ -347,7 +360,10 @@ class MediaCodecBridge {
     if (decoderName == null || decoderName.isEmpty()) {
       throw new IllegalArgumentException("Decoder name cannot be null or empty");
     }
-    mMediaCodecThread = new HandlerThread("MediaCodecBridgeThread_" + decoderName);
+    mMediaCodecThread =
+        new HandlerThread(
+            "MediaCodecBridgeThread_" + decoderName,
+            android.os.Process.THREAD_PRIORITY_VIDEO);
     mMediaCodecThread.start();
     Looper looper = mMediaCodecThread.getLooper();
     if (looper == null) {
