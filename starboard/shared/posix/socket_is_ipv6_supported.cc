@@ -16,45 +16,33 @@
 
 #if SB_HAS_IPV6
 
-#include <netinet/in.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <unistd.h>
-#include <errno.h>
-
 #include "starboard/common/log.h"
-#include "starboard/shared/posix/handle_eintr.h"
 
 namespace {
 bool ProbeIpv6Support() {
-  const int probe_socket_fd = socket(AF_INET6, SOCK_STREAM, 0);
-  if (probe_socket_fd < 0) {
-    SB_LOG(WARNING) << "IPv6 Probe: Failed to create socket. error=" << errno;
+  SbSocket probe_socket = SbSocketCreate(kSbSocketAddressTypeIpv6, kSbSocketProtocolTcp);
+  if (!SbSocketIsValid(probe_socket)) {
+    SB_LOG(WARNING) << "IPv6 Probe: Failed to create socket.";
     return false;
   }
 
-  int reuse_addr_enabled = 1;
-  if (setsockopt(probe_socket_fd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr_enabled, sizeof(reuse_addr_enabled)) != 0) {
-    SB_LOG(WARNING) << "IPv6 Probe: Failed to set SO_REUSEADDR. error=" << errno;
+  // Set reuse address to mirror original behavior
+  if (!SbSocketSetReuseAddress(probe_socket, true)) {
+    SB_LOG(WARNING) << "IPv6 Probe: Failed to set reuse address.";
   }
 
-  struct sockaddr_in6 probe_address;
-  memset(&probe_address, 0, sizeof(probe_address));
-  probe_address.sin6_family = AF_INET6;
-  probe_address.sin6_addr = in6addr_any;
-  probe_address.sin6_port = 0;
+  SbSocketAddress probe_address = {0};
+  probe_address.type = kSbSocketAddressTypeIpv6;
 
-  const int bind_status = HANDLE_EINTR(bind(
-      probe_socket_fd, reinterpret_cast<struct sockaddr*>(&probe_address),
-      sizeof(probe_address)));
+  SbSocketError bind_status = SbSocketBind(probe_socket, &probe_address);
   
-  if (bind_status != 0) {
-    SB_LOG(WARNING) << "IPv6 Probe: Failed to bind test socket. error=" << errno;
+  if (bind_status != kSbSocketOk) {
+    SB_LOG(WARNING) << "IPv6 Probe: Failed to bind test socket. status=" << bind_status;
   }
 
-  close(probe_socket_fd);
+  SbSocketDestroy(probe_socket);
 
-  return (bind_status == 0);
+  return (bind_status == kSbSocketOk);
 }
 }  // namespace
 
