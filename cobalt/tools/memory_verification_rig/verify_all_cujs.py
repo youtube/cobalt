@@ -196,7 +196,8 @@ def verify_cuj(cuj_name,
                is_random_nav,
                device_id=None,
                iterations=1,
-               cobalt_bin=None):
+               cobalt_bin=None,
+               sampling_interval=1024):
   """Executes a complete verification loop for a specific CUJ."""
   logger.info("=" * 80)
   logger.info(" STARTING CUJ VERIFICATION: %s", cuj_name.center(70))
@@ -239,7 +240,9 @@ def verify_cuj(cuj_name,
       cmd = [
           "./out/linux-x64x11_devel/cobalt", "--remote-allow-origins=*",
           f"--remote-debugging-port={port}", "--memory-metrics-interval=5",
-          "--enable-features=CobaltMemoryAttributionManager:report-interval/5",
+          (f"--enable-features=CobaltMemoryAttributionManager:"
+           f"report-interval/5/CobaltResidentMemorySamplingInterval/"
+           f"{sampling_interval}"),
           "--disable-features=PartitionAllocDanglingPtr", url
       ]
       cobalt_proc = run_cmd(cmd, background=True)
@@ -251,9 +254,12 @@ def verify_cuj(cuj_name,
       ])
       run_cmd(adb_base + ["shell", "am", "force-stop", "dev.cobalt.coat"])
       time.sleep(2)
-      target_args = (f"--enable-features=CobaltMemoryAttributionManager:"
-                     f"report-interval/5,--memory-metrics-interval=5,"
-                     f"--remote-debugging-port={port},--remote-allow-origins=*")
+      target_args = (
+          f"--enable-features=CobaltMemoryAttributionManager:"
+          f"report-interval/5/"
+          f"CobaltResidentMemorySamplingInterval/{sampling_interval},"
+          f"--memory-metrics-interval=5,"
+          f"--remote-debugging-port={port},--remote-allow-origins=*")
       cmd_str = (f"am start -a android.intent.action.VIEW -d '{url}' "
                  f"-n dev.cobalt.coat/dev.cobalt.app.MainActivity "
                  f"--esa commandLineArgs '{target_args}'")
@@ -385,6 +391,11 @@ if __name__ == "__main__":
       type=int,
       default=1,
       help="Number of continuous iterations to run each CUJ (default: 1)")
+  parser.add_argument(
+      "--sampling-interval",
+      type=int,
+      default=1024,
+      help="Poisson sampling interval in bytes (default: 1024)")
   args = parser.parse_args()
 
   if args.cuj in ["all", "browse"]:
@@ -397,7 +408,8 @@ if __name__ == "__main__":
         is_random_nav=True,
         device_id=args.device,
         iterations=args.iterations,
-        cobalt_bin=args.cobalt_bin)
+        cobalt_bin=args.cobalt_bin,
+        sampling_interval=args.sampling_interval)
 
   if args.cuj in ["all", "watch"]:
     verify_cuj(
@@ -409,7 +421,8 @@ if __name__ == "__main__":
         is_random_nav=False,
         device_id=args.device,
         iterations=args.iterations,
-        cobalt_bin=args.cobalt_bin)
+        cobalt_bin=args.cobalt_bin,
+        sampling_interval=args.sampling_interval)
 
   if args.cuj in ["all", "baseline"]:
     verify_cuj(
@@ -421,7 +434,8 @@ if __name__ == "__main__":
         is_random_nav=False,
         device_id=args.device,
         iterations=args.iterations,
-        cobalt_bin=args.cobalt_bin)
+        cobalt_bin=args.cobalt_bin,
+        sampling_interval=args.sampling_interval)
 
   if args.cuj in ["all", "combined"]:
     verify_cuj(
@@ -433,4 +447,5 @@ if __name__ == "__main__":
         is_random_nav=True,
         device_id=args.device,
         iterations=args.iterations,
-        cobalt_bin=args.cobalt_bin)
+        cobalt_bin=args.cobalt_bin,
+        sampling_interval=args.sampling_interval)

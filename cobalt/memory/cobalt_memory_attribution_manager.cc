@@ -70,6 +70,30 @@ base::memory::MemoryContext CobaltFileToContextResolver(const char* file_name) {
     context = base::memory::MemoryContext::kNetwork;
   } else if (name.find("cobalt/browser/") != std::string_view::npos) {
     context = base::memory::MemoryContext::kBrowserMain;
+  } else if (name.find("third_party/blink/renderer/modules/") !=
+             std::string_view::npos) {
+    context = base::memory::MemoryContext::kBlinkModules;
+  } else if (name.find("third_party/blink/renderer/platform/wtf/") !=
+             std::string_view::npos) {
+    context = base::memory::MemoryContext::kBlinkWTF;
+  } else if (name.find("third_party/blink/renderer/platform/network/") !=
+             std::string_view::npos) {
+    context = base::memory::MemoryContext::kNetwork;
+  } else if (name.find("third_party/blink/renderer/platform/loader/") !=
+             std::string_view::npos) {
+    context = base::memory::MemoryContext::kNetworkLoader;
+  } else if (name.find("third_party/blink/renderer/platform/graphics/") !=
+             std::string_view::npos) {
+    context = base::memory::MemoryContext::kGraphics;
+  } else if (name.find("third_party/blink/renderer/platform/") !=
+             std::string_view::npos) {
+    context = base::memory::MemoryContext::kBlinkPlatform;
+  } else if (name.find("third_party/blink/renderer/core/layout/") !=
+             std::string_view::npos) {
+    context = base::memory::MemoryContext::kLayout;
+  } else if (name.find("third_party/blink/renderer/core/paint/") !=
+             std::string_view::npos) {
+    context = base::memory::MemoryContext::kGraphics;
   } else if (name.find("third_party/blink/renderer/core/dom/") !=
              std::string_view::npos) {
     context = base::memory::MemoryContext::kBlinkDOM;
@@ -79,6 +103,38 @@ base::memory::MemoryContext CobaltFileToContextResolver(const char* file_name) {
   } else if (name.find("third_party/blink/renderer/core/html/parser/") !=
              std::string_view::npos) {
     context = base::memory::MemoryContext::kBlinkParser;
+  } else if (name.find("third_party/blink/renderer/core/html/") !=
+             std::string_view::npos) {
+    context = base::memory::MemoryContext::kBlinkHTML;
+  } else if (name.find("third_party/blink/renderer/core/frame/") !=
+             std::string_view::npos) {
+    context = base::memory::MemoryContext::kBlinkFrame;
+  } else if (name.find("third_party/blink/renderer/core/loader/") !=
+             std::string_view::npos) {
+    context = base::memory::MemoryContext::kBlinkLoader;
+  } else if (name.find("third_party/blink/renderer/core/page/") !=
+             std::string_view::npos) {
+    context = base::memory::MemoryContext::kBlinkPage;
+  } else if (name.find("third_party/blink/renderer/core/events/") !=
+             std::string_view::npos) {
+    context = base::memory::MemoryContext::kBlinkEvents;
+  } else if (name.find("third_party/blink/renderer/core/workers/") !=
+             std::string_view::npos) {
+    context = base::memory::MemoryContext::kBlinkWorkers;
+  } else if (name.find(
+                 "third_party/blink/renderer/core/script/script_loader") !=
+             std::string_view::npos) {
+    context = base::memory::MemoryContext::kBlinkScriptLoader;
+  } else if (name.find(
+                 "third_party/blink/renderer/core/script/script_runner") !=
+             std::string_view::npos) {
+    context = base::memory::MemoryContext::kBlinkScriptRunner;
+  } else if (name.find("third_party/blink/renderer/core/script/") !=
+             std::string_view::npos) {
+    context = base::memory::MemoryContext::kBlinkScript;
+  } else if (name.find("third_party/blink/renderer/core/") !=
+             std::string_view::npos) {
+    context = base::memory::MemoryContext::kBlinkCore;
   } else if (name.find("cc/") != std::string_view::npos) {
     context = base::memory::MemoryContext::kGraphicsCompositor;
   } else if (name.find("gpu/") != std::string_view::npos) {
@@ -87,8 +143,12 @@ base::memory::MemoryContext CobaltFileToContextResolver(const char* file_name) {
     context = base::memory::MemoryContext::kGraphics;
   } else if (name.find("third_party/skia/") != std::string_view::npos) {
     context = base::memory::MemoryContext::kGraphics;
-  } else if (name.find("v8/") != std::string_view::npos) {
-    context = base::memory::MemoryContext::kScriptHeap;
+  } else if (name.find("bindings/core/v8/") != std::string_view::npos ||
+             name.find("bindings/modules/v8/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kV8Bindings;
+  } else if (name.find("third_party/blink/renderer/bindings/") !=
+             std::string_view::npos) {
+    context = base::memory::MemoryContext::kScriptBindings;
   } else if (name.find("net/") != std::string_view::npos) {
     context = base::memory::MemoryContext::kNetwork;
   } else if (name.find("services/network/") != std::string_view::npos) {
@@ -112,17 +172,19 @@ base::memory::MemoryContext CobaltFileToContextResolver(const char* file_name) {
   } else if (name.find("third_party/boringssl/") != std::string_view::npos) {
     context = base::memory::MemoryContext::kNetwork;
   } else if (name.find("third_party/") != std::string_view::npos) {
-    context = base::memory::MemoryContext::kBrowserMain;
+    context = base::memory::MemoryContext::kThirdParty;
   } else if (name.find("ui/") != std::string_view::npos) {
     context = base::memory::MemoryContext::kGraphics;
   } else if (name.find("components/viz/") != std::string_view::npos) {
     context = base::memory::MemoryContext::kGraphics;
   } else if (name.find("components/") != std::string_view::npos) {
-    context = base::memory::MemoryContext::kBrowserMain;
+    context = base::memory::MemoryContext::kComponents;
   } else if (name.find("content/") != std::string_view::npos) {
-    context = base::memory::MemoryContext::kBrowserMain;
+    context = base::memory::MemoryContext::kContent;
   } else if (name.find("url/") != std::string_view::npos) {
     context = base::memory::MemoryContext::kBrowserMain;
+  } else if (name.find("v8/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kScriptHeap;
   } else if (name.find("gin/") != std::string_view::npos) {
     context = base::memory::MemoryContext::kScriptBindings;
   } else if (name.find("sql/") != std::string_view::npos) {
@@ -130,9 +192,9 @@ base::memory::MemoryContext CobaltFileToContextResolver(const char* file_name) {
   } else if (name.find("crypto/") != std::string_view::npos) {
     context = base::memory::MemoryContext::kBrowserMain;
   } else if (name.find("cobalt/") != std::string_view::npos) {
-    context = base::memory::MemoryContext::kBrowserMain;
+    context = base::memory::MemoryContext::kCobalt;
   } else if (name.find("base/") != std::string_view::npos) {
-    context = base::memory::MemoryContext::kBrowserMain;
+    context = base::memory::MemoryContext::kBase;
   }
 
   context_cache->insert({file_name, context});

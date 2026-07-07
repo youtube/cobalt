@@ -193,6 +193,44 @@ MAYBE_COBALT_WEAK std::string_view ContextToString(MemoryContext context) {
       return "PlatformDevTools";
     case MemoryContext::kBrowserMain:
       return "BrowserMain";
+    case MemoryContext::kBlinkPlatform:
+      return "BlinkPlatform";
+    case MemoryContext::kBlinkModules:
+      return "BlinkModules";
+    case MemoryContext::kBlinkCore:
+      return "BlinkCore";
+    case MemoryContext::kBlinkHTML:
+      return "BlinkHTML";
+    case MemoryContext::kBlinkWTF:
+      return "BlinkWTF";
+    case MemoryContext::kBase:
+      return "Base";
+    case MemoryContext::kComponents:
+      return "Components";
+    case MemoryContext::kCobalt:
+      return "CobaltApp";
+    case MemoryContext::kContent:
+      return "Content";
+    case MemoryContext::kV8Bindings:
+      return "V8Bindings";
+    case MemoryContext::kBlinkFrame:
+      return "BlinkFrame";
+    case MemoryContext::kBlinkLoader:
+      return "BlinkLoader";
+    case MemoryContext::kBlinkPage:
+      return "BlinkPage";
+    case MemoryContext::kBlinkEvents:
+      return "BlinkEvents";
+    case MemoryContext::kBlinkWorkers:
+      return "BlinkWorkers";
+    case MemoryContext::kBlinkScript:
+      return "BlinkScript";
+    case MemoryContext::kThirdParty:
+      return "ThirdParty";
+    case MemoryContext::kBlinkScriptLoader:
+      return "BlinkScriptLoader";
+    case MemoryContext::kBlinkScriptRunner:
+      return "BlinkScriptRunner";
     case MemoryContext::kCount:
       return "Unknown";
   }
