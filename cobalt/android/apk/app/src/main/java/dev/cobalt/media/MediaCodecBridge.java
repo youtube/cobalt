@@ -431,11 +431,7 @@ class MediaCodecBridge {
             }
           };
 
-      if (mEnableIgnoreCallbacksDuringFlushing) {
-        mediaCodec.setCallback(mCallback, mMediaCodecHandler);
-      } else {
-        mediaCodec.setCallback(mCallback);
-      }
+      mediaCodec.setCallback(mCallback, mMediaCodecHandler);
 
       if (mEnableFrameRendererListener) {
         mFrameRendererListener =
@@ -452,11 +448,7 @@ class MediaCodecBridge {
                 }
               }
             };
-        if (mEnableIgnoreCallbacksDuringFlushing) {
-          mediaCodec.setOnFrameRenderedListener(mFrameRendererListener, mMediaCodecHandler);
-        } else {
-          mediaCodec.setOnFrameRenderedListener(mFrameRendererListener, null);
-        }
+        mediaCodec.setOnFrameRenderedListener(mFrameRendererListener, mMediaCodecHandler);
       }
 
       if (mIsTunnelingPlayback) {
@@ -1206,11 +1198,7 @@ class MediaCodecBridge {
               }
             }
           };
-      if (mEnableIgnoreCallbacksDuringFlushing) {
-        mediaCodec.setOnFirstTunnelFrameReadyListener(mMediaCodecHandler, mFirstTunnelFrameReadyListener);
-      } else {
-        mediaCodec.setOnFirstTunnelFrameReadyListener(null, mFirstTunnelFrameReadyListener);
-      }
+      mediaCodec.setOnFirstTunnelFrameReadyListener(mMediaCodecHandler, mFirstTunnelFrameReadyListener);
     } else {
       Log.w(
           TAG,
