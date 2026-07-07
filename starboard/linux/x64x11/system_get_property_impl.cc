@@ -67,6 +67,11 @@ bool GetSystemPropertyLinux(SbSystemPropertyId property_id,
           out_value, value_length,
           env_value.empty() ? kBrandName : env_value.c_str());
     case kSbSystemPropertyCertificationScope:
+      env_value = GetEnvironment("COBALT_TESTING_CERTIFICATION_SCOPE");
+      if (!env_value.empty()) {
+        return CopyStringAndTestIfSuccess(out_value, value_length,
+                                          env_value.c_str());
+      }
       if (kCertificationScope[0] == '\0') {
         return false;
       }
