@@ -52,10 +52,7 @@ bool ProbeIpv6Support() {
 
 bool SbSocketIsIpv6Supported() {
 #if SB_HAS_IPV6
-  static bool s_is_ipv6_supported = []() {
-    return ProbeIpv6Support();
-  }();
-  return s_is_ipv6_supported;
+  return ProbeIpv6Support();
 #else
   return false;
 #endif
