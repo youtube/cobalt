@@ -22,8 +22,10 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/memory/cobalt_memory_attribution_observer.h"
+#include "base/memory/cobalt_resident_memory_observer.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/power_monitor/power_monitor.h"
+#include "base/sampling_heap_profiler/poisson_allocation_sampler.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
@@ -49,8 +51,10 @@ CobaltMemoryAttributionManager::CobaltMemoryAttributionManager() {
 CobaltMemoryAttributionManager::~CobaltMemoryAttributionManager() = default;
 
 void CobaltMemoryAttributionManager::Start() {
+  LOG(INFO) << "CobaltMemoryAttributionManager::Start called!";
   if (!base::FeatureList::IsEnabled(
           cobalt::features::kCobaltMemoryAttributionManager)) {
+    LOG(INFO) << "Feature is not enabled!";
     return;
   }
 
@@ -59,6 +63,13 @@ void CobaltMemoryAttributionManager::Start() {
   }
 
   is_observing_ = true;
+
+  if (base::FeatureList::IsEnabled(features::kCobaltMemoryAttributionManager)) {
+    base::PoissonAllocationSampler::Get()->SetSamplingInterval(
+        features::kCobaltResidentMemorySamplingIntervalParam.Get());
+  }
+
+  base::memory::CobaltResidentMemoryObserver::Get()->Start();
 
   base::trace_event::MemoryDumpManager::GetInstance()->RegisterDumpProvider(
       this, "CobaltMemoryAttributionManager",
@@ -84,6 +95,8 @@ void CobaltMemoryAttributionManager::Stop() {
 
   is_observing_ = false;
 
+  base::memory::CobaltResidentMemoryObserver::Get()->Stop();
+
   base::trace_event::MemoryDumpManager::GetInstance()->UnregisterDumpProvider(
       this);
 
@@ -102,6 +115,7 @@ void CobaltMemoryAttributionManager::RequestReportUmaForTesting(
 void CobaltMemoryAttributionManager::ReportUma() {
   base::TimeTicks now = base::TimeTicks::Now();
   auto* observer = base::memory::CobaltMemoryAttributionObserver::Get();
+  LOG(INFO) << "CobaltMemoryAttributionManager::ReportUma";
   // Skip reporting if timer was significantly delayed (e.g. device suspension).
   if ((now - last_report_time_) >
       base::Seconds(
@@ -118,6 +132,8 @@ void CobaltMemoryAttributionManager::ReportUma() {
   last_report_time_ = now;
 
   auto counters = observer->GetCounters();
+  auto* resident_observer = base::memory::CobaltResidentMemoryObserver::Get();
+  auto resident_counters = resident_observer->GetCounters();
   for (size_t i = 0; i < counters.size(); ++i) {
     uint64_t current = counters[i].value.load(std::memory_order_relaxed);
     uint64_t delta = current - last_snapshots_[i];
@@ -132,6 +148,18 @@ void CobaltMemoryAttributionManager::ReportUma() {
         /*minimum=*/1,
         /*maximum=*/67108864,
         /*bucket_count=*/100);
+
+    uint64_t resident =
+        resident_counters[i].value.load(std::memory_order_relaxed);
+    std::string context_name = std::string(base::memory::ContextToString(
+        static_cast<base::memory::MemoryContext>(i)));
+    if (resident > 0) {
+      LOG(INFO) << "ResidentFootprint." << context_name << " = "
+                << (resident / 1024) << " KB";
+    }
+    base::UmaHistogramMemoryKB(
+        base::StrCat({"Memory.Cobalt.ResidentFootprint.", context_name}),
+        resident / 1024);
   }
 }
 
@@ -156,6 +184,8 @@ bool CobaltMemoryAttributionManager::OnMemoryDump(
     base::trace_event::ProcessMemoryDump* pmd) {
   auto* observer = base::memory::CobaltMemoryAttributionObserver::Get();
   auto counters = observer->GetCounters();
+  auto* resident_observer = base::memory::CobaltResidentMemoryObserver::Get();
+  auto resident_counters = resident_observer->GetCounters();
   for (size_t i = 0; i < counters.size(); ++i) {
     uint64_t current = counters[i].value.load(std::memory_order_relaxed);
     std::string dump_name =
@@ -166,6 +196,17 @@ bool CobaltMemoryAttributionManager::OnMemoryDump(
     dump->AddScalar(base::trace_event::MemoryAllocatorDump::kNameSize,
                     base::trace_event::MemoryAllocatorDump::kUnitsBytes,
                     current);
+
+    uint64_t resident =
+        resident_counters[i].value.load(std::memory_order_relaxed);
+    std::string resident_dump_name =
+        base::StrCat({"cobalt/resident_memory/",
+                      base::memory::ContextToString(
+                          static_cast<base::memory::MemoryContext>(i))});
+    auto* resident_dump = pmd->CreateAllocatorDump(resident_dump_name);
+    resident_dump->AddScalar(
+        base::trace_event::MemoryAllocatorDump::kNameSize,
+        base::trace_event::MemoryAllocatorDump::kUnitsBytes, resident);
   }
   return true;
 }

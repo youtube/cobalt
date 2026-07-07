@@ -274,9 +274,10 @@ def verify_cuj(cuj_name,
         os.path.join(script_dir, "..", "uma",
                      "pull_uma_histogram_set_via_cdp.py"), "--platform",
         platform, "--port",
-        str(port), "--histogram-file", "cobalt_uma_histograms.txt",
-        "--output-file", "uma_histos.txt", "--poll-interval-s", "5",
-        "--no-manage-cobalt", "--package-name", "dev.cobalt.coat"
+        str(port), "--histogram-file",
+        os.path.join(script_dir, "cobalt_uma_histograms.txt"), "--output-file",
+        "uma_histos.txt", "--poll-interval-s", "5", "--no-manage-cobalt",
+        "--package-name", "dev.cobalt.coat"
     ]
     if device_id:
       pull_cmd += ["--device", device_id]

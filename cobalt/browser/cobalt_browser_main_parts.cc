@@ -191,6 +191,8 @@ int CobaltBrowserMainParts::PreCreateThreads() {
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(17);
 #endif
   SetupMetrics();
+  StartMetricsRecording();
+  cobalt::memory::CobaltMemoryAttributionManager::Get()->Start();
 
   InitializeBrowserMemoryInstrumentationClient();
 
@@ -211,8 +213,6 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 }
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
-  StartMetricsRecording();
-
 #if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
   static base::NoDestructor<CobaltDetailedMetricsDelegate> delegate;
   if (memory_instrumentation::MemoryInstrumentation::GetInstance()) {
@@ -220,8 +220,6 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
         ->SetDetailedMetricsDelegate(delegate.get());
   }
 #endif
-
-  cobalt::memory::CobaltMemoryAttributionManager::Get()->Start();
 
 #if !BUILDFLAG(IS_ANDROIDTV)
   auto* client = CobaltContentBrowserClient::Get();
@@ -317,15 +315,16 @@ void CobaltBrowserMainParts::StartMetricsRecording() {
   LOG(INFO) << "Metrics Service is now running/recording.";
 }
 
-#if BUILDFLAG(IS_ANDROIDTV)
 void CobaltBrowserMainParts::PostCreateThreads() {
+#if BUILDFLAG(IS_ANDROIDTV)
   // TODO(cobalt, b/383301493): this looks like a reasonable stage at which to
   // register these interfaces and it seems to work. But we may want to
   // consider if there's a more suitable stage.
   RegisterCobaltJavaMojoInterfaces();
+#endif  // BUILDFLAG(IS_ANDROIDTV)
+
   ShellBrowserMainParts::PostCreateThreads();
 }
-#endif  // BUILDFLAG(IS_ANDROIDTV)
 
 #if BUILDFLAG(IS_LINUX)
 void CobaltBrowserMainParts::PostCreateMainMessageLoop() {

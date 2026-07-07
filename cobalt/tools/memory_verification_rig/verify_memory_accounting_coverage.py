@@ -48,7 +48,7 @@ def parse_uma_histos(file_path):
         continue
 
       metric_name, json_str = parts[1], parts[2]
-      if not metric_name.startswith("Memory.Cobalt.AllocationVolume."):
+      if not metric_name.startswith("Memory.Cobalt.ResidentFootprint."):
         continue
 
       try:
@@ -83,7 +83,7 @@ def verify_accounting(file_path,
       print(f"[{now_str}] Waiting for UMA metrics in {file_path}...")
       return False
     else:
-      print(f"ERROR: No AllocationVolume metrics in {file_path}")
+      print(f"ERROR: No ResidentFootprint metrics in {file_path}")
       sys.exit(1)
 
   print("=" * 80)
@@ -106,12 +106,12 @@ def verify_accounting(file_path,
     finals[metric] = counts[max_count]
     deltas[metric] = finals[metric] - baselines[metric]
 
-  unknown_delta = deltas.get("Memory.Cobalt.AllocationVolume.Unknown", 0)
+  unknown_delta = deltas.get("Memory.Cobalt.ResidentFootprint.Unknown", 0)
   subsystems_delta = sum(d for m, d in deltas.items() if "Unknown" not in m)
   total_delta = unknown_delta + subsystems_delta
 
   total_final = sum(finals.values())
-  unknown_final = finals.get("Memory.Cobalt.AllocationVolume.Unknown", 0)
+  unknown_final = finals.get("Memory.Cobalt.ResidentFootprint.Unknown", 0)
   unknown_final_pct = (unknown_final / total_final *
                        100.0) if total_final > 0 else 0.0
 
@@ -122,7 +122,7 @@ def verify_accounting(file_path,
   print("-" * 80)
 
   for metric in sorted(deltas.keys()):
-    subsystem = metric.replace("Memory.Cobalt.AllocationVolume.", "")
+    subsystem = metric.replace("Memory.Cobalt.ResidentFootprint.", "")
     base_val = int(baselines[metric] / 1024.0)
     final_val = int(finals[metric] / 1024.0)
     delta_val = int(deltas[metric] / 1024.0)
@@ -169,7 +169,7 @@ def verify_accounting(file_path,
   for label, target_count in milestones.items():
     # Find nearest available poll count <= target_count
     available_counts = [
-        c for c in metrics_data.get("Memory.Cobalt.AllocationVolume.Unknown",
+        c for c in metrics_data.get("Memory.Cobalt.ResidentFootprint.Unknown",
                                     {}).keys() if c <= target_count
     ]
     if not available_counts or max(available_counts) < int(target_count * 0.8):
@@ -178,7 +178,7 @@ def verify_accounting(file_path,
       continue
 
     closest_count = max(available_counts)
-    m_unknown = metrics_data.get("Memory.Cobalt.AllocationVolume.Unknown",
+    m_unknown = metrics_data.get("Memory.Cobalt.ResidentFootprint.Unknown",
                                  {}).get(closest_count, 0)
     m_total = 0
     for counts in metrics_data.values():

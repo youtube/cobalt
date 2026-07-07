@@ -70,12 +70,19 @@ void SetCurrentMemoryContext(MemoryContext context);
 class BASE_EXPORT ScopedMemoryContext {
  public:
   explicit ScopedMemoryContext(MemoryContext context) {
-    prev_context_ = GetCurrentMemoryContext();
-    SetCurrentMemoryContext(context);
+    if (context != MemoryContext::kUnknown) {
+      prev_context_ = GetCurrentMemoryContext();
+      SetCurrentMemoryContext(context);
+      is_set_ = true;
+    } else {
+      is_set_ = false;
+    }
   }
 
   ~ScopedMemoryContext() {
-    SetCurrentMemoryContext(prev_context_);
+    if (is_set_) {
+      SetCurrentMemoryContext(prev_context_);
+    }
   }
 
   ScopedMemoryContext(const ScopedMemoryContext&) = delete;
@@ -85,11 +92,17 @@ class BASE_EXPORT ScopedMemoryContext {
 
  private:
   MemoryContext prev_context_;
+  bool is_set_ = false;
 };
 
 MAYBE_COBALT_WEAK std::string_view ContextToString(MemoryContext context);
+MAYBE_COBALT_WEAK MemoryContext ContextFromFile(const char* file_name);
 
 }  // namespace memory
 }  // namespace base
+
+extern "C" {
+void CobaltSetMemoryContextForThread(const char* name);
+}
 
 #endif  // BASE_MEMORY_COBALT_MEMORY_CONTEXT_H_

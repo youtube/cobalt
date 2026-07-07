@@ -55,15 +55,9 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
 
   // ShellBrowserMainParts overrides.
   int PreCreateThreads() override;
+  void PostCreateThreads() override;
   int PreMainMessageLoopRun() override;
   void PostDestroyThreads() override;
-
-// TODO(cobalt, b/383301493): we should consider moving any ATV-specific
-// behaviors into an ATV implementation of BrowserMainParts. For example, see
-// Chrome's ChromeBrowserMainPartsAndroid.
-#if BUILDFLAG(IS_ANDROIDTV)
-  void PostCreateThreads() override;
-#endif  // BUILDFLAG(IS_ANDROIDTV)
 
 #if BUILDFLAG(IS_LINUX)
   void PostCreateMainMessageLoop() override;

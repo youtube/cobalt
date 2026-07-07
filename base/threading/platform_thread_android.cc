@@ -16,6 +16,7 @@
 #include "base/android/jni_android.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
+#include "base/memory/cobalt_memory_context.h"
 #include "base/command_line.h"
 #include "base/threading/platform_thread_internal_posix.h"
 #include "base/threading/thread_id_name_manager.h"
@@ -100,23 +101,7 @@ void PlatformThread::SetName(const std::string& name) {
   SetNameCommon(name);
 
 #if BUILDFLAG(IS_COBALT)
-  base::memory::MemoryContext context = base::memory::MemoryContext::kUnknown;
-  if (name.find("Media") != std::string::npos || name.find("Audio") != std::string::npos || name.find("Video") != std::string::npos || name.find("FFmpeg") != std::string::npos || name.find("Decoder") != std::string::npos || name.find("Vpx") != std::string::npos) {
-    context = base::memory::MemoryContext::kMedia;
-  } else if (name.find("Network") != std::string::npos || name.find("IOThread") != std::string::npos || name.find("Socket") != std::string::npos) {
-    context = base::memory::MemoryContext::kNetwork;
-  } else if (name.find("Script") != std::string::npos || name.find("V8") != std::string::npos || name.find("JS") != std::string::npos || name.find("GC") != std::string::npos || name.find("Scavenger") != std::string::npos) {
-    context = base::memory::MemoryContext::kScript;
-  } else if (name.find("Graphics") != std::string::npos || name.find("Compositor") != std::string::npos || name.find("Skia") != std::string::npos || name.find("Ganesh") != std::string::npos || name.find("Raster") != std::string::npos) {
-    context = base::memory::MemoryContext::kGraphics;
-  } else if (name.find("Browser") != std::string::npos || name.find("CrBrowserMain") != std::string::npos) {
-    context = base::memory::MemoryContext::kBrowserMain;
-  } else if (name.find("IPC") != std::string::npos || name.find("Mojo") != std::string::npos || name.find("MessagePump") != std::string::npos) {
-    context = base::memory::MemoryContext::kPlatformIPC;
-  }
-  if (context != base::memory::MemoryContext::kUnknown) {
-    base::memory::SetCurrentMemoryContext(context);
-  }
+  CobaltSetMemoryContextForThread(name.c_str());
 #endif
 
   // Like linux, on android we can get the thread names to show up in the

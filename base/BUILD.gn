@@ -2456,6 +2456,8 @@ component("base") {
       "memory/cobalt_memory_context.h",
       "memory/cobalt_memory_attribution_observer.cc",
       "memory/cobalt_memory_attribution_observer.h",
+      "memory/cobalt_resident_memory_observer.cc",
+      "memory/cobalt_resident_memory_observer.h",
       "system/sys_info_starboard.cc",
       "system/sys_info_starboard.h",
     ]
