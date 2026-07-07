@@ -1243,6 +1243,10 @@ class MediaCodecBridge {
     return false;
   }
 
+  HandlerThread getMediaCodecThreadForTesting() {
+    return mMediaCodecThread;
+  }
+
   @NativeMethods
   interface Natives {
     void onMediaCodecError(
