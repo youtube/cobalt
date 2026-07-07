@@ -70,6 +70,13 @@ if (is_starboard && current_toolchain == starboard_toolchain) {
       "starboard_layer_posix_unistd_abi_wrappers.h",
     ]
 
+    if (is_android) {
+      sources += [
+        "starboard_layer_posix_stdlib_abi_wrappers.cc",
+        "starboard_layer_posix_stdlib_abi_wrappers.h",
+      ]
+    }
+
     configs += [ "//starboard/build/config:starboard_implementation" ]
 
     deps = [

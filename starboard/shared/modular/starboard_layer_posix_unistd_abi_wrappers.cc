@@ -715,6 +715,14 @@ int __abi_wrap_fchown(int fd, musl_uid_t owner, musl_gid_t group) {
   return fchown(fd, static_cast<uid_t>(owner), static_cast<gid_t>(group));
 }
 
+int __abi_wrap_link(const char* path1, const char* path2) {
+#if defined(ANDROID)
+  // Mimicking Bionic's implementation
+  return linkat(AT_FDCWD, path1, AT_FDCWD, path2, 0);
+#endif
+  return link(path1, path2);
+}
+
 int __abi_wrap_unlinkat(int fildes, const char* path, int musl_flag) {
   fildes = (fildes == MUSL_AT_FDCWD) ? AT_FDCWD : fildes;
   int flag = musl_unlink_flag_to_platform_flag(musl_flag);
