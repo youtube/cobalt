@@ -276,7 +276,8 @@ class MediaCodecBridge {
     }
   }
 
-  public static MediaCodec createMediaCodecOnHandlerThread(String decoderName, HandlerThread handlerThread) {
+  public static MediaCodec createMediaCodecOnHandlerThread(
+      String decoderName, HandlerThread handlerThread) {
     if (decoderName == null || decoderName.isEmpty()) {
       return null;
     }
@@ -326,6 +327,7 @@ class MediaCodecBridge {
     }
     if (exception[0] != null) {
       Log.e(TAG, "Failed to create MediaCodec on HandlerThread: %s", decoderName, exception[0]);
+      throw new RuntimeException("Failed to create MediaCodec on HandlerThread", exception[0]);
     }
     return result[0];
   }
