@@ -116,7 +116,7 @@ jobs:
           } > "${PR_BODY_FILE}"
 
           if [[ -f .github/AUTOROLL ]] && grep -q "^CONFLICTED:" .github/AUTOROLL; then
-            PR_TITLE="CONFLICTED: $(git log -1 --pretty=%s)"
+            PR_TITLE="$(git log -1 --pretty=%s)"
             {
               echo ""
               echo "⚠️ This PR has conflicts that must be resolved manually (don't forget to update the \`.github/AUTOROLL\` file). Use the following commands to checkout the branch locally and resolve the conflicts in a separate commit:"
