@@ -149,7 +149,7 @@ Event data for `kSbEventTypeInput` events.
     z-axis. Positive values indicate tilt to the right (x) and towards the user
     (y). Use `(NaN, NaN)` if the device does not report tilt. This value applies
     to mouse and touchscreen input events.
-*   `const char * input_text`
+*   `const char* input_text`
 
     The text to input for events of type `Input`.
 *   `bool is_composing`
