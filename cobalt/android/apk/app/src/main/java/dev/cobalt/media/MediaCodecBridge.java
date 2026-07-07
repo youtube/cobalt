@@ -295,14 +295,16 @@ class MediaCodecBridge {
     boolean posted = handler.post(() -> {
       try {
         MediaCodec codec = MediaCodec.createByCodecName(decoderName);
+        MediaCodec codecToRelease = null;
         synchronized (lock) {
           if (cancelled[0]) {
-            if (codec != null) {
-              codec.release();
-            }
+            codecToRelease = codec;
           } else {
             result[0] = codec;
           }
+        }
+        if (codecToRelease != null) {
+          codecToRelease.release();
         }
       } catch (Throwable t) {
         exception[0] = t;
@@ -316,29 +318,33 @@ class MediaCodecBridge {
     }
     try {
       if (!latch.await(5000, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+        MediaCodec codecToRelease = null;
         synchronized (lock) {
           cancelled[0] = true;
-          if (result[0] != null) {
-            try {
-              result[0].release();
-            } catch (Exception ex) {
-              Log.e(TAG, "Failed to release MediaCodec after timeout", ex);
-            }
-            result[0] = null;
+          codecToRelease = result[0];
+          result[0] = null;
+        }
+        if (codecToRelease != null) {
+          try {
+            codecToRelease.release();
+          } catch (Exception ex) {
+            Log.e(TAG, "Failed to release MediaCodec after timeout", ex);
           }
         }
         throw new RuntimeException("Timeout waiting for MediaCodec creation on HandlerThread");
       }
     } catch (InterruptedException e) {
+      MediaCodec codecToRelease = null;
       synchronized (lock) {
         cancelled[0] = true;
-        if (result[0] != null) {
-          try {
-            result[0].release();
-          } catch (Exception ex) {
-            Log.e(TAG, "Failed to release MediaCodec after interruption", ex);
-          }
-          result[0] = null;
+        codecToRelease = result[0];
+        result[0] = null;
+      }
+      if (codecToRelease != null) {
+        try {
+          codecToRelease.release();
+        } catch (Exception ex) {
+          Log.e(TAG, "Failed to release MediaCodec after interruption", ex);
         }
       }
       Thread.currentThread().interrupt();
