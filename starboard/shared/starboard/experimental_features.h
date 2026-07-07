@@ -32,7 +32,7 @@ namespace starboard {
 namespace internal {
 
 // Experiment framework uses 0 as the sentinel value for unset.
-// e.g.)
+// e.g.,
 // http://go/latestexpcl/player_web/features/player_web_cobalt.impl.gcl;l=332;rcl=862772714
 constexpr int kH5vccUnsetSentinel = 0;
 
