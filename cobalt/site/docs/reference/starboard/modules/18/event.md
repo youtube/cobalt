@@ -47,38 +47,35 @@ Unfreeze     Freeze
 
 ```
 
-```
-A Starboard application receives either `Start` (|kSbEventTypeStart|) or
-`Preload` (|kSbEventTypePreload|) as its first event. `Start` transitions the
+A Starboard application receives either `Start` (`kSbEventTypeStart`) or
+`Preload` (`kSbEventTypePreload`) as its first event. `Start` transitions the
 application to the `STARTED` state, while `Preload` transitions it to the
 `CONCEALED` state.
 
-In the `STARTED` state, the application runs in the foreground and can
-perform all standard operations. From the `STARTED` state, the application
-can transition to the `BLURRED` state upon receiving a `Blur` event.
+In the `STARTED` state, the application runs in the foreground and can perform
+all standard operations. From the `STARTED` state, the application can
+transition to the `BLURRED` state upon receiving a `Blur` event.
 
-In the `BLURRED` state, the application remains visible but has lost focus,
-is partially obscured by a modal dialog, or is preparing to shut down. The
-application should reduce activity in this state. From the `BLURRED` state,
-the application can receive a `Focus` event to return to the `STARTED` state,
-or a `Conceal` event to transition to the `CONCEALED` state.
+In the `BLURRED` state, the application remains visible but has lost focus, is
+partially obscured by a modal dialog, or is preparing to shut down. The
+application should reduce activity in this state. From the `BLURRED` state, the
+application can receive a `Focus` event to return to the `STARTED` state, or a
+`Conceal` event to transition to the `CONCEALED` state.
 
-In the `CONCEALED` state, the application behaves like an invisible
-background process. It can still access the network and play audio, though
-the platform might restrict its CPU and memory resources. The platform can
-transition the application from `CONCEALED` to `FROZEN` at any time.
+In the `CONCEALED` state, the application behaves like an invisible background
+process. It can still access the network and play audio, though the platform
+might restrict its CPU and memory resources. The platform can transition the
+application from `CONCEALED` to `FROZEN` at any time.
 
-In the `FROZEN` state, the application is invisible. It must immediately
-release all graphics and video resources, and stop all background activity
-(such as timers and rendering). The application must also flush storage to
-ensure data is preserved if the process is terminated. Although the platform
-can terminate the process in this state, it ideally sends a `Stop` event
-first for a graceful shutdown.
+In the `FROZEN` state, the application is invisible. It must immediately release
+all graphics and video resources, and stop all background activity (such as
+timers and rendering). The application must also flush storage to ensure data is
+preserved if the process is terminated. Although the platform can terminate the
+process in this state, it ideally sends a `Stop` event first for a graceful
+shutdown.
 
-Note that the application always transitions through `BLURRED` and
-`CONCEALED` to `FROZEN` before receiving `Stop` or being terminated.
-
-```
+Note that the application always transitions through `BLURRED` and `CONCEALED`
+to `FROZEN` before receiving `Stop` or being terminated.
 
 ## Enums
 
@@ -244,7 +241,7 @@ This structure represents a Starboard event and its data.
 
 *   `SbEventType type`
 *   `int64_t timestamp`
-*   `void * data`
+*   `void* data`
 
 ### SbEventStartData
 
@@ -252,13 +249,13 @@ Event data for `kSbEventTypeStart` events.
 
 #### Members
 
-*   `char ** argument_values`
+*   `char** argument_values`
 
     The command-line argument values (argv).
 *   `int argument_count`
 
     The command-line argument count (argc).
-*   `const char * link`
+*   `const char* link`
 
     The startup link, if any.
 

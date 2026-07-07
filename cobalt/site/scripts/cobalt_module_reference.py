@@ -83,7 +83,8 @@ def _find_innertext(element, query=''):
       return ''
   else:
     node = element
-  return _strip(''.join(x.strip() for x in node.itertext()))
+  text = ''.join(x for x in node.itertext())
+  return _strip(re.sub(r'\s+', ' ', text))
 
 
 def _find_memberdefs(compounddef_element, kind):
@@ -141,6 +142,10 @@ def _find_member_definition(memberdef_element):
   type_name = _find_innertext(type_element)
   args_name = _strip(memberdef_element.findtext('./argsstring'))
   member_name = _strip(memberdef_element.findtext('./name'))
+  # Doxygen sometimes adds spaces before asterisks, normalize them.
+  type_name = re.sub(r'\s+\*', '*', type_name)
+  type_name = re.sub(r'\s+&', '&', type_name)
+
   # Doxygen does not handle structs of non-typedef'd function pointers
   # gracefully. The 'type' and 'argsstring' elements are used to temporarily
   # store the information needed to be able to rebuild the full signature, e.g.:
@@ -155,7 +160,9 @@ def _find_member_definition(memberdef_element):
   # 'argsstring' we return the full member signature instead.
   if type_name.endswith('(*') and args_name.startswith(')('):
     return type_name + member_name + args_name
-  return type_name + ' ' + member_name
+  if member_name:
+    return type_name + ' ' + member_name
+  return type_name
 
 
 def _node_to_markdown(out, node):
@@ -450,7 +457,10 @@ def generate(source_dir, output_dir):
     site_path = environment.get_site_dir(source_dir)
   doc_dir_path = os.path.join(site_path, 'docs', 'reference', 'starboard',
                               'modules')
-  environment.make_clean_dirs(doc_dir_path)
+  environment.make_dirs(doc_dir_path)
+  for item in os.listdir(doc_dir_path):
+    if item.endswith('.md'):
+      os.remove(os.path.join(doc_dir_path, item))
   starboard_directory_path = environment.get_starboard_dir(source_dir)
   starboard_files = _get_files(starboard_directory_path, _HEADER_RE)
   with environment.mkdtemp(suffix='.' + _SCRIPT_NAME) as temp_directory_path:
@@ -463,13 +473,13 @@ def generate(source_dir, output_dir):
     for sb_version in _OSS_STARBOARD_VERSIONS:
       version_path = os.path.join(doxygen_directory_path, str(sb_version))
       version_doc_dir_path = os.path.join(doc_dir_path, str(sb_version))
+      environment.make_clean_dirs(version_doc_dir_path)
       doxygen.doxygen(sb_version, doxygenated_files, [], version_path)
       doxygen_xml_path = os.path.join(version_path, 'xml')
       for header_xml_path in _get_files(doxygen_xml_path, _HEADER_XML_RE):
         header_xml = ET.parse(header_xml_path)
         for compounddef_element in header_xml.findall(
             ".//compounddef[@kind='file'][compoundname]"):
-          environment.make_dirs(version_doc_dir_path)
           header_filename = _find_filename(compounddef_element)
           doc_filename = (
               os.path.splitext(os.path.basename(header_filename))[0] + '.md')
