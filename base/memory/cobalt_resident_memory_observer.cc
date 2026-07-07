@@ -39,6 +39,11 @@ void CobaltResidentMemoryObserver::Start() {
 
 void CobaltResidentMemoryObserver::Stop() {
   base::PoissonAllocationSampler::Get()->RemoveSamplesObserver(this);
+  base::AutoLock lock(mutex_);
+  live_samples_.clear();
+  for (size_t i = 0; i < static_cast<size_t>(MemoryContext::kCount); ++i) {
+    UNSAFE_BUFFERS(counters_[i].value.store(0, std::memory_order_relaxed));
+  }
 }
 
 void CobaltResidentMemoryObserver::SampleAdded(
@@ -61,10 +66,9 @@ void CobaltResidentMemoryObserver::SampleAdded(
   {
     base::AutoLock lock(mutex_);
     live_samples_.insert_or_assign(address, SampleData{ctx, total});
+    UNSAFE_BUFFERS(
+        counters_[ctx].value.fetch_add(total, std::memory_order_relaxed));
   }
-
-  // Update the counter outside the lock to minimize contention.
-  UNSAFE_BUFFERS(counters_[ctx].value.fetch_add(total, std::memory_order_relaxed));
 }
 
 void CobaltResidentMemoryObserver::SampleRemoved(void* address) {
@@ -79,10 +83,11 @@ void CobaltResidentMemoryObserver::SampleRemoved(void* address) {
     ctx = it->second.memory_context;
     total = it->second.total;
     live_samples_.erase(it);
-  }
 
-  if (ctx < static_cast<uint8_t>(MemoryContext::kCount)) {
-    UNSAFE_BUFFERS(counters_[ctx].value.fetch_sub(total, std::memory_order_relaxed));
+    if (ctx < static_cast<uint8_t>(MemoryContext::kCount)) {
+      UNSAFE_BUFFERS(
+          counters_[ctx].value.fetch_sub(total, std::memory_order_relaxed));
+    }
   }
 }
 

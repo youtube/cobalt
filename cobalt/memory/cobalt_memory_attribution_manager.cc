@@ -17,6 +17,7 @@
 #include <string>
 #include <string_view>
 
+#include "absl/container/flat_hash_map.h"
 #include "base/command_line.h"
 #include "base/containers/span.h"
 #include "base/feature_list.h"
@@ -32,10 +33,111 @@
 #include "base/task/thread_pool.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "base/trace_event/process_memory_dump.h"
-#include "cobalt/browser/features.h"
 
 namespace cobalt {
 namespace memory {
+
+// static
+base::memory::MemoryContext CobaltFileToContextResolver(const char* file_name) {
+  if (!file_name) {
+    return base::memory::MemoryContext::kUnknown;
+  }
+
+  thread_local absl::flat_hash_map<const char*, base::memory::MemoryContext>*
+      context_cache = nullptr;
+  if (!context_cache) {
+    context_cache =
+        new absl::flat_hash_map<const char*, base::memory::MemoryContext>();
+  }
+
+  auto it = context_cache->find(file_name);
+  if (it != context_cache->end()) {
+    return it->second;
+  }
+
+  std::string_view name(file_name);
+  base::memory::MemoryContext context = base::memory::MemoryContext::kUnknown;
+
+  if (name.find("cobalt/dom/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kDOM;
+  } else if (name.find("cobalt/layout/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kLayout;
+  } else if (name.find("cobalt/script/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kScriptBindings;
+  } else if (name.find("cobalt/media/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kMedia;
+  } else if (name.find("cobalt/network/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kNetwork;
+  } else if (name.find("cobalt/browser/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kBrowserMain;
+  } else if (name.find("third_party/blink/renderer/core/dom/") !=
+             std::string_view::npos) {
+    context = base::memory::MemoryContext::kBlinkDOM;
+  } else if (name.find("third_party/blink/renderer/core/css/") !=
+             std::string_view::npos) {
+    context = base::memory::MemoryContext::kBlinkStyle;
+  } else if (name.find("third_party/blink/renderer/core/html/parser/") !=
+             std::string_view::npos) {
+    context = base::memory::MemoryContext::kBlinkParser;
+  } else if (name.find("cc/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kGraphicsCompositor;
+  } else if (name.find("gpu/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kGraphics;
+  } else if (name.find("skia/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kGraphics;
+  } else if (name.find("third_party/skia/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kGraphics;
+  } else if (name.find("v8/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kScriptHeap;
+  } else if (name.find("net/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kNetwork;
+  } else if (name.find("services/network/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kNetwork;
+  } else if (name.find("media/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kMedia;
+  } else if (name.find("starboard/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kPlatformStarboard;
+  } else if (name.find("ipc/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kPlatformIPC;
+  } else if (name.find("mojo/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kPlatformIPC;
+  } else if (name.find("base/task/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kBrowserMain;
+  } else if (name.find("third_party/blink/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kBlinkDOM;
+  } else if (name.find("third_party/angle/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kGraphics;
+  } else if (name.find("third_party/ffmpeg/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kMedia;
+  } else if (name.find("third_party/boringssl/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kNetwork;
+  } else if (name.find("third_party/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kBrowserMain;
+  } else if (name.find("ui/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kGraphics;
+  } else if (name.find("components/viz/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kGraphics;
+  } else if (name.find("components/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kBrowserMain;
+  } else if (name.find("content/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kBrowserMain;
+  } else if (name.find("url/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kBrowserMain;
+  } else if (name.find("gin/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kScriptBindings;
+  } else if (name.find("sql/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kStorage;
+  } else if (name.find("crypto/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kBrowserMain;
+  } else if (name.find("cobalt/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kBrowserMain;
+  } else if (name.find("base/") != std::string_view::npos) {
+    context = base::memory::MemoryContext::kBrowserMain;
+  }
+
+  context_cache->insert({file_name, context});
+  return context;
+}
 
 // static
 CobaltMemoryAttributionManager* CobaltMemoryAttributionManager::Get() {
@@ -50,13 +152,9 @@ CobaltMemoryAttributionManager::CobaltMemoryAttributionManager() {
 
 CobaltMemoryAttributionManager::~CobaltMemoryAttributionManager() = default;
 
-void CobaltMemoryAttributionManager::Start() {
+void CobaltMemoryAttributionManager::Start(int report_interval_secs,
+                                           int sampling_interval_bytes) {
   LOG(INFO) << "CobaltMemoryAttributionManager::Start called!";
-  if (!base::FeatureList::IsEnabled(
-          cobalt::features::kCobaltMemoryAttributionManager)) {
-    LOG(INFO) << "Feature is not enabled!";
-    return;
-  }
 
   if (is_observing_) {
     return;
@@ -64,9 +162,11 @@ void CobaltMemoryAttributionManager::Start() {
 
   is_observing_ = true;
 
-  if (base::FeatureList::IsEnabled(features::kCobaltMemoryAttributionManager)) {
+  base::memory::SetFileToContextResolver(&CobaltFileToContextResolver);
+
+  if (sampling_interval_bytes > 0) {
     base::PoissonAllocationSampler::Get()->SetSamplingInterval(
-        features::kCobaltResidentMemorySamplingIntervalParam.Get());
+        sampling_interval_bytes);
   }
 
   base::memory::CobaltResidentMemoryObserver::Get()->Start();
@@ -80,12 +180,10 @@ void CobaltMemoryAttributionManager::Start() {
   // This ensures our UMA reports cover clean, uninterrupted time intervals.
   base::PowerMonitor::GetInstance()->AddPowerSuspendObserver(this);
 
+  report_interval_secs_ = report_interval_secs;
   last_report_time_ = base::TimeTicks::Now();
-  timer_.Start(
-      FROM_HERE,
-      base::Seconds(
-          cobalt::features::kCobaltMemoryAttributionReportIntervalParam.Get()),
-      this, &CobaltMemoryAttributionManager::ReportUma);
+  timer_.Start(FROM_HERE, base::Seconds(report_interval_secs_), this,
+               &CobaltMemoryAttributionManager::ReportUma);
 }
 
 void CobaltMemoryAttributionManager::Stop() {
@@ -117,10 +215,7 @@ void CobaltMemoryAttributionManager::ReportUma() {
   auto* observer = base::memory::CobaltMemoryAttributionObserver::Get();
   LOG(INFO) << "CobaltMemoryAttributionManager::ReportUma";
   // Skip reporting if timer was significantly delayed (e.g. device suspension).
-  if ((now - last_report_time_) >
-      base::Seconds(
-          cobalt::features::kCobaltMemoryAttributionReportIntervalParam.Get()) *
-          2) {
+  if ((now - last_report_time_) > base::Seconds(report_interval_secs_) * 2) {
     last_report_time_ = now;
     for (size_t i = 0;
          i < static_cast<size_t>(base::memory::MemoryContext::kCount); ++i) {

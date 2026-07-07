@@ -57,7 +57,7 @@ class CobaltMemoryAttributionManager
   CobaltMemoryAttributionManager& operator=(
       const CobaltMemoryAttributionManager&) = delete;
 
-  void Start();
+  void Start(int report_interval_secs, int sampling_interval_bytes);
   void Stop();  // For testing
   void RequestReportUmaForTesting(base::OnceClosure callback);
 
@@ -89,6 +89,7 @@ class CobaltMemoryAttributionManager
   base::TimeTicks last_report_time_;
   base::RepeatingTimer timer_;
   bool is_observing_ = false;
+  int report_interval_secs_ = 60;
 };
 
 }  // namespace memory

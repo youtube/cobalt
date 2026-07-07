@@ -26,6 +26,7 @@
 #include "base/trace_event/memory_dump_manager.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
@@ -192,7 +193,11 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 #endif
   SetupMetrics();
   StartMetricsRecording();
-  cobalt::memory::CobaltMemoryAttributionManager::Get()->Start();
+  if (base::FeatureList::IsEnabled(features::kCobaltMemoryAttributionManager)) {
+    cobalt::memory::CobaltMemoryAttributionManager::Get()->Start(
+        features::kCobaltMemoryAttributionReportIntervalParam.Get(),
+        features::kCobaltResidentMemorySamplingIntervalParam.Get());
+  }
 
   InitializeBrowserMemoryInstrumentationClient();
 

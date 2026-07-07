@@ -23,6 +23,7 @@
 #include "base/memory/cobalt_resident_memory_observer.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/task_environment.h"
 #include "cobalt/browser/features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -69,6 +70,7 @@ class CobaltMemoryAttributionManagerTest : public testing::Test {
         .value.load(std::memory_order_relaxed);
   }
 
+  base::test::SingleThreadTaskEnvironment task_environment_;
   base::test::ScopedFeatureList scoped_feature_list_;
   CobaltMemoryAttributionManager* manager_;
 };
@@ -267,6 +269,69 @@ TEST_F(CobaltMemoryAttributionManagerTest,
   EXPECT_EQ(observer->GetCounters()[static_cast<size_t>(MemoryContext::kMedia)]
                 .value.load(),
             0u);
+}
+
+TEST_F(CobaltMemoryAttributionManagerTest,
+       ResidentMemoryObserverMultiThreadedDoesNotUnderflow) {
+  manager_->Start(60, 1024);
+
+  constexpr int kNumThreads = 4;
+  constexpr int kAllocationsPerThread = 1000;
+
+  std::vector<std::thread> threads;
+  for (int i = 0; i < kNumThreads; ++i) {
+    threads.emplace_back([]() {
+      // Mute thread samples to satisfy reentrancy protection in the sampler.
+      base::PoissonAllocationSampler::ScopedMuteThreadSamples mute_samples;
+      auto* observer = base::memory::CobaltResidentMemoryObserver::Get();
+
+      for (int j = 0; j < kAllocationsPerThread; ++j) {
+        void* ptr = malloc(16);
+        observer->SampleAdded(
+            ptr, 16, 1024,
+            base::allocator::dispatcher::AllocationSubsystem::kAllocatorShim,
+            nullptr);
+        observer->SampleRemoved(ptr);
+        free(ptr);
+      }
+    });
+  }
+
+  for (auto& t : threads) {
+    t.join();
+  }
+
+  // Underflows would result in UINT64_MAX, producing massive numbers.
+  EXPECT_LE(base::memory::CobaltResidentMemoryObserver::Get()
+                ->GetCounters()[static_cast<size_t>(MemoryContext::kUnknown)]
+                .value.load(),
+            1000u * kNumThreads * 1024u);
+
+  manager_->Stop();
+}
+
+TEST_F(CobaltMemoryAttributionManagerTest, StopCleansUpLiveSamples) {
+  manager_->Start(60, 1024);
+
+  void* ptr = malloc(16);
+  {
+    base::PoissonAllocationSampler::ScopedMuteThreadSamples mute_samples;
+    base::memory::CobaltResidentMemoryObserver::Get()->SampleAdded(
+        ptr, 16, 1024,
+        base::allocator::dispatcher::AllocationSubsystem::kAllocatorShim,
+        nullptr);
+  }
+
+  manager_->Stop();
+
+  // Test that Stop() successfully cleared the internal dictionary.
+  // SampleRemoved on a dangling pointer should safely no-op instead of crash.
+  {
+    base::PoissonAllocationSampler::ScopedMuteThreadSamples mute_samples;
+    base::memory::CobaltResidentMemoryObserver::Get()->SampleRemoved(ptr);
+  }
+
+  free(ptr);
 }
 
 }  // namespace memory

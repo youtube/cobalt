@@ -5,10 +5,11 @@
 #ifndef BASE_MEMORY_COBALT_MEMORY_CONTEXT_H_
 #define BASE_MEMORY_COBALT_MEMORY_CONTEXT_H_
 
+#include <pthread.h>
+
 #include <atomic>
 #include <cstdint>
 #include <string_view>
-#include <pthread.h>
 
 #include "base/base_export.h"
 #include "build/build_config.h"
@@ -94,6 +95,9 @@ class BASE_EXPORT ScopedMemoryContext {
   MemoryContext prev_context_;
   bool is_set_ = false;
 };
+
+using FileToContextResolver = MemoryContext (*)(const char*);
+MAYBE_COBALT_WEAK void SetFileToContextResolver(FileToContextResolver resolver);
 
 MAYBE_COBALT_WEAK std::string_view ContextToString(MemoryContext context);
 MAYBE_COBALT_WEAK MemoryContext ContextFromFile(const char* file_name);
