@@ -276,7 +276,7 @@ class MediaCodecBridge {
     }
   }
 
-  public static MediaCodec createMediaCodecOnHandlerThread(
+  private static MediaCodec createMediaCodecOnHandlerThread(
       String decoderName, HandlerThread handlerThread) {
     if (decoderName == null || decoderName.isEmpty()) {
       return null;
@@ -344,6 +344,9 @@ class MediaCodecBridge {
       int tunnelModeAudioSessionId,
       boolean enableFrameRendererListener,
       boolean enableIgnoreCallbacksDuringFlushing) {
+    if (decoderName == null || decoderName.isEmpty()) {
+      throw new IllegalArgumentException("Decoder name cannot be null or empty");
+    }
     mMediaCodecThread = new HandlerThread("MediaCodecBridgeThread_" + decoderName);
     mMediaCodecThread.start();
     Looper looper = mMediaCodecThread.getLooper();
@@ -835,7 +838,7 @@ class MediaCodecBridge {
     return MediaCodecStatus.OK;
   }
 
-  public MediaCodec getMediaCodec() {
+  private MediaCodec getMediaCodec() {
     try {
       return mMediaCodec.get();
     } catch (Exception e) {
