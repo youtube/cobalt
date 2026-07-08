@@ -181,7 +181,8 @@ public class ExoPlayerBridge {
       int minBufferDurationMs,
       int maxBufferDurationMs,
       int minBufferDurationForPlaybackAfterRebufferMs) {
-    mExoPlayerThread = new HandlerThread("ExoPlayerBridgeThread");
+    mExoPlayerThread =
+        new HandlerThread("ExoPlayerBridgeThread", android.os.Process.THREAD_PRIORITY_AUDIO);
     mExoPlayerThread.start();
     mExoPlayerHandler = new Handler(mExoPlayerThread.getLooper());
     mNativeExoPlayerBridge = nativeExoPlayerBridge;
