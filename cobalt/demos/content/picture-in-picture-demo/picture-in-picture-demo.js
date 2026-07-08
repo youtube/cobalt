@@ -55,7 +55,7 @@ function loadVideoViaMSE() {
       }, { once: true });
       sourceBuffer.appendBuffer(data);
     } catch (error) {
-      log('Failed to fetch splash video: ' + error);
+      log('Error loading video via MSE: ' + error);
       console.error(error);
     }
   }, { once: true });
