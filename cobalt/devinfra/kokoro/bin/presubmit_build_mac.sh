@@ -5,7 +5,11 @@ set -ueEx
 . $(dirname "$0")/common.sh
 
 # Using repository root as work directory.
-export WORKSPACE_COBALT="${KOKORO_ARTIFACTS_DIR}/github/src"
+if [[ -d "${KOKORO_ARTIFACTS_DIR}/github/src" ]]; then
+  export WORKSPACE_COBALT="${KOKORO_ARTIFACTS_DIR}/github/src"
+else
+  export WORKSPACE_COBALT="${KOKORO_ARTIFACTS_DIR}/git/src"
+fi
 cd "${WORKSPACE_COBALT}"
 
 # Clean up workspace on exit or error.
@@ -21,6 +25,9 @@ pipeline () {
   setup_mac
 
   local gclient_root="${KOKORO_ARTIFACTS_DIR}/github"
+  if [[ ! -d "${gclient_root}" ]]; then
+    gclient_root="${KOKORO_ARTIFACTS_DIR}/git"
+  fi
   git config --global --add safe.directory "${gclient_root}/src"
   local git_url="$(git -C "${gclient_root}/src" remote get-url origin)"
 
