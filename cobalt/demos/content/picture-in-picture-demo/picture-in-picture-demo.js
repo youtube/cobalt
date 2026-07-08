@@ -34,6 +34,7 @@ function loadVideoViaMSE() {
   const mediaSource = new MediaSource();
   mediaSource.addEventListener('sourceopen', async () => {
     log('MediaSource open, adding SourceBuffer (vp9)');
+    URL.revokeObjectURL(video.src);
     try {
       // PiP is only supported in decode-to-texture mode.
       const sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vp9"; decode-to-texture=true');
@@ -73,7 +74,7 @@ video.addEventListener('pause', () => log('Video paused'));
 video.addEventListener('ended', () => {
   log('Video ended. Looping back to start.');
   video.currentTime = 0;
-  video.play();
+  video.play().catch(e => log('Loop play prevented: ' + e));
 });
 video.addEventListener('enterpictureinpicture', (event) => {
   log('Entered Picture-in-Picture');
@@ -84,6 +85,14 @@ video.addEventListener('leavepictureinpicture', () => {
 });
 
 if ('pictureInPictureEnabled' in document && document.pictureInPictureEnabled) {
+  const enableButton = () => {
+    togglePipButton.disabled = false;
+  };
+  if (video.readyState >= 1) {
+    enableButton();
+  } else {
+    video.addEventListener('loadedmetadata', enableButton, { once: true });
+  }
   togglePipButton.addEventListener('click', async function (event) {
     log('Button clicked');
     togglePipButton.disabled = true;
