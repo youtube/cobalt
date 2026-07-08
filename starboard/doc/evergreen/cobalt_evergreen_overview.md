@@ -278,7 +278,7 @@ matches the file used by the platform configuration used to build the
 `elf_loader_sandbox`.
 
 For example, building these targets for the RDK would use the
-`rdk-arm` and `evergreen-arm-hardfp-rdk` platform configurations.
+`rdk-arm` and `evergreen-arm-hardfp` platform configurations.
 
 ## Verifying Platform Requirements
 

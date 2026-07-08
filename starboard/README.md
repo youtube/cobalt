@@ -136,7 +136,7 @@ with your toolchain. You can then replace stub implementations with
 implementations from `starboard/shared` or your own custom implementations
 module-by-module, until you have gone through all modules.
 
-You may also choose to copy the Desktop Linux port and work backwards fixing
+You may also choose to copy the Desktop Linux or RDK ports and work backwards fixing
 things that don't compile or work on your platform.
 
 For example, for `bobbox-armel`, you might do:
