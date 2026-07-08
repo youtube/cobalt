@@ -22,6 +22,9 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/sequence_checker.h"
+#include "base/uuid.h"
+#include "starboard/extension/crash_handler.h"
+#include "starboard/system.h"
 #include "base/task/bind_post_task.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "build/build_config.h"
@@ -29,6 +32,7 @@
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
+#include "cobalt/browser/core_metric_components_manager.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/memory/cobalt_memory_attribution_manager.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
@@ -240,6 +244,20 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   }
 
   StartStorageMigration();
+
+  std::string session_join_uuid = base::Uuid::GenerateRandomV4().AsLowercaseString();
+  auto* crash_ext = static_cast<const CobaltExtensionCrashHandlerApi*>(
+      SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
+  if (crash_ext && crash_ext->version >= 2) {
+    // Key Separation: We set 'cmc_crash_uuid' once on boot. This key is immutable in memory
+    // for the entire process lifetime, ensuring fatal crash dumps can never be corrupted by hang triggers.
+    crash_ext->SetString("cmc_crash_uuid", session_join_uuid.c_str());
+    LOG(INFO) << "CobaltBrowserMainParts: Armed session crash annotations. cmc_crash_uuid = "
+              << session_join_uuid;
+  }
+
+  browser::CoreMetricComponentsManager::GetInstance()
+      ->ReconcileReportsOnStartup();
 
   return result;
 }

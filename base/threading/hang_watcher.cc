@@ -32,6 +32,7 @@
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_STARBOARD)
+#include "base/uuid.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/system.h"
 #endif
@@ -825,8 +826,35 @@ HangWatcher* HangWatcher::GetInstance() {
 void HangWatcher::RecordHang() {
 #if BUILDFLAG(IS_COBALT)
   LOG(INFO) << "Freeze detection: start reporting";
-#endif
+#endif  // BUILDFLAG(IS_COBALT)
+
+#if BUILDFLAG(IS_STARBOARD)
+  // Key Separation + Scoped Transactional Annotation Model:
+  // To prevent any possible race condition between non-fatal hangs and fatal crashes,
+  // we do NOT touch the process-wide 'cmc_crash_uuid' (which is immutable from boot).
+  // Instead, we populate a distinct 'cmc_hang_uuid' key during non-fatal dump capture.
+  // This approach is completely sound and race-condition free because:
+  // 1) On Linux/POSIX, Crashpad captures annotations as frozen '--annotation=key=value' argv strings at fork() time.
+  // 2) The parent Cobalt process blocks synchronously on waitpid() until crashpad_handler completes writing the dump.
+  // Immediately after DumpWithoutCrashing() returns, we reset 'cmc_hang_uuid' to empty ("") to keep memory clean.
+  auto* crash_ext = static_cast<const CobaltExtensionCrashHandlerApi*>(
+      SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
+  if (crash_ext && crash_ext->version >= 2) {
+    std::string hang_uuid = base::Uuid::GenerateRandomV4().AsLowercaseString();
+    if (g_hang_watcher_delegate) {
+      g_hang_watcher_delegate->OnHangStarted(hang_uuid);
+    }
+    crash_ext->SetString("cmc_hang_uuid", hang_uuid.c_str());
+
+    base::debug::DumpWithoutCrashing();
+
+    crash_ext->SetString("cmc_hang_uuid", "");
+  } else {
+    base::debug::DumpWithoutCrashing();
+  }
+#else  // !BUILDFLAG(IS_STARBOARD)
   base::debug::DumpWithoutCrashing();
+#endif  // BUILDFLAG(IS_STARBOARD)
   NO_CODE_FOLDING();
 }
 

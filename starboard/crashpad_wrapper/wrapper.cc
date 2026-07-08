@@ -21,8 +21,10 @@
 #include <vector>
 
 #include "base/files/file_path.h"
+#include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/strings/stringprintf.h"
+#include "base/values.h"
 #include "build/build_config.h"
 #include "client/crash_report_database.h"
 #include "client/crashpad_client.h"
@@ -33,7 +35,10 @@
 #include "starboard/extension/crash_handler.h"
 #include "starboard/extension/loader_app_metrics.h"
 #include "starboard/system.h"
+#include "third_party/crashpad/crashpad/snapshot/minidump/process_snapshot_minidump.h"
 #include "third_party/crashpad/crashpad/snapshot/sanitized/sanitization_information.h"
+#include "third_party/crashpad/crashpad/util/file/file_reader.h"
+#include "third_party/crashpad/crashpad/util/posix/signals.h"
 #include "util/misc/capture_context.h"
 
 using starboard::kSystemPropertyMaxLength;
@@ -313,6 +318,85 @@ void DumpWithoutCrashingWrapper() {
   ::crashpad::NativeCPUContext context;
   ::crashpad::CaptureContext(&context);
   ::crashpad::CrashpadClient::DumpWithoutCrash(&context);
+}
+
+bool GetCompletedReports(char* out_buffer, int buffer_size) {
+  if (!out_buffer || buffer_size <= 0) {
+    return false;
+  }
+
+  const base::FilePath database_directory_path = GetDatabasePath();
+  if (database_directory_path.empty()) {
+    return false;
+  }
+
+  std::unique_ptr<::crashpad::CrashReportDatabase> database =
+      ::crashpad::CrashReportDatabase::Initialize(database_directory_path);
+  if (!database) {
+    return false;
+  }
+
+  std::vector<::crashpad::CrashReportDatabase::Report> completed_reports;
+  if (database->GetCompletedReports(&completed_reports) !=
+      ::crashpad::CrashReportDatabase::kNoError) {
+    LOG(ERROR) << "GetCompletedReports failed for database at "
+               << database_directory_path.value();
+    return false;
+  }
+
+  LOG(INFO) << "GetCompletedReports: Database path = "
+            << database_directory_path.value()
+            << ", Completed reports count = " << completed_reports.size();
+
+  base::Value::List reports_list;
+  for (const auto& report : completed_reports) {
+    base::Value::Dict report_dict;
+    report_dict.Set("crashpad_db_uuid", report.uuid.ToString());
+    report_dict.Set("creation_time", static_cast<double>(report.creation_time));
+    std::string cmc_join_uuid = "";
+    std::string cmc_report_type = "crash";
+
+    ::crashpad::FileReader reader;
+    if (reader.Open(report.file_path)) {
+      ::crashpad::ProcessSnapshotMinidump snapshot;
+      if (snapshot.Initialize(&reader)) {
+        const auto& annotations = snapshot.AnnotationsSimpleMap();
+        const auto* exception = snapshot.Exception();
+        bool is_simulated_hang = false;
+        if (exception && exception->Exception() == static_cast<uint32_t>(::crashpad::Signals::kSimulatedSigno)) {
+          is_simulated_hang = true;
+        }
+
+        auto hang_it = annotations.find("cmc_hang_uuid");
+        if (is_simulated_hang && hang_it != annotations.end() && !hang_it->second.empty()) {
+          cmc_report_type = "hang";
+          cmc_join_uuid = hang_it->second;
+        } else {
+          cmc_report_type = "crash";
+          auto crash_it = annotations.find("cmc_crash_uuid");
+          if (crash_it != annotations.end()) {
+            cmc_join_uuid = crash_it->second;
+          }
+        }
+      }
+    }
+
+    report_dict.Set("cmc_join_uuid", cmc_join_uuid);
+    report_dict.Set("cmc_report_type", cmc_report_type);
+    reports_list.Append(std::move(report_dict));
+  }
+
+  std::string json;
+  if (!base::JSONWriter::Write(reports_list, &json)) {
+    return false;
+  }
+
+  if (json.size() >= static_cast<size_t>(buffer_size)) {
+    return false;
+  }
+
+  memcpy(out_buffer, json.c_str(), json.size() + 1);
+  return true;
 }
 
 }  // namespace crashpad

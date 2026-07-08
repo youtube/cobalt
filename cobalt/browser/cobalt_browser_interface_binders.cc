@@ -19,6 +19,8 @@
 #include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom.h"
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_impl.h"
 #include "cobalt/browser/h5vcc_accessibility/public/mojom/h5vcc_accessibility.mojom.h"
+#include "cobalt/browser/h5vcc_core_metric_components/h5vcc_core_metric_components_impl.h"
+#include "cobalt/browser/h5vcc_core_metric_components/public/mojom/h5vcc_core_metric_components.mojom.h"
 #include "cobalt/browser/h5vcc_experiments/h5vcc_experiments_impl.h"
 #include "cobalt/browser/h5vcc_experiments/public/mojom/h5vcc_experiments.mojom.h"
 #include "cobalt/browser/h5vcc_metrics/h5vcc_metrics_impl.h"
@@ -104,6 +106,9 @@ void PopulateCobaltFrameBinders(
   binder_map->Add<h5vcc_accessibility::mojom::H5vccAccessibilityBrowser>(
       base::BindRepeating(
           &h5vcc_accessibility::H5vccAccessibilityImpl::Create));
+  binder_map->Add<h5vcc_core_metric_components::mojom::H5vccCoreMetricComponents>(
+      base::BindRepeating(
+          &h5vcc_core_metric_components::H5vccCoreMetricComponentsImpl::Create));
   binder_map->Add<h5vcc_experiments::mojom::H5vccExperiments>(
       base::BindRepeating(&h5vcc_experiments::H5vccExperimentsImpl::Create));
   binder_map->Add<h5vcc_metrics::mojom::H5vccMetrics>(

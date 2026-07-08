@@ -32,6 +32,10 @@ source_set("browser") {
     "cobalt_secure_navigation_throttle.h",
     "cobalt_web_contents_observer.cc",
     "cobalt_web_contents_observer.h",
+    "core_metric_components_manager.cc",
+    "core_metric_components_manager.h",
+    "h5vcc_core_metric_components/h5vcc_core_metric_components_impl.cc",
+    "h5vcc_core_metric_components/h5vcc_core_metric_components_impl.h",
     "h5vcc_settings_impl.cc",
     "h5vcc_settings_impl.h",
   ]
@@ -40,6 +44,13 @@ source_set("browser") {
     sources += [
       "android/mojo/cobalt_interface_registrar_android.cc",
       "android/mojo/cobalt_interface_registrar_android.h",
+    ]
+  }
+
+  if (is_starboard || is_androidtv) {
+    sources += [
+      "hang_watcher_delegate_impl.cc",
+      "hang_watcher_delegate_impl.h",
     ]
   }
 
@@ -61,6 +72,7 @@ source_set("browser") {
     "//cobalt/browser/crash_annotator/public/mojom",
     "//cobalt/browser/h5vcc_accessibility",
     "//cobalt/browser/h5vcc_accessibility/public/mojom",
+    "//cobalt/browser/h5vcc_core_metric_components/public/mojom",
     "//cobalt/browser/h5vcc_experiments",
     "//cobalt/browser/h5vcc_experiments/public/mojom",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
@@ -175,18 +187,6 @@ source_set("global_features") {
   ]
 }
 
-if (is_starboard || is_androidtv) {
-  source_set("hang_watcher_delegate") {
-    sources = [
-      "hang_watcher_delegate_impl.cc",
-      "hang_watcher_delegate_impl.h",
-    ]
-    deps = [
-      ":global_features",
-      "//base",
-    ]
-  }
-}
 
 source_set("metrics") {
   sources = [

@@ -18,8 +18,10 @@
 #include <optional>
 
 #include "base/feature_list.h"
+#include "cobalt/browser/core_metric_components_manager.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
+
 namespace cobalt {
 namespace browser {
 
@@ -36,6 +38,7 @@ bool CobaltHangWatcherDelegate::IsHangReportingEnabled() {
   // until the proper Finch bridge is fully functional. If the setting isn't
   // explicitly provided, we fallback to the standard Chromium 'FeatureList'
   // which is backed by Finch.
+
   if (auto* global_features = GlobalFeatures::GetInstance()) {
     const auto& settings = global_features->GetSettings();
     auto it = settings.find("EnableHangReporting");
@@ -51,6 +54,10 @@ bool CobaltHangWatcherDelegate::IsHangReportingEnabled() {
   DLOG(INFO) << "CobaltHangWatcherDelegate: EnableHangReporting: using Finch";
 
   return base::FeatureList::IsEnabled(cobalt::features::kHangReporting);
+}
+
+void CobaltHangWatcherDelegate::OnHangStarted(const std::string& hang_uuid) {
+  CoreMetricComponentsManager::GetInstance()->RecordHangStarted(hang_uuid);
 }
 
 }  // namespace browser

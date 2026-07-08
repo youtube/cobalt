@@ -18,10 +18,13 @@ blink_modules_sources("h_5_vcc") {
   sources = [
     "cobalt_lifecycle_controller.cc",
     "cobalt_lifecycle_controller.h",
+    "h5vcc_core_metric_components/h_5_vcc_core_metric_components.cc",
+    "h5vcc_core_metric_components/h_5_vcc_core_metric_components.h",
     "h_5_vcc.cc",
     "h_5_vcc.h",
   ]
   deps = [
+    "//cobalt/browser/h5vcc_core_metric_components/public/mojom:mojom_blink",
     "//cobalt/browser/h5vcc_runtime/public/mojom:mojom_blink",
     "//cobalt/browser/lifecycle/public/mojom:mojom_blink",
     "//third_party/blink/renderer/modules/cobalt/crash_log",
