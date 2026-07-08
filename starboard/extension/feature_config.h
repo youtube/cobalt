@@ -102,6 +102,11 @@ FEATURE_LIST_START
 
 #if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 // keep-sorted start newline_separated=yes
+// Set to true to enable area-based video buffer budget calculation.
+STARBOARD_FEATURE(kAreaBasedVideoBufferBudget,
+                  "AreaBasedVideoBufferBudget",
+                  false)
+
 // By default, app provisioning is disabled. Set the following variable to true
 // to enable app provisioning.
 STARBOARD_FEATURE(kEnableAppProvisioning, "EnableAppProvisioning", false)
@@ -162,6 +167,17 @@ STARBOARD_FEATURE(kVideoDecoderDelayUsecOverride,
                   false)
 // keep-sorted end
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+
+// Set the following variable to true to reduce starboard thread stack size.
+STARBOARD_FEATURE(kReduceStarboardThreadStackSize,
+                  "ReduceStarboardThreadStackSize",
+                  false)
+
+// Set the following variable to true to reduce android thread stack size.
+STARBOARD_FEATURE(kReduceAndroidThreadStackSize,
+                  "ReduceAndroidThreadStackSize",
+                  false)
+
 FEATURE_LIST_END
 
 // To add a parameter to Starboard, use the macro:

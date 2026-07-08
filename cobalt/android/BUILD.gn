@@ -121,6 +121,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/coat/ArtworkDownloaderDefault.java",
     "apk/app/src/main/java/dev/cobalt/coat/ArtworkLoader.java",
     "apk/app/src/main/java/dev/cobalt/coat/AudioPermissionRequester.java",
+    "apk/app/src/main/java/dev/cobalt/coat/BrowserStarboardBridge.java",
     "apk/app/src/main/java/dev/cobalt/coat/CaptionSettings.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltA11yHelper.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltActivity.java",
@@ -133,6 +134,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/coat/CrashContext.java",
     "apk/app/src/main/java/dev/cobalt/coat/CrashContextUpdateHandler.java",
     "apk/app/src/main/java/dev/cobalt/coat/ErrorDialog.java",
+    "apk/app/src/main/java/dev/cobalt/coat/FontUtil.java",
     "apk/app/src/main/java/dev/cobalt/coat/KeyboardUtils.java",
     "apk/app/src/main/java/dev/cobalt/coat/NetworkStatus.java",
     "apk/app/src/main/java/dev/cobalt/coat/NullCobaltFactory.java",
@@ -197,7 +199,13 @@ android_library("cobalt_apk_java") {
 
 android_assets("coat_assets") {
   sources = [ "apk/app/src/app/assets/web/cobalt_logo_1024.png" ]
+  renaming_sources = [ "$root_out_dir/content/data/fonts/fonts.xml" ]
+  renaming_destinations = [ "fonts/fonts.xml" ]
   disable_compression = true
+  deps = [
+    "//starboard/content/fonts:copy_font_data",
+    "//starboard/content/fonts:fonts_xml",
+  ]
 }
 
 # TODO(b/450024477): just a shared library once jni migration is complete

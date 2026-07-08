@@ -347,6 +347,9 @@ BASE_DECLARE_FEATURE(kCobaltDynamicMojoPipeSizing);
 
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE_PARAM(int, kCobaltDynamicMojoPipeSizingSubresourceSize);
+
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(int, kCobaltDynamicMojoPipeSizingMediaSize);
 #endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace network::features

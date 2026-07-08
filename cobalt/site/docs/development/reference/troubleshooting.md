@@ -3,7 +3,7 @@ Book: /youtube/cobalt/_book.yaml
 
 # Troubleshooting
 
-## Download failed in download_from_gcs.py with "HTTP Error 403: Forbidden"
+## Download failed in `download_from_gcs.py` with `HTTP Error 403: Forbidden`
 
 ### What Are the Issues / Symptoms?
 
