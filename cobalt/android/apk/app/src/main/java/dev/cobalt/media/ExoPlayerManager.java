@@ -182,7 +182,7 @@ public class ExoPlayerManager {
                 sampleRate, audioConfigurationData);
         if (csds == null) {
           Log.e(TAG, "Error parsing Opus config info");
-          return null;
+          throw new IllegalArgumentException("Error parsing Opus CSD for Opus audio format");
         }
         builder.setInitializationData(Arrays.asList(csds));
       } else {
