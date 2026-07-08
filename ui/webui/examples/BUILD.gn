@@ -123,8 +123,10 @@ repack("pak") {
   testonly = true
   sources = [
     "$root_gen_dir/chrome/webui_gallery_resources.pak",
+    "$root_gen_dir/content/browser/devtools/devtools_resources.pak",
     "$root_gen_dir/mojo/public/js/mojo_bindings_resources.pak",
     "$root_gen_dir/third_party/blink/public/resources/blink_resources.pak",
+    "$root_gen_dir/third_party/blink/public/resources/inspector_overlay_resources.pak",
     "$root_gen_dir/third_party/blink/public/resources/blink_scaled_resources_100_percent.pak",
     "$root_gen_dir/ui/strings/app_locale_settings_en-US.pak",
     "$root_gen_dir/ui/strings/ui_strings_en-US.pak",
@@ -136,7 +138,9 @@ repack("pak") {
     ":resources",
     "resources/browser:resources",
     "//chrome/browser/resources/webui_gallery:resources",
+    "//content/browser/devtools:devtools_resources",
     "//mojo/public/js:resources",
+    "//third_party/blink/public:devtools_inspector_resources",
     "//third_party/blink/public:resources",
     "//third_party/blink/public:scaled_resources_100_percent",
     "//ui/strings",
@@ -144,12 +148,12 @@ repack("pak") {
   ]
   output = "$root_out_dir/webui_examples.pak"
 
-  if (enable_devtools_frontend) {
-    sources += [
+  if (is_cobalt && !enable_devtools_frontend) {
+    sources -= [
       "$root_gen_dir/content/browser/devtools/devtools_resources.pak",
       "$root_gen_dir/third_party/blink/public/resources/inspector_overlay_resources.pak",
     ]
-    deps += [
+    deps -= [
       "//content/browser/devtools:devtools_resources",
       "//third_party/blink/public:devtools_inspector_resources",
     ]

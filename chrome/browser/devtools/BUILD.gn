@@ -2,13 +2,13 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//chrome/common/features.gni")
 import("//content/browser/devtools/features.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//printing/buildflags/buildflags.gni")
 
 if (enable_devtools_frontend) {
   import("//build/config/features.gni")
+  import("//chrome/common/features.gni")
   import("//tools/grit/grit_rule.gni")
 }
 
@@ -220,7 +220,6 @@ static_library("devtools") {
       "//chrome:resources",
       "//chrome:strings",
       "//chrome/app/theme:theme_resources",
-      "//chrome/browser:browser_process",
       "//chrome/browser/apps/app_service:constants",
       "//chrome/browser/media/router:media_router_feature",
       "//chrome/browser/themes",
@@ -293,30 +292,28 @@ static_library("devtools") {
       "devtools_auto_opener.h",
       "devtools_browser_context_manager.cc",
       "devtools_browser_context_manager.h",
+      "devtools_infobar_delegate.cc",
+      "devtools_infobar_delegate.h",
       "devtools_dock_tile.h",
       "devtools_targets_ui.cc",
       "devtools_targets_ui.h",
       "devtools_window_views.cc",
+      "global_confirm_info_bar.cc",
+      "global_confirm_info_bar.h",
+      "process_sharing_infobar_delegate.cc",
+      "process_sharing_infobar_delegate.h",
       "remote_debugging_server.cc",
       "remote_debugging_server.h",
       "serialize_host_descriptions.cc",
       "serialize_host_descriptions.h",
     ]
     if (enable_devtools_frontend) {
-      sources += [
-        "devtools_infobar_delegate.cc",
-        "devtools_infobar_delegate.h",
-        "process_sharing_infobar_delegate.cc",
-        "process_sharing_infobar_delegate.h",
-        "global_confirm_info_bar.cc",
-        "global_confirm_info_bar.h",
-      ]
-    }
-    if (enable_service_discovery) {
-      sources += [
-        "device/cast_device_provider.cc",
-        "device/cast_device_provider.h",
-      ]
+      if (enable_service_discovery) {
+        sources += [
+          "device/cast_device_provider.cc",
+          "device/cast_device_provider.h",
+        ]
+      }
     }
   }
 
@@ -348,6 +345,8 @@ static_library("devtools") {
       "protocol/browser_handler.h",
       "protocol/cast_handler.cc",
       "protocol/cast_handler.h",
+      "protocol/emulation_handler.cc",
+      "protocol/emulation_handler.h",
       "protocol/extensions_handler.cc",
       "protocol/extensions_handler.h",
       "protocol/page_handler.cc",
@@ -368,12 +367,6 @@ static_library("devtools") {
       sources += [
         "protocol/window_manager_handler.cc",
         "protocol/window_manager_handler.h",
-      ]
-    }
-    if (enable_devtools_frontend) {
-      sources += [
-        "protocol/emulation_handler.cc",
-        "protocol/emulation_handler.h",
       ]
     }
     if (enable_printing) {
@@ -398,6 +391,20 @@ static_library("devtools") {
     deps += [
       "//chrome/common/extensions/api",
       "//extensions/browser",
+    ]
+  }
+
+  if (is_cobalt && !enable_devtools_frontend) {
+    deps += [ "//chrome/browser:browser_process" ]
+    sources -= [
+      "devtools_infobar_delegate.cc",
+      "devtools_infobar_delegate.h",
+      "global_confirm_info_bar.cc",
+      "global_confirm_info_bar.h",
+      "protocol/emulation_handler.cc",
+      "protocol/emulation_handler.h",
+      "process_sharing_infobar_delegate.cc",
+      "process_sharing_infobar_delegate.h",
     ]
   }
 }
