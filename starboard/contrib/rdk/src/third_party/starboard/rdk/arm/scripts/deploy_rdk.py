@@ -340,11 +340,6 @@ def parse_args() -> argparse.Namespace:
             "Useful if the display is inactive or WPEFramework is stuck."),
     )
     parser.add_argument(
-        "--devtools",
-        action="store_true",
-        help="Enable Chrome DevTools remote debugging port (port 9222) in plugin mode.",
-    )
-    parser.add_argument(
         "--setup-toolchain",
         action="store_true",
         help="Download and install the RDK toolchain to RDK_HOME.",
@@ -624,6 +619,8 @@ def main() -> None:
                 "Cobalt",
                 "-t",
                 "loader_app",
+                "-t",
+                "WPEFramework",
             ])
         if args.follow:
             cmd.append("-f")
@@ -655,10 +652,6 @@ def main() -> None:
     # Setup Build Paths
     config = args.config or ("devel" if args.tests else "qa")
     out_dir = Path(args.out_dir or f"out/{PLATFORM}_{config}")
-
-    if args.devtools and config == "gold":
-        print("Error: DevTools is not supported/available in gold builds.")
-        sys.exit(1)
 
     if args.tests:
         targets = [f"{args.tests}_loader"]
@@ -703,7 +696,7 @@ def main() -> None:
         if args.only_lib:
             deploy_only_lib(device_id, out_dir, remote_dir)
         else:
-            package_and_deploy(device_id, out_dir, remote_dir, deps_file, args.mode)
+            package_and_deploy(device_id, out_dir, remote_dir, deps_file, "executable" if args.tests else args.mode)
 
     if args.run:
         launch_on_device(
@@ -712,8 +705,8 @@ def main() -> None:
             is_up_to_date,
             args.force_deploy,
             args.tests,
-            args.mode,
-            args.devtools,
+            "executable" if args.tests else args.mode,
+            config != "gold" and args.mode == "plugin" and not args.tests,
         )
 
     print("=== Finished ===")
