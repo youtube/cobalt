@@ -9,9 +9,8 @@
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
 #include "media/base/media_switches.h"
-#if !BUILDFLAG(IS_COBALT)
 #include "media/capture/video/fake_video_capture_device_factory.h"
-#include "media/capture/video/file_video_capture_device_factory.h"  // nogncheck
+#include "media/capture/video/file_video_capture_device_factory.h"
 
 #if BUILDFLAG(IS_LINUX)
 #include "media/capture/video/linux/video_capture_device_factory_linux.h"
@@ -24,17 +23,15 @@
 #elif BUILDFLAG(IS_APPLE)
 #include "media/capture/video/apple/video_capture_device_factory_apple.h"
 #elif BUILDFLAG(IS_ANDROID)
-#include "media/capture/video/android/video_capture_device_factory_android.h"  // nogncheck
+#include "media/capture/video/android/video_capture_device_factory_android.h"
 #elif BUILDFLAG(IS_FUCHSIA)
 #include "media/capture/video/fuchsia/video_capture_device_factory_fuchsia.h"
 #endif
-#endif  // !BUILDFLAG(IS_COBALT)
 
 namespace media {
 
 namespace {
 
-#if !BUILDFLAG(IS_COBALT)
 std::unique_ptr<VideoCaptureDeviceFactory>
 CreateFakeVideoCaptureDeviceFactory() {
   const base::CommandLine* command_line =
@@ -84,25 +81,16 @@ CreatePlatformSpecificVideoCaptureDeviceFactory(
 #endif
 }
 
-#endif  // !BUILDFLAG(IS_COBALT)
-
 }  // anonymous namespace
 
 bool ShouldUseFakeVideoCaptureDeviceFactory() {
-#if BUILDFLAG(IS_COBALT)
-  return false;
-#else
   const base::CommandLine* command_line =
       base::CommandLine::ForCurrentProcess();
   return command_line->HasSwitch(switches::kUseFakeDeviceForMediaStream);
-#endif
 }
 
 std::unique_ptr<VideoCaptureDeviceFactory> CreateVideoCaptureDeviceFactory(
     scoped_refptr<base::SingleThreadTaskRunner> ui_task_runner) {
-#if BUILDFLAG(IS_COBALT)
-  return nullptr;
-#else
   if (ShouldUseFakeVideoCaptureDeviceFactory()) {
     return CreateFakeVideoCaptureDeviceFactory();
   } else {
@@ -110,7 +98,6 @@ std::unique_ptr<VideoCaptureDeviceFactory> CreateVideoCaptureDeviceFactory(
     // screen rotations.
     return CreatePlatformSpecificVideoCaptureDeviceFactory(ui_task_runner);
   }
-#endif
 }
 
 }  // namespace media

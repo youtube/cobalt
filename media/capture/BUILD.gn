@@ -186,6 +186,13 @@ component("capture_lib") {
     ]
   }
 
+  if (is_cobalt) {
+    sources -= [
+      "video/create_video_capture_device_factory.cc",
+      "video/create_video_capture_device_factory.h",
+    ]
+  }
+
   if (is_android && !is_cobalt) {
     public_deps += [ "video/android" ]
     deps += [ "video/android:capture_jni_headers" ]
