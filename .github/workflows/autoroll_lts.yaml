@@ -116,16 +116,23 @@ jobs:
           } > "${PR_BODY_FILE}"
 
           if [[ -f .github/AUTOROLL ]] && grep -q "^CONFLICTED:" .github/AUTOROLL; then
-            PR_TITLE="CONFLICTED: ${PR_TITLE}"
+            PR_TITLE="$(git log -1 --pretty=%s)"
             {
               echo ""
-              echo '⚠️ This PR has conflicts that must be resolved manually (do not forget to update the `.github/AUTOROLL` file). Use the following commands to checkout the branch locally and resolve the conflicts in a separate commit:'
+              echo "⚠️ This PR has conflicts that must be resolved manually (don't forget to update the \`.github/AUTOROLL\` file). Use the following commands to checkout the branch locally and resolve the conflicts in a separate commit:"
+              echo ""
               echo '```bash'
-              echo "gh pr checkout \${PR_NUMBER} -R ${{ github.repository }}"
-              echo "git commit -a"
+              echo "gh pr checkout <pull_request_number> -R ${{ github.repository }}"
+              echo ""
+              echo "# Resolve conflicts and update .github/AUTOROLL then"
+              echo "git add <resolved_files>"
+              echo ""
+              echo "# Copy CONFLICTED commit's message and metadata"
+              echo "# Replace CONFLICTED in title with RESOLVED"
+              echo "git commit -c <conflicted_sha>"
+              echo ""
               echo "git push origin autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"
               echo '```'
-              echo 'This PR must be `rebased and merged` and not `squashed and merged` to preserve conflict resolution history.'
             } >> "${PR_BODY_FILE}"
           fi
 

@@ -188,15 +188,14 @@ source_set("starboard_headers_only") {
 source_set("starboard_test_main") {
   testonly = true
   sources = [ "//starboard/common/test_main.cc" ]
-  public_deps = [ "//testing/gtest" ]
+  public_deps = [
+    "//starboard/testing:test_runner",
+    "//testing/gtest",
+  ]
   deps = [ ":starboard_headers_only" ]
 
   if (is_ios) {
-    deps += [
-      "//base",
-      "//base/test:test_support",
-      "//starboard/tvos/shared:test_support",
-    ]
+    deps += [ "//starboard/tvos/shared:test_support" ]
   }
 
   if (is_android) {

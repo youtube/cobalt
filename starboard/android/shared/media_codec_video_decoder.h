@@ -102,6 +102,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
                    const PipelineConfig& pipeline_config,
                    const PlatformOptions& platform_options);
 
+  static void SetVideoFramePoolEnabled(bool enabled);
+
   MediaCodecVideoDecoder(
       PassKey<MediaCodecVideoDecoder>,
       std::unique_ptr<MediaCodec::Factory> media_codec_factory,
@@ -220,6 +222,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // queued on the main thread during a flush.
   const bool ignore_mediacodec_callbacks_during_flushing_;
   const bool enable_low_latency_;
+  const bool enable_ndk_video_;
 
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline

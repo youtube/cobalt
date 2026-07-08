@@ -15,6 +15,7 @@
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_experiments/h_5_vcc_experiments.h"
 
 #include "base/metrics/field_trial_params.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/values.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/h5vcc_experiments/public/mojom/h5vcc_experiments.mojom-blink.h"
@@ -47,6 +48,8 @@ ScriptPromise<IDLUndefined> H5vccExperiments::setExperimentState(
       ParseConfigToDictionary(experiment_configuration);
 
   if (!experiment_config_dict.has_value()) {
+    base::UmaHistogramBoolean("Cobalt.Finch.SetExperimentState.ParseError",
+                              true);
     resolver->RejectWithDOMException(
         DOMExceptionCode::kInvalidStateError,
         "Unable to parse experiment configuration.");

@@ -10,9 +10,7 @@ end, it provides a compliance test suite, called NPLB
 ## Current State
 
 NPLB calls all APIs defined by Cobalt 27 and verifies most of them. APIs
-typically implemented by a single system call, such as the Starboard
-functions defined in [string.h](../reference/starboard/modules/string.md) and
-[memory.h](../reference/starboard/modules/memory.md), are not exhaustively tested.
+typically implemented by a single system call are not exhaustively tested.
 
 Starboard also implements many POSIX APIs that Cobalt 27 requires, some of which
 replace earlier Starboard APIs, such as `sendto` replacing `SbSocketSendTo`.
