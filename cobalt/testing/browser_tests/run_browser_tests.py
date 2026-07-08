@@ -29,7 +29,7 @@ import subprocess
 import sys
 import tempfile
 import xml.etree.ElementTree as ET
-from typing import List, Tuple, Optional
+from typing import Dict, List, Optional, Tuple
 
 
 class CobaltTestRunner:
@@ -288,6 +288,34 @@ class CobaltTestRunner:
       logging.error("Error initializing XML file %s: %s", self.xml_output_file,
                     e)
 
+  def _run_command_and_tee(self, cmd: List[str], env: Dict[str, str],
+                           log_file_path: Optional[str] = None) -> int:
+    """Runs a command and tees its stdout/stderr to console and a log file."""
+    f_log = None
+    if log_file_path:
+      f_log = open(log_file_path, "a", encoding="utf-8")
+
+    try:
+      with subprocess.Popen(
+          cmd,
+          stdout=subprocess.PIPE,
+          stderr=subprocess.STDOUT,
+          text=True,
+          env=env,
+      ) as proc:
+        if proc.stdout:
+          for line in proc.stdout:
+            sys.stdout.write(line)
+            sys.stdout.flush()
+            if f_log:
+              f_log.write(line)
+        proc.wait()
+        retcode = proc.returncode
+    finally:
+      if f_log:
+        f_log.close()
+    return retcode
+
   def _run_single_test(self, test_name: str,
                        test_idx: int) -> Tuple[int, Optional[str]]:
     """Executes a single test case."""
@@ -318,7 +346,11 @@ class CobaltTestRunner:
     env["GTEST_SHARD_INDEX"] = "0"
 
     try:
-      retcode = subprocess.call(cmd, env=env)
+      log_file_path = None
+      gen_dir = os.environ.get("MH_GEN_FILE_DIR")
+      if gen_dir:
+        log_file_path = os.path.join(gen_dir, "test_results.txt")
+      retcode = self._run_command_and_tee(cmd, env, log_file_path)
     # pylint: disable=broad-exception-caught
     except Exception as e:
       logging.error("Error executing test %s: %s", test_name, e)
@@ -475,7 +507,21 @@ def parse_args() -> Tuple[argparse.Namespace, List[str]]:
 
 def main():
   """Main entry point for the script."""
-  logging.basicConfig(level=logging.DEBUG, format="%(message)s")
+  log_file_path = None
+  gen_dir = os.environ.get("MH_GEN_FILE_DIR")
+  if gen_dir:
+    log_file_path = os.path.join(gen_dir, "test_results.txt")
+
+  handlers = [logging.StreamHandler(sys.stdout)]
+  if log_file_path:
+    try:
+      os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
+      open(log_file_path, "w", encoding="utf-8").close()
+      handlers.append(logging.FileHandler(log_file_path))
+    except Exception as e:  # pylint: disable=broad-exception-caught
+      sys.stderr.write(f"Failed to initialize log file: {e}\n")
+
+  logging.basicConfig(level=logging.DEBUG, format="%(message)s", handlers=handlers)
   args, unknown_args = parse_args()
   if args.help:
     # Re-parse with help enabled to show standard help message
