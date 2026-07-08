@@ -133,6 +133,11 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
 
   std::atomic_bool releasing_surface_ = false;
 
+  const int64_t max_audio_buffer_duration_us_;
+  const int64_t max_video_buffer_duration_us_;
+  const int audio_sample_offset_;
+  const int video_sample_offset_;
+
   mutable std::mutex mutex_;
   // Guarded by |mutex_|.
   std::deque<scoped_refptr<InputBuffer>> pending_audio_samples_;

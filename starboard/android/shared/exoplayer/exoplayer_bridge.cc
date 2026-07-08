@@ -63,21 +63,34 @@ constexpr int64_t kTimeEndOfSource = 0x8000000000000000LL;
 // Custom signal for Java to allocate buffer space before reading
 constexpr int kResultNeedsAllocation = -6;
 
-int GetSampleOffset(SbMediaType type,
-                    const scoped_refptr<InputBuffer>& input_buffer) {
-  if (type == kSbMediaTypeAudio &&
-      input_buffer->audio_stream_info().codec == kSbMediaAudioCodecAac) {
-    return kADTSHeaderSize;
-  }
-  return 0;
-}
-
 }  // namespace
 
 ExoPlayerBridge::ExoPlayerBridge(
     const SbMediaAudioStreamInfo& audio_stream_info,
     const SbMediaVideoStreamInfo& video_stream_info,
-    JobQueue* job_queue) {
+    JobQueue* job_queue)
+    :  // Max audio buffer duration 10 seconds, minus memory pressure 500ms.
+      max_audio_buffer_duration_us_(10 * 1000 * 1000 - 500 * 1000),
+      max_video_buffer_duration_us_([&]() {
+        if (video_stream_info.codec == kSbMediaVideoCodecNone) {
+          return 0LL;
+        }
+        bool is_hdr = video_stream_info.color_metadata.transfer ==
+                      kSbMediaTransferIdSmpteSt2084;
+        bool is_over_1080p = video_stream_info.frame_width > 1920 ||
+                             video_stream_info.frame_height > 1080;
+        if (is_hdr || is_over_1080p) {
+          // Tighten max buffer duration to 2 seconds (minus 250ms) for 4K/HDR
+          // to prevent OOMs.
+          return 2 * 1000 * 1000 - 250 * 1000LL;
+        }
+        // Max video buffer duration 3 seconds, minus memory pressure 250ms.
+        return 3 * 1000 * 1000 - 250 * 1000LL;
+      }()),
+      audio_sample_offset_(audio_stream_info.codec == kSbMediaAudioCodecAac
+                               ? kADTSHeaderSize
+                               : 0),
+      video_sample_offset_(0) {
   ON_INSTANCE_CREATED(ExoPlayerBridge);
 
   JNIEnv* env = AttachCurrentThread();
@@ -266,37 +279,29 @@ int ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers,
     return 0;
   }
 
-  int64_t max_buffered_duration_us = 0;
-  if (type == kSbMediaTypeAudio) {
-    // Max audio buffer duration 10 seconds, minus memory pressure 500ms.
-    max_buffered_duration_us = 10 * 1000 * 1000 - 500 * 1000;
-  } else {
-    // Max video buffer duration 3 seconds, minus memory pressure 250ms.
-    max_buffered_duration_us = 3 * 1000 * 1000 - 250 * 1000;
-
-    auto& video_sample_info = input_buffers.front()->video_sample_info();
-    bool is_hdr = video_sample_info.stream_info.color_metadata.primaries ==
-                  kSbMediaPrimaryIdBt2020;
-    bool is_over_1080p =
-        video_sample_info.stream_info.frame_size.width > 1920 ||
-        video_sample_info.stream_info.frame_size.height > 1080;
-    if (is_hdr || is_over_1080p) {
-      // Tighten max buffer duration to 2 seconds (minus 250ms) for 4K/HDR.
-      max_buffered_duration_us = 2 * 1000 * 1000 - 250 * 1000;
-    }
-  }
+  int64_t max_buffered_duration_us = type == kSbMediaTypeAudio
+                                         ? max_audio_buffer_duration_us_
+                                         : max_video_buffer_duration_us_;
 
   std::lock_guard lock(mutex_);
   int samples_written = 0;
   auto& pending_samples = type == kSbMediaTypeAudio ? pending_audio_samples_
                                                     : pending_video_samples_;
+
+  std::optional<int64_t> first_timestamp;
+  if (!pending_samples.empty()) {
+    first_timestamp = pending_samples.front()->timestamp();
+  }
+
   for (const auto& input_buffer : input_buffers) {
-    if (!pending_samples.empty()) {
+    if (first_timestamp.has_value()) {
       int64_t buffered_duration_us =
-          input_buffer->timestamp() - pending_samples.front()->timestamp();
+          input_buffer->timestamp() - *first_timestamp;
       if (buffered_duration_us >= max_buffered_duration_us) {
         break;
       }
+    } else {
+      first_timestamp = input_buffer->timestamp();
     }
     pending_samples.push_back(input_buffer);
     samples_written++;
@@ -344,7 +349,8 @@ int ExoPlayerBridge::ReadSample(JNIEnv* env,
 
   // 2. Peek at the next sample to determine its metadata requirements.
   const auto& input_buffer = pending_samples.front();
-  int offset = GetSampleOffset(type, input_buffer);
+  int offset =
+      type == kSbMediaTypeAudio ? audio_sample_offset_ : video_sample_offset_;
   int size = input_buffer->size() - offset;
 
   if (size < 0) {
