@@ -51,11 +51,10 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
 
   @autoreleasepool {
     switch (property_id) {
-      case kSbSystemPropertyBrandName: {
+      case kSbSystemPropertyBrandName:
         return CopyStringAndTestIfSuccess(
             out_value, value_length,
             base::starboard::SbSysInfo::Brand().c_str());
-      }
       case kSbSystemPropertyFirmwareVersion:
         return CopyStringAndTestIfSuccess(
             out_value, value_length,
@@ -81,21 +80,18 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
         return CopyStringAndTestIfSuccess(out_value, value_length,
                                           [deviceType UTF8String]);
       }
-      case kSbSystemPropertyChipsetModelNumber: {
+      case kSbSystemPropertyChipsetModelNumber:
         return CopyStringAndTestIfSuccess(
             out_value, value_length,
             base::starboard::SbSysInfo::ChipsetModelNumber().c_str());
-      }
-      case kSbSystemPropertyModelYear: {
+      case kSbSystemPropertyModelYear:
         return CopyStringAndTestIfSuccess(
             out_value, value_length,
             base::starboard::SbSysInfo::ModelYear().c_str());
-      }
-      case kSbSystemPropertySystemIntegratorName: {
+      case kSbSystemPropertySystemIntegratorName:
         return CopyStringAndTestIfSuccess(
             out_value, value_length,
             base::starboard::SbSysInfo::OriginalDesignManufacturer().c_str());
-      }
       case kSbSystemPropertySpeechApiKey:
         return false;
 
