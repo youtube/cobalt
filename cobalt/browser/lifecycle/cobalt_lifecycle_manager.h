@@ -15,13 +15,9 @@
 #ifndef COBALT_BROWSER_LIFECYCLE_COBALT_LIFECYCLE_MANAGER_H_
 #define COBALT_BROWSER_LIFECYCLE_COBALT_LIFECYCLE_MANAGER_H_
 
-#include <map>
-#include <set>
 #include <utility>
 #include <vector>
 
-#include "base/containers/flat_set.h"
-#include "base/containers/small_map.h"
 #include "base/memory/weak_ptr.h"
 #include "base/no_destructor.h"
 #include "base/observer_list.h"
@@ -31,6 +27,8 @@
 #include "content/public/browser/web_contents_observer.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 
 namespace content {
 class WebContents;
@@ -227,18 +225,21 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
     CobaltLifecycleManager* manager_;
 
     // Map of active frames to their remote controllers.
-    std::map<content::RenderFrameHost*,
-             mojo::Remote<cobalt::mojom::CobaltLifecycleController>>
+    absl::flat_hash_map<content::RenderFrameHost*,
+                        mojo::Remote<cobalt::mojom::CobaltLifecycleController>>
         controllers_;
 
     // Sets to track the current state of each frame. A frame is considered
     // to have achieved the state if it is present in the corresponding set.
-    base::flat_set<content::RenderFrameHost*> resumed_frames_;
-    base::flat_set<content::RenderFrameHost*> visible_frames_;
-    base::flat_set<content::RenderFrameHost*> focused_frames_;
+    absl::flat_hash_set<content::RenderFrameHost*> resumed_frames_;
+    absl::flat_hash_set<content::RenderFrameHost*> visible_frames_;
+    absl::flat_hash_set<content::RenderFrameHost*> focused_frames_;
   };
 
   WebContentsTracker* GetOrCreateTracker(content::WebContents* web_contents);
+  void TrackPrimaryMainFrameForAck(content::WebContents* web_contents,
+                                   WebContentsTracker* tracker,
+                                   PendingAck ack_type);
 
   // Note: We use raw WebContents* as keys here instead of WeakPtr<WebContents>
   // because base::WeakPtr does not implement operator< in this version of base,
@@ -247,22 +248,22 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
   // WebContents is destroyed, all WeakPtrs pointing to it become null and
   // compare equal, violating strict weak ordering. We rely on
   // OnWebContentsDestroyed for cleanup.
-  base::small_map<std::map<content::WebContents*, content::RenderFrameHost*>>
+  absl::flat_hash_map<content::WebContents*, content::RenderFrameHost*>
       main_frames_;
-  base::small_map<
-      std::map<content::WebContents*, std::set<content::RenderFrameHost*>>>
+  absl::flat_hash_map<content::WebContents*,
+                      absl::flat_hash_set<content::RenderFrameHost*>>
       frames_;
 
   // The single set of frames we are waiting for an ACK from.
-  base::small_map<
-      std::map<content::WebContents*, std::set<content::RenderFrameHost*>>>
+  absl::flat_hash_map<content::WebContents*,
+                      absl::flat_hash_set<content::RenderFrameHost*>>
       pending_ack_frames_;
 
   // What we are waiting for per WebContents.
-  base::small_map<std::map<content::WebContents*, PendingAck>> pending_acks_;
+  absl::flat_hash_map<content::WebContents*, PendingAck> pending_acks_;
 
-  base::small_map<
-      std::map<content::WebContents*, std::unique_ptr<WebContentsTracker>>>
+  absl::flat_hash_map<content::WebContents*,
+                      std::unique_ptr<WebContentsTracker>>
       trackers_;
 
   base::ObserverList<CobaltLifecycleManagerObserver>::Unchecked observers_;
@@ -279,14 +280,15 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
   // receivers by their associated context (WebContents*), we must track the
   // ReceiverIds explicitly. This allows us to cleanly remove only the receivers
   // associated with a specific WebContents when it is destroyed.
-  std::map<content::WebContents*, std::vector<mojo::ReceiverId>> receiver_ids_;
+  absl::flat_hash_map<content::WebContents*, std::vector<mojo::ReceiverId>>
+      receiver_ids_;
 
-  // Map tracking the active Mojo ReceiverId for each RenderFrameHost (by its
-  // GlobalId). This prevents race conditions where an asynchronous disconnect
-  // handler for an old Mojo pipe unregisters a frame that has already been
-  // re-bound to a new pipe.
-  std::map<content::GlobalRenderFrameHostId, mojo::ReceiverId>
-      active_receivers_;
+  // Tracks the number of active Mojo lifecycle observer receivers (connections)
+  // associated with each RenderFrameHost (keyed by its global ID). This is used
+  // to dynamically monitor frame connection lifetimes and determine when a
+  // frame is actively participating in the lifecycle transition handshake.
+  absl::flat_hash_map<content::GlobalRenderFrameHostId, int>
+      active_receiver_counts_;
 
   base::WeakPtrFactory<CobaltLifecycleManager> weak_factory_{this};
 
