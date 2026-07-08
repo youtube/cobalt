@@ -160,6 +160,9 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertyDeviceType:
       return CopyStringAndTestIfSuccess(out_value, value_length,
                                         starboard::kSystemDeviceTypeAndroidTV);
+    case kSbSystemPropertyCertificationScope:
+      return GetAndroidSystemProperty("ro.vendor.youtube.cert_scope", out_value,
+                                      value_length, "");
     default:
       SB_DLOG(WARNING) << __FUNCTION__
                        << ": Unrecognized property: " << property_id;
