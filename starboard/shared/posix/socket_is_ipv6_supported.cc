@@ -16,14 +16,16 @@
 
 #if SB_HAS_IPV6
 
-#include <netinet/in.h>
 #include <string.h>
+#include "starboard/common/log.h"
+
+#if !SB_IS(COMPILER_MSVC) && !defined(_WIN32)
+#include <errno.h>
+#include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <errno.h>
-
-#include "starboard/common/log.h"
 #include "starboard/shared/posix/handle_eintr.h"
+#endif
 
 namespace {
 #if !SB_IS(COMPILER_MSVC) && !defined(_WIN32)
