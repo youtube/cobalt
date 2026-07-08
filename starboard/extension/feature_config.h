@@ -107,10 +107,6 @@ STARBOARD_FEATURE(kAreaBasedVideoBufferBudget,
                   "AreaBasedVideoBufferBudget",
                   false)
 
-// By default, app provisioning is disabled. Set the following variable to true
-// to enable app provisioning.
-STARBOARD_FEATURE(kEnableAppProvisioning, "EnableAppProvisioning", false)
-
 // Set the following variable to true to enable av1 startup optimization.
 STARBOARD_FEATURE(kEnableAv1StartupOptimization,
                   "EnableAv1StartupOptimization",
