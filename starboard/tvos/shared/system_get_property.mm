@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#import <AdSupport/ASIdentifierManager.h>
-#import <AppTrackingTransparency/ATTrackingManager.h>
 #import <UIKit/UIKit.h>
 #include <sys/utsname.h>
 
 #include "base/numerics/safe_conversions.h"
+#include "base/system/sys_info_starboard.h"
 #include "starboard/common/device_type.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -28,32 +27,8 @@
 #endif
 
 namespace {
-struct AppleTVDevice {
-  const char* identifier;
-  const char* chipset;
-  const char* year;
-};
 
-// Array of chipset and model release year for known Apple TV devices.
-struct AppleTVDevice kDevices[] = {
-    {"AppleTV1,1", "Intel Pentium M", "2007"},
-    {"AppleTV2,1", "Apple A4", "2010"},
-    {"AppleTV3,1", "Apple A5", "2012"},
-    {"AppleTV3,2", "Apple A5", "2013"},
-    {"AppleTV5,3", "Apple A8", "2015"},
-    {"AppleTV6,2", "Apple A10X Fusion", "2017"},
-    {"AppleTV11,1", "Apple A12 Bionic", "2021"},
-    {"AppleTV14,1", "Apple A15 Bionic", "2022"},
-};
-
-// Year for unknown Apple TV devices. This assumes that they will be as
-// capable as the most recent known device.
-const char kUnknownModelYear[] = "2022";
-const char kUnknownChipset[] = "ChipsetUnknown";
-
-const char* kBrandName = "Apple";
-const char* kPlatformName = "Darwin";
-const char kSystemIntegrator[] = "YouTube";
+constexpr char kPlatformName[] = "Darwin";
 
 bool CopyStringAndTestIfSuccess(char* out_value,
                                 int value_length,
@@ -76,8 +51,12 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
 
   @autoreleasepool {
     switch (property_id) {
-      case kSbSystemPropertyBrandName:
-        return CopyStringAndTestIfSuccess(out_value, value_length, kBrandName);
+      case kSbSystemPropertyBrandName: {
+        static const std::string kBrandName =
+            base::starboard::SbSysInfo::Brand();
+        return CopyStringAndTestIfSuccess(out_value, value_length,
+                                          kBrandName.c_str());
+      }
       case kSbSystemPropertyFirmwareVersion:
         return CopyStringAndTestIfSuccess(
             out_value, value_length,
@@ -104,32 +83,23 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
                                           [deviceType UTF8String]);
       }
       case kSbSystemPropertyChipsetModelNumber: {
-        struct utsname systemInfo;
-        uname(&systemInfo);
-        for (auto& device : kDevices) {
-          if (!strcasecmp(device.identifier, systemInfo.machine)) {
-            return CopyStringAndTestIfSuccess(out_value, value_length,
-                                              device.chipset);
-          }
-        }
+        static const std::string kChipsetModelNumber =
+            base::starboard::SbSysInfo::ChipsetModelNumber();
         return CopyStringAndTestIfSuccess(out_value, value_length,
-                                          kUnknownChipset);
+                                          kChipsetModelNumber.c_str());
       }
       case kSbSystemPropertyModelYear: {
-        struct utsname systemInfo;
-        uname(&systemInfo);
-        for (auto& device : kDevices) {
-          if (!strcasecmp(device.identifier, systemInfo.machine)) {
-            return CopyStringAndTestIfSuccess(out_value, value_length,
-                                              device.year);
-          }
-        }
+        static const std::string kModelYear =
+            base::starboard::SbSysInfo::ModelYear();
         return CopyStringAndTestIfSuccess(out_value, value_length,
-                                          kUnknownModelYear);
+                                          kModelYear.c_str());
       }
-      case kSbSystemPropertySystemIntegratorName:
+      case kSbSystemPropertySystemIntegratorName: {
+        static const std::string kSystemIntegrator =
+            base::starboard::SbSysInfo::OriginalDesignManufacturer();
         return CopyStringAndTestIfSuccess(out_value, value_length,
-                                          kSystemIntegrator);
+                                          kSystemIntegrator.c_str());
+      }
       case kSbSystemPropertySpeechApiKey:
         return false;
 
