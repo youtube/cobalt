@@ -22,8 +22,6 @@ declare_args() {
   sb_install_content_subdir = ""
 }
 
-# TODO(b/218889313): `content` is hardcoded on linux. Override the default
-# content subdir until this is fixed
 # By default, use standard subdirectory.
 
 if (sb_install_content_subdir == "") {
