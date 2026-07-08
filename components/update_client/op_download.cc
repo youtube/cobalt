@@ -175,11 +175,13 @@ void HandleAvailableSpace(
 #endif
         callback,
     int64_t available_bytes) {
-#if !BUILDFLAG(IS_STARBOARD)
-  // Cobalt implementation doesn't use the temp dir for the download,
+#if BUILDFLAG(IS_STARBOARD)
+  // Cobalt doesn't use the temp dir for the download,
   // and relies on UpdateChecker::SkipUpdate to handle this error case when
   // available space is insufficient. It sends UpdateCheckError::OUT_OF_SPACE
   // error to the server.
+  (void)available_bytes;
+#else
   if (available_bytes / 2 <= size) {
     VLOG(1) << "available_bytes: " << available_bytes
             << ", download size: " << size;
