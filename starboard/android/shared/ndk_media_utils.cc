@@ -77,7 +77,8 @@ std::string ToString(media_status_t status) {
     case AMEDIA_IMGREADER_IMAGE_NOT_LOCKED:
       return "AMEDIA_IMGREADER_IMAGE_NOT_LOCKED";
   }
-  return "UNKNOWN_MEDIA_STATUS (" + std::to_string(static_cast<int>(status)) + ")";
+  return "UNKNOWN_MEDIA_STATUS (" + std::to_string(static_cast<int>(status)) +
+         ")";
 }
 
 }  // namespace starboard
