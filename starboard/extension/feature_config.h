@@ -144,6 +144,13 @@ STARBOARD_FEATURE(kForceResetAudioDecoder, "ForceResetAudioDecoder", false)
 // enabling tunnel mode on all playbacks.
 STARBOARD_FEATURE(kForceTunnelMode, "ForceTunnelMode", false)
 
+// By default, NDK audio track is disabled.
+STARBOARD_FEATURE(kNdkAudio, "NdkAudio", false)
+
+// By default, NDK Video (NDK MediaCodec) backend is disabled. Set the following
+// variable to true to enable NDK Video.
+STARBOARD_FEATURE(kNdkVideo, "NdkVideo", false)
+
 // Cobalt VideoRenderAlgorithm used to release video frames immediately after
 // playback starts. Set the following variable to true to make it release video
 // frames until the underlying audio sink actually starts.

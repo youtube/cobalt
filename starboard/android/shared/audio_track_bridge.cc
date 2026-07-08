@@ -23,6 +23,7 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "starboard/common/time.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "third_party/jni_zero/jni_zero.h"
 
@@ -156,13 +157,22 @@ void AudioTrackBridge::Stop() {
 }
 
 void AudioTrackBridge::PauseAndFlush() {
+  int64_t start_time = CurrentMonotonicTime();
   JNIEnv* env = AttachCurrentThread();
   // For an immediate stop, use pause(), followed by flush() to discard audio
   // data that hasn't been played back yet.
   Java_AudioTrackBridge_pause(env, j_audio_track_bridge_);
+  int64_t pause_end = CurrentMonotonicTime();
   // Flushes the audio data currently queued for playback. Any data that has
   // been written but not yet presented will be discarded.
   Java_AudioTrackBridge_flush(env, j_audio_track_bridge_);
+  int64_t flush_end = CurrentMonotonicTime();
+
+  SB_LOG(INFO) << "[SeekPerf] AudioTrackBridge::PauseAndFlush took "
+               << (flush_end - start_time) / 1000.0
+               << " ms (pause: " << (pause_end - start_time) / 1000.0
+               << " ms, flush: " << (flush_end - pause_end) / 1000.0 << " ms)";
+  first_write_after_flush_.store(true);
 }
 
 int AudioTrackBridge::WriteSample(Span<const float> samples) {
@@ -178,8 +188,19 @@ int AudioTrackBridge::WriteSample(Span<const float> samples) {
   SetFloatArrayRegion(env, float_array, kNoOffset, num_of_samples,
                       samples.data());
 
-  return Java_AudioTrackBridge_write(env, j_audio_track_bridge_, float_array,
-                                     num_of_samples);
+  int64_t write_start = CurrentMonotonicTime();
+  int written = Java_AudioTrackBridge_write(env, j_audio_track_bridge_,
+                                            float_array, num_of_samples);
+  int64_t duration_us = CurrentMonotonicTime() - write_start;
+  bool was_first = first_write_after_flush_.exchange(false);
+  if (was_first || duration_us > 2000) {
+    SB_LOG(INFO) << "[SeekPerf] AudioTrackBridge::WriteSample took "
+                 << duration_us / 1000.0
+                 << " ms (first_after_flush=" << was_first
+                 << ", requested_frames=" << num_of_samples
+                 << ", written_frames=" << written << ")";
+  }
+  return written;
 }
 
 int AudioTrackBridge::WriteSample(Span<const uint16_t> samples,
