@@ -26,6 +26,7 @@
 #include "starboard/shared/posix/handle_eintr.h"
 
 namespace {
+#if !SB_IS(COMPILER_MSVC) && !defined(_WIN32)
 bool ProbeIpv6Support() {
   const int probe_socket_fd = socket(AF_INET6, SOCK_STREAM, 0);
   if (probe_socket_fd < 0) {
@@ -56,13 +57,18 @@ bool ProbeIpv6Support() {
 
   return (bind_status == 0);
 }
+#endif
 }  // namespace
 
 #endif  // SB_HAS_IPV6
 
 bool SbSocketIsIpv6Supported() {
 #if SB_HAS_IPV6
+#if SB_IS(COMPILER_MSVC) || defined(_WIN32)
+  return true;
+#else
   return ProbeIpv6Support();
+#endif
 #else
   return false;
 #endif
