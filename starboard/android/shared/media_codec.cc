@@ -28,26 +28,25 @@
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
-#include "starboard/shared/starboard/features.h"
 
 namespace starboard {
 namespace {
 
-bool CanUseNdkMediaCodec(std::optional<int> tunnel_mode_audio_session_id,
-                         bool require_secured_decoder,
-                         const jni_zero::JavaRef<jobject>& j_media_crypto,
-                         const SbMediaColorMetadata* color_metadata) {
-  if (!features::FeatureList::IsEnabled(features::kNdkVideo)) {
+bool CanUseNdkMediaCodec(
+    const MediaCodec::VideoPlatformOptions& platform_options,
+    const jni_zero::JavaRef<jobject>& j_media_crypto,
+    const SbMediaColorMetadata* color_metadata) {
+  if (!platform_options.enable_ndk_video) {
     return false;
   }
 
   // We do not use NDK AMediaCodec for DRM, since it requires architectural
   // changes.
-  if (require_secured_decoder || j_media_crypto) {
+  if (platform_options.require_secured_decoder || j_media_crypto) {
     return false;
   }
   // NDK AMediaCodec does not support tunnel mode.
-  if (tunnel_mode_audio_session_id) {
+  if (platform_options.tunnel_mode_audio_session_id) {
     return false;
   }
   // NDK AMediaCodec does not support HDR yet.
@@ -120,9 +119,7 @@ DefaultMediaCodecFactory::CreateVideoMediaCodec(
                      mime, starboard::ToString(!!j_media_crypto).data()));
   }
 
-  if (CanUseNdkMediaCodec(platform_options.tunnel_mode_audio_session_id,
-                          platform_options.require_secured_decoder,
-                          j_media_crypto, color_metadata)) {
+  if (CanUseNdkMediaCodec(platform_options, j_media_crypto, color_metadata)) {
     auto ndk_bridge = NdkMediaCodec::Create(
         video_codec, decoder_name, frame_size_hint, fps, max_frame_size,
         handler, j_surface, j_media_crypto, color_metadata,
