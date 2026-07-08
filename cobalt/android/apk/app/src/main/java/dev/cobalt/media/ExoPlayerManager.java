@@ -56,9 +56,9 @@ public class ExoPlayerManager {
 
   private static final class FilteringMediaCodecSelector implements MediaCodecSelector {
     /**
-     * Returns a list of decoders for the given mime type.
-     * This implementation filters out software decoders for video (unless on emulator)
-     * and ignores on-device decoders for Dolby codecs to force passthrough.
+     * Returns a list of decoders for the given mime type. This implementation filters out software
+     * decoders for video (unless on emulator) and ignores on-device decoders for Dolby codecs to
+     * force passthrough.
      */
     @Override
     public List<MediaCodecInfo> getDecoderInfos(
@@ -125,7 +125,8 @@ public class ExoPlayerManager {
    * @param enableTunnelMode Whether to enable tunnel mode.
    * @param minBufferDurationMs Minimum buffer duration in milliseconds.
    * @param maxBufferDurationMs Maximum buffer duration in milliseconds.
-   * @param minBufferDurationForPlaybackAfterRebufferMs Minimum buffer duration to resume playback after rebuffer.
+   * @param minBufferDurationForPlaybackAfterRebufferMs Minimum buffer duration to resume playback
+   *     after rebuffer.
    * @return A new ExoPlayerBridge instance.
    */
   @CalledByNative
@@ -158,6 +159,7 @@ public class ExoPlayerManager {
 
   /**
    * Creates an ExoPlayer Format for audio.
+   *
    * @param mime The mime type of the audio stream.
    * @param audioConfigurationData Configuration data (e.g. CSD).
    * @param sampleRate The sample rate.
@@ -197,6 +199,7 @@ public class ExoPlayerManager {
 
   /**
    * Creates an ExoPlayer Format for video.
+   *
    * @param mime The mime type of the video stream.
    * @param width The width of the video.
    * @param height The height of the video.

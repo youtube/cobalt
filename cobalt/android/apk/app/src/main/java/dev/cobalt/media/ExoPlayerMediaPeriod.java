@@ -65,7 +65,7 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
     for (int i = 0; i < selections.length; ++i) {
       if (streams[i] != null && (selections[i] == null || !mayRetainStreamFlags[i])) {
         if (streams[i] == mStream) {
-            mStream = null;
+          mStream = null;
         }
         streams[i] = null;
       }

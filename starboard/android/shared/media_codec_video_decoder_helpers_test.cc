@@ -65,31 +65,6 @@ TEST(MediaCodecVideoDecoderHelpersTest, ParseMaxResolution) {
   EXPECT_EQ(res->height, 720);
 }
 
-TEST(MediaCodecVideoDecoderHelpersTest, EqualAndIsIdentity) {
-  // Identity color metadata
-  SbMediaColorMetadata identity = {};
-  identity.primaries = kSbMediaPrimaryIdBt709;
-  identity.transfer = kSbMediaTransferIdBt709;
-  identity.matrix = kSbMediaMatrixIdBt709;
-  identity.range = kSbMediaRangeIdLimited;
-  EXPECT_TRUE(IsIdentity(identity));
-
-  // Non-identity primaries
-  SbMediaColorMetadata non_identity_primaries = identity;
-  non_identity_primaries.primaries = kSbMediaPrimaryIdBt2020;
-  EXPECT_FALSE(IsIdentity(non_identity_primaries));
-
-  // Non-identity transfer
-  SbMediaColorMetadata non_identity_transfer = identity;
-  non_identity_transfer.transfer = kSbMediaTransferIdSmpteSt2084;
-  EXPECT_FALSE(IsIdentity(non_identity_transfer));
-
-  // Non-empty mastering metadata
-  SbMediaColorMetadata non_empty_mastering = identity;
-  non_empty_mastering.mastering_metadata.luminance_max = 1000.0f;
-  EXPECT_FALSE(IsIdentity(non_empty_mastering));
-}
-
 TEST(MediaCodecVideoDecoderHelpersTest, GetDecodeTargetGeometryFromMatrix) {
   // Identity 4x4 matrix
   std::array<float, 16> identity = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,

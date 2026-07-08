@@ -42,6 +42,39 @@ enum ExoPlayerRendererType {
   EXOPLAYER_RENDERER_TYPE_MAX = EXOPLAYER_RENDERER_TYPE_VIDEO,
 };
 
+// The C++ encapsulation of the Java class ExoPlayerBridge.
+//
+// This class serves as the native orchestrator for the ExoPlayer integration.
+// It bridges Cobalt's `PlayerWorker` to ExoPlayer's `MediaSource`.
+//
+// Architectural Invariants & Memory Handling:
+// - Bounded Native Queues: To prevent OOMs, this class enforces strict limits
+// on how much
+//   duration can be buffered natively (e.g., ~9.5s audio, ~2.75s video).
+// - Backpressure (`WriteSamples`): When batches of `InputBuffers` are ingested,
+// it cuts off
+//   writes when memory limits are reached, returning the count of
+//   `samples_written` back to Cobalt to defer the remainder.
+// - Zero-Copy & Lazy Allocation: During `ReadSample`, this class avoids
+// intermediate
+//   heap allocations. If queried with a null/undersized buffer, it returns
+//   `kResultNeedsAllocation` with the required byte size, allowing Java to
+//   provision a DirectBuffer for a single `memcpy`.
+// - Monotonic Timestamps: `GetBufferedPositionUs` provides high-watermark
+// timestamps to ExoPlayer's
+//   LoadControl, preventing the returned position from dropping to 0 when
+//   chunks are exhausted.
+//
+// Thread Safety:
+// - `mutex_` (mutable) strictly guards access to the underlying deque
+// structures and EOS trackers.
+//   It allows thread-safe reading of the internal state from `const` JNI
+//   endpoints.
+// - JNI Callbacks (`OnError`, `OnPrerolled`, `OnEnded`) are invoked
+// asynchronously from the
+//   ExoPlayer Java thread and must be safely queued/validated by the
+//   `ExoPlayerPlayerWorkerHandler` to prevent Use-After-Free crashes during
+//   teardown.
 class ExoPlayerBridge final : private VideoSurfaceHolder {
  public:
   struct MediaInfo {
@@ -52,12 +85,9 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
 
   ExoPlayerBridge(const SbMediaAudioStreamInfo& audio_stream_info,
                   const SbMediaVideoStreamInfo& video_stream_info,
-                  JobQueue* job_queue = nullptr);
+                  JobQueue* job_queue);
 
   ~ExoPlayerBridge();
-
-  // VideoSurfaceHolder method.
-  void OnSurfaceDestroyed() override;
 
   bool Init(ErrorCB error_cb, PrerolledCB prerolled_cb, EndedCB ended_cb);
 
@@ -93,13 +123,17 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   std::string GetInitErrorMessage() const { return init_error_msg_; }
 
  private:
-  bool ShouldAbortOperation() const;
+  // VideoSurfaceHolder method.
+  void OnSurfaceDestroyed() override;
+
+  bool HasPlaybackErrorOccurred() const;
   void ReportError(const std::string& msg) const;
 
   jni_zero::ScopedJavaGlobalRef<jobject> j_exoplayer_bridge_;
 
-  std::atomic_bool player_is_releasing_ = false;
+  std::atomic_bool releasing_surface_ = false;
 
+  mutable std::mutex mutex_;
   // Guarded by |mutex_|.
   std::deque<scoped_refptr<InputBuffer>> pending_audio_samples_;
   std::deque<scoped_refptr<InputBuffer>> pending_video_samples_;
@@ -119,8 +153,6 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   ErrorCB error_cb_;
   PrerolledCB prerolled_cb_;
   EndedCB ended_cb_;
-
-  mutable std::mutex mutex_;
 
   bool owns_surface_ = false;
   scoped_refptr<SurfaceDestroyNotifier> surface_destroy_notifier_;

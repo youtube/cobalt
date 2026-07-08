@@ -35,8 +35,6 @@ std::optional<Size> ParseMaxResolution(
 bool Equal(const SbMediaMasteringMetadata& lhs,
            const SbMediaMasteringMetadata& rhs);
 
-bool IsIdentity(const SbMediaColorMetadata& color_metadata);
-
 struct DecodeTargetGeometry {
   SbDecodeTargetInfoContentRegion content_region;
   Size coded_size;

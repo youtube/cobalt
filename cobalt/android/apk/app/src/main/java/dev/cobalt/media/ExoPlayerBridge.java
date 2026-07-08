@@ -167,7 +167,8 @@ public class ExoPlayerBridge {
    * @param enableTunnelMode Whether to enable low-latency tunneling mode.
    * @param minBufferDurationMs Minimum buffer duration in milliseconds.
    * @param maxBufferDurationMs Maximum buffer duration in milliseconds.
-   * @param minBufferDurationForPlaybackAfterRebufferMs Minimum buffer duration to resume playback after rebuffer.
+   * @param minBufferDurationForPlaybackAfterRebufferMs Minimum buffer duration to resume playback
+   *     after rebuffer.
    */
   public ExoPlayerBridge(
       long nativeExoPlayerBridge,
@@ -240,9 +241,9 @@ public class ExoPlayerBridge {
   }
 
   /**
-   * Updates the position anchor by reading the current position from ExoPlayer.
-   * This method must be called on the ExoPlayer thread to ensure thread safety.
-   * It saves the position and current time for interpolation in getCurrentPositionUsec.
+   * Updates the position anchor by reading the current position from ExoPlayer. This method must be
+   * called on the ExoPlayer thread to ensure thread safety. It saves the position and current time
+   * for interpolation in getCurrentPositionUsec.
    */
   private synchronized void updatePositionAnchor() {
     if (!mIsReleased && mPlayer != null) {
@@ -251,9 +252,7 @@ public class ExoPlayerBridge {
     }
   }
 
-  /**
-   * Releases the ExoPlayer and its resources.
-   */
+  /** Releases the ExoPlayer and its resources. */
   @CalledByNative
   public void release() {
     mIsReleased = true;
@@ -281,6 +280,7 @@ public class ExoPlayerBridge {
 
   /**
    * Seeks to the specified position in microseconds.
+   *
    * @param seekToTimeUsec The position to seek to, in microseconds.
    */
   @CalledByNative
@@ -371,7 +371,7 @@ public class ExoPlayerBridge {
   /**
    * Returns the current playback position in microseconds.
    *
-   * This method provides a high-resolution estimate of the playback position. Since ExoPlayer
+   * <p>This method provides a high-resolution estimate of the playback position. Since ExoPlayer
    * only provides millisecond precision via {@link ExoPlayer#getCurrentPosition()}, this method
    * interpolates the position based on the time elapsed since the last anchor update from the
    * player thread, adjusted by the current playback rate.
@@ -415,7 +415,8 @@ public class ExoPlayerBridge {
       if (mNativeExoPlayerBridge == 0) {
         return androidx.media3.common.C.RESULT_NOTHING_READ;
       }
-      return ExoPlayerBridgeJni.get().readSample(mNativeExoPlayerBridge, type, outBuffer, outMetadata);
+      return ExoPlayerBridgeJni.get()
+          .readSample(mNativeExoPlayerBridge, type, outBuffer, outMetadata);
     }
   }
 
@@ -469,7 +470,8 @@ public class ExoPlayerBridge {
 
     void onIsPlayingChanged(long nativeExoPlayerBridge, boolean isPlaying);
 
-    int readSample(long nativeExoPlayerBridge, int type, java.nio.ByteBuffer outBuffer, long[] outMetadata);
+    int readSample(
+        long nativeExoPlayerBridge, int type, java.nio.ByteBuffer outBuffer, long[] outMetadata);
 
     boolean isReady(long nativeExoPlayerBridge, int type);
 

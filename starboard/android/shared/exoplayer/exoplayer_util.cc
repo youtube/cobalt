@@ -30,6 +30,7 @@
 
 namespace starboard {
 namespace {
+
 using base::android::ConvertUTF8ToJavaString;
 using base::android::ToJavaByteArray;
 using jni_zero::AttachCurrentThread;
@@ -69,9 +70,12 @@ ScopedJavaLocalRef<jobject> CreateExoPlayerColorInfo(
 }  // namespace
 
 bool ShouldEnableTunneledPlayback(const SbMediaVideoStreamInfo& stream_info) {
+  if (stream_info.codec == kSbMediaVideoCodecNone) {
+    return false;
+  }
+
   auto mime_type = MimeType::Create(stream_info.mime);
-  if (stream_info.codec == kSbMediaVideoCodecNone || !mime_type ||
-      !mime_type->ValidateBoolParameter("tunnelmode")) {
+  if (!mime_type || !mime_type->ValidateBoolParameter("tunnelmode")) {
     return false;
   }
 
@@ -81,8 +85,7 @@ bool ShouldEnableTunneledPlayback(const SbMediaVideoStreamInfo& stream_info) {
 ScopedJavaLocalRef<jobject> CreateAudioFormat(
     const SbMediaAudioStreamInfo& stream_info) {
   if (stream_info.codec == kSbMediaAudioCodecNone) {
-    SB_LOG(ERROR)
-        << "Cannot create an audio MediaSource for kSbMediaAudioCodecNone";
+    SB_LOG(ERROR) << "Cannot create an audio Format for kSbMediaAudioCodecNone";
     return ScopedJavaLocalRef<jobject>();
   }
 
@@ -124,8 +127,7 @@ ScopedJavaLocalRef<jobject> CreateAudioFormat(
 ScopedJavaLocalRef<jobject> CreateVideoFormat(
     const SbMediaVideoStreamInfo& stream_info) {
   if (stream_info.codec == kSbMediaVideoCodecNone) {
-    SB_LOG(ERROR)
-        << "Cannot create a video MediaSource for kSbMediaVideoCodecNone";
+    SB_LOG(ERROR) << "Cannot create a video Format for kSbMediaVideoCodecNone";
     return ScopedJavaLocalRef<jobject>();
   }
 

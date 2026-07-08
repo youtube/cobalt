@@ -29,7 +29,8 @@
 namespace starboard {
 namespace {
 
-const int64_t kUpdateIntervalUsec = 200'000;  // 200ms
+constexpr int64_t kUpdateIntervalUsec = 200'000;  // 200ms
+
 }  // namespace
 
 ExoPlayerPlayerWorkerHandler::ExoPlayerPlayerWorkerHandler(

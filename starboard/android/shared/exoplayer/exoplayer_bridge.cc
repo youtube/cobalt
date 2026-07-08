@@ -63,7 +63,8 @@ constexpr int64_t kTimeEndOfSource = 0x8000000000000000LL;
 // Custom signal for Java to allocate buffer space before reading
 constexpr int kResultNeedsAllocation = -6;
 
-int GetSampleOffset(SbMediaType type, scoped_refptr<InputBuffer> input_buffer) {
+int GetSampleOffset(SbMediaType type,
+                    const scoped_refptr<InputBuffer>& input_buffer) {
   if (type == kSbMediaTypeAudio &&
       input_buffer->audio_stream_info().codec == kSbMediaAudioCodecAac) {
     return kADTSHeaderSize;
@@ -92,6 +93,7 @@ ExoPlayerBridge::ExoPlayerBridge(
 
   ScopedJavaLocalRef<jobject> j_video_format;
   ScopedJavaGlobalRef<jobject> j_output_surface;
+  bool should_enable_tunneled_playback = false;
   if (video_stream_info.codec != kSbMediaVideoCodecNone) {
     j_video_format = CreateVideoFormat(video_stream_info);
     if (!j_video_format) {
@@ -109,6 +111,11 @@ ExoPlayerBridge::ExoPlayerBridge(
       return;
     }
     owns_surface_ = true;
+    should_enable_tunneled_playback =
+        ((audio_stream_info.codec == kSbMediaAudioCodecAc3 ||
+          audio_stream_info.codec == kSbMediaAudioCodecEac3) &&
+         ShouldEnableTunneledPlayback(video_stream_info)) ||
+        kForceTunneledPlayback;
   }
 
   ScopedJavaLocalRef<jobject> j_exoplayer_manager(
@@ -123,11 +130,7 @@ ExoPlayerBridge::ExoPlayerBridge(
       Java_ExoPlayerManager_createExoPlayerBridge(
           env, j_exoplayer_manager, reinterpret_cast<jlong>(this),
           j_audio_format, j_video_format, j_output_surface,
-          (video_stream_info.codec != kSbMediaVideoCodecNone &&
-           (audio_stream_info.codec == kSbMediaAudioCodecAc3 ||
-            audio_stream_info.codec == kSbMediaAudioCodecEac3) &&
-           ShouldEnableTunneledPlayback(video_stream_info)) ||
-              kForceTunneledPlayback,
+          should_enable_tunneled_playback,
           /* min_buffer_duration_ms */ 500,
           /* max_buffer_duration_ms */ 10000,
           /* min_buffer_duration_for_playback_after_rebuffer_ms */ 500);
@@ -143,7 +146,7 @@ ExoPlayerBridge::ExoPlayerBridge(
 ExoPlayerBridge::~ExoPlayerBridge() {
   SB_CHECK(thread_checker_.CalledOnValidThread());
   ON_INSTANCE_RELEASED(ExoPlayerBridge);
-  player_is_releasing_.store(true);
+  releasing_surface_.store(true);
 
   if (is_valid()) {
     Java_ExoPlayerBridge_release(AttachCurrentThread(), j_exoplayer_bridge_);
@@ -156,15 +159,6 @@ ExoPlayerBridge::~ExoPlayerBridge() {
       surface_destroy_notifier_->Disconnect();
       surface_destroy_notifier_ = nullptr;
     }
-  }
-}
-
-void ExoPlayerBridge::OnSurfaceDestroyed() {
-  if (!player_is_releasing_.load()) {
-    std::string msg = "ExoPlayer surface is destroyed before playback ended";
-    SB_LOG(ERROR) << msg;
-    playback_error_occurred_.store(true);
-    ReportError(msg);
   }
 }
 
@@ -188,7 +182,7 @@ bool ExoPlayerBridge::Init(ErrorCB error_cb,
 
 void ExoPlayerBridge::Seek(int64_t timestamp) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  if (ShouldAbortOperation()) {
+  if (HasPlaybackErrorOccurred()) {
     return;
   }
 
@@ -210,7 +204,7 @@ void ExoPlayerBridge::Seek(int64_t timestamp) {
 
 void ExoPlayerBridge::SetPause(bool pause) const {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  if (ShouldAbortOperation()) {
+  if (HasPlaybackErrorOccurred()) {
     return;
   }
 
@@ -225,7 +219,7 @@ void ExoPlayerBridge::SetPause(bool pause) const {
 
 void ExoPlayerBridge::SetPlaybackRate(const double playback_rate) const {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  if (ShouldAbortOperation()) {
+  if (HasPlaybackErrorOccurred()) {
     return;
   }
 
@@ -236,7 +230,7 @@ void ExoPlayerBridge::SetPlaybackRate(const double playback_rate) const {
 
 void ExoPlayerBridge::SetVolume(const double volume) const {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  if (ShouldAbortOperation()) {
+  if (HasPlaybackErrorOccurred()) {
     return;
   }
 
@@ -246,7 +240,7 @@ void ExoPlayerBridge::SetVolume(const double volume) const {
 
 void ExoPlayerBridge::Stop() const {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  if (ShouldAbortOperation()) {
+  if (HasPlaybackErrorOccurred()) {
     return;
   }
 
@@ -254,7 +248,7 @@ void ExoPlayerBridge::Stop() const {
 }
 
 ExoPlayerBridge::MediaInfo ExoPlayerBridge::GetMediaInfo() const {
-  if (ShouldAbortOperation()) {
+  if (HasPlaybackErrorOccurred()) {
     return MediaInfo();
   }
 
@@ -267,39 +261,40 @@ ExoPlayerBridge::MediaInfo ExoPlayerBridge::GetMediaInfo() const {
 int ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers,
                                   SbMediaType type) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  if (ShouldAbortOperation()) {
+  SB_CHECK(!input_buffers.empty());
+  if (HasPlaybackErrorOccurred()) {
     return 0;
   }
 
-  std::lock_guard lock(mutex_);
-  auto& pending_samples = type == kSbMediaTypeAudio ? pending_audio_samples_
-                                                    : pending_video_samples_;
-
-  int64_t max_duration = 0;
+  int64_t max_buffered_duration_us = 0;
   if (type == kSbMediaTypeAudio) {
-    max_duration = 10 * 1000 * 1000 - 500 * 1000;
+    // Max audio buffer duration 10 seconds, minus memory pressure 500ms.
+    max_buffered_duration_us = 10 * 1000 * 1000 - 500 * 1000;
   } else {
-    max_duration = 3 * 1000 * 1000 - 250 * 1000;
-    if (!pending_samples.empty() || !input_buffers.empty()) {
-      auto& info = pending_samples.empty()
-                       ? input_buffers.front()->video_sample_info()
-                       : pending_samples.front()->video_sample_info();
-      bool is_hdr = info.stream_info.color_metadata.transfer ==
-                    kSbMediaTransferIdSmpteSt2084;
-      bool is_over_1080p = info.stream_info.frame_size.width > 1920 ||
-                           info.stream_info.frame_size.height > 1080;
-      if (is_hdr || is_over_1080p) {
-        max_duration = 2 * 1000 * 1000 - 250 * 1000;
-      }
+    // Max video buffer duration 3 seconds, minus memory pressure 250ms.
+    max_buffered_duration_us = 3 * 1000 * 1000 - 250 * 1000;
+
+    auto& video_sample_info = input_buffers.front()->video_sample_info();
+    bool is_hdr = video_sample_info.stream_info.color_metadata.primaries ==
+                  kSbMediaPrimaryIdBt2020;
+    bool is_over_1080p =
+        video_sample_info.stream_info.frame_size.width > 1920 ||
+        video_sample_info.stream_info.frame_size.height > 1080;
+    if (is_hdr || is_over_1080p) {
+      // Tighten max buffer duration to 2 seconds (minus 250ms) for 4K/HDR.
+      max_buffered_duration_us = 2 * 1000 * 1000 - 250 * 1000;
     }
   }
 
+  std::lock_guard lock(mutex_);
   int samples_written = 0;
+  auto& pending_samples = type == kSbMediaTypeAudio ? pending_audio_samples_
+                                                    : pending_video_samples_;
   for (const auto& input_buffer : input_buffers) {
     if (!pending_samples.empty()) {
       int64_t buffered_duration_us =
           input_buffer->timestamp() - pending_samples.front()->timestamp();
-      if (buffered_duration_us >= max_duration) {
+      if (buffered_duration_us >= max_buffered_duration_us) {
         break;
       }
     }
@@ -312,7 +307,7 @@ int ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers,
 
 void ExoPlayerBridge::WriteEOS(SbMediaType type) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  if (ShouldAbortOperation()) {
+  if (HasPlaybackErrorOccurred()) {
     return;
   }
 
@@ -348,7 +343,7 @@ int ExoPlayerBridge::ReadSample(JNIEnv* env,
   }
 
   // 2. Peek at the next sample to determine its metadata requirements.
-  auto input_buffer = pending_samples.front();
+  const auto& input_buffer = pending_samples.front();
   int offset = GetSampleOffset(type, input_buffer);
   int size = input_buffer->size() - offset;
 
@@ -372,12 +367,13 @@ int ExoPlayerBridge::ReadSample(JNIEnv* env,
   // The metadata array schema is: [0] = timestampUs, [1] = sizeBytes, [2] =
   // flags.
   jlong metadata[3] = {input_buffer->timestamp(), size, flags};
+  env->SetLongArrayRegion(j_metadata, 0, std::size(metadata), metadata);
 
   // 3. Handle Lazy Allocation Queries.
-  // If ExoPlayer passes a null buffer, it's querying for the required buffer
-  // size.
-  if (!j_buffer) {
-    env->SetLongArrayRegion(j_metadata, 0, std::size(metadata), metadata);
+  // If ExoPlayer passes a null buffer, or if the provided buffer is too small,
+  // it's querying for the required buffer size. We embed the needed size into
+  // the metadata array (done above) and request reallocation.
+  if (!j_buffer || env->GetDirectBufferCapacity(j_buffer) < size) {
     return kResultNeedsAllocation;
   }
 
@@ -388,18 +384,8 @@ int ExoPlayerBridge::ReadSample(JNIEnv* env,
     return kResultNothingRead;
   }
 
-  jlong capacity = env->GetDirectBufferCapacity(j_buffer);
-
-  // If the buffer is too small, reject the read and request reallocation.
-  // We embed the needed size into the metadata array so Java can resize.
-  if (capacity < size) {
-    env->SetLongArrayRegion(j_metadata, 0, std::size(metadata), metadata);
-    return kResultNeedsAllocation;
-  }
-
   // 5. Zero-copy transfer: memcpy directly into the JVM's ByteBuffer memory.
   memcpy(direct_buffer, input_buffer->data() + offset, size);
-  env->SetLongArrayRegion(j_metadata, 0, std::size(metadata), metadata);
 
   // 6. Update high-water mark trackers to prevent PREROLL stalling.
   if (type == kSbMediaTypeAudio) {
@@ -466,13 +452,10 @@ int64_t ExoPlayerBridge::GetBufferedPositionUs(JNIEnv* env,
 }
 
 void ExoPlayerBridge::OnInitialized(JNIEnv* env) {
-  {
-    std::lock_guard lock(mutex_);
-    if (initialized_.exchange(true)) {
-      SB_LOG(WARNING)
-          << "ExoPlayer called OnInitialized again after initialization.";
-      return;
-    }
+  if (initialized_.exchange(true)) {
+    SB_LOG(WARNING)
+        << "ExoPlayer called OnInitialized again after initialization.";
+    return;
   }
 }
 
@@ -503,7 +486,16 @@ void ExoPlayerBridge::OnIsPlayingChanged(JNIEnv*, bool is_playing) {
   is_playing_.store(is_playing);
 }
 
-bool ExoPlayerBridge::ShouldAbortOperation() const {
+void ExoPlayerBridge::OnSurfaceDestroyed() {
+  if (!releasing_surface_.load()) {
+    std::string msg = "ExoPlayer surface is destroyed before playback ended";
+    SB_LOG(ERROR) << msg;
+    playback_error_occurred_.store(true);
+    ReportError(msg);
+  }
+}
+
+bool ExoPlayerBridge::HasPlaybackErrorOccurred() const {
   if (playback_error_occurred_.load()) {
     SB_LOG(ERROR)
         << "Aborting ExoPlayer operation after a playback error occurred.";
@@ -516,4 +508,5 @@ void ExoPlayerBridge::ReportError(const std::string& msg) const {
   SB_CHECK(error_cb_);
   error_cb_(kSbPlayerErrorDecode, msg);
 }
+
 }  // namespace starboard

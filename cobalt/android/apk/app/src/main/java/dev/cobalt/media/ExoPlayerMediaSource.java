@@ -94,8 +94,8 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
     synchronized (mLock) {
       if (mMediaPeriod != null) {
         if (mediaPeriod != mMediaPeriod) {
-            throw new IllegalStateException(
-                "Called MediaSource.releasePeriod on an unknown MediaPeriod");
+          throw new IllegalStateException(
+              "Called MediaSource.releasePeriod on an unknown MediaPeriod");
         }
         mMediaPeriod = null;
         return;

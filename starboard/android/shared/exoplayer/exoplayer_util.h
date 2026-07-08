@@ -30,6 +30,7 @@ jni_zero::ScopedJavaLocalRef<jobject> CreateAudioFormat(
 
 jni_zero::ScopedJavaLocalRef<jobject> CreateVideoFormat(
     const SbMediaVideoStreamInfo& stream_info);
+
 }  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_UTIL_H_
