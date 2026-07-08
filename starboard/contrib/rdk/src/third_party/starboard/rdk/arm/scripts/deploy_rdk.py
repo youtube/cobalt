@@ -191,6 +191,7 @@ def launch_on_device(
     test_name: Optional[str],
     mode: str,
     devtools: bool = False,
+    param: Optional[List[str]] = None,
 ) -> None:
     """Executes remote commands to launch Cobalt or tests."""
     print("=== Launching on device ===")
@@ -249,7 +250,10 @@ def launch_on_device(
                 
                 if devtools:
                     sb_args.append("--remote-debugging-port=9222")
-                
+
+                if param:
+                    sb_args.extend(param)
+
                 config["sbmainargs"] = sb_args
 
                 # Set configuration
@@ -285,7 +289,7 @@ def launch_on_device(
             "sleep 2",
             "rdkDisplay create",
             "sleep 2",
-            "./loader_app",
+            f"./loader_app {' '.join(param)}" if param else "./loader_app",
             "rdkDisplay remove",
             "sleep 2",
         ]
@@ -340,11 +344,6 @@ def parse_args() -> argparse.Namespace:
             "Useful if the display is inactive or WPEFramework is stuck."),
     )
     parser.add_argument(
-        "--devtools",
-        action="store_true",
-        help="Enable Chrome DevTools remote debugging port (port 9222) in plugin mode.",
-    )
-    parser.add_argument(
         "--setup-toolchain",
         action="store_true",
         help="Download and install the RDK toolchain to RDK_HOME.",
@@ -373,6 +372,12 @@ def parse_args() -> argparse.Namespace:
         "--system-logs",
         action="store_true",
         help="View global OS/kernel/systemd logs from the device (runs raw journalctl).",
+    )
+    parser.add_argument(
+        "--param",
+        nargs=argparse.REMAINDER,
+        default=[],
+        help="Additional runtime parameter(s) to pass to StarboardMain (must be specified last).",
     )
     return parser.parse_args()
 
@@ -624,6 +629,8 @@ def main() -> None:
                 "Cobalt",
                 "-t",
                 "loader_app",
+                "-t",
+                "WPEFramework",
             ])
         if args.follow:
             cmd.append("-f")
@@ -655,10 +662,6 @@ def main() -> None:
     # Setup Build Paths
     config = args.config or ("devel" if args.tests else "qa")
     out_dir = Path(args.out_dir or f"out/{PLATFORM}_{config}")
-
-    if args.devtools and config == "gold":
-        print("Error: DevTools is not supported/available in gold builds.")
-        sys.exit(1)
 
     if args.tests:
         targets = [f"{args.tests}_loader"]
@@ -695,7 +698,20 @@ def main() -> None:
         print("=== Skipping build step ===")
         is_up_to_date = False
 
-    if is_up_to_date and not args.force_deploy:
+    # Check if the remote directory exists on the device.
+    # If it doesn't, we must deploy even if the build is up-to-date.
+    remote_dir_exists = False
+    try:
+        res = subprocess.run(
+            ["adb", "-s", device_id, "shell", f"[ -d {remote_dir} ]"],
+            capture_output=True,
+            timeout=5
+        )
+        remote_dir_exists = (res.returncode == 0)
+    except Exception as e:
+        print(f"[WARNING] Failed to check if remote directory exists: {e}")
+
+    if is_up_to_date and not args.force_deploy and remote_dir_exists:
         print("=== Up to date. Skipping deployment. ===")
         if not args.run:
             return
@@ -703,7 +719,7 @@ def main() -> None:
         if args.only_lib:
             deploy_only_lib(device_id, out_dir, remote_dir)
         else:
-            package_and_deploy(device_id, out_dir, remote_dir, deps_file, args.mode)
+            package_and_deploy(device_id, out_dir, remote_dir, deps_file, "executable" if args.tests else args.mode)
 
     if args.run:
         launch_on_device(
@@ -712,8 +728,9 @@ def main() -> None:
             is_up_to_date,
             args.force_deploy,
             args.tests,
-            args.mode,
-            args.devtools,
+            "executable" if args.tests else args.mode,
+            config != "gold" and args.mode == "plugin" and not args.tests,
+            args.param,
         )
 
     print("=== Finished ===")
