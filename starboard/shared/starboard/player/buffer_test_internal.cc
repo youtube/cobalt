@@ -52,6 +52,13 @@ TEST(BufferTest, CopyCtor) {
   }
 }
 
+TEST(BufferTest, CopyEmptyBuffer) {
+  Buffer original;
+  Buffer copy(original);
+  EXPECT_EQ(copy.size(), 0);
+  EXPECT_EQ(copy.data(), nullptr);
+}
+
 TEST(BufferTest, MoveCtor) {
   Buffer original(128);
   memset(original.data(), 'x', 128);
@@ -87,5 +94,4 @@ TEST(BufferTest, MoveAssignmentOperator) {
 }
 
 }  // namespace
-
 }  // namespace starboard

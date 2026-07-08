@@ -55,5 +55,13 @@ BASE_FEATURE(kCobaltMemoryAttributionManager,
 const base::FeatureParam<int> kCobaltMemoryAttributionReportIntervalParam{
     &kCobaltMemoryAttributionManager, "report-interval", 600};
 
+// Enables custom memory buffer size for in-memory updates.
+BASE_FEATURE(kInMemoryUpdatesMemoryBuffer,
+             "InMemoryUpdatesMemoryBuffer",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kInMemoryUpdatesMemoryBufferParam{
+    &kInMemoryUpdatesMemoryBuffer, "memory_buffer_bytes", 35 * 1024 * 1024};
+
 }  // namespace features
 }  // namespace cobalt

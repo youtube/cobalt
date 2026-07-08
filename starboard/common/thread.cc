@@ -31,6 +31,10 @@
 #include "starboard/common/thread_platform.h"
 #include "starboard/system.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "starboard/shared/starboard/features.h"
+#endif
+
 namespace starboard {
 
 int ThreadPriorityToNiceValue(ThreadPriority priority) {
@@ -64,8 +68,22 @@ struct Thread::Data {
   Semaphore join_sema_;
 };
 
+std::optional<size_t> GetDefaultStackSize() {
+#if BUILDFLAG(IS_ANDROID)
+  if (features::FeatureList::IsEnabled(
+          features::kReduceStarboardThreadStackSize)) {
+    return 256 * 1024;
+  }
+#endif
+  return std::nullopt;
+}
+
 Thread::Thread(std::string_view name, const ThreadOptions& options)
-    : name_(name), priority_(options.priority), d_(std::make_unique<Data>()) {}
+    : name_(name),
+      priority_(options.priority),
+      stack_size_(options.stack_size ? options.stack_size
+                                     : GetDefaultStackSize()),
+      d_(std::make_unique<Data>()) {}
 
 Thread::~Thread() {
   // A started thread must be joined before destruction.
@@ -81,6 +99,14 @@ void Thread::Start() {
 
   pthread_attr_t attributes;
   pthread_attr_init(&attributes);
+
+  if (stack_size_) {
+    if (int err = pthread_attr_setstacksize(&attributes, *stack_size_);
+        err != 0) {
+      SB_LOG(WARNING) << "Failed to set stack size to " << *stack_size_
+                      << ", error: " << err << ". Falling back to default.";
+    }
+  }
 
   const int result =
       pthread_create(&d_->thread_, &attributes, ThreadEntryPoint, this);
