@@ -51,7 +51,7 @@ bool CanUseNdkMediaCodec(std::optional<int> tunnel_mode_audio_session_id,
     return false;
   }
   // NDK AMediaCodec does not support HDR yet.
-  // TODO: b/515461431 - Make NDK impl. suppport HDR.
+  // TODO: b/515461431 - Make NDK impl. support HDR.
   if (color_metadata) {
     return false;
   }

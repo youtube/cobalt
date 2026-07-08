@@ -15,11 +15,7 @@
 #include "starboard/android/shared/ndk_media_codec.h"
 
 #include <android/native_window_jni.h>
-#include <dlfcn.h>
 #include <media/NdkMediaFormat.h>
-
-#include <cmath>
-#include <limits>
 
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/ndk_media_utils.h"
@@ -91,14 +87,10 @@ void OnFormatChangedCallback(AMediaCodec* codec,
 void OnErrorCallback(AMediaCodec* codec,
                      void* userdata,
                      media_status_t error,
-                     int32_t actionCode,
+                     int32_t action_code,
                      const char* detail) {
   auto* bridge = reinterpret_cast<NdkMediaCodec*>(userdata);
-  bridge->OnError(error, actionCode, detail);
-}
-
-bool AlmostEqual(double a, double b) {
-  return std::abs(a - b) <= std::numeric_limits<double>::epsilon();
+  bridge->OnError(error, action_code, detail);
 }
 
 }  // namespace
@@ -172,7 +164,7 @@ std::unique_ptr<NdkMediaCodec> NdkMediaCodec::Create(
 
   AMediaCodec* codec = scoped_codec.release();
   auto bridge = std::make_unique<NdkMediaCodec>(PassKey<NdkMediaCodec>(),
-                                                 handler, codec, fps);
+                                                handler, codec, fps);
 
   AMediaCodecOnAsyncNotifyCallback callbacks = {
       OnInputBufferAvailableCallback,
@@ -211,7 +203,7 @@ std::unique_ptr<NdkMediaCodec> NdkMediaCodec::Create(
                        "found in libmediandk.so.";
   }
 
-  SB_LOG(INFO) << "NdkMediaCodec created: dedoder=" << decoder_name
+  SB_LOG(INFO) << "NdkMediaCodec created: decoder=" << decoder_name
                << ", codec=" << GetMediaVideoCodecName(video_codec)
                << ", frame_size_hint=" << frame_size_hint
                << ", max_frame_size=" << ToString(max_frame_size);
@@ -284,10 +276,10 @@ void NdkMediaCodec::ReleaseOutputBufferAtTimestamp(jint index,
 
 void NdkMediaCodec::SetPlaybackRate(double playback_rate) {
   SB_LOG(INFO) << __func__ << ": playback_rate=" << playback_rate;
-  if (!codec_ || playback_rate <= 0.0 || AlmostEqual(playback_rate, 0.0)) {
+  if (!codec_ || playback_rate == 0.0) {
     return;
   }
-  if (AlmostEqual(playback_rate_, playback_rate)) {
+  if (playback_rate_ == playback_rate) {
     return;
   }
   playback_rate_ = playback_rate;
@@ -299,9 +291,8 @@ void NdkMediaCodec::SetPlaybackRate(double playback_rate) {
                         operating_rate);
   media_status_t status = AMediaCodec_setParameters(codec_, params.get());
   if (status != AMEDIA_OK) {
-    SB_LOG(WARNING)
-        << "AMediaCodec_setParameters failed: operating_rate="
-        << operating_rate << ", status=" << ToString(status);
+    SB_LOG(WARNING) << "AMediaCodec_setParameters failed: operating_rate="
+                    << operating_rate << ", status=" << ToString(status);
   }
 }
 
@@ -364,10 +355,10 @@ void NdkMediaCodec::OnFormatChanged(AMediaFormat* format) {
 }
 
 void NdkMediaCodec::OnError(media_status_t error,
-                            int32_t actionCode,
+                            int32_t action_code,
                             const char* detail) {
-  bool is_recoverable = (actionCode == kActionRecoverable);
-  bool is_transient = (actionCode == kActionTransient);
+  bool is_recoverable = (action_code == kActionRecoverable);
+  bool is_transient = (action_code == kActionTransient);
   handler_->OnMediaCodecError(is_recoverable, is_transient,
                               detail ? detail : "NDK MediaCodec Error");
 }

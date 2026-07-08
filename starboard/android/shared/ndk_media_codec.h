@@ -23,7 +23,6 @@
 
 #include "starboard/android/shared/media_codec.h"
 #include "starboard/common/pass_key.h"
-#include "starboard/common/result.h"
 #include "starboard/common/size.h"
 #include "starboard/common/span.h"
 
@@ -97,7 +96,7 @@ class NdkMediaCodec : public MediaCodec {
   void OnInputBufferAvailable(int32_t index);
   void OnOutputBufferAvailable(int32_t index, AMediaCodecBufferInfo* info);
   void OnFormatChanged(AMediaFormat* format);
-  void OnError(media_status_t error, int32_t actionCode, const char* detail);
+  void OnError(media_status_t error, int32_t action_code, const char* detail);
   void OnFrameRendered(int64_t presentation_time_us);
 
  private:
