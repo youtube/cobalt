@@ -15,14 +15,13 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_BUFFER_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_BUFFER_INTERNAL_H_
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <utility>
 
 #include "starboard/common/check_op.h"
-#include "starboard/common/log.h"
-#include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 
 namespace starboard {
@@ -40,7 +39,7 @@ class Buffer {
 
   Buffer() = default;
   explicit Buffer(int size)
-      : size_(size), data_(new uint8_t[size + kPaddingSize * 2]) {
+      : size_(size), data_(AllocateData(size + kPaddingSize * 2)) {
 #if !defined(NDEBUG)
     memset(data_, kPadding, kPaddingSize);
     memset(data_ + kPaddingSize + size_, kPadding, kPaddingSize);
@@ -48,7 +47,12 @@ class Buffer {
   }
 
   Buffer(const Buffer& that)
-      : size_(that.size_), data_(new uint8_t[that.size_ + kPaddingSize * 2]) {
+      : size_(that.size_),
+        data_(that.data_ ? AllocateData(that.size_ + kPaddingSize * 2)
+                         : nullptr) {
+    if (!data_) {
+      return;
+    }
     memcpy(data_, that.data_, size_ + kPaddingSize * 2);
   }
   Buffer(Buffer&& that) : size_(that.size_), data_(that.data_) {
@@ -65,7 +69,7 @@ class Buffer {
                   0);
     }
 #endif  // !defined(NDEBUG)
-    delete[] data_;
+    FreeData(data_);
   }
 
   Buffer& operator=(Buffer&& that) {
@@ -81,7 +85,14 @@ class Buffer {
     return size_ == 0 ? nullptr : data_ + kPaddingSize;
   }
 
+  static void SetPoolEnabled(bool enabled);
+
  private:
+  static uint8_t* AllocateData(size_t size);
+  static void FreeData(uint8_t* ptr);
+
+  static std::atomic<bool> s_pool_enabled;
+
   int size_ = 0;
   uint8_t* data_ = nullptr;
 

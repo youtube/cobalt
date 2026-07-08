@@ -59,7 +59,7 @@ public class CobaltActivityTest {
           }
 
           @Override
-          protected StarboardBridge createStarboardBridge(String[] args, String startDeepLink) {
+          protected BrowserStarboardBridge createStarboardBridge(String[] args, String startDeepLink) {
             return null;
           }
         };
@@ -298,7 +298,7 @@ public class CobaltActivityTest {
       }
 
       @Override
-      protected StarboardBridge createStarboardBridge(String[] args, String startDeepLink) {
+      protected BrowserStarboardBridge createStarboardBridge(String[] args, String startDeepLink) {
         return null;
       }
     };
