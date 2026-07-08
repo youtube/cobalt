@@ -241,8 +241,8 @@ def verify_cuj(cuj_name,
           "./out/linux-x64x11_devel/cobalt", "--remote-allow-origins=*",
           f"--remote-debugging-port={port}", "--memory-metrics-interval=5",
           (f"--enable-features=CobaltMemoryAttributionManager:"
-           f"report-interval/5/CobaltResidentMemorySamplingInterval/"
-           f"{sampling_interval}"),
+           f"report-interval/5/"
+           f"sampling-interval/{sampling_interval}"),
           "--disable-features=PartitionAllocDanglingPtr", url
       ]
       cobalt_proc = run_cmd(cmd, background=True)
@@ -254,12 +254,11 @@ def verify_cuj(cuj_name,
       ])
       run_cmd(adb_base + ["shell", "am", "force-stop", "dev.cobalt.coat"])
       time.sleep(2)
-      target_args = (
-          f"--enable-features=CobaltMemoryAttributionManager:"
-          f"report-interval/5/"
-          f"CobaltResidentMemorySamplingInterval/{sampling_interval},"
-          f"--memory-metrics-interval=5,"
-          f"--remote-debugging-port={port},--remote-allow-origins=*")
+      target_args = (f"--enable-features=CobaltMemoryAttributionManager:"
+                     f"report-interval/5/"
+                     f"sampling-interval/{sampling_interval},"
+                     f"--memory-metrics-interval=5,"
+                     f"--remote-debugging-port={port},--remote-allow-origins=*")
       cmd_str = (f"am start -a android.intent.action.VIEW -d '{url}' "
                  f"-n dev.cobalt.coat/dev.cobalt.app.MainActivity "
                  f"--esa commandLineArgs '{target_args}'")
