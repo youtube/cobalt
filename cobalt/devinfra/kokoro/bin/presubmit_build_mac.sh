@@ -5,11 +5,12 @@ set -ueEx
 . $(dirname "$0")/common.sh
 
 # Using repository root as work directory.
-if [[ -d "${KOKORO_ARTIFACTS_DIR}/github/src" ]]; then
-  export WORKSPACE_COBALT="${KOKORO_ARTIFACTS_DIR}/github/src"
+if [[ -d "${KOKORO_ARTIFACTS_DIR}/github" ]]; then
+  export GCLIENT_ROOT="${KOKORO_ARTIFACTS_DIR}/github"
 else
-  export WORKSPACE_COBALT="${KOKORO_ARTIFACTS_DIR}/git/src"
+  export GCLIENT_ROOT="${KOKORO_ARTIFACTS_DIR}/git"
 fi
+export WORKSPACE_COBALT="${GCLIENT_ROOT}/src"
 cd "${WORKSPACE_COBALT}"
 
 # Clean up workspace on exit or error.
