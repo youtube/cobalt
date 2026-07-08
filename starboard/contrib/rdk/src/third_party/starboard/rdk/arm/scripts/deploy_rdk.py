@@ -688,7 +688,20 @@ def main() -> None:
         print("=== Skipping build step ===")
         is_up_to_date = False
 
-    if is_up_to_date and not args.force_deploy:
+    # Check if the remote directory exists on the device.
+    # If it doesn't, we must deploy even if the build is up-to-date.
+    remote_dir_exists = False
+    try:
+        res = subprocess.run(
+            ["adb", "-s", device_id, "shell", f"[ -d {remote_dir} ]"],
+            capture_output=True,
+            timeout=5
+        )
+        remote_dir_exists = (res.returncode == 0)
+    except Exception as e:
+        print(f"[WARNING] Failed to check if remote directory exists: {e}")
+
+    if is_up_to_date and not args.force_deploy and remote_dir_exists:
         print("=== Up to date. Skipping deployment. ===")
         if not args.run:
             return
