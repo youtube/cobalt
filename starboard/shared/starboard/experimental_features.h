@@ -156,6 +156,9 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaAllowAudioWritingOnPause(
 inline constexpr ExperimentalFeatureKey<bool> kMediaDecodedAudioBufferPool(
     "Media.DecodedAudioBufferPool");
 
+inline constexpr ExperimentalFeatureKey<bool> kMediaEnableAppProvisioning(
+    "Media.EnableAppProvisioning");
+
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaEnableAv1StartupOptimization("Media.EnableAv1StartupOptimization");
 
@@ -188,6 +191,8 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaForceClearSurfaceView(
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaIgnoreMediaCodecCallbacksDuringFlushing(
         "Media.IgnoreMediaCodecCallbacksDuringFlushing");
+
+inline constexpr ExperimentalFeatureKey<bool> kMediaNdkVideo("Media.NdkVideo");
 
 inline constexpr ExperimentalFeatureKey<bool> kMediaSkipFlushOnDecoderTeardown(
     "Media.SkipFlushOnDecoderTeardown");
