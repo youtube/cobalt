@@ -33,6 +33,13 @@
 #include "components/update_client/update_engine.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include <algorithm>
+#include "base/feature_list.h"
+#include "cobalt/browser/features.h"  // nogncheck
+#include "starboard/system.h"  // nogncheck
+#endif
+
 namespace update_client {
 
 namespace {
@@ -192,6 +199,33 @@ void HandleAvailableSpace(
             base::unexpected<CategorizedError>(
                 {.category = ErrorCategory::kDownload,
                  .code = static_cast<int>(CrxDownloaderError::DISK_FULL)})));
+    return;
+  }
+#endif
+#if BUILDFLAG(IS_STARBOARD) && defined(IN_MEMORY_UPDATES)
+  int64_t total_memory = SbSystemGetTotalCPUMemory();
+  int64_t used_memory = SbSystemGetUsedCPUMemory();
+  int64_t available_memory = std::max(int64_t{0}, total_memory - used_memory);
+
+  // Get() returns the C++ default (35MB) if the feature is disabled,
+  // or the Finch-provided value if the feature is enabled. This buffer
+  // acts as a safety margin in case memory usage fluctuates elsewhere
+  // on the system while the download is in progress.
+  int64_t memory_buffer_bytes = cobalt::features::kInMemoryUpdatesMemoryBufferParam.Get();
+
+  if (total_memory > 0 && available_memory < size + memory_buffer_bytes) {
+    VLOG(1)
+        << "Insufficient memory for the update plus "
+        << (memory_buffer_bytes / (1024 * 1024))
+        << "MB buffer. Available memory: "
+        << available_memory << ", download size: " << size;
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(
+            std::move(callback),
+            base::unexpected<CategorizedError>(
+                {.category = ErrorCategory::kDownload,
+                 .code = static_cast<int>(CrxDownloaderError::OUT_OF_MEMORY)})));
     return;
   }
 #endif

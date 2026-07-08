@@ -22,6 +22,7 @@
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt_switch_defaults.h"
 #include "content/public/common/content_switches.h"
+#include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
@@ -52,7 +53,9 @@ TEST(CobaltSwitchDefaultsTest, MergeDisabledFeatures) {
 
   std::string disabled_features =
       GetSwitchValue(cmd_line_pxr, ::switches::kDisableFeatures);
-  EXPECT_EQ(std::string("PersistentOriginTrials,Vulkan"), disabled_features);
+  EXPECT_EQ(
+      std::string("PersistentOriginTrials,Vulkan,MemoryCacheStrongReference"),
+      disabled_features);
 }
 
 TEST(CobaltSwitchDefaultsTest, ConsistentWindowSizes) {
@@ -95,6 +98,16 @@ TEST(CobaltSwitchDefaultsTest, GfxAngleOverride) {
   EXPECT_EQ(std::string("swiftshader"), use_angle_setting);
   // Note: This swiftshader argument being respected by the defaults is required
   // for running in Forge environments.
+}
+
+TEST(CobaltSwitchDefaultsTest, GpuMemorySwitchDefault) {
+  const auto input_argv = std::to_array<const char*>({"PROGRAM"});
+  const int input_argc = static_cast<int>(input_argv.size());
+  CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
+
+  std::string gpu_mem =
+      GetSwitchValue(cmd_line_pxr, ::switches::kForceGpuMemAvailableMb);
+  EXPECT_EQ(std::string("64"), gpu_mem);
 }
 
 TEST(CobaltSwitchDefaultsTest, AlwaysEnabledSwitches) {

@@ -13,12 +13,15 @@ include_rules = [
   "+third_party/zlib",
 ]
 
-# Allow the unit tests to depend on the network for testing purposes.
 specific_include_rules = {
+  # Allow the unit tests to depend on the network for testing purposes.
   "(test_configurator|.*_unittest\.(cc|h))" : [
     "+net",
     "+services/network/public/cpp",
     "+services/network/public/mojom",
     "+services/network/test",
-  ]
+  ],
+  "op_download\.cc": [
+    "+cobalt/browser/features.h",
+  ],
 }
