@@ -25,7 +25,7 @@
 #include "starboard/elf_loader/file_impl.h"
 #include "starboard/elf_loader/log.h"
 #include "starboard/elf_loader/lz4_file_impl.h"
-#include "starboard/elf_loader/naive_zstd_file_impl.h"
+#include "starboard/elf_loader/zstd_file_impl.h"
 #include "starboard/extension/loader_app_metrics.h"
 #include "starboard/system.h"
 
@@ -62,8 +62,8 @@ bool ElfLoaderImpl::Load(const char* name,
     SB_LOG(INFO) << "Loading " << name << " using LZ4 decompression";
   } else if (compression_type == CompressionType::kZstd &&
              EndsWith(name, kZstdSuffix)) {
-    elf_file.reset(new NaiveZstdFileImpl());
-    SB_LOG(INFO) << "Loading " << name << " using Naive Zstd decompression";
+    elf_file.reset(new ZstdFileImpl());
+    SB_LOG(INFO) << "Loading " << name << " using Zstd decompression";
   } else {
     SB_LOG(INFO) << "Loading " << name;
     elf_file.reset(new FileImpl());

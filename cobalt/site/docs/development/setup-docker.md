@@ -41,8 +41,7 @@ docker run --rm \
   -it linux /bin/bash
 ```
 
-> [!IMPORTANT]
-> * The `/path/to/workspace` must contain both the repository checkout in `src/` and the `depot_tools` checkout.
+> Warning: The `/path/to/workspace` must contain both the repository checkout in `src/` and the `depot_tools` checkout.
 
 
 ## 3. Building Cobalt inside the Container

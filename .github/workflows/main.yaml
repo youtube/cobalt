@@ -290,11 +290,14 @@ jobs:
           echo "enable_sccache=${enable_sccache}" >> $GITHUB_OUTPUT
       - name: Set Docker files checksum
         id: set-docker-hash
+        env:
+          DOCKER_FILES: cobalt/docker docker-compose.yaml
         shell: bash
         run: |
           set -x
-          docker_content_sha=$(find cobalt/docker docker-compose.yaml -type f -exec sha256sum -b {} + | LC_ALL=C sort | sha256sum | head -c 64)
-          echo "docker_content_sha=${docker_content_sha}" >> $GITHUB_OUTPUT
+          read -r -a docker_files <<< "${DOCKER_FILES}"
+          docker_content_sha=$(find "${docker_files[@]}" -type f -exec sha256sum -b {} + | LC_ALL=C sort | sha256sum | head -c 64)
+          echo "docker_content_sha=${docker_content_sha}" >> "$GITHUB_OUTPUT"
       - name: Generate Expected Test Targets Json
         id: generate-expected-test-targets-json
         env:
