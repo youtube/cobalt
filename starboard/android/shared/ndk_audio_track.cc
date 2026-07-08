@@ -20,8 +20,10 @@
 #include <algorithm>
 #include <memory>
 #include <optional>
+#include <string>
 
 #include "starboard/android/shared/aaudio_loader.h"
+#include "starboard/android/shared/ndk_media_utils.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
@@ -34,7 +36,6 @@
 namespace starboard {
 namespace {
 
-constexpr int64_t kWriteTimeoutMs = 1'000;
 constexpr int64_t kPauseTimeoutMs = 100;
 
 }  // namespace
@@ -148,26 +149,48 @@ void NdkAudioTrack::Stop() {
 }
 
 void NdkAudioTrack::PauseAndFlush() {
+  int64_t start_time = CurrentMonotonicTime();
+  aaudio_stream_state_t initial_state = loader_->stream_getState(stream_.get());
+  int64_t pause_end = start_time;
+  int64_t wait_end = start_time;
+  aaudio_stream_state_t state_after_pause = initial_state;
+  aaudio_stream_state_t state_after_wait = initial_state;
   if (IsStreamActive()) {
     if (auto result = loader_->stream_requestPause(stream_.get());
         result != AAUDIO_OK) {
       SB_LOG(ERROR) << "stream_requestPause failed: "
                     << loader_->convertResultToText(result);
     }
-    aaudio_stream_state_t next_state = AAUDIO_STREAM_STATE_UNKNOWN;
-    if (auto result = loader_->stream_waitForStateChange(
-            stream_.get(), AAUDIO_STREAM_STATE_PAUSING, &next_state,
-            kPauseTimeoutMs * 1'000'000);
-        result != AAUDIO_OK) {
-      SB_LOG(WARNING) << "stream_waitForStateChange failed: "
-                      << loader_->convertResultToText(result);
+    pause_end = CurrentMonotonicTime();
+    state_after_pause = loader_->stream_getState(stream_.get());
+    int64_t wait_start = CurrentMonotonicTime();
+    aaudio_stream_state_t current_state = state_after_pause;
+    while (current_state != AAUDIO_STREAM_STATE_PAUSED &&
+           (CurrentMonotonicTime() - wait_start) < kPauseTimeoutMs * 1'000) {
+      usleep(1000);  // 1 ms
+      current_state = loader_->stream_getState(stream_.get());
     }
+    wait_end = CurrentMonotonicTime();
+    state_after_wait = current_state;
   }
   if (auto result = loader_->stream_requestFlush(stream_.get());
       result != AAUDIO_OK) {
     SB_LOG(ERROR) << "stream_requestFlush failed: "
                   << loader_->convertResultToText(result);
   }
+  int64_t end_time = CurrentMonotonicTime();
+  aaudio_stream_state_t final_state = loader_->stream_getState(stream_.get());
+
+  SB_LOG(INFO) << "[SeekPerf] NdkAudioTrack::PauseAndFlush took "
+               << (end_time - start_time) / 1000.0
+               << " ms (requestPause: " << (pause_end - start_time) / 1000.0
+               << " ms [state: " << ToString(initial_state) << " -> "
+               << ToString(state_after_pause)
+               << "], waitForStateChange: " << (wait_end - pause_end) / 1000.0
+               << " ms [state -> " << ToString(state_after_wait)
+               << "], requestFlush: " << (end_time - wait_end) / 1000.0
+               << " ms [final_state: " << ToString(final_state) << "])";
+  first_write_after_flush_.store(true);
 }
 
 bool NdkAudioTrack::IsStreamActive() const {
@@ -186,9 +209,19 @@ int NdkAudioTrack::WriteSample(Span<const float> samples) {
   Span<const float> samples_to_write = ScaleSamplesIfNeeded(samples);
 
   int num_frames = samples.size() / channels_;
+  int64_t write_start = CurrentMonotonicTime();
   aaudio_result_t result =
       loader_->stream_write(stream_.get(), samples_to_write.data(), num_frames,
-                            kWriteTimeoutMs * 1'000'000);
+                            /*timeoutNanoseconds=*/0);
+  int64_t duration_us = CurrentMonotonicTime() - write_start;
+  bool was_first = first_write_after_flush_.exchange(false);
+  if (was_first || duration_us > 2000) {
+    SB_LOG(INFO) << "[SeekPerf] NdkAudioTrack::WriteSample took "
+                 << duration_us / 1000.0
+                 << " ms (first_after_flush=" << was_first
+                 << ", requested_frames=" << num_frames
+                 << ", written_frames=" << result << ")";
+  }
   if (result == AAUDIO_ERROR_DISCONNECTED) {
     return kAudioTrackErrorDeadObject;
   }

@@ -101,6 +101,7 @@ class NdkAudioTrack : public AudioTrack {
   const SbMediaAudioSampleType sample_type_;
   std::atomic<double> volume_{1.0};
   std::atomic<double> playback_rate_{1.0};
+  std::atomic<bool> first_write_after_flush_{false};
   std::vector<float> scaled_samples_float_;
 };
 

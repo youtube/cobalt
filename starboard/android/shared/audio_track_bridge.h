@@ -17,6 +17,7 @@
 
 #include <jni.h>
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -86,6 +87,7 @@ class AudioTrackBridge : public AudioTrack {
   // audio track. Allocating a large array and saves as a member variable
   // avoids an array being allocated repeatedly.
   const DataArray j_audio_data_;
+  std::atomic<bool> first_write_after_flush_{false};
 };
 
 }  // namespace starboard

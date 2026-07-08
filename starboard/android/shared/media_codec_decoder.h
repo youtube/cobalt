@@ -269,6 +269,10 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   bool is_output_restricted_ = false;
   bool first_call_on_handler_thread_ = true;
 
+  int64_t flush_time_us_ = 0;
+  std::atomic<bool> first_input_after_flush_logged_{true};
+  std::atomic<bool> first_output_after_flush_logged_{true};
+
   // Working threads to avoid lengthy decoding work block the player thread.
   std::unique_ptr<Thread> decoder_thread_;
   // Only used when |use_dual_threads_| is true.

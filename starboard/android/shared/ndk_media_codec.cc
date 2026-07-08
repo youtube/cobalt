@@ -26,6 +26,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 
 // Suppress availability warnings for API 28+ async callback symbols
 #pragma clang diagnostic ignored "-Wunguarded-availability"
@@ -172,7 +173,7 @@ std::unique_ptr<NdkMediaCodec> NdkMediaCodec::Create(
 
   AMediaCodec* codec = scoped_codec.release();
   auto bridge = std::make_unique<NdkMediaCodec>(PassKey<NdkMediaCodec>(),
-                                                 handler, codec, fps);
+                                                handler, codec, fps);
 
   AMediaCodecOnAsyncNotifyCallback callbacks = {
       OnInputBufferAvailableCallback,
@@ -299,19 +300,28 @@ void NdkMediaCodec::SetPlaybackRate(double playback_rate) {
                         operating_rate);
   media_status_t status = AMediaCodec_setParameters(codec_, params.get());
   if (status != AMEDIA_OK) {
-    SB_LOG(WARNING)
-        << "AMediaCodec_setParameters failed: operating_rate="
-        << operating_rate << ", status=" << ToString(status);
+    SB_LOG(WARNING) << "AMediaCodec_setParameters failed: operating_rate="
+                    << operating_rate << ", status=" << ToString(status);
   }
 }
 
 bool NdkMediaCodec::Restart() {
+  int64_t start = CurrentMonotonicTime();
   media_status_t status = AMediaCodec_start(codec_);
+  int64_t duration_us = CurrentMonotonicTime() - start;
+  SB_LOG(INFO) << "[SeekPerf] NdkMediaCodec::Restart took "
+               << duration_us / 1000.0 << " ms (status=" << ToString(status)
+               << ")";
   return status == AMEDIA_OK;
 }
 
 jint NdkMediaCodec::Flush() {
+  int64_t start = CurrentMonotonicTime();
   media_status_t status = AMediaCodec_flush(codec_);
+  int64_t duration_us = CurrentMonotonicTime() - start;
+  SB_LOG(INFO) << "[SeekPerf] NdkMediaCodec::Flush took "
+               << duration_us / 1000.0 << " ms (status=" << ToString(status)
+               << ")";
   return status == AMEDIA_OK ? MEDIA_CODEC_OK : MEDIA_CODEC_ERROR;
 }
 

@@ -25,6 +25,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/common/thread.h"
+#include "starboard/common/time.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
@@ -373,6 +374,8 @@ void MediaCodecDecoder::SetPlaybackRate(double playback_rate) {
 bool MediaCodecDecoder::Flush() {
   SB_CHECK(thread_checker_.CalledOnValidThread());
 
+  int64_t flush_start_us = CurrentMonotonicTime();
+
   // Try to flush if we can, otherwise return |false| to recreate the codec
   // completely. Flush() is called by `player_worker` thread,
   // but MediaCodecDecoder is on `audio_decoder` and `video_decoder`
@@ -382,11 +385,13 @@ bool MediaCodecDecoder::Flush() {
 
   // 1. Terminate `audio_decoder` or `video_decoder` thread.
   TerminateDecoderThread();
+  int64_t terminate_end_us = CurrentMonotonicTime();
 
   // 2. Flush()/Start() |media_codec_bridge_| and clean up pending tasks.
   // 2.1. Flush() |media_codec_bridge_|.
   host_->OnFlushing();
   jint status = media_codec_bridge_->Flush();
+  int64_t bridge_flush_end_us = CurrentMonotonicTime();
   if (status != MEDIA_CODEC_OK) {
     SB_LOG(ERROR) << "Failed to flush media codec.";
     return false;
@@ -417,11 +422,26 @@ bool MediaCodecDecoder::Flush() {
     SB_LOG(ERROR) << "Failed to start media codec.";
     return false;
   }
+  int64_t restart_end_us = CurrentMonotonicTime();
 
   // 3. Recreate `audio_decoder` and `video_decoder` threads in
   // WriteInputBuffers().
   stream_ended_.store(false);
   destroying_.store(false);
+
+  SB_LOG(INFO) << "[SeekPerf] MediaCodecDecoder ("
+               << (media_type_ == kSbMediaTypeVideo ? "Video" : "Audio")
+               << ") Flush total: "
+               << (restart_end_us - flush_start_us) / 1000.0
+               << " ms (TerminateThread: "
+               << (terminate_end_us - flush_start_us) / 1000.0
+               << " ms, BridgeFlush: "
+               << (bridge_flush_end_us - terminate_end_us) / 1000.0
+               << " ms, Restart: "
+               << (restart_end_us - bridge_flush_end_us) / 1000.0 << " ms)";
+  flush_time_us_ = flush_start_us;
+  first_input_after_flush_logged_.store(false);
+  first_output_after_flush_logged_.store(false);
   return true;
 }
 
@@ -950,6 +970,13 @@ void MediaCodecDecoder::OnMediaCodecInputBufferAvailable(int32_t buffer_index) {
                 ThreadPriorityToNiceValue(ThreadPriority::kHigh));
     first_call_on_handler_thread_ = false;
   }
+  if (!first_input_after_flush_logged_.exchange(true)) {
+    int64_t latency_us = CurrentMonotonicTime() - flush_time_us_;
+    SB_LOG(INFO) << "[SeekPerf] MediaCodecDecoder ("
+                 << (media_type_ == kSbMediaTypeVideo ? "Video" : "Audio")
+                 << ") First InputBuffer available after Flush in "
+                 << latency_us / 1000.0 << " ms";
+  }
   std::lock_guard lock(mutex_);
   input_buffer_indices_.push_back(buffer_index);
   if (input_buffer_indices_.size() == 1) {
@@ -968,6 +995,15 @@ void MediaCodecDecoder::OnMediaCodecOutputBufferAvailable(
     int64_t presentation_time_us,
     int32_t size) {
   SB_DCHECK_GE(buffer_index, 0);
+
+  if (buffer_index >= 0 && !first_output_after_flush_logged_.exchange(true)) {
+    int64_t latency_us = CurrentMonotonicTime() - flush_time_us_;
+    SB_LOG(INFO) << "[SeekPerf] MediaCodecDecoder ("
+                 << (media_type_ == kSbMediaTypeVideo ? "Video" : "Audio")
+                 << ") First OutputBuffer available after Flush in "
+                 << latency_us / 1000.0 << " ms (pts=" << presentation_time_us
+                 << " us)";
+  }
 
   // TODO(b/291959069): After the output thread is destroyed, it may still
   // receive output buffer, discard this invalid output buffer.

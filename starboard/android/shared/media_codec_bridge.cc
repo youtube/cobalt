@@ -22,6 +22,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "third_party/jni_zero/jni_zero.h"
 
@@ -364,13 +365,24 @@ void MediaCodecBridge::SetPlaybackRate(double playback_rate) {
 }
 
 bool MediaCodecBridge::Restart() {
+  int64_t start = CurrentMonotonicTime();
   JNIEnv* env = AttachCurrentThread();
-  return Java_MediaCodecBridge_restart(env, j_media_codec_bridge_) == JNI_TRUE;
+  bool result =
+      Java_MediaCodecBridge_restart(env, j_media_codec_bridge_) == JNI_TRUE;
+  int64_t duration_us = CurrentMonotonicTime() - start;
+  SB_LOG(INFO) << "[SeekPerf] MediaCodecBridge::Restart took "
+               << duration_us / 1000.0 << " ms";
+  return result;
 }
 
 jint MediaCodecBridge::Flush() {
+  int64_t start = CurrentMonotonicTime();
   JNIEnv* env = AttachCurrentThread();
-  return Java_MediaCodecBridge_flush(env, j_media_codec_bridge_);
+  jint status = Java_MediaCodecBridge_flush(env, j_media_codec_bridge_);
+  int64_t duration_us = CurrentMonotonicTime() - start;
+  SB_LOG(INFO) << "[SeekPerf] MediaCodecBridge::Flush took "
+               << duration_us / 1000.0 << " ms";
+  return status;
 }
 
 std::optional<FrameSize> MediaCodecBridge::GetOutputSize() {
