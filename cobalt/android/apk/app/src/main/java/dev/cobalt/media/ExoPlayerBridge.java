@@ -293,6 +293,13 @@ public class ExoPlayerBridge {
         () -> {
           mPlayer.seekTo(seekToTimeUsec / 1000);
           updatePositionAnchor();
+          if (mPlayer.getPlaybackState() == Player.STATE_READY) {
+            synchronized (mNativeLock) {
+              if (mNativeExoPlayerBridge != 0) {
+                ExoPlayerBridgeJni.get().onReady(mNativeExoPlayerBridge);
+              }
+            }
+          }
         });
     mSeekTimeUsec = seekToTimeUsec;
   }
