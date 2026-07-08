@@ -127,7 +127,6 @@ static_library("devtools") {
     # Similar bandaid as the above. Since we cannot depend on
     # //chrome/browser:browser, we include indirect dependencies here.
     ":protocol_generated_sources",
-    "//chrome/browser:browser_process",
     "//chrome/browser/autofill:autofill",
     "//chrome/browser/profiles/keep_alive",
     "//components/autofill/content/browser:browser",
@@ -180,14 +179,9 @@ static_library("devtools") {
       "url_constants.h",
       "visual_logging.cc",
       "visual_logging.h",
-      "devtools_infobar_delegate.cc",
-      "devtools_infobar_delegate.h",
-      "process_sharing_infobar_delegate.cc",
-      "process_sharing_infobar_delegate.h",
-      "global_confirm_info_bar.cc",
-      "global_confirm_info_bar.h",
     ]
     deps += [
+      "//chrome/browser:browser_process",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/profiles:profile_util",
       "//chrome/browser/task_manager",
@@ -226,6 +220,7 @@ static_library("devtools") {
       "//chrome:resources",
       "//chrome:strings",
       "//chrome/app/theme:theme_resources",
+      "//chrome/browser:browser_process",
       "//chrome/browser/apps/app_service:constants",
       "//chrome/browser/media/router:media_router_feature",
       "//chrome/browser/themes",
@@ -307,6 +302,16 @@ static_library("devtools") {
       "serialize_host_descriptions.cc",
       "serialize_host_descriptions.h",
     ]
+    if (enable_devtools_frontend) {
+      sources += [
+        "devtools_infobar_delegate.cc",
+        "devtools_infobar_delegate.h",
+        "process_sharing_infobar_delegate.cc",
+        "process_sharing_infobar_delegate.h",
+        "global_confirm_info_bar.cc",
+        "global_confirm_info_bar.h",
+      ]
+    }
     if (enable_service_discovery) {
       sources += [
         "device/cast_device_provider.cc",
@@ -343,8 +348,6 @@ static_library("devtools") {
       "protocol/browser_handler.h",
       "protocol/cast_handler.cc",
       "protocol/cast_handler.h",
-      "protocol/emulation_handler.cc",
-      "protocol/emulation_handler.h",
       "protocol/extensions_handler.cc",
       "protocol/extensions_handler.h",
       "protocol/page_handler.cc",
@@ -365,6 +368,12 @@ static_library("devtools") {
       sources += [
         "protocol/window_manager_handler.cc",
         "protocol/window_manager_handler.h",
+      ]
+    }
+    if (enable_devtools_frontend) {
+      sources += [
+        "protocol/emulation_handler.cc",
+        "protocol/emulation_handler.h",
       ]
     }
     if (enable_printing) {
