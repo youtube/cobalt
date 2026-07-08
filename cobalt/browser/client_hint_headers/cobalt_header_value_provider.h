@@ -60,7 +60,7 @@ class CobaltHeaderValueProvider {
   void ClearHeaderValuesForTesting();
 
   // Re-initializes system property client hint headers for testing.
-  void LoadSystemPropertiesForTesting();
+  void LoadSystemProperties();
 
  private:
   friend class base::NoDestructor<CobaltHeaderValueProvider>;

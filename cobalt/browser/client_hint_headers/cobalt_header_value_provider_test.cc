@@ -108,7 +108,6 @@ TEST_F(CobaltHeaderValueProviderTest, CertScopeHeaderMatchesPlatformProperty) {
   CobaltHeaderValueProvider* provider =
       CobaltHeaderValueProvider::GetInstance();
   ASSERT_NE(nullptr, provider);
-  provider->LoadSystemPropertiesForTesting();
 
   // Step 2: Query system property directly on the test platform.
   std::string cert_scope =

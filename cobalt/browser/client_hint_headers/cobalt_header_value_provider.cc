@@ -30,7 +30,7 @@ CobaltHeaderValueProvider* CobaltHeaderValueProvider::GetInstance() {
 }
 
 CobaltHeaderValueProvider::CobaltHeaderValueProvider() {
-  LoadSystemPropertiesForTesting();
+  LoadSystemProperties();
 }
 
 CobaltHeaderValueProvider::HeaderMap
@@ -54,7 +54,7 @@ void CobaltHeaderValueProvider::ClearHeaderValuesForTesting() {
   header_values_.clear();
 }
 
-void CobaltHeaderValueProvider::LoadSystemPropertiesForTesting() {
+void CobaltHeaderValueProvider::LoadSystemProperties() {
 #if BUILDFLAG(IS_STARBOARD)
   // Retrieve the platform certification scope upon singleton initialization.
   // If present on the underlying platform/device, store it so it is
