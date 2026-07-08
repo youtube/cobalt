@@ -21,6 +21,7 @@
 #include "starboard/common/log.h"
 
 namespace {
+#if !SB_IS(COMPILER_MSVC) && !defined(_WIN32)
 bool ProbeIpv6Support() {
   SbSocket probe_socket = SbSocketCreate(kSbSocketAddressTypeIpv6, kSbSocketProtocolTcp);
   if (!SbSocketIsValid(probe_socket)) {
@@ -46,13 +47,18 @@ bool ProbeIpv6Support() {
 
   return (bind_status == kSbSocketOk);
 }
+#endif
 }  // namespace
 
 #endif  // SB_HAS_IPV6
 
 bool SbSocketIsIpv6Supported() {
 #if SB_HAS_IPV6
+#if SB_IS(COMPILER_MSVC) || defined(_WIN32)
+  return true;
+#else
   return ProbeIpv6Support();
+#endif
 #else
   return false;
 #endif
