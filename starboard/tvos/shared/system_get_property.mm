@@ -52,10 +52,9 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
   @autoreleasepool {
     switch (property_id) {
       case kSbSystemPropertyBrandName: {
-        static const std::string kBrandName =
-            base::starboard::SbSysInfo::Brand();
-        return CopyStringAndTestIfSuccess(out_value, value_length,
-                                          kBrandName.c_str());
+        return CopyStringAndTestIfSuccess(
+            out_value, value_length,
+            base::starboard::SbSysInfo::Brand().c_str());
       }
       case kSbSystemPropertyFirmwareVersion:
         return CopyStringAndTestIfSuccess(
@@ -83,22 +82,19 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
                                           [deviceType UTF8String]);
       }
       case kSbSystemPropertyChipsetModelNumber: {
-        static const std::string kChipsetModelNumber =
-            base::starboard::SbSysInfo::ChipsetModelNumber();
-        return CopyStringAndTestIfSuccess(out_value, value_length,
-                                          kChipsetModelNumber.c_str());
+        return CopyStringAndTestIfSuccess(
+            out_value, value_length,
+            base::starboard::SbSysInfo::ChipsetModelNumber().c_str());
       }
       case kSbSystemPropertyModelYear: {
-        static const std::string kModelYear =
-            base::starboard::SbSysInfo::ModelYear();
-        return CopyStringAndTestIfSuccess(out_value, value_length,
-                                          kModelYear.c_str());
+        return CopyStringAndTestIfSuccess(
+            out_value, value_length,
+            base::starboard::SbSysInfo::ModelYear().c_str());
       }
       case kSbSystemPropertySystemIntegratorName: {
-        static const std::string kSystemIntegrator =
-            base::starboard::SbSysInfo::OriginalDesignManufacturer();
-        return CopyStringAndTestIfSuccess(out_value, value_length,
-                                          kSystemIntegrator.c_str());
+        return CopyStringAndTestIfSuccess(
+            out_value, value_length,
+            base::starboard::SbSysInfo::OriginalDesignManufacturer().c_str());
       }
       case kSbSystemPropertySpeechApiKey:
         return false;
