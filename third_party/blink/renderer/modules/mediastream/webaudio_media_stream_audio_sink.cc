@@ -34,9 +34,15 @@ WebAudioMediaStreamAudioSink::WebAudioMediaStreamAudioSink(
   // do not have one and they will inject their own |sink_params_| for testing.
   WebLocalFrame* const web_frame = WebLocalFrame::FrameForCurrentContext();
   if (web_frame) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    sink_params_.Reset(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
+                       media::ChannelLayoutConfig::Mono(),
+                       context_sample_rate, kWebAudioRenderBufferSize);
+#else
     sink_params_.Reset(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
                        media::ChannelLayoutConfig::Stereo(),
                        context_sample_rate, kWebAudioRenderBufferSize);
+#endif
   }
   // Connect the source provider to the track as a sink.
   WebMediaStreamAudioSink::AddToAudioTrack(
@@ -116,7 +122,7 @@ void WebAudioMediaStreamAudioSink::OnData(
 
 void WebAudioMediaStreamAudioSink::SetClient(
     WebAudioSourceProviderClient* client) {
-  NOTREACHED();
+  LOG(INFO) << "SAMSUNG DEBUG - WebAudioMediaStreamAudioSink::SetClient called with " << client;
 }
 
 void WebAudioMediaStreamAudioSink::ProvideInput(
@@ -147,10 +153,11 @@ void WebAudioMediaStreamAudioSink::ProvideInput(
     return;
 
   LOG(INFO) << "SAMSUNG DEBUG - Sink ProvideInput: " << number_of_frames
-            << " frames. FIFO Level: " << (fifo_ ? (int)fifo_->frames() : -1);
-
+            << " frames. FIFO Level: " << (fifo_ ? (int)fifo_->frames() : -1)
+            << ", calling Convert";
   is_enabled_ = true;
   audio_converter_->Convert(output_wrapper_.get());
+  LOG(INFO) << "SAMSUNG DEBUG - Sink ProvideInput: Convert returned";
 }
 
 // |lock_| needs to be acquired before this function is called. It's called by
