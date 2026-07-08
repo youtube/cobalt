@@ -13,9 +13,6 @@
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
 #include "gpu/ipc/client/client_shared_image_interface.h"
-#if !BUILDFLAG(IS_COBALT)
-#include "media/capture/video/create_video_capture_device_factory.h"  // nogncheck
-#endif  // !BUILDFLAG(IS_COBALT)
 #include "media/capture/video/fake_video_capture_device_factory.h"
 #include "media/capture/video/video_capture_buffer_pool.h"
 #include "media/capture/video/video_capture_buffer_tracker.h"
@@ -40,6 +37,10 @@
 #include "media/capture/video/video_capture_gpu_channel_host.h"
 #include "services/viz/public/cpp/gpu/context_provider_command_buffer.h"
 #endif  // BUILDFLAG(ENABLE_GPU_CHANNEL_MEDIA_CAPTURE)
+
+#if !BUILDFLAG(IS_COBALT)
+#include "media/capture/video/create_video_capture_device_factory.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 
 namespace video_capture {
 
@@ -319,7 +320,9 @@ void VideoCaptureServiceImpl::LazyInitializeDeviceFactory() {
   // happen on a "UI thread equivalent", e.g. obtaining screen rotation on
   // Chrome OS.
 #if BUILDFLAG(IS_COBALT)
-  std::unique_ptr<media::VideoCaptureDeviceFactory> media_device_factory = nullptr;
+  // Cobalt doesn't support media capture.
+  std::unique_ptr<media::VideoCaptureDeviceFactory> media_device_factory =
+      nullptr;
 #else   // BUILDFLAG(IS_COBALT)
   std::unique_ptr<media::VideoCaptureDeviceFactory> media_device_factory =
       media::CreateVideoCaptureDeviceFactory(ui_task_runner_);
