@@ -191,6 +191,7 @@ def launch_on_device(
     test_name: Optional[str],
     mode: str,
     devtools: bool = False,
+    param: Optional[List[str]] = None,
 ) -> None:
     """Executes remote commands to launch Cobalt or tests."""
     print("=== Launching on device ===")
@@ -249,7 +250,10 @@ def launch_on_device(
                 
                 if devtools:
                     sb_args.append("--remote-debugging-port=9222")
-                
+
+                if param:
+                    sb_args.extend(param)
+
                 config["sbmainargs"] = sb_args
 
                 # Set configuration
@@ -285,7 +289,7 @@ def launch_on_device(
             "sleep 2",
             "rdkDisplay create",
             "sleep 2",
-            "./loader_app",
+            f"./loader_app {' '.join(param)}" if param else "./loader_app",
             "rdkDisplay remove",
             "sleep 2",
         ]
@@ -368,6 +372,12 @@ def parse_args() -> argparse.Namespace:
         "--system-logs",
         action="store_true",
         help="View global OS/kernel/systemd logs from the device (runs raw journalctl).",
+    )
+    parser.add_argument(
+        "--param",
+        nargs=argparse.REMAINDER,
+        default=[],
+        help="Additional runtime parameter(s) to pass to StarboardMain (must be specified last).",
     )
     return parser.parse_args()
 
@@ -720,6 +730,7 @@ def main() -> None:
             args.tests,
             "executable" if args.tests else args.mode,
             config != "gold" and args.mode == "plugin" and not args.tests,
+            args.param,
         )
 
     print("=== Finished ===")
