@@ -221,6 +221,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // Enable the workaround to ignore stale/dirty MediaCodec callback messages
   // queued on the main thread during a flush.
   const bool ignore_mediacodec_callbacks_during_flushing_;
+  const bool enable_trivial_optimizations_;
   const bool enable_low_latency_;
   const bool enable_ndk_video_;
 
