@@ -21,7 +21,8 @@ declare_args() {
 
   # desktop android devices exclusively use angle and thus should not use
   # the validating command decoder
-  enable_validating_command_decoder = is_android && !is_desktop_android
+  enable_validating_command_decoder =
+      is_android && !is_desktop_android && target_cpu == "arm64"
 }
 
 declare_args() {
