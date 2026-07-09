@@ -288,7 +288,9 @@ class CobaltTestRunner:
       logging.error("Error initializing XML file %s: %s", self.xml_output_file,
                     e)
 
-  def _run_command_and_tee(self, cmd: list[str], env: dict[str, str],
+  def _run_command_and_tee(self,
+                           cmd: list[str],
+                           env: dict[str, str],
                            log_file_path: Optional[str] = None) -> int:
     """Runs a command and tees its stdout/stderr to console and a log file."""
     f_log = None
@@ -521,7 +523,8 @@ def main():
     except Exception as e:  # pylint: disable=broad-exception-caught
       sys.stderr.write(f"Failed to initialize log file: {e}\n")
 
-  logging.basicConfig(level=logging.DEBUG, format="%(message)s", handlers=handlers)
+  logging.basicConfig(
+      level=logging.DEBUG, format="%(message)s", handlers=handlers)
   args, unknown_args = parse_args()
   if args.help:
     # Re-parse with help enabled to show standard help message
