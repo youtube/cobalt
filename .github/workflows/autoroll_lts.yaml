@@ -50,7 +50,8 @@ jobs:
           set -x
 
           # Copy script from main branch.
-          git show main:.github/scripts/autoroll_lts.py > "${RUNNER_TEMP}/autoroll_lts.py"
+          git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "experimental/derp:experimental/derp"
+          git show experimental/derp:.github/scripts/autoroll_lts.py > "${RUNNER_TEMP}/autoroll_lts.py"
 
           git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "${TARGET_BRANCH}:${TARGET_BRANCH}"
 
