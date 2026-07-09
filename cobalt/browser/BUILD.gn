@@ -40,6 +40,11 @@ source_set("browser") {
     sources += [
       "android/mojo/cobalt_interface_registrar_android.cc",
       "android/mojo/cobalt_interface_registrar_android.h",
+    ]
+  }
+
+  if (is_android) {
+    sources += [
       "android/overlay/cobalt_video_overlay_window.cc",
       "android/overlay/cobalt_video_overlay_window.h",
     ]
@@ -106,18 +111,26 @@ source_set("browser") {
     ]
   }
 
-  if (is_androidtv) {
+  if (is_android) {
     deps += [
-      "//cobalt/android:browser_jni_headers",
       "//cobalt/android:jni_headers",
       "//cobalt/android:pip_jni_headers",
       "//components/embedder_support/android:web_contents_delegate",
       "//components/thin_webview",
       "//components/thin_webview/internal",
-      "//components/variations:variations_associated_data",
       "//ui/android",
     ]
-  } else {
+  }
+
+  if (is_androidtv) {
+    deps += [
+      "//cobalt/android:browser_jni_headers",
+      "//cobalt/android:jni_headers",
+      "//components/variations:variations_associated_data",
+    ]
+  }
+
+  if (!is_android) {
     deps += [ "//cobalt/browser/crash_annotator" ]
   }
 

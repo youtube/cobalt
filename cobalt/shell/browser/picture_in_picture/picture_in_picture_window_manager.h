@@ -18,7 +18,7 @@
 #include <memory>
 
 #include "base/memory/raw_ptr.h"
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 
 namespace content {
 class PictureInPictureWindowController;
@@ -26,10 +26,19 @@ class WebContents;
 enum class PictureInPictureResult;
 }  // namespace content
 
+// PictureInPictureWindowManager coordinates the entry and exit logic for
+// Picture-in-Picture sessions on Android TV.
+//
+// Lifetime and Ownership:
+// It is a singleton (base::Singleton<PictureInPictureWindowManager>), so its
+// lifetime is tied to the lifetime of the browser process.
+//
+// Threading Model:
+// This class is thread-affine and must be used exclusively on the UI thread.
 class PictureInPictureWindowManager {
  public:
   // Returns the singleton instance.
-  static PictureInPictureWindowManager* GetInstance();
+  static PictureInPictureWindowManager& GetInstance();
 
   content::PictureInPictureResult EnterVideoPictureInPicture(
       content::WebContents*);
@@ -51,7 +60,8 @@ class PictureInPictureWindowManager {
   content::WebContents* GetWebContents() const;
 
  private:
-  friend struct base::DefaultSingletonTraits<PictureInPictureWindowManager>;
+  friend class base::NoDestructor<PictureInPictureWindowManager>;
+
   class VideoWebContentsObserver;
 
   PictureInPictureWindowManager();

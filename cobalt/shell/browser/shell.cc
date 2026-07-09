@@ -35,6 +35,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "build/build_config.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager.h"
@@ -1043,15 +1044,15 @@ bool Shell::ShouldAllowRunningInsecureContent(WebContents* web_contents,
 }
 
 PictureInPictureResult Shell::EnterPictureInPicture(WebContents* web_contents) {
+  if (!base::FeatureList::IsEnabled(cobalt::features::kPictureInPicture)) {
+    return PictureInPictureResult::kNotSupported;
+  }
   return PictureInPictureWindowManager::GetInstance()
-      ->EnterVideoPictureInPicture(web_contents);
+      .EnterVideoPictureInPicture(web_contents);
 }
 
-// TODO: b/532272209 - Currently, navigating to the Home screen does not trigger
-// this method, so the PIP window will remain open. PiP window should be closed
-// when navigating out of the app.
 void Shell::ExitPictureInPicture() {
-  PictureInPictureWindowManager::GetInstance()->ExitPictureInPicture();
+  PictureInPictureWindowManager::GetInstance().ExitPictureInPicture();
 }
 
 bool Shell::ShouldResumeRequestsForCreatedWindow() {
