@@ -22,206 +22,120 @@
 
 namespace starboard {
 
-AAudioLoader* AAudioLoader::GetInstance() {
-  static AAudioLoader* instance = []() -> AAudioLoader* {
-    void* lib_handle = dlopen("libaaudio.so", RTLD_NOW);
-    if (!lib_handle) {
-      SB_LOG(INFO) << "AAudio is not supported on this device (failed to load "
-                      "libaaudio.so).";
-      return nullptr;
-    }
-    auto loader =
-        std::make_unique<AAudioLoader>(PassKey<AAudioLoader>(), lib_handle);
-    if (!loader->lib_handle_) {
-      return nullptr;
-    }
-    return loader.release();
-  }();
-  return instance;
-}
+namespace {
 
-AAudioLoader::AAudioLoader(PassKey<AAudioLoader>, void* lib_handle)
-    : lib_handle_(lib_handle) {
-  // Helper macro to resolve and check symbol
-#define RESOLVE_SYMBOL(name)                                         \
-  pfn_##name = (PFN_##name)dlsym(lib_handle_, #name);                \
-  if (!pfn_##name) {                                                 \
-    SB_LOG(WARNING) << "Failed to resolve AAudio symbol: " << #name; \
-    dlclose(lib_handle_);                                            \
-    lib_handle_ = nullptr;                                           \
-    return;                                                          \
+bool LoadSymbols() {
+  void* lib_handle = dlopen("libaaudio.so", RTLD_NOW);
+  if (!lib_handle) {
+    SB_LOG(INFO) << "AAudio is not supported on this device (failed to load "
+                    "libaaudio.so).";
+    return false;
   }
 
-  RESOLVE_SYMBOL(AAudio_convertResultToText);
-  RESOLVE_SYMBOL(AAudio_createStreamBuilder);
-  RESOLVE_SYMBOL(AAudioStreamBuilder_delete);
-  RESOLVE_SYMBOL(AAudioStreamBuilder_setDirection);
-  RESOLVE_SYMBOL(AAudioStreamBuilder_setSharingMode);
-  RESOLVE_SYMBOL(AAudioStreamBuilder_setPerformanceMode);
-  RESOLVE_SYMBOL(AAudioStreamBuilder_setFormat);
-  RESOLVE_SYMBOL(AAudioStreamBuilder_setChannelCount);
-  RESOLVE_SYMBOL(AAudioStreamBuilder_setSampleRate);
-  RESOLVE_SYMBOL(AAudioStreamBuilder_setDataCallback);
-  RESOLVE_SYMBOL(AAudioStreamBuilder_setBufferCapacityInFrames);
-  RESOLVE_SYMBOL(AAudioStreamBuilder_openStream);
-  RESOLVE_SYMBOL(AAudioStream_close);
-  RESOLVE_SYMBOL(AAudioStream_requestStart);
-  RESOLVE_SYMBOL(AAudioStream_requestPause);
-  RESOLVE_SYMBOL(AAudioStream_requestStop);
-  RESOLVE_SYMBOL(AAudioStream_requestFlush);
-  RESOLVE_SYMBOL(AAudioStream_getState);
-  RESOLVE_SYMBOL(AAudioStream_getTimestamp);
-  RESOLVE_SYMBOL(AAudioStream_write);
-  RESOLVE_SYMBOL(AAudioStream_setBufferSizeInFrames);
-  RESOLVE_SYMBOL(AAudioStream_waitForStateChange);
-  RESOLVE_SYMBOL(AAudioStream_getBufferSizeInFrames);
-  RESOLVE_SYMBOL(AAudioStream_getFramesPerBurst);
-  RESOLVE_SYMBOL(AAudioStream_getFramesRead);
-  RESOLVE_SYMBOL(AAudioStream_getXRunCount);
+#define RESOLVE_SYMBOL(c_name, static_name)                            \
+  using PFN_##c_name = decltype(AAudio::static_name);                  \
+  AAudio::static_name =                                                \
+      reinterpret_cast<PFN_##c_name>(dlsym(lib_handle, #c_name));      \
+  if (!AAudio::static_name) {                                          \
+    SB_LOG(WARNING) << "Failed to resolve AAudio symbol: " << #c_name; \
+    dlclose(lib_handle);                                               \
+    return false;                                                      \
+  }
+
+  RESOLVE_SYMBOL(AAudio_convertResultToText, ConvertResultToText);
+  RESOLVE_SYMBOL(AAudio_createStreamBuilder, CreateStreamBuilder);
+  RESOLVE_SYMBOL(AAudioStreamBuilder_delete, StreamBuilder_Delete);
+  RESOLVE_SYMBOL(AAudioStreamBuilder_setDirection, StreamBuilder_SetDirection);
+  RESOLVE_SYMBOL(AAudioStreamBuilder_setSharingMode,
+                 StreamBuilder_SetSharingMode);
+  RESOLVE_SYMBOL(AAudioStreamBuilder_setPerformanceMode,
+                 StreamBuilder_SetPerformanceMode);
+  RESOLVE_SYMBOL(AAudioStreamBuilder_setFormat, StreamBuilder_SetFormat);
+  RESOLVE_SYMBOL(AAudioStreamBuilder_setChannelCount,
+                 StreamBuilder_SetChannelCount);
+  RESOLVE_SYMBOL(AAudioStreamBuilder_setSampleRate,
+                 StreamBuilder_SetSampleRate);
+  RESOLVE_SYMBOL(AAudioStreamBuilder_setDataCallback,
+                 StreamBuilder_SetDataCallback);
+  RESOLVE_SYMBOL(AAudioStreamBuilder_setBufferCapacityInFrames,
+                 StreamBuilder_SetBufferCapacityInFrames);
+  RESOLVE_SYMBOL(AAudioStreamBuilder_openStream, StreamBuilder_OpenStream);
+  RESOLVE_SYMBOL(AAudioStream_close, Stream_Close);
+  RESOLVE_SYMBOL(AAudioStream_requestStart, Stream_RequestStart);
+  RESOLVE_SYMBOL(AAudioStream_requestPause, Stream_RequestPause);
+  RESOLVE_SYMBOL(AAudioStream_requestStop, Stream_RequestStop);
+  RESOLVE_SYMBOL(AAudioStream_requestFlush, Stream_RequestFlush);
+  RESOLVE_SYMBOL(AAudioStream_getState, Stream_GetState);
+  RESOLVE_SYMBOL(AAudioStream_getTimestamp, Stream_GetTimestamp);
+  RESOLVE_SYMBOL(AAudioStream_write, Stream_Write);
+  RESOLVE_SYMBOL(AAudioStream_setBufferSizeInFrames,
+                 Stream_SetBufferSizeInFrames);
+  RESOLVE_SYMBOL(AAudioStream_waitForStateChange, Stream_WaitForStateChange);
+  RESOLVE_SYMBOL(AAudioStream_getBufferSizeInFrames,
+                 Stream_GetBufferSizeInFrames);
+  RESOLVE_SYMBOL(AAudioStream_getFramesPerBurst, Stream_GetFramesPerBurst);
+  RESOLVE_SYMBOL(AAudioStream_getFramesRead, Stream_GetFramesRead);
+  RESOLVE_SYMBOL(AAudioStream_getXRunCount, Stream_GetXRunCount);
 #undef RESOLVE_SYMBOL
 
   SB_LOG(INFO) << "Successfully initialized AAudio NDK API.";
+  return true;
 }
 
-AAudioLoader::~AAudioLoader() {
-  if (lib_handle_) {
-    dlclose(lib_handle_);
-  }
-}
+}  // namespace
 
-// Wrapper implementations
-const char* AAudioLoader::convertResultToText(aaudio_result_t returnCode) {
-  return pfn_AAudio_convertResultToText(returnCode);
-}
+// Define static function pointer members.
+const char* (*AAudio::ConvertResultToText)(aaudio_result_t) = nullptr;
+aaudio_result_t (*AAudio::CreateStreamBuilder)(AAudioStreamBuilder**) = nullptr;
+aaudio_result_t (*AAudio::StreamBuilder_Delete)(AAudioStreamBuilder*) = nullptr;
+void (*AAudio::StreamBuilder_SetDirection)(AAudioStreamBuilder*,
+                                           aaudio_direction_t) = nullptr;
+void (*AAudio::StreamBuilder_SetSharingMode)(AAudioStreamBuilder*,
+                                             aaudio_sharing_mode_t) = nullptr;
+void (*AAudio::StreamBuilder_SetPerformanceMode)(AAudioStreamBuilder*,
+                                                 aaudio_performance_mode_t) =
+    nullptr;
+void (*AAudio::StreamBuilder_SetFormat)(AAudioStreamBuilder*,
+                                        aaudio_format_t) = nullptr;
+void (*AAudio::StreamBuilder_SetChannelCount)(AAudioStreamBuilder*,
+                                              int32_t) = nullptr;
+void (*AAudio::StreamBuilder_SetSampleRate)(AAudioStreamBuilder*,
+                                            int32_t) = nullptr;
+void (*AAudio::StreamBuilder_SetDataCallback)(AAudioStreamBuilder*,
+                                              AAudioStream_dataCallback,
+                                              void*) = nullptr;
+void (*AAudio::StreamBuilder_SetBufferCapacityInFrames)(AAudioStreamBuilder*,
+                                                        int32_t) = nullptr;
+aaudio_result_t (*AAudio::StreamBuilder_OpenStream)(AAudioStreamBuilder*,
+                                                    AAudioStream**) = nullptr;
+aaudio_result_t (*AAudio::Stream_Close)(AAudioStream*) = nullptr;
+aaudio_result_t (*AAudio::Stream_RequestStart)(AAudioStream*) = nullptr;
+aaudio_result_t (*AAudio::Stream_RequestPause)(AAudioStream*) = nullptr;
+aaudio_result_t (*AAudio::Stream_RequestStop)(AAudioStream*) = nullptr;
+aaudio_result_t (*AAudio::Stream_RequestFlush)(AAudioStream*) = nullptr;
+aaudio_stream_state_t (*AAudio::Stream_GetState)(AAudioStream*) = nullptr;
+aaudio_result_t (*AAudio::Stream_GetTimestamp)(AAudioStream*,
+                                               clockid_t,
+                                               int64_t*,
+                                               int64_t*) = nullptr;
+aaudio_result_t (*AAudio::Stream_Write)(AAudioStream*,
+                                        const void*,
+                                        int32_t,
+                                        int64_t) = nullptr;
+aaudio_result_t (*AAudio::Stream_SetBufferSizeInFrames)(AAudioStream*,
+                                                        int32_t) = nullptr;
+aaudio_result_t (*AAudio::Stream_WaitForStateChange)(AAudioStream*,
+                                                     aaudio_stream_state_t,
+                                                     aaudio_stream_state_t*,
+                                                     int64_t) = nullptr;
+int32_t (*AAudio::Stream_GetBufferSizeInFrames)(AAudioStream*) = nullptr;
+int32_t (*AAudio::Stream_GetFramesPerBurst)(AAudioStream*) = nullptr;
+int64_t (*AAudio::Stream_GetFramesRead)(AAudioStream*) = nullptr;
+int32_t (*AAudio::Stream_GetXRunCount)(AAudioStream*) = nullptr;
 
-aaudio_result_t AAudioLoader::createStreamBuilder(
-    AAudioStreamBuilder** builder) {
-  return pfn_AAudio_createStreamBuilder(builder);
-}
-
-aaudio_result_t AAudioLoader::streamBuilder_delete(
-    AAudioStreamBuilder* builder) {
-  return pfn_AAudioStreamBuilder_delete(builder);
-}
-
-void AAudioLoader::streamBuilder_setDirection(AAudioStreamBuilder* builder,
-                                              aaudio_direction_t direction) {
-  pfn_AAudioStreamBuilder_setDirection(builder, direction);
-}
-
-void AAudioLoader::streamBuilder_setSharingMode(
-    AAudioStreamBuilder* builder,
-    aaudio_sharing_mode_t sharingMode) {
-  pfn_AAudioStreamBuilder_setSharingMode(builder, sharingMode);
-}
-
-void AAudioLoader::streamBuilder_setPerformanceMode(
-    AAudioStreamBuilder* builder,
-    aaudio_performance_mode_t performanceMode) {
-  pfn_AAudioStreamBuilder_setPerformanceMode(builder, performanceMode);
-}
-
-void AAudioLoader::streamBuilder_setFormat(AAudioStreamBuilder* builder,
-                                           aaudio_format_t format) {
-  pfn_AAudioStreamBuilder_setFormat(builder, format);
-}
-
-void AAudioLoader::streamBuilder_setChannelCount(AAudioStreamBuilder* builder,
-                                                 int32_t channelCount) {
-  pfn_AAudioStreamBuilder_setChannelCount(builder, channelCount);
-}
-
-void AAudioLoader::streamBuilder_setSampleRate(AAudioStreamBuilder* builder,
-                                               int32_t sampleRate) {
-  pfn_AAudioStreamBuilder_setSampleRate(builder, sampleRate);
-}
-
-void AAudioLoader::streamBuilder_setDataCallback(
-    AAudioStreamBuilder* builder,
-    AAudioStream_dataCallback callback,
-    void* userData) {
-  pfn_AAudioStreamBuilder_setDataCallback(builder, callback, userData);
-}
-
-void AAudioLoader::streamBuilder_setBufferCapacityInFrames(
-    AAudioStreamBuilder* builder,
-    int32_t numFrames) {
-  pfn_AAudioStreamBuilder_setBufferCapacityInFrames(builder, numFrames);
-}
-
-aaudio_result_t AAudioLoader::streamBuilder_openStream(
-    AAudioStreamBuilder* builder,
-    AAudioStream** stream) {
-  return pfn_AAudioStreamBuilder_openStream(builder, stream);
-}
-
-aaudio_result_t AAudioLoader::stream_close(AAudioStream* stream) {
-  return pfn_AAudioStream_close(stream);
-}
-
-aaudio_result_t AAudioLoader::stream_requestStart(AAudioStream* stream) {
-  return pfn_AAudioStream_requestStart(stream);
-}
-
-aaudio_result_t AAudioLoader::stream_requestPause(AAudioStream* stream) {
-  return pfn_AAudioStream_requestPause(stream);
-}
-
-aaudio_result_t AAudioLoader::stream_requestStop(AAudioStream* stream) {
-  return pfn_AAudioStream_requestStop(stream);
-}
-
-aaudio_result_t AAudioLoader::stream_requestFlush(AAudioStream* stream) {
-  return pfn_AAudioStream_requestFlush(stream);
-}
-
-aaudio_stream_state_t AAudioLoader::stream_getState(AAudioStream* stream) {
-  return pfn_AAudioStream_getState(stream);
-}
-
-aaudio_result_t AAudioLoader::stream_getTimestamp(AAudioStream* stream,
-                                                  clockid_t clockId,
-                                                  int64_t* framePosition,
-                                                  int64_t* timeNanoseconds) {
-  return pfn_AAudioStream_getTimestamp(stream, clockId, framePosition,
-                                       timeNanoseconds);
-}
-
-aaudio_result_t AAudioLoader::stream_write(AAudioStream* stream,
-                                           const void* buffer,
-                                           int32_t numFrames,
-                                           int64_t timeoutNanoseconds) {
-  return pfn_AAudioStream_write(stream, buffer, numFrames, timeoutNanoseconds);
-}
-
-aaudio_result_t AAudioLoader::stream_setBufferSizeInFrames(AAudioStream* stream,
-                                                           int32_t numFrames) {
-  return pfn_AAudioStream_setBufferSizeInFrames(stream, numFrames);
-}
-
-aaudio_result_t AAudioLoader::stream_waitForStateChange(
-    AAudioStream* stream,
-    aaudio_stream_state_t inputState,
-    aaudio_stream_state_t* nextState,
-    int64_t timeoutNanoseconds) {
-  return pfn_AAudioStream_waitForStateChange(stream, inputState, nextState,
-                                             timeoutNanoseconds);
-}
-
-int32_t AAudioLoader::stream_getBufferSizeInFrames(AAudioStream* stream) {
-  return pfn_AAudioStream_getBufferSizeInFrames(stream);
-}
-
-int32_t AAudioLoader::stream_getFramesPerBurst(AAudioStream* stream) {
-  return pfn_AAudioStream_getFramesPerBurst(stream);
-}
-
-int64_t AAudioLoader::stream_getFramesRead(AAudioStream* stream) {
-  return pfn_AAudioStream_getFramesRead(stream);
-}
-
-int32_t AAudioLoader::stream_getXRunCount(AAudioStream* stream) {
-  return pfn_AAudioStream_getXRunCount(stream);
+bool AAudio::Load() {
+  static const bool is_supported = LoadSymbols();
+  return is_supported;
 }
 
 }  // namespace starboard

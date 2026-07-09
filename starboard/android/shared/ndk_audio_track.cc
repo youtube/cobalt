@@ -35,6 +35,15 @@ namespace {
 
 constexpr int64_t kStateChangeTimeoutNs = 100'000'000;  // 100 ms
 
+void ScaleSamples(Span<const float> samples,
+                  double volume,
+                  std::vector<float>* scaled_samples) {
+  scaled_samples->resize(samples.size());
+  for (size_t i = 0; i < samples.size(); ++i) {
+    (*scaled_samples)[i] = samples.data()[i] * volume;
+  }
+}
+
 }  // namespace
 
 // static
@@ -49,62 +58,56 @@ std::unique_ptr<NdkAudioTrack> NdkAudioTrack::Create(
   SB_CHECK_EQ(coding_type, kSbMediaAudioCodingTypePcm);
   SB_CHECK_EQ(sample_type, kSbMediaAudioSampleTypeFloat32);
 
-  AAudioLoader* loader = AAudioLoader::GetInstance();
-  if (!loader) {
+  if (!AAudio::Load()) {
     return nullptr;
   }
 
   AAudioStreamBuilder* builder = nullptr;
-  auto result = loader->createStreamBuilder(&builder);
+  auto result = AAudio::CreateStreamBuilder(&builder);
   if (result != AAUDIO_OK || !builder) {
     SB_LOG(ERROR) << "AAudio_createStreamBuilder failed: "
-                  << loader->convertResultToText(result);
+                  << AAudio::ConvertResultToText(result);
     return nullptr;
   }
 
-  loader->streamBuilder_setDirection(builder, AAUDIO_DIRECTION_OUTPUT);
-  loader->streamBuilder_setSharingMode(builder, AAUDIO_SHARING_MODE_SHARED);
-  loader->streamBuilder_setSampleRate(builder, sampling_frequency_hz);
-  loader->streamBuilder_setChannelCount(builder, channels);
-  loader->streamBuilder_setFormat(builder, AAUDIO_FORMAT_PCM_FLOAT);
+  AAudio::StreamBuilder_SetDirection(builder, AAUDIO_DIRECTION_OUTPUT);
+  AAudio::StreamBuilder_SetSharingMode(builder, AAUDIO_SHARING_MODE_SHARED);
+  AAudio::StreamBuilder_SetSampleRate(builder, sampling_frequency_hz);
+  AAudio::StreamBuilder_SetChannelCount(builder, channels);
+  AAudio::StreamBuilder_SetFormat(builder, AAUDIO_FORMAT_PCM_FLOAT);
 
   std::optional<int> preferred_frames;
   if (preferred_buffer_size_in_bytes > 0) {
     preferred_frames =
         preferred_buffer_size_in_bytes / (channels * sizeof(float));
-    loader->streamBuilder_setBufferCapacityInFrames(builder, *preferred_frames);
+    AAudio::StreamBuilder_SetBufferCapacityInFrames(builder, *preferred_frames);
   }
 
   AAudioStream* stream = nullptr;
-  result = loader->streamBuilder_openStream(builder, &stream);
-  loader->streamBuilder_delete(builder);
+  result = AAudio::StreamBuilder_OpenStream(builder, &stream);
+  AAudio::StreamBuilder_Delete(builder);
 
   if (result != AAUDIO_OK || !stream) {
     SB_LOG(ERROR) << "AAudioStreamBuilder_openStream failed: "
-                  << loader->convertResultToText(result);
+                  << AAudio::ConvertResultToText(result);
     return nullptr;
   }
 
   if (preferred_frames) {
-    loader->stream_setBufferSizeInFrames(stream, *preferred_frames);
+    AAudio::Stream_SetBufferSizeInFrames(stream, *preferred_frames);
   }
 
-  return std::make_unique<NdkAudioTrack>(PassKey<NdkAudioTrack>(), loader,
-                                         stream, channels,
-                                         sampling_frequency_hz, *sample_type);
+  return std::make_unique<NdkAudioTrack>(PassKey<NdkAudioTrack>(), stream,
+                                         channels, sampling_frequency_hz,
+                                         *sample_type);
 }
 
 NdkAudioTrack::NdkAudioTrack(PassKey<NdkAudioTrack>,
-                             AAudioLoader* loader,
                              AAudioStream* stream,
                              int channels,
                              int sampling_frequency_hz,
                              SbMediaAudioSampleType sample_type)
-    : loader_(loader),
-      stream_(stream, AAudioStreamDeleter{loader}),
-      channels_(channels),
-      sample_type_(sample_type) {
-  SB_CHECK(loader_);
+    : stream_(stream), channels_(channels), sample_type_(sample_type) {
   SB_CHECK(stream_);
   SB_LOG(INFO) << "NdkAudioTrack is created: channels=" << channels
                << ", sampling_rate=" << sampling_frequency_hz
@@ -116,10 +119,10 @@ NdkAudioTrack::~NdkAudioTrack() {
 }
 
 void NdkAudioTrack::Play() {
-  if (auto result = loader_->stream_requestStart(stream_.get());
+  if (auto result = AAudio::Stream_RequestStart(stream_.get());
       result != AAUDIO_OK) {
     SB_LOG(ERROR) << "stream_requestStart failed: "
-                  << loader_->convertResultToText(result);
+                  << AAudio::ConvertResultToText(result);
   }
 }
 
@@ -127,10 +130,10 @@ void NdkAudioTrack::Pause() {
   if (!IsStreamActive()) {
     return;
   }
-  if (auto result = loader_->stream_requestPause(stream_.get());
+  if (auto result = AAudio::Stream_RequestPause(stream_.get());
       result != AAUDIO_OK) {
     SB_LOG(ERROR) << "stream_requestPause failed: "
-                  << loader_->convertResultToText(result);
+                  << AAudio::ConvertResultToText(result);
   }
 }
 
@@ -138,29 +141,29 @@ void NdkAudioTrack::Stop() {
   if (!IsStreamActive()) {
     return;
   }
-  if (auto result = loader_->stream_requestStop(stream_.get());
+  if (auto result = AAudio::Stream_RequestStop(stream_.get());
       result != AAUDIO_OK) {
     SB_LOG(ERROR) << "stream_requestStop failed: "
-                  << loader_->convertResultToText(result);
+                  << AAudio::ConvertResultToText(result);
   }
 }
 
 void NdkAudioTrack::PauseAndFlush() {
   if (IsStreamActive()) {
-    if (auto result = loader_->stream_requestPause(stream_.get());
+    if (auto result = AAudio::Stream_RequestPause(stream_.get());
         result != AAUDIO_OK) {
       SB_LOG(WARNING) << "stream_requestPause failed: "
-                      << loader_->convertResultToText(result);
+                      << AAudio::ConvertResultToText(result);
       return;
     }
   }
 
-  aaudio_stream_state_t current_state = loader_->stream_getState(stream_.get());
+  aaudio_stream_state_t current_state = AAudio::Stream_GetState(stream_.get());
   aaudio_stream_state_t next_state = AAUDIO_STREAM_STATE_UNINITIALIZED;
   while (current_state == AAUDIO_STREAM_STATE_STARTED ||
          current_state == AAUDIO_STREAM_STATE_STARTING ||
          current_state == AAUDIO_STREAM_STATE_PAUSING) {
-    if (aaudio_result_t result = loader_->stream_waitForStateChange(
+    if (aaudio_result_t result = AAudio::Stream_WaitForStateChange(
             stream_.get(), current_state, &next_state, kStateChangeTimeoutNs);
         result != AAUDIO_OK || current_state == next_state) {
       break;  // Timeout or error occurred
@@ -174,38 +177,41 @@ void NdkAudioTrack::PauseAndFlush() {
     return;
   }
 
-  if (auto result = loader_->stream_requestFlush(stream_.get());
+  if (auto result = AAudio::Stream_RequestFlush(stream_.get());
       result != AAUDIO_OK) {
     SB_LOG(ERROR) << "stream_requestFlush failed: "
-                  << loader_->convertResultToText(result);
+                  << AAudio::ConvertResultToText(result);
   }
 }
 
 bool NdkAudioTrack::IsStreamActive() const {
-  aaudio_stream_state_t state = loader_->stream_getState(stream_.get());
+  aaudio_stream_state_t state = AAudio::Stream_GetState(stream_.get());
   return state == AAUDIO_STREAM_STATE_STARTING ||
          state == AAUDIO_STREAM_STATE_STARTED;
 }
 
 int NdkAudioTrack::WriteSample(Span<const float> samples) {
-  if (!stream_) {
-    return kAudioTrackErrorDeadObject;
-  }
   SB_CHECK_EQ(sample_type_, kSbMediaAudioSampleTypeFloat32);
   SB_CHECK_EQ(samples.size() % channels_, 0u);
 
-  Span<const float> samples_to_write = ScaleSamplesIfNeeded(samples);
+  Span<const float> samples_to_write = samples;
+  double volume = volume_.load(std::memory_order_relaxed);
+  if (volume != 1.0) {
+    ScaleSamples(samples, volume, &scaled_samples_float_);
+    samples_to_write =
+        MakeSpan(scaled_samples_float_.data(), scaled_samples_float_.size());
+  }
 
-  int num_frames = samples.size() / channels_;
+  int num_frames = samples_to_write.size() / channels_;
   aaudio_result_t result =
-      loader_->stream_write(stream_.get(), samples_to_write.data(), num_frames,
-                            /*timeoutNanoseconds=*/0);
+      AAudio::Stream_Write(stream_.get(), samples_to_write.data(), num_frames,
+                           /*timeoutNanoseconds=*/0);
   if (result == AAUDIO_ERROR_DISCONNECTED) {
     return kAudioTrackErrorDeadObject;
   }
   if (result < 0) {
     SB_LOG(ERROR) << "stream_write (float) failed: "
-                  << loader_->convertResultToText(result);
+                  << AAudio::ConvertResultToText(result);
     return result;
   }
   return result * channels_;
@@ -223,37 +229,21 @@ int NdkAudioTrack::WriteSample(Span<const uint8_t> buffer, int64_t sync_time) {
 }
 
 void NdkAudioTrack::SetPlaybackRate(double playback_rate) {
-  playback_rate_.store(playback_rate, std::memory_order_relaxed);
+  if (playback_rate != 1.0) {
+    SB_LOG(WARNING) << "AAudio NDK stream does not support setting playback "
+                       "rate: playback_rate="
+                    << playback_rate;
+  }
 }
 
 void NdkAudioTrack::SetVolume(double volume) {
   volume_.store(volume, std::memory_order_relaxed);
 }
 
-Span<const float> NdkAudioTrack::ScaleSamplesIfNeeded(
-    Span<const float> samples) {
-  double volume = volume_.load(std::memory_order_relaxed);
-  if (volume == 1.0) {
-    return samples;
-  }
-  scaled_samples_float_.resize(samples.size());
-  for (size_t i = 0; i < samples.size(); ++i) {
-    scaled_samples_float_[i] = samples.data()[i] * volume;
-  }
-  return MakeSpan(scaled_samples_float_.data(), scaled_samples_float_.size());
-}
-
 int64_t NdkAudioTrack::GetAudioTimestamp(int64_t* updated_at) {
-  if (!stream_) {
-    if (updated_at) {
-      *updated_at = CurrentMonotonicTime();
-    }
-    return 0;
-  }
-
   int64_t frame_position = 0;
   int64_t time_nanoseconds = 0;
-  aaudio_result_t result = loader_->stream_getTimestamp(
+  aaudio_result_t result = AAudio::Stream_GetTimestamp(
       stream_.get(), CLOCK_MONOTONIC, &frame_position, &time_nanoseconds);
   if (result == AAUDIO_OK) {
     if (updated_at) {
@@ -265,36 +255,38 @@ int64_t NdkAudioTrack::GetAudioTimestamp(int64_t* updated_at) {
   if (updated_at) {
     *updated_at = CurrentMonotonicTime();
   }
-  return loader_->stream_getFramesRead(stream_.get());
+  int64_t frames_read = AAudio::Stream_GetFramesRead(stream_.get());
+  if (frames_read < 0) {
+    SB_LOG(WARNING) << "stream_getFramesRead failed: "
+                    << AAudio::ConvertResultToText(
+                           static_cast<aaudio_result_t>(frames_read));
+    return 0;
+  }
+  return frames_read;
 }
 
 bool NdkAudioTrack::GetAndResetHasAudioDeviceChanged() {
-  if (!stream_) {
+  if (has_reported_device_changed_) {
+    return false;
+  }
+  aaudio_stream_state_t state = AAudio::Stream_GetState(stream_.get());
+  if (state == AAUDIO_STREAM_STATE_DISCONNECTED) {
+    has_reported_device_changed_ = true;
     return true;
   }
-  aaudio_stream_state_t state = loader_->stream_getState(stream_.get());
-  return state == AAUDIO_STREAM_STATE_DISCONNECTED;
+  return false;
 }
 
 int NdkAudioTrack::GetUnderrunCount() {
-  if (!stream_) {
-    return 0;
-  }
-  return loader_->stream_getXRunCount(stream_.get());
+  return AAudio::Stream_GetXRunCount(stream_.get());
 }
 
 int NdkAudioTrack::GetStartThresholdInFrames() {
-  if (!stream_) {
-    return 0;
-  }
-  return loader_->stream_getFramesPerBurst(stream_.get());
+  return AAudio::Stream_GetFramesPerBurst(stream_.get());
 }
 
 AudioTrack::PlayState NdkAudioTrack::GetPlayState() {
-  if (!stream_) {
-    return AudioTrack::PlayState::kStopped;
-  }
-  aaudio_stream_state_t state = loader_->stream_getState(stream_.get());
+  aaudio_stream_state_t state = AAudio::Stream_GetState(stream_.get());
   switch (state) {
     case AAUDIO_STREAM_STATE_STARTING:
     case AAUDIO_STREAM_STATE_STARTED:

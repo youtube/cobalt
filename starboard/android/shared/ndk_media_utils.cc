@@ -84,35 +84,36 @@ std::string ToString(media_status_t status) {
 std::string ToString(aaudio_stream_state_t state) {
   switch (state) {
     case AAUDIO_STREAM_STATE_UNINITIALIZED:
-      return "UNINITIALIZED";
+      return "AAUDIO_STREAM_STATE_UNINITIALIZED";
     case AAUDIO_STREAM_STATE_UNKNOWN:
-      return "UNKNOWN";
+      return "AAUDIO_STREAM_STATE_UNKNOWN";
     case AAUDIO_STREAM_STATE_OPEN:
-      return "OPEN";
+      return "AAUDIO_STREAM_STATE_OPEN";
     case AAUDIO_STREAM_STATE_STARTING:
-      return "STARTING";
+      return "AAUDIO_STREAM_STATE_STARTING";
     case AAUDIO_STREAM_STATE_STARTED:
-      return "STARTED";
+      return "AAUDIO_STREAM_STATE_STARTED";
     case AAUDIO_STREAM_STATE_PAUSING:
-      return "PAUSING";
+      return "AAUDIO_STREAM_STATE_PAUSING";
     case AAUDIO_STREAM_STATE_PAUSED:
-      return "PAUSED";
+      return "AAUDIO_STREAM_STATE_PAUSED";
     case AAUDIO_STREAM_STATE_FLUSHING:
-      return "FLUSHING";
+      return "AAUDIO_STREAM_STATE_FLUSHING";
     case AAUDIO_STREAM_STATE_FLUSHED:
-      return "FLUSHED";
+      return "AAUDIO_STREAM_STATE_FLUSHED";
     case AAUDIO_STREAM_STATE_STOPPING:
-      return "STOPPING";
+      return "AAUDIO_STREAM_STATE_STOPPING";
     case AAUDIO_STREAM_STATE_STOPPED:
-      return "STOPPED";
+      return "AAUDIO_STREAM_STATE_STOPPED";
     case AAUDIO_STREAM_STATE_CLOSING:
-      return "CLOSING";
+      return "AAUDIO_STREAM_STATE_CLOSING";
     case AAUDIO_STREAM_STATE_CLOSED:
-      return "CLOSED";
+      return "AAUDIO_STREAM_STATE_CLOSED";
     case AAUDIO_STREAM_STATE_DISCONNECTED:
-      return "DISCONNECTED";
+      return "AAUDIO_STREAM_STATE_DISCONNECTED";
   }
-  return "UNKNOWN_STATE (" + std::to_string(static_cast<int>(state)) + ")";
+  return "UNKNOWN_AAUDIO_STREAM_STATE (" +
+         std::to_string(static_cast<int>(state)) + ")";
 }
 
 }  // namespace starboard
