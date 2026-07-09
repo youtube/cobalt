@@ -27,6 +27,7 @@
 #include "content/public/browser/content_browser_client.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "services/network/public/mojom/network_context.mojom-forward.h"
+#include "third_party/blink/public/common/buildflags.h"
 
 class PrefService;
 
@@ -119,7 +120,7 @@ class ShellContentBrowserClient : public ContentBrowserClient {
   void OverrideWebPreferences(WebContents* web_contents,
                               SiteInstance& main_frame_site,
                               blink::web_pref::WebPreferences* prefs) override;
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   std::unique_ptr<content::DevToolsManagerDelegate>
   CreateDevToolsManagerDelegate() override;
 #endif

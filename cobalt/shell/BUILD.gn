@@ -245,7 +245,7 @@ static_library("cobalt_shell_lib") {
     "renderer/shell_content_renderer_client.h",
   ]
 
-  if (!cobalt_is_release_build) {
+  if (enable_devtools_backend) {
     sources += [
       "browser/shell_devtools_bindings.cc",
       "browser/shell_devtools_bindings.h",

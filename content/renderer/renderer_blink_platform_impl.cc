@@ -90,6 +90,7 @@
 #include "services/service_manager/public/cpp/interface_provider.h"
 #include "services/viz/public/cpp/gpu/context_provider_command_buffer.h"
 #include "storage/common/database/database_identifier.h"
+#include "third_party/blink/public/common/buildflags.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/origin_trials/trial_token_validator.h"
 #include "third_party/blink/public/common/security/protocol_handler_security_level.h"
@@ -1027,8 +1028,10 @@ std::unique_ptr<media::MediaLog> RendererBlinkPlatformImpl::GetMediaLog(
         media::GetNextMediaPlayerLoggingID()));
 
   // For devtools' media tab.
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   handlers.push_back(
       std::make_unique<InspectorMediaEventHandler>(inspector_context));
+#endif
 
   return std::make_unique<BatchingMediaLog>(owner_task_runner,
                                             std::move(handlers));

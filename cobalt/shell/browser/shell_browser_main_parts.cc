@@ -25,9 +25,6 @@
 #include "cobalt/shell/android/shell_descriptors.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_browser_context.h"
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-#include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
-#endif
 #include "cobalt/shell/browser/shell_platform_delegate.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/performance_manager/embedder/graph_features.h"
@@ -44,9 +41,14 @@
 #include "net/base/net_module.h"
 #include "net/base/url_util.h"
 #include "net/grit/net_resources.h"
+#include "third_party/blink/public/common/buildflags.h"
 #include "ui/base/buildflags.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "url/gurl.h"
+
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+#include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
+#endif
 
 #if BUILDFLAG(IS_ANDROID)
 #include "components/crash/content/browser/child_exit_observer_android.h"
@@ -209,7 +211,7 @@ int ShellBrowserMainParts::PreMainMessageLoopRun() {
   InitializeBrowserContexts();
   Shell::Initialize(CreateShellPlatformDelegate(), is_visible_);
   net::NetModule::SetResourceProvider(PlatformResourceProvider);
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   ShellDevToolsManagerDelegate::StartHttpHandler(browser_context_.get());
 #endif
   InitializeMessageLoopContext();
@@ -223,7 +225,7 @@ void ShellBrowserMainParts::WillRunMainMessageLoop(
 
 void ShellBrowserMainParts::PostMainMessageLoopRun() {
   DCHECK_EQ(Shell::windows().size(), 0u);
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   ShellDevToolsManagerDelegate::StopHttpHandler();
 #endif
   browser_context_.reset();

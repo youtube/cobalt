@@ -26,6 +26,7 @@
 #include "content/public/browser/generated_code_cache_settings.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "starboard/window.h"
+#include "third_party/blink/public/common/buildflags.h"
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "ui/ozone/platform/starboard/platform_window_starboard.h"
@@ -80,7 +81,7 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   // ShellContentBrowserClient overrides.
   std::unique_ptr<content::BrowserMainParts> CreateBrowserMainParts(
       bool is_integration_test) override;
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   std::unique_ptr<content::DevToolsManagerDelegate>
   CreateDevToolsManagerDelegate() override;
 #endif

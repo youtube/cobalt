@@ -77,6 +77,7 @@
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
+#include "third_party/blink/public/common/buildflags.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 
 #if BUILDFLAG(IS_STARBOARD)
@@ -260,7 +261,7 @@ CobaltContentBrowserClient::CreateBrowserMainParts(
   return browser_main_parts;
 }
 
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 std::unique_ptr<content::DevToolsManagerDelegate>
 CobaltContentBrowserClient::CreateDevToolsManagerDelegate() {
   return content::ShellContentBrowserClient::CreateDevToolsManagerDelegate();
