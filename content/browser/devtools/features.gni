@@ -4,11 +4,9 @@
 
 import("//build/config/chrome_build.gni")
 
-declare_args() {
-  # Android (non-desktop) and iOS don't support DevTools front-end.
-  enable_devtools_frontend =
-      (!is_android || is_desktop_android) && !is_ios && !is_fuchsia
+# Android (non-desktop) and iOS don't support DevTools front-end.
+enable_devtools_frontend =
+    (!is_android || is_desktop_android) && !is_ios && !is_fuchsia && !is_cobalt
 
-  # Controls whether the DevTools backend (debugging agent) is enabled.
-  enable_devtools_backend = true
-}
+enable_devtools_backend =
+    enable_devtools_frontend || (is_cobalt && !cobalt_is_release_build)

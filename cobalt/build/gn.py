@@ -40,15 +40,12 @@ _BUILD_TYPES = {
         'symbol_level': 1,
         'is_official_build': 'true',
         # Enable stack traces, disabled by is_official_build
-        'exclude_unwind_tables': 'false',
-        'enable_devtools_frontend': 'false'
+        'exclude_unwind_tables': 'false'
     },
     'gold': {
         'symbol_level': 1,
         'is_official_build': 'true',
-        'cobalt_is_release_build': 'true',
-        'enable_devtools_frontend': 'false',
-        'enable_devtools_backend': 'false'
+        'cobalt_is_release_build': 'true'
     }
 }
 

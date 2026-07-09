@@ -123,6 +123,7 @@ repack("pak") {
   testonly = true
   sources = [
     "$root_gen_dir/chrome/webui_gallery_resources.pak",
+    "$root_gen_dir/content/browser/devtools/devtools_resources.pak",
     "$root_gen_dir/mojo/public/js/mojo_bindings_resources.pak",
     "$root_gen_dir/third_party/blink/public/resources/blink_resources.pak",
     "$root_gen_dir/third_party/blink/public/resources/blink_scaled_resources_100_percent.pak",
@@ -137,6 +138,7 @@ repack("pak") {
     ":resources",
     "resources/browser:resources",
     "//chrome/browser/resources/webui_gallery:resources",
+    "//content/browser/devtools:devtools_resources",
     "//mojo/public/js:resources",
     "//third_party/blink/public:devtools_inspector_resources",
     "//third_party/blink/public:resources",
@@ -144,12 +146,18 @@ repack("pak") {
     "//ui/strings",
     "//ui/webui/resources",
   ]
-  if (enable_devtools_frontend) {
-    sources +=
-        [ "$root_gen_dir/content/browser/devtools/devtools_resources.pak" ]
-    deps += [ "//content/browser/devtools:devtools_resources" ]
-  }
   output = "$root_out_dir/webui_examples.pak"
+
+  if (is_cobalt && !enable_devtools_frontend) {
+    sources -= [
+      "$root_gen_dir/content/browser/devtools/devtools_resources.pak",
+      "$root_gen_dir/third_party/blink/public/resources/inspector_overlay_resources.pak",
+    ]
+    deps -= [
+      "//content/browser/devtools:devtools_resources",
+      "//third_party/blink/public:devtools_inspector_resources",
+    ]
+  }
 }
 
 mojom("browser_mojo_bindings") {
