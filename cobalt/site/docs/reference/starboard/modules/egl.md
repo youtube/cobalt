@@ -102,7 +102,7 @@ typedef int32_t SbEglInt32
     SbEglSurface read, SbEglContext ctx)`
 *   `SbEglBoolean(*eglQueryContext)(SbEglDisplay dpy, SbEglContext ctx,
     SbEglInt32 attribute, SbEglInt32 *value)`
-*   `const char *(*eglQueryString)(SbEglDisplay dpy, SbEglInt32 name)`
+*   `const char*(*eglQueryString)(SbEglDisplay dpy, SbEglInt32 name)`
 *   `SbEglBoolean(*eglQuerySurface)(SbEglDisplay dpy, SbEglSurface surface,
     SbEglInt32 attribute, SbEglInt32 *value)`
 *   `SbEglBoolean(*eglSwapBuffers)(SbEglDisplay dpy, SbEglSurface surface)`

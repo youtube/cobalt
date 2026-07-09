@@ -167,12 +167,12 @@ to all Starboard functions that might create SbDecodeTargets.
 
 #### Members
 
-*   `void * egl_display`
+*   `void* egl_display`
 
     A reference to the EGLDisplay object that hosts the EGLContext that will be
     used to render any produced SbDecodeTargets. Note that it has the type
     `void*` in order to avoid including the EGL header files here.
-*   `void * egl_context`
+*   `void* egl_context`
 
     The EGLContext object that will be used to render any produced
     SbDecodeTargets. Note that it has the type `void*` in order to avoid
@@ -183,7 +183,7 @@ to all Starboard functions that might create SbDecodeTargets.
     into the Starboard implementation, and can be invoked by the Starboard
     implementation to allow running arbitrary code on the renderer's thread with
     the EGLContext above held current.
-*   `void * gles_context_runner_context`
+*   `void* gles_context_runner_context`
 
     Context data that is to be passed in to `gles_context_runner` when it is
     invoked.

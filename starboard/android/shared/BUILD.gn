@@ -78,8 +78,6 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/drm/drm_system_internal.h",
     "//starboard/shared/starboard/drm/drm_update_server_certificate.cc",
     "//starboard/shared/starboard/drm/drm_update_session.cc",
-    "//starboard/shared/starboard/experimental_features.cc",
-    "//starboard/shared/starboard/experimental_features.h",
     "//starboard/shared/starboard/file_storage/storage_close_record.cc",
     "//starboard/shared/starboard/file_storage/storage_delete_record.cc",
     "//starboard/shared/starboard/file_storage/storage_get_record_size.cc",
@@ -206,6 +204,10 @@ static_library("starboard_platform") {
     "memfd_media_buffer_pool.cc",
     "memfd_media_buffer_pool.h",
     "microphone_impl.cc",
+    "ndk_media_codec.cc",
+    "ndk_media_codec.h",
+    "ndk_media_utils.cc",
+    "ndk_media_utils.h",
     "platform_info.cc",
     "platform_info.h",
     "platform_service.cc",
@@ -397,6 +399,8 @@ static_library("test_support") {
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
+  public_deps = [ "//starboard/testing:test_runner" ]
+
   deps = [
     ":starboard_platform",
     "//testing/gmock",
@@ -413,6 +417,7 @@ static_library("test_support") {
     "fake_media_codec.h",
     "starboard_test_environment.cc",
     "starboard_test_environment.h",
+    "test_runner.cc",
   ]
 }
 

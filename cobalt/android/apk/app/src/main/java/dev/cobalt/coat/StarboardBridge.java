@@ -34,7 +34,6 @@ import android.view.accessibility.CaptioningManager;
 import androidx.annotation.Nullable;
 import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.media.ExoPlayerManager;
-import dev.cobalt.shell.StartupGuard;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
@@ -46,7 +45,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.ConcurrentHashMap;
-import org.chromium.content_public.browser.WebContents;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -69,14 +67,11 @@ public class StarboardBridge {
   // TODO(cobalt): Re-enable these classes or remove if unnecessary.
   private AudioOutputManager mAudioOutputManager;
   private ExoPlayerManager mExoPlayerManager;
-  private CobaltMediaSession mCobaltMediaSession;
   private AudioPermissionRequester mAudioPermissionRequester;
   private ResourceOverlay mResourceOverlay;
   private AdvertisingId mAdvertisingId;
-  private VolumeStateReceiver mVolumeStateReceiver;
-  private PlatformError mPlatformError;
   private final Context mAppContext;
-  private final Holder<Activity> mActivityHolder;
+  protected final Holder<Activity> mActivityHolder;
   private final Holder<Service> mServiceHolder;
   private final String[] mArgs;
   private final long mNativeApp;
@@ -116,7 +111,6 @@ public class StarboardBridge {
       Context appContext,
       Holder<Activity> activityHolder,
       Holder<Service> serviceHolder,
-      ArtworkDownloader artworkDownloader,
       String[] args,
       String startDeepLink) {
 
@@ -133,12 +127,10 @@ public class StarboardBridge {
     mSysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, mStopRequester);
     mTtsHelper = new CobaltTextToSpeechHelper(appContext);
     mAudioOutputManager = new AudioOutputManager(appContext);
-    this.mExoPlayerManager = new ExoPlayerManager(appContext);
-    mCobaltMediaSession = new CobaltMediaSession(appContext, activityHolder, artworkDownloader);
+    mExoPlayerManager = new ExoPlayerManager(appContext);
     mAudioPermissionRequester = new AudioPermissionRequester(appContext, activityHolder);
     mResourceOverlay = new ResourceOverlay(appContext);
     mAdvertisingId = new AdvertisingId(appContext);
-    mVolumeStateReceiver = new VolumeStateReceiver(appContext);
     mIsAmatiDevice = appContext.getPackageManager().hasSystemFeature(AMATI_EXPERIENCE_FEATURE);
 
     mNativeApp =
@@ -194,7 +186,6 @@ public class StarboardBridge {
   protected void onActivityStop(Activity activity) {
     Log.i(TAG, "onActivityStop ran");
     beforeSuspend();
-    mCobaltMediaSession.onActivityStop();
     if (mActivityHolder.get() == activity) {
       mActivityHolder.set(null);
     }
@@ -306,17 +297,10 @@ public class StarboardBridge {
   }
 
   @CalledByNative
-  void raisePlatformError(@PlatformError.ErrorType int errorType, long data, String url) {
-    StartupGuard.getInstance().setStartupMilestone(37);
-    mPlatformError = new PlatformError(mActivityHolder, errorType, data, url);
-    mPlatformError.raise();
-  }
+  void raisePlatformError(int errorType, long data, String url) {}
 
   @CalledByNative
   public boolean isPlatformErrorShowing() {
-    if (mPlatformError != null) {
-      return mPlatformError.isShowing();
-    }
     return false;
   }
 
@@ -622,10 +606,6 @@ public class StarboardBridge {
     return hdrCapabilities.getSupportedHdrTypes();
   }
 
-  public CobaltMediaSession cobaltMediaSession() {
-    return mCobaltMediaSession;
-  }
-
   public void registerCobaltService(CobaltService.Factory factory) {
     mCobaltServiceFactories.put(factory.getServiceName(), factory);
   }
@@ -774,11 +754,6 @@ public class StarboardBridge {
     }
   }
 
-  public void setWebContents(WebContents webContents) {
-    mCobaltMediaSession.setWebContents(webContents);
-    mVolumeStateReceiver.setWebContents(webContents);
-  }
-
   @CalledByNative
   public void closeApp() {
     Activity activity = mActivityHolder.get();
@@ -809,17 +784,11 @@ public class StarboardBridge {
   }
 
   @CalledByNative
-  protected void hideSplashScreen() {
-    StartupGuard.getInstance().disarm();
-  }
+  protected void hideSplashScreen() {}
 
   @CalledByNative
-  protected void setStartupMilestone(int milestone) {
-    StartupGuard.getInstance().setStartupMilestone(milestone);
-  }
+  protected void setStartupMilestone(int milestone) {}
 
   @CalledByNative
-  protected void setStartupDiagnosisInfo(String key, String value) {
-    StartupGuard.getInstance().setDiagnosisInfo(key, value);
-  }
+  protected void setStartupDiagnosisInfo(String key, String value) {}
 }
