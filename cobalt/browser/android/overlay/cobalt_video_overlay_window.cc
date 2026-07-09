@@ -52,19 +52,42 @@ CobaltVideoOverlayWindow::CobaltVideoOverlayWindow(
 
 CobaltVideoOverlayWindow::~CobaltVideoOverlayWindow() {
   LOG(INFO) << "CobaltVideoOverlayWindow destructor called";
+  if (compositor_view_) {
+    compositor_view_->SetRootLayer(nullptr);
+    compositor_view_ = nullptr;
+  }
   if (window_android_) {
+    OnDetachCompositor();
     window_android_->RemoveObserver(this);
     window_android_ = nullptr;
   }
-  Close();
+  // Do not call Close() here, as it may invoke JNI calls on a destroyed state.
+  if (!java_activity_ref_.is_null()) {
+    JNIEnv* env = base::android::AttachCurrentThread();
+    Java_CobaltPictureInPictureActivity_closeActivity(env, java_activity_ref_);
+    java_activity_ref_.Reset();
+  }
 }
 
 void CobaltVideoOverlayWindow::OnRootWindowVisibilityChanged(bool visible) {}
-void CobaltVideoOverlayWindow::OnAttachCompositor() {}
-void CobaltVideoOverlayWindow::OnDetachCompositor() {}
+void CobaltVideoOverlayWindow::OnAttachCompositor() {
+  if (window_android_ && window_android_->GetCompositor() &&
+      surface_layer_->surface_id().is_valid()) {
+    window_android_->GetCompositor()->AddChildFrameSink(
+        surface_layer_->surface_id().frame_sink_id());
+  }
+}
+
+void CobaltVideoOverlayWindow::OnDetachCompositor() {
+  if (window_android_ && window_android_->GetCompositor() &&
+      surface_layer_->surface_id().is_valid()) {
+    window_android_->GetCompositor()->RemoveChildFrameSink(
+        surface_layer_->surface_id().frame_sink_id());
+  }
+}
 void CobaltVideoOverlayWindow::OnAnimate(base::TimeTicks frame_begin_time) {}
 void CobaltVideoOverlayWindow::OnActivityStopped() {
-  Close();
+  // MainActivity went to the background. Do NOT close PiP!
 }
 void CobaltVideoOverlayWindow::OnActivityStarted() {}
 
@@ -77,7 +100,7 @@ void CobaltVideoOverlayWindow::Close() {
   if (!java_activity_ref_.is_null()) {
     JNIEnv* env = base::android::AttachCurrentThread();
     Java_CobaltPictureInPictureActivity_closeActivity(env, java_activity_ref_);
-    java_activity_ref_.Reset();
+    // Do not reset java_activity_ref_ here. Wait for OnActivityDestroyed.
   }
   is_visible_ = false;
 }
@@ -94,10 +117,10 @@ void CobaltVideoOverlayWindow::Hide() {
   if (!java_activity_ref_.is_null()) {
     JNIEnv* env = base::android::AttachCurrentThread();
     Java_CobaltPictureInPictureActivity_closeActivity(env, java_activity_ref_);
-    java_activity_ref_.Reset();
-  }
-
-  if (controller_) {
+    // Defer destroying the C++ window until Java OnActivityDestroyed comes
+    // back!
+  } else if (controller_) {
+    // If no Java activity exists, we can safely destroy synchronously.
     controller_->OnWindowDestroyed(false /* should_pause_video */);
   }
 }
@@ -114,6 +137,13 @@ void CobaltVideoOverlayWindow::UpdateNaturalSize(
     const gfx::Size& natural_size) {
   LOG(INFO) << "CobaltVideoOverlayWindow::UpdateNaturalSize called with size: "
             << natural_size.ToString();
+  bounds_ = natural_size;
+  if (java_activity_ref_.is_null()) {
+    return;
+  }
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_CobaltPictureInPictureActivity_updateVideoSize(
+      env, java_activity_ref_, bounds_.width(), bounds_.height());
 }
 
 void CobaltVideoOverlayWindow::SetPlaybackState(PlaybackState playback_state) {
@@ -187,12 +217,12 @@ void CobaltVideoOverlayWindow::SetJavaActivity(
 }
 
 void CobaltVideoOverlayWindow::OnActivityDestroyed(JNIEnv* env) {
-  LOG(INFO) << "CobaltVideoOverlayWindow::OnActivityDestroyed called, clearing "
-               "reference";
+  LOG(INFO) << "CobaltVideoOverlayWindow::OnActivityDestroyed called";
   if (window_android_) {
     window_android_->RemoveObserver(this);
     window_android_ = nullptr;
   }
+  compositor_view_ = nullptr;
   java_activity_ref_.Reset();
   is_visible_ = false;
 
@@ -260,11 +290,14 @@ void CobaltVideoOverlayWindow::CreateJavaActivity() {
   }
   base::android::ScopedJavaLocalRef<jobject> j_web_contents =
       web_contents->GetJavaWebContents();
+  if (j_web_contents.is_null()) {
+    LOG(ERROR) << "Java WebContents is null, cannot launch activity";
+    return;
+  }
   JNIEnv* env = base::android::AttachCurrentThread();
   LOG(INFO) << "Calling JNI launchActivity with WebContents=" << web_contents
             << ", window_ptr=" << this;
   Java_CobaltPictureInPictureActivity_launchActivity(
       env, j_web_contents, reinterpret_cast<jlong>(this));
 }
-
 }  // namespace cobalt

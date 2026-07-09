@@ -118,10 +118,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/coat/BaseCobaltActivity.java",
     "apk/app/src/main/java/dev/cobalt/coat/BaseStarboardBridge.java",
     "apk/app/src/main/java/dev/cobalt/coat/CaptionSettings.java",
-    "apk/app/src/main/java/dev/cobalt/coat/CobaltA11yHelper.java",
-    "apk/app/src/main/java/dev/cobalt/coat/CobaltActivity.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltHttpHelper.java",
-    "apk/app/src/main/java/dev/cobalt/coat/CobaltMediaSession.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltService.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltSystemConfigChangeReceiver.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltTextToSpeechHelper.java",
@@ -211,17 +208,15 @@ android_library("cobalt_main_java") {
 }
 
 generate_jni("pip_jni_headers") {
-  sources = []
-  if (is_androidtv) {
-    sources += [ "apk/app/src/main/java/dev/cobalt/coat/CobaltPictureInPictureActivity.java" ]
-  }
+  sources = [
+    "apk/app/src/main/java/dev/cobalt/coat/CobaltPictureInPictureActivity.java",
+  ]
 }
 
 android_library("cobalt_pip_java") {
-  sources = []
-  if (is_androidtv) {
-    sources += [ "apk/app/src/main/java/dev/cobalt/coat/CobaltPictureInPictureActivity.java" ]
-  }
+  sources = [
+    "apk/app/src/main/java/dev/cobalt/coat/CobaltPictureInPictureActivity.java",
+  ]
   srcjar_deps = [ ":pip_jni_headers" ]
   deps = [
     ":cobalt_main_java",

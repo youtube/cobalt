@@ -1045,15 +1045,15 @@ bool Shell::ShouldAllowRunningInsecureContent(WebContents* web_contents,
 }
 
 PictureInPictureResult Shell::EnterPictureInPicture(WebContents* web_contents) {
+  if (!base::FeatureList::IsEnabled(cobalt::features::kPictureInPicture)) {
+    return PictureInPictureResult::kNotSupported;
+  }
   return PictureInPictureWindowManager::GetInstance()
-      ->EnterVideoPictureInPicture(web_contents);
+      .EnterVideoPictureInPicture(web_contents);
 }
 
-// TODO: b/532272209 - Currently, navigating to the Home screen does not trigger
-// this method, so the PIP window will remain open. PiP window should be closed
-// when navigating out of the app.
 void Shell::ExitPictureInPicture() {
-  PictureInPictureWindowManager::GetInstance()->ExitPictureInPicture();
+  PictureInPictureWindowManager::GetInstance().ExitPictureInPicture();
 }
 
 bool Shell::ShouldResumeRequestsForCreatedWindow() {

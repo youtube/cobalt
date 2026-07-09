@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "base/android/scoped_java_ref.h"
+#include "base/memory/raw_ptr.h"
 #include "cc/slim/surface_layer.h"
 #include "components/thin_webview/compositor_view.h"
 #include "content/public/browser/overlay_window.h"
@@ -33,6 +34,17 @@ class VideoPictureInPictureWindowController;
 
 namespace cobalt {
 
+// CobaltVideoOverlayWindow implements the content::VideoOverlayWindow interface
+// to render the Picture-in-Picture video overlay on Android TV using the
+// decode-to-texture path.
+//
+// Lifetime and Ownership:
+// It is owned by the VideoPictureInPictureWindowController via a
+// std::unique_ptr. Its lifetime is tied to the active Picture-in-Picture
+// session.
+//
+// Threading Model:
+// This class is thread-affine and must be used exclusively on the UI thread.
 class CobaltVideoOverlayWindow : public content::VideoOverlayWindow,
                                  public ui::WindowAndroidObserver {
  public:
@@ -89,7 +101,7 @@ class CobaltVideoOverlayWindow : public content::VideoOverlayWindow,
 
  private:
   // Pointer to the controller that owns this window.
-  content::VideoPictureInPictureWindowController* controller_;
+  raw_ptr<content::VideoPictureInPictureWindowController> controller_;
 
   // Tracks the visibility of the overlay window.
   bool is_visible_ = false;
@@ -97,8 +109,8 @@ class CobaltVideoOverlayWindow : public content::VideoOverlayWindow,
   // Reference to the Java Activity instance.
   base::android::ScopedJavaGlobalRef<jobject> java_activity_ref_;
 
-  ui::WindowAndroid* window_android_ = nullptr;
-  thin_webview::android::CompositorView* compositor_view_ = nullptr;
+  raw_ptr<ui::WindowAndroid> window_android_ = nullptr;
+  raw_ptr<thin_webview::android::CompositorView> compositor_view_ = nullptr;
   scoped_refptr<cc::slim::SurfaceLayer> surface_layer_;
   gfx::Size bounds_;
 
