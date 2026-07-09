@@ -397,6 +397,11 @@ def parse_args() -> argparse.Namespace:
         help="Skip configure and build steps.",
     )
     parser.add_argument(
+        "--skip-deploy",
+        action="store_true",
+        help="Skip deployment step (assumes files are already on the device).",
+    )
+    parser.add_argument(
         "--run", action="store_true", help="Run on device after build/deploy.")
     parser.add_argument(
         "--force-deploy",
@@ -655,14 +660,20 @@ def main() -> None:
         setup_toolchain()
         return
 
-    if args.revert_c25:
+    device_ip = args.device_ip
+    device_id = None
+    if not device_ip:
         device_id = get_device_id()
-        revert_to_cobalt_25(device_id)
+
+    if args.revert_c25:
+        revert_to_cobalt_25(device_id, device_ip)
         return
 
     if args.logs or args.system_logs:
-        device_id = get_device_id()
-        cmd = ["adb", "-s", device_id, "shell", "journalctl"]
+        if not device_ip:
+            cmd = ["adb", "-s", device_id, "shell", "journalctl"]
+        else:
+            cmd = ["ssh", "-q", f"root@{device_ip}", "journalctl"]
         if args.logs:
             cmd.extend([
                 "-t",
@@ -683,23 +694,23 @@ def main() -> None:
         return
 
     if args.reset:
-        device_id = get_device_id()
         print("=== Resetting display ===")
-        run_command([
-            "adb", "-s", device_id, "shell", "bash -l -c 'rdkDisplay remove || true'"
-        ])
+        run_remote_command("bash -l -c 'rdkDisplay remove || true'", device_id, device_ip)
         print("=== Restarting WPEFramework ===")
-        run_command([
-            "adb", "-s", device_id, "shell", "systemctl restart wpeframework"
-        ], sleep_time=5)
+        run_remote_command("systemctl restart wpeframework", device_id, device_ip, sleep_time=5)
+        print("=== Cleaning up DevTools ports on host ===")
+        # Always try to kill SSH tunnel on host
+        run_command(["pkill", "-f", "9222:localhost:9222"], check=False)
+        # Try to remove ADB forward if we have a device_id
+        if device_id:
+            run_command(["adb", "-s", device_id, "forward", "--remove", "tcp:9222"], check=False)
         if not (args.run or args.tests or args.force_deploy):
             print("=== Reset finished. ===")
             return
 
-    device_id = get_device_id()
-    assert_software_version(device_id, MIN_SYSTEM_SOFTWARE_VERSION)
+    assert_software_version(device_id, device_ip, MIN_SYSTEM_SOFTWARE_VERSION)
     if args.mode == "plugin" and not args.tests:
-        check_and_switch_cobalt_version(device_id)
+        check_and_switch_cobalt_version(device_id, device_ip)
 
     # Setup Build Paths
     config = args.config or ("devel" if args.tests else "qa")
@@ -744,31 +755,37 @@ def main() -> None:
     # If it doesn't, we must deploy even if the build is up-to-date.
     remote_dir_exists = False
     try:
-        res = subprocess.run(
-            ["adb", "-s", device_id, "shell", f"[ -d {remote_dir} ]"],
-            capture_output=True,
-            timeout=5
-        )
-        remote_dir_exists = (res.returncode == 0)
+        out = run_remote_command(
+            f"[ -d {remote_dir} ] && echo yes || echo no",
+            device_id,
+            device_ip,
+            check=False,
+            verbose=False,
+        ).strip()
+        remote_dir_exists = (out == "yes")
     except Exception as e:
         print(f"[WARNING] Failed to check if remote directory exists: {e}")
 
-    if is_up_to_date and not args.force_deploy and remote_dir_exists:
-        print("=== Up to date. Skipping deployment. ===")
+    skip_deployment = args.skip_deploy or (is_up_to_date and not args.force_deploy and remote_dir_exists)
+
+    deployed_archive = False
+    if skip_deployment:
+        print("=== Skipping deployment ===")
         if not args.run:
             return
     else:
         if args.only_lib:
-            deploy_only_lib(device_id, out_dir, remote_dir)
+            deploy_only_lib(device_id, device_ip, out_dir, remote_dir)
         else:
-            package_and_deploy(device_id, out_dir, remote_dir, deps_file, "executable" if args.tests else args.mode)
+            package_and_deploy(device_id, device_ip, out_dir, remote_dir, deps_file, "executable" if args.tests else args.mode)
+            deployed_archive = True
 
     if args.run:
         launch_on_device(
             device_id,
+            device_ip,
             remote_dir,
-            is_up_to_date,
-            args.force_deploy,
+            deployed_archive,
             args.tests,
             "executable" if args.tests else args.mode,
             config != "gold" and args.mode == "plugin" and not args.tests,
