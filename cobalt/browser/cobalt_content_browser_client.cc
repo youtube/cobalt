@@ -35,6 +35,9 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
+#include "net/proxy_resolution/proxy_config.h"
+#include "net/proxy_resolution/proxy_config_with_annotation.h"
+#include "net/traffic_annotation/network_traffic_annotation.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
@@ -396,6 +399,32 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
         base::FilePath(kTransportSecurityPersisterFilename);
     network_context_params->file_paths->sct_auditing_pending_reports_file_name =
         base::FilePath(kSCTAuditingPendingReportsFileName);
+  }
+
+  // MANUALLY PARSE AND SET PROXY CONFIGURATION FROM COMMAND LINE
+  const base::CommandLine& command_line = *base::CommandLine::ForCurrentProcess();
+  std::string proxy_server;
+  if (command_line.HasSwitch("proxy-server")) {
+    proxy_server = command_line.GetSwitchValueASCII("proxy-server");
+  } else if (command_line.HasSwitch("proxy")) {
+    proxy_server = command_line.GetSwitchValueASCII("proxy");
+  }
+
+  if (!proxy_server.empty()) {
+    net::ProxyConfig proxy_config;
+    proxy_config.proxy_rules().ParseFromString(proxy_server);
+
+    if (command_line.HasSwitch("proxy-bypass-list")) {
+      std::string bypass_list = command_line.GetSwitchValueASCII("proxy-bypass-list");
+      proxy_config.proxy_rules().bypass_rules.ParseFromString(bypass_list);
+    }
+
+    network_context_params->initial_proxy_config =
+        net::ProxyConfigWithAnnotation(
+            proxy_config,
+            net::DefineNetworkTrafficAnnotation("cobalt_manual_proxy",
+                                                "Manually configured proxy via command line"));
+    LOG(INFO) << "Configuring Cobalt to use proxy: " << proxy_server;
   }
 
   network_context_params->enable_certificate_reporting = true;
