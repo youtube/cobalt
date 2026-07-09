@@ -19,7 +19,6 @@ import os
 import subprocess
 import sys
 import tempfile
-from typing import List, Tuple
 
 # Path prefixes that contain files we don't need to run tests.
 _EXCLUDE_DIRS_DEFAULT = [
@@ -34,7 +33,7 @@ _EXCLUDE_DIRS_JUNIT = [
 
 
 def _make_tar(archive_path: str, compression: str, compression_level: int,
-              file_lists: List[Tuple[str, str]]):
+              file_lists: list[tuple[str, str]]):
   """Creates the tar file. Uses tar command instead of tarfile for performance.
   """
   if compression == 'gz':
@@ -133,7 +132,7 @@ def _find_deps_file(*, target: str, target_name: str, target_path: str,
 
 def create_archive(
     *,
-    targets: List[str],
+    targets: list[str],
     source_dir: str,
     out_dir: str,
     destination_dir: str,

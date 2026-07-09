@@ -1500,41 +1500,7 @@ def DumpThreadStacks(_signal, _frame):
     reraiser_thread.LogThreadStack(thread)
 
 
-class _TeeStream(object):
-  def __init__(self, stream, file_obj):
-    self._stream = stream
-    self._file_obj = file_obj
-  def write(self, data):
-    self._stream.write(data)
-    try:
-      if isinstance(data, bytes):
-        data = data.decode('utf-8', 'replace')
-      self._file_obj.write(data)
-      self._file_obj.flush()
-    except Exception:
-      pass
-  def flush(self):
-    self._stream.flush()
-    try:
-      self._file_obj.flush()
-    except Exception:
-      pass
-  def __getattr__(self, name):
-    return getattr(self._stream, name)
-
-
 def main():
-  gen_dir = os.environ.get('MH_GEN_FILE_DIR')
-  if gen_dir:
-    try:
-      log_path = os.path.join(gen_dir, 'test_results.txt')
-      os.makedirs(os.path.dirname(log_path), exist_ok=True)
-      f_log = open(log_path, 'a', encoding='utf-8')
-      sys.stdout = _TeeStream(sys.stdout, f_log)
-      sys.stderr = _TeeStream(sys.stderr, f_log)
-    except Exception:
-      pass
-
   signal.signal(signal.SIGUSR1, DumpThreadStacks)
 
   parser = argparse.ArgumentParser()
