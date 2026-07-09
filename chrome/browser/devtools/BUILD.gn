@@ -307,13 +307,11 @@ static_library("devtools") {
       "serialize_host_descriptions.cc",
       "serialize_host_descriptions.h",
     ]
-    if (enable_devtools_frontend) {
-      if (enable_service_discovery) {
-        sources += [
-          "device/cast_device_provider.cc",
-          "device/cast_device_provider.h",
-        ]
-      }
+    if (enable_devtools_frontend && enable_service_discovery) {
+      sources += [
+        "device/cast_device_provider.cc",
+        "device/cast_device_provider.h",
+      ]
     }
   }
 
@@ -394,7 +392,7 @@ static_library("devtools") {
     ]
   }
 
-  if (is_cobalt && !enable_devtools_frontend) {
+  if (is_cobalt && !enable_devtools_frontend && !is_android) {
     deps += [ "//chrome/browser:browser_process" ]
     sources -= [
       "devtools_infobar_delegate.cc",
