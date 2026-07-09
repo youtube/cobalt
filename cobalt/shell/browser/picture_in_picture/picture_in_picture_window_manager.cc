@@ -14,6 +14,8 @@
 
 #include "cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager.h"
 
+#include "base/metrics/histogram_functions.h"
+#include "base/no_destructor.h"
 #include "content/public/browser/picture_in_picture_window_controller.h"
 #include "content/public/browser/video_picture_in_picture_window_controller.h"
 #include "content/public/browser/web_contents.h"
@@ -21,8 +23,9 @@
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/common/url_constants.h"
 
-PictureInPictureWindowManager* PictureInPictureWindowManager::GetInstance() {
-  return base::Singleton<PictureInPictureWindowManager>::get();
+PictureInPictureWindowManager& PictureInPictureWindowManager::GetInstance() {
+  static base::NoDestructor<PictureInPictureWindowManager> instance;
+  return *instance;
 }
 
 PictureInPictureWindowManager::PictureInPictureWindowManager() = default;
@@ -39,6 +42,11 @@ content::WebContents* PictureInPictureWindowManager::GetWebContents() const {
 content::PictureInPictureResult
 PictureInPictureWindowManager::EnterVideoPictureInPicture(
     content::WebContents* web_contents) {
+  if (!web_contents) {
+    base::UmaHistogramBoolean("Cobalt.PictureInPicture.Enter", false);
+    return content::PictureInPictureResult::kNotSupported;
+  }
+
   if (!pip_window_controller_ ||
       pip_window_controller_->GetWebContents() != web_contents ||
       !pip_window_controller_->GetWebContents()->HasPictureInPictureVideo()) {
@@ -49,16 +57,30 @@ PictureInPictureWindowManager::EnterVideoPictureInPicture(
     CreateWindowInternal(web_contents);
   }
 
+  if (!pip_window_controller_) {
+    base::UmaHistogramBoolean("Cobalt.PictureInPicture.Enter", false);
+    return content::PictureInPictureResult::kNotSupported;
+  }
+
+  base::UmaHistogramBoolean("Cobalt.PictureInPicture.Enter", true);
+
   return content::PictureInPictureResult::kSuccess;
 }
 
 void PictureInPictureWindowManager::EnterPictureInPictureWithController(
     content::PictureInPictureWindowController* pip_window_controller) {
+  if (!pip_window_controller) {
+    base::UmaHistogramBoolean("Cobalt.PictureInPicture.Enter", false);
+    return;
+  }
+
   if (pip_window_controller_) {
     CloseWindowInternal();
   }
 
   pip_window_controller_ = pip_window_controller;
+
+  base::UmaHistogramBoolean("Cobalt.PictureInPicture.Enter", true);
 }
 
 class PictureInPictureWindowManager::VideoWebContentsObserver final
@@ -81,6 +103,12 @@ class PictureInPictureWindowManager::VideoWebContentsObserver final
 };
 
 void PictureInPictureWindowManager::ExitPictureInPicture() {
+  if (!pip_window_controller_) {
+    base::UmaHistogramBoolean("Cobalt.PictureInPicture.Exit", false);
+    return;
+  }
+
+  base::UmaHistogramBoolean("Cobalt.PictureInPicture.Exit", true);
   CloseWindowInternal();
 }
 

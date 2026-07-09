@@ -24,6 +24,8 @@
 #include "cobalt/build/configs/buildflags.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/picture_in_picture_window_controller.h"
+#include "content/public/browser/video_picture_in_picture_window_controller.h"
 #include "content/public/browser/web_contents.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/net_errors.h"
@@ -189,6 +191,17 @@ void CobaltWebContentsObserver::DidFinishNavigation(
 
 void CobaltWebContentsObserver::OnVisibilityChanged(
     content::Visibility visibility) {
+  // When the Android OS backgrounds the app (e.g. user presses the Home button
+  // resulting in Visibility::HIDDEN state), tearing down the PiP session from
+  // here ensures the VideoPictureInPictureWindowController pauses the
+  // video and destroys the UI overlay window.
+  // See: b/532272209
+  if (visibility == content::Visibility::HIDDEN &&
+      web_contents()->HasPictureInPictureVideo()) {
+    content::PictureInPictureWindowController::
+        GetOrCreateVideoPictureInPictureController(web_contents())
+            ->Close(/*should_pause_video=*/true);
+  }
 #if BUILDFLAG(ENABLE_IN_APP_DIAL)
   // This is similar to the C25 behavior of restarting the DIAL servers when an
   // Unfreeze event was sent by Starboard.

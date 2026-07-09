@@ -67,5 +67,10 @@ BASE_FEATURE(kForceVideoSplashScreen,
              "ForceVideoSplashScreen",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enabled by default so PiP works out of the box.
+BASE_FEATURE(kPictureInPicture,
+             "PictureInPicture",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 }  // namespace features
 }  // namespace cobalt
