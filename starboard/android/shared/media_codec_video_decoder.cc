@@ -364,6 +364,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       ignore_mediacodec_callbacks_during_flushing_(
           pipeline_config.experimental_features.GetBool(
               kMediaIgnoreMediaCodecCallbacksDuringFlushing)),
+      enable_trivial_optimizations_(
+          pipeline_config.experimental_features.GetBool(
+              kMediaEnableTrivialOptimizations)),
       enable_low_latency_(pipeline_config.experimental_features.GetBool(
           kMediaEnableLowLatency)),
       enable_ndk_video_(
@@ -860,7 +863,8 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       enable_low_latency_, force_big_endian_hdr_metadata_,
       max_video_input_size_, flush_delay_usec_, use_dual_threads_,
       skip_video_frames_over_60_fps_,
-      ignore_mediacodec_callbacks_during_flushing_, enable_ndk_video_);
+      ignore_mediacodec_callbacks_during_flushing_, enable_ndk_video_,
+      enable_trivial_optimizations_);
   if (result) {
     media_decoder_ = std::move(result.value());
     if (error_cb_) {
