@@ -117,6 +117,57 @@ def run_command(
     return stdout
 
 
+def run_remote_command(
+    command: Union[str, List[str]],
+    device_id: Optional[str] = None,
+    device_ip: Optional[str] = None,
+    verbose: bool = True,
+    check: bool = True,
+    sleep_time: int = 0,
+) -> str:
+    """Runs command on remote device via ADB or SSH."""
+    if device_id:
+        adb_cmd = ["adb", "-s", device_id, "shell"]
+        if isinstance(command, str):
+            adb_cmd.append(command)
+        else:
+            adb_cmd.extend(command)
+        return run_command(adb_cmd, verbose, check, sleep_time)
+    elif device_ip:
+        ssh_cmd = ["ssh", "-q", f"root@{device_ip}"]
+        if isinstance(command, str):
+            ssh_cmd.append(command)
+        else:
+            ssh_cmd.append(" ".join(command))
+        return run_command(ssh_cmd, verbose, check, sleep_time)
+    else:
+        raise ValueError("Either device_id or device_ip must be provided for remote command.")
+
+
+def push_to_device(
+    local_path: Union[str, Path],
+    remote_path: str,
+    device_id: Optional[str] = None,
+    device_ip: Optional[str] = None,
+    verbose: bool = True,
+) -> None:
+    """Pushes local file/directory to remote device via ADB or SCP."""
+    if device_id:
+        adb_cmd = ["adb", "-s", device_id, "push", str(local_path), remote_path]
+        run_command(adb_cmd, verbose=verbose)
+    elif device_ip:
+        scp_cmd = [
+            "scp",
+            "-q",
+            "-r",
+            str(local_path),
+            f"root@{device_ip}:{remote_path}",
+        ]
+        run_command(scp_cmd, verbose=verbose)
+    else:
+        raise ValueError("Either device_id or device_ip must be provided to push file.")
+
+
 def configure_build(platform: str, config: str, out_dir: Path, no_rbe: bool = False) -> None:
     """Runs GN configuration."""
     print(f"=== Configuring {platform} ({config}) ===")
@@ -319,6 +370,11 @@ def parse_args() -> argparse.Namespace:
         type=str,
         metavar="TEST_NAME",
         help="Build and run a test (e.g., nplb).",
+    )
+    parser.add_argument(
+        "--device-ip",
+        type=str,
+        help="Target RDK device IP address (uses SSH/SCP instead of ADB).",
     )
     parser.add_argument(
         "--config", type=str, help="Override default build configuration.")
