@@ -187,7 +187,7 @@ def build_targets(out_dir: Path, targets: List[str]) -> str:
     return run_command(["autoninja", "-C", str(out_dir)] + targets)
 
 
-def deploy_only_lib(device_id: str, out_dir: Path, remote_dir: str) -> None:
+def deploy_only_lib(device_id: Optional[str], device_ip: Optional[str], out_dir: Path, remote_dir: str) -> None:
     """Pushes libcobalt.lz4 directly to the device."""
     local_lz4 = out_dir / "app/cobalt/lib/libcobalt.lz4"
     if not local_lz4.exists():
@@ -195,16 +195,13 @@ def deploy_only_lib(device_id: str, out_dir: Path, remote_dir: str) -> None:
         sys.exit(1)
 
     remote_lib_dir = f"{remote_dir}/app/cobalt/lib"
-    run_command(
-        ["adb", "-s", device_id, "shell", f"mkdir -p {remote_lib_dir}"])
-    run_command([
-        "adb", "-s", device_id, "push",
-        str(local_lz4), f"{remote_lib_dir}/libcobalt.lz4"
-    ])
+    run_remote_command(f"mkdir -p {remote_lib_dir}", device_id, device_ip)
+    push_to_device(local_lz4, f"{remote_lib_dir}/libcobalt.lz4", device_id, device_ip)
 
 
 def package_and_deploy(
-    device_id: str,
+    device_id: Optional[str],
+    device_ip: Optional[str],
     out_dir: Path,
     remote_dir: str,
     deps_file: Optional[Path],
@@ -229,16 +226,16 @@ def package_and_deploy(
 
     print(f"Packaging with: {' '.join(tar_cmd)}")
     run_command(tar_cmd)
-    run_command(["adb", "-s", device_id, "shell", f"mkdir -p {remote_dir}"])
-    run_command(["adb", "-s", device_id, "push", archive_name, f"{remote_dir}/"])
+    run_remote_command(f"mkdir -p {remote_dir}", device_id, device_ip)
+    push_to_device(archive_name, f"{remote_dir}/", device_id, device_ip)
     Path(archive_name).unlink(missing_ok=True)
 
 
 def launch_on_device(
-    device_id: str,
+    device_id: Optional[str],
+    device_ip: Optional[str],
     remote_dir: str,
-    is_up_to_date: bool,
-    force_deploy: bool,
+    extract_archive: bool,
     test_name: Optional[str],
     mode: str,
     devtools: bool = False,
@@ -248,7 +245,7 @@ def launch_on_device(
     print("=== Launching on device ===")
     remote_cmds = [f"cd {remote_dir}"]
 
-    if not is_up_to_date or force_deploy:
+    if extract_archive:
         # Ensure unprivileged container users have access to extracted artifacts.
         remote_cmds += [
             "tar -xzf archive.tar.gz",
@@ -281,11 +278,11 @@ def launch_on_device(
 
         # Deactivate first to change config
         deactivate_json = '{"jsonrpc":"2.0","id":1,"method":"Controller.1.deactivate","params":{"callsign":"YouTube"}}'
-        run_command(["adb", "-s", device_id, "shell", f"curl -s http://127.0.0.1:9998/jsonrpc -d '{deactivate_json}'"])
+        run_remote_command(f"curl -s http://127.0.0.1:9998/jsonrpc -d '{deactivate_json}'", device_id, device_ip)
 
         # Get configuration
         get_config_json = '{"jsonrpc":"2.0","id":1,"method":"Controller.1.configuration@YouTube"}'
-        res_str = run_command(["adb", "-s", device_id, "shell", f"curl -s http://127.0.0.1:9998/jsonrpc -d '{get_config_json}'"])
+        res_str = run_remote_command(f"curl -s http://127.0.0.1:9998/jsonrpc -d '{get_config_json}'", device_id, device_ip)
 
         rpc_deactivate = (
             r'{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"Controller.1.deactivate\",'
@@ -314,7 +311,7 @@ def launch_on_device(
                     "method": "Controller.1.configuration@YouTube",
                     "params": config
                 })
-                run_command(["adb", "-s", device_id, "shell", f"curl -s http://127.0.0.1:9998/jsonrpc -d '{rpc_set_config}'"])
+                run_remote_command(f"curl -s http://127.0.0.1:9998/jsonrpc -d '{rpc_set_config}'", device_id, device_ip)
                 print("[INFO] DevTools configuration updated successfully.")
         except Exception as e:
             print(f"[WARNING] Failed to update DevTools configuration: {e}")
@@ -332,8 +329,22 @@ def launch_on_device(
 
         if devtools:
             print("[INFO] Setting up DevTools port forwarding...")
-            run_command(["adb", "-s", device_id, "forward", "tcp:9222", "tcp:9222"])
-            print("[INFO] DevTools is enabled. Please open Chrome and navigate to 'chrome://inspect' (add 'localhost:9222' to discover targets).")
+            if device_id:
+                run_command(["adb", "-s", device_id, "forward", "tcp:9222", "tcp:9222"])
+            elif device_ip:
+                ssh_tunnel_cmd = [
+                    "ssh",
+                    "-q",
+                    "-fN",
+                    "-L",
+                    "9222:localhost:9222",
+                    f"root@{device_ip}",
+                ]
+                try:
+                    subprocess.Popen(ssh_tunnel_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                except Exception as e:
+                    print(f"[WARNING] Failed to start SSH tunnel: {e}")
+            print("[INFO] DevTools is enabled. Please open Chrome and navigate to 'chrome://inspect' (add 'localhost:9222' or the device IP to discover targets).")
     else:
         remote_cmds += [
             "rdkDisplay remove || true",
@@ -346,7 +357,7 @@ def launch_on_device(
         ]
 
     full_cmd = " && ".join(remote_cmds)
-    output = run_command(["adb", "-s", device_id, "shell", f"bash -l -c \"{full_cmd}\""])
+    output = run_remote_command(f"bash -l -c \"{full_cmd}\"", device_id, device_ip)
     print(output)
     if "ERROR_OPENING_FAILED" in output or "error" in output.lower():
         print("\n[WARNING] Activation failed with error (e.g., ERROR_OPENING_FAILED).")
