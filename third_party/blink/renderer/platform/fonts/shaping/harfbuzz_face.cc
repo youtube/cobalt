@@ -578,11 +578,12 @@ HarfBuzzFontData* CreateHarfBuzzFontData(hb_face_t* face,
   hb::unique_ptr<hb_font_t> ot_font(hb_font_create(face));
   hb_ot_font_set_funcs(ot_font.get());
 
-  int axis_count = typeface->getVariationDesignPosition({});
+  int axis_count = typeface->getVariationDesignPosition(nullptr, 0);
   if (axis_count > 0) {
     Vector<SkFontArguments::VariationPosition::Coordinate> axis_values;
     axis_values.resize(axis_count);
-    if (typeface->getVariationDesignPosition(axis_values) > 0) {
+    if (typeface->getVariationDesignPosition(axis_values.data(),
+                                             axis_values.size()) > 0) {
       hb_font_set_variations(
           ot_font.get(), reinterpret_cast<hb_variation_t*>(axis_values.data()),
           axis_values.size());

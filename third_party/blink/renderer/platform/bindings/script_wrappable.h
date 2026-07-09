@@ -51,7 +51,9 @@ class ScriptState;
 // a ScriptWrappable.  v8::Object as platform object is called "wrapper object".
 // The wrapper object for the main world is stored in ScriptWrappable.  Wrapper
 // objects for other worlds are stored in DOMDataStore.
-class PLATFORM_EXPORT ScriptWrappable : public v8::Object::Wrappable {
+class PLATFORM_EXPORT ScriptWrappable
+    : public GarbageCollected<ScriptWrappable>,
+      public NameClient {
  public:
   // This is a type dispatcher from ScriptWrappable* to a subtype, optimized for
   // use cases that perform downcasts multiple times.
@@ -99,11 +101,13 @@ class PLATFORM_EXPORT ScriptWrappable : public v8::Object::Wrappable {
 
   ScriptWrappable(const ScriptWrappable&) = delete;
   ScriptWrappable& operator=(const ScriptWrappable&) = delete;
-  ~ScriptWrappable() override = default;
+  virtual ~ScriptWrappable() = default;
 
-  const char* GetHumanReadableName() const override;
+  virtual const char* GetHumanReadableName() const;
 
-  void Trace(Visitor*) const override;
+  virtual void Trace(Visitor*) const;
+
+  virtual const WrapperTypeInfo* GetWrapperTypeInfo() const = 0;
 
   // Returns a wrapper object, creating it if needed.
   v8::Local<v8::Value> ToV8(ScriptState*);

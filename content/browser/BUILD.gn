@@ -3801,6 +3801,8 @@ source_set("browser") {
 
   if (is_cobalt) {
     sources -= [
+      "media/captured_surface_controller.cc",
+      "media/captured_surface_controller.h",
       "bluetooth/advertisement_client.cc",
       "bluetooth/advertisement_client.h",
       "bluetooth/bluetooth_adapter_factory_wrapper.cc",

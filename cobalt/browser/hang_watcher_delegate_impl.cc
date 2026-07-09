@@ -18,6 +18,7 @@
 #include <optional>
 
 #include "base/feature_list.h"
+#include "base/logging.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 namespace cobalt {

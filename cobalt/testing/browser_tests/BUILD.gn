@@ -364,7 +364,6 @@ test("cobalt_browsertests") {
     "//storage/browser:test_support",
     "//third_party/blink/public:blink",
     "//third_party/leveldatabase",
-    "//third_party/mesa_headers",
     "//third_party/re2",
     "//third_party/zlib",
     "//ui/accessibility:ax_base",
@@ -397,7 +396,6 @@ test("cobalt_browsertests") {
     ":cobalt_test_bundle_data",
     "//cobalt/shell:pak",
     "//testing/buildbot/filters:content_browsertests_filters",
-    "//third_party/mesa_headers",
   ]
 
   if (is_ios && target_platform == "tvos") {

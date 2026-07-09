@@ -333,7 +333,7 @@ SkVector MapStdDeviation(float std_deviation, const SkMatrix* ctm) {
   // Corresponds to SpreadForStdDeviation in filter_operations.cc.
   SkVector sigma = SkVector::Make(std_deviation, std_deviation);
   if (ctm) {
-    sigma = ctm->mapVector(sigma);
+    sigma = ctm->mapVector(sigma.x(), sigma.y());
   }
   return sigma * SkIntToScalar(3);
 }
@@ -367,7 +367,8 @@ gfx::Rect MapRectInternal(const FilterOperation& op,
       SkVector mapped_drop_shadow_offset =
           SkVector::Make(op.offset().x(), op.offset().y());
       if (ctm) {
-          mapped_drop_shadow_offset = ctm->mapVector(mapped_drop_shadow_offset);
+        mapped_drop_shadow_offset = ctm->mapVector(
+            mapped_drop_shadow_offset.x(), mapped_drop_shadow_offset.y());
       }
       if (direction == SkImageFilter::kReverse_MapDirection)
         mapped_drop_shadow_offset = -mapped_drop_shadow_offset;
@@ -385,7 +386,8 @@ gfx::Rect MapRectInternal(const FilterOperation& op,
     case FilterOperation::OFFSET: {
       SkVector mapped_offset = SkVector::Make(op.offset().x(), op.offset().y());
       if (ctm) {
-          mapped_offset = ctm->mapVector(mapped_offset);
+        mapped_offset =
+            ctm->mapVector(mapped_offset.x(), mapped_offset.y());
       }
       if (direction == SkImageFilter::kReverse_MapDirection)
         mapped_offset = -mapped_offset;

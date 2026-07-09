@@ -88,7 +88,7 @@ bool DetectTextEncoding(base::span<const uint8_t> bytes,
   return !(encoding == UNKNOWN_ENCODING ||
            (hint_url.Protocol() != "file" && encoding == UTF8));
 #else
-  *detected_encoding = WTF::TextEncoding();
+  *detected_encoding = TextEncoding();
   return false;
 #endif  // !BUILDFLAG(IS_COBALT)
 }

@@ -149,6 +149,7 @@ std::optional<Value> JSONReader::Read(std::string_view json,
     return std::nullopt;
   }
   return std::move(*result);
+#endif
 }
 
 // static
@@ -193,6 +194,7 @@ JSONReader::Result JSONReader::ReadAndReturnValueWithError(
   SCOPED_UMA_HISTOGRAM_TIMER_MICROS(kSecurityJsonParsingTime);
   return serde_json_lenient::DecodeJSONInRust(json, options,
                                               internal::kAbsoluteMaxDepth);
+#endif
 }
 
 }  // namespace base

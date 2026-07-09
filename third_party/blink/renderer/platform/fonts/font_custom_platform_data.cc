@@ -58,13 +58,13 @@ constexpr SkFourByteTag kWghtTag = SkSetFourByteTag('w', 'g', 'h', 't');
 std::optional<SkFontParameters::Variation::Axis>
 RetrieveVariationDesignParametersByTag(sk_sp<SkTypeface> base_typeface,
                                        SkFourByteTag tag) {
-  int axes_count = base_typeface->getVariationDesignParameters({});
+  int axes_count = base_typeface->getVariationDesignParameters(nullptr, 0);
   if (axes_count <= 0)
     return std::nullopt;
   Vector<SkFontParameters::Variation::Axis> axes;
   axes.resize(axes_count);
   int axes_read =
-      base_typeface->getVariationDesignParameters(axes);
+      base_typeface->getVariationDesignParameters(axes.data(), axes.size());
   if (axes_read <= 0)
     return std::nullopt;
   for (auto& axis : axes) {
