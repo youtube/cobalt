@@ -34,12 +34,12 @@ SubresourceProxyingURLLoader::SubresourceProxyingURLLoader(
         std::make_unique<BrowsingTopicsURLLoaderInterceptor>(
             document, resource_request_));
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   if (resource_request_.ad_auction_headers) {
     interceptors_.push_back(std::make_unique<AdAuctionURLLoaderInterceptor>(
         document, resource_request_));
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   // Make a copy of `resource_request`, because we may need to modify the
   // request.

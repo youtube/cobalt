@@ -5,6 +5,7 @@
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//third_party/blink/renderer/bindings/generated_in_core.gni")
 import("//third_party/blink/renderer/core/core.gni")
+import("//third_party/blink/renderer/bindings/bindings.gni")
 
 visibility = [ "//third_party/blink/renderer/*" ]
 
@@ -22,6 +23,13 @@ blink_core_sources("v8") {
             generated_observable_array_sources_in_core +
             generated_sync_iterator_sources_in_core +
             generated_typedef_sources_in_core + generated_union_sources_in_core
+
+  if (is_cobalt) {
+    _filtered_core_sources =
+        filter_exclude(sources, cobalt_bindings_exclude_patterns)
+    sources = []
+    sources = _filtered_core_sources
+  }
 
   deps = [
     ":generated",
@@ -46,6 +54,13 @@ source_set("testing") {
             generated_enumeration_sources_for_testing_in_core +
             generated_interface_sources_for_testing_in_core +
             generated_union_sources_for_testing_in_core
+
+  if (is_cobalt) {
+    _filtered_core_sources =
+        filter_exclude(sources, cobalt_bindings_exclude_patterns)
+    sources = []
+    sources = _filtered_core_sources
+  }
 
   deps = [
     ":generated",

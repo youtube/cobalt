@@ -802,11 +802,26 @@ static_library("test_support") {
   }
 
   if (!enable_privacy_sandbox_apis) {
-    sources -= [
-      "../browser/browsing_topics/test_util.cc",
-      "../browser/browsing_topics/test_util.h",
-      "../public/test/browsing_topics_test_util.cc",
-      "../public/test/browsing_topics_test_util.h",
+    _filtered_sources = filter_exclude(sources, [
+      "../browser/browsing_topics/*",
+      "../browser/attribution_reporting/*",
+      "../browser/shared_storage/*",
+      "../browser/interest_group/*",
+      "../browser/private_aggregation/*",
+      "../browser/aggregation_service/*",
+      "../public/test/*browsing_topics*",
+      "../public/test/*shared_storage*",
+      "../public/test/*attribution*",
+      "../public/test/*interest_group*",
+      "../public/test/*private_aggregation*",
+      "../public/test/*aggregation_service*",
+    ])
+    sources = []
+    sources = _filtered_sources
+
+    deps -= [
+      "//content/browser/attribution_reporting:mojo_bindings",
+      "//content/browser/attribution_reporting:registration_result_mojom",
     ]
   }
 

@@ -56,8 +56,10 @@ class FrameAutoAttacher : public protocol::RendererAutoAttacherBase,
  private:
   raw_ptr<RenderFrameHostImpl> render_frame_host_ = nullptr;
   bool observing_service_workers_ = false;
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   bool observing_auction_worklets_ = false;
   bool observing_shared_storage_worklets_ = false;
+#endif
 };
 
 }  // namespace content

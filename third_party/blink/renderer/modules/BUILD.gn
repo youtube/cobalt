@@ -175,13 +175,13 @@ component("modules") {
     "//third_party/blink/renderer/modules/xr",
   ]
 
-  # If in the future privacy sandbox components are removed from the code base, ignore this if block.
   if (!enable_privacy_sandbox_apis) {
     sub_modules -= [
       "//third_party/blink/renderer/modules/browsing_topics",
       "//third_party/blink/renderer/modules/private_attribution",
       "//third_party/blink/renderer/modules/shared_storage",
       "//third_party/blink/renderer/modules/storage_access",
+      "//third_party/blink/renderer/modules/ad_auction",
     ]
   }
 
@@ -317,12 +317,17 @@ source_set("modules_testing") {
     "speech/testing/internals_speech_synthesis.cc",
     "speech/testing/internals_speech_synthesis.h",
     "speech/testing/mojom_speech_synthesis_mock.cc",
-    "speech/testing/mojom_speech_synthesis_mock.h",
     "vibration/testing/internals_vibration.cc",
     "vibration/testing/internals_vibration.h",
     "webaudio/testing/internals_web_audio.cc",
     "webaudio/testing/internals_web_audio.h",
   ]
+
+  if (!enable_privacy_sandbox_apis) {
+    _ad_auction_testing_filtered_sources = filter_exclude(sources, [ "ad_auction/testing/*" ])
+    sources = []
+    sources = _ad_auction_testing_filtered_sources
+  }
 
   if (enable_compute_pressure) {
     sources += [
@@ -826,10 +831,12 @@ source_set("unit_tests") {
     "//v8",
   ]
 
-  # If in the future privacy sandbox components are removed from the code base, ignore this if block.
   if (!enable_privacy_sandbox_apis) {
     sources -= [ "shared_storage/shared_storage_worklet_unittest.cc" ]
-    deps -= [ "//third_party/blink/renderer/modules/storage_access:unit_tests" ]
+    deps -= [
+      "//third_party/blink/renderer/modules/storage_access:unit_tests",
+      "//third_party/blink/renderer/modules/ad_auction:unit_tests",
+    ]
   }
 
   if (is_cobalt) {
