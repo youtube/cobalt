@@ -23,12 +23,45 @@
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/ndk_media_codec.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
 
 namespace starboard {
+namespace {
+
+bool CanUseNdkMediaCodec(
+    const MediaCodec::VideoPlatformOptions& platform_options,
+    const jni_zero::JavaRef<jobject>& j_media_crypto,
+    const SbMediaColorMetadata* color_metadata) {
+  if (!platform_options.enable_ndk_video) {
+    return false;
+  }
+
+  // We do not use NDK AMediaCodec for DRM, since it requires architectural
+  // changes.
+  if (platform_options.require_secured_decoder || j_media_crypto) {
+    return false;
+  }
+  // NDK AMediaCodec does not support tunnel mode.
+  if (platform_options.tunnel_mode_audio_session_id) {
+    return false;
+  }
+  // NDK AMediaCodec does not support HDR yet.
+  // TODO: b/515461431 - Make NDK impl. support HDR.
+  if (color_metadata) {
+    return false;
+  }
+  // NDK AMediaCodec requires API level >= 28.
+  if (android_get_device_api_level() < 28) {
+    return false;
+  }
+
+  return true;
+}
+}  // namespace
 
 std::unique_ptr<MediaCodec> DefaultMediaCodecFactory::CreateAudioMediaCodec(
     const AudioStreamInfo& audio_stream_info,
@@ -83,10 +116,24 @@ DefaultMediaCodecFactory::CreateVideoMediaCodec(
   if (decoder_name.empty()) {
     return Failure(
         FormatString("Failed to find decoder: mime=%s, mustSupportSecure=%s",
-                     mime, starboard::ToString(!!j_media_crypto).data()));
+                     mime, ToString(!!j_media_crypto).data()));
   }
 
-  // We only use Java MediaCodec (JNI) for now.
+  if (CanUseNdkMediaCodec(platform_options, j_media_crypto, color_metadata)) {
+    auto ndk_bridge = NdkMediaCodec::Create(
+        video_codec, decoder_name, frame_size_hint, fps, max_frame_size,
+        handler, j_surface, j_media_crypto, color_metadata,
+        platform_options.enable_frame_renderer_listener,
+        platform_options.require_secured_decoder,
+        platform_options.require_software_codec,
+        platform_options.max_input_size);
+    if (ndk_bridge) {
+      return ndk_bridge;
+    }
+    SB_LOG(WARNING)
+        << "Failed to create NdkMediaCodec. Falling back to Java MediaCodec.";
+  }
+
   auto jni_result = MediaCodecBridge::CreateVideoMediaCodec(
       video_codec, decoder_name, mime, frame_size_hint, fps, max_frame_size,
       handler, j_surface, j_media_crypto, color_metadata, platform_options);
@@ -138,30 +185,27 @@ FrameSize::FrameSize(Size display_size, bool has_crop_values)
 
 std::ostream& operator<<(std::ostream& os, const FrameSize& size) {
   return os << "{display_size=" << size.display_size
-            << ", has_crop_values=" << starboard::ToString(size.has_crop_values)
-            << "}";
+            << ", has_crop_values=" << ToString(size.has_crop_values) << "}";
 }
 
 std::ostream& operator<<(std::ostream& os,
                          const MediaCodec::VideoPlatformOptions& options) {
   return os << "{max_input_size=" << options.max_input_size
             << ", skip_video_frames_over_60_fps="
-            << starboard::ToString(options.skip_video_frames_over_60_fps)
+            << ToString(options.skip_video_frames_over_60_fps)
             << ", ignore_mediacodec_callbacks_during_flushing="
-            << starboard::ToString(
-                   options.ignore_mediacodec_callbacks_during_flushing)
+            << ToString(options.ignore_mediacodec_callbacks_during_flushing)
             << ", enable_frame_renderer_listener="
-            << starboard::ToString(options.enable_frame_renderer_listener)
-            << ", enable_low_latency="
-            << starboard::ToString(options.enable_low_latency)
+            << ToString(options.enable_frame_renderer_listener)
+            << ", enable_low_latency=" << ToString(options.enable_low_latency)
             << ", require_secured_decoder="
-            << starboard::ToString(options.require_secured_decoder)
+            << ToString(options.require_secured_decoder)
             << ", require_software_codec="
-            << starboard::ToString(options.require_software_codec)
+            << ToString(options.require_software_codec)
             << ", force_big_endian_hdr_metadata="
-            << starboard::ToString(options.force_big_endian_hdr_metadata)
+            << ToString(options.force_big_endian_hdr_metadata)
             << ", tunnel_mode_audio_session_id="
-            << starboard::ToString(options.tunnel_mode_audio_session_id) << "}";
+            << ToString(options.tunnel_mode_audio_session_id) << "}";
 }
 
 }  // namespace starboard
