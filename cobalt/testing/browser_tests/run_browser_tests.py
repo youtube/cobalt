@@ -295,6 +295,7 @@ class CobaltTestRunner:
     """Runs a command and tees its stdout/stderr to console and a log file."""
     f_log = None
     if log_file_path:
+      # pylint: disable=consider-using-with
       f_log = open(log_file_path, "a", encoding="utf-8")
 
     try:
@@ -518,7 +519,8 @@ def main():
   if log_file_path:
     try:
       os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
-      open(log_file_path, "w", encoding="utf-8").close()
+      with open(log_file_path, "w", encoding="utf-8"):
+        pass
       handlers.append(logging.FileHandler(log_file_path))
     except Exception as e:  # pylint: disable=broad-exception-caught
       sys.stderr.write(f"Failed to initialize log file: {e}\n")
