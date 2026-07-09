@@ -320,7 +320,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling ANGLE
   # and whatever else without interference from each other.
-  'angle_revision': '47f36b41511c2f8a6efc43ae301c04347e353267',
+  'angle_revision': 'a96627f8e2e5463d92f9c08f26fe1ec27b3f7d33',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling SwiftShader
   # and whatever else without interference from each other.
@@ -328,7 +328,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling PDFium
   # and whatever else without interference from each other.
-  'pdfium_revision': 'e879aad21e9b1bed44355f5bd0af69e465dfdfbc',
+  'pdfium_revision': '8e740a9fbcac0875484bd79b53aa3325bf64a5b4',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling BoringSSL
   # and whatever else without interference from each other.
