@@ -16,22 +16,24 @@
 
 #include <android/api-level.h>
 
+#include <atomic>
 #include <memory>
 #include <optional>
 
 #include "starboard/android/shared/aaudio_loader.h"
 #include "starboard/android/shared/audio_track_bridge.h"
-#include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/ndk_audio_track.h"
 #include "starboard/common/log.h"
 
 namespace starboard {
 namespace {
 
+std::atomic<bool> g_ndk_audio_enabled = false;
+
 bool CanUseNdkAudioTrack(SbMediaAudioCodingType coding_type,
                          std::optional<SbMediaAudioSampleType> sample_type,
                          std::optional<int> tunnel_mode_audio_session_id) {
-  if (!MediaCapabilitiesCache::GetInstance()->IsNdkAudioEnabled()) {
+  if (!g_ndk_audio_enabled.load(std::memory_order_relaxed)) {
     return false;
   }
 
@@ -49,7 +51,7 @@ bool CanUseNdkAudioTrack(SbMediaAudioCodingType coding_type,
     return false;
   }
 
-  if (!AAudioLoader::GetInstance()) {
+  if (!AAudio::Load()) {
     return false;
   }
 
@@ -57,6 +59,11 @@ bool CanUseNdkAudioTrack(SbMediaAudioCodingType coding_type,
 }
 
 }  // namespace
+
+// static
+void AudioTrack::SetNdkAudioEnabled(bool enabled) {
+  g_ndk_audio_enabled.store(enabled, std::memory_order_relaxed);
+}
 
 // static
 std::unique_ptr<AudioTrack> AudioTrack::Create(

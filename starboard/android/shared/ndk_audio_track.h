@@ -38,14 +38,14 @@ namespace starboard {
 // Android NDK AAudio API.
 //
 // Lifetime and Ownership:
-// Objects of derived classes are typically owned and managed by the audio sink
+// Instances of this class are typically owned and managed by the audio sink
 // (e.g., via std::unique_ptr).
 //
 // Threading Model:
 // This class is expected to be called on a single audio thread, except for
 // SetVolume and SetPlaybackRate which may be called concurrently from the
 // player thread.
-class NdkAudioTrack : public AudioTrack {
+class NdkAudioTrack final : public AudioTrack {
  public:
   static std::unique_ptr<NdkAudioTrack> Create(
       SbMediaAudioCodingType coding_type,
@@ -57,7 +57,6 @@ class NdkAudioTrack : public AudioTrack {
       bool is_web_audio);
 
   NdkAudioTrack(PassKey<NdkAudioTrack>,
-                AAudioLoader* loader,
                 AAudioStream* stream,
                 int channels,
                 int sampling_frequency_hz,
@@ -83,25 +82,22 @@ class NdkAudioTrack : public AudioTrack {
   PlayState GetPlayState() override;
 
  private:
-  bool IsStreamActive() const;
-  Span<const float> ScaleSamplesIfNeeded(Span<const float> samples);
-
   struct AAudioStreamDeleter {
-    AAudioLoader* loader = nullptr;
     void operator()(AAudioStream* stream) const {
-      if (stream && loader) {
-        loader->stream_close(stream);
+      if (stream) {
+        AAudio::Stream_Close(stream);
       }
     }
   };
 
-  AAudioLoader* const loader_;
+  bool IsStreamActive() const;
+
   std::unique_ptr<AAudioStream, AAudioStreamDeleter> stream_;
   const int channels_;
   const SbMediaAudioSampleType sample_type_;
   std::atomic<double> volume_{1.0};
-  std::atomic<double> playback_rate_{1.0};
   std::vector<float> scaled_samples_float_;
+  bool has_reported_device_changed_ = false;
 };
 
 }  // namespace starboard

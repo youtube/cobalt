@@ -17,181 +17,73 @@
 
 #include <aaudio/AAudio.h>
 
-#include "starboard/common/pass_key.h"
-
 namespace starboard {
 
-// AAudioLoader is a singleton responsible for dynamically loading libaaudio.so
-// and resolving its symbols at runtime. This allows Cobalt to support AAudio on
-// devices where it is available while maintaining compatibility with older
-// Android versions.
-//
-// Lifetime and Ownership:
-// This is a singleton class with a static lifetime. The single instance is
-// managed internally and is never deleted.
+// AAudio is a helper class with public static function pointers responsible for
+// dynamically loading libaaudio.so and calling AAudio symbols at runtime.
 //
 // Threading Model:
-// This class is thread-safe and its methods can be called from any thread.
-class AAudioLoader {
+// This class is thread-safe. Once Load() returns true, all static
+// function pointers are populated and can be called from any thread.
+class AAudio {
  public:
-  static AAudioLoader* GetInstance();
+  // Dynamically loads libaaudio.so if available and resolves all symbols.
+  // Returns true if AAudio is supported on this device.
+  static bool Load();
 
-  AAudioLoader(PassKey<AAudioLoader>, void* lib_handle);
-  ~AAudioLoader();
-
-  // Function wrappers
-  const char* convertResultToText(aaudio_result_t returnCode);
-  aaudio_result_t createStreamBuilder(AAudioStreamBuilder** builder);
-  aaudio_result_t streamBuilder_delete(AAudioStreamBuilder* builder);
-  void streamBuilder_setDirection(AAudioStreamBuilder* builder,
-                                  aaudio_direction_t direction);
-  void streamBuilder_setSharingMode(AAudioStreamBuilder* builder,
-                                    aaudio_sharing_mode_t sharingMode);
-  void streamBuilder_setPerformanceMode(
+  // Public static function pointers for AAudio NDK API.
+  static const char* (*ConvertResultToText)(aaudio_result_t returnCode);
+  static aaudio_result_t (*CreateStreamBuilder)(AAudioStreamBuilder** builder);
+  static aaudio_result_t (*StreamBuilder_Delete)(AAudioStreamBuilder* builder);
+  static void (*StreamBuilder_SetDirection)(AAudioStreamBuilder* builder,
+                                            aaudio_direction_t direction);
+  static void (*StreamBuilder_SetSharingMode)(
+      AAudioStreamBuilder* builder,
+      aaudio_sharing_mode_t sharingMode);
+  static void (*StreamBuilder_SetPerformanceMode)(
       AAudioStreamBuilder* builder,
       aaudio_performance_mode_t performanceMode);
-  void streamBuilder_setFormat(AAudioStreamBuilder* builder,
-                               aaudio_format_t format);
-  void streamBuilder_setChannelCount(AAudioStreamBuilder* builder,
-                                     int32_t channelCount);
-  void streamBuilder_setSampleRate(AAudioStreamBuilder* builder,
-                                   int32_t sampleRate);
-  void streamBuilder_setDataCallback(AAudioStreamBuilder* builder,
-                                     AAudioStream_dataCallback callback,
-                                     void* userData);
-  void streamBuilder_setBufferCapacityInFrames(AAudioStreamBuilder* builder,
-                                               int32_t numFrames);
-  aaudio_result_t streamBuilder_openStream(AAudioStreamBuilder* builder,
-                                           AAudioStream** stream);
-  aaudio_result_t stream_close(AAudioStream* stream);
-  aaudio_result_t stream_requestStart(AAudioStream* stream);
-  aaudio_result_t stream_requestPause(AAudioStream* stream);
-  aaudio_result_t stream_requestStop(AAudioStream* stream);
-  aaudio_result_t stream_requestFlush(AAudioStream* stream);
-  aaudio_stream_state_t stream_getState(AAudioStream* stream);
-  aaudio_result_t stream_getTimestamp(AAudioStream* stream,
-                                      clockid_t clockId,
-                                      int64_t* framePosition,
-                                      int64_t* timeNanoseconds);
-  aaudio_result_t stream_write(AAudioStream* stream,
-                               const void* buffer,
-                               int32_t numFrames,
-                               int64_t timeoutNanoseconds);
-  aaudio_result_t stream_setBufferSizeInFrames(AAudioStream* stream,
-                                               int32_t numFrames);
-  aaudio_result_t stream_waitForStateChange(AAudioStream* stream,
-                                            aaudio_stream_state_t inputState,
-                                            aaudio_stream_state_t* nextState,
-                                            int64_t timeoutNanoseconds);
-  int32_t stream_getBufferSizeInFrames(AAudioStream* stream);
-  int32_t stream_getFramesPerBurst(AAudioStream* stream);
-  int64_t stream_getFramesRead(AAudioStream* stream);
-  int32_t stream_getXRunCount(AAudioStream* stream);
-
- private:
-  void* lib_handle_ = nullptr;
-
-  // Function pointer types
-  using PFN_AAudio_convertResultToText =
-      const char* (*)(aaudio_result_t returnCode);
-  using PFN_AAudio_createStreamBuilder =
-      aaudio_result_t (*)(AAudioStreamBuilder** builder);
-  using PFN_AAudioStreamBuilder_delete =
-      aaudio_result_t (*)(AAudioStreamBuilder* builder);
-  using PFN_AAudioStreamBuilder_setDirection =
-      void (*)(AAudioStreamBuilder* builder, aaudio_direction_t direction);
-  using PFN_AAudioStreamBuilder_setSharingMode =
-      void (*)(AAudioStreamBuilder* builder, aaudio_sharing_mode_t sharingMode);
-  using PFN_AAudioStreamBuilder_setPerformanceMode =
-      void (*)(AAudioStreamBuilder* builder,
-               aaudio_performance_mode_t performanceMode);
-  using PFN_AAudioStreamBuilder_setFormat =
-      void (*)(AAudioStreamBuilder* builder, aaudio_format_t format);
-  using PFN_AAudioStreamBuilder_setChannelCount =
-      void (*)(AAudioStreamBuilder* builder, int32_t channelCount);
-  using PFN_AAudioStreamBuilder_setSampleRate =
-      void (*)(AAudioStreamBuilder* builder, int32_t sampleRate);
-  using PFN_AAudioStreamBuilder_setDataCallback =
-      void (*)(AAudioStreamBuilder* builder,
-               AAudioStream_dataCallback callback,
-               void* userData);
-  using PFN_AAudioStreamBuilder_setBufferCapacityInFrames =
-      void (*)(AAudioStreamBuilder* builder, int32_t numFrames);
-  using PFN_AAudioStreamBuilder_openStream =
-      aaudio_result_t (*)(AAudioStreamBuilder* builder, AAudioStream** stream);
-  using PFN_AAudioStream_close = aaudio_result_t (*)(AAudioStream* stream);
-  using PFN_AAudioStream_requestStart =
-      aaudio_result_t (*)(AAudioStream* stream);
-  using PFN_AAudioStream_requestPause =
-      aaudio_result_t (*)(AAudioStream* stream);
-  using PFN_AAudioStream_requestStop =
-      aaudio_result_t (*)(AAudioStream* stream);
-  using PFN_AAudioStream_requestFlush =
-      aaudio_result_t (*)(AAudioStream* stream);
-  using PFN_AAudioStream_getState =
-      aaudio_stream_state_t (*)(AAudioStream* stream);
-  using PFN_AAudioStream_getTimestamp =
-      aaudio_result_t (*)(AAudioStream* stream,
-                          clockid_t clockId,
-                          int64_t* framePosition,
-                          int64_t* timeNanoseconds);
-  using PFN_AAudioStream_write =
-      aaudio_result_t (*)(AAudioStream* stream,
-                          const void* buffer,
-                          int32_t numFrames,
-                          int64_t timeoutNanoseconds);
-  using PFN_AAudioStream_setBufferSizeInFrames =
-      aaudio_result_t (*)(AAudioStream* stream, int32_t numFrames);
-  using PFN_AAudioStream_waitForStateChange =
-      aaudio_result_t (*)(AAudioStream* stream,
-                          aaudio_stream_state_t inputState,
-                          aaudio_stream_state_t* nextState,
-                          int64_t timeoutNanoseconds);
-  using PFN_AAudioStream_getBufferSizeInFrames =
-      int32_t (*)(AAudioStream* stream);
-  using PFN_AAudioStream_getFramesPerBurst = int32_t (*)(AAudioStream* stream);
-  using PFN_AAudioStream_getFramesRead = int64_t (*)(AAudioStream* stream);
-  using PFN_AAudioStream_getXRunCount = int32_t (*)(AAudioStream* stream);
-
-  // Function pointers
-  PFN_AAudio_convertResultToText pfn_AAudio_convertResultToText = nullptr;
-  PFN_AAudio_createStreamBuilder pfn_AAudio_createStreamBuilder = nullptr;
-  PFN_AAudioStreamBuilder_delete pfn_AAudioStreamBuilder_delete = nullptr;
-  PFN_AAudioStreamBuilder_setDirection pfn_AAudioStreamBuilder_setDirection =
-      nullptr;
-  PFN_AAudioStreamBuilder_setSharingMode
-      pfn_AAudioStreamBuilder_setSharingMode = nullptr;
-  PFN_AAudioStreamBuilder_setPerformanceMode
-      pfn_AAudioStreamBuilder_setPerformanceMode = nullptr;
-  PFN_AAudioStreamBuilder_setFormat pfn_AAudioStreamBuilder_setFormat = nullptr;
-  PFN_AAudioStreamBuilder_setChannelCount
-      pfn_AAudioStreamBuilder_setChannelCount = nullptr;
-  PFN_AAudioStreamBuilder_setSampleRate pfn_AAudioStreamBuilder_setSampleRate =
-      nullptr;
-  PFN_AAudioStreamBuilder_setDataCallback
-      pfn_AAudioStreamBuilder_setDataCallback = nullptr;
-  PFN_AAudioStreamBuilder_setBufferCapacityInFrames
-      pfn_AAudioStreamBuilder_setBufferCapacityInFrames = nullptr;
-  PFN_AAudioStreamBuilder_openStream pfn_AAudioStreamBuilder_openStream =
-      nullptr;
-  PFN_AAudioStream_close pfn_AAudioStream_close = nullptr;
-  PFN_AAudioStream_requestStart pfn_AAudioStream_requestStart = nullptr;
-  PFN_AAudioStream_requestPause pfn_AAudioStream_requestPause = nullptr;
-  PFN_AAudioStream_requestStop pfn_AAudioStream_requestStop = nullptr;
-  PFN_AAudioStream_requestFlush pfn_AAudioStream_requestFlush = nullptr;
-  PFN_AAudioStream_getState pfn_AAudioStream_getState = nullptr;
-  PFN_AAudioStream_getTimestamp pfn_AAudioStream_getTimestamp = nullptr;
-  PFN_AAudioStream_write pfn_AAudioStream_write = nullptr;
-  PFN_AAudioStream_setBufferSizeInFrames
-      pfn_AAudioStream_setBufferSizeInFrames = nullptr;
-  PFN_AAudioStream_waitForStateChange pfn_AAudioStream_waitForStateChange =
-      nullptr;
-  PFN_AAudioStream_getBufferSizeInFrames
-      pfn_AAudioStream_getBufferSizeInFrames = nullptr;
-  PFN_AAudioStream_getFramesPerBurst pfn_AAudioStream_getFramesPerBurst =
-      nullptr;
-  PFN_AAudioStream_getFramesRead pfn_AAudioStream_getFramesRead = nullptr;
-  PFN_AAudioStream_getXRunCount pfn_AAudioStream_getXRunCount = nullptr;
+  static void (*StreamBuilder_SetFormat)(AAudioStreamBuilder* builder,
+                                         aaudio_format_t format);
+  static void (*StreamBuilder_SetChannelCount)(AAudioStreamBuilder* builder,
+                                               int32_t channelCount);
+  static void (*StreamBuilder_SetSampleRate)(AAudioStreamBuilder* builder,
+                                             int32_t sampleRate);
+  static void (*StreamBuilder_SetDataCallback)(
+      AAudioStreamBuilder* builder,
+      AAudioStream_dataCallback callback,
+      void* userData);
+  static void (*StreamBuilder_SetBufferCapacityInFrames)(
+      AAudioStreamBuilder* builder,
+      int32_t numFrames);
+  static aaudio_result_t (*StreamBuilder_OpenStream)(
+      AAudioStreamBuilder* builder,
+      AAudioStream** stream);
+  static aaudio_result_t (*Stream_Close)(AAudioStream* stream);
+  static aaudio_result_t (*Stream_RequestStart)(AAudioStream* stream);
+  static aaudio_result_t (*Stream_RequestPause)(AAudioStream* stream);
+  static aaudio_result_t (*Stream_RequestStop)(AAudioStream* stream);
+  static aaudio_result_t (*Stream_RequestFlush)(AAudioStream* stream);
+  static aaudio_stream_state_t (*Stream_GetState)(AAudioStream* stream);
+  static aaudio_result_t (*Stream_GetTimestamp)(AAudioStream* stream,
+                                                clockid_t clockId,
+                                                int64_t* framePosition,
+                                                int64_t* timeNanoseconds);
+  static aaudio_result_t (*Stream_Write)(AAudioStream* stream,
+                                         const void* buffer,
+                                         int32_t numFrames,
+                                         int64_t timeoutNanoseconds);
+  static aaudio_result_t (*Stream_SetBufferSizeInFrames)(AAudioStream* stream,
+                                                         int32_t numFrames);
+  static aaudio_result_t (*Stream_WaitForStateChange)(
+      AAudioStream* stream,
+      aaudio_stream_state_t inputState,
+      aaudio_stream_state_t* nextState,
+      int64_t timeoutNanoseconds);
+  static int32_t (*Stream_GetBufferSizeInFrames)(AAudioStream* stream);
+  static int32_t (*Stream_GetFramesPerBurst)(AAudioStream* stream);
+  static int64_t (*Stream_GetFramesRead)(AAudioStream* stream);
+  static int32_t (*Stream_GetXRunCount)(AAudioStream* stream);
 };
 
 }  // namespace starboard
