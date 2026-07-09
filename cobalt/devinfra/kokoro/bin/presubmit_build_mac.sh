@@ -5,7 +5,12 @@ set -ueEx
 . $(dirname "$0")/common.sh
 
 # Using repository root as work directory.
-export WORKSPACE_COBALT="${KOKORO_ARTIFACTS_DIR}/github/src"
+if [[ -d "${KOKORO_ARTIFACTS_DIR}/github" ]]; then
+  export GCLIENT_ROOT="${KOKORO_ARTIFACTS_DIR}/github"
+else
+  export GCLIENT_ROOT="${KOKORO_ARTIFACTS_DIR}/git"
+fi
+export WORKSPACE_COBALT="${GCLIENT_ROOT}/src"
 cd "${WORKSPACE_COBALT}"
 
 # Clean up workspace on exit or error.
@@ -20,15 +25,14 @@ pipeline () {
   # Run mac specific setup steps.
   setup_mac
 
-  local gclient_root="${KOKORO_ARTIFACTS_DIR}/github"
-  git config --global --add safe.directory "${gclient_root}/src"
-  local git_url="$(git -C "${gclient_root}/src" remote get-url origin)"
+  git config --global --add safe.directory "${GCLIENT_ROOT}/src"
+  local git_url="$(git -C "${GCLIENT_ROOT}/src" remote get-url origin)"
 
   # Set up gclient and run sync.
   ##############################################################################
-  cd "${gclient_root}"
+  cd "${GCLIENT_ROOT}"
   git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git tools/depot_tools --filter=blob:none
-  export PATH="${PATH}:${gclient_root}/tools/depot_tools"
+  export PATH="${PATH}:${GCLIENT_ROOT}/tools/depot_tools"
   # Conditionally enable RBE variables
   local custom_vars=""
   if [[ "${CONFIG}" == "devel" || "${CONFIG}" == "qa" ]]; then
@@ -63,7 +67,7 @@ EOF
 
   # Run GN and Ninja.
   ##############################################################################
-  cd "${gclient_root}/src"
+  cd "${GCLIENT_ROOT}/src"
   local rbe_flag="--no-rbe"
   if [[ "${CONFIG}" == "devel" ]] || [[ "${CONFIG}" == "qa" ]]; then
     rbe_flag=""
