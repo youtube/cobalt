@@ -223,6 +223,12 @@ static_library("cobalt_shell_lib") {
     "browser/shell_content_browser_client.h",
     "browser/shell_content_index_provider.cc",
     "browser/shell_content_index_provider.h",
+    "browser/shell_devtools_bindings.cc",
+    "browser/shell_devtools_bindings.h",
+    "browser/shell_devtools_frontend.cc",
+    "browser/shell_devtools_frontend.h",
+    "browser/shell_devtools_manager_delegate.cc",
+    "browser/shell_devtools_manager_delegate.h",
     "browser/shell_javascript_dialog.h",
     "browser/shell_javascript_dialog_manager.cc",
     "browser/shell_javascript_dialog_manager.h",
@@ -244,17 +250,6 @@ static_library("cobalt_shell_lib") {
     "renderer/shell_content_renderer_client.cc",
     "renderer/shell_content_renderer_client.h",
   ]
-
-  if (enable_devtools_backend) {
-    sources += [
-      "browser/shell_devtools_bindings.cc",
-      "browser/shell_devtools_bindings.h",
-      "browser/shell_devtools_frontend.cc",
-      "browser/shell_devtools_frontend.h",
-      "browser/shell_devtools_manager_delegate.cc",
-      "browser/shell_devtools_manager_delegate.h",
-    ]
-  }
 
   if (is_android) {
     sources += [
@@ -324,6 +319,17 @@ static_library("cobalt_shell_lib") {
         "browser/shell_web_contents_view_delegate_aura.cc",
       ]
     }
+  }
+
+  if (!enable_devtools_backend) {
+    sources -= [
+      "browser/shell_devtools_bindings.cc",
+      "browser/shell_devtools_bindings.h",
+      "browser/shell_devtools_frontend.cc",
+      "browser/shell_devtools_frontend.h",
+      "browser/shell_devtools_manager_delegate.cc",
+      "browser/shell_devtools_manager_delegate.h",
+    ]
   }
 
   if (is_starboard) {
