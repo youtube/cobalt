@@ -877,6 +877,9 @@ TEST_P(CertVerifyProcInternalTest, RejectExpiredCert) {
 }
 
 TEST_P(CertVerifyProcInternalTest, RejectWeakKeys) {
+#if defined(USE_COBALT_CUSTOMIZATIONS)
+  GTEST_SKIP() << "Test certificates have expired.";
+#endif
   base::FilePath certs_dir = GetTestCertsDirectory();
   typedef std::vector<std::string> Strings;
   Strings key_types;
