@@ -185,7 +185,7 @@ void StubAudioDecoder::DecodeOneBuffer(
 
     if (total_input_count_ % kMaxInputBeforeMultipleDecodedAudios != 0) {
       std::lock_guard lock(decoded_audios_mutex_);
-      decoded_audios_.push(decoded_audio);
+      decoded_audios_.push(std::move(decoded_audio));
       Schedule(output_cb_);
     } else {
       // Divide the content of `decoded_audio` as multiple DecodedAudio objects
@@ -226,7 +226,7 @@ void StubAudioDecoder::DecodeOneBuffer(
         offset_in_bytes += size_in_bytes_of_output;
 
         std::lock_guard lock(decoded_audios_mutex_);
-        decoded_audios_.push(current_decoded_audio);
+        decoded_audios_.push(std::move(current_decoded_audio));
         Schedule(output_cb_);
       }
     }
@@ -272,7 +272,7 @@ void StubAudioDecoder::DecodeEndOfStream() {
                                                discarded_duration_from_back);
 
     std::lock_guard lock(decoded_audios_mutex_);
-    decoded_audios_.push(decoded_audio);
+    decoded_audios_.push(std::move(decoded_audio));
     Schedule(output_cb_);
   }
   std::lock_guard lock(decoded_audios_mutex_);
