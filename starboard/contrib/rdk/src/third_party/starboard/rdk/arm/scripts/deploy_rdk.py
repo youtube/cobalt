@@ -505,21 +505,17 @@ def get_device_id() -> str:
     return dev
 
 
-def assert_software_version(device_id: str, min_version_date: str) -> None:
+def assert_software_version(device_id: Optional[str], device_ip: Optional[str], min_version_date: str) -> None:
     """Asserts that the device software date is at least the min_version_date."""
     try:
-        res = subprocess.run(
-            ["adb", "-s", device_id, "shell", "cat /version.txt"],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
-        if res.returncode != 0:
+        output = run_remote_command("cat /version.txt", device_id, device_ip, check=False)
+        if "imagename:" not in output:
             print("Error: Could not read /version.txt from the device to verify system software version.")
+            print(f"Details: {output}")
             sys.exit(1)
 
         custom_version = None
-        for line in res.stdout.splitlines():
+        for line in output.splitlines():
             if "custom version:" in line.lower():
                 custom_version = line.split(":", 1)[1].strip()
                 break
@@ -558,59 +554,38 @@ def assert_software_version(device_id: str, min_version_date: str) -> None:
         sys.exit(1)
 
 
-def check_and_switch_cobalt_version(device_id: str) -> None:
+def check_and_switch_cobalt_version(device_id: Optional[str], device_ip: Optional[str]) -> None:
     """Checks if Cobalt 26 is active on the device, otherwise switches and reboots."""
     try:
-        res = subprocess.run(
-            ["adb", "-s", device_id, "shell", "readlink /usr/lib/libloader_app.so"],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
-        current_target = res.stdout.strip()
+        current_target = run_remote_command(
+            "readlink /usr/lib/libloader_app.so", device_id, device_ip, check=False
+        ).strip()
 
-        # If it already points to /data/out_cobalt/libloader_app.so, it's already set to c26
         if current_target == "/data/out_cobalt/libloader_app.so":
             print("Cobalt 26 configuration is already active on the device.")
             return
 
         print("Cobalt configuration is not active. Running 'chCobalt custom_cobalt' on the device...")
-        res = subprocess.run(
-            ["adb", "-s", device_id, "shell", "chCobalt custom_cobalt"],
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
-        if res.returncode != 0:
-            print(f"Error: Failed to run 'chCobalt custom_cobalt': {res.stderr}")
-            sys.exit(1)
+        run_remote_command("chCobalt custom_cobalt", device_id, device_ip)
 
         print("Device is being rebooted to apply changes...")
-        subprocess.run(
-            ["adb", "-s", device_id, "shell", "reboot"],
-            timeout=5
-        )
+        run_remote_command("bash -l -c 'reboot'", device_id, device_ip, check=False)
 
         print("Waiting 30 seconds for the device to reboot...")
         time.sleep(30)
 
-        print("Attempting to reconnect to device via ADB...")
+        print("Attempting to reconnect to device...")
         reconnected = False
         for i in range(10): # try up to 10 times with 3 second intervals
-            res = subprocess.run(
-                ["adb", "-s", device_id, "shell", "echo ok"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            if res.returncode == 0 and res.stdout.strip() == "ok":
+            out = run_remote_command("echo ok", device_id, device_ip, check=False, verbose=False).strip()
+            if out == "ok":
                 reconnected = True
                 break
             print(f"Device not ready yet. Retrying in 3 seconds... ({i+1}/10)")
             time.sleep(3)
 
         if not reconnected:
-            print("Error: Could not reconnect to the device via ADB after reboot.")
+            print("Error: Could not reconnect to the device after reboot.")
             sys.exit(1)
 
         print("Reconnected to device successfully.")
@@ -620,10 +595,10 @@ def check_and_switch_cobalt_version(device_id: str) -> None:
         sys.exit(1)
 
 
-def revert_to_cobalt_25(device_id: str) -> None:
+def revert_to_cobalt_25(device_id: Optional[str], device_ip: Optional[str]) -> None:
     """Reverts the active Cobalt configuration on the device back to Cobalt 25."""
-    target = run_command(
-        ["adb", "-s", device_id, "shell", "readlink /usr/lib/libloader_app.so"]
+    target = run_remote_command(
+        "readlink /usr/lib/libloader_app.so", device_id, device_ip, check=False
     ).strip()
 
     if target != "/data/out_cobalt/libloader_app.so":
@@ -631,8 +606,8 @@ def revert_to_cobalt_25(device_id: str) -> None:
         return
 
     print("Running 'chCobalt c25' on the device...")
-    run_command(["adb", "-s", device_id, "shell", "chCobalt c25"])
-    run_command(["adb", "-s", device_id, "shell", "reboot -f"])
+    run_remote_command("chCobalt c25", device_id, device_ip)
+    run_remote_command("bash -l -c 'reboot -f'", device_id, device_ip, check=False)
     print("Revert to Cobalt 25 completed. The device is rebooting.")
 
 
