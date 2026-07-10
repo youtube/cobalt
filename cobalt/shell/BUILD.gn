@@ -440,11 +440,6 @@ repack("pak") {
     "//ui/webui/resources",
   ]
 
-  if (!is_android) {
-    deps += [ "//content/browser/tracing:resources" ]
-    sources += [ "$root_gen_dir/content/browser/tracing/tracing_resources.pak" ]
-  }
-
   if (shell_use_toolkit_views) {
     deps += [ "//ui/views/resources" ]
     sources +=
