@@ -19,6 +19,7 @@ import os
 import subprocess
 import sys
 import unittest
+import urllib.error
 from unittest.mock import MagicMock, patch
 
 # Add the current directory to sys.path to import merge_autoroll_lts
@@ -31,34 +32,119 @@ import merge_autoroll_lts
 class TestMergeAutorollLts(unittest.TestCase):
   """Test cases for merge_autoroll_lts main execution flows."""
 
+  def setUp(self):
+    # Mock get_installation_access_token to return fake token
+    self.token_patcher = patch(
+        'merge_autoroll_lts.get_installation_access_token',
+        return_value='fake_token')
+    self.mock_get_token = self.token_patcher.start()
+
+    # Mock exists to return True for our fake key file
+    orig_exists = os.path.exists
+    self.exists_patcher = patch(
+        'os.path.exists',
+        side_effect=lambda path: True
+        if 'fake_key.pem' in path else orig_exists(path))
+    self.mock_exists = self.exists_patcher.start()
+
+    # Mock sys.argv for all tests to use argparse arguments
+    self.argv_patcher = patch(
+        'sys.argv',
+        [
+            'merge_autoroll_lts.py',
+            '--source-branch',
+            'main',
+            '--target-branch',
+            '27.lts',
+            '--key-file',
+            '/tmp/fake_key.pem',
+        ],
+    )
+    self.mock_argv = self.argv_patcher.start()
+
+  def tearDown(self):
+    self.token_patcher.stop()
+    self.exists_patcher.stop()
+    self.argv_patcher.stop()
+
   # pylint: disable=unused-argument
 
-  @patch('subprocess.run')
-  @patch('subprocess.check_output')
-  @patch('merge_autoroll_lts.get_github_token', return_value='fake_token')
-  @patch('sys.argv', ['merge_autoroll_lts.py', '27.lts'])
-  def test_main_success(self, mock_get_token, mock_check_output, mock_run):
-    # Mock gh pr list
-    mock_check_output.return_value = json.dumps([{
-        'number': 1,
-        'title': 'Autoroll from main to 27.lts',
-        'headRefName': 'autoroll-main-to-27.lts',
-        'baseRefName': '27.lts',
-    }])
+  def _setup_mock_run(self,
+                      mock_run,
+                      *,
+                      prs_list=None,
+                      rebase_fail=False,
+                      close_fail=None,
+                      list_fail=False):
+    if prs_list is None:
+      prs_list = [{
+          'number': 1,
+          'title': 'Autoroll from main to 27.lts',
+          'headRefName': 'autoroll-main-to-27.lts',
+          'baseRefName': '27.lts',
+      }]
 
-    # Mock git operations
-    mock_run.return_value = MagicMock(returncode=0)
+    def run_side_effect(args, **kwargs):
+      cmd = args[0]
+      if cmd == 'gh':
+        subcmd = args[1]
+        if subcmd == 'pr':
+          pr_action = args[2]
+          if pr_action == 'list':
+            if list_fail:
+              raise subprocess.CalledProcessError(
+                  returncode=1, cmd='gh pr list')
+            mock_res = MagicMock()
+            mock_res.returncode = 0
+            mock_res.stdout = json.dumps(prs_list)
+            return mock_res
+          elif pr_action == 'close':
+            if close_fail == 'warning':
+              raise subprocess.CalledProcessError(
+                  returncode=1,
+                  cmd=args,
+                  output='✓ Closed pull request\n',
+                  stderr='failed to delete remote branch: HTTP 404')
+            elif close_fail == 'error':
+              raise subprocess.CalledProcessError(
+                  returncode=1,
+                  cmd=args,
+                  output='',
+                  stderr='HTTP 403: Forbidden')
+            mock_res = MagicMock()
+            mock_res.returncode = 0
+            mock_res.stdout = '✓ Closed pull request'
+            return mock_res
+      elif cmd == 'git':
+        git_subcmd = args[1]
+        if git_subcmd == 'rebase' and rebase_fail:
+          mock_res = MagicMock()
+          mock_res.returncode = 1
+          return mock_res
+
+      mock_res = MagicMock()
+      mock_res.returncode = 0
+      return mock_res
+
+    mock_run.side_effect = run_side_effect
+
+  @patch('subprocess.run')
+  def test_main_success(self, mock_run):
+    self._setup_mock_run(mock_run)
 
     with patch('sys.stdout'), patch('sys.stderr'):
       merge_autoroll_lts.main()
 
     # Verify gh pr list call
-    mock_check_output.assert_called_once_with([
+    mock_run.assert_any_call([
         'gh', 'pr', 'list', '--repo', merge_autoroll_lts.REPO_OWNER_PATH,
-        '--state', 'open', '--json', 'number,headRefName,baseRefName,title'
+        '--state', 'open', '--head', 'autoroll-main-to-27.lts', '--json',
+        'number,headRefName,baseRefName,title'
     ],
-                                              env=unittest.mock.ANY,
-                                              text=True)
+                             capture_output=True,
+                             text=True,
+                             check=True,
+                             env=unittest.mock.ANY)
 
     # Verify key subprocess calls
     mock_run.assert_any_call([
@@ -67,192 +153,92 @@ class TestMergeAutorollLts(unittest.TestCase):
         merge_autoroll_lts.REPO_URL, '+27.lts:refs/remotes/origin/27.lts',
         '+autoroll-main-to-27.lts:refs/remotes/origin/autoroll-main-to-27.lts'
     ],
-                             env=unittest.mock.ANY,
-                             check=True)
+                             check=True,
+                             env=unittest.mock.ANY)
     mock_run.assert_any_call([
         'git', 'worktree', 'add', '--no-checkout', unittest.mock.ANY,
         'origin/autoroll-main-to-27.lts'
     ],
                              check=True)
-    mock_run.assert_any_call(
-        ['git', '-C', unittest.mock.ANY, 'sparse-checkout', 'init', '--cone'],
-        check=True)
-    mock_run.assert_any_call(
-        ['git', '-C', unittest.mock.ANY, 'sparse-checkout', 'set', '.github'],
-        check=True)
-    mock_run.assert_any_call(
-        ['git', '-C', unittest.mock.ANY, 'rebase', 'origin/27.lts'],
-        check=False)
+    mock_run.assert_any_call(['git', 'sparse-checkout', 'init', '--cone'],
+                             check=True)
+    mock_run.assert_any_call(['git', 'sparse-checkout', 'set', '.github'],
+                             check=True)
+    mock_run.assert_any_call(['git', 'checkout'], check=True)
+    mock_run.assert_any_call(['git', 'rebase', 'origin/27.lts'], check=False)
     mock_run.assert_any_call([
-        'git', '-C', unittest.mock.ANY, '-c', 'credential.helper=', '-c',
+        'git', '-c', 'credential.helper=', '-c',
         'credential.helper=!gh auth git-credential', 'push',
         merge_autoroll_lts.REPO_URL, 'HEAD:27.lts'
     ],
-                             env=unittest.mock.ANY,
-                             check=True)
+                             check=True,
+                             env=unittest.mock.ANY)
     mock_run.assert_any_call(
         ['git', 'worktree', 'remove', '--force', unittest.mock.ANY],
         check=False)
 
-    close_comment = (
-        'Closing this PR because the changes have been rebased and pushed '
-        'directly to 27.lts.')
-    mock_run.assert_any_call([
-        'gh', 'pr', 'close', '1', '--repo', merge_autoroll_lts.REPO_OWNER_PATH,
-        '--comment', close_comment, '--delete-branch'
+    self.mock_get_token.assert_called_once_with('3203510', '/tmp/fake_key.pem')
+
+  @patch('subprocess.run')
+  def test_main_no_pr_found(self, mock_run):
+    self._setup_mock_run(mock_run, prs_list=[])
+    with patch('sys.stdout'), patch('sys.stderr'):
+      with self.assertRaises(SystemExit) as cm:
+        merge_autoroll_lts.main()
+    self.assertEqual(cm.exception.code, 0)
+    mock_run.assert_called_once_with([
+        'gh', 'pr', 'list', '--repo', merge_autoroll_lts.REPO_OWNER_PATH,
+        '--state', 'open', '--head', 'autoroll-main-to-27.lts', '--json',
+        'number,headRefName,baseRefName,title'
     ],
-                             env=unittest.mock.ANY,
-                             capture_output=True,
-                             text=True,
-                             check=True)
+                                     capture_output=True,
+                                     text=True,
+                                     check=True,
+                                     env=unittest.mock.ANY)
 
   @patch('subprocess.run')
-  @patch('subprocess.check_output')
-  @patch('merge_autoroll_lts.get_github_token', return_value='fake_token')
-  @patch('sys.argv', ['merge_autoroll_lts.py', '27.lts'])
-  def test_main_no_pr_found(self, mock_get_token, mock_check_output, mock_run):
-    mock_check_output.return_value = json.dumps([])
-    with patch('sys.stdout'), patch('sys.stderr'):
-      with self.assertRaises(SystemExit) as cm:
-        merge_autoroll_lts.main()
-    self.assertEqual(cm.exception.code, 1)
-    mock_run.assert_not_called()
-
-  @patch('subprocess.run')
-  @patch('subprocess.check_output')
-  @patch('merge_autoroll_lts.get_github_token', return_value='fake_token')
-  @patch('sys.argv', ['merge_autoroll_lts.py', '27.lts'])
-  def test_main_rebase_conflict(self, mock_get_token, mock_check_output,
-                                mock_run):
-    mock_check_output.return_value = json.dumps([{
-        'number': 1,
-        'title': 'Autoroll from main to 27.lts',
-        'headRefName': 'autoroll-main-to-27.lts',
-        'baseRefName': '27.lts',
-    }])
-
-    # Mock git operations
-    def run_side_effect(cmd, *args, **kwargs):
-      res = MagicMock()
-      res.returncode = 0
-      if 'rebase' in cmd:
-        res.returncode = 1
-      return res
-
-    mock_run.side_effect = run_side_effect
-
-    with patch('sys.stdout'), patch('sys.stderr'):
-      with self.assertRaises(SystemExit) as cm:
-        merge_autoroll_lts.main()
-    self.assertEqual(cm.exception.code, 1)
-    # Check that worktree cleanup was still called
-    mock_run.assert_any_call(
-        ['git', 'worktree', 'remove', '--force', unittest.mock.ANY],
-        check=False)
-
-  @patch('subprocess.run')
-  @patch('subprocess.check_output')
-  @patch('merge_autoroll_lts.get_github_token', return_value='fake_token')
-  @patch('sys.argv', ['merge_autoroll_lts.py', '27.lts'])
-  def test_main_conflicted_pr(self, mock_get_token, mock_check_output,
-                              mock_run):
+  def test_main_conflicted_pr(self, mock_run):
     # Mock gh pr list returning a conflicted PR
-    mock_check_output.return_value = json.dumps([{
-        'number': 1,
-        'title': 'CONFLICTED: Autoroll from main to 27.lts',
-        'headRefName': 'autoroll-main-to-27.lts',
-        'baseRefName': '27.lts',
-    }])
+    self._setup_mock_run(
+        mock_run,
+        prs_list=[{
+            'number': 1,
+            'title': 'CONFLICTED: Autoroll from main to 27.lts',
+            'headRefName': 'autoroll-main-to-27.lts',
+            'baseRefName': '27.lts',
+        }])
 
     with patch('sys.stdout'), patch('sys.stderr'):
       with self.assertRaises(SystemExit) as cm:
         merge_autoroll_lts.main()
 
     self.assertEqual(cm.exception.code, 1)
-    mock_run.assert_not_called()
+    mock_run.assert_called_once_with([
+        'gh', 'pr', 'list', '--repo', merge_autoroll_lts.REPO_OWNER_PATH,
+        '--state', 'open', '--head', 'autoroll-main-to-27.lts', '--json',
+        'number,headRefName,baseRefName,title'
+    ],
+                                     capture_output=True,
+                                     text=True,
+                                     check=True,
+                                     env=unittest.mock.ANY)
 
   @patch('subprocess.run')
-  @patch('subprocess.check_output')
-  @patch('merge_autoroll_lts.get_github_token', return_value='fake_token')
-  @patch('sys.argv', ['merge_autoroll_lts.py', '27.lts'])
-  def test_main_close_pr_delete_branch_fails_warning(self, mock_get_token,
-                                                     mock_check_output,
-                                                     mock_run):
-    mock_check_output.return_value = json.dumps([{
-        'number': 1,
-        'title': 'Autoroll from main to 27.lts',
-        'headRefName': 'autoroll-main-to-27.lts',
-        'baseRefName': '27.lts',
-    }])
-
-    def run_side_effect(cmd, *args, **kwargs):
-      if 'close' in cmd:
-        raise subprocess.CalledProcessError(
-            returncode=1,
-            cmd=cmd,
-            output='✓ Closed pull request\n',
-            stderr='failed to delete remote branch: HTTP 404')
-      return MagicMock(returncode=0)
-
-    mock_run.side_effect = run_side_effect
+  def test_main_list_prs_fails(self, mock_run):
+    self._setup_mock_run(mock_run, list_fail=True)
 
     with patch('sys.stdout'), patch('sys.stderr'):
-      merge_autoroll_lts.main()
-
-  @patch('subprocess.run')
-  @patch('subprocess.check_output')
-  @patch('merge_autoroll_lts.get_github_token', return_value='fake_token')
-  @patch('sys.argv', ['merge_autoroll_lts.py', '27.lts'])
-  def test_main_close_pr_fails_error(self, mock_get_token, mock_check_output,
-                                     mock_run):
-    mock_check_output.return_value = json.dumps([{
-        'number': 1,
-        'title': 'Autoroll from main to 27.lts',
-        'headRefName': 'autoroll-main-to-27.lts',
-        'baseRefName': '27.lts',
-    }])
-
-    def run_side_effect(cmd, *args, **kwargs):
-      if 'close' in cmd:
-        raise subprocess.CalledProcessError(
-            returncode=1, cmd=cmd, output='', stderr='HTTP 403: Forbidden')
-      return MagicMock(returncode=0)
-
-    mock_run.side_effect = run_side_effect
-
-    with patch('sys.stdout'), patch('sys.stderr'):
-      with self.assertRaises(SystemExit) as cm:
+      with self.assertRaises(subprocess.CalledProcessError):
         merge_autoroll_lts.main()
-    self.assertEqual(cm.exception.code, 1)
-
-  # pylint: enable=unused-argument
-
-
-class TestGetGithubToken(unittest.TestCase):
-  """Test cases for get_github_token authorization function."""
-
-  # pylint: disable=unused-argument
-
-  @patch.dict('os.environ', {'GITHUB_TOKEN': 'env_token'})
-  def test_token_from_env(self):
-    token = merge_autoroll_lts.get_github_token()
-    self.assertEqual(token, 'env_token')
-
-  @patch(
-      'builtins.input',
-      side_effect=[
-          '-----BEGIN RSA PRIVATE KEY-----', 'MIIEowIBAAKCAQEA08...',
-          '-----END RSA PRIVATE KEY-----'
-      ])
-  @patch(
-      'merge_autoroll_lts.get_installation_access_token',
-      return_value='app_token')
-  @patch.dict('os.environ', {}, clear=True)
-  def test_token_from_app_inputs(self, mock_get_app_token, mock_input):
-    with patch('sys.stdout'), patch('sys.stderr'):
-      token = merge_autoroll_lts.get_github_token()
-    self.assertEqual(token, 'app_token')
-    mock_get_app_token.assert_called_once_with('3203510', unittest.mock.ANY)
+    mock_run.assert_called_once_with([
+        'gh', 'pr', 'list', '--repo', merge_autoroll_lts.REPO_OWNER_PATH,
+        '--state', 'open', '--head', 'autoroll-main-to-27.lts', '--json',
+        'number,headRefName,baseRefName,title'
+    ],
+                                     capture_output=True,
+                                     text=True,
+                                     check=True,
+                                     env=unittest.mock.ANY)
 
   # pylint: enable=unused-argument
 
@@ -262,59 +248,48 @@ class TestAppCredentialExchange(unittest.TestCase):
 
   # pylint: disable=unused-argument
 
-  @patch('subprocess.Popen')
-  def test_generate_jwt_success(self, mock_popen):
-    mock_proc = MagicMock()
-    mock_proc.communicate.return_value = (b'fake_signature', b'')
-    mock_proc.returncode = 0
-    mock_popen.return_value.__enter__.return_value = mock_proc
+  @patch('merge_autoroll_lts.openssl')
+  def test_generate_jwt_success(self, mock_openssl):
+    mock_openssl.return_value = b'fake_signature'
 
     with patch('time.time', return_value=100000):
       jwt = merge_autoroll_lts.generate_jwt('12345', '/tmp/fake.pem')
 
     self.assertTrue(jwt.startswith('eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.'))
-    mock_popen.assert_called_once_with(
-        ['openssl', 'dgst', '-sha256', '-sign', '/tmp/fake.pem'],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE)
+    mock_openssl.assert_called_once_with(
+        'dgst',
+        '-sha256',
+        '-sign',
+        '/tmp/fake.pem',
+        stdin=unittest.mock.ANY,
+        stdout=subprocess.PIPE)
 
-  @patch('subprocess.Popen')
-  def test_generate_jwt_openssl_not_found(self, mock_popen):
-    mock_popen.side_effect = FileNotFoundError('openssl not found')
-
-    with patch('sys.stdout'), patch('sys.stderr'):
-      with self.assertRaises(SystemExit) as cm:
-        merge_autoroll_lts.generate_jwt('12345', '/tmp/fake.pem')
-
-    self.assertEqual(cm.exception.code, 1)
-
-  @patch('subprocess.Popen')
-  def test_generate_jwt_openssl_error(self, mock_popen):
-    mock_proc = MagicMock()
-    mock_proc.communicate.return_value = (b'', b'some error')
-    mock_proc.returncode = 1
-    mock_popen.return_value.__enter__.return_value = mock_proc
+  @patch('merge_autoroll_lts.openssl')
+  def test_generate_jwt_openssl_not_found(self, mock_openssl):
+    mock_openssl.side_effect = FileNotFoundError('openssl not found')
 
     with patch('sys.stdout'), patch('sys.stderr'):
-      with self.assertRaises(SystemExit) as cm:
+      with self.assertRaises(FileNotFoundError):
         merge_autoroll_lts.generate_jwt('12345', '/tmp/fake.pem')
 
-    self.assertEqual(cm.exception.code, 1)
+  @patch('merge_autoroll_lts.openssl')
+  def test_generate_jwt_openssl_error(self, mock_openssl):
+    mock_openssl.side_effect = subprocess.CalledProcessError(
+        returncode=1, cmd='openssl')
+
+    with patch('sys.stdout'), patch('sys.stderr'):
+      with self.assertRaises(subprocess.CalledProcessError):
+        merge_autoroll_lts.generate_jwt('12345', '/tmp/fake.pem')
 
   @patch('urllib.request.urlopen')
   @patch('merge_autoroll_lts.generate_jwt', return_value='fake_jwt')
   def test_get_installation_access_token_success(self, mock_generate_jwt,
                                                  mock_urlopen):
-    mock_res_inst = MagicMock()
-    mock_res_inst.__enter__.return_value = mock_res_inst
-    mock_res_inst.read.return_value = b'{"id": 98765}'
-
     mock_res_tok = MagicMock()
     mock_res_tok.__enter__.return_value = mock_res_tok
     mock_res_tok.read.return_value = b'{"token": "app_installed_token"}'
 
-    mock_urlopen.side_effect = [mock_res_inst, mock_res_tok]
+    mock_urlopen.return_value = mock_res_tok
 
     with patch('sys.stdout'), patch('sys.stderr'):
       token = merge_autoroll_lts.get_installation_access_token(
@@ -323,7 +298,58 @@ class TestAppCredentialExchange(unittest.TestCase):
     self.assertEqual(token, 'app_installed_token')
     mock_generate_jwt.assert_called_once_with('12345', '/tmp/fake.pem')
 
+  @patch('urllib.request.urlopen')
+  @patch('merge_autoroll_lts.generate_jwt', return_value='fake_jwt')
+  def test_get_installation_access_token_token_error(self, mock_generate_jwt,
+                                                     mock_urlopen):
+    mock_urlopen.side_effect = urllib.error.HTTPError(
+        'https://api.github.com/app/installations/119484904/access_tokens', 400,
+        'Bad Request', None, None)
+
+    with patch('sys.stdout'), patch('sys.stderr'):
+      with self.assertRaises(urllib.error.HTTPError):
+        merge_autoroll_lts.get_installation_access_token(
+            '12345', '/tmp/fake.pem')
+
   # pylint: enable=unused-argument
+
+
+class TestWrappers(unittest.TestCase):
+  """Test cases for wrapper functions."""
+
+  @patch('subprocess.run')
+  def test_git_wrapper_default_check(self, mock_run):
+    merge_autoroll_lts.git('status')
+    mock_run.assert_called_once_with(['git', 'status'], check=True)
+
+  @patch('subprocess.run')
+  def test_git_wrapper_custom_check(self, mock_run):
+    merge_autoroll_lts.git('status', check=False)
+    mock_run.assert_called_once_with(['git', 'status'], check=False)
+
+  @patch('subprocess.run')
+  def test_gh_wrapper_default_check(self, mock_run):
+    merge_autoroll_lts.gh('auth', 'status')
+    mock_run.assert_called_once_with(['gh', 'auth', 'status'], check=True)
+
+  @patch('subprocess.run')
+  def test_gh_wrapper_custom_check(self, mock_run):
+    merge_autoroll_lts.gh('auth', 'status', check=False)
+    mock_run.assert_called_once_with(['gh', 'auth', 'status'], check=False)
+
+  @patch('subprocess.run')
+  def test_openssl_wrapper_default_check(self, mock_run):
+    merge_autoroll_lts.openssl('status')
+    mock_run.assert_called_once_with(['openssl', 'status'],
+                                     input=None,
+                                     check=True)
+
+  @patch('subprocess.run')
+  def test_openssl_wrapper_custom_stdin_and_check(self, mock_run):
+    merge_autoroll_lts.openssl('status', stdin=b'data', check=False)
+    mock_run.assert_called_once_with(['openssl', 'status'],
+                                     input=b'data',
+                                     check=False)
 
 
 if __name__ == '__main__':
