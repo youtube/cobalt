@@ -78,7 +78,7 @@ base::FilePath GetPathToCrashpadHandlerBinary() {
 #if defined(OS_ANDROID)
   // Path to the extracted native library.
   handler_path.append("arm/libcrashpad_handler.so");
-#else  // defined(OS_ANDROID)
+#else   // defined(OS_ANDROID)
   handler_path.append("native_target/crashpad_handler");
 #endif  // defined(OS_ANDROID)
   return base::FilePath(handler_path.c_str());
