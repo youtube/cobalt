@@ -345,6 +345,7 @@ static_library("starboard_platform") {
       "asset_manager.cc",
       "asset_manager.h",
       "posix_emu/access.cc",
+      "posix_emu/alarm.cc",
       "posix_emu/errno.cc",
       "posix_emu/file.cc",
       "posix_emu/stat.cc",
