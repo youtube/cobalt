@@ -55,6 +55,8 @@
 //          [  STOPPED  ]
 //          [===========]
 //
+//
+//
 // A Starboard application receives either `Start` (|kSbEventTypeStart|) or
 // `Preload` (|kSbEventTypePreload|) as its first event. `Start` transitions the
 // application to the `STARTED` state, while `Preload` transitions it to the
