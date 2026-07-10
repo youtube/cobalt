@@ -40,3 +40,4 @@ Memory.Cobalt.ResidentFootprint.BlinkScriptLoader
 Memory.Cobalt.ResidentFootprint.BlinkScriptRunner
 Memory.Cobalt.ResidentFootprint.ThirdParty
 Memory.Cobalt.ResidentFootprint.Unknown
+Memory.Experimental.Browser2.PartitionAlloc

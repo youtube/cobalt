@@ -48,7 +48,8 @@ def parse_uma_histos(file_path):
         continue
 
       metric_name, json_str = parts[1], parts[2]
-      if not metric_name.startswith("Memory.Cobalt.ResidentFootprint."):
+      if not (metric_name.startswith("Memory.Cobalt.ResidentFootprint.") or
+              metric_name == "Memory.Experimental.Browser2.PartitionAlloc"):
         continue
 
       try:
@@ -106,14 +107,33 @@ def verify_accounting(file_path,
     finals[metric] = counts[max_count]
     deltas[metric] = finals[metric] - baselines[metric]
 
-  unknown_delta = deltas.get("Memory.Cobalt.ResidentFootprint.Unknown", 0)
-  subsystems_delta = sum(d for m, d in deltas.items() if "Unknown" not in m)
-  total_delta = unknown_delta + subsystems_delta
+  subsystems_delta = sum(d for m, d in deltas.items() if "Unknown" not in m and
+                         m != "Memory.Experimental.Browser2.PartitionAlloc")
+  total_pa_delta = deltas.get("Memory.Experimental.Browser2.PartitionAlloc", 0)
 
-  total_final = sum(finals.values())
-  unknown_final = finals.get("Memory.Cobalt.ResidentFootprint.Unknown", 0)
+  unknown_delta = max(0, total_pa_delta - subsystems_delta)
+  if "Memory.Cobalt.ResidentFootprint.Unknown" in deltas:
+    deltas["Memory.Cobalt.ResidentFootprint.Unknown"] = unknown_delta
+
+  total_delta = total_pa_delta if total_pa_delta > 0 else (unknown_delta +
+                                                           subsystems_delta)
+
+  subsystems_final = sum(v for m, v in finals.items() if "Unknown" not in m and
+                         m != "Memory.Experimental.Browser2.PartitionAlloc")
+  total_pa_final = finals.get("Memory.Experimental.Browser2.PartitionAlloc", 0)
+
+  unknown_final = max(0, total_pa_final - subsystems_final)
+  if "Memory.Cobalt.ResidentFootprint.Unknown" in finals:
+    finals["Memory.Cobalt.ResidentFootprint.Unknown"] = unknown_final
+
+  total_final = total_pa_final if total_pa_final > 0 else sum(
+      v for m, v in finals.items()
+      if m != "Memory.Experimental.Browser2.PartitionAlloc")
   unknown_final_pct = (unknown_final / total_final *
                        100.0) if total_final > 0 else 0.0
+
+  if "Memory.Experimental.Browser2.PartitionAlloc" in deltas:
+    del deltas["Memory.Experimental.Browser2.PartitionAlloc"]
 
   tbl_hdr = (f"{'Subsystem / Region':<28} | {'Base (MB)':<9} | "
              f"{'Final (MB)':<10} | {'Delta (MB)':<10} | "
@@ -178,13 +198,19 @@ def verify_accounting(file_path,
       continue
 
     closest_count = max(available_counts)
-    m_unknown = metrics_data.get("Memory.Cobalt.ResidentFootprint.Unknown",
-                                 {}).get(closest_count, 0)
-    m_total = 0
-    for counts in metrics_data.values():
+    m_pa_total = metrics_data.get("Memory.Experimental.Browser2.PartitionAlloc",
+                                  {}).get(closest_count, 0)
+    m_subsystems_total = 0
+    for metric, counts in metrics_data.items():
+      if ("Unknown" in metric or
+          metric == "Memory.Experimental.Browser2.PartitionAlloc"):
+        continue
       avail = [c for c in counts.keys() if c <= target_count]
       if avail:
-        m_total += counts[max(avail)]
+        m_subsystems_total += counts[max(avail)]
+
+    m_total = m_pa_total if m_pa_total > 0 else m_subsystems_total
+    m_unknown = max(0, m_pa_total - m_subsystems_total) if m_pa_total > 0 else 0
     m_unknown_pct = (m_unknown / m_total * 100.0) if m_total > 0 else 0.0
     status = "[PASS]" if m_unknown_pct < 20.0 else "[FAIL]"
     if m_unknown_pct >= 20.0:

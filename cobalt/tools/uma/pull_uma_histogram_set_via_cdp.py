@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright 2025 The Cobalt Authors. All Rights Reserved.
+# Copyright 2026 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -298,6 +298,8 @@ def _interact_via_cdp(websocket_url: str, histograms: list, output_file,
 
     _print_cobalt_histogram_names(ws, message_id, histograms, output_file,
                                   quiet)
+  except (websocket.WebSocketException, ConnectionError) as e:
+    _print_q(f'[WARNING] CDP CONNECTION DROPPED: {e}', quiet)
   except Exception as e:  # pylint: disable=broad-exception-caught
     _print_q(f'An error occurred: {e}', quiet)
   finally:
