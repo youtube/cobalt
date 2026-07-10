@@ -150,8 +150,7 @@ MediaCodecDecoder::CreateForVideo(
       force_big_endian_hdr_metadata, max_video_input_size, flush_delay_usec,
       use_dual_threads, skip_video_frames_over_60_fps,
       ignore_mediacodec_callbacks_during_flushing, enable_ndk_video,
-      enable_trivial_optimizations,
-      &error_message);
+      enable_trivial_optimizations, &error_message);
   if (!decoder->media_codec_bridge_) {
     return Failure(error_message);
   }
@@ -979,7 +978,7 @@ void MediaCodecDecoder::OnMediaCodecError(bool is_recoverable,
 }
 
 void MediaCodecDecoder::OnMediaCodecInputBufferAvailable(int32_t buffer_index) {
-  SB_DCHECK_GE(buffer_index, 0);
+  SB_CHECK_GE(buffer_index, 0);
   if (media_type_ == kSbMediaTypeVideo && first_call_on_handler_thread_) {
     // Set the thread priority of the Handler thread to dispatch the async
     // decoder callbacks to high.
@@ -1004,7 +1003,7 @@ void MediaCodecDecoder::OnMediaCodecOutputBufferAvailable(
     int32_t offset,
     int64_t presentation_time_us,
     int32_t size) {
-  SB_DCHECK_GE(buffer_index, 0);
+  SB_CHECK_GE(buffer_index, 0);
 
   // TODO(b/291959069): After the output thread is destroyed, it may still
   // receive output buffer, discard this invalid output buffer.
