@@ -213,6 +213,7 @@ void AddDefaultDevice(AudioDeviceNames* device_names) {
   device_names->push_front(AudioDeviceName::CreateDefault());
 }
 
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
 std::string GetFallbackDeviceNameForType(AudioDeviceType type) {
   switch (type) {
     case AudioDeviceType::kBuiltinEarpiece:
@@ -298,6 +299,7 @@ void CombineBluetoothClassicDevices(
   });
   devices.erase(sco_device);
 }
+#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
 bool UseAAudioOutput() {
   if (!__builtin_available(android AAUDIO_MIN_API, *)) {
@@ -525,7 +527,6 @@ void AudioManagerAndroid::GetDeviceNames(AudioDeviceNames* device_names,
   if (direction == AudioDeviceDirection::kOutput) {
     CombineBluetoothClassicDevices(devices, device_names);
   }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   switch (direction) {
     case AudioDeviceDirection::kInput:
       input_device_cache_ = base::flat_map(devices);
@@ -534,6 +535,7 @@ void AudioManagerAndroid::GetDeviceNames(AudioDeviceNames* device_names,
       output_device_cache_ = base::flat_map(devices);
       break;
   }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void AudioManagerAndroid::GetCommunicationDeviceNames(
@@ -572,7 +574,6 @@ const AudioManagerAndroid::DeviceCache& AudioManagerAndroid::GetDeviceCache(
     case AudioDeviceDirection::kOutput:
       return output_device_cache_;
   }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 std::optional<AudioDevice> AudioManagerAndroid::GetDeviceForAAudioStream(
@@ -1102,43 +1103,6 @@ AudioManagerAndroid::JniDelegate& AudioManagerAndroid::GetJniDelegate() {
   return *jni_delegate_;
 }
 
-void AudioManagerAndroid::SetCommunicationAudioModeOn(bool on) {
-  DVLOG(1) << __FUNCTION__ << ": " << on;
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
-  Java_AudioManagerAndroid_setCommunicationAudioModeOn(
-      base::android::AttachCurrentThread(), GetJavaAudioManager(), on);
-#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
-}
-
-bool AudioManagerAndroid::SetCommunicationDevice(const std::string& device_id) {
-  DVLOG(1) << __FUNCTION__ << ": " << device_id;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  return true;
-#else
-  DCHECK(GetTaskRunner()->BelongsToCurrentThread());
-
-  // Send the unique device ID to the Java audio manager and make the
-  // device switch. Provide an empty string to the Java audio manager
-  // if the default device is selected.
-  JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jstring> j_device_id = ConvertUTF8ToJavaString(
-      env, device_id == AudioDeviceDescription::kDefaultDeviceId ? std::string()
-                                                                 : device_id);
-  return Java_AudioManagerAndroid_setCommunicationDevice(
-      env, GetJavaAudioManager(), j_device_id);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-}
-
-bool AudioManagerAndroid::IsBluetoothScoOn() {
-  return Java_AudioManagerAndroid_isBluetoothScoOn(
-      base::android::AttachCurrentThread(), GetJavaAudioManager());
-}
-
-void AudioManagerAndroid::MaybeSetBluetoothScoState(bool state) {
-  return Java_AudioManagerAndroid_maybeSetBluetoothScoState(
-      base::android::AttachCurrentThread(), GetJavaAudioManager(), state);
-}
-
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 void AudioManagerAndroid::PreStartStream(
     const base::UnguessableToken& session_token,
@@ -1203,18 +1167,6 @@ void AudioManagerAndroid::PreStartStream(
 AudioManagerAndroid::PreStartedEntry::PreStartedEntry() = default;
 AudioManagerAndroid::PreStartedEntry::~PreStartedEntry() = default;
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
-int AudioManagerAndroid::GetNativeOutputSampleRate() {
-  return GetJniDelegate().GetNativeOutputSampleRate();
-}
-
-bool AudioManagerAndroid::IsAudioLowLatencySupported() {
-  return GetJniDelegate().IsAudioLowLatencySupported();
-}
-
-int AudioManagerAndroid::GetAudioLowLatencyOutputFrameSize() {
-  return GetJniDelegate().GetAudioLowLatencyOutputFrameSize();
-}
 
 int AudioManagerAndroid::GetOptimalOutputFrameSize(int sample_rate,
                                                    int channels) {

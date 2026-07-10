@@ -46,9 +46,9 @@ void GetEGLInitDisplays(bool supports_angle_d3d,
       base::FeatureList::IsEnabled(features::kDefaultANGLEMetal);
   bool default_angle_vulkan = features::IsDefaultANGLEVulkan();
 #if BUILDFLAG(IS_STARBOARD)
-  const char* default_software_renderer = kANGLEImplementationOpenGLESEGLName;
+  [[maybe_unused]] const char* default_software_renderer = kANGLEImplementationOpenGLESEGLName;
 #else
-  const char* default_software_renderer = kANGLEImplementationSwiftShaderName;
+  [[maybe_unused]] const char* default_software_renderer = kANGLEImplementationSwiftShaderName;
 #endif
 
 #if BUILDFLAG(IS_WIN)
