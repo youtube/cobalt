@@ -808,6 +808,9 @@ void FetchManager::Loader::DidReceiveCachedMetadata(mojo_base::BigBuffer data) {
 
 void FetchManager::Loader::DidStartLoadingResponseBody(BytesConsumer& body) {
   if (GetFetchRequestData()->Integrity().empty() &&
+#if BUILDFLAG(IS_COBALT)
+      !base::FeatureList::IsEnabled(features::kCobaltBypassBufferingBytesConsumer) &&
+#endif  // BUILDFLAG(IS_COBALT)
       !response_has_no_store_header_) {
     // BufferingBytesConsumer reads chunks from |bytes_consumer| as soon as
     // they get available to relieve backpressure.  Buffering starts after
