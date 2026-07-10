@@ -458,9 +458,11 @@ void VideoRendererImpl::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
         it = next;
       }
     } else {
-      for (auto decoder_frame : decoder_frames_) {
+      // We can move decoder_frames_ here as it is immediately cleared.
+      Frames frames_to_process = std::move(decoder_frames_);
+      for (auto& decoder_frame : frames_to_process) {
         if (sink_frames_.empty()) {
-          sink_frames_.push_back(decoder_frame);
+          sink_frames_.push_back(std::move(decoder_frame));
           continue;
         }
         if (sink_frames_.back()->is_end_of_stream()) {
@@ -468,7 +470,7 @@ void VideoRendererImpl::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
         }
         if (decoder_frame->is_end_of_stream() ||
             decoder_frame->timestamp() > sink_frames_.back()->timestamp()) {
-          sink_frames_.push_back(decoder_frame);
+          sink_frames_.push_back(std::move(decoder_frame));
         }
       }
     }

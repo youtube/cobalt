@@ -489,7 +489,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
     current_state.playback_rate = playback_rate_;
 
     if (!decoded_audio_writing_in_progress_ && !decoded_audios_.empty()) {
-      decoded_audio_writing_in_progress_ = decoded_audios_.front();
+      decoded_audio_writing_in_progress_ = std::move(decoded_audios_.front());
       decoded_audios_.pop();
       decoded_audio_writing_offset_ = 0;
     }
@@ -641,7 +641,7 @@ void AudioRendererPassthrough::OnDecoderOutput() {
   }
 
   std::lock_guard scoped_lock(mutex_);
-  decoded_audios_.push(decoded_audio);
+  decoded_audios_.push(std::move(decoded_audio));
 }
 
 }  // namespace starboard
