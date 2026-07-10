@@ -102,14 +102,10 @@ FEATURE_LIST_START
 
 #if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 // keep-sorted start newline_separated=yes
-// When enabled, Cobalt pools physical memory allocations for decoded audio
-// buffers inside a thread-safe fixed-size pool, preventing progressive heap
-// fragmentation on restricted-memory devices.
-STARBOARD_FEATURE(kDecodedAudioBufferPool, "DecodedAudioBufferPool", false)
-
-// By default, app provisioning is disabled. Set the following variable to true
-// to enable app provisioning.
-STARBOARD_FEATURE(kEnableAppProvisioning, "EnableAppProvisioning", false)
+// Set to true to enable area-based video buffer budget calculation.
+STARBOARD_FEATURE(kAreaBasedVideoBufferBudget,
+                  "AreaBasedVideoBufferBudget",
+                  false)
 
 // Set the following variable to true to enable av1 startup optimization.
 STARBOARD_FEATURE(kEnableAv1StartupOptimization,
@@ -165,12 +161,19 @@ STARBOARD_FEATURE(kUseStubVideoDecoder, "UseStubVideoDecoder", false)
 STARBOARD_FEATURE(kVideoDecoderDelayUsecOverride,
                   "VideoDecoderDelayUsecOverride",
                   false)
-
-// Enable thread-safe memory pool for VideoFrameImpl to eliminate steady-state
-// heap allocations.
-STARBOARD_FEATURE(kVideoFrameImplPool, "VideoFrameImplPool", false)
 // keep-sorted end
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+
+// Set the following variable to true to reduce starboard thread stack size.
+STARBOARD_FEATURE(kReduceStarboardThreadStackSize,
+                  "ReduceStarboardThreadStackSize",
+                  false)
+
+// Set the following variable to true to reduce android thread stack size.
+STARBOARD_FEATURE(kReduceAndroidThreadStackSize,
+                  "ReduceAndroidThreadStackSize",
+                  false)
+
 FEATURE_LIST_END
 
 // To add a parameter to Starboard, use the macro:

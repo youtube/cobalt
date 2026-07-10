@@ -14,6 +14,7 @@ import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.os.Build;
 import android.os.Build.VERSION_CODES;
+import android.os.Process;
 import android.text.TextUtils;
 
 import androidx.annotation.OptIn;
@@ -129,6 +130,22 @@ public class BuildInfo {
         } else {
             return pi.versionCode;
         }
+    }
+
+    /**
+     * @return CPU architecture name, see "arch:" in:
+     *     https://chromium.googlesource.com/chromium/src.git/+/master/docs/updater/protocol_3_1.md
+     */
+    public static String getArch() {
+        String[] abis = Build.SUPPORTED_ABIS;
+        String primaryAbi = (abis != null && abis.length > 0) ? abis[0] : "";
+        boolean is64Bit = Process.is64Bit();
+        if (primaryAbi.startsWith("arm")) {
+            return is64Bit ? "arm64" : "arm";
+        } else if (primaryAbi.startsWith("x86")) {
+            return is64Bit ? "x86_64" : "x86";
+        }
+        return "";
     }
 
     /**

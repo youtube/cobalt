@@ -58,6 +58,7 @@ template("starboard_platform_target") {
     public_deps = [
       "//starboard/common",
       "//starboard/egl_and_gles",
+      "//starboard/shared/starboard:feature_list",
     ]
     if (!sb_is_evergreen) {
       public_deps += [ "//$starboard_path:starboard_platform" ]

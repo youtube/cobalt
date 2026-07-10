@@ -885,6 +885,13 @@ bool GpuProcessHost::Init() {
             process_->GetInProcessMojoInvitation(), GetIOThreadTaskRunner()),
         gpu_preferences));
     base::Thread::Options options;
+#if BUILDFLAG(IS_COBALT)
+    // When "ReduceAndroidThreadStackSize" is enabled, the default stack size for
+    // helper threads is reduced to 256KB to save virtual memory. We explicitly
+    // set the GPU main thread stack to 1MB for safety, as GPU workloads can
+    // vary and exceed 256KB.
+    options.stack_size = 1024 * 1024;
+#endif
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
     // WGL needs to create its own window and pump messages on it.
     options.message_pump_type = base::MessagePumpType::UI;

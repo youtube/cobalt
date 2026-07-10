@@ -90,15 +90,15 @@ bool MojoRendererBypassBridge::Read(DemuxerStream::Type type,
     return false;
   }
 
-  stream->Read(count, std::move(read_cb));
+  // Wrap the callback to decrement in_flight_reads_ when it runs.
+  base::ScopedClosureRunner scoped_decrement(
+      base::BindOnce(&MojoRendererBypassBridge::DecrementInFlightReads, this));
 
-  {
-    base::AutoLock auto_lock(lock_);
-    in_flight_reads_--;
-    if (in_flight_reads_ == 0) {
-      cond_var_.Signal();
-    }
-  }
+  auto wrapped_cb =
+      base::BindOnce(&MojoRendererBypassBridge::OnReadDone, this,
+                     std::move(read_cb), std::move(scoped_decrement));
+
+  stream->Read(count, std::move(wrapped_cb));
   return true;
 }
 
@@ -155,6 +155,22 @@ void MojoRendererBypassBridge::RunTimeUpdateOnClientThread(
 void MojoRendererBypassBridge::RunStatisticsUpdateOnClientThread(
     const PipelineStatistics& stats) {
   statistics_update_cb_.Run(stats);
+}
+
+void MojoRendererBypassBridge::OnReadDone(
+    DemuxerStream::ReadCB read_cb,
+    base::ScopedClosureRunner scoped_decrement,
+    DemuxerStream::Status status,
+    DemuxerStream::DecoderBufferVector buffers) {
+  std::move(read_cb).Run(status, std::move(buffers));
+}
+
+void MojoRendererBypassBridge::DecrementInFlightReads() {
+  base::AutoLock auto_lock(lock_);
+  in_flight_reads_--;
+  if (in_flight_reads_ == 0) {
+    cond_var_.Signal();
+  }
 }
 
 // static

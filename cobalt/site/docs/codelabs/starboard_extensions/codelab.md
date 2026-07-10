@@ -11,8 +11,11 @@ This tutorial uses coding exercises to guide you through creating a simple
 Starboard Extension.
 
 By the end, you will learn:
+
 * What Starboard Extensions are and when to use them.
+
 * How to write Starboard Extensions.
+
 * How to collaborate with the Cobalt team to contribute your extensions to the repository.
 
 ## Prerequisites
@@ -255,12 +258,13 @@ const void* SbSystemGetExtension(const char* name) {
 ```
 
 You can browse existing extension implementations in the repository.
-For example, the reference Raspberry Pi port implements the `Graphics` extension
+For example, the reference Linux port implements the `Configuration` extension
 across the following files.
 
-*   `starboard/raspi/shared/graphics.h`
-*   `starboard/raspi/shared/graphics.cc`
-*   `starboard/raspi/shared/system_get_extensions.cc`
+*   `starboard/extension/configuration.h`
+*   `starboard/linux/shared/configuration.h`
+*   `starboard/linux/shared/configuration.cc`
+*   `starboard/linux/shared/system_get_extensions.cc`
 
 ### Exercise 1: Write and use your first extension
 
