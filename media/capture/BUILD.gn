@@ -505,6 +505,13 @@ test("capture_unittests") {
     sources -= [ "run_all_unittests.cc" ]
   }
 
+  if (is_cobalt) {
+    sources -= [
+      "video/file_video_capture_device_unittest.cc",
+      "video/video_capture_device_unittest.cc",
+    ]
+  }
+
   if (enable_video_effects) {
     sources += [ "video/video_capture_effects_processor_unittest.cc" ]
   }
