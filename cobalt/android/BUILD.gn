@@ -25,8 +25,8 @@ java_cpp_features("java_features_srcjar") {
 
 generate_jni("jni_headers") {
   sources = [
-    "apk/app/src/main/java/dev/cobalt/coat/AOSPStarboardBridge.java",
     "apk/app/src/main/java/dev/cobalt/coat/AudioPermissionRequester.java",
+    "apk/app/src/main/java/dev/cobalt/coat/BaseStarboardBridge.java",
     "apk/app/src/main/java/dev/cobalt/coat/CaptionSettings.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltService.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltSystemConfigChangeReceiver.java",
@@ -116,12 +116,12 @@ android_library("cobalt_main_java") {
   ]
 
   sources = [
-    "apk/app/src/main/java/dev/cobalt/coat/AOSPStarboardBridge.java",
     "apk/app/src/main/java/dev/cobalt/coat/AdvertisingId.java",
     "apk/app/src/main/java/dev/cobalt/coat/ArtworkDownloader.java",
     "apk/app/src/main/java/dev/cobalt/coat/ArtworkDownloaderDefault.java",
     "apk/app/src/main/java/dev/cobalt/coat/ArtworkLoader.java",
     "apk/app/src/main/java/dev/cobalt/coat/AudioPermissionRequester.java",
+    "apk/app/src/main/java/dev/cobalt/coat/BaseStarboardBridge.java",
     "apk/app/src/main/java/dev/cobalt/coat/CaptionSettings.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltA11yHelper.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltActivity.java",

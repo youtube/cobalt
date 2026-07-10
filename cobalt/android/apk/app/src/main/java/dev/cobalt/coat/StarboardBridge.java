@@ -17,78 +17,80 @@ package dev.cobalt.coat;
 import android.app.Activity;
 import android.app.Service;
 import android.content.Context;
+
 import dev.cobalt.shell.StartupGuard;
 import dev.cobalt.util.Holder;
+
 import org.chromium.content_public.browser.WebContents;
 
 /** Content-dependent StarboardBridge subclass used by AndroidTV. */
-public class StarboardBridge extends AOSPStarboardBridge {
+public class StarboardBridge extends BaseStarboardBridge {
 
-  /** Interface to be implemented by the Android Application hosting the starboard app. */
-  public interface HostApplication {
-    void setStarboardBridge(StarboardBridge starboardBridge);
+    /** Interface to be implemented by the Android Application hosting the starboard app. */
+    public interface HostApplication {
+        void setStarboardBridge(StarboardBridge starboardBridge);
 
-    StarboardBridge getStarboardBridge();
-  }
-
-  private CobaltMediaSession mCobaltMediaSession;
-  private VolumeStateReceiver mVolumeStateReceiver;
-  private PlatformError mPlatformError;
-
-  public StarboardBridge(
-      Context appContext,
-      Holder<Activity> activityHolder,
-      Holder<Service> serviceHolder,
-      ArtworkDownloader artworkDownloader,
-      String[] args,
-      String startDeepLink) {
-    super(appContext, activityHolder, serviceHolder, args, startDeepLink);
-    mCobaltMediaSession = new CobaltMediaSession(appContext, activityHolder, artworkDownloader);
-    mVolumeStateReceiver = new VolumeStateReceiver(appContext);
-  }
-
-  @Override
-  protected void onActivityStop(Activity activity) {
-    super.onActivityStop(activity);
-    mCobaltMediaSession.onActivityStop();
-  }
-
-  @Override
-  void raisePlatformError(int errorType, long data, String url) {
-    StartupGuard.getInstance().setStartupMilestone(37);
-    mPlatformError = new PlatformError(mActivityHolder, errorType, data, url);
-    mPlatformError.raise();
-  }
-
-  @Override
-  public boolean isPlatformErrorShowing() {
-    if (mPlatformError != null) {
-      return mPlatformError.isShowing();
+        StarboardBridge getStarboardBridge();
     }
-    return false;
-  }
 
-  public void setWebContents(WebContents webContents) {
-    mCobaltMediaSession.setWebContents(webContents);
-    mVolumeStateReceiver.setWebContents(webContents);
-  }
+    private CobaltMediaSession mCobaltMediaSession;
+    private VolumeStateReceiver mVolumeStateReceiver;
+    private PlatformError mPlatformError;
 
-  public CobaltMediaSession cobaltMediaSession() {
-    return mCobaltMediaSession;
-  }
+    public StarboardBridge(
+            Context appContext,
+            Holder<Activity> activityHolder,
+            Holder<Service> serviceHolder,
+            ArtworkDownloader artworkDownloader,
+            String[] args,
+            String startDeepLink) {
+        super(appContext, activityHolder, serviceHolder, args, startDeepLink);
+        mCobaltMediaSession = new CobaltMediaSession(appContext, activityHolder, artworkDownloader);
+        mVolumeStateReceiver = new VolumeStateReceiver(appContext);
+    }
 
-  @Override
-  protected void hideSplashScreen() {
-    StartupGuard.getInstance().disarm();
-  }
+    @Override
+    protected void onActivityStop(Activity activity) {
+        super.onActivityStop(activity);
+        mCobaltMediaSession.onActivityStop();
+    }
 
-  @Override
-  protected void setStartupMilestone(int milestone) {
-    StartupGuard.getInstance().setStartupMilestone(milestone);
-  }
+    @Override
+    void raisePlatformError(int errorType, long data, String url) {
+        StartupGuard.getInstance().setStartupMilestone(37);
+        mPlatformError = new PlatformError(mActivityHolder, errorType, data, url);
+        mPlatformError.raise();
+    }
 
-  @Override
-  protected void setStartupDiagnosisInfo(String key, String value) {
-    StartupGuard.getInstance().setDiagnosisInfo(key, value);
-  }
+    @Override
+    public boolean isPlatformErrorShowing() {
+        if (mPlatformError != null) {
+            return mPlatformError.isShowing();
+        }
+        return false;
+    }
+
+    public void setWebContents(WebContents webContents) {
+        mCobaltMediaSession.setWebContents(webContents);
+        mVolumeStateReceiver.setWebContents(webContents);
+    }
+
+    public CobaltMediaSession cobaltMediaSession() {
+        return mCobaltMediaSession;
+    }
+
+    @Override
+    protected void hideSplashScreen() {
+        StartupGuard.getInstance().disarm();
+    }
+
+    @Override
+    protected void setStartupMilestone(int milestone) {
+        StartupGuard.getInstance().setStartupMilestone(milestone);
+    }
+
+    @Override
+    protected void setStartupDiagnosisInfo(String key, String value) {
+        StartupGuard.getInstance().setDiagnosisInfo(key, value);
+    }
 }

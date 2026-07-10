@@ -24,26 +24,27 @@ import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.media.AudioManager;
 import android.net.Uri;
-import android.os.Bundle;
-import android.os.SystemClock;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.text.TextUtils;
+import android.view.Display;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.view.WindowManager;
-import android.view.Display;
-import android.hardware.display.DisplayManager;
-import android.window.OnBackInvokedCallback;
-import android.window.OnBackInvokedDispatcher;
 import android.widget.FrameLayout;
 import android.widget.Toast;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
+
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
+
 import dev.cobalt.browser.CobaltContentBrowserClient;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
@@ -58,12 +59,7 @@ import dev.cobalt.shell.StartupGuard;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.JavaSwitches;
 import dev.cobalt.util.Log;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.regex.Pattern;
+
 import org.chromium.base.CommandLine;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
@@ -79,6 +75,13 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
 public abstract class CobaltActivity extends Activity {
@@ -244,16 +247,16 @@ public abstract class CobaltActivity extends Activity {
     if (getStarboardBridge() == null) {
       // Cold start - Instantiate the singleton StarboardBridge.
       RecordHistogram.recordBooleanHistogram("Cobalt.Android.ColdStart", true);
-      if (CommandLine.getInstance().hasSwitch("enable-optimized-font-loading")
-          || getJavaSwitches().containsKey(JavaSwitches.ENABLE_OPTIMIZED_FONT_LOADING)) {
-        FontUtil.copyFontsXml(getApplicationContext());
-      }
-      StarboardBridge starboardBridge = createStarboardBridge(getArgs(), mStartDeepLink);
-      ((StarboardBridge.HostApplication) getApplication())
-          .setStarboardBridge(starboardBridge);
-    } else {
-      // Warm start - Pass the deep link to the running Starboard app.
-      if (savedInstanceState == null) {
+            if (CommandLine.getInstance().hasSwitch("enable-optimized-font-loading")
+                    || getJavaSwitches().containsKey(JavaSwitches.ENABLE_OPTIMIZED_FONT_LOADING)) {
+                FontUtil.copyFontsXml(getApplicationContext());
+            }
+            StarboardBridge starboardBridge = createStarboardBridge(getArgs(), mStartDeepLink);
+            ((StarboardBridge.HostApplication) getApplication())
+                    .setStarboardBridge(starboardBridge);
+        } else {
+            // Warm start - Pass the deep link to the running Starboard app.
+            if (savedInstanceState == null) {
         RecordHistogram.recordBooleanHistogram("Cobalt.Android.ColdStart", false);
       }
       getStarboardBridge().handleDeepLink(mStartDeepLink);
@@ -553,21 +556,20 @@ public abstract class CobaltActivity extends Activity {
           CobaltJavaScriptInterface.class,
           /* originAllowlist= */ new ArrayList<String>());
     }
-  }
+    }
 
-  /**
-   * Instantiates the StarboardBridge. Apps not supporting sign-in should inject an instance of
-   * NoopUserAuthorizer. Apps may subclass StarboardBridge if they need to override anything.
-   */
-  protected abstract StarboardBridge createStarboardBridge(
-      String[] args, String startDeepLink);
+    /**
+     * Instantiates the StarboardBridge. Apps not supporting sign-in should inject an instance of
+     * NoopUserAuthorizer. Apps may subclass StarboardBridge if they need to override anything.
+     */
+    protected abstract StarboardBridge createStarboardBridge(String[] args, String startDeepLink);
 
-  protected StarboardBridge getStarboardBridge() {
-    return ((StarboardBridge.HostApplication) getApplication()).getStarboardBridge();
-  }
+    protected StarboardBridge getStarboardBridge() {
+        return ((StarboardBridge.HostApplication) getApplication()).getStarboardBridge();
+    }
 
-  @Override
-  protected void onStart() {
+    @Override
+    protected void onStart() {
     DisplayUtil.cacheDefaultDisplay(this);
     DisplayUtil.addDisplayListener(this);
     mWasDisplayOn = isDisplayOn();
