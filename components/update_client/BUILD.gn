@@ -203,6 +203,7 @@ static_library("update_client") {
   if (is_starboard) {
     deps += [
       "//starboard:starboard_headers_only",
+      "//cobalt/browser:features",
     ]
   }
 

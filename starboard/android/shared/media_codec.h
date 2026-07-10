@@ -63,11 +63,6 @@ struct AudioOutputFormatResult {
   jint channel_count;
 };
 
-struct DequeueInputResult {
-  int32_t status;
-  int32_t index;
-};
-
 struct DequeueOutputResult {
   int32_t status;
   int32_t index;
@@ -94,6 +89,7 @@ class MediaCodec {
     bool require_software_codec = false;
     bool force_big_endian_hdr_metadata = false;
     std::optional<int> tunnel_mode_audio_session_id;
+    bool enable_ndk_video = false;
   };
 
   static constexpr int32_t kBufferFlagCodecConfig = 2;

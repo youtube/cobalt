@@ -430,7 +430,8 @@ const void* ExportedSymbols::Lookup(const char* name) {
     return address;
   }
 
-  SB_LOG(ERROR) << "Failed to retrieve the address of '" << name << "'.";
+  // Not an error, as it could be a weak symbol.
+  SB_DLOG(WARNING) << "Failed to retrieve the address of '" << name << "'.";
 #if !defined(OFFICIAL_BUILD)
   // TODO: Cobalt b/421944504 - Cleanup once we are done with all the symbols or
   // potentially keep it behind a flag to help with future maintenance.

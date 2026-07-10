@@ -3,6 +3,7 @@
 
 import("//build/config/chromeos/ui_mode.gni")
 import("//components/guest_view/buildflags/buildflags.gni")
+import("//content/browser/devtools/features.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//testing/test.gni")
 import("//tools/grit/grit_rule.gni")
@@ -258,6 +259,11 @@ repack("shell_and_test_pak") {
       "//device/bluetooth/strings",
       "//extensions/shell:resources",
     ]
+
+    if (is_cobalt && !enable_devtools_frontend) {
+      sources -= [ "$root_gen_dir/content/browser/devtools/devtools_resources.pak" ]
+      deps -= [ "//content/browser/devtools:devtools_resources" ]
+    }
   }
 }
 
