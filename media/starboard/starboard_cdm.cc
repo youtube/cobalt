@@ -316,19 +316,22 @@ void StarboardCdm::OnSessionUpdateRequestGenerated(
     }
 
     auto session_request = std::move(session_update_request_iterator->second);
-
-    if (session_id) {
-      session_list_.push_back(session_id.value());
-      promises_.ResolvePromise(session_request.promise_id, session_id.value());
-    } else {
+    if (!session_id) {
       // Failure during request generation.
-      LOG(INFO) << "Calling session update request callback on drm system ("
-                << sb_drm_ << "), status: " << status
-                << ", error message: " << error_message;
+      LOG(ERROR)
+          << "Failure during session update request generation on drm system ("
+          << sb_drm_ << "), status: " << status
+          << ", error message: " << error_message;
       promises_.RejectPromise(session_request.promise_id,
                               CdmPromise::Exception::INVALID_STATE_ERROR, 0,
                               "Failure during request generation.");
+      ticket_to_session_update_request_map_.erase(
+          session_update_request_iterator);
+      return;
     }
+
+    session_list_.push_back(session_id.value());
+    promises_.ResolvePromise(session_request.promise_id, session_id.value());
 
     ticket_to_session_update_request_map_.erase(
         session_update_request_iterator);
