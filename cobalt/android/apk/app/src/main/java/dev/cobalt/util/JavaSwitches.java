@@ -26,8 +26,8 @@ public class JavaSwitches {
   public static final String ENABLE_QUIC = "EnableQUIC";
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
   public static final String STARTUP_GUARD_INTERVAL_IN_SECONDS = "StartupGuardIntervalInSeconds";
-  public static final String DISABLE_HTTP_CACHE = "DisableHttpCache";
   public static final String ENABLE_OPTIMIZED_FONT_LOADING = "EnableOptimizedFontLoading";
+  public static final String ENABLE_OPTIMIZED_V8_CODE_CACHE = "EnableOptimizedV8CodeCache";
 
   /** flag to re-enable freeze and resume events */
   public static final String ENABLE_FREEZE = "EnableFreeze";
@@ -83,9 +83,6 @@ public class JavaSwitches {
   /** flag to disable FontSrcLocalMatching lookup table. */
   public static final String DISABLE_FONT_SRC_LOCAL_MATCHING = "DisableFontSrcLocalMatching";
 
-  /** flag to specify ANGLE to use the OpenGL ES backend */
-  public static final String COBALT_USE_ANGLE_GLES = "CobaltUseAngleGles";
-
   /** Avoid reuse resource. */
   public static final String AVOID_CC_REUSE_RESOURCE = "AvoidCCReuseResource";
 
@@ -103,10 +100,6 @@ public class JavaSwitches {
 
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
       extraCommandLineArgs.add("--disable-quic");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.DISABLE_HTTP_CACHE)) {
-      extraCommandLineArgs.add("--disable-http-cache");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_V8_CONCURRENT_MARKING)) {
@@ -176,16 +169,16 @@ public class JavaSwitches {
           "--enable-features=SmallerInterestArea:" + featureParams.toString());
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.COBALT_USE_ANGLE_GLES)) {
-      extraCommandLineArgs.add("--use-angle=gles");
-    }
-
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_FONT_SRC_LOCAL_MATCHING)) {
       extraCommandLineArgs.add("--disable-features=FontSrcLocalMatching");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_OPTIMIZED_FONT_LOADING)) {
       extraCommandLineArgs.add("--enable-optimized-font-loading");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_OPTIMIZED_V8_CODE_CACHE)) {
+      extraCommandLineArgs.add("--enable-optimized-v8-code-cache");
     }
 
     if (jsFlags.length() > 0) {

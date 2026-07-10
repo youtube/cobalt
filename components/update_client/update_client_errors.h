@@ -41,6 +41,7 @@ enum class ErrorCategory {
 enum class CrxDownloaderError {
   NONE = 0,
 #if BUILDFLAG(IS_STARBOARD)
+  OUT_OF_MEMORY = 8,
   SLOT_UNAVAILABLE = 9,
 #endif
   NO_URL = 10,

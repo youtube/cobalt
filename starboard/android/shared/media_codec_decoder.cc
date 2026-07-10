@@ -18,6 +18,8 @@
 #include <sys/resource.h>
 #include <unistd.h>
 
+#include <iterator>
+
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/memfd_media_buffer_pool.h"
 #include "starboard/audio_sink.h"
@@ -135,7 +137,9 @@ MediaCodecDecoder::CreateForVideo(
     int64_t flush_delay_usec,
     bool use_dual_threads,
     bool skip_video_frames_over_60_fps,
-    bool ignore_mediacodec_callbacks_during_flushing) {
+    bool ignore_mediacodec_callbacks_during_flushing,
+    bool enable_ndk_video,
+    bool enable_trivial_optimizations) {
   std::string error_message;
   auto decoder = std::make_unique<MediaCodecDecoder>(
       PassKey<MediaCodecDecoder>(), media_codec_factory, job_queue, host,
@@ -145,7 +149,8 @@ MediaCodecDecoder::CreateForVideo(
       enable_frame_renderer_listener, enable_low_latency,
       force_big_endian_hdr_metadata, max_video_input_size, flush_delay_usec,
       use_dual_threads, skip_video_frames_over_60_fps,
-      ignore_mediacodec_callbacks_during_flushing, &error_message);
+      ignore_mediacodec_callbacks_during_flushing, enable_ndk_video,
+      enable_trivial_optimizations, &error_message);
   if (!decoder->media_codec_bridge_) {
     return Failure(error_message);
   }
@@ -219,6 +224,8 @@ MediaCodecDecoder::MediaCodecDecoder(
     bool use_dual_threads,
     bool skip_video_frames_over_60_fps,
     bool ignore_mediacodec_callbacks_during_flushing,
+    bool enable_ndk_video,
+    bool enable_trivial_optimizations,
     std::string* error_message)
     : JobOwner(job_queue),
       media_type_(kSbMediaTypeVideo),
@@ -231,7 +238,8 @@ MediaCodecDecoder::MediaCodecDecoder(
       video_decoder_poll_interval_us_(
           tunnel_mode_enabled_ ? kDefaultVideoDecoderTunnelPollIntervalUs
                                : kDefaultVideoDecoderPollIntervalUs),
-      use_dual_threads_(use_dual_threads && !tunnel_mode_enabled_) {
+      use_dual_threads_(use_dual_threads && !tunnel_mode_enabled_),
+      enable_trivial_optimizations_(enable_trivial_optimizations) {
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
@@ -252,7 +260,8 @@ MediaCodecDecoder::MediaCodecDecoder(
        ignore_mediacodec_callbacks_during_flushing,
        enable_frame_renderer_listener, enable_low_latency,
        require_secured_decoder, require_software_codec,
-       force_big_endian_hdr_metadata, tunnel_mode_audio_session_id});
+       force_big_endian_hdr_metadata, tunnel_mode_audio_session_id,
+       enable_ndk_video});
 
   if (media_codec_bridge) {
     media_codec_bridge_ = std::move(media_codec_bridge.value());
@@ -266,7 +275,9 @@ MediaCodecDecoder::MediaCodecDecoder(
                << ToString(tunnel_mode_enabled_)
                << ", video_decoder_poll_interval(msec)="
                << video_decoder_poll_interval_us_ / 1'000
-               << ", use_dual_threads=" << ToString(use_dual_threads_);
+               << ", use_dual_threads=" << ToString(use_dual_threads_)
+               << ", enable_trivial_optimizations="
+               << ToString(enable_trivial_optimizations_);
 }
 
 MediaCodecDecoder::~MediaCodecDecoder() {
@@ -695,8 +706,14 @@ void MediaCodecDecoder::CollectPendingInputData_Locked(
   SB_DCHECK(pending_inputs);
   SB_DCHECK(input_buffer_indices);
 
-  pending_inputs->insert(pending_inputs->end(), pending_inputs_.begin(),
-                         pending_inputs_.end());
+  if (enable_trivial_optimizations_) {
+    pending_inputs->insert(pending_inputs->end(),
+                           std::make_move_iterator(pending_inputs_.begin()),
+                           std::make_move_iterator(pending_inputs_.end()));
+  } else {
+    pending_inputs->insert(pending_inputs->end(), pending_inputs_.begin(),
+                           pending_inputs_.end());
+  }
   pending_inputs_.clear();
 
   input_buffer_indices->insert(input_buffer_indices->end(),
@@ -729,22 +746,31 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
   // decode.  It is not possible to do them as separate steps on Android. From
   // the perspective of user application, decryption and decoding are one
   // atomic step.
-  DequeueInputResult dequeue_input_result;
+  int input_buffer_index = -1;
   PendingInput pending_input;
   bool input_buffer_already_written = false;
   if (pending_input_to_retry_) {
-    dequeue_input_result = pending_input_to_retry_->dequeue_input_result;
-    SB_DCHECK_GE(dequeue_input_result.index, 0);
-    pending_input = pending_input_to_retry_->pending_input;
+    input_buffer_index = pending_input_to_retry_->input_buffer_index;
+    if (enable_trivial_optimizations_) {
+      pending_input = std::move(pending_input_to_retry_->pending_input);
+    } else {
+      pending_input = pending_input_to_retry_->pending_input;
+    }
     pending_input_to_retry_ = std::nullopt;
     input_buffer_already_written = true;
   } else {
-    dequeue_input_result.index = input_buffer_indices->front();
+    input_buffer_index = input_buffer_indices->front();
+    // TODO(b/514758473): Experiment popping the index from the back.
     input_buffer_indices->erase(input_buffer_indices->begin());
-    pending_input = pending_inputs->front();
+    if (enable_trivial_optimizations_) {
+      pending_input = std::move(pending_inputs->front());
+    } else {
+      pending_input = pending_inputs->front();
+    }
     pending_inputs->pop_front();
     --number_of_pending_inputs_;
   }
+  SB_DCHECK_GE(input_buffer_index, 0);
 
   SB_DCHECK(pending_input.type == PendingInput::kWriteCodecConfig ||
             pending_input.type == PendingInput::kWriteInputBuffer ||
@@ -772,14 +798,19 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
   if (!input_buffer_already_written &&
       pending_input.type != PendingInput::kWriteEndOfStream) {
     const auto codec_input_buffer =
-        media_codec_bridge_->GetInputBufferAddress(dequeue_input_result.index);
+        media_codec_bridge_->GetInputBufferAddress(input_buffer_index);
     auto* address = codec_input_buffer.data();
     if (!address) {
       SB_LOG(ERROR) << "Unable to get MediaCodec input buffer address.";
       // There could be dirty callbacks right after flush, thus the
       // MediaCodec.InputBuffer could be unavailable. In that case, we should
       // re-write the input buffer with a different MediaCodec.InputBuffer.
-      pending_inputs->emplace(pending_inputs->begin(), pending_input);
+      if (enable_trivial_optimizations_) {
+        pending_inputs->emplace(pending_inputs->begin(),
+                                std::move(pending_input));
+      } else {
+        pending_inputs->emplace(pending_inputs->begin(), pending_input);
+      }
       number_of_pending_inputs_++;
       return false;
     }
@@ -821,23 +852,23 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
     status = MEDIA_CODEC_NO_KEY;
   } else if (pending_input.type == PendingInput::kWriteCodecConfig) {
     status = media_codec_bridge_->QueueInputBuffer(
-        dequeue_input_result.index, kNoOffset, size, kNoPts,
-        MediaCodec::kBufferFlagCodecConfig, false);
+        input_buffer_index, kNoOffset, size, kNoPts,
+        MediaCodec::kBufferFlagCodecConfig, /*is_decode_only=*/false);
   } else if (pending_input.type == PendingInput::kWriteInputBuffer) {
     jlong pts_us = input_buffer->timestamp();
     if (drm_system_ && input_buffer->drm_info()) {
       status = media_codec_bridge_->QueueSecureInputBuffer(
-          dequeue_input_result.index, kNoOffset, *input_buffer->drm_info(),
-          pts_us, host_->IsBufferDecodeOnly(input_buffer));
+          input_buffer_index, kNoOffset, *input_buffer->drm_info(), pts_us,
+          host_->IsBufferDecodeOnly(input_buffer));
     } else {
       status = media_codec_bridge_->QueueInputBuffer(
-          dequeue_input_result.index, kNoOffset, size, pts_us, kNoBufferFlags,
+          input_buffer_index, kNoOffset, size, pts_us, kNoBufferFlags,
           host_->IsBufferDecodeOnly(input_buffer));
     }
   } else {
     status = media_codec_bridge_->QueueInputBuffer(
-        dequeue_input_result.index, kNoOffset, size, kNoPts,
-        MediaCodec::kBufferFlagEndOfStream, false);
+        input_buffer_index, kNoOffset, size, kNoPts,
+        MediaCodec::kBufferFlagEndOfStream, /*is_decode_only=*/false);
     host_->OnEndOfStreamWritten(media_codec_bridge_.get());
   }
 
@@ -845,7 +876,11 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
     HandleError("queue(Secure)?InputBuffer", status);
     // TODO: Stop the decoding loop and call error_cb_ on fatal error.
     SB_DCHECK(!pending_input_to_retry_);
-    pending_input_to_retry_ = {dequeue_input_result, pending_input};
+    if (enable_trivial_optimizations_) {
+      pending_input_to_retry_ = {input_buffer_index, std::move(pending_input)};
+    } else {
+      pending_input_to_retry_ = {input_buffer_index, pending_input};
+    }
     return false;
   }
 
@@ -943,6 +978,7 @@ void MediaCodecDecoder::OnMediaCodecError(bool is_recoverable,
 }
 
 void MediaCodecDecoder::OnMediaCodecInputBufferAvailable(int32_t buffer_index) {
+  SB_CHECK_GE(buffer_index, 0);
   if (media_type_ == kSbMediaTypeVideo && first_call_on_handler_thread_) {
     // Set the thread priority of the Handler thread to dispatch the async
     // decoder callbacks to high.
@@ -967,7 +1003,7 @@ void MediaCodecDecoder::OnMediaCodecOutputBufferAvailable(
     int32_t offset,
     int64_t presentation_time_us,
     int32_t size) {
-  SB_DCHECK_GE(buffer_index, 0);
+  SB_CHECK_GE(buffer_index, 0);
 
   // TODO(b/291959069): After the output thread is destroyed, it may still
   // receive output buffer, discard this invalid output buffer.

@@ -4,10 +4,9 @@ import argparse
 from collections import defaultdict
 import enum
 import re
+import shutil
 import subprocess
 import sys
-
-_AUTOROLL_FILE = '.github/AUTOROLL'
 
 
 @enum.unique
@@ -32,9 +31,9 @@ def get_out(cmd):
   return res.stdout
 
 
-def get_start_sha(branch):
+def get_start_sha(branch, autoroll_file):
   """Returns an autoroll start SHA or None if CONFLICTED."""
-  start = get_out(['git', 'show', f'{branch}:{_AUTOROLL_FILE}']).strip()
+  start = get_out(['git', 'show', f'{branch}:{autoroll_file}']).strip()
 
   if start.startswith('CONFLICTED:'):
     return None
@@ -96,45 +95,72 @@ def resolve_conflicts(unmerged_files):
   Returns:
     bool: True if all conflicts were resolved, False otherwise.
   """
+  # Special handling for .gitmodules to prevent "bad config" fatal errors
+  if '.gitmodules' in unmerged_files:
+    shutil.move('.gitmodules', '.gitmodules_conflict')
+    run(['git', 'checkout', '--ours', '--', '.gitmodules'])
+    run(['git', 'add', '--', '.gitmodules', '.gitmodules_conflict'])
+    unmerged_files.pop('.gitmodules', None)
+
   deleted_by_us = []
+  deleted_by_them = []
+  submodule_conflicts = []
   other_conflicts = []
+
   for path, stages in unmerged_files.items():
+    # Check if this path is a submodule (mode 160000)
+    file_info = get_out(['git', 'ls-files', '-u', '--', path])
+    is_submodule = '160000' in file_info
+
     if 'theirs' in stages and 'ours' not in stages:
       deleted_by_us.append(path)
+    elif 'theirs' not in stages and 'ours' in stages:
+      deleted_by_them.append(path)
+    elif is_submodule:
+      submodule_conflicts.append(path)
     else:
       other_conflicts.append(path)
+
+  if deleted_by_us:
+    log(f'Resolving \'deleted by us\' conflicts: {deleted_by_us}')
+    run(['git', 'rm', '--ignore-unmatch', '--'] + deleted_by_us)
+    for path in deleted_by_us:
+      unmerged_files.pop(path, None)
+
+  if deleted_by_them:
+    log(f'Resolving \'deleted by them\' conflicts: {deleted_by_them}')
+    run(['git', 'rm', '--ignore-unmatch', '--'] + deleted_by_them)
+    for path in deleted_by_them:
+      unmerged_files.pop(path, None)
+
+  if submodule_conflicts:
+    log(f'Resolving submodule conflicts: {submodule_conflicts}')
+    for path in submodule_conflicts:
+      ls_files_out = get_out(['git', 'ls-files', '-u', '--', path])
+      match = re.search(r'160000 ([a-f0-9]+) 3', ls_files_out)
+      theirs_sha = match.group(1)
+      run([
+          'git', 'update-index', '--add', '--cacheinfo',
+          f'160000,{theirs_sha},{path}'
+      ])
+      unmerged_files.pop(path, None)
 
   if other_conflicts:
     log(f'Cannot resolve conflicts: {other_conflicts}')
     return False
 
-  if deleted_by_us:
-    log(f'Resolving \'deleted by us\' conflicts: {deleted_by_us}')
-    run(['git', 'rm', '--'] + deleted_by_us)
-    return True
-
-  return False
+  return True
 
 
-def cherry_pick(sha, title, pr_num, first_cherry_pick):
-  """Attempts to cherry-pick a single commit.
-
-  Returns:
-    CherryPickStatus: Enum indicating the outcome of the operation.
-      - SUCCESS: Successfully cherry-picked and committed.
-      - CONFLICTED: Cherry-picked and committed with conflicts.
-      - SKIPPED: The commit was already present or no action was needed.
-      - FAILED: The cherry-pick failed due to conflicts or other errors.
-    unmerged_files: List of files with conflicts.
-  """
+def get_cherry_pick_metadata(sha, title, pr_num):
   log_output = get_out(
       ['git', 'log', '-1', '--format=%ad%x00%an <%ae>%x00%b', sha])
   parts = log_output.split('\x00', 2)
   date = parts[0]
   author = parts[1]
-  body = parts[2] if len(parts) > 2 else ''
-
+  body = ''.join(parts[2:])
   body_section = f'{body}\n\n' if body else ''
+
   if pr_num is not None:
     msg = (f'Cherry pick PR #{pr_num}: {title}\n\n'
            f'Refer to original PR: #{pr_num}\n\n'
@@ -146,13 +172,29 @@ def cherry_pick(sha, title, pr_num, first_cherry_pick):
            f'{body_section}'
            f'(cherry picked from commit {sha})')
 
-  cmd = ['git', 'cherry-pick', '--no-commit']
-  ps = get_out(['git', 'show', '-s', '--format=%P', sha]).strip().split()
-  if len(ps) > 1:
-    cmd.append('--mainline=1')
+  return date, author, msg
+
+
+def cherry_pick(sha, title, pr_num, first_cherry_pick, autoroll_file):
+  """Attempts to cherry-pick a single commit.
+
+  Returns:
+    CherryPickStatus: Enum indicating the outcome of the operation.
+      - SUCCESS: Successfully cherry-picked and committed.
+      - CONFLICTED: Cherry-picked and committed with conflicts.
+      - SKIPPED: The commit was already present or no action was needed.
+      - FAILED: The cherry-pick failed due to conflicts or other errors.
+    unmerged_files: List of files with conflicts.
+  """
+  date, author, msg = get_cherry_pick_metadata(sha, title, pr_num)
 
   result = CherryPickStatus.SUCCESS
   unmerged_files = None
+
+  cmd = ['git', 'cherry-pick', '--no-commit']
+  if len(get_out(['git', 'show', '-s', '--format=%P', sha]).split()) > 1:
+    cmd.append('--mainline=1')
+
   try:
     run(cmd + [sha])
   except subprocess.CalledProcessError:
@@ -166,30 +208,27 @@ def cherry_pick(sha, title, pr_num, first_cherry_pick):
         run(['git', 'reset', '--hard', 'HEAD'])
         return CherryPickStatus.FAILED, unmerged_files
 
-      run(['git', 'add', '--sparse'] + unmerged_files)
+      run(['git', 'add', '--'] + unmerged_files)
       msg = f'CONFLICTED {msg}'
       result = CherryPickStatus.CONFLICTED
 
   # Check if there are changes to commit
-  cmd = ['git', 'diff', '--quiet', '--cached']
-  res = subprocess.run(cmd, check=False)
-  if res.returncode == 0:
+  if not get_out(['git', 'diff', '--cached', '--name-only']).strip():
     log('Cherry pick skipped.')
     return CherryPickStatus.SKIPPED, unmerged_files
 
   # Update autoroll file
-  with open(_AUTOROLL_FILE, 'w', encoding='utf-8') as f:
+  with open(autoroll_file, 'w', encoding='utf-8') as f:
     if result == CherryPickStatus.CONFLICTED:
       f.write(f'CONFLICTED:{sha}\n')
     else:
       f.write(f'{sha}\n')
-  run(['git', 'add', '--sparse', _AUTOROLL_FILE])
+  run(['git', 'add', '--', autoroll_file])
 
-  cmd = [
+  run([
       'git', 'commit', '--no-verify', f'--author={author}', f'--date={date}',
       '-m', msg
-  ]
-  run(cmd)
+  ])
   return result, unmerged_files
 
 
@@ -197,11 +236,13 @@ def main():
   p = argparse.ArgumentParser()
   p.add_argument('--source-branch', required=True)
   p.add_argument('--target-branch', required=True)
+  p.add_argument('--autoroll-file', required=True)
   p.add_argument('--max-commits', type=int, required=True)
   args = p.parse_args()
 
-  target_start = get_start_sha(args.target_branch)
-  autoroll_start = get_start_sha('HEAD')
+  target_start = get_start_sha(args.target_branch, args.autoroll_file)
+  autoroll_start = get_start_sha('HEAD', args.autoroll_file)
+
   if autoroll_start is None:
     log('Autoroll branch has an unresolved CONFLICTED cherry pick.')
     return
@@ -229,7 +270,8 @@ def main():
 
     # Cherry pick PR
     first_cherry_pick = not commits_added
-    result, unmerged_files = cherry_pick(sha, title, pr_num, first_cherry_pick)
+    result, unmerged_files = cherry_pick(sha, title, pr_num, first_cherry_pick,
+                                         args.autoroll_file)
 
     if result in (CherryPickStatus.SUCCESS, CherryPickStatus.CONFLICTED):
       commits_added.append(identifier)

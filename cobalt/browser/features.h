@@ -56,6 +56,12 @@ extern const base::Feature kCobaltMemoryAttributionManager;
 extern const base::FeatureParam<int>
     kCobaltMemoryAttributionReportIntervalParam;
 
+// Enables custom memory buffer size for in-memory updates.
+extern const base::Feature kInMemoryUpdatesMemoryBuffer;
+
+// Sets the memory buffer size in bytes.
+extern const base::FeatureParam<int> kInMemoryUpdatesMemoryBufferParam;
+
 }  // namespace features
 }  // namespace cobalt
 
