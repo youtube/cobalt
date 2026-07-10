@@ -232,7 +232,7 @@ static_library("starboard_platform") {
     #"speech_synthesis_internal.cc",
     #"speech_synthesis_is_supported.cc",
     #"speech_synthesis_speak.cc",
-    "starboard_bridge.cc",
+    "aosp_starboard_bridge.cc",
     "starboard_bridge.h",
     "starboard_feature_list.cc",
     "system_get_extensions.cc",

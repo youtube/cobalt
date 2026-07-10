@@ -18,6 +18,7 @@
 apk_sources = [
   "//starboard/android/apk/app/src/app/java/dev/cobalt/app/CobaltApplication.java",
   "//starboard/android/apk/app/src/app/java/dev/cobalt/app/MainActivity.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/AOSPStarboardBridge.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/ArtworkDownloader.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/ArtworkDownloaderDefault.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/ArtworkLoader.java",
@@ -34,7 +35,6 @@ apk_sources = [
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/NullCobaltFactory.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/PlatformError.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/ResourceOverlay.java",
-  "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/StarboardBridge.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/libraries/services/clientloginfo/ClientLogInfo.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/libraries/services/clientloginfo/ClientLogInfoModule.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/media/AudioOutputManager.java",
