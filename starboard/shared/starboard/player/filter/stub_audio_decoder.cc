@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/player/filter/stub_audio_decoder.h"
 
 #include <algorithm>
+#include <utility>
 
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"

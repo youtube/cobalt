@@ -20,6 +20,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "starboard/android/shared/drm_system.h"
