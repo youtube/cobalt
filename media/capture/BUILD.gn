@@ -258,7 +258,7 @@ component("capture_lib") {
     public_deps += [ "video/win" ]
   }
 
-  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
+  if ((is_linux || is_chromeos) && !is_cobalt) {
     sources += [
       "video/linux/scoped_v4l2_device_fd.cc",
       "video/linux/scoped_v4l2_device_fd.h",
@@ -544,7 +544,7 @@ test("capture_unittests") {
     ]
   }
 
-  if (is_linux && !is_cobalt_hermetic_build) {
+  if (is_linux && !is_cobalt) {
     sources += [
       "video/linux/v4l2_capture_delegate_unittest.cc",
       "video/linux/video_capture_device_factory_v4l2_unittest.cc",
