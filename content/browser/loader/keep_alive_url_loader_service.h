@@ -9,9 +9,7 @@
 #include <optional>
 
 #include "base/memory/scoped_refptr.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/attribution_reporting/attribution_suitable_context.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/loader/keep_alive_url_loader.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/weak_document_ptr.h"
@@ -141,9 +139,7 @@ class CONTENT_EXPORT KeepAliveURLLoaderService {
     // context and information from that context is needed. Upon
     // NavigationRequest::DidCommitNavigation(), if the context is suitable,
     // the `attribution_context` is created.
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
     std::optional<AttributionSuitableContext> attribution_context;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
     // This must be the last member.
     base::WeakPtrFactory<FactoryContext> weak_ptr_factory{this};

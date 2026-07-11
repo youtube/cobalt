@@ -14,7 +14,6 @@
 
 namespace jni_zero {
 
-#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
 // Allow conversions using std::optional by wrapping non-optional conversions.
 template <internal::IsOptional T>
 inline T FromJniType(JNIEnv* env, const JavaRef<jobject>& j_object) {
@@ -92,55 +91,6 @@ ToJniArray(JNIEnv* env, const ContainerType& collection, jclass clazz) {
   }
   return ScopedJavaLocalRef<jobjectArray>(env, j_array);
 }
-#else
-namespace internal {
-template <typename ContainerType>
-struct FromJniArrayImpl<ContainerType, std::enable_if_t<std::is_class_v<ContainerType>>> {
-  static ContainerType Act(JNIEnv* env, const JavaRef<jobject>& j_object) {
-    jobjectArray j_array = static_cast<jobjectArray>(j_object.obj());
-    using ElementType = std::remove_const_t<typename ContainerType::value_type>;
-    jsize array_jsize = env->GetArrayLength(j_array);
-
-    ContainerType ret;
-    for (jsize i = 0; i < array_jsize; ++i) {
-      jobject j_element = env->GetObjectArrayElement(j_array, i);
-      if constexpr (std::is_base_of_v<JavaRef<jobject>, ElementType>) {
-        ret.emplace_back(env, j_element);
-      } else {
-        auto element = ScopedJavaLocalRef<jobject>::Adopt(env, j_element);
-        ret.push_back(FromJniType<ElementType>(env, element));
-      }
-    }
-    return ret;
-  }
-};
-}  // namespace internal
-
-template <typename ContainerType,
-          std::enable_if_t<std::is_class_v<ContainerType>, int> = 0>
-inline ScopedJavaLocalRef<jobjectArray> ToJniArray(
-    JNIEnv* env,
-    const ContainerType& collection,
-    jclass clazz) {
-  using ElementType = std::remove_const_t<typename ContainerType::value_type>;
-  size_t array_size = collection.size();
-  jsize array_jsize = static_cast<jsize>(array_size);
-  jobjectArray j_array = env->NewObjectArray(array_jsize, clazz, nullptr);
-  CheckException(env);
-
-  jsize i = 0;
-  for (auto& value : collection) {
-    if constexpr (std::is_base_of_v<JavaRef<jobject>, ElementType>) {
-      env->SetObjectArrayElement(j_array, i, value.obj());
-    } else {
-      ScopedJavaLocalRef<jobject> element = ToJniType(env, value);
-      env->SetObjectArrayElement(j_array, i, element.obj());
-    }
-    ++i;
-  }
-  return ScopedJavaLocalRef<jobjectArray>(env, j_array);
-}
-#endif
 
 #define DECLARE_PRIMITIVE_ARRAY_CONVERSIONS(T)                                 \
   template <>                                                                  \
@@ -170,7 +120,6 @@ inline ByteArrayView FromJniArray<ByteArrayView>(
   return ByteArrayView(env, j_array);
 }
 
-#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
 template <internal::IsObjectContainer ContainerType>
 inline ContainerType FromJniCollection(JNIEnv* env,
                                        const JavaRef<jobject>& j_collection) {
@@ -269,7 +218,6 @@ inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env,
   auto array = ScopedJavaLocalRef<jobjectArray>::Adopt(env, j_array);
   return ArrayToMap(env, array);
 }
-#endif
 
 template <>
 inline bool FromJniType<bool>(JNIEnv* env, const JavaRef<jobject>& j_bool) {

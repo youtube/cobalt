@@ -151,6 +151,7 @@ source_set("impl_for_embedder") {
 
   if (is_fuchsia) {
     sources += [ "channel_fuchsia.cc" ]
+
     public_deps += [ "//third_party/fuchsia-sdk/sdk/pkg/fdio" ]
   }
 
@@ -163,7 +164,7 @@ source_set("impl_for_embedder") {
       ]
     }
 
-    if ((is_linux || is_chromeos || is_android) && !is_nacl && !is_starboard) {
+    if ((is_linux || is_chromeos || is_android) && !is_nacl) {
       sources += [
         "channel_linux.cc",
         "channel_linux.h",
@@ -244,7 +245,7 @@ source_set("test_sources") {
     "trap_unittest.cc",
   ]
 
-  if (use_blink && !is_starboard) {
+  if (use_blink) {
     sources += [
       "data_pipe_unittest.cc",
       "invitation_unittest.cc",

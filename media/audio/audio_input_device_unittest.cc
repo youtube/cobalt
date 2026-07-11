@@ -114,13 +114,8 @@ class AudioInputDeviceTest
     AudioParameters params(AudioParameters::AUDIO_PCM_LOW_LATENCY,
                            ChannelLayoutConfig::Stereo(), 48000, 480);
 
-    size_t segment_count = kMemorySegmentCount;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-    segment_count = 32u;
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
     const uint32_t memory_size =
-        ComputeAudioInputBufferSize(params, segment_count);
+        ComputeAudioInputBufferSize(params, kMemorySegmentCount);
 
     shared_memory_ = base::UnsafeSharedMemoryRegion::Create(memory_size);
     shared_memory_mapping_ = shared_memory_.Map();

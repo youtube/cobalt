@@ -88,9 +88,7 @@ void SubresourceProxyingURLLoaderService::CreateLoaderAndStart(
 
   if (!PrefetchURLLoaderServiceContext::IsPrefetchRequest(
           resource_request_in) &&
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
       !resource_request_in.browsing_topics &&
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
       !resource_request_in.ad_auction_headers) {
     loader_factory_receivers_.ReportBadMessage(
         "Unexpected `resource_request_in` in "
@@ -100,10 +98,7 @@ void SubresourceProxyingURLLoaderService::CreateLoaderAndStart(
   }
 
   if (PrefetchURLLoaderServiceContext::IsPrefetchRequest(resource_request_in) &&
-      (
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
-       resource_request_in.browsing_topics ||
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+      (resource_request_in.browsing_topics ||
        resource_request_in.ad_auction_headers)) {
     loader_factory_receivers_.ReportBadMessage(
         "Unexpected `resource_request_in` in "
@@ -113,15 +108,6 @@ void SubresourceProxyingURLLoaderService::CreateLoaderAndStart(
     return;
   }
 
-#if !BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) || !CHROMIUM_MILESTONE_LE_138
-  if (resource_request_in.browsing_topics) {
-    loader_factory_receivers_.ReportBadMessage(
-        "Unexpected `resource_request_in` in "
-        "SubresourceProxyingURLLoaderService::CreateLoaderAndStart(): "
-        "browsing_topics is set when Topics API is disabled.");
-    return;
-  }
-#else
   if (resource_request_in.browsing_topics &&
       !base::FeatureList::IsEnabled(network::features::kBrowsingTopics)) {
     loader_factory_receivers_.ReportBadMessage(
@@ -130,7 +116,6 @@ void SubresourceProxyingURLLoaderService::CreateLoaderAndStart(
         "browsing_topics is set when Topics API is disabled.");
     return;
   }
-#endif  // !BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) || !CHROMIUM_MILESTONE_LE_138
 
   if (resource_request_in.ad_auction_headers &&
       !base::FeatureList::IsEnabled(network::features::kInterestGroupStorage)) {

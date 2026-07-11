@@ -39,7 +39,6 @@
 #include "media/formats/mp4/es_descriptor.h"
 #include "media/formats/mp4/rcheck.h"
 #include "media/formats/mpeg/adts_constants.h"
-#include "media/media_buildflags.h"
 
 namespace media::mp4 {
 
@@ -107,6 +106,28 @@ base::HeapArray<uint8_t> PrepareAACBuffer(
 }
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
 
+#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
+base::HeapArray<uint8_t> PrependIADescriptors(
+    const IamfSpecificBox& iacb,
+    base::span<const uint8_t> frame_buf,
+    std::vector<SubsampleEntry>* subsamples) {
+  // Prepend the IA Descriptors to every IA Sample.
+  const size_t descriptors_size = iacb.ia_descriptors.size();
+  const size_t total_size = frame_buf.size() + descriptors_size;
+  auto output_buffer = base::HeapArray<uint8_t>::Uninit(total_size);
+  output_buffer.copy_from(iacb.ia_descriptors);
+  output_buffer.last(frame_buf.size()).copy_from(frame_buf);
+
+  if (subsamples->empty()) {
+    subsamples->emplace_back(descriptors_size, frame_buf.size());
+  } else {
+    (*subsamples)[0].clear_bytes += descriptors_size;
+  }
+
+  return output_buffer;
+}
+#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
+
 }  // namespace
 
 MP4StreamParser::MP4StreamParser(
@@ -165,11 +186,6 @@ void MP4StreamParser::Reset() {
   runs_.reset();
   moof_head_ = 0;
   mdat_tail_ = 0;
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  scratch_frame_buf_.clear();
-  scratch_frame_buf_.shrink_to_fit();
-#endif
 }
 
 void MP4StreamParser::Flush() {
@@ -214,39 +230,8 @@ bool MP4StreamParser::AppendToParseBuffer(base::span<const uint8_t> buf) {
   return true;
 }
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
 StreamParser::ParseStatus MP4StreamParser::Parse(
     int max_pending_bytes_to_inspect) {
-  if (!StreamParser::IsIncrementalParseLookAheadEnabled() ||
-      max_pending_bytes_to_inspect == 0) {
-    return ParseInternal(max_pending_bytes_to_inspect);
-  }
-
-  // Safe guard to avoid looping infinitely.
-  constexpr int kMaxLoopCount = 128;
-
-  buffers_parsed_ = false;
-
-  for (int loop_count = 0;;++loop_count) {
-    auto previous_max_parse_offset = max_parse_offset_;
-
-    ParseStatus result = ParseInternal(max_pending_bytes_to_inspect);
-
-    if (result == ParseStatus::kFailed || max_parse_offset_ == queue_.tail() ||
-        previous_max_parse_offset == max_parse_offset_ ||
-        buffers_parsed_ || loop_count == kMaxLoopCount) {
-      return result;
-    }
-  }
-}
-
-StreamParser::ParseStatus MP4StreamParser::ParseInternal(
-    int max_pending_bytes_to_inspect) {
-#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
-StreamParser::ParseStatus MP4StreamParser::Parse(
-    int max_pending_bytes_to_inspect) {
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
   DCHECK_NE(state_, kWaitingForInit);
   DCHECK_GE(max_pending_bytes_to_inspect, 0);
 
@@ -566,10 +551,8 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
         codec = AudioCodec::kIAMF;
         profile = entry.iacb.profile == 0 ? AudioCodecProfile::kIAMF_SIMPLE
                                           : AudioCodecProfile::kIAMF_BASE;
-        extra_data = entry.iacb.ia_descriptors;
-
         // The correct values for the channel layout and sample rate can
-        // be parsed from the descriptor bitstream in `extra_data`.
+        // be parsed from the descriptor bitstream prepended to each sample.
         // They are set to the following values here to create a valid
         // AudioDecoderConfig.
         // TODO (crbug.com/1513779): Parse the bitstream to set the correct
@@ -1046,17 +1029,7 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
   // `frame_buf` or `heap_frame_buf` should be used for post-processing buffer
   // storage if [buf, buf + sample_size] needs any kind of processing before
   // being put in a StreamParserBuffer. Prefer `heap_frame_buf` where possible.
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // For Starboard, we reuse `scratch_frame_buf_` capacity via a reference
-  // alias to avoid per-frame heap allocations. This is safe because
-  // Starboard copies the frame data into the media pool rather than moving
-  // it (which would release/deallocate the vector's backing memory), and
-  // the parser is single-threaded.
-  scratch_frame_buf_.clear();
-  std::vector<uint8_t>& frame_buf = scratch_frame_buf_;
-#else
   std::vector<uint8_t> frame_buf;
-#endif
   base::HeapArray<uint8_t> heap_frame_buf;
   if (video) {
     if (runs_->video_description().video_info.codec == VideoCodec::kH264 ||
@@ -1123,6 +1096,18 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
 #else
       return ParseResult::kError;
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
+    } else {
+#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
+      if (runs_->audio_description().format == FOURCC_IAMF) {
+        heap_frame_buf =
+            PrependIADescriptors(runs_->audio_description().iacb,
+                                 {buf, buf + sample_size}, &subsamples);
+        if (heap_frame_buf.empty()) {
+          MEDIA_LOG(ERROR, media_log_)
+              << "Failed to prepare IA sample for decode";
+        }
+      }
+#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
     }
   }
 
@@ -1139,10 +1124,6 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
 
   // Either both buffers should be empty or only one should be filled.
   CHECK(frame_buf.empty() || heap_frame_buf.empty());
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  const size_t original_scratch_capacity = scratch_frame_buf_.capacity();
-#endif
 
   const auto buffer_type = audio ? DemuxerStream::AUDIO : DemuxerStream::VIDEO;
   scoped_refptr<StreamParserBuffer> stream_buf;
@@ -1167,37 +1148,16 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
       stream_buf = StreamParserBuffer::CopyFrom(buf_span, is_keyframe,
                                                 buffer_type, runs_->track_id());
     } else if (frame_buf.empty()) {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-      stream_buf = StreamParserBuffer::CopyFrom(
-          base::span<const uint8_t>{&heap_frame_buf[0], heap_frame_buf.size()},
-          is_keyframe, buffer_type, runs_->track_id());
-#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
       stream_buf =
           StreamParserBuffer::FromArray(std::move(heap_frame_buf), is_keyframe,
                                         buffer_type, runs_->track_id());
 
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
     } else {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-      // NOTE: Do NOT use std::move(frame_buf) here for Starboard.
-      // `frame_buf` aliases `scratch_frame_buf_` and we must preserve its
-      // capacity for reuse. Since the data is copied, std::move is unnecessary
-      // and would destroy the reused capacity.
-      stream_buf = StreamParserBuffer::CopyFrom(
-          base::span<const uint8_t>{&frame_buf[0], frame_buf.size()},
-          is_keyframe, buffer_type, runs_->track_id());
-#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
       stream_buf = StreamParserBuffer::FromExternalMemory(
           std::make_unique<ExternalMemoryAdapter>(std::move(frame_buf)),
           is_keyframe, buffer_type, runs_->track_id());
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
     }
   }
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  CHECK_GE(scratch_frame_buf_.capacity(), original_scratch_capacity)
-      << "scratch_frame_buf_ capacity was reduced, indicating the vector was likely std::moved.";
-#endif
 
   if (decrypt_config)
     stream_buf->set_decrypt_config(std::move(decrypt_config));
@@ -1240,9 +1200,6 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
 bool MP4StreamParser::SendAndFlushSamples(BufferQueueMap* buffers) {
   if (buffers->empty())
     return true;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  buffers_parsed_ = true;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   bool success = new_buffers_cb_.Run(*buffers);
   buffers->clear();
   return success;

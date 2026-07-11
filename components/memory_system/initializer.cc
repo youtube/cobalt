@@ -6,8 +6,6 @@
 
 #include <string_view>
 
-#include "build/build_config.h"
-#include "build/buildflag.h"
 #include "components/memory_system/memory_system.h"
 #include "components/sampling_profiler/process_type.h"
 
@@ -34,18 +32,10 @@ Initializer& Initializer::SetDispatcherParameters(
         poisson_allocation_sampler_inclusion,
     DispatcherParameters::AllocationTraceRecorderInclusion
         allocation_trace_recorder_inclusion,
-    std::string_view process_type
-#if BUILDFLAG(IS_COBALT)
-    , CobaltMemoryAttributionInclusion cobalt_memory_attribution_inclusion
-#endif
-    ) {
+    std::string_view process_type) {
   dispatcher_parameters_.emplace(poisson_allocation_sampler_inclusion,
                                  allocation_trace_recorder_inclusion,
-                                 process_type
-#if BUILDFLAG(IS_COBALT)
-                                 , cobalt_memory_attribution_inclusion
-#endif
-                                 );
+                                 process_type);
   return *this;
 }
 

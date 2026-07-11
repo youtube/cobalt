@@ -5,20 +5,10 @@
 // Linux-derivatives.
 
 #include "base/threading/platform_thread.h"
-#include "base/command_line.h"
 
 namespace base {
 
 size_t GetDefaultThreadStackSize(const pthread_attr_t& attributes) {
-#if BUILDFLAG(IS_STARBOARD)
-  if (base::CommandLine::InitializedForCurrentProcess() &&
-      base::CommandLine::ForCurrentProcess()
-          ->GetSwitchValueASCII("enable-features")
-          .find("ReduceAndroidThreadStackSize") != std::string::npos) {
-    return 256 * 1024;
-  }
-#endif
-
 #if !defined(THREAD_SANITIZER) && defined(__GLIBC__)
   // Generally glibc sets ample default stack sizes, so use the default there.
   return 0;

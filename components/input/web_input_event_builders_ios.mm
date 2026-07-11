@@ -14,7 +14,6 @@
 #include "base/apple/foundation_util.h"
 #include "base/notimplemented.h"
 #include "base/notreached.h"
-#include "build/build_config.h"
 #include "third_party/blink/public/common/input/web_pointer_event.h"
 #include "third_party/blink/public/common/input/web_touch_point.h"
 #include "ui/events/base_event_utils.h"
@@ -189,6 +188,8 @@ blink::WebTouchPoint CreateWebTouchPoint(
   return touch;
 }
 
+#if !BUILDFLAG(IS_IOS_TVOS)
+
 NSString* FilterSpecialCharacter(NSString* str) {
   if ([str length] != 1) {
     return str;
@@ -230,49 +231,26 @@ bool IsSystemKeyEvent(const blink::WebKeyboardEvent& event) {
   return event.GetModifiers() & blink::WebInputEvent::kMetaKey;
 }
 
+#endif  // !BUILDFLAG(IS_IOS_TVOS)
+
 }  // namespace
 
 blink::WebKeyboardEvent WebKeyboardEventBuilder::Build(gfx::NativeEvent event) {
-  ui::DomCode dom_code;
-  ui::DomKey dom_key;
-  bool is_key_up = false;
-  double time_stamp_seconds;
-  ui::KeyboardCode key_code;
-  NSString* key_characters;
-  UIKeyModifierFlags flags;
-#if BUILDFLAG(IS_IOS_TVOS)
-  UIPress* press = std::get<base::apple::OwnedUIPress>(event).Get();
-  CHECK(press);
-
-  // KeyCode from UIPress is UIKeyboardHIDUsage. Convert it to ui::KeyboardCode.
-  key_code = ui::KeyboardCodeFromUIKeyCode(press.key.keyCode);
-  dom_code = ui::DomCodeFromUIPress(press, key_code);
-  is_key_up = press.phase == UIPressPhaseEnded;
-  time_stamp_seconds = press.timestamp;
-  dom_key = ui::DomKeyFromKeyboardCode(press, key_code);
-  key_characters = press.key.characters;
-  flags = press.key.modifierFlags;
-#else
+#if !BUILDFLAG(IS_IOS_TVOS)
   BEKeyEntry* entry = std::get<base::apple::OwnedBEKeyEntry>(event).Get();
   CHECK(entry);
 
-  dom_code = ui::DomCodeFromBEKeyEntry(entry);
-  is_key_up = entry.state == BEKeyPressStateUp;
-  time_stamp_seconds = entry.timestamp;
-  // the keyCode is the keyboard code in BEKeyEntry
-  key_code = static_cast<ui::KeyboardCode>(entry.key.keyCode);
-  dom_key = ui::DomKeyFromBEKeyEntry(entry);
-  key_characters = entry.key.characters;
-  flags = entry.key.modifierFlags;
-#endif
-  int modifiers =
-      ModifiersFromEvent(flags) | ui::DomCodeToWebInputEventModifiers(dom_code);
+  ui::DomCode dom_code = ui::DomCodeFromBEKeyEntry(entry);
+  int modifiers = ModifiersFromEvent(entry.key.modifierFlags) |
+                  ui::DomCodeToWebInputEventModifiers(dom_code);
 
   blink::WebKeyboardEvent result(
-      is_key_up ? blink::WebInputEvent::Type::kKeyUp
-                : blink::WebInputEvent::Type::kKeyDown,
-      modifiers, ui::EventTimeStampFromSeconds(time_stamp_seconds));
+      entry.state == BEKeyPressStateUp ? blink::WebInputEvent::Type::kKeyUp
+                                       : blink::WebInputEvent::Type::kKeyDown,
+      modifiers, ui::EventTimeStampFromSeconds(entry.timestamp));
 
+  // the keyCode is the keyboard code in BEKeyEntry
+  auto key_code = static_cast<ui::KeyboardCode>(entry.key.keyCode);
   bool is_numeric_keypad_keycode =
       key_code >= ui::VKEY_NUMPAD0 && key_code <= ui::VKEY_NUMPAD9;
   result.windows_key_code = is_numeric_keypad_keycode
@@ -281,9 +259,9 @@ blink::WebKeyboardEvent WebKeyboardEventBuilder::Build(gfx::NativeEvent event) {
 
   result.native_key_code = key_code;
   result.dom_code = static_cast<int>(dom_code);
-  result.dom_key = dom_key;
-  NSString* text_str = FilterSpecialCharacter(key_characters);
-  NSString* unmodified_str = FilterSpecialCharacter(key_characters);
+  result.dom_key = ui::DomKeyFromBEKeyEntry(entry);
+  NSString* text_str = FilterSpecialCharacter(entry.key.characters);
+  NSString* unmodified_str = FilterSpecialCharacter(entry.key.characters);
   // Always use 13 for Enter/Return -- we don't want to use AppKit's
   // different character for Enter.
   if (result.windows_key_code == '\r') {
@@ -310,6 +288,10 @@ blink::WebKeyboardEvent WebKeyboardEventBuilder::Build(gfx::NativeEvent event) {
   result.is_system_key = IsSystemKeyEvent(result);
 
   return result;
+#else
+  TVOS_NOT_YET_IMPLEMENTED();
+  return blink::WebKeyboardEvent();
+#endif  // !BUILDFLAG(IS_IOS_TVOS)
 }
 
 blink::WebGestureEvent WebGestureEventBuilder::Build(UIEvent*, UIView*) {

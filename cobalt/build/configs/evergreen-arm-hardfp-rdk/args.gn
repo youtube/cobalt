@@ -1,8 +1,0 @@
-import("//cobalt/build/configs/evergreen_common.gn")
-
-use_asan = false
-target_cpu = "arm"
-starboard_target_platform = "rdk-arm"
-rdk_build_with_yocto = false
-rdk_starboard_root = "//starboard/contrib/rdk/src"
-rdk_enable_securityagent = false

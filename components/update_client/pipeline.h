@@ -18,38 +18,14 @@
 #include "components/update_client/update_client.h"
 #include "components/update_client/update_client_errors.h"
 
-#if BUILDFLAG(IS_STARBOARD)
-#include "base/files/file_path.h"
-#include "base/memory/raw_ptr.h"
-#include "components/update_client/persisted_data.h"
-#include "starboard/extension/installation_manager.h"
-#else
 namespace base {
 class FilePath;
 }
-#endif
 
 namespace update_client {
 
 class Configurator;
 class CrxCache;
-
-#if BUILDFLAG(IS_STARBOARD)
-struct OperationResult {
-#if defined(IN_MEMORY_UPDATES)
-  base::FilePath installation_dir;
-  base::raw_ptr<const std::string> crx_str;
-#else
-  base::FilePath response;
-#endif
-  int installation_index = IM_EXT_INVALID_INDEX;
-};
-
-using Operation = base::OnceCallback<base::OnceClosure(
-    const OperationResult&,
-    base::OnceCallback<void(
-        base::expected<OperationResult, CategorizedError>)>)>;
-#endif
 
 using PipelineStartCallback = base::OnceCallback<base::OnceClosure(
     base::OnceCallback<void(const CategorizedError&)>)>;
@@ -78,16 +54,6 @@ void MakePipeline(
     const std::vector<uint8_t>& pk_hash,
     const std::string& install_data_index,
     scoped_refptr<CrxInstaller> installer,
-#if defined(IN_MEMORY_UPDATES)
-    // `crx_str` points to a string that the CRX package should be downloaded to.
-    // This function does not take ownership of `crx_str`, which must refer to a
-    // valid string that outlives the created pipeline operations.
-    std::string* crx_str,
-#endif
-#if BUILDFLAG(IS_STARBOARD)
-    PersistedData* metadata,
-    const std::string& next_version,
-#endif
     base::RepeatingCallback<void(ComponentState)> state_tracker,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
     CrxDownloader::ProgressCallback download_progress_callback,

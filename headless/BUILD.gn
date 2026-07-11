@@ -7,7 +7,6 @@ import("//build/config/chrome_build.gni")
 import("//build/config/python.gni")
 import("//build/util/lastchange.gni")
 import("//build/util/process_version.gni")
-import("//content/browser/devtools/features.gni")
 import("//headless/headless.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 import("//pdf/features.gni")
@@ -119,7 +118,7 @@ repack("resource_pack_strings") {
     "//ui/strings",
   ]
 
-  if (enable_devtools_frontend) {
+  if (!is_fuchsia) {
     sources +=
         [ "$root_gen_dir/content/browser/devtools/devtools_resources.pak" ]
     deps += [ "//content/browser/devtools:devtools_resources" ]

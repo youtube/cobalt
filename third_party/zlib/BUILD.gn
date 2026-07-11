@@ -5,10 +5,6 @@
 import("//build/config/compiler/compiler.gni")
 import("//build/config/dcheck_always_on.gni")
 
-if (is_cobalt) {
-  import("//starboard/build/config/toolchain_variables.gni")
-}
-
 declare_args() {
   # Expose zlib's symbols, used by Node.js to provide zlib APIs for its native
   # modules.
@@ -129,32 +125,21 @@ source_set("zlib_adler32_simd") {
 
 if (use_arm_neon_optimizations) {
   config("zlib_arm_crc32_config") {
-    # Cobalt comment: implementations of ARM version less than 8 are not
-    # expected to have CRC32 instructions. Some of our reference toolchains do -
-    # and some partner toolchains may - use ARMv7. This customization is ported
-    # forward from c25.
-    # TODO: b/446904317 - Cobalt: we in theory shouldn't need this exception for
-    # !is_partner_toolchain toolchains but it turns out that some of
-    # these, such as //build/toolchain/linux:clang_arm, require some of these
-    # defines even though they use ARMv7. We should address this eventually.
-    if (!is_cobalt || !is_partner_toolchain || current_cpu == "arm64" ||
-        arm_version >= 8) {
-      defines = [ "CRC32_ARMV8_CRC32" ]
-      if (is_android) {
-        defines += [ "ARMV8_OS_ANDROID" ]
-      } else if (is_linux || is_chromeos) {
-        defines += [ "ARMV8_OS_LINUX" ]
-      } else if (is_mac) {
-        defines += [ "ARMV8_OS_MACOS" ]
-      } else if (is_ios) {
-        defines += [ "ARMV8_OS_IOS" ]
-      } else if (is_fuchsia) {
-        defines += [ "ARMV8_OS_FUCHSIA" ]
-      } else if (is_win) {
-        defines += [ "ARMV8_OS_WINDOWS" ]
-      } else {
-        assert(false, "Unsupported ARM OS")
-      }
+    defines = [ "CRC32_ARMV8_CRC32" ]
+    if (is_android) {
+      defines += [ "ARMV8_OS_ANDROID" ]
+    } else if (is_linux || is_chromeos) {
+      defines += [ "ARMV8_OS_LINUX" ]
+    } else if (is_mac) {
+      defines += [ "ARMV8_OS_MACOS" ]
+    } else if (is_ios) {
+      defines += [ "ARMV8_OS_IOS" ]
+    } else if (is_fuchsia) {
+      defines += [ "ARMV8_OS_FUCHSIA" ]
+    } else if (is_win) {
+      defines += [ "ARMV8_OS_WINDOWS" ]
+    } else {
+      assert(false, "Unsupported ARM OS")
     }
   }
 
@@ -163,10 +148,7 @@ if (use_arm_neon_optimizations) {
 
     include_dirs = [ "." ]
 
-    # Cobalt comment: this -march flag value is not recognized by some partner
-    # toolchain compilers, probably because of the GCC version. This
-    # customization is ported forward from c25.
-    if (!is_win && !is_clang && (!is_cobalt || !is_partner_toolchain)) {
+    if (!is_win && !is_clang) {
       assert(!use_thin_lto,
              "ThinLTO fails mixing different module-level targets")
       if (current_cpu == "arm64") {
@@ -301,12 +283,6 @@ config("zlib_warnings") {
       "-Wno-incompatible-pointer-types",
       "-Wunused-variable",
     ]
-    if (is_cobalt && is_partner_toolchain) {
-      # needed because _cpu_check_features is defined under __ARM_NEON
-      # but its only caller isn't defined for ARMv7 when building using
-      # the partner toolchains
-      cflags += [ "-Wno-unused-function" ]
-    }
   }
 }
 
@@ -355,10 +331,6 @@ component("zlib") {
     # Apparently android_cronet bot builds with NEON disabled and
     # we also should disable optimizations for iOS@x86 (a.k.a. simulator).
     defines += [ "CPU_NO_SIMD" ]
-  }
-
-  if (use_arm_neon_optimizations && is_cobalt && is_partner_toolchain) {
-    defines += [ "IS_PARTNER_TOOLCHAIN" ]
   }
 
   if (use_x86_x64_optimizations || use_arm_neon_optimizations) {
@@ -560,10 +532,6 @@ if (build_with_chromium) {
       "google/zip_reader_unittest.cc",
       "google/zip_unittest.cc",
     ]
-    if (is_cobalt_hermetic_build) {
-      sources += [ "contrib/tests/starboard/run_all_unittests.cc" ]
-      sources -= [ "contrib/tests/run_all_unittests.cc" ]
-    }
 
     data = [ "google/test/data/" ]
 

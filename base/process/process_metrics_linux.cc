@@ -156,12 +156,7 @@ ProcessMetrics::GetMemoryInfo() const {
   }
   ProcessMemoryInfo dump;
   for (const auto& [key, value_str] : *pairs) {
-    if (key == "VmSize") {
-#if BUILDFLAG(IS_COBALT)
-      dump.vm_size_bytes =
-          static_cast<uint64_t>(GetKbFieldAsSizeT(value_str)) * 1024;
-#endif    // BUILDFLAG(IS_COBALT)
-    } else if (key == "VmSwap") {
+    if (key == "VmSwap") {
       dump.vm_swap_bytes =
           static_cast<uint64_t>(GetKbFieldAsSizeT(value_str)) * 1024;
     } else if (key == "VmRSS") {

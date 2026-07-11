@@ -5,10 +5,6 @@
 import("//services/device/public/cpp/compute_pressure/buildflags.gni")
 import("//third_party/blink/renderer/config.gni")
 
-if (is_cobalt) {
-  import("//starboard/build/buildflags.gni")
-}
-
 # Statically-defined (not build-time-generated) IDL files in 'modules' component
 # for production.
 static_idl_files_in_modules = [
@@ -1285,68 +1281,6 @@ static_idl_files_in_modules = [
   "//third_party/blink/renderer/modules/xr/xr_webgl_sub_image.idl",
 ]
 
-if (is_cobalt && use_starboard_media) {
-  static_idl_files_in_modules += [
-    "//third_party/blink/renderer/modules/webgl/cobalt/oes_egl_image_external.idl",
-  ]
-}
-
-if (is_cobalt) {
-  static_idl_files_in_modules += get_path_info(
-          [
-            "//third_party/blink/renderer/modules/cobalt/crash_log/crash_log.idl",
-            "//third_party/blink/renderer/modules/cobalt/h5vcc_accessibility/h_5_vcc_accessibility.idl",
-            "//third_party/blink/renderer/modules/cobalt/h5vcc_accessibility/text_to_speech_change_event.idl",
-            "//third_party/blink/renderer/modules/cobalt/h5vcc_accessibility/text_to_speech_change_event_init.idl",
-            "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments/h_5_vcc_experiments.idl",
-            "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics/h_5_vcc_metrics.idl",
-            "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics/metrics_event.idl",
-            "//third_party/blink/renderer/modules/cobalt/h5vcc_platform_service/h_5_vcc_platform_service.idl",
-            "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime/deep_link_event.idl",
-            "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime/h_5_vcc_runtime.idl",
-            "//third_party/blink/renderer/modules/cobalt/h5vcc_settings/h_5_vcc_settings.idl",
-            "//third_party/blink/renderer/modules/cobalt/h5vcc_storage/h_5_vcc_storage.idl",
-            "//third_party/blink/renderer/modules/cobalt/h5vcc_system/h_5_vcc_system.idl",
-            "//third_party/blink/renderer/modules/cobalt/h5vcc_updater/h_5_vcc_updater.idl",
-            "//third_party/blink/renderer/modules/cobalt/h_5_vcc.idl",
-            "//third_party/blink/renderer/modules/cobalt/window_h_5_vcc.idl",
-          ],
-          "abspath")
-
-  # In C25, window.cc would dynamically check if the on-screen keyboard
-  # extension was supported and only add the onScreenKeyboard object if so.
-  # In Chrobalt, this is gated by the `enable_native_on_screen_keyboard` GN
-  # flag.
-  # TODO: b/513162150 - Figure out if there should be a way to determine at
-  # runtime if this API should be exposed.
-  if (enable_native_on_screen_keyboard) {
-    static_idl_files_in_modules += get_path_info(
-            [
-              "//third_party/blink/renderer/modules/cobalt/on_screen_keyboard/window_on_screen_keyboard.idl",
-              "//third_party/blink/renderer/modules/cobalt/on_screen_keyboard/on_screen_keyboard.idl",
-            ],
-            "abspath")
-  }
-
-  if (use_starboard_media) {
-    static_idl_files_in_modules += get_path_info(
-            [
-              "//third_party/blink/renderer/modules/cobalt/encryptedmedia/media_keys_extensions.idl",
-              "//third_party/blink/renderer/modules/cobalt/mediasource/source_buffer_extensions.idl",
-            ],
-            "abspath")
-  }
-}
-
-if (!use_webrtc_peer_connection) {
-  _filtered_static_idl =
-      filter_exclude(
-          static_idl_files_in_modules,
-          [ "//third_party/blink/renderer/modules/peerconnection/*" ])
-  static_idl_files_in_modules = []
-  static_idl_files_in_modules = _filtered_static_idl
-}
-
 # Direct Sockets
 # This uses target_os rather than current_os (which is what is_android is set
 # from) for the case of generating the v8 context snapshot for android. When
@@ -1439,23 +1373,6 @@ if (enable_compute_pressure) {
   ]
 }
 
-# If in the future privacy sandbox components are removed from the code base, we should
-# delete this if block.
-if (!enable_privacy_sandbox_apis) {
-  _filtered_static_idl_files = filter_exclude(
-      static_idl_files_in_modules,
-      [
-        "//third_party/blink/renderer/modules/browsing_topics/*",
-        "//third_party/blink/renderer/modules/private_attribution/*",
-        "//third_party/blink/renderer/modules/shared_storage/*",
-        "//third_party/blink/renderer/modules/storage_access/*",
-        "//third_party/blink/renderer/modules/locks/shared_storage_worklet_navigator_locks.idl",
-        "//third_party/blink/renderer/modules/permissions/top_level_storage_access_permission_descriptor.idl",
-      ])
-  static_idl_files_in_modules = []
-  static_idl_files_in_modules = _filtered_static_idl_files
-}
-
 # Statically-defined (not runtime-generated) IDL files in 'modules' component.
 # These IDL definitions are used only for testing.
 static_idl_files_in_modules_for_testing = [
@@ -1485,13 +1402,4 @@ if (enable_compute_pressure) {
     "//third_party/blink/renderer/modules/compute_pressure/testing/create_virtual_pressure_source_options.idl",
     "//third_party/blink/renderer/modules/compute_pressure/testing/internals_compute_pressure.idl",
   ]
-}
-
-if (!use_webrtc_peer_connection) {
-  _filtered_testing_idl =
-      filter_exclude(
-          static_idl_files_in_modules_for_testing,
-          [ "//third_party/blink/renderer/modules/peerconnection/testing/*" ])
-  static_idl_files_in_modules_for_testing = []
-  static_idl_files_in_modules_for_testing = _filtered_testing_idl
 }

@@ -20,10 +20,6 @@
 #include "ui/gfx/color_space.h"
 #include "url/gurl.h"
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/starboard/decoder_buffer_allocator.h"
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 namespace media {
 
 class MediaClient;
@@ -74,20 +70,6 @@ class MEDIA_EXPORT MediaClient {
   // allocator during StreamParserBuffer creation. The SRC playback pipeline
   // does not currently use the allocator, but could be updated to do so.
   virtual ExternalMemoryAllocator* GetMediaAllocator() = 0;
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  static uint64_t GetMediaSourceMaximumMemoryCapacity();
-  static uint64_t GetMediaSourceCurrentMemoryCapacity();
-  static uint64_t GetMediaSourceTotalAllocatedMemory();
-
-  uint64_t GetMaximumMemoryCapacity() const;
-  uint64_t GetCurrentMemoryCapacity() const;
-  uint64_t GetAllocatedMemory() const;
-
- private:
-  // TODO(b/326497953): Support Suspend() and Resume().
-  DecoderBufferAllocator decoder_buffer_allocator_;
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace media

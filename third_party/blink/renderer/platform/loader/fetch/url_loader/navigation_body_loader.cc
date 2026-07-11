@@ -19,7 +19,6 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
-#include "build/buildflag.h"
 #include "mojo/public/cpp/base/big_buffer.h"
 #include "services/network/public/cpp/loading_params.h"
 #include "services/network/public/cpp/record_ontransfersizeupdate_utils.h"
@@ -43,9 +42,7 @@
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "third_party/blink/renderer/platform/wtf/wtf.h"
-#if !BUILDFLAG(IS_COBALT)
-#include "third_party/ced/src/compact_enc_det/compact_enc_det.h"  // nogncheck
-#endif  // !BUILDFLAG(IS_COBALT)
+#include "third_party/ced/src/compact_enc_det/compact_enc_det.h"
 
 namespace blink {
 namespace {
@@ -461,13 +458,11 @@ void NavigationBodyLoader::StartLoadingBodyInBackground(
   if (!response_body_)
     return;
 
-#if !BUILDFLAG(IS_COBALT)
   // Initializing the map used when detecting encodings is not thread safe.
   // Initialize on the main thread here to avoid races.
   // TODO(crbug.com/1384221): Consider making the map thread safe in
   // third_party/ced/src/util/encodings/encodings.cc.
   EncodingNameAliasToEncoding("");
-#endif  // !BUILDFLAG(IS_COBALT)
 
   off_thread_body_reader_.reset(new OffThreadBodyReader(
       std::move(response_body_), std::move(decoder), weak_factory_.GetWeakPtr(),

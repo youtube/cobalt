@@ -17,12 +17,8 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "content/public/browser/devtools_agent_host.h"
-#include "content/public/browser/web_contents_observer.h"
-#include "content/public/common/buildflags.h"
-
-#if BUILDFLAG(ENABLE_DEVTOOLS_FRONTEND)
 #include "content/public/browser/devtools_frontend_host.h"
-#endif
+#include "content/public/browser/web_contents_observer.h"
 
 namespace content {
 
@@ -81,7 +77,7 @@ class ShellDevToolsBindings : public WebContentsObserver,
   scoped_refptr<DevToolsAgentHost> agent_host_;
   int inspect_element_at_x_;
   int inspect_element_at_y_;
-#if BUILDFLAG(ENABLE_DEVTOOLS_FRONTEND)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_FUCHSIA)
   std::unique_ptr<DevToolsFrontendHost> frontend_host_;
 #endif
 

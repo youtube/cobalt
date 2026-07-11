@@ -1861,12 +1861,6 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config,
     DVLOG(2)
         << __func__
         << ": Skipping updating memory limit as memory limit was overridden.";
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-    if (GetVideoBufferSizeClamp() != std::numeric_limits<size_t>::max()) {
-      LOG(WARNING)
-          << "Experiment VideoBufferSizeClamp is active but ignored as memory limit was overridden.";
-    }
-#endif //  BUILDFLAG(USE_STARBOARD_MEDIA)
   } else {
     // Dynamically increase |memory_limit_| on video config changes.
     size_t new_memory_limit =

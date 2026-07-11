@@ -42,11 +42,6 @@ source_set("audio") {
     # TODO(dalecurtis): Move android audio pieces into //media/audio.
     "//media/base/android",
   ]
-
-  if (is_cobalt) {
-    visibility -= [ ":flac_audio_handler_fuzzer" ]
-  }
-
   sources = [
     "aecdump_recording_manager.cc",
     "aecdump_recording_manager.h",
@@ -286,23 +281,9 @@ source_set("audio") {
         "android/opensles_wrapper.cc",
       ]
     }
-    # Cobalt uses the Starboard layer instead of AAudio. AAudio also breaks SDK 24 compatibility. See b/508072838.
-    if (!is_cobalt) {
-      libs += [ "aaudio" ]
-    }
+    libs += [ "aaudio" ]
 
     deps += [ "//media/base/android:media_jni_headers" ]
-
-    if (use_starboard_media) {
-      sources += [
-        "android/starboard_audio_input_stream.cc",
-        "android/starboard_audio_input_stream.h",
-      ]
-      deps += [
-        "//starboard:starboard_headers_only",
-        "//starboard/android/shared:starboard_platform",
-      ]
-    }
   }
 
   if (is_linux || is_chromeos) {
@@ -380,26 +361,6 @@ source_set("audio") {
       "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.media:fuchsia.media_hlcpp",
       "//third_party/fuchsia-sdk/sdk/pkg/sys_cpp",
     ]
-  }
-
-  if (is_starboard) {
-    sources += [
-      "starboard/audio_input_stream_starboard.cc",
-      "starboard/audio_input_stream_starboard.h",
-      "starboard/audio_manager_starboard.cc",
-      "starboard/audio_manager_starboard.h",
-    ]
-    deps += [
-      "//starboard:starboard_headers_only"
-    ]
-  }
-
-  if (is_cobalt) {
-    sources -= [
-      "flac_audio_handler.cc",
-      "flac_audio_handler.h",
-    ]
-    deps -= [ "//third_party/flac" ]
   }
 }
 
@@ -540,10 +501,6 @@ source_set("unit_tests") {
       "test_data.h",
       "wav_audio_handler_unittest.cc",
     ]
-    
-    if (is_cobalt) {
-      sources -= [ "flac_audio_handler_unittest.cc" ]
-    }
   }
 
   if (use_cras) {
@@ -601,13 +558,11 @@ fuzzer_test("wav_audio_handler_fuzzer") {
   ]
 }
 
-if (!is_cobalt) {
-  fuzzer_test("flac_audio_handler_fuzzer") {
-    sources = [ "flac_audio_handler_fuzzer.cc" ]
-    deps = [
-      ":audio",
-      "//base",
-      "//media:test_support",
-    ]
-  }
+fuzzer_test("flac_audio_handler_fuzzer") {
+  sources = [ "flac_audio_handler_fuzzer.cc" ]
+  deps = [
+    ":audio",
+    "//base",
+    "//media:test_support",
+  ]
 }

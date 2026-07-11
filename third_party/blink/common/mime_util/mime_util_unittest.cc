@@ -20,7 +20,7 @@ TEST(MimeUtilTest, LookupTypes) {
   EXPECT_TRUE(IsSupportedImageMimeType("Image/JPEG"));
   EXPECT_FALSE(IsSupportedImageMimeType("image/jxl"));
   EXPECT_EQ(IsSupportedImageMimeType("image/avif"),
-            BUILDFLAG(ENABLE_DAV1D_DECODER));
+            BUILDFLAG(ENABLE_AV1_DECODER));
   EXPECT_FALSE(IsSupportedImageMimeType("image/lolcat"));
   EXPECT_FALSE(IsSupportedImageMimeType("Image/LolCat"));
   EXPECT_TRUE(IsSupportedNonImageMimeType("text/html"));

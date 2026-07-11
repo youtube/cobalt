@@ -36,11 +36,6 @@
 #include "components/update_client/update_client_errors.h"
 #include "third_party/puffin/src/include/puffin/puffpatch.h"
 
-#if BUILDFLAG(IS_STARBOARD)
-#include "components/update_client/cobalt_slot_management.h"
-#include "starboard/extension/installation_manager.h"
-#endif
-
 namespace update_client {
 
 namespace {
@@ -90,18 +85,10 @@ class CallbackChecker : public base::RefCountedThreadSafe<CallbackChecker> {
 void InstallComplete(
     base::OnceCallback<void(const CrxInstaller::Result&)>
         installer_result_callback,
-#if BUILDFLAG(IS_STARBOARD)
-    base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
-#else
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
-#endif
         callback,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
-#if BUILDFLAG(IS_STARBOARD)
-    const OperationResult& crx_operation_result,
-#else
     base::FilePath crx_file,
-#endif
     const CrxInstaller::Result& result) {
   event_adder.Run(
       MakeSimpleOperationEvent(result.result, protocol_request::kEventCrx3));
@@ -113,16 +100,10 @@ void InstallComplete(
         base::BindOnce(std::move(callback), base::unexpected(result.result)));
     return;
   }
-#if BUILDFLAG(IS_STARBOARD)
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce(std::move(callback), crx_operation_result));
-#else
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(callback), crx_file));
-#endif
 }
 
-#if !BUILDFLAG(IS_STARBOARD)
 // Runs in the blocking thread pool.
 void InstallBlocking(
     CrxInstaller::ProgressCallback progress_callback,
@@ -134,40 +115,14 @@ void InstallBlocking(
   installer->Install(unpack_path, public_key, std::move(install_params),
                      progress_callback, std::move(callback));
 }
-#endif  // !BUILDFLAG(IS_STARBOARD)
 
 // Runs on the original sequence.
 void Install(base::OnceCallback<void(const CrxInstaller::Result&)> callback,
              std::unique_ptr<CrxInstaller::InstallParams> install_params,
              scoped_refptr<CrxInstaller> installer,
              CrxInstaller::ProgressCallback progress_callback,
-#if BUILDFLAG(IS_STARBOARD)
-             PersistedData* metadata,
-             const std::string& next_version,
-             const std::string& id,
-             const OperationResult& crx_operation_result,
-#endif
              const Unpacker::Result& result) {
   if (result.error != UnpackerError::kNone) {
-#if BUILDFLAG(IS_STARBOARD)
-    // When there is an error unpacking the downloaded CRX, such as a failure to
-    // verify the package, we clear out any drain files.
-#if defined(IN_MEMORY_UPDATES)
-    if (base::DirectoryExists(crx_operation_result.installation_dir)) {
-#else  // defined(IN_MEMORY_UPDATES)
-    if (base::DirectoryExists(crx_operation_result.response.DirName())) {
-#endif  // defined(IN_MEMORY_UPDATES)
-      const auto* installation_api =
-          static_cast<const CobaltExtensionInstallationManagerApi*>(
-              SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
-      if (installation_api) {
-        CobaltSlotManagement cobalt_slot_management;
-        if (cobalt_slot_management.Init(installation_api)) {
-          cobalt_slot_management.CleanupAllDrainFiles();
-        }
-      }
-    }
-#endif  // #if BUILDFLAG(IS_STARBOARD)
     std::move(callback).Run(
         CrxInstaller::Result({.category = ErrorCategory::kUnpack,
                               .code = static_cast<int>(result.error),
@@ -177,38 +132,6 @@ void Install(base::OnceCallback<void(const CrxInstaller::Result&)> callback,
 
   progress_callback.Run(-1);
 
-#if BUILDFLAG(IS_STARBOARD)
-  InstallError install_error = InstallError::NONE;
-  const CobaltExtensionInstallationManagerApi* installation_api =
-      static_cast<const CobaltExtensionInstallationManagerApi*>(
-          SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
-  if (!installation_api) {
-    LOG(ERROR) << "Failed to get installation manager api.";
-    install_error = InstallError::GENERIC_ERROR;
-  } else if (crx_operation_result.installation_index == IM_EXT_INVALID_INDEX) {
-    LOG(ERROR) << "Installation index is invalid.";
-    install_error = InstallError::GENERIC_ERROR;
-  } else {
-    char app_key[IM_EXT_MAX_APP_KEY_LENGTH];
-    if (installation_api->GetAppKey(app_key, IM_EXT_MAX_APP_KEY_LENGTH) ==
-        IM_EXT_ERROR) {
-      LOG(ERROR) << "Failed to get app key.";
-      install_error = InstallError::GENERIC_ERROR;
-    } else if (CobaltFinishInstallation(
-                   installation_api, crx_operation_result.installation_index,
-                   result.unpack_path.value(), app_key)) {
-      // Write the version of the unpacked update package to the persisted data.
-      if (metadata != nullptr) {
-        metadata->SetLastInstalledEgAndSbVersion(
-            id, next_version, std::to_string(SB_API_VERSION));
-      }
-    } else {
-      LOG(ERROR) << "CobaltFinishInstallation failed.";
-      install_error = InstallError::GENERIC_ERROR;
-    }
-  }
-  std::move(callback).Run(CrxInstaller::Result(install_error));
-#else
   // Prepare the callbacks. Delete unpack_path when the completion
   // callback is called.
   auto checker = base::MakeRefCounted<CallbackChecker>(
@@ -235,16 +158,11 @@ void Install(base::OnceCallback<void(const CrxInstaller::Result&)> callback,
                          base::BindOnce(&CallbackChecker::Done, checker)),
                      result.unpack_path, result.public_key,
                      std::move(install_params), installer));
-#endif
 }
 
 // Runs on the original sequence.
 void Unpack(base::OnceCallback<void(const Unpacker::Result&)> callback,
-#if BUILDFLAG(IS_STARBOARD)
-            const OperationResult& crx_operation_result,
-#else
             const base::FilePath& crx_file,
-#endif
             std::unique_ptr<Unzipper> unzipper,
             const std::vector<uint8_t>& pk_hash,
             crx_file::VerifierFormat crx_format,
@@ -252,21 +170,6 @@ void Unpack(base::OnceCallback<void(const Unpacker::Result&)> callback,
   if (!cache_result.has_value()) {
     // Caching is optional: continue with the install, but add a task to clean
     // up crx_file.
-#if BUILDFLAG(IS_STARBOARD)
-#if !defined(IN_MEMORY_UPDATES)
-    callback = base::BindOnce(
-        [](const OperationResult& crx_operation_result,
-           base::OnceCallback<void(const Unpacker::Result&)> callback,
-           const Unpacker::Result& result) {
-          base::ThreadPool::PostTaskAndReply(
-              FROM_HERE, kTaskTraits,
-              base::BindOnce(IgnoreResult(&base::DeleteFile),
-                             crx_operation_result.response),
-              base::BindOnce(std::move(callback), result));
-        },
-        crx_operation_result, std::move(callback));
-#endif  // !defined(IN_MEMORY_UPDATES)
-#else  // BUILDFLAG(IS_STARBOARD)
     callback = base::BindOnce(
         [](const base::FilePath& crx_file,
            base::OnceCallback<void(const Unpacker::Result&)> callback,
@@ -277,7 +180,6 @@ void Unpack(base::OnceCallback<void(const Unpacker::Result&)> callback,
               base::BindOnce(std::move(callback), result));
         },
         crx_file, std::move(callback));
-#endif
   }
 
   // Unpack the file.
@@ -287,11 +189,7 @@ void Unpack(base::OnceCallback<void(const Unpacker::Result&)> callback,
           base::BindOnce(
               &Unpacker::Unpack, pk_hash,
               // If and only if cached, the original path no longer exists.
-#if BUILDFLAG(IS_STARBOARD)
-              crx_operation_result,
-#else
               cache_result.has_value() ? cache_result.value() : crx_file,
-#endif
               std::move(unzipper), crx_format,
               base::BindPostTaskToCurrentDefault(std::move(callback))));
 }
@@ -307,37 +205,15 @@ base::OnceClosure InstallOperation(
     const std::vector<uint8_t>& pk_hash,
     scoped_refptr<CrxInstaller> installer,
     std::unique_ptr<CrxInstaller::InstallParams> install_params,
-#if BUILDFLAG(IS_STARBOARD)
-    PersistedData* metadata,
-    const std::string& next_version,
-#endif
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
     base::RepeatingCallback<void(ComponentState)> state_tracker,
     CrxInstaller::ProgressCallback progress_callback,
     base::OnceCallback<void(const CrxInstaller::Result&)>
         installer_result_callback,
-#if BUILDFLAG(IS_STARBOARD)
-    const OperationResult& crx_operation_result,
-    base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
-#else
     const base::FilePath& crx_file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
-#endif
         callback) {
   state_tracker.Run(ComponentState::kUpdating);
-#if BUILDFLAG(IS_STARBOARD)
-  Unpack(
-      base::BindOnce(
-          &Install,
-          base::BindOnce(&InstallComplete, std::move(installer_result_callback),
-                         std::move(callback), event_adder,
-                         crx_operation_result),
-          std::move(install_params), installer, progress_callback,
-          metadata, next_version, id,
-          crx_operation_result),
-      crx_operation_result, std::move(unzipper), pk_hash, crx_format,
-      base::unexpected(UnpackerError::kCrxCacheNotProvided));
-#else
   crx_cache->Put(
       // TODO(crbug.com/399617574): Remove FP.
       crx_file, id, file_hash, /*fp=*/{},
@@ -350,7 +226,6 @@ base::OnceClosure InstallOperation(
                              std::move(callback), event_adder, crx_file),
               std::move(install_params), installer, progress_callback),
           crx_file, std::move(unzipper), pk_hash, crx_format));
-#endif
   return base::DoNothing();
 }
 

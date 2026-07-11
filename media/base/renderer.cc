@@ -31,10 +31,6 @@ std::string GetRendererName(RendererType renderer_type) {
       return "EmbedderDefined";
     case RendererType::kTest:
       return "Media Renderer Implementation For Testing";
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-    case RendererType::kStarboard:
-      return "StarboardRenderer";
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 }
 
