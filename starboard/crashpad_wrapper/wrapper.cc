@@ -78,14 +78,8 @@ base::FilePath GetPathToCrashpadHandlerBinary() {
 #if defined(OS_ANDROID)
   // Path to the extracted native library.
   handler_path.append("arm/libcrashpad_handler.so");
-#else  // defined(OS_ANDROID)
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-  // TODO: b/406511608 - we probably want to be able to expect the binary to be
-  // in the executable directory itself, without the native_target subdir.
+#else   // defined(OS_ANDROID)
   handler_path.append("native_target/crashpad_handler");
-#else   // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-  handler_path.append("crashpad_handler");
-#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 #endif  // defined(OS_ANDROID)
   return base::FilePath(handler_path.c_str());
 }

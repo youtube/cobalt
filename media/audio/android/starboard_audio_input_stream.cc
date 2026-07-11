@@ -279,28 +279,27 @@ void StarboardAudioInputStream::SimpleBufferQueueCallback(
 }
 
 void StarboardAudioInputStream::ReadBufferQueue() {
-  AudioInputCallback* callback = nullptr;
-  {
-    base::AutoLock lock(lock_);
-    if (started_ && callback_) {
-      callback = callback_;
-
-      // Convert from interleaved format to deinterleaved audio bus format while
-      // still under the lock to protect audio_bus_ and audio_data_.
-      audio_bus_->FromInterleaved<SignedInt16SampleTypeTraits>(
-          reinterpret_cast<int16_t*>(audio_data_[active_buffer_index_].get()),
-          audio_bus_->frames());
-    }
-  }
-
-  if (callback) {
-    callback->OnData(audio_bus_.get(),
-                     base::TimeTicks::Now() - hardware_delay_,
-                     /*volume=(0 indicates no vol control)*/0.0,
-                     /*audio_glitch_info=*/{});
-  }
-
+  // Holding `lock_` during OnData prevents a race condition where Stop() or Close()
+  // on the AudioManager thread clears `callback_` mid-execution.
+  // Re-entrant deadlocks are impossible because Stop()/Close() are thread-checked to
+  // the AudioManager thread, while ReadBufferQueue runs on the OpenSLES thread.
   base::AutoLock lock(lock_);
+
+  if (!started_ || !callback_) {
+    return;
+  }
+
+  // Convert from interleaved format to deinterleaved audio bus format while
+  // still under the lock to protect audio_bus_ and audio_data_.
+  audio_bus_->FromInterleaved<SignedInt16SampleTypeTraits>(
+      reinterpret_cast<int16_t*>(audio_data_[active_buffer_index_].get()),
+      audio_bus_->frames());
+
+  callback_->OnData(audio_bus_.get(),
+                    base::TimeTicks::Now() - hardware_delay_,
+                    /*volume=*/0.0,
+                    /*audio_glitch_info=*/{});
+
   if (simple_buffer_queue_) {
     (*simple_buffer_queue_)->Enqueue(simple_buffer_queue_,
                                      audio_data_[active_buffer_index_].get(),
