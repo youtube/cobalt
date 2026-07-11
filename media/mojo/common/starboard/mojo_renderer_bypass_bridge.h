@@ -86,6 +86,8 @@ class MojoRendererBypassBridge
   VideoDecoderConfig GetVideoConfig() const;
   bool SupportsConfigChanges(DemuxerStream::Type type) const;
   StreamLiveness GetLiveness(DemuxerStream::Type type) const;
+  std::string GetMimeType(DemuxerStream::Type type) const;
+  void EnableBitstreamConverter(DemuxerStream::Type type);
 
  private:
   friend class base::RefCountedThreadSafe<MojoRendererBypassBridge>;
@@ -100,6 +102,8 @@ class MojoRendererBypassBridge
                   DemuxerStream::Status status,
                   DemuxerStream::DecoderBufferVector buffers);
   void DecrementInFlightReads();
+  DemuxerStream* GetStreamLocked(DemuxerStream::Type type) const
+      EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
   const scoped_refptr<base::SequencedTaskRunner> client_task_runner_;
   const TimeUpdateCB time_update_cb_;
