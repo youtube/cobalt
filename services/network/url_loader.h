@@ -134,6 +134,11 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) URLLoader
 
     // Gets the sync URLLoaderClient if available, otherwise the mojo remote.
     mojom::URLLoaderClient* Get();
+#if BUILDFLAG(IS_COBALT)
+    mojom::URLLoaderClient* GetSyncClient() const {
+      return sync_client_.get();
+    }
+#endif  // BUILDFLAG(IS_COBALT)
 
    private:
     mojo::Remote<mojom::URLLoaderClient> mojo_client_;
@@ -502,6 +507,9 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) URLLoader
 
   void ReportFlaggedResponseCookies(bool call_cookie_observer);
   void StartReading();
+#if BUILDFLAG(IS_COBALT)
+  void ResumeDirectBufferReads();
+#endif  // BUILDFLAG(IS_COBALT)
 
   // Whether `force_ignore_site_for_cookies` should be set on net::URLRequest.
   bool ShouldForceIgnoreSiteForCookies(const ResourceRequest& request);
@@ -579,6 +587,11 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) URLLoader
 
   scoped_refptr<net::IOBufferWithSize> discard_buffer_;
 
+#if BUILDFLAG(IS_COBALT)
+  scoped_refptr<net::IOBuffer> pending_direct_read_buffer_;
+  bool use_direct_buffer_ = false;
+  bool sent_response_to_client_ = false;
+#endif  // BUILDFLAG(IS_COBALT)
   // True if there's a URLRequest::Read() call in progress.
   bool read_in_progress_ = false;
 
