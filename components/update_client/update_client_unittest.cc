@@ -5106,9 +5106,13 @@ TEST_F(UpdateClientTest, ActionRun_NoUpdate) {
         std::vector<uint8_t>(std::begin(gjpm_hash), std::end(gjpm_hash)),
         GetTestFilePath("runaction_test_win.crx3"),
 #endif
+#if BUILDFLAG(IS_STARBOARD)
+        base::MakeRefCounted<cobalt::updater::UnzipperFactory>()->Create(),
+#else
         base::MakeRefCounted<UnzipChromiumFactory>(
             base::BindRepeating(&unzip::LaunchInProcessUnzipper))
             ->Create(),
+#endif
         crx_file::VerifierFormat::CRX3,
         base::BindOnce(
             [](base::FilePath* unpack_path, base::OnceClosure quit_closure,

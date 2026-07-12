@@ -22,7 +22,11 @@
 #include "components/services/unzip/in_process_unzipper.h"
 #include "components/update_client/test_configurator.h"
 #include "components/update_client/test_utils.h"
-#include "components/update_client/unzip/unzip_impl.h"
+#if BUILDFLAG(IS_STARBOARD)
+#include "cobalt/updater/unzipper.h"
+#else
+#include "components/update_client/unzip/unzip_impl.h"  // nogncheck
+#endif
 #include "components/update_client/unzipper.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -49,9 +53,13 @@ TEST_F(UnpackerTest, UnpackFullCrx) {
       std::vector<uint8_t>(std::begin(jebg_hash), std::end(jebg_hash)),
       GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"),
 #endif
+#if BUILDFLAG(IS_STARBOARD)
+      base::MakeRefCounted<cobalt::updater::UnzipperFactory>()->Create(),
+#else
       base::MakeRefCounted<update_client::UnzipChromiumFactory>(
           base::BindRepeating(&unzip::LaunchInProcessUnzipper))
           ->Create(),
+#endif
       crx_file::VerifierFormat::CRX3,
       base::BindLambdaForTesting([&](const Unpacker::Result& result) {
         DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker);
@@ -150,9 +158,13 @@ TEST_F(UnpackerTest, UnpackWithVerifiedContents) {
       std::vector<uint8_t>(),
       GetTestFilePath("gndmhdcefbhlchkhipcnnbkcmicncehk_22_314.crx3"),
 #endif
+#if BUILDFLAG(IS_STARBOARD)
+      base::MakeRefCounted<cobalt::updater::UnzipperFactory>()->Create(),
+#else
       base::MakeRefCounted<update_client::UnzipChromiumFactory>(
           base::BindRepeating(&unzip::LaunchInProcessUnzipper))
           ->Create(),
+#endif
       crx_file::VerifierFormat::CRX3,
       base::BindLambdaForTesting([&](const Unpacker::Result& result) {
         DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker);

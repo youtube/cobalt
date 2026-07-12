@@ -207,7 +207,7 @@ static_library("update_client") {
     ]
   }
 
-  if (is_cobalt_hermetic_build) {
+  if (is_starboard) {
     sources += [
       "cobalt_slot_management.cc",
       "cobalt_slot_management.h",
@@ -263,7 +263,6 @@ source_set("test_support") {
 
   deps = [
     ":patch_impl",
-    ":unzip_impl",
     "//base",
     "//components/prefs",
     "//components/services/patch:in_process",
@@ -278,7 +277,10 @@ source_set("test_support") {
   if (is_starboard) {
     deps += [ "//cobalt/updater" ]
   } else {
-    deps += [ ":network_impl" ]
+    deps += [
+      ":network_impl",
+      ":unzip_impl",
+    ]
   }
 
 }
@@ -361,11 +363,9 @@ source_set("unit_tests") {
   }
 
   deps = [
-    ":in_process_unzipper",
     ":patch_impl",
     ":test_support",
     ":unit_tests_bundle_data",
-    ":unzip_impl",
     ":update_client",
     "//base",
     "//build:branding_buildflags",
@@ -385,7 +385,11 @@ source_set("unit_tests") {
     "//third_party/re2",
   ]
   if (!is_starboard) {
-    deps += [ ":network_impl" ]
+    deps += [
+      ":in_process_unzipper",
+      ":network_impl",
+      ":unzip_impl",
+    ]
   }
 
 
@@ -411,7 +415,11 @@ fuzzer_test("update_client_protocol_parser_fuzzer") {
 }
 
 test("update_client_unittests") {
-  sources = [ "//components/test/run_all_unittests.cc" ]
+  if (is_starboard) {
+    sources = [ "//components/test/starboard/run_all_unittests.cc" ]
+  } else {
+    sources = [ "//components/test/run_all_unittests.cc" ]
+  }
   deps = [
     ":unit_tests",
     "//components/test:test_support",
