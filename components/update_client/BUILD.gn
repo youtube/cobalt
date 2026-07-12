@@ -384,7 +384,9 @@ source_set("unit_tests") {
     "//third_party/puffin:libpuffpatch",
     "//third_party/re2",
   ]
-  if (!is_starboard) {
+  if (is_starboard) {
+    deps += [ "//cobalt/updater" ]
+  } else {
     deps += [
       ":in_process_unzipper",
       ":network_impl",

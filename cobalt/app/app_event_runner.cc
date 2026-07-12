@@ -37,7 +37,7 @@
 #include "cobalt/app/app_event_delegate.h"
 
 #if BUILDFLAG(USE_EVERGREEN)
-#include "cobalt/updater/updater_module.h"
+#include "cobalt/updater/updater_module.h"  // nogncheck
 #endif
 #include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
