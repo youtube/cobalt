@@ -53,7 +53,9 @@
 #if BUILDFLAG(IS_STARBOARD)
 #include "components/update_client/pipeline.h"
 #endif
-#if !BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
+#include "cobalt/updater/unzipper.h"
+#else
 #include "components/update_client/unzip/unzip_impl.h"  // nogncheck
 #endif
 #include "components/update_client/unzipper.h"
