@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !defined(IN_MEMORY_UPDATES)
 #include "components/update_client/op_zucchini.h"
 #if BUILDFLAG(IS_STARBOARD)
 #include "components/update_client/pipeline.h"
@@ -317,3 +318,4 @@ TEST_F(ZucchiniOperationTest, OutHashMismatch) {
 }
 
 }  // namespace update_client
+#endif  // !defined(IN_MEMORY_UPDATES)

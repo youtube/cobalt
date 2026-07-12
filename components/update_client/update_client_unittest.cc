@@ -58,6 +58,7 @@
 #else
 #include "components/update_client/unzip/unzip_impl.h"  // nogncheck
 #endif
+#endif
 #include "components/update_client/unzipper.h"
 #include "components/update_client/update_checker.h"
 #include "components/update_client/update_client_errors.h"
@@ -773,7 +774,11 @@ TEST_F(UpdateClientTest, OneCrxNoUpdate) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -868,7 +873,11 @@ TEST_F(UpdateClientTest, TwoCrxUpdateNoUpdate) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       DownloadMetrics download_metrics;
       download_metrics.url = url;
       download_metrics.downloader = DownloadMetrics::kNone;
@@ -878,12 +887,19 @@ TEST_F(UpdateClientTest, TwoCrxUpdateNoUpdate) {
       download_metrics.download_time_ms = 1000;
 
       base::FilePath path;
-      EXPECT_TRUE(MakeTestFile(
-          GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
+      EXPECT_TRUE(MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path)
+#if defined(IN_MEMORY_UPDATES)
+          && base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst)
+#endif
+);
 
       Result result;
       result.error = 0;
+      #if defined(IN_MEMORY_UPDATES)
+      result.installation_dir = path.DirName();
+#else
       result.response = path;
+#endif
 #if BUILDFLAG(IS_STARBOARD)
       result.installation_index = 0;
 #endif
@@ -1063,7 +1079,11 @@ TEST_F(UpdateClientTest, TwoCrxUpdateFirstServerIgnoresSecond) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       DownloadMetrics download_metrics;
       download_metrics.url = url;
       download_metrics.downloader = DownloadMetrics::kNone;
@@ -1073,12 +1093,19 @@ TEST_F(UpdateClientTest, TwoCrxUpdateFirstServerIgnoresSecond) {
       download_metrics.download_time_ms = 1000;
 
       base::FilePath path;
-      EXPECT_TRUE(MakeTestFile(
-          GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
+      EXPECT_TRUE(MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path)
+#if defined(IN_MEMORY_UPDATES)
+          && base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst)
+#endif
+);
 
       Result result;
       result.error = 0;
+      #if defined(IN_MEMORY_UPDATES)
+      result.installation_dir = path.DirName();
+#else
       result.response = path;
+#endif
 #if BUILDFLAG(IS_STARBOARD)
       result.installation_index = 0;
 #endif
@@ -1240,7 +1267,11 @@ TEST_F(UpdateClientTest, TwoCrxUpdateNoCrxComponentData) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       DownloadMetrics download_metrics;
       base::FilePath path;
       Result result;
@@ -1252,11 +1283,18 @@ TEST_F(UpdateClientTest, TwoCrxUpdateNoCrxComponentData) {
         download_metrics.total_bytes = 1015;
         download_metrics.download_time_ms = 1000;
 
-        EXPECT_TRUE(MakeTestFile(
-            GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
+        EXPECT_TRUE(MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path)
+#if defined(IN_MEMORY_UPDATES)
+          && base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst)
+#endif
+);
 
         result.error = 0;
-        result.response = path;
+        #if defined(IN_MEMORY_UPDATES)
+      result.installation_dir = path.DirName();
+#else
+      result.response = path;
+#endif
 #if BUILDFLAG(IS_STARBOARD)
         result.installation_index = 0;
 #endif
@@ -1392,7 +1430,11 @@ TEST_F(UpdateClientTest, TwoCrxUpdateNoCrxComponentDataAtAll) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -1493,7 +1535,11 @@ TEST_F(UpdateClientTest, TwoCrxUpdateDownloadTimeout) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       DownloadMetrics download_metrics;
       base::FilePath path;
       Result result;
@@ -1516,11 +1562,18 @@ TEST_F(UpdateClientTest, TwoCrxUpdateDownloadTimeout) {
         download_metrics.total_bytes = 54014;
         download_metrics.download_time_ms = 2000;
 
-        EXPECT_TRUE(MakeTestFile(
-            GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path));
+        EXPECT_TRUE(MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path)
+#if defined(IN_MEMORY_UPDATES)
+          && base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), dst)
+#endif
+);
 
         result.error = 0;
-        result.response = path;
+        #if defined(IN_MEMORY_UPDATES)
+      result.installation_dir = path.DirName();
+#else
+      result.response = path;
+#endif
 #if BUILDFLAG(IS_STARBOARD)
         result.installation_index = 0;
 #endif
@@ -1663,6 +1716,7 @@ TEST_F(UpdateClientTest, TwoCrxUpdateDownloadTimeout) {
 
 // Tests the differential update scenario for one CRX. Tests install progress
 // for differential and full updates.
+#if !defined(IN_MEMORY_UPDATES)
 TEST_F(UpdateClientTest, OneCrxDiffUpdate) {
   class DataCallbackMock : public base::RefCountedThreadSafe<DataCallbackMock> {
    public:
@@ -1841,7 +1895,11 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdate) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       DownloadMetrics download_metrics;
       base::FilePath path;
       Result result;
@@ -1853,11 +1911,18 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdate) {
         download_metrics.total_bytes = 54014;
         download_metrics.download_time_ms = 2000;
 
-        EXPECT_TRUE(MakeTestFile(
-            GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path));
+        EXPECT_TRUE(MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path)
+#if defined(IN_MEMORY_UPDATES)
+          && base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), dst)
+#endif
+);
 
         result.error = 0;
-        result.response = path;
+        #if defined(IN_MEMORY_UPDATES)
+      result.installation_dir = path.DirName();
+#else
+      result.response = path;
+#endif
 #if BUILDFLAG(IS_STARBOARD)
         result.installation_index = 0;
 #endif
@@ -1870,12 +1935,18 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdate) {
         download_metrics.total_bytes = 1680;
         download_metrics.download_time_ms = 1000;
 
-        EXPECT_TRUE(MakeTestFile(
-            GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1to2.puff"),
-            &path));
+        EXPECT_TRUE(MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1to2.puff"), &path)
+#if defined(IN_MEMORY_UPDATES)
+          && base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1to2.puff"), dst)
+#endif
+);
 
         result.error = 0;
-        result.response = path;
+        #if defined(IN_MEMORY_UPDATES)
+      result.installation_dir = path.DirName();
+#else
+      result.response = path;
+#endif
 #if BUILDFLAG(IS_STARBOARD)
         result.installation_index = 0;
 #endif
@@ -2146,6 +2217,7 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdate) {
 #endif
   }
 }
+#endif  // !defined(IN_MEMORY_UPDATES)
 
 // Tests the update scenario for one CRX where the CRX installer returns
 // an error. Tests that the |unpack_path| argument refers to a valid path
@@ -2238,7 +2310,11 @@ TEST_F(UpdateClientTest, OneCrxInstallError) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       DownloadMetrics download_metrics;
       download_metrics.url = url;
       download_metrics.downloader = DownloadMetrics::kNone;
@@ -2248,12 +2324,19 @@ TEST_F(UpdateClientTest, OneCrxInstallError) {
       download_metrics.download_time_ms = 1000;
 
       base::FilePath path;
-      EXPECT_TRUE(MakeTestFile(
-          GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
+      EXPECT_TRUE(MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path)
+#if defined(IN_MEMORY_UPDATES)
+          && base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst)
+#endif
+);
 
       Result result;
       result.error = 0;
+      #if defined(IN_MEMORY_UPDATES)
+      result.installation_dir = path.DirName();
+#else
       result.response = path;
+#endif
 #if BUILDFLAG(IS_STARBOARD)
       result.installation_index = 0;
 #endif
@@ -2567,7 +2650,11 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdateFailsFullUpdateSucceeds) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       DownloadMetrics download_metrics;
       base::FilePath path;
       Result result;
@@ -2579,11 +2666,18 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdateFailsFullUpdateSucceeds) {
         download_metrics.total_bytes = 54014;
         download_metrics.download_time_ms = 2000;
 
-        EXPECT_TRUE(MakeTestFile(
-            GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path));
+        EXPECT_TRUE(MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path)
+#if defined(IN_MEMORY_UPDATES)
+          && base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), dst)
+#endif
+);
 
         result.error = 0;
-        result.response = path;
+        #if defined(IN_MEMORY_UPDATES)
+      result.installation_dir = path.DirName();
+#else
+      result.response = path;
+#endif
 #if BUILDFLAG(IS_STARBOARD)
         result.installation_index = 0;
 #endif
@@ -2608,11 +2702,18 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdateFailsFullUpdateSucceeds) {
         download_metrics.total_bytes = 54409;
         download_metrics.download_time_ms = 1000;
 
-        EXPECT_TRUE(MakeTestFile(
-            GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_2.crx"), &path));
+        EXPECT_TRUE(MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_2.crx"), &path)
+#if defined(IN_MEMORY_UPDATES)
+          && base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_2.crx"), dst)
+#endif
+);
 
         result.error = 0;
-        result.response = path;
+        #if defined(IN_MEMORY_UPDATES)
+      result.installation_dir = path.DirName();
+#else
+      result.response = path;
+#endif
 #if BUILDFLAG(IS_STARBOARD)
         result.installation_index = 0;
 #endif
@@ -2845,7 +2946,11 @@ TEST_F(UpdateClientTest, OneCrxNoUpdateQueuedCall) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -2958,7 +3063,11 @@ TEST_F(UpdateClientTest, OneCrxInstall) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       DownloadMetrics download_metrics;
       base::FilePath path;
       Result result;
@@ -2970,11 +3079,18 @@ TEST_F(UpdateClientTest, OneCrxInstall) {
         download_metrics.total_bytes = 1015;
         download_metrics.download_time_ms = 1000;
 
-        EXPECT_TRUE(MakeTestFile(
-            GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
+        EXPECT_TRUE(MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path)
+#if defined(IN_MEMORY_UPDATES)
+          && base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst)
+#endif
+);
 
         result.error = 0;
-        result.response = path;
+        #if defined(IN_MEMORY_UPDATES)
+      result.installation_dir = path.DirName();
+#else
+      result.response = path;
+#endif
 #if BUILDFLAG(IS_STARBOARD)
         result.installation_index = 0;
 #endif
@@ -3125,7 +3241,11 @@ TEST_F(UpdateClientTest, OneCrxInstallNoCrxComponentData) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -3252,7 +3372,11 @@ TEST_F(UpdateClientTest, ConcurrentInstallSameCRX) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -3343,7 +3467,11 @@ TEST_F(UpdateClientTest, EmptyIdList) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -3406,7 +3534,11 @@ TEST_F(UpdateClientTest, DiskFull) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -3678,7 +3810,11 @@ TEST_F(UpdateClientTest, DiskFullDiff) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       DownloadMetrics download_metrics;
       base::FilePath path;
       Result result;
@@ -3690,11 +3826,18 @@ TEST_F(UpdateClientTest, DiskFullDiff) {
         download_metrics.total_bytes = 54014;
         download_metrics.download_time_ms = 2000;
 
-        EXPECT_TRUE(MakeTestFile(
-            GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path));
+        EXPECT_TRUE(MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path)
+#if defined(IN_MEMORY_UPDATES)
+          && base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), dst)
+#endif
+);
 
         result.error = 0;
-        result.response = path;
+        #if defined(IN_MEMORY_UPDATES)
+      result.installation_dir = path.DirName();
+#else
+      result.response = path;
+#endif
 #if BUILDFLAG(IS_STARBOARD)
         result.installation_index = 0;
 #endif
@@ -3942,7 +4085,11 @@ TEST_P(SendPingTest, SendPingTestCases) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       return base::DoNothing();
     }
   };
@@ -4064,7 +4211,11 @@ TEST_F(UpdateClientTest, RetryAfter) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -4198,7 +4349,11 @@ TEST_F(UpdateClientTest, TwoCrxUpdateOneUpdateDisabled) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       DownloadMetrics download_metrics;
       base::FilePath path;
       Result result;
@@ -4210,11 +4365,18 @@ TEST_F(UpdateClientTest, TwoCrxUpdateOneUpdateDisabled) {
         download_metrics.total_bytes = 54014;
         download_metrics.download_time_ms = 2000;
 
-        EXPECT_TRUE(MakeTestFile(
-            GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path));
+        EXPECT_TRUE(MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path)
+#if defined(IN_MEMORY_UPDATES)
+          && base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), dst)
+#endif
+);
 
         result.error = 0;
-        result.response = path;
+        #if defined(IN_MEMORY_UPDATES)
+      result.installation_dir = path.DirName();
+#else
+      result.response = path;
+#endif
 #if BUILDFLAG(IS_STARBOARD)
         result.installation_index = 0;
 #endif
@@ -4376,7 +4538,11 @@ TEST_F(UpdateClientTest, OneCrxUpdateDownloadTimeout) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       DownloadMetrics download_metrics;
       download_metrics.url = url;
       download_metrics.downloader = DownloadMetrics::kNone;
@@ -4387,8 +4553,11 @@ TEST_F(UpdateClientTest, OneCrxUpdateDownloadTimeout) {
       download_metrics.download_time_ms = 1000;
 
       base::FilePath path;
-      EXPECT_TRUE(MakeTestFile(
-          GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
+      EXPECT_TRUE(MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path)
+#if defined(IN_MEMORY_UPDATES)
+          && base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst)
+#endif
+);
 
       Result result;
       result.error = 200;
@@ -4554,7 +4723,11 @@ TEST_F(UpdateClientTest, OneCrxUpdateCheckFails) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -4736,7 +4909,11 @@ TEST_F(UpdateClientTest, OneCrxErrorUnknownApp) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -4924,7 +5101,11 @@ TEST_F(UpdateClientTest, ActionRun_Install) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       DownloadMetrics download_metrics;
       base::FilePath path;
       Result result;
@@ -4937,10 +5118,18 @@ TEST_F(UpdateClientTest, ActionRun_Install) {
         download_metrics.download_time_ms = 1000;
 
         EXPECT_TRUE(
-            MakeTestFile(GetTestFilePath("runaction_test_win.crx3"), &path));
+            MakeTestFile(GetTestFilePath("runaction_test_win.crx3"), &path)
+#if defined(IN_MEMORY_UPDATES)
+          && base::ReadFileToString(GetTestFilePath("runaction_test_win.crx3"), dst)
+#endif
+);
 
         result.error = 0;
-        result.response = path;
+        #if defined(IN_MEMORY_UPDATES)
+      result.installation_dir = path.DirName();
+#else
+      result.response = path;
+#endif
 #if BUILDFLAG(IS_STARBOARD)
         result.installation_index = 0;
 #endif
@@ -5061,7 +5250,11 @@ TEST_F(UpdateClientTest, ActionRun_NoUpdate) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -5101,7 +5294,14 @@ TEST_F(UpdateClientTest, ActionRun_NoUpdate) {
     OperationResult op_result;
     base::FilePath temp_crx_path;
     EXPECT_TRUE(MakeTestFile(GetTestFilePath("runaction_test_win.crx3"), &temp_crx_path));
+#if defined(IN_MEMORY_UPDATES)
+    op_result.installation_dir = temp_crx_path.DirName();
+    std::string crx_str;
+    EXPECT_TRUE(base::ReadFileToString(GetTestFilePath("runaction_test_win.crx3"), &crx_str));
+    op_result.crx_str = &crx_str;
+#else
     op_result.response = temp_crx_path;
+#endif
     Unpacker::Unpack(
         std::vector<uint8_t>(std::begin(gjpm_hash), std::end(gjpm_hash)),
         op_result,
@@ -5252,7 +5452,11 @@ TEST_F(UpdateClientTest, CustomAttributeNoUpdate) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -5371,7 +5575,11 @@ TEST_F(UpdateClientTest, CancelInstallBeforeTaskStart) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       DownloadMetrics download_metrics;
       base::FilePath path;
       Result result;
@@ -5383,11 +5591,18 @@ TEST_F(UpdateClientTest, CancelInstallBeforeTaskStart) {
         download_metrics.total_bytes = 1015;
         download_metrics.download_time_ms = 1000;
 
-        EXPECT_TRUE(MakeTestFile(
-            GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
+        EXPECT_TRUE(MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path)
+#if defined(IN_MEMORY_UPDATES)
+          && base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst)
+#endif
+);
 
         result.error = 0;
-        result.response = path;
+        #if defined(IN_MEMORY_UPDATES)
+      result.installation_dir = path.DirName();
+#else
+      result.response = path;
+#endif
 #if BUILDFLAG(IS_STARBOARD)
         result.installation_index = 0;
 #endif
@@ -5477,7 +5692,11 @@ TEST_F(UpdateClientTest, CancelInstallBeforeInstall) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       DownloadMetrics download_metrics;
       base::FilePath path;
       Result result;
@@ -5489,11 +5708,18 @@ TEST_F(UpdateClientTest, CancelInstallBeforeInstall) {
         download_metrics.total_bytes = 1015;
         download_metrics.download_time_ms = 1000;
 
-        EXPECT_TRUE(MakeTestFile(
-            GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
+        EXPECT_TRUE(MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path)
+#if defined(IN_MEMORY_UPDATES)
+          && base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst)
+#endif
+);
 
         result.error = 0;
-        result.response = path;
+        #if defined(IN_MEMORY_UPDATES)
+      result.installation_dir = path.DirName();
+#else
+      result.response = path;
+#endif
 #if BUILDFLAG(IS_STARBOARD)
         result.installation_index = 0;
 #endif
@@ -5636,7 +5862,11 @@ TEST_F(UpdateClientTest, CancelInstallBeforeDownload) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       DownloadMetrics download_metrics;
       base::FilePath path;
       Result result;
@@ -5648,11 +5878,18 @@ TEST_F(UpdateClientTest, CancelInstallBeforeDownload) {
         download_metrics.total_bytes = 1015;
         download_metrics.download_time_ms = 1000;
 
-        EXPECT_TRUE(MakeTestFile(
-            GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
+        EXPECT_TRUE(MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path)
+#if defined(IN_MEMORY_UPDATES)
+          && base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst)
+#endif
+);
 
         result.error = 0;
-        result.response = path;
+        #if defined(IN_MEMORY_UPDATES)
+      result.installation_dir = path.DirName();
+#else
+      result.response = path;
+#endif
 #if BUILDFLAG(IS_STARBOARD)
         result.installation_index = 0;
 #endif
@@ -5813,7 +6050,11 @@ TEST_F(UpdateClientTest, CheckForUpdate_NoUpdate) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -5897,7 +6138,11 @@ TEST_F(UpdateClientTest, CheckForUpdate_UpdateAvailable) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -6025,7 +6270,11 @@ TEST_F(UpdateClientTest, CheckForUpdate_QueueChecks) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -6164,7 +6413,11 @@ TEST_F(UpdateClientTest, CheckForUpdate_Stop) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -6256,7 +6509,11 @@ TEST_F(UpdateClientTest, CheckForUpdate_Errors) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -6364,7 +6621,11 @@ TEST_F(UpdateClientTest, UpdateCheck_UpdateDisabled) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -6487,7 +6748,11 @@ TEST_F(UpdateClientTest, OneCrxCachedUpdate) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       DownloadMetrics download_metrics;
       download_metrics.url = url;
       download_metrics.downloader = DownloadMetrics::kNone;
@@ -6497,12 +6762,19 @@ TEST_F(UpdateClientTest, OneCrxCachedUpdate) {
       download_metrics.download_time_ms = 2000;
 
       base::FilePath path;
-      EXPECT_TRUE(MakeTestFile(
-          GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
+      EXPECT_TRUE(MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path)
+#if defined(IN_MEMORY_UPDATES)
+          && base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst)
+#endif
+);
 
       Result result;
       result.error = 0;
+      #if defined(IN_MEMORY_UPDATES)
+      result.installation_dir = path.DirName();
+#else
       result.response = path;
+#endif
 #if BUILDFLAG(IS_STARBOARD)
       result.installation_index = 0;
 #endif
@@ -6775,7 +7047,11 @@ TEST_F(UpdateClientTest, UnsupportedOperationType) {
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       ADD_FAILURE() << "Intentionally forcing download to fail here.";
       return base::DoNothing();
     }
@@ -6997,7 +7273,11 @@ TEST_F(UpdateClientTest,
 #if BUILDFLAG(IS_STARBOARD)
     void DoCancelDownload() override {}
 #endif
+    #if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       ADD_FAILURE();
       return base::DoNothing();
     }

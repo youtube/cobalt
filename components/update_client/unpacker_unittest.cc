@@ -5,6 +5,7 @@
 #include "components/update_client/unpacker.h"
 #if BUILDFLAG(IS_STARBOARD)
 #include "components/update_client/pipeline.h"
+#include "cobalt/updater/unzipper.h"  // nogncheck
 #endif
 
 #include <iterator>
@@ -42,9 +43,18 @@ TEST_F(UnpackerTest, UnpackFullCrx) {
   base::RunLoop loop;
 #if BUILDFLAG(IS_STARBOARD)
   OperationResult op_result1;
+#if defined(IN_MEMORY_UPDATES)
+  std::string crx_content1;
+  EXPECT_TRUE(base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &crx_content1));
+  op_result1.crx_str = &crx_content1;
+  base::FilePath temp_dir1;
+  EXPECT_TRUE(base::CreateNewTempDirectory(FILE_PATH_LITERAL("unpacker_test"), &temp_dir1));
+  op_result1.installation_dir = temp_dir1;
+#else
   base::FilePath temp_dir1;
   EXPECT_TRUE(base::CreateNewTempDirectory(FILE_PATH_LITERAL("unpacker_test"), &temp_dir1));
   op_result1.response = DuplicateTestFile(temp_dir1, "jebgalgnebhfojomionfpkfelancnnkf.crx");
+#endif
   Unpacker::Unpack(
       std::vector<uint8_t>(std::begin(jebg_hash), std::end(jebg_hash)),
       op_result1,
@@ -85,6 +95,7 @@ TEST_F(UnpackerTest, UnpackFullCrx) {
   loop.Run();
 }
 
+#if !defined(IN_MEMORY_UPDATES)
 TEST_F(UnpackerTest, UnpackFileNotFound) {
   SEQUENCE_CHECKER(sequence_checker);
   base::RunLoop loop;
@@ -112,6 +123,7 @@ TEST_F(UnpackerTest, UnpackFileNotFound) {
       }));
   loop.Run();
 }
+#endif  // !defined(IN_MEMORY_UPDATES)
 
 // Tests a mismatch between the public key hash and the id of the component.
 TEST_F(UnpackerTest, UnpackFileHashMismatch) {
@@ -119,7 +131,13 @@ TEST_F(UnpackerTest, UnpackFileHashMismatch) {
   base::RunLoop loop;
 #if BUILDFLAG(IS_STARBOARD)
   OperationResult op_result3;
+#if defined(IN_MEMORY_UPDATES)
+  std::string crx_content3;
+  EXPECT_TRUE(base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &crx_content3));
+  op_result3.crx_str = &crx_content3;
+#else
   op_result3.response = GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx");
+#endif
   Unpacker::Unpack(
       std::vector<uint8_t>(std::begin(abag_hash), std::end(abag_hash)),
       op_result3, nullptr,
@@ -147,9 +165,18 @@ TEST_F(UnpackerTest, UnpackWithVerifiedContents) {
   base::RunLoop loop;
 #if BUILDFLAG(IS_STARBOARD)
   OperationResult op_result4;
+#if defined(IN_MEMORY_UPDATES)
+  std::string crx_content4;
+  EXPECT_TRUE(base::ReadFileToString(GetTestFilePath("gndmhdcefbhlchkhipcnnbkcmicncehk_22_314.crx3"), &crx_content4));
+  op_result4.crx_str = &crx_content4;
+  base::FilePath temp_dir4;
+  EXPECT_TRUE(base::CreateNewTempDirectory(FILE_PATH_LITERAL("unpacker_test"), &temp_dir4));
+  op_result4.installation_dir = temp_dir4;
+#else
   base::FilePath temp_dir4;
   EXPECT_TRUE(base::CreateNewTempDirectory(FILE_PATH_LITERAL("unpacker_test"), &temp_dir4));
   op_result4.response = DuplicateTestFile(temp_dir4, "gndmhdcefbhlchkhipcnnbkcmicncehk_22_314.crx3");
+#endif
   Unpacker::Unpack(
       std::vector<uint8_t>(),
       op_result4,
