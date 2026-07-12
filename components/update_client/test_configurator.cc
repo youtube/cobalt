@@ -26,7 +26,7 @@
 #include "components/update_client/activity_data_service.h"
 #include "components/update_client/crx_cache.h"
 #include "components/update_client/crx_downloader_factory.h"
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(USE_EVERGREEN)
 #include "cobalt/updater/network_fetcher.h"
 #include "cobalt/updater/unzipper.h"
 #else
@@ -37,7 +37,7 @@
 #include "components/update_client/persisted_data.h"
 #include "components/update_client/protocol_handler.h"
 #include "components/update_client/test_activity_data_service.h"
-#if !BUILDFLAG(IS_STARBOARD)
+#if !BUILDFLAG(USE_EVERGREEN)
 #include "components/update_client/unzip/unzip_impl.h"  // nogncheck
 #endif
 #include "components/update_client/unzipper.h"
@@ -60,7 +60,7 @@ std::vector<GURL> MakeDefaultUrls() {
 TestConfigurator::TestConfigurator(PrefService* pref_service)
     : enabled_cup_signing_(false),
       pref_service_(pref_service),
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(USE_EVERGREEN)
       unzip_factory_(base::MakeRefCounted<cobalt::updater::UnzipperFactory>()),
 #else
       unzip_factory_(base::MakeRefCounted<update_client::UnzipChromiumFactory>(

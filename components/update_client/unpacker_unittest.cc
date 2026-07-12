@@ -22,7 +22,7 @@
 #include "components/services/unzip/in_process_unzipper.h"
 #include "components/update_client/test_configurator.h"
 #include "components/update_client/test_utils.h"
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(USE_EVERGREEN)
 #include "cobalt/updater/unzipper.h"
 #else
 #include "components/update_client/unzip/unzip_impl.h"  // nogncheck
@@ -53,7 +53,7 @@ TEST_F(UnpackerTest, UnpackFullCrx) {
       std::vector<uint8_t>(std::begin(jebg_hash), std::end(jebg_hash)),
       GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"),
 #endif
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(USE_EVERGREEN)
       base::MakeRefCounted<cobalt::updater::UnzipperFactory>()->Create(),
 #else
       base::MakeRefCounted<update_client::UnzipChromiumFactory>(
@@ -158,7 +158,7 @@ TEST_F(UnpackerTest, UnpackWithVerifiedContents) {
       std::vector<uint8_t>(),
       GetTestFilePath("gndmhdcefbhlchkhipcnnbkcmicncehk_22_314.crx3"),
 #endif
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(USE_EVERGREEN)
       base::MakeRefCounted<cobalt::updater::UnzipperFactory>()->Create(),
 #else
       base::MakeRefCounted<update_client::UnzipChromiumFactory>(

@@ -19,10 +19,10 @@
 #include "base/test/task_environment.h"
 #include "base/types/expected.h"
 #include "components/update_client/test_utils.h"
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(USE_EVERGREEN)
 #include "cobalt/updater/unzipper.h"  // nogncheck
 #endif
-#if !BUILDFLAG(IS_STARBOARD)
+#if !BUILDFLAG(USE_EVERGREEN)
 #include "components/update_client/unzip/in_process_unzipper.h"  // nogncheck
 #endif
 #include "components/update_client/unzipper.h"
@@ -102,7 +102,7 @@ class XzOperationTest : public testing::Test {
 
 TEST_F(XzOperationTest, Success) {
   base::FilePath in_file = CopyToTemp("file1.xz");
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(USE_EVERGREEN)
   CallXzOperation(base::MakeRefCounted<cobalt::updater::UnzipperFactory>()->Create(),
 #else
   CallXzOperation(base::MakeRefCounted<InProcessUnzipperFactory>(
@@ -127,7 +127,7 @@ TEST_F(XzOperationTest, Success) {
 
 TEST_F(XzOperationTest, BadPatch) {
   base::FilePath in_file = CopyToTemp("file1");
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(USE_EVERGREEN)
   CallXzOperation(base::MakeRefCounted<cobalt::updater::UnzipperFactory>()->Create(),
 #else
   CallXzOperation(base::MakeRefCounted<InProcessUnzipperFactory>(

@@ -53,7 +53,7 @@
 #if BUILDFLAG(IS_STARBOARD)
 #include "components/update_client/pipeline.h"
 #endif
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(USE_EVERGREEN)
 #include "cobalt/updater/unzipper.h"
 #else
 #include "components/update_client/unzip/unzip_impl.h"  // nogncheck
@@ -5110,7 +5110,7 @@ TEST_F(UpdateClientTest, ActionRun_NoUpdate) {
         std::vector<uint8_t>(std::begin(gjpm_hash), std::end(gjpm_hash)),
         GetTestFilePath("runaction_test_win.crx3"),
 #endif
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(USE_EVERGREEN)
         base::MakeRefCounted<cobalt::updater::UnzipperFactory>()->Create(),
 #else
         base::MakeRefCounted<UnzipChromiumFactory>(

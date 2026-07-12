@@ -274,7 +274,7 @@ source_set("test_support") {
     "//testing/gtest",
     "//url",
   ]
-  if (is_starboard) {
+  if (use_evergreen) {
     deps += [ "//cobalt/updater" ]
   } else {
     deps += [
@@ -384,7 +384,7 @@ source_set("unit_tests") {
     "//third_party/puffin:libpuffpatch",
     "//third_party/re2",
   ]
-  if (is_starboard) {
+  if (use_evergreen) {
     deps += [ "//cobalt/updater" ]
   } else {
     deps += [
