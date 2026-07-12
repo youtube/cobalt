@@ -47,6 +47,17 @@ class FakeDownloader : public CrxDownloader {
         result_(result),
         metrics_(metrics) {}
 
+#if defined(IN_MEMORY_UPDATES)
+  base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+    if (result_.has_value()) {
+      *dst = result_.value();
+      OnDownloadComplete(true, {.installation_dir = dest_}, metrics_);
+    } else {
+      OnDownloadComplete(true, {.error = result_.error()}, metrics_);
+    }
+    return base::DoNothing();
+  }
+#else
   base::OnceClosure DoStartDownload(const GURL& url) override {
     if (result_.has_value()) {
       base::WriteFile(dest_, result_.value());
@@ -56,6 +67,7 @@ class FakeDownloader : public CrxDownloader {
     }
     return base::DoNothing();
   }
+#endif
 
 #if BUILDFLAG(IS_STARBOARD)
   void DoCancelDownload() override {}
@@ -154,6 +166,9 @@ class OpDownloadTest : public testing::Test {
                       }),
                       /*is_foreground=*/false, {GURL("http://localhost:111")},
                       length, hash, MakePingCallback(), base::DoNothing(),
+#if defined(IN_MEMORY_UPDATES)
+                      &crx_str_,
+#endif
                       MakeProgressCallback(), {}, MakeDoneCallback());
     runloop_.Run();
   }
@@ -165,6 +180,9 @@ class OpDownloadTest : public testing::Test {
   base::RunLoop runloop_;
 
   std::vector<base::Value::Dict> pings_;
+#if defined(IN_MEMORY_UPDATES)
+  std::string crx_str_;
+#endif
 #if BUILDFLAG(IS_STARBOARD)
   base::expected<OperationResult, CategorizedError> outcome_;
 #else
