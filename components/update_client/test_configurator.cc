@@ -71,7 +71,7 @@ TestConfigurator::TestConfigurator(PrefService* pref_service)
       test_shared_loader_factory_(
           base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
               &test_url_loader_factory_)),
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(USE_EVERGREEN)
       network_fetcher_factory_(
           base::MakeRefCounted<cobalt::updater::NetworkFetcherFactoryCobalt>(
               test_shared_loader_factory_)),

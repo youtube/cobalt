@@ -37,8 +37,6 @@ TEST(UpdateClientUtils, VerifyHash256) {
           "7ab32f071cd9b5ef8e0d7913be161f532d98b3e9fa284a7cd8059c3409ce0498")));
 
   std::string empty_content;
-  // Note: GetTestFilePath might return a path that doesn't exist if "empty_file" is not in test data.
-  // But assuming it exists as in original test.
   EXPECT_TRUE(base::ReadFileToString(GetTestFilePath("empty_file"), &empty_content));
   EXPECT_TRUE(VerifyHash256(
       &empty_content,

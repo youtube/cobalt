@@ -58,7 +58,6 @@
 #else
 #include "components/update_client/unzip/unzip_impl.h"  // nogncheck
 #endif
-#endif
 #include "components/update_client/unzipper.h"
 #include "components/update_client/update_checker.h"
 #include "components/update_client/update_client_errors.h"

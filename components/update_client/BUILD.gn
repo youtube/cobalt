@@ -207,17 +207,17 @@ static_library("update_client") {
     ]
   }
 
-  if (is_starboard) {
+  if (is_cobalt_hermetic_build) {
     sources += [
       "cobalt_slot_management.cc",
       "cobalt_slot_management.h",
     ]
+
     deps += [
       "//starboard/loader_app:app_key_files",
       "//starboard/loader_app:drain_file",
     ]
   }
-
 }
 
 if (is_mac) {
@@ -349,6 +349,10 @@ source_set("unit_tests") {
     "update_query_params_unittest.cc",
     "utils_unittest.cc",
   ]
+
+  if (is_starboard && !is_cobalt_hermetic_build) {
+    sources += [ "cobalt_slot_management_stub.cc" ]
+  }
 
   if (!disable_file_support) {
     sources += [ "crx_downloader_unittest.cc" ]
