@@ -1,0 +1,23 @@
+name: "libiamf"
+description:
+    "This is a reference implementation and conformance test for the AOM Immersive"
+    "Audio Model and Formats (IAMF) specification, approved as a final deliverable"
+    "by AOM on April 3, 2024"
+
+third_party {
+  url {
+    type: HOMEPAGE
+    value: "https://github.com/AOMediaCodec/libiamf"
+  }
+  url {
+    type: ARCHIVE
+    value: "https://github.com/AOMediaCodec/libiamf/archive/refs/tags/v1.0.1.tar.gz"
+  }
+  url {
+    type: GIT
+    value: "https://github.com/AOMediaCodec/libiamf.git"
+  }
+  version: "b10732748e77caa60a4e998020b9ab2166ccc0cc"
+  last_upgrade_date { year: 2024 month: 10 day: 8 }
+  license_type: NOTICE
+}

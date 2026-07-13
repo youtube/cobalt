@@ -1,0 +1,76 @@
+// Copyright (c) 2023, Alliance for Open Media. All rights reserved
+//
+// This source code is subject to the terms of the BSD 3-Clause Clear License
+// and the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
+// License was not distributed with this source code in the LICENSE file, you
+// can obtain it at www.aomedia.org/license/software-license/bsd-3-c-c. If the
+// Alliance for Open Media Patent License 1.0 was not distributed with this
+// source code in the PATENTS file, you can obtain it at
+// www.aomedia.org/license/patent.
+
+syntax = "proto2";
+
+package libiamf_proto;
+
+import "obu_header.proto";
+
+enum ArbitraryObuType {
+  OBU_IA_INVALID = 0;
+  OBU_IA_CODEC_CONFIG = 1;
+  OBU_IA_AUDIO_ELEMENT = 2;
+  OBU_IA_MIX_PRESENTATION = 3;
+  OBU_IA_PARAMETER_BLOCK = 4;
+  OBU_IA_TEMPORAL_DELIMITER = 5;
+  OBU_IA_AUDIO_FRAME = 6;
+  OBU_IA_AUDIO_FRAME_ID_0 = 7;
+  OBU_IA_AUDIO_FRAME_ID_1 = 8;
+  OBU_IA_AUDIO_FRAME_ID_2 = 9;
+  OBU_IA_AUDIO_FRAME_ID_3 = 10;
+  OBU_IA_AUDIO_FRAME_ID_4 = 11;
+  OBU_IA_AUDIO_FRAME_ID_5 = 12;
+  OBU_IA_AUDIO_FRAME_ID_6 = 13;
+  OBU_IA_AUDIO_FRAME_ID_7 = 14;
+  OBU_IA_AUDIO_FRAME_ID_8 = 15;
+  OBU_IA_AUDIO_FRAME_ID_9 = 16;
+  OBU_IA_AUDIO_FRAME_ID_10 = 17;
+  OBU_IA_AUDIO_FRAME_ID_11 = 18;
+  OBU_IA_AUDIO_FRAME_ID_12 = 19;
+  OBU_IA_AUDIO_FRAME_ID_13 = 20;
+  OBU_IA_AUDIO_FRAME_ID_14 = 21;
+  OBU_IA_AUDIO_FRAME_ID_15 = 22;
+  OBU_IA_AUDIO_FRAME_ID_16 = 23;
+  OBU_IA_AUDIO_FRAME_ID_17 = 24;
+  OBU_IA_RESERVED_24 = 25;
+  OBU_IA_RESERVED_25 = 26;
+  OBU_IA_RESERVED_26 = 27;
+  OBU_IA_RESERVED_27 = 28;
+  OBU_IA_RESERVED_28 = 29;
+  OBU_IA_RESERVED_29 = 30;
+  OBU_IA_RESERVED_30 = 31;
+  OBU_IA_SEQUENCE_HEADER = 32;
+}
+
+enum InsertionHook {
+  INSERTION_HOOK_INVALID = 0;
+  INSERTION_HOOK_BEFORE_DESCRIPTORS = 1;
+  INSERTION_HOOK_AFTER_DESCRIPTORS = 2;
+  INSERTION_HOOK_AFTER_IA_SEQUENCE_HEADER = 3;
+  INSERTION_HOOK_AFTER_CODEC_CONFIGS = 4;
+  INSERTION_HOOK_AFTER_AUDIO_ELEMENTS = 5;
+  INSERTION_HOOK_AFTER_MIX_PRESENTATIONS = 6;
+  INSERTION_HOOK_BEFORE_PARAMETER_BLOCKS_AT_TICK = 7;
+  INSERTION_HOOK_AFTER_PARAMETER_BLOCKS_AT_TICK = 8;
+  INSERTION_HOOK_AFTER_AUDIO_FRAMES_AT_TICK = 9;
+}
+
+message ArbitraryObuMetadata {
+  optional InsertionHook insertion_hook = 1;
+  optional ArbitraryObuType obu_type = 4;
+  optional ObuHeaderMetadata obu_header = 2;
+  optional bytes payload = 3;
+  // Used to force the bitstream to be invalid when this OBU is inserted.
+  optional bool invalidates_bitstream = 5;
+  // Used to control the temporal unit when using the *_AT_TICK insertion hooks.
+  // Ignored otherwise.
+  optional int64 insertion_tick = 6;
+}
