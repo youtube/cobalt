@@ -716,7 +716,8 @@ bool TextureVk::isFastUnpackPossible(const gl::Box &area,
                                      GLuint imageHeightPixels,
                                      const vk::Format &vkFormat,
                                      size_t offset,
-                                     const vk::Format &bufferVkFormat) const
+                                     const vk::Format &bufferVkFormat,
+                                     GLenum type) const
 {
     // Conditions to determine if fast unpacking is possible
     // 1. Image must be well defined to unpack directly to it
@@ -730,6 +731,8 @@ bool TextureVk::isFastUnpackPossible(const gl::Box &area,
     // 5. Actual texture format and intended buffer format must match for color formats
     // 6. rowLengthPixels must not smaller than the width of the copy area.
     // 7. imageHeight must not smaller than the height of the copy area.
+    // 8. Don't need conversion to load Texture.
+
     if (!mImage->valid())
     {
         return false;
@@ -745,12 +748,15 @@ bool TextureVk::isFastUnpackPossible(const gl::Box &area,
                                bufferVkFormat.getIntendedFormatID());
     const bool overlapRow   = rowLengthPixels < static_cast<uint32_t>(area.width);
     const bool overlapImage = imageHeightPixels < static_cast<uint32_t>(area.height);
+    const bool needConversion =
+        vkFormat.getTextureLoadFunction(getRequiredImageAccess(), type).requiresConversion;
 
     return !isCombinedDepthStencil &&
            (vkFormat.getIntendedFormatID() ==
                 vkFormat.getActualImageFormatID(getRequiredImageAccess()) ||
             (isDepthXorStencil && isCompatibleDepth)) &&
-           (offset % imageCopyAlignment) == 0 && formatsMatch && !overlapRow && !overlapImage;
+           (offset % imageCopyAlignment) == 0 && formatsMatch && !overlapRow && !overlapImage &&
+           !needConversion;
 }
 
 bool TextureVk::isMipImageDescDefined(gl::TextureTarget textureTarget, size_t level)
@@ -1272,7 +1278,7 @@ angle::Result TextureVk::setSubImageImpl(const gl::Context *context,
         if ((shouldUpdateBeFlushed(gl::LevelIndex(index.getLevelIndex()),
                                    vkFormat.getActualImageFormatID(getRequiredImageAccess()))) &&
             isFastUnpackPossible(area, rowLengthPixels, imageHeightPixels, vkFormat, offsetBytes,
-                                 bufferVkFormat))
+                                 bufferVkFormat, type))
         {
             ANGLE_TRY(copyBufferDataToImage(contextVk, &bufferHelper, index, rowLengthPixels,
                                             imageHeightPixels, area, offsetBytes, aspectFlags));
@@ -3747,7 +3753,8 @@ angle::Result TextureVk::syncState(const gl::Context *context,
     if (localBits.test(gl::Texture::DIRTY_BIT_SWIZZLE_RED) ||
         localBits.test(gl::Texture::DIRTY_BIT_SWIZZLE_GREEN) ||
         localBits.test(gl::Texture::DIRTY_BIT_SWIZZLE_BLUE) ||
-        localBits.test(gl::Texture::DIRTY_BIT_SWIZZLE_ALPHA))
+        localBits.test(gl::Texture::DIRTY_BIT_SWIZZLE_ALPHA) ||
+        localBits.test(gl::Texture::DIRTY_BIT_ASTC_DECODE_PRECISION))
     {
         ANGLE_TRY(refreshImageViews(contextVk));
     }
@@ -4030,13 +4037,19 @@ angle::Result TextureVk::initImage(ContextVk *contextVk,
         mImageUsageFlags |= VK_IMAGE_USAGE_STORAGE_BIT;
     }
 
-    mImageCreateFlags |=
-        vk::GetMinimalImageCreateFlags(renderer, mState.getType(), mImageUsageFlags);
-
     const VkFormat actualImageFormat =
         rx::vk::GetVkFormatFromFormatID(renderer, actualImageFormatID);
     const VkImageType imageType     = gl_vk::GetImageType(mState.getType());
     const VkImageTiling imageTiling = mImage->getTilingMode();
+
+    if (mipLevels == ImageMipLevels::FullMipChainForGenerateMipmap &&
+        CanGenerateMipmapWithCompute(renderer, imageType, actualImageFormatID, samples, mOwnsImage))
+    {
+        mImageUsageFlags |= VK_IMAGE_USAGE_STORAGE_BIT;
+    }
+
+    mImageCreateFlags |=
+        vk::GetMinimalImageCreateFlags(renderer, mState.getType(), mImageUsageFlags);
 
     // The MSRTSS bit is included in the create flag for all textures if the feature flag
     // corresponding to its preference is enabled. Otherwise, it is enabled for a texture if it is
@@ -4203,13 +4216,20 @@ angle::Result TextureVk::initImageViews(ContextVk *contextVk, uint32_t levelCoun
     // Use this as a proxy for the SRGB override & skip decode settings.
     bool createExtraSRGBViews = mRequiresMutableStorage;
 
+    GLenum astcDecodePrecision = GL_NONE;
+    vk::Renderer *renderer     = contextVk->getRenderer();
+    if (renderer->getFeatures().supportsAstcDecodeMode.enabled)
+    {
+        astcDecodePrecision = mState.getASTCDecodePrecision();
+    }
+
     const VkImageUsageFlags kDisallowedSwizzledUsage =
         VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT |
         VK_IMAGE_USAGE_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR;
-    ANGLE_TRY(getImageViews().initReadViews(contextVk, mState.getType(), *mImage, formatSwizzle,
-                                            readSwizzle, baseLevelVk, levelCount, baseLayer,
-                                            getImageViewLayerCount(), createExtraSRGBViews,
-                                            getImage().getUsage() & ~kDisallowedSwizzledUsage));
+    ANGLE_TRY(getImageViews().initReadViews(
+        contextVk, mState.getType(), *mImage, formatSwizzle, readSwizzle, baseLevelVk, levelCount,
+        baseLayer, getImageViewLayerCount(), createExtraSRGBViews,
+        getImage().getUsage() & ~kDisallowedSwizzledUsage, astcDecodePrecision));
 
     updateCachedImageViewSerials();
 

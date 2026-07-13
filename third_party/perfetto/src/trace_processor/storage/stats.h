@@ -96,6 +96,8 @@ namespace perfetto::trace_processor::stats {
   F(fuchsia_invalid_event_arg_name,       kSingle,  kError,    kAnalysis, ""), \
   F(fuchsia_unknown_event_arg,            kSingle,  kError,    kAnalysis, ""), \
   F(fuchsia_invalid_string_ref,           kSingle,  kError,    kAnalysis, ""), \
+  F(generic_task_state_invalid_order,     kSingle,  kError,    kAnalysis,      \
+       "Invalid order of generic task state events. Should never happen."),    \
   F(gpu_counters_invalid_spec,            kSingle,  kError,    kAnalysis, ""), \
   F(gpu_counters_missing_spec,            kSingle,  kError,    kAnalysis, ""), \
   F(gpu_render_stage_parser_errors,       kSingle,  kError,    kAnalysis, ""), \
@@ -411,31 +413,31 @@ namespace perfetto::trace_processor::stats {
   F(v8_code_load_missing_code_range,      kSingle,  kError,    kAnalysis,      \
       "V8 load had no code range or an empty one. Event ignored."),            \
   F(winscope_inputmethod_clients_parse_errors,                                 \
-                                          kSingle,  kInfo,     kAnalysis,      \
+                                          kSingle,  kError,    kAnalysis,      \
       "InputMethod clients packet has unknown fields, which results in "       \
       "some arguments missing. You may need a newer version of trace "         \
       "processor to parse them."),                                             \
   F(winscope_inputmethod_manager_service_parse_errors,                         \
-                                          kSingle,  kInfo,     kAnalysis,      \
+                                          kSingle,  kError,    kAnalysis,      \
       "InputMethod manager service packet has unknown fields, which results "  \
       "in some arguments missing. You may need a newer version of trace "      \
       "processor to parse them."),                                             \
   F(winscope_inputmethod_service_parse_errors,                                 \
-                                          kSingle,  kInfo,     kAnalysis,      \
+                                          kSingle,  kError,    kAnalysis,      \
       "InputMethod service packet has unknown fields, which results in "       \
       "some arguments missing. You may need a newer version of trace "         \
       "processor to parse them."),                                             \
-  F(winscope_sf_layers_parse_errors,      kSingle,  kInfo,     kAnalysis,      \
+  F(winscope_sf_layers_parse_errors,      kSingle,  kError,    kAnalysis,      \
       "SurfaceFlinger layers snapshot has unknown fields, which results in "   \
       "some arguments missing. You may need a newer version of trace "         \
       "processor to parse them."),                                             \
   F(winscope_sf_transactions_parse_errors,                                     \
-                                          kSingle,  kInfo,     kAnalysis,      \
+                                          kSingle,  kError,    kAnalysis,      \
       "SurfaceFlinger transactions packet has unknown fields, which results "  \
       "in some arguments missing. You may need a newer version of trace "      \
       "processor to parse them."),                                             \
   F(winscope_shell_transitions_parse_errors,                                   \
-                                          kSingle,  kInfo,     kAnalysis,      \
+                                          kSingle,  kError,    kAnalysis,      \
       "Shell transition packet has unknown fields, which results "             \
       "in some arguments missing. You may need a newer version of trace "      \
       "processor to parse them."),                                             \
@@ -455,14 +457,14 @@ namespace perfetto::trace_processor::stats {
                                           kSingle,  kInfo,     kAnalysis,      \
       "Got a viewer config collision!"),                                       \
   F(winscope_viewcapture_parse_errors,                                         \
-                                          kSingle,  kInfo,     kAnalysis,      \
+                                          kSingle,  kError,    kAnalysis,      \
       "ViewCapture packet has unknown fields, which results in some "          \
       "arguments missing. You may need a newer version of trace processor "    \
       "to parse them."),                                                       \
   F(winscope_viewcapture_missing_interned_string_parse_errors,                 \
-                                          kSingle,  kInfo,     kAnalysis,      \
+                                          kSingle,  kError,    kAnalysis,      \
       "Failed to find interned ViewCapture string."),                          \
-  F(winscope_windowmanager_parse_errors, kSingle,  kInfo,     kAnalysis,       \
+  F(winscope_windowmanager_parse_errors, kSingle,   kError,    kAnalysis,      \
       "WindowManager state packet has unknown fields, which results "          \
       "in some arguments missing. You may need a newer version of trace "      \
       "processor to parse them."),                                             \
@@ -552,7 +554,17 @@ namespace perfetto::trace_processor::stats {
       "the presence of one is usually a sign that something went wrong while " \
       "recording a trace. Common causes of this include incorrect "            \
       "incremental timestamps, bad clock synchronization or kernel bugs in "   \
-      "drivers emitting timestamps")
+      "drivers emitting timestamps"),                                          \
+  F(slice_drop_overlapping_complete_event,        kSingle,  kError,  kTrace,   \
+      "A complete slice was dropped because it overlaps with another "         \
+      "slice. This can happen e.g. in JSON traces using X events or in other " \
+      "cases where a duration is part of the trace. To solve this problem "    \
+      "make sure that your X events do not overlap on the same track (e.g. "   \
+      "thread/process)"),                                                      \
+  F(perf_text_importer_sample_no_frames,        kSingle,  kError,  kTrace,     \
+      "A perf sample was encountered that has no frames. This can happen "     \
+      "if the kernel is unable to unwind the stack while sampling. Check "     \
+      "Linux kernel documentation for causes of this and potential fixes.")
 // clang-format on
 
 enum Type {

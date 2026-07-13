@@ -16,7 +16,6 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
-#include "absl/base/macros.h"
 #include "absl/container/inlined_vector.h"
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
@@ -195,7 +194,7 @@ class FieldTrials : public FieldTrialsView {
     static constexpr absl::string_view kBinaryFieldTrials[] = {
         "WebRTC-Vp9IssueKeyFrameOnLayerDeactivation",
     };
-    for (size_t i = 0; i < ABSL_ARRAYSIZE(kBinaryFieldTrials); ++i) {
+    for (size_t i = 0; i < std::size(kBinaryFieldTrials); ++i) {
       if (key == kBinaryFieldTrials[i]) {
         return (flags_ & (1u << i)) ? "Enabled" : "Disabled";
       }
@@ -313,7 +312,7 @@ struct LibvpxState {
   LibvpxState() {
     pkt.kind = VPX_CODEC_CX_FRAME_PKT;
     pkt.data.frame.buf = pkt_buffer;
-    pkt.data.frame.sz = ABSL_ARRAYSIZE(pkt_buffer);
+    pkt.data.frame.sz = std::size(pkt_buffer);
     layer_id.spatial_layer_id = -1;
   }
 

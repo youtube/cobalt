@@ -11,24 +11,22 @@
 #ifndef MODULES_AUDIO_PROCESSING_AEC3_VECTOR_MATH_H_
 #define MODULES_AUDIO_PROCESSING_AEC3_VECTOR_MATH_H_
 
+#include <algorithm>
+#include <cmath>
+#include <functional>
+
+#include "api/array_view.h"
+#include "modules/audio_processing/aec3/aec3_common.h"
+#include "rtc_base/checks.h"
+
 // Defines WEBRTC_ARCH_X86_FAMILY, used below.
 #include "rtc_base/system/arch.h"
-
 #if defined(WEBRTC_HAS_NEON)
 #include <arm_neon.h>
 #endif
 #if defined(WEBRTC_ARCH_X86_FAMILY)
 #include <emmintrin.h>
 #endif
-#include <math.h>
-
-#include <algorithm>
-#include <array>
-#include <functional>
-
-#include "api/array_view.h"
-#include "modules/audio_processing/aec3/aec3_common.h"
-#include "rtc_base/checks.h"
 
 namespace webrtc {
 namespace aec3 {

@@ -794,7 +794,7 @@ TEST_P(PeerConnectionIntegrationTest, RotatedVideoWithoutCVOExtension) {
       [](std::unique_ptr<SessionDescriptionInterface>& sdp) {
         VideoContentDescription* video =
             GetFirstVideoContentDescription(sdp->description());
-        video->ClearRtpHeaderExtensions();
+        video->set_rtp_header_extensions({});
       });
   // Wait for video frames to be received by both sides.
   caller()->CreateAndSetAndSignalOffer();
@@ -1288,6 +1288,120 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan, NoStreamsMsidLineMissing) {
             callee_receivers[1]->streams()[0]);
 }
 
+// Used by the CSRC tests below.
+MATCHER_P(IsCsrcWithId, csrc, "") {
+  return arg.source_type() == RtpSourceType::CSRC && arg.source_id() == csrc;
+}
+
+// Test that CSRCs can be set upon adding tracks and that they are received by
+// the other side.
+TEST_F(PeerConnectionIntegrationTestUnifiedPlan, EndToEndCallForwardsCsrcs) {
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+
+  constexpr uint32_t kAudioCsrc = 1234;
+  constexpr uint32_t kVideoCsrc = 5678;
+  RtpEncodingParameters audio_encoding;
+  RtpEncodingParameters video_encoding;
+  audio_encoding.csrcs = {kAudioCsrc};
+  video_encoding.csrcs = {kVideoCsrc};
+  ASSERT_THAT(caller()->pc()->AddTrack(caller()->CreateLocalAudioTrack(), {},
+                                       {audio_encoding}),
+              IsRtcOk());
+  ASSERT_THAT(caller()->pc()->AddTrack(caller()->CreateLocalVideoTrack(), {},
+                                       {video_encoding}),
+              IsRtcOk());
+
+  caller()->CreateAndSetAndSignalOffer();
+
+  // Wait for some packets to arrive.
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+  ASSERT_THAT(WaitUntil(
+                  [&] {
+                    return callee()->audio_frames_received() > 0 &&
+                           callee()->min_video_frames_received_per_track() > 0;
+                  },
+                  ::testing::IsTrue(), {.timeout = kMaxWaitForFrames}),
+              IsRtcOk());
+
+  std::vector<scoped_refptr<RtpReceiverInterface>> audio_receivers =
+      callee()->GetReceiversOfType(webrtc::MediaType::AUDIO);
+  ASSERT_EQ(audio_receivers.size(), 1u);
+  std::vector<scoped_refptr<RtpReceiverInterface>> video_receivers =
+      callee()->GetReceiversOfType(webrtc::MediaType::VIDEO);
+  ASSERT_EQ(video_receivers.size(), 1u);
+
+  EXPECT_THAT(audio_receivers[0]->GetSources(),
+              Contains(IsCsrcWithId(kAudioCsrc)));
+  EXPECT_THAT(video_receivers[0]->GetSources(),
+              Contains(IsCsrcWithId(kVideoCsrc)));
+}
+
+// Test that CSRCs can be updated on active tracks.
+TEST_F(PeerConnectionIntegrationTestUnifiedPlan, EndToEndCallCanUpdateCsrcs) {
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+
+  RtpEncodingParameters audio_encoding;
+  RtpEncodingParameters video_encoding;
+  audio_encoding.csrcs = {1234};
+  video_encoding.csrcs = {5678};
+
+  scoped_refptr<RtpSenderInterface> audio_sender =
+      caller()
+          ->pc()
+          ->AddTrack(caller()->CreateLocalAudioTrack(), {}, {audio_encoding})
+          .MoveValue();
+  scoped_refptr<RtpSenderInterface> video_sender =
+      caller()
+          ->pc()
+          ->AddTrack(caller()->CreateLocalVideoTrack(), {}, {video_encoding})
+          .MoveValue();
+
+  caller()->CreateAndSetAndSignalOffer();
+
+  // Wait for some packets to arrive.
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+  ASSERT_THAT(WaitUntil(
+                  [&] {
+                    return callee()->audio_frames_received() > 0 &&
+                           callee()->min_video_frames_received_per_track() > 0;
+                  },
+                  ::testing::IsTrue(), {.timeout = kMaxWaitForFrames}),
+              IsRtcOk());
+
+  // Update the CSRCs.
+  constexpr uint32_t kUpdatedAudioCsrc = 4321;
+  constexpr uint32_t kUpdatedVideoCsrc = 8765;
+  RtpParameters audio_parameters = audio_sender->GetParameters();
+  RtpParameters video_parameters = video_sender->GetParameters();
+  audio_parameters.encodings[0].csrcs = {kUpdatedAudioCsrc};
+  video_parameters.encodings[0].csrcs = {kUpdatedVideoCsrc};
+  ASSERT_THAT(audio_sender->SetParameters(audio_parameters), IsRtcOk());
+  ASSERT_THAT(video_sender->SetParameters(video_parameters), IsRtcOk());
+
+  std::vector<scoped_refptr<RtpReceiverInterface>> audio_receivers =
+      callee()->GetReceiversOfType(webrtc::MediaType::AUDIO);
+  ASSERT_EQ(audio_receivers.size(), 1u);
+  std::vector<scoped_refptr<RtpReceiverInterface>> video_receivers =
+      callee()->GetReceiversOfType(webrtc::MediaType::VIDEO);
+  ASSERT_EQ(video_receivers.size(), 1u);
+
+  // Ensure that the new CSRCs are used.
+  EXPECT_THAT(WaitUntil([&] { return audio_receivers[0]->GetSources(); },
+                        Contains(IsCsrcWithId(kUpdatedAudioCsrc)),
+                        {.timeout = kMaxWaitForFrames}),
+              IsRtcOk());
+  EXPECT_THAT(WaitUntil([&] { return video_receivers[0]->GetSources(); },
+                        Contains(IsCsrcWithId(kUpdatedVideoCsrc)),
+                        {.timeout = kMaxWaitForFrames}),
+              IsRtcOk());
+}
+
 // Test that if two video tracks are sent (from caller to callee, in this test),
 // they're transmitted correctly end-to-end.
 TEST_P(PeerConnectionIntegrationTest, EndToEndCallWithTwoVideoTracks) {
@@ -1307,7 +1421,7 @@ TEST_P(PeerConnectionIntegrationTest, EndToEndCallWithTwoVideoTracks) {
   ASSERT_TRUE(ExpectNewFrames(media_expectations));
 }
 
-static void MakeSpecCompliantMaxBundleOffer(
+void MakeSpecCompliantMaxBundleOffer(
     std::unique_ptr<SessionDescriptionInterface>& sdp) {
   bool first = true;
   for (ContentInfo& content : sdp->description()->contents()) {
@@ -2159,12 +2273,10 @@ TEST_P(PeerConnectionIntegrationTest, MediaContinuesFlowingAfterIceRestart) {
       callee()->pc()->local_description()->candidates(0);
   ASSERT_GT(audio_candidates_caller->count(), 0u);
   ASSERT_GT(audio_candidates_callee->count(), 0u);
-  std::string caller_candidate_pre_restart;
-  ASSERT_TRUE(
-      audio_candidates_caller->at(0)->ToString(&caller_candidate_pre_restart));
-  std::string callee_candidate_pre_restart;
-  ASSERT_TRUE(
-      audio_candidates_callee->at(0)->ToString(&callee_candidate_pre_restart));
+  std::string caller_candidate_pre_restart =
+      audio_candidates_caller->at(0)->ToString();
+  std::string callee_candidate_pre_restart =
+      audio_candidates_callee->at(0)->ToString();
   const SessionDescription* desc =
       caller()->pc()->local_description()->description();
   std::string caller_ufrag_pre_restart =
@@ -2196,12 +2308,10 @@ TEST_P(PeerConnectionIntegrationTest, MediaContinuesFlowingAfterIceRestart) {
   audio_candidates_callee = callee()->pc()->local_description()->candidates(0);
   ASSERT_GT(audio_candidates_caller->count(), 0u);
   ASSERT_GT(audio_candidates_callee->count(), 0u);
-  std::string caller_candidate_post_restart;
-  ASSERT_TRUE(
-      audio_candidates_caller->at(0)->ToString(&caller_candidate_post_restart));
-  std::string callee_candidate_post_restart;
-  ASSERT_TRUE(
-      audio_candidates_callee->at(0)->ToString(&callee_candidate_post_restart));
+  std::string caller_candidate_post_restart =
+      audio_candidates_caller->at(0)->ToString();
+  std::string callee_candidate_post_restart =
+      audio_candidates_callee->at(0)->ToString();
   desc = caller()->pc()->local_description()->description();
   std::string caller_ufrag_post_restart =
       desc->transport_infos()[0].description.ice_ufrag;
@@ -4521,8 +4631,9 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
             PeerConnectionInterface::kStable);
 }
 
+// TODO: issues.webrtc.org/425336456 - figure out correct behavior and reenable
 TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
-       OnlyOnePairWantsCorruptionScorePlumbing) {
+       DISABLED_OnlyOnePairWantsCorruptionScorePlumbing) {
   // In order for corruption score to be logged, encryption of RTP header
   // extensions must be allowed.
   CryptoOptions crypto_options;
@@ -4546,12 +4657,19 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   ASSERT_THAT(
       WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
       IsRtcOk());
+  std::vector<RtpHeaderExtensionCapability> negotiated_extensions =
+      caller()->pc()->GetTransceivers()[0]->GetNegotiatedHeaderExtensions();
+  ASSERT_THAT(negotiated_extensions,
+              Contains(Field("uri", &RtpHeaderExtensionCapability::uri,
+                             RtpExtension::kCorruptionDetectionUri)));
   ASSERT_THAT(WaitUntil([&] { return caller()->GetCorruptionScoreCount(); },
                         ::testing::Gt(0), {.timeout = kMaxWaitForStats}),
-              IsRtcOk());
+              IsRtcOk())
+      << "Waiting for caller corruption score count > 0";
   ASSERT_THAT(WaitUntil([&] { return callee()->GetCorruptionScoreCount(); },
                         ::testing::Eq(0), {.timeout = kMaxWaitForStats}),
-              IsRtcOk());
+              IsRtcOk())
+      << "Waiting for callee corruption score count = 0";
 
   for (const auto& pair : {caller(), callee()}) {
     scoped_refptr<const RTCStatsReport> report = pair->NewGetStats();

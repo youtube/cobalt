@@ -10,14 +10,16 @@
 
 #include "modules/audio_processing/ns/wiener_filter.h"
 
-#include <math.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include <algorithm>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
+#include "api/array_view.h"
 #include "modules/audio_processing/ns/fast_math.h"
-#include "rtc_base/checks.h"
+#include "modules/audio_processing/ns/ns_common.h"
+#include "modules/audio_processing/ns/suppression_params.h"
 
 namespace webrtc {
 

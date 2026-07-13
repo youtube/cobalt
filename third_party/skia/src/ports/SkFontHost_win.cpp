@@ -896,13 +896,13 @@ SkScalerContext::GlyphMetrics SkScalerContext_GDI::generateMetrics(const SkGlyph
         sk_bzero(&gm, sizeof(gm));
         status = GetGlyphOutlineW(fDDC, glyphId, GGO_METRICS | GGO_GLYPH_INDEX, &gm, 0, nullptr, &fHighResMat22);
         if (GDI_ERROR != status) {
-            mx.advance = fHiResMatrix.mapXY(SkIntToScalar(gm.gmCellIncX),
-                                            SkIntToScalar(gm.gmCellIncY));
+            mx.advance = fHiResMatrix.mapPoint({SkIntToScalar(gm.gmCellIncX),
+                                                SkIntToScalar(gm.gmCellIncY)});
         }
     } else if (!isAxisAligned(this->fRec)) {
         status = GetGlyphOutlineW(fDDC, glyphId, GGO_METRICS | GGO_GLYPH_INDEX, &gm, 0, nullptr, &fGsA);
         if (GDI_ERROR != status) {
-            mx.advance = fG_inv.mapXY(SkIntToScalar(gm.gmCellIncX), SkIntToScalar(gm.gmCellIncY));
+            mx.advance = fG_inv.mapPoint({SkIntToScalar(gm.gmCellIncX), SkIntToScalar(gm.gmCellIncY)});
         }
     }
 
@@ -1780,7 +1780,7 @@ static HRESULT create_unique_font_name(char* buffer, size_t bufferSize) {
    Introduces a font to GDI. On failure will return nullptr. The returned handle
    should eventually be passed to RemoveFontMemResourceEx.
 */
-static HANDLE activate_font(SkData* fontData) {
+static HANDLE activate_font(const SkData* fontData) {
     DWORD numFonts = 0;
     //AddFontMemResourceEx just copies the data, but does not specify const.
     HANDLE fontHandle = AddFontMemResourceEx(const_cast<void*>(fontData->data()),

@@ -40,7 +40,7 @@ class RtpPacket;
 class RtpPacketToSend;
 namespace rtcp {
 class TransportFeedback;
-}
+}  // namespace rtcp
 
 const int kVideoPayloadTypeFrequency = 90000;
 
@@ -302,7 +302,7 @@ struct RtpPacketCounter {
   size_t packets;        // Number of packets.
   // The total delay of all `packets`. For RtpPacketToSend packets, this is
   // `time_in_send_queue()`. For receive packets, this is zero.
-  webrtc::TimeDelta total_packet_delay = webrtc::TimeDelta::Zero();
+  TimeDelta total_packet_delay = TimeDelta::Zero();
 };
 
 // Data usage statistics for a (rtp) stream.
@@ -391,7 +391,7 @@ struct RtpReceiveStats {
   // Interarrival jitter in samples.
   uint32_t jitter = 0;
   // Interarrival jitter in time.
-  webrtc::TimeDelta interarrival_jitter = webrtc::TimeDelta::Zero();
+  TimeDelta interarrival_jitter = TimeDelta::Zero();
 
   // Time of the last packet received in unix epoch,
   // i.e. Timestamp::Zero() represents 1st Jan 1970 00:00

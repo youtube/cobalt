@@ -17,8 +17,6 @@
 
 #include <openssl/base.h>   // IWYU pragma: export
 
-#include <openssl/stack.h>
-
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -29,9 +27,6 @@ extern "C" {
 // assigned indexes in which to store their data. Each index has callback
 // functions that are called when an object of that type is freed or
 // duplicated.
-
-
-typedef struct crypto_ex_data_st CRYPTO_EX_DATA;
 
 
 // Type-specific functions.
@@ -76,20 +71,27 @@ OPENSSL_EXPORT void *TYPE_get_app_data(const TYPE *t);
 
 // Callback types.
 
+// CRYPTO_EX_DATA, in the public API, is an opaque struct that is never returned
+// from the library.
+typedef struct crypto_ex_data_st CRYPTO_EX_DATA;
+
 // CRYPTO_EX_free is a callback function that is called when an object of the
 // class with extra data pointers is being destroyed. For example, if this
 // callback has been passed to |SSL_get_ex_new_index| then it may be called each
 // time an |SSL*| is destroyed.
 //
-// The callback is passed the to-be-destroyed object (i.e. the |SSL*|) in
-// |parent|. As |parent| will shortly be destroyed, callers must not perform
-// operations that would increment its reference count, pass ownership, or
-// assume the object outlives the function call. The arguments |argl| and |argp|
-// contain opaque values that were given to |CRYPTO_get_ex_new_index_ex|.
+// |parent| and |ad| will be NULL. Historically, the parent object was passed in
+// |parent|, but accessing the pointer was not safe because |parent| was in the
+// process of being destroyed. If the callback has access to some other pointer
+// to the parent object, it must not pass the pointer to any BoringSSL APIs.
+// Mid-destruction, invariants on the parent object no longer hold.
 //
-// This callback may be called with a NULL value for |ptr| if |parent| has no
+// The arguments |argl| and |argp| contain opaque values that were given to
+// |CRYPTO_get_ex_new_index_ex|.
+//
+// This callback may be called with a NULL value for |ptr| if the object has no
 // value set for this index. However, the callbacks may also be skipped entirely
-// if no extra data pointers are set on |parent| at all.
+// if no extra data pointers are set on the object at all.
 typedef void CRYPTO_EX_free(void *parent, void *ptr, CRYPTO_EX_DATA *ad,
                             int index, long argl, void *argp);
 
@@ -103,16 +105,9 @@ OPENSSL_EXPORT void CRYPTO_cleanup_all_ex_data(void);
 typedef int CRYPTO_EX_dup(CRYPTO_EX_DATA *to, const CRYPTO_EX_DATA *from,
                           void **from_d, int index, long argl, void *argp);
 
-
-// Private structures.
-
 // CRYPTO_EX_unused is a placeholder for an unused callback. It is aliased to
 // int to ensure non-NULL callers fail to compile rather than fail silently.
 typedef int CRYPTO_EX_unused;
-
-struct crypto_ex_data_st {
-  STACK_OF(void) *sk;
-};
 
 
 #if defined(__cplusplus)

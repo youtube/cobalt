@@ -159,8 +159,10 @@ rtc_library("chunk") {
     "../../../rtc_base:checks",
     "../../../rtc_base:logging",
     "../../../rtc_base:stringutils",
+    "../common:internal_types",
     "../common:math",
     "../packet:bounded_io",
+    "../public:types",
     "//third_party/abseil-cpp/absl/algorithm:container",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]

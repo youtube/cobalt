@@ -208,21 +208,21 @@ bool RequiresViewportReset(const SkPaint& paint) {
   return false;
 }
 
-void AddPath(const sktext::GlyphRun& glyphRun, const SkPoint& offset, SkPath* path) {
+void AddPath(const sktext::GlyphRun& glyphRun, const SkPoint& offset, SkPathBuilder* builder) {
     struct Rec {
-        SkPath*        fPath;
+        SkPathBuilder* fBuilder;
         const SkPoint  fOffset;
         const SkPoint* fPos;
-    } rec = { path, offset, glyphRun.positions().data() };
+    } rec = { builder, offset, glyphRun.positions().data() };
 
-    glyphRun.font().getPaths(glyphRun.glyphsIDs().data(), SkToInt(glyphRun.glyphsIDs().size()),
+    glyphRun.font().getPaths(glyphRun.glyphsIDs(),
             [](const SkPath* path, const SkMatrix& mx, void* ctx) {
                 Rec* rec = reinterpret_cast<Rec*>(ctx);
                 if (path) {
                     SkMatrix total = mx;
                     total.postTranslate(rec->fPos->fX + rec->fOffset.fX,
                                         rec->fPos->fY + rec->fOffset.fY);
-                    rec->fPath->addPath(*path, total);
+                    rec->fBuilder->addPath(*path, total);
                 } else {
                     // TODO: this is going to drop color emojis.
                 }
@@ -900,28 +900,28 @@ void SkSVGDevice::drawAnnotation(const SkRect& rect, const char key[], SkData* v
     }
 }
 
-void SkSVGDevice::drawPoints(SkCanvas::PointMode mode, size_t count,
-                             const SkPoint pts[], const SkPaint& paint) {
+void SkSVGDevice::drawPoints(SkCanvas::PointMode mode, SkSpan<const SkPoint> pts,
+                             const SkPaint& paint) {
     SkPathBuilder path;
 
+    const size_t count = pts.size();
     switch (mode) {
             // todo
         case SkCanvas::kPoints_PointMode:
-            for (size_t i = 0; i < count; ++i) {
-                path.moveTo(pts[i]);
-                path.lineTo(pts[i]);
+            for (const auto& pt : pts) {
+                path.moveTo(pt);
+                path.lineTo(pt);
             }
             break;
         case SkCanvas::kLines_PointMode:
-            count -= 1;
-            for (size_t i = 0; i < count; i += 2) {
-                path.moveTo(pts[i]);
-                path.lineTo(pts[i+1]);
+            for (size_t i = 1; i < count; i += 2) {
+                path.moveTo(pts[i-1]);
+                path.lineTo(pts[i]);
             }
             break;
         case SkCanvas::kPolygon_PointMode:
             if (count > 1) {
-                path.addPolygon(pts, SkToInt(count), false);
+                path.addPolygon(pts, false);
             }
             break;
     }
@@ -1170,12 +1170,12 @@ void SkSVGDevice::onDrawGlyphRunList(SkCanvas* canvas,
 
     if (draw_as_path) {
         // Emit a single <path> element.
-        SkPath path;
+        SkPathBuilder builder;
         for (auto& glyphRun : glyphRunList) {
-            AddPath(glyphRun, glyphRunList.origin(), &path);
+            AddPath(glyphRun, glyphRunList.origin(), &builder);
         }
 
-        this->drawPath(path, paint);
+        this->drawPath(builder.detach(), paint);
 
         return;
     }

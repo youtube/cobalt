@@ -10,9 +10,6 @@
 
 #include "modules/audio_processing/aec3/adaptive_fir_filter.h"
 
-// Defines WEBRTC_ARCH_X86_FAMILY, used below.
-#include <math.h>
-
 #include <algorithm>
 #include <array>
 #include <cstddef>
@@ -25,33 +22,34 @@
 
 #include "api/array_view.h"
 #include "api/audio/echo_canceller3_config.h"
+#include "api/environment/environment_factory.h"
+#include "modules/audio_processing/aec3/adaptive_fir_filter_erl.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
+#include "modules/audio_processing/aec3/aec3_fft.h"
+#include "modules/audio_processing/aec3/aec_state.h"
 #include "modules/audio_processing/aec3/block.h"
+#include "modules/audio_processing/aec3/coarse_filter_update_gain.h"
 #include "modules/audio_processing/aec3/delay_estimate.h"
 #include "modules/audio_processing/aec3/echo_path_variability.h"
 #include "modules/audio_processing/aec3/fft_data.h"
+#include "modules/audio_processing/aec3/render_delay_buffer.h"
+#include "modules/audio_processing/aec3/render_signal_analyzer.h"
 #include "modules/audio_processing/aec3/subtractor_output.h"
+#include "modules/audio_processing/logging/apm_data_dumper.h"
+#include "modules/audio_processing/test/echo_canceller_test_tools.h"
+#include "modules/audio_processing/utility/cascaded_biquad_filter.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/cpu_info.h"
+#include "rtc_base/numerics/safe_minmax.h"
+#include "rtc_base/random.h"
+#include "rtc_base/strings/string_builder.h"
+#include "test/gtest.h"
+
+// Defines WEBRTC_ARCH_X86_FAMILY, used below.
 #include "rtc_base/system/arch.h"
 #if defined(WEBRTC_ARCH_X86_FAMILY)
 #include <emmintrin.h>
 #endif
-
-#include "api/environment/environment_factory.h"
-#include "modules/audio_processing/aec3/adaptive_fir_filter_erl.h"
-#include "modules/audio_processing/aec3/aec3_fft.h"
-#include "modules/audio_processing/aec3/aec_state.h"
-#include "modules/audio_processing/aec3/coarse_filter_update_gain.h"
-#include "modules/audio_processing/aec3/render_delay_buffer.h"
-#include "modules/audio_processing/aec3/render_signal_analyzer.h"
-#include "modules/audio_processing/logging/apm_data_dumper.h"
-#include "modules/audio_processing/test/echo_canceller_test_tools.h"
-#include "modules/audio_processing/utility/cascaded_biquad_filter.h"
-#include "rtc_base/numerics/safe_minmax.h"
-#include "rtc_base/random.h"
-#include "rtc_base/strings/string_builder.h"
-#include "system_wrappers/include/cpu_features_wrapper.h"
-#include "test/gtest.h"
 
 namespace webrtc {
 namespace aec3 {
@@ -191,7 +189,7 @@ TEST_P(AdaptiveFirFilterOneTwoFourEightRenderChannels,
   constexpr int kSampleRateHz = 48000;
   constexpr size_t kNumBands = NumBandsForRate(kSampleRateHz);
 
-  bool use_sse2 = (GetCPUInfo(kSSE2) != 0);
+  bool use_sse2 = cpu_info::Supports(cpu_info::ISA::kSSE2);
   if (use_sse2) {
     for (size_t num_partitions : {2, 5, 12, 30, 50}) {
       std::unique_ptr<RenderDelayBuffer> render_delay_buffer(
@@ -263,7 +261,7 @@ TEST_P(AdaptiveFirFilterOneTwoFourEightRenderChannels,
   constexpr int kSampleRateHz = 48000;
   constexpr size_t kNumBands = NumBandsForRate(kSampleRateHz);
 
-  bool use_avx2 = (GetCPUInfo(kAVX2) != 0);
+  bool use_avx2 = cpu_info::Supports(cpu_info::ISA::kAVX2);
   if (use_avx2) {
     for (size_t num_partitions : {2, 5, 12, 30, 50}) {
       std::unique_ptr<RenderDelayBuffer> render_delay_buffer(
@@ -332,7 +330,7 @@ TEST_P(AdaptiveFirFilterOneTwoFourEightRenderChannels,
 TEST_P(AdaptiveFirFilterOneTwoFourEightRenderChannels,
        ComputeFrequencyResponseSse2Optimization) {
   const size_t num_render_channels = GetParam();
-  bool use_sse2 = (GetCPUInfo(kSSE2) != 0);
+  bool use_sse2 = cpu_info::Supports(cpu_info::ISA::kSSE2);
   if (use_sse2) {
     for (size_t num_partitions : {2, 5, 12, 30, 50}) {
       std::vector<std::vector<FftData>> H(
@@ -367,7 +365,7 @@ TEST_P(AdaptiveFirFilterOneTwoFourEightRenderChannels,
 TEST_P(AdaptiveFirFilterOneTwoFourEightRenderChannels,
        ComputeFrequencyResponseAvx2Optimization) {
   const size_t num_render_channels = GetParam();
-  bool use_avx2 = (GetCPUInfo(kAVX2) != 0);
+  bool use_avx2 = cpu_info::Supports(cpu_info::ISA::kAVX2);
   if (use_avx2) {
     for (size_t num_partitions : {2, 5, 12, 30, 50}) {
       std::vector<std::vector<FftData>> H(

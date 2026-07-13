@@ -9,6 +9,7 @@
 #include "src/codegen/x64/register-x64.h"
 #include "src/common/globals.h"
 #include "src/maglev/maglev-assembler-inl.h"
+#include "src/maglev/maglev-assembler.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir-inl.h"
@@ -193,6 +194,150 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
                           char_code, scratch,
                           MaglevAssembler::CharCodeMaskMode::kMustApplyMask);
   }
+}
+
+void Int32Add::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  if (TryGetInt32ConstantInput(kRightIndex)) {
+    UseAny(right_input());
+  } else {
+    UseRegister(right_input());
+  }
+  DefineSameAsFirst(this);
+}
+
+void Int32Add::GenerateCode(MaglevAssembler* masm,
+                            const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  if (!right_input().operand().IsRegister()) {
+    auto right_const = TryGetInt32ConstantInput(kRightIndex);
+    DCHECK(right_const);
+    __ addl(left, Immediate(*right_const));
+  } else {
+    Register right = ToRegister(right_input());
+    __ addl(left, right);
+  }
+}
+
+void Int32Subtract::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  if (TryGetInt32ConstantInput(kRightIndex)) {
+    UseAny(right_input());
+  } else {
+    UseRegister(right_input());
+  }
+  DefineSameAsFirst(this);
+}
+
+void Int32Subtract::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  if (!right_input().operand().IsRegister()) {
+    auto right_const = TryGetInt32ConstantInput(kRightIndex);
+    DCHECK(right_const);
+    __ subl(left, Immediate(*right_const));
+  } else {
+    Register right = ToRegister(right_input());
+    __ subl(left, right);
+  }
+}
+
+void Int32Multiply::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  if (TryGetInt32ConstantInput(kRightIndex)) {
+    UseAny(right_input());
+    DefineAsRegister(this);
+  } else {
+    UseRegister(right_input());
+    DefineSameAsFirst(this);
+  }
+}
+
+void Int32Multiply::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register result = ToRegister(this->result());
+  if (auto right_const = TryGetInt32ConstantInput(kRightIndex)) {
+    __ imull(result, left, Immediate(*right_const));
+  } else {
+    Register right = ToRegister(right_input());
+    DCHECK_EQ(result, left);
+    __ imull(left, right);
+  }
+}
+
+void Int32MultiplyOverflownBits::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  // TODO(victorgomes): Ideally we would like to have UseFixedAndClobber(rax),
+  // but we don't support that yet.
+  if (TryGetInt32ConstantInput(kRightIndex)) {
+    UseAny(right_input());
+  } else {
+    UseRegister(right_input());
+  }
+  DefineAsFixed(this, rdx);  // imull returns high bits in rdx.
+  RequireSpecificTemporary(rax);
+}
+
+void Int32MultiplyOverflownBits::GenerateCode(MaglevAssembler* masm,
+                                              const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  DCHECK_EQ(ToRegister(result()), rdx);
+  if (auto right_const = TryGetInt32ConstantInput(kRightIndex)) {
+    __ movl(rax, Immediate(*right_const));
+  } else {
+    __ movl(rax, ToRegister(right_input()));
+  }
+  __ imull(left);
+}
+
+void Int32Divide::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsFixed(this, rax);
+  // rax,rdx are clobbered by idiv.
+  RequireSpecificTemporary(rax);
+  RequireSpecificTemporary(rdx);
+}
+
+void Int32Divide::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  ZoneLabelRef do_division(masm), done(masm);
+
+  // TODO(leszeks): peephole optimise division by a constant.
+
+  __ movl(rax, left);
+  __ testl(right, right);
+  __ JumpToDeferredIf(
+      less_equal,
+      [](MaglevAssembler* masm, ZoneLabelRef do_division, ZoneLabelRef done,
+         Register right) {
+        Label right_is_neg;
+        // Truncated value of anything divided by 0 is 0.
+        __ j(not_equal, &right_is_neg);
+        __ xorl(rax, rax);
+        __ jmp(*done);
+
+        // Return -left if right = -1.
+        // This avoids a hardware exception if left = INT32_MIN.
+        // Int32Divide returns a truncated value and according to
+        // ecma262#sec-toint32, the truncated value of INT32_MIN
+        // is INT32_MIN.
+        __ bind(&right_is_neg);
+        __ cmpl(right, Immediate(-1));
+        __ j(not_equal, *do_division);
+        __ negl(rax);
+        __ jmp(*done);
+      },
+      do_division, done, right);
+
+  __ bind(*do_division);
+  __ cdq();  // Sign extend eax into edx.
+  __ idivl(right);
+
+  __ bind(*done);
 }
 
 void Int32AddWithOverflow::SetValueLocationConstraints() {
@@ -788,12 +933,12 @@ void Float64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
   __ Subsd(value, kScratchDoubleReg);
 }
 
-void HoleyFloat64ToFloat64OrUndefined::SetValueLocationConstraints() {
+void ConvertHoleNanToUndefinedNan::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);
 }
-void HoleyFloat64ToFloat64OrUndefined::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
+void ConvertHoleNanToUndefinedNan::GenerateCode(MaglevAssembler* masm,
+                                                const ProcessingState& state) {
   DoubleRegister value = ToDoubleRegister(input());
   Label done;
   __ JumpIfNotHoleNan(value, kScratchRegister, &done);

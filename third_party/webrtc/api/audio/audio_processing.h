@@ -11,18 +11,11 @@
 #ifndef API_AUDIO_AUDIO_PROCESSING_H_
 #define API_AUDIO_AUDIO_PROCESSING_H_
 
-// MSVC++ requires this to be set before any other includes to get M_PI.
-#ifndef _USE_MATH_DEFINES
-#define _USE_MATH_DEFINES
-#endif
-
-#include <math.h>
-#include <stddef.h>  // size_t
-#include <stdio.h>   // FILE
-#include <string.h>
-
 #include <array>
+#include <cstddef>
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <string>
@@ -622,7 +615,7 @@ class RTC_EXPORT AudioProcessing : public RefCountInterface {
   // with this chunk of audio.
   virtual void set_stream_key_pressed(bool key_pressed) = 0;
 
-  // Creates and attaches an webrtc::AecDump for recording debugging
+  // Creates and attaches an AecDump for recording debugging
   // information.
   // The `worker_queue` may not be null and must outlive the created
   // AecDump instance. |max_log_size_bytes == -1| means the log size
@@ -641,7 +634,7 @@ class RTC_EXPORT AudioProcessing : public RefCountInterface {
                                           worker_queue) = 0;
 
   // TODO(webrtc:5298) Deprecated variant.
-  // Attaches provided webrtc::AecDump for recording debugging
+  // Attaches provided AecDump for recording debugging
   // information. Log file and maximum file size logic is supposed to
   // be handled by implementing instance of AecDump. Calling this
   // method when another AecDump is attached resets the active AecDump

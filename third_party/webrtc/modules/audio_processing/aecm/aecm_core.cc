@@ -10,19 +10,23 @@
 
 #include "modules/audio_processing/aecm/aecm_core.h"
 
-#include <stddef.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+
+#include "common_audio/signal_processing/include/signal_processing_library.h"
+#include "common_audio/signal_processing/include/spl_inl.h"
+#include "modules/audio_processing/aecm/aecm_defines.h"
+#include "modules/audio_processing/aecm/echo_control_mobile.h"
+#include "modules/audio_processing/utility/delay_estimator_wrapper.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/numerics/safe_conversions.h"
 
 extern "C" {
 #include "common_audio/ring_buffer.h"
 #include "common_audio/signal_processing/include/real_fft.h"
 }
-#include "common_audio/signal_processing/include/signal_processing_library.h"
-#include "modules/audio_processing/aecm/echo_control_mobile.h"
-#include "modules/audio_processing/utility/delay_estimator_wrapper.h"
-#include "rtc_base/checks.h"
-#include "rtc_base/numerics/safe_conversions.h"
 
 namespace webrtc {
 
@@ -34,7 +38,7 @@ FILE* testfile;
 #endif
 
 // Initialization table for echo channel in 8 kHz
-static const int16_t kChannelStored8kHz[PART_LEN1] = {
+const int16_t kChannelStored8kHz[PART_LEN1] = {
     2040, 1815, 1590, 1498, 1405, 1395, 1385, 1418, 1451, 1506, 1562,
     1644, 1726, 1804, 1882, 1918, 1953, 1982, 2010, 2025, 2040, 2034,
     2027, 2021, 2014, 1997, 1980, 1925, 1869, 1800, 1732, 1683, 1635,
@@ -43,7 +47,7 @@ static const int16_t kChannelStored8kHz[PART_LEN1] = {
     1470, 1499, 1524, 1549, 1565, 1582, 1601, 1621, 1649, 1676};
 
 // Initialization table for echo channel in 16 kHz
-static const int16_t kChannelStored16kHz[PART_LEN1] = {
+const int16_t kChannelStored16kHz[PART_LEN1] = {
     2040, 1590, 1405, 1385, 1451, 1562, 1726, 1882, 1953, 2010, 2040,
     2027, 2014, 1980, 1869, 1732, 1635, 1572, 1517, 1444, 1367, 1294,
     1245, 1233, 1260, 1303, 1373, 1441, 1499, 1549, 1582, 1621, 1676,

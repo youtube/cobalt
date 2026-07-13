@@ -9,11 +9,20 @@
  */
 #include "test/scenario/video_frame_matcher.h"
 
+#include <algorithm>
+#include <functional>
 #include <utility>
+#include <vector>
 
+#include "api/scoped_refptr.h"
+#include "api/units/timestamp.h"
+#include "api/video/video_frame.h"
+#include "api/video/video_sink_interface.h"
+#include "api/video/video_source_interface.h"
 #include "common_video/libyuv/include/webrtc_libyuv.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/event.h"
+#include "system_wrappers/include/clock.h"
+#include "test/scenario/performance_stats.h"
 
 namespace webrtc {
 namespace test {

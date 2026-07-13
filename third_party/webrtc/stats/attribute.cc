@@ -19,7 +19,6 @@
 #include <variant>
 #include <vector>
 
-#include "rtc_base/arraysize.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/string_encode.h"
 #include "rtc_base/strings/string_builder.h"
@@ -64,9 +63,9 @@ struct VisitToString {
                                       bool> = true>
   std::string ValueToString(const T& value) {
     char buf[32];
-    const int len = std::snprintf(&buf[0], arraysize(buf), "%.16g",
+    const int len = std::snprintf(&buf[0], std::size(buf), "%.16g",
                                   static_cast<double>(value));
-    RTC_DCHECK_LE(len, arraysize(buf));
+    RTC_DCHECK_LE(len, std::ssize(buf));
     return std::string(&buf[0], len);
   }
 

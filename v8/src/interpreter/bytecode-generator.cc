@@ -1221,8 +1221,7 @@ class V8_NODISCARD BytecodeGenerator::OptionalChainNullLabelScope final {
  public:
   explicit OptionalChainNullLabelScope(BytecodeGenerator* bytecode_generator)
       : bytecode_generator_(bytecode_generator),
-        labels_(bytecode_generator->zone()),
-        hole_check_scope_(bytecode_generator) {
+        labels_(bytecode_generator->zone()) {
     prev_ = bytecode_generator_->optional_chaining_null_labels_;
     bytecode_generator_->optional_chaining_null_labels_ = &labels_;
   }
@@ -1237,9 +1236,6 @@ class V8_NODISCARD BytecodeGenerator::OptionalChainNullLabelScope final {
   BytecodeGenerator* bytecode_generator_;
   BytecodeLabels labels_;
   BytecodeLabels* prev_;
-  // Use the same scope for the entire optional chain, as links earlier in the
-  // chain dominate later links, linearly.
-  HoleCheckElisionScope hole_check_scope_;
 };
 
 // LoopScope delimits the scope of {loop}, from its header to its final jump.
@@ -1594,8 +1590,15 @@ void BytecodeGenerator::AllocateDeferredConstants(IsolateT* isolate,
   }
 
   for (std::pair<Call*, Scope*> call : eval_calls_) {
-    script->infos()->set(call.first->eval_scope_info_index(),
-                         MakeWeak(*call.second->scope_info()));
+    Tagged<ScopeInfo> current;
+    int index = call.first->eval_scope_info_index();
+    if (script->infos()->get(index).GetHeapObjectIfWeak(&current) &&
+        v8_flags.reuse_scope_infos) {
+      CHECK_EQ(current, *call.second->scope_info());
+    } else {
+      script->infos()->set(call.first->eval_scope_info_index(),
+                           MakeWeak(*call.second->scope_info()));
+    }
   }
 
   // Build object literal constant properties
@@ -6480,6 +6483,9 @@ template <typename ExpressionFunc>
 void BytecodeGenerator::BuildOptionalChain(ExpressionFunc expression_func) {
   BytecodeLabel done;
   OptionalChainNullLabelScope label_scope(this);
+  // Use the same scope for the entire optional chain, as links earlier in the
+  // chain dominate later links, linearly.
+  HoleCheckElisionScope elider(this);
   expression_func();
   builder()->Jump(&done);
   label_scope.labels()->Bind(builder());
@@ -7556,15 +7562,32 @@ void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
   // key. In this case, we know it will eventually be internalized and it's
   // better to do so early.
   //
-  // For now, we handle only the specialized situation in which lhs is a string
-  // constant.
-  // TODO(jgruber): Generalize. ConsString literals, rhs-as-literal,
-  // property-key but no string-literal, string-literal but no property-key.
-  const bool emit_add_lhs_is_string_constant_internalize =
+  // For now, we handle only the specialized situation in which one side is a
+  // string constant.
+  // TODO(jgruber): Generalize. ConsString literals, property-key but no
+  // string-literal, string-literal but no property-key.
+  const bool maybe_emit_specialized_string_add =
       expr->op() == Token::kAdd && execution_result()->IsValueAsPropertyKey() &&
-      expr->left()->IsLiteral() && expr->left()->AsLiteral()->IsRawString() &&
       v8_flags.cache_property_key_string_adds;
-  if (emit_add_lhs_is_string_constant_internalize) {
+  bool emit_add_string_constant_internalize = false;
+  using ASVariant = AddStringConstantAndInternalizeVariant;
+  auto as_variant = ASVariant::kLhsIsStringConstant;
+  if (maybe_emit_specialized_string_add) {
+    // Is lhs a string constant?
+    emit_add_string_constant_internalize =
+        expr->left()->IsLiteral() && expr->left()->AsLiteral()->IsRawString();
+    if (!emit_add_string_constant_internalize) {
+      // Is rhs a string constant?
+      emit_add_string_constant_internalize =
+          expr->right()->IsLiteral() &&
+          expr->right()->AsLiteral()->IsRawString();
+      if (emit_add_string_constant_internalize) {
+        as_variant = ASVariant::kRhsIsStringConstant;
+      }
+    }
+  }
+
+  if (emit_add_string_constant_internalize) {
     slot = feedback_spec()->AddStringAddAndInternalizeICSlot();
   } else {
     slot = feedback_spec()->AddBinaryOpICSlot();
@@ -7590,13 +7613,18 @@ void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
       execution_result()->SetResultIsString();
     }
 
-    if (emit_add_lhs_is_string_constant_internalize) {
-      // Subtle: Stack overflows can cause the AST to be visited only partially.
-      // Visitation is eventually aborted and the resulting bytecode discarded.
-      DCHECK_IMPLIES(!HasStackOverflow(), IsStringTypeHint(lhs_type));
+    if (emit_add_string_constant_internalize) {
+      // Subtle: Stack overflows can cause the AST to be visited only
+      // partially. Visitation is eventually aborted and the resulting
+      // bytecode discarded.
+      DCHECK_IMPLIES(
+          !HasStackOverflow(),
+          IsStringTypeHint(as_variant == ASVariant::kLhsIsStringConstant
+                               ? lhs_type
+                               : rhs_type));
       builder()->SetExpressionPosition(expr);
-      builder()->Add_LhsIsStringConstant_Internalize(expr->op(), lhs,
-                                                     feedback_index(slot));
+      builder()->Add_StringConstant_Internalize(
+          expr->op(), lhs, feedback_index(slot), as_variant);
     } else {
       builder()->SetExpressionPosition(expr);
       builder()->BinaryOperation(expr->op(), lhs, feedback_index(slot));

@@ -11,8 +11,13 @@
 #include "modules/audio_processing/vad/voice_activity_detector.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <vector>
 
+#include "modules/audio_processing/vad/common.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
 

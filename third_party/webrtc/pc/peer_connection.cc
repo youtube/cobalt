@@ -36,7 +36,6 @@
 #include "api/dtls_transport_interface.h"
 #include "api/environment/environment.h"
 #include "api/jsep.h"
-#include "api/jsep_ice_candidate.h"
 #include "api/make_ref_counted.h"
 #include "api/media_stream_interface.h"
 #include "api/media_types.h"
@@ -124,7 +123,7 @@
 namespace webrtc {
 
 namespace {
-static const int REPORT_USAGE_PATTERN_DELAY_MS = 60000;
+const int REPORT_USAGE_PATTERN_DELAY_MS = 60000;
 
 class CodecLookupHelperForPeerConnection : public CodecLookupHelper {
  public:
@@ -528,6 +527,7 @@ PeerConnection::PeerConnection(
       async_dns_resolver_factory_(
           std::move(dependencies.async_dns_resolver_factory)),
       port_allocator_(std::move(dependencies.allocator)),
+      lna_permission_factory_(std::move(dependencies.lna_permission_factory)),
       ice_transport_factory_(std::move(dependencies.ice_transport_factory)),
       tls_cert_verifier_(std::move(dependencies.tls_cert_verifier)),
       call_(std::move(call)),
@@ -717,10 +717,10 @@ JsepTransportController* PeerConnection::InitializeTransportController_n(
         }
       };
 
-  transport_controller_.reset(
-      new JsepTransportController(env_, network_thread(), port_allocator_.get(),
-                                  async_dns_resolver_factory_.get(),
-                                  payload_type_picker_, std::move(config)));
+  transport_controller_.reset(new JsepTransportController(
+      env_, network_thread(), port_allocator_.get(),
+      async_dns_resolver_factory_.get(), lna_permission_factory_.get(),
+      payload_type_picker_, std::move(config)));
 
   transport_controller_->SubscribeIceConnectionState(
       [this](::webrtc::IceConnectionState s) {
@@ -1563,16 +1563,14 @@ RTCError PeerConnection::SetConfiguration(
   return RTCError::OK();
 }
 
-bool PeerConnection::AddIceCandidate(
-    const IceCandidateInterface* ice_candidate) {
+bool PeerConnection::AddIceCandidate(const IceCandidate* ice_candidate) {
   RTC_DCHECK_RUN_ON(signaling_thread());
   ClearStatsCache();
   return sdp_handler_->AddIceCandidate(ice_candidate);
 }
 
-void PeerConnection::AddIceCandidate(
-    std::unique_ptr<IceCandidateInterface> candidate,
-    std::function<void(RTCError)> callback) {
+void PeerConnection::AddIceCandidate(std::unique_ptr<IceCandidate> candidate,
+                                     std::function<void(RTCError)> callback) {
   RTC_DCHECK_RUN_ON(signaling_thread());
   sdp_handler_->AddIceCandidate(std::move(candidate),
                                 [this, callback](RTCError result) {
@@ -2036,8 +2034,7 @@ void PeerConnection::OnIceGatheringChange(
   Observer()->OnIceGatheringChange(ice_gathering_state_);
 }
 
-void PeerConnection::OnIceCandidate(
-    std::unique_ptr<IceCandidateInterface> candidate) {
+void PeerConnection::OnIceCandidate(std::unique_ptr<IceCandidate> candidate) {
   if (IsClosed()) {
     return;
   }
@@ -2420,8 +2417,8 @@ void PeerConnection::OnTransportControllerCandidatesGathered(
   for (Candidates::const_iterator citer = candidates.begin();
        citer != candidates.end(); ++citer) {
     // Use transport_name as the candidate media id.
-    std::unique_ptr<JsepIceCandidate> candidate(
-        new JsepIceCandidate(transport_name, sdp_mline_index, *citer));
+    std::unique_ptr<IceCandidate> candidate(
+        new IceCandidate(transport_name, sdp_mline_index, *citer));
     sdp_handler_->AddLocalIceCandidate(candidate.get());
     OnIceCandidate(std::move(candidate));
   }

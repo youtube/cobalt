@@ -197,6 +197,131 @@ void CheckFloat64SameValue::GenerateCode(MaglevAssembler* masm,
   }
 }
 
+void Int32Add::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+
+void Int32Add::GenerateCode(MaglevAssembler* masm,
+                            const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  Register out = ToRegister(result());
+  __ add(out, left, right, LeaveCC);
+}
+
+void Int32Subtract::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+void Int32Subtract::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  Register out = ToRegister(result());
+  __ sub(out, left, right, LeaveCC);
+}
+
+void Int32Multiply::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+void Int32Multiply::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  Register out = ToRegister(result());
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register scratch = temps.AcquireScratch();
+
+  // TODO(leszeks): peephole optimise multiplication by a constant.
+  __ smull(out, scratch, left, right);
+}
+
+void Int32MultiplyOverflownBits::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+
+void Int32MultiplyOverflownBits::GenerateCode(MaglevAssembler* masm,
+                                              const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  Register out = ToRegister(result());
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register scratch = temps.AcquireScratch();
+
+  // TODO(leszeks): peephole optimise multiplication by a constant.
+  __ smull(scratch, out, left, right);
+}
+
+void Int32Divide::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+void Int32Divide::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  Register out = ToRegister(result());
+
+  // TODO(leszeks): peephole optimise division by a constant.
+
+  if (CpuFeatures::IsSupported(SUDIV)) {
+    CpuFeatureScope scope(masm, SUDIV);
+    // On ARM, integer division does not trap on overflow or division by zero.
+    // - Division by zero returns 0.
+    // - Signed overflow (INT_MIN / -1) returns INT_MIN.
+    __ sdiv(out, left, right);
+  } else {
+    ZoneLabelRef do_division(masm), done(masm);
+    __ cmp(right, Operand(0));
+    __ JumpToDeferredIf(
+        le,
+        [](MaglevAssembler* masm, ZoneLabelRef do_division, ZoneLabelRef done,
+           Register left, Register right, Register out) {
+          Label right_is_neg;
+          // Truncated value of anything divided by 0 is 0.
+          __ b(ne, &right_is_neg);
+          __ Move(out, 0);
+          __ b(*done);
+
+          // Return -left if right = -1.
+          // This avoids a hardware exception if left = INT32_MIN.
+          // Int32Divide returns a truncated value and according to
+          // ecma262#sec-toint32, the truncated value of INT32_MIN
+          // is INT32_MIN.
+          __ bind(&right_is_neg);
+          __ cmp(right, Operand(-1));
+          __ b(ne, *do_division);
+          __ rsb(out, left, Operand(0));
+          __ b(*done);
+        },
+        do_division, done, left, right, out);
+
+    UseScratchRegisterScope temps(masm);
+    LowDwVfpRegister double_right = temps.AcquireLowD();
+    SwVfpRegister tmp = double_right.low();
+    DwVfpRegister double_left = temps.AcquireD();
+    DwVfpRegister double_res = double_left;
+    __ bind(*do_division);
+    __ vmov(tmp, left);
+    __ vcvt_f64_s32(double_left, tmp);
+    __ vmov(tmp, right);
+    __ vcvt_f64_s32(double_right, tmp);
+    __ vdiv(double_res, double_left, double_right);
+    __ vcvt_s32_f64(tmp, double_res);
+    __ vmov(out, tmp);
+
+    __ bind(*done);
+  }
+}
+
 void Int32AddWithOverflow::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
@@ -788,13 +913,13 @@ void Float64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
   __ VFPCanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
 }
 
-void HoleyFloat64ToFloat64OrUndefined::SetValueLocationConstraints() {
+void ConvertHoleNanToUndefinedNan::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);
   set_temporaries_needed(1);
 }
-void HoleyFloat64ToFloat64OrUndefined::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
+void ConvertHoleNanToUndefinedNan::GenerateCode(MaglevAssembler* masm,
+                                                const ProcessingState& state) {
   DoubleRegister value = ToDoubleRegister(input());
   Label done;
 

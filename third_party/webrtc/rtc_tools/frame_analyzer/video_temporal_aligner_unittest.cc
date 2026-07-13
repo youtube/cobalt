@@ -22,7 +22,7 @@ namespace test {
 
 class VideoTemporalAlignerTest : public ::testing::Test {
  protected:
-  void SetUp() {
+  void SetUp() override {
     reference_video =
         OpenYuvFile(ResourcePath("foreman_128x96", "yuv"), 128, 96);
     ASSERT_TRUE(reference_video);

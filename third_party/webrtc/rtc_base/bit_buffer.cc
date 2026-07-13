@@ -11,6 +11,8 @@
 #include "rtc_base/bit_buffer.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 
 #include "absl/numeric/bits.h"

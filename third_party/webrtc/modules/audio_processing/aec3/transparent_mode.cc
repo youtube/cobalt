@@ -10,8 +10,13 @@
 
 #include "modules/audio_processing/aec3/transparent_mode.h"
 
+#include <cstddef>
+#include <memory>
+
+#include "api/audio/echo_canceller3_config.h"
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
+#include "modules/audio_processing/aec3/aec3_common.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 

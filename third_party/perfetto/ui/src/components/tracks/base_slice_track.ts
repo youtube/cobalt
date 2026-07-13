@@ -268,6 +268,7 @@ export abstract class BaseSliceTrack<
     sliceLayout: Partial<SliceLayout> = {},
     protected readonly depthGuess: number = 0,
     protected readonly instantWidthPx: number = CHEVRON_WIDTH_PX,
+    protected readonly forceTimestampRenderOrder: boolean = false,
   ) {
     // Work out the extra columns.
     // This is the union of the embedder-defined columns and the base columns
@@ -310,23 +311,17 @@ export abstract class BaseSliceTrack<
     return `slice_${this.trackUuid}`;
   }
 
-  async onCreate(): Promise<void> {
+  private oldQuery?: string;
+
+  private async initialize(): Promise<void> {
+    // This disposes all already initialized stuff and empties the trash.
+    await this.trash.asyncDispose();
+
     const result = await this.onInit();
     result && this.trash.use(result);
 
     // Calc the number of rows based on the depth col.
-    const rowCount = assertExists(
-      // `ORDER BY .. LIMIT 1` is faster than `MAX(depth)`
-      (
-        await this.engine.query(`
-          SELECT
-            ifnull(depth, 0) + 1 AS rowCount
-          FROM (${this.getSqlSource()})
-          ORDER BY depth DESC
-          LIMIT 1
-        `)
-      ).maybeFirstRow({rowCount: NUM})?.rowCount,
-    );
+    const rowCount = await this.getRowCount();
 
     // TODO(hjd): Consider case below:
     // raw:
@@ -382,7 +377,7 @@ export abstract class BaseSliceTrack<
     await this.engine.query(`
       create virtual table ${this.getTableName()}
       using __intrinsic_slice_mipmap((
-        select id, ts, dur, ((layer * ${rowCount}) + depth) as depth
+        select id, ts, dur, ((layer * ${rowCount ?? 1}) + depth) as depth
         from (${this.getSqlSource()})
         where dur != -1
       ));
@@ -390,10 +385,35 @@ export abstract class BaseSliceTrack<
 
     this.trash.defer(async () => {
       await this.engine.tryQuery(`drop table ${this.getTableName()}`);
+      this.oldQuery = undefined;
+      this.slicesKey = CacheKey.zero();
     });
   }
 
+  /**
+   * Calculate the number of rows in the track from the max depth value.
+   *
+   * @returns The number of rows in the track, or undefined if track is empty.
+   */
+  private async getRowCount(): Promise<number | undefined> {
+    const result = await this.engine.query(`
+      SELECT
+        IFNULL(depth, 0) + 1 AS rowCount
+      FROM (${this.getSqlSource()})
+      ORDER BY depth DESC
+      LIMIT 1
+    `);
+
+    return result.maybeFirstRow({rowCount: NUM})?.rowCount;
+  }
+
   async onUpdate({visibleWindow, size}: TrackRenderContext): Promise<void> {
+    const query = this.getSqlSource();
+    if (query !== this.oldQuery) {
+      await this.initialize();
+      this.oldQuery = query;
+    }
+
     const windowSizePx = Math.max(1, size.width);
     const timespan = visibleWindow.toTimeSpan();
     const rawSlicesKey = CacheKey.create(
@@ -501,17 +521,20 @@ export abstract class BaseSliceTrack<
 
     // Second pass: fill slices by color.
     const vizSlicesByColor = vizSlices.slice();
-    vizSlicesByColor.sort((a, b) =>
-      colorCompare(a.colorScheme.base, b.colorScheme.base),
-    );
+    if (!this.forceTimestampRenderOrder) {
+      vizSlicesByColor.sort((a, b) =>
+        colorCompare(a.colorScheme.base, b.colorScheme.base),
+      );
+    }
     let lastColor = undefined;
-    for (const slice of vizSlicesByColor) {
+    for (const slice of vizSlices) {
       const color = slice.isHighlighted
-        ? slice.colorScheme.variant.cssString
-        : slice.colorScheme.base.cssString;
-      if (color !== lastColor) {
-        lastColor = color;
-        ctx.fillStyle = color;
+        ? slice.colorScheme.variant
+        : slice.colorScheme.base;
+      const colorString = color.cssString;
+      if (colorString !== lastColor) {
+        lastColor = colorString;
+        ctx.fillStyle = colorString;
       }
       const y = padding + slice.depth * (sliceHeight + rowSpacing);
       if (slice.flags & SLICE_FLAGS_INSTANT) {
@@ -526,6 +549,7 @@ export abstract class BaseSliceTrack<
           y,
           w,
           sliceHeight,
+          color,
           !CROP_INCOMPLETE_SLICE_FLAG.get(),
         );
       } else {

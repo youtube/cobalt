@@ -230,6 +230,8 @@ static const EVP_MD evp_md_blake2b256 = {
 
 const EVP_MD *EVP_blake2b256(void) { return &evp_md_blake2b256; }
 
+static_assert(sizeof(BLAKE2B_CTX) <= EVP_MAX_MD_DATA_SIZE);
+
 
 static void md4_init(EVP_MD_CTX *ctx) {
   BSSL_CHECK(MD4_Init(reinterpret_cast<MD4_CTX *>(ctx->md_data)));
@@ -257,6 +259,9 @@ static const EVP_MD evp_md_md4 = {
 
 const EVP_MD *EVP_md4(void) { return &evp_md_md4; }
 
+static_assert(sizeof(MD4_CTX) <= EVP_MAX_MD_DATA_SIZE);
+
+
 static void md5_init(EVP_MD_CTX *ctx) {
   BSSL_CHECK(MD5_Init(reinterpret_cast<MD5_CTX *>(ctx->md_data)));
 }
@@ -276,6 +281,9 @@ static const EVP_MD evp_md_md5 = {
 };
 
 const EVP_MD *EVP_md5(void) { return &evp_md_md5; }
+
+static_assert(sizeof(MD5_CTX) <= EVP_MAX_MD_DATA_SIZE);
+
 
 typedef struct {
   MD5_CTX md5;
@@ -312,3 +320,5 @@ const EVP_MD evp_md_md5_sha1 = {
 };
 
 const EVP_MD *EVP_md5_sha1(void) { return &evp_md_md5_sha1; }
+
+static_assert(sizeof(MD5_SHA1_CTX) <= EVP_MAX_MD_DATA_SIZE);

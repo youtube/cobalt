@@ -147,6 +147,26 @@ func addExtensionTests() {
 				},
 				flags:         []string{"-expect-server-name", "example.com"},
 				resumeSession: true,
+				expectations: connectionExpectations{
+					serverNameAck: ptrTo(true),
+				},
+			})
+			testCases = append(testCases, testCase{
+				protocol: protocol,
+				testType: serverTest,
+				name:     "ServerNameExtensionServer-NoACK-" + suffix,
+				config: Config{
+					MaxVersion: ver.version,
+					ServerName: "example.com",
+				},
+				flags: []string{
+					"-expect-server-name", "example.com",
+					"-no-server-name-ack",
+				},
+				resumeSession: true,
+				expectations: connectionExpectations{
+					serverNameAck: ptrTo(false),
+				},
 			})
 
 			// Test ALPN.

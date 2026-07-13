@@ -145,7 +145,7 @@ class FakeDtlsTransport : public DtlsTransportInternal {
       }
       // If the `dtls_role_` is unset, set it to SSL_CLIENT by default.
       if (!dtls_role_) {
-        dtls_role_ = std::move(webrtc::SSL_CLIENT);
+        dtls_role_ = std::move(SSL_CLIENT);
       }
       SetDtlsState(DtlsTransportState::kConnected);
       ice_transport_->SetDestination(
@@ -320,10 +320,10 @@ class FakeDtlsTransport : public DtlsTransportInternal {
   scoped_refptr<RTCCertificate> local_cert_;
   FakeSSLCertificate* remote_cert_ = nullptr;
   bool do_dtls_ = false;
-  SSLProtocolVersion ssl_max_version_ = webrtc::SSL_PROTOCOL_DTLS_12;
+  SSLProtocolVersion ssl_max_version_ = SSL_PROTOCOL_DTLS_12;
   SSLFingerprint dtls_fingerprint_;
   std::optional<SSLRole> dtls_role_;
-  int crypto_suite_ = webrtc::kSrtpAes128CmSha1_80;
+  int crypto_suite_ = kSrtpAes128CmSha1_80;
   std::optional<int> ssl_cipher_suite_;
 
   DtlsTransportState dtls_state_ = DtlsTransportState::kNew;

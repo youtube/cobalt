@@ -38,7 +38,7 @@ enum { kNoSid, kForceSid };
 
 class CngTest : public ::testing::Test {
  protected:
-  virtual void SetUp();
+  void SetUp() override;
 
   void TestCngEncode(int sample_rate_hz, int quality);
 

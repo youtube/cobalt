@@ -202,7 +202,7 @@ bool RtpExtension::IsEncryptionSupported(absl::string_view uri) {
       // srtpfilter. External auth is used by Chromium and replaces the
       // extension header value of "kAbsSendTimeUri", so it must not be
       // encrypted (which can't be done by Chromium).
-      uri != webrtc::RtpExtension::kAbsSendTimeUri &&
+      uri != RtpExtension::kAbsSendTimeUri &&
 #endif
       uri != RtpExtension::kEncryptHeaderExtensionsUri;
 }

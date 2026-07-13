@@ -11,10 +11,13 @@
 #include "modules/audio_processing/agc2/vad_wrapper.h"
 
 #include <array>
+#include <memory>
 #include <utility>
 
+#include "api/audio/audio_view.h"
 #include "common_audio/resampler/include/push_resampler.h"
 #include "modules/audio_processing/agc2/agc2_common.h"
+#include "modules/audio_processing/agc2/cpu_features.h"
 #include "modules/audio_processing/agc2/rnn_vad/common.h"
 #include "modules/audio_processing/agc2/rnn_vad/features_extraction.h"
 #include "modules/audio_processing/agc2/rnn_vad/rnn.h"
@@ -31,7 +34,7 @@ class MonoVadImpl : public VoiceActivityDetectorWrapper::MonoVad {
       : features_extractor_(cpu_features), rnn_vad_(cpu_features) {}
   MonoVadImpl(const MonoVadImpl&) = delete;
   MonoVadImpl& operator=(const MonoVadImpl&) = delete;
-  ~MonoVadImpl() = default;
+  ~MonoVadImpl() override = default;
 
   int SampleRateHz() const override { return rnn_vad::kSampleRate24kHz; }
   void Reset() override { rnn_vad_.Reset(); }

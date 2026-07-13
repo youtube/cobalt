@@ -27,7 +27,6 @@ rtc_library("rtc_stats") {
     "../api:scoped_refptr",
     "../api/units:timestamp",
     "../rtc_base:checks",
-    "../rtc_base:macromagic",
     "../rtc_base:stringutils",
   ]
 }

@@ -10,15 +10,20 @@
 
 #include "modules/audio_processing/aec3/residual_echo_estimator.h"
 
-#include <stddef.h>
-
 #include <algorithm>
+#include <array>
+#include <cstddef>
 #include <vector>
 
 #include "api/array_view.h"
+#include "api/audio/echo_canceller3_config.h"
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
+#include "modules/audio_processing/aec3/aec3_common.h"
+#include "modules/audio_processing/aec3/aec_state.h"
+#include "modules/audio_processing/aec3/render_buffer.h"
 #include "modules/audio_processing/aec3/reverb_model.h"
+#include "modules/audio_processing/aec3/spectrum_buffer.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {

@@ -10,10 +10,9 @@
 
 #include "test/network/network_emulation.h"
 
-#include <stdint.h>
-
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <limits>
 #include <map>

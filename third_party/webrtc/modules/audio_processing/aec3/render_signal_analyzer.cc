@@ -10,13 +10,18 @@
 
 #include "modules/audio_processing/aec3/render_signal_analyzer.h"
 
-#include <math.h>
-
 #include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstddef>
+#include <optional>
 #include <utility>
-#include <vector>
 
 #include "api/array_view.h"
+#include "api/audio/echo_canceller3_config.h"
+#include "modules/audio_processing/aec3/aec3_common.h"
+#include "modules/audio_processing/aec3/block.h"
+#include "modules/audio_processing/aec3/render_buffer.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {

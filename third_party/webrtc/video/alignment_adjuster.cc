@@ -84,8 +84,8 @@ int AlignmentAdjuster::GetAlignmentAndMaybeAdjustScaleFactors(
   }
 
   // Update alignment to also apply to simulcast layers.
-  const bool has_scale_resolution_down_by = absl::c_any_of(
-      config->simulcast_layers, [](const webrtc::VideoStream& layer) {
+  const bool has_scale_resolution_down_by =
+      absl::c_any_of(config->simulcast_layers, [](const VideoStream& layer) {
         return layer.scale_resolution_down_by >= 1.0;
       });
 

@@ -137,7 +137,7 @@ struct RTC_EXPORT RtpCodec {
   std::string name;
 
   // The media type of this codec. Equivalent to MIME top-level type.
-  webrtc::MediaType kind = webrtc::MediaType::AUDIO;
+  MediaType kind = MediaType::AUDIO;
 
   // If unset, the implementation default is used.
   std::optional<int> clock_rate;
@@ -195,7 +195,7 @@ struct RTC_EXPORT RtpCodecCapability : public RtpCodec {
 
   template <typename Sink>
   friend void AbslStringify(Sink& sink, const RtpCodecCapability& cap) {
-    if (cap.kind == webrtc::MediaType::AUDIO) {
+    if (cap.kind == MediaType::AUDIO) {
       absl::Format(&sink, "[audio/%s/%d/%d]", cap.name,
                    cap.clock_rate.value_or(0), cap.num_channels.value_or(1));
     } else {
@@ -214,7 +214,7 @@ struct RTC_EXPORT RtpCodecCapability : public RtpCodec {
 //
 // Note that ORTC includes a "kind" field, but we omit this because it's
 // redundant; if you call
-// "RtpReceiver::GetCapabilities(webrtc::MediaType::AUDIO)", you know you're
+// "RtpReceiver::GetCapabilities(MediaType::AUDIO)", you know you're
 // getting audio capabilities.
 struct RTC_EXPORT RtpHeaderExtensionCapability {
   // URI of this extension, as defined in RFC8285.
@@ -250,6 +250,17 @@ struct RTC_EXPORT RtpHeaderExtensionCapability {
   }
   bool operator!=(const RtpHeaderExtensionCapability& o) const {
     return !(*this == o);
+  }
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink,
+                            const RtpHeaderExtensionCapability& cap) {
+    absl::Format(&sink, "%s", cap.uri);
+    if (cap.direction != RtpTransceiverDirection::kSendRecv) {
+      absl::Format(&sink, "/%v", cap.direction);
+    }
+    if (cap.preferred_encrypt) {
+      sink.Append(" (encrypt)");
+    }
   }
 };
 
@@ -383,7 +394,7 @@ struct RTC_EXPORT RtpExtension {
   static constexpr char kRepairedRidUri[] =
       "urn:ietf:params:rtp-hdrext:sdes:repaired-rtp-stream-id";
 
-  // Header extension to propagate webrtc::VideoFrame id field
+  // Header extension to propagate VideoFrame id field
   static constexpr char kVideoFrameTrackingIdUri[] =
       "http://www.webrtc.org/experiments/rtp-hdrext/video-frame-tracking-id";
 
@@ -465,6 +476,14 @@ struct RTC_EXPORT RtpEncodingParameters {
   // internally without any event. Another way of looking at this is that an
   // unset SSRC acts as a "wildcard" SSRC.
   std::optional<uint32_t> ssrc;
+
+  // The list of CSRCs to be included in the RTP header. Defaults to an empty
+  // list. At most 15 CSRCs can be specified, and they must be the same for all
+  // encodings in an RtpParameters struct.
+  //
+  // If this field is set, the list is replaced with the specified values.
+  // Otherwise, it is left unchanged. Specify an empty vector to clear the list.
+  std::optional<std::vector<uint32_t>> csrcs;
 
   // The relative bitrate priority of this encoding. Currently this is
   // implemented for the entire rtp sender by using the value of the first
@@ -550,7 +569,8 @@ struct RTC_EXPORT RtpEncodingParameters {
   std::optional<RtpCodec> codec;
 
   bool operator==(const RtpEncodingParameters& o) const {
-    return ssrc == o.ssrc && bitrate_priority == o.bitrate_priority &&
+    return ssrc == o.ssrc && csrcs == o.csrcs &&
+           bitrate_priority == o.bitrate_priority &&
            network_priority == o.network_priority &&
            max_bitrate_bps == o.max_bitrate_bps &&
            min_bitrate_bps == o.min_bitrate_bps &&
@@ -581,6 +601,10 @@ struct RTC_EXPORT RtpCodecParameters : public RtpCodec {
     return RtpCodec::operator==(o) && payload_type == o.payload_type;
   }
   bool operator!=(const RtpCodecParameters& o) const { return !(*this == o); }
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, const RtpCodecParameters& p) {
+    absl::Format(&sink, "[%d: %s]", p.payload_type, p.mime_type());
+  }
 };
 
 // RtpCapabilities is used to represent the static capabilities of an endpoint.

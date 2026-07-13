@@ -17,6 +17,7 @@
 #include <limits>
 #include <vector>
 
+#include "api/field_trials.h"
 #include "media/base/fake_rtp.h"
 #include "pc/test/srtp_test_util.h"
 #include "rtc_base/buffer.h"
@@ -24,9 +25,9 @@
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/ssl_stream_adapter.h"  // For webrtc::SRTP_*
 #include "system_wrappers/include/metrics.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 #include "third_party/libsrtp/include/srtp.h"
 
 using ::testing::ElementsAre;
@@ -43,7 +44,7 @@ class SrtpSessionTest : public ::testing::Test {
   }
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     rtp_len_ = sizeof(kPcmuFrame);
     rtcp_len_ = sizeof(kRtcpReport);
     rtp_packet_.EnsureCapacity(rtp_len_ + 10);
@@ -78,7 +79,7 @@ class SrtpSessionTest : public ::testing::Test {
     EXPECT_EQ(
         0, std::memcmp(kRtcpReport, rtcp_packet_.data(), rtcp_packet_.size()));
   }
-  test::ScopedKeyValueConfig field_trials_;
+  FieldTrials field_trials_ = CreateTestFieldTrials();
   SrtpSession s1_;
   SrtpSession s2_;
   CopyOnWriteBuffer rtp_packet_;

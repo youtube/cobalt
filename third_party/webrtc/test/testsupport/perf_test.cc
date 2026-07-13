@@ -10,21 +10,25 @@
 
 #include "test/testsupport/perf_test.h"
 
-#include <stdio.h>
-
 #include <algorithm>
-#include <fstream>
+#include <cmath>
+#include <cstdio>
+#include <ostream>
 #include <set>
 #include <sstream>
+#include <string>
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "api/array_view.h"
 #include "api/numerics/samples_stats_counter.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/thread_annotations.h"
 #include "test/testsupport/file_utils.h"
 #include "test/testsupport/perf_test_histogram_writer.h"
+#include "test/testsupport/perf_test_result_writer.h"
 
 namespace webrtc {
 namespace test {

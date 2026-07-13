@@ -10,7 +10,6 @@
 
 #include <stdio.h>
 
-#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -666,7 +665,7 @@ void Loopback() {
     params.ss[screenshare_idx].infer_streams = true;
   }
 
-  VideoQualityTest fixture(nullptr);
+  VideoQualityTest fixture;
 
   std::vector<std::string> stream_descriptors;
   stream_descriptors.push_back(ScreenshareStream0());

@@ -52,7 +52,7 @@ class PixelLimitResource : public Resource {
   TaskQueueBase* const task_queue_;
   VideoStreamInputStateProvider* const input_state_provider_;
   std::optional<int> max_pixels_ RTC_GUARDED_BY(task_queue_);
-  webrtc::ResourceListener* listener_ RTC_GUARDED_BY(task_queue_);
+  ResourceListener* listener_ RTC_GUARDED_BY(task_queue_);
   RepeatingTaskHandle repeating_task_ RTC_GUARDED_BY(task_queue_);
 };
 

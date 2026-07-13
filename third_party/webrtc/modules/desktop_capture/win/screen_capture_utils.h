@@ -11,6 +11,14 @@
 #ifndef MODULES_DESKTOP_CAPTURE_WIN_SCREEN_CAPTURE_UTILS_H_
 #define MODULES_DESKTOP_CAPTURE_WIN_SCREEN_CAPTURE_UTILS_H_
 
+#include <optional>
+#include <string>
+#include <vector>
+
+#include "modules/desktop_capture/desktop_capturer.h"
+#include "modules/desktop_capture/desktop_geometry.h"
+#include "rtc_base/system/rtc_export.h"
+
 #if defined(WEBRTC_WIN)
 // Forward declare HMONITOR in a windows.h compatible way so that we can avoid
 // including windows.h.
@@ -20,12 +28,6 @@
 WEBRTC_DECLARE_HANDLE(HMONITOR);
 #undef WEBRTC_DECLARE_HANDLE
 #endif
-
-#include <string>
-#include <vector>
-
-#include "modules/desktop_capture/desktop_capturer.h"
-#include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
 

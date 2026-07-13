@@ -9,17 +9,11 @@
  */
 #include "net/dcsctp/packet/error_cause/error_cause.h"
 
-#include <stddef.h>
-
-#include <cstdint>
-#include <memory>
+#include <cstddef>
 #include <optional>
 #include <string>
-#include <utility>
 #include <vector>
 
-#include "api/array_view.h"
-#include "net/dcsctp/common/math.h"
 #include "net/dcsctp/packet/error_cause/cookie_received_while_shutting_down_cause.h"
 #include "net/dcsctp/packet/error_cause/invalid_mandatory_parameter_cause.h"
 #include "net/dcsctp/packet/error_cause/invalid_stream_identifier_cause.h"
@@ -33,6 +27,7 @@
 #include "net/dcsctp/packet/error_cause/unrecognized_parameter_cause.h"
 #include "net/dcsctp/packet/error_cause/unresolvable_address_cause.h"
 #include "net/dcsctp/packet/error_cause/user_initiated_abort_cause.h"
+#include "net/dcsctp/packet/parameter/parameter.h"
 #include "rtc_base/strings/string_builder.h"
 
 namespace dcsctp {

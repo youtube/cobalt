@@ -11,10 +11,15 @@
 #ifndef TEST_FUZZERS_FUZZ_DATA_HELPER_H_
 #define TEST_FUZZERS_FUZZ_DATA_HELPER_H_
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
+#include <type_traits>
 
 #include "api/array_view.h"
 #include "modules/rtp_rtcp/source/byte_io.h"
+#include "rtc_base/checks.h"
 
 namespace webrtc {
 namespace test {

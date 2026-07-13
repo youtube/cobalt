@@ -11,6 +11,8 @@
 #ifndef RTC_BASE_TEST_CERTIFICATE_VERIFIER_H_
 #define RTC_BASE_TEST_CERTIFICATE_VERIFIER_H_
 
+#include <cstddef>
+
 #include "rtc_base/ssl_certificate.h"
 
 namespace webrtc {

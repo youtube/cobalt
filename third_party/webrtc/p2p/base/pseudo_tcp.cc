@@ -203,7 +203,7 @@ void ReportStats() {
 
 uint32_t PseudoTcp::Now() {
 #if 0  // Use this to synchronize timers with logging timestamps (easier debug)
-  return static_cast<uint32_t>(webrtc::TimeSince(StartTime()));
+  return static_cast<uint32_t>(TimeSince(StartTime()));
 #else
   return Time32();
 #endif
@@ -625,10 +625,9 @@ bool PseudoTcp::clock_check(uint32_t now, long& nTimeout) {
 #if PSEUDO_KEEPALIVE
   if (m_state == TCP_ESTABLISHED) {
     nTimeout = std::min<int32_t>(
-        nTimeout,
-        webrtc::TimeDiff32(
-            m_lasttraffic + (m_bOutgoing ? IDLE_PING * 3 / 2 : IDLE_PING),
-            now));
+        nTimeout, TimeDiff32(m_lasttraffic +
+                                 (m_bOutgoing ? IDLE_PING * 3 / 2 : IDLE_PING),
+                             now));
   }
 #endif  // PSEUDO_KEEPALIVE
   return true;

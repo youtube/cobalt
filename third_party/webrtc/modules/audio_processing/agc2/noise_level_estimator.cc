@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <numeric>
 
 #include "api/audio/audio_view.h"
@@ -80,7 +81,7 @@ class NoiseFloorEstimator : public NoiseLevelEstimator {
   }
   NoiseFloorEstimator(const NoiseFloorEstimator&) = delete;
   NoiseFloorEstimator& operator=(const NoiseFloorEstimator&) = delete;
-  ~NoiseFloorEstimator() = default;
+  ~NoiseFloorEstimator() override = default;
 
   float Analyze(DeinterleavedView<const float> frame) override {
     // Detect sample rate changes.

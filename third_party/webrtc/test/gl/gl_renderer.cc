@@ -10,10 +10,18 @@
 
 #include "test/gl/gl_renderer.h"
 
-#include <string.h>
+#include <cstdint>
+#include <cstring>
 
+#include "api/video/video_frame.h"
 #include "common_video/libyuv/include/webrtc_libyuv.h"
 #include "rtc_base/checks.h"
+
+#ifdef WEBRTC_MAC
+#include <OpenGL/gl.h>
+#else
+#include <GL/gl.h>
+#endif
 
 namespace webrtc {
 namespace test {

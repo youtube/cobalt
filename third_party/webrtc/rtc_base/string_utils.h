@@ -37,7 +37,7 @@ const size_t SIZE_UNKNOWN = static_cast<size_t>(-1);
 // std::map that support heterogenous lookup.
 //
 // Example usage:
-// std::map<std::string, int, webrtc::AbslStringViewCmp> my_map;
+// std::map<std::string, int, AbslStringViewCmp> my_map;
 struct AbslStringViewCmp {
   using is_transparent = void;
   bool operator()(absl::string_view a, absl::string_view b) const {

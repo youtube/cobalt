@@ -23,6 +23,7 @@
 #include "api/dtls_transport_interface.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/field_trials.h"
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
@@ -64,9 +65,9 @@
 #include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 #include "test/wait_until.h"
 
 using webrtc::Candidate;
@@ -137,7 +138,8 @@ class JsepTransportControllerTest : public JsepTransportController::Observer,
     config.on_dtls_handshake_error_ = [](SSLHandshakeError s) {};
     transport_controller_ = std::make_unique<JsepTransportController>(
         env_, network_thread, port_allocator,
-        nullptr /* async_resolver_factory */, payload_type_picker_,
+        /*async_resolver_factory=*/nullptr,
+        /*lna_permission_factory=*/nullptr, payload_type_picker_,
         std::move(config));
     SendTask(network_thread, [&] { ConnectTransportControllerSignals(); });
   }
@@ -375,7 +377,7 @@ class JsepTransportControllerTest : public JsepTransportController::Observer,
     return true;
   }
 
-  test::ScopedKeyValueConfig field_trials_;
+  FieldTrials field_trials_ = CreateTestFieldTrials();
   Environment env_;
   AutoThread main_thread_;
   // Information received from signals from transport controller.

@@ -33,6 +33,7 @@
 #include "api/audio_codecs/opus/audio_decoder_opus.h"
 #include "api/audio_codecs/opus/audio_encoder_opus.h"
 #include "api/environment/environment_factory.h"
+#include "api/field_trials.h"
 #include "api/neteq/default_neteq_factory.h"
 #include "api/neteq/neteq.h"
 #include "common_audio/vad/include/vad.h"
@@ -41,13 +42,15 @@
 #include "modules/audio_coding/include/audio_coding_module.h"
 #include "modules/audio_coding/test/Channel.h"
 #include "rtc_base/strings/string_builder.h"
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
 
 namespace webrtc {
 
 TestRedFec::TestRedFec()
-    : env_(CreateEnvironment(&field_trials_)),
+    : env_(CreateEnvironment(
+          std::make_unique<FieldTrials>(CreateTestFieldTrials()))),
       encoder_factory_(CreateAudioEncoderFactory<AudioEncoderG711,
                                                  AudioEncoderG722,
                                                  AudioEncoderL16,
@@ -171,7 +174,7 @@ void TestRedFec::RegisterSendCodec(
       config.payload_type = red_payload_type;
       config.speech_encoder = std::move(encoder);
       encoder = std::make_unique<AudioEncoderCopyRed>(std::move(config),
-                                                      field_trials_);
+                                                      env_.field_trials());
       receive_codecs.emplace(
           std::make_pair(red_payload_type,
                          SdpAudioFormat("red", codec_format.clockrate_hz, 1)));

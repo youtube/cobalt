@@ -11,14 +11,16 @@
 #ifndef TEST_MAPPABLE_NATIVE_BUFFER_H_
 #define TEST_MAPPABLE_NATIVE_BUFFER_H_
 
-#include <utility>
+#include <cstdint>
 #include <vector>
 
 #include "api/array_view.h"
+#include "api/scoped_refptr.h"
 #include "api/video/video_frame.h"
-#include "common_video/include/video_frame_buffer.h"
+#include "api/video/video_frame_buffer.h"
 #include "rtc_base/ref_counted_object.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 namespace test {

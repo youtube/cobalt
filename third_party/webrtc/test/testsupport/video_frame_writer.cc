@@ -14,12 +14,16 @@
 #include <cstdlib>
 #include <limits>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "api/scoped_refptr.h"
 #include "api/video/i420_buffer.h"
+#include "api/video/video_frame.h"
 #include "common_video/libyuv/include/webrtc_libyuv.h"
-#include "rtc_base/logging.h"
+#include "rtc_base/buffer.h"
+#include "rtc_base/checks.h"
+#include "test/testsupport/frame_writer.h"
 
 namespace webrtc {
 namespace test {

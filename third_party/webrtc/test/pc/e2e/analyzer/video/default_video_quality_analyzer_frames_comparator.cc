@@ -11,6 +11,7 @@
 #include "test/pc/e2e/analyzer/video/default_video_quality_analyzer_frames_comparator.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <map>
 #include <optional>
 #include <string>
@@ -18,8 +19,12 @@
 #include <vector>
 
 #include "api/array_view.h"
+#include "api/numerics/samples_stats_counter.h"
 #include "api/scoped_refptr.h"
-#include "api/video/i420_buffer.h"
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
+#include "api/video/video_frame.h"
+#include "api/video/video_frame_buffer.h"
 #include "api/video/video_frame_type.h"
 #include "common_video/libyuv/include/webrtc_libyuv.h"
 #include "rtc_base/checks.h"

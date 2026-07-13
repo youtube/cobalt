@@ -68,7 +68,7 @@ private:
         static const GlyphKey GetKey(const Glyph* glyph);
         static uint32_t Hash(GlyphKey key);
     };
-    
+
     skia_private::THashTable<Glyph*, GlyphKey, HashTraits> fCache;
 
     // Store for the glyph information.

@@ -40,28 +40,28 @@
 namespace webrtc {
 
 namespace {
-static const int kDefaultWidth = 1280;
-static const int kDefaultHeight = 720;
-static const int kDefaultFrameRate = 30;
-static const uint32_t kDefaultMinBitrateBps = 60000;
-static const uint32_t kDefaultTargetBitrateBps = 2000000;
-static const uint32_t kDefaultMaxBitrateBps = 2000000;
-static const uint32_t kDefaultMinTransmitBitrateBps = 400000;
-static const int kDefaultMaxQp = 48;
-static const uint32_t kScreenshareTl0BitrateBps = 120000;
-static const uint32_t kScreenshareConferenceTl0BitrateBps = 200000;
-static const uint32_t kScreenshareCodecTargetBitrateBps = 200000;
-static const uint32_t kScreenshareDefaultFramerate = 5;
+const int kDefaultWidth = 1280;
+const int kDefaultHeight = 720;
+const int kDefaultFrameRate = 30;
+const uint32_t kDefaultMinBitrateBps = 60000;
+const uint32_t kDefaultTargetBitrateBps = 2000000;
+const uint32_t kDefaultMaxBitrateBps = 2000000;
+const uint32_t kDefaultMinTransmitBitrateBps = 400000;
+const int kDefaultMaxQp = 48;
+const uint32_t kScreenshareTl0BitrateBps = 120000;
+const uint32_t kScreenshareConferenceTl0BitrateBps = 200000;
+const uint32_t kScreenshareCodecTargetBitrateBps = 200000;
+const uint32_t kScreenshareDefaultFramerate = 5;
 // Bitrates for the temporal layers of the higher screenshare simulcast stream.
-static const uint32_t kHighScreenshareTl0Bps = 800000;
-static const uint32_t kHighScreenshareTl1Bps = 1200000;
+const uint32_t kHighScreenshareTl0Bps = 800000;
+const uint32_t kHighScreenshareTl1Bps = 1200000;
 }  // namespace
 
 // TODO(sprang): Extend coverage to handle the rest of the codec initializer.
 class VideoCodecInitializerTest : public ::testing::Test {
  public:
   VideoCodecInitializerTest() {}
-  virtual ~VideoCodecInitializerTest() {}
+  ~VideoCodecInitializerTest() override {}
 
  protected:
   void SetUpFor(VideoCodecType type,

@@ -1216,6 +1216,11 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 1, Type::String());
       CheckTypeIs(node, Type::Boolean());
       break;
+    case IrOpcode::kStringOrOddballStrictEqual:
+      CheckValueInputIs(node, 0, Type::StringOrOddball());
+      CheckValueInputIs(node, 1, Type::StringOrOddball());
+      CheckTypeIs(node, Type::Boolean());
+      break;
     case IrOpcode::kStringToNumber:
       CheckValueInputIs(node, 0, Type::String());
       CheckTypeIs(node, Type::Number());
@@ -1598,6 +1603,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::StringOrStringWrapper());
       break;
+    case IrOpcode::kCheckStringOrOddball:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckTypeIs(node, Type::StringOrOddball());
+      break;
     case IrOpcode::kCheckSymbol:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::Symbol());
@@ -1618,6 +1627,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kCheckedInt32Mul:
     case IrOpcode::kCheckedInt32ToTaggedSigned:
     case IrOpcode::kCheckedInt64ToInt32:
+    case IrOpcode::kCheckedInt64ToAdditiveSafeInteger:
     case IrOpcode::kCheckedInt64ToTaggedSigned:
     case IrOpcode::kCheckedUint32Bounds:
     case IrOpcode::kCheckedUint32ToInt32:

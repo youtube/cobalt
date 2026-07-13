@@ -248,6 +248,15 @@
             "issue": "http://anglebug.com/42262239"
         },
         {
+            "name": "uses_second_component_for_stencil_border_color",
+            "category": "Features",
+            "description": [
+                "Implementation utilizes second component of the INT custom border color ",
+                "for undefined format when sampling from a stencil texture."
+            ],
+            "issue": "http://issuetracker.google.com/390710636"
+        },
+        {
             "name": "supports_multi_draw_indirect",
             "category": "Features",
             "description": [
@@ -1888,6 +1897,22 @@
                 "VkDevice supports VK_EXT_texture_compression_astc_hdr extension"
             ],
             "issue": "https://anglebug.com/379186304"
+        },
+        {
+            "name": "supports_astc_decode_mode",
+            "category": "Features",
+            "description": [
+                "VkDevice supports VK_EXT_astc_decode_mode extension"
+            ],
+            "issue": "https://anglebug.com/419403188"
+        },
+        {
+            "name": "supports_astc_decode_mode_rgb9e5",
+            "category": "Features",
+            "description": [
+                "VkDevice supports VK_EXT_astc_decode_mode extension"
+            ],
+            "issue": "https://anglebug.com/419403188"
         },
         {
             "name": "supports_astc_hdr_3d_textures",

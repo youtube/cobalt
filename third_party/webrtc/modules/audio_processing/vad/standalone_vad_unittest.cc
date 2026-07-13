@@ -10,10 +10,12 @@
 
 #include "modules/audio_processing/vad/standalone_vad.h"
 
-#include <string.h>
-
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
 #include <memory>
 
+#include "modules/audio_processing/vad/common.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
 

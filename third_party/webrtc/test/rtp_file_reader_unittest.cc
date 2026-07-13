@@ -10,8 +10,10 @@
 
 #include "test/rtp_file_reader.h"
 
+#include <cstdint>
 #include <map>
 #include <memory>
+#include <string>
 
 #include "api/array_view.h"
 #include "modules/rtp_rtcp/source/rtp_util.h"

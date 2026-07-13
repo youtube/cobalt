@@ -26,7 +26,7 @@ using ::testing::ElementsAre;
 using ::testing::Field;
 using PacketInfo = StreamFeedbackObserver::StreamPacketInfo;
 
-static constexpr uint32_t kSsrc = 8492;
+constexpr uint32_t kSsrc = 8492;
 
 class MockStreamFeedbackObserver : public StreamFeedbackObserver {
  public:

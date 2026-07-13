@@ -472,9 +472,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // {instance_type} is unused from this point, so we can use as scratch.
     Register scratch = instance_type;
 
-    Register scaled_index = scratch;
-    Sll32(scaled_index, index, Operand(1));
-    AddWord(result, string, Operand(scaled_index));
+    CalcScaledAddress(result, string, index, 1);
     Lhu(result, MemOperand(result, OFFSET_OF_DATA_START(SeqTwoByteString) -
                                        kHeapObjectTag));
 
@@ -491,8 +489,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
                              Label::kNear);
 
       Register second_code_point = scratch;
-      Sll32(second_code_point, index, Operand(1));
-      AddWord(second_code_point, string, second_code_point);
+      CalcScaledAddress(second_code_point, string, index, 1);
       Lhu(second_code_point,
           MemOperand(second_code_point,
                      OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag));
@@ -530,9 +527,9 @@ void MaglevAssembler::SeqOneByteStringCharCodeAt(Register result,
                                                  Register string,
                                                  Register index) {
   ASM_CODE_COMMENT(this);
-  TemporaryRegisterScope scope(this);
-  Register scratch = scope.AcquireScratch();
   if (v8_flags.debug_code) {
+    TemporaryRegisterScope scope(this);
+    Register scratch = scope.AcquireScratch();
     // Check if {string} is a string.
     AssertNotSmi(string);
     LoadMap(scratch, string);
@@ -545,10 +542,13 @@ void MaglevAssembler::SeqOneByteStringCharCodeAt(Register result,
     CompareInt32AndAssert(scratch, kSeqOneByteStringTag, kEqual,
                           AbortReason::kUnexpectedValue);
     LoadInt32(scratch, FieldMemOperand(string, offsetof(String, length_)));
-    scope.IncludeScratch({s7});  // Use s7 to avoid no enough scrachreg.
+    // Use kMaglevFlagsRegister to avoid no enough scratch reg.
+    scope.IncludeScratch({kMaglevFlagsRegister});
     CompareInt32AndAssert(index, scratch, kUnsignedLessThan,
                           AbortReason::kUnexpectedValue);
   }
+  TemporaryRegisterScope scope(this);
+  Register scratch = scope.AcquireScratch();
   AddWord(scratch, index,
           Operand(OFFSET_OF_DATA_START(SeqOneByteString) - kHeapObjectTag));
   AddWord(scratch, string, Operand(scratch));

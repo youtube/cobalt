@@ -10,6 +10,8 @@
 
 #include "test/test_main_lib.h"
 
+#include <stdlib.h>
+
 #include <cstddef>
 #include <cstdlib>
 #include <fstream>

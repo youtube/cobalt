@@ -21,7 +21,6 @@
 #include "absl/strings/str_cat.h"
 #include "api/candidate.h"
 #include "api/jsep.h"
-#include "api/jsep_ice_candidate.h"
 #include "media/base/codec.h"
 #include "p2p/base/p2p_constants.h"
 #include "p2p/base/transport_description.h"
@@ -31,13 +30,14 @@
 #include "rtc_base/crypto_random.h"
 #include "rtc_base/net_helper.h"
 #include "rtc_base/socket_address.h"
+#include "test/gmock.h"
 #include "test/gtest.h"
 
+using ::testing::NotNull;
 using ::testing::Values;
+using webrtc::IceCandidate;
 using webrtc::IceCandidateCollection;
-using webrtc::IceCandidateInterface;
 using webrtc::IceCandidateType;
-using webrtc::JsepIceCandidate;
 using webrtc::JsepSessionDescription;
 using ::webrtc::MediaProtocolType;
 using webrtc::SdpType;
@@ -85,7 +85,7 @@ CreateCricketSessionDescription() {
 
 class JsepSessionDescriptionTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     int port = 1234;
     webrtc::SocketAddress address("127.0.0.1", port++);
     webrtc::Candidate candidate(webrtc::ICE_CANDIDATE_COMPONENT_RTP, "udp",
@@ -145,10 +145,10 @@ TEST_F(JsepSessionDescriptionTest, CloneWithCandidates) {
       webrtc::SocketAddress("::1", 1234), kCandidatePriority, "", "",
       IceCandidateType::kHost, kCandidateGeneration, kCandidateFoundation);
 
-  JsepIceCandidate jice_v4("audio", 0, candidate_v4);
-  JsepIceCandidate jice_v6("audio", 0, candidate_v6);
-  JsepIceCandidate jice_v4_video("video", 0, candidate_v4);
-  JsepIceCandidate jice_v6_video("video", 0, candidate_v6);
+  IceCandidate jice_v4("audio", 0, candidate_v4);
+  IceCandidate jice_v6("audio", 0, candidate_v6);
+  IceCandidate jice_v4_video("video", 0, candidate_v4);
+  IceCandidate jice_v6_video("video", 0, candidate_v6);
   ASSERT_TRUE(jsep_desc_->AddCandidate(&jice_v4));
   ASSERT_TRUE(jsep_desc_->AddCandidate(&jice_v6));
   ASSERT_TRUE(jsep_desc_->AddCandidate(&jice_v4_video));
@@ -170,32 +170,57 @@ TEST_F(JsepSessionDescriptionTest, CheckSessionDescription) {
 
 // Test that we can add a candidate to a session description without MID.
 TEST_F(JsepSessionDescriptionTest, AddCandidateWithoutMid) {
-  JsepIceCandidate jsep_candidate("", 0, candidate_);
+  IceCandidate jsep_candidate("", 0, candidate_);
   EXPECT_TRUE(jsep_desc_->AddCandidate(&jsep_candidate));
   const IceCandidateCollection* ice_candidates = jsep_desc_->candidates(0);
   ASSERT_TRUE(ice_candidates != nullptr);
   EXPECT_EQ(1u, ice_candidates->count());
-  const IceCandidateInterface* ice_candidate = ice_candidates->at(0);
+  const IceCandidate* ice_candidate = ice_candidates->at(0);
   ASSERT_TRUE(ice_candidate != nullptr);
   candidate_.set_username(kCandidateUfragVoice);
   candidate_.set_password(kCandidatePwdVoice);
   EXPECT_TRUE(ice_candidate->candidate().IsEquivalent(candidate_));
   EXPECT_EQ(0, ice_candidate->sdp_mline_index());
+  EXPECT_EQ("audio", ice_candidate->sdp_mid());
   EXPECT_EQ(0u, jsep_desc_->candidates(1)->count());
 }
 
 // Test that we can add and remove candidates to a session description with
-// MID. Removing candidates requires MID (transport_name).
+// MID. Removing candidates requires MID.
+TEST_F(JsepSessionDescriptionTest, AddAndRemoveIceCandidatesWithMid) {
+  // mid and m-line index don't match, in this case mid is preferred.
+  std::string mid = "video";
+  IceCandidate jsep_candidate(mid, 0, candidate_);
+  EXPECT_TRUE(jsep_desc_->AddCandidate(&jsep_candidate));
+  EXPECT_EQ(0u, jsep_desc_->candidates(0)->count());
+  const IceCandidateCollection* ice_candidates = jsep_desc_->candidates(1);
+  ASSERT_THAT(ice_candidates, NotNull());
+  EXPECT_EQ(1u, ice_candidates->count());
+  const IceCandidate* ice_candidate = ice_candidates->at(0);
+  ASSERT_THAT(ice_candidate, NotNull());
+  candidate_.set_username(kCandidateUfragVideo);
+  candidate_.set_password(kCandidatePwdVideo);
+  EXPECT_TRUE(ice_candidate->candidate().IsEquivalent(candidate_));
+  // The mline index should have been updated according to mid.
+  EXPECT_EQ(1, ice_candidate->sdp_mline_index());
+
+  EXPECT_EQ(1u, jsep_desc_->RemoveCandidate(ice_candidate));
+  EXPECT_EQ(0u, jsep_desc_->candidates(0)->count());
+  EXPECT_EQ(0u, jsep_desc_->candidates(1)->count());
+}
+
+// TODO(bugs.webrtc.org/8395): Remove this test and leave
+// AddAndRemoveIceCandidatesWithMid.
 TEST_F(JsepSessionDescriptionTest, AddAndRemoveCandidatesWithMid) {
   // mid and m-line index don't match, in this case mid is preferred.
   std::string mid = "video";
-  JsepIceCandidate jsep_candidate(mid, 0, candidate_);
+  IceCandidate jsep_candidate(mid, 0, candidate_);
   EXPECT_TRUE(jsep_desc_->AddCandidate(&jsep_candidate));
   EXPECT_EQ(0u, jsep_desc_->candidates(0)->count());
   const IceCandidateCollection* ice_candidates = jsep_desc_->candidates(1);
   ASSERT_TRUE(ice_candidates != nullptr);
   EXPECT_EQ(1u, ice_candidates->count());
-  const IceCandidateInterface* ice_candidate = ice_candidates->at(0);
+  const IceCandidate* ice_candidate = ice_candidates->at(0);
   ASSERT_TRUE(ice_candidate != nullptr);
   candidate_.set_username(kCandidateUfragVideo);
   candidate_.set_password(kCandidatePwdVideo);
@@ -213,12 +238,12 @@ TEST_F(JsepSessionDescriptionTest, AddAndRemoveCandidatesWithMid) {
 TEST_F(JsepSessionDescriptionTest, AddCandidateAlreadyHasUfrag) {
   candidate_.set_username(kCandidateUfrag);
   candidate_.set_password(kCandidatePwd);
-  JsepIceCandidate jsep_candidate("audio", 0, candidate_);
+  IceCandidate jsep_candidate("audio", 0, candidate_);
   EXPECT_TRUE(jsep_desc_->AddCandidate(&jsep_candidate));
   const IceCandidateCollection* ice_candidates = jsep_desc_->candidates(0);
   ASSERT_TRUE(ice_candidates != nullptr);
   EXPECT_EQ(1u, ice_candidates->count());
-  const IceCandidateInterface* ice_candidate = ice_candidates->at(0);
+  const IceCandidate* ice_candidate = ice_candidates->at(0);
   ASSERT_TRUE(ice_candidate != nullptr);
   candidate_.set_username(kCandidateUfrag);
   candidate_.set_password(kCandidatePwd);
@@ -230,17 +255,17 @@ TEST_F(JsepSessionDescriptionTest, AddCandidateAlreadyHasUfrag) {
 // Test that we can not add a candidate if there is no corresponding media
 // content in the session description.
 TEST_F(JsepSessionDescriptionTest, AddBadCandidate) {
-  JsepIceCandidate bad_candidate1("", 55, candidate_);
+  IceCandidate bad_candidate1("", 55, candidate_);
   EXPECT_FALSE(jsep_desc_->AddCandidate(&bad_candidate1));
 
-  JsepIceCandidate bad_candidate2("some weird mid", 0, candidate_);
+  IceCandidate bad_candidate2("some weird mid", 0, candidate_);
   EXPECT_FALSE(jsep_desc_->AddCandidate(&bad_candidate2));
 }
 
 // Tests that repeatedly adding the same candidate, with or without credentials,
 // does not increase the number of candidates in the description.
 TEST_F(JsepSessionDescriptionTest, AddCandidateDuplicates) {
-  JsepIceCandidate jsep_candidate("", 0, candidate_);
+  IceCandidate jsep_candidate("", 0, candidate_);
   EXPECT_TRUE(jsep_desc_->AddCandidate(&jsep_candidate));
   EXPECT_EQ(1u, jsep_desc_->candidates(0)->count());
 
@@ -252,7 +277,7 @@ TEST_F(JsepSessionDescriptionTest, AddCandidateDuplicates) {
   // populated.
   candidate_.set_username(kCandidateUfragVoice);
   candidate_.set_password(kCandidatePwdVoice);
-  JsepIceCandidate jsep_candidate_with_credentials("", 0, candidate_);
+  IceCandidate jsep_candidate_with_credentials("", 0, candidate_);
 
   // This should also be identified as redundant and ignored.
   EXPECT_TRUE(jsep_desc_->AddCandidate(&jsep_candidate_with_credentials));
@@ -268,7 +293,7 @@ TEST_F(JsepSessionDescriptionTest, AddHostnameCandidate) {
   c.set_address(webrtc::SocketAddress("example.local", 1234));
   c.set_type(IceCandidateType::kHost);
   const size_t audio_index = 0;
-  JsepIceCandidate hostname_candidate("audio", audio_index, c);
+  IceCandidate hostname_candidate("audio", audio_index, c);
   EXPECT_TRUE(jsep_desc_->AddCandidate(&hostname_candidate));
 
   ASSERT_NE(nullptr, jsep_desc_->description());
@@ -300,8 +325,8 @@ TEST_F(JsepSessionDescriptionTest, SerializeDeserializeWithHostnameCandidate) {
   c.set_type(IceCandidateType::kHost);
   const size_t audio_index = 0;
   const size_t video_index = 1;
-  JsepIceCandidate hostname_candidate_audio("audio", audio_index, c);
-  JsepIceCandidate hostname_candidate_video("video", video_index, c);
+  IceCandidate hostname_candidate_audio("audio", audio_index, c);
+  IceCandidate hostname_candidate_video("video", video_index, c);
   EXPECT_TRUE(jsep_desc_->AddCandidate(&hostname_candidate_audio));
   EXPECT_TRUE(jsep_desc_->AddCandidate(&hostname_candidate_video));
 
@@ -328,7 +353,7 @@ TEST_F(JsepSessionDescriptionTest, SerializeDeserializeWithCandidates) {
   std::string sdp = Serialize(jsep_desc_.get());
 
   // Add a candidate and check that the serialized result is different.
-  JsepIceCandidate jsep_candidate("audio", 0, candidate_);
+  IceCandidate jsep_candidate("audio", 0, candidate_);
   EXPECT_TRUE(jsep_desc_->AddCandidate(&jsep_candidate));
   std::string sdp_with_candidate = Serialize(jsep_desc_.get());
   EXPECT_NE(sdp, sdp_with_candidate);
@@ -355,10 +380,10 @@ TEST_F(JsepSessionDescriptionTest, SerializeSessionDescriptionWithIPv6Only) {
       webrtc::SocketAddress("::2", 1235), kCandidatePriority, "", "",
       IceCandidateType::kHost, kCandidateGeneration, kCandidateFoundation);
 
-  JsepIceCandidate jice1("audio", 0, candidate1);
-  JsepIceCandidate jice2("audio", 0, candidate2);
-  JsepIceCandidate jice3("video", 0, candidate1);
-  JsepIceCandidate jice4("video", 0, candidate2);
+  IceCandidate jice1("audio", 0, candidate1);
+  IceCandidate jice2("audio", 0, candidate2);
+  IceCandidate jice3("video", 0, candidate1);
+  IceCandidate jice4("video", 0, candidate2);
   ASSERT_TRUE(jsep_desc_->AddCandidate(&jice1));
   ASSERT_TRUE(jsep_desc_->AddCandidate(&jice2));
   ASSERT_TRUE(jsep_desc_->AddCandidate(&jice3));
@@ -385,10 +410,10 @@ TEST_F(JsepSessionDescriptionTest,
       webrtc::SocketAddress("::1", 1234), kCandidatePriority, "", "",
       IceCandidateType::kHost, kCandidateGeneration, kCandidateFoundation);
 
-  JsepIceCandidate jice_v4("audio", 0, candidate_v4);
-  JsepIceCandidate jice_v6("audio", 0, candidate_v6);
-  JsepIceCandidate jice_v4_video("video", 0, candidate_v4);
-  JsepIceCandidate jice_v6_video("video", 0, candidate_v6);
+  IceCandidate jice_v4("audio", 0, candidate_v4);
+  IceCandidate jice_v6("audio", 0, candidate_v6);
+  IceCandidate jice_v4_video("video", 0, candidate_v4);
+  IceCandidate jice_v6_video("video", 0, candidate_v6);
   ASSERT_TRUE(jsep_desc_->AddCandidate(&jice_v4));
   ASSERT_TRUE(jsep_desc_->AddCandidate(&jice_v6));
   ASSERT_TRUE(jsep_desc_->AddCandidate(&jice_v4_video));
@@ -417,10 +442,10 @@ TEST_F(JsepSessionDescriptionTest,
       kCandidatePriority, "", "", IceCandidateType::kHost, kCandidateGeneration,
       kCandidateFoundation);
 
-  JsepIceCandidate jice1("audio", 0, candidate1);
-  JsepIceCandidate jice2("audio", 0, candidate2);
-  JsepIceCandidate jice3("video", 0, candidate1);
-  JsepIceCandidate jice4("video", 0, candidate2);
+  IceCandidate jice1("audio", 0, candidate1);
+  IceCandidate jice2("audio", 0, candidate2);
+  IceCandidate jice3("video", 0, candidate1);
+  IceCandidate jice4("video", 0, candidate2);
   ASSERT_TRUE(jsep_desc_->AddCandidate(&jice1));
   ASSERT_TRUE(jsep_desc_->AddCandidate(&jice2));
   ASSERT_TRUE(jsep_desc_->AddCandidate(&jice3));
@@ -447,10 +472,10 @@ TEST_F(JsepSessionDescriptionTest, SerializeSessionDescriptionWithTCPOnly) {
       webrtc::SocketAddress("::2", 1235), kCandidatePriority, "", "",
       IceCandidateType::kHost, kCandidateGeneration, kCandidateFoundation);
 
-  JsepIceCandidate jice1("audio", 0, candidate1);
-  JsepIceCandidate jice2("audio", 0, candidate2);
-  JsepIceCandidate jice3("video", 0, candidate1);
-  JsepIceCandidate jice4("video", 0, candidate2);
+  IceCandidate jice1("audio", 0, candidate1);
+  IceCandidate jice2("audio", 0, candidate2);
+  IceCandidate jice3("video", 0, candidate1);
+  IceCandidate jice4("video", 0, candidate2);
   ASSERT_TRUE(jsep_desc_->AddCandidate(&jice1));
   ASSERT_TRUE(jsep_desc_->AddCandidate(&jice2));
   ASSERT_TRUE(jsep_desc_->AddCandidate(&jice3));
@@ -483,9 +508,9 @@ TEST_F(JsepSessionDescriptionTest, RemoveCandidateAndSetConnectionAddress) {
       IceCandidateType::kHost, kCandidateGeneration, kCandidateFoundation);
   candidate3.set_transport_name("audio");
 
-  JsepIceCandidate jice1("audio", 0, candidate1);
-  JsepIceCandidate jice2("audio", 0, candidate2);
-  JsepIceCandidate jice3("audio", 0, candidate3);
+  IceCandidate jice1("audio", 0, candidate1);
+  IceCandidate jice2("audio", 0, candidate2);
+  IceCandidate jice3("audio", 0, candidate3);
 
   size_t audio_index = 0;
   auto media_desc =

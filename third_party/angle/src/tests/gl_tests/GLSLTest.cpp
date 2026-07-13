@@ -4547,6 +4547,35 @@ TEST_P(GLSLTest_ES31, FindMSBAndFindLSBCornerCases)
     EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
 }
 
+// Test that a comma expression does not add any redundant statements
+// during shader translation rewrite steps. The test will verify the
+// correct color is drawn as a result of the called functions being
+// executed in the correct order and only once each.
+TEST_P(GLSLTest, CommaTestNoRedundantStatements)
+{
+    const char kFS[] = R"(
+precision mediump float;
+int g = 1;
+void F() { g *= 3; }
+void G() { g += 5; }
+void main() {
+    F(), G();
+    if (g == 8)
+    {
+        gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+    }
+    else
+    {
+        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+    }
+})";
+
+    ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), kFS);
+    drawQuad(program, essl1_shaders::PositionAttrib(), 0.5f);
+    ASSERT_GL_NO_ERROR();
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
+}
+
 // Test that reading from a swizzled vector that is dynamically indexed succeeds.
 TEST_P(GLSLTest_ES3, ReadFromDynamicIndexingOfSwizzledVector)
 {
@@ -6966,6 +6995,7 @@ TEST_P(GLSLTest_ES3, ConditionInitializerDeclaresVariable)
         "}\n";
 
     ANGLE_GL_PROGRAM(program, essl3_shaders::vs::Simple(), kFS);
+    ASSERT_GL_NO_ERROR();
     drawQuad(program, essl3_shaders::PositionAttrib(), 0.5f);
     EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
 }
@@ -7298,6 +7328,180 @@ TEST_P(GLSLTest_ES31, VaryingTessellationSampleInAndOut)
 
     ANGLE_GL_PROGRAM_WITH_TESS(program, kVS, kTCS, kTES, kFS);
     drawPatches(program, "inputAttribute", 0.5f, 1.0f, GL_FALSE);
+    ASSERT_GL_NO_ERROR();
+}
+
+// Test that GetProgramiv with tessellation parameters generates an INVALID_OPERATION error when
+// there is no tessellation shader.
+TEST_P(GLSLTest_ES31, ValidateGetProgramivNoTessellationShader)
+{
+    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_tessellation_shader"));
+
+    constexpr char kVS[] =
+        R"(#version 310 es
+
+        precision highp float;
+        in vec4 inputAttribute;
+
+        void main()
+        {
+            gl_Position = inputAttribute;
+        })";
+
+    constexpr char kFS[] =
+        R"(#version 310 es
+
+        precision highp float;
+        layout(location = 0) out mediump vec4 color;
+
+        void main()
+        {
+            color = vec4(1.0, 0.0, 0.0, 1.0);
+        })";
+
+    ANGLE_GL_PROGRAM(program, kVS, kFS);
+
+    GLint params = 0;
+
+    glGetProgramiv(program, GL_TESS_CONTROL_OUTPUT_VERTICES_EXT, &params);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+
+    glGetProgramiv(program, GL_TESS_GEN_MODE, &params);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+
+    glGetProgramiv(program, GL_TESS_GEN_SPACING, &params);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+}
+
+// Test that GetProgramiv with tessellation parameters generates an INVALID_OPERATION error when
+// there is no tessellation control shader.
+TEST_P(GLSLTest_ES31, ValidateGetProgramivNoTessellationControlShader)
+{
+    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_tessellation_shader"));
+
+    constexpr char kVS[] =
+        R"(#version 310 es
+
+        precision highp float;
+        in vec4 inputAttribute;
+
+        void main()
+        {
+            gl_Position = inputAttribute;
+        })";
+
+    static const char kTES[] =
+        "#version 310 es\n"
+        "#extension GL_EXT_tessellation_shader : require\n"
+        "layout(triangles, fractional_even_spacing, cw, point_mode) in;\n"
+        "void main(void)\n"
+        "{}";
+
+    constexpr char kFS[] =
+        R"(#version 310 es
+
+        precision highp float;
+        layout(location = 0) out mediump vec4 color;
+
+        void main()
+        {
+            color = vec4(1.0, 0.0, 0.0, 1.0);
+        })";
+
+    GLuint vs      = CompileShader(GL_VERTEX_SHADER, kVS);
+    GLuint tes     = CompileShader(GL_TESS_EVALUATION_SHADER, kTES);
+    GLuint fs      = CompileShader(GL_FRAGMENT_SHADER, kFS);
+    GLuint program = glCreateProgram();
+    glAttachShader(program, vs);
+    glAttachShader(program, tes);
+    glAttachShader(program, fs);
+    glProgramParameteri(program, GL_PROGRAM_SEPARABLE, GL_TRUE);
+    glLinkProgram(program);
+    ASSERT_GL_NO_ERROR();
+
+    GLint params = 0;
+
+    glGetProgramiv(program, GL_TESS_CONTROL_OUTPUT_VERTICES_EXT, &params);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+
+    glGetProgramiv(program, GL_TESS_GEN_MODE, &params);
+    EXPECT_EQ(static_cast<GLint>(GL_TRIANGLES), params);
+    glGetProgramiv(program, GL_TESS_GEN_SPACING, &params);
+    EXPECT_EQ(static_cast<GLint>(GL_FRACTIONAL_EVEN), params);
+
+    glDetachShader(program, vs);
+    glDetachShader(program, tes);
+    glDetachShader(program, fs);
+    glDeleteShader(vs);
+    glDeleteShader(tes);
+    glDeleteShader(fs);
+    glDeleteProgram(program);
+    ASSERT_GL_NO_ERROR();
+}
+
+// Test that GetProgramiv with tessellation parameters generates an INVALID_OPERATION error when
+// there is no tessellation evaluation shader.
+TEST_P(GLSLTest_ES31, ValidateGetProgramivNoTessellationEvaluationShader)
+{
+    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_tessellation_shader"));
+
+    constexpr char kVS[] =
+        R"(#version 310 es
+
+        precision highp float;
+        in vec4 inputAttribute;
+
+        void main()
+        {
+            gl_Position = inputAttribute;
+        })";
+
+    static const char kTCS[] =
+        "#version 310 es\n"
+        "#extension GL_EXT_tessellation_shader : require\n"
+        "layout(vertices = 3) out;\n"
+        "void main(void)\n"
+        "{}";
+
+    constexpr char kFS[] =
+        R"(#version 310 es
+
+        precision highp float;
+        layout(location = 0) out mediump vec4 color;
+
+        void main()
+        {
+            color = vec4(1.0, 0.0, 0.0, 1.0);
+        })";
+
+    GLuint vs      = CompileShader(GL_VERTEX_SHADER, kVS);
+    GLuint tcs     = CompileShader(GL_TESS_CONTROL_SHADER, kTCS);
+    GLuint fs      = CompileShader(GL_FRAGMENT_SHADER, kFS);
+    GLuint program = glCreateProgram();
+    glAttachShader(program, vs);
+    glAttachShader(program, tcs);
+    glAttachShader(program, fs);
+    glProgramParameteri(program, GL_PROGRAM_SEPARABLE, GL_TRUE);
+    glLinkProgram(program);
+    ASSERT_GL_NO_ERROR();
+
+    GLint params = 0;
+    glGetProgramiv(program, GL_TESS_CONTROL_OUTPUT_VERTICES_EXT, &params);
+    EXPECT_EQ(3, params);
+
+    glGetProgramiv(program, GL_TESS_GEN_MODE, &params);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+
+    glGetProgramiv(program, GL_TESS_GEN_SPACING, &params);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+
+    glDetachShader(program, vs);
+    glDetachShader(program, tcs);
+    glDetachShader(program, fs);
+    glDeleteShader(vs);
+    glDeleteShader(tcs);
+    glDeleteShader(fs);
+    glDeleteProgram(program);
     ASSERT_GL_NO_ERROR();
 }
 
@@ -15799,6 +16003,66 @@ void main() {
     EXPECT_NE(compileResult, 0);
 }
 
+// Test that separable program with multiple shaders with mismatching shader interface works.
+TEST_P(GLSLTest_ES31, SeparableProgramWithMismatchingShaderInterface)
+{
+    ANGLE_SKIP_TEST_IF(!IsVulkan());
+    constexpr char kVS[] =
+        "#version 300 es\n"
+        "in vec4 a_position;\n"
+        "out float out_val;\n"
+        "void main()\n"
+        "{\n"
+        "    gl_Position = a_position;\n"
+        "}\n";
+
+    constexpr char kFS[] =
+        "#version 300 es\n"
+        "precision highp float;\n"
+        "out vec4 fragColor;\n"
+        "void main()\n"
+        "{\n"
+        "    fragColor = vec4(1.0, 0.0, 0.0, 1.0);\n"
+        "}\n";
+
+    GLuint vs      = CompileShader(GL_VERTEX_SHADER, kVS);
+    GLuint fs      = CompileShader(GL_FRAGMENT_SHADER, kFS);
+    GLuint program = glCreateProgram();
+    glAttachShader(program, vs);
+    glAttachShader(program, fs);
+
+    glProgramParameteri(program, GL_PROGRAM_SEPARABLE, GL_TRUE);
+    glLinkProgram(program);
+    EXPECT_GL_NO_ERROR();
+
+    GLuint pipeline = 0;
+    glGenProgramPipelines(1, &pipeline);
+    glBindProgramPipeline(pipeline);
+    glUseProgramStages(pipeline, GL_VERTEX_SHADER_BIT, program);
+    glUseProgramStages(pipeline, GL_FRAGMENT_SHADER_BIT, program);
+
+    std::array<Vector3, 6> quadVertices = ANGLETestBase::GetQuadVertices();
+    GLint positionLocation              = glGetAttribLocation(program, "a_position");
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glVertexAttribPointer(positionLocation, 3, GL_FLOAT, GL_FALSE, 0, quadVertices.data());
+    glEnableVertexAttribArray(positionLocation);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glDisableVertexAttribArray(positionLocation);
+    glVertexAttribPointer(positionLocation, 4, GL_FLOAT, GL_FALSE, 0, nullptr);
+    ASSERT_GL_NO_ERROR();
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::red);
+    ASSERT_GL_NO_ERROR();
+
+    glDetachShader(program, vs);
+    glDetachShader(program, fs);
+    glDeleteShader(vs);
+    glDeleteShader(fs);
+    glDeleteProgram(program);
+    glDeleteProgramPipelines(1, &pipeline);
+
+    ASSERT_GL_NO_ERROR();
+}
+
 // Regression test based on fuzzer issue resulting in an AST validation failure.  Struct definition
 // was not found in the tree.  Tests that struct declaration in function return value is visible to
 // instantiations later on.
@@ -20279,6 +20543,212 @@ void main (void)
     EXPECT_EQ(type, static_cast<GLenum>(GL_FLOAT_VEC4));
 }
 
+// Test that with feature varyingsRequireMatchingPrecisionInSpirv enabled, and when tessellation
+// control shader input and output varyings are of array type and they need precision adjustments,
+// the spirv generated by ANGLE is correct. Adapted from
+// dEQP-GLES31.functional.shaders.linkage.es31.tessellation.varying.rules.internal_different_precision
+TEST_P(GLSLTest_ES31, PrecisionAdjustmentInTessellationControlShader)
+{
+    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_tessellation_shader") &&
+                       !IsGLExtensionEnabled("GL_OES_tessellation_shader"));
+    constexpr char kVS[] = R"(#version 310 es
+in highp vec4 pos;
+in float in0;
+
+out mediump float tc_in;
+void main()
+{
+    tc_in = in0;
+    gl_Position = pos;
+})";
+
+    constexpr char kTC[] = R"(#version 310 es
+#extension GL_OES_tessellation_shader : require
+layout (vertices=3) out;
+
+in highp float tc_in[];
+out highp float tc_out[];
+void main()
+{
+    tc_out[gl_InvocationID] = tc_in[gl_InvocationID];
+    gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
+    gl_TessLevelInner[0] = 2.0;
+    gl_TessLevelInner[1] = 2.0;
+    gl_TessLevelOuter[0] = 2.0;
+    gl_TessLevelOuter[1] = 2.0;
+    gl_TessLevelOuter[2] = 2.0;
+    gl_TessLevelOuter[3] = 2.0;
+})";
+
+    constexpr char kTE[] = R"(#version 310 es
+#extension GL_OES_tessellation_shader : require
+layout (triangles) in;
+
+in lowp float tc_out[];
+out mediump float te_out;
+void main()
+{
+    te_out = tc_out[2];
+    gl_Position = gl_TessCoord[0] * gl_in[0].gl_Position + gl_TessCoord[1] * gl_in[1].gl_Position + gl_TessCoord[2] * gl_in[2].gl_Position;
+}
+)";
+
+    constexpr char kFS[] = R"(#version 310 es
+precision mediump float;
+bool isOk (float a, float b, float eps) { return (abs(a-b) <= (eps*abs(b) + eps)); }
+layout(location = 0) out mediump vec4 fragColor;
+uniform float ref_out0;
+float out0;
+
+in mediump float te_out;
+void main()
+{
+    out0 = te_out;
+    bool res = isOk(out0, ref_out0, 0.05);
+    fragColor = vec4(res, res, res, 1.0);
+}
+)";
+
+    glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    ANGLE_GL_PROGRAM_WITH_TESS(program, kVS, kTC, kTE, kFS);
+    glUseProgram(program);
+    glUniform1f(glGetUniformLocation(program, "ref_out0"), 1.0);
+    GLint vertexPosLocation             = glGetAttribLocation(program, "pos");
+    std::array<Vector3, 6> quadVertices = GetQuadVertices();
+    glVertexAttribPointer(vertexPosLocation, 3, GL_FLOAT, GL_FALSE, 0, quadVertices.data());
+    glEnableVertexAttribArray(vertexPosLocation);
+    GLint vertexIn0Location          = glGetAttribLocation(program, "in0");
+    std::array<float, 6> quadAttribs = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+    glVertexAttribPointer(vertexIn0Location, 1, GL_FLOAT, GL_FALSE, 0, quadAttribs.data());
+    glEnableVertexAttribArray(vertexIn0Location);
+    glDrawArrays(GL_PATCHES, 0, 6);
+    glDisableVertexAttribArray(vertexPosLocation);
+    glVertexAttribPointer(vertexPosLocation, 4, GL_FLOAT, GL_FALSE, 0, nullptr);
+    glDisableVertexAttribArray(vertexIn0Location);
+    glVertexAttribPointer(vertexIn0Location, 1, GL_FLOAT, GL_FALSE, 0, nullptr);
+
+    EXPECT_PIXEL_RECT_EQ(0, 0, getWindowWidth(), getWindowHeight(), GLColor::white);
+}
+
+// Similar to PrecisionAdjustmentInTessellationControlShader test, except that the tessellation
+// control shader also read from tc_out written by other invocations. This is to test that with
+// feature varyingsRequireMatchingPrecisionInSpirv enabled, write to tessellation control shader
+// output are flushed after each tc_out[gl_InvocationID] = tc_in[gl_InvocationID], not at the end of
+// the tessellation control shader, so that "reading from output written by other invocations" can
+// work properly. This test also purposefully make below precisions in shader inputs and outputs:
+// VS output: mediump
+// TCS input: highp, TCS output: highp
+// TES input: lowp
+// In TCS, we do below conversions:
+// multiply input with 50 to produce a number that is bigger than upper limit of mediump and write
+// to output:
+// output[gl_InvocationID] = input[gl_InvocationID] * 50.0;
+// Read the output written by other invocations, and bring it down to a number that can be
+// represented with lowp:
+// output[gl_InvocationID] = resultFromOtherInvocation / (50.0 * 10000.0);
+// This tests that with feature varyingsRequireMatchingPrecisionInSpirv enabled, if TCS output has
+// higher precision than TES input, we are adjusting the precision of TES input, so that if we need
+// to read values written by other invocations in the middle of TCS, they are not lost.
+TEST_P(GLSLTest_ES31, PrecisionAdjustmentInTessellationControlShaderWithBarrier)
+{
+    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_tessellation_shader") &&
+                       !IsGLExtensionEnabled("GL_OES_tessellation_shader"));
+    ANGLE_SKIP_TEST_IF(
+        !getEGLWindow()->isFeatureEnabled(Feature::VaryingsRequireMatchingPrecisionInSpirv));
+    constexpr char kVS[] = R"(#version 310 es
+in highp vec4 pos;
+in float in0;
+
+out mediump float tc_in;
+void main()
+{
+    tc_in = in0;
+    gl_Position = pos;
+})";
+
+    constexpr char kTC[] = R"(#version 310 es
+#extension GL_OES_tessellation_shader : require
+layout (vertices=3) out;
+
+in highp float tc_in[];
+out highp float tc_out[];
+void main()
+{
+    tc_out[gl_InvocationID] = tc_in[gl_InvocationID] * 50.0;
+    barrier();
+    float resultFromOtherInvocation = 0.0;
+    if (gl_InvocationID==0) {
+        resultFromOtherInvocation = tc_out[1];
+    }
+    if (gl_InvocationID==1) {
+        resultFromOtherInvocation = tc_out[2];
+    }
+    if (gl_InvocationID==2) {
+        resultFromOtherInvocation = tc_out[0];
+    }
+    barrier();
+    tc_out[gl_InvocationID] = resultFromOtherInvocation / (50.0 * 10000.0);
+    gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
+    gl_TessLevelInner[0] = 2.0;
+    gl_TessLevelInner[1] = 2.0;
+    gl_TessLevelOuter[0] = 2.0;
+    gl_TessLevelOuter[1] = 2.0;
+    gl_TessLevelOuter[2] = 2.0;
+    gl_TessLevelOuter[3] = 2.0;
+})";
+
+    constexpr char kTE[] = R"(#version 310 es
+#extension GL_OES_tessellation_shader : require
+layout (triangles) in;
+
+in lowp float tc_out[];
+out mediump float te_out;
+void main()
+{
+    te_out = tc_out[2];
+    gl_Position = gl_TessCoord[0] * gl_in[0].gl_Position + gl_TessCoord[1] * gl_in[1].gl_Position + gl_TessCoord[2] * gl_in[2].gl_Position;
+}
+)";
+
+    constexpr char kFS[] = R"(#version 310 es
+precision mediump float;
+bool isOk (float a, float b, float eps) { return (abs(a-b) <= (eps*abs(b) + eps)); }
+layout(location = 0) out mediump vec4 fragColor;
+uniform float ref_out0;
+float out0;
+
+in mediump float te_out;
+void main()
+{
+    out0 = te_out;
+    bool res = isOk(out0, ref_out0, 0.05);
+    fragColor = vec4(res, res, res, 1.0);
+}
+)";
+
+    glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    ANGLE_GL_PROGRAM_WITH_TESS(program, kVS, kTC, kTE, kFS);
+    glUseProgram(program);
+    glUniform1f(glGetUniformLocation(program, "ref_out0"), 3.0);
+    GLint vertexPosLocation             = glGetAttribLocation(program, "pos");
+    std::array<Vector3, 6> quadVertices = GetQuadVertices();
+    glVertexAttribPointer(vertexPosLocation, 3, GL_FLOAT, GL_FALSE, 0, quadVertices.data());
+    glEnableVertexAttribArray(vertexPosLocation);
+    GLint vertexIn0Location          = glGetAttribLocation(program, "in0");
+    std::array<float, 6> quadAttribs = {30000.0, 20000.0, 10000.0, 30000.0, 20000.0, 10000.0};
+    glVertexAttribPointer(vertexIn0Location, 1, GL_FLOAT, GL_FALSE, 0, quadAttribs.data());
+    glEnableVertexAttribArray(vertexIn0Location);
+    glDrawArrays(GL_PATCHES, 0, 6);
+    glDisableVertexAttribArray(vertexPosLocation);
+    glVertexAttribPointer(vertexPosLocation, 4, GL_FLOAT, GL_FALSE, 0, nullptr);
+    glDisableVertexAttribArray(vertexIn0Location);
+    glVertexAttribPointer(vertexIn0Location, 1, GL_FLOAT, GL_FALSE, 0, nullptr);
+
+    EXPECT_PIXEL_RECT_EQ(0, 0, getWindowWidth(), getWindowHeight(), GLColor::white);
+}
+
 // Tests struct in function return type.
 TEST_P(GLSLTest, StructInFunctionDefinition)
 {
@@ -20873,9 +21343,11 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(WebGL2GLSLTest);
 ANGLE_INSTANTIATE_TEST_ES3(WebGL2GLSLTest);
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(GLSLTest_ES31);
-ANGLE_INSTANTIATE_TEST_ES31_AND(GLSLTest_ES31,
-                                ES31_VULKAN().enable(Feature::ForceInitShaderVariables),
-                                ES31_VULKAN().disable(Feature::SupportsSPIRV14));
+ANGLE_INSTANTIATE_TEST_ES31_AND(
+    GLSLTest_ES31,
+    ES31_VULKAN().enable(Feature::ForceInitShaderVariables),
+    ES31_VULKAN().enable(Feature::VaryingsRequireMatchingPrecisionInSpirv),
+    ES31_VULKAN().disable(Feature::SupportsSPIRV14));
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(GLSLTest_ES3_InitShaderVariables);
 ANGLE_INSTANTIATE_TEST(

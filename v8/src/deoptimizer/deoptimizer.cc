@@ -947,6 +947,9 @@ CompileWithLiftoffAndGetDeoptInfo(wasm::NativeModule* native_module,
                           wire_bytes.begin() + function->code.offset(),
                           wire_bytes.begin() + function->code.end_offset(),
                           is_shared};
+  wasm::ForDebugging for_debugging = v8_flags.wasm_code_coverage
+                                         ? wasm::ForDebugging::kForDebugging
+                                         : wasm::ForDebugging::kNotForDebugging;
   wasm::WasmCompilationResult result = ExecuteLiftoffCompilation(
       &env, body,
       wasm::LiftoffOptions{}
@@ -954,7 +957,8 @@ CompileWithLiftoffAndGetDeoptInfo(wasm::NativeModule* native_module,
           .set_deopt_info_bytecode_offset(deopt_point.ToInt())
           .set_deopt_location_kind(
               is_topmost ? wasm::LocationKindForDeopt::kEagerDeopt
-                         : wasm::LocationKindForDeopt::kInlinedCall));
+                         : wasm::LocationKindForDeopt::kInlinedCall)
+          .set_for_debugging(for_debugging));
 
   // Replace the optimized code with the unoptimized code in the
   // WasmCodeManager as a deopt was reached.
@@ -1722,6 +1726,7 @@ void Deoptimizer::DoComputeOutputFrames() {
   if (verbose_tracing_enabled()) {
     TraceDeoptEnd(timer.Elapsed().InMillisecondsF());
   }
+  isolate()->counters()->deopts()->Increment();
 
   // The following invariant is fairly tricky to guarantee, since the size of
   // an optimized frame and its deoptimized counterparts usually differs. We
@@ -2940,7 +2945,12 @@ void Deoptimizer::MaterializeHeapObjects() {
 
   translated_state_.VerifyMaterializedObjects();
 
-  bool feedback_updated = translated_state_.DoUpdateFeedback();
+  isolate_->materialized_object_store()->Remove(
+      static_cast<Address>(stack_fp_));
+}
+
+void Deoptimizer::ProcessDeoptReason(DeoptimizeReason reason) {
+  bool feedback_updated = translated_state_.DoUpdateFeedback(reason);
   if (verbose_tracing_enabled() && feedback_updated) {
     FILE* file = trace_scope()->file();
     Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo();
@@ -2949,9 +2959,6 @@ void Deoptimizer::MaterializeHeapObjects() {
     info.position.Print(outstr, compiled_code_);
     PrintF(file, ", %s\n", DeoptimizeReasonToString(info.deopt_reason));
   }
-
-  isolate_->materialized_object_store()->Remove(
-      static_cast<Address>(stack_fp_));
 }
 
 void Deoptimizer::QueueValueForMaterialization(

@@ -11,9 +11,11 @@
 #include "modules/audio_processing/agc/agc.h"
 
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <vector>
 
+#include "api/array_view.h"
 #include "modules/audio_processing/agc/loudness_histogram.h"
 #include "modules/audio_processing/agc/utility.h"
 #include "rtc_base/checks.h"

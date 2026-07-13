@@ -1772,6 +1772,8 @@ DirectHandle<WasmImportData> Factory::NewWasmImportData(
     DirectHandle<HeapObject> callable, wasm::Suspend suspend,
     MaybeDirectHandle<WasmTrustedInstanceData> instance_data,
     const wasm::CanonicalSig* sig, bool shared) {
+  DirectHandle<Cell> wrapper_budget_cell =
+      NewCell(Smi::FromInt(v8_flags.wasm_wrapper_tiering_budget));
   Tagged<Map> map = *wasm_import_data_map();
   auto result = Cast<WasmImportData>(AllocateRawWithImmortalMap(
       map->instance_size(),
@@ -1785,7 +1787,7 @@ DirectHandle<WasmImportData> Factory::NewWasmImportData(
   } else {
     result->set_instance_data(*instance_data.ToHandleChecked());
   }
-  result->set_wrapper_budget(v8_flags.wasm_wrapper_tiering_budget);
+  result->set_wrapper_budget(*wrapper_budget_cell);
   result->clear_call_origin();
   result->set_sig(sig);
 #if TAGGED_SIZE_8_BYTES
@@ -1901,7 +1903,7 @@ DirectHandle<WasmResumeData> Factory::NewWasmResumeData(
       Cast<WasmResumeData>(AllocateRawWithImmortalMap(
           map->instance_size(), AllocationType::kOld, map));
   DisallowGarbageCollection no_gc;
-  result->set_suspender(*suspender);
+  result->set_trusted_suspender(*suspender);
   result->set_on_resume(static_cast<int>(on_resume));
   return direct_handle(result, isolate());
 }
@@ -1911,11 +1913,12 @@ DirectHandle<WasmSuspenderObject> Factory::NewWasmSuspenderObject() {
   Tagged<Map> map = *wasm_suspender_object_map();
   Tagged<WasmSuspenderObject> obj =
       Cast<WasmSuspenderObject>(AllocateRawWithImmortalMap(
-          map->instance_size(), AllocationType::kOld, map));
+          map->instance_size(), AllocationType::kTrusted, map));
   auto suspender = handle(obj, isolate());
   // Ensure that all properties are initialized before the allocation below.
+  suspender->init_self_indirect_pointer(isolate());
   suspender->init_stack(IsolateForSandbox(isolate()), nullptr);
-  suspender->set_parent(*undefined_value());
+  suspender->clear_parent();
   suspender->set_promise(*promise);
   suspender->set_resume(*undefined_value());
   suspender->set_reject(*undefined_value());
@@ -2380,7 +2383,7 @@ Tagged<Map> Factory::InitializeMap(Tagged<Map> map, InstanceType type,
   } else {
     DCHECK_EQ(inobject_properties, 0);
     map->set_inobject_properties_start_or_constructor_function_index(0);
-    map->set_prototype_validity_cell(Map::kPrototypeChainValidSmi,
+    map->set_prototype_validity_cell(Map::kNoValidityCellSentinel,
                                      kRelaxedStore, SKIP_WRITE_BARRIER);
   }
   map->set_dependent_code(DependentCode::empty_dependent_code(roots),
@@ -2977,7 +2980,13 @@ DirectHandle<Code> Factory::NewCodeObjectForEmbeddedBuiltin(
       off_heap_entry,
   };
 
-  return NewCode(new_code_options);
+  Handle<Code> new_code = NewCode(new_code_options);
+#if V8_ENABLE_GEARBOX
+  if (Builtins::IsGearboxPlaceholder(new_code->builtin_id())) {
+    new_code->set_is_gearbox_placeholder_builtin(true);
+  }
+#endif  // V8_ENABLE_GEARBOX
+  return new_code;
 }
 
 DirectHandle<BytecodeArray> Factory::CopyBytecodeArray(
@@ -3708,7 +3717,6 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(
       map, empty_byte_array(), buffer, byte_offset, byte_length));
   Tagged<JSTypedArray> raw = *typed_array;
   DisallowGarbageCollection no_gc;
-  raw->set_length(length);
   raw->SetOffHeapDataPtr(isolate(), buffer->backing_store(), byte_offset);
   raw->set_is_length_tracking(is_length_tracking);
   raw->set_is_backed_by_rab(is_backed_by_rab);
@@ -3806,7 +3814,8 @@ MaybeDirectHandle<JSBoundFunction> Factory::NewJSBoundFunction(
 
 // ES6 section 9.5.15 ProxyCreate (target, handler)
 Handle<JSProxy> Factory::NewJSProxy(DirectHandle<JSReceiver> target,
-                                    DirectHandle<JSReceiver> handler) {
+                                    DirectHandle<JSReceiver> handler,
+                                    bool revocable) {
   // Allocate the proxy object.
   DirectHandle<Map> map = IsCallable(*target)
                               ? IsConstructor(*target)
@@ -3819,6 +3828,7 @@ Handle<JSProxy> Factory::NewJSProxy(DirectHandle<JSReceiver> target,
   result->initialize_properties(isolate());
   result->set_target(*target, SKIP_WRITE_BARRIER);
   result->set_handler(*handler, SKIP_WRITE_BARRIER);
+  result->set_flags(JSProxy::IsRevocableBit::encode(revocable));
   return handle(result, isolate());
 }
 

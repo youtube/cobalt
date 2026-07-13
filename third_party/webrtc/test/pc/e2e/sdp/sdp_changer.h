@@ -12,16 +12,17 @@
 #define TEST_PC_E2E_SDP_SDP_CHANGER_H_
 
 #include <map>
-#include <optional>
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
-#include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/jsep.h"
 #include "api/rtp_parameters.h"
 #include "api/test/pclf/media_configuration.h"
 #include "media/base/rid_description.h"
+#include "p2p/base/transport_description.h"
 #include "pc/session_description.h"
 #include "pc/simulcast_description.h"
 
@@ -81,11 +82,10 @@ class SignalingInterceptor {
       std::unique_ptr<SessionDescriptionInterface> answer,
       const VideoCodecConfig& first_codec);
 
-  std::vector<std::unique_ptr<IceCandidateInterface>> PatchOffererIceCandidates(
-      ArrayView<const IceCandidateInterface* const> candidates);
-  std::vector<std::unique_ptr<IceCandidateInterface>>
-  PatchAnswererIceCandidates(
-      ArrayView<const IceCandidateInterface* const> candidates);
+  std::vector<std::unique_ptr<IceCandidate>> PatchOffererIceCandidates(
+      ArrayView<const IceCandidate* const> candidates);
+  std::vector<std::unique_ptr<IceCandidate>> PatchAnswererIceCandidates(
+      ArrayView<const IceCandidate* const> candidates);
 
  private:
   // Contains information about simulcast section, that is required to perform

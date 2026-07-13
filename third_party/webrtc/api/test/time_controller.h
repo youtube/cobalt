@@ -39,14 +39,14 @@ class TimeController {
   // is destroyed.
   std::unique_ptr<TaskQueueFactory> CreateTaskQueueFactory();
 
-  // Creates an webrtc::Thread instance. If `socket_server` is nullptr, a
+  // Creates an Thread instance. If `socket_server` is nullptr, a
   // default noop socket server is created. Returned thread is not null and
   // started.
   virtual std::unique_ptr<Thread> CreateThread(
       const std::string& name,
       std::unique_ptr<SocketServer> socket_server = nullptr) = 0;
 
-  // Creates an webrtc::Thread instance that ensure that it's set as the current
+  // Creates an Thread instance that ensure that it's set as the current
   // thread.
   virtual Thread* GetMainThread() = 0;
   // Allow task queues and process threads created by this instance to execute

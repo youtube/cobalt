@@ -12,16 +12,12 @@
 
 #include "absl/strings/str_cat.h"
 #include "rtc_base/containers/flat_set.h"
-#include "system_wrappers/include/field_trial.h"
-#include "test/field_trial.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
 namespace webrtc {
 namespace {
 
-using field_trial::FieldTrialsAllowedInScopeForTesting;
-using test::ScopedFieldTrials;
 using ::testing::AllOf;
 using ::testing::HasSubstr;
 using ::testing::IsNull;
@@ -29,7 +25,6 @@ using ::testing::Not;
 using ::testing::NotNull;
 
 TEST(FieldTrialsTest, EmptyStringHasNoEffect) {
-  FieldTrialsAllowedInScopeForTesting k({"MyCoolTrial"});
   FieldTrials f("");
   f.RegisterKeysForTesting({"MyCoolTrial"});
 
@@ -49,25 +44,6 @@ TEST(FieldTrialsTest, EnabledDisabledMustBeFirstInValue) {
   EXPECT_FALSE(f.IsEnabled("AnotherTrial"));
 }
 
-TEST(FieldTrialsTest, FieldTrialsDoesNotReadGlobalString) {
-  FieldTrialsAllowedInScopeForTesting k({"MyCoolTrial", "MyUncoolTrial"});
-  ScopedFieldTrials g("MyCoolTrial/Enabled/MyUncoolTrial/Disabled/");
-  FieldTrials f("");
-  f.RegisterKeysForTesting({"MyCoolTrial", "MyUncoolTrial"});
-
-  EXPECT_FALSE(f.IsEnabled("MyCoolTrial"));
-  EXPECT_FALSE(f.IsDisabled("MyUncoolTrial"));
-}
-
-TEST(FieldTrialsTest, FieldTrialsInstanceDoesNotModifyGlobalString) {
-  FieldTrialsAllowedInScopeForTesting k({"SomeString"});
-  FieldTrials f("SomeString/Enabled/");
-  f.RegisterKeysForTesting({"SomeString"});
-
-  EXPECT_TRUE(f.IsEnabled("SomeString"));
-  EXPECT_FALSE(field_trial::IsEnabled("SomeString"));
-}
-
 TEST(FieldTrialsTest, FieldTrialsSupportSimultaneousInstances) {
   FieldTrials f1("SomeString/Enabled/");
   FieldTrials f2("SomeOtherString/Enabled/");
@@ -79,20 +55,6 @@ TEST(FieldTrialsTest, FieldTrialsSupportSimultaneousInstances) {
 
   EXPECT_FALSE(f2.IsEnabled("SomeString"));
   EXPECT_TRUE(f2.IsEnabled("SomeOtherString"));
-}
-
-TEST(FieldTrialsTest, GlobalAndNonGlobalFieldTrialsAreDisjoint) {
-  FieldTrialsAllowedInScopeForTesting k({"SomeString", "SomeOtherString"});
-  ScopedFieldTrials g("SomeString/Enabled/");
-  FieldTrials f("SomeOtherString/Enabled/");
-
-  f.RegisterKeysForTesting({"SomeString", "SomeOtherString"});
-
-  EXPECT_TRUE(field_trial::IsEnabled("SomeString"));
-  EXPECT_FALSE(field_trial::IsEnabled("SomeOtherString"));
-
-  EXPECT_FALSE(f.IsEnabled("SomeString"));
-  EXPECT_TRUE(f.IsEnabled("SomeOtherString"));
 }
 
 TEST(FieldTrialsTest, CreateAcceptsValidInputs) {

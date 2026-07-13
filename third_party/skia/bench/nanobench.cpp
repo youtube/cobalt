@@ -548,14 +548,18 @@ static int setup_gpu_bench(Target* target, Benchmark* bench, int maxGpuFrameLag)
 
         // Make sure we're not still timing our calibration.
         target->submitWorkAndSyncCPU();
+
+        // Pretty much the same deal as the calibration: do some warmup to make
+        // sure we're timing steady-state pipelined frames.
+        for (int i = 0; i < maxGpuFrameLag; i++) {
+            time(loops, bench, target);
+        }
     } else {
+        // We skip running the bench for calibration or to reach a steady state. When an explicit
+        // loop count is provided, we want to just run that number of loops.
         loops = detect_forever_loops(loops);
     }
-    // Pretty much the same deal as the calibration: do some warmup to make
-    // sure we're timing steady-state pipelined frames.
-    for (int i = 0; i < maxGpuFrameLag; i++) {
-        time(loops, bench, target);
-    }
+
 
     return loops;
 }
@@ -678,6 +682,8 @@ static std::optional<Config> create_config(const SkCommandLineConfig* config) {
     CPU_CONFIG("nonrendering", Backend::kNonRendering, kUnknown_SkColorType, kUnpremul_SkAlphaType)
 
     CPU_CONFIG("a8",    Backend::kRaster,    kAlpha_8_SkColorType, kPremul_SkAlphaType)
+    CPU_CONFIG("gray8", Backend::kRaster,     kGray_8_SkColorType, kOpaque_SkAlphaType)
+    CPU_CONFIG("r8",    Backend::kRaster,   kR8_unorm_SkColorType, kOpaque_SkAlphaType)
     CPU_CONFIG("565",   Backend::kRaster,    kRGB_565_SkColorType, kOpaque_SkAlphaType)
     CPU_CONFIG("8888",  Backend::kRaster,        kN32_SkColorType, kPremul_SkAlphaType)
     CPU_CONFIG("rgba",  Backend::kRaster,  kRGBA_8888_SkColorType, kPremul_SkAlphaType)
@@ -1522,7 +1528,7 @@ int main(int argc, char** argv) {
                 continue;
             }
 
-            if (runs == 0 && FLAGS_ms < 1000) {
+            if (runs == 0 && FLAGS_ms < 1000 && kAutoTuneLoops == FLAGS_loops) {
                 // Run the first bench for 1000ms to warm up the nanobench if FLAGS_ms < 1000.
                 // Otherwise, the first few benches' measurements will be inaccurate.
                 auto stop = now_ms() + 1000;

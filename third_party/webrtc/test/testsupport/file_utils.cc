@@ -10,6 +10,8 @@
 
 #include "test/testsupport/file_utils.h"
 
+#include <stdlib.h>
+
 #include <cstdio>
 #include <cstdlib>
 #include <optional>
@@ -21,7 +23,6 @@
 #include "absl/strings/string_view.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/crypto_random.h"
-#include "rtc_base/string_utils.h"
 #include "rtc_base/strings/string_builder.h"
 #include "test/testsupport/file_utils_override.h"
 
@@ -30,6 +31,8 @@
 #endif
 
 #if defined(WEBRTC_WIN)
+#include <Shlwapi.h>
+#include <WinDef.h>
 #include <direct.h>
 #include <tchar.h>
 #include <windows.h>
@@ -37,8 +40,7 @@
 #include <algorithm>
 #include <locale>
 
-#include "Shlwapi.h"
-#include "WinDef.h"
+#include "rtc_base/string_utils.h"
 #include "rtc_base/win32.h"
 
 #define GET_CURRENT_DIR _getcwd

@@ -18,13 +18,11 @@
 #include <type_traits>
 #include <vector>
 
-#include "absl/base/macros.h"
-#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/string_to_number.h"
-#include "rtc_base/strings/string_format.h"
+#include "rtc_base/strings/string_format.h"  // IWYU pragma: keep
 
 namespace webrtc {
 
@@ -75,7 +73,7 @@ template <typename T,
                                   int>::type = 0>
 static bool FromString(absl::string_view s, T* t) {
   RTC_DCHECK(t);
-  std::optional<T> result = webrtc::StringToNumber<T>(s);
+  std::optional<T> result = StringToNumber<T>(s);
 
   if (result)
     *t = *result;

@@ -49,8 +49,8 @@ namespace webrtc {
 namespace test {
 namespace {
 
-static const int kOpusBlockDurationMs = 20;
-static const int kOpusSamplingKhz = 48;
+const int kOpusBlockDurationMs = 20;
+const int kOpusSamplingKhz = 48;
 }  // namespace
 
 class NetEqOpusQualityTest : public NetEqQualityTest {

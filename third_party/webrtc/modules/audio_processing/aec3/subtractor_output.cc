@@ -10,7 +10,10 @@
 
 #include "modules/audio_processing/aec3/subtractor_output.h"
 
+#include <algorithm>
 #include <numeric>
+
+#include "api/array_view.h"
 
 namespace webrtc {
 

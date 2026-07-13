@@ -305,6 +305,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // See Assembler::CheckConstPool for more info.
   void EmitPoolGuard();
 
+  void FinishCode() { ForceConstantPoolEmissionWithoutJump(); }
+
 #if defined(V8_TARGET_ARCH_RISCV64)
   static void set_target_value_at(
       Address pc, uint64_t target,
@@ -468,7 +470,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     explicit BlockTrampolinePoolScope(Assembler* assem, int margin = 0)
         : assem_(assem) {
       if (margin > 0) {
-        assem_->CheckTrampolinePoolQuick(margin / kInstrSize);
+        assem_->CheckTrampolinePoolQuick(margin);
       }
       assem_->StartBlockTrampolinePool();
     }
@@ -612,18 +614,20 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     return constpool_.RecordEntry(data, rmode);
   }
 
-  void CheckTrampolinePoolQuick(int extra_instructions = 0) {
+  void CheckTrampolinePoolQuick(int margin = 0) {
     DEBUG_PRINTF("\tCheckTrampolinePoolQuick pc_offset:%d %d\n", pc_offset(),
-                 next_buffer_check_ - extra_instructions * kInstrSize);
-    if (pc_offset() >= next_buffer_check_ - extra_instructions * kInstrSize) {
+                 next_buffer_check_ - margin);
+    if (pc_offset() >= next_buffer_check_ - margin) {
       CheckTrampolinePool();
     }
   }
 
+  inline int next_buffer_check() { return next_buffer_check_; }
+
   friend class VectorUnit;
   class VectorUnit {
    public:
-    inline int32_t sew() const { return 2 ^ (sew_ + 3); }
+    inline int32_t sew() const { return 1 << (sew_ + 3); }
 
     inline int32_t vlmax() const {
       if ((lmul_ & 0b100) != 0) {
@@ -748,7 +752,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     DEBUG_PRINTF("\ttrampoline_pool_blocked_nesting:%d\n",
                  trampoline_pool_blocked_nesting_);
     if (trampoline_pool_blocked_nesting_ == 0) {
-      CheckTrampolinePoolQuick(1);
+      CheckTrampolinePoolQuick(1 * kInstrSize);
     }
   }
 
@@ -772,6 +776,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   }
 
   bool is_buffer_growth_blocked() const { return block_buffer_growth_; }
+
+  inline int ConstpoolComputesize() {
+    return constpool_.ComputeSize(Jump::kOmitted, Alignment::kOmitted);
+  }
 
  private:
   // Avoid overflows for displacements etc.

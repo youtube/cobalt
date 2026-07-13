@@ -161,7 +161,7 @@ void AddDefaultFeedbackParams(Codec* codec, const FieldTrialsView& trials) {
 // Also, is_decoder_factory is used to decide whether FlexFEC video format
 // should be advertised as supported.
 template <class T>
-std::vector<webrtc::SdpVideoFormat> GetDefaultSupportedFormats(
+std::vector<SdpVideoFormat> GetDefaultSupportedFormats(
     const T* factory,
     bool is_decoder_factory,
     const FieldTrialsView& trials) {
@@ -228,7 +228,7 @@ RTCErrorOr<Codec> AddRtx(const Codec& primary_codec,
 // TODO(kron): Perhaps it is better to move the implicit knowledge to the place
 // where codecs are negotiated.
 template <class T>
-std::vector<webrtc::Codec> GetPayloadTypesAndDefaultCodecs(
+std::vector<Codec> GetPayloadTypesAndDefaultCodecs(
     const T* factory,
     bool is_decoder_factory,
     bool include_rtx,
@@ -277,7 +277,7 @@ std::vector<webrtc::Codec> GetPayloadTypesAndDefaultCodecs(
   return output_codecs;
 }
 
-static std::string CodecVectorToString(const std::vector<Codec>& codecs) {
+std::string CodecVectorToString(const std::vector<Codec>& codecs) {
   StringBuilder out;
   out << "{";
   for (size_t i = 0; i < codecs.size(); ++i) {
@@ -290,7 +290,7 @@ static std::string CodecVectorToString(const std::vector<Codec>& codecs) {
   return out.Release();
 }
 
-static bool ValidateCodecFormats(const std::vector<Codec>& codecs) {
+bool ValidateCodecFormats(const std::vector<Codec>& codecs) {
   bool has_video = false;
   for (size_t i = 0; i < codecs.size(); ++i) {
     if (!codecs[i].ValidateCodecFormat()) {
@@ -308,7 +308,7 @@ static bool ValidateCodecFormats(const std::vector<Codec>& codecs) {
   return true;
 }
 
-static bool ValidateStreamParams(const StreamParams& sp) {
+bool ValidateStreamParams(const StreamParams& sp) {
   if (sp.ssrcs.empty()) {
     RTC_LOG(LS_ERROR) << "No SSRCs in stream parameters: " << sp.ToString();
     return false;
@@ -514,11 +514,9 @@ void FallbackToDefaultScalabilityModeIfNotSupported(
     const Codec& codec,
     const VideoSendStream::Config& config,
     std::vector<RtpEncodingParameters>& encodings) {
-  if (!absl::c_any_of(encodings,
-                      [](const webrtc::RtpEncodingParameters& encoding) {
-                        return encoding.scalability_mode &&
-                               !encoding.scalability_mode->empty();
-                      })) {
+  if (!absl::c_any_of(encodings, [](const RtpEncodingParameters& encoding) {
+        return encoding.scalability_mode && !encoding.scalability_mode->empty();
+      })) {
     // Fallback is only enabled if the scalability mode is configured for any of
     // the encodings for now.
     return;
@@ -2155,6 +2153,9 @@ RTCError WebRtcVideoSendChannel::WebRtcVideoSendStream::SetRtpParameters(
       new_send_state = true;
     }
   }
+  bool new_csrcs =
+      (new_parameters.encodings[0].csrcs.has_value() &&
+       new_parameters.encodings[0].csrcs != rtp_parameters_.encodings[0].csrcs);
 
   rtp_parameters_ = new_parameters;
   // Codecs are currently handled at the WebRtcVideoSendChannel level.
@@ -2168,6 +2169,9 @@ RTCError WebRtcVideoSendChannel::WebRtcVideoSendStream::SetRtpParameters(
     if (source_ && stream_) {
       stream_->SetSource(source_, GetDegradationPreference());
     }
+  }
+  if (stream_ && new_csrcs) {
+    stream_->SetCsrcs(rtp_parameters_.encodings[0].csrcs.value());
   }
   // Check if a key frame was requested via setParameters.
   std::vector<std::string> key_frames_requested_by_rid;
@@ -2366,7 +2370,7 @@ void WebRtcVideoSendChannel::WebRtcVideoSendStream::ReconfigureEncoder(
     SetParametersCallback callback) {
   RTC_DCHECK_RUN_ON(&thread_checker_);
   if (!stream_) {
-    // The webrtc::VideoSendStream `stream_` has not yet been created but other
+    // The VideoSendStream `stream_` has not yet been created but other
     // parameters has changed.
     InvokeSetParametersCallback(callback, RTCError::OK());
     return;
@@ -2670,6 +2674,10 @@ void WebRtcVideoSendChannel::WebRtcVideoSendStream::RecreateWebRtcStream() {
   } else {
     stream_ = call_->CreateVideoSendStream(std::move(config),
                                            parameters_.encoder_config.Copy());
+  }
+  if (!rtp_parameters_.encodings.empty() &&
+      rtp_parameters_.encodings[0].csrcs.has_value()) {
+    stream_->SetCsrcs(rtp_parameters_.encodings[0].csrcs.value());
   }
 
   parameters_.encoder_config.encoder_specific_settings = nullptr;

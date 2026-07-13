@@ -10,17 +10,20 @@
 
 #include "modules/desktop_capture/win/wgc_capturer_win.h"
 
-#include <string>
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
 #include <utility>
 #include <vector>
 
 #include "modules/desktop_capture/desktop_capture_options.h"
 #include "modules/desktop_capture/desktop_capture_types.h"
 #include "modules/desktop_capture/desktop_capturer.h"
+#include "modules/desktop_capture/win/screen_capture_utils.h"
 #include "modules/desktop_capture/win/test_support/test_window.h"
 #include "modules/desktop_capture/win/wgc_capture_session.h"
 #include "modules/desktop_capture/win/window_capture_utils.h"
-#include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/thread.h"
@@ -125,7 +128,7 @@ class WgcCapturerWinTest : public ::testing::TestWithParam<CaptureType>,
   // having GraphicsCaptureItem events (i.e. the Closed event) fire, and it more
   // closely resembles how capture works in the wild.
   void CreateWindowOnSeparateThread(int window_width, int window_height) {
-    window_thread_ = webrtc::Thread::Create();
+    window_thread_ = Thread::Create();
     window_thread_->SetName(kWindowThreadName, nullptr);
     window_thread_->Start();
     SendTask(window_thread_.get(), [this, window_width, window_height]() {
@@ -266,7 +269,7 @@ class WgcCapturerWinTest : public ::testing::TestWithParam<CaptureType>,
  protected:
   std::unique_ptr<ScopedCOMInitializer> com_initializer_;
   DWORD window_thread_id_;
-  std::unique_ptr<webrtc::Thread> window_thread_;
+  std::unique_ptr<Thread> window_thread_;
   WindowInfo window_info_;
   intptr_t source_id_;
   bool window_open_ = false;
@@ -330,11 +333,10 @@ TEST_P(WgcCapturerWinTest, CaptureTime) {
   capturer_->Start(this);
 
   int64_t start_time;
-  start_time = webrtc::TimeNanos();
+  start_time = TimeNanos();
   capturer_->CaptureFrame();
 
-  int capture_time_ms =
-      (webrtc::TimeNanos() - start_time) / webrtc::kNumNanosecsPerMillisec;
+  int capture_time_ms = (TimeNanos() - start_time) / kNumNanosecsPerMillisec;
   EXPECT_EQ(result_, DesktopCapturer::Result::SUCCESS);
   EXPECT_TRUE(frame_);
 
@@ -365,7 +367,7 @@ TEST(WgcCapturerNoMonitorTest, NoMonitors) {
 
   // A bug in the DWM (Desktop Window Manager) prevents it from providing image
   // data if there are no displays attached. This was fixed in Windows 11.
-  if (webrtc::rtc_win::GetVersion() < webrtc::rtc_win::Version::VERSION_WIN11)
+  if (rtc_win::GetVersion() < rtc_win::Version::VERSION_WIN11)
     EXPECT_FALSE(IsWgcSupported(CaptureType::kWindow));
   else
     EXPECT_TRUE(IsWgcSupported(CaptureType::kWindow));

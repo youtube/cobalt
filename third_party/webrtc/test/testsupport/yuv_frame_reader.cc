@@ -8,14 +8,16 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <stdio.h>
-
+#include <algorithm>
+#include <cstdio>
+#include <memory>
 #include <string>
 
 #include "api/scoped_refptr.h"
 #include "api/video/i420_buffer.h"
+#include "api/video/resolution.h"
 #include "common_video/libyuv/include/webrtc_libyuv.h"
-#include "rtc_base/logging.h"
+#include "rtc_base/checks.h"
 #include "test/frame_utils.h"
 #include "test/testsupport/file_utils.h"
 #include "test/testsupport/frame_reader.h"

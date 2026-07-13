@@ -9,6 +9,10 @@
 
 #include "include/private/base/SkAPI.h"
 
+namespace skcpu {
+class Recorder;
+}
+
 class SK_API SkRecorder {
 public:
     SkRecorder() = default;
@@ -18,12 +22,14 @@ public:
     SkRecorder& operator=(const SkRecorder&) = delete;
 
     enum class Type {
-        kRaster,
+        kCPU,
         kGanesh,
         kGraphite,
     };
 
     virtual Type type() const = 0;
+
+    virtual skcpu::Recorder* cpuRecorder() = 0;
 };
 
 #endif

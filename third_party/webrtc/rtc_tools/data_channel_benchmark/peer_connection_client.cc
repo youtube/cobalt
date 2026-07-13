@@ -9,29 +9,27 @@
  */
 #include "rtc_tools/data_channel_benchmark/peer_connection_client.h"
 
+#include <cstdint>
+#include <functional>
 #include <memory>
-#include <string>
 #include <utility>
 
-#include "api/audio/audio_device.h"
-#include "api/audio/audio_mixer.h"
-#include "api/audio/audio_processing.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/create_peerconnection_factory.h"
+#include "api/data_channel_interface.h"
+#include "api/field_trials_view.h"
 #include "api/jsep.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
 #include "api/scoped_refptr.h"
 #include "api/set_local_description_observer_interface.h"
 #include "api/set_remote_description_observer_interface.h"
-#include "api/video_codecs/video_decoder_factory.h"
 #include "api/video_codecs/video_decoder_factory_template.h"
 #include "api/video_codecs/video_decoder_factory_template_dav1d_adapter.h"
 #include "api/video_codecs/video_decoder_factory_template_libvpx_vp8_adapter.h"
 #include "api/video_codecs/video_decoder_factory_template_libvpx_vp9_adapter.h"
 #include "api/video_codecs/video_decoder_factory_template_open_h264_adapter.h"
-#include "api/video_codecs/video_encoder_factory.h"
 #include "api/video_codecs/video_encoder_factory_template.h"
 #include "api/video_codecs/video_encoder_factory_template_libaom_av1_adapter.h"
 #include "api/video_codecs/video_encoder_factory_template_libvpx_vp8_adapter.h"
@@ -41,6 +39,7 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/ref_counted_object.h"
 #include "rtc_base/thread.h"
+#include "rtc_tools/data_channel_benchmark/signaling_interface.h"
 
 namespace {
 
@@ -131,10 +130,9 @@ PeerConnectionClient::PeerConnectionClient(
     PeerConnectionFactoryInterface* factory,
     SignalingInterface* signaling)
     : signaling_(signaling) {
-  signaling_->OnIceCandidate(
-      [&](std::unique_ptr<IceCandidateInterface> candidate) {
-        AddIceCandidate(std::move(candidate));
-      });
+  signaling_->OnIceCandidate([&](std::unique_ptr<IceCandidate> candidate) {
+    AddIceCandidate(std::move(candidate));
+  });
   signaling_->OnRemoteDescription(
       [&](std::unique_ptr<SessionDescriptionInterface> sdp) {
         SetRemoteDescription(std::move(sdp));
@@ -147,7 +145,9 @@ PeerConnectionClient::~PeerConnectionClient() {
 }
 
 scoped_refptr<PeerConnectionFactoryInterface>
-PeerConnectionClient::CreateDefaultFactory(Thread* signaling_thread) {
+PeerConnectionClient::CreateDefaultFactory(
+    Thread* signaling_thread,
+    std::unique_ptr<FieldTrialsView> field_trials) {
   auto factory = CreatePeerConnectionFactory(
       /*network_thread=*/nullptr, /*worker_thread=*/nullptr,
       /*signaling_thread*/ signaling_thread,
@@ -159,7 +159,8 @@ PeerConnectionClient::CreateDefaultFactory(Thread* signaling_thread) {
       std::make_unique<VideoDecoderFactoryTemplate<
           LibvpxVp8DecoderTemplateAdapter, LibvpxVp9DecoderTemplateAdapter,
           OpenH264DecoderTemplateAdapter, Dav1dDecoderTemplateAdapter>>(),
-      /*audio_mixer=*/nullptr, /*audio_processing=*/nullptr);
+      /*audio_mixer=*/nullptr, /*audio_processing=*/nullptr,
+      /*audio_frame_processor=*/nullptr, std::move(field_trials));
 
   if (!factory) {
     RTC_LOG(LS_ERROR) << "Failed to initialize PeerConnectionFactory";
@@ -251,8 +252,7 @@ void PeerConnectionClient::OnIceGatheringChange(
   }
 }
 
-void PeerConnectionClient::OnIceCandidate(
-    const IceCandidateInterface* candidate) {
+void PeerConnectionClient::OnIceCandidate(const IceCandidate* candidate) {
   signaling_->SendIceCandidate(candidate);
 }
 
@@ -305,11 +305,11 @@ bool PeerConnectionClient::SetRemoteDescription(
 }
 
 void PeerConnectionClient::AddIceCandidate(
-    std::unique_ptr<IceCandidateInterface> candidate) {
+    std::unique_ptr<IceCandidate> candidate) {
   RTC_LOG(LS_INFO) << "AddIceCandidate";
 
   peer_connection_->AddIceCandidate(
-      std::move(candidate), [](const webrtc::RTCError& error) {
+      std::move(candidate), [](const RTCError& error) {
         RTC_LOG(LS_INFO) << "Failed to add candidate: " << error.message();
       });
 }

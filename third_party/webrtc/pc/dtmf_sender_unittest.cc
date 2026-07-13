@@ -123,7 +123,7 @@ class DtmfSenderTest : public ::testing::Test {
     dtmf_->RegisterObserver(observer_.get());
   }
 
-  ~DtmfSenderTest() {
+  ~DtmfSenderTest() override {
     if (dtmf_) {
       dtmf_->UnregisterObserver();
     }

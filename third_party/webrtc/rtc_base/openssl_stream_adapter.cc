@@ -38,9 +38,16 @@
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/openssl_adapter.h"
 #include "rtc_base/openssl_digest.h"
+#include "rtc_base/openssl_utility.h"
+#include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/ssl_stream_adapter.h"
+#include "rtc_base/stream.h"
+#include "rtc_base/string_encode.h"
 #include "rtc_base/task_utils/repeating_task.h"
+#include "rtc_base/thread.h"
+#include "rtc_base/time_utils.h"
+
 #ifdef OPENSSL_IS_BORINGSSL
 #include <openssl/digest.h>
 #include <openssl/dtls1.h>
@@ -53,12 +60,6 @@
 #else
 #include "rtc_base/openssl_identity.h"
 #endif
-#include "rtc_base/openssl_utility.h"
-#include "rtc_base/ssl_certificate.h"
-#include "rtc_base/stream.h"
-#include "rtc_base/string_encode.h"
-#include "rtc_base/thread.h"
-#include "rtc_base/time_utils.h"
 
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L)
 #error "webrtc requires at least OpenSSL version 1.1.0, to support DTLS-SRTP"
@@ -66,8 +67,7 @@
 
 namespace {
 // Value specified in RFC 5764.
-static constexpr absl::string_view kDtlsSrtpExporterLabel =
-    "EXTRACTOR-dtls_srtp";
+constexpr absl::string_view kDtlsSrtpExporterLabel = "EXTRACTOR-dtls_srtp";
 }  // namespace
 
 namespace webrtc {
@@ -317,7 +317,7 @@ void OpenSSLStreamAdapter::SetIdentity(std::unique_ptr<SSLIdentity> identity) {
 #ifdef OPENSSL_IS_BORINGSSL
   identity_.reset(static_cast<BoringSSLIdentity*>(identity.release()));
 #else
-  identity_.reset(static_cast<webrtc::OpenSSLIdentity*>(identity.release()));
+  identity_.reset(static_cast<OpenSSLIdentity*>(identity.release()));
 #endif
 }
 
@@ -1203,7 +1203,7 @@ int OpenSSLStreamAdapter::SSLVerifyCallback(X509_STORE_CTX* store, void* arg) {
   // Record the peer's certificate.
   X509* cert = X509_STORE_CTX_get0_cert(store);
   stream->peer_cert_chain_.reset(
-      new SSLCertChain(std::make_unique<webrtc::OpenSSLCertificate>(cert)));
+      new SSLCertChain(std::make_unique<OpenSSLCertificate>(cert)));
 
   // If the peer certificate digest isn't known yet, we'll wait to verify
   // until it's known, and for now just return a success status.

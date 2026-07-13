@@ -106,6 +106,7 @@ namespace compiler {
   V(Arm64Usra)                          \
   V(Arm64S64x2UnzipLeft)                \
   V(Arm64S64x2UnzipRight)               \
+  V(Arm64S64x2Reverse)                  \
   V(Arm64S32x4ZipLeft)                  \
   V(Arm64S32x4ZipRight)                 \
   V(Arm64S32x4UnzipLeft)                \
@@ -401,7 +402,8 @@ namespace compiler {
   V(Arm64Word64AtomicXorUint64)                      \
   V(Arm64Word64AtomicExchangeUint64)                 \
   V(Arm64Word64AtomicCompareExchangeUint64)          \
-  IF_WASM(TARGET_ARCH_SIMD_OPCODE_LIST, V)
+  IF_WASM(TARGET_ARCH_SIMD_OPCODE_LIST, V)           \
+  IF_WASM(V, Arm64Cpy)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

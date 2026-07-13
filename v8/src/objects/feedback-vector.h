@@ -1026,10 +1026,12 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   // For KeyedLoad and KeyedStore ICs.
   IcCheckType GetKeyType() const;
   Tagged<Name> GetName() const;
+  bool IsOneMapManyNames() const;
 
   // For Call ICs.
   int GetCallCount();
   void SetSpeculationMode(SpeculationMode mode);
+  void NextSpeculationMode(SpeculationMode mode);
   SpeculationMode GetSpeculationMode();
   CallFeedbackContent GetCallFeedbackContent();
 
@@ -1037,9 +1039,9 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   // count (taken from the type feedback vector).
   float ComputeCallFrequency();
 
-  using SpeculationModeField = base::BitField<SpeculationMode, 0, 1>;
-  using CallFeedbackContentField = base::BitField<CallFeedbackContent, 1, 1>;
-  using CallCountField = base::BitField<uint32_t, 2, 30>;
+  using SpeculationModeField = base::BitField<SpeculationMode, 0, 2>;
+  using CallFeedbackContentField = base::BitField<CallFeedbackContent, 2, 1>;
+  using CallCountField = base::BitField<uint32_t, 3, 29>;
 
   // For InstanceOf ICs.
   MaybeDirectHandle<JSObject> GetConstructorFeedback() const;

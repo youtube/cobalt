@@ -22,9 +22,9 @@
 #include <openssl/asn1.h>
 #include <openssl/err.h>
 #include <openssl/mem.h>
-#include <openssl/thread.h>
 
 #include "../internal.h"
+#include "internal.h"
 
 
 static CRYPTO_EX_DATA_CLASS g_ex_data_class =
@@ -63,7 +63,7 @@ int BIO_free(BIO *bio) {
       bio->method->destroy(bio);
     }
 
-    CRYPTO_free_ex_data(&g_ex_data_class, bio, &bio->ex_data);
+    CRYPTO_free_ex_data(&g_ex_data_class, &bio->ex_data);
     OPENSSL_free(bio);
   }
   return 1;

@@ -6,19 +6,28 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "quiche/quic/core/congestion_control/loss_detection_interface.h"
 #include "quiche/quic/core/congestion_control/pacing_sender.h"
 #include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
+#include "quiche/quic/core/congestion_control/uber_loss_algorithm.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
+#include "quiche/quic/core/crypto/quic_random.h"
+#include "quiche/quic/core/frames/quic_ack_frame.h"
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
+#include "quiche/quic/core/frames/quic_frame.h"
+#include "quiche/quic/core/proto/cached_network_parameters_proto.h"
+#include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_connection_stats.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_packet_number.h"
+#include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_tag.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_transmission_info.h"
@@ -28,6 +37,7 @@
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/print_elements.h"
 
 namespace quic {
@@ -35,7 +45,7 @@ namespace quic {
 namespace {
 static const int64_t kDefaultRetransmissionTimeMs = 500;
 
-// Ensure the handshake timer isnt't faster than 10ms.
+// Ensure the handshake timer isn't faster than 10ms.
 // This limits the tenth retransmitted packet to 10s after the initial CHLO.
 static const int64_t kMinHandshakeTimeoutMs = 10;
 
@@ -177,6 +187,13 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
     initial_congestion_window_ = 50;
     send_algorithm_->SetInitialCongestionWindowInPackets(50);
   }
+  if (config.HasClientRequestedIndependentOption(kIW2X, perspective) &&
+      GetQuicReloadableFlag(quic_allow_client_enabled_2x_initial_cwnd)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_allow_client_enabled_2x_initial_cwnd);
+    initial_congestion_window_ *= 2;
+    send_algorithm_->SetInitialCongestionWindowInPackets(
+        initial_congestion_window_);
+  }
   if (config.HasClientRequestedIndependentOption(kBWS5, perspective)) {
     initial_congestion_window_ = 10;
     send_algorithm_->SetInitialCongestionWindowInPackets(10);
@@ -217,6 +234,17 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   }
   if (config.HasClientSentConnectionOption(kRNIB, perspective)) {
     pacing_sender_.set_remove_non_initial_burst();
+  }
+  // Path degradation experiments
+  if (config.HasClientRequestedIndependentOption(kPDE2, perspective)) {
+    num_ptos_for_path_degrading_ = 2;
+  }
+  if (config.HasClientRequestedIndependentOption(kPDE3, perspective)) {
+    num_ptos_for_path_degrading_ = 3;
+  }
+  // kPDE4 is the default. We have the experiments with kPDE4.
+  if (config.HasClientRequestedIndependentOption(kPDE5, perspective)) {
+    num_ptos_for_path_degrading_ = 5;
   }
   send_algorithm_->SetFromConfig(config, perspective);
   loss_algorithm_->SetFromConfig(config, perspective);
@@ -637,6 +665,7 @@ bool QuicSentPacketManager::CanSendAckFrequency() const {
   return !peer_min_ack_delay_.IsInfinite() && handshake_finished_;
 }
 
+// TODO(martinduke): Update to include reordering threshold.
 QuicAckFrequencyFrame QuicSentPacketManager::GetUpdatedAckFrequencyFrame()
     const {
   QuicAckFrequencyFrame frame;
@@ -647,15 +676,16 @@ QuicAckFrequencyFrame QuicSentPacketManager::GetUpdatedAckFrequencyFrame()
   }
 
   QUIC_RELOADABLE_FLAG_COUNT_N(quic_can_send_ack_frequency, 1, 3);
-  frame.packet_tolerance = kMaxRetransmittablePacketsBeforeAck;
+  frame.ack_eliciting_threshold = kMaxRetransmittablePacketsBeforeAck;
   auto rtt = use_smoothed_rtt_in_ack_delay_ ? rtt_stats_.SmoothedOrInitialRtt()
                                             : rtt_stats_.MinOrInitialRtt();
-  frame.max_ack_delay = rtt * kPeerAckDecimationDelay;
-  frame.max_ack_delay = std::max(frame.max_ack_delay, peer_min_ack_delay_);
+  frame.requested_max_ack_delay = rtt * kPeerAckDecimationDelay;
+  frame.requested_max_ack_delay =
+      std::max(frame.requested_max_ack_delay, peer_min_ack_delay_);
   // TODO(haoyuewang) Remove this once kDefaultMinAckDelayTimeMs is updated to
   // 5 ms on the client side.
-  frame.max_ack_delay =
-      std::max(frame.max_ack_delay,
+  frame.requested_max_ack_delay =
+      std::max(frame.requested_max_ack_delay,
                QuicTime::Delta::FromMilliseconds(kDefaultMinAckDelayTimeMs));
   return frame;
 }
@@ -1553,9 +1583,11 @@ QuicPacketNumber QuicSentPacketManager::GetLeastPacketAwaitedByPeer(
 
 QuicPacketNumber QuicSentPacketManager::GetLargestPacketPeerKnowsIsAcked(
     EncryptionLevel decrypted_packet_level) const {
-  QUICHE_DCHECK(supports_multiple_packet_number_spaces());
-  return largest_packets_peer_knows_is_acked_[QuicUtils::GetPacketNumberSpace(
-      decrypted_packet_level)];
+  if (supports_multiple_packet_number_spaces()) {
+    return largest_packets_peer_knows_is_acked_[QuicUtils::GetPacketNumberSpace(
+        decrypted_packet_level)];
+  }
+  return largest_packet_peer_knows_is_acked_;
 }
 
 QuicTime::Delta
@@ -1611,10 +1643,11 @@ QuicTime::Delta QuicSentPacketManager::GetPtoDelay() const {
 
 void QuicSentPacketManager::OnAckFrequencyFrameSent(
     const QuicAckFrequencyFrame& ack_frequency_frame) {
-  in_use_sent_ack_delays_.emplace_back(ack_frequency_frame.max_ack_delay,
-                                       ack_frequency_frame.sequence_number);
-  if (ack_frequency_frame.max_ack_delay > peer_max_ack_delay_) {
-    peer_max_ack_delay_ = ack_frequency_frame.max_ack_delay;
+  in_use_sent_ack_delays_.emplace_back(
+      ack_frequency_frame.requested_max_ack_delay,
+      ack_frequency_frame.sequence_number);
+  if (ack_frequency_frame.requested_max_ack_delay > peer_max_ack_delay_) {
+    peer_max_ack_delay_ = ack_frequency_frame.requested_max_ack_delay;
   }
 }
 

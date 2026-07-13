@@ -13,6 +13,8 @@
 #include <memory>
 #include <string>
 
+#include "absl/strings/string_view.h"
+#include "api/field_trials_view.h"
 #include "api/task_queue/task_queue_factory.h"
 #include "api/task_queue/task_queue_test.h"
 #include "api/units/time_delta.h"

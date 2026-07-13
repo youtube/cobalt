@@ -10,6 +10,8 @@
 
 #include "modules/audio_processing/test/runtime_setting_util.h"
 
+#include "api/audio/audio_processing.h"
+#include "modules/audio_processing/test/protobuf_utils.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {

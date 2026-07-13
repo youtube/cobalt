@@ -561,7 +561,8 @@ std::unique_ptr<DrawPass> DrawPass::Make(Recorder* recorder,
     std::sort(keys.begin(), keys.end());
     DrawWriter drawWriter(&drawPass->fCommandList, bufferMgr);
     GraphicsPipelineCache::Index lastPipeline = GraphicsPipelineCache::kInvalidIndex;
-    SkIRect lastScissor = SkIRect::MakeSize(targetInfo.dimensions());
+    const SkIRect targetBounds = SkIRect::MakeSize(targetInfo.dimensions());
+    SkIRect lastScissor = targetBounds;
 
     SkASSERT(drawPass->fTarget->isFullyLazy() ||
              SkIRect::MakeSize(drawPass->fTarget->dimensions()).contains(lastScissor));
@@ -587,11 +588,20 @@ std::unique_ptr<DrawPass> DrawPass::Make(Recorder* recorder,
     const bool advancedBlendsRequireBarrier =
             caps->blendEquationSupport() == Caps::BlendEquationSupport::kAdvancedNoncoherent;
 
+#if defined(SK_TRACE_GRAPHITE_PIPELINE_USE)
+    // Accumulate rough pixel area touched by each pipeline as we iterate the SortKeys
+    drawPass->fPipelineDrawAreas.push_back_n(pipelineCache.size(), 0.f);
+#endif
+
     for (const SortKey& key : keys) {
         const DrawList::Draw& draw = key.draw();
         const RenderStep& renderStep = key.renderStep();
 
         const bool pipelineChange = key.pipelineIndex() != lastPipeline;
+#if defined(SK_TRACE_GRAPHITE_PIPELINE_USE)
+        drawPass->fPipelineDrawAreas[key.pipelineIndex()] +=
+                draw.fDrawParams.clip().drawBounds().area();
+#endif
 
         const bool geomBindingChange = geometryUniformTracker.writeUniforms(
                 geometryUniformDataCache, bufferMgr, key.geometryUniformIndex());
@@ -609,8 +619,9 @@ std::unique_ptr<DrawPass> DrawPass::Make(Recorder* recorder,
                 key.textureBindingIndex()) ||
                 (rebindTexturesOnPipelineChange && pipelineChange &&
                  key.textureBindingIndex() != TextureBindingCache::kInvalidIndex);
-        const SkIRect* newScissor        = draw.fDrawParams.clip().scissor() != lastScissor ?
-                &draw.fDrawParams.clip().scissor() : nullptr;
+
+        std::optional<SkIRect> newScissor =
+                renderStep.getScissor(draw.fDrawParams, lastScissor, targetBounds);
 
         // Determine + analyze draw properties to inform whether we need to issue barriers before
         // issuing draw calls.
@@ -633,7 +644,7 @@ std::unique_ptr<DrawPass> DrawPass::Make(Recorder* recorder,
         const bool stateChange = geomBindingChange ||
                                  shadingBindingChange ||
                                  textureBindingsChange ||
-                                 SkToBool(newScissor);
+                                 newScissor.has_value();
 
         // Update DrawWriter *before* we actually change any state so that accumulated draws from
         // the previous state use the proper state.
@@ -670,7 +681,7 @@ std::unique_ptr<DrawPass> DrawPass::Make(Recorder* recorder,
             if (textureBindingsChange) {
                 textureBindingTracker.bindTextures(&drawPass->fCommandList);
             }
-            if (newScissor) {
+            if (newScissor.has_value()) {
                 drawPass->fCommandList.setScissor(*newScissor);
                 lastScissor = *newScissor;
             }
@@ -710,7 +721,7 @@ bool DrawPass::prepareResources(ResourceProvider* resourceProvider,
                                 const RenderPassDesc& renderPassDesc) {
     TRACE_EVENT0("skia.gpu", TRACE_FUNC);
 
-    fFullPipelines.reserve(fFullPipelines.size() + fPipelineDescs.size());
+    fFullPipelines.reserve(fPipelineDescs.size());
     for (const GraphicsPipelineDesc& pipelineDesc : fPipelineDescs) {
         auto pipeline = resourceProvider->findOrCreateGraphicsPipeline(runtimeDict,
                                                                        pipelineDesc,
@@ -754,6 +765,19 @@ bool DrawPass::prepareResources(ResourceProvider* resourceProvider,
     // The DrawPass may be long lived on a Recording and we no longer need the SamplerDescs
     // once we've created Samplers, so we drop the storage for them here.
     fSamplerDescs.clear();
+
+#if defined(SK_TRACE_GRAPHITE_PIPELINE_USE)
+    {
+        TRACE_EVENT0_ALWAYS("skia.shaders", "GraphitePipelineUse");
+        for (int i = 0 ; i < fFullPipelines.size(); ++i) {
+            TRACE_EVENT_INSTANT1_ALWAYS(
+                    "skia.shaders",
+                    TRACE_STR_COPY(fFullPipelines[i]->getPipelineInfo().fLabel.c_str()),
+                    TRACE_EVENT_SCOPE_THREAD,
+                    "area", sk_float_saturate2int(fPipelineDrawAreas[i]));
+        }
+    }
+#endif
 
     return true;
 }

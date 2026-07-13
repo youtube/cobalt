@@ -13,7 +13,9 @@
 #include <cmath>
 #include <vector>
 
+#include "api/array_view.h"
 #include "modules/audio_processing/agc2/cpu_features.h"
+#include "modules/audio_processing/agc2/rnn_vad/common.h"
 #include "rtc_base/numerics/safe_compare.h"
 #include "rtc_base/numerics/safe_conversions.h"
 // TODO(bugs.webrtc.org/8948): Add when the issue is fixed.

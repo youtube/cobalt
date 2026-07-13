@@ -10,12 +10,12 @@
 
 #include "modules/audio_device/win/core_audio_base_win.h"
 
+#include <iterator>
 #include <memory>
 #include <string>
 
 #include "absl/strings/string_view.h"
 #include "modules/audio_device/audio_device_buffer.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_conversions.h"
@@ -905,7 +905,7 @@ void CoreAudioBase::ThreadRun() {
   // is signaled. An error event can also break the main thread loop.
   while (streaming && !error) {
     // Wait for a close-down event, stream-switch event or a new render event.
-    DWORD wait_result = WaitForMultipleObjects(arraysize(wait_array),
+    DWORD wait_result = WaitForMultipleObjects(std::size(wait_array),
                                                wait_array, false, INFINITE);
     switch (wait_result) {
       case WAIT_OBJECT_0 + 0:

@@ -10,6 +10,10 @@
 
 #include "modules/audio_processing/utility/pffft_wrapper.h"
 
+#include <cstddef>
+#include <memory>
+
+#include "api/array_view.h"
 #include "rtc_base/checks.h"
 #include "third_party/pffft/src/pffft.h"
 

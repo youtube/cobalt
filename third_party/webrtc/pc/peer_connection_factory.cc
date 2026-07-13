@@ -74,19 +74,15 @@ Environment AssembleEnvironment(PeerConnectionFactoryDependencies& deps) {
   // Assemble Environment here rather than in ConnectionContext::Create
   // to avoid dependency on EnvironmentFactory by ConnectionContext and thus its
   // users.
-  EnvironmentFactory env_factory = deps.env.has_value()
-                                       ? EnvironmentFactory(*deps.env)
-                                       : EnvironmentFactory();
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-  env_factory.Set(std::move(deps.trials));
-  env_factory.Set(std::move(deps.task_queue_factory));
-#pragma clang diagnostic pop
+  if (!deps.env.has_value()) {
+    return CreateEnvironment();
+  }
 
+  Environment env = *std::move(deps.env);
   // Clear Environment from `deps` to avoid accidental usage of the wrong
   // Environment.
   deps.env = std::nullopt;
-  return env_factory.Create();
+  return env;
 }
 
 }  // namespace

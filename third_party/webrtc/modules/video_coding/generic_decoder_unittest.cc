@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "api/array_view.h"
+#include "api/field_trials.h"
 #include "api/rtp_packet_infos.h"
 #include "api/scoped_refptr.h"
 #include "api/units/time_delta.h"
@@ -34,10 +35,10 @@
 #include "modules/video_coding/include/video_coding_defines.h"
 #include "modules/video_coding/timing/timing.h"
 #include "system_wrappers/include/clock.h"
+#include "test/create_test_field_trials.h"
 #include "test/fake_decoder.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 #include "test/time_controller/simulated_time_controller.h"
 
 using ::testing::Return;
@@ -72,7 +73,7 @@ class ReceiveCallback : public VCMReceiveCallback {
 
   ArrayView<const VideoFrame> GetAllFrames() const { return frames_; }
 
-  void OnDroppedFrames(uint32_t frames_dropped) {
+  void OnDroppedFrames(uint32_t frames_dropped) override {
     frames_dropped_ += frames_dropped;
   }
 
@@ -93,6 +94,7 @@ class GenericDecoderTest : public ::testing::Test {
   GenericDecoderTest()
       : time_controller_(Timestamp::Zero()),
         clock_(time_controller_.GetClock()),
+        field_trials_(CreateTestFieldTrials()),
         timing_(time_controller_.GetClock(), field_trials_),
         decoder_(time_controller_.GetTaskQueueFactory()),
         vcm_callback_(&timing_,
@@ -113,7 +115,7 @@ class GenericDecoderTest : public ::testing::Test {
 
   GlobalSimulatedTimeController time_controller_;
   Clock* const clock_;
-  test::ScopedKeyValueConfig field_trials_;
+  FieldTrials field_trials_;
   VCMTiming timing_;
   test::FakeDecoder decoder_;
   VCMDecodedFrameCallback vcm_callback_;

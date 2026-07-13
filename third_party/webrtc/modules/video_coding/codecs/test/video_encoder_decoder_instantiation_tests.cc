@@ -84,7 +84,7 @@ class VideoEncoderDecoderInstantiationTest
 #endif
   }
 
-  ~VideoEncoderDecoderInstantiationTest() {
+  ~VideoEncoderDecoderInstantiationTest() override {
     for (auto& encoder : encoders_) {
       encoder->Release();
     }

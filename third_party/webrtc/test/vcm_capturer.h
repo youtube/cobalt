@@ -10,11 +10,13 @@
 #ifndef TEST_VCM_CAPTURER_H_
 #define TEST_VCM_CAPTURER_H_
 
-#include <memory>
-#include <vector>
+#include <cstddef>
 
 #include "api/scoped_refptr.h"
+#include "api/video/video_frame.h"
+#include "api/video/video_sink_interface.h"
 #include "modules/video_capture/video_capture.h"
+#include "modules/video_capture/video_capture_defines.h"
 #include "rtc_base/logging.h"
 #include "test/test_video_capturer.h"
 

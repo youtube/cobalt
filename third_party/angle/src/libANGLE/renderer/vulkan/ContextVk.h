@@ -1330,6 +1330,8 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
 
     void writeAtomicCounterBufferDriverUniformOffsets(uint32_t *offsetsOut, size_t offsetsSize);
 
+    void updateUniformBufferBlocksOffset();
+
     enum class Submit
     {
         OutsideRenderPassCommandsOnly,
@@ -1559,6 +1561,10 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
     GLbitfield mDeferredMemoryBarriers;
 
     IncompleteTextureSet mIncompleteTextures;
+
+    // Track sample shading state, this helps avoid redundant work by
+    // conditionally dirtying DIRTY_BIT_SAMPLE_SHADING bit
+    bool mSampleShadingEnabled;
 
     // If the current surface bound to this context wants to have all rendering flipped vertically.
     // Updated on calls to onMakeCurrent.

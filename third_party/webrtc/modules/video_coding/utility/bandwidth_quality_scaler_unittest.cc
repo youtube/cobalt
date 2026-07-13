@@ -102,7 +102,7 @@ class BandwidthQualityScalerTest : public ::testing::Test {
     });
   }
 
-  ~BandwidthQualityScalerTest() {
+  ~BandwidthQualityScalerTest() override {
     task_queue_.SendTask([this] { bandwidth_quality_scaler_ = nullptr; });
   }
 

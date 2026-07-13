@@ -52,6 +52,7 @@ if (rtc_include_tests && !build_with_chromium) {
     ]
     deps = [
       ":congestion_controller",
+      "../../api:field_trials",
       "../../api:rtp_parameters",
       "../../api/environment:environment_factory",
       "../../api/test/network_emulation",
@@ -62,7 +63,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../../api/units:timestamp",
       "../../rtc_base:buffer",
       "../../system_wrappers",
-      "../../test:explicit_key_value_config",
+      "../../test:create_test_field_trials",
       "../../test:test_support",
       "../../test/scenario",
       "../pacing",

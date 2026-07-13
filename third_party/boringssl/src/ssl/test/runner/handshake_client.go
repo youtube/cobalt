@@ -2055,6 +2055,16 @@ func (hs *clientHandshakeState) processServerExtensions(serverExtensions *server
 		return errors.New("tls: server advertised trust anchor IDs that did not match expectations")
 	}
 
+	if serverExtensions.serverNameAck {
+		if len(hs.hello.serverName) == 0 {
+			return errors.New("tls: server acknowledged server_name, but client did not send it")
+		}
+		if c.didResume {
+			return errors.New("tls: server acknowledged server_name when resuming")
+		}
+		c.serverNameAck = serverExtensions.serverNameAck
+	}
+
 	if serverExtensions.srtpProtectionProfile != 0 {
 		if serverExtensions.srtpMasterKeyIdentifier != "" {
 			return errors.New("tls: server selected SRTP MKI value")

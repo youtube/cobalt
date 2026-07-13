@@ -40,7 +40,7 @@ class RtpSenderObserverInterface {
  public:
   // The observer is called when the first media packet is sent for the observed
   // sender. It is called immediately if the first packet was already sent.
-  virtual void OnFirstPacketSent(webrtc::MediaType media_type) = 0;
+  virtual void OnFirstPacketSent(MediaType media_type) = 0;
 
  protected:
   virtual ~RtpSenderObserverInterface() {}
@@ -48,7 +48,7 @@ class RtpSenderObserverInterface {
 
 using SetParametersCallback = absl::AnyInvocable<void(RTCError) &&>;
 
-class RTC_EXPORT RtpSenderInterface : public webrtc::RefCountInterface,
+class RTC_EXPORT RtpSenderInterface : public RefCountInterface,
                                       public FrameTransformerHost {
  public:
   // Returns true if successful in setting the track.
@@ -68,7 +68,7 @@ class RTC_EXPORT RtpSenderInterface : public webrtc::RefCountInterface,
   virtual uint32_t ssrc() const = 0;
 
   // Audio or video sender?
-  virtual webrtc::MediaType media_type() const = 0;
+  virtual MediaType media_type() const = 0;
 
   // Not to be confused with "mid", this is a field we can temporarily use
   // to uniquely identify a receiver until we implement Unified Plan SDP.

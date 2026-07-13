@@ -295,7 +295,12 @@ class TypeCanonicalizer {
       }
     }
 
-    size_t hash() const { return hasher.hash(); }
+    size_t hash() const {
+#if V8_HASHES_COLLIDE
+      if (v8_flags.hashes_collide) return base::kCollidingHash;
+#endif  // V8_HASHES_COLLIDE
+      return hasher.hash();
+    }
   };
 
   // Support for equality checking of recursion groups, where type indexes have
@@ -560,12 +565,9 @@ class TypeCanonicalizer {
 
   std::vector<CanonicalTypeIndex> canonical_supertypes_;
   // Set of all known canonical recgroups of size >=2.
-  std::unordered_set<CanonicalGroup, base::hash<CanonicalGroup>>
-      canonical_groups_;
+  std::unordered_set<CanonicalGroup> canonical_groups_;
   // Set of all known canonical recgroups of size 1.
-  std::unordered_set<CanonicalSingletonGroup,
-                     base::hash<CanonicalSingletonGroup>>
-      canonical_singleton_groups_;
+  std::unordered_set<CanonicalSingletonGroup> canonical_singleton_groups_;
   // Maps canonical indices back to the types.
   CanonicalTypeVector canonical_types_;
   AccountingAllocator allocator_;

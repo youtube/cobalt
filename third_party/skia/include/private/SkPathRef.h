@@ -9,6 +9,7 @@
 #define SkPathRef_DEFINED
 
 #include "include/core/SkArc.h"
+#include "include/core/SkPathTypes.h" // IWYU pragma: keep
 #include "include/core/SkPoint.h"
 #include "include/core/SkRect.h"
 #include "include/core/SkRefCnt.h"
@@ -310,6 +311,9 @@ public:
      */
     const uint8_t* verbsEnd() const { return fVerbs.end(); }
 
+    SkSpan<const SkPathVerb> verbs() const {
+        return {reinterpret_cast<const SkPathVerb*>(fVerbs.begin()), fVerbs.size()};
+    }
     /**
      * Returns a const pointer to the first point.
      */
@@ -337,7 +341,7 @@ public:
      * Gets an ID that uniquely identifies the contents of the path ref. If two path refs have the
      * same ID then they have the same verbs and points. However, two path refs may have the same
      * contents but different genIDs.
-     * skbug.com/1762 for background on why fillType is necessary (for now).
+     * skbug.com/40032862 for background on why fillType is necessary (for now).
      */
     uint32_t genID(uint8_t fillType) const;
 
@@ -395,7 +399,7 @@ private:
 
     // Return true if the computed bounds are finite.
     static bool ComputePtBounds(SkRect* bounds, const SkPathRef& ref) {
-        return bounds->setBoundsCheck(ref.points(), ref.countPoints());
+        return bounds->setBoundsCheck({ref.points(), ref.countPoints()});
     }
 
     // called, if dirty, by getBounds()

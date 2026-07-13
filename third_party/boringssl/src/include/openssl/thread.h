@@ -29,16 +29,6 @@ extern "C" {
 #endif
 
 
-// CRYPTO_refcount_t is the type of a reference count.
-//
-// Since some platforms use C11 atomics to access this, it should have the
-// _Atomic qualifier. However, this header is included by C++ programs as well
-// as C code that might not set -std=c11. So, in practice, it's not possible to
-// do that. Instead we statically assert that the size and native alignment of
-// a plain uint32_t and an _Atomic uint32_t are equal in refcount.c.
-typedef uint32_t CRYPTO_refcount_t;
-
-
 // Deprecated functions.
 //
 // Historically, OpenSSL required callers to provide locking callbacks.

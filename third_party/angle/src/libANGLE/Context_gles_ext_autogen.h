@@ -145,6 +145,13 @@
                                GLeglClientBufferEXT clientBuffer, GLbitfield flags);               \
     /* GL_EXT_float_blend */                                                                       \
     /* GL_EXT_frag_depth */                                                                        \
+    /* GL_EXT_fragment_shading_rate */                                                             \
+    void framebufferShadingRate(GLenum target, GLenum attachment, GLuint texture, GLint baseLayer, \
+                                GLsizei numLayers, GLsizei texelWidth, GLsizei texelHeight);       \
+    void getFragmentShadingRates(GLsizei samples, GLsizei maxCount, GLsizei *count,                \
+                                 GLenum *shadingRates);                                            \
+    /* GL_EXT_fragment_shading_rate_attachment */                                                  \
+    /* GL_EXT_fragment_shading_rate_primitive */                                                   \
     /* GL_EXT_geometry_shader */                                                                   \
     /* GL_EXT_gpu_shader5 */                                                                       \
     /* GL_EXT_instanced_arrays */                                                                  \
@@ -670,7 +677,6 @@
                         GLboolean unpackUnmultiplyAlpha);                                          \
     /* GL_CHROMIUM_framebuffer_mixed_samples */                                                    \
     /* GL_CHROMIUM_lose_context */                                                                 \
-    void loseContext(GraphicsResetStatus currentPacked, GraphicsResetStatus otherPacked);          \
-    /* GL_CHROMIUM_sync_query */
+    void loseContext(GraphicsResetStatus currentPacked, GraphicsResetStatus otherPacked);
 
 #endif  // ANGLE_CONTEXT_API_EXT_AUTOGEN_H_

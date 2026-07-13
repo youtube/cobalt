@@ -18,7 +18,6 @@
 #include "api/environment/environment_factory.h"
 #include "api/scoped_refptr.h"
 #include "modules/audio_device/include/mock_audio_transport.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/event.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/time_utils.h"

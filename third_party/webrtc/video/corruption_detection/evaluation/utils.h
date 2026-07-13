@@ -16,6 +16,8 @@
 
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
+#include "api/video/video_codec_type.h"
+#include "api/video_codecs/sdp_video_format.h"
 #include "rtc_base/system/file_wrapper.h"
 
 namespace webrtc {
@@ -59,6 +61,8 @@ struct Y4mMetadata {
 };
 
 Y4mMetadata ReadMetadataFromY4mHeader(absl::string_view clip_path);
+
+SdpVideoFormat GetSdpVideoFormat(VideoCodecType type);
 
 }  // namespace webrtc
 

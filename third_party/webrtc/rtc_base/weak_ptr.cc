@@ -10,6 +10,8 @@
 
 #include "rtc_base/weak_ptr.h"
 
+#include "api/sequence_checker.h"
+
 // The implementation is borrowed from chromium except that it does not
 // implement SupportsWeakPtr.
 

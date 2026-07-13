@@ -12,7 +12,12 @@
 
 #include <stddef.h>
 
+#include <algorithm>
+#include <cstring>
+#include <utility>
+
 #include "absl/strings/string_view.h"
+#include "rtc_base/checks.h"
 
 namespace webrtc {
 

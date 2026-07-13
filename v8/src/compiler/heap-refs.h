@@ -60,7 +60,13 @@ class PropertyAccessInfo;
 // distinct semantics for private class fields (in which private field
 // accesses must throw when storing a field which does not exist, or
 // adding/defining a field which already exists).
-enum class AccessMode { kLoad, kStore, kStoreInLiteral, kHas, kDefine };
+enum class AccessMode : uint8_t {
+  kLoad,
+  kStore,
+  kStoreInLiteral,
+  kHas,
+  kDefine
+};
 
 inline bool IsAnyStore(AccessMode mode) {
   return mode == AccessMode::kStore || mode == AccessMode::kStoreInLiteral ||
@@ -122,6 +128,7 @@ enum class RefSerializationKind {
   NEVER_SERIALIZED(Symbol)                                                    \
   /* Subtypes of JSReceiver */                                                \
   BACKGROUND_SERIALIZED(JSObject)                                             \
+  BACKGROUND_SERIALIZED(JSProxy)                                              \
   /* Subtypes of HeapObject */                                                \
   NEVER_SERIALIZED(AccessorInfo)                                              \
   NEVER_SERIALIZED(AllocationSite)                                            \
@@ -267,8 +274,6 @@ template <>
 struct ref_traits<Smi> : public ref_traits<Object> {};
 template <>
 struct ref_traits<Boolean> : public ref_traits<HeapObject> {};
-template <>
-struct ref_traits<JSProxy> : public ref_traits<JSReceiver> {};
 template <>
 struct ref_traits<JSWrappedFunction> : public ref_traits<JSFunction> {};
 
@@ -561,6 +566,18 @@ class JSReceiverRef : public HeapObjectRef {
   DEFINE_REF_CONSTRUCTOR(JSReceiver, HeapObjectRef)
 
   IndirectHandle<JSReceiver> object() const;
+};
+
+class JSProxyRef : public JSReceiverRef {
+ public:
+  DEFINE_REF_CONSTRUCTOR(JSProxy, JSReceiverRef)
+
+  IndirectHandle<JSProxy> object() const;
+
+  bool is_revocable() const;
+
+  OptionalObjectRef GetTarget(JSHeapBroker* broker) const;
+  OptionalObjectRef GetHandler(JSHeapBroker* broker) const;
 };
 
 class JSObjectRef : public JSReceiverRef {
@@ -907,8 +924,10 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   bool is_undetectable() const;
   bool is_callable() const;
   bool has_indexed_interceptor() const;
+  bool has_named_interceptor() const;
   int construction_counter() const;
   bool is_migration_target() const;
+  bool is_extensible() const;
   bool supports_fast_array_iteration(JSHeapBroker* broker) const;
   bool supports_fast_array_resize(JSHeapBroker* broker) const;
   bool is_abandoned_prototype_map() const;
@@ -1171,6 +1190,9 @@ class StringRef : public NameRef {
   // to use LookupIterator in a thread-safe way.
   OptionalObjectRef GetCharAsStringOrUndefined(JSHeapBroker* broker,
                                                uint32_t index) const;
+  // Returns ThinString::actual() if the current (uncached) map is a ThinString
+  // map, a self reference for all other strings.
+  StringRef UnpackIfThin(JSHeapBroker* broker);
 
   // When concurrently accessing non-read-only non-supported strings, we return
   // std::nullopt for these methods.
@@ -1208,7 +1230,7 @@ class JSTypedArrayRef : public JSObjectRef {
   IndirectHandle<JSTypedArray> object() const;
 
   bool is_on_heap() const;
-  size_t length() const;
+  size_t length(JSHeapBroker* broker) const;
   size_t byte_length() const;
   ElementsKind elements_kind(JSHeapBroker* broker) const;
   void* data_ptr() const;

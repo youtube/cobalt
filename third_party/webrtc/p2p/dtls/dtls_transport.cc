@@ -459,9 +459,9 @@ bool DtlsTransportInternalImpl::SetupDtls() {
   // (such as automatic packetization smoothing).
   if (dtls_in_stun_) {
     // - This is only needed when using PQC but we don't know that here.
-    // - 800 is sufficiently small so that dtls pqc handshake packets
-    // can get put into STUN attributes.
-    const int kDtlsMtu = 800;
+    // - 900 is sufficiently small so that dtls pqc handshake packets
+    // can get put into STUN attributes and still fit into two packets.
+    const int kDtlsMtu = 900;
     dtls_->SetMTU(kDtlsMtu);
   }
 
@@ -571,13 +571,13 @@ int DtlsTransportInternalImpl::SendPacket(
       // Can't send anything when we're failed.
       RTC_LOG(LS_ERROR) << ToString()
                         << ": Couldn't send packet due to "
-                           "webrtc::DtlsTransportState::kFailed.";
+                           "DtlsTransportState::kFailed.";
       return -1;
     case DtlsTransportState::kClosed:
       // Can't send anything when we're closed.
       RTC_LOG(LS_ERROR) << ToString()
                         << ": Couldn't send packet due to "
-                           "webrtc::DtlsTransportState::kClosed.";
+                           "DtlsTransportState::kClosed.";
       return -1;
     default:
       RTC_DCHECK_NOTREACHED();
@@ -729,13 +729,13 @@ void DtlsTransportInternalImpl::OnWritableState(
       // Should not happen. Do nothing.
       RTC_LOG(LS_ERROR) << ToString()
                         << ": OnWritableState() called in state "
-                           "webrtc::DtlsTransportState::kFailed.";
+                           "DtlsTransportState::kFailed.";
       break;
     case DtlsTransportState::kClosed:
       // Should not happen. Do nothing.
       RTC_LOG(LS_ERROR) << ToString()
                         << ": OnWritableState() called in state "
-                           "webrtc::DtlsTransportState::kClosed.";
+                           "DtlsTransportState::kClosed.";
       break;
     case DtlsTransportState::kNumValues:
       RTC_DCHECK_NOTREACHED();

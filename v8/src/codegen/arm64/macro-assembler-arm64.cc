@@ -1301,7 +1301,7 @@ void MacroAssembler::PushHelper(int count, int size, const CPURegister& src0,
                                 const CPURegister& src2,
                                 const CPURegister& src3) {
   // Ensure that we don't unintentially modify scratch or debug registers.
-  InstructionAccurateScope scope(this, count <= 2 ? 1 : 2);
+  InstructionAccurateScope scope(this);
 
   DCHECK(AreSameSizeAndType(src0, src1, src2, src3));
   DCHECK(size == src0.SizeInBytes());
@@ -1338,7 +1338,7 @@ void MacroAssembler::PopHelper(int count, int size, const CPURegister& dst0,
                                const CPURegister& dst1, const CPURegister& dst2,
                                const CPURegister& dst3) {
   // Ensure that we don't unintentially modify scratch or debug registers.
-  InstructionAccurateScope scope(this, count <= 2 ? 1 : 2);
+  InstructionAccurateScope scope(this);
 
   DCHECK(AreSameSizeAndType(dst0, dst1, dst2, dst3));
   DCHECK(size == dst0.SizeInBytes());
@@ -1388,14 +1388,8 @@ void MacroAssembler::PeekPair(const CPURegister& dst1, const CPURegister& dst2,
 
 void MacroAssembler::PushCalleeSavedRegisters() {
   ASM_CODE_COMMENT(this);
-#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-  constexpr int kInstrCount = 11;
-#else
-  constexpr int kInstrCount = 10;
-#endif
-
   // Ensure that the macro-assembler doesn't use any scratch registers.
-  InstructionAccurateScope scope(this, kInstrCount);
+  InstructionAccurateScope scope(this);
 
   MemOperand tos(sp, -2 * static_cast<int>(kXRegSize), PreIndex);
 
@@ -1428,14 +1422,8 @@ void MacroAssembler::PushCalleeSavedRegisters() {
 
 void MacroAssembler::PopCalleeSavedRegisters() {
   ASM_CODE_COMMENT(this);
-#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-  constexpr int kInstrCount = 11;
-#else
-  constexpr int kInstrCount = 10;
-#endif
-
   // Ensure that the macro-assembler doesn't use any scratch registers.
-  InstructionAccurateScope scope(this, kInstrCount);
+  InstructionAccurateScope scope(this);
 
   MemOperand tos(sp, 2 * kXRegSize, PostIndex);
 
@@ -1537,14 +1525,15 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     FrameScope scope(this, StackFrame::INTERNAL);
     // Push a copy of the target function, the new target, the actual
     // argument count, and the dispatch handle.
-    Register lastreg = V8_ENABLE_LEAPTIERING_BOOL
-                           ? kJavaScriptCallDispatchHandleRegister
-                           : padreg;
+    Register maybe_dispatch_handle = V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL
+                                         ? kJavaScriptCallDispatchHandleRegister
+                                         : padreg;
     SmiTag(kJavaScriptCallArgCountRegister);
     // No need to SmiTag the dispatch handle as it always looks like a Smi.
     static_assert(kJSDispatchHandleShift > 0);
+    AssertSmi(maybe_dispatch_handle);
     Push(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
-         kJavaScriptCallArgCountRegister, lastreg);
+         kJavaScriptCallArgCountRegister, maybe_dispatch_handle);
     // Push another copy as a parameter to the runtime call.
     PushArgument(kJavaScriptCallTargetRegister);
 
@@ -1555,7 +1544,7 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
 
     // Restore target function, new target, actual argument count, and dispatch
     // handle.
-    Pop(lastreg, kJavaScriptCallArgCountRegister,
+    Pop(maybe_dispatch_handle, kJavaScriptCallArgCountRegister,
         kJavaScriptCallNewTargetRegister, kJavaScriptCallTargetRegister);
     SmiUntag(kJavaScriptCallArgCountRegister);
   }

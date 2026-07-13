@@ -9,13 +9,14 @@
  */
 #ifndef TEST_SCENARIO_COLUMN_PRINTER_H_
 #define TEST_SCENARIO_COLUMN_PRINTER_H_
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "api/rtc_event_log_output.h"
 #include "rtc_base/strings/string_builder.h"
-#include "test/logging/log_writer.h"
 
 namespace webrtc {
 namespace test {

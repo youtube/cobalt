@@ -29,11 +29,8 @@ class MockRecordableEncodedFrame : public RecordableEncodedFrame {
               encoded_buffer,
               (),
               (const, override));
-  MOCK_METHOD(std::optional<webrtc::ColorSpace>,
-              color_space,
-              (),
-              (const, override));
-  MOCK_METHOD(std::optional<webrtc::VideoRotation>,
+  MOCK_METHOD(std::optional<ColorSpace>, color_space, (), (const, override));
+  MOCK_METHOD(std::optional<VideoRotation>,
               video_rotation,
               (),
               (const, override));

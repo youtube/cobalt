@@ -28,7 +28,7 @@ namespace {
 
 constexpr float kDefaultSampleFraction = 0.5;
 
-}
+}  // namespace
 
 FramePairCorruptionScorer::FramePairCorruptionScorer(
     absl::string_view codec_name,

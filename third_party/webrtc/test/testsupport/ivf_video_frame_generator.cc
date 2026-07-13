@@ -10,14 +10,24 @@
 
 #include "test/testsupport/ivf_video_frame_generator.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <limits>
+#include <memory>
+#include <optional>
 
+#include "absl/strings/string_view.h"
 #include "api/environment/environment.h"
-#include "build/build_config.h"
+#include "api/scoped_refptr.h"
+#include "api/test/frame_generator_interface.h"
+#include "api/units/time_delta.h"
 #include "api/video/encoded_image.h"
 #include "api/video/i420_buffer.h"
-#include "api/video_codecs/video_codec.h"
-#include "media/base/media_constants.h"
+#include "api/video/video_codec_type.h"
+#include "api/video/video_frame.h"
+#include "api/video/video_frame_buffer.h"
+#include "api/video_codecs/video_decoder.h"
+#include "build/build_config.h"
 #include "modules/video_coding/codecs/av1/dav1d_decoder.h"
 #include "modules/video_coding/codecs/h264/include/h264.h"
 #if !(BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_STARBOARD_MEDIA))
@@ -25,7 +35,9 @@
 #include "modules/video_coding/codecs/vp9/include/vp9.h" //nogncheck
 #endif
 #include "modules/video_coding/include/video_error_codes.h"
+#include "modules/video_coding/utility/ivf_file_reader.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/system/file_wrapper.h"
 
 namespace webrtc {
@@ -38,9 +50,17 @@ std::unique_ptr<VideoDecoder> CreateDecoder(const Environment& env,
                                             VideoCodecType codec_type) {
   switch (codec_type) {
     case VideoCodecType::kVideoCodecVP8:
+#if !(BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_STARBOARD_MEDIA))
       return CreateVp8Decoder(env);
+#else
+      return nullptr;
+#endif
     case VideoCodecType::kVideoCodecVP9:
+#if !(BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_STARBOARD_MEDIA))
       return VP9Decoder::Create();
+#else
+      return nullptr;
+#endif
     case VideoCodecType::kVideoCodecH264:
       return H264Decoder::Create();
     case VideoCodecType::kVideoCodecAV1:

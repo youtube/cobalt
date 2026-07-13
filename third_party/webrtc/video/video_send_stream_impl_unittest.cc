@@ -71,6 +71,7 @@ namespace {
 using ::testing::_;
 using ::testing::AllOf;
 using ::testing::AnyNumber;
+using ::testing::ElementsAreArray;
 using ::testing::Eq;
 using ::testing::Field;
 using ::testing::Invoke;
@@ -124,6 +125,7 @@ class MockRtpVideoSender : public RtpVideoSenderInterface {
   MOCK_METHOD(uint32_t, GetPayloadBitrateBps, (), (const, override));
   MOCK_METHOD(uint32_t, GetProtectionBitrateBps, (), (const, override));
   MOCK_METHOD(void, SetEncodingData, (size_t, size_t, size_t), (override));
+  MOCK_METHOD(void, SetCsrcs, (ArrayView<const uint32_t> csrcs), (override));
   MOCK_METHOD(std::vector<RtpSequenceNumberMap::Info>,
               GetSentRtpPacketInfos,
               (uint32_t ssrc, ArrayView<const uint16_t> sequence_numbers),
@@ -168,7 +170,7 @@ class VideoSendStreamImplTest : public ::testing::Test {
     ON_CALL(rtp_video_sender_, SetSending)
         .WillByDefault(SaveArg<0>(&rtp_sending_));
   }
-  ~VideoSendStreamImplTest() {}
+  ~VideoSendStreamImplTest() override {}
 
   VideoEncoderConfig TestVideoEncoderConfig(
       VideoEncoderConfig::ContentType content_type =
@@ -937,15 +939,13 @@ TEST_F(VideoSendStreamImplTest, CallsVideoStreamEncoderOnBitrateUpdate) {
       DataRate::BitsPerSec(qvga_stream.target_bitrate_bps);
   BitrateAllocationUpdate update;
   update.target_bitrate = network_constrained_rate;
-  update.stable_target_bitrate = network_constrained_rate;
   update.round_trip_time = TimeDelta::Millis(1);
   EXPECT_CALL(rtp_video_sender_, OnBitrateUpdated(update, _));
   EXPECT_CALL(rtp_video_sender_, GetPayloadBitrateBps())
       .WillOnce(Return(network_constrained_rate.bps()));
-  EXPECT_CALL(
-      *video_stream_encoder_,
-      OnBitrateUpdated(network_constrained_rate, network_constrained_rate,
-                       network_constrained_rate, 0, _, 0));
+  EXPECT_CALL(*video_stream_encoder_,
+              OnBitrateUpdated(network_constrained_rate,
+                               network_constrained_rate, 0, _, 0));
   static_cast<BitrateAllocatorObserver*>(vss_impl.get())
       ->OnBitrateUpdated(update);
 
@@ -956,13 +956,11 @@ TEST_F(VideoSendStreamImplTest, CallsVideoStreamEncoderOnBitrateUpdate) {
   const DataRate headroom = DataRate::BitsPerSec(50000);
   const DataRate rate_with_headroom = qvga_max_bitrate + headroom;
   update.target_bitrate = rate_with_headroom;
-  update.stable_target_bitrate = rate_with_headroom;
   EXPECT_CALL(rtp_video_sender_, OnBitrateUpdated(update, _));
   EXPECT_CALL(rtp_video_sender_, GetPayloadBitrateBps())
       .WillOnce(Return(rate_with_headroom.bps()));
   EXPECT_CALL(*video_stream_encoder_,
-              OnBitrateUpdated(qvga_max_bitrate, qvga_max_bitrate,
-                               rate_with_headroom, 0, _, 0));
+              OnBitrateUpdated(qvga_max_bitrate, rate_with_headroom, 0, _, 0));
   static_cast<BitrateAllocatorObserver*>(vss_impl.get())
       ->OnBitrateUpdated(update);
 
@@ -977,9 +975,9 @@ TEST_F(VideoSendStreamImplTest, CallsVideoStreamEncoderOnBitrateUpdate) {
       .WillOnce(Return(rate_with_headroom.bps()));
   const DataRate headroom_minus_protection =
       rate_with_headroom - DataRate::BitsPerSec(protection_bitrate_bps);
-  EXPECT_CALL(*video_stream_encoder_,
-              OnBitrateUpdated(qvga_max_bitrate, qvga_max_bitrate,
-                               headroom_minus_protection, 0, _, 0));
+  EXPECT_CALL(
+      *video_stream_encoder_,
+      OnBitrateUpdated(qvga_max_bitrate, headroom_minus_protection, 0, _, 0));
   static_cast<BitrateAllocatorObserver*>(vss_impl.get())
       ->OnBitrateUpdated(update);
 
@@ -991,16 +989,21 @@ TEST_F(VideoSendStreamImplTest, CallsVideoStreamEncoderOnBitrateUpdate) {
   EXPECT_CALL(rtp_video_sender_, GetPayloadBitrateBps())
       .WillOnce(Return(rate_with_headroom.bps()));
   EXPECT_CALL(*video_stream_encoder_,
-              OnBitrateUpdated(qvga_max_bitrate, qvga_max_bitrate,
-                               qvga_max_bitrate, 0, _, 0));
+              OnBitrateUpdated(qvga_max_bitrate, qvga_max_bitrate, 0, _, 0));
   static_cast<BitrateAllocatorObserver*>(vss_impl.get())
       ->OnBitrateUpdated(update);
 
   // Set rates to zero on stop.
   EXPECT_CALL(*video_stream_encoder_,
-              OnBitrateUpdated(DataRate::Zero(), DataRate::Zero(),
-                               DataRate::Zero(), 0, 0, 0));
+              OnBitrateUpdated(DataRate::Zero(), DataRate::Zero(), 0, 0, 0));
   vss_impl->Stop();
+}
+
+TEST_F(VideoSendStreamImplTest, ForwardsCsrcsToRtpVideoSender) {
+  auto vss_impl = CreateVideoSendStreamImpl(TestVideoEncoderConfig());
+  std::vector<uint32_t> csrcs = {1, 2, 3};
+  EXPECT_CALL(rtp_video_sender_, SetCsrcs(ElementsAreArray(csrcs)));
+  vss_impl->SetCsrcs(csrcs);
 }
 
 TEST_F(VideoSendStreamImplTest, DisablesPaddingOnPausedEncoder) {

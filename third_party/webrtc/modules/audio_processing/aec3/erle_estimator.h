@@ -20,6 +20,7 @@
 
 #include "api/array_view.h"
 #include "api/audio/echo_canceller3_config.h"
+#include "api/environment/environment.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
 #include "modules/audio_processing/aec3/fullband_erle_estimator.h"
 #include "modules/audio_processing/aec3/render_buffer.h"

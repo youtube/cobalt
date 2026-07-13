@@ -12,6 +12,7 @@
 #ifndef MODULES_AUDIO_PROCESSING_TEST_BITEXACTNESS_TOOLS_H_
 #define MODULES_AUDIO_PROCESSING_TEST_BITEXACTNESS_TOOLS_H_
 
+#include <cstddef>
 #include <string>
 
 #include "api/array_view.h"

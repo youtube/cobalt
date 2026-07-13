@@ -12,7 +12,7 @@
 #define MODULES_AUDIO_PROCESSING_TEST_CONVERSATIONAL_SPEECH_MOCK_WAVREADER_H_
 
 #include <cstddef>
-#include <string>
+#include <cstdint>
 
 #include "api/array_view.h"
 #include "modules/audio_processing/test/conversational_speech/wavreader_interface.h"

@@ -11,16 +11,28 @@
 #include "modules/audio_processing/agc/agc_manager_direct.h"
 
 #include <algorithm>
+#include <array>
+#include <atomic>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <memory>
+#include <optional>
 
 #include "api/array_view.h"
+#include "api/audio/audio_processing.h"
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
 #include "common_audio/include/audio_util.h"
+#include "modules/audio_processing/agc/agc.h"
 #include "modules/audio_processing/agc/gain_control.h"
+#include "modules/audio_processing/agc2/clipping_predictor.h"
 #include "modules/audio_processing/agc2/gain_map_internal.h"
 #include "modules/audio_processing/agc2/input_volume_stats_reporter.h"
+#include "modules/audio_processing/audio_buffer.h"
 #include "modules/audio_processing/include/audio_frame_view.h"
+#include "modules/audio_processing/logging/apm_data_dumper.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_minmax.h"

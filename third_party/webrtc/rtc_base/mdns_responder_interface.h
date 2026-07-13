@@ -12,7 +12,6 @@
 #define RTC_BASE_MDNS_RESPONDER_INTERFACE_H_
 
 #include <functional>
-#include <string>
 
 #include "absl/strings/string_view.h"
 #include "rtc_base/ip_address.h"
@@ -24,7 +23,7 @@ namespace webrtc {
 class MdnsResponderInterface {
  public:
   using NameCreatedCallback =
-      std::function<void(const webrtc::IPAddress&, absl::string_view)>;
+      std::function<void(const IPAddress&, absl::string_view)>;
   using NameRemovedCallback = std::function<void(bool)>;
 
   MdnsResponderInterface() = default;

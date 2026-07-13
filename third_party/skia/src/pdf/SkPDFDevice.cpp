@@ -41,10 +41,10 @@
 #include "include/core/SkTypeface.h"
 #include "include/core/SkTypes.h"
 #include "include/docs/SkPDFDocument.h"
-#include "include/pathops/SkPathOps.h"
 #include "include/private/base/SkDebug.h"
 #include "include/private/base/SkTemplates.h"
 #include "include/private/base/SkTo.h"
+#include "modules/pathops/include/SkPathOps.h"
 #include "src/base/SkScopeExit.h"
 #include "src/base/SkTLazy.h"
 #include "src/base/SkUTF.h"
@@ -144,21 +144,21 @@ void SkPDFDevice::MarkedContentManager::beginMark() {
                        fNextMarksElemId == SkPDF::NodeID::PaginationFooterArtifact ||
                        fNextMarksElemId == SkPDF::NodeID::PaginationWatermarkArtifact)
             {
-                fOut->writeText(" <</Type Pagination");
+                fOut->writeText(" <</Type /Pagination");
                 if (fNextMarksElemId == SkPDF::NodeID::PaginationHeaderArtifact) {
-                    fOut->writeText(" /Subtype Header");
+                    fOut->writeText(" /Subtype /Header");
                 } else if  (fNextMarksElemId == SkPDF::NodeID::PaginationFooterArtifact) {
-                    fOut->writeText(" /Subtype Footer");
+                    fOut->writeText(" /Subtype /Footer");
                 } else if (fNextMarksElemId == SkPDF::NodeID::PaginationWatermarkArtifact) {
-                    fOut->writeText(" /Subtype Watermark");
+                    fOut->writeText(" /Subtype /Watermark");
                 }
                 fOut->writeText(" >>BDC\n");
             } else if (fNextMarksElemId == SkPDF::NodeID::LayoutArtifact) {
-                fOut->writeText(" <</Type Layout >>BDC\n");
+                fOut->writeText(" <</Type /Layout >>BDC\n");
             } else if (fNextMarksElemId == SkPDF::NodeID::PageArtifact) {
-                fOut->writeText(" <</Type Page >>BDC\n");
+                fOut->writeText(" <</Type /Page >>BDC\n");
             } else if (fNextMarksElemId == SkPDF::NodeID::BackgroundArtifact) {
-                fOut->writeText(" <</Type Background >>BDC\n");
+                fOut->writeText(" <</Type /Background >>BDC\n");
             }
             fCurrentMarksElemId = fNextMarksElemId;
         }
@@ -223,8 +223,7 @@ static int add_resource(THashSet<SkPDFIndirectReference>& resources, SkPDFIndire
 }
 
 static void draw_points(SkCanvas::PointMode mode,
-                        size_t count,
-                        const SkPoint* points,
+                        SkSpan<const SkPoint> points,
                         const SkPaint& paint,
                         const SkIRect& bounds,
                         SkDevice* device) {
@@ -233,7 +232,7 @@ static void draw_points(SkCanvas::PointMode mode,
     draw.fDst = SkPixmap(SkImageInfo::MakeUnknown(bounds.right(), bounds.bottom()), nullptr, 0);
     draw.fCTM = &device->localToDevice();
     draw.fRC = &rc;
-    draw.drawPoints(mode, count, points, paint, device);
+    draw.drawPoints(mode, points, paint, device);
 }
 
 static void transform_shader(SkPaint* paint, const SkMatrix& ctm) {
@@ -298,7 +297,7 @@ sk_sp<SkDevice> SkPDFDevice::createDevice(const CreateInfo& cinfo, const SkPaint
     // printer resolution.
 
     // TODO: It may be possible to express some filters natively using PDF
-    // to improve quality and file size (https://bug.skia.org/3043)
+    // to improve quality and file size (skbug.com/40034150)
     if ((layerPaint && (layerPaint->getImageFilter() || layerPaint->getColorFilter()))
         || (cinfo.fInfo.colorSpace() && !cinfo.fInfo.colorSpace()->isSRGB())) {
         // need to return a raster device, which we will detect in drawDevice()
@@ -427,8 +426,8 @@ void SkPDFDevice::drawAnnotation(const SkRect& rect, const char key[], SkData* v
             return;
         }
         if (!strcmp(SkAnnotationKeys::Define_Named_Dest_Key(), key)) {
-            SkPoint p = this->localToDevice().mapXY(rect.x(), rect.y());
-            pageXform.mapPoints(&p, 1);
+            SkPoint p = this->localToDevice().mapPoint({rect.x(), rect.y()});
+            p = pageXform.mapPoint(p);
             auto pg = fDocument->currentPage();
             fDocument->fNamedDestinations.push_back(SkPDFNamedDestination{sk_ref_sp(value), p, pg});
         }
@@ -476,13 +475,12 @@ void SkPDFDevice::drawPaint(const SkPaint& srcPaint) {
 }
 
 void SkPDFDevice::drawPoints(SkCanvas::PointMode mode,
-                             size_t count,
-                             const SkPoint* points,
+                             SkSpan<const SkPoint> points,
                              const SkPaint& srcPaint) {
     if (this->hasEmptyClip()) {
         return;
     }
-    if (count == 0) {
+    if (points.size() == 0) {
         return;
     }
     SkTCopyOnFirstWrite<SkPaint> paint(clean_paint(srcPaint));
@@ -497,7 +495,7 @@ void SkPDFDevice::drawPoints(SkCanvas::PointMode mode,
     // We only use this when there's a path effect or perspective because of the overhead
     // of multiple calls to setUpContentEntry it causes.
     if (paint->getPathEffect() || this->localToDevice().hasPerspective()) {
-        draw_points(mode, count, points, *paint, this->devClipBounds(), this);
+        draw_points(mode, points, *paint, this->devClipBounds(), this);
         return;
     }
 
@@ -509,8 +507,8 @@ void SkPDFDevice::drawPoints(SkCanvas::PointMode mode,
             set_style(&paint, SkPaint::kFill_Style);
             SkScalar strokeWidth = paint->getStrokeWidth();
             SkScalar halfStroke = SkScalarHalf(strokeWidth);
-            for (size_t i = 0; i < count; i++) {
-                SkRect r = SkRect::MakeXYWH(points[i].fX, points[i].fY, 0, 0);
+            for (auto&& pt : points) {
+                SkRect r = SkRect::MakeXYWH(pt.fX, pt.fY, 0, 0);
                 r.inset(-halfStroke, -halfStroke);
                 this->drawRect(r, *paint);
             }
@@ -535,10 +533,11 @@ void SkPDFDevice::drawPoints(SkCanvas::PointMode mode,
         // The points do not already have localToDevice applied.
         pageXform.preConcat(this->localToDevice());
 
-        for (auto&& userPoint : SkSpan(points, count)) {
+        for (auto&& userPoint : points) {
             fMarkManager.accumulate(pageXform.mapPoint(userPoint));
         }
     }
+    const size_t count = points.size();
     switch (mode) {
         case SkCanvas::kPolygon_PointMode:
             SkPDFUtils::MoveTo(points[0].fX, points[0].fY, contentStream);
@@ -867,7 +866,7 @@ void SkPDFDevice::drawGlyphRunAsPath(
         const SkPoint* fPos;
     } rec = {&path, offset, glyphRun.positions().data()};
 
-    font.getPaths(glyphRun.glyphsIDs().data(), glyphRun.glyphsIDs().size(),
+    font.getPaths(glyphRun.glyphsIDs(),
                   [](const SkPath* path, const SkMatrix& mx, void* ctx) {
                       Rec* rec = reinterpret_cast<Rec*>(ctx);
                       if (path) {
@@ -1717,7 +1716,7 @@ void SkPDFDevice::internalDrawImageRect(SkKeyedImage imageSubset,
 
     bool needToRestore = false;
     if (src && !is_integral(*src)) {
-        // Need sub-pixel clipping to fix https://bug.skia.org/4374
+        // Need sub-pixel clipping to fix skbug.com/40035524
         this->cs().save();
         this->cs().clipRect(dst, ctm, SkClipOp::kIntersect, true);
         needToRestore = true;

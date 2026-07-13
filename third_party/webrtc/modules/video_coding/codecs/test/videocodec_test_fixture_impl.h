@@ -95,8 +95,8 @@ class VideoCodecTestFixtureImpl : public VideoCodecTestFixture {
   VideoProcessor::VideoDecoderList decoders_;
 
   // Helper objects.
-  const Environment env_;
   Config config_;
+  const Environment env_;
   VideoCodecTestStatsImpl stats_;
   std::unique_ptr<FrameReader> source_frame_reader_;
   VideoProcessor::IvfFileWriterMap encoded_frame_writers_;

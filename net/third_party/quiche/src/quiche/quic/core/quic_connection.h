@@ -18,28 +18,55 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <list>
-#include <map>
 #include <memory>
 #include <optional>
+#include <ostream>
 #include <string>
 #include <vector>
 
+#include "absl/base/attributes.h"
+#include "absl/container/inlined_vector.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/congestion_control/rtt_stats.h"
+#include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
+#include "quiche/quic/core/congestion_control/uber_loss_algorithm.h"
+#include "quiche/quic/core/connection_id_generator.h"
 #include "quiche/quic/core/crypto/quic_decrypter.h"
 #include "quiche/quic/core/crypto/quic_encrypter.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/crypto/transport_parameters.h"
+#include "quiche/quic/core/frames/quic_ack_frame.h"
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
+#include "quiche/quic/core/frames/quic_blocked_frame.h"
+#include "quiche/quic/core/frames/quic_connection_close_frame.h"
+#include "quiche/quic/core/frames/quic_crypto_frame.h"
+#include "quiche/quic/core/frames/quic_frame.h"
+#include "quiche/quic/core/frames/quic_goaway_frame.h"
+#include "quiche/quic/core/frames/quic_handshake_done_frame.h"
 #include "quiche/quic/core/frames/quic_immediate_ack_frame.h"
 #include "quiche/quic/core/frames/quic_max_streams_frame.h"
+#include "quiche/quic/core/frames/quic_message_frame.h"
 #include "quiche/quic/core/frames/quic_new_connection_id_frame.h"
+#include "quiche/quic/core/frames/quic_new_token_frame.h"
+#include "quiche/quic/core/frames/quic_padding_frame.h"
+#include "quiche/quic/core/frames/quic_path_challenge_frame.h"
+#include "quiche/quic/core/frames/quic_path_response_frame.h"
+#include "quiche/quic/core/frames/quic_ping_frame.h"
 #include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
+#include "quiche/quic/core/frames/quic_retire_connection_id_frame.h"
 #include "quiche/quic/core/frames/quic_rst_stream_frame.h"
-#include "quiche/quic/core/quic_alarm.h"
+#include "quiche/quic/core/frames/quic_stop_sending_frame.h"
+#include "quiche/quic/core/frames/quic_stop_waiting_frame.h"
+#include "quiche/quic/core/frames/quic_stream_frame.h"
+#include "quiche/quic/core/frames/quic_streams_blocked_frame.h"
+#include "quiche/quic/core/frames/quic_window_update_frame.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
+#include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_blocked_writer_interface.h"
+#include "quiche/quic/core/quic_coalesced_packet.h"
 #include "quiche/quic/core/quic_connection_alarms.h"
 #include "quiche/quic/core/quic_connection_context.h"
 #include "quiche/quic/core/quic_connection_id.h"
@@ -60,12 +87,19 @@
 #include "quiche/quic/core/quic_path_validator.h"
 #include "quiche/quic/core/quic_ping_manager.h"
 #include "quiche/quic/core/quic_sent_packet_manager.h"
+#include "quiche/quic/core/quic_tag.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/core/session_notifier_interface.h"
 #include "quiche/quic/core/uber_received_packet_manager.h"
-#include "quiche/quic/platform/api/quic_export.h"
+#include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_circular_deque.h"
 #include "quiche/common/quiche_mem_slice.h"
 
@@ -1327,6 +1361,8 @@ class QUICHE_EXPORT QuicConnection
 
   bool HasPendingPathValidation() const;
 
+  bool HasUnusedConnectionId() const;
+
   QuicPathValidationContext* GetPathValidationContext() const;
 
   void CancelPathValidation();
@@ -1457,7 +1493,7 @@ class QUICHE_EXPORT QuicConnection
     return last_received_packet_info_.flow_label;
   }
 
-  void EnableBlackholeAvoidanceViaFlowLabel() {
+  virtual void EnableBlackholeAvoidanceViaFlowLabel() {
     GenerateNewOutgoingFlowLabel();
     enable_black_hole_avoidance_via_flow_label_ = true;
     QUIC_CODE_COUNT(quic_black_hole_avoidance_via_flow_label_enabled);
@@ -1528,11 +1564,6 @@ class QUICHE_EXPORT QuicConnection
   //   b) An uninitialized address, meaning the effective peer address does not
   //      change.
   virtual QuicSocketAddress GetEffectivePeerAddressFromCurrentPacket() const;
-
-  // Selects and updates the version of the protocol being used by selecting a
-  // version from |available_versions| which is also supported. Returns true if
-  // such a version exists, false otherwise.
-  bool SelectMutualVersion(const ParsedQuicVersionVector& available_versions);
 
   // Returns the current per-packet options for the connection.
   PerPacketOptions* per_packet_options() { return per_packet_options_; }
@@ -2534,10 +2565,19 @@ class QUICHE_EXPORT QuicConnection
 
   QuicTime::Delta multi_port_probing_interval_;
 
+  // The minimum ack delay time advertised to the peer via transport parameter.
+  QuicTime::Delta local_min_ack_delay_ = QuicTime::Delta::Zero();
+
   std::unique_ptr<MultiPortStats> multi_port_stats_;
 
   // If true, connection will migrate to multi-port path upon path degrading.
   bool multi_port_migration_enabled_ = false;
+
+  // If true, connection will probe for multi-port path on RTO. This is only
+  // used on the client side. If false, connection will probe for multi-port
+  // path on receiving a new connection ID frame. See OnNewConnectionIdFrame()
+  // for more details.
+  bool multi_port_probing_on_rto_ = false;
 
   // Client side only.
   bool active_migration_disabled_ = false;
@@ -2602,8 +2642,8 @@ class QUICHE_EXPORT QuicConnection
   // If true then flow labels will be changed when a PTO fires, or when
   // a PTO'd packet from a peer is detected.
   bool enable_black_hole_avoidance_via_flow_label_ = false;
-
-
+  // If true, fixes a off-by-one error in the least unacked packet calculation.
+  bool least_unacked_plus_1_;
   const bool quic_limit_new_streams_per_loop_2_ =
       GetQuicReloadableFlag(quic_limit_new_streams_per_loop_2);
 

@@ -11,9 +11,12 @@
 #include "modules/audio_processing/agc2/rnn_vad/spectral_features_internal.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 
+#include "api/array_view.h"
+#include "modules/audio_processing/agc2/rnn_vad/common.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_compare.h"
 

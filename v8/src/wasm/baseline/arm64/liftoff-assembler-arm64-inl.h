@@ -1174,6 +1174,8 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
                 kZero, &exit);
   JumpIfSmi(src, &exit);
   CheckPageFlag(src, MemoryChunk::kPointersToHereAreInterestingMask, eq, &exit);
+  // TODO(mliedtke): It would be great to reuse this calculation from the
+  // liftoff::CalculateActualAddress above.
   Operand offset_op = offset_reg.is_valid() ? Operand(offset_reg.W(), UXTW)
                                             : Operand(offset_imm);
   if (offset_reg.is_valid() && offset_imm) {
@@ -1235,17 +1237,73 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
                        type, liftoff::Binop::kExchange);
 }
 
+void LiftoffAssembler::AtomicExchangeTaggedPointer(
+    Register dst_addr, Register offset_reg, uintptr_t offset_imm,
+    LiftoffRegister value, LiftoffRegister result, LiftoffRegList pinned) {
+  // Perform the atomic exchange.
+  {
+    UseScratchRegisterScope temps(this);
+    Register actual_addr = liftoff::CalculateActualAddress(
+        this, temps, dst_addr, offset_reg, offset_imm);
+    if (CpuFeatures::IsSupported(LSE)) {
+      CpuFeatureScope scope(this, LSE);
+      if constexpr (COMPRESS_POINTERS_BOOL) {
+        swpal(value.gp().W(), result.gp().W(), MemOperand(actual_addr));
+        add(result.gp().X(), result.gp().X(), kPtrComprCageBaseRegister);
+      } else {
+        swpal(value.gp(), result.gp(), MemOperand(actual_addr));
+      }
+    } else {
+      DCHECK_NE(value, result);
+      Label retry;
+      Bind(&retry);
+      UseScratchRegisterScope temps(this);
+      Register store_result = temps.AcquireW();
+      if constexpr (COMPRESS_POINTERS_BOOL) {
+        ldaxr(result.gp().W(), actual_addr);
+        stlxr(store_result.W(), value.gp().W(), actual_addr);
+      } else {
+        ldaxr(result.gp().X(), actual_addr);
+        stlxr(store_result.W(), value.gp().X(), actual_addr);
+      }
+      Cbnz(store_result.W(), &retry);
+      if constexpr (COMPRESS_POINTERS_BOOL) {
+        add(result.gp().X(), result.gp().X(), kPtrComprCageBaseRegister);
+      }
+    }
+  }
+
+  if (v8_flags.disable_write_barriers) return;
+  // Emit the write barrier.
+  Label exit;
+  CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
+                kZero, &exit);
+  JumpIfSmi(value.gp(), &exit);
+  CheckPageFlag(value.gp(), MemoryChunk::kPointersToHereAreInterestingMask, eq,
+                &exit);
+  // TODO(mliedtke): It would be great to reuse this calculation from the
+  // liftoff::CalculateActualAddress above.
+  UseScratchRegisterScope temps(this);
+  Operand offset_op = offset_reg.is_valid() ? Operand(offset_reg.W(), UXTW)
+                                            : Operand(offset_imm);
+  if (offset_reg.is_valid() && offset_imm) {
+    Register effective_offset = temps.AcquireX();
+    Add(effective_offset.W(), offset_reg.W(), offset_imm);
+    offset_op = effective_offset;
+  }
+  CallRecordWriteStubSaveRegisters(dst_addr, offset_op, SaveFPRegsMode::kSave,
+                                   StubCallMode::kCallWasmRuntimeStub);
+  bind(&exit);
+}
+
 void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
     StoreType type, bool /* i64_offset */) {
-  LiftoffRegList pinned{dst_addr, expected, new_value};
-  if (offset_reg != no_reg) pinned.set(offset_reg);
-
-  Register result_reg = result.gp();
-  if (pinned.has(result)) {
-    result_reg = GetUnusedRegister(kGpReg, pinned).gp();
-  }
+  // The result register may not alias with any of the inputs as the CAS
+  // instruction overwrites it in the loop.
+  DCHECK(!LiftoffRegList(dst_addr, expected, new_value).has(result));
+  DCHECK(offset_reg == no_reg || offset_reg != result.gp());
 
   UseScratchRegisterScope temps(this);
 
@@ -1294,27 +1352,27 @@ void LiftoffAssembler::AtomicCompareExchange(
     switch (type.value()) {
       case StoreType::kI64Store8:
       case StoreType::kI32Store8:
-        ldaxrb(result_reg.W(), actual_addr);
+        ldaxrb(result.gp().W(), actual_addr);
         Cmp(result.gp().W(), Operand(expected.gp().W(), UXTB));
         B(ne, &done);
         stlxrb(store_result.W(), new_value.gp().W(), actual_addr);
         break;
       case StoreType::kI64Store16:
       case StoreType::kI32Store16:
-        ldaxrh(result_reg.W(), actual_addr);
+        ldaxrh(result.gp().W(), actual_addr);
         Cmp(result.gp().W(), Operand(expected.gp().W(), UXTH));
         B(ne, &done);
         stlxrh(store_result.W(), new_value.gp().W(), actual_addr);
         break;
       case StoreType::kI64Store32:
       case StoreType::kI32Store:
-        ldaxr(result_reg.W(), actual_addr);
+        ldaxr(result.gp().W(), actual_addr);
         Cmp(result.gp().W(), Operand(expected.gp().W(), UXTW));
         B(ne, &done);
         stlxr(store_result.W(), new_value.gp().W(), actual_addr);
         break;
       case StoreType::kI64Store:
-        ldaxr(result_reg.X(), actual_addr);
+        ldaxr(result.gp().X(), actual_addr);
         Cmp(result.gp().X(), Operand(expected.gp().X(), UXTX));
         B(ne, &done);
         stlxr(store_result.W(), new_value.gp().X(), actual_addr);
@@ -1325,10 +1383,6 @@ void LiftoffAssembler::AtomicCompareExchange(
 
     Cbnz(store_result.W(), &retry);
     Bind(&done);
-  }
-
-  if (result_reg != result.gp()) {
-    mov(result.gp(), result_reg);
   }
 }
 
@@ -4201,6 +4255,16 @@ void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t max_index,
                                              Label* trap_label) {
   Cmp(index, max_index);
   B(trap_label, kUnsignedGreaterThanEqual);
+}
+
+void LiftoffAssembler::emit_inc_i32_at(Address address) {
+  UseScratchRegisterScope temps(this);
+  Register counter_addr = temps.AcquireX();
+  Register value = temps.AcquireW();
+  Mov(counter_addr.X(), Immediate(static_cast<uint64_t>(address)));
+  Ldr(value, MemOperand(counter_addr.X(), 0));
+  Add(value, value, 1);
+  Str(value, MemOperand(counter_addr.X(), 0));
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code) {

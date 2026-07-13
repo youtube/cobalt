@@ -51,7 +51,7 @@ const int TURN_SERVER_PORT = 3478;
 // Encapsulates the client's connection to the server.
 class TurnServerConnection {
  public:
-  TurnServerConnection() : proto_(webrtc::PROTO_UDP), socket_(NULL) {}
+  TurnServerConnection() : proto_(PROTO_UDP), socket_(NULL) {}
   TurnServerConnection(const SocketAddress& src,
                        ProtocolType proto,
                        AsyncPacketSocket* socket);

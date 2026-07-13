@@ -10,10 +10,10 @@
 
 #include "test/rtp_file_writer.h"
 
-#include <stdint.h>
-#include <string.h>
-
+#include <cstdint>
+#include <cstring>
 #include <memory>
+#include <string>
 
 #include "test/gtest.h"
 #include "test/rtp_file_reader.h"

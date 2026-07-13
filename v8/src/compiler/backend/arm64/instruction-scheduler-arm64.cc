@@ -271,6 +271,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Usra:
     case kArm64S64x2UnzipLeft:
     case kArm64S64x2UnzipRight:
+    case kArm64S64x2Reverse:
     case kArm64S32x4ZipLeft:
     case kArm64S32x4ZipRight:
     case kArm64S32x4UnzipLeft:
@@ -334,6 +335,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64ISubSatU:
     case kArm64Bcax:
     case kArm64Eor3:
+    case kArm64Cpy:
 #endif  // V8_ENABLE_WEBASSEMBLY
     case kArm64TestAndBranch32:
     case kArm64TestAndBranch:

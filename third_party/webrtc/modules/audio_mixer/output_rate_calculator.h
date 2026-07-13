@@ -11,8 +11,6 @@
 #ifndef MODULES_AUDIO_MIXER_OUTPUT_RATE_CALCULATOR_H_
 #define MODULES_AUDIO_MIXER_OUTPUT_RATE_CALCULATOR_H_
 
-#include <vector>
-
 #include "api/array_view.h"
 
 namespace webrtc {

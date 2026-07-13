@@ -14,8 +14,12 @@ rtc_library("repeating_task") {
     "repeating_task.h",
   ]
   deps = [
+    "..:checks",
     "..:logging",
+    "..:macromagic",
     "..:timeutils",
+    "../../api:location",
+    "../../api:scoped_refptr",
     "../../api:sequence_checker",
     "../../api/task_queue",
     "../../api/task_queue:pending_task_safety_flag",
@@ -34,6 +38,7 @@ if (rtc_include_tests) {
       ":repeating_task",
       "..:rtc_event",
       "..:task_queue_for_test",
+      "../../api:location",
       "../../api/task_queue",
       "../../api/task_queue/test:mock_task_queue_base",
       "../../api/units:time_delta",

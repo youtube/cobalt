@@ -60,8 +60,12 @@ CoverageMaskRenderStep::CoverageMaskRenderStep()
         : RenderStep(RenderStepID::kCoverageMask,
                      // The mask will have AA outsets baked in, but the original bounds for clipping
                      // still require the outset for analytic coverage.
-                     Flags::kPerformsShading | Flags::kHasTextures | Flags::kEmitsCoverage |
-                     Flags::kOutsetBoundsForAA | Flags::kAppendInstances,
+                     Flags::kPerformsShading |
+                     Flags::kHasTextures |
+                     Flags::kEmitsCoverage |
+                     Flags::kOutsetBoundsForAA |
+                     Flags::kInverseFillsScissor |
+                     Flags::kAppendInstances,
                      /*uniforms=*/{{"maskToDeviceRemainder", SkSLType::kFloat3x3}},
                      PrimitiveType::kTriangleStrip,
                      kDirectDepthGreaterPass,
@@ -144,10 +148,12 @@ void CoverageMaskRenderStep::writeVertices(DrawWriter* dw,
 
         // If the mask is fully clipped out, then the shape's mask info should be (0,0,0,0).
         // If it's not fully clipped out, then the mask info should be non-empty.
-        SkASSERT(!params.clip().transformedShapeBounds().isEmptyNegativeOrNaN() ^
-                 all(maskBounds == 0.f));
+        const bool emptyMask = all(maskBounds == 0.f);
+        SkDEBUGCODE(Rect clippedShapeBounds =
+                    params.clip().transformedShapeBounds().makeIntersect(params.clip().scissor()));
+        SkASSERT(!clippedShapeBounds.isEmptyNegativeOrNaN() ^ emptyMask);
 
-        if (params.clip().transformedShapeBounds().isEmptyNegativeOrNaN()) {
+        if (emptyMask) {
             // The inversion check is strict inequality, so (0,0,0,0) would not be detected. Adjust
             // to (0,0,1/2,1/2) to restrict sampling to the top-left quarter of the top-left pixel,
             // which should have a value of 0 regardless of filtering mode.

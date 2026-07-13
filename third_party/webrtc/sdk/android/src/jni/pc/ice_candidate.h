@@ -15,7 +15,6 @@
 
 #include "api/data_channel_interface.h"
 #include "api/jsep.h"
-#include "api/jsep_ice_candidate.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtp_parameters.h"
 #include "rtc_base/ssl_identity.h"
@@ -32,7 +31,7 @@ ScopedJavaLocalRef<jobject> NativeToJavaCandidate(JNIEnv* env,
 
 ScopedJavaLocalRef<jobject> NativeToJavaIceCandidate(
     JNIEnv* env,
-    const IceCandidateInterface& candidate);
+    const IceCandidate& candidate);
 
 ScopedJavaLocalRef<jobjectArray> NativeToJavaCandidateArray(
     JNIEnv* jni,

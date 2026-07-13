@@ -24,12 +24,13 @@
 #include "api/audio_codecs/opus/audio_encoder_opus_config.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/field_trials.h"
 #include "common_audio/include/audio_util.h"
 #include "common_audio/window_generator.h"
 #include "modules/audio_coding/codecs/opus/test/lapped_transform.h"
 #include "modules/audio_coding/neteq/tools/audio_loop.h"
 #include "rtc_base/buffer.h"
-#include "test/explicit_key_value_config.h"
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
 
@@ -118,9 +119,8 @@ float EncodedPowerRatio(AudioEncoder* encoder,
 
 // TODO(ivoc): Remove this test, WebRTC-AdjustOpusBandwidth is obsolete.
 TEST(BandwidthAdaptationTest, BandwidthAdaptationTest) {
-  const Environment env =
-      CreateEnvironment(std::make_unique<test::ExplicitKeyValueConfig>(
-          "WebRTC-AdjustOpusBandwidth/Enabled/"));
+  const Environment env = CreateEnvironment(std::make_unique<FieldTrials>(
+      CreateTestFieldTrials("WebRTC-AdjustOpusBandwidth/Enabled/")));
 
   constexpr float kMaxNarrowbandRatio = 0.0035f;
   constexpr float kMinWidebandRatio = 0.01f;

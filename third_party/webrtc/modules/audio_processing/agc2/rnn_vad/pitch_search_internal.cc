@@ -10,19 +10,17 @@
 
 #include "modules/audio_processing/agc2/rnn_vad/pitch_search_internal.h"
 
-#include <stdlib.h>
-
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
-#include <numeric>
+#include <cstdlib>
 
+#include "api/array_view.h"
+#include "modules/audio_processing/agc2/cpu_features.h"
 #include "modules/audio_processing/agc2/rnn_vad/common.h"
 #include "modules/audio_processing/agc2/rnn_vad/vector_math.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/numerics/safe_compare.h"
-#include "rtc_base/numerics/safe_conversions.h"
-#include "rtc_base/system/arch.h"
 
 namespace webrtc {
 namespace rnn_vad {

@@ -53,6 +53,22 @@ inline MemOperand GetInstanceDataOperand() {
   return GetStackSlot(WasmLiftoffFrameConstants::kInstanceDataOffset);
 }
 
+inline Register CalculateActualAddress(LiftoffAssembler* lasm,
+                                       UseScratchRegisterScope& temps,
+                                       Register addr_reg, Register offset_reg,
+                                       uintptr_t offset_imm) {
+  DCHECK_NE(addr_reg, no_reg);
+  if (offset_reg == no_reg && offset_imm == 0) return addr_reg;
+  Register result = temps.Acquire();
+  if (offset_reg == no_reg) {
+    lasm->Add_d(result, addr_reg, Operand(offset_imm));
+  } else {
+    lasm->Add_d(result, addr_reg, Operand(offset_reg));
+    if (offset_imm != 0) lasm->Add_d(result, result, Operand(offset_imm));
+  }
+  return result;
+}
+
 template <typename T>
 inline MemOperand GetMemOp(LiftoffAssembler* assm, Register addr,
                            Register offset, T offset_imm,
@@ -323,9 +339,10 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     PushRegisters(regs_to_save);
     li(WasmHandleStackOverflowDescriptor::GapRegister(), frame_size);
     Add_d(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
-          Operand(stack_param_slots * kStackSlotSize +
+          Operand(stack_param_slots * kSystemPointerSize +
                   CommonFrameConstants::kFixedFrameSizeAboveFp));
     CallBuiltin(Builtin::kWasmHandleStackOverflow);
+    safepoint_table_builder->DefineSafepoint(this);
     PopRegisters(regs_to_save);
   } else {
     Call(static_cast<Address>(Builtin::kWasmStackOverflow),
@@ -1013,6 +1030,44 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
   }
 }
 #undef ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT
+
+void LiftoffAssembler::AtomicExchangeTaggedPointer(
+    Register dst_addr, Register offset_reg, uintptr_t offset_imm,
+    LiftoffRegister value, LiftoffRegister result, LiftoffRegList pinned) {
+  // Perform the atomic exchange.
+  {
+    UseScratchRegisterScope temps(this);
+    Register actual_addr = liftoff::CalculateActualAddress(
+        this, temps, dst_addr, offset_reg, offset_imm);
+    if constexpr (COMPRESS_POINTERS_BOOL) {
+      amswap_db_w(result.gp(), value.gp(), actual_addr);
+      Bstrpick_d(result.gp(), result.gp(), 31, 0);
+      add_d(result.gp(), result.gp(), kPtrComprCageBaseRegister);
+    } else {
+      amswap_db_d(result.gp(), value.gp(), actual_addr);
+    }
+  }
+
+  if (v8_flags.disable_write_barriers) return;
+  // Emit the write barrier.
+  Label exit;
+  CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
+                kZero, &exit);
+  JumpIfSmi(value.gp(), &exit);
+  CheckPageFlag(value.gp(), MemoryChunk::kPointersToHereAreInterestingMask, eq,
+                &exit);
+
+  Operand offset_op = Operand(offset_imm);
+  UseScratchRegisterScope temps(this);
+  if (offset_reg.is_valid()) {
+    Register scratch = temps.Acquire();
+    bstrpick_d(scratch, offset_reg, 31, 0);
+    offset_op = Operand(scratch);
+  }
+  CallRecordWriteStubSaveRegisters(dst_addr, offset_op, SaveFPRegsMode::kSave,
+                                   StubCallMode::kCallWasmRuntimeStub);
+  bind(&exit);
+}
 
 #define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(load_linked,       \
                                                  store_conditional) \
@@ -3423,6 +3478,16 @@ bool LiftoffAssembler::emit_f16x8_qfms(LiftoffRegister dst,
 }
 
 bool LiftoffAssembler::supports_f16_mem_access() { return false; }
+
+void LiftoffAssembler::emit_inc_i32_at(Address address) {
+  UseScratchRegisterScope temps(this);
+  Register counter_addr = temps.Acquire();
+  Register value = temps.Acquire();
+  li(counter_addr, Operand(static_cast<uint64_t>(address)));
+  Ld_w(value, MemOperand(counter_addr, 0));
+  Add_w(value, value, Operand(1));
+  St_w(value, MemOperand(counter_addr, 0));
+}
 
 void LiftoffAssembler::StackCheck(Label* ool_code) {
   Register limit_address = kScratchReg;

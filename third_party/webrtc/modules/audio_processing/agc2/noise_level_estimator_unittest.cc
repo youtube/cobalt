@@ -10,17 +10,15 @@
 
 #include "modules/audio_processing/agc2/noise_level_estimator.h"
 
-#include <array>
 #include <cmath>
-#include <functional>
-#include <limits>
 
 #include "api/audio/audio_view.h"
 #include "api/function_view.h"
 #include "modules/audio_processing/agc2/agc2_testing_common.h"
 #include "modules/audio_processing/agc2/vector_float_frame.h"
 #include "modules/audio_processing/logging/apm_data_dumper.h"
-#include "rtc_base/gunit.h"
+#include "rtc_base/checks.h"
+#include "test/gtest.h"
 
 namespace webrtc {
 namespace {

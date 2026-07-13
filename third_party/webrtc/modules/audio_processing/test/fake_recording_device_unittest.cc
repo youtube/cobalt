@@ -11,11 +11,13 @@
 #include "modules/audio_processing/test/fake_recording_device.h"
 
 #include <cmath>
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "api/array_view.h"
+#include "common_audio/channel_buffer.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/strings/string_builder.h"
 #include "test/gtest.h"
 

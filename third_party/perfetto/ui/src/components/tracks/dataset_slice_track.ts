@@ -14,14 +14,13 @@
 
 import m from 'mithril';
 import {ColorScheme} from '../../base/color_scheme';
-import {assertTrue} from '../../base/logging';
 import {Time} from '../../base/time';
 import {TrackEventDetailsPanel} from '../../public/details_panel';
 import {TrackEventDetails, TrackEventSelection} from '../../public/selection';
 import {Trace} from '../../public/trace';
 import {Slice} from '../../public/track';
 import {DatasetSchema, SourceDataset} from '../../trace_processor/dataset';
-import {ColumnType, LONG, NUM} from '../../trace_processor/query_result';
+import {SqlValue, LONG, NUM} from '../../trace_processor/query_result';
 import {getColorForSlice} from '../colorizer';
 import {formatDuration} from '../time_utils';
 import {
@@ -96,7 +95,7 @@ export interface DatasetSliceTrackAttrs<T extends DatasetSchema> {
    *   different layers will be mipmapped independency of each other, and the
    *   buckets of higher layers will be rendered on top of lower layers.
    */
-  readonly dataset: SourceDataset<T>;
+  readonly dataset: SourceDataset<T> | (() => SourceDataset<T>);
 
   /**
    * An optional initial estimate for the maximum depth value. Helps minimize
@@ -128,6 +127,14 @@ export interface DatasetSliceTrackAttrs<T extends DatasetSchema> {
    * Override the appearance of instant events.
    */
   readonly instantStyle?: InstantStyle;
+
+  /**
+   * Events are usually rendered in color order for performance. However for
+   * tracks that have a lot of overlapping event such as those full of instant
+   * events, this can look odd, so this setting forces events to be rendered in
+   * timestamp order, potentially at the cost of a bit of performance.
+   */
+  readonly forceTsRenderOrder?: boolean;
 
   /**
    * An optional function to override the color scheme for each event.
@@ -182,31 +189,30 @@ export type ROW_SCHEMA = typeof rowSchema;
 // resolved properly.
 type SliceWithRow<T> = Slice & {row: T};
 
+function getDataset<T extends DatasetSchema>(
+  attrs: DatasetSliceTrackAttrs<T>,
+): SourceDataset<T> {
+  const dataset = attrs.dataset;
+  return typeof dataset === 'function' ? dataset() : dataset;
+}
+
 export class DatasetSliceTrack<T extends ROW_SCHEMA> extends BaseSliceTrack<
   SliceWithRow<T>,
   BaseRow & T
 > {
-  protected readonly sqlSource: string;
   readonly rootTableName?: string;
 
   constructor(private readonly attrs: DatasetSliceTrackAttrs<T>) {
+    const dataset = getDataset(attrs);
     super(
       attrs.trace,
       attrs.uri,
-      {...BASE_ROW, ...attrs.dataset.schema},
+      {...BASE_ROW, ...dataset.schema},
       attrs.sliceLayout,
       attrs.initialMaxDepth,
       attrs.instantStyle?.width,
+      attrs.forceTsRenderOrder ?? false,
     );
-    const {dataset} = attrs;
-
-    // This is the minimum viable implementation that the source dataset must
-    // implement for the track to work properly. Typescript should enforce this
-    // now, but typescript can be worked around, and checking it is cheap.
-    // Better to error out early.
-    assertTrue(this.attrs.dataset.implements(rowSchema));
-
-    this.sqlSource = this.generateRenderQuery(dataset);
     this.rootTableName = attrs.rootTableName;
   }
 
@@ -214,9 +220,9 @@ export class DatasetSliceTrack<T extends ROW_SCHEMA> extends BaseSliceTrack<
     const slice = this.rowToSliceBase(row);
     const title = this.getTitle(row);
     const color = this.getColor(row, title);
-
+    const dataset = getDataset(this.attrs);
     // Take a copy of the row, only copying the keys listed in the schema.
-    const cols = Object.keys(this.attrs.dataset.schema);
+    const cols = Object.keys(dataset.schema);
     const clonedRow = Object.fromEntries(
       Object.entries(row).filter(([key]) => cols.includes(key)),
     ) as T;
@@ -276,11 +282,15 @@ export class DatasetSliceTrack<T extends ROW_SCHEMA> extends BaseSliceTrack<
   }
 
   override getSqlSource(): string {
-    return this.sqlSource;
+    const dataset =
+      typeof this.attrs.dataset === 'function'
+        ? this.attrs.dataset()
+        : this.attrs.dataset;
+    return this.generateRenderQuery(dataset);
   }
 
   getDataset() {
-    return this.attrs.dataset;
+    return getDataset(this.attrs);
   }
 
   detailsPanel(sel: TrackEventSelection): TrackEventDetailsPanel | undefined {
@@ -301,7 +311,8 @@ export class DatasetSliceTrack<T extends ROW_SCHEMA> extends BaseSliceTrack<
   async getSelectionDetails(
     id: number,
   ): Promise<TrackEventDetails | undefined> {
-    const {trace, dataset} = this.attrs;
+    const {trace} = this.attrs;
+    const dataset = getDataset(this.attrs);
     const result = await trace.engine.query(`
       SELECT *
       FROM (${dataset.query()})
@@ -312,7 +323,7 @@ export class DatasetSliceTrack<T extends ROW_SCHEMA> extends BaseSliceTrack<
     if (!row.valid()) return undefined;
 
     // Pull the fields out from the results
-    const data: {[key: string]: ColumnType} = {};
+    const data: {[key: string]: SqlValue} = {};
     for (const col of result.columns()) {
       data[col] = row.get(col);
     }

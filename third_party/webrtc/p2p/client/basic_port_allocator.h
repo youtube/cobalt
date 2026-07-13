@@ -103,7 +103,7 @@ class RTC_EXPORT BasicPortAllocator : public PortAllocator {
   NetworkManager* network_manager_;
   // Always externally-owned pointer to a socket factory.
   PacketSocketFactory* const socket_factory_;
-  int network_ignore_mask_ = webrtc::kDefaultNetworkIgnoreMask;
+  int network_ignore_mask_ = kDefaultNetworkIgnoreMask;
 
   AlwaysValidPointer<RelayPortFactoryInterface, TurnPortFactory>
       relay_port_factory_;
@@ -143,7 +143,7 @@ class RTC_EXPORT BasicPortAllocatorSession : public PortAllocatorSession {
   // the type of candidates to gather and the candidate filter only controls the
   // signaling of candidates. As a result, with the candidate filter changed
   // alone, all newly allowed candidates for signaling should already be
-  // gathered by the respective webrtc::Port.
+  // gathered by the respective Port.
   void SetCandidateFilter(uint32_t filter) override;
   void StartGettingPorts() override;
   void StopGettingPorts() override;
@@ -151,7 +151,7 @@ class RTC_EXPORT BasicPortAllocatorSession : public PortAllocatorSession {
   bool IsGettingPorts() override;
   bool IsCleared() const override;
   bool IsStopped() const override;
-  // These will all be webrtc::Ports.
+  // These will all be Ports.
   std::vector<PortInterface*> ReadyPorts() const override;
   std::vector<Candidate> ReadyCandidates() const override;
   bool CandidatesAllocationDone() const override;
@@ -286,7 +286,7 @@ class RTC_EXPORT BasicPortAllocatorSession : public PortAllocatorSession {
   std::vector<AllocationSequence*> sequences_;
   std::vector<PortData> ports_;
   std::vector<IceCandidateErrorEvent> candidate_error_events_;
-  uint32_t candidate_filter_ = webrtc::CF_ALL;
+  uint32_t candidate_filter_ = CF_ALL;
   // Policy on how to prune turn ports, taken from the port allocator.
   PortPrunePolicy turn_port_prune_policy_;
   SessionState state_ = SessionState::CLEARED;

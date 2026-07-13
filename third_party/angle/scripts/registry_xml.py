@@ -79,7 +79,6 @@ angle_requestable_extensions = [
     "GL_CHROMIUM_color_buffer_float_rgb",
     "GL_CHROMIUM_color_buffer_float_rgba",
     "GL_CHROMIUM_lose_context",
-    "GL_CHROMIUM_sync_query",
 ]
 
 gles_requestable_extensions = [
@@ -116,6 +115,9 @@ gles_requestable_extensions = [
     "GL_EXT_external_buffer",
     "GL_EXT_float_blend",
     "GL_EXT_frag_depth",
+    "GL_EXT_fragment_shading_rate",
+    "GL_EXT_fragment_shading_rate_attachment",
+    "GL_EXT_fragment_shading_rate_primitive",
     "GL_EXT_geometry_shader",
     "GL_EXT_gpu_shader5",
     "GL_EXT_instanced_arrays",
@@ -327,6 +329,8 @@ gles_skipped_commands = [
     "glTextureStorage1DEXT",
     "glTextureStorage2DEXT",
     "glTextureStorage3DEXT",
+    # GL_OVR_multiview
+    "glNamedFramebufferTextureMultiviewOVR",
 ]
 
 def check_sorted(name, l):

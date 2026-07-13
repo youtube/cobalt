@@ -3656,24 +3656,10 @@ bool ValidateBufferData(const Context *context,
         return false;
     }
 
-    // Do some additional WebGL-specific validation
-    if (ANGLE_UNLIKELY(context->isWebGL()))
+    if (buffer->hasWebGLXFBBindingConflict(context->isWebGL()))
     {
-        if (buffer->hasWebGLXFBBindingConflict(true))
-        {
-            ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kBufferBoundForTransformFeedback);
-            return false;
-        }
-
-        const TransformFeedback *transformFeedbackObject =
-            context->getState().getCurrentTransformFeedback();
-        if (transformFeedbackObject && transformFeedbackObject->isActive() &&
-            !transformFeedbackObject->isPaused() &&
-            transformFeedbackObject->isBufferBound(buffer->id()))
-        {
-            ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kBufferBoundForTransformFeedback);
-            return false;
-        }
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kBufferBoundForTransformFeedback);
+        return false;
     }
 
     if (buffer->isImmutable())
@@ -3728,24 +3714,10 @@ bool ValidateBufferSubData(const Context *context,
         return false;
     }
 
-    // Do some additional WebGL-specific validation
-    if (ANGLE_UNLIKELY(context->isWebGL()))
+    if (buffer->hasWebGLXFBBindingConflict(context->isWebGL()))
     {
-        if (buffer->hasWebGLXFBBindingConflict(true))
-        {
-            ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kBufferBoundForTransformFeedback);
-            return false;
-        }
-
-        const TransformFeedback *transformFeedbackObject =
-            context->getState().getCurrentTransformFeedback();
-        if (transformFeedbackObject && transformFeedbackObject->isActive() &&
-            !transformFeedbackObject->isPaused() &&
-            transformFeedbackObject->isBufferBound(buffer->id()))
-        {
-            ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kBufferBoundForTransformFeedback);
-            return false;
-        }
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kBufferBoundForTransformFeedback);
+        return false;
     }
 
     if (buffer->isImmutable() &&
@@ -5917,6 +5889,11 @@ bool ValidateMultiDrawArraysANGLE(const Context *context,
                                   const GLsizei *counts,
                                   GLsizei drawcount)
 {
+    if (drawcount < 0)
+    {
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kNegativeDrawcount);
+        return false;
+    }
     for (GLsizei drawID = 0; drawID < drawcount; ++drawID)
     {
         if (!ValidateDrawArrays(context, entryPoint, mode, firsts[drawID], counts[drawID]))
@@ -5935,6 +5912,11 @@ bool ValidateMultiDrawElementsANGLE(const Context *context,
                                     const GLvoid *const *indices,
                                     GLsizei drawcount)
 {
+    if (drawcount < 0)
+    {
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kNegativeDrawcount);
+        return false;
+    }
     for (GLsizei drawID = 0; drawID < drawcount; ++drawID)
     {
         if (!ValidateDrawElements(context, entryPoint, mode, counts[drawID], type, indices[drawID]))

@@ -11,10 +11,7 @@
 #ifndef MODULES_AUDIO_PROCESSING_AGC2_RNN_VAD_PITCH_SEARCH_INTERNAL_H_
 #define MODULES_AUDIO_PROCESSING_AGC2_RNN_VAD_PITCH_SEARCH_INTERNAL_H_
 
-#include <stddef.h>
-
-#include <array>
-#include <utility>
+#include <cstddef>
 
 #include "api/array_view.h"
 #include "modules/audio_processing/agc2/cpu_features.h"

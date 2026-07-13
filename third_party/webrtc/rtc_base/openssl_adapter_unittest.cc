@@ -29,7 +29,7 @@ namespace {
 
 class MockAsyncSocket : public Socket {
  public:
-  virtual ~MockAsyncSocket() = default;
+  ~MockAsyncSocket() override = default;
   MOCK_METHOD(Socket*, Accept, (SocketAddress*), (override));
   MOCK_METHOD(SocketAddress, GetLocalAddress, (), (const, override));
   MOCK_METHOD(SocketAddress, GetRemoteAddress, (), (const, override));
@@ -56,7 +56,7 @@ class MockAsyncSocket : public Socket {
 
 class MockCertVerifier : public SSLCertificateVerifier {
  public:
-  virtual ~MockCertVerifier() = default;
+  ~MockCertVerifier() override = default;
   MOCK_METHOD(bool, Verify, (const SSLCertificate&), (override));
 };
 

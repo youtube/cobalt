@@ -14,7 +14,7 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "api/audio/audio_frame.h"
+#include "api/audio/audio_view.h"
 #include "modules/audio_coding/neteq/audio_multi_vector.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/checks.h"
@@ -86,17 +86,13 @@ void SyncBuffer::ReplaceAtIndex(const AudioMultiVector& insert_this,
   ReplaceAtIndex(insert_this, insert_this.Size(), position);
 }
 
-void SyncBuffer::GetNextAudioInterleaved(size_t requested_len,
-                                         AudioFrame* output) {
-  RTC_DCHECK(output);
-  const size_t samples_to_read = std::min(FutureLength(), requested_len);
-  output->ResetWithoutMuting();
-  const size_t tot_samples_read = ReadInterleavedFromIndex(
-      next_index_, samples_to_read, output->mutable_data());
-  const size_t samples_read_per_channel = tot_samples_read / Channels();
-  next_index_ += samples_read_per_channel;
-  output->num_channels_ = Channels();
-  output->samples_per_channel_ = samples_read_per_channel;
+bool SyncBuffer::GetNextAudioInterleaved(InterleavedView<int16_t> audio) {
+  RTC_DCHECK_EQ(audio.num_channels(), Channels());
+  bool read = ReadInterleavedFromIndex(next_index_, audio);
+  if (read) {
+    next_index_ += audio.samples_per_channel();
+  }
+  return read;
 }
 
 void SyncBuffer::IncreaseEndTimestamp(uint32_t increment) {

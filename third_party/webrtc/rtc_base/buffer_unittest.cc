@@ -10,11 +10,14 @@
 
 #include "rtc_base/buffer.h"
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <utility>
 
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
+#include "rtc_base/checks.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 

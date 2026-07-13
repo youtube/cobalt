@@ -10,11 +10,13 @@
 
 #include "modules/desktop_capture/desktop_frame.h"
 
+#include <cstdint>
+#include <cstring>
 #include <memory>
+#include <optional>
 
-#include "modules/desktop_capture/desktop_region.h"
-#include "modules/desktop_capture/test_utils.h"
-#include "rtc_base/arraysize.h"
+#include "api/array_view.h"
+#include "modules/desktop_capture/desktop_geometry.h"
 #include "test/gtest.h"
 
 namespace webrtc {
@@ -75,10 +77,8 @@ void RunTest(const TestData& test) {
   }
 }
 
-void RunTests(const TestData* tests, int num_tests) {
-  for (int i = 0; i < num_tests; i++) {
-    const TestData& test = tests[i];
-
+void RunTests(ArrayView<const TestData> tests) {
+  for (const TestData& test : tests) {
     SCOPED_TRACE(test.description);
 
     RunTest(test);
@@ -134,7 +134,7 @@ TEST(DesktopFrameTest, CopyIntersectingPixelsMatchingRects) {
   };
   // clang-format on
 
-  RunTests(tests, arraysize(tests));
+  RunTests(tests);
 }
 
 TEST(DesktopFrameTest, CopyIntersectingPixelsMatchingRectsScaled) {
@@ -168,7 +168,7 @@ TEST(DesktopFrameTest, CopyIntersectingPixelsMatchingRectsScaled) {
   };
   // clang-format on
 
-  RunTests(tests, arraysize(tests));
+  RunTests(tests);
 }
 
 TEST(DesktopFrameTest, CopyIntersectingPixelsFullyContainedRects) {
@@ -194,7 +194,7 @@ TEST(DesktopFrameTest, CopyIntersectingPixelsFullyContainedRects) {
   };
   // clang-format on
 
-  RunTests(tests, arraysize(tests));
+  RunTests(tests);
 }
 
 TEST(DesktopFrameTest, CopyIntersectingPixelsFullyContainedRectsScaled) {
@@ -244,7 +244,7 @@ TEST(DesktopFrameTest, CopyIntersectingPixelsFullyContainedRectsScaled) {
   };
   // clang-format on
 
-  RunTests(tests, arraysize(tests));
+  RunTests(tests);
 }
 
 TEST(DesktopFrameTest, CopyIntersectingPixelsPartiallyContainedRects) {
@@ -276,7 +276,7 @@ TEST(DesktopFrameTest, CopyIntersectingPixelsPartiallyContainedRects) {
   };
   // clang-format on
 
-  RunTests(tests, arraysize(tests));
+  RunTests(tests);
 }
 
 TEST(DesktopFrameTest, CopyIntersectingPixelsPartiallyContainedRectsScaled) {
@@ -308,7 +308,7 @@ TEST(DesktopFrameTest, CopyIntersectingPixelsPartiallyContainedRectsScaled) {
   };
   // clang-format on
 
-  RunTests(tests, arraysize(tests));
+  RunTests(tests);
 }
 
 TEST(DesktopFrameTest, CopyIntersectingPixelsUncontainedRects) {
@@ -341,7 +341,7 @@ TEST(DesktopFrameTest, CopyIntersectingPixelsUncontainedRects) {
   };
   // clang-format on
 
-  RunTests(tests, arraysize(tests));
+  RunTests(tests);
 }
 
 TEST(DesktopFrameTest, CopyIntersectingPixelsUncontainedRectsScaled) {
@@ -374,7 +374,7 @@ TEST(DesktopFrameTest, CopyIntersectingPixelsUncontainedRectsScaled) {
   };
   // clang-format on
 
-  RunTests(tests, arraysize(tests));
+  RunTests(tests);
 }
 
 }  // namespace webrtc

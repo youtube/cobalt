@@ -16,7 +16,7 @@
 
 #include <vector>
 
-#include "api/audio/audio_frame.h"
+#include "api/audio/audio_view.h"
 #include "modules/audio_coding/neteq/audio_multi_vector.h"
 #include "modules/audio_coding/neteq/audio_vector.h"
 #include "rtc_base/buffer.h"
@@ -76,11 +76,17 @@ class SyncBuffer final : public AudioMultiVector {
   // the same constraints as above, that the SyncBuffer is not extended).
   void ReplaceAtIndex(const AudioMultiVector& insert_this, size_t position);
 
-  // Reads `requested_len` samples from each channel and writes them interleaved
-  // into `output`. The `next_index_` is updated to point to the sample to read
-  // next time. The AudioFrame `output` is first reset, and the `data_`,
-  // `num_channels_`, and `samples_per_channel_` fields are updated.
-  void GetNextAudioInterleaved(size_t requested_len, AudioFrame* output);
+  // If enough data is available, reads `audio.samples_per_channel()` samples
+  // from each channel into `audio` and return true.
+  // If not enough data is available, the function returns false and no data
+  // will have been read.
+  //
+  // When successful, the internal `next_index_` position is updated to point
+  // to the samples to read next time around.
+  //
+  // Note: `audio` must be configured to have the same number of channels as
+  // `Channels()` and expected to meet the size limitations of AudioFrame.
+  bool GetNextAudioInterleaved(InterleavedView<int16_t> audio);
 
   // Adds `increment` to `end_timestamp_`.
   void IncreaseEndTimestamp(uint32_t increment);

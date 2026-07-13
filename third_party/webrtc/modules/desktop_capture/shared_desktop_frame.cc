@@ -11,8 +11,10 @@
 #include "modules/desktop_capture/shared_desktop_frame.h"
 
 #include <memory>
-#include <type_traits>
 #include <utility>
+
+#include "api/scoped_refptr.h"
+#include "modules/desktop_capture/desktop_frame.h"
 
 namespace webrtc {
 

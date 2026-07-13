@@ -12,6 +12,8 @@
 #define MODULES_AUDIO_PROCESSING_RESIDUAL_ECHO_DETECTOR_H_
 
 #include <atomic>
+#include <cstddef>
+#include <memory>
 #include <vector>
 
 #include "api/array_view.h"

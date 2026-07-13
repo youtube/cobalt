@@ -40,6 +40,7 @@ import {WakerOverlay} from './waker_overlay';
 import {duration, time, Time} from '../../base/time';
 import {createPerfettoTable} from '../../trace_processor/sql_utils';
 import {MinimapRow} from '../../public/minimap';
+import {escapeSearchQuery} from '../../trace_processor/query_utils';
 
 function uriForThreadStateTrack(upid: number | null, utid: number): string {
   return `${getThreadUriPrefix(upid, utid)}_state`;
@@ -53,6 +54,52 @@ export default class implements PerfettoPlugin {
     await this.addCpuSliceTracks(ctx);
     await this.addThreadStateTracks(ctx);
     await this.addMinimapProvider(ctx);
+
+    ctx.commands.registerCommand({
+      id: 'dev.perfetto.Sched#SelectAllThreadStateTracks',
+      name: 'Select all thread state tracks',
+      callback: () => {
+        const tracks = ctx.tracks
+          .getAllTracks()
+          .filter((t) => t.tags?.kind === THREAD_STATE_TRACK_KIND);
+        ctx.selection.selectArea({
+          trackUris: tracks.map((t) => t.uri),
+          start: ctx.traceInfo.start,
+          end: ctx.traceInfo.end,
+        });
+      },
+    });
+
+    ctx.search.registerSearchProvider({
+      name: 'Sched Slices',
+      selectTracks(tracks) {
+        return tracks
+          .filter((t) => t.tags?.kind === CPU_SLICE_TRACK_KIND)
+          .filter((track) =>
+            track.renderer.getDataset?.()?.implements({utid: NUM_NULL}),
+          );
+      },
+      async getSearchFilter(searchTerm) {
+        // Look up all the utids of threads and processes that match the search
+        // term, and return a filter on those utids.
+        const searchLiteral = escapeSearchQuery(searchTerm);
+        const utidRes = await ctx.engine.query(`
+          SELECT utid
+          FROM thread
+          JOIN process USING(upid)
+          WHERE
+            thread.name GLOB ${searchLiteral} OR
+            process.name GLOB ${searchLiteral}
+        `);
+        const utids = [];
+        for (const it = utidRes.iter({utid: NUM}); it.valid(); it.next()) {
+          utids.push(it.utid);
+        }
+        return {
+          where: `utid IN (${utids.join()})`,
+        };
+      },
+    });
   }
 
   async addCpuSliceTracks(ctx: Trace): Promise<void> {
@@ -88,14 +135,13 @@ export default class implements PerfettoPlugin {
 
       ctx.tracks.registerTrack({
         uri,
-        title: name,
         tags: {
           kind: CPU_SLICE_TRACK_KIND,
           cpu: cpu.ucpu,
         },
-        track: new CpuSliceTrack(ctx, uri, cpu, threads),
+        renderer: new CpuSliceTrack(ctx, uri, cpu, threads),
       });
-      const trackNode = new TrackNode({uri, title: name, sortOrder: -50});
+      const trackNode = new TrackNode({uri, name, sortOrder: -50});
       ctx.workspace.addChildInOrder(trackNode);
     }
 
@@ -186,7 +232,6 @@ export default class implements PerfettoPlugin {
       const uri = uriForThreadStateTrack(upid, utid);
       ctx.tracks.registerTrack({
         uri,
-        title,
         tags: {
           kind: THREAD_STATE_TRACK_KIND,
           utid,
@@ -196,13 +241,13 @@ export default class implements PerfettoPlugin {
         chips: removeFalsyValues([
           isKernelThread === 0 && isMainThread === 1 && 'main thread',
         ]),
-        track: createThreadStateTrack(ctx, uri, utid),
+        renderer: createThreadStateTrack(ctx, uri, utid),
       });
 
       const group = ctx.plugins
         .getPlugin(ProcessThreadGroupsPlugin)
         .getGroupForThread(utid);
-      const track = new TrackNode({uri, title, sortOrder: 10});
+      const track = new TrackNode({uri, name: title, sortOrder: 10});
       group?.addChildInOrder(track);
     }
   }

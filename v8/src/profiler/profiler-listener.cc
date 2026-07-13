@@ -240,12 +240,13 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
 #if V8_ENABLE_WEBASSEMBLY
 void ProfilerListener::CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
                                        wasm::WasmName name,
-                                       const char* source_url, int code_offset,
-                                       int script_id) {
+                                       std::string_view source_url,
+                                       int code_offset, int script_id) {
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->instruction_start();
-  rec->entry = code_entries_.Create(tag, GetName(name), GetName(source_url),
+  auto source_url_vec = base::VectorOf(source_url.data(), source_url.size());
+  rec->entry = code_entries_.Create(tag, GetName(name), GetName(source_url_vec),
                                     LineAndColumn{1, code_offset + 1}, nullptr,
                                     true, CodeEntry::CodeType::WASM);
   rec->entry->set_script_id(script_id);
@@ -425,7 +426,7 @@ void ProfilerListener::AttachDeoptInlinedFrames(DirectHandle<Code> code,
     }
     if (info->rmode() == RelocInfo::DEOPT_ID) {
       if (deopt_id != static_cast<int>(info->data())) continue;
-      DCHECK(last_position.IsKnown());
+      if (!last_position.IsKnown()) continue;
 
       // SourcePosition::InliningStack allocates a handle for the SFI of each
       // frame. These don't escape this function, but quickly add up. This

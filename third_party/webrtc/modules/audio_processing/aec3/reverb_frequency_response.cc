@@ -15,6 +15,8 @@
 #include <algorithm>
 #include <array>
 #include <numeric>
+#include <optional>
+#include <vector>
 
 #include "api/array_view.h"
 #include "modules/audio_processing/aec3/aec3_common.h"

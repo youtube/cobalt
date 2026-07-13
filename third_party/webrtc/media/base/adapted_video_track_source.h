@@ -74,7 +74,7 @@ class RTC_EXPORT AdaptedVideoTrackSource
   VideoAdapter* video_adapter() { return &video_adapter_; }
 
  private:
-  // Implements webrtc::VideoSourceInterface.
+  // Implements VideoSourceInterface.
   void AddOrUpdateSink(VideoSinkInterface<VideoFrame>* sink,
                        const VideoSinkWants& wants) override;
   void RemoveSink(VideoSinkInterface<VideoFrame>* sink) override;

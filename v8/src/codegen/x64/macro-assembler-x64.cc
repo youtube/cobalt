@@ -478,6 +478,153 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   }
 }
 
+void MacroAssembler::EnterSandbox() {
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  pushq(rax);
+  pushq(rbx);
+  pushq(rcx);
+  pushq(rdx);
+
+  xorq(rcx, rcx);
+  xorq(rdx, rdx);
+
+  // TODO(350324877): it would be nicer if we could use an IsolateFieldId here.
+  // However, that isn't currently possible since these routines are also used
+  // in code that doesn't have the root register available. In the future, we
+  // might anyway want to refactor this mechanism to instead use dedicated
+  // trampoline builtins for entering/exiting sandboxed execution mode. Then we
+  // could consider generating the code for that trampoline at runtime, at
+  // which point we would no longer need an external reference at all.
+  LoadAddress(rbx, ExternalReference::sandboxed_mode_pkey_mask_address());
+  movl(rbx, Operand(rbx, 0));
+
+  if (v8_flags.debug_code) {
+    // Check that we are not in sandboxed mode.
+    // If sandbox hardware support is not active, the mask will be all zeroes
+    // and so this test will also pass.
+    rdpkru();
+    andl(rax, rbx);
+    Assert(zero, AbortReason::kUnexpectedSandboxMode);
+  }
+
+  // PKEY permissions bits:
+  //   00: kNoRestrictions
+  //   01: kDisableAccess
+  //   10: kDisableWrite
+  rdpkru();
+  // Set the bit from the pkey mask, thereby restricting access to the
+  // out-of-sandbox pkey.
+  orl(rax, rbx);
+  wrpkru();
+
+  popq(rdx);
+  popq(rcx);
+  popq(rbx);
+  popq(rax);
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+}
+
+void MacroAssembler::ExitSandbox() {
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  pushq(rax);
+  pushq(rbx);
+  pushq(rcx);
+  pushq(rdx);
+
+  xorq(rcx, rcx);
+  xorq(rdx, rdx);
+
+  LoadAddress(rbx, ExternalReference::sandboxed_mode_pkey_mask_address());
+  movl(rbx, Operand(rbx, 0));
+
+  if (v8_flags.debug_code) {
+    // Check that we are in sandboxed mode.
+    // If sandbox hardware support is not active, the mask will be all zeroes
+    // and so we need to handle this here.
+    Label hardware_support_not_active;
+    testl(rbx, rbx);
+    j(zero, &hardware_support_not_active);
+    rdpkru();
+    andl(rax, rbx);
+    Assert(not_zero, AbortReason::kUnexpectedSandboxMode);
+    bind(&hardware_support_not_active);
+  }
+
+  // PKEY permissions bits:
+  //   00: kNoRestrictions
+  //   01: kDisableAccess
+  //   10: kDisableWrite
+  rdpkru();
+  // Clear the bit from the pkey mask, thereby restoring full access to the
+  // out-of-sandbox pkey.
+  notl(rbx);
+  andl(rax, rbx);
+  wrpkru();
+
+  popq(rdx);
+  popq(rcx);
+  popq(rbx);
+  popq(rax);
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+}
+
+void MacroAssembler::AssertInSandboxedExecutionMode() {
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  if (v8_flags.debug_code) {
+    pushq(rax);
+    pushq(rbx);
+    pushq(rcx);
+    pushq(rdx);
+
+    xorq(rcx, rcx);
+    xorq(rdx, rdx);
+
+    LoadAddress(rbx, ExternalReference::sandboxed_mode_pkey_mask_address());
+    movl(rbx, Operand(rbx, 0));
+
+    // If sandbox hardware support is not active, the mask will be all zeroes
+    // and so we need to handle this here.
+    Label hardware_support_not_active;
+    testl(rbx, rbx);
+    j(zero, &hardware_support_not_active);
+
+    rdpkru();
+    andl(rax, rbx);
+    Assert(not_zero, AbortReason::kUnexpectedSandboxMode);
+
+    bind(&hardware_support_not_active);
+
+    popq(rdx);
+    popq(rcx);
+    popq(rbx);
+    popq(rax);
+  }
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+}
+
+void MacroAssembler::SwitchSandboxingModeTo(CodeSandboxingMode mode) {
+  switch (mode) {
+    case CodeSandboxingMode::kSandboxed:
+      return EnterSandbox();
+    case CodeSandboxingMode::kUnsandboxed:
+      return ExitSandbox();
+  }
+}
+
+void MacroAssembler::SwitchSandboxingModeBeforeCallIfNeeded(
+    CodeSandboxingMode target_sandboxing_mode) {
+  if (sandboxing_mode() != target_sandboxing_mode) {
+    SwitchSandboxingModeTo(target_sandboxing_mode);
+  }
+}
+
+void MacroAssembler::SwitchSandboxingModeAfterCallIfNeeded(
+    CodeSandboxingMode target_sandboxing_mode) {
+  if (sandboxing_mode() != target_sandboxing_mode) {
+    SwitchSandboxingModeTo(sandboxing_mode());
+  }
+}
+
 void MacroAssembler::EncodeSandboxedPointer(Register value) {
   ASM_CODE_COMMENT(this);
 #ifdef V8_ENABLE_SANDBOX
@@ -1014,12 +1161,12 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
     CheckPageFlag(value,
                   value,  // Used as scratch.
                   MemoryChunk::kPointersToHereAreInterestingMask, zero, &done,
-                  Label::kNear);
+                  Label::kFar);
 
     CheckPageFlag(object,
                   value,  // Used as scratch.
                   MemoryChunk::kPointersFromHereAreInterestingMask, zero, &done,
-                  Label::kNear);
+                  Label::kFar);
 #endif  // !V8_ENABLE_STICKY_MARK_BITS_BOOL
   }
 
@@ -1255,9 +1402,10 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     Push(kJavaScriptCallNewTargetRegister);
     SmiTag(kJavaScriptCallArgCountRegister);
     Push(kJavaScriptCallArgCountRegister);
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
     // No need to SmiTag since dispatch handles always look like Smis.
     static_assert(kJSDispatchHandleShift > 0);
+    AssertSmi(kJavaScriptCallDispatchHandleRegister);
     Push(kJavaScriptCallDispatchHandleRegister);
 #endif
     // Function is also the parameter to the runtime call.
@@ -1270,7 +1418,7 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
 
     // Restore target function, new target, actual argument count, and dispatch
     // handle.
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
     Pop(kJavaScriptCallDispatchHandleRegister);
 #endif
     Pop(kJavaScriptCallArgCountRegister);
@@ -2484,6 +2632,38 @@ void MacroAssembler::I32x8TruncF32x8U(YMMRegister dst, YMMRegister src,
   vpaddd(dst, dst, scratch2);
 }
 
+void MacroAssembler::Negpd(YMMRegister dst, YMMRegister src,
+                           YMMRegister scratch) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2));
+  CpuFeatureScope avx2_scope(this, AVX2);
+  if (dst == src) {
+    vpcmpeqq(scratch, scratch, scratch);
+    vpsllq(scratch, scratch, uint8_t{63});
+    vpxor(dst, dst, scratch);
+  } else {
+    vpcmpeqq(dst, dst, dst);
+    vpsllq(dst, dst, uint8_t{63});
+    vpxor(dst, dst, src);
+  }
+}
+
+void MacroAssembler::Negps(YMMRegister dst, YMMRegister src,
+                           YMMRegister scratch) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2));
+  CpuFeatureScope avx2_scope(this, AVX2);
+  if (dst == src) {
+    vpcmpeqd(scratch, scratch, scratch);
+    vpslld(scratch, scratch, uint8_t{31});
+    vpxor(dst, dst, scratch);
+  } else {
+    vpcmpeqd(dst, dst, dst);
+    vpslld(dst, dst, uint8_t{31});
+    vpxor(dst, dst, src);
+  }
+}
+
 void MacroAssembler::SmiTag(Register reg) {
   static_assert(kSmiTag == 0);
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
@@ -3151,6 +3331,7 @@ void MacroAssembler::Jump(Address destination, RelocInfo::Mode rmode,
 }
 
 void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
+  DCHECK_EQ(sandboxing_mode(), code_object->sandboxing_mode());
   DCHECK_IMPLIES(options().isolate_independent_code,
                  Builtins::IsIsolateIndependentBuiltin(*code_object));
   Builtin builtin = Builtin::kNoBuiltinId;
@@ -3164,6 +3345,7 @@ void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
 
 void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
                           Condition cc) {
+  DCHECK_EQ(sandboxing_mode(), code_object->sandboxing_mode());
   DCHECK_IMPLIES(options().isolate_independent_code,
                  Builtins::IsIsolateIndependentBuiltin(*code_object));
   Builtin builtin = Builtin::kNoBuiltinId;
@@ -3176,11 +3358,13 @@ void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
 }
 
 void MacroAssembler::Call(ExternalReference ext) {
+  // TODO(saelo): can we DCHECK that the sandboxing mode is correct here?
   LoadAddress(kScratchRegister, ext);
   call(kScratchRegister);
 }
 
 void MacroAssembler::Call(Operand op) {
+  // TODO(saelo): can we DCHECK that the sandboxing mode is correct here?
   if (!CpuFeatures::IsSupported(INTEL_ATOM)) {
     call(op);
   } else {
@@ -3195,6 +3379,7 @@ void MacroAssembler::Call(Address destination, RelocInfo::Mode rmode) {
 }
 
 void MacroAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
+  DCHECK_EQ(sandboxing_mode(), code_object->sandboxing_mode());
   DCHECK_IMPLIES(options().isolate_independent_code,
                  Builtins::IsIsolateIndependentBuiltin(*code_object));
   Builtin builtin = Builtin::kNoBuiltinId;
@@ -3230,11 +3415,16 @@ Operand MacroAssembler::EntryFromBuiltinIndexAsOperand(Register builtin_index) {
 }
 
 void MacroAssembler::CallBuiltinByIndex(Register builtin_index) {
+  // TODO(saelo): can we DCHECK that the sandboxing mode is correct here?
   Call(EntryFromBuiltinIndexAsOperand(builtin_index));
 }
 
 void MacroAssembler::CallBuiltin(Builtin builtin) {
   ASM_CODE_COMMENT_STRING(this, CommentForOffHeapTrampoline("call", builtin));
+
+  // Check if this builtin call transitions out of sandboxed execution mode.
+  SwitchSandboxingModeBeforeCallIfNeeded(Builtins::SandboxingModeOf(builtin));
+
   switch (options().builtin_call_jump_mode) {
     case BuiltinCallJumpMode::kAbsolute:
       Call(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET);
@@ -3251,9 +3441,14 @@ void MacroAssembler::CallBuiltin(Builtin builtin) {
       break;
     }
   }
+
+  SwitchSandboxingModeAfterCallIfNeeded(Builtins::SandboxingModeOf(builtin));
 }
 
 void MacroAssembler::TailCallBuiltin(Builtin builtin) {
+  // We cannot (currently) switch the sandboxing mode on tail calls.
+  DCHECK_EQ(sandboxing_mode(), Builtins::SandboxingModeOf(builtin));
+
   ASM_CODE_COMMENT_STRING(this,
                           CommentForOffHeapTrampoline("tail call", builtin));
   switch (options().builtin_call_jump_mode) {
@@ -3275,6 +3470,9 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin) {
 }
 
 void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cc) {
+  // We cannot (currently) switch the sandboxing mode on tail calls.
+  DCHECK_EQ(sandboxing_mode(), Builtins::SandboxingModeOf(builtin));
+
   ASM_CODE_COMMENT_STRING(this,
                           CommentForOffHeapTrampoline("tail call", builtin));
   switch (options().builtin_call_jump_mode) {
@@ -4618,12 +4816,13 @@ int MacroAssembler::CallCFunction(ExternalReference function, int num_arguments,
   // CallCFunction method called below.
   LoadAddress(rax, function);
   return CallCFunction(rax, num_arguments, set_isolate_data_slots,
-                       return_location);
+                       return_location, CodeSandboxingMode::kUnsandboxed);
 }
 
 int MacroAssembler::CallCFunction(Register function, int num_arguments,
                                   SetIsolateDataSlots set_isolate_data_slots,
-                                  Label* return_location) {
+                                  Label* return_location,
+                                  CodeSandboxingMode target_sandboxing_mode) {
   ASM_CODE_COMMENT(this);
   DCHECK_LE(num_arguments, kMaxCParameters);
   DCHECK(has_frame());
@@ -4631,6 +4830,8 @@ int MacroAssembler::CallCFunction(Register function, int num_arguments,
   if (v8_flags.debug_code) {
     CheckStackAlignment();
   }
+
+  SwitchSandboxingModeBeforeCallIfNeeded(target_sandboxing_mode);
 
   // Save the frame pointer and PC so that the stack layout remains iterable,
   // even without an ExitFrame which normally exists between JS and C frames.
@@ -4671,6 +4872,8 @@ int MacroAssembler::CallCFunction(Register function, int num_arguments,
     movq(ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP),
          Immediate(0));
   }
+
+  SwitchSandboxingModeAfterCallIfNeeded(target_sandboxing_mode);
 
   return call_pc_offset;
 }
@@ -4875,6 +5078,9 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     __ addl(level_mem_op, Immediate(1));
   }
 
+  DCHECK_EQ(__ sandboxing_mode(), CodeSandboxingMode::kSandboxed);
+  __ ExitSandbox();
+
   Label profiler_or_side_effects_check_enabled, done_api_call;
   if (with_profiling) {
     __ RecordComment("Check if profiler or side effects check is enabled");
@@ -4916,6 +5122,8 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     __ movq(argc_reg, *argc_operand);
   }
   __ LeaveExitFrame();
+
+  __ EnterSandbox();
 
   {
     ASM_CODE_COMMENT_STRING(masm,

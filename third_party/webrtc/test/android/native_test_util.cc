@@ -16,8 +16,8 @@
 #include "test/android/native_test_util.h"
 
 #include <android/log.h>
-#include <stdio.h>
 
+#include <cstdio>
 #include <optional>
 #include <string>
 

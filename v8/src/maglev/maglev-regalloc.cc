@@ -363,8 +363,8 @@ void StraightForwardRegisterAllocator::PrintLiveRegs() const {
 
 void StraightForwardRegisterAllocator::AllocateRegisters() {
   if (v8_flags.trace_maglev_regalloc) {
-    printing_visitor_.reset(new MaglevPrintingVisitor(
-        compilation_info_->graph_labeller(), std::cout));
+    printing_visitor_.reset(
+        new MaglevPrintingVisitor(graph_labeller(), std::cout));
     printing_visitor_->PreProcessGraph(graph_);
   }
 
@@ -400,10 +400,6 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
     constant->SetConstantLocation();
     USE(value);
   }
-  for (const auto& [address, constant] : graph_->external_references()) {
-    constant->SetConstantLocation();
-    USE(address);
-  }
   for (const auto& [ref, constant] : graph_->trusted_constants()) {
     constant->SetConstantLocation();
     USE(ref);
@@ -411,6 +407,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
 
   for (block_it_ = graph_->begin(); block_it_ != graph_->end(); ++block_it_) {
     BasicBlock* block = *block_it_;
+    DCHECK(!block->is_dead());
     current_node_ = nullptr;
 
     // Restore mergepoint state.
@@ -1520,8 +1517,8 @@ void StraightForwardRegisterAllocator::VerifyRegisterState() {
 
   auto NodeNameForFatal = [&](ValueNode* node) {
     std::stringstream ss;
-    if (compilation_info_->has_graph_labeller()) {
-      ss << PrintNodeLabel(compilation_info_->graph_labeller(), node);
+    if (has_graph_labeller()) {
+      ss << PrintNodeLabel(graph_labeller(), node);
     } else {
       ss << "<" << node << ">";
     }

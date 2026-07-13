@@ -10,6 +10,7 @@
 
 #include "rtc_base/strings/json.h"
 
+#include <string>
 #include <vector>
 
 #include "test/gtest.h"

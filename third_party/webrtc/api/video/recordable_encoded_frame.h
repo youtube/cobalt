@@ -42,11 +42,11 @@ class RecordableEncodedFrame {
 
   // Optionally returns the colorspace of the encoded frame. This can differ
   // from the eventually decoded frame's colorspace.
-  virtual std::optional<webrtc::ColorSpace> color_space() const = 0;
+  virtual std::optional<ColorSpace> color_space() const = 0;
 
   // Optionally returns the rotation of the encoded frame. This is limited to
   // {0,90,180,270} degrees.
-  virtual std::optional<webrtc::VideoRotation> video_rotation() const = 0;
+  virtual std::optional<VideoRotation> video_rotation() const = 0;
 
   // Returns the codec of the encoded frame
   virtual VideoCodecType codec() const = 0;

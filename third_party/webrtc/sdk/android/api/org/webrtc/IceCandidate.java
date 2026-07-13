@@ -16,7 +16,7 @@ import org.webrtc.PeerConnection;
 
 /**
  * Representation of a single ICE Candidate, mirroring
- * {@code IceCandidateInterface} in the C++ API.
+ * {@code IceCandidate} in the C++ API.
  */
 public class IceCandidate {
   public final String sdpMid;

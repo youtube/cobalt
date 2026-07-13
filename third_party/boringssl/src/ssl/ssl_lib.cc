@@ -411,7 +411,7 @@ ssl_ctx_st::~ssl_ctx_st() {
   // [openssl.org #212].)
   SSL_CTX_flush_sessions(this, 0);
 
-  CRYPTO_free_ex_data(&g_ex_data_class_ssl_ctx, this, &ex_data);
+  CRYPTO_free_ex_data(&g_ex_data_class_ssl_ctx, &ex_data);
 
   CRYPTO_MUTEX_cleanup(&lock);
   lh_SSL_SESSION_free(sessions);
@@ -483,7 +483,7 @@ ssl_st::ssl_st(SSL_CTX *ctx_arg)
 }
 
 ssl_st::~ssl_st() {
-  CRYPTO_free_ex_data(&g_ex_data_class_ssl, this, &ex_data);
+  CRYPTO_free_ex_data(&g_ex_data_class_ssl, &ex_data);
   // |config| refers to |this|, so we must release it earlier.
   config.reset();
   if (method != NULL) {
@@ -3441,3 +3441,5 @@ int SSL_set1_requested_trust_anchors(SSL *ssl, const uint8_t *ids,
   ssl->config->requested_trust_anchors = std::move(copy);
   return 1;
 }
+
+int SSL_CTX_get_security_level(const SSL_CTX *ctx) { return 0; }

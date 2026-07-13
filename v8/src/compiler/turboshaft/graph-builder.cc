@@ -261,6 +261,16 @@ std::optional<BailoutReason> GraphBuilder::Run() {
         }
       }
     }
+
+    // Provisionally store the incoming frame state here as the block's final
+    // frame state, such that the successor blocks can still compute their
+    // dominating_frame_state even if this block terminates prematurely due to
+    // `Unreachable` or `DeadValue`. In this block contains a new Checkpoint, we
+    // will overwrite this block's `final_frame_state` after visiting all
+    // operations.
+    block_mapping[block->rpo_number()].final_frame_state =
+        dominating_frame_state;
+
     std::optional<BailoutReason> bailout = std::nullopt;
     for (Node* node : *block->nodes()) {
       if (V8_UNLIKELY(node->InputCount() >=
@@ -723,16 +733,12 @@ OpIndex GraphBuilder::Process(
       ConvertJSPrimitiveToUntaggedOp* convert_op =
           input_op.TryCast<ConvertJSPrimitiveToUntaggedOp>();
       CHECK_NOT_NULL(convert_op);
-      CHECK_EQ(
-          convert_op->kind,
-          ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kFloat64OrUndefined);
+      CHECK_EQ(convert_op->kind,
+               ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kHoleyFloat64);
       CHECK_EQ(
           convert_op->input_assumptions,
           ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrOddball);
       CHECK_EQ(node->InputAt(0)->UseCount(), 1);
-      // Mutate in-place.
-      convert_op->kind = ConvertJSPrimitiveToUntaggedOp::UntaggedKind::
-          kFloat64WithSilencedNaNOrUndefined;
       return input;
     }
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
@@ -894,6 +900,9 @@ OpIndex GraphBuilder::Process(
                            CheckParametersOf(op).feedback())
       CHECK_OBJECT_IS_CASE(CheckStringOrStringWrapper, StringOrStringWrapper,
                            HeapObject, NotAStringOrStringWrapper,
+                           CheckParametersOf(op).feedback())
+      CHECK_OBJECT_IS_CASE(CheckStringOrOddball, StringOrOddball, HeapObject,
+                           NotAStringOrOddball,
                            CheckParametersOf(op).feedback())
       CHECK_OBJECT_IS_CASE(CheckSymbol, Symbol, HeapObject, NotASymbol, {})
       CHECK_OBJECT_IS_CASE(CheckBigInt, BigInt, None, NotABigInt,
@@ -1060,7 +1069,7 @@ OpIndex GraphBuilder::Process(
                                        NumberOrOddball)
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
       CONVERT_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedToFloat64PreserveUndefined,
-                                       Float64OrUndefined, NumberOrOddball)
+                                       HoleyFloat64, NumberOrOddball)
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 #undef CONVERT_OBJECT_TO_PRIMITIVE_CASE
 
@@ -1125,6 +1134,15 @@ OpIndex GraphBuilder::Process(
       return __ ChangeOrDeopt(Map(node->InputAt(0)), dominating_frame_state,
                               ChangeOrDeoptOp::Kind::kFloat64ToInt32,
                               params.mode(), params.feedback());
+    }
+
+    case IrOpcode::kCheckedInt64ToAdditiveSafeInteger: {
+      DCHECK(dominating_frame_state.valid());
+      const CheckParameters& params = CheckParametersOf(node->op());
+      return __ ChangeOrDeopt(
+          Map(node->InputAt(0)), dominating_frame_state,
+          ChangeOrDeoptOp::Kind::kInt64ToAdditiveSafeInteger,
+          CheckForMinusZeroMode::kDontCheckForMinusZero, params.feedback());
     }
 
     case IrOpcode::kCheckedFloat64ToAdditiveSafeInteger: {
@@ -1392,7 +1410,7 @@ OpIndex GraphBuilder::Process(
     }
 
     case IrOpcode::kCall: {
-      auto call_descriptor = CallDescriptorOf(op);
+      const CallDescriptor* call_descriptor = CallDescriptorOf(op);
       const JSWasmCallParameters* wasm_call_parameters = nullptr;
 #if V8_ENABLE_WEBASSEMBLY
       if (call_descriptor->IsAnyWasmFunctionCall() &&
@@ -1948,6 +1966,9 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kStringLessThanOrEqual:
       return __ StringLessThanOrEqual(Map(node->InputAt(0)),
                                       Map(node->InputAt(1)));
+    case IrOpcode::kStringOrOddballStrictEqual:
+      return __ StringOrOddballStrictEqual(Map(node->InputAt(0)),
+                                           Map(node->InputAt(1)));
 
     case IrOpcode::kArgumentsLength:
       return __ ArgumentsLength();
@@ -2552,7 +2573,7 @@ OpIndex GraphBuilder::Process(
     return __ AtomicRMW(base, offset, value, AtomicRMWOp::BinOp::k##binop, \
                         RegisterRepresentation::Word##size(),              \
                         MemoryRepresentation::FromMachineType(p.type()),   \
-                        p.kind());
+                        p.kind(), RegisterRepresentation::WordPtr());
         BINOP(Add, 32)
         BINOP(Sub, 32)
         BINOP(And, 32)
@@ -2569,11 +2590,13 @@ OpIndex GraphBuilder::Process(
         case IrOpcode::kWord32AtomicCompareExchange:
           return __ AtomicCompareExchange(
               base, offset, expected, value, RegisterRepresentation::Word32(),
-              MemoryRepresentation::FromMachineType(p.type()), p.kind());
+              MemoryRepresentation::FromMachineType(p.type()), p.kind(),
+              RegisterRepresentation::WordPtr());
         case IrOpcode::kWord64AtomicCompareExchange:
           return __ AtomicCompareExchange(
               base, offset, expected, value, RegisterRepresentation::Word64(),
-              MemoryRepresentation::FromMachineType(p.type()), p.kind());
+              MemoryRepresentation::FromMachineType(p.type()), p.kind(),
+              RegisterRepresentation::WordPtr());
         default:
           UNREACHABLE();
       }

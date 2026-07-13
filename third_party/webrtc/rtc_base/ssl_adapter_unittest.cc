@@ -15,6 +15,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "api/test/rtc_error_matchers.h"
 #include "api/units/time_delta.h"
@@ -25,7 +26,6 @@
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/ssl_stream_adapter.h"
-#include "rtc_base/string_encode.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
@@ -52,7 +52,7 @@ static webrtc::Socket* CreateSocket() {
 // Simple mock for the certificate verifier.
 class MockCertVerifier : public webrtc::SSLCertificateVerifier {
  public:
-  virtual ~MockCertVerifier() = default;
+  ~MockCertVerifier() override = default;
   MOCK_METHOD(bool, Verify, (const webrtc::SSLCertificate&), (override));
 };
 
@@ -61,7 +61,7 @@ class MockCertVerifier : public webrtc::SSLCertificateVerifier {
 class SSLAdapterTestDummy : public sigslot::has_slots<> {
  public:
   explicit SSLAdapterTestDummy() : socket_(CreateSocket()) {}
-  virtual ~SSLAdapterTestDummy() = default;
+  ~SSLAdapterTestDummy() override = default;
 
   void CreateSSLAdapter(webrtc::Socket* socket, webrtc::SSLRole role) {
     ssl_adapter_.reset(webrtc::SSLAdapter::Create(socket));

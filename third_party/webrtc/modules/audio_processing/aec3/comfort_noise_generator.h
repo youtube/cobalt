@@ -14,10 +14,13 @@
 #include <stdint.h>
 
 #include <array>
+#include <cstddef>
 #include <memory>
+#include <vector>
 
+#include "api/array_view.h"
+#include "api/audio/echo_canceller3_config.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
-#include "modules/audio_processing/aec3/aec_state.h"
 #include "modules/audio_processing/aec3/fft_data.h"
 #include "rtc_base/system/arch.h"
 

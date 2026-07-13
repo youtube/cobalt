@@ -10,8 +10,11 @@
 #ifndef RTC_BASE_EXPERIMENTS_FIELD_TRIAL_LIST_H_
 #define RTC_BASE_EXPERIMENTS_FIELD_TRIAL_LIST_H_
 
+#include <cstddef>
+#include <functional>
 #include <initializer_list>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 

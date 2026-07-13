@@ -11,10 +11,17 @@
 #ifndef TEST_MOCK_AUDIO_ENCODER_H_
 #define TEST_MOCK_AUDIO_ENCODER_H_
 
+#include <cstddef>
+#include <cstdint>
+#include <optional>
 #include <string>
+#include <utility>
 
 #include "api/array_view.h"
 #include "api/audio_codecs/audio_encoder.h"
+#include "api/units/data_rate.h"
+#include "api/units/time_delta.h"
+#include "rtc_base/buffer.h"
 #include "test/gmock.h"
 
 namespace webrtc {

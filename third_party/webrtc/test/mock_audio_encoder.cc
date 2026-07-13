@@ -10,6 +10,14 @@
 
 #include "test/mock_audio_encoder.h"
 
+#include <cstddef>
+#include <cstdint>
+
+#include "api/array_view.h"
+#include "api/audio_codecs/audio_encoder.h"
+#include "rtc_base/buffer.h"
+#include "rtc_base/checks.h"
+
 namespace webrtc {
 
 MockAudioEncoder::MockAudioEncoder() = default;

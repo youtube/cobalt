@@ -11,9 +11,11 @@
 #include "modules/audio_processing/agc2/rnn_vad/spectral_features.h"
 
 #include <algorithm>
+#include <array>
 
+#include "api/array_view.h"
+#include "modules/audio_processing/agc2/rnn_vad/common.h"
 #include "modules/audio_processing/agc2/rnn_vad/test_utils.h"
-#include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_compare.h"
 // TODO(bugs.webrtc.org/8948): Add when the issue is fixed.
 // #include "test/fpe_observer.h"

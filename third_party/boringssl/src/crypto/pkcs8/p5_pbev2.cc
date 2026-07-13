@@ -19,6 +19,7 @@
 
 #include <openssl/bytestring.h>
 #include <openssl/cipher.h>
+#include <openssl/digest.h>
 #include <openssl/err.h>
 #include <openssl/mem.h>
 #include <openssl/nid.h>

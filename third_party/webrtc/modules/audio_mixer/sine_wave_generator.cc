@@ -10,11 +10,13 @@
 
 #include "modules/audio_mixer/sine_wave_generator.h"
 
-#include <math.h>
-#include <stddef.h>
-
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <numbers>
 
+#include "api/audio/audio_frame.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_conversions.h"
 
 namespace webrtc {

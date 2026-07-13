@@ -85,6 +85,8 @@ egl::Error DisplayWgpu::initialize(egl::Display *display)
     mLimitsWgpu = WGPU_LIMITS_INIT;
     mProcTable.deviceGetLimits(mDevice.get(), &mLimitsWgpu);
 
+    initializeFeatures();
+
     webgpu::GenerateCaps(mLimitsWgpu, &mGLCaps, &mGLTextureCaps, &mGLExtensions, &mGLLimitations,
                          &mEGLCaps, &mEGLExtensions, &mMaxSupportedClientVersion);
 
@@ -333,6 +335,11 @@ ShareGroupImpl *DisplayWgpu::createShareGroup(const egl::ShareGroupState &state)
     return new ShareGroupWgpu(state);
 }
 
+void DisplayWgpu::populateFeatureList(angle::FeatureList *features)
+{
+    mFeatures.populateFeatureList(features);
+}
+
 angle::NativeWindowSystem DisplayWgpu::getWindowSystem() const
 {
     return ANGLE_WEBGPU_WINDOW_SYSTEM;
@@ -377,10 +384,28 @@ void DisplayWgpu::generateCaps(egl::Caps *outCaps) const
     *outCaps = mEGLCaps;
 }
 
+void DisplayWgpu::initializeFeatures()
+{
+    ApplyFeatureOverrides(&mFeatures, getState().featureOverrides);
+    if (mState.featureOverrides.allDisabled)
+    {
+        return;
+    }
+
+    // Disabled by default. Gets explicitly enabled by ANGLE embedders.
+    ANGLE_FEATURE_CONDITION((&mFeatures), avoidWaitAny, false);
+}
+
 egl::Error DisplayWgpu::createWgpuDevice()
 {
     WGPUInstanceDescriptor instanceDescriptor          = WGPU_INSTANCE_DESCRIPTOR_INIT;
+#ifdef WGPU_BREAKING_CHANGE_INSTANCE_FEATURES_LIMITS
+    static constexpr auto kTimedWaitAny     = WGPUInstanceFeatureName_TimedWaitAny;
+    instanceDescriptor.requiredFeatureCount = 1;
+    instanceDescriptor.requiredFeatures     = &kTimedWaitAny;
+#else
     instanceDescriptor.capabilities.timedWaitAnyEnable = true;
+#endif
     mInstance = webgpu::InstanceHandle::Acquire(&mProcTable,
                                                 mProcTable.createInstance(&instanceDescriptor));
 

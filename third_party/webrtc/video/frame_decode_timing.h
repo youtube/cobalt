@@ -24,7 +24,7 @@ namespace webrtc {
 
 class FrameDecodeTiming {
  public:
-  FrameDecodeTiming(Clock* clock, webrtc::VCMTiming const* timing);
+  FrameDecodeTiming(Clock* clock, VCMTiming const* timing);
   ~FrameDecodeTiming() = default;
   FrameDecodeTiming(const FrameDecodeTiming&) = delete;
   FrameDecodeTiming& operator=(const FrameDecodeTiming&) = delete;
@@ -46,7 +46,7 @@ class FrameDecodeTiming {
 
  private:
   Clock* const clock_;
-  webrtc::VCMTiming const* const timing_;
+  VCMTiming const* const timing_;
 };
 
 }  // namespace webrtc

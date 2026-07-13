@@ -201,7 +201,8 @@ RUNTIME_FUNCTION(Runtime_HasUnoptimizedWasmToJSWrapper) {
   }
   Tagged<JSFunction> function = Cast<JSFunction>(args[0]);
   Tagged<SharedFunctionInfo> sfi = function->shared();
-  if (!sfi->HasWasmFunctionData()) return isolate->heap()->ToBoolean(false);
+  if (!sfi->HasWasmFunctionData(isolate))
+    return isolate->heap()->ToBoolean(false);
   Tagged<WasmFunctionData> func_data = sfi->wasm_function_data();
   WasmCodePointer call_target = func_data->internal()->call_target();
 
@@ -620,18 +621,17 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
 #endif  // V8_ENABLE_DRUMBRAKE
   WasmFrame* frame = WasmFrame::cast(it.frame());
 
-  PrintF("%-11s func:%6d:0x%-4x %s %016" PRIuPTR " val: ",
+  PrintF("%-11s func:%6d:0x%-4x mem:%d %s %016" PRIuPTR " val: ",
          ExecutionTierToString(frame->wasm_code()->is_liftoff()
                                    ? wasm::ExecutionTier::kLiftoff
                                    : wasm::ExecutionTier::kTurbofan),
-         frame->function_index(), frame->position(),
+         frame->function_index(), frame->position(), info->mem_index,
          // Note: The extra leading space makes " store to" the same width as
          // "load from".
          info->is_store ? " store to" : "load from", info->offset);
-  // TODO(14259): Fix for multi-memory.
   const Address address =
       reinterpret_cast<Address>(frame->trusted_instance_data()
-                                    ->memory_object(0)
+                                    ->memory_object(info->mem_index)
                                     ->array_buffer()
                                     ->backing_store()) +
       info->offset;

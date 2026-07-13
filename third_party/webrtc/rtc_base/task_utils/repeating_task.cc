@@ -10,9 +10,20 @@
 
 #include "rtc_base/task_utils/repeating_task.h"
 
+#include <algorithm>
+#include <utility>
+
 #include "absl/functional/any_invocable.h"
+#include "api/location.h"
+#include "api/scoped_refptr.h"
+#include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
-#include "rtc_base/logging.h"
+#include "api/task_queue/task_queue_base.h"
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/thread_annotations.h"
+#include "system_wrappers/include/clock.h"
 
 namespace webrtc {
 namespace {

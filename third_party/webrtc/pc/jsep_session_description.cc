@@ -20,7 +20,6 @@
 #include "absl/strings/string_view.h"
 #include "api/candidate.h"
 #include "api/jsep.h"
-#include "api/jsep_ice_candidate.h"
 #include "p2p/base/p2p_constants.h"
 #include "p2p/base/transport_description.h"
 #include "p2p/base/transport_info.h"
@@ -54,7 +53,7 @@ void UpdateConnectionAddress(
   int current_preference = 0;  // Start with lowest preference.
   int current_family = AF_UNSPEC;
   for (size_t i = 0; i < candidate_collection.count(); ++i) {
-    const IceCandidateInterface* jsep_candidate = candidate_collection.at(i);
+    const IceCandidate* jsep_candidate = candidate_collection.at(i);
     if (jsep_candidate->candidate().component() !=
         ICE_CANDIDATE_COMPONENT_RTP) {
       continue;
@@ -219,20 +218,17 @@ std::unique_ptr<SessionDescriptionInterface> JsepSessionDescription::Clone()
   return new_description;
 }
 
-bool JsepSessionDescription::AddCandidate(
-    const IceCandidateInterface* candidate) {
+bool JsepSessionDescription::AddCandidate(const IceCandidate* candidate) {
   if (!candidate)
     return false;
   size_t mediasection_index = 0;
   if (!GetMediasectionIndex(candidate, &mediasection_index)) {
     return false;
   }
-  if (mediasection_index >= number_of_mediasections())
-    return false;
-  const std::string& content_name =
+  const std::string& mediasection_mid =
       description_->contents()[mediasection_index].mid();
   const TransportInfo* transport_info =
-      description_->GetTransportInfoByName(content_name);
+      description_->GetTransportInfoByName(mediasection_mid);
   if (!transport_info) {
     return false;
   }
@@ -245,19 +241,40 @@ bool JsepSessionDescription::AddCandidate(
     updated_candidate.set_password(transport_info->description.ice_pwd);
   }
 
-  std::unique_ptr<JsepIceCandidate> updated_candidate_wrapper(
-      new JsepIceCandidate(candidate->sdp_mid(),
-                           static_cast<int>(mediasection_index),
-                           updated_candidate));
+  // Use `mediasection_mid` as the mid for the updated candidate. The
+  // `candidate->sdp_mid()` property *should* be the same. However, in some
+  // cases specifying an empty mid but a valid index is a way to add a candidate
+  // without knowing (or caring about) the mid. This is done in several tests.
+  RTC_DCHECK(candidate->sdp_mid().empty() ||
+             candidate->sdp_mid() == mediasection_mid)
+      << "sdp_mid='" << candidate->sdp_mid() << "' mediasection_mid='"
+      << mediasection_mid << "'";
+  auto updated_candidate_wrapper = std::make_unique<IceCandidate>(
+      mediasection_mid, static_cast<int>(mediasection_index),
+      updated_candidate);
   if (!candidate_collection_[mediasection_index].HasCandidate(
           updated_candidate_wrapper.get())) {
     candidate_collection_[mediasection_index].add(
-        updated_candidate_wrapper.release());
+        std::move(updated_candidate_wrapper));
     UpdateConnectionAddress(
         candidate_collection_[mediasection_index],
         description_->contents()[mediasection_index].media_description());
   }
 
+  return true;
+}
+
+bool JsepSessionDescription::RemoveCandidate(const IceCandidate* candidate) {
+  size_t mediasection_index = 0u;
+  if (!GetMediasectionIndex(candidate, &mediasection_index)) {
+    return false;
+  }
+  if (!candidate_collection_[mediasection_index].remove(candidate)) {
+    return false;
+  }
+  UpdateConnectionAddress(
+      candidate_collection_[mediasection_index],
+      description_->contents()[mediasection_index].media_description());
   return true;
 }
 
@@ -299,9 +316,8 @@ bool JsepSessionDescription::ToString(std::string* out) const {
   return !out->empty();
 }
 
-bool JsepSessionDescription::GetMediasectionIndex(
-    const IceCandidateInterface* candidate,
-    size_t* index) {
+bool JsepSessionDescription::GetMediasectionIndex(const IceCandidate* candidate,
+                                                  size_t* index) {
   if (!candidate || !index) {
     return false;
   }

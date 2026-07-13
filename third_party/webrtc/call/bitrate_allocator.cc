@@ -462,7 +462,6 @@ BitrateAllocator::BitrateAllocator(LimitObserver* limit_observer,
                                    DataRate upper_elastic_rate_limit)
     : limit_observer_(limit_observer),
       last_target_bps_(0),
-      last_stable_target_bps_(0),
       last_non_zero_bitrate_bps_(kDefaultBitrateBps),
       last_fraction_loss_(0),
       last_rtt_(0),
@@ -486,7 +485,6 @@ void BitrateAllocator::UpdateStartRate(uint32_t start_rate_bps) {
 void BitrateAllocator::OnNetworkEstimateChanged(TargetTransferRate msg) {
   RTC_DCHECK_RUN_ON(&sequenced_checker_);
   last_target_bps_ = msg.target_rate.bps();
-  last_stable_target_bps_ = msg.stable_target_rate.bps();
   last_non_zero_bitrate_bps_ =
       last_target_bps_ > 0 ? last_target_bps_ : last_non_zero_bitrate_bps_;
 
@@ -505,17 +503,11 @@ void BitrateAllocator::OnNetworkEstimateChanged(TargetTransferRate msg) {
 
   auto allocation = AllocateBitrates(allocatable_tracks_, last_target_bps_,
                                      upper_elastic_rate_limit_);
-  auto stable_bitrate_allocation = AllocateBitrates(
-      allocatable_tracks_, last_stable_target_bps_, DataRate::Zero());
 
   for (auto& track : allocatable_tracks_) {
     uint32_t allocated_bitrate = allocation[track.observer];
-    uint32_t allocated_stable_target_rate =
-        stable_bitrate_allocation[track.observer];
     BitrateAllocationUpdate update;
     update.target_bitrate = DataRate::BitsPerSec(allocated_bitrate);
-    update.stable_target_bitrate =
-        DataRate::BitsPerSec(allocated_stable_target_rate);
     update.packet_loss_ratio = last_fraction_loss_ / 256.0;
     update.round_trip_time = TimeDelta::Millis(last_rtt_);
     update.bwe_period = TimeDelta::Millis(last_bwe_period_ms_);
@@ -574,16 +566,10 @@ void BitrateAllocator::AddObserver(BitrateAllocatorObserver* observer,
 
     auto allocation = AllocateBitrates(allocatable_tracks_, last_target_bps_,
                                        upper_elastic_rate_limit_);
-    auto stable_bitrate_allocation = AllocateBitrates(
-        allocatable_tracks_, last_stable_target_bps_, DataRate::Zero());
     for (auto& track : allocatable_tracks_) {
       uint32_t allocated_bitrate = allocation[track.observer];
-      uint32_t allocated_stable_bitrate =
-          stable_bitrate_allocation[track.observer];
       BitrateAllocationUpdate update;
       update.target_bitrate = DataRate::BitsPerSec(allocated_bitrate);
-      update.stable_target_bitrate =
-          DataRate::BitsPerSec(allocated_stable_bitrate);
       update.packet_loss_ratio = last_fraction_loss_ / 256.0;
       update.round_trip_time = TimeDelta::Millis(last_rtt_);
       update.bwe_period = TimeDelta::Millis(last_bwe_period_ms_);
@@ -600,7 +586,6 @@ void BitrateAllocator::AddObserver(BitrateAllocatorObserver* observer,
 
     BitrateAllocationUpdate update;
     update.target_bitrate = DataRate::Zero();
-    update.stable_target_bitrate = DataRate::Zero();
     update.packet_loss_ratio = last_fraction_loss_ / 256.0;
     update.round_trip_time = TimeDelta::Millis(last_rtt_);
     update.bwe_period = TimeDelta::Millis(last_bwe_period_ms_);
@@ -655,16 +640,11 @@ bool BitrateAllocator::RecomputeAllocationIfNeeded() {
     // Calculate a new allocation and update all observers.
     auto allocation = AllocateBitrates(allocatable_tracks_, last_target_bps_,
                                        upper_elastic_rate_limit_);
-    auto stable_bitrate_allocation = AllocateBitrates(
-        allocatable_tracks_, last_stable_target_bps_, DataRate::Zero());
     for (auto& track : allocatable_tracks_) {
       DataRate allocated_bitrate =
           DataRate::BitsPerSec(allocation[track.observer]);
-      DataRate allocated_stable_bitrate =
-          DataRate::BitsPerSec(stable_bitrate_allocation[track.observer]);
       BitrateAllocationUpdate update;
       update.target_bitrate = allocated_bitrate;
-      update.stable_target_bitrate = allocated_stable_bitrate;
       update.packet_loss_ratio = last_fraction_loss_ / 256.0;
       update.round_trip_time = TimeDelta::Millis(last_rtt_);
       update.bwe_period = TimeDelta::Millis(last_bwe_period_ms_);

@@ -10,7 +10,12 @@
 
 #include "modules/audio_processing/ns/ns_fft.h"
 
+#include <array>
+#include <cstddef>
+
+#include "api/array_view.h"
 #include "common_audio/third_party/ooura/fft_size_256/fft4g.h"
+#include "modules/audio_processing/ns/ns_common.h"
 
 namespace webrtc {
 

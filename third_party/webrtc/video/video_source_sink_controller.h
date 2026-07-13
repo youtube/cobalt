@@ -26,8 +26,8 @@
 namespace webrtc {
 
 // Responsible for configuring source/sink settings, i.e. performing
-// webrtc::VideoSourceInterface<VideoFrame>::AddOrUpdateSink(). It does this by
-// storing settings internally which are converted to webrtc::VideoSinkWants
+// VideoSourceInterface<VideoFrame>::AddOrUpdateSink(). It does this by
+// storing settings internally which are converted to VideoSinkWants
 // when PushSourceSinkSettings() is performed.
 class VideoSourceSinkController {
  public:

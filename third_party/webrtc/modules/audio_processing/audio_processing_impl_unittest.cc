@@ -12,23 +12,27 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
-#include <optional>
+#include <string>
 #include <tuple>
+#include <utility>
+#include <vector>
 
+#include "api/array_view.h"
 #include "api/audio/audio_processing.h"
 #include "api/audio/builtin_audio_processing_builder.h"
+#include "api/audio/echo_control.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "api/make_ref_counted.h"
+#include "api/ref_count.h"
 #include "api/scoped_refptr.h"
 #include "modules/audio_processing/test/echo_canceller_test_tools.h"
 #include "modules/audio_processing/test/echo_control_mock.h"
 #include "modules/audio_processing/test/test_utils.h"
-#include "rtc_base/checks.h"
 #include "rtc_base/random.h"
-#include "rtc_base/strings/string_builder.h"
-#include "test/field_trial.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -117,7 +121,7 @@ class TestEchoDetector : public EchoDetector {
 class TestRenderPreProcessor : public CustomProcessing {
  public:
   TestRenderPreProcessor() = default;
-  ~TestRenderPreProcessor() = default;
+  ~TestRenderPreProcessor() override = default;
   void Initialize(int /* sample_rate_hz */, int /* num_channels */) override {}
   void Process(AudioBuffer* audio) override {
     for (size_t k = 0; k < audio->num_channels(); ++k) {

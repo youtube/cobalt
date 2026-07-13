@@ -11,9 +11,13 @@
 
 #include <inttypes.h>
 
-#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <initializer_list>
 #include <map>
-#include <type_traits>
+#include <optional>
+#include <string>
 #include <utility>
 
 #include "absl/strings/string_view.h"

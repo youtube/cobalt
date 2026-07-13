@@ -8,9 +8,11 @@
 #include "src/base/flags.h"
 #include "src/base/vector.h"
 #include "src/builtins/builtins-definitions.h"
+#include "src/codegen/cpu-features.h"
 #include "src/common/globals.h"
 #include "src/objects/type-hints.h"
 #include "src/sandbox/code-entrypoint-tag.h"
+#include "src/sandbox/code-sandboxing-mode.h"
 
 #ifdef V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-pointer-table.h"
@@ -77,9 +79,14 @@ V8_INLINE constexpr bool operator<(Builtin a, Builtin b) {
   return static_cast<type>(a) < static_cast<type>(b);
 }
 
-V8_INLINE Builtin operator++(Builtin& builtin) {
+V8_INLINE constexpr Builtin operator++(Builtin& builtin) {
   using type = std::underlying_type_t<Builtin>;
   return builtin = static_cast<Builtin>(static_cast<type>(builtin) + 1);
+}
+
+V8_INLINE constexpr Builtin operator--(Builtin& builtin) {
+  using type = std::underlying_type_t<Builtin>;
+  return builtin = static_cast<Builtin>(static_cast<type>(builtin) - 1);
 }
 
 class Builtins {
@@ -124,6 +131,69 @@ class Builtins {
   static constexpr bool kBytecodeHandlersAreSortedLast =
       kLastBytecodeHandlerPlusOne == kBuiltinCount;
   static_assert(kBytecodeHandlersAreSortedLast);
+
+#if V8_ENABLE_GEARBOX
+  static inline constexpr bool HasGenericSuffix(std::string_view s) {
+    return s.ends_with("_Generic");
+  }
+
+  static inline constexpr bool HasISXSuffix(std::string_view s) {
+    return s.ends_with("_ISX");
+  }
+
+  static inline constexpr bool IsISXVariant(Builtin builtin) {
+    switch (builtin) {
+#define CASE(Name, ...)  \
+  case Builtin::k##Name: \
+    return HasISXSuffix(#Name);
+
+      BUILTIN_LIST(CASE, CASE, CASE, CASE, CASE, CASE, CASE, CASE, CASE)
+#undef CASE
+      default:
+        return false;
+    }
+  }
+
+  static inline constexpr bool IsGenericVariant(Builtin builtin) {
+    switch (builtin) {
+#define CASE(Name, ...)  \
+  case Builtin::k##Name: \
+    return HasGenericSuffix(#Name);
+
+      BUILTIN_LIST(CASE, CASE, CASE, CASE, CASE, CASE, CASE, CASE, CASE)
+#undef CASE
+      default:
+        return false;
+    }
+  }
+
+  static inline constexpr bool IsGearboxPlaceholder(Builtin builtin) {
+    return IsISXVariant(--builtin);
+  }
+
+  static inline constexpr Builtin GetGearboxPlaceholderFromVariant(
+      Builtin builtin) {
+    DCHECK(IsGenericVariant(builtin) || IsISXVariant(builtin) ||
+           IsGearboxPlaceholder(builtin));
+    if (IsISXVariant(builtin)) {
+      ++builtin;
+      DCHECK_LE(builtin, Builtins::kLast);
+      return builtin;
+    } else if (IsGenericVariant(builtin)) {
+      ++builtin;
+      ++builtin;
+      DCHECK_LE(builtin, Builtins::kLast);
+      return builtin;
+    } else {
+      return builtin;
+    }
+  }
+
+  // Now we just use only SSE4_1 as the condition for enabling ISX.
+  static inline bool CpuHasISXSupport() {
+    return CpuFeatures::IsSupported(SSE4_1);
+  }
+#endif  // V8_ENABLE_GEARBOX
 
   static constexpr bool IsBuiltinId(Builtin builtin) {
     return builtin != Builtin::kNoBuiltinId;
@@ -249,6 +319,15 @@ class Builtins {
 
   // The tag for the builtins entrypoint.
   V8_EXPORT_PRIVATE static CodeEntrypointTag EntrypointTagFor(Builtin builtin);
+
+  // Returns the sandboxing mode of the given builtin.
+  //
+  // Note that this indicates the sandboxing mode that the builtin expects at
+  // the start of its execution (in a sense part of its calling convention).
+  // Some builtins change the sandboxing mode (for example, JSEntry expects to
+  // be invoked in unsandboxed execution mode, then transitions into sandboxed
+  // execution mode), which is not represented here.
+  static CodeSandboxingMode SandboxingModeOf(Builtin builtin);
 
   V8_EXPORT_PRIVATE static bool IsCpp(Builtin builtin);
 

@@ -60,9 +60,6 @@
   /* V8 side owner: irezvov */                                                 \
   V(fp16, "fp16", false)                                                       \
                                                                                \
-  /* V8 side owner: irezvov */                                                 \
-  V(growable_stacks, "growable stacks for jspi", false)                        \
-                                                                               \
   /* Memory Control proposal */                                                \
   /* https://github.com/WebAssembly/memory-control */                          \
   /* V8 side owner: ahaas */                                                   \
@@ -77,6 +74,16 @@
   /* https://github.com/WebAssembly/spec/issues/1292 */                        \
   /* V8 side owner: syg */                                                     \
   V(rab_integration, "resizable buffers integration", false)
+
+// #############################################################################
+// Pre-staged features (disabled by default, but enabled via
+// --experimental-fuzzing). Pre-staged features get limited fuzzer coverage, and
+// should come with their own tests. Features typically spend about 2-4 weeks in
+// this stage before being moved to the staging phase. It's therefore expected
+// that this list is empty most of the time and that features spend extended
+// time right before or after this phase.
+#define FOREACH_WASM_PRE_STAGING_FEATURE_FLAG(V) /*      (force 80 columns) */ \
+  // add pre-staged features right before this line
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also
@@ -97,7 +104,10 @@
   /* Imported Strings TextEncoder/TextDecoder post-MVP extension. */           \
   /* No upstream repo yet. */                                                  \
   /* V8 side owner: jkummerow */                                               \
-  V(imported_strings_utf8, "imported strings (utf8 features)", false)
+  V(imported_strings_utf8, "imported strings (utf8 features)", false)          \
+                                                                               \
+  /* V8 side owner: thibaudm */                                                \
+  V(growable_stacks, "growable stacks for jspi", false)
 
 // #############################################################################
 // Shipped features (enabled by default). Remove the feature flag once they hit
@@ -140,6 +150,7 @@
 // Combination of all available wasm feature flags.
 #define FOREACH_WASM_FEATURE_FLAG(V)        \
   FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(V) \
+  FOREACH_WASM_PRE_STAGING_FEATURE_FLAG(V)  \
   FOREACH_WASM_STAGING_FEATURE_FLAG(V)      \
   FOREACH_WASM_SHIPPED_FEATURE_FLAG(V)
 
@@ -149,6 +160,7 @@
 #define CHECK_WASM_FEATURE_ON_BY_DEFAULT(name, desc, enabled) \
   static_assert(enabled == true);
 FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(CHECK_WASM_FEATURE_OFF_BY_DEFAULT)
+FOREACH_WASM_PRE_STAGING_FEATURE_FLAG(CHECK_WASM_FEATURE_OFF_BY_DEFAULT)
 FOREACH_WASM_STAGING_FEATURE_FLAG(CHECK_WASM_FEATURE_OFF_BY_DEFAULT)
 FOREACH_WASM_SHIPPED_FEATURE_FLAG(CHECK_WASM_FEATURE_ON_BY_DEFAULT)
 #undef CHECK_WASM_FEATURE_OFF_BY_DEFAULT

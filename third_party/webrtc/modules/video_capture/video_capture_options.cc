@@ -34,8 +34,7 @@ VideoCaptureOptions& VideoCaptureOptions::operator=(
 void VideoCaptureOptions::Init(Callback* callback) {
 #if defined(WEBRTC_USE_PIPEWIRE)
   if (allow_pipewire_) {
-    pipewire_session_ =
-        webrtc::make_ref_counted<videocapturemodule::PipeWireSession>();
+    pipewire_session_ = make_ref_counted<videocapturemodule::PipeWireSession>();
     pipewire_session_->Init(callback, pipewire_fd_);
     return;
   }

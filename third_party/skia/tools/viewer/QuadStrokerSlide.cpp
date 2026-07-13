@@ -273,8 +273,7 @@ public:
 
         if (fRRectButton.fEnabled) {
             SkScalar rad = 32;
-            SkRect r;
-            r.setBounds(&fPts[13], 2);
+            SkRect r = SkRect::BoundsOrEmpty({&fPts[13], 2});
             path.reset();
             SkRRect rr;
             rr.setRectXY(r, rad, rad);
@@ -296,8 +295,7 @@ public:
 
         if (fCircleButton.fEnabled) {
             path.reset();
-            SkRect r;
-            r.setBounds(&fPts[15], 2);
+            SkRect r = SkRect::BoundsOrEmpty({&fPts[15], 2});
             path.addOval(r);
             setForGeometry();
             if (fCircleButton.fFill) {
@@ -508,15 +506,15 @@ private:
             SkPoint* ptPtr = pts.get();
             for (int i = 0; i < contourCounts.size(); ++i) {
                 int count = contourCounts[i];
-                path.getPoints(ptPtr, count);
-                canvas->drawPoints(SkCanvas::kPolygon_PointMode, count, ptPtr, paint);
+                path.getPoints({ptPtr, count});
+                canvas->drawPoints(SkCanvas::kPolygon_PointMode, {ptPtr, count}, paint);
                 ptPtr += count;
             }
         } else {
             n = getOnCurvePoints(path, pts.get());
         }
         paint.setStrokeWidth(5);
-        canvas->drawPoints(SkCanvas::kPoints_PointMode, n, pts.get(), paint);
+        canvas->drawPoints(SkCanvas::kPoints_PointMode, {pts.get(), n}, paint);
     }
 
     void draw_ribs(SkCanvas* canvas, const SkPath& path, SkScalar width,

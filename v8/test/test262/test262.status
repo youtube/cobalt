@@ -521,9 +521,6 @@
   # https://github.com/tc39/test262/pull/3987
   'language/module-code/import-attributes/allow-nlt-before-with': [FAIL],
 
-  # https://issues.chromium.org/u/1/issues/373151161
-  'intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-timezone': [SKIP],
-
   ############################ SKIPPED TESTS #############################
 
   # These tests take a looong time to run.
@@ -1210,20 +1207,17 @@
   'built-ins/Map/prototype/getOrInsert/returns-value-if-key-is-not-present-different-key-types': [SKIP],
   'built-ins/Map/prototype/getOrInsert/returns-value-if-key-is-present-different-key-types': [SKIP],
   'built-ins/Map/prototype/getOrInsert/returns-value-normalized-zero-key': [SKIP],
-  'staging/upsert/Map/getOrInsertComputed/append-new-values': [SKIP],
-  'staging/upsert/Map/getOrInsertComputed/append-new-values-normalizes-zero-key': [SKIP],
-  'staging/upsert/Map/getOrInsertComputed/append-value-if-key-is-not-present-different-key-types': [SKIP],
-  'staging/upsert/Map/getOrInsertComputed/callbackfn-throws': [SKIP],
-  'staging/upsert/Map/getOrInsertComputed/different-types-function-callbackfn-does-not-throw': [SKIP],
-  'staging/upsert/Map/getOrInsertComputed/does-not-evaluate-callbackfn-if-key-present': [SKIP],
-  'staging/upsert/Map/getOrInsertComputed/getOrInsertComputed': [SKIP],
-  'staging/upsert/Map/getOrInsertComputed/length': [SKIP],
-  'staging/upsert/Map/getOrInsertComputed/name': [SKIP],
-  'staging/upsert/Map/getOrInsertComputed/not-a-constructor': [SKIP],
-  'staging/upsert/Map/getOrInsertComputed/overwrites-mutation-from-callbackfn': [SKIP],
-  'staging/upsert/Map/getOrInsertComputed/returns-value-if-key-is-not-present-different-key-types': [SKIP],
-  'staging/upsert/Map/getOrInsertComputed/returns-value-if-key-is-present-different-key-types': [SKIP],
-  'staging/upsert/Map/getOrInsertComputed/returns-value-normalized-zero-key': [SKIP],
+  'built-ins/Map/prototype/getOrInsertComputed/append-new-values': [SKIP],
+  'built-ins/Map/prototype/getOrInsertComputed/append-new-values-normalizes-zero-key': [SKIP],
+  'built-ins/Map/prototype/getOrInsertComputed/append-value-if-key-is-not-present-different-key-types': [SKIP],
+  'built-ins/Map/prototype/getOrInsertComputed/callbackfn-throws': [SKIP],
+  'built-ins/Map/prototype/getOrInsertComputed/different-types-function-callbackfn-does-not-throw': [SKIP],
+  'built-ins/Map/prototype/getOrInsertComputed/does-not-evaluate-callbackfn-if-key-present': [SKIP],
+  'built-ins/Map/prototype/getOrInsertComputed/getOrInsertComputed': [SKIP],
+  'built-ins/Map/prototype/getOrInsertComputed/not-a-constructor': [SKIP],
+  'built-ins/Map/prototype/getOrInsertComputed/overwrites-mutation-from-callbackfn': [SKIP],
+  'built-ins/Map/prototype/getOrInsertComputed/returns-value-if-key-is-not-present-different-key-types': [SKIP],
+  'built-ins/Map/prototype/getOrInsertComputed/returns-value-normalized-zero-key': [SKIP],
   'built-ins/WeakMap/prototype/getOrInsert/adds-object-element': [SKIP],
   'built-ins/WeakMap/prototype/getOrInsert/adds-symbol-element': [SKIP],
   'built-ins/WeakMap/prototype/getOrInsert/getOrInsert': [SKIP],
@@ -1268,10 +1262,46 @@
   'intl402/PluralRules/constructor-option-read-order': [SKIP],
   'intl402/PluralRules/constructor-options-throwing-getters': [SKIP],
   'intl402/PluralRules/default-options-object-prototype': [SKIP],
-  'intl402/PluralRules/prototype/constructor/notation': [SKIP],
+  'intl402/PluralRules/notation': [SKIP],
   'intl402/PluralRules/prototype/resolvedOptions/order': [SKIP],
   'intl402/PluralRules/prototype/resolvedOptions/properties': [SKIP],
   'intl402/PluralRules/prototype/select/notation': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/TypedArray/prototype/with/negative-index-resize-to-in-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/with/negative-index-resize-to-out-of-bounds': [SKIP],
+  'built-ins/Uint8Array/prototype/setFromHex/throws-when-string-length-is-odd': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/Map/prototype/getOrInsertComputed/check-callback-fn-args': [SKIP],
+  'built-ins/Map/prototype/getOrInsertComputed/check-state-after-callback-fn-throws': [SKIP],
+  'built-ins/Map/prototype/getOrInsertComputed/returns-value-if-key-is-present-different-key-types': [SKIP],
+  'intl402/Collator/prototype/resolvedOptions/resolved-case-first-unicode-extensions-and-options': [SKIP],
+  'intl402/Collator/prototype/resolvedOptions/resolved-collation-unicode-extensions-and-options': [SKIP],
+  'intl402/Collator/prototype/resolvedOptions/resolved-numeric-unicode-extensions-and-options': [SKIP],
+  'intl402/DateTimeFormat/prototype/resolvedOptions/resolved-calendar-unicode-extensions-and-options': [SKIP],
+  'intl402/DateTimeFormat/prototype/resolvedOptions/resolved-numbering-system-unicode-extensions-and-options': [SKIP],
+  'intl402/DurationFormat/prototype/resolvedOptions/resolved-numbering-system-unicode-extensions-and-options': [SKIP],
+  'intl402/Locale/constructor-getter-order': [SKIP],
+  'intl402/Locale/constructor-options-throwing-getters': [SKIP],
+  'intl402/Locale/constructor-options-variants-invalid': [SKIP],
+  'intl402/Locale/constructor-options-variants-valid': [SKIP],
+  'intl402/Locale/getters-grandfathered': [SKIP],
+  'intl402/Locale/getters-missing': [SKIP],
+  'intl402/Locale/prototype/variants/name': [SKIP],
+  'intl402/Locale/prototype/variants/prop-desc': [SKIP],
+  'intl402/NumberFormat/prototype/resolvedOptions/resolved-numbering-system-unicode-extensions-and-options': [SKIP],
+  'intl402/RelativeTimeFormat/prototype/resolvedOptions/resolved-numbering-system-unicode-extensions-and-options': [SKIP],
 }],
 # End roll-watcher patch
 ####

@@ -11,10 +11,14 @@
 #include "modules/audio_processing/splitting_filter.h"
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
 
 #include "api/array_view.h"
 #include "common_audio/channel_buffer.h"
+#include "common_audio/include/audio_util.h"
 #include "common_audio/signal_processing/include/signal_processing_library.h"
+#include "modules/audio_processing/three_band_filter_bank.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {

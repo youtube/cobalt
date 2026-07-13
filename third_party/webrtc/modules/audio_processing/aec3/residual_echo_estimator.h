@@ -12,17 +12,15 @@
 #define MODULES_AUDIO_PROCESSING_AEC3_RESIDUAL_ECHO_ESTIMATOR_H_
 
 #include <array>
-#include <memory>
-#include <optional>
+#include <cstddef>
 
+#include "api/array_view.h"
 #include "api/audio/echo_canceller3_config.h"
 #include "api/environment/environment.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
 #include "modules/audio_processing/aec3/aec_state.h"
 #include "modules/audio_processing/aec3/render_buffer.h"
 #include "modules/audio_processing/aec3/reverb_model.h"
-#include "modules/audio_processing/aec3/spectrum_buffer.h"
-#include "rtc_base/checks.h"
 
 namespace webrtc {
 

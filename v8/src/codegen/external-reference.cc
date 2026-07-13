@@ -305,6 +305,15 @@ ExternalReference ExternalReference::sandbox_end_address() {
   return ExternalReference(Sandbox::current()->end_address());
 }
 
+ExternalReference ExternalReference::sandboxed_mode_pkey_mask_address() {
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  return ExternalReference(
+      SandboxHardwareSupport::sandboxed_mode_pkey_mask_address());
+#else
+  return ExternalReference(kNullAddress);
+#endif
+}
+
 ExternalReference ExternalReference::empty_backing_store_buffer() {
   return ExternalReference(
       Sandbox::current()->constants().empty_backing_store_buffer_address());
@@ -599,8 +608,9 @@ FUNCTION_REFERENCE(ensure_valid_return_address,
 #endif  // V8_ENABLE_CET_SHADOW_STACK
 
 #ifdef V8_ENABLE_WEBASSEMBLY
-FUNCTION_REFERENCE(wasm_switch_stacks, wasm::switch_stacks)
-FUNCTION_REFERENCE(wasm_return_switch, wasm::return_switch)
+FUNCTION_REFERENCE(wasm_start_or_suspend_stack, wasm::start_or_suspend_stack)
+FUNCTION_REFERENCE(wasm_resume_stack, wasm::resume_stack)
+FUNCTION_REFERENCE(wasm_return_stack, wasm::return_stack)
 FUNCTION_REFERENCE(wasm_switch_to_the_central_stack,
                    wasm::switch_to_the_central_stack)
 FUNCTION_REFERENCE(wasm_switch_from_the_central_stack,

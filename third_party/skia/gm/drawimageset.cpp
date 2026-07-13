@@ -55,7 +55,7 @@ static void make_image_tiles(int tileW, int tileH, int m, int n, const SkColor c
     paint.setStrokeWidth(kStripeW);
     SkPoint stripePts[] = {{-w - kStripeW, -kStripeW}, {kStripeW, h + kStripeW}};
     while (stripePts[0].fX <= w) {
-        surf->getCanvas()->drawPoints(SkCanvas::kLines_PointMode, 2, stripePts, paint);
+        surf->getCanvas()->drawPoints(SkCanvas::kLines_PointMode, stripePts, paint);
         stripePts[0].fX += kStripeSpacing;
         stripePts[1].fX += kStripeSpacing;
     }
@@ -67,7 +67,7 @@ static void make_image_tiles(int tileW, int tileH, int m, int n, const SkColor c
     stripePts[0] = {-w - kStripeW, h + kStripeW};
     stripePts[1] = {kStripeW, -kStripeW};
     while (stripePts[0].fX <= w) {
-        surf->getCanvas()->drawPoints(SkCanvas::kLines_PointMode, 2, stripePts, paint);
+        surf->getCanvas()->drawPoints(SkCanvas::kLines_PointMode, stripePts, paint);
         stripePts[0].fX += kStripeSpacing;
         stripePts[1].fX += kStripeSpacing;
     }
@@ -157,14 +157,14 @@ private:
                 paint.setStrokeWidth(0.f);
                 for (int x = 1; x < kM; ++x) {
                     SkPoint pts[] = {{x * kTileW, 0}, {x * kTileW, kN * kTileH}};
-                    matrices[m].mapPoints(pts, 2);
+                    matrices[m].mapPoints(pts);
                     SkVector v = pts[1] - pts[0];
                     v.setLength(v.length() + kLineOutset);
                     canvas->drawLine(pts[1] - v, pts[0] + v, paint);
                 }
                 for (int y = 1; y < kN; ++y) {
                     SkPoint pts[] = {{0, y * kTileH}, {kTileW * kM, y * kTileH}};
-                    matrices[m].mapPoints(pts, 2);
+                    matrices[m].mapPoints(pts);
                     SkVector v = pts[1] - pts[0];
                     v.setLength(v.length() + kLineOutset);
                     canvas->drawLine(pts[1] - v, pts[0] + v, paint);

@@ -17,7 +17,7 @@
 #endif
 
 #if defined(WEBRTC_WIN)
-#include "rtc_base/arraysize.h"
+#include <iterator>
 
 // The SetThreadDescription API was brought in version 1607 of Windows 10.
 // For compatibility with various versions of winuser and avoid clashing with
@@ -90,13 +90,13 @@ void SetCurrentThreadName(const char* name) {
   if (set_thread_description_func) {
     // Convert from ASCII to UTF-16.
     wchar_t wide_thread_name[64];
-    for (size_t i = 0; i < arraysize(wide_thread_name) - 1; ++i) {
+    for (size_t i = 0; i < std::size(wide_thread_name) - 1; ++i) {
       wide_thread_name[i] = name[i];
       if (wide_thread_name[i] == L'\0')
         break;
     }
     // Guarantee null-termination.
-    wide_thread_name[arraysize(wide_thread_name) - 1] = L'\0';
+    wide_thread_name[std::size(wide_thread_name) - 1] = L'\0';
     set_thread_description_func(::GetCurrentThread(), wide_thread_name);
   }
 

@@ -9,9 +9,9 @@
  */
 #include "net/dcsctp/packet/parameter/forward_tsn_supported_parameter.h"
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "api/array_view.h"

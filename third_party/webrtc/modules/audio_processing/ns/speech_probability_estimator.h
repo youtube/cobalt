@@ -12,6 +12,7 @@
 #define MODULES_AUDIO_PROCESSING_NS_SPEECH_PROBABILITY_ESTIMATOR_H_
 
 #include <array>
+#include <cstdint>
 
 #include "api/array_view.h"
 #include "modules/audio_processing/ns/ns_common.h"

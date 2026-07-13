@@ -75,7 +75,6 @@ load(":bazel/v8-non-pointer-compression.bzl", "v8_binary_non_pointer_compression
 # cppgc_enable_slow_api_checks
 # cppgc_enable_verify_heap
 # cppgc_enable_young_generation
-# v8_enable_zone_compression
 # v8_enable_precise_zone_stats
 # v8_enable_swiss_name_dictionary
 # v8_generate_external_defines_header
@@ -2443,6 +2442,7 @@ filegroup(
         "src/sandbox/trusted-pointer-table-inl.h",
         "src/sandbox/code-pointer.h",
         "src/sandbox/code-pointer-inl.h",
+        "src/sandbox/code-sandboxing-mode.h",
         "src/sandbox/compactible-external-entity-table-inl.h",
         "src/sandbox/compactible-external-entity-table.h",
         "src/sandbox/isolate.h",
@@ -2580,7 +2580,6 @@ filegroup(
         "src/utils/version.h",
         "src/zone/accounting-allocator.cc",
         "src/zone/accounting-allocator.h",
-        "src/zone/compressed-zone-ptr.h",
         "src/zone/type-stats.cc",
         "src/zone/type-stats.h",
         "src/zone/zone.cc",
@@ -2588,7 +2587,6 @@ filegroup(
         "src/zone/zone-allocator.h",
         "src/zone/zone-chunk-list.h",
         "src/zone/zone-compact-set.h",
-        "src/zone/zone-compression.h",
         "src/zone/zone-containers.h",
         "src/zone/zone-hashmap.h",
         "src/zone/zone-list.h",
@@ -2882,6 +2880,7 @@ filegroup(
             "src/maglev/maglev-concurrent-dispatcher.cc",
             "src/maglev/maglev-graph-builder.cc",
             "src/maglev/maglev-graph-printer.cc",
+            "src/maglev/maglev-graph.cc",
             "src/maglev/maglev-interpreter-frame-state.cc",
             "src/maglev/maglev-ir.cc",
             "src/maglev/maglev-phi-representation-selector.cc",
@@ -3166,7 +3165,6 @@ filegroup(
         "src/compiler/backend/instruction-scheduler.h",
         "src/compiler/backend/instruction-selector.cc",
         "src/compiler/backend/instruction-selector.h",
-        "src/compiler/backend/instruction-selector-adapter.h",
         "src/compiler/backend/instruction-selector-impl.h",
         "src/compiler/backend/jump-threading.cc",
         "src/compiler/backend/jump-threading.h",
@@ -3421,6 +3419,7 @@ filegroup(
         "src/compiler/turboshaft/graph-visualizer.cc",
         "src/compiler/turboshaft/graph-visualizer.h",
         "src/compiler/turboshaft/js-generic-lowering-reducer.h",
+        "src/compiler/turboshaft/if-else-cascade-to-switch-reducer.h",
         "src/compiler/turboshaft/index.h",
         "src/compiler/turboshaft/instruction-selection-normalization-reducer.h",
         "src/compiler/turboshaft/instruction-selection-phase.cc",
@@ -3443,7 +3442,7 @@ filegroup(
         "src/compiler/turboshaft/machine-lowering-phase.cc",
         "src/compiler/turboshaft/machine-lowering-phase.h",
         "src/compiler/turboshaft/machine-lowering-reducer-inl.h",
-        "src/compiler/turboshaft/maglev-early-lowering-reducer-inl.h",
+        "src/compiler/turboshaft/turbolev-early-lowering-reducer-inl.h",
         "src/compiler/turboshaft/turbolev-graph-builder.cc",
         "src/compiler/turboshaft/turbolev-graph-builder.h",
         "src/compiler/turboshaft/machine-optimization-reducer.h",
@@ -3481,7 +3480,6 @@ filegroup(
         "src/compiler/turboshaft/string-escape-analysis-reducer.cc",
         "src/compiler/turboshaft/string-escape-analysis-reducer.h",
         "src/compiler/turboshaft/string-view.h",
-        "src/compiler/turboshaft/structural-optimization-reducer.h",
         "src/compiler/turboshaft/tracing.h",
         "src/compiler/turboshaft/type-assertions-phase.cc",
         "src/compiler/turboshaft/type-assertions-phase.h",
@@ -3504,6 +3502,7 @@ filegroup(
         "src/compiler/turboshaft/utils.h",
         "src/compiler/turboshaft/value-numbering-reducer.h",
         "src/compiler/turboshaft/variable-reducer.h",
+        "src/compiler/turboshaft/wasm-code-coverage-reducer.h",
         "src/compiler/turboshaft/wasm-js-lowering-reducer.h",
         "src/compiler/turboshaft/zone-with-name.h",
         "src/compiler/type-cache.cc",
@@ -3642,6 +3641,7 @@ filegroup(
             "src/maglev/maglev-compilation-unit.h",
             "src/maglev/maglev-graph-builder.cc",
             "src/maglev/maglev-graph-builder.h",
+            "src/maglev/maglev-graph.cc",
             "src/maglev/maglev-graph.h",
             "src/maglev/maglev-graph-labeller.h",
             "src/maglev/maglev-graph-printer.cc",
@@ -3711,8 +3711,6 @@ filegroup(
         "src/builtins/builtins-string-gen.cc",
         "src/builtins/builtins-string-gen.h",
         "src/builtins/builtins-string-tsa.cc",
-        # Temporal is currently gn-only
-        # "src/builtins/builtins-temporal-gen.cc",
         "src/builtins/builtins-typed-array-gen.cc",
         "src/builtins/builtins-typed-array-gen.h",
         "src/builtins/builtins-utils-gen.h",
@@ -4367,7 +4365,11 @@ v8_library(
         ":v8_shared_internal_headers",
     ],
     copts = ["-Wno-implicit-fallthrough"],
-    deps = ["@abseil-cpp//absl/synchronization", "@abseil-cpp//absl/time"],
+    deps = [
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/functional:overload",
+    ],
 )
 
 cc_library(
@@ -4445,6 +4447,7 @@ v8_library(
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/functional:overload",
         "@highway//:hwy",
     ],
 )

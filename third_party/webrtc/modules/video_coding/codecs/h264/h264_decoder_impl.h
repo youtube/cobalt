@@ -98,7 +98,7 @@ class H264DecoderImpl : public H264Decoder {
   bool has_reported_init_;
   bool has_reported_error_;
 
-  webrtc::H264BitstreamParser h264_bitstream_parser_;
+  H264BitstreamParser h264_bitstream_parser_;
 };
 
 }  // namespace webrtc

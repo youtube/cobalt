@@ -28,7 +28,7 @@ namespace webrtc {
 
 namespace {
 constexpr TimeDelta kMaxVideoDelay = TimeDelta::Millis(10000);
-}
+}  // namespace
 
 bool FrameHasBadRenderTiming(Timestamp render_time, Timestamp now) {
   // Zero render time means render immediately.

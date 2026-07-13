@@ -60,6 +60,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
     : public SharedMacroAssembler<MacroAssembler> {
  public:
   using SharedMacroAssembler<MacroAssembler>::SharedMacroAssembler;
+  using SharedMacroAssembler<MacroAssembler>::Negps;
+  using SharedMacroAssembler<MacroAssembler>::Negpd;
 
   void PushReturnAddressFrom(Register src) { pushq(src); }
   void PopReturnAddressTo(Register dst) { popq(dst); }
@@ -120,7 +122,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
   int CallCFunction(
       Register function, int num_arguments,
       SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes,
-      Label* return_location = nullptr);
+      Label* return_location = nullptr,
+      CodeSandboxingMode target_sandboxing_mode =
+          CodeSandboxingMode::kUnsandboxed);
 
   // Calculate the number of stack slots to reserve for arguments when calling a
   // C function.
@@ -306,6 +310,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   void I32x8TruncF32x8U(YMMRegister dst, YMMRegister src, YMMRegister scratch1,
                         YMMRegister scratch2);
+
+  void Negpd(YMMRegister dst, YMMRegister src, YMMRegister scratch);
+  void Negps(YMMRegister dst, YMMRegister src, YMMRegister scratch);
 
   // ---------------------------------------------------------------------------
   // Conversions between tagged smi values and non-tagged integer values.
@@ -771,6 +778,31 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   // ---------------------------------------------------------------------------
   // V8 Sandbox support
+
+  // Enter/exit sandboxed execution mode for the current thread.
+  //
+  // When in sandboxed mode, and if hardware sandboxing support is active,
+  // out-of-sandbox memory cannot be written to (but can be read from). See
+  // SandboxHardwareSupport for more details.
+  void EnterSandbox();
+  void ExitSandbox();
+  void AssertInSandboxedExecutionMode();
+
+  // Helper functions for temporarily switching sandboxed execution mode if the
+  // current code runs in the a different sandboxing mode than the call target.
+  //
+  // These are mostly useful inside shared routines that are used for both
+  // sandboxed- and unsandboxed code. Examples include CallBuiltin and
+  // CallCFunction which may both need to temporarily switch out of sandboxed
+  // execution mode.
+  //
+  // In the future, we might want to replace this mechanism entirely by instead
+  // going through dedicated trampolines that perform the mode switching.
+  void SwitchSandboxingModeTo(CodeSandboxingMode mode);
+  void SwitchSandboxingModeBeforeCallIfNeeded(
+      CodeSandboxingMode target_sandboxing_mode);
+  void SwitchSandboxingModeAfterCallIfNeeded(
+      CodeSandboxingMode target_sandboxing_mode);
 
   // Transform a SandboxedPointer from/to its encoded form, which is used when
   // the pointer is stored on the heap and ensures that the pointer will always

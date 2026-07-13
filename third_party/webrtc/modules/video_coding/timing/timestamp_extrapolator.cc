@@ -15,8 +15,10 @@
 #include <cstdlib>
 #include <optional>
 
+#include "api/field_trials_view.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
+#include "rtc_base/logging.h"
 #include "rtc_base/numerics/sequence_number_unwrapper.h"
 #include "system_wrappers/include/metrics.h"
 
@@ -28,16 +30,47 @@ constexpr int kMinimumSamplesToLogEstimatedClockDrift =
     3000;  // 100 seconds at 30 fps.
 constexpr double kLambda = 1;
 constexpr int kStartUpFilterDelayInPackets = 2;
-constexpr double kAlarmThreshold = 60e3;
-// in timestamp ticks, i.e. 15 ms
-constexpr double kAccDrift = 6600;
-constexpr double kAccMaxError = 7000;
+constexpr double kP00 = 1.0;
 constexpr double kP11 = 1e10;
 
 }  // namespace
 
-TimestampExtrapolator::TimestampExtrapolator(Timestamp start)
-    : start_(Timestamp::Zero()),
+TimestampExtrapolator::Config TimestampExtrapolator::Config::ParseAndValidate(
+    const FieldTrialsView& field_trials) {
+  // Parse.
+  Config config;
+  config.Parser()->Parse(field_trials.Lookup(kFieldTrialsKey));
+
+  // Validate.
+  Config defaults;
+  if (config.hard_reset_timeout <= TimeDelta::Zero()) {
+    RTC_LOG(LS_WARNING) << "Skipping invalid hard_reset_timeout="
+                        << config.hard_reset_timeout;
+    config.hard_reset_timeout = defaults.hard_reset_timeout;
+  }
+  if (config.alarm_threshold <= 0) {
+    RTC_LOG(LS_WARNING) << "Skipping invalid alarm_threshold="
+                        << config.alarm_threshold;
+    config.alarm_threshold = defaults.alarm_threshold;
+  }
+  if (config.acc_drift < 0) {
+    RTC_LOG(LS_WARNING) << "Skipping invalid acc_drift=" << config.acc_drift;
+    config.acc_drift = defaults.acc_drift;
+  }
+  if (config.acc_max_error <= 0) {
+    RTC_LOG(LS_WARNING) << "Skipping invalid acc_max_error="
+                        << config.acc_max_error;
+    config.acc_max_error = defaults.acc_max_error;
+  }
+
+  return config;
+}
+
+TimestampExtrapolator::TimestampExtrapolator(
+    Timestamp start,
+    const FieldTrialsView& field_trials)
+    : config_(Config::ParseAndValidate(field_trials)),
+      start_(Timestamp::Zero()),
       prev_(Timestamp::Zero()),
       packet_count_(0),
       detector_accumulator_pos_(0),
@@ -61,7 +94,7 @@ void TimestampExtrapolator::Reset(Timestamp start) {
   prev_unwrapped_timestamp_ = std::nullopt;
   w_[0] = 90.0;
   w_[1] = 0;
-  p_[0][0] = 1;
+  p_[0][0] = kP00;
   p_[1][1] = kP11;
   p_[0][1] = p_[1][0] = 0;
   unwrapper_ = RtpTimestampUnwrapper();
@@ -71,9 +104,8 @@ void TimestampExtrapolator::Reset(Timestamp start) {
 }
 
 void TimestampExtrapolator::Update(Timestamp now, uint32_t ts90khz) {
-  if (now - prev_ > TimeDelta::Seconds(10)) {
-    // Ten seconds without a complete frame.
-    // Reset the extrapolator
+  if (now - prev_ > config_.hard_reset_timeout) {
+    // No complete frame within the timeout.
     Reset(now);
   } else {
     prev_ = now;
@@ -98,9 +130,12 @@ void TimestampExtrapolator::Update(Timestamp now, uint32_t ts90khz) {
       t_ms * w_[0] - w_[1];
   if (DelayChangeDetection(residual) &&
       packet_count_ >= kStartUpFilterDelayInPackets) {
-    // A sudden change of average network delay has been detected.
     // Force the filter to adjust its offset parameter by changing
-    // the offset uncertainty. Don't do this during startup.
+    // the uncertainties. Don't do this during startup.
+    if (config_.reset_full_cov_on_alarm) {
+      p_[0][0] = kP00;
+      p_[0][1] = p_[1][0] = 0;
+    }
     p_[1][1] = kP11;
   }
 
@@ -176,14 +211,15 @@ std::optional<Timestamp> TimestampExtrapolator::ExtrapolateLocalTime(
 
 bool TimestampExtrapolator::DelayChangeDetection(double error) {
   // CUSUM detection of sudden delay changes
-  error = (error > 0) ? std::min(error, kAccMaxError)
-                      : std::max(error, -kAccMaxError);
-  detector_accumulator_pos_ =
-      std::max(detector_accumulator_pos_ + error - kAccDrift, double{0});
-  detector_accumulator_neg_ =
-      std::min(detector_accumulator_neg_ + error + kAccDrift, double{0});
-  if (detector_accumulator_pos_ > kAlarmThreshold ||
-      detector_accumulator_neg_ < -kAlarmThreshold) {
+  double acc_max_error = static_cast<double>(config_.acc_max_error);
+  error = (error > 0) ? std::min(error, acc_max_error)
+                      : std::max(error, -acc_max_error);
+  detector_accumulator_pos_ = std::max(
+      detector_accumulator_pos_ + error - config_.acc_drift, double{0});
+  detector_accumulator_neg_ = std::min(
+      detector_accumulator_neg_ + error + config_.acc_drift, double{0});
+  if (detector_accumulator_pos_ > config_.alarm_threshold ||
+      detector_accumulator_neg_ < -config_.alarm_threshold) {
     // Alarm
     detector_accumulator_pos_ = detector_accumulator_neg_ = 0;
     return true;

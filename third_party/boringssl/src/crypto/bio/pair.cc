@@ -21,6 +21,7 @@
 #include <openssl/mem.h>
 
 #include "../internal.h"
+#include "internal.h"
 
 
 namespace {
@@ -396,8 +397,15 @@ static long bio_ctrl(BIO *bio, int cmd, long num, void *ptr) {
 
 
 static const BIO_METHOD methods_biop = {
-    BIO_TYPE_BIO,    "BIO pair", bio_write, bio_read, NULL /* puts */,
-    NULL /* gets */, bio_ctrl,   bio_new,   bio_free, NULL /* callback_ctrl */,
+    BIO_TYPE_BIO,
+    "BIO pair",
+    bio_write,
+    bio_read,
+    /*gets=*/nullptr,
+    bio_ctrl,
+    bio_new,
+    bio_free,
+    /*callback_ctrl=*/nullptr,
 };
 
 static const BIO_METHOD *bio_s_bio(void) { return &methods_biop; }

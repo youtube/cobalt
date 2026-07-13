@@ -23,7 +23,7 @@ namespace webrtc {
 namespace {
 constexpr uint8_t kMaskRandom15_6[] = {0x82, 0x08, 0x41, 0x04, 0x20, 0x82,
                                        0x10, 0x40, 0x08, 0x20, 0x04, 0x10};
-}
+}  // namespace
 
 namespace fec_private_tables {
 

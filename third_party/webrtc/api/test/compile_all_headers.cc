@@ -23,7 +23,6 @@
 // "api/test/neteq_simulator.h"
 // "api/test/simulated_network.h"
 // "api/test/simulcast_test_fixture.h"
-// "api/test/test_dependency_factory.h"
 // "api/test/videocodec_test_fixture.h"
 // "api/test/videocodec_test_stats.h"
 

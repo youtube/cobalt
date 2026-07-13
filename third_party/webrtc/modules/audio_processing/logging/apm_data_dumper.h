@@ -11,16 +11,13 @@
 #ifndef MODULES_AUDIO_PROCESSING_LOGGING_APM_DATA_DUMPER_H_
 #define MODULES_AUDIO_PROCESSING_LOGGING_APM_DATA_DUMPER_H_
 
-#include <stdint.h>
-#include <stdio.h>
-
+#include <cstdint>
+#include <cstdio>
 #if WEBRTC_APM_DEBUG_DUMP == 1
 #include <memory>
 #include <string>
 #include <unordered_map>
 #endif
-
-#include <optional>
 
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
@@ -93,7 +90,7 @@ class ApmDataDumper {
       [[maybe_unused]] absl::string_view output_dir) {
 #if WEBRTC_APM_DEBUG_DUMP == 1
     RTC_CHECK_LT(output_dir.size(), kOutputDirMaxLength);
-    webrtc::strcpyn(output_dir_, kOutputDirMaxLength, output_dir);
+    strcpyn(output_dir_, kOutputDirMaxLength, output_dir);
 #endif
   }
 

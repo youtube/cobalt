@@ -97,7 +97,7 @@ class PeerConnectionWrapperForIceTest : public PeerConnectionWrapper {
  public:
   using PeerConnectionWrapper::PeerConnectionWrapper;
 
-  std::unique_ptr<IceCandidateInterface> CreateJsepCandidateForFirstTransport(
+  std::unique_ptr<IceCandidate> CreateJsepCandidateForFirstTransport(
       Candidate* candidate) {
     RTC_DCHECK(pc()->remote_description());
     const auto* desc = pc()->remote_description()->description();
@@ -114,11 +114,10 @@ class PeerConnectionWrapperForIceTest : public PeerConnectionWrapper {
   }
 
   // Returns ICE candidates from the remote session description.
-  std::vector<const IceCandidateInterface*>
-  GetIceCandidatesFromRemoteDescription() {
+  std::vector<const IceCandidate*> GetIceCandidatesFromRemoteDescription() {
     const SessionDescriptionInterface* sdesc = pc()->remote_description();
     RTC_DCHECK(sdesc);
-    std::vector<const IceCandidateInterface*> candidates;
+    std::vector<const IceCandidate*> candidates;
     for (size_t mline_index = 0; mline_index < sdesc->number_of_mediasections();
          mline_index++) {
       const auto* candidate_collection = sdesc->candidates(mline_index);
@@ -306,7 +305,7 @@ class PeerConnectionIceBaseTest : public ::testing::Test {
     RTC_DCHECK(!desc->contents().empty());
     const auto& first_content = desc->contents()[0];
     candidate->set_transport_name(first_content.mid());
-    std::unique_ptr<IceCandidateInterface> jsep_candidate =
+    std::unique_ptr<IceCandidate> jsep_candidate =
         CreateIceCandidate(first_content.mid(), 0, *candidate);
     return sdesc->AddCandidate(jsep_candidate.get());
   }
@@ -490,7 +489,7 @@ TEST_P(PeerConnectionIceTest, CannotAddCandidateWhenRemoteDescriptionNotSet) {
 
   auto caller = CreatePeerConnectionWithAudioVideo();
   Candidate candidate = CreateLocalUdpCandidate(kCalleeAddress);
-  std::unique_ptr<IceCandidateInterface> jsep_candidate =
+  std::unique_ptr<IceCandidate> jsep_candidate =
       CreateIceCandidate(CN_AUDIO, 0, candidate);
 
   EXPECT_FALSE(caller->pc()->AddIceCandidate(jsep_candidate.get()));
@@ -514,7 +513,7 @@ TEST_P(PeerConnectionIceTest, CannotAddCandidateWhenPeerConnectionClosed) {
   Candidate candidate = CreateLocalUdpCandidate(kCalleeAddress);
   auto* audio_content =
       GetFirstAudioContent(caller->pc()->local_description()->description());
-  std::unique_ptr<IceCandidateInterface> jsep_candidate =
+  std::unique_ptr<IceCandidate> jsep_candidate =
       CreateIceCandidate(audio_content->mid(), 0, candidate);
 
   caller->pc()->Close();
@@ -568,7 +567,7 @@ TEST_P(PeerConnectionIceTest,
   Candidate candidate = CreateLocalUdpCandidate(kCalleeAddress);
   auto* audio_content =
       GetFirstAudioContent(caller->pc()->local_description()->description());
-  std::unique_ptr<IceCandidateInterface> ice_candidate =
+  std::unique_ptr<IceCandidate> ice_candidate =
       CreateIceCandidate(audio_content->mid(), 0, candidate);
 
   ASSERT_TRUE(caller->pc()->AddIceCandidate(ice_candidate.get()));
@@ -593,7 +592,7 @@ TEST_P(PeerConnectionIceTest,
   Candidate candidate = CreateLocalUdpCandidate(kCalleeAddress);
   auto* audio_content =
       GetFirstAudioContent(caller->pc()->local_description()->description());
-  std::unique_ptr<IceCandidateInterface> ice_candidate =
+  std::unique_ptr<IceCandidate> ice_candidate =
       CreateIceCandidate(audio_content->mid(), 0, candidate);
   EXPECT_TRUE(caller->pc()->AddIceCandidate(ice_candidate.get()));
   EXPECT_TRUE(caller->pc()->RemoveIceCandidates({candidate}));
@@ -692,7 +691,7 @@ TEST_P(PeerConnectionIceTest, VerifyUfragPwdLength) {
     const char* address_expr,
     const char* candidates_expr,
     const SocketAddress& address,
-    const std::vector<IceCandidateInterface*> candidates) {
+    const std::vector<IceCandidate*> candidates) {
   StringBuilder candidate_hosts;
   for (const auto* candidate : candidates) {
     const auto& candidate_ip = candidate->candidate().address().ipaddr();
@@ -849,7 +848,7 @@ TEST_P(PeerConnectionIceTest,
   auto candidate = CreateLocalUdpCandidate(SocketAddress("1.1.1.1", 1111));
 
   auto caller = CreatePeerConnectionWithAudioVideo();
-  std::unique_ptr<IceCandidateInterface> jsep_candidate =
+  std::unique_ptr<IceCandidate> jsep_candidate =
       CreateIceCandidate(CN_AUDIO, 0, candidate);
 
   bool operation_completed = false;
@@ -1601,7 +1600,7 @@ TEST_P(PeerConnectionIceTest, PrefersMidOverMLineIndex) {
   Candidate candidate = CreateLocalUdpCandidate(kCalleeAddress);
   auto* audio_content =
       GetFirstAudioContent(caller->pc()->local_description()->description());
-  std::unique_ptr<IceCandidateInterface> ice_candidate =
+  std::unique_ptr<IceCandidate> ice_candidate =
       CreateIceCandidate(audio_content->mid(), 65535, candidate);
   EXPECT_TRUE(caller->pc()->AddIceCandidate(ice_candidate.get()));
   EXPECT_TRUE(caller->pc()->RemoveIceCandidates({candidate}));

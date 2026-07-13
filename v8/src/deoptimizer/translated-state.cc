@@ -59,7 +59,7 @@ void DeoptimizationFrameTranslationPrintSingleOpcode(
       int bytecode_offset = iterator.NextOperand();
       int shared_info_id = iterator.NextOperand();
       int bytecode_array_id = iterator.NextOperand();
-      unsigned height = iterator.NextOperand();
+      unsigned height = iterator.NextOperandUnsigned();
       int return_value_offset = 0;
       int return_value_count = 0;
       if (opcode == TranslationOpcode::INTERPRETED_FRAME_WITH_RETURN) {
@@ -86,7 +86,7 @@ void DeoptimizationFrameTranslationPrintSingleOpcode(
       int bailout_id = iterator.NextOperand();
       int shared_info_id = iterator.NextOperand();
       Tagged<Object> shared_info = literal_array->get(shared_info_id);
-      unsigned height = iterator.NextOperand();
+      unsigned height = iterator.NextOperandUnsigned();
       os << "{bailout_id=" << bailout_id << ", function="
          << Cast<SharedFunctionInfo>(shared_info)->DebugNameCStr().get()
          << ", height=" << height << "}";
@@ -97,7 +97,7 @@ void DeoptimizationFrameTranslationPrintSingleOpcode(
       DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 2);
       int shared_info_id = iterator.NextOperand();
       Tagged<Object> shared_info = literal_array->get(shared_info_id);
-      unsigned height = iterator.NextOperand();
+      unsigned height = iterator.NextOperandUnsigned();
       os << "{construct create stub, function="
          << Cast<SharedFunctionInfo>(shared_info)->DebugNameCStr().get()
          << ", height=" << height << "}";
@@ -120,7 +120,7 @@ void DeoptimizationFrameTranslationPrintSingleOpcode(
       int bailout_id = iterator.NextOperand();
       int shared_info_id = iterator.NextOperand();
       Tagged<Object> shared_info = literal_array->get(shared_info_id);
-      unsigned height = iterator.NextOperand();
+      unsigned height = iterator.NextOperandUnsigned();
       os << "{bailout_id=" << bailout_id << ", function="
          << Cast<SharedFunctionInfo>(shared_info)->DebugNameCStr().get()
          << ", height=" << height << "}";
@@ -133,7 +133,7 @@ void DeoptimizationFrameTranslationPrintSingleOpcode(
       int bailout_id = iterator.NextOperand();
       int shared_info_id = iterator.NextOperand();
       Tagged<Object> shared_info = literal_array->get(shared_info_id);
-      unsigned height = iterator.NextOperand();
+      unsigned height = iterator.NextOperandUnsigned();
       int wasm_return_type = iterator.NextOperand();
       os << "{bailout_id=" << bailout_id << ", function="
          << Cast<SharedFunctionInfo>(shared_info)->DebugNameCStr().get()
@@ -145,8 +145,8 @@ void DeoptimizationFrameTranslationPrintSingleOpcode(
     case v8::internal::TranslationOpcode::LIFTOFF_FRAME: {
       DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 3);
       int bailout_id = iterator.NextOperand();
-      unsigned height = iterator.NextOperand();
-      unsigned function_id = iterator.NextOperand();
+      unsigned height = iterator.NextOperandUnsigned();
+      unsigned function_id = iterator.NextOperandUnsigned();
       os << "{bailout_id=" << bailout_id << ", height=" << height
          << ", function_id=" << function_id << "}";
       break;
@@ -154,13 +154,15 @@ void DeoptimizationFrameTranslationPrintSingleOpcode(
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     case TranslationOpcode::INLINED_EXTRA_ARGUMENTS: {
-      DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 2);
+      DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 3);
       int shared_info_id = iterator.NextOperand();
       Tagged<Object> shared_info = literal_array->get(shared_info_id);
-      unsigned height = iterator.NextOperand();
+      unsigned height = iterator.NextOperandUnsigned();
+      unsigned parameter_count = iterator.NextOperandUnsigned();
       os << "{function="
          << Cast<SharedFunctionInfo>(shared_info)->DebugNameCStr().get()
-         << ", height=" << height << "}";
+         << ", height=" << height << ", parameter_count=" << parameter_count
+         << "}";
       break;
     }
 
@@ -2854,12 +2856,21 @@ void TranslatedState::VerifyMaterializedObjects() {
 #endif
 }
 
-bool TranslatedState::DoUpdateFeedback() {
+bool TranslatedState::DoUpdateFeedback(DeoptimizeReason reason) {
   if (!feedback_vector_handle_.is_null()) {
     CHECK(!feedback_slot_.IsInvalid());
     isolate()->CountUsage(v8::Isolate::kDeoptimizerDisableSpeculation);
     FeedbackNexus nexus(isolate(), feedback_vector_handle_, feedback_slot_);
-    nexus.SetSpeculationMode(SpeculationMode::kDisallowSpeculation);
+    switch (reason) {
+#define CASE(name, _, speculation_mode)          \
+  case DeoptimizeReason::k##name:                \
+    nexus.NextSpeculationMode(speculation_mode); \
+    break;
+      DEOPTIMIZE_IN_BUILTIN_REASON_LIST(CASE)
+#undef CASE
+      default:
+        nexus.SetSpeculationMode(SpeculationMode::kDisallowSpeculation);
+    }
     return true;
   }
   return false;

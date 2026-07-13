@@ -10,12 +10,12 @@
 
 #include "rtc_base/timestamp_aligner.h"
 
+#include <cstdint>
 #include <cstdlib>
 #include <limits>
 
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/time_utils.h"
 
 namespace webrtc {
 

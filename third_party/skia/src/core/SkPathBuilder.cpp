@@ -14,8 +14,11 @@
 #include "include/private/SkPathRef.h"
 #include "include/private/base/SkFloatingPoint.h"
 #include "include/private/base/SkSafe32.h"
+#include "include/private/base/SkTArray.h"
+#include "include/private/base/SkTo.h"
 #include "src/base/SkVx.h"
 #include "src/core/SkGeometry.h"
+#include "src/core/SkMatrixPriv.h"
 #include "src/core/SkPathEnums.h"
 #include "src/core/SkPathPriv.h"
 
@@ -23,7 +26,6 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
-#include <iterator>
 #include <utility>
 
 namespace {
@@ -96,10 +98,31 @@ void SkPathBuilder::incReserve(int extraPtCount, int extraVbCount) {
     fVerbs.reserve_exact(Sk32_sat_add(fVerbs.size(), extraVbCount));
 }
 
+std::tuple<SkPoint*, SkScalar*> SkPathBuilder::growForVerbsInPath(const SkPathRef& path) {
+    fSegmentMask |= path.fSegmentMask;
+
+    if (int numVerbs = path.countVerbs()) {
+         // TODO(borenet): If the current builder is empty or JustMoves, we can use the type of the
+         // path. If the path is empty, we can keep the current type.
+        fIsA = SkPathBuilder::IsA::kIsA_MoreThanMoves;
+        memcpy(fVerbs.push_back_n(numVerbs), path.fVerbs.begin(), numVerbs * sizeof(fVerbs[0]));
+    }
+
+    SkPoint* pts = nullptr;
+    if (int numPts = path.countPoints()) {
+        pts = fPts.push_back_n(numPts);
+    }
+
+    SkScalar* weights = nullptr;
+    if (int numConics = path.countWeights()) {
+        weights = fConicWeights.push_back_n(numConics);
+    }
+
+    return {pts, weights};
+}
+
 SkRect SkPathBuilder::computeBounds() const {
-    SkRect bounds;
-    bounds.setBounds(fPts.begin(), fPts.size());
-    return bounds;
+    return SkRect::BoundsOrEmpty(fPts);
 }
 
 /*
@@ -171,7 +194,8 @@ SkPathBuilder& SkPathBuilder::cubicTo(SkPoint pt1, SkPoint pt2, SkPoint pt3) {
 }
 
 SkPathBuilder& SkPathBuilder::close() {
-    if (!fVerbs.empty()) {
+    // If this is a 2nd 'close', we just ignore it
+    if (!fVerbs.empty() && fVerbs.back() != (uint8_t)SkPathVerb::kClose) {
         this->ensureMove();
 
         fVerbs.push_back((uint8_t)SkPathVerb::kClose);
@@ -336,7 +360,7 @@ static int build_arc_conics(const SkRect& oval, const SkVector& start, const SkV
 
     int count = SkConic::BuildUnitArc(start, stop, dir, &matrix, conics);
     if (0 == count) {
-        matrix.mapXY(stop.x(), stop.y(), singlePt);
+        *singlePt = matrix.mapPoint(stop);
     }
     return count;
 }
@@ -409,6 +433,14 @@ SkPathBuilder& SkPathBuilder::arcTo(const SkRect& oval, SkScalar startAngle, SkS
     return *this;
 }
 
+SkPathBuilder& SkPathBuilder::rArcTo(SkScalar rx, SkScalar ry, SkScalar xAxisRotate,
+                                     SkPathBuilder::ArcSize largeArc,
+                                     SkPathDirection sweep, SkScalar dx, SkScalar dy) {
+    const SkPoint currentPoint = this->getLastPt().value_or(SkPoint{0, 0});
+    return this->arcTo({rx, ry}, xAxisRotate, largeArc, sweep,
+                       {currentPoint.fX + dx, currentPoint.fY + dy});
+}
+
 SkPathBuilder& SkPathBuilder::addArc(const SkRect& oval, SkScalar startAngle, SkScalar sweepAngle) {
     if (oval.isEmpty() || 0 == sweepAngle) {
         return *this;
@@ -479,7 +511,7 @@ SkPathBuilder& SkPathBuilder::arcTo(SkPoint rad, SkScalar angle, SkPathBuilder::
                                     SkPathDirection arcSweep, SkPoint endPt) {
     this->ensureMove();
 
-    SkPoint srcPts[2] = { fPts.back(), endPt };
+    const SkPoint srcPts[2] = { fPts.back(), endPt };
 
     // If rx = 0 or ry = 0 then this arc is treated as a straight line segment (a "lineto")
     // joining the endpoints.
@@ -500,8 +532,7 @@ SkPathBuilder& SkPathBuilder::arcTo(SkPoint rad, SkScalar angle, SkPathBuilder::
     SkMatrix pointTransform;
     pointTransform.setRotate(-angle);
 
-    SkPoint transformedMidPoint;
-    pointTransform.mapPoints(&transformedMidPoint, &midPointDistance, 1);
+    SkPoint transformedMidPoint = pointTransform.mapPoint(midPointDistance);
     SkScalar squareRx = rx * rx;
     SkScalar squareRy = ry * ry;
     SkScalar squareX = transformedMidPoint.fX * transformedMidPoint.fX;
@@ -520,7 +551,7 @@ SkPathBuilder& SkPathBuilder::arcTo(SkPoint rad, SkScalar angle, SkPathBuilder::
     pointTransform.preRotate(-angle);
 
     SkPoint unitPts[2];
-    pointTransform.mapPoints(unitPts, srcPts, (int) std::size(unitPts));
+    pointTransform.mapPoints(unitPts, srcPts);
     SkVector delta = unitPts[1] - unitPts[0];
 
     SkScalar d = delta.fX * delta.fX + delta.fY * delta.fY;
@@ -545,7 +576,7 @@ SkPathBuilder& SkPathBuilder::arcTo(SkPoint rad, SkScalar angle, SkPathBuilder::
         thetaArc -= SK_ScalarPI * 2;
     }
 
-    // Very tiny angles cause our subsequent math to go wonky (skbug.com/9272)
+    // Very tiny angles cause our subsequent math to go wonky (skbug.com/40040578)
     // so we do a quick check here. The precise tolerance amount is just made up.
     // PI/million happens to fix the bug in 9272, but a larger value is probably
     // ok too.
@@ -582,7 +613,7 @@ SkPathBuilder& SkPathBuilder::arcTo(SkPoint rad, SkScalar angle, SkPathBuilder::
         unitPts[0] = unitPts[1];
         unitPts[0].offset(t * sinEndTheta, -t * cosEndTheta);
         SkPoint mapped[2];
-        pointTransform.mapPoints(mapped, unitPts, (int) std::size(unitPts));
+        pointTransform.mapPoints(mapped, unitPts);
         /*
         Computing the arc width introduces rounding errors that cause arcs to start
         outside their marks. A round rect may lose convexity as a result. If the input
@@ -781,25 +812,26 @@ SkPathBuilder& SkPathBuilder::addCircle(SkScalar x, SkScalar y, SkScalar r, SkPa
     return *this;
 }
 
-SkPathBuilder& SkPathBuilder::addPolygon(const SkPoint pts[], int count, bool isClosed) {
-    if (count <= 0) {
+SkPathBuilder& SkPathBuilder::addPolygon(SkSpan<const SkPoint> pts, bool isClosed) {
+    if (pts.empty()) {
         return *this;
     }
 
     this->moveTo(pts[0]);
-    this->polylineTo(&pts[1], count - 1);
+    this->polylineTo(pts.last(pts.size() - 1));
     if (isClosed) {
         this->close();
     }
     return *this;
 }
 
-SkPathBuilder& SkPathBuilder::polylineTo(const SkPoint pts[], int count) {
-    if (count > 0) {
+SkPathBuilder& SkPathBuilder::polylineTo(SkSpan<const SkPoint> pts) {
+    if (!pts.empty()) {
         this->ensureMove();
 
+        const auto count = pts.size();
         this->incReserve(count, count);
-        memcpy(fPts.push_back_n(count), pts, count * sizeof(SkPoint));
+        memcpy(fPts.push_back_n(count), pts.data(), count * sizeof(SkPoint));
         memset(fVerbs.push_back_n(count), (uint8_t)SkPathVerb::kLine, count);
         fSegmentMask |= kLine_SkPathSegmentMask;
     }
@@ -815,23 +847,84 @@ SkPathBuilder& SkPathBuilder::offset(SkScalar dx, SkScalar dy) {
     return *this;
 }
 
-SkPathBuilder& SkPathBuilder::addPath(const SkPath& src) {
-    SkPath::RawIter iter(src);
-    SkPoint pts[4];
-    SkPath::Verb verb;
+SkPathBuilder& SkPathBuilder::addPath(const SkPath& path, SkScalar dx, SkScalar dy,
+                                      SkPath::AddPathMode mode) {
+    SkMatrix matrix = SkMatrix::Translate(dx, dy);
+    return this->addPath(path, matrix, mode);
+}
 
-    while ((verb = iter.next(pts)) != SkPath::kDone_Verb) {
-        switch (verb) {
-            case SkPath::kMove_Verb:  this->moveTo (pts[0]); break;
-            case SkPath::kLine_Verb:  this->lineTo (pts[1]); break;
-            case SkPath::kQuad_Verb:  this->quadTo (pts[1], pts[2]); break;
-            case SkPath::kCubic_Verb: this->cubicTo(pts[1], pts[2], pts[3]); break;
-            case SkPath::kConic_Verb: this->conicTo(pts[1], pts[2], iter.conicWeight()); break;
-            case SkPath::kClose_Verb: this->close(); break;
-            case SkPath::kDone_Verb: SkUNREACHABLE;
-        }
+SkPathBuilder& SkPathBuilder::addPath(const SkPath& src, const SkMatrix& matrix,
+                                      SkPath::AddPathMode mode) {
+    if (src.isEmpty()) {
+        return *this;
     }
 
+    if (this->isEmpty() && matrix.isIdentity()) {
+        const SkPathFillType fillType = fFillType;
+        *this = src;
+        fFillType = fillType;
+        return *this;
+    }
+
+    if (SkPath::AddPathMode::kAppend_AddPathMode == mode && !matrix.hasPerspective()) {
+        if (src.fLastMoveToIndex >= 0) {
+            fLastMoveIndex = src.fLastMoveToIndex + this->countPoints();
+            fNeedsMoveVerb = false;
+        } else {
+            fLastMoveIndex = ~src.fLastMoveToIndex + this->countPoints();
+            fNeedsMoveVerb = true;
+        }
+
+        auto [newPts, newWeights] = this->growForVerbsInPath(*src.fPathRef);
+        const auto count = src.countPoints();
+        matrix.mapPoints({newPts, count}, {src.fPathRef->points(), count});
+        if (int numWeights = src.fPathRef->countWeights()) {
+            memcpy(newWeights, src.fPathRef->conicWeights(), numWeights * sizeof(newWeights[0]));
+        }
+        fLastMovePoint = fPts.at(fLastMoveIndex);
+        return *this;  // TODO(borenet): dirtyAfterEdit sets convexity and firstDirection.
+    }
+
+    SkMatrixPriv::MapPtsProc mapPtsProc = SkMatrixPriv::GetMapPtsProc(matrix);
+    bool firstVerb = true;
+    for (auto [verb, pts, w] : SkPathPriv::Iterate(src)) {
+        SkPoint mappedPts[3];
+        switch (verb) {
+            case SkPathVerb::kMove:
+                mapPtsProc(matrix, mappedPts, &pts[0], 1);
+                if (firstVerb && mode == SkPath::kExtend_AddPathMode && !isEmpty()) {
+                    this->ensureMove(); // In case last contour is closed
+                    std::optional<SkPoint> lastPt = this->getLastPt();
+                    // don't add lineTo if it is degenerate
+                    if (!lastPt.has_value() || lastPt.value() != mappedPts[0]) {
+                        this->lineTo(mappedPts[0]);
+                    }
+                } else {
+                    this->moveTo(mappedPts[0]);
+                }
+                break;
+            case SkPathVerb::kLine:
+                mapPtsProc(matrix, mappedPts, &pts[1], 1);
+                this->lineTo(mappedPts[0]);
+                break;
+            case SkPathVerb::kQuad:
+                mapPtsProc(matrix, mappedPts, &pts[1], 2);
+                this->quadTo(mappedPts[0], mappedPts[1]);
+                break;
+            case SkPathVerb::kConic:
+                mapPtsProc(matrix, mappedPts, &pts[1], 2);
+                this->conicTo(mappedPts[0], mappedPts[1], *w);
+                break;
+            case SkPathVerb::kCubic:
+                mapPtsProc(matrix, mappedPts, &pts[1], 3);
+                this->cubicTo(mappedPts[0], mappedPts[1], mappedPts[2]);
+                break;
+            case SkPathVerb::kClose:
+                this->close();
+                break;
+        }
+        firstVerb = false;
+    }
     return *this;
 }
 
@@ -986,7 +1079,7 @@ SkPathBuilder& SkPathBuilder::transform(const SkMatrix& matrix, SkApplyPerspecti
         }
     }
 
-    matrix.mapPoints(fPts.data(), fPts.size());
+    matrix.mapPoints(fPts);
 
     // TODO: handle bounds, convexity, and direction when added.
 

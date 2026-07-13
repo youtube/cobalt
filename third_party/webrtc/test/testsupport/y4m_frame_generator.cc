@@ -10,14 +10,15 @@
 
 #include "test/testsupport/y4m_frame_generator.h"
 
-#include <stdio.h>
-#include <string.h>
-
+#include <cstdio>
+#include <cstring>
 #include <string>
 
 #include "absl/strings/string_view.h"
 #include "api/scoped_refptr.h"
+#include "api/test/frame_generator_interface.h"
 #include "api/video/i420_buffer.h"
+#include "api/video/video_frame.h"
 #include "rtc_base/checks.h"
 #include "test/testsupport/frame_reader.h"
 

@@ -121,12 +121,12 @@ Codec::Codec(Type type)
             type == Type::kVideo ? kDefaultVideoClockRateHz
                                  : kDefaultAudioClockRateHz) {}
 
-Codec::Codec(const webrtc::SdpAudioFormat& c)
+Codec::Codec(const SdpAudioFormat& c)
     : Codec(Type::kAudio, kIdNotSet, c.name, c.clockrate_hz, c.num_channels) {
   params = c.parameters;
 }
 
-Codec::Codec(const webrtc::SdpVideoFormat& c)
+Codec::Codec(const SdpVideoFormat& c)
     : Codec(Type::kVideo, kIdNotSet, c.name, kVideoCodecClockrate) {
   params = c.parameters;
   scalability_modes = c.scalability_modes;
@@ -148,11 +148,11 @@ bool Codec::operator==(const Codec& c) const {
 }
 
 bool Codec::Matches(const Codec& codec) const {
-  return webrtc::MatchesWithCodecRules(*this, codec);
+  return MatchesWithCodecRules(*this, codec);
 }
 
-bool Codec::MatchesRtpCodec(const webrtc::RtpCodec& codec_capability) const {
-  webrtc::RtpCodecParameters codec_parameters = ToCodecParameters();
+bool Codec::MatchesRtpCodec(const RtpCodec& codec_capability) const {
+  RtpCodecParameters codec_parameters = ToCodecParameters();
 
   return codec_parameters.name == codec_capability.name &&
          codec_parameters.kind == codec_capability.kind &&
@@ -163,7 +163,7 @@ bool Codec::MatchesRtpCodec(const webrtc::RtpCodec& codec_capability) const {
 }
 
 bool Codec::GetParam(const std::string& key, std::string* out) const {
-  webrtc::CodecParameterMap::const_iterator iter = params.find(key);
+  CodecParameterMap::const_iterator iter = params.find(key);
   if (iter == params.end())
     return false;
   *out = iter->second;
@@ -171,10 +171,10 @@ bool Codec::GetParam(const std::string& key, std::string* out) const {
 }
 
 bool Codec::GetParam(const std::string& key, int* out) const {
-  webrtc::CodecParameterMap::const_iterator iter = params.find(key);
+  CodecParameterMap::const_iterator iter = params.find(key);
   if (iter == params.end())
     return false;
-  return webrtc::FromString(iter->second, out);
+  return FromString(iter->second, out);
 }
 
 void Codec::SetParam(const std::string& key, const std::string& value) {
@@ -202,7 +202,7 @@ void Codec::IntersectFeedbackParams(const Codec& other) {
 }
 
 webrtc::RtpCodecParameters Codec::ToCodecParameters() const {
-  webrtc::RtpCodecParameters codec_params;
+  RtpCodecParameters codec_params;
   codec_params.payload_type = id;
   codec_params.name = name;
   codec_params.clock_rate = clockrate;
@@ -211,11 +211,11 @@ webrtc::RtpCodecParameters Codec::ToCodecParameters() const {
   switch (type) {
     case Type::kAudio: {
       codec_params.num_channels = static_cast<int>(channels);
-      codec_params.kind = webrtc::MediaType::AUDIO;
+      codec_params.kind = MediaType::AUDIO;
       break;
     }
     case Type::kVideo: {
-      codec_params.kind = webrtc::MediaType::VIDEO;
+      codec_params.kind = MediaType::VIDEO;
       break;
     }
   }
@@ -334,7 +334,7 @@ bool HasRrtr(const Codec& codec) {
 
 const Codec* FindMatchingVideoCodec(const std::vector<Codec>& supported_codecs,
                                     const Codec& codec) {
-  webrtc::SdpVideoFormat sdp_video_format{codec.name, codec.params};
+  SdpVideoFormat sdp_video_format{codec.name, codec.params};
   for (const Codec& supported_codec : supported_codecs) {
     if (sdp_video_format.IsSameCodec(
             {supported_codec.name, supported_codec.params})) {
@@ -348,7 +348,7 @@ std::vector<const Codec*> FindAllMatchingCodecs(
     const std::vector<Codec>& supported_codecs,
     const Codec& codec) {
   std::vector<const Codec*> result;
-  webrtc::SdpVideoFormat sdp(codec.name, codec.params);
+  SdpVideoFormat sdp(codec.name, codec.params);
   for (const Codec& supported_codec : supported_codecs) {
     if (sdp.IsSameCodec({supported_codec.name, supported_codec.params})) {
       result.push_back(&supported_codec);
@@ -360,24 +360,23 @@ std::vector<const Codec*> FindAllMatchingCodecs(
 // If a decoder supports any H264 profile, it is implicitly assumed to also
 // support constrained base line even though it's not explicitly listed.
 void AddH264ConstrainedBaselineProfileToSupportedFormats(
-    std::vector<webrtc::SdpVideoFormat>* supported_formats) {
-  std::vector<webrtc::SdpVideoFormat> cbr_supported_formats;
+    std::vector<SdpVideoFormat>* supported_formats) {
+  std::vector<SdpVideoFormat> cbr_supported_formats;
 
   // For any H264 supported profile, add the corresponding constrained baseline
   // profile.
   for (auto it = supported_formats->cbegin(); it != supported_formats->cend();
        ++it) {
     if (it->name == kH264CodecName) {
-      const std::optional<webrtc::H264ProfileLevelId> profile_level_id =
-          webrtc::ParseSdpForH264ProfileLevelId(it->parameters);
-      if (profile_level_id &&
-          profile_level_id->profile !=
-              webrtc::H264Profile::kProfileConstrainedBaseline) {
-        webrtc::SdpVideoFormat cbp_format = *it;
-        webrtc::H264ProfileLevelId cbp_profile = *profile_level_id;
-        cbp_profile.profile = webrtc::H264Profile::kProfileConstrainedBaseline;
+      const std::optional<H264ProfileLevelId> profile_level_id =
+          ParseSdpForH264ProfileLevelId(it->parameters);
+      if (profile_level_id && profile_level_id->profile !=
+                                  H264Profile::kProfileConstrainedBaseline) {
+        SdpVideoFormat cbp_format = *it;
+        H264ProfileLevelId cbp_profile = *profile_level_id;
+        cbp_profile.profile = H264Profile::kProfileConstrainedBaseline;
         cbp_format.parameters[kH264FmtpProfileLevelId] =
-            *webrtc::H264ProfileLevelIdToString(cbp_profile);
+            *H264ProfileLevelIdToString(cbp_profile);
         cbr_supported_formats.push_back(cbp_format);
       }
     }
@@ -387,7 +386,7 @@ void AddH264ConstrainedBaselineProfileToSupportedFormats(
   // ...if it's not already in the list.
   std::copy_if(cbr_supported_formats.begin(), cbr_supported_formats.end(),
                std::back_inserter(*supported_formats),
-               [supported_formats](const webrtc::SdpVideoFormat& format) {
+               [supported_formats](const SdpVideoFormat& format) {
                  return !format.IsCodecInList(*supported_formats);
                });
 
@@ -404,7 +403,7 @@ Codec CreateAudioCodec(int id,
   return Codec(Codec::Type::kAudio, id, name, clockrate, channels);
 }
 
-Codec CreateAudioCodec(const webrtc::SdpAudioFormat& c) {
+Codec CreateAudioCodec(const SdpAudioFormat& c) {
   return Codec(c);
 }
 
@@ -424,11 +423,11 @@ Codec CreateVideoCodec(int id, const std::string& name) {
   return c;
 }
 
-Codec CreateVideoCodec(const webrtc::SdpVideoFormat& c) {
+Codec CreateVideoCodec(const SdpVideoFormat& c) {
   return Codec(c);
 }
 
-Codec CreateVideoCodec(int id, const webrtc::SdpVideoFormat& sdp) {
+Codec CreateVideoCodec(int id, const SdpVideoFormat& sdp) {
   Codec c = CreateVideoCodec(sdp);
   c.id = id;
   return c;

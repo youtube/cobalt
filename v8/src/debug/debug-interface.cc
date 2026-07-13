@@ -146,7 +146,7 @@ Local<String> GetFunctionDescription(Local<Function> function) {
   if (IsJSFunction(*receiver)) {
     auto js_function = i::Cast<i::JSFunction>(receiver);
 #if V8_ENABLE_WEBASSEMBLY
-    if (js_function->shared()->HasWasmExportedFunctionData()) {
+    if (js_function->shared()->HasWasmExportedFunctionData(i_isolate)) {
       i::DirectHandle<i::WasmExportedFunctionData> function_data(
           js_function->shared()->wasm_exported_function_data(), i_isolate);
       int func_index = function_data->function_index();
@@ -1386,6 +1386,13 @@ Coverage Coverage::CollectBestEffort(Isolate* isolate) {
   return Coverage(
       i::Coverage::CollectBestEffort(reinterpret_cast<i::Isolate*>(isolate)));
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+Coverage Coverage::CollectWasmData(Isolate* isolate) {
+  return Coverage(
+      i::Coverage::CollectWasmData(reinterpret_cast<i::Isolate*>(isolate)));
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void Coverage::SelectMode(Isolate* isolate, CoverageMode mode) {
   i::Coverage::SelectMode(reinterpret_cast<i::Isolate*>(isolate), mode);

@@ -730,6 +730,8 @@ const kExprStructAtomicSub = 0x61;
 const kExprStructAtomicAnd = 0x62;
 const kExprStructAtomicOr = 0x63;
 const kExprStructAtomicXor = 0x64;
+const kExprStructAtomicExchange = 0x65;
+const kExprStructAtomicCompareExchange = 0x66;
 const kExprArrayAtomicGet = 0x67;
 const kExprArrayAtomicGetS = 0x68;
 const kExprArrayAtomicGetU = 0x69;
@@ -739,6 +741,8 @@ const kExprArrayAtomicSub = 0x6c;
 const kExprArrayAtomicAnd = 0x6d;
 const kExprArrayAtomicOr = 0x6e;
 const kExprArrayAtomicXor = 0x6f;
+const kExprArrayAtomicExchange = 0x70;
+const kExprArrayAtomicCompareExchange = 0x71;
 
 // Simd opcodes.
 let kExprS128LoadMem = 0x00;

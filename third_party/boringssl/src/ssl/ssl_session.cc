@@ -821,7 +821,7 @@ ssl_session_st::ssl_session_st(const SSL_X509_METHOD *method)
 }
 
 ssl_session_st::~ssl_session_st() {
-  CRYPTO_free_ex_data(&g_ex_data_class, this, &ex_data);
+  CRYPTO_free_ex_data(&g_ex_data_class, &ex_data);
   x509_method->session_clear(this);
 }
 

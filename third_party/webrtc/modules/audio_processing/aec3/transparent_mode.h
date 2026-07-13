@@ -15,7 +15,6 @@
 
 #include "api/audio/echo_canceller3_config.h"
 #include "api/environment/environment.h"
-#include "modules/audio_processing/aec3/aec3_common.h"
 
 namespace webrtc {
 

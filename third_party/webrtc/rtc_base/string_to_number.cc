@@ -14,8 +14,10 @@
 
 #include <cerrno>
 #include <cstdlib>
+#include <optional>
+#include <string>
 
-#include "rtc_base/checks.h"
+#include "absl/strings/string_view.h"
 
 namespace webrtc {
 namespace string_to_number_internal {

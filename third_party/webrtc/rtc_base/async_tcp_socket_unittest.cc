@@ -21,7 +21,7 @@ namespace webrtc {
 class AsyncTCPSocketTest : public ::testing::Test, public sigslot::has_slots<> {
  public:
   AsyncTCPSocketTest()
-      : vss_(new webrtc::VirtualSocketServer()),
+      : vss_(new VirtualSocketServer()),
         socket_(vss_->CreateSocket(SOCK_STREAM)),
         tcp_socket_(new AsyncTCPSocket(socket_, true)),
         ready_to_send_(false) {
@@ -29,9 +29,7 @@ class AsyncTCPSocketTest : public ::testing::Test, public sigslot::has_slots<> {
                                            &AsyncTCPSocketTest::OnReadyToSend);
   }
 
-  void OnReadyToSend(webrtc::AsyncPacketSocket* socket) {
-    ready_to_send_ = true;
-  }
+  void OnReadyToSend(AsyncPacketSocket* socket) { ready_to_send_ = true; }
 
  protected:
   std::unique_ptr<VirtualSocketServer> vss_;

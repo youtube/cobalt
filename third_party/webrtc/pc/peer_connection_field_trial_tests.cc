@@ -16,10 +16,10 @@
 #include <utility>
 
 #include "absl/algorithm/container.h"
+#include "absl/strings/string_view.h"
 #include "api/enable_media_with_defaults.h"
 #include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
-#include "api/field_trials_view.h"
 #include "api/media_types.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtp_parameters.h"
@@ -33,6 +33,7 @@
 #include "rtc_base/socket_server.h"
 #include "rtc_base/thread.h"
 #include "system_wrappers/include/clock.h"
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
 
 #ifdef WEBRTC_ANDROID
@@ -62,10 +63,11 @@ class PeerConnectionFieldTrialTest : public ::testing::Test {
 
   void TearDown() override { pc_factory_ = nullptr; }
 
-  void CreatePCFactory(std::unique_ptr<FieldTrialsView> field_trials) {
+  void CreatePCFactory(absl::string_view field_trials) {
     PeerConnectionFactoryDependencies pcf_deps;
     pcf_deps.signaling_thread = Thread::Current();
-    pcf_deps.env = CreateEnvironment(std::move(field_trials));
+    pcf_deps.env = CreateEnvironment(
+        std::make_unique<FieldTrials>(CreateTestFieldTrials(field_trials)));
     pcf_deps.adm = FakeAudioCaptureModule::Create();
     EnableMediaWithDefaults(pcf_deps);
     pc_factory_ = CreateModularPeerConnectionFactory(std::move(pcf_deps));
@@ -99,8 +101,7 @@ class PeerConnectionFieldTrialTest : public ::testing::Test {
 // Tests for the dependency descriptor field trial. The dependency descriptor
 // field trial is implemented in media/engine/webrtc_video_engine.cc.
 TEST_F(PeerConnectionFieldTrialTest, EnableDependencyDescriptorAdvertised) {
-  CreatePCFactory(FieldTrials::CreateNoGlobal(
-      "WebRTC-DependencyDescriptorAdvertised/Enabled/"));
+  CreatePCFactory("WebRTC-DependencyDescriptorAdvertised/Enabled/");
 
   WrapperPtr caller = CreatePeerConnection();
   caller->AddTransceiver(MediaType::VIDEO);
@@ -132,8 +133,7 @@ TEST_F(PeerConnectionFieldTrialTest, EnableDependencyDescriptorAdvertised) {
 #define MAYBE_InjectDependencyDescriptor InjectDependencyDescriptor
 #endif
 TEST_F(PeerConnectionFieldTrialTest, MAYBE_InjectDependencyDescriptor) {
-  CreatePCFactory(FieldTrials::CreateNoGlobal(
-      "WebRTC-DependencyDescriptorAdvertised/Disabled/"));
+  CreatePCFactory("WebRTC-DependencyDescriptorAdvertised/Disabled/");
 
   WrapperPtr caller = CreatePeerConnection();
   WrapperPtr callee = CreatePeerConnection();

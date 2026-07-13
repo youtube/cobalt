@@ -230,7 +230,7 @@ UNumberGroupingStrategy ToUNumberGroupingStrategy(UseGrouping use_grouping) {
   }
 }
 
-std::map<const std::string, icu::MeasureUnit> CreateUnitMap() {
+std::map<const std::string, icu::MeasureUnit, std::less<>> CreateUnitMap() {
   UErrorCode status = U_ZERO_ERROR;
   int32_t total = icu::MeasureUnit::getAvailable(nullptr, 0, status);
   DCHECK(U_FAILURE(status));
@@ -238,7 +238,7 @@ std::map<const std::string, icu::MeasureUnit> CreateUnitMap() {
   std::vector<icu::MeasureUnit> units(total);
   total = icu::MeasureUnit::getAvailable(units.data(), total, status);
   DCHECK(U_SUCCESS(status));
-  std::map<const std::string, icu::MeasureUnit> map;
+  std::map<const std::string, icu::MeasureUnit, std::less<>> map;
   std::set<std::string> sanctioned(Intl::SanctionedSimpleUnits());
   for (auto it = units.begin(); it != units.end(); ++it) {
     // Need to skip none/percent
@@ -256,7 +256,7 @@ class UnitFactory {
   virtual ~UnitFactory() = default;
 
   // ecma402 #sec-issanctionedsimpleunitidentifier
-  icu::MeasureUnit create(const std::string& unitIdentifier) {
+  icu::MeasureUnit create(const std::string_view unitIdentifier) {
     // 1. If unitIdentifier is in the following list, return true.
     auto found = map_.find(unitIdentifier);
     if (found != map_.end()) {
@@ -267,11 +267,13 @@ class UnitFactory {
   }
 
  private:
-  std::map<const std::string, icu::MeasureUnit> map_;
+  // std::less<> is a transparent comparator and allows for
+  // comparing against std::string_views
+  std::map<const std::string, icu::MeasureUnit, std::less<>> map_;
 };
 
 // ecma402 #sec-issanctionedsimpleunitidentifier
-icu::MeasureUnit IsSanctionedUnitIdentifier(const std::string& unit) {
+icu::MeasureUnit IsSanctionedUnitIdentifier(const std::string_view unit) {
   static base::LazyInstance<UnitFactory>::type factory =
       LAZY_INSTANCE_INITIALIZER;
   return factory.Pointer()->create(unit);
@@ -279,7 +281,7 @@ icu::MeasureUnit IsSanctionedUnitIdentifier(const std::string& unit) {
 
 // ecma402 #sec-iswellformedunitidentifier
 Maybe<std::pair<icu::MeasureUnit, icu::MeasureUnit>> IsWellFormedUnitIdentifier(
-    Isolate* isolate, const std::string& unit) {
+    Isolate* isolate, const std::string_view unit) {
   icu::MeasureUnit result = IsSanctionedUnitIdentifier(unit);
   icu::MeasureUnit none = icu::MeasureUnit();
   // 1. If the result of IsSanctionedUnitIdentifier(unitIdentifier) is true,
@@ -299,7 +301,7 @@ Maybe<std::pair<icu::MeasureUnit, icu::MeasureUnit>> IsWellFormedUnitIdentifier(
   }
   // 3. Let numerator be the substring of unitIdentifier from the beginning to
   // just before "-per-".
-  std::string numerator = unit.substr(0, first_per);
+  std::string_view numerator = unit.substr(0, first_per);
 
   // 4. If the result of IsSanctionedUnitIdentifier(numerator) is false, then
   result = IsSanctionedUnitIdentifier(numerator);
@@ -309,7 +311,7 @@ Maybe<std::pair<icu::MeasureUnit, icu::MeasureUnit>> IsWellFormedUnitIdentifier(
   }
   // 5. Let denominator be the substring of unitIdentifier from just after
   // "-per-" to the end.
-  std::string denominator = unit.substr(first_per + 5);
+  std::string_view denominator = unit.substr(first_per + 5);
 
   // 6. If the result of IsSanctionedUnitIdentifier(denominator) is false, then
   icu::MeasureUnit den_result = IsSanctionedUnitIdentifier(denominator);
@@ -1093,11 +1095,11 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
   MAYBE_RETURN(maybe_locale_matcher, MaybeDirectHandle<JSNumberFormat>());
   Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
-  std::unique_ptr<char[]> numbering_system_str = nullptr;
+  std::string numbering_system_str;
   // 6. Let _numberingSystem_ be ? GetOption(_options_, `"numberingSystem"`,
   //    `"string"`, *undefined*, *undefined*).
-  Maybe<bool> maybe_numberingSystem = Intl::GetNumberingSystem(
-      isolate, options, service, &numbering_system_str);
+  Maybe<bool> maybe_numberingSystem =
+      Intl::GetNumberingSystem(isolate, options, service, numbering_system_str);
   // 7. If _numberingSystem_ is not *undefined*, then
   // 8. If _numberingSystem_ does not match the
   //    `(3*8alphanum) *("-" (3*8alphanum))` sequence, throw a *RangeError*
@@ -1117,10 +1119,10 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
 
   icu::Locale icu_locale = r.icu_locale;
   UErrorCode status = U_ZERO_ERROR;
-  if (numbering_system_str != nullptr) {
+  if (maybe_numberingSystem.FromJust()) {
     auto nu_extension_it = r.extensions.find("nu");
     if (nu_extension_it != r.extensions.end() &&
-        nu_extension_it->second != numbering_system_str.get()) {
+        nu_extension_it->second != numbering_system_str) {
       icu_locale.setUnicodeKeywordValue("nu", nullptr, status);
       DCHECK(U_SUCCESS(status));
     }
@@ -1133,9 +1135,9 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
       isolate->factory()->NewStringFromAsciiChecked(
           maybe_locale_str.FromJust().c_str());
 
-  if (numbering_system_str != nullptr &&
-      Intl::IsValidNumberingSystem(numbering_system_str.get())) {
-    icu_locale.setUnicodeKeywordValue("nu", numbering_system_str.get(), status);
+  if (maybe_numberingSystem.FromJust() &&
+      Intl::IsValidNumberingSystem(numbering_system_str)) {
+    icu_locale.setUnicodeKeywordValue("nu", numbering_system_str, status);
     DCHECK(U_SUCCESS(status));
   }
 
@@ -1162,8 +1164,9 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
 
   Maybe<Style> maybe_style = GetStringOption<Style>(
       isolate, options, "style", service,
-      {"decimal", "percent", "currency", "unit"},
-      {Style::DECIMAL, Style::PERCENT, Style::CURRENCY, Style::UNIT},
+      std::to_array<const std::string_view>(
+          {"decimal", "percent", "currency", "unit"}),
+      std::array{Style::DECIMAL, Style::PERCENT, Style::CURRENCY, Style::UNIT},
       Style::DECIMAL);
   MAYBE_RETURN(maybe_style, MaybeDirectHandle<JSNumberFormat>());
   Style style = maybe_style.FromJust();
@@ -1172,17 +1175,16 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
 
   // 5. Let currency be ? GetOption(options, "currency", "string", undefined,
   // undefined).
-  std::unique_ptr<char[]> currency_cstr;
-  const std::vector<const char*> empty_values = {};
-  Maybe<bool> found_currency = GetStringOption(
-      isolate, options, "currency", empty_values, service, &currency_cstr);
+  DirectHandle<String> currency_str;
+  Maybe<bool> found_currency =
+      GetStringOption(isolate, options, "currency",
+                      std::span<std::string_view>(), service, &currency_str);
   MAYBE_RETURN(found_currency, MaybeDirectHandle<JSNumberFormat>());
-
   std::string currency;
+
   // 6. If currency is not undefined, then
   if (found_currency.FromJust()) {
-    DCHECK_NOT_NULL(currency_cstr.get());
-    currency = currency_cstr.get();
+    currency = currency_str->ToStdString();
     // 6. a. If the result of IsWellFormedCurrencyCode(currency) is false,
     // throw a RangeError exception.
     if (!IsWellFormedCurrencyCode(currency)) {
@@ -1190,7 +1192,7 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
           isolate,
           NewRangeError(MessageTemplate::kInvalid,
                         factory->NewStringFromStaticChars("currency code"),
-                        factory->NewStringFromAsciiChecked(currency.c_str())));
+                        currency_str));
     }
   } else {
     // 7. If style is "currency" and currency is undefined, throw a TypeError
@@ -1204,9 +1206,10 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
   Maybe<CurrencyDisplay> maybe_currency_display =
       GetStringOption<CurrencyDisplay>(
           isolate, options, "currencyDisplay", service,
-          {"code", "symbol", "name", "narrowSymbol"},
-          {CurrencyDisplay::CODE, CurrencyDisplay::SYMBOL,
-           CurrencyDisplay::NAME, CurrencyDisplay::NARROW_SYMBOL},
+          std::to_array<const std::string_view>(
+              {"code", "symbol", "name", "narrowSymbol"}),
+          std::array{CurrencyDisplay::CODE, CurrencyDisplay::SYMBOL,
+                     CurrencyDisplay::NAME, CurrencyDisplay::NARROW_SYMBOL},
           CurrencyDisplay::SYMBOL);
   MAYBE_RETURN(maybe_currency_display, MaybeDirectHandle<JSNumberFormat>());
   CurrencyDisplay currency_display = maybe_currency_display.FromJust();
@@ -1215,34 +1218,34 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
   // 9. Let currencySign be ? GetOption(options, "currencySign", "string", «
   // "standard",  "accounting" », "standard").
   Maybe<CurrencySign> maybe_currency_sign = GetStringOption<CurrencySign>(
-      isolate, options, "currencySign", service, {"standard", "accounting"},
-      {CurrencySign::STANDARD, CurrencySign::ACCOUNTING},
+      isolate, options, "currencySign", service,
+      std::to_array<const std::string_view>({"standard", "accounting"}),
+      std::array{CurrencySign::STANDARD, CurrencySign::ACCOUNTING},
       CurrencySign::STANDARD);
   MAYBE_RETURN(maybe_currency_sign, MaybeDirectHandle<JSNumberFormat>());
   currency_sign = maybe_currency_sign.FromJust();
 
   // 10. Let unit be ? GetOption(options, "unit", "string", undefined,
   // undefined).
-  std::unique_ptr<char[]> unit_cstr;
-  Maybe<bool> found_unit = GetStringOption(isolate, options, "unit",
-                                           empty_values, service, &unit_cstr);
+  DirectHandle<String> unit_str;
+  Maybe<bool> found_unit =
+      GetStringOption(isolate, options, "unit", std::span<std::string_view>(),
+                      service, &unit_str);
   MAYBE_RETURN(found_unit, MaybeDirectHandle<JSNumberFormat>());
 
   std::pair<icu::MeasureUnit, icu::MeasureUnit> unit_pair;
   // 11. If unit is not undefined, then
   if (found_unit.FromJust()) {
-    DCHECK_NOT_NULL(unit_cstr.get());
-    std::string unit = unit_cstr.get();
+    std::string unit_stdstr = unit_str->ToStdString();
     // 11.a If the result of IsWellFormedUnitIdentifier(unit) is false, throw a
     // RangeError exception.
     Maybe<std::pair<icu::MeasureUnit, icu::MeasureUnit>> maybe_wellformed_unit =
-        IsWellFormedUnitIdentifier(isolate, unit);
+        IsWellFormedUnitIdentifier(isolate, unit_stdstr);
     if (maybe_wellformed_unit.IsNothing()) {
       THROW_NEW_ERROR(
           isolate,
           NewRangeError(MessageTemplate::kInvalidUnit,
-                        factory->NewStringFromAsciiChecked(service),
-                        factory->NewStringFromAsciiChecked(unit.c_str())));
+                        factory->NewStringFromAsciiChecked(service), unit_str));
     }
     unit_pair = maybe_wellformed_unit.FromJust();
   } else {
@@ -1259,8 +1262,9 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
   // 13. Let unitDisplay be ? GetOption(options, "unitDisplay", "string", «
   // "short", "narrow", "long" »,  "short").
   Maybe<UnitDisplay> maybe_unit_display = GetStringOption<UnitDisplay>(
-      isolate, options, "unitDisplay", service, {"short", "narrow", "long"},
-      {UnitDisplay::SHORT, UnitDisplay::NARROW, UnitDisplay::LONG},
+      isolate, options, "unitDisplay", service,
+      std::to_array<const std::string_view>({"short", "narrow", "long"}),
+      std::array{UnitDisplay::SHORT, UnitDisplay::NARROW, UnitDisplay::LONG},
       UnitDisplay::SHORT);
   MAYBE_RETURN(maybe_unit_display, MaybeDirectHandle<JSNumberFormat>());
   UnitDisplay unit_display = maybe_unit_display.FromJust();
@@ -1331,9 +1335,10 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
       isolate, notation,
       GetStringOption<Notation>(
           isolate, options, "notation", service,
-          {"standard", "scientific", "engineering", "compact"},
-          {Notation::STANDARD, Notation::SCIENTIFIC, Notation::ENGINEERING,
-           Notation::COMPACT},
+          std::to_array<const std::string_view>(
+              {"standard", "scientific", "engineering", "compact"}),
+          std::array{Notation::STANDARD, Notation::SCIENTIFIC,
+                     Notation::ENGINEERING, Notation::COMPACT},
           Notation::STANDARD),
       DirectHandle<JSNumberFormat>());
   // xx. Set numberFormat.[[Notation]] to notation.
@@ -1385,8 +1390,10 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
   // 28. Let compactDisplay be ? GetOption(options, "compactDisplay",
   // "string", « "short", "long" »,  "short").
   Maybe<CompactDisplay> maybe_compact_display = GetStringOption<CompactDisplay>(
-      isolate, options, "compactDisplay", service, {"short", "long"},
-      {CompactDisplay::SHORT, CompactDisplay::LONG}, CompactDisplay::SHORT);
+      isolate, options, "compactDisplay", service,
+      std::to_array<const std::string_view>({"short", "long"}),
+      std::array{CompactDisplay::SHORT, CompactDisplay::LONG},
+      CompactDisplay::SHORT);
   MAYBE_RETURN(maybe_compact_display, MaybeDirectHandle<JSNumberFormat>());
   CompactDisplay compact_display = maybe_compact_display.FromJust();
 
@@ -1410,8 +1417,9 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
   // 30. Let useGrouping be ? GetStringOrBooleanOption(options, "useGrouping",
   // « "min2", "auto", "always" », "always", false, defaultUseGrouping).
   Maybe<UseGrouping> maybe_use_grouping = GetStringOrBooleanOption<UseGrouping>(
-      isolate, options, "useGrouping", service, {"min2", "auto", "always"},
-      {UseGrouping::MIN2, UseGrouping::AUTO, UseGrouping::ALWAYS},
+      isolate, options, "useGrouping", service,
+      std::to_array<const std::string_view>({"min2", "auto", "always"}),
+      std::array{UseGrouping::MIN2, UseGrouping::AUTO, UseGrouping::ALWAYS},
       UseGrouping::ALWAYS,    // trueValue
       UseGrouping::OFF,       // falseValue
       default_use_grouping);  // fallbackValue
@@ -1427,9 +1435,10 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
   Maybe<SignDisplay> maybe_sign_display = Nothing<SignDisplay>();
   maybe_sign_display = GetStringOption<SignDisplay>(
       isolate, options, "signDisplay", service,
-      {"auto", "never", "always", "exceptZero", "negative"},
-      {SignDisplay::AUTO, SignDisplay::NEVER, SignDisplay::ALWAYS,
-       SignDisplay::EXCEPT_ZERO, SignDisplay::NEGATIVE},
+      std::to_array<const std::string_view>(
+          {"auto", "never", "always", "exceptZero", "negative"}),
+      std::array{SignDisplay::AUTO, SignDisplay::NEVER, SignDisplay::ALWAYS,
+                 SignDisplay::EXCEPT_ZERO, SignDisplay::NEGATIVE},
       SignDisplay::AUTO);
   MAYBE_RETURN(maybe_sign_display, MaybeDirectHandle<JSNumberFormat>());
   SignDisplay sign_display = maybe_sign_display.FromJust();
@@ -1501,8 +1510,8 @@ icu::number::FormattedNumber FormatDecimalString(
         reinterpret_cast<const char*>(flat.ToOneByteVector().begin());
     return number_format.formatDecimal({char_buffer, length}, status);
   }
-  return number_format.formatDecimal({string->ToCString().get(), length},
-                                     status);
+  auto converted = string->ToStdString();
+  return number_format.formatDecimal(converted, status);
 }
 
 }  // namespace
@@ -1561,9 +1570,9 @@ Maybe<icu::number::FormattedNumber> IcuFormatNumber(
         // The value will be "123456789" only in ASCII range, but encoded
         // in two bytes string.
         // ICU accepts UTF8 string, so if the source is two-byte encoded,
-        // copy into a UTF8 string via ToCString.
-        formatted = number_format.formatDecimal(
-            {string->ToCString().get(), length}, status);
+        // copy into a UTF8 string via ToStdString.
+        auto std_string = string->ToStdString();
+        formatted = number_format.formatDecimal(std_string, status);
       }
     } else {
       double number = IsNaN(*numeric_obj)
@@ -1796,7 +1805,8 @@ Maybe<icu::Formattable> IntlMathematicalValue::ToFormattable(
           status);
       if (U_SUCCESS(status)) return Just(result);
     } else {
-      icu::Formattable result({string->ToCString().get(), length}, status);
+      auto converted = string->ToStdString();
+      icu::Formattable result(converted, status);
       if (U_SUCCESS(status)) return Just(result);
     }
   }
@@ -2107,12 +2117,12 @@ JSNumberFormat::GetRangeFormatter(
     const icu::number::LocalizedNumberFormatter& number_formatter) {
   UErrorCode status = U_ZERO_ERROR;
   UParseError perror;
+  auto locale_str = locale->ToStdString();
   icu::number::LocalizedNumberRangeFormatter range_formatter =
       icu::number::UnlocalizedNumberRangeFormatter()
           .numberFormatterBoth(icu::number::NumberFormatter::forSkeleton(
               number_formatter.toSkeleton(status), perror, status))
-          .locale(
-              icu::Locale::forLanguageTag(locale->ToCString().get(), status));
+          .locale(icu::Locale::forLanguageTag(locale_str, status));
   if (U_FAILURE(status)) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate, NewTypeError(MessageTemplate::kIcuError),

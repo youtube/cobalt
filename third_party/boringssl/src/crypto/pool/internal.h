@@ -15,8 +15,6 @@
 #ifndef OPENSSL_HEADER_CRYPTO_POOL_INTERNAL_H
 #define OPENSSL_HEADER_CRYPTO_POOL_INTERNAL_H
 
-#include <openssl/thread.h>
-
 #include "../internal.h"
 #include "../lhash/internal.h"
 

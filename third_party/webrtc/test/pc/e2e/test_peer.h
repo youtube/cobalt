@@ -151,8 +151,7 @@ class TestPeer final : public StatsProvider {
   }
 
   // Adds provided `candidates` to the owned peer connection.
-  bool AddIceCandidates(
-      std::vector<std::unique_ptr<IceCandidateInterface>> candidates);
+  bool AddIceCandidates(std::vector<std::unique_ptr<IceCandidate>> candidates);
 
   // Closes underlying peer connection and destroys all related objects freeing
   // up related resources.
@@ -185,7 +184,7 @@ class TestPeer final : public StatsProvider {
   std::unique_ptr<PeerConnectionWrapper> wrapper_;
   std::vector<PeerConfigurer::VideoSource> video_sources_;
 
-  std::vector<std::unique_ptr<IceCandidateInterface>> remote_ice_candidates_;
+  std::vector<std::unique_ptr<IceCandidate>> remote_ice_candidates_;
 };
 
 }  // namespace webrtc_pc_e2e

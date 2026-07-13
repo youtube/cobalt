@@ -29,6 +29,7 @@
 #include "api/environment/environment.h"
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
+#include "api/local_network_access_permission.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
 #include "api/rtc_event_log/rtc_event_log.h"
@@ -145,6 +146,7 @@ class JsepTransportController : public PayloadTypeSuggester,
       Thread* network_thread,
       PortAllocator* port_allocator,
       AsyncDnsResolverFactoryInterface* async_dns_resolver_factory,
+      LocalNetworkAccessPermissionFactoryInterface* lna_permission_factory,
       PayloadTypePicker& payload_type_picker,
       Config config);
   virtual ~JsepTransportController();
@@ -480,6 +482,8 @@ class JsepTransportController : public PayloadTypeSuggester,
   Thread* const network_thread_ = nullptr;
   PortAllocator* const port_allocator_ = nullptr;
   AsyncDnsResolverFactoryInterface* const async_dns_resolver_factory_ = nullptr;
+  LocalNetworkAccessPermissionFactoryInterface* const lna_permission_factory_ =
+      nullptr;
 
   JsepTransportCollection transports_ RTC_GUARDED_BY(network_thread_);
   // Aggregate states for Transports.

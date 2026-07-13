@@ -2043,7 +2043,7 @@ static bool RSASigGen(const Span<const uint8_t> args[],
   size_t sig_len;
   if (UsePSS) {
     if (!RSA_sign_pss_mgf1(key, &sig_len, sig.data(), sig.size(), digest_buf,
-                           digest_len, md, md, -1)) {
+                           digest_len, md, md, RSA_PSS_SALTLEN_DIGEST)) {
       return false;
     }
   } else {
@@ -2087,8 +2087,8 @@ static bool RSASigVer(const Span<const uint8_t> args[],
 
   uint8_t ok;
   if (UsePSS) {
-    ok = RSA_verify_pss_mgf1(key.get(), digest_buf, digest_len, md, md, -1,
-                             sig.data(), sig.size());
+    ok = RSA_verify_pss_mgf1(key.get(), digest_buf, digest_len, md, md,
+                             RSA_PSS_SALTLEN_DIGEST, sig.data(), sig.size());
   } else {
     ok = RSA_verify(EVP_MD_type(md), digest_buf, digest_len, sig.data(),
                     sig.size(), key.get());

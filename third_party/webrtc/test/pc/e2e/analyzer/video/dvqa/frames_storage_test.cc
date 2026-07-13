@@ -11,7 +11,9 @@
 #include "test/pc/e2e/analyzer/video/dvqa/frames_storage.h"
 
 #include <cstdint>
+#include <cstring>
 #include <memory>
+#include <optional>
 
 #include "api/scoped_refptr.h"
 #include "api/test/time_controller.h"

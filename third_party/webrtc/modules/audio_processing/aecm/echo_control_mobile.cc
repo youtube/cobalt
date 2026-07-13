@@ -10,18 +10,20 @@
 
 #include "modules/audio_processing/aecm/echo_control_mobile.h"
 
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #ifdef AEC_DEBUG
-#include <stdio.h>
+#include <cstdio>
 #endif
-#include <stdlib.h>
-#include <string.h>
+
+#include "modules/audio_processing/aecm/aecm_core.h"
 
 extern "C" {
 #include "common_audio/ring_buffer.h"
 #include "common_audio/signal_processing/include/signal_processing_library.h"
 #include "modules/audio_processing/aecm/aecm_defines.h"
 }
-#include "modules/audio_processing/aecm/aecm_core.h"
 
 namespace webrtc {
 
@@ -33,12 +35,12 @@ namespace {
 // The factor of 2 handles wb, and the + 1 is as a safety margin
 #define MAX_RESAMP_LEN (5 * FRAME_LEN)
 
-static const size_t kBufSizeSamp =
+const size_t kBufSizeSamp =
     BUF_SIZE_FRAMES * FRAME_LEN;  // buffer size (samples)
-static const int kSampMsNb = 8;   // samples per ms in nb
+const int kSampMsNb = 8;          // samples per ms in nb
 // Target suppression levels for nlp modes
 // log{0.001, 0.00001, 0.00000001}
-static const int kInitCheck = 42;
+const int kInitCheck = 42;
 
 typedef struct {
   int sampFreq;

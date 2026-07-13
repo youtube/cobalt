@@ -92,7 +92,7 @@ using ::testing::SizeIs;
 class MockRtpPacketPacer : public RtpPacketSender {
  public:
   MockRtpPacketPacer() {}
-  virtual ~MockRtpPacketPacer() {}
+  ~MockRtpPacketPacer() override {}
 
   MOCK_METHOD(void,
               EnqueuePackets,

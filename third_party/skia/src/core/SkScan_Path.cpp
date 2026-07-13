@@ -537,7 +537,7 @@ SkScanClipper::SkScanClipper(SkBlitter* blitter, const SkRegion* clip,
 
 static bool clip_to_limit(const SkRegion& orig, SkRegion* reduced) {
     // need to limit coordinates such that the width/height of our rect can be represented
-    // in SkFixed (16.16). See skbug.com/7998
+    // in SkFixed (16.16). See skbug.com/40039252
     const int32_t limit = 32767 >> 1;
 
     SkIRect limitR;
@@ -728,16 +728,13 @@ void SkScan::FillTriangle(const SkPoint pts[], const SkRasterClip& clip,
         return;
     }
 
-    SkRect  r;
-    r.setBounds(pts, 3);
+    const auto r = SkRect::BoundsOrEmpty({pts, 3});
     // If r is too large (larger than can easily fit in SkFixed) then we need perform geometric
     // clipping. This is a bit of work, so we just call the general FillPath() to handle it.
     // Use FixedMax/2 as the limit so we can subtract two edges and still store that in Fixed.
     const SkScalar limit = SK_MaxS16 >> 1;
     if (!SkRect::MakeLTRB(-limit, -limit, limit, limit).contains(r)) {
-        SkPath path;
-        path.addPoly(pts, 3, false);
-        FillPath(path, clip, blitter);
+        FillPath(SkPath::Polygon({pts, 3}, false), clip, blitter);
         return;
     }
 

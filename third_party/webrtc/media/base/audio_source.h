@@ -19,7 +19,7 @@ namespace webrtc {
 
 // Abstract interface for providing the audio data.
 // TODO(deadbeef): Rename this to AudioSourceInterface, and rename
-// webrtc::AudioSourceInterface to AudioTrackSourceInterface.
+// AudioSourceInterface to AudioTrackSourceInterface.
 class AudioSource {
  public:
   class Sink {

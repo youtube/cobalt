@@ -10,8 +10,14 @@
 
 #include "test/testsupport/copy_to_file_audio_capturer.h"
 
+#include <cstdint>
 #include <memory>
+#include <string>
 #include <utility>
+
+#include "common_audio/wav_file.h"
+#include "modules/audio_device/include/test_audio_device.h"
+#include "rtc_base/buffer.h"
 
 namespace webrtc {
 namespace test {

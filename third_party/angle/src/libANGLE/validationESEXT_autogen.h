@@ -1412,6 +1412,32 @@ bool ValidateBufferStorageExternalEXT(const Context *context,
 
 // GL_EXT_float_blend
 
+// GL_EXT_fragment_shading_rate
+bool ValidateFramebufferShadingRateEXT(const Context *context,
+                                       angle::EntryPoint entryPoint,
+                                       GLenum target,
+                                       GLenum attachment,
+                                       GLuint texture,
+                                       GLint baseLayer,
+                                       GLsizei numLayers,
+                                       GLsizei texelWidth,
+                                       GLsizei texelHeight);
+bool ValidateGetFragmentShadingRatesEXT(const Context *context,
+                                        angle::EntryPoint entryPoint,
+                                        GLsizei samples,
+                                        GLsizei maxCount,
+                                        const GLsizei *count,
+                                        const GLenum *shadingRates);
+bool ValidateShadingRateEXT(const PrivateState &state,
+                            ErrorSet *errors,
+                            angle::EntryPoint entryPoint,
+                            GLenum rate);
+bool ValidateShadingRateCombinerOpsEXT(const PrivateState &state,
+                                       ErrorSet *errors,
+                                       angle::EntryPoint entryPoint,
+                                       GLenum combinerOp0,
+                                       GLenum combinerOp1);
+
 // GL_EXT_geometry_shader
 bool ValidateFramebufferTextureEXT(const Context *context,
                                    angle::EntryPoint entryPoint,
@@ -1696,7 +1722,7 @@ bool ValidateCreateShaderProgramvEXT(const Context *context,
                                      angle::EntryPoint entryPoint,
                                      ShaderType typePacked,
                                      GLsizei count,
-                                     const GLchar **strings);
+                                     const GLchar *const *strings);
 bool ValidateDeleteProgramPipelinesEXT(const Context *context,
                                        angle::EntryPoint entryPoint,
                                        GLsizei n,
@@ -2273,6 +2299,8 @@ bool ValidateBlitFramebufferNV(const Context *context,
                                GLint dstY1,
                                GLbitfield mask,
                                GLenum filter);
+
+// GL_NV_pack_subimage
 
 // GL_NV_pixel_buffer_object
 

@@ -51,8 +51,10 @@
 
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 #define IF_UD(Macro, ...) Macro(__VA_ARGS__)
+#define IF_NOT_UD(Macro, ...)
 #else
 #define IF_UD(Macro, ...)
+#define IF_NOT_UD(Macro, ...) Macro(__VA_ARGS__)
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 namespace v8 {
@@ -106,6 +108,11 @@ class ExceptionHandlerInfo;
 
 #define INT32_OPERATIONS_NODE_LIST(V) \
   V(Int32AbsWithOverflow)             \
+  V(Int32Add)                         \
+  V(Int32Subtract)                    \
+  V(Int32Multiply)                    \
+  V(Int32MultiplyOverflownBits)       \
+  V(Int32Divide)                      \
   V(Int32AddWithOverflow)             \
   V(Int32SubtractWithOverflow)        \
   V(Int32MultiplyWithOverflow)        \
@@ -144,7 +151,6 @@ class ExceptionHandlerInfo;
 
 #define CONSTANT_VALUE_NODE_LIST(V) \
   V(Constant)                       \
-  V(ExternalConstant)               \
   V(Float64Constant)                \
   V(Int32Constant)                  \
   V(Uint32Constant)                 \
@@ -294,8 +300,9 @@ class ExceptionHandlerInfo;
   V(CheckedHoleyFloat64ToFloat64)                   \
   V(HoleyFloat64ToMaybeNanFloat64)                  \
   IF_UD(V, Float64ToHoleyFloat64)                   \
-  IF_UD(V, HoleyFloat64ToFloat64OrUndefined)        \
-  V(HoleyFloat64IsHole)                             \
+  IF_UD(V, ConvertHoleNanToUndefinedNan)            \
+  IF_UD(V, HoleyFloat64IsUndefinedOrHole)           \
+  IF_NOT_UD(V, HoleyFloat64IsHole)                  \
   V(LogicalNot)                                     \
   V(SetPendingMessage)                              \
   V(StringAt)                                       \
@@ -360,6 +367,7 @@ class ExceptionHandlerInfo;
   V(CheckString)                              \
   V(CheckSeqOneByteString)                    \
   V(CheckStringOrStringWrapper)               \
+  V(CheckStringOrOddball)                     \
   V(CheckSymbol)                              \
   V(CheckValue)                               \
   V(CheckValueEqualsInt32)                    \
@@ -405,21 +413,22 @@ class ExceptionHandlerInfo;
   NON_VALUE_NODE_LIST(V) \
   VALUE_NODE_LIST(V)
 
-#define BRANCH_CONTROL_NODE_LIST(V) \
-  V(BranchIfSmi)                    \
-  V(BranchIfRootConstant)           \
-  V(BranchIfToBooleanTrue)          \
-  V(BranchIfInt32ToBooleanTrue)     \
-  V(BranchIfIntPtrToBooleanTrue)    \
-  V(BranchIfFloat64ToBooleanTrue)   \
-  V(BranchIfFloat64IsHole)          \
-  V(BranchIfReferenceEqual)         \
-  V(BranchIfInt32Compare)           \
-  V(BranchIfUint32Compare)          \
-  V(BranchIfFloat64Compare)         \
-  V(BranchIfUndefinedOrNull)        \
-  V(BranchIfUndetectable)           \
-  V(BranchIfJSReceiver)             \
+#define BRANCH_CONTROL_NODE_LIST(V)          \
+  V(BranchIfSmi)                             \
+  V(BranchIfRootConstant)                    \
+  V(BranchIfToBooleanTrue)                   \
+  V(BranchIfInt32ToBooleanTrue)              \
+  V(BranchIfIntPtrToBooleanTrue)             \
+  V(BranchIfFloat64ToBooleanTrue)            \
+  V(BranchIfFloat64IsHole)                   \
+  IF_UD(V, BranchIfFloat64IsUndefinedOrHole) \
+  V(BranchIfReferenceEqual)                  \
+  V(BranchIfInt32Compare)                    \
+  V(BranchIfUint32Compare)                   \
+  V(BranchIfFloat64Compare)                  \
+  V(BranchIfUndefinedOrNull)                 \
+  V(BranchIfUndetectable)                    \
+  V(BranchIfJSReceiver)                      \
   V(BranchIfTypeOf)
 
 #define CONDITIONAL_CONTROL_NODE_LIST(V) \
@@ -515,10 +524,13 @@ constexpr bool IsCommutativeNode(Opcode opcode) {
     case Opcode::kFloat64Add:
     case Opcode::kFloat64Multiply:
     case Opcode::kGenericStrictEqual:
+    case Opcode::kInt32Add:
     case Opcode::kInt32AddWithOverflow:
     case Opcode::kInt32BitwiseAnd:
     case Opcode::kInt32BitwiseOr:
     case Opcode::kInt32BitwiseXor:
+    case Opcode::kInt32Multiply:
+    case Opcode::kInt32MultiplyOverflownBits:
     case Opcode::kInt32MultiplyWithOverflow:
     case Opcode::kStringEqual:
     case Opcode::kTaggedEqual:
@@ -662,11 +674,13 @@ inline constexpr bool IsZeroExtendedRepresentation(ValueRepresentation repr) {
   V(OtherSeqOneByteString, (1 << 9))                \
   V(OtherString, (1 << 10))                         \
                                                     \
-  V(StringWrapper, (1 << 11))                       \
-  V(JSArray, (1 << 12))                             \
-  V(Callable, (1 << 13))                            \
-  V(OtherJSReceiver, (1 << 14))                     \
-  V(OtherHeapObject, (1 << 15))
+  V(Context, (1 << 11))                             \
+  V(StringWrapper, (1 << 12))                       \
+  V(JSArray, (1 << 13))                             \
+  V(JSFunction, (1 << 14))                          \
+  V(OtherCallable, (1 << 15))                       \
+  V(OtherHeapObject, (1 << 16))                     \
+  V(OtherJSReceiver, (1 << 17))
 
 #define COUNT(...) +1
 static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
@@ -675,10 +689,10 @@ static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
 #define COMBINED_NODE_TYPE_LIST(V)                                        \
   /* A value which has all the above bits set */                          \
   V(Unknown, ((1 << kNumberOfLeafNodeTypes) - 1))                         \
+  V(Callable, kJSFunction | kOtherCallable)                               \
   V(NullOrUndefined, kNull | kUndefined)                                  \
   V(Oddball, kNullOrUndefined | kBoolean)                                 \
   V(Number, kSmi | kHeapNumber)                                           \
-  V(NumberOrUndefined, kNumber | kUndefined)                              \
   V(NumberOrBoolean, kNumber | kBoolean)                                  \
   V(NumberOrOddball, kNumber | kOddball)                                  \
   V(InternalizedString, kROSeqInternalizedOneByteString |                 \
@@ -689,6 +703,7 @@ static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
                           kOtherSeqOneByteString)                         \
   V(String, kInternalizedString | kSeqOneByteString | kOtherString)       \
   V(StringOrStringWrapper, kString | kStringWrapper)                      \
+  V(StringOrOddball, kString | kOddball)                                  \
   V(Name, kString | kSymbol)                                              \
   V(JSReceiver, kJSArray | kCallable | kStringWrapper | kOtherJSReceiver) \
   V(JSReceiverOrNullOrUndefined, kJSReceiver | kNullOrUndefined)          \
@@ -711,6 +726,7 @@ inline constexpr bool NodeTypeIsNeverStandalone(NodeType type) {
   switch (type) {
     // "Other" string types should be considered internal and never appear as
     // standalone leaf types.
+    case NodeType::kOtherCallable:
     case NodeType::kOtherInternalizedString:
     case NodeType::kOtherSeqInternalizedOneByteString:
     case NodeType::kOtherSeqOneByteString:
@@ -853,7 +869,9 @@ inline NodeType StaticTypeForMap(compiler::MapRef map,
     // Oddball but not a Boolean.
     return NodeType::kNullOrUndefined;
   }
+  if (map.IsContextMap()) return NodeType::kContext;
   if (map.IsJSArrayMap()) return NodeType::kJSArray;
+  if (map.IsJSFunctionMap()) return NodeType::kJSFunction;
   if (map.is_callable()) {
     return NodeType::kCallable;
   }
@@ -914,16 +932,23 @@ inline bool IsInstanceOfLeafNodeType(compiler::MapRef map, NodeType type,
       return map.IsInternalizedStringMap();
     case NodeType::kStringWrapper:
       return map.IsStringWrapperMap();
+    case NodeType::kContext:
+      return map.IsContextMap();
     case NodeType::kJSArray:
       return map.IsJSArrayMap();
+    case NodeType::kJSFunction:
+      return map.IsJSFunctionMap();
     case NodeType::kCallable:
       return map.is_callable();
+    case NodeType::kOtherCallable:
+      return map.is_callable() && !map.IsJSFunctionMap();
     case NodeType::kOtherJSReceiver:
       return map.IsJSReceiverMap() && !map.IsJSArrayMap() &&
              !map.is_callable() && !map.IsStringWrapperMap();
     case NodeType::kOtherHeapObject:
       return !map.IsHeapNumberMap() && !map.IsOddballMap() &&
-             !map.IsSymbolMap() && !map.IsStringMap() && !map.IsJSReceiverMap();
+             !map.IsContextMap() && !map.IsSymbolMap() && !map.IsStringMap() &&
+             !map.IsJSReceiverMap();
     default:
       UNREACHABLE();
   }
@@ -2303,18 +2328,7 @@ class NodeBase : public ZoneObject {
     set_properties(new_properties);
   }
 
-  void OverwriteWithIdentityTo(ValueNode* node) {
-    // OverwriteWith() checks if the node we're overwriting to has the same
-    // input count and the same properties. Here we don't need to do that, since
-    // overwriting with a node with property pure, we only need to check if
-    // there is at least 1 input. Since the first input is always the one
-    // closest to the input_base().
-    DCHECK_GE(input_count(), 1);
-    set_opcode(NodeBase::opcode_of<Identity>);
-    set_properties(OpProperties::Pure());
-    bitfield_ = InputCountField::update(bitfield_, 1);
-    change_input(0, node);
-  }
+  inline void OverwriteWithIdentityTo(ValueNode* node);
 
   auto options() const { return std::tuple{}; }
 
@@ -2625,11 +2639,7 @@ class ValueNode : public Node {
     DCHECK_LT(use_count_, kMaxInt);
     use_count_++;
   }
-  void remove_use() {
-    // Make sure a saturated use count won't drop below zero.
-    DCHECK_GT(use_count_, 0);
-    use_count_--;
-  }
+  inline void remove_use();
   // Avoid revisiting nodes when processing an unused node's inputs, by marking
   // it as visited.
   void mark_unused_inputs_visited() {
@@ -2781,6 +2791,15 @@ class ValueNode : public Node {
     }
   }
 
+  compiler::OptionalHeapObjectRef TryGetConstant(
+      compiler::JSHeapBroker* broker);
+
+  NodeType GetStaticType(compiler::JSHeapBroker* broker);
+
+  bool StaticTypeIs(compiler::JSHeapBroker* broker, NodeType type) {
+    return NodeTypeIs(GetStaticType(broker), type);
+  }
+
   void InitializeRegisterData() {
     if (use_double_register()) {
       double_registers_with_result_ = kEmptyDoubleRegList;
@@ -2909,16 +2928,6 @@ inline void NodeBase::set_input(int index, ValueNode* node) {
   DCHECK_EQ(input(index).node(), nullptr);
   node->add_use();
   new (&input(index)) Input(node);
-}
-
-inline void NodeBase::change_input(int index, ValueNode* node) {
-  DCHECK_NE(input(index).node(), nullptr);
-  input(index).node()->remove_use();
-
-#ifdef DEBUG
-  input(index) = Input(nullptr);
-#endif
-  set_input(index, node);
 }
 
 template <>
@@ -3218,12 +3227,37 @@ class Int32BinaryNode : public FixedInputValueNodeT<2, Derived> {
 
 #define DEF_INT32_BINARY_NODE(Name) \
   DEF_OPERATION_NODE(Int32##Name, Int32BinaryNode, Name)
+DEF_INT32_BINARY_NODE(Add)
+DEF_INT32_BINARY_NODE(Subtract)
+DEF_INT32_BINARY_NODE(Multiply)
+DEF_INT32_BINARY_NODE(Divide)
 DEF_INT32_BINARY_NODE(BitwiseAnd)
 DEF_INT32_BINARY_NODE(BitwiseOr)
 DEF_INT32_BINARY_NODE(BitwiseXor)
 DEF_INT32_BINARY_NODE(ShiftLeft)
 DEF_INT32_BINARY_NODE(ShiftRight)
 #undef DEF_INT32_BINARY_NODE
+
+class Int32MultiplyOverflownBits
+    : public FixedInputValueNodeT<2, Int32MultiplyOverflownBits> {
+  using Base = FixedInputValueNodeT<2, Int32MultiplyOverflownBits>;
+
+ public:
+  explicit Int32MultiplyOverflownBits(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Int32();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kInt32, ValueRepresentation::kInt32};
+
+  static constexpr int kLeftIndex = 0;
+  static constexpr int kRightIndex = 1;
+  Input& left_input() { return Node::input(kLeftIndex); }
+  Input& right_input() { return Node::input(kRightIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
 
 class Int32BitwiseNot : public FixedInputValueNodeT<1, Int32BitwiseNot> {
   using Base = FixedInputValueNodeT<1, Int32BitwiseNot>;
@@ -3961,6 +3995,9 @@ class Float64Constant : public FixedInputValueNodeT<0, Float64Constant> {
   explicit Float64Constant(uint64_t bitfield, Float64 value)
       : Base(bitfield), value_(value) {}
 
+  explicit Float64Constant(uint64_t bitfield, uint64_t bitpattern)
+      : Base(bitfield), value_(Float64::FromBits(bitpattern)) {}
+
   static constexpr OpProperties kProperties = OpProperties::Float64();
 
   Float64 value() const { return value_; }
@@ -4642,16 +4679,28 @@ class CheckedNumberOrOddballToFloat64
 };
 
 class CheckedNumberOrOddballToHoleyFloat64
-    : public CheckedNumberOrOddballToFloat64OrHoleyFloat64<
-          CheckedNumberOrOddballToHoleyFloat64,
-          ValueRepresentation::kHoleyFloat64> {
-  using Base = CheckedNumberOrOddballToFloat64OrHoleyFloat64<
-      CheckedNumberOrOddballToHoleyFloat64, ValueRepresentation::kHoleyFloat64>;
+    : public FixedInputValueNodeT<1, CheckedNumberOrOddballToHoleyFloat64> {
+  using Base = FixedInputValueNodeT<1, CheckedNumberOrOddballToHoleyFloat64>;
 
  public:
-  explicit CheckedNumberOrOddballToHoleyFloat64(
-      uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
-      : Base(bitfield, conversion_type) {}
+  explicit CheckedNumberOrOddballToHoleyFloat64(uint64_t bitfield)
+      : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
+                                              OpProperties::HoleyFloat64() |
+                                              OpProperties::ConversionNode();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  Input& input() { return Node::input(0); }
+
+  DeoptimizeReason deoptimize_reason() const {
+    return DeoptimizeReason::kNotANumberOrOddball;
+  }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class CheckedNumberToInt32
@@ -4766,13 +4815,12 @@ class Float64ToHoleyFloat64
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
-class HoleyFloat64ToFloat64OrUndefined
-    : public FixedInputValueNodeT<1, HoleyFloat64ToFloat64OrUndefined> {
-  using Base = FixedInputValueNodeT<1, HoleyFloat64ToFloat64OrUndefined>;
+class ConvertHoleNanToUndefinedNan
+    : public FixedInputValueNodeT<1, ConvertHoleNanToUndefinedNan> {
+  using Base = FixedInputValueNodeT<1, ConvertHoleNanToUndefinedNan>;
 
  public:
-  explicit HoleyFloat64ToFloat64OrUndefined(uint64_t bitfield)
-      : Base(bitfield) {}
+  explicit ConvertHoleNanToUndefinedNan(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::HoleyFloat64();
   static constexpr
@@ -4785,7 +4833,25 @@ class HoleyFloat64ToFloat64OrUndefined
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+
+class HoleyFloat64IsUndefinedOrHole
+    : public FixedInputValueNodeT<1, HoleyFloat64IsUndefinedOrHole> {
+  using Base = FixedInputValueNodeT<1, HoleyFloat64IsUndefinedOrHole>;
+
+ public:
+  explicit HoleyFloat64IsUndefinedOrHole(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+#else
 
 class HoleyFloat64IsHole : public FixedInputValueNodeT<1, HoleyFloat64IsHole> {
   using Base = FixedInputValueNodeT<1, HoleyFloat64IsHole>;
@@ -4802,6 +4868,8 @@ class HoleyFloat64IsHole : public FixedInputValueNodeT<1, HoleyFloat64IsHole> {
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
+
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 class TruncateNumberOrOddballToInt32
     : public FixedInputValueNodeT<1, TruncateNumberOrOddballToInt32> {
@@ -4948,11 +5016,16 @@ class ToBooleanLogicalNot
   using CheckTypeBitField = NextBitField<CheckType, 1>;
 };
 
+// With StringEqualInputs::kStringsOrOddballs StringEqual allows non-string
+// objects which are then compared with pointer equality (they will never be
+// equal to a String and they're equal to each other if the pointers are equal).
+enum class StringEqualInputs { kOnlyStrings, kStringsOrOddballs };
 class StringEqual : public FixedInputValueNodeT<2, StringEqual> {
   using Base = FixedInputValueNodeT<2, StringEqual>;
 
  public:
-  explicit StringEqual(uint64_t bitfield) : Base(bitfield) {}
+  explicit StringEqual(uint64_t bitfield, StringEqualInputs inputs)
+      : Base(bitfield), inputs_(inputs) {}
   static constexpr OpProperties kProperties = OpProperties::Call() |
                                               OpProperties::LazyDeopt() |
                                               OpProperties::CanAllocate();
@@ -4967,6 +5040,12 @@ class StringEqual : public FixedInputValueNodeT<2, StringEqual> {
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+  StringEqualInputs inputs() const { return inputs_; }
+  auto options() const { return std::tuple(inputs_); }
+
+ private:
+  StringEqualInputs inputs_;
 };
 
 class TaggedEqual : public FixedInputValueNodeT<2, TaggedEqual> {
@@ -5019,7 +5098,8 @@ class TestInstanceOf : public FixedInputValueNodeT<3, TestInstanceOf> {
   using Base = FixedInputValueNodeT<3, TestInstanceOf>;
 
  public:
-  explicit TestInstanceOf(uint64_t bitfield, compiler::FeedbackSource feedback)
+  explicit TestInstanceOf(uint64_t bitfield,
+                          const compiler::FeedbackSource& feedback)
       : Base(bitfield), feedback_(feedback) {}
 
   // The implementation currently calls runtime.
@@ -5031,7 +5111,7 @@ class TestInstanceOf : public FixedInputValueNodeT<3, TestInstanceOf> {
   Input& context() { return input(0); }
   Input& object() { return input(1); }
   Input& callable() { return input(2); }
-  compiler::FeedbackSource feedback() const { return feedback_; }
+  const compiler::FeedbackSource& feedback() const { return feedback_; }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -5504,8 +5584,10 @@ class SmiConstant : public FixedInputValueNodeT<0, SmiConstant> {
  public:
   using OutputRegister = Register;
 
-  explicit SmiConstant(uint64_t bitfield, Tagged<Smi> value)
-      : Base(bitfield), value_(value) {}
+  explicit SmiConstant(uint64_t bitfield, int32_t value)
+      : Base(bitfield), value_(Smi::FromInt(value)) {
+    DCHECK(Smi::IsValid(value));
+  }
 
   Tagged<Smi> value() const { return value_; }
 
@@ -5531,8 +5613,10 @@ class TaggedIndexConstant
  public:
   using OutputRegister = Register;
 
-  explicit TaggedIndexConstant(uint64_t bitfield, Tagged<TaggedIndex> value)
-      : Base(bitfield), value_(value) {}
+  explicit TaggedIndexConstant(uint64_t bitfield, int value)
+      : Base(bitfield), value_(TaggedIndex::FromIntptr(value)) {
+    DCHECK(TaggedIndex::IsValid(value));
+  }
 
   Tagged<TaggedIndex> value() const { return value_; }
 
@@ -5547,34 +5631,6 @@ class TaggedIndexConstant
 
  private:
   const Tagged<TaggedIndex> value_;
-};
-
-class ExternalConstant : public FixedInputValueNodeT<0, ExternalConstant> {
-  using Base = FixedInputValueNodeT<0, ExternalConstant>;
-
- public:
-  using OutputRegister = Register;
-
-  explicit ExternalConstant(uint64_t bitfield,
-                            const ExternalReference& reference)
-      : Base(bitfield), reference_(reference) {}
-
-  static constexpr OpProperties kProperties =
-      OpProperties::Pure() | OpProperties::ExternalReference();
-
-  ExternalReference reference() const { return reference_; }
-
-  bool ToBoolean(LocalIsolate* local_isolate) const { UNREACHABLE(); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
-
-  void DoLoadToRegister(MaglevAssembler*, OutputRegister);
-  DirectHandle<Object> DoReify(LocalIsolate* isolate) const;
-
- private:
-  const ExternalReference reference_;
 };
 
 class Constant : public FixedInputValueNodeT<0, Constant> {
@@ -6297,6 +6353,9 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
 
   int non_escaping_use_count() const { return non_escaping_use_count_; }
 
+  void RemoveNonEscapingUses(int n = 1) {
+    non_escaping_use_count_ = std::max(non_escaping_use_count_ - n, 0);
+  }
   void AddNonEscapingUses(int n = 1) {
     DCHECK(!HasBeenAnalysed());
     non_escaping_use_count_ += n;
@@ -6321,6 +6380,7 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
   }
   bool HasBeenElided() const {
     DCHECK(HasBeenAnalysed());
+    DCHECK_GE(use_count_, non_escaping_use_count_);
     return escape_analysis_result_ == EscapeAnalysisResult::kElided;
   }
   bool HasEscaped() const {
@@ -7245,6 +7305,31 @@ class CheckStringOrStringWrapper
 
  public:
   explicit CheckStringOrStringWrapper(uint64_t bitfield, CheckType check_type)
+      : Base(CheckTypeBitField::update(bitfield, check_type)) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  static constexpr int kReceiverIndex = 0;
+  Input& receiver_input() { return input(kReceiverIndex); }
+  CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+  auto options() const { return std::tuple{check_type()}; }
+
+ private:
+  using CheckTypeBitField = NextBitField<CheckType, 1>;
+};
+
+class CheckStringOrOddball : public FixedInputNodeT<1, CheckStringOrOddball> {
+  using Base = FixedInputNodeT<1, CheckStringOrOddball>;
+
+ public:
+  explicit CheckStringOrOddball(uint64_t bitfield, CheckType check_type)
       : Base(CheckTypeBitField::update(bitfield, check_type)) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
@@ -9870,6 +9955,7 @@ class Phi : public ValueNodeT<Phi> {
     return same_loop_uses_repr_hint_;
   }
 
+  NodeType post_loop_type() const { return post_loop_type_; }
   void merge_post_loop_type(NodeType type) {
     DCHECK(!has_key());
     post_loop_type_ = UnionType(post_loop_type_, type);
@@ -11640,6 +11726,28 @@ class BranchIfFloat64ToBooleanTrue
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+class BranchIfFloat64IsUndefinedOrHole
+    : public BranchControlNodeT<1, BranchIfFloat64IsUndefinedOrHole> {
+  using Base = BranchControlNodeT<1, BranchIfFloat64IsUndefinedOrHole>;
+
+ public:
+  explicit BranchIfFloat64IsUndefinedOrHole(uint64_t bitfield,
+                                            BasicBlockRef* if_true_refs,
+                                            BasicBlockRef* if_false_refs)
+      : Base(bitfield, if_true_refs, if_false_refs) {}
+
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
+
+  Input& condition_input() { return input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+
 class BranchIfFloat64IsHole
     : public BranchControlNodeT<1, BranchIfFloat64IsHole> {
   using Base = BranchControlNodeT<1, BranchIfFloat64IsHole>;
@@ -11840,9 +11948,6 @@ inline void NodeBase::ForAllInputsInRegallocAssignmentOrder(Function&& f) {
   iterate_inputs(InputAllocationPolicy::kArbitraryRegister);
   iterate_inputs(InputAllocationPolicy::kAny);
 }
-
-NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
-                           LocalIsolate* isolate, ValueNode* node);
 
 }  // namespace maglev
 }  // namespace internal

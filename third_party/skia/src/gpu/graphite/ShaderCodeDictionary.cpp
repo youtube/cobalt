@@ -1358,16 +1358,21 @@ ShaderCodeDictionary::ShaderCodeDictionary(
     };
 
     // SkColorFilter snippets
-    // TODO(b/349572157): investigate the implications of having separate hlsa and rgba matrix
-    // colorfilters. It may be that having them separate will not contribute to an explosion.
     fBuiltInCodeSnippets[(int) BuiltInCodeSnippetID::kMatrixColorFilter] = {
             /*name=*/"MatrixColorFilter",
             /*staticFn=*/"sk_matrix_colorfilter",
             SnippetRequirementFlags::kPriorStageOutput,
-            /*uniforms=*/{ { "matrix",    SkSLType::kFloat4x4 },
-                           { "translate", SkSLType::kFloat4 },
-                           { "inHSL",     SkSLType::kInt },
-                           { "clampRGB",  SkSLType::kInt } }
+            /*uniforms=*/{
+                           { "colorMatrix",    SkSLType::kHalf4x4 },
+                           { "colorTranslate", SkSLType::kHalf4 },
+                           { "minMaxRGB",      SkSLType::kHalf2 } }
+    };
+    fBuiltInCodeSnippets[(int) BuiltInCodeSnippetID::kHSLMatrixColorFilter] = {
+            /*name=*/"HSLMatrixColorFilter",
+            /*staticFn=*/"sk_hsl_matrix_colorfilter",
+            SnippetRequirementFlags::kPriorStageOutput,
+            /*uniforms=*/{ { "colorMatrix",    SkSLType::kHalf4x4 },
+                           { "colorTranslate", SkSLType::kHalf4 } }
     };
     fBuiltInCodeSnippets[(int) BuiltInCodeSnippetID::kTableColorFilter] = {
             /*name=*/"TableColorFilter",
@@ -1385,11 +1390,13 @@ ShaderCodeDictionary::ShaderCodeDictionary(
             /*name=*/"ColorSpaceTransform",
             /*staticFn=*/"sk_color_space_transform",
             SnippetRequirementFlags::kPriorStageOutput,
-            /*uniforms=*/{ { "gamut",       SkSLType::kHalf3x3 },
-                           { "srcGABC",     SkSLType::kHalf4 },
-                           { "srcDEF_args", SkSLType::kHalf4 },
-                           { "dstGABC",     SkSLType::kHalf4 },
-                           { "dstDEF_args", SkSLType::kHalf4 } }
+            /*uniforms=*/{ { "gamut",        SkSLType::kHalf3x3 },
+                           { "srcGABC",      SkSLType::kFloat4 },
+                           { "srcDEF_args",  SkSLType::kFloat4 },
+                           { "dstGABC",      SkSLType::kFloat4 },
+                           { "dstDEF_args",  SkSLType::kFloat4 },
+                           { "srcOOTF_args", SkSLType::kFloat4 },
+                           { "dstOOTF_args", SkSLType::kFloat4 } }
     };
 
     fBuiltInCodeSnippets[(int) BuiltInCodeSnippetID::kColorSpaceXformPremul] = {
@@ -1403,10 +1410,10 @@ ShaderCodeDictionary::ShaderCodeDictionary(
             /*staticFn=*/"sk_color_space_transform_srgb",
             SnippetRequirementFlags::kPriorStageOutput,
             /*uniforms=*/{ { "gamut",       SkSLType::kHalf3x3 },
-                           { "srcGABC",     SkSLType::kHalf4 },
-                           { "srcDEF_args", SkSLType::kHalf4 },
-                           { "dstGABC",     SkSLType::kHalf4 },
-                           { "dstDEF_args", SkSLType::kHalf4 } }
+                           { "srcGABC",     SkSLType::kFloat4 },
+                           { "srcDEF_args", SkSLType::kFloat4 },
+                           { "dstGABC",     SkSLType::kFloat4 },
+                           { "dstDEF_args", SkSLType::kFloat4 } }
     };
 
     fBuiltInCodeSnippets[(int) BuiltInCodeSnippetID::kPrimitiveColor] = {

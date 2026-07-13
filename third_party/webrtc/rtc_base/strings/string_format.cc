@@ -11,6 +11,8 @@
 #include "rtc_base/strings/string_format.h"
 
 #include <cstdarg>
+#include <cstdio>
+#include <string>
 
 #include "rtc_base/checks.h"
 

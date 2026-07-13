@@ -553,8 +553,7 @@ public abstract class CobaltActivity extends Activity {
       javascriptInjector.addPossiblyUnsafeInterface(
           javascriptAndroidObject,
           javascriptAndroidObject.getJavaScriptInterfaceName(),
-          CobaltJavaScriptInterface.class,
-          /* originAllowlist= */ new ArrayList<String>());
+          CobaltJavaScriptInterface.class);
     }
     }
 

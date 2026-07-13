@@ -12,7 +12,7 @@
 #include "src/codegen/code-stub-assembler-inl.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
-#include "src/ic/handler-configuration.h"
+#include "src/ic/handler-configuration-inl.h"
 #include "src/ic/ic.h"
 #include "src/ic/keyed-store-generic.h"
 #include "src/ic/stub-cache.h"
@@ -402,17 +402,10 @@ void AccessorAssembler::HandleLoadAccessor(
     TNode<Word32T> handler_word, TNode<DataHandler> handler,
     TNode<Uint32T> handler_kind, ExitPoint* exit_point) {
   Comment("api_getter");
-  // Context is stored either in data2 or data3 field depending on whether
-  // the access check is enabled for this handler or not.
-  TNode<MaybeObject> maybe_context = Select<MaybeObject>(
-      IsSetWord32<LoadHandler::DoAccessCheckOnLookupStartObjectBits>(
-          handler_word),
-      [=, this] { return LoadHandlerDataField(handler, 3); },
-      [=, this] { return LoadHandlerDataField(handler, 2); });
-
+  TNode<MaybeObject> maybe_context = LoadHandlerDataField(handler, 2);
   CSA_DCHECK(this, IsWeakOrCleared(maybe_context));
   CSA_CHECK(this, IsNotCleared(maybe_context));
-  TNode<HeapObject> context = GetHeapObjectAssumeWeak(maybe_context);
+  TNode<NativeContext> context = CAST(GetHeapObjectAssumeWeak(maybe_context));
   TNode<Int32T> argc = Int32Constant(0);
   TNode<Context> caller_context = p->context();
   exit_point->Return(CallBuiltin(Builtin::kCallApiCallbackGeneric, context,
@@ -770,7 +763,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
       global(this, Label::kDeferred), module_export(this, Label::kDeferred),
       proxy(this, Label::kDeferred),
       native_data_property(this, Label::kDeferred),
-      api_getter(this, Label::kDeferred);
+      api_getter(this, Label::kDeferred), generic(this, Label::kDeferred);
 
   GotoIf(Word32Equal(handler_kind, LOAD_KIND(kField)), &field);
 
@@ -795,8 +788,10 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
 
   GotoIf(Word32Equal(handler_kind, LOAD_KIND(kProxy)), &proxy);
 
-  Branch(Word32Equal(handler_kind, LOAD_KIND(kModuleExport)), &module_export,
-         &interceptor);
+  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kModuleExport)), &module_export);
+
+  Branch(Word32Equal(handler_kind, LOAD_KIND(kInterceptor)), &interceptor,
+         &generic);
 
   BIND(&field);
   {
@@ -964,6 +959,14 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
     }
   }
 
+  BIND(&generic);
+  {
+    Comment("load_generic");
+    exit_point->ReturnCallBuiltin(Builtin::kKeyedLoadIC_Megamorphic,
+                                  p->context(), p->receiver(), p->name(),
+                                  p->slot(), p->vector());
+  }
+
   BIND(&module_export);
   {
     Comment("module export");
@@ -1114,11 +1117,9 @@ TNode<Object> AccessorAssembler::HandleProtoHandler(
   //
   // Check prototype validity cell.
   //
-  {
-    TNode<Object> maybe_validity_cell =
-        LoadObjectField(handler, offsetof(ICHandler, validity_cell_));
-    CheckPrototypeValidityCell(maybe_validity_cell, miss);
-  }
+  TNode<Object> maybe_validity_cell =
+      LoadObjectField(handler, offsetof(ICHandler, validity_cell_));
+  CheckPrototypeValidityCell(maybe_validity_cell, miss);
 
   //
   // Check smi handler bits.
@@ -1161,10 +1162,12 @@ TNode<Object> AccessorAssembler::HandleProtoHandler(
 
       BIND(&if_do_access_check);
       {
-        TNode<MaybeObject> data2 = LoadHandlerDataField(handler, 2);
-        CSA_DCHECK(this, IsWeakOrCleared(data2));
+        // Load expected native context from the validity cell.
+        TNode<MaybeObject> maybe_expected_native_context =
+            LoadCellMaybeValue(CAST(maybe_validity_cell));
+        CSA_DCHECK(this, IsWeakOrCleared(maybe_expected_native_context));
         TNode<Context> expected_native_context =
-            CAST(GetHeapObjectAssumeWeak(data2, miss));
+            CAST(GetHeapObjectAssumeWeak(maybe_expected_native_context, miss));
         EmitAccessCheck(expected_native_context, p->context(),
                         p->lookup_start_object(), &done, miss);
       }
@@ -1361,7 +1364,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
   Branch(TaggedIsSmi(handler), &if_smi_handler, &if_nonsmi_handler);
 
-  Label if_slow(this);
+  Label if_slow(this), if_generic(this);
 
   // |handler| is a Smi, encoding what to do. See SmiHandler methods
   // for the encoding format.
@@ -1379,7 +1382,8 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     ASSERT_CONSECUTIVE(kNormal, kInterceptor)
     ASSERT_CONSECUTIVE(kInterceptor, kSlow)
     ASSERT_CONSECUTIVE(kSlow, kProxy)
-    ASSERT_CONSECUTIVE(kProxy, kKindsNumber)
+    ASSERT_CONSECUTIVE(kProxy, kGeneric)
+    ASSERT_CONSECUTIVE(kGeneric, kKindsNumber)
 #undef ASSERT_CONSECUTIVE
 
     TNode<Uint32T> handler_kind =
@@ -1389,6 +1393,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     GotoIf(Word32Equal(handler_kind, STORE_KIND(kInterceptor)),
            &if_interceptor);
     GotoIf(Word32Equal(handler_kind, STORE_KIND(kSlow)), &if_slow);
+    GotoIf(Word32Equal(handler_kind, STORE_KIND(kGeneric)), &if_generic);
     CSA_DCHECK(this, Word32Equal(handler_kind, STORE_KIND(kNormal)));
     TNode<PropertyDictionary> properties =
         CAST(LoadSlowProperties(CAST(holder)));
@@ -1481,6 +1486,14 @@ void AccessorAssembler::HandleStoreICHandlerCase(
         }
         TailCallRuntime(id, p->context(), p->value(), p->receiver(), p->name());
       }
+    }
+
+    BIND(&if_generic);
+    {
+      Comment("store_generic");
+      TailCallBuiltin(Builtin::kKeyedStoreIC_Megamorphic, p->context(),
+                      p->receiver(), p->name(), p->value(), p->slot(),
+                      p->vector());
     }
   }
 
@@ -1913,15 +1926,14 @@ void AccessorAssembler::StoreJSSharedStructField(
 void AccessorAssembler::CheckPrototypeValidityCell(
     TNode<Object> maybe_validity_cell, Label* miss) {
   Label done(this);
-  GotoIf(
-      TaggedEqual(maybe_validity_cell, SmiConstant(Map::kPrototypeChainValid)),
-      &done);
+  GotoIf(TaggedEqual(maybe_validity_cell,
+                     SmiConstant(Map::kNoValidityCellSentinel)),
+         &done);
   CSA_DCHECK(this, TaggedIsNotSmi(maybe_validity_cell));
 
-  TNode<Object> cell_value =
-      LoadObjectField(CAST(maybe_validity_cell), Cell::kValueOffset);
-  Branch(TaggedEqual(cell_value, SmiConstant(Map::kPrototypeChainValid)), &done,
-         miss);
+  TNode<MaybeObject> cell_value = LoadCellMaybeValue(CAST(maybe_validity_cell));
+  Branch(TaggedEqual(cell_value, SmiConstant(Map::kPrototypeChainInvalid)),
+         miss, &done);
 
   BIND(&done);
 }
@@ -2058,18 +2070,11 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       CSA_DCHECK(this, TaggedIsNotSmi(handler));
       TNode<FunctionTemplateInfo> function_template_info = CAST(holder);
 
-      // Context is stored either in data2 or data3 field depending on whether
-      // the access check is enabled for this handler or not.
-      TNode<MaybeObject> maybe_context = Select<MaybeObject>(
-          IsSetWord32<StoreHandler::DoAccessCheckOnLookupStartObjectBits>(
-              handler_word),
-          [=, this] { return LoadHandlerDataField(handler, 3); },
-          [=, this] { return LoadHandlerDataField(handler, 2); });
-
+      TNode<MaybeObject> maybe_context = LoadHandlerDataField(handler, 2);
       CSA_DCHECK(this, IsWeakOrCleared(maybe_context));
-      TNode<Object> context = Select<Object>(
-          IsCleared(maybe_context), [=, this] { return SmiConstant(0); },
-          [=, this] { return GetHeapObjectAssumeWeak(maybe_context); });
+      CSA_CHECK(this, IsNotCleared(maybe_context));
+      TNode<NativeContext> context =
+          CAST(GetHeapObjectAssumeWeak(maybe_context));
 
       TNode<Int32T> argc = Int32Constant(1);
       TNode<Context> caller_context = p->context();
@@ -4351,8 +4356,21 @@ void AccessorAssembler::GenerateLoadIC_Megamorphic() {
   TVARIABLE(MaybeObject, var_handler);
   Label if_handler(this, &var_handler), miss(this, Label::kDeferred);
 
-  CSA_DCHECK(this, TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot),
-                               MegamorphicSymbolConstant()));
+  CSA_DCHECK(
+      this,
+      Word32Or(
+          Word32Or(
+              // Either the IC is in regular megamorphic state...
+              TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot),
+                          MegamorphicSymbolConstant()),
+              // ...or it's monomorphic but using a slow handler. Compilers are
+              // free to approximate this by using the generic stub for
+              // everything.
+              TaggedEqual(
+                  LoadFeedbackVectorSlot(CAST(vector), slot, kTaggedSize),
+                  SmiConstant(*LoadHandler::LoadSlow(isolate())))),
+          TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot, kTaggedSize),
+                      SmiConstant(LoadHandler::LoadGeneric()))));
 
   TryProbeStubCache(isolate()->load_stub_cache(), receiver, CAST(name),
                     &if_handler, &var_handler, &miss);

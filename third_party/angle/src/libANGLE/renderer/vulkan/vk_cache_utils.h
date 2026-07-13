@@ -214,7 +214,8 @@ class alignas(4) RenderPassDesc final
     // initially.
     void packDepthUnresolveAttachment();
     void packStencilUnresolveAttachment();
-    void removeDepthStencilUnresolveAttachment();
+    void removeDepthUnresolveAttachment();
+    void removeStencilUnresolveAttachment();
 
     PackedAttachmentIndex getPackedColorAttachmentIndex(size_t colorIndexGL);
 
@@ -1421,7 +1422,9 @@ class SamplerDesc final
     // Values from angle::ColorGeneric::Type. Float is 0 and others are 1.
     uint16_t mBorderColorType : 1;
 
-    uint16_t mPadding : 15;
+    uint16_t mUsesSecondComponentForStencil : 1;
+
+    uint16_t mPadding : 14;
 
     // 16*8 bits for BorderColor
     angle::ColorF mBorderColor;
@@ -1822,6 +1825,7 @@ struct DescriptorDescHandles
     VkBufferView bufferView;
 };
 
+constexpr uint32_t kInvalidDescriptorDescIndex = static_cast<uint32_t>(-1);
 class WriteDescriptorDescs
 {
   public:
@@ -1830,6 +1834,8 @@ class WriteDescriptorDescs
         mDescs.clear();
         mDynamicDescriptorSetCount = 0;
         mCurrentInfoIndex          = 0;
+        mUniformBlockIndexToDescriptorDescIndex.clear();
+        mStorageBlockIndexToDescriptorDescIndex.clear();
     }
 
     void updateShaderBuffers(const ShaderInterfaceVariableInfoMap &variableInfoMap,
@@ -1869,6 +1875,19 @@ class WriteDescriptorDescs
     size_t getTotalDescriptorCount() const { return mCurrentInfoIndex; }
     size_t getDynamicDescriptorSetCount() const { return mDynamicDescriptorSetCount; }
 
+    uint32_t getDescriptorDescIndexForBufferBlockIndex(VkDescriptorType descriptorType,
+                                                       size_t bindingIndex) const
+    {
+        ASSERT(IsUniformBuffer(descriptorType) &&
+                   bindingIndex < mUniformBlockIndexToDescriptorDescIndex.size() ||
+               IsStorageBuffer(descriptorType) &&
+                   bindingIndex < mStorageBlockIndexToDescriptorDescIndex.size());
+
+        return IsUniformBuffer(descriptorType)
+                   ? mUniformBlockIndexToDescriptorDescIndex[bindingIndex]
+                   : mStorageBlockIndexToDescriptorDescIndex[bindingIndex];
+    }
+
   private:
     bool hasWriteDescAtIndex(uint32_t bindingIndex) const
     {
@@ -1890,6 +1909,11 @@ class WriteDescriptorDescs
     angle::FastMap<WriteDescriptorDesc, kFastDescriptorSetDescLimit> mDescs;
     size_t mDynamicDescriptorSetCount = 0;
     uint32_t mCurrentInfoIndex        = 0;
+
+    // A map of { uniform block index, mDescs index }
+    std::vector<uint32_t> mUniformBlockIndexToDescriptorDescIndex;
+    // A map of { storage block index, mDescs index }
+    std::vector<uint32_t> mStorageBlockIndexToDescriptorDescIndex;
 };
 std::ostream &operator<<(std::ostream &os, const WriteDescriptorDescs &desc);
 
@@ -2038,10 +2062,9 @@ class DescriptorSetDescBuilder final
     template <typename CommandBufferT>
     void updateOneShaderBuffer(Context *context,
                                CommandBufferT *commandBufferHelper,
-                               const ShaderInterfaceVariableInfoMap &variableInfoMap,
-                               const gl::BufferVector &buffers,
+                               const size_t blockIndex,
                                const gl::InterfaceBlock &block,
-                               uint32_t bufferIndex,
+                               const gl::OffsetBindingPointer<gl::Buffer> &bufferBinding,
                                VkDescriptorType descriptorType,
                                VkDeviceSize maxBoundBufferRange,
                                const BufferHelper &emptyBuffer,
@@ -2051,7 +2074,6 @@ class DescriptorSetDescBuilder final
     void updateShaderBuffers(Context *context,
                              CommandBufferT *commandBufferHelper,
                              const gl::ProgramExecutable &executable,
-                             const ShaderInterfaceVariableInfoMap &variableInfoMap,
                              const gl::BufferVector &buffers,
                              const std::vector<gl::InterfaceBlock> &blocks,
                              VkDescriptorType descriptorType,
@@ -2069,6 +2091,10 @@ class DescriptorSetDescBuilder final
                               const VkDeviceSize requiredOffsetAlignment,
                               const BufferHelper &emptyBuffer,
                               const WriteDescriptorDescs &writeDescriptorDescs);
+    void updateOneShaderBufferOffset(const size_t blockIndex,
+                                     const gl::OffsetBindingPointer<gl::Buffer> &bufferBinding,
+                                     VkDescriptorType descriptorType,
+                                     const WriteDescriptorDescs &writeDescriptorDescs);
     angle::Result updateImages(Context *context,
                                const gl::ProgramExecutable &executable,
                                const ShaderInterfaceVariableInfoMap &variableInfoMap,
@@ -2309,8 +2335,9 @@ class SharedCacheKeyManager
     bool allValidEntriesAreCached(ContextVk *contextVk) const;
 
   private:
-    size_t updateEmptySlotBits();
-    void addKeyImpl(const SharedCacheKeyT &key);
+    bool addKeyToEmptySlot(const SharedCacheKeyT &key);
+    bool releaseUnusedKeysAndReplaceWithKey(const SharedCacheKeyT &key);
+    void addKeyToNewSlot(const SharedCacheKeyT &key);
 
     bool containsKeyWithOwnerEqual(const SharedCacheKeyT &key) const;
     void assertAllEntriesDestroyed() const;

@@ -50,15 +50,6 @@ PaintOptions SolidSrcover() {
     return paintOptions;
 }
 
-PaintOptions SolidMatrixCFSrcover() {
-    PaintOptions paintOptions;
-
-    paintOptions.setColorFilters({ PrecompileColorFilters::Matrix() });
-    paintOptions.setBlendModes({ SkBlendMode::kSrcOver });
-
-    return paintOptions;
-}
-
 PaintOptions LinearGradSmSrcover() {
     PaintOptions paintOptions;
     paintOptions.setShaders({ PrecompileShaders::LinearGradient(GradientShaderFlags::kSmall) });
@@ -290,16 +281,6 @@ PaintOptions ImageSRGBNoCubicSrc() {
     return paintOptions;
 }
 
-PaintOptions BlendPorterDuffCFSrcover() {
-    PaintOptions paintOptions;
-    // kSrcOver will trigger the PorterDuffBlender
-    paintOptions.setColorFilters(
-            { PrecompileColorFilters::Blend({ SkBlendMode::kSrcOver }) });
-    paintOptions.setBlendModes({ SkBlendMode::kSrcOver });
-
-    return paintOptions;
-}
-
 PaintOptions ImageAlphaHWOnlySrcover() {
     PaintOptions paintOptions;
 
@@ -427,7 +408,6 @@ PaintOptions ImageHWOnlySRGBSrcover() {
     paintOptions.setBlendModes({ SkBlendMode::kSrcOver });
     return paintOptions;
 }
-
 
 namespace {
 
@@ -649,7 +629,7 @@ skgpu::graphite::PaintOptions BlurFilterMix() {
         }
     )");
 
-    sk_sp<SkRuntimeEffect> mixEffect = makeEffect(kMixCode, "RE_BlurFilterMixEffect");
+    sk_sp<SkRuntimeEffect> mixEffect = makeEffect(kMixCode, "RE_BlurFilter_MixEffect");
 
     SkColorInfo ci { kRGBA_8888_SkColorType, kPremul_SkAlphaType, nullptr };
     sk_sp<PrecompileShader> img = PrecompileShaders::Image(ImageShaderFlags::kExcludeCubic,
@@ -666,13 +646,114 @@ skgpu::graphite::PaintOptions BlurFilterMix() {
     return paintOptions;
 }
 
+namespace {
+
+class EdgeExtension {
+public:
+    EdgeExtension() {
+        // The following code block is just a stub for the Android code. For Skia's testing
+        // purposes it only needs to have the same name and number of children as the real code.
+        // When the following PaintOptions are used in Android the real SkSL must be supplied.
+        static const SkString kEdgeExtensionCode(R"(
+            uniform shader img;
+
+            vec4 main(vec2 xy) {
+                float3 sample = img.eval(0.115 * xy).rgb;
+                return float4(sample, 1.0);
+            }
+        )");
+
+        fEdgeExtensionEffect = makeEffect(kEdgeExtensionCode, "RE_EdgeExtensionEffect");
+        SkASSERT(fEdgeExtensionEffect);
+    }
+
+    sk_sp<SkRuntimeEffect> edgeExtensionEffect() const { return fEdgeExtensionEffect; }
+
+private:
+    sk_sp<SkRuntimeEffect> fEdgeExtensionEffect;
+};
+
+const EdgeExtension& EdgeExtensionSingleton() {
+    static class EdgeExtension sEdgeExtension;
+
+    return sEdgeExtension;
+}
+
+} // anonymous namespace
+
+skgpu::graphite::PaintOptions EdgeExtensionPremulSrcover() {
+    // This usage of kUnpremul is non-obvious. It acts to short circuit the identity-colorspace
+    // optimization for runtime effects. In this case, the Pipeline requires a
+    // ColorSpaceTransformPremul instead of the (optimized) Passthrough.
+    SkColorInfo ci { kRGBA_8888_SkColorType, kUnpremul_SkAlphaType, nullptr };
+
+    sk_sp<PrecompileShader> img = PrecompileShaders::Image(ImageShaderFlags::kExcludeCubic,
+                                                           { &ci, 1 },
+                                                           {});
+
+    sk_sp<PrecompileShader> edgeEffect = PrecompileRuntimeEffects::MakePrecompileShader(
+            EdgeExtensionSingleton().edgeExtensionEffect(),
+            { { std::move(img) } });
+
+    PaintOptions paintOptions;
+    paintOptions.setShaders({ std::move(edgeEffect) });
+    paintOptions.setBlendModes({ SkBlendMode::kSrcOver });
+    return paintOptions;
+}
+
+skgpu::graphite::PaintOptions TransparentPaintEdgeExtensionPassthroughSrcover() {
+    SkColorInfo ci { kRGBA_8888_SkColorType, kPremul_SkAlphaType, nullptr };
+    sk_sp<PrecompileShader> img = PrecompileShaders::Image(ImageShaderFlags::kExcludeCubic,
+                                                           { &ci, 1 },
+                                                           {});
+
+    sk_sp<PrecompileShader> edgeEffect = PrecompileRuntimeEffects::MakePrecompileShader(
+            EdgeExtensionSingleton().edgeExtensionEffect(),
+            { { std::move(img) } });
+
+    PaintOptions paintOptions;
+    paintOptions.setShaders({ std::move(edgeEffect) });
+    paintOptions.setBlendModes({ SkBlendMode::kSrcOver });
+    paintOptions.setPaintColorIsOpaque(false);
+
+    return paintOptions;
+}
+
+skgpu::graphite::PaintOptions TransparentPaintEdgeExtensionPremulSrcover() {
+    // This usage of kUnpremul is non-obvious. It acts to short circuit the identity-colorspace
+    // optimization for runtime effects. In this case, the Pipeline requires a
+    // ColorSpaceTransformPremul instead of the (optimized) Passthrough.
+    SkColorInfo ci { kRGBA_8888_SkColorType, kUnpremul_SkAlphaType, nullptr };
+
+    sk_sp<PrecompileShader> img = PrecompileShaders::Image(ImageShaderFlags::kExcludeCubic,
+                                                           { &ci, 1 },
+                                                           {});
+
+    sk_sp<PrecompileShader> edgeEffect = PrecompileRuntimeEffects::MakePrecompileShader(
+            EdgeExtensionSingleton().edgeExtensionEffect(),
+            { { std::move(img) } });
+
+    PaintOptions paintOptions;
+    paintOptions.setShaders({ std::move(edgeEffect) });
+    paintOptions.setBlendModes({ SkBlendMode::kSrcOver });
+    paintOptions.setPaintColorIsOpaque(false);
+
+    return paintOptions;
+}
+
+
 #if defined(SK_VULKAN)
 namespace {
 sk_sp<PrecompileShader> vulkan_ycbcr_image_shader(uint64_t format,
                                                   VkSamplerYcbcrModelConversion model,
                                                   VkSamplerYcbcrRange range,
-                                                  VkChromaLocation location) {
-    SkColorInfo ci { kRGBA_8888_SkColorType, kPremul_SkAlphaType, nullptr };
+                                                  VkChromaLocation location,
+                                                  bool pqCS = false) {
+    SkColorInfo ci { kRGBA_8888_SkColorType,
+                     kPremul_SkAlphaType,
+                     pqCS ? SkColorSpace::MakeRGB(SkNamedTransferFn::kPQ,
+                                                  SkNamedGamut::kRec2020)
+                          : nullptr };
 
     skgpu::VulkanYcbcrConversionInfo info;
 
@@ -712,6 +793,19 @@ PaintOptions ImagePremulYCbCr240Srcover() {
                                                         VK_SAMPLER_YCBCR_RANGE_ITU_FULL,
                                                         VK_CHROMA_LOCATION_MIDPOINT) });
     paintOptions.setBlendModes({ SkBlendMode::kSrcOver });
+    return paintOptions;
+}
+
+PaintOptions TransparentPaintImagePremulYCbCr238Srcover() {
+    PaintOptions paintOptions;
+
+    // HardwareImage(3: kHoAAO4AAAAAAAAA)
+    paintOptions.setShaders({ vulkan_ycbcr_image_shader(238,
+                                                        VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_709,
+                                                        VK_SAMPLER_YCBCR_RANGE_ITU_NARROW,
+                                                        VK_CHROMA_LOCATION_MIDPOINT) });
+    paintOptions.setBlendModes({ SkBlendMode::kSrcOver });
+    paintOptions.setPaintColorIsOpaque(false);
     return paintOptions;
 }
 
@@ -797,6 +891,101 @@ void Base642YCbCr(const char* str) {
 
 #endif // SK_VULKAN
 
+namespace {
+
+// This assumes there is some Singleton in Android that can provide RE_LinearEffects
+// given some input. For this mock up, the input is just the parameter portion
+// of the RE_LinearEffect Pipeline label (e.g., "UNKNOWN__SRGB__false__UNKNOWN").
+// Presumably, irl, the parameters would be the actual types used to create the label.
+class LinearEffectSingleton {
+public:
+    sk_sp<SkRuntimeEffect> findOrCreate(const char* parameterStr) {
+        SkString name = SkStringPrintf("RE_LinearEffect_%s__Shader",
+                                       parameterStr);
+
+        auto result = fEffects.find(name.c_str());
+        if (result != fEffects.end()) {
+            return result->second;
+        }
+
+        // Each code snippet must be unique, otherwise Skia will internally find a match
+        // and uniquify things. To avoid this we just add an arbitrary alpha constant
+        // to the code.
+        static float arbitraryAlpha = 0.051f;
+        SkString linearEffectCode = SkStringPrintf(
+            "uniform shader child;"
+            "vec4 main(vec2 xy) {"
+                "float3 linear = toLinearSrgb(child.eval(xy).rgb);"
+                "return float4(fromLinearSrgb(linear), %f);"
+            "}",
+            arbitraryAlpha);
+        arbitraryAlpha += 0.05f;
+
+        sk_sp<SkRuntimeEffect> linearEffect = makeEffect(linearEffectCode, name.c_str());
+
+        fEffects.insert({ name.c_str(), linearEffect });
+        return linearEffect;
+    }
+
+private:
+    std::map<std::string, sk_sp<SkRuntimeEffect>> fEffects;
+};
+
+sk_sp<PrecompileShader> create_child_shader(ChildType childType) {
+    switch (childType) {
+        case ChildType::kSolidColor:
+            return PrecompileShaders::Color();
+        case ChildType::kHWTexture: {
+            SkColorInfo ci { kRGBA_8888_SkColorType,
+                             kPremul_SkAlphaType,
+                             SkColorSpace::MakeRGB(SkNamedTransferFn::kSRGB,
+                                                   SkNamedGamut::kAdobeRGB) };
+
+            return PrecompileShaders::Image(PrecompileShaders::ImageShaderFlags::kExcludeCubic,
+                                            { &ci, 1 },
+                                            {});
+        }
+#if defined(SK_VULKAN)
+        case ChildType::kHWTextureYCbCr247:
+            // HardwareImage(3: kEwAAPcAAAAAAAAA)
+            return vulkan_ycbcr_image_shader(247,
+                                             VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_2020,
+                                             VK_SAMPLER_YCBCR_RANGE_ITU_NARROW,
+                                             VK_CHROMA_LOCATION_COSITED_EVEN,
+                                             /* pqCS= */ true);
+#endif
+    }
+
+    return nullptr;
+}
+
+} // anonymous namespace
+
+skgpu::graphite::PaintOptions LinearEffect(const char* parameterStr,
+                                           ChildType childType,
+                                           SkBlendMode blendMode,
+                                           bool paintColorIsOpaque,
+                                           bool matrixColorFilter,
+                                           bool dither) {
+    static LinearEffectSingleton gLinearEffectSingleton;
+
+    PaintOptions paintOptions;
+
+    sk_sp<SkRuntimeEffect> linearEffect = gLinearEffectSingleton.findOrCreate(parameterStr);
+    sk_sp<PrecompileShader> child = create_child_shader(childType);
+
+    paintOptions.setShaders({ PrecompileRuntimeEffects::MakePrecompileShader(
+                                            std::move(linearEffect),
+                                            { { std::move(child) } }) });
+    if (matrixColorFilter) {
+        paintOptions.setColorFilters({PrecompileColorFilters::Matrix()});
+    }
+    paintOptions.setBlendModes({ blendMode });
+    paintOptions.setPaintColorIsOpaque(paintColorIsOpaque);
+    paintOptions.setDither(dither);
+
+    return paintOptions;
+}
 
 namespace {
 
@@ -848,6 +1037,9 @@ DrawTypeFlags get_draw_type_flags(const char* str) {
         const char* fStr;
         DrawTypeFlags fFlags;
     } kDrawTypeFlagsMapping[] = {
+        { "AnalyticBlurRenderStep",                      DrawTypeFlags::kDropShadows },
+        { "GaussianColorFilter",                         DrawTypeFlags::kDropShadows },
+
         { "BitmapTextRenderStep[Mask]",                  DrawTypeFlags::kBitmapText_Mask  },
         { "BitmapTextRenderStep[LCD]",                   DrawTypeFlags::kBitmapText_LCD   },
         { "BitmapTextRenderStep[Color]",                 DrawTypeFlags::kBitmapText_Color },
@@ -904,7 +1096,7 @@ void deduce_settings_from_label(const char* testStr, PrecompileSettings* result)
                                                                 SkNamedGamut::kAdobeRGB);
     } else if (strstr(testStr, "ColorSpaceTransformSRGB")) {
         result->fRenderPassProps.fDstCS = SkColorSpace::MakeSRGB();
-    } else if (strstr(testStr, "] ColorSpaceTransform ColorSpaceTransform ]")) {
+    } else if (strstr(testStr, "ColorSpaceTransform ColorSpaceTransform ]")) {
         // The above string only appears for RuntimeEffects that use the
         // toLinearSrgb/fromLinearSrgb intrinsics w/ a destination SRGB color space.
         result->fRenderPassProps.fDstCS = SkColorSpace::MakeSRGB();
@@ -932,9 +1124,10 @@ std::string rm_whitespace(const std::string& s) {
 } // anonymous namespace
 
 bool PrecompileSettings::isSubsetOf(const PrecompileSettings& superSet) const {
-    SkASSERT(SkPopCount(static_cast<uint32_t>(fDrawTypeFlags)) == 1);
+    SkASSERT(SkPopCount(fDrawTypeFlags.value()) == 1);
 
-    // 'superSet' may have a wider range of DrawTypeFlags
+    // 'superSet' may have a wider range of DrawTypeFlags.
+    // We're intentionally omitting the 'fAnalyticClipping' field here.
     return (fDrawTypeFlags & superSet.fDrawTypeFlags) &&
             fRenderPassProps == superSet.fRenderPassProps;
 }
@@ -1041,8 +1234,20 @@ void RunTest(skgpu::graphite::PrecompileContext* precompileContext,
 
     Precompile(precompileContext,
                settings.fPaintOptions,
-               settings.fDrawTypeFlags,
+               static_cast<DrawTypeFlags>(settings.fDrawTypeFlags.value()),
                { &settings.fRenderPassProps, 1 });
+
+    if (settings.fAnalyticClipping) {
+        SkASSERT(!(settings.fDrawTypeFlags & DrawTypeFlags::kAnalyticClip));
+
+        SkEnumBitMask<DrawTypeFlags> newFlags = settings.fDrawTypeFlags |
+                                                DrawTypeFlags::kAnalyticClip;
+
+        Precompile(precompileContext,
+                   settings.fPaintOptions,
+                   static_cast<DrawTypeFlags>(newFlags.value()),
+                   { &settings.fRenderPassProps, 1 });
+    }
 
     std::set<std::string> generatedLabels;
 

@@ -11,8 +11,14 @@
 #include "modules/audio_processing/aec3/erl_estimator.h"
 
 #include <algorithm>
+#include <array>
+#include <cstddef>
+#include <iterator>
 #include <numeric>
+#include <vector>
 
+#include "api/array_view.h"
+#include "modules/audio_processing/aec3/aec3_common.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {

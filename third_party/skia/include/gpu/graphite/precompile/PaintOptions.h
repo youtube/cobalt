@@ -27,6 +27,7 @@ class PrecompileShader;
 enum class Coverage;
 enum DrawTypeFlags : uint16_t;
 enum class PrecompileImageFilterFlags : uint32_t;
+enum class TextureFormat : uint8_t;
 
 class KeyContext;
 class PaintOptionsPriv;
@@ -160,6 +161,10 @@ private:
 
     void setClipShaders(SkSpan<const sk_sp<PrecompileShader>> clipShaders);
 
+    // In the main API this is specified via the SkBlender parameter to drawVertices
+    void setPrimitiveBlendMode(SkBlendMode bm) { fPrimitiveBlendMode = bm; }
+    void setSkipColorXform(bool skipColorXform) { fSkipColorXform = skipColorXform; }
+
     int numShaderCombinations() const;
     int numColorFilterCombinations() const;
     int numBlendCombinations() const;
@@ -168,10 +173,12 @@ private:
     int numCombinations() const;
     // 'desiredCombination' must be less than the result of the numCombinations call
     void createKey(const KeyContext&,
+                   TextureFormat,
                    PaintParamsKeyBuilder*,
                    PipelineDataGatherer*,
                    int desiredCombination,
                    bool addPrimitiveBlender,
+                   bool addAnalyticClip,
                    Coverage coverage) const;
 
     typedef std::function<void(UniquePaintParamsID id,
@@ -197,6 +204,8 @@ private:
     skia_private::TArray<sk_sp<PrecompileImageFilter>> fImageFilterOptions;
     skia_private::TArray<sk_sp<PrecompileMaskFilter>> fMaskFilterOptions;
 
+    SkBlendMode fPrimitiveBlendMode = SkBlendMode::kSrcOver;
+    bool fSkipColorXform = false;
     bool fDither = false;
     bool fPaintColorIsOpaque = true;
 };

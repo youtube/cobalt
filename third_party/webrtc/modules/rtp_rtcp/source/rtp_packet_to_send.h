@@ -45,8 +45,8 @@ class RtpPacketToSend : public RtpPacket {
   ~RtpPacketToSend();
 
   // Time in local time base as close as it can to frame capture time.
-  webrtc::Timestamp capture_time() const { return capture_time_; }
-  void set_capture_time(webrtc::Timestamp time) { capture_time_ = time; }
+  class Timestamp capture_time() const { return capture_time_; }
+  void set_capture_time(class Timestamp time) { capture_time_ = time; }
 
   void set_packet_type(RtpPacketMediaType type);
 
@@ -87,25 +87,25 @@ class RtpPacketToSend : public RtpPacket {
     additional_data_ = std::move(data);
   }
 
-  void set_packetization_finish_time(webrtc::Timestamp time) {
+  void set_packetization_finish_time(class Timestamp time) {
     SetExtension<VideoTimingExtension>(
         VideoSendTiming::GetDeltaCappedMs(time - capture_time_),
         VideoTimingExtension::kPacketizationFinishDeltaOffset);
   }
 
-  void set_pacer_exit_time(webrtc::Timestamp time) {
+  void set_pacer_exit_time(class Timestamp time) {
     SetExtension<VideoTimingExtension>(
         VideoSendTiming::GetDeltaCappedMs(time - capture_time_),
         VideoTimingExtension::kPacerExitDeltaOffset);
   }
 
-  void set_network_time(webrtc::Timestamp time) {
+  void set_network_time(class Timestamp time) {
     SetExtension<VideoTimingExtension>(
         VideoSendTiming::GetDeltaCappedMs(time - capture_time_),
         VideoTimingExtension::kNetworkTimestampDeltaOffset);
   }
 
-  void set_network2_time(webrtc::Timestamp time) {
+  void set_network2_time(class Timestamp time) {
     SetExtension<VideoTimingExtension>(
         VideoSendTiming::GetDeltaCappedMs(time - capture_time_),
         VideoTimingExtension::kNetwork2TimestampDeltaOffset);
@@ -153,7 +153,7 @@ class RtpPacketToSend : public RtpPacket {
   void set_send_as_ect1() { send_as_ect1_ = true; }
 
  private:
-  webrtc::Timestamp capture_time_ = webrtc::Timestamp::Zero();
+  class Timestamp capture_time_ = Timestamp::Zero();
   std::optional<RtpPacketMediaType> packet_type_;
   std::optional<OriginalType> original_packet_type_;
   std::optional<uint32_t> original_ssrc_;

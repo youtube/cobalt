@@ -11,10 +11,10 @@
 #ifndef MODULES_AUDIO_PROCESSING_AEC3_BLOCK_FRAMER_H_
 #define MODULES_AUDIO_PROCESSING_AEC3_BLOCK_FRAMER_H_
 
+#include <cstddef>
 #include <vector>
 
 #include "api/array_view.h"
-#include "modules/audio_processing/aec3/aec3_common.h"
 #include "modules/audio_processing/aec3/block.h"
 
 namespace webrtc {

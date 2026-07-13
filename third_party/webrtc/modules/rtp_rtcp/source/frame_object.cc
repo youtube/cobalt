@@ -44,7 +44,7 @@ RtpFrameObject::RtpFrameObject(
     VideoRotation rotation,
     VideoContentType content_type,
     const RTPVideoHeader& video_header,
-    const std::optional<webrtc::ColorSpace>& color_space,
+    const std::optional<class ColorSpace>& color_space,
     const std::optional<
         std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>&
         frame_instrumentation_data,

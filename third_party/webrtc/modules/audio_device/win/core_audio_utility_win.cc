@@ -15,11 +15,11 @@
 #include <tchar.h>
 
 #include <iomanip>
+#include <iterator>
 #include <string>
 #include <utility>
 
 #include "absl/strings/string_view.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/platform_thread_types.h"
 #include "rtc_base/string_utils.h"
@@ -205,7 +205,7 @@ bool LoadAudiosesDll() {
   static const wchar_t* const kAudiosesDLL =
       L"%WINDIR%\\system32\\audioses.dll";
   wchar_t path[MAX_PATH] = {0};
-  ExpandEnvironmentStringsW(kAudiosesDLL, path, arraysize(path));
+  ExpandEnvironmentStringsW(kAudiosesDLL, path, std::size(path));
   RTC_DLOG(LS_INFO) << webrtc::ToUtf8(path);
   return (LoadLibraryExW(path, nullptr, LOAD_WITH_ALTERED_SEARCH_PATH) !=
           nullptr);
@@ -214,7 +214,7 @@ bool LoadAudiosesDll() {
 bool LoadAvrtDll() {
   static const wchar_t* const kAvrtDLL = L"%WINDIR%\\system32\\Avrt.dll";
   wchar_t path[MAX_PATH] = {0};
-  ExpandEnvironmentStringsW(kAvrtDLL, path, arraysize(path));
+  ExpandEnvironmentStringsW(kAvrtDLL, path, std::size(path));
   RTC_DLOG(LS_INFO) << webrtc::ToUtf8(path);
   return (LoadLibraryExW(path, nullptr, LOAD_WITH_ALTERED_SEARCH_PATH) !=
           nullptr);
@@ -548,22 +548,21 @@ bool GetDeviceNamesInternal(EDataFlow data_flow,
   // id if only one active device exists). The first element (index 0) is the
   // default device and the second element (index 1) is the default
   // communication device.
-  ERole role[] = {eCommunications, eConsole};
   ComPtr<IMMDevice> default_device;
   AudioDeviceName default_device_name;
-  for (size_t i = 0; i < arraysize(role); ++i) {
+  for (ERole role : {eCommunications, eConsole}) {
     default_device = CreateDeviceInternal(AudioDeviceName::kDefaultDeviceId,
-                                          data_flow, role[i]);
+                                          data_flow, role);
     if (!default_device.Get()) {
       // Add empty strings to device name if the device could not be created.
       RTC_DLOG(LS_WARNING) << "Failed to add device with role: "
-                           << RoleToString(role[i]);
+                           << RoleToString(role);
       default_device_name.device_name = std::string();
       default_device_name.unique_id = std::string();
     } else {
       // Populate the device name with friendly name and unique id.
       std::string device_name;
-      device_name += (role[i] == eConsole ? "Default - " : "Communication - ");
+      device_name += (role == eConsole ? "Default - " : "Communication - ");
       device_name += GetDeviceFriendlyNameInternal(default_device.Get());
       std::string unique_id = GetDeviceIdInternal(default_device.Get());
       default_device_name.device_name = std::move(device_name);

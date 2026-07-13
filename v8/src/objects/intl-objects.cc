@@ -725,7 +725,7 @@ Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
                                  NewTypeError(MessageTemplate::kLanguageID),
                                  Nothing<std::string>());
   }
-  std::string locale(locale_str->ToCString().get());
+  std::string locale = locale_str->ToStdString();
   return Intl::ValidateAndCanonicalizeUnicodeLocaleId(isolate, locale);
 }
 
@@ -1653,12 +1653,14 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
   // "halfTrunc", "halfEven" », "halfExpand").
   Maybe<RoundingMode> maybe_rounding_mode = GetStringOption<RoundingMode>(
       isolate, options, "roundingMode", service,
-      {"ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
-       "halfExpand", "halfTrunc", "halfEven"},
-      {RoundingMode::kCeil, RoundingMode::kFloor, RoundingMode::kExpand,
-       RoundingMode::kTrunc, RoundingMode::kHalfCeil, RoundingMode::kHalfFloor,
-       RoundingMode::kHalfExpand, RoundingMode::kHalfTrunc,
-       RoundingMode::kHalfEven},
+      std::to_array<const std::string_view>(
+          {"ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
+           "halfExpand", "halfTrunc", "halfEven"}),
+      std::array{RoundingMode::kCeil, RoundingMode::kFloor,
+                 RoundingMode::kExpand, RoundingMode::kTrunc,
+                 RoundingMode::kHalfCeil, RoundingMode::kHalfFloor,
+                 RoundingMode::kHalfExpand, RoundingMode::kHalfTrunc,
+                 RoundingMode::kHalfEven},
       RoundingMode::kHalfExpand);
   MAYBE_RETURN(maybe_rounding_mode, Nothing<NumberFormatDigitOptions>());
   digit_options.rounding_mode = maybe_rounding_mode.FromJust();
@@ -1669,9 +1671,10 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
   Maybe<RoundingPriority> maybe_rounding_priority =
       GetStringOption<RoundingPriority>(
           isolate, options, "roundingPriority", service,
-          {"auto", "morePrecision", "lessPrecision"},
-          {RoundingPriority::kAuto, RoundingPriority::kMorePrecision,
-           RoundingPriority::kLessPrecision},
+          std::to_array<const std::string_view>(
+              {"auto", "morePrecision", "lessPrecision"}),
+          std::array{RoundingPriority::kAuto, RoundingPriority::kMorePrecision,
+                     RoundingPriority::kLessPrecision},
           RoundingPriority::kAuto);
   MAYBE_RETURN(maybe_rounding_priority, Nothing<NumberFormatDigitOptions>());
   digit_options.rounding_priority = maybe_rounding_priority.FromJust();
@@ -1681,8 +1684,9 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
   Maybe<TrailingZeroDisplay> maybe_trailing_zero_display =
       GetStringOption<TrailingZeroDisplay>(
           isolate, options, "trailingZeroDisplay", service,
-          {"auto", "stripIfInteger"},
-          {TrailingZeroDisplay::kAuto, TrailingZeroDisplay::kStripIfInteger},
+          std::to_array<const std::string_view>({"auto", "stripIfInteger"}),
+          std::array{TrailingZeroDisplay::kAuto,
+                     TrailingZeroDisplay::kStripIfInteger},
           TrailingZeroDisplay::kAuto);
   MAYBE_RETURN(maybe_trailing_zero_display,
                Nothing<NumberFormatDigitOptions>());
@@ -2397,12 +2401,12 @@ bool Intl::IsValidCollation(const icu::Locale& locale,
   return IsValidExtension<icu::Collator>(locale, "collation", value);
 }
 
-bool Intl::IsWellFormedCalendar(const std::string& value) {
+bool Intl::IsWellFormedCalendar(std::string_view value) {
   return JSLocale::Is38AlphaNumList(value);
 }
 
 // ecma402/#sec-iswellformedcurrencycode
-bool Intl::IsWellFormedCurrency(const std::string& currency) {
+bool Intl::IsWellFormedCurrency(std::string_view currency) {
   return JSLocale::Is3Alpha(currency);
 }
 
@@ -2772,27 +2776,28 @@ Maybe<Intl::MatcherOption> Intl::GetLocaleMatcher(
     Isolate* isolate, DirectHandle<JSReceiver> options,
     const char* method_name) {
   return GetStringOption<Intl::MatcherOption>(
-      isolate, options, "localeMatcher", method_name, {"best fit", "lookup"},
-      {Intl::MatcherOption::kBestFit, Intl::MatcherOption::kLookup},
+      isolate, options, "localeMatcher", method_name,
+      std::to_array<const std::string_view>({"best fit", "lookup"}),
+      std::array{Intl::MatcherOption::kBestFit, Intl::MatcherOption::kLookup},
       Intl::MatcherOption::kBestFit);
 }
 
 Maybe<bool> Intl::GetNumberingSystem(Isolate* isolate,
                                      DirectHandle<JSReceiver> options,
                                      const char* method_name,
-                                     std::unique_ptr<char[]>* result) {
-  const std::vector<const char*> empty_values = {};
-  Maybe<bool> maybe = GetStringOption(isolate, options, "numberingSystem",
-                                      empty_values, method_name, result);
+                                     std::string& result) {
+  DirectHandle<String> output;
+  Maybe<bool> maybe =
+      GetStringOption(isolate, options, "numberingSystem",
+                      std::span<std::string_view>(), method_name, &output);
   MAYBE_RETURN(maybe, Nothing<bool>());
-  if (maybe.FromJust() && *result != nullptr) {
-    if (!IsWellFormedNumberingSystem(result->get())) {
+  if (maybe.FromJust()) {
+    result = output->ToStdString();
+    if (!IsWellFormedNumberingSystem(result)) {
       THROW_NEW_ERROR_RETURN_VALUE(
           isolate,
-          NewRangeError(
-              MessageTemplate::kInvalid,
-              isolate->factory()->numberingSystem_string(),
-              isolate->factory()->NewStringFromAsciiChecked(result->get())),
+          NewRangeError(MessageTemplate::kInvalid,
+                        isolate->factory()->numberingSystem_string(), output),
           Nothing<bool>());
     }
     return Just(true);
@@ -2945,28 +2950,6 @@ bool IsUnicodeStringValidTimeZoneName(const icu::UnicodeString& id) {
 }
 }  // namespace
 
-MaybeHandle<String> Intl::CanonicalizeTimeZoneName(
-    Isolate* isolate, DirectHandle<String> identifier) {
-  UErrorCode status = U_ZERO_ERROR;
-  std::string time_zone =
-      JSDateTimeFormat::CanonicalizeTimeZoneID(identifier->ToCString().get());
-  icu::UnicodeString time_zone_ustring =
-      icu::UnicodeString(time_zone.c_str(), -1, US_INV);
-  icu::UnicodeString canonical;
-  icu::TimeZone::getCanonicalID(time_zone_ustring, canonical, status);
-  CHECK(U_SUCCESS(status));
-
-  return JSDateTimeFormat::TimeZoneIdToString(isolate, canonical);
-}
-
-bool Intl::IsValidTimeZoneName(Isolate* isolate, DirectHandle<String> id) {
-  std::string time_zone =
-      JSDateTimeFormat::CanonicalizeTimeZoneID(id->ToCString().get());
-  icu::UnicodeString time_zone_ustring =
-      icu::UnicodeString(time_zone.c_str(), -1, US_INV);
-  return IsUnicodeStringValidTimeZoneName(time_zone_ustring);
-}
-
 bool Intl::IsValidTimeZoneName(const icu::TimeZone& tz) {
   icu::UnicodeString id;
   tz.getID(id);
@@ -2976,7 +2959,9 @@ bool Intl::IsValidTimeZoneName(const icu::TimeZone& tz) {
 // Function to support Temporal
 std::string Intl::TimeZoneIdFromIndex(int32_t index) {
 #ifdef V8_TEMPORAL_SUPPORT
-  if (index == JSTemporalTimeZone::kUTCTimeZoneIndex) {
+  // UTC index is 0
+  // TODO(b/401065166) Potentially store constant somewhere
+  if (index == 0) {
     return "UTC";
   }
 #endif  // V8_TEMPORAL_SUPPORT

@@ -17,6 +17,9 @@
 
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
+#include "api/video/video_codec_type.h"
+#include "api/video_codecs/sdp_video_format.h"
+#include "api/video_codecs/video_codec.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/system/file_wrapper.h"
@@ -45,7 +48,7 @@ TempY4mFileCreator::TempY4mFileCreator(int width, int height, int framerate)
 }
 
 TempY4mFileCreator::~TempY4mFileCreator() {
-  RTC_CHECK(test::RemoveFile(y4m_filepath_.c_str()));
+  RTC_CHECK(test::RemoveFile(y4m_filepath_));
 }
 
 void TempY4mFileCreator::CreateTempY4mFile(
@@ -85,7 +88,6 @@ Y4mMetadata ReadMetadataFromY4mHeader(absl::string_view clip_path) {
   RTC_CHECK(fgets(header, sizeof(header), file) != nullptr)
       << "File " << clip_path << " is too small";
   fclose(file);
-
   int fps_numerator;
   int fps_denominator;
   int width;
@@ -97,6 +99,22 @@ Y4mMetadata ReadMetadataFromY4mHeader(absl::string_view clip_path) {
   return {.width = width,
           .height = height,
           .framerate = fps_numerator / fps_denominator};
+}
+
+SdpVideoFormat GetSdpVideoFormat(VideoCodecType type) {
+  switch (type) {
+    case VideoCodecType::kVideoCodecVP8:
+      return SdpVideoFormat::VP8();
+    case VideoCodecType::kVideoCodecVP9:
+      return SdpVideoFormat::VP9Profile0();
+    case VideoCodecType::kVideoCodecAV1:
+      return SdpVideoFormat::AV1Profile0();
+    case VideoCodecType::kVideoCodecH264:
+      return SdpVideoFormat::H264();
+    default:
+      RTC_FATAL() << "Codec type " << CodecTypeToPayloadString(type)
+                  << " is not supported.";
+  }
 }
 
 }  // namespace webrtc

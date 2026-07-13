@@ -26,6 +26,7 @@
 #include "api/array_view.h"
 #include "api/audio_codecs/audio_format.h"
 #include "api/candidate.h"
+#include "api/field_trials.h"
 #include "api/field_trials_view.h"
 #include "api/media_types.h"
 #include "api/rtp_parameters.h"
@@ -59,9 +60,9 @@
 #include "rtc_base/string_encode.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/unique_id_generator.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 
 namespace webrtc {
 namespace {
@@ -82,7 +83,6 @@ using ::testing::UnorderedElementsAreArray;
 using ::testing::Values;
 using ::testing::ValuesIn;
 using ::webrtc::UniqueRandomIdGenerator;
-using ::webrtc::test::ScopedKeyValueConfig;
 
 using Candidates = std::vector<Candidate>;
 
@@ -527,10 +527,11 @@ MediaSessionOptions CreateAudioMediaSession() {
 class MediaSessionDescriptionFactoryTest : public testing::Test {
  public:
   MediaSessionDescriptionFactoryTest()
-      : tdf1_(field_trials),
-        tdf2_(field_trials),
-        codec_lookup_helper_1_(field_trials),
-        codec_lookup_helper_2_(field_trials),
+      : field_trials_(CreateTestFieldTrials()),
+        tdf1_(field_trials_),
+        tdf2_(field_trials_),
+        codec_lookup_helper_1_(field_trials_),
+        codec_lookup_helper_2_(field_trials_),
         f1_(nullptr, false, &ssrc_generator1, &tdf1_, &codec_lookup_helper_1_),
         f2_(nullptr, false, &ssrc_generator2, &tdf2_, &codec_lookup_helper_2_) {
     codec_lookup_helper_1_.GetCodecVendor()->set_audio_codecs(
@@ -776,7 +777,7 @@ class MediaSessionDescriptionFactoryTest : public testing::Test {
   }
 
  protected:
-  ScopedKeyValueConfig field_trials;
+  FieldTrials field_trials_;
   UniqueRandomIdGenerator ssrc_generator1;
   UniqueRandomIdGenerator ssrc_generator2;
   TransportDescriptionFactory tdf1_;
@@ -3646,8 +3647,7 @@ TEST_F(MediaSessionDescriptionFactoryTest, SimSsrcsGenerateMultipleRtxSsrcs) {
 // Test that, when the FlexFEC codec is added, a FlexFEC ssrc is created
 // together with a FEC-FR grouping. Guarded by WebRTC-FlexFEC-03 trial.
 TEST_F(MediaSessionDescriptionFactoryTest, GenerateFlexfecSsrc) {
-  ScopedKeyValueConfig override_field_trials(field_trials,
-                                             "WebRTC-FlexFEC-03/Enabled/");
+  field_trials_.Set("WebRTC-FlexFEC-03", "Enabled");
   MediaSessionOptions opts;
   AddMediaDescriptionOptions(webrtc::MediaType::VIDEO, "video",
                              RtpTransceiverDirection::kSendRecv, kActive,
@@ -3690,8 +3690,7 @@ TEST_F(MediaSessionDescriptionFactoryTest, GenerateFlexfecSsrc) {
 // TODO(brandtr): Remove this test when we support simulcast, either through
 // multiple FlexfecSenders, or through multistream protection.
 TEST_F(MediaSessionDescriptionFactoryTest, SimSsrcsGenerateNoFlexfecSsrcs) {
-  ScopedKeyValueConfig override_field_trials(field_trials,
-                                             "WebRTC-FlexFEC-03/Enabled/");
+  field_trials_.Set("WebRTC-FlexFEC-03", "Enabled");
   MediaSessionOptions opts;
   AddMediaDescriptionOptions(webrtc::MediaType::VIDEO, "video",
                              RtpTransceiverDirection::kSendRecv, kActive,
@@ -4731,7 +4730,7 @@ class MediaProtocolTest : public testing::TestWithParam<const char*> {
   }
 
  protected:
-  ScopedKeyValueConfig field_trials_;
+  FieldTrials field_trials_ = CreateTestFieldTrials();
   TransportDescriptionFactory tdf1_;
   TransportDescriptionFactory tdf2_;
   CodecLookupHelperForTesting codec_lookup_helper_1_;
@@ -4789,7 +4788,7 @@ bool CodecsMatch(const std::vector<Codec>& codecs1,
 }
 
 void TestAudioCodecsOffer(RtpTransceiverDirection direction) {
-  ScopedKeyValueConfig field_trials;
+  FieldTrials field_trials = CreateTestFieldTrials();
   TransportDescriptionFactory tdf(field_trials);
   tdf.set_certificate(RTCCertificate::Create(
       std::unique_ptr<SSLIdentity>(new FakeSSLIdentity("id"))));
@@ -4895,7 +4894,7 @@ std::vector<T> VectorFromIndices(const T* array, const int (&indices)[IDXS]) {
 void TestAudioCodecsAnswer(RtpTransceiverDirection offer_direction,
                            RtpTransceiverDirection answer_direction,
                            bool add_legacy_stream) {
-  ScopedKeyValueConfig field_trials;
+  FieldTrials field_trials = CreateTestFieldTrials();
   TransportDescriptionFactory offer_tdf(field_trials);
   TransportDescriptionFactory answer_tdf(field_trials);
   offer_tdf.set_certificate(RTCCertificate::Create(
@@ -5083,7 +5082,7 @@ class VideoCodecsOfferH265LevelIdTest : public testing::Test {
   }
 
  protected:
-  ScopedKeyValueConfig field_trials_;
+  FieldTrials field_trials_ = CreateTestFieldTrials();
   TransportDescriptionFactory tdf_offerer_;
   TransportDescriptionFactory tdf_answerer_;
   UniqueRandomIdGenerator ssrc_generator_offerer_;

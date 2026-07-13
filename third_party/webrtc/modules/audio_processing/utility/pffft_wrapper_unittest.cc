@@ -14,6 +14,7 @@
 #include <cstdlib>
 #include <memory>
 
+#include "api/array_view.h"
 #include "test/gtest.h"
 #include "third_party/pffft/src/pffft.h"
 
@@ -23,9 +24,9 @@ namespace {
 
 constexpr size_t kMaxValidSizeCheck = 1024;
 
-static constexpr int kFftSizes[] = {
-    16,  32,      64,  96,  128,  160,  192,  256,  288,  384,   5 * 96, 512,
-    576, 5 * 128, 800, 864, 1024, 2048, 2592, 4000, 4096, 12000, 36864};
+constexpr int kFftSizes[] = {16,   32,   64,     96,   128,  160,     192,  256,
+                             288,  384,  5 * 96, 512,  576,  5 * 128, 800,  864,
+                             1024, 2048, 2592,   4000, 4096, 12000,   36864};
 
 void CreatePffftWrapper(size_t fft_size, Pffft::FftType fft_type) {
   Pffft pffft_wrapper(fft_size, fft_type);

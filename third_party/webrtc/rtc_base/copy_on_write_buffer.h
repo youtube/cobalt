@@ -15,7 +15,6 @@
 
 #include <algorithm>
 #include <cstring>
-#include <string>
 #include <type_traits>
 #include <utility>
 
@@ -307,7 +306,7 @@ class RTC_EXPORT CopyOnWriteBuffer {
     }
   }
 
-  // buffer_ is either null, or points to an webrtc::Buffer with capacity > 0.
+  // buffer_ is either null, or points to an Buffer with capacity > 0.
   scoped_refptr<RefCountedBuffer> buffer_;
   // This buffer may represent a slice of a original data.
   size_t offset_;  // Offset of a current slice in the original data in buffer_.

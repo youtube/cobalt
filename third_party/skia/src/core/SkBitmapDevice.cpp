@@ -359,9 +359,9 @@ void SkBitmapDevice::drawPaint(const SkPaint& paint) {
     BDDraw(this).drawPaint(paint);
 }
 
-void SkBitmapDevice::drawPoints(SkCanvas::PointMode mode, size_t count,
-                                const SkPoint pts[], const SkPaint& paint) {
-    LOOP_TILER( drawPoints(mode, count, pts, paint, nullptr), nullptr)
+void SkBitmapDevice::drawPoints(SkCanvas::PointMode mode, SkSpan<const SkPoint> pts,
+                                const SkPaint& paint) {
+    LOOP_TILER( drawPoints(mode, pts, paint, nullptr), nullptr)
 }
 
 void SkBitmapDevice::drawRect(const SkRect& r, const SkPaint& paint) {
@@ -558,18 +558,12 @@ void SkBitmapDevice::drawMesh(const SkMesh&, sk_sp<SkBlender>, const SkPaint&) {
     // TODO: Implement, maybe with a subclass of BitmapDevice that has SkSL support.
 }
 
-void SkBitmapDevice::drawAtlas(const SkRSXform xform[],
-                               const SkRect tex[],
-                               const SkColor colors[],
-                               int count,
+void SkBitmapDevice::drawAtlas(SkSpan<const SkRSXform> xform,
+                               SkSpan<const SkRect> tex,
+                               SkSpan<const SkColor> colors,
                                sk_sp<SkBlender> blender,
                                const SkPaint& paint) {
-    // set this to true for performance comparisons with the old drawVertices way
-    if ((false)) {
-        this->SkDevice::drawAtlas(xform, tex, colors, count, std::move(blender), paint);
-        return;
-    }
-    BDDraw(this).drawAtlas(xform, tex, colors, count, std::move(blender), paint);
+    BDDraw(this).drawAtlas(xform, tex, colors, std::move(blender), paint);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -594,6 +588,27 @@ void SkBitmapDevice::drawSpecial(SkSpecialImage* src,
         draw.fRC = &fRCStack.rc();
         draw.drawBitmap(resultBM, SkMatrix::I(), nullptr, sampling, paint);
     }
+}
+
+void SkBitmapDevice::drawCoverageMask(const SkSpecialImage* mask,
+                                      const SkMatrix& maskToDevice,
+                                      const SkSamplingOptions& sampling,
+                                      const SkPaint& paint) {
+    SkASSERT(!mask->isGaneshBacked());
+    SkASSERT(!mask->isGraphiteBacked());
+
+    SkBitmap maskBM;
+    if (!SkSpecialImages::AsBitmap(mask, &maskBM)) {
+        return;
+    }
+
+    SkDraw draw;
+    if (!this->accessPixels(&draw.fDst)) {
+      return; // no pixels to draw to so skip it
+    }
+    draw.fRC = &fRCStack.rc();
+    draw.fCTM = &maskToDevice;
+    draw.drawBitmapAsMask(maskBM, sampling, paint, &this->localToDevice());
 }
 
 sk_sp<SkSpecialImage> SkBitmapDevice::snapSpecial(const SkIRect& bounds, bool forceCopy) {

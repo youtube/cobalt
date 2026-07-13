@@ -203,7 +203,7 @@ void ObjCCallClient::PCObserver::OnIceGatheringChange(
 }
 
 void ObjCCallClient::PCObserver::OnIceCandidate(
-    const webrtc::IceCandidateInterface* candidate) {
+    const webrtc::IceCandidate* candidate) {
   RTC_LOG(LS_INFO) << "OnIceCandidate: " << candidate->server_url();
   webrtc::MutexLock lock(&client_->pc_mutex_);
   RTC_DCHECK(client_->pc_ != nullptr);

@@ -366,7 +366,7 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public TaskQueueBase {
   // These functions are public to avoid injecting test hooks. Don't call them
   // outside of tests.
   // This method should be called when thread is created using non standard
-  // method, like derived implementation of webrtc::Thread and it can not be
+  // method, like derived implementation of Thread and it can not be
   // started by calling Start(). This will set started flag to true and
   // owned to false. This must be called from the current thread.
   bool WrapCurrent();

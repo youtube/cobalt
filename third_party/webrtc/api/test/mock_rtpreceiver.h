@@ -37,12 +37,12 @@ class MockRtpReceiver : public RefCountedObject<RtpReceiverInterface> {
               streams,
               (),
               (const, override));
-  MOCK_METHOD(webrtc::MediaType, media_type, (), (const, override));
+  MOCK_METHOD(MediaType, media_type, (), (const, override));
   MOCK_METHOD(std::string, id, (), (const, override));
   MOCK_METHOD(RtpParameters, GetParameters, (), (const, override));
   MOCK_METHOD(bool,
               SetParameters,
-              (const webrtc::RtpParameters& parameters),
+              (const RtpParameters& parameters),
               (override));
   MOCK_METHOD(void, SetObserver, (RtpReceiverObserverInterface*), (override));
   MOCK_METHOD(void,
@@ -52,9 +52,9 @@ class MockRtpReceiver : public RefCountedObject<RtpReceiverInterface> {
   MOCK_METHOD(std::vector<RtpSource>, GetSources, (), (const, override));
   MOCK_METHOD(void,
               SetFrameDecryptor,
-              (webrtc::scoped_refptr<webrtc::FrameDecryptorInterface>),
+              (scoped_refptr<FrameDecryptorInterface>),
               (override));
-  MOCK_METHOD(scoped_refptr<webrtc::FrameDecryptorInterface>,
+  MOCK_METHOD(scoped_refptr<FrameDecryptorInterface>,
               GetFrameDecryptor,
               (),
               (const, override));

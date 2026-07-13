@@ -38,6 +38,7 @@ rtc_library("fuzz_data_helper") {
   deps = [
     "../../api:array_view",
     "../../modules/rtp_rtcp:rtp_rtcp_format",
+    "../../rtc_base:checks",
   ]
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 }
@@ -351,7 +352,7 @@ webrtc_fuzzer_test("audio_decoder_opus_fuzzer") {
   sources = [ "audio_decoder_opus_fuzzer.cc" ]
   deps = [
     ":audio_decoder_fuzzer",
-    "..:explicit_key_value_config",
+    "../../api:field_trials",
     "../../modules/audio_coding:webrtc_opus",
   ]
 }
@@ -360,7 +361,7 @@ webrtc_fuzzer_test("audio_decoder_opus_redundant_fuzzer") {
   sources = [ "audio_decoder_opus_redundant_fuzzer.cc" ]
   deps = [
     ":audio_decoder_fuzzer",
-    "..:explicit_key_value_config",
+    "../../api:field_trials",
     "../../modules/audio_coding:webrtc_opus",
   ]
 }
@@ -584,7 +585,6 @@ webrtc_fuzzer_test("audio_processing_sample_rate_fuzzer") {
     "../../modules/audio_processing:audio_frame_proxies",
     "../../modules/audio_processing:audioproc_test_utils",
     "../../rtc_base:checks",
-    "../../rtc_base:macromagic",
     "../../rtc_base:safe_minmax",
   ]
 }
@@ -598,7 +598,6 @@ webrtc_fuzzer_test("agc_fuzzer") {
     "../../modules/audio_processing",
     "../../modules/audio_processing:audio_buffer",
     "../../modules/audio_processing/agc:gain_control_interface",
-    "../../rtc_base:macromagic",
     "../../rtc_base:safe_minmax",
   ]
 
@@ -712,7 +711,10 @@ webrtc_fuzzer_test("frame_buffer_fuzzer") {
 
 webrtc_fuzzer_test("field_trial_fuzzer") {
   sources = [ "field_trial_fuzzer.cc" ]
-  deps = [ "../../system_wrappers:field_trial" ]
+  deps = [
+    "../../api:field_trials",
+    "//third_party/abseil-cpp/absl/strings:string_view",
+  ]
   seed_corpus = "corpora/field_trial-corpus"
 }
 
@@ -790,7 +792,6 @@ if (rtc_build_libvpx) {
       "../../rtc_base:checks",
       "../../rtc_base:safe_compare",
       "//third_party/abseil-cpp/absl/algorithm:container",
-      "//third_party/abseil-cpp/absl/base:core_headers",
       "//third_party/abseil-cpp/absl/container:inlined_vector",
       "//third_party/abseil-cpp/absl/strings:string_view",
       rtc_libvpx_dir,

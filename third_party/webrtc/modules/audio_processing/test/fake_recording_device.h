@@ -11,13 +11,11 @@
 #ifndef MODULES_AUDIO_PROCESSING_TEST_FAKE_RECORDING_DEVICE_H_
 #define MODULES_AUDIO_PROCESSING_TEST_FAKE_RECORDING_DEVICE_H_
 
-#include <algorithm>
+#include <cstdint>
 #include <memory>
-#include <vector>
 
 #include "api/array_view.h"
 #include "common_audio/channel_buffer.h"
-#include "rtc_base/checks.h"
 
 namespace webrtc {
 namespace test {

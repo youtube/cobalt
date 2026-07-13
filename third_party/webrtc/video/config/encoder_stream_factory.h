@@ -23,10 +23,10 @@
 namespace webrtc {
 
 class EncoderStreamFactory
-    : public webrtc::VideoEncoderConfig::VideoStreamFactoryInterface {
+    : public VideoEncoderConfig::VideoStreamFactoryInterface {
  public:
   EncoderStreamFactory(
-      const webrtc::VideoEncoder::EncoderInfo& encoder_info,
+      const VideoEncoder::EncoderInfo& encoder_info,
       std::optional<VideoSourceRestrictions> restrictions = std::nullopt);
 
   std::vector<VideoStream> CreateEncoderStreams(

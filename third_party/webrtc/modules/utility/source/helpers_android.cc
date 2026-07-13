@@ -11,12 +11,13 @@
 #include "modules/utility/include/helpers_android.h"
 
 #include <android/log.h>
-#include <pthread.h>
+#include <jni.h>
 #include <stddef.h>
-#include <unistd.h>
+
+#include <cstdint>
 
 #include "rtc_base/checks.h"
-#include "rtc_base/platform_thread.h"
+#include "rtc_base/platform_thread_types.h"
 
 #define TAG "HelpersAndroid"
 #define ALOGD(...) __android_log_print(ANDROID_LOG_DEBUG, TAG, __VA_ARGS__)

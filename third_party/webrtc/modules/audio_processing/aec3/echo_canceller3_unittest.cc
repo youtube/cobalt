@@ -10,21 +10,28 @@
 
 #include "modules/audio_processing/aec3/echo_canceller3.h"
 
+#include <algorithm>
+#include <cstddef>
 #include <deque>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "api/array_view.h"
+#include "api/audio/echo_canceller3_config.h"
+#include "api/audio/echo_control.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
+#include "modules/audio_processing/aec3/block.h"
 #include "modules/audio_processing/aec3/block_processor.h"
-#include "modules/audio_processing/aec3/frame_blocker.h"
 #include "modules/audio_processing/aec3/mock/mock_block_processor.h"
 #include "modules/audio_processing/audio_buffer.h"
 #include "modules/audio_processing/high_pass_filter.h"
-#include "modules/audio_processing/utility/cascaded_biquad_filter.h"
+#include "modules/audio_processing/logging/apm_data_dumper.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/strings/string_builder.h"
 #include "test/explicit_key_value_config.h"
 #include "test/gmock.h"
@@ -133,7 +140,7 @@ class CaptureTransportVerificationProcessor : public BlockProcessor {
 
   void SetAudioBufferDelay(int /* delay_ms */) override {}
 
-  void SetCaptureOutputUsage(bool /* capture_output_used */) {}
+  void SetCaptureOutputUsage(bool /* capture_output_used */) override {}
 };
 
 // Class for testing that the render data is properly received by the block
@@ -169,7 +176,7 @@ class RenderTransportVerificationProcessor : public BlockProcessor {
 
   void SetAudioBufferDelay(int /* delay_ms */) override {}
 
-  void SetCaptureOutputUsage(bool /* capture_output_used */) {}
+  void SetCaptureOutputUsage(bool /* capture_output_used */) override {}
 
  private:
   std::deque<Block> received_render_blocks_;

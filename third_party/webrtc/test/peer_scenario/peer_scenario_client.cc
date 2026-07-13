@@ -26,6 +26,7 @@
 #include "api/enable_media_with_defaults.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/field_trials.h"
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
 #include "api/media_stream_interface.h"
@@ -122,7 +123,7 @@ class LambdaPeerConnectionObserver final : public PeerConnectionObserver {
     for (const auto& handler : handlers_->on_ice_gathering_change)
       handler(new_state);
   }
-  void OnIceCandidate(const IceCandidateInterface* candidate) override {
+  void OnIceCandidate(const IceCandidate* candidate) override {
     for (const auto& handler : handlers_->on_ice_candidate)
       handler(candidate);
   }
@@ -240,8 +241,10 @@ PeerScenarioClient::PeerScenarioClient(
     Thread* signaling_thread,
     std::unique_ptr<LogWriterFactoryInterface> log_writer_factory,
     PeerScenarioClient::Config config)
-    : env_(CreateEnvironment(net->time_controller()->GetClock(),
-                             net->time_controller()->GetTaskQueueFactory())),
+    : env_(CreateEnvironment(
+          std::make_unique<FieldTrials>(std::move(config.field_trials)),
+          net->time_controller()->GetClock(),
+          net->time_controller()->GetTaskQueueFactory())),
       endpoints_(CreateEndpoints(net, config.endpoints)),
       signaling_thread_(signaling_thread),
       log_writer_factory_(std::move(log_writer_factory)),
@@ -464,7 +467,7 @@ void PeerScenarioClient::SetSdpAnswer(
 }
 
 void PeerScenarioClient::AddIceCandidate(
-    std::unique_ptr<IceCandidateInterface> candidate) {
+    std::unique_ptr<IceCandidate> candidate) {
   RTC_DCHECK_RUN_ON(signaling_thread_);
   if (peer_connection_->signaling_state() ==
           PeerConnectionInterface::SignalingState::kStable &&

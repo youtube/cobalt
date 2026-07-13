@@ -223,7 +223,8 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = true;
     static constexpr Operator::Properties kProperties =
         Operator::kNoThrow | Operator::kNoDeopt;
-    static constexpr OpEffects kEffects = base_effects.RequiredWhenUnused();
+    static constexpr OpEffects kEffects =
+        base_effects.RequiredWhenUnused().CanAllocate();
   };
   using DebugPrintFloat64 = DebugPrint<Builtin::kDebugPrintFloat64, Float64>;
   using DebugPrintWordPtr = DebugPrint<Builtin::kDebugPrintWordPtr, WordPtr>;
@@ -677,6 +678,19 @@ struct BuiltinCallDescriptor {
 
   struct WasmInt32ToHeapNumber : public Descriptor<WasmInt32ToHeapNumber> {
     static constexpr auto kFunction = Builtin::kWasmInt32ToHeapNumber;
+    using arguments_t = std::tuple<V<Word32>>;
+    using results_t = std::tuple<V<HeapNumber>>;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kPure;
+    static constexpr OpEffects kEffects =
+        base_effects.CanAllocateWithoutIdentity();
+  };
+
+  struct WasmInt32ToSharedHeapNumber
+      : public Descriptor<WasmInt32ToSharedHeapNumber> {
+    static constexpr auto kFunction = Builtin::kWasmInt32ToSharedHeapNumber;
     using arguments_t = std::tuple<V<Word32>>;
     using results_t = std::tuple<V<HeapNumber>>;
 

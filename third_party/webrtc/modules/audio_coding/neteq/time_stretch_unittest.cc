@@ -29,7 +29,7 @@ namespace webrtc {
 
 namespace {
 const size_t kNumChannels = 1;
-}
+}  // namespace
 
 TEST(TimeStretch, CreateAndDestroy) {
   const int kSampleRate = 8000;

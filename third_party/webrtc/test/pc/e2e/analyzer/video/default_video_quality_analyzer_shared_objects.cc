@@ -11,9 +11,14 @@
 
 #include <algorithm>
 #include <iterator>
+#include <map>
+#include <optional>
 #include <ostream>
+#include <set>
 #include <string>
+#include <utility>
 
+#include "absl/strings/string_view.h"
 #include "api/units/timestamp.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/strings/string_builder.h"

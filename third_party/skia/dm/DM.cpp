@@ -837,7 +837,7 @@ static void push_codec_srcs(Path path) {
         };
         for (const char* rawExt : rawExts) {
             if (0 == strcmp(rawExt, ext)) {
-                // RAW is not supported by image generator (skbug.com/5079) or BRD.
+                // RAW is not supported by image generator (skbug.com/40036243) or BRD.
                 return;
             }
         }
@@ -1370,8 +1370,7 @@ struct Task {
                 return SkStringPrintf("HLGish %.3g %.3g %.3g %.3g %.3g (%.3g)",
                                       tf.a, tf.b, tf.c, tf.d, tf.e, tf.f+1);
 
-            case skcms_TFType_HLGinvish: break;
-            case skcms_TFType_Invalid: break;
+            default: break;
         }
         return SkString("non-numeric");
     }

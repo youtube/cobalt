@@ -16,8 +16,10 @@
 #include <utility>
 #include <vector>
 
-#include "api/peer_connection_interface.h"
+#include "absl/strings/string_view.h"
+#include "api/scoped_refptr.h"
 #include "api/stats/rtc_stats_collector_callback.h"
+#include "api/stats/rtc_stats_report.h"
 #include "api/test/stats_observer_interface.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_annotations.h"

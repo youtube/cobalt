@@ -10,7 +10,11 @@
 
 #include "rtc_base/callback_list.h"
 
+#include <cstddef>
+
+#include "api/function_view.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/untyped_function.h"
 
 namespace webrtc {
 namespace callback_list_impl {

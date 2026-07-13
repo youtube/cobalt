@@ -22,6 +22,7 @@
 #include "api/units/timestamp.h"
 #include "system_wrappers/include/clock.h"
 #include "system_wrappers/include/metrics.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -40,7 +41,8 @@ constexpr TimeDelta k25FpsDelay = 1 / k25Fps;
 
 TEST(TimestampExtrapolatorTest, ExtrapolationOccursAfter2Packets) {
   SimulatedClock clock(Timestamp::Millis(1337));
-  TimestampExtrapolator ts_extrapolator(clock.CurrentTime());
+  TimestampExtrapolator ts_extrapolator(clock.CurrentTime(),
+                                        CreateTestFieldTrials());
 
   // No packets so no timestamp.
   EXPECT_THAT(ts_extrapolator.ExtrapolateLocalTime(90000), Eq(std::nullopt));
@@ -64,7 +66,8 @@ TEST(TimestampExtrapolatorTest, ExtrapolationOccursAfter2Packets) {
 
 TEST(TimestampExtrapolatorTest, ResetsAfter10SecondPause) {
   SimulatedClock clock(Timestamp::Millis(1337));
-  TimestampExtrapolator ts_extrapolator(clock.CurrentTime());
+  TimestampExtrapolator ts_extrapolator(clock.CurrentTime(),
+                                        CreateTestFieldTrials());
 
   uint32_t rtp = 90000;
   ts_extrapolator.Update(clock.CurrentTime(), rtp);
@@ -86,7 +89,8 @@ TEST(TimestampExtrapolatorTest, ResetsAfter10SecondPause) {
 
 TEST(TimestampExtrapolatorTest, TimestampExtrapolatesMultipleRtpWrapArounds) {
   SimulatedClock clock(Timestamp::Millis(1337));
-  TimestampExtrapolator ts_extrapolator(clock.CurrentTime());
+  TimestampExtrapolator ts_extrapolator(clock.CurrentTime(),
+                                        CreateTestFieldTrials());
 
   uint32_t rtp = std::numeric_limits<uint32_t>::max();
   ts_extrapolator.Update(clock.CurrentTime(), rtp);
@@ -125,7 +129,8 @@ TEST(TimestampExtrapolatorTest, TimestampExtrapolatesMultipleRtpWrapArounds) {
 
 TEST(TimestampExtrapolatorTest, NegativeRtpTimestampWrapAround) {
   SimulatedClock clock(Timestamp::Millis(1337));
-  TimestampExtrapolator ts_extrapolator(clock.CurrentTime());
+  TimestampExtrapolator ts_extrapolator(clock.CurrentTime(),
+                                        CreateTestFieldTrials());
   uint32_t rtp = 0;
   ts_extrapolator.Update(clock.CurrentTime(), rtp);
   EXPECT_THAT(ts_extrapolator.ExtrapolateLocalTime(rtp),
@@ -138,7 +143,8 @@ TEST(TimestampExtrapolatorTest, NegativeRtpTimestampWrapAround) {
 
 TEST(TimestampExtrapolatorTest, NegativeRtpTimestampWrapAroundSecondScenario) {
   SimulatedClock clock(Timestamp::Millis(1337));
-  TimestampExtrapolator ts_extrapolator(clock.CurrentTime());
+  TimestampExtrapolator ts_extrapolator(clock.CurrentTime(),
+                                        CreateTestFieldTrials());
   uint32_t rtp = 0;
   ts_extrapolator.Update(clock.CurrentTime(), rtp);
   EXPECT_THAT(ts_extrapolator.ExtrapolateLocalTime(rtp),
@@ -153,7 +159,8 @@ TEST(TimestampExtrapolatorTest, Slow90KHzClock) {
   // This simulates a slow camera, which produces frames at 24Hz instead of
   // 25Hz. The extrapolator should be able to resolve this with enough data.
   SimulatedClock clock(Timestamp::Millis(1337));
-  TimestampExtrapolator ts_extrapolator(clock.CurrentTime());
+  TimestampExtrapolator ts_extrapolator(clock.CurrentTime(),
+                                        CreateTestFieldTrials());
 
   constexpr TimeDelta k24FpsDelay = 1 / Frequency::Hertz(24);
   uint32_t rtp = 90000;
@@ -179,7 +186,8 @@ TEST(TimestampExtrapolatorTest, Fast90KHzClock) {
   // This simulates a fast camera, which produces frames at 26Hz instead of
   // 25Hz. The extrapolator should be able to resolve this with enough data.
   SimulatedClock clock(Timestamp::Millis(1337));
-  TimestampExtrapolator ts_extrapolator(clock.CurrentTime());
+  TimestampExtrapolator ts_extrapolator(clock.CurrentTime(),
+                                        CreateTestFieldTrials());
 
   constexpr TimeDelta k26FpsDelay = 1 / Frequency::Hertz(26);
   uint32_t rtp = 90000;
@@ -205,7 +213,8 @@ TEST(TimestampExtrapolatorTest, TimestampJump) {
   // This simulates a jump in RTP timestamp, which could occur if a camera was
   // swapped for example.
   SimulatedClock clock(Timestamp::Millis(1337));
-  TimestampExtrapolator ts_extrapolator(clock.CurrentTime());
+  TimestampExtrapolator ts_extrapolator(clock.CurrentTime(),
+                                        CreateTestFieldTrials());
 
   uint32_t rtp = 90000;
   clock.AdvanceTime(k25FpsDelay);
@@ -235,7 +244,8 @@ TEST(TimestampExtrapolatorTest, TimestampJump) {
 TEST(TimestampExtrapolatorTest, GapInReceivedFrames) {
   SimulatedClock clock(
       Timestamp::Seconds(std::numeric_limits<uint32_t>::max() / 90000 - 31));
-  TimestampExtrapolator ts_extrapolator(clock.CurrentTime());
+  TimestampExtrapolator ts_extrapolator(clock.CurrentTime(),
+                                        CreateTestFieldTrials());
 
   uint32_t rtp = std::numeric_limits<uint32_t>::max();
   clock.AdvanceTime(k25FpsDelay);
@@ -262,7 +272,8 @@ TEST(TimestampExtrapolatorTest, EstimatedClockDriftHistogram) {
     // Clear all histogram data.
     metrics::Reset();
     SimulatedClock clock(Timestamp::Millis(1337));
-    TimestampExtrapolator ts_extrapolator(clock.CurrentTime());
+    TimestampExtrapolator ts_extrapolator(clock.CurrentTime(),
+                                          CreateTestFieldTrials());
 
     uint32_t rtp = 90000;
     for (int i = 0; i < kMinimumSamples; ++i) {
@@ -283,7 +294,8 @@ TEST(TimestampExtrapolatorTest, EstimatedClockDriftHistogram) {
     // Clear all histogram data.
     metrics::Reset();
     SimulatedClock clock(Timestamp::Millis(1337));
-    TimestampExtrapolator ts_extrapolator(clock.CurrentTime());
+    TimestampExtrapolator ts_extrapolator(clock.CurrentTime(),
+                                          CreateTestFieldTrials());
 
     uint32_t rtp = 90000;
     for (int i = 0; i < kMinimumSamples; ++i) {
@@ -305,7 +317,8 @@ TEST(TimestampExtrapolatorTest, EstimatedClockDriftHistogram) {
     // Clear all histogram data.
     metrics::Reset();
     SimulatedClock clock(Timestamp::Millis(1337));
-    TimestampExtrapolator ts_extrapolator(clock.CurrentTime());
+    TimestampExtrapolator ts_extrapolator(clock.CurrentTime(),
+                                          CreateTestFieldTrials());
 
     uint32_t rtp = 90000;
     for (int i = 0; i < kMinimumSamples; ++i) {
@@ -318,6 +331,46 @@ TEST(TimestampExtrapolatorTest, EstimatedClockDriftHistogram) {
   const int kExpectedFastClockDriftPpm = (k25Fps / k24Fps - 1.0) * kToPpmFactor;
   EXPECT_NEAR(kExpectedFastClockDriftPpm, metrics::MinSample(kHistogramName),
               kPpmTolerance);
+}
+
+TEST(TimestampExtrapolatorTest, SetsValidConfig) {
+  SimulatedClock clock(Timestamp::Millis(1337));
+  // clang-format off
+  TimestampExtrapolator ts_extrapolator(
+      clock.CurrentTime(), CreateTestFieldTrials(
+          "WebRTC-TimestampExtrapolatorConfig/"
+            "hard_reset_timeout:1s,"
+            "alarm_threshold:123,"
+            "acc_drift:456,"
+            "acc_max_error:789,"
+            "reset_full_cov_on_alarm:true/"));
+  // clang-format on
+
+  TimestampExtrapolator::Config config = ts_extrapolator.GetConfigForTest();
+  EXPECT_EQ(config.hard_reset_timeout, TimeDelta::Seconds(1));
+  EXPECT_EQ(config.alarm_threshold, 123);
+  EXPECT_EQ(config.acc_drift, 456);
+  EXPECT_EQ(config.acc_max_error, 789);
+  EXPECT_TRUE(config.reset_full_cov_on_alarm);
+}
+
+TEST(TimestampExtrapolatorTest, DoesNotSetInvalidConfig) {
+  SimulatedClock clock(Timestamp::Millis(1337));
+  // clang-format off
+  TimestampExtrapolator ts_extrapolator(
+      clock.CurrentTime(), CreateTestFieldTrials(
+          "WebRTC-TimestampExtrapolatorConfig/"
+            "hard_reset_timeout:-1s,"
+            "alarm_threshold:-123,"
+            "acc_drift:-456,"
+            "acc_max_error:-789/"));
+  // clang-format on
+
+  TimestampExtrapolator::Config config = ts_extrapolator.GetConfigForTest();
+  EXPECT_EQ(config.hard_reset_timeout, TimeDelta::Seconds(10));
+  EXPECT_EQ(config.alarm_threshold, 60000);
+  EXPECT_EQ(config.acc_drift, 6600);
+  EXPECT_EQ(config.acc_max_error, 7000);
 }
 
 }  // namespace webrtc

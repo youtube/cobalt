@@ -91,14 +91,14 @@ class NetEqStereoTest : public ::testing::TestWithParam<TestParameters> {
         new uint8_t[frame_size_samples_ * 2 * num_channels_];
   }
 
-  ~NetEqStereoTest() {
+  ~NetEqStereoTest() override {
     delete[] input_;
     delete[] encoded_;
     delete[] input_multi_channel_;
     delete[] encoded_multi_channel_;
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     const std::string file_name =
         test::ResourcePath("audio_coding/testfile32kHz", "pcm");
     input_file_.reset(new test::InputAudioFile(file_name));
@@ -110,7 +110,7 @@ class NetEqStereoTest : public ::testing::TestWithParam<TestParameters> {
         SdpAudioFormat("l16", sample_rate_hz_, num_channels_)));
   }
 
-  virtual void TearDown() {}
+  void TearDown() override {}
 
   int GetNewPackets() {
     if (!input_file_->Read(frame_size_samples_, input_)) {
@@ -266,7 +266,7 @@ class NetEqStereoTestPositiveDrift : public NetEqStereoTest {
     // TODO(hlundin): Mock the decision making instead to control the modes.
     last_arrival_time_ = -100;
   }
-  virtual int GetArrivalTime(int send_time) {
+  int GetArrivalTime(int send_time) override {
     int arrival_time =
         last_arrival_time_ + drift_factor * (send_time - last_send_time_);
     last_send_time_ = send_time;
@@ -299,7 +299,7 @@ class NetEqStereoTestDelays : public NetEqStereoTest {
   static const int kDelay = 1000;
   NetEqStereoTestDelays() : NetEqStereoTest(), frame_index_(0) {}
 
-  virtual int GetArrivalTime(int send_time) {
+  int GetArrivalTime(int send_time) override {
     // Deliver immediately, unless we have a back-log.
     int arrival_time = std::min(last_arrival_time_, send_time);
     if (++frame_index_ % kDelayInterval == 0) {
@@ -323,10 +323,10 @@ class NetEqStereoTestLosses : public NetEqStereoTest {
   static const int kLossInterval = 10;
   NetEqStereoTestLosses() : NetEqStereoTest(), frame_index_(0) {}
 
-  virtual bool Lost() { return (++frame_index_) % kLossInterval == 0; }
+  bool Lost() override { return (++frame_index_) % kLossInterval == 0; }
 
   // TODO(hlundin): NetEq is not giving bitexact results for these cases.
-  virtual void VerifyOutput(size_t num_samples) {
+  void VerifyOutput(size_t num_samples) override {
     for (size_t i = 0; i < num_samples; ++i) {
       const int16_t* output_data = output_.data();
       const int16_t* output_multi_channel_data = output_multi_channel_.data();
@@ -354,7 +354,7 @@ class NetEqStereoTestSingleActiveChannelPlc : public NetEqStereoTestLosses {
  protected:
   NetEqStereoTestSingleActiveChannelPlc() : NetEqStereoTestLosses() {}
 
-  virtual void MakeMultiChannelInput() override {
+  void MakeMultiChannelInput() override {
     // Create a multi-channel input by copying the mono channel from file to the
     // first channel, and setting the others to zero.
     memset(input_multi_channel_, 0,
@@ -364,7 +364,7 @@ class NetEqStereoTestSingleActiveChannelPlc : public NetEqStereoTestLosses {
     }
   }
 
-  virtual void VerifyOutput(size_t num_samples) override {
+  void VerifyOutput(size_t num_samples) override {
     // Simply verify that all samples in channels other than the first are zero.
     const int16_t* output_multi_channel_data = output_multi_channel_.data();
     for (size_t i = 0; i < num_samples; ++i) {

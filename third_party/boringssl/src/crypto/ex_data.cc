@@ -22,7 +22,6 @@
 #include <openssl/crypto.h>
 #include <openssl/err.h>
 #include <openssl/mem.h>
-#include <openssl/thread.h>
 
 #include "internal.h"
 
@@ -109,7 +108,7 @@ void *CRYPTO_get_ex_data(const CRYPTO_EX_DATA *ad, int idx) {
 
 void CRYPTO_new_ex_data(CRYPTO_EX_DATA *ad) { ad->sk = NULL; }
 
-void CRYPTO_free_ex_data(CRYPTO_EX_DATA_CLASS *ex_data_class, void *obj,
+void CRYPTO_free_ex_data(CRYPTO_EX_DATA_CLASS *ex_data_class,
                          CRYPTO_EX_DATA *ad) {
   if (ad->sk == NULL) {
     // Nothing to do.
@@ -127,7 +126,8 @@ void CRYPTO_free_ex_data(CRYPTO_EX_DATA_CLASS *ex_data_class, void *obj,
     if ((*funcs)->free_func != NULL) {
       int index = (int)i + ex_data_class->num_reserved;
       void *ptr = CRYPTO_get_ex_data(ad, index);
-      (*funcs)->free_func(obj, ptr, ad, index, (*funcs)->argl, (*funcs)->argp);
+      (*funcs)->free_func(/*parent=*/nullptr, ptr, /*ad*/ nullptr, index,
+                          (*funcs)->argl, (*funcs)->argp);
     }
     funcs = &(*funcs)->next;
   }

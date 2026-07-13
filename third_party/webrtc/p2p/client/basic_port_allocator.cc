@@ -704,9 +704,7 @@ std::vector<const Network*> BasicPortAllocatorSession::GetNetworks() {
   // Filter out link-local networks if needed.
   if (flags() & PORTALLOCATOR_DISABLE_LINK_LOCAL_NETWORKS) {
     NetworkFilter link_local_filter(
-        [](const webrtc::Network* network) {
-          return IPIsLinkLocal(network->prefix());
-        },
+        [](const Network* network) { return IPIsLinkLocal(network->prefix()); },
         "link-local");
     FilterNetworks(&networks, link_local_filter);
   }

@@ -15,6 +15,7 @@ import("//testing/libfuzzer/fuzzer_test.gni")
 import("//testing/test.gni")
 import("//third_party/skia/gn/shared_sources.gni")
 import("//third_party/skia/modules/skcms/skcms.gni")
+import("//third_party/skia/modules/pathops/pathops.gni")
 import("features.gni")
 
 if (current_cpu == "arm") {
@@ -353,6 +354,7 @@ component("skia") {
   public += skia_encode_public
   public += skia_encode_png_public
   public += skia_encode_webp_public
+  public += skia_pathops_public
 
   # The imported Skia gni source paths are made absolute by gn.
   defines = []
@@ -368,6 +370,7 @@ component("skia") {
   sources += skia_encode_png_base
   sources += skia_encode_libpng_srcs
   sources += skia_encode_webp_srcs
+  sources += skia_pathops_sources
   sources += [
     "//third_party/skia/src/sfnt/SkOTTable_name.cpp",
     "//third_party/skia/src/sfnt/SkOTUtils.cpp",

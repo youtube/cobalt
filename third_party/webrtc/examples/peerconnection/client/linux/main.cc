@@ -35,7 +35,7 @@ class CustomSocketServer : public webrtc::PhysicalSocketServer {
  public:
   explicit CustomSocketServer(GtkMainWnd* wnd)
       : wnd_(wnd), conductor_(nullptr), client_(nullptr) {}
-  virtual ~CustomSocketServer() {}
+  ~CustomSocketServer() override {}
 
   void SetMessageQueue(webrtc::Thread* queue) override {
     message_queue_ = queue;

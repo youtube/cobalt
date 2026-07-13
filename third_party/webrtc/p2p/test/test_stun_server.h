@@ -27,8 +27,7 @@ namespace webrtc {
 class TestStunServer : StunServer {
  public:
   using StunServerPtr =
-      std::unique_ptr<TestStunServer,
-                      std::function<void(webrtc::TestStunServer*)>>;
+      std::unique_ptr<TestStunServer, std::function<void(TestStunServer*)>>;
   static StunServerPtr Create(SocketServer* ss,
                               const SocketAddress& addr,
                               Thread& network_thread);

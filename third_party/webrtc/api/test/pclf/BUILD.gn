@@ -32,7 +32,7 @@ rtc_library("media_configuration") {
   ]
 }
 
-rtc_library("media_quality_test_params") {
+rtc_source_set("media_quality_test_params") {
   visibility = [ "*" ]
   testonly = true
   sources = [ "media_quality_test_params.h" ]
@@ -41,7 +41,7 @@ rtc_library("media_quality_test_params") {
     ":media_configuration",
     "../..:async_dns_resolver",
     "../..:fec_controller_api",
-    "../..:field_trials_view",
+    "../..:field_trials",
     "../..:ice_transport_interface",
     "../..:libjingle_peerconnection_api",
     "../..:scoped_refptr",
@@ -77,7 +77,7 @@ rtc_library("peer_configurer") {
     "../..:async_dns_resolver",
     "../..:create_peer_connection_quality_test_frame_generator",
     "../..:fec_controller_api",
-    "../..:field_trials_view",
+    "../..:field_trials",
     "../..:frame_generator_api",
     "../..:ice_transport_interface",
     "../..:libjingle_peerconnection_api",
@@ -87,6 +87,7 @@ rtc_library("peer_configurer") {
     "../../../rtc_base:checks",
     "../../../rtc_base:rtc_certificate_generator",
     "../../../rtc_base:ssl",
+    "../../../test:create_test_field_trials",
     "../../audio:audio_mixer_api",
     "../../audio:audio_processing",
     "../../audio_codecs:audio_codecs_api",

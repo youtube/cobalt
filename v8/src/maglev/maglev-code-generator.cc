@@ -755,6 +755,7 @@ class MaglevCodeGeneratingNodeProcessor {
     size_t ix_deferred = non_deferred_count;
     for (auto block_it = graph->begin(); block_it != graph->end(); ++block_it) {
       BasicBlock* block = *block_it;
+      DCHECK(!block->is_dead());
       if (block->is_deferred()) {
         new_blocks[ix_deferred++] = block;
       } else {
@@ -1556,7 +1557,7 @@ class MaglevFrameTranslationBuilder {
   void BuildDeoptFrameSingleValue(const ValueNode* value,
                                   const InputLocation*& input_location,
                                   const VirtualObjectList& virtual_objects) {
-    if (value->Is<Identity>()) {
+    while (value->Is<Identity>()) {
       value = value->input(0).node();
     }
     DCHECK(!value->Is<VirtualObject>());
@@ -1846,6 +1847,7 @@ bool MaglevCodeGenerator::EmitDeopts() {
     translation_builder.BuildEagerDeopt(deopt_info);
 
     if (masm_.compilation_info()->collect_source_positions() ||
+        AlwaysPreserveDeoptReason(deopt_info->reason()) ||
         IsDeoptimizationWithoutCodeInvalidation(deopt_info->reason())) {
       // Note: Maglev uses the deopt_reason to tell the deoptimizer not to
       // discard optimized code on deopt during ML-TF OSR. This is why we

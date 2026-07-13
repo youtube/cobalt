@@ -16,7 +16,6 @@
 #include "modules/desktop_capture/desktop_capturer.h"
 #include "modules/desktop_capture/desktop_frame.h"
 #include "modules/desktop_capture/desktop_geometry.h"
-#include "rtc_base/checks.h"
 #include "test/gtest.h"
 
 namespace webrtc {

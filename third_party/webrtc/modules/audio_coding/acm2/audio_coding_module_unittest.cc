@@ -179,11 +179,11 @@ class AudioCodingModuleTestOldApi : public ::testing::Test {
       : env_(CreateEnvironment()),
         rtp_utility_(new RtpData(kFrameSizeSamples, kPayloadType)) {}
 
-  ~AudioCodingModuleTestOldApi() {}
+  ~AudioCodingModuleTestOldApi() override {}
 
-  void TearDown() {}
+  void TearDown() override {}
 
-  void SetUp() {
+  void SetUp() override {
     acm_ = AudioCodingModule::Create();
     neteq_ = DefaultNetEqFactory().Create(env_, NetEq::Config(),
                                           CreateBuiltinAudioDecoderFactory());
@@ -383,7 +383,7 @@ class AudioCodingModuleMtTestOldApi : public AudioCodingModuleTestOldApi {
     env_ = override_clock.Create();
   }
 
-  void SetUp() {
+  void SetUp() override {
     AudioCodingModuleTestOldApi::SetUp();
     RegisterCodec();  // Must be called before the threads start below.
     StartThreads();
@@ -417,7 +417,7 @@ class AudioCodingModuleMtTestOldApi : public AudioCodingModuleTestOldApi {
         "pull_audio", attributes);
   }
 
-  void TearDown() {
+  void TearDown() override {
     AudioCodingModuleTestOldApi::TearDown();
     quit_.store(true);
     pull_audio_thread_.Finalize();
@@ -540,7 +540,7 @@ class AcmAbsoluteCaptureTimestamp : public ::testing::Test {
   static constexpr int kFrameSize = kSampleRateHz / 100;
   static constexpr int kNumChannels = 2;
 
-  void SetUp() {
+  void SetUp() override {
     scoped_refptr<AudioEncoderFactory> codec_factory =
         CreateBuiltinAudioEncoderFactory();
     acm_ = AudioCodingModule::Create();

@@ -42,7 +42,7 @@
 
 namespace webrtc {
 
-// NOTE: This class is deprecated. Please use webrtc::Mutex instead!
+// NOTE: This class is deprecated. Please use Mutex instead!
 // Search using https://www.google.com/?q=recursive+lock+considered+harmful
 // to find the reasons.
 //

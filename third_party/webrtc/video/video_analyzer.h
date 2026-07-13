@@ -227,14 +227,14 @@ class VideoAnalyzer : public PacketReceiver,
       RTC_LOCKS_EXCLUDED(comparison_lock_);
   void PrintResult(absl::string_view result_type,
                    const SamplesStatsCounter& stats,
-                   webrtc::test::Unit unit,
-                   webrtc::test::ImprovementDirection improvement_direction);
+                   test::Unit unit,
+                   test::ImprovementDirection improvement_direction);
   void PrintResultWithExternalMean(
       absl::string_view result_type,
       double mean,
       const SamplesStatsCounter& stats,
-      webrtc::test::Unit unit,
-      webrtc::test::ImprovementDirection improvement_direction);
+      test::Unit unit,
+      test::ImprovementDirection improvement_direction);
   void PrintSamplesToFile(void) RTC_LOCKS_EXCLUDED(comparison_lock_);
   void AddCapturedFrameForComparison(const VideoFrame& video_frame)
       RTC_LOCKS_EXCLUDED(lock_, comparison_lock_);

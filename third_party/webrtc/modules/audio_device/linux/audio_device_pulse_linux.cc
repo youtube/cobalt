@@ -160,8 +160,8 @@ AudioDeviceGeneric::InitStatus AudioDeviceLinuxPulse::Init() {
 
   // RECORDING
   const auto attributes =
-      webrtc::ThreadAttributes().SetPriority(webrtc::ThreadPriority::kRealtime);
-  _ptrThreadRec = webrtc::PlatformThread::SpawnJoinable(
+      ThreadAttributes().SetPriority(ThreadPriority::kRealtime);
+  _ptrThreadRec = PlatformThread::SpawnJoinable(
       [this] {
         while (RecThreadProcess()) {
         }
@@ -169,7 +169,7 @@ AudioDeviceGeneric::InitStatus AudioDeviceLinuxPulse::Init() {
       "webrtc_audio_module_rec_thread", attributes);
 
   // PLAYOUT
-  _ptrThreadPlay = webrtc::PlatformThread::SpawnJoinable(
+  _ptrThreadPlay = PlatformThread::SpawnJoinable(
       [this] {
         while (PlayThreadProcess()) {
         }

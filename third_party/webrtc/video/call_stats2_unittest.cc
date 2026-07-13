@@ -34,7 +34,7 @@ namespace internal {
 class MockStatsObserver : public CallStatsObserver {
  public:
   MockStatsObserver() {}
-  virtual ~MockStatsObserver() {}
+  ~MockStatsObserver() override {}
 
   MOCK_METHOD(void, OnRttUpdate, (int64_t, int64_t), (override));
 };

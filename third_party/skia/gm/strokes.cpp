@@ -145,7 +145,7 @@ protected:
             canvas->drawPath(fMoveZfPath, strokePaint);
             dashPaint = strokePaint;
             const SkScalar intervals[] = { 0, 10 };
-            dashPaint.setPathEffect(SkDashPathEffect::Make(intervals, 2, 0));
+            dashPaint.setPathEffect(SkDashPathEffect::Make(intervals, 0));
             SkPath fillPath;
             skpathutils::FillPathWithPaint(fDashedfPath, dashPaint, &fillPath);
             canvas->translate(0, 20);
@@ -449,7 +449,7 @@ private:
     using INHERITED = skiagm::GM;
 };
 
-// Test stroking for curves that produce degenerate tangents when t is 0 or 1 (see bug 4191)
+// Test stroking for curves that produce degenerate tangents when t is 0 or 1 (skbug.com/40035337)
 class Strokes5GM : public skiagm::GM {
 public:
     Strokes5GM() {}
@@ -520,7 +520,7 @@ DEF_SIMPLE_GM(zerolinedash, canvas, 256, 256) {
     paint.setStrokeJoin(SkPaint::kBevel_Join);
 
     SkScalar dash_pattern[] = {1, 5};
-    paint.setPathEffect(SkDashPathEffect::Make(dash_pattern, 2, 0));
+    paint.setPathEffect(SkDashPathEffect::Make(dash_pattern, 0));
 
     canvas->drawLine(100, 100, 100, 100, paint);
 }
@@ -557,7 +557,7 @@ DEF_SIMPLE_GM(longrect_dash, canvas, 250, 250) {
 
 DEF_SIMPLE_GM(inner_join_geometry, canvas, 1000, 700) {
     // These paths trigger cases where we must add inner join geometry.
-    // skbug.com/11964
+    // skbug.com/40043052
     const SkPoint pathPoints[] = {
         /*moveTo*/  /*lineTo*/  /*lineTo*/
         {119,  71}, {129, 151}, {230,  24},
@@ -583,7 +583,7 @@ DEF_SIMPLE_GM(inner_join_geometry, canvas, 1000, 700) {
 
     canvas->translate(0, 50);
     for (size_t i = 0; i < std::size(pathPoints) / 3; i++) {
-        auto path = SkPath::Polygon(pathPoints + i * 3, 3, false);
+        auto path = SkPath::Polygon({pathPoints + i * 3, 3}, false);
         canvas->drawPath(path, pathPaint);
 
         SkPath fillPath;

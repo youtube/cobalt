@@ -85,21 +85,21 @@ namespace {
 
 // Number of callbacks (input or output) the tests waits for before we set
 // an event indicating that the test was OK.
-static constexpr size_t kNumCallbacks = 10;
+constexpr size_t kNumCallbacks = 10;
 // Max amount of time we wait for an event to be set while counting callbacks.
-static constexpr TimeDelta kTestTimeOut = TimeDelta::Seconds(10);
+constexpr TimeDelta kTestTimeOut = TimeDelta::Seconds(10);
 // Average number of audio callbacks per second assuming 10ms packet size.
-static constexpr size_t kNumCallbacksPerSecond = 100;
+constexpr size_t kNumCallbacksPerSecond = 100;
 // Run the full-duplex test during this time (unit is in seconds).
-static constexpr TimeDelta kFullDuplexTime = TimeDelta::Seconds(5);
+constexpr TimeDelta kFullDuplexTime = TimeDelta::Seconds(5);
 // Length of round-trip latency measurements. Number of deteced impulses
 // shall be kImpulseFrequencyInHz * kMeasureLatencyTime - 1 since the
 // last transmitted pulse is not used.
-static constexpr TimeDelta kMeasureLatencyTime = TimeDelta::Seconds(10);
+constexpr TimeDelta kMeasureLatencyTime = TimeDelta::Seconds(10);
 // Sets the number of impulses per second in the latency test.
-static constexpr size_t kImpulseFrequencyInHz = 1;
+constexpr size_t kImpulseFrequencyInHz = 1;
 // Utilized in round-trip latency measurements to avoid capturing noise samples.
-static constexpr int kImpulseThreshold = 1000;
+constexpr int kImpulseThreshold = 1000;
 
 enum class TransportType {
   kInvalid,
@@ -269,7 +269,7 @@ class LatencyAudioStream : public AudioStream {
       PRINTD("(%zu, %zu)", max, index_of_max);
       int64_t now_time = TimeMillis();
       int extra_delay = IndexToMilliseconds(index_of_max, source.size());
-      PRINTD("[%d]", webrtc::checked_cast<int>(now_time - pulse_time_));
+      PRINTD("[%d]", checked_cast<int>(now_time - pulse_time_));
       PRINTD("[%d]", extra_delay);
       // Total latency is the difference between transmit time and detection
       // tome plus the extra delay within the buffer in which we detected the
@@ -339,7 +339,7 @@ class LatencyAudioStream : public AudioStream {
 class MockAudioTransport : public test::MockAudioTransport {
  public:
   explicit MockAudioTransport(TransportType type) : type_(type) {}
-  ~MockAudioTransport() {}
+  ~MockAudioTransport() override {}
 
   // Set default actions of the mock object. We are delegating to fake
   // implementation where the number of callbacks is counted and an event
@@ -572,7 +572,7 @@ class MAYBE_AudioDeviceTest
   // An alternative would be for the mock to outlive audio_device.
   void PreTearDown() { EXPECT_EQ(0, audio_device_->Terminate()); }
 
-  virtual ~MAYBE_AudioDeviceTest() {
+  ~MAYBE_AudioDeviceTest() override {
     if (audio_device_) {
       EXPECT_EQ(0, audio_device_->Terminate());
     }

@@ -10,35 +10,35 @@
 
 #include "modules/audio_processing/aec3/matched_filter.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdlib>
 #include <iterator>
 #include <memory>
+#include <string>
 #include <vector>
 
-// Defines WEBRTC_ARCH_X86_FAMILY, used below.
 #include "api/array_view.h"
 #include "api/audio/echo_canceller3_config.h"
-#include "modules/audio_processing/aec3/block.h"
-#include "rtc_base/checks.h"
-#include "rtc_base/system/arch.h"
-
-#if defined(WEBRTC_ARCH_X86_FAMILY)
-#include <emmintrin.h>
-#endif
-#include <algorithm>
-#include <string>
-
 #include "modules/audio_processing/aec3/aec3_common.h"
+#include "modules/audio_processing/aec3/block.h"
 #include "modules/audio_processing/aec3/decimator.h"
 #include "modules/audio_processing/aec3/render_delay_buffer.h"
 #include "modules/audio_processing/logging/apm_data_dumper.h"
 #include "modules/audio_processing/test/echo_canceller_test_tools.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/cpu_info.h"
 #include "rtc_base/random.h"
 #include "rtc_base/strings/string_builder.h"
-#include "system_wrappers/include/cpu_features_wrapper.h"
+#include "rtc_base/system/arch.h"
 #include "test/gtest.h"
+
+// Defines WEBRTC_ARCH_X86_FAMILY, used below.
+#include "rtc_base/system/arch.h"
+#if defined(WEBRTC_ARCH_X86_FAMILY)
+#include <emmintrin.h>
+#endif
 
 namespace webrtc {
 namespace aec3 {
@@ -126,7 +126,7 @@ TEST_P(MatchedFilterTest, TestNeonOptimizations) {
 // counterparts.
 TEST_P(MatchedFilterTest, TestSse2Optimizations) {
   const bool kComputeAccumulatederror = GetParam();
-  bool use_sse2 = (GetCPUInfo(kSSE2) != 0);
+  bool use_sse2 = cpu_info::Supports(cpu_info::ISA::kSSE2);
   if (use_sse2) {
     Random random_generator(42U);
     constexpr float kSmoothing = 0.7f;
@@ -181,7 +181,7 @@ TEST_P(MatchedFilterTest, TestSse2Optimizations) {
 }
 
 TEST_P(MatchedFilterTest, TestAvx2Optimizations) {
-  bool use_avx2 = (GetCPUInfo(kAVX2) != 0);
+  bool use_avx2 = cpu_info::Supports(cpu_info::ISA::kAVX2);
   const bool kComputeAccumulatederror = GetParam();
   if (use_avx2) {
     Random random_generator(42U);

@@ -21,11 +21,10 @@ namespace v8::internal::maglev {
 
 class MaglevInliner {
  public:
-  MaglevInliner(MaglevCompilationInfo* compilation_info, Graph* graph)
-      : compilation_info_(compilation_info), graph_(graph) {}
+  explicit MaglevInliner(Graph* graph) : graph_(graph) {}
 
   void Run(bool is_tracing_maglev_graphs_enabled) {
-    if (graph_->inlined_functions().empty()) return;
+    if (graph_->inlineable_calls().empty()) return;
 
     while (true) {
       if (graph_->total_inlined_bytecode_size() >
@@ -45,7 +44,7 @@ class MaglevInliner {
         std::cout << "\nAfter inlining "
                   << call_site->generic_call_node->shared_function_info()
                   << std::endl;
-        PrintGraph(std::cout, compilation_info_, graph_);
+        PrintGraph(std::cout, graph_);
       }
     }
 
@@ -53,16 +52,15 @@ class MaglevInliner {
     if (is_tracing_maglev_graphs_enabled && v8_flags.print_maglev_graphs &&
         !v8_flags.trace_maglev_inlining_verbose) {
       std::cout << "\nAfter inlining" << std::endl;
-      PrintGraph(std::cout, compilation_info_, graph_);
+      PrintGraph(std::cout, graph_);
     }
   }
 
  private:
-  MaglevCompilationInfo* compilation_info_;
   Graph* graph_;
 
-  compiler::JSHeapBroker* broker() const { return compilation_info_->broker(); }
-  Zone* zone() const { return compilation_info_->zone(); }
+  compiler::JSHeapBroker* broker() const { return graph_->broker(); }
+  Zone* zone() const { return graph_->zone(); }
 
   MaglevCallSiteInfo* ChooseNextCallSite() {
     auto it =
@@ -103,10 +101,32 @@ class MaglevInliner {
       std::cout << "  non-eager inlining " << shared << std::endl;
     }
 
-    // Truncate the basic block and remove the generic call node.
+    // Check if the catch block might become unreachable, ie, the call is the
+    // only instance of a throwable node in this block to the same catch block.
+    ExceptionHandlerInfo* call_exception_handler_info =
+        call_node->exception_handler_info();
+    bool catch_block_might_be_unreachable = false;
+    if (call_exception_handler_info->HasExceptionHandler() &&
+        !call_exception_handler_info->ShouldLazyDeopt()) {
+      BasicBlock* catch_block = call_exception_handler_info->catch_block();
+      catch_block_might_be_unreachable = true;
+      for (ExceptionHandlerInfo* info : call_block->exception_handlers()) {
+        if (info != call_exception_handler_info &&
+            info->HasExceptionHandler() && !info->ShouldLazyDeopt() &&
+            info->catch_block() == catch_block) {
+          catch_block_might_be_unreachable = false;
+          break;
+        }
+      }
+    }
+
+    // Remove exception handler info from call block.
     ExceptionHandlerInfo::List rem_handlers_in_call_block;
-    call_block->exception_handlers().TruncateAt(
-        &rem_handlers_in_call_block, call_node->exception_handler_info());
+    call_block->exception_handlers().TruncateAt(&rem_handlers_in_call_block,
+                                                call_exception_handler_info);
+    rem_handlers_in_call_block.DropHead();
+
+    // Truncate the basic block and remove the generic call node.
     ZoneVector<Node*> rem_nodes_in_call_block =
         call_block->Split(call_node, zone());
 
@@ -192,6 +212,15 @@ class MaglevInliner {
 #endif  // DEBUG
     }
     call_node->OverwriteWithIdentityTo(returned_value);
+
+    // Remove unreachable catch block if no throwable nodes were added during
+    // inlining.
+    // TODO(victorgomes): Improve this: track if we didnt indeed add a throwable
+    // node.
+    if (catch_block_might_be_unreachable) {
+      RemoveUnreachableBlocks();
+    }
+
     return ReduceResult::Done();
   }
 
@@ -269,7 +298,10 @@ class MaglevInliner {
   void RemovePredecessorFollowing(ControlNode* control,
                                   BasicBlock* call_block) {
     BasicBlock::ForEachSuccessorFollowing(control, [&](BasicBlock* succ) {
-      if (!succ->has_state()) return;
+      if (!succ->has_state()) {
+        succ->set_predecessor(nullptr);
+        return;
+      }
       if (succ->is_loop() && succ->backedge_predecessor() == call_block) {
         succ->state()->TurnLoopIntoRegularBlock();
         return;
@@ -283,56 +315,8 @@ class MaglevInliner {
   }
 
   void RemoveUnreachableBlocks() {
-    std::vector<bool> reachable_blocks(graph_->max_block_id(), false);
-    std::vector<BasicBlock*> worklist;
-
-    DCHECK(!graph_->blocks().empty());
-    BasicBlock* initial_bb = graph_->blocks().front();
-    worklist.push_back(initial_bb);
-    reachable_blocks[initial_bb->id()] = true;
-    DCHECK(!initial_bb->is_loop());
-
-    while (!worklist.empty()) {
-      BasicBlock* current = worklist.back();
-      worklist.pop_back();
-
-      for (auto handler : current->exception_handlers()) {
-        if (!handler->HasExceptionHandler()) continue;
-        if (handler->ShouldLazyDeopt()) continue;
-        BasicBlock* catch_block = handler->catch_block();
-        if (!reachable_blocks[catch_block->id()]) {
-          reachable_blocks[catch_block->id()] = true;
-          worklist.push_back(catch_block);
-        }
-      }
-
-      current->ForEachSuccessor([&](BasicBlock* succ) {
-        if (!reachable_blocks[succ->id()]) {
-          reachable_blocks[succ->id()] = true;
-          worklist.push_back(succ);
-        }
-      });
-    }
-
-    // Sweep dead blocks and remove unreachable predecessors.
-    graph_->IterateGraphAndSweepDeadBlocks([&](BasicBlock* bb) {
-      if (!reachable_blocks[bb->id()]) return true;
-      // If block doesn't have a merge state, it has only one predecessor, so
-      // it must be the reachable one.
-      if (!bb->has_state()) return false;
-      if (bb->is_loop() &&
-          !reachable_blocks[bb->backedge_predecessor()->id()]) {
-        // If the backedge predecessor is not reachable, we can turn the loop
-        // into a regular block.
-        bb->state()->TurnLoopIntoRegularBlock();
-      }
-      for (int i = bb->predecessor_count() - 1; i >= 0; i--) {
-        if (!reachable_blocks[bb->predecessor_at(i)->id()]) {
-          bb->state()->RemovePredecessorAt(i);
-        }
-      }
-      return false;
-    });
+    graph_->set_may_have_unreachable_blocks();
+    graph_->RemoveUnreachableBlocks();
   }
 };
 

@@ -62,12 +62,10 @@ ScopedJavaLocalRef<jobject> NativeToJavaCandidate(JNIEnv* env,
 
 ScopedJavaLocalRef<jobject> NativeToJavaIceCandidate(
     JNIEnv* env,
-    const IceCandidateInterface& candidate) {
-  std::string sdp;
-  RTC_CHECK(candidate.ToString(&sdp)) << "got so far: " << sdp;
-  return CreateJavaIceCandidate(env, candidate.sdp_mid(),
-                                candidate.sdp_mline_index(), sdp,
-                                candidate.candidate().url(), 0);
+    const IceCandidate& candidate) {
+  return CreateJavaIceCandidate(
+      env, candidate.sdp_mid(), candidate.sdp_mline_index(),
+      candidate.ToString(), candidate.candidate().url(), 0);
 }
 
 ScopedJavaLocalRef<jobjectArray> NativeToJavaCandidateArray(

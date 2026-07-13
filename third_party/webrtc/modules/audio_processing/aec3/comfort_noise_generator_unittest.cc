@@ -10,15 +10,16 @@
 
 #include "modules/audio_processing/aec3/comfort_noise_generator.h"
 
-#include <algorithm>
+#include <array>
+#include <cstddef>
 #include <numeric>
+#include <vector>
 
 #include "api/audio/echo_canceller3_config.h"
 #include "api/environment/environment_factory.h"
+#include "modules/audio_processing/aec3/aec3_common.h"
 #include "modules/audio_processing/aec3/aec_state.h"
-#include "rtc_base/random.h"
-#include "rtc_base/system/arch.h"
-#include "system_wrappers/include/cpu_features_wrapper.h"
+#include "modules/audio_processing/aec3/fft_data.h"
 #include "test/gtest.h"
 
 namespace webrtc {

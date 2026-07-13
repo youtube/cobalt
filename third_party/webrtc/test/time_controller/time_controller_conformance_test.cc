@@ -9,10 +9,14 @@
  */
 
 #include <memory>
+#include <string>
 #include <vector>
 
+#include "api/task_queue/task_queue_factory.h"
 #include "api/test/time_controller.h"
 #include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/event.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread.h"

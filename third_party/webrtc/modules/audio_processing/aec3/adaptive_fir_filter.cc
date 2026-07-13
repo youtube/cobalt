@@ -10,29 +10,27 @@
 
 #include "modules/audio_processing/aec3/adaptive_fir_filter.h"
 
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <vector>
 
-// Defines WEBRTC_ARCH_X86_FAMILY, used below.
 #include "api/array_view.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
+#include "modules/audio_processing/aec3/fft_data.h"
 #include "modules/audio_processing/aec3/render_buffer.h"
 #include "modules/audio_processing/logging/apm_data_dumper.h"
-#include "rtc_base/system/arch.h"
+#include "rtc_base/checks.h"
 
+// Defines WEBRTC_ARCH_X86_FAMILY, used below.
+#include "rtc_base/system/arch.h"
 #if defined(WEBRTC_HAS_NEON)
 #include <arm_neon.h>
 #endif
 #if defined(WEBRTC_ARCH_X86_FAMILY)
 #include <emmintrin.h>
 #endif
-#include <math.h>
-
-#include <algorithm>
-
-#include "modules/audio_processing/aec3/fft_data.h"
-#include "rtc_base/checks.h"
 
 namespace webrtc {
 

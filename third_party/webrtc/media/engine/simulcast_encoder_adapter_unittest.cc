@@ -23,6 +23,7 @@
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "api/fec_controller_override.h"
+#include "api/field_trials.h"
 #include "api/make_ref_counted.h"
 #include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
@@ -55,9 +56,9 @@
 #include "modules/video_coding/utility/simulcast_rate_allocator.h"
 #include "modules/video_coding/utility/simulcast_test_fixture_impl.h"
 #include "rtc_base/checks.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 
 using ::testing::_;
 using ::testing::Return;
@@ -268,7 +269,7 @@ class MockVideoEncoder : public VideoEncoder {
 
   MOCK_METHOD(int32_t, Release, (), (override));
 
-  void SetRates(const RateControlParameters& parameters) {
+  void SetRates(const RateControlParameters& parameters) override {
     last_set_rates_ = parameters;
   }
 
@@ -289,7 +290,7 @@ class MockVideoEncoder : public VideoEncoder {
     return info;
   }
 
-  virtual ~MockVideoEncoder() { factory_->DestroyVideoEncoder(this); }
+  ~MockVideoEncoder() override { factory_->DestroyVideoEncoder(this); }
 
   const VideoCodec& codec() const { return codec_; }
 
@@ -477,7 +478,7 @@ class TestSimulcastEncoderAdapterFake : public ::testing::Test,
  public:
   TestSimulcastEncoderAdapterFake() : use_fallback_factory_(false) {}
 
-  virtual ~TestSimulcastEncoderAdapterFake() {
+  ~TestSimulcastEncoderAdapterFake() override {
     if (adapter_) {
       adapter_->Release();
     }
@@ -640,7 +641,7 @@ class TestSimulcastEncoderAdapterFake : public ::testing::Test,
   }
 
  protected:
-  test::ScopedKeyValueConfig field_trials_;
+  FieldTrials field_trials_ = CreateTestFieldTrials();
   const Environment env_ = CreateEnvironment(&field_trials_);
   std::unique_ptr<TestSimulcastEncoderAdapterFakeHelper> helper_;
   std::unique_ptr<VideoEncoder> adapter_;
@@ -1561,13 +1562,11 @@ TEST_F(TestSimulcastEncoderAdapterFake,
 TEST_F(
     TestSimulcastEncoderAdapterFake,
     EncoderInfoFromFieldTrialDoesNotOverrideExistingBitrateLimitsInSinglecast) {
-  test::ScopedKeyValueConfig field_trials(
-      field_trials_,
-      "WebRTC-SimulcastEncoderAdapter-GetEncoderInfoOverride/"
-      "frame_size_pixels:123|456|789,"
-      "min_start_bitrate_bps:11000|22000|33000,"
-      "min_bitrate_bps:44000|55000|66000,"
-      "max_bitrate_bps:77000|88000|99000/");
+  field_trials_.Set("WebRTC-SimulcastEncoderAdapter-GetEncoderInfoOverride",
+                    "frame_size_pixels:123|456|789,"
+                    "min_start_bitrate_bps:11000|22000|33000,"
+                    "min_bitrate_bps:44000|55000|66000,"
+                    "max_bitrate_bps:77000|88000|99000");
   SetUp();
 
   std::vector<VideoEncoder::ResolutionBitrateLimits> bitrate_limits;
@@ -1591,11 +1590,9 @@ TEST_F(
 }
 
 TEST_F(TestSimulcastEncoderAdapterFake, EncoderInfoFromFieldTrial) {
-  test::ScopedKeyValueConfig field_trials(
-      field_trials_,
-      "WebRTC-SimulcastEncoderAdapter-GetEncoderInfoOverride/"
-      "requested_resolution_alignment:8,"
-      "apply_alignment_to_all_simulcast_layers/");
+  field_trials_.Set("WebRTC-SimulcastEncoderAdapter-GetEncoderInfoOverride",
+                    "requested_resolution_alignment:8,"
+                    "apply_alignment_to_all_simulcast_layers");
   SetUp();
   SimulcastTestFixtureImpl::DefaultSettings(
       &codec_, static_cast<const int*>(kTestTemporalLayerProfile),
@@ -1612,14 +1609,12 @@ TEST_F(TestSimulcastEncoderAdapterFake, EncoderInfoFromFieldTrial) {
 
 TEST_F(TestSimulcastEncoderAdapterFake,
        EncoderInfoFromFieldTrialForSingleStream) {
-  test::ScopedKeyValueConfig field_trials(
-      field_trials_,
-      "WebRTC-SimulcastEncoderAdapter-GetEncoderInfoOverride/"
-      "requested_resolution_alignment:9,"
-      "frame_size_pixels:123|456|789,"
-      "min_start_bitrate_bps:11000|22000|33000,"
-      "min_bitrate_bps:44000|55000|66000,"
-      "max_bitrate_bps:77000|88000|99000/");
+  field_trials_.Set("WebRTC-SimulcastEncoderAdapter-GetEncoderInfoOverride",
+                    "requested_resolution_alignment:9,"
+                    "frame_size_pixels:123|456|789,"
+                    "min_start_bitrate_bps:11000|22000|33000,"
+                    "min_bitrate_bps:44000|55000|66000,"
+                    "max_bitrate_bps:77000|88000|99000");
   SetUp();
   SimulcastTestFixtureImpl::DefaultSettings(
       &codec_, static_cast<const int*>(kTestTemporalLayerProfile),
@@ -2035,8 +2030,7 @@ TEST_F(TestSimulcastEncoderAdapterFake,
   // Normally SEA reuses encoders. But, when TL-based SW fallback is enabled,
   // the encoder which served the lowest stream should be recreated before it
   // can be used to process an upper layer and vice-versa.
-  test::ScopedKeyValueConfig field_trials(
-      field_trials_, "WebRTC-Video-PreferTemporalSupportOnBaseLayer/Enabled/");
+  field_trials_.Set("WebRTC-Video-PreferTemporalSupportOnBaseLayer", "Enabled");
   use_fallback_factory_ = true;
   ReSetUp();
 
@@ -2126,11 +2120,9 @@ TEST_F(TestSimulcastEncoderAdapterFake, PopulatesScalabilityModeOfSubcodecs) {
 
 TEST_F(TestSimulcastEncoderAdapterFake,
        EncodeDropsFrameIfResolutionIsNotAlignedByDefault) {
-  test::ScopedKeyValueConfig field_trials(
-      field_trials_,
-      "WebRTC-SimulcastEncoderAdapter-GetEncoderInfoOverride/"
-      "requested_resolution_alignment:8,"
-      "apply_alignment_to_all_simulcast_layers/");
+  field_trials_.Set("WebRTC-SimulcastEncoderAdapter-GetEncoderInfoOverride",
+                    "requested_resolution_alignment:8,"
+                    "apply_alignment_to_all_simulcast_layers");
   SetUp();
   SimulcastTestFixtureImpl::DefaultSettings(
       &codec_, static_cast<const int*>(kTestTemporalLayerProfile),
@@ -2152,12 +2144,11 @@ TEST_F(TestSimulcastEncoderAdapterFake,
 
 TEST_F(TestSimulcastEncoderAdapterFake,
        EncodeReturnsErrorIfResolutionIsNotAlignedAndDroppingIsDisabled) {
-  test::ScopedKeyValueConfig field_trials(
-      field_trials_,
-      "WebRTC-SimulcastEncoderAdapter-DropUnalignedResolution/Disabled/"
-      "WebRTC-SimulcastEncoderAdapter-GetEncoderInfoOverride/"
-      "requested_resolution_alignment:8,"
-      "apply_alignment_to_all_simulcast_layers/");
+  field_trials_.Set("WebRTC-SimulcastEncoderAdapter-DropUnalignedResolution",
+                    "Disabled");
+  field_trials_.Set("WebRTC-SimulcastEncoderAdapter-GetEncoderInfoOverride",
+                    "requested_resolution_alignment:8,"
+                    "apply_alignment_to_all_simulcast_layers");
   SetUp();
   SimulcastTestFixtureImpl::DefaultSettings(
       &codec_, static_cast<const int*>(kTestTemporalLayerProfile),

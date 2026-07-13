@@ -10,8 +10,12 @@
 
 #include "rtc_base/openssl_digest.h"
 
+#include <cstddef>
+#include <string>
+
 #include "absl/strings/string_view.h"
-#include "rtc_base/checks.h"  // RTC_DCHECK, RTC_CHECK
+#include "rtc_base/checks.h"
+#include "rtc_base/message_digest.h"
 #include "rtc_base/openssl.h"
 
 namespace webrtc {

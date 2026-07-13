@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "api/audio/audio_device.h"
 #include "api/audio/builtin_audio_processing_builder.h"
 #include "api/audio_codecs/audio_decoder_factory.h"
@@ -65,15 +66,15 @@
 #include "test/gtest.h"
 #include "test/network/simulated_network.h"
 #include "test/rtp_rtcp_observer.h"
-#include "test/testsupport/file_utils.h"
 #include "test/video_test_constants.h"
 #include "video/config/video_encoder_config.h"
 
 namespace webrtc {
 namespace test {
 
-CallTest::CallTest()
-    : env_(CreateEnvironment(&field_trials_)),
+CallTest::CallTest(absl::string_view field_trials)
+    : field_trials_(field_trials),
+      env_(CreateEnvironment(&field_trials_)),
       send_env_(env_),
       recv_env_(env_),
       audio_send_config_(/*send_transport=*/nullptr),

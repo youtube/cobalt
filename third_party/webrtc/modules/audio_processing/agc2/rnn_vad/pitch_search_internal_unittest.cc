@@ -12,8 +12,11 @@
 
 #include <array>
 #include <string>
-#include <tuple>
+#include <vector>
 
+#include "api/array_view.h"
+#include "modules/audio_processing/agc2/cpu_features.h"
+#include "modules/audio_processing/agc2/rnn_vad/common.h"
 #include "modules/audio_processing/agc2/rnn_vad/test_utils.h"
 #include "rtc_base/strings/string_builder.h"
 // TODO(bugs.webrtc.org/8948): Add when the issue is fixed.

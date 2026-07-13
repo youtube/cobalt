@@ -10,6 +10,7 @@
 #ifndef TEST_SCENARIO_PERFORMANCE_STATS_H_
 #define TEST_SCENARIO_PERFORMANCE_STATS_H_
 
+#include "api/scoped_refptr.h"
 #include "api/units/data_rate.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"

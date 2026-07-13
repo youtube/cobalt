@@ -350,7 +350,8 @@ void LossBasedBweV2::UpdateBandwidthEstimate(
         config_->hold_duration_factor > 0) {
       RTC_LOG(LS_INFO) << this << " " << "Switch to HOLD. Bounded BWE: "
                        << bounded_bandwidth_estimate.kbps()
-                       << ", duration: " << last_hold_info_.duration.ms();
+                       << ", duration: " << last_hold_info_.duration.ms()
+                       << ", avg loss rate: " << average_reported_loss_ratio_;
       last_hold_info_ = {
           .timestamp = last_send_time_most_recent_observation_ +
                        last_hold_info_.duration,

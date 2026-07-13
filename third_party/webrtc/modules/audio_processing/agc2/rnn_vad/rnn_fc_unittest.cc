@@ -18,7 +18,6 @@
 #include "modules/audio_processing/agc2/rnn_vad/test_utils.h"
 #include "modules/audio_processing/test/performance_timer.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/system/arch.h"
 #include "test/gtest.h"
 #include "third_party/rnnoise/src/rnn_vad_weights.h"
 

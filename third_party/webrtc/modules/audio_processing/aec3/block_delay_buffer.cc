@@ -9,7 +9,11 @@
  */
 #include "modules/audio_processing/aec3/block_delay_buffer.h"
 
+#include <cstddef>
+#include <vector>
+
 #include "api/array_view.h"
+#include "modules/audio_processing/audio_buffer.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {

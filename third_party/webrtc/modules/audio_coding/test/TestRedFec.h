@@ -26,7 +26,6 @@
 #include "modules/audio_coding/include/audio_coding_module.h"
 #include "modules/audio_coding/test/Channel.h"
 #include "modules/audio_coding/test/PCMFile.h"
-#include "test/scoped_key_value_config.h"
 
 namespace webrtc {
 
@@ -45,7 +44,6 @@ class TestRedFec final {
   void Run();
   void OpenOutFile(int16_t testNumber);
 
-  test::ScopedKeyValueConfig field_trials_;
   const Environment env_;
   const scoped_refptr<AudioEncoderFactory> encoder_factory_;
   const scoped_refptr<AudioDecoderFactory> decoder_factory_;

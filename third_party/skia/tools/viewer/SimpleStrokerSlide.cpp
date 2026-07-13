@@ -37,8 +37,7 @@ static bool isClockwise(const SkPoint& a, const SkPoint& b) { return a.cross(b) 
 class PathRecorder {
 public:
     SkPath getPath() const {
-        return SkPath::Make(fPoints.data(), fPoints.size(), fVerbs.data(), fVerbs.size(), nullptr,
-                            0, SkPathFillType::kWinding);
+        return SkPath::Make(fPoints, fVerbs, {}, SkPathFillType::kWinding);
     }
 
     void moveTo(SkPoint p) {
@@ -437,7 +436,7 @@ public:
         if (fShowSkeleton) {
             canvas->drawPath(path, fSkeletonPaint);
         }
-        canvas->drawPoints(SkCanvas::kPoints_PointMode, kN, fPts, fPtsPaint);
+        canvas->drawPoints(SkCanvas::kPoints_PointMode, fPts, fPtsPaint);
 
         // Draw a mirror but using Skia's stroker.
         canvas->translate(0, 400);

@@ -13,9 +13,12 @@
 #include <shellscalingapi.h>
 #include <windows.h>
 
+#include <cstddef>
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "modules/desktop_capture/desktop_capture_types.h"
 #include "modules/desktop_capture/desktop_capturer.h"
 #include "modules/desktop_capture/desktop_geometry.h"
 #include "rtc_base/checks.h"
@@ -54,7 +57,7 @@ bool GetScreenList(DesktopCapturer::SourceList* screens,
 
     screens->push_back({device_index, std::string()});
     if (device_names) {
-      device_names->push_back(webrtc::ToUtf8(device.DeviceName));
+      device_names->push_back(ToUtf8(device.DeviceName));
     }
   }
   return true;

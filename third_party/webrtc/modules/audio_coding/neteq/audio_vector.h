@@ -16,6 +16,7 @@
 #include <cstdint>
 #include <memory>
 
+#include "api/audio/audio_view.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {
@@ -43,6 +44,11 @@ class AudioVector final {
 
   // Copies `length` values from `position` in this vector to `copy_to`.
   void CopyTo(size_t length, size_t position, int16_t* copy_to) const;
+
+  // Copies `dst.size()` samples from a given position of the vector.
+  // If not enough samples are available, the function will return
+  // false and not do any copying.
+  bool CopyTo(size_t position, MonoView<int16_t> dst) const;
 
   // Prepends the contents of AudioVector `prepend_this` to this object. The
   // length of this object is increased with the length of `prepend_this`.

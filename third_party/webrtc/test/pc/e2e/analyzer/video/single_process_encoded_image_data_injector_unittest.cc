@@ -10,11 +10,15 @@
 
 #include "test/pc/e2e/analyzer/video/single_process_encoded_image_data_injector.h"
 
-#include <utility>
+#include <cstddef>
+#include <cstdint>
 
+#include "api/scoped_refptr.h"
 #include "api/video/encoded_image.h"
 #include "rtc_base/buffer.h"
+#include "rtc_base/checks.h"
 #include "test/gtest.h"
+#include "test/pc/e2e/analyzer/video/encoded_image_data_injector.h"
 
 namespace webrtc {
 namespace webrtc_pc_e2e {

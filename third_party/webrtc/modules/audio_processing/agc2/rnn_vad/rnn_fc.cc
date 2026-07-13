@@ -11,8 +11,13 @@
 #include "modules/audio_processing/agc2/rnn_vad/rnn_fc.h"
 
 #include <algorithm>
-#include <numeric>
+#include <cstdint>
+#include <vector>
 
+#include "absl/strings/string_view.h"
+#include "api/array_view.h"
+#include "api/function_view.h"
+#include "modules/audio_processing/agc2/cpu_features.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "third_party/rnnoise/src/rnn_activations.h"

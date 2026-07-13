@@ -118,9 +118,9 @@ class BitrateEstimatorTest : public test::CallTest {
  public:
   BitrateEstimatorTest() : receive_config_(nullptr) {}
 
-  virtual ~BitrateEstimatorTest() { EXPECT_TRUE(streams_.empty()); }
+  ~BitrateEstimatorTest() override { EXPECT_TRUE(streams_.empty()); }
 
-  virtual void SetUp() {
+  void SetUp() override {
     SendTask(task_queue(), [this]() {
       RegisterRtpExtension(
           RtpExtension(RtpExtension::kTimestampOffsetUri, kTOFExtensionId));
@@ -157,7 +157,7 @@ class BitrateEstimatorTest : public test::CallTest {
     });
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     SendTask(task_queue(), [this]() {
       for (auto* stream : streams_) {
         stream->StopSending();

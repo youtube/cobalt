@@ -10,11 +10,12 @@
 
 #include "modules/audio_mixer/gain_change_calculator.h"
 
-#include <math.h>
-
+#include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <vector>
 
+#include "api/array_view.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {

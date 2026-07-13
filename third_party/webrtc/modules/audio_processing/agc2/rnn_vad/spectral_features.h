@@ -14,7 +14,6 @@
 #include <array>
 #include <cstddef>
 #include <memory>
-#include <vector>
 
 #include "api/array_view.h"
 #include "modules/audio_processing/agc2/rnn_vad/common.h"

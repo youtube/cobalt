@@ -39,7 +39,7 @@ enum class NetEqDecoder {
 
 class SplitBySamplesTest : public ::testing::TestWithParam<NetEqDecoder> {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     decoder_type_ = GetParam();
     switch (decoder_type_) {
       case NetEqDecoder::kDecoderPCMu:

@@ -190,10 +190,11 @@ public:
     sk_sp<SkShader> makeWithCTM(const SkMatrix&) const;  // owns its own ctm
 
     /**
-     *  Returns true if the shader is guaranteed to produce only a single color.
+     *  Returns true if the shader is guaranteed to produce only a single color
+     *  If the color parameter is non-null, it is filled in with that color.
      *  Subclasses can override this to allow loop-hoisting optimization.
      */
-    virtual bool isConstant() const { return false; }
+    virtual bool isConstant(SkColor4f* color = nullptr) const { return false; }
 
     enum class ShaderType {
 #define M(type) k##type,
@@ -375,7 +376,7 @@ public:
     }
     static void RegisterFlattenables();
 
-    /** DEPRECATED. skbug.com/8941
+    /** DEPRECATED. skbug.com/40040221
      *  If this shader can be represented by another shader + a localMatrix, return that shader and
      *  the localMatrix. If not, return nullptr and ignore the localMatrix parameter.
      */

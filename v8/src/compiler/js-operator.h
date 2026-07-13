@@ -289,9 +289,9 @@ class CallParameters final {
                               feedback_hash(p.feedback_));
   }
 
-  using ArityField = base::BitField<size_t, 0, 27>;
-  using CallFeedbackRelationField = base::BitField<CallFeedbackRelation, 27, 2>;
-  using SpeculationModeField = base::BitField<SpeculationMode, 29, 1>;
+  using ArityField = base::BitField<size_t, 0, 26>;
+  using CallFeedbackRelationField = base::BitField<CallFeedbackRelation, 26, 2>;
+  using SpeculationModeField = base::BitField<SpeculationMode, 28, 2>;
   using ConvertReceiverModeField = base::BitField<ConvertReceiverMode, 30, 2>;
 
   uint32_t const bit_field_;
@@ -564,15 +564,18 @@ CreateArgumentsType const& CreateArgumentsTypeOf(const Operator* op);
 // used as parameter by JSCreateArray operators.
 class CreateArrayParameters final {
  public:
-  CreateArrayParameters(size_t arity, OptionalAllocationSiteRef site)
-      : arity_(arity), site_(site) {}
+  CreateArrayParameters(size_t arity, OptionalAllocationSiteRef site,
+                        const FeedbackSource& feedback)
+      : arity_(arity), site_(site), feedback_(feedback) {}
 
   size_t arity() const { return arity_; }
   OptionalAllocationSiteRef site() const { return site_; }
+  const FeedbackSource& call_feedback() const { return feedback_; }
 
  private:
   size_t const arity_;
   OptionalAllocationSiteRef const site_;
+  FeedbackSource const feedback_;
 
   friend bool operator==(CreateArrayParameters const&,
                          CreateArrayParameters const&);
@@ -935,7 +938,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* Create();
   const Operator* CreateArguments(CreateArgumentsType type);
-  const Operator* CreateArray(size_t arity, OptionalAllocationSiteRef site);
+  const Operator* CreateArray(size_t arity, OptionalAllocationSiteRef site,
+                              const FeedbackSource& feedback);
   const Operator* CreateArrayIterator(IterationKind);
   const Operator* CreateAsyncFunctionObject(int register_count);
   const Operator* CreateCollectionIterator(CollectionKind, IterationKind);

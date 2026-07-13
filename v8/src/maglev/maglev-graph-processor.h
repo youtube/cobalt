@@ -124,11 +124,11 @@ class GraphProcessor {
     process_constants(graph->uint32());
     process_constants(graph->intptr());
     process_constants(graph->float64());
-    process_constants(graph->external_references());
     process_constants(graph->trusted_constants());
 
     for (block_it_ = graph->begin(); block_it_ != graph->end(); ++block_it_) {
       BasicBlock* block = *block_it_;
+      if (V8_UNLIKELY(block->is_dead())) continue;
 
       BlockProcessResult preprocess_result =
           node_processor_.PreProcessBasicBlock(block);
@@ -318,9 +318,7 @@ class NodeMultiProcessor<Processor, Processors...>
       [[likely]] case BlockProcessResult::kContinue:
         return Base::PreProcessBasicBlock(block);
       case BlockProcessResult::kSkip:
-        // TODO(olivf): How to combine this with multiple processors depends on
-        // the needs of the actual processors. Implement once needed.
-        UNREACHABLE();
+        return res;
     }
   }
   void PostPhiProcessing() {

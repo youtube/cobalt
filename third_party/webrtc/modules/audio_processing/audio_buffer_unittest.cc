@@ -11,8 +11,10 @@
 #include "modules/audio_processing/audio_buffer.h"
 
 #include <cmath>
+#include <cstddef>
 
 #include "api/audio/audio_view.h"
+#include "rtc_base/checks.h"
 #include "test/gtest.h"
 #include "test/testsupport/rtc_expect_death.h"
 

@@ -421,6 +421,7 @@ FramebufferVk::FramebufferVk(vk::Renderer *renderer, const gl::FramebufferState 
 
     mIsCurrentFramebufferCached = !renderer->getFeatures().supportsImagelessFramebuffer.enabled;
     mIsYUVResolve               = false;
+    mRasterizationSamples       = -1;
 }
 
 FramebufferVk::~FramebufferVk() = default;
@@ -2585,6 +2586,9 @@ angle::Result FramebufferVk::syncState(const gl::Context *context,
         }
     }
 
+    // Update cached value of samples
+    mRasterizationSamples = getSamplesImpl();
+
     // A shared attachment's colospace could have been modified in another context, update
     // colorspace of all attachments to reflect current context's colorspace.
     gl::SrgbWriteControlMode srgbWriteControlMode = mState.getWriteControlMode();
@@ -2650,7 +2654,7 @@ angle::Result FramebufferVk::syncState(const gl::Context *context,
 
     // No-op redundant changes to prevent closing the RenderPass.
     if (mCurrentFramebufferDesc == priorFramebufferDesc &&
-        mCurrentFramebufferDesc.attachmentCount() > 0)
+        mCurrentFramebufferDesc.attachmentCount() > 0 && mRenderPassDesc.samples() == getSamples())
     {
         return angle::Result::Continue;
     }
@@ -3689,20 +3693,21 @@ angle::Result FramebufferVk::startNewRenderPass(ContextVk *contextVk,
                 }
             }
 
-            if (unresolveDepth || unresolveStencil)
+            if (unresolveDepth)
             {
-                if (unresolveDepth)
-                {
-                    mRenderPassDesc.packDepthUnresolveAttachment();
-                }
-                if (unresolveStencil)
-                {
-                    mRenderPassDesc.packStencilUnresolveAttachment();
-                }
+                mRenderPassDesc.packDepthUnresolveAttachment();
             }
             else
             {
-                mRenderPassDesc.removeDepthStencilUnresolveAttachment();
+                mRenderPassDesc.removeDepthUnresolveAttachment();
+            }
+            if (unresolveStencil)
+            {
+                mRenderPassDesc.packStencilUnresolveAttachment();
+            }
+            else
+            {
+                mRenderPassDesc.removeStencilUnresolveAttachment();
             }
         }
 
@@ -3868,7 +3873,7 @@ gl::Rectangle FramebufferVk::getRotatedScissoredRenderArea(ContextVk *contextVk)
     return rotatedScissoredArea;
 }
 
-GLint FramebufferVk::getSamples() const
+GLint FramebufferVk::getSamplesImpl() const
 {
     const gl::FramebufferAttachment *lastAttachment = nullptr;
 

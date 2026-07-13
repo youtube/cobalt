@@ -27,7 +27,8 @@ public:
      */
     static Recorder* TODO();
 
-    SkRecorder::Type type() const final { return SkRecorder::Type::kRaster; }
+    SkRecorder::Type type() const final { return SkRecorder::Type::kCPU; }
+    skcpu::Recorder* cpuRecorder() final { return this; }
 
     /** Allocates a bitmap-backed SkSurface. SkCanvas returned by SkSurface draws directly into
      *  those allocated pixels, which are zeroed before use. Pixel memory size is imageInfo.height()
@@ -52,6 +53,16 @@ public:
     sk_sp<SkSurface> makeBitmapSurface(const SkImageInfo& imageInfo,
                                        const SkSurfaceProps* surfaceProps = nullptr);
 };
+
+inline Recorder* AsRecorder(SkRecorder* recorder) {
+    if (!recorder) {
+        return nullptr;
+    }
+    if (recorder->type() != SkRecorder::Type::kCPU) {
+        return nullptr;
+    }
+    return static_cast<Recorder*>(recorder);
+}
 
 }  // namespace skcpu
 

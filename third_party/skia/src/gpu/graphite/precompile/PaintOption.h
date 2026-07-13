@@ -29,18 +29,11 @@ public:
                 const std::pair<sk_sp<PrecompileShader>, int>& shader,
                 const std::pair<sk_sp<PrecompileColorFilter>, int>& colorFilter,
                 bool hasPrimitiveBlender,
+                SkBlendMode primitiveBlendMode,
                 const std::pair<sk_sp<PrecompileShader>, int>& clipShader,
                 bool dstReadRequired,
-                bool dither)
-        : fOpaquePaintColor(opaquePaintColor)
-        , fFinalBlender(finalBlender)
-        , fShader(shader)
-        , fColorFilter(colorFilter)
-        , fHasPrimitiveBlender(hasPrimitiveBlender)
-        , fClipShader(clipShader)
-        , fDstReadRequired(dstReadRequired)
-        , fDither(dither) {
-    }
+                bool dither,
+                bool analyticClip);
 
     const PrecompileBlender* finalBlender() const { return fFinalBlender.first.get(); }
 
@@ -55,15 +48,19 @@ private:
     void handleColorFilter(const KeyContext&, PaintParamsKeyBuilder*, PipelineDataGatherer*) const;
     bool shouldDither(SkColorType dstCT) const;
     void handleDithering(const KeyContext&, PaintParamsKeyBuilder*, PipelineDataGatherer*) const;
+    void handleClipping(const KeyContext&, PaintParamsKeyBuilder*, PipelineDataGatherer*) const;
 
     bool fOpaquePaintColor;
     std::pair<sk_sp<PrecompileBlender>, int> fFinalBlender;
     std::pair<sk_sp<PrecompileShader>, int> fShader;
     std::pair<sk_sp<PrecompileColorFilter>, int> fColorFilter;
+    SkBlendMode fPrimitiveBlendMode;
     bool fHasPrimitiveBlender;
+    bool fSkipColorXform;
     std::pair<sk_sp<PrecompileShader>, int> fClipShader;
     bool fDstReadRequired;
     bool fDither;
+    bool fAnalyticClip;
 };
 
 } // namespace skgpu::graphite

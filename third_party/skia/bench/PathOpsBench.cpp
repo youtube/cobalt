@@ -9,8 +9,8 @@
 #include "include/core/SkPath.h"
 #include "include/core/SkShader.h"
 #include "include/core/SkString.h"
-#include "include/pathops/SkPathOps.h"
 #include "include/private/base/SkTArray.h"
+#include "modules/pathops/include/SkPathOps.h"
 #include "src/base/SkRandom.h"
 
 class PathOpsBench : public Benchmark {
@@ -188,9 +188,9 @@ protected:
             case MakeType::kArray: {
             //    ArrayPath<N*12> arrays;
             //    run_builder(arrays, false, N);
-                return SkPath::Make(fArrays.fPts, fArrays.fPIndex,
-                                    fArrays.fVbs, fArrays.fVIndex,
-                                    nullptr, 0, SkPathFillType::kWinding);
+                return SkPath::Make({fArrays.fPts, fArrays.fPIndex},
+                                    {fArrays.fVbs, fArrays.fVIndex},
+                                    {}, SkPathFillType::kWinding);
             }
         }
         return SkPath();

@@ -11,7 +11,7 @@
 #ifndef MODULES_AUDIO_PROCESSING_TEST_ECHO_CANCELLER_TEST_TOOLS_H_
 #define MODULES_AUDIO_PROCESSING_TEST_ECHO_CANCELLER_TEST_TOOLS_H_
 
-#include <algorithm>
+#include <cstddef>
 #include <vector>
 
 #include "api/array_view.h"

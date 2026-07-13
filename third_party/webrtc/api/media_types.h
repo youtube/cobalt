@@ -24,7 +24,7 @@ enum class MediaType {
   DATA,
   UNSUPPORTED,
   ANY,
-  // Backwards compatibility values for webrtc::MediaType users
+  // Backwards compatibility values for MediaType users
   // TODO: https://issues.webrtc.org/42222911 - remove
   MEDIA_TYPE_AUDIO [[deprecated("Use AUDIO")]] = AUDIO,
   MEDIA_TYPE_VIDEO [[deprecated("Use VIDEO")]] = VIDEO,

@@ -70,7 +70,7 @@ class ConnectionObserver : public sigslot::has_slots<> {
     conn->SignalDestroyed.connect(this, &ConnectionObserver::OnDestroyed);
   }
 
-  ~ConnectionObserver() {
+  ~ConnectionObserver() override {
     if (!connection_destroyed_) {
       RTC_DCHECK(conn_);
       conn_->SignalDestroyed.disconnect(this);

@@ -148,6 +148,50 @@ void VulkanCommandBuffer::begin() {
     VULKAN_CALL_ERRCHECK(fSharedContext,
                          BeginCommandBuffer(fPrimaryCommandBuffer, &cmdBufferBeginInfo));
     fActive = true;
+
+    // Set all the dynamic state that Graphite never changes once at the beginning of the command
+    // buffer.  The following state are constants in Graphite:
+    //
+    // * lineWidth
+    // * depthBiasEnable, depthBiasConstantFactor, depthBiasClamp, depthBiasSlopeFactor
+    // * min/maxDepthBounds, depthBoundsTestEnable
+    // * primitiveRestartEnable
+    // * cullMode
+    // * frontFace
+    // * rasterizerDiscardEnable
+
+    if (fSharedContext->caps()->useBasicDynamicState()) {
+        VULKAN_CALL(fSharedContext->interface(),
+                    CmdSetLineWidth(fPrimaryCommandBuffer,
+                                    /*lineWidth=*/1.0));
+        VULKAN_CALL(fSharedContext->interface(),
+                    CmdSetDepthBias(fPrimaryCommandBuffer,
+                                    /*depthBiasConstantFactor=*/0.0f,
+                                    /*depthBiasClamp=*/0.0f,
+                                    /*depthBiasSlopeFactor=*/0.0f));
+        VULKAN_CALL(fSharedContext->interface(),
+                    CmdSetDepthBounds(fPrimaryCommandBuffer,
+                                      /*minDepthBounds=*/0.0f,
+                                      /*maxDepthBounds=*/1.0f));
+        VULKAN_CALL(fSharedContext->interface(),
+                    CmdSetDepthBoundsTestEnable(fPrimaryCommandBuffer,
+                                                /*depthBoundsTestEnable=*/VK_FALSE));
+        VULKAN_CALL(fSharedContext->interface(),
+                    CmdSetDepthBiasEnable(fPrimaryCommandBuffer,
+                                          /*depthBiasEnable=*/VK_FALSE));
+        VULKAN_CALL(fSharedContext->interface(),
+                    CmdSetPrimitiveRestartEnable(fPrimaryCommandBuffer,
+                                                 /*primitiveRestartEnable=*/VK_FALSE));
+        VULKAN_CALL(fSharedContext->interface(),
+                    CmdSetCullMode(fPrimaryCommandBuffer,
+                                   /*cullMode=*/VK_CULL_MODE_NONE));
+        VULKAN_CALL(fSharedContext->interface(),
+                    CmdSetFrontFace(fPrimaryCommandBuffer,
+                                    /*frontFace=*/VK_FRONT_FACE_COUNTER_CLOCKWISE));
+        VULKAN_CALL(fSharedContext->interface(),
+                    CmdSetRasterizerDiscardEnable(fPrimaryCommandBuffer,
+                                                  /*rasterizerDiscardEnable=*/VK_FALSE));
+    }
 }
 
 void VulkanCommandBuffer::end() {
@@ -478,7 +522,10 @@ bool VulkanCommandBuffer::updateAndBindInputAttachment(const VulkanTexture& text
     textureInfo.sampler = VK_NULL_HANDLE;
     textureInfo.imageView =
             texture.getImageView(VulkanImageView::Usage::kAttachment)->imageView();
-    textureInfo.imageLayout = texture.currentLayout();
+    // Even though the image is in the VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, the subpass
+    // is configured to implicitly use VK_IMAGE_LAYOUT_GENERAL in VkAttachmentReference::layout as
+    // part of VkSubpassDescription.
+    textureInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
     VkWriteDescriptorSet writeInfo = {};
     writeInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -566,7 +613,7 @@ bool VulkanCommandBuffer::loadMSAAFromResolve(const RenderPassDesc& rpDesc,
     // After loading the resolve attachment, proceed to the next subpass.
     this->nextSubpass();
     // While transitioning to the next subpass, the layout of the resolve texture gets changed
-    // internally to accommodate its usage within the following subpass. Thus, we need  to update
+    // internally to accommodate its usage within the following subpass. Thus, we need to update
     // our tracking of the layout to match the new/final layout. We do not need to use a general
     // layout because we do not expect to later treat the resolve texture as a dst to read from.
     resolveTexture.updateImageLayout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
@@ -589,13 +636,10 @@ void assign_color_texture_layout(VulkanCommandBuffer* cmdBuf,
     VkImageLayout layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
     // If any draws within a render pass read from the dst color texture as an input attachment,
-    // we must use a general image layout and add additional pipeline stage + access flags.
+    // we must add additional pipeline stage + access flags.
     if (rpReadsDstAsInput) {
         stageFlags |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
         access |= VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
-        // Note: Using VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT may be more optimal,
-        // though not many devices support it.
-        layout = VK_IMAGE_LAYOUT_GENERAL;
     }
 
     colorTexture->setImageLayout(cmdBuf, layout, access, stageFlags, /*byRegion=*/false);
@@ -606,8 +650,10 @@ void assign_resolve_texture_layout(VulkanCommandBuffer* cmdBuf,
                                    bool loadMSAAFromResolve) {
     VkPipelineStageFlags stageFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     VkAccessFlags access = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
-    VkImageLayout layout = loadMSAAFromResolve ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-                                               : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    // The resolve image uses the color attachment layout. If loadMSAAFromResolve is true, the
+    // additional subpass will set the appropriate layout in VkAttachmentReference::layout, and
+    // layout transitions are performed automatically between subpasses.
+    VkImageLayout layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
     // If loading MSAA from resolve, then the resolve texture is used in the first subpass
     // as an input attachment and is referenced within the fragment shader. Add to the access and
@@ -651,7 +697,8 @@ void setup_texture_layouts(VulkanCommandBuffer* cmdBuf,
 static constexpr int kMaxNumAttachments = 3;
 void gather_clear_values(const RenderPassDesc& rpDesc,
                          STArray<kMaxNumAttachments, VkClearValue>* clearValues) {
-    // NOTE: This must stay in sync with the attachment order defined in VulkanRenderPass::Metadata
+    // NOTE: This must stay in sync with the attachment order defined in VulkanRenderPass.cpp, in
+    // populate_attachment_refs().
     if (rpDesc.fColorAttachment.fFormat != TextureFormat::kUnsupported) {
         VkClearValue& colorAttachmentClear = clearValues->push_back();
         colorAttachmentClear.color = {{rpDesc.fClearColor[0],
@@ -806,20 +853,13 @@ bool VulkanCommandBuffer::beginRenderPass(const RenderPassDesc& rpDesc,
         return false;
     }
 
-    VkExtent2D granularity;
-    // Get granularity for this render pass
-    VULKAN_CALL(fSharedContext->interface(),
-                GetRenderAreaGranularity(fSharedContext->device(),
-                                         vulkanRenderPass->renderPass(),
-                                         &granularity));
-
     bool useFullBounds = loadMSAAFromResolve &&
                          fSharedContext->vulkanCaps().mustLoadFullImageForMSAA();
 
     VkRect2D renderArea = get_render_area(useFullBounds ? SkIRect::MakeWH(frameBufferWidth,
                                                                           frameBufferHeight)
                                                         : renderPassBounds,
-                                          granularity,
+                                          vulkanRenderPass->granularity(),
                                           frameBufferWidth,
                                           frameBufferHeight);
 
@@ -971,6 +1011,11 @@ void VulkanCommandBuffer::addDrawPass(const DrawPass* drawPass) {
 
 void VulkanCommandBuffer::bindGraphicsPipeline(const GraphicsPipeline* graphicsPipeline) {
     SkASSERT(fActiveRenderPass);
+    // TODO(b/414645289): Once the front-end is made aware of dynamic state, it could recognize when
+    // only dynamic state has changed.  In that case, since the pipeline doesn't change, this call
+    // can be avoided.  The logic after this would then have to move to another place; for example
+    // setting dynamic states should move to a separate VulkanCommandBuffer call.
+    const auto* previousGraphicsPipeline = fActiveGraphicsPipeline;
     fActiveGraphicsPipeline = static_cast<const VulkanGraphicsPipeline*>(graphicsPipeline);
     VULKAN_CALL(fSharedContext->interface(), CmdBindPipeline(fPrimaryCommandBuffer,
                                                              VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -988,6 +1033,9 @@ void VulkanCommandBuffer::bindGraphicsPipeline(const GraphicsPipeline* graphicsP
         // up front in this case.
         this->recordTextureAndSamplerDescSet(/*drawPass=*/nullptr, /*command=*/nullptr);
     }
+
+    fActiveGraphicsPipeline->updateDynamicState(
+            fSharedContext, fPrimaryCommandBuffer, previousGraphicsPipeline);
 }
 
 void VulkanCommandBuffer::setBlendConstants(float* blendConstants) {

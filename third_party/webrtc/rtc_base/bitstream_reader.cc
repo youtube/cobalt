@@ -12,7 +12,8 @@
 
 #include <stdint.h>
 
-#include <limits>
+#include <cstddef>
+#include <string>
 
 #include "absl/numeric/bits.h"
 #include "rtc_base/checks.h"

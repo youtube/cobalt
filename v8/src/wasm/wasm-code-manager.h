@@ -28,6 +28,7 @@
 #include "src/tasks/operations-barrier.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/compilation-environment.h"
+#include "src/wasm/wasm-code-coverage.h"
 #include "src/wasm/wasm-code-pointer-table.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
@@ -624,6 +625,14 @@ class V8_EXPORT_PRIVATE NativeModule final {
   NativeModule& operator=(const NativeModule&) = delete;
   ~NativeModule();
 
+  // Returns the number of lines generated in the disassembly of the whole
+  // module.
+  // {bytecode_disasm_offsets} maps the bytecode offset of a Wasm instruction
+  // into the corresponding line in the disassembler text output.
+  uint32_t DisassembleForLcov(
+      std::ostream& out, std::vector<int>& function_body_offsets,
+      std::map<uint32_t, uint32_t>& bytecode_disasm_offsets);
+
   // {AddCode} is thread safe w.r.t. other calls to {AddCode} or methods adding
   // code below, i.e. it can be called concurrently from background threads.
   // The returned code still needs to be published via {PublishCode}.
@@ -950,6 +959,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   WasmCodePointer GetCodePointerHandle(int index) const;
 
+  const std::shared_ptr<WasmModuleCoverageData>& coverage_data() const {
+    return coverage_data_;
+  }
+
  private:
   friend class WasmCode;
   friend class WasmCodeAllocator;
@@ -1150,6 +1163,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   std::unique_ptr<std::atomic<Address>[]> fast_api_targets_;
   std::unique_ptr<std::atomic<const MachineSignature*>[]> fast_api_signatures_;
+
+  std::shared_ptr<WasmModuleCoverageData> coverage_data_;
 };
 
 class V8_EXPORT_PRIVATE WasmCodeManager final {

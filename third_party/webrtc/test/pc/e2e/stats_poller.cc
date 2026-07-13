@@ -10,10 +10,19 @@
 
 #include "test/pc/e2e/stats_poller.h"
 
+#include <map>
+#include <string>
 #include <utility>
+#include <vector>
 
-#include "rtc_base/logging.h"
+#include "absl/strings/string_view.h"
+#include "api/make_ref_counted.h"
+#include "api/scoped_refptr.h"
+#include "api/stats/rtc_stats_report.h"
+#include "api/test/stats_observer_interface.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "test/pc/e2e/stats_provider.h"
+#include "test/pc/e2e/test_peer.h"
 
 namespace webrtc {
 namespace webrtc_pc_e2e {

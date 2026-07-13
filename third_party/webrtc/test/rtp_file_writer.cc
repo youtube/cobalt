@@ -10,13 +10,13 @@
 
 #include "test/rtp_file_writer.h"
 
-#include <stdint.h>
-#include <stdio.h>
-
+#include <cstdint>
+#include <cstdio>
 #include <optional>
 #include <string>
 
 #include "rtc_base/checks.h"
+#include "test/rtp_file_reader.h"
 
 namespace webrtc {
 namespace test {

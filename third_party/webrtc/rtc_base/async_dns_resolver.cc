@@ -10,14 +10,26 @@
 
 #include "rtc_base/async_dns_resolver.h"
 
-#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
+#include "absl/strings/string_view.h"
+#include "api/async_dns_resolver.h"
 #include "api/make_ref_counted.h"
-#include "rtc_base/logging.h"
+#include "api/ref_counted_base.h"
+#include "api/scoped_refptr.h"
+#include "api/sequence_checker.h"
+#include "api/task_queue/pending_task_safety_flag.h"
+#include "api/task_queue/task_queue_base.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/ip_address.h"
+#include "rtc_base/net_helpers.h"
 #include "rtc_base/platform_thread.h"
+#include "rtc_base/socket_address.h"
+#include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/thread_annotations.h"
 
 #if defined(WEBRTC_MAC) || defined(WEBRTC_IOS)
 #include <dispatch/dispatch.h>
@@ -30,7 +42,7 @@ namespace {
 #ifdef __native_client__
 int ResolveHostname(absl::string_view hostname,
                     int family,
-                    std::vector<webrtc::IPAddress>* addresses) {
+                    std::vector<IPAddress>* addresses) {
   RTC_DCHECK_NOTREACHED();
   RTC_LOG(LS_WARNING) << "ResolveHostname() is not implemented for NaCl";
   return -1;

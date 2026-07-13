@@ -11,16 +11,21 @@
 #ifndef TEST_PC_E2E_NETWORK_QUALITY_METRICS_REPORTER_H_
 #define TEST_PC_E2E_NETWORK_QUALITY_METRICS_REPORTER_H_
 
-#include <memory>
+#include <cstdint>
+#include <map>
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "api/scoped_refptr.h"
+#include "api/stats/rtc_stats_report.h"
 #include "api/test/metrics/metrics_logger.h"
+#include "api/test/network_emulation/network_emulation_interfaces.h"
 #include "api/test/network_emulation_manager.h"
 #include "api/test/peerconnection_quality_test_fixture.h"
 #include "api/test/track_id_stream_info_map.h"
 #include "api/units/data_size.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 namespace webrtc_pc_e2e {

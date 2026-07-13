@@ -10,9 +10,13 @@
 
 #include "sdk/media_constraints.h"
 
+#include <cstddef>
 #include <optional>
+#include <string>
 
+#include "api/audio_options.h"
 #include "api/peer_connection_interface.h"
+#include "rtc_base/string_encode.h"
 
 namespace webrtc {
 namespace {

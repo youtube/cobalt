@@ -19,10 +19,6 @@
 
 namespace webrtc {
 
-std::string IceCandidateInterface::server_url() const {
-  return "";
-}
-
 size_t SessionDescriptionInterface::RemoveCandidates(
     const std::vector<Candidate>& /* candidates */) {
   return 0;

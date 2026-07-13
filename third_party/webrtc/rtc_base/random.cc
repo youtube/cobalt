@@ -11,6 +11,7 @@
 
 #include <math.h>
 
+#include <cstdint>
 #include <numbers>
 
 #include "rtc_base/checks.h"

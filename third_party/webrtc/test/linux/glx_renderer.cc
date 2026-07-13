@@ -10,9 +10,17 @@
 
 #include "test/linux/glx_renderer.h"
 
+#include <GL/glx.h>
+#include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <stdlib.h>
+
+#include <cstdlib>
+
+#include "api/video/video_frame.h"
+#include "rtc_base/checks.h"
+#include "test/gl/gl_renderer.h"
 
 namespace webrtc {
 namespace test {

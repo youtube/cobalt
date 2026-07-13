@@ -16,14 +16,18 @@
 #include <set>
 #include <vector>
 
+#include "api/field_trials.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/ssl_stream_adapter.h"
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
+
+namespace webrtc {
+namespace {
 
 TEST(OpenSSLStreamAdapterTest, GetSupportedEphemeralKeyExchangeCipherGroups) {
   RTC_LOG(LS_INFO) << "OpenSSLStreamAdapter::IsBoringSsl(): "
-                   << webrtc::OpenSSLStreamAdapter::IsBoringSsl();
+                   << OpenSSLStreamAdapter::IsBoringSsl();
   std::set<uint16_t> expected = {
 #ifdef SSL_GROUP_SECP224R1
       SSL_GROUP_SECP224R1,
@@ -44,46 +48,44 @@ TEST(OpenSSLStreamAdapterTest, GetSupportedEphemeralKeyExchangeCipherGroups) {
       SSL_GROUP_X25519_MLKEM768,
 #endif
   };
-  EXPECT_EQ(
-      webrtc::SSLStreamAdapter::GetSupportedEphemeralKeyExchangeCipherGroups(),
-      expected);
+  EXPECT_EQ(SSLStreamAdapter::GetSupportedEphemeralKeyExchangeCipherGroups(),
+            expected);
 }
 
 TEST(OpenSSLStreamAdapterTest, GetEphemeralKeyExchangeCipherGroupName) {
 #ifdef SSL_GROUP_SECP224R1
-  EXPECT_EQ(*webrtc::SSLStreamAdapter::GetEphemeralKeyExchangeCipherGroupName(
+  EXPECT_EQ(*SSLStreamAdapter::GetEphemeralKeyExchangeCipherGroupName(
                 SSL_GROUP_SECP224R1),
             "P-224");
 #endif
 #ifdef SSL_GROUP_SECP256R1
-  EXPECT_EQ(*webrtc::SSLStreamAdapter::GetEphemeralKeyExchangeCipherGroupName(
+  EXPECT_EQ(*SSLStreamAdapter::GetEphemeralKeyExchangeCipherGroupName(
                 SSL_GROUP_SECP256R1),
             "P-256");
 #endif
 #ifdef SSL_GROUP_SECP384R1
-  EXPECT_EQ(*webrtc::SSLStreamAdapter::GetEphemeralKeyExchangeCipherGroupName(
+  EXPECT_EQ(*SSLStreamAdapter::GetEphemeralKeyExchangeCipherGroupName(
                 SSL_GROUP_SECP384R1),
             "P-384");
 #endif
 #ifdef SSL_GROUP_SECP521R1
-  EXPECT_EQ(*webrtc::SSLStreamAdapter::GetEphemeralKeyExchangeCipherGroupName(
+  EXPECT_EQ(*SSLStreamAdapter::GetEphemeralKeyExchangeCipherGroupName(
                 SSL_GROUP_SECP521R1),
             "P-521");
 #endif
 #ifdef SSL_GROUP_X25519
-  EXPECT_EQ(*webrtc::SSLStreamAdapter::GetEphemeralKeyExchangeCipherGroupName(
+  EXPECT_EQ(*SSLStreamAdapter::GetEphemeralKeyExchangeCipherGroupName(
                 SSL_GROUP_X25519),
             "X25519");
 #endif
 #ifdef SSL_GROUP_X25519_MLKEM768
-  EXPECT_EQ(*webrtc::SSLStreamAdapter::GetEphemeralKeyExchangeCipherGroupName(
+  EXPECT_EQ(*SSLStreamAdapter::GetEphemeralKeyExchangeCipherGroupName(
                 SSL_GROUP_X25519_MLKEM768),
             "X25519MLKEM768");
 #endif
 
   EXPECT_FALSE(
-      webrtc::SSLStreamAdapter::GetEphemeralKeyExchangeCipherGroupName(0)
-          .has_value());
+      SSLStreamAdapter::GetEphemeralKeyExchangeCipherGroupName(0).has_value());
 }
 
 TEST(OpenSSLStreamAdapterTest, GetDefaultEphemeralKeyExchangeCipherGroups) {
@@ -98,10 +100,9 @@ TEST(OpenSSLStreamAdapterTest, GetDefaultEphemeralKeyExchangeCipherGroups) {
       SSL_GROUP_SECP384R1,
 #endif
   };
-  EXPECT_EQ(
-      webrtc::SSLStreamAdapter::GetDefaultEphemeralKeyExchangeCipherGroups(
-          /* field_trials= */ nullptr),
-      expected);
+  EXPECT_EQ(SSLStreamAdapter::GetDefaultEphemeralKeyExchangeCipherGroups(
+                /* field_trials= */ nullptr),
+            expected);
 }
 
 TEST(OpenSSLStreamAdapterTest,
@@ -120,10 +121,12 @@ TEST(OpenSSLStreamAdapterTest,
       SSL_GROUP_SECP384R1,
 #endif
   };
-  webrtc::test::ScopedKeyValueConfig field_trials(
-      "WebRTC-EnableDtlsPqc/Enabled/");
-  EXPECT_EQ(
-      webrtc::SSLStreamAdapter::GetDefaultEphemeralKeyExchangeCipherGroups(
-          &field_trials),
-      expected);
+  FieldTrials field_trials =
+      CreateTestFieldTrials("WebRTC-EnableDtlsPqc/Enabled/");
+  EXPECT_EQ(SSLStreamAdapter::GetDefaultEphemeralKeyExchangeCipherGroups(
+                &field_trials),
+            expected);
 }
+
+}  // namespace
+}  // namespace webrtc

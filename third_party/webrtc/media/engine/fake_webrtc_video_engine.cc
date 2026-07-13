@@ -42,8 +42,7 @@ namespace webrtc {
 
 namespace {
 
-
-static constexpr TimeDelta kEventTimeout = TimeDelta::Seconds(10);
+constexpr TimeDelta kEventTimeout = TimeDelta::Seconds(10);
 
 bool IsScalabilityModeSupported(const std::vector<SdpVideoFormat>& formats,
                                 std::optional<std::string> scalability_mode) {

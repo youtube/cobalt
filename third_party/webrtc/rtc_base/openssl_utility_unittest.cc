@@ -8,17 +8,7 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <string>
-#include <vector>
-
-#if defined(WEBRTC_POSIX)
-#include <unistd.h>
-#endif
-
-#if defined(WEBRTC_WIN)
-// Must be included first before openssl headers.
-#include "rtc_base/win32.h"  // NOLINT
-#endif                       // WEBRTC_WIN
+#include "rtc_base/openssl_utility.h"
 
 #include <openssl/bio.h>
 #include <openssl/crypto.h>
@@ -31,14 +21,15 @@
 #include <openssl/x509v3.h>
 #endif
 
-#include "rtc_base/arraysize.h"
+#include <cstddef>
+#include <cstdint>
+#include <string>
+#include <vector>
+
 #include "rtc_base/checks.h"
-#include "rtc_base/gunit.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/openssl.h"
-#include "rtc_base/openssl_utility.h"
-#include "rtc_base/ssl_roots.h"
-#include "test/gmock.h"
+#include "test/gtest.h"
 
 namespace webrtc {
 namespace {
@@ -187,7 +178,7 @@ SSL* CreateSSLWithPeerCertificate(const unsigned char* cert, size_t cert_len) {
   const unsigned char* key_ptr = kFakeSSLPrivateKey;
   EVP_PKEY* key = d2i_PrivateKey(
       EVP_PKEY_EC, nullptr, &key_ptr,
-      checked_cast<long>(arraysize(kFakeSSLPrivateKey)));  // NOLINT
+      checked_cast<long>(std::ssize(kFakeSSLPrivateKey)));  // NOLINT
   RTC_CHECK(key);
 
 #ifdef OPENSSL_IS_BORINGSSL
@@ -269,7 +260,7 @@ TEST(OpenSSLUtilityTest, VerifyPeerCertMatchesHostFailsOnNoPeerCertificate) {
 
 TEST(OpenSSLUtilityTest, VerifyPeerCertMatchesHost) {
   SSL* ssl = CreateSSLWithPeerCertificate(kFakeSSLCertificate,
-                                          arraysize(kFakeSSLCertificate));
+                                          std::size(kFakeSSLCertificate));
 
   // Each of the names in the SAN list is valid.
   EXPECT_TRUE(openssl::VerifyPeerCertMatchesHost(ssl, "foo.test"));
@@ -290,7 +281,7 @@ TEST(OpenSSLUtilityTest, VerifyPeerCertMatchesHost) {
 
 TEST(OpenSSLUtilityTest, VerifyPeerCertMatchesHostLegacy) {
   SSL* ssl = CreateSSLWithPeerCertificate(kFakeSSLCertificateLegacy,
-                                          arraysize(kFakeSSLCertificateLegacy));
+                                          std::size(kFakeSSLCertificateLegacy));
 
   // If there is no SAN list, WebRTC still implements the legacy mechanism which
   // checks the CN, no longer supported by modern browsers.

@@ -10,8 +10,13 @@
 
 #include "rtc_base/async_socket.h"
 
+#include <cstddef>
+#include <cstdint>
+
 #include "absl/memory/memory.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/socket.h"
+#include "rtc_base/socket_address.h"
 
 namespace webrtc {
 

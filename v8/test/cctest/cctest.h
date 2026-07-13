@@ -680,7 +680,7 @@ class V8_NODISCARD InitializedHandleScope {
 
 class V8_NODISCARD HandleAndZoneScope : public InitializedHandleScope {
  public:
-  explicit HandleAndZoneScope(bool support_zone_compression = false);
+  HandleAndZoneScope();
   ~HandleAndZoneScope();
 
   // Prefixing the below with main_ reduces a lot of naming clashes.
@@ -730,6 +730,8 @@ class TestPlatform : public v8::Platform {
   double CurrentClockTimeMillis() override;
   bool IdleTasksEnabled(v8::Isolate* isolate) override;
   v8::TracingController* GetTracingController() override;
+
+  v8::ThreadIsolatedAllocator* GetThreadIsolatedAllocator() override;
 
  protected:
   TestPlatform() = default;

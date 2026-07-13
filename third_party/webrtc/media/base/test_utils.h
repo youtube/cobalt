@@ -33,6 +33,7 @@ template <class T>
 inline std::vector<T> MakeVector(const T a[], size_t s) {
   return std::vector<T>(a, a + s);
 }
+// Note that MAKE_VECTOR can be used outside of the webrtc namespace.
 #define MAKE_VECTOR(a) webrtc::MakeVector(a, std::size(a))
 
 // Create Simulcast StreamParams with given `ssrcs` and `cname`.

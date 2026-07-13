@@ -840,6 +840,7 @@ ContextVk::ContextVk(const gl::State &state, gl::ErrorSet *errorSet, vk::Rendere
       mClearDepthStencilValue{},
       mClearColorMasks(0),
       mDeferredMemoryBarriers(0),
+      mSampleShadingEnabled(false),
       mFlipYForCurrentSurface(false),
       mFlipViewportForDrawFramebuffer(false),
       mFlipViewportForReadFramebuffer(false),
@@ -2813,15 +2814,15 @@ angle::Result ContextVk::handleDirtyShaderResourcesImpl(CommandBufferHelperT *co
     if (hasUniformBuffers)
     {
         mShaderBuffersDescriptorDesc.updateShaderBuffers(
-            this, commandBufferHelper, *executable, variableInfoMap,
-            mState.getOffsetBindingPointerUniformBuffers(), executable->getUniformBlocks(),
-            executableVk->getUniformBufferDescriptorType(), limits.maxUniformBufferRange,
-            mEmptyBuffer, mShaderBufferWriteDescriptorDescs, mDeferredMemoryBarriers);
+            this, commandBufferHelper, *executable, mState.getOffsetBindingPointerUniformBuffers(),
+            executable->getUniformBlocks(), executableVk->getUniformBufferDescriptorType(),
+            limits.maxUniformBufferRange, mEmptyBuffer, mShaderBufferWriteDescriptorDescs,
+            mDeferredMemoryBarriers);
     }
     if (hasStorageBuffers)
     {
         mShaderBuffersDescriptorDesc.updateShaderBuffers(
-            this, commandBufferHelper, *executable, variableInfoMap,
+            this, commandBufferHelper, *executable,
             mState.getOffsetBindingPointerShaderStorageBuffers(),
             executable->getShaderStorageBlocks(), executableVk->getStorageBufferDescriptorType(),
             limits.maxStorageBufferRange, mEmptyBuffer, mShaderBufferWriteDescriptorDescs,
@@ -2886,6 +2887,31 @@ angle::Result ContextVk::handleDirtyComputeShaderResources(DirtyBits::Iterator *
                                           dirtyBitsIterator);
 }
 
+void ContextVk::updateUniformBufferBlocksOffset()
+{
+    gl::ProgramExecutable *executable = mState.getProgramExecutable();
+    ASSERT(executable);
+    ASSERT(executable->hasUniformBuffers());
+    ProgramExecutableVk *executableVk = vk::GetImpl(executable);
+    ASSERT(executableVk);
+    ASSERT(executableVk->usesDynamicUniformBufferDescriptors());
+
+    gl::ProgramUniformBlockMask dirtyBlocks = mState.getAndResetDirtyUniformBlocks();
+    for (size_t blockIndex : dirtyBlocks)
+    {
+        const GLuint binding = executable->getUniformBlockBinding(blockIndex);
+        mShaderBuffersDescriptorDesc.updateOneShaderBufferOffset(
+            blockIndex, mState.getOffsetBindingPointerUniformBuffers()[binding],
+            executableVk->getUniformBufferDescriptorType(), mShaderBufferWriteDescriptorDescs);
+    }
+
+    executableVk->updateShaderResourcesOffsets(mShaderBufferWriteDescriptorDescs,
+                                               mShaderBuffersDescriptorDesc);
+
+    // Mark descriptor sets dirty
+    mGraphicsDirtyBits.set(DIRTY_BIT_DESCRIPTOR_SETS);
+}
+
 template <typename CommandBufferT>
 angle::Result ContextVk::handleDirtyUniformBuffersImpl(CommandBufferT *commandBufferHelper)
 {
@@ -2895,16 +2921,14 @@ angle::Result ContextVk::handleDirtyUniformBuffersImpl(CommandBufferT *commandBu
 
     const VkPhysicalDeviceLimits &limits = mRenderer->getPhysicalDeviceProperties().limits;
     ProgramExecutableVk *executableVk    = vk::GetImpl(executable);
-    const ShaderInterfaceVariableInfoMap &variableInfoMap = executableVk->getVariableInfoMap();
 
     gl::ProgramUniformBlockMask dirtyBits = mState.getAndResetDirtyUniformBlocks();
     for (size_t blockIndex : dirtyBits)
     {
         const GLuint binding = executable->getUniformBlockBinding(blockIndex);
         mShaderBuffersDescriptorDesc.updateOneShaderBuffer(
-            this, commandBufferHelper, variableInfoMap,
-            mState.getOffsetBindingPointerUniformBuffers(),
-            executable->getUniformBlocks()[blockIndex], binding,
+            this, commandBufferHelper, blockIndex, executable->getUniformBlocks()[blockIndex],
+            mState.getOffsetBindingPointerUniformBuffers()[binding],
             executableVk->getUniformBufferDescriptorType(), limits.maxUniformBufferRange,
             mEmptyBuffer, mShaderBufferWriteDescriptorDescs, mDeferredMemoryBarriers);
     }
@@ -3675,7 +3699,11 @@ angle::Result ContextVk::submitCommands(const vk::Semaphore *signalSemaphore,
     ASSERT(QueueSerialsHaveDifferentIndexOrSmaller(mLastSubmittedQueueSerial,
                                                    mLastFlushedQueueSerial));
 
-    finalizeAllForeignImages();
+    if (submission == Submit::AllCommands)
+    {
+        finalizeAllForeignImages();
+    }
+
     ANGLE_TRY(mRenderer->submitCommands(
         this, getProtectionType(), mContextPriority, signalSemaphore, externalFence,
         std::move(mImagesToTransitionToForeign), mLastFlushedQueueSerial));
@@ -5865,14 +5893,27 @@ angle::Result ContextVk::syncState(const gl::Context *context,
                     "Dirty bit order");
                 iter.setLaterBit(gl::state::DIRTY_BIT_TEXTURE_BINDINGS);
                 ANGLE_TRY(invalidateCurrentShaderResources(command));
+                // invalidateCurrentShaderResources(...) already dirties all uniform buffers
+                static_assert(gl::state::DIRTY_BIT_UNIFORM_BUFFER_BINDINGS >
+                                  gl::state::DIRTY_BIT_PROGRAM_BINDING,
+                              "Dirty bit order");
+                iter.resetLaterBit(gl::state::DIRTY_BIT_UNIFORM_BUFFER_BINDINGS);
                 ANGLE_TRY(invalidateProgramExecutableHelper(context));
 
-                static_assert(
-                    gl::state::DIRTY_BIT_SAMPLE_SHADING > gl::state::DIRTY_BIT_PROGRAM_EXECUTABLE,
-                    "Dirty bit order");
-                if (getFeatures().explicitlyEnablePerSampleShading.enabled)
+                // Handle sample shading state transitions for graphics programs
+                if (programExecutable->hasLinkedGraphicsShader())
                 {
-                    iter.setLaterBit(gl::state::DIRTY_BIT_SAMPLE_SHADING);
+                    const bool programEnablesSampleShading =
+                        programExecutable->enablesPerSampleShading();
+                    if ((mSampleShadingEnabled || programEnablesSampleShading) &&
+                        getFeatures().explicitlyEnablePerSampleShading.enabled)
+                    {
+                        static_assert(gl::state::DIRTY_BIT_SAMPLE_SHADING >
+                                          gl::state::DIRTY_BIT_PROGRAM_EXECUTABLE,
+                                      "Dirty bit order");
+                        iter.setLaterBit(gl::state::DIRTY_BIT_SAMPLE_SHADING);
+                    }
+                    mSampleShadingEnabled = programEnablesSampleShading;
                 }
 
                 break;
@@ -5904,8 +5945,23 @@ angle::Result ContextVk::syncState(const gl::Context *context,
                 iter.setLaterBit(gl::state::DIRTY_BIT_ATOMIC_COUNTER_BUFFER_BINDING);
                 break;
             case gl::state::DIRTY_BIT_UNIFORM_BUFFER_BINDINGS:
-                ANGLE_TRY(invalidateCurrentShaderUniformBuffers());
+            {
+                constexpr gl::BufferDirtyTypeBitMask kOnlyOffsetDirtyMask{
+                    gl::BufferDirtyType::Offset};
+                const gl::BufferDirtyTypeBitMask currentDirtyTypeMask =
+                    glState.getAndResetUniformBufferBlocksDirtyTypeMask();
+                ASSERT(programExecutable);
+                if (vk::GetImpl(programExecutable)->usesDynamicUniformBufferDescriptors() &&
+                    currentDirtyTypeMask == kOnlyOffsetDirtyMask)
+                {
+                    updateUniformBufferBlocksOffset();
+                }
+                else
+                {
+                    ANGLE_TRY(invalidateCurrentShaderUniformBuffers());
+                }
                 break;
+            }
             case gl::state::DIRTY_BIT_ATOMIC_COUNTER_BUFFER_BINDING:
                 ANGLE_TRY(invalidateCurrentShaderResources(command));
                 invalidateDriverUniforms();

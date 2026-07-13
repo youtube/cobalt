@@ -15,6 +15,17 @@ function CreateBuffer(i32pattern) {
   return buffer;
 }
 
+function assertHasHoleyDoubles(a) {
+  // If undefined doubles are disabled, this is ignored.
+  if(%IsExperimentalUndefinedDoubleEnabled()) {
+    assertTrue(%HasDoubleElements(a));
+    assertTrue(%HasHoleyElements(a));
+  }
+}
+
+%NeverOptimizeFunction(CreateBuffer);
+%NeverOptimizeFunction(assertHasHoleyDoubles);
+
 (function LoadUndefinedPatternFromTypedArray() {
   function foo(f64) {
     return f64[0];
@@ -191,4 +202,48 @@ for (var i = 50; i < 55; i++) {
   if(%IsExperimentalUndefinedDoubleEnabled()) {
     assertTrue(%HasDoubleElements(r));
   }
+})();
+
+(function ArrayPrototypeWith() {
+  function foo() {
+    let a = [-2.2,,4.4];
+    let b = a.with(1);
+    Math.min(b);
+    return b;
+  }
+
+  %PrepareFunctionForOptimization(foo);
+  let r = foo();
+  assertArrayEquals([-2.2, undefined, 4.4], r);
+  if(%IsExperimentalUndefinedDoubleEnabled()) {
+    assertTrue(%HasDoubleElements(r));
+    assertTrue(%HasHoleyElements(r));
+  }
+  for(let i = 0; i < 5; ++i) {
+    %OptimizeFunctionOnNextCall(foo);
+    r = foo();
+    assertArrayEquals([-2.2, undefined, 4.4], r);
+    assertHasHoleyDoubles(r);
+    if(i > 0) assertOptimized(foo);
+  }
+})();
+
+(function ArrayPrototypeFilter() {
+  function p(x) { return x === undefined || x > 100; }
+  function foo() {
+    const a = [3.2, 105.3, undefined, 2.4, undefined];
+    return a.filter(p);
+  }
+
+  %PrepareFunctionForOptimization(p);
+  %PrepareFunctionForOptimization(foo);
+  foo();
+  let r = foo();
+  assertArrayEquals([105.3, undefined, undefined], r);
+  assertHasHoleyDoubles(r);
+  %OptimizeFunctionOnNextCall(foo);
+  r = foo();
+  assertArrayEquals([105.3, undefined, undefined], r);
+  assertHasHoleyDoubles(r);
+  assertOptimized(foo);
 })();

@@ -10,11 +10,12 @@
 
 #include "modules/audio_processing/ns/prior_signal_model_estimator.h"
 
-#include <math.h>
-
 #include <algorithm>
+#include <cmath>
 
-#include "modules/audio_processing/ns/fast_math.h"
+#include "api/array_view.h"
+#include "modules/audio_processing/ns/histograms.h"
+#include "modules/audio_processing/ns/ns_common.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {

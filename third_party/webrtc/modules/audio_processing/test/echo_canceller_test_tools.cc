@@ -10,7 +10,12 @@
 
 #include "modules/audio_processing/test/echo_canceller_test_tools.h"
 
+#include <algorithm>
+#include <cstddef>
+
+#include "api/array_view.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/random.h"
 
 namespace webrtc {
 

@@ -11,8 +11,9 @@
 #ifndef MODULES_AUDIO_MIXER_FRAME_COMBINER_H_
 #define MODULES_AUDIO_MIXER_FRAME_COMBINER_H_
 
+#include <array>
+#include <cstddef>
 #include <memory>
-#include <vector>
 
 #include "api/array_view.h"
 #include "api/audio/audio_frame.h"

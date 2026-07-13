@@ -1410,6 +1410,7 @@ source_set("platform_browser_tests") {
     "//chrome/browser/content_settings:content_settings_factory",
     "//chrome/browser/optimization_guide",
     "//chrome/browser/policy:test_support",
+    "//chrome/browser/preloading:prefs",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/safe_browsing",
     "//chrome/browser/search_engines",

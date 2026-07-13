@@ -14,9 +14,8 @@
 
 #include "modules/audio_processing/vad/vad_audio_proc.h"
 
-#include <math.h>
-#include <stdio.h>
-
+#include <cstdint>
+#include <cstdio>
 #include <string>
 
 #include "modules/audio_processing/vad/common.h"

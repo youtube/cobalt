@@ -40,7 +40,7 @@ namespace webrtc {
 class FakeWebRtcVideoDecoderFactory;
 class FakeWebRtcVideoEncoderFactory;
 
-// Fake class for mocking out webrtc::VideoDecoder
+// Fake class for mocking out VideoDecoder
 class FakeWebRtcVideoDecoder : public VideoDecoder {
  public:
   explicit FakeWebRtcVideoDecoder(FakeWebRtcVideoDecoderFactory* factory);
@@ -58,7 +58,7 @@ class FakeWebRtcVideoDecoder : public VideoDecoder {
   FakeWebRtcVideoDecoderFactory* factory_;
 };
 
-// Fake class for mocking out webrtc::VideoDecoderFactory.
+// Fake class for mocking out VideoDecoderFactory.
 class FakeWebRtcVideoDecoderFactory : public VideoDecoderFactory {
  public:
   FakeWebRtcVideoDecoderFactory();
@@ -79,7 +79,7 @@ class FakeWebRtcVideoDecoderFactory : public VideoDecoderFactory {
   int num_created_decoders_;
 };
 
-// Fake class for mocking out webrtc::VideoEnoder
+// Fake class for mocking out VideoEnoder
 class FakeWebRtcVideoEncoder : public VideoEncoder {
  public:
   explicit FakeWebRtcVideoEncoder(FakeWebRtcVideoEncoderFactory* factory);
@@ -109,7 +109,7 @@ class FakeWebRtcVideoEncoder : public VideoEncoder {
   FakeWebRtcVideoEncoderFactory* factory_;
 };
 
-// Fake class for mocking out webrtc::VideoEncoderFactory.
+// Fake class for mocking out VideoEncoderFactory.
 class FakeWebRtcVideoEncoderFactory : public VideoEncoderFactory {
  public:
   FakeWebRtcVideoEncoderFactory();

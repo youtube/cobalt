@@ -18,8 +18,7 @@
 #include <utility>
 
 #include "rtc_base/containers/flat_map.h"
-#include "rtc_base/gunit.h"
-#include "test/gmock.h"
+#include "test/gtest.h"
 
 // This is a copy of
 // https://source.chromium.org/chromium/chromium/src/+/main:base/types/strong_alias_unittest.cc

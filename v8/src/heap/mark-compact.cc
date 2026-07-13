@@ -355,7 +355,7 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
   CollectEvacuationCandidates(heap_->trusted_space());
 
   if (heap_->isolate()->AllowsCodeCompaction() &&
-      !(mode == StartCompactionMode::kAtomic && heap_->IsGCWithStack())) {
+      (!heap_->IsGCWithStack() || v8_flags.compact_code_space_with_stack)) {
     CollectEvacuationCandidates(heap_->code_space());
   } else if (v8_flags.trace_fragmentation) {
     TraceFragmentation(heap_->code_space());
@@ -2082,9 +2082,8 @@ bool MarkCompactCollector::MarkTransitiveClosureUntilFixpoint() {
       another_ephemeron_iteration_main_thread = ProcessEphemerons();
     }
 
-    // Can only check for local emptiness here as parallel marking tasks may
-    // still be running. The caller performs the CHECKs for global emptiness.
-    CHECK(local_weak_objects()->current_ephemerons_local.IsLocalEmpty());
+    CHECK(
+        local_weak_objects()->current_ephemerons_local.IsLocalAndGlobalEmpty());
     CHECK(local_weak_objects()->next_ephemerons_local.IsLocalEmpty());
 
     ++iterations;
@@ -3038,7 +3037,8 @@ void MarkCompactCollector::ClearNonLiveReferences() {
                    DCHECK(code->kind() == CodeKind::FOR_TESTING ||
                           code->kind() == CodeKind::BASELINE ||
                           code->kind() == CodeKind::MAGLEV ||
-                          code->kind() == CodeKind::TURBOFAN_JS);
+                          code->kind() == CodeKind::TURBOFAN_JS ||
+                          code->is_interpreter_trampoline_builtin());
                    entry.SetCodeAndEntrypointPointer(
                        compile_lazy.ptr(), compile_lazy->instruction_start());
                  }
@@ -3446,7 +3446,7 @@ bool MarkCompactCollector::ProcessOldBytecodeSFI(
   Isolate* const isolate = heap_->isolate();
 
   const bool bytecode_already_decompiled =
-      flushing_candidate->HasUncompiledData();
+      flushing_candidate->HasUncompiledData(isolate);
   if (!bytecode_already_decompiled) {
     // Check if the bytecode is still live.
     Tagged<BytecodeArray> bytecode =
@@ -4966,7 +4966,8 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
       for (PageMetadata* page : old_space_evacuation_pages_) {
         ReportAbortedEvacuationCandidateDueToFlags(page, page->Chunk());
       }
-    } else {
+    } else if (!v8_flags.compact_code_space_with_stack ||
+               heap_->isolate()->InFastCCall()) {
       // For fast C calls we cannot patch the return address in the native stack
       // frame if we would relocate InstructionStream objects.
       for (PageMetadata* page : old_space_evacuation_pages_) {
@@ -6121,6 +6122,13 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
   PtrComprCageBase cage_base(heap_->isolate());
   size_t surviving_object_size = 0;
   const bool postpone_freeing = ShouldPostponeFreeingEmptyPages(space);
+  const bool add_to_pool =
+      v8_flags.large_page_pool && space->identity() == NEW_LO_SPACE;
+  DCHECK_IMPLIES(add_to_pool, !postpone_freeing);
+  std::vector<LargePageMetadata*> pages_to_pool;
+  if (add_to_pool) {
+    pages_to_pool.reserve(space->memory_chunk_list().size());
+  }
   for (auto it = space->begin(); it != space->end();) {
     LargePageMetadata* current = *(it++);
     DCHECK(!current->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
@@ -6130,6 +6138,8 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
       space->RemovePage(current);
       if (postpone_freeing) {
         queued_pages_to_be_freed_.push_back(current);
+      } else if (add_to_pool) {
+        pages_to_pool.push_back(current);
       } else {
         heap_->memory_allocator()->Free(MemoryAllocator::FreeMode::kImmediately,
                                         current);
@@ -6144,6 +6154,10 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
     surviving_object_size += static_cast<size_t>(object->Size(cage_base));
   }
   space->set_objects_size(surviving_object_size);
+
+  if (add_to_pool && !pages_to_pool.empty()) {
+    heap()->memory_allocator()->FreeLargePagesPooled(std::move(pages_to_pool));
+  }
 }
 
 void MarkCompactCollector::Sweep() {

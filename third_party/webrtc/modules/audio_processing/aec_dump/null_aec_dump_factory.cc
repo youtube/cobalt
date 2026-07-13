@@ -8,11 +8,16 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <cstdint>
+#include <cstdio>
+#include <memory>
+
 #include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "api/task_queue/task_queue_base.h"
 #include "modules/audio_processing/aec_dump/aec_dump_factory.h"
 #include "modules/audio_processing/include/aec_dump.h"
+#include "rtc_base/system/file_wrapper.h"
 
 namespace webrtc {
 

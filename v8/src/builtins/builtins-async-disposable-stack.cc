@@ -89,10 +89,6 @@ BUILTIN(AsyncDisposeFromSyncDispose) {
               kMethod))),
       isolate);
 
-  v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-  try_catch.SetVerbose(false);
-  try_catch.SetCaptureMessage(false);
-
   MaybeDirectHandle<Object> result =
       Execution::Call(isolate, sync_method, receiver, {});
 
@@ -104,10 +100,11 @@ BUILTIN(AsyncDisposeFromSyncDispose) {
   } else {
     Tagged<Object> exception = isolate->exception();
     if (!isolate->is_catchable_by_javascript(exception)) {
-      return {};
+      return ReadOnlyRoots(isolate).exception();
     }
     //        d. IfAbruptRejectPromise(result, promiseCapability).
-    DCHECK(try_catch.HasCaught());
+    isolate->clear_internal_exception();
+    isolate->clear_pending_message();
     JSPromise::Reject(promise, direct_handle(exception, isolate));
   }
 

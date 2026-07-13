@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "api/array_view.h"
+#include "api/audio/audio_view.h"
 #include "modules/audio_coding/neteq/audio_vector.h"
 
 namespace webrtc {
@@ -86,6 +87,19 @@ class AudioMultiVector {
                                   size_t length,
                                   int16_t* destination) const;
 
+  // Reads `dst.samples_per_channel()` from each channel into `dst`, a total of
+  // `dst.size()` samples, starting from the position provided by `start_index`.
+  //
+  // If not enough samples are available to read, then *none* will be read and
+  // the function returns false. If enough samples could be read, the return
+  // value will be true.
+  //
+  // This behavior is currently different from the pointer based
+  // `ReadInterleaved*` methods, but intentionally so in order to simplify the
+  // logic at the caller site.
+  bool ReadInterleavedFromIndex(const size_t start_index,
+                                InterleavedView<int16_t> dst) const;
+
   // Like ReadInterleaved() above, but reads from the end instead of from
   // the beginning.
   size_t ReadInterleavedFromEnd(size_t length, int16_t* destination) const;
@@ -129,7 +143,7 @@ class AudioMultiVector {
   AudioVector& operator[](size_t index);
 
  protected:
-  std::vector<std::unique_ptr<AudioVector>> channels_;
+  const std::vector<std::unique_ptr<AudioVector>> channels_;
 };
 
 }  // namespace webrtc

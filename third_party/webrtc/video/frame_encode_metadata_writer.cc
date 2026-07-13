@@ -201,7 +201,7 @@ void FrameEncodeMetadataWriter::FillMetadataAndTimingInfo(
 
   // If encode start is not available that means that encoder uses internal
   // source. In that case capture timestamp may be from a different clock with a
-  // drift relative to webrtc::TimeMillis(). We can't use it for Timing frames,
+  // drift relative to TimeMillis(). We can't use it for Timing frames,
   // because to being sent in the network capture time required to be less than
   // all the other timestamps.
   if (encode_start_ms) {

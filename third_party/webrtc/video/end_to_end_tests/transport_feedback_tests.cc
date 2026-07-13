@@ -89,7 +89,7 @@ TEST(TransportFeedbackMultiStreamTest, AssignsTransportSequenceNumbers) {
       extensions_.Register<TransportSequenceNumber>(
           kTransportSequenceNumberExtensionId);
     }
-    virtual ~RtpExtensionHeaderObserver() {}
+    ~RtpExtensionHeaderObserver() override {}
 
     bool SendRtp(ArrayView<const uint8_t> data,
                  const PacketOptions& options) override {

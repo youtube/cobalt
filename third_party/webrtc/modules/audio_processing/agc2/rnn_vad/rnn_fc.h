@@ -12,6 +12,7 @@
 #define MODULES_AUDIO_PROCESSING_AGC2_RNN_VAD_RNN_FC_H_
 
 #include <array>
+#include <cstdint>
 #include <vector>
 
 #include "absl/strings/string_view.h"

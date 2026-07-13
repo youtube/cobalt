@@ -238,8 +238,7 @@ private:
             int numGlyphs = font.getTypeface()->countGlyphs();
             for (int i = 0; i < numGlyphs; ++i) {
                 SkGlyphID glyphId = i;
-                SkRect cur;
-                font.getBounds(&glyphId, 1, &cur, nullptr);
+                SkRect cur = font.getBounds(glyphId, nullptr);
                 if (cur.fLeft   < min.fLeft  ) { min.fLeft   = cur.fLeft;   left   = i; }
                 if (cur.fTop    < min.fTop   ) { min.fTop    = cur.fTop ;   top    = i; }
                 if (min.fRight  < cur.fRight ) { min.fRight  = cur.fRight;  right  = i; }
@@ -262,7 +261,7 @@ private:
         canvas->drawRect(fontBounds, boundsPaint);
 
         const SkScalar intervals[] = { 10.f, 10.f };
-        boundsPaint.setPathEffect(SkDashPathEffect::Make(intervals, 2, 0.f));
+        boundsPaint.setPathEffect(SkDashPathEffect::Make(intervals, 0.f));
         canvas->drawRect(min, boundsPaint);
 
         SkFontMetrics fm;

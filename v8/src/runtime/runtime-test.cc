@@ -1401,12 +1401,22 @@ RUNTIME_FUNCTION(Runtime_DebugPrintFloat) {
   if (!IsSmi(args[4]) || (Cast<Smi>(args[4]).value() == fileno(stderr))) {
     StderrStream os;
     std::streamsize precision = os.precision();
-    os << std::setprecision(20) << base::bit_cast<double>(value) << std::endl;
+    const double d = base::bit_cast<double>(value);
+    os << std::setprecision(20) << d;
+    if (std::isnan(d)) {
+      os << " (0x" << std::hex << value << std::dec << ")";
+    }
+    os << std::endl;
     os.precision(precision);
   } else {
     StdoutStream os;
     std::streamsize precision = os.precision();
-    os << std::setprecision(20) << base::bit_cast<double>(value) << std::endl;
+    const double d = base::bit_cast<double>(value);
+    os << std::setprecision(20) << d;
+    if (std::isnan(d)) {
+      os << " (0x" << std::hex << value << std::dec << ")";
+    }
+    os << std::endl;
     os.precision(precision);
   }
   return ReadOnlyRoots(isolate).undefined_value();
@@ -1541,9 +1551,11 @@ RUNTIME_FUNCTION(Runtime_AbortCSADcheck) {
     base::OS::PrintError("The following harmless failure was encountered: %s\n",
                          message->ToCString().get());
   } else {
-    base::OS::PrintError("abort: CSA_DCHECK failed: %s\n",
-                         message->ToCString().get());
-    isolate->PrintStack(stderr);
+    std::unique_ptr<char[]> message_str = message->ToCString();
+    base::OS::PrintError("abort: CSA_DCHECK failed: %s\n\n", message_str.get());
+
+    isolate->PushStackTraceAndDie(reinterpret_cast<void*>(message->ptr()),
+                                  message_str.get());
   }
   base::OS::Abort();
   UNREACHABLE();
@@ -1970,7 +1982,7 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
                          int column) final {}
 #if V8_ENABLE_WEBASSEMBLY
     void CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
-                         wasm::WasmName name, const char* source_url,
+                         wasm::WasmName name, std::string_view source_url,
                          int code_offset, int script_id) final {}
 #endif  // V8_ENABLE_WEBASSEMBLY
 

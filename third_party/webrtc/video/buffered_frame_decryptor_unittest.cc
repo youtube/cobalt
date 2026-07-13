@@ -58,7 +58,8 @@ class BufferedFrameDecryptorTest : public ::testing::Test,
     decrypted_frame_call_count_++;
   }
 
-  void OnDecryptionStatusChange(FrameDecryptorInterface::Status status) {
+  void OnDecryptionStatusChange(
+      FrameDecryptorInterface::Status status) override {
     ++decryption_status_change_count_;
   }
 

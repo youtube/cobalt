@@ -13,10 +13,10 @@
 #include <cstdint>
 #include <optional>
 
-#include "api/transport/field_trial_based_config.h"
+#include "api/field_trials.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/experiments/alr_experiment.h"
-#include "test/field_trial.h"
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
 
 namespace {
@@ -74,7 +74,7 @@ class SimulateOutgoingTrafficIn {
 }  // namespace
 
 TEST(AlrDetectorTest, AlrDetection) {
-  FieldTrialBasedConfig field_trials;
+  FieldTrials field_trials = CreateTestFieldTrials();
   int64_t timestamp_ms = 1000;
   AlrDetector alr_detector(&field_trials);
   alr_detector.SetEstimatedBitrate(kEstimatedBitrateBps);
@@ -102,7 +102,7 @@ TEST(AlrDetectorTest, AlrDetection) {
 }
 
 TEST(AlrDetectorTest, ShortSpike) {
-  FieldTrialBasedConfig field_trials;
+  FieldTrials field_trials = CreateTestFieldTrials();
   int64_t timestamp_ms = 1000;
   AlrDetector alr_detector(&field_trials);
   alr_detector.SetEstimatedBitrate(kEstimatedBitrateBps);
@@ -129,7 +129,7 @@ TEST(AlrDetectorTest, ShortSpike) {
 }
 
 TEST(AlrDetectorTest, BandwidthEstimateChanges) {
-  FieldTrialBasedConfig field_trials;
+  FieldTrials field_trials = CreateTestFieldTrials();
   int64_t timestamp_ms = 1000;
   AlrDetector alr_detector(&field_trials);
   alr_detector.SetEstimatedBitrate(kEstimatedBitrateBps);
@@ -156,20 +156,20 @@ TEST(AlrDetectorTest, BandwidthEstimateChanges) {
 }
 
 TEST(AlrDetectorTest, ParseControlFieldTrial) {
-  test::ScopedFieldTrials scoped_field_trial(
-      "WebRTC-ProbingScreenshareBwe/Control/");
+  FieldTrials field_trials =
+      CreateTestFieldTrials("WebRTC-ProbingScreenshareBwe/Control/");
   std::optional<AlrExperimentSettings> parsed_params =
       AlrExperimentSettings::CreateFromFieldTrial(
-          FieldTrialBasedConfig(), "WebRTC-ProbingScreenshareBwe");
+          field_trials, "WebRTC-ProbingScreenshareBwe");
   EXPECT_FALSE(static_cast<bool>(parsed_params));
 }
 
 TEST(AlrDetectorTest, ParseActiveFieldTrial) {
-  test::ScopedFieldTrials scoped_field_trial(
+  FieldTrials field_trials = CreateTestFieldTrials(
       "WebRTC-ProbingScreenshareBwe/1.1,2875,85,20,-20,1/");
   std::optional<AlrExperimentSettings> parsed_params =
       AlrExperimentSettings::CreateFromFieldTrial(
-          FieldTrialBasedConfig(), "WebRTC-ProbingScreenshareBwe");
+          field_trials, "WebRTC-ProbingScreenshareBwe");
   ASSERT_TRUE(static_cast<bool>(parsed_params));
   EXPECT_EQ(1.1f, parsed_params->pacing_factor);
   EXPECT_EQ(2875, parsed_params->max_paced_queue_time);
@@ -180,10 +180,9 @@ TEST(AlrDetectorTest, ParseActiveFieldTrial) {
 }
 
 TEST(AlrDetectorTest, ParseAlrSpecificFieldTrial) {
-  test::ScopedFieldTrials scoped_field_trial(
+  FieldTrials field_trials = CreateTestFieldTrials(
       "WebRTC-AlrDetectorParameters/"
       "bw_usage:90%,start:0%,stop:-10%/");
-  FieldTrialBasedConfig field_trials;
   AlrDetector alr_detector(&field_trials);
   int64_t timestamp_ms = 1000;
   alr_detector.SetEstimatedBitrate(kEstimatedBitrateBps);

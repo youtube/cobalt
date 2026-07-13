@@ -234,6 +234,11 @@ declare_args() {
   #    in step 3 or 4.
   v8_builtins_profiling_log_file = "default"
 
+  # Enable gearbox (instruction set extension) for builtins, the gearbox
+  # feature only supports x64 arch yet.
+  # Sets -DV8_BUILTINS_GEARBOX
+  v8_enable_builtins_gearbox = false
+
   # Enables various testing features.
   v8_enable_test_features = ""
 
@@ -333,10 +338,6 @@ declare_args() {
 
   # Enable allocations during prefinalizer invocations.
   cppgc_allow_allocations_in_prefinalizers = false
-
-  # Enable V8 zone compression experimental feature.
-  # Sets -DV8_COMPRESS_ZONES.
-  v8_enable_zone_compression = ""
 
   # Enable the V8 sandbox.
   # Sets -DV8_ENABLE_SANDBOX.
@@ -583,9 +584,6 @@ if (v8_enable_fast_torque == "") {
 }
 if (v8_enable_concurrent_mksnapshot == "") {
   v8_enable_concurrent_mksnapshot = v8_enable_fast_mksnapshot
-}
-if (v8_enable_zone_compression == "") {
-  v8_enable_zone_compression = false
 }
 if (v8_enable_short_builtin_calls == "") {
   v8_enable_short_builtin_calls =
@@ -1016,9 +1014,6 @@ if (v8_enable_pointer_compression) {
 if (v8_enable_pointer_compression || v8_enable_31bit_smis_on_64bit_arch) {
   enabled_external_v8_defines += [ "V8_31BIT_SMIS_ON_64BIT_ARCH" ]
 }
-if (v8_enable_zone_compression) {
-  enabled_external_v8_defines += [ "V8_COMPRESS_ZONES" ]
-}
 if (v8_enable_sandbox) {
   enabled_external_v8_defines += [ "V8_ENABLE_SANDBOX" ]
 }
@@ -1235,6 +1230,10 @@ config("features") {
     defines += [ "V8_ENABLE_ALLOCATION_TIMEOUT" ]
     defines += [ "V8_ENABLE_FORCE_SLOW_PATH" ]
     defines += [ "V8_ENABLE_DOUBLE_CONST_STORE_CHECK" ]
+
+    # Expose the runtime flag --hashes-collide for fuzzing purposes (to create
+    # hash collisions all the time).
+    defines += [ "V8_HASHES_COLLIDE" ]
   }
   if (v8_enable_i18n_support) {
     defines += [ "V8_INTL_SUPPORT" ]
@@ -1316,6 +1315,17 @@ config("features") {
   }
   if (v8_enable_fuzztest) {
     defines += [ "V8_ENABLE_FUZZTEST" ]
+  }
+
+  # TODO(Wenqin): Gearbox is not compatible with builtin PGO builds yet, try to
+  # support it later.
+  # TODO(Wenqin): Gearbox didn't work when didn't enable pointer compression,
+  # it's related to the deserializer, when pointer compression is disable, it
+  # will not call PostProcessCode method, which is the bottleneck for Gearbox
+  # try to fix it later.
+  if (v8_builtins_profiling_log_file == "" && v8_enable_pointer_compression &&
+      v8_enable_builtins_gearbox && v8_current_cpu == "x64") {
+    defines += [ "V8_BUILTINS_GEARBOX" ]
   }
   if (v8_enable_short_builtin_calls) {
     defines += [ "V8_SHORT_BUILTIN_CALLS" ]
@@ -2301,11 +2311,7 @@ group("v8_maybe_icu") {
 
 group("v8_maybe_temporal") {
   if (v8_enable_temporal_support) {
-    deps = [ "//third_party/rust/temporal_capi:temporal_capi" ]
-
-    # Only needs to be depended on by targets that wish to use TEMPORAL_CAPI_VERSION_*
-    public_configs =
-        [ "//third_party/rust/temporal_capi:temporal_capi_versioning_defines" ]
+    public_deps = [ "//third_party/rust/temporal_capi" ]
   }
 }
 
@@ -2659,7 +2665,10 @@ template("run_mksnapshot") {
       }
     }
 
-    if (v8_enable_concurrent_mksnapshot) {
+    # TODO(Wenqin): We have to set the CPU feature when we are compiling ISX
+    # builtins, therefore it may make TSAN failed when we enable concurrent
+    # mksnapshot, try to make the CPU feature as thread local later.
+    if (v8_enable_concurrent_mksnapshot && !v8_enable_builtins_gearbox) {
       args += [
         "--concurrent-builtin-generation",
 
@@ -2911,7 +2920,6 @@ generated_file("v8_generate_features_json") {
     v8_enable_v8_checks = v8_enable_v8_checks
     v8_enable_memory_accounting_checks = v8_enable_memory_accounting_checks
     v8_enable_webassembly = v8_enable_webassembly
-    v8_enable_zone_compression = v8_enable_zone_compression
     v8_imminent_deprecation_warnings = v8_imminent_deprecation_warnings
     v8_optimized_debug = v8_optimized_debug
     v8_random_seed = v8_random_seed
@@ -3094,10 +3102,6 @@ v8_source_set("v8_initializers") {
             [ "src/wasm/interpreter/arm64/interpreter-builtins-arm64.cc" ]
       }
     }
-  }
-
-  if (v8_enable_temporal_support) {
-    sources += [ "src/builtins/builtins-temporal-gen.cc" ]
   }
 
   if (v8_current_cpu == "x86") {
@@ -3482,7 +3486,6 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/backend/gap-resolver.h",
     "src/compiler/backend/instruction-codes.h",
     "src/compiler/backend/instruction-scheduler.h",
-    "src/compiler/backend/instruction-selector-adapter.h",
     "src/compiler/backend/instruction-selector-impl.h",
     "src/compiler/backend/instruction-selector.h",
     "src/compiler/backend/instruction.h",
@@ -3626,6 +3629,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/graph-builder.h",
     "src/compiler/turboshaft/graph-visualizer.h",
     "src/compiler/turboshaft/graph.h",
+    "src/compiler/turboshaft/if-else-cascade-to-switch-reducer.h",
     "src/compiler/turboshaft/index.h",
     "src/compiler/turboshaft/instruction-selection-normalization-reducer.h",
     "src/compiler/turboshaft/instruction-selection-phase.h",
@@ -3642,7 +3646,6 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/machine-lowering-phase.h",
     "src/compiler/turboshaft/machine-lowering-reducer-inl.h",
     "src/compiler/turboshaft/machine-optimization-reducer.h",
-    "src/compiler/turboshaft/maglev-early-lowering-reducer-inl.h",
     "src/compiler/turboshaft/memory-optimization-reducer.h",
     "src/compiler/turboshaft/operation-matcher.h",
     "src/compiler/turboshaft/operations.h",
@@ -3666,8 +3669,8 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/store-store-elimination-reducer-inl.h",
     "src/compiler/turboshaft/string-escape-analysis-reducer.h",
     "src/compiler/turboshaft/string-view.h",
-    "src/compiler/turboshaft/structural-optimization-reducer.h",
     "src/compiler/turboshaft/tracing.h",
+    "src/compiler/turboshaft/turbolev-early-lowering-reducer-inl.h",
     "src/compiler/turboshaft/turbolev-graph-builder.h",
     "src/compiler/turboshaft/type-assertions-phase.h",
     "src/compiler/turboshaft/type-inference-analysis.h",
@@ -3683,6 +3686,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/utils.h",
     "src/compiler/turboshaft/value-numbering-reducer.h",
     "src/compiler/turboshaft/variable-reducer.h",
+    "src/compiler/turboshaft/wasm-code-coverage-reducer.h",
     "src/compiler/turboshaft/wasm-dead-code-elimination-phase.h",
     "src/compiler/turboshaft/zone-with-name.h",
     "src/compiler/type-cache.h",
@@ -4267,6 +4271,7 @@ v8_header_set("v8_internal_headers") {
     "src/sandbox/code-pointer-table-inl.h",
     "src/sandbox/code-pointer-table.h",
     "src/sandbox/code-pointer.h",
+    "src/sandbox/code-sandboxing-mode.h",
     "src/sandbox/compactible-external-entity-table-inl.h",
     "src/sandbox/compactible-external-entity-table.h",
     "src/sandbox/cppheap-pointer-inl.h",
@@ -4363,12 +4368,10 @@ v8_header_set("v8_internal_headers") {
     "src/utils/utils.h",
     "src/utils/version.h",
     "src/zone/accounting-allocator.h",
-    "src/zone/compressed-zone-ptr.h",
     "src/zone/type-stats.h",
     "src/zone/zone-allocator.h",
     "src/zone/zone-chunk-list.h",
     "src/zone/zone-compact-set.h",
-    "src/zone/zone-compression.h",
     "src/zone/zone-containers.h",
     "src/zone/zone-hashmap.h",
     "src/zone/zone-list-inl.h",
@@ -5187,6 +5190,7 @@ if (!v8_enable_maglev) {
     "src/maglev/maglev-compilation-unit.cc",
     "src/maglev/maglev-graph-builder.cc",
     "src/maglev/maglev-graph-printer.cc",
+    "src/maglev/maglev-graph.cc",
     "src/maglev/maglev-interpreter-frame-state.cc",
     "src/maglev/maglev-ir.cc",
     "src/maglev/maglev-phi-representation-selector.cc",
@@ -5921,6 +5925,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/maglev/maglev-concurrent-dispatcher.cc",
       "src/maglev/maglev-graph-builder.cc",
       "src/maglev/maglev-graph-printer.cc",
+      "src/maglev/maglev-graph.cc",
       "src/maglev/maglev-interpreter-frame-state.cc",
       "src/maglev/maglev-ir.cc",
       "src/maglev/maglev-phi-representation-selector.cc",

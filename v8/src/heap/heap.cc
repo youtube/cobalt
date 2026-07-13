@@ -206,17 +206,22 @@ size_t Heap::MaxReserved() const {
       kMaxNewLargeObjectSpaceSize + max_old_generation_size());
 }
 
-size_t Heap::YoungGenerationSizeFromOldGenerationSize(size_t old_generation) {
+// static
+size_t Heap::YoungGenerationSizeFromOldGenerationSize(uint64_t physical_memory,
+                                                      size_t old_generation) {
   // Compute the semi space size and cap it.
-  bool is_low_memory = old_generation <= kOldGenerationLowMemory;
+  bool is_low_memory =
+      old_generation <= Heap::OldGenerationLowMemory(physical_memory);
   size_t semi_space;
   if (v8_flags.minor_ms && !is_low_memory) {
-    semi_space = DefaultMaxSemiSpaceSize();
+    semi_space = DefaultMaxSemiSpaceSize(physical_memory);
   } else {
-    size_t ratio = is_low_memory ? OldGenerationToSemiSpaceRatioLowMemory()
-                                 : OldGenerationToSemiSpaceRatio();
+    size_t ratio = is_low_memory
+                       ? OldGenerationToSemiSpaceRatioLowMemory(physical_memory)
+                       : OldGenerationToSemiSpaceRatio(physical_memory);
     semi_space = old_generation / ratio;
-    semi_space = std::min({semi_space, DefaultMaxSemiSpaceSize()});
+    semi_space =
+        std::min({semi_space, DefaultMaxSemiSpaceSize(physical_memory)});
     semi_space = std::max({semi_space, DefaultMinSemiSpaceSize()});
     semi_space = RoundUp(semi_space, PageMetadata::kPageSize);
   }
@@ -227,20 +232,24 @@ size_t Heap::HeapSizeFromPhysicalMemory(uint64_t physical_memory) {
   // Compute the old generation size and cap it.
   uint64_t old_generation = physical_memory /
                             kPhysicalMemoryToOldGenerationRatio *
-                            kHeapLimitMultiplier;
+                            HeapLimitMultiplier(physical_memory);
   old_generation =
       std::min(old_generation,
-               static_cast<uint64_t>(MaxOldGenerationSize(physical_memory)));
+               static_cast<uint64_t>(
+                   MaxOldGenerationSizeFromPhysicalMemory(physical_memory)));
   old_generation =
-      std::max({old_generation, static_cast<uint64_t>(V8HeapTrait::kMinSize)});
+      std::max({old_generation,
+                static_cast<uint64_t>(DefaulMinHeapSize(physical_memory))});
   old_generation = RoundUp(old_generation, PageMetadata::kPageSize);
 
   size_t young_generation = YoungGenerationSizeFromOldGenerationSize(
-      static_cast<size_t>(old_generation));
+      physical_memory, static_cast<size_t>(old_generation));
   return static_cast<size_t>(old_generation) + young_generation;
 }
 
-void Heap::GenerationSizesFromHeapSize(size_t heap_size,
+// static
+void Heap::GenerationSizesFromHeapSize(uint64_t physical_memory,
+                                       size_t heap_size,
                                        size_t* young_generation_size,
                                        size_t* old_generation_size) {
   // Initialize values for the case when the given heap size is too small.
@@ -251,8 +260,8 @@ void Heap::GenerationSizesFromHeapSize(size_t heap_size,
   size_t lower = 0, upper = heap_size;
   while (lower + 1 < upper) {
     size_t old_generation = lower + (upper - lower) / 2;
-    size_t young_generation =
-        YoungGenerationSizeFromOldGenerationSize(old_generation);
+    size_t young_generation = YoungGenerationSizeFromOldGenerationSize(
+        physical_memory, old_generation);
     if (old_generation + young_generation <= heap_size) {
       // This size configuration fits into the given heap limit.
       *young_generation_size = young_generation;
@@ -274,19 +283,22 @@ size_t Heap::MinOldGenerationSize() {
   return paged_space_count * PageMetadata::kPageSize;
 }
 
-size_t Heap::AllocatorLimitOnMaxOldGenerationSize() {
+// static
+size_t Heap::AllocatorLimitOnMaxOldGenerationSize(uint64_t physical_memory) {
 #ifdef V8_COMPRESS_POINTERS
   // Isolate and the young generation are also allocated on the heap.
   return kPtrComprCageReservationSize -
-         YoungGenerationSizeFromSemiSpaceSize(DefaultMaxSemiSpaceSize()) -
+         YoungGenerationSizeFromSemiSpaceSize(
+             DefaultMaxSemiSpaceSize(physical_memory)) -
          RoundUp(sizeof(Isolate), size_t{1} << kPageSizeBits);
 #else
   return std::numeric_limits<size_t>::max();
 #endif
 }
 
-size_t Heap::MaxOldGenerationSize(uint64_t physical_memory) {
-  size_t max_size = V8HeapTrait::kMaxSize;
+// static
+size_t Heap::MaxOldGenerationSizeFromPhysicalMemory(uint64_t physical_memory) {
+  size_t max_size = DefaulMaxHeapSize(physical_memory);
   // Increase the heap size from 2GB to 4GB for 64-bit systems with physical
   // memory at least 16GB. The threshold is set to 15GB to accommodate for some
   // memory being reserved by the hardware.
@@ -297,14 +309,15 @@ size_t Heap::MaxOldGenerationSize(uint64_t physical_memory) {
     // Pixel 9 Pro). However, a large fraction of their memory is not usable,
     // and there is no disk swap, so heaps are still smaller than on desktop for
     // now.
-    DCHECK_EQ(max_size / GB, 1u);
+    DCHECK_EQ(max_size / GB, IsHighEndAndroid(physical_memory) ? 2u : 1u);
 #else
     DCHECK_EQ(max_size / GB, 2u);
 #endif
     max_size *= 2;
   }
 #endif  // V8_HOST_ARCH_64_BIT
-  return std::min(max_size, AllocatorLimitOnMaxOldGenerationSize());
+  return std::min(max_size,
+                  AllocatorLimitOnMaxOldGenerationSize(physical_memory));
 }
 
 namespace {
@@ -985,10 +998,14 @@ void Heap::GarbageCollectionPrologue(
 #endif  // DEBUG
 }
 
-void Heap::GarbageCollectionPrologueInSafepoint() {
+void Heap::GarbageCollectionPrologueInSafepoint(GarbageCollector collector) {
   TRACE_GC(tracer(), GCTracer::Scope::HEAP_PROLOGUE_SAFEPOINT);
   gc_count_++;
   new_space_allocation_counter_ = NewSpaceAllocationCounter();
+  if (v8_flags.large_page_pool_timeout == 0 &&
+      collector == GarbageCollector::MARK_COMPACTOR) {
+    memory_allocator()->pool()->ReleaseLargeImmediately();
+  }
 }
 
 size_t Heap::NewSpaceAllocationCounter() const {
@@ -1336,8 +1353,8 @@ void FreeCachesOnMemoryPressure(Isolate* isolate) {
 
   // TODO(ishell): consider trimming number to string caches to initial size.
 
-  if (v8_flags.discard_memory_pool_before_memory_pressure_gcs) {
-    IsolateGroup::current()->page_pool()->ReleaseImmediately();
+  if (v8_flags.memory_pool_release_before_memory_pressure_gcs) {
+    IsolateGroup::current()->page_pool()->ReleaseImmediately(isolate);
   }
 }
 
@@ -1381,16 +1398,30 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
     gc_flags |= GCFlag::kForced;
   }
 
+  const auto perform_heap_limit_check = v8_flags.late_heap_limit_check
+                                            ? PerformHeapLimitCheck::kNo
+                                            : PerformHeapLimitCheck::kYes;
+
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
     const size_t roots_before = num_roots();
     current_gc_flags_ = gc_flags;
-    CollectGarbage(OLD_SPACE, gc_reason, kNoGCCallbackFlags);
+    CollectGarbage(OLD_SPACE, gc_reason, kNoGCCallbackFlags,
+                   perform_heap_limit_check);
     DCHECK_EQ(GCFlags(GCFlag::kNoFlags), current_gc_flags_);
+
+    // As long as we are at or above the heap limit, we need another GC to
+    // survive CheckHeapLimitReached() after the loop.
+    if (ReachedHeapLimit()) {
+      continue;
+    }
+
     if ((roots_before == num_roots()) &&
         ((attempt + 1) >= kMinNumberOfAttempts)) {
       break;
     }
   }
+
+  CheckHeapLimitReached();
 
   EagerlyFreeExternalMemoryAndWasmCode();
 
@@ -1575,8 +1606,15 @@ void Heap::ResetOldGenerationAndGlobalAllocationLimit() {
 
 void Heap::CollectGarbage(AllocationSpace space,
                           GarbageCollectionReason gc_reason,
-                          const v8::GCCallbackFlags gc_callback_flags) {
+                          const v8::GCCallbackFlags gc_callback_flags,
+                          PerformHeapLimitCheck perform_heap_limit_check) {
   CHECK(isolate_->IsOnCentralStack());
+  // Any handles that are created during GC (eg during API callbacks)
+  // should be in a fresh handle scope that is torn down before the GC
+  // terminates. We don't really want new handles to appear during GC,
+  // but some APIs require it - they should at least be short lived.
+  SealHandleScope scope(isolate_);
+  DCHECK_EQ(Isolate::TryGetCurrent(), isolate_);
   DCHECK_EQ(resize_new_space_mode_, ResizeNewSpaceMode::kNone);
 
   if (V8_UNLIKELY(!deserialization_complete_)) {
@@ -1776,18 +1814,26 @@ void Heap::CollectGarbage(AllocationSpace space,
     }
   }
 
-  if (!CanExpandOldGeneration(0)) {
+  if (perform_heap_limit_check == PerformHeapLimitCheck::kYes) {
+    CheckHeapLimitReached();
+  }
+
+  if (collector == GarbageCollector::MARK_COMPACTOR) {
+    current_gc_flags_ = GCFlag::kNoFlags;
+  }
+}
+
+bool Heap::ReachedHeapLimit() { return !CanExpandOldGeneration(0); }
+
+void Heap::CheckHeapLimitReached() {
+  if (ReachedHeapLimit()) {
     InvokeNearHeapLimitCallback();
-    if (!CanExpandOldGeneration(0)) {
+    if (ReachedHeapLimit()) {
       if (v8_flags.heap_snapshot_on_oom) {
         heap_profiler()->WriteSnapshotToDiskAfterGC();
       }
       FatalProcessOutOfMemory("Reached heap limit");
     }
-  }
-
-  if (collector == GarbageCollector::MARK_COMPACTOR) {
-    current_gc_flags_ = GCFlag::kNoFlags;
   }
 }
 
@@ -2166,11 +2212,45 @@ bool Heap::CollectionRequested() {
   return collection_barrier_->WasGCRequested();
 }
 
+void Heap::CollectGarbageWithRetry(AllocationSpace space, GCFlags gc_flags,
+                                   GarbageCollectionReason gc_reason,
+                                   const GCCallbackFlags gc_callback_flags) {
+  const auto perform_heap_limit_check = v8_flags.late_heap_limit_check
+                                            ? PerformHeapLimitCheck::kNo
+                                            : PerformHeapLimitCheck::kYes;
+
+  if (space == NEW_SPACE) {
+    DCHECK_EQ(GCFlags(), gc_flags);
+
+    for (int i = 0; i < 2; i++) {
+      CollectGarbage(NEW_SPACE, gc_reason, gc_callback_flags,
+                     perform_heap_limit_check);
+
+      if (!ReachedHeapLimit()) {
+        return;
+      }
+    }
+  }
+
+  for (int i = 0; i < 2; i++) {
+    current_gc_flags_ = gc_flags;
+    CollectGarbage(OLD_SPACE, gc_reason, gc_callback_flags,
+                   perform_heap_limit_check);
+    DCHECK_EQ(GCFlags(), current_gc_flags_);
+
+    if (!ReachedHeapLimit()) {
+      return;
+    }
+  }
+
+  CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
+}
+
 void Heap::CollectGarbageForBackground(LocalHeap* local_heap) {
   CHECK(local_heap->is_main_thread());
-  CollectAllGarbage(current_gc_flags_,
-                    GarbageCollectionReason::kBackgroundAllocationFailure,
-                    current_gc_callback_flags_);
+  CollectGarbageWithRetry(OLD_SPACE, current_gc_flags_,
+                          GarbageCollectionReason::kBackgroundAllocationFailure,
+                          current_gc_callback_flags_);
 }
 
 void Heap::CheckCollectionRequested() {
@@ -2291,7 +2371,7 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
 
   tracer()->StartInSafepoint(atomic_pause_start_time);
 
-  GarbageCollectionPrologueInSafepoint();
+  GarbageCollectionPrologueInSafepoint(collector);
 
   PerformHeapVerification();
 
@@ -3133,7 +3213,8 @@ void* Heap::AllocateExternalBackingStore(
     size_t new_space_backing_store_bytes =
         new_space()->ExternalBackingStoreOverallBytes();
     if ((!incremental_marking()->IsMajorMarking()) &&
-        new_space_backing_store_bytes >= 2 * DefaultMaxSemiSpaceSize() &&
+        new_space_backing_store_bytes >=
+            2 * DefaultMaxSemiSpaceSize(physical_memory()) &&
         new_space_backing_store_bytes >= byte_length) {
       // Performing a young generation GC amortizes over the allocated backing
       // store bytes and may free enough external bytes for this allocation.
@@ -3206,6 +3287,9 @@ void Heap::EnsureMinimumRemainingAllocationLimit(size_t at_least_remaining) {
       std::min(new_global_allocation_limit, max_global_memory_size_);
   SetOldGenerationAndGlobalAllocationLimit(new_old_generation_allocation_limit,
                                            new_global_allocation_limit);
+  // Reset using_initial_limit() to prevent the sweeper from overwriting this
+  // limit right after this operation.
+  set_using_initial_limit(true);
 }
 
 namespace {
@@ -4348,8 +4432,8 @@ bool Heap::InvokeNearHeapLimitCallback() {
     size_t heap_limit = callback(data, max_old_generation_size(),
                                  initial_max_old_generation_size_);
     if (heap_limit > max_old_generation_size()) {
-      SetOldGenerationAndGlobalMaximumSize(
-          std::min(heap_limit, AllocatorLimitOnMaxOldGenerationSize()));
+      SetOldGenerationAndGlobalMaximumSize(std::min(
+          heap_limit, AllocatorLimitOnMaxOldGenerationSize(physical_memory())));
       return true;
     }
   }
@@ -4961,63 +5045,110 @@ void Heap::IterateRootsForPrecisePinning(RootVisitor* visitor) {
   isolate()->handle_scope_implementer()->Iterate(visitor);
 }
 
+#if V8_OS_ANDROID
+// static
+bool Heap::IsHighEndAndroid(uint64_t physical_memory) {
+  if (v8_flags.high_end_android) {
+    return true;
+  }
+
+  return (physical_memory / GB) >=
+         v8_flags.high_end_android_physical_memory_threshold;
+}
+#endif  // V8_OS_ANDROID
+
+// static
+size_t Heap::HeapLimitMultiplier(uint64_t physical_memory) {
+#if V8_OS_ANDROID
+  // Don't apply pointer multiplier on Android since it has no swap space and
+  // should instead adapt it's heap size based on available physical memory.
+  if (!IsHighEndAndroid(physical_memory)) {
+    return 1;
+  }
+#endif
+
+  // The heap limit needs to be computed based on the system pointer size
+  // because we want a pointer-compressed heap to have larger limit than
+  // an ordinary 32-bit which that is constrained by 2GB virtual address space.
+  return kSystemPointerSize / 4;
+}
+
+// static
+size_t Heap::DefaultInitialOldGenerationSize(uint64_t physical_memory) {
+  return 256 * MB * HeapLimitMultiplier(physical_memory);
+}
+
+// static
+size_t Heap::OldGenerationLowMemory(uint64_t physical_memory) {
+  return 128 * MB * HeapLimitMultiplier(physical_memory);
+}
+
 // static
 size_t Heap::DefaultMinSemiSpaceSize() {
-#if ENABLE_HUGEPAGE
-  static constexpr size_t kMinSemiSpaceSize =
-      kHugePageSize * kPointerMultiplier;
-#else
-  static constexpr size_t kMinSemiSpaceSize = 512 * KB * kPointerMultiplier;
-#endif
-  static_assert(kMinSemiSpaceSize % (1 << kPageSizeBits) == 0);
-
-  return kMinSemiSpaceSize;
+  return RoundUp(512 * KB * kPointerMultiplier, PageMetadata::kPageSize);
 }
 
 // static
-size_t Heap::DefaultMaxSemiSpaceSize() {
-#if ENABLE_HUGEPAGE
-  static constexpr size_t kMaxSemiSpaceCapacityBaseUnit =
-      kHugePageSize * 2 * kPointerMultiplier;
-#else
-  static constexpr size_t kMaxSemiSpaceCapacityBaseUnit =
-      MB * kPointerMultiplier;
-#endif
-  static_assert(kMaxSemiSpaceCapacityBaseUnit % (1 << kPageSizeBits) == 0);
+size_t Heap::DefaultMaxSemiSpaceSize(uint64_t physical_memory) {
+  if (v8_flags.minor_ms) {
+    static constexpr size_t kMinorMsMaxCapacity = 72 * kPointerMultiplier * MB;
+    return RoundUp(kMinorMsMaxCapacity, PageMetadata::kPageSize);
+  }
 
-  size_t max_semi_space_size =
-      (v8_flags.minor_ms ? v8_flags.minor_ms_max_new_space_capacity_mb
-                         : v8_flags.scavenger_max_new_space_capacity_mb) *
-      kMaxSemiSpaceCapacityBaseUnit;
-  DCHECK_EQ(0, max_semi_space_size % (1 << kPageSizeBits));
-  return max_semi_space_size;
+  // Compute default max semi space size for Scavenger.
+  static constexpr size_t kScavengerDefaultMaxCapacity =
+      32 * kPointerMultiplier * MB;
+  size_t max_semi_space_size = kScavengerDefaultMaxCapacity;
+
+#if defined(ANDROID)
+  if (!IsHighEndAndroid(physical_memory)) {
+    // Note that kPointerMultiplier is always 1 on Android.
+    static constexpr size_t kAndroidNonHighEndMaxCapacity =
+        8 * kPointerMultiplier * MB;
+    max_semi_space_size = kAndroidNonHighEndMaxCapacity;
+  }
+#endif
+
+  return RoundUp(max_semi_space_size, PageMetadata::kPageSize);
 }
 
 // static
-size_t Heap::OldGenerationToSemiSpaceRatio() {
+size_t Heap::DefaulMinHeapSize(uint64_t physical_memory) {
+  return 128u * HeapLimitMultiplier(physical_memory) * MB;
+}
+
+// static
+size_t Heap::DefaulMaxHeapSize(uint64_t physical_memory) {
+  return 1024u * HeapLimitMultiplier(physical_memory) * MB;
+}
+
+// static
+size_t Heap::OldGenerationToSemiSpaceRatio(uint64_t physical_memory) {
   DCHECK(!v8_flags.minor_ms);
   // Compute a ration such that when old gen max capacity is set to the highest
   // supported value, young gen max capacity would also be set to the max.
-  DCHECK_LT(0u, v8_flags.scavenger_max_new_space_capacity_mb);
-  static size_t kMaxOldGenSizeToMaxYoungGenSizeRatio =
-      V8HeapTrait::kMaxSize /
-      (v8_flags.scavenger_max_new_space_capacity_mb * MB);
-  return kMaxOldGenSizeToMaxYoungGenSizeRatio / kPointerMultiplier;
+  const size_t max_semi_space_size = DefaultMaxSemiSpaceSize(physical_memory);
+  DCHECK_GT(max_semi_space_size, 0);
+  return DefaulMaxHeapSize(physical_memory) / max_semi_space_size;
 }
 
 // static
-size_t Heap::OldGenerationToSemiSpaceRatioLowMemory() {
-  static constexpr size_t kOldGenerationToSemiSpaceRatioLowMemory =
-      256 * kHeapLimitMultiplier / kPointerMultiplier;
-  return kOldGenerationToSemiSpaceRatioLowMemory / (v8_flags.minor_ms ? 2 : 1);
+size_t Heap::OldGenerationToSemiSpaceRatioLowMemory(uint64_t physical_memory) {
+  static const size_t old_generation_to_semi_space_ratio_low_memory =
+      256 * HeapLimitMultiplier(physical_memory) / kPointerMultiplier;
+  return old_generation_to_semi_space_ratio_low_memory /
+         (v8_flags.minor_ms ? 2 : 1);
 }
 
 void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
                          v8::CppHeap* cpp_heap) {
   CHECK(!configured_);
+  physical_memory_ = constraints.physical_memory_size_in_bytes();
+
   // Initialize max_semi_space_size_.
   {
-    max_semi_space_size_ = DefaultMaxSemiSpaceSize();
+    max_semi_space_size_ =
+        DefaultMaxSemiSpaceSize(constraints.physical_memory_size_in_bytes());
     if (constraints.max_young_generation_size_in_bytes() > 0) {
       max_semi_space_size_ = SemiSpaceSizeFromYoungGenerationSize(
           constraints.max_young_generation_size_in_bytes());
@@ -5035,7 +5166,8 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
                                     ? max_heap_size - old_generation_size
                                     : 0;
       } else {
-        GenerationSizesFromHeapSize(max_heap_size, &young_generation_size,
+        GenerationSizesFromHeapSize(constraints.physical_memory_size_in_bytes(),
+                                    max_heap_size, &young_generation_size,
                                     &old_generation_size);
       }
       max_semi_space_size_ =
@@ -5077,8 +5209,10 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
     }
     max_old_generation_size =
         std::max(max_old_generation_size, MinOldGenerationSize());
-    max_old_generation_size = std::min(max_old_generation_size,
-                                       AllocatorLimitOnMaxOldGenerationSize());
+    max_old_generation_size =
+        std::min(max_old_generation_size,
+                 AllocatorLimitOnMaxOldGenerationSize(
+                     constraints.physical_memory_size_in_bytes()));
     max_old_generation_size =
         RoundDown<PageMetadata::kPageSize>(max_old_generation_size);
 
@@ -5117,6 +5251,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
     if (v8_flags.initial_heap_size > 0) {
       size_t young_generation, old_generation;
       Heap::GenerationSizesFromHeapSize(
+          constraints.physical_memory_size_in_bytes(),
           static_cast<size_t>(v8_flags.initial_heap_size) * MB,
           &young_generation, &old_generation);
       initial_semispace_size_ =
@@ -5164,7 +5299,8 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
         static_cast<size_t>(v8_flags.preconfigured_old_space_size) * MB;
     preconfigured_old_generation_size_ = true;
   } else {
-    initial_old_generation_size_ = kMaxInitialOldGenerationSize;
+    initial_old_generation_size_ = DefaultInitialOldGenerationSize(
+        constraints.physical_memory_size_in_bytes());
     if (constraints.initial_old_generation_size_in_bytes() > 0) {
       initial_old_generation_size_ =
           constraints.initial_old_generation_size_in_bytes();
@@ -5407,8 +5543,17 @@ bool Heap::ShouldOptimizeForLoadTime() const {
 // - or the incremental marking is not in progress and we cannot start it.
 bool Heap::ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap,
                                                      AllocationOrigin origin) {
-  if (always_allocate() || OldGenerationSpaceAvailable() > 0) return true;
-  // We reached the old generation allocation limit.
+  if (always_allocate()) {
+    return true;
+  }
+  // Under external_memory_accounted_in_global_limit, we also consider the
+  // global limit.
+  if (OldGenerationSpaceAvailable() > 0 &&
+      (!v8_flags.external_memory_accounted_in_global_limit ||
+       GlobalMemoryAvailable() > 0)) {
+    return true;
+  }
+  // We reached the old generation or global allocation limit.
 
   // Allocations in the GC should always succeed if possible.
   if (origin == AllocationOrigin::kGC) return true;
@@ -6327,13 +6472,14 @@ void Heap::TearDown() {
 }
 
 // static
-bool Heap::IsFreeSpaceValid(FreeSpace object) {
+bool Heap::IsFreeSpaceValid(const FreeSpace* object) {
   Heap* heap = HeapUtils::GetOwnerHeap(object);
   Tagged<Object> free_space_map =
       heap->isolate()->root(RootIndex::kFreeSpaceMap);
   CHECK(!heap->deserialization_complete() ||
-        object.map_slot().contains_map_value(free_space_map.ptr()));
-  CHECK_LE(FreeSpace::kNextOffset + kTaggedSize, object.size(kRelaxedLoad));
+        object->map_slot().contains_map_value(free_space_map.ptr()));
+  CHECK_LE(offsetof(FreeSpace, next_) + kTaggedSize,
+           object->size(kRelaxedLoad));
   return true;
 }
 
@@ -7042,7 +7188,7 @@ void Heap::KeepDuringJob(DirectHandle<HeapObject> target) {
   MaybeHandle<OrderedHashSet> maybe_table =
       OrderedHashSet::Add(isolate(), table, target);
   if (!maybe_table.ToHandle(&table)) {
-    FATAL(
+    FatalProcessOutOfMemory(
         "Fatal JavaScript error: Too many distinct WeakRef objects "
         "created or dereferenced during single event loop turn.");
   }

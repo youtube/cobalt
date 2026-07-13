@@ -12,6 +12,8 @@
 
 #include <algorithm>
 
+#include "api/audio/audio_processing.h"
+#include "api/audio/audio_view.h"
 #include "common_audio/include/audio_util.h"
 #include "modules/audio_processing/agc2/agc2_common.h"
 #include "modules/audio_processing/logging/apm_data_dumper.h"

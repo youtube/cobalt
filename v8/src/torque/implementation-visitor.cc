@@ -3669,6 +3669,8 @@ void ImplementationVisitor::GenerateBuiltinDefinitionsAndInterfaceDescriptors(
           // objects inside the sandbox via the code pointer table.
           interface_descriptors << "  INTERNAL_DESCRIPTOR()\n";
 
+          interface_descriptors << "  SANDBOXING_MODE(kSandboxed)\n";
+
           if (has_context_parameter) {
             interface_descriptors << "  DEFINE_RESULT_AND_PARAMETERS(";
           } else {
@@ -5314,8 +5316,6 @@ void GenerateClassFieldVerifier(const std::string& class_name,
   // Protected pointer fields cannot be read or verified from torque yet.
   if (field_type->IsSubtypeOf(TypeOracle::GetProtectedPointerType())) return;
   if (field_type == TypeOracle::GetFloat64OrUndefinedOrHoleType()) return;
-  // Do not verify if the field may be uninitialized.
-  if (TypeOracle::GetUninitializedType()->IsSubtypeOf(field_type)) return;
 
   std::string field_start_offset;
   if (f.index) {

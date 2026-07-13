@@ -13,9 +13,13 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include "absl/strings/string_view.h"
+#include "api/array_view.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/string_encode.h"
+#include "rtc_base/string_to_number.h"
 
 namespace webrtc {
 namespace test {

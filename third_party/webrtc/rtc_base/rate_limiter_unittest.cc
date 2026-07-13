@@ -10,8 +10,11 @@
 
 #include "rtc_base/rate_limiter.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 
+#include "api/units/time_delta.h"
 #include "rtc_base/event.h"
 #include "rtc_base/platform_thread.h"
 #include "system_wrappers/include/clock.h"

@@ -13,8 +13,6 @@
 
 #include <array>
 #include <cstring>
-#include <memory>
-#include <vector>
 
 #include "api/array_view.h"
 

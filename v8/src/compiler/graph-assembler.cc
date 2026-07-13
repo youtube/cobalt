@@ -155,16 +155,6 @@ Node* GraphAssembler::SetStackPointer(Node* node) {
 }
 #endif
 
-TNode<HeapNumber> JSGraphAssembler::AllocateHeapNumber(Node* value) {
-  AllocationBuilder a(jsgraph(), broker(), effect(), control());
-  a.Allocate(sizeof(HeapNumber), AllocationType::kYoung, Type::OtherInternal());
-  a.Store(AccessBuilder::ForMap(), broker()->heap_number_map());
-  a.Store(AccessBuilder::ForHeapNumberValue(), value);
-  Node* new_heap_number = a.Finish();
-  UpdateEffectControlWith(new_heap_number);
-  return TNode<HeapNumber>::UncheckedCast(new_heap_number);
-}
-
 Node* GraphAssembler::LoadHeapNumberValue(Node* heap_number) {
   return Load(MachineType::Float64(), heap_number,
               IntPtrConstant(offsetof(HeapNumber, value_) - kHeapObjectTag));
@@ -636,8 +626,19 @@ class ArrayBufferViewAccessBuilder {
     // Case 1: Normal (backed by AB/SAB) or non-length tracking backed by GSAB
     // (can't go oob once constructed)
     auto GsabFixedOrNormal = [&]() {
-      return MachineLoadField<UintPtrT>(AccessBuilder::ForJSTypedArrayLength(),
-                                        view, UseInfo::Word());
+      TNode<UintPtrT> byte_length = MachineLoadField<UintPtrT>(
+          AccessBuilder::ForJSArrayBufferViewByteLength(), view,
+          UseInfo::Word());
+      if (auto size_opt = TryComputeStaticElementSize()) {
+        return a.UintPtrDiv(byte_length, a.UintPtrConstant(*size_opt));
+      } else {
+        TNode<Map> typed_array_map = a.LoadField<Map>(
+            AccessBuilder::ForMap(WriteBarrierKind::kNoWriteBarrier), view);
+        TNode<Uint32T> elements_kind = a.LoadElementsKind(typed_array_map);
+        TNode<Uint32T> element_size =
+            a.LookupByteSizeForElementsKind(elements_kind);
+        return a.UintPtrDiv(byte_length, a.ChangeUint32ToUintPtr(element_size));
+      }
     };
 
     // If we statically know we cannot have rab/gsab backed, we can simply

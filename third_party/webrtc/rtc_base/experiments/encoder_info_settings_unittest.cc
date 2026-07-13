@@ -10,16 +10,19 @@
 
 #include "rtc_base/experiments/encoder_info_settings.h"
 
-#include "rtc_base/gunit.h"
-#include "test/explicit_key_value_config.h"
+#include <optional>
+#include <vector>
+
+#include "api/field_trials.h"
+#include "api/video_codecs/video_encoder.h"
 #include "test/gmock.h"
+#include "test/gtest.h"
 
 namespace webrtc {
 
-using test::ExplicitKeyValueConfig;
 
 TEST(SimulcastEncoderAdapterSettingsTest, NoValuesWithoutFieldTrial) {
-  ExplicitKeyValueConfig field_trials("");
+  FieldTrials field_trials("");
 
   SimulcastEncoderAdapterEncoderInfoSettings settings(field_trials);
   EXPECT_EQ(std::nullopt, settings.requested_resolution_alignment());
@@ -28,7 +31,7 @@ TEST(SimulcastEncoderAdapterSettingsTest, NoValuesWithoutFieldTrial) {
 }
 
 TEST(SimulcastEncoderAdapterSettingsTest, NoValueForInvalidAlignment) {
-  ExplicitKeyValueConfig field_trials(
+  FieldTrials field_trials(
       "WebRTC-SimulcastEncoderAdapter-GetEncoderInfoOverride/"
       "requested_resolution_alignment:0/");
 
@@ -37,7 +40,7 @@ TEST(SimulcastEncoderAdapterSettingsTest, NoValueForInvalidAlignment) {
 }
 
 TEST(SimulcastEncoderAdapterSettingsTest, GetResolutionAlignment) {
-  ExplicitKeyValueConfig field_trials(
+  FieldTrials field_trials(
       "WebRTC-SimulcastEncoderAdapter-GetEncoderInfoOverride/"
       "requested_resolution_alignment:2/");
 
@@ -48,7 +51,7 @@ TEST(SimulcastEncoderAdapterSettingsTest, GetResolutionAlignment) {
 }
 
 TEST(SimulcastEncoderAdapterSettingsTest, GetApplyAlignment) {
-  ExplicitKeyValueConfig field_trials(
+  FieldTrials field_trials(
       "WebRTC-SimulcastEncoderAdapter-GetEncoderInfoOverride/"
       "requested_resolution_alignment:3,"
       "apply_alignment_to_all_simulcast_layers/");
@@ -60,7 +63,7 @@ TEST(SimulcastEncoderAdapterSettingsTest, GetApplyAlignment) {
 }
 
 TEST(SimulcastEncoderAdapterSettingsTest, GetResolutionBitrateLimits) {
-  ExplicitKeyValueConfig field_trials(
+  FieldTrials field_trials(
       "WebRTC-SimulcastEncoderAdapter-GetEncoderInfoOverride/"
       "frame_size_pixels:123,"
       "min_start_bitrate_bps:11000,"
@@ -76,7 +79,7 @@ TEST(SimulcastEncoderAdapterSettingsTest, GetResolutionBitrateLimits) {
 }
 
 TEST(SimulcastEncoderAdapterSettingsTest, GetResolutionBitrateLimitsWithList) {
-  ExplicitKeyValueConfig field_trials(
+  FieldTrials field_trials(
       "WebRTC-SimulcastEncoderAdapter-GetEncoderInfoOverride/"
       "frame_size_pixels:123|456|789,"
       "min_start_bitrate_bps:11000|22000|33000,"
@@ -93,7 +96,7 @@ TEST(SimulcastEncoderAdapterSettingsTest, GetResolutionBitrateLimitsWithList) {
 }
 
 TEST(EncoderSettingsTest, CommonSettingsUsedIfEncoderNameUnspecified) {
-  ExplicitKeyValueConfig field_trials(
+  FieldTrials field_trials(
       "WebRTC-VP8-GetEncoderInfoOverride/requested_resolution_alignment:2/"
       "WebRTC-GetEncoderInfoOverride/requested_resolution_alignment:3/");
 

@@ -11,22 +11,21 @@
 #ifndef TEST_FUZZERS_UTILS_RTP_REPLAYER_H_
 #define TEST_FUZZERS_UTILS_RTP_REPLAYER_H_
 
-#include <stdio.h>
-
-#include <map>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "api/test/video/function_video_decoder_factory.h"
-#include "api/video_codecs/video_decoder.h"
+#include "api/call/transport.h"
+#include "api/video/video_sink_interface.h"
+#include "api/video_codecs/video_decoder_factory.h"
 #include "call/call.h"
-#include "media/engine/internal_decoder_factory.h"
+#include "call/video_receive_stream.h"
+#include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
 #include "rtc_base/fake_clock.h"
-#include "rtc_base/time_utils.h"
 #include "test/null_transport.h"
 #include "test/rtp_file_reader.h"
-#include "test/test_video_capturer.h"
 #include "test/video_renderer.h"
 
 namespace webrtc {

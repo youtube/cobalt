@@ -87,7 +87,7 @@ struct RTPVideoHeader {
   VideoSendTiming video_timing;
   std::optional<ColorSpace> color_space;
   // This field is meant for media quality testing purpose only. When enabled it
-  // carries the webrtc::VideoFrame id field from the sender to the receiver.
+  // carries the VideoFrame id field from the sender to the receiver.
   std::optional<uint16_t> video_frame_tracking_id;
   RTPVideoTypeHeader video_type_header;
 

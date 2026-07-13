@@ -9,10 +9,12 @@
  */
 #include "rtc_base/strings/str_join.h"
 
+#include <array>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "rtc_base/strings/string_builder.h"
 #include "test/gtest.h"
 
 namespace webrtc {

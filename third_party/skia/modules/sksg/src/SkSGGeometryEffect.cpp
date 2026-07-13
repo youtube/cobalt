@@ -18,10 +18,9 @@
 #include "include/effects/SkCornerPathEffect.h"
 #include "include/effects/SkDashPathEffect.h"
 #include "include/effects/SkTrimPathEffect.h"
-#include "include/pathops/SkPathOps.h"
 #include "include/private/base/SkAssert.h"
 #include "include/private/base/SkTArray.h"
-#include "include/private/base/SkTo.h"
+#include "modules/pathops/include/SkPathOps.h"
 #include "modules/sksg/src/SkSGTransformPriv.h"
 #include "src/core/SkPathPriv.h"
 
@@ -123,7 +122,7 @@ sk_sp<SkPathEffect> make_dash(const std::vector<float>& intervals, float phase) 
         std::copy(intervals.begin(), intervals.end(), storage.begin() + intervals.size());
     }
 
-    return SkDashPathEffect::Make(intervals_ptr, SkToInt(intervals_count), phase);
+    return SkDashPathEffect::Make({intervals_ptr, intervals_count}, phase);
 }
 
 } // namespace

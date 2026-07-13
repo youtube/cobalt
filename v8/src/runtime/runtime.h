@@ -313,7 +313,8 @@ constexpr bool CanTriggerGC(T... properties) {
   F(TerminateExecution, 0, 1)                              \
   F(Typeof, 1, 1, RuntimeCallProperty::kCannotTriggerGC)   \
   F(UnwindAndFindExceptionHandler, 0, 1)                   \
-  I(AddLhsIsStringConstantInternalize, 4, 1)
+  I(AddLhsIsStringConstantInternalize, 4, 1)               \
+  I(AddRhsIsStringConstantInternalize, 4, 1)
 
 #define FOR_EACH_INTRINSIC_LITERALS(F, I) \
   F(CreateArrayLiteral, 4, 1)             \
@@ -509,6 +510,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(InternalizeString, 1, 1)                         \
   F(StringAdd, 2, 1)                                 \
   F(StringAdd_LhsIsStringConstant_Internalize, 4, 1) \
+  F(StringAdd_RhsIsStringConstant_Internalize, 4, 1) \
   F(StringBuilderConcat, 3, 1)                       \
   F(StringCharCodeAt, 2, 1)                          \
   F(StringCodePointAt, 2, 1)                         \
@@ -535,7 +537,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(SymbolIsPrivate, 1, 1)
 
 #define FOR_EACH_INTRINSIC_TEST(F, I)                                    \
-  F(Abort, 1, 1, RuntimeCallProperty::kCannotTriggerGC)                  \
+  F(Abort, 1, 1)                                                         \
   F(AbortCSADcheck, 1, 1)                                                \
   F(AbortJS, 1, 1)                                                       \
   F(ActiveTierIsIgnition, 1, 1)                                          \
@@ -728,6 +730,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WasmArrayNewSegment, 5, 1)                \
   F(WasmArrayInitSegment, 6, 1)               \
   F(WasmAllocateSuspender, 0, 1)              \
+  F(ClearWasmSuspenderResumeField, 1, 1)      \
   F(WasmCastToSpecialPrimitiveArray, 2, 1)    \
   F(WasmStringNewSegmentWtf8, 5, 1)           \
   F(WasmStringNewWtf8, 5, 1)                  \
@@ -746,7 +749,8 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WasmStringViewWtf8Slice, 3, 1)            \
   F(WasmStringFromCodePoint, 1, 1)            \
   F(WasmStringHash, 1, 1)                     \
-  F(WasmSubstring, 3, 1)
+  F(WasmSubstring, 3, 1)                      \
+  F(DebugCollectWasmCoverage, 0, 1)
 
 #define FOR_EACH_INTRINSIC_WASM_TEST(F, I)                      \
   F(BuildRefTypeBitfield, 2, 1)                                 \

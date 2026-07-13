@@ -93,9 +93,9 @@ MaybeDirectHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
 
   // 7. Let _numberingSystem_ be ? GetOption(_options_, `"numberingSystem"`,
   //    `"string"`, *undefined*, *undefined*).
-  std::unique_ptr<char[]> numbering_system_str = nullptr;
-  Maybe<bool> maybe_numberingSystem = Intl::GetNumberingSystem(
-      isolate, options, service, &numbering_system_str);
+  std::string numbering_system_str;
+  Maybe<bool> maybe_numberingSystem =
+      Intl::GetNumberingSystem(isolate, options, service, numbering_system_str);
   // 8. If _numberingSystem_ is not *undefined*, then
   // a. If _numberingSystem_ does not match the
   //    `(3*8alphanum) *("-" (3*8alphanum))` sequence, throw a *RangeError*
@@ -120,10 +120,10 @@ MaybeDirectHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   UErrorCode status = U_ZERO_ERROR;
 
   icu::Locale icu_locale = r.icu_locale;
-  if (numbering_system_str != nullptr) {
+  if (maybe_numberingSystem.FromJust()) {
     auto nu_extension_it = r.extensions.find("nu");
     if (nu_extension_it != r.extensions.end() &&
-        nu_extension_it->second != numbering_system_str.get()) {
+        nu_extension_it->second != numbering_system_str) {
       icu_locale.setUnicodeKeywordValue("nu", nullptr, status);
       DCHECK(U_SUCCESS(status));
     }
@@ -138,9 +138,9 @@ MaybeDirectHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
           maybe_locale_str.FromJust().c_str());
 
   // 14. Set relativeTimeFormat.[[NumberingSystem]] to r.[[nu]].
-  if (numbering_system_str != nullptr &&
-      Intl::IsValidNumberingSystem(numbering_system_str.get())) {
-    icu_locale.setUnicodeKeywordValue("nu", numbering_system_str.get(), status);
+  if (maybe_numberingSystem.FromJust() &&
+      Intl::IsValidNumberingSystem(numbering_system_str)) {
+    icu_locale.setUnicodeKeywordValue("nu", numbering_system_str, status);
     DCHECK(U_SUCCESS(status));
   }
   // 15. Let dataLocale be r.[[DataLocale]].
@@ -148,8 +148,9 @@ MaybeDirectHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   // 16. Let s be ? GetOption(options, "style", "string",
   //                          «"long", "short", "narrow"», "long").
   Maybe<Style> maybe_style = GetStringOption<Style>(
-      isolate, options, "style", service, {"long", "short", "narrow"},
-      {Style::LONG, Style::SHORT, Style::NARROW}, Style::LONG);
+      isolate, options, "style", service,
+      std::to_array<const std::string_view>({"long", "short", "narrow"}),
+      std::array{Style::LONG, Style::SHORT, Style::NARROW}, Style::LONG);
   MAYBE_RETURN(maybe_style, MaybeDirectHandle<JSRelativeTimeFormat>());
   Style style_enum = maybe_style.FromJust();
 
@@ -158,8 +159,9 @@ MaybeDirectHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   // 18. Let numeric be ? GetOption(options, "numeric", "string",
   //                                «"always", "auto"», "always").
   Maybe<Numeric> maybe_numeric = GetStringOption<Numeric>(
-      isolate, options, "numeric", service, {"always", "auto"},
-      {Numeric::ALWAYS, Numeric::AUTO}, Numeric::ALWAYS);
+      isolate, options, "numeric", service,
+      std::to_array<const std::string_view>({"always", "auto"}),
+      std::array{Numeric::ALWAYS, Numeric::AUTO}, Numeric::ALWAYS);
   MAYBE_RETURN(maybe_numeric, MaybeDirectHandle<JSRelativeTimeFormat>());
   Numeric numeric_enum = maybe_numeric.FromJust();
 
@@ -307,30 +309,22 @@ DirectHandle<String> UnitAsString(Isolate* isolate,
 
 bool GetURelativeDateTimeUnit(DirectHandle<String> unit,
                               URelativeDateTimeUnit* unit_enum) {
-  std::unique_ptr<char[]> unit_str = unit->ToCString();
-  if ((strcmp("second", unit_str.get()) == 0) ||
-      (strcmp("seconds", unit_str.get()) == 0)) {
+  std::string unit_str = unit->ToStdString();
+  if (unit_str == "second" || unit_str == "seconds") {
     *unit_enum = UDAT_REL_UNIT_SECOND;
-  } else if ((strcmp("minute", unit_str.get()) == 0) ||
-             (strcmp("minutes", unit_str.get()) == 0)) {
+  } else if (unit_str == "minute" || unit_str == "minutes") {
     *unit_enum = UDAT_REL_UNIT_MINUTE;
-  } else if ((strcmp("hour", unit_str.get()) == 0) ||
-             (strcmp("hours", unit_str.get()) == 0)) {
+  } else if (unit_str == "hour" || unit_str == "hours") {
     *unit_enum = UDAT_REL_UNIT_HOUR;
-  } else if ((strcmp("day", unit_str.get()) == 0) ||
-             (strcmp("days", unit_str.get()) == 0)) {
+  } else if (unit_str == "day" || unit_str == "days") {
     *unit_enum = UDAT_REL_UNIT_DAY;
-  } else if ((strcmp("week", unit_str.get()) == 0) ||
-             (strcmp("weeks", unit_str.get()) == 0)) {
+  } else if (unit_str == "week" || unit_str == "weeks") {
     *unit_enum = UDAT_REL_UNIT_WEEK;
-  } else if ((strcmp("month", unit_str.get()) == 0) ||
-             (strcmp("months", unit_str.get()) == 0)) {
+  } else if (unit_str == "month" || unit_str == "months") {
     *unit_enum = UDAT_REL_UNIT_MONTH;
-  } else if ((strcmp("quarter", unit_str.get()) == 0) ||
-             (strcmp("quarters", unit_str.get()) == 0)) {
+  } else if (unit_str == "quarter" || unit_str == "quarters") {
     *unit_enum = UDAT_REL_UNIT_QUARTER;
-  } else if ((strcmp("year", unit_str.get()) == 0) ||
-             (strcmp("years", unit_str.get()) == 0)) {
+  } else if (unit_str == "year" || unit_str == "years") {
     *unit_enum = UDAT_REL_UNIT_YEAR;
   } else {
     return false;

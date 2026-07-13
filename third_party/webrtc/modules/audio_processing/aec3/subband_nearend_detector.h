@@ -11,10 +11,13 @@
 #ifndef MODULES_AUDIO_PROCESSING_AEC3_SUBBAND_NEAREND_DETECTOR_H_
 #define MODULES_AUDIO_PROCESSING_AEC3_SUBBAND_NEAREND_DETECTOR_H_
 
+#include <array>
+#include <cstddef>
 #include <vector>
 
 #include "api/array_view.h"
 #include "api/audio/echo_canceller3_config.h"
+#include "modules/audio_processing/aec3/aec3_common.h"
 #include "modules/audio_processing/aec3/moving_average.h"
 #include "modules/audio_processing/aec3/nearend_detector.h"
 

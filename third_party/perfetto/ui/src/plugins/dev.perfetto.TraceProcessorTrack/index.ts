@@ -45,6 +45,7 @@ import {
   QueryFlamegraph,
 } from '../../components/query_flamegraph';
 import {AreaSelection, areaSelectionsEqual} from '../../public/selection';
+import {escapeSearchQuery} from '../../trace_processor/query_utils';
 
 export default class implements PerfettoPlugin {
   static readonly id = 'dev.perfetto.TraceProcessorTrack';
@@ -60,6 +61,7 @@ export default class implements PerfettoPlugin {
     await this.addSlices(ctx);
     this.addAggregations(ctx);
     this.addMinimapContentProvider(ctx);
+    this.addSearchProviders(ctx);
   }
 
   private async addCounters(ctx: Trace) {
@@ -72,6 +74,7 @@ export default class implements PerfettoPlugin {
           ct.name,
           ct.id,
           ct.unit,
+          ct.machine_id as machine,
           extract_arg(ct.dimension_arg_set_id, 'utid') as utid,
           extract_arg(ct.dimension_arg_set_id, 'upid') as upid
         from counter_track ct
@@ -108,6 +111,7 @@ export default class implements PerfettoPlugin {
       pid: NUM_NULL,
       isMainThread: NUM,
       isKernelThread: NUM,
+      machine: NUM_NULL,
     });
     for (; it.valid(); it.next()) {
       const {
@@ -123,13 +127,14 @@ export default class implements PerfettoPlugin {
         pid,
         isMainThread,
         isKernelThread,
+        machine,
       } = it;
       const schema = schemas.get(type);
       if (schema === undefined) {
         continue;
       }
       const {group, topLevelGroup} = schema;
-      const title = getTrackName({
+      const trackName = getTrackName({
         name,
         tid,
         threadName,
@@ -139,11 +144,11 @@ export default class implements PerfettoPlugin {
         utid,
         kind: COUNTER_TRACK_KIND,
         threadTrack: utid !== undefined,
+        machine,
       });
       const uri = `/counter_${trackId}`;
       ctx.tracks.registerTrack({
         uri,
-        title,
         tags: {
           kind: COUNTER_TRACK_KIND,
           trackIds: [trackId],
@@ -155,7 +160,7 @@ export default class implements PerfettoPlugin {
         chips: removeFalsyValues([
           isKernelThread === 0 && isMainThread === 1 && 'main thread',
         ]),
-        track: new TraceProcessorCounterTrack(
+        renderer: new TraceProcessorCounterTrack(
           ctx,
           uri,
           {
@@ -164,7 +169,7 @@ export default class implements PerfettoPlugin {
             unit: unit ?? undefined,
           },
           trackId,
-          title,
+          trackName,
         ),
       });
       this.addTrack(
@@ -175,7 +180,7 @@ export default class implements PerfettoPlugin {
         utid,
         new TrackNode({
           uri,
-          title,
+          name: trackName,
           sortOrder: utid !== undefined || upid !== undefined ? 30 : 0,
         }),
       );
@@ -255,7 +260,7 @@ export default class implements PerfettoPlugin {
       }
       const trackIds = rawTrackIds.split(',').map((v) => Number(v));
       const {group, topLevelGroup} = schema;
-      const title = getTrackName({
+      const trackName = getTrackName({
         name,
         tid,
         threadName,
@@ -269,7 +274,6 @@ export default class implements PerfettoPlugin {
       const uri = `/slice_${trackIds[0]}`;
       ctx.tracks.registerTrack({
         uri,
-        title,
         tags: {
           kind: SLICE_TRACK_KIND,
           trackIds: trackIds,
@@ -281,7 +285,7 @@ export default class implements PerfettoPlugin {
         chips: removeFalsyValues([
           isKernelThread === 0 && isMainThread === 1 && 'main thread',
         ]),
-        track: await createTraceProcessorSliceTrack({
+        renderer: await createTraceProcessorSliceTrack({
           trace: ctx,
           uri,
           maxDepth,
@@ -296,7 +300,7 @@ export default class implements PerfettoPlugin {
         utid,
         new TrackNode({
           uri,
-          title,
+          name: trackName,
           sortOrder: utid !== undefined || upid !== undefined ? 20 : 0,
         }),
       );
@@ -368,7 +372,7 @@ export default class implements PerfettoPlugin {
     const newGroup = new TrackNode({
       uri: `/${group}`,
       isSummary: true,
-      title: name,
+      name,
       collapsed: !expanded,
     });
     node.addChildInOrder(newGroup);
@@ -439,6 +443,68 @@ export default class implements PerfettoPlugin {
           rows.push(row);
         }
         return rows;
+      },
+    });
+  }
+
+  private addSearchProviders(ctx: Trace) {
+    ctx.search.registerSearchProvider({
+      name: 'Slices by name',
+      selectTracks(tracks) {
+        return tracks
+          .filter((t) => t.tags?.kind === SLICE_TRACK_KIND)
+          .filter((t) =>
+            t.renderer.getDataset?.()?.implements({name: STR_NULL}),
+          );
+      },
+      async getSearchFilter(searchTerm) {
+        return {
+          where: `name GLOB ${escapeSearchQuery(searchTerm)}`,
+        };
+      },
+    });
+
+    ctx.search.registerSearchProvider({
+      name: 'Slices by id',
+      selectTracks(tracks) {
+        return tracks
+          .filter((t) => t.tags?.kind === SLICE_TRACK_KIND)
+          .filter((t) => t.renderer.getDataset?.()?.implements({id: NUM_NULL}));
+      },
+      async getSearchFilter(searchTerm) {
+        // Attempt to parse the search term as an integer.
+        const id = Number(searchTerm);
+
+        // Note: Number.isInteger also returns false for NaN.
+        if (!Number.isInteger(id)) {
+          return undefined;
+        }
+
+        return {
+          where: `id = ${searchTerm}`,
+        };
+      },
+    });
+
+    ctx.search.registerSearchProvider({
+      name: 'Slice arguments',
+      selectTracks(tracks) {
+        return tracks
+          .filter((t) => t.tags?.kind === SLICE_TRACK_KIND)
+          .filter((t) =>
+            t.renderer.getDataset?.()?.implements({arg_set_id: NUM_NULL}),
+          );
+      },
+      async getSearchFilter(searchTerm) {
+        const searchLiteral = escapeSearchQuery(searchTerm);
+        return {
+          join: `args USING(arg_set_id)`,
+          where: `
+            args.string_value GLOB ${searchLiteral}
+            OR
+            args.key GLOB ${searchLiteral}
+          `,
+        };
       },
     });
   }

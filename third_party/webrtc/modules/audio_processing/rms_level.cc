@@ -12,15 +12,19 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <numeric>
+#include <optional>
 
+#include "api/array_view.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {
 namespace {
-static constexpr float kMaxSquaredLevel = 32768 * 32768;
+constexpr float kMaxSquaredLevel = 32768 * 32768;
 // kMinLevel is the level corresponding to kMinLevelDb, that is 10^(-127/10).
-static constexpr float kMinLevel = 1.995262314968883e-13f;
+constexpr float kMinLevel = 1.995262314968883e-13f;
 
 // Calculates the normalized RMS value from a mean square value. The input
 // should be the sum of squared samples divided by the number of samples. The

@@ -11,7 +11,7 @@
 #ifndef MODULES_AUDIO_PROCESSING_NS_SIGNAL_MODEL_ESTIMATOR_H_
 #define MODULES_AUDIO_PROCESSING_NS_SIGNAL_MODEL_ESTIMATOR_H_
 
-#include <array>
+#include <cstdint>
 
 #include "api/array_view.h"
 #include "modules/audio_processing/ns/histograms.h"

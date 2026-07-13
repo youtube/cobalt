@@ -9,6 +9,17 @@
  */
 #include "test/scenario/column_printer.h"
 
+#include <cstddef>
+#include <functional>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "api/rtc_event_log_output.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/strings/string_builder.h"
+
 namespace webrtc {
 namespace test {
 

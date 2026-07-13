@@ -115,7 +115,7 @@ class DtlsTransportInternal : public PacketTransportInternal {
   // Expose the underneath IceTransport.
   virtual IceTransportInternal* ice_transport() = 0;
 
-  // F: void(DtlsTransportInternal*, const webrtc::DtlsTransportState)
+  // F: void(DtlsTransportInternal*, const DtlsTransportState)
   template <typename F>
   void SubscribeDtlsTransportState(F&& callback) {
     dtls_transport_state_callback_list_.AddReceiver(std::forward<F>(callback));
@@ -137,7 +137,7 @@ class DtlsTransportInternal : public PacketTransportInternal {
   }
 
   // Emitted whenever the Dtls handshake failed on some transport channel.
-  // F: void(webrtc::SSLHandshakeError)
+  // F: void(SSLHandshakeError)
   template <typename F>
   void SubscribeDtlsHandshakeError(F&& callback) {
     dtls_handshake_error_callback_list_.AddReceiver(std::forward<F>(callback));

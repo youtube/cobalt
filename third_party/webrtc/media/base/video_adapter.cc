@@ -374,8 +374,8 @@ void VideoAdapter::OnSinkWants(const VideoSinkWants& sink_wants) {
   max_framerate_request_ = sink_wants.max_framerate_fps;
   resolution_alignment_ =
       std::lcm(source_resolution_alignment_, sink_wants.resolution_alignment);
-  // Convert from std::optional<webrtc::VideoSinkWants::FrameSize> to
-  // std::optional<webrtc::Resolution>. Both are {int,int}.
+  // Convert from std::optional<VideoSinkWants::FrameSize> to
+  // std::optional<Resolution>. Both are {int,int}.
   scale_resolution_down_to_ = std::nullopt;
   if (sink_wants.requested_resolution.has_value()) {
     scale_resolution_down_to_ = {

@@ -12,8 +12,10 @@
 #include "modules/audio_processing/aec3/moving_average.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <functional>
 
+#include "api/array_view.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {

@@ -23,7 +23,6 @@
 #include <openssl/err.h>  // for ERR_print_errors_fp
 #include <openssl/ex_data.h>
 #include <openssl/stack.h>
-#include <openssl/thread.h>
 
 #if defined(__cplusplus)
 extern "C" {
@@ -658,6 +657,11 @@ OPENSSL_EXPORT int BIO_meth_set_create(BIO_METHOD *method,
 
 // BIO_meth_set_destroy sets a function to release data associated with a |BIO|
 // and returns one. The function's return value is ignored.
+//
+// As the |BIO| is about to be destroyed, it is not necessary for |destroy_func|
+// to clear the BIO's state with |BIO_set_data| or |BIO_set_init|. There is no
+// harm in clearing them, but the |BIO| will not be passed to |BIO| operations,
+// unless |destroy_func| itself does so.
 OPENSSL_EXPORT int BIO_meth_set_destroy(BIO_METHOD *method,
                                         int (*destroy_func)(BIO *));
 
@@ -890,44 +894,6 @@ OPENSSL_EXPORT long (*BIO_meth_get_callback_ctrl(const BIO_METHOD *method))(
 // BIO_TYPE_START is the first user-allocated |BIO| type. No pre-defined type,
 // flag bits aside, may exceed this value.
 #define BIO_TYPE_START 128
-
-struct bio_method_st {
-  int type;
-  const char *name;
-  int (*bwrite)(BIO *, const char *, int);
-  int (*bread)(BIO *, char *, int);
-  // TODO(fork): remove bputs.
-  int (*bputs)(BIO *, const char *);
-  int (*bgets)(BIO *, char *, int);
-  long (*ctrl)(BIO *, int, long, void *);
-  int (*create)(BIO *);
-  int (*destroy)(BIO *);
-  long (*callback_ctrl)(BIO *, int, BIO_info_cb *);
-};
-
-struct bio_st {
-  const BIO_METHOD *method;
-  CRYPTO_EX_DATA ex_data;
-
-  // init is non-zero if this |BIO| has been initialised.
-  int init;
-  // shutdown is often used by specific |BIO_METHOD|s to determine whether
-  // they own some underlying resource. This flag can often by controlled by
-  // |BIO_set_close|. For example, whether an fd BIO closes the underlying fd
-  // when it, itself, is closed.
-  int shutdown;
-  int flags;
-  int retry_reason;
-  // num is a BIO-specific value. For example, in fd BIOs it's used to store a
-  // file descriptor.
-  int num;
-  CRYPTO_refcount_t references;
-  void *ptr;
-  // next_bio points to the next |BIO| in a chain. This |BIO| owns a reference
-  // to |next_bio|.
-  BIO *next_bio;  // used by filter BIOs
-  uint64_t num_read, num_write;
-};
 
 #define BIO_C_SET_CONNECT 100
 #define BIO_C_DO_STATE_MACHINE 101

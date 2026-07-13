@@ -59,7 +59,7 @@ class FakeVideoRenderer : public VideoSinkInterface<VideoFrame> {
  private:
   int width_ = 0;
   int height_ = 0;
-  VideoRotation rotation_ = webrtc::kVideoRotation_0;
+  VideoRotation rotation_ = kVideoRotation_0;
   int64_t timestamp_us_ = 0;
   int num_rendered_frames_ = 0;
   bool black_frame_ = false;

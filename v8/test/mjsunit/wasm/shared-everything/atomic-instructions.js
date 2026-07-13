@@ -424,7 +424,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     assertTraps(kTrapArrayOutOfBounds, () => wasm.atomicSet8(array8Obj, 2 , 0));
     assertTraps(kTrapArrayOutOfBounds, () => wasm.atomicGetS16(array16Obj, 2));
     assertTraps(kTrapArrayOutOfBounds, () => wasm.atomicGetU16(array16Obj, 2));
-    assertTraps(kTrapArrayOutOfBounds, () => wasm.atomicSet16(array16Obj, 2 , 0));
+    assertTraps(kTrapArrayOutOfBounds,
+                () => wasm.atomicSet16(array16Obj, 2 , 0));
     assertTraps(kTrapNullDereference, () => wasm.atomicGetS8(null));
     assertTraps(kTrapNullDereference, () => wasm.atomicGetU8(null));
     assertTraps(kTrapNullDereference, () => wasm.atomicSet8(null, 0, 0));
@@ -438,15 +439,24 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   for (let is_shared of [true, false]) {
     print(`${arguments.callee.name} ${is_shared ? "shared" : "unshared"}`);
     let builder = new WasmModuleBuilder();
+    let anyRefT = is_shared
+      ? wasmRefNullType(kWasmAnyRef).shared()
+      : wasmRefNullType(kWasmAnyRef);
     let struct = builder.addStruct({
-      fields: [makeField(kWasmI32, true), makeField(kWasmI64, true)],
+      fields: [
+        makeField(kWasmI32, true),
+        makeField(kWasmI64, true),
+        makeField(anyRefT, true),
+      ],
       is_shared,
     });
-    let producer_sig = makeSig([kWasmI32, kWasmI64], [wasmRefType(struct)]);
+    let producer_sig = makeSig(
+      [kWasmI32, kWasmI64, anyRefT], [wasmRefType(struct)]);
     builder.addFunction("newStruct", producer_sig)
       .addBody([
         kExprLocalGet, 0,
         kExprLocalGet, 1,
+        kExprLocalGet, 2,
         kGCPrefix, kExprStructNew, struct])
       .exportFunc();
     builder.addFunction("atomicAdd32",
@@ -487,6 +497,24 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
         kExprLocalGet, 0,
         kExprLocalGet, 1,
         kAtomicPrefix, kExprStructAtomicXor, kAtomicSeqCst, struct, 0,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicExchange32",
+        makeSig([wasmRefNullType(struct), kWasmI32], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kAtomicPrefix, kExprStructAtomicExchange, kAtomicSeqCst, struct, 0,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicCompareExchange32",
+        makeSig([wasmRefNullType(struct), kWasmI32, kWasmI32], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kExprLocalGet, 2,
+        kAtomicPrefix, kExprStructAtomicCompareExchange, kAtomicSeqCst, struct,
+        0,
       ])
       .exportFunc();
 
@@ -530,24 +558,71 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
         kAtomicPrefix, kExprStructAtomicXor, kAtomicSeqCst, struct, 1,
       ])
       .exportFunc();
+    builder.addFunction("atomicExchange64",
+        makeSig([wasmRefNullType(struct), kWasmI64], [kWasmI64]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kAtomicPrefix, kExprStructAtomicExchange, kAtomicSeqCst, struct, 1,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicCompareExchange64",
+        makeSig([wasmRefNullType(struct), kWasmI64, kWasmI64], [kWasmI64]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kExprLocalGet, 2,
+        kAtomicPrefix, kExprStructAtomicCompareExchange, kAtomicSeqCst, struct,
+        1,
+      ])
+      .exportFunc();
+
+    builder.addFunction("atomicExchangeRef",
+        makeSig([wasmRefNullType(struct), anyRefT], [anyRefT]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kAtomicPrefix, kExprStructAtomicExchange, kAtomicSeqCst, struct, 2,
+      ])
+      .exportFunc();
+
+    // TODO(mliedtke): Add atomicCompareExchangeRef tests!
 
     let wasm = builder.instantiate().exports;
-    let structObj = wasm.newStruct(42, -42n);
+    let structObj = wasm.newStruct(42, -42n, "initial value");
     assertEquals(42, wasm.atomicAdd32(structObj, 24));
     assertEquals(66, wasm.atomicAdd32(structObj, -1));
     assertEquals(65, wasm.atomicAdd32(structObj, 1));
     assertEquals(66, wasm.atomicSub32(structObj, 1));
     assertEquals(65, wasm.atomicSub32(structObj, -10));
-    assertEquals(75, wasm.atomicSub32(structObj, 0));
+    assertEquals(75, wasm.atomicExchange32(structObj, 123));
+    assertEquals(123, wasm.atomicCompareExchange32(structObj, 123, 321));
+    assertEquals(321, wasm.atomicCompareExchange32(structObj, 123, 456)); // nop
+    assertEquals(321, wasm.atomicCompareExchange32(structObj, 321, -1));
+    assertEquals(-1, wasm.atomicCompareExchange32(structObj, -1, -1));
 
     assertEquals(-42n, wasm.atomicAdd64(structObj, 24n));
     assertEquals(-18n, wasm.atomicAdd64(structObj, -1n));
     assertEquals(-19n, wasm.atomicAdd64(structObj, 1n));
     assertEquals(-18n, wasm.atomicSub64(structObj, 1n));
     assertEquals(-19n, wasm.atomicSub64(structObj, -10n));
-    assertEquals(-9n, wasm.atomicSub64(structObj, 0n));
+    assertEquals(-9n, wasm.atomicExchange64(structObj, 123n));
+    assertEquals(123n, wasm.atomicCompareExchange64(structObj, 123n, 321n));
+    assertEquals(
+      321n, wasm.atomicCompareExchange64(structObj, 123n, 456n)); // nop
+    assertEquals(321n, wasm.atomicCompareExchange64(structObj, 321n, -1n));
+    assertEquals(-1n, wasm.atomicCompareExchange64(structObj, -1n, -1n));
 
-    structObj = wasm.newStruct(0b1101 << 16, 0b1101n << 35n);
+    assertEquals("initial value", wasm.atomicExchangeRef(structObj, "new"));
+    assertEquals("new", wasm.atomicExchangeRef(structObj, 123)); // smi
+    assertEquals(123, wasm.atomicExchangeRef(structObj, 456.789));
+    assertEquals(456.789, wasm.atomicExchangeRef(structObj, null));
+    assertEquals(null, wasm.atomicExchangeRef(structObj, undefined));
+    assertEquals(undefined, wasm.atomicExchangeRef(structObj, true));
+    assertEquals(true, wasm.atomicExchangeRef(structObj, structObj));
+    assertEquals(structObj, wasm.atomicExchangeRef(structObj, structObj));
+
+    structObj = wasm.newStruct(0b1101 << 16, 0b1101n << 35n, "initial value");
     assertEquals(0b1101 << 16, wasm.atomicAnd32(structObj, 0b1011 << 16));
     assertEquals(0b1001 << 16, wasm.atomicOr32(structObj, 0b0011 << 16));
     assertEquals(0b1011 << 16, wasm.atomicXor32(structObj, 0b0110 << 16));
@@ -558,16 +633,22 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     assertEquals(0b1011n << 35n, wasm.atomicXor64(structObj, 0b0110n << 35n));
     assertEquals(0b1101n << 35n, wasm.atomicXor64(structObj, 0n));
 
-    assertTraps(kTrapNullDereference, () => wasm.atomicAdd32(null, 0));
-    assertTraps(kTrapNullDereference, () => wasm.atomicSub32(null, 0));
-    assertTraps(kTrapNullDereference, () => wasm.atomicAnd32(null, 0));
-    assertTraps(kTrapNullDereference, () => wasm.atomicOr32(null, 0));
-    assertTraps(kTrapNullDereference, () => wasm.atomicXor32(null, 0));
-    assertTraps(kTrapNullDereference, () => wasm.atomicAdd64(null, 0n));
-    assertTraps(kTrapNullDereference, () => wasm.atomicSub64(null, 0n));
-    assertTraps(kTrapNullDereference, () => wasm.atomicAnd64(null, 0n));
-    assertTraps(kTrapNullDereference, () => wasm.atomicOr64(null, 0n));
-    assertTraps(kTrapNullDereference, () => wasm.atomicXor64(null, 0n));
+    const kTrapNull = kTrapNullDereference;
+    assertTraps(kTrapNull, () => wasm.atomicAdd32(null, 0));
+    assertTraps(kTrapNull, () => wasm.atomicSub32(null, 0));
+    assertTraps(kTrapNull, () => wasm.atomicAnd32(null, 0));
+    assertTraps(kTrapNull, () => wasm.atomicOr32(null, 0));
+    assertTraps(kTrapNull, () => wasm.atomicXor32(null, 0));
+    assertTraps(kTrapNull, () => wasm.atomicExchange32(null, 0));
+    assertTraps(kTrapNull, () => wasm.atomicCompareExchange32(null, 0, 0));
+    assertTraps(kTrapNull, () => wasm.atomicAdd64(null, 0n));
+    assertTraps(kTrapNull, () => wasm.atomicSub64(null, 0n));
+    assertTraps(kTrapNull, () => wasm.atomicAnd64(null, 0n));
+    assertTraps(kTrapNull, () => wasm.atomicOr64(null, 0n));
+    assertTraps(kTrapNull, () => wasm.atomicXor64(null, 0n));
+    assertTraps(kTrapNull, () => wasm.atomicExchange64(null, 0n));
+    assertTraps(kTrapNull, () => wasm.atomicCompareExchange64(null, 0n, 0n));
+    assertTraps(kTrapNull, () => wasm.atomicExchangeRef(null, 0));
   }
 })();
 
@@ -637,6 +718,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       builder.addArray(kWasmI32, true, kNoSuperType, false, is_shared);
     let array64 =
       builder.addArray(kWasmI64, true, kNoSuperType, false, is_shared);
+    let arrayRef =
+      builder.addArray(anyRefT, true, kNoSuperType, false, is_shared);
     builder.addFunction("newArray32", makeSig([kWasmI32, kWasmI32], [anyRefT]))
       .addBody([
         kExprLocalGet, 0,
@@ -649,6 +732,13 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
         kExprLocalGet, 0,
         kExprLocalGet, 1,
         kGCPrefix, kExprArrayNewFixed, array64, 2,
+      ])
+      .exportFunc();
+    builder.addFunction("newArrayRef", makeSig([anyRefT, anyRefT], [anyRefT]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kGCPrefix, kExprArrayNewFixed, arrayRef, 2,
       ])
       .exportFunc();
     builder.addFunction("atomicAdd32",
@@ -696,6 +786,26 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
         kAtomicPrefix, kExprArrayAtomicXor, kAtomicSeqCst, array32,
       ])
       .exportFunc();
+    builder.addFunction("atomicExchange32",
+        makeSig([wasmRefNullType(array32), kWasmI32, kWasmI32], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kExprLocalGet, 2,
+        kAtomicPrefix, kExprArrayAtomicExchange, kAtomicSeqCst, array32,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicCompareExchange32",
+        makeSig(
+          [wasmRefNullType(array32), kWasmI32, kWasmI32, kWasmI32], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kExprLocalGet, 2,
+        kExprLocalGet, 3,
+        kAtomicPrefix, kExprArrayAtomicCompareExchange, kAtomicSeqCst, array32,
+      ])
+      .exportFunc();
     builder.addFunction("atomicAdd64",
         makeSig([wasmRefNullType(array64), kWasmI32, kWasmI64], [kWasmI64]))
       .addBody([
@@ -732,13 +842,45 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
         kAtomicPrefix, kExprArrayAtomicOr, kAtomicSeqCst, array64,
       ])
       .exportFunc();
-      builder.addFunction("atomicXor64",
+    builder.addFunction("atomicXor64",
         makeSig([wasmRefNullType(array64), kWasmI32, kWasmI64], [kWasmI64]))
       .addBody([
         kExprLocalGet, 0,
         kExprLocalGet, 1,
         kExprLocalGet, 2,
         kAtomicPrefix, kExprArrayAtomicXor, kAtomicSeqCst, array64,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicExchange64",
+        makeSig([wasmRefNullType(array64), kWasmI32, kWasmI64], [kWasmI64]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kExprLocalGet, 2,
+        kAtomicPrefix, kExprArrayAtomicExchange, kAtomicSeqCst, array64,
+      ])
+      .exportFunc();
+    builder.addFunction("atomicCompareExchange64",
+        makeSig(
+          [wasmRefNullType(array64), kWasmI32, kWasmI64, kWasmI64], [kWasmI64]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kExprLocalGet, 2,
+        kExprLocalGet, 3,
+        kAtomicPrefix, kExprArrayAtomicCompareExchange, kAtomicSeqCst, array64,
+      ])
+      .exportFunc();
+
+    // TODO(mliedtke): Add atomicCompareExchangeRef tests!
+
+    builder.addFunction("atomicExchangeRef",
+        makeSig([wasmRefNullType(arrayRef), kWasmI32, anyRefT], [anyRefT]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kExprLocalGet, 2,
+        kAtomicPrefix, kExprArrayAtomicExchange, kAtomicSeqCst, arrayRef,
       ])
       .exportFunc();
 
@@ -752,6 +894,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     assertEquals(-42, wasm.atomicSub32(array32Obj, 1, 1));
     assertEquals(-43, wasm.atomicSub32(array32Obj, 1, -10));
     assertEquals(-33, wasm.atomicSub32(array32Obj, 1, 0));
+    assertEquals(-33, wasm.atomicExchange32(array32Obj, 1, 123));
+    assertEquals(123, wasm.atomicCompareExchange32(array32Obj, 1, 123, 321));
+    assertEquals(
+      321, wasm.atomicCompareExchange32(array32Obj, 1, 123, 456)); // nop
+    assertEquals(321, wasm.atomicCompareExchange32(array32Obj, 1, 321, -1));
+    assertEquals(-1, wasm.atomicCompareExchange32(array32Obj, 1, -1, -1));
 
     assertEquals(42n, wasm.atomicAdd64(array64Obj, 0, 24n));
     assertEquals(66n, wasm.atomicAdd64(array64Obj, 0, -1n));
@@ -759,6 +907,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     assertEquals(-42n, wasm.atomicSub64(array64Obj, 1, 1n));
     assertEquals(-43n, wasm.atomicSub64(array64Obj, 1, -10n));
     assertEquals(-33n, wasm.atomicSub64(array64Obj, 1, 0n));
+    assertEquals(-33n, wasm.atomicExchange64(array64Obj, 1, 123n));
+    assertEquals(123n, wasm.atomicCompareExchange64(array64Obj, 1, 123n, 321n));
+    assertEquals(
+      321n, wasm.atomicCompareExchange64(array64Obj, 1, 123n, 456n)); // nop
+    assertEquals(321n, wasm.atomicCompareExchange64(array64Obj, 1, 321n, -1n));
+    assertEquals(-1n, wasm.atomicCompareExchange64(array64Obj, 1, -1n, -1n));
 
     array64Obj = wasm.newArray64(0n, 0b1101n << 35n);
     array32Obj = wasm.newArray32(0, 0b1101 << 16);
@@ -776,16 +930,32 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       wasm.atomicXor64(array64Obj, 1, 0b0110n << 35n));
     assertEquals(0b1101n << 35n, wasm.atomicXor64(array64Obj, 1, 0n));
 
-    assertTraps(kTrapNullDereference, () => wasm.atomicAdd32(null, 0, 0));
-    assertTraps(kTrapNullDereference, () => wasm.atomicSub32(null, 0, 0));
-    assertTraps(kTrapNullDereference, () => wasm.atomicAnd32(null, 0, 0));
-    assertTraps(kTrapNullDereference, () => wasm.atomicOr32(null, 0, 0));
-    assertTraps(kTrapNullDereference, () => wasm.atomicXor32(null, 0, 0));
-    assertTraps(kTrapNullDereference, () => wasm.atomicAdd64(null, 0, 0n));
-    assertTraps(kTrapNullDereference, () => wasm.atomicSub64(null, 0, 0n));
-    assertTraps(kTrapNullDereference, () => wasm.atomicAnd64(null, 0, 0n));
-    assertTraps(kTrapNullDereference, () => wasm.atomicOr64(null, 0, 0n));
-    assertTraps(kTrapNullDereference, () => wasm.atomicXor64(null, 0, 0n));
+    let arrayRefObj = wasm.newArrayRef("initial", "value");
+    assertEquals("value", wasm.atomicExchangeRef(arrayRefObj, 1, null));
+    assertEquals(null, wasm.atomicExchangeRef(arrayRefObj, 1, 123));
+    assertEquals(123, wasm.atomicExchangeRef(arrayRefObj, 1, 123.456));
+    assertEquals(123.456, wasm.atomicExchangeRef(arrayRefObj, 1, undefined));
+    assertEquals(
+      undefined, wasm.atomicExchangeRef(arrayRefObj, 1, arrayRefObj));
+    assertEquals(
+      arrayRefObj, wasm.atomicExchangeRef(arrayRefObj, 1, arrayRefObj));
+
+    const trapNull = kTrapNullDereference;
+    assertTraps(trapNull, () => wasm.atomicAdd32(null, 0, 0));
+    assertTraps(trapNull, () => wasm.atomicSub32(null, 0, 0));
+    assertTraps(trapNull, () => wasm.atomicAnd32(null, 0, 0));
+    assertTraps(trapNull, () => wasm.atomicOr32(null, 0, 0));
+    assertTraps(trapNull, () => wasm.atomicXor32(null, 0, 0));
+    assertTraps(trapNull, () => wasm.atomicExchange32(null, 0, 0));
+    assertTraps(trapNull, () => wasm.atomicCompareExchange32(null, 0, 0));
+    assertTraps(trapNull, () => wasm.atomicAdd64(null, 0, 0n));
+    assertTraps(trapNull, () => wasm.atomicSub64(null, 0, 0n));
+    assertTraps(trapNull, () => wasm.atomicAnd64(null, 0, 0n));
+    assertTraps(trapNull, () => wasm.atomicOr64(null, 0, 0n));
+    assertTraps(trapNull, () => wasm.atomicXor64(null, 0, 0n));
+    assertTraps(trapNull, () => wasm.atomicExchange64(null, 0, 0n));
+    assertTraps(trapNull, () => wasm.atomicCompareExchange64(null, 0, 0n, 0n));
+    assertTraps(trapNull, () => wasm.atomicExchangeRef(null, 0, 0));
 
     let trapOob = kTrapArrayOutOfBounds;
     assertTraps(trapOob, () => wasm.atomicAdd32(array32Obj, 2, 0));
@@ -793,10 +963,16 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     assertTraps(trapOob, () => wasm.atomicAnd32(array32Obj, 2, 0));
     assertTraps(trapOob, () => wasm.atomicOr32(array32Obj, 2, 0));
     assertTraps(trapOob, () => wasm.atomicXor32(array32Obj, 2, 0));
+    assertTraps(trapOob, () => wasm.atomicExchange32(array32Obj, 2, 0));
+    assertTraps(trapOob, () => wasm.atomicCompareExchange32(array32Obj, 2, 0));
     assertTraps(trapOob, () => wasm.atomicAdd64(array64Obj, 2, 0n));
     assertTraps(trapOob, () => wasm.atomicSub64(array64Obj, 2, 0n));
     assertTraps(trapOob, () => wasm.atomicAnd64(array64Obj, 2, 0n));
     assertTraps(trapOob, () => wasm.atomicOr64(array64Obj, 2, 0n));
     assertTraps(trapOob, () => wasm.atomicXor64(array64Obj, 2, 0n));
+    assertTraps(trapOob, () => wasm.atomicExchange64(array64Obj, 2, 0n));
+    assertTraps(trapOob,
+                () => wasm.atomicCompareExchange64(array64Obj, 2, 0n, 0n));
+    assertTraps(trapOob, () => wasm.atomicExchangeRef(arrayRefObj, 2, 0));
   }
 })();

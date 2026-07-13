@@ -26,8 +26,8 @@
 namespace webrtc {
 
 // VideoBroadcaster broadcast video frames to sinks and combines VideoSinkWants
-// from its sinks. It does that by implementing webrtc::VideoSourceInterface and
-// webrtc::VideoSinkInterface. The class is threadsafe; methods may be called on
+// from its sinks. It does that by implementing VideoSourceInterface and
+// VideoSinkInterface. The class is threadsafe; methods may be called on
 // any thread. This is needed because VideoStreamEncoder calls AddOrUpdateSink
 // both on the worker thread and on the encoder task queue.
 class VideoBroadcaster : public VideoSourceBase,

@@ -12,6 +12,8 @@
 
 #include <stdint.h>
 
+#include <cstddef>
+
 #include "api/array_view.h"
 #include "test/gtest.h"
 

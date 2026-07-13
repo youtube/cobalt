@@ -14,12 +14,24 @@
 #include <initguid.h>
 
 #include <algorithm>
+#include <atomic>
+#include <cstddef>
+#include <cstdlib>
+#include <cstring>
+#include <iterator>
 #include <list>
+#include <vector>
 
-#include "rtc_base/arraysize.h"
+#include "absl/strings/str_cat.h"
+#include "api/scoped_refptr.h"
+#include "api/sequence_checker.h"
+#include "common_video/libyuv/include/webrtc_libyuv.h"
+#include "modules/video_capture/video_capture_defines.h"
+#include "modules/video_capture/video_capture_impl.h"
+#include "modules/video_capture/windows/help_functions_ds.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/platform_thread.h"
+#include "rtc_base/platform_thread_types.h"
 #include "rtc_base/string_utils.h"
 
 DEFINE_GUID(CLSID_SINKFILTER,
@@ -907,7 +919,7 @@ CaptureSinkFilter::JoinFilterGraph(IFilterGraph* graph, LPCWSTR name) {
 
   info_.achName[0] = L'\0';
   if (name)
-    lstrcpynW(info_.achName, name, arraysize(info_.achName));
+    lstrcpynW(info_.achName, name, std::size(info_.achName));
 
   return S_OK;
 }

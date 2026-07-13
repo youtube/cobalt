@@ -12,8 +12,8 @@
 #define RTC_BASE_UNTYPED_FUNCTION_H_
 
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
-#include <memory>
 #include <type_traits>
 #include <utility>
 

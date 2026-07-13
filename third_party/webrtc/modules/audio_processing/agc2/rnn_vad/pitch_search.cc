@@ -10,9 +10,12 @@
 
 #include "modules/audio_processing/agc2/rnn_vad/pitch_search.h"
 
-#include <array>
 #include <cstddef>
 
+#include "api/array_view.h"
+#include "modules/audio_processing/agc2/cpu_features.h"
+#include "modules/audio_processing/agc2/rnn_vad/common.h"
+#include "modules/audio_processing/agc2/rnn_vad/pitch_search_internal.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {

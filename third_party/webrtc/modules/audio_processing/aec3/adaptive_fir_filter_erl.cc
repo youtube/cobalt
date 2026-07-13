@@ -11,8 +11,17 @@
 #include "modules/audio_processing/aec3/adaptive_fir_filter_erl.h"
 
 #include <algorithm>
+#include <array>
+#include <cstddef>
 #include <functional>
+#include <vector>
 
+#include "api/array_view.h"
+#include "modules/audio_processing/aec3/aec3_common.h"
+#include "rtc_base/checks.h"
+
+// Defines WEBRTC_ARCH_X86_FAMILY, used below.
+#include "rtc_base/system/arch.h"
 #if defined(WEBRTC_HAS_NEON)
 #include <arm_neon.h>
 #endif

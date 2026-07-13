@@ -125,8 +125,7 @@ class SSLStreamAdapter : public StreamInterface {
   // Caller is responsible for freeing the returned object.
   static std::unique_ptr<SSLStreamAdapter> Create(
       std::unique_ptr<StreamInterface> stream,
-      absl::AnyInvocable<void(webrtc::SSLHandshakeError)> handshake_error =
-          nullptr,
+      absl::AnyInvocable<void(SSLHandshakeError)> handshake_error = nullptr,
       const FieldTrialsView* field_trials = nullptr);
 
   SSLStreamAdapter() = default;

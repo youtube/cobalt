@@ -10,10 +10,14 @@
 
 #include "test/pc/e2e/analyzer/video/names_collection.h"
 
+#include <cstddef>
 #include <optional>
 #include <set>
+#include <string>
+#include <vector>
 
 #include "absl/strings/string_view.h"
+#include "api/array_view.h"
 
 namespace webrtc {
 

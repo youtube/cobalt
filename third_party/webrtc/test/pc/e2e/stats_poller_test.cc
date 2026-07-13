@@ -10,9 +10,14 @@
 
 #include "test/pc/e2e/stats_poller.h"
 
+#include "absl/strings/string_view.h"
+#include "api/scoped_refptr.h"
 #include "api/stats/rtc_stats_collector_callback.h"
+#include "api/stats/rtc_stats_report.h"
+#include "api/test/stats_observer_interface.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/pc/e2e/stats_provider.h"
 
 namespace webrtc {
 namespace webrtc_pc_e2e {

@@ -10,6 +10,10 @@
 
 #include "modules/desktop_capture/full_screen_window_detector.h"
 
+#include <cstdint>
+
+#include "api/function_view.h"
+#include "modules/desktop_capture/desktop_capturer.h"
 #include "modules/desktop_capture/full_screen_application_handler.h"
 #include "rtc_base/time_utils.h"
 

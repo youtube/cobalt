@@ -10,6 +10,11 @@
 
 #include "modules/audio_processing/agc2/rnn_vad/ring_buffer.h"
 
+#include <array>
+#include <cstddef>
+#include <cstdint>
+
+#include "api/array_view.h"
 #include "test/gtest.h"
 
 namespace webrtc {

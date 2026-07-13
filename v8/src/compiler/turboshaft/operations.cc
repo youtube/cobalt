@@ -22,6 +22,7 @@
 #include "src/compiler/turbofan-graph-visualizer.h"
 #include "src/compiler/turboshaft/deopt-data.h"
 #include "src/compiler/turboshaft/graph.h"
+#include "src/compiler/turboshaft/opmasks.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/maybe-handles-inl.h"
 #include "src/objects/code-inl.h"
@@ -391,6 +392,8 @@ std::ostream& operator<<(std::ostream& os, ChangeOrDeoptOp::Kind kind) {
       return os << "Uint32ToInt32";
     case ChangeOrDeoptOp::Kind::kInt64ToInt32:
       return os << "Int64ToInt32";
+    case ChangeOrDeoptOp::Kind::kInt64ToAdditiveSafeInteger:
+      return os << "Int64ToAdditiveSafeInteger";
     case ChangeOrDeoptOp::Kind::kUint64ToInt32:
       return os << "Uint64ToInt32";
     case ChangeOrDeoptOp::Kind::kUint64ToInt64:
@@ -651,7 +654,7 @@ void AtomicRMWOp::PrintInputs(std::ostream& os,
 
 void AtomicRMWOp::PrintOptions(std::ostream& os) const {
   os << '[' << "binop: " << bin_op << ", in_out_rep: " << in_out_rep
-     << ", memory_rep: " << memory_rep << ']';
+     << ", memory_rep: " << memory_rep << ", base_rep: " << base_rep << ']';
 }
 
 void AtomicWord32PairOp::PrintInputs(std::ostream& os,
@@ -683,6 +686,12 @@ void AtomicWord32PairOp::PrintOptions(std::ostream& os) const {
 void MemoryBarrierOp::PrintOptions(std::ostream& os) const {
   os << "[memory order: " << memory_order << ']';
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+void WasmIncCoverageCounterOp::PrintOptions(std::ostream& os) const {
+  os << "[counter_addr: " << counter_addr << ']';
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void StoreOp::PrintInputs(std::ostream& os,
                           const std::string& op_index_prefix) const {
@@ -1184,6 +1193,8 @@ std::ostream& operator<<(std::ostream& os, ObjectIsOp::Kind kind) {
       return os << "String";
     case ObjectIsOp::Kind::kStringOrStringWrapper:
       return os << "StringOrStringWrapper";
+    case ObjectIsOp::Kind::kStringOrOddball:
+      return os << "StringOrOddball";
     case ObjectIsOp::Kind::kSymbol:
       return os << "Symbol";
     case ObjectIsOp::Kind::kUndetectable:
@@ -1207,6 +1218,12 @@ std::ostream& operator<<(std::ostream& os, NumericKind kind) {
   switch (kind) {
     case NumericKind::kFloat64Hole:
       return os << "Float64Hole";
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    case NumericKind::kFloat64Undefined:
+      return os << "Float64Undefined";
+    case NumericKind::kFloat64UndefinedOrHole:
+      return os << "Float64UndefinedOrHole";
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     case NumericKind::kFinite:
       return os << "Finite";
     case NumericKind::kInteger:
@@ -1323,11 +1340,8 @@ std::ostream& operator<<(std::ostream& os,
     case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kFloat64:
       return os << "Float64";
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-    case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kFloat64OrUndefined:
-      return os << "Float64OrUndefined";
-    case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::
-        kFloat64WithSilencedNaNOrUndefined:
-      return os << "Float64WithSilencedNaNOrUndefined";
+    case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kHoleyFloat64:
+      return os << "HoleyFloat64";
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   }
 }
@@ -1360,6 +1374,10 @@ std::ostream& operator<<(
       return os << "Int64";
     case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kFloat64:
       return os << "Float64";
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kHoleyFloat64:
+      return os << "HoleyFloat64";
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kArrayIndex:
       return os << "ArrayIndex";
   }
@@ -2061,6 +2079,11 @@ bool SupportedOperations::IsUnalignedLoadSupported(MemoryRepresentation repr) {
 bool SupportedOperations::IsUnalignedStoreSupported(MemoryRepresentation repr) {
   return InstructionSelector::AlignmentRequirements().IsUnalignedStoreSupported(
       repr.ToMachineType().representation());
+}
+
+// static
+bool SupportedOperations::HasFullUnalignedSupport() {
+  return InstructionSelector::AlignmentRequirements().HasFullUnalignedSupport();
 }
 
 void CheckExceptionOp::Validate(const Graph& graph) const {

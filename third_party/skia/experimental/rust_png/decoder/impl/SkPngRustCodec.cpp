@@ -702,7 +702,6 @@ SkCodec::Result SkPngRustCodec::incrementalDecode(DecodingState& decodingState,
 
             // `static_cast` is ok, because `startDecoding` already validated `fFrameIndex`.
             fFrameHolder.markFrameAsFullyReceived(static_cast<size_t>(this->options().fFrameIndex));
-            fIncrementalDecodingState.reset();
             return kSuccess;
         }
 
@@ -758,14 +757,26 @@ SkCodec::Result SkPngRustCodec::onStartIncrementalDecode(const SkImageInfo& dstI
         return result;
     }
 
-    SkASSERT(!fIncrementalDecodingState.has_value());
+    // It is okay if `fIncrementalDecodingState` contains state of another,
+    // partially decoded frame - in this case we want to clobber
     fIncrementalDecodingState = decodingState;
     return kSuccess;
 }
 
 SkCodec::Result SkPngRustCodec::onIncrementalDecode(int* rowsDecoded) {
-    SkASSERT(fIncrementalDecodingState.has_value());
-    return this->incrementalDecode(*fIncrementalDecodingState, rowsDecoded);
+    if (!fIncrementalDecodingState.has_value()) {
+        return kInvalidParameters;
+    }
+
+    Result result = this->incrementalDecode(*fIncrementalDecodingState, rowsDecoded);
+    if (result != kIncompleteInput) {
+        // After successfully reading the whole row (`kSuccess`), and after a
+        // fatal error (only recoverable error is `kIncompleteInput`) our client
+        // should not call `onIncrementalDecode` again.  This means that the
+        // incremental decoding state can be discarded at this point.
+        fIncrementalDecodingState.reset();
+    }
+    return result;
 }
 
 int SkPngRustCodec::onGetFrameCount() {
@@ -954,7 +965,7 @@ SkCodec::Result SkPngRustCodec::FrameHolder::appendNewFrame(const rust_png::Read
     }
     int id = static_cast<int>(fFrames.size());
 
-    if (reader.has_fctl_chunk()) {
+    if (reader.has_actl_chunk() && reader.has_fctl_chunk()) {
         if (!fFrames.empty()) {
             // Having `fcTL` for a new frame means that the previous frame has been
             // fully received (since all of the previous frame's `fdAT` / `IDAT`
@@ -970,7 +981,7 @@ SkCodec::Result SkPngRustCodec::FrameHolder::appendNewFrame(const rust_png::Read
         return result;
     }
 
-    SkASSERT(!reader.has_actl_chunk());
+    SkASSERT(!reader.has_actl_chunk() || !reader.has_fctl_chunk());
     SkASSERT(id == 0);
     fFrames.emplace_back(id, info.alpha());
     SkFrame& frame = fFrames.back();

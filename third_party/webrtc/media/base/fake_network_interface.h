@@ -125,12 +125,12 @@ class FakeNetworkInterface : public MediaChannelNetworkInterface {
   virtual bool SendPacket(CopyOnWriteBuffer* packet,
                           const AsyncSocketPacketOptions& options)
       RTC_LOCKS_EXCLUDED(mutex_) {
-    if (!webrtc::IsRtpPacket(*packet)) {
+    if (!IsRtpPacket(*packet)) {
       return false;
     }
 
     MutexLock lock(&mutex_);
-    sent_ssrcs_[webrtc::ParseRtpSsrc(*packet)]++;
+    sent_ssrcs_[ParseRtpSsrc(*packet)]++;
     options_ = options;
 
     rtp_packets_.push_back(*packet);
@@ -188,7 +188,7 @@ class FakeNetworkInterface : public MediaChannelNetworkInterface {
  private:
   void SetRtpSsrc(uint32_t ssrc, CopyOnWriteBuffer& buffer) {
     RTC_CHECK_GE(buffer.size(), 12);
-    webrtc::SetBE32(buffer.MutableData() + 8, ssrc);
+    SetBE32(buffer.MutableData() + 8, ssrc);
   }
 
   void GetNumRtpBytesAndPackets(uint32_t ssrc, int* bytes, int* packets) {
@@ -199,7 +199,7 @@ class FakeNetworkInterface : public MediaChannelNetworkInterface {
       *packets = 0;
     }
     for (size_t i = 0; i < rtp_packets_.size(); ++i) {
-      if (ssrc == webrtc::ParseRtpSsrc(rtp_packets_[i])) {
+      if (ssrc == ParseRtpSsrc(rtp_packets_[i])) {
         if (bytes) {
           *bytes += static_cast<int>(rtp_packets_[i].size());
         }

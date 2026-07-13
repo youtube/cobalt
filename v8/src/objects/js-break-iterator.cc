@@ -54,8 +54,10 @@ MaybeDirectHandle<JSV8BreakIterator> JSV8BreakIterator::New(
   enum class Type { CHARACTER, WORD, SENTENCE, LINE };
   Maybe<Type> maybe_type = GetStringOption<Type>(
       isolate, options, "type", service,
-      {"word", "character", "sentence", "line"},
-      {Type::WORD, Type::CHARACTER, Type::SENTENCE, Type::LINE}, Type::WORD);
+      std::to_array<const std::string_view>(
+          {"word", "character", "sentence", "line"}),
+      std::array{Type::WORD, Type::CHARACTER, Type::SENTENCE, Type::LINE},
+      Type::WORD);
   MAYBE_RETURN(maybe_type, MaybeDirectHandle<JSV8BreakIterator>());
   Type type_enum = maybe_type.FromJust();
 

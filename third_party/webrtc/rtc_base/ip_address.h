@@ -13,7 +13,7 @@
 
 #include <cstdint>
 #if defined(WEBRTC_POSIX)
-#include <arpa/inet.h>
+#include <arpa/inet.h>  // IWYU pragma: keep
 #include <netdb.h>
 #include <netinet/in.h>  // IWYU pragma: export
 
@@ -48,6 +48,23 @@ enum IPv6AddressFlag {
   IPV6_ADDRESS_FLAG_DEPRECATED = 1 << 1,
 };
 
+// Used for metrics; Entries should not be renumbered and numeric values should
+// never be reused.
+enum class IPAddressType {
+  // IP Address not yet resolved.
+  kUnknown = 0,
+  // Missing or any IP Address i.e. 0.0.0.0 or ::.
+  kAny = 1,
+  // 127.0.0.1 or ::1.
+  kLoopback = 2,
+  // For v4: 127.0.0.0/8 10.0.0.0/8 192.168.0.0/16 172.16.0.0/12.
+  // For v6: FE80::/16 and ::1.
+  kPrivate = 3,
+  // Addresses not covered by the above.
+  kPublic = 4,
+  kMaxValue = kPublic,
+};
+
 // Version-agnostic IP address class, wraps a union of in_addr and in6_addr.
 class RTC_EXPORT IPAddress {
  public:
@@ -62,7 +79,7 @@ class RTC_EXPORT IPAddress {
 
   explicit IPAddress(uint32_t ip_in_host_byte_order) : family_(AF_INET) {
     memset(&u_, 0, sizeof(u_));
-    u_.ip4.s_addr = webrtc::HostToNetwork32(ip_in_host_byte_order);
+    u_.ip4.s_addr = HostToNetwork32(ip_in_host_byte_order);
   }
 
   IPAddress(const IPAddress& other) : family_(other.family_) {

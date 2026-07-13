@@ -93,8 +93,9 @@ MaybeDirectHandle<JSPluralRules> JSPluralRules::New(
   // 7. Let t be ? GetOption(options, "type", "string", « "cardinal",
   // "ordinal" », "cardinal").
   Maybe<Type> maybe_type = GetStringOption<Type>(
-      isolate, options, "type", service, {"cardinal", "ordinal"},
-      {Type::CARDINAL, Type::ORDINAL}, Type::CARDINAL);
+      isolate, options, "type", service,
+      std::to_array<const std::string_view>({"cardinal", "ordinal"}),
+      std::array{Type::CARDINAL, Type::ORDINAL}, Type::CARDINAL);
   MAYBE_RETURN(maybe_type, MaybeDirectHandle<JSPluralRules>());
   Type type = maybe_type.FromJust();
 

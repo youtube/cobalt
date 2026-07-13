@@ -220,11 +220,9 @@ class RTC_EXPORT EncodedImage {
     is_steady_state_refresh_frame_ = refresh_frame;
   }
 
-  webrtc::VideoFrameType FrameType() const { return _frameType; }
+  VideoFrameType FrameType() const { return _frameType; }
 
-  void SetFrameType(webrtc::VideoFrameType frame_type) {
-    _frameType = frame_type;
-  }
+  void SetFrameType(VideoFrameType frame_type) { _frameType = frame_type; }
   VideoContentType contentType() const { return content_type_; }
   VideoRotation rotation() const { return rotation_; }
 
@@ -279,7 +277,7 @@ class RTC_EXPORT EncodedImage {
   std::map<int, size_t> spatial_layer_frame_size_bytes_;
   std::optional<webrtc::ColorSpace> color_space_;
   // This field is meant for media quality testing purpose only. When enabled it
-  // carries the webrtc::VideoFrame id field from the sender to the receiver.
+  // carries the VideoFrame id field from the sender to the receiver.
   std::optional<uint16_t> video_frame_tracking_id_;
   // Information about packets used to assemble this video frame. This is needed
   // by `SourceTracker` when the frame is delivered to the RTCRtpReceiver's

@@ -50,7 +50,7 @@ constexpr int kSamplingFrequency = 48000;
 constexpr char kSignalThreadName[] = "signaling_thread";
 
 bool AddIceCandidates(PeerConnectionWrapper* peer,
-                      std::vector<const IceCandidateInterface*> candidates) {
+                      std::vector<const IceCandidate*> candidates) {
   bool success = true;
   for (const auto candidate : candidates) {
     if (!peer->pc()->AddIceCandidate(candidate)) {

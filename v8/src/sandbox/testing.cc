@@ -10,6 +10,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
 #include "src/objects/backing-store.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/templates.h"
 #include "src/sandbox/sandbox.h"
@@ -735,17 +736,7 @@ void InstallCrashFilter() {
   // Note that the alternate stack is currently only registered for the main
   // thread. Stack pointer corruption or stack overflows on background threads
   // may therefore still cause the signal handler to crash.
-  VirtualAddressSpace* vas = GetPlatformVirtualAddressSpace();
-  Address alternate_stack =
-      vas->AllocatePages(VirtualAddressSpace::kNoHint, SIGSTKSZ,
-                         vas->page_size(), PagePermissions::kReadWrite);
-  CHECK_NE(alternate_stack, kNullAddress);
-  stack_t signalstack = {
-      .ss_sp = reinterpret_cast<void*>(alternate_stack),
-      .ss_flags = 0,
-      .ss_size = static_cast<size_t>(SIGSTKSZ),
-  };
-  CHECK_EQ(sigaltstack(&signalstack, nullptr), 0);
+  base::OS::EnsureAlternativeSignalStackIsAvailableForCurrentThread();
 
   struct sigaction action;
   memset(&action, 0, sizeof(action));
@@ -812,11 +803,16 @@ SandboxTesting::InstanceTypeMap& SandboxTesting::GetInstanceTypeMap() {
     types["CONS_ONE_BYTE_STRING_TYPE"] = CONS_ONE_BYTE_STRING_TYPE;
     types["SHARED_FUNCTION_INFO_TYPE"] = SHARED_FUNCTION_INFO_TYPE;
     types["SCRIPT_TYPE"] = SCRIPT_TYPE;
+    types["JS_PROMISE_TYPE"] = JS_PROMISE_TYPE;
+    types["PROMISE_REACTION"] = PROMISE_REACTION_TYPE;
+    types["JS_FUNCTION"] = JS_FUNCTION_TYPE;
+    types["SHARED_FUNCTION_INFO"] = SHARED_FUNCTION_INFO_TYPE;
 #ifdef V8_ENABLE_WEBASSEMBLY
     types["WASM_MODULE_OBJECT_TYPE"] = WASM_MODULE_OBJECT_TYPE;
     types["WASM_INSTANCE_OBJECT_TYPE"] = WASM_INSTANCE_OBJECT_TYPE;
     types["WASM_FUNC_REF_TYPE"] = WASM_FUNC_REF_TYPE;
     types["WASM_TABLE_OBJECT_TYPE"] = WASM_TABLE_OBJECT_TYPE;
+    types["WASM_RESUME_DATA"] = WASM_RESUME_DATA_TYPE;
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
   return types;
@@ -839,7 +835,6 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         JSFunction::kSharedFunctionInfoOffset;
     fields[JS_ARRAY_TYPE]["elements"] = JSArray::kElementsOffset;
     fields[JS_ARRAY_TYPE]["length"] = JSArray::kLengthOffset;
-    fields[JS_TYPED_ARRAY_TYPE]["length"] = JSTypedArray::kRawLengthOffset;
     fields[JS_TYPED_ARRAY_TYPE]["byte_length"] =
         JSTypedArray::kRawByteLengthOffset;
     fields[JS_TYPED_ARRAY_TYPE]["byte_offset"] =
@@ -869,6 +864,14 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         SharedFunctionInfo::kFormalParameterCountOffset;
     fields[SCRIPT_TYPE]["wasm_managed_native_module"] =
         Script::kEvalFromPositionOffset;
+    fields[JS_PROMISE_TYPE]["reactions_or_result"] =
+        JSPromise::kReactionsOrResultOffset;
+    fields[PROMISE_REACTION_TYPE]["fulfill_handler"] =
+        PromiseReaction::kFulfillHandlerOffset;
+    fields[JS_FUNCTION_TYPE]["shared_function_info"] =
+        JSFunction::kSharedFunctionInfoOffset;
+    fields[SHARED_FUNCTION_INFO_TYPE]["function_data"] =
+        SharedFunctionInfo::kUntrustedFunctionDataOffset;
 #ifdef V8_ENABLE_WEBASSEMBLY
     fields[WASM_MODULE_OBJECT_TYPE]["managed_native_module"] =
         WasmModuleObject::kManagedNativeModuleOffset;
@@ -884,6 +887,8 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         WasmTableObject::kMaximumLengthOffset;
     fields[WASM_TABLE_OBJECT_TYPE]["raw_type"] =
         WasmTableObject::kRawTypeOffset;
+    fields[WASM_RESUME_DATA_TYPE]["trusted_suspender"] =
+        WasmResumeData::kTrustedSuspenderOffset;
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
   return fields;

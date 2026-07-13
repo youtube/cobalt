@@ -34,7 +34,7 @@ using VideoStatistics = VideoCodecTestStats::VideoStatistics;
 
 namespace {
 const int kMaxBitrateMismatchPercent = 20;
-}
+}  // namespace
 
 VideoCodecTestStatsImpl::VideoCodecTestStatsImpl() = default;
 VideoCodecTestStatsImpl::~VideoCodecTestStatsImpl() = default;

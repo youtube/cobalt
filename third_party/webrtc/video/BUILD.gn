@@ -577,7 +577,6 @@ if (rtc_include_tests) {
         "../api/audio:builtin_audio_processing_builder",
         "../api/audio:create_audio_device_module",
         "../api/environment",
-        "../api/environment:environment_factory",
         "../api/numerics",
         "../api/rtc_event_log",
         "../api/rtc_event_log:rtc_event_log_factory",
@@ -667,22 +666,14 @@ if (rtc_include_tests) {
         ":video_quality_test",
         "../api:rtp_parameters",
         "../api:simulated_network_api",
-        "../api:test_dependency_factory",
         "../api:video_quality_test_fixture_api",
         "../api/units:data_rate",
         "../api/video_codecs:video_codecs_api",
-        "../modules/pacing",
         "../modules/video_coding:webrtc_vp9",
-        "../rtc_base/experiments:alr_experiment",
-        "../system_wrappers:field_trial",
-        "../test:field_trial",
         "../test:fileutils",
-        "../test:test_common",
         "../test:test_support",
-        "../video/config:encoder_config",
-        "//testing/gtest",
+        "config:encoder_config",
         "//third_party/abseil-cpp/absl/flags:flag",
-        "//third_party/abseil-cpp/absl/flags:parse",
       ]
     }
 
@@ -691,10 +682,10 @@ if (rtc_include_tests) {
 
       sources = [ "pc_full_stack_tests.cc" ]
       deps = [
-        "..//test/network:simulated_network",
         "../api:create_network_emulation_manager",
         "../api:create_peer_connection_quality_test_frame_generator",
         "../api:create_peerconnection_quality_test_fixture",
+        "../api:field_trials",
         "../api:frame_generator_api",
         "../api:function_view",
         "../api:media_stream_interface",
@@ -711,9 +702,6 @@ if (rtc_include_tests) {
         "../api/units:time_delta",
         "../api/video_codecs:video_codecs_api",
         "../media:media_constants",
-        "../modules/video_coding:webrtc_vp9",
-        "../system_wrappers:field_trial",
-        "../test:field_trial",
         "../test:fileutils",
         "../test:test_support",
         "../test/pc/e2e:network_quality_metrics_reporter",

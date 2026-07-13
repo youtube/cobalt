@@ -18,10 +18,11 @@
 #include <optional>
 #include <vector>
 
+#include "api/field_trials.h"
 #include "rtc_base/random.h"
 #include "rtc_base/time_utils.h"
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 
 namespace webrtc {
 namespace test {
@@ -58,7 +59,7 @@ class EmulatedClock {
 class EmulatedMonotoneousClock : public EmulatedClock {
  public:
   explicit EmulatedMonotoneousClock(int seed) : EmulatedClock(seed) {}
-  ~EmulatedMonotoneousClock() = default;
+  ~EmulatedMonotoneousClock() override = default;
 
   int64_t Query(int64_t time_us) {
     int64_t skip_us = UpdateClock(time_us);
@@ -111,7 +112,7 @@ class EmulatedNonMonotoneousClock : public EmulatedClock {
       : EmulatedClock(seed, drift) {
     Pregenerate(duration_us);
   }
-  ~EmulatedNonMonotoneousClock() = default;
+  ~EmulatedNonMonotoneousClock() override = default;
 
   void Pregenerate(int64_t duration_us) {
     int64_t time_since_reset_us = kMinTimeBetweenResetsUs;
@@ -169,7 +170,7 @@ class EmulatedNonMonotoneousClock : public EmulatedClock {
 };
 
 TEST(ClockRepair, NoClockDrift) {
-  test::ScopedKeyValueConfig field_trials;
+  FieldTrials field_trials = CreateTestFieldTrials();
   const int kSeeds = 10;
   const int kFirstSeed = 1;
   const int64_t kRuntimeUs = 10 * kNumMicrosecsPerSec;

@@ -89,7 +89,7 @@ const uint32_t kSsrcOfTrack = 1234;
 class FakeAudioProcessor : public AudioProcessorInterface {
  public:
   FakeAudioProcessor() {}
-  ~FakeAudioProcessor() {}
+  ~FakeAudioProcessor() override {}
 
  private:
   AudioProcessorInterface::AudioProcessorStatistics GetStats(
@@ -131,7 +131,7 @@ class FakeAudioTrack : public MediaStreamTrack<AudioTrackInterface> {
 class FakeAudioProcessorWithInitValue : public AudioProcessorInterface {
  public:
   FakeAudioProcessorWithInitValue() {}
-  ~FakeAudioProcessorWithInitValue() {}
+  ~FakeAudioProcessorWithInitValue() override {}
 
  private:
   AudioProcessorInterface::AudioProcessorStatistics GetStats(

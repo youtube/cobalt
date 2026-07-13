@@ -10,13 +10,18 @@
 
 #include "modules/audio_processing/test/bitexactness_tools.h"
 
-#include <math.h>
-
 #include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <ostream>  // no-presubmit-check TODO(webrtc:8982)
 #include <string>
 #include <vector>
 
 #include "api/array_view.h"
+#include "modules/audio_coding/neteq/tools/input_audio_file.h"
+#include "rtc_base/checks.h"
+#include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
 
 namespace webrtc {

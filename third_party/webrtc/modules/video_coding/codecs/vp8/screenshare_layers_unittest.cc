@@ -30,7 +30,7 @@
 #include "system_wrappers/include/metrics.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "vpx/vp8cx.h"
+#include "third_party/libvpx/source/libvpx/vpx/vp8cx.h"
 
 using ::testing::_;
 using ::testing::ElementsAre;
@@ -68,7 +68,7 @@ class ScreenshareLayerTest : public ::testing::Test {
         frame_size_(-1),
         timestamp_(90),
         config_updated_(false) {}
-  virtual ~ScreenshareLayerTest() {}
+  ~ScreenshareLayerTest() override {}
 
   void SetUp() override {
     layers_.reset(new ScreenshareLayers(2));

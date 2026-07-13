@@ -34,6 +34,7 @@
 #include "api/field_trials_view.h"
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
+#include "api/local_network_access_permission.h"
 #include "api/media_stream_interface.h"
 #include "api/media_types.h"
 #include "api/peer_connection_interface.h"
@@ -231,8 +232,8 @@ class PeerConnection : public PeerConnectionInternal,
   PeerConnectionInterface::RTCConfiguration GetConfiguration() override;
   RTCError SetConfiguration(
       const PeerConnectionInterface::RTCConfiguration& configuration) override;
-  bool AddIceCandidate(const IceCandidateInterface* candidate) override;
-  void AddIceCandidate(std::unique_ptr<IceCandidateInterface> candidate,
+  bool AddIceCandidate(const IceCandidate* candidate) override;
+  void AddIceCandidate(std::unique_ptr<IceCandidate> candidate,
                        std::function<void(RTCError)> callback) override;
   bool RemoveIceCandidates(const std::vector<Candidate>& candidates) override;
 
@@ -501,7 +502,7 @@ class PeerConnection : public PeerConnectionInternal,
   void OnIceGatheringChange(IceGatheringState new_state)
       RTC_RUN_ON(signaling_thread());
   // New ICE candidate has been gathered.
-  void OnIceCandidate(std::unique_ptr<IceCandidateInterface> candidate)
+  void OnIceCandidate(std::unique_ptr<IceCandidate> candidate)
       RTC_RUN_ON(signaling_thread());
   // Gathering of an ICE candidate failed.
   void OnIceCandidateError(const std::string& address,
@@ -650,6 +651,9 @@ class PeerConnection : public PeerConnectionInternal,
   std::unique_ptr<PortAllocator>
       port_allocator_;  // TODO(bugs.webrtc.org/9987): Accessed on both
                         // signaling and network thread.
+  std::unique_ptr<LocalNetworkAccessPermissionFactoryInterface>
+      lna_permission_factory_;
+
   const std::unique_ptr<IceTransportFactory>
       ice_transport_factory_;  // TODO(bugs.webrtc.org/9987): Accessed on the
                                // signaling thread but the underlying raw

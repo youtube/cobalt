@@ -20,7 +20,6 @@
 #include <vector>
 
 #include "api/units/time_delta.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/event.h"
 #include "rtc_base/platform_thread.h"
@@ -274,7 +273,7 @@ TEST(RecursiveCriticalSectionTest, DISABLED_Performance) {
   Event event;
 
   static const int kThreadRepeats = 10000000;
-  static const int kExpectedCount = kThreadRepeats * arraysize(threads);
+  static const int kExpectedCount = kThreadRepeats * std::ssize(threads);
   PerfTestData test_data(kExpectedCount, &event);
 
   for (auto& t : threads)

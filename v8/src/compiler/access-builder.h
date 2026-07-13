@@ -175,9 +175,6 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSArrayBufferView::bitfield() field
   static FieldAccess ForJSArrayBufferViewBitField();
 
-  // Provides access to JSTypedArray::length() field.
-  static FieldAccess ForJSTypedArrayLength();
-
   // Provides access to JSTypedArray::byteLength() field.
   static FieldAccess ForJSTypedArrayByteLength() {
     return ForJSArrayBufferViewByteLength();
@@ -269,9 +266,6 @@ class V8_EXPORT_PRIVATE AccessBuilder final
 
   // Provides access to Name::raw_hash_field() field.
   static FieldAccess ForNameRawHashField();
-
-  // Provides access to FreeSpace::size() field
-  static FieldAccess ForFreeSpaceSize();
 
   // Provides access to String::length() field.
   static FieldAccess ForStringLength();

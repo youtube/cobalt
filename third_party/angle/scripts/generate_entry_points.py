@@ -120,6 +120,7 @@ CONTEXT_PRIVATE_LIST = [
     'glSampleMaski',
     'glScissor',
     'glShadingRate',
+    'glShadingRateCombinerOps',
     'glStencilFunc',
     'glStencilFuncSeparate',
     'glStencilMask',
@@ -1666,21 +1667,6 @@ def get_validation_expression(api, cmd_name, entry_point_name, internal_params, 
     expr = "Validate{name}({params})".format(
         name=name, params=", ".join(extra_params + [entry_point_name] + internal_params))
 
-    # Extensions temporarily skipped from autogen
-    skipped_exts = [
-        'GL_ANGLE_base_vertex_base_instance',
-        'GL_CHROMIUM_sync_query',
-        'GL_EXT_disjoint_timer_query',
-        'GL_EXT_occlusion_query_boolean',
-        'GL_OES_EGL_image',
-        'GL_OES_EGL_image_external',
-    ]
-
-    # Validation expression for the entry points from the extensions above
-    if sources[0] in skipped_exts:
-        return "bool isCallValid = (context->skipValidation() || {validation_expression});".format(
-            validation_expression=expr)
-
     def get_camel_case(name_with_underscores):
         words = name_with_underscores.split('_')
         words = [words[2]] + [(word[0].upper() + word[1:]) for word in words[3:]] + [words[1]]
@@ -1708,19 +1694,29 @@ def get_validation_expression(api, cmd_name, entry_point_name, internal_params, 
     record_error = "else {{RecordVersionErrorES{}(context, {});}}".format(
         error_suffix, entry_point_name) if condition != "true" else ""
 
-    check_consistency = not is_context_private_state_command(api, cmd_name)
-
     pre_validation = """#if defined(ANGLE_ENABLE_ASSERTS)
     const uint32_t errorCount = context->getPushedErrorCount();
 #endif
-""" if check_consistency else ""
+"""
 
+    # If a command holds a lock, assert that:
+    #  * passed validation generates no errors
+    #  * failed validation generates exactly one error
+    lock_assertion = "ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));"
+
+    # If a command does not hold a lock, assert that:
+    #  * failed validation updates the error counter
+    #
+    # Since the error counter is global, it may be incremented from
+    # other threads thus this assertion is weaker than the one above.
+    lockless_assertion = "ASSERT(isCallValid || context->getPushedErrorCount() != errorCount);"
+
+    has_lock = not is_context_private_state_command(api, cmd_name)
     post_validation = """
 #if defined(ANGLE_ENABLE_ASSERTS)
-    ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
-#endif""" if check_consistency else ""
+    {}
+#endif""".format(lock_assertion if has_lock else lockless_assertion)
 
-    # Validation logic for entry points with conditional support
     return """bool isCallValid = context->skipValidation();
 if (!isCallValid)
 {{
@@ -3092,23 +3088,19 @@ def format_replay_params(api, command_name, param_text_list, packed_enums, resou
         capture_type = get_capture_param_type_name(param_type)
         union_name = get_param_type_union_name(capture_type)
         param_access = 'captures[%d].value.%s' % (i, union_name)
-        # Workaround for https://github.com/KhronosGroup/OpenGL-Registry/issues/545
-        if command_name == 'glCreateShaderProgramvEXT' and i == 2:
-            param_access = 'const_cast<const char **>(%s)' % param_access
-        else:
-            cmd_no_suffix = strip_suffix(api, command_name)
-            if cmd_no_suffix in packed_enums and param_name in packed_enums[cmd_no_suffix]:
-                packed_type = remove_id_suffix(packed_enums[cmd_no_suffix][param_name])
-                if packed_type == 'Sync':
-                    param_access = 'gSyncMap2[captures[%d].value.GLuintVal]' % i
-                elif packed_type in resource_id_types:
-                    param_access = 'g%sMap[%s]' % (packed_type, param_access)
-                elif packed_type == 'UniformLocation':
-                    param_access = 'gUniformLocations[gCurrentProgram][%s]' % param_access
-                elif packed_type == 'egl::Image':
-                    param_access = 'gEGLImageMap2[captures[%d].value.GLuintVal]' % i
-                elif packed_type == 'egl::Sync':
-                    param_access = 'gEGLSyncMap[captures[%d].value.egl_SyncIDVal]' % i
+        cmd_no_suffix = strip_suffix(api, command_name)
+        if cmd_no_suffix in packed_enums and param_name in packed_enums[cmd_no_suffix]:
+            packed_type = remove_id_suffix(packed_enums[cmd_no_suffix][param_name])
+            if packed_type == 'Sync':
+                param_access = 'gSyncMap2[captures[%d].value.GLuintVal]' % i
+            elif packed_type in resource_id_types:
+                param_access = 'g%sMap[%s]' % (packed_type, param_access)
+            elif packed_type == 'UniformLocation':
+                param_access = 'gUniformLocations[gCurrentProgram][%s]' % param_access
+            elif packed_type == 'egl::Image':
+                param_access = 'gEGLImageMap2[captures[%d].value.GLuintVal]' % i
+            elif packed_type == 'egl::Sync':
+                param_access = 'gEGLSyncMap[captures[%d].value.egl_SyncIDVal]' % i
         param_access_strs.append(param_access)
     return ', '.join(param_access_strs)
 

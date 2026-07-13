@@ -9,9 +9,9 @@
  */
 #include "net/dcsctp/packet/chunk/cookie_ack_chunk.h"
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "api/array_view.h"

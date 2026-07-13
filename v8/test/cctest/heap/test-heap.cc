@@ -2355,6 +2355,9 @@ TEST(HeapNumberAlignment) {
 }
 
 TEST(TestSizeOfObjectsVsHeapObjectIteratorPrecision) {
+  if (v8_flags.stress_concurrent_allocation) {
+    return;
+  }
   CcTest::InitializeVM();
   // Disable LAB, such that calculations with SizeOfObjects() and object size
   // are correct.
@@ -6041,7 +6044,7 @@ TEST(Regress598319) {
         DirectHandle<JSArray> js_array =
             isolate->factory()->NewJSArrayWithElements(
                 DirectHandle<FixedArray>(arr.get(), isolate));
-        js_array->GetElementsAccessor()->Shift(isolate, js_array).Check();
+        js_array->GetElementsAccessor()->Shift(isolate, js_array);
       }
       break;
     }
@@ -7333,7 +7336,7 @@ UNINITIALIZED_TEST(HugeHeapLimit) {
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 #ifdef V8_COMPRESS_POINTERS
-  size_t kExpectedHeapLimit = Heap::AllocatorLimitOnMaxOldGenerationSize();
+  size_t kExpectedHeapLimit = Heap::AllocatorLimitOnMaxOldGenerationSize(0);
 #else
   size_t kExpectedHeapLimit = size_t{4} * GB;
 #endif

@@ -56,7 +56,7 @@ class HasAddRefAndRelease {
 //   auto p = scoped_refptr<Foo>(new RefCountedObject<Foo>("bar", 123));
 //
 // If the class does not inherit from RefCountInterface, but does have
-// AddRef/Release methods (so a T* is convertible to webrtc::scoped_refptr),
+// AddRef/Release methods (so a T* is convertible to scoped_refptr),
 // this is equivalent to just
 //
 //   auto p = scoped_refptr<Foo>(new Foo("bar", 123));

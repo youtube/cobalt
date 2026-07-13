@@ -86,7 +86,7 @@ class BasicIceController : public IceControllerInterface {
   }
 
   int check_receiving_interval() const {
-    return std::max(webrtc::MIN_CHECK_RECEIVING_INTERVAL,
+    return std::max(MIN_CHECK_RECEIVING_INTERVAL,
                     config_.receiving_timeout_or_default() / 10);
   }
 

@@ -89,11 +89,16 @@ rtc_library("timestamp_extrapolator") {
     "timestamp_extrapolator.h",
   ]
   deps = [
+    "../../../api:field_trials",
+    "../../../api:field_trials_view",
     "../../../api/units:time_delta",
     "../../../api/units:timestamp",
     "../../../modules:module_api_public",
+    "../../../rtc_base:logging",
     "../../../rtc_base:rtc_numerics",
+    "../../../rtc_base/experiments:field_trial_parser",
     "../../../system_wrappers:metrics",
+    "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }
 
@@ -147,6 +152,7 @@ rtc_library("timing_unittests") {
     "../../../rtc_base:timeutils",
     "../../../system_wrappers:metrics",
     "../../../system_wrappers:system_wrappers",
+    "../../../test:create_test_field_trials",
     "../../../test:scoped_key_value_config",
     "../../../test:test_support",
   ]

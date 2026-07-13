@@ -10,14 +10,23 @@
 
 #include "modules/audio_processing/aec3/suppression_gain.h"
 
-#include <math.h>
-#include <stddef.h>
-
 #include <algorithm>
+#include <array>
+#include <atomic>
+#include <cmath>
+#include <cstddef>
+#include <memory>
 #include <numeric>
+#include <optional>
 
+#include "api/array_view.h"
+#include "api/audio/echo_canceller3_config.h"
+#include "modules/audio_processing/aec3/aec3_common.h"
+#include "modules/audio_processing/aec3/aec_state.h"
+#include "modules/audio_processing/aec3/block.h"
 #include "modules/audio_processing/aec3/dominant_nearend_detector.h"
 #include "modules/audio_processing/aec3/moving_average.h"
+#include "modules/audio_processing/aec3/render_signal_analyzer.h"
 #include "modules/audio_processing/aec3/subband_nearend_detector.h"
 #include "modules/audio_processing/aec3/vector_math.h"
 #include "modules/audio_processing/logging/apm_data_dumper.h"

@@ -11,10 +11,11 @@
 #include "rtc_base/string_encode.h"
 
 #include <cstdio>
+#include <string>
+#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {

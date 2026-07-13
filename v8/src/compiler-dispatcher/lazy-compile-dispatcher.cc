@@ -7,6 +7,7 @@
 #include <atomic>
 
 #include "include/v8-platform.h"
+#include "src/base/fpu.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
 #include "src/codegen/compiler.h"
@@ -184,7 +185,7 @@ void LazyCompileDispatcher::Enqueue(
 
 bool LazyCompileDispatcher::IsEnqueued(
     DirectHandle<SharedFunctionInfo> shared) const {
-  if (!shared->HasUncompiledData()) return false;
+  if (!shared->HasUncompiledData(isolate_)) return false;
   Job* job = nullptr;
   Tagged<UncompiledData> data = shared->uncompiled_data(isolate_);
   if (IsUncompiledDataWithPreparseDataAndJob(data)) {
@@ -379,7 +380,7 @@ void LazyCompileDispatcher::AbortAll() {
 
 LazyCompileDispatcher::Job* LazyCompileDispatcher::GetJobFor(
     DirectHandle<SharedFunctionInfo> shared, const base::MutexGuard&) const {
-  if (!shared->HasUncompiledData()) return nullptr;
+  if (!shared->HasUncompiledData(isolate_)) return nullptr;
   Tagged<UncompiledData> data = shared->uncompiled_data(isolate_);
   if (IsUncompiledDataWithPreparseDataAndJob(data)) {
     return reinterpret_cast<Job*>(
@@ -405,6 +406,8 @@ void LazyCompileDispatcher::ScheduleIdleTaskFromAnyThread(
 }
 
 void LazyCompileDispatcher::DoBackgroundWork(JobDelegate* delegate) {
+  base::FlushDenormalsScope flush_denormals_scope(isolate_->flush_denormals());
+
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.LazyCompileDispatcherDoBackgroundWork");
 

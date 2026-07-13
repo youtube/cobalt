@@ -10,6 +10,7 @@
 
 #include "include/core/SkPoint.h"
 #include "include/core/SkSize.h"
+#include "include/core/SkSpan.h"
 #include "include/core/SkTypes.h"
 #include "include/private/base/SkFloatingPoint.h"
 #include "include/private/base/SkSafe32.h"
@@ -19,6 +20,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <optional>
 
 struct SkRect;
 class SkString;
@@ -571,6 +573,13 @@ struct SK_API SkIRect {
         return MakeLTRB(std::min(fLeft, fRight), std::min(fTop, fBottom),
                         std::max(fLeft, fRight), std::max(fTop, fBottom));
     }
+
+    /** Returns pointer to first int32 in SkIRect, to treat it as an array with four
+        entries.
+
+        @return  pointer to fLeft
+    */
+    const int32_t* asInt32s() const { return &fLeft; }
 };
 
 /** \struct SkRect
@@ -870,43 +879,64 @@ struct SK_API SkRect {
         fBottom = bottom;
     }
 
+    /**
+     * Compute the bounds of the span of points.
+     * If the span is empty, returns the empty-rect {0, 0, 0, 0.
+     * If the span contains non-finite values (inf or nan), returns {}
+     */
+    static std::optional<SkRect> Bounds(SkSpan<const SkPoint> pts);
+
+    static SkRect BoundsOrEmpty(SkSpan<const SkPoint> pts) {
+        if (auto bounds = Bounds(pts)) {
+            return bounds.value();
+        } else {
+            return MakeEmpty();
+        }
+    }
+
     /** Sets to bounds of SkPoint array with count entries. If count is zero or smaller,
         or if SkPoint array contains an infinity or NaN, sets to (0, 0, 0, 0).
 
         Result is either empty or sorted: fLeft is less than or equal to fRight, and
         fTop is less than or equal to fBottom.
 
-        @param pts    SkPoint array
-        @param count  entries in array
+        @param pts    SkPoint span
     */
-    void setBounds(const SkPoint pts[], int count) {
-        (void)this->setBoundsCheck(pts, count);
+    void setBounds(SkSpan<const SkPoint> pts) {
+        (void)this->setBoundsCheck(pts);
     }
 
-    /** Sets to bounds of SkPoint array with count entries. Returns false if count is
-        zero or smaller, or if SkPoint array contains an infinity or NaN; in these cases
-        sets SkRect to (0, 0, 0, 0).
+    /** Sets to bounds of the span of points, and return true (if all point values were finite).
+     *
+     * If the span is empty, set the rect to empty() and return true.
+     * If any point contains an infinity or NaN, set the rect to empty and return false.
+     *
+     * @param pts    SkPoint span
+     * example: https://fiddle.skia.org/c/@Rect_setBoundsCheck
+     */
+    bool setBoundsCheck(SkSpan<const SkPoint> pts);
 
-        Result is either empty or sorted: fLeft is less than or equal to fRight, and
-        fTop is less than or equal to fBottom.
+    /** Sets to bounds of the span of points.
+     *
+     * If the span is empty, set the rect to empty().
+     * If any point contains an infinity or NaN, set the rect to NaN.
+     *
+     * @param pts    SkPoint span
+     * example: https://fiddle.skia.org/c/@Rect_setBoundsNoCheck
+     */
+    void setBoundsNoCheck(SkSpan<const SkPoint> pts);
 
-        @param pts    SkPoint array
-        @param count  entries in array
-        @return       true if all SkPoint values are finite
-
-        example: https://fiddle.skia.org/c/@Rect_setBoundsCheck
-    */
-    bool setBoundsCheck(const SkPoint pts[], int count);
-
-    /** Sets to bounds of SkPoint pts array with count entries. If any SkPoint in pts
-        contains infinity or NaN, all SkRect dimensions are set to NaN.
-
-        @param pts    SkPoint array
-        @param count  entries in array
-
-        example: https://fiddle.skia.org/c/@Rect_setBoundsNoCheck
-    */
-    void setBoundsNoCheck(const SkPoint pts[], int count);
+#ifdef SK_SUPPORT_UNSPANNED_APIS
+    void setBounds(const SkPoint pts[], int count) {
+        this->setBounds({pts, count});
+    }
+    void setBoundsNoCheck(const SkPoint pts[], int count) {
+        this->setBoundsNoCheck({pts, count});
+    }
+    bool setBoundsCheck(const SkPoint pts[], int count) {
+        return this->setBoundsCheck({pts, count});
+    }
+#endif
 
     /** Sets bounds to the smallest SkRect enclosing SkPoint p0 and p1. The result is
         sorted and may be empty. Does not check to see if values are finite.

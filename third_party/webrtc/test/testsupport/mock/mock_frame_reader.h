@@ -11,7 +11,9 @@
 #ifndef TEST_TESTSUPPORT_MOCK_MOCK_FRAME_READER_H_
 #define TEST_TESTSUPPORT_MOCK_MOCK_FRAME_READER_H_
 
+#include "api/scoped_refptr.h"
 #include "api/video/i420_buffer.h"
+#include "api/video/resolution.h"
 #include "test/gmock.h"
 #include "test/testsupport/frame_reader.h"
 

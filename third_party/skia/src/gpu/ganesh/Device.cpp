@@ -81,6 +81,7 @@
 #include "src/gpu/ganesh/GrProxyProvider.h"
 #include "src/gpu/ganesh/GrRecordingContextPriv.h"
 #include "src/gpu/ganesh/GrRenderTargetProxy.h"
+#include "src/gpu/ganesh/GrShaderCaps.h"
 #include "src/gpu/ganesh/GrStyle.h"
 #include "src/gpu/ganesh/GrSurfaceProxy.h"
 #include "src/gpu/ganesh/GrSurfaceProxyPriv.h"
@@ -109,10 +110,10 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <utility>
 
 class GrBackendSemaphore;
-struct GrShaderCaps;
 struct SkDrawShadowRec;
 
 using namespace skia_private;
@@ -445,15 +446,28 @@ void Device::drawPaint(const SkPaint& paint) {
     fSurfaceDrawContext->drawPaint(this->clip(), std::move(grPaint), this->localToDevice());
 }
 
-void Device::drawPoints(SkCanvas::PointMode mode,
-                        size_t count,
-                        const SkPoint pts[],
-                        const SkPaint& paint) {
+void Device::drawPoints(SkCanvas::PointMode mode, SkSpan<const SkPoint> pts, const SkPaint& paint) {
     ASSERT_SINGLE_OWNER
     GR_CREATE_TRACE_MARKER_CONTEXT("skgpu::ganesh::Device", "drawPoints", fContext.get());
     SkScalar width = paint.getStrokeWidth();
     if (width < 0) {
         return;
+    }
+
+    const size_t count = pts.size();
+
+    // If there is an image filter or mask filter these bounds were already checked in
+    // the canvas.
+    if (!paint.getImageFilter() && !paint.getMaskFilter()) {
+        auto bounds = SkRect::Bounds(pts);
+        if (!bounds || paint.nothingToDraw()) {
+            return;
+        }
+
+        SkRect devBounds = SkMatrixPriv::MapRect(this->localToDevice44(), bounds.value());
+        if (!devBounds.isFinite()) {
+            return;
+        }
     }
 
     GrAA aa = fSurfaceDrawContext->chooseAA(paint);
@@ -492,7 +506,7 @@ void Device::drawPoints(SkCanvas::PointMode mode,
                                                      std::move(grPaint),
                                                      aa,
                                                      this->localToDevice(),
-                                                     pts,
+                                                     pts.data(),
                                                      SkStrokeRec(paint, SkPaint::kStroke_Style));
             }
             return;
@@ -523,7 +537,7 @@ void Device::drawPoints(SkCanvas::PointMode mode,
         draw.fDst = SkPixmap(SkImageInfo::MakeUnknown(this->width(), this->height()), nullptr, 0);
         draw.fCTM = &this->localToDevice();
         draw.fRC = &rc;
-        draw.drawDevicePoints(mode, count, pts, paint, this);
+        draw.drawDevicePoints(mode, pts, paint, this);
         return;
     }
 
@@ -533,8 +547,8 @@ void Device::drawPoints(SkCanvas::PointMode mode,
     }
 
     static constexpr SkVertices::VertexMode kIgnoredMode = SkVertices::kTriangles_VertexMode;
-    sk_sp<SkVertices> vertices = SkVertices::MakeCopy(kIgnoredMode, SkToS32(count), pts, nullptr,
-                                                      nullptr);
+    sk_sp<SkVertices> vertices = SkVertices::MakeCopy(kIgnoredMode, SkToS32(count), pts.data(),
+                                                      nullptr, nullptr);
 
     GrPrimitiveType primitiveType = point_mode_to_primitive_type(mode);
     fSurfaceDrawContext->drawVertices(this->clip(), std::move(grPaint), this->localToDevice(),
@@ -945,7 +959,8 @@ bool Device::drawAsTiledImageRect(SkCanvas* canvas,
             constraint,
             rCtx->priv().options().fSharpenMipmappedTextures,
             cacheSize,
-            maxTextureSize);
+            maxTextureSize,
+            !rCtx->priv().caps()->shaderCaps()->fHasLowFragmentPrecision);
 #if defined(GPU_TEST_UTILS)
     gNumTilesDrawnGanesh.store(numTiles, std::memory_order_relaxed);
 #endif
@@ -1090,17 +1105,16 @@ void Device::drawShadow(SkCanvas* canvas, const SkPath& path, const SkDrawShadow
 
 ///////////////////////////////////////////////////////////////////////////////
 
-void Device::drawAtlas(const SkRSXform xform[],
-                       const SkRect texRect[],
-                       const SkColor colors[],
-                       int count,
+void Device::drawAtlas(SkSpan<const SkRSXform> xform,
+                       SkSpan<const SkRect> texRect,
+                       SkSpan<const SkColor> colors,
                        sk_sp<SkBlender> blender,
                        const SkPaint& paint) {
     ASSERT_SINGLE_OWNER
     GR_CREATE_TRACE_MARKER_CONTEXT("skgpu::ganesh::Device", "drawAtlas", fContext.get());
 
     GrPaint grPaint;
-    if (colors) {
+    if (!colors.empty()) {
         if (!SkPaintToGrPaintWithBlend(fSurfaceDrawContext.get(),
                                        paint,
                                        this->localToDevice(),
@@ -1117,7 +1131,7 @@ void Device::drawAtlas(const SkRSXform xform[],
         }
     }
 
-    fSurfaceDrawContext->drawAtlas(this->clip(), std::move(grPaint), this->localToDevice(), count,
+    fSurfaceDrawContext->drawAtlas(this->clip(), std::move(grPaint), this->localToDevice(),
                                    xform, texRect, colors);
 }
 

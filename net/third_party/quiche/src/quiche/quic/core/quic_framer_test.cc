@@ -1425,8 +1425,6 @@ TEST_P(QuicFramerTest, ClientConnectionIdFromShortHeaderToClient) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
-  QuicFramerPeer::SetLastSerializedServerConnectionId(&framer_,
-                                                      TestConnectionId(0x33));
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   framer_.SetExpectedClientConnectionIdLength(kQuicDefaultConnectionIdLength);
   // clang-format off
@@ -1483,8 +1481,6 @@ TEST_P(QuicFramerTest, ClientConnectionIdFromShortHeaderToServer) {
 
 TEST_P(QuicFramerTest, PacketHeaderWith0ByteConnectionId) {
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
-  QuicFramerPeer::SetLastSerializedServerConnectionId(&framer_,
-                                                      FramerTestConnectionId());
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
 
   // clang-format off
@@ -4847,12 +4843,12 @@ TEST_P(QuicFramerTest, ParseAckFrequencyFrame) {
      0x40, 0xAF,
      // sequence_number
      0x11,
-     // packet_tolerance
+     // ack_eliciting_threshold
      0x02,
      // max_ack_delay_us = 2'5000 us
      0x80, 0x00, 0x61, 0xA8,
-     // ignore_order
-     0x01
+     // reordering_threshold = 0 (ignore order)
+     0x00
   };
   // clang-format on
 
@@ -4872,9 +4868,9 @@ TEST_P(QuicFramerTest, ParseAckFrequencyFrame) {
   ASSERT_EQ(1u, visitor_.ack_frequency_frames_.size());
   const auto& frame = visitor_.ack_frequency_frames_.front();
   EXPECT_EQ(17u, frame->sequence_number);
-  EXPECT_EQ(2u, frame->packet_tolerance);
-  EXPECT_EQ(2'5000u, frame->max_ack_delay.ToMicroseconds());
-  EXPECT_EQ(true, frame->ignore_order);
+  EXPECT_EQ(2u, frame->ack_eliciting_threshold);
+  EXPECT_EQ(2'5000u, frame->requested_max_ack_delay.ToMicroseconds());
+  EXPECT_EQ(0u, frame->reordering_threshold);
 }
 
 TEST_P(QuicFramerTest, ParseImmediateAckFrame) {
@@ -5088,8 +5084,6 @@ TEST_P(QuicFramerTest, IetfStatelessResetPacket) {
   };
   // clang-format on
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
-  QuicFramerPeer::SetLastSerializedServerConnectionId(&framer_,
-                                                      TestConnectionId(0x33));
   decrypter_ = new test::TestDecrypter();
   if (framer_.version().KnowsWhichDecrypterToUse()) {
     framer_.InstallDecrypter(
@@ -5127,8 +5121,6 @@ TEST_P(QuicFramerTest, IetfStatelessResetPacketInvalidStatelessResetToken) {
       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   };
   // clang-format on
-  QuicFramerPeer::SetLastSerializedServerConnectionId(&framer_,
-                                                      TestConnectionId(0x33));
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   decrypter_ = new test::TestDecrypter();
   if (framer_.version().KnowsWhichDecrypterToUse()) {
@@ -8253,9 +8245,10 @@ TEST_P(QuicFramerTest, BuildAckFrequencyPacket) {
 
   QuicAckFrequencyFrame ack_frequency_frame;
   ack_frequency_frame.sequence_number = 3;
-  ack_frequency_frame.packet_tolerance = 5;
-  ack_frequency_frame.max_ack_delay = QuicTime::Delta::FromMicroseconds(0x3fff);
-  ack_frequency_frame.ignore_order = false;
+  ack_frequency_frame.ack_eliciting_threshold = 5;
+  ack_frequency_frame.requested_max_ack_delay =
+      QuicTime::Delta::FromMicroseconds(0x3fff);
+  ack_frequency_frame.reordering_threshold = 3;
   QuicFrames frames = {QuicFrame(&ack_frequency_frame)};
 
   // clang-format off
@@ -8271,12 +8264,12 @@ TEST_P(QuicFramerTest, BuildAckFrequencyPacket) {
     0x40, 0xaf,
     // sequence number
     0x03,
-    // packet tolerance
+    // ack-eliciting threshold
     0x05,
     // max_ack_delay_us
     0x7f, 0xff,
-    // ignore_oder
-    0x00
+    // reordering threshold
+    0x03
   };
   // clang-format on
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {

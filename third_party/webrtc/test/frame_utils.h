@@ -10,7 +10,8 @@
 #ifndef TEST_FRAME_UTILS_H_
 #define TEST_FRAME_UTILS_H_
 
-#include <stdint.h>
+#include <cstdint>
+#include <cstdio>
 
 #include "api/scoped_refptr.h"
 #include "api/video/nv12_buffer.h"

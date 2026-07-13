@@ -139,6 +139,7 @@ enum DirtyBitType
     DIRTY_BIT_TEXTURE_BINDINGS,
     DIRTY_BIT_IMAGE_BINDINGS,
     DIRTY_BIT_TRANSFORM_FEEDBACK_BINDING,
+    // Top-level dirty bit. Also see mUniformBufferBlocksDirtyTypeMask.
     DIRTY_BIT_UNIFORM_BUFFER_BINDINGS,
     DIRTY_BIT_SHADER_STORAGE_BUFFER_BINDING,
     DIRTY_BIT_ATOMIC_COUNTER_BUFFER_BINDING,
@@ -421,6 +422,10 @@ class PrivateState : angle::NonCopyable
     // QCOM_shading_rate helpers
     void setShadingRate(GLenum rate);
     ShadingRate getShadingRate() const { return mShadingRate; }
+
+    // GL_EXT_fragment_shading_rate helpers
+    void setShadingRateCombinerOps(GLenum combinerOp0, GLenum combinerOp1);
+    CombinerOp *getShadingRateCombinerOps() { return mCombinerOps; }
 
     // Pixel pack state manipulation
     void setPackAlignment(GLint alignment);
@@ -731,6 +736,9 @@ class PrivateState : angle::NonCopyable
     // QCOM_shading_rate
     bool mShadingRatePreserveAspectRatio;
     ShadingRate mShadingRate;
+
+    // GL_EXT_fragment_shading_rate
+    CombinerOp mCombinerOps[2];
 
     // GL_ARM_shader_framebuffer_fetch
     bool mFetchPerSample;
@@ -1181,7 +1189,7 @@ class State : angle::NonCopyable
 
     void onImageStateChange(const Context *context, size_t unit);
 
-    void onUniformBufferStateChange(size_t uniformBufferIndex);
+    void onUniformBufferStateChange(size_t uniformBufferIndex, angle::SubjectMessage message);
     void onAtomicCounterBufferStateChange(size_t atomicCounterBufferIndex);
     void onShaderStorageBufferStateChange(size_t shaderStorageBufferIndex);
 
@@ -1364,6 +1372,7 @@ class State : angle::NonCopyable
     bool isProgramBinaryCacheEnabled() const { return mPrivateState.isProgramBinaryCacheEnabled(); }
     const Rectangle &getViewport() const { return mPrivateState.getViewport(); }
     ShadingRate getShadingRate() const { return mPrivateState.getShadingRate(); }
+    CombinerOp *getShadingRateCombinerOps() { return mPrivateState.getShadingRateCombinerOps(); }
     GLint getPackAlignment() const { return mPrivateState.getPackAlignment(); }
     bool getPackReverseRowOrder() const { return mPrivateState.getPackReverseRowOrder(); }
     GLint getPackRowLength() const { return mPrivateState.getPackRowLength(); }
@@ -1458,6 +1467,12 @@ class State : angle::NonCopyable
         ProgramUniformBlockMask dirtyBits = mDirtyUniformBlocks;
         mDirtyUniformBlocks.reset();
         return dirtyBits;
+    }
+    BufferDirtyTypeBitMask getAndResetUniformBufferBlocksDirtyTypeMask() const
+    {
+        BufferDirtyTypeBitMask dirtyTypeMask = mUniformBufferBlocksDirtyTypeMask;
+        mUniformBufferBlocksDirtyTypeMask.reset();
+        return dirtyTypeMask;
     }
     const PrivateState &privateState() const { return mPrivateState; }
     const GLES1State &gles1() const { return mPrivateState.gles1(); }
@@ -1647,6 +1662,8 @@ class State : angle::NonCopyable
     // changed, or buffers in their mapped bindings have changed.  This is in State because every
     // context needs to react to such changes.
     mutable ProgramUniformBlockMask mDirtyUniformBlocks;
+    // Fine grained dirty type for uniform buffers.
+    mutable BufferDirtyTypeBitMask mUniformBufferBlocksDirtyTypeMask;
 
     PrivateState mPrivateState;
 };

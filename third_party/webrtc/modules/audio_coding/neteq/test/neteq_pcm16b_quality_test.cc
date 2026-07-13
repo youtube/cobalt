@@ -31,8 +31,8 @@ using ::testing::InitGoogleTest;
 namespace webrtc {
 namespace test {
 namespace {
-static const int kInputSampleRateKhz = 48;
-static const int kOutputSampleRateKhz = 48;
+const int kInputSampleRateKhz = 48;
+const int kOutputSampleRateKhz = 48;
 }  // namespace
 
 class NetEqPcm16bQualityTest : public NetEqQualityTest {

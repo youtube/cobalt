@@ -31,7 +31,7 @@ namespace {
 using ::testing::TestWithParam;
 using ::testing::ValuesIn;
 
-static std::string CodecTypeToHistogramSuffix(VideoCodecType codec) {
+std::string CodecTypeToHistogramSuffix(VideoCodecType codec) {
   switch (codec) {
     case kVideoCodecVP8:
       return "Vp8";

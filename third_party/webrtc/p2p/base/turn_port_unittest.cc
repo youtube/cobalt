@@ -31,10 +31,11 @@
 #include "rtc_base/network.h"
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
+#include "system_wrappers/include/metrics.h"
 #include "test/gmock.h"
 #include "test/wait_until.h"
 #if defined(WEBRTC_POSIX)
-#include <dirent.h>
+#include <dirent.h>  // IWYU pragma: keep
 
 #include "absl/strings/string_view.h"
 #endif
@@ -84,82 +85,76 @@ using ::webrtc::Environment;
 using ::webrtc::IceCandidateType;
 using ::webrtc::SocketAddress;
 
-static const SocketAddress kLocalAddr1("11.11.11.11", 0);
-static const SocketAddress kLocalAddr2("22.22.22.22", 0);
-static const SocketAddress kLocalIPv6Addr("2401:fa00:4:1000:be30:5bff:fee5:c3",
-                                          0);
-static const SocketAddress kLocalIPv6Addr2("2401:fa00:4:2000:be30:5bff:fee5:d4",
-                                           0);
-static const SocketAddress kTurnUdpIntAddr("99.99.99.3",
-                                           webrtc::TURN_SERVER_PORT);
-static const SocketAddress kTurnTcpIntAddr("99.99.99.4",
-                                           webrtc::TURN_SERVER_PORT);
-static const SocketAddress kTurnUdpExtAddr("99.99.99.5", 0);
-static const SocketAddress kTurnAlternateIntAddr("99.99.99.6",
-                                                 webrtc::TURN_SERVER_PORT);
+const SocketAddress kLocalAddr1("11.11.11.11", 0);
+const SocketAddress kLocalAddr2("22.22.22.22", 0);
+const SocketAddress kLocalIPv6Addr("2401:fa00:4:1000:be30:5bff:fee5:c3", 0);
+const SocketAddress kLocalIPv6Addr2("2401:fa00:4:2000:be30:5bff:fee5:d4", 0);
+const SocketAddress kTurnUdpIntAddr("99.99.99.3", webrtc::TURN_SERVER_PORT);
+const SocketAddress kTurnTcpIntAddr("99.99.99.4", webrtc::TURN_SERVER_PORT);
+const SocketAddress kTurnUdpExtAddr("99.99.99.5", 0);
+const SocketAddress kTurnAlternateIntAddr("99.99.99.6",
+                                          webrtc::TURN_SERVER_PORT);
 // Port for redirecting to a TCP Web server. Should not work.
-static const SocketAddress kTurnDangerousAddr("99.99.99.7", 81);
+const SocketAddress kTurnDangerousAddr("99.99.99.7", 81);
 // Port 53 (the DNS port); should work.
-static const SocketAddress kTurnPort53Addr("99.99.99.7", 53);
+const SocketAddress kTurnPort53Addr("99.99.99.7", 53);
 // Port 80 (the HTTP port); should work.
-static const SocketAddress kTurnPort80Addr("99.99.99.7", 80);
+const SocketAddress kTurnPort80Addr("99.99.99.7", 80);
 // Port 443 (the HTTPS port); should work.
-static const SocketAddress kTurnPort443Addr("99.99.99.7", 443);
+const SocketAddress kTurnPort443Addr("99.99.99.7", 443);
 // The default TURN server port.
-static const SocketAddress kTurnIntAddr("99.99.99.7", webrtc::TURN_SERVER_PORT);
-static const SocketAddress kTurnIPv6IntAddr(
-    "2400:4030:2:2c00:be30:abcd:efab:cdef",
-    webrtc::TURN_SERVER_PORT);
-static const SocketAddress kTurnUdpIPv6IntAddr(
-    "2400:4030:1:2c00:be30:abcd:efab:cdef",
-    webrtc::TURN_SERVER_PORT);
-static const SocketAddress kTurnInvalidAddr("www.google.invalid.", 3478);
-static const SocketAddress kTurnValidAddr("www.google.valid.", 3478);
+const SocketAddress kTurnIntAddr("99.99.99.7", webrtc::TURN_SERVER_PORT);
+const SocketAddress kTurnIPv6IntAddr("2400:4030:2:2c00:be30:abcd:efab:cdef",
+                                     webrtc::TURN_SERVER_PORT);
+const SocketAddress kTurnUdpIPv6IntAddr("2400:4030:1:2c00:be30:abcd:efab:cdef",
+                                        webrtc::TURN_SERVER_PORT);
+const SocketAddress kTurnInvalidAddr("www.google.invalid.", 3478);
+const SocketAddress kTurnValidAddr("www.google.valid.", 3478);
 
-static const char kCandidateFoundation[] = "foundation";
-static const char kIceUfrag1[] = "TESTICEUFRAG0001";
-static const char kIceUfrag2[] = "TESTICEUFRAG0002";
-static const char kIcePwd1[] = "TESTICEPWD00000000000001";
-static const char kIcePwd2[] = "TESTICEPWD00000000000002";
-static const char kTurnUsername[] = "test";
-static const char kTurnPassword[] = "test";
+const char kCandidateFoundation[] = "foundation";
+const char kIceUfrag1[] = "TESTICEUFRAG0001";
+const char kIceUfrag2[] = "TESTICEUFRAG0002";
+const char kIcePwd1[] = "TESTICEPWD00000000000001";
+const char kIcePwd2[] = "TESTICEPWD00000000000002";
+const char kTurnUsername[] = "test";
+const char kTurnPassword[] = "test";
 // This test configures the virtual socket server to simulate delay so that we
 // can verify operations take no more than the expected number of round trips.
-static constexpr unsigned int kSimulatedRtt = 50;
+constexpr unsigned int kSimulatedRtt = 50;
 // Connection destruction may happen asynchronously, but it should only
 // take one simulated clock tick.
-static constexpr unsigned int kConnectionDestructionDelay = 1;
+constexpr unsigned int kConnectionDestructionDelay = 1;
 // This used to be 1 second, but that's not always enough for getaddrinfo().
 // See: https://bugs.chromium.org/p/webrtc/issues/detail?id=5191
-static constexpr unsigned int kResolverTimeout = 10000;
+constexpr unsigned int kResolverTimeout = 10000;
 
 constexpr uint64_t kTiebreakerDefault = 44444;
 
-static const webrtc::ProtocolAddress kTurnUdpProtoAddr(kTurnUdpIntAddr,
-                                                       webrtc::PROTO_UDP);
-static const webrtc::ProtocolAddress kTurnTcpProtoAddr(kTurnTcpIntAddr,
-                                                       webrtc::PROTO_TCP);
-static const webrtc::ProtocolAddress kTurnTlsProtoAddr(kTurnTcpIntAddr,
-                                                       webrtc::PROTO_TLS);
-static const webrtc::ProtocolAddress kTurnUdpIPv6ProtoAddr(kTurnUdpIPv6IntAddr,
-                                                           webrtc::PROTO_UDP);
-static const webrtc::ProtocolAddress kTurnDangerousProtoAddr(kTurnDangerousAddr,
-                                                             webrtc::PROTO_TCP);
-static const webrtc::ProtocolAddress kTurnPort53ProtoAddr(kTurnPort53Addr,
-                                                          webrtc::PROTO_TCP);
-static const webrtc::ProtocolAddress kTurnPort80ProtoAddr(kTurnPort80Addr,
-                                                          webrtc::PROTO_TCP);
-static const webrtc::ProtocolAddress kTurnPort443ProtoAddr(kTurnPort443Addr,
-                                                           webrtc::PROTO_TCP);
-static const webrtc::ProtocolAddress kTurnPortInvalidHostnameProtoAddr(
+const webrtc::ProtocolAddress kTurnUdpProtoAddr(kTurnUdpIntAddr,
+                                                webrtc::PROTO_UDP);
+const webrtc::ProtocolAddress kTurnTcpProtoAddr(kTurnTcpIntAddr,
+                                                webrtc::PROTO_TCP);
+const webrtc::ProtocolAddress kTurnTlsProtoAddr(kTurnTcpIntAddr,
+                                                webrtc::PROTO_TLS);
+const webrtc::ProtocolAddress kTurnUdpIPv6ProtoAddr(kTurnUdpIPv6IntAddr,
+                                                    webrtc::PROTO_UDP);
+const webrtc::ProtocolAddress kTurnDangerousProtoAddr(kTurnDangerousAddr,
+                                                      webrtc::PROTO_TCP);
+const webrtc::ProtocolAddress kTurnPort53ProtoAddr(kTurnPort53Addr,
+                                                   webrtc::PROTO_TCP);
+const webrtc::ProtocolAddress kTurnPort80ProtoAddr(kTurnPort80Addr,
+                                                   webrtc::PROTO_TCP);
+const webrtc::ProtocolAddress kTurnPort443ProtoAddr(kTurnPort443Addr,
+                                                    webrtc::PROTO_TCP);
+const webrtc::ProtocolAddress kTurnPortInvalidHostnameProtoAddr(
     kTurnInvalidAddr,
     webrtc::PROTO_UDP);
-static const webrtc::ProtocolAddress kTurnPortValidHostnameProtoAddr(
+const webrtc::ProtocolAddress kTurnPortValidHostnameProtoAddr(
     kTurnValidAddr,
     webrtc::PROTO_UDP);
 
 #if defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
-static int GetFDCount() {
+int GetFDCount() {
   struct dirent* dp;
   int fd_count = 0;
   DIR* dir = opendir("/proc/self/fd/");
@@ -196,7 +191,7 @@ class TestConnectionWrapper : public sigslot::has_slots<> {
         this, &TestConnectionWrapper::OnConnectionDestroyed);
   }
 
-  ~TestConnectionWrapper() {
+  ~TestConnectionWrapper() override {
     if (connection_) {
       connection_->SignalDestroyed.disconnect(this);
     }
@@ -1008,7 +1003,7 @@ class TurnLoggingIdValidator : public StunMessageObserver {
  public:
   explicit TurnLoggingIdValidator(const char* expect_val)
       : expect_val_(expect_val) {}
-  ~TurnLoggingIdValidator() {}
+  ~TurnLoggingIdValidator() override {}
   void ReceivedMessage(const TurnMessage* msg) override {
     if (msg->type() == STUN_ALLOCATE_REQUEST) {
       const StunByteStringAttribute* attr =
@@ -1187,7 +1182,7 @@ TEST_F(TurnPortTest, TurnTcpAllocationNotDiscardedIfNotBoundToBestIP) {
 }
 
 // Regression test for crbug.com/webrtc/8972, caused by buggy comparison
-// between webrtc::IPAddress and webrtc::InterfaceAddress.
+// between IPAddress and InterfaceAddress.
 TEST_F(TurnPortTest, TCPPortNotDiscardedIfBoundToTemporaryIP) {
   networks_.emplace_back("unittest", "unittest", kLocalIPv6Addr.ipaddr(), 32);
   networks_.back().AddIP(
@@ -1939,7 +1934,7 @@ class MessageObserver : public StunMessageObserver {
       : message_counter_(message_counter),
         channel_data_counter_(channel_data_counter),
         attr_counter_(attr_counter) {}
-  virtual ~MessageObserver() {}
+  ~MessageObserver() override {}
   void ReceivedMessage(const TurnMessage* msg) override {
     if (message_counter_ != nullptr) {
       (*message_counter_)++;
@@ -2146,10 +2141,10 @@ class TurnPortWithMockDnsResolverTest : public TurnPortTest {
 TEST_F(TurnPortWithMockDnsResolverTest, TestHostnameResolved) {
   CreateTurnPort(kTurnUsername, kTurnPassword, kTurnPortValidHostnameProtoAddr);
   SetDnsResolverExpectations(
-      [](webrtc::MockAsyncDnsResolver* resolver,
-         webrtc::MockAsyncDnsResolverResult* resolver_result) {
+      [](MockAsyncDnsResolver* resolver,
+         MockAsyncDnsResolverResult* resolver_result) {
         EXPECT_CALL(*resolver, Start(kTurnValidAddr, /*family=*/AF_INET, _))
-            .WillOnce([](const webrtc::SocketAddress& addr, int family,
+            .WillOnce([](const SocketAddress& addr, int family,
                          absl::AnyInvocable<void()> callback) { callback(); });
         EXPECT_CALL(*resolver, result)
             .WillRepeatedly(ReturnPointee(resolver_result));
@@ -2167,10 +2162,10 @@ TEST_F(TurnPortWithMockDnsResolverTest, TestHostnameResolvedIPv6Network) {
   CreateTurnPort(kLocalIPv6Addr, kTurnUsername, kTurnPassword,
                  kTurnPortValidHostnameProtoAddr);
   SetDnsResolverExpectations(
-      [](webrtc::MockAsyncDnsResolver* resolver,
-         webrtc::MockAsyncDnsResolverResult* resolver_result) {
+      [](MockAsyncDnsResolver* resolver,
+         MockAsyncDnsResolverResult* resolver_result) {
         EXPECT_CALL(*resolver, Start(kTurnValidAddr, /*family=*/AF_INET6, _))
-            .WillOnce([](const webrtc::SocketAddress& addr, int family,
+            .WillOnce([](const SocketAddress& addr, int family,
                          absl::AnyInvocable<void()> callback) { callback(); });
         EXPECT_CALL(*resolver, result)
             .WillRepeatedly(ReturnPointee(resolver_result));
@@ -2181,5 +2176,66 @@ TEST_F(TurnPortWithMockDnsResolverTest, TestHostnameResolvedIPv6Network) {
       });
   TestTurnAllocateSucceeds(kSimulatedRtt * 2);
 }
+
+static struct IPAddressTypeTestConfig {
+  absl::string_view address;
+  IPAddressType address_type;
+} kAllIPAddressTypeTestConfigs[] = {
+    {"127.0.0.1", IPAddressType::kLoopback},
+    {"localhost", IPAddressType::kLoopback},
+    {"::1", IPAddressType::kLoopback},
+    {"10.0.0.3", IPAddressType::kPrivate},
+    {"fd00:4860:4860::8844", IPAddressType::kPrivate},
+    {"1.1.1.1", IPAddressType::kPublic},
+    {"2001:4860:4860::8888", IPAddressType::kPublic},
+};
+
+// Used by the test framework to print the param value for parameterized tests.
+std::string PrintToString(const IPAddressTypeTestConfig& param) {
+  return std::string(param.address);
+}
+
+class TurnPortIPAddressTypeMetricsTest
+    : public TurnPortWithMockDnsResolverTest,
+      public ::testing::WithParamInterface<IPAddressTypeTestConfig> {};
+
+TEST_P(TurnPortIPAddressTypeMetricsTest, TestIPAddressTypeMetrics) {
+  metrics::Reset();
+
+  SetDnsResolverExpectations(
+      [](webrtc::MockAsyncDnsResolver* resolver,
+         webrtc::MockAsyncDnsResolverResult* resolver_result) {
+        EXPECT_CALL(*resolver, Start(SocketAddress("localhost", 5000),
+                                     /*family=*/AF_INET, _))
+            .WillOnce([](const webrtc::SocketAddress& /* addr */,
+                         int /* family */,
+                         absl::AnyInvocable<void()> callback) { callback(); });
+        EXPECT_CALL(*resolver, result)
+            .WillRepeatedly(ReturnPointee(resolver_result));
+        EXPECT_CALL(*resolver_result, GetError).WillRepeatedly(Return(0));
+        EXPECT_CALL(*resolver_result, GetResolvedAddress(AF_INET, _))
+            .WillOnce(DoAll(SetArgPointee<1>(SocketAddress("127.0.0.1", 5000)),
+                            Return(true)));
+      });
+
+  ProtocolAddress server_address({GetParam().address, 5000}, PROTO_UDP);
+  SocketAddress local_address = server_address.address.family() == AF_INET6
+                                    ? kLocalIPv6Addr
+                                    : kLocalAddr1;
+  CreateTurnPort(local_address, kTurnUsername, kTurnPassword, server_address);
+  turn_port_->PrepareAddress();
+
+  ASSERT_THAT(WaitUntil([&] { return turn_port_->HasRequests(); }, IsTrue()),
+              IsRtcOk());
+
+  auto samples =
+      metrics::Samples("WebRTC.PeerConnection.Turn.ServerAddressType");
+  ASSERT_EQ(samples.size(), 1u);
+  EXPECT_EQ(samples[static_cast<int>(GetParam().address_type)], 1);
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         TurnPortIPAddressTypeMetricsTest,
+                         ::testing::ValuesIn(kAllIPAddressTypeTestConfigs));
 
 }  // namespace webrtc

@@ -92,10 +92,9 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
       const VideoStreamEncoderSettings& settings,
       std::unique_ptr<OveruseFrameDetector> overuse_detector,
       std::unique_ptr<FrameCadenceAdapterInterface> frame_cadence_adapter,
-      std::unique_ptr<webrtc::TaskQueueBase, webrtc::TaskQueueDeleter>
-          encoder_queue,
+      std::unique_ptr<TaskQueueBase, TaskQueueDeleter> encoder_queue,
       BitrateAllocationCallbackType allocation_cb_type,
-      webrtc::VideoEncoderFactory::EncoderSelectorInterface* encoder_selector =
+      VideoEncoderFactory::EncoderSelectorInterface* encoder_selector =
           nullptr);
   ~VideoStreamEncoder() override;
 
@@ -132,8 +131,7 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
       const VideoEncoder::LossNotification& loss_notification) override;
 
   void OnBitrateUpdated(DataRate target_bitrate,
-                        DataRate stable_target_bitrate,
-                        DataRate target_headroom,
+                        DataRate link_allocation,
                         uint8_t fraction_lost,
                         int64_t round_trip_time_ms,
                         double cwnd_reduce_ratio) override;
@@ -202,8 +200,7 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
     EncoderRateSettings(const VideoBitrateAllocation& bitrate,
                         double framerate_fps,
                         DataRate bandwidth_allocation,
-                        DataRate encoder_target,
-                        DataRate stable_encoder_target);
+                        DataRate encoder_target);
     bool operator==(const EncoderRateSettings& rhs) const;
     bool operator!=(const EncoderRateSettings& rhs) const;
 
@@ -215,7 +212,6 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
     // |using last_encoder_rate_setings_->bitrate.get_sum_bps()|, may trick it
     // into thinking the available bitrate has decreased since the last call.
     DataRate encoder_target;
-    DataRate stable_encoder_target;
   };
 
   class DegradationPreferenceManager;
@@ -287,7 +283,7 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
   const BitrateAllocationCallbackType allocation_cb_type_;
   const RateControlSettings rate_control_settings_;
 
-  webrtc::VideoEncoderFactory::EncoderSelectorInterface* const
+  VideoEncoderFactory::EncoderSelectorInterface* const
       encoder_selector_from_constructor_;
   std::unique_ptr<VideoEncoderFactory::EncoderSelectorInterface> const
       encoder_selector_from_factory_;

@@ -118,13 +118,6 @@ var gniExportDescs = []exporter.GNIExportDesc{
 				"//src/text:text_hdrs",
 				"//src/text:text_srcs",
 			}},
-		{Var: "skia_pathops_public",
-			Rules: []string{"//include/pathops:public_hdrs"}},
-		{Var: "skia_pathops_sources",
-			Rules: []string{
-				"//src/pathops:_pathops_hdrs",
-				"//src/pathops:_pathops_srcs",
-			}},
 		{Var: "skia_encode_public",
 			Rules: []string{"//include/encode:encode_hdrs"}},
 		{Var: "skia_encode_srcs",
@@ -272,6 +265,7 @@ var gniExportDescs = []exporter.GNIExportDesc{
 			}},
 		{Var: "skia_ports_fontmgr_fontconfig_sources",
 			Rules: []string{
+				"//src/ports:fontconfig_support",
 				"//src/ports:fontmgr_fontconfig_freetype",
 			}},
 		{Var: "skia_ports_fontmgr_fontations_public",
@@ -455,6 +449,10 @@ var gniExportDescs = []exporter.GNIExportDesc{
 				"//src/utils:utils_skslc_hdrs",
 				"//src/utils:utils_skslc_srcs",
 			}},
+		{Var: "skia_clipstack_utils_sources",
+			Rules: []string{
+				"//src/utils:clip_stack_utils",
+			}},
 	},
 	},
 	{GNI: "gn/xps.gni", Vars: []exporter.GNIFileListExportDesc{
@@ -618,6 +616,15 @@ var gniExportDescs = []exporter.GNIExportDesc{
 			Rules: []string{
 				"//modules/svg/src:private_hdrs",
 				"//modules/svg/src:srcs",
+			}},
+	}},
+	{GNI: "modules/pathops/pathops.gni", Vars: []exporter.GNIFileListExportDesc{
+		{Var: "skia_pathops_public",
+			Rules: []string{"//modules/pathops/include:hdrs"}},
+		{Var: "skia_pathops_sources",
+			Rules: []string{
+				"//modules/pathops/src:core_hdrs",
+				"//modules/pathops/src:core_srcs",
 			}},
 	}},
 	{GNI: "modules/bentleyottmann/bentleyottmann.gni", Vars: []exporter.GNIFileListExportDesc{

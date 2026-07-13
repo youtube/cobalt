@@ -13,6 +13,7 @@
 
 #include <array>
 #include <atomic>
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -21,7 +22,7 @@
 #include "api/audio/echo_canceller3_config.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
 #include "modules/audio_processing/aec3/aec_state.h"
-#include "modules/audio_processing/aec3/fft_data.h"
+#include "modules/audio_processing/aec3/block.h"
 #include "modules/audio_processing/aec3/moving_average.h"
 #include "modules/audio_processing/aec3/nearend_detector.h"
 #include "modules/audio_processing/aec3/render_signal_analyzer.h"

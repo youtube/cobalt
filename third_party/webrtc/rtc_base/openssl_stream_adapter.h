@@ -79,7 +79,7 @@ class OpenSSLStreamAdapter final : public SSLStreamAdapter {
   SSLIdentity* GetIdentityForTesting() const override;
 
   // Default argument is for compatibility
-  void SetServerRole(SSLRole role = webrtc::SSL_SERVER) override;
+  void SetServerRole(SSLRole role = SSL_SERVER) override;
   SSLPeerCertificateDigestError SetPeerCertificateDigest(
       absl::string_view digest_alg,
       ArrayView<const uint8_t> digest_val) override;
@@ -232,7 +232,7 @@ class OpenSSLStreamAdapter final : public SSLStreamAdapter {
 #ifdef OPENSSL_IS_BORINGSSL
   std::unique_ptr<BoringSSLIdentity> identity_;
 #else
-  std::unique_ptr<webrtc::OpenSSLIdentity> identity_;
+  std::unique_ptr<OpenSSLIdentity> identity_;
 #endif
   // The certificate chain that the peer presented. Initially null, until the
   // connection is established.

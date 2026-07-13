@@ -19,7 +19,7 @@
 #include <utility>
 
 #ifdef SK_BUILD_FOR_ANDROID_FRAMEWORK
-    static constexpr int kPathRefGenIDBitCnt = 30; // leave room for the fill type (skbug.com/1762)
+    static constexpr int kPathRefGenIDBitCnt = 30; // leave room for the fill type (skbug.com/40032862)
 #else
     static constexpr int kPathRefGenIDBitCnt = 32;
 #endif
@@ -171,7 +171,7 @@ void SkPathRef::CreateTransformedCopy(sk_sp<SkPathRef>* dst,
         // don't copy, just allocate the points
         (*dst)->fPoints.resize(src.fPoints.size());
     }
-    matrix.mapPoints((*dst)->fPoints.begin(), src.fPoints.begin(), src.fPoints.size());
+    matrix.mapPoints((*dst)->fPoints, src.fPoints);
 
     // Need to check this here in case (&src == dst)
     bool canXformBounds = !src.fBoundsIsDirty && matrix.rectStaysRect() && src.countPoints() > 1;
@@ -680,9 +680,9 @@ void SkPathRef::reset() {
 }
 
 bool SkPathRef::dataMatchesVerbs() const {
-    const auto info = SkPathPriv::AnalyzeVerbs(fVerbs.begin(), fVerbs.size());
+    const auto info = SkPathPriv::AnalyzeVerbs(fVerbs);
     return info.valid                          &&
            info.segmentMask == fSegmentMask    &&
-           info.points      == fPoints.size()  &&
-           info.weights     == fConicWeights.size();
+           info.points      == (size_t)fPoints.size()  &&
+           info.weights     == (size_t)fConicWeights.size();
 }

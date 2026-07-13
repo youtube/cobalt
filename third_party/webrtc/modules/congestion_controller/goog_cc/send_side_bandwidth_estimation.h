@@ -27,7 +27,6 @@
 #include "api/units/data_rate.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
-#include "modules/congestion_controller/goog_cc/loss_based_bandwidth_estimation.h"
 #include "modules/congestion_controller/goog_cc/loss_based_bwe_v2.h"
 #include "rtc_base/experiments/field_trial_parser.h"
 
@@ -57,7 +56,7 @@ class LinkCapacityTracker {
 
 class RttBasedBackoff {
  public:
-  explicit RttBasedBackoff(const FieldTrialsView* key_value_config);
+  explicit RttBasedBackoff(const FieldTrialsView& key_value_config);
   ~RttBasedBackoff();
   void UpdatePropagationRtt(Timestamp at_time, TimeDelta propagation_rtt);
   bool IsRttAboveLimit() const;
@@ -161,10 +160,7 @@ class SendSideBandwidthEstimation {
   // should be cleaned up.
   void ApplyTargetLimits(Timestamp at_time);
 
-  bool LossBasedBandwidthEstimatorV1Enabled() const;
   bool LossBasedBandwidthEstimatorV2Enabled() const;
-
-  bool LossBasedBandwidthEstimatorV1ReadyForUse() const;
   bool LossBasedBandwidthEstimatorV2ReadyForUse() const;
 
   const FieldTrialsView* key_value_config_;
@@ -208,7 +204,6 @@ class SendSideBandwidthEstimation {
   float low_loss_threshold_;
   float high_loss_threshold_;
   DataRate bitrate_threshold_;
-  LossBasedBandwidthEstimation loss_based_bandwidth_estimator_v1_;
   std::unique_ptr<LossBasedBweV2> loss_based_bandwidth_estimator_v2_;
   LossBasedState loss_based_state_;
   FieldTrialFlag disable_receiver_limit_caps_only_;

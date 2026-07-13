@@ -92,14 +92,14 @@ class H264EncoderImpl : public VideoEncoder {
  private:
   SEncParamExt CreateEncoderParams(size_t i) const;
 
-  webrtc::H264BitstreamParser h264_bitstream_parser_;
+  H264BitstreamParser h264_bitstream_parser_;
   // Reports statistics with histograms.
   void ReportInit();
   void ReportError();
 
   std::vector<ISVCEncoder*> encoders_;
   std::vector<SSourcePicture> pictures_;
-  std::vector<webrtc::scoped_refptr<I420Buffer>> downscaled_buffers_;
+  std::vector<scoped_refptr<I420Buffer>> downscaled_buffers_;
   std::vector<LayerConfig> configurations_;
   std::vector<EncodedImage> encoded_images_;
   std::vector<std::unique_ptr<ScalableVideoController>> svc_controllers_;

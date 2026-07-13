@@ -10,13 +10,13 @@
 
 #include "modules/desktop_capture/screen_drawer.h"
 
-#include <stdint.h>
-
 #include <atomic>
+#include <cstdint>
 #include <memory>
 
 #include "api/function_view.h"
-#include "rtc_base/checks.h"
+#include "modules/desktop_capture/desktop_geometry.h"
+#include "modules/desktop_capture/rgba_color.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/platform_thread.h"
 #include "rtc_base/random.h"

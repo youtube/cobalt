@@ -33,16 +33,16 @@ class MockIceAgent : public IceAgentInterface {
   MOCK_METHOD(void, UpdateState, (), (override));
   MOCK_METHOD(void,
               ForgetLearnedStateForConnections,
-              (webrtc::ArrayView<const webrtc::Connection* const>),
+              (ArrayView<const Connection* const>),
               (override));
-  MOCK_METHOD(void, SendPingRequest, (const webrtc::Connection*), (override));
+  MOCK_METHOD(void, SendPingRequest, (const Connection*), (override));
   MOCK_METHOD(void,
               SwitchSelectedConnection,
-              (const webrtc::Connection*, webrtc::IceSwitchReason),
+              (const Connection*, IceSwitchReason),
               (override));
   MOCK_METHOD(bool,
               PruneConnections,
-              (webrtc::ArrayView<const webrtc::Connection* const>),
+              (ArrayView<const Connection* const>),
               (override));
 };
 

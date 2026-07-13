@@ -27,13 +27,13 @@
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/environment/environment_factory.h"
+#include "api/field_trials_view.h"
 #include "api/make_ref_counted.h"
 #include "api/rtp_parameters.h"
 #include "api/test/metrics/global_metrics_logger_and_exporter.h"
 #include "api/test/metrics/metric.h"
 #include "api/test/videocodec_test_fixture.h"
 #include "api/test/videocodec_test_stats.h"
-#include "api/transport/field_trial_based_config.h"
 #include "api/video/encoded_image.h"
 #include "api/video/resolution.h"
 #include "api/video/video_codec_constants.h"
@@ -74,6 +74,7 @@
 #include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
 #include "test/testsupport/frame_reader.h"
@@ -92,8 +93,8 @@ const int kBaseKeyFrameInterval = 3000;
 const int kDefaultMaxFramerateFps = 30;
 const int kMaxQp = 56;
 
-void ConfigureSimulcast(VideoCodec* codec_settings) {
-  FieldTrialBasedConfig trials;
+void ConfigureSimulcast(const FieldTrialsView& trials,
+                        VideoCodec* codec_settings) {
   VideoEncoderConfig encoder_config;
   encoder_config.codec_type = codec_settings->codecType;
   encoder_config.number_of_streams = codec_settings->numberOfSimulcastStreams;
@@ -215,7 +216,8 @@ SdpVideoFormat CreateSdpVideoFormat(
 
 }  // namespace
 
-VideoCodecTestFixtureImpl::Config::Config() = default;
+VideoCodecTestFixtureImpl::Config::Config()
+    : field_trials(CreateTestFieldTrials()) {}
 
 void VideoCodecTestFixtureImpl::Config::SetCodecSettings(
     std::string codec_name_to_set,
@@ -288,7 +290,7 @@ void VideoCodecTestFixtureImpl::Config::SetCodecSettings(
   }
 
   if (codec_settings.numberOfSimulcastStreams > 1) {
-    ConfigureSimulcast(&codec_settings);
+    ConfigureSimulcast(field_trials, &codec_settings);
   } else if (codec_settings.codecType == kVideoCodecVP9 &&
              codec_settings.VP9()->numberOfSpatialLayers > 1) {
     ConfigureSvc(&codec_settings);
@@ -469,8 +471,8 @@ VideoCodecTestFixtureImpl::VideoCodecTestFixtureImpl(Config config)
                                           LibvpxVp9DecoderTemplateAdapter,
                                           OpenH264DecoderTemplateAdapter,
                                           Dav1dDecoderTemplateAdapter>>()),
-      env_(CreateEnvironment()),
-      config_(config) {}
+      config_(std::move(config)),
+      env_(CreateEnvironment(&config_.field_trials)) {}
 
 VideoCodecTestFixtureImpl::VideoCodecTestFixtureImpl(
     Config config,
@@ -478,8 +480,8 @@ VideoCodecTestFixtureImpl::VideoCodecTestFixtureImpl(
     std::unique_ptr<VideoEncoderFactory> encoder_factory)
     : encoder_factory_(std::move(encoder_factory)),
       decoder_factory_(std::move(decoder_factory)),
-      env_(CreateEnvironment()),
-      config_(config) {}
+      config_(std::move(config)),
+      env_(CreateEnvironment(&config_.field_trials)) {}
 
 VideoCodecTestFixtureImpl::~VideoCodecTestFixtureImpl() = default;
 

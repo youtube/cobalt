@@ -11,13 +11,18 @@
 #include "modules/audio_processing/agc2/rnn_vad/test_utils.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <fstream>
+#include <ios>
 #include <memory>
 #include <string>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "api/array_view.h"
+#include "modules/audio_processing/agc2/rnn_vad/common.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_compare.h"
 #include "test/gtest.h"
@@ -41,7 +46,7 @@ class FloatFileReader : public FileReader {
   }
   FloatFileReader(const FloatFileReader&) = delete;
   FloatFileReader& operator=(const FloatFileReader&) = delete;
-  ~FloatFileReader() = default;
+  ~FloatFileReader() override = default;
 
   int size() const override { return size_; }
   bool ReadChunk(ArrayView<float> dst) override {

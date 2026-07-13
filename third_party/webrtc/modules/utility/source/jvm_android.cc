@@ -10,13 +10,16 @@
 
 #include "modules/utility/include/jvm_android.h"
 
-#include <android/log.h>
+#include <jni.h>
 
+#include <cstdarg>
+#include <cstring>
 #include <memory>
+#include <string>
 
+#include "modules/utility/include/helpers_android.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/platform_thread.h"
 
 namespace webrtc {
 

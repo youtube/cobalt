@@ -10,13 +10,14 @@
 
 #include "modules/desktop_capture/linux/x11/mouse_cursor_monitor_x11.h"
 
+#include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/extensions/Xfixes.h>
 #include <X11/extensions/xfixeswire.h>
-#include <stddef.h>
-#include <stdint.h>
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 
 #include "modules/desktop_capture/desktop_capture_options.h"

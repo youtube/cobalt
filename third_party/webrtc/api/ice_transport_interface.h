@@ -14,6 +14,7 @@
 #include <string>
 
 #include "api/async_dns_resolver.h"
+#include "api/local_network_access_permission.h"
 #include "api/ref_count.h"
 #include "api/rtc_event_log/rtc_event_log.h"
 #include "api/scoped_refptr.h"
@@ -35,7 +36,7 @@ class IceTransportInterface : public RefCountInterface {
   // The returned object can only be safely used on the signalling thread.
   // TODO(crbug.com/907849): Add API calls for the functions that have to
   // be exposed to clients, and stop allowing access to the
-  // webrtc::IceTransportInternal API.
+  // IceTransportInternal API.
   virtual IceTransportInternal* internal() = 0;
 };
 
@@ -58,6 +59,15 @@ struct IceTransportInit final {
   void set_async_dns_resolver_factory(
       AsyncDnsResolverFactoryInterface* async_dns_resolver_factory) {
     async_dns_resolver_factory_ = async_dns_resolver_factory;
+  }
+
+  LocalNetworkAccessPermissionFactoryInterface* lna_permission_factory() {
+    return lna_permission_factory_;
+  }
+
+  void set_lna_permission_factory(
+      LocalNetworkAccessPermissionFactoryInterface* lna_permission_factory) {
+    lna_permission_factory_ = lna_permission_factory;
   }
 
   RtcEventLog* event_log() { return event_log_; }
@@ -98,6 +108,8 @@ struct IceTransportInit final {
  private:
   PortAllocator* port_allocator_ = nullptr;
   AsyncDnsResolverFactoryInterface* async_dns_resolver_factory_ = nullptr;
+  LocalNetworkAccessPermissionFactoryInterface* lna_permission_factory_ =
+      nullptr;
   RtcEventLog* event_log_ = nullptr;
   IceControllerFactoryInterface* ice_controller_factory_ = nullptr;
   ActiveIceControllerFactoryInterface* active_ice_controller_factory_ = nullptr;

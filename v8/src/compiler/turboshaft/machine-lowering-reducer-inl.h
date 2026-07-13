@@ -88,6 +88,19 @@ class MachineLoweringReducer : public Next {
             DeoptimizeReason::kLostPrecision, feedback);
         return i32;
       }
+      case ChangeOrDeoptOp::Kind::kInt64ToAdditiveSafeInteger: {
+        V<Word64> i64_input = V<Word64>::Cast(input);
+        // Check the value actually fits in AdditiveSafeInteger.
+        // (value - kMinAdditiveSafeInteger) >> 52 == 0.
+        V<Word32> check_is_zero =
+            __ Word64Equal(__ Word64ShiftRightArithmetic(
+                               __ Word64Sub(i64_input, kMinAdditiveSafeInteger),
+                               kAdditiveSafeIntegerBitLength),
+                           0);
+        __ DeoptimizeIfNot(check_is_zero, frame_state,
+                           DeoptimizeReason::kNotAdditiveSafeInteger, feedback);
+        return i64_input;
+      }
       case ChangeOrDeoptOp::Kind::kUint64ToInt32: {
         V<Word64> i64_input = V<Word64>::Cast(input);
         __ DeoptimizeIfNot(
@@ -498,6 +511,31 @@ class MachineLoweringReducer : public Next {
         return result;
       }
 
+      case ObjectIsOp::Kind::kStringOrOddball: {
+        Label<Word32> done(this);
+
+        // Check for Smi if necessary.
+        if (NeedsHeapObjectCheck(input_assumptions)) {
+          GOTO_IF(__ IsSmi(input), done, 0);
+        }
+
+        V<Map> map = __ LoadMapField(input);
+        V<Word32> instance_type = __ LoadInstanceTypeField(map);
+        GOTO_IF(__ Word32Equal(instance_type, ODDBALL_TYPE), done, 1);
+
+#if V8_STATIC_ROOTS_BOOL
+        GOTO(done,
+             __ Uint32LessThanOrEqual(
+                 __ TruncateWordPtrToWord32(__ BitcastHeapObjectToWordPtr(map)),
+                 __ Word32Constant(InstanceTypeChecker::kStringMapUpperBound)));
+#else
+        GOTO(done, __ Uint32LessThan(instance_type, FIRST_NONSTRING_TYPE));
+#endif  // V8_STATIC_ROOTS_BOOL
+
+        BIND(done, result);
+        return result;
+      }
+
 #if V8_STATIC_ROOTS_BOOL
       case ObjectIsOp::Kind::kString: {
         Label<Word32> done(this);
@@ -638,6 +676,31 @@ class MachineLoweringReducer : public Next {
         BIND(done, result);
         return result;
       }
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      case NumericKind::kFloat64Undefined: {
+        Label<Word32> done(this);
+        // First check whether {value} is a NaN at all...
+        GOTO_IF(LIKELY(__ Float64Equal(value, value)), done, 0);
+        // ...and only if {value} is a NaN, perform the expensive bit
+        // check. See http://crbug.com/v8/8264 for details.
+        GOTO(done, __ Word32Equal(__ Float64ExtractHighWord32(value),
+                                  kUndefinedNanUpper32));
+        BIND(done, result);
+        return result;
+      }
+      case NumericKind::kFloat64UndefinedOrHole: {
+        Label<Word32> done(this);
+        // First check whether {value} is a NaN at all...
+        GOTO_IF(LIKELY(__ Float64Equal(value, value)), done, 0);
+        // ...and only if {value} is a NaN, perform the expensive bit
+        // check. See http://crbug.com/v8/8264 for details.
+        V<Word32> hi = __ Float64ExtractHighWord32(value);
+        GOTO_IF(__ Word32Equal(hi, kUndefinedNanUpper32), done, 1);
+        GOTO(done, __ Word32Equal(hi, kHoleNanUpper32));
+        BIND(done, result);
+        return result;
+      }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
       case NumericKind::kFinite: {
         V<Float64> diff = __ Float64Sub(value, value);
         return __ Float64Equal(diff, diff);
@@ -739,6 +802,10 @@ class MachineLoweringReducer : public Next {
         GOTO_IF(__ IsSmi(input), done, 0);
         break;
       case NumericKind::kFloat64Hole:
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      case NumericKind::kFloat64Undefined:
+      case NumericKind::kFloat64UndefinedOrHole:
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
         // ObjectIsFloat64Hole is not used, but can be implemented when needed.
         UNREACHABLE();
     }
@@ -1230,9 +1297,7 @@ class MachineLoweringReducer : public Next {
         }
       }
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-      case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kFloat64OrUndefined:
-      case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::
-          kFloat64WithSilencedNaNOrUndefined: {
+      case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kHoleyFloat64: {
         DCHECK_EQ(
             input_assumptions,
             ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrOddball);
@@ -1246,6 +1311,10 @@ class MachineLoweringReducer : public Next {
           GOTO_IF(
               __ TaggedEqual(map, __ HeapConstant(factory_->undefined_map())),
               done, UndefinedNan());
+          IF (UNLIKELY(
+                  __ TaggedEqual(map, __ HeapConstant(factory_->hole_map())))) {
+            __ Unreachable();
+          }
 
           V<Float64> value = __ template LoadField<Float64>(
               object, AccessBuilder::ForHeapNumberOrOddballOrHoleValue());
@@ -1362,6 +1431,38 @@ class MachineLoweringReducer : public Next {
         BIND(done, result);
         return result;
       }
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      // TODO(nicohartmann): Consider merging this into
+      // ConvertHeapObjectToFloat64OrDeopt.
+      case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kHoleyFloat64: {
+        DCHECK_EQ(from_kind, ConvertJSPrimitiveToUntaggedOrDeoptOp::
+                                 JSPrimitiveKind::kNumberOrOddball);
+        Label<Float64> done(this);
+
+        IF (LIKELY(__ ObjectIsSmi(object))) {
+          GOTO(done,
+               __ ChangeInt32ToFloat64(__ UntagSmi(V<Smi>::Cast(object))));
+        } ELSE {
+          V<Map> map = __ LoadMapField(V<HeapObject>::Cast(object));
+          GOTO_IF(
+              __ TaggedEqual(map, __ HeapConstant(factory_->undefined_map())),
+              done, UndefinedNan());
+          IF (UNLIKELY(
+                  __ TaggedEqual(map, __ HeapConstant(factory_->hole_map())))) {
+            __ Unreachable();
+          }
+
+          V<Float64> value = ConvertHeapObjectToFloat64OrDeopt(
+              object, frame_state, from_kind, feedback, map);
+          V<Float64> silenced_value = __ Float64SilenceNaN(value);
+          GOTO(done, silenced_value);
+        }
+
+        BIND(done, result);
+        return result;
+      }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+
       case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kArrayIndex: {
         DCHECK_EQ(from_kind, ConvertJSPrimitiveToUntaggedOrDeoptOp::
                                  JSPrimitiveKind::kNumberOrString);
@@ -2542,17 +2643,7 @@ class MachineLoweringReducer : public Next {
         GOTO_IF(__ TaggedEqual(left, right), done,
                 __ HeapConstant(factory_->true_value()));
 
-        V<Word32> left_length = __ template LoadField<Word32>(
-            left, AccessBuilder::ForStringLength());
-        V<Word32> right_length = __ template LoadField<Word32>(
-            right, AccessBuilder::ForStringLength());
-        IF (__ Word32Equal(left_length, right_length)) {
-          GOTO(done,
-               __ CallBuiltin_StringEqual(isolate_, left, right,
-                                          __ ChangeInt32ToIntPtr(left_length)));
-        } ELSE {
-          GOTO(done, __ HeapConstant(factory_->false_value()));
-        }
+        GenerateStringEqualBuiltinCall(left, right, &done);
 
         BIND(done, result);
         return result;
@@ -2561,6 +2652,49 @@ class MachineLoweringReducer : public Next {
         return __ CallBuiltin_StringLessThan(isolate_, left, right);
       case StringComparisonOp::Kind::kLessThanOrEqual:
         return __ CallBuiltin_StringLessThanOrEqual(isolate_, left, right);
+    }
+  }
+
+  V<Boolean> REDUCE(StringOrOddballStrictEqual)(V<HeapObject> left,
+                                                V<HeapObject> right) {
+    Label<Boolean> done(this);
+
+    GOTO_IF(__ TaggedEqual(left, right), done,
+            __ HeapConstant(factory_->true_value()));
+
+    // This code is only used for strict equality. If either left or right
+    // is not a string, then they must be non-equal (they cannot be the
+    // same oddball, since that was checked above).
+
+    V<Map> left_map = __ LoadMapField(left);
+    V<Word32> left_instance_type = __ LoadInstanceTypeField(left_map);
+    GOTO_IF(__ Word32Equal(left_instance_type, ODDBALL_TYPE), done,
+            __ HeapConstant(factory_->false_value()));
+
+    V<Map> right_map = __ LoadMapField(right);
+    V<Word32> right_instance_type = __ LoadInstanceTypeField(right_map);
+    GOTO_IF(__ Word32Equal(right_instance_type, ODDBALL_TYPE), done,
+            __ HeapConstant(factory_->false_value()));
+
+    GenerateStringEqualBuiltinCall(V<String>::Cast(left),
+                                   V<String>::Cast(right), &done);
+
+    BIND(done, result);
+    return result;
+  }
+
+  void GenerateStringEqualBuiltinCall(V<String> left, V<String> right,
+                                      Label<Boolean>* done) {
+    V<Word32> left_length =
+        __ template LoadField<Word32>(left, AccessBuilder::ForStringLength());
+    V<Word32> right_length =
+        __ template LoadField<Word32>(right, AccessBuilder::ForStringLength());
+    IF (__ Word32Equal(left_length, right_length)) {
+      GOTO(*done,
+           __ CallBuiltin_StringEqual(isolate_, left, right,
+                                      __ ChangeInt32ToIntPtr(left_length)));
+    } ELSE {
+      GOTO(*done, __ HeapConstant(factory_->false_value()));
     }
   }
 
@@ -3732,8 +3866,10 @@ class MachineLoweringReducer : public Next {
   V<Float64> ConvertHeapObjectToFloat64OrDeopt(
       V<Object> heap_object, V<FrameState> frame_state,
       ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind input_kind,
-      const FeedbackSource& feedback) {
-    V<Map> map = __ LoadMapField(heap_object);
+      const FeedbackSource& feedback,
+      OptionalV<Map> loaded_map = OptionalV<Map>::Nullopt()) {
+    V<Map> map = loaded_map.value_or_invalid();
+    if (!map.valid()) map = __ LoadMapField(heap_object);
     switch (input_kind) {
       case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kSmi:
       case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::

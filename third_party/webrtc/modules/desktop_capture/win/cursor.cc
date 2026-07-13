@@ -10,7 +10,9 @@
 
 #include "modules/desktop_capture/win/cursor.h"
 
-#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <memory>
 
 #include "modules/desktop_capture/desktop_frame.h"

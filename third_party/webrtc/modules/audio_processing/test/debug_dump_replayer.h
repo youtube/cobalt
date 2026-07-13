@@ -11,10 +11,13 @@
 #ifndef MODULES_AUDIO_PROCESSING_TEST_DEBUG_DUMP_REPLAYER_H_
 #define MODULES_AUDIO_PROCESSING_TEST_DEBUG_DUMP_REPLAYER_H_
 
+#include <cstdio>
 #include <memory>
+#include <optional>
 
 #include "absl/strings/string_view.h"
 #include "api/audio/audio_processing.h"
+#include "api/scoped_refptr.h"
 #include "common_audio/channel_buffer.h"
 
 // Generated at build-time by the protobuf compiler.

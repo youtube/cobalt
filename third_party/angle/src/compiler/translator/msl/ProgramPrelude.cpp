@@ -277,6 +277,7 @@ class ProgramPrelude : public TIntermTraverser
     void interpolateAtCentroid();
     void interpolateAtSample();
     void interpolateAtOffset();
+    void loopForwardProgress();
 
   private:
     TInfoSinkBase &mOut;
@@ -2768,6 +2769,14 @@ template <typename T>
 ANGLE_ALWAYS_INLINE T ANGLE_interpolateAtOffset(T value, float2) { return value; }
 )")
 
+PROGRAM_PRELUDE_DECLARE(loopForwardProgress,
+                        R"(
+ANGLE_ALWAYS_INLINE void ANGLE_loopForwardProgress()
+{
+    volatile bool p = true;
+}
+)")
+
 ////////////////////////////////////////////////////////////////////////////////
 
 // Returned Name is valid for as long as `buffer` is still alive.
@@ -3649,6 +3658,10 @@ void ProgramPrelude::visitOperator(TOperator op,
 
         case TOperator::EOpConstruct:
             ASSERT(!func);
+            break;
+
+        case TOperator::EOpLoopForwardProgress:
+            loopForwardProgress();
             break;
 
         case TOperator::EOpCallFunctionInAST:
