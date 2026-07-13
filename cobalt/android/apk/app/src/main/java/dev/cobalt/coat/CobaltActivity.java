@@ -619,8 +619,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   @Override
   protected void onDestroy() {
     unregisterDisplayListener();
-    DisplayUtil.removeDisplayListener(this);
-    AudioOutputManager.removeAudioDeviceListener(this);
     if (mFreezeRunnable != null) {
       mHandler.removeCallbacks(mFreezeRunnable);
       mFreezeRunnable = null;

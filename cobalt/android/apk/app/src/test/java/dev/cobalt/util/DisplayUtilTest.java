@@ -15,13 +15,15 @@
  */
 package dev.cobalt.util;
 
-import static org.junit.Assert.assertFalse;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.content.Context;
 import android.hardware.display.DisplayManager;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
@@ -30,17 +32,26 @@ import org.robolectric.util.ReflectionHelpers;
 @RunWith(RobolectricTestRunner.class)
 public class DisplayUtilTest {
   @Test
-  public void testRemoveDisplayListenerUnregistersFrameworkCallback() {
+  public void testDisplayListenerRemainsRegisteredUntilLastRegistrantIsRemoved() {
     Context context = mock(Context.class);
     DisplayManager displayManager = mock(DisplayManager.class);
     DisplayManager.DisplayListener displayListener =
         ReflectionHelpers.getStaticField(DisplayUtil.class, "sDisplayerListener");
-    ReflectionHelpers.setStaticField(DisplayUtil.class, "sDisplayerListenerAdded", true);
+    AtomicInteger listenerRefCount =
+        ReflectionHelpers.getStaticField(DisplayUtil.class, "sListenerRefCount");
+    listenerRefCount.set(0);
+    when(context.getSystemService(DisplayManager.class)).thenReturn(displayManager);
     when(context.getSystemService(Context.DISPLAY_SERVICE)).thenReturn(displayManager);
+
+    DisplayUtil.addDisplayListener(context);
+    DisplayUtil.addDisplayListener(context);
+    DisplayUtil.removeDisplayListener(context);
+
+    verify(displayManager, times(1)).registerDisplayListener(displayListener, null);
+    verify(displayManager, never()).unregisterDisplayListener(displayListener);
 
     DisplayUtil.removeDisplayListener(context);
 
-    verify(displayManager).unregisterDisplayListener(displayListener);
-    assertFalse(ReflectionHelpers.getStaticField(DisplayUtil.class, "sDisplayerListenerAdded"));
+    verify(displayManager, times(1)).unregisterDisplayListener(displayListener);
   }
 }
