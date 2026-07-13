@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Cobalt Dual Picture-in-Picture Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      background-color: #121212;
+      color: #fff;
+      font-family: sans-serif;
+      margin: 0;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    .ui-layer {
+      display: none;
+    }
+
+    .video-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .video-container {
+      display: flex;
+      gap: 40px; /* Precise visual gap cleanly maintained */
+      align-items: center;
+      justify-content: center;
+    }
+
+    .video-wrapper {
+      position: relative; /* Layout naturally via flexbox */
+      width: 533px; /* Slightly larger nice 16:9 533x300 format */
+      height: 300px;
+      transition: all 0.5s ease;
+    }
+
+    /* V1 is Texture mode so it natively supports Web overflow clipping beautifully */
+    #v1-wrap {
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    /* V2 is Overlay mode so it must use stencil masking rather than overflow:hidden */
+    #v2-wrap {
+      border-radius: 16px;
+      /* No overflow hidden here intentionally */
+    }
+
+    .video-wrapper video {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      border: none;
+      object-fit: cover;
+      transition: all 0.5s ease;
+    }
+
+    /* For V2 Hardware Overlay: Precise pixel overscan hiding 4.6px letterboxing safely */
+    #video2 {
+      top: -10px; left: -10px;
+      width: calc(100% + 20px);
+      height: calc(100% + 20px);
+    }
+
+    /* The visual boundary stencil for V2 perfectly sealing the overscan */
+    .overlay-mask {
+      position: absolute;
+      top: -24px; left: -24px;
+      width: calc(100% + 48px);
+      height: calc(100% + 48px);
+      border: 24px solid #121212;
+      border-radius: 40px; /* 40px outer minus 24px border = 16px exact inner hole radius */
+      box-sizing: border-box;
+      pointer-events: none;
+      z-index: 2;
+      transition: all 0.5s ease;
+    }
+
+    .pip-corner {
+      position: fixed;
+      width: 427px;
+      height: 240px;
+      right: 50px;
+      bottom: 50px;
+      z-index: 10;
+      transition: all 0.5s ease;
+    }
+    .fullscreen {
+      border-radius: 0;
+      position: fixed;
+      top: 0; left: 0; bottom: 0; right: 0;
+      width: 100vw; height: 100vh;
+      margin: 0;
+      z-index: 5;
+    }
+    .fullscreen .overlay-mask {
+      opacity: 0;
+    }
+    .fullscreen #video2 {
+      top: 0; left: 0; width: 100%; height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <!-- Keyboard UI Driven: No buttons -->
+
+  <!-- Container for videos -->
+  <div class="video-container">
+    <div id="v1-wrap" class="video-wrapper"><video id="video1" autoplay muted loop playsinline></video></div>
+    <div id="v2-wrap" class="video-wrapper"><video id="video2" autoplay muted loop playsinline></video><div class="overlay-mask"></div></div>
+  </div>
+
+  <script src="dual-pip-demo.js"></script>
+</body>
+</html>
