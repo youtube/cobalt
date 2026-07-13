@@ -39,6 +39,10 @@ env:
     cobalt/testing/browser_tests/tools
     cobalt/testing/filters
     cobalt/tools
+  IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
+  IS_NON_DRAFT_PULL_REQUEST: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false }}
+  RUN_ODT_ON_NIGHTLY: ${{ (inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False' }}
+  RUN_ODT_ON_PUSH: ${{ github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False' }}
 
 jobs:
   # Retrieves configuration from json file.
@@ -286,11 +290,59 @@ jobs:
           echo "enable_sccache=${enable_sccache}" >> $GITHUB_OUTPUT
       - name: Set Docker files checksum
         id: set-docker-hash
+        env:
+          DOCKER_FILES: cobalt/docker docker-compose.yaml
         shell: bash
         run: |
           set -x
-          docker_content_sha=$(find cobalt/docker docker-compose.yaml -type f -exec sha256sum -b {} + | LC_ALL=C sort | sha256sum | head -c 64)
-          echo "docker_content_sha=${docker_content_sha}" >> $GITHUB_OUTPUT
+          read -r -a docker_files <<< "${DOCKER_FILES}"
+          docker_content_sha=$(find "${docker_files[@]}" -type f -exec sha256sum -b {} + | LC_ALL=C sort | sha256sum | head -c 64)
+          echo "docker_content_sha=${docker_content_sha}" >> "$GITHUB_OUTPUT"
+      - name: Generate Expected Test Targets Json
+        id: generate-expected-test-targets-json
+        env:
+          TEST_ON_HOST: ${{ steps.set-test-on-host.outputs.test_on_host }}
+          TEST_ON_DEVICE: ${{ steps.set-test-on-device.outputs.test_on_device }}
+        run: |
+          set -x
+          run_on_device_test="false"
+          expected_tests="[]"
+
+          first_platform=$(jq -r '.platforms[0]' ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json)
+          test_targets_json_file="cobalt/build/testing/targets/${first_platform}/test_targets.json"
+
+          if [ -f "$test_targets_json_file" ]; then
+            if [[ "$TEST_ON_DEVICE" == "true" && (
+                  "$IS_NON_DRAFT_PULL_REQUEST" == "true" ||
+                  "$RUN_ODT_ON_NIGHTLY" == "true" ||
+                  "$RUN_ODT_ON_PUSH" == "true" ) ]]; then
+              run_on_device_test="true"
+            fi
+
+            # The expected test targets is a list of all those targets that we
+            # want standard results processing jobs to apply to. Currently this
+            # includes all gtest and junit test targets that will be executed
+            # in this run.
+            expected_tests=$(jq -c \
+              --arg run_on_device_test "${run_on_device_test}" \
+              --arg run_on_host_test "${TEST_ON_HOST}" \
+              '[
+                .[] | select(
+                  (.target != null) and
+                  (.test_type == "gtest" or .test_type == "junit") and
+                  (
+                    (.runs_on == "device" and $run_on_device_test == "true") or
+                    (.runs_on == "host"  and $run_on_host_test == "true")
+                  )
+                )
+              ]' "${test_targets_json_file}")
+          fi
+
+          {
+            echo "run_on_device_test=${run_on_device_test}"
+            echo "expected_tests_json=${expected_tests}"
+          } >> $GITHUB_OUTPUT
+        shell: bash
     outputs:
       platforms: ${{ steps.set-platforms.outputs.platforms }}
       build_runners: ${{ steps.set-build-runners.outputs.build_runners }}
@@ -322,6 +374,8 @@ jobs:
       num_gtest_shards: ${{ steps.set-gtest-shards.outputs.num_gtest_shards }}
       enable_sccache: ${{ steps.set-enable-sccache.outputs.enable_sccache }}
       docker_service: ${{ steps.set-docker-service.outputs.docker_service }}
+      expected_tests_json: ${{ steps.generate-expected-test-targets-json.outputs.expected_tests_json }}
+      run_on_device_test: ${{ steps.generate-expected-test-targets-json.outputs.run_on_device_test }}
 
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
@@ -508,13 +562,7 @@ jobs:
 
   on-device-test:
     needs: [initialize, build]
-    if: |
-      needs.initialize.outputs.test_on_device == 'true' &&
-        (
-          (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
-          ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
-          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
-        )
+    if: needs.initialize.outputs.run_on_device_test == 'true'
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_on_device_tests
     permissions: {}
@@ -550,8 +598,6 @@ jobs:
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
           test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
           test_attempts: '${{ needs.initialize.outputs.test_attempts }}'
-    outputs:
-      test_targets_json: ${{ steps.parse-device-targets.outputs.test_targets_json }}
 
   e2e-test:
     needs: [initialize, build]
@@ -653,14 +699,7 @@ jobs:
 
   browser-test-on-host:
     needs: [initialize, build, docker-unittest-image]
-    if: |
-      needs.initialize.outputs.run_browser_tests == 'true' &&
-      needs.initialize.outputs.test_on_host == 'true' &&
-      (
-        github.event_name == 'pull_request' ||
-        ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
-        (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
-      )
+    if: needs.initialize.outputs.run_browser_tests == 'true' && needs.initialize.outputs.test_on_host == 'true'
     runs-on: [self-hosted, chrobalt-linux-runner]
     name: ${{ matrix.name }}_browser_tests_on_host
     container:
@@ -686,9 +725,6 @@ jobs:
           platform: ${{ matrix.platform }}
           config: ${{ matrix.config }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
-    outputs:
-      # Browser tests are fixed to a single target.
-      test_targets_json: '["cobalt/testing/browser_tests:cobalt_browsertests"]'
 
   yts-wpt-test:
     needs: [initialize, build]
@@ -778,16 +814,6 @@ jobs:
           num_gtest_shards: 1
           test_executables_json: ${{ steps.parse-host-junit-targets.outputs.test_executables_json }}
           test_type: junit
-      - name: Combine Host Targets
-        id: combine-targets
-        run: |
-          gtests='${{ steps.parse-host-targets.outputs.test_targets_json || '[]' }}'
-          junits='${{ steps.parse-host-junit-targets.outputs.test_targets_json || '[]' }}'
-          combined=$(jq -ncr --argjson g "$gtests" --argjson j "$junits" '$g + $j')
-          echo "combined_test_targets=${combined}" >> $GITHUB_OUTPUT
-        shell: bash
-    outputs:
-      test_targets_json: ${{ steps.combine-targets.outputs.combined_test_targets }}
 
   web-tests:
     needs: [initialize, docker-webtest-image, build]
@@ -856,17 +882,11 @@ jobs:
           test_results_key: Blink Web Test Results ${{ github.workflow }}
 
   test-results:
-    needs: [initialize, build, on-device-test, on-host-test, browser-test-on-host]
-    if: |
-      always() &&
-      (
-        needs.on-device-test.result != 'skipped' ||
-        needs.on-host-test.result != 'skipped' ||
-        needs.browser-test-on-host.result != 'skipped'
-      )
+    needs: [initialize, build, on-device-test, on-host-test]
+    if: always() && needs.initialize.outputs.expected_tests_json != '[]'
     permissions: {}
     runs-on: ubuntu-latest
-    name: ${{ matrix.test_target }}
+    name: ${{ matrix.test_info.target }}
     env:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     strategy:
@@ -875,7 +895,7 @@ jobs:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
-        test_target: ${{ fromJson(needs.on-device-test.outputs.test_targets_json || needs.on-host-test.outputs.test_targets_json || '[]') }}
+        test_info: ${{ fromJson(needs.initialize.outputs.expected_tests_json) }}
     steps:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
@@ -886,10 +906,10 @@ jobs:
       - name: Extract Test Target Name
         id: extract-target-name
         env:
-          test_target_with_path: ${{ matrix.test_target }}
+          test_target_with_path: ${{ matrix.test_info.target }}
         run: echo "test_target=${test_target_with_path#*:}" >> $GITHUB_OUTPUT
         shell: bash
-      - name: Check if ${{ matrix.test_target }} is skipped in test filters
+      - name: Check if ${{ matrix.test_info.target }} is skipped in test filters
         id: filter
         run: |
           set -x
@@ -917,13 +937,13 @@ jobs:
         if: steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/process_test_results
         with:
-          target_name: ${{ matrix.test_target }}
+          target_name: ${{ matrix.test_info.target }}
           results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
           log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
           datadog_api_key: ${{ secrets.datadog_api_key }}
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
-      - name: ${{ matrix.test_target }} Device Logs
-        if: always() && steps.filter.outputs.skipped != 'true' && needs.initialize.outputs.test_on_device == 'true'
+      - name: ${{ matrix.test_info.target }} Device Logs
+        if: always() && steps.filter.outputs.skipped != 'true' && needs.initialize.outputs.test_on_device == 'true' && matrix.test_info.runs_on == 'device'
         continue-on-error: true
         uses: ./.github/actions/print_logs
         with:
@@ -931,7 +951,7 @@ jobs:
           # TODO: Enable symbolization when it works.
           # symbolize: true
           symbolize: 'false'
-      - name: ${{ matrix.test_target }} Test Logs
+      - name: ${{ matrix.test_info.target }} Test Logs
         if: always() && steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/print_logs
         with:

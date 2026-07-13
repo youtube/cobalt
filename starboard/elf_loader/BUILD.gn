@@ -35,6 +35,8 @@ _elf_loader_sources = [
   "program_table.h",
   "relocations.cc",
   "relocations.h",
+  "zstd_file_impl.cc",
+  "zstd_file_impl.h",
 ]
 
 config("elf_loader_config") {
@@ -59,6 +61,7 @@ static_library("elf_loader") {
     "//starboard:starboard_group",
     "//starboard/common",
     "//third_party/lz4_lib:lz4",
+    "//third_party/zstd:decompress",
   ]
 
   if (current_toolchain == starboard_toolchain) {
@@ -69,6 +72,7 @@ static_library("elf_loader") {
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
 if (current_toolchain == starboard_toolchain) {
   target(starboard_level_final_executable_type, "elf_loader_sandbox") {
+    testonly = true
     output_dir = root_build_dir
 
     sources = [ "elf_loader_sandbox.cc" ]
@@ -83,6 +87,10 @@ if (current_toolchain == starboard_toolchain) {
       "//starboard:starboard_group",
       "//starboard/content/fonts:copy_font_data",
     ]
+
+    if (is_android) {
+      deps += [ "//starboard/android/shared:test_support" ]
+    }
 
     if (is_starboard && use_crashpad) {
       deps += [ "//starboard/crashpad_wrapper" ]
@@ -113,6 +121,7 @@ if (current_toolchain == starboard_toolchain) {
         "lz4_file_impl_test.cc",
         "program_table_test.cc",
         "relocations_test.cc",
+        "zstd_file_impl_test.cc",
       ]
       deps += [
         ":copy_elf_loader_testdata",
@@ -130,7 +139,12 @@ copy("copy_elf_loader_testdata") {
   }
   sources = [
     "testdata/compressed.lz4",
+    "testdata/compressed.zst",
+    "testdata/compressed_multi_frame.zst",
     "testdata/compressed_no_content_size.lz4",
+    "testdata/compressed_no_content_size.zst",
+    "testdata/compressed_with_garbage.zst",
+    "testdata/empty.zst",
     "testdata/uncompressed",
   ]
   subdir = "starboard/elf_loader"

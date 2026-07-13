@@ -45,6 +45,7 @@
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/buildflags.h"
 #include "content/public/common/content_client.h"
 #include "net/http/http_response_headers.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
@@ -53,7 +54,7 @@
 #include "services/network/public/cpp/simple_url_loader_stream_consumer.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if BUILDFLAG(ENABLE_DEVTOOLS_FRONTEND)
 #include "base/command_line.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "content/public/browser/devtools_frontend_host.h"
@@ -200,7 +201,7 @@ ShellDevToolsBindings::~ShellDevToolsBindings() {
 
 void ShellDevToolsBindings::ReadyToCommitNavigation(
     NavigationHandle* navigation_handle) {
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if BUILDFLAG(ENABLE_DEVTOOLS_FRONTEND)
   content::RenderFrameHost* frame = navigation_handle->GetRenderFrameHost();
   if (navigation_handle->IsInPrimaryMainFrame()) {
     frontend_host_ = DevToolsFrontendHost::Create(
@@ -226,7 +227,7 @@ void ShellDevToolsBindings::AttachInternal() {
   if (agent_host_) {
     agent_host_->DetachClient(this);
   }
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(ENABLE_DEVTOOLS_FRONTEND)
   const bool create_for_tab = false;
 #else
   const bool create_for_tab = true;

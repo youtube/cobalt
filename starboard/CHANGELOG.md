@@ -195,6 +195,9 @@ The functionality is migrated to use `getauxval` instead.
 * `utimensat`
 * `writev`
 
+Note that concurrent calls to `readdir` that specify different directory
+streams are expected to be thread safe.
+
 ### Removed the following POSIX Symbols:
 The following were removed in favor of more modern POSIX APIs added above.
 * `open`

@@ -31,72 +31,11 @@
 #include "starboard/common/thread_platform.h"
 #include "starboard/system.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "starboard/shared/starboard/features.h"
+#endif
+
 namespace starboard {
-
-namespace {
-
-#if defined(__APPLE__)
-// Returns a value between 0 and 1 that is used by SetThreadPriority() to scale
-// the desired thread priority between what sched_get_priority_min() and
-// sched_get_priority_max() return.
-float ThreadPriorityToRelativeSchedPriority(ThreadPriority priority) {
-  switch (priority) {
-    case ThreadPriority::kLowest:
-      return 0.1f;
-    case ThreadPriority::kLow:
-      return 0.3f;
-    case ThreadPriority::kNoPriority:
-    case ThreadPriority::kNormal:
-      return 0.5f;
-    case ThreadPriority::kHigh:
-      return 0.7f;
-    case ThreadPriority::kHighest:
-      return 0.9f;
-    case ThreadPriority::kRealTime:
-      return 0.99f;
-  }
-  SB_NOTREACHED();
-}
-#endif  // defined(__APPLE__)
-
-// Wrapper for changing a thread's priority. On Linux kernel-based platforms
-// (including Android), this code relies on setpriority(2), which on Linux
-// deviates from the standard and changes per-thread attributes (rather than
-// per-process).
-//
-// On tvOS, use pthread_setschedparam() by translating ThreadPriority into an
-// integer between what sched_get_priority_min() and sched_get_priority_max()
-// return.
-bool SetThreadPriority(ThreadPriority priority) {
-#if defined(__APPLE__)
-  const float relative_priority =
-      ThreadPriorityToRelativeSchedPriority(priority);
-
-  int policy;
-  struct sched_param param;
-
-  // Get the current thread scheduling parameters. Only the thread priority
-  // will be changed.
-  SB_CHECK_EQ(pthread_getschedparam(pthread_self(), &policy, &param), 0);
-  const int min_priority = sched_get_priority_min(policy);
-  const int max_priority = sched_get_priority_max(policy);
-
-  // Thread priority set with pthread does not appear to have the same range
-  // as NSThread priorities. A pthread set to sched_get_priority_max() won't
-  // have NSThread.threadPriority == 1.0. Consider switching to NSThread if a
-  // higher priority is required.
-  param.sched_priority = static_cast<int>(
-      min_priority + relative_priority * (max_priority - min_priority));
-  return (pthread_setschedparam(pthread_self(), policy, &param) == 0);
-#else
-  // setpriority returns 0 on success and -1 on failure. The default nice value
-  // is 0. See https://linux.die.net/man/2/setpriority
-  return (setpriority(PRIO_PROCESS, 0, ThreadPriorityToNiceValue(priority)) ==
-          0);
-#endif  // defined(__APPLE__)
-}
-
-}  // namespace
 
 int ThreadPriorityToNiceValue(ThreadPriority priority) {
   // Nice value settings are shared between Android and Linux.
@@ -129,8 +68,22 @@ struct Thread::Data {
   Semaphore join_sema_;
 };
 
+std::optional<size_t> GetDefaultStackSize() {
+#if BUILDFLAG(IS_ANDROID)
+  if (features::FeatureList::IsEnabled(
+          features::kReduceStarboardThreadStackSize)) {
+    return 256 * 1024;
+  }
+#endif
+  return std::nullopt;
+}
+
 Thread::Thread(std::string_view name, const ThreadOptions& options)
-    : name_(name), priority_(options.priority), d_(std::make_unique<Data>()) {}
+    : name_(name),
+      priority_(options.priority),
+      stack_size_(options.stack_size ? options.stack_size
+                                     : GetDefaultStackSize()),
+      d_(std::make_unique<Data>()) {}
 
 Thread::~Thread() {
   // A started thread must be joined before destruction.
@@ -146,6 +99,14 @@ void Thread::Start() {
 
   pthread_attr_t attributes;
   pthread_attr_init(&attributes);
+
+  if (stack_size_) {
+    if (int err = pthread_attr_setstacksize(&attributes, *stack_size_);
+        err != 0) {
+      SB_LOG(WARNING) << "Failed to set stack size to " << *stack_size_
+                      << ", error: " << err << ". Falling back to default.";
+    }
+  }
 
   const int result =
       pthread_create(&d_->thread_, &attributes, ThreadEntryPoint, this);
@@ -180,14 +141,10 @@ std::atomic_bool* Thread::joined_bool() {
 void* Thread::ThreadEntryPoint(void* context) {
   Thread* this_ptr = static_cast<Thread*>(context);
 
-#if defined(__APPLE__)
-  pthread_setname_np(this_ptr->name_.c_str());
-#else
-  pthread_setname_np(pthread_self(), this_ptr->name_.c_str());
-#endif
+  SetCurrentThreadName(this_ptr->name_.c_str());
   bool priority_set = false;
   if (this_ptr->priority_) {
-    priority_set = SetThreadPriority(*this_ptr->priority_);
+    priority_set = SetCurrentThreadPriority(*this_ptr->priority_);
     if (!priority_set) {
       SB_LOG(WARNING) << "Failed to set thread priority (unsupported on this "
                          "platform): requested_priority="
