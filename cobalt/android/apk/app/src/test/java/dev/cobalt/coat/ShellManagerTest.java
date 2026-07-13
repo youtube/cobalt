@@ -82,7 +82,7 @@ public class ShellManagerTest {
     mShellManager.destroy();
 
     verify(mockShell, never()).close();
-    verify(mMockShellManagerNatives).destroy();
+    verify(mMockShellManagerNatives).destroy(mShellManager);
     assertNull(ReflectionHelpers.getField(mShellManager, "mActiveShell"));
     assertNull(ReflectionHelpers.getField(mShellManager, "mContext"));
   }
@@ -96,6 +96,6 @@ public class ShellManagerTest {
     mShellManager.destroy();
 
     verify(mockShell, never()).close();
-    verify(mMockShellManagerNatives, times(1)).destroy();
+    verify(mMockShellManagerNatives, times(1)).destroy(mShellManager);
   }
 }

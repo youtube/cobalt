@@ -67,8 +67,13 @@ static void JNI_ShellManager_Init(JNIEnv* env,
   g_global_state.Get().j_shell_manager.Reset(obj);
 }
 
-static void JNI_ShellManager_Destroy(JNIEnv* env) {
-  g_global_state.Get().j_shell_manager.Reset();
+static void JNI_ShellManager_Destroy(JNIEnv* env,
+                                     const JavaParamRef<jobject>& obj) {
+  auto& j_shell_manager = g_global_state.Get().j_shell_manager;
+  if (!j_shell_manager.is_null() &&
+      env->IsSameObject(j_shell_manager.obj(), obj.obj())) {
+    j_shell_manager.Reset();
+  }
 }
 
 void JNI_ShellManager_LaunchShell(JNIEnv* env,
