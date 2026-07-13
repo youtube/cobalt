@@ -8,6 +8,7 @@
 #include <string_view>
 #include <variant>
 
+#include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/time/tick_clock.h"
@@ -318,6 +319,10 @@ void HostResolverDnsTask::StartNextTransaction() {
 
   TransactionInfo transaction_info = std::move(transactions_needed_.front());
   transactions_needed_.pop_front();
+
+  LOG(INFO) << "ColinL: HostResolverDnsTask::StartNextTransaction: host=" << host_.GetHostname()
+            << ", query_type=" << static_cast<int>(transaction_info.type)
+            << ", secure=" << secure_;
 
   DCHECK(IsAddressType(transaction_info.type) || secure_ ||
          client_->CanQueryAdditionalTypesViaInsecureDns());

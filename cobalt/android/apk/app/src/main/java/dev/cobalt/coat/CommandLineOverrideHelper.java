@@ -14,6 +14,7 @@
 
 package dev.cobalt.coat;
 
+import dev.cobalt.util.Log;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.StringJoiner;
@@ -108,6 +109,8 @@ public final class CommandLineOverrideHelper {
         paramOverrides.add("SmallerInterestArea");
         paramOverrides.add("ReclaimPrepaintTilesWhenIdle");
         paramOverrides.add("ReclaimOldPrepaintTiles");
+        // Enable Async DNS (built-in resolver).
+        paramOverrides.add("AsyncDns");
 
         return paramOverrides;
     }
@@ -193,6 +196,7 @@ public final class CommandLineOverrideHelper {
         CommandLine.getInstance().appendSwitchesAndArguments(
             new String[]{"--enable-features="
             + enableFeatureOverrides.toString() });
+        Log.i(Log.TAG, "ColinL: Enabled features overrides: %s", enableFeatureOverrides.toString());
         CommandLine.getInstance().appendSwitchesAndArguments(
             new String[]{"--disable-features="
             + disableFeatureOverrides.toString() });

@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "base/containers/linked_list.h"
+#include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/safe_ref.h"
 #include "base/memory/weak_ptr.h"
@@ -708,6 +709,9 @@ void HostResolverManager::Job::StartDnsTask(bool secure) {
   DCHECK_EQ(secure, !dispatched_);
   DCHECK_EQ(dispatched_ ? 1 : 0, num_occupied_job_slots_);
   DCHECK(!resolver_->ShouldForceSystemResolverDueToTestOverride());
+
+  LOG(INFO) << "ColinL: HostResolverManager::Job::StartDnsTask: starting built-in resolver task. secure="
+            << secure << ", host=" << key_.host.GetHostname();
 
   // Need to create the task even if we're going to post a failure instead of
   // running it, as a "started" job needs a task to be properly cleaned up.

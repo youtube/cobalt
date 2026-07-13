@@ -607,6 +607,10 @@ void HostResolverManager::SetInsecureDnsClientEnabled(
     bool additional_dns_types_enabled) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
+  LOG(INFO) << "ColinL: HostResolverManager::SetInsecureDnsClientEnabled: enabled="
+            << enabled << ", additional_dns_types_enabled="
+            << additional_dns_types_enabled;
+
   if (!dns_client_)
     return;
 
@@ -1404,10 +1408,18 @@ void HostResolverManager::CreateTaskSequence(
               !dns_client_->FallbackFromInsecureTransactionPreferred() &&
               (has_address_type ||
                dns_client_->CanQueryAdditionalTypesViaInsecureDns());
+          LOG(INFO) << "ColinL: CreateTaskSequence: using built-in DnsClient. CanUseInsecureDnsTransactions="
+                    << dns_client_->CanUseInsecureDnsTransactions()
+                    << ", FallbackFromInsecureTransactionPreferred="
+                    << dns_client_->FallbackFromInsecureTransactionPreferred()
+                    << ", insecure_allowed=" << insecure_allowed;
           PushDnsTasks(system_task_allowed, job_key.secure_dns_mode,
                        insecure_allowed, allow_cache, prioritize_local_lookups,
                        &*job_key.resolve_context, out_tasks);
         } else if (system_task_allowed) {
+          LOG(INFO) << "ColinL: CreateTaskSequence: built-in DnsClient is "
+                << (dns_client_ ? "present but has no effective config" : "NULL")
+                << ". System task allowed=" << system_task_allowed;
           out_tasks->push_back(TaskType::SYSTEM);
         }
       } else if (has_address_type) {

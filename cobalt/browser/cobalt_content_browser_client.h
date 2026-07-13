@@ -31,6 +31,10 @@
 
 class PrefService;
 
+namespace network::mojom {
+class NetworkService;
+}  // namespace network::mojom
+
 namespace content {
 class BrowserMainParts;
 class RenderFrameHost;
@@ -86,6 +90,8 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   content::StoragePartitionConfig GetStoragePartitionConfigForSite(
       content::BrowserContext* browser_context,
       const GURL& site) override;
+  void OnNetworkServiceCreated(
+      network::mojom::NetworkService* network_service) override;
   void ConfigureNetworkContextParams(
       content::BrowserContext* context,
       bool in_memory,

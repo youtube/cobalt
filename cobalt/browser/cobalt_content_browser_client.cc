@@ -68,8 +68,12 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
+#include "net/base/features.h"
+#include "net/dns/public/dns_over_https_config.h"
+#include "net/dns/public/secure_dns_mode.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
+#include "services/network/public/mojom/network_service.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
@@ -300,6 +304,29 @@ CobaltContentBrowserClient::GetStoragePartitionConfigForSite(
       content::StoragePartitionConfig::CreateDefault(browser_context);
 
   return default_storage_partition_config;
+}
+
+void CobaltContentBrowserClient::OnNetworkServiceCreated(
+    network::mojom::NetworkService* network_service) {
+  content::ShellContentBrowserClient::OnNetworkServiceCreated(network_service);
+
+  const bool async_dns_enabled =
+      base::FeatureList::IsEnabled(net::features::kAsyncDns);
+  LOG(INFO) << "ColinL: CobaltContentBrowserClient::OnNetworkServiceCreated: "
+               "net::features::kAsyncDns is "
+            << (async_dns_enabled ? "ENABLED" : "DISABLED");
+#if BUILDFLAG(IS_ANDROID)
+  if (async_dns_enabled) {
+    LOG(INFO) << "ColinL: Configuring stub host resolver on Android because "
+                 "AsyncDns is enabled";
+    network_service->ConfigureStubHostResolver(
+        /*insecure_dns_client_enabled=*/true,
+        base::FeatureList::IsEnabled(net::features::kHappyEyeballsV3),
+        /*secure_dns_mode=*/net::SecureDnsMode::kAutomatic,
+        net::DnsOverHttpsConfig(),
+        /*additional_dns_types_enabled=*/true);
+  }
+#endif
 }
 
 void CobaltContentBrowserClient::ConfigureNetworkContextParams(

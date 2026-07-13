@@ -721,6 +721,11 @@ void NetworkService::ConfigureStubHostResolver(
     net::SecureDnsMode secure_dns_mode,
     const net::DnsOverHttpsConfig& dns_over_https_config,
     bool additional_dns_types_enabled) {
+  LOG(INFO) << "ColinL: NetworkService::ConfigureStubHostResolver: insecure_dns_client_enabled="
+            << insecure_dns_client_enabled
+            << ", happy_eyeballs_v3_enabled=" << happy_eyeballs_v3_enabled
+            << ", secure_dns_mode=" << static_cast<int>(secure_dns_mode)
+            << ", additional_dns_types_enabled=" << additional_dns_types_enabled;
   // Enable or disable the insecure part of DnsClient. "DnsClient" is the class
   // that implements the stub resolver.
   host_resolver_manager_->SetInsecureDnsClientEnabled(
