@@ -154,9 +154,8 @@ void PlatformServiceImpl::Send(base::span<const uint8_t> data,
   if (invalid_state) {
     std::string error_message = "Starboard service in invalid state";
     if (output_length > 0 && response_ptr) {
-      error_message = std::string(
-          reinterpret_cast<char*>(response_ptr.get()),
-          base::checked_cast<size_t>(output_length));
+      error_message = std::string(reinterpret_cast<char*>(response_ptr.get()),
+                                  base::checked_cast<size_t>(output_length));
     }
     LOG(ERROR) << "Send failed: " << error_message << " for " << service_name_;
     std::move(callback).Run(std::nullopt, error_message);
