@@ -20,49 +20,12 @@
 // in the Loader Application expects. Ad hoc users wanting more flexibility
 // should use the official LZ4 CLI instead.
 
-#include <stdio.h>
-
-#include <cstdint>
 #include <iostream>
 #include <vector>
 
+#include "starboard/tools/file_utils/file_utils.h"
 #include "third_party/lz4_lib/lz4frame.h"
 #include "third_party/lz4_lib/lz4hc.h"
-
-bool ReadFile(const char* file_path, std::vector<char>& buffer) {
-  FILE* file;
-  if ((file = fopen(file_path, "rb")) == NULL) {
-    std::cerr << "Failed to open " << file_path << "\n";
-    return false;
-  }
-
-  if (fseek(file, 0L, SEEK_END) != 0) {
-    std::cerr << "Failed to seek in " << file_path << "\n";
-    fclose(file);
-    return false;
-  }
-  std::int64_t file_size_signed;
-  if ((file_size_signed = ftell(file)) == -1L) {
-    std::cerr << "Failed to get size of " << file_path << "\n";
-    fclose(file);
-    return false;
-  }
-  rewind(file);
-  const size_t file_size = static_cast<size_t>(file_size_signed);
-
-  buffer.resize(file_size);
-  size_t result;
-  if ((result = fread(buffer.data(), sizeof(char), file_size, file)) !=
-      file_size) {
-    std::cerr << "Expected to read " << file_size << " bytes from " << file_path
-              << " but only read " << result << "\n";
-    fclose(file);
-    return false;
-  }
-
-  fclose(file);
-  return true;
-}
 
 bool Compress(std::vector<char>& src_buffer, std::vector<char>& dst_buffer) {
   // Based on experimentation these preferences yield a high compression ratio
@@ -90,50 +53,26 @@ bool Compress(std::vector<char>& src_buffer, std::vector<char>& dst_buffer) {
   return true;
 }
 
-bool WriteFile(const char* file_path, std::vector<char>& buffer) {
-  FILE* file;
-  if ((file = fopen(file_path, "wb")) == NULL) {
-    std::cerr << "Failed to open " << file_path << "\n";
-    return false;
-  }
-
-  size_t result;
-  if ((result = fwrite(buffer.data(), sizeof(char), buffer.size(), file)) !=
-      buffer.size()) {
-    std::cerr << "Expected to write " << buffer.size() << " bytes to "
-              << file_path << " but only wrote " << result << "\n";
-    fclose(file);
-    return false;
-  }
-
-  fclose(file);
-  return true;
-}
-
 int main(int argc, char* argv[]) {
   if (argc != 3) {
-    std::cerr << "Usage: lz4_compress <source> <destination>"
-              << "\n";
+    std::cerr << "Usage: lz4_compress <source> <destination>\n";
     return 1;
   }
 
   std::vector<char> src_buffer;
-  if (!ReadFile(argv[1], src_buffer)) {
-    std::cerr << "Failed to read the src file"
-              << "\n";
+  if (!starboard::tools::ReadFile(argv[1], src_buffer)) {
+    std::cerr << "Failed to read the src file\n";
     return 1;
   }
 
   std::vector<char> dst_buffer;
   if (!Compress(src_buffer, dst_buffer)) {
-    std::cerr << "Failed to compress"
-              << "\n";
+    std::cerr << "Failed to compress\n";
     return 1;
   }
 
-  if (!WriteFile(argv[2], dst_buffer)) {
-    std::cerr << "Failed to write the dst file"
-              << "\n";
+  if (!starboard::tools::WriteFile(argv[2], dst_buffer)) {
+    std::cerr << "Failed to write the dst file\n";
     return 1;
   }
 
