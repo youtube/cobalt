@@ -29,8 +29,11 @@
 # limitations under the License.
 
 import("//starboard/build/config/linux/rdk/config_variables.gni")
+import("//starboard/build/config/toolchain_variables.gni")
 import("//build/config/linux/pkg_config.gni")
 import("$rdk_starboard_root/third_party/starboard/rdk/shared/build/rdk_toolchain.gni")
+
+assert(is_starboard_toolchain)
 
 declare_args() {
   rdk_enable_securityagent = true
@@ -376,7 +379,7 @@ group("loader_app_rdk_plugin") {
   data_deps = [":loader_app($starboard_toolchain)"]
 }
 
-if (is_starboard && current_toolchain == starboard_toolchain) {
+if (is_starboard) {
   if (starboard_level_final_executable_type == "shared_library") {
     group("loader_app") {
       deps = [ "//starboard/loader_app:loader_app" ]

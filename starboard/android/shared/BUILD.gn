@@ -23,6 +23,8 @@ import("//testing/test.gni")
 # Configuration for overall Android Starboard Platform.
 ##########################################################
 
+assert(is_starboard_toolchain)
+
 config("starboard_platform_libs") {
   libs = [
     "EGL",
@@ -318,7 +320,7 @@ static_library("starboard_platform") {
     ]
   }
 
-  if (is_starboard && current_toolchain == starboard_toolchain) {
+  if (is_starboard) {
     sources -= [
       "crash_handler.cc",
       "crash_handler.h",
@@ -366,7 +368,7 @@ static_library("starboard_base_symbolize") {
     "//starboard:starboard_headers_only",
     "//starboard/common:common_headers_only",
   ]
-  if (is_starboard && current_toolchain == starboard_toolchain) {
+  if (is_starboard) {
     public_deps = [ "//starboard/elf_loader:evergreen_info" ]
   }
 
