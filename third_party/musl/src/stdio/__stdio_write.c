@@ -22,7 +22,7 @@ size_t __stdio_write(FILE *f, const unsigned char *buf, size_t len)
 		// avoid truncation. One byte is kept for the NUL.
 		char line[4096];
 		size_t n = 0;
-		for (int i = 0; i < sizeof spans / sizeof *spans; i++) {
+		for (size_t i = 0; i < sizeof(spans) / sizeof(spans[0]); i++) {
 			const unsigned char *p = spans[i];
 			for (size_t j = 0; j < span_lens[i]; j++) {
 				line[n++] = p[j];
