@@ -195,7 +195,8 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   };
 
   class DecoderThread;
-  void DecoderThreadFunc();
+  void AudioDecoderThreadFunc();
+  void VideoDecoderThreadFunc();
 
   // TODO(b/329686979): Consider turning MediaDecoder into a class hierarchy to
   // simplify the handling of threading, including the difference of a/v
