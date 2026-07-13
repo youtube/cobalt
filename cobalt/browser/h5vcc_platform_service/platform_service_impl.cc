@@ -138,7 +138,8 @@ void PlatformServiceImpl::Send(base::span<const uint8_t> data,
   if (!api) {
     LOG(WARNING) << "The platform service extension is not implemented on this "
                  << "platform";
-    std::move(callback).Run(std::nullopt);  // Signal error to renderer
+    std::move(callback).Run(std::nullopt,
+                            "Platform service extension not implemented");
     return;
   }
 
