@@ -17,7 +17,6 @@ package dev.cobalt.coat;
 import static dev.cobalt.util.Log.TAG;
 
 import dev.cobalt.util.Log;
-
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.JniType;
@@ -41,22 +40,22 @@ public abstract class CobaltService {
     /** Create the service. */
     public CobaltService createCobaltService(long nativeService);
 
-        /** Get the name of the service. */
-        public String getServiceName();
-    }
+    /** Get the name of the service. */
+    public String getServiceName();
+  }
 
-    /** Take in a reference to StarboardBridge & use it as needed. Default behavior is no-op. */
-    public void receiveStarboardBridge(StarboardBridge bridge) {}
+  /** Take in a reference to StarboardBridge & use it as needed. Default behavior is no-op. */
+  public void receiveStarboardBridge(StarboardBridge bridge) {}
 
-    /** Take in a reference to BaseStarboardBridge & use it as needed. Default behavior is no-op. */
-    public void receiveBaseStarboardBridge(BaseStarboardBridge bridge) {}
+  /** Take in a reference to BaseStarboardBridge & use it as needed. Default behavior is no-op. */
+  public void receiveBaseStarboardBridge(BaseStarboardBridge bridge) {}
 
-    // Lifecycle
-    /** Prepare service for start or resume. */
-    public abstract void beforeStartOrResume();
+  // Lifecycle
+  /** Prepare service for start or resume. */
+  public abstract void beforeStartOrResume();
 
-    /** Prepare service for suspend. */
-    public abstract void beforeSuspend();
+  /** Prepare service for suspend. */
+  public abstract void beforeSuspend();
 
   /** Prepare service for stop. */
   public abstract void afterStopped();
