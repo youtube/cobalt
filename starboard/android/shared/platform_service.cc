@@ -60,8 +60,10 @@ starboard::ResponseToClientInfo FromJniType<starboard::ResponseToClientInfo>(
     const JavaRef<jobject>& j_response) {
   starboard::ResponseToClientInfo info;
   if (base::android::HasException(env)) {
-    jni_zero::ScopedJavaLocalRef<jthrowable> throwable(
-        env, env->ExceptionOccurred());
+    jthrowable raw_throwable =
+        static_cast<jthrowable>(env->ExceptionOccurred());
+    auto throwable =
+        jni_zero::ScopedJavaLocalRef<jthrowable>::Adopt(env, raw_throwable);
     base::android::ClearException(env);
     std::string exception_info =
         base::android::GetJavaExceptionInfo(env, throwable);
