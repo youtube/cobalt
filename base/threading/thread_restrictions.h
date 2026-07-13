@@ -214,8 +214,15 @@ namespace chromecast {
 class CrashUtil;
 }
 #if BUILDFLAG(IS_COBALT)
+namespace base {
+class Version;
+}
 namespace cobalt {
 class AppEventRunnerImpl;
+namespace updater {
+class UpdaterModule;
+base::Version ReadEvergreenVersion(base::FilePath installation_dir);
+}
 }
 #endif  // BUILDFLAG(IS_COBALT)
 namespace chromeos {
@@ -688,6 +695,10 @@ class BASE_EXPORT ScopedAllowBlocking {
   friend void chrome::SessionEnding();
   friend bool chromeos::system::IsCoreSchedulingAvailable();
   friend int chromeos::system::NumberOfPhysicalCores();
+#if BUILDFLAG(IS_COBALT)
+  friend base::Version cobalt::updater::ReadEvergreenVersion(
+    base::FilePath installation_dir);
+#endif  // BUILDFLAG(IS_COBALT)
   friend base::File content::CreateFileForDrop(
       base::FilePath* file_path);  // http://crbug.com/110709
   friend bool disk_cache::CleanupDirectorySync(const base::FilePath&);
@@ -869,6 +880,7 @@ class BASE_EXPORT
   // base::WaitableEvent under the hood, we must explicitly whitelist the modular
   // platform shell runner here to authorize main-thread sync waiting.
   friend class cobalt::AppEventRunnerImpl;
+  friend class cobalt::updater::UpdaterModule;
 #endif  // BUILDFLAG(IS_COBALT)
   friend class content::DesktopCaptureDevice;
   friend class content::EmergencyTraceFinalisationCoordinator;

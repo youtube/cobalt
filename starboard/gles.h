@@ -14,20 +14,19 @@
 
 // Module Overview: Starboard GLES API
 //
-// The GLES API provides an interface with accompanying type declarations and
-// defines that together provide a single consistent method of GLES usage across
-// platforms.
+// The GLES API provides an interface along with type declarations and
+// definitions. Together, these provide a single, consistent method for GLES
+// usage across platforms.
 //
-// This API is designed to abstract the differences between GLES implementations
-// and versions on different systems, and to remove the requirement for any
-// other code to directly pull in and use these system libraries.
+// This API is designed to abstract differences between GLES implementations and
+// versions across various systems. It also removes the need for other code to
+// directly import and use system libraries.
 //
 // # GLES Version
 //
-// This API has the ability to support GLES 3.0, however platforms are not
-// required to support anything beyond GLES 2.0. The caller is responsible for
-// ensuring that the functions from GLES 3.0 they are calling from the interface
-// are valid.
+// While this API can support GLES 3.0, platforms are only required to support
+// GLES 2.0. Callers are responsible for ensuring that any GLES 3.0 functions
+// they call through the interface are valid.
 
 #ifndef STARBOARD_GLES_H_
 #define STARBOARD_GLES_H_
@@ -44,7 +43,7 @@ extern "C" {
 #endif
 
 // The following type definitions were adapted from the types declared in
-// https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h.
+// [gl2.h](https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h).
 typedef uint8_t SbGlBoolean;
 typedef uint32_t SbGlBitfield;
 typedef char SbGlChar;
@@ -64,11 +63,11 @@ typedef uint32_t SbGlUInt32;
 typedef uint64_t SbGlUInt64;
 typedef void SbGlVoid;
 
-// Some compilers will transform the intptr_t to an int transparently behind the
-// scenes, which is not equivalent to a long int, or long long int, as far as
-// the compiler is concerned. We check the Starboard configuration and set the
-// types to those exact types used by OpenGL ES 2.0
-// (https://www.khronos.org/registry/OpenGL/api/GLES2/gl2ext.h).
+// Some compilers implicitly convert `intptr_t` to `int`. However, this is not
+// equivalent to a `long int` or `long long int` from the compiler's
+// perspective. Starboard checks the platform configuration and sets the types
+// to match those used by OpenGL ES 2.0 (see
+// [gl2ext.h](https://www.khronos.org/registry/OpenGL/api/GLES2/gl2ext.h)).
 #if (SB_SIZE_OF(POINTER) == 8) && (SB_SIZE_OF(LONG) == 4)
 typedef long long int SbGlIntPtr;    // NOLINT
 typedef long long int SbGlSizeiPtr;  // NOLINT
@@ -766,8 +765,8 @@ typedef struct SbGlesInterface {
 
 SB_EXPORT const SbGlesInterface* SbGetGlesInterface();
 
-// Previously defined in
-// https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h
+// Previously defined
+// in[gl2.h](https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h)
 #define SB_GL_DEPTH_BUFFER_BIT 0x00000100
 #define SB_GL_STENCIL_BUFFER_BIT 0x00000400
 #define SB_GL_COLOR_BUFFER_BIT 0x00004000
@@ -1073,7 +1072,7 @@ SB_EXPORT const SbGlesInterface* SbGetGlesInterface();
 #define SB_GL_INVALID_FRAMEBUFFER_OPERATION 0x0506
 
 // Previously defined in
-// https://www.khronos.org/registry/OpenGL/api/GLES3/gl3.h.
+// [gl3.h](https://www.khronos.org/registry/OpenGL/api/GLES3/gl3.h).
 #define SB_GL_READ_BUFFER 0x0C02
 #define SB_GL_UNPACK_ROW_LENGTH 0x0CF2
 #define SB_GL_UNPACK_SKIP_ROWS 0x0CF3

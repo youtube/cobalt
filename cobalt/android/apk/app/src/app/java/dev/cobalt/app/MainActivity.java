@@ -17,6 +17,7 @@ package dev.cobalt.app;
 import android.app.Activity;
 import android.app.Service;
 import android.os.Bundle;
+
 import dev.cobalt.coat.ArtworkDownloaderDefault;
 import dev.cobalt.coat.CobaltActivity;
 import dev.cobalt.coat.CobaltService;
@@ -32,21 +33,21 @@ import dev.cobalt.util.Holder;
  */
 public class MainActivity extends CobaltActivity {
 
-  @Override
-  protected StarboardBridge createStarboardBridge(String[] args, String startDeepLink) {
-    Holder<Activity> activityHolder = new Holder<>();
-    Holder<Service> serviceHolder = new Holder<>();
-    StarboardBridge bridge =
-        new StarboardBridge(
-            getApplicationContext(),
-            activityHolder,
-            serviceHolder,
-            new ArtworkDownloaderDefault(),
-            args,
-            startDeepLink);
+    @Override
+    protected StarboardBridge createStarboardBridge(String[] args, String startDeepLink) {
+        Holder<Activity> activityHolder = new Holder<>();
+        Holder<Service> serviceHolder = new Holder<>();
+        StarboardBridge bridge =
+                new StarboardBridge(
+                        getApplicationContext(),
+                        activityHolder,
+                        serviceHolder,
+                        new ArtworkDownloaderDefault(),
+                        args,
+                        startDeepLink);
 
-    CobaltService.Factory clientLogInfoFactory =
-        new ClientLogInfoModule().provideFactory(getApplicationContext());
+        CobaltService.Factory clientLogInfoFactory =
+                new ClientLogInfoModule().provideFactory(getApplicationContext());
     bridge.registerCobaltService(clientLogInfoFactory);
 
     return bridge;

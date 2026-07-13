@@ -13,12 +13,11 @@
 // limitations under the License.
 
 #include <android/asset_manager.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <unistd.h>
 
 #include "starboard/android/shared/file_internal.h"
-#include "starboard/common/log.h"
 
 using starboard::IsAndroidAssetPath;
 using starboard::OpenAndroidAsset;
@@ -29,36 +28,47 @@ using starboard::OpenAndroidAssetDir;
 ///////////////////////////////////////////////////////////////////////////////
 
 extern "C" {
-int __real_stat(const char* path, struct stat* info);
 
-// This needs to be exported to ensure shared_library targets include it.
+int __real_fstatat(int dirfd, const char* path, struct stat* info, int flags);
+int __wrap_fstatat(int dirfd, const char* path, struct stat* info, int flags);
+
 int __wrap_stat(const char* path, struct stat* info) {
-  // SbFileExists(path) implementation for Android
+  return __wrap_fstatat(AT_FDCWD, path, info, 0);
+}
+
+int __wrap_fstatat(int dirfd, const char* path, struct stat* info, int flags) {
   if (!IsAndroidAssetPath(path)) {
-    return __real_stat(path, info);  // Using system level stat call
+    return __real_fstatat(dirfd, path, info, flags);
   }
 
-  int file = open(path, O_RDONLY, S_IRUSR | S_IWUSR);
-  if (file >= 0) {
-    int result = fstat(file, info);
-    close(file);
-    return result;
+  if (info == NULL) {
+    errno = EFAULT;
+    return -1;
   }
 
-  // Values from SbFileGetPathInfo
-  if (IsAndroidAssetPath(path)) {
-    AAssetDir* asset_dir = OpenAndroidAssetDir(path);
-    if (asset_dir) {
-      info->st_mode = S_IFDIR;
-      info->st_ctime = 0;
-      info->st_atime = 0;
-      info->st_mtime = 0;
-      info->st_size = 0;
-      AAssetDir_close(asset_dir);
-      return 0;
-    }
+  // Asset paths are absolute (/cobalt/assets/...), so `dirfd` is irrelevant.
+  if (AAsset* asset = OpenAndroidAsset(path)) {
+    // Assets are immutable APK content, so report them read-only.
+    info->st_mode = S_IFREG | S_IRUSR;  // Read-only regular file.
+    info->st_ctime = 0;
+    info->st_atime = 0;
+    info->st_mtime = 0;
+    info->st_size = AAsset_getLength(asset);
+    AAsset_close(asset);
+    return 0;
   }
 
+  if (AAssetDir* asset_dir = OpenAndroidAssetDir(path)) {
+    info->st_mode = S_IFDIR | S_IRUSR | S_IXUSR;  // Read-only, traversable dir.
+    info->st_ctime = 0;
+    info->st_atime = 0;
+    info->st_mtime = 0;
+    info->st_size = 0;
+    AAssetDir_close(asset_dir);
+    return 0;
+  }
+
+  errno = ENOENT;
   return -1;
 }
 

@@ -441,7 +441,7 @@ if (!is_robolectric && enable_java_templates) {
     }
 
     action_with_pydeps(target_name) {
-      forward_variables_from(invoker, TESTONLY_AND_VISIBILITY + [ "deps" ])
+      forward_variables_from(invoker, TESTONLY_AND_VISIBILITY + [ "deps", "gen_deps" ])
       script = "//build/android/gyp/write_native_libraries_java.py"
       outputs = [ _native_libraries_file ]
       args = [
@@ -1245,6 +1245,7 @@ if (!is_robolectric && enable_java_templates) {
     }
 
     java_library_impl(_java_binary_target_name) {
+      if (!is_cobalt) {
       forward_variables_from(invoker,
                              "*",
                              TESTONLY_AND_VISIBILITY + [
@@ -1252,6 +1253,18 @@ if (!is_robolectric && enable_java_templates) {
                                    "extra_args",
                                    "shared_libraries",
                                  ])
+      } else {
+        # TODO(b/524712602): Refactor runtime deps generation for Robolectric
+        # binaries for Cobalt.
+        forward_variables_from(invoker,
+                               "*",
+                               TESTONLY_AND_VISIBILITY + [
+                                     "deps",
+                                     "extra_args",
+                                     "ignore_all_data_deps",
+                                     "shared_libraries",
+                                   ])
+      }
       type = "robolectric_binary"
       main_target_name = invoker.target_name
 
@@ -1293,6 +1306,11 @@ if (!is_robolectric && enable_java_templates) {
       test_suite = invoker.target_name
       test_type = "junit"
       ignore_all_data_deps = true
+      if (is_cobalt && defined(invoker.ignore_all_data_deps)) {
+        # TODO(b/524712602): Refactor runtime deps generation for Robolectric
+        # binaries for Cobalt.
+        ignore_all_data_deps = invoker.ignore_all_data_deps
+      }
       resource_apk = _apkbuilder_output
       deps = [
         ":$_apkbuilder_target_name",
@@ -2666,8 +2684,11 @@ if (!is_robolectric && enable_java_templates) {
         } else if (defined(_use_secondary_abi)) {
           if (_use_secondary_abi) {
             native_libraries_list_file = _secondary_abi_shared_library_list_file
+            gen_deps =
+                [ ":${_template_name}__secondary_abi_shared_library_list" ]
           } else {
             native_libraries_list_file = _shared_library_list_file
+            gen_deps = [ ":${_template_name}__shared_library_list" ]
           }
         }
 

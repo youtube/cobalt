@@ -1340,6 +1340,14 @@ component("base") {
       sources += [ "android/reached_code_profiler_stub.cc" ]
     }
 
+    # TODO(https://crbug.com/495203133): the native_target partner toolchain
+    # compiles debug/stack_trace_android.cc but links neither an unwinder nor
+    # Starboard's unwind_starboard, leaving the _Unwind_* symbols it references
+    # undefined.
+    if (!is_starboard) {
+      sources += [ "debug/cobalt_unwind_stubs.cc" ]
+    }
+
     # This is actually a linker script, but it can be added to the link in the
     # same way as a library.
     libs += [ "android/library_loader/anchor_functions.lds" ]
@@ -1369,6 +1377,8 @@ component("base") {
       "android/jni_android.h",
       "android/jni_array.cc",
       "android/jni_array.h",
+      "android/jni_bytebuffer.cc",
+      "android/jni_bytebuffer.h",
       "android/jni_generator/jni_generator_helper.h",
       "android/jni_int_wrapper.h",
       "android/jni_registrar.cc",
@@ -1393,7 +1403,9 @@ component("base") {
 
     deps += [
       ":base_jni",
+      ":jni_android_jni",
       ":process_launcher_jni",
+      "//build:robolectric_buildflags",
     ]
   }  # is_android || is_robolectric
 
@@ -3836,6 +3848,7 @@ test("base_unittests") {
       "android/java_handler_thread_unittest.cc",
       "android/jni_android_unittest.cc",
       "android/jni_array_unittest.cc",
+      "android/jni_bytebuffer_unittest.cc",
       "android/jni_string_unittest.cc",
       "android/library_loader/library_prefetcher_unittest.cc",
       "android/linker/linker_jni.cc",
@@ -4254,6 +4267,7 @@ if (is_android || is_robolectric) {
       "android/java/src/org/chromium/base/library_loader/LibraryLoader.java",
       "android/java/src/org/chromium/base/library_loader/LibraryPrefetcher.java",
       "android/java/src/org/chromium/base/memory/JavaHeapDumpGenerator.java",
+      "android/java/src/org/chromium/base/memory/CobaltMemoryInfoBridge.java",
       "android/java/src/org/chromium/base/memory/MemoryInfoBridge.java",
       "android/java/src/org/chromium/base/metrics/NativeUmaRecorder.java",
       "android/java/src/org/chromium/base/metrics/StatisticsRecorderAndroid.java",
@@ -4268,7 +4282,10 @@ if (is_android || is_robolectric) {
   }
 
   generate_jar_jni("android_runtime_jni_headers") {
-    classes = [ "java/lang/Runtime.class" ]
+    classes = [
+      "java/lang/Runtime.class",
+      "java/lang/Throwable.class",
+    ]
   }
 
   generate_jar_jni("android_runtime_unchecked_jni_headers") {
@@ -4280,6 +4297,10 @@ if (is_android || is_robolectric) {
     sources = [
       "android/java/src/org/chromium/base/process_launcher/ChildProcessService.java",
     ]
+  }
+
+  generate_jni("jni_android_jni") {
+    sources = [ "android/java/src/org/chromium/base/JniAndroid.java" ]
   }
 }  # is_android || is_robolectric
 
@@ -4371,6 +4392,7 @@ if (is_android) {
       "//third_party/androidx:androidx_annotation_annotation_java",
       "//third_party/androidx:androidx_collection_collection_java",
       "//third_party/androidx:androidx_core_core_java",
+      "//third_party/jni_zero:jni_zero_java",
     ]
 
     sources = [
@@ -4451,6 +4473,7 @@ if (is_android) {
       "android/java/src/org/chromium/base/lifetime/DestroyChecker.java",
       "android/java/src/org/chromium/base/lifetime/Destroyable.java",
       "android/java/src/org/chromium/base/memory/JavaHeapDumpGenerator.java",
+      "android/java/src/org/chromium/base/memory/CobaltMemoryInfoBridge.java",
       "android/java/src/org/chromium/base/memory/MemoryInfoBridge.java",
       "android/java/src/org/chromium/base/memory/MemoryPressureCallback.java",
       "android/java/src/org/chromium/base/memory/MemoryPressureMonitor.java",

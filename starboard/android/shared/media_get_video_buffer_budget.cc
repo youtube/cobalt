@@ -17,6 +17,8 @@
 #include "starboard/android/shared/runtime_resource_overlay.h"
 #include "starboard/common/log.h"
 #include "starboard/media.h"
+#include "starboard/shared/starboard/features.h"
+#include "starboard/shared/starboard/media/resolutions.h"
 
 namespace {
 
@@ -35,6 +37,19 @@ namespace {
 // TODO: b/416039556 - Allow starboard::feature to override this value, once
 // b/416039556 is completed.
 constexpr int kMaxVideoBufferBudget = 200 * 1024 * 1024;
+
+// Specifies the maximum amount of memory used by video buffers of media
+// source before triggering a garbage collection when the video resolution
+// is up to 1080p (1920x1080) or invalid.
+constexpr int kVideoBufferBudget1080p = 30 * 1024 * 1024;
+// Specifies the maximum amount of memory used by video buffers of media
+// source before triggering a garbage collection when the video resolution
+// is up to 4k (3840x2160) and bit per pixel is up to 8.
+constexpr int kVideoBufferBudget4KSdr = 100 * 1024 * 1024;
+// Specifies the maximum amount of memory used by video buffers of media
+// source before triggering a garbage collection when video resolution is
+// up to 4k (3840x2160) and bit per pixel is greater than 8.
+constexpr int kVideoBufferBudget4KHdr = 160 * 1024 * 1024;
 
 }  // namespace
 
@@ -57,30 +72,39 @@ int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
       get_overlaid_video_buffer_budget();
 
   int video_buffer_budget = 0;
-  if ((resolution_width <= 1920 && resolution_height <= 1080) ||
-      resolution_width == kSbMediaVideoResolutionDimensionInvalid ||
-      resolution_height == kSbMediaVideoResolutionDimensionInvalid) {
-    // Specifies the maximum amount of memory used by video buffers of media
-    // source before triggering a garbage collection when the video resolution
-    // is up to 1080p (1920x1080) or invalid.
-    video_buffer_budget = 30 * 1024 * 1024;
-  } else if (resolution_width <= 3840 && resolution_height <= 2160) {
-    if (bits_per_pixel <= 8) {
-      // Specifies the maximum amount of memory used by video buffers of media
-      // source before triggering a garbage collection when the video resolution
-      // is up to 4k (3840x2160) and bit per pixel is up to 8.
-      video_buffer_budget = 100 * 1024 * 1024;
+  starboard::Size resolution(resolution_width, resolution_height);
+
+  if (starboard::features::FeatureList::IsEnabled(
+          starboard::features::kAreaBasedVideoBufferBudget)) {
+    if (resolution.IsEmpty() ||
+        resolution.GetArea() <= starboard::Resolution::k1080p.GetArea()) {
+      video_buffer_budget = kVideoBufferBudget1080p;
+    } else if (resolution.GetArea() <= starboard::Resolution::k4k.GetArea()) {
+      if (bits_per_pixel <= 8) {
+        video_buffer_budget = kVideoBufferBudget4KSdr;
+      } else {
+        video_buffer_budget = kVideoBufferBudget4KHdr;
+      }
     } else {
-      // Specifies the maximum amount of memory used by video buffers of media
-      // source before triggering a garbage collection when video resolution is
-      // up to 4k (3840x2160) and bit per pixel is greater than 8.
-      video_buffer_budget = 160 * 1024 * 1024;
+      video_buffer_budget = kMaxVideoBufferBudget;
     }
   } else {
-    // Specifies the maximum amount of memory used by video buffers of media
-    // source before triggering a garbage collection when the video resolution
-    // is above 4K (e.g., 8K).
-    video_buffer_budget = kMaxVideoBufferBudget;
+    if (resolution.FitsWithin(starboard::Resolution::k1080p) ||
+        resolution_width == kSbMediaVideoResolutionDimensionInvalid ||
+        resolution_height == kSbMediaVideoResolutionDimensionInvalid) {
+      video_buffer_budget = kVideoBufferBudget1080p;
+    } else if (resolution.FitsWithin(starboard::Resolution::k4k)) {
+      if (bits_per_pixel <= 8) {
+        video_buffer_budget = kVideoBufferBudget4KSdr;
+      } else {
+        video_buffer_budget = kVideoBufferBudget4KHdr;
+      }
+    } else {
+      // Specifies the maximum amount of memory used by video buffers of media
+      // source before triggering a garbage collection when the video resolution
+      // is above 4K (e.g., 8K).
+      video_buffer_budget = kMaxVideoBufferBudget;
+    }
   }
 
   return std::min(video_buffer_budget, overlaid_video_buffer_budget);

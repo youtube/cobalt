@@ -56,4 +56,7 @@ from any Thread/TaskRunner, or if it's Thread/TaskRunner-affine.
 
 # Feature Gating & Removal (Binary Size Optimization)
 
-When reviewing pull requests that surgically remove, disable, or gate any web API or feature in Cobalt/Chrobalt to optimize binary size, the changes **must** strictly observe the surgical feature removal pipeline and guidelines documented in the project's single source of truth: **[Surgical Feature Removal Guide (SKILL.md)](/cobalt/tools/binary_size/SKILL.md)**.
+When reviewing pull requests that surgically remove, disable, or gate any web API or feature in Cobalt/Chrobalt to optimize binary size, the changes **must** strictly observe the corresponding guidelines:
+
+*   **Surgical Feature Gating**: For general gating of features, custom build flags, IWYU preprocessor rules, targets pruning, C++ integration gating, and exposed binders, follow the guidelines and check the PR audit checklist in **[Surgical Feature Gating Rules](/cobalt/tools/binary_size/surgical_feature_gating_rules.md)**.
+*   **Hybrid Feature Removal & Stubbing**: For Blink/Renderer-side component exclusions, Web IDL modularity (Partial IDL patterns), and centralized C++ & V8 stubbing, follow the guidelines and check the PR audit checklist in **[Hybrid Feature Removal Rules](/cobalt/tools/binary_size/hybrid_feature_removal_rules.md)**.

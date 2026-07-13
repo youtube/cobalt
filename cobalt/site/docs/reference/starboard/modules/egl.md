@@ -47,8 +47,7 @@ EGL_VERSION_1_4
 
 ### SbEglCastsToProperFunctionPointerType
 
-The following type definitions were adapted from the types declared in [https://www.khronos.org/registry/EGL/api/EGL/egl.h](https://www.khronos.org/registry/EGL/api/EGL/egl.h)
-.
+The following type definitions were adapted from the types declared in [https://www.khronos.org/registry/EGL/api/EGL/egl.h](https://www.khronos.org/registry/EGL/api/EGL/egl.h).
 
 #### Definition
 
@@ -58,8 +57,7 @@ typedef void(* SbEglCastsToProperFunctionPointerType) (void)
 
 ### SbEglInt32
 
-The following type definitions were adapted from the types declared in [https://www.khronos.org/registry/EGL/api/EGL/eglplatform.h](https://www.khronos.org/registry/EGL/api/EGL/eglplatform.h)
-.
+The following type definitions were adapted from the types declared in [https://www.khronos.org/registry/EGL/api/EGL/eglplatform.h](https://www.khronos.org/registry/EGL/api/EGL/eglplatform.h).
 
 #### Definition
 
@@ -104,7 +102,7 @@ typedef int32_t SbEglInt32
     SbEglSurface read, SbEglContext ctx)`
 *   `SbEglBoolean(*eglQueryContext)(SbEglDisplay dpy, SbEglContext ctx,
     SbEglInt32 attribute, SbEglInt32 *value)`
-*   `const char *(*eglQueryString)(SbEglDisplay dpy, SbEglInt32 name)`
+*   `const char*(*eglQueryString)(SbEglDisplay dpy, SbEglInt32 name)`
 *   `SbEglBoolean(*eglQuerySurface)(SbEglDisplay dpy, SbEglSurface surface,
     SbEglInt32 attribute, SbEglInt32 *value)`
 *   `SbEglBoolean(*eglSwapBuffers)(SbEglDisplay dpy, SbEglSurface surface)`

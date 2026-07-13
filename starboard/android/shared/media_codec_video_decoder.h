@@ -47,6 +47,7 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
@@ -100,6 +101,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
                    const TunnelModeConfig& tunnel_mode_config,
                    const PipelineConfig& pipeline_config,
                    const PlatformOptions& platform_options);
+
+  static void SetVideoFramePoolEnabled(bool enabled);
 
   MediaCodecVideoDecoder(
       PassKey<MediaCodecVideoDecoder>,
@@ -196,7 +199,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const bool use_dual_threads_;
 
   // SurfaceView from AndroidOverlay passed from StarboardRenderer to SbPlayer.
-  void* surface_view_;
+  jni_zero::ScopedJavaGlobalRef<jobject> surface_view_;
 
   const bool enable_flush_during_seek_;
   const int64_t reset_delay_usec_;
@@ -218,7 +221,9 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // Enable the workaround to ignore stale/dirty MediaCodec callback messages
   // queued on the main thread during a flush.
   const bool ignore_mediacodec_callbacks_during_flushing_;
+  const bool enable_trivial_optimizations_;
   const bool enable_low_latency_;
+  const bool enable_ndk_video_;
 
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline
@@ -272,9 +277,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // invocation of ReleaseVideoSurface(), though ReleaseVideoSurface() would
   // do nothing if not own the surface.
   bool owns_video_surface_ = false;
-  std::mutex surface_destroy_mutex_;
-  std::condition_variable surface_condition_variable_;
-  bool surface_destroyed_ = false;  // Guarded by |surface_destroy_mutex_|.
+  scoped_refptr<SurfaceDestroyNotifier> surface_destroy_notifier_;
 
   std::vector<scoped_refptr<InputBuffer>> pending_input_buffers_;
   int video_fps_ = 0;

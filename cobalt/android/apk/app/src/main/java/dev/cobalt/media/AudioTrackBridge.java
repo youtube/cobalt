@@ -59,6 +59,11 @@ public class AudioTrackBridge {
   private ByteBuffer mAvSyncHeader;
   private int mAvSyncPacketBytesRemaining;
 
+  // Pre-allocated byte[] or float[] shared with C++ via getPreAllocatedAudioDataAs*Array() to avoid
+  // allocation on every WriteSample(). C++ writes directly to this array,
+  // which is then passed back to Java write*() methods.
+  private Object mPreAllocatedAudioData;
+
   private static int getBytesPerSample(int audioFormat) {
     switch (audioFormat) {
       case AudioFormat.ENCODING_PCM_16BIT:
@@ -71,11 +76,27 @@ public class AudioTrackBridge {
     }
   }
 
+  private static Object createAudioDataArray(int sampleType, int maxSamplesPerWrite) {
+    switch (sampleType) {
+      case AudioFormat.ENCODING_PCM_FLOAT:
+        return new float[maxSamplesPerWrite];
+      case AudioFormat.ENCODING_PCM_16BIT:
+        return new byte[maxSamplesPerWrite * getBytesPerSample(sampleType)];
+      case AudioFormat.ENCODING_AC3:
+      case AudioFormat.ENCODING_E_AC3:
+        return new byte[maxSamplesPerWrite];
+      default:
+        // Throwing RuntimeException crashes the app, which is intended since the invariant is broken.
+        throw new IllegalArgumentException("Unsupported sample type: " + sampleType);
+    }
+  }
+
   // TODO: Pass error details to caller.
   public AudioTrackBridge(
       int sampleType,
       int sampleRate,
       int channelCount,
+      int maxSamplesPerWrite,
       int preferredBufferSizeInBytes,
       int tunnelModeAudioSessionId,
       boolean isWebAudio) {
@@ -204,6 +225,8 @@ public class AudioTrackBridge {
           Log.i(TAG, String.format(Locale.US, "Unknown AudioFormat %d.", sampleType));
           break;
       }
+
+      mPreAllocatedAudioData = createAudioDataArray(sampleType, maxSamplesPerWrite);
     }
     Log.i(
         TAG,
@@ -227,7 +250,6 @@ public class AudioTrackBridge {
     mAvSyncHeader = null;
     mAvSyncPacketBytesRemaining = 0;
   }
-
 
   @CalledByNative
   public boolean setPlaybackRate(float playbackRate) {
@@ -267,6 +289,22 @@ public class AudioTrackBridge {
       return AudioTrack.PLAYSTATE_STOPPED;
     }
     return mAudioTrack.getPlayState();
+  }
+
+  @CalledByNative
+  public float[] getPreAllocatedAudioDataAsFloatArray() {
+    if (mPreAllocatedAudioData instanceof float[]) {
+      return (float[]) mPreAllocatedAudioData;
+    }
+    return null;
+  }
+
+  @CalledByNative
+  public byte[] getPreAllocatedAudioDataAsByteArray() {
+    if (mPreAllocatedAudioData instanceof byte[]) {
+      return (byte[]) mPreAllocatedAudioData;
+    }
+    return null;
   }
 
   // TODO (b/262608024): Have this method return a boolean and return false on failure.

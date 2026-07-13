@@ -17,8 +17,10 @@ package dev.cobalt.coat;
 import static dev.cobalt.util.Log.TAG;
 
 import dev.cobalt.util.Log;
+
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 /** Abstract class that provides an interface for Cobalt to interact with a platform service. */
@@ -39,19 +41,22 @@ public abstract class CobaltService {
     /** Create the service. */
     public CobaltService createCobaltService(long nativeService);
 
-    /** Get the name of the service. */
-    public String getServiceName();
-  }
+        /** Get the name of the service. */
+        public String getServiceName();
+    }
 
-  /** Take in a reference to StarboardBridge & use it as needed. Default behavior is no-op. */
-  public void receiveStarboardBridge(StarboardBridge bridge) {}
+    /** Take in a reference to StarboardBridge & use it as needed. Default behavior is no-op. */
+    public void receiveStarboardBridge(StarboardBridge bridge) {}
 
-  // Lifecycle
-  /** Prepare service for start or resume. */
-  public abstract void beforeStartOrResume();
+    /** Take in a reference to BaseStarboardBridge & use it as needed. Default behavior is no-op. */
+    public void receiveBaseStarboardBridge(BaseStarboardBridge bridge) {}
 
-  /** Prepare service for suspend. */
-  public abstract void beforeSuspend();
+    // Lifecycle
+    /** Prepare service for start or resume. */
+    public abstract void beforeStartOrResume();
+
+    /** Prepare service for suspend. */
+    public abstract void beforeSuspend();
 
   /** Prepare service for stop. */
   public abstract void afterStopped();
@@ -78,7 +83,7 @@ public abstract class CobaltService {
 
   /** Receive data from client of the service. */
   @CalledByNative
-  public abstract ResponseToClient receiveFromClient(byte[] data);
+  public abstract @JniType("ResponseToClientInfo") ResponseToClient receiveFromClient(byte[] data);
 
   /**
    * Close the service.

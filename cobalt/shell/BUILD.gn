@@ -15,6 +15,7 @@
 import("//build/buildflag_header.gni")
 import("//build/config/cast.gni")
 import("//build/config/ui.gni")
+import("//content/browser/devtools/features.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 import("//starboard/build/buildflags.gni")
 import("//tools/grit/grit_rule.gni")
@@ -68,6 +69,7 @@ group("cobalt_shell_lib_deps") {
     "//cobalt/browser/crash_annotator/public/mojom:mojom",
     "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/lifecycle:lifecycle",
+    "//cobalt/build/configs:buildflags",
     "//cobalt/shell/browser/migrate_storage_record",
     "//components/cdm/renderer",
     "//components/crash/content/browser",
@@ -184,10 +186,11 @@ group("cobalt_shell_lib_deps") {
   }
 
   if (is_androidtv) {
-    public_deps += [
-      "//cobalt/android/oom_intervention",
-      "//cobalt/browser:hang_watcher_delegate",
-    ]
+    public_deps += [ "//cobalt/android/oom_intervention" ]
+  }
+
+  if (is_starboard || is_androidtv) {
+    public_deps += [ "//cobalt/browser:hang_watcher_delegate" ]
   }
 }
 
@@ -260,6 +263,12 @@ static_library("cobalt_shell_lib") {
 
   if (is_ios) {
     sources += [
+      "browser/on_screen_keyboard/tvos/cobalt_search_container_view_controller.h",
+      "browser/on_screen_keyboard/tvos/cobalt_search_container_view_controller.mm",
+      "browser/on_screen_keyboard/tvos/cobalt_search_controller.h",
+      "browser/on_screen_keyboard/tvos/cobalt_search_controller.mm",
+      "browser/on_screen_keyboard/tvos/cobalt_search_results_controller.h",
+      "browser/on_screen_keyboard/tvos/cobalt_search_results_controller.mm",
       "browser/shell_platform_delegate_ios.mm",
       "browser/shell_web_contents_view_delegate_ios.mm",
     ]
@@ -320,6 +329,13 @@ static_library("cobalt_shell_lib") {
 
   if (use_evergreen) {
     deps += [ "//cobalt/updater" ]
+  }
+
+  if (enable_native_on_screen_keyboard) {
+    deps += [
+      "//cobalt/browser/on_screen_keyboard",
+      "//cobalt/browser/on_screen_keyboard/public/mojom",
+    ]
   }
 }
 
@@ -424,17 +440,12 @@ repack("pak") {
     "//ui/webui/resources",
   ]
 
-  if (!is_android) {
-    deps += [ "//content/browser/tracing:resources" ]
-    sources += [ "$root_gen_dir/content/browser/tracing/tracing_resources.pak" ]
-  }
-
   if (shell_use_toolkit_views) {
     deps += [ "//ui/views/resources" ]
     sources +=
         [ "$root_gen_dir/ui/views/resources/views_resources_100_percent.pak" ]
   }
-  if (!is_android && !is_ios) {
+  if (!is_android && !is_ios && enable_devtools_frontend) {
     sources +=
         [ "$root_gen_dir/content/browser/devtools/devtools_resources.pak" ]
     deps += [ "//content/browser/devtools:devtools_resources" ]

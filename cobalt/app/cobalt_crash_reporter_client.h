@@ -38,6 +38,12 @@ class CobaltCrashReporterClient : public crash_reporter::CrashReporterClient {
 
   std::string GetUploadUrl() override;
 
+#if !BUILDFLAG(IS_IOS_TVOS)
+  void GetSanitizationInformation(const char* const** allowed_annotations,
+                                  void** target_module,
+                                  bool* sanitize_stacks) override;
+#endif  // !BUILDFLAG(IS_IOS_TVOS)
+
  private:
   friend class base::NoDestructor<CobaltCrashReporterClient>;
 

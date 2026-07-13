@@ -11,6 +11,4 @@ declare_args() {
   enable_screen_capture = is_linux || is_chromeos || (is_apple && use_blink) ||
                           is_win || is_desktop_android || is_fuchsia
 
-  # If true, Privacy Sandbox APIs (e.g. Topics API) are included in the build.
-  enable_privacy_sandbox_apis = true
 }

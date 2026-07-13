@@ -20,6 +20,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "starboard/android/shared/drm_system.h"
@@ -104,7 +105,9 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
       int64_t flush_delay_usec,
       bool use_dual_threads,
       bool skip_video_frames_over_60_fps,
-      bool ignore_mediacodec_callbacks_during_flushing);
+      bool ignore_mediacodec_callbacks_during_flushing,
+      bool enable_ndk_video,
+      bool enable_trivial_optimizations);
 
   MediaCodecDecoder(PassKey<MediaCodecDecoder>,
                     MediaCodec::Factory& media_codec_factory,
@@ -139,6 +142,8 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
       bool use_dual_threads,
       bool skip_video_frames_over_60_fps,
       bool ignore_mediacodec_callbacks_during_flushing,
+      bool enable_ndk_video,
+      bool enable_trivial_optimizations,
       std::string* error_message);
   ~MediaCodecDecoder();
 
@@ -173,19 +178,19 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
         : type(kWriteCodecConfig), codec_config(codec_config) {
       SB_DCHECK(!this->codec_config.empty());
     }
-    explicit PendingInput(const scoped_refptr<InputBuffer>& input_buffer)
-        : type(kWriteInputBuffer), input_buffer(input_buffer) {}
+    explicit PendingInput(scoped_refptr<InputBuffer> input_buffer)
+        : type(kWriteInputBuffer), input_buffer(std::move(input_buffer)) {}
 
     Type type;
     scoped_refptr<InputBuffer> input_buffer;
     std::vector<uint8_t> codec_config;
   };
 
-  // Holding a PendingInput and a DequeueInputResult when call to
-  // QueueInputBuffer or QueueSecureInputBuffer fails so it can be retried
+  // Holding an |input_buffer_index| and a PendingInput when a call to
+  // QueueInputBuffer() or QueueSecureInputBuffer() fails so it can be retried
   // later.
   struct PendingInputToRetry {
-    DequeueInputResult dequeue_input_result;
+    int input_buffer_index = -1;
     PendingInput pending_input;
   };
 
@@ -218,8 +223,8 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   void OnMediaCodecError(bool is_recoverable,
                          bool is_transient,
                          const std::string& error_message) override;
-  void OnMediaCodecInputBufferAvailable(int32_t index) override;
-  void OnMediaCodecOutputBufferAvailable(int32_t index,
+  void OnMediaCodecInputBufferAvailable(int32_t buffer_index) override;
+  void OnMediaCodecOutputBufferAvailable(int32_t buffer_index,
                                          int32_t flags,
                                          int32_t offset,
                                          int64_t presentation_time_us,
@@ -239,6 +244,7 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   const int64_t flush_delay_usec_;
   const int64_t video_decoder_poll_interval_us_;
   const bool use_dual_threads_ = false;
+  const bool enable_trivial_optimizations_ = false;
 
   ErrorCB error_cb_;
 
