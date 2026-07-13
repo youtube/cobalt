@@ -15,6 +15,8 @@
 #ifndef STARBOARD_ANDROID_SHARED_ASSET_MANAGER_H_
 #define STARBOARD_ANDROID_SHARED_ASSET_MANAGER_H_
 
+#include <dirent.h>
+
 #include <map>
 #include <mutex>
 #include <set>
@@ -30,6 +32,12 @@ class AssetManager {
   int Close(int fd);
   bool IsAssetFd(int fd) const;
 
+  // Tracks the DIR handles the asset-path dirent wrappers hand out, so they can
+  // be told apart from handles returned by the real opendir()/fdopendir().
+  void RegisterAssetDir(const DIR* dir);
+  bool UnregisterAssetDir(const DIR* dir);
+  bool IsAssetDir(const DIR* dir) const;
+
  private:
   AssetManager();
   ~AssetManager() { ClearTempDir(); }
@@ -42,6 +50,7 @@ class AssetManager {
   uint64_t internal_fd_ = 0;                       // Guarded by |mutex_|.
   std::set<uint64_t> in_use_internal_fd_set_;      // Guarded by |mutex_|.
   std::map<int, uint64_t> fd_to_internal_fd_map_;  // Guarded by |mutex_|.
+  std::set<const DIR*> asset_dir_set_;             // Guarded by |mutex_|.
 };
 
 }  // namespace starboard

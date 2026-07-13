@@ -108,6 +108,21 @@ bool AssetManager::IsAssetFd(int fd) const {
   return fd_to_internal_fd_map_.count(fd) == 1;
 }
 
+void AssetManager::RegisterAssetDir(const DIR* dir) {
+  std::lock_guard scoped_lock(mutex_);
+  asset_dir_set_.insert(dir);
+}
+
+bool AssetManager::UnregisterAssetDir(const DIR* dir) {
+  std::lock_guard scoped_lock(mutex_);
+  return asset_dir_set_.erase(dir) > 0;
+}
+
+bool AssetManager::IsAssetDir(const DIR* dir) const {
+  std::lock_guard scoped_lock(mutex_);
+  return asset_dir_set_.count(dir) == 1;
+}
+
 AssetManager::AssetManager() {
   const int kPathSize = PATH_MAX / 2;
   char path[kPathSize] = {0};
