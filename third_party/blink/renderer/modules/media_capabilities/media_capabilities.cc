@@ -59,7 +59,9 @@
 #include "third_party/blink/renderer/modules/encryptedmedia/media_key_system_access_initializer_base.h"
 #include "third_party/blink/renderer/modules/media_capabilities/media_capabilities_identifiability_metrics.h"
 #include "third_party/blink/renderer/modules/media_capabilities_names.h"
-#include "third_party/blink/renderer/modules/mediarecorder/media_recorder_handler.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/modules/mediarecorder/media_recorder_handler.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/bindings/v8_throw_exception.h"
@@ -412,6 +414,7 @@ bool IsValidMediaEncodingConfiguration(
   return true;
 }
 
+#if !BUILDFLAG(IS_COBALT)
 WebAudioConfiguration ToWebAudioConfiguration(
     const AudioConfiguration* configuration) {
   WebAudioConfiguration web_configuration;
@@ -467,7 +470,6 @@ WebVideoConfiguration ToWebVideoConfiguration(
 
   return web_configuration;
 }
-
 WebMediaConfiguration ToWebMediaConfiguration(
     const MediaEncodingConfiguration* configuration) {
   WebMediaConfiguration web_configuration;
@@ -494,6 +496,7 @@ WebMediaConfiguration ToWebMediaConfiguration(
 
   return web_configuration;
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 webrtc::SdpAudioFormat ToSdpAudioFormat(
     const AudioConfiguration* configuration) {
@@ -734,6 +737,7 @@ bool IsVideoConfigurationSupported(const String& mime_type,
                                              hdr_metadata_type});
 }
 
+#if !BUILDFLAG(IS_COBALT)
 void OnMediaCapabilitiesEncodingInfo(
     ScriptPromiseResolver<MediaCapabilitiesInfo>* resolver,
     std::unique_ptr<WebMediaCapabilitiesInfo> result) {
@@ -749,6 +753,7 @@ void OnMediaCapabilitiesEncodingInfo(
 
   resolver->Resolve(std::move(info));
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 bool ParseContentType(const String& content_type,
                       String* mime_type,
@@ -1168,6 +1173,7 @@ ScriptPromise<MediaCapabilitiesInfo> MediaCapabilities::encodingInfo(
 
   auto task_runner = resolver->GetExecutionContext()->GetTaskRunner(
       TaskType::kInternalMediaRealTime);
+#if !BUILDFLAG(IS_COBALT)
   if (auto* handler = MakeGarbageCollected<MediaRecorderHandler>(
           task_runner, KeyFrameRequestProcessor::Configuration())) {
     task_runner->PostTask(
@@ -1179,6 +1185,7 @@ ScriptPromise<MediaCapabilitiesInfo> MediaCapabilities::encodingInfo(
 
     return promise;
   }
+#endif  // !BUILDFLAG(IS_COBALT)
 
   DVLOG(2) << __func__ << " Could not get MediaRecorderHandler.";
   MediaCapabilitiesInfo* info = CreateEncodingInfoWith(false);

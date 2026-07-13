@@ -187,6 +187,7 @@ component("modules") {
 
   if (is_cobalt) {
     sub_modules -= [
+      "//third_party/blink/renderer/modules/mediarecorder",
       "//third_party/blink/renderer/modules/ml",
       "//third_party/blink/renderer/modules/webgpu",
       "//third_party/blink/renderer/modules/xr",
@@ -748,6 +749,9 @@ source_set("unit_tests") {
   }
 
   if (is_cobalt) {
+    _filtered_mediarecorder_sources = filter_exclude(sources, [ "mediarecorder/*" ])
+    sources = []
+    sources = _filtered_mediarecorder_sources
     sources += [
       "cobalt/h5vcc_accessibility/h_5_vcc_accessibility_test.cc",
       "cobalt/h5vcc_experiments/experiments_utils_test.cc",
