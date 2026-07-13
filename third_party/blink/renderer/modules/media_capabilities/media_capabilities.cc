@@ -470,6 +470,7 @@ WebVideoConfiguration ToWebVideoConfiguration(
 
   return web_configuration;
 }
+
 WebMediaConfiguration ToWebMediaConfiguration(
     const MediaEncodingConfiguration* configuration) {
   WebMediaConfiguration web_configuration;
