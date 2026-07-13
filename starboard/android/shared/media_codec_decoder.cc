@@ -338,10 +338,14 @@ void MediaCodecDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
       video_output_thread_->Start();
     }
   } else if (!decoder_thread_) {
-    decoder_thread_ = std::make_unique<DecoderThread>(
-        GetDecoderName(media_type_), [this] { DecoderThreadFunc(); },
-        media_type_ == kSbMediaTypeAudio ? ThreadPriority::kNormal
-                                         : ThreadPriority::kHigh);
+    decoder_thread_ =
+        (media_type_ == kSbMediaTypeAudio)
+            ? std::make_unique<DecoderThread>(
+                  GetDecoderName(media_type_),
+                  [this] { AudioDecoderThreadFunc(); }, ThreadPriority::kNormal)
+            : std::make_unique<DecoderThread>(
+                  GetDecoderName(media_type_),
+                  [this] { VideoDecoderThreadFunc(); }, ThreadPriority::kHigh);
     decoder_thread_->Start();
   }
 
@@ -436,147 +440,152 @@ bool MediaCodecDecoder::Flush() {
   return true;
 }
 
-// TODO(b/329686979): Abstract common code of thread creation functions.
-void MediaCodecDecoder::DecoderThreadFunc() {
+void MediaCodecDecoder::AudioDecoderThreadFunc() {
   // Initialize() should be called before creating the thread, where `error_cb_`
   // is set.  Check `error_cb_` here to ensure Initialize() has been called.
   SB_DCHECK(error_cb_);
+  SB_DCHECK_EQ(media_type_, kSbMediaTypeAudio);
 
-  if (media_type_ == kSbMediaTypeAudio) {
-    std::deque<PendingInput> pending_inputs;
-    std::vector<int> input_buffer_indices;
-    std::vector<DequeueOutputResult> dequeue_output_results;
+  std::deque<PendingInput> pending_inputs;
+  std::vector<int> input_buffer_indices;
+  std::vector<DequeueOutputResult> dequeue_output_results;
 
-    while (!destroying_.load()) {
-      dequeue_output_results.clear();
-      {
-        std::unique_lock lock(mutex_);
-        bool has_pending_input =
-            !pending_inputs.empty() || !pending_inputs_.empty();
-        bool has_input_buffer_indices =
-            !input_buffer_indices.empty() || !input_buffer_indices_.empty();
-        bool can_process_input =
-            pending_input_to_retry_ ||
-            (has_pending_input && has_input_buffer_indices);
-        if (dequeue_output_results_.empty() && !can_process_input) {
-          // Wait for a signal or a timeout. We don't use a predicate here
-          // because the complex conditions are already checked by the
-          // surrounding loop, which will re-evaluate the state when this wait
-          // returns.
-          if (condition_variable_.wait_for(lock, std::chrono::seconds(5)) ==
-              std::cv_status::timeout) {
-            SB_LOG_IF(ERROR, !stream_ended_.load())
-                << GetDecoderName(media_type_) << ": Wait() hits timeout.";
-          }
-        }
-        SB_DCHECK(dequeue_output_results.empty());
-        if (destroying_.load()) {
-          break;
-        }
-        CollectPendingData_Locked(&pending_inputs, &input_buffer_indices,
-                                  &dequeue_output_results);
-      }
-
-      for (auto dequeue_output_result : dequeue_output_results) {
-        if (dequeue_output_result.index < 0) {
-          host_->RefreshOutputFormat(media_codec_bridge_.get());
-        } else {
-          host_->ProcessOutputBuffer(media_codec_bridge_.get(),
-                                     dequeue_output_result);
+  while (!destroying_.load()) {
+    dequeue_output_results.clear();
+    {
+      std::unique_lock lock(mutex_);
+      bool has_pending_input =
+          !pending_inputs.empty() || !pending_inputs_.empty();
+      bool has_input_buffer_indices =
+          !input_buffer_indices.empty() || !input_buffer_indices_.empty();
+      bool can_process_input = pending_input_to_retry_ ||
+                               (has_pending_input && has_input_buffer_indices);
+      if (dequeue_output_results_.empty() && !can_process_input) {
+        // Wait for a signal or a timeout. We don't use a predicate here
+        // because the complex conditions are already checked by the
+        // surrounding loop, which will re-evaluate the state when this wait
+        // returns.
+        if (condition_variable_.wait_for(lock, std::chrono::seconds(5)) ==
+            std::cv_status::timeout) {
+          SB_LOG_IF(ERROR, !stream_ended_.load())
+              << GetDecoderName(media_type_) << ": Wait() hits timeout.";
         }
       }
-
-      for (;;) {
-        bool can_process_input =
-            pending_input_to_retry_ ||
-            (!pending_inputs.empty() && !input_buffer_indices.empty());
-        if (!can_process_input) {
-          break;
-        }
-        if (!ProcessOneInputBuffer(&pending_inputs, &input_buffer_indices)) {
-          break;
-        }
-      }
-    }
-  } else {
-    // While it is possible to consolidate the logic for audio and video
-    // decoders, it is easy to fine tune the behavior of video decoder if they
-    // are separated.
-    std::deque<PendingInput> pending_inputs;
-    std::vector<int> input_buffer_indices;
-    std::vector<DequeueOutputResult> dequeue_output_results;
-
-    while (!destroying_.load()) {
-      // TODO(b/329686979): access to `ending_input_to_retry_` should be
-      //                    synchronized.
-      bool has_input =
-          pending_input_to_retry_ ||
-          (!pending_inputs.empty() && !input_buffer_indices.empty());
-      bool has_output = !dequeue_output_results.empty();
-      bool collect_pending_data = false;
-
-      if (tunnel_mode_enabled_) {
-        // We don't explicitly process output in tunnel mode.
-        collect_pending_data = !has_input;
-      } else {
-        collect_pending_data = !has_input || !has_output;
-      }
-
+      SB_DCHECK(dequeue_output_results.empty());
       if (destroying_.load()) {
         break;
       }
-      if (collect_pending_data) {
-        std::lock_guard lock(mutex_);
-        CollectPendingData_Locked(&pending_inputs, &input_buffer_indices,
-                                  &dequeue_output_results);
-      }
+      CollectPendingData_Locked(&pending_inputs, &input_buffer_indices,
+                                &dequeue_output_results);
+    }
 
-      if (!dequeue_output_results.empty()) {
-        auto& dequeue_output_result = dequeue_output_results.front();
-        if (dequeue_output_result.index < 0) {
-          host_->RefreshOutputFormat(media_codec_bridge_.get());
-        } else {
-          SB_DCHECK(!tunnel_mode_enabled_);
-          host_->ProcessOutputBuffer(media_codec_bridge_.get(),
-                                     dequeue_output_result);
-        }
-        dequeue_output_results.erase(dequeue_output_results.begin());
+    for (const auto& dequeue_output_result : dequeue_output_results) {
+      if (dequeue_output_result.index < 0) {
+        host_->RefreshOutputFormat(media_codec_bridge_.get());
+      } else {
+        host_->ProcessOutputBuffer(media_codec_bridge_.get(),
+                                   dequeue_output_result);
       }
-      if (!tunnel_mode_enabled_) {
-        host_->Tick(media_codec_bridge_.get());
-      }
+    }
 
+    for (;;) {
       bool can_process_input =
           pending_input_to_retry_ ||
           (!pending_inputs.empty() && !input_buffer_indices.empty());
-      if (can_process_input) {
-        ProcessOneInputBuffer(&pending_inputs, &input_buffer_indices);
+      if (!can_process_input) {
+        break;
       }
-
-      bool ticked = false;
-      if (!tunnel_mode_enabled_) {
-        // Output is only processed when tunnel mode is disabled.
-        ticked = host_->Tick(media_codec_bridge_.get());
-      }
-
-      can_process_input =
-          pending_input_to_retry_ ||
-          (!pending_inputs.empty() && !input_buffer_indices.empty());
-      if (!ticked && !can_process_input && dequeue_output_results.empty()) {
-        std::unique_lock lock(mutex_);
-        CollectPendingData_Locked(&pending_inputs, &input_buffer_indices,
-                                  &dequeue_output_results);
-        can_process_input =
-            !pending_inputs.empty() && !input_buffer_indices.empty();
-        if (!can_process_input && dequeue_output_results.empty()) {
-          condition_variable_.wait_for(
-              lock, std::chrono::microseconds(video_decoder_poll_interval_us_));
-        }
+      if (!ProcessOneInputBuffer(&pending_inputs, &input_buffer_indices)) {
+        break;
       }
     }
   }
 
-  SB_LOG(INFO) << "Destroying decoder thread.";
+  SB_LOG(INFO) << "Destroying audio decoder thread.";
+}
+
+void MediaCodecDecoder::VideoDecoderThreadFunc() {
+  // Initialize() should be called before creating the thread, where `error_cb_`
+  // is set.  Check `error_cb_` here to ensure Initialize() has been called.
+  SB_DCHECK(error_cb_);
+  SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
+
+  // While it is possible to consolidate the logic for audio and video
+  // decoders, it is easy to fine tune the behavior of video decoder if they
+  // are separated.
+  std::deque<PendingInput> pending_inputs;
+  std::vector<int> input_buffer_indices;
+  std::vector<DequeueOutputResult> dequeue_output_results;
+
+  while (!destroying_.load()) {
+    // TODO(b/329686979): access to `pending_input_to_retry_` should be
+    //                    synchronized.
+    bool has_input = pending_input_to_retry_ ||
+                     (!pending_inputs.empty() && !input_buffer_indices.empty());
+    bool has_output = !dequeue_output_results.empty();
+    bool collect_pending_data = false;
+
+    if (tunnel_mode_enabled_) {
+      // We don't explicitly process output in tunnel mode.
+      collect_pending_data = !has_input;
+    } else {
+      collect_pending_data = !has_input || !has_output;
+    }
+
+    if (destroying_.load()) {
+      break;
+    }
+    if (collect_pending_data) {
+      std::lock_guard lock(mutex_);
+      CollectPendingData_Locked(&pending_inputs, &input_buffer_indices,
+                                &dequeue_output_results);
+    }
+
+    if (!dequeue_output_results.empty()) {
+      auto& dequeue_output_result = dequeue_output_results.front();
+      if (dequeue_output_result.index < 0) {
+        host_->RefreshOutputFormat(media_codec_bridge_.get());
+      } else {
+        SB_DCHECK(!tunnel_mode_enabled_);
+        host_->ProcessOutputBuffer(media_codec_bridge_.get(),
+                                   dequeue_output_result);
+      }
+      dequeue_output_results.erase(dequeue_output_results.begin());
+    }
+    if (!tunnel_mode_enabled_) {
+      host_->Tick(media_codec_bridge_.get());
+    }
+
+    bool can_process_input =
+        pending_input_to_retry_ ||
+        (!pending_inputs.empty() && !input_buffer_indices.empty());
+    if (can_process_input) {
+      ProcessOneInputBuffer(&pending_inputs, &input_buffer_indices);
+    }
+
+    bool ticked = false;
+    if (!tunnel_mode_enabled_) {
+      // Output is only processed when tunnel mode is disabled.
+      ticked = host_->Tick(media_codec_bridge_.get());
+    }
+
+    can_process_input =
+        pending_input_to_retry_ ||
+        (!pending_inputs.empty() && !input_buffer_indices.empty());
+    if (!ticked && !can_process_input && dequeue_output_results.empty()) {
+      std::unique_lock lock(mutex_);
+      CollectPendingData_Locked(&pending_inputs, &input_buffer_indices,
+                                &dequeue_output_results);
+      can_process_input =
+          !pending_inputs.empty() && !input_buffer_indices.empty();
+      if (!can_process_input && dequeue_output_results.empty()) {
+        condition_variable_.wait_for(
+            lock, std::chrono::microseconds(video_decoder_poll_interval_us_));
+      }
+    }
+  }
+
+  SB_LOG(INFO) << "Destroying video decoder thread.";
 }
 
 void MediaCodecDecoder::InputThreadFunc() {
