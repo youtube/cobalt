@@ -37,53 +37,55 @@ class MediaCodecBridgeBuilder {
       int channelCount,
       MediaCrypto crypto,
       @Nullable byte[] configurationData) {
-    if (decoderName.equals("")) {
+    if (decoderName == null || decoderName.isEmpty()) {
       Log.e(TAG, "Invalid decoder name.");
       return null;
     }
-    MediaCodec mediaCodec = null;
+    MediaCodecBridge bridge;
     try {
-      Log.i(TAG, "Creating \"%s\" decoder.", decoderName);
-      mediaCodec = MediaCodec.createByCodecName(decoderName);
+      bridge =
+          new MediaCodecBridge(
+              nativeMediaCodecBridge,
+              decoderName,
+              TunnelModeAudioSessionId.NONE,
+              /*enableFrameRendererListener=*/false,
+              /*enableIgnoreCallbacksDuringFlushing=*/false);
     } catch (Exception e) {
-      Log.e(TAG, "Failed to create MediaCodec: %s, DecoderName: %s", mime, decoderName, e);
+      Log.e(TAG, "Failed to create MediaCodecBridge: %s, DecoderName: %s", mime, decoderName, e);
       return null;
     }
-    if (mediaCodec == null) {
-      return null;
-    }
-    MediaCodecBridge bridge =
-        new MediaCodecBridge(
-            nativeMediaCodecBridge,
-            mediaCodec,
-            TunnelModeAudioSessionId.NONE,
-            /*enableFrameRendererListener=*/false,
-            /*enableIgnoreCallbacksDuringFlushing=*/false);
 
-    byte[][] csds = {};
-    boolean frameHasAdtsHeader = false;
-    if (mime.contains("opus")) {
-      csds = MediaFormatBuilder.starboardParseOpusConfigurationData(sampleRate, configurationData);
-      if (csds == null) {
+    try {
+      byte[][] csds = {};
+      boolean frameHasAdtsHeader = false;
+      if (mime.contains("opus")) {
+        csds = MediaFormatBuilder.starboardParseOpusConfigurationData(
+            sampleRate, configurationData);
+        if (csds == null) {
+          bridge.release();
+          return null;
+        }
+      } else {
+        // TODO: Determine if we should explicitly check the mime for AAC audio before setting
+        // frameHasAdtsHeader to true, as more codecs may be supported here in the future.
+        frameHasAdtsHeader = true;
+      }
+      MediaFormat mediaFormat =
+          MediaFormatBuilder.createAudioFormat(
+              mime, sampleRate, channelCount, csds, frameHasAdtsHeader);
+
+      if (!bridge.configureAudio(mediaFormat, crypto, 0)) {
+        Log.e(TAG, "Failed to configure audio codec.");
         bridge.release();
         return null;
       }
-    } else {
-      // TODO: Determine if we should explicitly check the mime for AAC audio before setting
-      // frameHasAdtsHeader to true, as more codecs may be supported here in the future.
-      frameHasAdtsHeader = true;
-    }
-    MediaFormat mediaFormat =
-        MediaFormatBuilder.createAudioFormat(
-            mime, sampleRate, channelCount, csds, frameHasAdtsHeader);
-
-    if (!bridge.configureAudio(mediaFormat, crypto, 0)) {
-      Log.e(TAG, "Failed to configure audio codec.");
-      bridge.release();
-      return null;
-    }
-    if (!bridge.start()) {
-      Log.e(TAG, "Failed to start audio codec.");
+      if (!bridge.start()) {
+        Log.e(TAG, "Failed to start audio codec.");
+        bridge.release();
+        return null;
+      }
+    } catch (Throwable t) {
+      Log.e(TAG, "Failed to initialize audio decoder due to exception: ", t);
       bridge.release();
       return null;
     }
