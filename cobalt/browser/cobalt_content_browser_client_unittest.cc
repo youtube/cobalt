@@ -18,8 +18,11 @@
 #include <variant>
 
 #include "base/test/task_environment.h"
+#include "build/build_config.h"
 #include "cobalt/browser/global_features.h"
+#include "content/public/browser/overlay_window.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace {
@@ -45,6 +48,20 @@ TEST_F(CobaltContentBrowserClientTest, ParseAndApplyH5vccSettingsForTesting) {
   auto it2 = settings.find("Bar");
   ASSERT_NE(it2, settings.end());
   EXPECT_EQ(std::get<std::string>(it2->second), "Baz");
+}
+
+TEST_F(CobaltContentBrowserClientTest,
+       CreateWindowForVideoPictureInPicturePlatformBehavior) {
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+  std::unique_ptr<content::VideoOverlayWindow> window =
+      client.CreateWindowForVideoPictureInPicture(/*controller=*/nullptr);
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_NE(window, nullptr);
+#else
+  EXPECT_EQ(window, nullptr);
+#endif
 }
 
 }  // namespace
