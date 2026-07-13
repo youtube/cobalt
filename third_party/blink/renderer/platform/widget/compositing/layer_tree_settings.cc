@@ -159,15 +159,11 @@ cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
   cc::ManagedMemoryPolicy actual = default_policy;
   actual.bytes_limit_when_visible = 0;
   actual.priority_cutoff_when_visible =
-<<<<<<< HEAD
-      gpu::MemoryAllocation::CUTOFF_ALLOW_NICE_TO_HAVE;
-=======
 #if BUILDFLAG(IS_COBALT)
       gpu::MemoryAllocation::CUTOFF_ALLOW_REQUIRED_ONLY;
 #else
       gpu::MemoryAllocation::CUTOFF_ALLOW_NICE_TO_HAVE;
 #endif
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
 
   // If the value was overridden on the command line, use the specified value.
   static bool client_hard_limit_bytes_overridden =
@@ -176,11 +172,7 @@ cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
   if (client_hard_limit_bytes_overridden) {
     if (base::StringToSizeT(
             base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-<<<<<<< HEAD
                 switches::kForceGpuMemAvailableMb),
-=======
-                ::switches::kForceGpuMemAvailableMb),
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
             &actual.bytes_limit_when_visible)) {
       actual.bytes_limit_when_visible *= 1024 * 1024;
     }

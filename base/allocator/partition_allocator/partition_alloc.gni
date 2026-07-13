@@ -126,17 +126,11 @@ declare_args() {
   #     and doesn't wish to incur the library size increase (crbug.com/674570).
   # 2.  On NaCl (through this declaration), where PartitionAlloc doesn't
   #     build at all.
-<<<<<<< HEAD
-  use_partition_alloc = is_clang_or_gcc
-=======
-  #
   # Cobalt comment: it would be a significant change to use PartitionAlloc as
   # the default allocator in components built by partners. We're considering
   # that change in b/447346129 but for now set this false in partner toolchains
   # so that PartitionAlloc is not even linked into partner built binaries.
-  use_partition_alloc =
-      !is_nacl && is_clang_or_gcc && !(is_cobalt && is_partner_toolchain)
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
+  use_partition_alloc = is_clang_or_gcc && !(is_cobalt && is_partner_toolchain)
 }
 
 if (!is_clang_or_gcc) {

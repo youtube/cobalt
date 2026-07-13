@@ -266,7 +266,6 @@ int UtilityMain(MainFunctionParams parameters) {
   }
 #endif  // !BUILDFLAG(IS_COBALT)
 
-<<<<<<< HEAD
 #if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION) && BUILDFLAG(USE_VAAPI)
   // Regardless of the sandbox status, the VaapiWrapper needs to be initialized
   // for decoder utility processes on devices that use VA-API.
@@ -276,10 +275,7 @@ int UtilityMain(MainFunctionParams parameters) {
   }
 #endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION) && BUILDFLAG(USE_VAAPI)
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-=======
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
+#if (BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)) || BUILDFLAG(IS_CHROMEOS)
   // Thread type delegate of the process should be registered before first
   // thread type change in ChildProcess constructor. It also needs to be
   // registered before the process has multiple threads, which may race with

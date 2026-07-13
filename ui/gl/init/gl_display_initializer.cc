@@ -45,13 +45,10 @@ void GetEGLInitDisplays(bool supports_angle_d3d,
   bool default_angle_metal =
       base::FeatureList::IsEnabled(features::kDefaultANGLEMetal);
   bool default_angle_vulkan = features::IsDefaultANGLEVulkan();
-<<<<<<< HEAD
-=======
-
 #if BUILDFLAG(IS_STARBOARD)
-  const char* default_software_renderer = kANGLEImplementationOpenGLESEGLName;
+  [[maybe_unused]] const char* default_software_renderer = kANGLEImplementationOpenGLESEGLName;
 #else
-  const char* default_software_renderer = kANGLEImplementationSwiftShaderName;
+  [[maybe_unused]] const char* default_software_renderer = kANGLEImplementationSwiftShaderName;
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -59,7 +56,6 @@ void GetEGLInitDisplays(bool supports_angle_d3d,
     default_software_renderer = kANGLEImplementationD3D11WarpName;
   }
 #endif
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
 
   // If we're already requesting software GL, make sure we don't fallback to the
   // GPU
@@ -68,14 +64,13 @@ void GetEGLInitDisplays(bool supports_angle_d3d,
 
   std::string requested_renderer =
       force_software_gl
-<<<<<<< HEAD
+#if BUILDFLAG(IS_STARBOARD)
+          ? default_software_renderer
+#else
           ? std::string(
                 GetGLImplementationANGLEName(GetGLImplementationParts()))
+#endif
           : command_line->GetSwitchValueASCII(switches::kUseANGLE);
-=======
-      ? default_software_renderer
-      : command_line->GetSwitchValueASCII(switches::kUseANGLE);
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
 
   bool use_angle_default =
       !force_software_gl &&

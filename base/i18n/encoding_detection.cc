@@ -22,7 +22,7 @@
 
 namespace base {
 
-<<<<<<< HEAD
+#if !BUILDFLAG(IS_COBALT)
 namespace {
 
 // Include 7-bit encodings
@@ -33,12 +33,10 @@ constexpr CompactEncDet::TextCorpusType kPlainTextCorpus =
     CompactEncDet::QUERY_CORPUS;
 
 }  // namespace
+#endif  // !BUILDFLAG(IS_COBALT)
 
 bool DetectEncoding(std::string_view text, std::string* encoding) {
-=======
-bool DetectEncoding(const std::string& text, std::string* encoding) {
 #if !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
   int consumed_bytes;
   bool is_reliable;
   Encoding enc = CompactEncDet::DetectEncoding(

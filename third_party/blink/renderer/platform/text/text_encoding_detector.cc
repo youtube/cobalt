@@ -54,14 +54,9 @@ bool DetectTextEncoding(base::span<const uint8_t> bytes,
                         const char* hint_encoding_name,
                         const KURL& hint_url,
                         const char* hint_user_language,
-<<<<<<< HEAD
                         TextEncoding* detected_encoding) {
-  *detected_encoding = TextEncoding();
-=======
-                        WTF::TextEncoding* detected_encoding) {
 #if !BUILDFLAG(IS_COBALT)
-  *detected_encoding = WTF::TextEncoding();
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
+  *detected_encoding = TextEncoding();
   // In general, do not use language hint. This helps get more
   // deterministic encoding detection results across devices. Note that local
   // file resources can still benefit from the hint.
@@ -93,7 +88,7 @@ bool DetectTextEncoding(base::span<const uint8_t> bytes,
   return !(encoding == UNKNOWN_ENCODING ||
            (hint_url.Protocol() != "file" && encoding == UTF8));
 #else
-  *detected_encoding = WTF::TextEncoding();
+  *detected_encoding = TextEncoding();
   return false;
 #endif  // !BUILDFLAG(IS_COBALT)
 }

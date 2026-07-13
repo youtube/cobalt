@@ -2022,18 +2022,11 @@ test("content_browsertests") {
     deps += [ "//components/variations" ]
   }
 
-<<<<<<< HEAD
-  data_deps = [ "//content/shell:pak" ]
-=======
   if (is_cobalt) {
     deps -= [ "//device/bluetooth:mocks" ]
   }
 
-  data_deps = [
-    "//content/shell:pak",
-    "//third_party/mesa_headers",
-  ]
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
+  data_deps = [ "//content/shell:pak" ]
 
   data = [
     "data/",
@@ -3383,9 +3376,6 @@ test("content_unittests") {
     deps += [ ":content_nocompile_tests" ]
   }
 
-<<<<<<< HEAD
-  data_deps = [ "//testing/buildbot/filters:content_unittests_filters" ]
-=======
   if (is_cobalt) {
     deps -= [
       "//device/bluetooth",
@@ -3393,11 +3383,7 @@ test("content_unittests") {
     ]
   }
 
-  data_deps = [
-    "//testing/buildbot/filters:content_unittests_filters",
-    "//third_party/mesa_headers",
-  ]
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
+  data_deps = [ "//testing/buildbot/filters:content_unittests_filters" ]
 
   if (!is_ios) {
     data_deps += [

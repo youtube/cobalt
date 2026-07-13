@@ -538,7 +538,7 @@ void StorageHandler::ClearCookies(
                      std::move(callback)));
 }
 
-#if BUILDFLAG(IS_COBALT) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(IS_COBALT)
 Response StorageHandler::SerializeStorageKey(
     RenderFrameHostImpl* rfh,
     std::string* serialized_storage_key) const {
@@ -567,7 +567,7 @@ Response StorageHandler::GetStorageKeyForFrame(
   if (!node) {
     return Response::InvalidParams("Frame tree node for given frame not found");
   }
-#if BUILDFLAG(IS_COBALT) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(IS_COBALT)
   return SerializeStorageKey(node->current_frame_host(),
                              serialized_storage_key);
 #else
@@ -582,7 +582,6 @@ Response StorageHandler::GetStorageKeyForFrame(
 #endif
 }
 
-#if CHROMIUM_MILESTONE_LE_138
 Response StorageHandler::GetStorageKey(std::optional<std::string> frame_id,
                                        std::string* serialized_storage_key) {
 #if BUILDFLAG(IS_COBALT)
@@ -601,7 +600,6 @@ Response StorageHandler::GetStorageKey(std::optional<std::string> frame_id,
   return Response::ServerError("Not implemented");
 #endif
 }
-#endif
 
 namespace {
 uint32_t GetRemoveDataMask(const std::string& storage_types) {
@@ -1453,7 +1451,6 @@ void StorageHandler::ClearSharedStorageEntries(
 }
 
 Response StorageHandler::SetSharedStorageTracking(bool enable) {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (enable) {
     auto* manager = GetSharedStorageRuntimeManager();
     if (!manager) {
@@ -1469,9 +1466,6 @@ Response StorageHandler::SetSharedStorageTracking(bool enable) {
     shared_storage_observation_.Reset();
   }
   return Response::Success();
-#else
-  return Response::ServerError("Shared storage is disabled.");
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void StorageHandler::ResetSharedStorageBudget(
@@ -2512,6 +2506,7 @@ void StorageHandler::OnReportSent(const AttributionReport& report,
 void StorageHandler::OnDebugReportSent(const AttributionDebugReport& report,
                                        int status,
                                        base::Time time) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   std::optional<int> net_error;
@@ -2535,6 +2530,11 @@ void StorageHandler::OnDebugReportSent(const AttributionDebugReport& report,
   frontend_->AttributionReportingVerboseDebugReportSent(
       report.ReportUrl().spec(), std::move(body), net_error,
       std::move(net_error_name), http_status_code);
+#else
+  (void)report;
+  (void)status;
+  (void)time;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 Response StorageHandler::SetAttributionReportingTracking(bool enable) {

@@ -56,12 +56,12 @@ component("modules") {
     "//v8:external_startup_data",
   ]
 
+  print("DEBUG: is_cobalt inside modules/BUILD.gn is", is_cobalt)
   sub_modules = [
     ":modules_generated",
     "//third_party/blink/renderer/bindings/modules/v8",
     "//third_party/blink/renderer/modules/accessibility",
     "//third_party/blink/renderer/modules/ad_auction",
-    "//third_party/blink/renderer/modules/ai",
     "//third_party/blink/renderer/modules/animationworklet",
     "//third_party/blink/renderer/modules/app_banner",
     "//third_party/blink/renderer/modules/audio_output_devices",
@@ -72,7 +72,6 @@ component("modules") {
     "//third_party/blink/renderer/modules/managed_device",
     "//third_party/blink/renderer/modules/battery",
     "//third_party/blink/renderer/modules/beacon",
-    "//third_party/blink/renderer/modules/bluetooth",
     "//third_party/blink/renderer/modules/broadcastchannel",
     "//third_party/blink/renderer/modules/browsing_topics",
     "//third_party/blink/renderer/modules/buckets",
@@ -107,7 +106,6 @@ component("modules") {
     "//third_party/blink/renderer/modules/gamepad",
     "//third_party/blink/renderer/modules/geolocation",
     "//third_party/blink/renderer/modules/handwriting",
-    "//third_party/blink/renderer/modules/hid",
     "//third_party/blink/renderer/modules/idle",
     "//third_party/blink/renderer/modules/imagecapture",
     "//third_party/blink/renderer/modules/cookie_deprecation_label",
@@ -128,10 +126,8 @@ component("modules") {
     "//third_party/blink/renderer/modules/mediasource",
     "//third_party/blink/renderer/modules/mediastream",
     "//third_party/blink/renderer/modules/media",
-    "//third_party/blink/renderer/modules/ml",
     "//third_party/blink/renderer/modules/navigatorcontentutils",
     "//third_party/blink/renderer/modules/netinfo",
-    "//third_party/blink/renderer/modules/nfc",
     "//third_party/blink/renderer/modules/notifications",
     "//third_party/blink/renderer/modules/payments",
     "//third_party/blink/renderer/modules/payments/goods",
@@ -147,7 +143,6 @@ component("modules") {
     "//third_party/blink/renderer/modules/screen_details",
     "//third_party/blink/renderer/modules/screen_orientation",
     "//third_party/blink/renderer/modules/sensor",
-    "//third_party/blink/renderer/modules/serial",
     "//third_party/blink/renderer/modules/service_worker",
     "//third_party/blink/renderer/modules/shapedetection",
     "//third_party/blink/renderer/modules/shared_storage",
@@ -164,15 +159,12 @@ component("modules") {
     "//third_party/blink/renderer/modules/webaudio",
     "//third_party/blink/renderer/modules/webcodecs",
     "//third_party/blink/renderer/modules/webgl",
-    "//third_party/blink/renderer/modules/webgpu",
     "//third_party/blink/renderer/modules/webmidi",
     "//third_party/blink/renderer/modules/webrtc",
     "//third_party/blink/renderer/modules/webshare",
     "//third_party/blink/renderer/modules/websockets",
     "//third_party/blink/renderer/modules/webtransport",
-    "//third_party/blink/renderer/modules/webusb",
     "//third_party/blink/renderer/modules/worklet",
-    "//third_party/blink/renderer/modules/xr",
   ]
 
   # If in the future privacy sandbox components are removed from the code base, ignore this if block.
@@ -186,16 +178,6 @@ component("modules") {
   }
 
   if (is_cobalt) {
-    sub_modules -= [
-      "//third_party/blink/renderer/modules/ml",
-      "//third_party/blink/renderer/modules/webgpu",
-      "//third_party/blink/renderer/modules/xr",
-      "//third_party/blink/renderer/modules/bluetooth",
-      "//third_party/blink/renderer/modules/hid",
-      "//third_party/blink/renderer/modules/nfc",
-      "//third_party/blink/renderer/modules/serial",
-      "//third_party/blink/renderer/modules/webusb",
-    ]
     sub_modules += [
       "//third_party/blink/renderer/modules/cobalt:h_5_vcc",
       "//third_party/blink/renderer/modules/cobalt/crash_log",
@@ -209,6 +191,20 @@ component("modules") {
       "//third_party/blink/renderer/modules/cobalt/h5vcc_system",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_updater",
     ]
+  } else {
+    sub_modules += [
+      "//third_party/blink/renderer/modules/ai",
+      "//third_party/blink/renderer/modules/bluetooth",
+      "//third_party/blink/renderer/modules/hid",
+      "//third_party/blink/renderer/modules/ml",
+      "//third_party/blink/renderer/modules/nfc",
+      "//third_party/blink/renderer/modules/serial",
+      "//third_party/blink/renderer/modules/webgpu",
+      "//third_party/blink/renderer/modules/webusb",
+      "//third_party/blink/renderer/modules/xr",
+    ]
+  }
+  if (is_cobalt) {
 
     if (use_starboard_media) {
       sub_modules += [
@@ -226,9 +222,7 @@ component("modules") {
     sub_modules -= [ "//third_party/blink/renderer/modules/peerconnection" ]
   }
 
-  if (is_cobalt) {
-    sub_modules -= [ "//third_party/blink/renderer/modules/ai" ]
-  }
+
 
   # This uses target_os rather than current_os (which is what is_android is set
   # from) for the case of generating the v8 context snapshot for android. When
@@ -807,16 +801,13 @@ source_set("unit_tests") {
     "//third_party/blink/renderer/modules/clipboard:unit_tests",
     "//third_party/blink/renderer/modules/file_system_access:unit_tests",
     "//third_party/blink/renderer/modules/gamepad:unit_tests",
-    "//third_party/blink/renderer/modules/hid:unit_tests",
     "//third_party/blink/renderer/modules/idle:unit_tests",
     "//third_party/blink/renderer/modules/indexeddb:unit_tests",
     "//third_party/blink/renderer/modules/mediastream:test_support",
-    "//third_party/blink/renderer/modules/ml:unit_tests",
     "//third_party/blink/renderer/modules/peerconnection:test_support",
     "//third_party/blink/renderer/modules/storage:unit_tests",
     "//third_party/blink/renderer/modules/storage_access:unit_tests",
     "//third_party/blink/renderer/modules/webcodecs:unit_tests",
-    "//third_party/blink/renderer/modules/webgpu:unit_tests",
     "//third_party/blink/renderer/modules/webtransport:unit_tests",
     "//third_party/blink/renderer/platform",
     "//third_party/blink/renderer/platform:test_support",
@@ -837,11 +828,14 @@ source_set("unit_tests") {
 
   if (is_cobalt) {
     deps += [ "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments:experiments_utils" ]
-    deps -= [
+  } else {
+    deps += [
       "//third_party/blink/renderer/modules/hid:unit_tests",
       "//third_party/blink/renderer/modules/ml:unit_tests",
       "//third_party/blink/renderer/modules/webgpu:unit_tests",
     ]
+  }
+  if (is_cobalt) {
     sources -= [
       "xr/xr_rigid_transform_test.cc",
       "xr/xr_test_utils.cc",

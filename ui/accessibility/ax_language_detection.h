@@ -13,14 +13,10 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
-<<<<<<< HEAD
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
-#include "third_party/cld_3/src/src/nnet_language_identifier.h"
-=======
 #if !BUILDFLAG(IS_COBALT)
 #include "third_party/cld_3/src/src/nnet_language_identifier.h"  // nogncheck
 #endif  // !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
 #include "ui/accessibility/ax_enums.mojom-forward.h"
 #include "ui/accessibility/ax_export.h"
 #include "ui/accessibility/ax_tree_observer.h"

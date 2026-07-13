@@ -73,16 +73,7 @@ if (is_android) {
 
     # The default to use for android:minSdkVersion for targets that do
     # not explicitly set it.
-<<<<<<< HEAD
     default_min_sdk_version = 29
-=======
-    default_min_sdk_version = 26
-    if (is_asan) {
-      default_min_sdk_version = 27
-    }
-    if (enable_javaless_renderers) {
-      default_min_sdk_version = 29
-    }
     if (is_cobalt) {
       # Cobalt maintains backward compatibility with Android 7.0 (API 24), consistent
       # with Cobalt 25 and 26 releases. Setting this to 24 ensures the Android
@@ -91,7 +82,6 @@ if (is_android) {
       # disabled at runtime. See b/508072838, b/422247849.
       default_min_sdk_version = 24
     }
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
 
     # Static analysis can be either "on" or "off" or "build_server". This
     # controls how android lint, error-prone, bytecode checks are run. This

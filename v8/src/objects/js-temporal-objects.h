@@ -9,7 +9,7 @@
 #include "src/heap/factory.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects.h"
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/Instant.d.hpp"
+#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0_9/bindings/cpp/temporal_rs/Instant.d.hpp"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

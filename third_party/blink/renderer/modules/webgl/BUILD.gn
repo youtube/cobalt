@@ -202,20 +202,15 @@ blink_modules_sources("webgl") {
     "//device/vr/buildflags:buildflags",
     "//gpu/command_buffer/client:gles2_implementation",
     "//third_party/blink/renderer/modules/webcodecs:webcodecs",
-    "//third_party/blink/renderer/modules/xr:xr",
     "//ui/gl:gl",
   ]
-<<<<<<< HEAD
+  if (!is_cobalt) {
+    deps += [ "//third_party/blink/renderer/modules/xr:xr" ]
+  }
+
   if (use_static_angle) {
     deps += [ "//third_party/angle:libGLESv2_thin_static" ]
   }
-=======
-
-  if (is_cobalt) {
-    deps -= [ "//third_party/blink/renderer/modules/xr:xr" ]
-  }
-
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
   allow_circular_includes_from = deps
 
   if (is_cobalt && use_starboard_media) {

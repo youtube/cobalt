@@ -4,13 +4,10 @@
 
 #include "media/base/stream_parser.h"
 
-<<<<<<< HEAD
-#include "base/notimplemented.h"
-=======
 #include <atomic>
 
 #include "base/logging.h"
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
+#include "base/notimplemented.h"
 #include "media/base/stream_parser_buffer.h"
 #include "media/media_buildflags.h"
 

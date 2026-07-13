@@ -12,9 +12,9 @@ blink_modules_sources("video_rvfc") {
     "video_frame_request_callback_collection.h",
   ]
 
-  deps = [ "//third_party/blink/renderer/modules/xr:xr" ]
+  deps = []
 
-  if (is_cobalt) {
-    deps -= [ "//third_party/blink/renderer/modules/xr:xr" ]
+  if (!is_cobalt) {
+    deps += [ "//third_party/blink/renderer/modules/xr:xr" ]
   }
 }

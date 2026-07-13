@@ -321,16 +321,9 @@ void RemoteObject::RemoteObjectInvokeCallback(
   String method_name = ToCoreString(isolate, info.Data().As<v8::String>());
   if (info.IsConstructCall()) {
     // This is not a constructor. Throw and return.
-<<<<<<< HEAD
     isolate->ThrowException(v8::Exception::Error(
         V8String(isolate, StrCat({"Error invoking ", method_name, ": ",
                                   kMethodInvocationAsConstructorDisallowed}))));
-=======
-    isolate->ThrowException(v8::Exception::Error(V8String(
-        isolate, base::StrCat({"Error invoking ", method_name.Utf8(), ": ",
-                               kMethodInvocationAsConstructorDisallowed})
-                     .c_str())));
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
     return;
   }
 
@@ -338,14 +331,8 @@ void RemoteObject::RemoteObjectInvokeCallback(
   if (!gin::ConvertFromV8(isolate, info.This(), &remote_object)) {
     // Someone messed with the |this| pointer. Throw and return.
     isolate->ThrowException(v8::Exception::Error(V8String(
-<<<<<<< HEAD
         isolate, StrCat({"Error invoking ", ": ", method_name,
                          kMethodInvocationOnNonInjectedObjectDisallowed}))));
-=======
-        isolate, base::StrCat({"Error invoking ", ": ", method_name.Utf8(),
-                               kMethodInvocationOnNonInjectedObjectDisallowed})
-                     .c_str())));
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
     return;
   }
 
@@ -360,16 +347,9 @@ void RemoteObject::RemoteObjectInvokeCallback(
           .ToLocalChecked();
 
   if (cached_method->IsUndefined()) {
-<<<<<<< HEAD
     isolate->ThrowException(v8::Exception::Error(
         V8String(isolate, StrCat({"Error invoking ", ": ", method_name,
                                   kMethodInvocationNonexistentMethod}))));
-=======
-    isolate->ThrowException(v8::Exception::Error(V8String(
-        isolate, base::StrCat({"Error invoking ", ": ", method_name.Utf8(),
-                               kMethodInvocationNonexistentMethod})
-                     .c_str())));
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
     return;
   }
 
@@ -391,17 +371,9 @@ void RemoteObject::RemoteObjectInvokeCallback(
 
   if (result->error != mojom::blink::RemoteInvocationError::OK) {
     isolate->ThrowException(v8::Exception::Error(V8String(
-<<<<<<< HEAD
         isolate, StrCat({"Error invoking ", method_name, ": ",
                          kMethodInvocationErrorMessage, ": ",
                          RemoteInvocationErrorToString(result->error)}))));
-=======
-        isolate,
-        base::StrCat({"Error invoking ", method_name.Utf8(), ": ",
-                      kMethodInvocationErrorMessage, ": ",
-                      RemoteInvocationErrorToString(result->error).Utf8()})
-            .c_str())));
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
     return;
   }
 

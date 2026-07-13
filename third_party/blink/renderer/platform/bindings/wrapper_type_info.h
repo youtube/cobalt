@@ -73,8 +73,11 @@ static_assert(static_cast<std::underlying_type_t<v8::CppHeapPointerTag>>(
 // when unwrapping v8 objects. Each v8 bindings class has exactly one static
 // WrapperTypeInfo member, so comparing pointers is a safe way to determine if
 // types match.
-struct PLATFORM_EXPORT WrapperTypeInfo final
-    : public v8::Object::WrapperTypeInfo {
+struct WrapperTypeInfoId {
+  uint16_t type_id;
+};
+
+struct PLATFORM_EXPORT WrapperTypeInfo final : public WrapperTypeInfoId {
   DISALLOW_NEW();
 
   enum WrapperTypePrototype {

@@ -81,14 +81,10 @@ def main():
       f.write("%s=%s\n" % (SISO_PROJECT_CFG, project))
     if rbe_instance:
       f.write("SISO_REAPI_INSTANCE=%s\n" % rbe_instance)
-<<<<<<< HEAD
-
-=======
   if project in _KNOWN_COBALT_PROJECTS:
     if os.path.exists(_BACKEND_STAR):
       os.remove(_BACKEND_STAR)
     shutil.copy2(_COBALT_STAR, _BACKEND_STAR)
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
   if project in _KNOWN_GOOGLE_PROJECTS:
     if os.path.exists(_BACKEND_STAR):
       os.remove(_BACKEND_STAR)

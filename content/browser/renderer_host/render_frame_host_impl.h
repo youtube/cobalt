@@ -202,12 +202,7 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "base/containers/id_map.h"
 #include "content/browser/webauth/webauth_request_security_checker.h"
-<<<<<<< HEAD
-#else
-=======
-#include "services/device/public/mojom/nfc.mojom.h"
 #elif !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
 #include "third_party/blink/public/mojom/hid/hid.mojom-forward.h"
 #endif
 
@@ -2164,11 +2159,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
       const net::NetworkIsolationKey& nik,
       const blink::StorageKey& storage_key);
 
-<<<<<<< HEAD
-#if BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS))
-=======
-#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
+#if (BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS))) && !BUILDFLAG(IS_COBALT)
   void BindNFCReceiver(mojo::PendingReceiver<device::mojom::NFC> receiver);
 #endif
 

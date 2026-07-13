@@ -14062,11 +14062,7 @@ void RenderFrameHostImpl::CreateDedicatedWorkerHostFactory(
       std::move(receiver));
 }
 
-<<<<<<< HEAD
-#if BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS))
-=======
-#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
+#if (BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS))) && !BUILDFLAG(IS_COBALT)
 void RenderFrameHostImpl::BindNFCReceiver(
     mojo::PendingReceiver<device::mojom::NFC> receiver) {
   delegate_->GetNFC(this, std::move(receiver));

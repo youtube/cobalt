@@ -9212,7 +9212,19 @@ crbug.com/415870039 external/wpt/web-animations/interfaces/Animation/finished.ht
 # Skipped due to feature implementation in progress
 crbug.com/420393952 external/wpt/html/semantics/permission-element/quirks-mode-no-height-is-still-bounded.tentative.html [ Failure Skip ]
 
-<<<<<<< HEAD
+# Cobalt bug: b/461834934.
+wpt_internal/cobalt/HTMLVideoElementExtension/getAndSetMaxVideoCapabilities.html [ Timeout ]
+
+# Cobalt bug: b/405993906.
+wpt_internal/cobalt/h5vcc-runtime/* [ Failure ]
+
+# Cobalt bug: b/405997906.
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-advertisingId.https.any.html [ Failure Timeout ]
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-exit.https.any.html [ Failure Timeout ]
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-limitAdTracking.https.any.html [ Failure Timeout ]
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-trackingAuthorizationStatus.https.any.html [ Failure Timeout ]
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-userOnExitStrategy.https.any.html [ Failure Timeout ]
+
 # view-transitions do not trigger DOM callbacks in creation order
 crbug.com/424474086 external/wpt/css/css-view-transitions/scoped/callback-order.tentative.html [ Failure Pass ]
 
@@ -9244,17 +9256,3 @@ crbug.com/426081198 [ Mac ] external/wpt/html/document-isolation-policy/service-
 
 # Issues found with test suite 2025-06-21
 crbug.com/426602897 external/wpt/screen-capture/delegate-request.https.sub.html [ Failure Pass ]
-=======
-# Cobalt bug: b/461834934.
-wpt_internal/cobalt/HTMLVideoElementExtension/getAndSetMaxVideoCapabilities.html [ Timeout ]
-
-# Cobalt bug: b/405993906.
-wpt_internal/cobalt/h5vcc-runtime/* [ Failure ]
-
-# Cobalt bug: b/405997906.
-wpt_internal/cobalt/h5vcc-system/h5vcc-system-advertisingId.https.any.html [ Failure Timeout ]
-wpt_internal/cobalt/h5vcc-system/h5vcc-system-exit.https.any.html [ Failure Timeout ]
-wpt_internal/cobalt/h5vcc-system/h5vcc-system-limitAdTracking.https.any.html [ Failure Timeout ]
-wpt_internal/cobalt/h5vcc-system/h5vcc-system-trackingAuthorizationStatus.https.any.html [ Failure Timeout ]
-wpt_internal/cobalt/h5vcc-system/h5vcc-system-userOnExitStrategy.https.any.html [ Failure Timeout ]
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)

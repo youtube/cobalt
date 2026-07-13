@@ -272,13 +272,7 @@ vars = {
   'screen_ai_windows_386': 'version:138.06',
 
   # siso CIPD package version.
-<<<<<<< HEAD
   'siso_version': 'git_revision:c23de742b8483ddc09d8b68ef845efc7f5c6192f',
-=======
-  # Cobalt: Only need for M138. Need a newer siso for building
-  # cobalt with gcloud credentials.
-  'siso_version': 'git_revision:080102c196eef824a444b70272cb6d645b6abe09',
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
 
   # download libaom test data
   'download_libaom_testdata': False,
@@ -381,11 +375,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling fuzztest
   # and whatever else without interference from each other.
-<<<<<<< HEAD
   'fuzztest_revision': '45a1c3ad5ac3de58c8e9a3f89036e3f954820d4c',
-=======
-  'fuzztest_revision': '890b53c3485bf7e31ac8b6b637f9850e4d596ced',
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling domato
   # and whatever else without interference from each other.
@@ -2066,14 +2056,9 @@ deps = {
   'src/third_party/cpu_features/src':
     Var('chromium_git') + '/external/github.com/google/cpu_features.git' + '@' + '936b9ab5515dead115606559502e3864958f7f6e',
 
-<<<<<<< HEAD
-  'src/third_party/cpuinfo/src':
-    Var('chromium_git') + '/external/github.com/pytorch/cpuinfo.git' + '@' + 'd7427551d6531037da216d20cd36feb19ed4905f',
-=======
 # Cobalt: imported
 #  'src/third_party/cpuinfo/src':
-#    Var('chromium_git') + '/external/github.com/pytorch/cpuinfo.git' + '@' + '39ea79a3c132f4e678695c579ea9353d2bd29968',
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
+#    Var('chromium_git') + '/external/github.com/pytorch/cpuinfo.git' + '@' + 'd7427551d6531037da216d20cd36feb19ed4905f',
 
   'src/third_party/crc32c/src':
     Var('chromium_git') + '/external/github.com/google/crc32c.git' + '@' + 'd3d60ac6e0f16780bcfcc825385e1d338801a558',
@@ -2176,8 +2161,6 @@ deps = {
     'condition': 'checkout_instrumented_libraries',
   },
 
-<<<<<<< HEAD
-=======
   'src/third_party/internal': {
     'url': Var('cobalt_internal_git') + '/third_party/internal.git' + '@' + 'main',
     'condition': 'checkout_cobalt_internal',
@@ -2187,8 +2170,6 @@ deps = {
     'url': Var('chromium_git') + '/external/github.com/Stuk/jszip.git' + '@' + '2ceb998e29d4171b4f3f2ecab1a2195c696543c0',
     'condition': 'checkout_ios',
   },
-
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
   'src/third_party/emoji-segmenter/src':
     Var('chromium_git') + '/external/github.com/google/emoji-segmenter.git' + '@' + Var('emoji_segmenter_revision'),
 
@@ -2643,14 +2624,9 @@ deps = {
   'src/third_party/pdfium':
     Var('pdfium_git') + '/pdfium.git' + '@' +  Var('pdfium_revision'),
 
-<<<<<<< HEAD
-  'src/third_party/perfetto':
-    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + '18d4fdc15d027a989db705592585b924f93f1d42',
-=======
 # Cobalt: imported
 #  'src/third_party/perfetto':
-#    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + 'dd35b295cd359ba094404218414955f961a0d6ae',
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
+#    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + '18d4fdc15d027a989db705592585b924f93f1d42',
 
   'src/base/tracing/test/data': {
     'bucket': 'perfetto',
@@ -3023,14 +2999,9 @@ deps = {
   'src/third_party/webpagereplay':
     Var('chromium_git') + '/webpagereplay.git' + '@' + Var('webpagereplay_revision'),
 
-<<<<<<< HEAD
-  'src/third_party/webrtc':
-    Var('webrtc_git') + '/src.git' + '@' + '74fa937f86ed8432c07676f7a1ce0e5e2812b3d5',
-=======
 # Cobalt: imported
 #  'src/third_party/webrtc':
-#    Var('webrtc_git') + '/src.git' + '@' + '7ad61a0a06fac695468b843e17b81a6ab19d0feb',
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
+#    Var('webrtc_git') + '/src.git' + '@' + '74fa937f86ed8432c07676f7a1ce0e5e2812b3d5',
 
   # Wuffs' canonical repository is at github.com/google/wuffs, but we use
   # Skia's mirror of Wuffs, the same as in upstream Skia's DEPS file.

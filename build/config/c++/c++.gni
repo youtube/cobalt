@@ -52,14 +52,10 @@ declare_args() {
   # Apple platforms provide the intrinsics from a different library, and the
   # implementations in compiler-rt are outdated, so avoid building them in this
   # case.
-<<<<<<< HEAD
-  use_llvm_libatomic = !is_apple && !is_nacl
-=======
   # We disable that on LibFuzzer builds because it breaks the libfuzzer
   # runtime. See crbug.com/411020147.
   use_llvm_libatomic = !is_apple && !is_nacl && !use_libfuzzer &&
                        !(is_cobalt && is_partner_toolchain)
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
 }
 
 use_custom_libcxx =

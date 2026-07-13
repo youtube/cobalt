@@ -19,14 +19,10 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "base/time/time_override.h"
-<<<<<<< HEAD
 #include "base/trace_event/trace_event.h"
-=======
-#include "base/trace_event/base_tracing.h"
 #if BUILDFLAG(IS_COBALT)
 #include "base/memory/cobalt_memory_context.h"
 #endif
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
 
 namespace base::internal {
 

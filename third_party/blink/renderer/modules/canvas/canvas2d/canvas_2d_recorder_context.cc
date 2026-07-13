@@ -2806,7 +2806,8 @@ void Canvas2DRecorderContext::drawMesh(
     SetOriginTaintedByContent();
   }
 
-  SkRect bounds = SkRect::BoundsOrEmpty(vertex_data->data());
+  SkRect bounds;
+  bounds.setBounds(vertex_data->data().data(), vertex_data->data().size());
 
   Draw<OverdrawOp::kNone>(
       /*draw_func=*/

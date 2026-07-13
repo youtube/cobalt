@@ -185,13 +185,8 @@ class ContentSandboxHelper : public gpu::GpuSandboxHelper {
   bool EnsureSandboxInitialized(gpu::GpuWatchdogThread* watchdog_thread,
                                 const gpu::GPUInfo* gpu_info,
                                 const gpu::GpuPreferences& gpu_prefs) override {
-<<<<<<< HEAD
     TRACE_EVENT("gpu,startup", "gpu_main::EnsureSandboxInitialized");
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-=======
-    GPU_STARTUP_TRACE_EVENT("gpu_main::EnsureSandboxInitialized");
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS)
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
+#if (BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)) || BUILDFLAG(IS_CHROMEOS)
     return StartSandboxLinux(watchdog_thread, gpu_info, gpu_prefs);
 #elif BUILDFLAG(IS_WIN)
     return StartSandboxWindows(sandbox_info_);

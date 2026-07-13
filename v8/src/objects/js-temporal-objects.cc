@@ -23,12 +23,12 @@
 #include "src/objects/string-set.h"
 #include "src/strings/string-builder-inl.h"
 #include "src/temporal/temporal-parser.h"
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/I128Nanoseconds.hpp"
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/Instant.hpp"
+#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0_9/bindings/cpp/temporal_rs/I128Nanoseconds.hpp"
+#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0_9/bindings/cpp/temporal_rs/Instant.hpp"
 #ifdef TEMPORAL_CAPI_VERSION_0_0_6
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/TemporalUnit.hpp"
+#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0_9/bindings/cpp/temporal_rs/TemporalUnit.hpp"
 #else  // TEMPORAL_CAPI_VERSION_0_0_6
-#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/Unit.hpp"
+#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0_9/bindings/cpp/temporal_rs/Unit.hpp"
 #endif  // TEMPORAL_CAPI_VERSION_0_0_6
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"

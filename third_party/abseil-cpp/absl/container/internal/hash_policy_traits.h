@@ -146,14 +146,10 @@ struct hash_policy_traits : common_policy_traits<Policy> {
     return P::value(elem);
   }
 
-<<<<<<< HEAD
   template <class Hash, bool kIsDefault>
-=======
-  template <class Hash>
 #if defined(ENABLE_BUILDFLAG_BUILD_BASE_WITH_CPP17)
   static HashSlotFn get_hash_slot_fn() {
 #else
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
   static constexpr HashSlotFn get_hash_slot_fn() {
 #endif
 // get_hash_slot_fn may return nullptr to signal that non type erased function

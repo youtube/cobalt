@@ -8,12 +8,8 @@
 #include <cstdint>
 
 #include "base/functional/callback_forward.h"
-<<<<<<< HEAD
-#include "components/services/unzip/public/mojom/unzipper.mojom-forward.h"
-=======
 #include "build/buildflag.h"
-#include "components/services/unzip/public/mojom/unzipper.mojom.h"
->>>>>>> parent of 4cd566e86b (Reverting Cobalt.)
+#include "components/services/unzip/public/mojom/unzipper.mojom-forward.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #if !BUILDFLAG(IS_COBALT)
 #include "third_party/ced/src/util/encodings/encodings.h"  // nogncheck
