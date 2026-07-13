@@ -22,9 +22,13 @@ config("platform_configuration") {
     ldflags = [
       "-Wl,--wrap=access",
       "-Wl,--wrap=close",
+      "-Wl,--wrap=closedir",
       "-Wl,--wrap=fstatat",
       "-Wl,--wrap=open",
+      "-Wl,--wrap=opendir",
       "-Wl,--wrap=openat",
+      "-Wl,--wrap=readdir",
+      "-Wl,--wrap=readdir_r",
       "-Wl,--wrap=stat",
     ]
   }
