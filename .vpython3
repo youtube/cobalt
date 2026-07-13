@@ -448,7 +448,7 @@ wheel: <
 #   //content/test/gpu
 wheel: <
   name: "infra/python/wheels/pathos/${vpython_platform}"
-  version: "version:0.2.7.chromium.5"
+  version: "version:0.2.7.chromium.6"
   not_match_tag <
     abi: "cp27mu"
     platform: "manylinux1_i686"
