@@ -189,7 +189,7 @@ public class ShellManager {
             mContentViewRenderView.destroy();
             mContentViewRenderView = null;
         }
-        sNatives.destroy();
+        sNatives.destroy(this);
         mNextWebContentsReadyListener = null;
         mWindow = null;
         mContext = null;
@@ -220,7 +220,7 @@ public class ShellManager {
         /**
          * Releases the native global reference to this ShellManager.
          */
-        void destroy();
+        void destroy(Object shellManagerInstance);
         /**
          * Appends the migration status parameter to the given URL.
          * @param url The URL to append the migration status to.

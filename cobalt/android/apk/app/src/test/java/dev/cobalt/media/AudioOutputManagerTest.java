@@ -15,14 +15,16 @@
  */
 package dev.cobalt.media;
 
-import static org.junit.Assert.assertFalse;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.content.Context;
 import android.media.AudioDeviceCallback;
 import android.media.AudioManager;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
@@ -31,18 +33,26 @@ import org.robolectric.util.ReflectionHelpers;
 @RunWith(RobolectricTestRunner.class)
 public class AudioOutputManagerTest {
   @Test
-  public void testRemoveAudioDeviceListenerUnregistersFrameworkCallback() {
+  public void testAudioDeviceListenerRemainsRegisteredUntilLastRegistrantIsRemoved() {
     Context context = mock(Context.class);
     AudioManager audioManager = mock(AudioManager.class);
     AudioDeviceCallback callback =
         ReflectionHelpers.getStaticField(AudioOutputManager.class, "sAudioDeviceCallback");
-    ReflectionHelpers.setStaticField(AudioOutputManager.class, "sAudioDeviceListenerAdded", true);
+    AtomicInteger listenerRefCount =
+        ReflectionHelpers.getStaticField(
+            AudioOutputManager.class, "sAudioDeviceListenerRefCount");
+    listenerRefCount.set(0);
     when(context.getSystemService(Context.AUDIO_SERVICE)).thenReturn(audioManager);
+
+    AudioOutputManager.addAudioDeviceListener(context);
+    AudioOutputManager.addAudioDeviceListener(context);
+    AudioOutputManager.removeAudioDeviceListener(context);
+
+    verify(audioManager, times(1)).registerAudioDeviceCallback(callback, null);
+    verify(audioManager, never()).unregisterAudioDeviceCallback(callback);
 
     AudioOutputManager.removeAudioDeviceListener(context);
 
-    verify(audioManager).unregisterAudioDeviceCallback(callback);
-    assertFalse(
-        ReflectionHelpers.getStaticField(AudioOutputManager.class, "sAudioDeviceListenerAdded"));
+    verify(audioManager, times(1)).unregisterAudioDeviceCallback(callback);
   }
 }

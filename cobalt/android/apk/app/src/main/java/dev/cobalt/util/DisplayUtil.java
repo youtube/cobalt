@@ -24,10 +24,11 @@ import android.view.Display;
 import android.view.WindowManager;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 /** Utility functions for querying display attributes. */
 public class DisplayUtil {
@@ -222,16 +223,15 @@ public class DisplayUtil {
         }
       };
 
-  private static boolean sDisplayerListenerAdded = false;
+  private static final AtomicInteger sListenerRefCount = new AtomicInteger(0);
 
   public static void addDisplayListener(Context context) {
-    if (sDisplayerListenerAdded) {
+    if (context == null || sListenerRefCount.getAndIncrement() != 0) {
       return;
     }
 
     DisplayManager displayManager = context.getSystemService(DisplayManager.class);
     displayManager.registerDisplayListener(sDisplayerListener, null);
-    sDisplayerListenerAdded = true;
 
     // Call nativeOnDisplayChanged() to reload supported hdr types here after a default
     // Display created.
@@ -239,7 +239,7 @@ public class DisplayUtil {
   }
 
   public static void removeDisplayListener(Context context) {
-    if (!sDisplayerListenerAdded || context == null) {
+    if (context == null || sListenerRefCount.decrementAndGet() != 0) {
       return;
     }
 
@@ -248,6 +248,5 @@ public class DisplayUtil {
       return;
     }
     displayManager.unregisterDisplayListener(sDisplayerListener);
-    sDisplayerListenerAdded = false;
   }
 }
