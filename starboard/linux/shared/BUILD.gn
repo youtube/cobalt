@@ -231,6 +231,8 @@ static_library("starboard_platform_sources") {
     sources += [
       "//starboard/shared/starboard/crash_handler.cc",
       "//starboard/shared/starboard/crash_handler.h",
+      "//starboard/shared/starboard/core_metric_components.cc",
+      "//starboard/shared/starboard/core_metric_components.h",
     ]
   }
 

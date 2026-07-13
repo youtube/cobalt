@@ -28,6 +28,7 @@ class CobaltHangWatcherDelegate : public base::HangWatcher::Delegate {
   static void Initialize();
 
   bool IsHangReportingEnabled() override;
+  void OnHangStarted(const std::string& hang_uuid) override;
 };
 
 }  // namespace browser

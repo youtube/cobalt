@@ -51,6 +51,26 @@ bool InsertCrashpadAnnotation(const char* key, const char* value);
 // Captures CPU context and triggers a non-crashing dump report.
 void DumpWithoutCrashingWrapper();
 
+// Retrieves all completed stability reports (crashes and hangs) currently
+// stored in the local Crashpad database.
+//
+// Populates |out_buffer| with a null-terminated JSON-serialized array of
+// dictionaries representing the reports.
+//
+// Example of the returned JSON array structure:
+// [
+//   {
+//     "crashpad_db_uuid": "b44678e7-3c5f-4b80-94d4-b7b18a667100",
+//     "creation_time": 1782250000.0,
+//     "cmc_report_type": "hang",
+//     "cmc_join_uuid": "fb8b78fa-c1ad-467d-afc2-4916a4a6b281"
+//   },
+//   ...
+// ]
+//
+// Returns true on success, or false if the serialization fails or if the
+// serialized string exceeds the size of |out_buffer|.
+bool GetCompletedReports(char* out_buffer, int buffer_size);
 }  // namespace crashpad
 
 #endif  // STARBOARD_CRASHPAD_WRAPPER_WRAPPER_H_

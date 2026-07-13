@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <memory>
 #include <type_traits>
+#include <string>
 #include <vector>
 
 #include "base/auto_reset.h"
@@ -114,6 +115,9 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
     // Returns true if hang reporting should be enabled
     // potentially overriding default settings.
     virtual bool IsHangReportingEnabled() = 0;
+    // Invoked when a hang is first detected on a monitored thread,
+    // prior to triggering a non-fatal hang report.
+    virtual void OnHangStarted(const std::string& hang_uuid) {}
   };
 #endif
 
