@@ -175,7 +175,7 @@ DOMArrayBuffer* H5vccPlatformService::send(DOMArrayBuffer* data,
   }
 
   if (!response_data.has_value()) {
-    WTF::String msg = error_message.IsNull()
+    WTF::String msg = error_message.IsEmpty()
                           ? "Browser side could not send data to the service."
                           : error_message;
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
