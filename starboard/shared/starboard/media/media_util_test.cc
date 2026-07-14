@@ -250,5 +250,39 @@ TEST(MediaUtilTest, Resolutions) {
   EXPECT_EQ(Resolution::k8k, Size(7680, 4320));
 }
 
+TEST(MediaUtilTest, IsSDRVideo) {
+  EXPECT_TRUE(IsSDRVideo(8, kSbMediaPrimaryIdBt709, kSbMediaTransferIdBt709,
+                         kSbMediaMatrixIdBt709));
+  EXPECT_TRUE(IsSDRVideo(8, kSbMediaPrimaryIdUnspecified,
+                         kSbMediaTransferIdUnspecified,
+                         kSbMediaMatrixIdUnspecified));
+  EXPECT_TRUE(IsSDRVideo(8, kSbMediaPrimaryIdSmpte170M,
+                         kSbMediaTransferIdSmpte170M,
+                         kSbMediaMatrixIdSmpte170M));
+
+  EXPECT_FALSE(IsSDRVideo(10, kSbMediaPrimaryIdBt709, kSbMediaTransferIdBt709,
+                          kSbMediaMatrixIdBt709));
+
+  EXPECT_FALSE(IsSDRVideo(8, kSbMediaPrimaryIdBt2020, kSbMediaTransferIdBt709,
+                          kSbMediaMatrixIdBt709));
+  EXPECT_FALSE(IsSDRVideo(8, kSbMediaPrimaryIdBt709,
+                          kSbMediaTransferIdSmpteSt2084,
+                          kSbMediaMatrixIdBt709));
+  EXPECT_FALSE(IsSDRVideo(8, kSbMediaPrimaryIdBt709, kSbMediaTransferIdBt709,
+                          kSbMediaMatrixIdBt2020NonconstantLuminance));
+}
+
+TEST(MediaUtilTest, IsSDRVideo_Mime) {
+  EXPECT_TRUE(IsSDRVideo("video/mp4; codecs=\"avc1.4d401e\""));
+  EXPECT_TRUE(IsSDRVideo("video/webm; codecs=\"vp9\""));
+  EXPECT_TRUE(IsSDRVideo("invalid_mime"));
+
+  EXPECT_FALSE(
+      IsSDRVideo("video/webm; codecs=\"vp09.02.51.10.01.09.16.09.01\""));
+
+  EXPECT_FALSE(
+      IsSDRVideo("video/webm; codecs=\"vp09.00.51.08.01.09.16.09.01\""));
+}
+
 }  // namespace
 }  // namespace starboard
