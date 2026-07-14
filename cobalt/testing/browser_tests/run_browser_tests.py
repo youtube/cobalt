@@ -71,7 +71,8 @@ class CobaltTestRunner:
       # For local runs, create a temporary file to keep log_file_path valid
       # and log its location to console.
       temp_dir = tempfile.gettempdir()
-      self.log_file_path = os.path.join(temp_dir, "cobalt_browser_tests_local.log")
+      self.log_file_path = os.path.join(temp_dir,
+                                        "cobalt_browser_tests_local.log")
       logging.info(
           "MH_GEN_FILE_DIR is not set. Local run log will be saved to: %s",
           self.log_file_path,
@@ -301,9 +302,7 @@ class CobaltTestRunner:
       logging.error("Error initializing XML file %s: %s", self.xml_output_file,
                     e)
 
-  def _run_command_and_tee(self,
-                           cmd: list[str],
-                           env: dict[str, str],
+  def _run_command_and_tee(self, cmd: list[str], env: dict[str, str],
                            log_file_path: str) -> int:
     """Runs a command and tees its stdout/stderr to console and a log file."""
     with open(log_file_path, "a", encoding="utf-8") as f_log:
