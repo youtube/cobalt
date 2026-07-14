@@ -59,11 +59,6 @@ scoped_refptr<SurfaceDestroyNotifier>& GetGlobalSurfaceDestroyNotifier() {
   return *notifier;
 }
 
-// Global boolean to indicate if we need to reset SurfaceView after playing
-// vertical video.
-// TODO: b/521503666 - Revisit to see if we need this variable or not.
-bool g_reset_surface_on_clear_window = false;
-
 void ClearNativeWindow(void* raw_context) {
   ANativeWindow* native_window = static_cast<ANativeWindow*>(raw_context);
   EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
@@ -173,10 +168,6 @@ void JNI_VideoSurfaceView_OnVideoSurfaceChanged(
   if (notifier_to_notify) {
     notifier_to_notify->Notify();
   }
-}
-
-void JNI_VideoSurfaceView_SetNeedResetSurface(JNIEnv* env) {
-  g_reset_surface_on_clear_window = true;
 }
 
 void SurfaceDestroyNotifier::Disconnect() {
