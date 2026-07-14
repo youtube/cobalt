@@ -22,6 +22,7 @@ import android.media.AudioManager;
 import android.media.AudioTimestamp;
 import android.media.AudioTrack;
 import android.os.Build;
+import android.os.Build.VERSION;
 import androidx.annotation.RequiresApi;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
@@ -80,6 +81,16 @@ public class AudioTrackBridge {
       case 6:
         channelConfig = AudioFormat.CHANNEL_OUT_5POINT1;
         break;
+      case 8:
+	channelConfig = AudioFormat.CHANNEL_OUT_7POINT1_SURROUND;
+        break;
+      case 10:
+        if (VERSION.SDK_INT >= 32) {
+          channelConfig = AudioFormat.CHANNEL_OUT_7POINT1POINT2;
+	} else {
+          throw new RuntimeException("Unsupported channel count: " + channelCount);
+        }
+						        break;
       default:
         throw new RuntimeException("Unsupported channel count: " + channelCount);
     }
@@ -117,7 +128,7 @@ public class AudioTrackBridge {
           isWebAudio ? AudioAttributes.USAGE_NOTIFICATION : AudioAttributes.USAGE_MEDIA;
       // TODO: Support ENCODING_E_AC3_JOC for api level 28 or later.
       final boolean isSurround =
-          sampleType == AudioFormat.ENCODING_AC3 || sampleType == AudioFormat.ENCODING_E_AC3;
+          sampleType == AudioFormat.ENCODING_AC3 || sampleType == AudioFormat.ENCODING_E_AC3 || channelCount > 2;
       final boolean useContentTypeMovie = isSurround || !isWebAudio;
       attributes =
           new AudioAttributes.Builder()
