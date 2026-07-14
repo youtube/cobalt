@@ -14,12 +14,12 @@
 
 package dev.cobalt.coat;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.StringJoiner;
 import org.chromium.base.BuildInfo;
 import org.chromium.base.CommandLine;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.StringJoiner;
 
 // ==========
 // IMPORTANT:

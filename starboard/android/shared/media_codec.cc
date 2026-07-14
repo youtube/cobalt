@@ -116,7 +116,7 @@ DefaultMediaCodecFactory::CreateVideoMediaCodec(
   if (decoder_name.empty()) {
     return Failure(
         FormatString("Failed to find decoder: mime=%s, mustSupportSecure=%s",
-                     mime, starboard::ToString(!!j_media_crypto).data()));
+                     mime, ToString(!!j_media_crypto).data()));
   }
 
   if (CanUseNdkMediaCodec(platform_options, j_media_crypto, color_metadata)) {
@@ -185,30 +185,27 @@ FrameSize::FrameSize(Size display_size, bool has_crop_values)
 
 std::ostream& operator<<(std::ostream& os, const FrameSize& size) {
   return os << "{display_size=" << size.display_size
-            << ", has_crop_values=" << starboard::ToString(size.has_crop_values)
-            << "}";
+            << ", has_crop_values=" << ToString(size.has_crop_values) << "}";
 }
 
 std::ostream& operator<<(std::ostream& os,
                          const MediaCodec::VideoPlatformOptions& options) {
   return os << "{max_input_size=" << options.max_input_size
             << ", skip_video_frames_over_60_fps="
-            << starboard::ToString(options.skip_video_frames_over_60_fps)
+            << ToString(options.skip_video_frames_over_60_fps)
             << ", ignore_mediacodec_callbacks_during_flushing="
-            << starboard::ToString(
-                   options.ignore_mediacodec_callbacks_during_flushing)
+            << ToString(options.ignore_mediacodec_callbacks_during_flushing)
             << ", enable_frame_renderer_listener="
-            << starboard::ToString(options.enable_frame_renderer_listener)
-            << ", enable_low_latency="
-            << starboard::ToString(options.enable_low_latency)
+            << ToString(options.enable_frame_renderer_listener)
+            << ", enable_low_latency=" << ToString(options.enable_low_latency)
             << ", require_secured_decoder="
-            << starboard::ToString(options.require_secured_decoder)
+            << ToString(options.require_secured_decoder)
             << ", require_software_codec="
-            << starboard::ToString(options.require_software_codec)
+            << ToString(options.require_software_codec)
             << ", force_big_endian_hdr_metadata="
-            << starboard::ToString(options.force_big_endian_hdr_metadata)
+            << ToString(options.force_big_endian_hdr_metadata)
             << ", tunnel_mode_audio_session_id="
-            << starboard::ToString(options.tunnel_mode_audio_session_id) << "}";
+            << ToString(options.tunnel_mode_audio_session_id) << "}";
 }
 
 }  // namespace starboard

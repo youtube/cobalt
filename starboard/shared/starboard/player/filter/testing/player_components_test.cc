@@ -727,7 +727,7 @@ vector<PlayerComponentsTestParam> GetSupportedCreationParameters() {
           CreateParam(audio_files[j], video_params[i], max_video_input_size));
     }
   }
-  SB_DCHECK_LT(supported_parameters.size(), 50)
+  SB_DCHECK_LT(supported_parameters.size(), 50U)
       << "Running the tests may take too long and result in a timeout.";
 
   for (size_t i = 0; i < audio_files.size(); i++) {
