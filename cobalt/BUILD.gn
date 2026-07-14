@@ -91,6 +91,28 @@ group("gn_all") {
   }
 }
 
+# Target containing the SbEventHandle implementation, kept separate from ":common"
+# so tests defining their own entry point/mock can omit it or link it as needed.
+static_library("sb_event_handle") {
+  sources = [ "app/sb_event_handle.cc" ]
+  deps = [
+    ":common",
+    "//base",
+    "//starboard:starboard_group",
+  ]
+}
+
+# Target containing the default app/cobalt.cc entry point.
+static_library("cobalt_app") {
+  sources = [ "app/cobalt.cc" ]
+  deps = [
+    ":common",
+    ":sb_event_handle",
+    "//base",
+    "//starboard:starboard_group",
+  ]
+}
+
 group("cobalt_browsertests") {
   testonly = true
 
@@ -104,6 +126,7 @@ if (is_ios && target_platform == "tvos") {
     sources = [ "app/tvos/main.mm" ]
 
     deps = [
+      ":cobalt_app",
       ":common",
       "//base",
       "//cobalt/browser/tvos/intents:yt_intents",
@@ -135,6 +158,7 @@ if (is_ios && target_platform == "tvos") {
     configs -= [ "//build/config/compiler:thin_archive" ]
 
     deps = [
+      ":cobalt_app",
       ":common",
       "//base",
       "//cobalt/browser/tvos/intents:yt_intents",
@@ -173,11 +197,12 @@ if (is_ios && target_platform == "tvos") {
     cobalt_target_type = "executable"
   }
   target(cobalt_target_type, "cobalt") {
-    sources = [ "app/cobalt.cc" ]
+    testonly = true
 
     configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
 
     deps = [
+      ":cobalt_app",
       ":common",
       "//base",
       "//starboard:starboard_headers_only",
@@ -407,6 +432,8 @@ test("cobalt_unittests") {
   if (is_android) {
     deps += [
       "//base:base_java_test_support",
+      "//cobalt:sb_event_handle",
+      "//cobalt/android:app_event_bridge",
       "//content/public/android:content_java",
       "//ui/android:ui_java",
     ]

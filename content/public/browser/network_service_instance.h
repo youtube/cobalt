@@ -44,7 +44,7 @@ CONTENT_EXPORT network::mojom::NetworkService* GetNetworkService();
 
 // Only on ChromeOS since it's only used there.
 // Cobalt: Used on Starboard as well.
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_COBALT)
 // Returns the global NetworkChangeNotifier instance.
 CONTENT_EXPORT net::NetworkChangeNotifier* GetNetworkChangeNotifier();
 #endif
