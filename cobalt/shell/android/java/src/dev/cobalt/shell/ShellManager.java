@@ -16,7 +16,6 @@ package dev.cobalt.shell;
 
 import android.content.Context;
 import dev.cobalt.shell.ContentViewRenderView;
-import java.util.Objects;
 import org.chromium.base.ThreadUtils;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
@@ -68,8 +67,8 @@ public class ShellManager {
         }
     }
 
-    public Context getContext() {
-        return Objects.requireNonNull(mContext);
+    public @Nullable Context getContext() {
+        return mContext;
     }
 
     /**
@@ -86,8 +85,8 @@ public class ShellManager {
     /**
      * @return The window used to generate all shells.
      */
-    public WindowAndroid getWindow() {
-        return Objects.requireNonNull(mWindow);
+    public @Nullable WindowAndroid getWindow() {
+        return mWindow;
     }
 
     /**
