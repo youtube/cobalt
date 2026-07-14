@@ -628,7 +628,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << "`kResetDelayUsec` is set to > 0, force a delay of "
         << reset_delay_usec << "us during Reset().";
 
-    bool use_dual_threads = true;
+    bool use_dual_threads =
+        FeatureList::IsEnabled(features::kCobaltUseDualThreadsForVideo);
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
       // `use_dual_threads` should be disabled if the libopus audio
       // decoder isn't used, as we want to limit the initial behavior to

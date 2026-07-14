@@ -107,6 +107,12 @@ STARBOARD_FEATURE(kAreaBasedVideoBufferBudget,
                   "AreaBasedVideoBufferBudget",
                   false)
 
+// Set to true to enable dual thread video decoding.
+STARBOARD_FEATURE(kCobaltUseDualThreadsForVideo,
+                  "CobaltUseDualThreadsForVideo",
+                  false)
+
+
 // Set the following variable to true to enable av1 startup optimization.
 STARBOARD_FEATURE(kEnableAv1StartupOptimization,
                   "EnableAv1StartupOptimization",
