@@ -64,7 +64,7 @@ void RemoveUnexpectedRenderedFrames(const std::list<int64_t>& frames_to_render,
   if (removed_rendered_frames > 0) {
     SB_LOG(WARNING)
         << "Removed unexpected timestamps. This can happen during "
-           "seek, since flushed frames are reported to be as rendered frames"
+           "seek, since flushed frames are reported to be as rendered frames "
            "on Android 14+: # of removed timestamps="
         << removed_rendered_frames;
   }

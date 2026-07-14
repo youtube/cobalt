@@ -80,7 +80,7 @@ bool MojoRendererBypassBridge::Read(DemuxerStream::Type type,
       std::move(read_cb).Run(DemuxerStream::kAborted, {});
       return false;
     }
-    stream = (type == DemuxerStream::AUDIO ? audio_stream_ : video_stream_);
+    stream = GetStreamLocked(type);
     if (stream) {
       in_flight_reads_++;
     }
@@ -129,8 +129,7 @@ bool MojoRendererBypassBridge::SupportsConfigChanges(
   if (!active_) {
     return false;
   }
-  DemuxerStream* stream =
-      (type == DemuxerStream::AUDIO ? audio_stream_ : video_stream_);
+  DemuxerStream* stream = GetStreamLocked(type);
   return stream ? stream->SupportsConfigChanges() : false;
 }
 
@@ -140,9 +139,31 @@ StreamLiveness MojoRendererBypassBridge::GetLiveness(
   if (!active_) {
     return StreamLiveness::kUnknown;
   }
-  DemuxerStream* stream =
-      (type == DemuxerStream::AUDIO ? audio_stream_ : video_stream_);
+  DemuxerStream* stream = GetStreamLocked(type);
   return stream ? stream->liveness() : StreamLiveness::kUnknown;
+}
+
+std::string MojoRendererBypassBridge::GetMimeType(
+    DemuxerStream::Type type) const {
+  base::AutoLock auto_lock(lock_);
+  if (!active_) {
+    return "";
+  }
+  DemuxerStream* stream = GetStreamLocked(type);
+  return stream ? stream->mime_type() : "";
+}
+
+void MojoRendererBypassBridge::EnableBitstreamConverter(
+    DemuxerStream::Type type) {
+  base::AutoLock auto_lock(lock_);
+  if (!active_) {
+    return;
+  }
+  DemuxerStream* stream = GetStreamLocked(type);
+  if (!stream) {
+    return;
+  }
+  stream->EnableBitstreamConverter();
 }
 
 void MojoRendererBypassBridge::RunTimeUpdateOnClientThread(
@@ -171,6 +192,17 @@ void MojoRendererBypassBridge::DecrementInFlightReads() {
   if (in_flight_reads_ == 0) {
     cond_var_.Signal();
   }
+}
+
+DemuxerStream* MojoRendererBypassBridge::GetStreamLocked(
+    DemuxerStream::Type type) const {
+  if (type == DemuxerStream::AUDIO) {
+    return audio_stream_;
+  }
+  if (type == DemuxerStream::VIDEO) {
+    return video_stream_;
+  }
+  return nullptr;
 }
 
 // static
