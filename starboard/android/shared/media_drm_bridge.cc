@@ -22,6 +22,7 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/memory/raw_ref.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "third_party/jni_zero/jni_zero.h"
@@ -151,12 +152,15 @@ std::unique_ptr<MediaDrmBridge> MediaDrmBridge::Create(
 
 MediaDrmBridge::MediaDrmBridge(PassKey<MediaDrmBridge>,
                                base::raw_ref<MediaDrmBridge::Host> host)
-    : host_(host) {}
+    : host_(host) {
+  StarboardBridge::GetInstance()->IncrementMediaResourceCount();
+}
 
 MediaDrmBridge::~MediaDrmBridge() {
   if (!j_media_drm_bridge_.is_null()) {
     Java_MediaDrmBridge_destroy(AttachCurrentThread(), j_media_drm_bridge_);
   }
+  StarboardBridge::GetInstance()->DecrementMediaResourceCount();
 }
 
 void MediaDrmBridge::CreateSession(int ticket,
