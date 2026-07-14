@@ -64,6 +64,19 @@ class CobaltTestRunner:
     else:
       logging.info("Using user data directory: %s", self.user_data_dir)
 
+    gen_dir = os.environ.get("MH_GEN_FILE_DIR")
+    if gen_dir:
+      self.log_file_path = os.path.join(gen_dir, "test_results.txt")
+    else:
+      # For local runs, create a temporary file to keep log_file_path valid
+      # and log its location to console.
+      temp_dir = tempfile.gettempdir()
+      self.log_file_path = os.path.join(temp_dir, "cobalt_browser_tests_local.log")
+      logging.info(
+          "MH_GEN_FILE_DIR is not set. Local run log will be saved to: %s",
+          self.log_file_path,
+      )
+
   def __enter__(self):
     """Enter the runtime context."""
     return self
@@ -291,14 +304,9 @@ class CobaltTestRunner:
   def _run_command_and_tee(self,
                            cmd: list[str],
                            env: dict[str, str],
-                           log_file_path: Optional[str] = None) -> int:
+                           log_file_path: str) -> int:
     """Runs a command and tees its stdout/stderr to console and a log file."""
-    f_log = None
-    if log_file_path:
-      # pylint: disable=consider-using-with
-      f_log = open(log_file_path, "a", encoding="utf-8")
-
-    try:
+    with open(log_file_path, "a", encoding="utf-8") as f_log:
       with subprocess.Popen(
           cmd,
           stdout=subprocess.PIPE,
@@ -310,14 +318,9 @@ class CobaltTestRunner:
           for line in proc.stdout:
             sys.stdout.write(line)
             sys.stdout.flush()
-            if f_log:
-              f_log.write(line)
+            f_log.write(line)
         proc.wait()
-        retcode = proc.returncode
-    finally:
-      if f_log:
-        f_log.close()
-    return retcode
+        return proc.returncode
 
   def _run_single_test(self, test_name: str,
                        test_idx: int) -> tuple[int, Optional[str]]:
@@ -349,11 +352,7 @@ class CobaltTestRunner:
     env["GTEST_SHARD_INDEX"] = "0"
 
     try:
-      log_file_path = None
-      gen_dir = os.environ.get("MH_GEN_FILE_DIR")
-      if gen_dir:
-        log_file_path = os.path.join(gen_dir, "test_results.txt")
-      retcode = self._run_command_and_tee(cmd, env, log_file_path)
+      retcode = self._run_command_and_tee(cmd, env, self.log_file_path)
     # pylint: disable=broad-exception-caught
     except Exception as e:
       logging.error("Error executing test %s: %s", test_name, e)

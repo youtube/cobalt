@@ -244,14 +244,13 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       target_gtest_filter = ''
       if isinstance(target_data, dict):
         test_target = target_data['target']
-        test_attempts = target_data.get('test_attempts', '')
-        if test_attempts:
-          test_args.extend([f'test_attempts={test_attempts}'])
+        if test_attempts := target_data.get('test_attempts', ''):
+          test_args.append(f'test_attempts={test_attempts}')
         target_gtest_filter = target_data.get('gtest_filter', '')
       else:
         test_target = target_data
         if args.test_attempts:
-          test_args.extend([f'test_attempts={args.test_attempts}'])
+          test_args.append(f'test_attempts={args.test_attempts}')
       target_name = test_target.split(':')[-1]
       if args.gtest_filter:
         gtest_filter = args.gtest_filter
