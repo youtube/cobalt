@@ -185,7 +185,25 @@ def get_submodule_root_dirs():
 
 def chromium_cherry_pick(previous_sha, sha, metadata, first_commit,
                          autoroll_file):
-  """Temporarily reverts Cobalt before applying a Chromium cherry pick."""
+  """Temporarily reverts Cobalt changes to apply a Chromium cherry-pick.
+
+  This function performs a "clean slate" cherry-pick by wiping the current
+  working directory, checking out the pure Chromium state at `previous_sha`,
+  and committing that as a temporary revert. It then applies the desired
+  Chromium `sha` and re-applies Cobalt's modifications over the result.
+
+  Args:
+    previous_sha: The SHA of the clean Chromium base before Cobalt changes were
+      applied.
+    sha: The SHA of the Chromium commit to be cherry-picked.
+    metadata: Metadata associated with the cherry-pick, passed to the final
+      conflicting revert call.
+    first_commit: boolean flag indicating if it's the first commit in the PR.
+    autoroll_file: Path to the file that tracks autoroll progress.
+
+  Returns:
+    CommitStatus and unmerged_files.
+  """
   log('Deleting everything...')
   roots = get_submodule_root_dirs()
   if roots:
@@ -198,7 +216,10 @@ def chromium_cherry_pick(previous_sha, sha, metadata, first_commit,
 
   log('Committing Cobalt revert...')
   run(['git', 'add', '--', '.'])
-  run(['git', 'commit', '--no-verify', '-m', 'Reverting Cobalt.'])
+  run([
+      'git', 'commit', '--no-verify', '-m',
+      'CONFLICTED Chromium Cherry pick: Reverting Cobalt.'
+  ])
   cobalt_revert_sha = get_out(['git', 'rev-parse', 'HEAD']).strip()
 
   log('Cherry picking Chromium...')
@@ -277,6 +298,7 @@ def main():
   p.add_argument('--target-branch', required=True)
   p.add_argument('--autoroll-file', required=True)
   p.add_argument('--max-commits', type=int, required=True)
+  p.add_argument('--existing-pr-sha', required=True)
   args = p.parse_args()
 
   target_start = get_start_sha(args.target_branch, args.autoroll_file)
@@ -285,6 +307,14 @@ def main():
   if autoroll_start is None:
     log('Autoroll branch has an unresolved CONFLICTED commit.')
     return
+
+  if args.existing_pr_sha:
+    commit_title = get_out(
+        ['git', 'log', '-1', args.existing_pr_sha, '--format=%s']).strip()
+    if commit_title.startswith('CONFLICTED'):
+      log('Autoroll branch has a resolved CONFLICTED commit. '
+          'Squash and merge before autoroll will continue.')
+      return
 
   # Commits in source but not in target
   commits_to_target = get_commits(args.source_branch, target_start)
