@@ -262,6 +262,8 @@ TEST(MediaUtilTest, IsSDRVideo) {
 
   EXPECT_FALSE(IsSDRVideo(10, kSbMediaPrimaryIdBt709, kSbMediaTransferIdBt709,
                           kSbMediaMatrixIdBt709));
+  EXPECT_FALSE(IsSDRVideo(12, kSbMediaPrimaryIdBt709, kSbMediaTransferIdBt709,
+                          kSbMediaMatrixIdBt709));
 
   EXPECT_FALSE(IsSDRVideo(8, kSbMediaPrimaryIdBt2020, kSbMediaTransferIdBt709,
                           kSbMediaMatrixIdBt709));
@@ -273,13 +275,26 @@ TEST(MediaUtilTest, IsSDRVideo) {
 }
 
 TEST(MediaUtilTest, IsSDRVideo_Mime) {
+  // Standard 8-bit AVC / H.264 stream without HDR colorimetry.
   EXPECT_TRUE(IsSDRVideo("video/mp4; codecs=\"avc1.4d401e\""));
+  // Short-form VP9 string where bit depth defaults to 8-bit and colorimetry
+  // defaults to BT.709.
   EXPECT_TRUE(IsSDRVideo("video/webm; codecs=\"vp9\""));
+  // Unrecognized or invalid MIME types fall back to assuming SDR video.
   EXPECT_TRUE(IsSDRVideo("invalid_mime"));
+  // 8-bit VP9 with explicitly specified BT.709 color primaries (01),
+  // transfer function (01), and matrix coefficients (01).
+  EXPECT_TRUE(
+      IsSDRVideo("video/webm; codecs=\"vp09.00.51.08.01.01.01.01.01\""));
 
+  // 10-bit depth (Profile 2 VP9) is HDR, not SDR.
   EXPECT_FALSE(
       IsSDRVideo("video/webm; codecs=\"vp09.02.51.10.01.09.16.09.01\""));
-
+  // 12-bit depth (Profile 3 VP9) is HDR, not SDR.
+  EXPECT_FALSE(
+      IsSDRVideo("video/webm; codecs=\"vp09.03.51.12.01.09.16.09.01\""));
+  // 8-bit depth VP9 paired with BT.2020 color primaries (09) and SMPTE ST 2084
+  // PQ transfer curve (16) is HDR, not SDR.
   EXPECT_FALSE(
       IsSDRVideo("video/webm; codecs=\"vp09.00.51.08.01.09.16.09.01\""));
 }
