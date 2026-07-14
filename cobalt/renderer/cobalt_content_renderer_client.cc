@@ -30,9 +30,11 @@
 #include "media/base/decoder_buffer.h"
 #include "media/base/key_systems_support_registration.h"
 #include "media/base/media_log.h"
+#include "media/base/media_switches.h"
 #include "media/base/renderer_factory.h"
 #include "media/base/starboard/experimental_features.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
+#include "media/starboard/starboard_media_external_memory_allocator.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
@@ -295,6 +297,13 @@ bool CobaltContentRendererClient::IsDecoderSupportedVideoType(
   return result;
 }
 
+::media::ExternalMemoryAllocator*
+CobaltContentRendererClient::GetMediaAllocator() {
+  base::AutoLock scoped_lock(media_allocator_lock_);
+  return is_external_memory_pool_enabled_ ? media_memory_allocator_.get()
+                                          : nullptr;
+}
+
 void CobaltContentRendererClient::RunScriptsAtDocumentStart(
     content::RenderFrame* render_frame) {
   CHECK(content::RenderThread::IsMainThread());
@@ -330,6 +339,24 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
     experimental_features = ParseH5vccSettings(std::move(settings));
   }
   renderer_factory_traits->experimental_features = experimental_features;
+
+  // For experimental purposes, we check both command-line feature flags and
+  // H5vcc settings here so web apps can toggle external memory pooling
+  // dynamically. Once this feature is finalized and enabled by default, this
+  // initialization should be moved back to
+  // CobaltContentRendererClient::RenderThreadStarted().
+  const bool enable_external_pool =
+      base::FeatureList::IsEnabled(
+          ::media::kCobaltUseExternalMediaMemoryPool) ||
+      experimental_features.GetBool(::media::kMediaUseExternalMediaMemoryPool);
+  {
+    base::AutoLock scoped_lock(media_allocator_lock_);
+    is_external_memory_pool_enabled_ = enable_external_pool;
+    if (is_external_memory_pool_enabled_ && !media_memory_allocator_) {
+      media_memory_allocator_ =
+          std::make_unique<::media::StarboardMediaExternalMemoryAllocator>();
+    }
+  }
 }
 
 void CobaltContentRendererClient::PostSandboxInitialized() {

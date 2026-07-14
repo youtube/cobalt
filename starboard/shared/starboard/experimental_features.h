@@ -47,7 +47,9 @@ template <typename T>
 class ExperimentalFeatureKey {
  public:
   using ValueType = T;
-  constexpr explicit ExperimentalFeatureKey(std::string_view key) : key_(key) {}
+  template <size_t N>
+  constexpr explicit ExperimentalFeatureKey(const char (&key)[N])
+      : key_(key, N - 1) {}
   constexpr std::string_view key() const { return key_; }
 
  private:
@@ -156,6 +158,9 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaAllowAudioWritingOnPause(
 inline constexpr ExperimentalFeatureKey<bool> kMediaDecodedAudioBufferPool(
     "Media.DecodedAudioBufferPool");
 
+inline constexpr ExperimentalFeatureKey<bool> kMediaEnableAppProvisioning(
+    "Media.EnableAppProvisioning");
+
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaEnableAv1StartupOptimization("Media.EnableAv1StartupOptimization");
 
@@ -188,6 +193,8 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaForceClearSurfaceView(
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaIgnoreMediaCodecCallbacksDuringFlushing(
         "Media.IgnoreMediaCodecCallbacksDuringFlushing");
+
+inline constexpr ExperimentalFeatureKey<bool> kMediaNdkVideo("Media.NdkVideo");
 
 inline constexpr ExperimentalFeatureKey<bool> kMediaSkipFlushOnDecoderTeardown(
     "Media.SkipFlushOnDecoderTeardown");
