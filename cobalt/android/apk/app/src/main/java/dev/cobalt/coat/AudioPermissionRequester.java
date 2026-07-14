@@ -28,13 +28,11 @@ import org.jni_zero.CalledByNative;
 
 /** Helper class that requests the record audio permission. */
 public class AudioPermissionRequester {
-  private final Context mContext;
   private final Holder<Activity> mActivityHolder;
   // Only use in synchronized methods.
   private boolean mRequestAudioPermissionStarted;
 
   public AudioPermissionRequester(Context context, Holder<Activity> activityHolder) {
-    this.mContext = context;
     this.mActivityHolder = activityHolder;
   }
 
