@@ -81,7 +81,9 @@ class GlobalFeatures {
   using SettingValue = std::variant<std::string, int64_t>;
 
   const absl::flat_hash_map<std::string, SettingValue>& GetSettings() const;
+  std::optional<SettingValue> GetSetting(std::string_view key) const;
   void SetSettings(std::string_view key, const SettingValue& value);
+  void ClearSetting(std::string_view key);
 
  private:
   friend class base::NoDestructor<GlobalFeatures>;
