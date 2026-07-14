@@ -24,6 +24,7 @@
 #include "components/content_settings/core/common/features.h"
 #include "components/favicon/core/favicon_service.h"
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
+#include "components/privacy_sandbox/tracking_protection_settings.h"
 #include "components/strings/grit/privacy_sandbox_strings.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
@@ -80,7 +81,7 @@ CookieControlsBubbleViewController::CookieControlsBubbleViewController(
 }
 
 void CookieControlsBubbleViewController::OnUserTriggeredReloadingAction() {
-  if (!controller_->HasUserChangedCookieBlockingForSite()) {
+  if (!controller_->StateChangedViaBypass()) {
     controller_observation_.Reset();
     bubble_view_->CloseWidget();
     return;
@@ -96,7 +97,10 @@ void CookieControlsBubbleViewController::OnUserTriggeredReloadingAction() {
 }
 
 void CookieControlsBubbleViewController::SwitchToReloadingView() {
-  if (!controller_->ShowActFeatures()) {
+  if (controller_->ShowActFeatures()) {
+    bubble_view_->GetContentView()
+        ->SetTrackingProtectionsButtonReloadingState();
+  } else {
     bubble_view_->SwitchToReloadingView();
     bubble_view_->GetReloadingView()->GetViewAccessibility().AnnounceText(
         l10n_util::GetStringFUTF16(IDS_COOKIE_CONTROLS_BUBBLE_RELOADING_LABEL,
@@ -164,7 +168,6 @@ void CookieControlsBubbleViewController::ApplyThirdPartyCookiesBlockedState() {
 void CookieControlsBubbleViewController::FillViewForThirdPartyCookies(
     CookieControlsEnforcement enforcement,
     base::Time expiration) {
-  // TODO(crbug.com/388294499): Add support for ACT UI separately.
   bool tpcs_allowed = controls_state_ == CookieControlsState::kAllowed3pc ||
                       controls_state_ == CookieControlsState::kPausedTp;
   if (tpcs_allowed) {
@@ -172,6 +175,7 @@ void CookieControlsBubbleViewController::FillViewForThirdPartyCookies(
   } else {
     ApplyThirdPartyCookiesBlockedState();
   }
+  bubble_view_->GetContentView()->SetTrackingProtectionsButtonVisible(false);
   bubble_view_->GetContentView()->SetToggleIsOn(tpcs_allowed);
   bubble_view_->GetContentView()->SetToggleIcon(GetToggleIcon(tpcs_allowed));
   switch (enforcement) {
@@ -202,6 +206,33 @@ void CookieControlsBubbleViewController::FillViewForThirdPartyCookies(
   bubble_view_->GetContentView()->PreferredSizeChanged();
 }
 
+void CookieControlsBubbleViewController::FillViewForTrackingProtections() {
+  bool tp_paused = controls_state_ == CookieControlsState::kPausedTp;
+  int desc_title, desc, button_label;
+  if (tp_paused) {
+    desc_title = IDS_TRACKING_PROTECTIONS_BUBBLE_PAUSED_PROTECTIONS_TITLE;
+    desc = IDS_TRACKING_PROTECTIONS_BUBBLE_PAUSED_PROTECTIONS_DESCRIPTION;
+    button_label = IDS_TRACKING_PROTECTIONS_BUBBLE_RESUME_PROTECTIONS_LABEL;
+  } else {
+    desc_title = IDS_COOKIE_CONTROLS_BUBBLE_SITE_NOT_WORKING_TITLE;
+    desc = IDS_TRACKING_PROTECTIONS_BUBBLE_ACTIVE_PROTECTIONS_DESCRIPTION;
+    button_label = IDS_TRACKING_PROTECTIONS_BUBBLE_PAUSE_PROTECTIONS_LABEL;
+  }
+  bubble_view_->GetContentView()->SetTrackingProtectionsButtonVisible(true);
+  bubble_view_->GetContentView()->SetCookiesRowVisible(false);
+  bubble_view_->UpdateTitle(
+      l10n_util::GetStringUTF16(IDS_INCOGNITO_TRACKING_PROTECTIONS_HEADER));
+  bubble_view_->GetContentView()->UpdateContentLabels(
+      l10n_util::GetStringUTF16(desc_title), l10n_util::GetStringUTF16(desc));
+  bubble_view_->GetContentView()->SetTrackingProtectionsButtonLabel(
+      l10n_util::GetStringUTF16(button_label));
+  bubble_view_->GetContentView()->SetFeedbackSectionVisibility(tp_paused);
+  bubble_view_->GetContentView()->UpdateFeedbackButtonSubtitle(
+      l10n_util::GetStringUTF16(
+          IDS_TRACKING_PROTECTIONS_BUBBLE_SEND_FEEDBACK_DESCRIPTION));
+  bubble_view_->GetContentView()->PreferredSizeChanged();
+}
+
 CookieControlsBubbleViewController::~CookieControlsBubbleViewController() =
     default;
 
@@ -217,11 +248,19 @@ void CookieControlsBubbleViewController::OnStatusChanged(
   }
   blocking_status_ = blocking_status;
   controls_state_ = controls_state;
-  if (controls_state_ == CookieControlsState::kHidden) {
-    bubble_view_->CloseWidget();
-    return;
+  switch (controls_state_) {
+    case CookieControlsState::kHidden:
+      bubble_view_->CloseWidget();
+      return;
+    case CookieControlsState::kActiveTp:
+    case CookieControlsState::kPausedTp:
+      FillViewForTrackingProtections();
+      break;
+    case CookieControlsState::kBlocked3pc:
+    case CookieControlsState::kAllowed3pc:
+      FillViewForThirdPartyCookies(enforcement, expiration);
+      break;
   }
-  FillViewForThirdPartyCookies(enforcement, expiration);
 }
 
 void CookieControlsBubbleViewController::
@@ -233,8 +272,13 @@ void CookieControlsBubbleViewController::
 }
 
 void CookieControlsBubbleViewController::OnReloadingUiTimeout() {
-  base::RecordAction(
-      base::UserMetricsAction("CookieControls.Bubble.ReloadingTimeout"));
+  if (privacy_sandbox::IsTrackingProtectionsUi(controls_state_)) {
+    base::RecordAction(
+        base::UserMetricsAction("TrackingProtections.Bubble.ReloadingTimeout"));
+  } else {
+    base::RecordAction(
+        base::UserMetricsAction("CookieControls.Bubble.ReloadingTimeout"));
+  }
   CloseBubble();
 }
 
@@ -252,19 +296,26 @@ void CookieControlsBubbleViewController::SetCallbacks() {
       bubble_view_->RegisterOnUserTriggeredReloadingActionCallback(
           base::BindRepeating(&CookieControlsBubbleViewController::
                                   OnUserTriggeredReloadingAction,
-                              base::Unretained(this)));
+                              weak_factory_.GetWeakPtr()));
 
   toggle_button_callback_ =
       bubble_view_->GetContentView()->RegisterToggleButtonPressedCallback(
           base::BindRepeating(
               &CookieControlsBubbleViewController::OnToggleButtonPressed,
-              base::Unretained(this)));
+              weak_factory_.GetWeakPtr()));
+
+  tracking_protections_button_callback_ =
+      bubble_view_->GetContentView()
+          ->RegisterTrackingProtectionsButtonPressedCallback(
+              base::BindRepeating(&CookieControlsBubbleViewController::
+                                      OnTrackingProtectionsButtonPressed,
+                                  weak_factory_.GetWeakPtr()));
 
   feedback_button_callback_ =
       bubble_view_->GetContentView()->RegisterFeedbackButtonPressedCallback(
           base::BindRepeating(
               &CookieControlsBubbleViewController::OnFeedbackButtonPressed,
-              base::Unretained(this)));
+              weak_factory_.GetWeakPtr()));
 }
 
 void CookieControlsBubbleViewController::OnToggleButtonPressed(
@@ -272,33 +323,49 @@ void CookieControlsBubbleViewController::OnToggleButtonPressed(
   base::RecordAction(base::UserMetricsAction(
       toggled_on ? "CookieControls.Bubble.AllowThirdPartyCookies"
                  : "CookieControls.Bubble.BlockThirdPartyCookies"));
+  controller_->SetStateChangedViaBypass(true);
+  controller_->OnCookieBlockingEnabledForSite(!toggled_on);
+  bubble_view_->GetContentView()->NotifyAccessibilityEventDeprecated(
+      ax::mojom::Event::kAlert, true);
+}
 
-  controller_->SetUserChangedCookieBlockingForSite(true);
-  // We should only enter the reloading state in the Incognito ACT UI.
-  // TODO(crbug.com/388294499): Move this logic into a separate function for the
-  // ACT toggle button.
-  if (controller_->ShowActFeatures()) {
-    is_reloading_state_ = true;
-    OnUserTriggeredReloadingAction();
-    controller_->OnTrackingProtectionsChangedForSite(!toggled_on);
-  } else {
-    controller_->OnCookieBlockingEnabledForSite(!toggled_on);
+void CookieControlsBubbleViewController::OnTrackingProtectionsButtonPressed() {
+  if (is_reloading_state_) {
+    return;
   }
+  // TODO(crbug.com/388294499): Add metrics for ACT actions.
+  controller_->SetStateChangedViaBypass(true);
+  is_reloading_state_ = true;
+  OnUserTriggeredReloadingAction();
+  controller_->OnTrackingProtectionsChangedForSite();
   bubble_view_->GetContentView()->NotifyAccessibilityEventDeprecated(
       ax::mojom::Event::kAlert, true);
 }
 
 void CookieControlsBubbleViewController::OnFeedbackButtonPressed() {
-  base::RecordAction(
-      base::UserMetricsAction("CookieControls.Bubble.SendFeedback"));
-  chrome::ShowFeedbackPage(
-      chrome::FindBrowserWithTab(web_contents_.get()),
-      feedback::kFeedbackSourceCookieControls,
-      /*description_template=*/std::string(),
-      l10n_util::GetStringUTF8(
-          IDS_COOKIE_CONTROLS_BUBBLE_SEND_FEEDBACK_FORM_PLACEHOLDER),
-      "cookie-controls",
-      /*extra_diagnostics=*/std::string());
+  if (privacy_sandbox::IsTrackingProtectionsUi(controls_state_)) {
+    chrome::ShowFeedbackPage(
+        chrome::FindBrowserWithTab(web_contents_.get()),
+        feedback::kFeedbackSourceTrackingProtections,
+        /*description_template=*/std::string(),
+        l10n_util::GetStringUTF8(
+            IDS_TRACKING_PROTECTIONS_BUBBLE_SEND_FEEDBACK_FORM_PLACEHOLDER),
+        "tracking-protections",
+        /*extra_diagnostics=*/std::string());
+    base::RecordAction(
+        base::UserMetricsAction("TrackingProtections.Bubble.SendFeedback"));
+  } else {
+    chrome::ShowFeedbackPage(
+        chrome::FindBrowserWithTab(web_contents_.get()),
+        feedback::kFeedbackSourceCookieControls,
+        /*description_template=*/std::string(),
+        l10n_util::GetStringUTF8(
+            IDS_COOKIE_CONTROLS_BUBBLE_SEND_FEEDBACK_FORM_PLACEHOLDER),
+        "cookie-controls",
+        /*extra_diagnostics=*/std::string());
+    base::RecordAction(
+        base::UserMetricsAction("CookieControls.Bubble.SendFeedback"));
+  }
 }
 
 std::unique_ptr<views::View>

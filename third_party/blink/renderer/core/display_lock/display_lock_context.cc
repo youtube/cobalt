@@ -29,6 +29,7 @@
 #include "third_party/blink/renderer/core/html_element_type_helpers.h"
 #include "third_party/blink/renderer/core/inspector/inspector_trace_events.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
+#include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/layout/layout_result.h"
 #include "third_party/blink/renderer/core/layout/oof_positioned_node.h"
 #include "third_party/blink/renderer/core/layout/physical_box_fragment.h"
@@ -723,6 +724,11 @@ bool DisplayLockContext::MarkAncestorsForPrePaintIfNeeded() {
       // update.
       layout_object->MarkBlockingWheelEventHandlerChanged();
     }
+    if (needs_soft_navigation_context_update_ ||
+        layout_object->SoftNavigationContextChanged() ||
+        layout_object->DescendantSoftNavigationContextChanged()) {
+      layout_object->MarkSoftNavigationContextChanged();
+    }
     return true;
   }
   return compositing_dirtied;
@@ -794,7 +800,8 @@ bool DisplayLockContext::IsElementDirtyForPrePaint() const {
            PrePaintTreeWalk::ObjectRequiresTreeBuilderContext(*layout_object) ||
            needs_prepaint_subtree_walk_ ||
            needs_effective_allowed_touch_action_update_ ||
-           needs_blocking_wheel_event_handler_update_;
+           needs_blocking_wheel_event_handler_update_ ||
+           needs_soft_navigation_context_update_;
   }
   return false;
 }

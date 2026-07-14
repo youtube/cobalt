@@ -48,9 +48,9 @@ rust_static_library("bridge_rust_side") {
   cxx_bindings = [ skia_fontations_bridge_root ]
   deps = [
     ":path_bridge",
-    "//third_party/rust/font_types/v0_8:lib",
-    "//third_party/rust/read_fonts/v0_27:lib",
-    "//third_party/rust/skrifa/v0_29:lib",
+    "//third_party/rust/font_types/v0_9:lib",
+    "//third_party/rust/read_fonts/v0_30:lib",
+    "//third_party/rust/skrifa/v0_32:lib",
   ]
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [
@@ -184,13 +184,15 @@ config("skia_library_config") {
     "SK_CODEC_ENCODES_PNG_WITH_LIBPNG",
   ]
 
+  if (use_blink) {
+    defines += [ "SK_TYPEFACE_FACTORY_FONTATIONS" ]
+  }
   if (use_blink && !use_system_freetype) {
     defines += [ "SK_FREETYPE_MINIMUM_RUNTIME_VERSION_IS_BUILD_VERSION" ]
   }
   if (use_blink && enable_freetype) {
     defines += [
       "SK_TYPEFACE_FACTORY_FREETYPE",
-      "SK_TYPEFACE_FACTORY_FONTATIONS",
       "SK_FONTMGR_FREETYPE_EMPTY_AVAILABLE",
     ]
   }
@@ -259,7 +261,6 @@ component("skia") {
     "ext/skia_memory_dump_provider.h",
     "ext/skia_trace_memory_dump_impl.h",
     "ext/skia_utils_base.h",
-    "fontations_feature.h",
     "rusty_png_feature.h",
   ]
   sources = [
@@ -291,7 +292,6 @@ component("skia") {
     "ext/skia_memory_dump_provider.cc",
     "ext/skia_trace_memory_dump_impl.cc",
     "ext/skia_utils_base.cc",
-    "fontations_feature.cc",
     "rusty_png_feature.cc",
   ]
   if (is_ios) {

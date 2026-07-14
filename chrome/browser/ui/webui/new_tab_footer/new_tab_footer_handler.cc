@@ -13,20 +13,28 @@
 #include "chrome/browser/enterprise/util/managed_browser_utils.h"
 #include "chrome/browser/extensions/settings_api_helpers.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/search/background/ntp_custom_background_service_factory.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/managed_ui.h"
+#include "chrome/browser/ui/webui/new_tab_footer/footer_context_menu.h"
 #include "chrome/browser/ui/webui/new_tab_footer/new_tab_footer.mojom.h"
+#include "chrome/browser/ui/webui/new_tab_footer/new_tab_footer_helper.h"
+#include "chrome/browser/ui/webui/new_tab_page/new_tab_page_ui.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
+#include "chrome/browser/ui/webui/webui_util_desktop.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
+#include "chrome/grit/theme_resources.h"
 #include "components/policy/core/common/cloud/machine_level_user_cloud_policy_manager.h"
 #include "components/prefs/pref_service.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/vector_icons/vector_icons.h"
 #include "content/public/browser/web_contents.h"
 #include "net/base/url_util.h"
+#include "ui/base/interaction/element_identifier.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/webui/web_ui_util.h"
@@ -40,27 +48,42 @@ NewTabFooterHandler::NewTabFooterHandler(
         pending_handler,
     mojo::PendingRemote<new_tab_footer::mojom::NewTabFooterDocument>
         pending_document,
+    base::WeakPtr<TopChromeWebUIController::Embedder> embedder,
+    NtpCustomBackgroundService* ntp_custom_background_service,
     content::WebContents* web_contents)
-    : profile_(Profile::FromBrowserContext(web_contents->GetBrowserContext())),
+    : embedder_(embedder),
+      profile_(Profile::FromBrowserContext(web_contents->GetBrowserContext())),
       web_contents_(web_contents),
+      ntp_custom_background_service_(ntp_custom_background_service),
+      theme_provider_(&ThemeService::GetThemeProviderForProfile(profile_)),
       document_(std::move(pending_document)),
       handler_{this, std::move(pending_handler)} {
   extension_registry_observation_.Observe(
       extensions::ExtensionRegistry::Get(profile_));
+  management_observation_.Observe(
+      policy::ManagementServiceFactory::GetForProfile(profile_));
+  if (ntp_custom_background_service_) {
+    ntp_custom_background_service_observation_.Observe(
+        ntp_custom_background_service_);
+  }
   profile_pref_change_registrar_.Init(profile_->GetPrefs());
   profile_pref_change_registrar_.Add(
       prefs::kNTPFooterExtensionAttributionEnabled,
       base::BindRepeating(&NewTabFooterHandler::UpdateNtpExtensionName,
                           base::Unretained(this)));
-  local_state_pref_change_registrar_.Init(g_browser_process->local_state());
-  local_state_pref_change_registrar_.Add(
-      prefs::kNTPFooterManagementNoticeEnabled,
-      base::BindRepeating(&NewTabFooterHandler::UpdateManagementNotice,
-                          base::Unretained(this)));
-  local_state_pref_change_registrar_.Add(
-      prefs::kEnterpriseCustomLabelForBrowser,
-      base::BindRepeating(&NewTabFooterHandler::UpdateManagementNotice,
-                          base::Unretained(this)));
+
+  auto* local_state = g_browser_process->local_state();
+  if (local_state) {
+    local_state_pref_change_registrar_.Init(local_state);
+    local_state_pref_change_registrar_.Add(
+        prefs::kNTPFooterManagementNoticeEnabled,
+        base::BindRepeating(&NewTabFooterHandler::UpdateManagementNotice,
+                            base::Unretained(this)));
+    local_state_pref_change_registrar_.Add(
+        prefs::kEnterpriseCustomLabelForBrowser,
+        base::BindRepeating(&NewTabFooterHandler::UpdateManagementNotice,
+                            base::Unretained(this)));
+  }
 }
 
 NewTabFooterHandler::~NewTabFooterHandler() = default;
@@ -81,6 +104,15 @@ void NewTabFooterHandler::UpdateNtpExtensionName() {
   document_->SetNtpExtensionName(std::move(name));
   }
 
+  void NewTabFooterHandler::UpdateBackgroundAttribution() {
+    OnCustomBackgroundImageUpdated();
+  }
+
+  void NewTabFooterHandler::SetThemeProviderForTesting(
+      ui::ThemeProvider* theme_provider) {
+    theme_provider_ = theme_provider;
+  }
+
 void NewTabFooterHandler::OpenExtensionOptionsPageWithFallback() {
   GURL options_url = GURL(chrome::kChromeUIExtensionsURL);
   if (!curr_ntp_extension_id_.empty()) {
@@ -88,6 +120,20 @@ void NewTabFooterHandler::OpenExtensionOptionsPageWithFallback() {
                                                      curr_ntp_extension_id_);
   }
   OpenUrlInCurrentTab(options_url);
+}
+
+void NewTabFooterHandler::OpenManagementPage() {
+  OpenUrlInCurrentTab(GURL(chrome::kChromeUIManagementURL));
+}
+
+void NewTabFooterHandler::ShowContextMenu(const gfx::Point& point) {
+  const bool is_managed =
+      enterprise_util::CanShowEnterpriseBadgingForNTPFooter(profile_);
+  // TODO(crbug.com/424878134): Add managed-specific behavior.
+  if (embedder_ && !is_managed) {
+    embedder_->ShowContextMenu(point,
+                               std::make_unique<FooterContextMenu>(profile_));
+  }
 }
 
 void NewTabFooterHandler::UpdateManagementNotice() {
@@ -98,8 +144,12 @@ void NewTabFooterHandler::UpdateManagementNotice() {
 
   auto notice = new_tab_footer::mojom::ManagementNotice::New();
   notice->text = GetManagementNoticeText();
-  notice->bitmap_data_url =
-      GURL(webui::GetBitmapDataUrl(GetManagementNoticeIconBitmap()));
+
+  SkBitmap bitmap = GetManagementNoticeIconBitmap();
+  if (!bitmap.empty()) {
+    notice->custom_bitmap_data_url = GURL(webui::GetBitmapDataUrl(bitmap));
+  }
+
   document_->SetManagementNotice(std::move(notice));
 }
 
@@ -146,11 +196,7 @@ SkBitmap NewTabFooterHandler::GetManagementNoticeIconBitmap() {
     return custom_icon->AsBitmap();
   }
 
-  const gfx::ImageSkia default_management_icon =
-      gfx::CreateVectorIcon(gfx::IconDescription(
-          vector_icons::kBusinessIcon, 20,
-          web_contents_->GetColorProvider().GetColor(ui::kColorIcon)));
-  return default_management_icon.GetRepresentation(1.0f).GetBitmap();
+  return SkBitmap();
 }
 
 void NewTabFooterHandler::OnExtensionReady(
@@ -164,4 +210,58 @@ void NewTabFooterHandler::OnExtensionUnloaded(
     const extensions::Extension* extension,
     extensions::UnloadedExtensionReason reason) {
   UpdateNtpExtensionName();
+}
+
+void NewTabFooterHandler::UpdateAttachedTabState() {
+  AttachedTabStateUpdated(last_source_url_);
+}
+
+void NewTabFooterHandler::AttachedTabStateUpdated(const GURL& url) {
+  last_source_url_ = url;
+  new_tab_footer::mojom::NewTabPageType ntp_type =
+      new_tab_footer::mojom::NewTabPageType::kOther;
+  if (NewTabPageUI::IsNewTabPageOrigin(url)) {
+    ntp_type = new_tab_footer::mojom::NewTabPageType::kFirstPartyWebUI;
+  } else if (ntp_footer::IsExtensionNtp(url, profile_)) {
+    ntp_type = new_tab_footer::mojom::NewTabPageType::kExtension;
+  }
+  document_->AttachedTabStateUpdated(ntp_type);
+}
+
+void NewTabFooterHandler::OnCustomBackgroundImageUpdated() {
+  const bool theme_has_custom_image =
+      theme_provider_->HasCustomImage(IDR_THEME_NTP_BACKGROUND);
+  if (theme_has_custom_image) {
+    document_->SetBackgroundAttribution(nullptr);
+    return;
+  }
+
+  auto custom_background =
+      ntp_custom_background_service_
+          ? ntp_custom_background_service_->GetCustomBackground()
+          : std::nullopt;
+  if (!custom_background.has_value() ||
+      custom_background->custom_background_attribution_line_1.empty()) {
+    document_->SetBackgroundAttribution(nullptr);
+    return;
+  }
+
+  auto attribution = new_tab_footer::mojom::BackgroundAttribution::New();
+  attribution->name =
+      custom_background->custom_background_attribution_line_2.empty()
+          ? custom_background->custom_background_attribution_line_1
+          : l10n_util::GetStringFUTF8(
+                IDS_NEW_TAB_FOOTER_BACKGROUND_ATTRIBUTION_TEXT,
+                base::UTF8ToUTF16(
+                    custom_background->custom_background_attribution_line_1),
+                base::UTF8ToUTF16(
+                    custom_background->custom_background_attribution_line_2));
+
+  attribution->url =
+      custom_background->custom_background_attribution_action_url;
+  document_->SetBackgroundAttribution(std::move(attribution));
+}
+
+void NewTabFooterHandler::OnEnterpriseLogoUpdatedForBrowser() {
+  UpdateManagementNotice();
 }

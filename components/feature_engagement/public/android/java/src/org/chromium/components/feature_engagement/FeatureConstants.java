@@ -57,6 +57,7 @@ import java.lang.annotation.RetentionPolicy;
     FeatureConstants.KEYBOARD_ACCESSORY_ADDRESS_FILL_FEATURE,
     FeatureConstants.KEYBOARD_ACCESSORY_BAR_SWIPING_FEATURE,
     FeatureConstants.KEYBOARD_ACCESSORY_HOME_WORK_PROFILE_SUGGESTION_FEATURE,
+    FeatureConstants.KEYBOARD_ACCESSORY_ENABLE_LOYALTY_CARDS_FEATURE,
     FeatureConstants.KEYBOARD_ACCESSORY_PASSWORD_FILLING_FEATURE,
     FeatureConstants.KEYBOARD_ACCESSORY_PAYMENT_FILLING_FEATURE,
     FeatureConstants.KEYBOARD_ACCESSORY_PAYMENT_OFFER_FEATURE,
@@ -105,6 +106,8 @@ import java.lang.annotation.RetentionPolicy;
     FeatureConstants.IPH_PDF_PAGE_DOWNLOAD,
     FeatureConstants.IPH_SHARE_SCREENSHOT_FEATURE,
     FeatureConstants.IPH_SHARING_HUB_LINK_TOGGLE_FEATURE,
+    FeatureConstants.IPH_TAB_SWITCHER_XR,
+    FeatureConstants.IPH_TAB_TEARING_XR,
     FeatureConstants.IPH_WEB_FEED_FOLLOW_FEATURE,
     FeatureConstants.IPH_WEB_FEED_POST_FOLLOW_DIALOG_FEATURE,
     FeatureConstants.IPH_WEB_FEED_POST_FOLLOW_DIALOG_FEATURE_WITH_UI_UPDATE,
@@ -178,6 +181,7 @@ public @interface FeatureConstants {
     String DATA_SAVER_MILESTONE_PROMO_FEATURE = "IPH_DataSaverMilestonePromo";
     String EPHEMERAL_TAB_FEATURE = "IPH_EphemeralTab";
     String KEYBOARD_ACCESSORY_ADDRESS_FILL_FEATURE = "IPH_KeyboardAccessoryAddressFilling";
+    String KEYBOARD_ACCESSORY_ENABLE_LOYALTY_CARDS_FEATURE = "IPH_AutofillEnableLoyaltyCards";
     String KEYBOARD_ACCESSORY_HOME_WORK_PROFILE_SUGGESTION_FEATURE =
             "IPH_AutofillHomeWorkProfileSuggestion";
     String KEYBOARD_ACCESSORY_PASSWORD_FILLING_FEATURE = "IPH_KeyboardAccessoryPasswordFilling";
@@ -406,4 +410,7 @@ public @interface FeatureConstants {
 
     /** An IPH feature to inform users about the tab switcher feature on an XR device. */
     String IPH_TAB_SWITCHER_XR = "IPH_TabSwitcherXR";
+
+    /** An IPH feature to inform users about the tab tearing gesture on an XR device. */
+    String IPH_TAB_TEARING_XR = "IPH_TabTearingXR";
 }

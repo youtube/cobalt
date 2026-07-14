@@ -56,10 +56,22 @@ inline constexpr char kLocalReusedCredentialsCount[] =
     "profile.safety_hub_reused_local_credentials_count";
 
 // A long that represents the last time in milliseconds that a check for
+// account-level credentials was triggered in GMSCore by Chrome.
+inline constexpr char kLastTimeInMsAccountPasswordCheckCompleted[] =
+    "profile.safety_hub_last_time_in_ms_account_password_check_completed";
+
+// A long that represents the last time in milliseconds that a check for
 // local-level credentials was triggered in GMSCore by Chrome.
 inline constexpr char kLastTimeInMsLocalPasswordCheckCompleted[] =
     "profile.safety_hub_last_time_in_ms_local_password_check_completed";
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+// A long that represents the last time in milliseconds that the blocklist used
+// for abusive notification revocation was checked.
+inline constexpr char
+    kLastTimeInMsAbusiveNotificationBlocklistCheckCompleted[] =
+        "profile.safety_hub_last_time_in_ms_abusive_notification_blocklist_"
+        "check_completed";
 
 // Dictionary that holds the notifications in the three-dot menu and their
 // associated results.

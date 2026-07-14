@@ -20,6 +20,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/notimplemented.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "media/base/cdm_context.h"
@@ -97,7 +98,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   void SetVolume(float volume) override;
   TimeDelta GetMediaTime() override;
   void OnTracksChanged(DemuxerStream::Type track_type,
-                       std::vector<DemuxerStream*> enabled_tracks,
+                       DemuxerStream* enabled_track,
                        base::OnceClosure change_completed_cb) override;
   RendererType GetRendererType() override { return RendererType::kStarboard; }
 

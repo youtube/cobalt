@@ -8,6 +8,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -63,8 +64,10 @@
 #include "net/test/test_data_directory.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/metrics/public/cpp/ukm_source.h"
+#include "services/network/public/cpp/ip_address_space_overrides_test_utils.h"
 #include "services/network/public/cpp/network_switches.h"
 #include "services/network/public/cpp/url_loader_completion_status.h"
+#include "services/network/public/mojom/ip_address_space.mojom.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -2704,6 +2707,8 @@ IN_PROC_BROWSER_TEST_P(HttpsUpgradesBrowserTest, BadHttpsFollowedByGoodHttps) {
   // Load "logo.gif" as an image on the page.
   GURL image = https_server()->GetURL("foo.com", "/ssl/google_files/logo.gif");
 
+  // TODO(crbug.com/422956041): this fetch generates an LNA request, its unclear
+  // why. Investigation is required to see if this is an LNA bug or not.
   EXPECT_EQ(
       true,
       EvalJs(tab,

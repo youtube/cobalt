@@ -17,6 +17,7 @@
 #include "base/apple/scoped_cftyperef.h"
 #include "base/compiler_specific.h"
 #include "base/functional/bind.h"
+#include "base/strings/string_view_util.h"
 #include "base/strings/sys_string_conversions.h"
 #import "base/task/sequenced_task_runner.h"
 #import "base/task/single_thread_task_runner.h"
@@ -461,7 +462,8 @@ void WiFiServiceMac::UpdateNetworks() {
 
   std::string connected_bssid = base::SysNSStringToUTF8([interface_ bssid]);
   std::map<std::string, NetworkProperties*> network_properties_map;
-  networks_.clear();
+  NetworkList old_networks;
+  networks_.swap(old_networks);
 
   // There is one |cw_network| per BSS in |cw_networks|, so go through the set
   // and combine them, paying attention to supported frequencies.
@@ -490,8 +492,10 @@ void WiFiServiceMac::UpdateNetworks() {
   }
   // Sort networks, so connected/connecting is up front.
   networks_.sort(NetworkProperties::OrderByType);
-  // Notify observers that list has changed.
-  NotifyNetworkListChanged(networks_);
+  if (networks_ != old_networks) {
+    // Notify observers that list has changed.
+    NotifyNetworkListChanged(networks_);
+  }
 }
 
 bool WiFiServiceMac::CheckError(NSError* ns_error,

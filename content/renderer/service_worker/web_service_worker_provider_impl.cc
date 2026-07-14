@@ -8,12 +8,14 @@
 #include <utility>
 
 #include "base/containers/to_vector.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/trace_event/trace_event.h"
 #include "content/renderer/service_worker/service_worker_provider_context.h"
 #include "content/renderer/service_worker/service_worker_type_converters.h"
 #include "content/renderer/worker/fetch_client_settings_object_helpers.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/messaging/message_port_channel.h"
 #include "third_party/blink/public/common/service_worker/service_worker_scope_match.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_container_type.mojom.h"
@@ -29,14 +31,20 @@ namespace content {
 
 namespace {
 
-const char kLostConnectionErrorMessage[] =
-    "Lost connection to the service worker system.";
-
 template <typename T>
 static std::string MojoEnumToString(T mojo_enum) {
   std::ostringstream oss;
   oss << mojo_enum;
   return oss.str();
+}
+
+bool IsValidContext(ServiceWorkerProviderContext* context) {
+  return context->container_type() ==
+             blink::mojom::ServiceWorkerContainerType::kForWindow ||
+         (base::FeatureList::IsEnabled(
+              blink::features::kServiceWorkerInDedicatedWorker) &&
+          context->container_type() ==
+              blink::mojom::ServiceWorkerContainerType::kForDedicatedWorker);
 }
 
 }  // anonymous namespace
@@ -45,8 +53,7 @@ WebServiceWorkerProviderImpl::WebServiceWorkerProviderImpl(
     ServiceWorkerProviderContext* context)
     : context_(context), provider_client_(nullptr) {
   DCHECK(context_);
-  DCHECK_EQ(context_->container_type(),
-            blink::mojom::ServiceWorkerContainerType::kForWindow);
+  DCHECK(IsValidContext(context_.get()));
   context_->SetWebServiceWorkerProvider(weak_factory_.GetWeakPtr());
 }
 
@@ -89,26 +96,13 @@ void WebServiceWorkerProviderImpl::RegisterServiceWorker(
     return;
   }
 
-  if (!context_->container_host()) {
-    callbacks->OnError(blink::WebServiceWorkerError(
-        blink::mojom::ServiceWorkerErrorType::kAbort,
-        blink::WebString::FromASCII(error_prefix +
-                                    kLostConnectionErrorMessage)));
-    return;
-  }
-
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(
-      "ServiceWorker", "WebServiceWorkerProviderImpl::RegisterServiceWorker",
-      TRACE_ID_LOCAL(this), "Scope", pattern.spec(), "Script URL",
-      script_url.spec());
-
   // TODO(asamidoi): Create this options in
   // ServiceWorkerContainer::RegisterServiceWorker() and pass it as an argument
   // in this function instead of blink::mojom::ScriptType and
   // blink::mojom::ServiceWorkerUpdateViaCache.
   auto options = blink::mojom::ServiceWorkerRegistrationOptions::New(
       pattern, script_type, update_via_cache);
-  context_->container_host()->Register(
+  context_->Register(
       script_url, std::move(options),
       FetchClientSettingsObjectFromWebToMojom(fetch_client_settings_object),
       base::BindOnce(&WebServiceWorkerProviderImpl::OnRegistered,
@@ -129,18 +123,7 @@ void WebServiceWorkerProviderImpl::GetRegistration(
     return;
   }
 
-  if (!context_->container_host()) {
-    callbacks->OnError(blink::WebServiceWorkerError(
-        blink::mojom::ServiceWorkerErrorType::kAbort,
-        blink::WebString::FromASCII(error_prefix +
-                                    kLostConnectionErrorMessage)));
-    return;
-  }
-
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
-      "ServiceWorker", "WebServiceWorkerProviderImpl::GetRegistration",
-      TRACE_ID_LOCAL(this), "Document URL", document_url.spec());
-  context_->container_host()->GetRegistration(
+  context_->GetRegistration(
       document_url,
       base::BindOnce(&WebServiceWorkerProviderImpl::OnDidGetRegistration,
                      weak_factory_.GetWeakPtr(), std::move(callbacks)));
@@ -148,35 +131,14 @@ void WebServiceWorkerProviderImpl::GetRegistration(
 
 void WebServiceWorkerProviderImpl::GetRegistrations(
     std::unique_ptr<WebServiceWorkerGetRegistrationsCallbacks> callbacks) {
-  DCHECK(callbacks);
-  if (!context_->container_host()) {
-    const std::string error_prefix(
-        "Failed to get ServiceWorkerRegistration objects: ");
-    callbacks->OnError(blink::WebServiceWorkerError(
-        blink::mojom::ServiceWorkerErrorType::kAbort,
-        blink::WebString::FromASCII(error_prefix +
-                                    kLostConnectionErrorMessage)));
-    return;
-  }
-
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(
-      "ServiceWorker", "WebServiceWorkerProviderImpl::GetRegistrations",
-      TRACE_ID_LOCAL(this));
-  context_->container_host()->GetRegistrations(
+  context_->GetRegistrations(
       base::BindOnce(&WebServiceWorkerProviderImpl::OnDidGetRegistrations,
                      weak_factory_.GetWeakPtr(), std::move(callbacks)));
 }
 
 void WebServiceWorkerProviderImpl::GetRegistrationForReady(
     GetRegistrationForReadyCallback callback) {
-  if (!context_->container_host()) {
-    return;
-  }
-
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(
-      "ServiceWorker", "WebServiceWorkerProviderImpl::GetRegistrationForReady",
-      TRACE_ID_LOCAL(this));
-  context_->container_host()->GetRegistrationForReady(base::BindOnce(
+  context_->GetRegistrationForReady(base::BindOnce(
       &WebServiceWorkerProviderImpl::OnDidGetRegistrationForReady,
       weak_factory_.GetWeakPtr(), std::move(callback)));
 }

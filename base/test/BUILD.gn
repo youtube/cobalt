@@ -19,9 +19,7 @@ if (is_ios) {
   import("//build/config/ios/rules.gni")
 }
 
-if (enable_base_tracing) {
-  import("//third_party/perfetto/gn/perfetto_cc_proto_descriptor.gni")
-}
+import("//third_party/perfetto/gn/perfetto_cc_proto_descriptor.gni")
 
 if (is_cobalt) {
   import("//starboard/build/config/toolchain_variables.gni")
@@ -59,327 +57,326 @@ if (is_cobalt && is_partner_toolchain) {
     public_deps = [ "//copied_base/base/test:test_support" ]
   }
 } else {
-static_library("test_support") {
-  testonly = true
-  sources = [
-    "../task/sequence_manager/test/fake_task.cc",
-    "../task/sequence_manager/test/fake_task.h",
-    "../task/sequence_manager/test/mock_time_domain.cc",
-    "../task/sequence_manager/test/mock_time_domain.h",
-    "../task/sequence_manager/test/mock_time_message_pump.cc",
-    "../task/sequence_manager/test/mock_time_message_pump.h",
-    "../task/sequence_manager/test/sequence_manager_for_test.cc",
-    "../task/sequence_manager/test/sequence_manager_for_test.h",
-    "../task/sequence_manager/test/test_task_time_observer.h",
-    "../timer/mock_timer.cc",
-    "../timer/mock_timer.h",
-    "allow_check_is_test_for_testing.h",
-    "bind.cc",
-    "bind.h",
-    "copy_only_int.cc",
-    "copy_only_int.h",
-    "gmock_callback_support.h",
-    "gmock_expected_support.h",
-    "gmock_move_support.h",
-    "gtest_links.cc",
-    "gtest_links.h",
-    "gtest_sub_test_results.cc",
-    "gtest_sub_test_results.h",
-    "gtest_tags.cc",
-    "gtest_tags.h",
-    "gtest_util.cc",
-    "gtest_util.h",
-    "gtest_xml_unittest_result_printer.cc",
-    "gtest_xml_unittest_result_printer.h",
-    "gtest_xml_util.cc",
-    "gtest_xml_util.h",
-    "icu_test_util.cc",
-    "icu_test_util.h",
-    "insecure_random_generator.cc",
-    "insecure_random_generator.h",
-    "launcher/test_result.cc",
-    "launcher/test_result.h",
-    "launcher/test_results_tracker.h",
-    "launcher/unit_test_launcher.h",
-    "metrics/action_suffix_reader.cc",
-    "metrics/action_suffix_reader.h",
-    "metrics/histogram_enum_reader.cc",
-    "metrics/histogram_enum_reader.h",
-    "metrics/histogram_tester.cc",
-    "metrics/histogram_tester.h",
-    "metrics/histogram_variants_reader.cc",
-    "metrics/histogram_variants_reader.h",
-    "metrics/user_action_tester.cc",
-    "metrics/user_action_tester.h",
-    "mock_callback.h",
-    "mock_devices_changed_observer.cc",
-    "mock_devices_changed_observer.h",
-    "mock_entropy_provider.cc",
-    "mock_entropy_provider.h",
-    "mock_log.cc",
-    "mock_log.h",
-    "move_only_int.cc",
-    "move_only_int.h",
-    "multiprocess_test.h",
-    "null_task_runner.cc",
-    "null_task_runner.h",
-    "perf_log.cc",
-    "perf_log.h",
-    "perf_test_suite.cc",
-    "perf_test_suite.h",
-    "perf_time_logger.cc",
-    "perf_time_logger.h",
-    "power_monitor_test.cc",
-    "power_monitor_test.h",
-    "power_monitor_test_utils.cc",
-    "power_monitor_test_utils.h",
-    "protobuf_matchers.cc",
-    "protobuf_matchers.h",
-    "rectify_callback.h",
-    "rectify_callback_internal.h",
-    "repeating_test_future.h",
-    "run_until.cc",
-    "run_until.h",
-    "scoped_amount_of_physical_memory_override.cc",
-    "scoped_amount_of_physical_memory_override.h",
-    "scoped_block_tests_writing_to_special_dirs.cc",
-    "scoped_block_tests_writing_to_special_dirs.h",
-    "scoped_command_line.cc",
-    "scoped_command_line.h",
-    "scoped_feature_list.cc",
-    "scoped_feature_list.h",
-    "scoped_mock_clock_override.cc",
-    "scoped_mock_clock_override.h",
-    "scoped_mock_time_message_loop_task_runner.cc",
-    "scoped_mock_time_message_loop_task_runner.h",
-    "scoped_path_override.cc",
-    "scoped_path_override.h",
-    "scoped_run_loop_timeout.cc",
-    "scoped_run_loop_timeout.h",
-    "sequenced_task_runner_test_template.cc",
-    "sequenced_task_runner_test_template.h",
-    "simple_test_clock.cc",
-    "simple_test_clock.h",
-    "simple_test_tick_clock.cc",
-    "simple_test_tick_clock.h",
-    "task_environment.cc",
-    "task_environment.h",
-    "task_runner_test_template.cc",
-    "task_runner_test_template.h",
-    "test_discardable_memory_allocator.cc",
-    "test_discardable_memory_allocator.h",
-    "test_file_util.cc",
-    "test_file_util.h",
-    "test_future.h",
-    "test_future_internal.h",
-    "test_io_thread.cc",
-    "test_io_thread.h",
-    "test_message_loop.cc",
-    "test_message_loop.h",
-    "test_mock_time_task_runner.cc",
-    "test_mock_time_task_runner.h",
-    "test_pending_task.cc",
-    "test_pending_task.h",
-    "test_shared_memory_util.cc",
-    "test_shared_memory_util.h",
-    "test_simple_task_runner.cc",
-    "test_simple_task_runner.h",
-    "test_suite.cc",
-    "test_suite.h",
-    "test_suite_helper.cc",
-    "test_suite_helper.h",
-    "test_waitable_event.cc",
-    "test_waitable_event.h",
-    "thread_test_helper.cc",
-    "thread_test_helper.h",
-    "values_test_util.cc",
-    "values_test_util.h",
-    "with_feature_override.cc",
-    "with_feature_override.h",
-  ]
-
-  configs += [ "//build/config:precompiled_headers" ]
-
-  public_deps = [
-    ":test_config",
-    ":test_rust_logger_consumer",
-    "//base",
-    "//base:base_static",
-    "//base:i18n",
-    "//build:blink_buildflags",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
-
-  deps = [
-    ":proto_test_support",
-    "//testing/libfuzzer:fuzztest_init_support",
-    "//third_party/google_benchmark",
-    "//third_party/icu:icuuc",
-    "//third_party/libxml:libxml_utils",
-    "//third_party/libxml:xml_reader",
-  ]
-
-  # Cronet doesn't need the Perfetto test support stuff. This dependency is
-  # problematic for Cronet because of targets like
-  #   //third_party/perfetto/src/trace_processor/perfetto_sql/stdlib:stdlib_generated_file
-  # that would require special support in gn2bp (AOSP Cronet).
-  if (enable_base_tracing && !is_cronet_build) {
-    public_deps += [ "//third_party/perfetto:perfetto_test_support" ]
-    public_deps += [ ":test_trace_processor" ]
-    sources += [
-      "test_trace_processor.cc",
-      "test_trace_processor.h",
+  static_library("test_support") {
+    testonly = true
+    sources = [
+      "../task/sequence_manager/test/fake_task.cc",
+      "../task/sequence_manager/test/fake_task.h",
+      "../task/sequence_manager/test/mock_time_domain.cc",
+      "../task/sequence_manager/test/mock_time_domain.h",
+      "../task/sequence_manager/test/mock_time_message_pump.cc",
+      "../task/sequence_manager/test/mock_time_message_pump.h",
+      "../task/sequence_manager/test/sequence_manager_for_test.cc",
+      "../task/sequence_manager/test/sequence_manager_for_test.h",
+      "../task/sequence_manager/test/test_task_time_observer.h",
+      "../timer/mock_timer.cc",
+      "../timer/mock_timer.h",
+      "allow_check_is_test_for_testing.h",
+      "bind.cc",
+      "bind.h",
+      "copy_only_int.cc",
+      "copy_only_int.h",
+      "gmock_callback_support.h",
+      "gmock_expected_support.h",
+      "gmock_move_support.h",
+      "gtest_links.cc",
+      "gtest_links.h",
+      "gtest_sub_test_results.cc",
+      "gtest_sub_test_results.h",
+      "gtest_tags.cc",
+      "gtest_tags.h",
+      "gtest_util.cc",
+      "gtest_util.h",
+      "gtest_xml_unittest_result_printer.cc",
+      "gtest_xml_unittest_result_printer.h",
+      "gtest_xml_util.cc",
+      "gtest_xml_util.h",
+      "icu_test_util.cc",
+      "icu_test_util.h",
+      "insecure_random_generator.cc",
+      "insecure_random_generator.h",
+      "launcher/test_result.cc",
+      "launcher/test_result.h",
+      "launcher/test_results_tracker.h",
+      "launcher/unit_test_launcher.h",
+      "metrics/action_suffix_reader.cc",
+      "metrics/action_suffix_reader.h",
+      "metrics/histogram_enum_reader.cc",
+      "metrics/histogram_enum_reader.h",
+      "metrics/histogram_tester.cc",
+      "metrics/histogram_tester.h",
+      "metrics/histogram_variants_reader.cc",
+      "metrics/histogram_variants_reader.h",
+      "metrics/user_action_tester.cc",
+      "metrics/user_action_tester.h",
+      "mock_callback.h",
+      "mock_devices_changed_observer.cc",
+      "mock_devices_changed_observer.h",
+      "mock_entropy_provider.cc",
+      "mock_entropy_provider.h",
+      "mock_log.cc",
+      "mock_log.h",
+      "move_only_int.cc",
+      "move_only_int.h",
+      "multiprocess_test.h",
+      "null_task_runner.cc",
+      "null_task_runner.h",
+      "perf_log.cc",
+      "perf_log.h",
+      "perf_test_suite.cc",
+      "perf_test_suite.h",
+      "perf_time_logger.cc",
+      "perf_time_logger.h",
+      "power_monitor_test.cc",
+      "power_monitor_test.h",
+      "power_monitor_test_utils.cc",
+      "power_monitor_test_utils.h",
+      "protobuf_matchers.cc",
+      "protobuf_matchers.h",
+      "rectify_callback.h",
+      "rectify_callback_internal.h",
+      "repeating_test_future.h",
+      "run_until.cc",
+      "run_until.h",
+      "scoped_amount_of_physical_memory_override.cc",
+      "scoped_amount_of_physical_memory_override.h",
+      "scoped_block_tests_writing_to_special_dirs.cc",
+      "scoped_block_tests_writing_to_special_dirs.h",
+      "scoped_command_line.cc",
+      "scoped_command_line.h",
+      "scoped_feature_list.cc",
+      "scoped_feature_list.h",
+      "scoped_mock_clock_override.cc",
+      "scoped_mock_clock_override.h",
+      "scoped_mock_time_message_loop_task_runner.cc",
+      "scoped_mock_time_message_loop_task_runner.h",
+      "scoped_path_override.cc",
+      "scoped_path_override.h",
+      "scoped_run_loop_timeout.cc",
+      "scoped_run_loop_timeout.h",
+      "sequenced_task_runner_test_template.cc",
+      "sequenced_task_runner_test_template.h",
+      "simple_test_clock.cc",
+      "simple_test_clock.h",
+      "simple_test_tick_clock.cc",
+      "simple_test_tick_clock.h",
+      "task_environment.cc",
+      "task_environment.h",
+      "task_runner_test_template.cc",
+      "task_runner_test_template.h",
+      "test_discardable_memory_allocator.cc",
+      "test_discardable_memory_allocator.h",
+      "test_file_util.cc",
+      "test_file_util.h",
+      "test_future.h",
+      "test_future_internal.h",
+      "test_io_thread.cc",
+      "test_io_thread.h",
+      "test_message_loop.cc",
+      "test_message_loop.h",
+      "test_mock_time_task_runner.cc",
+      "test_mock_time_task_runner.h",
+      "test_pending_task.cc",
+      "test_pending_task.h",
+      "test_shared_memory_util.cc",
+      "test_shared_memory_util.h",
+      "test_simple_task_runner.cc",
+      "test_simple_task_runner.h",
+      "test_suite.cc",
+      "test_suite.h",
+      "test_suite_helper.cc",
+      "test_suite_helper.h",
+      "test_waitable_event.cc",
+      "test_waitable_event.h",
+      "thread_test_helper.cc",
+      "thread_test_helper.h",
+      "values_test_util.cc",
+      "values_test_util.h",
+      "with_feature_override.cc",
+      "with_feature_override.h",
     ]
-    deps += [
-      ":amalgamated_perfetto_sql_stdlib",
-      ":gen_cc_chrome_track_event_descriptor",
+
+    configs += [ "//build/config:precompiled_headers" ]
+
+    public_deps = [
+      ":test_config",
+      ":test_rust_logger_consumer",
+      "//base",
+      "//base:base_static",
+      "//base:i18n",
+      "//build:blink_buildflags",
+      "//testing/gmock",
+      "//testing/gtest",
     ]
-    if (is_ios) {
-      deps += [
-        ":test_trace_processor+bundle",
-        ":test_trace_processor+link",
-      ]
-    }
-    if (is_cobalt_hermetic_build) {
-      sources -= [
+
+    deps = [
+      ":proto_test_support",
+      "//testing/libfuzzer:fuzztest_init_support",
+      "//third_party/google_benchmark",
+      "//third_party/icu:icuuc",
+      "//third_party/libxml:libxml_utils",
+      "//third_party/libxml:xml_reader",
+    ]
+
+    # Cronet doesn't need the Perfetto test support stuff. This dependency is
+    # problematic for Cronet because of targets like
+    #   //third_party/perfetto/src/trace_processor/perfetto_sql/stdlib:stdlib_generated_file
+    # that would require special support in gn2bp (AOSP Cronet).
+    if (!is_cronet_build) {
+      public_deps += [ "//third_party/perfetto:perfetto_test_support" ]
+      public_deps += [ ":test_trace_processor" ]
+      sources += [
         "test_trace_processor.cc",
         "test_trace_processor.h",
       ]
-      public_deps -= [ ":test_trace_processor" ]
+      deps += [
+        ":amalgamated_perfetto_sql_stdlib",
+        ":gen_cc_chrome_track_event_descriptor",
+      ]
+      if (is_ios) {
+        deps += [
+          ":test_trace_processor+bundle",
+          ":test_trace_processor+link",
+        ]
+      }
+      if (is_cobalt_hermetic_build) {
+        sources -= [
+          "test_trace_processor.cc",
+          "test_trace_processor.h",
+        ]
+        public_deps -= [ ":test_trace_processor" ]
+      }
     }
-  }
 
-  if (is_win) {
-    sources += [
-      "async_results_test_values_win.h",
-      "fake_iasync_operation_win.h",
-      "file_path_reparse_point_win.cc",
-      "file_path_reparse_point_win.h",
-      "scoped_os_info_override_win.cc",
-      "scoped_os_info_override_win.h",
-      "test_file_util_win.cc",
-      "test_reg_util_win.cc",
-      "test_reg_util_win.h",
-      "test_shortcut_win.cc",
-      "test_shortcut_win.h",
-    ]
-  }
-
-  if (is_chromeos) {
-    sources += [
-      "scoped_chromeos_version_info.cc",
-      "scoped_chromeos_version_info.h",
-      "scoped_running_on_chromeos.cc",
-      "scoped_running_on_chromeos.h",
-    ]
-  }
-
-  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
-    sources += [ "test_file_util_linux.cc" ]
-    public_deps += [ "//third_party/test_fonts/fontconfig:test_support" ]
-  }
-
-  if (is_mac) {
-    frameworks = [ "AppKit.framework" ]
-    sources += [
-      "mock_chrome_application_mac.h",
-      "mock_chrome_application_mac.mm",
-      "test_file_util_mac.cc",
-    ]
-  }
-
-  if (is_starboard) {
-    sources += [
-      "test_support_starboard.cc",
-      "test_support_starboard.h",
-    ]
-  }
-  if (is_android) {
-    sources += [
-      "android/content_uri_test_utils.cc",
-      "android/content_uri_test_utils.h",
-      "android/java_handler_thread_helpers.cc",
-      "android/java_handler_thread_helpers.h",
-      "android/url_utils.cc",
-      "android/url_utils.h",
-      "multiprocess_test_android.cc",
-      "test_file_util_android.cc",
-      "test_file_util_linux.cc",
-      "test_support_android.cc",
-      "test_support_android.h",
-      "thread_pool_test_helpers_android.cc",
-    ]
-    deps += [
-      ":base_unittests_jni_headers",
-      ":test_support_jni_headers",
-    ]
-  }
-
-  if (is_ios) {
-    sources += [
-      "ios/wait_util.h",
-      "ios/wait_util.mm",
-      "test_file_util_mac.cc",
-      "test_listener_ios.h",
-      "test_listener_ios.mm",
-      "test_support_ios.h",
-      "test_support_ios.mm",
-    ]
-    deps += [
-      ":google_test_runner_shared_headers",
-      "//build:blink_buildflags",
-      "//build:ios_buildflags",
-    ]
-
-    # With blink, we use the standard unit_test_launcher.cc.
-    if (!use_blink) {
-      sources += [ "launcher/unit_test_launcher_ios.cc" ]
+    if (is_win) {
+      sources += [
+        "async_results_test_values_win.h",
+        "fake_iasync_operation_win.h",
+        "file_path_reparse_point_win.cc",
+        "file_path_reparse_point_win.h",
+        "scoped_os_info_override_win.cc",
+        "scoped_os_info_override_win.h",
+        "test_file_util_win.cc",
+        "test_reg_util_win.cc",
+        "test_reg_util_win.h",
+        "test_shortcut_win.cc",
+        "test_shortcut_win.h",
+      ]
     }
-  }
 
-  if (is_posix || is_fuchsia) {
-    sources += [
-      "scoped_locale.cc",
-      "scoped_locale.h",
-      "test_file_util_posix.cc",
-    ]
-  }
+    if (is_chromeos) {
+      sources += [
+        "scoped_chromeos_version_info.cc",
+        "scoped_chromeos_version_info.h",
+        "scoped_running_on_chromeos.cc",
+        "scoped_running_on_chromeos.h",
+      ]
+    }
 
-  if (is_fuchsia) {
-    deps += [
-      "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.io:fuchsia.io_cpp_hlcpp_conversion",
-      "//third_party/fuchsia-sdk/sdk/pkg/zx",
-    ]
-    public_deps += [ "//third_party/fuchsia-sdk/sdk/pkg/sys_cpp" ]
-    sources += [
-      "../fuchsia/test_component_context_for_process.cc",
-      "../fuchsia/test_component_context_for_process.h",
-      "fidl_matchers.h",
-      "scoped_dev_zero_fuchsia.cc",
-      "scoped_dev_zero_fuchsia.h",
-    ]
-  }
+    if ((is_linux && !is_cobalt_hermetic_build) || is_chromeos) {
+      sources += [ "test_file_util_linux.cc" ]
+      public_deps += [ "//third_party/test_fonts/fontconfig:test_support" ]
+    }
 
-  if (use_blink) {
-    sources += [
-      "launcher/test_launcher.cc",
-      "launcher/test_launcher.h",
-      "launcher/test_launcher_test_utils.cc",
-      "launcher/test_launcher_test_utils.h",
-      "launcher/test_launcher_tracer.cc",
-      "launcher/test_launcher_tracer.h",
-      "launcher/test_results_tracker.cc",
-      "launcher/unit_test_launcher.cc",
-      "multiprocess_test.cc",
-    ]
-  }
-  if (is_cobalt_hermetic_build) {
-    sources -= [ "multiprocess_test.cc" ]
-    sources += [ "multiprocess_test_starboard.cc" ]
-  }
+    if (is_mac) {
+      frameworks = [ "AppKit.framework" ]
+      sources += [
+        "mock_chrome_application_mac.h",
+        "mock_chrome_application_mac.mm",
+        "test_file_util_mac.cc",
+      ]
+    }
 
-  if (enable_base_tracing) {
+    if (is_starboard) {
+      sources += [
+        "test_support_starboard.cc",
+        "test_support_starboard.h",
+      ]
+    }
+    if (is_android) {
+      sources += [
+        "android/content_uri_test_utils.cc",
+        "android/content_uri_test_utils.h",
+        "android/java_handler_thread_helpers.cc",
+        "android/java_handler_thread_helpers.h",
+        "android/url_utils.cc",
+        "android/url_utils.h",
+        "multiprocess_test_android.cc",
+        "test_file_util_android.cc",
+        "test_file_util_linux.cc",
+        "test_support_android.cc",
+        "test_support_android.h",
+        "thread_pool_test_helpers_android.cc",
+      ]
+      deps += [
+        ":base_unittests_jni_headers",
+        ":test_support_jni_headers",
+      ]
+    }
+
+    if (is_ios) {
+      sources += [
+        "ios/wait_util.h",
+        "ios/wait_util.mm",
+        "test_file_util_mac.cc",
+        "test_listener_ios.h",
+        "test_listener_ios.mm",
+        "test_support_ios.h",
+        "test_support_ios.mm",
+      ]
+      deps += [
+        ":google_test_runner_shared_headers",
+        "//build:blink_buildflags",
+        "//build:ios_buildflags",
+      ]
+
+      # With blink, we use the standard unit_test_launcher.cc.
+      if (!use_blink) {
+        sources += [ "launcher/unit_test_launcher_ios.cc" ]
+      }
+    }
+
+    if (is_posix || is_fuchsia) {
+      sources += [
+        "scoped_locale.cc",
+        "scoped_locale.h",
+        "test_file_util_posix.cc",
+      ]
+    }
+
+    if (is_fuchsia) {
+      deps += [
+        "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.io:fuchsia.io_cpp_hlcpp_conversion",
+        "//third_party/fuchsia-sdk/sdk/pkg/zx",
+      ]
+      public_deps += [ "//third_party/fuchsia-sdk/sdk/pkg/sys_cpp" ]
+      sources += [
+        "../fuchsia/test_component_context_for_process.cc",
+        "../fuchsia/test_component_context_for_process.h",
+        "fidl_matchers.h",
+        "scoped_dev_zero_fuchsia.cc",
+        "scoped_dev_zero_fuchsia.h",
+      ]
+    }
+
+    if (use_blink) {
+      sources += [
+        "launcher/test_launcher.cc",
+        "launcher/test_launcher.h",
+        "launcher/test_launcher_test_utils.cc",
+        "launcher/test_launcher_test_utils.h",
+        "launcher/test_launcher_tracer.cc",
+        "launcher/test_launcher_tracer.h",
+        "launcher/test_results_tracker.cc",
+        "launcher/unit_test_launcher.cc",
+        "multiprocess_test.cc",
+      ]
+    }
+    if (is_cobalt_hermetic_build) {
+      sources -= [ "multiprocess_test.cc" ]
+      sources += [ "multiprocess_test_starboard.cc" ]
+    }
+
     sources += [
       "../trace_event/trace_config_memory_test_util.h",
       "trace_event_analyzer.cc",
@@ -390,7 +387,6 @@ static_library("test_support") {
       "trace_to_file.h",
     ]
   }
-}
 }
 
 component("proto_test_support") {
@@ -495,13 +491,13 @@ shared_library("immediate_crash_test_helper") {
 }
 
 if (!is_starboard) {
-# This shared library is dynamically loaded by NativeLibrary unittests.
-shared_library("test_shared_library") {
-  testonly = true
-  sources = [ "test_shared_library.cc" ]
+  # This shared library is dynamically loaded by NativeLibrary unittests.
+  shared_library("test_shared_library") {
+    testonly = true
+    sources = [ "test_shared_library.cc" ]
 
-  deps = [ ":native_library_test_utils" ]
-}
+    deps = [ ":native_library_test_utils" ]
+  }
 }
 
 if (is_ios) {
@@ -616,37 +612,43 @@ if (is_ios) {
 }
 
 if (!is_starboard) {
-# Trivial executable which outputs space-delimited argv to stdout,
-# used for testing.
-executable("test_child_process") {
-  testonly = true
-  sources = [ "test_child_process.cc" ]
-}
-}
-
-if (enable_base_tracing) {
-  perfetto_cc_proto_descriptor("gen_cc_chrome_track_event_descriptor") {
-    descriptor_name = "chrome_track_event.descriptor"
-    descriptor_target = "//base/tracing/protos:chrome_track_event"
-    namespace = "base::testing"
+  # Trivial executable which outputs space-delimited argv to stdout,
+  # used for testing.
+  executable("test_child_process") {
+    testonly = true
+    sources = [ "test_child_process.cc" ]
   }
+}
 
-  import("//base/tracing/stdlib/chrome/perfetto_sql_files.gni")
-  action("amalgamated_perfetto_sql_stdlib") {
-    script = "//third_party/perfetto/tools/gen_amalgamated_sql.py"
-    sources = rebase_path(chrome_stdlib_sql_files,
-                          ".",
-                          "//base/tracing/stdlib/chrome")
-    stdlib_header = "$root_gen_dir/base/test/perfetto_sql_stdlib.h"
-    outputs = [ stdlib_header ]
-    args = [
-             "--namespace",
-             "chrome_stdlib",
-             "--cpp-out",
-             rebase_path(stdlib_header, root_build_dir),
-           ] + rebase_path(sources, root_build_dir)
-  }
+perfetto_cc_proto_descriptor("gen_cc_chrome_track_event_descriptor") {
+  descriptor_name = "chrome_track_event.descriptor"
+  descriptor_target = "//base/tracing/protos:chrome_track_event"
+  namespace = "base::testing"
+}
 
+import("//base/tracing/stdlib/chrome/perfetto_sql_files.gni")
+action("amalgamated_perfetto_sql_stdlib") {
+  script = "//third_party/perfetto/tools/gen_amalgamated_sql.py"
+  sources =
+      rebase_path(chrome_stdlib_sql_files, ".", "//base/tracing/stdlib/chrome")
+  stdlib_header = "$root_gen_dir/base/test/perfetto_sql_stdlib.h"
+  outputs = [ stdlib_header ]
+  args = [
+           "--namespace",
+           "chrome_stdlib",
+           "--cpp-out",
+           rebase_path(stdlib_header, root_build_dir),
+         ] + rebase_path(sources, root_build_dir)
+}
+
+# We encapsulate the trace processor in a separate shared library to prevent
+# any duplicate symbol issues. Perfetto symbols are exported by chromium’s
+# base via a public_dep on libperfetto; libtrace_processor also depends on
+# these symbols. So we “hide” the perfetto symbols exported from this
+# interface. Also, chrome targets depend on chromium_sqlite and the trace
+# processor depends on dev_sqlite. The two share the same symbols but have
+# different implementations, so we need to hide dev_sqlite in this shared
+# library even in non-component builds to prevent duplicate symbols.
 if (!is_cobalt_hermetic_build) {
   # We encapsulate the trace processor in a separate shared library to prevent
   # any duplicate symbol issues. Perfetto symbols are exported by chromium’s
@@ -676,7 +678,6 @@ if (!is_cobalt_hermetic_build) {
     if (is_android) {
       configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
     }
-
     if (is_ios) {
       info_plist = "test_trace_processor_impl.plist"
       output_name = "TestTraceProcessor"
@@ -710,12 +711,14 @@ if (!is_cobalt_hermetic_build) {
       public_deps = [ ":test_trace_processor" ]
     }
   }
-}
 } else if (!is_component_build && is_mac) {
   # Provide a dummy target in order for clients to not have to special-case
   # the dependency.
   group("test_trace_processor_bundle_data") {
     testonly = true
+    sources = [ "$root_out_dir/Libraries/libtest_trace_processor.dylib" ]
+    outputs = [ "{{bundle_contents_dir}}/Libraries/{{source_file_part}}" ]
+    public_deps = [ ":test_trace_processor" ]
   }
 }
 
@@ -768,12 +771,15 @@ if (is_android) {
       "android/javatests/src/org/chromium/base/test/transit/ScrollableFacility.java",
       "android/javatests/src/org/chromium/base/test/transit/SimpleConditions.java",
       "android/javatests/src/org/chromium/base/test/transit/Station.java",
+      "android/javatests/src/org/chromium/base/test/transit/StationToStationTrip.java",
       "android/javatests/src/org/chromium/base/test/transit/StatusStore.java",
       "android/javatests/src/org/chromium/base/test/transit/TrafficControl.java",
       "android/javatests/src/org/chromium/base/test/transit/TransitAsserts.java",
       "android/javatests/src/org/chromium/base/test/transit/Transition.java",
       "android/javatests/src/org/chromium/base/test/transit/TravelException.java",
+      "android/javatests/src/org/chromium/base/test/transit/Triggers.java",
       "android/javatests/src/org/chromium/base/test/transit/Trip.java",
+      "android/javatests/src/org/chromium/base/test/transit/TripBuilder.java",
       "android/javatests/src/org/chromium/base/test/transit/UiThreadCondition.java",
       "android/javatests/src/org/chromium/base/test/transit/ViewConditions.java",
       "android/javatests/src/org/chromium/base/test/transit/ViewElement.java",
@@ -792,9 +798,7 @@ if (is_android) {
       "//third_party/junit",
     ]
 
-    sources = [
-      "android/javatests/src/org/chromium/base/test/transit/TripUnitTest.java",
-    ]
+    sources = [ "android/javatests/src/org/chromium/base/test/transit/ElementFactoryUnitTest.java" ]
   }
 }
 

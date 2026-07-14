@@ -15,6 +15,8 @@
 #include "media/audio/starboard/audio_input_stream_starboard.h"
 
 #include "base/logging.h"
+#include "base/notimplemented.h"
+#include "base/notreached.h"
 #include "media/audio/audio_manager.h"
 #include "media/audio/audio_manager_base.h"
 

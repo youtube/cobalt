@@ -1254,6 +1254,37 @@ TEST_P(Mp3SeekFFmpegDemuxerTest, TestFastSeek) {
   EXPECT_LT(data_source_->bytes_read_for_testing(), (file_size * .25));
 }
 
+TEST_P(Mp3SeekFFmpegDemuxerTest, TestEarlySeek) {
+  // Init demxuer with given MP3 file parameter.
+  CreateDemuxer(GetParam());
+  InitializeDemuxer();
+
+  auto* audio = GetStream(DemuxerStream::AUDIO);
+  ASSERT_TRUE(audio);
+
+  // Seek near the beginning of the file.
+  WaitableMessageLoopEvent event;
+  demuxer_->Seek(base::Milliseconds(10), event.GetPipelineStatusCB());
+  event.RunAndWaitForStatus(PIPELINE_OK);
+
+  auto VerifyFirstBufferStartsAtZero = [&]() {
+    base::RunLoop loop;
+    audio->Read(1, base::BindLambdaForTesting(
+                       [&](DemuxerStream::Status status,
+                           DemuxerStream::DecoderBufferVector buffers) {
+                         ASSERT_EQ(status, DemuxerStream::kOk);
+                         ASSERT_EQ(buffers.size(), 1u);
+                         for (auto& buffer : buffers) {
+                           EXPECT_EQ(buffer->timestamp(), base::TimeDelta());
+                         }
+                         loop.QuitWhenIdle();
+                       }));
+    loop.Run();
+  };
+
+  VerifyFirstBufferStartsAtZero();
+}
+
 // MP3s should seek quickly without sequentially reading up to the seek point.
 // VBR vs CBR and the presence/absence of TOC influence the seeking algorithm.
 // See http://crbug.com/530043 and FFmpeg flag AVFMT_FLAG_FAST_SEEK.
@@ -1755,8 +1786,7 @@ TEST_F(FFmpegDemuxerTest, Seek_FallbackToDisabledAudioStream) {
 }
 
 namespace {
-void QuitLoop(base::OnceClosure quit_closure,
-              const std::vector<DemuxerStream*>& streams) {
+void QuitLoop(base::OnceClosure quit_closure, DemuxerStream* stream) {
   std::move(quit_closure).Run();
 }
 
@@ -1765,32 +1795,28 @@ void DisableAndEnableDemuxerTracks(
     base::test::TaskEnvironment* task_environment) {
   base::WaitableEvent event(base::WaitableEvent::ResetPolicy::AUTOMATIC,
                             base::WaitableEvent::InitialState::NOT_SIGNALED);
-  std::vector<MediaTrack::Id> audio_tracks;
-  std::vector<MediaTrack::Id> video_tracks;
 
   base::RunLoop disable_video;
   demuxer->OnTracksChanged(
-      DemuxerStream::VIDEO, video_tracks, base::TimeDelta(),
+      DemuxerStream::VIDEO, std::nullopt, base::TimeDelta(),
       base::BindOnce(QuitLoop, disable_video.QuitClosure()));
   disable_video.Run();
 
   base::RunLoop disable_audio;
   demuxer->OnTracksChanged(
-      DemuxerStream::AUDIO, audio_tracks, base::TimeDelta(),
+      DemuxerStream::AUDIO, std::nullopt, base::TimeDelta(),
       base::BindOnce(QuitLoop, disable_audio.QuitClosure()));
   disable_audio.Run();
 
   base::RunLoop enable_video;
-  video_tracks.push_back(MediaTrack::Id("1"));
   demuxer->OnTracksChanged(
-      DemuxerStream::VIDEO, video_tracks, base::TimeDelta(),
+      DemuxerStream::VIDEO, MediaTrack::Id("1"), base::TimeDelta(),
       base::BindOnce(QuitLoop, enable_video.QuitClosure()));
   enable_video.Run();
 
   base::RunLoop enable_audio;
-  audio_tracks.push_back(MediaTrack::Id("2"));
   demuxer->OnTracksChanged(
-      DemuxerStream::AUDIO, audio_tracks, base::TimeDelta(),
+      DemuxerStream::AUDIO, MediaTrack::Id("2"), base::TimeDelta(),
       base::BindOnce(QuitLoop, enable_audio.QuitClosure()));
   enable_audio.Run();
 

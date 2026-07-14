@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "net/disk_cache/blockfile/rankings.h"
 
 #include <stdint.h>
@@ -619,7 +614,7 @@ bool Rankings::GetRanking(CacheRankingsBlock* rankings) {
   }
 
   // Note that we should not leave this module without deleting rankings first.
-  rankings->SetData(entry->rankings()->Data());
+  rankings->SetData(entry->rankings()->AllData());
 
   return true;
 }

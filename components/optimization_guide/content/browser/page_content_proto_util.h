@@ -13,6 +13,7 @@
 #include "components/optimization_guide/proto/features/model_prototyping.pb.h"
 #include "content/public/browser/global_routing_id.h"
 #include "third_party/blink/public/mojom/content_extraction/ai_page_content.mojom-forward.h"
+#include "ui/gfx/geometry/point.h"
 #include "url/origin.h"
 
 namespace optimization_guide {
@@ -27,6 +28,11 @@ struct RenderFrameInfo {
   url::Origin source_origin;
   GURL url;
   std::string serialized_server_token;
+};
+
+struct TargetNodeInfo {
+  optimization_guide::proto::DocumentIdentifier document_identifier;
+  raw_ptr<const optimization_guide::proto::ContentNode> node = nullptr;
 };
 
 using AIPageContentMap = base::flat_map<content::GlobalRenderFrameHostToken,
@@ -51,6 +57,14 @@ bool ConvertAIPageContentToProto(
     GetRenderFrameInfo get_render_frame_info,
     FrameTokenSet& frame_token_set,
     optimization_guide::AIPageContentResult& page_content);
+
+// Hit test given coordinate with the provided annotated page content and
+// returns the target node and containing document info at the coordinate if
+// there's a match. Returns std::nullopt otherwise.
+std::optional<optimization_guide::TargetNodeInfo> FindNodeAtPoint(
+    const optimization_guide::proto::AnnotatedPageContent&
+        annotated_page_content,
+    const gfx::Point& coordinate);
 
 }  // namespace optimization_guide
 

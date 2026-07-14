@@ -37,16 +37,18 @@ using ::blink::WebInputEventResult;
 using ::blink::WebMouseEvent;
 using ::blink::WebNode;
 
-ClickTool::ClickTool(mojom::ClickActionPtr action, content::RenderFrame& frame)
-    : frame_(frame), action_(std::move(action)) {}
+ClickTool::ClickTool(content::RenderFrame& frame,
+                     Journal::TaskId task_id,
+                     Journal& journal,
+                     mojom::ClickActionPtr action)
+    : ToolBase(frame, task_id, journal), action_(std::move(action)) {}
 
 ClickTool::~ClickTool() = default;
 
-void ClickTool::Execute(ToolFinishedCallback callback) {
+mojom::ActionResultPtr ClickTool::Execute() {
   ValidatedResult validated_result = Validate();
   if (!validated_result.has_value()) {
-    std::move(callback).Run(std::move(validated_result.error()));
-    return;
+    return std::move(validated_result.error());
   }
 
   gfx::PointF click_point = validated_result.value();
@@ -74,9 +76,8 @@ void ClickTool::Execute(ToolFinishedCallback callback) {
     }
   }
 
-  mojom::ActionResultPtr result = CreateAndDispatchClick(
-      button, click_count, click_point, frame_->GetWebFrame()->FrameWidget());
-  std::move(callback).Run(std::move(result));
+  return CreateAndDispatchClick(button, click_count, click_point,
+                                frame_->GetWebFrame()->FrameWidget());
 }
 
 std::string ClickTool::DebugString() const {
@@ -86,10 +87,8 @@ std::string ClickTool::DebugString() const {
 }
 
 ClickTool::ValidatedResult ClickTool::Validate() const {
-  if (!frame_->GetWebFrame()->FrameWidget()) {
-    return base::unexpected(
-        MakeResult(mojom::ActionResultCode::kFrameWentAway));
-  }
+  CHECK(frame_->GetWebFrame());
+  CHECK(frame_->GetWebFrame()->FrameWidget());
 
   if (action_->target->is_coordinate()) {
     gfx::PointF click_point(action_->target->get_coordinate());

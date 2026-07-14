@@ -63,9 +63,13 @@ class OmniboxAction : public base::RefCountedThreadSafe<OmniboxAction> {
     LabelStrings();
     LabelStrings(const LabelStrings&);
     ~LabelStrings();
+    // Displayed text.
     std::u16string hint;
+    // Tooltip text.
     std::u16string suggestion_contents;
+    // Unsure?
     std::u16string accessibility_suffix;
+    // Announced when focused.
     std::u16string accessibility_hint;
   };
 
@@ -144,6 +148,13 @@ class OmniboxAction : public base::RefCountedThreadSafe<OmniboxAction> {
     OpenUrlCallback open_url_callback_;
     base::TimeTicks match_selection_timestamp_;
     WindowOpenDisposition disposition_;
+
+    // When this is set to a nonzero `StarterPackId`, the omnibox will
+    // transition to the given starter pack's keyword mode after execution
+    // completes. An ID is used instead of a keyword string because keywords may
+    // change and template URLs may become unavailable, but the IDs remain
+    // constant.
+    int enter_starter_pack_id_;
   };
 
   OmniboxAction(LabelStrings strings, GURL url);

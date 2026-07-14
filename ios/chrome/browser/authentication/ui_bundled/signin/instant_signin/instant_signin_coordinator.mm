@@ -19,6 +19,7 @@
 #import "ios/chrome/browser/shared/coordinator/alert/alert_coordinator.h"
 #import "ios/chrome/browser/shared/coordinator/chrome_coordinator/animated_coordinator.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/elements/activity_overlay_coordinator.h"
 #import "ios/chrome/browser/signin/model/chrome_account_manager_service.h"
@@ -66,6 +67,8 @@
                               contextStyle:contextStyle
                                accessPoint:accessPoint];
   if (self) {
+    CHECK(browser, base::NotFatalUntil::M142);
+    CHECK(viewController, base::NotFatalUntil::M142);
     CHECK(continuationProvider);
     _identity = identity;
     _promoAction = promoAction;
@@ -87,7 +90,7 @@
 - (void)start {
   [super start];
   signin::IdentityManager* identityManager =
-      IdentityManagerFactory::GetForProfile(self.profile);
+      IdentityManagerFactory::GetForProfile(self.profile->GetOriginalProfile());
   CHECK(!identityManager->HasPrimaryAccount(signin::ConsentLevel::kSignin),
         base::NotFatalUntil::M142);
   _signinLogger = [[UserSigninLogger alloc] initWithAccessPoint:self.accessPoint
@@ -156,8 +159,17 @@
   CHECK(!_activityOverlayCoordinator, base::NotFatalUntil::M145);
   CHECK(!_identityChooserCoordinator, base::NotFatalUntil::M145);
   _signinLogger = nil;
-  [_mediator disconnect];
+  // Methods on mediator's delegate should not be called anymore. If the sign-in
+  // is progress, when calling the mediator disconnect method, it will call
+  // `-[<InstantSigninMediatorDelegate> instantSigninMediator:
+  // didSigninWithResult]` on this coordinator.
+  // That will trigger the signinCompletion block. And the coordinator's oner
+  // will dealloc this self.
+  // Result, at the end of `[_mediator disconnect]`, self would be deallocated.
+  // The owner is already aware that InstantSigninCoordinator is aborted since
+  // stop is called.
   _mediator.delegate = nil;
+  [_mediator disconnect];
   _mediator = nil;
   [super stopAnimated:animated];
 }

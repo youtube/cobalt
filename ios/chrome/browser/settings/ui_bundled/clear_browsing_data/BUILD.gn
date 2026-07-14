@@ -40,6 +40,7 @@ source_set("clear_browsing_data") {
   deps = [
     ":ui_constants",
     ":util",
+    "//components/application_locale_storage",
     "//components/browsing_data/core",
     "//components/browsing_data/core:cookie_or_cache_deletion_choice",
     "//components/feature_engagement/public",
@@ -65,6 +66,7 @@ source_set("clear_browsing_data") {
     "//ios/chrome/browser/intents/model:model_donation_helper",
     "//ios/chrome/browser/keyboard/ui_bundled",
     "//ios/chrome/browser/net/model:crurl",
+    "//ios/chrome/browser/saved_tab_groups/model:tab_group_service",
     "//ios/chrome/browser/search_engines/model",
     "//ios/chrome/browser/settings/ui_bundled:settings_root",
     "//ios/chrome/browser/settings/ui_bundled/cells",

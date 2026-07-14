@@ -116,10 +116,9 @@
 [submodule "media/cdm/api"]
 	path = media/cdm/api
 	url = https://chromium.googlesource.com/chromium/cdm
-[submodule "native_client"]
-	path = native_client
-	url = https://chromium.googlesource.com/native_client/src/native_client
-	gclient-condition = checkout_nacl
+[submodule "net/third_party/quiche/src"]
+	path = net/third_party/quiche/src
+	url = https://quiche.googlesource.com/quiche
 [submodule "testing/libfuzzer/fuzzers/wasm_corpus"]
 	path = testing/libfuzzer/fuzzers/wasm_corpus
 	url = https://chromium.googlesource.com/v8/fuzzer_wasm_corpus
@@ -133,6 +132,9 @@
 [submodule "third_party/anonymous_tokens/src"]
 	path = third_party/anonymous_tokens/src
 	url = https://chromium.googlesource.com/external/github.com/google/anonymous-tokens
+[submodule "third_party/readability/src"]
+	path = third_party/readability/src
+	url = https://chromium.googlesource.com/external/github.com/mozilla/readability
 [submodule "third_party/content_analysis_sdk/src"]
 	path = third_party/content_analysis_sdk/src
 	url = https://chromium.googlesource.com/external/github.com/chromium/content_analysis_sdk
@@ -250,9 +252,6 @@
 [submodule "third_party/freetype/src"]
 	path = third_party/freetype/src
 	url = https://chromium.googlesource.com/chromium/src/third_party/freetype2
-[submodule "third_party/freetype-testing/src"]
-	path = third_party/freetype-testing/src
-	url = https://chromium.googlesource.com/external/github.com/freetype/freetype2-testing
 [submodule "third_party/fxdiv/src"]
 	path = third_party/fxdiv/src
 	url = https://chromium.googlesource.com/external/github.com/Maratyszcza/FXdiv
@@ -269,10 +268,6 @@
 	path = third_party/instrumented_libs
 	url = https://chromium.googlesource.com/chromium/third_party/instrumented_libraries
 	gclient-condition = checkout_instrumented_libraries
-[submodule "third_party/jszip/src"]
-	path = third_party/jszip/src
-	url = https://chromium.googlesource.com/external/github.com/Stuk/jszip
-	gclient-condition = checkout_ios
 [submodule "third_party/emoji-segmenter/src"]
 	path = third_party/emoji-segmenter/src
 	url = https://chromium.googlesource.com/external/github.com/google/emoji-segmenter

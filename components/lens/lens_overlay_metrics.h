@@ -21,23 +21,6 @@
 
 namespace lens {
 
-// Designates the selected item in the lens speedbump menu.
-//
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-//
-// LINT.IfChange(LensOverlaySpeedbumpMenuSelection)
-enum class LensOverlaySpeedbumpMenuSelection {
-  // Item summoning Lens Overlay.
-  kSearchYourScreen = 0,
-
-  // Item summoning Lens Live View Finder (LVF).
-  kSearchWithCamera = 1,
-
-  kMaxValue = kSearchWithCamera
-};
-// LINT.ThenChange(//tools/metrics/histograms/metadata/lens/enums.xml:LensOverlaySpeedbumpMenuSelection)
-
 struct ContextualSearchboxSessionEndMetrics {
   // Indicates whether zps was shown for the initial query in a session.
   bool zps_shown_on_initial_query_ = false;
@@ -71,6 +54,19 @@ struct ContextualSearchboxSessionEndMetrics {
   // Whether the contextual searchbox should be shown in the session.
   bool searchbox_shown_ = false;
 };
+
+// LINT.IfChange(LensOverlayTextDirectiveResult)
+enum class LensOverlayTextDirectiveResult {
+  // The text directive was found on the page.
+  kFoundOnPage = 0,
+  // The URL with a text directive was opened in a new tab because it did not
+  // match the current page.
+  kOpenedInNewTab = 1,
+  // The text directive was not found on the page.
+  kNotFoundOnPage = 2,
+  kMaxValue = kNotFoundOnPage,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/lens/enums.xml:LensOverlayTextDirectiveResult)
 
 // Returns the string representation of the invocation source.
 std::string InvocationSourceToString(
@@ -190,6 +186,10 @@ void RecordSidePanelResultStatus(SidePanelResultStatus status);
 // Records that a side panel menu option has been selected.
 void RecordSidePanelMenuOptionSelected(
     lens::LensOverlaySidePanelMenuOption menu_option);
+
+// Records the result of handling a text directive in the Lens Overlay.
+void RecordHandleTextDirectiveResult(
+    lens::LensOverlayTextDirectiveResult result);
 
 }  // namespace lens
 

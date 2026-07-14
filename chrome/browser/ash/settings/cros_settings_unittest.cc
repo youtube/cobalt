@@ -19,7 +19,6 @@
 #include "chrome/browser/ash/ownership/owner_key_loader.h"
 #include "chrome/browser/ash/ownership/owner_settings_service_ash.h"
 #include "chrome/browser/ash/ownership/owner_settings_service_ash_factory.h"
-#include "chrome/browser/ash/policy/core/device_policy_builder.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/ash/settings/cros_settings_holder.h"
 #include "chrome/browser/ash/settings/device_settings_provider.h"
@@ -31,6 +30,7 @@
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/ash/components/browser_context_helper/annotated_account_id.h"
 #include "chromeos/ash/components/install_attributes/stub_install_attributes.h"
+#include "chromeos/ash/components/policy/device_policy/device_policy_builder.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "components/ownership/mock_owner_key_util.h"
 #include "components/policy/core/common/cloud/cloud_policy_constants.h"
@@ -83,15 +83,14 @@ class CrosSettingsTest : public testing::Test {
         device_policy_.GetSigningKey());
     OwnerSettingsServiceAshFactory::GetInstance()->SetOwnerKeyUtilForTesting(
         owner_key_util_);
-    DeviceSettingsService::Get()->SetSessionManager(
+    DeviceSettingsService::Get()->StartProcessing(
+        TestingBrowserProcess::GetGlobal()->local_state(),
         &fake_session_manager_client_, owner_key_util_);
     DeviceSettingsService::Get()->Load();
     task_environment_.RunUntilIdle();
   }
 
-  void TearDown() override {
-    DeviceSettingsService::Get()->UnsetSessionManager();
-  }
+  void TearDown() override { DeviceSettingsService::Get()->StopProcessing(); }
 
   // Some tests below use an OwnerSettingsService so they can change settings
   // partway through the test - this sets one up for those tests that need it.

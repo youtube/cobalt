@@ -96,7 +96,7 @@ Node* Text::MergeNextSiblingNodesIfPossible() {
     next_text->UpdateTextLayoutObject(
         TextDiffRange::Delete(0, next_text_data.length()));
 
-    // Restore nextText for mutation event.
+    // Restore nextText after any synchronous events.
     next_text->SetDataWithoutUpdate(next_text_data);
     next_text->UpdateTextLayoutObject(
         TextDiffRange::Insert(0, next_text_data.length()));
@@ -222,12 +222,12 @@ String Text::wholeText() const {
 Text* Text::ReplaceWholeText(const String& new_text) {
   // Remove all adjacent text nodes, and replace the contents of this one.
 
-  // Protect startText and endText against mutation event handlers removing the
-  // last ref
+  // Protect startText and endText against synchronous event handlers removing
+  // the last ref.
   Text* start_text = const_cast<Text*>(EarliestLogicallyAdjacentTextNode(this));
   Text* end_text = const_cast<Text*>(LatestLogicallyAdjacentTextNode(this));
 
-  ContainerNode* parent = parentNode();  // Protect against mutation handlers
+  ContainerNode* parent = parentNode();  // Protect against synchronous handlers
                                          // moving this node during traversal
   for (Node* n = start_text;
        n && n != this && n->IsTextNode() && n->parentNode() == parent;) {
@@ -449,7 +449,7 @@ static bool ShouldUpdateLayoutByReattaching(const Text& text_node,
     // Changes of |text_node| may change first letter part, so we should
     // reattach. Note: When |text_node| is empty or holds collapsed whitespaces
     // |text_fragment_layout_object| represents first-letter part but it isn't
-    // inside first-letter-pseudo element. See http://crbug.com/978947
+    // inside first-letter-pseudo-element. See http://crbug.com/978947
     const auto& text_fragment_layout_object =
         *To<LayoutTextFragment>(text_layout_object);
     return text_fragment_layout_object.GetFirstLetterPseudoElement() ||

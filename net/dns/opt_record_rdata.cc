@@ -19,6 +19,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_util.h"
+#include "base/strings/string_view_util.h"
 #include "base/types/optional_util.h"
 #include "net/dns/public/dns_protocol.h"
 
@@ -46,10 +47,6 @@ OptRecordRdata::Opt::Opt(std::vector<uint8_t> data) : data_(std::move(data)) {}
 
 bool OptRecordRdata::Opt::operator==(const OptRecordRdata::Opt& other) const {
   return IsEqual(other);
-}
-
-bool OptRecordRdata::Opt::operator!=(const OptRecordRdata::Opt& other) const {
-  return !IsEqual(other);
 }
 
 bool OptRecordRdata::Opt::IsEqual(const OptRecordRdata::Opt& other) const {
@@ -198,10 +195,6 @@ OptRecordRdata::~OptRecordRdata() = default;
 
 bool OptRecordRdata::operator==(const OptRecordRdata& other) const {
   return IsEqual(&other);
-}
-
-bool OptRecordRdata::operator!=(const OptRecordRdata& other) const {
-  return !IsEqual(&other);
 }
 
 // static

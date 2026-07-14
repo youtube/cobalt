@@ -17,6 +17,7 @@
 #include "components/saved_tab_groups/public/saved_tab_group_tab.h"
 #include "components/saved_tab_groups/public/tab_group_sync_service.h"
 #include "components/saved_tab_groups/public/types.h"
+#include "components/saved_tab_groups/public/versioning_message_controller.h"
 #include "components/sync/base/collaboration_id.h"
 
 namespace tab_groups {
@@ -216,12 +217,12 @@ void FakeTabGroupSyncService::OnTabSelected(
 
 void FakeTabGroupSyncService::MakeTabGroupShared(
     const LocalTabGroupID& local_group_id,
-    std::string_view collaboration_id,
+    const syncer::CollaborationId& collaboration_id,
     TabGroupSharingCallback callback) {
   std::optional<int> index = GetIndexOf(local_group_id);
   CHECK(index.has_value());
   SavedTabGroup& group = groups_[index.value()];
-  group.SetCollaborationId(CollaborationId(std::string(collaboration_id)));
+  group.SetCollaborationId(collaboration_id);
   NotifyObserversOfTabGroupShared(group);
   if (callback) {
     std::move(callback).Run(TabGroupSharingResult::kSuccess);
@@ -230,7 +231,7 @@ void FakeTabGroupSyncService::MakeTabGroupShared(
 
 void FakeTabGroupSyncService::MakeTabGroupSharedForTesting(
     const LocalTabGroupID& local_group_id,
-    std::string_view collaboration_id) {
+    const syncer::CollaborationId& collaboration_id) {
   // No op.
 }
 
@@ -449,6 +450,16 @@ void FakeTabGroupSyncService::GetURLRestriction(
 std::unique_ptr<std::vector<SavedTabGroup>>
 FakeTabGroupSyncService::TakeSharedTabGroupsAvailableAtStartupForMessaging() {
   return std::make_unique<std::vector<SavedTabGroup>>();
+}
+
+bool FakeTabGroupSyncService::HadSharedTabGroupsLastSession(
+    bool open_shared_tab_groups) {
+  return false;
+}
+
+VersioningMessageController*
+FakeTabGroupSyncService::GetVersioningMessageController() {
+  return nullptr;
 }
 
 void FakeTabGroupSyncService::OnLastTabClosed(

@@ -23,6 +23,8 @@
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/numerics/angle_conversions.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
@@ -574,8 +576,7 @@ struct SkiaRenderer::DrawQuadParams {
   SkPath draw_region_in_path() const {
     if (draw_region) {
       return SkPath::Polygon(draw_region->points.data(),
-                             std::size(draw_region->points),
-                             /*isClosed=*/true);
+                             draw_region->points.size(), /*isClosed=*/true);
     }
     return SkPath();
   }
@@ -1087,8 +1088,8 @@ void SkiaRenderer::FinishDrawingFrame() {
         use_partial_swap_ ? gfx::RectF(swap_buffer_rect_)
                           : gfx::RectF(surface_plane.resource_size);
 #if BUILDFLAG(IS_WIN)
-    surface_candidate.layer_id = gfx::OverlayLayerId::MakeVizInternal(
-        gfx::OverlayLayerId::VizInternalId::kPrimaryPlane);
+    surface_candidate.layer_id = gfx::OverlayLayerId::MakeVizInternalRenderPass(
+        current_frame()->root_render_pass->id);
 #endif
 #if BUILDFLAG(IS_OZONE)
     // Ozone DRM needs the primary plane as the first overlay when overlay
@@ -2157,7 +2158,7 @@ SkiaRenderer::BypassMode SkiaRenderer::CalculateBypassParams(
     // quadrilateral to the bypass'ed quad's coordinate space so that BSP
     // splitting is still respected.
     rpdq_to_bypass.mapPoints(params->draw_region->points.data(),
-                             std::size(params->draw_region->points));
+                             params->draw_region->points.size());
   }
 
   std::optional<gfx::RectF> bypassed_quad_clip_rect;
@@ -2853,7 +2854,8 @@ void SkiaRenderer::DrawTileDrawQuad(const TileDrawQuad* quad,
   // images won't be fully filled so use the unclipped texture coords. On
   // interior tiles or left/top tiles, the image has been filled with
   // overlapping content so the entire image is valid for sampling.
-  gfx::RectF valid_texel_bounds(gfx::SizeF(quad->texture_size));
+  gfx::RectF valid_texel_bounds(gfx::SizeF(
+      resource_provider()->GetResourceBackedSize(quad->resource_id)));
   if (quad->IsRightEdge()) {
     // Restrict the width to match far side of texture coords
     valid_texel_bounds.set_width(quad->tex_coord_rect.right());

@@ -4,10 +4,12 @@
 
 package org.chromium.chrome.browser.customtabs;
 
-import static androidx.browser.customtabs.CustomTabsIntent.OPEN_IN_BROWSER_STATE_DEFAULT;
+import static androidx.browser.customtabs.CustomTabsIntent.OPEN_IN_BROWSER_STATE_OFF;
+import static androidx.browser.customtabs.CustomTabsIntent.SHARE_STATE_OFF;
 
 import static org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant.OPEN_IN_BROWSER;
 import static org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant.SHARE;
+import static org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant.UNKNOWN;
 
 import android.content.Context;
 import android.graphics.drawable.Drawable;
@@ -15,6 +17,7 @@ import android.graphics.drawable.Drawable;
 import androidx.browser.customtabs.ExperimentalOpenInBrowser;
 
 import org.chromium.base.supplier.Supplier;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
 import org.chromium.chrome.browser.browserservices.intents.CustomButtonParams;
@@ -23,6 +26,7 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarBehavior;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonController;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
+import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarFeatures;
 import org.chromium.chrome.browser.toolbar.adaptive.OpenInBrowserButtonController;
 import org.chromium.components.feature_engagement.Tracker;
 
@@ -31,6 +35,7 @@ import java.util.List;
 import java.util.Set;
 
 /** Implements CustomTab-specific behavior of adaptive toolbar button. */
+@NullMarked
 public class CustomTabAdaptiveToolbarBehavior implements AdaptiveToolbarBehavior {
     private final Context mContext;
     private final ActivityTabProvider mActivityTabProvider;
@@ -60,6 +65,7 @@ public class CustomTabAdaptiveToolbarBehavior implements AdaptiveToolbarBehavior
         if (isOpenInBrowserButtonEnabled()) {
             mValidButtons.add(AdaptiveToolbarButtonVariant.OPEN_IN_BROWSER);
         }
+        if (!isShareButtonEnabled()) mValidButtons.remove(SHARE);
         if (ChromeFeatureList.sCctAdaptiveButtonEnableVoice.getValue()) {
             mValidButtons.add(AdaptiveToolbarButtonVariant.VOICE);
         }
@@ -73,6 +79,12 @@ public class CustomTabAdaptiveToolbarBehavior implements AdaptiveToolbarBehavior
     @Override
     public boolean canShowSettings() {
         return false;
+    }
+
+    @Override
+    public boolean shouldShowTextBubble() {
+        int screenWidthDp = mContext.getResources().getConfiguration().screenWidthDp;
+        return screenWidthDp < AdaptiveToolbarFeatures.MAX_WIDTH_FOR_BUBBLE_DP;
     }
 
     @ExperimentalOpenInBrowser
@@ -113,6 +125,7 @@ public class CustomTabAdaptiveToolbarBehavior implements AdaptiveToolbarBehavior
                 || (SHARE == button && hasCustomShare);
     }
 
+    @ExperimentalOpenInBrowser
     @Override
     public int resultFilter(List<Integer> segmentationResults) {
         // If a customized button is specified by dev (or the default 'share' is on), find the first
@@ -120,16 +133,34 @@ public class CustomTabAdaptiveToolbarBehavior implements AdaptiveToolbarBehavior
         // Try the next best one if the top one is not available.
         for (int i = 0; i < Math.min(segmentationResults.size(), 2); ++i) {
             int result = segmentationResults.get(i);
-            if (mValidButtons.contains(result) && !isButtonDuplicated(result)) return result;
+            if (mValidButtons.contains(result)
+                    && !isButtonDuplicated(result)
+                    && !shouldSkipStaticAction(result)) {
+                return result;
+            }
         }
         return AdaptiveToolbarButtonVariant.UNKNOWN;
+    }
+
+    /** Whether some static action should be filtered out. */
+    @ExperimentalOpenInBrowser
+    private boolean shouldSkipStaticAction(@AdaptiveToolbarButtonVariant int variant) {
+        if (!AdaptiveToolbarFeatures.isDynamicAction(variant)) {
+            // |contextual_only| filters out all the static actions, unless 'open in browser'
+            // is explicitly enabled and developers wish to use it.
+            if (ChromeFeatureList.sCctAdaptiveButtonContextualOnly.getValue()) {
+                return !(isOpenInBrowserButtonEnabled() && variant == OPEN_IN_BROWSER);
+            }
+        }
+        return false;
     }
 
     @Override
     public boolean canShowManualOverride(@AdaptiveToolbarButtonVariant int manualOverride) {
         // Manual override should not be shown if the developer specified the same type
-        // in the custom action buttons.
-        return !isButtonDuplicated(manualOverride);
+        // in the custom action buttons or Chrome Actions is set to off.
+        return !(isButtonDuplicated(manualOverride)
+                || (manualOverride == SHARE && !isShareButtonEnabled()));
     }
 
     @Override
@@ -139,15 +170,17 @@ public class CustomTabAdaptiveToolbarBehavior implements AdaptiveToolbarBehavior
 
     @Override
     public @AdaptiveToolbarButtonVariant int getSegmentationDefault() {
-        // CCT MTB doesn't provide a default action. The button will be hidden if there is
-        // no action to display.
-        return AdaptiveToolbarButtonVariant.UNKNOWN;
+        var defVariant = ChromeFeatureList.sCctAdaptiveButtonDefaultVariant.getValue();
+        return isButtonDuplicated(defVariant) ? UNKNOWN : defVariant;
     }
 
     @ExperimentalOpenInBrowser
     private boolean isOpenInBrowserButtonEnabled() {
         return ChromeFeatureList.sCctAdaptiveButtonEnableOpenInBrowser.getValue()
-                && mIntentDataProvider.getOpenInBrowserButtonState()
-                        == OPEN_IN_BROWSER_STATE_DEFAULT;
+                && mIntentDataProvider.getOpenInBrowserButtonState() != OPEN_IN_BROWSER_STATE_OFF;
+    }
+
+    private boolean isShareButtonEnabled() {
+        return mIntentDataProvider.getShareButtonState() != SHARE_STATE_OFF;
     }
 }

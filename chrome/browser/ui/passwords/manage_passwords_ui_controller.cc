@@ -16,7 +16,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/no_destructor.h"
-#include "base/notreached.h"
+#include "base/notimplemented.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/timer/timer.h"
@@ -31,6 +31,8 @@
 #include "chrome/browser/password_manager/profile_password_store_factory.h"
 #include "chrome/browser/promos/promos_types.h"
 #include "chrome/browser/signin/signin_promo_util.h"
+#include "chrome/browser/ui/actions/chrome_action_id.h"
+#include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
@@ -51,10 +53,11 @@
 #include "chrome/browser/ui/simple_message_box.h"
 #include "chrome/browser/ui/singleton_tabs.h"
 #include "chrome/browser/ui/tab_dialogs.h"
+#include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/views/passwords/password_change/password_change_credential_leak_bubble_view.h"
+#include "chrome/browser/ui/views/passwords/manage_passwords_page_action_controller.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/grit/branded_strings.h"
@@ -84,6 +87,7 @@
 #include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/tabs/public/tab_interface.h"
 #include "components/user_education/common/feature_promo/feature_promo_controller.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
@@ -464,6 +468,7 @@ void ManagePasswordsUIController::OnCredentialLeak(
 
     password_change_service->OfferPasswordChangeUi(
         details.origin, details.username, details.password, web_contents());
+    UpdateBubbleAndIconVisibility();
     return;
   }
 
@@ -473,7 +478,7 @@ void ManagePasswordsUIController::OnCredentialLeak(
       password_manager::GetLeakDialogType(details.leak_type));
 
   auto* raw_controller = new CredentialLeakDialogControllerImpl(
-      this, std::move(details), std::move(metric_recorder));
+      this, details.leak_type, std::move(metric_recorder));
   dialog_controller_.reset(raw_controller);
   raw_controller->ShowCredentialLeakPrompt(
       CreateCredentialLeakPrompt(raw_controller));
@@ -716,7 +721,10 @@ ManagePasswordsUIController::GetPasswordFeatureManager() {
 }
 
 password_manager::ui::State ManagePasswordsUIController::GetState() const {
-  if (IsPasswordChangeOngoing()) {
+  PasswordChangeDelegate* delegate = GetPasswordChangeDelegate();
+  if (delegate &&
+      delegate->GetCurrentState() ==
+          PasswordChangeDelegate::State::kPasswordSuccessfullyChanged) {
     return password_manager::ui::State::PASSWORD_CHANGE_STATE;
   }
   return passwords_data_.state();
@@ -1162,8 +1170,22 @@ void ManagePasswordsUIController::UpdateBubbleAndIconVisibility() {
   if (!browser) {
     return;
   }
-  browser->window()->UpdatePageActionIcon(PageActionIconType::kManagePasswords);
-  browser->window()->UpdatePageActionIcon(PageActionIconType::kChangePassword);
+  if (IsPageActionMigrated(PageActionIconType::kManagePasswords)) {
+    tabs::TabInterface* const tab_interface = browser->GetActiveTabInterface();
+    auto* const tab_features = tab_interface->GetTabFeatures();
+    CHECK(tab_features);
+    auto* const controller =
+        tab_features->manage_passwords_page_action_controller();
+    actions::ActionItem* passwords_action_item =
+        actions::ActionManager::Get().FindAction(
+            kActionShowPasswordsBubbleOrPage,
+            browser->browser_actions()->root_action_item());
+    controller->UpdateVisibility(GetState(), IsExplicitlyBlocklisted(), *this,
+                                 *passwords_action_item);
+  } else {
+    browser->window()->UpdatePageActionIcon(
+        PageActionIconType::kManagePasswords);
+  }
 }
 
 AccountChooserPrompt* ManagePasswordsUIController::CreateAccountChooser(

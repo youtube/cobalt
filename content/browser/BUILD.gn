@@ -44,9 +44,9 @@ if (is_android) {
       "//content/test:*",
     ]
     deps = [
-      "//third_party/rust/font_types/v0_8:lib",
-      "//third_party/rust/read_fonts/v0_27:lib",
-      "//third_party/rust/skrifa/v0_29:lib",
+      "//third_party/rust/font_types/v0_9:lib",
+      "//third_party/rust/read_fonts/v0_30:lib",
+      "//third_party/rust/skrifa/v0_32:lib",
     ]
   }
 }
@@ -183,7 +183,7 @@ source_set("browser") {
     "//content/browser/process_internals:mojo_bindings",
     "//content/browser/resources:resources",
     "//content/browser/resources/media:resources",
-    "//content/browser/tracing/trace_report:mojo_bindings",
+    "//content/browser/tracing/traces_internals:mojo_bindings",
     "//content/browser/webrtc/resources",
     "//content/common",
     "//content/common:buildflags",
@@ -203,7 +203,6 @@ source_set("browser") {
     "//device/gamepad",
     "//device/vr/public/mojom:isolated_xr_service",
     "//google_apis",
-    "//gpu",
     "//gpu/command_buffer/client:gles2_implementation",
     "//gpu/command_buffer/client:gles2_interface",
     "//gpu/command_buffer/client:raster_interface",
@@ -1913,6 +1912,8 @@ source_set("browser") {
     "renderer_host/mixed_content_checker.h",
     "renderer_host/mixed_content_navigation_throttle.cc",
     "renderer_host/mixed_content_navigation_throttle.h",
+    "renderer_host/mojo_render_input_router_delegate_impl.cc",
+    "renderer_host/mojo_render_input_router_delegate_impl.h",
     "renderer_host/navigation_controller_delegate.h",
     "renderer_host/navigation_controller_impl.cc",
     "renderer_host/navigation_controller_impl.h",
@@ -1930,6 +1931,8 @@ source_set("browser") {
     "renderer_host/navigation_request_info.h",
     "renderer_host/navigation_state_keep_alive.cc",
     "renderer_host/navigation_state_keep_alive.h",
+    "renderer_host/navigation_throttle_registry_impl.cc",
+    "renderer_host/navigation_throttle_registry_impl.h",
     "renderer_host/navigation_throttle_runner.cc",
     "renderer_host/navigation_throttle_runner.h",
     "renderer_host/navigation_transitions/navigation_entry_screenshot.cc",
@@ -2311,11 +2314,11 @@ source_set("browser") {
     "tracing/memory_instrumentation_util.h",
     "tracing/startup_tracing_controller.cc",
     "tracing/startup_tracing_controller.h",
-    "tracing/trace_report/trace_report_database.cc",
-    "tracing/trace_report/trace_report_database.h",
-    "tracing/trace_report/trace_report_handler.cc",
-    "tracing/trace_report/trace_report_handler.h",
-    "tracing/trace_report/trace_upload_list.h",
+    "tracing/trace_report_database.cc",
+    "tracing/trace_report_database.h",
+    "tracing/trace_upload_list.h",
+    "tracing/traces_internals/traces_internals_handler.cc",
+    "tracing/traces_internals/traces_internals_handler.h",
     "tracing/tracing_controller_impl.cc",
     "tracing/tracing_controller_impl.h",
     "tracing/tracing_controller_impl_data_endpoint.cc",
@@ -2779,6 +2782,15 @@ source_set("browser") {
     }
   }
 
+  if (is_ios && target_platform == "iphoneos") {
+    sources += [
+      "ios/nfc_host.h",
+      "ios/nfc_host.mm",
+    ]
+    frameworks += [ "CoreNFC.framework" ]
+    deps += [ "//services/device/public/cpp/nfc" ]
+  }
+
   if (is_mac) {
     sources -=
         [ "file_system_access/file_path_watcher/file_path_watcher_stub.cc" ]
@@ -2969,10 +2981,14 @@ source_set("browser") {
       "media/capture/web_contents_video_capture_device.cc",
       "media/capture/web_contents_video_capture_device.h",
     ]
-    if (!is_android && !is_ios) {
+    if (!is_ios) {
       sources += [
         "media/capture/desktop_capture_device.cc",
         "media/capture/desktop_capture_device.h",
+      ]
+    }
+    if (!is_android && !is_ios) {
+      sources += [
         "media/capture/mouse_cursor_overlay_controller.cc",
         "media/capture/mouse_cursor_overlay_controller.h",
         "media/captured_surface_control_permission_manager.cc",
@@ -2990,7 +3006,6 @@ source_set("browser") {
         "media/capture/mouse_cursor_overlay_controller_aura.cc",
       ]
     }
-
     if (is_mac) {
       sources += [
         "media/capture/desktop_capture_device_mac.cc",
@@ -3022,6 +3037,12 @@ source_set("browser") {
         "media/capture/desktop_capturer_ash.h",
         "media/capture/desktop_frame_skia.cc",
         "media/capture/desktop_frame_skia.h",
+      ]
+    }
+    if (is_android) {
+      sources += [
+        "media/capture/desktop_capturer_android.cc",
+        "media/capture/desktop_capturer_android.h",
       ]
     }
   }
@@ -3261,6 +3282,8 @@ source_set("browser") {
       "accessibility/accessibility_tree_formatter_android_external.h",
       "accessibility/accessibility_tree_snapshot_combiner.cc",
       "accessibility/accessibility_tree_snapshot_combiner.h",
+      "accessibility/ax_style_data.cc",
+      "accessibility/ax_style_data.h",
       "accessibility/browser_accessibility_android.cc",
       "accessibility/browser_accessibility_android.h",
       "accessibility/browser_accessibility_manager_android.cc",
@@ -3343,8 +3366,6 @@ source_set("browser") {
       "android/page_proxy.h",
       "android/render_widget_host_connector.cc",
       "android/render_widget_host_connector.h",
-      "android/scoped_surface_request_manager.cc",
-      "android/scoped_surface_request_manager.h",
       "android/select_popup.cc",
       "android/select_popup.h",
       "android/selection/composited_touch_handle_drawable.cc",
@@ -3444,6 +3465,7 @@ source_set("browser") {
       ":fontations_name_table_ffi",
       ":reflection_jni_headers",
       "//cc/slim",
+      "//components/origin_matcher",
       "//components/tracing:graphics_provider",
       "//content/public/android:browser_jni",
       "//content/public/browser:transfer_input_to_viz_result_enum",
@@ -3629,8 +3651,8 @@ source_set("browser") {
   if (!is_android && !is_ios && !is_fuchsia) {
     sources += [
       # Trace report internal UI is not adapted for mobile use.
-      "tracing/trace_report/trace_report_internals_ui.cc",
-      "tracing/trace_report/trace_report_internals_ui.h",
+      "tracing/traces_internals/traces_internals_ui.cc",
+      "tracing/traces_internals/traces_internals_ui.h",
     ]
   }
 
@@ -3779,6 +3801,12 @@ source_set("browser") {
   }
 
   if (is_cobalt) {
+    if (!is_android && !is_ios) {
+      sources -= [
+        "media/captured_surface_controller.cc",
+        "media/captured_surface_controller.h",
+      ]
+    }
     sources -= [
       "bluetooth/advertisement_client.cc",
       "bluetooth/advertisement_client.h",

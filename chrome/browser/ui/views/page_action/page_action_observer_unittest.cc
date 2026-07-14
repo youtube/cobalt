@@ -4,7 +4,8 @@
 
 #include "chrome/browser/ui/views/page_action/page_action_observer.h"
 
-#include "chrome/browser/ui/tabs/test/mock_tab_interface.h"
+#include <optional>
+
 #include "chrome/browser/ui/views/page_action/page_action_controller.h"
 #include "chrome/browser/ui/views/page_action/page_action_model.h"
 #include "chrome/browser/ui/views/page_action/page_action_model_observer.h"
@@ -13,6 +14,7 @@
 #include "chrome/browser/ui/views/page_action/test_support/noop_page_action_metrics_recorder.h"
 #include "chrome/browser/ui/views/page_action/test_support/test_page_action_properties_provider.h"
 #include "chrome/test/base/testing_profile.h"
+#include "components/tabs/public/mock_tab_interface.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -20,16 +22,42 @@
 namespace page_actions {
 namespace {
 
+static const std::u16string kTestLabel = u"Test Label";
+static const std::u16string kTestTooltip = u"Test Tooltip";
+
 static constexpr actions::ActionId kTestPageActionId = 0;
 static const PageActionPropertiesMap kTestProperties = PageActionPropertiesMap{
     {
         kTestPageActionId,
         PageActionProperties{
             .histogram_name = "Test",
-            .is_ephemeral = true,
         },
     },
 };
+
+PageActionState ExpectedShowingState() {
+  PageActionState expected_state;
+  expected_state.action_id = kTestPageActionId;
+  expected_state.showing = true;
+  expected_state.tooltip = std::make_optional(kTestTooltip);
+  return expected_state;
+}
+
+PageActionState ExpectedHiddenState() {
+  PageActionState expected_state;
+  expected_state.action_id = kTestPageActionId;
+  return expected_state;
+}
+
+PageActionState ExpectedShowingChipState() {
+  PageActionState expected_state;
+  expected_state.action_id = kTestPageActionId;
+  expected_state.showing = true;
+  expected_state.chip_showing = true;
+  expected_state.label = std::make_optional(kTestLabel);
+  expected_state.tooltip = std::make_optional(kTestTooltip);
+  return expected_state;
+}
 
 class MockPageActionObserver : public PageActionObserver {
  public:
@@ -87,10 +115,14 @@ class PageActionObserverTest : public ::testing::Test {
   PageActionObserverTest() : tab_(nullptr) {}
 
   void SetUp() override {
-    controller_ = std::make_unique<PageActionController>(
+    controller_ = std::make_unique<PageActionControllerImpl>(
         nullptr, &model_factory_, &metrics_factory_);
     controller_->Initialize(tab_, {kTestPageActionId},
                             TestPageActionPropertiesProvider(kTestProperties));
+    ON_CALL(model_factory_.Get(kTestPageActionId), GetTooltipText())
+        .WillByDefault(testing::ReturnRef(kTestTooltip));
+    ON_CALL(model_factory_.Get(kTestPageActionId), GetText())
+        .WillByDefault(testing::ReturnRef(kTestLabel));
   }
 
   MockPageActionObserver& observer() { return observer_; }
@@ -102,7 +134,7 @@ class PageActionObserverTest : public ::testing::Test {
   FakeTabInterface tab_;
   MockPageActionModelFactory model_factory_;
   NoopPageActionMetricsRecorderFactory metrics_factory_;
-  std::unique_ptr<PageActionController> controller_;
+  std::unique_ptr<PageActionControllerImpl> controller_;
 };
 
 TEST_F(PageActionObserverTest, OnPageActionIconShown) {
@@ -111,7 +143,8 @@ TEST_F(PageActionObserverTest, OnPageActionIconShown) {
   observer().RegisterAsPageActionObserver(controller());
 
   ON_CALL(model, GetVisible()).WillByDefault(testing::Return(true));
-  EXPECT_CALL(observer(), OnPageActionIconShown(testing::_)).Times(1);
+  EXPECT_CALL(observer(), OnPageActionIconShown(ExpectedShowingState()))
+      .Times(1);
   model.NotifyChanged();
 
   // Further change notifications shouldn't trigger the event anymore.
@@ -125,7 +158,8 @@ TEST_F(PageActionObserverTest, OnPageActionIconHidden) {
   observer().RegisterAsPageActionObserver(controller());
 
   ON_CALL(model, GetVisible()).WillByDefault(testing::Return(false));
-  EXPECT_CALL(observer(), OnPageActionIconHidden(testing::_)).Times(1);
+  EXPECT_CALL(observer(), OnPageActionIconHidden(ExpectedHiddenState()))
+      .Times(1);
   model.NotifyChanged();
 
   // Further change notifications shouldn't trigger the event anymore.
@@ -140,7 +174,8 @@ TEST_F(PageActionObserverTest, OnPageActionChipShown) {
   observer().RegisterAsPageActionObserver(controller());
 
   ON_CALL(model, GetShowSuggestionChip()).WillByDefault(testing::Return(true));
-  EXPECT_CALL(observer(), OnPageActionChipShown(testing::_)).Times(1);
+  EXPECT_CALL(observer(), OnPageActionChipShown(ExpectedShowingChipState()))
+      .Times(1);
   EXPECT_CALL(observer(), OnPageActionChipHidden(testing::_)).Times(0);
   model.NotifyChanged();
 
@@ -157,7 +192,8 @@ TEST_F(PageActionObserverTest, OnPageActionChipHidden) {
   observer().RegisterAsPageActionObserver(controller());
 
   ON_CALL(model, GetShowSuggestionChip()).WillByDefault(testing::Return(false));
-  EXPECT_CALL(observer(), OnPageActionChipHidden(testing::_)).Times(1);
+  EXPECT_CALL(observer(), OnPageActionChipHidden(ExpectedShowingState()))
+      .Times(1);
   EXPECT_CALL(observer(), OnPageActionChipShown(testing::_)).Times(0);
   model.NotifyChanged();
 

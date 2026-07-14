@@ -245,6 +245,16 @@ declare_args() {
 assert(!(llvm_force_head_revision && use_remoteexec && host_os != "linux"),
        "rbe with locally built clang only works on linux")
 
+# Whether or not we should pass the warning_suppression.txt file to clang
+# compilations. This file allows us to suppress warnings that originate from
+# specific file paths, typically third_party headers.
+#
+# Since this is referenced both when passing the file and when deciding which
+# warnings to enable, store it in a separate variable here.
+use_clang_warning_suppression_file =
+    !is_nacl && default_toolchain != "//build/toolchain/cros:target" &&
+    !llvm_android_mainline && is_clang && clang_warning_suppression_file != ""
+
 # default_include_dirs ---------------------------------------------------------
 #
 # This is a separate config so that third_party code (which would not use the
@@ -551,6 +561,17 @@ config("compiler") {
   # ---------------------------------------
   if (is_chromeos) {
     cflags += [ "-Werror=poison-system-directories" ]
+  }
+
+  if (is_chromeos_device && current_toolchain == default_toolchain) {
+    # Flags added automatically by ChromeOS's custom toolchain that are
+    # not already added elsewhere in the configuration. Add these here,
+    # so that we also get them when not building with ChromeOS's toolchain.
+    ldflags += [
+      "-Wl,--pack-dyn-relocs=relr",
+      "-Wl,--no-rosegment",
+      "-Wl,-z,nostart-stop-gc",
+    ]
   }
 
   # Clang-specific compiler flags setup.
@@ -1795,9 +1816,7 @@ config("clang_revision") {
 # e.g. by setting in the the project's .gn file.
 config("clang_warning_suppression") {
   # Some build configs use older versions of clang that don't support WSMs
-  if (!is_nacl && default_toolchain != "//build/toolchain/cros:target" &&
-      !llvm_android_mainline && is_clang &&
-      clang_warning_suppression_file != "") {
+  if (use_clang_warning_suppression_file) {
     from_build_root =
         rebase_path(clang_warning_suppression_file, root_build_dir)
     inputs = [ clang_warning_suppression_file ]
@@ -1856,6 +1875,7 @@ config("libcxx_module") {
       "-fbuiltin-module-map",
       "-fmodule-map-file=" + sysroot_modulemap,
       "-fno-implicit-module-maps",
+      "-fno-implicit-modules",
 
       "-Xclang",
       "-fmodules-local-submodule-visibility",  # required for builtins
@@ -1870,21 +1890,6 @@ config("libcxx_module") {
       # unnecessarily using extern "C".
       "-Wno-module-import-in-extern-c",
     ]
-
-    if (use_explicit_libcxx_modules) {
-      cflags_cc += [
-        "-fno-implicit-modules",
-
-        # This is for exception handling mismatch.
-        "-Wno-module-file-config-mismatch",
-      ]
-    } else {
-      cflags_cc += [
-        "-fbuiltin-module-map",
-        "-fmodules-cache-path=" +
-            rebase_path("$libcxx_module_prefix/module_cache", root_build_dir),
-      ]
-    }
   }
 }
 
@@ -2174,6 +2179,18 @@ config("default_warnings") {
 
         # New clang warnings usually go here during a roll
       ]
+    }
+
+    if (is_component_build && use_clang_warning_suppression_file && !is_win) {
+      # Warn for globally unique objects which might get duplicated if built
+      # into different components, due to hidden visibility. Only applicable
+      # to component builds.
+
+      # For details about the warning and now to fix it, see the official docs at
+      # https://clang.llvm.org/docs/DiagnosticsReference.html#wunique-object-duplication
+      # If you still have trouble resolving it, file a bug asking for advice in the
+      # Chromium > Tools > LLVM component, and cc dloehr and thakis.
+      cflags_cc += [ "-Wunique-object-duplication" ]
     }
 
     if (is_wasm) {
@@ -2553,6 +2570,15 @@ config("no_exceptions") {
 config("wglobal_constructors") {
   if (is_clang) {
     cflags = [ "-Wglobal-constructors" ]
+  }
+}
+
+# TODO(crbug.com/420898150): this can be removed once
+# https://github.com/google/nearby/pull/3392 is merged and rolled.
+config("unnecessary_virtual_specifier_warning") {
+  cflags = []
+  if (is_chromeos) {
+    cflags += [ "-Wno-unnecessary-virtual-specifier" ]
   }
 }
 

@@ -5,6 +5,8 @@
 #ifndef CHROME_BROWSER_UI_WEBUI_PRIVACY_SANDBOX_BASE_DIALOG_HANDLER_H_
 #define CHROME_BROWSER_UI_WEBUI_PRIVACY_SANDBOX_BASE_DIALOG_HANDLER_H_
 
+#include "base/containers/queue.h"
+#include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/privacy_sandbox/notice/desktop_view_manager_interface.h"
 #include "chrome/browser/privacy_sandbox/notice/notice.mojom-forward.h"
@@ -36,13 +38,23 @@ class BaseDialogHandler
       std::optional<privacy_sandbox::notice::mojom::PrivacySandboxNotice>
           next_id) override;
 
+  // DesktopViewManagerInterface::Observer:
+  BrowserWindowInterface* GetBrowser() override;
+
   // privacy_sandbox::dialog::mojom::BaseDialogPageHandler
   void ResizeDialog(uint32_t height) override;
   void ShowDialog() override;
   void EventOccurred(notice::mojom::PrivacySandboxNotice notice,
                      notice::mojom::PrivacySandboxNoticeEvent event) override;
 
+  bool IsNativeDialogShownForTesting();
+
  private:
+  void NativeDialogShownCallback();
+  void DispatchEvent(notice::mojom::PrivacySandboxNotice notice,
+                     notice::mojom::PrivacySandboxNoticeEvent event);
+  void HandleSettingsEvent(notice::mojom::PrivacySandboxNotice notice);
+
   base::ScopedObservation<DesktopViewManagerInterface,
                           DesktopViewManagerInterface::Observer>
       desktop_view_manager_observation_{this};
@@ -51,6 +63,11 @@ class BaseDialogHandler
   raw_ptr<BaseDialogUIDelegate> delegate_;
   raw_ptr<DesktopViewManagerInterface> view_manager_;
   bool has_resized = false;
+  bool native_dialog_shown_ = false;
+  base::queue<std::pair<notice::mojom::PrivacySandboxNotice,
+                        notice::mojom::PrivacySandboxNoticeEvent>>
+      events_queue_;
+  base::WeakPtrFactory<BaseDialogHandler> weak_ptr_factory_{this};
 };
 
 }  // namespace privacy_sandbox

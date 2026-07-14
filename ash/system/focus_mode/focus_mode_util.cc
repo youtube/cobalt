@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "ash/system/focus_mode/focus_mode_util.h"
+
+#include <array>
+#include <string>
+#include <utility>
 
 #include "ash/shell.h"
 #include "ash/strings/grit/ash_strings.h"
@@ -21,6 +20,7 @@
 #include "base/i18n/unicodestring.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "third_party/icu/source/i18n/unicode/measfmt.h"
 #include "third_party/icu/source/i18n/unicode/measunit.h"
@@ -30,8 +30,8 @@
 namespace ash::focus_mode_util {
 namespace {
 
-constexpr std::pair<int, std::u16string>
-    congratulatory_pair[kCongratulatoryTitleNum] = {
+constexpr std::array<std::pair<int, std::u16string>, kCongratulatoryTitleNum>
+    congratulatory_pair = {
         std::make_pair(IDS_ASH_STATUS_TRAY_FOCUS_MODE_ENDING_MOMENT_TITLE,
                        u"🎉"),
         std::make_pair(IDS_ASH_STATUS_TRAY_FOCUS_MODE_ENDING_MOMENT_TITLE_1,

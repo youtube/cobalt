@@ -73,7 +73,11 @@ static_assert(static_cast<std::underlying_type_t<v8::CppHeapPointerTag>>(
 // when unwrapping v8 objects. Each v8 bindings class has exactly one static
 // WrapperTypeInfo member, so comparing pointers is a safe way to determine if
 // types match.
-struct PLATFORM_EXPORT WrapperTypeInfo final {
+struct WrapperTypeInfoId {
+  uint16_t type_id;
+};
+
+struct PLATFORM_EXPORT WrapperTypeInfo final : public WrapperTypeInfoId {
   DISALLOW_NEW();
 
   enum WrapperTypePrototype {
@@ -148,10 +152,6 @@ struct PLATFORM_EXPORT WrapperTypeInfo final {
     return false;
   }
 
-  // This field must be the first member of the struct WrapperTypeInfo.
-  // See also static_assert() in .cpp file.
-  const gin::GinEmbedder gin_embedder;
-
   bindings::V8InterfaceBridgeBase::InstallInterfaceTemplateFuncType
       install_interface_template_func;
   bindings::V8InterfaceBridgeBase::InstallContextDependentPropertiesFuncType
@@ -197,6 +197,9 @@ inline ScriptWrappable* ToAnyScriptWrappable(v8::Isolate* isolate,
   return v8::Object::Unwrap<ScriptWrappable>(isolate, wrapper,
                                              kScriptWrappableTagRange);
 }
+
+PLATFORM_EXPORT const WrapperTypeInfo* ToWrapperTypeInfo(
+    const ScriptWrappable* wrappable);
 
 PLATFORM_EXPORT const WrapperTypeInfo* ToWrapperTypeInfo(
     v8::Local<v8::Object> wrapper);

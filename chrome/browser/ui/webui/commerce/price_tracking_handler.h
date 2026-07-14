@@ -5,6 +5,9 @@
 #ifndef CHROME_BROWSER_UI_WEBUI_COMMERCE_PRICE_TRACKING_HANDLER_H_
 #define CHROME_BROWSER_UI_WEBUI_COMMERCE_PRICE_TRACKING_HANDLER_H_
 
+#include <vector>
+
+#include "base/memory/raw_ptr.h"
 #include "components/bookmarks/browser/base_bookmark_model_observer.h"
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/commerce/core/mojom/price_tracking.mojom.h"

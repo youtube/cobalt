@@ -334,7 +334,7 @@ public class OfflinePageBridge {
     @VisibleForTesting
     public void deletePage(final ClientId clientId, Callback<Integer> callback) {
         assert mIsNativeOfflinePageModelLoaded;
-        ArrayList<ClientId> ids = new ArrayList<ClientId>();
+        ArrayList<ClientId> ids = new ArrayList<>();
         ids.add(clientId);
 
         deletePagesByClientId(ids, callback);
@@ -740,7 +740,7 @@ public class OfflinePageBridge {
         LoadUrlParams loadUrlParams = new LoadUrlParams(url);
         if (!TextUtils.isEmpty(extraHeaderKey) && !TextUtils.isEmpty(extraHeaderValue)) {
             // Set both map-based and collapsed headers to support all use scenarios.
-            Map<String, String> headers = new HashMap<String, String>();
+            Map<String, String> headers = new HashMap<>();
             headers.put(extraHeaderKey, extraHeaderValue);
             loadUrlParams.setExtraHeaders(headers);
             loadUrlParams.setVerbatimHeaders(extraHeaderKey + ":" + extraHeaderValue);

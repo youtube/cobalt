@@ -66,7 +66,7 @@ void GetGlyphWidthAndExtents(const SkFont& font,
   SkRect sk_bounds;
   uint16_t glyph = static_cast<uint16_t>(codepoint);
 
-  font.getWidths(&glyph, 1, &sk_width, &sk_bounds);
+  font.getWidthsBounds(&glyph, 1, &sk_width, &sk_bounds, nullptr);
   if (width)
     *width = SkiaScalarToHarfBuzzUnits(sk_width);
   if (extents) {

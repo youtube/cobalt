@@ -162,11 +162,7 @@ void IwaKeyDistributionComponentInstallerPolicy::ComponentReady(
   VLOG(1) << "Iwa Key Distribution Component ready, version " << version
           << " in " << install_dir;
   web_app::IwaKeyDistributionInfoProvider& info_provider =
-      CHECK_DEREF(web_app::IwaKeyDistributionInfoProvider::GetInstance());
-  if (IsOnDemandUpdateSupported()) {
-    info_provider.SetUp(base::BindRepeating(
-        &IwaKeyDistributionComponentInstallerPolicy::QueueOnDemandUpdate));
-  }
+      web_app::IwaKeyDistributionInfoProvider::GetInstance();
   info_provider.LoadKeyDistributionData(
       version, install_dir.Append(kDataFileName),
       /*is_preloaded=*/manifest.FindBool(kPreloadedKey).value_or(false));
@@ -204,6 +200,14 @@ void RegisterIwaKeyDistributionComponent(ComponentUpdateService* cus) {
   if (!IwaKeyDistributionComponentInstallerPolicy::IsSupported()) {
     return;
   }
+
+  // `RegisterIwaKeyDistributionComponent` is effectively called before the user
+  // profile is created. Hence we can avoid eventual initialization race
+  // conditions for user sessions.
+  web_app::IwaKeyDistributionInfoProvider::GetInstance().SetUp(
+      IsOnDemandUpdateSupported(),
+      base::BindRepeating(
+          &IwaKeyDistributionComponentInstallerPolicy::QueueOnDemandUpdate));
 
   base::MakeRefCounted<ComponentInstaller>(
       std::make_unique<IwaKeyDistributionComponentInstallerPolicy>())

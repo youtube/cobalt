@@ -15,11 +15,11 @@ import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import androidx.annotation.Nullable;
-
 import org.jni_zero.CalledByNative;
 import org.jni_zero.NativeMethods;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.components.autofill.payments.CardDetail;
 import org.chromium.components.autofill.payments.LegalMessageLine;
@@ -34,6 +34,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 /** An infobar for saving credit card information. */
+@NullMarked
 public class AutofillSaveCardInfoBar extends ConfirmInfoBar {
 
     private final @Nullable String mAccountFooterEmail;
@@ -42,10 +43,9 @@ public class AutofillSaveCardInfoBar extends ConfirmInfoBar {
     private final List<CardDetail> mCardDetails = new ArrayList<>();
     private int mIconDrawableId = -1;
     private final String mTitleText;
-    private String mDescriptionText;
+    private @Nullable String mDescriptionText;
     private final boolean mIsGooglePayBrandingEnabled;
-    private final LinkedList<LegalMessageLine> mLegalMessageLines =
-            new LinkedList<LegalMessageLine>();
+    private final LinkedList<LegalMessageLine> mLegalMessageLines = new LinkedList<>();
 
     /**
      * Creates a new instance of the infobar.
@@ -57,10 +57,10 @@ public class AutofillSaveCardInfoBar extends ConfirmInfoBar {
      * @param linkText Link text to display in addition to the message.
      * @param buttonOk String to display on the OK button.
      * @param buttonCancel String to display on the Cancel button.
-     * @param accountFooterEmail The email to be shown on the footer, or null. The footer is
-     * only shown if both this and |accountFooterAvatar| are provided.
-     * @param accountFooterAvatar The avatar to be shown on the footer, or null. The footer is
-     * only shown if both this and |accountFooterEmail| are provided.
+     * @param accountFooterEmail The email to be shown on the footer, or null. The footer is only
+     *     shown if both this and |accountFooterAvatar| are provided.
+     * @param accountFooterAvatar The avatar to be shown on the footer, or null. The footer is only
+     *     shown if both this and |accountFooterEmail| are provided.
      */
     private AutofillSaveCardInfoBar(
             long nativeAutofillSaveCardInfoBar,

@@ -67,10 +67,8 @@ class StorageHandler
   // content::protocol::storage::Backend
   Response GetStorageKeyForFrame(const std::string& frame_id,
                                  std::string* serialized_storage_key) override;
-#if CHROMIUM_MILESTONE_LE_138
   Response GetStorageKey(std::optional<std::string> frame_id,
                          std::string* serialized_storage_key) override;
-#endif
   void ClearDataForOrigin(
       const std::string& origin,
       const std::string& storage_types,
@@ -226,6 +224,9 @@ class StorageHandler
   void OnReportSent(const AttributionReport&,
                     bool is_debug_report,
                     const SendResult&) override;
+  void OnDebugReportSent(const AttributionDebugReport&,
+                         int status,
+                         base::Time) override;
 
   // content::SharedStorageRuntimeManager::SharedStorageObserverInterface
   GlobalRenderFrameHostId AssociatedFrameHostId() const override;
@@ -247,7 +248,6 @@ class StorageHandler
       SharedStorageRuntimeManager::SharedStorageObserverInterface::AccessMethod
           method,
       int operation_id,
-      int worklet_ordinal_id,
       const base::UnguessableToken& worklet_devtools_token,
       GlobalRenderFrameHostId main_frame_id,
       const std::string& owner_origin) override;
@@ -278,7 +278,7 @@ class StorageHandler
       std::unique_ptr<Storage::Backend::GetCookiesCallback> callback,
       const std::vector<net::CanonicalCookie>& cookies);
 
-#if BUILDFLAG(IS_COBALT) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(IS_COBALT)
   Response SerializeStorageKey(RenderFrameHostImpl* rfh,
                                std::string* serialized_storage_key) const;
 #endif

@@ -19,7 +19,7 @@
 #include "media/base/mac/color_space_util_mac.h"
 #include "media/base/video_frame.h"
 #include "media/base/video_util.h"
-#include "ui/gfx/gpu_memory_buffer.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 
 namespace media {
 
@@ -56,24 +56,10 @@ bool IsAcceptableCvPixelFormat(VideoPixelFormat format, OSType cv_format) {
 }
 
 bool CvPixelBufferHasColorSpace(CVPixelBufferRef pixel_buffer) {
-  if (@available(macOS 12, iOS 15, *)) {
-    return CVBufferHasAttachment(pixel_buffer,
-                                 kCVImageBufferColorPrimariesKey) &&
-           CVBufferHasAttachment(pixel_buffer,
-                                 kCVImageBufferTransferFunctionKey) &&
-           CVBufferHasAttachment(pixel_buffer, kCVImageBufferYCbCrMatrixKey);
-  } else {
-#if !defined(__IPHONE_15_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_15_0
-    return CVBufferGetAttachment(pixel_buffer, kCVImageBufferColorPrimariesKey,
-                                 nullptr) &&
-           CVBufferGetAttachment(pixel_buffer,
-                                 kCVImageBufferTransferFunctionKey, nullptr) &&
-           CVBufferGetAttachment(pixel_buffer, kCVImageBufferYCbCrMatrixKey,
-                                 nullptr);
-#else
-    return false;
-#endif
-  }
+  return CVBufferHasAttachment(pixel_buffer, kCVImageBufferColorPrimariesKey) &&
+         CVBufferHasAttachment(pixel_buffer,
+                               kCVImageBufferTransferFunctionKey) &&
+         CVBufferHasAttachment(pixel_buffer, kCVImageBufferYCbCrMatrixKey);
 }
 
 void SetCvPixelBufferColorSpace(const gfx::ColorSpace& frame_cs,

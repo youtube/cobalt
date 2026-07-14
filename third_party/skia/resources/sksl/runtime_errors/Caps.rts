@@ -1,5 +1,0 @@
-bool b = sk_Caps.atan2ImplementedAsAtanYOverX;
-
-/*%%*
-name 'sk_Caps' is reserved
-*%%*/

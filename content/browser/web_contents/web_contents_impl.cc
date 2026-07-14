@@ -23,6 +23,7 @@
 #include "base/command_line.h"
 #include "base/containers/contains.h"
 #include "base/containers/flat_set.h"
+#include "base/debug/crash_logging.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
@@ -271,6 +272,10 @@
 #include "content/public/browser/document_picture_in_picture_window_controller.h"
 #include "content/public/browser/picture_in_picture_window_controller.h"
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS)
+#include "content/browser/ios/nfc_host.h"
+#endif
 
 namespace content {
 
@@ -1438,31 +1443,11 @@ WebContentsImpl::WebContentsImpl(BrowserContext* browser_context)
   }
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
-  if (input::InputUtils::IsTransferInputToVizSupported()) {
-    SetupRenderInputRouterDelegateConnection();
-  }
-
   if (base::FeatureList::IsEnabled(
           fingerprinting_protection_interventions::features::kCanvasNoise)) {
     renderer_preferences_.canvas_noise_token =
         CanvasNoiseTokenData::GetToken(browser_context);
   }
-}
-
-void WebContentsImpl::SetupRenderInputRouterDelegateConnection() {
-  // Handles setting up GPU mojo endpoint connections. In general, the number of
-  // retries for setting up these mojo connections is capped by the maximum
-  // number of attempts to restart the GPU process, see
-  // GpuProcessHost::GetFallbackCrashLimit().
-  rir_delegate_client_receiver_.reset();
-  rir_delegate_remote_.reset();
-  GetHostFrameSinkManager()->SetupRenderInputRouterDelegateConnection(
-      compositor_frame_sink_grouping_id_,
-      rir_delegate_client_receiver_.BindNewPipeAndPassRemote(),
-      rir_delegate_remote_.BindNewPipeAndPassReceiver());
-  rir_delegate_client_receiver_.set_disconnect_handler(
-      base::BindOnce(&WebContentsImpl::SetupRenderInputRouterDelegateConnection,
-                     weak_factory_.GetWeakPtr()));
 }
 
 WebContentsImpl::~WebContentsImpl() {
@@ -2108,6 +2093,25 @@ RenderWidgetHostView* WebContentsImpl::GetTopLevelRenderWidgetHostView() {
     return GetOuterWebContents()->GetTopLevelRenderWidgetHostView();
   }
   return GetRenderManager()->GetRenderWidgetHostView();
+}
+
+RenderWidgetHost* WebContentsImpl::FindWidgetAtPoint(const gfx::PointF& point) {
+  if (GetOuterWebContents()) {
+    return GetOuterWebContents()->FindWidgetAtPoint(point);
+  }
+  gfx::PointF transformed_point;
+  input::RenderWidgetHostViewInput* rwhvi =
+      GetInputEventRouter()->GetRenderWidgetHostViewInputAtPoint(
+          static_cast<RenderWidgetHostViewBase*>(
+              GetTopLevelRenderWidgetHostView()),
+          point, &transformed_point);
+
+  RenderWidgetHostImpl* widget_host = RenderWidgetHostImpl::From(
+      static_cast<RenderWidgetHostViewBase*>(rwhvi)->GetRenderWidgetHost());
+  if (!widget_host) {
+    return nullptr;
+  }
+  return widget_host;
 }
 
 WebContentsView* WebContentsImpl::GetView() const {
@@ -3850,10 +3854,6 @@ void WebContentsImpl::OnWebPreferencesChanged() {
           frame_sink_ids.push_back(rwh->GetFrameSinkId());
         }
       }
-    }
-    // Notify VizCompositor thread of force_enable_zoom state changes.
-    if (auto* remote = GetRenderInputRouterDelegateRemote()) {
-      remote->ForceEnableZoomStateChanged(force_enable_zoom_, frame_sink_ids);
     }
   }
 #endif
@@ -6023,9 +6023,9 @@ device::mojom::WakeLockContext* WebContentsImpl::GetWakeLockContext() {
   return wake_lock_context_host_->GetWakeLockContext();
 }
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS))
 void WebContentsImpl::GetNFC(
-    RenderFrameHost* render_frame_host,
+    RenderFrameHostImpl* render_frame_host,
     mojo::PendingReceiver<device::mojom::NFC> receiver) {
   if (!nfc_host_) {
     nfc_host_ = std::make_unique<NFCHost>(this);
@@ -7543,82 +7543,6 @@ input::TouchEmulator* WebContentsImpl::GetTouchEmulator(
   return touch_emulator_.get();
 }
 
-void WebContentsImpl::NotifyObserversOfInputEvent(
-    const viz::FrameSinkId& frame_sink_id,
-    std::unique_ptr<blink::WebCoalescedInputEvent> event,
-    bool dispatched_to_renderer) {
-  auto iter = created_widgets_.find(frame_sink_id);
-  // This adds a safeguard against race condition where a RenderWidgetHostImpl
-  // is being destroyed & removed from |created_widgets_|, but Viz may still
-  // send a mojo call referencing it.
-  if (iter == created_widgets_.end()) {
-    return;
-  }
-  iter->second->NotifyObserversOfInputEvent(event->Event(),
-                                            dispatched_to_renderer);
-}
-
-void WebContentsImpl::NotifyObserversOfInputEventAcks(
-    const viz::FrameSinkId& frame_sink_id,
-    blink::mojom::InputEventResultSource ack_source,
-    blink::mojom::InputEventResultState ack_result,
-    std::unique_ptr<blink::WebCoalescedInputEvent> event) {
-  auto iter = created_widgets_.find(frame_sink_id);
-  // This adds a safeguard against race condition where a RenderWidgetHostImpl
-  // is being destroyed & removed from |created_widgets_|, but Viz may still
-  // send a mojo call referencing it.
-  if (iter == created_widgets_.end()) {
-    return;
-  }
-  iter->second->NotifyObserversOfInputEventAcks(ack_source, ack_result,
-                                                event->Event());
-}
-
-void WebContentsImpl::OnInvalidInputEventSource(
-    const viz::FrameSinkId& frame_sink_id) {
-  auto iter = created_widgets_.find(frame_sink_id);
-  // This adds a safeguard against race condition where a RenderWidgetHostImpl
-  // is being destroyed & removed from |created_widgets_|, but Viz may still
-  // send a mojo call referencing it.
-  if (iter == created_widgets_.end()) {
-    return;
-  }
-  iter->second->OnInvalidInputEventSource();
-}
-
-void WebContentsImpl::StateOnOverscrollTransfer(
-    const viz::FrameSinkId& frame_sink_id,
-    blink::mojom::DidOverscrollParamsPtr params) {
-  auto iter = created_widgets_.find(frame_sink_id);
-  // This adds a safeguard against race condition where a RenderWidgetHostImpl
-  // is being destroyed & removed from |created_widgets_|, but Viz may still
-  // send a mojo call referencing it.
-  if (iter == created_widgets_.end()) {
-    return;
-  }
-  iter->second->DidOverscroll(std::move(params));
-}
-
-void WebContentsImpl::RendererInputResponsivenessChanged(
-    const viz::FrameSinkId& frame_sink_id,
-    bool is_responsive,
-    std::optional<base::TimeTicks> ack_timeout_ts) {
-  auto iter = created_widgets_.find(frame_sink_id);
-  // This adds a safeguard against race condition where a RenderWidgetHostImpl
-  // is being destroyed & removed from |created_widgets_|, but Viz may still
-  // send a mojo call referencing it.
-  if (iter == created_widgets_.end()) {
-    return;
-  }
-
-  if (is_responsive) {
-    iter->second->RendererIsResponsive();
-  } else {
-    CHECK(ack_timeout_ts.has_value());
-    iter->second->OnInputEventAckTimeout(*ack_timeout_ts);
-  }
-}
-
 void WebContentsImpl::DidNavigateMainFramePreCommit(
     NavigationHandle* navigation_handle,
     bool navigation_is_within_page) {
@@ -8240,6 +8164,13 @@ void WebContentsImpl::UnregisterProtocolHandler(RenderFrameHostImpl* source,
   }
 
   delegate_->UnregisterProtocolHandler(source, protocol, url, user_gesture);
+}
+
+base::ScopedClosureRunner WebContentsImpl::MarkAudible() {
+  auto audible_client = audio_stream_monitor_.RegisterAudibleClient(
+      GetPrimaryMainFrame()->GetGlobalId());
+  return base::ScopedClosureRunner(
+      base::DoNothingWithBoundArgs(std::move(audible_client)));
 }
 
 void WebContentsImpl::DomOperationResponse(RenderFrameHost* render_frame_host,
@@ -10790,8 +10721,6 @@ void WebContentsImpl::UpdateWindowControlsOverlay(
           GetPrimaryMainFrame()->GetRenderWidgetHost()) {
     render_widget_host->SynchronizeVisualProperties();
   }
-
-  view_->UpdateWindowControlsOverlay(bounding_rect);
 }
 
 BrowserPluginEmbedder* WebContentsImpl::GetBrowserPluginEmbedder() const {
@@ -11502,6 +11431,13 @@ void WebContentsImpl::IsClipboardPasteAllowedWrapperCallback(
   --suppress_unresponsive_renderer_count_;
 }
 
+std::optional<std::vector<std::u16string>>
+WebContentsImpl::GetClipboardTypesIfPolicyApplied(
+    const ui::ClipboardSequenceNumberToken& seqno) {
+  return GetContentClient()->browser()->GetClipboardTypesIfPolicyApplied(
+      seqno);
+}
+
 void WebContentsImpl::BindScreenOrientation(
     RenderFrameHost* rfh,
     mojo::PendingAssociatedReceiver<device::mojom::ScreenOrientation>
@@ -12074,14 +12010,6 @@ void WebContentsImpl::OnInputIgnored(const blink::WebInputEvent& event) {
 #endif
 }
 
-input::mojom::RenderInputRouterDelegate*
-WebContentsImpl::GetRenderInputRouterDelegateRemote() {
-  if (!rir_delegate_remote_) {
-    return nullptr;
-  }
-  return rir_delegate_remote_.get();
-}
-
 #if BUILDFLAG(IS_ANDROID)
 float WebContentsImpl::GetCurrentTouchSequenceYOffset() {
   ui::ViewAndroid* view_android = GetNativeView();
@@ -12096,9 +12024,11 @@ std::unique_ptr<PrefetchHandle> WebContentsImpl::StartPrefetch(
     const blink::mojom::Referrer& referrer,
     const std::optional<url::Origin>& referring_origin,
     std::optional<net::HttpNoVarySearchData> no_vary_search_hint,
+    std::optional<PrefetchPriority> priority,
     scoped_refptr<PreloadPipelineInfo> preload_pipeline_info,
     base::WeakPtr<PreloadingAttempt> attempt,
-    std::optional<PreloadingHoldbackStatus> holdback_status_override) {
+    std::optional<PreloadingHoldbackStatus> holdback_status_override,
+    std::optional<base::TimeDelta> ttl) {
   if (!base::FeatureList::IsEnabled(
           features::kPrefetchBrowserInitiatedTriggers)) {
     return nullptr;
@@ -12114,9 +12044,9 @@ std::unique_ptr<PrefetchHandle> WebContentsImpl::StartPrefetch(
                              use_prefetch_proxy);
   auto container = std::make_unique<PrefetchContainer>(
       *this, prefetch_url, prefetch_type, embedder_histogram_suffix, referrer,
-      referring_origin, std::move(no_vary_search_hint),
+      referring_origin, std::move(no_vary_search_hint), std::move(priority),
       std::move(preload_pipeline_info), std::move(attempt),
-      holdback_status_override);
+      holdback_status_override, std::move(ttl));
 
   return prefetch_service->AddPrefetchContainerWithHandle(std::move(container));
 }

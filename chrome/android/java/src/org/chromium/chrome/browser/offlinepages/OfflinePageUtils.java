@@ -28,6 +28,7 @@ import org.chromium.chrome.browser.FileProviderHelper;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.SadTab;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tabmodel.TabClosingSource;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabModelObserver;
 import org.chromium.chrome.browser.ui.messages.snackbar.Snackbar;
@@ -494,7 +495,7 @@ public class OfflinePageUtils {
             final Callback<ShareParams> shareCallback) {
         RecordUserAction.record("OfflinePages.Sharing.SharePageFromOverflowMenu");
         AsyncTask<Uri> task =
-                new AsyncTask<Uri>() {
+                new AsyncTask<>() {
                     @Override
                     protected Uri doInBackground() {
                         // Android Q+: If we already have a content URI for the published page,
@@ -750,7 +751,7 @@ public class OfflinePageUtils {
         }
 
         @Override
-        public void onFinishingTabClosure(Tab tab) {
+        public void onFinishingTabClosure(Tab tab, @TabClosingSource int closingSource) {
             Profile profile = mTabModelSelector.getModel(tab.isIncognito()).getProfile();
             OfflinePageBridge bridge = OfflinePageBridge.getForProfile(profile);
             if (bridge == null) return;
@@ -765,7 +766,7 @@ public class OfflinePageUtils {
 
             bridge.deletePagesByClientId(
                     clientIds,
-                    new Callback<Integer>() {
+                    new Callback<>() {
                         @Override
                         public void onResult(Integer result) {
                             // Result is ignored.

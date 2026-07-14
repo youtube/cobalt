@@ -17,6 +17,7 @@
 #include <memory>
 
 #include "base/command_line.h"
+#include "base/notimplemented.h"
 #include "base/path_service.h"
 #include "cobalt/browser/metrics/cobalt_enabled_state_provider.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
@@ -53,8 +54,7 @@ CobaltMetricsServicesManagerClient::CreateMetricsServiceClient(
 }
 
 std::unique_ptr<variations::VariationsService>
-CobaltMetricsServicesManagerClient::CreateVariationsService(
-    variations::SyntheticTrialRegistry* synthetic_trial_registry) {
+CobaltMetricsServicesManagerClient::CreateVariationsService() {
   // VariationsService is not needed for Finch support in Cobalt. We don't
   // use things like the Finch seed or client-side Field Trials. Instead,
   // we have our own custom implementation that is driven by the server via

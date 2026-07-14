@@ -317,6 +317,11 @@ BASE_FEATURE(kPauseBackgroundTimer,
 BASE_FEATURE(kPictureInPictureOcclusionTracking,
              "PictureInPictureOcclusionTracking",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Enables the animation of the Picture-in-Picture window creation.
+BASE_FEATURE(kPictureInPictureShowWindowAnimation,
+             "PictureInPictureShowWindowAnimation",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 // Enables user control over muting tab audio from the tab strip.
@@ -399,6 +404,18 @@ BASE_FEATURE(kMediaCapabilitiesWithParameters,
 BASE_FEATURE(kWebrtcMediaCapabilitiesParameters,
              "WebrtcMediaCapabilitiesParameters",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Controls the persistent license support for protected media that uses
+// widevine.
+BASE_FEATURE(kWidevinePersistentLicenseSupport,
+             "WidevinePersistentLicenseSupport",
+#if BUILDFLAG(ENABLE_LIBRARY_CDMS)
+             // TODO(crbug.com/423458074): This will rollout slowly as an
+             // experiment eventually becoming disabled by default.
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
 
 // Display the Cast overlay button on the media controls.
 BASE_FEATURE(kMediaCastOverlayButton,
@@ -681,6 +698,15 @@ BASE_FEATURE(kFeatureManagementLiveTranslateCrOS,
 BASE_FEATURE(kFileDialogsBlockPictureInPicture,
              "FileDialogsBlockPictureInPicture",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Tucks picture-in-picture windows while file dialogs are open.
+BASE_FEATURE(kFileDialogsTuckPictureInPicture,
+             "FileDialogsTuckPictureInPicture",
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 // Show toolbar button that opens dialog for controlling media sessions.
@@ -877,7 +903,7 @@ const base::FeatureParam<std::string> kMediaFoundationClearKeyCdmPathForTesting{
 // Enables the On-Device Web Speech feature on supported devices.
 BASE_FEATURE(kOnDeviceWebSpeech,
              "OnDeviceWebSpeech",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables the Live Caption feature on supported devices.
 BASE_FEATURE(kLiveCaption, "LiveCaption", base::FEATURE_ENABLED_BY_DEFAULT);
@@ -888,6 +914,17 @@ BASE_FEATURE(kLiveCaption, "LiveCaption", base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kLogSodaLoadFailures,
              "kLogSodaLoadFailures",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When getDisplayMedia() is invoked, the user sees and interacts with
+// a Chromium prompt through which they choose which tab/window/screen
+// to share. If this flag is enabled, then when the user chooses to
+// share, transient activation is conferred on the capturing Web application.
+//
+// TODO(crbug.com/420406085): Remove after January 2028.
+// Keep this flag around at least until that date.
+BASE_FEATURE(kGetDisplayMediaConfersActivation,
+             "GetDisplayMediaConfersActivation",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls whether a "Share this tab instead" button should be shown for
 // getDisplayMedia captures. Note: This flag does not control if the "Share this
@@ -1019,6 +1056,12 @@ const base::FeatureParam<bool>
     kHardwareSecureDecryptionFallbackOnHardwareContextReset{
         &kHardwareSecureDecryptionFallback, "on_hardware_context_reset", true};
 
+// Enables hardware secure AV1 decoding if supported by the hardware
+// and the OS Content Decryption Module (CDM).
+BASE_FEATURE(kHardwareSecureDecryptionAv1,
+             "HardwareSecureDecryptionAv1",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables handling of hardware media keys for controlling media.
 BASE_FEATURE(kHardwareMediaKeyHandling,
              "HardwareMediaKeyHandling",
@@ -1110,6 +1153,13 @@ BASE_FEATURE(kMediaDrmGetStatusForPolicy,
              "MediaDrmGetStatusForPolicy",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// This feature allows for some MediaDrm functions to be executed in a separate
+// process so that crashes do not bring down the browser. Flag is available so
+// that it can be disabled for WebView as separate processes are not allowed.
+BASE_FEATURE(kMediaDrmQueryInSeparateProcess,
+             "MediaDrmQueryInSeparateProcess",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // When enabled, Playing media sessions will request audio focus from the
 // Android system.
 BASE_FEATURE(kRequestSystemAudioFocus,
@@ -1136,13 +1186,6 @@ BASE_FEATURE(kUseSecurityLevelWhenCheckingMediaDrmVersion,
 BASE_FEATURE(kAllowMediaCodecSoftwareDecoder,
              "AllowMediaCodecSoftwareDecoder",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// This feature allows for some MediaDrm functions to be executed in a separate
-// process so that crashes do not bring down the browser. Flag is available so
-// that it can be disabled for WebView as separate processes are not allowed.
-BASE_FEATURE(kAllowMediaCodecCallsInSeparateProcess,
-             "AllowMediaCodecCallsInSeparateProcess",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Allows Chrome to query Android for supported layouts, and forces the use
 // of the layout with the maximum number of channels. This avoids
@@ -1626,12 +1669,9 @@ BASE_FEATURE(kCastStreamingVp8,
 
 // Controls whether mirroring negotiations will include the VP9 codec for video
 // encoding.
-//
-// NOTE: currently only software VP9 encoding is supported.
-// TODO(https://crbug.com/1311770): hardware VP9 encoding should be added.
 BASE_FEATURE(kCastStreamingVp9,
              "CastStreamingVp9",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_MAC)
 // Controls whether hardware H264 is default enabled on macOS.

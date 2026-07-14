@@ -4,8 +4,8 @@
 
 #import "ios/chrome/browser/first_run/ui_bundled/best_features/ui/best_features_cell.h"
 
+#import "ios/chrome/browser/first_run/public/best_features_item.h"
 #import "ios/chrome/browser/first_run/ui_bundled/best_features/ui/best_features_constants.h"
-#import "ios/chrome/browser/first_run/ui_bundled/best_features/ui/best_features_item.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/table_view/table_view_cells_constants.h"
@@ -151,7 +151,7 @@ const CGFloat kContentViewTrailingMargin = 13.0;
   _iconBackgroundView.backgroundColor = nil;
 }
 
-#pragma mark - Private
+#pragma mark - UIAccessibility
 
 - (NSString*)accessibilityLabel {
   return self.textLabel.text;

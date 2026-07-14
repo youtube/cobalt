@@ -8,7 +8,6 @@
 #include <set>
 #include <utility>
 
-#include "base/debug/stack_trace.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/lazy_instance.h"
@@ -23,6 +22,7 @@
 #include "components/safe_browsing/content/renderer/phishing_classifier/features.h"
 #include "components/safe_browsing/content/renderer/phishing_classifier/phishing_classifier.h"
 #include "components/safe_browsing/content/renderer/phishing_classifier/scorer.h"
+#include "components/safe_browsing/core/common/features.h"
 #include "components/safe_browsing/core/common/proto/csd.pb.h"
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_thread.h"
@@ -52,6 +52,29 @@ void LogClassificationRetryWithinTimeout(bool success) {
       "SBClientPhishing.Classifier.ReadyAfterRetryTimeout", success);
 }
 
+std::string GetRequestTypeName(
+    safe_browsing::mojom::ClientSideDetectionType client_side_detection_type) {
+  switch (client_side_detection_type) {
+    case safe_browsing::mojom::ClientSideDetectionType::kForceRequest:
+      return "ForceRequest";
+    case safe_browsing::mojom::ClientSideDetectionType::
+        kNotificationPermissionPrompt:
+      return "NotificationPermissionPrompt";
+    case safe_browsing::mojom::ClientSideDetectionType::kTriggerModels:
+      return "TriggerModel";
+    case safe_browsing::mojom::ClientSideDetectionType::kKeyboardLock:
+      return "KeyboardLockRequested";
+    case safe_browsing::mojom::ClientSideDetectionType::kPointerLock:
+      return "PointerLockRequested";
+    case safe_browsing::mojom::ClientSideDetectionType::kVibrationApi:
+      return "VibrationApi";
+    case safe_browsing::mojom::ClientSideDetectionType::kFullscreen:
+      return "FullscreenApi";
+    case safe_browsing::mojom::ClientSideDetectionType::kPasswordProtection:
+      return "PasswordProtection";
+  }
+}
+
 }  // namespace
 
 PhishingClassifierDelegate::PhishingClassifierDelegate(
@@ -76,7 +99,7 @@ PhishingClassifierDelegate::PhishingClassifierDelegate(
 }
 
 PhishingClassifierDelegate::~PhishingClassifierDelegate() {
-  CancelPendingClassification();
+  CancelPendingClassification(CancelClassificationReason::kShutdown);
 }
 
 // static
@@ -96,6 +119,7 @@ void PhishingClassifierDelegate::PhishingDetectorReceiver(
 
 void PhishingClassifierDelegate::StartPhishingDetection(
     const GURL& url,
+    safe_browsing::mojom::ClientSideDetectionType request_type,
     StartPhishingDetectionCallback callback) {
   RecordEvent(SBPhishingClassifierEvent::kPhishingDetectionRequested);
 
@@ -106,6 +130,7 @@ void PhishingClassifierDelegate::StartPhishingDetection(
   awaiting_retry_ = false;
   last_url_received_from_browser_ = StripRef(url);
   callback_ = std::move(callback);
+  request_type_ = request_type;
   // Start classifying the current page if all conditions are met.
   // See MaybeStartClassification() for details.
   MaybeStartClassification();
@@ -115,19 +140,27 @@ void PhishingClassifierDelegate::DidCommitProvisionalLoad(
     ui::PageTransition transition) {
   blink::WebLocalFrame* frame = render_frame()->GetWebFrame();
   // A new page is starting to load, so cancel classificaiton.
-  CancelPendingClassification();
+  CancelPendingClassification(CancelClassificationReason::kNavigateAway);
   if (!frame->Parent())
     last_main_frame_transition_ = transition;
 }
 
 void PhishingClassifierDelegate::DidFinishSameDocumentNavigation() {
+  // We do not cancel classification because the purpose of this observer is to
+  // make sure the page_text_ that will be updated through PageCaptured will not
+  // dereference the page text pointer in the classifier, which will cause the
+  // crash if not handled properly.
+  if (base::FeatureList::IsEnabled(
+          kClientSideDetectionOnlyExtractVisualFeatures)) {
+    return;
+  }
   // TODO(bryner): We shouldn't need to cancel classification if the navigation
   // is within the same document.  However, if we let classification continue in
   // this case, we need to properly deal with the fact that PageCaptured will
   // be called again for the same-document navigation.  We need to be sure not
   // to swap out the page text while the term feature extractor is still
   // running.
-  CancelPendingClassification();
+  CancelPendingClassification(CancelClassificationReason::kNavigateWithinPage);
 }
 
 bool PhishingClassifierDelegate::is_ready() {
@@ -147,9 +180,17 @@ void PhishingClassifierDelegate::PageCaptured(
   //
   // Note: Currently, if the url hasn't changed, we won't restart
   // classification in this case.  We may want to adjust this.
-  CancelPendingClassification();
+  if (!base::FeatureList::IsEnabled(
+          kClientSideDetectionOnlyExtractVisualFeatures)) {
+    CancelPendingClassification(CancelClassificationReason::kPageRecaptured);
+    // This is only set to pass onto the classifier as part of the parameter,
+    // but
+    // for kClientSideDetectionOnlyExtractVisualFeatures enabled users, they
+    // will not use it.
+    classifier_page_text_ = std::move(page_text);
+  }
+
   last_finished_load_url_ = render_frame()->GetWebFrame()->GetDocument().Url();
-  classifier_page_text_ = std::move(page_text);
 
   GURL stripped_last_load_url(StripRef(last_finished_load_url_));
   // Check if toplevel URL has changed.
@@ -160,9 +201,16 @@ void PhishingClassifierDelegate::PageCaptured(
   MaybeStartClassification();
 }
 
-void PhishingClassifierDelegate::CancelPendingClassification() {
+void PhishingClassifierDelegate::CancelPendingClassification(
+    CancelClassificationReason reason) {
   if (is_classifying_) {
     is_classifying_ = false;
+    base::UmaHistogramEnumeration("SBClientPhishing.CancelClassificationReason",
+                                  reason);
+    base::UmaHistogramEnumeration(
+        "SBClientPhishing.CancelClassificationReason." +
+            GetRequestTypeName(request_type_),
+        reason);
   }
   if (classifier_->is_ready()) {
     classifier_->CancelPendingClassification();
@@ -264,13 +312,25 @@ void PhishingClassifierDelegate::MaybeStartClassification() {
     return;
   }
 
-  if (!classifier_page_text_) {
+  // This will not be used for kClientSideDetectionOnlyExtractVisualFeatures
+  // enabled users because page text is extracted for DOM extraction. This
+  // should be removed once kClientSideDetectionOnlyExtractVisualFeatures
+  // feature is fully launched and cleaned up. At the time of
+  // classifier_page_text_ population, last_finished_load_url_ is also set, so
+  // the observer state condition is still met for classification.
+  if (!base::FeatureList::IsEnabled(
+          kClientSideDetectionOnlyExtractVisualFeatures) &&
+      !classifier_page_text_) {
     RecordEvent(SBPhishingClassifierEvent::kPageTextNotLoaded);
     return;
   }
 
   GURL stripped_last_load_url(StripRef(last_finished_load_url_));
   if (last_url_received_from_browser_ != stripped_last_load_url) {
+    base::UmaHistogramBoolean(
+        "SBClientPhishing.PhishingClassifierMatchOnStrippedEmptyPath",
+        last_url_received_from_browser_.GetWithEmptyPath() ==
+            stripped_last_load_url.GetWithEmptyPath());
     RecordEvent(SBPhishingClassifierEvent::kUrlShouldNotBeClassified);
     // The browser has not yet confirmed that this URL should be classified,
     // so defer classification for now.  Note: the ref does not affect
@@ -328,14 +388,15 @@ void PhishingClassifierDelegate::OnScorerChanged() {
   if (!scorer) {
     // If the scorer is reset, we should clear pending classification if there
     // is one going on, which is checked by the function below.
-    CancelPendingClassification();
+    CancelPendingClassification(CancelClassificationReason::kScorerCleared);
     return;
   }
 
   // We check |is_classifying_| here because |CancelPendingClassification|
   // clears the page text, and we do not want that if we are awaiting retry.
   if (is_classifying_) {
-    CancelPendingClassification();
+    CancelPendingClassification(
+        CancelClassificationReason::kNewPhishingScorerUpdate);
   } else if (awaiting_retry_) {
     // If a classificiation is not going on right now, a retry has been
     // attempted, and we're still within the timeout, call the classification

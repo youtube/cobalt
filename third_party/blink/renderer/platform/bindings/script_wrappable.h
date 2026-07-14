@@ -64,7 +64,7 @@ class PLATFORM_EXPORT ScriptWrappable
     // The input parameter `script_wrappable` must not be null.
     explicit TypeDispatcher(ScriptWrappable* script_wrappable)
         : script_wrappable_(script_wrappable),
-          wrapper_type_info_(script_wrappable->GetWrapperTypeInfo()) {}
+          wrapper_type_info_(ToWrapperTypeInfo(script_wrappable)) {}
     ~TypeDispatcher() = default;
 
     TypeDispatcher(const TypeDispatcher&) = delete;
@@ -101,15 +101,12 @@ class PLATFORM_EXPORT ScriptWrappable
 
   ScriptWrappable(const ScriptWrappable&) = delete;
   ScriptWrappable& operator=(const ScriptWrappable&) = delete;
-  ~ScriptWrappable() override = default;
+  virtual ~ScriptWrappable() = default;
 
-  const char* NameInHeapSnapshot() const override;
+  virtual const char* GetHumanReadableName() const;
 
   virtual void Trace(Visitor*) const;
 
-  // Returns the WrapperTypeInfo of the instance.
-  //
-  // This method must be overridden by DEFINE_WRAPPERTYPEINFO macro.
   virtual const WrapperTypeInfo* GetWrapperTypeInfo() const = 0;
 
   // Returns a wrapper object, creating it if needed.

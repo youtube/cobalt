@@ -1,5 +1,0 @@
-int external;
-
-/*%%*
-name 'external' is reserved
-*%%*/
