@@ -12,6 +12,7 @@ import android.view.MotionEvent;
 import android.view.SurfaceView;
 import android.view.View;
 import android.widget.FrameLayout;
+import android.util.Size;
 
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.EventForwarder;
@@ -73,15 +74,22 @@ public class ContentViewRenderView extends FrameLayout {
             @Override
             public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
                 assert mNativeContentViewRenderView != 0;
+                Size capped = getCappedSize(width, height);
+                if (capped.getWidth() != width || capped.getHeight() != height) {
+                    holder.setFixedSize(capped.getWidth(), capped.getHeight());
+                    return;
+                }
+                mWidth = capped.getWidth();
+                mHeight = capped.getHeight();
                 // TODO: b/511379756 - Pass InputTransferToken instead of null for Android 15+
                 // "Transfer Input to Viz" optimization, similar to upstream ContentViewRenderView.
                 ContentViewRenderViewJni.get().surfaceChanged(mNativeContentViewRenderView,
-                        ContentViewRenderView.this, format, width, height, holder.getSurface(),
+                        ContentViewRenderView.this, format, mWidth, mHeight, holder.getSurface(),
                         /* hostInputToken= */ null);
                 if (mWebContents != null) {
                     ContentViewRenderViewJni.get().onPhysicalBackingSizeChanged(
                             mNativeContentViewRenderView, ContentViewRenderView.this, mWebContents,
-                            width, height);
+                            mWidth, mHeight);
                 }
             }
 
@@ -113,9 +121,10 @@ public class ContentViewRenderView extends FrameLayout {
 
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
-        mWidth = w;
-        mHeight = h;
-        if (mWebContents != null) mWebContents.setSize(w, h);
+        Size capped = getCappedSize(w, h);
+        mWidth = capped.getWidth();
+        mHeight = capped.getHeight();
+        if (mWebContents != null) mWebContents.setSize(mWidth, mHeight);
     }
 
     /**
@@ -289,6 +298,23 @@ public class ContentViewRenderView extends FrameLayout {
             return forwarder.onGenericMotionEvent(event);
         }
         return super.onGenericMotionEvent(event);
+    }
+
+    private Size getCappedSize(int width, int height) {
+        if (width <= 0 || height <= 0) {
+            return new Size(width, height);
+        }
+        int maxW = 1920;
+        int maxH = 1080;
+        if (width > maxW || height > maxH) {
+            float ratio = (float) width / height;
+            if (ratio > (float) maxW / maxH) {
+                return new Size(maxW, Math.max(1, Math.round(maxW / ratio)));
+            } else {
+                return new Size(Math.max(1, Math.round(maxH * ratio)), maxH);
+            }
+        }
+        return new Size(width, height);
     }
 
     @NativeMethods
