@@ -2207,9 +2207,22 @@ void WasmCodeManager::Decommit(base::AddressRegion region) {
   DCHECK_LE(region.size(), old_committed);
   TRACE_HEAP("Decommitting system pages 0x%" PRIxPTR ":0x%" PRIxPTR "\n",
              region.begin(), region.end());
-  if (V8_UNLIKELY(!allocator->DecommitPages(
-          reinterpret_cast<void*>(region.begin()), region.size()))) {
-    // Decommit can fail in near-OOM situations.
+#if BUILDFLAG(IS_COBALT)
+  // Use DiscardSystemPages (madvise MADV_DONTNEED) to safely 
+  // return Wasm's physical memory back to the OS. Using DecommitPages
+  // may aggressively slices the VMA mappings. This quickly exhausts 
+  // the vm.max_map_count limit causing the partition_alloc logic to blindly 
+  // abort with a SIGTRAP hardware fault. Using Discard guarantees physical 
+  // reclamation without fragmenting the virtual address table.
+  bool success = allocator->DiscardSystemPages(
+      reinterpret_cast<void*>(region.begin()), region.size());
+#else
+  bool success = allocator->DecommitPages(
+      reinterpret_cast<void*>(region.begin()), region.size());
+#endif
+
+  if (V8_UNLIKELY(!success)) {
+    // Decommit/Discard can fail in near-OOM situations.
     auto oom_detail = base::FormattedString{} << "region size: "
                                               << region.size();
     V8::FatalProcessOutOfMemory(nullptr, "Decommit Wasm code space",
