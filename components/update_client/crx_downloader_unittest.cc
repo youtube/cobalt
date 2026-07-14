@@ -182,6 +182,8 @@ void CrxDownloaderTest::AddResponse(const GURL& url,
 
 void CrxDownloaderTest::RunThreads() {
 #if BUILDFLAG(IS_STARBOARD)
+  // 32s covers the sum of the downloader's retry/fallback timer delays so all
+  // queued attempts fire under MOCK_TIME. Update if retry timing changes.
   task_environment_.FastForwardBy(base::Seconds(32));
 #else
   base::RunLoop runloop;

@@ -10,7 +10,6 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/path_service.h"
-#include "base/logging.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace update_client {
@@ -18,13 +17,11 @@ namespace update_client {
 base::FilePath GetTestFilePath(const char* file_name) {
   base::FilePath test_data_root;
   base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &test_data_root);
-  base::FilePath path = test_data_root.Append(FILE_PATH_LITERAL("components"))
+  return test_data_root.Append(FILE_PATH_LITERAL("components"))
       .Append(FILE_PATH_LITERAL("test"))
       .Append(FILE_PATH_LITERAL("data"))
       .Append(FILE_PATH_LITERAL("update_client"))
       .AppendUTF8(file_name);
-  LOG(ERROR) << "GetTestFilePath: " << path.value();
-  return path;
 }
 
 base::FilePath DuplicateTestFile(const base::FilePath& temp_path,
@@ -53,19 +50,24 @@ int MockRequestRollForwardToInstallation(int index) {
   return g_mock_request_roll_forward_success ? IM_EXT_SUCCESS : IM_EXT_ERROR;
 }
 int MockGetInstallationPath(int index, char* path, int path_length) {
+  if (path_length <= 0) {
+    return IM_EXT_ERROR;
+  }
   if (strlen(g_mock_installation_path) > 0) {
-    strncpy(path, g_mock_installation_path, path_length);
+    strncpy(path, g_mock_installation_path, path_length - 1);
+    path[path_length - 1] = '\0';
     return IM_EXT_SUCCESS;
   }
   return IM_EXT_ERROR;
 }
-int MockSelectNewInstallationIndex() { return 0; }
+int MockSelectNewInstallationIndex() { return 1; }
 int MockGetAppKey(char* app_key, int app_key_length) {
-  if (app_key_length > 0) {
+  if (app_key_length > 1) {
     app_key[0] = 'A';
     app_key[1] = '\0';
+    return IM_EXT_SUCCESS;
   }
-  return IM_EXT_SUCCESS;
+  return IM_EXT_ERROR;
 }
 int MockGetMaxNumberInstallations() { return 2; }
 int MockResetInstallation(int index) { return IM_EXT_SUCCESS; }

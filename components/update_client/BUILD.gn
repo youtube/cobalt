@@ -399,7 +399,6 @@ source_set("unit_tests") {
     ]
   }
 
-
   data_deps = [ "//components/test/data/update_client/puffin_patch_test:puffin_patch_test_files" ]
 }
 

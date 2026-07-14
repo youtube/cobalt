@@ -110,20 +110,17 @@ bool MakeTestFile(const base::FilePath& from_path, base::FilePath* to_path) {
   bool result = base::CreateNewTempDirectory(FILE_PATH_LITERAL("update_client"),
                                              &temp_dir);
   if (!result) {
-    LOG(ERROR) << "MakeTestFile: CreateNewTempDirectory failed";
     return false;
   }
 
   base::FilePath temp_file;
   result = CreateTemporaryFileInDir(temp_dir, &temp_file);
   if (!result) {
-    LOG(ERROR) << "MakeTestFile: CreateTemporaryFileInDir failed in " << temp_dir.value();
     return false;
   }
 
   result = CopyFile(from_path, temp_file);
   if (!result) {
-    LOG(ERROR) << "MakeTestFile: CopyFile failed from " << from_path.value() << " to " << temp_file.value();
     base::DeleteFile(temp_file);
     return false;
   }
@@ -687,6 +684,12 @@ class UpdateClientTest : public testing::Test {
     config_ = base::MakeRefCounted<TestConfigurator>(pref_.get());
   }
 
+  void TearDown() override {
+#if BUILDFLAG(IS_STARBOARD)
+    SetMockRequestRollForwardSuccess(true);
+#endif
+  }
+
   scoped_refptr<update_client::TestConfigurator> config() { return config_; }
 
   // Injects the CrxDownloaderFactory in the test fixture.
@@ -898,9 +901,6 @@ TEST_F(UpdateClientTest, TwoCrxUpdateNoUpdate) {
       result.installation_dir = path.DirName();
 #else
       result.response = path;
-#endif
-#if BUILDFLAG(IS_STARBOARD)
-      result.installation_index = 0;
 #endif
 #if BUILDFLAG(IS_STARBOARD)
       result.installation_index = 0;
@@ -2075,7 +2075,7 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdate) {
         base::BindRepeating(&MockCrxStateChangeReceiver::Receive, receiver),
         false, ExpectErrorThenQuit(runloop, Error::NONE));
     runloop.Run();
-    #if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     EXPECT_EQ(7u, items.size());
     EXPECT_EQ(ComponentState::kChecking, items[0].state);
     EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[0].id);
@@ -2163,7 +2163,7 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdate) {
         false, ExpectErrorThenQuit(runloop, Error::NONE));
     runloop.Run();
 
-    #if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     EXPECT_EQ(7u, items.size());
     EXPECT_EQ(ComponentState::kChecking, items[0].state);
     EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[0].id);
@@ -2449,10 +2449,6 @@ TEST_F(UpdateClientTest, OneCrxInstallError) {
   EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", items[4].id);
   EXPECT_EQ(ComponentState::kUpdateError, items[5].state);
   EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", items[5].id);
-
-#if BUILDFLAG(IS_STARBOARD)
-  SetMockRequestRollForwardSuccess(true);
-#endif
 }
 
 // Tests the fallback from differential to full update scenario for one CRX.
@@ -3957,7 +3953,7 @@ TEST_F(UpdateClientTest, DiskFullDiff) {
         false, ExpectErrorThenQuit(runloop, Error::NONE));
     runloop.Run();
 
-    #if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     EXPECT_EQ(7u, items.size());
     EXPECT_EQ(ComponentState::kChecking, items[0].state);
     EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[0].id);
@@ -5331,7 +5327,6 @@ TEST_F(UpdateClientTest, ActionRun_NoUpdate) {
   }
 
   EXPECT_FALSE(unpack_path.empty());
-  LOG(INFO) << "ActionRun_NoUpdate: unpack_path = " << unpack_path.value();
   EXPECT_TRUE(base::DirectoryExists(unpack_path));
   std::optional<int64_t> file_size = base::GetFileSize(
       unpack_path.Append(FILE_PATH_LITERAL("ChromeRecovery.crx3")));
