@@ -8,6 +8,7 @@
 
 #include "base/check_op.h"
 #include "base/command_line.h"
+#include "base/logging.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/task/bind_post_task.h"
@@ -422,6 +423,7 @@ void MediaStreamDispatcherHost::GenerateStreams(
     bool user_gesture,
     blink::mojom::StreamSelectionInfoPtr audio_stream_selection_info_ptr,
     GenerateStreamsCallback callback) {
+  LOG(INFO) << "SAMSUNG DEBUG - MediaStreamDispatcherHost::GenerateStreams called";
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
   const absl::optional<bad_message::BadMessageReason> bad_message =
@@ -472,6 +474,7 @@ void MediaStreamDispatcherHost::DoGenerateStreams(
     blink::mojom::StreamSelectionInfoPtr audio_stream_selection_info_ptr,
     GenerateStreamsCallback callback,
     GenerateStreamsUIThreadCheckResult ui_check_result) {
+  LOG(INFO) << "SAMSUNG DEBUG - MediaStreamDispatcherHost::DoGenerateStreams called";
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
   if (!ui_check_result.request_allowed) {

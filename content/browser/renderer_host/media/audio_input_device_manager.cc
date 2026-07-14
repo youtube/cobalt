@@ -9,6 +9,7 @@
 
 #include "base/command_line.h"
 #include "base/functional/bind.h"
+#include "base/logging.h"
 #include "base/functional/callback.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/observer_list.h"
@@ -109,6 +110,7 @@ void AudioInputDeviceManager::UnregisterListener(
 
 base::UnguessableToken AudioInputDeviceManager::Open(
     const blink::MediaStreamDevice& device) {
+  LOG(INFO) << "SAMSUNG DEBUG - AudioInputDeviceManager::Open called";
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   // Generate a new id for this device.
   auto session_id = base::UnguessableToken::Create();

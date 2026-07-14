@@ -110,9 +110,10 @@ AudioParameters AudioManagerStarboard::GetPreferredOutputStreamParameters(
 AudioInputStream* AudioManagerStarboard::MakeInputStream(
     const AudioParameters& params,
     const std::string& device_id) {
-  SB_LOG(INFO) << "AudioManagerStarboard::MakeInputStream() - rate="
-               << params.sample_rate() << ", channels=" << params.channels()
-               << ", format=" << params.format();
+  SB_LOG(INFO)
+      << "SAMSUNG DEBUG - AudioManagerStarboard::MakeInputStream() - rate="
+      << params.sample_rate() << ", channels=" << params.channels()
+      << ", format=" << params.format();
   return new AudioInputStreamStarboard(this, params);
 }
 

@@ -15,7 +15,7 @@
 #include "third_party/blink/renderer/platform/media/web_audio_source_provider_client.h"
 
 namespace {
-static const size_t kMaxNumberOfAudioFifoBuffers = 10;
+static const size_t kMaxNumberOfAudioFifoBuffers = 50;
 }
 
 namespace blink {
@@ -34,9 +34,15 @@ WebAudioMediaStreamAudioSink::WebAudioMediaStreamAudioSink(
   // do not have one and they will inject their own |sink_params_| for testing.
   WebLocalFrame* const web_frame = WebLocalFrame::FrameForCurrentContext();
   if (web_frame) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    sink_params_.Reset(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
+                       media::ChannelLayoutConfig::Mono(),
+                       context_sample_rate, kWebAudioRenderBufferSize);
+#else
     sink_params_.Reset(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
                        media::ChannelLayoutConfig::Stereo(),
                        context_sample_rate, kWebAudioRenderBufferSize);
+#endif
   }
   // Connect the source provider to the track as a sink.
   WebMediaStreamAudioSink::AddToAudioTrack(
@@ -107,6 +113,7 @@ void WebAudioMediaStreamAudioSink::OnData(
   } else {
     // This can happen if the data in FIFO is too slowly consumed or
     // WebAudio stops consuming data.
+    LOG(INFO) << "SAMSUNG DEBUG - Sink FIFO full (Level: " << fifo_->frames() << "). Dropped " << audio_bus.frames() << " frames.";
     DVLOG(3) << "Local source provicer FIFO is full" << fifo_->frames();
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("mediastream"),
                  "WebAudioMediaStreamAudioSink::OnData FIFO full");
@@ -115,7 +122,7 @@ void WebAudioMediaStreamAudioSink::OnData(
 
 void WebAudioMediaStreamAudioSink::SetClient(
     WebAudioSourceProviderClient* client) {
-  NOTREACHED();
+  LOG(INFO) << "SAMSUNG DEBUG - WebAudioMediaStreamAudioSink::SetClient called with " << client;
 }
 
 void WebAudioMediaStreamAudioSink::ProvideInput(
@@ -145,8 +152,12 @@ void WebAudioMediaStreamAudioSink::ProvideInput(
   if (!audio_converter_)
     return;
 
+  LOG(INFO) << "SAMSUNG DEBUG - Sink ProvideInput: " << number_of_frames
+            << " frames. FIFO Level: " << (fifo_ ? (int)fifo_->frames() : -1)
+            << ", calling Convert";
   is_enabled_ = true;
   audio_converter_->Convert(output_wrapper_.get());
+  LOG(INFO) << "SAMSUNG DEBUG - Sink ProvideInput: Convert returned";
 }
 
 // |lock_| needs to be acquired before this function is called. It's called by
@@ -164,6 +175,8 @@ double WebAudioMediaStreamAudioSink::ProvideInput(
   if (fifo_->frames() >= audio_bus->frames()) {
     fifo_->Consume(audio_bus, 0, audio_bus->frames());
   } else {
+    LOG(INFO) << "SAMSUNG DEBUG - Sink Starvation! FIFO has " << fifo_->frames()
+              << ", need " << audio_bus->frames();
     audio_bus->Zero();
     TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("mediastream"),
                  "WebAudioMediaStreamAudioSink::ProvideInput underrun",

@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "base/guid.h"
+#include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "build/build_config.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -409,6 +410,7 @@ ScriptPromise MediaDevices::getUserMedia(
     ScriptState* script_state,
     const UserMediaStreamConstraints* options,
     ExceptionState& exception_state) {
+  LOG(INFO) << "SAMSUNG DEBUG - MediaDevices::getUserMedia called";
   // This timeout of base::Seconds(8) is an initial value and based on the data
   // in Media.MediaDevices.GetUserMedia.Latency, it should be iterated upon.
   auto* resolver = MakeGarbageCollected<
@@ -436,6 +438,8 @@ ScriptPromise MediaDevices::SendUserMediaRequest(
     ScriptPromiseResolverWithTracker<UserMediaRequestResult>* resolver,
     const MediaStreamConstraints* options,
     ExceptionState& exception_state) {
+  LOG(INFO) << "SAMSUNG DEBUG - MediaDevices::SendUserMediaRequest called, media_type="
+            << static_cast<int>(media_type);
   DCHECK(!exception_state.HadException());
 
   ScriptState* script_state = resolver->GetScriptState();

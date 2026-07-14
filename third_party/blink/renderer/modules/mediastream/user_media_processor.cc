@@ -581,6 +581,7 @@ UserMediaRequest* UserMediaProcessor::CurrentRequest() {
 
 void UserMediaProcessor::ProcessRequest(UserMediaRequest* request,
                                         base::OnceClosure callback) {
+  LOG(INFO) << "SAMSUNG DEBUG - UserMediaProcessor::ProcessRequest called";
   DCHECK(!request_completed_cb_);
   DCHECK(!current_request_info_);
   request_completed_cb_ = std::move(callback);
@@ -600,6 +601,7 @@ void UserMediaProcessor::ProcessRequest(UserMediaRequest* request,
 }
 
 void UserMediaProcessor::SetupAudioInput() {
+  LOG(INFO) << "SAMSUNG DEBUG - UserMediaProcessor::SetupAudioInput called";
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(current_request_info_);
   DCHECK(current_request_info_->request()->Audio());
@@ -943,6 +945,7 @@ void UserMediaProcessor::SelectVideoContentSettings() {
 void UserMediaProcessor::GenerateStreamForCurrentRequestInfo(
     absl::optional<base::UnguessableToken> requested_audio_capture_session_id,
     blink::mojom::StreamSelectionStrategy strategy) {
+  LOG(INFO) << "SAMSUNG DEBUG - UserMediaProcessor::GenerateStreamForCurrentRequestInfo called";
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(current_request_info_);
   SendLogMessage(base::StringPrintf(
