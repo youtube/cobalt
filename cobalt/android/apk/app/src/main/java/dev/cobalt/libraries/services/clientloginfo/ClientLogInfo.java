@@ -18,12 +18,10 @@ public class ClientLogInfo extends CobaltService {
   protected static final String SERVICE_NAME = "dev.cobalt.coat.clientloginfo";
 
   private static String sClientInfo = "";
-  private final long mNativeService;
   private final ThreadPoolExecutor mExecutor;
 
   public ClientLogInfo(Context appContext, long nativeService) {
     Log.i(TAG, "Opening ClientLogInfo");
-    this.mNativeService = nativeService;
 
     // Create a ThreadPoolExecutor with a fixed number of threads
     this.mExecutor = (ThreadPoolExecutor) Executors.newFixedThreadPool(1);
