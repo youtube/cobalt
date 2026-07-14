@@ -196,6 +196,10 @@ inline constexpr ExperimentalFeatureKey<bool>
     kMediaIgnoreMediaCodecCallbacksDuringFlushing(
         "Media.IgnoreMediaCodecCallbacksDuringFlushing");
 
+inline constexpr ExperimentalFeatureKey<bool>
+    kMediaIgnoreStaleRenderedFramesAfterSeek(
+        "Media.IgnoreStaleRenderedFramesAfterSeek");
+
 inline constexpr ExperimentalFeatureKey<bool> kMediaNdkVideo("Media.NdkVideo");
 
 inline constexpr ExperimentalFeatureKey<bool> kMediaSkipFlushOnDecoderTeardown(

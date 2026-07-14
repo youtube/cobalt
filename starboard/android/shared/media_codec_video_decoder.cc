@@ -42,6 +42,7 @@
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
 #include "starboard/shared/starboard/experimental_features.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
@@ -374,6 +375,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       ignore_mediacodec_callbacks_during_flushing_(
           pipeline_config.experimental_features.GetBool(
               kMediaIgnoreMediaCodecCallbacksDuringFlushing)),
+      ignore_stale_rendered_frames_after_seek_(
+          pipeline_config.experimental_features.GetBool(
+              kMediaIgnoreStaleRenderedFramesAfterSeek)),
       enable_trivial_optimizations_(
           pipeline_config.experimental_features.GetBool(
               kMediaEnableTrivialOptimizations)),
@@ -417,8 +421,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
   }
 
   if (is_video_frame_tracker_enabled_) {
-    video_frame_tracker_ =
-        std::make_unique<VideoFrameTracker>(kVideoFrameTrackerCapacity);
+    video_frame_tracker_ = std::make_unique<VideoFrameTracker>(
+        kVideoFrameTrackerCapacity, ignore_stale_rendered_frames_after_seek_);
   }
 
   if (require_software_codec_) {
@@ -444,7 +448,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << "\", tunnel mode audio session id="
                << ToString(tunnel_mode_audio_session_id_)
                << ", is_video_frame_tracker_enabled="
-               << ToString(is_video_frame_tracker_enabled_);
+               << ToString(is_video_frame_tracker_enabled_)
+               << ", ignore_stale_rendered_frames_after_seek="
+               << ToString(ignore_stale_rendered_frames_after_seek_);
 }
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
