@@ -231,6 +231,13 @@ def package_and_deploy(
     Path(archive_name).unlink(missing_ok=True)
 
 
+def ensure_dolby_vision_policy(device_id: Optional[str], device_ip: Optional[str]) -> None:
+    """Ensures /sys/module/aml_media/parameters/dolby_vision_policy is set to 1."""
+    # TODO(b/532753892): Remove this workaround once the device driver is updated.
+    policy_file = "/sys/module/aml_media/parameters/dolby_vision_policy"
+    run_remote_command(f"echo 1 > {policy_file}", device_id, device_ip)
+
+
 def launch_on_device(
     device_id: Optional[str],
     device_ip: Optional[str],
@@ -781,6 +788,7 @@ def main() -> None:
             deployed_archive = True
 
     if args.run:
+        ensure_dolby_vision_policy(device_id, device_ip)
         launch_on_device(
             device_id,
             device_ip,
