@@ -15,6 +15,9 @@ namespace blink {
 namespace {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+// Cobalt/Starboard performance tweak. We forces mono here for our use case of
+// recording from a microphone. Otherwise the webaudio graph upmixes to stereo
+// which is ultimately downmixed again, and which has significant overhead.
 constexpr unsigned kDefaultNumberOfOutputChannels = 1;
 #else
 // Default to stereo. This could change depending on the format of the
