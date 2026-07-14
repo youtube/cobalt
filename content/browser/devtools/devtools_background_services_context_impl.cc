@@ -4,6 +4,10 @@
 
 #include "content/browser/devtools/devtools_background_services_context_impl.h"
 
+#include "third_party/blink/public/common/buildflags.h"
+
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
 #include <algorithm>
 
 #include "base/check_deref.h"
@@ -247,3 +251,34 @@ void DevToolsBackgroundServicesContextImpl::OnRecordingTimeExpired(
 }
 
 }  // namespace content
+
+#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
+namespace content {
+
+DevToolsBackgroundServicesContextImpl::DevToolsBackgroundServicesContextImpl(
+    BrowserContext* browser_context,
+    scoped_refptr<ServiceWorkerContextWrapper> service_worker_context) {}
+
+DevToolsBackgroundServicesContextImpl::
+    ~DevToolsBackgroundServicesContextImpl() = default;
+
+bool DevToolsBackgroundServicesContextImpl::IsRecording(
+    DevToolsBackgroundService service) {
+  // TODO(security): DevTools background services context is stubbed out when
+  // DevTools backend is disabled. Fail close by returning false.
+  return false;
+}
+
+void DevToolsBackgroundServicesContextImpl::LogBackgroundServiceEvent(
+    uint64_t service_worker_registration_id,
+    blink::StorageKey storage_key,
+    DevToolsBackgroundService service,
+    const std::string& event_name,
+    const std::string& instance_id,
+    const std::map<std::string, std::string>& event_metadata) {}
+
+}  // namespace content
+
+#endif  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+

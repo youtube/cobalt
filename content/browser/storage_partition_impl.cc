@@ -77,31 +77,11 @@
 #include "content/browser/cookie_deprecation_label/cookie_deprecation_label_manager_impl.h"
 #include "content/browser/cookie_store/cookie_store_manager.h"
 #include "third_party/blink/public/common/buildflags.h"
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/devtools_background_services_context_impl.h"
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/devtools_url_loader_interceptor.h"
 #else
 #include "content/public/browser/devtools_background_services_context.h"
-namespace content {
-class DevToolsBackgroundServicesContextImpl
-    : public DevToolsBackgroundServicesContext {
- public:
-  DevToolsBackgroundServicesContextImpl(
-      BrowserContext* browser_context,
-      scoped_refptr<ServiceWorkerContextWrapper> service_worker_context) {}
-  ~DevToolsBackgroundServicesContextImpl() override = default;
-  bool IsRecording(DevToolsBackgroundService service) override {
-    return false;
-  }
-  void LogBackgroundServiceEvent(
-      uint64_t service_worker_registration_id,
-      blink::StorageKey storage_key,
-      DevToolsBackgroundService service,
-      const std::string& event_name,
-      const std::string& instance_id,
-      const std::map<std::string, std::string>& event_metadata) override {}
-};
-}  // namespace content
 #endif
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/file_system/browser_file_system_helper.h"

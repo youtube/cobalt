@@ -3840,7 +3840,10 @@ source_set("browser") {
     ])
     sources = []
     sources = _filtered_sources
-    sources += [ "devtools_stubs.cc" ]
+    sources += [
+      "devtools/devtools_background_services_context_impl.cc",
+      "devtools_stubs.cc",
+    ]
 
     deps -= [
       "//content/browser/devtools:devtools_background_services_proto",

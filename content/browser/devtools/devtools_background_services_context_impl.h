@@ -20,10 +20,13 @@
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
 #include "base/time/time.h"
-#include "content/browser/devtools/devtools_background_services.pb.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/devtools_background_services_context.h"
+#include "third_party/blink/public/common/buildflags.h"
+
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+#include "content/browser/devtools/devtools_background_services.pb.h"
 
 namespace content {
 
@@ -129,5 +132,40 @@ class CONTENT_EXPORT DevToolsBackgroundServicesContextImpl
 };
 
 }  // namespace content
+
+#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
+namespace content {
+
+class BrowserContext;
+class ServiceWorkerContextWrapper;
+
+class CONTENT_EXPORT DevToolsBackgroundServicesContextImpl
+    : public DevToolsBackgroundServicesContext {
+ public:
+  DevToolsBackgroundServicesContextImpl(
+      BrowserContext* browser_context,
+      scoped_refptr<ServiceWorkerContextWrapper> service_worker_context);
+  ~DevToolsBackgroundServicesContextImpl() override;
+
+  DevToolsBackgroundServicesContextImpl(
+      const DevToolsBackgroundServicesContextImpl&) = delete;
+  DevToolsBackgroundServicesContextImpl& operator=(
+      const DevToolsBackgroundServicesContextImpl&) = delete;
+
+  // DevToolsBackgroundServicesContext overrides:
+  bool IsRecording(DevToolsBackgroundService service) override;
+  void LogBackgroundServiceEvent(
+      uint64_t service_worker_registration_id,
+      blink::StorageKey storage_key,
+      DevToolsBackgroundService service,
+      const std::string& event_name,
+      const std::string& instance_id,
+      const std::map<std::string, std::string>& event_metadata) override;
+};
+
+}  // namespace content
+
+#endif  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #endif  // CONTENT_BROWSER_DEVTOOLS_DEVTOOLS_BACKGROUND_SERVICES_CONTEXT_IMPL_H_
