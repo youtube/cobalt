@@ -25,10 +25,14 @@ import static org.mockito.Mockito.when;
 
 import android.os.Bundle;
 import android.view.KeyEvent;
-
 import dev.cobalt.shell.StartupGuard;
 import dev.cobalt.util.JavaSwitches;
-
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -36,14 +40,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.shadows.ShadowLooper;
-
-import org.chromium.content.browser.input.ImeAdapterImpl;
-
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 /** CobaltActivityTest. */
 @RunWith(RobolectricTestRunner.class)
@@ -54,27 +50,26 @@ public class CobaltActivityTest {
     return mockImeAdapterImpl;
   }
 
-    public CobaltActivity createActivityForRemapTests(ImeAdapterImpl imeAdapterImpl) {
-        CobaltActivity cobaltActivity =
-                new CobaltActivity() {
-                    @Override
-                    protected ImeAdapterImpl getImeAdapterImpl() {
-                        return imeAdapterImpl;
-                    }
+  public CobaltActivity createActivityForRemapTests(ImeAdapterImpl imeAdapterImpl) {
+    CobaltActivity cobaltActivity =
+        new CobaltActivity() {
+          @Override
+          protected ImeAdapterImpl getImeAdapterImpl() {
+            return imeAdapterImpl;
+          }
 
-                    @Override
-                    protected StarboardBridge createStarboardBridge(
-                            String[] args, String startDeepLink) {
-                        return null;
-                    }
-                };
-        return cobaltActivity;
-    }
+          @Override
+          protected StarboardBridge createStarboardBridge(String[] args, String startDeepLink) {
+            return null;
+          }
+        };
+    return cobaltActivity;
+  }
 
   @Test
   public void testAppendArgsFromMetaData_NullMetaData() {
     String[] args = new String[] {"--arg1"};
-    String[] result = CobaltActivity.appendArgsFromMetaData(/*metaData=*/null, args);
+    String[] result = CobaltActivity.appendArgsFromMetaData(/* metaData= */ null, args);
     assertArrayEquals(args, result);
   }
 
@@ -123,7 +118,7 @@ public class CobaltActivityTest {
     Bundle metaData = mock(Bundle.class);
     when(metaData.getBoolean("cobalt.ENABLE_SPLASH_SCREEN", true)).thenReturn(true);
     when(metaData.getString("cobalt.ENABLE_FEATURES")).thenReturn("FeatureA");
-    String[] result = CobaltActivity.appendArgsFromMetaData(metaData, /*commandLineArgs=*/null);
+    String[] result = CobaltActivity.appendArgsFromMetaData(metaData, /* commandLineArgs= */ null);
     assertArrayEquals(new String[] {"--enable-features=FeatureA"}, result);
   }
 
@@ -136,7 +131,6 @@ public class CobaltActivityTest {
     String[] result = CobaltActivity.appendArgsFromMetaData(metaData, args);
     assertArrayEquals(new String[] {"--arg1", "--disable-splash-screen"}, result);
   }
-
 
   @Test
   public void testAppendUrlParamsToUrl_NoUrlArg() {
@@ -160,11 +154,11 @@ public class CobaltActivityTest {
   public void testAppendUrlParamsToUrl_WithUrlArg_AlreadyHasParams() {
     List<String> args = new ArrayList<>();
     args.add("--url=https://example.com?existing=1");
-        CharSequence[] urlParams = new CharSequence[] {"p1=v1", "p2=v2"};
-        CobaltActivity.appendUrlParamsToUrl(args, urlParams);
-        assertArrayEquals(
-                new String[] {"--url=https://example.com?existing=1&p1=v1&p2=v2"}, args.toArray());
-    }
+    CharSequence[] urlParams = new CharSequence[] {"p1=v1", "p2=v2"};
+    CobaltActivity.appendUrlParamsToUrl(args, urlParams);
+    assertArrayEquals(
+        new String[] {"--url=https://example.com?existing=1&p1=v1&p2=v2"}, args.toArray());
+  }
 
   @Test
   public void testAppendUrlParamsToUrl_Sanitization() {
@@ -179,7 +173,8 @@ public class CobaltActivityTest {
   public void testGetArgs_ManifestUrlOnly() {
     Bundle metaData = new Bundle();
     metaData.putString("cobalt.APP_URL", "https://manifest.com");
-    String[] result = CobaltActivity.constructArgs(/*commandLineArgs=*/null, metaData, /*extras=*/null);
+    String[] result =
+        CobaltActivity.constructArgs(/* commandLineArgs= */ null, metaData, /* extras= */ null);
     assertArrayEquals(new String[] {"--url=https://manifest.com"}, result);
   }
 
@@ -188,7 +183,7 @@ public class CobaltActivityTest {
     String[] commandLineArgs = new String[] {"--url=https://intent.com"};
     Bundle metaData = new Bundle();
     metaData.putString("cobalt.APP_URL", "https://manifest.com");
-    String[] result = CobaltActivity.constructArgs(commandLineArgs, metaData, /*extras=*/null);
+    String[] result = CobaltActivity.constructArgs(commandLineArgs, metaData, /* extras= */ null);
     // Intent args take precedence, and since URL is already present, manifest URL is ignored.
     assertArrayEquals(new String[] {"--url=https://intent.com"}, result);
   }
@@ -205,14 +200,17 @@ public class CobaltActivityTest {
 
   @Test
   public void testGetArgs_NullMetaData_DoesNotThrow() {
-    String[] result = CobaltActivity.constructArgs(/*commandLineArgs=*/null, /*metaData=*/null, /*extras=*/null);
+    String[] result =
+        CobaltActivity.constructArgs(
+            /* commandLineArgs= */ null, /* metaData= */ null, /* extras= */ null);
     assertArrayEquals(new String[0], result);
   }
 
   @Test
   public void testGetArgs_NoUrlInIntentOrManifest_DoesNotThrow() {
     Bundle metaData = new Bundle(); // No cobalt.APP_URL
-    String[] result = CobaltActivity.constructArgs(/*commandLineArgs=*/null, metaData, /*extras=*/null);
+    String[] result =
+        CobaltActivity.constructArgs(/* commandLineArgs= */ null, metaData, /* extras= */ null);
     // Should return empty array if no URL found and no other args
     assertArrayEquals(new String[0], result);
   }
@@ -291,24 +289,24 @@ public class CobaltActivityTest {
     StartupGuard.getInstance().disarm();
   }
 
-    public CobaltActivity createActivityWithSwitches(final Map<String, String> switches) {
-        return new CobaltActivity() {
-            @Override
-            protected Map<String, String> getJavaSwitches() {
-                return switches;
-            }
+  public CobaltActivity createActivityWithSwitches(final Map<String, String> switches) {
+    return new CobaltActivity() {
+      @Override
+      protected Map<String, String> getJavaSwitches() {
+        return switches;
+      }
 
-            @Override
-            protected ImeAdapterImpl getImeAdapterImpl() {
-                return null;
-            }
+      @Override
+      protected ImeAdapterImpl getImeAdapterImpl() {
+        return null;
+      }
 
-            @Override
-            protected StarboardBridge createStarboardBridge(String[] args, String startDeepLink) {
-                return null;
-            }
-        };
-    }
+      @Override
+      protected StarboardBridge createStarboardBridge(String[] args, String startDeepLink) {
+        return null;
+      }
+    };
+  }
 
   @Test
   public void testSetupStartupGuard_Disabled() throws Exception {
@@ -316,24 +314,27 @@ public class CobaltActivityTest {
     switches.put(JavaSwitches.DISABLE_STARTUP_GUARD, "");
     CobaltActivity activity = createActivityWithSwitches(switches);
 
-        activity.setupStartupGuard();
+    activity.setupStartupGuard();
 
-        org.junit.Assert.assertFalse(
-                "StartupGuard should not be armed", StartupGuard.getInstance().isArmed());
-    }
+    org.junit.Assert.assertFalse(
+        "StartupGuard should not be armed", StartupGuard.getInstance().isArmed());
+  }
 
   @Test
   public void testSetupStartupGuard_DefaultTimeout() throws Exception {
     Map<String, String> switches = new HashMap<>();
     CobaltActivity activity = createActivityWithSwitches(switches);
 
-        activity.setupStartupGuard();
+    activity.setupStartupGuard();
 
-        org.junit.Assert.assertTrue(
-                "StartupGuard should be armed", StartupGuard.getInstance().isArmed());
+    org.junit.Assert.assertTrue(
+        "StartupGuard should be armed", StartupGuard.getInstance().isArmed());
 
-        ShadowLooper shadowLooper = ShadowLooper.shadowMainLooper();
-    Duration nextTaskDelay = shadowLooper.getNextScheduledTaskTime().minus(Duration.ofMillis(android.os.SystemClock.uptimeMillis()));
+    ShadowLooper shadowLooper = ShadowLooper.shadowMainLooper();
+    Duration nextTaskDelay =
+        shadowLooper
+            .getNextScheduledTaskTime()
+            .minus(Duration.ofMillis(android.os.SystemClock.uptimeMillis()));
     org.junit.Assert.assertEquals(Duration.ofSeconds(120), nextTaskDelay);
   }
 
@@ -343,13 +344,16 @@ public class CobaltActivityTest {
     switches.put(JavaSwitches.STARTUP_GUARD_INTERVAL_IN_SECONDS, "45");
     CobaltActivity activity = createActivityWithSwitches(switches);
 
-        activity.setupStartupGuard();
+    activity.setupStartupGuard();
 
-        org.junit.Assert.assertTrue(
-                "StartupGuard should be armed", StartupGuard.getInstance().isArmed());
+    org.junit.Assert.assertTrue(
+        "StartupGuard should be armed", StartupGuard.getInstance().isArmed());
 
-        ShadowLooper shadowLooper = ShadowLooper.shadowMainLooper();
-    Duration nextTaskDelay = shadowLooper.getNextScheduledTaskTime().minus(Duration.ofMillis(android.os.SystemClock.uptimeMillis()));
+    ShadowLooper shadowLooper = ShadowLooper.shadowMainLooper();
+    Duration nextTaskDelay =
+        shadowLooper
+            .getNextScheduledTaskTime()
+            .minus(Duration.ofMillis(android.os.SystemClock.uptimeMillis()));
     org.junit.Assert.assertEquals(Duration.ofSeconds(45), nextTaskDelay);
   }
 
@@ -359,13 +363,16 @@ public class CobaltActivityTest {
     switches.put(JavaSwitches.STARTUP_GUARD_INTERVAL_IN_SECONDS, "invalid");
     CobaltActivity activity = createActivityWithSwitches(switches);
 
-        activity.setupStartupGuard();
+    activity.setupStartupGuard();
 
-        org.junit.Assert.assertTrue(
-                "StartupGuard should be armed", StartupGuard.getInstance().isArmed());
+    org.junit.Assert.assertTrue(
+        "StartupGuard should be armed", StartupGuard.getInstance().isArmed());
 
-        ShadowLooper shadowLooper = ShadowLooper.shadowMainLooper();
-    Duration nextTaskDelay = shadowLooper.getNextScheduledTaskTime().minus(Duration.ofMillis(android.os.SystemClock.uptimeMillis()));
+    ShadowLooper shadowLooper = ShadowLooper.shadowMainLooper();
+    Duration nextTaskDelay =
+        shadowLooper
+            .getNextScheduledTaskTime()
+            .minus(Duration.ofMillis(android.os.SystemClock.uptimeMillis()));
     org.junit.Assert.assertEquals(Duration.ofSeconds(120), nextTaskDelay);
   }
 }
