@@ -464,10 +464,12 @@ struct UpdateCheckerOptionsActionRunNoUpdate {
 })";
 };
 
+#if !BUILDFLAG(IS_STARBOARD)
 struct UpdateCheckerOptionsOneCrxInstallDiskFull
     : UpdateCheckerOptionsOneCrxInstall {
   static constexpr int64_t kAvailableSpace = 0;
 };
+#endif  // !BUILDFLAG(IS_STARBOARD)
 
 struct UpdateCheckerOptionsUnsupportedOperationType
     : UpdateCheckerOptionsOneCrxUpdate {
@@ -3496,6 +3498,12 @@ TEST_F(UpdateClientTest, EmptyIdList) {
   runloop_.Run();
 }
 
+// On Starboard the download-stage free-space check is compiled out by design:
+// Cobalt handles insufficient space at update-check time instead
+// (UpdateChecker::SkipUpdate -> UpdateCheckError::OUT_OF_SPACE); see
+// HandleAvailableSpace() in op_download.cc. Cobalt's out-of-space path is
+// covered by the slot-management/loader_app test suites, not by this test.
+#if !BUILDFLAG(IS_STARBOARD)
 TEST_F(UpdateClientTest, DiskFull) {
   class DataCallbackMock {
    public:
@@ -3607,7 +3615,14 @@ TEST_F(UpdateClientTest, DiskFull) {
   EXPECT_EQ(ComponentState::kUpdateError, items[3].state);
   EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", items[3].id);
 }
+#endif  // !BUILDFLAG(IS_STARBOARD)
 
+// On Starboard the download-stage free-space check is compiled out by design:
+// Cobalt handles insufficient space at update-check time instead
+// (UpdateChecker::SkipUpdate -> UpdateCheckError::OUT_OF_SPACE); see
+// HandleAvailableSpace() in op_download.cc. Cobalt's out-of-space path is
+// covered by the slot-management/loader_app test suites, not by this test.
+#if !BUILDFLAG(IS_STARBOARD)
 TEST_F(UpdateClientTest, DiskFullDiff) {
   class DataCallbackMock : public base::RefCountedThreadSafe<DataCallbackMock> {
    public:
@@ -4033,6 +4048,7 @@ TEST_F(UpdateClientTest, DiskFullDiff) {
     EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[4].id);
   }
 }
+#endif  // !BUILDFLAG(IS_STARBOARD)
 
 struct SendPingTestCase {
   const int event_type;
