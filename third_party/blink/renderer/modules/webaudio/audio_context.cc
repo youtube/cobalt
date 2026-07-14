@@ -193,6 +193,14 @@ AudioContext* AudioContext::Create(Document& document,
     }
   }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (!sample_rate.has_value() || sample_rate.value() != 16000.0f) {
+    LOG(INFO) << "Cobalt: Force-setting sample rate to 16000";
+    sample_rate = 16000.0f;
+  }
+  sink_descriptor = WebAudioSinkDescriptor(frame_token);
+#endif
+
   // Validate options before trying to construct the actual context.
   if (sample_rate.has_value() &&
       !audio_utilities::IsValidAudioBufferSampleRate(sample_rate.value())) {
