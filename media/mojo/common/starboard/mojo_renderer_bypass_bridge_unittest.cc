@@ -145,5 +145,55 @@ TEST_F(MojoRendererBypassBridgeTest, InvalidateWaitsForRead) {
   invalidate_finished.Wait();
 }
 
+TEST_F(MojoRendererBypassBridgeTest, GetMimeType) {
+  NiceMock<MockDemuxerStream> audio_stream(DemuxerStream::AUDIO);
+  NiceMock<MockDemuxerStream> video_stream(DemuxerStream::VIDEO);
+  audio_stream.set_mime_type("audio/mp4");
+  video_stream.set_mime_type("video/mp4");
+
+  bridge_->SetStreams(&audio_stream, &video_stream);
+
+  EXPECT_EQ(bridge_->GetMimeType(DemuxerStream::AUDIO), "audio/mp4");
+  EXPECT_EQ(bridge_->GetMimeType(DemuxerStream::VIDEO), "video/mp4");
+
+  bridge_->Invalidate();
+  EXPECT_EQ(bridge_->GetMimeType(DemuxerStream::AUDIO), "");
+  EXPECT_EQ(bridge_->GetMimeType(DemuxerStream::VIDEO), "");
+}
+
+TEST_F(MojoRendererBypassBridgeTest, EnableBitstreamConverter) {
+  NiceMock<MockDemuxerStream> audio_stream(DemuxerStream::AUDIO);
+  NiceMock<MockDemuxerStream> video_stream(DemuxerStream::VIDEO);
+
+  bridge_->SetStreams(&audio_stream, &video_stream);
+
+  EXPECT_CALL(audio_stream, EnableBitstreamConverter()).Times(1);
+  EXPECT_CALL(video_stream, EnableBitstreamConverter()).Times(1);
+
+  bridge_->EnableBitstreamConverter(DemuxerStream::AUDIO);
+  bridge_->EnableBitstreamConverter(DemuxerStream::VIDEO);
+
+  bridge_->Invalidate();
+  // Should be a no-op when inactive.
+  bridge_->EnableBitstreamConverter(DemuxerStream::AUDIO);
+}
+
+TEST_F(MojoRendererBypassBridgeTest, UnknownStreamType) {
+  NiceMock<MockDemuxerStream> audio_stream(DemuxerStream::AUDIO);
+  NiceMock<MockDemuxerStream> video_stream(DemuxerStream::VIDEO);
+  audio_stream.set_mime_type("audio/mp4");
+  video_stream.set_mime_type("video/mp4");
+
+  bridge_->SetStreams(&audio_stream, &video_stream);
+
+  EXPECT_CALL(audio_stream, EnableBitstreamConverter()).Times(0);
+  EXPECT_CALL(video_stream, EnableBitstreamConverter()).Times(0);
+
+  EXPECT_EQ(bridge_->GetMimeType(DemuxerStream::UNKNOWN), "");
+  bridge_->EnableBitstreamConverter(DemuxerStream::UNKNOWN);
+
+  bridge_->Invalidate();
+}
+
 }  // namespace
 }  // namespace media
