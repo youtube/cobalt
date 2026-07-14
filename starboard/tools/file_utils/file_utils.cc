@@ -43,6 +43,11 @@ bool ReadFile(const char* file_path, std::vector<char>& buffer) {
   }
   rewind(file);
   const size_t file_size = static_cast<size_t>(file_size_signed);
+  if (file_size == 0) {
+    std::cerr << "File is empty: " << file_path << "\n";
+    fclose(file);
+    return false;
+  }
 
   buffer.resize(file_size);
   size_t result;
@@ -59,6 +64,11 @@ bool ReadFile(const char* file_path, std::vector<char>& buffer) {
 }
 
 bool WriteFile(const char* file_path, const std::vector<char>& buffer) {
+  if (buffer.empty()) {
+    std::cerr << "Buffer is empty for " << file_path << "\n";
+    return false;
+  }
+
   FILE* file;
   if ((file = fopen(file_path, "wb")) == nullptr) {
     std::cerr << "Failed to open " << file_path << "\n";

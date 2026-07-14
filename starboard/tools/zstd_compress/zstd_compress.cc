@@ -39,13 +39,15 @@ bool Compress(const std::vector<char>& src_buffer,
   dst_buffer.clear();
   const size_t total_size = src_buffer.size();
 
-  for (int i = 0; i < kNumFrames; ++i) {
-    size_t chunk_start =
-        (total_size * static_cast<size_t>(i)) / static_cast<size_t>(kNumFrames);
-    size_t chunk_end = (total_size * static_cast<size_t>(i + 1)) /
-                       static_cast<size_t>(kNumFrames);
-    size_t chunk_size = chunk_end - chunk_start;
+  // We'll create |remainder| chunks of |base_chunk_size| + 1 bytes, and
+  // |kNumFrames| - |remainder| chunks of |base_chunk_size| bytes.
+  const size_t base_chunk_size = total_size / kNumFrames;
+  const size_t remainder = total_size % kNumFrames;
 
+  size_t chunk_start = 0;
+  for (int i = 0; i < kNumFrames; ++i) {
+    size_t chunk_size =
+        base_chunk_size + (static_cast<size_t>(i) < remainder ? 1 : 0);
     if (chunk_size == 0) {
       continue;
     }
@@ -66,6 +68,7 @@ bool Compress(const std::vector<char>& src_buffer,
 
     dst_buffer.insert(dst_buffer.end(), frame_buf.data(),
                       frame_buf.data() + encoded_size);
+    chunk_start += chunk_size;
   }
 
   ZSTD_freeCCtx(cctx);
