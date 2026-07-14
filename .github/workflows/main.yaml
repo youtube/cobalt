@@ -731,6 +731,7 @@ jobs:
     if: |
       needs.initialize.outputs.test_yts_wpt == 'true' &&
         (
+          (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
           (inputs.nightly == 'true' || github.event_name == 'schedule') ||
           (github.event_name == 'push')
         )
