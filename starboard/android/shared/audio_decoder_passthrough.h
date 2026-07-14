@@ -16,6 +16,7 @@
 #define STARBOARD_ANDROID_SHARED_AUDIO_DECODER_PASSTHROUGH_H_
 
 #include <queue>
+#include <utility>
 
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
@@ -68,7 +69,7 @@ class AudioDecoderPassthrough : public AudioDecoder {
                            kSbMediaAudioFrameStorageTypePlanar,
                            input_buffer->timestamp(), input_buffer->size());
       memcpy(decoded_audio->data(), input_buffer->data(), input_buffer->size());
-      decoded_audios_.push(decoded_audio);
+      decoded_audios_.push(std::move(decoded_audio));
       output_cb_();
     }
 
@@ -90,7 +91,7 @@ class AudioDecoderPassthrough : public AudioDecoder {
 
     *samples_per_second = samples_per_second_;
 
-    auto decoded_audio = decoded_audios_.front();
+    auto decoded_audio = std::move(decoded_audios_.front());
     decoded_audios_.pop();
     return decoded_audio;
   }
