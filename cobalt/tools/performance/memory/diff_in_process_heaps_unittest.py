@@ -186,6 +186,139 @@ class DiffInProcessHeapsTest(unittest.TestCase):
     self.assertIn("CreateNode", report)
     self.assertIn("+48.83 KB", report)  # 50000 bytes is ~48.83 KB
 
+  def test_clean_method_signature(self):
+    self.assertEqual(diff_tool.clean_method_signature(None), "")
+    self.assertEqual(diff_tool.clean_method_signature(""), "")
+    self.assertEqual(
+        diff_tool.clean_method_signature("[unknown_leaf]"),
+        "[unknown_leaf]",
+    )
+    self.assertEqual(
+        diff_tool.clean_method_signature(
+            "blink::XMLHttpRequest::DidReceiveData(base::span<const char>)"),
+        "blink::XMLHttpRequest::DidReceiveData",
+    )
+    self.assertEqual(
+        diff_tool.clean_method_signature(
+            "PartitionAllocator::allocateVectorBacking<char>"),
+        "PartitionAllocator::allocateVectorBacking",
+    )
+
+  def test_core_class_key(self):
+    r1 = diff_tool.AllocationRecord(
+        "malloc",
+        "DOM / Layout",
+        "blink::XMLHttpRequest::DidReceiveData",
+        ["blink::XMLHttpRequest::DidReceiveData"],
+    )
+    self.assertEqual(r1.core_class_key, "blink::XMLHttpRequest")
+
+    r2 = diff_tool.AllocationRecord(
+        "partition_alloc",
+        "V8 / JS Engine",
+        "partition_alloc:const char* [T = blink::ArrayBufferContents]",
+        ["AllocateMemory"],
+    )
+    self.assertEqual(r2.core_class_key, "blink::ArrayBufferContents")
+
+    r3 = diff_tool.AllocationRecord(
+        "malloc",
+        "V8 / JS Engine",
+        "",
+        ["v8::internal::Zone::Expand"],
+        container_symbol="v8::internal::Zone::Expand",
+    )
+    self.assertEqual(r3.core_class_key, "v8::Zone")
+
+    r4 = diff_tool.AllocationRecord(
+        "malloc",
+        "Other",
+        "",
+        [],
+        container_symbol="",
+    )
+    self.assertEqual(r4.core_class_key, "Unknown Class")
+
+  def test_extract_timeline_events(self):
+    mock_dumps_1 = {
+        "heaps_v2": {
+            "maps": {
+                "strings": [{
+                    "id": 1,
+                    "string": "media::DecoderBuffer::Initialize"
+                }],
+                "nodes": [{
+                    "id": 10,
+                    "name_sid": 1,
+                    "parent_id": 0
+                }],
+            },
+            "allocators": {
+                "malloc": {
+                    "nodes": [{
+                        "node_id": 10,
+                        "size": 2048,
+                        "count": 1
+                    }]
+                }
+            },
+        }
+    }
+    mock_dumps_2 = {
+        "heaps_v2": {
+            "maps": {
+                "strings": [{
+                    "id": 1,
+                    "string": "media::DecoderBuffer::Initialize"
+                }],
+                "nodes": [{
+                    "id": 10,
+                    "name_sid": 1,
+                    "parent_id": 0
+                }],
+            },
+            "allocators": {
+                "malloc": {
+                    "nodes": [{
+                        "node_id": 10,
+                        "size": 4096,
+                        "count": 1
+                    }]
+                }
+            },
+        }
+    }
+    trace_data = {
+        "traceEvents": [
+            {
+                "name": "periodic_interval",
+                "ts": 100000,
+                "args": {
+                    "dumps": json.dumps(mock_dumps_1)
+                },
+            },
+            {
+                "name": "periodic_interval",
+                "ts": 200000,
+                "args": {
+                    "dumps": json.dumps(mock_dumps_2)
+                },
+            },
+        ]
+    }
+    path = self._create_trace_file("timeline_mock.json", trace_data)
+    mb_list, best_idx = diff_tool.extract_timeline_events(
+        path, "TestLabel", "DecoderBuffer")
+    self.assertEqual(len(mb_list), 2)
+    self.assertAlmostEqual(mb_list[0], 2048 / (1024 * 1024))
+    self.assertAlmostEqual(mb_list[1], 4096 / (1024 * 1024))
+    self.assertEqual(best_idx, 1)
+
+    empty_list, err_idx = diff_tool.extract_timeline_events(
+        "/path/does/not/exist.json", "Missing", "DecoderBuffer")
+    self.assertEqual(empty_list, [])
+    self.assertEqual(err_idx, -1)
+
 
 if __name__ == "__main__":
   unittest.main()

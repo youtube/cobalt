@@ -1149,6 +1149,17 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
 
   if (auto* media_client = GetMediaClient()) {
     if (auto* alloc = media_client->GetMediaAllocator()) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      stream_buf = StreamParserBuffer::FromExternalMemory(
+          alloc->CopyFrom(
+              frame_buf.empty()
+                  ? (heap_frame_buf.empty()
+                         ? base::span<const uint8_t>{buf, buf + sample_size}
+                         : heap_frame_buf)
+                  : frame_buf,
+              buffer_type),
+          is_keyframe, buffer_type, runs_->track_id());
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
       stream_buf = StreamParserBuffer::FromExternalMemory(
           alloc->CopyFrom(
               frame_buf.empty()
@@ -1157,6 +1168,7 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
                          : heap_frame_buf)
                   : frame_buf),
           is_keyframe, buffer_type, runs_->track_id());
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     }
   }
   if (!stream_buf) {

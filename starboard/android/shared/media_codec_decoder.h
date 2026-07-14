@@ -20,6 +20,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "starboard/android/shared/drm_system.h"
@@ -177,8 +178,8 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
         : type(kWriteCodecConfig), codec_config(codec_config) {
       SB_DCHECK(!this->codec_config.empty());
     }
-    explicit PendingInput(const scoped_refptr<InputBuffer>& input_buffer)
-        : type(kWriteInputBuffer), input_buffer(input_buffer) {}
+    explicit PendingInput(scoped_refptr<InputBuffer> input_buffer)
+        : type(kWriteInputBuffer), input_buffer(std::move(input_buffer)) {}
 
     Type type;
     scoped_refptr<InputBuffer> input_buffer;
@@ -194,7 +195,8 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   };
 
   class DecoderThread;
-  void DecoderThreadFunc();
+  void AudioDecoderThreadFunc();
+  void VideoDecoderThreadFunc();
 
   // TODO(b/329686979): Consider turning MediaDecoder into a class hierarchy to
   // simplify the handling of threading, including the difference of a/v
