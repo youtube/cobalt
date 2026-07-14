@@ -17,8 +17,6 @@
 
 #include <jni.h>
 
-#include <atomic>
-
 #include "base/memory/singleton.h"
 #include "starboard/common/size.h"
 #include "third_party/jni_zero/jni_zero.h"
@@ -111,10 +109,6 @@ class StarboardBridge {
   void SetStartupMilestone(jint milestone) const;
   void SetStartupDiagnosisInfo(const char* key, const char* value) const;
 
-  void IncrementMediaResourceCount();
-  void DecrementMediaResourceCount();
-  int GetActiveMediaResourceCount() const;
-
  private:
   StarboardBridge() = default;
   ~StarboardBridge() = default;
@@ -127,8 +121,6 @@ class StarboardBridge {
 
   // Java StarboardBridge instance.
   jni_zero::ScopedJavaGlobalRef<jobject> j_starboard_bridge_;
-
-  std::atomic<int> active_media_resource_count_{0};
 };
 
 }  // namespace starboard

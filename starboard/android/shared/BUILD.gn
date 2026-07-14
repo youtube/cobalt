@@ -195,6 +195,7 @@ static_library("starboard_platform") {
     "media_is_buffer_pool_allocate_on_demand.cc",
     "media_is_key_system_supported.cc",
     "media_is_video_supported.cc",
+    "media_resource_tracker.h",
     "memfd_media_buffer_pool.cc",
     "memfd_media_buffer_pool.h",
     "microphone_impl.cc",
