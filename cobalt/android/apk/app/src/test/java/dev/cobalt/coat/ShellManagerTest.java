@@ -87,6 +87,8 @@ public class ShellManagerTest {
     verify(mMockShellManagerNatives).destroy(mShellManager);
     assertNull(ReflectionHelpers.getField(mShellManager, "mActiveShell"));
     assertNull(ReflectionHelpers.getField(mShellManager, "mContext"));
+    assertNull(mShellManager.getContext());
+    assertNull(mShellManager.getWindow());
   }
 
   @Test
