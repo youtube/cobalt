@@ -111,7 +111,7 @@ if (rdk_enable_ocdm) {
 
 group("starboard_platform") {
   public_deps = [ ":starboard_platform_sources" ]
-  data_deps = [ ":rdk_cobalt_content" ]
+  data_deps = [ "cobalt/content:rdk_cobalt_content" ]
 }
 
 static_library("starboard_platform_sources") {
@@ -364,15 +364,6 @@ static_library("starboard_platform_sources") {
   if (sb_evergreen_compatible_use_libunwind) {
     deps = [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
   }
-}
-
-group("rdk_cobalt_content") {
-  data_deps = [ ":rdk_cobalt_keymap($default_toolchain)" ]
-}
-
-copy("rdk_cobalt_keymap") {
-  sources = [ "cobalt/content/etc/keymapping.json" ]
-  outputs = [ "$root_out_dir/app/cobalt/content/etc/keymapping.json" ]
 }
 
 group("loader_app_rdk_plugin") {
