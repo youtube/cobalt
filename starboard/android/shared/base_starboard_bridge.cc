@@ -484,11 +484,11 @@ void StarboardBridge::IncrementMediaResourceCount() {
 }
 
 void StarboardBridge::DecrementMediaResourceCount() {
-  active_media_resource_count_.fetch_sub(1, std::memory_order_relaxed);
+  active_media_resource_count_.fetch_sub(1, std::memory_order_release);
 }
 
 int StarboardBridge::GetActiveMediaResourceCount() const {
-  return active_media_resource_count_.load(std::memory_order_relaxed);
+  return active_media_resource_count_.load(std::memory_order_acquire);
 }
 
 }  // namespace starboard
