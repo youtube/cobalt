@@ -125,7 +125,6 @@ public abstract class CobaltActivity extends Activity {
   private final Handler mHandler = new Handler(Looper.getMainLooper());
   private boolean mIsCobaltUsingAndroidOverlay;
 
-  private boolean mEnableSplashScreen;
   private String mStartDeepLink;
 
   private Object mBackInvokedCallback;
@@ -422,10 +421,6 @@ public abstract class CobaltActivity extends Activity {
 
   public Intent getLastSentIntent() {
     return mLastSentIntent;
-  }
-
-  private static String getUrlFromIntent(Intent intent) {
-    return intent != null ? intent.getDataString() : null;
   }
 
   private static String[] getCommandLineParamsFromIntent(Intent intent, String key) {
