@@ -22,7 +22,6 @@
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/file_internal.h"
-#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/log_internal.h"
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
@@ -42,6 +41,9 @@ using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF8ToJavaString;
 using base::android::GetClass;
+using base::android::JavaParamRef;
+using base::android::ScopedJavaGlobalRef;
+using base::android::ScopedJavaLocalRef;
 
 // Client Hint Header name constants
 constexpr char kAndroidOSExperienceHeader[] =
@@ -70,17 +72,10 @@ std::vector<std::string> GetArgs() {
 
 }  // namespace
 
-// TODO: b/372559388 - Consolidate this function when fully deprecate
-// JniEnvExt.
 jboolean JNI_StarboardBridge_InitJNI(
     JNIEnv* env,
     const JavaParamRef<jobject>& j_starboard_bridge) {
-  // This downcast is safe, since JniEnvExt adds only methods, not member
-  // variables.
-  // https://github.com/youtube/cobalt/blob/88c9c68/starboard/android/shared/jni_env_ext.cc#L90-L91
-  auto env_ext = static_cast<JniEnvExt*>(env);
-  SB_CHECK(env_ext);
-  JniEnvExt::Initialize(env_ext, j_starboard_bridge.obj());
+  SB_CHECK(env);
 
   // Initialize the singleton instance of StarboardBridge
   StarboardBridge::GetInstance()->Initialize(env, j_starboard_bridge.obj());
@@ -296,6 +291,29 @@ int64_t StarboardBridge::GetPlayServicesVersion(JNIEnv* env) const {
       Java_StarboardBridge_getPlayServicesVersion(env, j_starboard_bridge_));
 }
 
+base::android::ScopedJavaLocalRef<jobject> StarboardBridge::OpenCobaltService(
+    JNIEnv* env,
+    jlong native_service,
+    const char* service_name) {
+  SB_CHECK(env);
+  return Java_StarboardBridge_openCobaltService(
+      env, j_starboard_bridge_, native_service,
+      ConvertUTF8ToJavaString(env, service_name));
+}
+
+void StarboardBridge::CloseCobaltService(JNIEnv* env,
+                                         const char* service_name) {
+  SB_CHECK(env);
+  Java_StarboardBridge_closeCobaltService(
+      env, j_starboard_bridge_, ConvertUTF8ToJavaString(env, service_name));
+}
+
+bool StarboardBridge::HasCobaltService(JNIEnv* env, const char* service_name) {
+  SB_CHECK(env);
+  return Java_StarboardBridge_hasCobaltService(
+      env, j_starboard_bridge_, ConvertUTF8ToJavaString(env, service_name));
+}
+
 void StarboardBridge::CloseAllCobaltService(JNIEnv* env) const {
   SB_DCHECK(env);
   Java_StarboardBridge_closeAllCobaltService(env, j_starboard_bridge_);
@@ -310,5 +328,4 @@ void StarboardBridge::SetStartupMilestone(jint milestone) const {
   JNIEnv* env = base::android::AttachCurrentThread();
   Java_StarboardBridge_setStartupMilestone(env, j_starboard_bridge_, milestone);
 }
-
 }  // namespace starboard::android::shared

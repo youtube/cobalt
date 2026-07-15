@@ -69,6 +69,12 @@ class StarboardBridge {
 
   int64_t GetPlayServicesVersion(JNIEnv* env) const;
 
+  base::android::ScopedJavaLocalRef<jobject> OpenCobaltService(
+      JNIEnv* env,
+      jlong native_service,
+      const char* service_name);
+  void CloseCobaltService(JNIEnv* env, const char* service_name);
+  bool HasCobaltService(JNIEnv* env, const char* service_name);
   void CloseAllCobaltService(JNIEnv* env) const;
 
   void HideSplashScreen(JNIEnv* env) const;
