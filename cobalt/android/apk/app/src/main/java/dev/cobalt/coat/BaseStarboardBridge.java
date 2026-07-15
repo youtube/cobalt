@@ -573,8 +573,8 @@ public class BaseStarboardBridge {
   @CalledByNative
   public void resetVideoSurface() {
     Activity activity = mActivityHolder.get();
-    if (activity instanceof CobaltActivity) {
-      ((CobaltActivity) activity).resetVideoSurface();
+    if (activity instanceof BaseCobaltActivity) {
+      ((BaseCobaltActivity) activity).resetVideoSurface();
     }
   }
 
@@ -582,8 +582,8 @@ public class BaseStarboardBridge {
   @CalledByNative
   public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {
     Activity activity = mActivityHolder.get();
-    if (activity instanceof CobaltActivity) {
-      ((CobaltActivity) activity).setVideoSurfaceBounds(x, y, width, height);
+    if (activity instanceof BaseCobaltActivity) {
+      ((BaseCobaltActivity) activity).setVideoSurfaceBounds(x, y, width, height);
     }
   }
 
@@ -682,10 +682,10 @@ public class BaseStarboardBridge {
       return;
     }
     Activity activity = mActivityHolder.get();
-    if (!(activity instanceof CobaltActivity)) {
+    if (!(activity instanceof BaseCobaltActivity)) {
       return;
     }
-    long javaStartTimestamp = ((CobaltActivity) activity).getAppStartTimestamp();
+    long javaStartTimestamp = ((BaseCobaltActivity) activity).getAppStartTimestamp();
     long javaStopTimestamp = System.nanoTime();
     long appStartDuration =
         (javaStopTimestamp - javaStartTimestamp) / mTimeNanosecondsPerMicrosecond;
@@ -759,8 +759,8 @@ public class BaseStarboardBridge {
   @CalledByNative
   public void closeApp() {
     Activity activity = mActivityHolder.get();
-    if (activity instanceof CobaltActivity) {
-      ((CobaltActivity) activity).finishAffinity();
+    if (activity instanceof BaseCobaltActivity) {
+      ((BaseCobaltActivity) activity).finishAffinity();
     }
   }
 

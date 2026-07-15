@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,19 +15,34 @@
 #ifndef COBALT_BROWSER_HANG_WATCHER_DELEGATE_IMPL_H_
 #define COBALT_BROWSER_HANG_WATCHER_DELEGATE_IMPL_H_
 
+#include <optional>
+#include <string>
+
 #include "base/threading/hang_watcher.h"
 
 namespace cobalt {
+class GlobalFeatures;
 namespace browser {
 
 class CobaltHangWatcherDelegate : public base::HangWatcher::Delegate {
  public:
-  CobaltHangWatcherDelegate() = default;
+  CobaltHangWatcherDelegate();
+  explicit CobaltHangWatcherDelegate(GlobalFeatures* global_features);
   ~CobaltHangWatcherDelegate() override = default;
 
   static void Initialize();
 
   bool IsHangReportingEnabled() override;
+  std::optional<base::TimeDelta> GetHangWatchTime() override;
+  std::optional<base::TimeDelta> GetHangWatchMonitoringPeriod() override;
+  std::optional<bool> IsThreadDumpingEnabled(
+      base::HangWatcher::ThreadType thread_type) override;
+
+ private:
+  GlobalFeatures* GetGlobalFeatures();
+  std::optional<int64_t> GetIntSetting(std::string_view key);
+
+  GlobalFeatures* global_features_;
 };
 
 }  // namespace browser
