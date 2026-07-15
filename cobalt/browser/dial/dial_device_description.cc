@@ -37,8 +37,8 @@ namespace {
 
 // From C25:
 // https://github.com/youtube/cobalt/blob/b8a6647a9aa54ffc55fe13f1e77a3d73dd30eea1/cobalt/network/dial/dial_system_config_starboard.cc#L24
-// In C25 this file contained the random bytes used to generate a shorter UUID.
-// In Chrobalt it is repurposed to contain
+// This file contains the random bytes used to generate a shorter UUID (see
+// also: b/521275198).
 static constexpr const char kInAppDialUuidFilename[] = "upnp_udn";
 
 // From C25:
