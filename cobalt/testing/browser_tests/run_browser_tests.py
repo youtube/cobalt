@@ -517,9 +517,9 @@ def main():
   if log_file_path:
     try:
       os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
-      with open(log_file_path, "w", encoding="utf-8"):
-        pass
-      handlers.append(logging.FileHandler(log_file_path))
+      handlers.append(
+          logging.FileHandler(log_file_path, mode="w", encoding="utf-8")
+      )
     except Exception as e:  # pylint: disable=broad-exception-caught
       sys.stderr.write(f"Failed to initialize log file: {e}\n")
 
