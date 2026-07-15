@@ -50,7 +50,7 @@
                       '--no_resume',
                       '--no_auth',
                       '--num_threads', '8',
-                      '--bucket', 'cobalt-static-storage',
+                      '--bucket', 'cobalt-static-storage-public',
                       '-d', '<(DEPTH)/starboard/shared/starboard/player/testdata',
           ],
           'inputs': [],
