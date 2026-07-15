@@ -59,7 +59,13 @@ class ProxyDemuxerStream : public DemuxerStream {
     return bridge_->SupportsConfigChanges(type_);
   }
 
-  void EnableBitstreamConverter() override {}
+  std::string mime_type() const override {
+    return bridge_->GetMimeType(type_);
+  }
+
+  void EnableBitstreamConverter() override {
+    bridge_->EnableBitstreamConverter(type_);
+  }
 
  private:
   scoped_refptr<MojoRendererBypassBridge> bridge_;

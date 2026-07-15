@@ -144,6 +144,7 @@ jobs:
 
   # TODO(b/519669027): Refactor below steps to reuse the logic from main.yaml.
   run-tests:
+    name: tvos_${{ matrix.target }}
     needs: [get-targets, download-artifacts]
     runs-on: macos-latest
     strategy:
@@ -237,3 +238,19 @@ jobs:
         with:
           name: tvos_${{ matrix.target }}_test_results
           path: results/*
+
+  validate-test-result:
+    needs: [wait-for-kokoro-build, run-tests]
+    if: always() && !cancelled() && needs.wait-for-kokoro-build.result == 'success'
+    runs-on: ubuntu-latest
+    name: tvos_tests_passing
+    steps:
+      - name: Check test results
+        run: |
+          if [[ "${{ needs.run-tests.result }}" == "success" ]]; then
+            echo "All tvOS tests passed successfully!"
+            exit 0
+          else
+            echo "tvOS test job failed with result: ${{ needs.run-tests.result }}"
+            exit 1
+          fi
