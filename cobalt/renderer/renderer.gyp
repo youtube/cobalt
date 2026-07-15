@@ -140,7 +140,7 @@
           'action': [
             'python',
             '<(DEPTH)/tools/download_from_gcs.py',
-            '--bucket', 'lottie-coverage-testdata',
+            '--bucket', 'lottie-coverage-testdata-public',
             '--sha1', '<(sha_dir)',
             '--output', '<(out_dir)',
           ],
