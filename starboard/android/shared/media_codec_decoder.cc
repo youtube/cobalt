@@ -598,9 +598,6 @@ void MediaCodecDecoder::InputThreadFunc() {
   std::vector<int> input_buffer_indices;
 
   auto can_process_input = [this, &pending_inputs, &input_buffer_indices] {
-    // TODO(b/455938352): This doesn't take `decoder_state_tracker_` into
-    // account.  We may need to revisit the implementation if we are going to
-    // launch `decoder_state_tracker_`.
     return pending_input_to_retry_ ||
            (!pending_inputs.empty() && !input_buffer_indices.empty());
   };
@@ -616,11 +613,6 @@ void MediaCodecDecoder::InputThreadFunc() {
       if (pending_inputs_.empty() && input_buffer_indices_.empty()) {
         // Wait for up to one second.  Technically we can wait longer, picking
         // a reasonably small duration to avoid potential deadlock.
-        //
-        // TODO(b/455938352): This doesn't take `decoder_state_tracker_` into
-        // account and may wait for too long when it's enabled.  We may need to
-        // revisit the implementation if we are going to launch
-        // `decoder_state_tracker_`.
         video_input_condition_variable_.wait_for(lock, std::chrono::seconds(1));
       }
       CollectPendingInputData_Locked(&pending_inputs, &input_buffer_indices);
