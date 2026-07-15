@@ -5084,6 +5084,13 @@ if (is_android) {
       "android/java/src/org/chromium/base/memory/MemoryInfoBridge.java",
       "android/java/src/org/chromium/base/memory/MemoryPurgeManager.java",
     ]
+
+    if (is_cobalt) {
+      sources += [
+        "android/java/src/org/chromium/base/memory/CobaltMemoryInfoBridge.java",
+      ]
+    }
+
   }
 
   android_library("memory_java") {
@@ -5101,6 +5108,13 @@ if (is_android) {
       "android/java/src/org/chromium/base/memory/MemoryPurgeManager.java",
       "android/java/src/org/chromium/base/memory/SelfFreezeCallback.java",
     ]
+
+    if (is_cobalt) {
+      sources += [
+        "android/java/src/org/chromium/base/memory/CobaltMemoryInfoBridge.java",
+      ]
+    }
+
     deps = [
       ":library_loader_java",
       ":log_java",

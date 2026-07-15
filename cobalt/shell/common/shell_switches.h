@@ -32,7 +32,6 @@ inline constexpr size_t kMaxSplashContentSize = 10 * 1024 * 1024;
 extern const char kContentShellUserDataDir[];
 extern const char kCrashDumpsDir[];
 extern const char kDisableSplashScreen[];
-extern const char kDisableHttpCache[];
 extern const char kDisableSystemFontCheck[];
 extern const char kContentShellHostWindowSize[];
 extern const char kContentShellHideToolbar[];

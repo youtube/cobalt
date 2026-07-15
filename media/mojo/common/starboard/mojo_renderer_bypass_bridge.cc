@@ -80,7 +80,7 @@ bool MojoRendererBypassBridge::Read(DemuxerStream::Type type,
       std::move(read_cb).Run(DemuxerStream::kAborted, {});
       return false;
     }
-    stream = (type == DemuxerStream::AUDIO ? audio_stream_ : video_stream_);
+    stream = GetStreamLocked(type);
     if (stream) {
       in_flight_reads_++;
     }
@@ -90,15 +90,15 @@ bool MojoRendererBypassBridge::Read(DemuxerStream::Type type,
     return false;
   }
 
-  stream->Read(count, std::move(read_cb));
+  // Wrap the callback to decrement in_flight_reads_ when it runs.
+  base::ScopedClosureRunner scoped_decrement(
+      base::BindOnce(&MojoRendererBypassBridge::DecrementInFlightReads, this));
 
-  {
-    base::AutoLock auto_lock(lock_);
-    in_flight_reads_--;
-    if (in_flight_reads_ == 0) {
-      cond_var_.Signal();
-    }
-  }
+  auto wrapped_cb =
+      base::BindOnce(&MojoRendererBypassBridge::OnReadDone, this,
+                     std::move(read_cb), std::move(scoped_decrement));
+
+  stream->Read(count, std::move(wrapped_cb));
   return true;
 }
 
@@ -129,8 +129,7 @@ bool MojoRendererBypassBridge::SupportsConfigChanges(
   if (!active_) {
     return false;
   }
-  DemuxerStream* stream =
-      (type == DemuxerStream::AUDIO ? audio_stream_ : video_stream_);
+  DemuxerStream* stream = GetStreamLocked(type);
   return stream ? stream->SupportsConfigChanges() : false;
 }
 
@@ -140,9 +139,31 @@ StreamLiveness MojoRendererBypassBridge::GetLiveness(
   if (!active_) {
     return StreamLiveness::kUnknown;
   }
-  DemuxerStream* stream =
-      (type == DemuxerStream::AUDIO ? audio_stream_ : video_stream_);
+  DemuxerStream* stream = GetStreamLocked(type);
   return stream ? stream->liveness() : StreamLiveness::kUnknown;
+}
+
+std::string MojoRendererBypassBridge::GetMimeType(
+    DemuxerStream::Type type) const {
+  base::AutoLock auto_lock(lock_);
+  if (!active_) {
+    return "";
+  }
+  DemuxerStream* stream = GetStreamLocked(type);
+  return stream ? stream->mime_type() : "";
+}
+
+void MojoRendererBypassBridge::EnableBitstreamConverter(
+    DemuxerStream::Type type) {
+  base::AutoLock auto_lock(lock_);
+  if (!active_) {
+    return;
+  }
+  DemuxerStream* stream = GetStreamLocked(type);
+  if (!stream) {
+    return;
+  }
+  stream->EnableBitstreamConverter();
 }
 
 void MojoRendererBypassBridge::RunTimeUpdateOnClientThread(
@@ -155,6 +176,33 @@ void MojoRendererBypassBridge::RunTimeUpdateOnClientThread(
 void MojoRendererBypassBridge::RunStatisticsUpdateOnClientThread(
     const PipelineStatistics& stats) {
   statistics_update_cb_.Run(stats);
+}
+
+void MojoRendererBypassBridge::OnReadDone(
+    DemuxerStream::ReadCB read_cb,
+    base::ScopedClosureRunner scoped_decrement,
+    DemuxerStream::Status status,
+    DemuxerStream::DecoderBufferVector buffers) {
+  std::move(read_cb).Run(status, std::move(buffers));
+}
+
+void MojoRendererBypassBridge::DecrementInFlightReads() {
+  base::AutoLock auto_lock(lock_);
+  in_flight_reads_--;
+  if (in_flight_reads_ == 0) {
+    cond_var_.Signal();
+  }
+}
+
+DemuxerStream* MojoRendererBypassBridge::GetStreamLocked(
+    DemuxerStream::Type type) const {
+  if (type == DemuxerStream::AUDIO) {
+    return audio_stream_;
+  }
+  if (type == DemuxerStream::VIDEO) {
+    return video_stream_;
+  }
+  return nullptr;
 }
 
 // static

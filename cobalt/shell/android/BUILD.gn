@@ -17,30 +17,12 @@ import("//build/config/android/rules.gni")
 import("//third_party/icu/config.gni")
 import("//third_party/jni_zero/jni_zero.gni")
 
-cobalt_shell_test_manifest =
-    "$target_gen_dir/cobalt_shell_test_manifest/AndroidManifest.xml"
-
 generate_jni("cobalt_shell_jni_headers") {
   sources = [
     "java/src/dev/cobalt/shell/ContentViewRenderView.java",
     "java/src/dev/cobalt/shell/Shell.java",
     "java/src/dev/cobalt/shell/ShellManager.java",
   ]
-}
-
-shared_library("libcobalt_native_test") {
-  testonly = true
-  deps = [
-    "//base",
-    "//base:base_javatests_lib",
-    "//cobalt/shell:cobalt_shell_app",
-    "//cobalt/shell:cobalt_shell_lib",
-    "//content/public/test/android:content_native_test_support",
-  ]
-
-  sources = [ "shell_test_library_loader.cc" ]
-  configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
-  configs += [ "//build/config/android:hide_all_but_jni" ]
 }
 
 android_resources("cobalt_shell_java_resources") {
@@ -94,127 +76,16 @@ android_library("cobalt_shell_java") {
   ]
 }
 
-# TODO: move the test targets to a separate test BUILD.gn
-jinja_template("cobalt_shell_test_manifest") {
-  testonly = true
-  input = "javatests/AndroidManifest.xml"
-  includes = [ "shell_apk/AndroidManifest.xml.jinja2" ]
-  output = cobalt_shell_test_manifest
-  variables = [
-    "manifest_package=dev.cobalt.app",
-    "build_type=$build_type",
-  ]
-}
-
-android_library("cobalt_shell_test_apk_java") {
-  testonly = true
-
-  srcjar_deps = [ ":content_javatests_aidl" ]
-
-  resources_package = "org.chromium.content_shell_apk"
-  deps = [
-    ":cobalt_shell_java",
-    ":cobalt_shell_java_resources",
-    ":cobalt_shell_test_manifest",
-    "//base:base_java",
-    "//base:process_launcher_java",
-    "//build/android:build_java",
-    "//components/embedder_support/android:view_java",
-    "//content/public/android:content_java",
-    "//media/capture/video/android:capture_java",
-    "//net/android:net_java",
-    "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
-    "//ui/android:ui_java",
-    "//url:gurl_java",
-  ]
-
-  sources = [
-    "//cobalt/android/apk/app/src/app/java/dev/cobalt/app/CobaltApplication.java",
-    "//cobalt/android/apk/app/src/main/java/dev/cobalt/coat/CobaltActivity.java",
-  ]
-}
-
-android_aidl("content_javatests_aidl") {
-  import_include = [ "shell_apk/src" ]
-  sources =
-      [ "shell_apk/src/org/chromium/content_shell_apk/IChildProcessTest.aidl" ]
-}
-
 android_assets("cobalt_shell_assets") {
   sources = [ "$root_out_dir/cobalt_shell.pak" ]
+  renaming_sources = [ "$root_out_dir/content/data/fonts/fonts.xml" ]
+  renaming_destinations = [ "fonts/fonts.xml" ]
   disable_compression = true
   deps = [
     "//cobalt/shell:pak",
     "//gin:v8_snapshot_assets",
+    "//starboard/content/fonts:copy_font_data",
+    "//starboard/content/fonts:fonts_xml",
     "//third_party/icu:icu_assets",
-  ]
-}
-
-template("cobalt_shell_apk_tmpl") {
-  _target_type = invoker.target_type
-  target(_target_type, target_name) {
-    forward_variables_from(invoker, "*")
-    if (!defined(deps)) {
-      deps = []
-    }
-    deps += [
-      ":cobalt_shell_assets",
-      ":cobalt_shell_java",
-      ":cobalt_shell_test_apk_java",
-      "//base:base_java_test_support",
-      "//components/metrics:metrics_java",
-      "//content/public/android:content_java",
-      "//content/public/test/android:android_test_message_pump_support_java",
-      "//media/capture/video/android:capture_java",
-      "//net/android:net_java",
-      "//services/shape_detection:shape_detection_java",
-      "//third_party/mesa_headers",
-      "//ui/android:ui_java",
-    ]
-  }
-}
-
-cobalt_shell_apk_tmpl("cobalt_shell_test_apk") {
-  target_type = "instrumentation_test_apk"
-  apk_name = "CobaltShellTest"
-  android_manifest = cobalt_shell_test_manifest
-  android_manifest_dep = ":cobalt_shell_test_manifest"
-  shared_libraries = [ ":libcobalt_native_test" ]
-  deps = [
-    "//base:base_java_test_support",
-    "//base:base_javatests",
-    "//content/public/android:content_javatests",
-    "//net/android:net_tests_java",
-  ]
-  data_deps = [ "//testing/buildbot/filters:content_shell_test_apk_filters" ]
-
-  additional_apks = [ "//net/android:net_test_support_apk" ]
-
-  # TODO(crbug.com/1099536): Fix tests that break when this is increased.
-  target_sdk_version = 24
-}
-
-android_library("cobalt_shell_test_java") {
-  testonly = true
-  deps = [
-    ":cobalt_shell_java",
-    ":cobalt_shell_test_apk_java",
-    "//base:base_java",
-    "//base:base_java_test_support",
-    "//content/public/android:content_java",
-    "//content/public/test/android:content_java_test_support",
-    "//mojo/public/java/system:test_support_java",
-    "//third_party/androidx:androidx_test_monitor_java",
-    "//third_party/androidx:androidx_test_runner_java",
-    "//third_party/hamcrest:hamcrest_java",
-    "//third_party/junit",
-    "//ui/android:ui_java",
-    "//url:gurl_java",
-  ]
-  sources = [
-    "javatests/src/org/chromium/content_shell_apk/ContentShellActivityTestRule.java",
-    "javatests/src/org/chromium/content_shell_apk/ContentShellPreconditionsTest.java",
-    "javatests/src/org/chromium/content_shell_apk/ContentShellShellManagementTest.java",
-    "javatests/src/org/chromium/content_shell_apk/ContentShellUrlTest.java",
   ]
 }

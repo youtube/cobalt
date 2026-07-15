@@ -22,6 +22,7 @@
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/network_session_configurator/common/network_switches.h"
 #include "content/public/common/content_switches.h"
+#include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
@@ -76,6 +77,8 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
       ::switches::kDisableAcceleratedVideoEncode,
       // Force to use dark mode.
       ::switches::kForceDarkMode,
+      // Hide scrollbars to avoid memory allocation.
+      ::switches::kHideScrollbars,
   };
   return kCobaltToggleSwitches;
 }
@@ -84,7 +87,7 @@ const base::CommandLine::SwitchMap&
 CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
   static const base::CommandLine::SwitchMap kCobaltSwitchDefaults{
       // Disable Vulkan.
-      {::switches::kDisableFeatures, "Vulkan"},
+      {::switches::kDisableFeatures, "Vulkan,MemoryCacheStrongReference"},
       {::switches::kEnableFeatures,
        "LimitImageDecodeCacheSize:mb/24, "
        // When DefaultEnableANGLEValidation is disabled (e.g gold/qa), EGL
@@ -133,6 +136,8 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        "--no-sparkplug "
        // Disable v8 concurrent marking by default.
        "--no-concurrent-marking"},
+      // Limit GPU memory available to 64MB.
+      {::switches::kForceGpuMemAvailableMb, "64"},
       // Disable CC image cache items limit.
       {::switches::kCCImageCacheLimitItems, "0"},
   };

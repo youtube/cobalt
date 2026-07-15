@@ -18,6 +18,7 @@
 #include <map>
 
 #include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/condition_variable.h"
@@ -85,6 +86,8 @@ class MojoRendererBypassBridge
   VideoDecoderConfig GetVideoConfig() const;
   bool SupportsConfigChanges(DemuxerStream::Type type) const;
   StreamLiveness GetLiveness(DemuxerStream::Type type) const;
+  std::string GetMimeType(DemuxerStream::Type type) const;
+  void EnableBitstreamConverter(DemuxerStream::Type type);
 
  private:
   friend class base::RefCountedThreadSafe<MojoRendererBypassBridge>;
@@ -94,6 +97,13 @@ class MojoRendererBypassBridge
                                    base::TimeDelta max_time,
                                    base::TimeTicks capture_time);
   void RunStatisticsUpdateOnClientThread(const PipelineStatistics& stats);
+  void OnReadDone(DemuxerStream::ReadCB read_cb,
+                  base::ScopedClosureRunner scoped_decrement,
+                  DemuxerStream::Status status,
+                  DemuxerStream::DecoderBufferVector buffers);
+  void DecrementInFlightReads();
+  DemuxerStream* GetStreamLocked(DemuxerStream::Type type) const
+      EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
   const scoped_refptr<base::SequencedTaskRunner> client_task_runner_;
   const TimeUpdateCB time_update_cb_;

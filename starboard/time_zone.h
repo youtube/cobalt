@@ -31,11 +31,11 @@ extern "C" {
 // For example: America/Los_Angeles is 480 minutes (28800 seconds, 8 hours).
 typedef int SbTimeZone;
 
-// Gets a string representation of the current timezone. The format should be
-// in the IANA format https://data.iana.org/time-zones/theory.html#naming .
-// Names normally have the form AREA/LOCATION, where AREA is a continent or
-// ocean, and LOCATION is a specific location within the area.
-// Typical names are 'Africa/Cairo', 'America/New_York', and 'Pacific/Honolulu'.
+// Gets a string representation of the current timezone in [IANA
+// format](https://data.iana.org/time-zones/theory.html#naming). Names typically
+// follow the `AREA/LOCATION` format, where `AREA` is a continent or ocean, and
+// `LOCATION` is a specific location within that area (for example,
+// 'Africa/Cairo', 'America/New_York', or 'Pacific/Honolulu').
 SB_EXPORT const char* SbTimeZoneGetName();
 
 #ifdef __cplusplus

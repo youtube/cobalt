@@ -291,6 +291,12 @@ const CobaltMemoryMetricsEmitter::Metric kAllocatorDumpNamesForMetrics[] = {
      base::android::MeminfoDumpProvider::kPssMetricName,
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
      {}},
+    {base::android::MeminfoDumpProvider::kDumpName,
+     "AndroidGraphicsMemory",
+     CobaltMemoryMetricsEmitter::MetricSize::kLarge,
+     base::android::MeminfoDumpProvider::kGraphicsMetricName,
+     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
+     {}},
 #endif
 };
 
@@ -322,6 +328,9 @@ CobaltMemoryMetricsEmitter::CobaltMemoryMetricsEmitter() {
   // on a background sequence maintained by base::SequenceBound
   // in CobaltMetricsServiceClient.
   DETACH_FROM_SEQUENCE(sequence_checker_);
+#if BUILDFLAG(IS_ANDROID)
+  base::android::MeminfoDumpProvider::Initialize();
+#endif
 }
 
 void CobaltMemoryMetricsEmitter::FetchAndEmitProcessMemoryMetrics() {
