@@ -7,6 +7,11 @@ ENV PYTHONUNBUFFERED 1
 ARG GIT_SHA265SUM="93993babac690a06906d832a1715c3315b4787a2845aeb500f7dcc82e1599df2  git-2.18.0.tar.gz"
 
 # === Install common dependencies
+RUN sed -i 's/deb.debian.org/archive.debian.org/g' /etc/apt/sources.list \
+    && sed -i 's/security.debian.org/archive.debian.org/g' /etc/apt/sources.list \
+    && sed -i '/buster-updates/d' /etc/apt/sources.list \
+    && echo "Acquire::Check-Valid-Until \"false\";" > /etc/apt/apt.conf.d/99no-check-valid-until
+
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
         python-pip \

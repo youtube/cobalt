@@ -24,7 +24,8 @@ ENV NODE_PATH $NVM_DIR/v$NODE_VERSION/lib/node_modules
 ENV PATH $NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH
 
 # === Install depot_tools
-RUN git clone https://cobalt.googlesource.com/depot_tools /depot_tools
+RUN git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git /depot_tools \
+    && git -C /depot_tools checkout 38c697d3eccc54a5e46abc8c267cd0593b7b29b6
 
 # === Configure common env vars
 ENV PATH="${PATH}:/depot_tools" \
