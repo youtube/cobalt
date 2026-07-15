@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//testing/test.gni")
+
 if (current_toolchain == host_toolchain) {
   source_set("zstd_compress_lib") {
     sources = [
@@ -29,13 +31,12 @@ if (current_toolchain == host_toolchain) {
     ]
   }
 
-  executable("zstd_compress_unittest") {
+  test("zstd_compress_unittest") {
     testonly = true
     sources = [ "zstd_compress_unittest.cc" ]
     deps = [
       ":zstd_compress_lib",
       "//testing/gtest",
-      "//testing/gtest:gtest_main",
       "//third_party/zstd:decompress",
     ]
   }
