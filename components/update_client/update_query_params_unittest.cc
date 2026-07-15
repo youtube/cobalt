@@ -65,6 +65,8 @@ TEST(UpdateQueryParamsTest, GetParams) {
 
   TestParams(UpdateQueryParams::CRX, true);
   TestParams(UpdateQueryParams::CHROME, true);
+
+  UpdateQueryParams::SetDelegate(nullptr);
 }
 
 }  // namespace update_client
