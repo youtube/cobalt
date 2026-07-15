@@ -381,6 +381,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
           kMediaEnableLowLatency)),
       enable_ndk_video_(
           pipeline_config.experimental_features.GetBool(kMediaNdkVideo)),
+      fix_need_more_input_backpressure_(
+          pipeline_config.experimental_features.GetBool(
+              kMediaFixNeedMoreInputBackpressure)),
       is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
                                       tunnel_mode_audio_session_id_),
       media_codec_factory_(std::move(media_codec_factory)),
@@ -1014,9 +1017,12 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
     }
   }
 
-  bool need_more_input =
-      !is_end_of_stream && media_decoder_ &&
-      media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize;
+  bool need_more_input = !is_end_of_stream;
+  if (need_more_input && fix_need_more_input_backpressure_) {
+    need_more_input =
+        media_decoder_ &&
+        media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize;
+  }
   decoder_status_cb_(
       need_more_input ? kNeedMoreInput : kBufferFull,
       make_scoped_refptr<VideoFrameImpl>(

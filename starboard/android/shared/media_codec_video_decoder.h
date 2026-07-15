@@ -224,6 +224,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const bool enable_trivial_optimizations_;
   const bool enable_low_latency_;
   const bool enable_ndk_video_;
+  const bool fix_need_more_input_backpressure_;
 
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline

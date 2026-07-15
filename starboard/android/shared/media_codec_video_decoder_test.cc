@@ -23,6 +23,7 @@
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/fake_media_codec.h"
 #include "starboard/common/ref_counted.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -49,7 +50,7 @@ const VideoStreamInfo kDefaultVideoStreamInfo = [] {
 
 class MediaCodecVideoDecoderTest : public ::testing::Test {
  protected:
-  void CreateDecoder() {
+  void CreateDecoder(ExperimentalFeatures experimental_features = {}) {
     auto factory = std::make_unique<FakeMediaCodecFactory>();
     fake_factory_ = factory.get();  // Save raw pointer before moving!
 
@@ -63,6 +64,7 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
 
     MediaCodecVideoDecoder::TunnelModeConfig tunnel_config;
     MediaCodecVideoDecoder::PipelineConfig pipeline_config;
+    pipeline_config.experimental_features = std::move(experimental_features);
     MediaCodecVideoDecoder::PlatformOptions platform_options;
 
     auto result = MediaCodecVideoDecoder::CreateForTesting(
@@ -192,7 +194,8 @@ TEST_F(MediaCodecVideoDecoderTest, BasicDecodingFlow) {
 }
 
 TEST_F(MediaCodecVideoDecoderTest, BackpressureOnOutputFrame) {
-  CreateDecoder();
+  CreateDecoder(ExperimentalFeatures(
+      {{std::string(kMediaFixNeedMoreInputBackpressure.key()), 1}}));
 
   FakeMediaCodec* fake_codec = GetFakeVideoCodec();
   ASSERT_NE(fake_codec, nullptr);
