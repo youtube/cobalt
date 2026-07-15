@@ -69,10 +69,6 @@
       "test_attempts": "6"
     },
     {
-      "target": "testing/maneki/cobalt/kimono_tests:yts_dom_document_kirkwood_custom_test",
-      "test_attempts": "6"
-    },
-    {
       "target": "testing/maneki/cobalt/kimono_tests:yts_html_dom_element_kirkwood_custom_test",
       "test_attempts": "6"
     },

@@ -24,23 +24,22 @@ import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.media.AudioManager;
 import android.net.Uri;
-import android.os.Bundle;
-import android.os.SystemClock;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.text.TextUtils;
+import android.view.Display;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.view.WindowManager;
-import android.view.Display;
-import android.hardware.display.DisplayManager;
-import android.window.OnBackInvokedCallback;
-import android.window.OnBackInvokedDispatcher;
 import android.widget.FrameLayout;
 import android.widget.Toast;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
@@ -122,7 +121,6 @@ public abstract class CobaltActivity extends Activity {
   private final Handler mHandler = new Handler(Looper.getMainLooper());
   private boolean mIsCobaltUsingAndroidOverlay;
 
-  private boolean mEnableSplashScreen;
   private String mStartDeepLink;
 
   private Object mBackInvokedCallback;
@@ -134,14 +132,15 @@ public abstract class CobaltActivity extends Activity {
   // to Escape), this flag is used by OnBackInvokedCallback to detect physical key presses and
   // bypass simulated key dispatching.
   private boolean mPhysicalBackKeyPressed = false;
-  private final DisplayUtil.Listener mDisplayListener = new DisplayUtil.Listener() {
-    @Override
-    public void onDisplayChanged(int displayId) {
-      if (displayId == Display.DEFAULT_DISPLAY) {
-        checkDisplayState();
-      }
-    }
-  };
+  private final DisplayUtil.Listener mDisplayListener =
+      new DisplayUtil.Listener() {
+        @Override
+        public void onDisplayChanged(int displayId) {
+          if (displayId == Display.DEFAULT_DISPLAY) {
+            checkDisplayState();
+          }
+        }
+      };
   private boolean mWasDisplayOn = true;
 
   private Bundle getActivityMetaData() {
@@ -152,8 +151,7 @@ public abstract class CobaltActivity extends Activity {
     }
     ActivityInfo ai;
     try {
-      ai = getPackageManager()
-                .getActivityInfo(componentName, PackageManager.GET_META_DATA);
+      ai = getPackageManager().getActivityInfo(componentName, PackageManager.GET_META_DATA);
     } catch (NameNotFoundException e) {
       Log.e(TAG, "Error getting activity info", e);
       return null;
@@ -219,10 +217,10 @@ public abstract class CobaltActivity extends Activity {
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
               VersionInfo.isOfficialBuild(), commandLineArgs));
     }
-    mIsCobaltUsingAndroidOverlay = CommandLine.getInstance().hasSwitch(COBALT_USING_ANDROID_OVERLAY);
+    mIsCobaltUsingAndroidOverlay =
+        CommandLine.getInstance().hasSwitch(COBALT_USING_ANDROID_OVERLAY);
 
     DeviceUtils.updateDeviceSpecificUserAgentSwitch(this);
-
 
     StartupGuard.getInstance().setStartupMilestone(2);
     // This initializes JNI and ends up calling JNI_OnLoad in native code
@@ -275,8 +273,8 @@ public abstract class CobaltActivity extends Activity {
     // SurfaceView's 'hole' clipping during animations that are notified to the window.
     mWindowAndroid.setAnimationPlaceholderView(
         mShellManager.getContentViewRenderView().getSurfaceView());
-    mA11yHelper = new CobaltA11yHelper(this,
-        mShellManager.getContentViewRenderView().getSurfaceView());
+    mA11yHelper =
+        new CobaltA11yHelper(this, mShellManager.getContentViewRenderView().getSurfaceView());
 
     if (mStartupUrl == null || mStartupUrl.isEmpty()) {
       String[] args = getStarboardBridge().getArgs();
@@ -289,7 +287,8 @@ public abstract class CobaltActivity extends Activity {
     }
 
     // META_DATA_APP_URL is configured to be the same as hardcoded YOUTUBE_URL.
-    // If the app is used to start other web applications e.g google.com, because there will have no Kabuki web application code to call h5vcc.system.HideSplashScreen().
+    // If the app is used to start other web applications e.g google.com, because there will have no
+    // Kabuki web application code to call h5vcc.system.HideSplashScreen().
     // We should disarm Startup Guard now.
     if (TextUtils.isEmpty(mStartupUrl) || !mStartupUrl.startsWith(YOUTUBE_URL)) {
       Log.i(TAG, "Non-Youtube startup URL detected.");
@@ -307,7 +306,8 @@ public abstract class CobaltActivity extends Activity {
             new BrowserStartupController.StartupCallback() {
               @Override
               public void onSuccess() {
-                // NOTE: This log message is hard-coded in smoke tests to detect browser startup success.
+                // NOTE: This log message is hard-coded in smoke tests to detect browser startup
+                // success.
                 // See ManekiBaseDeviceUtil.CHROBALT_BROWSER_READY_REGEX in the internal test suite.
                 Log.i(TAG, "Browser process init succeeded");
 
@@ -321,7 +321,6 @@ public abstract class CobaltActivity extends Activity {
                 initializationFailed();
               }
             });
-
   }
 
   // Initially copied from ContentShellActiviy.java
@@ -420,10 +419,6 @@ public abstract class CobaltActivity extends Activity {
     return mLastSentIntent;
   }
 
-  private static String getUrlFromIntent(Intent intent) {
-    return intent != null ? intent.getDataString() : null;
-  }
-
   private static String[] getCommandLineParamsFromIntent(Intent intent, String key) {
     return intent != null ? intent.getStringArrayExtra(key) : null;
   }
@@ -507,7 +502,8 @@ public abstract class CobaltActivity extends Activity {
     if (!mIsCobaltUsingAndroidOverlay) {
       mVideoSurfaceView = new VideoSurfaceView(this);
       addContentView(
-          mVideoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+          mVideoSurfaceView,
+          new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
     } else {
       Log.i(TAG, "Do not create VideoSurfaceView.");
     }
@@ -592,9 +588,9 @@ public abstract class CobaltActivity extends Activity {
       mFreezeRunnable = null;
     }
     WebContents webContents = getActiveWebContents();
-    if (webContents != null &&
-        (getJavaSwitches().containsKey(JavaSwitches.DELAY_FREEZE_ON_BACKGROUND) ||
-         getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE))) {
+    if (webContents != null
+        && (getJavaSwitches().containsKey(JavaSwitches.DELAY_FREEZE_ON_BACKGROUND)
+            || getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE))) {
       // document.onresume event
       webContents.onResume();
     }
@@ -626,16 +622,17 @@ public abstract class CobaltActivity extends Activity {
         if (mFreezeRunnable != null) {
           mHandler.removeCallbacks(mFreezeRunnable);
         }
-        mFreezeRunnable = new Runnable() {
-          @Override
-          public void run() {
-            WebContents currentWebContents = getActiveWebContents();
-            if (currentWebContents != null) {
-              currentWebContents.onFreeze();
-            }
-            mFreezeRunnable = null;
-          }
-        };
+        mFreezeRunnable =
+            new Runnable() {
+              @Override
+              public void run() {
+                WebContents currentWebContents = getActiveWebContents();
+                if (currentWebContents != null) {
+                  currentWebContents.onFreeze();
+                }
+                mFreezeRunnable = null;
+              }
+            };
         mHandler.postDelayed(mFreezeRunnable, 1500);
       } else if (getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE)) {
         // If ENABLE_FREEZE is specified, fire freeze event immediately
@@ -700,9 +697,7 @@ public abstract class CobaltActivity extends Activity {
     return false;
   }
 
-  /**
-   * Overridden by Kimono to provide specific Java switch configurations.
-   */
+  /** Overridden by Kimono to provide specific Java switch configurations. */
   protected Map<String, String> getJavaSwitches() {
     return this.mJavaSwitches;
   }
@@ -782,6 +777,7 @@ public abstract class CobaltActivity extends Activity {
   protected boolean isReleaseBuild() {
     return StarboardBridge.isReleaseBuild();
   }
+
   protected boolean isDevelopmentBuild() {
     return StarboardBridge.isDevelopmentBuild();
   }
@@ -956,43 +952,45 @@ public abstract class CobaltActivity extends Activity {
     private static final Handler sHandler = new Handler(Looper.getMainLooper());
 
     static Object register(final CobaltActivity activity) {
-      OnBackInvokedCallback callback = new OnBackInvokedCallback() {
-        @Override
-        public void onBackInvoked() {
-          if (activity.mPhysicalBackKeyPressed) {
-            return; // Bypassed: physical key events are already driving this navigation
-          }
-
-          // 1. Dispatch keydown to initiate navigation immediately.
-          activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_DOWN);
-
-          // 2. Simulate physical key release with a 100ms delay.
-          // This mimics natural user latency and prevents the web page's focus manager
-          // from receiving 'keyup' prematurely during asynchronous page transitions
-          // (which would otherwise disrupt cursor/spatial navigation focus restoration).
-          sHandler.postDelayed(new Runnable() {
+      OnBackInvokedCallback callback =
+          new OnBackInvokedCallback() {
             @Override
-            public void run() {
-              if (activity.isDestroyed() || activity.isFinishing()) {
-                return; // Avoid memory leaks or dispatching keyup to a destroyed activity
+            public void onBackInvoked() {
+              if (activity.mPhysicalBackKeyPressed) {
+                return; // Bypassed: physical key events are already driving this navigation
               }
-              activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_UP);
+
+              // 1. Dispatch keydown to initiate navigation immediately.
+              activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_DOWN);
+
+              // 2. Simulate physical key release with a 100ms delay.
+              // This mimics natural user latency and prevents the web page's focus manager
+              // from receiving 'keyup' prematurely during asynchronous page transitions
+              // (which would otherwise disrupt cursor/spatial navigation focus restoration).
+              sHandler.postDelayed(
+                  new Runnable() {
+                    @Override
+                    public void run() {
+                      if (activity.isDestroyed() || activity.isFinishing()) {
+                        return; // Avoid memory leaks or dispatching keyup to a destroyed activity
+                      }
+                      activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_UP);
+                    }
+                  },
+                  100);
             }
-          }, 100);
-        }
-      };
-      activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
-          OnBackInvokedDispatcher.PRIORITY_DEFAULT,
-          callback
-      );
+          };
+      activity
+          .getOnBackInvokedDispatcher()
+          .registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback);
       return callback;
     }
 
     static void unregister(CobaltActivity activity, Object callback) {
       if (callback instanceof OnBackInvokedCallback) {
-        activity.getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(
-            (OnBackInvokedCallback) callback
-        );
+        activity
+            .getOnBackInvokedDispatcher()
+            .unregisterOnBackInvokedCallback((OnBackInvokedCallback) callback);
       }
     }
   }

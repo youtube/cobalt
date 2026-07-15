@@ -14,7 +14,7 @@
 #     │   │       └── dind_build.sh
 #     │   └── run_package_release_pipeline (common.sh)
 #     └── dind_runner.sh                                    <== THIS SCRIPT
-#         ├── main_pull_image_and_run.py
+#         ├── main_build_image_and_run.py
 #         │   └── Specific Cobalt Image
 #         │       └── dind_build.sh
 #         └── run_package_release_pipeline (common.sh)
@@ -33,7 +33,7 @@ configure_dind_environment
 
 set -x
 # The python script is responsible for running containerized Cobalt builds.
-python3 "${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/bin/dind_py/main_pull_image_and_run.py"
+python3 "${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/bin/dind_py/main_build_image_and_run.py"
 
 # The following script is responsible for creating packages and nightly builds
 # which do not need to run inside Cobalt containers.

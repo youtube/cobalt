@@ -39,7 +39,7 @@ Options that can be requested at window creation time.
 
     Specifies whether the new window is windowed. If `false`, the requested size
     represents the requested resolution.
-*   `const char * name`
+*   `const char* name`
 
     The name of the window to create.
 
