@@ -146,7 +146,7 @@ TEST_P(AudioFrameDiscarderTest, PartialAudio) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     AudioFrameDiscarderTests,
     AudioFrameDiscarderTest,
     ValuesIn(

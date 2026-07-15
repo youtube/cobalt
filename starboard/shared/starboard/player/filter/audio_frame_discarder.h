@@ -36,6 +36,10 @@ class AudioFrameDiscarder {
   void OnInputBuffers(const InputBuffers& input_buffers);
   void AdjustForDiscardedDurations(int sample_rate,
                                    scoped_refptr<DecodedAudio>* decoded_audio);
+  void AdjustOrSetDiscardedDurations(
+      int sample_rate,
+      bool is_passthrough,
+      scoped_refptr<DecodedAudio>* decoded_audio);
   void OnDecodedAudioEndOfStream();
 
   void Reset();

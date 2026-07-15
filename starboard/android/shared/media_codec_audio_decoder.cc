@@ -272,8 +272,11 @@ void MediaCodecAudioDecoder::ProcessOutputBuffer(
         dequeue_output_result.presentation_time_microseconds, size);
 
     memcpy(decoded_audio->data(), data, size);
-    audio_frame_discarder_.AdjustForDiscardedDurations(
-        audio_stream_info_.samples_per_second, &decoded_audio);
+    audio_frame_discarder_.AdjustOrSetDiscardedDurations(
+        audio_stream_info_.samples_per_second,
+        audio_stream_info_.codec == kSbMediaAudioCodecAc3 ||
+            audio_stream_info_.codec == kSbMediaAudioCodecEac3,
+        &decoded_audio);
 
     {
       std::lock_guard lock(decoded_audios_mutex_);
