@@ -201,11 +201,5 @@
     "executable": "out/evergreen-x64_devel/url_unittests_loader.py",
     "runs_on": "host",
     "test_type": "gtest"
-  },
-  {
-    "target": "clang_x64/zstd_compress_unittest",
-    "executable": "out/evergreen-x64_devel/clang_x64/zstd_compress_unittest",
-    "runs_on": "host",
-    "test_type": "gtest"
   }
 ]

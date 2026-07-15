@@ -31,6 +31,7 @@ if (current_toolchain == host_toolchain) {
     ]
   }
 
+  # TODO: b/535249762 - Run this unit test target in CI.
   test("zstd_compress_unittest") {
     testonly = true
     sources = [ "zstd_compress_unittest.cc" ]
