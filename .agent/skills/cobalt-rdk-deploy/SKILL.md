@@ -16,7 +16,21 @@ Create an alias for the deployment script:
 alias deploy_rdk='python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py'
 ```
 
+## Prerequisites
+
+Before running the deployment script, ensure your RDK device is connected and recognized by the host:
+*   `adb devices | cat` should list your device.
+
 ## Execution Protocol
+
+> [!IMPORTANT]
+> **Agent Execution Note:** 
+> In some agent runner environments, running `adb` commands directly as a single bare command (e.g., `adb devices`) may return empty output due to shell `exec` optimization bugs. 
+> 
+> To guarantee output is captured, always chain the command or pipe it:
+> *   Use `adb devices | cat` instead of `adb devices`
+> *   Use `true && adb <command>` for other raw ADB commands
+>
 
 1. **Always query `--help` first** to inspect the available arguments and execution modes of the script:
    ```bash
@@ -28,7 +42,7 @@ alias deploy_rdk='python3 starboard/contrib/rdk/src/third_party/starboard/rdk/ar
 3. **Avoid manual device interaction:** Do NOT run raw shell commands (via `adb shell` or `ssh`) directly on the target device to perform pre-flight checks (such as verifying device properties, OS versions, symlinks, or config status). The `deploy_rdk.py` script automatically manages all version checks, configuration switches, display resets, and reboots internally. Trust the script and execute your formulated command directly.
 
 4. **Identify the connection method:**
-   - **ADB (Default):** The script defaults to ADB for device interaction.
+   - **ADB (Default):** The script defaults to ADB for device interaction. Run `adb devices | cat` to verify if devices are available.
    - **SSH/SCP:** If you need to target a remote device over SSH, check `--help` for the IP-based configuration flags (e.g., `--device-ip`).
 
 5. **Do NOT use `--no-rbe` by default:** Remote Build Execution (RBE) is enabled by default and must be used for compilation. Only pass the `--no-rbe` flag if RBE build commands fail.
