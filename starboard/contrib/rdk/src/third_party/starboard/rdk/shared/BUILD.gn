@@ -111,7 +111,7 @@ if (rdk_enable_ocdm) {
 
 group("starboard_platform") {
   public_deps = [ ":starboard_platform_sources" ]
-  data_deps = [ "cobalt/content:rdk_cobalt_content" ]
+  data_deps = [ "cobalt:rdk_cobalt_content" ]
 }
 
 static_library("starboard_platform_sources") {
@@ -314,11 +314,7 @@ static_library("starboard_platform_sources") {
     ]
   }
 
-  if (!sb_is_modular || is_starboard) {
-    sources += [
-      "main_rdk.cc",
-    ]
-  }
+  sources += [ "main_rdk.cc" ]
 
   cflags = []
 
@@ -366,20 +362,8 @@ static_library("starboard_platform_sources") {
   }
 }
 
-group("loader_app_rdk_plugin") {
-  data_deps = [":loader_app($starboard_toolchain)"]
-}
-
-if (is_starboard) {
-  if (starboard_level_final_executable_type == "shared_library") {
-    group("loader_app") {
-      deps = [ "//starboard/loader_app:loader_app" ]
-    }
-  } else {
-    target("shared_library", "loader_app") {
-      output_dir = root_build_dir
-      deps = [ "//starboard/loader_app:loader_app_sources" ]
-      data_deps = [ "//starboard/content/fonts:copy_font_data" ]
-    }
-  }
+shared_library("loader_app") {
+  output_dir = root_build_dir
+  deps = [ "//starboard/loader_app:loader_app_sources" ]
+  data_deps = [ "//starboard/content/fonts:copy_font_data" ]
 }
