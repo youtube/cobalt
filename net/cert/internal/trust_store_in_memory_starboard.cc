@@ -110,8 +110,7 @@ std::unordered_set<std::string> GetCertNamesOnDisk() {
 }  // namespace
 
 std::shared_ptr<const bssl::ParsedCertificate>
-TrustStoreInMemoryStarboard::TryLoadCert(
-    const std::string_view& cert_name) const {
+TrustStoreInMemoryStarboard::TryLoadCert(std::string_view cert_name) const {
   auto hash = CertNameHash(cert_name.data(), cert_name.length());
   char cert_file_name[256];
   snprintf(cert_file_name, 256, "%08lx.%d", hash, 0);
@@ -129,20 +128,34 @@ TrustStoreInMemoryStarboard::TryLoadCert(
   // The file was in certs directory when we iterated the directory at startup,
   // opening it should not fail.
   if (!cert_file.IsValid()) {
-    NOTREACHED() << "ssl/certs/" << cert_path << " failed to open.";
+    DLOG(ERROR) << "Failed to open cert file: " << cert_path;
+    return nullptr;
   }
   int cert_size = cert_file.ReadAtCurrentPos(cert_buffer, kCertBufferSize);
+  if (cert_size < 0) {
+    DLOG(ERROR) << "Failed to read cert file: " << cert_path;
+    return nullptr;
+  }
   bssl::PEMTokenizer pem_tokenizer(std::string_view(cert_buffer, cert_size),
                                    {kCertificateHeader});
-  pem_tokenizer.GetNext();
+  if (!pem_tokenizer.GetNext()) {
+    DLOG(ERROR) << "Failed to parse PEM from cert file: " << cert_path;
+    return nullptr;
+  }
   std::string decoded(pem_tokenizer.data());
-  DCHECK(!pem_tokenizer.GetNext());
   auto crypto_buffer = x509_util::CreateCryptoBuffer(decoded);
+  if (!crypto_buffer) {
+    DLOG(ERROR) << "Failed to create crypto buffer for " << cert_path;
+    return nullptr;
+  }
   bssl::CertErrors errors;
   auto parsed = bssl::ParsedCertificate::Create(
       std::move(crypto_buffer), x509_util::DefaultParseCertificateOptions(),
       &errors);
-  CHECK(parsed) << errors.ToDebugString();
+  if (!parsed) {
+    LOG(ERROR) << "Failed to parse certificate " << cert_path << ": "
+               << errors.ToDebugString();
+  }
   return parsed;
 }
 

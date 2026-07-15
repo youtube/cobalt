@@ -55,7 +55,7 @@ class NET_EXPORT TrustStoreInMemoryStarboard : public PlatformTrustStore {
   // Given a certificate's canonical name, try to load this cert from trusted
   // certs on disk if it is found.
   std::shared_ptr<const bssl::ParsedCertificate> TryLoadCert(
-      const std::string_view& cert_name) const;
+      std::string_view cert_name) const;
 
   // The memory trust store can be accessed by multiple threads, in Chromium,
   // the synchronization issue is solved by initializing trust store at startup
