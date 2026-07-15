@@ -12,11 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/config/linux/rdk/config_variables.gni")
+
+group("loader_app_rdk_plugin") {
+  data_deps = [ "$rdk_starboard_root/third_party/starboard/rdk/shared:loader_app($starboard_toolchain)" ]
+}
+
 group("rdk_cobalt_content") {
   data_deps = [ ":rdk_cobalt_keymap($default_toolchain)" ]
 }
 
 copy("rdk_cobalt_keymap") {
-  sources = [ "etc/keymapping.json" ]
+  sources = [ "content/etc/keymapping.json" ]
   outputs = [ "$root_out_dir/app/cobalt/content/etc/keymapping.json" ]
 }
