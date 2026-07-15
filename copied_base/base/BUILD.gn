@@ -1038,9 +1038,9 @@ component("base") {
   all_dependent_configs = []
   defines = [ "BASE_IMPLEMENTATION" ]
   if (is_win) {
-    defines += [ "WCHAR_T_IS_UTF16" ]
+    defines += [ "WCHAR_T_IS_UTF16=" ]
   } else {
-    defines += [ "WCHAR_T_IS_UTF32" ]
+    defines += [ "WCHAR_T_IS_UTF32=" ]
   }
   data = []
   data_deps = []

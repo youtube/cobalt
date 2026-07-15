@@ -152,7 +152,7 @@ Because Evergreen support is required for certification, you can also run Cobalt
 
    ```bash
    export COBALT_SRC=${PWD}
-   export PYTHONPATH=${PWD}:${PYTHONPATH}
+   export PYTHONPATH=${PWD}${PYTHONPATH:+:${PYTHONPATH}}
    export EG_PLATFORM=evergreen-x64
    export EG_BUILD_TYPE=qa
    export SB_API_VER=16
