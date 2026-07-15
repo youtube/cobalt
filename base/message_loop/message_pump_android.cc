@@ -4,6 +4,8 @@
 
 #include "base/message_loop/message_pump_android.h"
 
+#include "build/build_config.h"
+
 #include <android/looper.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -21,6 +23,9 @@
 #include "base/android/input_hint_checker.h"
 #include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/auto_reset.h"
+#endif
 #include "base/check.h"
 #include "base/check_op.h"
 #include "base/message_loop/io_watcher.h"
@@ -521,7 +526,33 @@ void MessagePumpAndroid::DoNonDelayedLooperWork(bool do_idle_work) {
 }
 
 void MessagePumpAndroid::Run(Delegate* delegate) {
+#if BUILDFLAG(IS_COBALT)
+  // In standard Chromium on Android, the main UI thread message loop is driven
+  // entirely by Java's Looper, so calling RunLoop::Run() hits NOTREACHED().
+  // However, in Cobalt builds on Android, synchronous lifecycle events
+  // (e.g. HandleEvent for Conceal or Freeze) require executing nested run loops
+  // on the UI thread to ensure internal C++ tasks (such as concealing web
+  // contents, flushing storage, and releasing media resources) complete fully
+  // before returning control to the operating system.
+  //
+  // Here, we pump only Chromium's internal C++ task queue via delegate_->DoWork()
+  // without re-entering Android's native kernel looper (ALooper_pollOnce),
+  // which avoids libutils.so re-entrancy crashes while guaranteeing clean,
+  // synchronous completion of Chromium tasks.
+  SetDelegate(delegate);
+
+  base::AutoReset<bool> auto_reset_quit(&quit_, false);
+  while (!ShouldQuit()) {
+    Delegate::NextWorkInfo next_work_info = delegate_->DoWork();
+    if (ShouldQuit()) break;
+    if (next_work_info.is_immediate()) continue;
+    delegate_->DoIdleWork();
+    if (ShouldQuit()) break;
+    base::PlatformThread::Sleep(base::Milliseconds(5));
+  }
+#else
   NOTREACHED() << "Unexpected call to Run()";
+#endif
 }
 
 void MessagePumpAndroid::Attach(Delegate* delegate) {
@@ -551,6 +582,14 @@ void MessagePumpAndroid::Quit() {
   read(delayed_fd_, &value, sizeof(value));
   // Clear the eventfd.
   read(non_delayed_fd_, &value, sizeof(value));
+
+#if BUILDFLAG(IS_COBALT)
+  // When a nested RunLoop calls Quit, it shouldn't destroy the outer
+  // attached run_loop_.
+  if (base::RunLoop::IsNestedOnCurrentThread()) {
+    return;
+  }
+#endif
 
   if (run_loop_) {
     run_loop_->AfterRun();

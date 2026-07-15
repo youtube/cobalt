@@ -65,7 +65,7 @@ public class NetworkStatus {
   }
 
   private void sendStatusChangeInternal(boolean online) {
-    // nativeOnNetworkStatusChange(online);
+    AppEventBridge.handleOsNetworkEvent(online);
   }
 
   public NetworkStatus(Context appContext) {
@@ -109,5 +109,4 @@ public class NetworkStatus {
     }
   }
 
-  // private native void nativeOnNetworkStatusChange(boolean online);
 }

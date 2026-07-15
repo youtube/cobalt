@@ -82,7 +82,6 @@ public class Shell {
 
     private boolean mLoading;
     private boolean mIsFullscreen;
-    private boolean mIsActivityVisible;
 
     private @Nullable OnWebContentsReadyListener mWebContentsReadyListener;
     private @Nullable Callback<Boolean> mOverlayModeChangedCallbackForTesting;
@@ -238,9 +237,6 @@ public class Shell {
                 "", mViewAndroidDelegate, null, mWindow, WebContents.createDefaultInternalsHolder());
         mWebContents = webContents;
         mNavigationController = assertNonNull(mWebContents.getNavigationController());
-        if (mIsActivityVisible) {
-            mWebContents.updateWebContentsVisibility(Visibility.VISIBLE);
-        }
         assumeNonNull(mContentViewRenderView).setCurrentWebContents(mWebContents);
         mStartupGuardNavigationObserver = new StartupGuardNavigationObserver(mWebContents);
         if (mWebContentsReadyListener != null) {
@@ -258,9 +254,6 @@ public class Shell {
         mSplashScreenWebContents = splashWebContents;
         splashWebContents.setDelegates(
                 "", mViewAndroidDelegate, null, mWindow, WebContents.createDefaultInternalsHolder());
-        if (mIsActivityVisible) {
-            splashWebContents.updateWebContentsVisibility(Visibility.VISIBLE);
-        }
         mContentViewRenderView.setCurrentWebContents(splashWebContents);
     }
 
@@ -274,21 +267,7 @@ public class Shell {
         mWebContents = webContents;
         mSplashScreenWebContents = null;
         mNavigationController = mWebContents.getNavigationController();
-        if (mIsActivityVisible) {
-            mWebContents.updateWebContentsVisibility(Visibility.VISIBLE);
-        }
         mContentViewRenderView.setCurrentWebContents(mWebContents);
-    }
-
-    public void onActivityVisible(boolean visible) {
-        mIsActivityVisible = visible;
-        if (mWebContents != null) {
-            if (visible) {
-                mWebContents.updateWebContentsVisibility(Visibility.VISIBLE);
-            } else {
-                mWebContents.updateWebContentsVisibility(Visibility.HIDDEN);
-            }
-        }
     }
 
     /**

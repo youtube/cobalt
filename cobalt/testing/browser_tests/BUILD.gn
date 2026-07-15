@@ -411,6 +411,9 @@ test("cobalt_browsertests") {
   if (is_android) {
     deps += [
       ":content_browsertests_java",
+      "//cobalt:cobalt_app",
+      "//cobalt:common",
+      "//cobalt/android:app_event_bridge",
       "//cobalt/shell:cobalt_shell_app",
       "//cobalt/shell/android:cobalt_shell_assets",
       "//cobalt/shell/android:cobalt_shell_java_resources",

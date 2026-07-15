@@ -43,14 +43,11 @@
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "cobalt/shell/browser/shell.h"
+#include "content/public/app/content_main.h"
+#include "content/public/app/content_main_runner.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/network_service_instance.h"
 #include "net/base/network_change_notifier_passive.h"
-
-#if !BUILDFLAG(IS_ANDROID)
-#include "content/public/app/content_main.h"
-#include "content/public/app/content_main_runner.h"
-#endif
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "cobalt/app/cobalt_switch_defaults.h"
@@ -71,7 +68,6 @@ namespace {
 constexpr base::TimeDelta kTransitionTimeout = base::Seconds(2);
 }  // namespace
 
-#if !BUILDFLAG(IS_ANDROID)
 namespace {
 content::ContentMainRunner* GetContentMainRunner() {
   static base::NoDestructor<std::unique_ptr<content::ContentMainRunner>>
@@ -79,7 +75,6 @@ content::ContentMainRunner* GetContentMainRunner() {
   return main_runner->get();
 }
 }  // namespace
-#endif
 
 class AppEventRunnerImpl : public AppEventRunner,
                            public CobaltLifecycleManagerObserver {
@@ -97,7 +92,9 @@ class AppEventRunnerImpl : public AppEventRunner,
   }
 
   void InitializeSystem() override {
+#if !BUILDFLAG(IS_ANDROID)
     exit_manager_ = std::make_unique<base::AtExitManager>();
+#endif
   }
 
   void CreateMainDelegate(absl::optional<int64_t> startup_timestamp,
@@ -106,6 +103,10 @@ class AppEventRunnerImpl : public AppEventRunner,
     content_main_delegate_ = std::make_unique<cobalt::CobaltMainDelegate>(
         startup_timestamp, initial_deep_link,
         false /* is_content_browsertests */, is_visible);
+#if BUILDFLAG(IS_ANDROID)
+    // TODO: Cleanup remaining Android use of ContentMainDelegate.
+    content::SetContentMainDelegate(content_main_delegate_.get());
+#endif
   }
 
   std::vector<content::WebContents*> GetWebContents() override {
@@ -305,7 +306,6 @@ class AppEventRunnerImpl : public AppEventRunner,
 
   void OnOsNetworkConnectedDisconnected(const SbEvent* event) override {
     CHECK(is_running());
-#if BUILDFLAG(IS_STARBOARD)
     auto* notifier = content::GetNetworkChangeNotifier();
     if (notifier) {
       auto* passive_notifier =
@@ -324,7 +324,6 @@ class AppEventRunnerImpl : public AppEventRunner,
         passive_notifier->OnIPAddressChanged();
       }
     }
-#endif
   }
 
   void OnDateTimeConfigurationChanged(const SbEvent* event) override {
@@ -377,18 +376,14 @@ class AppEventRunnerImpl : public AppEventRunner,
     params.argc = argc;
     params.argv = argv;
 #endif
+#endif
 
     main_runner_ = GetContentMainRunner();
     return content::RunContentProcess(std::move(params), main_runner_);
-#else
-    return 0;
-#endif
   }
 
   std::unique_ptr<base::AtExitManager> exit_manager_;
-#if !BUILDFLAG(IS_ANDROID)
   content::ContentMainRunner* main_runner_ = nullptr;
-#endif
   std::unique_ptr<cobalt::CobaltMainDelegate> content_main_delegate_;
 
 #if BUILDFLAG(IS_STARBOARD)

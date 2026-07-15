@@ -154,9 +154,17 @@ void ShellPlatformDelegate::CreatePlatformWindowInternal(
     Shell* shell,
     const gfx::Size& initial_size) {}
 
-void ShellPlatformDelegate::RevealShell(Shell* shell) {}
+void ShellPlatformDelegate::RevealShell(Shell* shell) {
+  if (shell && shell->web_contents()) {
+    shell->web_contents()->WasShown();
+  }
+}
 
-void ShellPlatformDelegate::ConcealShell(Shell* shell) {}
+void ShellPlatformDelegate::ConcealShell(Shell* shell) {
+  if (shell && shell->web_contents()) {
+    shell->web_contents()->WasHidden();
+  }
+}
 
 void ShellPlatformDelegate::ToggleFullscreenModeForTab(
     Shell* shell,

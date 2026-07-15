@@ -58,12 +58,24 @@ generate_jni("jni_headers") {
 generate_jni("browser_jni_headers") {
   sources = [
     "apk/app/src/main/java/dev/cobalt/browser/CobaltContentBrowserClient.java",
+    "apk/app/src/main/java/dev/cobalt/coat/AppEventBridge.java",
+  ]
+}
+
+source_set("app_event_bridge") {
+  sources = [ "app_event_bridge.cc" ]
+  deps = [
+    ":browser_jni_headers",
+    "//base",
+    "//cobalt:sb_event_handle",
+    "//starboard:starboard_group",
   ]
 }
 
 android_library("cobalt_browser_java") {
   sources = [
     "apk/app/src/main/java/dev/cobalt/browser/CobaltContentBrowserClient.java",
+    "apk/app/src/main/java/dev/cobalt/coat/AppEventBridge.java",
   ]
   srcjar_deps = [ ":browser_jni_headers" ]
   deps = [ "//third_party/jni_zero:jni_zero_java" ]
@@ -213,6 +225,9 @@ android_assets("coat_assets") {
 shared_library_with_jni("libchrobalt") {
   remove_uncalled_jni = true
   deps = [
+    ":app_event_bridge",
+    ":browser_jni_headers",
+    "//cobalt:cobalt_app",
     "//cobalt:common",
     "//cobalt/browser",
     "//cobalt/browser:cobalt_crash_annotations",
@@ -290,6 +305,7 @@ robolectric_binary("cobalt_coat_junit_tests") {
   ]
   deps = [
     ":cobalt_apk_java",
+    ":cobalt_browser_java",
     ":cobalt_main_java",
     "//base:base_java",
     "//base:base_java_test_support",
