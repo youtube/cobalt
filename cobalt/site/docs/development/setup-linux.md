@@ -141,48 +141,132 @@ To use this feature, build and run one of these configurations and monitor the t
 
 ## Running in Evergreen Mode
 
-Because Evergreen support is required for certification, you can also run Cobalt in Evergreen mode on Linux.
+Because Evergreen support is required for certification, you can also run Cobalt in Evergreen mode on Linux. In this mode, partners only need to build the Starboard platform layer (`loader_app` and `crashpad_handler`) and link against the official Google-prebuilt Cobalt Core library.
 
-1. Initialize an Evergreen build directory for `evergreen-x64`:
+### Download and configure the official Google-built Cobalt binaries from GitHub
 
-   ```bash
-   cobalt/build/gn.py -p evergreen-x64 -c qa --no-rbe
-   ```
+1. Create output directory for evergreen:
 
-2. Compile the `cobalt_loader` target, which packages the compressed Evergreen library:
-
-   ```bash
-   autoninja -C out/evergreen-x64_qa cobalt_loader
-   ```
-
-3. Launch Cobalt in Evergreen mode by running the generated helper script:
+   Create the directory with arguments matching your required build type (e.g., `qa`, `gold`) and Starboard API version (e.g., `16`, `17`).
+   An example to create directory with `build_type=qa` and `sb_api_version=16`:
 
    ```bash
-   out/evergreen-x64_qa/cobalt_loader.py [--url=<url>]
+   export COBALT_SRC=${PWD}
+   export PYTHONPATH=${PWD}:${PYTHONPATH}
+   export EG_PLATFORM=evergreen-x64
+   export EG_BUILD_TYPE=qa
+   export SB_API_VER=16
+   export EVERGREEN_DIR=out/${EG_PLATFORM}_${EG_BUILD_TYPE}
+
+   gn gen $EVERGREEN_DIR --args="target_platform=\"$EG_PLATFORM\" use_asan=false build_type=\"$EG_BUILD_TYPE\" sb_api_version=$SB_API_VER"
    ```
+
+2. Select Google-prebuilt Cobalt binaries from [GitHub Releases](https://github.com/youtube/cobalt/releases):
+
+   * Choose the correct evergreen version based on the target device specification (e.g., `27.lts.1`).
+   * The selected prebuilt binary must match your build type (`qa`/`gold`) and Starboard API version (`16`/`17`).
+   * For Cobalt certification, the compressed CRX package must be used (e.g., `cobalt_evergreen_..._qa_compressed_....crx`).
+   * Right-click the file and copy the file URL.
+
+3. Download and unzip the prebuilt package:
+
+   ```bash
+   export LOCAL_CRX_DIR=/tmp/cobalt_dl
+   rm -rf $LOCAL_CRX_DIR
+   mkdir -p $LOCAL_CRX_DIR
+
+   # Paste the prebuilt library URL from GitHub Releases
+   COBALT_CRX_URL=https://github.com/youtube/cobalt/releases/download/27.lts.1/cobalt_evergreen_x64_sbversion-16_qa_compressed.crx
+
+   wget $COBALT_CRX_URL -O $LOCAL_CRX_DIR/cobalt_prebuilt.crx
+   unzip $LOCAL_CRX_DIR/cobalt_prebuilt.crx -d $LOCAL_CRX_DIR/cobalt_prebuilt
+   ```
+
+4. Copy the files to appropriate directories:
+
+   ```bash
+   cd $COBALT_SRC
+   mkdir -p $EVERGREEN_DIR/install/lib
+   cp -f $LOCAL_CRX_DIR/cobalt_prebuilt/lib/* $EVERGREEN_DIR/
+   cp -f $LOCAL_CRX_DIR/cobalt_prebuilt/lib/* $EVERGREEN_DIR/install/lib
+   cp -f $LOCAL_CRX_DIR/cobalt_prebuilt/manifest.json $EVERGREEN_DIR/
+   cp -rf $LOCAL_CRX_DIR/cobalt_prebuilt/content $EVERGREEN_DIR/
+   ```
+
+### Build executables running on target platform (Starboard Only)
+
+With the prebuilt Cobalt library prepared, build the partner-built `loader_app` and `crashpad_handler` executables using your platform toolchain.
+
+1. Generate output folder for your target platform:
+
+   ```bash
+   export TARGET_PLATFORM=linux-x64x11
+   export TARGET_BUILD_TYPE=devel
+   export TARGET_DIR=out/${TARGET_PLATFORM}_${TARGET_BUILD_TYPE}
+
+   gn gen $TARGET_DIR --args="target_platform=\"$TARGET_PLATFORM\" build_type=\"$TARGET_BUILD_TYPE\" sb_api_version=$SB_API_VER"
+   ```
+
+2. Build Starboard loader and crashpad executables:
+
+   ```bash
+   autoninja -C $TARGET_DIR loader_app native_target/crashpad_handler elf_loader_sandbox
+   ```
+
+3. Copy necessary artifacts from evergreen folder:
+
+   ```bash
+   mkdir -p $TARGET_DIR/app/cobalt
+   cp -r $EVERGREEN_DIR/install/lib/ $TARGET_DIR/app/cobalt
+   cp -r $EVERGREEN_DIR/content/ $TARGET_DIR/app/cobalt
+   cp $EVERGREEN_DIR/manifest.json $TARGET_DIR/app/cobalt/
+   cp $TARGET_DIR/native_target/crashpad_handler $TARGET_DIR/
+   ```
+
+### Running Cobalt with loader_app
+
+To launch Cobalt in Evergreen mode, execute `loader_app` from your target directory:
+
+```bash
+cd $TARGET_DIR
+./loader_app
+```
 
 ## Running Tests
 
-The No Platform Left Behind (NPLB) test suite verifies Starboard implementation and is mandatory for certification.
+The No Platform Left Behind (NPLB) test suite verifies Starboard implementation and is mandatory for certification. In Evergreen mode, build the NPLB library using the Cobalt toolchain and launch it via `elf_loader_sandbox`.
 
-1. Compile the NPLB test suite in Evergreen mode:
-
-   ```bash
-   cobalt/build/gn.py -p evergreen-x64 -c devel --no-rbe
-   autoninja -C out/evergreen-x64_devel nplb_loader
-   ```
-
-2. Execute NPLB using the generated Python loader script, which invokes `elf_loader_sandbox` under the hood:
+1. Build NPLB library using Cobalt toolchain:
 
    ```bash
-   out/evergreen-x64_devel/nplb_loader.py
+   autoninja -C $EVERGREEN_DIR nplb
    ```
 
-3. To pass standard Google Test filtering or output arguments:
+2. Copy NPLB artifacts to target platform directory:
+
+   ```bash
+   mkdir -p $TARGET_DIR/app/cobalt
+   cp -rf $EVERGREEN_DIR/install/lib/ $TARGET_DIR/app/cobalt
+   cp -rf $EVERGREEN_DIR/content/ $TARGET_DIR/app/cobalt
+   ```
+
+3. Launch NPLB with elf_loader_sandbox:
+
+   ```bash
+   cd $TARGET_DIR
+   ./elf_loader_sandbox \
+     --evergreen_library=app/cobalt/lib/libnplb.so \
+     --evergreen_content=app/cobalt/content/
+   ```
+
+4. To pass standard Google Test filtering or output arguments:
 
    ```bash
    # Run NPLB with a specific test filter and output results to an XML file
-   out/evergreen-x64_devel/nplb_loader.py -- --gtest_filter=*Posix* --gtest_output=xml:/tmp/nplb_results.xml
+   ./elf_loader_sandbox \
+     --evergreen_library=app/cobalt/lib/libnplb.so \
+     --evergreen_content=app/cobalt/content/ \
+     --gtest_filter=*Posix* --gtest_output=xml:/tmp/nplb_results.xml
    ```
 
 ## Clean up or reset the environment
