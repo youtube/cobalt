@@ -29,7 +29,7 @@ RUN mkdir -p ${raspi_home}/tools \
 
 RUN cd ${raspi_home} \
     && wget -q \
-    "https://storage.googleapis.com/cobalt-static-storage/${raspi_sysroot}"
+    "https://storage.googleapis.com/cobalt-static-storage-public/${raspi_sysroot}"
 
 RUN cd ${raspi_home} && tar Jxpvf ${raspi_sysroot} --no-same-owner
 
