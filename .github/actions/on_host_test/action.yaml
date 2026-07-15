@@ -98,7 +98,7 @@ runs:
     # results.
     #
     # - name: Archive unit test results
-    #  uses: actions/upload-artifact@v3
+    #  uses: actions/upload-artifact@v4
     #  if: always() && steps.run-tests.outputs.test_type == 'unit_tests'
     #  with:
     #    name: unit-test-reports

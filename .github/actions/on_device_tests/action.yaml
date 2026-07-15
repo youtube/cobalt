@@ -152,13 +152,13 @@ runs:
         unzip ${COBALT_XMLS_FILENAME} -d ${RESULT_PATH}
       shell: bash
     - name: Archive Unit Test Logs
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always() && env.TEST_TYPE == 'unit_test'
       with:
         name: Device logs
         path: ${{ env.COBALT_LOGS_DIR }}/
     - name: Archive Unit Test Results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always() && env.TEST_TYPE == 'unit_test'
       with:
         name: unit-test-results
