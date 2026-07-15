@@ -24,6 +24,15 @@ import re
 import subprocess
 import sys
 
+_SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+if _SCRIPT_DIR not in sys.path:
+  sys.path.insert(0, _SCRIPT_DIR)
+
+try:
+  import convert_heaps_v2_to_html as html_converter
+except ImportError:
+  html_converter = None
+
 
 def find_repo_root():
   """Walks upwards to find the Cobalt repository root."""
@@ -58,6 +67,12 @@ def main():
       "--symbolizer_path",
       help=("Path to llvm-symbolizer. If omitted, will auto-detect "
             "inside the toolchain, falling back to system PATH."))
+  parser.add_argument(
+      "--export_html",
+      nargs="?",
+      const=True,
+      help=("Export self-contained interactive HTML Flamegraph report for "
+            "direct browser visualization. Optional output path."))
 
   args = parser.parse_args()
 
@@ -110,22 +125,24 @@ def main():
   with open(trace_path, "r", encoding="utf-8", errors="replace") as f:
     trace_string = f.read()
 
-  # Step 5: Find the base load address of libchrobalt.so
-  print("Extracting libchrobalt.so memory mapping from trace...")
-  regex_pattern = (r"\\\"?mf\\\"?:\s*\\\"?([^\\\"]*libchrobalt.so)\\\"?,"
+  # Step 5: Find the base load address of the specified library
+  lib_name = re.escape(os.path.basename(lib_path))
+  print(f"Extracting {os.path.basename(lib_path)} memory mapping from trace...")
+  regex_pattern = (rf"\\\"?mf\\\"?:\s*\\\"?([^\\\"]*{lib_name})\\\"?,"
                    r"\s*\\\"?pf\\\"?:\s*5,"
                    r"\s*\\\"?sa\\\"?:\s*\\\"?(?P<sa>[0-9a-fA-F]+)\\\"?,"
                    r"\s*\\\"?sz\\\"?:\s*\\\"?(?P<sz>[0-9a-fA-F]+)\\\"?")
   match = re.search(regex_pattern, trace_string)
 
   if not match:
-    relaxed_pattern = (r"libchrobalt.so[^}\n]*?pf[^}\n]*?5[^}\n]*?sa[^}\n]*?"
+    relaxed_pattern = (rf"{lib_name}[^}}\n]*?pf[^}}\n]*?5[^}}\n]*?sa[^}}\n]*?"
                        r"(?P<sa>[0-9a-fA-F]+)"
                        r"[^}\n]*?sz[^}\n]*?(?P<sz>[0-9a-fA-F]+)")
     match = re.search(relaxed_pattern, trace_string)
 
   if not match:
-    print("Error: Could not find libchrobalt.so executable mapping in trace!")
+    print(f"Error: Could not find {os.path.basename(lib_path)} "
+          "executable mapping in trace!")
     sys.exit(1)
 
   base_address_hex = match.group("sa")
@@ -151,10 +168,12 @@ def main():
 
   parsed_dumps = []
   for e in events:
-    args = e.get("args", {})
-    if "dumps" not in args:
+    if not isinstance(e, dict):
       continue
-    dumps = args["dumps"]
+    event_args = e.get("args") or {}
+    if "dumps" not in event_args:
+      continue
+    dumps = event_args["dumps"]
     was_string = isinstance(dumps, str)
     temp = json.loads(dumps) if was_string else dumps
     if isinstance(temp, dict) and "heaps_v2" in temp:
@@ -293,6 +312,16 @@ def main():
     for s in resolved[:10]:
       print(f"      - {s}")
     print()
+
+  if args.export_html:
+    if html_converter:
+      if isinstance(args.export_html, str):
+        html_out = os.path.abspath(args.export_html)
+      else:
+        html_out = os.path.splitext(trace_path)[0] + ".html"
+      html_converter.convert_trace_to_html(trace_path, html_out)
+    else:
+      print("Warning: Could not import convert_heaps_v2_to_html.")
 
   print("============================================================")
   print("🎉 SYMBOLIZATION COMPLETELY SUCCESSFUL!")
