@@ -71,25 +71,26 @@ jobs:
       - name: Fetch Current Labels
         id: get-labels
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_NUMBER: ${{ github.event.number }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ] || [ "${{ github.event_name }}" = "pull_request_target" ]; then
-            labels=$(gh pr view ${{ github.event.number }} --json labels -q '[.labels.[].name]')
+          # Fetch labels dynamically to avoid stale labels in rerun/workflow_dispatch context.
+          if [ "$EVENT_NAME" = "pull_request" ] || [ "$EVENT_NAME" = "pull_request_target" ]; then
+            labels=$(gh pr view "$EVENT_NUMBER" --json labels -q '[.labels.[].name]')
           else
             labels="[]"
           fi
           echo "labels=${labels}" >> $GITHUB_OUTPUT
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Remove runtest if exists
         if: github.event_name == 'pull_request'
         continue-on-error: true  # Ignore this step if we cannot remove the label.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NUMBER: ${{ github.event.number }}
         run: |
-          set +e
-          curl \
-            -X DELETE \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-            ${GITHUB_PR_REPO_URL}/issues/${GITHUB_EVENT_NUMBER}/labels/runtest
+          gh pr edit "$EVENT_NUMBER" --remove-label runtest
         shell: bash
       - name: Set platforms
         id: set-platforms
@@ -323,11 +324,12 @@ jobs:
           test_targets_json_file="cobalt/build/testing/targets/${first_platform}/test_targets.json"
 
           if [ -f "$test_targets_json_file" ]; then
+            has_runtest_label=$(echo "${LABELS}" | jq 'any(. == "runtest")')
             if [[ "$TEST_ON_DEVICE" == "true" && (
                   "$IS_NON_DRAFT_PULL_REQUEST" == "true" ||
                   "$RUN_ODT_ON_NIGHTLY" == "true" ||
                   "$RUN_ODT_ON_PUSH" == "true" ||
-                  $(echo "${LABELS}" | jq 'contains(["runtest"])') == "true" ) ]]; then
+                  "$has_runtest_label" == "true" ) ]]; then
               run_on_device_test="true"
             fi
 

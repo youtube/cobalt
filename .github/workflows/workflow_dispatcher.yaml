@@ -8,6 +8,7 @@ permissions: read-all
 
 jobs:
   dispatch:
+    if: github.event.label.name == 'runtest' || github.event.label.name == 'yts_playback_test'
     runs-on: ubuntu-latest
     permissions:
       actions: write
@@ -50,11 +51,11 @@ jobs:
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   workflow_id: workflow,
-                  branch: pr.head.ref,
+                  head_sha: pr.head.sha,
                   event: 'pull_request'
                 });
 
-                const prRuns = runs.data.workflow_runs.filter(run => run.head_sha === pr.head.sha);
+                const prRuns = runs.data.workflow_runs;
                 if (prRuns.length === 0) {
                   console.log(`No runs found for workflow ${workflow}, branch ${pr.head.ref}, and SHA ${pr.head.sha}`);
                   return;
