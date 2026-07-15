@@ -18,6 +18,7 @@
 #include <sys/resource.h>
 #include <unistd.h>
 
+#include <chrono>
 #include <iterator>
 
 #include "starboard/android/shared/media_common.h"
@@ -238,7 +239,7 @@ MediaCodecDecoder::MediaCodecDecoder(
       video_decoder_poll_interval_us_(
           tunnel_mode_enabled_ ? kDefaultVideoDecoderTunnelPollIntervalUs
                                : kDefaultVideoDecoderPollIntervalUs),
-      use_dual_threads_(use_dual_threads && !tunnel_mode_enabled_),
+      use_dual_threads_(use_dual_threads),
       enable_trivial_optimizations_(enable_trivial_optimizations) {
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
@@ -643,7 +644,7 @@ void MediaCodecDecoder::OutputThreadFunc() {
       auto& dequeue_output_result = dequeue_output_results.front();
       if (dequeue_output_result.index < 0) {
         host_->RefreshOutputFormat(media_codec_bridge_.get());
-      } else {
+      } else if (!tunnel_mode_enabled_) {
         host_->ProcessOutputBuffer(media_codec_bridge_.get(),
                                    dequeue_output_result);
       }
@@ -653,16 +654,26 @@ void MediaCodecDecoder::OutputThreadFunc() {
       CollectPendingOutputData_Locked(&dequeue_output_results);
     }
 
-    bool ticked = host_->Tick(media_codec_bridge_.get());
+    bool ticked = false;
+    if (!tunnel_mode_enabled_) {
+      ticked = host_->Tick(media_codec_bridge_.get());
+    }
 
     if (!ticked && dequeue_output_results.empty()) {
       std::unique_lock lock(mutex_);
       CollectPendingOutputData_Locked(&dequeue_output_results);
       if (dequeue_output_results.empty()) {
-        // TODO(b/329686979): Allow Tick() to return the time to next frame
-        // release to dynamically adjust the wait duration.
-        video_output_condition_variable_.wait_for(
-            lock, std::chrono::microseconds(8'000));
+        if (tunnel_mode_enabled_) {
+          video_output_condition_variable_.wait(lock, [this] {
+            return destroying_.load() || !dequeue_output_results_.empty();
+          });
+          CollectPendingOutputData_Locked(&dequeue_output_results);
+        } else {
+          // TODO(b/329686979): Allow Tick() to return the time to next frame
+          // release to dynamically adjust the wait duration.
+          video_output_condition_variable_.wait_for(
+              lock, std::chrono::microseconds(8'000));
+        }
       }
     }
   }
