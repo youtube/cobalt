@@ -27,7 +27,7 @@
 #include "starboard/shared/posix/free_space.h"
 #include "starboard/shared/posix/memory_mapped_file.h"
 
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
 #include "starboard/elf_loader/evergreen_config.h"
 #include "starboard/extension/loader_app_metrics.h"
 #include "starboard/shared/starboard/loader_app_metrics.h"
@@ -41,7 +41,7 @@
 #endif
 
 const void* SbSystemGetExtension(const char* name) {
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
   const elf_loader::EvergreenConfig* evergreen_config =
       elf_loader::EvergreenConfig::GetInstance();
   if (evergreen_config != NULL &&
@@ -72,7 +72,7 @@ const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionFreeSpaceName) == 0) {
     return starboard::GetFreeSpaceApi();
   }
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
   if (strcmp(name, kStarboardExtensionLoaderAppMetricsName) == 0) {
     return starboard::GetLoaderAppMetricsApi();
   }

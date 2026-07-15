@@ -98,7 +98,6 @@ bool MediaIsKeySystemSupported(SbMediaVideoCodec video_codec,
                                   SbMediaAudioCodec audio_codec,
                                   const char* key_system) {
 #if defined(HAS_OCDM)
-  using third_party::starboard::rdk::shared::drm::DrmSystemOcdm;
   return DrmSystemOcdm::IsKeySystemSupported(
       key_system, CodecToMimeType(video_codec).c_str()) &&
       DrmSystemOcdm::IsKeySystemSupported(

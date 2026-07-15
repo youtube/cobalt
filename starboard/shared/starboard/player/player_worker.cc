@@ -54,7 +54,7 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
                            void* context)
     : job_thread_(JobThread::Create(
           "player_worker",
-          ThreadOptions().SetPriority(kSbThreadPriorityHigh))),
+          ThreadOptions().SetPriority(ThreadPriority::kHigh))),
       audio_codec_(audio_codec),
       video_codec_(video_codec),
       handler_(std::move(handler)),

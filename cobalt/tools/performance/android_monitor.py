@@ -110,7 +110,7 @@ def _write_monitoring_data_csv(output_dir: str, filename_base: str,
 
 
 def _plot_monitoring_data_from_df(
-    df_input: pd.DataFrame,
+    df_input: 'pd.DataFrame',
     output_filename_base_with_dir: str,
     output_filepath_override: Optional[str] = None,
 ) -> bool:

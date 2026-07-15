@@ -46,10 +46,10 @@ class PruneCrashReportThread : public WorkerThread::Delegate, public Stoppable {
 
   ~PruneCrashReportThread();
 
-#if BUILDFLAG(IS_NATIVE_TARGET)
+#if BUILDFLAG(IS_NATIVE_TOOLCHAIN)
   //! \brief Instructs the thread to prune crash reports now.
   void PruneNow();
-#endif  // BUILDFLAG(IS_NATIVE_TARGET)
+#endif  // BUILDFLAG(IS_NATIVE_TOOLCHAIN)
 
   // Stoppable:
 

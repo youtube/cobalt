@@ -26,6 +26,7 @@
 
 #include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
+#include "starboard/common/rect.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/time.h"
 #include "starboard/event.h"
@@ -274,10 +275,7 @@ class SB_EXPORT_ANDROID Application {
   void HandleFrame(SbPlayer player,
                    const scoped_refptr<VideoFrame>& frame,
                    int z_index,
-                   int x,
-                   int y,
-                   int width,
-                   int height);
+                   const Rect& rect);
 
   // Registers a |callback| function that will be called when |Teardown| is
   // called.
@@ -310,10 +308,7 @@ class SB_EXPORT_ANDROID Application {
   virtual void AcceptFrame(SbPlayer player,
                            const scoped_refptr<VideoFrame>& frame,
                            int z_index,
-                           int x,
-                           int y,
-                           int width,
-                           int height) {}
+                           const Rect& rect) {}
 
   // Blocks until the next event is available. Subclasses must implement this
   // method to provide events for the platform. Gives ownership to the caller.

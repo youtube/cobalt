@@ -16,9 +16,6 @@ inputs:
   test_targets_json_file:
     description: "The path to test targets json file."
     required: true
-  archive_browsertests:
-    description: "Indicates if browser tests should be archived."
-    default: "false"
   platform:
     description: "The platform for which artifacts are being uploaded."
     required: true
@@ -31,6 +28,48 @@ runs:
     - name: Create Artifacts Directory
       run: mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
       shell: bash
+
+    - name: Compute Archive Flags
+      id: compute-flags
+      env:
+        PLATFORM: ${{ inputs.platform }}
+      run: |
+        host_archive_flags="--compression zstd --compression-level=9"
+        android_archive_flags="--compression gz --archive-per-target --use-android-deps-path --flatten-deps"
+        rdk_archive_flags="--compression gz --archive-per-target --flatten-deps"
+
+        device_archive_flags=""
+        if [[ "${PLATFORM}" == *android* ]]; then
+          device_archive_flags="${android_archive_flags}"
+        elif [[ "${PLATFORM}" == *rdk* ]]; then
+          device_archive_flags="${rdk_archive_flags}"
+        fi
+
+        echo "host_archive_flags=${host_archive_flags}" >> $GITHUB_OUTPUT
+        echo "device_archive_flags=${device_archive_flags}" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Parse Test Targets
+      id: parse-targets
+      if: inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_on_device_test_artifacts == 'true'
+      env:
+        TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
+      run: |
+        set -x
+        cd cobalt/src
+        json_file="${TEST_TARGETS_JSON_FILE}"
+
+        # This includes both gtest and junit since both will be archived as though they were on-host tests.
+        host_targets=$(jq -cr '[.[] | select(.target != null and .runs_on == "host" and (.test_type == "gtest" or .test_type == "junit")) | .target] | join(",")' "${json_file}")
+        echo "host_targets=${host_targets}" >> $GITHUB_OUTPUT
+
+        device_gtest_targets=$(jq -cr '[.[] | select(.target != null and .runs_on == "device" and .test_type == "gtest") | .target] | join(",")' "${json_file}")
+        echo "device_gtest_targets=${device_gtest_targets}" >> $GITHUB_OUTPUT
+
+        browser_web_targets=$(jq -cr '[.[] | select(.target != null and (.test_type == "browsertest" or .test_type == "webtest")) | .target] | join(",")' "${json_file}")
+        echo "browser_web_targets=${browser_web_targets}" >> $GITHUB_OUTPUT
+      shell: bash
+
     - name: Copy Runnables to Artifacts
       if: inputs.upload_on_device_test_artifacts == 'true'
       env:
@@ -38,55 +77,63 @@ runs:
       run: |
         set -eux
         cd cobalt/src/
-        mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
-        mapfile -t targets < <(jq -r '.executables | .[]' "${TEST_TARGETS_JSON_FILE}")
+        mapfile -t targets < <(jq -r '.[] | select(.executable != null and .runs_on == "device") | .executable' "${TEST_TARGETS_JSON_FILE}")
         for target in "${targets[@]}"; do
           cp "${target}" "${GITHUB_WORKSPACE}/artifacts/"
         done
       shell: bash
-    - name: Archive Test Dependencies
-      if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_on_host_test_artifacts == 'true'
+    - name: Archive Host Tests
+      if: inputs.upload_on_host_test_artifacts == 'true' && steps.parse-targets.outputs.host_targets != ''
       env:
-        TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
+        HOST_TARGETS: ${{ steps.parse-targets.outputs.host_targets }}
         PLATFORM: ${{ inputs.platform }}
         CONFIG: ${{ inputs.config }}
-        ARCHIVE_BROWSERTESTS: ${{ inputs.archive_browsertests }}
+        ARCHIVE_FLAGS: ${{ steps.compute-flags.outputs.host_archive_flags }}
       run: |
         set -x
-        mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
-        cd cobalt/src/
+        cd cobalt/src
+        time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
+          --source-dir . \
+          --out-dir out/${PLATFORM}_${CONFIG}/ \
+          --destination-dir ${GITHUB_WORKSPACE}/artifacts \
+          --targets "${HOST_TARGETS}" \
+          ${ARCHIVE_FLAGS}
+      shell: bash
 
-        # Configure archiver to gz compression for android, raspi, and rdk as the devices don't have zstd installed.
-        FLAGS=""
-        if [[ "${PLATFORM}" == *android* ]]; then
-          FLAGS="--compression gz --archive-per-target --use-android-deps-path --flatten-deps"
-        elif [[ "${PLATFORM}" == *raspi* || "${PLATFORM}" == *rdk* ]]; then
-          FLAGS="--compression gz --archive-per-target --flatten-deps"
-        else
-          FLAGS="--compression zstd --compression-level=9"
-        fi
+    - name: Archive Device Tests
+      if: inputs.upload_on_device_test_artifacts == 'true' && steps.parse-targets.outputs.device_gtest_targets != ''
+      env:
+        DEVICE_TARGETS: ${{ steps.parse-targets.outputs.device_gtest_targets }}
+        PLATFORM: ${{ inputs.platform }}
+        CONFIG: ${{ inputs.config }}
+        ARCHIVE_FLAGS: ${{ steps.compute-flags.outputs.device_archive_flags }}
+      run: |
+        set -x
+        cd cobalt/src
+        time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
+          --source-dir . \
+          --out-dir out/${PLATFORM}_${CONFIG}/ \
+          --destination-dir ${GITHUB_WORKSPACE}/artifacts \
+          --targets "${DEVICE_TARGETS}" \
+          ${ARCHIVE_FLAGS}
+      shell: bash
 
-        TARGETS=$(jq -cr '.test_targets | join(",")' "${TEST_TARGETS_JSON_FILE}")
-
-        # Archive browser tests if requested.
-        if [[ "${ARCHIVE_BROWSERTESTS}" == "true" ]]; then
-          # Determine the browser test target for this platform.
-          BROWSERTEST_TARGET="cobalt/testing/browser_tests:cobalt_browsertests"
-          if [[ -n "${TARGETS}" ]]; then
-            TARGETS="${TARGETS},${BROWSERTEST_TARGET}"
-          else
-            TARGETS="${BROWSERTEST_TARGET}"
-          fi
-        fi
-
-        if [[ -n "${TARGETS}" ]]; then
-          time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
-            --source-dir ${GITHUB_WORKSPACE}/cobalt/src \
-            --out-dir out/${PLATFORM}_${CONFIG}/ \
-            --destination-dir ${GITHUB_WORKSPACE}/artifacts \
-            --targets "${TARGETS}" \
-            ${FLAGS}
-        fi
+    - name: Archive Browser/Web Tests
+      if: (inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_on_host_test_artifacts == 'true') && steps.parse-targets.outputs.browser_web_targets != ''
+      env:
+        BROWSER_WEB_TEST_TARGETS: ${{ steps.parse-targets.outputs.browser_web_targets }}
+        PLATFORM: ${{ inputs.platform }}
+        CONFIG: ${{ inputs.config }}
+        ARCHIVE_FLAGS: ${{ steps.compute-flags.outputs.flags }}
+      run: |
+        set -x
+        cd cobalt/src
+        time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
+          --source-dir . \
+          --out-dir out/${PLATFORM}_${CONFIG}/ \
+          --destination-dir ${GITHUB_WORKSPACE}/artifacts \
+          --targets "${BROWSER_WEB_TEST_TARGETS}" \
+          ${ARCHIVE_FLAGS}
       shell: bash
     - name: Upload On-Host Test Artifacts Archive
       if: inputs.upload_on_host_test_artifacts == 'true'

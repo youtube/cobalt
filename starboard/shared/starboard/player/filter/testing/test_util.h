@@ -65,8 +65,6 @@ bool CreateAudioComponents(
 
 VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec);
 
-bool IsPartialAudioSupported();
-
 scoped_refptr<InputBuffer> GetAudioInputBuffer(VideoDmpReader* dmp_reader,
                                                size_t index);
 

@@ -19,13 +19,9 @@
 #define STARBOARD_RDK_SHARED_GRAPHICS_H_
 
 namespace starboard {
-namespace rdk {
-namespace shared {
 
 const void* GetGraphicsApi();
 
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
 
 #endif // STARBOARD_RDK_SHARED_GRAPHICS_H_

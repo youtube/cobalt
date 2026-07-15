@@ -53,10 +53,7 @@ typedef struct CobaltExtensionPlatformServicePrivate {
                      bool* invalid_state) = 0;
 } CobaltExtensionPlatformServicePrivate;
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
 
 namespace {
 
@@ -138,7 +135,4 @@ const void* GetPlatformServiceApi() {
   return &kPlatformServiceApi;
 }
 
-}  // namespace thirdpary
 }  // namespace starboard
-}  // namespace rdk
-}  // namespace shared

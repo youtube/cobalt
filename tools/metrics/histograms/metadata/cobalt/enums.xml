@@ -44,27 +44,12 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="1" label="Is hung"/>
 </enum>
 
-<enum name="SplashScreenFetchedState">
-  <int value="0" label="Success: Content from builtin"/>
-  <int value="1" label="Success: Content from cache"/>
-  <int value="2"
-      label="Error: content from cache is empty, fallback to builtin."/>
-  <int value="3"
-      label="Error: Content from cache is too large, fallback to builtin."/>
-  <int value="4" label="Error: Failed to read cache, fallback to builtin."/>
-  <int value="5" label="Error: Builtin resource not found."/>
-</enum>
-
-<enum name="VariationsConfigState">
-  <int value="0" label="Config is valid"/>
-  <int value="1" label="Config is expired"/>
-  <int value="2" label="Config is missing timestamp"/>
-</enum>
-
-<enum name="StorageInjectionResult">
-  <int value="0" label="Success"/>
-  <int value="1" label="Error"/>
-  <int value="2" label="Timeout"/>
+<enum name="LocalStorageDatabaseResetReason">
+  <int value="0" label="Failure to open the database"/>
+  <int value="1" label="Schema version mismatch"/>
+  <int value="2" label="Database corruption or read errors"/>
+  <int value="3" label="Excessive commit errors"/>
+  <int value="4" label="Unknown"/>
 </enum>
 
 <enum name="MigrationOutcome">
@@ -81,6 +66,40 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="2" label="Write Failed"/>
 </enum>
 
+<enum name="SlotSelectionStatus">
+  <summary>Possible status of slot selection by the Loader App.</summary>
+  <int value="0" label="Unknown"/>
+  <int value="1" label="Current slot"/>
+  <int value="2" label="Roll forward"/>
+  <int value="3" label="Roll back: Out of retries"/>
+  <int value="4" label="Roll back: No library file"/>
+  <int value="5" label="Roll back: Bad app key file"/>
+  <int value="6" label="Roll back: Slot draining"/>
+  <int value="7" label="Roll back: Failed to adopt"/>
+  <int value="8" label="Roll back: Failed to load Cobalt"/>
+  <int value="9" label="Roll back: Failed to check SABI"/>
+  <int value="10" label="Roll back: Failed to look up symbols"/>
+  <int value="11" label="Evergreen Lite"/>
+  <int value="12" label="Load system image: Failed to initialize installation manager"/>
+</enum>
+
+<enum name="SplashScreenFetchedState">
+  <int value="0" label="Success: Content from builtin"/>
+  <int value="1" label="Success: Content from cache"/>
+  <int value="2"
+      label="Error: content from cache is empty, fallback to builtin."/>
+  <int value="3"
+      label="Error: Content from cache is too large, fallback to builtin."/>
+  <int value="4" label="Error: Failed to read cache, fallback to builtin."/>
+  <int value="5" label="Error: Builtin resource not found."/>
+</enum>
+
+<enum name="StorageInjectionResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Error"/>
+  <int value="2" label="Timeout"/>
+</enum>
+
 <enum name="StorageReadResult">
   <int value="0" label="Success"/>
   <int value="1" label="Partition key not default"/>
@@ -92,12 +111,18 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="7" label="Parse error"/>
 </enum>
 
-<enum name="LocalStorageDatabaseResetReason">
-  <int value="0" label="Failure to open the database"/>
-  <int value="1" label="Schema version mismatch"/>
-  <int value="2" label="Database corruption or read errors"/>
-  <int value="3" label="Excessive commit errors"/>
-  <int value="4" label="Unknown"/>
+<enum name="VariationsConfigState">
+  <int value="0" label="Config is valid"/>
+  <int value="1" label="Config is expired"/>
+  <int value="2" label="Config is missing timestamp"/>
+</enum>
+
+<enum name="FinchConfigOutcome">
+  <int value="0" label="Regular config loaded"/>
+  <int value="1" label="Safe config loaded"/>
+  <int value="2" label="Empty config loaded due to crash streak"/>
+  <int value="3" label="Empty config loaded due to expiration"/>
+  <int value="4" label="Empty config loaded due to rollback"/>
 </enum>
 
 </enums>

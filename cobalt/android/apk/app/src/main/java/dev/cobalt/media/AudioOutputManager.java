@@ -54,6 +54,7 @@ public class AudioOutputManager {
       int sampleType,
       int sampleRate,
       int channelCount,
+      int maxSamplesPerWrite,
       int preferredBufferSizeInBytes,
       int tunnelModeAudioSessionId,
       boolean isWebAudio) {
@@ -62,6 +63,7 @@ public class AudioOutputManager {
             sampleType,
             sampleRate,
             channelCount,
+            maxSamplesPerWrite,
             preferredBufferSizeInBytes,
             tunnelModeAudioSessionId,
             isWebAudio);
@@ -348,7 +350,7 @@ public class AudioOutputManager {
             sampleSizeInBytes,
             numberOfChannels,
             AudioTrackBridge.AV_SYNC_HEADER_V1_SIZE);
-        return -1;
+        return TunnelModeAudioSessionId.NONE;
       }
     }
     AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);

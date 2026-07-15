@@ -928,6 +928,9 @@ void ChunkDemuxer::RemoveId(const std::string& id) {
     CHECK(stream_found);
   }
   id_to_streams_map_.erase(id);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  id_to_mime_map_.erase(id);
+#endif
 }
 
 Ranges<base::TimeDelta> ChunkDemuxer::GetBufferedRanges(

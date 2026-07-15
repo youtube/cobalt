@@ -46,7 +46,6 @@ static_library("starboard_platform") {
     "//starboard/shared/opus/opus_audio_decoder.cc",
     "//starboard/shared/opus/opus_audio_decoder.h",
     "//starboard/shared/posix/environment.cc",
-    "//starboard/shared/posix/file_atomic_replace.cc",
     "//starboard/shared/posix/page_internal.cc",
     "//starboard/shared/posix/set_non_blocking_internal.cc",
     "//starboard/shared/posix/storage_write_record.cc",
@@ -79,14 +78,6 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/drm/drm_system_internal.h",
     "//starboard/shared/starboard/drm/drm_update_server_certificate.cc",
     "//starboard/shared/starboard/drm/drm_update_session.cc",
-    "//starboard/shared/starboard/experimental_features.cc",
-    "//starboard/shared/starboard/experimental_features.h",
-    "//starboard/shared/starboard/feature_list.cc",
-    "//starboard/shared/starboard/feature_list.h",
-    "//starboard/shared/starboard/features.cc",
-    "//starboard/shared/starboard/features.h",
-    "//starboard/shared/starboard/file_atomic_replace_write_file.cc",
-    "//starboard/shared/starboard/file_atomic_replace_write_file.h",
     "//starboard/shared/starboard/file_storage/storage_close_record.cc",
     "//starboard/shared/starboard/file_storage/storage_delete_record.cc",
     "//starboard/shared/starboard/file_storage/storage_get_record_size.cc",
@@ -98,12 +89,8 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/log_raw_format.cc",
     "//starboard/shared/starboard/media/media_can_play_mime_and_key_system.cc",
     "//starboard/shared/starboard/media/media_get_audio_buffer_budget.cc",
-    "//starboard/shared/starboard/media/media_get_buffer_alignment.cc",
     "//starboard/shared/starboard/media/media_get_buffer_allocation_unit.cc",
     "//starboard/shared/starboard/media/media_get_buffer_garbage_collection_duration_threshold.cc",
-    "//starboard/shared/starboard/media/media_get_buffer_padding.cc",
-    "//starboard/shared/starboard/media/media_get_progressive_buffer_budget.cc",
-    "//starboard/shared/starboard/media/media_is_buffer_using_memory_pool.cc",
     "//starboard/shared/starboard/microphone/microphone_close.cc",
     "//starboard/shared/starboard/microphone/microphone_create.cc",
     "//starboard/shared/starboard/microphone/microphone_destroy.cc",
@@ -116,6 +103,7 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/system_supports_resume.cc",
     "//starboard/shared/starboard/thread_checker.h",
     "//starboard/shared/starboard/window_set_default_options.cc",
+    "//starboard/shared/stub/media_can_change_type.cc",
     "//starboard/shared/stub/system_get_total_gpu_memory.cc",
     "//starboard/shared/stub/system_get_used_gpu_memory.cc",
     "//starboard/shared/stub/system_hide_splash_screen.cc",
@@ -131,10 +119,6 @@ static_library("starboard_platform") {
     "android_media_session_client.cc",
     "application_android.cc",
     "application_android.h",
-
-    # TODO: b/374300500 - posix_emu things should not be used on Android anymore
-    # "asset_manager.cc",
-    # "asset_manager.h",
     "audio_decoder_passthrough.h",
     "audio_output_manager.cc",
     "audio_output_manager.h",
@@ -149,6 +133,8 @@ static_library("starboard_platform") {
     "audio_sink_is_audio_sample_type_supported.cc",
     "audio_sink_min_required_frames_tester.cc",
     "audio_sink_min_required_frames_tester.h",
+    "audio_track.cc",
+    "audio_track.h",
     "audio_track_audio_sink_type.cc",
     "audio_track_audio_sink_type.h",
     "audio_track_bridge.cc",
@@ -188,6 +174,8 @@ static_library("starboard_platform") {
     "media_buffer_pool_extension.h",
     "media_capabilities_cache.cc",
     "media_capabilities_cache.h",
+    "media_codec.cc",
+    "media_codec.h",
     "media_codec_audio_decoder.cc",
     "media_codec_audio_decoder.h",
     "media_codec_bridge.cc",
@@ -210,6 +198,10 @@ static_library("starboard_platform") {
     "memfd_media_buffer_pool.cc",
     "memfd_media_buffer_pool.h",
     "microphone_impl.cc",
+    "ndk_media_codec.cc",
+    "ndk_media_codec.h",
+    "ndk_media_utils.cc",
+    "ndk_media_utils.h",
     "platform_info.cc",
     "platform_info.h",
     "platform_service.cc",
@@ -228,12 +220,11 @@ static_library("starboard_platform") {
     # TODO: b/374300500 - posix_emu things should not be used on Android anymore
     # "posix_emu/dirent.cc",
     # "posix_emu/errno.cc",
-    # "posix_emu/file.cc",
     # "posix_emu/pthread.cc",
-    # "posix_emu/stat.cc",
 
     "runtime_resource_overlay.cc",
     "runtime_resource_overlay.h",
+    "safe_jni.h",
     "sanitizer_options.cc",
 
     # TODO: (cobalt b/392178584) clean up speech synthesis code.
@@ -241,7 +232,7 @@ static_library("starboard_platform") {
     #"speech_synthesis_internal.cc",
     #"speech_synthesis_is_supported.cc",
     #"speech_synthesis_speak.cc",
-    "starboard_bridge.cc",
+    "base_starboard_bridge.cc",
     "starboard_bridge.h",
     "starboard_feature_list.cc",
     "system_get_extensions.cc",
@@ -258,8 +249,6 @@ static_library("starboard_platform") {
     "system_request_stop.cc",
     "text_to_speech_helper.cc",
     "text_to_speech_helper.h",
-    "thread_create_priority.cc",
-    "thread_get_id.cc",
     "thread_platform_android.cc",
     "time_zone_get_name.cc",
     "video_frame_tracker.cc",
@@ -277,7 +266,6 @@ static_library("starboard_platform") {
 
     #"window_create.cc",
     #"window_destroy.cc",
-    #"window_get_diagonal_size_in_inches.cc",
     #"window_get_platform_handle.cc",
     #"window_get_size.cc",
     #"window_internal.h",
@@ -308,11 +296,13 @@ static_library("starboard_platform") {
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//starboard/common",
     "//starboard/extension:feature_config_header",
+    "//starboard/shared/starboard:feature_list",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
 
   deps = [
+    ":media_codec_video_decoder_helpers",
     "//base",
     "//third_party/opus",
   ]
@@ -328,7 +318,7 @@ static_library("starboard_platform") {
     ]
   }
 
-  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  if (is_starboard && current_toolchain == starboard_toolchain) {
     sources -= [
       "crash_handler.cc",
       "crash_handler.h",
@@ -338,6 +328,11 @@ static_library("starboard_platform") {
       "//starboard/shared/starboard/crash_handler.h",
       "//starboard/shared/starboard/loader_app_metrics.cc",
       "//starboard/shared/starboard/loader_app_metrics.h",
+      "asset_manager.cc",
+      "asset_manager.h",
+      "posix_emu/access.cc",
+      "posix_emu/file.cc",
+      "posix_emu/stat.cc",
     ]
 
     public_deps += [
@@ -371,7 +366,7 @@ static_library("starboard_base_symbolize") {
     "//starboard:starboard_headers_only",
     "//starboard/common:common_headers_only",
   ]
-  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  if (is_starboard && current_toolchain == starboard_toolchain) {
     public_deps = [ "//starboard/elf_loader:evergreen_info" ]
   }
 
@@ -381,15 +376,42 @@ static_library("starboard_base_symbolize") {
   check_includes = false
 }
 
+static_library("media_codec_video_decoder_helpers") {
+  sources = [
+    "media_codec_video_decoder_helpers.cc",
+    "media_codec_video_decoder_helpers.h",
+  ]
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+  deps = [
+    "//starboard/common",
+    "//starboard/shared/starboard/media:media_util",
+  ]
+}
+
 static_library("test_support") {
   testonly = true
-  public_deps = [ "//testing/gtest" ]
 
-  deps = [ ":starboard_platform" ]
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+
+  public_deps = [ "//starboard/testing:test_runner" ]
+
+  deps = [
+    ":starboard_platform",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//third_party/jni_zero:jni_zero",
+  ]
 
   sources = [
+    "//starboard/shared/starboard/features_test_util.cc",
+    "//starboard/shared/starboard/features_test_util.h",
+    "fake_audio_track.cc",
+    "fake_audio_track.h",
+    "fake_media_codec.cc",
+    "fake_media_codec.h",
     "starboard_test_environment.cc",
     "starboard_test_environment.h",
+    "test_runner.cc",
   ]
 }
 
@@ -398,36 +420,44 @@ test("starboard_platform_tests") {
 
   sources = media_tests_sources + player_tests_sources + [
               "//starboard/common/test_main.cc",
+              "audio_track_audio_sink_type_test.cc",
               "drm_session_id_mapper_test.cc",
+              "features_extension_test.cc",
               "media_capabilities_cache_test.cc",
+              "media_codec_decoder_test.cc",
+              "media_codec_video_decoder_helpers_test.cc",
+              "media_codec_video_decoder_test.cc",
               "memfd_media_buffer_pool_test.cc",
               "mock_media_capabilities_cache.cc",
               "mock_media_capabilities_cache.h",
               "model_year_test.cc",
               "player_get_preferred_output_mode_test.cc",
               "video_frame_tracker_test.cc",
+              "video_window_test.cc",
             ]
-
-  # Add starboard_feature_test to Android's starboard_platform_tests,
-  # since Android is the only platform that includes starboard_feature.
-  sources += [ "//starboard/shared/starboard/starboard_feature_test.cc" ]
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
   deps = [
+    ":media_codec_video_decoder_helpers",
     ":starboard_platform",
     ":test_support",
+    "//base",
+    "//cobalt/android:cobalt_main_java",
     "//starboard:starboard_group",
     "//starboard/shared/starboard/drm:drm_test_helpers",
     "//starboard/shared/starboard/player/filter/testing:test_util",
+    "//starboard/testing:scoped_feature_list",
     "//testing/gmock",
     "//testing/gtest",
+    "//third_party/jni_zero:jni_zero",
   ]
 }
 
 java_cpp_enum("java_enums") {
   sources = [
-    "media_codec_bridge.h",
+    "media_codec.h",
+    "media_common.h",
     "media_drm_bridge.h",
   ]
 }

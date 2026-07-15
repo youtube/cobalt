@@ -5,10 +5,6 @@ on:
     - cron: '0 * * * *' # Hourly.
   workflow_dispatch:
     inputs:
-      start_commit:
-        description: 'The commit to start rolling from, should point to the last release chore'
-        type: string
-        default: '217cc0c75ae4620743cd57d436f5f3a7e10cd289'
       max_commits:
         description: 'Max number of commits to include on a single PR'
         type: number
@@ -23,15 +19,20 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: [
+          {source: main, target: 27.lts, autoroll: .github/AUTOROLL},
+          {source: main, target: staging, autoroll: .github/AUTOROLL},
+          {source: chromium/main, target: staging, autoroll: .github/AUTOROLL_CHROMIUM},
+        ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
-          filter: blob:none
-          sparse-checkout: |
-            .github
-            .gitmodules
+          ref: main
+          fetch-depth: 1000
           token: ${{ secrets.CHERRY_PICK_TOKEN }}
 
       - name: Setup Git user
@@ -42,41 +43,40 @@ jobs:
 
       - name: Prepare Cherry Pick Branch
         env:
-          TARGET_BRANCH: 27.lts
+          SOURCE_BRANCH: ${{ matrix.branch.source }}
+          TARGET_BRANCH: ${{ matrix.branch.target }}
+          FETCH_DEPTH: 1000
         run: |
           set -x
 
-          # Copy the script from the main branch before switching branches.
-          cp .github/scripts/autoroll_lts.py "${RUNNER_TEMP}"/
+          # Copy script from main branch.
+          git show main:.github/scripts/autoroll_lts.py > "${RUNNER_TEMP}/autoroll_lts.py"
 
-          # Unshallow the repository to ensure all history for all branches is fetched.
-          # Fetch enough history for target branch to find merge base.
-          git fetch --depth=1000 --no-recurse-submodules --filter=blob:none origin "${TARGET_BRANCH}:${TARGET_BRANCH}"
+          git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "${TARGET_BRANCH}:${TARGET_BRANCH}"
 
-          # Use existing branch from remote if it exists, otherwise start from the target branch.
-          if git fetch --no-recurse-submodules --filter=blob:none origin "autoroll-to-${TARGET_BRANCH}"; then
-            git checkout --no-recurse-submodules -B "autoroll-to-${TARGET_BRANCH}" FETCH_HEAD
+          # Use existing branch from remote if it exists, otherwise start from target branch.
+          if git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"; then
+            git checkout --no-recurse-submodules -B "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" FETCH_HEAD
           else
-            git checkout --no-recurse-submodules -B "autoroll-to-${TARGET_BRANCH}" "${TARGET_BRANCH}" --no-track
+            git checkout --no-recurse-submodules -B "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" "${TARGET_BRANCH}" --no-track
           fi
 
-          # Ensure latest main with enough history.
-          git fetch --depth=1000 --no-recurse-submodules --filter=blob:none origin main:main
+          # Fetch enough history for source branch.
+          git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "${SOURCE_BRANCH}:${SOURCE_BRANCH}"
 
       - name: Cherry Pick Merged PRs
         id: autoroll
         env:
-          TARGET_BRANCH: 27.lts
-          START_COMMIT: ${{ inputs.start_commit }}
-          MAX_COMMITS: ${{ inputs.max_commits || 10 }}
+          MAX_COMMITS: ${{ inputs.max_commits || 25 }}
         run: |
           set -x
 
           # Run the Python script to perform cherry-picks and get all PR links.
           PR_LINKS=$(python3 "${RUNNER_TEMP}/autoroll_lts.py" \
-            --target-branch "${TARGET_BRANCH}" \
-            --start-commit "${START_COMMIT}" \
-            --max-commits "${MAX_COMMITS}")
+            --source-branch "${{ matrix.branch.source }}" \
+            --target-branch "${{ matrix.branch.target }}" \
+            --autoroll-file "${{ matrix.branch.autoroll }}" \
+            --max-commits "${{ env.MAX_COMMITS }}")
 
           if [[ -n "${PR_LINKS}" ]]; then
             echo "cherry_picked=true" >> "$GITHUB_OUTPUT"
@@ -92,13 +92,16 @@ jobs:
       - name: Push and Create PR
         if: steps.autoroll.outputs.pr_links != ''
         env:
-          TARGET_BRANCH: 27.lts
+          SOURCE_BRANCH: ${{ matrix.branch.source }}
+          TARGET_BRANCH: ${{ matrix.branch.target }}
           GITHUB_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
           PR_LINKS: ${{ steps.autoroll.outputs.pr_links }}
         run: |
           set -x
 
-          git push origin "autoroll-to-${TARGET_BRANCH}"
+          git push origin "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"
+
+          PR_TITLE="Autoroll from ${SOURCE_BRANCH} to ${TARGET_BRANCH}"
 
           PR_BODY_FILE=$(mktemp)
           {
@@ -108,13 +111,32 @@ jobs:
             echo "${PR_LINKS}"
           } > "${PR_BODY_FILE}"
 
-          PR_TITLE="Autoroll from main to ${TARGET_BRANCH}"
+          if [[ -f "${{ matrix.branch.autoroll }}" ]] && grep -q "^CONFLICTED:" "${{ matrix.branch.autoroll }}"; then
+            PR_TITLE="$(git log -1 --pretty=%s)"
+            {
+              echo ""
+              echo "⚠️ This PR has conflicts that must be resolved manually (don't forget to update the \`${{ matrix.branch.autoroll }}\` file). Use the following commands to checkout the branch locally and resolve the conflicts in a separate commit:"
+              echo ""
+              echo '```bash'
+              echo "gh pr checkout <pull_request_number> -R ${{ github.repository }}"
+              echo ""
+              echo "# Resolve conflicts and update ${{ matrix.branch.autoroll }} then"
+              echo "git add <resolved_files>"
+              echo ""
+              echo "# Copy CONFLICTED commit's message and metadata"
+              echo "# Replace CONFLICTED in title with RESOLVED"
+              echo "git commit -c <conflicted_sha>"
+              echo ""
+              echo "git push origin autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"
+              echo '```'
+            } >> "${PR_BODY_FILE}"
+          fi
 
-          PR_STATE=$(gh pr view "autoroll-to-${TARGET_BRANCH}" --json state --template '{{.state}}' 2>/dev/null || echo "NOT_FOUND")
+          PR_STATE=$(gh pr view "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" --json state --template '{{.state}}' 2>/dev/null || echo "NOT_FOUND")
 
-          if [[ "$PR_STATE" == "OPEN" ]]; then
-            PR_NUMBER=$(gh pr view "autoroll-to-${TARGET_BRANCH}" --json number --jq .number)
+          if [[ "${PR_STATE}" == "OPEN" ]]; then
+            PR_NUMBER=$(gh pr view "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" --json number --jq .number)
             gh api -X PATCH "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" -f title="${PR_TITLE}" -f body="$(cat "${PR_BODY_FILE}")" --jq .html_url
           else
-            gh pr create --base "${TARGET_BRANCH}" --head "autoroll-to-${TARGET_BRANCH}" --title "${PR_TITLE}" --body-file "${PR_BODY_FILE}" --reviewer linxinan-chops,oxve
+            gh pr create --base "${TARGET_BRANCH}" --head "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" --title "${PR_TITLE}" --body-file "${PR_BODY_FILE}" --reviewer linxinan-yt,oxve,briantting
           fi

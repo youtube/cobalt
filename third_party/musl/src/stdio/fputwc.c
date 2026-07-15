@@ -8,10 +8,14 @@ wint_t __fputwc_unlocked(wchar_t c, FILE *f)
 {
 	char mbc[MB_LEN_MAX];
 	int l;
+#if !defined(STARBOARD)
 	locale_t *ploc = &CURRENT_LOCALE, loc = *ploc;
-
 	if (f->mode <= 0) fwide(f, 1);
+#endif
+
+#if !defined(STARBOARD)
 	*ploc = f->locale;
+#endif
 
 	if (isascii(c)) {
 		c = putc_unlocked(c, f);
@@ -24,7 +28,9 @@ wint_t __fputwc_unlocked(wchar_t c, FILE *f)
 		if (l < 0 || __fwritex((void *)mbc, l, f) < l) c = WEOF;
 	}
 	if (c==WEOF) f->flags |= F_ERR;
+#if !defined(STARBOARD)
 	*ploc = loc;
+#endif
 	return c;
 }
 

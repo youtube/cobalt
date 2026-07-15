@@ -16,6 +16,7 @@
 #define COBALT_BROWSER_GLOBAL_FEATURES_H_
 
 #include <optional>
+#include <string_view>
 
 #include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
@@ -80,7 +81,9 @@ class GlobalFeatures {
   using SettingValue = std::variant<std::string, int64_t>;
 
   const absl::flat_hash_map<std::string, SettingValue>& GetSettings() const;
-  void SetSettings(const std::string& key, const SettingValue& value);
+  std::optional<SettingValue> GetSetting(std::string_view key) const;
+  void SetSettings(std::string_view key, const SettingValue& value);
+  void ClearSetting(std::string_view key);
 
  private:
   friend class base::NoDestructor<GlobalFeatures>;

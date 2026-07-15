@@ -97,7 +97,7 @@ runs:
         if ! grep -q "target_cpu" .gclient; then
           if [[ "${{ matrix.platform }}" == *"evergreen-arm64"* ]]; then
             echo "target_cpu=['x64', 'arm64']" >> .gclient
-          elif [[ "${{ matrix.platform }}" == *"raspi-2"* || "${{ matrix.platform }}" == *"evergreen-arm"* ]]; then
+          elif [[ "${{ matrix.platform }}" == *"evergreen-arm"* ]]; then
             echo "target_cpu=['x64', 'arm']" >> .gclient
           fi
         fi
@@ -109,11 +109,23 @@ runs:
         use_gcloud: ${{ inputs.use_gcloud }}
 
     - name: Run gclient sync
+      shell: bash
       if: inputs.run_sync == 'true'
       env:
         REF: ${{ github.sha }}
       run: |
-        cd cobalt
+        cd cobalt/src
+        # Identify and delete dirty sub-repositories
+        git -c core.quotepath=false status --porcelain -unormal | while IFS= read -r line; do
+          path="${line:3}"
+          clean_path="${path%/}"
+          if [[ -d "$clean_path" && -d "$clean_path/.git" ]]; then
+            echo "Deleting conflicting sub-repo: $clean_path"
+            rm -rf "$clean_path"
+          fi
+        done
+
+        cd ..
         gclient sync \
           --verbose \
           --shallow \
@@ -122,7 +134,6 @@ runs:
           --force \
           --delete_unversioned_trees \
           --revision "${REF}"
-      shell: bash
 
     - name: Run gclient runhooks
       if: inputs.run_sync == 'true'

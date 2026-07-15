@@ -132,11 +132,6 @@ H5vccPlatformService::H5vccPlatformService(LocalDOMWindow& window,
       platform_service_remote_(GetExecutionContext()),
       observer_receiver_(this, GetExecutionContext()) {}
 
-H5vccPlatformService::~H5vccPlatformService() {
-  // Ensures mojo pipes are closed if not done already
-  close();
-}
-
 void H5vccPlatformService::OnManagerConnectionError() {
   DLOG(ERROR) << "H5vccPlatformServiceManager connection error";
   // If the manager connection drops, it doesn't necessarily mean the

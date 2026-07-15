@@ -25,6 +25,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
+#include "starboard/shared/starboard/experimental_features.h"
 
 namespace starboard {
 
@@ -49,7 +50,14 @@ VideoRendererImpl::VideoRendererImpl(
       algorithm_(std::move(algorithm)),
       sink_(sink),
       decoder_(std::move(decoder)),
-      experimental_features_(experimental_features) {
+      min_input_buffers_(
+          experimental_features.Get(kMediaVideoRendererMinInputBuffers)),
+      min_decoded_frames_(
+          experimental_features.Get(kMediaVideoRendererMinDecodedFrames)),
+      enable_video_renderer_vsp_adjustment_(experimental_features.GetBool(
+          kMediaEnableVideoRendererVspAdjustment)),
+      enable_trivial_optimizations_(
+          experimental_features.GetBool(kMediaEnableTrivialOptimizations)) {
   SB_CHECK(decoder_);
   SB_CHECK(algorithm_);
   SB_DCHECK_GT(decoder_->GetMaxNumberOfCachedFrames(), 1U);
@@ -66,14 +74,10 @@ VideoRendererImpl::VideoRendererImpl(
            kCheckBufferingStateInterval);
   time_of_last_lag_warning_ = CurrentMonotonicTime() - kMinLagWarningInterval;
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-  if (experimental_features_.video_renderer_min_input_buffers &&
-      experimental_features_.video_renderer_min_decoded_frames) {
+  if (min_input_buffers_ && min_decoded_frames_) {
     SB_LOG(INFO) << "VideoRendererImpl is created: preroll_params="
-                 << "{min_input_buffers="
-                 << *experimental_features_.video_renderer_min_input_buffers
-                 << ", min_decoded_frames="
-                 << *experimental_features_.video_renderer_min_decoded_frames
-                 << "}";
+                 << "{min_input_buffers=" << *min_input_buffers_
+                 << ", min_decoded_frames=" << *min_decoded_frames_ << "}";
   } else {
     SB_LOG(INFO) << "VideoRendererImpl is created: using default preroll logic";
   }
@@ -152,7 +156,7 @@ void VideoRendererImpl::WriteSamples(const InputBuffers& input_buffers) {
     decoder_->WriteInputBuffers(buffers);
   };
 
-  if (!experimental_features_.enable_video_renderer_vsp_adjustment ||
+  if (!enable_video_renderer_vsp_adjustment_ ||
       (!is_vsp_adjustment_enabled_ && seeking_)) {
     write_to_decoder(input_buffers);
     return;
@@ -270,8 +274,8 @@ void VideoRendererImpl::SetPlaybackRate(double playback_rate) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK_GE(playback_rate, 0);
 
-  if (experimental_features_.enable_video_renderer_vsp_adjustment &&
-      playback_rate != 0.0 && playback_rate != 1.0) {
+  if (enable_video_renderer_vsp_adjustment_ && playback_rate != 0.0 &&
+      playback_rate != 1.0) {
     // Start vsp adjustment of video input presentation timepstamps in video
     // renderer after we see a none 0.0x or 1.0x playback rate.
     is_vsp_adjustment_enabled_ = true;
@@ -303,13 +307,9 @@ bool VideoRendererImpl::CanAcceptMoreData() const {
   return can_accept_more_data;
 }
 
-void VideoRendererImpl::SetBounds(int z_index,
-                                  int x,
-                                  int y,
-                                  int width,
-                                  int height) {
+void VideoRendererImpl::SetBounds(int z_index, const Rect& rect) {
   if (sink_) {
-    sink_->SetBounds(z_index, x, y, width, height);
+    sink_->SetBounds(z_index, rect);
   }
 }
 
@@ -384,20 +384,26 @@ void VideoRendererImpl::OnDecoderStatus(
     }
 
     bool preroll_completed = false;
-    if (experimental_features_.video_renderer_min_input_buffers &&
-        experimental_features_.video_renderer_min_decoded_frames) {
-      preroll_completed =
-          input_buffers_sent_.load() >=
-              *experimental_features_.video_renderer_min_input_buffers &&
-          number_of_frames_.load() >=
-              *experimental_features_.video_renderer_min_decoded_frames;
+    if (min_input_buffers_ && min_decoded_frames_) {
+      preroll_completed = input_buffers_sent_.load() >= *min_input_buffers_ &&
+                          number_of_frames_.load() >= *min_decoded_frames_;
     } else {
       preroll_completed =
           number_of_frames_.load() >=
           static_cast<int32_t>(decoder_->GetPrerollFrameCount());
     }
 
-    if (preroll_completed && seeking_.exchange(false)) {
+    bool should_call_preroll_cb;
+    if (enable_trivial_optimizations_) {
+      // Avoid unconditional cache thrashing.
+      should_call_preroll_cb =
+          preroll_completed && seeking_.load() && seeking_.exchange(false);
+    } else {
+      // The previous logic.
+      should_call_preroll_cb = preroll_completed && seeking_.exchange(false);
+    }
+
+    if (should_call_preroll_cb) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
       SB_LOG(INFO) << "Video preroll complete: elapsed(msec)="
                    << FormatWithDigitSeparators(
@@ -434,17 +440,37 @@ void VideoRendererImpl::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
   {
     std::lock_guard scoped_lock_decoder_frames(decoder_frames_mutex_);
     sink_frames_mutex_.lock();
-    for (auto decoder_frame : decoder_frames_) {
-      if (sink_frames_.empty()) {
-        sink_frames_.push_back(decoder_frame);
-        continue;
+    if (enable_trivial_optimizations_) {
+      auto it = decoder_frames_.begin();
+      while (it != decoder_frames_.end()) {
+        auto next = std::next(it);
+        if (sink_frames_.empty()) {
+          sink_frames_.splice(sink_frames_.end(), decoder_frames_, it);
+        } else if (sink_frames_.back()->is_end_of_stream()) {
+          // If the sink reached end of stream, no more frames can be appended.
+          // Remaining frames in decoder_frames_ will be cleared below.
+          break;
+        } else if ((*it)->is_end_of_stream() ||
+                   (*it)->timestamp() > sink_frames_.back()->timestamp()) {
+          sink_frames_.splice(sink_frames_.end(), decoder_frames_, it);
+        }
+        it = next;
       }
-      if (sink_frames_.back()->is_end_of_stream()) {
-        continue;
-      }
-      if (decoder_frame->is_end_of_stream() ||
-          decoder_frame->timestamp() > sink_frames_.back()->timestamp()) {
-        sink_frames_.push_back(decoder_frame);
+    } else {
+      // We can move decoder_frames_ here as it is immediately cleared.
+      Frames frames_to_process = std::move(decoder_frames_);
+      for (auto& decoder_frame : frames_to_process) {
+        if (sink_frames_.empty()) {
+          sink_frames_.push_back(std::move(decoder_frame));
+          continue;
+        }
+        if (sink_frames_.back()->is_end_of_stream()) {
+          continue;
+        }
+        if (decoder_frame->is_end_of_stream() ||
+            decoder_frame->timestamp() > sink_frames_.back()->timestamp()) {
+          sink_frames_.push_back(std::move(decoder_frame));
+        }
       }
     }
     decoder_frames_.clear();
@@ -491,6 +517,7 @@ void VideoRendererImpl::WritePendingInputs() {
   if (pending_end_of_stream_ && pending_input_buffers_.empty()) {
     // All pending buffers have been sent to the decoder; now it's safe to
     // send the end-of-stream signal.
+    pending_end_of_stream_ = false;
     WriteEndOfStream();
   }
 }

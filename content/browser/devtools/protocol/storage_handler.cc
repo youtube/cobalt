@@ -536,6 +536,24 @@ void StorageHandler::ClearCookies(
                      std::move(callback)));
 }
 
+#if BUILDFLAG(IS_COBALT) && CHROMIUM_MILESTONE_LE_138
+Response StorageHandler::SerializeStorageKey(
+    RenderFrameHostImpl* rfh,
+    std::string* serialized_storage_key) const {
+  if (!rfh) {
+    return Response::ServerError("Internal error: RenderFrameHost is null");
+  }
+  const blink::StorageKey& storage_key = rfh->GetStorageKey();
+  if (storage_key.origin().opaque()) {
+    return Response::ServerError(
+        "Frame corresponds to an opaque origin and its storage key cannot be "
+        "serialized");
+  }
+  *serialized_storage_key = storage_key.Serialize();
+  return Response::Success();
+}
+#endif
+
 Response StorageHandler::GetStorageKeyForFrame(
     const std::string& frame_id,
     std::string* serialized_storage_key) {
@@ -547,6 +565,10 @@ Response StorageHandler::GetStorageKeyForFrame(
   if (!node) {
     return Response::InvalidParams("Frame tree node for given frame not found");
   }
+#if BUILDFLAG(IS_COBALT) && CHROMIUM_MILESTONE_LE_138
+  return SerializeStorageKey(node->current_frame_host(),
+                             serialized_storage_key);
+#else
   RenderFrameHostImpl* rfh = node->current_frame_host();
   if (rfh->GetStorageKey().origin().opaque()) {
     return Response::ServerError(
@@ -555,7 +577,29 @@ Response StorageHandler::GetStorageKeyForFrame(
   }
   *serialized_storage_key = rfh->GetStorageKey().Serialize();
   return Response::Success();
+#endif
 }
+
+#if CHROMIUM_MILESTONE_LE_138
+Response StorageHandler::GetStorageKey(std::optional<std::string> frame_id,
+                                       std::string* serialized_storage_key) {
+#if BUILDFLAG(IS_COBALT)
+  if (frame_id.has_value()) {
+    return GetStorageKeyForFrame(frame_id.value(), serialized_storage_key);
+  }
+
+  if (frame_host_) {
+    return SerializeStorageKey(frame_host_, serialized_storage_key);
+  }
+
+  return Response::ServerError(
+      "Could not determine storage key for the target (workers not supported "
+      "yet in this implementation).");
+#else
+  return Response::ServerError("Not implemented");
+#endif
+}
+#endif
 
 namespace {
 uint32_t GetRemoveDataMask(const std::string& storage_types) {
@@ -1410,6 +1454,7 @@ void StorageHandler::ClearSharedStorageEntries(
 }
 
 Response StorageHandler::SetSharedStorageTracking(bool enable) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (enable) {
     auto* manager = GetSharedStorageRuntimeManager();
     if (!manager) {
@@ -1425,6 +1470,9 @@ Response StorageHandler::SetSharedStorageTracking(bool enable) {
     shared_storage_observation_.Reset();
   }
   return Response::Success();
+#else
+  return Response::ServerError("Shared storage is disabled.");
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void StorageHandler::ResetSharedStorageBudget(
@@ -1741,6 +1789,7 @@ AttributionManager* StorageHandler::GetAttributionManager() {
       ->GetAttributionManager();
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 void StorageHandler::SetAttributionReportingLocalTestingMode(
     bool enabled,
     std::unique_ptr<SetAttributionReportingLocalTestingModeCallback> callback) {
@@ -1756,7 +1805,16 @@ void StorageHandler::SetAttributionReportingLocalTestingMode(
           &SetAttributionReportingLocalTestingModeCallback::sendSuccess,
           std::move(callback)));
 }
+#else
+void StorageHandler::SetAttributionReportingLocalTestingMode(
+    bool enabled,
+    std::unique_ptr<SetAttributionReportingLocalTestingModeCallback> callback) {
+  callback->sendFailure(
+      Response::ServerError("Attribution Reporting is disabled."));
+}
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 void StorageHandler::SendPendingAttributionReports(
     std::unique_ptr<SendPendingAttributionReportsCallback> callback) {
   auto* manager = GetAttributionManager();
@@ -1790,7 +1848,15 @@ void StorageHandler::SendPendingAttributionReports(
           },
           weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
 }
+#else
+void StorageHandler::SendPendingAttributionReports(
+    std::unique_ptr<SendPendingAttributionReportsCallback> callback) {
+  callback->sendFailure(
+      Response::ServerError("Attribution Reporting is disabled."));
+}
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 void StorageHandler::ResetAttributionReporting() {
   attribution_observation_.Reset();
 
@@ -1801,7 +1867,11 @@ void StorageHandler::ResetAttributionReporting() {
 
   manager->SetDebugMode(/*enabled=*/std::nullopt, base::DoNothing());
 }
+#else
+void StorageHandler::ResetAttributionReporting() {}
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 namespace {
 
 using ::attribution_reporting::mojom::AggregatableResult;
@@ -2254,12 +2324,14 @@ ToNamedBudgetCandidates(
 }
 
 }  // namespace
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 void StorageHandler::OnSourceHandled(
     const StorableSource& source,
     base::Time source_time,
     std::optional<uint64_t> cleared_debug_key,
     attribution_reporting::mojom::StoreSourceResult result) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   const auto& registration = source.registration();
@@ -2329,10 +2401,17 @@ void StorageHandler::OnSourceHandled(
 
   frontend_->AttributionReportingSourceRegistered(
       std::move(out_source), ToSourceRegistrationResult(result));
+#else
+  (void)source;
+  (void)source_time;
+  (void)cleared_debug_key;
+  (void)result;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void StorageHandler::OnTriggerHandled(std::optional<uint64_t> cleared_debug_key,
                                       const CreateReportResult& result) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   const auto& registration = result.trigger().registration();
@@ -2382,11 +2461,16 @@ void StorageHandler::OnTriggerHandled(std::optional<uint64_t> cleared_debug_key,
   frontend_->AttributionReportingTriggerRegistered(
       std::move(out_trigger), ToEventLevelResult(result.event_level_status()),
       ToAggregatableResult(result.aggregatable_status()));
+#else
+  (void)cleared_debug_key;
+  (void)result;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void StorageHandler::OnReportSent(const AttributionReport& report,
                                   bool is_debug_report,
                                   const SendResult& result) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   std::optional<int> net_error;
@@ -2420,6 +2504,11 @@ void StorageHandler::OnReportSent(const AttributionReport& report,
       report.ReportURL(is_debug_report).spec(),
       std::make_unique<base::Value::Dict>(report.ReportBody()), out_result,
       net_error, std::move(net_error_name), http_status_code);
+#else
+  (void)report;
+  (void)is_debug_report;
+  (void)result;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 Response StorageHandler::SetAttributionReportingTracking(bool enable) {

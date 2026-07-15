@@ -43,6 +43,6 @@ bool SbAccessibilityGetCaptionSettings(
     return false;
   }
 
-  return third_party::starboard::rdk::shared::Accessibility::GetCaptionSettings(caption_settings);
+  return starboard::Accessibility::GetCaptionSettings(caption_settings);
 }
 #endif

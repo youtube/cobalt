@@ -23,6 +23,10 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/mojo/common/starboard/mojo_renderer_bypass_bridge.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace media {
 
 class MediaResource;
@@ -45,7 +49,12 @@ class MojoRenderer : public Renderer, public mojom::RendererClient {
   MojoRenderer(const scoped_refptr<base::SequencedTaskRunner>& task_runner,
                std::unique_ptr<VideoOverlayFactory> video_overlay_factory,
                VideoRendererSink* video_renderer_sink,
-               mojo::PendingRemote<mojom::Renderer> remote_renderer);
+               mojo::PendingRemote<mojom::Renderer> remote_renderer
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+               ,
+               bool bypass_mojo_for_media = false
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+               );
 
   MojoRenderer(const MojoRenderer&) = delete;
   MojoRenderer& operator=(const MojoRenderer&) = delete;
@@ -64,6 +73,12 @@ class MojoRenderer : public Renderer, public mojom::RendererClient {
   void SetVolume(float volume) override;
   base::TimeDelta GetMediaTime() override;
   RendererType GetRendererType() override;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  scoped_refptr<base::SequencedTaskRunner> task_runner() const {
+    return task_runner_;
+  }
+#endif
 
  private:
   // mojom::RendererClient implementation, dispatched on the |task_runner_|.
@@ -122,6 +137,12 @@ class MojoRenderer : public Renderer, public mojom::RendererClient {
   // Client of |this| renderer passed in Initialize.
   raw_ptr<media::RendererClient> client_ = nullptr;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  bool bypass_mojo_for_media_ = false;
+  scoped_refptr<MojoRendererBypassBridge> bypass_bridge_;
+  uint32_t bypass_id_ = 0;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   // Mojo demuxer streams.
   // Owned by MojoRenderer instead of remote mojom::Renderer
   // because these demuxer streams need to be destroyed as soon as |this| is
@@ -155,6 +176,10 @@ class MojoRenderer : public Renderer, public mojom::RendererClient {
   media::TimeDeltaInterpolator media_time_interpolator_;
 
   std::optional<PipelineStatistics> pending_stats_;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  base::WeakPtrFactory<MojoRenderer> weak_factory_{this};
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace media

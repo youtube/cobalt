@@ -21,6 +21,7 @@
 #include <string_view>
 #include <vector>
 
+#include "starboard/common/span.h"
 #include "starboard/common/string.h"
 
 namespace starboard {
@@ -31,8 +32,8 @@ constexpr uint8_t kIamfSequenceHeaderObu = 31;
 // A lightweight, forward-only reader for a raw byte buffer.
 class BufferReader {
  public:
-  explicit BufferReader(const uint8_t* data, size_t size)
-      : view_(reinterpret_cast<const char*>(data), size) {}
+  explicit BufferReader(Span<const uint8_t> buffer)
+      : view_(reinterpret_cast<const char*>(buffer.data()), buffer.size()) {}
 
   std::optional<uint8_t> ReadByte() {
     if (view_.empty()) {
@@ -197,7 +198,7 @@ IamfMimeUtil::IamfMimeUtil(uint32_t primary_profile,
 // static.
 Result<IamfMimeUtil::IamfProfileInfo> IamfMimeUtil::ParseIamfSequenceHeaderObu(
     const std::vector<uint8_t>& data) {
-  BufferReader reader(data.data(), data.size());
+  BufferReader reader({data.data(), data.size()});
 
   auto header_byte_opt = reader.ReadByte();
   if (!header_byte_opt) {
@@ -225,7 +226,8 @@ Result<IamfMimeUtil::IamfProfileInfo> IamfMimeUtil::ParseIamfSequenceHeaderObu(
 
   // Create a sub-reader for the OBU payload to ensure we don't read past the
   // specified OBU size.
-  BufferReader obu_reader(reader.CurrentData(), obu_size);
+  BufferReader obu_reader(
+      {reader.CurrentData(), static_cast<size_t>(obu_size)});
 
   // Skip ia_code.
   if (!obu_reader.Skip(sizeof(uint32_t))) {

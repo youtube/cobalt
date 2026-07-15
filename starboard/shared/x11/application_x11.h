@@ -24,6 +24,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "starboard/common/rect.h"
 #include "starboard/configuration.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
@@ -55,21 +56,13 @@ class ApplicationX11 : public QueueApplication {
   // This is called immediately when SbPlayerSetBounds is called. The
   // application will queue the new bounds until the UI frame using these
   // bounds is rendered.
-  void PlayerSetBounds(SbPlayer player,
-                       int z_index,
-                       int x,
-                       int y,
-                       int width,
-                       int height);
+  void PlayerSetBounds(SbPlayer player, int z_index, const Rect& rect);
 
  protected:
   void AcceptFrame(SbPlayer player,
                    const scoped_refptr<VideoFrame>& frame,
                    int z_index,
-                   int x,
-                   int y,
-                   int width,
-                   int height) override;
+                   const Rect& rect) override;
 
   bool IsStartImmediate() override { return !HasPreloadSwitch(); }
   bool IsPreloadImmediate() override { return HasPreloadSwitch(); }
@@ -90,10 +83,7 @@ class ApplicationX11 : public QueueApplication {
   struct FrameInfo {
     SbPlayer player;
     int z_index;
-    int x;
-    int y;
-    int width;
-    int height;
+    Rect rect;
   };
 
   // Ensures that X is up, display is populated and connected, returning whether

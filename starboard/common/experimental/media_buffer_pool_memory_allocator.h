@@ -21,6 +21,7 @@
 #include "starboard/common/allocator.h"
 #include "starboard/common/experimental/media_buffer_pool.h"
 #include "starboard/common/log.h"
+#include "starboard/common/pointer_arithmetic.h"
 
 namespace starboard {
 namespace experimental {
@@ -38,7 +39,7 @@ class MediaBufferPoolMemoryAllocator : public starboard::Allocator {
 
   ~MediaBufferPoolMemoryAllocator() { pool_->ShrinkToZero(); }
 
-  void* Allocate(size_t size) override { return Allocate(size, 1); }
+  void* Allocate(size_t size) override { return Allocate(size, kMinAlignment); }
 
   void* Allocate(size_t size, size_t alignment) override {
     SB_DCHECK(pool_);
@@ -47,14 +48,11 @@ class MediaBufferPoolMemoryAllocator : public starboard::Allocator {
       return nullptr;
     }
 
+    alignment = std::max(alignment, kMinAlignment);
+
     // Align the current offset.
-    size_t padding = 0;
-    if (alignment > 1) {
-      uintptr_t current_address = offset_;
-      uintptr_t aligned_address =
-          (current_address + alignment - 1) & ~(alignment - 1);
-      padding = aligned_address - current_address;
-    }
+    size_t aligned_offset = AlignUp(offset_, alignment);
+    size_t padding = aligned_offset - offset_;
 
     size_t new_offset = offset_ + padding + size;
     if (!pool_->ExpandTo(new_offset)) {

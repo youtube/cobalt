@@ -114,6 +114,17 @@ class LogMessageVoidify {
   void operator&(std::ostream&);
 };
 
+// Copied from base/check.h.
+// Class used to explicitly ignore an ostream, and optionally a boolean value.
+class VoidifyStream {
+ public:
+  VoidifyStream() = default;
+  explicit VoidifyStream(bool) {}
+
+  // Binary & has lower precedence than << but higher than ?:
+  void operator&(std::ostream&) {}
+};
+
 }  // namespace starboard
 
 #define SB_LOG_MESSAGE_INFO \
@@ -133,8 +144,7 @@ class LogMessageVoidify {
 #define SB_LAZY_STREAM(stream, condition) \
   !(condition) ? (void)0 : ::starboard::LogMessageVoidify() & (stream)
 
-#if SB_LOGGING_IS_OFFICIAL_BUILD && !SB_IS(MODULAR) && \
-    !SB_IS(EVERGREEN_COMPATIBLE)
+#if SB_LOGGING_IS_OFFICIAL_BUILD && !SB_IS(MODULAR) && !BUILDFLAG(IS_STARBOARD)
 #define SB_LOG_IS_ON(severity)                                               \
   ((::starboard::SB_LOG_##severity >= ::starboard::SB_LOG_FATAL)             \
        ? ((::starboard::SB_LOG_##severity) >= ::starboard::GetMinLogLevel()) \
@@ -148,6 +158,8 @@ class LogMessageVoidify {
   SB_LAZY_STREAM(SB_LOG_STREAM(severity), SB_LOG_IS_ON(severity) && (condition))
 #define SB_LOG(severity) SB_LOG_IF(severity, true)
 #define SB_EAT_STREAM_PARAMETERS SB_LOG_IF(INFO, false)
+#define SB_EAT_CHECK_STREAM_PARAMS(expr) \
+  true ? (void)0 : ::starboard::VoidifyStream(expr) & SB_LOG_STREAM(INFO)
 #define SB_STACK_IF(severity, condition) \
   SB_LOG_IF(severity, condition) << "\n" << ::starboard::Stack(0)
 #define SB_STACK(severity) SB_STACK_IF(severity, true)
@@ -174,14 +186,7 @@ class LogMessageVoidify {
 
 #if SB_LOGGING_IS_OFFICIAL_BUILD || \
     (defined(NDEBUG) && !defined(DCHECK_ALWAYS_ON))
-class SbDcheckNoOpStream {
- public:
-  template <typename T>
-  const SbDcheckNoOpStream& operator<<(const T&) const {
-    return *this;
-  }
-};
-#define SB_DCHECK(condition) (void)sizeof(bool(condition)), SbDcheckNoOpStream()
+#define SB_DCHECK(condition) SB_EAT_CHECK_STREAM_PARAMS(!(condition))
 #define SB_DCHECK_ENABLED 0
 #else
 #define SB_DCHECK(condition) SB_CHECK(condition)

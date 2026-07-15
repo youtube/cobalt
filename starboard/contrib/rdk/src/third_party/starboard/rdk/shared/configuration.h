@@ -31,16 +31,10 @@
 #ifndef THIRD_PARTY_STARBOARD_RDK_SHARED_CONFIGURATION_H_
 #define THIRD_PARTY_STARBOARD_RDK_SHARED_CONFIGURATION_H_
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
 
 const void* GetConfigurationApi();
 
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party
 
 #endif  // THIRD_PARTY_STARBOARD_RDK_SHARED_CONFIGURATION_H_

@@ -106,7 +106,7 @@ jobs:
           if [ ${RES} -ne 0 ]; then
             # If the cherry pick failed due to a merge conflict we can
             # add the conflicting file and create the commit anyway.
-            git add .
+            git add --sparse .
             git cherry-pick --continue
           fi
           exit ${RES}

@@ -37,6 +37,15 @@ ssize_t ReadAll(int fd, void* data, int size);
 
 void RecordFileWriteStat(int write_file_result);
 
+// Replaces the content of the file at |path| with |data|. Returns whether the
+// contents of the file were replaced. The replacement of the content is an
+// atomic operation. The file will either have all of the data, or none.
+//
+// |path|: The path to the file whose contents should be replaced.
+// |data|: The data to replace the file contents with.
+// |data_size|: The amount of |data|, in bytes, to be written to the file.
+bool FileAtomicReplace(const char* path, const char* data, int64_t data_size);
+
 // Deletes the file, symlink or directory at |path|. When |path| is a directory,
 // the function will recursively delete the entire tree; however, when
 // |preserve_root| is |true| the root directory is not removed. On some

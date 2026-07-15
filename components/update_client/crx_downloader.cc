@@ -236,7 +236,8 @@ void CrxDownloader::HandleDownloadError(
   CHECK_NE(0, download_metrics.error);
 
 #if BUILDFLAG(IS_STARBOARD)
-  LOG(INFO) << "CrxDownloader::HandleDownloadError";
+  LOG(INFO) << "CrxDownloader::HandleDownloadError, result.error="
+            << result.error;
 #endif
 
   download_metrics_.push_back(download_metrics);

@@ -163,7 +163,8 @@ GroupedSamples& GroupedSamples::AddAudioEOS() {
 }
 
 GroupedSamples& GroupedSamples::AddVideoSamples(int start_index,
-                                                int number_of_samples) {
+                                                int number_of_samples,
+                                                int64_t timestamp_offset) {
   SB_DCHECK_GE(start_index, 0);
   SB_DCHECK_GE(number_of_samples, 0);
   SB_DCHECK(video_samples_.empty() || !video_samples_.back().is_end_of_stream);
@@ -171,6 +172,7 @@ GroupedSamples& GroupedSamples::AddVideoSamples(int start_index,
   VideoSamplesDescriptor descriptor;
   descriptor.start_index = start_index;
   descriptor.samples_count = number_of_samples;
+  descriptor.timestamp_offset = timestamp_offset;
   video_samples_.push_back(descriptor);
 
   return *this;
@@ -241,9 +243,9 @@ void SbPlayerTestFixture::Seek(const int64_t time) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(SbPlayerIsValid(player_));
 
-  ASSERT_FALSE(error_occurred_);
-  ASSERT_FALSE(HasReceivedPlayerState(kSbPlayerStateDestroyed));
-  ASSERT_TRUE(HasReceivedPlayerState(kSbPlayerStateInitialized));
+  SB_DCHECK(!error_occurred_);
+  SB_DCHECK(!HasReceivedPlayerState(kSbPlayerStateDestroyed));
+  SB_DCHECK(HasReceivedPlayerState(kSbPlayerStateInitialized));
 
   can_accept_more_audio_data_ = false;
   can_accept_more_video_data_ = false;
@@ -261,7 +263,7 @@ void SbPlayerTestFixture::Write(const GroupedSamples& grouped_samples) {
   SB_DCHECK(!audio_end_of_stream_written_);
   SB_DCHECK(!video_end_of_stream_written_);
 
-  ASSERT_FALSE(error_occurred_);
+  SB_DCHECK(!error_occurred_);
 
   int max_audio_samples_per_write =
       SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, kSbMediaTypeAudio);
@@ -280,7 +282,7 @@ void SbPlayerTestFixture::Write(const GroupedSamples& grouped_samples) {
       auto descriptor = iterator.GetCurrentAudioSamplesToWrite();
       if (descriptor.is_end_of_stream) {
         SB_DCHECK(!audio_end_of_stream_written_);
-        ASSERT_NO_FATAL_FAILURE(WriteEndOfStream(kSbMediaTypeAudio));
+        WriteEndOfStream(kSbMediaTypeAudio);
         iterator.AdvanceAudio(1);
       } else {
         SB_DCHECK_GT(descriptor.samples_count, 0);
@@ -291,11 +293,10 @@ void SbPlayerTestFixture::Write(const GroupedSamples& grouped_samples) {
 
         auto samples_to_write =
             std::min(max_audio_samples_per_write, descriptor.samples_count);
-        ASSERT_NO_FATAL_FAILURE(
-            WriteAudioSamples(descriptor.start_index, samples_to_write,
-                              descriptor.timestamp_offset,
-                              descriptor.discarded_duration_from_front,
-                              descriptor.discarded_duration_from_back));
+        WriteAudioSamples(descriptor.start_index, samples_to_write,
+                          descriptor.timestamp_offset,
+                          descriptor.discarded_duration_from_front,
+                          descriptor.discarded_duration_from_back);
         iterator.AdvanceAudio(samples_to_write);
       }
     }
@@ -303,7 +304,7 @@ void SbPlayerTestFixture::Write(const GroupedSamples& grouped_samples) {
       auto descriptor = iterator.GetCurrentVideoSamplesToWrite();
       if (descriptor.is_end_of_stream) {
         SB_DCHECK(!video_end_of_stream_written_);
-        ASSERT_NO_FATAL_FAILURE(WriteEndOfStream(kSbMediaTypeVideo));
+        WriteEndOfStream(kSbMediaTypeVideo);
         iterator.AdvanceVideo(1);
       } else {
         SB_DCHECK_GT(descriptor.samples_count, 0);
@@ -314,14 +315,14 @@ void SbPlayerTestFixture::Write(const GroupedSamples& grouped_samples) {
 
         auto samples_to_write =
             std::min(max_video_samples_per_write, descriptor.samples_count);
-        ASSERT_NO_FATAL_FAILURE(
-            WriteVideoSamples(descriptor.start_index, samples_to_write));
+        WriteVideoSamples(descriptor.start_index, samples_to_write,
+                          descriptor.timestamp_offset);
         iterator.AdvanceVideo(samples_to_write);
       }
     }
 
     if (iterator.HasMoreAudio() || iterator.HasMoreVideo()) {
-      ASSERT_NO_FATAL_FAILURE(WaitForDecoderStateNeedsData());
+      WaitForDecoderStateNeedsData();
     } else {
       return;
     }
@@ -334,8 +335,8 @@ void SbPlayerTestFixture::WaitForPlayerPresenting() {
   SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(SbPlayerIsValid(player_));
 
-  ASSERT_FALSE(error_occurred_);
-  ASSERT_NO_FATAL_FAILURE(WaitForPlayerState(kSbPlayerStatePresenting));
+  SB_DCHECK(!error_occurred_);
+  WaitForPlayerState(kSbPlayerStatePresenting);
 }
 
 void SbPlayerTestFixture::WaitForPlayerEndOfStream() {
@@ -344,14 +345,36 @@ void SbPlayerTestFixture::WaitForPlayerEndOfStream() {
   SB_DCHECK(!audio_dmp_reader_ || audio_end_of_stream_written_);
   SB_DCHECK(!video_dmp_reader_ || video_end_of_stream_written_);
 
-  ASSERT_FALSE(error_occurred_);
-  ASSERT_NO_FATAL_FAILURE(WaitForPlayerState(kSbPlayerStateEndOfStream));
+  SB_DCHECK(!error_occurred_);
+  WaitForPlayerState(kSbPlayerStateEndOfStream);
 }
 
 int64_t SbPlayerTestFixture::GetCurrentMediaTime() const {
   SbPlayerInfo info = {};
   SbPlayerGetInfo(player_, &info);
   return info.current_media_timestamp;
+}
+
+void SbPlayerTestFixture::SwitchVideoDmp(const char* new_video_filename) {
+  SB_CHECK(thread_checker_.CalledOnValidThread());
+  SB_DCHECK(video_dmp_reader_);
+  SB_DCHECK(new_video_filename && strlen(new_video_filename) > 0);
+  if (video_dmp_reader_) {
+    retired_dmp_readers_.push_back(std::move(video_dmp_reader_));
+  }
+  video_dmp_reader_.reset(new VideoDmpReader(
+      new_video_filename, VideoDmpReader::kEnableReadOnDemand));
+}
+
+void SbPlayerTestFixture::SwitchAudioDmp(const char* new_audio_filename) {
+  SB_CHECK(thread_checker_.CalledOnValidThread());
+  SB_DCHECK(audio_dmp_reader_);
+  SB_DCHECK(new_audio_filename && strlen(new_audio_filename) > 0);
+  if (audio_dmp_reader_) {
+    retired_dmp_readers_.push_back(std::move(audio_dmp_reader_));
+  }
+  audio_dmp_reader_.reset(new VideoDmpReader(
+      new_audio_filename, VideoDmpReader::kEnableReadOnDemand));
 }
 
 void SbPlayerTestFixture::SetAudioWriteDuration(int64_t duration) {
@@ -443,7 +466,7 @@ void SbPlayerTestFixture::Initialize() {
         key_system_.c_str(), NULL /* context */, DummySessionUpdateRequestFunc,
         DummySessionUpdatedFunc, DummySessionKeyStatusesChangedFunc,
         DummyServerCertificateUpdatedFunc, DummySessionClosedFunc);
-    ASSERT_TRUE(SbDrmSystemIsValid(drm_system_));
+    SB_DCHECK(SbDrmSystemIsValid(drm_system_));
   }
 
   // Initialize player.
@@ -466,9 +489,9 @@ void SbPlayerTestFixture::Initialize() {
       DummyDeallocateSampleFunc, DecoderStatusCallback, PlayerStatusCallback,
       ErrorCallback, this, output_mode_,
       fake_graphics_context_provider_->decoder_target_provider());
-  ASSERT_TRUE(SbPlayerIsValid(player_));
-  ASSERT_NO_FATAL_FAILURE(WaitForPlayerState(kSbPlayerStateInitialized));
-  ASSERT_NO_FATAL_FAILURE(Seek(0));
+  SB_DCHECK(SbPlayerIsValid(player_));
+  WaitForPlayerState(kSbPlayerStateInitialized);
+  Seek(0);
   SbPlayerSetPlaybackRate(player_, 1.0);
   SbPlayerSetVolume(player_, 1.0);
 }
@@ -489,10 +512,10 @@ void SbPlayerTestFixture::TearDown() {
   // We expect player resources are released and all events are sent already
   // after SbPlayerDestroy() finishes.
   while (callback_event_queue_.Size() > 0) {
-    ASSERT_NO_FATAL_FAILURE(WaitAndProcessNextEvent());
+    WaitAndProcessNextEvent();
   }
-  ASSERT_TRUE(HasReceivedPlayerState(kSbPlayerStateDestroyed));
-  ASSERT_FALSE(error_occurred_);
+  SB_DCHECK(HasReceivedPlayerState(kSbPlayerStateDestroyed));
+  SB_DCHECK(!error_occurred_);
 
   player_ = kSbPlayerInvalid;
   drm_system_ = kSbDrmSystemInvalid;
@@ -549,7 +572,8 @@ void SbPlayerTestFixture::WriteAudioSamples(
 }
 
 void SbPlayerTestFixture::WriteVideoSamples(int start_index,
-                                            int samples_to_write) {
+                                            int samples_to_write,
+                                            int64_t timestamp_offset) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK_GE(start_index, 0);
   SB_DCHECK_GT(samples_to_write, 0);
@@ -561,7 +585,7 @@ void SbPlayerTestFixture::WriteVideoSamples(int start_index,
                video_dmp_reader_->number_of_video_buffers());
 
   CallSbPlayerWriteSamples(player_, kSbMediaTypeVideo, video_dmp_reader_.get(),
-                           start_index, samples_to_write);
+                           start_index, samples_to_write, timestamp_offset);
   can_accept_more_video_data_ = false;
 }
 
@@ -599,33 +623,33 @@ void SbPlayerTestFixture::WaitAndProcessNextEvent(int64_t timeout) {
     case CallbackEventType::kEmptyEvent:
       break;
     case CallbackEventType::kDecoderStateEvent: {
-      ASSERT_EQ(event.player, player_);
+      SB_DCHECK_EQ(event.player, player_);
       // Callbacks may be in-flight at the time that the player is destroyed by
       // a call to |SbPlayerDestroy|. In this case, the callbacks are ignored.
       // However no new callbacks are expected after receiving the player status
       // |kSbPlayerStateDestroyed|.
-      ASSERT_FALSE(HasReceivedPlayerState(kSbPlayerStateDestroyed));
+      SB_DCHECK(!HasReceivedPlayerState(kSbPlayerStateDestroyed));
       // There's only one valid SbPlayerDecoderState. The received decoder state
       // must be kSbPlayerDecoderStateNeedsData.
-      ASSERT_EQ(event.decoder_state, kSbPlayerDecoderStateNeedsData);
+      SB_DCHECK_EQ(event.decoder_state, kSbPlayerDecoderStateNeedsData);
       if (event.media_type == kSbMediaTypeAudio) {
-        ASSERT_FALSE(can_accept_more_audio_data_);
+        SB_DCHECK(!can_accept_more_audio_data_);
         can_accept_more_audio_data_ = true;
       } else {
-        ASSERT_TRUE(event.media_type == kSbMediaTypeVideo);
-        ASSERT_FALSE(can_accept_more_video_data_);
+        SB_DCHECK(event.media_type == kSbMediaTypeVideo);
+        SB_DCHECK(!can_accept_more_video_data_);
         can_accept_more_video_data_ = true;
       }
       break;
     }
     case CallbackEventType::kPlayerStateEvent: {
-      ASSERT_EQ(event.player, player_);
-      ASSERT_NO_FATAL_FAILURE(AssertPlayerStateIsValid(event.player_state));
+      SB_DCHECK_EQ(event.player, player_);
+      AssertPlayerStateIsValid(event.player_state);
       player_state_set_.insert(event.player_state);
       break;
     }
   }
-  ASSERT_FALSE(error_occurred_);
+  SB_DCHECK(!error_occurred_);
 }
 
 void SbPlayerTestFixture::WaitForDecoderStateNeedsData(const int64_t timeout) {
@@ -636,9 +660,9 @@ void SbPlayerTestFixture::WaitForDecoderStateNeedsData(const int64_t timeout) {
 
   int64_t start = starboard::CurrentMonotonicTime();
   do {
-    ASSERT_FALSE(error_occurred_);
+    SB_DCHECK(!error_occurred_);
     GetDecodeTargetWhenSupported();
-    ASSERT_NO_FATAL_FAILURE(WaitAndProcessNextEvent());
+    WaitAndProcessNextEvent();
     if (old_can_accept_more_audio_data != can_accept_more_audio_data_ ||
         old_can_accept_more_video_data != can_accept_more_video_data_) {
       return;
@@ -655,9 +679,9 @@ void SbPlayerTestFixture::WaitForPlayerState(const SbPlayerState desired_state,
   }
   int64_t start = starboard::CurrentMonotonicTime();
   do {
-    ASSERT_FALSE(error_occurred_);
-    ASSERT_NO_FATAL_FAILURE(GetDecodeTargetWhenSupported());
-    ASSERT_NO_FATAL_FAILURE(WaitAndProcessNextEvent());
+    SB_DCHECK(!error_occurred_);
+    GetDecodeTargetWhenSupported();
+    WaitAndProcessNextEvent();
     if (HasReceivedPlayerState(desired_state)) {
       return;
     }
@@ -671,12 +695,12 @@ void SbPlayerTestFixture::GetDecodeTargetWhenSupported() {
     return;
   }
   fake_graphics_context_provider_->RunOnGlesContextThread([&]() {
-    ASSERT_TRUE(SbPlayerIsValid(player_));
+    SB_DCHECK(SbPlayerIsValid(player_));
     if (output_mode_ != kSbPlayerOutputModeDecodeToTexture) {
-      ASSERT_EQ(SbPlayerGetCurrentFrame(player_), kSbDecodeTargetInvalid);
+      SB_DCHECK_EQ(SbPlayerGetCurrentFrame(player_), kSbDecodeTargetInvalid);
       return;
     }
-    ASSERT_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);
+    SB_DCHECK_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);
     SbDecodeTarget frame = SbPlayerGetCurrentFrame(player_);
     if (SbDecodeTargetIsValid(frame)) {
       SbDecodeTargetRelease(frame);
@@ -688,40 +712,48 @@ void SbPlayerTestFixture::AssertPlayerStateIsValid(SbPlayerState state) const {
   // Note: it is possible to receive the same state that has been previously
   // received in the case of multiple Seek() calls. Prior to any Seek commands
   // issued in this test, we should reset the |player_state_set_| member.
-  ASSERT_FALSE(HasReceivedPlayerState(state));
+  SB_DCHECK(!HasReceivedPlayerState(state));
 
   switch (state) {
     case kSbPlayerStateInitialized:
       // No other states have been received before getting Initialized.
-      ASSERT_TRUE(player_state_set_.empty());
+      SB_DCHECK(player_state_set_.empty());
       return;
     case kSbPlayerStatePrerolling:
-      ASSERT_TRUE(HasReceivedPlayerState(kSbPlayerStateInitialized));
-      ASSERT_FALSE(HasReceivedPlayerState(kSbPlayerStateDestroyed));
+      SB_DCHECK(HasReceivedPlayerState(kSbPlayerStateInitialized));
+      SB_DCHECK(!HasReceivedPlayerState(kSbPlayerStateDestroyed));
       return;
     case kSbPlayerStatePresenting:
-      ASSERT_TRUE(HasReceivedPlayerState(kSbPlayerStateInitialized));
-      ASSERT_TRUE(HasReceivedPlayerState(kSbPlayerStatePrerolling));
-      ASSERT_FALSE(HasReceivedPlayerState(kSbPlayerStateDestroyed));
+      SB_DCHECK(HasReceivedPlayerState(kSbPlayerStateInitialized));
+      SB_DCHECK(HasReceivedPlayerState(kSbPlayerStatePrerolling));
+      SB_DCHECK(!HasReceivedPlayerState(kSbPlayerStateDestroyed));
       return;
     case kSbPlayerStateEndOfStream:
       if (audio_dmp_reader_) {
-        ASSERT_TRUE(audio_end_of_stream_written_);
+        SB_DCHECK(audio_end_of_stream_written_);
       }
       if (video_dmp_reader_) {
-        ASSERT_TRUE(video_end_of_stream_written_);
+        SB_DCHECK(video_end_of_stream_written_);
       }
-      ASSERT_TRUE(HasReceivedPlayerState(kSbPlayerStateInitialized));
-      ASSERT_TRUE(HasReceivedPlayerState(kSbPlayerStatePrerolling));
-      ASSERT_FALSE(HasReceivedPlayerState(kSbPlayerStateDestroyed));
+      SB_DCHECK(HasReceivedPlayerState(kSbPlayerStateInitialized));
+      SB_DCHECK(HasReceivedPlayerState(kSbPlayerStatePrerolling));
+      SB_DCHECK(!HasReceivedPlayerState(kSbPlayerStateDestroyed));
       return;
     case kSbPlayerStateDestroyed:
       // Nothing stops the user of the player from destroying the player during
       // any of the previous states.
-      ASSERT_TRUE(destroy_player_called_);
+      SB_DCHECK(destroy_player_called_);
       return;
   }
   FAIL() << "Received an invalid SbPlayerState.";
+}
+
+int64_t SbPlayerTestFixture::GetVideoSampleTimestamp(int index) const {
+  SB_DCHECK(HasVideo());
+  SB_DCHECK(static_cast<size_t>(index) <
+            video_dmp_reader_->number_of_video_buffers());
+  return video_dmp_reader_->GetPlayerSampleInfo(kSbMediaTypeVideo, index)
+      .timestamp;
 }
 
 }  // namespace nplb

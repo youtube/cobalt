@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_DECODED_AUDIO_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_DECODED_AUDIO_INTERNAL_H_
 
+#include <optional>
 #include <ostream>
 
 #include "starboard/common/ref_counted.h"
@@ -44,6 +45,8 @@ class DecodedAudio : public RefCountedThreadSafe<DecodedAudio> {
                int64_t timestamp,
                int size_in_bytes,
                Buffer&& storage);
+
+  static void EnableSimdBasedAudioFormatSwitching();
 
   int channels() const { return channels_; }
   SbMediaAudioSampleType sample_type() const { return sample_type_; }
@@ -81,18 +84,39 @@ class DecodedAudio : public RefCountedThreadSafe<DecodedAudio> {
 
   bool IsFormat(SbMediaAudioSampleType sample_type,
                 SbMediaAudioFrameStorageType storage_type) const;
+  // During format switching, this method can perform the layout/sample type
+  // conversions on-the-fly.
+  // Note: The `force_simd` parameter allows explicitly forcing or disabling
+  // the SIMD path, which is primarily intended for unit testing different
+  // execution paths. When left as `nullopt` (default), it automatically
+  // resolves to the global experimental setting.
   scoped_refptr<DecodedAudio> SwitchFormatTo(
       SbMediaAudioSampleType new_sample_type,
-      SbMediaAudioFrameStorageType new_storage_type) const
+      SbMediaAudioFrameStorageType new_storage_type,
+      std::optional<bool> force_simd = std::nullopt) const
       SB_WARN_UNUSED_RESULT;
 
   scoped_refptr<DecodedAudio> Clone() const;
 
  private:
   scoped_refptr<DecodedAudio> SwitchSampleTypeTo(
-      SbMediaAudioSampleType new_sample_type) const;
+      SbMediaAudioSampleType new_sample_type,
+      bool enable_simd) const;
   scoped_refptr<DecodedAudio> SwitchStorageTypeTo(
-      SbMediaAudioFrameStorageType new_storage_type) const;
+      SbMediaAudioFrameStorageType new_storage_type,
+      bool enable_simd) const;
+
+  // These NEON helper methods are always declared to avoid leaking platform-
+  // specific preprocessor macros (like USE_NEON_FOR_AUDIO) to this header
+  // file. They are only defined and called in the implementation (.cc) file
+  // when NEON is enabled on the target platform.
+  bool SwitchFormatTo_NEON(SbMediaAudioSampleType new_sample_type,
+                           SbMediaAudioFrameStorageType new_storage_type,
+                           DecodedAudio* destination_audio) const;
+  bool SwitchSampleTypeTo_NEON(SbMediaAudioSampleType new_sample_type,
+                               DecodedAudio* destination_audio) const;
+  bool SwitchStorageTypeTo_NEON(SbMediaAudioFrameStorageType new_storage_type,
+                                DecodedAudio* destination_audio) const;
 
   const int channels_;
   const SbMediaAudioSampleType sample_type_;

@@ -1,24 +1,59 @@
 name: Test Targets JSON
-description: Parses test target JSON file
+description: Parses test target JSON file with optional filters
+inputs:
+  test_type:
+    description: "The test type to filter by (e.g., gtest, browsertest, webtest). Omit for no filter."
+    required: false
+    default: ""
+  runs_on:
+    description: "Where the tests run (e.g., host, device). Omit for no filter."
+    required: false
+    default: ""
+  test_targets_json_file:
+    description: "Path to the test targets JSON file. If provided, skip downloading."
+    required: false
+    default: "test_targets.json"
 runs:
   using: "composite"
   steps:
     - name: Download Test Targets Json
+      if: inputs.test_targets_json_file == 'test_targets.json'
       uses: actions/download-artifact@v5
       with:
         name: ${{ matrix.platform }}_test_targets_json
         path:
-    - name: Test target count
+    - name: Parse Test Targets
       id: parse-json
+      env:
+        TEST_TYPE: ${{ inputs.test_type }}
+        RUNS_ON: ${{ inputs.runs_on }}
+        JSON_FILE: ${{ inputs.test_targets_json_file }}
       run: |
-        test_targets_json="$(cat test_targets.json | jq -cr '.test_targets')"
-        echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
-        echo "test_targets_count=$(echo "${test_targets_json}" | jq -cr 'length')" >> $GITHUB_OUTPUT
+        filtered_json="$(jq -cr \
+          --arg test_type "${TEST_TYPE}" \
+          --arg runs_on "${RUNS_ON}" \
+          '[
+            .[]
+            | select(
+                ($test_type == "" or .test_type == $test_type) and
+                ($runs_on == "" or .runs_on == $runs_on)
+              )
+          ]' "${JSON_FILE}")"
+
+        test_targets_json="$(jq -ncr --argjson data "${filtered_json}" '[$data[] | select(.target != null) | .target]')"
+        printf "test_targets_json=%s\n" "${test_targets_json}" >> "$GITHUB_OUTPUT"
+        printf "test_targets_count=%s\n" "$(jq -ncr --argjson data "${test_targets_json}" '$data | length')" >> "$GITHUB_OUTPUT"
+
+        test_executables_json="$(jq -ncr --argjson data "${filtered_json}" '[$data[] | select(.executable != null) | .executable]')"
+        printf "test_executables_json=%s\n" "${test_executables_json}" >> "$GITHUB_OUTPUT"
       shell: bash
 outputs:
   test_targets_count:
-    description: The number of test targets.
+    description: The number of matched test targets.
     value: ${{ steps.parse-json.outputs.test_targets_count }}
   test_targets_json:
-    description: The test targets in a JSON array.
+    description: The matched test targets in a JSON array.
     value: '${{ steps.parse-json.outputs.test_targets_json }}'
+  test_executables_json:
+    description: The matched test executables in a JSON array.
+    value: '${{ steps.parse-json.outputs.test_executables_json }}'

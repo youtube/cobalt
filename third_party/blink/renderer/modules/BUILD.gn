@@ -42,6 +42,10 @@ component("modules") {
 
   sources += blink_modules_sources_bindings
 
+  if (is_cobalt) {
+    sources += [ "cobalt_modules_stubs.cc" ]
+  }
+
   configs += [
     ":modules_implementation",
 
@@ -171,7 +175,27 @@ component("modules") {
     "//third_party/blink/renderer/modules/xr",
   ]
 
+  # If in the future privacy sandbox components are removed from the code base, ignore this if block.
+  if (!enable_privacy_sandbox_apis) {
+    sub_modules -= [
+      "//third_party/blink/renderer/modules/browsing_topics",
+      "//third_party/blink/renderer/modules/private_attribution",
+      "//third_party/blink/renderer/modules/shared_storage",
+      "//third_party/blink/renderer/modules/storage_access",
+    ]
+  }
+
   if (is_cobalt) {
+    sub_modules -= [
+      "//third_party/blink/renderer/modules/ml",
+      "//third_party/blink/renderer/modules/webgpu",
+      "//third_party/blink/renderer/modules/xr",
+      "//third_party/blink/renderer/modules/bluetooth",
+      "//third_party/blink/renderer/modules/hid",
+      "//third_party/blink/renderer/modules/nfc",
+      "//third_party/blink/renderer/modules/serial",
+      "//third_party/blink/renderer/modules/webusb",
+    ]
     sub_modules += [
       "//third_party/blink/renderer/modules/cobalt:h_5_vcc",
       "//third_party/blink/renderer/modules/cobalt/crash_log",
@@ -183,6 +207,7 @@ component("modules") {
       "//third_party/blink/renderer/modules/cobalt/h5vcc_settings",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_storage",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_system",
+      "//third_party/blink/renderer/modules/cobalt/h5vcc_updater",
     ]
 
     if (use_starboard_media) {
@@ -191,6 +216,18 @@ component("modules") {
         "//third_party/blink/renderer/modules/cobalt/mediasource",
       ]
     }
+
+    if (enable_native_on_screen_keyboard) {
+      sub_modules += [ "//third_party/blink/renderer/modules/cobalt/on_screen_keyboard" ]
+    }
+  }
+
+  if (!use_webrtc_peer_connection) {
+    sub_modules -= [ "//third_party/blink/renderer/modules/peerconnection" ]
+  }
+
+  if (is_cobalt) {
+    sub_modules -= [ "//third_party/blink/renderer/modules/ai" ]
   }
 
   # This uses target_os rather than current_os (which is what is_android is set
@@ -312,6 +349,12 @@ source_set("modules_testing") {
     "//third_party/blink/renderer/modules",
     "//third_party/blink/renderer/platform:test_support",
   ]
+
+  if (!use_webrtc_peer_connection) {
+    _filtered_sources = filter_exclude(sources, [ "peerconnection/*" ])
+    sources = []
+    sources = _filtered_sources
+  }
 }
 
 group("make_modules_generated") {
@@ -672,6 +715,13 @@ source_set("unit_tests") {
     "xr/xr_view_test.cc",
   ]
 
+  if (is_cobalt) {
+    sources -= [
+      "ai/ai_utils_test.cc",
+      "ai/model_execution_responder_test.cc",
+    ]
+  }
+
   if (enable_compute_pressure) {
     sources += [
       "compute_pressure/pressure_observer_test.cc",
@@ -702,6 +752,12 @@ source_set("unit_tests") {
       "cobalt/h5vcc_accessibility/h_5_vcc_accessibility_test.cc",
       "cobalt/h5vcc_experiments/experiments_utils_test.cc",
     ]
+  }
+
+  if (!use_webrtc_peer_connection) {
+    _filtered_sources = filter_exclude(sources, [ "peerconnection/*" ])
+    sources = []
+    sources = _filtered_sources
   }
 
   configs += [
@@ -770,8 +826,34 @@ source_set("unit_tests") {
     "//v8",
   ]
 
+  # If in the future privacy sandbox components are removed from the code base, ignore this if block.
+  if (!enable_privacy_sandbox_apis) {
+    sources -= [ "shared_storage/shared_storage_worklet_unittest.cc" ]
+    deps -= [ "//third_party/blink/renderer/modules/storage_access:unit_tests" ]
+  }
+
   if (is_cobalt) {
     deps += [ "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments:experiments_utils" ]
+    deps -= [
+      "//third_party/blink/renderer/modules/hid:unit_tests",
+      "//third_party/blink/renderer/modules/ml:unit_tests",
+      "//third_party/blink/renderer/modules/webgpu:unit_tests",
+    ]
+    sources -= [
+      "xr/xr_rigid_transform_test.cc",
+      "xr/xr_test_utils.cc",
+      "xr/xr_view_test.cc",
+      "bluetooth/bluetooth_uuid_unittest.cc",
+      "nfc/nfc_proxy_test.cc",
+    ]
+  }
+
+  if (!use_webrtc_peer_connection) {
+    deps -= [
+      "//third_party/blink/renderer/modules/peerconnection:test_support",
+      "//third_party/webrtc_overrides:logging_test",
+      "//third_party/webrtc_overrides:webrtc_component",
+    ]
   }
 
   # This uses target_os rather than current_os (which is what is_android is set
@@ -782,9 +864,11 @@ source_set("unit_tests") {
   if (!target_os_is_android) {
     deps += [
       "//third_party/blink/renderer/modules/direct_sockets:unit_tests",
-      "//third_party/blink/renderer/modules/serial:unit_tests",
       "//third_party/blink/renderer/modules/smart_card:unit_tests",
     ]
+    if (!is_cobalt) {
+      deps += [ "//third_party/blink/renderer/modules/serial:unit_tests" ]
+    }
   }
 
   data_deps = [

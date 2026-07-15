@@ -16,6 +16,8 @@
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #define COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 
+#include <string_view>
+
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
 #include "cobalt/common/cobalt_thread_checker.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
@@ -49,8 +51,12 @@ class BinderMapWithContext;
 
 namespace cobalt {
 
+class GlobalFeatures;
 class CobaltMetricsServicesManagerClient;
 class CobaltWebContentsObserver;
+
+void ParseAndApplyH5vccSettingsForTesting(std::string_view settings_value,
+                                          GlobalFeatures* global_features);
 
 // This class allows Cobalt to inject specific logic in the business of the
 // browser (i.e. of Content), for example for startup or to override the UA.

@@ -17,22 +17,22 @@
 // Implement a macro to allow '__pthread_self()->tid' to
 // be used unchanged from musl internal code.
 
-// Include the necessary Starboard header for SbThreadGetId().
-#include "starboard/thread.h"
+#include <sys/types.h>
+#include <unistd.h>
 
 // Define a minimal stub structure that only has the 'tid' member.
 // The original code expects __pthread_self() to return a pointer
 // to a struct that has a 'tid' field.
 typedef struct {
-  SbThreadId tid;
+  pid_t tid;
 } StarboardPthreadStub;
 
 // Define the __pthread_self() macro.
 // This uses a C99 "compound literal" to create a temporary, anonymous
 // StarboardPthreadStub object on the stack and returns a pointer to it.
-// We initialize its 'tid' member by calling SbThreadGetId().
+// We initialize its 'tid' member by calling gettid().
 #define __pthread_self() \
-  (&(StarboardPthreadStub){ .tid = SbThreadGetId() })
+  (&(StarboardPthreadStub){ .tid = gettid() })
 
 typedef struct {
 	volatile int lock;

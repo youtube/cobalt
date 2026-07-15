@@ -28,12 +28,7 @@
 
 #include <opencdm/open_cdm.h>
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
-namespace drm {
-
 namespace {
 
 G_BEGIN_DECLS
@@ -573,28 +568,15 @@ GstElement *CreateDecryptorElement(const gchar* name) {
   return GST_ELEMENT ( g_object_new (COBALT_OCDM_DECRYPTOR_TYPE, name) );
 }
 
-}  // namespace drm
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party
 
 #else  //defined(HAS_OCDM)
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
-namespace drm {
-
 GstElement *CreateDecryptorElement(const gchar* name) {
   return nullptr;
 }
 
-}  // namespace drm
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party
 
 #endif  //defined(HAS_OCDM)

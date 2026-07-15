@@ -53,16 +53,16 @@ void HTTPTransport::SetTimeout(double timeout) {
   timeout_ = timeout;
 }
 
-#if BUILDFLAG(IS_NATIVE_TARGET)
+#if BUILDFLAG(IS_NATIVE_TOOLCHAIN)
 void HTTPTransport::SetRootCACertificatesDirectoryPath(
     const base::FilePath& path) {
   root_ca_certificates_directory_path_ = path;
 }
-#else  // BUILDFLAG(IS_NATIVE_TARGET)
+#else  // BUILDFLAG(IS_NATIVE_TOOLCHAIN)
 
 void HTTPTransport::SetRootCACertificatePath(const base::FilePath& cert) {
   root_ca_certificate_path_ = cert;
 }
-#endif  // BUILDFLAG(IS_NATIVE_TARGET)
+#endif  // BUILDFLAG(IS_NATIVE_TOOLCHAIN)
 
 }  // namespace crashpad

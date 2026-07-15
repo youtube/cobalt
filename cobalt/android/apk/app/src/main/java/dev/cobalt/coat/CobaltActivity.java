@@ -16,27 +16,23 @@ package dev.cobalt.coat;
 
 import static dev.cobalt.util.Log.TAG;
 
-import android.app.Activity;
-import android.content.ComponentName;
 import android.content.Intent;
-import android.content.pm.ActivityInfo;
-import android.content.pm.PackageManager;
-import android.content.pm.PackageManager.NameNotFoundException;
-import android.media.AudioManager;
-import android.net.Uri;
-import android.os.Bundle;
-import android.os.SystemClock;
 import android.os.Build;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.SystemClock;
 import android.text.TextUtils;
+import android.view.Display;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.view.WindowManager;
-import android.window.OnBackInvokedCallback;
-import android.window.OnBackInvokedDispatcher;
 import android.widget.FrameLayout;
 import android.widget.Toast;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
@@ -65,6 +61,7 @@ import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.base.memory.MemoryPressureMonitor;
 import org.chromium.base.memory.MemoryPressureUma;
+import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.version_info.VersionInfo;
 import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
@@ -75,26 +72,15 @@ import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
 
-/** Native activity that has the required JNI methods called by the Starboard implementation. */
-public abstract class CobaltActivity extends Activity {
-  private static final String URL_ARG = "--url=";
-  private static final String META_DATA_APP_URL = "cobalt.APP_URL";
+/* Abstract activity used by AndroidTV. Extends the base with the Chromium content-shell wiring. */
+public abstract class CobaltActivity extends BaseCobaltActivity {
   private static final String META_DATA_ENABLE_SPLASH_SCREEN = "cobalt.ENABLE_SPLASH_SCREEN";
   private static final String META_DATA_ENABLE_FEATURES = "cobalt.ENABLE_FEATURES";
   private static final String YOUTUBE_URL = "https://www.youtube.com/tv";
   private static final String COBALT_USING_ANDROID_OVERLAY = "cobalt-using-android-overlay";
 
-  // This key differs in naming format for legacy reasons
-  public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
-
-  private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
-
   // How many seconds before the app exits if it fails to land YouTube home page.
-  private static final int HANG_APP_CRASH_TIMEOUT_SECONDS = 120;
-
-  // The probability (between 0.0 and 1.0) that the StartupGuard's hang-detection
-  // logic will be activated for a given session.
-  private static final double STARTUP_GUARD_PROBABILITY = 0.25;
+  private static final int DEFAULT_HANG_APP_CRASH_TIMEOUT_SECONDS = 120;
 
   // Maintain the list of JavaScript-exposed objects as a member variable
   // to prevent them from being garbage collected prematurely.
@@ -108,8 +94,6 @@ public abstract class CobaltActivity extends Activity {
 
   private boolean mForceCreateNewVideoSurfaceView;
 
-  private long mTimeInNanoseconds;
-
   private ShellManager mShellManager;
   private ActivityWindowAndroid mWindowAndroid;
   private Intent mLastSentIntent;
@@ -117,31 +101,31 @@ public abstract class CobaltActivity extends Activity {
   private IntentRequestTracker mIntentRequestTracker;
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
   private Boolean mIsKeepScreenOnEnabled = false;
-
+  private Runnable mFreezeRunnable;
+  private final Handler mHandler = new Handler(Looper.getMainLooper());
   private boolean mIsCobaltUsingAndroidOverlay;
 
-  private boolean mEnableSplashScreen;
   private String mStartDeepLink;
 
-  private Bundle getActivityMetaData() {
-    ComponentName componentName = getIntent().getComponent();
-    if (componentName == null) {
-      Log.w(TAG, "Activity intent has no component; cannot get metadata.");
-      return null;
-    }
-    ActivityInfo ai;
-    try {
-      ai = getPackageManager()
-                .getActivityInfo(componentName, PackageManager.GET_META_DATA);
-    } catch (NameNotFoundException e) {
-      Log.e(TAG, "Error getting activity info", e);
-      return null;
-    }
-    if (ai == null) {
-      return null;
-    }
-    return ai.metaData;
-  }
+  private Object mBackInvokedCallback;
+
+  // Tracks if a physical/hardware back button press is currently in progress.
+  // On Android 13+ (API >= 33) with predictive back gesture enabled, the OS dispatches physical
+  // back button presses as both key events (onKeyDown/onKeyUp) and OnBackInvokedCallback.
+  // To prevent double-triggering back navigation in the web application (which maps back keys
+  // to Escape), this flag is used by OnBackInvokedCallback to detect physical key presses and
+  // bypass simulated key dispatching.
+  private boolean mPhysicalBackKeyPressed = false;
+  private final DisplayUtil.Listener mDisplayListener =
+      new DisplayUtil.Listener() {
+        @Override
+        public void onDisplayChanged(int displayId) {
+          if (displayId == Display.DEFAULT_DISPLAY) {
+            checkDisplayState();
+          }
+        }
+      };
+  private boolean mWasDisplayOn = true;
 
   @VisibleForTesting
   static String[] appendArgsFromMetaData(Bundle metaData, String[] commandLineArgs) {
@@ -198,10 +182,10 @@ public abstract class CobaltActivity extends Activity {
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
               VersionInfo.isOfficialBuild(), commandLineArgs));
     }
-    mIsCobaltUsingAndroidOverlay = CommandLine.getInstance().hasSwitch(COBALT_USING_ANDROID_OVERLAY);
+    mIsCobaltUsingAndroidOverlay =
+        CommandLine.getInstance().hasSwitch(COBALT_USING_ANDROID_OVERLAY);
 
     DeviceUtils.updateDeviceSpecificUserAgentSwitch(this);
-
 
     StartupGuard.getInstance().setStartupMilestone(2);
     // This initializes JNI and ends up calling JNI_OnLoad in native code
@@ -222,10 +206,18 @@ public abstract class CobaltActivity extends Activity {
     StartupGuard.getInstance().setStartupMilestone(4);
     if (getStarboardBridge() == null) {
       // Cold start - Instantiate the singleton StarboardBridge.
+      RecordHistogram.recordBooleanHistogram("Cobalt.Android.ColdStart", true);
+      if (CommandLine.getInstance().hasSwitch("enable-optimized-font-loading")
+          || getJavaSwitches().containsKey(JavaSwitches.ENABLE_OPTIMIZED_FONT_LOADING)) {
+        FontUtil.copyFontsXml(getApplicationContext());
+      }
       StarboardBridge starboardBridge = createStarboardBridge(getArgs(), mStartDeepLink);
       ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(starboardBridge);
     } else {
       // Warm start - Pass the deep link to the running Starboard app.
+      if (savedInstanceState == null) {
+        RecordHistogram.recordBooleanHistogram("Cobalt.Android.ColdStart", false);
+      }
       getStarboardBridge().handleDeepLink(mStartDeepLink);
     }
     StartupGuard.getInstance().setStartupMilestone(7);
@@ -246,8 +238,8 @@ public abstract class CobaltActivity extends Activity {
     // SurfaceView's 'hole' clipping during animations that are notified to the window.
     mWindowAndroid.setAnimationPlaceholderView(
         mShellManager.getContentViewRenderView().getSurfaceView());
-    mA11yHelper = new CobaltA11yHelper(this,
-        mShellManager.getContentViewRenderView().getSurfaceView());
+    mA11yHelper =
+        new CobaltA11yHelper(this, mShellManager.getContentViewRenderView().getSurfaceView());
 
     if (mStartupUrl == null || mStartupUrl.isEmpty()) {
       String[] args = getStarboardBridge().getArgs();
@@ -260,7 +252,8 @@ public abstract class CobaltActivity extends Activity {
     }
 
     // META_DATA_APP_URL is configured to be the same as hardcoded YOUTUBE_URL.
-    // If the app is used to start other web applications e.g google.com, because there will have no Kabuki web application code to call h5vcc.system.HideSplashScreen().
+    // If the app is used to start other web applications e.g google.com, because there will have no
+    // Kabuki web application code to call h5vcc.system.HideSplashScreen().
     // We should disarm Startup Guard now.
     if (TextUtils.isEmpty(mStartupUrl) || !mStartupUrl.startsWith(YOUTUBE_URL)) {
       Log.i(TAG, "Non-Youtube startup URL detected.");
@@ -278,7 +271,11 @@ public abstract class CobaltActivity extends Activity {
             new BrowserStartupController.StartupCallback() {
               @Override
               public void onSuccess() {
+                // NOTE: This log message is hard-coded in smoke tests to detect browser startup
+                // success.
+                // See ManekiBaseDeviceUtil.CHROBALT_BROWSER_READY_REGEX in the internal test suite.
                 Log.i(TAG, "Browser process init succeeded");
+
                 finishInitialization(savedInstanceState);
                 getStarboardBridge().measureAppStartTimestamp();
               }
@@ -289,7 +286,6 @@ public abstract class CobaltActivity extends Activity {
                 initializationFailed();
               }
             });
-
   }
 
   // Initially copied from ContentShellActiviy.java
@@ -348,9 +344,12 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   public boolean onKeyDown(int keyCode, KeyEvent event) {
-    // If input is a from a gamepad button, it shouldn't be dispatched to IME which incorrectly
-    // consumes the event as a VKEY_UNKNOWN
-    if (KeyEvent.isGamepadButton(keyCode)) {
+    if (keyCode == KeyEvent.KEYCODE_BACK) {
+      mPhysicalBackKeyPressed = true;
+    }
+    // Gamepad buttons and certain partner-handled keys should bypass IME. The IME incorrectly
+    // consumes the events as VKEY_UNKNOWN and prevent proper handling by the OS.
+    if (KeyEvent.isGamepadButton(keyCode) || KeyboardUtils.isPartnerFallbackKey(keyCode)) {
       return super.onKeyDown(keyCode, event);
     }
     return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_DOWN) || super.onKeyDown(keyCode, event);
@@ -358,8 +357,11 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   public boolean onKeyUp(int keyCode, KeyEvent event) {
-    if (KeyEvent.isGamepadButton(keyCode)) {
+    if (KeyEvent.isGamepadButton(keyCode) || KeyboardUtils.isPartnerFallbackKey(keyCode)) {
       return super.onKeyUp(keyCode, event);
+    }
+    if (keyCode == KeyEvent.KEYCODE_BACK) {
+      mPhysicalBackKeyPressed = false;
     }
     return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_UP) || super.onKeyUp(keyCode, event);
   }
@@ -380,14 +382,6 @@ public abstract class CobaltActivity extends Activity {
 
   public Intent getLastSentIntent() {
     return mLastSentIntent;
-  }
-
-  private static String getUrlFromIntent(Intent intent) {
-    return intent != null ? intent.getDataString() : null;
-  }
-
-  private static String[] getCommandLineParamsFromIntent(Intent intent, String key) {
-    return intent != null ? intent.getStringArrayExtra(key) : null;
   }
 
   /**
@@ -421,29 +415,37 @@ public abstract class CobaltActivity extends Activity {
     return webContents != null ? ImeAdapterImpl.fromWebContents(webContents) : null;
   }
 
-  @Override
-  protected void onCreate(Bundle savedInstanceState) {
-    // Record the application start timestamp.
-    mTimeInNanoseconds = System.nanoTime();
-
-    // To ensure that volume controls adjust the correct stream, make this call
-    // early in the app's lifecycle. This connects the volume controls to
-    // STREAM_MUSIC whenever the target activity or fragment is visible.
-    setVolumeControlStream(AudioManager.STREAM_MUSIC);
-
-    super.onCreate(savedInstanceState);
-
-    // Use a random check to run the StartupGuard logic only a certain percentage of the time.
-    if (Math.random() < STARTUP_GUARD_PROBABILITY) {
-      if (getJavaSwitches().containsKey(JavaSwitches.DISABLE_STARTUP_GUARD)) {
-        Log.i(TAG, "StartupGuard is disabled by Java switch.");
-      } else {
-        StartupGuard.getInstance().scheduleCrash(HANG_APP_CRASH_TIMEOUT_SECONDS);
-      }
-    } else {
-      Log.i(TAG, "StartupGuard skipped by random 25% rollout check.");
+  @VisibleForTesting
+  void setupStartupGuard() {
+    Map<String, String> switches = getJavaSwitches();
+    if (switches.containsKey(JavaSwitches.DISABLE_STARTUP_GUARD)) {
+      Log.i(TAG, "StartupGuard is disabled by Java switch.");
+      return;
     }
 
+    long timeout = DEFAULT_HANG_APP_CRASH_TIMEOUT_SECONDS;
+    String intervalStr = switches.get(JavaSwitches.STARTUP_GUARD_INTERVAL_IN_SECONDS);
+    if (intervalStr != null) {
+      try {
+        long parsedTimeout = Long.parseLong(intervalStr);
+        if (parsedTimeout > 0) {
+          timeout = parsedTimeout;
+        } else {
+          Log.w(TAG, "Invalid StartupGuard interval (must be positive): " + intervalStr);
+        }
+      } catch (NumberFormatException e) {
+        Log.w(TAG, "Invalid StartupGuard interval string: " + intervalStr);
+      }
+    }
+    Log.i(TAG, "Arming StartupGuard with " + timeout + " second timeout.");
+    StartupGuard.getInstance().scheduleCrash(timeout);
+  }
+
+  @Override
+  protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+
+    setupStartupGuard();
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
     MemoryPressureUma.initializeForBrowser();
@@ -453,14 +455,15 @@ public abstract class CobaltActivity extends Activity {
     if (!mIsCobaltUsingAndroidOverlay) {
       mVideoSurfaceView = new VideoSurfaceView(this);
       addContentView(
-          mVideoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+          mVideoSurfaceView,
+          new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
     } else {
       Log.i(TAG, "Do not create VideoSurfaceView.");
     }
     StartupGuard.getInstance().setStartupMilestone(9);
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-      OnBackInvokedHelper.register(this);
+      mBackInvokedCallback = OnBackInvokedHelper.register(this);
     }
   }
 
@@ -512,6 +515,10 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onStart() {
+    DisplayUtil.cacheDefaultDisplay(this);
+    DisplayUtil.addDisplayListener(this);
+    mWasDisplayOn = isDisplayOn();
+    registerDisplayListener();
     StartupGuard.getInstance().setStartupMilestone(10);
     if (isDevelopmentBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
@@ -524,21 +531,23 @@ public abstract class CobaltActivity extends Activity {
       createNewSurfaceView();
     }
 
-    DisplayUtil.cacheDefaultDisplay(this);
-    DisplayUtil.addDisplayListener(this);
     AudioOutputManager.addAudioDeviceListener(this);
 
-    getStarboardBridge().onActivityStart(this);
     super.onStart();
 
+    if (mFreezeRunnable != null) {
+      mHandler.removeCallbacks(mFreezeRunnable);
+      mFreezeRunnable = null;
+    }
     WebContents webContents = getActiveWebContents();
-    // If ENABLE_FREEZE is not specified, disable corresponding resume event by default.
-    if (webContents != null && getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE)) {
+    if (webContents != null
+        && (getJavaSwitches().containsKey(JavaSwitches.DELAY_FREEZE_ON_BACKGROUND)
+            || getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE))) {
       // document.onresume event
       webContents.onResume();
     }
     // visibility:visible event
-    updateShellActivityVisible(true);
+    updateShellActivityVisible(mWasDisplayOn);
     MemoryPressureMonitor.INSTANCE.enablePolling(false);
 
     StartupGuard.getInstance().setStartupMilestone(11);
@@ -546,22 +555,40 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onPause() {
+    mPhysicalBackKeyPressed = false;
     CobaltContentBrowserClient.dispatchBlur();
     super.onPause();
   }
 
   @Override
   protected void onStop() {
-    getStarboardBridge().onActivityStop(this);
+    unregisterDisplayListener();
     super.onStop();
 
     // visibility:hidden event
     updateShellActivityVisible(false);
     WebContents webContents = getActiveWebContents();
-    // If ENABLE_FREEZE is not specified, disable freeze event by default.
-    if (webContents != null && getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE)) {
-      // document.onfreeze event
-      webContents.onFreeze();
+    if (webContents != null) {
+      if (getJavaSwitches().containsKey(JavaSwitches.DELAY_FREEZE_ON_BACKGROUND)) {
+        if (mFreezeRunnable != null) {
+          mHandler.removeCallbacks(mFreezeRunnable);
+        }
+        mFreezeRunnable =
+            new Runnable() {
+              @Override
+              public void run() {
+                WebContents currentWebContents = getActiveWebContents();
+                if (currentWebContents != null) {
+                  currentWebContents.onFreeze();
+                }
+                mFreezeRunnable = null;
+              }
+            };
+        mHandler.postDelayed(mFreezeRunnable, 1500);
+      } else if (getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE)) {
+        // If ENABLE_FREEZE is specified, fire freeze event immediately
+        webContents.onFreeze();
+      }
     }
 
     if (VideoSurfaceView.getCurrentSurface() != null) {
@@ -589,126 +616,25 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onDestroy() {
+    unregisterDisplayListener();
+    if (mFreezeRunnable != null) {
+      mHandler.removeCallbacks(mFreezeRunnable);
+      mFreezeRunnable = null;
+    }
     if (mShellManager != null) {
       mShellManager.destroy();
     }
     mWindowAndroid.destroy();
-    super.onDestroy();
-    getStarboardBridge().onActivityDestroy(this);
-  }
-
-  @Override
-  public boolean onSearchRequested() {
-    return getStarboardBridge().onSearchRequested();
-  }
-
-  /** Returns true if the argument list contains an arg starting with argName. */
-  private static boolean hasArg(List<String> args, String argName) {
-    for (String arg : args) {
-      if (arg.startsWith(argName)) {
-        return true;
-      }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      OnBackInvokedHelper.unregister(this, mBackInvokedCallback);
+      mBackInvokedCallback = null;
     }
-    return false;
+    super.onDestroy();
   }
 
-  /**
-   * Overridden by Kimono to provide specific Java switch configurations.
-   */
+  /** Overridden by Kimono to provide specific Java switch configurations. */
   protected Map<String, String> getJavaSwitches() {
     return this.mJavaSwitches;
-  }
-
-  /**
-   * Get argv/argc style args, if any from intent extras. Returns empty array if there are none
-   *
-   * <p>To use, invoke application via, eg, adb shell am start --esa args arg1,arg2 \
-   * dev.cobalt.coat/dev.cobalt.app.MainActivity
-   */
-  protected String[] getArgs() {
-    String[] commandLineArgs = null;
-    Intent intent = getIntent();
-    if (!isReleaseBuild()) {
-      commandLineArgs = getCommandLineParamsFromIntent(intent, COMMAND_LINE_ARGS_KEY);
-    }
-    return constructArgs(commandLineArgs, getActivityMetaData(), intent.getExtras());
-  }
-
-  @VisibleForTesting
-  static String[] constructArgs(String[] commandLineArgs, Bundle metaData, Bundle extras) {
-    ArrayList<String> args = new ArrayList<>();
-    if (commandLineArgs != null) {
-      args.addAll(Arrays.asList(commandLineArgs));
-    }
-
-    // If the URL arg isn't specified, get it from AndroidManifest.xml.
-    if (!hasArg(args, URL_ARG) && metaData != null) {
-      String url = metaData.getString(META_DATA_APP_URL);
-      if (url != null) {
-        args.add(URL_ARG + url);
-      }
-    }
-
-    CharSequence[] urlParams = (extras == null) ? null : extras.getCharSequenceArray("url_params");
-    if (urlParams != null) {
-      appendUrlParamsToUrl(args, urlParams);
-    }
-
-    return args.toArray(new String[0]);
-  }
-
-  @VisibleForTesting
-  static void appendUrlParamsToUrl(List<String> args, CharSequence[] urlParams) {
-    int idx = -1;
-    for (int i = 0; i < args.size(); i++) {
-      if (args.get(i).startsWith(URL_ARG)) {
-        idx = i;
-        break;
-      }
-    }
-
-    if (idx >= 0) {
-      StringBuilder urlBuilder = new StringBuilder();
-      urlBuilder.append(args.get(idx));
-      // append & if ? is already in the url, otherwise append ?
-      if (urlBuilder.indexOf("?") > 0) {
-        urlBuilder.append("&");
-      } else {
-        urlBuilder.append("?");
-      }
-
-      for (int j = 0; j < urlParams.length; j++) {
-        // sanitize the input before append to the url.
-        String paramKeyValuePair = urlParams[j].toString();
-        if (URL_PARAM_PATTERN.matcher(paramKeyValuePair).matches()) {
-          urlBuilder.append(paramKeyValuePair);
-          urlBuilder.append('&');
-        }
-      }
-
-      urlBuilder.deleteCharAt(urlBuilder.length() - 1);
-      args.set(idx, urlBuilder.toString());
-    }
-  }
-
-  protected boolean isReleaseBuild() {
-    return StarboardBridge.isReleaseBuild();
-  }
-  protected boolean isDevelopmentBuild() {
-    return StarboardBridge.isDevelopmentBuild();
-  }
-
-  @Override
-  protected void onNewIntent(Intent intent) {
-    getStarboardBridge().handleDeepLink(getIntentUrlAsString(intent));
-  }
-
-  /**
-   * Returns the URL from an Intent as a string. This may be overridden for additional processing.
-   */
-  protected String getIntentUrlAsString(Intent intent) {
-    Uri intentUri = intent.getData();
-    return (intentUri == null) ? "" : intentUri.toString();
   }
 
   @Override
@@ -787,10 +713,6 @@ public abstract class CobaltActivity extends Activity {
     }
   }
 
-  public long getAppStartTimestamp() {
-    return mTimeInNanoseconds;
-  }
-
   public void evaluateJavaScript(String jsCode) {
     // evaluateJavaScript must run on UI thread.
     runOnUiThread(
@@ -830,20 +752,84 @@ public abstract class CobaltActivity extends Activity {
     }
   }
 
+  private boolean isDisplayOn() {
+    Display defaultDisplay = DisplayUtil.getDefaultDisplay();
+    if (defaultDisplay == null) {
+      DisplayUtil.cacheDefaultDisplay(this);
+      defaultDisplay = DisplayUtil.getDefaultDisplay();
+    }
+    if (defaultDisplay == null) {
+      // Fail-safe: assume display is ON if we cannot query it
+      return true;
+    }
+    int state = defaultDisplay.getState();
+    // If the state is unknown, we fail-safe to true (display ON) to prevent
+    // rendering freezes or black screens on devices that do not report display state correctly.
+    return state == Display.STATE_ON || state == Display.STATE_UNKNOWN;
+  }
+
+  private void checkDisplayState() {
+    boolean isDisplayOn = isDisplayOn();
+    if (isDisplayOn != mWasDisplayOn) {
+      mWasDisplayOn = isDisplayOn;
+      Log.i(TAG, "Display state changed: isDisplayOn = " + isDisplayOn);
+      updateShellActivityVisible(isDisplayOn);
+    }
+  }
+
+  private void registerDisplayListener() {
+    DisplayUtil.registerListener(mDisplayListener);
+  }
+
+  private void unregisterDisplayListener() {
+    DisplayUtil.unregisterListener(mDisplayListener);
+  }
+
   @RequiresApi(api = 33)
   private static class OnBackInvokedHelper {
-    static void register(final CobaltActivity activity) {
-      activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
-          OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+    private static final Handler sHandler = new Handler(Looper.getMainLooper());
+
+    static Object register(final CobaltActivity activity) {
+      OnBackInvokedCallback callback =
           new OnBackInvokedCallback() {
             @Override
             public void onBackInvoked() {
-              // Simulate complete key cycle just like onKeyDown -> IME pipeline expects.
+              if (activity.mPhysicalBackKeyPressed) {
+                return; // Bypassed: physical key events are already driving this navigation
+              }
+
+              // 1. Dispatch keydown to initiate navigation immediately.
               activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_DOWN);
-              activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_UP);
+
+              // 2. Simulate physical key release with a 100ms delay.
+              // This mimics natural user latency and prevents the web page's focus manager
+              // from receiving 'keyup' prematurely during asynchronous page transitions
+              // (which would otherwise disrupt cursor/spatial navigation focus restoration).
+              sHandler.postDelayed(
+                  new Runnable() {
+                    @Override
+                    public void run() {
+                      if (activity.isDestroyed() || activity.isFinishing()) {
+                        return; // Avoid memory leaks or dispatching keyup to a destroyed activity
+                      }
+                      activity.dispatchKeyEventToIme(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_UP);
+                    }
+                  },
+                  100);
             }
-          }
-      );
+          };
+      activity
+          .getOnBackInvokedDispatcher()
+          .registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback);
+      return callback;
+    }
+
+    static void unregister(CobaltActivity activity, Object callback) {
+      if (callback instanceof OnBackInvokedCallback) {
+        activity
+            .getOnBackInvokedDispatcher()
+            .unregisterOnBackInvokedCallback((OnBackInvokedCallback) callback);
+      }
     }
   }
 }

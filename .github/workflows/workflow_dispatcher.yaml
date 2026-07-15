@@ -2,7 +2,7 @@ name: Workflow Dispatcher
 
 on:
   pull_request_target:
-    types: [labeled, ready_for_review]
+    types: [labeled]
 
 permissions: read-all
 
@@ -11,41 +11,37 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       actions: write
-      pull-requests: write
     steps:
       - name: Check label and trigger PR jobs
         uses: actions/github-script@v8
         env:
-          RUNTEST_WORKFLOWS: android.yaml,evergreen.yaml,raspi-2-modular.yaml,linux.yaml,tvos.yaml
+          RUNTEST_WORKFLOWS: android.yaml,evergreen.yaml,aosp.yaml,linux.yaml,tvos.yaml
           YTS_PLAYBACK_TEST_WORKFLOWS: android.yaml
-          READY_FOR_REVIEW_WORKFLOWS: android.yaml,evergreen.yaml,raspi-2-modular.yaml,linux.yaml,tvos.yaml
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const event = context.payload;
             const pr = event.pull_request;
 
-            if (context.eventName !== 'pull_request_target') {
-              console.log('Not a pull_request_target event.');
+            if (context.eventName !== 'pull_request_target' || event.action !== 'labeled') {
+              console.log('Not a pull_request_target labeled event.');
               return;
             }
 
             const mapping = {
               'runtest': process.env.RUNTEST_WORKFLOWS,
-              'yts_playback_test': process.env.YTS_PLAYBACK_TEST_WORKFLOWS,
-              'ready_for_review': process.env.READY_FOR_REVIEW_WORKFLOWS
+              'yts_playback_test': process.env.YTS_PLAYBACK_TEST_WORKFLOWS
             };
 
-            const key = event.action === 'labeled' ? event.label.name : event.action;
-            const workflowsStr = mapping[key];
+            const labelName = event.label.name;
+            const workflowsStr = mapping[labelName];
 
             if (!workflowsStr) {
-              console.log(`No workflows configured for action/label: ${key}`);
+              console.log(`No workflows configured for label: ${labelName}`);
               return;
             }
 
             const workflows = workflowsStr.split(',');
-            const labelName = event.action === 'labeled' ? event.label.name : '';
 
             await Promise.all(workflows.map(async (workflow) => {
               try {

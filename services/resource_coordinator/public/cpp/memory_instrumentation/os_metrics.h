@@ -13,6 +13,7 @@
 #include "base/process/process_metrics.h"
 #include "base/trace_event/process_memory_dump.h"
 #include "build/build_config.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
 #include "services/resource_coordinator/public/mojom/memory_instrumentation/memory_instrumentation.mojom.h"
 
 #if BUILDFLAG(IS_APPLE)
@@ -24,9 +25,9 @@ FORWARD_DECLARE_TEST(ProfilingJsonExporterTest, MemoryMaps);
 }
 
 namespace memory_instrumentation {
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 class DetailedMetricsDelegate;
-#endif  // BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 // This class provides synchronous access to memory metrics for a process with a
 // given |pid|. These interfaces have platform-specific restrictions:
 //  * On Android, due to sandboxing restrictions, processes can only access
@@ -55,7 +56,7 @@ class COMPONENT_EXPORT(
   static bool FillOSMemoryDump(base::ProcessHandle handle,
                                const MemDumpFlagSet& flags,
                                mojom::RawOSMemDump* dump);
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
   static bool FillOSMemoryDump(base::ProcessHandle handle,
                                const MemDumpFlagSet& flags,
                                mojom::RawOSMemDump* dump,
@@ -75,18 +76,22 @@ class COMPONENT_EXPORT(
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   static void SetProcSmapsForTesting(FILE*);
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
   static void SetDetailedMetricsDelegate(base::WeakPtr<DetailedMetricsDelegate> delegate);
+  static void SetSmapsRollupForTesting(FILE*);
+  static base::File GetSmapsFileForScanning();
+  static std::vector<mojom::VmRegionPtr> GetProcessMemoryMaps(
+      const std::string& smaps_content);
 #endif
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
 
  private:
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
   static bool FillDetailedMetrics(base::ProcessHandle handle,
                                   const MemDumpFlagSet& flags,
                                   mojom::RawOSMemDump* dump,
-                                  base::WeakPtr<DetailedMetricsDelegate> delegate) { return false; }
+                                  base::WeakPtr<DetailedMetricsDelegate> delegate);
   static bool ReadDetailedMetricsFile(base::ProcessHandle handle,
                                       base::WeakPtr<DetailedMetricsDelegate> delegate) { return false; }
 #endif

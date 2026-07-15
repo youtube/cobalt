@@ -208,6 +208,7 @@ source_set("prerequisites") {
     "//ui/native_theme",
     "//url",
     "//v8",
+    "//third_party/blink/public:buildflags",
   ]
   deps = [ "//third_party/blink/public:scaled_resources" ]
 

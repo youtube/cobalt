@@ -14,8 +14,11 @@
 
 #include "starboard/android/shared/video_surface_texture_bridge.h"
 
-#include "cobalt/android/jni_headers/VideoSurfaceTexture_jni.h"
+#include "starboard/android/shared/safe_jni.h"  // Required for std::array JNI conversion
 #include "third_party/jni_zero/jni_zero.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "cobalt/android/jni_headers/VideoSurfaceTexture_jni.h"
 
 namespace starboard {
 namespace {
@@ -56,6 +59,13 @@ ScopedJavaGlobalRef<jobject> VideoSurfaceTextureBridge::CreateSurface(
 }
 
 // static
+ScopedJavaGlobalRef<jobject> VideoSurfaceTextureBridge::CreateSurfaceForTesting(
+    JNIEnv* env) {
+  return ScopedJavaGlobalRef<jobject>(
+      Java_VideoSurfaceTexture_createSurfaceForTesting(env));
+}
+
+// static
 void VideoSurfaceTextureBridge::UpdateTexImage(
     JNIEnv* env,
     const JavaRef<jobject>& surface_texture) {
@@ -63,11 +73,10 @@ void VideoSurfaceTextureBridge::UpdateTexImage(
 }
 
 // static
-void VideoSurfaceTextureBridge::GetTransformMatrix(
+std::array<float, 16> VideoSurfaceTextureBridge::GetTransformMatrix(
     JNIEnv* env,
-    const JavaRef<jobject>& surface_texture,
-    const JavaParamRef<jfloatArray>& mtx) {
-  Java_VideoSurfaceTexture_getTransformMatrix(env, surface_texture, mtx);
+    const JavaRef<jobject>& surface_texture) {
+  return Java_VideoSurfaceTexture_getTransformMatrix(env, surface_texture);
 }
 
 }  // namespace starboard

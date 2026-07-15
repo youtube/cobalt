@@ -25,6 +25,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/size.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "third_party/jni_zero/jni_zero.h"
@@ -41,10 +42,31 @@ struct Range {
   bool Contains(int val) const { return val >= minimum && val <= maximum; }
 };
 
+/**
+ * Holds capability information for a media codec.
+ * This struct is used to transfer codec capabilities from Java to C++ via JNI.
+ * Note that it contains ScopedJavaLocalRef members, so its lifetime is bound
+ * to the JNI local reference frame in which it was created, and it is
+ * move-only.
+ * This struct is thread-affine because it contains ScopedJavaLocalRef members
+ * which are bound to the thread's JNIEnv.
+ */
+struct CodecCapabilityInfo {
+  std::string mime_type;
+  std::string name;
+  bool is_secure_required = false;
+  bool is_secure_supported = false;
+  bool is_tunnel_mode_required = false;
+  bool is_tunnel_mode_supported = false;
+  bool is_software_decoder = false;
+  bool is_hdr_capable = false;
+  jni_zero::ScopedJavaLocalRef<jobject> j_audio_capabilities;
+  jni_zero::ScopedJavaLocalRef<jobject> j_video_capabilities;
+};
+
 class CodecCapability {
  public:
-  CodecCapability(JNIEnv* env,
-                  jni_zero::ScopedJavaLocalRef<jobject>& j_codec_info);
+  CodecCapability(const CodecCapabilityInfo& info);
   virtual ~CodecCapability() {}
 
   const std::string& name() const { return name_; }
@@ -73,10 +95,7 @@ class CodecCapability {
 
 class AudioCodecCapability : public CodecCapability {
  public:
-  AudioCodecCapability(
-      JNIEnv* env,
-      jni_zero::ScopedJavaLocalRef<jobject>& j_codec_info,
-      jni_zero::ScopedJavaLocalRef<jobject>& j_audio_capabilities);
+  AudioCodecCapability(JNIEnv* env, const CodecCapabilityInfo& info);
   ~AudioCodecCapability() override {}
 
   bool IsBitrateSupported(int bitrate) const;
@@ -98,10 +117,7 @@ class AudioCodecCapability : public CodecCapability {
 
 class VideoCodecCapability : public CodecCapability {
  public:
-  VideoCodecCapability(
-      JNIEnv* env,
-      jni_zero::ScopedJavaLocalRef<jobject>& j_codec_info,
-      jni_zero::ScopedJavaLocalRef<jobject>& j_video_capabilities);
+  VideoCodecCapability(JNIEnv* env, const CodecCapabilityInfo& info);
   ~VideoCodecCapability() override {}
 
   bool is_software_decoder() const { return is_software_decoder_; }
@@ -113,9 +129,7 @@ class VideoCodecCapability : public CodecCapability {
   // VideoCapabilities.areSizeAndRateSupported() or
   // VideoCapabilities.isSizeSupported() will be used to check the
   // supportability.
-  bool AreResolutionAndRateSupported(int frame_width,
-                                     int frame_height,
-                                     int fps) const;
+  bool AreResolutionAndRateSupported(Size size, int fps) const;
 
  protected:
   VideoCodecCapability(std::string name,
@@ -193,10 +207,13 @@ class MediaCapabilitiesCache {
                           bool must_support_secure,
                           bool must_support_hdr,
                           bool must_support_tunnel_mode,
-                          int frame_width,
-                          int frame_height,
+                          Size frame_size,
                           int bitrate,
                           int fps);
+  bool HasVideoDecoderFor(const std::string& mime_type,
+                          bool must_support_secure,
+                          bool must_support_hdr,
+                          bool must_support_tunnel_mode);
 
   std::string FindAudioDecoder(const std::string& mime_type, int bitrate);
 
@@ -204,18 +221,15 @@ class MediaCapabilitiesCache {
                                bool must_support_secure,
                                bool must_support_hdr,
                                bool require_software_codec,
-                               bool must_support_tunnel_mode,
-                               int frame_width,
-                               int frame_height,
-                               int bitrate,
-                               int fps);
+                               bool must_support_tunnel_mode);
 
   bool IsEnabled() const { return is_enabled_; }
   void SetCacheEnabled(bool enabled) { is_enabled_ = enabled; }
   void SetAv1OptEnabled(bool enabled) { is_av1_opt_enabled_ = enabled; }
-  void SetSoftwareDecoderEnabled(bool enabled) {
-    is_sw_decoder_enabled_ = enabled;
+  void SetAppProvisioningEnabled(bool enabled) {
+    is_app_provisioning_enabled_ = enabled;
   }
+  bool IsAppProvisioningEnabled() const { return is_app_provisioning_enabled_; }
   void ClearCache() { capabilities_is_dirty_ = true; }
 
  protected:
@@ -227,6 +241,15 @@ class MediaCapabilitiesCache {
 
   MediaCapabilitiesCache(const MediaCapabilitiesCache&) = delete;
   MediaCapabilitiesCache& operator=(const MediaCapabilitiesCache&) = delete;
+
+  std::string FindVideoDecoder(const std::string& mime_type,
+                               bool must_support_secure,
+                               bool must_support_hdr,
+                               bool require_software_codec,
+                               bool must_support_tunnel_mode,
+                               Size frame_size,
+                               int bitrate,
+                               int fps);
 
   void UpdateMediaCapabilities_Locked();
   void LoadAudioConfigurations_Locked();
@@ -254,10 +277,17 @@ class MediaCapabilitiesCache {
 
   std::atomic_bool is_enabled_{true};
   std::atomic_bool is_av1_opt_enabled_{false};
-  std::atomic_bool is_sw_decoder_enabled_{true};
+  std::atomic_bool is_app_provisioning_enabled_{false};
   std::atomic_bool capabilities_is_dirty_{true};
 };
 
 }  // namespace starboard
+
+namespace jni_zero {
+template <>
+starboard::CodecCapabilityInfo FromJniType<starboard::CodecCapabilityInfo>(
+    JNIEnv* env,
+    const JavaRef<jobject>& j_codec_capability_info);
+}  // namespace jni_zero
 
 #endif  // STARBOARD_ANDROID_SHARED_MEDIA_CAPABILITIES_CACHE_H_

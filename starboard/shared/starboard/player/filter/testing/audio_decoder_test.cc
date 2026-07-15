@@ -41,7 +41,6 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/system.h"
-#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -189,8 +188,6 @@ class AudioDecoderTest
   void WriteSingleInput(size_t index,
                         int64_t discarded_duration_from_front,
                         int64_t discarded_duration_from_back) {
-    SB_DCHECK(IsPartialAudioSupported());
-
     ASSERT_TRUE(can_accept_more_input_);
     ASSERT_LT(index, dmp_reader_.number_of_audio_buffers());
 
@@ -422,8 +419,6 @@ class AudioDecoderTest
       size_t index,
       int64_t discarded_duration_from_front,
       int64_t discarded_duration_from_back) {
-    SB_DCHECK(IsPartialAudioSupported());
-
     auto input_buffer =
         GetAudioInputBuffer(&dmp_reader_, index, discarded_duration_from_front,
                             discarded_duration_from_back);
@@ -752,10 +747,6 @@ TEST_P(AudioDecoderTest, ContinuedLimitedInput) {
 }
 
 TEST_P(AudioDecoderTest, PartialAudio) {
-  if (!IsPartialAudioSupported()) {
-    return;
-  }
-
   const int max_number_of_input_to_write =
       std::min(7, static_cast<int>(dmp_reader_.number_of_audio_buffers()));
 

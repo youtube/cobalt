@@ -33,7 +33,7 @@
 #include "starboard/event.h"
 #include "third_party/starboard/rdk/shared/rdkservices.h"
 
-using third_party::starboard::rdk::shared::NetworkInfo;
+using starboard::NetworkInfo;
 
 bool SbSystemNetworkIsDisconnected() {
   return NetworkInfo::IsDisconnected();

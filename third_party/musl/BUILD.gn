@@ -818,6 +818,7 @@ static_library("c_internal") {
     # Starboardized implementations
     "src/starboard/ctype/__ctype_get_mb_cur_max.c",
     "src/starboard/exit/abort.c",
+    "src/starboard/inotify.c",
     "src/starboard/internal/init_musl.c",
     "src/starboard/internal/stdio_stub.c",
     "src/starboard/largefile.c",
@@ -837,6 +838,7 @@ static_library("c_internal") {
     "src/stdio/__lockfile.c",
     "src/stdio/__overflow.c",
     "src/stdio/__stdio_close.c",
+    "src/stdio/__stdio_exit.c",
     "src/stdio/__stdio_read.c",
     "src/stdio/__stdio_seek.c",
     "src/stdio/__stdio_write.c",
@@ -855,6 +857,7 @@ static_library("c_internal") {
     "src/stdio/fprintf.c",
     "src/stdio/fputc.c",
     "src/stdio/fputs.c",
+    "src/stdio/fputwc.c",
     "src/stdio/fread.c",
     "src/stdio/fscanf.c",
     "src/stdio/fseek.c",

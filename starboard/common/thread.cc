@@ -17,6 +17,7 @@
 #include "starboard/common/thread.h"
 
 #include <pthread.h>
+#include <sys/resource.h>
 #include <unistd.h>
 
 #include <atomic>
@@ -30,7 +31,35 @@
 #include "starboard/common/thread_platform.h"
 #include "starboard/system.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "starboard/shared/starboard/features.h"
+#endif
+
 namespace starboard {
+
+int ThreadPriorityToNiceValue(ThreadPriority priority) {
+  // Nice value settings are shared between Android and Linux.
+  // They are selected from looking at:
+  // https://android.googlesource.com/platform/frameworks/native/+/jb-dev/include/utils/ThreadDefs.h#35
+  switch (priority) {
+    case ThreadPriority::kLowest:
+      return 19;
+    case ThreadPriority::kLow:
+      return 10;
+    case ThreadPriority::kNoPriority:
+    case ThreadPriority::kNormal:
+      return 0;
+    case ThreadPriority::kHigh:
+      return -8;
+    case ThreadPriority::kHighest:
+      return -16;
+    case ThreadPriority::kRealTime:
+      return -19;
+    default:
+      SB_NOTREACHED();
+      return 0;
+  }
+}
 
 struct Thread::Data {
   pthread_t thread_ = 0;
@@ -39,8 +68,22 @@ struct Thread::Data {
   Semaphore join_sema_;
 };
 
+std::optional<size_t> GetDefaultStackSize() {
+#if BUILDFLAG(IS_ANDROID)
+  if (features::FeatureList::IsEnabled(
+          features::kReduceStarboardThreadStackSize)) {
+    return 256 * 1024;
+  }
+#endif
+  return std::nullopt;
+}
+
 Thread::Thread(std::string_view name, const ThreadOptions& options)
-    : name_(name), priority_(options.priority), d_(std::make_unique<Data>()) {}
+    : name_(name),
+      priority_(options.priority),
+      stack_size_(options.stack_size ? options.stack_size
+                                     : GetDefaultStackSize()),
+      d_(std::make_unique<Data>()) {}
 
 Thread::~Thread() {
   // A started thread must be joined before destruction.
@@ -56,6 +99,14 @@ void Thread::Start() {
 
   pthread_attr_t attributes;
   pthread_attr_init(&attributes);
+
+  if (stack_size_) {
+    if (int err = pthread_attr_setstacksize(&attributes, *stack_size_);
+        err != 0) {
+      SB_LOG(WARNING) << "Failed to set stack size to " << *stack_size_
+                      << ", error: " << err << ". Falling back to default.";
+    }
+  }
 
   const int result =
       pthread_create(&d_->thread_, &attributes, ThreadEntryPoint, this);
@@ -90,14 +141,10 @@ std::atomic_bool* Thread::joined_bool() {
 void* Thread::ThreadEntryPoint(void* context) {
   Thread* this_ptr = static_cast<Thread*>(context);
 
-#if defined(__APPLE__)
-  pthread_setname_np(this_ptr->name_.c_str());
-#else
-  pthread_setname_np(pthread_self(), this_ptr->name_.c_str());
-#endif
+  SetCurrentThreadName(this_ptr->name_.c_str());
   bool priority_set = false;
   if (this_ptr->priority_) {
-    priority_set = SbThreadSetPriority(*this_ptr->priority_);
+    priority_set = SetCurrentThreadPriority(*this_ptr->priority_);
     if (!priority_set) {
       SB_LOG(WARNING) << "Failed to set thread priority (unsupported on this "
                          "platform): requested_priority="

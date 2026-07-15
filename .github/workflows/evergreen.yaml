@@ -19,11 +19,6 @@ on:
         required: true
         type: boolean
         default: false
-      label_name:
-        description: 'Label that triggered this run.'
-        required: false
-        type: string
-        default: ''
 
 permissions: read-all
 
@@ -37,19 +32,6 @@ jobs:
     with:
       platform: evergreen-x64
       nightly: ${{ github.event.inputs.nightly }}
-      label_name: ${{ github.event.inputs.label_name }}
-      run_api_leak_detector: true
-    secrets:
-      datadog_api_key: ${{ secrets.DD_API_KEY }}
-  evergreen-arm-hardfp-raspi:
-    uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
-    with:
-      platform: evergreen-arm-hardfp-raspi
-      nightly: ${{ github.event.inputs.nightly }}
-      label_name: ${{ github.event.inputs.label_name }}
       run_api_leak_detector: true
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
@@ -61,7 +43,6 @@ jobs:
     with:
       platform: evergreen-arm-hardfp-rdk
       nightly: ${{ github.event.inputs.nightly }}
-      label_name: ${{ github.event.inputs.label_name }}
       run_api_leak_detector: true
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
@@ -73,7 +54,6 @@ jobs:
     with:
       platform: evergreen-arm-softfp
       nightly: ${{ github.event.inputs.nightly }}
-      label_name: ${{ github.event.inputs.label_name }}
       run_api_leak_detector: true
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
@@ -85,7 +65,6 @@ jobs:
     with:
       platform: evergreen-arm64
       nightly: ${{ github.event.inputs.nightly }}
-      label_name: ${{ github.event.inputs.label_name }}
       run_api_leak_detector: true
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}

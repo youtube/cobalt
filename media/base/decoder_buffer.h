@@ -47,33 +47,6 @@ class MEDIA_EXPORT DecoderBuffer
  public:
   REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE();
 
-  // ExternalMemory wraps a class owning a buffer and expose the data interface
-  // through Span(). This class is derived by a class that owns the class owning
-  // the buffer owner class.
-  struct MEDIA_EXPORT ExternalMemory {
-   public:
-    virtual ~ExternalMemory() = default;
-    virtual const base::span<const uint8_t> Span() const = 0;
-  };
-
-  using DiscardPadding = DecoderBufferSideData::DiscardPadding;
-
-  // TODO(crbug.com/365814210): Remove this structure. It's barely used outside
-  // of unit tests.
-  struct MEDIA_EXPORT TimeInfo {
-    // Presentation time of the frame.
-    base::TimeDelta timestamp;
-
-    // Presentation duration of the frame.
-    base::TimeDelta duration;
-
-    // Duration of (audio) samples from the beginning and end of this frame
-    // which should be discarded after decoding. A value of kInfiniteDuration
-    // for the first value indicates the entire frame should be discarded; the
-    // second value must be base::TimeDelta() in this case.
-    DiscardPadding discard_padding;
-  };
-
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   class Allocator {
    public:
@@ -96,13 +69,10 @@ class MEDIA_EXPORT DecoderBuffer
 
     // The function should never return kInvalidHandle.  It may terminate the
     // app on allocation failure.
-    virtual Handle Allocate(DemuxerStream::Type type, size_t size,
-                            size_t alignment) = 0;
+    virtual Handle Allocate(DemuxerStream::Type type, size_t size) = 0;
     virtual void Free(DemuxerStream::Type type, Handle handle, size_t size) = 0;
     virtual void Write(Handle handle, const void* data, size_t size) = 0;
 
-    virtual int GetBufferAlignment() const = 0;
-    virtual int GetBufferPadding() const = 0;
     virtual base::TimeDelta GetBufferGarbageCollectionDurationThreshold()
         const = 0;
 
@@ -110,6 +80,36 @@ class MEDIA_EXPORT DecoderBuffer
     ~Allocator() {}
   };
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+  // ExternalMemory wraps a class owning a buffer and expose the data interface
+  // through Span(). This class is derived by a class that owns the class owning
+  // the buffer owner class.
+  struct MEDIA_EXPORT ExternalMemory {
+   public:
+    virtual ~ExternalMemory() = default;
+    virtual const base::span<const uint8_t> Span() const = 0;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    virtual Allocator::Handle handle() const {
+      return Allocator::kInvalidHandle;
+    }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+  };
+
+  using DiscardPadding = DecoderBufferSideData::DiscardPadding;
+
+  // TODO(crbug.com/365814210): Remove this structure. It's barely used outside
+  // of unit tests.
+  struct MEDIA_EXPORT TimeInfo {
+    // Presentation time of the frame.
+    base::TimeDelta timestamp;
+    // Presentation duration of the frame.
+    base::TimeDelta duration;
+    // Duration of (audio) samples from the beginning and end of this frame
+    // which should be discarded after decoding. A value of kInfiniteDuration
+    // for the first value indicates the entire frame should be discarded; the
+    // second value must be base::TimeDelta() in this case.
+    DiscardPadding discard_padding;
+  };
 
   // Allocates buffer with |size| > 0. |is_key_frame_| will default to false.
   // If size is 0, no buffer will be allocated.
@@ -212,7 +212,13 @@ class MEDIA_EXPORT DecoderBuffer
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   Allocator::Handle handle() const {
-    return allocator_data_->handle;
+    if (allocator_data_) {
+      return allocator_data_->handle;
+    }
+    if (external_memory_) {
+      return external_memory_->handle();
+    }
+    return Allocator::kInvalidHandle;
   }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -242,10 +248,11 @@ class MEDIA_EXPORT DecoderBuffer
   size_t size() const {
     DCHECK(!end_of_stream());
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    return allocator_data_ ? allocator_data_->size : 0u;
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+    if (allocator_data_) {
+      return allocator_data_->size;
+    }
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
     return external_memory_ ? external_memory_->Span().size() : data_.size();
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
   // Prefer writable_span(), though it should also be removed.
@@ -278,10 +285,11 @@ class MEDIA_EXPORT DecoderBuffer
 
   bool empty() const {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    return !allocator_data_ || allocator_data_->size == 0u;
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+    if (allocator_data_) {
+      return allocator_data_->size == 0u;
+    }
+#endif   // BUILDFLAG(USE_STARBOARD_MEDIA)
     return external_memory_ ? external_memory_->Span().empty() : data_.empty();
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)

@@ -22,7 +22,6 @@
 
 #include "starboard/common/time.h"
 #include "starboard/system.h"
-#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {

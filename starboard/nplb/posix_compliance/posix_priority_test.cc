@@ -17,6 +17,8 @@
 #include <sys/resource.h>
 #include <unistd.h>
 
+#include "starboard/common/thread.h"
+#include "starboard/configuration_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {
@@ -155,6 +157,28 @@ TEST_F(PosixSetPriorityTests, ErrorOnPermissionDenied) {
   EXPECT_EQ(EACCES, errno)
       << "Expected EACCES when increasing priority, but got: " << errno << " ("
       << strerror(errno) << ")";
+}
+
+TEST_F(PosixSetPriorityTests, SetProcessPriorityToStarboardNiceValues) {
+  // Test only low priorities as the process can't go back to higher priorities.
+  // NOTE: The priority is already lowered from the normal level by the
+  //  SetProcessPrioritySuccessfully test.
+
+  // Low Priority
+  int low_nice =
+      starboard::ThreadPriorityToNiceValue(starboard::ThreadPriority::kLow);
+  ASSERT_EQ(0, setpriority(PRIO_PROCESS, 0, low_nice))
+      << "setpriority failed for Low. Errno: " << errno << " ("
+      << strerror(errno) << ")";
+  EXPECT_EQ(low_nice, getpriority(PRIO_PROCESS, 0));
+
+  // Lowest Priority
+  int lowest_nice =
+      starboard::ThreadPriorityToNiceValue(starboard::ThreadPriority::kLowest);
+  ASSERT_EQ(0, setpriority(PRIO_PROCESS, 0, lowest_nice))
+      << "setpriority failed for Lowest. Errno: " << errno << " ("
+      << strerror(errno) << ")";
+  EXPECT_EQ(lowest_nice, getpriority(PRIO_PROCESS, 0));
 }
 
 }  // namespace

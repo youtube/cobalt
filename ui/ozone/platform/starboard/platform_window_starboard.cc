@@ -68,6 +68,10 @@ void PlatformWindowStarboard::ClearWindowDestroyedCallback() {
       std::make_unique<WindowDestroyedCallback>(base::DoNothing());
 }
 
+void PlatformWindowStarboard::SetWaitingForRevealAck(bool waiting) {
+  waiting_for_reveal_ack_ = waiting;
+}
+
 PlatformWindowStarboard::PlatformWindowStarboard(
     PlatformWindowDelegate* delegate,
     const gfx::Rect& bounds)
@@ -90,12 +94,7 @@ PlatformWindowStarboard::~PlatformWindowStarboard() {
         PlatformEventSource::GetInstance())
         ->RemovePlatformEventObserverStarboard(this);
   }
-
-  if (SbWindowIsValid(sb_window_)) {
-    (*g_destroyed_callback).Run(sb_window_);
-    SbWindowDestroy(sb_window_);
-    sb_window_ = kSbWindowInvalid;
-  }
+  DestroySbWindowInstance();
 }
 
 bool PlatformWindowStarboard::CanDispatchEvent(const PlatformEvent& event) {
@@ -155,37 +154,32 @@ gfx::Rect PlatformWindowStarboard::GetBoundsInDIP() const {
 }
 
 void PlatformWindowStarboard::Show(bool inactive) {
-  if (SbWindowIsValid(sb_window_)) {
-    return;
+  if (!SbWindowIsValid(sb_window_)) {
+    SbWindowOptions options{};
+    SbWindowSetDefaultOptions(&options);
+    options.size.width = bounds_.width();
+    options.size.height = bounds_.height();
+
+    sb_window_ = SbWindowCreate(&options);
+    CHECK(SbWindowIsValid(sb_window_));
+
+    (*g_created_callback).Run(sb_window_);
   }
 
-  SbWindowOptions options{};
-  SbWindowSetDefaultOptions(&options);
-  options.size.width = bounds_.width();
-  options.size.height = bounds_.height();
-  sb_window_ = SbWindowCreate(&options);
-  CHECK(SbWindowIsValid(sb_window_));
+  if (!widget_available_) {
+    widget_available_ = true;
 
-  (*g_created_callback).Run(sb_window_);
-
-  CHECK(!widget_available_);
-  widget_available_ = true;
-  delegate_->OnAcceleratedWidgetAvailable(
-      reinterpret_cast<intptr_t>(SbWindowGetPlatformHandle(sb_window_)));
+    intptr_t handle =
+        reinterpret_cast<intptr_t>(SbWindowGetPlatformHandle(sb_window_));
+    delegate_->OnAcceleratedWidgetAvailable(handle);
+  }
 }
 
 void PlatformWindowStarboard::Hide() {
-  CHECK(widget_available_);
   if (widget_available_) {
     widget_available_ = false;
     delegate_->OnAcceleratedWidgetDestroyed();
   }
-
-  CHECK(SbWindowIsValid(sb_window_));
-  (*g_destroyed_callback).Run(sb_window_);
-
-  SbWindowDestroy(sb_window_);
-  sb_window_ = kSbWindowInvalid;
 }
 
 void PlatformWindowStarboard::Close() {
@@ -229,11 +223,40 @@ void PlatformWindowStarboard::Maximize() {
 }
 
 void PlatformWindowStarboard::Minimize() {
-  NOTIMPLEMENTED_LOG_ONCE();
+  if (widget_available_) {
+    widget_available_ = false;
+    delegate_->OnAcceleratedWidgetDestroyed();
+  }
+}
+
+void PlatformWindowStarboard::DestroySbWindowInstance() {
+  if (SbWindowIsValid(sb_window_)) {
+    (*g_destroyed_callback).Run(sb_window_);
+    SbWindowDestroy(sb_window_);
+    sb_window_ = kSbWindowInvalid;
+  }
 }
 
 void PlatformWindowStarboard::Restore() {
-  NOTIMPLEMENTED_LOG_ONCE();
+  if (!SbWindowIsValid(sb_window_)) {
+    SbWindowOptions options{};
+    SbWindowSetDefaultOptions(&options);
+    options.size.width = bounds_.width();
+    options.size.height = bounds_.height();
+
+    sb_window_ = SbWindowCreate(&options);
+    CHECK(SbWindowIsValid(sb_window_));
+
+    (*g_created_callback).Run(sb_window_);
+  }
+
+  if (!widget_available_) {
+    widget_available_ = true;
+
+    intptr_t handle =
+        reinterpret_cast<intptr_t>(SbWindowGetPlatformHandle(sb_window_));
+    delegate_->OnAcceleratedWidgetAvailable(handle);
+  }
 }
 
 PlatformWindowState PlatformWindowStarboard::GetPlatformWindowState() const {
@@ -241,6 +264,9 @@ PlatformWindowState PlatformWindowStarboard::GetPlatformWindowState() const {
 }
 
 void PlatformWindowStarboard::Activate() {
+  if (waiting_for_reveal_ack_) {
+    return;
+  }
   if (activation_state_ != ActivationState::kActive) {
     activation_state_ = ActivationState::kActive;
     delegate_->OnActivationChanged(/*active=*/true);

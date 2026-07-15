@@ -43,14 +43,15 @@ enable_vr = false
 # Disable screen/window/tab capture (Note: live capture, not screenshots).
 enable_screen_capture = false
 
-# Disable concurrent-marking due to b/415843979.
-v8_enable_concurrent_marking = false
-
-# This flag is also needed to disable concurrent marking.
-v8_enable_atomic_object_field_writes = false
+# Re-enable concurrent marking to monitor via experiment.
+v8_enable_concurrent_marking = true
+v8_enable_atomic_object_field_writes = true
 
 # This will force V8 to embed snapshot blob in binary.
 v8_use_external_startup_data = false
+
+# Disable Maglev in binary.
+v8_enable_maglev = false
 
 # Disable hls_demuxer so that enable_mse_mpeg2ts_stream_parser=false
 enable_hls_demuxer = false
@@ -75,6 +76,28 @@ generate_about_credits = false
 # Disable WebNN and some bits of TensorFlowLite.
 build_tflite_with_xnnpack = false
 webnn_use_tflite = false
+build_with_tflite_lib = false
 
 # Disable dav1d in webrtc to reduce binary size (~533KB)
 rtc_include_dav1d_in_internal_decoder_factory = false
+
+# Prune the massive HSTS preloaded list to save 1.3 MB of
+# rodata. Cobalt is a closed app shell and does not need
+# a preloaded list of third-party domains.
+include_transport_security_state_preload_list = false
+
+# Disable Vulkan on Cobalt, this reduces binary size by ~1.2 MB.
+angle_enable_vulkan = false
+
+# Disable Rust-based PNG decoding and encoding on Cobalt, this
+# reduces binary size by ~0.1 MB.
+enable_rust_png = false
+
+# Disable BackupRefPtr on Chrobalt, this reduces binary size by
+# ~0.5 MB.
+enable_backup_ref_ptr_support = false
+enable_backup_ref_ptr_feature_flag = false
+
+# Disable vectorized HTML scanning (SIMD speedups for HTML parsing
+# are not needed).
+enable_vectorized_html_scanning = false

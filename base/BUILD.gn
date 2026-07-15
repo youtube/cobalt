@@ -185,7 +185,7 @@ use_epoll = is_linux || is_chromeos || is_android
 # This does not include test code (test support and anything in the test
 # directory) which should use source_set as is recommended for GN targets).
 
-# Builds using the starboard or native_target toolchains must use
+# Builds using the starboard or native toolchains must use
 # //copied_base/base instead.
 if (is_cobalt && is_partner_toolchain) {
   not_needed([ "use_epoll" ])
@@ -1094,6 +1094,10 @@ component("base") {
     }
   }
 
+  if (is_cobalt_hermetic_build) {
+    deps += [ "//starboard/common" ]
+  }
+
   # `raw_ptr` cannot be made a component due to CRT symbol issues.
   # Its gateway to being a component is through `//base`, so we have
   # to provide the appropriate `#define` here.
@@ -1863,7 +1867,6 @@ component("base") {
     ]
     sources += [
       "process/process_metrics_posix_starboard_stub.cc",
-      "starboard/linker_stub.h",
     ]
 
     # Find a way to fix the offending customizations instead.
@@ -2449,11 +2452,18 @@ component("base") {
 
   if (is_cobalt) {
     sources += [
+      "memory/cobalt_memory_context.cc",
+      "memory/cobalt_memory_context.h",
+      "memory/cobalt_memory_attribution_observer.cc",
+      "memory/cobalt_memory_attribution_observer.h",
       "system/sys_info_starboard.cc",
       "system/sys_info_starboard.h",
     ]
 
-    deps += [ "//starboard/common:common_headers_only" ]
+    deps += [
+      "//starboard/common:common_headers_only",
+      "//starboard:starboard_headers_only",
+    ]
   }
 
   if (use_blink) {
@@ -3060,6 +3070,9 @@ component("i18n") {
     "//third_party/ced",
     "//third_party/icu",
   ]
+  if (is_cobalt) {
+    public_deps -= [ "//third_party/ced" ]
+  }
   deps = [
     ":i18n_transliterator",
     "//build:chromecast_buildflags",
@@ -5071,6 +5084,13 @@ if (is_android) {
       "android/java/src/org/chromium/base/memory/MemoryInfoBridge.java",
       "android/java/src/org/chromium/base/memory/MemoryPurgeManager.java",
     ]
+
+    if (is_cobalt) {
+      sources += [
+        "android/java/src/org/chromium/base/memory/CobaltMemoryInfoBridge.java",
+      ]
+    }
+
   }
 
   android_library("memory_java") {
@@ -5088,6 +5108,13 @@ if (is_android) {
       "android/java/src/org/chromium/base/memory/MemoryPurgeManager.java",
       "android/java/src/org/chromium/base/memory/SelfFreezeCallback.java",
     ]
+
+    if (is_cobalt) {
+      sources += [
+        "android/java/src/org/chromium/base/memory/CobaltMemoryInfoBridge.java",
+      ]
+    }
+
     deps = [
       ":library_loader_java",
       ":log_java",

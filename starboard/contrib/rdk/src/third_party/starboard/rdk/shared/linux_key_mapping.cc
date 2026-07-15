@@ -40,10 +40,7 @@ ENUM_CONVERSION_END(SbKeyModifiers);
 
 }
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
 
 namespace {
 
@@ -265,7 +262,4 @@ void LinuxKeyMapping::MapKeyCodeAndModifiers(uint32_t& key_code, uint32_t& modif
   GetLinuxKeyMapping()->MapKeyCodeAndModifiers(key_code, modifiers);
 }
 
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party

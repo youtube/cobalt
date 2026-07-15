@@ -60,10 +60,15 @@ T* AlignDown(T* value, uintptr_t alignment) {
   return reinterpret_cast<T*>(AlignDown(AsInteger(value), alignment));
 }
 
-// Helper method for subclasses to determine if a given address or value
-// is aligned or not.
+// Determines if a given integer value is aligned to the specified alignment.
 template <typename T>
 static bool IsAligned(T value, size_t alignment) {
+  return value % alignment == 0;
+}
+
+// Overload to determine if a given pointer or address is aligned.
+template <typename T>
+static bool IsAligned(T* value, size_t alignment) {
   return AsInteger(value) % alignment == 0;
 }
 

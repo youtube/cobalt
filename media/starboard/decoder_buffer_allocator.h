@@ -41,14 +41,14 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   class Strategy {
    public:
     virtual ~Strategy() {}
-    virtual void* Allocate(DemuxerStream::Type type,
-                           size_t size,
-                           size_t alignment) = 0;
+    virtual void* Allocate(DemuxerStream::Type type, size_t size) = 0;
     virtual void Free(DemuxerStream::Type type, void* p) = 0;
     virtual void Write(void* p, const void* data, size_t size) = 0;
 
     virtual size_t GetCapacity() const = 0;
     virtual size_t GetAllocated() const = 0;
+
+    virtual void DecommitAllDecommitableBlocks() = 0;
   };
 
   using StrategyCreateCB =
@@ -63,18 +63,14 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
 
   static DecoderBufferAllocator* Get();
 
-  void Suspend();
-  void Resume();
+  void ReleaseIdleMemory();
+  void DecommitAllDecommitableBlocks();
 
   // DecoderBuffer::Allocator methods.
-  Handle Allocate(DemuxerStream::Type type,
-                  size_t size,
-                  size_t alignment) override;
+  Handle Allocate(DemuxerStream::Type type, size_t size) override;
   void Free(DemuxerStream::Type type, Handle p, size_t size) override;
   void Write(Handle handle, const void* data, size_t size) override;
 
-  int GetBufferAlignment() const override;
-  int GetBufferPadding() const override;
   base::TimeDelta GetBufferGarbageCollectionDurationThreshold() const override;
 
   // DecoderBufferMemoryInfo methods.
@@ -86,9 +82,13 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
 
   // Utility functions for h5vcc settings.
   // TODO(b/460292554): To be deprecated with h5vcc settings.
-  void SetAllocateOnDemand(bool enabled);
-  static void EnableDecommitableAllocatorStrategy();
+  static void EnableConfigurableDecommitStrategy(
+      int block_size,
+      int retain_blocks,
+      int conservative_decommit_blocks,
+      bool aggressive_decommit_on_suspend);
   static void EnableMediaBufferPoolStrategy();
+  static void EnableReleaseIdleMemory();
 
  private:
   void EnsureStrategyIsCreated() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
@@ -97,13 +97,18 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   void TryFlushAllocationLog_Locked() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
-  bool is_memory_pool_allocated_on_demand_ GUARDED_BY(mutex_);
+  const bool is_memory_pool_allocated_on_demand_;
   const int initial_capacity_;
   const int allocation_unit_;
 
   mutable base::Lock mutex_;
   std::unique_ptr<Strategy> strategy_ GUARDED_BY(mutex_);
   bool is_strategy_switch_pending_ GUARDED_BY(mutex_) = false;
+  // ReleaseIdleMemory() can be called on the UI thread while buffers are still
+  // actively decoding on the media thread. We defer idle memory reclamation
+  // until buffers drain in Free().
+  bool has_pending_release_ GUARDED_BY(mutex_) = false;
+  bool should_release_idle_memory_ GUARDED_BY(mutex_) = false;
   StrategyCreateCB experimental_strategy_create_cb_ GUARDED_BY(mutex_);
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)

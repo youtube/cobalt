@@ -4,7 +4,9 @@
 
 #include "content/browser/loader/subresource_proxying_url_loader.h"
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/browsing_topics/browsing_topics_url_loader_interceptor.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/interest_group/ad_auction_url_loader_interceptor.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/mojom/early_hints.mojom.h"
@@ -26,11 +28,13 @@ SubresourceProxyingURLLoader::SubresourceProxyingURLLoader(
   CHECK(resource_request_.browsing_topics ||
         resource_request_.ad_auction_headers);
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (resource_request_.browsing_topics) {
     interceptors_.push_back(
         std::make_unique<BrowsingTopicsURLLoaderInterceptor>(
             document, resource_request_));
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   if (resource_request_.ad_auction_headers) {
     interceptors_.push_back(std::make_unique<AdAuctionURLLoaderInterceptor>(

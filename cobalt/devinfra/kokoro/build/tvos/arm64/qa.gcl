@@ -11,9 +11,5 @@ config build = common.build {
       key = 'CONFIG'
       value = 'qa'
     },
-    {
-      key = 'GN_TARGET'
-      value = 'default'
-    },
   ]
 }

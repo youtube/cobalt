@@ -16,7 +16,7 @@
 # depend on this common target, and not any of the specific "starboard_platform"
 # targets.
 
-if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+if (is_starboard && current_toolchain == starboard_toolchain) {
   static_library("crashpad_wrapper") {
     sources = [
       "wrapper.cc",
@@ -30,7 +30,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       "//third_party/crashpad/crashpad/client:common",
     ]
 
-    data_deps = [ "//third_party/crashpad/crashpad/handler:crashpad_handler($native_target)" ]
+    data_deps = [ "//third_party/crashpad/crashpad/handler:crashpad_handler($native_toolchain)" ]
   }
 }
 

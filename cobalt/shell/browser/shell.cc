@@ -36,7 +36,6 @@
 #include "base/task/bind_post_task.h"
 #include "build/build_config.h"
 #include "cobalt/browser/switches.h"
-#include "cobalt/shell/app/resource.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/browser/shell_devtools_frontend.h"
@@ -70,6 +69,10 @@
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
 #include "third_party/blink/public/mojom/window_features/window_features.mojom.h"
 
+#if BUILDFLAG(USE_EVERGREEN)
+#include "cobalt/updater/updater_module.h"  //nogncheck
+#endif
+
 #if BUILDFLAG(IS_ANDROID)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "starboard/android/shared/audio_permission_requester.h"
@@ -96,34 +99,55 @@ constexpr char kMusicTopic[] = "music";
 // Helper function to check if a URL is a valid deep link for a specific topic.
 // It requires both a "launch" parameter and a matching "topic" parameter.
 bool IsDeepLinkTopic(const GURL& link_url, std::string_view target_topic) {
-  if (!link_url.is_valid() || !link_url.has_query()) {
+  if (!link_url.is_valid()) {
     return false;
   }
 
-  std::string query = link_url.query();
-  // Decode URL encoded characters in the entire query string first so that
-  // QueryIterator can correctly split on ampersands, even if they were encoded.
-  std::string unescaped_query = base::UnescapeURLComponent(
-      query, base::UnescapeRule::REPLACE_PLUS_WITH_SPACE |
-                 base::UnescapeRule::URL_SPECIAL_CHARS_EXCEPT_PATH_SEPARATORS);
-  GURL unescaped_url;
-  GURL::Replacements replacements;
-  replacements.SetQueryStr(unescaped_query);
-  unescaped_url = link_url.ReplaceComponents(replacements);
+  // Helper lambda to check a query string
+  auto check_query_string = [&](std::string_view query_str) {
+    std::string unescaped_query = base::UnescapeURLComponent(
+        query_str,
+        base::UnescapeRule::REPLACE_PLUS_WITH_SPACE |
+            base::UnescapeRule::URL_SPECIAL_CHARS_EXCEPT_PATH_SEPARATORS);
 
-  bool has_launch = false;
-  bool has_target_topic = false;
+    // Use GURL::Replacements to safely set the query string without worrying
+    // about special characters like '#' truncating the query.
+    GURL dummy_url("http://dummy/");
+    GURL::Replacements replacements;
+    replacements.SetQueryStr(unescaped_query);
+    dummy_url = dummy_url.ReplaceComponents(replacements);
 
-  for (net::QueryIterator it(unescaped_url); !it.IsAtEnd(); it.Advance()) {
-    if (!has_launch && it.GetKey() == "launch") {
-      has_launch = true;
-    } else if (!has_target_topic && it.GetKey() == "topic" &&
-               it.GetUnescapedValue() == target_topic) {
-      has_target_topic = true;
+    bool has_launch = false;
+    bool has_target_topic = false;
+
+    for (net::QueryIterator it(dummy_url); !it.IsAtEnd(); it.Advance()) {
+      if (!has_launch && it.GetKey() == "launch") {
+        has_launch = true;
+      } else if (!has_target_topic && it.GetKey() == "topic" &&
+                 it.GetUnescapedValue() == target_topic) {
+        has_target_topic = true;
+      }
+
+      if (has_launch && has_target_topic) {
+        return true;
+      }
     }
+    return false;
+  };
 
-    if (has_launch && has_target_topic) {
-      return true;
+  // 1. Check the standard query part
+  if (link_url.has_query() && check_query_string(link_url.query())) {
+    return true;
+  }
+
+  // 2. Check the fragment part if it looks like a query (starts with '?')
+  if (link_url.has_ref()) {
+    std::string ref = link_url.ref();
+    if (!ref.empty() && ref[0] == '?') {
+      // Skip the leading '?'
+      if (check_query_string(std::string_view(ref).substr(1))) {
+        return true;
+      }
     }
   }
 
@@ -516,6 +540,15 @@ void Shell::PrimaryMainDocumentElementAvailable() {
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(27);
 #endif
+#if BUILDFLAG(USE_EVERGREEN)
+  cobalt::updater::UpdaterModule* updater_module =
+      cobalt::updater::UpdaterModule::GetInstance();
+  if (updater_module) {
+    LOG(INFO) << "Mark the current installation as successful after the "
+                 "PrimaryMainDocumentElement is available.";
+    updater_module->MarkSuccessful();
+  }
+#endif
 }
 
 void Shell::DidFinishLoad(RenderFrameHost* render_frame_host,
@@ -559,11 +592,6 @@ void Shell::DidStartLoading() {
 }
 
 void Shell::DidStopLoading() {
-  // Set initial focus to the web content.
-  if (web_contents()->GetRenderWidgetHostView()) {
-    web_contents()->GetRenderWidgetHostView()->Focus();
-  }
-
   if (!is_main_frame_loaded_ &&
       splash_state_ != STATE_SPLASH_SCREEN_UNINITIALIZED) {
     VLOG(1) << "NativeSplash: Main frame WebContents DidStopLoading.";
@@ -970,8 +998,9 @@ void Shell::RendererUnresponsive(
 }
 
 void Shell::ActivateContents(WebContents* contents) {
-  // TODO(danakj): Move this to ShellPlatformDelegate.
-  contents->Focus();
+  if (!g_platform->IsWaitingForRevealAck()) {
+    contents->GetPrimaryMainFrame()->GetRenderWidgetHost()->Focus();
+  }
 }
 
 bool Shell::IsBackForwardCacheSupported(WebContents& web_contents) {
@@ -1064,6 +1093,10 @@ bool Shell::CheckMediaAccessPermission(RenderFrameHost*,
   return true;
 }
 
+bool Shell::ShouldFocusPageAfterCrash(WebContents* source) {
+  return !g_platform->IsWaitingForRevealAck();
+}
+
 gfx::Size Shell::GetShellDefaultSize() {
   static gfx::Size default_shell_size;  // Only go through this method once.
 
@@ -1135,6 +1168,13 @@ void Shell::LoadProgressChanged(double progress) {
     }
   }
 }
+
+#if BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
+base::WeakPtr<on_screen_keyboard::PlatformOnScreenKeyboard>
+Shell::GetPlatformOnScreenKeyboard() {
+  return g_platform->GetOrCreatePlatformOnScreenKeyboard(this);
+}
+#endif  // BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
 
 void Shell::ScheduleSwitchToMainWebContents() {
   if (splash_screen_start_time_.is_null()) {

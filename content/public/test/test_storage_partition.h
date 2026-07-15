@@ -171,11 +171,13 @@ class TestStoragePartition : public StoragePartition {
 
   void DeleteStaleSessionData() override {}
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   void set_browsing_topics_site_data_manager(
       BrowsingTopicsSiteDataManager* manager) {
     browsing_topics_site_data_manager_ = manager;
   }
   BrowsingTopicsSiteDataManager* GetBrowsingTopicsSiteDataManager() override;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   void set_devtools_background_services_context(
       DevToolsBackgroundServicesContext* context) {
@@ -247,7 +249,9 @@ class TestStoragePartition : public StoragePartition {
   void RemoveObserver(DataRemovalObserver* observer) override;
   int GetDataRemovalObserverCount();
 
+#if !BUILDFLAG(IS_COBALT)
   void ClearBluetoothAllowedDevicesMapForTesting() override;
+#endif
   void FlushNetworkInterfaceForTesting() override;
   void FlushCertVerifierInterfaceForTesting() override;
   void WaitForDeletionTasksForTesting() override;
@@ -283,8 +287,10 @@ class TestStoragePartition : public StoragePartition {
   raw_ptr<GeneratedCodeCacheContext> generated_code_cache_context_ = nullptr;
   raw_ptr<network::mojom::DeviceBoundSessionManager>
       device_bound_session_manager_ = nullptr;
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   raw_ptr<BrowsingTopicsSiteDataManager> browsing_topics_site_data_manager_ =
       nullptr;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   raw_ptr<PlatformNotificationContext> platform_notification_context_ = nullptr;
   raw_ptr<DevToolsBackgroundServicesContext>
       devtools_background_services_context_ = nullptr;

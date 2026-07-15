@@ -953,6 +953,8 @@ void GpuInit::InitializeInProcess(base::CommandLine* command_line,
     LOG(FATAL) << "gpu::InitializeGLThreadSafe() failed.";
   }
 
+  gpu_info_.gl_implementation_parts = gl::GetGLImplementationParts();
+
   if (command_line->HasSwitch(switches::kWebViewDrawFunctorUsesVulkan)) {
     bool result = InitializeVulkan();
     // There is no fallback for webview.

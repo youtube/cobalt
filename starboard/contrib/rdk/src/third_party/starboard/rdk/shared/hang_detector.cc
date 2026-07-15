@@ -30,17 +30,15 @@
 #include <chrono>
 
 #include "starboard/common/once.h"
-#include "starboard/thread.h"
+#include <sys/resource.h>
+#include "starboard/common/thread.h"
 
 #include "third_party/starboard/rdk/shared/log_override.h"
 
 using namespace std::chrono_literals;
 using namespace std::chrono;
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
 
 namespace {
 
@@ -102,7 +100,7 @@ seconds get_check_interval() {
 struct HangDetector
 {
   static void* ThreadEntryPoint(void* context) {
-    SbThreadSetPriority(kSbThreadNoPriority);
+    setpriority(PRIO_PROCESS, 0, ThreadPriorityToNiceValue(ThreadPriority::kNoPriority));
     SB_DCHECK(context);
     static_cast<HangDetector*>(context)->DoWork();
     return nullptr;
@@ -242,7 +240,4 @@ void HangMonitor::Reset() {
   tid_ = get_tid();
 }
 
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party

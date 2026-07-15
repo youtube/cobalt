@@ -29,17 +29,6 @@ buildflag_header("buildflags") {
   ]
 }
 
-# Generates a C++ header file containing the targeted Chromium milestone version
-# and helper macros. This enables Cobalt to conditionally compile custom
-# features, fallbacks, or modifications on older milestones (M138 or lower),
-# while automatically yielding to upstream's official implementations on newer
-# milestones (M139+) to prevent rebase and upgrade merge conflicts.
-process_version("milestone_features") {
-  sources = [ "//chrome/VERSION" ]
-  template_file = "content_milestone_features.h.in"
-  output = "$target_gen_dir/content_milestone_features.h"
-}
-
 # See //content/BUILD.gn for how this works. Note that targets in `//content`
 # will want to include `:common_sources` directly.
 group("common") {
@@ -268,7 +257,6 @@ source_set("common_sources") {
     ":main_function_params",
     ":renderer_type",
     ":switches",
-    ":milestone_features",
     "//content/common",
     "//content/public/common/zygote:buildflags",
     "//ipc",

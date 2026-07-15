@@ -26,6 +26,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "build/build_config.h"
+#include "cobalt/build/configs/buildflags.h"
 #include "cobalt/shell/browser/shell_platform_delegate.h"
 #include "cobalt/shell/browser/splash_screen_web_contents_delegate.h"
 #include "cobalt/shell/browser/splash_screen_web_contents_observer.h"
@@ -36,6 +37,14 @@
 #include "ipc/ipc_channel.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/native_widget_types.h"
+
+#if BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
+#include "base/memory/weak_ptr.h"
+
+namespace on_screen_keyboard {
+class PlatformOnScreenKeyboard;
+}  // namespace on_screen_keyboard
+#endif  // BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
 
 class GURL;
 
@@ -136,6 +145,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   WebContents* web_contents() const { return web_contents_.get(); }
 
   void Focus();
+  bool pending_focus() const { return pending_focus_; }
 
   WebContents* splash_screen_web_contents() const {
     return splash_screen_web_contents_.get();
@@ -207,12 +217,18 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   bool CheckMediaAccessPermission(RenderFrameHost*,
                                   const url::Origin&,
                                   blink::mojom::MediaStreamType) override;
+  bool ShouldFocusPageAfterCrash(WebContents* source) override;
 
   static gfx::Size GetShellDefaultSize();
 
   void set_delay_popup_contents_delegate_for_testing(bool delay) {
     delay_popup_contents_delegate_for_testing_ = delay;
   }
+
+#if BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
+  base::WeakPtr<on_screen_keyboard::PlatformOnScreenKeyboard>
+  GetPlatformOnScreenKeyboard();
+#endif  // BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
 
  private:
   class DevToolsWebContentsObserver;

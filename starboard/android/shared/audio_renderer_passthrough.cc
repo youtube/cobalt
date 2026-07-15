@@ -35,8 +35,6 @@ constexpr int kMaxDecodedAudios = 64;
 constexpr int64_t kAudioTrackUpdateInternal = 5'000;  // 5ms
 
 constexpr int kPreferredBufferSizeInBytes = 16 * 1024;
-// TODO: Enable passthrough with tunnel mode.
-constexpr int kTunnelModeAudioSessionId = -1;
 
 // C++ rewrite of ExoPlayer function parseAc3SyncframeAudioSampleCount(), it
 // works for AC-3, E-AC-3, and E-AC-3-JOC.
@@ -146,7 +144,7 @@ void AudioRendererPassthrough::WriteSamples(const InputBuffers& input_buffers) {
 
   if (!audio_track_thread_) {
     audio_track_thread_ = JobThread::Create(
-        "AudioPassthrough", ThreadOptions().SetPriority(kSbThreadPriorityHigh));
+        "AudioPassthrough", ThreadOptions().SetPriority(ThreadPriority::kHigh));
     audio_track_thread_->Schedule(std::bind(
         &AudioRendererPassthrough::CreateAudioTrackAndStartProcessing, this));
   }
@@ -419,7 +417,8 @@ void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
           /*sample_type=*/std::nullopt,  // Not required in passthrough mode
           audio_stream_info_.number_of_channels,
           audio_stream_info_.samples_per_second, kPreferredBufferSizeInBytes,
-          kTunnelModeAudioSessionId, /*is_web_audio=*/false);
+          /*tunnel_mode_audio_session_id=*/std::nullopt,
+          /*is_web_audio=*/false);
 
   if (!audio_track_bridge) {
     error_cb_(kSbPlayerErrorDecode, "Error creating AudioTrackBridge");
@@ -490,7 +489,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
     current_state.playback_rate = playback_rate_;
 
     if (!decoded_audio_writing_in_progress_ && !decoded_audios_.empty()) {
-      decoded_audio_writing_in_progress_ = decoded_audios_.front();
+      decoded_audio_writing_in_progress_ = std::move(decoded_audios_.front());
       decoded_audios_.pop();
       decoded_audio_writing_offset_ = 0;
     }
@@ -544,7 +543,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
       //       should revisit this.
       auto sync_time = decoded_audio_writing_in_progress_->timestamp();
       int samples_written = audio_track_bridge_->WriteSample(
-          sample_buffer, samples_to_write, sync_time);
+          MakeSpan(sample_buffer, samples_to_write), sync_time);
       // Error code returned as negative value, like kAudioTrackErrorDeadObject.
       if (samples_written < 0) {
         if (samples_written == AudioTrackBridge::kAudioTrackErrorDeadObject) {
@@ -642,7 +641,7 @@ void AudioRendererPassthrough::OnDecoderOutput() {
   }
 
   std::lock_guard scoped_lock(mutex_);
-  decoded_audios_.push(decoded_audio);
+  decoded_audios_.push(std::move(decoded_audio));
 }
 
 }  // namespace starboard
