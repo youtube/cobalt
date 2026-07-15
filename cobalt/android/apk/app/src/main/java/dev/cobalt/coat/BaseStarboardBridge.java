@@ -22,6 +22,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Service;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.hardware.input.InputManager;
@@ -287,6 +288,7 @@ public class BaseStarboardBridge {
   }
 
   /* Immediate shutdown, used at least by StandalonePlayerActivity. */
+  @CalledByNative
   public void requestStop(int errorLevel) {
     applicationStopping();
     Activity activity = mActivityHolder.get();
@@ -327,6 +329,16 @@ public class BaseStarboardBridge {
       throw new IllegalArgumentException("mArgs cannot be null");
     }
     return mArgs;
+  }
+
+  @CalledByNative
+  public String getStdoutFilePath() {
+    Activity activity = mActivityHolder.get();
+    if (activity == null) return "";
+    Intent intent = activity.getIntent();
+    if (intent == null) return "";
+    String stdoutFile = intent.getStringExtra("org.chromium.native_test.NativeTest.StdoutFile");
+    return stdoutFile != null ? stdoutFile : "";
   }
 
   // Initialize the platform's AudioTrackAudioSink. This must be done after the browser client

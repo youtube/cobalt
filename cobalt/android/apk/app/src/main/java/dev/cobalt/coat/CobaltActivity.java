@@ -26,6 +26,7 @@ import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
@@ -57,6 +58,10 @@ import dev.cobalt.shell.StartupGuard;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.JavaSwitches;
 import dev.cobalt.util.Log;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -89,6 +94,15 @@ public abstract class CobaltActivity extends Activity {
 
   // This key differs in naming format for legacy reasons
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
+
+  private static final String EXTRA_COMMAND_LINE_FILE =
+      "org.chromium.native_test.NativeTest.CommandLineFile";
+  private static final String EXTRA_COMMAND_LINE_FLAGS =
+      "org.chromium.native_test.NativeTest.CommandLineFlags";
+  private static final String EXTRA_GTEST_FILTER =
+      "org.chromium.native_test.NativeTest.GtestFilter";
+  private static final String EXTRA_STDOUT_FILE =
+      "org.chromium.native_test.NativeTest.StdoutFile";
 
   private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
 
@@ -197,26 +211,23 @@ public abstract class CobaltActivity extends Activity {
     // Initializing the command line must occur before loading the library.
     if (!CommandLine.isInitialized()) {
       CommandLine.init(null);
-
-      String[] commandLineArgs = null;
-      if (!VersionInfo.isReleaseBuild()) {
-        commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
-      }
-      commandLineArgs = appendArgsFromMetaData(getActivityMetaData(), commandLineArgs);
-
-      List<String> extraCommandLineArgs = JavaSwitches.getExtraCommandLineArgs(getJavaSwitches());
-
-      if (!extraCommandLineArgs.isEmpty()) {
-        if (commandLineArgs != null) {
-          extraCommandLineArgs.addAll(0, Arrays.asList(commandLineArgs));
-        }
-        commandLineArgs = extraCommandLineArgs.toArray(new String[0]);
-      }
-
-      CommandLineOverrideHelper.getFlagOverrides(
-          new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
-              VersionInfo.isOfficialBuild(), commandLineArgs));
     }
+
+    String[] commandLineArgs = getArgs();
+    commandLineArgs = appendArgsFromMetaData(getActivityMetaData(), commandLineArgs);
+
+    List<String> extraCommandLineArgs = JavaSwitches.getExtraCommandLineArgs(getJavaSwitches());
+
+    if (!extraCommandLineArgs.isEmpty()) {
+      if (commandLineArgs != null) {
+        extraCommandLineArgs.addAll(0, Arrays.asList(commandLineArgs));
+      }
+      commandLineArgs = extraCommandLineArgs.toArray(new String[0]);
+    }
+
+    CommandLineOverrideHelper.getFlagOverrides(
+        new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
+            VersionInfo.isOfficialBuild(), commandLineArgs));
     mIsCobaltUsingAndroidOverlay =
         CommandLine.getInstance().hasSwitch(COBALT_USING_ANDROID_OVERLAY);
 
@@ -296,8 +307,13 @@ public abstract class CobaltActivity extends Activity {
     }
 
     StartupGuard.getInstance().setStartupMilestone(8);
+    startApplication(savedInstanceState);
+  }
+
+  protected void startApplication(Bundle savedInstanceState) {
     // TODO(b/377025559): Bring back WebTests launch capability
-    AppEventBridge.handleStartEvent(mStartDeepLink, mTimeInNanoseconds / 1000L);
+    AppEventBridge.handleStartEvent(
+        getStarboardBridge().getArgs(), mStartDeepLink, mTimeInNanoseconds / 1000L);
     // NOTE: This log message is hard-coded in smoke tests to detect browser startup success.
     // See ManekiBaseDeviceUtil.CHROBALT_BROWSER_READY_REGEX in the internal test suite.
     Log.i(TAG, "Browser process init succeeded");
@@ -667,13 +683,84 @@ public abstract class CobaltActivity extends Activity {
    * <p>To use, invoke application via, eg, adb shell am start --esa args arg1,arg2 \
    * dev.cobalt.coat/dev.cobalt.app.MainActivity
    */
+  private final List<String> mExtraCommandLineFlags = new ArrayList<>();
+
+  public void appendCommandLineFlags(String flags) {
+    mExtraCommandLineFlags.addAll(Arrays.asList(flags.split("\\s+")));
+  }
+
+  protected File getPrivateDataDirectory() {
+    return null;
+  }
+
   protected String[] getArgs() {
     String[] commandLineArgs = null;
     Intent intent = getIntent();
     if (!isReleaseBuild()) {
       commandLineArgs = getCommandLineParamsFromIntent(intent, COMMAND_LINE_ARGS_KEY);
+      if (commandLineArgs == null && intent != null) {
+        ArrayList<String> testArgs = new ArrayList<>();
+        boolean isGTest = false;
+        String commandLineFilePath = intent.getStringExtra(EXTRA_COMMAND_LINE_FILE);
+        if (commandLineFilePath != null && !commandLineFilePath.isEmpty()) {
+          isGTest = true;
+          File commandLineFile = new File(commandLineFilePath);
+          if (!commandLineFile.isAbsolute()) {
+            commandLineFilePath =
+                Environment.getExternalStorageDirectory() + "/" + commandLineFilePath;
+          }
+          parseArgsFromFile(commandLineFilePath, testArgs);
+        }
+        String commandLineFlags = intent.getStringExtra(EXTRA_COMMAND_LINE_FLAGS);
+        if (commandLineFlags != null) {
+          isGTest = true;
+          testArgs.addAll(Arrays.asList(commandLineFlags.split("\\s+")));
+        }
+        String gtestFilter = intent.getStringExtra(EXTRA_GTEST_FILTER);
+        if (gtestFilter != null) {
+          isGTest = true;
+          testArgs.add("--gtest_filter=" + gtestFilter);
+        }
+        String stdoutFile = intent.getStringExtra(EXTRA_STDOUT_FILE);
+        if (stdoutFile != null) {
+          isGTest = true;
+          testArgs.add("--native-test-stdout=" + stdoutFile);
+        }
+        if (isGTest) {
+          // Append dynamically registered command line flags (e.g. from onCreate).
+          testArgs.addAll(mExtraCommandLineFlags);
+          // Append private data directory for test isolation.
+          File privateDataDir = getPrivateDataDirectory();
+          if (privateDataDir != null) {
+            testArgs.add("--user-data-dir=" + privateDataDir.getAbsolutePath());
+          }
+          // Force single-process tests mode.
+          testArgs.add("--single-process-tests");
+          commandLineArgs = testArgs.toArray(new String[0]);
+        }
+      }
     }
     return constructArgs(commandLineArgs, getActivityMetaData(), intent.getExtras());
+  }
+
+  private void parseArgsFromFile(String path, List<String> argsList) {
+    File file = new File(path);
+    if (!file.exists()) return;
+    try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+      String line;
+      while ((line = reader.readLine()) != null) {
+        String[] tokens = line.split("\\s+");
+        for (String token : tokens) {
+          if (token.isEmpty()) continue;
+          if (token.startsWith("\"") && token.endsWith("\"")) {
+            token = token.substring(1, token.length() - 1);
+          }
+          argsList.add(token);
+        }
+      }
+    } catch (IOException e) {
+      Log.e(TAG, "Failed to read command line file: " + path, e);
+    }
   }
 
   @VisibleForTesting
@@ -734,7 +821,7 @@ public abstract class CobaltActivity extends Activity {
   }
 
   protected boolean isReleaseBuild() {
-    return StarboardBridge.isReleaseBuild();
+    return VersionInfo.isReleaseBuild();
   }
 
   protected boolean isDevelopmentBuild() {

@@ -22,8 +22,8 @@ public class AppEventBridge {
     AppEventBridgeJni.get().handleLifecycleEvent(type, timestamp);
   }
 
-  public static void handleStartEvent(String link, long timestamp) {
-    AppEventBridgeJni.get().handleStartEvent(link, timestamp);
+  public static void handleStartEvent(String[] args, String link, long timestamp) {
+    AppEventBridgeJni.get().handleStartEvent(args, link, timestamp);
   }
   public static void handleOsNetworkEvent(boolean online) {
     AppEventBridgeJni.get().handleOsNetworkEvent(online);
@@ -31,7 +31,7 @@ public class AppEventBridge {
   @NativeMethods
   interface Natives {
     void handleLifecycleEvent(int type, long timestamp);
-    void handleStartEvent(String link, long timestamp);
+    void handleStartEvent(String[] args, String link, long timestamp);
     void handleOsNetworkEvent(boolean online);
   }
 }

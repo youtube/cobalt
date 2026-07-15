@@ -19,7 +19,7 @@
 #include "starboard/event.h"
 
 extern "C" {
-void SbEventHandle(const SbEvent* event) {
+__attribute__((weak)) void SbEventHandle(const SbEvent* event) {
   // This object's lifetime extends beyond the function's lifetime, until the
   // function is called with kSbEventTypeStop at some time in the future.
   // When the application is stopped, this object is destroyed and the pointer

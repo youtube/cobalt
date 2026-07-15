@@ -15,15 +15,30 @@
 #include <cstdlib>
 #include <string>
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
+
+#if BUILDFLAG(IS_POSIX)
+#include <unistd.h>
+#endif
+
 #include "base/allocator/partition_alloc_features.h"
 #include "base/at_exit.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
+#include "base/files/file_path.h"
+#include "base/i18n/icu_util.h"
 #include "base/logging.h"
+#include "base/metrics/field_trial.h"
 #include "base/process/process.h"
 #include "base/test/test_suite.h"
 #include "base/test/test_support_starboard.h"
 #include "base/test/test_timeouts.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/path_utils.h"
+#include "base/test/test_support_android.h"
+#include "content/public/test/content_test_suite_base.h"
+#endif
 #include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
 #include "cobalt/testing/browser_tests/content_browser_test_shell_main_delegate.h"
 #include "content/public/test/test_launcher.h"
@@ -42,6 +57,9 @@ class CobaltBrowserTestLauncherDelegate : public content::TestLauncherDelegate {
   // This method is called by content::LaunchTests to
   // execute the entire suite of discovered Google Tests.
   int RunTestSuite(int argc, char** argv) override {
+#if BUILDFLAG(IS_ANDROID)
+    content::ContentTestSuiteBase::RegisterInProcessThreads();
+#endif
     base::TestSuite test_suite(argc, argv);
     test_suite.DisableCheckForLeakedGlobals();
     return test_suite.Run();
@@ -73,7 +91,30 @@ SB_EXPORT void SbEventHandle(const SbEvent* event) {
       int argc = start_data->argument_count;
       char** argv = const_cast<char**>(start_data->argument_values);
 
+      LOG(ERROR) << "SbEventHandle argc: " << argc;
+      for (int i = 0; i < argc; ++i) {
+        LOG(ERROR) << "SbEventHandle argv[" << i << "]: " << argv[i];
+      }
+
       base::CommandLine::Init(argc, argv);
+
+#if BUILDFLAG(IS_POSIX)
+      {
+        base::CommandLine* command_line =
+            base::CommandLine::ForCurrentProcess();
+        if (command_line->HasSwitch("native-test-stdout")) {
+          base::FilePath stdout_file_path =
+              command_line->GetSwitchValuePath("native-test-stdout");
+          if (freopen(stdout_file_path.value().c_str(), "a+", stdout) == NULL) {
+            LOG(ERROR) << "Failed to redirect stdout to "
+                       << stdout_file_path.value();
+          } else {
+            dup2(STDOUT_FILENO, STDERR_FILENO);
+          }
+        }
+      }
+#endif
+
       testing::InitGoogleTest(&argc, argv);
 
       base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
@@ -86,6 +127,7 @@ SB_EXPORT void SbEventHandle(const SbEvent* event) {
         disabled_features += ",PartitionAllocDanglingPtr";
       }
 
+      base::FieldTrialList field_trial_list;
       auto feature_list = std::make_unique<base::FeatureList>();
       feature_list->InitFromCommandLine(
           command_line->GetSwitchValueASCII("enable-features"),
@@ -93,12 +135,26 @@ SB_EXPORT void SbEventHandle(const SbEvent* event) {
       base::FeatureList::SetInstance(std::move(feature_list));
 
       // TODO(b/433354983): Support more platforms.
+#if BUILDFLAG(IS_LINUX)
       ui::LinuxUi::SetInstance(ui::GetDefaultLinuxUi());
+#endif
 
       if (!s_delegate) {
         s_delegate = new CobaltBrowserTestLauncherDelegate();
       }
+#if !BUILDFLAG(IS_ANDROID)
       base::InitStarboardTestMessageLoop();
+#endif
+#if BUILDFLAG(IS_ANDROID)
+      base::i18n::AllowMultipleInitializeCallsForTesting();
+      {
+        base::FilePath external_dir;
+        base::android::GetExternalStorageDirectory(&external_dir);
+        base::FilePath test_data_dir =
+            external_dir.Append("chromium_tests_root");
+        base::InitAndroidTestPaths(test_data_dir);
+      }
+#endif
       s_test_result_code = content::LaunchTests(s_delegate, 1, argc, argv);
       SbSystemRequestStop(s_test_result_code);
       break;
@@ -129,7 +185,7 @@ SB_EXPORT void SbEventHandle(const SbEvent* event) {
   }
 }
 
-#if !SB_IS(EVERGREEN)
+#if !SB_IS(EVERGREEN) && !BUILDFLAG(IS_ANDROID)
 int main(int argc, char** argv) {
   return SbRunStarboardMain(argc, argv, SbEventHandle);
 }

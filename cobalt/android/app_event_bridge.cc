@@ -13,7 +13,9 @@
 // limitations under the License.
 
 #include <string>
+#include <vector>
 
+#include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/time/time.h"
 #include "cobalt/android/browser_jni_headers/AppEventBridge_jni.h"
@@ -35,6 +37,7 @@ void JNI_AppEventBridge_HandleLifecycleEvent(JNIEnv* env,
 
 void JNI_AppEventBridge_HandleStartEvent(
     JNIEnv* env,
+    const base::android::JavaParamRef<jobjectArray>& j_args,
     const base::android::JavaParamRef<jstring>& jlink,
     jlong timestamp) {
   SbEvent event;
@@ -49,6 +52,24 @@ void JNI_AppEventBridge_HandleStartEvent(
       start_data.link = link_str.c_str();
     }
   }
+
+  std::vector<std::string> args;
+  args.push_back("cobalt");
+  if (j_args) {
+    base::android::AppendJavaStringArrayToStringVector(env, j_args, &args);
+  }
+  std::vector<char*> argv;
+  int argc = 0;
+  if (!args.empty()) {
+    argv.resize(args.size());
+    for (size_t i = 0; i < args.size(); ++i) {
+      argv[i] = const_cast<char*>(args[i].c_str());
+    }
+    argc = args.size();
+    start_data.argument_values = argv.data();
+    start_data.argument_count = argc;
+  }
+
   event.data = &start_data;
 
   SbEventHandle(&event);

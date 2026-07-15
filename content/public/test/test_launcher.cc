@@ -329,7 +329,7 @@ int LaunchTestsInternal(TestLauncherDelegate* launcher_delegate,
   g_launcher_delegate = launcher_delegate;
 
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
   // The ContentMainDelegate is set for browser tests on Android by the
   // browser test target and is not created by the |launcher_delegate|.
   ContentMainParams params(GetContentMainDelegateForTesting());
@@ -362,7 +362,7 @@ int LaunchTestsInternal(TestLauncherDelegate* launcher_delegate,
   params.argv = const_cast<const char**>(argv);
 #endif  // BUILDFLAG(IS_WIN)
 
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_COBALT)
   // This needs to be before trying to run tests as otherwise utility processes
   // end up being launched as a test, which leads to rerunning the test.
   // ContentMain is not run on Android in the test process, and is run via
@@ -386,7 +386,7 @@ int LaunchTestsInternal(TestLauncherDelegate* launcher_delegate,
       command_line->HasSwitch(base::kGTestListTestsFlag) ||
       command_line->HasSwitch(base::kGTestHelpFlag)) {
     g_params = &params;
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_COBALT)
     base::ScopedTempDir tmp_dir;
     const std::string user_data_dir_switch =
         launcher_delegate->GetUserDataDirectoryCommandLineSwitch();
@@ -419,7 +419,9 @@ int LaunchTestsInternal(TestLauncherDelegate* launcher_delegate,
     return false;
   }
 
+#if !BUILDFLAG(IS_ANDROID)
   base::AtExitManager at_exit;
+#endif
   testing::InitGoogleTest(&argc, argv);
 
   base::TimeTicks start_time(base::TimeTicks::Now());

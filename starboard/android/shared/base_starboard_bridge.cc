@@ -234,6 +234,13 @@ void StarboardBridge::AppendArgs(JNIEnv* env,
   AppendJavaStringArrayToStringVector(env, args_java, args_vector);
 }
 
+std::string StarboardBridge::GetStdoutFilePath(JNIEnv* env) {
+  SB_DCHECK(env);
+  ScopedJavaLocalRef<jstring> path_java =
+      Java_BaseStarboardBridge_getStdoutFilePath(env, j_starboard_bridge_);
+  return ConvertJavaStringToUTF8(env, path_java);
+}
+
 ScopedJavaLocalRef<jintArray> StarboardBridge::GetSupportedHdrTypes(
     JNIEnv* env) {
   SB_DCHECK(env);
@@ -313,6 +320,11 @@ SB_EXPORT_ANDROID double StarboardBridge::GetScreenDiagonal(JNIEnv* env) {
 SB_EXPORT_ANDROID void StarboardBridge::CloseApp(JNIEnv* env) {
   SB_DCHECK(env);
   return Java_BaseStarboardBridge_closeApp(env, j_starboard_bridge_);
+}
+
+void StarboardBridge::RequestStop(JNIEnv* env, jint error_level) {
+  SB_DCHECK(env);
+  Java_BaseStarboardBridge_requestStop(env, j_starboard_bridge_, error_level);
 }
 
 std::string StarboardBridge::GetTimeZoneId(JNIEnv* env) {

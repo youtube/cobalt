@@ -29,7 +29,7 @@ class TestLauncherDelegate {
   // data directory.
   virtual std::string GetUserDataDirectoryCommandLineSwitch();
 
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_COBALT)
   // Android browser tests set the ContentMainDelegate itself for the test
   // harness to use, and do not go through ContentMain() in TestLauncher.
   virtual ContentMainDelegate* CreateContentMainDelegate() = 0;

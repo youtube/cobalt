@@ -34,6 +34,10 @@
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/jni_android.h"
+#include "starboard/android/shared/starboard_bridge.h"
+#endif
 #include "cobalt/app/app_event_delegate.h"
 
 #if BUILDFLAG(USE_EVERGREEN)
@@ -103,10 +107,6 @@ class AppEventRunnerImpl : public AppEventRunner,
     content_main_delegate_ = std::make_unique<cobalt::CobaltMainDelegate>(
         startup_timestamp, initial_deep_link,
         false /* is_content_browsertests */, is_visible);
-#if BUILDFLAG(IS_ANDROID)
-    // TODO: Cleanup remaining Android use of ContentMainDelegate.
-    content::SetContentMainDelegate(content_main_delegate_.get());
-#endif
   }
 
   std::vector<content::WebContents*> GetWebContents() override {
@@ -342,6 +342,21 @@ class AppEventRunnerImpl : public AppEventRunner,
           int argc,
           const char** argv,
           const char* initial_deep_link) {
+#if BUILDFLAG(IS_ANDROID)
+    JNIEnv* env = base::android::AttachCurrentThread();
+    std::string stdout_file_path =
+        starboard::StarboardBridge::GetInstance()->GetStdoutFilePath(env);
+    if (!stdout_file_path.empty()) {
+      LOG(INFO) << "Redirecting stdout to: " << stdout_file_path;
+      if (std::freopen(stdout_file_path.c_str(), "a+", stdout) == nullptr) {
+        LOG(ERROR) << "Failed to redirect stdout to " << stdout_file_path;
+      }
+      if (std::freopen(stdout_file_path.c_str(), "a+", stderr) == nullptr) {
+        LOG(ERROR) << "Failed to redirect stderr to " << stdout_file_path;
+      }
+    }
+#endif
+
     CreateMainDelegate(startup_timestamp, is_visible, initial_deep_link);
     content::ContentMainParams params(GetMainDelegate());
 #if BUILDFLAG(IS_STARBOARD)
@@ -383,7 +398,10 @@ class AppEventRunnerImpl : public AppEventRunner,
   }
 
   std::unique_ptr<base::AtExitManager> exit_manager_;
+  // We own and manage the lifecycle of the ContentMainRunner. On non-Android
+  // platforms we explicitly shut it down in DoStop().
   content::ContentMainRunner* main_runner_ = nullptr;
+
   std::unique_ptr<cobalt::CobaltMainDelegate> content_main_delegate_;
 
 #if BUILDFLAG(IS_STARBOARD)

@@ -93,7 +93,7 @@ class ContentTestLauncherDelegate : public TestLauncherDelegate {
   }
 
  protected:
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_COBALT)
   ContentMainDelegate* CreateContentMainDelegate() override {
     return new ContentBrowserTestShellMainDelegate();
   }

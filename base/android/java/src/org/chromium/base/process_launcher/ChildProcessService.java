@@ -316,6 +316,7 @@ public class ChildProcessService {
             }
 
             EarlyTraceEvent.onCommandLineAvailableInChildProcess();
+            Log.i(TAG, "Jetski: calling loadNativeLibrary");
             mDelegate.loadNativeLibrary(getApplicationContext());
 
             synchronized (mLibraryInitializedLock) {

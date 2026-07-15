@@ -104,7 +104,9 @@ CONTENT_EXPORT int RunContentProcess(ContentMainParams params,
 // This should only be called once before ContentMainRunner actually running.
 // The ownership of |delegate| is transferred.
 CONTENT_EXPORT void SetContentMainDelegate(ContentMainDelegate* delegate);
-#else
+#endif
+
+#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_COBALT)
 // ContentMain should be called from the embedder's main() function to do the
 // initial setup for every process. The embedder has a chance to customize
 // startup using the ContentMainDelegate interface. The embedder can also pass

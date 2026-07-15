@@ -53,19 +53,7 @@ public class ApkAssets {
         } catch (IOException e) {
             sLastError =
                     "Error while loading asset " + apkSubpath + " from " + splitName + ": " + e;
-            // As a general rule there's no point logging here because the caller should handle
-            // receiving an fd of -1 sensibly, and the log message is either mirrored later, or
-            // unwanted (in the case where a missing file is expected), or wanted but will be
-            // ignored, as most non-fatal logs are.
-            // It makes sense to log here when the file exists, but is unable to be opened as an fd
-            // because (for example) it is unexpectedly compressed in an apk. In that case, the log
-            // message might save someone some time working out what has gone wrong.
-            // For that reason, we only suppress the message when the exception message doesn't look
-            // informative (Android framework passes the filename as the message on actual file not
-            // found, and the empty string also wouldn't give any useful information for debugging).
-            if (!TextUtils.isEmpty(e.getMessage()) && !e.getMessage().equals(apkSubpath)) {
-                Log.e(TAG, sLastError);
-            }
+            Log.e(TAG, sLastError, e);
             return new long[] {-1, -1, -1};
         } finally {
             try {

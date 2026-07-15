@@ -16,10 +16,12 @@
 #include "starboard/system.h"
 // clang-format on
 
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 void SbSystemRequestStop(int error_level) {
-  // TODO: b/450024477 - Implement this method when AOSP is used.
-  SB_LOG(WARNING) << __func__ << "(error_level=" << error_level
-                  << ") is called, but it's ignored on Android";
+  SB_LOG(INFO) << __func__ << "(error_level=" << error_level << ")";
+  JNIEnv* env = jni_zero::AttachCurrentThread();
+  starboard::StarboardBridge::GetInstance()->RequestStop(env, error_level);
 }

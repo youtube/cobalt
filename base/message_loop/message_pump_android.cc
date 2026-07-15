@@ -395,6 +395,9 @@ void MessagePumpAndroid::OnDelayedLooperCallback() {
 }
 
 void MessagePumpAndroid::DoDelayedLooperWork() {
+  if (!delegate_) {
+    return;
+  }
   delayed_scheduled_time_.reset();
 
   Delegate::NextWorkInfo next_work_info = delegate_->DoWork();
@@ -447,6 +450,9 @@ void MessagePumpAndroid::OnNonDelayedLooperCallback() {
 }
 
 void MessagePumpAndroid::DoNonDelayedLooperWork(bool do_idle_work) {
+  if (!delegate_) {
+    return;
+  }
   // Note: We can't skip DoWork() even if |do_idle_work| is true here (i.e. no
   // additional ScheduleWork() since yielding to native) as delayed tasks might
   // have come in and we need to re-sample |next_work_info|.

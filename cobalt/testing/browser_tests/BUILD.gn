@@ -163,12 +163,14 @@ if (is_android) {
       "//base:content_uri_utils_java",
       "//cobalt/android:cobalt_main_java",
       "//cobalt/shell/android:cobalt_shell_java",
+      "//components/crash/android:java",
       "//components/download/internal/common:internal_java",
       "//components/metrics:metrics_java",
       "//components/viz/service:service_java",
       "//content/public/android:content_java",
       "//content/public/test/android:content_java_test_support",
       "//testing/android/native_test:native_browser_test_java",
+      "//testing/android/reporter:reporter_java",
       "//third_party/androidx:androidx_core_core_java",
       "//ui/android:ui_java",
     ]
@@ -245,7 +247,7 @@ test("cobalt_browsertests") {
     sources += [ "browsertests_apk/content_browser_tests_jni_onload.cc" ]
   }
 
-  if (is_starboard) {
+  if (is_starboard || is_android) {
     sources += [ "cobalt_browser_tests_main.cc" ]
   }
 

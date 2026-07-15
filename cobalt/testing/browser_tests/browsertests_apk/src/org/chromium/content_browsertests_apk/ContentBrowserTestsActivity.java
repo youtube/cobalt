@@ -28,9 +28,9 @@ public class ContentBrowserTestsActivity extends ContentShellBrowserTestActivity
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
         appendCommandLineFlags(
                 "--remote-debugging-socket-name content_browsertests_devtools_remote");
+        super.onCreate(savedInstanceState);
     }
 
     @Override
