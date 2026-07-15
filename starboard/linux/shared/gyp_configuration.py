@@ -91,6 +91,11 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
 
   _FILTERED_TESTS = {
       'nplb': ['SbDrmTest.AnySupportedKeySystems',],
+      'net_unittests': [
+          'TransportSecurityStateTest.ValidPinsHeadersSHA1',
+          'TransportSecurityStateTest.ValidPinsHeadersSHA256',
+          'CookieMonster/CookieStoreTest/*.TestCookieDeletion',
+      ],
       'player_filter_tests': [
           # These tests have memory leaks related to av_malloc.
           'AudioDecoderTests/AudioDecoderTest.*',
