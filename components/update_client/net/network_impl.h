@@ -50,11 +50,6 @@ class NetworkFetcherImpl : public NetworkFetcher {
       ProgressCallback progress_callback,
       DownloadToFileCompleteCallback download_to_file_complete_callback)
       override;
-#if BUILDFLAG(IS_STARBOARD)
-  void Cancel() override {
-    weak_ptr_factory_.InvalidateWeakPtrs();
-  }
-#endif
 
  private:
   void OnResponseStartedCallback(

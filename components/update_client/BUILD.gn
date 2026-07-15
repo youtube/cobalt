@@ -351,9 +351,6 @@ source_set("unit_tests") {
     "utils_unittest.cc",
   ]
 
-  if (is_starboard && !is_cobalt_hermetic_build) {
-    sources += [ "cobalt_slot_management_stub.cc" ]
-  }
 
   if (!disable_file_support) {
     sources += [ "crx_downloader_unittest.cc" ]
@@ -420,15 +417,17 @@ fuzzer_test("update_client_protocol_parser_fuzzer") {
   seed_corpus = "fuzzer_corpuses/protocol_parser/"
 }
 
-test("update_client_unittests") {
-  if (is_starboard) {
-    sources = [ "//components/test/starboard/run_all_unittests.cc" ]
-  } else {
-    sources = [ "//components/test/run_all_unittests.cc" ]
+if (!is_starboard || (is_cobalt && use_evergreen)) {
+  test("update_client_unittests") {
+    if (is_starboard) {
+      sources = [ "//components/test/starboard/run_all_unittests.cc" ]
+    } else {
+      sources = [ "//components/test/run_all_unittests.cc" ]
+    }
+    deps = [
+      ":unit_tests",
+      "//components/test:test_support",
+    ]
   }
-  deps = [
-    ":unit_tests",
-    "//components/test:test_support",
-  ]
 }
 
