@@ -203,7 +203,7 @@
     "test_type": "gtest"
   },
   {
-    "target": "starboard/tools/zstd_compress:zstd_compress_unittest",
+    "target": "clang_x64/zstd_compress_unittest",
     "executable": "out/evergreen-x64_devel/clang_x64/zstd_compress_unittest",
     "runs_on": "host",
     "test_type": "gtest"
