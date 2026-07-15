@@ -286,7 +286,7 @@ void StarboardAudioInputStream::ReadBufferQueue() {
   base::AutoLock lock(lock_);
 
   if (!started_ || !callback_) {
-    if (simple_buffer_queue_) {
+    if (simple_buffer_queue_ && *simple_buffer_queue_) {
       (*simple_buffer_queue_)->Enqueue(simple_buffer_queue_,
                                        audio_data_[active_buffer_index_].get(),
                                        buffer_size_bytes_);
@@ -306,7 +306,7 @@ void StarboardAudioInputStream::ReadBufferQueue() {
                     /*volume=*/0.0,
                     /*audio_glitch_info=*/{});
 
-  if (simple_buffer_queue_) {
+  if (simple_buffer_queue_ && *simple_buffer_queue_) {
     (*simple_buffer_queue_)->Enqueue(simple_buffer_queue_,
                                      audio_data_[active_buffer_index_].get(),
                                      buffer_size_bytes_);
