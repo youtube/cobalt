@@ -481,8 +481,15 @@ class MediaCodecBridge {
 
     if (enableLowLatency) {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        Log.i(TAG, "Enabling low-latency playback.");
-        mediaFormat.setInteger(MediaFormat.KEY_LOW_LATENCY, 1);
+        if (codecCapabilities.isFeatureSupported(CodecCapabilities.FEATURE_LowLatency)) {
+          Log.i(TAG, "Enabling low-latency playback.");
+          mediaFormat.setInteger(MediaFormat.KEY_LOW_LATENCY, 1);
+        } else {
+          Log.w(
+              TAG,
+              "Low-latency playback requested but FEATURE_LowLatency is not supported by "
+                  + decoderName);
+        }
       } else {
         Log.i(
             TAG,
