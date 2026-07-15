@@ -38,6 +38,7 @@ if (current_toolchain == host_toolchain) {
     deps = [
       ":zstd_compress_lib",
       "//testing/gtest",
+      "//testing/gtest:gtest_main",
       "//third_party/zstd:decompress",
     ]
   }
