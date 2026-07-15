@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <unistd.h>
-
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/strings/string_number_conversions.h"
@@ -110,16 +108,12 @@ void JNI_BaseStarboardBridge_CloseNativeStarboard(JNIEnv* env,
   // Wait for all active media resources (MediaCodec, AudioTrack, MediaDrm)
   // to be destroyed before deleting the application and exiting the JVM.
   constexpr int kTimeoutMs = 2000;
-  int elapsed_ms = 0;
-  auto* tracker = MediaResourceTracker::GetInstance();
-  while (tracker->GetCount() > 0 && elapsed_ms < kTimeoutMs) {
-    usleep(10000);  // 10 ms
-    elapsed_ms += 10;
-  }
-  if (tracker->GetCount() > 0) {
+  int remaining_count =
+      MediaResourceTracker::GetInstance()->WaitUntilZero(kTimeoutMs);
+  if (remaining_count > 0) {
     SB_LOG(WARNING) << "Timed out waiting for all media resources to be "
                        "destroyed. Active count: "
-                    << tracker->GetCount();
+                    << remaining_count;
   }
 
   auto* app = reinterpret_cast<ApplicationAndroid*>(nativeApp);

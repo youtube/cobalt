@@ -16,35 +16,67 @@
 #define STARBOARD_ANDROID_SHARED_MEDIA_RESOURCE_TRACKER_H_
 
 #include <atomic>
-
-#include "base/memory/singleton.h"
+#include <chrono>
+#include <condition_variable>
+#include <mutex>
 
 namespace starboard {
 
 class MediaResourceTracker {
  public:
+  // Returns the process-wide singleton instance. Implemented using a C++11
+  // thread-safe static local variable to remain decoupled from base::Singleton.
   static MediaResourceTracker* GetInstance() {
-    return base::Singleton<MediaResourceTracker>::get();
+    static MediaResourceTracker instance;
+    return &instance;
   }
 
+  // Increments the count of active media resources. Called in the constructors
+  // of SbPlayer, AudioTrackBridge, and MediaDrmBridge.
   void Increment() {
     active_media_resource_count_.fetch_add(1, std::memory_order_relaxed);
   }
 
+  // Decrements the count of active media resources. Called in the destructors
+  // of SbPlayer, AudioTrackBridge, and MediaDrmBridge. Uses release memory
+  // ordering to guarantee all destructor writes are committed before
+  // decrements.
   void Decrement() {
-    active_media_resource_count_.fetch_sub(1, std::memory_order_release);
+    if (active_media_resource_count_.fetch_sub(1, std::memory_order_release) ==
+        1) {
+      // Last active media resource destroyed: notify the waiting UI thread
+      // immediately without polling latency.
+      std::lock_guard<std::mutex> lock(mutex_);
+      cv_.notify_all();
+    }
   }
 
-  int GetCount() const {
+  // Blocks the calling thread (typically the Android UI thread in
+  // CloseNativeStarboard) until all active media resources hit 0, or until
+  // |timeout_ms| elapses. Returns the remaining active resource count (0 on
+  // success, >0 on timeout).
+  int WaitUntilZero(int timeout_ms) {
+    // Fast path: if no resources are active, return immediately without
+    // locking.
+    if (active_media_resource_count_.load(std::memory_order_acquire) <= 0) {
+      return 0;
+    }
+    std::unique_lock<std::mutex> lock(mutex_);
+    cv_.wait_for(lock, std::chrono::milliseconds(timeout_ms), [this] {
+      return active_media_resource_count_.load(std::memory_order_acquire) <= 0;
+    });
     return active_media_resource_count_.load(std::memory_order_acquire);
   }
 
  private:
-  friend struct base::DefaultSingletonTraits<MediaResourceTracker>;
-
   MediaResourceTracker() = default;
   ~MediaResourceTracker() = default;
 
+  MediaResourceTracker(const MediaResourceTracker&) = delete;
+  MediaResourceTracker& operator=(const MediaResourceTracker&) = delete;
+
+  std::mutex mutex_;
+  std::condition_variable cv_;
   std::atomic<int> active_media_resource_count_ = 0;
 };
 
