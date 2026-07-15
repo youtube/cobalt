@@ -17,6 +17,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/gtest_prod_util.h"
 #include "base/memory/scoped_refptr.h"
@@ -51,11 +52,8 @@ class DialUdpServer final {
   void DidClose(net::UDPSocket* sock);
   void WriteComplete(int rv);
 
-  // Parse a request to make sure it is a M-Search.
-  static bool ParseSearchRequest(const std::string& request);
-
-  // Is the valid SSDP request a valid M-Search request too ?
-  static bool IsValidMSearchRequest(const net::HttpServerRequestInfo& info);
+  // Parses a request to make sure it is an M-Search.
+  static bool ParseSearchRequest(std::string_view request);
 
   std::unique_ptr<net::UDPServerSocket> socket_
       GUARDED_BY_CONTEXT(sequence_checker_);

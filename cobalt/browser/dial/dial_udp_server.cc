@@ -30,6 +30,8 @@
 #include "net/base/ip_address.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
+#include "net/http/http_request_headers.h"
+#include "net/http/http_util.h"
 #include "net/log/net_log.h"
 #include "net/log/net_log_source_type.h"
 #include "net/server/http_server.h"
@@ -168,7 +170,7 @@ void DialUdpServer::DidRead(int result) {
     // ParseSearchRequest can be triggered when read bytes is zero, this will
     // prompt a response that updates the device picker (see b/268088112).
     if (result == 0 ||
-        ParseSearchRequest(std::string(read_buffer_->data(), result))) {
+        ParseSearchRequest(std::string_view(read_buffer_->data(), result))) {
       LOG(INFO) << "Dial server socket parses search request with " << result
                 << " bytes read";
       LOG(INFO) << "In-App DIAL Discovery response : " << search_response_;
@@ -207,47 +209,44 @@ void DialUdpServer::WriteComplete(int rv) {
 }
 
 // static
-bool DialUdpServer::ParseSearchRequest(const std::string& request) {
-  net::HttpServerRequestInfo info;
-  if (!net::HttpServer::ParseHeaders(request, &info)) {
-    DVLOG(1) << "Failed parsing SSDP headers: " << request;
+bool DialUdpServer::ParseSearchRequest(std::string_view request) {
+  DVLOG(1) << __func__ << " " << request;
+
+  // Parse method line.
+  const size_t first_eol_pos = request.find_first_of("\r\n");
+  if (first_eol_pos == 0 || first_eol_pos == std::string_view::npos) {
+    DVLOG(1) << "Could not parse method line in SSDP request";
+    return false;
+  }
+  auto method_line = request.substr(0, first_eol_pos);
+  if (!method_line.starts_with("M-SEARCH * ")) {
+    DVLOG(1) << "Invalid method in SSDP request";
     return false;
   }
 
-  if (!IsValidMSearchRequest(info)) {
+  // Drop method line.
+  request.remove_prefix(first_eol_pos);
+
+  // Parse headers.
+  const size_t headers_end =
+      net::HttpUtil::LocateEndOfHeaders(base::as_byte_span(request));
+  if (headers_end == 0 || headers_end == std::string::npos) {
+    DVLOG(1) << "Failed to find end of headers in SSDP request";
     return false;
   }
+  net::HttpRequestHeaders headers;
+  headers.AddHeadersFromString(request.substr(0, headers_end));
 
-  std::string st_request = info.GetHeaderValue("st");
-  base::IgnoreResult(
-      base::TrimWhitespaceASCII(st_request, base::TRIM_ALL, &st_request));
-
-  if (st_request != kDialStRequest) {
-    DVLOG(1) << "Received incorrect ST headers: " << st_request;
+  // Validate ST header.
+  const auto st_request = headers.GetHeader("st");
+  if (!st_request.has_value()) {
+    DVLOG(1) << "Could not find ST header in SSDP request";
     return false;
   }
-
-  DVLOG(1) << "Dial User-Agent: " << info.GetHeaderValue("user-agent");
-
-  return true;
-}
-
-// static
-bool DialUdpServer::IsValidMSearchRequest(
-    const net::HttpServerRequestInfo& info) {
-  if (info.method != "M-SEARCH") {
-    DVLOG(1) << "Invalid M-Search: SSDP method incorrect. Received method: "
-             << info.method;
-    return false;
-  }
-
-  if (info.path != "*") {
-    DVLOG(1) << "Invalid M-Search: SSDP path incorrect.";
-    return false;
-  }
-
-  if (!info.data.empty()) {
-    DVLOG(1) << "Invalid M-Search: SSDP request contains a body.";
+  auto trimmed_st_request =
+      base::TrimWhitespaceASCII(*st_request, base::TRIM_ALL);
+  if (trimmed_st_request != kDialStRequest) {
+    DVLOG(1) << "Received incorrect ST headers: " << *st_request;
     return false;
   }
 
