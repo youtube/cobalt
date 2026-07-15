@@ -718,7 +718,10 @@ class MediaCodecBridge {
     }
     try {
       mMediaCodec.get().flush();
-    } catch (Exception e) {
+    } catch (Throwable e) {
+      // Catch Throwable (both Exception and Error) to prevent JNI crashes if the JVM
+      // throws linkage errors (e.g., NoClassDefFoundError) during ClassLoader unloading
+      // in teardown. See b/455621481.
       Log.e(TAG, "Failed to flush MediaCodec", e);
       return MediaCodecStatus.ERROR;
     } finally {
@@ -739,33 +742,40 @@ class MediaCodecBridge {
 
   @CalledByNative
   public void release() {
-    MediaCodecOutputTracker.get().unregister(this);
-    synchronized (mNativeBridgeLock) {
-      mNativeMediaCodecBridge = 0;
-    }
-
-    // We skip calling stop() on Android 11, as this version has a race condition
-    // if an error occurs during stop(). See b/369372033 for details.
-    if (android.os.Build.VERSION.SDK_INT == android.os.Build.VERSION_CODES.R) {
-      Log.w(TAG, "Skipping stop() during destruction to avoid Android 11 framework bug");
-    } else {
-      try {
-        mMediaCodec.get().stop();
-      } catch (Exception e) {
-        Log.w(TAG, "Failed to stop MediaCodec. Proceeding with release", e);
-      }
-    }
-
     try {
-      String codecName = mMediaCodec.get().getName();
-      Log.w(TAG, "Calling MediaCodec.release() on " + codecName);
-      mMediaCodec.get().release();
-    } catch (Exception e) {
-      // The MediaCodec is stuck in a wrong state, possibly due to losing
-      // the surface.
-      Log.w(TAG, "Failed to release MediaCodec", e);
+      MediaCodecOutputTracker.get().unregister(this);
+      synchronized (mNativeBridgeLock) {
+        mNativeMediaCodecBridge = 0;
+      }
+
+      // We skip calling stop() on Android 11, as this version has a race condition
+      // if an error occurs during stop(). See b/369372033 for details.
+      if (android.os.Build.VERSION.SDK_INT == android.os.Build.VERSION_CODES.R) {
+        Log.w(TAG, "Skipping stop() during destruction to avoid Android 11 framework bug");
+      } else {
+        try {
+          mMediaCodec.get().stop();
+        } catch (Exception e) {
+          Log.w(TAG, "Failed to stop MediaCodec. Proceeding with release", e);
+        }
+      }
+
+      try {
+        String codecName = mMediaCodec.get().getName();
+        Log.w(TAG, "Calling MediaCodec.release() on " + codecName);
+        mMediaCodec.get().release();
+      } catch (Exception e) {
+        // The MediaCodec is stuck in a wrong state, possibly due to losing
+        // the surface.
+        Log.w(TAG, "Failed to release MediaCodec", e);
+      }
+      mMediaCodec.set(null);
+    } catch (Throwable t) {
+      // Catch Throwable (both Exception and Error) to prevent JNI crashes if the JVM
+      // throws linkage errors (e.g., NoClassDefFoundError) during ClassLoader unloading
+      // in teardown. See b/455621481.
+      Log.e(TAG, "Exception or Error during MediaCodecBridge release()", t);
     }
-    mMediaCodec.set(null);
   }
 
   @CalledByNative
