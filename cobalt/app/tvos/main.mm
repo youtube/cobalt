@@ -169,7 +169,40 @@ static const char** g_argv = nullptr;
 
 - (BOOL)application:(UIApplication*)application
     willFinishLaunchingWithOptions:(NSDictionary*)launchOptions {
-  const cobalt::CommandLinePreprocessor cobalt_cmd_line(g_argc, g_argv);
+  bool has_url_switch = false;
+  for (int i = 0; i < g_argc; ++i) {
+    if (g_argv[i]) {
+      std::string arg(g_argv[i]);
+      if (arg.rfind("--url=", 0) == 0 || arg.rfind("url=", 0) == 0) {
+        has_url_switch = true;
+        break;
+      }
+    }
+  }
+
+  std::string plist_url_arg;
+  std::vector<const char*> argv_ptrs;
+  if (!has_url_switch) {
+    id plistUrl =
+        [[NSBundle mainBundle] objectForInfoDictionaryKey:@"YTApplicationURL"];
+    if ([plistUrl isKindOfClass:[NSString class]] && [plistUrl length] > 0) {
+      plist_url_arg = std::string("--url=") + [plistUrl UTF8String];
+    }
+  }
+
+  const char* const* final_argv = g_argv;
+  int final_argc = g_argc;
+  if (!plist_url_arg.empty()) {
+    argv_ptrs.reserve(g_argc + 1);
+    for (int i = 0; i < g_argc; ++i) {
+      argv_ptrs.push_back(g_argv[i]);
+    }
+    argv_ptrs.push_back(plist_url_arg.c_str());
+    final_argv = argv_ptrs.data();
+    final_argc = static_cast<int>(argv_ptrs.size());
+  }
+
+  const cobalt::CommandLinePreprocessor cobalt_cmd_line(final_argc, final_argv);
   const base::CommandLine::StringVector& processed_argv =
       cobalt_cmd_line.argv();
 
