@@ -69,13 +69,12 @@ public class MainActivity extends BaseCobaltActivity {
       // Cold start - Instantiate the singleton BaseStarboardBridge.
       BaseStarboardBridge starboardBridge = createStarboardBridge(getArgs(), startDeepLink);
       ((BaseStarboardBridge.HostApplication) getApplication()).setStarboardBridge(starboardBridge);
-    } else {
+      // Spawn the loader thread.
+      MainActivityJni.get().startLoader();
+    } else if (savedInstanceState == null) {
       // Warm start - Pass the deep link to the running Starboard app.
       getStarboardBridge().handleDeepLink(startDeepLink);
     }
-
-    // Spawn the loader thread.
-    MainActivityJni.get().startLoader();
   }
 
   @Override
