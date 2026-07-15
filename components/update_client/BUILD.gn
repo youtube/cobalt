@@ -397,6 +397,9 @@ source_set("unit_tests") {
   }
 
   data_deps = [ "//components/test/data/update_client/puffin_patch_test:puffin_patch_test_files" ]
+  data = [
+    "//components/test/data/update_client/",
+  ]
 }
 
 fuzzer_test("update_client_protocol_serializer_fuzzer") {
