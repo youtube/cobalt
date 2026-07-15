@@ -166,6 +166,23 @@ void OverlayStrategyUnderlayStarboard::CommitCandidate(
     const OverlayProposedCandidate& proposed_candidate,
     AggregatedRenderPass* render_pass) {
   DCHECK(GetVideoGeometrySetter());
+  LOG(INFO) << "KJ: OverlayStrategyUnderlayStarboard::CommitCandidate -> "
+               "setting video geometry rect="
+            << proposed_candidate.candidate.display_rect.ToString()
+            << " and replacing VideoHoleDrawQuad with transparent solid color "
+               "(cutting top UI hole)";
+  LOG(INFO) << "KJ: CommitCandidate -> total quads in render_pass: "
+            << render_pass->quad_list.size();
+  int quad_idx = 0;
+  for (auto* quad : render_pass->quad_list) {
+    LOG(INFO) << "KJ:   Quad[" << quad_idx++
+              << "]: material=" << static_cast<int>(quad->material)
+              << ", rect=" << quad->rect.ToString()
+              << ", visible_rect=" << quad->visible_rect.ToString()
+              << ", opaque=" << quad->shared_quad_state->are_contents_opaque
+              << ", blend_mode="
+              << static_cast<int>(quad->shared_quad_state->blend_mode);
+  }
   GetVideoGeometrySetter()->SetVideoGeometry(
       proposed_candidate.candidate.display_rect,
       std::get<gfx::OverlayTransform>(proposed_candidate.candidate.transform),

@@ -34,6 +34,7 @@ public class ContentViewRenderView extends FrameLayout {
 
     protected SurfaceBridge mSurfaceBridge;
     protected WebContents mWebContents;
+    private boolean mOverlayVideoModeEnabled = false;
 
     private int mWidth;
     private int mHeight;
@@ -207,10 +208,15 @@ public class ContentViewRenderView extends FrameLayout {
      * @param enabled Whether overlay mode is enabled.
      */
     public void setOverlayVideoMode(boolean enabled) {
+        mOverlayVideoModeEnabled = enabled;
         int format = enabled ? PixelFormat.TRANSLUCENT : PixelFormat.OPAQUE;
         getSurfaceView().getHolder().setFormat(format);
         ContentViewRenderViewJni.get().setOverlayVideoMode(
                 mNativeContentViewRenderView, ContentViewRenderView.this, enabled);
+    }
+
+    public boolean isOverlayVideoModeEnabled() {
+        return mOverlayVideoModeEnabled;
     }
 
     @CalledByNative

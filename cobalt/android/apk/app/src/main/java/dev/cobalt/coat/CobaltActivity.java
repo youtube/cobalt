@@ -454,6 +454,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
     if (!mIsCobaltUsingAndroidOverlay) {
       mVideoSurfaceView = new VideoSurfaceView(this);
+      Log.i(TAG, "KJ: onCreate -> created initial VideoSurfaceView (id=" + Integer.toHexString(System.identityHashCode(mVideoSurfaceView)) + ")");
       addContentView(
           mVideoSurfaceView,
           new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
@@ -515,6 +516,17 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @Override
   protected void onStart() {
+    if (mShellManager != null && mShellManager.getContentViewRenderView() != null) {
+      Log.i(TAG, "KJ: onStart -> setting ContentViewRenderView to VISIBLE");
+      mShellManager.getContentViewRenderView().setVisibility(View.VISIBLE);
+    }
+
+    View decorView = getWindow().getDecorView();
+    if (decorView != null) {
+      Log.i(TAG, "KJ: onStart -> restoring decorView alpha to 1.0f");
+      decorView.setAlpha(1.0f);
+    }
+
     DisplayUtil.cacheDefaultDisplay(this);
     DisplayUtil.addDisplayListener(this);
     mWasDisplayOn = isDisplayOn();
@@ -527,8 +539,13 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     if (mIsCobaltUsingAndroidOverlay) {
       Log.i(TAG, "Use AndroidOverlay for Video SurfaceView.");
     } else if (mForceCreateNewVideoSurfaceView) {
-      Log.w(TAG, "Force to create a new video surface.");
+      Log.w(TAG, "KJ: onStart -> mForceCreateNewVideoSurfaceView=true, calling createNewSurfaceView()");
       createNewSurfaceView();
+    } else {
+      Log.i(TAG, "KJ: onStart -> reusing existing VideoSurfaceView (id=" + (mVideoSurfaceView != null ? Integer.toHexString(System.identityHashCode(mVideoSurfaceView)) : "null") + ")");
+      if (mVideoSurfaceView != null) {
+        mVideoSurfaceView.setVisibility(View.VISIBLE);
+      }
     }
 
     AudioOutputManager.addAudioDeviceListener(this);
@@ -555,6 +572,12 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @Override
   protected void onPause() {
+    View decorView = getWindow().getDecorView();
+    if (decorView != null) {
+      Log.i(TAG, "KJ: onPause -> hiding decorView (alpha=0.0f) to make potential orphan surface transparent");
+      decorView.setAlpha(0.0f);
+    }
+
     mPhysicalBackKeyPressed = false;
     CobaltContentBrowserClient.dispatchBlur();
     super.onPause();
@@ -562,6 +585,19 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @Override
   protected void onStop() {
+    if (VideoSurfaceView.getCurrentSurface() != null) {
+      Log.i(TAG, "KJ: onStop -> current surface is not null, setting mForceCreateNewVideoSurfaceView = true");
+      mForceCreateNewVideoSurfaceView = true;
+    }
+    if (mShellManager != null && mShellManager.getContentViewRenderView() != null) {
+      Log.i(TAG, "KJ: onStop -> setting ContentViewRenderView to GONE");
+      mShellManager.getContentViewRenderView().setVisibility(View.GONE);
+    }
+    if (mVideoSurfaceView != null) {
+      Log.i(TAG, "KJ: onStop -> setting mVideoSurfaceView to GONE");
+      mVideoSurfaceView.setVisibility(View.GONE);
+    }
+
     unregisterDisplayListener();
     super.onStop();
 
@@ -591,13 +627,11 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       }
     }
 
-    if (VideoSurfaceView.getCurrentSurface() != null) {
-      mForceCreateNewVideoSurfaceView = true;
-    }
     MemoryPressureMonitor.INSTANCE.disablePolling();
 
     // Set the SurfaceView to fullscreen.
     View rootView = getWindow().getDecorView();
+    Log.i(TAG, "KJ: onStop -> calling setVideoSurfaceBounds(0, 0, " + rootView.getWidth() + ", " + rootView.getHeight() + ")");
     setVideoSurfaceBounds(0, 0, rootView.getWidth(), rootView.getHeight());
   }
 
@@ -644,6 +678,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   }
 
   public void resetVideoSurface() {
+    Log.i(TAG, "KJ: resetVideoSurface() called");
     if (mIsCobaltUsingAndroidOverlay) {
       return;
     }
@@ -651,16 +686,19 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
         new Runnable() {
           @Override
           public void run() {
+            Log.i(TAG, "KJ: resetVideoSurface() Runnable -> calling createNewSurfaceView()");
             createNewSurfaceView();
           }
         });
   }
 
   public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {
+    Log.i(TAG, "KJ: setVideoSurfaceBounds(pos=(" + x + "," + y + "), size=" + width + "x" + height + ")");
     if (mIsCobaltUsingAndroidOverlay) {
       return;
     }
     if (width == 0 || height == 0) {
+      Log.i(TAG, "KJ: setVideoSurfaceBounds -> width or height is 0, returning early (covered by UI)");
       // The SurfaceView should be covered by our UI layer in this case.
       return;
     }
@@ -669,6 +707,10 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
           @Override
           public void run() {
             LayoutParams layoutParams = mVideoSurfaceView.getLayoutParams();
+            String id = Integer.toHexString(System.identityHashCode(mVideoSurfaceView));
+            int oldX = (layoutParams instanceof FrameLayout.LayoutParams) ? ((FrameLayout.LayoutParams) layoutParams).leftMargin : (int) mVideoSurfaceView.getX();
+            int oldY = (layoutParams instanceof FrameLayout.LayoutParams) ? ((FrameLayout.LayoutParams) layoutParams).topMargin : (int) mVideoSurfaceView.getY();
+            Log.i(TAG, "KJ: setVideoSurfaceBounds Runnable -> id=" + id + ", old_pos=(" + oldX + "," + oldY + "), old_size=" + layoutParams.width + "x" + layoutParams.height);
             // Since mVideoSurfaceView is added directly to the Activity's content view, which is a
             // FrameLayout, we expect its layout params to become FrameLayout.LayoutParams.
             if (layoutParams instanceof FrameLayout.LayoutParams) {
@@ -679,8 +721,10 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
                   "Unexpected video surface layout params class "
                       + layoutParams.getClass().getName());
             }
+
             layoutParams.width = width;
             layoutParams.height = height;
+            Log.i(TAG, "KJ: setVideoSurfaceBounds Runnable -> id=" + id + ", new_pos=(" + x + "," + y + "), new_size=" + width + "x" + height);
             // Even though as a NativeActivity we're not using the Android UI framework, by setting
             // the  layout params it will force a layout to be requested. That will cause the
             // SurfaceView to position its underlying Surface to match the screen coordinates of
@@ -692,6 +736,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   }
 
   private void createNewSurfaceView() {
+    Log.i(TAG, "KJ: createNewSurfaceView() called");
     if (mIsCobaltUsingAndroidOverlay) {
       return;
     }
@@ -699,15 +744,16 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     if (parent instanceof FrameLayout) {
       FrameLayout frameLayout = (FrameLayout) parent;
       int index = frameLayout.indexOfChild(mVideoSurfaceView);
+      mVideoSurfaceView.setVisibility(View.GONE);
       frameLayout.removeView(mVideoSurfaceView);
-      Log.i(TAG, "removed mVideoSurfaceView at index:" + index);
+      Log.i(TAG, "KJ: createNewSurfaceView -> setVisibility(GONE) and removed old mVideoSurfaceView (id=" + Integer.toHexString(System.identityHashCode(mVideoSurfaceView)) + ") at index:" + index);
 
       mVideoSurfaceView = new VideoSurfaceView(this);
       frameLayout.addView(
           mVideoSurfaceView,
           index,
           new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-      Log.i(TAG, "inserted new mVideoSurfaceView at index:" + index);
+      Log.i(TAG, "KJ: createNewSurfaceView -> inserted new mVideoSurfaceView (id=" + Integer.toHexString(System.identityHashCode(mVideoSurfaceView)) + ") at index:" + index);
     } else {
       Log.w(TAG, "Unexpected surface view parent class " + parent.getClass().getName());
     }

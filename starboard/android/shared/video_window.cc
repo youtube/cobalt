@@ -147,6 +147,10 @@ void ClearNativeWindow(void* raw_context) {
 void JNI_VideoSurfaceView_OnVideoSurfaceChanged(
     JNIEnv* env,
     const JavaParamRef<jobject>& surface) {
+  SB_LOG(INFO) << "KJ: JNI_VideoSurfaceView_OnVideoSurfaceChanged -> surface="
+               << (surface ? "not_null" : "null")
+               << ", current g_native_video_window="
+               << (g_native_video_window ? "not_null" : "null");
   scoped_refptr<SurfaceDestroyNotifier> notifier_to_notify;
   {
     std::lock_guard lock(*GetViewSurfaceMutex());
@@ -156,12 +160,16 @@ void JNI_VideoSurfaceView_OnVideoSurfaceChanged(
     }
     GetGlobalVideoSurface().Reset();
     if (g_native_video_window) {
+      SB_LOG(INFO) << "KJ: JNI_VideoSurfaceView_OnVideoSurfaceChanged -> "
+                      "calling ANativeWindow_release(g_native_video_window)";
       ANativeWindow_release(g_native_video_window);
       g_native_video_window = nullptr;
     }
     if (surface) {
       GetGlobalVideoSurface().Reset(env, surface);
       g_native_video_window = ANativeWindow_fromSurface(env, surface.obj());
+      SB_LOG(INFO) << "KJ: JNI_VideoSurfaceView_OnVideoSurfaceChanged -> "
+                      "acquired new g_native_video_window from surface";
     }
   }
 
@@ -291,6 +299,8 @@ void VideoSurfaceHolder::CleanUpVideoWindow(
     return;
   }
 
+  SB_LOG(INFO) << "KJ: VideoSurfaceHolder::CleanUpVideoWindow -> calling "
+                  "StarboardBridge::ResetVideoSurface()";
   StarboardBridge::GetInstance()->ResetVideoSurface(env);
   SB_LOG(INFO) << "Video surface has been reset (default behavior).";
 }

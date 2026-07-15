@@ -36,6 +36,9 @@ void SbPlayerSetBounds(SbPlayer player,
   }
 
   JNIEnv* env = jni_zero::AttachCurrentThread();
+  SB_LOG(INFO) << "KJ: SbPlayerSetBounds(z=" << z_index << ", rect=" << x << ","
+               << y << " " << width << "x" << height
+               << ") -> calling StarboardBridge::SetVideoSurfaceBounds()";
   starboard::StarboardBridge::GetInstance()->SetVideoSurfaceBounds(
       env, x, y, width, height);
   player->SetBounds(z_index, starboard::Rect(x, y, width, height));

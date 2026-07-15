@@ -1228,9 +1228,11 @@ bool Display::DrawAndSwap(const DrawAndSwapParams& params) {
     UMA_HISTOGRAM_COUNTS_100("Compositing.Display.PendingSwaps",
                              pending_swaps_);
 
+    LOG(INFO) << "KJ: Display::DrawAndSwap -> swapping buffers for current_surface_id=" << current_surface_id_.ToString();
     renderer_->SwapBuffers(std::move(swap_frame_data));
   } else {
     TRACE_EVENT_INSTANT0("viz", "Swap skipped.", TRACE_EVENT_SCOPE_THREAD);
+    LOG(INFO) << "KJ: Display::DrawAndSwap -> swap SKIPPED for current_surface_id=" << current_surface_id_.ToString() << ", have_damage=" << have_damage << ", size_matches=" << size_matches;
 
     if (have_damage && !size_matches)
       aggregator_->SetFullDamageForSurface(current_surface_id_);
@@ -1278,6 +1280,7 @@ bool Display::DrawAndSwap(const DrawAndSwapParams& params) {
 void Display::DidReceiveSwapBuffersAck(
     const gpu::SwapBuffersCompleteParams& params,
     gfx::GpuFenceHandle release_fence) {
+  LOG(INFO) << "KJ: Display::DidReceiveSwapBuffersAck -> swap result=" << static_cast<int>(params.swap_response.result);
   // Adding to |pending_presentation_group_timings_| must
   // have been done in DrawAndSwap(), and should not be popped until
   // DidReceiveSwapBuffersAck.

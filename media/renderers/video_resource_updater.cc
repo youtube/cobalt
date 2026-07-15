@@ -573,6 +573,7 @@ void VideoResourceUpdater::AppendQuad(
 
   switch (frame_resource_type_) {
     case VideoFrameResourceType::VIDEO_HOLE: {
+      LOG(INFO) << "KJ: VideoResourceUpdater -> creating VideoHoleDrawQuad (PunchOut hole) for rect=" << quad_rect.ToString() << ", visible_rect=" << visible_quad_rect.ToString();
       auto* video_hole_quad =
           render_pass->CreateAndAppendDrawQuad<viz::VideoHoleDrawQuad>();
       video_hole_quad->SetNew(shared_quad_state, quad_rect, visible_quad_rect,

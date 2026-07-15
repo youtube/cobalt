@@ -60,6 +60,7 @@ public class VideoSurfaceView extends SurfaceView {
   }
 
   private void initialize(Context context) {
+    Log.i(TAG, "KJ: VideoSurfaceView initialize: id=" + Integer.toHexString(System.identityHashCode(this)));
     setBackgroundColor(Color.TRANSPARENT);
     getHolder().addCallback(new SurfaceHolderCallback());
 
@@ -74,23 +75,28 @@ public class VideoSurfaceView extends SurfaceView {
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
+      Log.i(TAG, "KJ: VideoSurfaceView surfaceCreated: id=" + Integer.toHexString(System.identityHashCode(VideoSurfaceView.this)) + ", pos=(" + (int) getX() + "," + (int) getY() + "), size=" + getWidth() + "x" + getHeight() + ", mSawInitialChange=" + mSawInitialChange);
       sCurrentSurface = holder.getSurface();
       VideoSurfaceViewJni.get().onVideoSurfaceChanged(sCurrentSurface);
     }
 
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+      Log.i(TAG, "KJ: VideoSurfaceView surfaceChanged: id=" + Integer.toHexString(System.identityHashCode(VideoSurfaceView.this)) + ", pos=(" + (int) getX() + "," + (int) getY() + "), size=" + width + "x" + height + ", mSawInitialChange=" + mSawInitialChange);
       // We should only ever see the initial change after creation.
       if (mSawInitialChange) {
-        Log.e(TAG, "Video surface changed; decoding may break");
+        Log.e(TAG, "KJ: Video surface changed; decoding may break");
       }
       mSawInitialChange = true;
     }
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
-      sCurrentSurface = null;
-      VideoSurfaceViewJni.get().onVideoSurfaceChanged(sCurrentSurface);
+      Log.i(TAG, "KJ: VideoSurfaceView surfaceDestroyed: id=" + Integer.toHexString(System.identityHashCode(VideoSurfaceView.this)) + ", pos=(" + (int) getX() + "," + (int) getY() + "), size=" + getWidth() + "x" + getHeight());
+      if (sCurrentSurface == holder.getSurface()) {
+        sCurrentSurface = null;
+        VideoSurfaceViewJni.get().onVideoSurfaceChanged(null);
+      }
     }
   }
 

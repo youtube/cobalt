@@ -507,6 +507,8 @@ void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
     return;
   }
 
+  LOG(INFO) << "KJ: StarboardRenderer::OnVideoGeometryChange -> new rect: "
+            << output_rect.ToString();
   output_rect_ = output_rect;
 
 #if BUILDFLAG(IS_ANDROID)
@@ -715,6 +717,9 @@ void StarboardRenderer::ApplyPendingBounds() {
     return;
   }
 
+  LOG(INFO) << "KJ: StarboardRenderer::ApplyPendingBounds -> calling "
+               "player_bridge_->SetBounds("
+            << output_rect_->ToString() << ")";
   player_bridge_->SetBounds(*output_rect_);
 }
 

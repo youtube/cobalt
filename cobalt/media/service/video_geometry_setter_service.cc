@@ -78,6 +78,9 @@ void VideoGeometrySetterService::SetVideoGeometry(
     gfx::OverlayTransform transform,
     const base::UnguessableToken& overlay_plane_id) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  LOG(INFO) << "KJ: VideoGeometrySetterService::SetVideoGeometry -> rect="
+            << rect_f.ToString()
+            << " (forwarding to client OnVideoGeometryChange)";
   auto video_geometry_change_client =
       video_geometry_change_clients_.find(overlay_plane_id);
   if (video_geometry_change_client != video_geometry_change_clients_.end()) {

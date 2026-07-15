@@ -1174,6 +1174,7 @@ void SkiaRenderer::SwapBuffers(SwapFrameData swap_frame_data) {
     swap_buffer_rect_.Intersect(gfx::Rect(surface_size_for_swap_buffers()));
     output_frame.sub_buffer_rect = swap_buffer_rect_;
   }
+  LOG(INFO) << "KJ: SkiaRenderer::SwapBuffers -> size=" << output_frame.size.ToString() << ", sub_buffer_rect=" << (output_frame.sub_buffer_rect.has_value() ? output_frame.sub_buffer_rect->ToString() : "full");
   if (delegated_ink_handler_ && !UsingSkiaForDelegatedInk()) {
     output_frame.delegated_ink_metadata =
         delegated_ink_handler_->TakeMetadata();
@@ -1226,6 +1227,7 @@ void SkiaRenderer::SwapBuffers(SwapFrameData swap_frame_data) {
 }
 
 void SkiaRenderer::SwapBuffersSkipped() {
+  LOG(INFO) << "KJ: SkiaRenderer::SwapBuffersSkipped() called";
   gfx::Rect root_pass_damage_rect = gfx::Rect(surface_size_for_swap_buffers());
   if (use_partial_swap_)
     root_pass_damage_rect.Intersect(swap_buffer_rect_);
@@ -1247,6 +1249,7 @@ void SkiaRenderer::SwapBuffersSkipped() {
 void SkiaRenderer::SwapBuffersComplete(
     const gpu::SwapBuffersCompleteParams& params,
     gfx::GpuFenceHandle release_fence) {
+  LOG(INFO) << "KJ: SkiaRenderer::SwapBuffersComplete -> swap result=" << static_cast<int>(params.swap_response.result);
   auto& read_lock_release_fence_overlay_locks =
       read_lock_release_fence_overlay_locks_.emplace_back();
   auto read_fence_lock_iter = committed_overlay_locks_.end();
