@@ -107,7 +107,7 @@ void JNI_BaseStarboardBridge_CloseNativeStarboard(JNIEnv* env,
                                                   jlong nativeApp) {
   // Wait for all active media resources (MediaCodec, AudioTrack, MediaDrm)
   // to be destroyed before deleting the application and exiting the JVM.
-  constexpr int kTimeoutMs = 2000;
+  constexpr int kTimeoutMs = 2'000;
   int remaining_count =
       MediaResourceTracker::GetInstance()->WaitUntilZero(kTimeoutMs);
   if (remaining_count > 0) {

@@ -16,64 +16,38 @@
 #define STARBOARD_ANDROID_SHARED_MEDIA_RESOURCE_TRACKER_H_
 
 #include <atomic>
-#include <chrono>
 #include <condition_variable>
 #include <mutex>
 
+#include "starboard/common/no_destructor.h"
+
 namespace starboard {
 
+// MediaResourceTracker provides thread-safe accounting of active native media
+// components (SbPlayer decoders, AudioTrack audio sinks, and MediaDrm crypto
+// sessions) on Android.
+//
+// During application teardown (e.g. CobaltActivity.onDestroy), the Java UI
+// thread calls JNI_BaseStarboardBridge_CloseNativeStarboard and blocks until
+// all background worker threads finish destroying media resources. This
+// prevents JNI race conditions and crashes caused by calling System.exit(0)
+// while media teardown tasks are still executing.
 class MediaResourceTracker {
  public:
-  // Returns the process-wide singleton instance. Implemented using a C++11
-  // thread-safe static local variable to remain decoupled from base::Singleton.
-  static MediaResourceTracker* GetInstance() {
-    static MediaResourceTracker instance;
-    return &instance;
-  }
-
-  // Increments the count of active media resources. Called in the constructors
-  // of SbPlayer, AudioTrackBridge, and MediaDrmBridge.
-  void Increment() {
-    active_media_resource_count_.fetch_add(1, std::memory_order_relaxed);
-  }
-
-  // Decrements the count of active media resources. Called in the destructors
-  // of SbPlayer, AudioTrackBridge, and MediaDrmBridge. Uses release memory
-  // ordering to guarantee all destructor writes are committed before
-  // decrements.
-  void Decrement() {
-    if (active_media_resource_count_.fetch_sub(1, std::memory_order_release) ==
-        1) {
-      // Last active media resource destroyed: notify the waiting UI thread
-      // immediately without polling latency.
-      std::lock_guard<std::mutex> lock(mutex_);
-      cv_.notify_all();
-    }
-  }
-
-  // Blocks the calling thread (typically the Android UI thread in
-  // CloseNativeStarboard) until all active media resources hit 0, or until
-  // |timeout_ms| elapses. Returns the remaining active resource count (0 on
-  // success, >0 on timeout).
-  int WaitUntilZero(int timeout_ms) {
-    // Fast path: if no resources are active, return immediately without
-    // locking.
-    if (active_media_resource_count_.load(std::memory_order_acquire) <= 0) {
-      return 0;
-    }
-    std::unique_lock<std::mutex> lock(mutex_);
-    cv_.wait_for(lock, std::chrono::milliseconds(timeout_ms), [this] {
-      return active_media_resource_count_.load(std::memory_order_acquire) <= 0;
-    });
-    return active_media_resource_count_.load(std::memory_order_acquire);
-  }
-
- private:
-  MediaResourceTracker() = default;
-  ~MediaResourceTracker() = default;
+  static MediaResourceTracker* GetInstance();
 
   MediaResourceTracker(const MediaResourceTracker&) = delete;
   MediaResourceTracker& operator=(const MediaResourceTracker&) = delete;
+
+  void Increment();
+  void Decrement();
+  int WaitUntilZero(int timeout_ms);
+
+ private:
+  friend class starboard::NoDestructor<MediaResourceTracker>;
+
+  MediaResourceTracker() = default;
+  ~MediaResourceTracker() = default;
 
   std::mutex mutex_;
   std::condition_variable cv_;
