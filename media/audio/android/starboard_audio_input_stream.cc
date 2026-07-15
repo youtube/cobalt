@@ -286,6 +286,12 @@ void StarboardAudioInputStream::ReadBufferQueue() {
   base::AutoLock lock(lock_);
 
   if (!started_ || !callback_) {
+    if (simple_buffer_queue_) {
+      (*simple_buffer_queue_)->Enqueue(simple_buffer_queue_,
+                                       audio_data_[active_buffer_index_].get(),
+                                       buffer_size_bytes_);
+      active_buffer_index_ = (active_buffer_index_ + 1) % kMaxNumOfBuffersInQueue;
+    }
     return;
   }
 
