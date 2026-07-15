@@ -2376,6 +2376,7 @@ TEST_F(MainThreadSchedulerImplTest, TestRendererHiddenIdlePeriod) {
   // will run an idle task and then immediately start a new idle period, which
   // runs the second idle task.
   scheduler_->SetAllRenderWidgetsHidden(true);
+  test_task_runner_->FastForwardBy(base::Milliseconds(1500));
   test_task_runner_->FastForwardUntilNoTasksRemain();
   EXPECT_EQ(2, run_count);
 
@@ -2903,6 +2904,7 @@ TEST_F(MainThreadSchedulerImplTest, TestIdleRAILMode) {
   EXPECT_CALL(observer, OnRAILModeChanged(RAILMode::kIdle));
 
   scheduler_->SetAllRenderWidgetsHidden(true);
+  test_task_runner_->FastForwardBy(base::Milliseconds(1500));
   EXPECT_EQ(UseCase::kNone, ForceUpdatePolicyAndGetCurrentUseCase());
   EXPECT_EQ(RAILMode::kIdle, GetRAILMode());
   scheduler_->SetAllRenderWidgetsHidden(false);
