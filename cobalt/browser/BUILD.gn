@@ -133,6 +133,13 @@ source_set("browser") {
       "//cobalt/browser/on_screen_keyboard/public/mojom",
     ]
   }
+
+  if (enable_in_app_dial) {
+    deps += [
+      "//cobalt/browser/dial",
+      "//cobalt/browser/dial/public/mojom",
+    ]
+  }
 }
 
 source_set("features") {
