@@ -22,6 +22,7 @@
 #include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/logging.h"
+#include "base/strings/strcat.h"
 #include "cobalt/shell/common/shell_switches.h"
 
 namespace {
@@ -30,12 +31,8 @@ constexpr base::CommandLine::StringViewType kDefaultSwitchPrefix = "--";
 constexpr base::CommandLine::CharType kSwitchValueSeparator[] =
     FILE_PATH_LITERAL("=");
 
-bool IsSwitch(const base::CommandLine::StringType& string) {
-  base::CommandLine::StringType prefix(kDefaultSwitchPrefix);
-  if (string.substr(0, prefix.length()) == prefix) {
-    return true;
-  }
-  return false;
+inline bool IsSwitch(const base::CommandLine::StringType& string) {
+  return string.starts_with(kDefaultSwitchPrefix);
 }
 
 }  // namespace
@@ -60,11 +57,11 @@ CommandLinePreprocessor::CommandLinePreprocessor(int argc,
   if (cmd_line_.HasSwitch(::switches::kDisableFeatures)) {
     std::string disabled_features(
         cmd_line_.GetSwitchValueASCII(::switches::kDisableFeatures));
-    auto old_value =
+    const auto default_disabled_features =
         cobalt_param_switch_defaults.find(::switches::kDisableFeatures);
-    if (old_value != cobalt_param_switch_defaults.end()) {
-      disabled_features += std::string(",");
-      disabled_features += std::string(old_value->second);
+    if (default_disabled_features != cobalt_param_switch_defaults.end()) {
+      base::StrAppend(&disabled_features,
+                      {",", default_disabled_features->second});
       cmd_line_.AppendSwitchNative(::switches::kDisableFeatures,
                                    disabled_features);
     }
@@ -103,7 +100,7 @@ CommandLinePreprocessor::CommandLinePreprocessor(int argc,
     startup_url_ = initial_url;
   } else {
     const auto first_arg = nonswitch_args.at(1);
-    if (std::string(first_arg) != initial_url) {
+    if (first_arg != initial_url) {
       LOG(INFO) << "First argument differs from initial URL: \"" << first_arg
                 << "\" vs. \"" << initial_url << "\"";
       // Always prefer the first argument.
@@ -111,7 +108,7 @@ CommandLinePreprocessor::CommandLinePreprocessor(int argc,
       LOG(WARNING) << "Overriding initial URL with first argument";
       cmd_line_.AppendSwitchNative(cobalt::switches::kInitialURL, first_arg);
     }
-    startup_url_ = std::string(first_arg);
+    startup_url_ = first_arg;
   }
   CHECK(!startup_url_.empty());
 }
@@ -122,11 +119,11 @@ const base::CommandLine::StringVector CommandLinePreprocessor::argv() const {
   out_argv.push_back(cmd_line_.GetProgram().value());
 
   for (const auto& switch_arg : cmd_line_.GetSwitches()) {
-    auto key = std::string(switch_arg.first);
-    auto val = std::string(switch_arg.second);
-    std::string switch_str = std::string(kDefaultSwitchPrefix) + key;
-    if (val.length() != 0) {
-      switch_str += std::string(kSwitchValueSeparator) + val;
+    const auto key = switch_arg.first;
+    const auto value = switch_arg.second;
+    std::string switch_str = base::StrCat({kDefaultSwitchPrefix, key});
+    if (!value.empty()) {
+      base::StrAppend(&switch_str, {kSwitchValueSeparator, value});
     }
     out_argv.push_back(switch_str);
   }
