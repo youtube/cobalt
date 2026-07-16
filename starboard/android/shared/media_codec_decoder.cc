@@ -132,7 +132,6 @@ MediaCodecDecoder::CreateForVideo(
     const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
     std::optional<int> tunnel_mode_audio_session_id,
     bool enable_frame_renderer_listener,
-    bool enable_low_latency,
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
@@ -147,9 +146,9 @@ MediaCodecDecoder::CreateForVideo(
       video_codec, frame_size_hint, max_frame_size, fps, j_output_surface,
       drm_system, color_metadata, require_software_codec, frame_rendered_cb,
       first_tunnel_frame_ready_cb, tunnel_mode_audio_session_id,
-      enable_frame_renderer_listener, enable_low_latency,
-      force_big_endian_hdr_metadata, max_video_input_size, flush_delay_usec,
-      use_dual_threads, skip_video_frames_over_60_fps,
+      enable_frame_renderer_listener, force_big_endian_hdr_metadata,
+      max_video_input_size, flush_delay_usec, use_dual_threads,
+      skip_video_frames_over_60_fps,
       ignore_mediacodec_callbacks_during_flushing, enable_ndk_video,
       enable_trivial_optimizations, &error_message);
   if (!decoder->media_codec_bridge_) {
@@ -218,7 +217,6 @@ MediaCodecDecoder::MediaCodecDecoder(
     const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
     std::optional<int> tunnel_mode_audio_session_id,
     bool enable_frame_renderer_listener,
-    bool enable_low_latency,
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
@@ -259,10 +257,9 @@ MediaCodecDecoder::MediaCodecDecoder(
       /*handler=*/this, j_output_surface, j_media_crypto, color_metadata,
       {max_video_input_size, skip_video_frames_over_60_fps,
        ignore_mediacodec_callbacks_during_flushing,
-       enable_frame_renderer_listener, enable_low_latency,
-       require_secured_decoder, require_software_codec,
-       force_big_endian_hdr_metadata, tunnel_mode_audio_session_id,
-       enable_ndk_video});
+       enable_frame_renderer_listener, require_secured_decoder,
+       require_software_codec, force_big_endian_hdr_metadata,
+       tunnel_mode_audio_session_id, enable_ndk_video});
 
   if (media_codec_bridge) {
     media_codec_bridge_ = std::move(media_codec_bridge.value());
