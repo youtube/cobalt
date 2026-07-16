@@ -27,6 +27,7 @@ public class JavaSwitches {
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
   public static final String STARTUP_GUARD_INTERVAL_IN_SECONDS = "StartupGuardIntervalInSeconds";
   public static final String ENABLE_OPTIMIZED_FONT_LOADING = "EnableOptimizedFontLoading";
+  public static final String ENABLE_OPTIMIZED_V8_CODE_CACHE = "EnableOptimizedV8CodeCache";
 
   /** flag to re-enable freeze and resume events */
   public static final String ENABLE_FREEZE = "EnableFreeze";
@@ -84,6 +85,10 @@ public class JavaSwitches {
 
   /** Avoid reuse resource. */
   public static final String AVOID_CC_REUSE_RESOURCE = "AvoidCCReuseResource";
+
+  /** flag to bypass BufferingBytesConsumer Oilpan heap buffering. */
+  public static final String COBALT_BYPASS_BUFFERING_BYTES_CONSUMER =
+      "CobaltBypassBufferingBytesConsumer";
 
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
@@ -176,6 +181,10 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--enable-optimized-font-loading");
     }
 
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_OPTIMIZED_V8_CODE_CACHE)) {
+      extraCommandLineArgs.add("--enable-optimized-v8-code-cache");
+    }
+
     if (jsFlags.length() > 0) {
       extraCommandLineArgs.add("--js-flags=" + jsFlags.toString());
     }
@@ -190,6 +199,11 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.AVOID_CC_REUSE_RESOURCE)) {
       extraCommandLineArgs.add("--avoid-cc-reuse-resource");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.COBALT_BYPASS_BUFFERING_BYTES_CONSUMER)) {
+      extraCommandLineArgs.add(
+          "--enable-features=" + JavaSwitches.COBALT_BYPASS_BUFFERING_BYTES_CONSUMER);
     }
 
     return extraCommandLineArgs;

@@ -330,6 +330,10 @@ test("cobalt_unittests") {
     ]
   }
 
+  if (is_starboard || is_androidtv) {
+    sources += [ "//cobalt/browser/hang_watcher_delegate_impl_unittest.cc" ]
+  }
+
   if (is_starboard) {
     sources += [
       "//cobalt/app/app_event_delegate_unittest.cc",

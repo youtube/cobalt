@@ -47,6 +47,9 @@ public abstract class CobaltService {
   /** Take in a reference to StarboardBridge & use it as needed. Default behavior is no-op. */
   public void receiveStarboardBridge(StarboardBridge bridge) {}
 
+  /** Take in a reference to BaseStarboardBridge & use it as needed. Default behavior is no-op. */
+  public void receiveBaseStarboardBridge(BaseStarboardBridge bridge) {}
+
   // Lifecycle
   /** Prepare service for start or resume. */
   public abstract void beforeStartOrResume();

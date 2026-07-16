@@ -63,11 +63,6 @@ struct AudioOutputFormatResult {
   jint channel_count;
 };
 
-struct DequeueInputResult {
-  int32_t status;
-  int32_t index;
-};
-
 struct DequeueOutputResult {
   int32_t status;
   int32_t index;
@@ -89,7 +84,6 @@ class MediaCodec {
     bool skip_video_frames_over_60_fps = false;
     bool ignore_mediacodec_callbacks_during_flushing = false;
     bool enable_frame_renderer_listener = false;
-    bool enable_low_latency = false;
     bool require_secured_decoder = false;
     bool require_software_codec = false;
     bool force_big_endian_hdr_metadata = false;
