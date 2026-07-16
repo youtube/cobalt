@@ -21,14 +21,10 @@
 
 namespace cobalt {
 
-class BundleData final {
- public:
-  // Retrieves a given value from the main bundle's Info.plist and returns it as
-  // an std::string if it exists and can be converted to an NSString*. Returns
-  // std::nullopt otherwise.
-  static std::optional<std::string> GetValueFromPlistAsString(
-      std::string_view key_name);
-};
+// Retrieves a given value from the main bundle's Info.plist and returns it as
+// an std::string if it exists and can be converted to an NSString*. Returns
+// std::nullopt otherwise.
+std::optional<std::string> GetValueFromPlistAsString(std::string_view key_name);
 
 }  // namespace cobalt
 

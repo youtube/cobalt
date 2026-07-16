@@ -33,8 +33,7 @@ std::string GetInitialURL(const base::CommandLine& command_line) {
     return command_line.GetSwitchValueASCII(kInitialURL);
   }
 #if BUILDFLAG(IS_IOS_TVOS)
-  const auto yt_application_url =
-      BundleData::GetValueFromPlistAsString("YTApplicationURL");
+  const auto yt_application_url = GetValueFromPlistAsString("YTApplicationURL");
   if (yt_application_url.has_value()) {
     return *yt_application_url;
   }

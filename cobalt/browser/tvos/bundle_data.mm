@@ -21,8 +21,7 @@
 
 namespace cobalt {
 
-// static
-std::optional<std::string> BundleData::GetValueFromPlistAsString(
+std::optional<std::string> GetValueFromPlistAsString(
     std::string_view key_name) {
   NSString* keyName = base::SysUTF8ToNSString(key_name);
   NSString* keyValue = base::apple::ObjCCast<NSString>(
