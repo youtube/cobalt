@@ -112,5 +112,11 @@
   {
     "target": "third_party/opus:test_opus_padding_loader",
     "executable": "out/evergreen-arm-hardfp-rdk_devel/test_opus_padding_loader.py"
+  },
+  {
+    "target": "components/update_client:update_client_unittests_loader",
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/update_client_unittests_loader.py",
+    "runs_on": "device",
+    "test_type": "gtest"
   }
 ]
