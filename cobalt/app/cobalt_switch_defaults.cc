@@ -119,12 +119,12 @@ const base::CommandLine::StringVector CommandLinePreprocessor::argv() const {
   out_argv.push_back(cmd_line_.GetProgram().value());
 
   for (const auto& switch_arg : cmd_line_.GetSwitches()) {
-    const auto key = switch_arg.first;
-    const auto value = switch_arg.second;
-    std::string switch_str = base::StrCat({kDefaultSwitchPrefix, key});
-    if (!value.empty()) {
-      base::StrAppend(&switch_str, {kSwitchValueSeparator, value});
-    }
+    const auto& key = switch_arg.first;
+    const auto& value = switch_arg.second;
+    const std::string switch_str =
+        value.empty() ? base::StrCat({kDefaultSwitchPrefix, key})
+                      : base::StrCat({kDefaultSwitchPrefix, key,
+                                      kSwitchValueSeparator, value});
     out_argv.push_back(switch_str);
   }
 
