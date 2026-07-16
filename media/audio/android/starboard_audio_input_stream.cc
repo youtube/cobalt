@@ -285,33 +285,27 @@ void StarboardAudioInputStream::ReadBufferQueue() {
   // the AudioManager thread, while ReadBufferQueue runs on the OpenSLES thread.
   base::AutoLock lock(lock_);
 
-  if (!started_ || !callback_) {
-    if (simple_buffer_queue_ && *simple_buffer_queue_) {
-      (*simple_buffer_queue_)->Enqueue(simple_buffer_queue_,
-                                       audio_data_[active_buffer_index_].get(),
-                                       buffer_size_bytes_);
-      active_buffer_index_ = (active_buffer_index_ + 1) % kMaxNumOfBuffersInQueue;
-    }
+  if (!simple_buffer_queue_ || !*simple_buffer_queue_) {
     return;
   }
 
-  // Convert from interleaved format to deinterleaved audio bus format while
-  // still under the lock to protect audio_bus_ and audio_data_.
-  audio_bus_->FromInterleaved<SignedInt16SampleTypeTraits>(
-      reinterpret_cast<int16_t*>(audio_data_[active_buffer_index_].get()),
-      audio_bus_->frames());
+  if (started_ && callback_) {
+    // Convert from interleaved format to deinterleaved audio bus format while
+    // still under the lock to protect audio_bus_ and audio_data_.
+    audio_bus_->FromInterleaved<SignedInt16SampleTypeTraits>(
+        reinterpret_cast<int16_t*>(audio_data_[active_buffer_index_].get()),
+        audio_bus_->frames());
 
-  callback_->OnData(audio_bus_.get(),
-                    base::TimeTicks::Now() - hardware_delay_,
-                    /*volume=*/0.0,
-                    /*audio_glitch_info=*/{});
-
-  if (simple_buffer_queue_ && *simple_buffer_queue_) {
-    (*simple_buffer_queue_)->Enqueue(simple_buffer_queue_,
-                                     audio_data_[active_buffer_index_].get(),
-                                     buffer_size_bytes_);
-    active_buffer_index_ = (active_buffer_index_ + 1) % kMaxNumOfBuffersInQueue;
+    callback_->OnData(audio_bus_.get(),
+                      base::TimeTicks::Now() - hardware_delay_,
+                      /*volume=*/0.0,
+                      /*audio_glitch_info=*/{});
   }
+
+  (*simple_buffer_queue_)->Enqueue(simple_buffer_queue_,
+                                   audio_data_[active_buffer_index_].get(),
+                                   buffer_size_bytes_);
+  active_buffer_index_ = (active_buffer_index_ + 1) % kMaxNumOfBuffersInQueue;
 }
 void StarboardAudioInputStream::SetupAudioBuffer() {
   base::AutoLock lock(lock_);
