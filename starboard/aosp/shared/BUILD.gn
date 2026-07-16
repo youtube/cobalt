@@ -29,7 +29,6 @@ source_set("aosp_loader_glue") {
   deps = [
     "//base",
     "//cobalt/aosp:jni_headers",
-    "//starboard:starboard_group",
     "//starboard/android/shared:starboard_platform",
   ]
 }
