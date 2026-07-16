@@ -23,19 +23,16 @@ jobs:
       fail-fast: false
       matrix:
         branch: [
-          {source: main, target: 27.lts},
-          {source: main, target: staging},
+          {source: main, target: 27.lts, autoroll: .github/AUTOROLL},
+          {source: main, target: staging, autoroll: .github/AUTOROLL},
+          {source: chromium/main, target: staging, autoroll: .github/AUTOROLL_CHROMIUM},
         ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ matrix.branch.source }}
+          ref: main
           fetch-depth: 1000
-          filter: blob:none
-          sparse-checkout: |
-            .github
-            .gitmodules
           token: ${{ secrets.CHERRY_PICK_TOKEN }}
 
       - name: Setup Git user
@@ -55,19 +52,27 @@ jobs:
           # Copy script from main branch.
           git show main:.github/scripts/autoroll_lts.py > "${RUNNER_TEMP}/autoroll_lts.py"
 
-          # The autoroller will only ever operate on the lower limit (1k commits).
-          # Fetch enough history for target branch to find merge base.
-          git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules --filter=blob:none origin "${TARGET_BRANCH}:${TARGET_BRANCH}"
+          git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "${TARGET_BRANCH}:${TARGET_BRANCH}"
 
           # Use existing branch from remote if it exists, otherwise start from target branch.
-          if git fetch --no-recurse-submodules --filter=blob:none origin "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"; then
+          if git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"; then
             git checkout --no-recurse-submodules -B "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" FETCH_HEAD
           else
             git checkout --no-recurse-submodules -B "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" "${TARGET_BRANCH}" --no-track
           fi
 
           # Fetch enough history for source branch.
-          git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules --filter=blob:none origin "${SOURCE_BRANCH}:${SOURCE_BRANCH}"
+          git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "${SOURCE_BRANCH}:${SOURCE_BRANCH}"
+
+      - name: Get Existing PR Info
+        id: pr_info
+        env:
+          GITHUB_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
+        run: |
+          # Get the first commit SHA of the existing PR.
+          # If the PR doesn't exist, it returns an empty string.
+          FIRST_SHA=$(gh pr view "autoroll-${{ matrix.branch.source }}-to-${{ matrix.branch.target }}" --json commits --jq '.commits[0].oid' 2>/dev/null || echo "")
+          echo "first_sha=$FIRST_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Cherry Pick Merged PRs
         id: autoroll
@@ -80,7 +85,9 @@ jobs:
           PR_LINKS=$(python3 "${RUNNER_TEMP}/autoroll_lts.py" \
             --source-branch "${{ matrix.branch.source }}" \
             --target-branch "${{ matrix.branch.target }}" \
+            --autoroll-file "${{ matrix.branch.autoroll }}" \
             --max-commits "${{ env.MAX_COMMITS }}")
+            --existing-pr-sha "${{ steps.pr_info.outputs.first_sha }}")
 
           if [[ -n "${PR_LINKS}" ]]; then
             echo "cherry_picked=true" >> "$GITHUB_OUTPUT"
@@ -115,16 +122,16 @@ jobs:
             echo "${PR_LINKS}"
           } > "${PR_BODY_FILE}"
 
-          if [[ -f .github/AUTOROLL ]] && grep -q "^CONFLICTED:" .github/AUTOROLL; then
+          if [[ -f "${{ matrix.branch.autoroll }}" ]] && grep -q "^CONFLICTED:" "${{ matrix.branch.autoroll }}"; then
             PR_TITLE="$(git log -1 --pretty=%s)"
             {
               echo ""
-              echo "⚠️ This PR has conflicts that must be resolved manually (don't forget to update the \`.github/AUTOROLL\` file). Use the following commands to checkout the branch locally and resolve the conflicts in a separate commit:"
+              echo "⚠️ This PR has conflicts that must be resolved manually (don't forget to update the \`${{ matrix.branch.autoroll }}\` file). Use the following commands to checkout the branch locally and resolve the conflicts in a separate commit:"
               echo ""
               echo '```bash'
               echo "gh pr checkout <pull_request_number> -R ${{ github.repository }}"
               echo ""
-              echo "# Resolve conflicts and update .github/AUTOROLL then"
+              echo "# Resolve conflicts and update ${{ matrix.branch.autoroll }} then"
               echo "git add <resolved_files>"
               echo ""
               echo "# Copy CONFLICTED commit's message and metadata"
