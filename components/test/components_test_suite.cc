@@ -65,9 +65,8 @@ class ComponentsTestSuite : public base::TestSuite {
     url::AddStandardScheme("isolated-app", url::SCHEME_WITH_HOST);
 
 #if BUILDFLAG(USE_BLINK)
-#if !BUILDFLAG(IS_STARBOARD)
     gl::GLSurfaceTestSupport::InitializeOneOff();
-#endif
+
     content::ForceInProcessNetworkService();
 
     // Setup content scheme statics.
