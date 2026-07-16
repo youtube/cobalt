@@ -222,7 +222,7 @@ The set of information required by the decoder or player for each audio stream.
 *   `SbMediaAudioCodec codec`
 
     The audio codec of this sample.
-*   `const char * mime`
+*   `const char* mime`
 
     The mime of the audio stream when `codec` isn't kSbMediaAudioCodecNone. It
     may point to an empty string if the mime is not available, and it can only
@@ -239,7 +239,7 @@ The set of information required by the decoder or player for each audio stream.
 *   `uint16_t audio_specific_config_size`
 
     The size, in bytes, of the audio_specific_config.
-*   `const void * audio_specific_config`
+*   `const void* audio_specific_config`
 
     The AudioSpecificConfig, as specified in ISO/IEC-14496-3, section 1.6.2.1.
 
@@ -397,12 +397,12 @@ The set of information required by the decoder or player for each video stream.
 *   `SbMediaVideoCodec codec`
 
     The video codec of this sample.
-*   `const char * mime`
+*   `const char* mime`
 
     The mime of the video stream when `codec` isn't kSbMediaVideoCodecNone. It
     may point to an empty string if the mime is not available, and it can only
     be set to NULL when `codec` is kSbMediaVideoCodecNone.
-*   `const char * max_video_capabilities`
+*   `const char* max_video_capabilities`
 
     Indicates the max video capabilities required. The web app will not provide
     a video stream exceeding the maximums described by this parameter. Allows

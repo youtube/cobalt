@@ -218,7 +218,7 @@ Per-sample metadata for encrypted samples.
 *   `int32_t subsample_count`
 
     The number of subsamples in this sample (must be at least 1).
-*   `constSbDrmSubSampleMapping* subsample_mapping`
+*   `const SbDrmSubSampleMapping* subsample_mapping`
 
     The clear/encrypted mapping of each subsample in this sample. This must be
     an array of `subsample_count` mappings.

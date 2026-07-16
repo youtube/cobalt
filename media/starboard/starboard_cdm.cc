@@ -307,31 +307,30 @@ void StarboardCdm::OnSessionUpdateRequestGenerated(
     // Called back as a result of |SbDrmGenerateSessionUpdateRequest|.
 
     // Restore the context of |GenerateSessionUpdateRequest|.
-    auto session_update_request_iterator =
+    auto session_update_request_it =
         ticket_to_session_update_request_map_.find(ticket);
-    if (session_update_request_iterator ==
+    if (session_update_request_it ==
         ticket_to_session_update_request_map_.end()) {
       LOG(INFO) << "Unknown session update request ticket: " << ticket << ".";
       return;
     }
 
-    auto session_request = std::move(session_update_request_iterator->second);
-
-    if (session_id) {
-      session_list_.push_back(session_id.value());
-      promises_.ResolvePromise(session_request.promise_id, session_id.value());
-    } else {
+    auto session_request = std::move(session_update_request_it->second);
+    ticket_to_session_update_request_map_.erase(session_update_request_it);
+    if (!session_id) {
       // Failure during request generation.
-      LOG(INFO) << "Calling session update request callback on drm system ("
-                << sb_drm_ << "), status: " << status
-                << ", error message: " << error_message;
+      LOG(ERROR)
+          << "Failure during session update request generation on drm system ("
+          << sb_drm_ << "), status: " << status
+          << ", error message: " << error_message;
       promises_.RejectPromise(session_request.promise_id,
                               CdmPromise::Exception::INVALID_STATE_ERROR, 0,
                               "Failure during request generation.");
+      return;
     }
 
-    ticket_to_session_update_request_map_.erase(
-        session_update_request_iterator);
+    session_list_.push_back(session_id.value());
+    promises_.ResolvePromise(session_request.promise_id, session_id.value());
 
   } else {
     // Called back spontaneously by the underlying DRM system.
