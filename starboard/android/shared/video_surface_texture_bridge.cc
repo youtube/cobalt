@@ -59,13 +59,6 @@ ScopedJavaGlobalRef<jobject> VideoSurfaceTextureBridge::CreateSurface(
 }
 
 // static
-ScopedJavaGlobalRef<jobject> VideoSurfaceTextureBridge::CreateSurfaceForTesting(
-    JNIEnv* env) {
-  return ScopedJavaGlobalRef<jobject>(
-      Java_VideoSurfaceTexture_createSurfaceForTesting(env));
-}
-
-// static
 void VideoSurfaceTextureBridge::UpdateTexImage(
     JNIEnv* env,
     const JavaRef<jobject>& surface_texture) {
