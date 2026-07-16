@@ -141,6 +141,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbLogRawFormat);
   REGISTER_SYMBOL(SbMediaCanChangeType);
   REGISTER_SYMBOL(SbMediaCanPlayMimeAndKeySystem);
+  REGISTER_SYMBOL(SbMediaSetCanPlayMimeAndKeySystemFuncForTesting);
   REGISTER_SYMBOL(SbMediaGetAudioBufferBudget);
   REGISTER_SYMBOL(SbMediaGetAudioConfiguration);
   REGISTER_SYMBOL(SbMediaGetAudioOutputCount);

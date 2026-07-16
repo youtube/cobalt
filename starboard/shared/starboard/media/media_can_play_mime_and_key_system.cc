@@ -16,8 +16,21 @@
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/mime_util.h"
 
+namespace {
+SbMediaCanPlayMimeAndKeySystemFunc g_can_play_func_for_testing = nullptr;
+}  // namespace
+
+void SbMediaSetCanPlayMimeAndKeySystemFuncForTesting(
+    SbMediaCanPlayMimeAndKeySystemFunc func) {
+  g_can_play_func_for_testing = func;
+}
+
 SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
                                                   const char* key_system) {
+  if (g_can_play_func_for_testing) {
+    return g_can_play_func_for_testing(mime, key_system);
+  }
+
   if (mime == NULL) {
     SB_DLOG(WARNING) << "mime cannot be NULL";
     return kSbMediaSupportTypeNotSupported;
