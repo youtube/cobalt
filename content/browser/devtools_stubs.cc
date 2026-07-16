@@ -1,7 +1,21 @@
+#include <map>
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "base/containers/enum_set.h"
+#include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/safe_ref.h"
 #include "base/memory/singleton.h"
 #include "base/no_destructor.h"
+#include "base/time/time.h"
+#include "base/values.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
+#include "url/gurl.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/global_request_id.h"
