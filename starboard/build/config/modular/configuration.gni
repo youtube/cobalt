@@ -32,6 +32,4 @@ pedantic_warnings_config_path =
 no_pedantic_warnings_config_path =
     "//starboard/build/config/modular:no_pedantic_warnings"
 
-install_target_path = "//starboard/build/install/install_target.gni"
-
 sb_enable_benchmark = true

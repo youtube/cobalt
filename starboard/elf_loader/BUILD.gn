@@ -134,9 +134,6 @@ if (current_toolchain == starboard_toolchain) {
 }
 
 copy("copy_elf_loader_testdata") {
-  if (enable_install_targets) {
-    install_content = true
-  }
   sources = [
     "testdata/compressed.lz4",
     "testdata/compressed.zst",
