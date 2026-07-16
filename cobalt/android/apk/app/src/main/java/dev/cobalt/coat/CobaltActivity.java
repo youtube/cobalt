@@ -16,14 +16,7 @@ package dev.cobalt.coat;
 
 import static dev.cobalt.util.Log.TAG;
 
-import android.app.Activity;
-import android.content.ComponentName;
 import android.content.Intent;
-import android.content.pm.ActivityInfo;
-import android.content.pm.PackageManager;
-import android.content.pm.PackageManager.NameNotFoundException;
-import android.media.AudioManager;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -79,19 +72,12 @@ import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
 
-/** Native activity that has the required JNI methods called by the Starboard implementation. */
-public abstract class CobaltActivity extends Activity {
-  private static final String URL_ARG = "--url=";
-  private static final String META_DATA_APP_URL = "cobalt.APP_URL";
+/* Abstract activity used by AndroidTV. Extends the base with the Chromium content-shell wiring. */
+public abstract class CobaltActivity extends BaseCobaltActivity {
   private static final String META_DATA_ENABLE_SPLASH_SCREEN = "cobalt.ENABLE_SPLASH_SCREEN";
   private static final String META_DATA_ENABLE_FEATURES = "cobalt.ENABLE_FEATURES";
   private static final String YOUTUBE_URL = "https://www.youtube.com/tv";
   private static final String COBALT_USING_ANDROID_OVERLAY = "cobalt-using-android-overlay";
-
-  // This key differs in naming format for legacy reasons
-  public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
-
-  private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
 
   // How many seconds before the app exits if it fails to land YouTube home page.
   private static final int DEFAULT_HANG_APP_CRASH_TIMEOUT_SECONDS = 120;
@@ -107,8 +93,6 @@ public abstract class CobaltActivity extends Activity {
   private VideoSurfaceView mVideoSurfaceView;
 
   private boolean mForceCreateNewVideoSurfaceView;
-
-  private long mTimeInNanoseconds;
 
   private ShellManager mShellManager;
   private ActivityWindowAndroid mWindowAndroid;
@@ -142,25 +126,6 @@ public abstract class CobaltActivity extends Activity {
         }
       };
   private boolean mWasDisplayOn = true;
-
-  private Bundle getActivityMetaData() {
-    ComponentName componentName = getIntent().getComponent();
-    if (componentName == null) {
-      Log.w(TAG, "Activity intent has no component; cannot get metadata.");
-      return null;
-    }
-    ActivityInfo ai;
-    try {
-      ai = getPackageManager().getActivityInfo(componentName, PackageManager.GET_META_DATA);
-    } catch (NameNotFoundException e) {
-      Log.e(TAG, "Error getting activity info", e);
-      return null;
-    }
-    if (ai == null) {
-      return null;
-    }
-    return ai.metaData;
-  }
 
   @VisibleForTesting
   static String[] appendArgsFromMetaData(Bundle metaData, String[] commandLineArgs) {
@@ -419,10 +384,6 @@ public abstract class CobaltActivity extends Activity {
     return mLastSentIntent;
   }
 
-  private static String[] getCommandLineParamsFromIntent(Intent intent, String key) {
-    return intent != null ? intent.getStringArrayExtra(key) : null;
-  }
-
   /**
    * @return The {@link ShellManager} configured for the activity or null if it has not been created
    *     yet.
@@ -482,14 +443,6 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
-    // Record the application start timestamp.
-    mTimeInNanoseconds = System.nanoTime();
-
-    // To ensure that volume controls adjust the correct stream, make this call
-    // early in the app's lifecycle. This connects the volume controls to
-    // STREAM_MUSIC whenever the target activity or fragment is visible.
-    setVolumeControlStream(AudioManager.STREAM_MUSIC);
-
     super.onCreate(savedInstanceState);
 
     setupStartupGuard();
@@ -580,7 +533,6 @@ public abstract class CobaltActivity extends Activity {
 
     AudioOutputManager.addAudioDeviceListener(this);
 
-    getStarboardBridge().onActivityStart(this);
     super.onStart();
 
     if (mFreezeRunnable != null) {
@@ -611,7 +563,6 @@ public abstract class CobaltActivity extends Activity {
   @Override
   protected void onStop() {
     unregisterDisplayListener();
-    getStarboardBridge().onActivityStop(this);
     super.onStop();
 
     // visibility:hidden event
@@ -679,120 +630,11 @@ public abstract class CobaltActivity extends Activity {
       mBackInvokedCallback = null;
     }
     super.onDestroy();
-    getStarboardBridge().onActivityDestroy(this);
-  }
-
-  @Override
-  public boolean onSearchRequested() {
-    return getStarboardBridge().onSearchRequested();
-  }
-
-  /** Returns true if the argument list contains an arg starting with argName. */
-  private static boolean hasArg(List<String> args, String argName) {
-    for (String arg : args) {
-      if (arg.startsWith(argName)) {
-        return true;
-      }
-    }
-    return false;
   }
 
   /** Overridden by Kimono to provide specific Java switch configurations. */
   protected Map<String, String> getJavaSwitches() {
     return this.mJavaSwitches;
-  }
-
-  /**
-   * Get argv/argc style args, if any from intent extras. Returns empty array if there are none
-   *
-   * <p>To use, invoke application via, eg, adb shell am start --esa args arg1,arg2 \
-   * dev.cobalt.coat/dev.cobalt.app.MainActivity
-   */
-  protected String[] getArgs() {
-    String[] commandLineArgs = null;
-    Intent intent = getIntent();
-    if (!isReleaseBuild()) {
-      commandLineArgs = getCommandLineParamsFromIntent(intent, COMMAND_LINE_ARGS_KEY);
-    }
-    return constructArgs(commandLineArgs, getActivityMetaData(), intent.getExtras());
-  }
-
-  @VisibleForTesting
-  static String[] constructArgs(String[] commandLineArgs, Bundle metaData, Bundle extras) {
-    ArrayList<String> args = new ArrayList<>();
-    if (commandLineArgs != null) {
-      args.addAll(Arrays.asList(commandLineArgs));
-    }
-
-    // If the URL arg isn't specified, get it from AndroidManifest.xml.
-    if (!hasArg(args, URL_ARG) && metaData != null) {
-      String url = metaData.getString(META_DATA_APP_URL);
-      if (url != null) {
-        args.add(URL_ARG + url);
-      }
-    }
-
-    CharSequence[] urlParams = (extras == null) ? null : extras.getCharSequenceArray("url_params");
-    if (urlParams != null) {
-      appendUrlParamsToUrl(args, urlParams);
-    }
-
-    return args.toArray(new String[0]);
-  }
-
-  @VisibleForTesting
-  static void appendUrlParamsToUrl(List<String> args, CharSequence[] urlParams) {
-    int idx = -1;
-    for (int i = 0; i < args.size(); i++) {
-      if (args.get(i).startsWith(URL_ARG)) {
-        idx = i;
-        break;
-      }
-    }
-
-    if (idx >= 0) {
-      StringBuilder urlBuilder = new StringBuilder();
-      urlBuilder.append(args.get(idx));
-      // append & if ? is already in the url, otherwise append ?
-      if (urlBuilder.indexOf("?") > 0) {
-        urlBuilder.append("&");
-      } else {
-        urlBuilder.append("?");
-      }
-
-      for (int j = 0; j < urlParams.length; j++) {
-        // sanitize the input before append to the url.
-        String paramKeyValuePair = urlParams[j].toString();
-        if (URL_PARAM_PATTERN.matcher(paramKeyValuePair).matches()) {
-          urlBuilder.append(paramKeyValuePair);
-          urlBuilder.append('&');
-        }
-      }
-
-      urlBuilder.deleteCharAt(urlBuilder.length() - 1);
-      args.set(idx, urlBuilder.toString());
-    }
-  }
-
-  protected boolean isReleaseBuild() {
-    return StarboardBridge.isReleaseBuild();
-  }
-
-  protected boolean isDevelopmentBuild() {
-    return StarboardBridge.isDevelopmentBuild();
-  }
-
-  @Override
-  protected void onNewIntent(Intent intent) {
-    getStarboardBridge().handleDeepLink(getIntentUrlAsString(intent));
-  }
-
-  /**
-   * Returns the URL from an Intent as a string. This may be overridden for additional processing.
-   */
-  protected String getIntentUrlAsString(Intent intent) {
-    Uri intentUri = intent.getData();
-    return (intentUri == null) ? "" : intentUri.toString();
   }
 
   @Override
@@ -869,10 +711,6 @@ public abstract class CobaltActivity extends Activity {
     } else {
       Log.w(TAG, "Unexpected surface view parent class " + parent.getClass().getName());
     }
-  }
-
-  public long getAppStartTimestamp() {
-    return mTimeInNanoseconds;
   }
 
   public void evaluateJavaScript(String jsCode) {
