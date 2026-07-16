@@ -797,9 +797,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       if (surface_view_) {
         j_output_surface = surface_view_.AsLocalRef(env);
       } else {
-        AcquiredSurface acquired_surface = AcquireVideoSurface(job_queue());
-        surface_destroy_notifier_ = acquired_surface.destroy_notifier;
-        j_output_surface = acquired_surface.surface;
+        j_output_surface = AcquireVideoSurface();
       }
       if (j_output_surface) {
         owns_video_surface_ = true;
@@ -893,10 +891,6 @@ void MediaCodecVideoDecoder::TeardownCodec() {
   if (owns_video_surface_) {
     ReleaseVideoSurface();
     owns_video_surface_ = false;
-  }
-  if (surface_destroy_notifier_) {
-    surface_destroy_notifier_->Disconnect();
-    surface_destroy_notifier_ = nullptr;
   }
   media_decoder_.reset();
   color_metadata_ = std::nullopt;
@@ -1155,8 +1149,24 @@ void MediaCodecVideoDecoder::OnVideoFrameRelease() {
 }
 
 void MediaCodecVideoDecoder::OnSurfaceDestroyed() {
+  if (!BelongsToCurrentThread()) {
+    // Wait until codec is stopped.
+    std::unique_lock lock(surface_destroy_mutex_);
+    surface_destroyed_ = false;
+    Schedule(std::bind(&MediaCodecVideoDecoder::OnSurfaceDestroyed, this));
+    surface_condition_variable_.wait_for(lock,
+                                         std::chrono::microseconds(1'000'000),
+                                         [this] { return surface_destroyed_; });
+    return;
+  }
   // When this function is called, the decoder no longer owns the surface.
+  owns_video_surface_ = false;
   TeardownCodec();
+  {
+    std::lock_guard lock(surface_destroy_mutex_);
+    surface_destroyed_ = true;
+  }
+  surface_condition_variable_.notify_one();
 }
 
 void MediaCodecVideoDecoder::ReportError(SbPlayerError error,
