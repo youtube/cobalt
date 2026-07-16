@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-if (current_toolchain == host_toolchain) {
-  executable("lz4_compress") {
-    sources = [ "lz4_compress.cc" ]
-    deps = [
-      "//starboard/tools/file_utils:file_utils",
-      "//third_party/lz4_lib:lz4",
-    ]
-  }
+assert(current_toolchain == host_toolchain,
+       "Starboard tools should only be built for the host toolchain")
+
+executable("lz4_compress") {
+  sources = [ "lz4_compress.cc" ]
+  deps = [
+    "//starboard/tools/file_utils",
+    "//third_party/lz4_lib:lz4",
+  ]
 }

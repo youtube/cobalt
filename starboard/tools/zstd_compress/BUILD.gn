@@ -12,34 +12,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+assert(current_toolchain == host_toolchain,
+       "Starboard tools should only be built for the host toolchain")
+
 import("//testing/test.gni")
 
-if (current_toolchain == host_toolchain) {
-  source_set("zstd_compress_lib") {
-    sources = [
-      "zstd_compress.cc",
-      "zstd_compress.h",
-    ]
-    deps = [ "//third_party/zstd:compress" ]
-  }
+source_set("zstd_compress_lib") {
+  sources = [
+    "zstd_compress.cc",
+    "zstd_compress.h",
+  ]
+  deps = [ "//third_party/zstd:compress" ]
+}
 
-  executable("zstd_compress") {
-    sources = [ "zstd_compress_main.cc" ]
-    deps = [
-      ":zstd_compress_lib",
-      "//starboard/tools/file_utils:file_utils",
-    ]
-  }
+executable("zstd_compress") {
+  sources = [ "zstd_compress_main.cc" ]
+  deps = [
+    ":zstd_compress_lib",
+    "//starboard/tools/file_utils",
+  ]
+}
 
-  # TODO: b/535249762 - Run this unit test target in CI.
-  test("zstd_compress_unittest") {
-    testonly = true
-    sources = [ "zstd_compress_unittest.cc" ]
-    deps = [
-      ":zstd_compress_lib",
-      "//testing/gtest",
-      "//testing/gtest:gtest_main",
-      "//third_party/zstd:decompress",
-    ]
-  }
+# TODO: b/535249762 - Run this unit test target in CI.
+test("zstd_compress_unittest") {
+  testonly = true
+  sources = [ "zstd_compress_unittest.cc" ]
+  deps = [
+    ":zstd_compress_lib",
+    "//testing/gtest",
+    "//testing/gtest:gtest_main",
+    "//third_party/zstd:decompress",
+  ]
 }

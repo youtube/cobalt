@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-if (current_toolchain == host_toolchain) {
-  source_set("file_utils") {
-    sources = [
-      "file_utils.cc",
-      "file_utils.h",
-    ]
-  }
+assert(current_toolchain == host_toolchain,
+       "Starboard tools should only be built for the host toolchain")
+
+source_set("file_utils") {
+  sources = [
+    "file_utils.cc",
+    "file_utils.h",
+  ]
 }

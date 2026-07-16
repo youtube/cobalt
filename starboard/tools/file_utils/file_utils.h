@@ -18,12 +18,10 @@
 #include <vector>
 
 namespace starboard {
-namespace tools {
 
 bool ReadFile(const char* file_path, std::vector<char>& buffer);
 bool WriteFile(const char* file_path, const std::vector<char>& buffer);
 
-}  // namespace tools
 }  // namespace starboard
 
 #endif  // STARBOARD_TOOLS_FILE_UTILS_FILE_UTILS_H_

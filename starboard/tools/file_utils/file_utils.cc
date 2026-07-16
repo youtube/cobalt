@@ -21,7 +21,6 @@
 #include <vector>
 
 namespace starboard {
-namespace tools {
 
 bool ReadFile(const char* file_path, std::vector<char>& buffer) {
   FILE* file;
@@ -88,5 +87,4 @@ bool WriteFile(const char* file_path, const std::vector<char>& buffer) {
   return true;
 }
 
-}  // namespace tools
 }  // namespace starboard

@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
   }
 
   std::vector<char> src_buffer;
-  if (!starboard::tools::ReadFile(argv[1], src_buffer)) {
+  if (!starboard::ReadFile(argv[1], src_buffer)) {
     std::cerr << "Failed to read the src file\n";
     return 1;
   }
@@ -36,7 +36,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  if (!starboard::tools::WriteFile(argv[2], dst_buffer)) {
+  if (!starboard::WriteFile(argv[2], dst_buffer)) {
     std::cerr << "Failed to write the dst file\n";
     return 1;
   }
