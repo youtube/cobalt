@@ -365,6 +365,10 @@ TEST_P(AdaptiveAudioDecoderTest, MultipleInput) {
 vector<vector<const char*>> GetSupportedTests() {
   static vector<vector<const char*>> test_params;
 
+#if BUILDFLAG(IS_ANDROID)
+#error "This won't build on Android TV"
+#endif  // BUILDFLAG(IS_ANDROID)
+
   if (!test_params.empty()) {
     return test_params;
   }
