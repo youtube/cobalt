@@ -148,5 +148,58 @@ TEST_F(AudioTrackAudioSinkTest, PauseAndResumePlayback) {
   EXPECT_EQ(track_ptr->play_state(), AudioTrack::PlayState::kPlaying);
 }
 
+TEST_F(AudioTrackAudioSinkTest, FlushAndResumePlayback) {
+  AudioTrackAudioSinkType type;
+  auto fake_track = std::make_unique<FakeAudioTrack>(
+      2, 48000, kSbMediaAudioSampleTypeFloat32);
+  FakeAudioTrack* track_ptr = fake_track.get();
+
+  AudioTrackAudioSinkType::Callbacks callbacks{
+      UpdateSourceStatusCB,
+      ConsumeFramesCB,
+      /*error=*/nullptr,
+  };
+
+  auto sink = AudioTrackAudioSink::CreateForTesting(
+      &type, 2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_, 1024,
+      512, callbacks, 0,
+      /*tunnel_mode_audio_session_id=*/std::nullopt,
+      /*allow_audio_writing_on_pause=*/false, std::move(fake_track), this);
+
+  ASSERT_NE(sink, nullptr);
+  int elapsed_ms = 0;
+  while (track_ptr->play_state() != AudioTrack::PlayState::kPlaying &&
+         elapsed_ms < 1000) {
+    usleep(10'000);
+    elapsed_ms += 10;
+  }
+  EXPECT_EQ(track_ptr->play_state(), AudioTrack::PlayState::kPlaying);
+
+  // Pause source status and trigger flush during seek reset.
+  is_playing_ = false;
+  EXPECT_TRUE(sink->Flush());
+
+  // Wait for sink thread to process flush and transition to paused state.
+  elapsed_ms = 0;
+  while (track_ptr->play_state() != AudioTrack::PlayState::kStopped &&
+         track_ptr->play_state() != AudioTrack::PlayState::kPaused &&
+         elapsed_ms < 1000) {
+    usleep(10'000);
+    elapsed_ms += 10;
+  }
+  EXPECT_TRUE(track_ptr->play_state() == AudioTrack::PlayState::kStopped ||
+              track_ptr->play_state() == AudioTrack::PlayState::kPaused);
+
+  // Resume playback.
+  is_playing_ = true;
+  elapsed_ms = 0;
+  while (track_ptr->play_state() != AudioTrack::PlayState::kPlaying &&
+         elapsed_ms < 1000) {
+    usleep(10'000);
+    elapsed_ms += 10;
+  }
+  EXPECT_EQ(track_ptr->play_state(), AudioTrack::PlayState::kPlaying);
+}
+
 }  // namespace
 }  // namespace starboard
