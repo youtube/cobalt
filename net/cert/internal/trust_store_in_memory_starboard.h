@@ -24,7 +24,7 @@
 
 namespace net {
 
-// Wrapper around TrustStoreInMemory to lazily load trusted root certificates.
+// Wrapper around TrustStoreInMemory to eagerly load trusted root certificates.
 class NET_EXPORT TrustStoreInMemoryStarboard : public PlatformTrustStore {
  public:
   TrustStoreInMemoryStarboard();
@@ -45,25 +45,11 @@ class NET_EXPORT TrustStoreInMemoryStarboard : public PlatformTrustStore {
   // Returns true if the trust store contains the given ParsedCertificate
   // (matches by DER).
   bool Contains(const bssl::ParsedCertificate* cert) const {
-    base::AutoLock scoped_lock(load_mutex_);
     return underlying_trust_store_.Contains(cert);
   }
 
  private:
   bssl::TrustStoreInMemory underlying_trust_store_;
-
-  // Given a certificate's canonical name, try to load this cert from trusted
-  // certs on disk if it is found.
-  std::shared_ptr<const bssl::ParsedCertificate> TryLoadCert(
-      std::string_view cert_name) const;
-
-  // The memory trust store can be accessed by multiple threads, in Chromium,
-  // the synchronization issue is solved by initializing trust store at startup
-  // and passing constant reference to consumers. Cobalt loads certs lazily and
-  // therefore guards the underlying_trust_store_ with mutex.
-  mutable base::Lock load_mutex_;
-
-  const std::unordered_set<std::string> trusted_cert_names_on_disk_;
 };
 
 }  // namespace net
