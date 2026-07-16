@@ -65,7 +65,6 @@
     "NavigationBrowserTest.TraversingToRestoredEntryUsesRestoreType",
     "NavigationBrowserTest.VerifyBlockedErrorPageURL_Reload",
     "NavigationBrowserTestCredentiallessIframe.CredentiallessAttributeIsHonoredByNavigation",
-    "NavigationBrowserTests*",
     "NavigationGoToEntryAtOffsetBrowserTest.HistoryBackInBeforeUnloadAfterSetTimeout",
     "NavigationSuddenTerminationDisablerTypeBrowserTest.NavigationSuddenTerminationDisablerTypeRecordUmaActivation",
     "NavigationSuddenTerminationDisablerTypeBrowserTest.NavigationSuddenTerminationDisablerTypeRecordUmaInitialEmptyDocument",
