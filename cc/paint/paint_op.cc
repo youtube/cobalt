@@ -2234,8 +2234,7 @@ bool PaintOp::GetBounds(const PaintOp& op, SkRect* rect) {
     }
     case PaintOpType::kDrawVertices: {
       const auto& vertices_op = static_cast<const DrawVerticesOp&>(op);
-      rect->setBounds(vertices_op.vertices->data().data(),
-                      vertices_op.vertices->data().size());
+      rect->setBounds(vertices_op.vertices->data());
       return true;
     }
     case PaintOpType::kNoop:

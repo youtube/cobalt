@@ -130,8 +130,7 @@ SkPath GetVisibleArrowPath(BubbleBorder::Arrow arrow,
       break;
   }
 
-  return SkPath::Polygon(points, std::size(points),
-                         part == BubbleArrowPart::kFill);
+  return SkPath::Polygon(points, part == BubbleArrowPart::kFill);
 }
 
 const gfx::ShadowValues& GetShadowValues(
