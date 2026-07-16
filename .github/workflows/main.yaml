@@ -689,10 +689,7 @@ jobs:
     # Run YTS Playback tests via presumit.
     if: |
       needs.initialize.outputs.test_yts_playback == 'true' &&
-        (
-          (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'yts_playback_test')) ||
-          contains(fromJson(needs.initialize.outputs.labels), 'yts_playback_test')
-        )
+      contains(fromJson(needs.initialize.outputs.labels), 'yts_playback_test')
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_yts_playback_tests
     permissions: {}
