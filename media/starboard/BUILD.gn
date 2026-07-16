@@ -41,6 +41,8 @@ source_set("starboard") {
       "decoder_buffer_memory_info.h",
       "media_buffer_pool_decoder_buffer_allocator_strategy.cc",
       "media_buffer_pool_decoder_buffer_allocator_strategy.h",
+      "sbmedia_interface.cc",
+      "sbmedia_interface.h",
       "sbplayer_bridge.cc",
       "sbplayer_bridge.h",
       "sbplayer_interface.cc",

@@ -34,6 +34,7 @@
 #include "media/base/renderer_factory.h"
 #include "media/base/starboard/experimental_features.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
+#include "media/starboard/sbmedia_interface.h"
 #include "media/starboard/starboard_media_external_memory_allocator.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "starboard/media.h"
@@ -272,7 +273,8 @@ bool CobaltContentRendererClient::IsDecoderSupportedAudioType(
   std::string mime = GetMimeFromAudioType(type);
   SbMediaSupportType support_type = kSbMediaSupportTypeNotSupported;
   if (!mime.empty()) {
-    support_type = SbMediaCanPlayMimeAndKeySystem(mime.c_str(), "");
+    support_type = ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(
+        mime.c_str(), "");
   }
   bool result = support_type != kSbMediaSupportTypeNotSupported;
   LOG(INFO) << __func__ << "(" << type.codec << ") -> "
@@ -285,7 +287,8 @@ bool CobaltContentRendererClient::IsDecoderSupportedVideoType(
   std::string mime = GetMimeFromVideoType(type);
   SbMediaSupportType support_type = kSbMediaSupportTypeNotSupported;
   if (!mime.empty()) {
-    support_type = SbMediaCanPlayMimeAndKeySystem(mime.c_str(), "");
+    support_type = ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(
+        mime.c_str(), "");
   }
   bool result = support_type != kSbMediaSupportTypeNotSupported;
   LOG(INFO) << __func__ << "(" << type.codec << ") -> "
