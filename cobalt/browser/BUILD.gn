@@ -153,6 +153,10 @@ source_set("switches") {
     "//base",
     "//cobalt/shell:cobalt_shell_switches",
   ]
+
+  if (is_ios) {
+    deps += [ "//cobalt/browser/tvos:bundle_data" ]
+  }
 }
 
 source_set("global_features") {

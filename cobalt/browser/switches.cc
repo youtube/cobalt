@@ -14,15 +14,31 @@
 
 #include "cobalt/browser/switches.h"
 
+#include "build/build_config.h"
 #include "cobalt/shell/common/shell_switches.h"
+
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "cobalt/browser/tvos/bundle_data.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 namespace cobalt {
 namespace switches {
 
 std::string GetInitialURL(const base::CommandLine& command_line) {
+  // The order of preference is as follows:
+  // 1. --url's value if specified
+  // 2. (tvOS-specific) YTApplicationURL from Info.plist if specified
+  // 3. ::switches::kDefaultURL
   if (command_line.HasSwitch(kInitialURL)) {
     return command_line.GetSwitchValueASCII(kInitialURL);
   }
+#if BUILDFLAG(IS_IOS_TVOS)
+  const auto yt_application_url =
+      BundleData::GetValueFromPlistAsString("YTApplicationURL");
+  if (yt_application_url.has_value()) {
+    return *yt_application_url;
+  }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
   return ::switches::kDefaultURL;
 }
 

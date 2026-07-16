@@ -12,6 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+source_set("bundle_data") {
+  sources = [
+    "bundle_data.h",
+    "bundle_data.mm",
+  ]
+  deps = [ "//base" ]
+  frameworks = [ "Foundation.framework" ]
+}
+
 source_set("deep_link_support_tvos") {
   sources = [
     "deep_link_support_tvos.h",
