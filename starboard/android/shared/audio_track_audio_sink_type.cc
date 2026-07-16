@@ -279,6 +279,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       // flush. This avoids using a stale value from before the reset, which
       // could lead to incorrect frame consumption calculations.
       last_playback_head_position = -1;
+      is_flushed_ = true;
       flush_requested_ = false;
       continue;
     }
@@ -301,9 +302,14 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     // player updates playback head positions when |audio_track_| doesn't stop.
     audio_track_play_state = audio_track_->GetPlayState();
 
+    if (audio_track_play_state == AudioTrack::PlayState::kPlaying) {
+      is_flushed_ = false;
+    }
+
     bool should_update_media_time =
         (audio_track_play_state == AudioTrack::PlayState::kPlaying ||
-         audio_track_play_state == AudioTrack::PlayState::kPaused);
+         (audio_track_play_state == AudioTrack::PlayState::kPaused &&
+          !is_flushed_));
     if (should_update_media_time) {
       playback_head_position =
           audio_track_->GetAudioTimestamp(&frames_consumed_at);
