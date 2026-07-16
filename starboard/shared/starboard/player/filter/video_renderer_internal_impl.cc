@@ -50,7 +50,14 @@ VideoRendererImpl::VideoRendererImpl(
       algorithm_(std::move(algorithm)),
       sink_(sink),
       decoder_(std::move(decoder)),
-      experimental_features_(experimental_features) {
+      min_input_buffers_(
+          experimental_features.Get(kMediaVideoRendererMinInputBuffers)),
+      min_decoded_frames_(
+          experimental_features.Get(kMediaVideoRendererMinDecodedFrames)),
+      enable_video_renderer_vsp_adjustment_(experimental_features.GetBool(
+          kMediaEnableVideoRendererVspAdjustment)),
+      enable_trivial_optimizations_(
+          experimental_features.GetBool(kMediaEnableTrivialOptimizations)) {
   SB_CHECK(decoder_);
   SB_CHECK(algorithm_);
   SB_DCHECK_GT(decoder_->GetMaxNumberOfCachedFrames(), 1U);
@@ -67,14 +74,10 @@ VideoRendererImpl::VideoRendererImpl(
            kCheckBufferingStateInterval);
   time_of_last_lag_warning_ = CurrentMonotonicTime() - kMinLagWarningInterval;
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-  auto min_input_buffers =
-      experimental_features_.Get(kMediaVideoRendererMinInputBuffers);
-  auto min_decoded_frames =
-      experimental_features_.Get(kMediaVideoRendererMinDecodedFrames);
-  if (min_input_buffers && min_decoded_frames) {
+  if (min_input_buffers_ && min_decoded_frames_) {
     SB_LOG(INFO) << "VideoRendererImpl is created: preroll_params="
-                 << "{min_input_buffers=" << *min_input_buffers
-                 << ", min_decoded_frames=" << *min_decoded_frames << "}";
+                 << "{min_input_buffers=" << *min_input_buffers_
+                 << ", min_decoded_frames=" << *min_decoded_frames_ << "}";
   } else {
     SB_LOG(INFO) << "VideoRendererImpl is created: using default preroll logic";
   }
@@ -153,7 +156,7 @@ void VideoRendererImpl::WriteSamples(const InputBuffers& input_buffers) {
     decoder_->WriteInputBuffers(buffers);
   };
 
-  if (!experimental_features_.GetBool(kMediaEnableVideoRendererVspAdjustment) ||
+  if (!enable_video_renderer_vsp_adjustment_ ||
       (!is_vsp_adjustment_enabled_ && seeking_)) {
     write_to_decoder(input_buffers);
     return;
@@ -271,8 +274,8 @@ void VideoRendererImpl::SetPlaybackRate(double playback_rate) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK_GE(playback_rate, 0);
 
-  if (experimental_features_.GetBool(kMediaEnableVideoRendererVspAdjustment) &&
-      playback_rate != 0.0 && playback_rate != 1.0) {
+  if (enable_video_renderer_vsp_adjustment_ && playback_rate != 0.0 &&
+      playback_rate != 1.0) {
     // Start vsp adjustment of video input presentation timepstamps in video
     // renderer after we see a none 0.0x or 1.0x playback rate.
     is_vsp_adjustment_enabled_ = true;
@@ -381,13 +384,9 @@ void VideoRendererImpl::OnDecoderStatus(
     }
 
     bool preroll_completed = false;
-    auto min_input_buffers =
-        experimental_features_.Get(kMediaVideoRendererMinInputBuffers);
-    auto min_decoded_frames =
-        experimental_features_.Get(kMediaVideoRendererMinDecodedFrames);
-    if (min_input_buffers && min_decoded_frames) {
-      preroll_completed = input_buffers_sent_.load() >= *min_input_buffers &&
-                          number_of_frames_.load() >= *min_decoded_frames;
+    if (min_input_buffers_ && min_decoded_frames_) {
+      preroll_completed = input_buffers_sent_.load() >= *min_input_buffers_ &&
+                          number_of_frames_.load() >= *min_decoded_frames_;
     } else {
       preroll_completed =
           number_of_frames_.load() >=
@@ -395,7 +394,7 @@ void VideoRendererImpl::OnDecoderStatus(
     }
 
     bool should_call_preroll_cb;
-    if (experimental_features_.GetBool(kMediaEnableTrivialOptimizations)) {
+    if (enable_trivial_optimizations_) {
       // Avoid unconditional cache thrashing.
       should_call_preroll_cb =
           preroll_completed && seeking_.load() && seeking_.exchange(false);
@@ -441,7 +440,7 @@ void VideoRendererImpl::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
   {
     std::lock_guard scoped_lock_decoder_frames(decoder_frames_mutex_);
     sink_frames_mutex_.lock();
-    if (experimental_features_.GetBool(kMediaEnableTrivialOptimizations)) {
+    if (enable_trivial_optimizations_) {
       auto it = decoder_frames_.begin();
       while (it != decoder_frames_.end()) {
         auto next = std::next(it);
@@ -458,9 +457,11 @@ void VideoRendererImpl::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
         it = next;
       }
     } else {
-      for (auto decoder_frame : decoder_frames_) {
+      // We can move decoder_frames_ here as it is immediately cleared.
+      Frames frames_to_process = std::move(decoder_frames_);
+      for (auto& decoder_frame : frames_to_process) {
         if (sink_frames_.empty()) {
-          sink_frames_.push_back(decoder_frame);
+          sink_frames_.push_back(std::move(decoder_frame));
           continue;
         }
         if (sink_frames_.back()->is_end_of_stream()) {
@@ -468,7 +469,7 @@ void VideoRendererImpl::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
         }
         if (decoder_frame->is_end_of_stream() ||
             decoder_frame->timestamp() > sink_frames_.back()->timestamp()) {
-          sink_frames_.push_back(decoder_frame);
+          sink_frames_.push_back(std::move(decoder_frame));
         }
       }
     }
