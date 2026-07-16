@@ -75,8 +75,11 @@ ExoPlayerBridge::ExoPlayerBridge(
         if (video_stream_info.codec == kSbMediaVideoCodecNone) {
           return 0LL;
         }
-        bool is_hdr = video_stream_info.color_metadata.transfer ==
-                      kSbMediaTransferIdSmpteSt2084;
+        bool is_hdr = !starboard::IsSDRVideo(
+            video_stream_info.color_metadata.bits_per_channel,
+            video_stream_info.color_metadata.primaries,
+            video_stream_info.color_metadata.transfer,
+            video_stream_info.color_metadata.matrix);
         bool is_over_1080p = video_stream_info.frame_width > 1920 ||
                              video_stream_info.frame_height > 1080;
         if (is_hdr || is_over_1080p) {
