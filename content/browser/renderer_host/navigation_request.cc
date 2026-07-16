@@ -243,8 +243,10 @@ base::TimeDelta g_commit_timeout = kDefaultCommitTimeout;
 constexpr base::TimeDelta kCompositorLockTimeout = base::Milliseconds(150);
 #endif
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 const char kSecSharedStorageWritableRequestHeaderKey[] =
     "Sec-Shared-Storage-Writable";
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 constexpr char kNavigationRequestScope[] = "NavigationRequestScope";
 
@@ -2059,7 +2061,6 @@ NavigationRequest::NavigationRequest(
       headers.SetHeader(kBrowsingTopicsRequestHeaderKey,
                         *topics_header_value_result.header_value);
     }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
     if (has_ad_auction_headers_attribute_ &&
         IsAdAuctionHeadersEligibleForNavigation(
@@ -2067,6 +2068,7 @@ NavigationRequest::NavigationRequest(
       ad_auction_headers_eligible_ = true;
       headers.SetHeader(kAdAuctionRequestHeaderKey, "?1");
     }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   }
 
   begin_params_->headers = headers.ToString();
@@ -5798,7 +5800,6 @@ void NavigationRequest::OnRedirectChecksComplete(
     modified_headers.SetHeader(kBrowsingTopicsRequestHeaderKey,
                                *topics_header_value_result.header_value);
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   if (ad_auction_headers_eligible_) {
     // Redirects are ineligible for ad auction headers.
@@ -5825,6 +5826,7 @@ void NavigationRequest::OnRedirectChecksComplete(
       }
     }
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   // Removes all Client Hints from the request, that were passed on from the
   // previous one.
@@ -6432,7 +6434,6 @@ void NavigationRequest::CommitNavigation() {
           browsing_topics::ApiCallerSource::kIframeAttribute);
     }
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   if (ad_auction_headers_eligible_) {
     ProcessAdAuctionResponseHeaders(origin_to_commit, *GetRenderFrameHost(),
@@ -6440,6 +6441,7 @@ void NavigationRequest::CommitNavigation() {
   } else if (has_ad_auction_headers_attribute_) {
     RemoveAdAuctionResponseHeaders(response() ? response()->headers : nullptr);
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   RenderFrameHostImpl* old_frame_host =
       frame_tree_node_->render_manager()->current_frame_host();

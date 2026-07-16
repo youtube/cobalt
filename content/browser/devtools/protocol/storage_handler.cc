@@ -1113,6 +1113,7 @@ void StorageHandler::OnInterestGroupAccessed(
 }
 
 namespace {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 void SendGetInterestGroup(
     std::unique_ptr<StorageHandler::GetInterestGroupDetailsCallback> callback,
     std::optional<SingleStorageInterestGroup> storage_group) {
@@ -1131,7 +1132,7 @@ void SendGetInterestGroup(
   callback->sendSuccess(
       std::make_unique<base::Value::Dict>(std::move(ig_serialization)));
 }
-
+#endif
 }  // namespace
 
 void StorageHandler::GetInterestGroupDetails(
@@ -1159,9 +1160,11 @@ void StorageHandler::GetInterestGroupDetails(
   url::Origin owner_origin = url::Origin::Create(GURL(owner_origin_string));
   DCHECK(!owner_origin.opaque());
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   manager->GetInterestGroup(
       owner_origin, name,
       base::BindOnce(&SendGetInterestGroup, std::move(callback)));
+#endif
 }
 
 Response StorageHandler::SetInterestGroupTracking(bool enable) {
@@ -2606,11 +2609,13 @@ Response StorageHandler::SetProtectedAudienceKAnonymity(
   if (!manager) {
     return Response::ServerError("Protected Audience not enabled");
   }
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   manager->UpdateKAnonymity(
       blink::InterestGroupKey(std::move(owner_origin), in_group_name),
       /*positive_hashed_keys=*/std::move(hashes),
       /*update_time=*/base::Time::Now(),
       /*replace_existing_values=*/true);
+#endif
   return Response::Success();
 }
 

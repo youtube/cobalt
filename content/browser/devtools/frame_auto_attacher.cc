@@ -191,6 +191,7 @@ void FrameAutoAttacher::UpdateAutoAttach(base::OnceClosure callback) {
       // This is similar to frames and pages above.
       ReattachServiceWorkers();
     }
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
     if (render_frame_host_ && !observing_auction_worklets_) {
       observing_auction_worklets_ = true;
       DebuggableAuctionWorkletTracker::GetInstance()->AddObserver(this);
@@ -199,11 +200,13 @@ void FrameAutoAttacher::UpdateAutoAttach(base::OnceClosure callback) {
       observing_shared_storage_worklets_ = true;
       SharedStorageWorkletDevToolsManager::GetInstance()->AddObserver(this);
     }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   } else {
     if (observing_service_workers_) {
       ServiceWorkerDevToolsManager::GetInstance()->RemoveObserver(this);
       observing_service_workers_ = false;
     }
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
     if (observing_auction_worklets_) {
       DebuggableAuctionWorkletTracker::GetInstance()->RemoveObserver(this);
       observing_auction_worklets_ = false;
@@ -212,6 +215,7 @@ void FrameAutoAttacher::UpdateAutoAttach(base::OnceClosure callback) {
       SharedStorageWorkletDevToolsManager::GetInstance()->RemoveObserver(this);
       observing_shared_storage_worklets_ = false;
     }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   }
   RendererAutoAttacherBase::UpdateAutoAttach(std::move(callback));
 }
@@ -238,6 +242,7 @@ void FrameAutoAttacher::WorkerDestroyed(ServiceWorkerDevToolsAgentHost* host) {
 
 void FrameAutoAttacher::AuctionWorkletCreated(DebuggableAuctionWorklet* worklet,
                                               bool& should_pause_on_start) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (!render_frame_host_)
     return;
   if (!AuctionWorkletDevToolsAgentHost::IsRelevantTo(render_frame_host_,
@@ -249,6 +254,7 @@ void FrameAutoAttacher::AuctionWorkletCreated(DebuggableAuctionWorklet* worklet,
                          .GetOrCreateFor(worklet)
                          .get(),
                      should_pause_on_start);
+#endif
 }
 
 void FrameAutoAttacher::SharedStorageWorkletCreated(
@@ -320,11 +326,13 @@ void FrameAutoAttacher::UpdateFrames() {
           return RenderFrameHost::FrameIterationAction::kSkipChildren;
         });
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
     AuctionWorkletDevToolsAgentHostManager::GetInstance().GetAllForFrame(
         render_frame_host_, &new_auction_worklet_hosts);
 
     SharedStorageWorkletDevToolsManager::GetInstance()->GetAllForFrame(
         render_frame_host_, &new_shared_storage_worklet_hosts);
+#endif
   }
 
   DispatchSetAttachedTargetsOfType(new_hosts, DevToolsAgentHost::kTypeFrame);

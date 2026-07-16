@@ -185,7 +185,9 @@ DevToolsAgentHost::List DevToolsAgentHost::GetOrCreateAll() {
   RenderFrameDevToolsAgentHost::AddAllAgentHosts(&result);
   WebContentsDevToolsAgentHost::AddAllAgentHosts(&result);
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   AuctionWorkletDevToolsAgentHostManager::GetInstance().GetAll(&result);
+#endif
   MojomDevToolsAgentHost::GetAll(&result);
 
 #if DCHECK_IS_ON()
