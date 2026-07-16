@@ -80,31 +80,11 @@ CommandLinePreprocessor::CommandLinePreprocessor(int argc,
         cmd_line_.GetSwitchValueASCII(::switches::kDisableFeatures));
     auto old_value =
         cobalt_param_switch_defaults.find(::switches::kDisableFeatures);
-    if (old_value != cobalt_param_switch_defaults.end() &&
-        !old_value->second.empty()) {
-      if (!disabled_features.empty()) {
-        disabled_features += ",";
-      }
-      disabled_features += old_value->second;
+    if (old_value != cobalt_param_switch_defaults.end()) {
+      disabled_features += std::string(",");
+      disabled_features += std::string(old_value->second);
       cmd_line_.AppendSwitchNative(::switches::kDisableFeatures,
                                    disabled_features);
-    }
-  }
-
-  // Merge all enabled feature lists together.
-  if (cmd_line_.HasSwitch(::switches::kEnableFeatures)) {
-    std::string enabled_features(
-        cmd_line_.GetSwitchValueASCII(::switches::kEnableFeatures));
-    auto old_value =
-        cobalt_param_switch_defaults.find(::switches::kEnableFeatures);
-    if (old_value != cobalt_param_switch_defaults.end() &&
-        !old_value->second.empty()) {
-      if (!enabled_features.empty()) {
-        enabled_features += ",";
-      }
-      enabled_features += old_value->second;
-      cmd_line_.AppendSwitchASCII(::switches::kEnableFeatures,
-                                  enabled_features);
     }
   }
 
