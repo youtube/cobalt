@@ -608,3 +608,20 @@ if (build_with_chromium) {
     }
   }
 }
+
+executable("opus_benchmark") {
+  testonly = true
+  sources = [ "opus_benchmark.cc" ]
+  deps = [
+    ":opus",
+  ]
+  if (is_android) {
+    libs = [ "log" ]
+  }
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [
+    "//build/config/compiler:no_chromium_code",
+    "//build/config/compiler:optimize_max",
+  ]
+}
+
