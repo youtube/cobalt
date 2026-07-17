@@ -30,18 +30,18 @@ void SbMediaSetCanPlayMimeAndKeySystemFuncForTesting(
 
 SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
                                                   const char* key_system) {
+  if (mime == nullptr) {
+    SB_DLOG(WARNING) << "mime cannot be nullptr";
+    return kSbMediaSupportTypeNotSupported;
+  }
+
   auto test_func = g_can_play_func_for_testing.load(std::memory_order_acquire);
   if (test_func) {
     return test_func(mime, key_system);
   }
 
-  if (mime == NULL) {
-    SB_DLOG(WARNING) << "mime cannot be NULL";
-    return kSbMediaSupportTypeNotSupported;
-  }
-
-  if (key_system == NULL) {
-    SB_DLOG(WARNING) << "key_system cannot be NULL";
+  if (key_system == nullptr) {
+    SB_DLOG(WARNING) << "key_system cannot be nullptr";
     return kSbMediaSupportTypeNotSupported;
   }
 
