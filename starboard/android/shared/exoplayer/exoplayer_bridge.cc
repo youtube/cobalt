@@ -198,6 +198,8 @@ bool ExoPlayerBridge::Init(ErrorCB error_cb,
 
 void ExoPlayerBridge::Seek(int64_t timestamp) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
+  // TODO: Consider ignoring Seek(0) if no input has been written yet to avoid
+  // unnecessary latency during startup.
   if (HasPlaybackErrorOccurred()) {
     return;
   }

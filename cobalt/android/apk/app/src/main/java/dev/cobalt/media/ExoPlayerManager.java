@@ -18,6 +18,7 @@ import static dev.cobalt.media.Log.TAG;
 
 import android.content.Context;
 import android.view.Surface;
+import androidx.media3.common.C;
 import androidx.media3.common.ColorInfo;
 import androidx.media3.common.Format;
 import androidx.media3.common.MimeTypes;
@@ -38,7 +39,7 @@ import org.jni_zero.JNINamespace;
 /**
  * Entry point for creating ExoPlayer components from the native layer.
  *
- * This manager provides factory methods for creating the {@link ExoPlayerBridge} and various
+ * <p>This manager provides factory methods for creating the {@link ExoPlayerBridge} and various
  * {@link MediaSource} instances tailored for Starboard's playback requirements.
  */
 @JNINamespace("starboard")
@@ -74,7 +75,7 @@ public class ExoPlayerManager {
                 mimeType, requiresSecureDecoder, requiresTunnelingDecoder);
       } catch (MediaCodecUtil.DecoderQueryException e) {
         Log.i(TAG, String.format("MediaCodecUtil.getDecoderInfos() error %s", e));
-        return defaultDecoderInfos;
+        return Collections.emptyList();
       }
       // Skip video decoder filtering for emulators.
       if (IsEmulator.isEmulator()) {
@@ -229,7 +230,6 @@ public class ExoPlayerManager {
     return builder.build();
   }
 
-  /** Creates a {@link ColorInfo} object including HDR static metadata. */
   @CalledByNative
   public static ColorInfo createExoPlayerColorInfo(
       int colorRange,
@@ -247,28 +247,35 @@ public class ExoPlayerManager {
       float minMasteringLuminance,
       int maxCll,
       int maxFall) {
-    ByteBuffer hdrStaticInfo =
-        dev.cobalt.media.MediaCodecUtil.getHdrStaticInfo(
-            primaryRChromaticityX,
-            primaryRChromaticityY,
-            primaryGChromaticityX,
-            primaryGChromaticityY,
-            primaryBChromaticityX,
-            primaryBChromaticityY,
-            whitePointChromaticityX,
-            whitePointChromaticityY,
-            maxMasteringLuminance,
-            minMasteringLuminance,
-            maxCll,
-            maxFall,
-            false);
-    byte[] hdrStaticInfoArray = new byte[hdrStaticInfo.remaining()];
-    hdrStaticInfo.get(hdrStaticInfoArray);
+    boolean isHdr =
+        (colorTransfer == C.COLOR_TRANSFER_ST2084) || (colorTransfer == C.COLOR_TRANSFER_HLG);
+    byte[] staticInfoArray = null;
+
+    if (isHdr) {
+      ByteBuffer staticInfo =
+          dev.cobalt.media.MediaCodecUtil.getHdrStaticInfo(
+              primaryRChromaticityX,
+              primaryRChromaticityY,
+              primaryGChromaticityX,
+              primaryGChromaticityY,
+              primaryBChromaticityX,
+              primaryBChromaticityY,
+              whitePointChromaticityX,
+              whitePointChromaticityY,
+              maxMasteringLuminance,
+              minMasteringLuminance,
+              maxCll,
+              maxFall,
+              false);
+      staticInfoArray = new byte[staticInfo.remaining()];
+      staticInfo.get(staticInfoArray);
+    }
+
     return new ColorInfo.Builder()
         .setColorRange(colorRange)
         .setColorSpace(colorSpace)
         .setColorTransfer(colorTransfer)
-        .setHdrStaticInfo(hdrStaticInfoArray)
+        .setHdrStaticInfo(staticInfoArray)
         .build();
   }
 }

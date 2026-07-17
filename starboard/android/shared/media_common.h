@@ -21,7 +21,6 @@
 #include <cstring>
 #include <optional>
 
-#include "base/android/jni_array.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
@@ -133,7 +132,7 @@ enum TunnelModeAudioSessionId {
   TUNNEL_MODE_AUDIO_SESSION_ID_NONE = -1,
 };
 
-inline bool IsSDR(const SbMediaColorMetadata& color_metadata) {
+inline bool IsIdentity(const SbMediaColorMetadata& color_metadata) {
   // Convenience HDR mastering metadata.
   const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
   return color_metadata.primaries == kSbMediaPrimaryIdBt709 &&

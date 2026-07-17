@@ -36,6 +36,8 @@ import androidx.media3.exoplayer.source.MediaSource;
 import androidx.media3.exoplayer.source.MergingMediaSource;
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
 import dev.cobalt.util.Log;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -60,7 +62,6 @@ public class ExoPlayerBridge {
   private volatile float mPlaybackRate = 1.0f;
   private volatile boolean mIsProgressing = false;
   private volatile boolean mIsReleased = false;
-  private volatile long mSeekTimeUsec = 0;
 
   private final ExoPlayerListener mPlayerListener;
   private final DroppedFramesListener mDroppedFramesListener;
@@ -181,8 +182,7 @@ public class ExoPlayerBridge {
       int minBufferDurationMs,
       int maxBufferDurationMs,
       int minBufferDurationForPlaybackAfterRebufferMs) {
-    mExoPlayerThread =
-        new HandlerThread("ExoPlayerBridgeThread", android.os.Process.THREAD_PRIORITY_AUDIO);
+    mExoPlayerThread = new HandlerThread("ExoPlayerBridgeThread");
     mExoPlayerThread.start();
     mExoPlayerHandler = new Handler(mExoPlayerThread.getLooper());
     mNativeExoPlayerBridge = nativeExoPlayerBridge;
@@ -266,6 +266,7 @@ public class ExoPlayerBridge {
       return;
     }
 
+    CountDownLatch releaseLatch = new CountDownLatch(1);
     mExoPlayerHandler.post(
         () -> {
           mPlayer.stop();
@@ -276,7 +277,15 @@ public class ExoPlayerBridge {
           mAudioMediaSource = null;
           mVideoMediaSource = null;
           mExoPlayerThread.quit();
+          releaseLatch.countDown();
         });
+
+    try {
+      releaseLatch.await(PLAYER_RELEASE_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+    } catch (InterruptedException e) {
+      Log.e(TAG, "Interrupted while waiting for ExoPlayer release.");
+      Thread.currentThread().interrupt();
+    }
   }
 
   /**
@@ -302,7 +311,6 @@ public class ExoPlayerBridge {
             }
           }
         });
-    mSeekTimeUsec = seekToTimeUsec;
   }
 
   @CalledByNative

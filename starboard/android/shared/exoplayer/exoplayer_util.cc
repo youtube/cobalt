@@ -38,7 +38,7 @@ using jni_zero::ScopedJavaLocalRef;
 
 ScopedJavaLocalRef<jobject> CreateExoPlayerColorInfo(
     const SbMediaColorMetadata& metadata) {
-  if (IsSDR(metadata)) {
+  if (IsIdentity(metadata)) {
     return ScopedJavaLocalRef<jobject>();
   }
 
@@ -148,11 +148,11 @@ ScopedJavaLocalRef<jobject> CreateVideoFormat(
   int framerate = mime_type->GetParamIntValue("framerate", 0);
   int bitrate = mime_type->GetParamIntValue("bitrate", 0);
 
-  ScopedJavaLocalRef<jobject> j_hdr_color_info =
+  ScopedJavaLocalRef<jobject> j_color_info =
       CreateExoPlayerColorInfo(stream_info.color_metadata);
 
   return Java_ExoPlayerManager_createVideoFormat(
-      env, j_mime, width, height, framerate, bitrate, j_hdr_color_info);
+      env, j_mime, width, height, framerate, bitrate, j_color_info);
 }
 
 }  // namespace starboard
