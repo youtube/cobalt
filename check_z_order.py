@@ -69,15 +69,14 @@ def analyze_layers(layers):
         groups[rel].append(l)
         
     for rel, group in groups.items():
-        if rel == "none":
-            continue
         print(f"\n--- Layers relative to: {rel} ---")
         # Sort by Z-order (ascending)
         group.sort(key=lambda x: x["z"] if x["z"] is not None else -999)
         
         for l in group:
             role = "UI" if l["is_ui"] else ("Video" if l["is_video"] else "Unknown")
-            print(f"  Z={l['z']:3d} | Name: {l['name']} | Role: {role:5s} | Format: {l['format']} | Pos: {l['pos']} | Size: {l['size']}")
+            z_str = f"{l['z']:3d}" if l['z'] is not None else "N/A"
+            print(f"  Z={z_str} | Name: {l['name']} | Role: {role:5s} | Format: {l['format']} | Pos: {l['pos']} | Size: {l['size']}")
             
         # Check for occlusion
         # We look for any UI layer that has a higher Z than a Video layer in the same relative group.
