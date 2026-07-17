@@ -12,21 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <atomic>
+
 #include "starboard/media.h"
 
 namespace {
-SbMediaCanPlayMimeAndKeySystemFunc g_can_play_func_for_testing = nullptr;
+std::atomic<SbMediaCanPlayMimeAndKeySystemFunc> g_can_play_func_for_testing{
+    nullptr};
 }  // namespace
 
 void SbMediaSetCanPlayMimeAndKeySystemFuncForTesting(
     SbMediaCanPlayMimeAndKeySystemFunc func) {
-  g_can_play_func_for_testing = func;
+  g_can_play_func_for_testing.store(func, std::memory_order_release);
 }
 
 SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
                                                   const char* key_system) {
-  if (g_can_play_func_for_testing) {
-    return g_can_play_func_for_testing(mime, key_system);
+  auto test_func = g_can_play_func_for_testing.load(std::memory_order_acquire);
+  if (test_func) {
+    return test_func(mime, key_system);
   }
   return kSbMediaSupportTypeNotSupported;
 }
