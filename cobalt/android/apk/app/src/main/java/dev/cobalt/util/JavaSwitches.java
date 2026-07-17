@@ -52,9 +52,6 @@ public class JavaSwitches {
   /** flag to disable GPU memory buffer compositor resources. */
   public static final String DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES = "DisableGpuMemoryBufferCompositorResources";
 
-  /** flag to enable concurrent marking for v8 garbage collection */
-  public static final String ENABLE_V8_CONCURRENT_MARKING = "EnableV8ConcurrentMarking";
-
   /** flag to limit GPU image cache items */
   public static final String GPU_IMAGE_CACHE_LIMIT_ITEMS = "GpuImageCacheLimitItems";
 
@@ -104,10 +101,6 @@ public class JavaSwitches {
 
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
       extraCommandLineArgs.add("--disable-quic");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_V8_CONCURRENT_MARKING)) {
-      jsFlags.add("--concurrent-marking");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.USE_MINOR_MS_FOR_MINOR_GC)) {
