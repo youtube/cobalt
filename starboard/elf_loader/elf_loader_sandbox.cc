@@ -29,6 +29,10 @@
 #include "starboard/elf_loader/sabi_string.h"
 #include "starboard/event.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "starboard/shared/starboard/features_test_util.h"
+#endif
+
 elf_loader::ElfLoader g_elf_loader;
 
 void (*g_sb_event_func)(const SbEvent*) = NULL;
@@ -47,7 +51,15 @@ void LoadLibraryAndInitialize(const std::string& library_path,
                   << "=path/to/content/relative/to/loader/content.";
     return;
   }
-  if (!g_elf_loader.Load(library_path, content_path, true)) {
+
+  auto compression_type = elf_loader::CompressionType::kNone;
+  if (starboard::EndsWith(library_path, elf_loader::kLz4Suffix)) {
+    compression_type = elf_loader::CompressionType::kLz4;
+  } else if (starboard::EndsWith(library_path, elf_loader::kZstdSuffix)) {
+    compression_type = elf_loader::CompressionType::kZstd;
+  }
+  if (!g_elf_loader.Load(library_path, content_path, /*is_relative_path=*/true,
+                         /*custom_get_extension=*/nullptr, compression_type)) {
     SB_NOTREACHED() << "Failed to load library at '"
                     << g_elf_loader.GetLibraryPath() << "'.";
     return;
@@ -135,5 +147,10 @@ void SbEventHandle(const SbEvent* event) {
 }
 
 int main(int argc, char** argv) {
+#if BUILDFLAG(IS_ANDROID)
+  // The evergreen inner library's static initializers query Starboard
+  // features, so seed the FeatureList with defaults before it is loaded.
+  starboard::features::InitializeStarboardFeatureListWithDefaults();
+#endif  // BUILDFLAG(IS_ANDROID)
   return SbRunStarboardMain(argc, argv, SbEventHandle);
 }

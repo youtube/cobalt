@@ -11,8 +11,6 @@
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/script/script_type.mojom-blink-forward.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "content/public/common/content_milestone_features.h"
-#include "third_party/blink/public/public_buildflags.h"
 #include "third_party/blink/renderer/core/script/script.h"
 #include "third_party/blink/renderer/platform/loader/fetch/cross_origin_attribute_value.h"
 #include "third_party/blink/renderer/platform/loader/fetch/fetch_parameters.h"

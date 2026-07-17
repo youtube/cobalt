@@ -78,10 +78,6 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/drm/drm_system_internal.h",
     "//starboard/shared/starboard/drm/drm_update_server_certificate.cc",
     "//starboard/shared/starboard/drm/drm_update_session.cc",
-    "//starboard/shared/starboard/experimental_features.cc",
-    "//starboard/shared/starboard/experimental_features.h",
-    "//starboard/shared/starboard/features.cc",
-    "//starboard/shared/starboard/features.h",
     "//starboard/shared/starboard/file_storage/storage_close_record.cc",
     "//starboard/shared/starboard/file_storage/storage_delete_record.cc",
     "//starboard/shared/starboard/file_storage/storage_get_record_size.cc",
@@ -123,10 +119,6 @@ static_library("starboard_platform") {
     "android_media_session_client.cc",
     "application_android.cc",
     "application_android.h",
-
-    # TODO: b/374300500 - posix_emu things should not be used on Android anymore
-    # "asset_manager.cc",
-    # "asset_manager.h",
     "audio_decoder_passthrough.h",
     "audio_output_manager.cc",
     "audio_output_manager.h",
@@ -141,6 +133,8 @@ static_library("starboard_platform") {
     "audio_sink_is_audio_sample_type_supported.cc",
     "audio_sink_min_required_frames_tester.cc",
     "audio_sink_min_required_frames_tester.h",
+    "audio_track.cc",
+    "audio_track.h",
     "audio_track_audio_sink_type.cc",
     "audio_track_audio_sink_type.h",
     "audio_track_bridge.cc",
@@ -204,6 +198,10 @@ static_library("starboard_platform") {
     "memfd_media_buffer_pool.cc",
     "memfd_media_buffer_pool.h",
     "microphone_impl.cc",
+    "ndk_media_codec.cc",
+    "ndk_media_codec.h",
+    "ndk_media_utils.cc",
+    "ndk_media_utils.h",
     "platform_info.cc",
     "platform_info.h",
     "platform_service.cc",
@@ -221,13 +219,11 @@ static_library("starboard_platform") {
 
     # TODO: b/374300500 - posix_emu things should not be used on Android anymore
     # "posix_emu/dirent.cc",
-    # "posix_emu/errno.cc",
-    # "posix_emu/file.cc",
     # "posix_emu/pthread.cc",
-    # "posix_emu/stat.cc",
 
     "runtime_resource_overlay.cc",
     "runtime_resource_overlay.h",
+    "safe_jni.h",
     "sanitizer_options.cc",
 
     # TODO: (cobalt b/392178584) clean up speech synthesis code.
@@ -235,7 +231,7 @@ static_library("starboard_platform") {
     #"speech_synthesis_internal.cc",
     #"speech_synthesis_is_supported.cc",
     #"speech_synthesis_speak.cc",
-    "starboard_bridge.cc",
+    "base_starboard_bridge.cc",
     "starboard_bridge.h",
     "starboard_feature_list.cc",
     "system_get_extensions.cc",
@@ -269,7 +265,6 @@ static_library("starboard_platform") {
 
     #"window_create.cc",
     #"window_destroy.cc",
-    #"window_get_diagonal_size_in_inches.cc",
     #"window_get_platform_handle.cc",
     #"window_get_size.cc",
     #"window_internal.h",
@@ -322,16 +317,37 @@ static_library("starboard_platform") {
     ]
   }
 
-  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  if (is_starboard) {
     sources -= [
       "crash_handler.cc",
       "crash_handler.h",
+      "system_platform_error.cc",
     ]
     sources += [
       "//starboard/shared/starboard/crash_handler.cc",
       "//starboard/shared/starboard/crash_handler.h",
       "//starboard/shared/starboard/loader_app_metrics.cc",
       "//starboard/shared/starboard/loader_app_metrics.h",
+
+      # TODO(https://crbug.com/495203133): Symbols required on AOSP. The
+      # missing implementations are not not needed for the current set of
+      # passing nplb tests.
+      "//starboard/shared/stub/speech_synthesis_cancel.cc",
+      "//starboard/shared/stub/speech_synthesis_is_supported.cc",
+      "//starboard/shared/stub/speech_synthesis_speak.cc",
+      "//starboard/shared/stub/system_network_is_disconnected.cc",
+      "//starboard/shared/stub/system_raise_platform_error.cc",
+      "//starboard/shared/stub/window_create.cc",
+      "//starboard/shared/stub/window_destroy.cc",
+      "//starboard/shared/stub/window_get_diagonal_size_in_inches.cc",
+      "//starboard/shared/stub/window_get_platform_handle.cc",
+      "//starboard/shared/stub/window_get_size.cc",
+      "asset_manager.cc",
+      "asset_manager.h",
+      "posix_emu/access.cc",
+      "posix_emu/errno.cc",
+      "posix_emu/file.cc",
+      "posix_emu/stat.cc",
     ]
 
     public_deps += [
@@ -365,7 +381,7 @@ static_library("starboard_base_symbolize") {
     "//starboard:starboard_headers_only",
     "//starboard/common:common_headers_only",
   ]
-  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  if (is_starboard && current_toolchain == starboard_toolchain) {
     public_deps = [ "//starboard/elf_loader:evergreen_info" ]
   }
 
@@ -392,6 +408,8 @@ static_library("test_support") {
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
+  public_deps = [ "//starboard/testing:test_runner" ]
+
   deps = [
     ":starboard_platform",
     "//testing/gmock",
@@ -400,10 +418,15 @@ static_library("test_support") {
   ]
 
   sources = [
+    "//starboard/shared/starboard/features_test_util.cc",
+    "//starboard/shared/starboard/features_test_util.h",
+    "fake_audio_track.cc",
+    "fake_audio_track.h",
     "fake_media_codec.cc",
     "fake_media_codec.h",
     "starboard_test_environment.cc",
     "starboard_test_environment.h",
+    "test_runner.cc",
   ]
 }
 
@@ -412,6 +435,7 @@ test("starboard_platform_tests") {
 
   sources = media_tests_sources + player_tests_sources + [
               "//starboard/common/test_main.cc",
+              "audio_track_audio_sink_type_test.cc",
               "drm_session_id_mapper_test.cc",
               "features_extension_test.cc",
               "media_capabilities_cache_test.cc",

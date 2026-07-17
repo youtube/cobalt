@@ -41,8 +41,6 @@
 #include "base/types/pass_key.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
-#include "content/public/common/content_milestone_features.h"
-#include "content/public/common/buildflags.h"
 #include "components/viz/host/host_frame_sink_manager.h"
 #include "content/browser/agent_cluster_key.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
@@ -53,7 +51,9 @@
 #include "content/browser/devtools/network_service_devtools_observer.h"
 #include "content/browser/download/download_manager_impl.h"
 #include "content/browser/fenced_frame/fenced_frame_url_mapping.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/interest_group/ad_auction_headers_util.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/loader/browser_initiated_resource_request.h"
 #include "content/browser/loader/cached_navigation_url_loader.h"
 #include "content/browser/loader/navigation_early_hints_manager.h"
@@ -2063,12 +2063,14 @@ NavigationRequest::NavigationRequest(
     }
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
     if (has_ad_auction_headers_attribute_ &&
         IsAdAuctionHeadersEligibleForNavigation(
             *frame_tree_node_, url::Origin::Create(common_params_->url))) {
       ad_auction_headers_eligible_ = true;
       headers.SetHeader(kAdAuctionRequestHeaderKey, "?1");
     }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   }
 
   begin_params_->headers = headers.ToString();
@@ -5802,11 +5804,13 @@ void NavigationRequest::OnRedirectChecksComplete(
   }
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (ad_auction_headers_eligible_) {
     // Redirects are ineligible for ad auction headers.
     ad_auction_headers_eligible_ = false;
     removed_headers.push_back(kAdAuctionRequestHeaderKey);
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   if (shared_storage_writable_opted_in_) {
     // On a redirect, the PermissionsPolicy may change the status of this
@@ -6436,12 +6440,14 @@ void NavigationRequest::CommitNavigation() {
   }
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (ad_auction_headers_eligible_) {
     ProcessAdAuctionResponseHeaders(origin_to_commit, *GetRenderFrameHost(),
                                     response() ? response()->headers : nullptr);
   } else if (has_ad_auction_headers_attribute_) {
     RemoveAdAuctionResponseHeaders(response() ? response()->headers : nullptr);
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   RenderFrameHostImpl* old_frame_host =
       frame_tree_node_->render_manager()->current_frame_host();

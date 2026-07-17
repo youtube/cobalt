@@ -2,6 +2,27 @@
 
 This document records all notable changes made to Cobalt since the last release.
 
+## Version 27
+### New Features / Support
+ - Chromium & Blink Engine Transition
+   - Transitioned the core engine from a custom web runtime to a Chromium-based Blink engine (M138), bringing modern web standards compliance, WebGL support, and a modernized V8 JavaScript engine.
+ - Chrome DevTools Support
+   - Enabled standard Chrome DevTools (`chrome://inspect`) out-of-the-box on non-gold builds, replacing legacy custom debugging tools.
+ - Dynamic Media Codec Switching
+   - Added `SbMediaCanChangeType()` and updated `SbPlayerWriteSamples()` to support on-the-fly mime-type and codec transitions.
+ - AV2 Video Codec Support
+   - Added AV2 definition to `SbMediaVideoCodec` to prepare for next-generation video streams.
+
+### Updates / Improvements
+ - Starboard 18 POSIX Migration
+   - Consolidated the transition to standard POSIX APIs, replacing proprietary Starboard APIs (such as `SbMemory*`, `SbThread*`, `SbSocket*`, and `SbFile*`) and reducing the API surface from 273 to 117 functions. See [starboard/doc/eap/25_to_27.md](/starboard/doc/eap/25_to_27.md) for migration details.
+ - System Storage Path
+   - Introduced `kSbSystemPathFilesDirectory` to define the permanent write-path for DOM localStorage and persistent cookies.
+
+### Evergreen
+ - Storage Optimization
+   - Optimized Evergreen to use 2 slots instead of 3, reducing flash storage usage.
+
 ## Version 25
 ### New Features / Support
  - Chromium M114 Update

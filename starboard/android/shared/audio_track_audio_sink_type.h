@@ -26,7 +26,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "starboard/android/shared/audio_sink_min_required_frames_tester.h"
-#include "starboard/android/shared/audio_track_bridge.h"
+#include "starboard/android/shared/audio_track.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/pass_key.h"
@@ -36,15 +36,6 @@
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
 namespace starboard {
-
-// These must be in sync with AudioTrack.PLAYSTATE_XXX constants in
-// AudioTrack.java.
-// Indicates AudioTrack state is stopped.
-constexpr jint PLAYSTATE_STOPPED = 1;
-// Indicates AudioTrack state is paused.
-constexpr jint PLAYSTATE_PAUSED = 2;
-// Indicates AudioTrack state is playing.
-constexpr jint PLAYSTATE_PLAYING = 3;
 
 class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
  public:
@@ -128,6 +119,20 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
       bool is_web_audio,
       bool allow_audio_writing_on_pause,
       void* context);
+  static std::unique_ptr<AudioTrackAudioSink> CreateForTesting(
+      Type* type,
+      int channels,
+      int sampling_frequency_hz,
+      SbMediaAudioSampleType sample_type,
+      SbAudioSinkFrameBuffers frame_buffers,
+      int frames_per_channel,
+      int preferred_buffer_size,
+      AudioTrackAudioSinkType::Callbacks callbacks,
+      int64_t start_media_time,
+      std::optional<int> tunnel_mode_audio_session_id,
+      bool allow_audio_writing_on_pause,
+      std::unique_ptr<AudioTrack> fake_audio_track,
+      void* context);
 
   AudioTrackAudioSink(PassKey<AudioTrackAudioSink>,
                       Type* type,
@@ -141,7 +146,7 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
                       int64_t start_media_time,
                       std::optional<int> tunnel_mode_audio_session_id,
                       bool allow_audio_writing_on_pause,
-                      std::unique_ptr<AudioTrackBridge> bridge,
+                      std::unique_ptr<AudioTrack> audio_track,
                       void* context);
   ~AudioTrackAudioSink() override;
 
@@ -160,7 +165,7 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
   void AudioThreadFunc();
   void SpawnThread();
 
-  int WriteData(JNIEnv* env, const void* buffer, int size, int64_t sync_time);
+  int WriteData(const void* buffer, int size, int64_t sync_time);
 
   void ReportError(bool capability_changed, const std::string& error_message);
 
@@ -180,10 +185,11 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
   const bool allow_audio_writing_on_pause_;
 
   // Guaranteed to be non-null.
-  const std::unique_ptr<AudioTrackBridge> bridge_;
+  const std::unique_ptr<AudioTrack> audio_track_;
 
   volatile bool quit_ = false;
   std::atomic_bool flush_requested_{false};
+  std::atomic_bool is_flushed_{false};
   // Guaranteed to be non-null.
   const std::unique_ptr<Thread> audio_out_thread_;
 

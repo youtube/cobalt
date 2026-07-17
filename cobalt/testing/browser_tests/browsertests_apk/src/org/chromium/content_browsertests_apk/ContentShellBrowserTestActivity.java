@@ -19,10 +19,11 @@ import android.app.Service;
 import android.view.Window;
 import android.view.WindowManager;
 
-import org.chromium.base.StrictModeContext;
 import dev.cobalt.coat.StarboardBridge;
 import dev.cobalt.shell.ShellManager;
 import dev.cobalt.util.Holder;
+
+import org.chromium.base.StrictModeContext;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.content_public.browser.BrowserStartupController;
@@ -85,12 +86,14 @@ public abstract class ContentShellBrowserTestActivity extends NativeBrowserTestA
 
         // Instantiate StarboardBridge. This is crucial for initializing the native Starboard
         // environment that the storage migration relies on.
-        mStarboardBridge = new StarboardBridge(getApplicationContext(),
-                                               new Holder<Activity>(),
-                                               new Holder<Service>(), // Set to null below
-                                               null, // ArtworkDownloader is not needed for tests
-                                               new String[0], // args
-                                               ""); // startDeepLink
+        mStarboardBridge =
+                new StarboardBridge(
+                        getApplicationContext(),
+                        new Holder<Activity>(),
+                        new Holder<Service>(), // Set to null below
+                        null, // ArtworkDownloader is not needed for tests
+                        new String[0], // args
+                        ""); // startDeepLink
         ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(mStarboardBridge);
 
         Window wind = this.getWindow();

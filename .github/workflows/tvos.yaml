@@ -7,11 +7,6 @@ on:
       - main
       - experimental/*
       - feature/*
-  push:
-    branches:
-      - main
-      - experimental/*
-      - feature/*
   workflow_dispatch:
     inputs:
       nightly:
@@ -39,6 +34,32 @@ jobs:
           else
             echo "sha=${PUSH_SHA}" >> "$GITHUB_OUTPUT"
           fi
+
+  get-targets:
+    runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.short-targets.outputs.targets }}
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/test_targets_json
+            cobalt/build/testing/targets/tvos-arm64-simulator/test_targets.json
+          sparse-checkout-cone-mode: false
+
+      - name: Parse Test Targets JSON
+        id: parse-targets
+        uses: ./.github/actions/test_targets_json
+        with:
+          test_targets_json_file: cobalt/build/testing/targets/tvos-arm64-simulator/test_targets.json
+
+      - name: Convert Targets to Short Names
+        id: short-targets
+        run: |
+          targets=$(echo '${{ steps.parse-targets.outputs.test_targets_json }}' | jq -cr 'map(split(":")[-1])')
+          echo "Targets found: ${targets}"
+          echo "targets=${targets}" >> "$GITHUB_OUTPUT"
 
   wait-for-kokoro-build:
     needs: get-sha
@@ -96,7 +117,8 @@ jobs:
           exit 1
 
   download-artifacts:
-    needs: [get-sha, wait-for-kokoro-build]
+    # TODO(b/519669027): consider odt-runner for fetching the artifacts.
+    needs: [get-sha, wait-for-kokoro-build, get-targets]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
       - name: Set Up Cloud SDK
@@ -105,42 +127,132 @@ jobs:
       - name: Download Artifacts from GCS
         env:
           INVOCATION_ID: ${{ needs.wait-for-kokoro-build.outputs.invocation_id }}
+          TARGETS: ${{ needs.get-targets.outputs.targets }}
         run: |
           BUCKET="cobalt-unittest-storage"
           PLATFORM="tvos-arm64-simulator"
           CONFIG="devel"
-          gcloud storage cp "gs://${BUCKET}/kokoro/build/${PLATFORM}_${CONFIG}/${INVOCATION_ID}/cobalt_browsertests.tar.gz" .
+          for target in $(python3 -c "import json, os; print(' '.join(json.loads(os.environ['TARGETS'])))"); do
+            echo "Downloading ${target}.tar.gz..."
+            gcloud storage cp "gs://${BUCKET}/kokoro/build/${PLATFORM}_${CONFIG}/${INVOCATION_ID}/${target}.tar.gz" .
+          done
 
       - name: Upload to GitHub Actions
         uses: actions/upload-artifact@v4
         with:
           name: tvos-test-artifacts
-          path: cobalt_browsertests.tar.gz
+          path: "*.tar.gz"
           retention-days: 1
 
+  # TODO(b/519669027): Refactor below steps to reuse the logic from main.yaml.
   run-tests:
-    needs: download-artifacts
+    name: tvos_${{ matrix.target }}
+    needs: [get-targets, download-artifacts]
     runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.get-targets.outputs.targets) }}
     steps:
       - name: Checkout Cobalt (Sparse)
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
             cobalt/testing/filters
+            .github
+            cobalt/tools
 
       - name: Download from GitHub Actions
         uses: actions/download-artifact@v4
         with:
           name: tvos-test-artifacts
 
-      - name: Run Cobalt Browser Tests in Simulator
+      - name: Filter
+        id: filter
         run: |
-          tar -xzf cobalt_browsertests.tar.gz
-          # We assume iossim is included in the tarball.
+          test_filter=""
+          filter_file="cobalt/testing/filters/tvos-arm64-simulator/${{ matrix.target }}_filter.json"
+          if [[ -f "${filter_file}" ]]; then
+            test_filter="$(jq -cr '.failing_tests[0]' "${filter_file}")"
+            if [[ "${test_filter}" == '*' ]]; then
+              echo "${{ matrix.target }} was skipped due to test filter."
+              echo "skipped=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "skipped=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "skipped=false" >> "$GITHUB_OUTPUT"
+          fi
+        shell: bash
+
+      - name: Run Test in Simulator
+        id: run-tests
+        if: steps.filter.outputs.skipped != 'true'
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          tar -xzf "${TARGET}.tar.gz"
+
+          mkdir -p results
+
+          filter_file="cobalt/testing/filters/tvos-arm64-simulator/${TARGET}_filter.json"
+          gtest_args=()
+          if [[ -f "${filter_file}" ]]; then
+            echo "Found filter file: ${filter_file}"
+            failing_tests=$(jq -r '.failing_tests | join(":")' "${filter_file}")
+            if [[ -n "${failing_tests}" ]]; then
+              gtest_args+=(-c "--gtest_filter=-${failing_tests}")
+              echo "Applying gtest_filter: -${failing_tests}"
+            fi
+          fi
+
+          xml_path="${GITHUB_WORKSPACE}/results/${TARGET}_result.xml"
+          log_path="${GITHUB_WORKSPACE}/results/${TARGET}_log.txt"
+
+          gtest_args+=(-c "--gtest_output=xml:${xml_path}")
+
           ./iossim \
             -x tvos \
             -d "Apple TV 4K (3rd generation)" \
             -v \
             -i \
-            -c '--gtest_filter=ContentMainRunnerImplBrowserTest.*' \
-            ./cobalt_browsertests.app
+            "${gtest_args[@]}" \
+            "./${TARGET}.app" 2>&1 | tee "${log_path}" || true
+
+          if [[ ! -f "${xml_path}" ]]; then
+            echo "XML result not found. Generating crash report."
+            python3 .github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
+          fi
+
+      - name: Test Results
+        if: always() && steps.filter.outputs.skipped != 'true'
+        uses: ./.github/actions/process_test_results
+        with:
+          target_name: ${{ matrix.target }}
+          results_glob: results/${{ matrix.target }}_result.xml
+          log_glob: results/${{ matrix.target }}_log.txt
+          num_gtest_shards: 1
+          datadog_api_key: ""
+
+      - name: Archive Test Results
+        if: always() && steps.filter.outputs.skipped != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tvos_${{ matrix.target }}_test_results
+          path: results/*
+
+  validate-test-result:
+    needs: [wait-for-kokoro-build, run-tests]
+    if: always() && !cancelled() && needs.wait-for-kokoro-build.result == 'success'
+    runs-on: ubuntu-latest
+    name: tvos_tests_passing
+    steps:
+      - name: Check test results
+        run: |
+          if [[ "${{ needs.run-tests.result }}" == "success" ]]; then
+            echo "All tvOS tests passed successfully!"
+            exit 0
+          else
+            echo "tvOS test job failed with result: ${{ needs.run-tests.result }}"
+            exit 1
+          fi

@@ -34,16 +34,16 @@
 #include "cobalt/browser/h5vcc_updater/public/mojom/h5vcc_updater.mojom.h"
 #include "cobalt/browser/performance/performance_impl.h"
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
+#include "cobalt/build/configs/buildflags.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
 #include "cobalt/media/service/platform_window_provider_service.h"
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "cobalt/browser/h5vcc_updater/h5vcc_updater_impl.h"
-// TODO(b/458483469): Remove the ALLOW_EVERGREEN_SIDELOADING check after
-// security review.
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 #include "cobalt/browser/h5vcc_updater/h5vcc_updater_sideloading_impl.h"
-#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 #include "cobalt/browser/h5vcc_updater/public/mojom/h5vcc_updater.mojom.h"
 #endif  // BUILDFLAG(USE_EVERGREEN)
 
@@ -53,6 +53,19 @@
 #else
 #include "cobalt/browser/crash_annotator/crash_annotator_impl.h"
 #endif  // BUILDFLAG(IS_ANDROIDTV)
+
+#if BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
+#include "cobalt/browser/on_screen_keyboard/on_screen_keyboard_impl.h"
+#include "cobalt/browser/on_screen_keyboard/public/mojom/on_screen_keyboard.mojom.h"
+#include "cobalt/shell/browser/shell.h"
+#include "content/public/browser/web_contents.h"
+#include "mojo/public/cpp/bindings/message.h"
+#endif  // BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
+
+#if BUILDFLAG(ENABLE_IN_APP_DIAL)
+#include "cobalt/browser/dial/dial_server_impl.h"
+#include "cobalt/browser/dial/public/mojom/in_app_dial.mojom.h"
+#endif  // BUILDFLAG(ENABLE_IN_APP_DIAL)
 
 #include "cobalt/browser/h5vcc_platform_service/h5vcc_platform_service_manager_impl.h"
 #include "cobalt/browser/h5vcc_platform_service/public/mojom/h5vcc_platform_service.mojom.h"
@@ -123,14 +136,11 @@ void PopulateCobaltFrameBinders(
       }));
 #endif
 
-// Always register a binder for H5vccUpdaterSideloading to prevent the browser
-// from killing the Mojo connection if the renderer probes for this interface.
-// If this is not registered, it disconnects the overall BrowserInterfaceBroker
-// for the frame.
-// TODO(b/458483469): Remove the ALLOW_EVERGREEN_SIDELOADING check after
-// security review.
-#if BUILDFLAG(USE_EVERGREEN) && !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && \
-    ALLOW_EVERGREEN_SIDELOADING
+  // Always register a binder for H5vccUpdaterSideloading to prevent the browser
+  // from killing the Mojo connection if the renderer probes for this interface.
+  // If this is not registered, it disconnects the overall
+  // BrowserInterfaceBroker for the frame.
+#if BUILDFLAG(USE_EVERGREEN) && !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   binder_map->Add<h5vcc_updater::mojom::H5vccUpdaterSideloading>(
       base::BindRepeating(&h5vcc_updater::H5vccUpdaterSideloadingImpl::Create));
 #else
@@ -141,6 +151,32 @@ void PopulateCobaltFrameBinders(
         VLOG(1) << "Ignoring H5vccUpdaterSideloading request.";
       }));
 #endif
+
+#if BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
+  binder_map->Add<on_screen_keyboard::mojom::OnScreenKeyboard>(
+      base::BindRepeating(
+          [](content::RenderFrameHost* render_frame_host,
+             mojo::PendingReceiver<on_screen_keyboard::mojom::OnScreenKeyboard>
+                 receiver) {
+            auto* web_contents =
+                content::WebContents::FromRenderFrameHost(render_frame_host);
+            auto* shell = content::Shell::FromWebContents(web_contents);
+            if (!shell) {
+              mojo::ReportBadMessage(
+                  "Could not find Shell instance for OnScreenKeyboard");
+              return;
+            }
+            on_screen_keyboard::OnScreenKeyboardImpl::GetOrCreate(
+                web_contents, shell->GetPlatformOnScreenKeyboard())
+                ->Bind(std::move(receiver));
+          }));
+#endif  // BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
+
+#if BUILDFLAG(ENABLE_IN_APP_DIAL)
+  binder_map->Add<in_app_dial::mojom::DialServer>(
+      base::BindRepeating(&in_app_dial::DialServerImpl::Create));
+#endif  // BUILDFLAG(ENABLE_IN_APP_DIAL)
+
   binder_map->Add<h5vcc_storage::mojom::H5vccStorage>(
       base::BindRepeating(&h5vcc_storage::H5vccStorageImpl::Create));
   binder_map->Add<media::mojom::PlatformWindowProvider>(

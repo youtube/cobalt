@@ -1,9 +1,8 @@
 import("//build/config/android/config.gni")
 import("//build/config/android/rules.gni")
+import("//cobalt/android/manifest.gni")
 import("//third_party/icu/config.gni")
 import("//third_party/jni_zero/jni_zero.gni")
-
-cobalt_manifest = "$target_gen_dir/cobalt_manifest/AndroidManifest.xml"
 
 jinja_template("cobalt_manifest") {
   input = "//cobalt/shell/android/shell_apk/AndroidManifest.xml.jinja2"
@@ -26,13 +25,12 @@ java_cpp_features("java_features_srcjar") {
 generate_jni("jni_headers") {
   sources = [
     "apk/app/src/main/java/dev/cobalt/coat/AudioPermissionRequester.java",
+    "apk/app/src/main/java/dev/cobalt/coat/BaseStarboardBridge.java",
     "apk/app/src/main/java/dev/cobalt/coat/CaptionSettings.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltService.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltSystemConfigChangeReceiver.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltTextToSpeechHelper.java",
-    "apk/app/src/main/java/dev/cobalt/coat/PlatformError.java",
     "apk/app/src/main/java/dev/cobalt/coat/ResourceOverlay.java",
-    "apk/app/src/main/java/dev/cobalt/coat/StarboardBridge.java",
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/HTMLMediaElementExtension.java",
     "apk/app/src/main/java/dev/cobalt/features/StarboardFeatureList.java",
     "apk/app/src/main/java/dev/cobalt/media/AudioOutputManager.java",
@@ -53,6 +51,10 @@ generate_jni("jni_headers") {
       "apk/app/src/main/java/dev/cobalt/browser/crashannotator/CrashAnnotatorImplFirstParty.java",
     ]
   }
+
+  if (!is_starboard) {
+    sources += [ "apk/app/src/main/java/dev/cobalt/coat/PlatformError.java" ]
+  }
 }
 
 generate_jni("browser_jni_headers") {
@@ -72,21 +74,9 @@ android_library("cobalt_browser_java") {
 android_library("cobalt_main_java") {
   resources_package = "dev.cobalt.coat"
   deps = [
-    ":cobalt_browser_java",
     "//base:base_java",
-    "//base:process_launcher_java",
-    "//base/version_info/android:version_constants_java",
     "//build/android:build_java",
-    "//cobalt/shell/android:cobalt_shell_assets",
-    "//cobalt/shell/android:cobalt_shell_java",
     "//cobalt/shell/android:cobalt_shell_java_resources",
-    "//cobalt/shell/android:cobalt_shell_jni_headers",
-    "//components/embedder_support/android:view_java",
-    "//content/public/android:content_java",
-    "//media/capture/video/android:capture_java",
-    "//net/android:net_java",
-    "//services/media_session/public/cpp/android:media_session_java",
-    "//services/media_session/public/mojom:mojom_java",
     "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
     "//third_party/android_deps:google_play_services_ads_identifier_java",
     "//third_party/android_deps:google_play_services_basement_java",
@@ -95,8 +85,6 @@ android_library("cobalt_main_java") {
     "//third_party/androidx:androidx_customview_customview_java",
     "//third_party/androidx:androidx_media_media_java",
     "//third_party/jni_zero:jni_zero_java",
-    "//ui/android:ui_java",
-    "//url:gurl_java",
   ]
 
   if (!use_evergreen) {
@@ -117,15 +105,11 @@ android_library("cobalt_main_java") {
 
   sources = [
     "apk/app/src/main/java/dev/cobalt/coat/AdvertisingId.java",
-    "apk/app/src/main/java/dev/cobalt/coat/ArtworkDownloader.java",
-    "apk/app/src/main/java/dev/cobalt/coat/ArtworkDownloaderDefault.java",
-    "apk/app/src/main/java/dev/cobalt/coat/ArtworkLoader.java",
     "apk/app/src/main/java/dev/cobalt/coat/AudioPermissionRequester.java",
+    "apk/app/src/main/java/dev/cobalt/coat/BaseCobaltActivity.java",
+    "apk/app/src/main/java/dev/cobalt/coat/BaseStarboardBridge.java",
     "apk/app/src/main/java/dev/cobalt/coat/CaptionSettings.java",
-    "apk/app/src/main/java/dev/cobalt/coat/CobaltA11yHelper.java",
-    "apk/app/src/main/java/dev/cobalt/coat/CobaltActivity.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltHttpHelper.java",
-    "apk/app/src/main/java/dev/cobalt/coat/CobaltMediaSession.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltService.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltSystemConfigChangeReceiver.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltTextToSpeechHelper.java",
@@ -133,13 +117,11 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/coat/CrashContext.java",
     "apk/app/src/main/java/dev/cobalt/coat/CrashContextUpdateHandler.java",
     "apk/app/src/main/java/dev/cobalt/coat/ErrorDialog.java",
+    "apk/app/src/main/java/dev/cobalt/coat/FontUtil.java",
     "apk/app/src/main/java/dev/cobalt/coat/KeyboardUtils.java",
     "apk/app/src/main/java/dev/cobalt/coat/NetworkStatus.java",
     "apk/app/src/main/java/dev/cobalt/coat/NullCobaltFactory.java",
-    "apk/app/src/main/java/dev/cobalt/coat/PlatformError.java",
     "apk/app/src/main/java/dev/cobalt/coat/ResourceOverlay.java",
-    "apk/app/src/main/java/dev/cobalt/coat/StarboardBridge.java",
-    "apk/app/src/main/java/dev/cobalt/coat/VolumeStateReceiver.java",
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/AmatiDeviceInspector.java",
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/CobaltJavaScriptAndroidObject.java",
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/CobaltJavaScriptInterface.java",
@@ -179,6 +161,41 @@ android_library("cobalt_main_java") {
       "apk/app/src/main/java/dev/cobalt/browser/crashannotator/CrashAnnotatorImplFirstParty.java",
     ]
   }
+
+  if (is_starboard) {
+    # TODO(https://crbug.com/534656433): Temporary StarboardBridge stub to fix
+    # a symbol resolution error on BaseStarboardBridge and CobaltService.
+    sources +=
+        [ "//cobalt/aosp/apk/app/java/dev/cobalt/coat/StarboardBridge.java" ]
+  } else {
+    sources += [
+      "apk/app/src/main/java/dev/cobalt/coat/ArtworkDownloader.java",
+      "apk/app/src/main/java/dev/cobalt/coat/ArtworkDownloaderDefault.java",
+      "apk/app/src/main/java/dev/cobalt/coat/ArtworkLoader.java",
+      "apk/app/src/main/java/dev/cobalt/coat/CobaltA11yHelper.java",
+      "apk/app/src/main/java/dev/cobalt/coat/CobaltActivity.java",
+      "apk/app/src/main/java/dev/cobalt/coat/CobaltMediaSession.java",
+      "apk/app/src/main/java/dev/cobalt/coat/PlatformError.java",
+      "apk/app/src/main/java/dev/cobalt/coat/StarboardBridge.java",
+      "apk/app/src/main/java/dev/cobalt/coat/VolumeStateReceiver.java",
+    ]
+    deps += [
+      ":cobalt_browser_java",
+      "//base:process_launcher_java",
+      "//base/version_info/android:version_constants_java",
+      "//cobalt/shell/android:cobalt_shell_assets",
+      "//cobalt/shell/android:cobalt_shell_java",
+      "//cobalt/shell/android:cobalt_shell_jni_headers",
+      "//components/embedder_support/android:view_java",
+      "//content/public/android:content_java",
+      "//media/capture/video/android:capture_java",
+      "//net/android:net_java",
+      "//services/media_session/public/cpp/android:media_session_java",
+      "//services/media_session/public/mojom:mojom_java",
+      "//ui/android:ui_java",
+      "//url:gurl_java",
+    ]
+  }
 }
 
 android_library("cobalt_apk_java") {
@@ -197,7 +214,13 @@ android_library("cobalt_apk_java") {
 
 android_assets("coat_assets") {
   sources = [ "apk/app/src/app/assets/web/cobalt_logo_1024.png" ]
+  renaming_sources = [ "$root_out_dir/content/data/fonts/fonts.xml" ]
+  renaming_destinations = [ "fonts/fonts.xml" ]
   disable_compression = true
+  deps = [
+    "//starboard/content/fonts:copy_font_data",
+    "//starboard/content/fonts:fonts_xml",
+  ]
 }
 
 # TODO(b/450024477): just a shared library once jni migration is complete
@@ -294,4 +317,5 @@ robolectric_binary("cobalt_coat_junit_tests") {
     "//third_party/junit",
     "//url:gurl_java",
   ]
+  ignore_all_data_deps = false
 }

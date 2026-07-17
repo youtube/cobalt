@@ -18,6 +18,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <functional>
@@ -33,15 +34,18 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
+#include "starboard/common/no_destructor.h"
 #include "starboard/common/player.h"
 #include "starboard/common/size.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
+#include "starboard/shared/starboard/player/pooled_allocator.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
@@ -52,9 +56,31 @@ using jni_zero::JavaRef;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
-class VideoFrameImpl : public VideoFrame {
+std::atomic<PooledAllocator*> g_video_allocator_ptr{nullptr};
+std::atomic<bool> g_video_frame_pool_enabled{false};
+
+PooledAllocator* GetVideoFrameAllocator();
+
+class VideoFrameImpl final : public VideoFrame {
  public:
   typedef std::function<void()> VideoFrameReleaseCallback;
+
+  void* operator new(size_t size) {
+    if (g_video_frame_pool_enabled.load(std::memory_order_relaxed)) {
+      return GetVideoFrameAllocator()->Allocate(size);
+    }
+    return ::operator new(size);
+  }
+
+  void operator delete(void* ptr) {
+    PooledAllocator* allocator =
+        g_video_allocator_ptr.load(std::memory_order_acquire);
+    if (allocator) {
+      allocator->Free(ptr);
+    } else {
+      ::operator delete(ptr);
+    }
+  }
 
   VideoFrameImpl(const DequeueOutputResult& dequeue_output_result,
                  MediaCodec* media_codec_bridge,
@@ -109,6 +135,23 @@ const int kTunnelModePrerollFrameCount = 1;
 const int kMaxPendingInputsSize = 128;
 
 const int kFpsGuesstimateRequiredInputBufferCount = 3;
+
+// kPoolSize (20) is chosen to accommodate the maximum number of video frames
+// that can be in-flight concurrently in the decoder and renderer pipeline.
+// This is a safe margin to avoid fallback to heap allocation (peak observed:
+// 9).
+constexpr size_t kPoolSize = 20;
+
+PooledAllocator* GetVideoFrameAllocator() {
+  static PooledAllocator* allocator_ptr = [] {
+    static NoDestructor<PooledAllocator> allocator(
+        "VideoFramePool", sizeof(VideoFrameImpl), kPoolSize);
+    PooledAllocator* a = allocator.get();
+    g_video_allocator_ptr.store(a, std::memory_order_release);
+    return a;
+  }();
+  return allocator_ptr;
+}
 
 void StubDrmSessionUpdateRequestFunc(SbDrmSystem drm_system,
                                      void* context,
@@ -267,6 +310,10 @@ MediaCodecVideoDecoder::CreateInternal(
   }
   return video_decoder;
 }
+// static
+void MediaCodecVideoDecoder::SetVideoFramePoolEnabled(bool enabled) {
+  g_video_frame_pool_enabled.store(enabled, std::memory_order_relaxed);
+}
 
 MediaCodecVideoDecoder::MediaCodecVideoDecoder(
     PassKey<MediaCodecVideoDecoder>,
@@ -291,7 +338,11 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       tunnel_mode_audio_session_id_(tunnel_mode_config.audio_session_id),
       max_video_input_size_(pipeline_config.max_input_size),
       use_dual_threads_(pipeline_config.use_dual_threads),
-      surface_view_(stream_config.surface_view),
+      surface_view_(stream_config.surface_view
+                        ? jni_zero::ScopedJavaGlobalRef<jobject>(
+                              jni_zero::AttachCurrentThread(),
+                              static_cast<jobject>(stream_config.surface_view))
+                        : nullptr),
       enable_flush_during_seek_(pipeline_config.enable_flush_during_seek),
       reset_delay_usec_(android_get_device_api_level() < 34
                             ? platform_options.reset_delay_usec
@@ -300,27 +351,32 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                             ? platform_options.flush_delay_usec
                             : 0),
       skip_flush_on_decoder_teardown_(
-          pipeline_config.experimental_features.skip_flush_on_decoder_teardown),
-      force_clear_surface_(
-          pipeline_config.experimental_features.force_clear_surface_view),
+          pipeline_config.experimental_features.GetBool(
+              kMediaSkipFlushOnDecoderTeardown)),
+      force_clear_surface_(pipeline_config.experimental_features.GetBool(
+          kMediaForceClearSurfaceView)),
       needs_fps_to_initialize_codec_(
           video_codec_ == kSbMediaVideoCodecAv1 &&
           MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30()),
       skip_video_frames_over_60_fps_(
-          pipeline_config.experimental_features.skip_video_frames_over_60_fps),
+          pipeline_config.experimental_features.GetBool(
+              kMediaSkipVideoFramesOver60Fps)),
       ignore_mediacodec_callbacks_during_flushing_(
-          pipeline_config.experimental_features
-              .ignore_mediacodec_callbacks_during_flushing),
-      enable_low_latency_(
-          pipeline_config.experimental_features.enable_low_latency),
+          pipeline_config.experimental_features.GetBool(
+              kMediaIgnoreMediaCodecCallbacksDuringFlushing)),
+      enable_trivial_optimizations_(
+          pipeline_config.experimental_features.GetBool(
+              kMediaEnableTrivialOptimizations)),
+      enable_ndk_video_(
+          pipeline_config.experimental_features.GetBool(kMediaNdkVideo)),
       is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
                                       tunnel_mode_audio_session_id_),
       media_codec_factory_(std::move(media_codec_factory)),
       has_new_texture_available_(false),
       initial_number_of_preroll_frames_(
           pipeline_config.experimental_features
-              .video_decoder_initial_preroll_count.value_or(
-                  kInitialPrerollFrameCount)),
+              .Get(kMediaVideoDecoderInitialPrerollCount)
+              .value_or(kInitialPrerollFrameCount)),
       number_of_preroll_frames_(initial_number_of_preroll_frames_),
       surface_texture_bridge_(
           output_mode_ == kSbPlayerOutputModeDecodeToTexture
@@ -737,8 +793,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
   switch (output_mode_) {
     case kSbPlayerOutputModePunchOut: {
       if (surface_view_) {
-        j_output_surface = jni_zero::ScopedJavaLocalRef<jobject>::Adopt(
-            env, env->NewLocalRef(static_cast<jobject>(surface_view_)));
+        j_output_surface = surface_view_.AsLocalRef(env);
       } else {
         j_output_surface = AcquireVideoSurface();
       }
@@ -801,10 +856,10 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, is_video_frame_tracker_enabled_,
-      enable_low_latency_, force_big_endian_hdr_metadata_,
-      max_video_input_size_, flush_delay_usec_, use_dual_threads_,
-      skip_video_frames_over_60_fps_,
-      ignore_mediacodec_callbacks_during_flushing_);
+      force_big_endian_hdr_metadata_, max_video_input_size_, flush_delay_usec_,
+      use_dual_threads_, skip_video_frames_over_60_fps_,
+      ignore_mediacodec_callbacks_during_flushing_, enable_ndk_video_,
+      enable_trivial_optimizations_);
   if (result) {
     media_decoder_ = std::move(result.value());
     if (error_cb_) {

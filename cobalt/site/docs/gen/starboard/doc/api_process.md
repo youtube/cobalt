@@ -8,7 +8,7 @@ The Starboard API is the contract between Starboard applications and
 implementers of the Starboard API. Changing existing APIs and adding new
 required APIs breaks that contract and increases the cost of implementers
 keeping their Starboard port up-to-date. Pushing a release to the Open Source
-repository signals to Starboard implementers that any non-experimental APIs in
+repository signals to Starboard implementers that the APIs in
 that version will not change for as long as that version of Starboard is
 supported by the Starboard applications. We cannot change those newly frozen
 APIs without causing a potentially significant disruption to any partners who
@@ -27,23 +27,18 @@ illustrates the complexity of dealing with a wide variety of platforms
 simultaneously.
 
 ## So you want to add a new API?
-Historically, we have done API review as a part of the Code Review process using
-Gerrit. This works well for small-ish changes. For larger changes, consider
+Historically, we have done API review as a part of the Code Review process.
+This works well for small-ish changes. For larger changes, consider
 writing a design document up front before defining the new API.
 
-### Who does the review?
-Send a message to the public cobalt-dev group to request a review.
-
 ### What is the process?
-Developers are strongly encouraged to create the interface and upload that to
-Gerrit for review before spending time on stubs and tests. Iteration on the
+Developers are strongly encouraged to create the interface and upload that for
+review before spending time on stubs and tests. Iteration on the
 interface will necessarily result in changes to the stubs and tests, which can
 result in more work for the implementer of a new API.
 
 1. Upload a .h file with Module Overview and (optionally) initial function
    prototypes
-    * New APIs should be declared in the experimental version, as described in the
-      starboard versioning doc.
 2. Discuss the new API with whoever is performing the review, and address
    comments.
 3. Iterate.
@@ -53,7 +48,7 @@ result in more work for the implementer of a new API.
 5. Implement tests and stubs.
     * Existing platforms on trunk should not break as a result of this change.
     * At this point, you may submit the interface, tests, and stubs with your
-      reviewer’s +2.
+      reviewer’s approval.
 6. Implement the interface for at least one platform.
 7. Iterate
 8. It may be that implementation of the API reveals things that were overlooked

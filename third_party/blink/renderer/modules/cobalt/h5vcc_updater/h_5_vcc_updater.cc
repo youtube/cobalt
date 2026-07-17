@@ -359,10 +359,7 @@ void H5vccUpdater::OnSideloadingConnectionError() {
   // concurrent modification.
   ongoing_sideloading_requests_.swap(h5vcc_updater_promises);
   for (auto& resolver : h5vcc_updater_promises) {
-// TODO(b/458483469): Remove the ALLOW_EVERGREEN_SIDELOADING check after
-// security review.
-#if BUILDFLAG(USE_EVERGREEN) && !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && \
-    ALLOW_EVERGREEN_SIDELOADING
+#if BUILDFLAG(USE_EVERGREEN) && !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
     resolver->Reject("Mojo connection error.");
 #else
     resolver->Reject(

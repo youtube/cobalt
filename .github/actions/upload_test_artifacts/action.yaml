@@ -34,13 +34,19 @@ runs:
       env:
         PLATFORM: ${{ inputs.platform }}
       run: |
-        flags="--compression zstd --compression-level=9"
+        host_archive_flags="--compression zstd --compression-level=9"
+        android_archive_flags="--compression gz --archive-per-target --use-android-deps-path --flatten-deps"
+        rdk_archive_flags="--compression gz --archive-per-target --flatten-deps"
+
+        device_archive_flags=""
         if [[ "${PLATFORM}" == *android* ]]; then
-          flags="--compression gz --archive-per-target --use-android-deps-path --flatten-deps"
-        elif [[ "${PLATFORM}" == *raspi* || "${PLATFORM}" == *rdk* ]]; then
-          flags="--compression gz --archive-per-target --flatten-deps"
+          device_archive_flags="${android_archive_flags}"
+        elif [[ "${PLATFORM}" == *rdk* ]]; then
+          device_archive_flags="${rdk_archive_flags}"
         fi
-        echo "flags=${flags}" >> $GITHUB_OUTPUT
+
+        echo "host_archive_flags=${host_archive_flags}" >> $GITHUB_OUTPUT
+        echo "device_archive_flags=${device_archive_flags}" >> $GITHUB_OUTPUT
       shell: bash
 
     - name: Parse Test Targets
@@ -53,8 +59,9 @@ runs:
         cd cobalt/src
         json_file="${TEST_TARGETS_JSON_FILE}"
 
-        host_gtest_targets=$(jq -cr '[.[] | select(.target != null and .runs_on == "host" and .test_type == "gtest") | .target] | join(",")' "${json_file}")
-        echo "host_gtest_targets=${host_gtest_targets}" >> $GITHUB_OUTPUT
+        # This includes both gtest and junit since both will be archived as though they were on-host tests.
+        host_targets=$(jq -cr '[.[] | select(.target != null and .runs_on == "host" and (.test_type == "gtest" or .test_type == "junit")) | .target] | join(",")' "${json_file}")
+        echo "host_targets=${host_targets}" >> $GITHUB_OUTPUT
 
         device_gtest_targets=$(jq -cr '[.[] | select(.target != null and .runs_on == "device" and .test_type == "gtest") | .target] | join(",")' "${json_file}")
         echo "device_gtest_targets=${device_gtest_targets}" >> $GITHUB_OUTPUT
@@ -76,12 +83,12 @@ runs:
         done
       shell: bash
     - name: Archive Host Tests
-      if: inputs.upload_on_host_test_artifacts == 'true' && steps.parse-targets.outputs.host_gtest_targets != ''
+      if: inputs.upload_on_host_test_artifacts == 'true' && steps.parse-targets.outputs.host_targets != ''
       env:
-        HOST_TARGETS: ${{ steps.parse-targets.outputs.host_gtest_targets }}
+        HOST_TARGETS: ${{ steps.parse-targets.outputs.host_targets }}
         PLATFORM: ${{ inputs.platform }}
         CONFIG: ${{ inputs.config }}
-        ARCHIVE_FLAGS: ${{ steps.compute-flags.outputs.flags }}
+        ARCHIVE_FLAGS: ${{ steps.compute-flags.outputs.host_archive_flags }}
       run: |
         set -x
         cd cobalt/src
@@ -99,7 +106,7 @@ runs:
         DEVICE_TARGETS: ${{ steps.parse-targets.outputs.device_gtest_targets }}
         PLATFORM: ${{ inputs.platform }}
         CONFIG: ${{ inputs.config }}
-        ARCHIVE_FLAGS: ${{ steps.compute-flags.outputs.flags }}
+        ARCHIVE_FLAGS: ${{ steps.compute-flags.outputs.device_archive_flags }}
       run: |
         set -x
         cd cobalt/src

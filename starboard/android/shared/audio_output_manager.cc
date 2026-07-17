@@ -148,13 +148,14 @@ ScopedJavaLocalRef<jobject> AudioOutputManager::CreateAudioTrackBridge(
     int sample_type,
     int sample_rate,
     int channel_count,
+    int max_samples_per_write,
     int preferred_buffer_size_in_bytes,
     std::optional<int> tunnel_mode_audio_session_id,
     jboolean is_web_audio) {
   SB_DCHECK(env);
   return Java_AudioOutputManager_createAudioTrackBridge(
       env, j_audio_output_manager_, sample_type, sample_rate, channel_count,
-      preferred_buffer_size_in_bytes,
+      max_samples_per_write, preferred_buffer_size_in_bytes,
       tunnel_mode_audio_session_id.value_or(TUNNEL_MODE_AUDIO_SESSION_ID_NONE),
       is_web_audio);
 }

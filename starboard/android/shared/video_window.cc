@@ -48,13 +48,9 @@ jni_zero::ScopedJavaGlobalRef<jobject>& GetGlobalVideoSurface() {
 }
 
 // Global pointer to the single video window.
-ANativeWindow* g_native_video_window = NULL;
+ANativeWindow* g_native_video_window = nullptr;
 // Global video surface pointer holder.
-VideoSurfaceHolder* g_video_surface_holder = NULL;
-// Global boolean to indicate if we need to reset SurfaceView after playing
-// vertical video.
-// TODO: b/521503666 - Revisit to see if we need this variable or not.
-bool g_reset_surface_on_clear_window = false;
+VideoSurfaceHolder* g_video_surface_holder = nullptr;
 
 void ClearNativeWindow(void* raw_context) {
   ANativeWindow* native_window = static_cast<ANativeWindow*>(raw_context);
@@ -158,10 +154,6 @@ void JNI_VideoSurfaceView_OnVideoSurfaceChanged(
     GetGlobalVideoSurface().Reset(env, surface);
     g_native_video_window = ANativeWindow_fromSurface(env, surface.obj());
   }
-}
-
-void JNI_VideoSurfaceView_SetNeedResetSurface(JNIEnv* env) {
-  g_reset_surface_on_clear_window = true;
 }
 
 // static

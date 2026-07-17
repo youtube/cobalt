@@ -1285,6 +1285,12 @@ static_idl_files_in_modules = [
   "//third_party/blink/renderer/modules/xr/xr_webgl_sub_image.idl",
 ]
 
+if (is_cobalt && use_starboard_media) {
+  static_idl_files_in_modules += [
+    "//third_party/blink/renderer/modules/webgl/cobalt/oes_egl_image_external.idl",
+  ]
+}
+
 if (is_cobalt) {
   static_idl_files_in_modules += get_path_info(
           [
@@ -1293,8 +1299,8 @@ if (is_cobalt) {
             "//third_party/blink/renderer/modules/cobalt/h5vcc_accessibility/text_to_speech_change_event.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_accessibility/text_to_speech_change_event_init.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments/h_5_vcc_experiments.idl",
-            "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics/metrics_event.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics/h_5_vcc_metrics.idl",
+            "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics/metrics_event.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_platform_service/h_5_vcc_platform_service.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime/deep_link_event.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime/h_5_vcc_runtime.idl",
@@ -1307,11 +1313,36 @@ if (is_cobalt) {
           ],
           "abspath")
 
+  # In C25, window.cc would dynamically check if the on-screen keyboard
+  # extension was supported and only add the onScreenKeyboard object if so.
+  # In Chrobalt, this is gated by the `enable_native_on_screen_keyboard` GN
+  # flag.
+  # TODO: b/513162150 - Figure out if there should be a way to determine at
+  # runtime if this API should be exposed.
+  if (enable_native_on_screen_keyboard) {
+    static_idl_files_in_modules += get_path_info(
+            [
+              "//third_party/blink/renderer/modules/cobalt/on_screen_keyboard/window_on_screen_keyboard.idl",
+              "//third_party/blink/renderer/modules/cobalt/on_screen_keyboard/on_screen_keyboard.idl",
+            ],
+            "abspath")
+  }
+
   if (use_starboard_media) {
     static_idl_files_in_modules += get_path_info(
             [
               "//third_party/blink/renderer/modules/cobalt/encryptedmedia/media_keys_extensions.idl",
               "//third_party/blink/renderer/modules/cobalt/mediasource/source_buffer_extensions.idl",
+            ],
+            "abspath")
+  }
+
+  if (enable_in_app_dial) {
+    static_idl_files_in_modules += get_path_info(
+            [
+              "//third_party/blink/renderer/modules/cobalt/dial/dial_http_request.idl",
+              "//third_party/blink/renderer/modules/cobalt/dial/dial_http_response.idl",
+              "//third_party/blink/renderer/modules/cobalt/dial/dial_server.idl",
             ],
             "abspath")
   }
@@ -1418,6 +1449,24 @@ if (enable_compute_pressure) {
   ]
 }
 
+# If in the future privacy sandbox components are removed from the code base, we should
+# delete this if block.
+if (!enable_privacy_sandbox_apis) {
+  _filtered_static_idl_files = filter_exclude(
+      static_idl_files_in_modules,
+      [
+        "//third_party/blink/renderer/modules/browsing_topics/*",
+        "//third_party/blink/renderer/modules/private_attribution/*",
+        "//third_party/blink/renderer/modules/shared_storage/*",
+        "//third_party/blink/renderer/modules/storage_access/*",
+        "//third_party/blink/renderer/modules/locks/shared_storage_worklet_navigator_locks.idl",
+        "//third_party/blink/renderer/modules/permissions/top_level_storage_access_permission_descriptor.idl",
+        "//third_party/blink/renderer/modules/ad_auction/*",
+      ])
+  static_idl_files_in_modules = []
+  static_idl_files_in_modules = _filtered_static_idl_files
+}
+
 # Statically-defined (not runtime-generated) IDL files in 'modules' component.
 # These IDL definitions are used only for testing.
 static_idl_files_in_modules_for_testing = [
@@ -1456,4 +1505,16 @@ if (!use_webrtc_peer_connection) {
           [ "//third_party/blink/renderer/modules/peerconnection/testing/*" ])
   static_idl_files_in_modules_for_testing = []
   static_idl_files_in_modules_for_testing = _filtered_testing_idl
+}
+
+# If in the future privacy sandbox components are removed from the code base, we should
+# delete this if block.
+if (!enable_privacy_sandbox_apis) {
+  _filtered_static_idl_files_for_testing = filter_exclude(
+      static_idl_files_in_modules_for_testing,
+      [
+        "//third_party/blink/renderer/modules/ad_auction/testing/*",
+      ])
+  static_idl_files_in_modules_for_testing = []
+  static_idl_files_in_modules_for_testing = _filtered_static_idl_files_for_testing
 }

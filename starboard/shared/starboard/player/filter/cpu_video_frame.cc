@@ -125,19 +125,18 @@ scoped_refptr<CpuVideoFrame> CpuVideoFrame::ConvertTo(
   scoped_refptr<CpuVideoFrame> target_frame(new CpuVideoFrame(timestamp()));
 
   target_frame->format_ = target_format;
-  target_frame->width_ = width();
-  target_frame->height_ = height();
-  target_frame->pixel_buffer_.reset(new uint8_t[width() * height() * 4]);
+  target_frame->size_ = size();
+  target_frame->pixel_buffer_.reset(new uint8_t[size().GetArea() * 4]);
   target_frame->planes_.push_back(
-      Plane(width(), height(), width() * 4, target_frame->pixel_buffer_.get()));
+      Plane(size(), size().width * 4, target_frame->pixel_buffer_.get()));
 
   const uint8_t* y_data = GetPlane(0).data;
   const uint8_t* u_data = GetPlane(1).data;
   const uint8_t* v_data = GetPlane(2).data;
   uint8_t* bgra_data = target_frame->pixel_buffer_.get();
 
-  int height = this->height();
-  int width = this->width();
+  int height = this->size().height;
+  int width = this->size().width;
 
   for (int row = 0; row < height; ++row) {
     const uint8_t* y = &y_data[row * GetPlane(0).pitch_in_bytes];
@@ -178,8 +177,7 @@ scoped_refptr<CpuVideoFrame> CpuVideoFrame::ConvertTo(
 // static
 scoped_refptr<CpuVideoFrame> CpuVideoFrame::CreateYV12Frame(
     int bit_depth,
-    int width,
-    int height,
+    Size size,
     int source_y_pitch_in_bytes,
     int source_uv_pitch_in_bytes,
     int64_t timestamp,
@@ -189,15 +187,14 @@ scoped_refptr<CpuVideoFrame> CpuVideoFrame::CreateYV12Frame(
   SB_DCHECK(bit_depth == 8 || bit_depth == 10 || bit_depth == 12);
 
   if (bit_depth > 8) {
-    SB_DCHECK_GE(source_y_pitch_in_bytes, width * 2);
+    SB_DCHECK_GE(source_y_pitch_in_bytes, size.width * 2);
   } else {
-    SB_DCHECK_GE(source_y_pitch_in_bytes, width);
+    SB_DCHECK_GE(source_y_pitch_in_bytes, size.width);
   }
 
   scoped_refptr<CpuVideoFrame> frame(new CpuVideoFrame(timestamp));
   frame->format_ = kYV12;
-  frame->width_ = width;
-  frame->height_ = height;
+  frame->size_ = size;
 
   auto destination_y_pitch_in_bytes = source_y_pitch_in_bytes;
   auto destination_uv_pitch_in_bytes = source_uv_pitch_in_bytes;
@@ -210,10 +207,10 @@ scoped_refptr<CpuVideoFrame> CpuVideoFrame::CreateYV12Frame(
   // U/V planes generally have half resolution of the Y plane.  However, in the
   // extreme case that any dimension of Y plane is odd, we want to have an
   // extra pixel on U/V planes.
-  int uv_height = height / 2 + height % 2;
-  int uv_width = width / 2 + width % 2;
+  int uv_height = size.height / 2 + size.height % 2;
+  int uv_width = size.width / 2 + size.width % 2;
 
-  int y_plane_size_in_bytes = height * destination_y_pitch_in_bytes;
+  int y_plane_size_in_bytes = size.height * destination_y_pitch_in_bytes;
   int uv_plane_size_in_bytes = uv_height * destination_uv_pitch_in_bytes;
   frame->pixel_buffer_.reset(
       new uint8_t[y_plane_size_in_bytes + uv_plane_size_in_bytes * 2]);
@@ -226,13 +223,13 @@ scoped_refptr<CpuVideoFrame> CpuVideoFrame::CreateYV12Frame(
                 uv_plane_size_in_bytes,
             v, uv_plane_size_in_bytes);
 
-  frame->planes_.push_back(Plane(width, height, destination_y_pitch_in_bytes,
-                                 frame->pixel_buffer_.get()));
   frame->planes_.push_back(
-      Plane(uv_width, uv_height, destination_uv_pitch_in_bytes,
+      Plane(size, destination_y_pitch_in_bytes, frame->pixel_buffer_.get()));
+  frame->planes_.push_back(
+      Plane(Size(uv_width, uv_height), destination_uv_pitch_in_bytes,
             frame->pixel_buffer_.get() + y_plane_size_in_bytes));
   frame->planes_.push_back(
-      Plane(uv_width, uv_height, destination_uv_pitch_in_bytes,
+      Plane(Size(uv_width, uv_height), destination_uv_pitch_in_bytes,
             frame->pixel_buffer_.get() + y_plane_size_in_bytes +
                 uv_plane_size_in_bytes));
   return frame;

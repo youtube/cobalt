@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/global_features.h"
 
+#include <string_view>
 #include <variant>
 
 #include "base/feature_list.h"
@@ -21,6 +22,8 @@
 #include "base/json/string_escape.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
+#include "base/strings/string_util.h"
+#include "base/threading/hang_watcher.h"
 #include "base/time/time.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
@@ -98,19 +101,42 @@ GlobalFeatures::GetSettings() const {
   return settings_;
 }
 
-void GlobalFeatures::SetSettings(const std::string& key,
-                                 const SettingValue& value) {
+std::optional<GlobalFeatures::SettingValue> GlobalFeatures::GetSetting(
+    std::string_view key) const {
   base::AutoLock auto_lock(lock_);
-  settings_[key] = value;
+  auto it = settings_.find(key);
+  if (it != settings_.end()) {
+    return it->second;
+  }
+  return std::nullopt;
+}
 
-  LOG(INFO) << "SetSettings: key=" << key << ", value=" << [&value] {
-    if (const auto* s = std::get_if<std::string>(&value)) {
-      return base::GetQuotedJSONString(*s);
-    } else if (const auto* i = std::get_if<int64_t>(&value)) {
-      return std::to_string(*i);
-    }
-    NOTREACHED();
-  }();
+void GlobalFeatures::SetSettings(std::string_view key,
+                                 const SettingValue& value) {
+  {
+    base::AutoLock auto_lock(lock_);
+    settings_[key] = value;
+
+    LOG(INFO) << "SetSettings: key=" << key << ", value=" << [&value] {
+      if (const auto* s = std::get_if<std::string>(&value)) {
+        return base::GetQuotedJSONString(*s);
+      } else if (const auto* i = std::get_if<int64_t>(&value)) {
+        return base::NumberToString(*i);
+      }
+      NOTREACHED();
+    }();
+  }
+
+  base::HangWatcher::UpdateConfiguration();
+}
+
+void GlobalFeatures::ClearSetting(std::string_view key) {
+  {
+    base::AutoLock auto_lock(lock_);
+    settings_.erase(key);
+  }
+
+  base::HangWatcher::UpdateConfiguration();
 }
 
 void GlobalFeatures::CreateExperimentConfig() {

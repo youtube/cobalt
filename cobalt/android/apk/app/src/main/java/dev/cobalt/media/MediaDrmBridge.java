@@ -42,6 +42,7 @@ import java.util.UUID;
 import org.chromium.base.Log;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 /** A wrapper of the android MediaDrm class. */
@@ -205,9 +206,16 @@ public class MediaDrmBridge {
   /** Destroy the MediaDrmBridge object. */
   @CalledByNative
   void destroy() {
-    mNativeMediaDrmBridge = INVALID_NATIVE_MEDIA_DRM_BRIDGE;
-    if (mMediaDrm != null) {
-      release();
+    try {
+      mNativeMediaDrmBridge = INVALID_NATIVE_MEDIA_DRM_BRIDGE;
+      if (mMediaDrm != null) {
+        release();
+      }
+    } catch (Throwable t) {
+      // Catch Throwable (both Exception and Error) to prevent JNI crashes if the JVM
+      // throws linkage errors (e.g., NoClassDefFoundError) during ClassLoader unloading
+      // in teardown. See b/455621481.
+      Log.e(TAG, "Exception or Error during MediaDrmBridge destroy()", t);
     }
   }
 
@@ -365,29 +373,36 @@ public class MediaDrmBridge {
    */
   @CalledByNative
   void closeSession(byte[] sessionId) {
-    Log.d(TAG, "closeSession()");
-    if (mMediaDrm == null) {
-      Log.e(TAG, "closeSession() called when MediaDrm is null.");
-      return;
-    }
-
-    if (!sessionExists(sessionId)) {
-      Log.e(TAG, "Invalid sessionId in closeSession(): sessionId=" + bytesToString(sessionId));
-      return;
-    }
-
     try {
-      // Some implementations don't have removeKeys.
-      // https://bugs.chromium.org/p/chromium/issues/detail?id=475632
-      mMediaDrm.removeKeys(sessionId);
-    } catch (Exception e) {
-      Log.e(TAG, "removeKeys failed: ", e);
+      Log.d(TAG, "closeSession()");
+      if (mMediaDrm == null) {
+        Log.e(TAG, "closeSession() called when MediaDrm is null.");
+        return;
+      }
+
+      if (!sessionExists(sessionId)) {
+        Log.e(TAG, "Invalid sessionId in closeSession(): sessionId=" + bytesToString(sessionId));
+        return;
+      }
+
+      try {
+        // Some implementations don't have removeKeys.
+        // https://bugs.chromium.org/p/chromium/issues/detail?id=475632
+        mMediaDrm.removeKeys(sessionId);
+      } catch (Exception e) {
+        Log.e(TAG, "removeKeys failed: ", e);
+      }
+
+      closeMediaDrmSession(sessionId);
+
+      mSessionIds.remove(ByteBuffer.wrap(sessionId));
+      Log.d(TAG, "Session closed: sessionId=" + bytesToString(sessionId));
+    } catch (Throwable t) {
+      // Catch Throwable (both Exception and Error) to prevent JNI crashes if the JVM
+      // throws linkage errors (e.g., NoClassDefFoundError) during ClassLoader unloading
+      // in teardown. See b/455621481.
+      Log.e(TAG, "Exception or Error during MediaDrmBridge closeSession()", t);
     }
-
-    closeMediaDrmSession(sessionId);
-
-    mSessionIds.remove(ByteBuffer.wrap(sessionId));
-    Log.d(TAG, "Session closed: sessionId=" + bytesToString(sessionId));
   }
 
   @CalledByNative
@@ -953,6 +968,6 @@ public class MediaDrmBridge {
     void onKeyStatusChange(
         long nativeMediaDrmBridge,
         byte[] sessionId,
-        KeyStatus[] keyInformation);
+        @JniType("std::vector<DrmKeyStatusInfo>") KeyStatus[] keyInformation);
   }
 }

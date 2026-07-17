@@ -2460,7 +2460,10 @@ component("base") {
       "system/sys_info_starboard.h",
     ]
 
-    deps += [ "//starboard/common:common_headers_only" ]
+    deps += [
+      "//starboard/common:common_headers_only",
+      "//starboard:starboard_headers_only",
+    ]
   }
 
   if (use_blink) {
@@ -4785,6 +4788,11 @@ if (is_android) {
     ]
   }
 
+  if (is_cobalt && is_partner_toolchain) {
+    java_group("base_java") {
+      public_deps = [ "//copied_base/base:base_java" ]
+    }
+  } else {
   android_library("base_java") {
     srcjar_deps = [
       ":base_android_java_enums_srcjar",
@@ -4897,6 +4905,7 @@ if (is_android) {
         "android/proguard/remove_logging.flags",
       ]
     }
+  }
   }
 
   generate_jni("metrics_jni") {
@@ -5081,6 +5090,13 @@ if (is_android) {
       "android/java/src/org/chromium/base/memory/MemoryInfoBridge.java",
       "android/java/src/org/chromium/base/memory/MemoryPurgeManager.java",
     ]
+
+    if (is_cobalt) {
+      sources += [
+        "android/java/src/org/chromium/base/memory/CobaltMemoryInfoBridge.java",
+      ]
+    }
+
   }
 
   android_library("memory_java") {
@@ -5098,6 +5114,13 @@ if (is_android) {
       "android/java/src/org/chromium/base/memory/MemoryPurgeManager.java",
       "android/java/src/org/chromium/base/memory/SelfFreezeCallback.java",
     ]
+
+    if (is_cobalt) {
+      sources += [
+        "android/java/src/org/chromium/base/memory/CobaltMemoryInfoBridge.java",
+      ]
+    }
+
     deps = [
       ":library_loader_java",
       ":log_java",
