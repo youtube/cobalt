@@ -1663,6 +1663,7 @@ void OnAuctionWorkletNetworkRequestComplete(
                    status);
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 bool NeedInterestGroupAuctionEvents(FrameTreeNodeId frame_tree_node_id) {
   FrameTreeNode* ftn = FrameTreeNode::GloballyFindByID(frame_tree_node_id);
   if (!ftn) {
@@ -1703,6 +1704,7 @@ void OnInterestGroupAuctionNetworkRequestCreated(
                        NotifyInterestGroupAuctionNetworkRequestCreated,
                    type, request_id, devtools_auction_ids);
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 void OnNavigationRequestWillBeSent(
     const NavigationRequest& navigation_request) {
