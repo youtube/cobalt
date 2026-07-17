@@ -19,6 +19,7 @@
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/android/shared/log_internal.h"
+#include "starboard/android/shared/media_resource_tracker.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
@@ -104,6 +105,17 @@ jlong JNI_BaseStarboardBridge_StartNativeStarboard(
 
 void JNI_BaseStarboardBridge_CloseNativeStarboard(JNIEnv* env,
                                                   jlong nativeApp) {
+  // Wait for all active media resources (MediaCodec, AudioTrack, MediaDrm)
+  // to be destroyed before deleting the application and exiting the JVM.
+  constexpr int kTimeoutMs = 2'000;
+  int remaining_count =
+      MediaResourceTracker::GetInstance()->WaitUntilZero(kTimeoutMs);
+  if (remaining_count > 0) {
+    SB_LOG(WARNING) << "Timed out waiting for all media resources to be "
+                       "destroyed. Active count: "
+                    << remaining_count;
+  }
+
   auto* app = reinterpret_cast<ApplicationAndroid*>(nativeApp);
   delete app;
 }
