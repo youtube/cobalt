@@ -3766,6 +3766,86 @@ source_set("browser") {
   if (is_chromeos) {
     deps += [ "//ash/constants:constants" ]
   }
+
+  # If in the future privacy sandbox components are removed from the code base, ignore this if block.
+  if (!enable_privacy_sandbox_apis) {
+    _filtered_sources = filter_exclude(sources,
+                                       [
+                                         "browsing_topics/*",
+                                         "attribution_reporting/*",
+                                         "shared_storage/*",
+                                         "interest_group/*",
+                                         "private_aggregation/*",
+                                         "aggregation_service/*",
+                                         "devtools/auction_worklet_devtools_agent_host.*",
+                                       ])
+    sources = []
+    sources = _filtered_sources
+    deps -= [
+      "//components/browsing_topics/common:common",
+      "//content/browser/aggregation_service/proto:aggregatable_report_proto",
+      "//content/browser/attribution_reporting:attribution_reporting_proto",
+      "//content/browser/attribution_reporting:internals_mojo_bindings",
+      "//content/browser/attribution_reporting:mojo_bindings",
+      "//content/browser/attribution_reporting:registration_result_mojom",
+      "//content/browser/interest_group:interest_group_proto",
+      "//content/browser/private_aggregation:mojo_bindings",
+      "//content/browser/private_aggregation/proto:private_aggregation_budgets_proto",
+    ]
+  }
+
+  if (is_cobalt) {
+    sources -= [
+      "bluetooth/advertisement_client.cc",
+      "bluetooth/advertisement_client.h",
+      "bluetooth/bluetooth_adapter_factory_wrapper.cc",
+      "bluetooth/bluetooth_adapter_factory_wrapper.h",
+      "bluetooth/bluetooth_allowed_devices.cc",
+      "bluetooth/bluetooth_allowed_devices.h",
+      "bluetooth/bluetooth_allowed_devices_map.cc",
+      "bluetooth/bluetooth_allowed_devices_map.h",
+      "bluetooth/bluetooth_blocklist.cc",
+      "bluetooth/bluetooth_blocklist.h",
+      "bluetooth/bluetooth_device_chooser_controller.cc",
+      "bluetooth/bluetooth_device_chooser_controller.h",
+      "bluetooth/bluetooth_device_scanning_prompt_controller.cc",
+      "bluetooth/bluetooth_device_scanning_prompt_controller.h",
+      "bluetooth/bluetooth_metrics.cc",
+      "bluetooth/bluetooth_metrics.h",
+      "bluetooth/bluetooth_util.cc",
+      "bluetooth/bluetooth_util.h",
+      "bluetooth/frame_connected_bluetooth_devices.cc",
+      "bluetooth/frame_connected_bluetooth_devices.h",
+      "bluetooth/web_bluetooth_pairing_manager.h",
+      "bluetooth/web_bluetooth_pairing_manager_delegate.h",
+      "bluetooth/web_bluetooth_pairing_manager_impl.cc",
+      "bluetooth/web_bluetooth_pairing_manager_impl.h",
+      "bluetooth/web_bluetooth_service_impl.cc",
+      "bluetooth/web_bluetooth_service_impl.h",
+
+      "serial/serial_service.cc",
+      "serial/serial_service.h",
+
+      "usb/web_usb_service_impl.cc",
+      "usb/web_usb_service_impl.h",
+    ]
+
+    deps -= [
+      "//device/bluetooth",
+      "//device/bluetooth/public/cpp",
+    ]
+
+    if (!is_android) {
+      sources -= [
+        "hid/hid_service.cc",
+        "hid/hid_service.h",
+        "service_worker/service_worker_hid_delegate_observer.cc",
+        "service_worker/service_worker_hid_delegate_observer.h",
+        "service_worker/service_worker_usb_delegate_observer.cc",
+        "service_worker/service_worker_usb_delegate_observer.h",
+      ]
+    }
+  }
 }
 
 if (is_android) {

@@ -18,18 +18,7 @@
 
 #include <gst/gst.h>
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
-namespace player {
-namespace elements {
-
 GstElement *CreateAudioClippingElement(const gchar* name);
 
-}  // namespace elements
-}  // namespace player
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party

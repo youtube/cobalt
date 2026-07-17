@@ -6,13 +6,28 @@
 
 #include <memory>
 
+// clang-format off
+// In Cobalt, we gate Privacy Sandbox WebUIs (like Attribution Reporting).
+// Gating these includes breaks the transitive include chain that previously
+// provided `buildflag.h` and `build_config.h` for the platform checks below.
+// We include them explicitly here to ensure they are defined.
+// TODO: If Privacy Sandbox is removed upstream, this custom gating and these
+// includes should be ignored/removed during rebase.
+#include "build/build_config.h"
+#include "build/buildflag.h"
+// clang-format on
+
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/attribution_reporting/attribution_internals_ui.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/gpu/gpu_internals_ui.h"
 #include "content/browser/indexed_db/indexed_db_internals_ui.h"
 #include "content/browser/media/media_internals_ui.h"
 #include "content/browser/metrics/histograms_internals_ui.h"
 #include "content/browser/network/network_errors_listing_ui.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/private_aggregation/private_aggregation_internals_ui.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/process_internals/process_internals_ui.h"
 #include "content/browser/quota/quota_internals_ui.h"
 #include "content/browser/service_worker/service_worker_internals_ui.h"
@@ -33,14 +48,18 @@ namespace content {
 
 void RegisterContentWebUIConfigs() {
   auto& map = WebUIConfigMap::GetInstance();
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   map.AddWebUIConfig(std::make_unique<AttributionInternalsUIConfig>());
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   map.AddWebUIConfig(std::make_unique<GpuInternalsUIConfig>());
   map.AddWebUIConfig(
       std::make_unique<indexed_db::IndexedDBInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<MediaInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<HistogramsInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<NetworkErrorsListingUIConfig>());
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   map.AddWebUIConfig(std::make_unique<PrivateAggregationInternalsUIConfig>());
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   map.AddWebUIConfig(std::make_unique<ProcessInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<QuotaInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<ServiceWorkerInternalsUIConfig>());

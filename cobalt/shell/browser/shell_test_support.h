@@ -22,6 +22,7 @@
 
 #include "base/command_line.h"
 #include "base/memory/raw_ptr.h"
+#include "build/build_config.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_platform_delegate.h"
 #include "content/browser/accessibility/browser_accessibility_state_impl.h"
@@ -41,7 +42,9 @@
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/events/devices/device_data_manager.h"
 #include "ui/gfx/geometry/size.h"
-#include "ui/views/views_delegate.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/jni_android.h"
+#endif
 
 #if defined(USE_AURA)
 #include "ui/aura/env.h"
@@ -100,14 +103,18 @@ class TestBrowserAccessibilityState : public BrowserAccessibilityStateImpl {
 class MojoInitializer {
  public:
   MojoInitializer() {
+#if defined(USE_AURA)
     if (!aura::Env::HasInstance()) {
       aura_env_ = aura::Env::CreateInstance();
     }
+#endif
     mojo::core::Init();
   }
 
  private:
+#if defined(USE_AURA)
   std::unique_ptr<aura::Env> aura_env_;
+#endif
 };
 
 class ShellTestBase : public ::testing::Test {
@@ -118,6 +125,25 @@ class ShellTestBase : public ::testing::Test {
   ~ShellTestBase() override = default;
 
   void SetUp() override {
+#if BUILDFLAG(IS_ANDROID)
+    JNIEnv* env = base::android::AttachCurrentThread();
+    jclass looper_clazz = env->FindClass("android/os/Looper");
+    jmethodID my_looper_method = env->GetStaticMethodID(
+        looper_clazz, "myLooper", "()Landroid/os/Looper;");
+    jobject looper =
+        env->CallStaticObjectMethod(looper_clazz, my_looper_method);
+    if (!looper) {
+      jmethodID prepare_method =
+          env->GetStaticMethodID(looper_clazz, "prepare", "()V");
+      env->CallStaticVoidMethod(looper_clazz, prepare_method);
+      looper = env->CallStaticObjectMethod(looper_clazz, my_looper_method);
+    }
+    jclass thread_utils_clazz = env->FindClass("org/chromium/base/ThreadUtils");
+    jmethodID set_ui_thread_method = env->GetStaticMethodID(
+        thread_utils_clazz, "setUiThread", "(Landroid/os/Looper;)V");
+    env->CallStaticVoidMethod(thread_utils_clazz, set_ui_thread_method, looper);
+#endif
+
     ForceInProcessNetworkService();
     mojo::core::Init();
     ui::DeviceDataManager::CreateInstance();
@@ -144,8 +170,7 @@ class ShellTestBase : public ::testing::Test {
     browser_context_ = std::make_unique<TestBrowserContext>();
 
     if (!ui::ResourceBundle::HasSharedInstance()) {
-      ui::ResourceBundle::InitSharedInstanceWithLocale(
-          "en-US", nullptr, ui::ResourceBundle::LOAD_COMMON_RESOURCES);
+      ui::ResourceBundle::InitSharedInstanceWithPakPath(base::FilePath());
     }
   }
 

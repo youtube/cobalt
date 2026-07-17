@@ -20,10 +20,10 @@
 #include <cstdint>
 #include <memory>
 
+#include "starboard/common/embedded_metadata_reuse_allocator_base.h"
+#include "starboard/common/external_metadata_reuse_allocator_base.h"
 #include "starboard/common/fixed_no_free_allocator.h"
-#include "starboard/common/in_place_reuse_allocator_base.h"
 #include "starboard/common/pointer_arithmetic.h"
-#include "starboard/common/reuse_allocator_base.h"
 #include "starboard/configuration.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -94,7 +94,7 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
       FixedNoFreeAllocator::FreeWithSize(memory, size);
     }
 
-    void Decommit(void* memory, size_t size) override {
+    void Decommit(void* memory, size_t size, bool conservative) override {
       auto it = active_allocations_.find(memory);
       EXPECT_NE(it, active_allocations_.end())
           << "Decommitting a pointer not allocated by this fallback allocator.";
@@ -103,12 +103,18 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
             << "Decommit size does not exactly match the allocated size.";
       }
 
-      decommits.push_back({memory, size});
+      decommits.push_back({memory, size, conservative});
       decommit_count++;
     }
 
+    struct DecommitRecord {
+      void* memory;
+      size_t size;
+      bool conservative;
+    };
+
     int decommit_count;
-    std::vector<std::pair<void*, size_t>> decommits;
+    std::vector<DecommitRecord> decommits;
     std::map<void*, size_t> active_allocations_;
   };
 
@@ -123,11 +129,10 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
         new FixedNoFreeAllocator(buffer_.get(), kBufferSize));
     allocator_.reset(new BidirectionalFitReuseAllocator<ReuseAllocatorBase>(
         fallback_allocator.get(), initial_capacity, small_allocation_threshold,
-        allocation_increment, false));
+        allocation_increment));
 
     fallback_allocator_.swap(fallback_allocator);
   }
-
   void ResetAllocatorWithDecommitSupport() {
     void* tmp = nullptr;
     std::ignore = posix_memalign(&tmp, Allocator::kMinAlignment, kBufferSize);
@@ -140,7 +145,29 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
     mock_fallback_allocator_ = fallback_allocator.get();
 
     allocator_.reset(new BidirectionalFitReuseAllocator<ReuseAllocatorBase>(
-        mock_fallback_allocator_, 0, 0, 0, true));
+        mock_fallback_allocator_, 0, 0, 0, true,
+        /*retain_blocks=*/0,
+        /*conservative_decommit_blocks=*/0));
+
+    fallback_allocator_.reset(fallback_allocator.release());
+  }
+
+  void ResetAllocatorWithTieredDecommitSupport(
+      size_t retain_blocks,
+      size_t conservative_decommit_blocks) {
+    void* tmp = nullptr;
+    std::ignore = posix_memalign(&tmp, Allocator::kMinAlignment, kBufferSize);
+    buffer_.reset(static_cast<uint8_t*>(tmp));
+
+    std::unique_ptr<MockDecommitAllocator> fallback_allocator(
+        new MockDecommitAllocator(buffer_.get(), kBufferSize));
+
+    // Store pointer before move/swap
+    mock_fallback_allocator_ = fallback_allocator.get();
+
+    allocator_.reset(new BidirectionalFitReuseAllocator<ReuseAllocatorBase>(
+        mock_fallback_allocator_, 0, 0, 0, true, retain_blocks,
+        conservative_decommit_blocks));
 
     fallback_allocator_.reset(fallback_allocator.release());
   }
@@ -152,19 +179,21 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
       allocator_;
 };
 
-typedef ::testing::Types<starboard::InPlaceReuseAllocatorBase,
-                         starboard::ReuseAllocatorBase>
+typedef ::testing::Types<starboard::EmbeddedMetadataReuseAllocatorBase,
+                         starboard::ExternalMetadataReuseAllocatorBase>
     Implementations;
 
 class ClassNameGenerator {
  public:
   template <typename T>
   static std::string GetName(int) {
-    if constexpr (std::is_same_v<T, starboard::InPlaceReuseAllocatorBase>) {
-      return "InPlaceReuseAllocatorBase";
+    if constexpr (std::is_same_v<
+                      T, starboard::EmbeddedMetadataReuseAllocatorBase>) {
+      return "EmbeddedMetadataReuseAllocatorBase";
     }
-    if constexpr (std::is_same_v<T, starboard::ReuseAllocatorBase>) {
-      return "ReuseAllocatorBase";
+    if constexpr (std::is_same_v<
+                      T, starboard::ExternalMetadataReuseAllocatorBase>) {
+      return "ExternalMetadataReuseAllocatorBase";
     }
   }
 };
@@ -359,26 +388,27 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, DecommitExactFallbackBlocks) {
 
   EXPECT_TRUE(block1 != nullptr);
   EXPECT_TRUE(block2 != nullptr);
-  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0U);
 
   // Free them. The allocator may merge the free blocks internally,
   // but it must still decommit the original exact fallback blocks.
   this->allocator_->Free(block1);
   this->allocator_->Free(block2);
+  this->allocator_->DecommitAllDecommitableBlocks();
 
   // We should have exactly 2 decommits matching the original blocks.
-  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 2);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 2U);
 
   // They might be decommitted in any order, so check if both exist.
-  // Note: For InPlaceReuseAllocatorBase, `block1` and `block2` are offset from
-  // the raw fallback memory pointer by `sizeof(BlockMetadata)`. Thus, we check
-  // if the original fallback block `contains` the user pointer, rather than
-  // checking for exact pointer equality.
+  // Note: For EmbeddedMetadataReuseAllocatorBase, `block1` and `block2` are
+  // offset from the raw fallback memory pointer by `sizeof(BlockMetadata)`.
+  // Thus, we check if the original fallback block `contains` the user pointer,
+  // rather than checking for exact pointer equality.
   bool found_block1 = false;
   bool found_block2 = false;
   for (const auto& decommit : this->mock_fallback_allocator_->decommits) {
-    uint8_t* fallback_ptr = static_cast<uint8_t*>(decommit.first);
-    size_t fallback_size = decommit.second;
+    uint8_t* fallback_ptr = static_cast<uint8_t*>(decommit.memory);
+    size_t fallback_size = decommit.size;
     uint8_t* ptr1 = static_cast<uint8_t*>(block1);
     uint8_t* ptr2 = static_cast<uint8_t*>(block2);
 
@@ -412,21 +442,90 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, DecommitOnBatchedFree) {
     blocks.push_back(block);
   }
 
-  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0U);
 
   for (void* block : blocks) {
     this->allocator_->Free(block);
   }
+  this->allocator_->DecommitAllDecommitableBlocks();
 
-  // InPlaceReuseAllocatorBase batches frees and processes them all at once when
-  // idle.
-  EXPECT_GT(this->mock_fallback_allocator_->decommits.size(), 0);
+  // EmbeddedMetadataReuseAllocatorBase batches frees and processes them all at
+  // once when idle.
+  EXPECT_GT(this->mock_fallback_allocator_->decommits.size(), 0U);
 
   size_t total_decommitted_size = 0;
   for (const auto& decommit : this->mock_fallback_allocator_->decommits) {
-    total_decommitted_size += decommit.second;
+    total_decommitted_size += decommit.size;
+    EXPECT_FALSE(decommit.conservative);
   }
   EXPECT_GE(total_decommitted_size, kBlockSize * kNumBlocks);
+}
+
+TYPED_TEST(BidirectionalFitReuseAllocatorTest, TieredDecommit) {
+  const size_t kAlignment = sizeof(void*);
+
+  // In this test, each allocate call will allocate a block of size 64KB (+
+  // metadata for InPlace). Since allocation_increment is 0, each will trigger a
+  // fallback allocation. So we pass blocks directly: 1 block retained, 2 blocks
+  // conservatively decommitted.
+  this->ResetAllocatorWithTieredDecommitSupport(/*retain_blocks=*/1,
+                                                /*conservative_blocks=*/2);
+
+  // Allocate 4 blocks of 64KB each.
+  // Block 1 (0 - 64KB) fits entirely in the retain window.
+  // Block 2 (64KB - 128KB) falls in the conservative window.
+  // Block 3 (128KB - 192KB) falls in the conservative window (starts at 128KB,
+  // bytes_past_retain=64KB < 128KB). Block 4 (192KB - 256KB) falls in the
+  // aggressive window (starts at 192KB, bytes_past_retain=128KB >= 128KB).
+  const size_t kBlockSize = 64 * 1024;
+  void* block1 = this->allocator_->Allocate(kBlockSize, kAlignment);
+  void* block2 = this->allocator_->Allocate(kBlockSize, kAlignment);
+  void* block3 = this->allocator_->Allocate(kBlockSize, kAlignment);
+  void* block4 = this->allocator_->Allocate(kBlockSize, kAlignment);
+
+  EXPECT_TRUE(block1 != nullptr);
+  EXPECT_TRUE(block2 != nullptr);
+  EXPECT_TRUE(block3 != nullptr);
+  EXPECT_TRUE(block4 != nullptr);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0U);
+
+  // Free them. The allocator should batch them and process when idle.
+  this->allocator_->Free(block1);
+  this->allocator_->Free(block2);
+  this->allocator_->Free(block3);
+  this->allocator_->Free(block4);
+  this->allocator_->DecommitAllDecommitableBlocks();
+
+  // Block 1 (retain) is skipped. Block 2, 3, 4 should be decommitted.
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 3U);
+
+  bool found_block2 = false;
+  bool found_block3 = false;
+  bool found_block4 = false;
+  for (const auto& decommit : this->mock_fallback_allocator_->decommits) {
+    uint8_t* fallback_ptr = static_cast<uint8_t*>(decommit.memory);
+    size_t fallback_size = decommit.size;
+    uint8_t* ptr2 = static_cast<uint8_t*>(block2);
+    uint8_t* ptr3 = static_cast<uint8_t*>(block3);
+    uint8_t* ptr4 = static_cast<uint8_t*>(block4);
+
+    if (ptr2 >= fallback_ptr && ptr2 < fallback_ptr + fallback_size) {
+      found_block2 = true;
+      EXPECT_TRUE(decommit.conservative);
+    }
+    if (ptr3 >= fallback_ptr && ptr3 < fallback_ptr + fallback_size) {
+      found_block3 = true;
+      EXPECT_TRUE(decommit.conservative);
+    }
+    if (ptr4 >= fallback_ptr && ptr4 < fallback_ptr + fallback_size) {
+      found_block4 = true;
+      EXPECT_FALSE(decommit.conservative);
+    }
+  }
+
+  EXPECT_TRUE(found_block2);
+  EXPECT_TRUE(found_block3);
+  EXPECT_TRUE(found_block4);
 }
 
 }  // namespace starboard

@@ -15,35 +15,36 @@
 #ifndef STARBOARD_SHARED_STARBOARD_THREAD_CHECKER_H_
 #define STARBOARD_SHARED_STARBOARD_THREAD_CHECKER_H_
 
+#include <sys/types.h>
+#include <unistd.h>
+
+#include "starboard/common/gettid.h"
 #include "starboard/common/log.h"
-#include "starboard/thread.h"
 
 namespace starboard {
 
 // A class that verifies that its methods are called on the same thread.
 class ThreadChecker {
  public:
-  ThreadChecker() : thread_id_(GetThreadId()) {
-    SB_CHECK(SbThreadIsValidId(thread_id_));
-  }
+  ThreadChecker() : thread_id_(GetThreadId()) { SB_CHECK(thread_id_ != 0); }
 
   bool CalledOnValidThread() const { return thread_id_ == GetThreadId(); }
 
  private:
-  static inline SbThreadId GetThreadId() {
+  static inline pid_t GetThreadId() {
     // NOTE: We can cache the thread ID in thread-local storage since Cobalt
     // doesn't use fork(). If fork() were used, the child process would inherit
     // the stale cached ID, (which would then be stale), and we would need to
     // clear the TLS cache as is done in:
     // https://github.com/youtube/cobalt/blob/c38073920388e75c8a4451811e723562cf63ca58/base/threading/platform_thread_posix.cc
-    thread_local SbThreadId tls_thread_id = kSbThreadInvalidId;
-    if (tls_thread_id == kSbThreadInvalidId) {
-      tls_thread_id = SbThreadGetId();
+    thread_local pid_t tls_thread_id = 0;
+    if (tls_thread_id == 0) {
+      tls_thread_id = gettid();
     }
     return tls_thread_id;
   }
 
-  const SbThreadId thread_id_;
+  const pid_t thread_id_;
 };
 
 }  // namespace starboard

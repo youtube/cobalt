@@ -17,7 +17,7 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "base/metrics/histogram_macros.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
@@ -51,8 +51,8 @@ bool HasConfigExpired(PrefService* experiment_prefs) {
   // compatibility and safety on first run, we treat it as valid
   if (!experiment_prefs->HasPrefPath(
           variations::prefs::kVariationsLastFetchTime)) {
-    UMA_HISTOGRAM_ENUMERATION("Cobalt.Finch.ConfigState",
-                              VariationsConfigState::kMissingTimestamp);
+    base::UmaHistogramEnumeration("Cobalt.Finch.ConfigState",
+                                  VariationsConfigState::kMissingTimestamp);
     return false;
   }
 
@@ -60,8 +60,8 @@ bool HasConfigExpired(PrefService* experiment_prefs) {
       experiment_prefs->GetTime(variations::prefs::kVariationsLastFetchTime);
   base::TimeDelta config_age = base::Time::Now() - fetch_time;
 
-  UMA_HISTOGRAM_CUSTOM_COUNTS("Cobalt.Finch.ConfigAgeInDays",
-                              config_age.InDays(), 1, 90, 50);
+  base::UmaHistogramCustomCounts("Cobalt.Finch.ConfigAgeInDays",
+                                 config_age.InDays(), 1, 90, 50);
 
   // Get the expiration threshold from the server config.
   const int expiration_threshold_in_days =
@@ -73,13 +73,13 @@ bool HasConfigExpired(PrefService* experiment_prefs) {
       config_age.InDays() > expiration_threshold_in_days) {
     LOG(WARNING) << "Variations config from " << fetch_time
                  << " has expired. Ignoring.";
-    UMA_HISTOGRAM_ENUMERATION("Cobalt.Finch.ConfigState",
-                              VariationsConfigState::kExpired);
+    base::UmaHistogramEnumeration("Cobalt.Finch.ConfigState",
+                                  VariationsConfigState::kExpired);
     return true;
   }
 
-  UMA_HISTOGRAM_ENUMERATION("Cobalt.Finch.ConfigState",
-                            VariationsConfigState::kValid);
+  base::UmaHistogramEnumeration("Cobalt.Finch.ConfigState",
+                                VariationsConfigState::kValid);
   return false;
 }
 
@@ -102,10 +102,10 @@ ExperimentConfigManager::CompareVersions(const std::string& version1,
   int v1_major, v1_minor, v2_major, v2_minor;
   if (!parse_version(version1, &v1_major, &v1_minor) ||
       !parse_version(version2, &v2_major, &v2_minor)) {
-    UMA_HISTOGRAM_BOOLEAN("Cobalt.Finch.VersionComparisonIsValid", false);
+    base::UmaHistogramBoolean("Cobalt.Finch.VersionComparisonIsValid", false);
     return VersionComparisonResult::kInvalidFormat;
   }
-  UMA_HISTOGRAM_BOOLEAN("Cobalt.Finch.VersionComparisonIsValid", true);
+  base::UmaHistogramBoolean("Cobalt.Finch.VersionComparisonIsValid", true);
 
   if (v1_major != v2_major) {
     return v1_major > v2_major ? VersionComparisonResult::kGreaterThan
@@ -127,6 +127,10 @@ ExperimentConfigManager::ExperimentConfigManager(
 }
 
 ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
+  if (cached_config_type_) {
+    return *cached_config_type_;
+  }
+
   DCHECK(metrics_local_state_);
   DCHECK(experiment_config_);
   DCHECK(!called_store_safe_config_);
@@ -142,12 +146,24 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
 
   int num_crashes = metrics_local_state_->GetInteger(
       variations::prefs::kVariationsCrashStreak);
+  base::UmaHistogramExactLinear("Cobalt.Finch.CrashStreakAtStartup",
+                                num_crashes, 20);
   static_assert(kDefaultCrashStreakEmptyConfigThreshold >
                     kDefaultCrashStreakSafeConfigThreshold,
                 "Threshold to use an empty experiment config should be larger "
                 "than to use the safe one.");
+
+  // Helper lambda to log UMA metrics and return the config type.
+  auto log_and_return = [](ExperimentConfigType type,
+                           FinchConfigOutcome outcome) {
+    base::UmaHistogramEnumeration("Cobalt.Finch.ConfigOutcome", outcome);
+    return type;
+  };
+
   if (num_crashes >= crash_streak_empty_config_threshold) {
-    return ExperimentConfigType::kEmptyConfig;
+    cached_config_type_ = ExperimentConfigType::kEmptyConfig;
+    return log_and_return(ExperimentConfigType::kEmptyConfig,
+                          FinchConfigOutcome::kEmptyConfigCrashStreak);
   }
 
   ExperimentConfigType config_type;
@@ -171,7 +187,9 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
   // If the feature is enabled and the config is expired, override the result to
   // treat it as an empty config.
   if (HasConfigExpired(experiment_config_) && expiration_enabled) {
-    return ExperimentConfigType::kEmptyConfig;
+    cached_config_type_ = ExperimentConfigType::kEmptyConfig;
+    return log_and_return(ExperimentConfigType::kEmptyConfig,
+                          FinchConfigOutcome::kEmptyConfigExpired);
   }
 
   // Check if a rollback happened. If so, apply the empty config.
@@ -185,11 +203,16 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
   if (!recorded_cobalt_version.empty() &&
       CompareVersions(recorded_cobalt_version, COBALT_VERSION) ==
           VersionComparisonResult::kGreaterThan) {
-    UMA_HISTOGRAM_BOOLEAN("Cobalt.Finch.RollbackDetected", true);
-    return ExperimentConfigType::kEmptyConfig;
+    cached_config_type_ = ExperimentConfigType::kEmptyConfig;
+    return log_and_return(ExperimentConfigType::kEmptyConfig,
+                          FinchConfigOutcome::kEmptyConfigRollback);
   }
 
-  return config_type;
+  cached_config_type_ = config_type;
+  return log_and_return(config_type,
+                        config_type == ExperimentConfigType::kSafeConfig
+                            ? FinchConfigOutcome::kSafeConfig
+                            : FinchConfigOutcome::kRegularConfig);
 }
 
 void ExperimentConfigManager::StoreSafeConfig() {

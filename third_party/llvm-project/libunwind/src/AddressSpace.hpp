@@ -490,7 +490,7 @@ static int findUnwindSectionsByPhdr(struct dl_phdr_info *pinfo,
 
 #endif  // defined(_LIBUNWIND_USE_DL_ITERATE_PHDR)
 
-#if defined(STARBOARD_IMPLEMENTATION)
+#if defined(STARBOARD_IMPLEMENTATION) && defined(_LIBUNWIND_USE_DL_ITERATE_PHDR)
 int evergreen_dl_iterate_phdr(
                  int (*callback) (struct dl_phdr_info *info,
                                   size_t size, void *data),
@@ -507,6 +507,32 @@ int evergreen_dl_iterate_phdr(
   }
 
   return ret || ::dl_iterate_phdr(callback, data);
+}
+#endif
+
+#if defined(STARBOARD_IMPLEMENTATION) && \
+    defined(_LIBUNWIND_USE_DL_UNWIND_FIND_EXIDX)
+_Unwind_Ptr evergreen_dl_unwind_find_exidx(_Unwind_Ptr pc, int *pcount) {
+  EvergreenInfo evergreen_info;
+  if (GetEvergreenInfo(&evergreen_info) && evergreen_info.base_address != 0) {
+    uint64_t pc_addr = static_cast<uint64_t>(pc);
+    if (pc_addr >= evergreen_info.base_address &&
+        (pc_addr - evergreen_info.base_address) < evergreen_info.load_size) {
+      const ElfW(Phdr)* phdr_table =
+          reinterpret_cast<const ElfW(Phdr)*>(evergreen_info.phdr_table);
+      for (size_t i = 0; i < evergreen_info.phdr_table_num; ++i) {
+        if (phdr_table[i].p_type == PT_ARM_EXIDX) {
+          *pcount =
+              static_cast<int>(phdr_table[i].p_memsz / sizeof(EHABIIndexEntry));
+          return static_cast<_Unwind_Ptr>(evergreen_info.base_address +
+                                          phdr_table[i].p_vaddr);
+        }
+      }
+      *pcount = 0;
+      return 0;
+    }
+  }
+  return ::dl_unwind_find_exidx(pc, pcount);
 }
 #endif
 
@@ -621,8 +647,13 @@ inline bool LocalAddressSpace::findUnwindSections(pint_t targetAddr,
   return true;
 #elif defined(_LIBUNWIND_USE_DL_UNWIND_FIND_EXIDX)
   int length = 0;
+#if defined(STARBOARD_IMPLEMENTATION)
+  info.arm_section = (uintptr_t)evergreen_dl_unwind_find_exidx(
+      (_Unwind_Ptr)targetAddr, &length);
+#else
   info.arm_section =
       (uintptr_t)dl_unwind_find_exidx((_Unwind_Ptr)targetAddr, &length);
+#endif
   info.arm_section_length = (size_t)length * sizeof(EHABIIndexEntry);
   if (info.arm_section && info.arm_section_length)
     return true;

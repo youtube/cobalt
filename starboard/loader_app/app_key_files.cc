@@ -74,15 +74,6 @@ bool CreateAppKeyFile(const std::string& file_name_path) {
   return true;
 }
 
-namespace {
-bool EndsWith(const std::string& s, const std::string& suffix) {
-  if (s.size() < suffix.size()) {
-    return false;
-  }
-  return strcmp(s.c_str() + (s.size() - suffix.size()), suffix.c_str()) == 0;
-}
-}  // namespace
-
 bool AnyGoodAppKeyFile(const std::string& dir) {
   DIR* directory = opendir(dir.c_str());
 
@@ -103,17 +94,15 @@ bool AnyGoodAppKeyFile(const std::string& dir) {
       break;
     }
 
-    struct dirent dirent_buffer;
-    struct dirent* dirent;
-    int result = readdir_r(directory, &dirent_buffer, &dirent);
-    if (result || !dirent) {
+    struct dirent* dirent = readdir(directory);
+    if (!dirent) {
       break;
     }
 
     starboard::strlcpy(filename.data(), dirent->d_name, filename.size());
 
     if (!strncmp(kFilePrefix, filename.data(), sizeof(kFilePrefix) - 1) &&
-        EndsWith(filename.data(), kGoodFileSuffix)) {
+        starboard::EndsWith(filename.data(), kGoodFileSuffix)) {
       found = true;
       break;
     }

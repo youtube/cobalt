@@ -32,4 +32,12 @@
 #define SB_IS_WCHAR_T_UTF16 1
 #endif
 
+// --- URLPlayer Configuration ------------------------------------------------
+
+// Enable URL-based player support (AVPlayer for HLS playback).
+#define SB_HAS_PLAYER_WITH_URL 1
+
+// Path to the URL player header, used by media/starboard/sbplayer_interface.h.
+#define SB_URL_PLAYER_INCLUDE_PATH "starboard/tvos/shared/media/url_player.h"
+
 #endif  // STARBOARD_TVOS_SHARED_CONFIGURATION_PUBLIC_H_

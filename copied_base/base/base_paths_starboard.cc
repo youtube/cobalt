@@ -12,13 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 #include "base/base_paths.h"
+#include "base/base64url.h"
+#include "base/command_line.h"
 #include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/logging.h"
+#include "starboard/common/app_key.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/system.h"
 
 namespace base {
+
+namespace {
+
+std::string GetApplicationKeyFromCommandLine() {
+  std::string url_str = starboard::kCobaltDefaultUrl;
+  base::CommandLine* cmd_line = base::CommandLine::ForCurrentProcess();
+  if (cmd_line->HasSwitch("url")) {
+    url_str = cmd_line->GetSwitchValueASCII("url");
+  }
+  return starboard::GetAppKey(url_str);
+}
+
+}  // namespace
 
 // This is where we can control the path for placement of a lot of file
 // resources for cobalt.
@@ -71,8 +92,8 @@ bool PathProviderStarboard(int key, FilePath* result) {
       bool success = SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(),
                                      path.size());
       if (success) {
-        *result = FilePath(path.data());
-        return true;
+        *result = FilePath(path.data()).Append(GetApplicationKeyFromCommandLine());
+        return base::CreateDirectory(*result);
       }
       DLOG(INFO) << "DIR_CACHE not defined.";
       return false;
@@ -90,9 +111,16 @@ bool PathProviderStarboard(int key, FilePath* result) {
       return false;
     }
 
-    case base::DIR_HOME:
-      // TODO: Add a home directory to SbSystemPathId and get it from there.
-      return PathProviderStarboard(base::DIR_CACHE, result);
+    case base::DIR_HOME: {
+      bool success = SbSystemGetPath(kSbSystemPathFilesDirectory, path.data(),
+                                     path.size());
+      if (success) {
+        *result = FilePath(path.data()).Append(GetApplicationKeyFromCommandLine());
+        return base::CreateDirectory(*result);
+      }
+      DLOG(INFO) << "DIR_HOME not defined.";
+      return false;
+    }
 
     case base::DIR_SYSTEM_FONTS:
       if (SbSystemGetPath(kSbSystemPathFontDirectory, path.data(),

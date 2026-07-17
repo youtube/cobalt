@@ -26,7 +26,7 @@ class RenderFrameHost;
 
 namespace performance {
 
-// Implements the H5vccSystem Mojo interface and extends
+// Implements the CobaltPerformance Mojo interface and extends
 // DocumentService so that an object's lifetime is scoped to the corresponding
 // document / RenderFrameHost (see DocumentService for details).
 class PerformanceImpl

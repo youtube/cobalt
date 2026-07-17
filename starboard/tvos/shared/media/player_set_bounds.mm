@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/rect.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #import "starboard/tvos/shared/media/application_player.h"
@@ -41,5 +42,5 @@ void SbPlayerSetBounds(SbPlayer player,
     }
   }
   // Normal player process
-  player->SetBounds(z_index, x, y, width, height);
+  player->SetBounds(z_index, starboard::Rect(x, y, width, height));
 }

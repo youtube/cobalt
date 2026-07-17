@@ -16,6 +16,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdio>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -27,9 +28,17 @@
 #include "base/logging.h"
 #include "base/memory/memory_pressure_listener.h"
 #include "base/no_destructor.h"
+#include "base/run_loop.h"
+#include "base/synchronization/lock.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/platform_thread.h"
+#include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "cobalt/app/app_event_delegate.h"
+
+#if BUILDFLAG(USE_EVERGREEN)
+#include "cobalt/updater/updater_module.h"
+#endif
 #include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
@@ -49,14 +58,19 @@
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 #endif
 
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-#include <init_musl.h>
 #if BUILDFLAG(USE_EVERGREEN)
 #include "cobalt/browser/loader_app_metrics.h"
 #endif
-#endif
 
 namespace cobalt {
+
+namespace {
+// A timeout of 2 seconds was chosen to be long enough to allow for any
+// normal operations to complete, but short enough to avoid unnecessary
+// user-perceived delays.
+constexpr base::TimeDelta kTransitionTimeout = base::Seconds(2);
+}  // namespace
+
 #if !BUILDFLAG(IS_ANDROID)
 namespace {
 content::ContentMainRunner* GetContentMainRunner() {
@@ -67,10 +81,20 @@ content::ContentMainRunner* GetContentMainRunner() {
 }  // namespace
 #endif
 
-class AppEventRunnerImpl : public AppEventRunner {
+class AppEventRunnerImpl : public AppEventRunner,
+                           public CobaltLifecycleManagerObserver {
  public:
-  AppEventRunnerImpl() = default;
-  ~AppEventRunnerImpl() override = default;
+  AppEventRunnerImpl() {
+    CobaltLifecycleManager::GetInstance()->AddObserver(this);
+  }
+  ~AppEventRunnerImpl() override {
+    CobaltLifecycleManager::GetInstance()->RemoveObserver(this);
+  }
+
+  PendingAck pending_ack() const override {
+    base::AutoLock lock(lock_);
+    return pending_ack_;
+  }
 
   void InitializeSystem() override {
     exit_manager_ = std::make_unique<base::AtExitManager>();
@@ -84,15 +108,20 @@ class AppEventRunnerImpl : public AppEventRunner {
         false /* is_content_browsertests */, is_visible);
   }
 
+  std::vector<content::WebContents*> GetWebContents() override {
+    std::vector<content::WebContents*> result;
+    for (auto* shell : content::Shell::windows()) {
+      result.push_back(shell->web_contents());
+    }
+    return result;
+  }
+
   cobalt::CobaltMainDelegate* GetMainDelegate() override {
     return content_main_delegate_.get();
   }
 
   void DoStart(const SbEvent* event) override {
     SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-    init_musl();
-#endif
     InitializeSystem();
 #if BUILDFLAG(IS_STARBOARD)
     platform_event_source_ =
@@ -117,6 +146,8 @@ class AppEventRunnerImpl : public AppEventRunner {
 
     content::Shell::Shutdown();
 
+    base::RunLoop().RunUntilIdle();
+
     if (content_main_delegate_) {
       content_main_delegate_->Shutdown();
     }
@@ -132,6 +163,9 @@ class AppEventRunnerImpl : public AppEventRunner {
       main_runner_->Shutdown();
     }
 #endif
+
+    // Flush all open stdio streams before the process exits.
+    std::fflush(nullptr);
 
     // Destroy only after main_runner_/ContentMainRunnerImpl is shutdown
     // as the delegate is used internally.
@@ -159,6 +193,7 @@ class AppEventRunnerImpl : public AppEventRunner {
     // (e.g. CobaltActivity.onResume) which propagate directly to Chromium's
     // WindowAndroid.
 #endif
+    WaitForAck(PendingAck::kBlur);
   }
 
   void DoFocus() override {
@@ -174,19 +209,40 @@ class AppEventRunnerImpl : public AppEventRunner {
     content::Shell::OnFocus();
   }
 
-  void DoConceal() override { content::Shell::OnConceal(); }
-
-  void DoReveal() override { content::Shell::OnReveal(); }
-
-  void DoFreeze() override {
-    content::Shell::OnFreeze();
-    auto* client = cobalt::CobaltContentBrowserClient::Get();
-    if (client) {
-      client->FlushCookiesAndLocalStorage(base::DoNothing());
-    }
+  void DoConceal() override {
+    content::Shell::OnConceal();
+    WaitForAck(PendingAck::kConceal);
   }
 
-  void DoUnfreeze() override { content::Shell::OnUnfreeze(); }
+  void DoReveal() override {
+    content::Shell::OnReveal();
+    WaitForAck(PendingAck::kReveal);
+  }
+
+  void DoFreeze(base::OnceClosure callback) override {
+    content::Shell::OnFreeze();
+    WaitForAck(PendingAck::kCookieFlush);
+    std::move(callback).Run();
+#if BUILDFLAG(USE_EVERGREEN)
+    cobalt::updater::UpdaterModule* updater_module =
+        cobalt::updater::UpdaterModule::GetInstance();
+    if (updater_module) {
+      updater_module->Suspend();
+    }
+#endif
+  }
+
+  void DoUnfreeze() override {
+    content::Shell::OnUnfreeze();
+    WaitForAck(PendingAck::kUnfreeze);
+#if BUILDFLAG(USE_EVERGREEN)
+    cobalt::updater::UpdaterModule* updater_module =
+        cobalt::updater::UpdaterModule::GetInstance();
+    if (updater_module) {
+      updater_module->Resume();
+    }
+#endif
+  }
 
   void OnInput(const SbEvent* event) override {
     CHECK(is_running());
@@ -338,6 +394,89 @@ class AppEventRunnerImpl : public AppEventRunner {
 #if BUILDFLAG(IS_STARBOARD)
   std::unique_ptr<ui::PlatformEventSourceStarboard> platform_event_source_;
 #endif
+
+  void OnCookieFlushComplete() {
+    base::AutoLock lock(lock_);
+    if (quit_closure_) {
+      std::move(quit_closure_).Run();
+    }
+  }
+
+  void WaitForAck(PendingAck ack_type) {
+    base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_blocking;
+    base::AutoLock lock(lock_);
+    pending_ack_ = ack_type;
+
+    if (ack_type == PendingAck::kCookieFlush) {
+      auto* client = cobalt::CobaltContentBrowserClient::Get();
+      if (client) {
+        client->FlushCookiesAndLocalStorage(
+            base::BindOnce(&AppEventRunnerImpl::OnCookieFlushComplete,
+                           base::Unretained(this)));
+      } else {
+        pending_ack_ = PendingAck::kNone;
+        return;
+      }
+    } else {
+      for (auto* web_contents : GetWebContents()) {
+        CobaltLifecycleManager::GetInstance()->StartWaitingForAck(web_contents,
+                                                                  ack_type);
+      }
+    }
+
+    base::RunLoop run_loop(base::RunLoop::Type::kNestableTasksAllowed);
+    quit_closure_ = run_loop.QuitClosure();
+
+    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE, run_loop.QuitClosure(), kTransitionTimeout);
+
+    {
+      base::AutoUnlock unlock(lock_);
+      run_loop.Run();
+    }
+    pending_ack_ = PendingAck::kNone;
+  }
+
+  // CobaltLifecycleManagerObserver implementation.
+  void OnAllFramesVisible(content::WebContents* web_contents) override {
+    base::AutoLock lock(lock_);
+    if (pending_ack_ == PendingAck::kReveal) {
+      if (quit_closure_) {
+        std::move(quit_closure_).Run();
+      }
+    }
+  }
+
+  void OnAllFramesConcealed(content::WebContents* web_contents) override {
+    base::AutoLock lock(lock_);
+    if (pending_ack_ == PendingAck::kConceal) {
+      if (quit_closure_) {
+        std::move(quit_closure_).Run();
+      }
+    }
+  }
+
+  void OnAllFramesBlurred(content::WebContents* web_contents) override {
+    base::AutoLock lock(lock_);
+    if (pending_ack_ == PendingAck::kBlur) {
+      if (quit_closure_) {
+        std::move(quit_closure_).Run();
+      }
+    }
+  }
+
+  void OnAllFramesResumed(content::WebContents* web_contents) override {
+    base::AutoLock lock(lock_);
+    if (pending_ack_ == PendingAck::kUnfreeze) {
+      if (quit_closure_) {
+        std::move(quit_closure_).Run();
+      }
+    }
+  }
+
+  mutable base::Lock lock_;
+  base::OnceClosure quit_closure_;
+  PendingAck pending_ack_ = PendingAck::kNone;
 };
 
 void AppEventRunner::OnStart(const SbEvent* event) {
@@ -403,15 +542,18 @@ void AppEventRunner::OnReveal() {
   set_is_visible(true);
 }
 
-void AppEventRunner::OnFreeze() {
+void AppEventRunner::OnFreeze(base::OnceClosure callback) {
   CHECK(is_running());
   CHECK(!is_visible());
   CHECK(!is_focused());
   CHECK(!is_frozen());
 
-  DoFreeze();
-
-  set_is_frozen(true);
+  DoFreeze(base::BindOnce(
+      [](base::OnceClosure cb, AppEventRunner* runner) {
+        runner->set_is_frozen(true);
+        std::move(cb).Run();
+      },
+      std::move(callback), base::Unretained(this)));
 }
 
 void AppEventRunner::OnUnfreeze() {
@@ -421,7 +563,6 @@ void AppEventRunner::OnUnfreeze() {
   CHECK(is_frozen());
 
   DoUnfreeze();
-
   set_is_frozen(false);
 }
 

@@ -15,10 +15,13 @@
 #include <cstdlib>
 #include <string>
 
+#include "base/allocator/partition_alloc_features.h"
 #include "base/at_exit.h"
 #include "base/command_line.h"
+#include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/process/process.h"
+#include "base/test/test_suite.h"
 #include "base/test/test_support_starboard.h"
 #include "base/test/test_timeouts.h"
 #include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
@@ -38,7 +41,11 @@ class CobaltBrowserTestLauncherDelegate : public content::TestLauncherDelegate {
  public:
   // This method is called by content::LaunchTests to
   // execute the entire suite of discovered Google Tests.
-  int RunTestSuite(int argc, char** argv) override { return RUN_ALL_TESTS(); }
+  int RunTestSuite(int argc, char** argv) override {
+    base::TestSuite test_suite(argc, argv);
+    test_suite.DisableCheckForLeakedGlobals();
+    return test_suite.Run();
+  }
 
   content::ContentMainDelegate* CreateContentMainDelegate() override {
     return new content::ContentBrowserTestShellMainDelegate();
@@ -53,7 +60,6 @@ class CobaltBrowserTestLauncherDelegate : public content::TestLauncherDelegate {
 
 SB_EXPORT void SbEventHandle(const SbEvent* event) {
   static int s_test_result_code = 0;
-  static base::AtExitManager* s_at_exit_manager = nullptr;
   static CobaltBrowserTestLauncherDelegate* s_delegate = nullptr;
 
   switch (event->type) {
@@ -70,10 +76,21 @@ SB_EXPORT void SbEventHandle(const SbEvent* event) {
       base::CommandLine::Init(argc, argv);
       testing::InitGoogleTest(&argc, argv);
 
-      // A manager for singleton destruction.
-      if (!s_at_exit_manager) {
-        s_at_exit_manager = new base::AtExitManager();
+      base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+      std::string disabled_features =
+          command_line->GetSwitchValueASCII("disable-features");
+      if (disabled_features.empty()) {
+        disabled_features = "PartitionAllocDanglingPtr";
+      } else if (disabled_features.find("PartitionAllocDanglingPtr") ==
+                 std::string::npos) {
+        disabled_features += ",PartitionAllocDanglingPtr";
       }
+
+      auto feature_list = std::make_unique<base::FeatureList>();
+      feature_list->InitFromCommandLine(
+          command_line->GetSwitchValueASCII("enable-features"),
+          disabled_features);
+      base::FeatureList::SetInstance(std::move(feature_list));
 
       // TODO(b/433354983): Support more platforms.
       ui::LinuxUi::SetInstance(ui::GetDefaultLinuxUi());
@@ -81,7 +98,6 @@ SB_EXPORT void SbEventHandle(const SbEvent* event) {
       if (!s_delegate) {
         s_delegate = new CobaltBrowserTestLauncherDelegate();
       }
-      TestTimeouts::Initialize();
       base::InitStarboardTestMessageLoop();
       s_test_result_code = content::LaunchTests(s_delegate, 1, argc, argv);
       SbSystemRequestStop(s_test_result_code);

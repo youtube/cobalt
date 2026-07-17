@@ -6,6 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_MEDIASTREAM_PROCESSED_LOCAL_AUDIO_SOURCE_H_
 
 #include <string>
+#include "third_party/blink/public/common/buildflags.h"
 
 #include "base/memory/scoped_refptr.h"
 #include "base/synchronization/lock.h"
@@ -139,7 +140,9 @@ class MODULES_EXPORT ProcessedLocalAudioSource final
   // TODO(crbug.com/704136): Consider moving ProcessedLocalAudioSource to
   // Oilpan and use Member<> here.
   WeakPersistent<LocalFrame> consumer_frame_;
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
   WeakPersistent<PeerConnectionDependencyFactory> dependency_factory_;
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 
   blink::AudioProcessingProperties audio_processing_properties_;
   int num_requested_channels_;

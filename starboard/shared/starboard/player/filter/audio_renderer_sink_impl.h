@@ -50,15 +50,7 @@ class AudioRendererSinkImpl : public AudioRendererSink {
                               int* max_cached_frames,
                               int* min_frames_per_append) const override;
 
- private:
-  // AudioRendererSink methods
-  bool IsAudioSampleTypeSupported(
-      SbMediaAudioSampleType audio_sample_type) const override;
-  bool IsAudioFrameStorageTypeSupported(
-      SbMediaAudioFrameStorageType audio_frame_storage_type) const override;
-  int GetNearestSupportedSampleFrequency(
-      int sampling_frequency_hz) const override;
-
+ protected:
   bool HasStarted() const override;
   void Start(int64_t media_start_time,
              int channels,
@@ -69,7 +61,20 @@ class AudioRendererSinkImpl : public AudioRendererSink {
              int frames_per_channel,
              RenderCallback* render_callback) override;
   void Stop() override;
-  void Reset() override;
+
+  SbAudioSinkPrivate* audio_sink_ = kSbAudioSinkInvalid;
+  RenderCallback* render_callback_ = NULL;
+  double playback_rate_ = 1.0;
+  double volume_ = 1.0;
+
+ private:
+  // AudioRendererSink methods
+  bool IsAudioSampleTypeSupported(
+      SbMediaAudioSampleType audio_sample_type) const override;
+  bool IsAudioFrameStorageTypeSupported(
+      SbMediaAudioFrameStorageType audio_frame_storage_type) const override;
+  int GetNearestSupportedSampleFrequency(
+      int sampling_frequency_hz) const override;
 
   void SetVolume(double volume) override;
   void SetPlaybackRate(double playback_rate) override;
@@ -89,11 +94,6 @@ class AudioRendererSinkImpl : public AudioRendererSink {
 
   ThreadChecker thread_checker_;
   const CreateAudioSinkFunc create_audio_sink_func_;
-
-  SbAudioSinkPrivate* audio_sink_ = kSbAudioSinkInvalid;
-  RenderCallback* render_callback_ = NULL;
-  double playback_rate_ = 1.0;
-  double volume_ = 1.0;
 };
 
 }  // namespace starboard

@@ -83,13 +83,19 @@
 #include "content/test/mock_platform_notification_service.h"
 #include "content/test/storage_partition_test_helpers.h"
 #include "content/web_test/browser/devtools_protocol_test_bindings.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "content/web_test/browser/fake_bluetooth_chooser.h"
+#endif
 #include "content/web_test/browser/test_info_extractor.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "content/web_test/browser/web_test_bluetooth_chooser_factory.h"
+#endif
 #include "content/web_test/browser/web_test_browser_context.h"
 #include "content/web_test/browser/web_test_content_browser_client.h"
 #include "content/web_test/browser/web_test_devtools_bindings.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "content/web_test/browser/web_test_first_device_bluetooth_chooser.h"
+#endif
 #include "content/web_test/browser/web_test_permission_manager.h"
 #include "content/web_test/browser/web_test_pressure_manager.h"
 #include "content/web_test/common/web_test_constants.h"
@@ -730,7 +736,9 @@ void WebTestControlHost::ResetBrowserAfterWebTest() {
   should_override_prefs_ = false;
   WebTestContentBrowserClient::Get()->SetPopupBlockingEnabled(true);
   WebTestContentBrowserClient::Get()->ResetMockClipboardHosts();
+#if !BUILDFLAG(IS_COBALT)
   WebTestContentBrowserClient::Get()->ResetFakeBluetoothDelegate();
+#endif
   WebTestContentBrowserClient::Get()->ResetWebSensorProviderAutomation();
   WebTestContentBrowserClient::Get()
       ->GetWebTestBrowserContext()
@@ -751,8 +759,9 @@ void WebTestControlHost::ResetBrowserAfterWebTest() {
 
   BlockThirdPartyCookies(
       net::cookie_util::IsForceThirdPartyCookieBlockingEnabled());
+#if !BUILDFLAG(IS_COBALT)
   SetBluetoothManualChooser(false);
-
+#endif
   ShellBrowserContext* browser_context =
       ShellContentBrowserClient::Get()->browser_context();
   static_cast<InMemoryFederatedPermissionContext*>(
@@ -1050,6 +1059,7 @@ bool WebTestControlHost::IsMainWindow(WebContents* web_contents) const {
   return main_window_ && web_contents == main_window_->web_contents();
 }
 
+#if !BUILDFLAG(IS_COBALT)
 std::unique_ptr<BluetoothChooser> WebTestControlHost::RunBluetoothChooser(
     RenderFrameHost* frame,
     const BluetoothChooser::EventHandler& event_handler) {
@@ -1071,6 +1081,7 @@ std::unique_ptr<BluetoothChooser> WebTestControlHost::RunBluetoothChooser(
 
   return std::make_unique<WebTestFirstDeviceBluetoothChooser>(event_handler);
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 void WebTestControlHost::RequestPointerLock(WebContents* web_contents) {
   if (next_pointer_lock_action_ == NextPointerLockAction::kTestWillRespond)
@@ -1339,7 +1350,9 @@ void WebTestControlHost::OnTestFinished() {
       browser_context->GetDefaultStoragePartition();
   storage_partition->GetServiceWorkerContext()->ClearAllServiceWorkersForTest(
       barrier_closure);
+#if !BUILDFLAG(IS_COBALT)
   storage_partition->ClearBluetoothAllowedDevicesMapForTesting();
+#endif
 
   // TODO(nhiroki): Add a comment about the reason why we terminate all shared
   // workers here.
@@ -2072,6 +2085,7 @@ void WebTestControlHost::CloseAllWindows() {
   base::RunLoop().RunUntilIdle();
 }
 
+#if !BUILDFLAG(IS_COBALT)
 void WebTestControlHost::SetBluetoothManualChooser(bool enable) {
   if (enable) {
     bluetooth_chooser_factory_ =
@@ -2117,6 +2131,7 @@ void WebTestControlHost::SendBluetoothManualChooserEvent(
   }
   bluetooth_chooser_factory_->SendEvent(event, argument);
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 void WebTestControlHost::BlockThirdPartyCookies(bool block) {
   ShellBrowserContext* browser_context =

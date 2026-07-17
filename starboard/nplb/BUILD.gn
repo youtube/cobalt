@@ -69,6 +69,7 @@ test("nplb") {
     # TODO: Separate functions tested by media buffer test into multiple
     # files.
     "media_buffer_test.cc",
+    "media_can_change_type_test.cc",
     "media_can_play_mime_and_key_system_test.cc",
     "media_configuration_test.cc",
     "media_set_audio_write_duration_test.cc",
@@ -84,6 +85,10 @@ test("nplb") {
     "player_test_util.cc",
     "player_test_util.h",
     "player_write_sample_test.cc",
+
+    # These helper files are used by the player tests.
+    "posix_compliance/posix_thread_helpers.cc",
+    "posix_compliance/posix_thread_helpers.h",
   ]
 
   # All platforms use the Starboard Media functionality.
@@ -97,7 +102,6 @@ test("nplb") {
       "configuration_test.cc",
       "egl_test.cc",
       "extern_c_test.cc",
-      "file_atomic_replace_test.cc",
       "file_delete_recursive_test.cc",
       "file_helpers.cc",
       "flat_map_test.cc",
@@ -121,6 +125,7 @@ test("nplb") {
       "posix_compliance/getrandom_test.cc",
       "posix_compliance/madvise_test.cc",
       "posix_compliance/malloc_usable_size_test.cc",
+      "posix_compliance/posix_alarm_test.cc",
       "posix_compliance/posix_aligned_alloc_test.cc",
       "posix_compliance/posix_arpa_inet_test.cc",
       "posix_compliance/posix_asctime_r_test.cc",
@@ -155,13 +160,19 @@ test("nplb") {
       "posix_compliance/posix_file_get_path_info_test.cc",
       "posix_compliance/posix_file_mode_string_to_flags_test.cc",
       "posix_compliance/posix_file_open_test.cc",
+      "posix_compliance/posix_file_openat_test.cc",
       "posix_compliance/posix_file_pathconf_test.cc",
       "posix_compliance/posix_file_read_test.cc",
       "posix_compliance/posix_file_seek_test.cc",
       "posix_compliance/posix_file_temp_test.cc",
+      "posix_compliance/posix_file_unlinkat_test.cc",
       "posix_compliance/posix_file_write_test.cc",
       "posix_compliance/posix_free_test.cc",
+      "posix_compliance/posix_fstatat_test.cc",
       "posix_compliance/posix_getcwd_test.cc",
+      "posix_compliance/posix_gettid_test.cc",
+      "posix_compliance/posix_inotify_test.cc",
+      "posix_compliance/posix_ioctl_test.cc",
       "posix_compliance/posix_isatty_test.cc",
       "posix_compliance/posix_link_test.cc",
       "posix_compliance/posix_locale_helpers.cc",
@@ -201,6 +212,10 @@ test("nplb") {
       "posix_compliance/posix_rename_test.cc",
       "posix_compliance/posix_resource_limit_test.cc",
       "posix_compliance/posix_sched_getaffinity_test.cc",
+      "posix_compliance/posix_sched_getparam_test.cc",
+      "posix_compliance/posix_sched_getscheduler_test.cc",
+      "posix_compliance/posix_sched_setparam_test.cc",
+      "posix_compliance/posix_sched_setscheduler_test.cc",
       "posix_compliance/posix_select_test.cc",
       "posix_compliance/posix_semaphore_test.cc",
       "posix_compliance/posix_signal_test.cc",
@@ -229,7 +244,6 @@ test("nplb") {
       "posix_compliance/posix_string_compare_no_case_n_test.cc",
       "posix_compliance/posix_string_compare_no_case_test.cc",
       "posix_compliance/posix_string_format_test.cc",
-      "posix_compliance/posix_string_format_wide_test.cc",
       "posix_compliance/posix_string_scan_test.cc",
       "posix_compliance/posix_symlink_test.cc",
       "posix_compliance/posix_sys_chmod_test.cc",
@@ -242,8 +256,6 @@ test("nplb") {
       "posix_compliance/posix_thread_detach_test.cc",
       "posix_compliance/posix_thread_get_current_test.cc",
       "posix_compliance/posix_thread_get_name_test.cc",
-      "posix_compliance/posix_thread_helpers.cc",
-      "posix_compliance/posix_thread_helpers.h",
       "posix_compliance/posix_thread_is_equal_test.cc",
       "posix_compliance/posix_thread_join_test.cc",
       "posix_compliance/posix_thread_kill_test.cc",
@@ -311,7 +323,6 @@ test("nplb") {
       "system_network_status_test.cc",
       "system_sign_with_certification_secret_key_test.cc",
       "system_symbolize_test.cc",
-      "thread_get_id_test.cc",
       "thread_test.cc",
       "time_zone_get_name_test.cc",
       "ui_navigation_test.cc",
@@ -347,6 +358,7 @@ test("nplb") {
     "//starboard/shared/starboard/player:player_test_data",
     "//starboard/shared/starboard/player:video_dmp",
     "//starboard/testing:fake_graphics_context_provider",
+    "//starboard/testing:test_runner",
     "//testing/gmock",
     "//testing/gtest",
   ]
@@ -363,7 +375,7 @@ test("nplb") {
 
   data_deps = [ "//starboard/nplb/testdata/file_tests:nplb_file_tests_data" ]
 
-  if (sb_is_evergreen_compatible) {
+  if (is_starboard) {
     sources += [
       "nplb_evergreen_compat_tests/checks.h",
       "nplb_evergreen_compat_tests/executable_memory_test.cc",

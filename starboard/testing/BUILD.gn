@@ -26,3 +26,40 @@ static_library("fake_graphics_context_provider") {
     "//starboard/egl_and_gles:buildflags",
   ]
 }
+
+static_library("scoped_feature_list") {
+  testonly = true
+
+  sources = [
+    "scoped_feature_list.cc",
+    "scoped_feature_list.h",
+  ]
+
+  deps = [
+    "//starboard/common",
+    "//starboard/shared/starboard:feature_list",
+  ]
+}
+
+source_set("testing_test") {
+  testonly = true
+
+  sources = [ "scoped_feature_list_test.cc" ]
+
+  deps = [
+    ":scoped_feature_list",
+    "//starboard/common",
+    "//starboard/shared/starboard:feature_list",
+    "//testing/gtest",
+  ]
+}
+
+static_library("test_runner") {
+  testonly = true
+
+  sources = [ "test_runner.h" ]
+
+  if (!is_ios && !is_android) {
+    sources += [ "test_runner.cc" ]
+  }
+}

@@ -19,14 +19,10 @@
 
 #include <memory>
 
+#include "starboard/common/rect.h"
 #include "starboard/player.h"
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
-namespace player {
-
 struct SB_EXPORT Player {
   virtual ~Player() {}
   static int MaxNumberOfSamplesPerWrite();
@@ -38,17 +34,13 @@ struct SB_EXPORT Player {
   virtual void Seek(int64_t seek_to_timestamp, int ticket) = 0;
   virtual bool SetRate(double rate) = 0;
   virtual void GetInfo(SbPlayerInfo* info) = 0;
-  virtual void SetBounds(int zindex, int x, int y, int w, int h) = 0;
+  virtual void SetBounds(int zindex, const Rect& rect) = 0;
 };
 
 void ForceStop();
 void AudioConfigurationChanged();
 
-}  // namespace player
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party
 
 struct SbPlayerPrivate {
   SbPlayerPrivate(SbWindow window,
@@ -67,11 +59,10 @@ struct SbPlayerPrivate {
   ~SbPlayerPrivate() {}
 
   int MaxNumberOfSamplesPerWrite() const {
-    using third_party::starboard::rdk::shared::player::Player;
-    return Player::MaxNumberOfSamplesPerWrite();
+    return starboard::Player::MaxNumberOfSamplesPerWrite();
   }
 
-  std::unique_ptr<third_party::starboard::rdk::shared::player::Player> player_;
+  std::unique_ptr<starboard::Player> player_;
 };
 
 #endif  // THIRD_PARTY_STARBOARD_RDK_SHARED_PLAYER_PLAYER_INTERNAL_H_

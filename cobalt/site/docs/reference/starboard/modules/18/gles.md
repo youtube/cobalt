@@ -3,37 +3,35 @@ Book: /youtube/cobalt/_book.yaml
 
 # Starboard Module Reference: `gles.h`
 
-The GLES API provides an interface with accompanying type declarations and
-defines that together provide a single consistent method of GLES usage across
+The GLES API provides an interface along with type declarations and definitions.
+Together, these provide a single, consistent method for GLES usage across
 platforms.
 
-This API is designed to abstract the differences between GLES implementations
-and versions on different systems, and to remove the requirement for any other
-code to directly pull in and use these system libraries.
+This API is designed to abstract differences between GLES implementations and
+versions across various systems. It also removes the need for other code to
+directly import and use system libraries.
 
 ## GLES Version
 
-This API has the ability to support GLES 3.0, however platforms are not required
-to support anything beyond GLES 2.0. The caller is responsible for ensuring that
-the functions from GLES 3.0 they are calling from the interface are valid.
+While this API can support GLES 3.0, platforms are only required to support GLES
+2.0. Callers are responsible for ensuring that any GLES 3.0 functions they call
+through the interface are valid.
 
 ## Macros
 
 ### SB_GL_DEPTH_BUFFER_BIT
 
-Previously defined in [https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h](https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h)
+Previously defined in [gl2.h](https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h)
 
 ### SB_GL_READ_BUFFER
 
-Previously defined in [https://www.khronos.org/registry/OpenGL/api/GLES3/gl3.h](https://www.khronos.org/registry/OpenGL/api/GLES3/gl3.h)
-.
+Previously defined in [gl3.h](https://www.khronos.org/registry/OpenGL/api/GLES3/gl3.h).
 
 ## Typedefs
 
 ### SbGlBoolean
 
-The following type definitions were adapted from the types declared in [https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h](https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h)
-.
+The following type definitions were adapted from the types declared in [gl2.h](https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h).
 
 #### Definition
 
@@ -43,11 +41,10 @@ typedef uint8_t SbGlBoolean
 
 ### SbGlIntPtr
 
-Some compilers will transform the intptr_t to an int transparently behind the
-scenes, which is not equivalent to a long int, or long long int, as far as the
-compiler is concerned. We check the Starboard configuration and set the types to
-those exact types used by OpenGL ES 2.0 ( [https://www.khronos.org/registry/OpenGL/api/GLES2/gl2ext.h](https://www.khronos.org/registry/OpenGL/api/GLES2/gl2ext.h)
-).
+Some compilers implicitly convert `intptr_t` to `int`. However, this is not
+equivalent to a `long int` or `long long int` from the compiler's perspective.
+Starboard checks the platform configuration and sets the types to match those
+used by OpenGL ES 2.0 (see [gl2ext.h](https://www.khronos.org/registry/OpenGL/api/GLES2/gl2ext.h)).
 
 #### Definition
 
@@ -63,8 +60,7 @@ typedef long int SbGlIntPtr
 
 *   `void(*glActiveTexture)(SbGlEnum texture)`
 
-    The following prototypes were adapted from the prototypes declared in [https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h](https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h)
-    .
+    The following prototypes were adapted from the prototypes declared in [https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h](https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h).
 *   `void(*glAttachShader)(SbGlUInt32 program, SbGlUInt32 shader)`
 *   `void(*glBindAttribLocation)(SbGlUInt32 program, SbGlUInt32 index, const
     SbGlChar *name)`
@@ -166,7 +162,7 @@ typedef long int SbGlIntPtr
     precisiontype, SbGlInt32 *range, SbGlInt32 *precision)`
 *   `void(*glGetShaderSource)(SbGlUInt32 shader, SbGlSizei bufSize, SbGlSizei
     *length, SbGlChar *source)`
-*   `const SbGlUInt8 *(*glGetString)(SbGlEnum name)`
+*   `const SbGlUInt8*(*glGetString)(SbGlEnum name)`
 *   `void(*glGetTexParameterfv)(SbGlEnum target, SbGlEnum pname, SbGlFloat
     *params)`
 *   `void(*glGetTexParameteriv)(SbGlEnum target, SbGlEnum pname, SbGlInt32
@@ -278,8 +274,7 @@ typedef long int SbGlIntPtr
     height)`
 *   `void(*glReadBuffer)(SbGlEnum src)`
 
-    The following prototypes were adapted from the prototypes declared in [https://www.khronos.org/registry/OpenGL/api/GLES3/gl3.h](https://www.khronos.org/registry/OpenGL/api/GLES3/gl3.h)
-    .
+    The following prototypes were adapted from the prototypes declared in [https://www.khronos.org/registry/OpenGL/api/GLES3/gl3.h](https://www.khronos.org/registry/OpenGL/api/GLES3/gl3.h).
 *   `void(*glDrawRangeElements)(SbGlEnum mode, SbGlUInt32 start, SbGlUInt32 end,
     SbGlSizei count, SbGlEnum type, const void *indices)`
 *   `void(*glTexImage3D)(SbGlEnum target, SbGlInt32 level, SbGlInt32
@@ -328,7 +323,7 @@ typedef long int SbGlIntPtr
     SbGlEnum internalformat, SbGlSizei width, SbGlSizei height)`
 *   `void(*glFramebufferTextureLayer)(SbGlEnum target, SbGlEnum attachment,
     SbGlUInt32 texture, SbGlInt32 level, SbGlInt32 layer)`
-*   `void *(*glMapBufferRange)(SbGlEnum target, SbGlIntPtr offset, SbGlSizeiPtr
+*   `void*(*glMapBufferRange)(SbGlEnum target, SbGlIntPtr offset, SbGlSizeiPtr
     length, SbGlBitfield access)`
 *   `void(*glFlushMappedBufferRange)(SbGlEnum target, SbGlIntPtr offset,
     SbGlSizeiPtr length)`
@@ -386,7 +381,7 @@ typedef long int SbGlIntPtr
     SbGlFloat *value)`
 *   `void(*glClearBufferfi)(SbGlEnum buffer, SbGlInt32 drawbuffer, SbGlFloat
     depth, SbGlInt32 stencil)`
-*   `const SbGlUInt8 *(*glGetStringi)(SbGlEnum name, SbGlUInt32 index)`
+*   `const SbGlUInt8*(*glGetStringi)(SbGlEnum name, SbGlUInt32 index)`
 *   `void(*glCopyBufferSubData)(SbGlEnum readTarget, SbGlEnum writeTarget,
     SbGlIntPtr readOffset, SbGlIntPtr writeOffset, SbGlSizeiPtr size)`
 *   `void(*glGetUniformIndices)(SbGlUInt32 program, SbGlSizei uniformCount,

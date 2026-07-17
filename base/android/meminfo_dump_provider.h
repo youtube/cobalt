@@ -10,6 +10,8 @@
 #include "base/time/time.h"
 #include "base/trace_event/base_tracing.h"
 
+#include "build/build_config.h"
+
 namespace base::android {
 
 class BASE_EXPORT MeminfoDumpProvider
@@ -25,6 +27,9 @@ class BASE_EXPORT MeminfoDumpProvider
   static constexpr char kIsStaleName[] = "is_stale";
   static constexpr char kPssMetricName[] = "other_pss";
   static constexpr char kPrivateDirtyMetricName[] = "other_private_dirty";
+#if BUILDFLAG(IS_COBALT)
+  static constexpr char kGraphicsMetricName[] = "graphics";
+#endif
 
  private:
   friend class base::NoDestructor<MeminfoDumpProvider>;

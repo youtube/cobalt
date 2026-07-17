@@ -13,29 +13,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Helper script to poll a JS expression via CDP until it matches an expected value.
 
 EXPR=$1
 EXPECTED=$2
-PORT=$3
-TIMEOUT=${4:-10}
+PORT=${3:-9222}
+TIMEOUT=${4:-30}
+HOST=${5:-"localhost"}
 
 START_TIME=$(date +%s)
-
-echo "[WAIT] Waiting for '$EXPR' to be '$EXPECTED' (timeout: ${TIMEOUT}s)..."
+echo "[WAIT] Waiting for '$EXPR' to be '$EXPECTED' on $HOST:$PORT (timeout: ${TIMEOUT}s)..."
 
 while true; do
-  RESULT=$(vpython3 cobalt/tools/cdp_js_helper.py --port $PORT "$EXPR" 2>/dev/null)
-  if [ "$RESULT" == "$EXPECTED" ]; then
+  RESULT=$(vpython3 cobalt/tools/cdp_js_helper.py --host $HOST --port $PORT "$EXPR")
+  if [[ "$RESULT" == "$EXPECTED" ]]; then
     END_TIME=$(date +%s)
     DURATION=$((END_TIME - START_TIME))
-    echo "[WAIT] SUCCESS: '$EXPR' is now '$EXPECTED' (took ${DURATION}s)"
+    echo "[WAIT] SUCCESS: '$EXPR' matched '$EXPECTED' (took ${DURATION}s)"
     exit 0
   fi
 
   CURRENT_TIME=$(date +%s)
-  if [ $((CURRENT_TIME - START_TIME)) -gt $TIMEOUT ]; then
-    echo "FAILURE: Timeout waiting for $EXPR to be $EXPECTED. Got: $RESULT"
+  ELAPSED=$((CURRENT_TIME - START_TIME))
+  if [ $ELAPSED -ge $TIMEOUT ]; then
+    echo "FAILURE: Timeout waiting for '$EXPR' to be '$EXPECTED'. Last result: '$RESULT'"
     exit 1
   fi
-  sleep 0.5
+  sleep 1
 done

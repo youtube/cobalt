@@ -32,7 +32,6 @@
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/job_thread.h"
-#include "starboard/thread.h"
 
 namespace starboard {
 

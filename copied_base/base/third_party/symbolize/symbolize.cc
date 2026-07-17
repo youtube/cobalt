@@ -52,6 +52,9 @@
 #include GLOG_BUILD_CONFIG_INCLUDE
 #endif  // GLOG_BUILD_CONFIG_INCLUDE
 
+// Allow pread() to use higher offsets on 32-bit systems.
+#define _FILE_OFFSET_BITS 64
+
 #include "symbolize.h"
 
 #include "utilities.h"
@@ -66,6 +69,20 @@
 
 #include "symbolize.h"
 #include "demangle.h"
+
+#include "build/build_config.h"
+// TODO: b/398296821 - Cobalt: to support google::Symbolize() when called from
+// the Evergreen library (as opposed to from below Starboard) we would need to
+// also make these customizations when building with the Cobalt toolchain,
+// meaning we'd want to remove |BUILDFLAG(IS_STARBOARD_TOOLCHAIN)| from this
+// condition. But yavor@ described in
+// https://github.com/youtube/cobalt/pull/8290 why additional changes are needed
+// before we can safely do that.
+#if BUILDFLAG(IS_STARBOARD) && \
+    BUILDFLAG(USE_EVERGREEN) && \
+    BUILDFLAG(IS_STARBOARD_TOOLCHAIN)
+#include "starboard/elf_loader/evergreen_info.h"  // nogncheck
+#endif
 
 _START_GOOGLE_NAMESPACE_
 
@@ -502,6 +519,20 @@ static char *GetHex(const char *start, const char *end, uint64_t *hex) {
   return const_cast<char *>(p);
 }
 
+#if BUILDFLAG(IS_STARBOARD) && \
+    BUILDFLAG(USE_EVERGREEN) && \
+    BUILDFLAG(IS_STARBOARD_TOOLCHAIN)
+static ATTRIBUTE_NOINLINE int OpenFile(const char* file_name) {
+  int object_fd = -1;
+  NO_INTR(object_fd = open(file_name, O_RDONLY));
+  if (object_fd < 0) {
+    return -1;
+  }
+  return object_fd;
+}
+#endif
+
+
 static int OpenObjectFileContainingPcAndGetStartAddressNoHook(
     uint64_t pc,
     uint64_t& start_address,
@@ -771,8 +802,23 @@ static ATTRIBUTE_NOINLINE bool SymbolizeAndDemangle(void* pc,
   out[0] = '\0';
   SafeAppendString("(", out, out_size);
 
-  int object_fd = OpenObjectFileContainingPcAndGetStartAddress(
-      pc0, start_address, base_address, out + 1, out_size - 1);
+  const int object_fd = [&] {
+#if BUILDFLAG(IS_STARBOARD) && BUILDFLAG(USE_EVERGREEN) && \
+    BUILDFLAG(IS_STARBOARD_TOOLCHAIN)
+    EvergreenInfo evergreen_info;
+    if (GetEvergreenInfo(&evergreen_info) &&
+        IS_EVERGREEN_ADDRESS(pc, evergreen_info)) {
+      char* file_name = evergreen_info.file_path_buf;
+      start_address = evergreen_info.base_address;
+      base_address = evergreen_info.base_address;
+      if (file_name)
+        return OpenFile(file_name);
+    }
+#endif
+
+    return OpenObjectFileContainingPcAndGetStartAddress(
+        pc0, start_address, base_address, out + 1, out_size - 1);
+  }();
 
   FileDescriptor wrapped_object_fd(object_fd);
 

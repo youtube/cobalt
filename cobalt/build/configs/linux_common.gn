@@ -109,3 +109,9 @@ enable_media_remoting_rpc = false
 
 # Enable v8 snapshot compression to reduce binary size (~167KB) for a small startup cost (<10ms).
 v8_enable_snapshot_compression = true
+
+# Disable the Compute Pressure API to reduce binary size as it is not used in Cobalt.
+enable_compute_pressure = false
+
+# Disable shadow metadata since it depends on memfd, which is unsupported.
+enable_shadow_metadata = false

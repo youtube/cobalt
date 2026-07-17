@@ -491,6 +491,16 @@ SB_EXPORT void SbPlayerSeek(SbPlayer player,
 // SbPlayerWriteSamples(), so it must be copied if its content will be used
 // after SbPlayerWriteSamples() returns.
 //
+// Subsequent calls to SbPlayerWriteSamples() may pass samples with a media
+// configuration (such as codec or MIME type) that differs from the player's
+// current active configuration. When this transition is supported (see
+// SbMediaCanChangeType()), the player is expected to handle
+// the configuration switch on the active SbPlayer instance, allowing for the
+// incoming samples to be written.
+//
+// The caller is guaranteed not to attempt dynamic configuration changes for
+// a transition if SbMediaCanChangeType() returns false.
+//
 // |number_of_sample_infos|: Specify the number of samples contained inside
 // |sample_infos|. It has to be at least one, and at most the return value
 // of SbPlayerGetMaximumNumberOfSamplesPerWrite().

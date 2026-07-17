@@ -35,6 +35,7 @@ struct musl_statvfs {
   fsfilcnt_t f_ffree;
   fsfilcnt_t f_favail;
   unsigned long f_fsid;
+  unsigned : 8 * (2 * sizeof(int) - sizeof(long));
   unsigned long f_flag;
   unsigned long f_namemax;
   int __f_spare[6];

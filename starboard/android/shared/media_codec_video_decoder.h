@@ -28,7 +28,7 @@
 #include "starboard/android/shared/decode_target.h"
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/max_media_codec_output_buffers_lookup_table.h"
-#include "starboard/android/shared/media_codec_bridge.h"
+#include "starboard/android/shared/media_codec.h"
 #include "starboard/android/shared/media_codec_decoder.h"
 #include "starboard/android/shared/video_frame_tracker.h"
 #include "starboard/android/shared/video_surface_texture_bridge.h"
@@ -47,6 +47,7 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
@@ -56,45 +57,62 @@ class MediaCodecVideoDecoder : public VideoDecoder,
                                private JobQueue::JobOwner,
                                private VideoSurfaceHolder {
  public:
+  struct StreamConfig {
+    VideoStreamInfo video_stream_info;
+    SbDrmSystem drm_system = kSbDrmSystemInvalid;
+    SbPlayerOutputMode output_mode = kSbPlayerOutputModeInvalid;
+    SbDecodeTargetGraphicsContextProvider*
+        decode_target_graphics_context_provider = nullptr;
+    void* surface_view = nullptr;
+    std::string max_video_capabilities;
+  };
+
+  struct TunnelModeConfig {
+    std::optional<int> audio_session_id;
+    bool force_secure_pipeline = false;
+  };
+
+  struct PipelineConfig {
+    int max_input_size = 0;
+    bool enable_flush_during_seek = false;
+    bool use_dual_threads = true;
+    ExperimentalFeatures experimental_features;
+  };
+
+  struct PlatformOptions {
+    bool force_big_endian_hdr_metadata = false;
+    int64_t reset_delay_usec = 0;
+    int64_t flush_delay_usec = 0;
+  };
+
   class Sink;
+
   static NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>> Create(
       JobQueue* job_queue,
-      const VideoStreamInfo& video_stream_info,
-      SbDrmSystem drm_system,
-      SbPlayerOutputMode output_mode,
-      SbDecodeTargetGraphicsContextProvider*
-          decode_target_graphics_context_provider,
-      const std::string& max_video_capabilities,
-      int tunnel_mode_audio_session_id,
-      bool force_secure_pipeline_under_tunnel_mode,
-      bool force_reset_surface,
-      bool force_big_endian_hdr_metadata,
-      int max_input_size,
-      void* surface_view,
-      bool enable_flush_during_seek,
-      int64_t reset_delay_usec,
-      int64_t flush_delay_usec,
-      const ExperimentalFeatures& experimental_features);
+      const StreamConfig& stream_config,
+      const TunnelModeConfig& tunnel_mode_config,
+      const PipelineConfig& pipeline_config,
+      const PlatformOptions& platform_options);
 
-  MediaCodecVideoDecoder(PassKey<MediaCodecVideoDecoder>,
-                         JobQueue* job_queue,
-                         const VideoStreamInfo& video_stream_info,
-                         SbDrmSystem drm_system,
-                         SbPlayerOutputMode output_mode,
-                         SbDecodeTargetGraphicsContextProvider*
-                             decode_target_graphics_context_provider,
-                         const std::string& max_video_capabilities,
-                         int tunnel_mode_audio_session_id,
-                         bool force_secure_pipeline_under_tunnel_mode,
-                         bool force_reset_surface,
-                         bool force_big_endian_hdr_metadata,
-                         int max_input_size,
-                         void* surface_view,
-                         bool enable_flush_during_seek,
-                         int64_t reset_delay_usec,
-                         int64_t flush_delay_usec,
-                         const ExperimentalFeatures& experimental_features,
-                         std::string* error_message);
+  static NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>>
+  CreateForTesting(std::unique_ptr<MediaCodec::Factory> media_codec_factory,
+                   JobQueue* job_queue,
+                   const StreamConfig& stream_config,
+                   const TunnelModeConfig& tunnel_mode_config,
+                   const PipelineConfig& pipeline_config,
+                   const PlatformOptions& platform_options);
+
+  static void SetVideoFramePoolEnabled(bool enabled);
+
+  MediaCodecVideoDecoder(
+      PassKey<MediaCodecVideoDecoder>,
+      std::unique_ptr<MediaCodec::Factory> media_codec_factory,
+      JobQueue* job_queue,
+      const StreamConfig& stream_config,
+      const TunnelModeConfig& tunnel_mode_config,
+      const PipelineConfig& pipeline_config,
+      const PlatformOptions& platform_options,
+      std::string* error_message);
 
   ~MediaCodecVideoDecoder() override;
 
@@ -129,17 +147,16 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void TeardownCodec();
 
   void WriteInputBuffersInternal(const InputBuffers& input_buffers);
-  void ProcessOutputBuffer(MediaCodecBridge* media_codec_bridge,
+  void ProcessOutputBuffer(MediaCodec* media_codec_bridge,
                            const DequeueOutputResult& output) override;
-  void OnEndOfStreamWritten(MediaCodecBridge* media_codec_bridge) override;
-  void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) override;
-  bool Tick(MediaCodecBridge* media_codec_bridge) override;
+  void OnEndOfStreamWritten(MediaCodec* media_codec_bridge) override;
+  void RefreshOutputFormat(MediaCodec* media_codec_bridge) override;
+  bool Tick(MediaCodec* media_codec_bridge) override;
   void OnFlushing() override;
   bool IsBufferDecodeOnly(
       const scoped_refptr<InputBuffer>& input_buffer) override;
 
   void TryToSignalPrerollForTunnelMode();
-  bool IsFrameRenderedCallbackEnabled();
   void OnFrameRendered(int64_t frame_timestamp);
   void OnFirstTunnelFrameReady();
   void OnTunnelModeCheckForNeedMoreInput();
@@ -171,34 +188,41 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // Force endianness of HDR Metadata.
   const bool force_big_endian_hdr_metadata_;
 
-  const int tunnel_mode_audio_session_id_ = -1;
+  const std::optional<int> tunnel_mode_audio_session_id_;
 
   // Set the maximum size in bytes of an input buffer for video.
   const int max_video_input_size_;
 
-  const std::optional<bool> use_dual_threads_;
+  // Enable the use of dual-threading for video decoders. This separates the
+  // single threaded decoder thread into separate input and output processing
+  // threads when enabled.
+  const bool use_dual_threads_;
 
   // SurfaceView from AndroidOverlay passed from StarboardRenderer to SbPlayer.
-  void* surface_view_;
+  jni_zero::ScopedJavaGlobalRef<jobject> surface_view_;
 
   const bool enable_flush_during_seek_;
   const int64_t reset_delay_usec_;
   const int64_t flush_delay_usec_;
   const bool skip_flush_on_decoder_teardown_;
 
-  // Force resetting the video surface after every playback.
-  const bool force_reset_surface_;
+  // By default, we reset the surface view after every playback. This flag
+  // enables clearing the surface view, instead of resetting it.
+  const bool force_clear_surface_;
 
   // Codec initialization will be delayed until the decoder receives enough
   // inputs to estimate video fps when |needs_fps_to_initialize_codec_| is true.
   const bool needs_fps_to_initialize_codec_;
-  // Enable MediaCodec OutputChecker to elminate dirty output callbacks after
-  // flush.
-  const bool enable_output_checker_;
   // Workaround for b/506257255, which skips some video frames to make the
   // effective frame rate no more than 60 fps. This is only used for tunnel
   // mode.
   const bool skip_video_frames_over_60_fps_;
+
+  // Enable the workaround to ignore stale/dirty MediaCodec callback messages
+  // queued on the main thread during a flush.
+  const bool ignore_mediacodec_callbacks_during_flushing_;
+  const bool enable_trivial_optimizations_;
+  const bool enable_ndk_video_;
 
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline
@@ -235,6 +259,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // The last enqueued |SbMediaColorMetadata|.
   std::optional<SbMediaColorMetadata> color_metadata_;
 
+  // media_codec_factory_ cannot be null.
+  const std::unique_ptr<MediaCodec::Factory> media_codec_factory_;
   std::unique_ptr<MediaCodecDecoder> media_decoder_;
 
   std::atomic<int32_t> number_of_frames_being_decoded_{0};
@@ -266,6 +292,14 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   std::optional<VideoOutputFormat> output_format_;
   const size_t initial_number_of_preroll_frames_;
   size_t number_of_preroll_frames_;
+
+  static NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>> CreateInternal(
+      std::unique_ptr<MediaCodec::Factory> media_codec_factory,
+      JobQueue* job_queue,
+      const StreamConfig& stream_config,
+      const TunnelModeConfig& tunnel_mode_config,
+      const PipelineConfig& pipeline_config,
+      const PlatformOptions& platform_options);
 
   const std::unique_ptr<VideoSurfaceTextureBridge> surface_texture_bridge_;
 };

@@ -16,9 +16,9 @@ is_default_toolchain = current_toolchain == default_toolchain
 is_starboard_toolchain = current_toolchain == starboard_toolchain
 is_cobalt_toolchain = current_toolchain == cobalt_toolchain
 is_host_toolchain = current_toolchain == host_toolchain
-is_native_target = current_toolchain == native_target
+is_native_toolchain = current_toolchain == native_toolchain
 
-assert(!(is_starboard && is_native_target),
+assert(!(is_starboard && is_native_toolchain),
        "Targets should be built for Starboard or natively, but not both. " +
            "Set is_starboard = false in the native_target toolchain.")
 
@@ -29,4 +29,4 @@ is_starboardized_toolchain = is_starboard_toolchain || is_default_toolchain
 # to libcobalt.so, in Evergreen-compatible platforms, i.e. the "starboard" and
 # "native_target" toolchains.
 is_partner_toolchain =
-    (is_cobalt_hermetic_build && is_starboard_toolchain) || is_native_target
+    (is_cobalt_hermetic_build && is_starboard_toolchain) || is_native_toolchain

@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <mutex>
 
+#include "starboard/common/rect.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
@@ -33,7 +34,7 @@ class PunchoutVideoRendererSink : public VideoRendererSink {
 
  private:
   void SetRenderCB(RenderCB render_cb) override;
-  void SetBounds(int z_index, int x, int y, int width, int height) override;
+  void SetBounds(int z_index, const Rect& rect) override;
   void RunLoop();
 
   DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
@@ -47,10 +48,7 @@ class PunchoutVideoRendererSink : public VideoRendererSink {
 
   std::mutex mutex_;
   int z_index_;
-  int x_;
-  int y_;
-  int width_;
-  int height_;
+  Rect rect_;
 };
 
 }  // namespace starboard

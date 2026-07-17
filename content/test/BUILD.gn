@@ -801,6 +801,30 @@ static_library("test_support") {
     libs = [ "oleacc.lib" ]
   }
 
+  if (!enable_privacy_sandbox_apis) {
+    _filtered_sources = filter_exclude(sources, [
+      "../browser/browsing_topics/*",
+      "../browser/attribution_reporting/*",
+      "../browser/shared_storage/*",
+      "../browser/interest_group/*",
+      "../browser/private_aggregation/*",
+      "../browser/aggregation_service/*",
+      "../public/test/*browsing_topics*",
+      "../public/test/*shared_storage*",
+      "../public/test/*attribution*",
+      "../public/test/*interest_group*",
+      "../public/test/*private_aggregation*",
+      "../public/test/*aggregation_service*",
+    ])
+    sources = []
+    sources = _filtered_sources
+
+    deps -= [
+      "//content/browser/attribution_reporting:mojo_bindings",
+      "//content/browser/attribution_reporting:registration_result_mojom",
+    ]
+  }
+
   if (is_android) {
     sources += [
       "mock_overscroll_refresh_handler_android.cc",
@@ -859,6 +883,17 @@ static_library("test_support") {
 
   if (is_fuchsia) {
     public_deps += [ "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.mediacodec:fuchsia.mediacodec_hlcpp" ]
+  }
+
+  if (is_cobalt) {
+    sources -= [
+      "../browser/bluetooth/test/mock_bluetooth_delegate.cc",
+      "../browser/bluetooth/test/mock_bluetooth_delegate.h",
+      "../public/test/bluetooth_test_utils.cc",
+      "../public/test/bluetooth_test_utils.h",
+      "../public/test/embedded_worker_instance_test_harness.cc",
+      "../public/test/embedded_worker_instance_test_harness.h",
+    ]
   }
 }
 
@@ -1799,6 +1834,10 @@ test("content_browsertests") {
     sources += [ "../browser/network/sandboxed_socket_broker_browsertest.cc" ]
   }
 
+  if (is_cobalt) {
+    sources -= [ "../browser/bluetooth/web_bluetooth_service_impl_browsertest.cc" ]
+  }
+
   if (enable_reporting) {
     sources += [ "../browser/security/coop/cross_origin_opener_policy_reporting_browsertest.cc" ]
   }
@@ -1971,6 +2010,10 @@ test("content_browsertests") {
 
   if (!(is_chromeos && target_cpu == "arm64" && current_cpu == "arm")) {
     deps += [ "//components/variations" ]
+  }
+
+  if (is_cobalt) {
+    deps -= [ "//device/bluetooth:mocks" ]
   }
 
   data_deps = [
@@ -2414,6 +2457,24 @@ test("content_browsertests") {
       "//build/config/fuchsia/test/network.shard.test-cml",
       "//build/config/fuchsia/test/present_view.shard.test-cml",
       "//third_party/fuchsia-sdk/sdk/pkg/vulkan/client.shard.cml",
+    ]
+  }
+
+  if (!enable_privacy_sandbox_apis) {
+    _filtered_sources = filter_exclude(sources, [
+      "../browser/browsing_topics/*",
+      "../browser/attribution_reporting/*",
+      "../browser/shared_storage/*",
+      "../browser/interest_group/*",
+      "../browser/private_aggregation/*",
+      "../browser/aggregation_service/*",
+    ])
+    sources = []
+    sources = _filtered_sources
+
+    deps -= [
+      "//content/browser/attribution_reporting:mojo_bindings",
+      "//content/browser/attribution_reporting:registration_result_mojom",
     ]
   }
 }
@@ -3011,6 +3072,19 @@ test("content_unittests") {
     "FirstPartySetFuzzer.ParsesSetsCorrectly",
   ]
 
+  if (is_cobalt) {
+    sources -= [
+      "../browser/bluetooth/bluetooth_allowed_devices_unittest.cc",
+      "../browser/bluetooth/bluetooth_blocklist_unittest.cc",
+      "../browser/bluetooth/bluetooth_device_chooser_controller_unittest.cc",
+      "../browser/bluetooth/bluetooth_util_unittest.cc",
+      "../browser/bluetooth/frame_connected_bluetooth_devices_unittest.cc",
+      "../browser/bluetooth/web_bluetooth_pairing_manager_impl_unittest.cc",
+      "../browser/bluetooth/web_bluetooth_service_impl_unittest.cc",
+      "../browser/service_worker/embedded_worker_instance_unittest.cc",
+    ]
+  }
+
   if (is_mac) {
     sources += [
       "../browser/child_process_task_port_provider_mac_unittest.cc",
@@ -3077,6 +3151,11 @@ test("content_unittests") {
       "../browser/webid/digital_credentials/cross_device_request_dispatcher_unittest.cc",
       "../browser/webid/digital_credentials/cross_device_transaction_impl_unittest.cc",
     ]
+    if (is_cobalt) {
+      sources -= [
+        "../browser/webid/digital_credentials/cross_device_transaction_impl_unittest.cc",
+      ]
+    }
   }
 
   if (!is_android && !is_ios) {
@@ -3307,6 +3386,13 @@ test("content_unittests") {
     deps += [ ":content_nocompile_tests" ]
   }
 
+  if (is_cobalt) {
+    deps -= [
+      "//device/bluetooth",
+      "//device/bluetooth:mocks",
+    ]
+  }
+
   data_deps = [
     "//testing/buildbot/filters:content_unittests_filters",
     "//third_party/mesa_headers",
@@ -3324,7 +3410,7 @@ test("content_unittests") {
   }
 
   # Platforms where sqlite_dev_shell is defined.
-  if (is_win || is_mac || is_linux || is_chromeos) {
+  if ((is_win || is_mac || is_linux || is_chromeos) && enable_privacy_sandbox_apis) {
     sources += [ "../browser/attribution_reporting/attribution_storage_sql_query_plans_unittest.cc" ]
     deps += [ "../browser/attribution_reporting:sqlite_test_utils" ]
   }
@@ -3542,7 +3628,7 @@ test("content_unittests") {
 
   # HID support is not available without udev.
   is_linux_without_udev = (is_linux || is_chromeos) && !use_udev
-  if (!is_linux_without_udev && !is_android) {
+  if (!is_linux_without_udev && !is_android && !is_cobalt) {
     sources += [
       "../browser/hid/hid_service_unittest.cc",
       "../browser/service_worker/service_worker_hid_delegate_observer_unittest.cc",
@@ -3614,6 +3700,34 @@ test("content_unittests") {
   # TODO(crbug.com/1293538): Update to check is_cast_audio_only
   if (is_castos || is_cast_android) {
     deps += [ "//chromecast:chromecast_buildflags" ]
+  }
+
+  if (!enable_privacy_sandbox_apis) {
+    _filtered_sources = filter_exclude(sources, [
+      "../browser/browsing_topics/*",
+      "../browser/attribution_reporting/*",
+      "../browser/shared_storage/*",
+      "../browser/interest_group/*",
+      "../browser/private_aggregation/*",
+      "../browser/aggregation_service/*",
+      "../public/test/*browsing_topics*",
+      "../public/test/*shared_storage*",
+      "../public/test/*attribution*",
+      "../public/test/*interest_group*",
+      "../public/test/*private_aggregation*",
+      "../public/test/*aggregation_service*",
+      "*test_aggregation_service*",
+    ])
+    sources = []
+    sources = _filtered_sources
+
+    deps -= [
+      "//content/browser/attribution_reporting:attribution_reporting_proto",
+      "//content/browser/attribution_reporting:mojo_bindings",
+      "//content/browser/attribution_reporting:registration_result_mojom",
+      "//content/browser/interest_group:interest_group_proto",
+      "//content/browser/private_aggregation:for_content_tests",
+    ]
   }
 }
 

@@ -15,7 +15,6 @@
 #include <utility>
 
 #include "starboard/shared/starboard/player/buffer_internal.h"
-#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -53,6 +52,13 @@ TEST(BufferTest, CopyCtor) {
   }
 }
 
+TEST(BufferTest, CopyEmptyBuffer) {
+  Buffer original;
+  Buffer copy(original);
+  EXPECT_EQ(copy.size(), 0);
+  EXPECT_EQ(copy.data(), nullptr);
+}
+
 TEST(BufferTest, MoveCtor) {
   Buffer original(128);
   memset(original.data(), 'x', 128);
@@ -88,5 +94,4 @@ TEST(BufferTest, MoveAssignmentOperator) {
 }
 
 }  // namespace
-
 }  // namespace starboard

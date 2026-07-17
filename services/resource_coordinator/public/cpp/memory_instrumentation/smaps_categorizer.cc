@@ -63,8 +63,8 @@ bool ParseSmapsLine(std::string_view line, uint64_t* value_kb) {
 
 }  // namespace
 
-SmapsCategorizer::SmapsCategorizer(base::WeakPtr<DetailedMetricsDelegate> delegate)
-    : delegate_(std::move(delegate)) {
+SmapsCategorizer::SmapsCategorizer(DetailedMetricsDelegate* delegate)
+    : delegate_(delegate) {
   // Detach from the creation sequence (which is typically the main UI thread).
   // This ensures that the sequence checker will bind to the background sequenced
   // task runner (e.g., MemoryInfra or ThreadPool polling runner) when RequestDump()

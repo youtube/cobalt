@@ -73,7 +73,7 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   bool CanAcceptMoreData() const override;
 
   // Both of the following two functions can be called on any threads.
-  void SetBounds(int z_index, int x, int y, int width, int height) override;
+  void SetBounds(int z_index, const Rect& rect) override;
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
  private:
@@ -90,7 +90,10 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   const std::unique_ptr<VideoRenderAlgorithm> algorithm_;
   scoped_refptr<VideoRendererSink> sink_;
   std::unique_ptr<VideoDecoder> decoder_;
-  const ExperimentalFeatures experimental_features_;
+  const std::optional<int> min_input_buffers_;
+  const std::optional<int> min_decoded_frames_;
+  const bool enable_video_renderer_vsp_adjustment_;
+  const bool enable_trivial_optimizations_;
 
   PrerolledCB prerolled_cb_;
   EndedCB ended_cb_;

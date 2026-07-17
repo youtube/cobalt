@@ -19,18 +19,9 @@
 
 #include <gst/gst.h>
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
-namespace drm {
-
 GstElement *CreateDecryptorElement(const gchar* name);
 
-}  // namespace drm
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party
 
 #endif  // THIRD_PARTY_STARBOARD_RDK_SHARED_DRM_GST_DECRYPTOR_OCDM_H_

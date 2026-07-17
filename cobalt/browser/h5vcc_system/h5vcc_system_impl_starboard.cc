@@ -19,6 +19,7 @@
 #include "cobalt/configuration/configuration.h"
 #include "starboard/common/system_property.h"
 #include "starboard/system.h"
+#include "starboard/window.h"
 
 namespace h5vcc_system {
 
@@ -42,7 +43,7 @@ std::string GetAdvertisingIdShared() {
   std::string advertising_id;
   advertising_id =
       starboard::GetSystemPropertyString(kSbSystemPropertyAdvertisingId);
-  DLOG_IF(INFO, advertising_id == "")
+  DLOG_IF(INFO, advertising_id.empty())
       << "Failed to get kSbSystemPropertyAdvertisingId.";
   return advertising_id;
 }
@@ -51,7 +52,7 @@ bool GetLimitAdTrackingShared() {
   bool limit_ad_tracking = false;
   std::string result =
       starboard::GetSystemPropertyString(kSbSystemPropertyLimitAdTracking);
-  if (result == "") {
+  if (result.empty()) {
     DLOG(INFO) << "Failed to get kSbSystemPropertyLimitAdTracking.";
   } else {
     limit_ad_tracking = std::atoi(result.c_str());
@@ -103,6 +104,25 @@ void H5vccSystemImpl::RequestTrackingAuthorization(
     RequestTrackingAuthorizationCallback callback) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::move(callback).Run(false);
+}
+
+void H5vccSystemImpl::GetFriendlyName(GetFriendlyNameCallback callback) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  std::string friendly_name =
+      starboard::GetSystemPropertyString(kSbSystemPropertyFriendlyName);
+  DLOG_IF(INFO, friendly_name.empty())
+      << "Failed to get kSbSystemPropertyFriendlyName.";
+  std::move(callback).Run(friendly_name);
+}
+
+void H5vccSystemImpl::GetScreenDiagonal(GetScreenDiagonalCallback callback) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  SbWindow window = GetPrimarySbWindow();
+  DLOG_IF(ERROR, !SbWindowIsValid(window))
+      << "GetScreenDiagonal: Invalid primary window.";
+  float diagonal =
+      SbWindowIsValid(window) ? SbWindowGetDiagonalSizeInInches(window) : 0.0f;
+  std::move(callback).Run(static_cast<double>(diagonal));
 }
 
 void H5vccSystemImpl::GetUserOnExitStrategy(

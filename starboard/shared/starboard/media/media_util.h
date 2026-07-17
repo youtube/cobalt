@@ -32,10 +32,7 @@ namespace starboard {
 // of all its pointer members.
 struct AudioStreamInfo {
   AudioStreamInfo() = default;
-  template <typename StreamInfo>
-  explicit AudioStreamInfo(const StreamInfo& that) {
-    *this = that;
-  }
+  explicit AudioStreamInfo(const SbMediaAudioStreamInfo& that) { *this = that; }
   AudioStreamInfo& operator=(const SbMediaAudioStreamInfo& that);
 
   void ConvertTo(SbMediaAudioStreamInfo* audio_stream_info) const;
@@ -62,10 +59,7 @@ std::ostream& operator<<(std::ostream& os, const AudioStreamInfo& info);
 // of all its pointer members.
 struct AudioSampleInfo {
   AudioSampleInfo() = default;
-  template <typename SampleInfo>
-  explicit AudioSampleInfo(const SampleInfo& that) {
-    *this = that;
-  }
+  explicit AudioSampleInfo(const SbMediaAudioSampleInfo& that) { *this = that; }
   AudioSampleInfo& operator=(const SbMediaAudioSampleInfo& that);
 
   void ConvertTo(SbMediaAudioSampleInfo* audio_sample_info) const;
@@ -84,10 +78,7 @@ struct AudioSampleInfo {
 // of all its pointer members.
 struct VideoStreamInfo {
   VideoStreamInfo() = default;
-  template <typename StreamInfo>
-  explicit VideoStreamInfo(const StreamInfo& that) {
-    *this = that;
-  }
+  explicit VideoStreamInfo(const SbMediaVideoStreamInfo& that) { *this = that; }
   VideoStreamInfo& operator=(const SbMediaVideoStreamInfo& that);
 
   void ConvertTo(SbMediaVideoStreamInfo* video_stream_info) const;
@@ -111,10 +102,7 @@ bool operator!=(const VideoStreamInfo& left, const VideoStreamInfo& right);
 // of all its pointer members.
 struct VideoSampleInfo {
   VideoSampleInfo() = default;
-  template <typename SampleInfo>
-  explicit VideoSampleInfo(const SampleInfo& that) {
-    *this = that;
-  }
+  explicit VideoSampleInfo(const SbMediaVideoSampleInfo& that) { *this = that; }
   VideoSampleInfo& operator=(const SbMediaVideoSampleInfo& that);
 
   void ConvertTo(SbMediaVideoSampleInfo* video_sample_info) const;

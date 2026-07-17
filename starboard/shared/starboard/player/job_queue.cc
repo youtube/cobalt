@@ -35,20 +35,11 @@ JobQueue::~JobQueue() {
   StopSoon();
 }
 
-JobQueue::JobToken JobQueue::Schedule(const Job& job,
-                                      int64_t delay_usec /*= 0*/) {
-  return Schedule(job, NULL, delay_usec);
+JobQueue::JobToken JobQueue::Schedule(Job job, int64_t delay_usec /*= 0*/) {
+  return Schedule(std::move(job), /*owner=*/nullptr, delay_usec);
 }
 
-JobQueue::JobToken JobQueue::Schedule(Job&& job, int64_t delay_usec /*= 0*/) {
-  return Schedule(std::move(job), NULL, delay_usec);
-}
-
-void JobQueue::ScheduleAndWait(const Job& job) {
-  ScheduleAndWait(Job(job));
-}
-
-void JobQueue::ScheduleAndWait(Job&& job) {
+void JobQueue::ScheduleAndWait(Job job) {
   // TODO: Allow calling from the JobQueue thread.
   SB_CHECK(!BelongsToCurrentThread());
 
@@ -122,13 +113,7 @@ bool JobQueue::BelongsToCurrentThread() const {
   return thread_checker_.CalledOnValidThread();
 }
 
-JobQueue::JobToken JobQueue::Schedule(const Job& job,
-                                      JobOwner* owner,
-                                      int64_t delay_usec) {
-  return Schedule(Job(job), owner, delay_usec);
-}
-
-JobQueue::JobToken JobQueue::Schedule(Job&& job,
+JobQueue::JobToken JobQueue::Schedule(Job job,
                                       JobOwner* owner,
                                       int64_t delay_usec) {
   SB_DCHECK(job);

@@ -51,4 +51,12 @@ executable("devil_util_bin") {
     "//third_party/zstd:compress",
     "//third_party/zstd:decompress",
   ]
+
+  if (is_android && is_starboard) {
+    # TODO(crbug.com/509811765): to avoid a circular dependency, on AOSP //base
+    # doesn't depend on starboard_group, just on starboard_headers_only.
+    # We need to explicitly depend on starboard_group to supply the missing
+    # Starboard symbols that //base uses.
+    deps += [ "//starboard:starboard_group" ]
+  }
 }

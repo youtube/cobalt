@@ -3,21 +3,27 @@ Book: /youtube/cobalt/_book.yaml
 
 # Testing
 
-Starboard 18 attempts to make the porting process as easy as possible. To that
-end, Starboard 18 provides a compliance test suite, called NPLB
+Starboard 18 aims to make the porting process as easy as possible. To that
+end, it provides a compliance test suite, called NPLB
 (No Platform Left Behind), that porters can use to gauge their progress.
 
 ## Current State
 
-All of the APIs that Cobalt 27 defines are at least called by NPLB, and most of
-those APIs are verified in one way or another. The APIs that are most likely
-to just be implemented by a single system call, such as the Starboard functions
-defined in [string.h](../reference/starboard/modules/string.md) and [memory.h](../reference/starboard/modules/memory.md)
-are not exhaustively tested.
+NPLB calls all APIs defined by Cobalt 27 and verifies most of them. APIs
+typically implemented by a single system call are not exhaustively tested.
 
-NPLB tests must work on all Starboard implementations, so they may make no
-assumptions about platform-specific details. Rather, they attempt to define
-a living contract for the APIs on all platforms.
+Starboard also implements many POSIX APIs that Cobalt 27 requires, some of which
+replace earlier Starboard APIs, such as `sendto` replacing `SbSocketSendTo`.
+These APIs are also tested by NPLB, except for the following functions known to
+be missing tests:
+
+  * `fstatat`
+  * `openat`
+  * `unlinkat`
+
+Because NPLB tests must work on all Starboard implementations, they make
+no assumptions about platform-specific details. Instead, they define a living
+contract for the APIs across all platforms.
 
 ## Test Organization
 
@@ -32,13 +38,12 @@ A significant portion of compliance tests, especially those replacing older
 Starboard APIs, are located in `starboard/nplb/posix_compliance/` and follow
 a `posix_<function>_test.cc` naming convention.
 
-Although each test may incidentally test other functions, there is an attempt
-to keep things as self-contained as possible within a function and module.
-At the same time, the tests also aim to avoid testing behavior that is
-effectively tested as part of another test.
+Although each test may incidentally test other functions, they are designed
+to be as self-contained as possible within a function and module. At the same
+time, the tests also aim to avoid repeating checks that are covered elsewhere.
 
-For example, `sendto` and `recvfrom` (which replaced `SbSocketSendTo` and
-`SbSocketReceiveFrom`) are tested together, ensuring that the API is
-self-consistent on both sides of a connection. Therefore, only one set of tests
-exist to cover those use cases, in
+For example, the `sendto` and `recvfrom` functions, which replaced `SbSocketSendTo`
+and `SbSocketReceiveFrom`, are tested together to ensure the API is
+self-consistent on both sides of a connection. Consequently, only one set of
+tests exists to cover these use cases, located in
 `starboard/nplb/posix_compliance/posix_socket_recvfrom_test.cc`.

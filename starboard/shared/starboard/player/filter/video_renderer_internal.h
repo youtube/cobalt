@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_INTERNAL_H_
 
+#include "starboard/common/rect.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/common.h"
@@ -45,7 +46,7 @@ class VideoRenderer {
   virtual bool CanAcceptMoreData() const = 0;
 
   // Both of the following two functions can be called on any threads.
-  virtual void SetBounds(int z_index, int x, int y, int width, int height) = 0;
+  virtual void SetBounds(int z_index, const Rect& rect) = 0;
   virtual SbDecodeTarget GetCurrentDecodeTarget() = 0;
 };
 

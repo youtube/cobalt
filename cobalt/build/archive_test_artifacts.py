@@ -19,20 +19,21 @@ import os
 import subprocess
 import sys
 import tempfile
-from typing import List, Tuple
 
 # Path prefixes that contain files we don't need to run tests.
-_EXCLUDE_DIRS = [
-    'obj/',
-    'lib.java/',
+_EXCLUDE_DIRS_DEFAULT = [
+    './exe.unstripped/', './lib.unstripped/', 'obj/', 'lib.java/',
+    '../../third_party/jdk/'
+]
+
+_EXCLUDE_DIRS_JUNIT = [
     './exe.unstripped/',
     './lib.unstripped/',
-    '../../third_party/jdk/',
 ]
 
 
 def _make_tar(archive_path: str, compression: str, compression_level: int,
-              file_lists: List[Tuple[str, str]]):
+              file_lists: list[tuple[str, str]]):
   """Creates the tar file. Uses tar command instead of tarfile for performance.
   """
   if compression == 'gz':
@@ -74,12 +75,13 @@ def _handle_browsertests(
     out_dir: str,
     destination_dir: str,
     compression: str,
+    archive_name: str = 'cobalt_browsertests_deps',
 ):
   # Handle cobalt_browsertests using the specialized script.
   collect_script = os.path.join(source_dir, 'cobalt', 'testing',
                                 'browser_tests', 'tools',
                                 'collect_test_artifacts.py')
-  output_name = f'cobalt_browsertests_deps.tar.{compression}'
+  output_name = f'{archive_name}.tar.{compression}'
   cmd = [
       sys.executable, collect_script, out_dir, '-o', output_name,
       '--output_dir', destination_dir, '--compression', compression
@@ -88,9 +90,49 @@ def _handle_browsertests(
   subprocess.check_call(cmd)
 
 
+def _find_deps_file(*, target: str, target_name: str, target_path: str,
+                    out_dir: str, use_android_deps_path: bool,
+                    is_junit_test: bool):
+  """Checks possible search paths for the runtime deps files for a target."""
+  search_paths = []
+
+  if use_android_deps_path:
+    search_paths.extend([
+        os.path.join(out_dir, 'gen.runtime', target_path,
+                     f'{target_name}__test_runner_script.runtime_deps'),
+    ])
+  else:
+    search_paths.extend([
+        os.path.join(out_dir, f'{target_name}.runtime_deps'),
+        # If |deps_file| doesn't exist it could be due to being generated with
+        # the starboard_toolchain. In that case, we should look in subfolders.
+        # For the time being, just try with an extra starboard/ in the path.
+        os.path.join(out_dir, 'starboard', f'{target_name}.runtime_deps')
+    ])
+
+  if is_junit_test:
+    # Fallback for robolectric tests which don't append '__test_runner_script'
+    search_paths.extend([
+        os.path.join(out_dir, 'gen.runtime', target_path,
+                     f'{target_name}.runtime_deps')
+    ])
+
+  found_path = None
+  for search_path in search_paths:
+    print(f'Checking for deps_file for {target} in {search_path}.')
+    if os.path.exists(search_path):
+      found_path = search_path
+      break
+
+  if found_path:
+    return found_path
+  else:
+    raise FileNotFoundError(f'Runtime deps file not found for {target}')
+
+
 def create_archive(
     *,
-    targets: List[str],
+    targets: list[str],
     source_dir: str,
     out_dir: str,
     destination_dir: str,
@@ -101,32 +143,40 @@ def create_archive(
     flatten_deps: bool,
 ):
   """Main logic. Collects runtime dependencies for each target."""
+  os.makedirs(destination_dir, exist_ok=True)
   combined_deps = set()
   for target in targets:
     # TODO(b/483460300): Unify unittest and browsertest packaging
     if target.endswith(':cobalt_browsertests'):
-      _handle_browsertests(source_dir, out_dir, destination_dir, compression)
-      # If this was the only target, we are done.
-      if len(targets) == 1:
-        return
-      continue
+      if not use_android_deps_path:
+        _handle_browsertests(source_dir, out_dir, destination_dir, compression)
+        # If this was the only target, we are done.
+        if len(targets) == 1:
+          return
+        continue
+      else:
+        # Generate host runner archive and lightweight device archive
+        _handle_browsertests(
+            source_dir,
+            out_dir,
+            destination_dir,
+            compression,
+            archive_name='cobalt_browsertests_host_deps')
+
+    # Junit tests have some exceptions to normal packaging steps.
+    is_junit_test = 'junit' in target
     target_path, target_name = target.split(':')
+    target_path = target_path.lstrip('/')
     # Paths are configured in test.gni:
     # https://github.com/youtube/cobalt/blob/main/testing/test.gni
-    if use_android_deps_path:
-      deps_file = os.path.join(
-          out_dir, 'gen.runtime', target_path,
-          f'{target_name}__test_runner_script.runtime_deps')
-    else:
-      deps_file = os.path.join(out_dir, f'{target_name}.runtime_deps')
-      if not os.path.exists(deps_file):
-        # If |deps_file| doesn't exist it could be due to being generated with
-        # the starboard_toolchain. In that case, we should look in subfolders.
-        # For the time being, just try with an extra starboard/ in the path.
-        deps_file = os.path.join(out_dir, 'starboard',
-                                 f'{target_name}.runtime_deps')
+    deps_file = _find_deps_file(
+        target=target,
+        target_name=target_name,
+        target_path=target_path,
+        out_dir=out_dir,
+        use_android_deps_path=use_android_deps_path,
+        is_junit_test=is_junit_test)
 
-    print('Collecting runtime dependencies for', target)
     with open(deps_file, 'r', encoding='utf-8') as runtime_deps_file:
       # The paths in the runtime_deps files are relative to the out folder.
       # Android tests expects files both in the out and source root folders
@@ -141,8 +191,25 @@ def create_archive(
       if os.path.exists(test_targets_json):
         target_deps.add(os.path.join(tar_root, 'test_targets.json'))
 
+      # Add JUnit wrapper scripts if they exist (special case for these
+      # since they are missing from the runtime deps file).
+      # TODO(b/524712602): This special case handling could be removed with GN
+      # refactoring of the Robolectric binary.
+      if is_junit_test:
+        print(f'Adding Junit-specific test runner scripts for {target}.')
+        junit_wrapper = os.path.join('bin', f'run_{target_name}')
+        junit_helper = os.path.join('bin', 'helper', target_name)
+        if os.path.exists(os.path.join(out_dir, junit_wrapper)):
+          target_deps.add(os.path.join(tar_root, junit_wrapper))
+        if os.path.exists(os.path.join(out_dir, junit_helper)):
+          target_deps.add(os.path.join(tar_root, junit_helper))
+
+      exclude_dirs = _EXCLUDE_DIRS_DEFAULT
+      if is_junit_test:
+        exclude_dirs = _EXCLUDE_DIRS_JUNIT
+
       for line in runtime_deps_file:
-        if any(line.startswith(path) for path in _EXCLUDE_DIRS):
+        if any(line.startswith(path) for path in exclude_dirs):
           continue
 
         if flatten_deps and line.startswith('../../'):

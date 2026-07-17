@@ -56,22 +56,16 @@ clients, but not deprecated for starboard.
 ### SB_EXPORT_PLATFORM
 
 SB_C_FORCE_INLINE annotation for forcing a C function to be inlined.
-SB_EXPORT_PLATFORM annotates symbols as exported from shared libraries. //
-SB_API_VERSION >= 16
+SB_EXPORT_PLATFORM annotates symbols as exported from shared libraries.
 
 ### SB_FUNCTION
 
-Whether we use **PRETTY_FUNCTION** PRETTY_FUNCTION or **FUNCTION** FUNCTION for
-logging.
+Whether we use **PRETTY_FUNCTION** or **FUNCTION** for logging.
 
 ### SB_HAS(SB_FEATURE)
 
 Determines at compile-time whether this platform has a standard feature or
 header available.
-
-### SB_HAS_64_BIT_ATOMICS
-
-Whether the current platform has 64-bit atomic operations.
 
 ### SB_HAS_QUIRK(SB_FEATURE)
 
@@ -79,8 +73,7 @@ Determines at compile-time whether this platform has a quirk.
 
 ### SB_IMPORT_PLATFORM
 
-SB_IMPORT_PLATFORM annotates symbols as imported from shared libraries. //
-SB_API_VERSION >= 16
+SB_IMPORT_PLATFORM annotates symbols as imported from shared libraries.
 
 ### SB_INT64_C(x)
 
@@ -89,10 +82,6 @@ Declare numeric literals of signed 64-bit type.
 ### SB_IS(SB_FEATURE)
 
 Determines at compile-time an inherent aspect of this platform.
-
-### SB_LIKELY(x)
-
-Macro for hinting that an expression is likely to be true.
 
 ### SB_MAXIMUM_API_VERSION
 
@@ -109,46 +98,25 @@ inclusive.
 Macro to annotate a function as noreturn, which signals to the compiler that the
 function cannot return.
 
-### SB_PREFERRED_RGBA_BYTE_ORDER_RGBA
-
-An enumeration of values for the kSbPreferredByteOrder configuration variable.
-Setting this up properly means avoiding slow color swizzles when passing pixel
-data from one library to another. Note that these definitions are in byte-order
-and so are endianness-independent.
-
 ### SB_PRINTF_FORMAT(format_param, dots_param)
-
-Tells the compiler a function is using a printf-style format string.
-`format_param` is the one-based index of the format string parameter;
-`dots_param` is the one-based index of the "..." parameter. For v*printf
-functions (which take a va_list), pass 0 for dots_param. (This is undocumented
-but matches what the system C headers do.) (Partially taken from
-base/compiler_specific.h)
-
-### SB_RESTRICT
 
 Include the platform-specific configuration. This macro is set by GN in
 starboard/build/config/BUILD.gn and passed in on the command line for all
-targets and all configurations. Makes a pointer-typed parameter restricted so
-that the compiler can make certain optimizations because it knows the pointers
-are unique.
+targets and all configurations. Tells the compiler a function is using a
+printf-style format string. `format_param` is the one-based index of the format
+string parameter; `dots_param` is the one-based index of the "..." parameter.
+For v*printf functions (which take a va_list), pass 0 for dots_param. (This is
+undocumented but matches what the system C headers do.) (Partially taken from
+base/compiler_specific.h)
 
 ### SB_SIZE_OF(DATATYPE)
 
 Determines at compile-time the size of a data type, or 0 if the data type that
 was specified was invalid.
 
-### SB_STRINGIFY(x)
-
-Standard CPP trick to stringify an evaluated macro definition.
-
 ### SB_UINT64_C(x)
 
 Declare numeric literals of unsigned 64-bit type.
-
-### SB_UNLIKELY(x)
-
-Macro for hinting that an expression is likely to be false.
 
 ### SB_UNREFERENCED_PARAMETER(x)
 

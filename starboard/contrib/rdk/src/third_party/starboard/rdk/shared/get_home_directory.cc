@@ -45,7 +45,7 @@ bool GetHomeDirectory(char* out_path, int path_size) {
 
   const char* home_directory = getenv("HOME");
   if (home_directory) {
-    ::starboard::strlcpy<char>(out_path, home_directory, path_size);
+    strlcpy<char>(out_path, home_directory, path_size);
     return true;
   }
 
@@ -63,7 +63,7 @@ bool GetHomeDirectory(char* out_path, int path_size) {
     return false;
   }
 
-  ::starboard::strlcpy<char>(out_path, passwd.pw_dir, path_size);
+  strlcpy<char>(out_path, passwd.pw_dir, path_size);
   delete[] buffer;
   return true;
 }

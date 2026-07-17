@@ -152,10 +152,12 @@ class StarboardRendererWrapper
   mojo::Remote<ClientExtension> client_extension_remote_;
   cobalt::media::VideoGeometrySetterService* video_geometry_setter_service_;
   const base::UnguessableToken overlay_plane_id_;
-  StarboardRenderer renderer_;
   mojom::CommandBufferIdPtr command_buffer_id_;
   base::SequenceBound<StarboardGpuFactory> gpu_factory_;
   scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner_;
+  // |renderer_| must be declared after |gpu_task_runner_| as |renderer|'s dtor
+  // may make use of |gpu_task_runner_|.
+  StarboardRenderer renderer_;
 
   SbDecodeTargetGraphicsContextProvider
       decode_target_graphics_context_provider_ = {};

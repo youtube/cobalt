@@ -47,13 +47,11 @@ jobs:
           git remote add upstream https://chromium.googlesource.com/chromium/src
           git fetch --depth=1 upstream "refs/branch-heads/${{ matrix.branch.branch_num }}:refs/remotes/branch/${{ matrix.branch.branch_num }}"
       - name: Create missing Chromium branch
-        id: create_missing_branch
         if: steps.checkout.outcome == 'failure'
         run: |
           git checkout "refs/remotes/branch/${{ matrix.branch.branch_num }}"
           ORIGINAL_TREE_HASH=$(git rev-parse "HEAD^{tree}")
           ORIGINAL_COMMIT_HASH=$(git rev-parse HEAD)
-          echo "original_commit_hash=${ORIGINAL_COMMIT_HASH}" >> "$GITHUB_OUTPUT"
           NEW_ROOT_COMMIT_HASH=$(git commit-tree "${ORIGINAL_TREE_HASH}" -m "First commit for ${{ matrix.branch.milestone }}.")
           git checkout -b "chromium/${{ matrix.branch.milestone }}" "${NEW_ROOT_COMMIT_HASH}"
           git commit --amend --no-edit -c "${ORIGINAL_COMMIT_HASH}"
@@ -77,38 +75,3 @@ jobs:
             echo "No diff to apply."
             echo "main_cherry_pick=false" >> "$GITHUB_OUTPUT"
           fi
-      - uses: actions/checkout@v4
-        id: checkout_cherry_pick_main_sync
-        if: steps.push_diff.outputs.main_cherry_pick == 'true' && contains(matrix.branch.milestone, 'm138')
-        with:
-          ref: cherry-pick-main-sync
-          fetch-depth: 16
-          filter: blob:none
-          token: ${{ secrets.CHERRY_PICK_TOKEN }}
-      - name: Setup Git user
-        if: steps.checkout_cherry_pick_main_sync.outcome == 'success'
-        run: |
-          git config --global user.name "GitHub Release Automation"
-          git config --global user.email "github@google.com"
-      - name: Cherry Pick upstream diff to main
-        if: steps.checkout_cherry_pick_main_sync.outcome == 'success'
-        run: |
-          git pull --rebase origin main
-          if ! git cherry-pick "${{ steps.push_diff.outputs.main_cherry_pick_hash }}"; then
-            git status | sed -n "s/^[[:space:]]*deleted by us:[[:space:]]*//p" | xargs -d "\n" git rm
-            git add .
-            git cherry-pick --continue --no-edit
-          fi
-          echo "LASTCHANGE=${{ steps.create_missing_branch.outputs.original_commit_hash }}" > cobalt/LASTCHANGE.chromium
-          echo "LASTCHANGE_YEAR=$(date +'%Y')" >> cobalt/LASTCHANGE.chromium
-          git add cobalt/LASTCHANGE.chromium
-          git commit -m "Update LASTCHANGE.chromium for ${{ matrix.branch.milestone }}."
-
-          git push origin cherry-pick-main-sync --force
-          if [ -z "$(gh pr list -H cherry-pick-main-sync)" ]; then
-            gh pr create -B main -H cherry-pick-main-sync --fill -r "briantting"
-          else
-            echo "Pull Request already exists."
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

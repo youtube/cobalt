@@ -20,65 +20,52 @@
 #include "third_party/starboard/rdk/shared/accessibility_extension.h"
 #include "third_party/starboard/rdk/shared/rdkservices.h"
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
-
-namespace accessibility {
 
 bool GetTextToSpeechSettings(SbAccessibilityTextToSpeechSettings* out_setting) {
   if (!out_setting ||
-      !::starboard::MemoryIsZero(
-        out_setting, sizeof(SbAccessibilityTextToSpeechSettings))) {
+      !MemoryIsZero(out_setting, sizeof(SbAccessibilityTextToSpeechSettings))) {
     return false;
   }
   out_setting->has_text_to_speech_setting = true;
-  out_setting->is_text_to_speech_enabled =
-      third_party::starboard::rdk::shared::TextToSpeech::IsEnabled();
+  out_setting->is_text_to_speech_enabled = TextToSpeech::IsEnabled();
   return true;
 }
 
 bool GetDisplaySettings(SbAccessibilityDisplaySettings* out_setting) {
   if (!out_setting ||
-      !::starboard::MemoryIsZero(
-        out_setting, sizeof(SbAccessibilityDisplaySettings))) {
+      !MemoryIsZero(out_setting, sizeof(SbAccessibilityDisplaySettings))) {
     return false;
   }
 
-  return third_party::starboard::rdk::shared::Accessibility::GetDisplaySettings(out_setting);
+  return Accessibility::GetDisplaySettings(out_setting);
 }
 
 bool GetCaptionSettings(SbAccessibilityCaptionSettings* caption_settings) {
   if (!caption_settings ||
-      !::starboard::MemoryIsZero(
-          caption_settings, sizeof(SbAccessibilityCaptionSettings))) {
+      !MemoryIsZero(caption_settings, sizeof(SbAccessibilityCaptionSettings))) {
     return false;
   }
 
-  return third_party::starboard::rdk::shared::Accessibility::GetCaptionSettings(caption_settings);
+  return Accessibility::GetCaptionSettings(caption_settings);
 }
 
 bool SetCaptionsEnabled(bool enabled) {
   return false;
 }
 
-}  // namespace accessibility
 
 const StarboardExtensionAccessibilityApi kAccessibilityAPI = {
   kStarboardExtensionAccessibilityName,
   1,
-  &accessibility::GetTextToSpeechSettings,
-  &accessibility::GetDisplaySettings,
-  &accessibility::GetCaptionSettings,
-  &accessibility::SetCaptionsEnabled
+  &GetTextToSpeechSettings,
+  &GetDisplaySettings,
+  &GetCaptionSettings,
+  &SetCaptionsEnabled
 };
 
 const void* GetAccessibilityApi() {
   return &kAccessibilityAPI;
 }
 
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party

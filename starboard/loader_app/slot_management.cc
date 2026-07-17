@@ -51,8 +51,11 @@ const char kCobaltLibraryPath[] = "lib";
 // Filename for the Cobalt binary.
 const char kCobaltLibraryName[] = "libcobalt.so";
 
-// Filename for the compressed Cobalt binary.
-const char kCompressedCobaltLibraryName[] = "libcobalt.lz4";
+// Filename for the LZ4 compressed Cobalt binary.
+const char kLz4CompressedCobaltLibraryName[] = "libcobalt.lz4";
+
+// Filename for the Zstd compressed Cobalt binary.
+const char kZstdCompressedCobaltLibraryName[] = "libcobalt.zst";
 
 // Relative path for the content directory of
 // the Cobalt installation.
@@ -347,32 +350,41 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
     }
 
     // installation_n/lib/libcobalt.so
-    std::vector<char> compressed_lib_path(kSbFileMaxPath);
-    snprintf(compressed_lib_path.data(), kSbFileMaxPath, "%s%s%s%s%s",
+    std::vector<char> zstd_compressed_lib_path(kSbFileMaxPath);
+    snprintf(zstd_compressed_lib_path.data(), kSbFileMaxPath, "%s%s%s%s%s",
              installation_path.data(), kSbFileSepString, kCobaltLibraryPath,
-             kSbFileSepString, kCompressedCobaltLibraryName);
+             kSbFileSepString, kZstdCompressedCobaltLibraryName);
+    std::vector<char> lz4_compressed_lib_path(kSbFileMaxPath);
+    snprintf(lz4_compressed_lib_path.data(), kSbFileMaxPath, "%s%s%s%s%s",
+             installation_path.data(), kSbFileSepString, kCobaltLibraryPath,
+             kSbFileSepString, kLz4CompressedCobaltLibraryName);
     std::vector<char> uncompressed_lib_path(kSbFileMaxPath);
     snprintf(uncompressed_lib_path.data(), kSbFileMaxPath, "%s%s%s%s%s",
              installation_path.data(), kSbFileSepString, kCobaltLibraryPath,
              kSbFileSepString, kCobaltLibraryName);
 
     std::string lib_path;
-    bool use_compression;
+    elf_loader::CompressionType compression_type =
+        elf_loader::CompressionType::kNone;
     struct stat info;
-    if (stat(compressed_lib_path.data(), &info) == 0) {
-      lib_path = compressed_lib_path.data();
-      use_compression = true;
+    if (stat(lz4_compressed_lib_path.data(), &info) == 0) {
+      lib_path = lz4_compressed_lib_path.data();
+      compression_type = elf_loader::CompressionType::kLz4;
+    } else if (stat(zstd_compressed_lib_path.data(), &info) == 0) {
+      lib_path = zstd_compressed_lib_path.data();
+      compression_type = elf_loader::CompressionType::kZstd;
     } else if (stat(uncompressed_lib_path.data(), &info) == 0) {
       lib_path = uncompressed_lib_path.data();
-      use_compression = false;
     } else {
       SB_LOG(ERROR) << "No library found at compressed "
-                    << compressed_lib_path.data() << " or uncompressed "
+                    << zstd_compressed_lib_path.data() << " or "
+                    << lz4_compressed_lib_path.data() << " or uncompressed "
                     << uncompressed_lib_path.data() << " path";
       return NULL;
     }
 
-    if (use_compression && use_memory_mapped_file) {
+    if (compression_type != elf_loader::CompressionType::kNone &&
+        use_memory_mapped_file) {
       SB_LOG(ERROR) << "Using both compression and mmap files is not supported";
       return NULL;
     }
@@ -392,7 +404,7 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
 
     SB_LOG(INFO) << "content=" << content;
 
-    if (!library_loader->Load(lib_path, content.c_str(), use_compression,
+    if (!library_loader->Load(lib_path, content.c_str(), compression_type,
                               use_memory_mapped_file)) {
       SB_LOG(WARNING) << "Failed to load Cobalt!";
 

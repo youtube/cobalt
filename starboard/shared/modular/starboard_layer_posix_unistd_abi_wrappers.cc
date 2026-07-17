@@ -16,6 +16,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -696,6 +697,14 @@ musl_uid_t __abi_wrap_getuid() {
 
 musl_pid_t __abi_wrap_getpid() {
   return static_cast<musl_pid_t>(getpid());
+}
+
+musl_pid_t __abi_wrap_gettid() {
+#if defined(gettid)
+  return static_cast<musl_pid_t>(gettid());
+#else
+  return static_cast<musl_pid_t>(syscall(SYS_gettid));
+#endif
 }
 
 int __abi_wrap_access(const char* path, int amode) {

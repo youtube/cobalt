@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//cobalt/build/configs/hacks.gni")
+import("//starboard/build/config/starboard_executable.gni")
 import("//third_party/protobuf/proto_library.gni")
 
 _common_loader_app_sources = [
@@ -23,10 +24,9 @@ _common_loader_app_sources = [
   "system_get_extension_shim.h",
 ]
 
-if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+if (is_starboard && current_toolchain == starboard_toolchain) {
   group("common_loader_app_dependencies") {
     public_deps = [
-      ":app_key",
       ":installation_manager",
       ":memory_tracker_thread",
       ":read_evergreen_version",
@@ -34,6 +34,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       ":reset_evergreen_update",
       ":slot_management",
       "//starboard:starboard_group",
+      "//starboard/common",
       "//starboard/common:common_headers_only",
       "//starboard/crashpad_wrapper",
       "//starboard/elf_loader:constants",
@@ -56,7 +57,7 @@ static_library("record_loader_app_status") {
   deps = [ "//starboard:starboard_group" ]
 }
 
-if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+if (is_starboard && current_toolchain == starboard_toolchain) {
   source_set("loader_app_sources") {
     sources = _common_loader_app_sources
     deps = [
@@ -67,8 +68,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
     ]
   }
 
-  target(starboard_level_final_executable_type, "loader_app") {
-    output_dir = root_build_dir
+  starboard_executable("loader_app") {
     if (target_cpu == "x64" || target_cpu == "arm" || target_cpu == "arm64") {
       deps = [ ":loader_app_sources" ]
       data_deps = [ "//starboard/content/fonts:copy_font_data" ]
@@ -95,30 +95,6 @@ source_set("app_key_files_test") {
   deps = [
     ":app_key_files",
     "//starboard:starboard_group",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
-}
-
-static_library("app_key") {
-  sources = [
-    "app_key.cc",
-    "app_key.h",
-    "app_key_internal.cc",
-    "app_key_internal.h",
-  ]
-  deps = [
-    "//starboard:starboard_group",
-    "//starboard/common",
-    "//third_party/modp_b64",
-  ]
-}
-
-source_set("app_key_test") {
-  testonly = true
-  sources = [ "app_key_test.cc" ]
-  deps = [
-    ":app_key",
     "//testing/gmock",
     "//testing/gtest",
   ]
@@ -207,7 +183,7 @@ static_library("installation_manager") {
   ]
 }
 
-if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+if (is_starboard && current_toolchain == starboard_toolchain) {
   source_set("installation_manager_test") {
     testonly = true
     sources = [
@@ -243,7 +219,7 @@ static_library("slot_management") {
     "//starboard/elf_loader:sabi_string",
   ]
 
-  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain &&
+  if (is_starboard && current_toolchain == starboard_toolchain &&
       use_crashpad) {
     deps += [ "//starboard/crashpad_wrapper" ]
   } else {
@@ -280,7 +256,7 @@ static_library("pending_restart") {
   public_deps = [ "//starboard:starboard_headers_only" ]
 }
 
-if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+if (is_starboard && current_toolchain == starboard_toolchain) {
   static_library("memory_tracker_thread") {
     sources = [
       "memory_tracker_thread.cc",

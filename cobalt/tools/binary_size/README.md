@@ -1,101 +1,83 @@
 # Cobalt Binary Size Analysis Suite
 
-This directory serves as the centralized suite of assessment and diagnostic tools designed to analyze Cobalt's binary footprint, and facilitate the surgical reduction of binary size bloat.
-
-## Overview
-
-Cobalt inherits a massive amount of upstream code from Chromium. To meet strict release constraints on embedded devices, unnecessary features and sub-components must be continually audited and stripped.
-
-Because automated code refactoring introduces severe compilation and runtime risks, binary size reduction follows a **developer-driven manual workflow** guided by static assessment tooling.
+This directory contains the assessment, diagnostic, and planning tools designed to analyze Cobalt's binary footprint and facilitate surgical feature gating and component removal.
 
 ---
 
-## Common Input Generation (SuperSize Profiles)
+## 1. Input Generation (SuperSize Profiles)
+Most tools in this suite rely on Chromium's SuperSize (`.size`) files to map symbol sizes.
 
-Most tools in this suite rely on Chromium's SuperSize (`.size`) files to map the Proportional Set Size (PSS) byte contributions of compiled symbols.
+1. **Build the Release Binary**:
+   ```bash
+   autoninja -C out/android-arm_gold cobalt_apk
+   ```
+2. **Archive the Size File**:
+   * **Android**:
+     ```bash
+     python3 tools/binary_size/supersize archive cobalt27.size \
+       -f out/android-arm_gold/lib/libcobalt.so -v
+     ```
+---
 
-### 1. Building the Release Binary
-Always compile a release build of Cobalt using `autoninja` to ensure the binary reflects true production optimizations and linker dead-stripping:
+## 2. Tooling Index & How-To
 
-```bash
-autoninja -C out/android-arm_gold cobalt
-```
+### A. Feature Complexity Assessment (`analyze_feature_disable_difficulty.py`)
+This script audits the global GN build graph and C++ source files to generate an automated refactoring plan (JSON report) for disabling a feature.
 
-### 2. Archiving the Size File
-Use Chromium's SuperSize tool to archive the compiled artifacts into a `.size` file.
+#### Usage:
+Choose a query strategy depending on how the feature is structured in the code:
+* **By Path** (isolated directories):
+  ```bash
+  python3 cobalt/tools/binary_size/analyze_feature_disable_difficulty.py \
+    --path "third_party/blink/renderer/modules/ad_auction" --size_file cobalt27.size
+  ```
+* **By Component** (scattered features - *Highly Recommended*):
+  ```bash
+  python3 cobalt/tools/binary_size/analyze_feature_disable_difficulty.py \
+    --component "Blink>AdAuction" --size_file cobalt27.size
+  ```
+* **By Symbol** (specific entry classes):
+  ```bash
+  python3 cobalt/tools/binary_size/analyze_feature_disable_difficulty.py \
+    --symbol "NavigatorAuction" --size_file cobalt27.size
+  ```
+* **Add `--json <path>`** to export a structured JSON blueprint for downstream scripts/agents:
+  ```bash
+  python3 cobalt/tools/binary_size/analyze_feature_disable_difficulty.py \
+    --component "Blink>AdAuction" --json report.json
+  ```
 
-*   **For Android builds** (profiling the shared library or APK):
-    ```bash
-    python3 tools/binary_size/supersize archive cobalt27.size \
-      -f out/android-arm_gold/lib/libcobalt.so -v
-    ```
-*   **For Linux builds**:
-    ```bash
-    python3 tools/binary_size/supersize archive cobalt.size \
-      -f out/Release/cobalt -v
-    ```
-
-For more details on diffing builds (`.sizediff`) or launching the web visualizer, consult the official [SuperSize Playbook](https://chromium.googlesource.com/chromium/src/tools/+/HEAD/binary_size/libsupersize/README.md).
+#### Understanding the Output:
+* **`estimated_size_bytes`**: Potential PSS footprint saved by removing this feature.
+* **`targets[].type`**:
+  * `DEDICATED`: Feature-only files/folders. Can be removed using simple GN list subtraction (`-=`).
+  * `SHARED`: Shares code with core features. Must be pruned dynamically using `filter_exclude()`.
+* **`targets[].cpp_integration_audit`**: Lists exactly which core C++ files `#include` feature headers. These must be macro-gated using preprocessor flags.
 
 ---
 
-## Tooling Index
+### B. Snapshot Diffing (`analyze_binary_size_diff.py`)
+This script compares two compiled build snapshots (e.g., across branches or pull requests) to audit net binary size changes, new components, and third-party dependency growth.
 
-Below is the index of available diagnostic and analysis tools in this suite.
+#### Usage:
+1. **Generate the Diff Archive**:
+   ```bash
+   ./tools/binary_size/supersize diff baseline.size modified.size --output diff.sizediff
+   ```
+2. **Run the Analysis** inside the Supersize console:
+   ```bash
+   ./tools/binary_size/supersize console diff.sizediff \
+     --query='exec(open("cobalt/tools/binary_size/analyze_binary_size_diff.py").read())'
+   ```
 
-| Tool | Primary Mission |
-| :--- | :--- |
-| **`analyze_feature_disable_difficulty.py`** | Audits build graph reachability and C++ caller coupling to score the difficulty of manually removing a feature. |
-| *(Future Tools)* | Additional helper tools added to this suite will be documented below. |
-
----
-
-## Tool Details
-
-### 1. Feature Complexity Assessment (`analyze_feature_disable_difficulty.py`)
-
-This script acts as an advanced audit diagnostic. It analyzes SuperSize profiles, traverses the global GN build graph, and audits C++ source files to output an actionable refactoring blueprint for developers.
-
-#### Input Modes
-Select one of the mutually exclusive target modes to map a feature's footprint:
-
-*   `--path` - Analyze all targets under a specific folder path.
-    ```bash
-    python3 cobalt/tools/binary_size/analyze_feature_disable_difficulty.py \
-      --path services/on_device_model
-    ```
-*   `--namespace` - Analyze symbols declared within a specific C++ namespace.
-    ```bash
-    python3 cobalt/tools/binary_size/analyze_feature_disable_difficulty.py \
-      --namespace optimization_guide
-    ```
-*   `--component` - Analyze a SuperSize component category.
-    ```bash
-    python3 cobalt/tools/binary_size/analyze_feature_disable_difficulty.py \
-      --component Blink>Language
-    ```
-*   `--symbol` - Trace a specific compiled symbol name.
-
-#### Optional Arguments
-*   `--size_file` - Path to the generated `.size` file (defaults to `cobalt27.size`).
-*   `--build_dir` - Path to the GN build directory (defaults to `out/android-arm_gold`).
-*   `--root_target` - Top-level target to check paths from (defaults to `//cobalt:gn_all`).
-*   `--json` - Export a structured JSON automation report.
-*   `--verbose` - Enable verbose logging of subprocess calls.
-
-#### Interpreting Reports (The Chain of Discovery)
-To cleanly remove a feature using the assessment report, follow this human-in-the-loop workflow:
-1.  **Identify Funnel Targets**: Open the `BUILD.gn` files for the direct preceding callers listed under `funnel_targets`.
-2.  **Trace Feature Flags**: Read the calling C++ files in those funnel layers to locate the C++ runtime feature flags (e.g., `kOptimizationGuideOnDeviceModel`) used to gate the feature.
-3.  **Grep Expansion**: Search the repository for the flag strings and base names to uncover companion WebUI registration files, Mojo interfaces (`.mojom`), and uncompiled resource bundles (`.pak`) that SuperSize missed.
-4.  **Surgical Subtraction**: Apply conditional subtractions (`deps -=`) inside the correct conditional blocks in `BUILD.gn`, and wrap C++ invocation blocks in `#if !BUILDFLAG(IS_COBALT)`.
-
-#### Criteria for Feature Removal Suitability
-A feature is highly suitable for manual removal if its report satisfies the following profile:
-*   **Reachable**: `True` (Unreachable features provide zero size benefit).
-*   **Weight Contribution**: $> 500 \text{ KB}$ PSS (Justifies refactoring maintenance overhead).
-*   **Target Classification**: `DEDICATED` (Perfectly encapsulated inside its own directory).
-*   **Build Coupling**: $\le 3$ Funnel Targets (Requires editing very few `BUILD.gn` files).
-*   **C++ Surface**: $\le 5$ Include Integration Points (Minimal macro-gating required).
+#### Understanding the Output:
+* **Total Diff Metrics**: Shows net size change, added symbols, removed symbols, and changed symbols.
+* **Growth by Chromium Component**: Groups positive size growth by high-level subsystem tags (e.g. `v8`, `Blink`, `net`).
+* **Newly Added Components / Third-Party Growth**: Isolates new symbols and third-party directories under `third_party/` growing by $\ge 5$ KB, highlighting features or external libraries driving binary inflation.
 
 ---
+
+## 3. Implementation Rules & Checklists
+Once you have the assessment results, follow the corresponding PR review checklists and gating rules:
+* For general feature gating, custom flags, preprocessor directives, and IWYU rules, see: **[Surgical Feature Gating Rules](surgical_feature_gating_rules.md)**.
+* For Blink/Renderer module exclusion, Partial IDL interface patterns, and C++ stubbing, see: **[Hybrid Feature Removal Rules](hybrid_feature_removal_rules.md)**.

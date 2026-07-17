@@ -33,6 +33,7 @@ class H5vccSystem;
 class H5vccRuntime;
 class H5vccStorage;
 class H5vccSettings;
+class H5vccUpdater;
 class ScriptState;
 
 class MODULES_EXPORT H5vcc final : public ScriptWrappable,
@@ -57,6 +58,7 @@ class MODULES_EXPORT H5vcc final : public ScriptWrappable,
   H5vccSystem* system() { return system_; }
 
   H5vccRuntime* runtime() { return runtime_; }
+  H5vccUpdater* updater() { return updater_; }
 
   H5vccStorage* storage() { return storage_; }
 
@@ -73,6 +75,7 @@ class MODULES_EXPORT H5vcc final : public ScriptWrappable,
   Member<H5vccRuntime> runtime_;
   Member<H5vccStorage> storage_;
   Member<H5vccSettings> settings_;
+  Member<H5vccUpdater> updater_;
 };
 
 }  // namespace blink

@@ -41,7 +41,7 @@ class FixedNoFreeAllocator : public Allocator {
  public:
   // Requires aligned memory to at least |starboard::kMinAlignment|.
   FixedNoFreeAllocator(void* memory_start, size_t memory_size);
-  void* Allocate(size_t size) { return Allocate(&size, 1, true); }
+  void* Allocate(size_t size) { return Allocate(&size, kMinAlignment, true); }
 
   void* Allocate(size_t size, size_t alignment) {
     return Allocate(&size, alignment, true);

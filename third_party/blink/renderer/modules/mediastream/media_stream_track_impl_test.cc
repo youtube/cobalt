@@ -12,6 +12,7 @@
 #include "base/test/gmock_callback_support.h"
 #include "media/base/video_frame.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/buildflags.h"
 #include "third_party/blink/public/mojom/mediastream/media_devices.mojom-blink.h"
 #include "third_party/blink/public/platform/modules/mediastream/web_media_stream.h"
 #include "third_party/blink/public/platform/scheduler/test/renderer_scheduler_test_support.h"
@@ -39,7 +40,9 @@
 #include "third_party/blink/renderer/modules/mediastream/mock_media_stream_video_sink.h"
 #include "third_party/blink/renderer/modules/mediastream/mock_media_stream_video_source.h"
 #include "third_party/blink/renderer/modules/mediastream/speech_recognition_media_stream_audio_sink.h"
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 #include "third_party/blink/renderer/modules/peerconnection/mock_peer_connection_dependency_factory.h"
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_audio_source.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_audio_track.h"
@@ -270,6 +273,7 @@ TEST_F(MediaStreamTrackImplTest, MutedStateUpdates) {
   EXPECT_EQ(track->muted(), false);
 }
 
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 class HtmlMediaElementForWebRtcAudioTest : public testing::Test {
  public:
   HtmlMediaElementForWebRtcAudioTest() { web_view_helper_.Initialize(); }
@@ -396,6 +400,7 @@ TEST_F(HtmlMediaElementForWebRtcAudioTest,
   // track.enabled = false;
   track->setEnabled(false);
 }
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 TEST_F(MediaStreamTrackImplTest,

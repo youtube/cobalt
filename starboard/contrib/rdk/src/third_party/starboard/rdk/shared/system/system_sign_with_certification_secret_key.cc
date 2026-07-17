@@ -32,7 +32,6 @@
 #include <vector>
 #include <cstring>
 
-#include "starboard/file.h"
 #include "starboard/system.h"
 
 #include "third_party/starboard/rdk/shared/hang_detector.h"
@@ -72,7 +71,7 @@ bool SbSystemSignWithCertificationSecretKey(const uint8_t* message,
   using CryptographyVault = cryptographyvault;
 #endif
 
-  third_party::starboard::rdk::shared::HangMonitor hang_monitor(__func__);
+  starboard::HangMonitor hang_monitor(__func__);
 
   std::string key_name;
   const char *env = std::getenv("COBALT_CERT_KEY_NAME");

@@ -30,6 +30,7 @@
  */
 
 #include "third_party/blink/renderer/modules/mediastream/user_media_request.h"
+#include "third_party/blink/public/common/buildflags.h"
 
 #include <type_traits>
 
@@ -55,7 +56,9 @@
 #include "third_party/blink/renderer/modules/mediastream/overconstrained_error.h"
 #include "third_party/blink/renderer/modules/mediastream/transferred_media_stream_track.h"
 #include "third_party/blink/renderer/modules/mediastream/user_media_client.h"
-#include "third_party/blink/renderer/modules/peerconnection/peer_connection_tracker.h"
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
+#include "third_party/blink/renderer/modules/peerconnection/peer_connection_tracker.h"  // nogncheck
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_descriptor.h"
@@ -803,6 +806,7 @@ void UserMediaRequest::OnMediaStreamsInitialized(MediaStreamVector streams) {
     RecordIdentifiabilityMetric(
         surface_, GetExecutionContext(),
         IdentifiabilityBenignStringToken(g_empty_string));
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
     if (auto* window = GetWindow()) {
       if (media_type_ == UserMediaRequestType::kUserMedia) {
         PeerConnectionTracker::From(*window).TrackGetUserMediaSuccess(this,
@@ -815,6 +819,7 @@ void UserMediaRequest::OnMediaStreamsInitialized(MediaStreamVector streams) {
         NOTREACHED();
       }
     }
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
   }
   // After this call, the execution context may be invalid.
   callbacks_->OnSuccess(streams, capture_controller_);
@@ -829,6 +834,7 @@ void UserMediaRequest::FailConstraint(const String& constraint_name,
     return;
   RecordIdentifiabilityMetric(surface_, GetExecutionContext(),
                               IdentifiabilityBenignStringToken(message));
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
   if (auto* window = GetWindow()) {
     if (media_type_ == UserMediaRequestType::kUserMedia) {
       PeerConnectionTracker::From(*window).TrackGetUserMediaFailure(
@@ -841,6 +847,7 @@ void UserMediaRequest::FailConstraint(const String& constraint_name,
       NOTREACHED();
     }
   }
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
   // After this call, the execution context may be invalid.
   callbacks_->OnError(
       nullptr,
@@ -911,6 +918,7 @@ void UserMediaRequest::Fail(Result error, const String& message) {
   RecordIdentifiabilityMetric(surface_, GetExecutionContext(),
                               IdentifiabilityBenignStringToken(message));
 
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
   if (auto* window = GetWindow()) {
     if (media_type_ == UserMediaRequestType::kUserMedia) {
       PeerConnectionTracker::From(*window).TrackGetUserMediaFailure(
@@ -923,6 +931,7 @@ void UserMediaRequest::Fail(Result error, const String& message) {
       NOTREACHED();
     }
   }
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 
   // After this call, the execution context may be invalid.
   callbacks_->OnError(

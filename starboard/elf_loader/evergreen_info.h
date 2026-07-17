@@ -26,10 +26,10 @@
 #define EVERGREEN_FILE_PATH_MAX_SIZE 4096
 #define EVERGREEN_BUILD_ID_MAX_SIZE 128
 
-#define IS_EVERGREEN_ADDRESS(address, evergreen_info)                    \
-  (evergreen_info.base_address != 0 &&                                   \
-   reinterpret_cast<uint64_t>(address) >= evergreen_info.base_address && \
-   (reinterpret_cast<uint64_t>(address) - evergreen_info.base_address) < \
+#define IS_EVERGREEN_ADDRESS(address, evergreen_info)                     \
+  (evergreen_info.base_address != 0 &&                                    \
+   reinterpret_cast<uintptr_t>(address) >= evergreen_info.base_address && \
+   (reinterpret_cast<uintptr_t>(address) - evergreen_info.base_address) < \
        evergreen_info.load_size)
 
 #ifdef __cplusplus

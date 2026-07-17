@@ -50,9 +50,18 @@ jobs:
             DIFF_PREFIX=$(jq -r '.diff_label_prefix' "${GITHUB_WORKSPACE}/.github/config/chromium_diffing.json")
             DIFF_LABELS=$(echo "$PR_LABELS" | jq -c -r --arg prefix "$DIFF_PREFIX" '[.[] | select(.name | startswith($prefix)) | .name | sub($prefix; "")] | map("\"" + . + "\"") | join(",")')
           fi
+
           # Selected all branches objects in the chromium_diffing.json that match the diff labels
-          JQ_QUERY="[.stable_branches[] | select(.milestone | IN($DIFF_LABELS))]"
-          UPSTREAM_BRANCHES=$(jq -c "${JQ_QUERY}" "${GITHUB_WORKSPACE}/.github/config/chromium_diffing.json")
+          if [[ -z "${DIFF_LABELS}" ]]; then
+            UPSTREAM_BRANCHES=""
+          else
+            # Selected all branches objects in the chromium_diffing.json that match the diff labels
+            JQ_QUERY="[.stable_branches[] | select(.milestone | IN(${DIFF_LABELS}))]"
+            UPSTREAM_BRANCHES=$(jq -c "${JQ_QUERY}" "${GITHUB_WORKSPACE}/.github/config/chromium_diffing.json")
+            if [[ "${UPSTREAM_BRANCHES}" == "[]" ]]; then
+              UPSTREAM_BRANCHES=""
+            fi
+          fi
           echo "upstream_branches=${UPSTREAM_BRANCHES}" >> "$GITHUB_OUTPUT"
       - name: Set downstream branch
         id: set-downstream-branch

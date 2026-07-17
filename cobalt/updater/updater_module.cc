@@ -27,10 +27,12 @@
 #include "base/stl_util.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_runner.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/threading/thread.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "base/version.h"
 #include "cobalt/updater/util.h"
@@ -91,6 +93,32 @@ namespace updater {
 // The delay before the first update check.
 const base::TimeDelta kDefaultUpdateCheckDelay = base::Seconds(30);
 
+// static
+UpdaterModule* UpdaterModule::updater_module_ = nullptr;
+
+void UpdaterModule::CreateInstance(
+    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+    const std::string& user_agent,
+    base::TimeDelta update_check_delay) {
+  if (updater_module_) {
+    LOG(WARNING)
+        << "UpdaterModule is already created. Use UpdaterModule::GetInstance() "
+           "to get the instance.";
+    return;
+  }
+  updater_module_ = new UpdaterModule(std::move(url_loader_factory), user_agent,
+                                      update_check_delay);
+}
+
+UpdaterModule* UpdaterModule::GetInstance() {
+  if (!updater_module_) {
+    LOG(WARNING) << "UpdaterModule is not created yet, and cannot be "
+                    "retrieved by UpdaterModule::GetInstance().";
+    return nullptr;
+  }
+  return updater_module_;
+}
+
 void Observer::OnEvent(const update_client::CrxUpdateItem& item) {
   std::string status;
   crx_update_item_ = item;
@@ -139,9 +167,11 @@ void Observer::OnEvent(const update_client::CrxUpdateItem& item) {
 
 UpdaterModule::UpdaterModule(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+    const std::string& user_agent,
     base::TimeDelta update_check_delay)
     : url_loader_factory_(std::move(url_loader_factory)),
-      update_check_delay_(update_check_delay) {
+      update_check_delay_(update_check_delay),
+      user_agent_(user_agent) {
   LOG(INFO) << "UpdaterModule::UpdaterModule";
   // TODO(b/453693299): investigate using sequence to replace base::Thread
   updater_thread_.reset(new base::Thread("Updater"));
@@ -159,16 +189,16 @@ UpdaterModule::UpdaterModule(
 
 UpdaterModule::~UpdaterModule() {
   LOG(INFO) << "UpdaterModule::~UpdaterModule";
-  if (is_updater_running_) {
-    is_updater_running_ = false;
+
+  // This is necessary to allow blocking for proper cleanup and to prevent
+  // a crash due to blocking restrictions at app exit.
+  base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope
+      allow_blocking_outside;
+  if (is_updater_running_.exchange(false)) {
     // TODO(b/452142372): Investigate UpdaterModule destruction sequence
-    {
-      base::ScopedBlockingCall scoped_blocking_call(
-          FROM_HERE, base::BlockingType::MAY_BLOCK);
-      updater_thread_->task_runner()->PostTask(
-          FROM_HERE,
-          base::BindOnce(&UpdaterModule::Finalize, base::Unretained(this)));
-    }
+    updater_thread_->task_runner()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&UpdaterModule::Finalize, base::Unretained(this)));
   }
 
   // Upon destruction the thread will allow all queued tasks to complete before
@@ -179,14 +209,19 @@ UpdaterModule::~UpdaterModule() {
 }
 
 void UpdaterModule::Suspend() {
-  if (is_updater_running_) {
-    is_updater_running_ = false;
-    {
-      base::ScopedBlockingCall scoped_blocking_call(
-          FROM_HERE, base::BlockingType::MAY_BLOCK);
-      updater_thread_->task_runner()->PostTask(
-          FROM_HERE,
-          base::BindOnce(&UpdaterModule::Finalize, base::Unretained(this)));
+  if (is_updater_running_.exchange(false)) {
+    base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_sync;
+    base::WaitableEvent event(base::WaitableEvent::ResetPolicy::MANUAL,
+                              base::WaitableEvent::InitialState::NOT_SIGNALED);
+    if (updater_thread_->task_runner()->PostTask(
+            FROM_HERE,
+            base::BindOnce(
+                [](UpdaterModule* module, base::WaitableEvent* event) {
+                  module->Finalize();
+                  event->Signal();
+                },
+                base::Unretained(this), base::Unretained(&event)))) {
+      event.Wait();
     }
   }
 }
@@ -207,7 +242,8 @@ void UpdaterModule::Initialize(
   LOG(INFO) << "UpdaterModule::Initialize";
 
   updater_configurator_ = base::MakeRefCounted<Configurator>(
-      network::SharedURLLoaderFactory::Create(std::move(pending_factory)));
+      network::SharedURLLoaderFactory::Create(std::move(pending_factory)),
+      user_agent_);
   update_client_ = update_client::UpdateClientFactory(updater_configurator_);
 
   updater_observer_.reset(new Observer(update_client_, updater_configurator_));

@@ -18,6 +18,7 @@
 #include <string>
 
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/elf_loader/elf.h"
 #include "starboard/elf_loader/elf_loader_constants.h"
@@ -25,21 +26,11 @@
 #include "starboard/elf_loader/file_impl.h"
 #include "starboard/elf_loader/log.h"
 #include "starboard/elf_loader/lz4_file_impl.h"
+#include "starboard/elf_loader/zstd_file_impl.h"
 #include "starboard/extension/loader_app_metrics.h"
 #include "starboard/system.h"
 
 namespace elf_loader {
-
-namespace {
-
-bool EndsWith(const std::string& s, const std::string& suffix) {
-  if (s.size() < suffix.size()) {
-    return false;
-  }
-  return strcmp(s.c_str() + (s.size() - suffix.size()), suffix.c_str()) == 0;
-}
-
-}  // namespace
 
 ElfLoaderImpl::ElfLoaderImpl() {
   SB_CHECK(kSbCanMapExecutableMemory)
@@ -47,18 +38,23 @@ ElfLoaderImpl::ElfLoaderImpl() {
 }
 
 bool ElfLoaderImpl::Load(const char* name,
-                         bool use_compression,
+                         CompressionType compression_type,
                          bool use_memory_mapped_files) {
-  if (use_compression && use_memory_mapped_files) {
+  if (compression_type != CompressionType::kNone && use_memory_mapped_files) {
     SB_LOG(ERROR) << "Loading " << name
                   << " Compression is not supported with memory mapped files.";
     return false;
   }
 
   std::unique_ptr<File> elf_file;
-  if (use_compression && EndsWith(name, kCompressionSuffix)) {
+  if (compression_type == CompressionType::kLz4 &&
+      starboard::EndsWith(name, kLz4Suffix)) {
     elf_file.reset(new LZ4FileImpl());
-    SB_LOG(INFO) << "Loading " << name << " using compression";
+    SB_LOG(INFO) << "Loading " << name << " using LZ4 decompression";
+  } else if (compression_type == CompressionType::kZstd &&
+             starboard::EndsWith(name, kZstdSuffix)) {
+    elf_file.reset(new ZstdFileImpl());
+    SB_LOG(INFO) << "Loading " << name << " using Zstd decompression";
   } else {
     SB_LOG(INFO) << "Loading " << name;
     elf_file.reset(new FileImpl());

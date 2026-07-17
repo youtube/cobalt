@@ -54,6 +54,28 @@ class FeatureList {
   // Template function to retrieve a parameter based on the value type of the
   // parameter.SbParams must be initialized before use. There's an SB_CHECK() to
   // ensure that the given SbFeature must exist in the FeatureList.
+  // Set a feature override for testing.
+  static void SetFeatureForTesting(const SbFeature& feature, bool enabled);
+  static void SetFeatureForTesting(const std::string& feature_name,
+                                   bool enabled);
+
+  // Clear a feature override for testing.
+  static void ClearFeatureForTesting(const SbFeature& feature);
+  static void ClearFeatureForTesting(const std::string& feature_name);
+
+  // Clear all feature overrides for testing.
+  static void ClearAllFeaturesForTesting();
+
+  // Check if a feature has an override.
+  static bool HasOverrideForTesting(const std::string& feature_name);
+
+  // Get the current override value for a feature if it exists.
+  // Returns the overridden value if the feature was overridden, otherwise
+  // std::nullopt.
+  static std::optional<bool> GetOverrideForTesting(const SbFeature& feature);
+  static std::optional<bool> GetOverrideForTesting(
+      const std::string& feature_name);
+
   template <typename T>
   static T GetParam(const SbFeatureParamExt<T>& param);
 
@@ -91,6 +113,10 @@ class FeatureList {
   // are the string representations of the features, and the values are the
   // associated boolean value of the feature.
   std::unordered_map<std::string, bool> features_;  // Guarded by |mutex_|.
+
+  // Overridden features for testing.
+  std::unordered_map<std::string, bool>
+      overridden_features_;  // Guarded by |mutex_|.
 
   // Starboard feature parameters will be stored in a 2D std::unordered_map,
   // where the outer map's keys will be the string of the feature associated

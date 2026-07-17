@@ -68,6 +68,7 @@ void PatchDone(
       FROM_HERE, base::BindOnce(std::move(callback), result));
 }
 
+#if !defined(IN_MEMORY_UPDATES)
 // Runs in the blocking pool. Deletes any files that are no longer needed.
 void VerifyAndCleanUp(
 #if BUILDFLAG(IS_STARBOARD)
@@ -174,6 +175,7 @@ void CacheLookupDone(
                          base::BindPostTaskToCurrentDefault(base::BindOnce(
                              &PatchDone, std::move(callback), event_adder))));
 }
+#endif  // !defined(IN_MEMORY_UPDATES)
 
 }  // namespace
 
@@ -191,6 +193,14 @@ base::OnceClosure PuffOperation(
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
 #endif
         callback) {
+#if defined(IN_MEMORY_UPDATES)
+  LOG(ERROR) << "Puffin delta patching Operation not supported with Cobalt IN_MEMORY_UPDATES";
+  PatchDone(std::move(callback), event_adder,
+            base::unexpected<CategorizedError>(
+                {.category = ErrorCategory::kUnpack,
+                 .code = static_cast<int>(UnpackerError::kDeltaOperationFailure)}));
+  return base::DoNothing();
+#else
 #if BUILDFLAG(IS_STARBOARD)
   const base::FilePath& patch_file = patch_operation_result.response;
 #endif
@@ -203,6 +213,7 @@ base::OnceClosure PuffOperation(
                      patch_file.DirName(), output_hash, std::move(callback)));
 #endif
   return base::DoNothing();
+#endif  // defined(IN_MEMORY_UPDATES)
 }
 
 }  // namespace update_client

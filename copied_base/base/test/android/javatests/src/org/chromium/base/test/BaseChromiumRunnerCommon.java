@@ -14,7 +14,6 @@ import androidx.core.content.ContextCompat;
 
 import org.chromium.base.Log;
 import org.chromium.base.test.util.PackageManagerWrapper;
-import org.chromium.build.annotations.MainDex;
 
 import java.io.File;
 import java.io.IOException;
@@ -26,7 +25,6 @@ import java.util.Comparator;
 /**
  *  Functionality common to the JUnit3 and JUnit4 runners.
  */
-@MainDex
 class BaseChromiumRunnerCommon {
     private static final String TAG = "base_test";
 
@@ -34,7 +32,6 @@ class BaseChromiumRunnerCommon {
      *  A ContextWrapper that allows multidex test APKs to extract secondary dexes into
      *  the APK under test's data directory.
      */
-    @MainDex
     static class MultiDexContextWrapper extends ContextWrapper {
         private final Context mAppContext;
 

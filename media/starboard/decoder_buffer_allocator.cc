@@ -26,10 +26,10 @@
 #include "media/starboard/media_buffer_pool_decoder_buffer_allocator_strategy.h"
 #include "media/starboard/starboard_utils.h"
 #include "starboard/common/allocator.h"
+#include "starboard/common/embedded_metadata_reuse_allocator_base.h"
 #include "starboard/common/experimental/media_buffer_pool.h"
-#include "starboard/common/in_place_reuse_allocator_base.h"
+#include "starboard/common/external_metadata_reuse_allocator_base.h"
 #include "starboard/common/log.h"
-#include "starboard/common/reuse_allocator_base.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 
@@ -37,11 +37,11 @@ namespace media {
 
 namespace {
 
-// The current default AllocatorStrategy is InPlaceReuseAllocatorBase.
+// The current default AllocatorStrategy is EmbeddedMetadataReuseAllocatorBase.
 // To see more context as to why this is the case, see b/487332929.
 using DefaultReuseAllocatorStrategy =
     BidirectionalFitDecoderBufferAllocatorStrategy<
-        starboard::InPlaceReuseAllocatorBase>;
+        starboard::EmbeddedMetadataReuseAllocatorBase>;
 using starboard::experimental::MediaBufferPool;
 
 const char* ToString(bool value) {
@@ -88,44 +88,46 @@ DecoderBufferAllocator* DecoderBufferAllocator::Get() {
   return static_cast<DecoderBufferAllocator*>(DecoderBuffer::Allocator::Get());
 }
 
-void DecoderBufferAllocator::Suspend() {
-  base::AutoLock scoped_lock(mutex_);
+void DecoderBufferAllocator::ReleaseIdleMemory() {
   if (is_memory_pool_allocated_on_demand_) {
+    return;
+  }
+  base::AutoLock scoped_lock(mutex_);
+  if (!should_release_idle_memory_) {
     return;
   }
 
   if (strategy_ && strategy_->GetAllocated() == 0) {
     LOG(INFO) << "Freeing " << strategy_->GetCapacity()
-              << " bytes of decoder buffer pool `on suspend`.";
+              << " bytes of decoder buffer pool.";
     strategy_.reset();
+  } else {
+    has_pending_release_ = true;
   }
 }
 
-void DecoderBufferAllocator::Resume() {
+void DecoderBufferAllocator::DecommitAllDecommitableBlocks() {
   base::AutoLock scoped_lock(mutex_);
-  if (is_memory_pool_allocated_on_demand_) {
-    return;
+  if (strategy_) {
+    strategy_->DecommitAllDecommitableBlocks();
   }
-
-  EnsureStrategyIsCreated();
 }
 
 DecoderBuffer::Allocator::Handle DecoderBufferAllocator::Allocate(
     DemuxerStream::Type type,
-    size_t size,
-    size_t alignment) {
+    size_t size) {
   base::AutoLock scoped_lock(mutex_);
+  has_pending_release_ = false;
 
   EnsureStrategyIsCreated();
 
-  void* p = strategy_->Allocate(type, size, alignment);
+  void* p = strategy_->Allocate(type, size);
   CHECK(p);
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   if (starboard::Allocator::ExtraLogLevel() >= 2) {
     ++pending_allocation_operations_count_;
-    pending_allocation_operations_ << " a " << p << " " << type << " " << size
-                                   << " " << alignment;
+    pending_allocation_operations_ << " a " << p << " " << type << " " << size;
     TryFlushAllocationLog_Locked();
   }
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
@@ -159,13 +161,15 @@ void DecoderBufferAllocator::Free(DemuxerStream::Type type,
 
   bool should_reset_strategy =
       is_strategy_switch_pending_ || is_memory_pool_allocated_on_demand_;
-
+  // Handle deferred memory release when suspended
+  should_reset_strategy |= has_pending_release_;
   if (should_reset_strategy && strategy_->GetAllocated() == 0) {
     // `strategy_->PrintAllocations()` will be called inside the dtor when
     // supported, so it shouldn't be called here.
     LOG(INFO) << "Freeing " << strategy_->GetCapacity()
               << " bytes of decoder buffer pool.";
     strategy_.reset();
+    has_pending_release_ = false;
   }
 }
 
@@ -187,14 +191,6 @@ void DecoderBufferAllocator::Write(Handle handle,
   base::AutoLock scoped_lock(mutex_);
   DCHECK(strategy_);
   strategy_->Write(reinterpret_cast<void*>(handle), data, size);
-}
-
-int DecoderBufferAllocator::GetBufferAlignment() const {
-  return sizeof(void*);
-}
-
-int DecoderBufferAllocator::GetBufferPadding() const {
-  return SbMediaGetBufferPadding();
 }
 
 base::TimeDelta
@@ -237,52 +233,38 @@ void DecoderBufferAllocator::UpdateAllocatorStrategy(
   }
 }
 
-void DecoderBufferAllocator::SetAllocateOnDemand(bool enabled) {
-  base::AutoLock scoped_lock(mutex_);
-  if (is_memory_pool_allocated_on_demand_ == enabled) {
-    return;
-  }
-
-  LOG(INFO) << "DecoderBufferAllocator::SetAllocateOnDemand: "
-            << ToString(is_memory_pool_allocated_on_demand_) << " -> "
-            << ToString(enabled);
-
-  is_memory_pool_allocated_on_demand_ = enabled;
-  // If we enable |is_memory_pool_allocated_on_demand_|, we should try to
-  // reset the strategy.
-  if (is_memory_pool_allocated_on_demand_ && strategy_ &&
-      strategy_->GetAllocated() == 0) {
-    LOG(INFO) << "Freeing " << strategy_->GetCapacity()
-              << " bytes of decoder buffer pool since allocator now allocates"
-                 " on demand.";
-    strategy_.reset();
-  }
-}
-
 // static
-void DecoderBufferAllocator::EnableDecommitableAllocatorStrategy() {
+void DecoderBufferAllocator::EnableConfigurableDecommitStrategy(
+    int block_size,
+    int retain_blocks,
+    int conservative_decommit_blocks,
+    bool aggressive_decommit_on_suspend) {
   auto* allocator = Get();
   CHECK(allocator);
   allocator->UpdateAllocatorStrategy(base::BindRepeating(
-      [](int initial_capacity, int allocation_unit)
+      [](int block_size, int retain_blocks, int conservative_decommit_blocks,
+         bool aggressive_decommit_on_suspend, int initial_capacity,
+         int allocation_unit)
           -> std::unique_ptr<DecoderBufferAllocator::Strategy> {
-        // The default values of initial_capacity and allocation_unit are often
-        // 4 MB, which in the extreme case aren't enough to hold a key frame.
-        // Increase them to 8 MB to accommodate all known key frames without
-        // special allocations in the underlying allocator.
-        constexpr int kAllocationUnit = 8 * 1024 * 1024;
-
-        LOG(INFO) << "DecoderBufferAllocator is using "
-                     "DefaultReuseAllocatorStrategy with decommit enabled. "
-                  << "initial_capacity (" << initial_capacity
-                  << ") and allocation_unit (" << allocation_unit
-                  << ") are ignored and set to " << kAllocationUnit
-                  << " bytes.";
+        LOG(INFO)
+            << "DecoderBufferAllocator is using "
+               "DefaultReuseAllocatorStrategy with configurable decommit. "
+            << "initial_capacity (" << initial_capacity
+            << ") and allocation_unit (" << allocation_unit
+            << ") are ignored. Using "
+            << "block_size: " << block_size << ", "
+            << "retain_blocks: " << retain_blocks << ", "
+            << "conservative_decommit_blocks: " << conservative_decommit_blocks
+            << ", aggressive_decommit_on_suspend: "
+            << ToString(aggressive_decommit_on_suspend);
 
         return std::make_unique<DefaultReuseAllocatorStrategy>(
-            kAllocationUnit, kAllocationUnit,
-            /*enable_decommit_on_idle=*/true);
-      }));
+            block_size, block_size, /*enable_decommit_on_idle=*/true,
+            retain_blocks, conservative_decommit_blocks,
+            aggressive_decommit_on_suspend);
+      },
+      block_size, retain_blocks, conservative_decommit_blocks,
+      aggressive_decommit_on_suspend));
 }
 
 // static
@@ -305,6 +287,15 @@ void DecoderBufferAllocator::EnableMediaBufferPoolStrategy() {
       }));
 }
 
+// static
+void DecoderBufferAllocator::EnableReleaseIdleMemory() {
+  auto* allocator = Get();
+  CHECK(allocator);
+  base::AutoLock scoped_lock(allocator->mutex_);
+  allocator->should_release_idle_memory_ = true;
+  LOG(INFO) << "DecoderBufferAllocator: ReleaseIdleMemory feature enabled.";
+}
+
 void DecoderBufferAllocator::EnsureStrategyIsCreated() {
   mutex_.AssertAcquired();
   if (strategy_) {
@@ -325,9 +316,8 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
                     "strategy. Falling back to default.";
   }
 
-  strategy_ = std::make_unique<DefaultReuseAllocatorStrategy>(
-      initial_capacity_, allocation_unit_,
-      /*enable_decommit_on_idle=*/false);
+  strategy_ = std::make_unique<DefaultReuseAllocatorStrategy>(initial_capacity_,
+                                                              allocation_unit_);
   LOG(INFO) << "DecoderBufferAllocator is using "
                "DefaultReuseAllocatorStrategy.";
 

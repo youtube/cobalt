@@ -30,11 +30,7 @@
 
 #include "third_party/starboard/rdk/shared/log_override.h"
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
-namespace drm {
 namespace {
 
 static pthread_mutex_t g_session_dtor_mutex_ = PTHREAD_MUTEX_INITIALIZER;
@@ -69,8 +65,6 @@ static OcdmGetMetricSystemDataFn g_ocdmGetMetricSystemData { nullptr };
 static OcdmGetMetricsFn g_ocdmGetMetrics { nullptr };
 
 }  // namespace
-
-namespace session {
 
 SbDrmKeyStatus KeyStatus2DrmKeyStatus(KeyStatus status) {
   switch (status) {
@@ -150,7 +144,7 @@ class Session {
     kUpdate,
   };
 
-  ::starboard::ThreadChecker thread_checker_;
+  ThreadChecker thread_checker_;
   Operation operation_{Operation::kNone};
   int ticket_{0};
   DrmSystemOcdm* drm_system_;
@@ -513,10 +507,6 @@ void Session::OnError(struct OpenCDMSession* /*ocdm_session*/,
   }
 }
 
-}  // namespace session
-
-using session::Session;
-
 DrmSystemOcdm::DrmSystemOcdm(
     const char* key_system,
     void* context,
@@ -642,8 +632,7 @@ void DrmSystemOcdm::UpdateServerCertificate(int ticket,
       "Error");
 }
 
-SbDrmSystemPrivate::DecryptStatus DrmSystemOcdm::Decrypt(
-    ::starboard::InputBuffer* buffer) {
+SbDrmSystemPrivate::DecryptStatus DrmSystemOcdm::Decrypt(InputBuffer* buffer) {
   SB_NOTREACHED();
   return kFailure;
 }
@@ -766,7 +755,7 @@ int DrmSystemOcdm::Decrypt(const std::string& id,
                             _GstBuffer* iv,
                             _GstBuffer* key,
                             _GstCaps* caps) {
-  session::Session* session = GetSessionById(id);
+  Session* session = GetSessionById(id);
   if (!session)
     return ERROR_INVALID_SESSION;
   return session->Decrypt(buffer, sub_sample, sub_sample_count, iv, key, caps);
@@ -827,10 +816,6 @@ const void* DrmSystemOcdm::GetMetrics(int* size) {
   return metrics_.data();
 }
 
-}  // namespace drm
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party
 
 #endif  // defined(HAS_OCDM)

@@ -17,6 +17,8 @@
 #include "base/process/process_handle.h"
 #include "base/process/process_metrics.h"
 #include "base/system/sys_info.h"
+#include "base/task/task_traits.h"
+#include "base/task/thread_pool.h"
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -47,16 +49,29 @@ void PerformanceImpl::Create(
 
 void PerformanceImpl::MeasureAvailableCpuMemory(
     MeasureAvailableCpuMemoryCallback callback) {
-  std::move(callback).Run(base::SysInfo::AmountOfAvailablePhysicalMemory());
+  // Use lambda to resolve overload resolution ambiguity on platforms like
+  // Android.
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce(
+          [] { return base::SysInfo::AmountOfAvailablePhysicalMemory(); }),
+      std::move(callback));
 }
 
 void PerformanceImpl::MeasureUsedCpuMemory(
     MeasureAvailableCpuMemoryCallback callback) {
-  auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
-      base::GetCurrentProcessHandle());
-  auto info = process_metrics->GetMemoryInfo();
-  auto used_memory = info.has_value() ? info->resident_set_bytes : 0;
-  std::move(callback).Run(used_memory);
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce([]() -> uint64_t {
+        auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
+            base::GetCurrentProcessHandle());
+        if (!process_metrics) {
+          return 0;
+        }
+        auto info = process_metrics->GetMemoryInfo();
+        return info.has_value() ? info->resident_set_bytes : 0;
+      }),
+      std::move(callback));
 }
 
 void PerformanceImpl::MeasureUsedSwapMemory(
@@ -65,21 +80,35 @@ void PerformanceImpl::MeasureUsedSwapMemory(
   // TODO: b/497682329 - vm_swap_bytes does not exist on tvOS.
   std::move(callback).Run(0);
 #else
-  auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
-      base::GetCurrentProcessHandle());
-  auto info = process_metrics->GetMemoryInfo();
-  auto used_swap_memory = info.has_value() ? info->vm_swap_bytes : 0;
-  std::move(callback).Run(used_swap_memory);
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce([]() -> uint64_t {
+        auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
+            base::GetCurrentProcessHandle());
+        if (!process_metrics) {
+          return 0;
+        }
+        auto info = process_metrics->GetMemoryInfo();
+        return info.has_value() ? info->vm_swap_bytes : 0;
+      }),
+      std::move(callback));
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 }
 
 void PerformanceImpl::MeasureReservedVirtualMemory(
     MeasureReservedVirtualMemoryCallback callback) {
-  auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
-      base::GetCurrentProcessHandle());
-  auto info = process_metrics->GetMemoryInfo();
-  auto virtual_memory_size = info.has_value() ? info->vm_size_bytes : 0;
-  std::move(callback).Run(virtual_memory_size);
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce([]() -> uint64_t {
+        auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
+            base::GetCurrentProcessHandle());
+        if (!process_metrics) {
+          return 0;
+        }
+        auto info = process_metrics->GetMemoryInfo();
+        return info.has_value() ? info->vm_size_bytes : 0;
+      }),
+      std::move(callback));
 }
 
 void PerformanceImpl::GetAppStartupTimeStamp(
@@ -90,10 +119,6 @@ void PerformanceImpl::GetAppStartupTimeStamp(
     app_startup_timestamp_ =
         StarboardBridge::GetInstance()->GetAppStartTimestamp(env);
   }
-#endif
-#if BUILDFLAG(IS_IOS_TVOS)
-  // TODO - b/487001977: Implement this method.
-  NOTIMPLEMENTED();
 #endif
   std::move(callback).Run(app_startup_timestamp_.value_or(0));
 }

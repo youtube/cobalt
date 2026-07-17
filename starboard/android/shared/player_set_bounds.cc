@@ -20,6 +20,7 @@
 
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
+#include "starboard/common/rect.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "third_party/jni_zero/jni_zero.h"
 
@@ -37,5 +38,5 @@ void SbPlayerSetBounds(SbPlayer player,
   JNIEnv* env = jni_zero::AttachCurrentThread();
   starboard::StarboardBridge::GetInstance()->SetVideoSurfaceBounds(
       env, x, y, width, height);
-  player->SetBounds(z_index, x, y, width, height);
+  player->SetBounds(z_index, starboard::Rect(x, y, width, height));
 }

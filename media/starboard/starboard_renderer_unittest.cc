@@ -106,7 +106,7 @@ class MockSbPlayerInterface : public SbPlayerInterface {
 
   bool GetUrlPlayerOutputModeSupported(
       SbPlayerOutputMode output_mode) override {
-    return true
+    return true;
   }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 

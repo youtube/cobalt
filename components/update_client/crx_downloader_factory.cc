@@ -109,7 +109,8 @@ scoped_refptr<CrxDownloader> CrxDownloaderFactoryChromium::MakeCrxDownloader(
 
 #if BUILDFLAG(IS_STARBOARD)
 scoped_refptr<CrxDownloaderFactory> MakeCrxDownloaderFactory(
-    scoped_refptr<NetworkFetcherFactory> network_fetcher_factory) {
+    scoped_refptr<NetworkFetcherFactory> network_fetcher_factory,
+    [[maybe_unused]] std::optional<base::FilePath> background_downloader_cache_path) {
   return base::MakeRefCounted<CrxDownloaderFactoryCobalt>(
       std::move(network_fetcher_factory));
 #else

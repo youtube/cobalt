@@ -1,0 +1,22 @@
+[
+  {
+    "TODO(b/507872542)": "Revisit this and determine how we configure tvOS tests."
+  },
+  {
+    "target": "base:base_perftests",
+    "executable": "out/arm64-simulator_devel/bin/base_perftests",
+    "runs_on": "host",
+    "test_type": "gtest"
+  },
+  {
+    "target": "base:base_unittests",
+    "executable": "out/arm64-simulator_devel/bin/base_unittests",
+    "runs_on": "host",
+    "test_type": "gtest"
+  },
+  {
+    "target": "cobalt/testing/browser_tests:cobalt_browsertests",
+    "runs_on": "host",
+    "test_type": "browsertest"
+  }
+]

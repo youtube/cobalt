@@ -2,6 +2,10 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 import("//services/device/public/cpp/compute_pressure/buildflags.gni")
 import("//third_party/blink/renderer/config.gni")
 
@@ -88,6 +92,13 @@ if (is_cobalt) {
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_receive_callback.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_receive_callback.h",
   ]
+
+  if (enable_in_app_dial) {
+    generated_callback_function_sources_in_modules += [
+      "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_dial_http_request_callback.cc",
+      "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_dial_http_request_callback.h",
+    ]
+  }
 }
 
 if (enable_compute_pressure) {
@@ -3205,14 +3216,19 @@ generated_interface_sources_in_modules = [
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_xr_webgl_sub_image.h",
 ]
 
+if (is_cobalt && use_starboard_media) {
+  generated_interface_sources_in_modules += [
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_oesegl_image_external.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_oesegl_image_external.h",
+  ]
+}
+
 if (is_cobalt) {
   generated_interface_sources_in_modules += [
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_crash_log.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_crash_log.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_deep_link_event.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_deep_link_event.h",
-    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_metrics_event.cc",
-    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_metrics_event.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_accessibility.cc",
@@ -3231,8 +3247,12 @@ if (is_cobalt) {
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_system.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_system.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_metrics_event.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_metrics_event.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_text_to_speech_change_event.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_text_to_speech_change_event.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_updater.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_updater.h",
   ]
 
   generated_dictionary_sources_in_modules += [
@@ -3249,6 +3269,24 @@ if (is_cobalt) {
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_user_on_exit_strategy.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_user_on_exit_strategy.h",
   ]
+
+  if (enable_native_on_screen_keyboard) {
+    generated_interface_sources_in_modules += [
+      "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_on_screen_keyboard.cc",
+      "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_on_screen_keyboard.h",
+    ]
+  }
+
+  if (enable_in_app_dial) {
+    generated_interface_sources_in_modules += [
+      "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_dial_http_request.cc",
+      "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_dial_http_request.h",
+      "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_dial_http_response.cc",
+      "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_dial_http_response.h",
+      "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_dial_server.cc",
+      "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_dial_server.h",
+    ]
+  }
 }
 
 generated_namespace_sources_in_modules = [

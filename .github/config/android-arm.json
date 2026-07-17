@@ -4,13 +4,15 @@
     "android-arm"
   ],
   "test_package": true,
+  "test_on_host": true,
   "test_on_device": true,
   "test_device_family": "android",
   "test_e2e": true,
   "test_yts": true,
   "test_yts_playback": true,
+  "comment_test_browser": "test_browser controls desktop browser tests on host. Set to false for Android because browser tests run on physical devices via test_on_device.",
   "test_browser": false,
-  "test_yts_wpt": true,
+  "test_yts_wpt": false,
   "test_root_target": "//cobalt/android:cobalt_apk",
   "e2e_test_targets": [
     {
@@ -68,10 +70,6 @@
       "test_attempts": "6"
     },
     {
-      "target": "testing/maneki/cobalt/kimono_tests:yts_dom_document_kirkwood_custom_test",
-      "test_attempts": "6"
-    },
-    {
       "target": "testing/maneki/cobalt/kimono_tests:yts_html_dom_element_kirkwood_custom_test",
       "test_attempts": "6"
     },
@@ -92,7 +90,7 @@
   ],
   "browser_test_targets": [
     {
-      "target": "testing/container/browser_tests:cobalt_browser_test",
+      "target": "cobalt/testing/browser_tests:cobalt_browsertests",
       "test_attempts": "3"
     }
   ],

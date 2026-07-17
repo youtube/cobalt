@@ -93,10 +93,8 @@ std::vector<std::string> FindAllWithPrefix(const std::string& dir,
     if (filename.size() < kSbFileMaxName || !directory || !filename.data()) {
       break;
     }
-    struct dirent dirent_buffer;
-    struct dirent* dirent;
-    int result = readdir_r(directory, &dirent_buffer, &dirent);
-    if (result || !dirent) {
+    struct dirent* dirent = readdir(directory);
+    if (!dirent) {
       break;
     }
     starboard::strlcpy(filename.data(), dirent->d_name, filename.size());

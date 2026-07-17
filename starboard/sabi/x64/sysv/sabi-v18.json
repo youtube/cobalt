@@ -9,7 +9,7 @@
     "floating_point_abi": "",
     "floating_point_fpu": "",
     "signedness_of_char": "signed",
-    "signedness_of_enum": "signed",
+    "signedness_of_enum": "unsigned",
     "alignment_char":    1,
     "alignment_double":  8,
     "alignment_float":   4,

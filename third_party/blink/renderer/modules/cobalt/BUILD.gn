@@ -16,10 +16,14 @@ import("//third_party/blink/renderer/modules/modules.gni")
 
 blink_modules_sources("h_5_vcc") {
   sources = [
+    "cobalt_lifecycle_controller.cc",
+    "cobalt_lifecycle_controller.h",
     "h_5_vcc.cc",
     "h_5_vcc.h",
   ]
   deps = [
+    "//cobalt/browser/h5vcc_runtime/public/mojom:mojom_blink",
+    "//cobalt/browser/lifecycle/public/mojom:mojom_blink",
     "//third_party/blink/renderer/modules/cobalt/crash_log",
     "//third_party/blink/renderer/modules/cobalt/h5vcc_accessibility",
     "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments",
@@ -28,5 +32,10 @@ blink_modules_sources("h_5_vcc") {
     "//third_party/blink/renderer/modules/cobalt/h5vcc_settings",
     "//third_party/blink/renderer/modules/cobalt/h5vcc_storage",
     "//third_party/blink/renderer/modules/cobalt/h5vcc_system",
+    "//third_party/blink/renderer/modules/cobalt/h5vcc_updater",
+
+    # //third_party/blink/renderer/modules/cobalt/on_screen_keyboard is not
+    # part of this list because it is not exposed as part of the window.h5vcc
+    # object.
   ]
 }

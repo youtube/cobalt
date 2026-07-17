@@ -18,7 +18,8 @@
 
 #include <cstddef>
 
-#include "starboard/thread.h"
+#include "starboard/common/thread_platform.h"
+#include "starboard/testing/test_runner.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {
@@ -84,6 +85,31 @@ void WaiterContext::WaitForReturnSignal() {
   }
   --unreturned_waiters;
   EXPECT_EQ(pthread_mutex_unlock(&mutex), 0);
+}
+
+void AbstractTestThread::Start() {
+  pthread_create(&thread_, nullptr, ThreadEntryPoint, this);
+  if (0 == thread_) {
+    ADD_FAILURE_AT(__FILE__, __LINE__) << "Invalid thread.";
+  }
+}
+
+void AbstractTestThread::WaitForFinish() {
+  starboard::RunTestBlockingAction([this] { Join(); });
+}
+
+void AbstractTestThread::Join() {
+  if (pthread_join(thread_, nullptr) != 0) {
+    ADD_FAILURE_AT(__FILE__, __LINE__) << "Could not join thread.";
+  }
+}
+
+// static
+void* AbstractTestThread::ThreadEntryPoint(void* ptr) {
+  starboard::SetCurrentThreadName("AbstractTestThread");
+  AbstractTestThread* this_ptr = static_cast<AbstractTestThread*>(ptr);
+  this_ptr->Run();
+  return NULL;
 }
 
 }  // namespace nplb

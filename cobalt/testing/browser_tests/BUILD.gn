@@ -249,6 +249,11 @@ test("cobalt_browsertests") {
     sources += [ "cobalt_browser_tests_main.cc" ]
   }
 
+  if (is_linux || is_android) {
+    # This currently tests Linux/Android-specific information and operations.
+    sources += [ "granular_memory_browsertest.cc" ]
+  }
+
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
   configs += [ "//build/config:precompiled_headers" ]
@@ -347,6 +352,7 @@ test("cobalt_browsertests") {
     "//services/network:test_support",
     "//services/network/public/mojom",
     "//services/network/trust_tokens:test_support",
+    "//services/resource_coordinator/public/cpp/memory_instrumentation",
     "//services/service_manager/public/cpp",
     "//services/tracing:privacy_check",
     "//services/video_capture/public/cpp",

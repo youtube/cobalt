@@ -50,10 +50,10 @@ class ServiceWorkerQuotaClient;
 class ServiceWorkerRegistration;
 struct ServiceWorkerContextSynchronousObserverList;
 
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 class ServiceWorkerHidDelegateObserver;
 class ServiceWorkerUsbDelegateObserver;
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 
 // A smart pointer of `ServiceWorkerClient`.
 //
@@ -555,7 +555,7 @@ class CONTENT_EXPORT ServiceWorkerContextCore
     test_version_observers_.RemoveObserver(observer);
   }
 
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
   ServiceWorkerHidDelegateObserver* hid_delegate_observer();
 
   void SetServiceWorkerHidDelegateObserverForTesting(
@@ -568,7 +568,7 @@ class CONTENT_EXPORT ServiceWorkerContextCore
 
   void SetServiceWorkerUsbDelegateObserverForTesting(
       std::unique_ptr<ServiceWorkerUsbDelegateObserver> usb_delegate_observer);
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 
  private:
   friend class ServiceWorkerContextCoreTest;
@@ -701,10 +701,10 @@ class CONTENT_EXPORT ServiceWorkerContextCore
 
   bool is_processing_warming_up_ = false;
 
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
   std::unique_ptr<ServiceWorkerHidDelegateObserver> hid_delegate_observer_;
   std::unique_ptr<ServiceWorkerUsbDelegateObserver> usb_delegate_observer_;
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 
   base::ObserverList<TestVersionObserver> test_version_observers_;
 

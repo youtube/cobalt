@@ -8,11 +8,13 @@ import android.content.Context;
 import android.graphics.PixelFormat;
 import android.view.Surface;
 import android.view.SurfaceHolder;
+import android.view.MotionEvent;
 import android.view.SurfaceView;
 import android.view.View;
 import android.widget.FrameLayout;
 
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.ui.base.EventForwarder;
 import org.chromium.ui.base.WindowAndroid;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
@@ -253,6 +255,40 @@ public class ContentViewRenderView extends FrameLayout {
         protected void disconnect() {
             mSurfaceView.getHolder().removeCallback(mSurfaceCallback);
         }
+    }
+
+    private EventForwarder getEventForwarder() {
+        if (mWebContents == null || mWebContents.isDestroyed()) {
+            return null;
+        }
+        return mWebContents.getEventForwarder();
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        EventForwarder forwarder = getEventForwarder();
+        if (forwarder != null) {
+            return forwarder.onTouchEvent(event);
+        }
+        return super.onTouchEvent(event);
+    }
+
+    @Override
+    public boolean onHoverEvent(MotionEvent event) {
+        EventForwarder forwarder = getEventForwarder();
+        if (forwarder != null) {
+            return forwarder.onHoverEvent(event);
+        }
+        return super.onHoverEvent(event);
+    }
+
+    @Override
+    public boolean onGenericMotionEvent(MotionEvent event) {
+        EventForwarder forwarder = getEventForwarder();
+        if (forwarder != null) {
+            return forwarder.onGenericMotionEvent(event);
+        }
+        return super.onGenericMotionEvent(event);
     }
 
     @NativeMethods

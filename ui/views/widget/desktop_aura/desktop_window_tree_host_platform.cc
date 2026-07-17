@@ -1000,6 +1000,19 @@ void DesktopWindowTreeHostPlatform::OnAcceleratedWidgetAvailable(
   aura::WindowTreeHostPlatform::OnAcceleratedWidgetAvailable(widget);
 }
 
+#if BUILDFLAG(IS_STARBOARD)
+void DesktopWindowTreeHostPlatform::OnAcceleratedWidgetDestroyed() {
+  // In non-destructive suspend/resume lifecycles, the platform graphics
+  // surface (AcceleratedWidget) may be destroyed and re-created dynamically
+  // while preserving the host window object and Views widget hierarchy in the
+  // background. We must untrack the destroyed widget from the global list of
+  // open windows here to allow the graphics surface to be safely re-allocated
+  // and registered upon resume.
+  open_windows().remove(GetAcceleratedWidget());
+  aura::WindowTreeHostPlatform::OnAcceleratedWidgetDestroyed();
+}
+#endif
+
 void DesktopWindowTreeHostPlatform::OnWillDestroyAcceleratedWidget() {
   desktop_native_widget_aura_->OnHostWillClose();
 }

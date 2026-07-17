@@ -24,8 +24,12 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notreached.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/task/bind_post_task.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
+#include "media/base/starboard/experimental_features.h"
 #include "media/starboard/buildflags.h"
 #include "media/starboard/starboard_utils.h"
 #include "starboard/common/media.h"
@@ -33,7 +37,7 @@
 #include "starboard/common/player.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
-#include "starboard/extension/experimental_features.h"
+#include "starboard/extension/experimental/experimental_features.h"
 #include "starboard/extension/player_set_video_surface_view.h"
 
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING)
@@ -54,6 +58,63 @@ using base::Time;
 using base::TimeDelta;
 using starboard::FormatString;
 using starboard::GetPlayerOutputModeName;
+
+constexpr size_t kDeallocationBatchThreshold = 16;
+
+// Reason for existence: Guarantees automatic clearing of an underlying vector
+// upon exiting a scoped execution block, preventing stale or dangling pointers.
+//
+// Expected lifetime and ownership: Instantiated locally on the stack within a
+// function body. Destruction occurs automatically at scope exit.
+//
+// Threading model: Strictly single-threaded execution on the invoking thread.
+template <typename T>
+class ScopedVectorClearer {
+ public:
+  explicit ScopedVectorClearer(std::vector<T>& vec) : vec_(vec) {}
+
+  ~ScopedVectorClearer() { vec_.clear(); }
+
+  ScopedVectorClearer(const ScopedVectorClearer&) = delete;
+  ScopedVectorClearer& operator=(const ScopedVectorClearer&) = delete;
+
+ private:
+  std::vector<T>& vec_;
+};
+
+bool TryRemoveBufferAt(SbPlayerBridge::DecodingBufferQueue* buffer_queue,
+                       uint64_t* cached_bytes_decoded,
+                       DecoderBuffer::Allocator::Handle handle,
+                       size_t index) {
+  if (buffer_queue->size() <= index ||
+      (*buffer_queue)[index].handle != handle) {
+    return false;
+  }
+  *cached_bytes_decoded += (*buffer_queue)[index].buffer->size();
+  if (index == 0) {
+    buffer_queue->pop_front();
+  } else {
+    buffer_queue->erase(buffer_queue->begin() + index);
+  }
+  return true;
+}
+
+bool TryRemoveBufferScan(SbPlayerBridge::DecodingBufferQueue* buffer_queue,
+                         uint64_t* cached_bytes_decoded,
+                         DecoderBuffer::Allocator::Handle handle,
+                         size_t start_index) {
+  if (buffer_queue->size() <= start_index) {
+    return false;
+  }
+  for (size_t i = start_index; i < buffer_queue->size(); ++i) {
+    if ((*buffer_queue)[i].handle == handle) {
+      *cached_bytes_decoded += (*buffer_queue)[i].buffer->size();
+      buffer_queue->erase(buffer_queue->begin() + i);
+      return true;
+    }
+  }
+  return false;
+}
 
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING)
 class StatisticsWrapper {
@@ -88,18 +149,17 @@ void SetDiscardPadding(
       discard_padding.second.InMicroseconds();
 }
 
-const int* ToIntPointer(const std::optional<int>& val) {
-  if (!val) {
-    return nullptr;
+std::vector<StarboardExperimentalFeatureEntry>
+GetStarboardExtensionExperimentalFeatures(
+    const SbPlayerBridge::ExperimentalFeatures& experimental_features) {
+  std::vector<StarboardExperimentalFeatureEntry> entries;
+  entries.reserve(experimental_features.settings().size());
+  for (const auto& [key, val] : experimental_features.settings()) {
+    if (auto* int_val = std::get_if<int64_t>(&val)) {
+      entries.push_back({key.c_str(), *int_val});
+    }
   }
-  return &*val;
-}
-
-const bool* ToBoolPointer(const std::optional<bool>& val) {
-  if (!val) {
-    return nullptr;
-  }
-  return &*val;
+  return entries;
 }
 
 }  // namespace
@@ -118,9 +178,15 @@ SbPlayerBridge::SbPlayerBridge(
     bool allow_resume_after_suspend,
     SbPlayerOutputMode default_output_mode,
     const OnEncryptedMediaInitDataEncounteredCB&
-        on_encrypted_media_init_data_encountered_cb,
-    std::string pipeline_identifier)
-    : url_(url),
+        encrypted_media_init_data_encountered_cb
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+    ,
+    std::string pipeline_identifier
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+    )
+    : on_encrypted_media_init_data_encountered_cb_(
+          encrypted_media_init_data_encountered_cb),
+      url_(url),
       sbplayer_interface_(interface),
       task_runner_(task_runner),
       window_(window),
@@ -128,11 +194,14 @@ SbPlayerBridge::SbPlayerBridge(
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
       allow_resume_after_suspend_(allow_resume_after_suspend),
 #endif
-      on_encrypted_media_init_data_encountered_cb_(
-          on_encrypted_media_init_data_encountered_cb),
+      enable_batched_buffer_deallocation_(false),
+      is_url_based_(true)
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+      ,
       cval_stats_(&interface->cval_stats_),
-      pipeline_identifier_(pipeline_identifier),
-      is_url_based_(true) {
+      pipeline_identifier_(pipeline_identifier)
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+{
   DCHECK(host_);
 
   output_mode_ = ComputeSbUrlPlayerOutputMode(default_output_mode);
@@ -185,26 +254,41 @@ SbPlayerBridge::SbPlayerBridge(
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
       audio_config_(audio_config),
       video_config_(video_config),
-#if BUILDFLAG(COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE)
-      // TODO: b/326654546 - Reorder this variable once enabled.
-      max_video_input_size_(max_video_input_size),
-#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE)
-#if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
-      cval_stats_(&interface->cval_stats_),
-      pipeline_identifier_(pipeline_identifier),
-#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
-#if SB_HAS(PLAYER_WITH_URL)
-      is_url_based_(false),
-#endif  // SB_HAS(PLAYER_WITH_URL
       max_video_capabilities_(max_video_capabilities),
-      experimental_features_(experimental_features)
+      experimental_features_(experimental_features),
+      enable_batched_buffer_deallocation_(
+          experimental_features_.GetBool(kMediaEnableTrivialOptimizations))
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE)
+      ,
+      max_video_input_size_(max_video_input_size)
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE)
 #if BUILDFLAG(IS_ANDROID)
       ,
       surface_view_(surface_view)
 #endif  // BUILDFLAG(IS_ANDROID)
+#if SB_HAS(PLAYER_WITH_URL)
+      ,
+      is_url_based_(false)
+#endif  // SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+      ,
+      cval_stats_(&interface->cval_stats_),
+      pipeline_identifier_(pipeline_identifier)
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
 {
   DCHECK(audio_config.IsValidConfig() || video_config.IsValidConfig());
   DCHECK(host_);
+
+  if (enable_batched_buffer_deallocation_) {
+    audio_decoding_buffers_.reserve(64);
+    video_decoding_buffers_.reserve(256);
+    pending_deallocations_.reserve(kDeallocationBatchThreshold);
+    processing_deallocations_.reserve(kDeallocationBatchThreshold);
+    process_pending_deallocations_cb_ = base::BindPostTask(
+        task_runner_,
+        base::BindRepeating(&SbPlayerBridge::ProcessPendingBatchedDeallocations,
+                            weak_factory_.GetWeakPtr()));
+  }
 
   audio_stream_info_.codec = kSbMediaAudioCodecNone;
   video_stream_info_.codec = kSbMediaVideoCodecNone;
@@ -448,11 +532,10 @@ void SbPlayerBridge::GetUrlPlayerBufferedTimeRanges(
 
   if (buffer_start_time) {
     *buffer_start_time =
-        TimeDelta::FromMicroseconds(url_player_info.buffer_start_timestamp);
+        base::Microseconds(url_player_info.buffer_start_timestamp);
   }
   if (buffer_length_time) {
-    *buffer_length_time =
-        TimeDelta::FromMicroseconds(url_player_info.buffer_duration);
+    *buffer_length_time = base::Microseconds(url_player_info.buffer_duration);
   }
 }
 
@@ -494,7 +577,7 @@ TimeDelta SbPlayerBridge::GetDuration() {
     // URL-based player may not have loaded asset yet, so map no duration to 0.
     return TimeDelta();
   }
-  return TimeDelta::FromMicroseconds(info.duration);
+  return base::Microseconds(info.duration);
 }
 
 TimeDelta SbPlayerBridge::GetStartDate() {
@@ -508,7 +591,7 @@ TimeDelta SbPlayerBridge::GetStartDate() {
 
   SbPlayerInfo info;
   sbplayer_interface_->GetInfo(player_, &info);
-  return TimeDelta::FromMicroseconds(info.start_date);
+  return base::Microseconds(info.start_date);
 }
 
 void SbPlayerBridge::SetDrmSystem(SbDrmSystem drm_system) {
@@ -598,24 +681,30 @@ void SbPlayerBridge::EncryptedMediaInitDataEncounteredCB(
 }
 
 void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
-  TRACE_EVENT0("cobalt::media", "SbPlayerBridge::CreateUrlPlayer");
+  TRACE_EVENT0("media", "SbPlayerBridge::CreateUrlPlayer");
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   DCHECK(!on_encrypted_media_init_data_encountered_cb_.is_null());
   LOG(INFO) << "CreateUrlPlayer passed url " << url;
 
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_FORMAT_SUPPORT_QUERY_METRICS)
   if (max_video_capabilities_.empty()) {
     FormatSupportQueryMetrics::PrintAndResetMetrics();
   }
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_FORMAT_SUPPORT_QUERY_METRICS)
 
   player_creation_time_ = Time::Now();
 
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
   cval_stats_->StartTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
   player_ = sbplayer_interface_->CreateUrlPlayer(
       url.c_str(), window_, &SbPlayerBridge::PlayerStatusCB,
       &SbPlayerBridge::EncryptedMediaInitDataEncounteredCB,
       &SbPlayerBridge::PlayerErrorCB, this);
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
   cval_stats_->StopTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
   DCHECK(SbPlayerIsValid(player_));
 
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
@@ -687,7 +776,6 @@ void SbPlayerBridge::CreatePlayer() {
         ->SetMaxVideoInputSizeForCurrentThread(max_video_input_size_);
   }
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE)
-
 #if BUILDFLAG(IS_ANDROID)
   const StarboardExtensionPlayerSetVideoSurfaceViewApi*
       player_set_video_surface_view_extension =
@@ -712,49 +800,23 @@ void SbPlayerBridge::CreatePlayer() {
       strcmp(experimental_features_extension->name,
              kStarboardExtensionExperimentalFeaturesConfigurationName) == 0 &&
       experimental_features_extension->version >= 1) {
-    StarboardExtensionExperimentalFeatures extension_features = {};
-
-    extension_features.allow_audio_writing_on_pause =
-        experimental_features_.allow_audio_writing_on_pause;
-    extension_features.disable_low_performance_sw_decoder =
-        experimental_features_.disable_low_performance_sw_decoder;
-    extension_features.enable_av1_startup_optimization =
-        experimental_features_.enable_av1_startup_optimization;
-    extension_features.enable_codec_output_checker =
-        experimental_features_.enable_codec_output_checker;
-    extension_features.enable_video_renderer_vsp_adjustment =
-        experimental_features_.enable_video_renderer_vsp_adjustment;
-    extension_features.flush_decoder_during_reset =
-        experimental_features_.enable_flush_during_seek;
-    extension_features.reset_audio_decoder =
-        experimental_features_.enable_reset_audio_decoder;
-    extension_features.skip_flush_on_decoder_teardown =
-        experimental_features_.skip_flush_on_decoder_teardown;
-    extension_features.skip_video_frames_over_60_fps =
-        experimental_features_.skip_video_frames_over_60_fps;
-    extension_features.use_dual_threads_for_video =
-        ToBoolPointer(experimental_features_.use_dual_threads_for_video);
-    extension_features.video_decoder_initial_preroll_count = ToIntPointer(
-        experimental_features_.video_decoder_initial_preroll_count);
-    extension_features.video_renderer_min_decoded_frames =
-        ToIntPointer(experimental_features_.video_renderer_min_decoded_frames);
-    extension_features.video_renderer_min_input_buffers =
-        ToIntPointer(experimental_features_.video_renderer_min_input_buffers);
-
-    // Note: Some flags (e.g., 'max_samples_per_write') are not mapped here as
-    // they are directly consumed by StarboardRenderer.
-
+    const auto entries =
+        GetStarboardExtensionExperimentalFeatures(experimental_features_);
+    StarboardExtensionExperimentalFeatures extension_features{entries.data(),
+                                                              entries.size()};
     experimental_features_extension->SetExperimentalFeaturesForCurrentThread(
         &extension_features);
   }
+
+  const bool should_get_decode_target_graphics_context_provider =
+      output_mode_ == kSbPlayerOutputModeDecodeToTexture ||
+      experimental_features_.GetBool(kMediaForceClearSurfaceView);
 
   player_ = sbplayer_interface_->Create(
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
       &SbPlayerBridge::PlayerErrorCB, this,
-      // TODO: b/429021006 - Add H5vcc flag to post egl calls on gpu thread to
-      // clear SurfaceView.
-      output_mode_ == kSbPlayerOutputModeDecodeToTexture
+      should_get_decode_target_graphics_context_provider
           ? get_decode_target_graphics_context_provider_func_.Run()
           : nullptr);
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
@@ -812,6 +874,7 @@ void SbPlayerBridge::WriteBuffersInternal(
     const std::vector<scoped_refptr<DecoderBuffer>>& buffers,
     const SbMediaAudioStreamInfo* audio_stream_info,
     const SbMediaVideoStreamInfo* video_stream_info) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -823,11 +886,39 @@ void SbPlayerBridge::WriteBuffersInternal(
     return;
   }
 
-  std::vector<SbPlayerSampleInfo> gathered_sbplayer_sample_infos;
-  std::vector<SbDrmSampleInfo> gathered_sbplayer_sample_infos_drm_info;
-  std::vector<SbDrmSubSampleMapping>
-      gathered_sbplayer_sample_infos_subsample_mapping;
-  std::vector<SbPlayerSampleSideData> gathered_sbplayer_sample_infos_side_data;
+  const bool enable_trivial_optimizations =
+      experimental_features_.GetBool(kMediaEnableTrivialOptimizations);
+
+  std::vector<SbPlayerSampleInfo> local_sample_infos;
+  std::vector<SbDrmSampleInfo> local_drm_infos;
+  std::vector<SbDrmSubSampleMapping> local_subsample_mappings;
+  std::vector<SbPlayerSampleSideData> local_side_data;
+
+  std::vector<SbPlayerSampleInfo>& gathered_sbplayer_sample_infos =
+      enable_trivial_optimizations ? gathered_sbplayer_sample_infos_
+                                   : local_sample_infos;
+  std::vector<SbDrmSampleInfo>& gathered_sbplayer_sample_infos_drm_info =
+      enable_trivial_optimizations ? gathered_sbplayer_sample_infos_drm_info_
+                                   : local_drm_infos;
+  std::vector<SbDrmSubSampleMapping>&
+      gathered_sbplayer_sample_infos_subsample_mapping =
+          enable_trivial_optimizations
+              ? gathered_sbplayer_sample_infos_subsample_mapping_
+              : local_subsample_mappings;
+  std::vector<SbPlayerSampleSideData>&
+      gathered_sbplayer_sample_infos_side_data =
+          enable_trivial_optimizations
+              ? gathered_sbplayer_sample_infos_side_data_
+              : local_side_data;
+
+  ScopedVectorClearer<SbPlayerSampleInfo> clearer_info{
+      gathered_sbplayer_sample_infos};
+  ScopedVectorClearer<SbDrmSampleInfo> clearer_drm{
+      gathered_sbplayer_sample_infos_drm_info};
+  ScopedVectorClearer<SbDrmSubSampleMapping> clearer_mapping{
+      gathered_sbplayer_sample_infos_subsample_mapping};
+  ScopedVectorClearer<SbPlayerSampleSideData> clearer_side_data{
+      gathered_sbplayer_sample_infos_side_data};
 
   gathered_sbplayer_sample_infos.reserve(buffers.size());
   gathered_sbplayer_sample_infos_drm_info.reserve(buffers.size());
@@ -846,10 +937,18 @@ void SbPlayerBridge::WriteBuffersInternal(
       break;
     }
 
-    if (auto [iter, inserted] = decoding_buffers_.try_emplace(
-            buffer->handle(), buffer, /*usage_count=*/1, sample_type);
-        !inserted) {
-      ++iter->second.usage_count;
+    if (enable_batched_buffer_deallocation_) {
+      if (sample_type == kSbMediaTypeAudio) {
+        audio_decoding_buffers_.push_back({buffer->handle(), buffer});
+      } else {
+        video_decoding_buffers_.push_back({buffer->handle(), buffer});
+      }
+    } else {
+      if (auto [iter, inserted] = decoding_buffers_.try_emplace(
+              buffer->handle(), buffer, /*usage_count=*/1, sample_type);
+          !inserted) {
+        ++iter->second.usage_count;
+      }
     }
 
     if (sample_type == kSbMediaTypeAudio &&
@@ -1097,6 +1196,25 @@ void SbPlayerBridge::OnPlayerStatus(SbPlayer player,
     LogStartupLatency();
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   }
+
+  if (enable_batched_buffer_deallocation_ &&
+      (state == kSbPlayerStatePrerolling ||
+       state == kSbPlayerStateEndOfStream)) {
+    {
+      base::AutoLock auto_lock(pending_deallocations_lock_);
+      if (state == kSbPlayerStatePrerolling) {
+        // Re-enable batch deallocations for subsequent playback after previous
+        // completion (e.g., reaching EOS).
+        batch_deallocations_enabled_ = true;
+      } else {
+        // Immediate flush is necessary upon reaching EndOfStream to ensure the
+        // accuracy of decoded byte statistics.
+        batch_deallocations_enabled_ = false;
+      }
+    }
+    ProcessPendingBatchedDeallocations();
+  }
+
   host_->OnPlayerStatus(state);
 }
 
@@ -1116,6 +1234,38 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+
+  if (enable_batched_buffer_deallocation_) {
+    auto handle =
+        reinterpret_cast<DecoderBuffer::Allocator::Handle>(sample_buffer);
+
+    // Check index 0 and 1 of audio and video queues first (empirical profile
+    // confirms index 0 covers ~96% and index 1 covers ~4%, so both cover ~100%
+    // of the cases).
+    if (TryRemoveBufferAt(&audio_decoding_buffers_,
+                          &cached_audio_bytes_decoded_, handle, 0) ||
+        TryRemoveBufferAt(&video_decoding_buffers_,
+                          &cached_video_bytes_decoded_, handle, 0) ||
+        TryRemoveBufferAt(&audio_decoding_buffers_,
+                          &cached_audio_bytes_decoded_, handle, 1) ||
+        TryRemoveBufferAt(&video_decoding_buffers_,
+                          &cached_video_bytes_decoded_, handle, 1)) {
+      return;
+    }
+
+    // Fallback scan for extreme exceptions (index >= 2)
+    if (TryRemoveBufferScan(&audio_decoding_buffers_,
+                            &cached_audio_bytes_decoded_, handle, 2) ||
+        TryRemoveBufferScan(&video_decoding_buffers_,
+                            &cached_video_bytes_decoded_, handle, 2)) {
+      return;
+    }
+
+    LOG(ERROR) << "SbPlayerBridge::OnDeallocateSample encounters unknown "
+               << "sample_buffer " << sample_buffer;
+    NOTREACHED();
+    return;
+  }
 
   DecodingBuffers::iterator iter = decoding_buffers_.find(
       reinterpret_cast<DecoderBuffer::Allocator::Handle>(sample_buffer));
@@ -1233,11 +1383,59 @@ void SbPlayerBridge::OnDeallocateSampleTask(const void* sample_buffer) {
   OnDeallocateSample(sample_buffer);
 }
 
+void SbPlayerBridge::ProcessPendingBatchedDeallocations() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  DCHECK(enable_batched_buffer_deallocation_);
+  DCHECK(processing_deallocations_.empty());
+
+  {
+    base::AutoLock auto_lock(pending_deallocations_lock_);
+    if (pending_deallocations_.empty()) {
+      deallocation_task_pending_ = false;
+      return;
+    }
+    processing_deallocations_.swap(pending_deallocations_);
+    deallocation_task_pending_ = false;
+  }
+
+  for (const void* sample_buffer : processing_deallocations_) {
+    OnDeallocateSample(sample_buffer);
+  }
+  processing_deallocations_.clear();
+}
+
+void SbPlayerBridge::EnqueueSampleForBatchedDeallocation(
+    const void* sample_buffer) {
+  DCHECK(enable_batched_buffer_deallocation_);
+
+  // TODO(b/514758473): Experiment whether we should free the buffer
+  // immediately in this function instead of posting a task.
+  {
+    base::AutoLock auto_lock(pending_deallocations_lock_);
+    pending_deallocations_.push_back(sample_buffer);
+    if (deallocation_task_pending_) {
+      return;
+    }
+    if (batch_deallocations_enabled_ &&
+        pending_deallocations_.size() < kDeallocationBatchThreshold) {
+      return;
+    }
+    deallocation_task_pending_ = true;
+  }
+  process_pending_deallocations_cb_.Run();
+}
+
 // static
 void SbPlayerBridge::DeallocateSampleCB(SbPlayer player,
                                         void* context,
                                         const void* sample_buffer) {
   SbPlayerBridge* sbplayer_bridge = static_cast<SbPlayerBridge*>(context);
+
+  if (sbplayer_bridge->enable_batched_buffer_deallocation_) {
+    sbplayer_bridge->EnqueueSampleForBatchedDeallocation(sample_buffer);
+    return;
+  }
+
   sbplayer_bridge->task_runner_->PostTask(
       FROM_HERE,
       base::BindOnce(
@@ -1288,8 +1486,10 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
     // any of the mime associated with it has `decode-to-texture=true` set.
     // TODO(b/232559177): Make the check below more flexible, to work with
     //                    other well formed inputs (e.g. with extra space).
+    const bool force_decode_to_texture =
+        experimental_features_.GetBool(kMediaForceDecodeToTexture);
     bool is_decode_to_texture_preferred =
-        experimental_features_.force_decode_to_texture ||
+        force_decode_to_texture ||
         strstr(video_stream_info_.mime, "decode-to-texture=true") ||
         strstr(video_stream_info_.max_video_capabilities,
                "decode-to-texture=true");
@@ -1299,8 +1499,7 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
                 << GetPlayerOutputModeName(default_output_mode) << "\" to \""
                 << GetPlayerOutputModeName(kSbPlayerOutputModeDecodeToTexture)
                 << "\" because force_decode_to_texture is "
-                << (experimental_features_.force_decode_to_texture ? "true"
-                                                                   : "false")
+                << starboard::ToString(force_decode_to_texture)
                 << ", mime is set to \"" << video_stream_info_.mime
                 << "\", and max_video_capabilities is set to \""
                 << video_stream_info_.max_video_capabilities << "\"";

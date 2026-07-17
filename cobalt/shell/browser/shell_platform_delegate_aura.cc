@@ -24,6 +24,8 @@
 #include "ui/aura/env.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_event_dispatcher.h"
+#include "ui/aura/window_tree_host_platform.h"
+#include "ui/platform_window/platform_window.h"
 
 namespace content {
 
@@ -89,7 +91,7 @@ void ShellPlatformDelegate::CleanUp(Shell* shell) {
 
 void ShellPlatformDelegate::SetContents(Shell* shell) {
   aura::Window* content = shell->web_contents()->GetNativeView();
-  if (!platform_->aura) {
+  if (!platform_ || !platform_->aura) {
     return;
   }
   aura::Window* parent = platform_->aura->host()->window();
@@ -106,12 +108,30 @@ void ShellPlatformDelegate::RevealShell(Shell* shell) {
     CreatePlatformWindowInternal(shell, shell_data.initial_size_);
     SetContents(shell);
   }
-
-  platform_->aura->host()->Show();
+}
+void ShellPlatformDelegate::MapWindowShell(Shell* shell) {
+  if (!platform_ || !platform_->aura || !platform_->aura->host()) {
+    return;
+  }
+  auto* host =
+      static_cast<aura::WindowTreeHostPlatform*>(platform_->aura->host());
+  if (host && host->platform_window()) {
+    host->platform_window()->Show(true);
+  }
 }
 
 void ShellPlatformDelegate::ConcealShell(Shell* shell) {
+  if (!platform_ || !platform_->aura || !platform_->aura->host()) {
+    return;
+  }
   platform_->aura->host()->Hide();
+}
+void ShellPlatformDelegate::DidCreateOrAttachWebContents(
+    Shell* shell,
+    WebContents* web_contents) {
+  if (!is_visible_) {
+    TrackPreviouslyVisibleWebContents(web_contents);
+  }
 }
 
 void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {}
