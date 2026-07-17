@@ -35,11 +35,14 @@ runs:
         PLATFORM: ${{ inputs.platform }}
       run: |
         host_archive_flags="--compression zstd --compression-level=9"
+        aosp_archive_flags="--compression gz --archive-per-target --flatten-deps"
         android_archive_flags="--compression gz --archive-per-target --use-android-deps-path --flatten-deps"
         rdk_archive_flags="--compression gz --archive-per-target --flatten-deps"
 
         device_archive_flags=""
-        if [[ "${PLATFORM}" == *android* ]]; then
+        if [[ "${PLATFORM}" == *aosp* ]]; then
+          device_archive_flags="${aosp_archive_flags}"
+        elif [[ "${PLATFORM}" == *android* ]]; then
           device_archive_flags="${android_archive_flags}"
         elif [[ "${PLATFORM}" == *rdk* ]]; then
           device_archive_flags="${rdk_archive_flags}"
