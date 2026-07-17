@@ -1,6 +1,4 @@
-#!/bin/bash
-#
-# Copyright 2020 The Cobalt Authors. All Rights Reserved.
+# Copyright 2026 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,14 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-function delete_file() {
-  if [[ $# -ne 1 ]]; then
-    log "error" " delete_file only accepts a single argument"
-    return 1
-  fi
+import("//mojo/public/tools/bindings/mojom.gni")
 
-  echo " Deleting file '${1}'"
+mojom("mojom") {
+  sources = [ "in_app_dial.mojom" ]
 
-  eval "${SSH}\"rm -f \"${1}\"\"" 1> /dev/null
-  return 0
+  deps = [ "//services/network/public/mojom" ]
 }

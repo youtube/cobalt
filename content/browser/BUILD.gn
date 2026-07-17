@@ -3774,10 +3774,24 @@ source_set("browser") {
                                          "browsing_topics/*",
                                          "attribution_reporting/*",
                                          "shared_storage/*",
+                                         "interest_group/*",
+                                         "private_aggregation/*",
+                                         "aggregation_service/*",
+                                         "devtools/auction_worklet_devtools_agent_host.*",
                                        ])
     sources = []
     sources = _filtered_sources
-    deps -= [ "//components/browsing_topics/common:common" ]
+    deps -= [
+      "//components/browsing_topics/common:common",
+      "//content/browser/aggregation_service/proto:aggregatable_report_proto",
+      "//content/browser/attribution_reporting:attribution_reporting_proto",
+      "//content/browser/attribution_reporting:internals_mojo_bindings",
+      "//content/browser/attribution_reporting:mojo_bindings",
+      "//content/browser/attribution_reporting:registration_result_mojom",
+      "//content/browser/interest_group:interest_group_proto",
+      "//content/browser/private_aggregation:mojo_bindings",
+      "//content/browser/private_aggregation/proto:private_aggregation_budgets_proto",
+    ]
   }
 
   if (is_cobalt) {
