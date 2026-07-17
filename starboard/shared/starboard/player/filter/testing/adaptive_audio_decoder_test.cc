@@ -329,6 +329,11 @@ TEST_P(AdaptiveAudioDecoderTest, SingleInput) {
 }
 
 TEST_P(AdaptiveAudioDecoderTest, MultipleInput) {
+#if BUILDFLAG(IS_ANDROID)
+  FAIL();
+  SB_CHECK(0);
+#endif  // BUILDFLAG(IS_ANDROID)
+
   int64_t playing_duration = 0;
   // Skip buffer 0, as the difference between first and second opus buffer
   // timestamp is a little larger than it should be.
