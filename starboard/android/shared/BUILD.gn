@@ -219,7 +219,6 @@ static_library("starboard_platform") {
 
     # TODO: b/374300500 - posix_emu things should not be used on Android anymore
     # "posix_emu/dirent.cc",
-    # "posix_emu/errno.cc",
     # "posix_emu/pthread.cc",
 
     "runtime_resource_overlay.cc",
@@ -318,19 +317,35 @@ static_library("starboard_platform") {
     ]
   }
 
-  if (is_starboard && current_toolchain == starboard_toolchain) {
+  if (is_starboard) {
     sources -= [
       "crash_handler.cc",
       "crash_handler.h",
+      "system_platform_error.cc",
     ]
     sources += [
       "//starboard/shared/starboard/crash_handler.cc",
       "//starboard/shared/starboard/crash_handler.h",
       "//starboard/shared/starboard/loader_app_metrics.cc",
       "//starboard/shared/starboard/loader_app_metrics.h",
+
+      # TODO(https://crbug.com/495203133): Symbols required on AOSP. The
+      # missing implementations are not not needed for the current set of
+      # passing nplb tests.
+      "//starboard/shared/stub/speech_synthesis_cancel.cc",
+      "//starboard/shared/stub/speech_synthesis_is_supported.cc",
+      "//starboard/shared/stub/speech_synthesis_speak.cc",
+      "//starboard/shared/stub/system_network_is_disconnected.cc",
+      "//starboard/shared/stub/system_raise_platform_error.cc",
+      "//starboard/shared/stub/window_create.cc",
+      "//starboard/shared/stub/window_destroy.cc",
+      "//starboard/shared/stub/window_get_diagonal_size_in_inches.cc",
+      "//starboard/shared/stub/window_get_platform_handle.cc",
+      "//starboard/shared/stub/window_get_size.cc",
       "asset_manager.cc",
       "asset_manager.h",
       "posix_emu/access.cc",
+      "posix_emu/errno.cc",
       "posix_emu/file.cc",
       "posix_emu/stat.cc",
     ]
