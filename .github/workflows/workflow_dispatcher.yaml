@@ -15,9 +15,6 @@ jobs:
     steps:
       - name: Check label and trigger PR jobs
         uses: actions/github-script@v8
-        env:
-          RUNTEST_WORKFLOWS: android.yaml,evergreen.yaml,aosp.yaml,linux.yaml,tvos.yaml
-          YTS_PLAYBACK_TEST_WORKFLOWS: android.yaml
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -29,20 +26,13 @@ jobs:
               return;
             }
 
-            const mapping = {
-              'runtest': process.env.RUNTEST_WORKFLOWS,
-              'yts_playback_test': process.env.YTS_PLAYBACK_TEST_WORKFLOWS
-            };
-
-            const labelName = event.label.name;
-            const workflowsStr = mapping[labelName];
-
-            if (!workflowsStr) {
-              console.log(`No workflows configured for label: ${labelName}`);
-              return;
-            }
-
-            const workflows = workflowsStr.split(',');
+            // Workflows that use main.yaml. tvos.yaml is excluded as it does not use main.yaml.
+            const workflows = [
+              'android.yaml',
+              'aosp.yaml',
+              'evergreen.yaml',
+              'linux.yaml'
+            ];
 
             await Promise.all(workflows.map(async (workflow) => {
               try {
