@@ -74,19 +74,11 @@ CommandLinePreprocessor::CommandLinePreprocessor(int argc,
   // * Duplicate switches with arguments.
   // * Inconsistent settings across related switches.
 
-  // Merge all disabled feature lists together.
-  if (cmd_line_.HasSwitch(::switches::kDisableFeatures)) {
-    std::string disabled_features(
-        cmd_line_.GetSwitchValueASCII(::switches::kDisableFeatures));
-    auto old_value =
-        cobalt_param_switch_defaults.find(::switches::kDisableFeatures);
-    if (old_value != cobalt_param_switch_defaults.end()) {
-      disabled_features += std::string(",");
-      disabled_features += std::string(old_value->second);
-      cmd_line_.AppendSwitchNative(::switches::kDisableFeatures,
-                                   disabled_features);
-    }
-  }
+  // Merge all disabled and enabled feature lists together with their defaults.
+  MergeFeatures(&cmd_line_, ::switches::kDisableFeatures,
+                cobalt_param_switch_defaults);
+  MergeFeatures(&cmd_line_, ::switches::kEnableFeatures,
+                cobalt_param_switch_defaults);
 
   // Override kContentShellHostWindowSize if the user sets kWindowSize.
   if (cmd_line_.HasSwitch(switches::kWindowSize)) {
