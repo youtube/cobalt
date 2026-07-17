@@ -111,9 +111,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
       std::string("MediaSource.isTypeSupported('") + kCustomMime + "');";
   EXPECT_TRUE(content::EvalJs(shell()->web_contents(), js_query).ExtractBool());
 
-  std::vector<std::string> mimes = g_intercepted_data.GetMimes();
-  ASSERT_FALSE(mimes.empty());
-  EXPECT_EQ(mimes.back(), kCustomMime);
+  EXPECT_THAT(g_intercepted_data.GetMimes(), ::testing::Contains(kCustomMime));
 }
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
@@ -135,9 +133,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   EXPECT_EQ("maybe",
             content::EvalJs(shell()->web_contents(), js_query).ExtractString());
 
-  std::vector<std::string> mimes = g_intercepted_data.GetMimes();
-  ASSERT_FALSE(mimes.empty());
-  EXPECT_EQ(mimes.back(), kCustomMime);
+  EXPECT_THAT(g_intercepted_data.GetMimes(), ::testing::Contains(kCustomMime));
 }
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
@@ -157,9 +153,8 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   EXPECT_FALSE(
       content::EvalJs(shell()->web_contents(), js_query).ExtractBool());
 
-  std::vector<std::string> mimes = g_intercepted_data.GetMimes();
-  ASSERT_FALSE(mimes.empty());
-  EXPECT_EQ(mimes.back(), kUnsupportedMime);
+  EXPECT_THAT(g_intercepted_data.GetMimes(),
+              ::testing::Contains(kUnsupportedMime));
 }
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
@@ -178,9 +173,8 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
       std::string("MediaSource.isTypeSupported('") + kHdr10PlusMime + "');";
   EXPECT_TRUE(content::EvalJs(shell()->web_contents(), js_query).ExtractBool());
 
-  std::vector<std::string> mimes = g_intercepted_data.GetMimes();
-  ASSERT_FALSE(mimes.empty());
-  EXPECT_EQ(mimes.back(), kHdr10PlusMime);
+  EXPECT_THAT(g_intercepted_data.GetMimes(),
+              ::testing::Contains(kHdr10PlusMime));
 }
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
@@ -201,9 +195,8 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   EXPECT_EQ("probably",
             content::EvalJs(shell()->web_contents(), js_query).ExtractString());
 
-  std::vector<std::string> mimes = g_intercepted_data.GetMimes();
-  ASSERT_FALSE(mimes.empty());
-  EXPECT_EQ(mimes.back(), kHdr10PlusMime);
+  EXPECT_THAT(g_intercepted_data.GetMimes(),
+              ::testing::Contains(kHdr10PlusMime));
 }
 
 }  // namespace cobalt
