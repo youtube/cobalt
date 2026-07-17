@@ -1,0 +1,61 @@
+# Copyright 2026 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+if (is_android) {
+  import("//third_party/jni_zero/jni_zero.gni")
+}
+
+template("starboard_executable") {
+  if (is_android) {
+    _target_type = "shared_library_with_jni"
+  } else {
+    _target_type = starboard_level_final_executable_type
+  }
+
+  target(_target_type, target_name) {
+    forward_variables_from(invoker, "*", TESTONLY_AND_VISIBILITY)
+    forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+
+    if (is_android) {
+      java_targets = [
+        "//cobalt/android:cobalt_main_java",
+        "//cobalt/aosp:cobalt_apk_java",
+      ]
+      remove_uncalled_jni = true
+
+      configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
+      configs += [ "//build/config/android:hide_all_but_jni" ]
+
+      if (!defined(deps)) {
+        deps = []
+      }
+      deps += [ "//starboard/aosp/shared:aosp_loader_glue" ]
+    } else {
+      output_dir = root_build_dir
+      if (_target_type != "executable") {
+        metadata = {
+          shared_libraries = [ "$root_build_dir/lib${target_name}.so" ]
+        }
+      }
+    }
+  }
+}
+
+set_defaults("starboard_executable") {
+  if (!is_android && starboard_level_final_executable_type == "executable") {
+    configs = default_executable_configs
+  } else {
+    configs = default_shared_library_configs
+  }
+}
