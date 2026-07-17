@@ -58,6 +58,22 @@ TEST(CobaltSwitchDefaultsTest, MergeDisabledFeatures) {
       disabled_features);
 }
 
+TEST(CobaltSwitchDefaultsTest, MergeEnabledFeatures) {
+  const auto input_argv =
+      std::to_array<const char*>({"PROGRAM", "--enable-features=UseFoo"});
+  const int input_argc = static_cast<int>(input_argv.size());
+  CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
+
+  std::string enabled_features =
+      GetSwitchValue(cmd_line_pxr, ::switches::kEnableFeatures);
+  EXPECT_EQ(std::string("UseFoo,LimitImageDecodeCacheSize:mb/24, "
+                        "DefaultEnableANGLEValidation, "
+                        "SmallerInterestArea, "
+                        "ReclaimPrepaintTilesWhenIdle, "
+                        "ReclaimOldPrepaintTiles"),
+            enabled_features);
+}
+
 TEST(CobaltSwitchDefaultsTest, ConsistentWindowSizes) {
   const auto input_argv = std::to_array<const char*>({
       "PROGRAM",
