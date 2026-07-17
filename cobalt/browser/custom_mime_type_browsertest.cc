@@ -134,4 +134,46 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   EXPECT_EQ(intercepted_mimes_.back(), kUnsupportedMime);
 }
 
+IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
+                       IsTypeSupported_ForwardsHdr10PlusAttribute) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
+
+  intercepted_mimes_.clear();
+  g_mock_support_type = kSbMediaSupportTypeProbably;
+
+  const char kHdr10PlusMime[] =
+      "video/webm; codecs=\"vp09.02.51.10.01.09.16.09.00\"; hdr=hdr10plus";
+
+  std::string js_query =
+      std::string("MediaSource.isTypeSupported('") + kHdr10PlusMime + "');";
+  EXPECT_TRUE(content::EvalJs(shell()->web_contents(), js_query).ExtractBool());
+
+  ASSERT_FALSE(intercepted_mimes_.empty());
+  EXPECT_EQ(intercepted_mimes_.back(), kHdr10PlusMime);
+}
+
+IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
+                       CanPlayType_ForwardsHdr10PlusAttribute) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
+
+  intercepted_mimes_.clear();
+  g_mock_support_type = kSbMediaSupportTypeProbably;
+
+  const char kHdr10PlusMime[] =
+      "video/mp4; codecs=\"hvc1.2.4.L153.B0\"; hdr=hdr10plus";
+
+  std::string js_query =
+      std::string("document.createElement('video').canPlayType('") +
+      kHdr10PlusMime + "');";
+  EXPECT_EQ("probably",
+            content::EvalJs(shell()->web_contents(), js_query).ExtractString());
+
+  ASSERT_FALSE(intercepted_mimes_.empty());
+  EXPECT_EQ(intercepted_mimes_.back(), kHdr10PlusMime);
+}
+
 }  // namespace cobalt
