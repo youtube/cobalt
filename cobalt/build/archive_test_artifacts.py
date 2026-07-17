@@ -32,8 +32,11 @@ _EXCLUDE_DIRS_JUNIT = [
 ]
 
 
-def _make_tar(archive_path: str, compression: str, compression_level: int,
-              file_lists: list[tuple[str, str]]):
+def _make_tar(archive_path: str,
+              compression: str,
+              compression_level: int,
+              file_lists: list[tuple[str, str]],
+              dereference_hard_links: bool = False):
   """Creates the tar file. Uses tar command instead of tarfile for performance.
   """
   if compression == 'gz':
@@ -44,10 +47,12 @@ def _make_tar(archive_path: str, compression: str, compression_level: int,
     compression_flag = f'zstd -T0 -{compression_level}'
   else:
     raise ValueError(f'Unsupported compression: {compression}')
-  tar_cmd = [
-      'tar', '--owner=0', '--group=0', '--numeric-owner', '-I',
-      compression_flag, '-cvf', archive_path
-  ]
+  tar_cmd = ['tar', '--owner=0', '--group=0', '--numeric-owner']
+  if dereference_hard_links:
+    # Store hard-linked files as full copies. Android /sdcard (sdcardfs/FUSE)
+    # cannot create hard links, so link entries fail to extract on device.
+    tar_cmd.append('--hard-dereference')
+  tar_cmd += ['-I', compression_flag, '-cvf', archive_path]
   tmp_files = []
   for file_list, base_dir in file_lists:
     if not file_list:
@@ -141,6 +146,7 @@ def create_archive(
     compression: str,
     compression_level: int,
     flatten_deps: bool,
+    dereference_hard_links: bool = False,
 ):
   """Main logic. Collects runtime dependencies for each target."""
   os.makedirs(destination_dir, exist_ok=True)
@@ -232,6 +238,7 @@ def create_archive(
               compression,
               compression_level,
               [(target_deps, out_dir), (target_src_root_deps, source_dir)],
+              dereference_hard_links=dereference_hard_links,
           )
         else:
           raise ValueError('Unsupported configuration.')
@@ -244,6 +251,7 @@ def create_archive(
         compression,
         compression_level,
         [(combined_deps, source_dir)],
+        dereference_hard_links=dereference_hard_links,
     )
 
 
@@ -293,6 +301,11 @@ def main():
       action='store_true',
       help='Pass this argument to archive files from the source and out '
       'directories both at the root of the deps archive.')
+  parser.add_argument(
+      '--dereference-hard-links',
+      action='store_true',
+      help='Store hard-linked files as full copies. Needed for archives '
+      'extracted on Android /sdcard, which cannot create hard links.')
   args = parser.parse_args()
 
   if args.flatten_deps != args.archive_per_target:
@@ -307,7 +320,8 @@ def main():
       use_android_deps_path=args.use_android_deps_path,
       compression=args.compression,
       compression_level=args.compression_level,
-      flatten_deps=args.flatten_deps)
+      flatten_deps=args.flatten_deps,
+      dereference_hard_links=args.dereference_hard_links)
 
 
 if __name__ == '__main__':
