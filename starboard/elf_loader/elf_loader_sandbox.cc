@@ -33,15 +33,6 @@
 #include "starboard/shared/starboard/features_test_util.h"
 #endif
 
-namespace {
-
-bool EndsWith(const std::string& s, const std::string& suffix) {
-  return s.size() >= suffix.size() &&
-         s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0;
-}
-
-}  // namespace
-
 elf_loader::ElfLoader g_elf_loader;
 
 void (*g_sb_event_func)(const SbEvent*) = NULL;
@@ -62,9 +53,9 @@ void LoadLibraryAndInitialize(const std::string& library_path,
   }
 
   auto compression_type = elf_loader::CompressionType::kNone;
-  if (EndsWith(library_path, elf_loader::kLz4Suffix)) {
+  if (starboard::EndsWith(library_path, elf_loader::kLz4Suffix)) {
     compression_type = elf_loader::CompressionType::kLz4;
-  } else if (EndsWith(library_path, elf_loader::kZstdSuffix)) {
+  } else if (starboard::EndsWith(library_path, elf_loader::kZstdSuffix)) {
     compression_type = elf_loader::CompressionType::kZstd;
   }
   if (!g_elf_loader.Load(library_path, content_path, /*is_relative_path=*/true,
