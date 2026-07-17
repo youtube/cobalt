@@ -25,6 +25,7 @@ import android.os.SystemClock;
 import android.text.TextUtils;
 import android.view.Display;
 import android.view.KeyEvent;
+import android.view.SurfaceHolder;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
@@ -73,7 +74,7 @@ import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
 
 /* Abstract activity used by AndroidTV. Extends the base with the Chromium content-shell wiring. */
-public abstract class CobaltActivity extends BaseCobaltActivity {
+public abstract class CobaltActivity extends BaseCobaltActivity implements SurfaceHolder.Callback2 {
   private static final String META_DATA_ENABLE_SPLASH_SCREEN = "cobalt.ENABLE_SPLASH_SCREEN";
   private static final String META_DATA_ENABLE_FEATURES = "cobalt.ENABLE_FEATURES";
   private static final String YOUTUBE_URL = "https://www.youtube.com/tv";
@@ -96,6 +97,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   private ShellManager mShellManager;
   private ActivityWindowAndroid mWindowAndroid;
+  private boolean mUseWindowSurfaceForUi = true;
   private Intent mLastSentIntent;
   private String mStartupUrl;
   private IntentRequestTracker mIntentRequestTracker;
@@ -236,10 +238,16 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     mShellManager.setWindow(mWindowAndroid);
     // Set up the animation placeholder to be the SurfaceView. This disables the
     // SurfaceView's 'hole' clipping during animations that are notified to the window.
-    mWindowAndroid.setAnimationPlaceholderView(
-        mShellManager.getContentViewRenderView().getSurfaceView());
-    mA11yHelper =
-        new CobaltA11yHelper(this, mShellManager.getContentViewRenderView().getSurfaceView());
+    View placeholderView = mShellManager.getContentViewRenderView().getSurfaceView();
+    if (placeholderView == null) {
+      placeholderView = mShellManager.getContentViewRenderView();
+    }
+    mWindowAndroid.setAnimationPlaceholderView(placeholderView);
+    View a11yView = mShellManager.getContentViewRenderView().getSurfaceView();
+    if (a11yView == null) {
+      a11yView = mShellManager.getContentViewRenderView();
+    }
+    mA11yHelper = new CobaltA11yHelper(this, a11yView);
 
     if (mStartupUrl == null || mStartupUrl.isEmpty()) {
       String[] args = getStarboardBridge().getArgs();
@@ -447,6 +455,8 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
     setupStartupGuard();
     createContent(savedInstanceState);
+    Log.i(TAG, "KJ: Enabling window surface mode for UI (default), taking surface.");
+    getWindow().takeSurface(this);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
     MemoryPressureUma.initializeForBrowser();
     NetworkChangeNotifier.init();
@@ -829,6 +839,56 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
         activity
             .getOnBackInvokedDispatcher()
             .unregisterOnBackInvokedCallback((OnBackInvokedCallback) callback);
+      }
+    }
+  }
+  // SurfaceHolder.Callback implementation for window surface mode
+  @Override
+  public void surfaceCreated(SurfaceHolder holder) {
+    Log.i(TAG, "KJ: CobaltActivity.surfaceCreated called");
+    if (mUseWindowSurfaceForUi && mShellManager != null && mShellManager.getContentViewRenderView() != null) {
+      dev.cobalt.shell.ContentViewRenderView renderView = mShellManager.getContentViewRenderView();
+      if (renderView.getSurfaceCallback() != null) {
+        Log.i(TAG, "KJ: CobaltActivity.surfaceCreated -> forwarding to ContentViewRenderView");
+        renderView.setExternalSurfaceHolder(holder);
+        renderView.getSurfaceCallback().surfaceCreated(holder);
+      }
+    }
+  }
+
+  @Override
+  public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+    Log.i(TAG, "KJ: CobaltActivity.surfaceChanged called");
+    if (mUseWindowSurfaceForUi && mShellManager != null && mShellManager.getContentViewRenderView() != null) {
+      dev.cobalt.shell.ContentViewRenderView renderView = mShellManager.getContentViewRenderView();
+      if (renderView.getSurfaceCallback() != null) {
+        Log.i(TAG, "KJ: CobaltActivity.surfaceChanged -> forwarding to ContentViewRenderView");
+        renderView.getSurfaceCallback().surfaceChanged(holder, format, width, height);
+      }
+    }
+  }
+
+  @Override
+  public void surfaceDestroyed(SurfaceHolder holder) {
+    Log.i(TAG, "KJ: CobaltActivity.surfaceDestroyed called");
+    if (mUseWindowSurfaceForUi && mShellManager != null && mShellManager.getContentViewRenderView() != null) {
+      dev.cobalt.shell.ContentViewRenderView renderView = mShellManager.getContentViewRenderView();
+      if (renderView.getSurfaceCallback() != null) {
+        Log.i(TAG, "KJ: CobaltActivity.surfaceDestroyed -> forwarding to ContentViewRenderView");
+        renderView.getSurfaceCallback().surfaceDestroyed(holder);
+        renderView.setExternalSurfaceHolder(null);
+      }
+    }
+  }
+
+  @Override
+  public void surfaceRedrawNeeded(SurfaceHolder holder) {
+    Log.i(TAG, "KJ: CobaltActivity.surfaceRedrawNeeded called");
+    if (mUseWindowSurfaceForUi && mShellManager != null && mShellManager.getContentViewRenderView() != null) {
+      dev.cobalt.shell.ContentViewRenderView renderView = mShellManager.getContentViewRenderView();
+      if (renderView.getSurfaceCallback() instanceof SurfaceHolder.Callback2) {
+        Log.i(TAG, "KJ: CobaltActivity.surfaceRedrawNeeded -> forwarding to ContentViewRenderView");
+        ((SurfaceHolder.Callback2) renderView.getSurfaceCallback()).surfaceRedrawNeeded(holder);
       }
     }
   }
