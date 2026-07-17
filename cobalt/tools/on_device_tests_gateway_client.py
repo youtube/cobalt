@@ -185,7 +185,7 @@ def _unit_test_files(args: argparse.Namespace, target_name: str) -> List[str]:
       res.append(f'host_deps={args.gcs_archive_path}/'
                  'cobalt_browsertests_host_deps.tar.gz')
     return res
-  
+
   elif args.device_family in _GCS_ARCHIVE_DEVICE_FAMILIES:
     return [
         f'bin={args.gcs_archive_path}/{target_name}.py',
@@ -193,6 +193,7 @@ def _unit_test_files(args: argparse.Namespace, target_name: str) -> List[str]:
     ]
   else:
     raise ValueError(f'Unsupported device family: {args.device_family}')
+
 
 def _unit_test_params(args: argparse.Namespace, target_name: str,
                       dir_on_device: str) -> List[str]:
