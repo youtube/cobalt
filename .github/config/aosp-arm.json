@@ -10,8 +10,7 @@
     "gold"
   ],
   "targets": [
-    "cobalt:gn_all",
-    "nplb_loader"
+    "cobalt:gn_all"
   ],
   "includes": [
     {
