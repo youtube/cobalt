@@ -400,9 +400,9 @@ TEST_F(SplashScreenTest, PreloadSkipsSplashScreen) {
   InitializeShell(false /* is_visible */);
 
   // Attempt to create a window with a splash screen requested.
-  Shell* shell = Shell::CreateNewWindow(
-      browser_context(), GURL("about:blank"), nullptr, gfx::Size(),
-      true /* create_splash_screen_web_contents */);
+  Shell* shell =
+      Shell::CreateNewWindow(browser_context(), GURL(), nullptr, gfx::Size(),
+                             true /* create_splash_screen_web_contents */);
 
   // Verify that the main contents exist but the splash screen was skipped.
   ASSERT_NE(shell->web_contents(), nullptr);
