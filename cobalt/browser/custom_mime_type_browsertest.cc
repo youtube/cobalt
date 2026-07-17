@@ -29,31 +29,34 @@
 namespace cobalt {
 namespace {
 
+struct InterceptedCall {
+  std::string mime;
+  std::string key_system;
+};
+
 struct InterceptedData {
   std::mutex mutex;
-  std::vector<std::string> mimes;
-  std::vector<std::string> key_systems;
+  std::vector<InterceptedCall> calls;
   std::atomic<SbMediaSupportType> mock_support_type{
       kSbMediaSupportTypeNotSupported};
 
   void Clear() {
     std::lock_guard<std::mutex> lock(mutex);
-    mimes.clear();
-    key_systems.clear();
+    calls.clear();
   }
 
   void Add(const char* mime, const char* key_system) {
     std::lock_guard<std::mutex> lock(mutex);
-    if (mime) {
-      mimes.push_back(mime);
-    }
-    if (key_system) {
-      key_systems.push_back(key_system);
-    }
+    calls.push_back({mime ? mime : "", key_system ? key_system : ""});
   }
 
   std::vector<std::string> GetMimes() {
     std::lock_guard<std::mutex> lock(mutex);
+    std::vector<std::string> mimes;
+    mimes.reserve(calls.size());
+    for (const auto& call : calls) {
+      mimes.push_back(call.mime);
+    }
     return mimes;
   }
 };

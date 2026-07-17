@@ -141,7 +141,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbLogRawFormat);
   REGISTER_SYMBOL(SbMediaCanChangeType);
   REGISTER_SYMBOL(SbMediaCanPlayMimeAndKeySystem);
-  REGISTER_SYMBOL(SbMediaSetCanPlayMimeAndKeySystemFuncForTesting);
   REGISTER_SYMBOL(SbMediaGetAudioBufferBudget);
   REGISTER_SYMBOL(SbMediaGetAudioConfiguration);
   REGISTER_SYMBOL(SbMediaGetAudioOutputCount);
@@ -150,6 +149,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMediaGetInitialBufferCapacity);
   REGISTER_SYMBOL(SbMediaGetVideoBufferBudget);
   REGISTER_SYMBOL(SbMediaIsBufferPoolAllocateOnDemand);
+  REGISTER_SYMBOL(SbMediaSetCanPlayMimeAndKeySystemFuncForTesting);
   REGISTER_SYMBOL(SbMicrophoneClose);
   REGISTER_SYMBOL(SbMicrophoneCreate);
   REGISTER_SYMBOL(SbMicrophoneDestroy);
