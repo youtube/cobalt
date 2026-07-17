@@ -50,21 +50,8 @@ template("modular_apk") {
     }
 
     if (_name == "nplb") {
-      _file_tests_data = [
-        "dir_with_files/file11",
-        "dir_with_files/file12",
-        "dir_with_only_subdir/dir_with_files/file21",
-        "dir_with_only_subdir/dir_with_files/file22",
-        "file01",
-        "file_with_long_name_and_contents_for_seek_testing_1234567890",
-      ]
-      foreach(_f, _file_tests_data) {
-        renaming_sources +=
-            [ "$root_build_dir/test/starboard/nplb/file_tests/$_f" ]
-        renaming_destinations += [ "test/starboard/nplb/file_tests/$_f" ]
-      }
       deps += [
-        "//starboard/nplb/testdata/file_tests:nplb_file_tests_data($default_toolchain)",
+        "//starboard/nplb/testdata/file_tests:nplb_file_tests_data_assets",
         "//starboard/shared/starboard/player:player_test_data_assets",
       ]
     }
