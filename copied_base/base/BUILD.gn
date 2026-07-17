@@ -4376,9 +4376,6 @@ if (is_android) {
   }
 
   android_library("base_java") {
-    # TODO(https://crbug.com/495203133): reenable after fixing Java warnings.
-    enable_errorprone = false
-
     srcjar_deps = [
       ":base_android_java_enums_srcjar",
       ":base_jni",
