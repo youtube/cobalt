@@ -49,9 +49,11 @@ def _make_tar(archive_path: str, compression: str, compression_level: int,
       compression_flag, '-cvf', archive_path
   ]
   tmp_files = []
+  has_input = False
   for file_list, base_dir in file_lists:
     if not file_list:
       continue
+    has_input = True
     # Create temporary file to hold file list to not blow out the commandline.
     # It will get cleaned up via implicit close.
     # pylint: disable=consider-using-with
@@ -62,6 +64,11 @@ def _make_tar(archive_path: str, compression: str, compression_level: int,
     # Change the tar working directory and add the file list.
     # Use absolute path for base_dir to avoid issues with cumulative -C flags.
     tar_cmd += ['-C', os.path.abspath(base_dir), '-T', tmp_file.name]
+
+  # tar refuses to create an archive with no member list; pass an empty one so
+  # callers can intentionally produce a valid empty archive.
+  if not has_input:
+    tar_cmd += ['-T', os.devnull]
 
   print(f'Running `{" ".join(tar_cmd)}`')  # pylint: disable=inconsistent-quotes
   subprocess.check_call(tar_cmd)
@@ -141,9 +148,24 @@ def create_archive(
     compression: str,
     compression_level: int,
     flatten_deps: bool,
+    empty_archive: bool = False,
 ):
   """Main logic. Collects runtime dependencies for each target."""
   os.makedirs(destination_dir, exist_ok=True)
+
+  if empty_archive:
+    if archive_per_target:
+      for target in targets:
+        target_name = target.split(':')[-1]
+        output_path = os.path.join(destination_dir,
+                                   f'{target_name}_deps.tar.{compression}')
+        _make_tar(output_path, compression, compression_level, [])
+    else:
+      output_path = os.path.join(destination_dir,
+                                 f'test_artifacts.tar.{compression}')
+      _make_tar(output_path, compression, compression_level, [])
+    return
+
   combined_deps = set()
   for target in targets:
     # TODO(b/483460300): Unify unittest and browsertest packaging
@@ -293,6 +315,11 @@ def main():
       action='store_true',
       help='Pass this argument to archive files from the source and out '
       'directories both at the root of the deps archive.')
+  parser.add_argument(
+      '--empty-archive',
+      action='store_true',
+      help='Produce an empty archive instead of collecting runtime deps. '
+      'For platforms that don\'t need any additional runtime data.')
   args = parser.parse_args()
 
   if args.flatten_deps != args.archive_per_target:
@@ -307,7 +334,8 @@ def main():
       use_android_deps_path=args.use_android_deps_path,
       compression=args.compression,
       compression_level=args.compression_level,
-      flatten_deps=args.flatten_deps)
+      flatten_deps=args.flatten_deps,
+      empty_archive=args.empty_archive)
 
 
 if __name__ == '__main__':

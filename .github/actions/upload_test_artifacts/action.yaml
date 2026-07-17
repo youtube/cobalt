@@ -35,7 +35,8 @@ runs:
         PLATFORM: ${{ inputs.platform }}
       run: |
         host_archive_flags="--compression zstd --compression-level=9"
-        aosp_archive_flags="--compression gz --archive-per-target --flatten-deps"
+        # The archive is never read on AOSP. Create an empty one instead.
+        aosp_archive_flags="--compression gz --archive-per-target --flatten-deps --empty-archive"
         android_archive_flags="--compression gz --archive-per-target --use-android-deps-path --flatten-deps"
         rdk_archive_flags="--compression gz --archive-per-target --flatten-deps"
 
