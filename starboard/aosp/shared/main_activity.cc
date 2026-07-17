@@ -13,11 +13,12 @@
 // limitations under the License.
 
 #include <jni.h>
+#include <pthread.h>
 
 #include <string>
+#include <thread>
 #include <vector>
 
-#include "base/threading/platform_thread.h"
 #include "cobalt/aosp/jni_headers/MainActivity_jni.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "third_party/jni_zero/jni_zero.h"
@@ -26,34 +27,30 @@ int main(int argc, char** argv);
 
 namespace {
 
-class StarboardMainDelegate : public base::PlatformThread::Delegate {
- public:
-  void ThreadMain() override {
-    base::PlatformThread::SetName("StarboardMain");
+void StarboardMain() {
+  pthread_setname_np(pthread_self(), "StarboardMain");
 
-    JNIEnv* env = jni_zero::AttachCurrentThread();
-    std::vector<std::string> args;
-    args.push_back("cobalt_loader");
-    starboard::StarboardBridge::GetInstance()->AppendArgs(env, &args);
+  JNIEnv* env = jni_zero::AttachCurrentThread();
+  std::vector<std::string> args;
+  args.push_back("cobalt_loader");
+  starboard::StarboardBridge::GetInstance()->AppendArgs(env, &args);
 
-    std::vector<char*> argv;
-    argv.reserve(args.size() + 1);
-    for (std::string& arg : args) {
-      argv.push_back(arg.data());
-    }
-    argv.push_back(nullptr);
-
-    main(static_cast<int>(args.size()), argv.data());
+  std::vector<char*> argv;
+  argv.reserve(args.size() + 1);
+  for (std::string& arg : args) {
+    argv.push_back(arg.data());
   }
-};
+  argv.push_back(nullptr);
+
+  main(static_cast<int>(args.size()), argv.data());
+}
 
 }  // namespace
 
 namespace starboard {
 
 void JNI_MainActivity_StartLoader(JNIEnv* env) {
-  static StarboardMainDelegate delegate;
-  base::PlatformThread::CreateNonJoinable(0, &delegate);
+  std::thread(StarboardMain).detach();
 }
 
 }  // namespace starboard
