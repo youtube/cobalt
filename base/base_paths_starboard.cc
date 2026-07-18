@@ -73,6 +73,18 @@ bool PathProviderStarboard(int key, FilePath* result) {
 #else
         *result = test_data_path.DirName().DirName();
 #endif
+        // On devices there is no source tree above the content directory;
+        // test data is deployed flattened into the content directory itself
+        // (see cobalt/build/archive_test_artifacts.py --flatten-deps). Fall
+        // back to it when the source-root heuristic points nowhere useful:
+        // on device it degenerates to the filesystem root.
+        if (*result == FilePath(FILE_PATH_LITERAL("/")) ||
+            (!DirectoryExists(
+                 result->Append(FILE_PATH_LITERAL("third_party"))) &&
+             DirectoryExists(
+                 test_data_path.Append(FILE_PATH_LITERAL("third_party"))))) {
+          *result = test_data_path;
+        }
         return true;
       }
 
