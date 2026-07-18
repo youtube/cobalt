@@ -300,7 +300,6 @@ static_library("starboard_platform") {
   deps = [
     ":media_codec_video_decoder_helpers",
     "//base",
-    "//starboard/shared/starboard:features",
     "//third_party/opus",
   ]
 
@@ -410,7 +409,6 @@ static_library("test_support") {
 
   deps = [
     ":starboard_platform",
-    "//starboard/shared/starboard:features",
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/jni_zero:jni_zero",
@@ -456,7 +454,6 @@ test("starboard_platform_tests") {
     ":test_support",
     "//base",
     "//starboard:starboard_group",
-    "//starboard/shared/starboard:features",
     "//starboard/shared/starboard:starboard_test",
     "//starboard/shared/starboard/drm:drm_test_helpers",
     "//starboard/shared/starboard/player/filter/testing:test_util",
