@@ -520,6 +520,10 @@ executable("opus_demo") {
 if (is_starboard) {
   source_set("sbeventhandle_opus_tests") {
     sources = [ "starboard/sbeventhandle_opus_tests.cc" ]
+    deps = [
+      "//starboard/common",
+      "//starboard/elf_loader:sabi_string",
+    ]
   }
 }
 
