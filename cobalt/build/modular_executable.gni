@@ -24,6 +24,9 @@ if (is_android) {
 _is_aosp =
     string_replace(starboard_path, "starboard/aosp/", "", 1) != starboard_path
 
+_is_rdk = string_replace(starboard_path, "starboard/contrib/rdk/", "", 1) !=
+          starboard_path
+
 # Targets not working on Android.
 _failing_android_targets = [
   "app_shell_unittests",
@@ -160,6 +163,17 @@ template("evergreen_final_target") {
         "--library",
         lib_name,
       ]
+      if (_is_rdk) {
+        # The on-device test harness creates a westeros display named
+        # "test-0" before each run; point Essos at it so GL-based suites
+        # get a wayland display instead of failing direct DRM init.
+        args += [
+          "--env",
+          "WAYLAND_DISPLAY=test-0",
+          "--env",
+          "XDG_RUNTIME_DIR=/run",
+        ]
+      }
     }
 
     copy("copy_${original_target_name}_content") {
