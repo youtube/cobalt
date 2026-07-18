@@ -161,10 +161,14 @@ bool FeatureList::IsEnabled(const SbFeature& feature) {
 
   const auto& feature_map = instance->features_;
   auto feature_it = feature_map.find(feature.name);
-  SB_CHECK(feature_it != feature_map.end())
-      << "Feature " << feature.name
-      << " is not initialized in the Starboard level. Is the feature "
-         "initialized in starboard/extension/feature_config.h?";
+  if (feature_it == feature_map.end()) {
+    SB_LOG(WARNING)
+        << "Feature " << feature.name
+        << " is not initialized in the Starboard level. "
+           "The features extension is available, but does not have "
+           "a value for this feature. This could be due to a version mismatch.";
+    return feature.is_enabled;
+  }
   return feature_it->second;
 }
 
