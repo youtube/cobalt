@@ -348,6 +348,10 @@ test("views_examples_unittests") {
     deps += [ "//ui/native_theme:native_theme_browser" ]
   }
 
+  if (is_cobalt_hermetic_build) {
+    sources += [ "//starboard/testing/sbeventhandle_from_main_with_args.cc" ]
+  }
+
   if (is_fuchsia) {
     additional_manifest_fragments = [
       "//build/config/fuchsia/test/fonts.shard.test-cml",

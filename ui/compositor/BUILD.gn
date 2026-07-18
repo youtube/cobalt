@@ -285,6 +285,10 @@ test("compositor_unittests") {
     ]
   }
 
+  if (is_cobalt_hermetic_build) {
+    sources += [ "//starboard/testing/sbeventhandle_from_main_with_args.cc" ]
+  }
+
   if (is_fuchsia) {
     # TODO(crbug.com/42050042): Some of these tests use SwiftShader,
     # which requires ambient VMEX.

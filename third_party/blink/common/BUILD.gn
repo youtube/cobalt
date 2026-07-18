@@ -372,6 +372,9 @@ test("blink_common_unittests") {
     additional_manifest_fragments =
         [ "//build/config/fuchsia/test/mark_vmo_executable.shard.test-cml" ]
   }
+  if (is_cobalt_hermetic_build) {
+    sources += [ "//starboard/testing/sbeventhandle_from_main_with_args.cc" ]
+  }
 
   data_deps = [ ":common_unittests_data" ]
 }
