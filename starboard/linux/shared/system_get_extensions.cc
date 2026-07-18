@@ -19,6 +19,7 @@
 #include "build/build_config.h"
 #include "starboard/common/string.h"
 #include "starboard/extension/configuration.h"
+#include "starboard/extension/features.h"
 #include "starboard/extension/free_space.h"
 #include "starboard/extension/ifa.h"
 #include "starboard/extension/memory_mapped_file.h"
@@ -26,6 +27,7 @@
 #include "starboard/linux/shared/ifa.h"
 #include "starboard/shared/posix/free_space.h"
 #include "starboard/shared/posix/memory_mapped_file.h"
+#include "starboard/shared/starboard/features_extension.h"
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "starboard/elf_loader/evergreen_config.h"
@@ -71,6 +73,9 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kCobaltExtensionFreeSpaceName) == 0) {
     return starboard::GetFreeSpaceApi();
+  }
+  if (strcmp(name, kStarboardExtensionFeaturesName) == 0) {
+    return starboard::GetFeaturesApi();
   }
 #if BUILDFLAG(IS_STARBOARD)
   if (strcmp(name, kStarboardExtensionLoaderAppMetricsName) == 0) {
