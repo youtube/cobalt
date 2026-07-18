@@ -87,30 +87,44 @@
   },
   {
     "target": "ui/views/examples:views_examples_unittests_loader",
-    "executable": "out/evergreen-arm-hardfp-rdk_devel/views_examples_unittests_loader.py"
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/views_examples_unittests_loader.py",
+    "runs_on": "device",
+    "test_type": "gtest"
   },
   {
     "target": "third_party/boringssl:boringssl_pki_tests_loader",
-    "executable": "out/evergreen-arm-hardfp-rdk_devel/boringssl_pki_tests_loader.py"
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/boringssl_pki_tests_loader.py",
+    "runs_on": "device",
+    "test_type": "gtest"
   },
   {
     "target": "ui/compositor:compositor_unittests_loader",
-    "executable": "out/evergreen-arm-hardfp-rdk_devel/compositor_unittests_loader.py"
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/compositor_unittests_loader.py",
+    "runs_on": "device",
+    "test_type": "gtest"
   },
   {
     "target": "third_party/opus:opus_tests_loader",
-    "executable": "out/evergreen-arm-hardfp-rdk_devel/opus_tests_loader.py"
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/opus_tests_loader.py",
+    "runs_on": "device",
+    "test_type": "gtest"
   },
   {
     "target": "third_party/opus:test_opus_encode_loader",
-    "executable": "out/evergreen-arm-hardfp-rdk_devel/test_opus_encode_loader.py"
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/test_opus_encode_loader.py",
+    "runs_on": "device",
+    "test_type": "gtest"
   },
   {
     "target": "third_party/opus:test_opus_decode_loader",
-    "executable": "out/evergreen-arm-hardfp-rdk_devel/test_opus_decode_loader.py"
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/test_opus_decode_loader.py",
+    "runs_on": "device",
+    "test_type": "gtest"
   },
   {
     "target": "third_party/opus:test_opus_padding_loader",
-    "executable": "out/evergreen-arm-hardfp-rdk_devel/test_opus_padding_loader.py"
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/test_opus_padding_loader.py",
+    "runs_on": "device",
+    "test_type": "gtest"
   }
 ]
