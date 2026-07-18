@@ -34,6 +34,12 @@ import org.chromium.base.CommandLine;
  * surface (via {@link Window#takeSurface(SurfaceHolder.Callback)}). It then forwards the surface
  * lifecycle callbacks to the {@link ContentViewRenderView}'s JNI surface callbacks, which would
  * normally be triggered by the internal SurfaceView.
+ *
+ * <p>Lifetime and Ownership: This class is owned by {@link CobaltActivity} and its lifetime is
+ * bound to the activity's lifecycle.
+ *
+ * <p>Threading Model: This class is UI thread-affine. All methods and callbacks must be called on
+ * the main/UI thread.
  */
 public class WindowSurfaceDelegate implements SurfaceHolder.Callback2 {
   private final Window mWindow;
@@ -68,11 +74,11 @@ public class WindowSurfaceDelegate implements SurfaceHolder.Callback2 {
     if (renderView == null) {
       return;
     }
+    renderView.setExternalSurfaceHolder(holder);
     SurfaceHolder.Callback callback = renderView.getSurfaceCallback();
     if (callback == null) {
       return;
     }
-    renderView.setExternalSurfaceHolder(holder);
     callback.surfaceCreated(holder);
   }
 

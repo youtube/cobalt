@@ -87,7 +87,7 @@ public class ContentViewRenderView extends FrameLayout {
      * @param rootWindow The {@link WindowAndroid} this render view should be linked to.
      */
     public void onNativeLibraryLoaded(WindowAndroid rootWindow) {
-        assert getSurfaceHolder() == null || !getSurfaceHolder().getSurface().isValid()
+        assert mUseWindowSurface || getSurfaceHolder() == null || !getSurfaceHolder().getSurface().isValid()
             : "Surface created before native library loaded.";
         assert rootWindow != null;
         mNativeContentViewRenderView =
@@ -139,9 +139,25 @@ public class ContentViewRenderView extends FrameLayout {
                         mNativeContentViewRenderView, ContentViewRenderView.this);
             }
         };
-        if (!mUseWindowSurface) {
-            mSurfaceBridge.connect(mSurfaceCallback);
+        if (mUseWindowSurface) {
+            maybeReplaySurfaceCallbacks();
+            return;
         }
+        mSurfaceBridge.connect(mSurfaceCallback);
+    }
+
+    private void maybeReplaySurfaceCallbacks() {
+        SurfaceHolder holder = getSurfaceHolder();
+        if (holder == null || holder.getSurface() == null || !holder.getSurface().isValid()) {
+            return;
+        }
+        mSurfaceCallback.surfaceCreated(holder);
+
+        android.graphics.Rect frame = holder.getSurfaceFrame();
+        if (frame == null) {
+            return;
+        }
+        mSurfaceCallback.surfaceChanged(holder, 0, frame.width(), frame.height());
     }
 
     @Override
