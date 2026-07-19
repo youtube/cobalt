@@ -65,4 +65,7 @@ interface H5vccMetrics : EventTarget {
   // and client web apps have fully migrated to said Event.
   [CallWith=ScriptState, RaisesException]
   Promise<DOMString> requestHistograms();
+
+  [CallWith=ScriptState, RaisesException]
+  Promise<undefined> forceEmit();
 };

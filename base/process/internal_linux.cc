@@ -5,6 +5,7 @@
 #include "base/process/internal_linux.h"
 
 #include <limits.h>
+#include <limits>
 #include <unistd.h>
 
 #include <algorithm>
@@ -36,6 +37,9 @@ const char kProcDir[] = "/proc";
 const char kStatFile[] = "stat";
 
 FilePath GetProcPidDir(pid_t pid) {
+  if (pid == std::numeric_limits<pid_t>::max()) {
+    return FilePath(kProcDir).Append("self");
+  }
   return FilePath(kProcDir).Append(NumberToString(pid));
 }
 

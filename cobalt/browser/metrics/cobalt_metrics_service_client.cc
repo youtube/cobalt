@@ -17,10 +17,13 @@
 #include <memory>
 #include <string_view>
 
+#include "base/barrier_closure.h"
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
+
 #include "base/task/thread_pool.h"
 #include "base/threading/sequence_bound.h"
 #include "base/timer/timer.h"
@@ -388,4 +391,36 @@ CobaltMetricsServiceClient::CreateCpuMetricsEmitter() {
   return base::MakeRefCounted<CobaltCpuMetricsEmitter>();
 }
 
+void CobaltMetricsServiceClient::ForceEmitMetrics(base::OnceClosure done_callback) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  pending_force_emit_callbacks_.push_back(std::move(done_callback));
+
+  if (force_emit_in_progress_) {
+    return;
+  }
+
+  force_emit_in_progress_ = true;
+
+  auto on_emitted = base::BindOnce(&CobaltMetricsServiceClient::OnForceEmitComplete,
+                                   weak_ptr_factory_.GetWeakPtr());
+
+  auto post_on_emitted = base::BindPostTaskToCurrentDefault(std::move(on_emitted));
+  auto barrier = base::BarrierClosure(2, std::move(post_on_emitted));
+
+  ScheduleMemoryRecordForTesting(barrier);
+  ScheduleCpuRecordForTesting(barrier);
+}
+
+void CobaltMetricsServiceClient::OnForceEmitComplete() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  force_emit_in_progress_ = false;
+  std::vector<base::OnceClosure> callbacks;
+  callbacks.swap(pending_force_emit_callbacks_);
+  for (auto& cb : callbacks) {
+    std::move(cb).Run();
+  }
+}
+
 }  // namespace cobalt
+

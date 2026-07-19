@@ -10,6 +10,7 @@
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/os_metrics.h"
 
 #include <dlfcn.h>
+#include <limits>
 #include <fcntl.h>
 #include <stdint.h>
 #include <sys/prctl.h>
@@ -81,7 +82,9 @@ const uint32_t kMaxLineSize = 4096;
 // we are experimenting with here have real value.
 base::FilePath GetProcPidDir(base::ProcessId pid) {
   return base::FilePath("/proc").Append(
-      pid == base::kNullProcessId ? "self" : base::NumberToString(pid));
+      (pid == base::kNullProcessId || pid == std::numeric_limits<base::ProcessId>::max())
+          ? "self"
+          : base::NumberToString(pid));
 }
 
 #if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
@@ -100,12 +103,8 @@ void GetSmapsRollup(base::ProcessHandle handle,
   }
 
   if (!use_mock) {
-    std::string file_name =
-        "/proc/" +
-        (handle == base::kNullProcessHandle ? "self"
-                                            : base::NumberToString(handle)) +
-        "/smaps_rollup";
-    if (!base::ReadFileToString(base::FilePath(file_name), &content)) {
+    base::FilePath file_name = GetProcPidDir(handle).Append("smaps_rollup");
+    if (!base::ReadFileToString(file_name, &content)) {
       *pss = size_t(0);
       *swap_pss = size_t(0);
       return;
@@ -539,11 +538,8 @@ struct SmapsRollup {
 void GetSmapsRollup(base::ProcessId pid,
                     const char* needle,
                     SmapsRollup* rollup) {
-  std::string file_name =
-      "/proc/" +
-      (pid == base::kNullProcessId ? "self" : base::NumberToString(pid)) +
-      "/smaps";
-  base::ScopedFILE smaps_file(fopen(file_name.c_str(), "r"));
+  base::FilePath file_name = GetProcPidDir(pid).Append("smaps");
+  base::ScopedFILE smaps_file(fopen(file_name.value().c_str(), "r"));
   if (!smaps_file) {
     return;
   }
@@ -675,11 +671,8 @@ RegionType GetRegionType(const char* line) {
 void PopulateCobaltSmapsMetrics(base::ProcessId pid,
                                 mojom::RawOSMemDump* dump) {
 
-  std::string file_name =
-      "/proc/" +
-      (pid == base::kNullProcessId ? "self" : base::NumberToString(pid)) +
-      "/smaps";
-  base::ScopedFILE smaps_file(fopen(file_name.c_str(), "r"));
+  base::FilePath file_name = GetProcPidDir(pid).Append("smaps");
+  base::ScopedFILE smaps_file(fopen(file_name.value().c_str(), "r"));
   if (!smaps_file) {
     return;
   }
@@ -940,13 +933,9 @@ std::vector<VmRegionPtr> OSMetrics::GetProcessMemoryMaps(
     }
   }
 
-  std::string file_name =
-      "/proc/" +
-      (handle == base::kNullProcessHandle ? "self"
-                                          : base::NumberToString(handle)) +
-      "/smaps";
+  base::FilePath file_name = GetProcPidDir(handle).Append("smaps");
   std::string smaps;
-  if (!base::ReadFileToString(base::FilePath(file_name), &smaps)) {
+  if (!base::ReadFileToString(file_name, &smaps)) {
     return std::vector<VmRegionPtr>();
   }
 
@@ -996,12 +985,8 @@ std::vector<VmRegionPtr> OSMetrics::GetProcessMemoryMaps(
   if (g_proc_smaps_for_testing) {
     res = ReadLinuxProcSmapsFile(g_proc_smaps_for_testing, &maps);
   } else {
-    std::string file_name =
-        "/proc/" +
-        (handle == base::kNullProcessHandle ? "self"
-                                            : base::NumberToString(handle)) +
-        "/smaps";
-    base::ScopedFILE smaps_file(fopen(file_name.c_str(), "r"));
+    base::FilePath file_name = GetProcPidDir(handle).Append("smaps");
+    base::ScopedFILE smaps_file(fopen(file_name.value().c_str(), "r"));
     res = ReadLinuxProcSmapsFile(smaps_file.get(), &maps);
   }
 
