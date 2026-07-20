@@ -34,6 +34,11 @@ struct InterceptedCall {
   std::string key_system;
 };
 
+// Helper struct to store intercepted calls to SbMediaCanPlayMimeAndKeySystem.
+//
+// Lifetime: Static instance managed via GetInterceptedData(), persisting for
+// the lifetime of the process to avoid use-after-free issues on background
+// threads. Threading: Thread-safe; methods can be called from any thread.
 struct InterceptedData {
   std::mutex mutex;
   std::vector<InterceptedCall> calls;
@@ -61,6 +66,11 @@ struct InterceptedData {
   }
 };
 
+InterceptedData* GetInterceptedData() {
+  static auto* data = new InterceptedData();
+  return data;
+}
+
 std::atomic<InterceptedData*> g_intercepted_data{nullptr};
 
 SbMediaSupportType InterceptCanPlay(const char* mime, const char* key_system) {
@@ -87,8 +97,12 @@ class CustomMimeTypeBrowserTest : public content::ContentBrowserTest {
 
   void SetUpOnMainThread() override {
     content::ContentBrowserTest::SetUpOnMainThread();
-    g_intercepted_data.store(&intercepted_data_, std::memory_order_release);
+    g_intercepted_data.store(GetInterceptedData(), std::memory_order_release);
     SbMediaSetCanPlayMimeAndKeySystemFuncForTesting(&InterceptCanPlay);
+
+    ASSERT_TRUE(embedded_test_server()->Start());
+    GURL url = embedded_test_server()->GetURL("/title1.html");
+    ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
   }
 
   void TearDownOnMainThread() override {
@@ -96,19 +110,12 @@ class CustomMimeTypeBrowserTest : public content::ContentBrowserTest {
     g_intercepted_data.store(nullptr, std::memory_order_release);
     content::ContentBrowserTest::TearDownOnMainThread();
   }
-
- protected:
-  InterceptedData intercepted_data_;
 };
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
                        IsTypeSupported_ForwardsRawCustomAttributes) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-  GURL url = embedded_test_server()->GetURL("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
-
-  intercepted_data_.Clear();
-  intercepted_data_.mock_support_type.store(kSbMediaSupportTypeProbably);
+  GetInterceptedData()->Clear();
+  GetInterceptedData()->mock_support_type.store(kSbMediaSupportTypeProbably);
 
   const char kCustomMime[] =
       "video/mp4; codecs=\"avc1.64002a\"; width=3840; height=2160; "
@@ -118,17 +125,14 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
       std::string("MediaSource.isTypeSupported('") + kCustomMime + "');";
   EXPECT_TRUE(content::EvalJs(shell()->web_contents(), js_query).ExtractBool());
 
-  EXPECT_THAT(intercepted_data_.GetMimes(), ::testing::Contains(kCustomMime));
+  EXPECT_THAT(GetInterceptedData()->GetMimes(),
+              ::testing::Contains(kCustomMime));
 }
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
                        CanPlayType_ForwardsRawCustomAttributes) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-  GURL url = embedded_test_server()->GetURL("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
-
-  intercepted_data_.Clear();
-  intercepted_data_.mock_support_type.store(kSbMediaSupportTypeMaybe);
+  GetInterceptedData()->Clear();
+  GetInterceptedData()->mock_support_type.store(kSbMediaSupportTypeMaybe);
 
   const char kCustomMime[] =
       "video/mp4; codecs=\"avc1.64002a\"; width=1920; height=1080; "
@@ -140,17 +144,15 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   EXPECT_EQ("maybe",
             content::EvalJs(shell()->web_contents(), js_query).ExtractString());
 
-  EXPECT_THAT(intercepted_data_.GetMimes(), ::testing::Contains(kCustomMime));
+  EXPECT_THAT(GetInterceptedData()->GetMimes(),
+              ::testing::Contains(kCustomMime));
 }
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
                        IsTypeSupported_NotSupportedReturnsFalse) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-  GURL url = embedded_test_server()->GetURL("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
-
-  intercepted_data_.Clear();
-  intercepted_data_.mock_support_type.store(kSbMediaSupportTypeNotSupported);
+  GetInterceptedData()->Clear();
+  GetInterceptedData()->mock_support_type.store(
+      kSbMediaSupportTypeNotSupported);
 
   const char kUnsupportedMime[] =
       "video/mp4; codecs=\"unsupported.codec\"; width=99999; height=99999;";
@@ -160,18 +162,14 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   EXPECT_FALSE(
       content::EvalJs(shell()->web_contents(), js_query).ExtractBool());
 
-  EXPECT_THAT(intercepted_data_.GetMimes(),
+  EXPECT_THAT(GetInterceptedData()->GetMimes(),
               ::testing::Contains(kUnsupportedMime));
 }
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
                        IsTypeSupported_ForwardsHdr10PlusAttribute) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-  GURL url = embedded_test_server()->GetURL("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
-
-  intercepted_data_.Clear();
-  intercepted_data_.mock_support_type.store(kSbMediaSupportTypeProbably);
+  GetInterceptedData()->Clear();
+  GetInterceptedData()->mock_support_type.store(kSbMediaSupportTypeProbably);
 
   const char kHdr10PlusMime[] =
       "video/webm; codecs=\"vp09.02.51.10.01.09.16.09.00\"; hdr=hdr10plus";
@@ -180,18 +178,14 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
       std::string("MediaSource.isTypeSupported('") + kHdr10PlusMime + "');";
   EXPECT_TRUE(content::EvalJs(shell()->web_contents(), js_query).ExtractBool());
 
-  EXPECT_THAT(intercepted_data_.GetMimes(),
+  EXPECT_THAT(GetInterceptedData()->GetMimes(),
               ::testing::Contains(kHdr10PlusMime));
 }
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
                        CanPlayType_ForwardsHdr10PlusAttribute) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-  GURL url = embedded_test_server()->GetURL("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
-
-  intercepted_data_.Clear();
-  intercepted_data_.mock_support_type.store(kSbMediaSupportTypeProbably);
+  GetInterceptedData()->Clear();
+  GetInterceptedData()->mock_support_type.store(kSbMediaSupportTypeProbably);
 
   const char kHdr10PlusMime[] =
       "video/mp4; codecs=\"hvc1.2.4.L153.B0\"; hdr=hdr10plus";
@@ -202,7 +196,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   EXPECT_EQ("probably",
             content::EvalJs(shell()->web_contents(), js_query).ExtractString());
 
-  EXPECT_THAT(intercepted_data_.GetMimes(),
+  EXPECT_THAT(GetInterceptedData()->GetMimes(),
               ::testing::Contains(kHdr10PlusMime));
 }
 
