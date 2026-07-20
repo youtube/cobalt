@@ -29,6 +29,7 @@
 #include "content/public/browser/browser_accessibility_state.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/network_service_util.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/test/browser_task_environment.h"
@@ -59,7 +60,11 @@ class MockShellPlatformDelegate : public ShellPlatformDelegate {
               CreatePlatformWindow,
               (Shell * shell, const gfx::Size& initial_size),
               (override));
+#if !BUILDFLAG(IS_IOS)
+  // Initialize() on tvOS creates a display::Screen instance that is required by
+  // calls to Shell::CreateNewWindow().
   MOCK_METHOD(void, Initialize, (const gfx::Size&, bool), (override));
+#endif
   MOCK_METHOD(void, SetContents, (Shell * shell), (override));
   MOCK_METHOD(void, LoadSplashScreenContents, (Shell * shell), (override));
   MOCK_METHOD(void, UpdateContents, (Shell * shell), (override));
@@ -91,6 +96,13 @@ class MockShellPlatformDelegate : public ShellPlatformDelegate {
   MOCK_METHOD(void, OnFreeze, (), (override));
   MOCK_METHOD(void, OnUnfreeze, (), (override));
   MOCK_METHOD(void, OnStop, (), (override));
+  MOCK_METHOD(void, MainFrameCreated, (Shell*), (override));
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+  MOCK_METHOD(bool,
+              IsFullscreenForTabOrPending,
+              (Shell*, const WebContents*),
+              (const override));
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
 
   void SetIsVisible(bool is_visible) { is_visible_ = is_visible; }
 };
