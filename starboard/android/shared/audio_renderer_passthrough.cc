@@ -605,7 +605,10 @@ void AudioRendererPassthrough::OnDecoderOutput() {
   SB_DCHECK(decoded_audio);
 
   if (!decoded_audio->is_end_of_stream()) {
-    SB_DCHECK(decoded_audio->size_in_bytes() > 0);
+    if (decoded_audio->size_in_bytes() == 0) {
+      SB_LOG(WARNING) << "Received empty decoded audio, ignoring.";
+      return;
+    }
     // We set |frames_per_input_buffer_| before adding first |decoded_audio|
     // into |decoded_audios_|. The usage of |frames_per_input_buffer_| in
     // UpdateStatusAndWriteData() from another thread only happens when there is
