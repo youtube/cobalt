@@ -18,7 +18,6 @@
 #include <vector>
 
 namespace starboard {
-namespace tools {
 namespace zstd_compress {
 
 constexpr int kNumFrames = 64;
@@ -31,7 +30,6 @@ bool Compress(const std::vector<char>& src_buffer,
               std::vector<char>& dst_buffer);
 
 }  // namespace zstd_compress
-}  // namespace tools
 }  // namespace starboard
 
 #endif  // STARBOARD_TOOLS_ZSTD_COMPRESS_ZSTD_COMPRESS_H_

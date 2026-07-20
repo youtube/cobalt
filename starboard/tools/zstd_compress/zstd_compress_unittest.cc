@@ -21,7 +21,6 @@
 #include "third_party/zstd/src/lib/zstd.h"
 
 namespace starboard {
-namespace tools {
 namespace zstd_compress {
 namespace {
 
@@ -91,5 +90,4 @@ TEST(ZstdCompressTest, DecompressesToOriginalData) {
 
 }  // namespace
 }  // namespace zstd_compress
-}  // namespace tools
 }  // namespace starboard

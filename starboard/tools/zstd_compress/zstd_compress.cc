@@ -20,7 +20,6 @@
 #include "third_party/zstd/src/lib/zstd.h"
 
 namespace starboard {
-namespace tools {
 namespace zstd_compress {
 
 bool Compress(const std::vector<char>& src_buffer,
@@ -76,5 +75,4 @@ bool Compress(const std::vector<char>& src_buffer,
 }
 
 }  // namespace zstd_compress
-}  // namespace tools
 }  // namespace starboard

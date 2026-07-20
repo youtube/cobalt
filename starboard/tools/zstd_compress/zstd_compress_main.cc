@@ -31,7 +31,7 @@ int main(int argc, char* argv[]) {
   }
 
   std::vector<char> dst_buffer;
-  if (!starboard::tools::zstd_compress::Compress(src_buffer, dst_buffer)) {
+  if (!starboard::zstd_compress::Compress(src_buffer, dst_buffer)) {
     std::cerr << "Failed to compress\n";
     return 1;
   }
