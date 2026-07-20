@@ -23,5 +23,5 @@
     "target": "cobalt:cobalt_unittests",
     "runs_on": "host",
     "test_type": "gtest"
-  },
+  }
 ]
