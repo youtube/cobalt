@@ -19,6 +19,8 @@ import static dev.cobalt.util.Log.TAG;
 import android.app.Activity;
 import android.app.Service;
 import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
 import dev.cobalt.shell.StartupGuard;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
@@ -38,7 +40,7 @@ public class StarboardBridge extends BaseStarboardBridge
 
   private CobaltMediaSession mCobaltMediaSession;
   private VolumeStateReceiver mVolumeStateReceiver;
-  private PlatformError mPlatformError;
+  private volatile PlatformError mPlatformError;
   private volatile boolean mHasHiddenSplashScreen = false;
 
   public StarboardBridge(
@@ -106,6 +108,12 @@ public class StarboardBridge extends BaseStarboardBridge
   }
 
   @Override
+  protected void onActivityDestroy(Activity activity) {
+    super.onActivityDestroy(activity);
+    unregisterConnectionTypeObserver();
+  }
+
+  @Override
   void raisePlatformError(int errorType, long data, String url) {
     StartupGuard.getInstance().setStartupMilestone(37);
     mPlatformError = new PlatformError(mActivityHolder, errorType, data, url);
@@ -141,7 +149,13 @@ public class StarboardBridge extends BaseStarboardBridge
   protected void hideSplashScreen() {
     mHasHiddenSplashScreen = true;
     mPlatformError = null;
+    unregisterConnectionTypeObserver();
     StartupGuard.getInstance().disarm();
+  }
+
+  private void unregisterConnectionTypeObserver() {
+    new Handler(Looper.getMainLooper())
+        .post(() -> NetworkChangeNotifier.removeConnectionTypeObserver(this));
   }
 
   @Override

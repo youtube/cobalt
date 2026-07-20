@@ -136,9 +136,9 @@ public class PlatformError
         (dialog, keyCode, event) -> {
           if ((keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_ESCAPE)
               && event.getAction() == KeyEvent.ACTION_DOWN) {
-            CobaltActivity cobaltActivity = (CobaltActivity) mActivityHolder.get();
-            if (cobaltActivity != null) {
-              cobaltActivity.getStarboardBridge().requestSuspend();
+            Activity currentActivity = mActivityHolder.get();
+            if (currentActivity instanceof CobaltActivity) {
+              ((CobaltActivity) currentActivity).getStarboardBridge().requestSuspend();
             }
             // Consume the event and do not dismiss the dialog.
             return true;
@@ -208,8 +208,9 @@ public class PlatformError
     if (mDialog != null) {
       mDialog.dismiss();
     }
-    CobaltActivity cobaltActivity = (CobaltActivity) mActivityHolder.get();
-    if (cobaltActivity != null) {
+    Activity activity = mActivityHolder.get();
+    if (activity instanceof CobaltActivity) {
+      CobaltActivity cobaltActivity = (CobaltActivity) activity;
       WebContents webContents = cobaltActivity.getActiveWebContents();
       String url = !mUrl.isEmpty() ? mUrl : cobaltActivity.getStartupUrl();
       reloadUrl(cobaltActivity, webContents, url);
@@ -223,13 +224,13 @@ public class PlatformError
   @Override
   public void onClick(DialogInterface dialogInterface, int whichButton) {
     if (mErrorType == CONNECTION_ERROR) {
-      CobaltActivity cobaltActivity = (CobaltActivity) mActivityHolder.get();
+      Activity activity = mActivityHolder.get();
       switch (whichButton) {
         case NETWORK_SETTINGS_BUTTON:
           mResponse = POSITIVE;
-          if (cobaltActivity != null) {
+          if (activity != null) {
             try {
-              cobaltActivity.startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
+              activity.startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
             } catch (ActivityNotFoundException e) {
               Log.e(TAG, "Failed to start activity for ACTION_WIFI_SETTINGS.");
             }
