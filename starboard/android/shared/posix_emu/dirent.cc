@@ -25,16 +25,18 @@
 #include <utility>
 #include <vector>
 
+#include "starboard/android/shared/asset_manager.h"
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/common/string.h"
 
+using starboard::AssetManager;
 using starboard::IsAndroidAssetPath;
 using starboard::ListAndroidAssetDir;
 
 namespace {
 
 // A helper structure used internally as a DIR replacement for asset paths.
-// It's used in the wrapped opendir/closedir/readdir/readdir_r.
+// It's used in the wrapped opendir/fdopendir/closedir/readdir/readdir_r.
 struct AndroidAssetDir {
   std::vector<std::string> entries;
   size_t index;
@@ -82,6 +84,8 @@ void FillAssetDirent(const std::string& name, struct dirent* out) {
 extern "C" {
 DIR* __real_opendir(const char* path);
 
+DIR* __real_fdopendir(int fd);
+
 int __real_closedir(DIR* dir);
 
 struct dirent* __real_readdir(DIR* dir);
@@ -100,6 +104,25 @@ DIR* __wrap_opendir(const char* path) {
     errno = ENOENT;
     return NULL;
   }
+
+  AndroidAssetDir* retdir = new AndroidAssetDir();
+  retdir->entries = std::move(entries);
+  retdir->index = 0;
+  RegisterAssetDir(retdir);
+  return reinterpret_cast<DIR*>(retdir);
+}
+
+DIR* __wrap_fdopendir(int fd) {
+  AssetManager* asset_manager = AssetManager::GetInstance();
+  if (!asset_manager->IsAssetDirFd(fd)) {
+    return __real_fdopendir(fd);
+  }
+
+  std::vector<std::string> entries;
+  asset_manager->GetDirectoryEntries(fd, &entries);
+  // The reserved fd is only a placeholder used as a key, it can be
+  // closed now that the entries have been already captured.
+  asset_manager->CloseDirectory(fd);
 
   AndroidAssetDir* retdir = new AndroidAssetDir();
   retdir->entries = std::move(entries);
