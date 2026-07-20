@@ -90,6 +90,10 @@ public class JavaSwitches {
   public static final String COBALT_BYPASS_BUFFERING_BYTES_CONSUMER =
       "CobaltBypassBufferingBytesConsumer";
 
+  /** flag to wait for media resources during shutdown. */
+  public static final String WAIT_FOR_MEDIA_RESOURCES_ON_SHUTDOWN =
+      "WaitForMediaResourcesOnShutdown";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     StringJoiner jsFlags = new StringJoiner(";");
@@ -204,6 +208,11 @@ public class JavaSwitches {
     if (javaSwitches.containsKey(JavaSwitches.COBALT_BYPASS_BUFFERING_BYTES_CONSUMER)) {
       extraCommandLineArgs.add(
           "--enable-features=" + JavaSwitches.COBALT_BYPASS_BUFFERING_BYTES_CONSUMER);
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.WAIT_FOR_MEDIA_RESOURCES_ON_SHUTDOWN)) {
+      extraCommandLineArgs.add(
+          "--enable-features=" + JavaSwitches.WAIT_FOR_MEDIA_RESOURCES_ON_SHUTDOWN);
     }
 
     return extraCommandLineArgs;
