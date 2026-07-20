@@ -67,6 +67,7 @@ group("gn_all") {
       ":cobalt_loader",
       "//starboard/elf_loader:elf_loader_sandbox($starboard_toolchain)",
       "//starboard/loader_app:loader_app($starboard_toolchain)",
+      "//starboard/tools/zstd_compress:zstd_compress_unittest($host_toolchain)",
     ]
   }
   if (is_starboard && build_updater_sandbox) {
@@ -166,7 +167,7 @@ if (is_ios && target_platform == "tvos") {
 
     outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
   }
-} else if (!is_android) {
+} else if (!is_androidtv) {
   if (is_cobalt_hermetic_build) {
     cobalt_target_type = "modular_executable"
   } else {
@@ -330,6 +331,10 @@ test("cobalt_unittests") {
     ]
   }
 
+  if (is_starboard || is_androidtv) {
+    sources += [ "//cobalt/browser/hang_watcher_delegate_impl_unittest.cc" ]
+  }
+
   if (is_starboard) {
     sources += [
       "//cobalt/app/app_event_delegate_unittest.cc",
@@ -345,6 +350,13 @@ test("cobalt_unittests") {
       "//cobalt/shell/browser/lifecycle_unittest.cc",
       "//cobalt/shell/browser/shell_test_support.h",
       "//cobalt/shell/browser/splash_screen_unittest.cc",
+    ]
+  }
+
+  if (enable_in_app_dial) {
+    sources += [
+      "//cobalt/browser/dial/dial_http_server_unittest.cc",
+      "//cobalt/browser/dial/dial_udp_server_unittest.cc",
     ]
   }
 
@@ -418,5 +430,12 @@ test("cobalt_unittests") {
 
   if (use_ozone) {
     deps += [ "//ui/ozone:ozone_switches" ]
+  }
+
+  if (enable_in_app_dial) {
+    deps += [
+      "//cobalt/browser/dial",
+      "//net:test_support",
+    ]
   }
 }
