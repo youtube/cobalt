@@ -25,20 +25,25 @@
 #include <utility>
 #include <vector>
 
+#include "starboard/android/shared/asset_manager.h"
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/common/string.h"
 
+using starboard::AssetManager;
 using starboard::IsAndroidAssetPath;
 using starboard::ListAndroidAssetDir;
 
 namespace {
 
 // A helper structure used internally as a DIR replacement for asset paths.
-// It's used in the wrapped opendir/closedir/readdir/readdir_r.
+// It's used in the wrapped opendir/fdopendir/closedir/readdir/readdir_r.
 struct AndroidAssetDir {
   std::vector<std::string> entries;
   size_t index;
   struct dirent entry;
+  // The AssetManager fd this handle took ownership of in __wrap_fdopendir(),
+  // or -1 when the handle came from __wrap_opendir()
+  int fd = -1;
 };
 
 std::mutex& GetAssetDirMutex() {
@@ -81,6 +86,8 @@ void FillAssetDirent(const std::string& name, struct dirent* out) {
 extern "C" {
 DIR* __real_opendir(const char* path);
 
+DIR* __real_fdopendir(int fd);
+
 int __real_closedir(DIR* dir);
 
 struct dirent* __real_readdir(DIR* dir);
@@ -107,12 +114,36 @@ DIR* __wrap_opendir(const char* path) {
   return reinterpret_cast<DIR*>(retdir);
 }
 
+DIR* __wrap_fdopendir(int fd) {
+  AssetManager* asset_manager = AssetManager::GetInstance();
+  if (!asset_manager->IsAssetDirFd(fd)) {
+    return __real_fdopendir(fd);
+  }
+
+  std::vector<std::string> entries;
+  asset_manager->GetDirectoryEntries(fd, &entries);
+
+  AndroidAssetDir* retdir = new AndroidAssetDir();
+  retdir->entries = std::move(entries);
+  retdir->index = 0;
+  // Keep the reserved fd open for the lifetime of the returned DIR*. It is
+  // only a placeholder used as a map key, but AssetManager::OpenDirectory()
+  // reserves a real descriptor, so closing it here would let the number be
+  // reused while this handle is still open.
+  retdir->fd = fd;
+  RegisterAssetDir(retdir);
+  return reinterpret_cast<DIR*>(retdir);
+}
+
 int __wrap_closedir(DIR* dir) {
   if (!dir) {
     return -1;
   }
   AndroidAssetDir* asset_dir = reinterpret_cast<AndroidAssetDir*>(dir);
   if (UnregisterAssetDir(asset_dir)) {
+    if (asset_dir->fd != -1) {
+      AssetManager::GetInstance()->CloseDirectory(asset_dir->fd);
+    }
     delete asset_dir;
     return 0;
   }

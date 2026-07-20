@@ -120,6 +120,33 @@ TEST(PosixFileOpenatTest, FailsNotADirectory) {
   close(file_fd);
 }
 
+// ENOTDIR: O_DIRECTORY is set and path resolves to a non-directory file.
+TEST(PosixFileOpenatTest, FailsPathIsNotADirectory) {
+  ScopedRandomFile random_file(ScopedRandomFile::kCreate);
+
+  errno = 0;
+  int fd = openat(AT_FDCWD, random_file.filename().c_str(),
+                  O_RDONLY | O_DIRECTORY);
+  EXPECT_EQ(fd, -1);
+  EXPECT_EQ(errno, ENOTDIR);
+  if (fd >= 0) {
+    close(fd);
+  }
+}
+
+// ENOTDIR: same as above, for static content.
+TEST(PosixFileOpenatTest, FailsPathIsNotADirectoryStaticContent) {
+  for (auto path : GetFileTestsFilePaths()) {
+    errno = 0;
+    int fd = openat(AT_FDCWD, path.c_str(), O_RDONLY | O_DIRECTORY);
+    EXPECT_EQ(fd, -1) << path;
+    EXPECT_EQ(errno, ENOTDIR) << path;
+    if (fd >= 0) {
+      close(fd);
+    }
+  }
+}
+
 // ENOENT: Path does not exist.
 TEST(PosixFileOpenatTest, FailsNoEntity) {
   ScopedTempDir temp_dir;
