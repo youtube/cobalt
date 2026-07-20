@@ -20,9 +20,11 @@
 #include <string>
 #include <vector>
 
+#include "base/apple/foundation_util.h"
 #include "base/at_exit.h"
 #include "base/base_switches.h"
 #include "base/command_line.h"
+#include "base/strings/sys_string_conversions.h"
 #include "base/task/thread_pool.h"
 #include "cobalt/app/cobalt_main_delegate.h"
 #include "cobalt/app/cobalt_switch_defaults.h"
@@ -169,40 +171,18 @@ static const char** g_argv = nullptr;
 
 - (BOOL)application:(UIApplication*)application
     willFinishLaunchingWithOptions:(NSDictionary*)launchOptions {
-  bool has_url_switch = false;
-  for (int i = 0; i < g_argc; ++i) {
-    if (g_argv[i]) {
-      std::string arg(g_argv[i]);
-      if (arg.rfind("--url=", 0) == 0 || arg.rfind("url=", 0) == 0) {
-        has_url_switch = true;
-        break;
-      }
+  base::CommandLine original_cmd_line(g_argc, g_argv);
+  if (!original_cmd_line.HasSwitch(cobalt::switches::kInitialURL)) {
+    NSString* keyValue = base::apple::ObjCCast<NSString>(
+        [[NSBundle mainBundle] objectForInfoDictionaryKey:@"YTApplicationURL"]);
+    if (keyValue) {
+      const std::string plist_url = base::SysNSStringToUTF8(keyValue);
+      original_cmd_line.AppendSwitchNative(cobalt::switches::kInitialURL,
+                                           plist_url);
     }
   }
 
-  std::string plist_url_arg;
-  std::vector<const char*> argv_ptrs;
-  if (!has_url_switch) {
-    id plistUrl =
-        [[NSBundle mainBundle] objectForInfoDictionaryKey:@"YTApplicationURL"];
-    if ([plistUrl isKindOfClass:[NSString class]] && [plistUrl length] > 0) {
-      plist_url_arg = std::string("--url=") + [plistUrl UTF8String];
-    }
-  }
-
-  const char* const* final_argv = g_argv;
-  int final_argc = g_argc;
-  if (!plist_url_arg.empty()) {
-    argv_ptrs.reserve(g_argc + 1);
-    for (int i = 0; i < g_argc; ++i) {
-      argv_ptrs.push_back(g_argv[i]);
-    }
-    argv_ptrs.push_back(plist_url_arg.c_str());
-    final_argv = argv_ptrs.data();
-    final_argc = static_cast<int>(argv_ptrs.size());
-  }
-
-  const cobalt::CommandLinePreprocessor cobalt_cmd_line(final_argc, final_argv);
+  const cobalt::CommandLinePreprocessor cobalt_cmd_line(original_cmd_line);
   const base::CommandLine::StringVector& processed_argv =
       cobalt_cmd_line.argv();
 
