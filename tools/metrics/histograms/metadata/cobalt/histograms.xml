@@ -53,12 +53,22 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Android.MemoryPressureNotification"
+    enum="Android.MemoryPressureNotification" expires_after="never">
+  <owner>johnx@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Memory pressure notifications received by Cobalt's main activity on Android
+    (via ComponentCallbacks2.onTrimMemory and onLowMemory).
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Features.TestFinchFeature" enum="Boolean"
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
   <summary>
-    Records whether the test Finch feature is enabled. Used for validating feature
-    deployment.
+    Records whether the test Finch feature is enabled. Used for validating
+    feature deployment.
   </summary>
 </histogram>
 
@@ -66,8 +76,8 @@ Always run the pretty print utility on this file after editing:
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
   <summary>
-    Records the hash of the parameter value for the test Finch feature. Used
-    for validating parameter propagation.
+    Records the hash of the parameter value for the test Finch feature. Used for
+    validating parameter propagation.
   </summary>
 </histogram>
 
@@ -112,7 +122,8 @@ Always run the pretty print utility on this file after editing:
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
   <summary>
-    Records whether any features in the variations configuration had an invalid (non-boolean) type.
+    Records whether any features in the variations configuration had an invalid
+    (non-boolean) type.
   </summary>
 </histogram>
 
@@ -120,7 +131,8 @@ Always run the pretty print utility on this file after editing:
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
   <summary>
-    Records whether any parameters in the variations configuration had an invalid (non-string) type.
+    Records whether any parameters in the variations configuration had an
+    invalid (non-string) type.
   </summary>
 </histogram>
 
@@ -128,7 +140,8 @@ Always run the pretty print utility on this file after editing:
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
   <summary>
-    Records the number of experiment features successfully registered and applied at startup.
+    Records the number of experiment features successfully registered and
+    applied at startup.
   </summary>
 </histogram>
 
@@ -136,7 +149,8 @@ Always run the pretty print utility on this file after editing:
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
   <summary>
-    Records the number of experiment parameters successfully registered and applied at startup.
+    Records the number of experiment parameters successfully registered and
+    applied at startup.
   </summary>
 </histogram>
 
@@ -144,7 +158,8 @@ Always run the pretty print utility on this file after editing:
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
   <summary>
-    Records when SetExperimentState fails because the variations config dictionary could not be parsed.
+    Records when SetExperimentState fails because the variations config
+    dictionary could not be parsed.
   </summary>
 </histogram>
 
@@ -152,8 +167,8 @@ Always run the pretty print utility on this file after editing:
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
   <summary>
-    Records the duration since the last time the variations experiment configuration
-    was written to persistent storage.
+    Records the duration since the last time the variations experiment
+    configuration was written to persistent storage.
   </summary>
 </histogram>
 
@@ -544,12 +559,12 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Memory.Experimental.Browser2.AndroidGraphicsMemory" units="MiB"
-    expires_after="never">
+<histogram name="Memory.Experimental.Browser2.AndroidGraphicsMemory"
+    units="MiB" expires_after="never">
   <owner>tasunny@google.com</owner>
   <summary>
-    Graphics memory usage (GPU) on Android for cobalt. This data comes from graphics
-    section of dumpsys meminfo.
+    Graphics memory usage (GPU) on Android for cobalt. This data comes from
+    graphics section of dumpsys meminfo.
   </summary>
 </histogram>
 
