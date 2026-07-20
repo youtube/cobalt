@@ -150,29 +150,32 @@ def _find_member_definition(memberdef_element):
     location = memberdef_element.find('./location')
     if location is not None:
       file_path = location.get('file')
-      line_idx = int(location.get('line')) - 1
-      types = []
-      try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-          lines = f.readlines()
-        for i in range(line_idx, -1, -1):
-          line = lines[i].strip()
-          if line.startswith('union'):
-            break
-          if line and not line.startswith('//') and not line.startswith(
-              '/*') and not line.startswith(
-                  '///') and line != '};' and line != '{' and ';' in line:
-            var_def = line.split(';')[0].strip()
-            if ' ' in var_def:
-              type_str = var_def.rsplit(' ', 1)[0].strip()
-              types.insert(0, type_str)
-        if types:
-          res = 'union { ' + ', '.join(types) + ' }'
-          if member_name and not member_name.startswith('@'):
-            res += ' ' + member_name
-          return res
-      except (IOError, ValueError):
-        pass
+      line_idx_attr = location.get('line')
+      if file_path and line_idx_attr:
+        types = []
+        try:
+          line_idx = int(line_idx_attr) - 1
+          with open(file_path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+          if 0 <= line_idx < len(lines):
+            for i in range(line_idx, -1, -1):
+              line = lines[i].strip()
+              if line.startswith('union'):
+                break
+              if line and not line.startswith('//') and not line.startswith(
+                  '/*') and not line.startswith(
+                      '///') and line != '};' and line != '{' and ';' in line:
+                var_def = line.split(';')[0].strip()
+                if ' ' in var_def:
+                  type_str = var_def.rsplit(' ', 1)[0].strip()
+                  types.insert(0, type_str)
+            if types:
+              res = 'union { ' + ', '.join(types) + ' }'
+              if member_name and not member_name.startswith('@'):
+                res += ' ' + member_name
+              return res
+        except (IOError, ValueError):
+          pass
 
   # Doxygen does not handle structs of non-typedef'd function pointers
   # gracefully. The 'type' and 'argsstring' elements are used to temporarily
