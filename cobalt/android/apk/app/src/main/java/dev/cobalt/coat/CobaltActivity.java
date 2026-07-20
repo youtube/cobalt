@@ -90,6 +90,12 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   @SuppressWarnings("unused")
   private CobaltA11yHelper mA11yHelper;
 
+  private static CobaltActivity sInstance;
+
+  public static CobaltActivity getInstance() {
+    return sInstance;
+  }
+
   private VideoSurfaceView mVideoSurfaceView;
 
   private boolean mForceCreateNewVideoSurfaceView;
@@ -449,6 +455,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
+    sInstance = this;
     super.onCreate(savedInstanceState);
 
     setupStartupGuard();
@@ -635,6 +642,9 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       OnBackInvokedHelper.unregister(this, mBackInvokedCallback);
       mBackInvokedCallback = null;
     }
+    if (sInstance == this) {
+      sInstance = null;
+    }
     super.onDestroy();
   }
 
@@ -713,10 +723,13 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
           mVideoSurfaceView,
           index,
           new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-      Log.i(TAG, "inserted new mVideoSurfaceView at index:" + index);
     } else {
       Log.w(TAG, "Unexpected surface view parent class " + parent.getClass().getName());
     }
+  }
+
+  public ContentViewRenderView getContentViewRenderView() {
+    return mShellManager != null ? mShellManager.getContentViewRenderView() : null;
   }
 
   public void evaluateJavaScript(String jsCode) {

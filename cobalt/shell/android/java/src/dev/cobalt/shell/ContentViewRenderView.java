@@ -39,6 +39,8 @@ public class ContentViewRenderView extends FrameLayout {
     protected SurfaceBridge mSurfaceBridge;
     protected WebContents mWebContents;
     private boolean mIsOverlayVideoModeActive = false;
+    private boolean mIsVideoFrameRendered = false;
+    private Runnable mOverlayTimeoutRunnable;
     private boolean mUseWindowSurface = false;
     private SurfaceHolder mExternalSurfaceHolder;
     private SurfaceHolder.Callback mSurfaceCallback;
@@ -260,13 +262,63 @@ public class ContentViewRenderView extends FrameLayout {
      */
     public void setOverlayVideoMode(boolean enabled) {
         mIsOverlayVideoModeActive = enabled;
-        int format = enabled ? PixelFormat.TRANSLUCENT : PixelFormat.OPAQUE;
+        if (!enabled) {
+            mIsVideoFrameRendered = false;
+            cancelOverlayTimeout();
+            updateSurfaceFormat(false);
+        } else {
+            if (mIsVideoFrameRendered) {
+                updateSurfaceFormat(true);
+            } else {
+                updateSurfaceFormat(false);
+                scheduleOverlayTimeout();
+            }
+        }
+        ContentViewRenderViewJni.get().setOverlayVideoMode(
+                mNativeContentViewRenderView, ContentViewRenderView.this, enabled);
+    }
+
+    public void onFirstVideoFrameRendered() {
+        post(new Runnable() {
+            @Override
+            public void run() {
+                if (mIsVideoFrameRendered) return;
+                mIsVideoFrameRendered = true;
+                cancelOverlayTimeout();
+                if (mIsOverlayVideoModeActive) {
+                    updateSurfaceFormat(true);
+                }
+            }
+        });
+    }
+
+    private void updateSurfaceFormat(boolean translucent) {
+        int format = translucent ? PixelFormat.TRANSLUCENT : PixelFormat.OPAQUE;
         SurfaceHolder holder = getSurfaceHolder();
         if (holder != null) {
             holder.setFormat(format);
         }
-        ContentViewRenderViewJni.get().setOverlayVideoMode(
-                mNativeContentViewRenderView, ContentViewRenderView.this, enabled);
+    }
+
+    private void scheduleOverlayTimeout() {
+        cancelOverlayTimeout();
+        mOverlayTimeoutRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (mIsOverlayVideoModeActive && !mIsVideoFrameRendered) {
+                    Log.w(TAG, "Overlay format timeout; forcing TRANSLUCENT");
+                    updateSurfaceFormat(true);
+                }
+            }
+        };
+        postDelayed(mOverlayTimeoutRunnable, 3000);
+    }
+
+    private void cancelOverlayTimeout() {
+        if (mOverlayTimeoutRunnable != null) {
+            removeCallbacks(mOverlayTimeoutRunnable);
+            mOverlayTimeoutRunnable = null;
+        }
     }
 
     @CalledByNative

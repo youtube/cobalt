@@ -80,6 +80,7 @@ void ContentViewRenderView::OnPhysicalBackingSizeChanged(
 void ContentViewRenderView::SurfaceCreated(JNIEnv* env,
                                            const JavaParamRef<jobject>& obj) {
   current_surface_format_ = 0;
+  is_surface_translucent_ = false;
   InitCompositor();
 }
 
@@ -103,21 +104,30 @@ void ContentViewRenderView::SurfaceChanged(
     jint height,
     const JavaParamRef<jobject>& surface,
     const JavaParamRef<jobject>& host_input_token) {
+  is_surface_translucent_ = (format == 1);
   if (current_surface_format_ != format) {
     current_surface_format_ = format;
     compositor_->SetSurface(
         surface, true /* can_be_used_with_surface_control */, host_input_token);
   }
   compositor_->SetWindowBounds(gfx::Size(width, height));
+  UpdateCompositorBackground();
 }
 
 void ContentViewRenderView::SetOverlayVideoMode(
     JNIEnv* env,
     const JavaParamRef<jobject>& obj,
     bool enabled) {
-  compositor_->SetRequiresAlphaChannel(enabled);
-  compositor_->SetBackgroundColor(enabled ? SK_ColorTRANSPARENT
-                                          : SK_ColorWHITE);
+  overlay_video_mode_enabled_ = enabled;
+  UpdateCompositorBackground();
+}
+
+void ContentViewRenderView::UpdateCompositorBackground() {
+  if (!compositor_) return;
+  bool transparent = overlay_video_mode_enabled_ && is_surface_translucent_;
+  compositor_->SetRequiresAlphaChannel(overlay_video_mode_enabled_);
+  compositor_->SetBackgroundColor(transparent ? SK_ColorTRANSPARENT
+                                              : SK_ColorWHITE);
   compositor_->SetNeedsComposite();
 }
 
