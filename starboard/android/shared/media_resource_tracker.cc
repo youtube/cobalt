@@ -17,6 +17,8 @@
 #include <chrono>
 #include <mutex>
 
+#include "starboard/common/log.h"
+
 namespace starboard {
 
 // static
@@ -30,8 +32,16 @@ void MediaResourceTracker::Increment() {
 }
 
 void MediaResourceTracker::Decrement() {
-  if (active_media_resource_count_.fetch_sub(1, std::memory_order_release) ==
-      1) {
+  int prev_count =
+      active_media_resource_count_.fetch_sub(1, std::memory_order_release);
+  if (prev_count <= 0) {
+    SB_LOG(WARNING) << "MediaResourceTracker::Decrement called when active "
+                       "resource count was "
+                    << prev_count << ".";
+    return;
+  }
+  if (prev_count == 1) {
+    SB_LOG(INFO) << "All media resources destroyed.";
     std::lock_guard lock(mutex_);
     cv_.notify_all();
   }
@@ -39,13 +49,18 @@ void MediaResourceTracker::Decrement() {
 
 int MediaResourceTracker::WaitUntilZero(int timeout_ms) {
   if (active_media_resource_count_.load(std::memory_order_acquire) <= 0) {
+    SB_LOG(INFO) << "Active media resource count is already 0.";
     return 0;
   }
   std::unique_lock lock(mutex_);
   cv_.wait_for(lock, std::chrono::milliseconds(timeout_ms), [this] {
     return active_media_resource_count_.load(std::memory_order_acquire) <= 0;
   });
-  return active_media_resource_count_.load(std::memory_order_acquire);
+  int remaining = active_media_resource_count_.load(std::memory_order_acquire);
+  if (remaining <= 0) {
+    SB_LOG(INFO) << "Finished waiting for all media resources to be destroyed.";
+  }
+  return remaining;
 }
 
 }  // namespace starboard
