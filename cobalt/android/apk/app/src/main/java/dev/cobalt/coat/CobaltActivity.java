@@ -55,7 +55,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 import org.chromium.base.CommandLine;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
@@ -397,6 +396,13 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
    */
   public Shell getActiveShell() {
     return mShellManager != null ? mShellManager.getActiveShell() : null;
+  }
+
+  /**
+   * @return The initial startup URL configured for the activity.
+   */
+  public String getStartupUrl() {
+    return mStartupUrl;
   }
 
   /**

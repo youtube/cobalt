@@ -28,6 +28,7 @@ import android.provider.Settings;
 import android.view.KeyEvent;
 import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import dev.cobalt.shell.StartupGuard;
 import dev.cobalt.util.Holder;
@@ -39,13 +40,12 @@ import org.chromium.content_public.browser.WebContents;
 import org.jni_zero.NativeMethods;
 
 /**
- * Shows an ErrorDialog to inform the user of a network platform error.
- * The dialog should appear if the device has no wifi or ethernet connection.
- * It should also appear in cases of "weak" internet (ie. connected to a network
- * that doesn't have internet like a router that was just unplugged) as well as if
- * the connection is experiencing DNS resolution errors. Prompts the user to retry
- * or to navigate to the device's network settings menu.
-*/
+ * Shows an ErrorDialog to inform the user of a network platform error. The dialog should appear if
+ * the device has no wifi or ethernet connection. It should also appear in cases of "weak" internet
+ * (ie. connected to a network that doesn't have internet like a router that was just unplugged) as
+ * well as if the connection is experiencing DNS resolution errors. Prompts the user to retry or to
+ * navigate to the device's network settings menu.
+ */
 public class PlatformError
     implements DialogInterface.OnClickListener, DialogInterface.OnDismissListener {
 
@@ -76,8 +76,7 @@ public class PlatformError
   private final @ErrorType int mErrorType;
   private final long mData;
   private final Handler mUiThreadHandler;
-  @NonNull
-  private final String mUrl;
+  @NonNull private final String mUrl;
 
   private Dialog mDialog;
   private int mResponse;
@@ -85,7 +84,8 @@ public class PlatformError
   /**
    * @param url The URL that caused the navigation error.
    */
-  public PlatformError(Holder<Activity> activityHolder, @ErrorType int errorType, long data, String url) {
+  public PlatformError(
+      Holder<Activity> activityHolder, @ErrorType int errorType, long data, String url) {
     mActivityHolder = activityHolder;
     mErrorType = errorType;
     mData = data;
@@ -162,6 +162,64 @@ public class PlatformError
     return mDialog != null && mDialog.isShowing();
   }
 
+  /** Performs reload of the target/current URL or active WebContents. */
+  public static void reloadUrl(
+      CobaltActivity cobaltActivity,
+      @Nullable WebContents webContents,
+      @Nullable String fallbackUrl) {
+    if (cobaltActivity == null) {
+      return;
+    }
+    if (Looper.myLooper() != Looper.getMainLooper()) {
+      new Handler(Looper.getMainLooper())
+          .post(() -> reloadUrl(cobaltActivity, webContents, fallbackUrl));
+      return;
+    }
+
+    String currentUrl = "";
+    if (webContents != null && webContents.getVisibleUrl() != null) {
+      currentUrl = webContents.getVisibleUrl().getSpec();
+    }
+    if (currentUrl.isEmpty() && fallbackUrl != null) {
+      currentUrl = fallbackUrl;
+    }
+
+    int retryCount = sRetryCount.incrementAndGet();
+
+    if (currentUrl.isEmpty()) {
+      if (webContents != null) {
+        Log.i(TAG, "Visible URL and fallback URL are empty, reloading without adding retry param");
+        webContents.getNavigationController().reload(/* checkForRepost= */ true);
+      }
+    } else {
+      if (cobaltActivity.getActiveShell() != null) {
+        cobaltActivity.getActiveShell().loadUrl(addRetryUrlParam(currentUrl, retryCount));
+      }
+    }
+  }
+
+  /** Performs retry of the failed URL loading. */
+  public void retry() {
+    if (Looper.myLooper() != Looper.getMainLooper()) {
+      mUiThreadHandler.post(this::retry);
+      return;
+    }
+    mResponse = POSITIVE;
+    if (mDialog != null) {
+      mDialog.dismiss();
+    }
+    CobaltActivity cobaltActivity = (CobaltActivity) mActivityHolder.get();
+    if (cobaltActivity != null) {
+      WebContents webContents = cobaltActivity.getActiveWebContents();
+      String url = !mUrl.isEmpty() ? mUrl : cobaltActivity.getStartupUrl();
+      reloadUrl(cobaltActivity, webContents, url);
+    }
+  }
+
+  public String getUrl() {
+    return mUrl;
+  }
+
   @Override
   public void onClick(DialogInterface dialogInterface, int whichButton) {
     if (mErrorType == CONNECTION_ERROR) {
@@ -178,35 +236,7 @@ public class PlatformError
           }
           break;
         case RETRY_BUTTON:
-          mResponse = POSITIVE;
-          mDialog.dismiss();
-          // cobaltActivity should not be null but could be if the Activity was stopped (e.g.
-          // backgrounded) and StarboardBridge cleared the Holder, but a pending dialog click was
-          // still processed.
-          if (cobaltActivity != null) {
-            WebContents webContents = cobaltActivity.getActiveWebContents();
-            if (webContents == null) {
-              Log.e(TAG, "WebContents is null and not available to reload the URL.");
-            } else {
-              String currentUrl = mUrl;
-              if (currentUrl.isEmpty()) {
-                // This is not expected to happen, if it does, it's a bug. Handle it regardless.
-                Log.i(TAG, "No URL provided, using visible URL");
-                currentUrl = webContents.getVisibleUrl() != null ? webContents.getVisibleUrl().getSpec() : "";
-              }
-
-              int retryCount = sRetryCount.incrementAndGet();
-
-              // Add a param to the URL to indicate a bootstrap request with a retry from the network dialog
-              if (currentUrl.isEmpty()) {
-                // This shouldn't happen, but log it incase it does.
-                Log.i(TAG, "Visible URL and fallback URL are empty, reloading without adding retry param");
-                webContents.getNavigationController().reload(/*checkForRepost=*/true);
-              } else {
-                cobaltActivity.getActiveShell().loadUrl(addRetryUrlParam(currentUrl, retryCount));
-              }
-            }
-          }
+          retry();
           break;
         case DISMISS_BUTTON:
           mResponse = NEGATIVE;
@@ -234,11 +264,11 @@ public class PlatformError
   }
 
   /**
-   *  Adds a retry param to the URL if not already present to differentiate
-   *  bootstrap requests that originate from a network dialog retry.
-   *  Note: Uri.Builder handles appending query parameters before the fragment (hash) correctly.
+   * Adds a retry param to the URL if not already present to differentiate bootstrap requests that
+   * originate from a network dialog retry. Note: Uri.Builder handles appending query parameters
+   * before the fragment (hash) correctly.
    */
-  String addRetryUrlParam(String url, int count) {
+  static String addRetryUrlParam(String url, int count) {
     Uri parsedUri = Uri.parse(url);
     Uri.Builder uriBuilder = parsedUri.buildUpon();
 
