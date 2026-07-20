@@ -259,7 +259,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(rand);
   REGISTER_SYMBOL(rand_r);
   REGISTER_SYMBOL(read);
-  REGISTER_SYMBOL(readlink);
   REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(realpath);
   REGISTER_SYMBOL(recv);
@@ -396,6 +395,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(pthread_sigmask);
   REGISTER_WRAPPER(readdir);
   REGISTER_WRAPPER(readdir_r);
+  REGISTER_WRAPPER(readlink);
+  REGISTER_WRAPPER(readlinkat);
   REGISTER_WRAPPER(sched_getaffinity);
   REGISTER_WRAPPER(sched_getparam);
   REGISTER_WRAPPER(sched_setparam);
