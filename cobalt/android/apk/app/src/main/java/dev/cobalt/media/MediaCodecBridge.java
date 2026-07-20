@@ -41,8 +41,8 @@ import dev.cobalt.util.Log;
 import dev.cobalt.util.SynchronizedHolder;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -88,14 +88,17 @@ class MediaCodecBridge {
       return true;
     }
     // |mOperatingRate| won't be 0, but to be cautious we still add a check here.
-    if (!mSkipVideoFramesOver60Fps || mOperatingRate <= kMaxAcceptedOperatingRate || mOperatingRate == 0) {
+    if (!mSkipVideoFramesOver60Fps
+        || mOperatingRate <= kMaxAcceptedOperatingRate
+        || mOperatingRate == 0) {
       return false;
     }
     // Deterministically downsample to 60fps by picking one frame per 1/60s interval.
     // Some visual jitter may occur briefly when the playback rate changes.
     double frameIntervalUs = 1_000_000.0 / mOperatingRate;
     if (Math.floor(presentationTimeUs * kMaxAcceptedOperatingRate / 1_000_000.0)
-        == Math.floor((presentationTimeUs - frameIntervalUs) * kMaxAcceptedOperatingRate / 1_000_000.0)) {
+        == Math.floor(
+            (presentationTimeUs - frameIntervalUs) * kMaxAcceptedOperatingRate / 1_000_000.0)) {
       return true;
     }
     return false;
@@ -124,17 +127,17 @@ class MediaCodecBridge {
     return mActiveOutputBuffers.get();
   }
 
-   /** Wraps a {@link MediaFormat} object to expose its properties to native code */
-   // Copied from Chromium's MediaCodecBridge.java
-   // https://source.chromium.org/chromium/chromium/src/+/main:media/base/android/java/src/org/chromium/media/MediaCodecBridge.java;l=294-350;drc=6ac17d9d1b844a695209e865137466925fa1214f
-   // Here are changes made.
-   // - Exposes formatHasCropValues() to the native layer, which needs to call it.
-   // - Removes the methods that Cobalt do not use (e.g. colorStandrd).
-   // - Add @Nonnul annotation to mFormat. since it is not null.
-   // - Add safety checks for width() and height() to prevent a crash. Cobalt's native code
-   //   accesses the format immediately in the onOutputFormatChanged callback, which can be
-   //   before the dimension keys are available.
-   private static class MediaFormatWrapper {
+  /** Wraps a {@link MediaFormat} object to expose its properties to native code */
+  // Copied from Chromium's MediaCodecBridge.java
+  // https://source.chromium.org/chromium/chromium/src/+/main:media/base/android/java/src/org/chromium/media/MediaCodecBridge.java;l=294-350;drc=6ac17d9d1b844a695209e865137466925fa1214f
+  // Here are changes made.
+  // - Exposes formatHasCropValues() to the native layer, which needs to call it.
+  // - Removes the methods that Cobalt do not use (e.g. colorStandrd).
+  // - Add @Nonnul annotation to mFormat. since it is not null.
+  // - Add safety checks for width() and height() to prevent a crash. Cobalt's native code
+  //   accesses the format immediately in the onOutputFormatChanged callback, which can be
+  //   before the dimension keys are available.
+  private static class MediaFormatWrapper {
     @NonNull private final MediaFormat mFormat;
 
     private MediaFormatWrapper(MediaFormat format) {
@@ -144,9 +147,9 @@ class MediaCodecBridge {
     @CalledByNative("MediaFormatWrapper")
     private boolean formatHasCropValues() {
       return mFormat.containsKey(KEY_CROP_RIGHT)
-            && mFormat.containsKey(KEY_CROP_LEFT)
-            && mFormat.containsKey(KEY_CROP_BOTTOM)
-            && mFormat.containsKey(KEY_CROP_TOP);
+          && mFormat.containsKey(KEY_CROP_LEFT)
+          && mFormat.containsKey(KEY_CROP_BOTTOM)
+          && mFormat.containsKey(KEY_CROP_TOP);
     }
 
     @CalledByNative("MediaFormatWrapper")
@@ -696,7 +699,7 @@ class MediaCodecBridge {
     // looper queue from before the flush.
     // To prevent processing these stale callbacks after the flush starts, we set
     // mIsFlushing to true here to discard them. Then we post a runnable to the main
-  // looper queue which will reset mIsFlushing to false once all prior pending
+    // looper queue which will reset mIsFlushing to false once all prior pending
     // callbacks have been sequentialized and discarded.
     if (mEnableIgnoreCallbacksDuringFlushing) {
       synchronized (mNativeBridgeLock) {
@@ -717,11 +720,12 @@ class MediaCodecBridge {
         mFrameRateEstimator.reset();
       }
       if (mEnableIgnoreCallbacksDuringFlushing) {
-        mMainHandler.post(() -> {
-          synchronized (mNativeBridgeLock) {
-            mIsFlushing = false;
-          }
-        });
+        mMainHandler.post(
+            () -> {
+              synchronized (mNativeBridgeLock) {
+                mIsFlushing = false;
+              }
+            });
       }
     }
     return MediaCodecStatus.OK;
@@ -770,8 +774,8 @@ class MediaCodecBridge {
     MediaFormat format = null;
     try {
       format = mMediaCodec.get().getOutputFormat();
-    // Catches `RuntimeException` to handle any undocumented exceptions.
-    // See http://b/445694177#comment4 for details.
+      // Catches `RuntimeException` to handle any undocumented exceptions.
+      // See http://b/445694177#comment4 for details.
     } catch (RuntimeException e) {
       Log.e(TAG, "Failed to get output format", e);
       return null;
@@ -781,7 +785,7 @@ class MediaCodecBridge {
     // If the format is null, we crash the app for dev builds to enforce the API contract.
     // On release builds, we log the error and return null.
     if (format == null) {
-      assert(false);
+      assert (false);
       Log.e(TAG, "MediaCodec.getOutputFormat() returned null");
       return null;
     }
@@ -1087,7 +1091,9 @@ class MediaCodecBridge {
             }
           };
       if (mEnableIgnoreCallbacksDuringFlushing) {
-        mMediaCodec.get().setOnFirstTunnelFrameReadyListener(mMainHandler, mFirstTunnelFrameReadyListener);
+        mMediaCodec
+            .get()
+            .setOnFirstTunnelFrameReadyListener(mMainHandler, mFirstTunnelFrameReadyListener);
       } else {
         mMediaCodec.get().setOnFirstTunnelFrameReadyListener(null, mFirstTunnelFrameReadyListener);
       }
