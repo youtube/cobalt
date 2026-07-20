@@ -60,11 +60,7 @@ class MockShellPlatformDelegate : public ShellPlatformDelegate {
               CreatePlatformWindow,
               (Shell * shell, const gfx::Size& initial_size),
               (override));
-#if !BUILDFLAG(IS_IOS)
-  // Initialize() on tvOS creates a display::Screen instance that is required by
-  // calls to Shell::CreateNewWindow().
   MOCK_METHOD(void, Initialize, (const gfx::Size&, bool), (override));
-#endif
   MOCK_METHOD(void, SetContents, (Shell * shell), (override));
   MOCK_METHOD(void, LoadSplashScreenContents, (Shell * shell), (override));
   MOCK_METHOD(void, UpdateContents, (Shell * shell), (override));
@@ -103,6 +99,18 @@ class MockShellPlatformDelegate : public ShellPlatformDelegate {
               (Shell*, const WebContents*),
               (const override));
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+
+  MockShellPlatformDelegate() {
+#if BUILDFLAG(IS_IOS)
+    // Initialize() on tvOS creates a display::Screen instance that is required
+    // by calls to Shell::CreateNewWindow().
+    ON_CALL(*this, Initialize)
+        .WillByDefault([this](const gfx::Size& default_window_size,
+                              bool is_visible) {
+          ShellPlatformDelegate::Initialize(default_window_size, is_visible);
+        });
+#endif
+  }
 
   void SetIsVisible(bool is_visible) { is_visible_ = is_visible; }
 };
