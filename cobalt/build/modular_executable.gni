@@ -147,6 +147,7 @@ template("evergreen_final_target") {
       data_deps = [
         ":copy_${original_target_name}_content",
         ":copy_${original_target_name}_lib",
+        ":copy_${original_target_name}_zstd_lib",
         "//starboard/content/ssl:copy_ssl_certificates_prod_cobalt",
       ]
     }
@@ -192,6 +193,19 @@ template("evergreen_final_target") {
       inputs = [ "$root_out_dir/${lib_name}.so" ]
       outputs =
           [ "$root_out_dir/app/${original_target_name}/lib/${lib_name}.lz4" ]
+      args =
+          rebase_path(inputs, root_out_dir) + rebase_path(outputs, root_out_dir)
+      deps = [ ":${original_target_name}" ]
+      data_deps = deps  # Needed for the .runtime_deps file.
+    }
+
+    compiled_action("copy_${original_target_name}_zstd_lib") {
+      forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+
+      tool = "//starboard/tools/zstd_compress"
+      inputs = [ "$root_out_dir/${lib_name}.so" ]
+      outputs =
+          [ "$root_out_dir/app/${original_target_name}/lib/${lib_name}.zst" ]
       args =
           rebase_path(inputs, root_out_dir) + rebase_path(outputs, root_out_dir)
       deps = [ ":${original_target_name}" ]

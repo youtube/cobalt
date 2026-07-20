@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <string>
+#include <string_view>
 
 #include "base/base_switches.h"
 #include "base/check.h"
@@ -38,6 +39,23 @@ bool IsSwitch(const base::CommandLine::StringType& string) {
   return false;
 }
 
+void MergeFeatures(base::CommandLine* cmd_line,
+                   std::string_view switch_name,
+                   const base::CommandLine::SwitchMap& switch_defaults) {
+  if (!cmd_line->HasSwitch(switch_name)) {
+    return;
+  }
+  std::string features = cmd_line->GetSwitchValueASCII(switch_name);
+  auto old_value = switch_defaults.find(switch_name);
+  if (old_value != switch_defaults.end() && !old_value->second.empty()) {
+    if (!features.empty()) {
+      features += ",";
+    }
+    features += old_value->second;
+    cmd_line->AppendSwitchASCII(switch_name, features);
+  }
+}
+
 }  // namespace
 
 namespace cobalt {
@@ -56,19 +74,11 @@ CommandLinePreprocessor::CommandLinePreprocessor(int argc,
   // * Duplicate switches with arguments.
   // * Inconsistent settings across related switches.
 
-  // Merge all disabled feature lists together.
-  if (cmd_line_.HasSwitch(::switches::kDisableFeatures)) {
-    std::string disabled_features(
-        cmd_line_.GetSwitchValueASCII(::switches::kDisableFeatures));
-    auto old_value =
-        cobalt_param_switch_defaults.find(::switches::kDisableFeatures);
-    if (old_value != cobalt_param_switch_defaults.end()) {
-      disabled_features += std::string(",");
-      disabled_features += std::string(old_value->second);
-      cmd_line_.AppendSwitchNative(::switches::kDisableFeatures,
-                                   disabled_features);
-    }
-  }
+  // Merge all disabled and enabled feature lists together with their defaults.
+  MergeFeatures(&cmd_line_, ::switches::kDisableFeatures,
+                cobalt_param_switch_defaults);
+  MergeFeatures(&cmd_line_, ::switches::kEnableFeatures,
+                cobalt_param_switch_defaults);
 
   // Override kContentShellHostWindowSize if the user sets kWindowSize.
   if (cmd_line_.HasSwitch(switches::kWindowSize)) {
