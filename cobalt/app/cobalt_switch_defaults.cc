@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@
 #include "base/files/file_path.h"
 #include "base/logging.h"
 #include "cobalt/shell/common/shell_switches.h"
+#include "third_party/blink/public/common/switches.h"
 
 namespace {
 
@@ -80,6 +81,23 @@ CommandLinePreprocessor::CommandLinePreprocessor(int argc,
   MergeFeatures(&cmd_line_, ::switches::kEnableFeatures,
                 cobalt_param_switch_defaults);
 
+  // Merge a platform-provided --js-flags value with the Cobalt default
+  // instead of letting it silently replace the whole TV-tuned string. The
+  // Cobalt defaults come first so platform-provided values win on a per-flag
+  // basis (V8 parses flags left to right). Keep the merged string
+  // space-separated: gin splits --js-flags on spaces as well.
+  if (cmd_line_.HasSwitch(blink::switches::kJavaScriptFlags)) {
+    auto old_value =
+        cobalt_param_switch_defaults.find(blink::switches::kJavaScriptFlags);
+    if (old_value != cobalt_param_switch_defaults.end()) {
+      std::string js_flags(std::string(old_value->second));
+      js_flags += std::string(" ");
+      js_flags +=
+          cmd_line_.GetSwitchValueASCII(blink::switches::kJavaScriptFlags);
+      cmd_line_.AppendSwitchNative(blink::switches::kJavaScriptFlags, js_flags);
+    }
+  }
+
   // Override kContentShellHostWindowSize if the user sets kWindowSize.
   if (cmd_line_.HasSwitch(switches::kWindowSize)) {
     std::string window_size =
@@ -97,6 +115,11 @@ CommandLinePreprocessor::CommandLinePreprocessor(int argc,
       cmd_line_.AppendSwitchNative(switch_key, switch_val);
     }
   }
+
+  // Log the final effective --js-flags so device logs can verify that the
+  // TV-tuned V8 configuration actually took effect.
+  LOG(INFO) << "Effective --js-flags: "
+            << cmd_line_.GetSwitchValueASCII(blink::switches::kJavaScriptFlags);
 
   // Fix any remaining conflicts with the initial URL.
   const auto initial_url = switches::GetInitialURL(cmd_line_);

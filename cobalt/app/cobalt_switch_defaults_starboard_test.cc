@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/switches.h"
 #include "ui/gl/gl_switches.h"
 
 namespace cobalt {
@@ -72,6 +73,23 @@ TEST(CobaltSwitchDefaultsTest, MergeEnabledFeatures) {
                         "ReclaimPrepaintTilesWhenIdle, "
                         "ReclaimOldPrepaintTiles"),
             enabled_features);
+}
+
+TEST(CobaltSwitchDefaultsTest, MergeJavaScriptFlags) {
+  const auto input_argv = std::to_array<const char*>(
+      {"PROGRAM", "--js-flags=--max-old-space-size=256"});
+  const int input_argc = static_cast<int>(input_argv.size());
+  CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
+
+  // The Cobalt defaults must come first; the platform-provided flags come
+  // last so they win per-flag (V8 parses flags left to right).
+  std::string js_flags =
+      GetSwitchValue(cmd_line_pxr, blink::switches::kJavaScriptFlags);
+  EXPECT_EQ(std::string("--no-decommit-pooled-pages --optimize-for-size "
+                        "--initial-old-space-size=16 --max-old-space-size=512 "
+                        "--disable-optimizing-compilers --no-sparkplug "
+                        "--no-concurrent-marking --max-old-space-size=256"),
+            js_flags);
 }
 
 TEST(CobaltSwitchDefaultsTest, ConsistentWindowSizes) {

@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -298,6 +298,9 @@ void CobaltMetricsServiceClient::OnApplicationNotIdleInternal() {
   // the user. So, we always just set the app as "non-idle" immediately after
   // each metric log is finalized.
   GetMetricsService()->OnApplicationNotIdle();
+  LOG(INFO) << "Periodic JS flags check: "
+            << base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+                   "js-flags");
 }
 
 GURL CobaltMetricsServiceClient::GetMetricsServerUrl() {
