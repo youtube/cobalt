@@ -162,9 +162,11 @@ def _find_member_definition(memberdef_element):
               line = lines[i].strip()
               if line.startswith('union'):
                 break
-              if line and not line.startswith('//') and not line.startswith(
-                  '/*') and not line.startswith(
-                      '///') and line != '};' and line != '{' and ';' in line:
+              is_comment = line.startswith('//') or line.startswith(
+                  '/*') or line.startswith('///')
+              is_bracket = line in ('};', '{')
+              has_semicolon = ';' in line
+              if line and not is_comment and not is_bracket and has_semicolon:
                 var_def = line.split(';')[0].strip()
                 if ' ' in var_def:
                   type_str = var_def.rsplit(' ', 1)[0].strip()
