@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <thread>
+
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/strings/string_number_conversions.h"
@@ -104,17 +106,28 @@ jlong JNI_BaseStarboardBridge_StartNativeStarboard(
   return reinterpret_cast<jlong>(g_native_app_instance);
 }
 
-jboolean JNI_BaseStarboardBridge_CloseNativeStarboard(JNIEnv* env,
-                                                      jlong nativeApp) {
+void JNI_BaseStarboardBridge_CloseNativeStarboard(JNIEnv* env,
+                                                  jlong nativeApp) {
   auto* app = reinterpret_cast<ApplicationAndroid*>(nativeApp);
   delete app;
 
   if (features::FeatureList::IsEnabled(
           features::kWaitForMediaResourcesOnShutdown)) {
-    return MediaResourceTracker::GetInstance()->RequestShutdown();
+    std::thread([]() {
+      constexpr int kTimeoutMs = 2'000;
+      int remaining_count =
+          MediaResourceTracker::GetInstance()->WaitUntilZero(kTimeoutMs);
+      if (remaining_count > 0) {
+        SB_LOG(WARNING) << "Timed out waiting for all media resources to be "
+                           "destroyed. Active count: "
+                        << remaining_count;
+      }
+      exit(0);
+    }).detach();
+    return;
   }
 
-  return false;
+  exit(0);
 }
 
 void JNI_BaseStarboardBridge_InitializePlatformAudioSink(JNIEnv* env) {

@@ -27,17 +27,8 @@ namespace starboard {
 // MediaResourceTracker provides thread-safe accounting of active native media
 // components (SbPlayer decoders, AudioTrack audio sinks, and MediaDrm crypto
 // sessions) on Android.
-//
-// During application teardown (e.g. CobaltActivity.onDestroy), the Java UI
-// thread calls JNI_BaseStarboardBridge_CloseNativeStarboard and triggers
-// RequestShutdown(). If media resources are still active on background threads,
-// RequestShutdown() returns true so Java can arm a fallback watchdog timer.
-// When background threads finish destroying the remaining media resources,
-// Decrement() directly invokes exit(0) from the background thread.
 class MediaResourceTracker {
  public:
-  using ExitFunction = void (*)(int);
-
   static MediaResourceTracker* GetInstance();
 
   MediaResourceTracker(const MediaResourceTracker&) = delete;
@@ -47,27 +38,15 @@ class MediaResourceTracker {
   void Decrement();
   int WaitUntilZero(int timeout_ms);
 
-  // Marks that application shutdown has been requested.
-  // Returns true if there are active media resources still being destroyed.
-  // Returns false if there are no active media resources (count <= 0).
-  bool RequestShutdown();
-
-  int GetActiveCount() const;
-
-  void SetExitFunctionForTesting(ExitFunction exit_func);
-  void ResetForTesting();
-
  private:
   friend class starboard::NoDestructor<MediaResourceTracker>;
 
   MediaResourceTracker() = default;
   ~MediaResourceTracker() = default;
 
-  mutable std::mutex mutex_;
+  std::mutex mutex_;
   std::condition_variable cv_;
   std::atomic<int> active_media_resource_count_ = 0;
-  std::atomic<bool> shutdown_requested_ = false;
-  ExitFunction exit_func_ = std::exit;
 };
 
 }  // namespace starboard

@@ -28,8 +28,6 @@ import android.hardware.input.InputManager;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.os.Build;
-import android.os.Handler;
-import android.os.Looper;
 import android.view.Display;
 import android.view.InputDevice;
 import android.view.accessibility.CaptioningManager;
@@ -92,8 +90,6 @@ public class BaseStarboardBridge {
 
   private volatile boolean mApplicationStopped;
   private volatile boolean mApplicationStarted;
-
-  private final Handler mMainHandler = new Handler(Looper.getMainLooper());
 
   private long mAppStartTimestamp = 0;
 
@@ -159,7 +155,7 @@ public class BaseStarboardBridge {
 
     boolean initJNI(BaseStarboardBridge starboardBridge);
 
-    boolean closeNativeStarboard(long app);
+    void closeNativeStarboard(long app);
 
     void initializePlatformAudioSink();
 
@@ -213,14 +209,7 @@ public class BaseStarboardBridge {
       Log.i(TAG, "Activity destroyed after shutdown; killing app.");
       mTtsHelper.shutdown();
       mAdvertisingId.shutdown();
-      boolean waitingForMedia =
-          BaseStarboardBridgeJni.get().closeNativeStarboard(mNativeApp);
-      if (waitingForMedia) {
-        Log.i(TAG, "Waiting asynchronously for media resources to be destroyed before exiting.");
-        mMainHandler.postDelayed(() -> System.exit(0), 2000);
-      } else {
-        System.exit(0);
-      }
+      BaseStarboardBridgeJni.get().closeNativeStarboard(mNativeApp);
     } else {
       Log.i(TAG, "Activity destroyed without shutdown; app suspended in background.");
     }
