@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include <pthread.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include "starboard/common/log.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -84,8 +86,12 @@ TEST(PosixThreadAttrTest, StackSizeAttr) {
 // Test for setting and getting both stack address and size.
 TEST(PosixThreadAttrTest, StackAddrAndSizeAttr) {
   pthread_attr_t attr;
-  std::array<char, kStackSize> stack_buffer;
-  void* set_stack_addr = static_cast<void*>(stack_buffer.data());
+  // Allocate the buffer on the heap. The test can crash on platforms
+  // with a small default stack. Use posix_memalign because
+  // pthread_attr_setstack() requires a page-aligned stack base.
+  const size_t page_size = static_cast<size_t>(sysconf(_SC_PAGESIZE));
+  void* set_stack_addr = nullptr;
+  ASSERT_EQ(posix_memalign(&set_stack_addr, page_size, kStackSize), 0);
   void* ret_stack_addr = nullptr;
   size_t ret_stack_size = 0;
 
@@ -109,6 +115,8 @@ TEST(PosixThreadAttrTest, StackAddrAndSizeAttr) {
 
   ret = pthread_attr_destroy(&attr);
   EXPECT_EQ(ret, 0) << "pthread_attr_destroy failed: " << strerror(ret);
+
+  free(set_stack_addr);
 }
 
 // Test for getting and setting the contention scope attribute.
