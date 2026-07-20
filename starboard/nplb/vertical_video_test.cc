@@ -144,7 +144,7 @@ TEST_P(VerticalVideoTest, WriteSamples) {
   SB_DCHECK(player_fixture.HasVideo());
   SB_DCHECK(player_fixture.HasAudio());
 
-  const int64_t kDurationToPlay = 200'000;
+  const int64_t kDurationToPlay = 200'000;  // 200ms.
 
   int audio_samples_to_write =
       player_fixture.ConvertDurationToAudioBufferCount(kDurationToPlay);
@@ -176,7 +176,7 @@ TEST_P(VerticalVideoTest, Seek) {
   SB_DCHECK(player_fixture.HasVideo());
   SB_DCHECK(player_fixture.HasAudio());
 
-  const int64_t kDurationToPlay = 200'000;
+  const int64_t kDurationToPlay = 200'000;  // 200ms.
 
   int audio_samples_to_write =
       player_fixture.ConvertDurationToAudioBufferCount(kDurationToPlay);
@@ -198,7 +198,7 @@ TEST_P(VerticalVideoTest, Seek) {
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
 
   int64_t end_media_time = player_fixture.GetCurrentMediaTime();
-  const int64_t kMediaTimeAllowance = 100'000;  // 100ms
+  const int64_t kMediaTimeAllowance = 100'000;  // 100ms.
   EXPECT_NEAR(end_media_time, kDurationToPlay, kMediaTimeAllowance);
 }
 
