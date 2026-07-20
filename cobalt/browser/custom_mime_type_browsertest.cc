@@ -61,12 +61,13 @@ struct InterceptedData {
   }
 };
 
-InterceptedData* g_intercepted_data = nullptr;
+std::atomic<InterceptedData*> g_intercepted_data{nullptr};
 
 SbMediaSupportType InterceptCanPlay(const char* mime, const char* key_system) {
-  if (g_intercepted_data) {
-    g_intercepted_data->Add(mime, key_system);
-    return g_intercepted_data->mock_support_type.load();
+  InterceptedData* data = g_intercepted_data.load(std::memory_order_acquire);
+  if (data) {
+    data->Add(mime, key_system);
+    return data->mock_support_type.load();
   }
   return kSbMediaSupportTypeNotSupported;
 }
@@ -86,13 +87,13 @@ class CustomMimeTypeBrowserTest : public content::ContentBrowserTest {
 
   void SetUpOnMainThread() override {
     content::ContentBrowserTest::SetUpOnMainThread();
-    g_intercepted_data = &intercepted_data_;
+    g_intercepted_data.store(&intercepted_data_, std::memory_order_release);
     SbMediaSetCanPlayMimeAndKeySystemFuncForTesting(&InterceptCanPlay);
   }
 
   void TearDownOnMainThread() override {
     SbMediaSetCanPlayMimeAndKeySystemFuncForTesting(nullptr);
-    g_intercepted_data = nullptr;
+    g_intercepted_data.store(nullptr, std::memory_order_release);
     content::ContentBrowserTest::TearDownOnMainThread();
   }
 

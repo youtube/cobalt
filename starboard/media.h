@@ -544,7 +544,7 @@ typedef SbMediaSupportType (*SbMediaCanPlayMimeAndKeySystemFunc)(
     const char* key_system);
 
 // Sets an interceptor function for SbMediaCanPlayMimeAndKeySystem for testing.
-// Pass NULL to restore the default platform implementation.
+// Pass nullptr to restore the default platform implementation.
 SB_EXPORT void SbMediaSetCanPlayMimeAndKeySystemFuncForTesting(
     SbMediaCanPlayMimeAndKeySystemFunc func);
 
