@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -46,50 +46,57 @@ public class JavaSwitches {
   /** flag to tune compositor offscreen interest area size in pixels. */
   public static final String INTEREST_AREA_SIZE_IN_PIXELS = "InterestAreaSizeInPixels";
 
-  /** flag to tune delay in seconds before reclaiming prepaint tiles when idle. */
-  public static final String RECLAIM_DELAY_IN_SECONDS = "ReclaimDelayInSeconds";
+    /** flag to tune delay in seconds before reclaiming prepaint tiles when idle. */
+    public static final String RECLAIM_DELAY_IN_SECONDS = "ReclaimDelayInSeconds";
 
-  /** flag to disable GPU memory buffer compositor resources. */
-  public static final String DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES = "DisableGpuMemoryBufferCompositorResources";
+    /** flag to disable GPU memory buffer compositor resources. */
+    public static final String DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES =
+            "DisableGpuMemoryBufferCompositorResources";
 
-  /** flag to limit GPU image cache items */
-  public static final String GPU_IMAGE_CACHE_LIMIT_ITEMS = "GpuImageCacheLimitItems";
+    /** flag to limit GPU image cache items */
+    public static final String GPU_IMAGE_CACHE_LIMIT_ITEMS = "GpuImageCacheLimitItems";
 
-  /** flag to limit GPU image cache working set budget bytes */
-  public static final String DECODED_IMAGE_WORKING_SET_BUDGET_BYTES = "DecodedImageWorkingSetBudgetBytes";
+    /** flag to limit GPU image cache working set budget bytes */
+    public static final String DECODED_IMAGE_WORKING_SET_BUDGET_BYTES =
+            "DecodedImageWorkingSetBudgetBytes";
 
-  /** flag to allow scaling clipped images in GpuImageDecodeCache */
-  public static final String ENABLE_SCALING_CLIPPED_IMAGES = "EnableScalingClippedImages";
+    /** flag to allow scaling clipped images in GpuImageDecodeCache */
+    public static final String ENABLE_SCALING_CLIPPED_IMAGES = "EnableScalingClippedImages";
 
   /** flag to reduce starboard thread stack size. */
   public static final String REDUCE_STARBOARD_THREAD_STACK_SIZE = "ReduceStarboardThreadStackSize";
 
-  /** flag to reduce android thread stack size. */
-  public static final String REDUCE_ANDROID_THREAD_STACK_SIZE = "ReduceAndroidThreadStackSize";
+    /** flag to reduce android thread stack size. */
+    public static final String REDUCE_ANDROID_THREAD_STACK_SIZE = "ReduceAndroidThreadStackSize";
 
-  /** flag to enable dynamic mojo pipe sizing. */
-  public static final String ENABLE_COBALT_DYNAMIC_MOJO_PIPE_SIZING = "EnableCobaltDynamicMojoPipeSizing";
+    /** flag to enable dynamic mojo pipe sizing. */
+    public static final String ENABLE_COBALT_DYNAMIC_MOJO_PIPE_SIZING =
+            "EnableCobaltDynamicMojoPipeSizing";
 
-  /** flag to tune cobalt dynamic mojo pipe sizing subresource size in bytes. */
-  public static final String COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE = "CobaltDynamicMojoPipeSubresourceSize";
+    /** flag to tune cobalt dynamic mojo pipe sizing subresource size in bytes. */
+    public static final String COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE =
+            "CobaltDynamicMojoPipeSubresourceSize";
 
-  /** flag to tune cobalt dynamic mojo pipe sizing media size in bytes. */
-  public static final String COBALT_DYNAMIC_MOJO_PIPE_MEDIA_SIZE =
-      "CobaltDynamicMojoPipeMediaSize";
+    /** flag to tune cobalt dynamic mojo pipe sizing media size in bytes. */
+    public static final String COBALT_DYNAMIC_MOJO_PIPE_MEDIA_SIZE =
+            "CobaltDynamicMojoPipeMediaSize";
 
   /** flag to disable FontSrcLocalMatching lookup table. */
   public static final String DISABLE_FONT_SRC_LOCAL_MATCHING = "DisableFontSrcLocalMatching";
 
-  /** Avoid reuse resource. */
-  public static final String AVOID_CC_REUSE_RESOURCE = "AvoidCCReuseResource";
+    /** Avoid reuse resource. */
+    public static final String AVOID_CC_REUSE_RESOURCE = "AvoidCCReuseResource";
 
-  /** flag to bypass BufferingBytesConsumer Oilpan heap buffering. */
-  public static final String COBALT_BYPASS_BUFFERING_BYTES_CONSUMER =
-      "CobaltBypassBufferingBytesConsumer";
+    /** flag to bypass BufferingBytesConsumer Oilpan heap buffering. */
+    public static final String COBALT_BYPASS_BUFFERING_BYTES_CONSUMER =
+            "CobaltBypassBufferingBytesConsumer";
 
-  public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
-    List<String> extraCommandLineArgs = new ArrayList<>();
-    StringJoiner jsFlags = new StringJoiner(";");
+    /** Generic extra command line arguments passed from Mendel. */
+    public static final String EXTRA_COMMAND_LINE_ARGS = "ExtraCommandLineArgs";
+
+    public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
+        List<String> extraCommandLineArgs = new ArrayList<>();
+        StringJoiner jsFlags = new StringJoiner(";");
 
     if (javaSwitches.containsKey(JavaSwitches.USE_IPV4_FOR_DNS)) {
       extraCommandLineArgs.add("--enable-features=UseIPv4ForDNS");
@@ -112,23 +119,30 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--disable-gpu-memory-buffer-compositor-resources");
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.GPU_IMAGE_CACHE_LIMIT_ITEMS)) {
-      String limit = javaSwitches.get(JavaSwitches.GPU_IMAGE_CACHE_LIMIT_ITEMS).replaceAll("[^0-9]", "");
-      extraCommandLineArgs.add("--cc-image-cache-limit-items=" + limit);
-    }
-    if (javaSwitches.containsKey(JavaSwitches.DECODED_IMAGE_WORKING_SET_BUDGET_BYTES)) {
-      String budget = javaSwitches.get(JavaSwitches.DECODED_IMAGE_WORKING_SET_BUDGET_BYTES).replaceAll("[^0-9]", "");
-      extraCommandLineArgs.add("--decoded-image-working-set-budget-bytes=" + budget);
-    }
+        if (javaSwitches.containsKey(JavaSwitches.GPU_IMAGE_CACHE_LIMIT_ITEMS)) {
+            String limit =
+                    javaSwitches
+                            .get(JavaSwitches.GPU_IMAGE_CACHE_LIMIT_ITEMS)
+                            .replaceAll("[^0-9]", "");
+            extraCommandLineArgs.add("--cc-image-cache-limit-items=" + limit);
+        }
+        if (javaSwitches.containsKey(JavaSwitches.DECODED_IMAGE_WORKING_SET_BUDGET_BYTES)) {
+            String budget =
+                    javaSwitches
+                            .get(JavaSwitches.DECODED_IMAGE_WORKING_SET_BUDGET_BYTES)
+                            .replaceAll("[^0-9]", "");
+            extraCommandLineArgs.add("--decoded-image-working-set-budget-bytes=" + budget);
+        }
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_SCALING_CLIPPED_IMAGES)) {
       extraCommandLineArgs.add("--enable-scaling-clipped-images");
     }
 
-    StringJoiner mojoPipeParams = new StringJoiner("/");
-    String subresourceSize = javaSwitches.get(JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE);
-    if (subresourceSize != null) {
-      String size = subresourceSize.replaceAll("[^0-9]", "");
+        StringJoiner mojoPipeParams = new StringJoiner("/");
+        String subresourceSize =
+                javaSwitches.get(JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE);
+        if (subresourceSize != null) {
+            String size = subresourceSize.replaceAll("[^0-9]", "");
       if (!size.isEmpty()) {
         mojoPipeParams.add("subresource_size/" + size);
       }
@@ -140,26 +154,35 @@ public class JavaSwitches {
       if (!size.isEmpty()) {
         mojoPipeParams.add("media_size/" + size);
       }
-    }
+        }
 
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_COBALT_DYNAMIC_MOJO_PIPE_SIZING) || mojoPipeParams.length() > 0) {
-      if (mojoPipeParams.length() > 0) {
-        extraCommandLineArgs.add("--enable-features=CobaltDynamicMojoPipeSizing:" + mojoPipeParams.toString());
-      } else {
-        extraCommandLineArgs.add("--enable-features=CobaltDynamicMojoPipeSizing");
+        if (javaSwitches.containsKey(JavaSwitches.ENABLE_COBALT_DYNAMIC_MOJO_PIPE_SIZING)
+                || mojoPipeParams.length() > 0) {
+            if (mojoPipeParams.length() > 0) {
+                extraCommandLineArgs.add(
+                        "--enable-features=CobaltDynamicMojoPipeSizing:"
+                                + mojoPipeParams.toString());
+            } else {
+                extraCommandLineArgs.add("--enable-features=CobaltDynamicMojoPipeSizing");
       }
     }
 
-    StringJoiner featureParams = new StringJoiner("/");
-    if (javaSwitches.containsKey(JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS)) {
-      String size = javaSwitches.get(JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS).replaceAll("[^0-9]", "");
-      featureParams.add("size_in_pixels/" + size);
-    }
+        StringJoiner featureParams = new StringJoiner("/");
+        if (javaSwitches.containsKey(JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS)) {
+            String size =
+                    javaSwitches
+                            .get(JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS)
+                            .replaceAll("[^0-9]", "");
+            featureParams.add("size_in_pixels/" + size);
+        }
 
-    if (javaSwitches.containsKey(JavaSwitches.RECLAIM_DELAY_IN_SECONDS)) {
-      String delay = javaSwitches.get(JavaSwitches.RECLAIM_DELAY_IN_SECONDS).replaceAll("[^0-9]", "");
-      featureParams.add("reclaim_delay_s/" + delay);
-    }
+        if (javaSwitches.containsKey(JavaSwitches.RECLAIM_DELAY_IN_SECONDS)) {
+            String delay =
+                    javaSwitches
+                            .get(JavaSwitches.RECLAIM_DELAY_IN_SECONDS)
+                            .replaceAll("[^0-9]", "");
+            featureParams.add("reclaim_delay_s/" + delay);
+        }
 
     if (featureParams.length() > 0) {
       extraCommandLineArgs.add(
@@ -182,23 +205,69 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--js-flags=" + jsFlags.toString());
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.REDUCE_STARBOARD_THREAD_STACK_SIZE)) {
-      extraCommandLineArgs.add("--enable-features=" + JavaSwitches.REDUCE_STARBOARD_THREAD_STACK_SIZE);
-    }
+        if (javaSwitches.containsKey(JavaSwitches.REDUCE_STARBOARD_THREAD_STACK_SIZE)) {
+            extraCommandLineArgs.add(
+                    "--enable-features=" + JavaSwitches.REDUCE_STARBOARD_THREAD_STACK_SIZE);
+        }
 
-    if (javaSwitches.containsKey(JavaSwitches.REDUCE_ANDROID_THREAD_STACK_SIZE)) {
-      extraCommandLineArgs.add("--enable-features=" + JavaSwitches.REDUCE_ANDROID_THREAD_STACK_SIZE);
-    }
+        if (javaSwitches.containsKey(JavaSwitches.REDUCE_ANDROID_THREAD_STACK_SIZE)) {
+            extraCommandLineArgs.add(
+                    "--enable-features=" + JavaSwitches.REDUCE_ANDROID_THREAD_STACK_SIZE);
+        }
 
     if (javaSwitches.containsKey(JavaSwitches.AVOID_CC_REUSE_RESOURCE)) {
       extraCommandLineArgs.add("--avoid-cc-reuse-resource");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.COBALT_BYPASS_BUFFERING_BYTES_CONSUMER)) {
-      extraCommandLineArgs.add(
-          "--enable-features=" + JavaSwitches.COBALT_BYPASS_BUFFERING_BYTES_CONSUMER);
+            extraCommandLineArgs.add(
+                    "--enable-features=" + JavaSwitches.COBALT_BYPASS_BUFFERING_BYTES_CONSUMER);
+        }
+
+        String extraArgs = javaSwitches.get(JavaSwitches.EXTRA_COMMAND_LINE_ARGS);
+        if (extraArgs != null && !extraArgs.isEmpty()) {
+            extraCommandLineArgs.addAll(splitArguments(extraArgs));
+        }
+
+        return extraCommandLineArgs;
     }
 
-    return extraCommandLineArgs;
-  }
+    static List<String> splitArguments(String argsString) {
+        List<String> list = new ArrayList<>();
+        if (argsString == null || argsString.isEmpty()) {
+            return list;
+        }
+        StringBuilder sb = new StringBuilder();
+        boolean inQuote = false;
+        char quoteChar = 0;
+        boolean hasToken = false;
+        for (int i = 0; i < argsString.length(); i++) {
+            char c = argsString.charAt(i);
+            if (c == '"' || c == '\'') {
+                if (!inQuote) {
+                    inQuote = true;
+                    quoteChar = c;
+                    hasToken = true;
+                } else if (c == quoteChar) {
+                    inQuote = false;
+                } else {
+                    sb.append(c);
+                    hasToken = true;
+                }
+            } else if (Character.isWhitespace(c) && !inQuote) {
+                if (hasToken) {
+                    list.add(sb.toString());
+                    sb.setLength(0);
+                    hasToken = false;
+                }
+            } else {
+                sb.append(c);
+                hasToken = true;
+            }
+        }
+        if (hasToken) {
+            list.add(sb.toString());
+        }
+        return list;
+    }
 }
