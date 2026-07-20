@@ -61,11 +61,14 @@ struct InterceptedData {
   }
 };
 
-InterceptedData g_intercepted_data;
+InterceptedData* g_intercepted_data = nullptr;
 
 SbMediaSupportType InterceptCanPlay(const char* mime, const char* key_system) {
-  g_intercepted_data.Add(mime, key_system);
-  return g_intercepted_data.mock_support_type.load();
+  if (g_intercepted_data) {
+    g_intercepted_data->Add(mime, key_system);
+    return g_intercepted_data->mock_support_type.load();
+  }
+  return kSbMediaSupportTypeNotSupported;
 }
 
 }  // namespace
@@ -83,15 +86,18 @@ class CustomMimeTypeBrowserTest : public content::ContentBrowserTest {
 
   void SetUpOnMainThread() override {
     content::ContentBrowserTest::SetUpOnMainThread();
-    g_intercepted_data.Clear();
+    g_intercepted_data = &intercepted_data_;
     SbMediaSetCanPlayMimeAndKeySystemFuncForTesting(&InterceptCanPlay);
   }
 
   void TearDownOnMainThread() override {
     SbMediaSetCanPlayMimeAndKeySystemFuncForTesting(nullptr);
-    g_intercepted_data.Clear();
+    g_intercepted_data = nullptr;
     content::ContentBrowserTest::TearDownOnMainThread();
   }
+
+ protected:
+  InterceptedData intercepted_data_;
 };
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
@@ -100,8 +106,8 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   GURL url = embedded_test_server()->GetURL("/title1.html");
   ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
 
-  g_intercepted_data.Clear();
-  g_intercepted_data.mock_support_type.store(kSbMediaSupportTypeProbably);
+  intercepted_data_.Clear();
+  intercepted_data_.mock_support_type.store(kSbMediaSupportTypeProbably);
 
   const char kCustomMime[] =
       "video/mp4; codecs=\"avc1.64002a\"; width=3840; height=2160; "
@@ -111,7 +117,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
       std::string("MediaSource.isTypeSupported('") + kCustomMime + "');";
   EXPECT_TRUE(content::EvalJs(shell()->web_contents(), js_query).ExtractBool());
 
-  EXPECT_THAT(g_intercepted_data.GetMimes(), ::testing::Contains(kCustomMime));
+  EXPECT_THAT(intercepted_data_.GetMimes(), ::testing::Contains(kCustomMime));
 }
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
@@ -120,8 +126,8 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   GURL url = embedded_test_server()->GetURL("/title1.html");
   ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
 
-  g_intercepted_data.Clear();
-  g_intercepted_data.mock_support_type.store(kSbMediaSupportTypeMaybe);
+  intercepted_data_.Clear();
+  intercepted_data_.mock_support_type.store(kSbMediaSupportTypeMaybe);
 
   const char kCustomMime[] =
       "video/mp4; codecs=\"avc1.64002a\"; width=1920; height=1080; "
@@ -133,7 +139,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   EXPECT_EQ("maybe",
             content::EvalJs(shell()->web_contents(), js_query).ExtractString());
 
-  EXPECT_THAT(g_intercepted_data.GetMimes(), ::testing::Contains(kCustomMime));
+  EXPECT_THAT(intercepted_data_.GetMimes(), ::testing::Contains(kCustomMime));
 }
 
 IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
@@ -142,8 +148,8 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   GURL url = embedded_test_server()->GetURL("/title1.html");
   ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
 
-  g_intercepted_data.Clear();
-  g_intercepted_data.mock_support_type.store(kSbMediaSupportTypeNotSupported);
+  intercepted_data_.Clear();
+  intercepted_data_.mock_support_type.store(kSbMediaSupportTypeNotSupported);
 
   const char kUnsupportedMime[] =
       "video/mp4; codecs=\"unsupported.codec\"; width=99999; height=99999;";
@@ -153,7 +159,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   EXPECT_FALSE(
       content::EvalJs(shell()->web_contents(), js_query).ExtractBool());
 
-  EXPECT_THAT(g_intercepted_data.GetMimes(),
+  EXPECT_THAT(intercepted_data_.GetMimes(),
               ::testing::Contains(kUnsupportedMime));
 }
 
@@ -163,8 +169,8 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   GURL url = embedded_test_server()->GetURL("/title1.html");
   ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
 
-  g_intercepted_data.Clear();
-  g_intercepted_data.mock_support_type.store(kSbMediaSupportTypeProbably);
+  intercepted_data_.Clear();
+  intercepted_data_.mock_support_type.store(kSbMediaSupportTypeProbably);
 
   const char kHdr10PlusMime[] =
       "video/webm; codecs=\"vp09.02.51.10.01.09.16.09.00\"; hdr=hdr10plus";
@@ -173,7 +179,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
       std::string("MediaSource.isTypeSupported('") + kHdr10PlusMime + "');";
   EXPECT_TRUE(content::EvalJs(shell()->web_contents(), js_query).ExtractBool());
 
-  EXPECT_THAT(g_intercepted_data.GetMimes(),
+  EXPECT_THAT(intercepted_data_.GetMimes(),
               ::testing::Contains(kHdr10PlusMime));
 }
 
@@ -183,8 +189,8 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   GURL url = embedded_test_server()->GetURL("/title1.html");
   ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
 
-  g_intercepted_data.Clear();
-  g_intercepted_data.mock_support_type.store(kSbMediaSupportTypeProbably);
+  intercepted_data_.Clear();
+  intercepted_data_.mock_support_type.store(kSbMediaSupportTypeProbably);
 
   const char kHdr10PlusMime[] =
       "video/mp4; codecs=\"hvc1.2.4.L153.B0\"; hdr=hdr10plus";
@@ -195,7 +201,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   EXPECT_EQ("probably",
             content::EvalJs(shell()->web_contents(), js_query).ExtractString());
 
-  EXPECT_THAT(g_intercepted_data.GetMimes(),
+  EXPECT_THAT(intercepted_data_.GetMimes(),
               ::testing::Contains(kHdr10PlusMime));
 }
 
