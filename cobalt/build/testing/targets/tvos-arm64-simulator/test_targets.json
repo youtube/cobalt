@@ -18,5 +18,10 @@
     "target": "cobalt/testing/browser_tests:cobalt_browsertests",
     "runs_on": "host",
     "test_type": "browsertest"
+  },
+  {
+    "target": "starboard:starboard_unittests_wrapper",
+    "runs_on": "host",
+    "test_type": "gtest"
   }
 ]
