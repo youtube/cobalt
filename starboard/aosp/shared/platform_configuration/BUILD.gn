@@ -23,6 +23,7 @@ config("platform_configuration") {
       "-Wl,--wrap=access",
       "-Wl,--wrap=close",
       "-Wl,--wrap=closedir",
+      "-Wl,--wrap=fdopendir",
       "-Wl,--wrap=fstatat",
       "-Wl,--wrap=open",
       "-Wl,--wrap=opendir",
