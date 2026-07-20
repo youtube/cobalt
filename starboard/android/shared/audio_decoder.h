@@ -79,6 +79,7 @@ class AudioDecoder
   const AudioStreamInfo audio_stream_info_;
   const SbMediaAudioSampleType sample_type_;
   const bool enable_flush_during_seek_;
+  bool is_passthrough_ = false;
 
   jint output_sample_rate_;
   jint output_channel_count_;
