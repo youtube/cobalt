@@ -198,15 +198,20 @@ void SurfaceDestroyNotifier::Disconnect() {
 }
 
 void SurfaceDestroyNotifier::Notify() {
-  std::unique_lock lock(mutex_);
-  if (disconnected_ || !holder_ || !job_queue_) {
-    return;
+  scoped_refptr<SurfaceDestroyNotifier> self(this);
+  JobQueue* job_queue_to_schedule = nullptr;
+  {
+    std::lock_guard lock(mutex_);
+    if (disconnected_ || !holder_ || !job_queue_) {
+      return;
+    }
+    done_ = false;
+    job_queue_to_schedule = job_queue_;
   }
 
-  done_ = false;
-  scoped_refptr<SurfaceDestroyNotifier> self(this);
-  job_queue_->Schedule([self]() { self->NotifyDestroyed(); });
+  job_queue_to_schedule->Schedule([self]() { self->NotifyDestroyed(); });
 
+  std::unique_lock lock(mutex_);
   // Wait for the task to complete with a 1-second timeout.
   done_cv_.wait_for(lock, std::chrono::seconds(1), [this] { return done_; });
 }
