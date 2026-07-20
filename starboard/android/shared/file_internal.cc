@@ -19,7 +19,6 @@
 #include <string.h>
 
 #include <string>
-
 #include <vector>
 
 #include "base/android/jni_array.h"

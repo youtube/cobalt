@@ -24,6 +24,8 @@
 #include <unistd.h>
 
 #include <mutex>
+#include <utility>
+#include <vector>
 
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/common/check_op.h"
@@ -49,6 +51,7 @@ int AssetManager::Open(const char* path, int oflag) {
       return open(fallback_path.c_str(), oflag);
     }
     SB_LOG(WARNING) << "Asset path not found within package: " << path;
+    errno = ENOENT;
     return -1;
   }
 
@@ -106,6 +109,68 @@ int AssetManager::Close(int fd) {
 bool AssetManager::IsAssetFd(int fd) const {
   std::lock_guard scoped_lock(mutex_);
   return fd_to_internal_fd_map_.count(fd) == 1;
+}
+
+int AssetManager::OpenDirectory(const char* path) {
+  if (!path) {
+    return -1;
+  }
+
+  std::vector<std::string> entries = ListAndroidAssetDir(path);
+  if (entries.empty()) {
+    // An empty listing means either the path doesn't exist or it names a file.
+    // If we manage to open it as an asset it means it's a file and ENOTDIR
+    // should be reported.
+    AAsset* asset = OpenAndroidAsset(path);
+    if (asset) {
+      AAsset_close(asset);
+      errno = ENOTDIR;
+    } else {
+      errno = ENOENT;
+    }
+    return -1;
+  }
+
+  // Reserve a real, unique fd so it can be closed like any other fd.
+  // It is never read but serves as a key to hold the directory entries
+  // and the open/closed state.
+  int fd = open("/dev/null", O_RDONLY);
+  if (fd < 0) {
+    return -1;
+  }
+
+  std::lock_guard scoped_lock(mutex_);
+  dir_fd_to_entries_map_[fd] = std::move(entries);
+  return fd;
+}
+
+int AssetManager::CloseDirectory(int fd) {
+  {
+    std::lock_guard scoped_lock(mutex_);
+    auto search = dir_fd_to_entries_map_.find(fd);
+    if (search == dir_fd_to_entries_map_.end()) {
+      return -1;
+    }
+    dir_fd_to_entries_map_.erase(search);
+  }  // Can't hold lock when calling close();
+  return close(fd);
+}
+
+bool AssetManager::IsAssetDirFd(int fd) const {
+  std::lock_guard scoped_lock(mutex_);
+  return dir_fd_to_entries_map_.count(fd) == 1;
+}
+
+bool AssetManager::GetDirectoryEntries(
+    int fd,
+    std::vector<std::string>* entries) const {
+  std::lock_guard scoped_lock(mutex_);
+  auto search = dir_fd_to_entries_map_.find(fd);
+  if (search == dir_fd_to_entries_map_.end()) {
+    return false;
+  }
+  *entries = search->second;
+  return true;
 }
 
 void AssetManager::RegisterAssetDir(const DIR* dir) {

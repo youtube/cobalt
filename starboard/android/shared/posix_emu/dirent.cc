@@ -29,17 +29,40 @@
 
 using starboard::AssetManager;
 using starboard::IsAndroidAssetPath;
-using starboard::ListAndroidAssetDir;
 
 namespace {
 
 // A helper structure used internally as a DIR replacement for asset paths.
-// It's used in the wrapped opendir/closedir/readdir/readdir_r.
+// It's used in the wrapped opendir/fdopendir/closedir/readdir/readdir_r.
 struct AndroidAssetDir {
   std::vector<std::string> entries;
   size_t index;
   struct dirent entry;
+  // The AssetManager directory descriptor this handle owns. It is only a
+  // placeholder used as a map key, but AssetManager::OpenDirectory() reserves a
+  // real descriptor, so it stays open until __wrap_closedir() releases it.
+  int fd;
 };
+
+// Wraps an AssetManager directory descriptor in the DIR handle from
+// __wrap_opendir()/__wrap_fdopendir().
+DIR* MakeAssetDir(AssetManager* asset_manager, int fd) {
+  std::vector<std::string> entries;
+  if (!asset_manager->GetDirectoryEntries(fd, &entries)) {
+    // fd stopped being an asset directory between the caller's check and
+    // this point, so nothing to enumerate and nothing to close.
+    errno = EBADF;
+    return NULL;
+  }
+
+  AndroidAssetDir* retdir = new AndroidAssetDir();
+  retdir->entries = std::move(entries);
+  retdir->index = 0;
+  retdir->fd = fd;
+  DIR* dir = reinterpret_cast<DIR*>(retdir);
+  asset_manager->RegisterAssetDir(dir);
+  return dir;
+}
 
 void FillAssetDirent(const std::string& name, struct dirent* out) {
   memset(out, 0, sizeof(*out));
@@ -55,6 +78,8 @@ void FillAssetDirent(const std::string& name, struct dirent* out) {
 extern "C" {
 DIR* __real_opendir(const char* path);
 
+DIR* __real_fdopendir(int fd);
+
 int __real_closedir(DIR* dir);
 
 struct dirent* __real_readdir(DIR* dir);
@@ -68,28 +93,34 @@ DIR* __wrap_opendir(const char* path) {
     return __real_opendir(path);
   }
 
-  std::vector<std::string> entries = ListAndroidAssetDir(path);
-  if (entries.empty()) {
-    errno = ENOENT;
+  AssetManager* asset_manager = AssetManager::GetInstance();
+  // OpenDirectory() sets errno to ENOTDIR or ENOENT on failure.
+  int fd = asset_manager->OpenDirectory(path);
+  if (fd < 0) {
     return NULL;
   }
+  return MakeAssetDir(asset_manager, fd);
+}
 
-  AndroidAssetDir* retdir = new AndroidAssetDir();
-  retdir->entries = std::move(entries);
-  retdir->index = 0;
-  DIR* dir = reinterpret_cast<DIR*>(retdir);
-  AssetManager::GetInstance()->RegisterAssetDir(dir);
-  return dir;
+DIR* __wrap_fdopendir(int fd) {
+  AssetManager* asset_manager = AssetManager::GetInstance();
+  if (!asset_manager->IsAssetDirFd(fd)) {
+    return __real_fdopendir(fd);
+  }
+
+  return MakeAssetDir(asset_manager, fd);
 }
 
 int __wrap_closedir(DIR* dir) {
   if (!dir) {
     return -1;
   }
-  if (AssetManager::GetInstance()->UnregisterAssetDir(dir)) {
+  AssetManager* asset_manager = AssetManager::GetInstance();
+  if (asset_manager->UnregisterAssetDir(dir)) {
     AndroidAssetDir* asset_dir = reinterpret_cast<AndroidAssetDir*>(dir);
+    int result = asset_manager->CloseDirectory(asset_dir->fd);
     delete asset_dir;
-    return 0;
+    return result;
   }
   return __real_closedir(dir);
 }
