@@ -709,7 +709,7 @@ class MediaCodecBridge {
     // looper queue from before the flush.
     // To prevent processing these stale callbacks after the flush starts, we set
     // mIsFlushing to true here to discard them. Then we post a runnable to the main
-    // looper queue which will reset mIsFlushing to false once all prior pending
+  // looper queue which will reset mIsFlushing to false once all prior pending
     // callbacks have been sequentialized and discarded.
     if (mEnableIgnoreCallbacksDuringFlushing) {
       synchronized (mNativeBridgeLock) {

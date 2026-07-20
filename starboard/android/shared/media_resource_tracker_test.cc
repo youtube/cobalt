@@ -55,5 +55,47 @@ TEST(MediaResourceTrackerTest, TimeoutWhenNotZero) {
   EXPECT_EQ(0, tracker->WaitUntilZero(0));
 }
 
+TEST(MediaResourceTrackerTest, RequestShutdownWhenZero) {
+  auto* tracker = MediaResourceTracker::GetInstance();
+  tracker->ResetForTesting();
+
+  EXPECT_FALSE(tracker->RequestShutdown());
+}
+
+TEST(MediaResourceTrackerTest, RequestShutdownWhenNonZero) {
+  auto* tracker = MediaResourceTracker::GetInstance();
+  tracker->ResetForTesting();
+
+  tracker->Increment();
+  EXPECT_TRUE(tracker->RequestShutdown());
+
+  tracker->ResetForTesting();
+}
+
+TEST(MediaResourceTrackerTest, DirectExitTriggeredOnDecrement) {
+  auto* tracker = MediaResourceTracker::GetInstance();
+  tracker->ResetForTesting();
+
+  static std::atomic<bool> exit_invoked = false;
+  exit_invoked = false;
+
+  tracker->SetExitFunctionForTesting([](int /*code*/) { exit_invoked = true; });
+
+  tracker->Increment();
+  EXPECT_TRUE(tracker->RequestShutdown());
+  EXPECT_FALSE(exit_invoked.load());
+
+  std::thread worker([tracker]() {
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    tracker->Decrement();
+  });
+
+  worker.join();
+  EXPECT_TRUE(exit_invoked.load());
+  EXPECT_EQ(0, tracker->GetActiveCount());
+
+  tracker->ResetForTesting();
+}
+
 }  // namespace
 }  // namespace starboard
