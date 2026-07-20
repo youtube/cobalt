@@ -32,6 +32,10 @@ SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
     return kSbMediaSupportTypeNotSupported;
   }
 
+  if (key_system == nullptr) {
+    return kSbMediaSupportTypeNotSupported;
+  }
+
   auto test_func = g_can_play_func_for_testing.load(std::memory_order_acquire);
   if (test_func) {
     return test_func(mime, key_system);

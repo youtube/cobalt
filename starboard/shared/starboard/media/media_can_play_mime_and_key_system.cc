@@ -35,14 +35,14 @@ SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
     return kSbMediaSupportTypeNotSupported;
   }
 
-  auto test_func = g_can_play_func_for_testing.load(std::memory_order_acquire);
-  if (test_func) {
-    return test_func(mime, key_system);
-  }
-
   if (key_system == nullptr) {
     SB_DLOG(WARNING) << "key_system cannot be nullptr";
     return kSbMediaSupportTypeNotSupported;
+  }
+
+  auto test_func = g_can_play_func_for_testing.load(std::memory_order_acquire);
+  if (test_func) {
+    return test_func(mime, key_system);
   }
 
   return starboard::CanPlayMimeAndKeySystem(mime, key_system);
