@@ -1,4 +1,4 @@
-# Copyright 2022 The Cobalt Authors. All Rights Reserved.
+# Copyright 2026 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,10 +15,32 @@
 assert(current_toolchain == host_toolchain,
        "Starboard tools should only be built for the host toolchain")
 
-executable("lz4_compress") {
-  sources = [ "lz4_compress.cc" ]
+import("//testing/test.gni")
+
+source_set("zstd_compress_lib") {
+  sources = [
+    "zstd_compress.cc",
+    "zstd_compress.h",
+  ]
+  deps = [ "//third_party/zstd:compress" ]
+}
+
+executable("zstd_compress") {
+  sources = [ "zstd_compress_main.cc" ]
   deps = [
+    ":zstd_compress_lib",
     "//starboard/tools/file_utils",
-    "//third_party/lz4_lib:lz4",
+  ]
+}
+
+# TODO: b/535249762 - Run this unit test target in CI.
+test("zstd_compress_unittest") {
+  testonly = true
+  sources = [ "zstd_compress_unittest.cc" ]
+  deps = [
+    ":zstd_compress_lib",
+    "//testing/gtest",
+    "//testing/gtest:gtest_main",
+    "//third_party/zstd:decompress",
   ]
 }
