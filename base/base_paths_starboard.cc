@@ -73,6 +73,18 @@ bool PathProviderStarboard(int key, FilePath* result) {
 #else
         *result = test_data_path.DirName().DirName();
 #endif
+        // Fall back to the content directory when the heuristic failed
+        // either by collapsing to "/", or by pointing somewhere that no longer
+        // contains third_party/ while the content directory does.
+        const FilePath kThirdParty(FILE_PATH_LITERAL("third_party"));
+        bool heuristic_is_root =
+            (*result == FilePath(FILE_PATH_LITERAL("/")));
+        bool data_deployed_to_content =
+            !DirectoryExists(result->Append(kThirdParty)) &&
+            DirectoryExists(test_data_path.Append(kThirdParty));
+        if (heuristic_is_root || data_deployed_to_content) {
+          *result = test_data_path;
+        }
         return true;
       }
 

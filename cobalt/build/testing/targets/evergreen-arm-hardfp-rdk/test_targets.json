@@ -91,7 +91,9 @@
   },
   {
     "target": "third_party/boringssl:boringssl_pki_tests_loader",
-    "executable": "out/evergreen-arm-hardfp-rdk_devel/boringssl_pki_tests_loader.py"
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/boringssl_pki_tests_loader.py",
+    "runs_on": "device",
+    "test_type": "gtest"
   },
   {
     "target": "ui/compositor:compositor_unittests_loader",
