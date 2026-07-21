@@ -1,7 +1,5 @@
 {
   "failing_tests": [
-    "MaximumPlayerConfigurationExplorerTests/MaximumPlayerConfigurationExplorerTest.SunnyDay/*",
-    "MultiplePlayerTest.SunnyDay",
     "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/*",
     "PosixClockNanosleepTest.AbsoluteSleepTimeInPastReturnsImmediately",
     "PosixOnceTest.SunnyDayMultipleThreadsInit",
@@ -29,26 +27,11 @@
     "PosixThreadAttrTest.SchedParam",
     "PosixTimeClockTests.ClockIncreasesOverTime",
     "SbLogFlushTest.DontCrashMeBro",
-    "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
-    "SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest.WriteContinuedLimitedInput/*",
-    "SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest.WriteLimitedInput/*",
-    "SbPlayerGetAudioConfigurationTests/SbPlayerGetAudioConfigurationTest.MultipleSeeks/*",
-    "SbPlayerGetAudioConfigurationTests/SbPlayerGetAudioConfigurationTest.NoInput/*",
-    "SbPlayerGetAudioConfigurationTests/SbPlayerGetAudioConfigurationTest.SunnyDay/*",
-    "SbPlayerGetMediaTimeTests/SbPlayerGetMediaTimeTest.SunnyDay/*",
-    "SbPlayerGetMediaTimeTests/SbPlayerGetMediaTimeTest.TimeAfterSeek/*",
-    "SbPlayerTest.AudioOnly",
-    "SbPlayerTest.Audioless",
-    "SbPlayerTest.MaxVideoCapabilities",
-    "SbPlayerTest.MultiPlayer",
-    "SbPlayerTest.NullCallbacks",
-    "SbPlayerTest.SunnyDay",
-    "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.*",
+    "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.LimitedAudioInput/*",
     "SbSystemGetLocaleIdTest.SunnyDay",
     "SbSystemGetPathTest.CanWriteAndReadFilesStorage",
     "SbSystemGetPropertyTest.ReturnsRequired",
     "SbSystemSymbolizeTest.SunnyDay",
-    "SbTimeZoneGetNameTest.IsIANAFormat",
-    "VerticalVideoTests/VerticalVideoTest.*"
+    "SbTimeZoneGetNameTest.IsIANAFormat"
   ]
 }
