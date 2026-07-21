@@ -10,11 +10,6 @@
 
 namespace v8 {
 namespace internal {
-
-namespace wasm {
-class CanonicalSig;
-}  // namespace wasm
-
 namespace compiler {
 
 std::unique_ptr<TurbofanCompilationJob> NewCompilationJob(
@@ -22,15 +17,6 @@ std::unique_ptr<TurbofanCompilationJob> NewCompilationJob(
     BytecodeOffset osr_offset) {
   FATAL(
       "compiler::NewCompilationJob must not be called when Turbofan is "
-      "disabled (`v8_enable_turbofan = false`)");
-}
-
-// Returns a TurboshaftCompilationJob object for a JS to Wasm wrapper.
-std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
-    Isolate* isolate, const wasm::CanonicalSig* sig,
-    bool receiver_is_first_param) {
-  FATAL(
-      "compiler::NewJSToWasmCompilationJob must not be called when Turbofan is "
       "disabled (`v8_enable_turbofan = false`)");
 }
 

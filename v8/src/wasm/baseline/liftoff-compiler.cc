@@ -8510,7 +8510,8 @@ class LiftoffCompiler {
     MaybeEmitNullCheck(decoder, string_reg.gp(), pinned, str.type);
     LiftoffRegister value = __ GetUnusedRegister(kGpReg, pinned);
     LoadObjectField(decoder, value, string_reg.gp(), no_reg,
-                    wasm::ObjectAccess::ToTagged(offsetof(String, length_)),
+                    wasm::ObjectAccess::ToTagged(
+                        compiler::AccessBuilder::ForStringLength().offset),
                     ValueKind::kI32, false /* is_signed */,
                     false /* trapping */, pinned);
     __ PushRegister(kI32, value);

@@ -6,8 +6,6 @@
 
 #include "src/base/platform/platform.h"
 
-#include "build/build_config.h"
-
 #if V8_OS_DARWIN
 #include <sys/mman.h>  // For MAP_JIT.
 #endif
@@ -125,7 +123,7 @@ PageAllocator::AllocateSharedPages(size_t size, const void* original_address) {
 
 void* PageAllocator::RemapShared(void* old_address, void* new_address,
                                  size_t size) {
-#if defined(V8_OS_LINUX) && !BUILDFLAG(IS_STARBOARD)
+#ifdef V8_OS_LINUX
   return base::OS::RemapShared(old_address, new_address, size);
 #else
   return nullptr;

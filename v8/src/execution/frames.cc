@@ -2884,7 +2884,7 @@ FrameSummary::WasmInterpretedFrameSummary::WasmInterpretedFrameSummary(
       byte_offset_(byte_offset) {}
 
 Handle<Object> FrameSummary::WasmInterpretedFrameSummary::receiver() const {
-  return Isolate::Current()->global_proxy();
+  return wasm_instance_->GetIsolate()->global_proxy();
 }
 
 int FrameSummary::WasmInterpretedFrameSummary::SourcePosition() const {
@@ -2899,7 +2899,8 @@ FrameSummary::WasmInterpretedFrameSummary::instance_data() const {
 }
 
 Handle<Script> FrameSummary::WasmInterpretedFrameSummary::script() const {
-  return handle(wasm_instance()->module_object()->script(), Isolate::Current());
+  return handle(wasm_instance()->module_object()->script(),
+                wasm_instance()->GetIsolate());
 }
 
 DirectHandle<Context>
