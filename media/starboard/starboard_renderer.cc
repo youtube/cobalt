@@ -325,8 +325,6 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
   player_bridge_->PrepareForSeek();
   // Reset |playback_rate_| after PrepareForSeek().
   playback_rate_ = 0.0;
-  pending_video_config_.reset();
-  pending_audio_config_.reset();
 
   if (buffering_state_ != BUFFERING_HAVE_NOTHING) {
     buffering_state_ = BUFFERING_HAVE_NOTHING;
@@ -767,8 +765,6 @@ void StarboardRenderer::ApplyPendingVideoConfig() {
       pending_video_config_->visible_rect().size());
   paint_video_hole_frame_cb_.Run(pending_video_config_->visible_rect().size());
 
-  // Re-use the existing config update logic (keeps color space and hole
-  // painting intact)
   UpdateDecoderConfig(video_stream_);
 
   pending_video_config_.reset();
@@ -784,7 +780,6 @@ void StarboardRenderer::ApplyPendingAudioConfig() {
 
   client_->OnAudioConfigChange(*pending_audio_config_);
 
-  // Re-use the existing config update logic
   UpdateDecoderConfig(audio_stream_);
 
   pending_audio_config_.reset();
@@ -869,8 +864,8 @@ void StarboardRenderer::OnDemuxerStreamRead(
       const AudioDecoderConfig& config = stream->audio_decoder_config();
       if (config.is_change_type_transition()) {
         pending_audio_config_ = config;
-        LOG(INFO) << "Pending Audio config change recorded. "
-                     "is_change_type_transition=true";
+        LOG(INFO)
+            << "Pending Audio config change stored due to a changeType call.";
       } else {
         pending_audio_config_.reset();
         client_->OnAudioConfigChange(config);
@@ -881,8 +876,8 @@ void StarboardRenderer::OnDemuxerStreamRead(
       const VideoDecoderConfig& config = stream->video_decoder_config();
       if (config.is_change_type_transition()) {
         pending_video_config_ = config;
-        LOG(INFO) << "Pending Video config change recorded. "
-                     "is_change_type_transition=true";
+        LOG(INFO)
+            << "Pending Video config change stored due to a changeType call.";
       } else {
         pending_video_config_.reset();
         client_->OnVideoConfigChange(config);
