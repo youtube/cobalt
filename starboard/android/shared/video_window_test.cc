@@ -14,10 +14,9 @@
 
 #include "starboard/android/shared/video_window.h"
 
-#include <unistd.h>
-
 #include <chrono>
 #include <memory>
+#include <thread>
 
 #include "starboard/android/shared/fake_media_codec.h"
 #include "starboard/android/shared/media_codec_video_decoder.h"
@@ -51,7 +50,7 @@ class VideoDecoderSurfaceTest : public ::testing::Test {
 
   starboard::testing::ScopedFeatureList scoped_feature_list_;
   JNIEnv* env_ = nullptr;
-  jni_zero::ScopedJavaLocalRef<jobject> real_surface_;
+  jni_zero::ScopedJavaGlobalRef<jobject> real_surface_;
 };
 
 TEST_F(VideoDecoderSurfaceTest, TeardownDuringSurfaceDestroyReleasesSurface) {
@@ -137,7 +136,7 @@ TEST_F(VideoDecoderSurfaceTest, TeardownDuringSurfaceDestroyReleasesSurface) {
   std::shared_ptr<MediaCodecVideoDecoder> shared_decoder = std::move(decoder);
   job_thread->Schedule([shared_decoder]() mutable {
     SB_LOG(INFO) << "Decoder thread: Waiting before destroying...";
-    usleep(100'000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     SB_LOG(INFO) << "Decoder thread: Destroying decoder...";
     shared_decoder.reset();
     SB_LOG(INFO) << "Decoder thread: Decoder destroyed.";
