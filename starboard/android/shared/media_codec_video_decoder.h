@@ -162,6 +162,9 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void OnTunnelModeCheckForNeedMoreInput();
 
   void OnVideoFrameRelease();
+  void ProcessOutputBufferWithBackpressure(
+      bool is_end_of_stream,
+      scoped_refptr<VideoFrame> video_frame);
 
   void OnSurfaceDestroyed() override;
   void ReportError(SbPlayerError error, const std::string& error_message);

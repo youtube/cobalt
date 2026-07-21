@@ -1017,17 +1017,37 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
     }
   }
 
-  bool need_more_input = !is_end_of_stream;
-  if (need_more_input && fix_need_more_input_backpressure_) {
-    need_more_input =
-        media_decoder_ &&
-        media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize;
+  if (fix_need_more_input_backpressure_) {
+    auto video_frame = make_scoped_refptr<VideoFrameImpl>(
+        dequeue_output_result, media_codec_bridge,
+        std::bind(&MediaCodecVideoDecoder::OnVideoFrameRelease, this));
+
+    Schedule([this, is_end_of_stream, video_frame = std::move(video_frame)]() {
+      ProcessOutputBufferWithBackpressure(is_end_of_stream,
+                                          std::move(video_frame));
+    });
+    return;
   }
+
   decoder_status_cb_(
-      need_more_input ? kNeedMoreInput : kBufferFull,
-      make_scoped_refptr<VideoFrameImpl>(
+      is_end_of_stream ? kBufferFull : kNeedMoreInput,
+      new VideoFrameImpl(
           dequeue_output_result, media_codec_bridge,
           std::bind(&MediaCodecVideoDecoder::OnVideoFrameRelease, this)));
+}
+
+void MediaCodecVideoDecoder::ProcessOutputBufferWithBackpressure(
+    bool is_end_of_stream,
+    scoped_refptr<VideoFrame> video_frame) {
+  SB_CHECK(BelongsToCurrentThread());
+  if (!decoder_status_cb_) {
+    return;
+  }
+  bool need_more_input =
+      !is_end_of_stream && media_decoder_ &&
+      media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize;
+  decoder_status_cb_(need_more_input ? kNeedMoreInput : kBufferFull,
+                     std::move(video_frame));
 }
 
 void MediaCodecVideoDecoder::OnEndOfStreamWritten(
