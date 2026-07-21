@@ -8,7 +8,7 @@ on:
       max_commits:
         description: 'Max number of commits to include on a single PR'
         type: number
-        default: 25
+        default: 10
 
 permissions:
   contents: read
@@ -77,7 +77,7 @@ jobs:
       - name: Cherry Pick Merged PRs
         id: autoroll
         env:
-          MAX_COMMITS: ${{ inputs.max_commits || 25 }}
+          MAX_COMMITS: ${{ inputs.max_commits || 10 }}
         run: |
           set -x
 
