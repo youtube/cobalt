@@ -58,3 +58,5 @@ size_config_path =
 if (is_starboard) {
   sb_evergreen_compatible_use_libunwind = true
 }
+
+starboard_level_final_executable_type = "shared_library"
