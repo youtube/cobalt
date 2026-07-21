@@ -1690,6 +1690,8 @@ void PopulateSharedStorageWorkletBinders(SharedStorageWorkletHost* host,
   // |SharedStorageWorkletHost::broker_|.
   map->Add<blink::mojom::LockManager>(base::BindRepeating(
       &SharedStorageWorkletHost::GetLockManager, base::Unretained(host)));
+#else
+  (void)host;
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
