@@ -275,6 +275,7 @@ def launch_on_device(
         remote_cmds += [
             "rdkDisplay create",
             "sleep 2",
+            "export XDG_RUNTIME_DIR=/run WAYLAND_DISPLAY=test-0",
             f"./{test_name}_loader.py {xml_out}{gtest_filter}",
             "rdkDisplay remove",
             "sleep 2",
@@ -358,6 +359,7 @@ def launch_on_device(
             "sleep 2",
             "rdkDisplay create",
             "sleep 2",
+            "export XDG_RUNTIME_DIR=/run WAYLAND_DISPLAY=test-0",
             f"./loader_app {' '.join(param)}" if param else "./loader_app",
             "rdkDisplay remove",
             "sleep 2",
