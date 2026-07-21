@@ -108,6 +108,7 @@ if (is_ios && target_platform == "tvos") {
       ":common",
       "//base",
       "//cobalt/browser/tvos/intents:yt_intents",
+      "//cobalt/browser/tvos:bundle_data",
       "//cobalt/shell:cobalt_shell_app",
       "//cobalt/shell:cobalt_shell_lib",
       "//components/crash/core/app",

@@ -29,6 +29,7 @@
 #include "cobalt/app/cobalt_main_delegate.h"
 #include "cobalt/app/cobalt_switch_defaults.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
+#include "cobalt/browser/tvos/bundle_data.h"
 #include "cobalt/shell/browser/shell.h"
 #include "components/crash/core/app/crashpad.h"
 #include "content/public/app/content_main.h"
@@ -173,12 +174,10 @@ static const char** g_argv = nullptr;
     willFinishLaunchingWithOptions:(NSDictionary*)launchOptions {
   base::CommandLine original_cmd_line(g_argc, g_argv);
   if (!original_cmd_line.HasSwitch(cobalt::switches::kInitialURL)) {
-    NSString* keyValue = base::apple::ObjCCast<NSString>(
-        [[NSBundle mainBundle] objectForInfoDictionaryKey:@"YTApplicationURL"]);
-    if (keyValue) {
-      const std::string plist_url = base::SysNSStringToUTF8(keyValue);
+    const auto plistUrl = cobalt::GetValueFromPlistAsString("YTApplicationURL");
+    if (plistUrl.has_value()) {
       original_cmd_line.AppendSwitchNative(cobalt::switches::kInitialURL,
-                                           plist_url);
+                                           *plistUrl);
     }
   }
 

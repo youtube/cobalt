@@ -14,7 +14,12 @@
 
 #import "cobalt/browser/tvos/deep_link_support_tvos.h"
 
+#include <string_view>
+
+#include "base/strings/strcat.h"
+#include "base/strings/sys_string_conversions.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
+#include "cobalt/browser/tvos/bundle_data.h"
 
 @implementation DeepLinkSupportTvos
 
@@ -24,22 +29,21 @@
     return;
   }
 
-  static constexpr NSString* const kYTApplicationURLKey = @"YTApplicationURL";
-  NSString* urlBase =
-      [[NSBundle mainBundle] objectForInfoDictionaryKey:kYTApplicationURLKey];
+  const auto urlBase = cobalt::GetValueFromPlistAsString("YTApplicationURL");
   if (!urlBase) {
     LOG(WARNING) << "YTApplicationURL not in plist, ignoring AppIntent.";
     return;
   }
 
-  static constexpr NSString* const kSearchUrlAction =
-      @"?launch=voice&vs=11&va=search&vaa=";
-  static constexpr NSString* const kPlayUrlAction =
-      @"?launch=voice&vs=11&va=play&vaa=";
-  NSString* urlAction = isSearch ? kSearchUrlAction : kPlayUrlAction;
+  static constexpr std::string_view kSearchUrlAction =
+      "?launch=voice&vs=11&va=search&vaa=";
+  static constexpr std::string_view kPlayUrlAction =
+      "?launch=voice&vs=11&va=play&vaa=";
+  const std::string_view urlAction =
+      isSearch ? kSearchUrlAction : kPlayUrlAction;
 
-  const std::string deep_link = [[NSString
-      stringWithFormat:@"%@%@%@", urlBase, urlAction, query] UTF8String];
+  const std::string deep_link =
+      base::StrCat({*urlBase, urlAction, base::SysNSStringToUTF8(query)});
   auto* manager = cobalt::browser::DeepLinkManager::GetInstance();
   manager->OnDeepLink(deep_link);
 }
