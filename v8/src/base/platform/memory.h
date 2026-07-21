@@ -13,9 +13,6 @@
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 
-#if V8_OS_STARBOARD
-#include "starboard/memory.h"
-#endif  // V8_OS_STARBOARD
 
 #if V8_OS_DARWIN
 #include <malloc/malloc.h>
@@ -34,9 +31,7 @@
 namespace v8::base {
 
 inline void* Malloc(size_t size) {
-#if V8_OS_STARBOARD
-  return SbMemoryAllocate(size);
-#elif V8_OS_AIX && _LINUX_SOURCE_COMPAT
+#if V8_OS_AIX && _LINUX_SOURCE_COMPAT
   // Work around for GCC bug on AIX.
   // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
   return __linux_malloc(size);
@@ -49,9 +44,7 @@ inline void* Realloc(void* memory, size_t size) {
   // The result of realloc with zero size is implementation dependent.
   // Disallow it.
   CHECK_NE(0, size);
-#if V8_OS_STARBOARD
-  return SbMemoryReallocate(memory, size);
-#elif V8_OS_AIX && _LINUX_SOURCE_COMPAT
+#if V8_OS_AIX && _LINUX_SOURCE_COMPAT
   // Work around for GCC bug on AIX, see Malloc().
   // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
   return __linux_realloc(memory, size);
@@ -61,17 +54,11 @@ inline void* Realloc(void* memory, size_t size) {
 }
 
 inline void Free(void* memory) {
-#if V8_OS_STARBOARD
-  return SbMemoryDeallocate(memory);
-#else   // !V8_OS_STARBOARD
   return free(memory);
-#endif  // !V8_OS_STARBOARD
 }
 
 inline void* Calloc(size_t count, size_t size) {
-#if V8_OS_STARBOARD
-  return SbMemoryCalloc(count, size);
-#elif V8_OS_AIX && _LINUX_SOURCE_COMPAT
+#if V8_OS_AIX && _LINUX_SOURCE_COMPAT
   // Work around for GCC bug on AIX, see Malloc().
   return __linux_calloc(count, size);
 #else

@@ -143,9 +143,6 @@ class V8_BASE_EXPORT CPU final {
   RV_MMU_MODE riscv_mmu() const { return riscv_mmu_; }
 
  private:
-#if defined(V8_OS_STARBOARD)
-  bool StarboardDetectCPU();
-#endif
   char vendor_[13];
   int stepping_;
   int model_;

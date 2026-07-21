@@ -12,19 +12,11 @@
 namespace v8::base {
 
 inline FILE* Fopen(const char* filename, const char* mode) {
-#if V8_OS_STARBOARD
-  return NULL;
-#else
   return fopen(filename, mode);
-#endif
 }
 
 inline int Fclose(FILE* stream) {
-#if V8_OS_STARBOARD
-  return -1;
-#else
   return fclose(stream);
-#endif
 }
 
 }  // namespace v8::base

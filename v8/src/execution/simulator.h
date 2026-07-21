@@ -169,13 +169,13 @@ class GeneratedCode {
 // Starboard is a platform abstraction interface that also include Windows
 // platforms like UWP.
 #if defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN) && \
-    !defined(V8_OS_STARBOARD) && !defined(V8_TARGET_ARCH_ARM)
+    !defined(V8_TARGET_ARCH_ARM)
     FATAL(
         "Generated code execution not possible during cross-compilation."
         "Also, generic C function calls are not implemented on 32-bit arm "
         "yet.");
 #endif  // defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN) &&
-        // !defined(V8_OS_STARBOARD) && !defined(V8_TARGET_ARCH_ARM)
+        // !defined(V8_TARGET_ARCH_ARM)
     return Simulator::current(isolate_)->template Call<Return>(
         reinterpret_cast<Address>(fn_ptr_), args...);
   }
@@ -185,8 +185,7 @@ class GeneratedCode {
     // When running without a simulator we call the entry directly.
 // Starboard is a platform abstraction interface that also include Windows
 // platforms like UWP.
-#if defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN) && \
-    !defined(V8_OS_STARBOARD)
+#if defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN)
     FATAL("Generated code execution not possible during cross-compilation.");
 #endif  // defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN)
 #if ABI_USES_FUNCTION_DESCRIPTORS
