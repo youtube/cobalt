@@ -49,7 +49,6 @@
     "SbSystemGetPropertyTest.ReturnsRequired",
     "SbSystemSymbolizeTest.SunnyDay",
     "SbTimeZoneGetNameTest.IsIANAFormat",
-    "SbWindowGetSizeTest.SunnyDay",
     "VerticalVideoTests/VerticalVideoTest.*"
   ]
 }
