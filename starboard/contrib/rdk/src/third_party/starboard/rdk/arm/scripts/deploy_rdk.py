@@ -59,6 +59,9 @@ Usage Examples:
 
   14. Revert active Cobalt loader configuration to Cobalt 25:
       python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --revert-c25
+
+  15. Launch Cobalt plugin with a deep link (e.g. video ID or URL parameter):
+      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run --deeplink "v=dQw4w9WgXcQ"
 """
 
 import argparse
@@ -247,6 +250,7 @@ def launch_on_device(
     mode: str,
     devtools: bool = False,
     param: Optional[List[str]] = None,
+    deeplink: Optional[str] = None,
 ) -> None:
     """Executes remote commands to launch Cobalt or tests."""
     print("=== Launching on device ===")
@@ -300,8 +304,8 @@ def launch_on_device(
                 config = res["result"]
                 sb_args = config.get("sbmainargs", [])
                 
-                # Filter out any existing remote debugging port argument
-                sb_args = [arg for arg in sb_args if not arg.startswith("--remote-debugging-port=")]
+                # Filter out any existing remote debugging port or url arguments
+                sb_args = [arg for arg in sb_args if not arg.startswith("--remote-debugging-port=") and not arg.startswith("--url=")]
                 
                 if devtools:
                     sb_args.append("--remote-debugging-port=9222")
@@ -333,6 +337,15 @@ def launch_on_device(
             "sleep 2",
             f"curl -s http://127.0.0.1:9998/jsonrpc -d '{rpc_activate}'",
         ]
+
+        if deeplink:
+            rpc_deeplink_json = json.dumps({
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "YouTube.deeplink",
+                "params": deeplink
+            }).replace('"', r'\"')
+            remote_cmds.append(f"curl -X POST http://127.0.0.1:9998/jsonrpc -d '{rpc_deeplink_json}'")
 
         if devtools:
             print("[INFO] Setting up DevTools port forwarding...")
@@ -414,6 +427,12 @@ def parse_args() -> argparse.Namespace:
         "--force-deploy",
         action="store_true",
         help="Force deployment even if up-to-date.",
+    )
+    parser.add_argument(
+        "--deeplink",
+        type=str,
+        dest="deeplink",
+        help="Deeplink parameter (e.g. v=dQw4w9WgXcQ) to pass to Cobalt when launching in plugin mode.",
     )
     parser.add_argument(
         "--reset",
@@ -663,6 +682,10 @@ def main() -> None:
     """Main execution flow."""
     args = parse_args()
 
+    if args.deeplink and (args.mode != "plugin" or args.tests):
+        print("Error: --deeplink is only supported when running in plugin mode (without --tests).")
+        sys.exit(1)
+
     if args.setup_toolchain:
         setup_toolchain()
         return
@@ -798,6 +821,7 @@ def main() -> None:
             "executable" if args.tests else args.mode,
             config != "gold" and args.mode == "plugin" and not args.tests,
             args.param,
+            args.deeplink,
         )
 
     print("=== Finished ===")
