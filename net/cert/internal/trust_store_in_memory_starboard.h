@@ -23,8 +23,13 @@
 
 namespace net {
 
+<<<<<<< HEAD
 // Wrapper around TrustStoreInMemory to lazily load trusted root certificates.
 class NET_EXPORT TrustStoreInMemoryStarboard : public TrustStore {
+=======
+// Wrapper around TrustStoreInMemory to eagerly load trusted root certificates.
+class NET_EXPORT TrustStoreInMemoryStarboard : public PlatformTrustStore {
+>>>>>>> f5d2add8af (Load SSL root certificates to avoid runtime wipe crashes (#11413))
  public:
   TrustStoreInMemoryStarboard();
   ~TrustStoreInMemoryStarboard() override;
@@ -37,12 +42,17 @@ class NET_EXPORT TrustStoreInMemoryStarboard : public TrustStore {
 
   // Returns true if the trust store contains the given ParsedCertificate
   // (matches by DER).
+<<<<<<< HEAD
   bool Contains(const ParsedCertificate* cert) const {
     base::AutoLock scoped_lock(load_mutex_);
+=======
+  bool Contains(const bssl::ParsedCertificate* cert) const {
+>>>>>>> f5d2add8af (Load SSL root certificates to avoid runtime wipe crashes (#11413))
     return underlying_trust_store_.Contains(cert);
   }
 
  private:
+<<<<<<< HEAD
   TrustStoreInMemoryStarboard(const TrustStoreInMemoryStarboard&) = delete;
   TrustStoreInMemoryStarboard& operator=(const TrustStoreInMemoryStarboard&) =
       delete;
@@ -61,6 +71,9 @@ class NET_EXPORT TrustStoreInMemoryStarboard : public TrustStore {
   mutable base::Lock load_mutex_;
 
   const std::unordered_set<std::string> trusted_cert_names_on_disk_;
+=======
+  bssl::TrustStoreInMemory underlying_trust_store_;
+>>>>>>> f5d2add8af (Load SSL root certificates to avoid runtime wipe crashes (#11413))
 };
 
 }  // namespace net

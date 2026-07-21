@@ -16,50 +16,37 @@
 
 #include <dirent.h>
 
-#include "base/files/file.h"
 #include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/notreached.h"
 #include "base/path_service.h"
 #include "base/time/time.h"
+<<<<<<< HEAD
 #include "net/cert/pem.h"
 #include "net/cert/pki/cert_errors.h"
+=======
+>>>>>>> f5d2add8af (Load SSL root certificates to avoid runtime wipe crashes (#11413))
 #include "net/cert/x509_certificate.h"
 #include "net/cert/x509_util.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
+<<<<<<< HEAD
 #include "starboard/file.h"
 #include "third_party/boringssl/src/include/openssl/digest.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
+=======
+>>>>>>> f5d2add8af (Load SSL root certificates to avoid runtime wipe crashes (#11413))
 #include "third_party/boringssl/src/include/openssl/x509.h"
 
 namespace net {
 
 namespace {
-// PEM encoded DER cert is usually around or less than 2000 bytes long.
-const short kCertBufferSize = 8 * 1024;
 // Each certificate file name is 8 bit hash + ".0" suffix.
 const short kCertFileNameLength = 10;
 const char kCertificateHeader[] = "CERTIFICATE";
 const char kSSLDirName[] = "ssl";
 const char kCertsDirName[] = "certs";
-
-// Essentially an X509_NAME_hash without using X509_NAME. We did not use the
-// boringSSL function directly because net does not store certs with X509
-// struct anymore and converting binary certs to X509_NAME is slightly
-// expensive.
-unsigned long CertNameHash(const void* data, size_t length) {
-  unsigned long ret = 0;
-  unsigned char md[SHA_DIGEST_LENGTH];
-  if (!EVP_Digest(data, length, md, NULL, EVP_sha1(), NULL)) {
-    return 0;
-  }
-
-  ret = (((unsigned long)md[0]) | ((unsigned long)md[1] << 8L) |
-         ((unsigned long)md[2] << 16L) | ((unsigned long)md[3] << 24L)) &
-        0xffffffffL;
-  return ret;
-}
 
 base::FilePath GetCertificateDirPath() {
   base::FilePath cert_path;
@@ -68,7 +55,7 @@ base::FilePath GetCertificateDirPath() {
   return cert_path;
 }
 
-std::unordered_set<std::string> GetCertNamesOnDisk() {
+std::vector<std::shared_ptr<const bssl::ParsedCertificate>> GetAllCertsOnDisk() {
   DIR* sb_certs_directory = opendir(GetCertificateDirPath().value().c_str());
   if (!sb_certs_directory) {
 // Unit tests, for example, do not use production certificates.
@@ -78,9 +65,10 @@ std::unordered_set<std::string> GetCertNamesOnDisk() {
     DLOG(WARNING) << "ssl/certs directory is not valid, no root certificates"
                      " will be loaded";
 #endif
-    return std::unordered_set<std::string>();
+    return {};
   }
-  std::unordered_set<std::string> trusted_certs_on_disk;
+  
+  std::vector<std::shared_ptr<const bssl::ParsedCertificate>> certs;
   std::vector<char> dir_entry(kSbFileMaxName);
 
   struct dirent dirent_buffer;
@@ -102,13 +90,41 @@ std::unordered_set<std::string> GetCertNamesOnDisk() {
     if (strlen(dir_entry.data()) != kCertFileNameLength) {
       continue;
     }
-    trusted_certs_on_disk.emplace(dir_entry.data());
+    
+    base::FilePath cert_path = GetCertificateDirPath().Append(dir_entry.data());
+    std::string cert_buffer;
+    if (!base::ReadFileToString(cert_path, &cert_buffer)) {
+      DLOG(ERROR) << "Failed to read cert file: " << cert_path;
+      continue;
+    }
+    bssl::PEMTokenizer pem_tokenizer(cert_buffer, {kCertificateHeader});
+    if (!pem_tokenizer.GetNext()) {
+      DLOG(ERROR) << "Failed to parse PEM from cert file: " << cert_path;
+      continue;
+    }
+    std::string decoded(pem_tokenizer.data());
+    auto crypto_buffer = x509_util::CreateCryptoBuffer(decoded);
+    if (!crypto_buffer) {
+      DLOG(ERROR) << "Failed to create crypto buffer for " << cert_path;
+      continue;
+    }
+    bssl::CertErrors errors;
+    auto parsed = bssl::ParsedCertificate::Create(
+        std::move(crypto_buffer), x509_util::DefaultParseCertificateOptions(),
+        &errors);
+    if (!parsed) {
+      LOG(ERROR) << "Failed to parse certificate " << cert_path << ": "
+                 << errors.ToDebugString();
+    } else {
+      certs.push_back(parsed);
+    }
   }
   closedir(sb_certs_directory);
-  return trusted_certs_on_disk;
+  return certs;
 }
 }  // namespace
 
+<<<<<<< HEAD
 std::shared_ptr<const ParsedCertificate>
 TrustStoreInMemoryStarboard::TryLoadCert(
     const base::StringPiece& cert_name) const {
@@ -145,32 +161,32 @@ TrustStoreInMemoryStarboard::TryLoadCert(
       &errors);
   CHECK(parsed) << errors.ToDebugString();
   return parsed;
+=======
+TrustStoreInMemoryStarboard::TrustStoreInMemoryStarboard() {
+  for (const auto& cert : GetAllCertsOnDisk()) {
+    underlying_trust_store_.AddTrustAnchor(cert);
+  }
+>>>>>>> f5d2add8af (Load SSL root certificates to avoid runtime wipe crashes (#11413))
 }
-
-TrustStoreInMemoryStarboard::TrustStoreInMemoryStarboard()
-    : trusted_cert_names_on_disk_(GetCertNamesOnDisk()) {}
 
 TrustStoreInMemoryStarboard::~TrustStoreInMemoryStarboard() = default;
 
 void TrustStoreInMemoryStarboard::SyncGetIssuersOf(
+<<<<<<< HEAD
     const ParsedCertificate* cert,
     ParsedCertificateList* issuers) {
   DCHECK(issuers);
   DCHECK(issuers->empty());
   base::AutoLock scoped_lock(load_mutex_);
   // Look up the request certificate first in the trust store in memory.
+=======
+    const bssl::ParsedCertificate* cert,
+    bssl::ParsedCertificateList* issuers) {
+>>>>>>> f5d2add8af (Load SSL root certificates to avoid runtime wipe crashes (#11413))
   underlying_trust_store_.SyncGetIssuersOf(cert, issuers);
-  if (issuers->empty()) {
-    // If the requested certificate is not found, compute certificate hash name
-    // and see if the certificate is stored on disk.
-    auto parsed_cert = TryLoadCert(cert->normalized_issuer().AsStringView());
-    if (parsed_cert.get()) {
-      issuers->push_back(parsed_cert);
-      underlying_trust_store_.AddTrustAnchor(parsed_cert);
-    }
-  }
 }
 
+<<<<<<< HEAD
 CertificateTrust TrustStoreInMemoryStarboard::GetTrust(
     const ParsedCertificate* cert,
     base::SupportsUserData* debug_data) {
@@ -188,6 +204,11 @@ CertificateTrust TrustStoreInMemoryStarboard::GetTrust(
     }
   }
   return trust;
+=======
+bssl::CertificateTrust TrustStoreInMemoryStarboard::GetTrust(
+    const bssl::ParsedCertificate* cert) {
+  return underlying_trust_store_.GetTrust(cert);
+>>>>>>> f5d2add8af (Load SSL root certificates to avoid runtime wipe crashes (#11413))
 }
 
 }  // namespace net
