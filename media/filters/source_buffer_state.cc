@@ -174,7 +174,6 @@ void SourceBufferState::ChangeType(
     std::unique_ptr<StreamParser> new_stream_parser,
     const std::string& new_expected_codecs) {
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
   DCHECK_GE(state_, PENDING_PARSER_CONFIG);
   DCHECK_NE(state_, PENDING_PARSER_INIT);
   DCHECK(!parsing_media_segment_);
@@ -688,7 +687,7 @@ bool SourceBufferState::OnNewConfigs(std::unique_ptr<MediaTracks> tracks) {
       if (state_ == PENDING_PARSER_RECONFIG) {
         audio_config.set_is_change_type_transition(true);
       }
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
       frame_processor_->OnPossibleAudioConfigUpdate(audio_config);
       success &= stream->UpdateAudioConfig(audio_config, allow_codec_changes,
                                            media_log_);
@@ -780,7 +779,7 @@ bool SourceBufferState::OnNewConfigs(std::unique_ptr<MediaTracks> tracks) {
       if (state_ == PENDING_PARSER_RECONFIG) {
         video_config.set_is_change_type_transition(true);
       }
-#endif
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
       success &= stream->UpdateVideoConfig(video_config, allow_codec_changes,
                                            media_log_);
     } else {

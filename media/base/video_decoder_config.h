@@ -199,6 +199,7 @@ class MEDIA_EXPORT VideoDecoderConfig {
   // Designates whether the received config was caused by a
   // SourceBuffer.changeType() call.
   bool is_change_type_transition_ = false;
+
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   // Not using DISALLOW_COPY_AND_ASSIGN here intentionally to allow the compiler
   // generated copy constructor and assignment operator. Since the extra data is
