@@ -285,6 +285,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     # Install the APK, unless "noinstall" was specified.
     if abstract_launcher.ARG_NOINSTALL not in self.launcher_args:
+      self.CallAdb('uninstall', _APP_PACKAGE_NAME)
       install_timer = StepTimer('install')
       self._CheckCallAdb('install', '-r', self.apk_path)
       install_timer.Stop()
