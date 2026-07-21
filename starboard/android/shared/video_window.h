@@ -112,10 +112,11 @@ class SurfaceDestroyNotifier
 
   mutable std::mutex mutex_;
   std::condition_variable done_cv_;
-  bool done_ = false;           // Guarded by |mutex_|
-  bool disconnected_ = false;   // Guarded by |mutex_|
-  VideoSurfaceHolder* holder_;  // Guarded by |mutex_|
-  JobQueue* job_queue_;         // Guarded by |mutex_|
+  bool done_ = false;                 // Guarded by |mutex_|
+  bool disconnected_ = false;         // Guarded by |mutex_|
+  bool in_notify_destroyed_ = false;  // Guarded by |mutex_|
+  VideoSurfaceHolder* holder_;        // Guarded by |mutex_|
+  JobQueue* job_queue_;               // Guarded by |mutex_|
 };
 
 // Set the global video surface. Exposed for unit testing.
