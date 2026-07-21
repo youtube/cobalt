@@ -1684,11 +1684,13 @@ void PopulateSharedStorageWorkletBinders(SharedStorageWorkletHost* host,
   map->Add<ukm::mojom::UkmRecorderFactory>(base::DoNothing());
   map->Add<blink::mojom::FeatureObserver>(base::DoNothing());
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   // SharedStorageWorkletHost binders
   // base::Unretained(host) is safe because the map is owned by
   // |SharedStorageWorkletHost::broker_|.
   map->Add<blink::mojom::LockManager>(base::BindRepeating(
       &SharedStorageWorkletHost::GetLockManager, base::Unretained(host)));
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void PopulateBinderMapWithContext(
