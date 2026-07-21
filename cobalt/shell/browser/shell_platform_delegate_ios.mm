@@ -800,12 +800,10 @@ const char kAllTracingCategories[] = "*";
 #pragma mark - CobaltSearchResultsControllerFocusDelegate
 
 - (void)resultsDidLoseFocus {
-  LOG(ERROR) << __func__;
   [_platformOnScreenKeyboardDelegate keyboardFocused];
 }
 
 - (void)resultsDidReceiveFocus {
-  LOG(ERROR) << __func__;
   [_platformOnScreenKeyboardDelegate keyboardBlurred];
 }
 
@@ -844,7 +842,6 @@ const char kAllTracingCategories[] = "*";
           return;
         }
         searchResultLastString = searchString;
-        LOG(ERROR) << __func__;
         [weakDelegate keyboardTextChanged:[searchString copy]];
       });
 }

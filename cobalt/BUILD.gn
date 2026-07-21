@@ -67,6 +67,7 @@ group("gn_all") {
       ":cobalt_loader",
       "//starboard/elf_loader:elf_loader_sandbox($starboard_toolchain)",
       "//starboard/loader_app:loader_app($starboard_toolchain)",
+      "//starboard/tools/zstd_compress:zstd_compress_unittest($host_toolchain)",
     ]
   }
   if (is_starboard && build_updater_sandbox) {
@@ -133,6 +134,8 @@ if (is_ios && target_platform == "tvos") {
     complete_static_lib = true
 
     configs -= [ "//build/config/compiler:thin_archive" ]
+
+    sources = [ "app/tvos/main.mm" ]
 
     deps = [
       ":common",
