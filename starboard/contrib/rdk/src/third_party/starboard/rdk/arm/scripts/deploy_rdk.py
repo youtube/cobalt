@@ -779,14 +779,9 @@ def main() -> None:
         deps_file = None
     else:
         # Standard deployment uses cobalt_loader to generate the runtime_deps list.
-        targets = ["cobalt_loader", "loader_app"]
+        targets = ["cobalt_loader"]
         deps_file = out_dir / "cobalt_loader.runtime_deps"
-        
-        if args.mode == "plugin":
-            targets.append("loader_app_rdk_plugin")
-            remote_dir = DEFAULT_REMOTE_DIR
-        else:
-            remote_dir = EXECUTABLE_REMOTE_DIR
+        remote_dir = DEFAULT_REMOTE_DIR if args.mode == "plugin" else EXECUTABLE_REMOTE_DIR
 
     if not args.skip_build:
         rdk_home = os.environ.get("RDK_HOME")
