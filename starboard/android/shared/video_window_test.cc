@@ -138,20 +138,24 @@ TEST_F(VideoDecoderSurfaceTest,
   // Thread B: Simulate decoder teardown on the decoder thread.
   // We add a small delay to ensure the JNI thread can acquire the lock first,
   // which is necessary to trigger the deadlock on the unpatched code.
-  std::shared_ptr<MediaCodecVideoDecoder> shared_decoder = std::move(decoder);
-  job_thread->Schedule([shared_decoder]() mutable {
+  // Thread B: Simulate decoder teardown on the decoder thread.
+  // We add a small delay to ensure the JNI thread can acquire the lock first,
+  // which is necessary to trigger the deadlock on the unpatched code.
+  job_thread->Schedule([&decoder]() {
     SB_LOG(INFO) << "Decoder thread: Waiting before destroying...";
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     SB_LOG(INFO) << "Decoder thread: Destroying decoder...";
-    shared_decoder.reset();
+    decoder.reset();
     SB_LOG(INFO) << "Decoder thread: Decoder destroyed.";
   });
-  shared_decoder.reset();
 
   jni_sim_thread.Join();
   auto duration = CurrentMonotonicTime() - start_time;
   EXPECT_LT(duration, 800'000);  // Expect less than 800ms (should be ~100ms
                                  // with fix, 1000ms with deadlock)
+
+  // Ensure decoder destruction on job_thread completes before stopping it.
+  job_thread->ScheduleAndWait([&decoder]() { decoder.reset(); });
 
   SB_LOG(INFO) << "Stopping job thread...";
   job_thread->Stop();
@@ -240,9 +244,7 @@ TEST_F(VideoDecoderSurfaceTest, LegacyTeardown_FeatureDisabled) {
 
   jni_sim_thread.Join();
 
-  std::shared_ptr<MediaCodecVideoDecoder> shared_decoder = std::move(decoder);
-  job_thread->Schedule([shared_decoder]() mutable { shared_decoder.reset(); });
-  shared_decoder.reset();
+  job_thread->ScheduleAndWait([&decoder]() { decoder.reset(); });
 
   job_thread->Stop();
   job_thread.reset();
