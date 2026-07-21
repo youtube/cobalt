@@ -75,9 +75,6 @@ void VideoDecoderConfig::Initialize(VideoCodec codec,
   extra_data_ = extra_data;
   encryption_scheme_ = encryption_scheme;
   color_space_info_ = color_space;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  is_change_type_transition_ = false;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 bool VideoDecoderConfig::IsValidConfig() const {

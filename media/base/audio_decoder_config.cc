@@ -58,9 +58,6 @@ void AudioDecoderConfig::Initialize(AudioCodec codec,
   bytes_per_frame_ = channels_ * bytes_per_channel_;
 
   should_discard_decoder_delay_ = true;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  is_change_type_transition_ = false;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 AudioDecoderConfig::~AudioDecoderConfig() = default;
@@ -117,7 +114,7 @@ std::string AudioDecoderConfig::AsHumanReadableString() const {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     << SampleFormatToString(target_output_sample_format())
     << ", is_change_type_transition: " << base::ToString(is_change_type_transition());
-#else
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
     << SampleFormatToString(target_output_sample_format());
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   return s.str();
