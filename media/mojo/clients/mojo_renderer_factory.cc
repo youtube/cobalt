@@ -9,7 +9,6 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
-#include "media/base/starboard/experimental_features.h"
 #include "media/mojo/clients/mojo_renderer.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
 #include "media/renderers/decrypting_renderer.h"
@@ -108,31 +107,5 @@ std::unique_ptr<MojoRenderer> MojoRendererFactory::CreateFlingingRenderer(
                                         std::move(renderer_remote));
 }
 #endif  // BUILDFLAG(IS_ANDROID)
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-std::unique_ptr<MojoRenderer> MojoRendererFactory::CreateStarboardRenderer(
-    mojo::PendingRemote<mojom::MediaLog> media_log_remote,
-    const StarboardRendererConfig& config,
-    mojo::PendingReceiver<mojom::StarboardRendererExtension>
-          renderer_extension_receiver,
-    mojo::PendingRemote<mojom::StarboardRendererClientExtension>
-          client_extension_remote,
-    const scoped_refptr<base::SequencedTaskRunner>& media_task_runner,
-    VideoRendererSink* video_renderer_sink) {
-  DCHECK(interface_factory_);
-
-  mojo::PendingRemote<mojom::Renderer> renderer_remote;
-  interface_factory_->CreateStarboardRenderer(
-      std::move(media_log_remote), config,
-      renderer_remote.InitWithNewPipeAndPassReceiver(),
-      std::move(renderer_extension_receiver),
-      std::move(client_extension_remote));
-
-  return std::make_unique<MojoRenderer>(
-      media_task_runner, nullptr, video_renderer_sink,
-      std::move(renderer_remote),
-      config.experimental_features.GetBool(kMediaBypassMojoForMedia));
-}
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace media

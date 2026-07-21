@@ -329,7 +329,6 @@ void PrintToStderr(const char* output) {
   std::ignore = HANDLE_EINTR(write(STDERR_FILENO, output, strlen(output)));
 }
 
-#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
 void AlarmSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // We have seen rare cases on AMD linux where the default signal handler
@@ -351,7 +350,6 @@ void AlarmSignalHandler(int signal, siginfo_t* info, void* void_context) {
 }
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) ||
         // BUILDFLAG(IS_CHROMEOS)
-#endif // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // NOTE: This code MUST be async-signal safe.
@@ -554,11 +552,6 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
     _exit(EXIT_FAILURE);
   }
 
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-  PrintToStderr(
-      "Calling _exit(EXIT_FAILURE). Core file will not be generated.\n");
-  _exit(EXIT_FAILURE);
-#else
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
   // Set an alarm to trigger in case the default handler does not terminate
   // the process. See 'AlarmSignalHandler' for more details.
@@ -610,7 +603,6 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
   if (raise(signal) != 0) {
     _exit(EXIT_FAILURE);
   }
-#endif
 }
 
 class PrintBacktraceOutputHandler : public BacktraceOutputHandler {
@@ -953,14 +945,11 @@ class SandboxSymbolizeHelper {
 
   // Initializes and installs the symbolization callback.
   void Init() {
-// TODO: b/398296821 - Cobalt: port to Starboard.
-#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     if (CacheMemoryRegions()) {
       OpenSymbolFiles();
       google::InstallSymbolizeOpenObjectFileCallback(
           &OpenObjectFileContainingPc);
     }
-#endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   }
 
   // Unregister symbolization callback.

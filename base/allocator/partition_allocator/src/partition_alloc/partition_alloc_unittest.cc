@@ -58,12 +58,12 @@
 #endif
 
 #if PA_BUILDFLAG(IS_POSIX)
-#if PA_BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
+#if PA_BUILDFLAG(IS_LINUX)
 // We need PKEY_DISABLE_WRITE in this file; glibc defines it in sys/mman.h but
 // it's actually Linux-specific and other Linux libcs define it in linux/mman.h.
 // We have to include both to be sure we get the definition.
 #include <linux/mman.h>
-#endif  // PA_BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
+#endif  // PA_BUILDFLAG(IS_LINUX)
 #include <sys/mman.h>
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -5946,7 +5946,7 @@ TEST_P(PartitionAllocTest, SortFreelist) {
 }
 
 #if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && PA_BUILDFLAG(IS_LINUX) && \
-    PA_BUILDFLAG(PA_ARCH_CPU_64_BITS) && GTEST_HAS_DEATH_TEST
+    PA_BUILDFLAG(PA_ARCH_CPU_64_BITS)
 TEST_P(PartitionAllocTest, CrashOnUnknownPointer) {
   int not_a_heap_object = 42;
   EXPECT_DEATH(allocator.root()->Free(&not_a_heap_object), "");

@@ -28,12 +28,6 @@
 
 #include "third_party/blink/renderer/modules/webgl/webgl_object.h"
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "gpu/command_buffer/client/client_shared_image.h"
-#include "gpu/command_buffer/common/mailbox.h"
-#include "media/base/video_frame.h"
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 namespace blink {
 
 class WebGLTexture : public WebGLObject {
@@ -55,13 +49,6 @@ class WebGLTexture : public WebGLObject {
   // See https://www.w3.org/TR/webxrlayers-1/#opaque-texture.
   virtual bool IsOpaqueTexture() const { return false; }
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void UpdateUnderlyingObject(GLuint new_object,
-                              scoped_refptr<media::VideoFrame> video_frame,
-                              bool has_shared_image_access);
-  const gpu::Mailbox& GetMailbox() const { return mailbox_; }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
  protected:
   // Constructor for WebGLUnownedTexture.
   explicit WebGLTexture(WebGLContextObjectSupport* ctx,
@@ -76,12 +63,6 @@ class WebGLTexture : public WebGLObject {
   int MapTargetToIndex(GLenum) const;
 
   GLenum target_;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  bool has_shared_image_access_ = false;
-  gpu::Mailbox mailbox_;
-  scoped_refptr<gpu::ClientSharedImage> shared_image_;
-  scoped_refptr<media::VideoFrame> video_frame_;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace blink

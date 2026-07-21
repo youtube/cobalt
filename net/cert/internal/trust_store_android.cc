@@ -9,7 +9,6 @@
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/threading/scoped_blocking_call.h"
-#include "build/build_config.h"
 #include "net/android/network_library.h"
 #include "net/cert/internal/platform_trust_store.h"
 #include "net/cert/x509_certificate.h"
@@ -102,55 +101,6 @@ void TrustStoreAndroid::OnTrustStoreChanged() {
 
 scoped_refptr<TrustStoreAndroid::Impl>
 TrustStoreAndroid::MaybeInitializeAndGetImpl() {
-#if BUILDFLAG(IS_COBALT)
-  // Allow bypassing the Android trust store (user-added roots) initialization
-  // lock by returning the current impl_ if initialization is already in
-  // progress. Otherwise, set `is_initializing_ = true` and release the lock so
-  // that we can perform the slow constructor work outside of the lock.
-  int current_generation;
-  {
-    base::AutoLock lock(init_lock_);
-    current_generation = generation_.load();
-
-    // Return if we already have a fully initialized store for this generation.
-    const bool is_impl_available = impl_ && impl_->generation() == current_generation;
-    if (is_impl_available) {
-      return impl_;
-    }
-    
-    // If another thread is already in the middle of performing the slow
-    // background initialization, return the existing implementation. This is a
-    // non-blocking bypass: we return what we currently have. This could be nullptr
-    // on first init, or the old valid impl_ during a runtime reload to ensure the
-    // network thread never stalls.
-    if (is_initializing_) {
-      return impl_;
-    }
-
-    // If we are the first thread to detect that the store needs to be initialized
-    // or updated, we take responsibility for the initialization. We set
-    // `is_initializing_ = true` to prevent other threads from starting redundant
-    // loads, and then release the lock so we can perform the init without
-    // blocking others.
-    is_initializing_ = true;
-  }
-
-  // Perform the slow constructor work (including JNI calls to Android system)
-  // OUTSIDE of the lock.
-  scoped_refptr<TrustStoreAndroid::Impl> tmp_impl;
-  {
-    SCOPED_UMA_HISTOGRAM_LONG_TIMER("Net.CertVerifier.AndroidTrustStoreInit");
-    tmp_impl = base::MakeRefCounted<TrustStoreAndroid::Impl>(current_generation);
-  }
-
-  {
-    // Re-acquire the lock to commit the newly initialized store.
-    base::AutoLock lock(init_lock_);
-    impl_ = tmp_impl;
-    is_initializing_ = false;
-    return impl_;
-  }
-#else
   base::AutoLock lock(init_lock_);
 
   // It is possible that generation_ might be incremented in between the various
@@ -164,30 +114,16 @@ TrustStoreAndroid::MaybeInitializeAndGetImpl() {
   }
 
   return impl_;
-#endif  // BUILDFLAG(IS_COBALT)
 }
 
 void TrustStoreAndroid::SyncGetIssuersOf(const bssl::ParsedCertificate* cert,
                                          bssl::ParsedCertificateList* issuers) {
-#if BUILDFLAG(IS_COBALT)
-  if (auto impl = MaybeInitializeAndGetImpl()) {
-    impl->SyncGetIssuersOf(cert, issuers);
-  }
-#else
   MaybeInitializeAndGetImpl()->SyncGetIssuersOf(cert, issuers);
-#endif  // BUILDFLAG(IS_COBALT)
 }
 
 bssl::CertificateTrust TrustStoreAndroid::GetTrust(
     const bssl::ParsedCertificate* cert) {
-#if BUILDFLAG(IS_COBALT)
-  if (auto impl = MaybeInitializeAndGetImpl()) {
-    return impl->GetTrust(cert);
-  }
-  return bssl::CertificateTrust::ForUnspecified();
-#else
   return MaybeInitializeAndGetImpl()->GetTrust(cert);
-#endif  // BUILDFLAG(IS_COBALT)
 }
 
 std::vector<net::PlatformTrustStore::CertWithTrust>

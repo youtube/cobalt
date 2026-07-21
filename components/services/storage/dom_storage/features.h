@@ -6,15 +6,10 @@
 #define COMPONENTS_SERVICES_STORAGE_DOM_STORAGE_FEATURES_H_
 
 #include "base/features.h"
-#include "build/build_config.h"
 
 namespace storage {
 
 BASE_DECLARE_FEATURE(kCoalesceStorageAreaCommits);
-
-#if BUILDFLAG(IS_COBALT)
-BASE_DECLARE_FEATURE(kLocalStorageDeleteLockFile);
-#endif
 
 }  // namespace storage
 

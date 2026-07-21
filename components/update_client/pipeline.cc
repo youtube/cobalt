@@ -53,15 +53,10 @@ namespace {
 // be cancelled return `base::DoNothing` as their cancellation callback.
 // The first operation in each pipeline must tolerate an empty FilePath as
 // input.
-#if BUILDFLAG(IS_STARBOARD)
-// Operation definition is moved to pipeline.h for global use.
-#else
 using Operation = base::OnceCallback<base::OnceClosure(
     const base::FilePath&,
     base::OnceCallback<void(
         base::expected<base::FilePath, CategorizedError>)>)>;
-
-#endif
 
 constexpr CategorizedError kUnsupportedOperationError = CategorizedError(
     {.category = ErrorCategory::kUpdateCheck,
@@ -96,13 +91,8 @@ class Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   friend class base::RefCountedThreadSafe<Pipeline>;
   virtual ~Pipeline() = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-  void StartNext(const OperationResult& path);
-  void OpComplete(base::expected<OperationResult, CategorizedError>);
-#else
   void StartNext(const base::FilePath& path);
   void OpComplete(base::expected<base::FilePath, CategorizedError>);
-#endif
 
   SEQUENCE_CHECKER(sequence_checker_);
   std::queue<Operation> operations_;
@@ -119,32 +109,19 @@ base::OnceClosure Pipeline::Start(
     base::OnceCallback<void(const CategorizedError&)> callback) {
   CHECK(!callback_);
   callback_ = std::move(callback);
-#if BUILDFLAG(IS_STARBOARD)
-  StartNext(OperationResult());
-#else
   StartNext({});
-#endif
   return base::BindOnce(&Cancellation::Cancel, cancel_);
 }
 
-#if BUILDFLAG(IS_STARBOARD)
-void Pipeline::StartNext(const OperationResult& path) {
-#else
 void Pipeline::StartNext(const base::FilePath& path) {
-#endif
   Operation next = std::move(operations_.front());
   operations_.pop();
   cancel_->OnCancel(
       std::move(next).Run(path, base::BindOnce(&Pipeline::OpComplete, this)));
 }
 
-#if BUILDFLAG(IS_STARBOARD)
-void Pipeline::OpComplete(
-    base::expected<OperationResult, CategorizedError> result) {
-#else
 void Pipeline::OpComplete(
     base::expected<base::FilePath, CategorizedError> result) {
-#endif
   cancel_->Clear();
   if (!result.has_value()) {
     if (fallback_ && !cancel_->IsCancelled()) {
@@ -183,26 +160,15 @@ base::OnceClosure RunOperation(
     const std::string& session_id,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
     base::RepeatingCallback<void(ComponentState)> state_tracker,
-#if BUILDFLAG(IS_STARBOARD)
-    const OperationResult& previous_operation_output,
-    base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
-#else
     const base::FilePath& previous_operation_output,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
-#endif
         callback) {
   return RunAction(
       handler, installer, file, session_id, event_adder, state_tracker,
       base::BindOnce(
-#if BUILDFLAG(IS_STARBOARD)
-          [](base::OnceCallback<void(
-                 base::expected<OperationResult, CategorizedError>)> callback,
-             const OperationResult& previous_operation_output, bool success,
-#else
           [](base::OnceCallback<void(
                  base::expected<base::FilePath, CategorizedError>)> callback,
              const base::FilePath& previous_operation_output, bool success,
-#endif
              int error,
              int extra) { std::move(callback).Run(previous_operation_output); },
           std::move(callback), previous_operation_output));
@@ -219,39 +185,19 @@ Operation SkipIfCached(
       [](base::RepeatingCallback<void(
              base::OnceCallback<void(
                  base::expected<base::FilePath, UnpackerError>)>)> cache_getter,
-#if BUILDFLAG(IS_STARBOARD)
-         Operation operation, const OperationResult& path_in,
-         base::OnceCallback<void(
-             base::expected<OperationResult, CategorizedError>)> callback) {
-#else
          Operation operation, const base::FilePath& path_in,
          base::OnceCallback<void(
              base::expected<base::FilePath, CategorizedError>)> callback) {
-#endif
         auto cancellation = base::MakeRefCounted<Cancellation>();
         cache_getter.Run(base::BindOnce(
             [](scoped_refptr<Cancellation> cancellation, Operation operation,
-#if BUILDFLAG(IS_STARBOARD)
-               const OperationResult& path_in,
-               base::OnceCallback<void(
-                   base::expected<OperationResult, CategorizedError>)> callback,
-#else
                const base::FilePath& path_in,
                base::OnceCallback<void(
                    base::expected<base::FilePath, CategorizedError>)> callback,
-#endif
                base::expected<base::FilePath, UnpackerError> cached_path) {
               if (cached_path.has_value()) {
                 // Skip the operation, and return the path to the next step.
-#if BUILDFLAG(IS_STARBOARD)
-                OperationResult cached_result = path_in;
-#if !defined(IN_MEMORY_UPDATES)
-                cached_result.response = cached_path.value();
-#endif
-                std::move(callback).Run(cached_result);
-#else
                 std::move(callback).Run(cached_path.value());
-#endif
                 return;
               }
               // Else, run the task and bind its cancellation callback to the
@@ -274,15 +220,9 @@ std::queue<Operation> MakeErrorOperations(
   std::queue<Operation> error_ops;
   error_ops.push(base::BindOnce(
       [](base::RepeatingCallback<void(base::Value::Dict)> event_adder,
-#if BUILDFLAG(IS_STARBOARD)
-         CategorizedError error, const int event_type, const OperationResult&,
-         base::OnceCallback<void(
-             base::expected<OperationResult, CategorizedError>)> callback)
-#else
          CategorizedError error, const int event_type, const base::FilePath&,
          base::OnceCallback<void(
              base::expected<base::FilePath, CategorizedError>)> callback)
-#endif
           -> base::OnceClosure {
         event_adder.Run(MakeSimpleOperationEvent(
             kInvalidOperationAttributesError, event_type));
@@ -307,13 +247,6 @@ std::queue<Operation> MakeOperations(
     const std::vector<uint8_t>& pk_hash,
     const std::string& install_data_index,
     scoped_refptr<CrxInstaller> installer,
-#if defined(IN_MEMORY_UPDATES)
-    std::string* crx_str,
-#endif
-#if BUILDFLAG(IS_STARBOARD)
-    PersistedData* metadata,
-    const std::string& next_version,
-#endif
     base::RepeatingCallback<void(ComponentState)> state_tracker,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
     CrxDownloader::ProgressCallback download_progress_callback,
@@ -341,9 +274,6 @@ std::queue<Operation> MakeOperations(
           base::BindOnce(&DownloadOperation, config, get_available_space,
                          is_foreground, operation.urls, operation.size,
                          operation.sha256_out, event_adder, state_tracker,
-#if defined(IN_MEMORY_UPDATES)
-                         crx_str,
-#endif
                          download_progress_callback)));
     } else if (operation.type == "puff") {
       // expects: `previous` (hash object) and `out` (hash object)
@@ -390,9 +320,6 @@ std::queue<Operation> MakeOperations(
               ? nullptr
               : std::make_unique<CrxInstaller::InstallParams>(
                     operation.path, operation.arguments, install_data),
-#if BUILDFLAG(IS_STARBOARD)
-          metadata, next_version,
-#endif
           event_adder, state_tracker, install_progress_callback,
           install_complete_callback));
     } else if (operation.type == "run") {
@@ -432,13 +359,6 @@ void MakePipeline(
     const std::vector<uint8_t>& pk_hash,
     const std::string& install_data_index,
     scoped_refptr<CrxInstaller> installer,
-#if defined(IN_MEMORY_UPDATES)
-    std::string* crx_str,
-#endif
-#if BUILDFLAG(IS_STARBOARD)
-    PersistedData* metadata,
-    const std::string& next_version,
-#endif
     base::RepeatingCallback<void(ComponentState)> state_tracker,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
     CrxDownloader::ProgressCallback download_progress_callback,
@@ -508,13 +428,6 @@ void MakePipeline(
         MakeOperations(
             config, get_available_space, is_foreground, session_id, crx_cache,
             crx_format, id, pk_hash, install_data_index, installer,
-#if defined(IN_MEMORY_UPDATES)
-            crx_str,
-#endif
-#if BUILDFLAG(IS_STARBOARD)
-            metadata,
-            next_version,
-#endif
             state_tracker,
             base::BindRepeating(
                 [](base::RepeatingCallback<void(base::Value::Dict)> event_adder,

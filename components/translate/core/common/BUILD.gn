@@ -27,10 +27,6 @@ static_library("common") {
     "//third_party/metrics_proto",
     "//url",
   ]
-
-  if (is_cobalt) {
-    deps -= [ "//components/language_detection/core:core" ]
-  }
 }
 
 source_set("unit_tests") {

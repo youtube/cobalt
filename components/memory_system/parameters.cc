@@ -6,8 +6,6 @@
 
 #include <string_view>
 
-#include "build/build_config.h"
-#include "build/buildflag.h"
 #include "components/sampling_profiler/process_type.h"
 
 namespace memory_system {
@@ -24,18 +22,10 @@ ProfilingClientParameters::ProfilingClientParameters(
 DispatcherParameters::DispatcherParameters(
     PoissonAllocationSamplerInclusion poisson_allocation_sampler_inclusion,
     AllocationTraceRecorderInclusion allocation_trace_recorder_inclusion,
-    std::string_view process_type
-#if BUILDFLAG(IS_COBALT)
-    , CobaltMemoryAttributionInclusion cobalt_memory_attribution_inclusion
-#endif
-    )
+    std::string_view process_type)
     : poisson_allocation_sampler_inclusion(
           poisson_allocation_sampler_inclusion),
       allocation_trace_recorder_inclusion(allocation_trace_recorder_inclusion),
-      process_type(process_type)
-#if BUILDFLAG(IS_COBALT)
-      , cobalt_memory_attribution_inclusion(cobalt_memory_attribution_inclusion)
-#endif
-      {}
+      process_type(process_type) {}
 
 }  // namespace memory_system

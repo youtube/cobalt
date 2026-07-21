@@ -50,10 +50,6 @@
 #include "third_party/blink/renderer/modules/webgl/webgl_shader_pixel_local_storage.h"
 #include "third_party/blink/renderer/modules/webgl/webgl_stencil_texturing.h"
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "third_party/blink/renderer/modules/webgl/cobalt/oes_egl_image_external.h"
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 namespace blink {
 
 WebGL2RenderingContext::WebGL2RenderingContext(
@@ -102,9 +98,6 @@ void WebGL2RenderingContext::RegisterContextExtensions() {
   RegisterExtension<KHRParallelShaderCompile>();
   RegisterExtension<NVShaderNoperspectiveInterpolation>();
   RegisterExtension<OESDrawBuffersIndexed>();
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  RegisterExtension<OESEGLImageExternal>();
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   RegisterExtension<OESSampleVariables>();
   RegisterExtension<OESShaderMultisampleInterpolation>();
   RegisterExtension<OESTextureFloatLinear>();

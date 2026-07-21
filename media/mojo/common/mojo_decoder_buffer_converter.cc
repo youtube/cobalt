@@ -126,13 +126,6 @@ void MojoDecoderBufferReader::ReadDecoderBuffer(
   if (!consumer_handle_.is_valid()) {
     DCHECK(pending_read_cbs_.empty());
     CancelReadCB(std::move(read_cb));
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-    // Release its ref-count that was increased manually during
-    // DecoderBuffer and DecoderBufferPtr conversion.
-    scoped_refptr<media::DecoderBuffer> buffer(
-        reinterpret_cast<media::DecoderBuffer*>(mojo_buffer->get_data()->address));
-    buffer->Release();
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
     return;
   }
 
@@ -273,16 +266,11 @@ void MojoDecoderBufferReader::ProcessPendingReads() {
     }
 
     size_t actually_read_bytes = 0;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-    MojoResult result = MOJO_RESULT_OK;
-    actually_read_bytes = buffer_size;
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
     MojoResult result = consumer_handle_->ReadData(
         MOJO_WRITE_DATA_FLAG_NONE,
         // We may be starting to read a new buffer (|bytes_read_| == 0), or
         // recovering from a previous partial read (|bytes_read_| > 0).
         buffer->writable_span().subspan(bytes_read_), actually_read_bytes);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
     if (IsPipeReadWriteError(result)) {
       OnPipeError(result);
@@ -453,13 +441,8 @@ void MojoDecoderBufferWriter::ProcessPendingWrites() {
     DCHECK_GT(bytes_to_write.size(), 0u);
 
     size_t actually_written_bytes = 0;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-    MojoResult result = MOJO_RESULT_OK;
-    actually_written_bytes = bytes_to_write.size();
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
     MojoResult result = producer_handle_->WriteData(
         bytes_to_write, MOJO_WRITE_DATA_FLAG_NONE, actually_written_bytes);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
     if (IsPipeReadWriteError(result)) {
       OnPipeError(result);
@@ -507,12 +490,6 @@ void MojoDecoderBufferWriter::OnPipeError(MojoResult result) {
             bytes_written_);
       }
     }
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-    for (auto& buffer : pending_buffers_) {
-      // Release DecoderBuffer as its ref-count was increased manually.
-      buffer->Release();
-    }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
     pending_buffers_.clear();
     bytes_written_ = 0;
   }

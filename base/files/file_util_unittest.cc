@@ -80,7 +80,7 @@
 #include <sys/socket.h>
 #endif
 
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #include <linux/fs.h>
 #endif
 
@@ -1951,7 +1951,7 @@ TEST_F(FileUtilTest, DeleteDirRecursiveWithOpenFile) {
              File::FLAG_CREATE | File::FLAG_READ | File::FLAG_WRITE);
   ASSERT_TRUE(PathExists(file_name3));
 
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   // On Windows, holding the file open in sufficient to make it un-deletable.
   // The POSIX code is verifiable on Linux by creating an "immutable" file but
   // this is best-effort because it's not supported by all file systems. Both
@@ -1972,7 +1972,7 @@ TEST_F(FileUtilTest, DeleteDirRecursiveWithOpenFile) {
   DeletePathRecursively(test_subdir);
   EXPECT_FALSE(PathExists(file_name2));
 
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   // Make sure that the test can clean up after itself.
   if (file_attrs_supported) {
     flags &= ~FS_IMMUTABLE_FL;
@@ -4738,7 +4738,6 @@ TEST(ScopedFD, ScopedFDCrashesOnCloseFailure) {
 
 #endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 
-#if !BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 TEST_F(FileUtilTest, CopyFileContentsWithSendfile) {
   // This test validates that sendfile(2) can be used to copy a file contents
@@ -4902,7 +4901,6 @@ TEST_F(FileUtilTest, CopyFileContentsWithSendfileSeqFile) {
 
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
-#endif  // BUILDFLAG(IS_STARBOARD)
 
 }  // namespace
 

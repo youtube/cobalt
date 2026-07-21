@@ -50,10 +50,6 @@
 #include "ui/base/ozone_buildflags.h"
 #include "ui/base/ui_base_features.h"
 
-#if BUILDFLAG(IS_STARBOARD)
-#include "ui/display/screen.h"
-#endif
-
 #if BUILDFLAG(IS_WIN)
 #include "ui/gfx/win/rendering_window_manager.h"
 #endif
@@ -80,12 +76,7 @@ scoped_refptr<viz::ContextProviderCommandBuffer> CreateContextProvider(
   attributes.enable_gpu_rasterization = supports_gpu_rasterization;
 
   gpu::SharedMemoryLimits memory_limits =
-#if BUILDFLAG(IS_STARBOARD)
-      gpu::SharedMemoryLimits::ForDisplayCompositor(
-          display::Screen::GetScreen()->GetPrimaryDisplay().size());
-#else
       gpu::SharedMemoryLimits::ForDisplayCompositor();
-#endif
 
   GURL url("chrome://gpu/VizProcessTransportFactory::CreateContextProvider");
   return base::MakeRefCounted<viz::ContextProviderCommandBuffer>(

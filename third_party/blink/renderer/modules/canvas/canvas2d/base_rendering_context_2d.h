@@ -5,7 +5,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_CANVAS_CANVAS2D_BASE_RENDERING_CONTEXT_2D_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_CANVAS_CANVAS2D_BASE_RENDERING_CONTEXT_2D_H_
 
-#include "build/buildflag.h"
 #include <cstddef>
 #include <memory>
 #include <utility>
@@ -313,10 +312,8 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasRenderingContext,
 
   int num_readbacks_performed_ = 0;
   unsigned read_count_ = 0;
-#if !BUILDFLAG(IS_COBALT)
   Member<GPUTexture> webgpu_access_texture_ = nullptr;
   std::unique_ptr<CanvasResourceProvider> resource_provider_from_webgpu_access_;
-#endif
   Canvas2DColorParams color_params_;
   bool need_dispatch_context_restored_ = false;
   base::TimeDelta try_restore_context_interval_ = kTryRestoreContextInterval;

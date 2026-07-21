@@ -6,7 +6,6 @@
 
 #include <utility>
 
-#include "base/strings/strcat.h"
 #include "base/values.h"
 #include "content/common/android/gin_java_bridge_errors.h"
 #include "content/common/android/gin_java_bridge_value.h"
@@ -42,25 +41,20 @@ v8::Local<v8::Value> GinJavaFunctionInvocationHelper::Invoke(
     gin::Arguments* args) {
   if (!dispatcher_) {
     args->isolate()->ThrowException(v8::Exception::Error(gin::StringToV8(
-        args->isolate(), base::StrCat({"Error invoking ", method_name_, ": ",
-                                       kMethodInvocationErrorMessage}))));
+        args->isolate(), kMethodInvocationErrorMessage)));
     return v8::Undefined(args->isolate());
   }
 
   if (args->IsConstructCall()) {
     args->isolate()->ThrowException(v8::Exception::Error(gin::StringToV8(
-        args->isolate(),
-        base::StrCat({"Error invoking ", method_name_, ": ",
-                      kMethodInvocationAsConstructorDisallowed}))));
+        args->isolate(), kMethodInvocationAsConstructorDisallowed)));
     return v8::Undefined(args->isolate());
   }
 
   content::GinJavaBridgeObject* object = nullptr;
   if (!args->GetHolder(&object) || !object) {
     args->isolate()->ThrowException(v8::Exception::Error(gin::StringToV8(
-        args->isolate(),
-        base::StrCat({"Error invoking ", method_name_, ": ",
-                      kMethodInvocationOnNonInjectedObjectDisallowed}))));
+        args->isolate(), kMethodInvocationOnNonInjectedObjectDisallowed)));
     return v8::Undefined(args->isolate());
   }
 
@@ -96,8 +90,7 @@ v8::Local<v8::Value> GinJavaFunctionInvocationHelper::Invoke(
   }
   if (!result.get()) {
     args->isolate()->ThrowException(v8::Exception::Error(gin::StringToV8(
-        args->isolate(), base::StrCat({"Error invoking ", method_name_, ": ",
-                                       GinJavaBridgeErrorToString(error)}))));
+        args->isolate(), GinJavaBridgeErrorToString(error))));
     return v8::Undefined(args->isolate());
   }
   if (!result->is_blob()) {

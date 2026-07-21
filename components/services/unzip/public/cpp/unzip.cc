@@ -24,7 +24,6 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
-#include "build/buildflag.h"
 #include "components/services/storage/public/cpp/filesystem/filesystem_impl.h"
 #include "components/services/unzip/public/mojom/unzipper.mojom.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -148,7 +147,6 @@ class UnzipOperation : public base::RefCountedThreadSafe<UnzipOperation>,
   UnzipCallback callback_;
 };
 
-#if !BUILDFLAG(IS_COBALT)
 class DetectEncodingParams : public base::RefCounted<DetectEncodingParams> {
  public:
   DetectEncodingParams(mojo::PendingRemote<mojom::Unzipper> unzipper,
@@ -181,7 +179,6 @@ class DetectEncodingParams : public base::RefCounted<DetectEncodingParams> {
   DetectEncodingCallback callback_;
   const base::TimeTicks start_time_ = base::TimeTicks::Now();
 };
-#endif  // !BUILDFLAG(IS_COBALT)
 
 class GetExtractedInfoParams : public base::RefCounted<GetExtractedInfoParams> {
  public:
@@ -279,7 +276,6 @@ class DecodeOperation : public base::RefCountedThreadSafe<DecodeOperation> {
   base::OnceCallback<void(bool)> callback_;
 };
 
-#if !BUILDFLAG(IS_COBALT)
 void DoDetectEncoding(mojo::PendingRemote<mojom::Unzipper> unzipper,
                       const base::FilePath& zip_path,
                       DetectEncodingCallback result_callback) {
@@ -304,7 +300,6 @@ void DoDetectEncoding(mojo::PendingRemote<mojom::Unzipper> unzipper,
       std::move(zip_file),
       base::BindOnce(&DetectEncodingParams::InvokeCallback, params));
 }
-#endif  // !BUILDFLAG(IS_COBALT)
 
 void DoGetExtractedInfo(mojo::PendingRemote<mojom::Unzipper> unzipper,
                         const base::FilePath& zip_path,
@@ -362,7 +357,6 @@ base::OnceClosure Unzip(mojo::PendingRemote<mojom::Unzipper> unzipper,
       runner, base::BindOnce(&UnzipOperation::Cancel, unzip_operation));
 }
 
-#if !BUILDFLAG(IS_COBALT)
 void DetectEncoding(mojo::PendingRemote<mojom::Unzipper> unzipper,
                     const base::FilePath& zip_path,
                     DetectEncodingCallback result_callback) {
@@ -374,7 +368,6 @@ void DetectEncoding(mojo::PendingRemote<mojom::Unzipper> unzipper,
                                            base::BindPostTaskToCurrentDefault(
                                                std::move(result_callback))));
 }
-#endif  // !BUILDFLAG(IS_COBALT)
 
 void GetExtractedInfo(mojo::PendingRemote<mojom::Unzipper> unzipper,
                       const base::FilePath& zip_path,

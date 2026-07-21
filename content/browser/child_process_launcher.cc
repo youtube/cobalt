@@ -160,10 +160,6 @@ void ChildProcessLauncher::SetRenderProcessPriority(
           &ChildProcessLauncherHelper::SetRenderProcessPriorityOnLauncherThread,
           helper_, std::move(to_pass), priority));
 }
-#elif BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-void ChildProcessLauncher::SetProcessPriority(base::Process::Priority) {
-  NOTIMPLEMENTED();
-}
 #else   // !BUILDFLAG(IS_ANDROID)
 void ChildProcessLauncher::SetProcessPriority(
     base::Process::Priority priority) {
@@ -239,7 +235,7 @@ void ChildProcessLauncher::OnReceivedTaskPort(
 }
 #endif
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#if !BUILDFLAG(IS_ANDROID)
 void ChildProcessLauncher::SetProcessPriorityImpl(
     base::Process::Priority priority) {
   priority_ = priority;

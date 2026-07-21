@@ -82,7 +82,7 @@ if (use_bundled_fontconfig) {
       ]
     }
 
-    if (!is_win && !is_cobalt_hermetic_build) {
+    if (!is_win) {
       libs = [ "uuid" ]
     }
   }

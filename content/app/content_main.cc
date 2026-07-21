@@ -86,6 +86,12 @@
 #endif
 #endif  // BUILDFLAG(IS_MAC)
 
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "base/files/file_path.h"
+#include "base/path_service.h"
+#include "content/shell/common/shell_switches.h"
+#endif
+
 namespace content {
 
 namespace {
@@ -315,9 +321,14 @@ NO_STACK_PROTECTOR int RunContentProcess(
     // Set tvOS to single-process mode by default.
     command_line->AppendSwitch(switches::kSingleProcess);
 
-    // Enable spatial navigation; we interpret remote control swipes as arrow
-    // keys.
-    command_line->AppendSwitch(switches::kEnableSpatialNavigation);
+    // On tvOS, local storage is limited and data cannot be written anywhere
+    // other than the cache directory, so `base::DIR_CACHE` is used for
+    // the user data directory.
+    base::FilePath path;
+    if (base::PathService::Get(base::DIR_CACHE, &path) && !path.empty()) {
+      command_line->AppendSwitchASCII(switches::kContentShellUserDataDir,
+                                      path.MaybeAsASCII());
+    }
 #endif
 #endif
 
@@ -362,7 +373,7 @@ NO_STACK_PROTECTOR int RunContentProcess(
     CommonSubprocessInit();
   exit_code = content_main_runner->Run();
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_STARBOARD)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   content_main_runner->Shutdown();
 #endif
 

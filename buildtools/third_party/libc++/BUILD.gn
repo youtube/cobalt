@@ -425,7 +425,6 @@ target(libcxx_target_type, "libc++") {
     "//build/config:common_deps",
     "//third_party/catapult/devil:devil",
   ]
-
   if (is_linux) {
     # This target packages libc++.so, so must have an explicit dependency on
     # libc++.
@@ -612,17 +611,8 @@ target(libcxx_target_type, "libc++") {
 
   if (!is_win) {
     defines += [ "LIBCXX_BUILDING_LIBCXXABI" ]
-    if (!export_libcxxabi_from_executables || is_cobalt_hermetic_build) {
+    if (!export_libcxxabi_from_executables) {
       deps += [ "//buildtools/third_party/libc++abi" ]
     }
-  }
-
-  if (is_cobalt_hermetic_build && current_toolchain == cobalt_toolchain) {
-    # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
-    sources -= [ "//third_party/libc++/src/src/atomic.cpp" ]
-    deps += [
-      "//third_party/llvm-project/compiler-rt:compiler_rt",
-      "//third_party/musl:c",
-    ]
   }
 }

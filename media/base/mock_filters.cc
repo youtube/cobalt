@@ -76,16 +76,6 @@ void MockDemuxerStream::set_liveness(StreamLiveness liveness) {
   liveness_ = liveness;
 }
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-std::string MockDemuxerStream::mime_type() const {
-  return mime_type_;
-}
-
-void MockDemuxerStream::set_mime_type(const std::string& mime_type) {
-  mime_type_ = mime_type;
-}
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 MockVideoDecoder::MockVideoDecoder() : MockVideoDecoder(0) {}
 
 MockVideoDecoder::MockVideoDecoder(int decoder_id)

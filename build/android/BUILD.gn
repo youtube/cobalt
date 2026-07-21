@@ -10,7 +10,6 @@ import("//build/config/coverage/coverage.gni")
 import("//build/config/gclient_args.gni")
 import("//build/config/python.gni")
 import("//build_overrides/build.gni")
-import("//starboard/build/config/android_toolchain.gni")
 
 if (build_with_chromium) {
   import("//base/allocator/partition_allocator/partition_alloc.gni")
@@ -272,9 +271,9 @@ group("stack_tools") {
   }
 }
 
-# GN evaluates each .gn file once per toolchain, so restricting to the android
+# GN evaluates each .gn file once per toolchain, so restricting to default
 # toolchain will ensure write_file() is called only once.
-assert(current_toolchain == android_toolchain)
+assert(current_toolchain == default_toolchain)
 
 # NOTE: If other platforms would benefit from exporting variables, we should
 # move this to a more top-level place.

@@ -404,38 +404,4 @@ void MojoCdm::RejectPromiseConnectionLost(uint32_t promise_id) {
       CdmPromise::SystemCode::kConnectionError, "CDM connection lost.");
 }
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-void MojoCdm::GetMetrics(
-    std::unique_ptr<GetMetricsCdmPromise> promise) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  uint32_t promise_id =
-      cdm_promise_adapter_.SavePromise(std::move(promise), __func__);
-
-  if (!remote_cdm_) {
-    RejectPromiseConnectionLost(promise_id);
-    return;
-  }
-
-  remote_cdm_->GetMetrics(
-      base::BindPostTaskToCurrentDefault(
-        base::BindOnce(&MojoCdm::OnMetricsReceived,
-        weak_factory_.GetWeakPtr(), promise_id)));
-
-}
-
-void MojoCdm::OnMetricsReceived(
-    uint32_t promise_id,
-    const std::optional<std::string>& metrics_string) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  if (metrics_string) {
-    cdm_promise_adapter_.ResolvePromise(promise_id,
-                                        metrics_string.value_or(std::string()));
-  } else {
-    cdm_promise_adapter_.RejectPromise(
-        promise_id, CdmPromise::Exception::NOT_SUPPORTED_ERROR, 0,
-        "GetMetrics() is not supported.");
-  }
-}
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 }  // namespace media

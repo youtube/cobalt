@@ -163,9 +163,6 @@ class VIEWS_EXPORT DesktopWindowTreeHostPlatform
                             ui::PlatformWindowState new_state) override;
   void OnCloseRequest() override;
   void OnAcceleratedWidgetAvailable(gfx::AcceleratedWidget widget) override;
-#if BUILDFLAG(IS_STARBOARD)
-  void OnAcceleratedWidgetDestroyed() override;
-#endif
   void OnWillDestroyAcceleratedWidget() override;
   bool OnRotateFocus(ui::PlatformWindowDelegate::RotateDirection direction,
                      bool reset) override;

@@ -1,7 +1,0 @@
-void func() {
-    if (3) {}
-}
-
-/*%%*
-expected 'bool', but found 'int'
-*%%*/

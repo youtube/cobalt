@@ -5,6 +5,8 @@
 #ifndef GPU_IPC_SERVICE_GPU_MEMORY_BUFFER_FACTORY_NATIVE_PIXMAP_H_
 #define GPU_IPC_SERVICE_GPU_MEMORY_BUFFER_FACTORY_NATIVE_PIXMAP_H_
 
+#include <vulkan/vulkan_core.h>
+
 #include <unordered_map>
 #include <utility>
 
@@ -13,12 +15,6 @@
 #include "gpu/ipc/service/gpu_ipc_service_export.h"
 #include "gpu/ipc/service/gpu_memory_buffer_factory.h"
 #include "ui/gfx/native_pixmap.h"
-
-// TODO: (cobalt b/409766462): Exclude this file from the build entirely.
-#include "build/build_config.h"
-#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-#include <vulkan/vulkan_core.h>
-#endif
 
 namespace gpu {
 

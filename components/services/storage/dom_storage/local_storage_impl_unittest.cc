@@ -949,37 +949,6 @@ TEST_F(LocalStorageImplTest, OnDisk) {
       leveldb_env::LevelDBStatusValue::LEVELDB_STATUS_OK, 2);
 }
 
-#if BUILDFLAG(IS_COBALT)
-TEST_F(LocalStorageImplTest, DeleteLockFile) {
-  auto key = StdStringToUint8Vector("key");
-  auto value = StdStringToUint8Vector("value");
-
-  DoTestPut(key, value);
-  std::vector<uint8_t> result;
-  EXPECT_TRUE(DoTestGet(key, &result));
-
-  ShutDownStorage();
-
-  base::FilePath db_path = storage_path()
-                               .Append(kLocalStoragePath)
-                               .AppendASCII(kLocalStorageLeveldbName);
-  base::FilePath lock_file_path = db_path.AppendASCII("LOCK");
-
-  // Create a dummy LOCK file to simulate an orphaned lock file.
-  ASSERT_TRUE(base::WriteFile(lock_file_path, ""));
-  ASSERT_TRUE(base::PathExists(lock_file_path));
-
-  // Re-opening the storage with kLocalStorageDeleteLockFile enabled (default).
-  InitializeStorage(storage_path());
-  EXPECT_TRUE(DoTestGet(key, &result));
-  EXPECT_EQ(value, result);
-
-  // Verify the lock file has been deleted.
-  RunUntilIdle();
-  EXPECT_FALSE(base::PathExists(lock_file_path));
-}
-#endif
-
 TEST_F(LocalStorageImplTest, InvalidVersionOnDisk) {
   auto key = StdStringToUint8Vector("key");
   auto value = StdStringToUint8Vector("value");

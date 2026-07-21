@@ -420,7 +420,6 @@ namespace {
 std::atomic<bool> g_getaddrinfo_discouraged{false};
 }  // namespace
 
-#if !BUILDFLAG(IS_STARBOARD)
 extern "C" {
 __attribute__((visibility("default"), noinline)) int getaddrinfo(
     const char* node,
@@ -436,7 +435,6 @@ __attribute__((visibility("default"), noinline)) int getaddrinfo(
   return CALL_FUNC(getaddrinfo, node, service, hints, res);
 }
 }
-#endif
 
 void DiscourageGetaddrinfo() {
   g_getaddrinfo_discouraged = true;

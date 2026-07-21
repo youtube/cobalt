@@ -84,7 +84,6 @@ static_library("xml_reader") {
     "//components/policy/core/common:unit_tests",
     # For parsing trusted data from Google origins with public key pinning only.
     "//components/trusted_vault",
-    "//copied_base/base/test:test_support",
     "//services/data_decoder:*",
   ]
   if (is_win) {
@@ -124,7 +123,6 @@ static_library("libxml_utils") {
     ":xml_reader",
     ":xml_writer",
     "//base/test:test_support",
-    "//copied_base/base/test:test_support",
     "//services/data_decoder:lib",
     "//services/data_decoder:xml_parser_fuzzer_deps",
   ]
@@ -151,9 +149,6 @@ static_library("libxml") {
     "//third_party/libxslt",
     "//third_party/maldoca/*",
   ]
-  if (is_cobalt_hermetic_build) {
-    visibility += [ "//skia" ]
-  }
   if (is_ios) {
     foreach(tgt, ios_libxml_visibility_additions) {
       visibility += [ "//ios_internal/$tgt" ]

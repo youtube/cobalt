@@ -4,7 +4,6 @@
 
 if (is_android) {
   import("//build/config/android/rules.gni")
-  import("//starboard/build/config/android_toolchain.gni")
 }
 import("//base/allocator/partition_allocator/partition_alloc.gni")
 import("//testing/test.gni")
@@ -132,7 +131,7 @@ executable("gin_shell") {
 }
 
 if (is_android && enable_java_templates &&
-    current_toolchain == android_toolchain) {
+    current_toolchain == default_toolchain) {
   android_assets("v8_snapshot_assets") {
     if (v8_use_external_startup_data) {
       disable_compression = true

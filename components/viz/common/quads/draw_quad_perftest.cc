@@ -71,15 +71,8 @@ class DrawQuadPerfTest : public testing::Test {
   }
 
   void CleanUpRenderPass() {
-// Must nullify raw_ptr shared_state_ before its owner render_pass_.
-// This avoids a raw dangling pointer error.
-#if BUILDFLAG(IS_COBALT)
-    shared_state_ = nullptr;
-    render_pass_.reset();
-#else
     render_pass_.reset();
     shared_state_ = nullptr;
-#endif
   }
 
   void GenerateTextureDrawQuads(int count, std::vector<DrawQuad*>* quads) {

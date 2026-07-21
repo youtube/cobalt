@@ -7,10 +7,6 @@ import("//build/config/sanitizers/sanitizers.gni")
 import("//build/toolchain/rbe.gni")
 import("//build_overrides/build.gni")
 
-if (is_cobalt) {
-  import("//starboard/build/config/toolchain_variables.gni")
-}
-
 declare_args() {
   # Use in-tree libc++ (buildtools/third_party/libc++ and
   # buildtools/third_party/libc++abi) instead of the system C++ library for C++
@@ -66,8 +62,7 @@ declare_args() {
   # case.
   # We disable that on LibFuzzer builds because it breaks the libfuzzer
   # runtime. See crbug.com/411020147.
-  use_llvm_libatomic = !is_apple && !is_nacl && !use_libfuzzer &&
-                       !(is_cobalt && is_partner_toolchain)
+  use_llvm_libatomic = !is_apple && !is_nacl && !use_libfuzzer
 }
 
 if (use_implicit_libcxx_modules) {
@@ -82,12 +77,6 @@ assert(!use_implicit_libcxx_modules || !use_remoteexec,
 use_custom_libcxx =
     use_custom_libcxx || (use_custom_libcxx_for_host && !is_a_target_toolchain)
 use_custom_libcxx = use_custom_libcxx && !is_nacl
-
-# Cobalt comment: Override the use_custom_libcxx variable for partner toolchains to
-# avoid linking with chromium's C++ libraries.
-if (is_cobalt && is_partner_toolchain) {
-  use_custom_libcxx = false
-}
 
 declare_args() {
   # WARNING: Setting this to a non-default value is highly discouraged.

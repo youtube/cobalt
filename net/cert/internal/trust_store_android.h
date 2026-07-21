@@ -10,7 +10,6 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/synchronization/lock.h"
-#include "build/build_config.h"
 #include "net/base/net_export.h"
 #include "net/cert/cert_database.h"
 #include "net/cert/internal/platform_trust_store.h"
@@ -63,14 +62,6 @@ class NET_EXPORT TrustStoreAndroid : public PlatformTrustStore,
 
   base::Lock init_lock_;
   scoped_refptr<Impl> impl_ GUARDED_BY(init_lock_);
-#if BUILDFLAG(IS_COBALT)
-  // Flags whether a thread is currently performing the slow background
-  // initialization outside of the lock in MaybeInitializeAndGetImpl().
-  // Used to prevent multiple threads from triggering redundant slow loads
-  // concurrently, while allowing other threads to fail-fast and return the
-  // existing/old impl_ without blocking.
-  bool is_initializing_ GUARDED_BY(init_lock_) = false;
-#endif  // BUILDFLAG(IS_COBALT)
   // Generation number that is incremented whenever the backing Android trust
   // store changes.
   std::atomic_int generation_ = 0;

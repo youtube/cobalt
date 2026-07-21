@@ -5,8 +5,6 @@
 #ifndef MEDIA_AUDIO_ANDROID_AUDIO_MANAGER_ANDROID_H_
 #define MEDIA_AUDIO_ANDROID_AUDIO_MANAGER_ANDROID_H_
 
-
-#include "build/build_config.h"
 #include "base/android/jni_android.h"
 #include "base/android/requires_api.h"
 #include "base/containers/flat_map.h"
@@ -14,15 +12,9 @@
 #include "base/memory/raw_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "base/unguessable_token.h"
-#endif
 #include "media/audio/android/aaudio_input.h"
 #include "media/audio/android/audio_device.h"
 #include "media/audio/android/audio_device_id.h"
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/audio/android/starboard_audio_input_stream.h"
-#endif
 #include "media/audio/audio_manager_base.h"
 
 namespace media {
@@ -82,11 +74,6 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
       const AudioParameters& params,
       const std::string& device_id,
       const LogCallback& log_callback) override;
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void PreStartStream(const base::UnguessableToken& session_id,
-                      const AudioParameters& params) override;
-#endif
 
   void SetMute(JNIEnv* env,
                const base::android::JavaParamRef<jobject>& obj,
@@ -193,20 +180,6 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
   // If set, overrides volume level on output streams
   bool output_volume_override_set_;
   double output_volume_override_;
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  struct PreStartedEntry {
-    PreStartedEntry();
-    ~PreStartedEntry();
-    raw_ptr<AudioInputStream> stream = nullptr;
-    base::WaitableEvent open_event{base::WaitableEvent::ResetPolicy::MANUAL,
-                                   base::WaitableEvent::InitialState::NOT_SIGNALED};
-  };
-
-  base::Lock pre_started_streams_lock_;
-  base::flat_map<std::string, std::unique_ptr<PreStartedEntry>>
-      pre_started_streams_ GUARDED_BY(pre_started_streams_lock_);
-#endif
 };
 
 }  // namespace media

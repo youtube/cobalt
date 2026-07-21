@@ -24,9 +24,6 @@ class ChromeOsCdmContext;
 }
 #endif
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "starboard/drm.h"  // nogncheck
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 namespace media {
 
 class CallbackRegistration;
@@ -115,10 +112,6 @@ class MEDIA_EXPORT CdmContext {
   // Returns a MediaCryptoContext that can be used by MediaCodec based decoders.
   virtual MediaCryptoContext* GetMediaCryptoContext();
 #endif
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  virtual SbDrmSystem GetSbDrmSystem();
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_FUCHSIA)
   // Returns FuchsiaCdmContext interface when the context is backed by Fuchsia

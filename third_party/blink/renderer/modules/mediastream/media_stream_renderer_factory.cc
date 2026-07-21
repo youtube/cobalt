@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/modules/mediastream/media_stream_renderer_factory.h"
-#include "third_party/blink/public/common/buildflags.h"
 
 #include <utility>
 
@@ -20,16 +19,12 @@
 #include "third_party/blink/renderer/modules/mediastream/media_stream_video_renderer_sink.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream_video_track.h"
 #include "third_party/blink/renderer/modules/mediastream/track_audio_renderer.h"
-#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
-#include "third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.h"  // nogncheck
-#include "third_party/blink/renderer/modules/webrtc/webrtc_audio_device_impl.h"  // nogncheck
-#include "third_party/blink/renderer/modules/webrtc/webrtc_audio_renderer.h"  // nogncheck
-#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
+#include "third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.h"
+#include "third_party/blink/renderer/modules/webrtc/webrtc_audio_device_impl.h"
+#include "third_party/blink/renderer/modules/webrtc/webrtc_audio_renderer.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_audio_track.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_descriptor.h"
-#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
-#include "third_party/blink/renderer/platform/webrtc/peer_connection_remote_audio_source.h"  // nogncheck
-#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
+#include "third_party/blink/renderer/platform/webrtc/peer_connection_remote_audio_source.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/webrtc/api/media_stream_interface.h"
 
@@ -43,7 +38,6 @@ namespace {
 // be rendered to a matching output device, should one exist.
 // Note that if there are more than one open capture devices the function
 // will not be able to pick an appropriate device and return 0.
-#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 base::UnguessableToken GetSessionIdForWebRtcAudioRenderer(
     ExecutionContext& context) {
   WebRtcAudioDeviceImpl* audio_device =
@@ -52,7 +46,6 @@ base::UnguessableToken GetSessionIdForWebRtcAudioRenderer(
              ? audio_device->GetAuthorizedDeviceSessionIdForAudioRenderer()
              : base::UnguessableToken();
 }
-#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 
 void SendLogMessage(const WTF::String& message) {
   WebRtcLogMessage("MSRF::" + message.Utf8());
@@ -134,7 +127,6 @@ MediaStreamRendererFactory::GetAudioRenderer(
   auto* frame = To<LocalFrame>(WebLocalFrame::ToCoreFrame(*web_frame));
   DCHECK(frame);
 
-#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
   // If the track has a local source, or is a remote track that does not use the
   // WebRTC audio pipeline, return a new TrackAudioRenderer instance.
   if (!PeerConnectionRemoteAudioTrack::From(audio_track)) {
@@ -200,12 +192,6 @@ MediaStreamRendererFactory::GetAudioRenderer(
         "%s => (ERROR: CreateSharedAudioRendererProxy failed)", __func__));
   }
   return ret;
-#else
-  // Cobalt has only local/non-WebRTC remote tracks.
-  return base::MakeRefCounted<TrackAudioRenderer>(
-      audio_components[0].Get(), *frame, String(device_id),
-      std::move(on_render_error_callback));
-#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 }
 
 }  // namespace blink

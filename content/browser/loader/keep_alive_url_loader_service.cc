@@ -10,9 +10,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/trace_event/typed_macros.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/attribution_reporting/attribution_suitable_context.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/loader/keep_alive_attribution_request_helper.h"
 #include "content/browser/loader/keep_alive_url_loader.h"
 #include "content/browser/renderer_host/document_associated_data.h"
@@ -49,9 +47,7 @@ KeepAliveURLLoaderService::FactoryContext::FactoryContext(
       weak_document_ptr(other->weak_document_ptr),
       ukm_source_id(other->ukm_source_id),
       policy_container_host(other->policy_container_host),
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
       attribution_context(other->attribution_context) {}
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 KeepAliveURLLoaderService::FactoryContext::~FactoryContext() = default;
 
@@ -69,11 +65,9 @@ void KeepAliveURLLoaderService::FactoryContext::OnDidCommitNavigation(
   ukm_source_id = navigation_handle->GetNextPageUkmSourceId();
   policy_container_host = rfh->policy_container_host();
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   // `attribution_context` is needed for all kinds of keepalive requests, as
   // trigger registrations are allowed for all subresource requests.
   attribution_context = AttributionSuitableContext::Create(navigation_handle);
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   CHECK(policy_container_host);
 
@@ -91,9 +85,7 @@ void KeepAliveURLLoaderService::FactoryContext::
       weak_document_ptr.AsRenderFrameHostIfValid());
   CHECK(rfh);
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   attribution_context = AttributionSuitableContext::Create(rfh);
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void KeepAliveURLLoaderService::FactoryContext::
@@ -217,17 +209,12 @@ class KeepAliveURLLoaderService::KeepAliveURLLoaderFactoriesBase {
         base::BindRepeating(&KeepAliveURLLoaderFactoriesBase::CreateThrottles,
                             base::Unretained(this)),
         base::PassKey<KeepAliveURLLoaderService>(),
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
         KeepAliveAttributionRequestHelper::CreateIfNeeded(
             resource_request.attribution_reporting_eligibility,
             resource_request.url,
             resource_request.attribution_reporting_src_token,
             resource_request.devtools_request_id, context->attribution_context,
-            context->weak_document_ptr)
-#else
-        nullptr
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
-    );
+            context->weak_document_ptr));
     // Adds a new loader receiver to the set held by `this`, binding the pending
     // `receiver` from a renderer to `raw_loader` with `loader` as its context.
     // The set will keep `loader` alive.

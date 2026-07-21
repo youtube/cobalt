@@ -130,7 +130,6 @@ TEST(StructTraitsTest, ImageInfo) {
   EXPECT_EQ(another_input_with_null_color_space, output);
 }
 
-#if GTEST_HAS_DEATH_TEST
 // We catch negative integers on the sending side and crash, when struct traits
 // are used.
 TEST(StructTraitsDeathTest, ImageInfoOverflowSizeWithStructTrait) {
@@ -142,7 +141,6 @@ TEST(StructTraitsDeathTest, ImageInfoOverflowSizeWithStructTrait) {
   SkImageInfo output;
   EXPECT_DEATH(skia::mojom::ImageInfo::SerializeAsMessage(&input), "");
 }
-#endif  // GTEST_HAS_DEATH_TEST
 
 // We must reject sizes that would cause integer overflow on the receiving side.
 // The wire format is `uint32_t`, but Skia needs us to convert that to an `int`
@@ -417,7 +415,6 @@ TEST(StructTraitsTest, BitmapTooTallToSerialize) {
   }
 }
 
-#if GTEST_HAS_DEATH_TEST
 template <typename MojomType>
 static void BadRowBytes() {
   SkImageInfo info =
@@ -471,7 +468,6 @@ TEST(StructTraitsTest,
 TEST(StructTraitsTest, BitmapSerializeInvalidColorType_InlineBitmap) {
   BadColor<skia::mojom::InlineBitmap>(/*expect_crash=*/true);
 }
-#endif  // GTEST_HAS_DEATH_TEST
 
 // The row_bytes field is ignored, and the minRowBytes() is always used.
 TEST(StructTraitsTest, BitmapDeserializeIgnoresRowBytes) {
