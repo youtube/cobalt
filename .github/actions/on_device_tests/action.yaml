@@ -101,6 +101,7 @@ runs:
       run: |
         # Don't break on error (-e), some commands are expected to fail.
         set -ux
+        set +e
 
         COBALT_LOGS_DIR="${GITHUB_WORKSPACE}/cobalt_logs"
         UNIT_TEST_RESULT_PATH="${GITHUB_WORKSPACE}/unit-test-results"
@@ -113,17 +114,16 @@ runs:
         mkdir -p "${GITHUB_WORKSPACE}/test_results"
         cd "${GITHUB_WORKSPACE}/test_results"
 
+        # The log files are named by the device lab test driver.
+        COBALT_ERROR_LOG_FILENAME="webDriverTestLog.ERROR"
+        COBALT_INFO_LOG_FILENAME="webDriverTestLog.INFO"
+
         i=0
         # Try downloading the results for 6x 10 seconds before giving up.
         while [ $i -lt 6 ]; do
           # The results are uploaded after the test has completed.
           sleep 10
 
-          # The log files are named by the device lab test driver.
-          COBALT_ERROR_LOG_FILENAME="webDriverTestLog.ERROR"
-          COBALT_INFO_LOG_FILENAME="webDriverTestLog.INFO"
-
-          # This command will fail until the results have been uploaded.
           gsutil cp "${GCS_RESULTS_PATH}/${COBALT_ERROR_LOG_FILENAME}" .
           gsutil cp "${GCS_RESULTS_PATH}/${COBALT_INFO_LOG_FILENAME}" .
           gsutil cp "${GCS_RESULTS_PATH}/${COBALT_XMLS_FILENAME}" .
@@ -136,10 +136,14 @@ runs:
           i=$(( ${i} + 1 ))
         done
 
-        # Rename log files for archiving to not expose legacy weirdness.
+        # Rename log files for archiving if they were downloaded.
         mkdir -p "${COBALT_LOGS_DIR}/${{ matrix.platform }}/"
-        cp "${COBALT_ERROR_LOG_FILENAME}" "${COBALT_LOGS_DIR}/${{ matrix.platform }}/stderr_${{ matrix.shard }}.log"
-        cp "${COBALT_INFO_LOG_FILENAME}" "${COBALT_LOGS_DIR}/${{ matrix.platform }}/stdout_${{ matrix.shard }}.log"
+        if [ -f "${COBALT_ERROR_LOG_FILENAME}" ]; then
+          cp "${COBALT_ERROR_LOG_FILENAME}" "${COBALT_LOGS_DIR}/${{ matrix.platform }}/stderr_${{ matrix.shard }}.log"
+        fi
+        if [ -f "${COBALT_INFO_LOG_FILENAME}" ]; then
+          cp "${COBALT_INFO_LOG_FILENAME}" "${COBALT_LOGS_DIR}/${{ matrix.platform }}/stdout_${{ matrix.shard }}.log"
+        fi
 
         # Prepare unit test results for DataDog upload.
         RESULT_PATH=${UNIT_TEST_RESULT_PATH}/${{ matrix.platform }}/${{ matrix.shard }}/
@@ -149,7 +153,12 @@ runs:
         tags="os.platform:${{ matrix.platform }}"
         echo $tags > ${UNIT_TEST_RESULT_PATH}/${{ matrix.platform }}/TAGS
 
-        unzip ${COBALT_XMLS_FILENAME} -d ${RESULT_PATH}
+        if [ -f "${COBALT_XMLS_FILENAME}" ]; then
+          unzip ${COBALT_XMLS_FILENAME} -d ${RESULT_PATH}
+        else
+          echo "::error::cobalt_xmls.zip not found. Tests probably failed to run or crashed."
+          exit 1
+        fi
       shell: bash
     - name: Archive Unit Test Logs
       uses: actions/upload-artifact@v4
