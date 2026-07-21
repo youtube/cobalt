@@ -13,9 +13,53 @@
 # limitations under the License.
 
 import("//build/compiled_action.gni")
+import("//starboard/build/platform_path.gni")
 import("//starboard/content/fonts/variables.gni")
 import("//third_party/icu/config.gni")
-import("//tools/v8_context_snapshot/v8_context_snapshot.gni")
+
+if (is_android) {
+  import("//cobalt/aosp/modular_apk.gni")
+}
+
+_is_aosp =
+    string_replace(starboard_path, "starboard/aosp/", "", 1) != starboard_path
+
+# Targets not working on Android.
+_failing_android_targets = [
+  "app_shell_unittests",
+  "browser_tests",
+  "caspian_unittests",
+  "captured_sites_interactive_tests",
+  "content_shell",
+  "cronet_sample_test",
+  "cronet_tests",
+  "cronet_unittests",
+  "enterprise_companion_integration_tests",
+  "enterprise_companion_tests",
+  "extensions_browsertests",
+  "extensions_unittests",
+  "gl_lpm_shader_to_string_unittest",
+  "headless_browsertests",
+  "headless_unittests",
+  "interactive_ui_tests",
+  "leveldb_db_bench",
+  "leveldb_db_bench_log",
+  "load_library_perf_tests",
+  "message_center_unittests",
+  "pdf_ink_reader_fuzzer",
+  "pdf_unittests",
+  "pdfium_xfa_lpm_unittest",
+  "single_file_tar_reader_fuzzer",
+  "sync_integration_tests",
+  "sync_performance_tests",
+  "updater_tests",
+  "updater_tests_system",
+  "views_perftests",
+  "views_unittests",
+  "web_application_fuzztests",
+  "wm_unittests",
+  "xr_browser_tests_binary",
+]
 
 template("loader_final_target") {
   original_target_name = target_name
@@ -78,87 +122,99 @@ set_defaults("modular_executable") {
 
 template("evergreen_final_target") {
   original_target_name = target_name
-  test_lib_name = string_replace(original_target_name, "lib", "", 1)
-  if (original_target_name == "lib${test_lib_name}" ||
-      (defined(invoker.output_prefix_override) &&
-       invoker.output_prefix_override)) {
-    lib_name = original_target_name
-  } else {
-    lib_name = "lib${original_target_name}"
-  }
+  lib_name = invoker.lib_name
 
-  group("${original_target_name}_loader") {
-    testonly = true
-    data_deps = [
-      ":${original_target_name}_loaded_content",
-      ":${original_target_name}_runfile_gen",
-      "//starboard/elf_loader:elf_loader_sandbox($starboard_toolchain)",
-      "//starboard/loader_app($starboard_toolchain)",
-    ]
-    deps = [ "//starboard/loader_app($starboard_toolchain)" ]
-    write_runtime_deps = "$root_build_dir/${target_name}.runtime_deps"
-  }
+  if (current_toolchain == default_toolchain) {
+    group("${original_target_name}_loader") {
+      testonly = true
+      data_deps = [
+        ":${original_target_name}_loaded_content",
+        ":${original_target_name}_runfile_gen",
+        "//starboard/elf_loader:elf_loader_sandbox($starboard_toolchain)",
+        "//starboard/loader_app($starboard_toolchain)",
+      ]
 
-  group("${original_target_name}_loaded_content") {
-    forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
-    data_deps = [
-      ":copy_${original_target_name}_content",
-      ":copy_${original_target_name}_lib",
-      "//starboard/content/ssl:copy_ssl_certificates_prod_cobalt",
-    ]
-  }
+      if (_is_aosp && filter_include([ original_target_name ],
+                                     _failing_android_targets) == []) {
+        data_deps += [ ":${original_target_name}_apk($starboard_toolchain)" ]
+      }
 
-  action("${original_target_name}_runfile_gen") {
-    script = "//starboard/build/util/generate_runfile.py"
-    outputs = [ "$root_out_dir/${original_target_name}_loader.py" ]
-    args = [
-      "--output",
-      rebase_path(outputs[0]),
-      "--library",
-      lib_name,
-    ]
-  }
-
-  copy("copy_${original_target_name}_content") {
-    forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
-    sources = [ "$root_out_dir/cobalt_shell.pak" ]
-
-    if (icu_use_data_file) {
-      sources += [ "$root_out_dir/icudtl.dat" ]
+      write_runtime_deps = "$root_build_dir/${target_name}.runtime_deps"
     }
 
-    outputs = [
-      "$root_out_dir/app/${original_target_name}/content/{{source_file_part}}",
-    ]
-    deps = [
-      "//cobalt/shell:pak",
-      "//third_party/icu:icudata",
-    ]
-    data_deps = [ ":copy_${original_target_name}_empty_fonts" ]
-  }
+    group("${original_target_name}_loaded_content") {
+      forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+      data_deps = [
+        ":copy_${original_target_name}_content",
+        ":copy_${original_target_name}_lib",
+        ":copy_${original_target_name}_zstd_lib",
+        "//starboard/content/ssl:copy_ssl_certificates_prod_cobalt",
+      ]
+    }
 
-  copy("copy_${original_target_name}_empty_fonts") {
-    forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
-    sources = [ "//starboard/content/fonts/$source_font_config_dir/fonts.xml" ]
-    outputs =
-        [ "$root_out_dir/app/${original_target_name}/content/fonts/fonts.xml" ]
-  }
+    action("${original_target_name}_runfile_gen") {
+      script = "//starboard/build/util/generate_runfile.py"
+      outputs = [ "$root_out_dir/${original_target_name}_loader.py" ]
+      args = [
+        "--output",
+        rebase_path(outputs[0]),
+        "--library",
+        lib_name,
+      ]
+    }
 
-  compiled_action("copy_${original_target_name}_lib") {
-    forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+    copy("copy_${original_target_name}_content") {
+      sources = [ "$root_out_dir/cobalt_shell.pak" ]
 
-    tool = "//starboard/tools/lz4_compress"
-    inputs = [ "$root_out_dir/${lib_name}.so" ]
-    outputs =
-        [ "$root_out_dir/app/${original_target_name}/lib/${lib_name}.lz4" ]
-    args =
-        rebase_path(inputs, root_out_dir) + rebase_path(outputs, root_out_dir)
-    deps = [ ":${original_target_name}" ]
-    data_deps = deps  # Needed for the .runtime_deps file.
-  }
+      if (icu_use_data_file) {
+        sources += [ "$root_out_dir/icudtl.dat" ]
+      }
 
-  shared_library(original_target_name) {
-    forward_variables_from(invoker, "*")
+      outputs = [ "$root_out_dir/app/${original_target_name}/content/{{source_file_part}}" ]
+      deps = [
+        "//cobalt/shell:pak",
+        "//third_party/icu:icudata",
+      ]
+      data_deps = [ ":copy_${original_target_name}_empty_fonts" ]
+    }
+
+    copy("copy_${original_target_name}_empty_fonts") {
+      sources =
+          [ "//starboard/content/fonts/$source_font_config_dir/fonts.xml" ]
+      outputs = [
+        "$root_out_dir/app/${original_target_name}/content/fonts/fonts.xml",
+      ]
+    }
+
+    compiled_action("copy_${original_target_name}_lib") {
+      forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+
+      tool = "//starboard/tools/lz4_compress"
+      inputs = [ "$root_out_dir/${lib_name}.so" ]
+      outputs =
+          [ "$root_out_dir/app/${original_target_name}/lib/${lib_name}.lz4" ]
+      args =
+          rebase_path(inputs, root_out_dir) + rebase_path(outputs, root_out_dir)
+      deps = [ ":${original_target_name}" ]
+      data_deps = deps  # Needed for the .runtime_deps file.
+    }
+
+    compiled_action("copy_${original_target_name}_zstd_lib") {
+      forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+
+      tool = "//starboard/tools/zstd_compress"
+      inputs = [ "$root_out_dir/${lib_name}.so" ]
+      outputs =
+          [ "$root_out_dir/app/${original_target_name}/lib/${lib_name}.zst" ]
+      args =
+          rebase_path(inputs, root_out_dir) + rebase_path(outputs, root_out_dir)
+      deps = [ ":${original_target_name}" ]
+      data_deps = deps  # Needed for the .runtime_deps file.
+    }
+
+    shared_library(original_target_name) {
+      forward_variables_from(invoker, "*", [ "lib_name" ])
+    }
   }
 }
 
@@ -168,12 +224,32 @@ set_defaults("evergreen_final_target") {
 }
 
 template("modular_executable") {
-  if (sb_is_evergreen) {
-    target_type = "evergreen_final_target"
+  _name = target_name
+  _test_lib_name = string_replace(_name, "lib", "", 1)
+  if (_name == "lib${_test_lib_name}" ||
+      (defined(invoker.output_prefix_override) &&
+       invoker.output_prefix_override)) {
+    _lib_name = _name
   } else {
-    target_type = "loader_final_target"
+    _lib_name = "lib${_name}"
   }
-  target(target_type, target_name) {
-    forward_variables_from(invoker, "*")
+
+  if (is_android) {
+    not_needed(invoker, "*", [ "testonly" ])
+    modular_apk("${_name}_apk") {
+      forward_variables_from(invoker, [ "testonly" ])
+      module_name = _name
+      lib_name = _lib_name
+    }
+  } else if (sb_is_evergreen) {
+    target("evergreen_final_target", _name) {
+      forward_variables_from(invoker, "*")
+      lib_name = _lib_name
+    }
+  } else {
+    not_needed([ "_lib_name" ])
+    target("loader_final_target", _name) {
+      forward_variables_from(invoker, "*")
+    }
   }
 }

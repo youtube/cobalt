@@ -1336,6 +1336,16 @@ if (is_cobalt) {
             ],
             "abspath")
   }
+
+  if (enable_in_app_dial) {
+    static_idl_files_in_modules += get_path_info(
+            [
+              "//third_party/blink/renderer/modules/cobalt/dial/dial_http_request.idl",
+              "//third_party/blink/renderer/modules/cobalt/dial/dial_http_response.idl",
+              "//third_party/blink/renderer/modules/cobalt/dial/dial_server.idl",
+            ],
+            "abspath")
+  }
 }
 
 if (!use_webrtc_peer_connection) {
@@ -1451,6 +1461,7 @@ if (!enable_privacy_sandbox_apis) {
         "//third_party/blink/renderer/modules/storage_access/*",
         "//third_party/blink/renderer/modules/locks/shared_storage_worklet_navigator_locks.idl",
         "//third_party/blink/renderer/modules/permissions/top_level_storage_access_permission_descriptor.idl",
+        "//third_party/blink/renderer/modules/ad_auction/*",
       ])
   static_idl_files_in_modules = []
   static_idl_files_in_modules = _filtered_static_idl_files
@@ -1494,4 +1505,16 @@ if (!use_webrtc_peer_connection) {
           [ "//third_party/blink/renderer/modules/peerconnection/testing/*" ])
   static_idl_files_in_modules_for_testing = []
   static_idl_files_in_modules_for_testing = _filtered_testing_idl
+}
+
+# If in the future privacy sandbox components are removed from the code base, we should
+# delete this if block.
+if (!enable_privacy_sandbox_apis) {
+  _filtered_static_idl_files_for_testing = filter_exclude(
+      static_idl_files_in_modules_for_testing,
+      [
+        "//third_party/blink/renderer/modules/ad_auction/testing/*",
+      ])
+  static_idl_files_in_modules_for_testing = []
+  static_idl_files_in_modules_for_testing = _filtered_static_idl_files_for_testing
 }

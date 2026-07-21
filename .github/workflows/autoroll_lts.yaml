@@ -64,6 +64,16 @@ jobs:
           # Fetch enough history for source branch.
           git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "${SOURCE_BRANCH}:${SOURCE_BRANCH}"
 
+      - name: Get Existing PR Info
+        id: pr_info
+        env:
+          GITHUB_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
+        run: |
+          # Get the first commit SHA of the existing PR.
+          # If the PR doesn't exist, it returns an empty string.
+          FIRST_SHA=$(gh pr view "autoroll-${{ matrix.branch.source }}-to-${{ matrix.branch.target }}" --json commits --jq '.commits[0].oid' 2>/dev/null || echo "")
+          echo "first_sha=$FIRST_SHA" >> "$GITHUB_OUTPUT"
+
       - name: Cherry Pick Merged PRs
         id: autoroll
         env:
@@ -76,7 +86,8 @@ jobs:
             --source-branch "${{ matrix.branch.source }}" \
             --target-branch "${{ matrix.branch.target }}" \
             --autoroll-file "${{ matrix.branch.autoroll }}" \
-            --max-commits "${{ env.MAX_COMMITS }}")
+            --max-commits "${{ env.MAX_COMMITS }}" \
+            --existing-pr-sha "${{ steps.pr_info.outputs.first_sha }}")
 
           if [[ -n "${PR_LINKS}" ]]; then
             echo "cherry_picked=true" >> "$GITHUB_OUTPUT"

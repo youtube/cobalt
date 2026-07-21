@@ -27,4 +27,8 @@ declare_args() {
   # Whether to enable the custom on-screen keyboard Web API and browser process
   # implementation.
   enable_native_on_screen_keyboard = false
+
+  # Whether to enable the custom Dial Web APIs for second-screen use cases
+  # (currently only enabled on tvOS).
+  enable_in_app_dial = false
 }

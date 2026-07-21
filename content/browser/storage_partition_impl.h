@@ -159,16 +159,14 @@ class CONTENT_EXPORT StoragePartitionImpl
   void OverrideSharedStorageHeaderObserverForTesting(
       std::unique_ptr<SharedStorageHeaderObserver>
           shared_storage_header_observer);
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   void OverrideAggregationServiceForTesting(
       std::unique_ptr<AggregationService> aggregation_service);
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   void OverrideAttributionManagerForTesting(
       std::unique_ptr<AttributionManager> attribution_manager);
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   void OverridePrivateAggregationManagerForTesting(
       std::unique_ptr<PrivateAggregationManagerImpl>
           private_aggregation_manager);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   void OverrideDeviceBoundSessionManagerForTesting(
       std::unique_ptr<network::mojom::DeviceBoundSessionManager>
           device_bound_session_manager);
@@ -830,8 +828,8 @@ class CONTENT_EXPORT StoragePartitionImpl
   std::unique_ptr<FontAccessManager> font_access_manager_;
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   std::unique_ptr<InterestGroupManagerImpl> interest_group_manager_;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   std::unique_ptr<AggregationService> aggregation_service_;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
   std::unique_ptr<CdmStorageManager> cdm_storage_manager_;
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
@@ -850,9 +848,9 @@ class CONTENT_EXPORT StoragePartitionImpl
 
   // Owning pointer to the `SharedStorageHeaderObserver` for this partition.
   std::unique_ptr<SharedStorageHeaderObserver> shared_storage_header_observer_;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   std::unique_ptr<PrivateAggregationManagerImpl> private_aggregation_manager_;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   std::unique_ptr<CookieDeprecationLabelManagerImpl>
       cookie_deprecation_label_manager_;

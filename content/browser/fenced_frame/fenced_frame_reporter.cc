@@ -882,6 +882,7 @@ void FencedFrameReporter::RemoveObserverForTesting(
 void FencedFrameReporter::OnForEventPrivateAggregationRequestsReceived(
     std::map<std::string, FinalizedPrivateAggregationRequests>
         private_aggregation_event_map) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   for (auto& [event_type, requests] : private_aggregation_event_map) {
     FinalizedPrivateAggregationRequests& destination_vector =
         private_aggregation_event_map_[event_type];
@@ -893,10 +894,12 @@ void FencedFrameReporter::OnForEventPrivateAggregationRequestsReceived(
   for (const std::string& pa_event_type : received_pa_events_) {
     SendPrivateAggregationRequestsForEventInternal(pa_event_type);
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void FencedFrameReporter::SendPrivateAggregationRequestsForEvent(
     const std::string& pa_event_type) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (!private_aggregation_manager_) {
     // `private_aggregation_manager_` is nullptr when private aggregation
     // feature flag is disabled, but a compromised renderer might still send
@@ -910,10 +913,12 @@ void FencedFrameReporter::SendPrivateAggregationRequestsForEvent(
   received_pa_events_.emplace(pa_event_type);
 
   SendPrivateAggregationRequestsForEventInternal(pa_event_type);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void FencedFrameReporter::SendPrivateAggregationRequestsForEventInternal(
     const std::string& pa_event_type) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   DCHECK(private_aggregation_manager_);
   DCHECK(winner_origin_.has_value() &&
          winner_origin_.value().scheme() == url::kHttpsScheme);
@@ -935,6 +940,7 @@ void FencedFrameReporter::SendPrivateAggregationRequestsForEventInternal(
   // requests more than once. As a result, receiving the same event type
   // multiple times only triggers sending the event's requests once.
   private_aggregation_event_map_.erase(it);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 const std::vector<blink::FencedFrame::ReportingDestination>

@@ -18,6 +18,7 @@
 #include <sys/resource.h>
 #include <unistd.h>
 
+#include <chrono>
 #include <iterator>
 
 #include "starboard/android/shared/media_common.h"
@@ -131,7 +132,6 @@ MediaCodecDecoder::CreateForVideo(
     const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
     std::optional<int> tunnel_mode_audio_session_id,
     bool enable_frame_renderer_listener,
-    bool enable_low_latency,
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
@@ -146,9 +146,9 @@ MediaCodecDecoder::CreateForVideo(
       video_codec, frame_size_hint, max_frame_size, fps, j_output_surface,
       drm_system, color_metadata, require_software_codec, frame_rendered_cb,
       first_tunnel_frame_ready_cb, tunnel_mode_audio_session_id,
-      enable_frame_renderer_listener, enable_low_latency,
-      force_big_endian_hdr_metadata, max_video_input_size, flush_delay_usec,
-      use_dual_threads, skip_video_frames_over_60_fps,
+      enable_frame_renderer_listener, force_big_endian_hdr_metadata,
+      max_video_input_size, flush_delay_usec, use_dual_threads,
+      skip_video_frames_over_60_fps,
       ignore_mediacodec_callbacks_during_flushing, enable_ndk_video,
       enable_trivial_optimizations, &error_message);
   if (!decoder->media_codec_bridge_) {
@@ -217,7 +217,6 @@ MediaCodecDecoder::MediaCodecDecoder(
     const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
     std::optional<int> tunnel_mode_audio_session_id,
     bool enable_frame_renderer_listener,
-    bool enable_low_latency,
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
@@ -238,7 +237,7 @@ MediaCodecDecoder::MediaCodecDecoder(
       video_decoder_poll_interval_us_(
           tunnel_mode_enabled_ ? kDefaultVideoDecoderTunnelPollIntervalUs
                                : kDefaultVideoDecoderPollIntervalUs),
-      use_dual_threads_(use_dual_threads && !tunnel_mode_enabled_),
+      use_dual_threads_(use_dual_threads),
       enable_trivial_optimizations_(enable_trivial_optimizations) {
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
@@ -258,10 +257,9 @@ MediaCodecDecoder::MediaCodecDecoder(
       /*handler=*/this, j_output_surface, j_media_crypto, color_metadata,
       {max_video_input_size, skip_video_frames_over_60_fps,
        ignore_mediacodec_callbacks_during_flushing,
-       enable_frame_renderer_listener, enable_low_latency,
-       require_secured_decoder, require_software_codec,
-       force_big_endian_hdr_metadata, tunnel_mode_audio_session_id,
-       enable_ndk_video});
+       enable_frame_renderer_listener, require_secured_decoder,
+       require_software_codec, force_big_endian_hdr_metadata,
+       tunnel_mode_audio_session_id, enable_ndk_video});
 
   if (media_codec_bridge) {
     media_codec_bridge_ = std::move(media_codec_bridge.value());
@@ -635,7 +633,7 @@ void MediaCodecDecoder::OutputThreadFunc() {
       auto& dequeue_output_result = dequeue_output_results.front();
       if (dequeue_output_result.index < 0) {
         host_->RefreshOutputFormat(media_codec_bridge_.get());
-      } else {
+      } else if (!tunnel_mode_enabled_) {
         host_->ProcessOutputBuffer(media_codec_bridge_.get(),
                                    dequeue_output_result);
       }
@@ -645,16 +643,26 @@ void MediaCodecDecoder::OutputThreadFunc() {
       CollectPendingOutputData_Locked(&dequeue_output_results);
     }
 
-    bool ticked = host_->Tick(media_codec_bridge_.get());
+    bool ticked = false;
+    if (!tunnel_mode_enabled_) {
+      ticked = host_->Tick(media_codec_bridge_.get());
+    }
 
     if (!ticked && dequeue_output_results.empty()) {
       std::unique_lock lock(mutex_);
       CollectPendingOutputData_Locked(&dequeue_output_results);
       if (dequeue_output_results.empty()) {
-        // TODO(b/329686979): Allow Tick() to return the time to next frame
-        // release to dynamically adjust the wait duration.
-        video_output_condition_variable_.wait_for(
-            lock, std::chrono::microseconds(8'000));
+        if (tunnel_mode_enabled_) {
+          video_output_condition_variable_.wait(lock, [this] {
+            return destroying_.load() || !dequeue_output_results_.empty();
+          });
+          CollectPendingOutputData_Locked(&dequeue_output_results);
+        } else {
+          // TODO(b/329686979): Allow Tick() to return the time to next frame
+          // release to dynamically adjust the wait duration.
+          video_output_condition_variable_.wait_for(
+              lock, std::chrono::microseconds(8'000));
+        }
       }
     }
   }

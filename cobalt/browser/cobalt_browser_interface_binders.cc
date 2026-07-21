@@ -62,6 +62,11 @@
 #include "mojo/public/cpp/bindings/message.h"
 #endif  // BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
 
+#if BUILDFLAG(ENABLE_IN_APP_DIAL)
+#include "cobalt/browser/dial/dial_server_impl.h"
+#include "cobalt/browser/dial/public/mojom/in_app_dial.mojom.h"
+#endif  // BUILDFLAG(ENABLE_IN_APP_DIAL)
+
 #include "cobalt/browser/h5vcc_platform_service/h5vcc_platform_service_manager_impl.h"
 #include "cobalt/browser/h5vcc_platform_service/public/mojom/h5vcc_platform_service.mojom.h"
 
@@ -166,6 +171,11 @@ void PopulateCobaltFrameBinders(
                 ->Bind(std::move(receiver));
           }));
 #endif  // BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
+
+#if BUILDFLAG(ENABLE_IN_APP_DIAL)
+  binder_map->Add<in_app_dial::mojom::DialServer>(
+      base::BindRepeating(&in_app_dial::DialServerImpl::Create));
+#endif  // BUILDFLAG(ENABLE_IN_APP_DIAL)
 
   binder_map->Add<h5vcc_storage::mojom::H5vccStorage>(
       base::BindRepeating(&h5vcc_storage::H5vccStorageImpl::Create));
