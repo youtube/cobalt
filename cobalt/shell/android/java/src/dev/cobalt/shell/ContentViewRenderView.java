@@ -38,28 +38,11 @@ public class ContentViewRenderView extends FrameLayout {
 
     protected SurfaceBridge mSurfaceBridge;
     protected WebContents mWebContents;
-    private boolean mIsOverlayVideoModeActive = false;
-    private boolean mUseWindowSurface = false;
+    private final boolean mUseWindowSurface;
     private SurfaceHolder mExternalSurfaceHolder;
-    private SurfaceHolder.Callback mSurfaceCallback;
 
     private int mWidth;
     private int mHeight;
-
-    public void setExternalSurfaceHolder(SurfaceHolder holder) {
-        mExternalSurfaceHolder = holder;
-    }
-
-    public SurfaceHolder.Callback getSurfaceCallback() {
-        return mSurfaceCallback;
-    }
-
-    public SurfaceHolder getSurfaceHolder() {
-        if (mExternalSurfaceHolder != null) {
-            return mExternalSurfaceHolder;
-        }
-        return getSurfaceView() != null ? getSurfaceView().getHolder() : null;
-    }
 
     /**
      * Constructs a new ContentViewRenderView.
@@ -71,10 +54,9 @@ public class ContentViewRenderView extends FrameLayout {
     public ContentViewRenderView(Context context) {
         super(context);
         mUseWindowSurface = CommandLine.getInstance().hasSwitch("enable-window-surface-ui");
-        Log.i(TAG, "ContentViewRenderView constructor, mUseWindowSurface=" + mUseWindowSurface);
-
         mSurfaceBridge = createSurfaceBridge();
         mSurfaceBridge.initialize(this);
+        Log.i(TAG, "ContentViewRenderView created, mUseWindowSurface=" + mUseWindowSurface);
     }
 
     protected SurfaceBridge createSurfaceBridge() {
@@ -87,14 +69,14 @@ public class ContentViewRenderView extends FrameLayout {
      * @param rootWindow The {@link WindowAndroid} this render view should be linked to.
      */
     public void onNativeLibraryLoaded(WindowAndroid rootWindow) {
-        assert mUseWindowSurface || getSurfaceHolder() == null || !getSurfaceHolder().getSurface().isValid()
+        assert getSurfaceView() == null || !getSurfaceView().getHolder().getSurface().isValid()
             : "Surface created before native library loaded.";
         assert rootWindow != null;
         mNativeContentViewRenderView =
                 ContentViewRenderViewJni.get().init(ContentViewRenderView.this, rootWindow);
         assert mNativeContentViewRenderView != 0;
         mWindowAndroid = rootWindow;
-        mSurfaceCallback = new SurfaceHolder.Callback() {
+        SurfaceHolder.Callback surfaceCallback = new SurfaceHolder.Callback() {
             @Override
             public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
                 assert mNativeContentViewRenderView != 0;
@@ -112,10 +94,7 @@ public class ContentViewRenderView extends FrameLayout {
 
             @Override
             public void surfaceCreated(SurfaceHolder holder) {
-                if (mUseWindowSurface) {
-                    int format = mIsOverlayVideoModeActive ? PixelFormat.TRANSLUCENT : PixelFormat.OPAQUE;
-                    holder.setFormat(format);
-                }
+                mExternalSurfaceHolder = holder;
                 assert mNativeContentViewRenderView != 0;
                 ContentViewRenderViewJni.get().surfaceCreated(
                         mNativeContentViewRenderView, ContentViewRenderView.this);
@@ -134,30 +113,13 @@ public class ContentViewRenderView extends FrameLayout {
 
             @Override
             public void surfaceDestroyed(SurfaceHolder holder) {
+                mExternalSurfaceHolder = null;
                 assert mNativeContentViewRenderView != 0;
                 ContentViewRenderViewJni.get().surfaceDestroyed(
                         mNativeContentViewRenderView, ContentViewRenderView.this);
             }
         };
-        if (mUseWindowSurface) {
-            maybeReplaySurfaceCallbacks();
-            return;
-        }
-        mSurfaceBridge.connect(mSurfaceCallback);
-    }
-
-    private void maybeReplaySurfaceCallbacks() {
-        SurfaceHolder holder = getSurfaceHolder();
-        if (holder == null || holder.getSurface() == null || !holder.getSurface().isValid()) {
-            return;
-        }
-        mSurfaceCallback.surfaceCreated(holder);
-
-        android.graphics.Rect frame = holder.getSurfaceFrame();
-        if (frame == null) {
-            return;
-        }
-        mSurfaceCallback.surfaceChanged(holder, 0, frame.width(), frame.height());
+        mSurfaceBridge.connect(surfaceCallback);
     }
 
     @Override
@@ -202,14 +164,33 @@ public class ContentViewRenderView extends FrameLayout {
         return mSurfaceBridge.getSurfaceView();
     }
 
+    public boolean isUsingWindowSurface() {
+        return mUseWindowSurface;
+    }
+
+    public SurfaceHolder.Callback getSurfaceCallback() {
+        return mSurfaceBridge.getSurfaceCallback();
+    }
+
+    public SurfaceHolder getSurfaceHolder() {
+        if (mExternalSurfaceHolder != null) {
+            return mExternalSurfaceHolder;
+        }
+
+        SurfaceView surfaceView = getSurfaceView();
+        if (surfaceView != null) {
+            return surfaceView.getHolder();
+        }
+
+        return null;
+    }
+
     /**
      * Should be called when the ContentViewRenderView is not needed anymore so its associated
      * native resource can be freed.
      */
     public void destroy() {
-        if (!mUseWindowSurface) {
-            mSurfaceBridge.disconnect();
-        }
+        mSurfaceBridge.disconnect();
         mWindowAndroid = null;
         ContentViewRenderViewJni.get().destroy(
                 mNativeContentViewRenderView, ContentViewRenderView.this);
@@ -247,19 +228,10 @@ public class ContentViewRenderView extends FrameLayout {
     }
 
     /**
-     * @return whether the surface view is initialized and ready to render.
-     */
-    public boolean isInitialized() {
-        SurfaceHolder holder = getSurfaceHolder();
-        return holder != null && holder.getSurface() != null;
-    }
-
-    /**
      * Enter or leave overlay video mode.
      * @param enabled Whether overlay mode is enabled.
      */
     public void setOverlayVideoMode(boolean enabled) {
-        mIsOverlayVideoModeActive = enabled;
         int format = enabled ? PixelFormat.TRANSLUCENT : PixelFormat.OPAQUE;
         SurfaceHolder holder = getSurfaceHolder();
         if (holder != null) {
@@ -275,9 +247,6 @@ public class ContentViewRenderView extends FrameLayout {
             post(new Runnable() {
                 @Override
                 public void run() {
-                    if (getSurfaceView() == null) {
-                        return;
-                    }
                     getSurfaceView().setBackgroundResource(0);
                 }
             });
@@ -295,10 +264,19 @@ public class ContentViewRenderView extends FrameLayout {
             return mSurfaceView;
         }
 
+        protected SurfaceHolder.Callback getSurfaceCallback() {
+            return mSurfaceCallback;
+        }
+
         protected void initialize(ContentViewRenderView renderView) {
             if (renderView.mUseWindowSurface) {
                 return;
             }
+
+            initializeSurfaceView(renderView);
+        }
+
+        private void initializeSurfaceView(ContentViewRenderView renderView) {
             mSurfaceView = renderView.createSurfaceView(renderView.getContext());
             mSurfaceView.setZOrderMediaOverlay(true);
 

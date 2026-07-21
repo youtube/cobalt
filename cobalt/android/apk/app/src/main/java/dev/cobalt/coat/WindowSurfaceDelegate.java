@@ -17,11 +17,9 @@ package dev.cobalt.coat;
 import static dev.cobalt.util.Log.TAG;
 
 import android.view.SurfaceHolder;
-import android.view.Window;
 import dev.cobalt.shell.ContentViewRenderView;
 import dev.cobalt.shell.ShellManager;
 import dev.cobalt.util.Log;
-import org.chromium.base.CommandLine;
 
 /**
  * Handles the window surface lifecycle when rendering UI directly to the window surface.
@@ -42,40 +40,22 @@ import org.chromium.base.CommandLine;
  * the main/UI thread.
  */
 public class WindowSurfaceDelegate implements SurfaceHolder.Callback2 {
-  private final Window mWindow;
   private final ShellManager mShellManager;
-  private final boolean mIsEnabled;
 
-  public WindowSurfaceDelegate(Window window, ShellManager shellManager) {
-    mWindow = window;
+  public WindowSurfaceDelegate(ShellManager shellManager) {
     mShellManager = shellManager;
-    mIsEnabled = CommandLine.getInstance().hasSwitch("enable-window-surface-ui");
   }
 
-  public boolean isEnabled() {
-    return mIsEnabled;
-  }
-
-  public void initialize() {
-    if (mIsEnabled) {
-      Log.i(TAG, "WindowSurfaceDelegate: Enabling window surface mode for UI, taking surface.");
-      mWindow.takeSurface(this);
-    }
-  }
-
-  private ContentViewRenderView getRenderView() {
-    return mShellManager != null ? mShellManager.getContentViewRenderView() : null;
+  private SurfaceHolder.Callback getSurfaceCallback() {
+    ContentViewRenderView renderView =
+        mShellManager != null ? mShellManager.getContentViewRenderView() : null;
+    return renderView != null ? renderView.getSurfaceCallback() : null;
   }
 
   @Override
   public void surfaceCreated(SurfaceHolder holder) {
-    Log.i(TAG, "WindowSurfaceDelegate: surfaceCreated called");
-    ContentViewRenderView renderView = getRenderView();
-    if (renderView == null) {
-      return;
-    }
-    renderView.setExternalSurfaceHolder(holder);
-    SurfaceHolder.Callback callback = renderView.getSurfaceCallback();
+    Log.d(TAG, "WindowSurfaceDelegate: surfaceCreated");
+    SurfaceHolder.Callback callback = getSurfaceCallback();
     if (callback == null) {
       return;
     }
@@ -84,12 +64,8 @@ public class WindowSurfaceDelegate implements SurfaceHolder.Callback2 {
 
   @Override
   public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-    Log.i(TAG, "WindowSurfaceDelegate: surfaceChanged called");
-    ContentViewRenderView renderView = getRenderView();
-    if (renderView == null) {
-      return;
-    }
-    SurfaceHolder.Callback callback = renderView.getSurfaceCallback();
+    Log.d(TAG, "WindowSurfaceDelegate: surfaceChanged format=%d %dx%d", format, width, height);
+    SurfaceHolder.Callback callback = getSurfaceCallback();
     if (callback == null) {
       return;
     }
@@ -98,27 +74,18 @@ public class WindowSurfaceDelegate implements SurfaceHolder.Callback2 {
 
   @Override
   public void surfaceDestroyed(SurfaceHolder holder) {
-    Log.i(TAG, "WindowSurfaceDelegate: surfaceDestroyed called");
-    ContentViewRenderView renderView = getRenderView();
-    if (renderView == null) {
-      return;
-    }
-    SurfaceHolder.Callback callback = renderView.getSurfaceCallback();
+    Log.d(TAG, "WindowSurfaceDelegate: surfaceDestroyed");
+    SurfaceHolder.Callback callback = getSurfaceCallback();
     if (callback == null) {
       return;
     }
     callback.surfaceDestroyed(holder);
-    renderView.setExternalSurfaceHolder(null);
   }
 
   @Override
   public void surfaceRedrawNeeded(SurfaceHolder holder) {
-    Log.i(TAG, "WindowSurfaceDelegate: surfaceRedrawNeeded called");
-    ContentViewRenderView renderView = getRenderView();
-    if (renderView == null) {
-      return;
-    }
-    SurfaceHolder.Callback callback = renderView.getSurfaceCallback();
+    Log.d(TAG, "WindowSurfaceDelegate: surfaceRedrawNeeded");
+    SurfaceHolder.Callback callback = getSurfaceCallback();
     if (!(callback instanceof SurfaceHolder.Callback2)) {
       return;
     }

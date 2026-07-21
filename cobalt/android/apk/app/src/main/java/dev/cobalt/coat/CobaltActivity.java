@@ -43,7 +43,6 @@ import dev.cobalt.coat.javabridge.HTMLMediaElementExtension;
 import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
-import dev.cobalt.shell.ContentViewRenderView;
 import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
 import dev.cobalt.shell.ShellManagerJni;
@@ -56,6 +55,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import org.chromium.base.CommandLine;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
@@ -235,17 +235,19 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
             /* trackOcclusion= */ false);
     mIntentRequestTracker.restoreInstanceState(savedInstanceState);
     mShellManager.setWindow(mWindowAndroid);
-    mWindowSurfaceDelegate = new WindowSurfaceDelegate(getWindow(), mShellManager);
-    mWindowSurfaceDelegate.initialize();
+    if (mShellManager.getContentViewRenderView().isUsingWindowSurface()) {
+      Log.i(TAG, "Enabling window surface mode for UI, taking surface.");
+      mWindowSurfaceDelegate = new WindowSurfaceDelegate(mShellManager);
+      getWindow().takeSurface(mWindowSurfaceDelegate);
+    }
     // Set up the animation placeholder to be the SurfaceView. This disables the
     // SurfaceView's 'hole' clipping during animations that are notified to the window.
-    ContentViewRenderView renderView = mShellManager.getContentViewRenderView();
-    View placeholderView = renderView.getSurfaceView();
-    if (mWindowSurfaceDelegate.isEnabled() || placeholderView == null) {
-      placeholderView = renderView;
-    }
-    mWindowAndroid.setAnimationPlaceholderView(placeholderView);
-    mA11yHelper = new CobaltA11yHelper(this, placeholderView);
+    mWindowAndroid.setAnimationPlaceholderView(
+        mShellManager.getContentViewRenderView().getSurfaceView());
+    View surfaceView = mShellManager.getContentViewRenderView().getSurfaceView();
+    mA11yHelper =
+        new CobaltA11yHelper(
+            this, surfaceView != null ? surfaceView : mShellManager.getContentViewRenderView());
 
     if (mStartupUrl == null || mStartupUrl.isEmpty()) {
       String[] args = getStarboardBridge().getArgs();
