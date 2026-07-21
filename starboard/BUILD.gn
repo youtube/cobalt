@@ -261,6 +261,9 @@ if (current_toolchain == starboard_toolchain) {
     if (sb_filter_based_player) {
       deps += [ "//starboard/shared/starboard/player/filter/testing:player_filter_tests" ]
     }
+    if (use_evergreen) {
+      deps += [ "//starboard/crashpad_wrapper:crashpad_wrapper_test" ]
+    }
     if (is_starboard) {
       deps += [
         "//starboard/elf_loader:elf_loader_test",
