@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source_set("bundle_data") {
+source_set("plist_info") {
   sources = [
-    "bundle_data.h",
-    "bundle_data.mm",
+    "plist_info.h",
+    "plist_info.mm",
   ]
   deps = [ "//base" ]
   frameworks = [ "Foundation.framework" ]
@@ -28,7 +28,7 @@ source_set("deep_link_support_tvos") {
   ]
 
   deps = [
-    ":bundle_data",
+    ":plist_info",
     "//base",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
   ]

@@ -19,7 +19,7 @@
 #include "base/strings/strcat.h"
 #include "base/strings/sys_string_conversions.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
-#include "cobalt/browser/tvos/bundle_data.h"
+#include "cobalt/browser/tvos/plist_info.h"
 
 @implementation DeepLinkSupportTvos
 

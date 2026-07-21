@@ -29,7 +29,7 @@
 #include "cobalt/app/cobalt_main_delegate.h"
 #include "cobalt/app/cobalt_switch_defaults.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
-#include "cobalt/browser/tvos/bundle_data.h"
+#include "cobalt/browser/tvos/plist_info.h"
 #include "cobalt/shell/browser/shell.h"
 #include "components/crash/core/app/crashpad.h"
 #include "content/public/app/content_main.h"
