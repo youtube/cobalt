@@ -31,6 +31,7 @@
 
 #if BUILDFLAG(IS_POSIX)
 #include <sys/stat.h>
+#include <unistd.h>
 #endif  // BUILDFLAG(IS_POSIX)
 
 namespace storage {
@@ -388,6 +389,10 @@ TEST_F(LocalFileUtilTest, MoveDirectory) {
 // Chromium's base namespace.
 #if BUILDFLAG(IS_POSIX)
 TEST_F(LocalFileUtilTest, FileEnumeratorError) {
+  if (geteuid() == 0) {
+    GTEST_SKIP() << "Test is not meaningful when run as root.";
+  }
+
   const char* dir_name = "file_enumerator_error_dir";
   FileSystemURL dir_url = CreateURL(dir_name);
   std::string dir_path = LocalPath(dir_name).AsUTF8Unsafe();
