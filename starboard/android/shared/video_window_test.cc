@@ -14,9 +14,10 @@
 
 #include "starboard/android/shared/video_window.h"
 
+#include <unistd.h>
+
 #include <chrono>
 #include <memory>
-#include <thread>
 
 #include "starboard/android/shared/fake_media_codec.h"
 #include "starboard/android/shared/media_codec_video_decoder.h"
@@ -143,7 +144,7 @@ TEST_F(VideoDecoderSurfaceTest,
   // which is necessary to trigger the deadlock on the unpatched code.
   job_thread->Schedule([&decoder]() {
     SB_LOG(INFO) << "Decoder thread: Waiting before destroying...";
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    usleep(100'000);
     SB_LOG(INFO) << "Decoder thread: Destroying decoder...";
     decoder.reset();
     SB_LOG(INFO) << "Decoder thread: Decoder destroyed.";
