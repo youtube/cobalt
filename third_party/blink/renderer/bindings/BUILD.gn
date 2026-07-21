@@ -273,7 +273,7 @@ generate_bindings("generate_bindings_all") {
       generated_union_sources_in_core + generated_union_sources_in_modules +
       generated_union_sources_for_testing_in_core
 
-  if (!use_webrtc_peer_connection) {
+  if (cobalt_bindings_exclude_patterns != []) {
     _filtered_outputs =
         filter_exclude(outputs, cobalt_bindings_exclude_patterns)
     outputs = []
@@ -411,7 +411,7 @@ action_with_pydeps("check_generated_file_list") {
   ]
   file_list += generated_union_sources_for_testing_in_core
 
-  if (!use_webrtc_peer_connection) {
+  if (cobalt_bindings_exclude_patterns != []) {
     _filtered_file_list =
         filter_exclude(file_list, cobalt_bindings_exclude_patterns)
     file_list = []

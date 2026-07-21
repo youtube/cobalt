@@ -263,9 +263,14 @@ bindings_unittest_files = get_path_info(
         ],
         "abspath")
 
+cobalt_bindings_exclude_patterns = []
+cobalt_hardware_exclude_patterns = []
+cobalt_webgpu_exclude_patterns = []
+cobalt_ai_exclude_patterns = []
+
 if (is_cobalt) {
   # Exclusion patterns used in Cobalt builds to omit interfaces.
-  cobalt_bindings_exclude_patterns = [
+  cobalt_bindings_exclude_patterns += [
     "*_rtc_*",
     "*v8_rtc_*",
     "*peer_connection*",
@@ -273,7 +278,7 @@ if (is_cobalt) {
     "*v8_union_mediastreamtrack_string*",
   ]
     
-  cobalt_hardware_exclude_patterns = [
+  cobalt_hardware_exclude_patterns += [
     "*v8_bluetooth*",
     "*v8_hid.*",
     "*v8_hid_*",
@@ -287,7 +292,7 @@ if (is_cobalt) {
     "*v8_watch_advertisements_options*",
   ]
 
-  cobalt_webgpu_exclude_patterns = [
+  cobalt_webgpu_exclude_patterns += [
     "*v8_canvas_2d_gpu_*",
     "*v8_gpu.*",
     "*v8_gpu_*",
@@ -298,7 +303,7 @@ if (is_cobalt) {
     "*v8_union_*gpu*",
   ]
 
-  cobalt_ai_exclude_patterns = [
+  cobalt_ai_exclude_patterns += [
     "*v8_rewriter*",
     "*v8_translator*",
     "*v8_writer*",
@@ -308,24 +313,24 @@ if (is_cobalt) {
     "*v8_create_monitor*",
     "*v8_language_detector*",
   ]
+}
 
-  if (!enable_privacy_sandbox_apis) {
-    cobalt_bindings_exclude_patterns += [
-      "*shared_storage*",
-      "*browsing_topic*",
-      "*v8_private_aggregation*",
-      "*private_attribution*",
-      "*storage_access*",
-      "*ad_auction*",
-      "*navigator_auction*",
-      "*protected_audience*",
-      "*interest_group*",
-      "*auction*",
-      "*v8_ads*",
-      "*fencedframeconfig*",
-      "*adproperties*",
-      "*v8_ad_*",
-      "*view_or_click_counts*",
-    ]
-  }
+if (!enable_privacy_sandbox_apis) {
+  cobalt_bindings_exclude_patterns += [
+    "*shared_storage*",
+    "*browsing_topic*",
+    "*v8_private_aggregation*",
+    "*private_attribution*",
+    "*storage_access*",
+    "*ad_auction*",
+    "*navigator_auction*",
+    "*protected_audience*",
+    "*interest_group*",
+    "*auction*",
+    "*v8_ads*",
+    "*fencedframeconfig*",
+    "*adproperties*",
+    "*v8_ad_*",
+    "*view_or_click_counts*",
+  ]
 }

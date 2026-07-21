@@ -32,7 +32,7 @@ blink_modules_sources("v8") {
     sources = _hardware_filtered
   }
 
-  if (!use_webrtc_peer_connection) {
+  if (cobalt_bindings_exclude_patterns != []) {
     _rtc_filtered =
         filter_exclude(sources, cobalt_bindings_exclude_patterns)
     sources = []
@@ -70,7 +70,7 @@ source_set("testing") {
             generated_interface_sources_for_testing_in_modules +
             generated_interface_extra_sources_for_testing_in_modules
 
-  if (!use_webrtc_peer_connection) {
+  if (cobalt_bindings_exclude_patterns != []) {
     _filtered_sources =
         filter_exclude(sources, cobalt_bindings_exclude_patterns)
     sources = []
