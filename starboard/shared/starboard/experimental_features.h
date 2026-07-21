@@ -167,9 +167,6 @@ inline constexpr ExperimentalFeatureKey<bool>
 inline constexpr ExperimentalFeatureKey<bool> kMediaEnableFlushDuringSeek(
     "Media.EnableFlushDuringSeek");
 
-inline constexpr ExperimentalFeatureKey<bool> kMediaEnableLowLatency(
-    "Media.EnableLowLatency");
-
 inline constexpr ExperimentalFeatureKey<bool> kMediaEnableResetAudioDecoder(
     "Media.EnableResetAudioDecoder");
 

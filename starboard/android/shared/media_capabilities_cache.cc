@@ -29,6 +29,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
+#include "starboard/common/string.h"
 #include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/key_system_supportability_cache.h"
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
@@ -53,14 +54,6 @@ const jint HDR_TYPE_HLG = 3;
 const jint HDR_TYPE_HDR10_PLUS = 4;
 
 const char SECURE_DECODER_SUFFIX[] = ".secure";
-
-bool EndsWith(const std::string& str, const std::string& suffix) {
-  if (str.size() < suffix.size()) {
-    return false;
-  }
-  return strcmp(str.c_str() + (str.size() - suffix.size()), suffix.c_str()) ==
-         0;
-}
 
 Range ConvertJavaRangeToRange(JNIEnv* env, jobject j_range) {
   const auto j_range_ref = JavaParamRef<jobject>(env, j_range);
