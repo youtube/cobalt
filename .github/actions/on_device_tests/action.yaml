@@ -99,20 +99,19 @@ runs:
     - name: Download ${{ matrix.platform }} Test Results
       if: always() && env.TEST_TYPE == 'unit_test'
       run: |
-        # Don't break on error (-e), some commands are expected to fail.
-        set -ux
-        set +e
+        # Exit on error, we will handle expected failures manually.
+        set -uxe
 
         COBALT_LOGS_DIR="${GITHUB_WORKSPACE}/cobalt_logs"
         UNIT_TEST_RESULT_PATH="${GITHUB_WORKSPACE}/unit-test-results"
         COBALT_XMLS_FILENAME="cobalt_xmls.zip"
+        TEST_RESULTS_DIR="${GITHUB_WORKSPACE}/test_results"
 
         # Forward environment variables for uploading artifacts in later steps.
-        echo "UNIT_TEST_RESULT_PATH=${UNIT_TEST_RESULT_PATH}" >> $GITHUB_ENV
-        echo "COBALT_LOGS_DIR=${COBALT_LOGS_DIR}" >> $GITHUB_ENV
+        echo "UNIT_TEST_RESULT_PATH=${UNIT_TEST_RESULT_PATH}" >> "$GITHUB_ENV"
+        echo "COBALT_LOGS_DIR=${COBALT_LOGS_DIR}" >> "$GITHUB_ENV"
 
-        mkdir -p "${GITHUB_WORKSPACE}/test_results"
-        cd "${GITHUB_WORKSPACE}/test_results"
+        mkdir -p "${TEST_RESULTS_DIR}"
 
         # The log files are named by the device lab test driver.
         COBALT_ERROR_LOG_FILENAME="webDriverTestLog.ERROR"
@@ -124,12 +123,18 @@ runs:
           # The results are uploaded after the test has completed.
           sleep 10
 
-          gsutil cp "${GCS_RESULTS_PATH}/${COBALT_ERROR_LOG_FILENAME}" .
-          gsutil cp "${GCS_RESULTS_PATH}/${COBALT_INFO_LOG_FILENAME}" .
-          gsutil cp "${GCS_RESULTS_PATH}/${COBALT_XMLS_FILENAME}" .
+          if [ ! -f "${TEST_RESULTS_DIR}/${COBALT_ERROR_LOG_FILENAME}" ]; then
+            gsutil cp "${GCS_RESULTS_PATH}/${COBALT_ERROR_LOG_FILENAME}" "${TEST_RESULTS_DIR}/" || true
+          fi
+          if [ ! -f "${TEST_RESULTS_DIR}/${COBALT_INFO_LOG_FILENAME}" ]; then
+            gsutil cp "${GCS_RESULTS_PATH}/${COBALT_INFO_LOG_FILENAME}" "${TEST_RESULTS_DIR}/" || true
+          fi
+          if [ ! -f "${TEST_RESULTS_DIR}/${COBALT_XMLS_FILENAME}" ]; then
+            gsutil cp "${GCS_RESULTS_PATH}/${COBALT_XMLS_FILENAME}" "${TEST_RESULTS_DIR}/" || true
+          fi
 
-          # Break if all files were downloaded.
-          if [[ -f "${COBALT_XMLS_FILENAME}" && -f "${COBALT_ERROR_LOG_FILENAME}" && -f "${COBALT_INFO_LOG_FILENAME}" ]]; then
+          # If the XML results were successfully downloaded, we can stop waiting.
+          if [ -f "${TEST_RESULTS_DIR}/${COBALT_XMLS_FILENAME}" ]; then
             break
           fi
 
@@ -138,23 +143,23 @@ runs:
 
         # Rename log files for archiving if they were downloaded.
         mkdir -p "${COBALT_LOGS_DIR}/${{ matrix.platform }}/"
-        if [ -f "${COBALT_ERROR_LOG_FILENAME}" ]; then
-          cp "${COBALT_ERROR_LOG_FILENAME}" "${COBALT_LOGS_DIR}/${{ matrix.platform }}/stderr_${{ matrix.shard }}.log"
+        if [ -f "${TEST_RESULTS_DIR}/${COBALT_ERROR_LOG_FILENAME}" ]; then
+          cp "${TEST_RESULTS_DIR}/${COBALT_ERROR_LOG_FILENAME}" "${COBALT_LOGS_DIR}/${{ matrix.platform }}/stderr_${{ matrix.shard }}.log"
         fi
-        if [ -f "${COBALT_INFO_LOG_FILENAME}" ]; then
-          cp "${COBALT_INFO_LOG_FILENAME}" "${COBALT_LOGS_DIR}/${{ matrix.platform }}/stdout_${{ matrix.shard }}.log"
+        if [ -f "${TEST_RESULTS_DIR}/${COBALT_INFO_LOG_FILENAME}" ]; then
+          cp "${TEST_RESULTS_DIR}/${COBALT_INFO_LOG_FILENAME}" "${COBALT_LOGS_DIR}/${{ matrix.platform }}/stdout_${{ matrix.shard }}.log"
         fi
 
         # Prepare unit test results for DataDog upload.
-        RESULT_PATH=${UNIT_TEST_RESULT_PATH}/${{ matrix.platform }}/${{ matrix.shard }}/
-        mkdir -p ${RESULT_PATH}
+        RESULT_PATH="${UNIT_TEST_RESULT_PATH}/${{ matrix.platform }}/${{ matrix.shard }}/"
+        mkdir -p "${RESULT_PATH}"
 
         # Set tags for test differentiation.
         tags="os.platform:${{ matrix.platform }}"
-        echo $tags > ${UNIT_TEST_RESULT_PATH}/${{ matrix.platform }}/TAGS
+        echo "$tags" > "${UNIT_TEST_RESULT_PATH}/${{ matrix.platform }}/TAGS"
 
-        if [ -f "${COBALT_XMLS_FILENAME}" ]; then
-          unzip ${COBALT_XMLS_FILENAME} -d ${RESULT_PATH}
+        if [ -f "${TEST_RESULTS_DIR}/${COBALT_XMLS_FILENAME}" ]; then
+          unzip "${TEST_RESULTS_DIR}/${COBALT_XMLS_FILENAME}" -d "${RESULT_PATH}"
         else
           echo "::error::cobalt_xmls.zip not found. Tests probably failed to run or crashed."
           exit 1
