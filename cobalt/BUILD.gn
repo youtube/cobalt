@@ -135,6 +135,8 @@ if (is_ios && target_platform == "tvos") {
 
     configs -= [ "//build/config/compiler:thin_archive" ]
 
+    sources = [ "app/tvos/main.mm" ]
+
     deps = [
       ":common",
       "//base",
