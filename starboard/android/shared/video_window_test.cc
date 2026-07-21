@@ -23,6 +23,7 @@
 #include "starboard/android/shared/video_surface_texture_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/common/thread.h"
+#include "starboard/common/time.h"
 #include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 #include "starboard/testing/scoped_feature_list.h"
@@ -35,27 +36,30 @@ namespace {
 class VideoDecoderSurfaceTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    scoped_feature_list_.InitAndEnableFeature(
-        features::kEnableSurfaceDestroyNotifier);
-    env_ = jni_zero::AttachCurrentThread();
-
-    real_surface_ = VideoSurfaceTextureBridge::CreateSurfaceForTesting(env_);
+    JNIEnv* env = jni_zero::AttachCurrentThread();
+    real_surface_ = VideoSurfaceTextureBridge::CreateSurfaceForTesting(env);
     ASSERT_TRUE(real_surface_);
   }
 
   void TearDown() override {
     // Clean up global surface state
-    starboard::SetVideoSurfaceForTesting(env_, nullptr);
+    JNIEnv* env = jni_zero::AttachCurrentThread();
+    starboard::SetVideoSurfaceForTesting(env, nullptr);
   }
 
-  starboard::testing::ScopedFeatureList scoped_feature_list_;
-  JNIEnv* env_ = nullptr;
+  starboard::features::ScopedFeatureList scoped_feature_list_;
   jni_zero::ScopedJavaGlobalRef<jobject> real_surface_;
 };
 
-TEST_F(VideoDecoderSurfaceTest, TeardownDuringSurfaceDestroyReleasesSurface) {
+TEST_F(VideoDecoderSurfaceTest,
+       TeardownDuringSurfaceDestroyReleasesSurface_FeatureEnabled) {
+  scoped_feature_list_.InitAndEnableFeature(
+      features::kEnableSurfaceDestroyNotifier);
+
+  JNIEnv* env = jni_zero::AttachCurrentThread();
+
   // 1. Set the global video surface so the decoder can acquire it.
-  starboard::SetVideoSurfaceForTesting(env_, real_surface_.obj());
+  starboard::SetVideoSurfaceForTesting(env, real_surface_);
 
   // 2. Create JobThread for the decoder.
   std::unique_ptr<JobThread> job_thread = JobThread::Create("decoder_thread");
@@ -122,6 +126,7 @@ TEST_F(VideoDecoderSurfaceTest, TeardownDuringSurfaceDestroyReleasesSurface) {
       starboard::SetVideoSurfaceForTesting(env, nullptr);
       SB_LOG(INFO) << "JNI thread: OnVideoSurfaceChanged returned.";
       done_ = true;
+      jni_zero::DetachFromVM();
     }
     std::atomic<bool>& done_;
   };
@@ -152,6 +157,95 @@ TEST_F(VideoDecoderSurfaceTest, TeardownDuringSurfaceDestroyReleasesSurface) {
   job_thread->Stop();
   job_thread.reset();
   SB_LOG(INFO) << "Job thread stopped.";
+
+  EXPECT_TRUE(jni_thread_done);
+}
+
+TEST_F(VideoDecoderSurfaceTest, LegacyTeardown_FeatureDisabled) {
+  scoped_feature_list_.InitAndDisableFeature(
+      features::kEnableSurfaceDestroyNotifier);
+
+  JNIEnv* env = jni_zero::AttachCurrentThread();
+
+  // 1. Set the global video surface so the decoder can acquire it.
+  starboard::SetVideoSurfaceForTesting(env, real_surface_);
+
+  // 2. Create JobThread for the decoder.
+  std::unique_ptr<JobThread> job_thread = JobThread::Create("decoder_thread");
+  ASSERT_NE(job_thread, nullptr);
+
+  MediaCodecVideoDecoder::StreamConfig stream_config{
+      []() {
+        VideoStreamInfo info;
+        info.codec = kSbMediaVideoCodecH264;
+        info.frame_size = {1920, 1080};
+        return info;
+      }(),
+      /*drm_system=*/kSbDrmSystemInvalid,
+      kSbPlayerOutputModePunchOut,
+      /*decode_target_graphics_context_provider=*/nullptr,
+      /*surface_view=*/nullptr,
+      /*max_video_capabilities=*/""};
+
+  MediaCodecVideoDecoder::TunnelModeConfig tunnel_config;
+  MediaCodecVideoDecoder::PipelineConfig pipeline_config;
+  MediaCodecVideoDecoder::PlatformOptions platform_options;
+
+  auto factory = std::make_unique<FakeMediaCodecFactory>();
+
+  std::unique_ptr<MediaCodecVideoDecoder> decoder;
+  std::mutex init_mutex;
+  std::condition_variable init_cv;
+  bool init_done = false;
+  bool init_success = false;
+
+  job_thread->Schedule([&]() {
+    auto result = MediaCodecVideoDecoder::CreateForTesting(
+        std::move(factory), job_thread->job_queue(), stream_config,
+        tunnel_config, pipeline_config, platform_options);
+    std::lock_guard lock(init_mutex);
+    if (result) {
+      decoder = std::move(result.value());
+      init_success = true;
+    }
+    init_done = true;
+    init_cv.notify_all();
+  });
+
+  {
+    std::unique_lock lock(init_mutex);
+    init_cv.wait(lock, [&] { return init_done; });
+  }
+  ASSERT_TRUE(init_success);
+  ASSERT_NE(decoder, nullptr);
+
+  std::atomic<bool> jni_thread_done{false};
+
+  struct JniSimThread : public starboard::Thread {
+    explicit JniSimThread(std::atomic<bool>& done)
+        : Thread("JniSimThread"), done_(done) {}
+    void Run() override {
+      JNIEnv* env = jni_zero::AttachCurrentThread();
+      SB_LOG(INFO) << "JNI thread: Calling OnVideoSurfaceChanged(nullptr)...";
+      starboard::SetVideoSurfaceForTesting(env, nullptr);
+      SB_LOG(INFO) << "JNI thread: OnVideoSurfaceChanged returned.";
+      done_ = true;
+      jni_zero::DetachFromVM();
+    }
+    std::atomic<bool>& done_;
+  };
+
+  JniSimThread jni_sim_thread(jni_thread_done);
+  jni_sim_thread.Start();
+
+  jni_sim_thread.Join();
+
+  std::shared_ptr<MediaCodecVideoDecoder> shared_decoder = std::move(decoder);
+  job_thread->Schedule([shared_decoder]() mutable { shared_decoder.reset(); });
+  shared_decoder.reset();
+
+  job_thread->Stop();
+  job_thread.reset();
 
   EXPECT_TRUE(jni_thread_done);
 }

@@ -24,6 +24,12 @@
 #include <functional>
 #include <limits>
 #include <list>
+#include <memory>
+#include <mutex>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "build/build_config.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
@@ -797,7 +803,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       } else {
         AcquiredSurface acquired_surface = AcquireVideoSurface(job_queue());
         surface_destroy_notifier_ = acquired_surface.destroy_notifier;
-        j_output_surface = acquired_surface.surface;
+        j_output_surface = acquired_surface.surface.AsLocalRef(env);
       }
       if (j_output_surface) {
         owns_video_surface_ = true;
@@ -1155,6 +1161,7 @@ void MediaCodecVideoDecoder::OnSurfaceDestroyed() {
   if (surface_destroy_notifier_) {
     // When using SurfaceDestroyNotifier, OnSurfaceDestroyed() is always invoked
     // on the decoder thread via NotifyDestroyed().
+    SB_CHECK(BelongsToCurrentThread());
     owns_video_surface_ = false;
     TeardownCodec();
     return;

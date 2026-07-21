@@ -34,7 +34,7 @@ class VideoSurfaceHolder {
  public:
   struct AcquiredSurface {
     scoped_refptr<SurfaceDestroyNotifier> destroy_notifier;
-    jni_zero::ScopedJavaLocalRef<jobject> surface;
+    jni_zero::ScopedJavaGlobalRef<jobject> surface;
   };
 
   // Return true only if the video surface is available.
@@ -46,8 +46,7 @@ class VideoSurfaceHolder {
   // ClearVideoWindow() in this function may cause dead lock.
   virtual void OnSurfaceDestroyed() = 0;
 
- protected:
-  ~VideoSurfaceHolder() {}
+  virtual ~VideoSurfaceHolder();
 
   // Returns the surface to which video should be rendered, along with an
   // optional SurfaceDestroyNotifier to safely handle surface destruction when
@@ -120,7 +119,8 @@ class SurfaceDestroyNotifier
 };
 
 // Set the global video surface. Exposed for unit testing.
-void SetVideoSurfaceForTesting(JNIEnv* env, jobject surface);
+void SetVideoSurfaceForTesting(JNIEnv* env,
+                               const jni_zero::JavaRef<jobject>& surface);
 
 }  // namespace starboard
 
