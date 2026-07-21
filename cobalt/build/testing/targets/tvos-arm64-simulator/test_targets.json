@@ -4,7 +4,6 @@
   },
   {
     "target": "base:base_unittests",
-    "executable": "out/arm64-simulator_devel/bin/base_unittests",
     "runs_on": "host",
     "test_type": "gtest"
   },
