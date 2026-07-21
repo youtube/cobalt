@@ -309,6 +309,7 @@ def main():
     return
 
   if args.existing_pr_sha:
+    run(['git', 'fetch', 'origin', args.existing_pr_sha])
     commit_title = get_out(
         ['git', 'log', '-1', args.existing_pr_sha, '--format=%s']).strip()
     if commit_title.startswith('CONFLICTED'):
