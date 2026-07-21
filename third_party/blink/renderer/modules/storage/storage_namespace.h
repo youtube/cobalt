@@ -29,7 +29,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
-#include "third_party/blink/public/common/buildflags.h"
 #include "third_party/blink/public/common/dom_storage/session_storage_namespace_id.h"
 #include "third_party/blink/public/mojom/dom_storage/dom_storage.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/dom_storage/session_storage_namespace.mojom-blink.h"
@@ -50,9 +49,7 @@ namespace blink {
 
 class CachedStorageArea;
 class LocalDOMWindow;
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 class InspectorDOMStorageAgent;
-#endif
 class StorageController;
 
 // Contains DOMStorage storage areas for BlinkStorageKeys & handles inspector
@@ -107,10 +104,8 @@ class MODULES_EXPORT StorageNamespace final
 
   bool IsSessionStorage() const { return !namespace_id_.empty(); }
 
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   void AddInspectorStorageAgent(InspectorDOMStorageAgent* agent);
   void RemoveInspectorStorageAgent(InspectorDOMStorageAgent* agent);
-#endif
 
   void Trace(Visitor* visitor) const override;
 
@@ -136,9 +131,7 @@ class MODULES_EXPORT StorageNamespace final
  private:
   void EnsureConnected();
 
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   HeapHashSet<WeakMember<InspectorDOMStorageAgent>> inspector_agents_;
-#endif
 
   // Lives globally.
   raw_ptr<StorageController> controller_;

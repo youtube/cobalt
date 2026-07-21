@@ -18,10 +18,7 @@
 #include "content/browser/background_fetch/background_fetch_delegate_proxy.h"
 #include "content/browser/background_fetch/background_fetch_event_dispatcher.h"
 #include "content/browser/background_fetch/storage/get_initialization_data_task.h"
-#include "third_party/blink/public/common/buildflags.h"
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/devtools_background_services_context_impl.h"
-#endif
 #include "content/common/content_export.h"
 #include "content/public/browser/browser_thread.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"

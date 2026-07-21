@@ -14,10 +14,7 @@
 #include "base/strings/stringprintf.h"
 #include "content/browser/background_fetch/background_fetch_registration_id.h"
 #include "content/browser/background_fetch/background_fetch_registration_service_impl.h"
-#include "third_party/blink/public/common/buildflags.h"
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/devtools_background_services_context_impl.h"
-#endif
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
 #include "content/browser/service_worker/service_worker_registration.h"
 #include "content/browser/service_worker/service_worker_version.h"
@@ -29,7 +26,6 @@ namespace content {
 
 namespace {
 
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 // Returns a human-readable string for the given |event| type.
 std::string EventTypeToString(ServiceWorkerMetrics::EventType event) {
   switch (event) {
@@ -45,7 +41,6 @@ std::string EventTypeToString(ServiceWorkerMetrics::EventType event) {
       NOTREACHED();
   }
 }
-#endif
 
 }  // namespace
 
@@ -294,7 +289,6 @@ void BackgroundFetchEventDispatcher::LogBackgroundFetchCompletionForDevTools(
     ServiceWorkerMetrics::EventType event_type,
     blink::mojom::BackgroundFetchFailureReason failure_reason) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   CHECK(devtools_context_);
 
   if (!devtools_context_->IsRecording(
@@ -316,7 +310,6 @@ void BackgroundFetchEventDispatcher::LogBackgroundFetchCompletionForDevTools(
       DevToolsBackgroundService::kBackgroundFetch,
       /* event_name= */ "Background Fetch completed",
       /* instance_id= */ registration_id.developer_id(), metadata);
-#endif
 }
 
 void BackgroundFetchEventDispatcher::Shutdown() {

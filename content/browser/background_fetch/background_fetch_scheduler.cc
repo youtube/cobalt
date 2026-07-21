@@ -13,10 +13,7 @@
 #include "content/browser/background_fetch/background_fetch_job_controller.h"
 #include "content/browser/background_fetch/background_fetch_registration_notifier.h"
 #include "content/browser/background_fetch/background_fetch_registration_service_impl.h"
-#include "third_party/blink/public/common/buildflags.h"
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/devtools_background_services_context_impl.h"
-#endif
 #include "content/browser/service_worker/service_worker_context_core_observer.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
 #include "content/public/common/content_features.h"
@@ -529,7 +526,6 @@ void BackgroundFetchScheduler::LogBackgroundFetchEventForDevTools(
     const BackgroundFetchRegistrationId& registration_id,
     const BackgroundFetchRequestInfo* request_info,
     std::map<std::string, std::string> metadata) {
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   CHECK(devtools_context_);
   if (!devtools_context_->IsRecording(
           DevToolsBackgroundService::kBackgroundFetch)) {
@@ -581,7 +577,6 @@ void BackgroundFetchScheduler::LogBackgroundFetchEventForDevTools(
       registration_id.storage_key(),
       DevToolsBackgroundService::kBackgroundFetch, std::move(event_name),
       /* instance_id= */ registration_id.developer_id(), metadata);
-#endif
 }
 
 void BackgroundFetchScheduler::Shutdown() {

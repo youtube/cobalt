@@ -13,7 +13,6 @@
 #include "third_party/blink/public/common/dom_storage/session_storage_namespace_id.h"
 #include "third_party/blink/public/mojom/dom_storage/dom_storage.mojom-blink.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
-#include "third_party/blink/public/common/buildflags.h"
 #include "third_party/blink/renderer/modules/storage/storage_area.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
@@ -21,9 +20,7 @@
 namespace blink {
 
 class CachedStorageArea;
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 class InspectorDOMStorageAgent;
-#endif
 class LocalDOMWindow;
 class LocalFrame;
 class StorageNamespace;
@@ -79,10 +76,8 @@ class MODULES_EXPORT StorageController : public mojom::blink::DomStorageClient {
       mojo::PendingRemote<mojom::blink::StorageArea> local_storage_area = {},
       StorageNamespace::StorageContext context =
           StorageNamespace::StorageContext::kStandard);
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   void AddLocalStorageInspectorStorageAgent(InspectorDOMStorageAgent* agent);
   void RemoveLocalStorageInspectorStorageAgent(InspectorDOMStorageAgent* agent);
-#endif
 
   mojom::blink::DomStorage* dom_storage() const {
     return dom_storage_remote_.get();

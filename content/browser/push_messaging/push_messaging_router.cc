@@ -10,10 +10,7 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
-#include "third_party/blink/public/common/buildflags.h"
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/devtools_background_services_context_impl.h"
-#endif
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
 #include "content/browser/service_worker/service_worker_registration.h"
 #include "content/browser/storage_partition_impl.h"
@@ -35,7 +32,6 @@ using ServiceWorkerStartCallback =
                             scoped_refptr<ServiceWorkerContextWrapper>,
                             blink::ServiceWorkerStatusCode)>;
 
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 DevToolsBackgroundServicesContextImpl* GetDevTools(
     const ServiceWorkerContextWrapper& service_worker_context) {
   auto* storage_partition = service_worker_context.storage_partition();
@@ -46,7 +42,6 @@ DevToolsBackgroundServicesContextImpl* GetDevTools(
                    storage_partition->GetDevToolsBackgroundServicesContext())
              : nullptr;
 }
-#endif
 
 void RunPushEventCallback(
     PushMessagingRouter::PushEventCallback deliver_message_callback,
@@ -177,7 +172,6 @@ void PushMessagingRouter::DeliverMessageToWorker(
   service_worker->endpoint()->DispatchPushEvent(
       payload, service_worker->CreateSimpleEventCallback(request_id));
 
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   auto* devtools_context =
       GetDevTools(CHECK_DEREF(service_worker_context.get()));
   if (devtools_context && devtools_context->IsRecording(
@@ -190,7 +184,6 @@ void PushMessagingRouter::DeliverMessageToWorker(
         DevToolsBackgroundService::kPushMessaging, "Push event dispatched",
         message_id, event_metadata);
   }
-#endif
 }
 
 // static
@@ -245,7 +238,6 @@ void PushMessagingRouter::DeliverMessageEnd(
   }
   RunPushEventCallback(std::move(deliver_message_callback), push_event_status);
 
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   auto* devtools_context =
       GetDevTools(CHECK_DEREF(service_worker_context.get()));
   if (devtools_context &&
@@ -258,7 +250,6 @@ void PushMessagingRouter::DeliverMessageEnd(
         DevToolsBackgroundService::kPushMessaging, "Push event completed",
         message_id, {{"Status", status_description}});
   }
-#endif
 }
 
 // static

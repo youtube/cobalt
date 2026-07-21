@@ -19,10 +19,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/to_string.h"
 #include "base/token.h"
-#include "third_party/blink/public/common/buildflags.h"
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/devtools_background_services_context_impl.h"
-#endif
 #include "content/browser/payments/payment_app_context_impl.h"
 #include "content/browser/payments/payment_app_installer.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
@@ -54,7 +51,6 @@ using payments::mojom::PaymentHandlerStatus;
 using payments::mojom::PaymentMethodDataPtr;
 using payments::mojom::PaymentRequestEventDataPtr;
 
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 void AddMethodDataToMap(const std::vector<PaymentMethodDataPtr>& method_data,
                         std::map<std::string, std::string>* out) {
   for (size_t i = 0; i < method_data.size(); ++i) {
@@ -82,7 +78,6 @@ void AddModifiersToMap(const std::vector<PaymentDetailsModifierPtr>& modifiers,
     out->emplace(prefix + " Total Value", modifiers[i]->total->amount->value);
   }
 }
-#endif
 
 std::string EncodeIcon(const SkBitmap& app_icon) {
   if (app_icon.empty())
@@ -127,7 +122,6 @@ void PaymentAppProviderImpl::InvokePaymentApp(
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   DCHECK(payment_request_web_contents_);
 
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   if (DevToolsBackgroundServicesContextImpl* dev_tools =
           GetDevTools(sw_origin)) {
     std::map<std::string, std::string> data = {
@@ -145,7 +139,6 @@ void PaymentAppProviderImpl::InvokePaymentApp(
         DevToolsBackgroundService::kPaymentHandler, "Payment request",
         /*instance_id=*/event_data->payment_request_id, data);
   }
-#endif
 
   StoragePartitionImpl* partition = static_cast<StoragePartitionImpl*>(
       payment_request_web_contents_->GetBrowserContext()
@@ -183,7 +176,6 @@ void PaymentAppProviderImpl::InstallAndInvokePaymentApp(
   }
 
   url::Origin sw_origin = url::Origin::Create(sw_scope);
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   if (DevToolsBackgroundServicesContextImpl* dev_tools =
           GetDevTools(sw_origin)) {
     std::map<std::string, std::string> data = {
@@ -202,7 +194,6 @@ void PaymentAppProviderImpl::InstallAndInvokePaymentApp(
         DevToolsBackgroundService::kPaymentHandler, "Install payment handler",
         /*instance_id=*/event_data->payment_request_id, data);
   }
-#endif
 
   PaymentAppInstaller::Install(
       payment_request_web_contents_, app_name, EncodeIcon(app_icon), sw_js_url,
@@ -242,7 +233,6 @@ void PaymentAppProviderImpl::CanMakePayment(
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   DCHECK(payment_request_web_contents_);
 
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   if (DevToolsBackgroundServicesContextImpl* dev_tools =
           GetDevTools(sw_origin)) {
     std::map<std::string, std::string> data = {
@@ -256,7 +246,6 @@ void PaymentAppProviderImpl::CanMakePayment(
         DevToolsBackgroundService::kPaymentHandler, "Can make payment",
         /*instance_id=*/payment_request_id, data);
   }
-#endif
 
   StoragePartitionImpl* partition = static_cast<StoragePartitionImpl*>(
       payment_request_web_contents_->GetBrowserContext()
@@ -277,7 +266,6 @@ void PaymentAppProviderImpl::AbortPayment(int64_t registration_id,
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   DCHECK(payment_request_web_contents_);
 
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   if (DevToolsBackgroundServicesContextImpl* dev_tools =
           GetDevTools(sw_origin)) {
     dev_tools->LogBackgroundServiceEvent(
@@ -285,7 +273,6 @@ void PaymentAppProviderImpl::AbortPayment(int64_t registration_id,
         DevToolsBackgroundService::kPaymentHandler, "Abort payment",
         /*instance_id=*/payment_request_id, {});
   }
-#endif
 
   StoragePartitionImpl* partition = static_cast<StoragePartitionImpl*>(
       payment_request_web_contents_->GetBrowserContext()
@@ -343,7 +330,6 @@ void PaymentAppProviderImpl::InstallPaymentAppForTesting(
       base::BindOnce(&CheckRegistrationSuccess, std::move(callback)));
 }
 
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 DevToolsBackgroundServicesContextImpl* PaymentAppProviderImpl::GetDevTools(
     const url::Origin& sw_origin) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
@@ -363,7 +349,6 @@ DevToolsBackgroundServicesContextImpl* PaymentAppProviderImpl::GetDevTools(
              ? dev_tools
              : nullptr;
 }
-#endif
 
 void PaymentAppProviderImpl::StartServiceWorkerForDispatch(
     int64_t registration_id,
@@ -389,7 +374,6 @@ void PaymentAppProviderImpl::OnInstallPaymentApp(
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   DCHECK(payment_request_web_contents_);
 
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   if (DevToolsBackgroundServicesContextImpl* dev_tools =
           GetDevTools(sw_origin)) {
     std::map<std::string, std::string> data = {
@@ -402,7 +386,6 @@ void PaymentAppProviderImpl::OnInstallPaymentApp(
         "Install payment handler result",
         /*instance_id=*/event_data->payment_request_id, data);
   }
-#endif
 
   if (registration_id >= 0) {
     std::move(registration_id_callback).Run(registration_id);

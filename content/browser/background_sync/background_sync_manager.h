@@ -25,6 +25,7 @@
 #include "content/browser/background_sync/background_sync_op_scheduler.h"
 #include "content/browser/background_sync/background_sync_proxy.h"
 #include "content/browser/background_sync/background_sync_status.h"
+#include "content/browser/devtools/devtools_background_services_context_impl.h"
 #include "content/browser/service_worker/service_worker_context_core_observer.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
 #include "content/browser/service_worker/service_worker_registry.h"
@@ -33,16 +34,11 @@
 #include "content/public/browser/background_sync_parameters.h"
 #include "content/public/browser/background_sync_registration.h"
 #include "content/public/browser/browser_thread.h"
-#include "third_party/blink/public/common/buildflags.h"
 #include "third_party/blink/public/common/service_worker/service_worker_status_code.h"
 #include "third_party/blink/public/mojom/background_sync/background_sync.mojom.h"
 #include "third_party/blink/public/mojom/permissions/permission_status.mojom.h"
 #include "url/gurl.h"
 #include "url/origin.h"
-
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
-#include "content/browser/devtools/devtools_background_services_context_impl.h"
-#endif
 
 namespace blink {
 namespace mojom {
@@ -54,7 +50,6 @@ class StorageKey;
 namespace content {
 
 class BackgroundSyncNetworkObserver;
-class DevToolsBackgroundServicesContextImpl;
 class ServiceWorkerContextWrapper;
 
 // BackgroundSyncManager manages and stores the set of background sync

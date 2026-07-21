@@ -12,7 +12,6 @@
 #include "content/public/browser/payment_app_provider.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
-#include "third_party/blink/public/common/buildflags.h"
 
 namespace content {
 
@@ -68,10 +67,8 @@ class CONTENT_EXPORT PaymentAppProviderImpl
   void OnClosingOpenedWindow(
       payments::mojom::PaymentEventResponseType reason) override;
 
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   DevToolsBackgroundServicesContextImpl* GetDevTools(
       const url::Origin& sw_origin);
-#endif
 
   void InstallPaymentAppForTesting(
       const SkBitmap& app_icon,

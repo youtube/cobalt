@@ -23,10 +23,7 @@
 #include "content/browser/attribution_reporting/attribution_manager.h"
 #include "content/browser/code_cache/generated_code_cache_context.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
-#include "third_party/blink/public/common/buildflags.h"
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/shared_storage_worklet_devtools_manager.h"
-#endif
 #include "content/browser/fenced_frame/fenced_frame_reporter.h"
 #include "content/browser/interest_group/interest_group_manager_impl.h"
 #include "content/browser/private_aggregation/private_aggregation_caller_api.h"
@@ -277,20 +274,16 @@ class SharedStorageWorkletHost::ScopedDevToolsHandle
  public:
   explicit ScopedDevToolsHandle(SharedStorageWorkletHost& owner)
       : owner_(owner), devtools_token_(base::UnguessableToken::Create()) {
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
     SharedStorageWorkletDevToolsManager::GetInstance()->WorkletCreated(
         owner, devtools_token_, wait_for_debugger_);
-#endif
   }
 
   ScopedDevToolsHandle(const ScopedDevToolsHandle&) = delete;
   ScopedDevToolsHandle& operator=(const ScopedDevToolsHandle&) = delete;
 
   ~ScopedDevToolsHandle() override {
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
     SharedStorageWorkletDevToolsManager::GetInstance()->WorkletDestroyed(
         *owner_);
-#endif
   }
 
   // blink::mojom::WorkletDevToolsHost:
@@ -298,11 +291,9 @@ class SharedStorageWorkletHost::ScopedDevToolsHandle
       mojo::PendingRemote<blink::mojom::DevToolsAgent> agent_remote,
       mojo::PendingReceiver<blink::mojom::DevToolsAgentHost>
           agent_host_receiver) override {
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
     SharedStorageWorkletDevToolsManager::GetInstance()
         ->WorkletReadyForInspection(*owner_, std::move(agent_remote),
                                     std::move(agent_host_receiver));
-#endif
   }
 
   const base::UnguessableToken& devtools_token() const {

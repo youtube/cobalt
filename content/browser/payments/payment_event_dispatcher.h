@@ -8,10 +8,7 @@
 #include <memory>
 
 #include "base/memory/weak_ptr.h"
-#include "third_party/blink/public/common/buildflags.h"
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/devtools_background_services_context_impl.h"
-#endif
 #include "content/browser/payments/respond_with_callback.h"
 #include "content/browser/service_worker/service_worker_version.h"
 #include "content/public/browser/web_contents_observer.h"

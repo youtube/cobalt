@@ -36,7 +36,6 @@
 #include "base/memory/scoped_refptr.h"
 #include "third_party/blink/public/mojom/render_accessibility.mojom-blink.h"
 #include "third_party/blink/public/web/web_ax_enums.h"
-#include "third_party/blink/public/common/buildflags.h"
 #include "third_party/blink/renderer/core/accessibility/ax_object_cache_base.h"
 #include "third_party/blink/renderer/core/accessibility/axid.h"
 #include "third_party/blink/renderer/core/accessibility/blink_ax_event_intent.h"
@@ -51,11 +50,7 @@
 #include "third_party/blink/renderer/modules/accessibility/ax_object.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_object_cache_lifecycle.h"
 #include "third_party/blink/renderer/modules/accessibility/blink_ax_tree_source.h"
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "third_party/blink/renderer/modules/accessibility/inspector_accessibility_agent.h"
-#else
-class InspectorAccessibilityAgent;
-#endif
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/allow_discouraged_type.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_deque.h"
@@ -158,10 +153,8 @@ class MODULES_EXPORT AXObjectCacheImpl : public AXObjectCacheBase {
   // When the accessibility tree view is open in DevTools, we listen for changes
   // to the tree by registering an InspectorAccessibilityAgent here and notify
   // the agent when AXEvents are fired or nodes are marked dirty.
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   void AddInspectorAgent(InspectorAccessibilityAgent*);
   void RemoveInspectorAgent(InspectorAccessibilityAgent*);
-#endif
 
   // Ensure that a full document lifecycle will occur, which in turn ensures
   // that a call to CommitAXUpdates() will occur soon.
@@ -903,9 +896,7 @@ class MODULES_EXPORT AXObjectCacheImpl : public AXObjectCacheBase {
   bool MarkOnScreenNodes(AXObject* obj,
                          const HitTestResult::NodeSet* on_screen_nodes);
 
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   HeapHashSet<WeakMember<InspectorAccessibilityAgent>> agents_;
-#endif
 
   struct AXEventParams final : public GarbageCollected<AXEventParams> {
     AXEventParams(AXObject* target,
