@@ -189,6 +189,7 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
 
   volatile bool quit_ = false;
   std::atomic_bool flush_requested_{false};
+  std::atomic_bool is_flushed_{false};
   // Guaranteed to be non-null.
   const std::unique_ptr<Thread> audio_out_thread_;
 

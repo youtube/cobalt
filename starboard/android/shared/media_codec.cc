@@ -197,7 +197,6 @@ std::ostream& operator<<(std::ostream& os,
             << ToString(options.ignore_mediacodec_callbacks_during_flushing)
             << ", enable_frame_renderer_listener="
             << ToString(options.enable_frame_renderer_listener)
-            << ", enable_low_latency=" << ToString(options.enable_low_latency)
             << ", require_secured_decoder="
             << ToString(options.require_secured_decoder)
             << ", require_software_codec="

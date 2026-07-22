@@ -367,8 +367,6 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       enable_trivial_optimizations_(
           pipeline_config.experimental_features.GetBool(
               kMediaEnableTrivialOptimizations)),
-      enable_low_latency_(pipeline_config.experimental_features.GetBool(
-          kMediaEnableLowLatency)),
       enable_ndk_video_(
           pipeline_config.experimental_features.GetBool(kMediaNdkVideo)),
       is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
@@ -797,9 +795,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       if (surface_view_) {
         j_output_surface = surface_view_.AsLocalRef(env);
       } else {
-        AcquiredSurface acquired_surface = AcquireVideoSurface(job_queue());
-        surface_destroy_notifier_ = acquired_surface.destroy_notifier;
-        j_output_surface = acquired_surface.surface;
+        j_output_surface = AcquireVideoSurface();
       }
       if (j_output_surface) {
         owns_video_surface_ = true;
@@ -860,9 +856,8 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, is_video_frame_tracker_enabled_,
-      enable_low_latency_, force_big_endian_hdr_metadata_,
-      max_video_input_size_, flush_delay_usec_, use_dual_threads_,
-      skip_video_frames_over_60_fps_,
+      force_big_endian_hdr_metadata_, max_video_input_size_, flush_delay_usec_,
+      use_dual_threads_, skip_video_frames_over_60_fps_,
       ignore_mediacodec_callbacks_during_flushing_, enable_ndk_video_,
       enable_trivial_optimizations_);
   if (result) {
@@ -893,10 +888,6 @@ void MediaCodecVideoDecoder::TeardownCodec() {
   if (owns_video_surface_) {
     ReleaseVideoSurface();
     owns_video_surface_ = false;
-  }
-  if (surface_destroy_notifier_) {
-    surface_destroy_notifier_->Disconnect();
-    surface_destroy_notifier_ = nullptr;
   }
   media_decoder_.reset();
   color_metadata_ = std::nullopt;
@@ -1155,8 +1146,24 @@ void MediaCodecVideoDecoder::OnVideoFrameRelease() {
 }
 
 void MediaCodecVideoDecoder::OnSurfaceDestroyed() {
+  if (!BelongsToCurrentThread()) {
+    // Wait until codec is stopped.
+    std::unique_lock lock(surface_destroy_mutex_);
+    surface_destroyed_ = false;
+    Schedule(std::bind(&MediaCodecVideoDecoder::OnSurfaceDestroyed, this));
+    surface_condition_variable_.wait_for(lock,
+                                         std::chrono::microseconds(1'000'000),
+                                         [this] { return surface_destroyed_; });
+    return;
+  }
   // When this function is called, the decoder no longer owns the surface.
+  owns_video_surface_ = false;
   TeardownCodec();
+  {
+    std::lock_guard lock(surface_destroy_mutex_);
+    surface_destroyed_ = true;
+  }
+  surface_condition_variable_.notify_one();
 }
 
 void MediaCodecVideoDecoder::ReportError(SbPlayerError error,
