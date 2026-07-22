@@ -1285,7 +1285,11 @@ if (current_os == "linux" || is_android) {
         "src/jni/audio_device/aaudio_wrapper.cc",
         "src/jni/audio_device/aaudio_wrapper.h",
       ]
-      libs = [ "aaudio" ]
+      libs = []
+      # Cobalt uses the Starboard layer instead of AAudio. AAudio also breaks SDK 24 compatibility. See b/508072838.
+      if (!is_cobalt) {
+        libs += [ "aaudio" ]
+      }
       deps = [
         ":audio_device_module_base",
         ":base_jni",
