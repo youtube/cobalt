@@ -21,6 +21,7 @@
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/nplb/drm_helpers.h"
+#include "starboard/testing/test_runner.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {
@@ -612,7 +613,9 @@ void SbPlayerTestFixture::WriteEndOfStream(SbMediaType media_type) {
 void SbPlayerTestFixture::WaitAndProcessNextEvent(int64_t timeout) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
 
-  auto event = callback_event_queue_.GetTimed(timeout);
+  CallbackEvent event;
+  starboard::RunTestBlockingAction(
+      [&]() { event = callback_event_queue_.GetTimed(timeout); });
 
   // Ignore callback events for previous Seek().
   if (event.ticket != ticket_) {
