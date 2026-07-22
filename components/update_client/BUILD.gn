@@ -6,7 +6,6 @@ import("//build/buildflag_header.gni")
 import("//net/features.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//testing/test.gni")
-print("update_client BUILD.gn: is_cobalt =", is_cobalt, "use_evergreen =", use_evergreen)
 
 source_set("network_impl") {
   sources = [
