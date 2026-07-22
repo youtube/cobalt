@@ -41,10 +41,14 @@
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/core/scheduler/task_attribution_tracker_impl.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_object_cache_impl.h"
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "third_party/blink/renderer/modules/accessibility/inspector_accessibility_agent.h"
+#endif
 #include "third_party/blink/renderer/modules/app_banner/app_banner_controller.h"
 #include "third_party/blink/renderer/modules/audio_output_devices/html_media_element_audio_output_device.h"
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "third_party/blink/renderer/modules/cache_storage/inspector_cache_storage_agent.h"
+#endif
 #include "third_party/blink/renderer/modules/canvas/canvas2d/canvas_rendering_context_2d.h"
 #include "third_party/blink/renderer/modules/canvas/imagebitmap/image_bitmap_rendering_context.h"
 #include "third_party/blink/renderer/modules/canvas/offscreencanvas2d/offscreen_canvas_rendering_context_2d.h"
@@ -58,7 +62,9 @@
 #include "third_party/blink/renderer/modules/device_orientation/device_motion_controller.h"
 #include "third_party/blink/renderer/modules/device_orientation/device_orientation_absolute_controller.h"
 #include "third_party/blink/renderer/modules/device_orientation/device_orientation_controller.h"
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "third_party/blink/renderer/modules/device_orientation/device_orientation_inspector_agent.h"
+#endif
 #if BUILDFLAG(IS_COBALT)
 #include "third_party/blink/renderer/modules/cobalt/cobalt_lifecycle_controller.h"
 #endif
@@ -75,7 +81,9 @@
 #include "third_party/blink/renderer/modules/gamepad/navigator_gamepad.h"
 #include "third_party/blink/renderer/modules/image_downloader/image_downloader_impl.h"
 #include "third_party/blink/renderer/modules/indexed_db_names.h"
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "third_party/blink/renderer/modules/indexeddb/inspector_indexed_db_agent.h"
+#endif
 #include "third_party/blink/renderer/modules/installation/installation_service_impl.h"
 #include "third_party/blink/renderer/modules/launch/web_launch_service_impl.h"
 #include "third_party/blink/renderer/modules/manifest/manifest_manager.h"
@@ -97,10 +105,14 @@
 #include "third_party/blink/renderer/modules/speech/speech_synthesis.h"
 #include "third_party/blink/renderer/modules/storage/dom_window_storage.h"
 #include "third_party/blink/renderer/modules/storage/dom_window_storage_controller.h"
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "third_party/blink/renderer/modules/storage/inspector_dom_storage_agent.h"
 #include "third_party/blink/renderer/modules/storage/storage_namespace.h"
 #include "third_party/blink/renderer/modules/webaudio/audio_graph_tracer.h"
 #include "third_party/blink/renderer/modules/webaudio/inspector_web_audio_agent.h"
+#else
+#include "third_party/blink/renderer/modules/storage/storage_namespace.h"
+#endif
 #include "third_party/blink/renderer/modules/webgl/webgl_context_factory.h"
 #include "third_party/blink/renderer/modules/webgl/webgl_rendering_context.h"
 #if !BUILDFLAG(IS_COBALT)
@@ -295,7 +307,9 @@ void ModulesInitializer::InitLocalFrame(LocalFrame& frame) const {
 
 void ModulesInitializer::InstallSupplements(LocalFrame& frame) const {
   DCHECK(WebLocalFrameImpl::FromFrame(&frame)->Client());
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   InspectorAccessibilityAgent::ProvideTo(&frame);
+#endif
   ImageDownloaderImpl::ProvideTo(frame);
   ContextMenu::ProvideTo(frame);
   AudioRendererSinkCache::InstallWindowObserver(*frame.DomWindow());
@@ -391,7 +405,9 @@ void ModulesInitializer::ProvideModulesToPage(
     Page& page,
     const SessionStorageNamespaceId& namespace_id) const {
   StorageNamespace::ProvideSessionStorageNamespaceTo(page, namespace_id);
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   AudioGraphTracer::ProvideAudioGraphTracerTo(page);
+#endif
 #if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_DESKTOP_ANDROID)
   page.ProvideSupplement(MakeGarbageCollected<SuspendCaptureObserver>(page));
 #endif  // BUILDFLAG(IS_ANDROID)  && !BUILDFLAG(IS_DESKTOP_ANDROID)
