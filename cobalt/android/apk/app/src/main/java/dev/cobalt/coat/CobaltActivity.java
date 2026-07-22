@@ -247,6 +247,8 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     mA11yHelper =
         new CobaltA11yHelper(this, mShellManager.getContentViewRenderView().getSurfaceView());
 
+    maybeRegisterNetworkRecoveryObserver();
+
     if (mStartupUrl == null || mStartupUrl.isEmpty()) {
       String[] args = getStarboardBridge().getArgs();
       mStartupUrl =
@@ -611,7 +613,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   protected void onResume() {
     super.onResume();
     StartupGuard.getInstance().setStartupMilestone(12);
-    maybeRegisterNetworkRecoveryObserver();
     checkAndRetryOnNetworkOnline();
     View rootView = getWindow().getDecorView().getRootView();
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
