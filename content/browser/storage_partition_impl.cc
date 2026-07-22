@@ -194,6 +194,10 @@
 #include "content/public/browser/cdm_storage_data_model.h"
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "base/path_service.h"
+#endif
+
 using CookieDeletionFilter = network::mojom::CookieDeletionFilter;
 using CookieDeletionFilterPtr = network::mojom::CookieDeletionFilterPtr;
 
@@ -1390,8 +1394,20 @@ void StoragePartitionImpl::Initialize(
           ChromeBlobStorageContext::GetRemoteFor(browser_context_),
           std::move(file_system_access_context), GetIOThreadTaskRunner({}));
 
+  base::FilePath cache_storage_path = path;
+#if BUILDFLAG(IS_STARBOARD)
+  if (!is_in_memory()) {
+    base::FilePath cache_dir;
+    if (base::PathService::Get(base::DIR_CACHE, &cache_dir)) {
+      cache_storage_path = config_.partition_domain().empty()
+                               ? cache_dir
+                               : cache_dir.Append(relative_partition_path_);
+    }
+  }
+#endif
+
   cache_storage_control_wrapper_ = std::make_unique<CacheStorageControlWrapper>(
-      GetIOThreadTaskRunner({}), path,
+      GetIOThreadTaskRunner({}), cache_storage_path,
       browser_context_->GetSpecialStoragePolicy(), quota_manager_proxy,
       ChromeBlobStorageContext::GetRemoteFor(browser_context_));
 
