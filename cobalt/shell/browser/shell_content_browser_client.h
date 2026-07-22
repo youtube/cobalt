@@ -120,10 +120,8 @@ class ShellContentBrowserClient : public ContentBrowserClient {
   void OverrideWebPreferences(WebContents* web_contents,
                               SiteInstance& main_frame_site,
                               blink::web_pref::WebPreferences* prefs) override;
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   std::unique_ptr<content::DevToolsManagerDelegate>
   CreateDevToolsManagerDelegate() override;
-#endif
   void ExposeInterfacesToRenderer(
       service_manager::BinderRegistry* registry,
       blink::AssociatedInterfaceRegistry* associated_registry,

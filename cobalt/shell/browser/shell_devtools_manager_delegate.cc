@@ -14,6 +14,11 @@
 
 #include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
 
+#include "build/build_config.h"
+#include "third_party/blink/public/common/buildflags.h"
+
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
 #include <stdint.h>
 
 #include <vector>
@@ -25,7 +30,6 @@
 #include "base/functional/callback.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
-#include "build/build_config.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/common/shell_content_client.h"
 #include "cobalt/shell/common/shell_switches.h"
@@ -246,3 +250,54 @@ bool ShellDevToolsManagerDelegate::HasBundledFrontendResources() {
 }
 
 }  // namespace content
+
+#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
+namespace content {
+
+// static
+int ShellDevToolsManagerDelegate::GetHttpHandlerPort() {
+  return 0;
+}
+
+// static
+void ShellDevToolsManagerDelegate::StartHttpHandler(
+    BrowserContext* browser_context) {}
+
+// static
+void ShellDevToolsManagerDelegate::StopHttpHandler() {}
+
+ShellDevToolsManagerDelegate::ShellDevToolsManagerDelegate(
+    BrowserContext* browser_context)
+    : browser_context_(browser_context) {}
+
+ShellDevToolsManagerDelegate::~ShellDevToolsManagerDelegate() = default;
+
+BrowserContext* ShellDevToolsManagerDelegate::GetDefaultBrowserContext() {
+  return browser_context_;
+}
+
+void ShellDevToolsManagerDelegate::ClientAttached(
+    content::DevToolsAgentHostClientChannel* channel) {}
+
+void ShellDevToolsManagerDelegate::ClientDetached(
+    content::DevToolsAgentHostClientChannel* channel) {}
+
+scoped_refptr<DevToolsAgentHost> ShellDevToolsManagerDelegate::CreateNewTarget(
+    const GURL& url,
+    content::DevToolsManagerDelegate::TargetType target_type,
+    bool new_window) {
+  return nullptr;
+}
+
+std::string ShellDevToolsManagerDelegate::GetDiscoveryPageHTML() {
+  return std::string();
+}
+
+bool ShellDevToolsManagerDelegate::HasBundledFrontendResources() {
+  return false;
+}
+
+}  // namespace content
+
+#endif  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)

@@ -25,6 +25,7 @@
 #include "cobalt/shell/android/shell_descriptors.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_browser_context.h"
+#include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
 #include "cobalt/shell/browser/shell_platform_delegate.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/performance_manager/embedder/graph_features.h"
@@ -45,10 +46,6 @@
 #include "ui/base/buildflags.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "url/gurl.h"
-
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
-#include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
-#endif
 
 #if BUILDFLAG(IS_ANDROID)
 #include "components/crash/content/browser/child_exit_observer_android.h"
@@ -211,9 +208,7 @@ int ShellBrowserMainParts::PreMainMessageLoopRun() {
   InitializeBrowserContexts();
   Shell::Initialize(CreateShellPlatformDelegate(), is_visible_);
   net::NetModule::SetResourceProvider(PlatformResourceProvider);
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   ShellDevToolsManagerDelegate::StartHttpHandler(browser_context_.get());
-#endif
   InitializeMessageLoopContext();
   return 0;
 }
@@ -225,9 +220,7 @@ void ShellBrowserMainParts::WillRunMainMessageLoop(
 
 void ShellBrowserMainParts::PostMainMessageLoopRun() {
   DCHECK_EQ(Shell::windows().size(), 0u);
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   ShellDevToolsManagerDelegate::StopHttpHandler();
-#endif
   browser_context_.reset();
   off_the_record_browser_context_.reset();
 #if BUILDFLAG(IS_LINUX)

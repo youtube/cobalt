@@ -327,8 +327,6 @@ static_library("cobalt_shell_lib") {
       "browser/shell_devtools_bindings.h",
       "browser/shell_devtools_frontend.cc",
       "browser/shell_devtools_frontend.h",
-      "browser/shell_devtools_manager_delegate.cc",
-      "browser/shell_devtools_manager_delegate.h",
     ]
   }
 

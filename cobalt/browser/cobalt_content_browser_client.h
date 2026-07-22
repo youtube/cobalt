@@ -81,10 +81,8 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   // ShellContentBrowserClient overrides.
   std::unique_ptr<content::BrowserMainParts> CreateBrowserMainParts(
       bool is_integration_test) override;
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   std::unique_ptr<content::DevToolsManagerDelegate>
   CreateDevToolsManagerDelegate() override;
-#endif
   void CreateThrottlesForNavigation(
       content::NavigationThrottleRegistry& registry) override;
   content::GeneratedCodeCacheSettings GetGeneratedCodeCacheSettings(
