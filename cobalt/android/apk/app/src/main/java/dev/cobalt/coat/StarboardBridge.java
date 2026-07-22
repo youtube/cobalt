@@ -23,7 +23,9 @@ import android.os.Handler;
 import android.os.Looper;
 import dev.cobalt.shell.StartupGuard;
 import dev.cobalt.util.Holder;
+import dev.cobalt.util.JavaSwitches;
 import dev.cobalt.util.Log;
+import java.util.Map;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.net.NetworkChangeNotifier;
 
@@ -42,6 +44,7 @@ public class StarboardBridge extends BaseStarboardBridge
   private VolumeStateReceiver mVolumeStateReceiver;
   private volatile PlatformError mPlatformError;
   private volatile boolean mHasHiddenSplashScreen = false;
+  private boolean mIsConnectionTypeObserverRegistered = false;
 
   public StarboardBridge(
       Context appContext,
@@ -54,13 +57,13 @@ public class StarboardBridge extends BaseStarboardBridge
     mCobaltMediaSession = new CobaltMediaSession(appContext, activityHolder, artworkDownloader);
     mVolumeStateReceiver = new VolumeStateReceiver(appContext);
 
-    NetworkChangeNotifier.init();
-    NetworkChangeNotifier.addConnectionTypeObserver(this);
+    maybeRegisterConnectionTypeObserver();
   }
 
   @Override
   protected void beforeStartOrResume() {
     super.beforeStartOrResume();
+    maybeRegisterConnectionTypeObserver();
     checkAndRetryOnNetworkOnline();
   }
 
@@ -69,16 +72,37 @@ public class StarboardBridge extends BaseStarboardBridge
     checkAndRetryOnNetworkOnline();
   }
 
+  private boolean isAutoRetryOnNetworkRecoveryEnabled() {
+    Activity activity = mActivityHolder.get();
+    if (activity instanceof CobaltActivity) {
+      Map<String, String> switches = ((CobaltActivity) activity).getJavaSwitches();
+      return switches != null
+          && switches.containsKey(JavaSwitches.ENABLE_AUTO_RETRY_ON_NETWORK_RECOVERY);
+    }
+    return false;
+  }
+
+  private void maybeRegisterConnectionTypeObserver() {
+    if (!isAutoRetryOnNetworkRecoveryEnabled()) {
+      return;
+    }
+
+    if (mHasHiddenSplashScreen || mIsConnectionTypeObserverRegistered) {
+      return;
+    }
+
+    NetworkChangeNotifier.init();
+    NetworkChangeNotifier.addConnectionTypeObserver(this);
+    mIsConnectionTypeObserverRegistered = true;
+  }
+
   /**
    * If hideSplashScreen() has never been called (indicating the web application has not completed
    * its initial load) and the network becomes online, automatically retry loading the startup URL
    * or active platform error.
    */
   public void checkAndRetryOnNetworkOnline() {
-    if (mHasHiddenSplashScreen) {
-      return;
-    }
-    if (!NetworkChangeNotifier.isOnline()) {
+    if (!NetworkChangeNotifier.isOnline() || mHasHiddenSplashScreen) {
       return;
     }
 
@@ -154,6 +178,11 @@ public class StarboardBridge extends BaseStarboardBridge
   }
 
   private void unregisterConnectionTypeObserver() {
+    if (!mIsConnectionTypeObserverRegistered) {
+      return;
+    }
+
+    mIsConnectionTypeObserverRegistered = false;
     new Handler(Looper.getMainLooper())
         .post(() -> NetworkChangeNotifier.removeConnectionTypeObserver(this));
   }
