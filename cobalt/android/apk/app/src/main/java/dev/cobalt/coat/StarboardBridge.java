@@ -34,7 +34,6 @@ public class StarboardBridge extends BaseStarboardBridge {
   private CobaltMediaSession mCobaltMediaSession;
   private VolumeStateReceiver mVolumeStateReceiver;
   private volatile PlatformError mPlatformError;
-  private volatile boolean mHasHiddenSplashScreen = false;
 
   public StarboardBridge(
       Context appContext,
@@ -73,10 +72,6 @@ public class StarboardBridge extends BaseStarboardBridge {
     return mPlatformError;
   }
 
-  public boolean hasHiddenSplashScreen() {
-    return mHasHiddenSplashScreen;
-  }
-
   public void setWebContents(WebContents webContents) {
     mCobaltMediaSession.setWebContents(webContents);
     mVolumeStateReceiver.setWebContents(webContents);
@@ -88,7 +83,6 @@ public class StarboardBridge extends BaseStarboardBridge {
 
   @Override
   protected void hideSplashScreen() {
-    mHasHiddenSplashScreen = true;
     mPlatformError = null;
     if (mActivityHolder.get() instanceof CobaltActivity activity) {
       activity.onSplashScreenHidden();

@@ -646,13 +646,18 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     return getJavaSwitches().containsKey(JavaSwitches.ENABLE_AUTO_RETRY_ON_NETWORK_RECOVERY);
   }
 
+  private volatile boolean mHasHiddenSplashScreen = false;
+
+  public void onSplashScreenHidden() {
+    mHasHiddenSplashScreen = true;
+    unregisterNetworkRecoveryObserver();
+  }
+
   private void maybeRegisterNetworkRecoveryObserver() {
     if (!isAutoRetryOnNetworkRecoveryEnabled()) {
       return;
     }
-    StarboardBridge bridge = getStarboardBridge();
-    if (mIsNetworkRecoveryObserverRegistered
-        || (bridge != null && bridge.hasHiddenSplashScreen())) {
+    if (mIsNetworkRecoveryObserverRegistered || mHasHiddenSplashScreen) {
       return;
     }
     if (mNetworkRecoveryObserver == null) {
@@ -678,8 +683,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   }
 
   public void checkAndRetryOnNetworkOnline() {
-    StarboardBridge bridge = getStarboardBridge();
-    if (bridge != null && bridge.hasHiddenSplashScreen()) {
+    if (mHasHiddenSplashScreen) {
       unregisterNetworkRecoveryObserver();
       return;
     }
@@ -697,6 +701,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     }
     mLastRetryTimestampMs = now;
 
+    StarboardBridge bridge = getStarboardBridge();
     if (bridge != null && bridge.getPlatformError() != null) {
       Log.i(TAG, "Network is online and platform error is active; retrying URL load.");
       bridge.getPlatformError().retry();
@@ -775,10 +780,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   @VisibleForTesting
   static void resetRetryCount() {
     sRetryCount.set(0);
-  }
-
-  public void onSplashScreenHidden() {
-    unregisterNetworkRecoveryObserver();
   }
 
   /** Overridden by Kimono to provide specific Java switch configurations. */
