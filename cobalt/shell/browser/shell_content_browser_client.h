@@ -27,7 +27,6 @@
 #include "content/public/browser/content_browser_client.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "services/network/public/mojom/network_context.mojom-forward.h"
-#include "third_party/blink/public/common/buildflags.h"
 
 class PrefService;
 

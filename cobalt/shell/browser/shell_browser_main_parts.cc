@@ -42,7 +42,6 @@
 #include "net/base/net_module.h"
 #include "net/base/url_util.h"
 #include "net/grit/net_resources.h"
-#include "third_party/blink/public/common/buildflags.h"
 #include "ui/base/buildflags.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "url/gurl.h"
