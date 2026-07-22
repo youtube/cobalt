@@ -252,6 +252,7 @@ class ShellTestBase : public ::testing::Test {
   }
 
  protected:
+  base::test::ScopedFeatureList scoped_feature_list_;
   content::BrowserTaskEnvironment task_environment_;
   TestContentClient test_content_client_;
   TestContentBrowserClient test_content_browser_client_;
@@ -262,9 +263,6 @@ class ShellTestBase : public ::testing::Test {
   std::unique_ptr<RenderViewHostTestEnabler> rvh_enabler_;
   raw_ptr<MockShellPlatformDelegate> platform_ = nullptr;
   std::unique_ptr<TestBrowserContext> browser_context_;
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 }  // namespace content
