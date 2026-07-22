@@ -56,28 +56,28 @@ public class PlatformErrorTest {
   @Test
   public void addRetryUrlParam_preservesOtherParams() {
     String url = "https://www.youtube.com/tv?foo=bar";
-    String result = platformError.addRetryUrlParam(url, 1);
+    String result = CobaltActivity.addRetryUrlParam(url, 1);
     assertEquals("https://www.youtube.com/tv?foo=bar&netdialog_retry=1", result);
   }
 
   @Test
   public void addRetryUrlParam_preservesFragment() {
     String url = "https://www.youtube.com/tv#/browse";
-    String result = platformError.addRetryUrlParam(url, 1);
+    String result = CobaltActivity.addRetryUrlParam(url, 1);
     assertEquals("https://www.youtube.com/tv?netdialog_retry=1#/browse", result);
   }
 
   @Test
   public void addRetryUrlParam_preservesParamsAndFragment() {
     String url = "https://www.youtube.com/tv?foo=bar#/browse";
-    String result = platformError.addRetryUrlParam(url, 1);
+    String result = CobaltActivity.addRetryUrlParam(url, 1);
     assertEquals("https://www.youtube.com/tv?foo=bar&netdialog_retry=1#/browse", result);
   }
 
   @Test
   public void addRetryUrlParam_handlesEmptyUrl() {
     String url = "";
-    String result = platformError.addRetryUrlParam(url, 1);
+    String result = CobaltActivity.addRetryUrlParam(url, 1);
     assertEquals("?netdialog_retry=1", result);
   }
 
@@ -111,6 +111,9 @@ public class PlatformErrorTest {
     Shell mockShell = mock(Shell.class);
     Dialog mockDialog = mock(Dialog.class);
 
+    CobaltActivity.resetRetryCount();
+    org.mockito.Mockito.doCallRealMethod().when(mockActivity).reloadUrl(org.mockito.Mockito.any());
+
     Holder<Activity> holder = new Holder<>();
     holder.set(mockActivity);
 
@@ -133,6 +136,9 @@ public class PlatformErrorTest {
     WebContents mockWebContents = mock(WebContents.class);
     Shell mockShell = mock(Shell.class);
     Dialog mockDialog = mock(Dialog.class);
+
+    CobaltActivity.resetRetryCount();
+    org.mockito.Mockito.doCallRealMethod().when(mockActivity).reloadUrl(org.mockito.Mockito.any());
 
     Holder<Activity> holder = new Holder<>();
     holder.set(mockActivity);
@@ -159,6 +165,9 @@ public class PlatformErrorTest {
     WebContents mockWebContents = mock(WebContents.class);
     NavigationController mockNavController = mock(NavigationController.class);
     Dialog mockDialog = mock(Dialog.class);
+
+    CobaltActivity.resetRetryCount();
+    org.mockito.Mockito.doCallRealMethod().when(mockActivity).reloadUrl(org.mockito.Mockito.any());
 
     Holder<Activity> holder = new Holder<>();
     holder.set(mockActivity);
@@ -187,6 +196,9 @@ public class PlatformErrorTest {
     Shell mockShell = mock(Shell.class);
     Dialog mockDialog = mock(Dialog.class);
 
+    CobaltActivity.resetRetryCount();
+    org.mockito.Mockito.doCallRealMethod().when(mockActivity).reloadUrl(org.mockito.Mockito.any());
+
     Holder<Activity> holder = new Holder<>();
     holder.set(mockActivity);
 
@@ -211,12 +223,15 @@ public class PlatformErrorTest {
     GURL mockGurl = mock(GURL.class);
     Shell mockShell = mock(Shell.class);
 
+    CobaltActivity.resetRetryCount();
+    org.mockito.Mockito.doCallRealMethod().when(mockActivity).reloadUrl(org.mockito.Mockito.any());
+
     org.mockito.Mockito.when(mockGurl.getSpec()).thenReturn("about:blank");
     org.mockito.Mockito.when(mockWebContents.getVisibleUrl()).thenReturn(mockGurl);
     org.mockito.Mockito.when(mockActivity.getActiveWebContents()).thenReturn(mockWebContents);
     org.mockito.Mockito.when(mockActivity.getActiveShell()).thenReturn(mockShell);
 
-    PlatformError.reloadUrl(mockActivity, mockWebContents, "https://www.youtube.com/tv");
+    mockActivity.reloadUrl("https://www.youtube.com/tv");
 
     verify(mockShell).loadUrl("https://www.youtube.com/tv?netdialog_retry=1");
   }
@@ -228,12 +243,15 @@ public class PlatformErrorTest {
     GURL mockGurl = mock(GURL.class);
     Shell mockShell = mock(Shell.class);
 
+    CobaltActivity.resetRetryCount();
+    org.mockito.Mockito.doCallRealMethod().when(mockActivity).reloadUrl(org.mockito.Mockito.any());
+
     org.mockito.Mockito.when(mockGurl.getSpec()).thenReturn("https://www.youtube.com/tv");
     org.mockito.Mockito.when(mockWebContents.getVisibleUrl()).thenReturn(mockGurl);
     org.mockito.Mockito.when(mockActivity.getActiveWebContents()).thenReturn(mockWebContents);
     org.mockito.Mockito.when(mockActivity.getActiveShell()).thenReturn(mockShell);
 
-    PlatformError.reloadUrl(mockActivity, mockWebContents, "");
+    mockActivity.reloadUrl("");
 
     verify(mockShell).loadUrl("https://www.youtube.com/tv?netdialog_retry=1");
   }
@@ -244,11 +262,14 @@ public class PlatformErrorTest {
     WebContents mockWebContents = mock(WebContents.class);
     NavigationController mockNavController = mock(NavigationController.class);
 
+    CobaltActivity.resetRetryCount();
+    org.mockito.Mockito.doCallRealMethod().when(mockActivity).reloadUrl(org.mockito.Mockito.any());
+
     org.mockito.Mockito.when(mockActivity.getActiveWebContents()).thenReturn(mockWebContents);
     org.mockito.Mockito.when(mockWebContents.getNavigationController())
         .thenReturn(mockNavController);
 
-    PlatformError.reloadUrl(mockActivity, mockWebContents, "");
+    mockActivity.reloadUrl("");
 
     verify(mockNavController).reload(true);
   }

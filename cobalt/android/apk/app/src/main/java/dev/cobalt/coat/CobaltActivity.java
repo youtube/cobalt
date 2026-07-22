@@ -17,6 +17,7 @@ package dev.cobalt.coat;
 import static dev.cobalt.util.Log.TAG;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -55,6 +56,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.chromium.base.CommandLine;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
@@ -699,8 +701,79 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       bridge.getPlatformError().retry();
     } else {
       Log.i(TAG, "Network is online and splash screen never hidden; reloading URL.");
-      PlatformError.reloadUrl(this, webContents, null);
+      reloadUrl(null);
     }
+  }
+
+  private static final String RETRY_PARAM_KEY = "netdialog_retry";
+  private static final AtomicInteger sRetryCount = new AtomicInteger(0);
+
+  /** Performs reload of the target/current URL or active WebContents. */
+  public void reloadUrl(@Nullable String targetUrl) {
+    if (Looper.myLooper() != Looper.getMainLooper()) {
+      mHandler.post(() -> reloadUrl(targetUrl));
+      return;
+    }
+
+    WebContents webContents = getActiveWebContents();
+    String currentUrl = targetUrl != null ? targetUrl : "";
+    if (currentUrl.isEmpty() && webContents != null && webContents.getVisibleUrl() != null) {
+      Log.i(TAG, "No URL provided, using visible URL");
+      currentUrl = webContents.getVisibleUrl().getSpec();
+    }
+
+    int retryCount = sRetryCount.incrementAndGet();
+
+    if (currentUrl.isEmpty()) {
+      if (webContents != null) {
+        Log.i(TAG, "Visible URL and fallback URL are empty, reloading without adding retry param");
+        webContents.getNavigationController().reload(/* checkForRepost= */ true);
+      }
+    } else {
+      if (getActiveShell() != null) {
+        getActiveShell().loadUrl(addRetryUrlParam(currentUrl, retryCount));
+      }
+    }
+  }
+
+  /**
+   * Adds a retry param to the URL if not already present to differentiate bootstrap requests that
+   * originate from a network dialog retry. Note: Uri.Builder handles appending query parameters
+   * before the fragment (hash) correctly.
+   */
+  @VisibleForTesting
+  static String addRetryUrlParam(String url, int count) {
+    Uri parsedUri = Uri.parse(url);
+    Uri.Builder uriBuilder = parsedUri.buildUpon();
+
+    uriBuilder.query(null);
+    boolean retryParamAdded = false;
+
+    for (String key : parsedUri.getQueryParameterNames()) {
+      if (RETRY_PARAM_KEY.equals(key)) {
+        if (!retryParamAdded) {
+          uriBuilder.appendQueryParameter(key, String.valueOf(count));
+          retryParamAdded = true;
+        }
+      } else {
+        for (String value : parsedUri.getQueryParameters(key)) {
+          uriBuilder.appendQueryParameter(key, value);
+        }
+      }
+    }
+
+    if (!retryParamAdded) {
+      uriBuilder.appendQueryParameter(RETRY_PARAM_KEY, String.valueOf(count));
+    }
+
+    String result = uriBuilder.build().toString();
+    Log.i(TAG, "Reloading URL with retry param: " + result);
+    return result;
+  }
+
+  @VisibleForTesting
+  static void resetRetryCount() {
+    sRetryCount.set(0);
   }
 
   public void onSplashScreenHidden() {

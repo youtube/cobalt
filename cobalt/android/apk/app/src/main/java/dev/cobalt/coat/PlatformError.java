@@ -28,7 +28,6 @@ import android.provider.Settings;
 import android.view.KeyEvent;
 import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import dev.cobalt.shell.StartupGuard;
 import dev.cobalt.util.Holder;
@@ -36,7 +35,6 @@ import dev.cobalt.util.Log;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.chromium.content_public.browser.WebContents;
 import org.jni_zero.NativeMethods;
 
 /**
@@ -162,40 +160,6 @@ public class PlatformError
     return mDialog != null && mDialog.isShowing();
   }
 
-  /** Performs reload of the target/current URL or active WebContents. */
-  public static void reloadUrl(
-      CobaltActivity cobaltActivity,
-      @Nullable WebContents webContents,
-      @Nullable String targetUrl) {
-    if (cobaltActivity == null) {
-      return;
-    }
-    if (Looper.myLooper() != Looper.getMainLooper()) {
-      new Handler(Looper.getMainLooper())
-          .post(() -> reloadUrl(cobaltActivity, webContents, targetUrl));
-      return;
-    }
-
-    String currentUrl = targetUrl != null ? targetUrl : "";
-    if (currentUrl.isEmpty() && webContents != null && webContents.getVisibleUrl() != null) {
-      Log.i(TAG, "No URL provided, using visible URL");
-      currentUrl = webContents.getVisibleUrl().getSpec();
-    }
-
-    int retryCount = sRetryCount.incrementAndGet();
-
-    if (currentUrl.isEmpty()) {
-      if (webContents != null) {
-        Log.i(TAG, "Visible URL and fallback URL are empty, reloading without adding retry param");
-        webContents.getNavigationController().reload(/* checkForRepost= */ true);
-      }
-    } else {
-      if (cobaltActivity.getActiveShell() != null) {
-        cobaltActivity.getActiveShell().loadUrl(addRetryUrlParam(currentUrl, retryCount));
-      }
-    }
-  }
-
   /** Performs retry of the failed URL loading. */
   public void retry() {
     if (Looper.myLooper() != Looper.getMainLooper()) {
@@ -208,14 +172,8 @@ public class PlatformError
     }
     Activity activity = mActivityHolder.get();
     if (activity instanceof CobaltActivity) {
-      CobaltActivity cobaltActivity = (CobaltActivity) activity;
-      WebContents webContents = cobaltActivity.getActiveWebContents();
-      reloadUrl(cobaltActivity, webContents, mUrl);
+      ((CobaltActivity) activity).reloadUrl(mUrl);
     }
-  }
-
-  public String getUrl() {
-    return mUrl;
   }
 
   @Override
