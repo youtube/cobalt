@@ -13,7 +13,6 @@
 #include "src/core/SkDescriptor.h"
 #include "src/core/SkStrikeSpec.h"
 #include "src/core/SkTHash.h"
-#include "src/gpu/AtlasTypes.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -35,16 +34,6 @@ namespace sktext::gpu {
 class Glyph;
 class StrikeCache;
 
-struct GlyphKey {
-    GlyphKey(SkPackedGlyphID id, skgpu::MaskFormat format) : fID(id), fFormat(format) {}
-    SkPackedGlyphID fID;
-    skgpu::MaskFormat fFormat;
-
-    bool operator==(const GlyphKey& that) const {
-        return fID == that.fID && fFormat == that.fFormat;
-    }
-};
-
 // The TextStrike manages an SkArenaAlloc for Glyphs. The SkStrike is what actually creates
 // the mask. The TextStrike may outlive the generating SkStrike. However, it retains a copy
 // of it's SkDescriptor as a key to access (or regenerate) the SkStrike. TextStrikes are
@@ -54,7 +43,7 @@ public:
     TextStrike(StrikeCache* strikeCache,
                const SkStrikeSpec& strikeSpec);
 
-    Glyph* getGlyph(SkPackedGlyphID, skgpu::MaskFormat);
+    Glyph* getGlyph(SkPackedGlyphID);
     const SkStrikeSpec& strikeSpec() const { return fStrikeSpec; }
     const SkDescriptor& getDescriptor() const { return fStrikeSpec.descriptor(); }
 
@@ -65,11 +54,11 @@ private:
     const SkStrikeSpec fStrikeSpec;
 
     struct HashTraits {
-        static const GlyphKey GetKey(const Glyph* glyph);
-        static uint32_t Hash(GlyphKey key);
+        static const SkPackedGlyphID& GetKey(const Glyph* glyph);
+        static uint32_t Hash(SkPackedGlyphID key);
     };
-    
-    skia_private::THashTable<Glyph*, GlyphKey, HashTraits> fCache;
+    // Map SkPackedGlyphID -> Glyph*.
+    skia_private::THashTable<Glyph*, SkPackedGlyphID, HashTraits> fCache;
 
     // Store for the glyph information.
     SkArenaAlloc fAlloc{512};
