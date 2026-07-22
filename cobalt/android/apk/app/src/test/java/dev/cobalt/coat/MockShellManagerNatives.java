@@ -28,6 +28,9 @@ public class MockShellManagerNatives implements ShellManager.Natives {
   public void init(Object shellManagerInstance) {}
 
   @Override
+  public void destroy(Object shellManagerInstance) {}
+
+  @Override
   public String appendMigrationStatus(String url) {
     return url;
   }

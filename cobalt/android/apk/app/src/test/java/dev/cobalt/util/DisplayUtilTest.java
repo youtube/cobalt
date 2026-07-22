@@ -15,6 +15,7 @@
  */
 package dev.cobalt.util;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -24,6 +25,7 @@ import static org.mockito.Mockito.when;
 import android.content.Context;
 import android.hardware.display.DisplayManager;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
@@ -31,17 +33,23 @@ import org.robolectric.util.ReflectionHelpers;
 
 @RunWith(RobolectricTestRunner.class)
 public class DisplayUtilTest {
+  @Before
+  public void setUp() {
+    DisplayUtilJni.setInstanceForTesting(mock(DisplayUtil.Natives.class));
+  }
+
   @Test
   public void testDisplayListenerRemainsRegisteredUntilLastRegistrantIsRemoved() {
     Context context = mock(Context.class);
+    Context applicationContext = mock(Context.class);
     DisplayManager displayManager = mock(DisplayManager.class);
     DisplayManager.DisplayListener displayListener =
         ReflectionHelpers.getStaticField(DisplayUtil.class, "sDisplayerListener");
     AtomicInteger listenerRefCount =
         ReflectionHelpers.getStaticField(DisplayUtil.class, "sListenerRefCount");
     listenerRefCount.set(0);
-    when(context.getSystemService(DisplayManager.class)).thenReturn(displayManager);
-    when(context.getSystemService(Context.DISPLAY_SERVICE)).thenReturn(displayManager);
+    when(context.getApplicationContext()).thenReturn(applicationContext);
+    when(applicationContext.getSystemService(DisplayManager.class)).thenReturn(displayManager);
 
     DisplayUtil.addDisplayListener(context);
     DisplayUtil.addDisplayListener(context);
@@ -53,5 +61,56 @@ public class DisplayUtilTest {
     DisplayUtil.removeDisplayListener(context);
 
     verify(displayManager, times(1)).unregisterDisplayListener(displayListener);
+  }
+
+  @Test
+  public void testMissingDisplayManagerDoesNotChangeListenerRefCount() {
+    Context context = mock(Context.class);
+    Context applicationContext = mock(Context.class);
+    AtomicInteger listenerRefCount =
+        ReflectionHelpers.getStaticField(DisplayUtil.class, "sListenerRefCount");
+    listenerRefCount.set(0);
+    when(context.getApplicationContext()).thenReturn(applicationContext);
+    when(applicationContext.getSystemService(DisplayManager.class)).thenReturn(null);
+
+    DisplayUtil.addDisplayListener(context);
+    DisplayUtil.removeDisplayListener(context);
+
+    assertEquals(0, listenerRefCount.get());
+  }
+
+  @Test
+  public void testExtraRemovalDoesNotPoisonListenerRefCount() {
+    Context context = mock(Context.class);
+    Context applicationContext = mock(Context.class);
+    DisplayManager displayManager = mock(DisplayManager.class);
+    DisplayManager.DisplayListener displayListener =
+        ReflectionHelpers.getStaticField(DisplayUtil.class, "sDisplayerListener");
+    AtomicInteger listenerRefCount =
+        ReflectionHelpers.getStaticField(DisplayUtil.class, "sListenerRefCount");
+    listenerRefCount.set(0);
+    when(context.getApplicationContext()).thenReturn(applicationContext);
+    when(applicationContext.getSystemService(DisplayManager.class)).thenReturn(displayManager);
+
+    DisplayUtil.removeDisplayListener(context);
+
+    assertEquals(0, listenerRefCount.get());
+    verify(displayManager, never()).unregisterDisplayListener(displayListener);
+
+    DisplayUtil.addDisplayListener(context);
+
+    verify(displayManager, times(1)).registerDisplayListener(displayListener, null);
+  }
+
+  @Test
+  public void testNullContextDoesNotChangeListenerRefCount() {
+    AtomicInteger listenerRefCount =
+        ReflectionHelpers.getStaticField(DisplayUtil.class, "sListenerRefCount");
+    listenerRefCount.set(0);
+
+    DisplayUtil.addDisplayListener(null);
+    DisplayUtil.removeDisplayListener(null);
+
+    assertEquals(0, listenerRefCount.get());
   }
 }
