@@ -166,22 +166,23 @@ public class PlatformError
   public static void reloadUrl(
       CobaltActivity cobaltActivity,
       @Nullable WebContents webContents,
-      @Nullable String fallbackUrl) {
+      @Nullable String targetUrl) {
     if (cobaltActivity == null) {
       return;
     }
     if (Looper.myLooper() != Looper.getMainLooper()) {
       new Handler(Looper.getMainLooper())
-          .post(() -> reloadUrl(cobaltActivity, webContents, fallbackUrl));
+          .post(() -> reloadUrl(cobaltActivity, webContents, targetUrl));
       return;
     }
 
-    String currentUrl = "";
-    if (webContents != null && webContents.getVisibleUrl() != null) {
+    String currentUrl = targetUrl != null ? targetUrl : "";
+    if (currentUrl.isEmpty() && webContents != null && webContents.getVisibleUrl() != null) {
+      Log.i(TAG, "No URL provided, using visible URL");
       currentUrl = webContents.getVisibleUrl().getSpec();
     }
-    if (currentUrl.isEmpty() && fallbackUrl != null) {
-      currentUrl = fallbackUrl;
+    if (currentUrl.isEmpty() && cobaltActivity.getStartupUrl() != null) {
+      currentUrl = cobaltActivity.getStartupUrl();
     }
 
     int retryCount = sRetryCount.incrementAndGet();

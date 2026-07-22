@@ -204,15 +204,35 @@ public class PlatformErrorTest {
   }
 
   @Test
-  public void reloadUrl_usesFallbackUrl_whenVisibleUrlIsEmpty() throws Exception {
+  public void reloadUrl_usesTargetUrl_overVisibleUrl() throws Exception {
     CobaltActivity mockActivity = mock(CobaltActivity.class);
     WebContents mockWebContents = mock(WebContents.class);
+    GURL mockGurl = mock(GURL.class);
     Shell mockShell = mock(Shell.class);
 
+    org.mockito.Mockito.when(mockGurl.getSpec()).thenReturn("about:blank");
+    org.mockito.Mockito.when(mockWebContents.getVisibleUrl()).thenReturn(mockGurl);
     org.mockito.Mockito.when(mockActivity.getActiveWebContents()).thenReturn(mockWebContents);
     org.mockito.Mockito.when(mockActivity.getActiveShell()).thenReturn(mockShell);
 
     PlatformError.reloadUrl(mockActivity, mockWebContents, "https://www.youtube.com/tv");
+
+    verify(mockShell).loadUrl("https://www.youtube.com/tv?netdialog_retry=1");
+  }
+
+  @Test
+  public void reloadUrl_usesVisibleUrl_whenTargetUrlIsEmpty() throws Exception {
+    CobaltActivity mockActivity = mock(CobaltActivity.class);
+    WebContents mockWebContents = mock(WebContents.class);
+    GURL mockGurl = mock(GURL.class);
+    Shell mockShell = mock(Shell.class);
+
+    org.mockito.Mockito.when(mockGurl.getSpec()).thenReturn("https://www.youtube.com/tv");
+    org.mockito.Mockito.when(mockWebContents.getVisibleUrl()).thenReturn(mockGurl);
+    org.mockito.Mockito.when(mockActivity.getActiveWebContents()).thenReturn(mockWebContents);
+    org.mockito.Mockito.when(mockActivity.getActiveShell()).thenReturn(mockShell);
+
+    PlatformError.reloadUrl(mockActivity, mockWebContents, "");
 
     verify(mockShell).loadUrl("https://www.youtube.com/tv?netdialog_retry=1");
   }
