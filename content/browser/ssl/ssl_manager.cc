@@ -14,7 +14,6 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/supports_user_data.h"
 #include "base/trace_event/optional_trace_event.h"
-#include "third_party/blink/public/common/buildflags.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/navigation_or_document_handle.h"
 #include "content/browser/navigation_subresource_loader_params.h"

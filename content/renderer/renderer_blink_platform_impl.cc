@@ -90,7 +90,6 @@
 #include "services/service_manager/public/cpp/interface_provider.h"
 #include "services/viz/public/cpp/gpu/context_provider_command_buffer.h"
 #include "storage/common/database/database_identifier.h"
-#include "third_party/blink/public/common/buildflags.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/origin_trials/trial_token_validator.h"
 #include "third_party/blink/public/common/security/protocol_handler_security_level.h"
