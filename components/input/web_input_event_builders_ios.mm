@@ -362,4 +362,53 @@ blink::WebTouchEvent WebTouchEventBuilder::Build(
   return result;
 }
 
+#if BUILDFLAG(IS_COBALT)
+blink::WebTouchEvent WebTouchEventBuilder::BuildFromGamepadData(
+    blink::WebInputEvent::Type type,
+    CGPoint point) {
+  blink::WebTouchEvent result(type, 0, ui::EventTimeForNow());
+  blink::WebTouchPoint::State state =
+      blink::WebTouchPoint::State::kStateUndefined;
+  switch (type) {
+    case blink::WebInputEvent::Type::kTouchStart:
+      state = blink::WebTouchPoint::State::kStatePressed;
+      break;
+    case blink::WebInputEvent::Type::kTouchEnd:
+      state = blink::WebTouchPoint::State::kStateReleased;
+      break;
+    case blink::WebInputEvent::Type::kTouchMove:
+      state = blink::WebTouchPoint::State::kStateMoved;
+      break;
+    case blink::WebInputEvent::Type::kTouchCancel:
+      state = blink::WebTouchPoint::State::kStateCancelled;
+      break;
+    default:
+      NOTREACHED() << "Invalid types for touch events." << type;
+  }
+  result.dispatch_type =
+      result.GetType() == blink::WebInputEvent::Type::kTouchCancel
+          ? blink::WebInputEvent::DispatchType::kEventNonBlocking
+          : blink::WebInputEvent::DispatchType::kBlocking;
+  result.hovering = type == blink::WebInputEvent::Type::kTouchEnd;
+  result.unique_touch_event_id = ui::GetNextTouchEventId();
+  result.touches_length = 1;
+
+  blink::WebTouchPoint touch;
+  // tvOS supports only one touch at the same time.
+  SetWebPointerPropertiesFromMotionEventData(touch, /*pointer_id=*/1,
+                                             /*pressure=*/NAN);
+  touch.state = state;
+  gfx::PointF position(point);
+  // The gamepad data read from the Siri Remote is normalized from -1 to 1 and
+  // this is what Kabuki uses. Note that this behavior is not spec-compliant,
+  // as the reported values are not relative to the viewport or the screen.
+  // TODO(532457474): Use a more standardized approach.
+  touch.SetPositionInScreen(position);
+  touch.SetPositionInWidget(position);
+  result.touches[0] = touch;
+
+  return result;
+}
+#endif
+
 }  // namespace input
