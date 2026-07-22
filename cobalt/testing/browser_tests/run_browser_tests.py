@@ -306,19 +306,23 @@ class CobaltTestRunner:
   def _run_command_and_tee(self, cmd: list[str], env: dict[str, str],
                            log_file_path: str) -> int:
     """Runs a command and tees its stdout/stderr to console and a log file."""
+    env_copy = env.copy()
+    env_copy["PYTHONUNBUFFERED"] = "1"
     with open(log_file_path, "a", encoding="utf-8") as f_log:
       with subprocess.Popen(
           cmd,
           stdout=subprocess.PIPE,
           stderr=subprocess.STDOUT,
           text=True,
-          env=env,
+          bufsize=1,
+          env=env_copy,
       ) as proc:
         if proc.stdout:
           for line in proc.stdout:
             sys.stdout.write(line)
             sys.stdout.flush()
             f_log.write(line)
+            f_log.flush()
         proc.wait()
         return proc.returncode
 
@@ -429,25 +433,56 @@ class CobaltTestRunner:
     except Exception as e:
       logging.error("Error writing final XML: %s", e)
 
+  def _write_milestone(self, filename: str, content: str = ""):
+    """Writes a milestone file into the XML output directory so MH pulls it."""
+    out_dir = (
+        os.path.dirname(self.xml_output_file)
+        if self.xml_output_file
+        else "/data/test/results"
+    )
+    try:
+      os.makedirs(out_dir, exist_ok=True)
+      with open(os.path.join(out_dir, filename), "w", encoding="utf-8") as f:
+        f.write(content)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+      logging.warning("Could not write milestone %s: %s", filename, e)
+
   def run(self) -> int:
     """Runs the test execution process.
 
     Returns:
         The number of failed tests.
     """
+    self._write_milestone(
+        "01_runner_started.txt",
+        f"Binary: {self.binary}\nFilter: {self.args.gtest_filter}\n",
+    )
     self._initialize_xml()
 
     gtest_list_output = self.list_tests()
     all_tests = self.parse_and_sort_tests(gtest_list_output)
     tests_to_run = self.filter_tests_for_shard(all_tests)
 
-    logging.info("Shard %d/%d: Running %d tests.", self.shard_index,
-                 self.total_shards, len(tests_to_run))
+    self._write_milestone(
+        "02_list_tests_done.txt",
+        f"Total: {len(all_tests)}, To Run: {len(tests_to_run)}\n\n"
+        f"{gtest_list_output}\n",
+    )
+
+    logging.info(
+        "Shard %d/%d: Running %d tests.",
+        self.shard_index,
+        self.total_shards,
+        len(tests_to_run),
+    )
 
     passed_count = 0
     failed_count = 0
 
     for i, test in enumerate(tests_to_run):
+      self._write_milestone(
+          f"03_running_test_{i + 1}.txt", f"Test: {test}\n"
+      )
       logging.info("[%d/%d] RUNNING: %s", i + 1, len(tests_to_run), test)
       retcode, temp_xml_path = self._run_single_test(test, i)
 
@@ -457,6 +492,11 @@ class CobaltTestRunner:
       else:
         logging.error("[FAILED] %s (Exit Code: %d)", test, retcode)
         failed_count += 1
+
+      self._write_milestone(
+          f"04_finished_test_{i + 1}.txt",
+          f"Test: {test}, Exit Code: {retcode}\n",
+      )
 
       if self.xml_output_file:
         self._merge_test_xml(test, temp_xml_path)
