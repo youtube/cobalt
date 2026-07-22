@@ -90,9 +90,8 @@ public class StarboardBridge extends BaseStarboardBridge {
   protected void hideSplashScreen() {
     mHasHiddenSplashScreen = true;
     mPlatformError = null;
-    Activity activity = mActivityHolder.get();
-    if (activity instanceof CobaltActivity) {
-      ((CobaltActivity) activity).onSplashScreenHidden();
+    if (mActivityHolder.get() instanceof CobaltActivity activity) {
+      activity.onSplashScreenHidden();
     }
     StartupGuard.getInstance().disarm();
   }

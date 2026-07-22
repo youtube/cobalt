@@ -134,9 +134,8 @@ public class PlatformError
         (dialog, keyCode, event) -> {
           if ((keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_ESCAPE)
               && event.getAction() == KeyEvent.ACTION_DOWN) {
-            Activity currentActivity = mActivityHolder.get();
-            if (currentActivity instanceof CobaltActivity) {
-              ((CobaltActivity) currentActivity).getStarboardBridge().requestSuspend();
+            if (mActivityHolder.get() instanceof CobaltActivity cobaltActivity) {
+              cobaltActivity.getStarboardBridge().requestSuspend();
             }
             // Consume the event and do not dismiss the dialog.
             return true;
@@ -170,9 +169,8 @@ public class PlatformError
     if (mDialog != null) {
       mDialog.dismiss();
     }
-    Activity activity = mActivityHolder.get();
-    if (activity instanceof CobaltActivity) {
-      ((CobaltActivity) activity).reloadUrl(mUrl);
+    if (mActivityHolder.get() instanceof CobaltActivity activity) {
+      activity.reloadUrl(mUrl);
     }
   }
 

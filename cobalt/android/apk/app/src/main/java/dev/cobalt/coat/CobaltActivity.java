@@ -819,8 +819,8 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
             LayoutParams layoutParams = mVideoSurfaceView.getLayoutParams();
             // Since mVideoSurfaceView is added directly to the Activity's content view, which is a
             // FrameLayout, we expect its layout params to become FrameLayout.LayoutParams.
-            if (layoutParams instanceof FrameLayout.LayoutParams) {
-              ((FrameLayout.LayoutParams) layoutParams).setMargins(x, y, x + width, y + height);
+            if (layoutParams instanceof FrameLayout.LayoutParams frameLayoutParams) {
+              frameLayoutParams.setMargins(x, y, x + width, y + height);
             } else {
               Log.w(
                   TAG,
@@ -844,8 +844,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       return;
     }
     ViewParent parent = mVideoSurfaceView.getParent();
-    if (parent instanceof FrameLayout) {
-      FrameLayout frameLayout = (FrameLayout) parent;
+    if (parent instanceof FrameLayout frameLayout) {
       int index = frameLayout.indexOfChild(mVideoSurfaceView);
       frameLayout.removeView(mVideoSurfaceView);
       Log.i(TAG, "removed mVideoSurfaceView at index:" + index);
