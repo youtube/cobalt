@@ -21,7 +21,6 @@ import android.app.Dialog;
 import android.content.ActivityNotFoundException;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
@@ -34,7 +33,6 @@ import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.jni_zero.NativeMethods;
 
 /**
@@ -66,9 +64,6 @@ public class PlatformError
   private static final int RETRY_BUTTON = 1;
   private static final int NETWORK_SETTINGS_BUTTON = 2;
   private static final int DISMISS_BUTTON = 3;
-
-  private static final String RETRY_PARAM_KEY = "netdialog_retry";
-  private static final AtomicInteger sRetryCount = new AtomicInteger(0);
 
   private final Holder<Activity> mActivityHolder;
   private final @ErrorType int mErrorType;
@@ -215,48 +210,6 @@ public class PlatformError
   @NativeMethods
   interface Natives {
     void sendResponse(@PlatformError.Response int response, long data);
-  }
-
-  /**
-   * Adds a retry param to the URL if not already present to differentiate bootstrap requests that
-   * originate from a network dialog retry. Note: Uri.Builder handles appending query parameters
-   * before the fragment (hash) correctly.
-   */
-  static String addRetryUrlParam(String url, int count) {
-    Uri parsedUri = Uri.parse(url);
-    Uri.Builder uriBuilder = parsedUri.buildUpon();
-
-    uriBuilder.query(null);
-    boolean retryParamAdded = false;
-
-    for (String key : parsedUri.getQueryParameterNames()) {
-      if (RETRY_PARAM_KEY.equals(key)) {
-        // Add the updated retry parameter only once
-        if (!retryParamAdded) {
-          uriBuilder.appendQueryParameter(key, String.valueOf(count));
-          retryParamAdded = true;
-        }
-      } else {
-        // Preserve all other existing parameters and their values
-        for (String value : parsedUri.getQueryParameters(key)) {
-          uriBuilder.appendQueryParameter(key, value);
-        }
-      }
-    }
-
-    // If the parameter wasn't in the original URL, add it now
-    if (!retryParamAdded) {
-      uriBuilder.appendQueryParameter(RETRY_PARAM_KEY, String.valueOf(count));
-    }
-
-    String result = uriBuilder.build().toString();
-    Log.i(TAG, "Reloading URL with retry param: " + result);
-    return result;
-  }
-
-  @VisibleForTesting
-  static void resetRetryCount() {
-    sRetryCount.set(0);
   }
 
   @VisibleForTesting

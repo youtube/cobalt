@@ -36,20 +36,20 @@ public class PlatformErrorTest {
     holder.set(mockActivity);
     platformError = new PlatformError(holder, PlatformError.CONNECTION_ERROR, TEST_DATA, "");
 
-    PlatformError.resetRetryCount();
+    CobaltActivity.resetRetryCount();
   }
 
   @Test
   public void addRetryUrlParam_appendsParam_whenNotPresent() {
     String url = TEST_URL;
-    String result = platformError.addRetryUrlParam(url, 1);
+    String result = CobaltActivity.addRetryUrlParam(url, 1);
     assertEquals(TEST_URL + "?netdialog_retry=1", result);
   }
 
   @Test
   public void addRetryUrlParam_updatesParam_whenPresent() {
     String url = TEST_URL + "?netdialog_retry=1";
-    String result = platformError.addRetryUrlParam(url, 2);
+    String result = CobaltActivity.addRetryUrlParam(url, 2);
     assertEquals(TEST_URL + "?netdialog_retry=2", result);
   }
 
