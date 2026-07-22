@@ -5,6 +5,11 @@
 #ifndef CONTENT_BROWSER_DEVTOOLS_NETWORK_SERVICE_DEVTOOLS_OBSERVER_H_
 #define CONTENT_BROWSER_DEVTOOLS_NETWORK_SERVICE_DEVTOOLS_OBSERVER_H_
 
+#include "build/build_config.h"
+#include "third_party/blink/public/common/buildflags.h"
+
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
 #include <string>
 
 #include "base/time/time.h"
@@ -121,5 +126,32 @@ class NetworkServiceDevToolsObserver : public network::mojom::DevToolsObserver {
 };
 
 }  // namespace content
+
+#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
+#include <string>
+
+#include "mojo/public/cpp/bindings/pending_remote.h"
+#include "services/network/public/mojom/devtools_observer.mojom.h"
+
+namespace content {
+
+class FrameTreeNode;
+
+class NetworkServiceDevToolsObserver {
+ public:
+  static mojo::PendingRemote<::network::mojom::DevToolsObserver> MakeSelfOwned(
+      const std::string& id) {
+    return {};
+  }
+  static mojo::PendingRemote<::network::mojom::DevToolsObserver> MakeSelfOwned(
+      FrameTreeNode* frame_tree_node) {
+    return {};
+  }
+};
+
+}  // namespace content
+
+#endif  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #endif  // CONTENT_BROWSER_DEVTOOLS_NETWORK_SERVICE_DEVTOOLS_OBSERVER_H_

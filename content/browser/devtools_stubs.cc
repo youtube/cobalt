@@ -39,7 +39,9 @@
 #include "third_party/blink/public/mojom/navigation/navigation_params.mojom.h"
 #include "content/browser/devtools/dedicated_worker_devtools_agent_host.h"
 #include "content/browser/devtools/devtools_agent_host_impl.h"
+#include "content/browser/devtools/devtools_preload_storage.h"
 #include "content/browser/devtools/devtools_throttle_handle.h"
+#include "content/browser/devtools/devtools_url_loader_interceptor.h"
 #include "content/browser/devtools/network_service_devtools_observer.h"
 #include "content/browser/devtools/protocol/page_handler.h"
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
@@ -64,6 +66,8 @@ namespace network {
 class URLLoaderFactoryBuilder;
 }
 
+#include "content/public/browser/certificate_request_result_type.h"
+
 namespace content {
 
 class FencedFrame;
@@ -74,7 +78,7 @@ struct SignedExchangeError;
 class BackForwardCacheCanStoreDocumentResult;
 class BackForwardCacheCanStoreTreeResult;
 struct PrerenderMismatchedHeaders;
-using CertErrorCallback = base::RepeatingCallback<void(int)>;
+using CertErrorCallback = base::RepeatingCallback<void(CertificateRequestResultType)>;
 
 enum class InterestGroupAuctionEventType;
 enum class InterestGroupAuctionFetchType;
@@ -87,31 +91,13 @@ class FrameTreeNode;
 enum JavaScriptDialogType;
 using JavaScriptDialogCallback = base::OnceCallback<void(bool, const std::u16string&)>;
 
-class DevToolsURLLoaderInterceptor {
- public:
-  static void HandleAuthRequest(
-      GlobalRequestID request_id,
-      const net::AuthChallengeInfo& auth_info,
-      base::OnceCallback<void(bool, const std::optional<net::AuthCredentials>&)> callback);
-};
-
 // static
 SharedWorkerDevToolsAgentHost* SharedWorkerDevToolsAgentHost::GetFor(
     SharedWorkerHost* host) {
   return nullptr;
 }
 
-// static
-mojo::PendingRemote<::network::mojom::DevToolsObserver> NetworkServiceDevToolsObserver::MakeSelfOwned(
-    const std::string& id) {
-  return {};
-}
 
-// static
-mojo::PendingRemote<::network::mojom::DevToolsObserver> NetworkServiceDevToolsObserver::MakeSelfOwned(
-    FrameTreeNode* frame_tree_node) {
-  return {};
-}
 
 // static
 DedicatedWorkerDevToolsAgentHost* DedicatedWorkerDevToolsAgentHost::GetFor(
@@ -119,13 +105,7 @@ DedicatedWorkerDevToolsAgentHost* DedicatedWorkerDevToolsAgentHost::GetFor(
   return nullptr;
 }
 
-DevToolsThrottleHandle::DevToolsThrottleHandle(base::OnceCallback<void()> throttle_callback)
-    : throttle_callback_(std::move(throttle_callback)) {}
-DevToolsThrottleHandle::~DevToolsThrottleHandle() {
-  if (throttle_callback_) {
-    std::move(throttle_callback_).Run();
-  }
-}
+
 
 // static
 bool DevToolsAgentHost::IsDebuggerAttached(WebContents* web_contents) {
@@ -211,13 +191,7 @@ void WorkerDevToolsManager::WorkerCreated(
 
 void WorkerDevToolsManager::WorkerDestroyed(const DedicatedWorkerHost* host) {}
 
-// static
-void DevToolsURLLoaderInterceptor::HandleAuthRequest(
-    GlobalRequestID request_id,
-    const net::AuthChallengeInfo& auth_info,
-    base::OnceCallback<void(bool, const std::optional<net::AuthCredentials>&)> callback) {
-  std::move(callback).Run(false, std::nullopt);
-}
+
 
 namespace protocol {
 // static

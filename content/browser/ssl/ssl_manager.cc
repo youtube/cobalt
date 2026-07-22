@@ -361,13 +361,11 @@ void SSLManager::OnCertErrorInternal(std::unique_ptr<SSLErrorHandler> handler) {
           controller_->frame_tree().GetMainFrame()->GetStoragePartition(),
           ssl_host_state_delegate_);
 
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   if (devtools_instrumentation::HandleCertificateError(
           web_contents, cert_error, request_url,
           base::BindRepeating(callback, false))) {
     return;
   }
-#endif
 
   GetContentClient()->browser()->AllowCertificateError(
       web_contents, cert_error, ssl_info, request_url,

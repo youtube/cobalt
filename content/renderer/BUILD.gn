@@ -191,10 +191,7 @@ target(link_target_type, "renderer") {
       "media/audio_decoder.h",
     ]
     if (!enable_devtools_backend) {
-      sources -= [
-        "media/inspector_media_event_handler.cc",
-        "media/inspector_media_event_handler.h",
-      ]
+      sources -= [ "media/inspector_media_event_handler.cc" ]
     }
   }
 

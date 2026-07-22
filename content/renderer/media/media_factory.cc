@@ -435,10 +435,8 @@ std::unique_ptr<blink::WebMediaPlayer> MediaFactory::CreateMediaPlayer(
 
   media::MediaPlayerLoggingID player_id = media::GetNextMediaPlayerLoggingID();
   std::vector<std::unique_ptr<BatchingMediaLog::EventHandler>> handlers;
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   handlers.push_back(
       std::make_unique<InspectorMediaEventHandler>(inspector_context));
-#endif
   handlers.push_back(std::make_unique<RenderMediaEventHandler>(player_id));
 
   // This must be created for every new WebMediaPlayer
@@ -783,10 +781,8 @@ MediaFactory::CreateWebMediaPlayerForMediaStream(
 
   media::MediaPlayerLoggingID player_id = media::GetNextMediaPlayerLoggingID();
   std::vector<std::unique_ptr<BatchingMediaLog::EventHandler>> handlers;
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   handlers.push_back(
       std::make_unique<InspectorMediaEventHandler>(inspector_context));
-#endif
   handlers.push_back(std::make_unique<RenderMediaEventHandler>(player_id));
 
   // This must be created for every new WebMediaPlayer, each instance generates

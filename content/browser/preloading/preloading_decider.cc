@@ -15,10 +15,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_split.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
-#include "third_party/blink/public/common/buildflags.h"
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/devtools_preload_storage.h"
-#endif
 #include "content/browser/preloading/prefetch/no_vary_search_helper.h"
 #include "content/browser/preloading/prefetch/prefetch_document_manager.h"
 #include "content/browser/preloading/prefetch/prefetch_params.h"
@@ -239,9 +236,7 @@ PreloadingDecider::PreloadingDecider(RenderFrameHost* rfh)
   // cause.
   //
   // TODO(crbug.com/394631076): Fix the root cause and revert this.
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   DevToolsPreloadStorage::GetOrCreateForCurrentDocument(rfh);
-#endif
 }
 
 PreloadingDecider::~PreloadingDecider() = default;

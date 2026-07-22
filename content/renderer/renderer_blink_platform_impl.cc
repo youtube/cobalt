@@ -1028,10 +1028,8 @@ std::unique_ptr<media::MediaLog> RendererBlinkPlatformImpl::GetMediaLog(
         media::GetNextMediaPlayerLoggingID()));
 
   // For devtools' media tab.
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   handlers.push_back(
       std::make_unique<InspectorMediaEventHandler>(inspector_context));
-#endif
 
   return std::make_unique<BatchingMediaLog>(owner_task_runner,
                                             std::move(handlers));

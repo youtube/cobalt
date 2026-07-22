@@ -5,6 +5,11 @@
 #ifndef CONTENT_BROWSER_DEVTOOLS_DEVTOOLS_URL_LOADER_INTERCEPTOR_H_
 #define CONTENT_BROWSER_DEVTOOLS_DEVTOOLS_URL_LOADER_INTERCEPTOR_H_
 
+#include "build/build_config.h"
+#include "third_party/blink/public/common/buildflags.h"
+
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
 #include <optional>
 
 #include "base/containers/enum_set.h"
@@ -259,5 +264,31 @@ class DevToolsURLLoaderInterceptor {
 };
 
 }  // namespace content
+
+#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
+#include <optional>
+#include <utility>
+
+#include "base/functional/callback.h"
+#include "content/public/browser/global_request_id.h"
+#include "net/base/auth.h"
+
+namespace content {
+
+class DevToolsURLLoaderInterceptor {
+ public:
+  static void HandleAuthRequest(GlobalRequestID req_id,
+                                const net::AuthChallengeInfo& auth_info,
+                                base::OnceCallback<void(bool,
+                                const std::optional<net::AuthCredentials>&)>
+                                callback) {
+    std::move(callback).Run(false, std::nullopt);
+  }
+};
+
+}  // namespace content
+
+#endif  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #endif  // CONTENT_BROWSER_DEVTOOLS_DEVTOOLS_URL_LOADER_INTERCEPTOR_H_
