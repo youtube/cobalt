@@ -62,6 +62,18 @@ Usage Examples:
 
   15. Launch Cobalt plugin with a deep link (e.g. video ID or URL parameter):
       python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run --deeplink "v=dQw4w9WgXcQ"
+  
+  16. Run Cobalt executable with native in-process heap profiling:
+      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py \
+        --mode executable --run --config devel \
+        --param \
+          --enable-heap-profiling \
+          --memlog=all \
+          --memlog-stack-mode=native-with-thread-names \
+          --trace-startup=disabled-by-default-memory-infra \
+          --trace-startup-duration=15 \
+          --trace-startup-format=json \
+          --trace-startup-file=/tmp/trace_event.json
 """
 
 import argparse
@@ -304,8 +316,19 @@ def launch_on_device(
                 config = res["result"]
                 sb_args = config.get("sbmainargs", [])
                 
-                # Filter out any existing remote debugging port or url arguments
-                sb_args = [arg for arg in sb_args if not arg.startswith("--remote-debugging-port=") and not arg.startswith("--url=")]
+                # Filter out any existing url, profiling and remote debugging arguments to prevent duplicates
+                blocked_flags = {
+                    "--remote-debugging-port",
+                    "--enable-heap-profiling",
+                    "--memlog",
+                    "--memlog-stack-mode",
+                    "--trace-startup",
+                    "--trace-startup-duration",
+                    "--trace-startup-format",
+                    "--trace-startup-file",
+                    "--url",
+                }
+                sb_args = [arg for arg in sb_args if arg.split("=", 1)[0] not in blocked_flags]
                 
                 if devtools:
                     sb_args.append("--remote-debugging-port=9222")
