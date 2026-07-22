@@ -21,6 +21,7 @@ import android.app.Service;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import dev.cobalt.shell.StartupGuard;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.JavaSwitches;
@@ -40,11 +41,14 @@ public class StarboardBridge extends BaseStarboardBridge
     StarboardBridge getStarboardBridge();
   }
 
+  private static final long MIN_RETRY_INTERVAL_MS = 1000L;
+
   private CobaltMediaSession mCobaltMediaSession;
   private VolumeStateReceiver mVolumeStateReceiver;
   private volatile PlatformError mPlatformError;
   private volatile boolean mHasHiddenSplashScreen = false;
-  private boolean mIsConnectionTypeObserverRegistered = false;
+  private volatile boolean mIsConnectionTypeObserverRegistered = false;
+  private volatile long mLastRetryTimestampMs = 0L;
 
   public StarboardBridge(
       Context appContext,
@@ -116,12 +120,19 @@ public class StarboardBridge extends BaseStarboardBridge
       return;
     }
 
+    long now = SystemClock.elapsedRealtime();
+    if (now - mLastRetryTimestampMs < MIN_RETRY_INTERVAL_MS) {
+      // Avoid retry storms due to rapid network flapping.
+      return;
+    }
+    mLastRetryTimestampMs = now;
+
     if (mPlatformError != null) {
       Log.i(TAG, "Network is online and platform error is active; retrying URL load.");
       mPlatformError.retry();
     } else {
-      Log.i(TAG, "Network is online and splash screen never hidden; reloading startup URL.");
-      PlatformError.reloadUrl(cobaltActivity, webContents, cobaltActivity.getStartupUrl());
+      Log.i(TAG, "Network is online and splash screen never hidden; reloading URL.");
+      PlatformError.reloadUrl(cobaltActivity, webContents, null);
     }
   }
 

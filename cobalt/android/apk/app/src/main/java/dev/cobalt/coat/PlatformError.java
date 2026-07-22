@@ -181,9 +181,6 @@ public class PlatformError
       Log.i(TAG, "No URL provided, using visible URL");
       currentUrl = webContents.getVisibleUrl().getSpec();
     }
-    if (currentUrl.isEmpty() && cobaltActivity.getStartupUrl() != null) {
-      currentUrl = cobaltActivity.getStartupUrl();
-    }
 
     int retryCount = sRetryCount.incrementAndGet();
 
@@ -213,8 +210,7 @@ public class PlatformError
     if (activity instanceof CobaltActivity) {
       CobaltActivity cobaltActivity = (CobaltActivity) activity;
       WebContents webContents = cobaltActivity.getActiveWebContents();
-      String url = !mUrl.isEmpty() ? mUrl : cobaltActivity.getStartupUrl();
-      reloadUrl(cobaltActivity, webContents, url);
+      reloadUrl(cobaltActivity, webContents, mUrl);
     }
   }
 

@@ -10,6 +10,7 @@ import dev.cobalt.shell.Shell;
 import dev.cobalt.util.Holder;
 import org.chromium.content_public.browser.NavigationController;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.url.GURL;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;

@@ -399,13 +399,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   }
 
   /**
-   * @return The initial startup URL configured for the activity.
-   */
-  public String getStartupUrl() {
-    return mStartupUrl;
-  }
-
-  /**
    * @return The {@link WebContents} owned by the currently visible {@link Shell} or null if one is
    *     not showing.
    */
