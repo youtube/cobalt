@@ -26,27 +26,198 @@
 #include "components/update_client/activity_data_service.h"
 #include "components/update_client/crx_cache.h"
 #include "components/update_client/crx_downloader_factory.h"
-#if BUILDFLAG(USE_EVERGREEN)
-#include "cobalt/updater/network_fetcher.h"
-#include "cobalt/updater/unzipper.h"
-#else
 #include "components/update_client/net/network_chromium.h"  // nogncheck
-#endif
 #include "components/update_client/patch/patch_impl.h"
 #include "components/update_client/patcher.h"
 #include "components/update_client/persisted_data.h"
 #include "components/update_client/protocol_handler.h"
 #include "components/update_client/test_activity_data_service.h"
-#if !BUILDFLAG(USE_EVERGREEN)
 #include "components/update_client/unzip/unzip_impl.h"  // nogncheck
-#endif
 #include "components/update_client/unzipper.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(IS_STARBOARD) && defined(IN_MEMORY_UPDATES)
+#include "base/memory/raw_ptr.h"
+#include "net/base/load_flags.h"
+#include "services/network/public/cpp/resource_request.h"
+#include "services/network/public/cpp/simple_url_loader.h"
+#include "services/network/public/mojom/url_response_head.mojom.h"
+#include "third_party/zlib/google/zip.h"  // nogncheck
+#endif
+
 namespace update_client {
 
 namespace {
+
+#if BUILDFLAG(IS_STARBOARD) && defined(IN_MEMORY_UPDATES)
+class TestUnzipper : public Unzipper {
+ public:
+  TestUnzipper() = default;
+
+  void Unzip(const base::FilePath& zip_path,
+             const base::FilePath& output_path,
+             UnzipCompleteCallback callback) override {
+    std::move(callback).Run(zip::Unzip(zip_path, output_path));
+  }
+
+  void Unzip(const std::string& zip_str,
+             const base::FilePath& output_path,
+             UnzipCompleteCallback callback) override {
+    std::move(callback).Run(zip::Unzip(zip_str, output_path));
+  }
+
+  base::OnceClosure DecodeXz(const base::FilePath& xz_file,
+                             const base::FilePath& destination,
+                             UnzipCompleteCallback callback) override {
+    return base::DoNothing();
+  }
+};
+
+class TestNetworkFetcher : public NetworkFetcher {
+ public:
+  explicit TestNetworkFetcher(
+      scoped_refptr<network::SharedURLLoaderFactory> shared_url_network_factory)
+      : shared_url_network_factory_(shared_url_network_factory) {}
+
+  ~TestNetworkFetcher() override = default;
+
+  void PostRequest(
+      const GURL& url,
+      const std::string& post_data,
+      const std::string& content_type,
+      const base::flat_map<std::string, std::string>& post_additional_headers,
+      ResponseStartedCallback response_started_callback,
+      ProgressCallback progress_callback,
+      PostRequestCompleteCallback post_request_complete_callback) override {
+    auto resource_request = std::make_unique<network::ResourceRequest>();
+    resource_request->url = url;
+    resource_request->method = "POST";
+    resource_request->load_flags = net::LOAD_DISABLE_CACHE;
+    resource_request->credentials_mode = network::mojom::CredentialsMode::kOmit;
+    for (const auto& [name, value] : post_additional_headers) {
+      resource_request->headers.SetHeader(name, value);
+    }
+    simple_url_loader_ = network::SimpleURLLoader::Create(
+        std::move(resource_request),
+        net::DefineNetworkTrafficAnnotation("test", "test"));
+    simple_url_loader_->AttachStringForUpload(post_data, content_type);
+    simple_url_loader_->SetOnResponseStartedCallback(base::BindOnce(
+        [](ResponseStartedCallback response_started_callback,
+           const GURL& final_url,
+           const network::mojom::URLResponseHead& response_head) {
+          response_started_callback.Run(
+              response_head.headers ? response_head.headers->response_code()
+                                    : -1,
+              response_head.content_length);
+        },
+        response_started_callback));
+    simple_url_loader_->SetOnDownloadProgressCallback(base::BindRepeating(
+        [](ProgressCallback progress_callback, uint64_t current) {
+          progress_callback.Run(static_cast<int64_t>(current));
+        },
+        progress_callback));
+    simple_url_loader_->DownloadToString(
+        shared_url_network_factory_.get(),
+        base::BindOnce(
+            [](TestNetworkFetcher* fetcher,
+               PostRequestCompleteCallback post_request_complete_callback,
+               std::optional<std::string> response_body) {
+              std::string etag, cup_proof, cookie;
+              int64_t retry_after = -1;
+              if (fetcher->simple_url_loader_->ResponseInfo() &&
+                  fetcher->simple_url_loader_->ResponseInfo()->headers) {
+                auto* headers = fetcher->simple_url_loader_->ResponseInfo()->headers.get();
+                headers->EnumerateHeader(nullptr, kHeaderEtag, &etag);
+                headers->EnumerateHeader(nullptr, kHeaderXCupServerProof, &cup_proof);
+                headers->EnumerateHeader(nullptr, kHeaderCookie, &cookie);
+                retry_after = headers->GetInt64HeaderValue(kHeaderXRetryAfter);
+              }
+              std::move(post_request_complete_callback)
+                  .Run(std::move(response_body),
+                       fetcher->simple_url_loader_->NetError(), etag, cup_proof,
+                       cookie, retry_after);
+            },
+            base::Unretained(this),
+            std::move(post_request_complete_callback)),
+        1024 * 1024);
+  }
+
+  void DownloadToString(
+      const GURL& url,
+      std::string* dst,
+      ResponseStartedCallback response_started_callback,
+      ProgressCallback progress_callback,
+      DownloadToStringCompleteCallback download_to_string_complete_callback) override {
+    dst_str_ = dst;
+    auto resource_request = std::make_unique<network::ResourceRequest>();
+    resource_request->url = url;
+    resource_request->method = "GET";
+    resource_request->load_flags = net::LOAD_DISABLE_CACHE;
+    resource_request->credentials_mode = network::mojom::CredentialsMode::kOmit;
+    simple_url_loader_ = network::SimpleURLLoader::Create(
+        std::move(resource_request),
+        net::DefineNetworkTrafficAnnotation("test", "test"));
+    simple_url_loader_->SetOnResponseStartedCallback(base::BindOnce(
+        [](ResponseStartedCallback response_started_callback,
+           const GURL& final_url,
+           const network::mojom::URLResponseHead& response_head) {
+          response_started_callback.Run(
+              response_head.headers ? response_head.headers->response_code()
+                                    : -1,
+              response_head.content_length);
+        },
+        response_started_callback));
+    simple_url_loader_->SetOnDownloadProgressCallback(base::BindRepeating(
+        [](ProgressCallback progress_callback, uint64_t current) {
+          progress_callback.Run(static_cast<int64_t>(current));
+        },
+        progress_callback));
+    simple_url_loader_->DownloadToString(
+        shared_url_network_factory_.get(),
+        base::BindOnce(
+            [](TestNetworkFetcher* fetcher,
+               DownloadToStringCompleteCallback download_to_string_complete_callback,
+               std::unique_ptr<std::string> response_body) {
+              if (response_body) {
+                *fetcher->dst_str_ = std::move(*response_body);
+              }
+              std::move(download_to_string_complete_callback)
+                  .Run(fetcher->dst_str_, fetcher->simple_url_loader_->NetError(),
+                       fetcher->simple_url_loader_->GetContentSize());
+            },
+            base::Unretained(this),
+            std::move(download_to_string_complete_callback)),
+        network::SimpleURLLoader::kMaxBoundedStringDownloadSize);
+  }
+
+  void Cancel() override {
+    simple_url_loader_.reset();
+  }
+
+ private:
+  scoped_refptr<network::SharedURLLoaderFactory> shared_url_network_factory_;
+  std::unique_ptr<network::SimpleURLLoader> simple_url_loader_;
+  base::raw_ptr<std::string> dst_str_;
+};
+
+class TestNetworkFetcherFactory : public NetworkFetcherFactory {
+ public:
+  explicit TestNetworkFetcherFactory(
+      scoped_refptr<network::SharedURLLoaderFactory> shared_url_network_factory)
+      : shared_url_network_factory_(shared_url_network_factory) {}
+
+  std::unique_ptr<NetworkFetcher> Create() const override {
+    return std::make_unique<TestNetworkFetcher>(shared_url_network_factory_);
+  }
+
+ protected:
+  ~TestNetworkFetcherFactory() override = default;
+
+ private:
+  scoped_refptr<network::SharedURLLoaderFactory> shared_url_network_factory_;
+};
+#endif
 
 std::vector<GURL> MakeDefaultUrls() {
   std::vector<GURL> urls;
@@ -57,11 +228,17 @@ std::vector<GURL> MakeDefaultUrls() {
 
 }  // namespace
 
+#if BUILDFLAG(IS_STARBOARD) && defined(IN_MEMORY_UPDATES)
+std::unique_ptr<Unzipper> TestUnzipperFactory::Create() const {
+  return std::make_unique<TestUnzipper>();
+}
+#endif
+
 TestConfigurator::TestConfigurator(PrefService* pref_service)
     : enabled_cup_signing_(false),
       pref_service_(pref_service),
-#if BUILDFLAG(USE_EVERGREEN)
-      unzip_factory_(base::MakeRefCounted<cobalt::updater::UnzipperFactory>()),
+#if BUILDFLAG(IS_STARBOARD) && defined(IN_MEMORY_UPDATES)
+      unzip_factory_(base::MakeRefCounted<TestUnzipperFactory>()),
 #else
       unzip_factory_(base::MakeRefCounted<update_client::UnzipChromiumFactory>(
           base::BindRepeating(&unzip::LaunchInProcessUnzipper))),
@@ -71,9 +248,9 @@ TestConfigurator::TestConfigurator(PrefService* pref_service)
       test_shared_loader_factory_(
           base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
               &test_url_loader_factory_)),
-#if BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(IS_STARBOARD) && defined(IN_MEMORY_UPDATES)
       network_fetcher_factory_(
-          base::MakeRefCounted<cobalt::updater::NetworkFetcherFactoryCobalt>(
+          base::MakeRefCounted<TestNetworkFetcherFactory>(
               test_shared_loader_factory_)),
 #else
       network_fetcher_factory_(

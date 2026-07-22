@@ -22,6 +22,10 @@
 #include "services/network/test/test_url_loader_factory.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(IS_STARBOARD) && defined(IN_MEMORY_UPDATES)
+#include "components/update_client/unzipper.h"
+#endif
+
 class PrefService;
 
 namespace network {
@@ -166,7 +170,7 @@ class TestConfigurator : public Configurator {
   std::vector<GURL> update_check_urls_;
   GURL ping_url_;
   scoped_refptr<UnzipperFactory> unzip_factory_;
-  scoped_refptr<update_client::PatchChromiumFactory> patch_factory_;
+  scoped_refptr<PatcherFactory> patch_factory_;
   scoped_refptr<network::SharedURLLoaderFactory> test_shared_loader_factory_;
   network::TestURLLoaderFactory test_url_loader_factory_;
   scoped_refptr<NetworkFetcherFactory> network_fetcher_factory_;
@@ -177,6 +181,16 @@ class TestConfigurator : public Configurator {
   base::ScopedTempDir crx_cache_root_temp_dir_;
   scoped_refptr<CrxCache> crx_cache_;
 };
+
+#if BUILDFLAG(IS_STARBOARD) && defined(IN_MEMORY_UPDATES)
+class TestUnzipperFactory : public UnzipperFactory {
+ public:
+  TestUnzipperFactory() = default;
+  std::unique_ptr<Unzipper> Create() const override;
+ protected:
+  ~TestUnzipperFactory() override = default;
+};
+#endif
 
 }  // namespace update_client
 

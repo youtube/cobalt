@@ -20,12 +20,7 @@
 #include "base/test/task_environment.h"
 #include "base/types/expected.h"
 #include "components/update_client/test_utils.h"
-#if BUILDFLAG(USE_EVERGREEN)
-#include "cobalt/updater/unzipper.h"  // nogncheck
-#endif
-#if !BUILDFLAG(USE_EVERGREEN)
 #include "components/update_client/unzip/in_process_unzipper.h"  // nogncheck
-#endif
 #include "components/update_client/unzipper.h"
 #include "components/update_client/update_client_errors.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -103,13 +98,9 @@ class XzOperationTest : public testing::Test {
 
 TEST_F(XzOperationTest, Success) {
   base::FilePath in_file = CopyToTemp("file1.xz");
-#if BUILDFLAG(USE_EVERGREEN)
-  CallXzOperation(base::MakeRefCounted<cobalt::updater::UnzipperFactory>()->Create(),
-#else
   CallXzOperation(base::MakeRefCounted<InProcessUnzipperFactory>(
                   InProcessUnzipperFactory::SymlinkOption::DONT_PRESERVE)
                   ->Create(),
-#endif
               MakePingCallback(), in_file,
               base::BindLambdaForTesting(
                   [&](base::expected<base::FilePath, CategorizedError> result) {
@@ -128,13 +119,9 @@ TEST_F(XzOperationTest, Success) {
 
 TEST_F(XzOperationTest, BadPatch) {
   base::FilePath in_file = CopyToTemp("file1");
-#if BUILDFLAG(USE_EVERGREEN)
-  CallXzOperation(base::MakeRefCounted<cobalt::updater::UnzipperFactory>()->Create(),
-#else
   CallXzOperation(base::MakeRefCounted<InProcessUnzipperFactory>(
                   InProcessUnzipperFactory::SymlinkOption::DONT_PRESERVE)
                   ->Create(),
-#endif
               MakePingCallback(), in_file,
               base::BindLambdaForTesting(
                   [&](base::expected<base::FilePath, CategorizedError> result) {
