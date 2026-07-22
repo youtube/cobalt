@@ -172,24 +172,7 @@ bool RenderFrameDevToolsAgentHost::WasEverAttachedToAnyFrame() {
   return false;
 }
 
-// static
-WorkerDevToolsManager& WorkerDevToolsManager::GetInstance() {
-  static WorkerDevToolsManager instance;
-  return instance;
-}
 
-DedicatedWorkerDevToolsAgentHost* WorkerDevToolsManager::GetDevToolsHost(
-    const DedicatedWorkerHost* host) {
-  return nullptr;
-}
-
-void WorkerDevToolsManager::WorkerCreated(
-    const DedicatedWorkerHost* host,
-    int process_id,
-    const GlobalRenderFrameHostId& ancestor_render_frame_host_id,
-    scoped_refptr<DevToolsThrottleHandle> throttle_handle) {}
-
-void WorkerDevToolsManager::WorkerDestroyed(const DedicatedWorkerHost* host) {}
 
 
 

@@ -70,15 +70,20 @@ class DevToolsThrottleHandle;
 
 class WorkerDevToolsManager {
  public:
-  static WorkerDevToolsManager& GetInstance();
+  static WorkerDevToolsManager& GetInstance() {
+    static WorkerDevToolsManager instance;
+    return instance;
+  }
   DedicatedWorkerDevToolsAgentHost* GetDevToolsHost(
-      const DedicatedWorkerHost* host);
+      const DedicatedWorkerHost* host) {
+    return nullptr;
+  }
   void WorkerCreated(
       const DedicatedWorkerHost* host,
       int process_id,
       const GlobalRenderFrameHostId& ancestor_render_frame_host_id,
-      scoped_refptr<DevToolsThrottleHandle> throttle_handle);
-  void WorkerDestroyed(const DedicatedWorkerHost* host);
+      scoped_refptr<DevToolsThrottleHandle> throttle_handle) {}
+  void WorkerDestroyed(const DedicatedWorkerHost* host) {}
 };
 
 }  // namespace content

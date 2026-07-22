@@ -164,7 +164,7 @@ class EmbeddedWorkerInstance::DevToolsProxy {
   const base::UnguessableToken& devtools_id() const { return devtools_id_; }
 
  private:
-  [[maybe_unused]] const int process_id_;
+  const int process_id_;
   const int agent_route_id_;
   const base::UnguessableToken devtools_id_;
   bool worker_stop_ignored_notified_ = false;
