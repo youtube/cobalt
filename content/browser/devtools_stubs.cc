@@ -37,12 +37,23 @@
 #include "content/public/browser/frame_tree_node_id.h"
 #include "content/public/browser/preloading.h"
 #include "third_party/blink/public/mojom/navigation/navigation_params.mojom.h"
-#include "third_party/blink/public/mojom/speculation_rules/speculation_rules.mojom.h"
+#include "content/browser/devtools/dedicated_worker_devtools_agent_host.h"
+#include "content/browser/devtools/devtools_agent_host_impl.h"
+#include "content/browser/devtools/devtools_throttle_handle.h"
+#include "content/browser/devtools/network_service_devtools_observer.h"
+#include "content/browser/devtools/protocol/page_handler.h"
+#include "content/browser/devtools/render_frame_devtools_agent_host.h"
+#include "content/browser/devtools/service_worker_devtools_agent_host.h"
+#include "content/browser/devtools/service_worker_devtools_manager.h"
+#include "content/browser/devtools/shared_worker_devtools_agent_host.h"
+#include "content/browser/devtools/shared_worker_devtools_manager.h"
+#include "content/browser/devtools/worker_devtools_manager.h"
+#include "content/browser/web_contents/web_contents_impl.h"
 
 namespace download {
 struct DownloadCreateInfo;
 class DownloadItem;
-struct DownloadUrlParameters;
+class DownloadUrlParameters;
 }  // namespace download
 
 namespace net {
@@ -73,76 +84,8 @@ class RenderProcessHost;
 class StoragePartition;
 class NavigationRequest;
 class FrameTreeNode;
-enum class JavaScriptDialogType;
+enum JavaScriptDialogType;
 using JavaScriptDialogCallback = base::OnceCallback<void(bool, const std::u16string&)>;
-
-class DevToolsThrottleHandle : public base::RefCounted<DevToolsThrottleHandle> {
- public:
-  explicit DevToolsThrottleHandle(base::OnceCallback<void()> throttle_callback);
- private:
-  friend class base::RefCounted<DevToolsThrottleHandle>;
-  ~DevToolsThrottleHandle();
-  base::OnceCallback<void()> throttle_callback_;
-};
-
-class DevToolsAgentHostImpl : public DevToolsAgentHost {
- public:
-  bool Inspect();
-};
-
-class RenderFrameDevToolsAgentHost {
- public:
-  static void AttachToWebContents(WebContents* web_contents);
-  static DevToolsAgentHostImpl* GetFor(RenderFrameHostImpl* host);
-  static bool WasEverAttachedToAnyFrame();
-};
-
-class SharedWorkerHost;
-class SharedStorageWorkletHost;
-class DedicatedWorkerHost;
-class WebContentsImpl;
-class ServiceWorkerContextWrapper;
-
-class SharedWorkerDevToolsManager {
- public:
-  static SharedWorkerDevToolsManager* GetInstance();
-  SharedWorkerDevToolsManager();
-  ~SharedWorkerDevToolsManager();
-  void WorkerCreated(SharedWorkerHost*, bool*, base::UnguessableToken*);
-  void WorkerReadyForInspection(SharedWorkerHost*, mojo::PendingRemote<blink::mojom::DevToolsAgent>, mojo::PendingReceiver<blink::mojom::DevToolsAgentHost>);
-  void WorkerDestroyed(SharedWorkerHost*);
-};
-
-class SharedWorkerDevToolsAgentHost {
- public:
-  static SharedWorkerDevToolsAgentHost* GetFor(SharedWorkerHost* host);
-};
-
-class SharedStorageWorkletDevToolsManager {
- public:
-  static SharedStorageWorkletDevToolsManager* GetInstance();
-  SharedStorageWorkletDevToolsManager();
-  ~SharedStorageWorkletDevToolsManager();
-  void WorkletCreated(SharedStorageWorkletHost&, const base::UnguessableToken&, bool&);
-  void WorkletReadyForInspection(SharedStorageWorkletHost&, mojo::PendingRemote<blink::mojom::DevToolsAgent>, mojo::PendingReceiver<blink::mojom::DevToolsAgentHost>);
-  void WorkletDestroyed(SharedStorageWorkletHost&);
-};
-
-class DedicatedWorkerDevToolsAgentHost {
- public:
-  static DedicatedWorkerDevToolsAgentHost* GetFor(const DedicatedWorkerHost* host);
-};
-
-class WorkerDevToolsManager {
- public:
-  static WorkerDevToolsManager& GetInstance();
-  WorkerDevToolsManager();
-  ~WorkerDevToolsManager();
-  void WorkerCreated(const DedicatedWorkerHost*, int, const GlobalRenderFrameHostId&, scoped_refptr<DevToolsThrottleHandle>);
-  void WorkerDestroyed(const DedicatedWorkerHost*);
-};
-
-class ServiceWorkerDevToolsAgentHost {};
 
 class DevToolsURLLoaderInterceptor {
  public:
@@ -152,63 +95,6 @@ class DevToolsURLLoaderInterceptor {
       base::OnceCallback<void(bool, const std::optional<net::AuthCredentials>&)> callback);
 };
 
-class ServiceWorkerDevToolsManager {
- public:
-  static ServiceWorkerDevToolsManager* GetInstance();
-  ServiceWorkerDevToolsManager();
-  ~ServiceWorkerDevToolsManager();
-  void WorkerVersionInstalled(int, int);
-  void set_debug_service_worker_on_start(bool);
-  ServiceWorkerDevToolsAgentHost* GetDevToolsAgentHostForWorker(int, int);
-  void WorkerVersionDoomed(int, int, scoped_refptr<ServiceWorkerContextWrapper>, int64_t);
-  void WorkerStopped(int, int);
-  void WorkerStarting(int, int, scoped_refptr<ServiceWorkerContextWrapper>, int64_t, const GURL&, const GURL&, bool, network::mojom::ClientSecurityStatePtr, mojo::PendingRemote<network::mojom::CrossOriginEmbedderPolicyReporter>, mojo::PendingRemote<network::mojom::DocumentIsolationPolicyReporter>, base::UnguessableToken*, bool*);
-  void WorkerReadyForInspection(int, int, mojo::PendingRemote<blink::mojom::DevToolsAgent>, mojo::PendingReceiver<blink::mojom::DevToolsAgentHost>);
-  void WorkerDestroyed(int, int, const blink::DedicatedWorkerToken&);
-  void WorkerMainScriptFetchingStarting(scoped_refptr<ServiceWorkerContextWrapper>, int64_t, const GURL&, const GURL&, const GlobalRenderFrameHostId&, scoped_refptr<DevToolsThrottleHandle>);
-  void WorkerMainScriptFetchingFailed(scoped_refptr<ServiceWorkerContextWrapper>, int64_t);
-  void NavigationPreloadRequestSent(int, int, const std::string&, const network::ResourceRequest&);
-  void NavigationPreloadResponseReceived(int, int, const std::string&, const GURL&, const network::mojom::URLResponseHead&);
-  void NavigationPreloadCompleted(int, int, const std::string&, const network::URLLoaderCompletionStatus&);
-};
-
-class NetworkServiceDevToolsObserver {
- public:
-  static mojo::PendingRemote<network::mojom::DevToolsObserver> MakeSelfOwned(const std::string&);
-  static mojo::PendingRemote<network::mojom::DevToolsObserver> MakeSelfOwned(FrameTreeNode*);
-};
-
-namespace protocol {
-class PageHandler {
- public:
-  using JavaScriptDialogCallback = base::OnceCallback<void(bool, const std::u16string&)>;
-  static std::vector<PageHandler*> EnabledForWebContents(WebContentsImpl* contents);
-  void DidRunJavaScriptDialog(const GURL&, const base::UnguessableToken&, const std::u16string&, const std::u16string&, JavaScriptDialogType, bool, JavaScriptDialogCallback);
-  void DidCloseJavaScriptDialog(const base::UnguessableToken&, bool, const std::u16string&);
-  void DidRunBeforeUnloadConfirm(const GURL&, const base::UnguessableToken&, bool, JavaScriptDialogCallback);
-};
-}  // namespace protocol
-
-// static
-SharedWorkerDevToolsManager* SharedWorkerDevToolsManager::GetInstance() {
-  return base::Singleton<SharedWorkerDevToolsManager>::get();
-}
-
-SharedWorkerDevToolsManager::SharedWorkerDevToolsManager() = default;
-SharedWorkerDevToolsManager::~SharedWorkerDevToolsManager() = default;
-
-void SharedWorkerDevToolsManager::WorkerCreated(
-    SharedWorkerHost* worker_host,
-    bool* pause_on_start,
-    base::UnguessableToken* devtools_worker_token) {}
-
-void SharedWorkerDevToolsManager::WorkerReadyForInspection(
-    SharedWorkerHost* worker_host,
-    mojo::PendingRemote<blink::mojom::DevToolsAgent> agent_remote,
-    mojo::PendingReceiver<blink::mojom::DevToolsAgentHost> agent_host_receiver) {}
-
-void SharedWorkerDevToolsManager::WorkerDestroyed(SharedWorkerHost* worker_host) {}
-
 // static
 SharedWorkerDevToolsAgentHost* SharedWorkerDevToolsAgentHost::GetFor(
     SharedWorkerHost* host) {
@@ -216,34 +102,13 @@ SharedWorkerDevToolsAgentHost* SharedWorkerDevToolsAgentHost::GetFor(
 }
 
 // static
-SharedStorageWorkletDevToolsManager* SharedStorageWorkletDevToolsManager::GetInstance() {
-  return base::Singleton<SharedStorageWorkletDevToolsManager>::get();
-}
-
-SharedStorageWorkletDevToolsManager::SharedStorageWorkletDevToolsManager() = default;
-SharedStorageWorkletDevToolsManager::~SharedStorageWorkletDevToolsManager() = default;
-
-void SharedStorageWorkletDevToolsManager::WorkletCreated(
-    SharedStorageWorkletHost& worklet_host,
-    const base::UnguessableToken& devtools_worklet_token,
-    bool& wait_for_debugger) {}
-
-void SharedStorageWorkletDevToolsManager::WorkletReadyForInspection(
-    SharedStorageWorkletHost& worklet_host,
-    mojo::PendingRemote<blink::mojom::DevToolsAgent> agent_remote,
-    mojo::PendingReceiver<blink::mojom::DevToolsAgentHost> agent_host_receiver) {}
-
-void SharedStorageWorkletDevToolsManager::WorkletDestroyed(
-    SharedStorageWorkletHost& worklet_host) {}
-
-// static
-mojo::PendingRemote<network::mojom::DevToolsObserver> NetworkServiceDevToolsObserver::MakeSelfOwned(
+mojo::PendingRemote<::network::mojom::DevToolsObserver> NetworkServiceDevToolsObserver::MakeSelfOwned(
     const std::string& id) {
   return {};
 }
 
 // static
-mojo::PendingRemote<network::mojom::DevToolsObserver> NetworkServiceDevToolsObserver::MakeSelfOwned(
+mojo::PendingRemote<::network::mojom::DevToolsObserver> NetworkServiceDevToolsObserver::MakeSelfOwned(
     FrameTreeNode* frame_tree_node) {
   return {};
 }
@@ -280,6 +145,14 @@ scoped_refptr<DevToolsAgentHost> DevToolsAgentHost::GetForId(const std::string& 
   return nullptr;
 }
 
+// static
+scoped_refptr<DevToolsAgentHostImpl> DevToolsAgentHostImpl::GetForId(const std::string& id) {
+  return nullptr;
+}
+
+// static
+void DevToolsAgentHostImpl::GetOrCreateAll() {}
+
 bool DevToolsAgentHostImpl::Inspect() {
   return false;
 }
@@ -294,17 +167,41 @@ DevToolsAgentHostImpl* RenderFrameDevToolsAgentHost::GetFor(RenderFrameHostImpl*
   return nullptr;
 }
 
+// static
+DevToolsAgentHostImpl* RenderFrameDevToolsAgentHost::GetFor(FrameTreeNode* frame_tree_node) {
+  return nullptr;
+}
+
+// static
+scoped_refptr<DevToolsAgentHost> RenderFrameDevToolsAgentHost::GetOrCreateFor(
+    FrameTreeNode* frame_tree_node) {
+  return nullptr;
+}
+
+// static
+bool RenderFrameDevToolsAgentHost::ShouldCreateDevToolsForHost(RenderFrameHostImpl* rfh) {
+  return false;
+}
+
+// static
+bool RenderFrameDevToolsAgentHost::IsDebuggerAttached(WebContents* web_contents) {
+  return false;
+}
+
 bool RenderFrameDevToolsAgentHost::WasEverAttachedToAnyFrame() {
   return false;
 }
 
 // static
 WorkerDevToolsManager& WorkerDevToolsManager::GetInstance() {
-  return *base::Singleton<WorkerDevToolsManager>::get();
+  static WorkerDevToolsManager instance;
+  return instance;
 }
 
-WorkerDevToolsManager::WorkerDevToolsManager() = default;
-WorkerDevToolsManager::~WorkerDevToolsManager() = default;
+DedicatedWorkerDevToolsAgentHost* WorkerDevToolsManager::GetDevToolsHost(
+    const DedicatedWorkerHost* host) {
+  return nullptr;
+}
 
 void WorkerDevToolsManager::WorkerCreated(
     const DedicatedWorkerHost* host,
@@ -321,87 +218,6 @@ void DevToolsURLLoaderInterceptor::HandleAuthRequest(
     base::OnceCallback<void(bool, const std::optional<net::AuthCredentials>&)> callback) {
   std::move(callback).Run(false, std::nullopt);
 }
-
-// static
-ServiceWorkerDevToolsManager* ServiceWorkerDevToolsManager::GetInstance() {
-  static base::NoDestructor<ServiceWorkerDevToolsManager> instance;
-  return instance.get();
-}
-
-ServiceWorkerDevToolsManager::ServiceWorkerDevToolsManager() = default;
-ServiceWorkerDevToolsManager::~ServiceWorkerDevToolsManager() = default;
-
-void ServiceWorkerDevToolsManager::WorkerMainScriptFetchingStarting(
-    scoped_refptr<ServiceWorkerContextWrapper> context_wrapper,
-    int64_t version_id,
-    const GURL& url,
-    const GURL& scope,
-    const GlobalRenderFrameHostId& requesting_frame_id,
-    scoped_refptr<DevToolsThrottleHandle> throttle_handle) {}
-
-void ServiceWorkerDevToolsManager::WorkerMainScriptFetchingFailed(
-    scoped_refptr<ServiceWorkerContextWrapper> context_wrapper,
-    int64_t version_id) {}
-
-void ServiceWorkerDevToolsManager::NavigationPreloadRequestSent(
-    int worker_process_id,
-    int worker_route_id,
-    const std::string& request_id,
-    const network::ResourceRequest& request) {}
-
-void ServiceWorkerDevToolsManager::NavigationPreloadResponseReceived(
-    int worker_process_id,
-    int worker_route_id,
-    const std::string& request_id,
-    const GURL& url,
-    const network::mojom::URLResponseHead& head) {}
-
-void ServiceWorkerDevToolsManager::NavigationPreloadCompleted(
-    int worker_process_id,
-    int worker_route_id,
-    const std::string& request_id,
-    const network::URLLoaderCompletionStatus& status) {}
-
-void ServiceWorkerDevToolsManager::WorkerReadyForInspection(
-    int worker_process_id,
-    int worker_route_id,
-    mojo::PendingRemote<blink::mojom::DevToolsAgent> agent_remote,
-    mojo::PendingReceiver<blink::mojom::DevToolsAgentHost> host_receiver) {}
-
-void ServiceWorkerDevToolsManager::WorkerVersionInstalled(
-    int worker_process_id, int worker_route_id) {}
-
-void ServiceWorkerDevToolsManager::set_debug_service_worker_on_start(bool) {}
-
-ServiceWorkerDevToolsAgentHost*
-ServiceWorkerDevToolsManager::GetDevToolsAgentHostForWorker(
-    int worker_process_id,
-    int worker_route_id) {
-  return nullptr;
-}
-
-void ServiceWorkerDevToolsManager::WorkerVersionDoomed(
-    int worker_process_id,
-    int worker_route_id,
-    scoped_refptr<ServiceWorkerContextWrapper> context_wrapper,
-    int64_t version_id) {}
-
-void ServiceWorkerDevToolsManager::WorkerStopped(
-    int worker_process_id, int worker_route_id) {}
-
-void ServiceWorkerDevToolsManager::WorkerStarting(
-    int worker_process_id,
-    int worker_route_id,
-    scoped_refptr<ServiceWorkerContextWrapper> context_wrapper,
-    int64_t version_id,
-    const GURL& url,
-    const GURL& scope,
-    bool is_installed_version,
-    network::mojom::ClientSecurityStatePtr client_security_state,
-    mojo::PendingRemote<network::mojom::CrossOriginEmbedderPolicyReporter> coep_reporter,
-    mojo::PendingRemote<network::mojom::DocumentIsolationPolicyReporter> dip_reporter,
-    base::UnguessableToken* devtools_worker_token,
-    bool* pause_on_start) {}
 
 namespace protocol {
 // static

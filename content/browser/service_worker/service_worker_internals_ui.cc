@@ -17,12 +17,9 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/values.h"
-#include "third_party/blink/public/common/buildflags.h"
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/devtools_agent_host_impl.h"
 #include "content/browser/devtools/service_worker_devtools_agent_host.h"
 #include "content/browser/devtools/service_worker_devtools_manager.h"
-#endif
 #include "content/browser/service_worker/service_worker_context_core_observer.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
 #include "content/browser/service_worker/service_worker_registration.h"
@@ -491,12 +488,8 @@ void ServiceWorkerInternalsHandler::HandleGetOptions(const Value::List& args) {
   std::string callback_id = args[0].GetString();
   AllowJavascript();
   base::Value::Dict options;
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   options.Set("debug_on_start", ServiceWorkerDevToolsManager::GetInstance()
                                     ->debug_service_worker_on_start());
-#else
-  options.Set("debug_on_start", false);
-#endif
   ResolveJavascriptCallback(base::Value(callback_id), options);
 }
 
@@ -516,10 +509,8 @@ void ServiceWorkerInternalsHandler::HandleSetOption(
   if (!args_list[1].is_bool()) {
     return;
   }
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   ServiceWorkerDevToolsManager::GetInstance()
       ->set_debug_service_worker_on_start(args_list[1].GetBool());
-#endif
 }
 
 void ServiceWorkerInternalsHandler::HandleGetAllRegistrations(
@@ -641,7 +632,6 @@ void ServiceWorkerInternalsHandler::HandleInspectWorker(
   base::OnceCallback<void(blink::ServiceWorkerStatusCode)> callback =
       base::BindOnce(OperationCompleteCallback, weak_ptr_factory_.GetWeakPtr(),
                      callback_id);
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   scoped_refptr<ServiceWorkerDevToolsAgentHost> agent_host(
       ServiceWorkerDevToolsManager::GetInstance()
           ->GetDevToolsAgentHostForWorker(*process_host_id,
@@ -652,9 +642,6 @@ void ServiceWorkerInternalsHandler::HandleInspectWorker(
   }
   agent_host->Inspect();
   std::move(callback).Run(blink::ServiceWorkerStatusCode::kOk);
-#else
-  std::move(callback).Run(blink::ServiceWorkerStatusCode::kErrorNotFound);
-#endif
 }
 
 void ServiceWorkerInternalsHandler::HandleUnregister(const Value::List& args) {

@@ -18,14 +18,11 @@
 #include "base/task/thread_pool.h"
 #include "components/services/storage/privileged/cpp/bucket_client_info.h"
 #include "components/services/storage/privileged/mojom/indexed_db_internals_types.mojom-forward.h"
-#include "third_party/blink/public/common/buildflags.h"
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/devtools_agent_host_impl.h"
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
 #include "content/browser/devtools/service_worker_devtools_agent_host.h"
 #include "content/browser/devtools/service_worker_devtools_manager.h"
 #include "content/browser/devtools/shared_worker_devtools_agent_host.h"
-#endif
 #include "content/browser/indexed_db/indexed_db_internals.mojom-forward.h"
 #include "content/browser/indexed_db/indexed_db_internals.mojom.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
@@ -50,7 +47,6 @@ namespace content::indexed_db {
 
 namespace {
 
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 scoped_refptr<DevToolsAgentHostImpl> GetDevToolsAgentHostForClient(
     const storage::BucketClientInfo& client_info) {
   int32_t process_id = client_info.process_id;
@@ -104,7 +100,6 @@ scoped_refptr<DevToolsAgentHostImpl> GetDevToolsAgentHostForClient(
 
   NOTREACHED();
 }
-#endif
 
 }  // namespace
 
@@ -298,7 +293,6 @@ void IndexedDBInternalsUI::InspectClient(
     const storage::BucketClientInfo& client_info,
     InspectClientCallback callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   if (!devtools_agent_hosts_created_) {
     // If a DevTools window has never been opened in this browser session,
     // DevToolsAgentHosts will not have been created for RenderFrameHosts.
@@ -313,7 +307,6 @@ void IndexedDBInternalsUI::InspectClient(
     std::move(callback).Run(std::nullopt);
     return;
   }
-#endif
   std::move(callback).Run("Client not found");
 }
 

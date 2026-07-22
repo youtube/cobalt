@@ -13,6 +13,10 @@
 #include "base/containers/flat_set.h"
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
+#include "third_party/blink/public/common/buildflags.h"
+
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
 #include "content/browser/devtools/devtools_agent_host_impl.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/render_process_host_observer.h"
@@ -198,5 +202,34 @@ class CONTENT_EXPORT RenderFrameDevToolsAgentHost
 FrameTreeNode* GetFrameTreeNodeAncestor(FrameTreeNode* frame_tree_node);
 
 }  // namespace content
+
+#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
+#include "content/common/content_export.h"
+#include "content/public/browser/devtools_agent_host.h"
+
+namespace content {
+
+class DevToolsAgentHostImpl;
+class FrameTreeNode;
+class RenderFrameHost;
+class RenderFrameHostImpl;
+class WebContents;
+
+class CONTENT_EXPORT RenderFrameDevToolsAgentHost {
+ public:
+  static bool WasEverAttachedToAnyFrame();
+  static bool IsDebuggerAttached(WebContents* web_contents);
+  static DevToolsAgentHostImpl* GetFor(FrameTreeNode* frame_tree_node);
+  static DevToolsAgentHostImpl* GetFor(RenderFrameHostImpl* rfh);
+  static scoped_refptr<DevToolsAgentHost> GetOrCreateFor(
+      FrameTreeNode* frame_tree_node);
+  static bool ShouldCreateDevToolsForHost(RenderFrameHostImpl* rfh);
+  static void AttachToWebContents(WebContents* web_contents);
+};
+
+}  // namespace content
+
+#endif  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #endif  // CONTENT_BROWSER_DEVTOOLS_RENDER_FRAME_DEVTOOLS_AGENT_HOST_H_

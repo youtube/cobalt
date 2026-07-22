@@ -18,11 +18,8 @@
 #include "content/browser/broadcast_channel/broadcast_channel_provider.h"
 #include "content/browser/broadcast_channel/broadcast_channel_service.h"
 #include "content/browser/code_cache/generated_code_cache_context.h"
-#include "third_party/blink/public/common/buildflags.h"
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/dedicated_worker_devtools_agent_host.h"
 #include "content/browser/devtools/worker_devtools_manager.h"
-#endif
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/file_system_access/file_system_access_manager_impl.h"
 #include "content/browser/loader/content_security_notifier.h"
@@ -174,9 +171,7 @@ DedicatedWorkerHost::~DedicatedWorkerHost() {
 
   service_->NotifyBeforeWorkerDestroyed(token_, creator_);
 
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   WorkerDevToolsManager::GetInstance().WorkerDestroyed(this);
-#endif
 }
 
 void DedicatedWorkerHost::BindBrowserInterfaceBrokerReceiver(
@@ -374,11 +369,7 @@ void DedicatedWorkerHost::StartScriptLoad(
       storage_partition_impl->GetServiceWorkerContext(),
       service_worker_handle_.get(), std::move(blob_url_loader_factory), nullptr,
       storage_partition_impl, partition_domain,
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
       DedicatedWorkerDevToolsAgentHost::GetFor(this),
-#else
-      nullptr,
-#endif
       token_.value(),
       /*require_cross_site_request_for_cookies=*/false,
       storage_access_api_status,
@@ -576,15 +567,13 @@ void DedicatedWorkerHost::ScriptLoadStartFailed(
   auto* ancestor_render_frame_host =
       RenderFrameHostImpl::FromID(ancestor_render_frame_host_id_);
   if (ancestor_render_frame_host) {
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
-    // Notify that the loading failed to DevTools. It fires
+// Notify that the loading failed to DevTools. It fires
     // `Network.onLoadingFailed` event.
     devtools_instrumentation::OnWorkerMainScriptLoadingFailed(
         script_request_url_,
         DedicatedWorkerDevToolsAgentHost::GetFor(this)->devtools_worker_token(),
         FrameTreeNode::From(ancestor_render_frame_host),
         ancestor_render_frame_host, status);
-#endif
   }
 
   client_->OnScriptLoadStartFailed();

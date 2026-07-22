@@ -16,10 +16,7 @@
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/observer_list.h"
-#include "third_party/blink/public/common/buildflags.h"
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/shared_worker_devtools_agent_host.h"
-#endif
 #include "content/browser/loader/file_url_loader_factory.h"
 #include "content/browser/renderer_host/private_network_access_util.h"
 #include "content/browser/service_worker/service_worker_client.h"
@@ -445,11 +442,7 @@ SharedWorkerHost* SharedWorkerServiceImpl::CreateWorker(
       service_worker_context_, service_worker_handle_raw,
       std::move(blob_url_loader_factory), url_loader_factory_override_,
       storage_partition_, storage_domain,
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
       SharedWorkerDevToolsAgentHost::GetFor(host),
-#else
-      nullptr,
-#endif
       host->GetDevToolsToken(),
       host->instance().DoesRequireCrossSiteRequestForCookies(),
       storage_access_api_status,

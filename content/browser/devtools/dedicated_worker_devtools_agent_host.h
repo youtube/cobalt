@@ -5,6 +5,11 @@
 #ifndef CONTENT_BROWSER_DEVTOOLS_DEDICATED_WORKER_DEVTOOLS_AGENT_HOST_H_
 #define CONTENT_BROWSER_DEVTOOLS_DEDICATED_WORKER_DEVTOOLS_AGENT_HOST_H_
 
+#include "build/build_config.h"
+#include "third_party/blink/public/common/buildflags.h"
+
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
 #include "content/browser/devtools/worker_or_worklet_devtools_agent_host.h"
 #include "services/network/public/mojom/url_loader_factory.mojom-forward.h"
 
@@ -62,4 +67,28 @@ class DedicatedWorkerDevToolsAgentHost final
 };
 
 }  // namespace content
+
+#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
+#include "base/unguessable_token.h"
+#include "content/browser/devtools/devtools_agent_host_impl.h"
+
+namespace content {
+
+class DedicatedWorkerHost;
+
+class DedicatedWorkerDevToolsAgentHost : public DevToolsAgentHostImpl {
+ public:
+  static DedicatedWorkerDevToolsAgentHost* GetFor(
+      const DedicatedWorkerHost* host);
+
+  const base::UnguessableToken& devtools_worker_token() const {
+    static const base::UnguessableToken token;
+    return token;
+  }
+};
+
+}  // namespace content
+
+#endif  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #endif  // CONTENT_BROWSER_DEVTOOLS_DEDICATED_WORKER_DEVTOOLS_AGENT_HOST_H_

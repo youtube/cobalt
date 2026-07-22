@@ -19,11 +19,8 @@
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "content/browser/child_process_security_policy_impl.h"
-#include "third_party/blink/public/common/buildflags.h"
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/service_worker_devtools_agent_host.h"
 #include "content/browser/devtools/service_worker_devtools_manager.h"
-#endif
 #include "content/browser/service_worker/service_worker_client.h"
 #include "content/browser/service_worker/service_worker_context_core.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
@@ -58,10 +55,8 @@ void NotifyNavigationPreloadRequestSent(const network::ResourceRequest& request,
                                         const std::pair<int, int>& worker_id,
                                         const std::string& request_id) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   ServiceWorkerDevToolsManager::GetInstance()->NavigationPreloadRequestSent(
       worker_id.first, worker_id.second, request_id, request);
-#endif
 }
 
 void NotifyNavigationPreloadResponseReceived(
@@ -70,11 +65,9 @@ void NotifyNavigationPreloadResponseReceived(
     const std::pair<int, int>& worker_id,
     const std::string& request_id) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   ServiceWorkerDevToolsManager::GetInstance()
       ->NavigationPreloadResponseReceived(worker_id.first, worker_id.second,
                                           request_id, url, *response);
-#endif
 }
 
 void NotifyNavigationPreloadCompleted(
@@ -82,10 +75,8 @@ void NotifyNavigationPreloadCompleted(
     const std::pair<int, int>& worker_id,
     const std::string& request_id) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   ServiceWorkerDevToolsManager::GetInstance()->NavigationPreloadCompleted(
       worker_id.first, worker_id.second, request_id, status);
-#endif
 }
 
 // DelegatingURLLoaderClient is the URLLoaderClient for the navigation preload

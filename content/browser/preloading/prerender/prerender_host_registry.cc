@@ -20,10 +20,7 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
-#include "third_party/blink/public/common/buildflags.h"
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
-#endif
 #include "content/browser/preloading/preloading_data_impl.h"
 #include "content/browser/preloading/preloading_trigger_type_impl.h"
 #include "content/browser/preloading/prerender/devtools_prerender_attempt.h"
@@ -734,11 +731,7 @@ FrameTreeNodeId PrerenderHostRegistry::CreateAndStartHost(
     // override that processing.
     bool has_devtools_open =
         initiator_rfh &&
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
         RenderFrameDevToolsAgentHost::GetFor(initiator_rfh) != nullptr;
-#else
-        false;
-#endif
 
     if (has_devtools_open) {
       // Never holdback when DevTools is opened, to avoid web developer

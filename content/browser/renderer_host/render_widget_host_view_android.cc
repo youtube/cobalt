@@ -54,10 +54,7 @@
 #include "content/browser/android/text_suggestion_host_android.h"
 #include "content/browser/bad_message.h"
 #include "content/browser/compositor/surface_utils.h"
-#include "third_party/blink/public/common/buildflags.h"
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
-#endif
 #include "content/browser/gpu/gpu_process_host.h"
 #include "content/browser/renderer_host/compositor_impl_android.h"
 #include "content/browser/renderer_host/delegated_frame_host_client_android.h"

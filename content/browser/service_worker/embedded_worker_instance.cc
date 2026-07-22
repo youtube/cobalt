@@ -20,11 +20,8 @@
 #include "content/browser/data_url_loader_factory.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/devtools/network_service_devtools_observer.h"
-#include "third_party/blink/public/common/buildflags.h"
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/service_worker_devtools_agent_host.h"
 #include "content/browser/devtools/service_worker_devtools_manager.h"
-#endif
 #include "content/browser/loader/url_loader_factory_utils.h"
 #include "content/browser/network/cross_origin_embedder_policy_reporter.h"
 #include "content/browser/process_lock.h"
@@ -137,29 +134,23 @@ class EmbeddedWorkerInstance::DevToolsProxy {
 
   ~DevToolsProxy() {
     DCHECK_CURRENTLY_ON(BrowserThread::UI);
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
     ServiceWorkerDevToolsManager::GetInstance()->WorkerStopped(process_id_,
                                                                agent_route_id_);
-#endif
   }
 
   void NotifyWorkerReadyForInspection(
       mojo::PendingRemote<blink::mojom::DevToolsAgent> agent_remote,
       mojo::PendingReceiver<blink::mojom::DevToolsAgentHost> host_receiver) {
     DCHECK_CURRENTLY_ON(BrowserThread::UI);
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
     ServiceWorkerDevToolsManager::GetInstance()->WorkerReadyForInspection(
         process_id_, agent_route_id_, std::move(agent_remote),
         std::move(host_receiver));
-#endif
   }
 
   void NotifyWorkerVersionInstalled() {
     DCHECK_CURRENTLY_ON(BrowserThread::UI);
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
     ServiceWorkerDevToolsManager::GetInstance()->WorkerVersionInstalled(
         process_id_, agent_route_id_);
-#endif
   }
 
   bool ShouldNotifyWorkerStopIgnored() const {
@@ -355,7 +346,6 @@ void EmbeddedWorkerInstance::Start(
 
     // Register to DevTools and update params accordingly.
     const int routing_id = rph->GetNextRoutingID();
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
     ServiceWorkerDevToolsManager::GetInstance()->WorkerStarting(
         process_id, routing_id, context_->wrapper(),
         params->service_worker_version_id, params->script_url, params->scope,
@@ -363,7 +353,6 @@ void EmbeddedWorkerInstance::Start(
         std::move(coep_reporter_for_devtools),
         std::move(dip_reporter_for_devtools), &params->devtools_worker_token,
         &params->wait_for_debugger);
-#endif
     params->service_worker_route_id = routing_id;
     // Create DevToolsProxy here to ensure that the WorkerCreated() call is
     // balanced by DevToolsProxy's destructor calling WorkerStopped().
@@ -672,11 +661,9 @@ void EmbeddedWorkerInstance::OnWorkerVersionDoomed() {
   if (!context_) {
     return;
   }
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   ServiceWorkerDevToolsManager::GetInstance()->WorkerVersionDoomed(
       process_id(), worker_devtools_agent_route_id(),
       base::WrapRefCounted(context_->wrapper()), owner_version_->version_id());
-#endif
 }
 
 void EmbeddedWorkerInstance::OnScriptEvaluationStart() {
