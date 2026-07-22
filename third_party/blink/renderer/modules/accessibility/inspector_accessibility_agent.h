@@ -5,6 +5,11 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_ACCESSIBILITY_INSPECTOR_ACCESSIBILITY_AGENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_ACCESSIBILITY_INSPECTOR_ACCESSIBILITY_AGENT_H_
 
+#include "build/build_config.h"
+#include "third_party/blink/public/common/buildflags.h"
+
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
 #include "third_party/blink/renderer/core/accessibility/ax_context.h"
 #include "third_party/blink/renderer/core/inspector/inspector_base_agent.h"
 #include "third_party/blink/renderer/core/inspector/protocol/accessibility.h"
@@ -181,5 +186,29 @@ class MODULES_EXPORT InspectorAccessibilityAgent
 };
 
 }  // namespace blink
+
+#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
+#include "third_party/blink/renderer/core/inspector/inspector_base_agent.h"
+#include "third_party/blink/renderer/modules/modules_export.h"
+
+namespace blink {
+
+class InspectedFrames;
+class InspectorDOMAgent;
+class LocalFrame;
+
+class MODULES_EXPORT InspectorAccessibilityAgent
+    : public InspectorAgent {
+ public:
+  InspectorAccessibilityAgent(InspectedFrames*, InspectorDOMAgent*) {}
+  static void ProvideTo(LocalFrame* frame) {}
+  void Init(CoreProbeSink*, protocol::UberDispatcher*, InspectorSessionState*) override {}
+  void Dispose() override {}
+};
+
+}  // namespace blink
+
+#endif  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_ACCESSIBILITY_INSPECTOR_ACCESSIBILITY_AGENT_H_

@@ -29,6 +29,11 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_STORAGE_INSPECTOR_DOM_STORAGE_AGENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_STORAGE_INSPECTOR_DOM_STORAGE_AGENT_H_
 
+#include "build/build_config.h"
+#include "third_party/blink/public/common/buildflags.h"
+
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
 #include "third_party/blink/renderer/core/inspector/inspector_base_agent.h"
 #include "third_party/blink/renderer/core/inspector/protocol/dom_storage.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
@@ -89,5 +94,26 @@ class MODULES_EXPORT InspectorDOMStorageAgent final
 };
 
 }  // namespace blink
+
+#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
+#include "third_party/blink/renderer/core/inspector/inspector_base_agent.h"
+#include "third_party/blink/renderer/modules/modules_export.h"
+
+namespace blink {
+
+class InspectedFrames;
+
+class MODULES_EXPORT InspectorDOMStorageAgent final
+    : public InspectorAgent {
+ public:
+  explicit InspectorDOMStorageAgent(InspectedFrames*) {}
+  void Init(CoreProbeSink*, protocol::UberDispatcher*, InspectorSessionState*) override {}
+  void Dispose() override {}
+};
+
+}  // namespace blink
+
+#endif  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_STORAGE_INSPECTOR_DOM_STORAGE_AGENT_H_
