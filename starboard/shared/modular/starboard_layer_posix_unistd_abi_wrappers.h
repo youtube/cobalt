@@ -239,6 +239,15 @@ SB_EXPORT int __abi_wrap_fchown(int fd, musl_uid_t owner, musl_gid_t group);
 
 SB_EXPORT int __abi_wrap_unlinkat(int fildes, const char* path, int musl_flag);
 
+SB_EXPORT ssize_t __abi_wrap_readlink(const char* path,
+                                      char* buf,
+                                      size_t bufsize);
+
+SB_EXPORT ssize_t __abi_wrap_readlinkat(int dirfd,
+                                        const char* path,
+                                        char* buf,
+                                        size_t bufsize);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

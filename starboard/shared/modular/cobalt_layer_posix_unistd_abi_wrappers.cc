@@ -75,4 +75,20 @@ int __abi_wrap_unlinkat(int fildes, const char* path, int flag);
 int unlinkat(int fildes, const char* path, int flag) {
   return __abi_wrap_unlinkat(fildes, path, flag);
 }
+
+ssize_t __abi_wrap_readlink(const char* path, char* buf, size_t bufsize);
+
+ssize_t readlink(const char* path, char* buf, size_t bufsize) {
+  return __abi_wrap_readlink(path, buf, bufsize);
+}
+
+ssize_t __abi_wrap_readlinkat(int dirfd,
+                              const char* path,
+                              char* buf,
+                              size_t bufsize);
+
+ssize_t readlinkat(int dirfd, const char* path, char* buf, size_t bufsize) {
+  return __abi_wrap_readlinkat(dirfd, path, buf, bufsize);
+}
+
 }  // extern "C"
