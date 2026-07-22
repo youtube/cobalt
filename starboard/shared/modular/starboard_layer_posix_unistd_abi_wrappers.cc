@@ -723,3 +723,14 @@ int __abi_wrap_unlinkat(int fildes, const char* path, int musl_flag) {
   }
   return unlinkat(fildes, path, flag);
 }
+
+ssize_t __abi_wrap_pread(int fd, void* buf, size_t size, musl_off_t ofs) {
+  return pread(fd, buf, size, static_cast<off_t>(ofs));
+}
+
+ssize_t __abi_wrap_pwrite(int fd,
+                          const void* buf,
+                          size_t size,
+                          musl_off_t ofs) {
+  return pwrite(fd, buf, size, static_cast<off_t>(ofs));
+}
