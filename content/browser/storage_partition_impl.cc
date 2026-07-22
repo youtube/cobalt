@@ -76,13 +76,8 @@
 #include "content/browser/code_cache/generated_code_cache_context.h"
 #include "content/browser/cookie_deprecation_label/cookie_deprecation_label_manager_impl.h"
 #include "content/browser/cookie_store/cookie_store_manager.h"
-#include "third_party/blink/public/common/buildflags.h"
 #include "content/browser/devtools/devtools_background_services_context_impl.h"
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "content/browser/devtools/devtools_url_loader_interceptor.h"
-#else
-#include "content/public/browser/devtools_background_services_context.h"
-#endif
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/file_system/browser_file_system_helper.h"
 #include "content/browser/file_system_access/file_system_access_manager_impl.h"
@@ -502,14 +497,10 @@ class LoginHandlerDelegate {
     auth_challenge_responder_.set_disconnect_handler(base::BindOnce(
         &LoginHandlerDelegate::OnRequestCancelled, base::Unretained(this)));
 
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
     DevToolsURLLoaderInterceptor::HandleAuthRequest(
         request_id_, auth_info_,
         base::BindOnce(&LoginHandlerDelegate::ContinueAfterInterceptor,
                        weak_factory_.GetWeakPtr()));
-#else
-    ContinueAfterInterceptor(true, std::nullopt);
-#endif
   }
 
  private:

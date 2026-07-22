@@ -283,7 +283,7 @@ class DevToolsURLLoaderInterceptor {
                                 base::OnceCallback<void(bool,
                                 const std::optional<net::AuthCredentials>&)>
                                 callback) {
-    std::move(callback).Run(false, std::nullopt);
+    std::move(callback).Run(true, std::nullopt);
   }
 };
 
