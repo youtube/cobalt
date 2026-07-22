@@ -31,6 +31,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -539,16 +540,27 @@ public class AudioOutputManager {
         }
       };
 
-  private static boolean sAudioDeviceListenerAdded = false;
+  private static final AtomicInteger sAudioDeviceListenerRefCount = new AtomicInteger(0);
 
   public static void addAudioDeviceListener(Context context) {
-    if (sAudioDeviceListenerAdded) {
+    if (context == null || sAudioDeviceListenerRefCount.getAndIncrement() != 0) {
       return;
     }
 
     AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
     audioManager.registerAudioDeviceCallback(sAudioDeviceCallback, null);
-    sAudioDeviceListenerAdded = true;
+  }
+
+  public static void removeAudioDeviceListener(Context context) {
+    if (context == null || sAudioDeviceListenerRefCount.decrementAndGet() != 0) {
+      return;
+    }
+
+    AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+    if (audioManager == null) {
+      return;
+    }
+    audioManager.unregisterAudioDeviceCallback(sAudioDeviceCallback);
   }
 
   @NativeMethods
