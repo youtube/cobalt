@@ -34,14 +34,15 @@ public class DisplayUtilTest {
   @Test
   public void testDisplayListenerRemainsRegisteredUntilLastRegistrantIsRemoved() {
     Context context = mock(Context.class);
+    Context applicationContext = mock(Context.class);
     DisplayManager displayManager = mock(DisplayManager.class);
     DisplayManager.DisplayListener displayListener =
         ReflectionHelpers.getStaticField(DisplayUtil.class, "sDisplayerListener");
     AtomicInteger listenerRefCount =
         ReflectionHelpers.getStaticField(DisplayUtil.class, "sListenerRefCount");
     listenerRefCount.set(0);
-    when(context.getSystemService(DisplayManager.class)).thenReturn(displayManager);
-    when(context.getSystemService(Context.DISPLAY_SERVICE)).thenReturn(displayManager);
+    when(context.getApplicationContext()).thenReturn(applicationContext);
+    when(applicationContext.getSystemService(DisplayManager.class)).thenReturn(displayManager);
 
     DisplayUtil.addDisplayListener(context);
     DisplayUtil.addDisplayListener(context);
@@ -53,5 +54,21 @@ public class DisplayUtilTest {
     DisplayUtil.removeDisplayListener(context);
 
     verify(displayManager, times(1)).unregisterDisplayListener(displayListener);
+  }
+
+  @Test
+  public void testMissingDisplayManagerDoesNotChangeListenerRefCount() {
+    Context context = mock(Context.class);
+    Context applicationContext = mock(Context.class);
+    AtomicInteger listenerRefCount =
+        ReflectionHelpers.getStaticField(DisplayUtil.class, "sListenerRefCount");
+    listenerRefCount.set(0);
+    when(context.getApplicationContext()).thenReturn(applicationContext);
+    when(applicationContext.getSystemService(DisplayManager.class)).thenReturn(null);
+
+    DisplayUtil.addDisplayListener(context);
+    DisplayUtil.removeDisplayListener(context);
+
+    org.junit.Assert.assertEquals(0, listenerRefCount.get());
   }
 }

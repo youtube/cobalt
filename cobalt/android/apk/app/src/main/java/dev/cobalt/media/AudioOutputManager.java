@@ -543,24 +543,39 @@ public class AudioOutputManager {
   private static final AtomicInteger sAudioDeviceListenerRefCount = new AtomicInteger(0);
 
   public static void addAudioDeviceListener(Context context) {
-    if (context == null || sAudioDeviceListenerRefCount.getAndIncrement() != 0) {
+    if (context == null) {
       return;
     }
 
-    AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-    audioManager.registerAudioDeviceCallback(sAudioDeviceCallback, null);
-  }
-
-  public static void removeAudioDeviceListener(Context context) {
-    if (context == null || sAudioDeviceListenerRefCount.decrementAndGet() != 0) {
-      return;
+    Context appContext = context.getApplicationContext();
+    if (appContext == null) {
+      appContext = context;
     }
-
-    AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+    AudioManager audioManager = (AudioManager) appContext.getSystemService(Context.AUDIO_SERVICE);
     if (audioManager == null) {
       return;
     }
-    audioManager.unregisterAudioDeviceCallback(sAudioDeviceCallback);
+    if (sAudioDeviceListenerRefCount.getAndIncrement() == 0) {
+      audioManager.registerAudioDeviceCallback(sAudioDeviceCallback, null);
+    }
+  }
+
+  public static void removeAudioDeviceListener(Context context) {
+    if (context == null) {
+      return;
+    }
+
+    Context appContext = context.getApplicationContext();
+    if (appContext == null) {
+      appContext = context;
+    }
+    AudioManager audioManager = (AudioManager) appContext.getSystemService(Context.AUDIO_SERVICE);
+    if (audioManager == null) {
+      return;
+    }
+    if (sAudioDeviceListenerRefCount.decrementAndGet() == 0) {
+      audioManager.unregisterAudioDeviceCallback(sAudioDeviceCallback);
+    }
   }
 
   @NativeMethods

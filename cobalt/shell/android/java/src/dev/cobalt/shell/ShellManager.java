@@ -128,13 +128,18 @@ public class ShellManager {
 
     @CalledByNative
     private Object createShell(long nativeShellPtr) {
+        Context context = getContext();
+        WindowAndroid window = getWindow();
+        if (context == null || window == null) {
+            throw new IllegalStateException("Cannot create shell after ShellManager is destroyed");
+        }
         if (mContentViewRenderView == null) {
-            mContentViewRenderView = new ContentViewRenderView(getContext());
-            mContentViewRenderView.onNativeLibraryLoaded(getWindow());
+            mContentViewRenderView = new ContentViewRenderView(context);
+            mContentViewRenderView.onNativeLibraryLoaded(window);
         }
 
-        Shell shellView = new Shell(getContext());
-        shellView.initialize(nativeShellPtr, getWindow());
+        Shell shellView = new Shell(context);
+        shellView.initialize(nativeShellPtr, window);
         shellView.onActivityVisible(mIsActivityVisible);
         shellView.setWebContentsReadyListener(mNextWebContentsReadyListener);
         mNextWebContentsReadyListener = null;

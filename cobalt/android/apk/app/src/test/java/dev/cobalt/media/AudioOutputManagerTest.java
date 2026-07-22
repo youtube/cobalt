@@ -35,14 +35,15 @@ public class AudioOutputManagerTest {
   @Test
   public void testAudioDeviceListenerRemainsRegisteredUntilLastRegistrantIsRemoved() {
     Context context = mock(Context.class);
+    Context applicationContext = mock(Context.class);
     AudioManager audioManager = mock(AudioManager.class);
     AudioDeviceCallback callback =
         ReflectionHelpers.getStaticField(AudioOutputManager.class, "sAudioDeviceCallback");
     AtomicInteger listenerRefCount =
-        ReflectionHelpers.getStaticField(
-            AudioOutputManager.class, "sAudioDeviceListenerRefCount");
+        ReflectionHelpers.getStaticField(AudioOutputManager.class, "sAudioDeviceListenerRefCount");
     listenerRefCount.set(0);
-    when(context.getSystemService(Context.AUDIO_SERVICE)).thenReturn(audioManager);
+    when(context.getApplicationContext()).thenReturn(applicationContext);
+    when(applicationContext.getSystemService(Context.AUDIO_SERVICE)).thenReturn(audioManager);
 
     AudioOutputManager.addAudioDeviceListener(context);
     AudioOutputManager.addAudioDeviceListener(context);
@@ -54,5 +55,21 @@ public class AudioOutputManagerTest {
     AudioOutputManager.removeAudioDeviceListener(context);
 
     verify(audioManager, times(1)).unregisterAudioDeviceCallback(callback);
+  }
+
+  @Test
+  public void testMissingAudioManagerDoesNotChangeListenerRefCount() {
+    Context context = mock(Context.class);
+    Context applicationContext = mock(Context.class);
+    AtomicInteger listenerRefCount =
+        ReflectionHelpers.getStaticField(AudioOutputManager.class, "sAudioDeviceListenerRefCount");
+    listenerRefCount.set(0);
+    when(context.getApplicationContext()).thenReturn(applicationContext);
+    when(applicationContext.getSystemService(Context.AUDIO_SERVICE)).thenReturn(null);
+
+    AudioOutputManager.addAudioDeviceListener(context);
+    AudioOutputManager.removeAudioDeviceListener(context);
+
+    org.junit.Assert.assertEquals(0, listenerRefCount.get());
   }
 }

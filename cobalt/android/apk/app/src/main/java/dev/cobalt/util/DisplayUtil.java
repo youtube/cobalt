@@ -226,27 +226,42 @@ public class DisplayUtil {
   private static final AtomicInteger sListenerRefCount = new AtomicInteger(0);
 
   public static void addDisplayListener(Context context) {
-    if (context == null || sListenerRefCount.getAndIncrement() != 0) {
+    if (context == null) {
       return;
     }
 
-    DisplayManager displayManager = context.getSystemService(DisplayManager.class);
-    displayManager.registerDisplayListener(sDisplayerListener, null);
-
-    // Call nativeOnDisplayChanged() to reload supported hdr types here after a default
-    // Display created.
-    DisplayUtilJni.get().onDisplayChanged();
-  }
-
-  public static void removeDisplayListener(Context context) {
-    if (context == null || sListenerRefCount.decrementAndGet() != 0) {
-      return;
+    Context appContext = context.getApplicationContext();
+    if (appContext == null) {
+      appContext = context;
     }
-
-    DisplayManager displayManager = (DisplayManager) context.getSystemService(Context.DISPLAY_SERVICE);
+    DisplayManager displayManager = appContext.getSystemService(DisplayManager.class);
     if (displayManager == null) {
       return;
     }
-    displayManager.unregisterDisplayListener(sDisplayerListener);
+    if (sListenerRefCount.getAndIncrement() == 0) {
+      displayManager.registerDisplayListener(sDisplayerListener, null);
+
+      // Call nativeOnDisplayChanged() to reload supported hdr types here after a default
+      // Display created.
+      DisplayUtilJni.get().onDisplayChanged();
+    }
+  }
+
+  public static void removeDisplayListener(Context context) {
+    if (context == null) {
+      return;
+    }
+
+    Context appContext = context.getApplicationContext();
+    if (appContext == null) {
+      appContext = context;
+    }
+    DisplayManager displayManager = appContext.getSystemService(DisplayManager.class);
+    if (displayManager == null) {
+      return;
+    }
+    if (sListenerRefCount.decrementAndGet() == 0) {
+      displayManager.unregisterDisplayListener(sDisplayerListener);
+    }
   }
 }
