@@ -43,6 +43,7 @@ RULES = {
         re.compile(r'unexpected disconnect'),
         re.compile(r'early EOF'),
         re.compile(r'invalid index-pack output'),
+        re.compile(r'MANEKI_XML_FILES_LISTING_ERROR'),
     ],
     'gn_error': [re.compile(r'ERROR at //.*\.gn'),],
     'ninja_error': [

@@ -100,6 +100,8 @@ class TestResultAnalyzer(unittest.TestCase):
         "unexpected disconnect",
         "early EOF",
         "invalid index-pack output",
+        ("Failed to get the list of Cobalt XML Paths from the device"
+         " [MA|INFRA_ISSUE|MANEKI_XML_FILES_LISTING_ERROR|1108]"),
     ]
     for error_line in infra_errors:
       content = f"Some log line\n{error_line}\nAnother line"
