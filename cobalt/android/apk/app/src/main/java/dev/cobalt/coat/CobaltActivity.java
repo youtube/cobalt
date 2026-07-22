@@ -104,6 +104,11 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   private final Handler mHandler = new Handler(Looper.getMainLooper());
   private boolean mIsCobaltUsingAndroidOverlay;
 
+  private static final long MIN_RETRY_INTERVAL_MS = 1000L;
+  private NetworkChangeNotifier.ConnectionTypeObserver mNetworkRecoveryObserver;
+  private boolean mIsNetworkRecoveryObserverRegistered = false;
+  private long mLastRetryTimestampMs = 0L;
+
   private String mStartDeepLink;
 
   private Object mBackInvokedCallback;
@@ -604,6 +609,8 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   protected void onResume() {
     super.onResume();
     StartupGuard.getInstance().setStartupMilestone(12);
+    maybeRegisterNetworkRecoveryObserver();
+    checkAndRetryOnNetworkOnline();
     View rootView = getWindow().getDecorView().getRootView();
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
       rootView.requestFocus();
@@ -616,6 +623,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   @Override
   protected void onDestroy() {
     unregisterDisplayListener();
+    unregisterNetworkRecoveryObserver();
     if (mFreezeRunnable != null) {
       mHandler.removeCallbacks(mFreezeRunnable);
       mFreezeRunnable = null;
@@ -629,6 +637,74 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       mBackInvokedCallback = null;
     }
     super.onDestroy();
+  }
+
+  private boolean isAutoRetryOnNetworkRecoveryEnabled() {
+    return getJavaSwitches().containsKey(JavaSwitches.ENABLE_AUTO_RETRY_ON_NETWORK_RECOVERY);
+  }
+
+  private void maybeRegisterNetworkRecoveryObserver() {
+    if (!isAutoRetryOnNetworkRecoveryEnabled()) {
+      return;
+    }
+    StarboardBridge bridge = getStarboardBridge();
+    if (mIsNetworkRecoveryObserverRegistered
+        || (bridge != null && bridge.hasHiddenSplashScreen())) {
+      return;
+    }
+    if (mNetworkRecoveryObserver == null) {
+      mNetworkRecoveryObserver =
+          new NetworkChangeNotifier.ConnectionTypeObserver() {
+            @Override
+            public void onConnectionTypeChanged(int connectionType) {
+              checkAndRetryOnNetworkOnline();
+            }
+          };
+    }
+    NetworkChangeNotifier.init();
+    NetworkChangeNotifier.addConnectionTypeObserver(mNetworkRecoveryObserver);
+    mIsNetworkRecoveryObserverRegistered = true;
+  }
+
+  private void unregisterNetworkRecoveryObserver() {
+    if (!mIsNetworkRecoveryObserverRegistered || mNetworkRecoveryObserver == null) {
+      return;
+    }
+    mIsNetworkRecoveryObserverRegistered = false;
+    NetworkChangeNotifier.removeConnectionTypeObserver(mNetworkRecoveryObserver);
+  }
+
+  public void checkAndRetryOnNetworkOnline() {
+    StarboardBridge bridge = getStarboardBridge();
+    if (bridge != null && bridge.hasHiddenSplashScreen()) {
+      unregisterNetworkRecoveryObserver();
+      return;
+    }
+    if (!isAutoRetryOnNetworkRecoveryEnabled() || !NetworkChangeNotifier.isOnline()) {
+      return;
+    }
+    WebContents webContents = getActiveWebContents();
+    if (webContents != null && webContents.isLoading()) {
+      return;
+    }
+
+    long now = SystemClock.elapsedRealtime();
+    if (now - mLastRetryTimestampMs < MIN_RETRY_INTERVAL_MS) {
+      return;
+    }
+    mLastRetryTimestampMs = now;
+
+    if (bridge != null && bridge.getPlatformError() != null) {
+      Log.i(TAG, "Network is online and platform error is active; retrying URL load.");
+      bridge.getPlatformError().retry();
+    } else {
+      Log.i(TAG, "Network is online and splash screen never hidden; reloading URL.");
+      PlatformError.reloadUrl(this, webContents, null);
+    }
+  }
+
+  public void onSplashScreenHidden() {
+    unregisterNetworkRecoveryObserver();
   }
 
   /** Overridden by Kimono to provide specific Java switch configurations. */

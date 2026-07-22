@@ -14,25 +14,15 @@
 
 package dev.cobalt.coat;
 
-import static dev.cobalt.util.Log.TAG;
-
 import android.app.Activity;
 import android.app.Service;
 import android.content.Context;
-import android.os.Handler;
-import android.os.Looper;
-import android.os.SystemClock;
 import dev.cobalt.shell.StartupGuard;
 import dev.cobalt.util.Holder;
-import dev.cobalt.util.JavaSwitches;
-import dev.cobalt.util.Log;
-import java.util.Map;
 import org.chromium.content_public.browser.WebContents;
-import org.chromium.net.NetworkChangeNotifier;
 
 /** Content-dependent StarboardBridge subclass used by AndroidTV. */
-public class StarboardBridge extends BaseStarboardBridge
-    implements NetworkChangeNotifier.ConnectionTypeObserver {
+public class StarboardBridge extends BaseStarboardBridge {
 
   /** Interface to be implemented by the Android Application hosting the starboard app. */
   public interface HostApplication {
@@ -41,14 +31,10 @@ public class StarboardBridge extends BaseStarboardBridge
     StarboardBridge getStarboardBridge();
   }
 
-  private static final long MIN_RETRY_INTERVAL_MS = 1000L;
-
   private CobaltMediaSession mCobaltMediaSession;
   private VolumeStateReceiver mVolumeStateReceiver;
   private volatile PlatformError mPlatformError;
   private volatile boolean mHasHiddenSplashScreen = false;
-  private volatile boolean mIsConnectionTypeObserverRegistered = false;
-  private volatile long mLastRetryTimestampMs = 0L;
 
   public StarboardBridge(
       Context appContext,
@@ -60,92 +46,12 @@ public class StarboardBridge extends BaseStarboardBridge
     super(appContext, activityHolder, serviceHolder, args, startDeepLink);
     mCobaltMediaSession = new CobaltMediaSession(appContext, activityHolder, artworkDownloader);
     mVolumeStateReceiver = new VolumeStateReceiver(appContext);
-
-    maybeRegisterConnectionTypeObserver();
-  }
-
-  @Override
-  protected void beforeStartOrResume() {
-    super.beforeStartOrResume();
-    maybeRegisterConnectionTypeObserver();
-    checkAndRetryOnNetworkOnline();
-  }
-
-  @Override
-  public void onConnectionTypeChanged(int connectionType) {
-    checkAndRetryOnNetworkOnline();
-  }
-
-  private boolean isAutoRetryOnNetworkRecoveryEnabled() {
-    Activity activity = mActivityHolder.get();
-    if (activity instanceof CobaltActivity) {
-      Map<String, String> switches = ((CobaltActivity) activity).getJavaSwitches();
-      return switches != null
-          && switches.containsKey(JavaSwitches.ENABLE_AUTO_RETRY_ON_NETWORK_RECOVERY);
-    }
-    return false;
-  }
-
-  private void maybeRegisterConnectionTypeObserver() {
-    if (!isAutoRetryOnNetworkRecoveryEnabled()) {
-      return;
-    }
-
-    if (mHasHiddenSplashScreen || mIsConnectionTypeObserverRegistered) {
-      return;
-    }
-
-    NetworkChangeNotifier.init();
-    NetworkChangeNotifier.addConnectionTypeObserver(this);
-    mIsConnectionTypeObserverRegistered = true;
-  }
-
-  /**
-   * If hideSplashScreen() has never been called (indicating the web application has not completed
-   * its initial load) and the network becomes online, automatically retry loading the startup URL
-   * or active platform error.
-   */
-  public void checkAndRetryOnNetworkOnline() {
-    if (!NetworkChangeNotifier.isOnline() || mHasHiddenSplashScreen) {
-      return;
-    }
-
-    Activity activity = mActivityHolder.get();
-    if (!(activity instanceof CobaltActivity)) {
-      return;
-    }
-    CobaltActivity cobaltActivity = (CobaltActivity) activity;
-    WebContents webContents = cobaltActivity.getActiveWebContents();
-    if (webContents != null && webContents.isLoading()) {
-      return;
-    }
-
-    long now = SystemClock.elapsedRealtime();
-    if (now - mLastRetryTimestampMs < MIN_RETRY_INTERVAL_MS) {
-      // Avoid retry storms due to rapid network flapping.
-      return;
-    }
-    mLastRetryTimestampMs = now;
-
-    if (mPlatformError != null) {
-      Log.i(TAG, "Network is online and platform error is active; retrying URL load.");
-      mPlatformError.retry();
-    } else {
-      Log.i(TAG, "Network is online and splash screen never hidden; reloading URL.");
-      PlatformError.reloadUrl(cobaltActivity, webContents, null);
-    }
   }
 
   @Override
   protected void onActivityStop(Activity activity) {
     super.onActivityStop(activity);
     mCobaltMediaSession.onActivityStop();
-  }
-
-  @Override
-  protected void onActivityDestroy(Activity activity) {
-    super.onActivityDestroy(activity);
-    unregisterConnectionTypeObserver();
   }
 
   @Override
@@ -184,18 +90,11 @@ public class StarboardBridge extends BaseStarboardBridge
   protected void hideSplashScreen() {
     mHasHiddenSplashScreen = true;
     mPlatformError = null;
-    unregisterConnectionTypeObserver();
-    StartupGuard.getInstance().disarm();
-  }
-
-  private void unregisterConnectionTypeObserver() {
-    if (!mIsConnectionTypeObserverRegistered) {
-      return;
+    Activity activity = mActivityHolder.get();
+    if (activity instanceof CobaltActivity) {
+      ((CobaltActivity) activity).onSplashScreenHidden();
     }
-
-    mIsConnectionTypeObserverRegistered = false;
-    new Handler(Looper.getMainLooper())
-        .post(() -> NetworkChangeNotifier.removeConnectionTypeObserver(this));
+    StartupGuard.getInstance().disarm();
   }
 
   @Override
