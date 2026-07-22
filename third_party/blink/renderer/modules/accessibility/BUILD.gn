@@ -81,9 +81,7 @@ blink_modules_sources("accessibility") {
   if (!enable_devtools_backend) {
     sources -= [
       "inspector_accessibility_agent.cc",
-      "inspector_accessibility_agent.h",
       "inspector_type_builder_helper.cc",
-      "inspector_type_builder_helper.h",
     ]
   }
 }

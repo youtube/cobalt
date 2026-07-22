@@ -894,7 +894,6 @@ void AXObjectCacheImpl::Dispose() {
   lifecycle_.AdvanceTo(AXObjectCacheLifecycle::kDisposed);
 }
 
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 void AXObjectCacheImpl::AddInspectorAgent(InspectorAccessibilityAgent* agent) {
   agents_.insert(agent);
 }
@@ -903,7 +902,6 @@ void AXObjectCacheImpl::RemoveInspectorAgent(
     InspectorAccessibilityAgent* agent) {
   agents_.erase(agent);
 }
-#endif
 
 void AXObjectCacheImpl::EnsureRelationCacheAndInitialTree() {
   if (!relation_cache_) {
@@ -3567,14 +3565,12 @@ void AXObjectCacheImpl::CommitAXUpdates(Document& document, bool force) {
     // TODO(accessibility) Now that both documents are always processed at the
     // same time, consider modifying the InspectorAccessibilityAgent so that
     // only the callback for the main document is needed.
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
     for (auto agent : agents_) {
       agent->AXReadyCallback(document);
       if (GetPopupDocumentIfShowing()) {
         agent->AXReadyCallback(*GetPopupDocumentIfShowing());
       }
     }
-#endif
 
     Vector<base::OnceClosure> callbacks;
     ready_callbacks_.swap(callbacks);
@@ -5283,10 +5279,8 @@ void AXObjectCacheImpl::PostPlatformNotification(
   std::ranges::transform(
       event_intents, event.event_intents.begin(),
       [](const auto& intent) { return intent.key.intent(); });
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   for (auto agent : agents_)
     agent->AXEventFired(obj, event_type);
-#endif
 
   // Since we're in the middle of processing deferred events anyways, we know
   // this will be immediately serialized.
@@ -5343,11 +5337,9 @@ void AXObjectCacheImpl::MarkAXObjectDirtyWithCleanLayout(AXObject* obj) {
   if (!obj->IsIncludedInTree()) {
     obj = obj->ParentObjectIncludedInTree();
   }
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   for (auto agent : agents_) {
     agent->AXObjectModified(obj, /*subtree*/ false);
   }
-#endif
 }
 
 void AXObjectCacheImpl::MarkAXObjectDirty(AXObject* obj) {
@@ -5369,11 +5361,9 @@ void AXObjectCacheImpl::NotifySubtreeDirty(AXObject* obj) {
   if (ax_tree_serializer_) {
     ax_tree_serializer_->MarkSubtreeDirty(obj->AXObjectID());
   }
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   for (auto agent : agents_) {
     agent->AXObjectModified(obj, /*subtree*/ true);
   }
-#endif
 }
 
 void AXObjectCacheImpl::MarkAXSubtreeDirtyWithCleanLayout(AXObject* obj) {
@@ -6454,9 +6444,7 @@ std::optional<ui::AXTreeID> AXObjectCacheImpl::GetAXObjectChildAXTreeID(
 }
 
 void AXObjectCacheImpl::Trace(Visitor* visitor) const {
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   visitor->Trace(agents_);
-#endif
   visitor->Trace(document_);
   visitor->Trace(popup_document_);
   visitor->Trace(last_selected_from_active_descendant_);
