@@ -1640,18 +1640,11 @@ void GenerateCaps(const FunctionsGL *functions,
                                  functions->hasGLESExtension("GL_KHR_debug") ||
                                  functions->hasGLESExtension("GL_EXT_debug_marker");
     extensions->EGLImageOES         = functions->hasGLESExtension("GL_OES_EGL_image");
-#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
-    extensions->EGLImageExternalOES = true;
-    extensions->EGLImageExternalWrapModesEXT =
-        functions->hasExtension("GL_EXT_EGL_image_external_wrap_modes");
-    extensions->EGLImageExternalEssl3OES = true;
-#else
     extensions->EGLImageExternalOES = functions->hasGLESExtension("GL_OES_EGL_image_external");
     extensions->EGLImageExternalWrapModesEXT =
         functions->hasExtension("GL_EXT_EGL_image_external_wrap_modes");
     extensions->EGLImageExternalEssl3OES =
         functions->hasGLESExtension("GL_OES_EGL_image_external_essl3");
-#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
     extensions->EGLImageArrayEXT = functions->hasGLESExtension("GL_EXT_EGL_image_array");
 
     extensions->EGLSyncOES = functions->hasGLESExtension("GL_OES_EGL_sync");
