@@ -62,7 +62,11 @@ namespace cobalt {
 
 CommandLinePreprocessor::CommandLinePreprocessor(int argc,
                                                  const char* const* argv)
-    : cmd_line_(argc, argv) {
+    : CommandLinePreprocessor(base::CommandLine(argc, argv)) {}
+
+CommandLinePreprocessor::CommandLinePreprocessor(
+    const base::CommandLine& command_line)
+    : cmd_line_(command_line) {
   // Toggle-switch defaults are just turned on by default.
   for (const auto& cobalt_switch : GetCobaltToggleSwitches()) {
     cmd_line_.AppendSwitch(cobalt_switch);

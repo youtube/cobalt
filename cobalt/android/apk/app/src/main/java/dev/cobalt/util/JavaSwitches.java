@@ -92,6 +92,9 @@ public class JavaSwitches {
   public static final String WAIT_FOR_MEDIA_RESOURCES_ON_SHUTDOWN =
       "WaitForMediaResourcesOnShutdown";
 
+  /** flag to aggressively flush v8 bytecode after a configurable old time. */
+  public static final String V8_SET_BYTECODE_OLD_TIME = "V8SetBytecodeOldTime";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     StringJoiner jsFlags = new StringJoiner(";");
@@ -113,6 +116,15 @@ public class JavaSwitches {
     if (javaSwitches.containsKey(JavaSwitches.USE_MINOR_MS_FOR_MINOR_GC)) {
       jsFlags.add("--minor-ms");
       jsFlags.add("--minor-ms-min-new-space-capacity-for-concurrent-marking-mb=0");
+    }
+
+    String oldTimeStr = javaSwitches.get(JavaSwitches.V8_SET_BYTECODE_OLD_TIME);
+    if (oldTimeStr != null) {
+      String oldTime = oldTimeStr.replaceAll("[^0-9]", "");
+      if (!oldTime.isEmpty()) {
+        jsFlags.add("--flush-bytecode");
+        jsFlags.add("--bytecode-old-time=" + oldTime);
+      }
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES)) {

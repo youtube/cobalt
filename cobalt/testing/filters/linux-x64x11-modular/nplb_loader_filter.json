@@ -47,5 +47,9 @@
     "PosixTimeClockTests.ClockReturnsNonNegative",
     "SbAudioSinkTest.UpdateStatusCalled",
     "SbLogFlushTest.DontCrashMeBro"
+  ],
+  "_filtered_b/537819670": [
+    "VerticalVideoTests/VerticalVideoTest.WriteSamples/audio_silence_aac_stereo_dmp_video_vertical_4k_30_fps_313_vp9_dmp*",
+    "VerticalVideoTests/VerticalVideoTest.Seek/audio_silence_aac_stereo_dmp_video_vertical_4k_30_fps_313_vp9_dmp*"
   ]
 }
