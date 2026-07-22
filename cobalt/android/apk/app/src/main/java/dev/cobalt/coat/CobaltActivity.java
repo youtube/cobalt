@@ -106,10 +106,16 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   private final Handler mHandler = new Handler(Looper.getMainLooper());
   private boolean mIsCobaltUsingAndroidOverlay;
 
-  private static final long MIN_RETRY_INTERVAL_MS = 1000L;
   private NetworkChangeNotifier.ConnectionTypeObserver mNetworkRecoveryObserver;
   private boolean mIsNetworkRecoveryObserverRegistered = false;
+
+  private boolean mHasHiddenSplashScreen = false;
+
+  private static final long MIN_RETRY_INTERVAL_MS = 1000L;
   private long mLastRetryTimestampMs = 0L;
+
+  private static final String RETRY_PARAM_KEY = "netdialog_retry";
+  private static final AtomicInteger sRetryCount = new AtomicInteger(0);
 
   private String mStartDeepLink;
 
@@ -646,8 +652,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     return getJavaSwitches().containsKey(JavaSwitches.ENABLE_AUTO_RETRY_ON_NETWORK_RECOVERY);
   }
 
-  private volatile boolean mHasHiddenSplashScreen = false;
-
   public void onSplashScreenHidden() {
     mHasHiddenSplashScreen = true;
     unregisterNetworkRecoveryObserver();
@@ -697,6 +701,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
     long now = SystemClock.elapsedRealtime();
     if (now - mLastRetryTimestampMs < MIN_RETRY_INTERVAL_MS) {
+      // Avoid Network Flapping Retry Storms
       return;
     }
     mLastRetryTimestampMs = now;
@@ -710,9 +715,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       reloadUrl(null);
     }
   }
-
-  private static final String RETRY_PARAM_KEY = "netdialog_retry";
-  private static final AtomicInteger sRetryCount = new AtomicInteger(0);
 
   /** Performs reload of the target/current URL or active WebContents. */
   public void reloadUrl(@Nullable String targetUrl) {
