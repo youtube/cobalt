@@ -34,11 +34,6 @@ typedef HRESULT(WINAPI* RTC_SetThreadDescription)(HANDLE hThread,
 #endif
 // IWYU pragma: end_keep
 
-#include "build/build_config.h"
-#if BUILDFLAG(IS_STARBOARD)
-#include "starboard/common/gettid.h"  // nogncheck
-#endif
-
 namespace webrtc {
 
 PlatformThreadId CurrentThreadId() {
@@ -47,7 +42,7 @@ PlatformThreadId CurrentThreadId() {
 #elif defined(WEBRTC_POSIX)
 #if defined(WEBRTC_MAC) || defined(WEBRTC_IOS)
   return pthread_mach_thread_np(pthread_self());
-#elif defined(WEBRTC_ANDROID) || BUILDFLAG(IS_STARBOARD)
+#elif defined(WEBRTC_ANDROID)
   return gettid();
 #elif defined(WEBRTC_FUCHSIA)
   return zx_thread_self();
