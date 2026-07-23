@@ -18,6 +18,8 @@
 #include <sys/stat.h>
 
 #include <map>
+#include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/files/file_path.h"
@@ -32,8 +34,12 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/extension/loader_app_metrics.h"
+#include "starboard/extension/native_stability.h"
 #include "starboard/system.h"
+#include "third_party/crashpad/crashpad/snapshot/minidump/process_snapshot_minidump.h"
 #include "third_party/crashpad/crashpad/snapshot/sanitized/sanitization_information.h"
+#include "third_party/crashpad/crashpad/util/file/file_reader.h"
+#include "third_party/crashpad/crashpad/util/posix/signals.h"
 #include "util/misc/capture_context.h"
 
 using starboard::kSystemPropertyMaxLength;
@@ -44,8 +50,13 @@ const char kCrashpadVersionKey[] = "ver";
 const char kCrashpadProductKey[] = "prod";
 const char kCrashpadUserAgentStringKey[] = "user_agent_string";
 const char kCrashpadCertScopeKey[] = "cert_scope";
+const char kNativeStabilityCrashUuidKey[] = "native_stability_crash_uuid";
+const char kNativeStabilityHangUuidKey[] = "native_stability_hang_uuid";
 
 namespace {
+
+std::unique_ptr<base::FilePath> g_database_path_override_for_testing;
+
 // TODO: Get evergreen information from installation.
 const std::string kCrashpadVersion = "1.0.0.0";
 #if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
@@ -85,6 +96,10 @@ base::FilePath GetPathToCrashpadHandlerBinary() {
 }
 
 base::FilePath GetDatabasePath() {
+  if (g_database_path_override_for_testing) {
+    return *g_database_path_override_for_testing;
+  }
+
   std::vector<char> cache_directory_path(kSbFileMaxPath);
   if (!SbSystemGetPath(kSbSystemPathCacheDirectory, cache_directory_path.data(),
                        kSbFileMaxPath)) {
@@ -210,6 +225,65 @@ void RecordStatus(CrashpadInstallationStatus status) {
   }
 }
 
+std::optional<SbNativeStabilityReport> ParseReportFromMinidump(
+    const ::crashpad::CrashReportDatabase::Report& report) {
+  ::crashpad::FileReader reader;
+  if (!reader.Open(report.file_path)) {
+    return std::nullopt;
+  }
+
+  ::crashpad::ProcessSnapshotMinidump snapshot;
+  if (!snapshot.Initialize(&reader)) {
+    return std::nullopt;
+  }
+
+  const std::map<std::string, std::string>& annotations =
+      snapshot.AnnotationsSimpleMap();
+  const ::crashpad::ExceptionSnapshot* exception = snapshot.Exception();
+  // Non-crashing minidumps captured for hangs via DumpWithoutCrashing have the
+  // exception code set to kSimulatedSigno, distinguishing them from actual
+  // signal-driven process crashes.
+  bool is_hang = exception && exception->Exception() ==
+                                  static_cast<uint32_t>(
+                                      ::crashpad::Signals::kSimulatedSigno);
+
+  std::string event_uuid;
+  SbNativeStabilityReportType report_type = kSbNativeStabilityReportUnknown;
+  if (is_hang) {
+    report_type = kSbNativeStabilityReportHang;
+    auto hang_uuid_it = annotations.find(kNativeStabilityHangUuidKey);
+    if (hang_uuid_it != annotations.end()) {
+      event_uuid = hang_uuid_it->second;
+    }
+  } else {
+    report_type = kSbNativeStabilityReportCrash;
+    auto crash_uuid_it = annotations.find(kNativeStabilityCrashUuidKey);
+    if (crash_uuid_it != annotations.end()) {
+      event_uuid = crash_uuid_it->second;
+    }
+  }
+
+  constexpr size_t kExpectedUuidLength =
+      sizeof(SbNativeStabilityReport::native_stability_event_uuid) - 1;
+  if (event_uuid.size() != kExpectedUuidLength) {
+    return std::nullopt;
+  }
+
+  timeval snapshot_time{};
+  snapshot.SnapshotTime(&snapshot_time);
+
+  SbNativeStabilityReport native_stability_report{};
+  native_stability_report.event_time_s =
+      static_cast<int64_t>(snapshot_time.tv_sec);
+  native_stability_report.report_type = report_type;
+
+  memcpy(native_stability_report.native_stability_event_uuid,
+         event_uuid.c_str(), kExpectedUuidLength);
+  native_stability_report.native_stability_event_uuid[kExpectedUuidLength] =
+      '\0';
+  return native_stability_report;
+}
+
 }  // namespace
 
 void InstallCrashpadHandler(const std::string& ca_certificates_path) {
@@ -290,6 +364,14 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
         &DumpWithoutCrashingWrapper);
   }
 
+  auto native_stability_extension =
+      static_cast<const CobaltExtensionNativeStabilityApi*>(
+          SbSystemGetExtension(kCobaltExtensionNativeStabilityName));
+  if (native_stability_extension && native_stability_extension->version >= 1 &&
+      native_stability_extension->RegisterReadReportsCallback) {
+    native_stability_extension->RegisterReadReportsCallback(&ReadReports);
+  }
+
   RecordStatus(CrashpadInstallationStatus::kSucceeded);
 }
 
@@ -308,5 +390,66 @@ void DumpWithoutCrashingWrapper() {
   ::crashpad::CaptureContext(&context);
   ::crashpad::CrashpadClient::DumpWithoutCrash(&context);
 }
+
+int ReadReports(SbNativeStabilityReport* reports, int max_num_reports) {
+  const base::FilePath database_directory_path = GetDatabasePath();
+  if (!reports || max_num_reports <= 0 || database_directory_path.empty()) {
+    return -1;
+  }
+
+  std::unique_ptr<::crashpad::CrashReportDatabase> database =
+      ::crashpad::CrashReportDatabase::Initialize(database_directory_path);
+  if (!database) {
+    return -1;
+  }
+
+  std::vector<::crashpad::CrashReportDatabase::Report> all_reports;
+
+  // We generally expect to find zero pending reports and certainly don't expect
+  // to find many: just after the Crashpad handler snapshots a crash, it
+  // attempts to upload the report - or declines to do so because of client-side
+  // throttling - and in all cases, including throttled or failed uploads, then
+  // moves the report from |pending| to |completed|.
+  std::vector<::crashpad::CrashReportDatabase::Report> pending_reports;
+  if (database->GetPendingReports(&pending_reports) ==
+      ::crashpad::CrashReportDatabase::kNoError) {
+    all_reports.insert(all_reports.end(), pending_reports.begin(),
+                       pending_reports.end());
+  }
+
+  std::vector<::crashpad::CrashReportDatabase::Report> completed_reports;
+  if (database->GetCompletedReports(&completed_reports) ==
+      ::crashpad::CrashReportDatabase::kNoError) {
+    all_reports.insert(all_reports.end(), completed_reports.begin(),
+                       completed_reports.end());
+  }
+
+  int count = 0;
+  for (const auto& report : all_reports) {
+    if (count >= max_num_reports) {
+      break;
+    }
+    std::optional<SbNativeStabilityReport> sb_native_stability_report =
+        ParseReportFromMinidump(report);
+    if (sb_native_stability_report.has_value()) {
+      reports[count++] = sb_native_stability_report.value();
+    }
+  }
+
+  return count;
+}
+
+namespace internal {
+
+void SetDatabasePathForTesting(const base::FilePath& path) {
+  if (path.empty()) {
+    g_database_path_override_for_testing.reset();
+  } else {
+    g_database_path_override_for_testing =
+        std::make_unique<base::FilePath>(path);
+  }
+}
+
+}  // namespace internal
 
 }  // namespace crashpad
