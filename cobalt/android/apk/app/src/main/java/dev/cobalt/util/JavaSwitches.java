@@ -24,6 +24,11 @@ public class JavaSwitches {
   public static final String ENABLE_QUIC = "EnableQUIC";
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
   public static final String STARTUP_GUARD_INTERVAL_IN_SECONDS = "StartupGuardIntervalInSeconds";
+
+  /** flag to enable auto-retrying URL load on network recovery before splash screen is hidden. */
+  public static final String ENABLE_AUTO_RETRY_ON_NETWORK_RECOVERY =
+      "EnableAutoRetryOnNetworkRecovery";
+
   public static final String ENABLE_OPTIMIZED_FONT_LOADING = "EnableOptimizedFontLoading";
   public static final String ENABLE_OPTIMIZED_V8_CODE_CACHE = "EnableOptimizedV8CodeCache";
 
