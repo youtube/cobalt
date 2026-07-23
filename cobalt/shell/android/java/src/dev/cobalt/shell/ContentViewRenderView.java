@@ -147,16 +147,12 @@ public class ContentViewRenderView extends FrameLayout {
     }
 
     /**
-     * Gets the SurfaceView for this ContentViewRenderView (or this host View in Window Surface
-     * mode so callers like CobaltA11yHelper and WindowAndroid still receive a valid View).
+     * Gets the View used for layout anchoring, animation placeholder, or accessibility (child
+     * SurfaceView in SurfaceView mode, or this host View in Window Surface mode).
      */
-    public View getSurfaceView() {
+    public View getAnchorView() {
         SurfaceView surfaceView = mSurfaceBridge.getSurfaceView();
         return surfaceView != null ? surfaceView : this;
-    }
-
-    public SurfaceHolder getSurfaceHolder() {
-        return mSurfaceBridge.getSurfaceHolder();
     }
 
     /**
@@ -207,20 +203,20 @@ public class ContentViewRenderView extends FrameLayout {
      */
     public void setOverlayVideoMode(boolean enabled) {
         int format = enabled ? PixelFormat.TRANSLUCENT : PixelFormat.OPAQUE;
-        SurfaceHolder holder = getSurfaceHolder();
-        if (holder != null) {
-            holder.setFormat(format);
-        }
+        mSurfaceBridge.setFormat(format);
         ContentViewRenderViewJni.get().setOverlayVideoMode(
                 mNativeContentViewRenderView, ContentViewRenderView.this, enabled);
     }
 
     @CalledByNative
     private void didSwapFrame() {
-        // In SurfaceView mode, clear the temporary placeholder background on the child SurfaceView
-        // once native renders the first frame. In Window Surface mode, there is no child SurfaceView.
         SurfaceView surfaceView = mSurfaceBridge.getSurfaceView();
-        if (surfaceView != null && surfaceView.getBackground() != null) {
+        if (surfaceView == null) {
+            // In Window Surface mode, no child SurfaceView background to clear.
+            return;
+        }
+
+        if (surfaceView.getBackground() != null) {
             post(new Runnable() {
                 @Override
                 public void run() {
@@ -238,7 +234,7 @@ public class ContentViewRenderView extends FrameLayout {
         protected abstract void connect(SurfaceHolder.Callback surfaceCallback, WindowAndroid windowAndroid);
         protected abstract void disconnect();
         protected abstract SurfaceView getSurfaceView();
-        protected abstract SurfaceHolder getSurfaceHolder();
+        protected abstract void setFormat(int format);
     }
 
     protected static class SurfaceViewBridge extends SurfaceBridge {
@@ -251,8 +247,11 @@ public class ContentViewRenderView extends FrameLayout {
         }
 
         @Override
-        protected SurfaceHolder getSurfaceHolder() {
-            return mSurfaceView != null ? mSurfaceView.getHolder() : null;
+        protected void setFormat(int format) {
+            if (mSurfaceView == null) {
+                return;
+            }
+            mSurfaceView.getHolder().setFormat(format);
         }
 
         @Override
@@ -282,6 +281,7 @@ public class ContentViewRenderView extends FrameLayout {
     protected static class WindowSurfaceBridge extends SurfaceBridge implements SurfaceHolder.Callback2 {
         private SurfaceHolder.Callback mSurfaceCallback;
         private SurfaceHolder mWindowSurfaceHolder;
+        private Integer mSurfaceFormat;
 
         @Override
         protected void initialize(ContentViewRenderView renderView) {}
@@ -303,6 +303,7 @@ public class ContentViewRenderView extends FrameLayout {
         protected void disconnect() {
             mWindowSurfaceHolder = null;
             mSurfaceCallback = null;
+            mSurfaceFormat = null;
         }
 
         @Override
@@ -311,13 +312,23 @@ public class ContentViewRenderView extends FrameLayout {
         }
 
         @Override
-        protected SurfaceHolder getSurfaceHolder() {
-            return mWindowSurfaceHolder;
+        protected void setFormat(int format) {
+            mSurfaceFormat = format;
+            if (mWindowSurfaceHolder == null) {
+                Log.i(TAG, "Window surface is not ready yet. Will apply format later");
+                return;
+            }
+            mWindowSurfaceHolder.setFormat(format);
         }
 
         @Override
         public void surfaceCreated(SurfaceHolder holder) {
             mWindowSurfaceHolder = holder;
+            if (mSurfaceFormat != null) {
+                Log.i(TAG, "Applying pending format");
+                mWindowSurfaceHolder.setFormat(mSurfaceFormat);
+            }
+
             if (mSurfaceCallback == null) {
                 return;
             }
