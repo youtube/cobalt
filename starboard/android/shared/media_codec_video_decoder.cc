@@ -1091,7 +1091,7 @@ void MediaCodecVideoDecoder::TryToSignalPrerollForTunnelMode() {
   }
 
   if (tunnel_mode_prerolling_.exchange(false)) {
-    SB_LOG(ERROR) << "Tunnel mode preroll finished.";
+    SB_LOG(INFO) << "Tunnel mode preroll finished.";
     // TODO: Currently the decoder sends a dummy frame to the renderer to signal
     //       preroll finish.  We should investigate a better way for prerolling
     //       when the video is rendered directly by the decoder, maybe by always
