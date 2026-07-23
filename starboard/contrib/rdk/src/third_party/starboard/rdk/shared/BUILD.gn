@@ -296,14 +296,7 @@ static_library("starboard_platform_sources") {
     sources += [ "speech/speech_synthesis_is_supported_executable.cc", ]
   }
 
-  if (starboard_target_platform == "rdk-rpi") {
-    sources -= [
-      "//starboard/shared/gles/system_gles2.cc",
-    ]
-    sources += [
-      "//starboard/raspi/shared/system_gles2.cc",
-    ]
-  }
+
 
   if (final_executable_type == "shared_library" && !build_with_separate_cobalt_toolchain) {
     sources += [
