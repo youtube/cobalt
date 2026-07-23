@@ -404,6 +404,11 @@ int ReadReports(SbNativeStabilityReport* reports, int max_num_reports) {
 
   std::vector<::crashpad::CrashReportDatabase::Report> all_reports;
 
+  // We generally expect to find zero pending reports and certainly don't expect
+  // to find many: just after the Crashpad handler snapshots a crash, it
+  // attempts to upload the report - or declines to do so because of client-side
+  // throttling - and in all cases, including throttled or failed uploads, then
+  // moves the report from |pending| to |completed|.
   std::vector<::crashpad::CrashReportDatabase::Report> pending_reports;
   if (database->GetPendingReports(&pending_reports) ==
       ::crashpad::CrashReportDatabase::kNoError) {
