@@ -57,6 +57,7 @@
 #include "cobalt/shell/common/url_constants.h"
 #include "cobalt/version.h"
 #include "components/embedder_support/user_agent_utils.h"
+#include "components/services/storage/dom_storage/storage_area_impl.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -653,6 +654,9 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   // Overrides for content/common and lower layers' switches.
   std::vector<base::FeatureList::FeatureOverrideInfo> feature_overrides =
       content::GetSwitchDependentFeatureOverrides(command_line);
+  feature_overrides.emplace_back(
+      std::cref(storage::kDomStorageSmartFlushing),
+      base::FeatureList::OverrideState::OVERRIDE_ENABLE_FEATURE);
 
   feature_list->InitFromCommandLine(
       command_line.GetSwitchValueASCII(::switches::kEnableFeatures),

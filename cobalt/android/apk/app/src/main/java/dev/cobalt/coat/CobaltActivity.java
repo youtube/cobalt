@@ -562,6 +562,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @Override
   protected void onStop() {
+    CobaltContentBrowserClient.flushCookiesAndLocalStorage();
     unregisterDisplayListener();
     super.onStop();
 

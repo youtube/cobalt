@@ -142,6 +142,11 @@ class AppEventRunnerImpl : public AppEventRunner,
   }
 
   void DoStop() override {
+    auto* client = cobalt::CobaltContentBrowserClient::Get();
+    if (client) {
+      client->FlushCookiesAndLocalStorage(base::DoNothing());
+    }
+
     content::Shell::OnStop();
 
     content::Shell::Shutdown();
