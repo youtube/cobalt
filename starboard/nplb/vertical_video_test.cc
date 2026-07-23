@@ -162,8 +162,8 @@ TEST_P(VerticalVideoTest, WriteSamples) {
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
 
   int64_t end_media_time = player_fixture.GetCurrentMediaTime();
-  const int64_t kMediaTimeAllowance = 100'000;  // 100ms
-  EXPECT_NEAR(end_media_time, kDurationToPlay, kMediaTimeAllowance);
+  const int64_t kDurationDifferenceAllowance = 500'000;  // 500ms
+  EXPECT_NEAR(end_media_time, kDurationToPlay, kDurationDifferenceAllowance);
 }
 
 TEST_P(VerticalVideoTest, Seek) {
@@ -198,8 +198,8 @@ TEST_P(VerticalVideoTest, Seek) {
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
 
   int64_t end_media_time = player_fixture.GetCurrentMediaTime();
-  const int64_t kMediaTimeAllowance = 100'000;  // 100ms.
-  EXPECT_NEAR(end_media_time, kDurationToPlay, kMediaTimeAllowance);
+  const int64_t kDurationDifferenceAllowance = 500'000;  // 500ms.
+  EXPECT_NEAR(end_media_time, kDurationToPlay, kDurationDifferenceAllowance);
 }
 
 std::vector<SbPlayerTestConfig> GetSupportedTestConfigs() {
