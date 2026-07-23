@@ -1286,7 +1286,9 @@ static_idl_files_in_modules = [
 ]
 
 if (is_cobalt && use_starboard_media) {
-  static_idl_files_in_modules += [ "//third_party/blink/renderer/modules/webgl/cobalt/oes_egl_image_external.idl" ]
+  static_idl_files_in_modules += [
+    "//third_party/blink/renderer/modules/webgl/cobalt/oes_egl_image_external.idl",
+  ]
 }
 
 if (is_cobalt) {
