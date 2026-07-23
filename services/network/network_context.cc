@@ -44,9 +44,11 @@
 #include "build/chromecast_buildflags.h"
 #include "components/cookie_config/cookie_store_util.h"
 #include "components/domain_reliability/monitor.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "components/ip_protection/common/ip_protection_core_host_remote.h"
 #include "components/ip_protection/common/ip_protection_core_impl_mojo.h"
 #include "components/ip_protection/common/ip_protection_proxy_delegate.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "components/network_session_configurator/browser/network_session_configurator.h"
 #include "components/network_session_configurator/common/network_switches.h"
 #include "components/os_crypt/async/common/encryptor.h"
@@ -1205,10 +1207,12 @@ void NetworkContext::SetBlockTrustTokens(bool block) {
 
 void NetworkContext::SetTrackingProtectionContentSetting(
     const ContentSettingsForOneType& settings) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (!ip_protection_core_) {
     return;
   }
   ip_protection_core_->SetTrackingProtectionContentSetting(settings);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void NetworkContext::OnProxyLookupComplete(
@@ -2637,11 +2641,11 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
 
   // Decide which ProxyDelegate to create. At most one of these will be the
   // case for any given NetworkContext: either PrefetchProxy, handling its
-  // custom proxy configs, or IpProtection, using the proxy allowlist.
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   auto* mdl_manager = network_service_->masked_domain_list_manager();
   auto* prt_registry = network_service_->probabilistic_reveal_token_registry();
   bool requires_ipp_proxy_delegate =
-      mdl_manager->IsEnabled() &&
+      mdl_manager && mdl_manager->IsEnabled() &&
       (params_->ip_protection_core_host ||
        net::features::kIpPrivacyAlwaysCreateCore.Get());
   if (requires_ipp_proxy_delegate) {
@@ -2662,7 +2666,9 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
         std::make_unique<ip_protection::IpProtectionProxyDelegate>(
             ip_protection_core_impl.get()));
     ip_protection_core_ = std::move(ip_protection_core_impl);
-  } else if (params_->initial_custom_proxy_config ||
+  } else
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+  if (params_->initial_custom_proxy_config ||
              params_->custom_proxy_config_client_receiver) {
     builder.set_proxy_delegate(std::make_unique<NetworkServiceProxyDelegate>(
         std::move(params_->initial_custom_proxy_config),

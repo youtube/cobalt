@@ -207,9 +207,11 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
 
   CookieManager* cookie_manager() { return cookie_manager_.get(); }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   ip_protection::IpProtectionCore* ip_protection_core() {
     return ip_protection_core_.get();
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   const base::flat_set<std::string>* cors_exempt_header_list() const {
     return &cors_exempt_header_list_;
@@ -842,10 +844,9 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
 
   std::unique_ptr<ResourceScheduler> resource_scheduler_;
 
-  // The IpProtectionCore for this context, used to coordinate proxying
-  // protected requests. `url_request_context_owner_` indirectly holds
-  // a pointer to and must be defined after `ip_protection_core_`.
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   std::unique_ptr<ip_protection::IpProtectionCore> ip_protection_core_;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   // Used only when network::features::kCompressionDictionaryTransportBackend is
   // enabled.
