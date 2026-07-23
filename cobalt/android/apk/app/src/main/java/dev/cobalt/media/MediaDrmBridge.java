@@ -125,11 +125,14 @@ public class MediaDrmBridge {
     }
 
     public static OperationResult operationFailed(String errorMessage, Throwable e) {
-      return operationFailed(String.format("%s StackTrace: %s", errorMessage, Log.getStackTraceString(e)));
+      return operationFailed(
+          String.format("%s StackTrace: %s", errorMessage, Log.getStackTraceString(e)));
     }
 
     public static OperationResult notProvisioned(Throwable e) {
-      return new OperationResult(DrmOperationStatus.NOT_PROVISIONED, String.format("Device is not provisioned. StackTrace: %s", Log.getStackTraceString(e)));
+      return new OperationResult(
+          DrmOperationStatus.NOT_PROVISIONED,
+          String.format("Device is not provisioned. StackTrace: %s", Log.getStackTraceString(e)));
     }
 
     @CalledByNative("OperationResult")
@@ -153,7 +156,8 @@ public class MediaDrmBridge {
    * @param nativeMediaDrmBridge The native owner of this class.
    */
   @CalledByNative
-  static MediaDrmBridge create(String keySystem, boolean enableAppProvisioning, long nativeMediaDrmBridge) {
+  static MediaDrmBridge create(
+      String keySystem, boolean enableAppProvisioning, long nativeMediaDrmBridge) {
     UUID cryptoScheme = WIDEVINE_UUID;
     if (!MediaDrm.isCryptoSchemeSupported(cryptoScheme)) {
       return null;
@@ -161,7 +165,8 @@ public class MediaDrmBridge {
 
     MediaDrmBridge mediaDrmBridge = null;
     try {
-      mediaDrmBridge = new MediaDrmBridge(keySystem, cryptoScheme, enableAppProvisioning, nativeMediaDrmBridge);
+      mediaDrmBridge =
+          new MediaDrmBridge(keySystem, cryptoScheme, enableAppProvisioning, nativeMediaDrmBridge);
       Log.d(TAG, "MediaDrmBridge successfully created.");
     } catch (UnsupportedSchemeException e) {
       Log.e(TAG, "Unsupported DRM scheme", e);
@@ -268,7 +273,8 @@ public class MediaDrmBridge {
     assert mEnableAppProvisioning;
     if (mMediaDrm == null) {
       Log.e(TAG, "createSessionWithAppProvisioning() called when MediaDrm is null.");
-      return OperationResult.operationFailed("createSessionWithAppProvisioning() called when MediaDrm is null.");
+      return OperationResult.operationFailed(
+          "createSessionWithAppProvisioning() called when MediaDrm is null.");
     }
 
     OperationResult result = createMediaCryptoSessionWithAppProvisioning();
@@ -327,14 +333,12 @@ public class MediaDrmBridge {
     Log.d(TAG, "updateSession()");
     if (mMediaDrm == null) {
       Log.e(TAG, "updateSession() called when MediaDrm is null.");
-      return OperationResult.operationFailed(
-          "Null MediaDrm object when calling updateSession().");
+      return OperationResult.operationFailed("Null MediaDrm object when calling updateSession().");
     }
 
     if (!sessionExists(sessionId)) {
       Log.e(TAG, "updateSession tried to update a session that does not exist.");
-      return OperationResult.operationFailed(
-          "Failed to update session because it does not exist.");
+      return OperationResult.operationFailed("Failed to update session because it does not exist.");
     }
 
     try {
@@ -425,7 +429,8 @@ public class MediaDrmBridge {
     return mMediaCrypto;
   }
 
-  private MediaDrmBridge(String keySystem, UUID schemeUUID, boolean enableAppProvisioning, long nativeMediaDrmBridge)
+  private MediaDrmBridge(
+      String keySystem, UUID schemeUUID, boolean enableAppProvisioning, long nativeMediaDrmBridge)
       throws android.media.UnsupportedSchemeException {
     mSchemeUUID = schemeUUID;
     mMediaDrm = new MediaDrm(schemeUUID);
@@ -513,12 +518,15 @@ public class MediaDrmBridge {
               byte[] sessionId,
               List<MediaDrm.KeyStatus> keyInformation,
               boolean hasNewUsableKey) {
-            MediaDrmBridgeJni.get().onKeyStatusChange(
-                mNativeMediaDrmBridge,
-                sessionId,
-                keyInformation.stream()
-                    .map(keyStatus -> new KeyStatus(keyStatus.getKeyId(), keyStatus.getStatusCode()))
-                    .toArray(KeyStatus[]::new));
+            MediaDrmBridgeJni.get()
+                .onKeyStatusChange(
+                    mNativeMediaDrmBridge,
+                    sessionId,
+                    keyInformation.stream()
+                        .map(
+                            keyStatus ->
+                                new KeyStatus(keyStatus.getKeyId(), keyStatus.getStatusCode()))
+                        .toArray(KeyStatus[]::new));
           }
         },
         null);
@@ -560,7 +568,10 @@ public class MediaDrmBridge {
     }
     ByteBuffer sessionIdByteBuffer = ByteBuffer.wrap(sessionId);
     if (!mSessionIds.containsKey(sessionIdByteBuffer)) {
-      Log.e(TAG, "HandleKeyRequiredEventWithAppProvisioning failed: invalid session id=" + bytesToString(sessionId));
+      Log.e(
+          TAG,
+          "HandleKeyRequiredEventWithAppProvisioning failed: invalid session id="
+              + bytesToString(sessionId));
       return;
     }
 
@@ -588,8 +599,8 @@ public class MediaDrmBridge {
 
     int requestType = request.getRequestType();
 
-    MediaDrmBridgeJni.get().onSessionMessage(
-        mNativeMediaDrmBridge, ticket, sessionId, requestType, request.getData());
+    MediaDrmBridgeJni.get()
+        .onSessionMessage(mNativeMediaDrmBridge, ticket, sessionId, requestType, request.getData());
   }
 
   /**
@@ -681,8 +692,6 @@ public class MediaDrmBridge {
       // Throw NotProvisionedException so that we can attemptProvisioning().
       throw e;
     } catch (MediaDrmException e) {
-      // Other MediaDrmExceptions (e.g. ResourceBusyException) are not
-      // recoverable.
       Log.e(TAG, "Cannot open a new session", e);
       release();
       return null;
@@ -959,11 +968,7 @@ public class MediaDrmBridge {
   @NativeMethods
   interface Natives {
     void onSessionMessage(
-        long nativeMediaDrmBridge,
-        int ticket,
-        byte[] sessionId,
-        int requestType,
-        byte[] message);
+        long nativeMediaDrmBridge, int ticket, byte[] sessionId, int requestType, byte[] message);
 
     void onKeyStatusChange(
         long nativeMediaDrmBridge,

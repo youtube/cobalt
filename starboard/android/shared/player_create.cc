@@ -19,6 +19,7 @@
 #include <string>
 #include <utility>
 
+#include "starboard/android/shared/media_resource_tracker.h"
 #include "starboard/android/shared/video_max_video_input_size.h"
 #include "starboard/android/shared/video_surface_view.h"
 #include "starboard/android/shared/video_window.h"
@@ -222,5 +223,6 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
     // don't matter.
     SbPlayerSetBounds(player.get(), 0, 0, 0, 0, 0);
   }
+  starboard::MediaResourceTracker::GetInstance()->Increment();
   return player.release();
 }

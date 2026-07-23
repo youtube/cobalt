@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/filter/audio_renderer_internal_pcm.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_pcm_internal.h"
 
 #include <algorithm>
 #include <limits>

@@ -56,8 +56,8 @@
 #include "content/browser/aggregation_service/aggregation_service.h"
 #include "content/browser/aggregation_service/aggregation_service_impl.h"
 #include "content/browser/attribution_reporting/attribution_manager.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/attribution_reporting/attribution_manager_impl.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/background_fetch/background_fetch_context.h"
 #include "content/browser/blob_storage/blob_registry_wrapper.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
@@ -194,6 +194,10 @@
 #include "content/browser/media/cdm_storage_manager.h"
 #include "content/public/browser/cdm_storage_data_model.h"
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "base/path_service.h"
+#endif
 
 using CookieDeletionFilter = network::mojom::CookieDeletionFilter;
 using CookieDeletionFilterPtr = network::mojom::CookieDeletionFilterPtr;
@@ -1392,8 +1396,20 @@ void StoragePartitionImpl::Initialize(
           ChromeBlobStorageContext::GetRemoteFor(browser_context_),
           std::move(file_system_access_context), GetIOThreadTaskRunner({}));
 
+  base::FilePath cache_storage_path = path;
+#if BUILDFLAG(IS_STARBOARD)
+  if (!is_in_memory()) {
+    base::FilePath cache_dir;
+    if (base::PathService::Get(base::DIR_CACHE, &cache_dir)) {
+      cache_storage_path = config_.partition_domain().empty()
+                               ? cache_dir
+                               : cache_dir.Append(relative_partition_path_);
+    }
+  }
+#endif
+
   cache_storage_control_wrapper_ = std::make_unique<CacheStorageControlWrapper>(
-      GetIOThreadTaskRunner({}), path,
+      GetIOThreadTaskRunner({}), cache_storage_path,
       browser_context_->GetSpecialStoragePolicy(), quota_manager_proxy,
       ChromeBlobStorageContext::GetRemoteFor(browser_context_));
 

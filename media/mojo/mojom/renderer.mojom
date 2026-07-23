@@ -25,11 +25,6 @@ interface Renderer {
   Initialize(pending_associated_remote<RendererClient> client,
              array<pending_remote<DemuxerStream>>? streams) => (bool success);
 
-  // Supported only in single-process mode with the feature enabled.
-  [EnableIf=use_starboard_media]
-  InitializeWithBypassBridge(pending_associated_remote<RendererClient> client,
-                             uint32 bypass_bridge_id) => (bool success);
-
   // Discards any buffered data, executing callback when completed.
   // NOTE: If an error occurs, RendererClient::OnError() can be called
   // before the callback is executed.

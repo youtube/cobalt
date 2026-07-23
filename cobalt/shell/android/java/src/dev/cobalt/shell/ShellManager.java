@@ -176,6 +176,7 @@ public class ShellManager {
     public void destroy() {
         // Remove active shell (Currently single shell support only available).
         if (mActiveShell != null) {
+            mActiveShell.close();
             removeShell(mActiveShell);
         }
         if (mContentViewRenderView != null) {

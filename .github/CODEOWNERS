@@ -1,5 +1,3 @@
-* @youtube/cobalt-3p-repository-owners
-
 /cobalt/media                               @youtube/cobalt-media
 /media/                                     @youtube/cobalt-media
 /starboard/shared/starboard/audio_sink      @youtube/cobalt-media
@@ -10,15 +8,7 @@
 /starboard/tvos/shared/media                @youtube/cobalt-media
 /third_party/blink/renderer/platform/media/ @youtube/cobalt-media
 
-/.github/ # no owners
-/.github/CODEOWNERS @youtube/cobalt-3p-repository-owners
-/cobalt/  # no default owners
 /cobalt/android  @youtube/cobalt-androidtv
-/cobalt/app      @youtube/cobalt-embedder-owners
-/cobalt/browser  @youtube/cobalt-embedder-owners
-/cobalt/gpu      @youtube/cobalt-embedder-owners
-/cobalt/renderer @youtube/cobalt-embedder-owners @youtube/cobalt-media
-/cobalt/shell    @youtube/cobalt-embedder-owners
 
 /starboard/  # no default owners
 /starboard/*.h                             @youtube/cobalt-starboard-owners
