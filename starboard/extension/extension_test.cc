@@ -29,6 +29,7 @@
 #include "starboard/extension/loader_app_metrics.h"
 #include "starboard/extension/media_session.h"
 #include "starboard/extension/memory_mapped_file.h"
+#include "starboard/extension/native_stability.h"
 #include "starboard/extension/platform_info.h"
 #include "starboard/extension/platform_service.h"
 #include "starboard/extension/player_configuration.h"
@@ -622,6 +623,27 @@ TEST(ExtensionTest, StarboardMediaBufferPoolExtension) {
   EXPECT_NE(extension_api->ShrinkToZero, nullptr);
   EXPECT_NE(extension_api->ExpandTo, nullptr);
   EXPECT_NE(extension_api->Write, nullptr);
+
+  const ExtensionApi* second_extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  EXPECT_EQ(second_extension_api, extension_api)
+      << "Extension struct should be a singleton";
+}
+
+TEST(ExtensionTest, NativeStabilityExtension) {
+  typedef CobaltExtensionNativeStabilityApi ExtensionApi;
+  const char* kExtensionName = kCobaltExtensionNativeStabilityName;
+
+  const ExtensionApi* extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  if (!extension_api) {
+    return;
+  }
+
+  EXPECT_STREQ(extension_api->name, kExtensionName);
+  EXPECT_EQ(extension_api->version, 1u);
+  EXPECT_NE(extension_api->ReadReports, nullptr);
+  EXPECT_NE(extension_api->RegisterReadReportsCallback, nullptr);
 
   const ExtensionApi* second_extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));

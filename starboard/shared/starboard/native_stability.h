@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,18 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// clang-format off
-#include "starboard/player.h"
-// clang-format on
+#ifndef STARBOARD_SHARED_STARBOARD_NATIVE_STABILITY_H_
+#define STARBOARD_SHARED_STARBOARD_NATIVE_STABILITY_H_
 
-#include "starboard/android/shared/media_resource_tracker.h"
-#include "starboard/shared/starboard/player/player_internal.h"
+namespace starboard {
 
-void SbPlayerDestroy(SbPlayer player) {
-  if (!SbPlayerIsValid(player)) {
-    return;
-  }
+const void* GetNativeStabilityApi();
 
-  delete player;
-  starboard::MediaResourceTracker::GetInstance()->Decrement();
-}
+}  // namespace starboard
+
+#endif  // STARBOARD_SHARED_STARBOARD_NATIVE_STABILITY_H_
