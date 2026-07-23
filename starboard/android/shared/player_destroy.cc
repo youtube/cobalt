@@ -16,6 +16,7 @@
 #include "starboard/player.h"
 // clang-format on
 
+#include "starboard/android/shared/media_resource_tracker.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
 void SbPlayerDestroy(SbPlayer player) {
@@ -24,4 +25,5 @@ void SbPlayerDestroy(SbPlayer player) {
   }
 
   delete player;
+  starboard::MediaResourceTracker::GetInstance()->Decrement();
 }

@@ -161,6 +161,12 @@ STARBOARD_FEATURE(kUseStubVideoDecoder, "UseStubVideoDecoder", false)
 STARBOARD_FEATURE(kVideoDecoderDelayUsecOverride,
                   "VideoDecoderDelayUsecOverride",
                   false)
+
+// Set the following variable to true to wait for media resources (MediaCodec,
+// AudioTrack, MediaDrm) during shutdown before deleting the application.
+STARBOARD_FEATURE(kWaitForMediaResourcesOnShutdown,
+                  "WaitForMediaResourcesOnShutdown",
+                  false)
 // keep-sorted end
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 
