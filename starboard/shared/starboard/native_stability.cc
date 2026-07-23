@@ -27,15 +27,14 @@ ReadReportsCallback g_read_reports_callback = nullptr;
 pthread_mutex_t g_read_reports_callback_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 int ReadReports(SbNativeStabilityReport* reports, int max_num_reports) {
-  int result = -1;
-
   SB_CHECK_EQ(pthread_mutex_lock(&g_read_reports_callback_mutex), 0);
-  if (g_read_reports_callback) {
-    result = g_read_reports_callback(reports, max_num_reports);
-  }
+  ReadReportsCallback callback = g_read_reports_callback;
   SB_CHECK_EQ(pthread_mutex_unlock(&g_read_reports_callback_mutex), 0);
 
-  return result;
+  if (callback) {
+    return callback(reports, max_num_reports);
+  }
+  return -1;
 }
 
 void RegisterReadReportsCallback(ReadReportsCallback callback) {
