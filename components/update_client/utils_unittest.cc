@@ -27,6 +27,38 @@
 
 namespace update_client {
 
+#if defined(IN_MEMORY_UPDATES)
+TEST(UpdateClientUtils, VerifyHash256) {
+  std::string content;
+  EXPECT_TRUE(base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &content));
+  EXPECT_TRUE(VerifyHash256(
+      &content,
+      std::string(
+          "7ab32f071cd9b5ef8e0d7913be161f532d98b3e9fa284a7cd8059c3409ce0498")));
+
+  std::string empty_content;
+  // Note: GetTestFilePath might return a path that doesn't exist if "empty_file" is not in test data.
+  // But assuming it exists as in original test.
+  EXPECT_TRUE(base::ReadFileToString(GetTestFilePath("empty_file"), &empty_content));
+  EXPECT_TRUE(VerifyHash256(
+      &empty_content,
+      std::string(
+          "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")));
+
+  EXPECT_FALSE(
+      VerifyHash256(&content,
+                        std::string("")));
+
+  EXPECT_FALSE(
+      VerifyHash256(&content,
+                        std::string("abcd")));
+
+  EXPECT_FALSE(VerifyHash256(
+      &content,
+      std::string(
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")));
+}
+#else
 TEST(UpdateClientUtils, VerifyFileHash256) {
   EXPECT_TRUE(VerifyFileHash256(
       GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"),
@@ -51,6 +83,7 @@ TEST(UpdateClientUtils, VerifyFileHash256) {
       std::string(
           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")));
 }
+#endif
 
 // Tests that the brand matches ^[a-zA-Z]{4}?$
 TEST(UpdateClientUtils, IsValidBrand) {

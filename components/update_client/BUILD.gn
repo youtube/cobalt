@@ -5,6 +5,7 @@
 import("//build/buildflag_header.gni")
 import("//net/features.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
+import("//testing/test.gni")
 
 source_set("network_impl") {
   sources = [
@@ -207,17 +208,17 @@ static_library("update_client") {
     ]
   }
 
-  if (is_cobalt_hermetic_build) {
+  if (is_starboard) {
     sources += [
       "cobalt_slot_management.cc",
       "cobalt_slot_management.h",
     ]
-
     deps += [
       "//starboard/loader_app:app_key_files",
       "//starboard/loader_app:drain_file",
     ]
   }
+
 }
 
 if (is_mac) {
@@ -262,9 +263,7 @@ source_set("test_support") {
   public_deps = [ ":update_client" ]
 
   deps = [
-    ":network_impl",
     ":patch_impl",
-    ":unzip_impl",
     "//base",
     "//components/prefs",
     "//components/services/patch:in_process",
@@ -276,6 +275,15 @@ source_set("test_support") {
     "//testing/gtest",
     "//url",
   ]
+  if (is_starboard) {
+    deps += [ "//cobalt/updater" ]
+  } else {
+    deps += [
+      ":network_impl",
+      ":unzip_impl",
+    ]
+  }
+
 }
 
 bundle_data("unit_tests_bundle_data") {
@@ -356,12 +364,9 @@ source_set("unit_tests") {
   }
 
   deps = [
-    ":in_process_unzipper",
-    ":network_impl",
     ":patch_impl",
     ":test_support",
     ":unit_tests_bundle_data",
-    ":unzip_impl",
     ":update_client",
     "//base",
     "//build:branding_buildflags",
@@ -380,6 +385,16 @@ source_set("unit_tests") {
     "//third_party/puffin:libpuffpatch",
     "//third_party/re2",
   ]
+  if (is_starboard) {
+    deps += [ "//cobalt/updater" ]
+  } else {
+    deps += [
+      ":in_process_unzipper",
+      ":network_impl",
+      ":unzip_impl",
+    ]
+  }
+
 
   data_deps = [ "//components/test/data/update_client/puffin_patch_test:puffin_patch_test_files" ]
 }
@@ -401,3 +416,16 @@ fuzzer_test("update_client_protocol_parser_fuzzer") {
   ]
   seed_corpus = "fuzzer_corpuses/protocol_parser/"
 }
+
+test("update_client_unittests") {
+  if (is_starboard) {
+    sources = [ "//components/test/starboard/run_all_unittests.cc" ]
+  } else {
+    sources = [ "//components/test/run_all_unittests.cc" ]
+  }
+  deps = [
+    ":unit_tests",
+    "//components/test:test_support",
+  ]
+}
+
