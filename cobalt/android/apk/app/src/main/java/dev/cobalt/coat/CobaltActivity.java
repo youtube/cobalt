@@ -730,6 +730,12 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       currentUrl = webContents.getVisibleUrl().getSpec();
     }
 
+    if ((currentUrl.isEmpty() || "about:blank".equals(currentUrl))
+        && !TextUtils.isEmpty(mStartupUrl)) {
+      Log.i(TAG, "URL is blank or empty, falling back to startup URL: " + mStartupUrl);
+      currentUrl = mStartupUrl;
+    }
+
     int retryCount = sRetryCount.incrementAndGet();
 
     if (currentUrl.isEmpty()) {
@@ -752,6 +758,9 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   @VisibleForTesting
   static String addRetryUrlParam(String url, int count) {
     Uri parsedUri = Uri.parse(url);
+    if (!parsedUri.isHierarchical()) {
+      return url;
+    }
     Uri.Builder uriBuilder = parsedUri.buildUpon();
 
     uriBuilder.query(null);

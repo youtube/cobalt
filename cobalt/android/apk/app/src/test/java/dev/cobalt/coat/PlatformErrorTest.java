@@ -82,6 +82,13 @@ public class PlatformErrorTest {
   }
 
   @Test
+  public void addRetryUrlParam_handlesOpaqueUrl() {
+    String url = "about:blank";
+    String result = CobaltActivity.addRetryUrlParam(url, 1);
+    assertEquals("about:blank", result);
+  }
+
+  @Test
   public void setResponse_updatesResponse() {
     platformError.setResponse(PlatformError.POSITIVE);
     try {
