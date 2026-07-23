@@ -3,11 +3,6 @@
     "TODO(b/507872542)": "Revisit this and determine how we configure tvOS tests."
   },
   {
-    "target": "base:base_perftests",
-    "runs_on": "host",
-    "test_type": "gtest"
-  },
-  {
     "target": "base:base_unittests",
     "runs_on": "host",
     "test_type": "gtest"
