@@ -23,6 +23,7 @@
 #include "components/prefs/pref_service.h"
 #include "components/services/patch/in_process_file_patcher.h"
 #include "components/services/unzip/in_process_unzipper.h"
+#include "components/services/unzip/public/cpp/unzip.h"
 #include "components/update_client/activity_data_service.h"
 #include "components/update_client/crx_cache.h"
 #include "components/update_client/crx_downloader_factory.h"
@@ -43,7 +44,7 @@
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
-#include "third_party/zlib/google/zip.h"  // nogncheck
+#include "third_party/zlib/google/zip.h"
 #endif
 
 namespace update_client {
@@ -70,7 +71,8 @@ class TestUnzipper : public Unzipper {
   base::OnceClosure DecodeXz(const base::FilePath& xz_file,
                              const base::FilePath& destination,
                              UnzipCompleteCallback callback) override {
-    return base::DoNothing();
+    return unzip::DecodeXz(unzip::LaunchInProcessUnzipper(), xz_file,
+                           destination, std::move(callback));
   }
 };
 
@@ -181,6 +183,8 @@ class TestNetworkFetcher : public NetworkFetcher {
                std::unique_ptr<std::string> response_body) {
               if (response_body) {
                 *fetcher->dst_str_ = std::move(*response_body);
+              } else {
+                fetcher->dst_str_->clear();
               }
               std::move(download_to_string_complete_callback)
                   .Run(fetcher->dst_str_, fetcher->simple_url_loader_->NetError(),

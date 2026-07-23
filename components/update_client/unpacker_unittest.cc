@@ -22,7 +22,7 @@
 #include "components/services/unzip/in_process_unzipper.h"
 #include "components/update_client/test_configurator.h"
 #include "components/update_client/test_utils.h"
-#include "components/update_client/unzip/unzip_impl.h"  // nogncheck
+#include "components/update_client/unzip/unzip_impl.h"  // nogncheck (dep is conditional: target can't build with IN_MEMORY_UPDATES)
 #include "components/update_client/unzipper.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

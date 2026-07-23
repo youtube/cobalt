@@ -34,21 +34,13 @@ base::OnceClosure CallXzOperation(
     const base::FilePath& in_file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)> callback) {
   OperationResult op_result;
-#if defined(IN_MEMORY_UPDATES)
-  // Not supported
-#else
   op_result.response = in_file;
-#endif
   return XzOperation(
       std::move(unzipper), event_adder, op_result,
       base::BindLambdaForTesting(
           [callback = std::move(callback)](base::expected<OperationResult, CategorizedError> result) mutable {
             if (result.has_value()) {
-#if defined(IN_MEMORY_UPDATES)
-              std::move(callback).Run(base::FilePath());
-#else
               std::move(callback).Run(result.value().response);
-#endif
             } else {
               std::move(callback).Run(base::unexpected(result.error()));
             }
