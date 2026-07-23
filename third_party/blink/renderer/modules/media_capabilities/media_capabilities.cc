@@ -287,6 +287,19 @@ bool IsValidMimeType(const String& content_type,
 
   const auto& parameters = parsed_content_type.GetParameters();
 
+#if BUILDFLAG(IS_COBALT)
+  // Web applications may append Cobalt-specific parameters to MIME type strings
+  // in any order (e.g. enableflushduringseek=true, enableresetaudiodecoder=true).
+  // Check across all parameters rather than assuming 'codecs' is the first parameter.
+  if (parameters.ParameterCount() == 0)
+    return true;
+
+  for (const auto& param : parameters) {
+    if (EqualIgnoringASCIICase(param.name, kCodecsMimeTypeParam))
+      return true;
+  }
+  return false;
+#else  // BUILDFLAG(IS_COBALT)
   if (parameters.ParameterCount() > 1)
     return false;
 
@@ -294,6 +307,7 @@ bool IsValidMimeType(const String& content_type,
     return true;
 
   return EqualIgnoringASCIICase(parameters.begin()->name, kCodecsMimeTypeParam);
+#endif // BUILDFLAG(IS_COBALT)
 }
 
 bool IsValidMediaConfiguration(const MediaConfiguration* configuration) {
