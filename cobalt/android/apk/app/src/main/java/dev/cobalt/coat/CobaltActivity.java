@@ -109,7 +109,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   private NetworkChangeNotifier.ConnectionTypeObserver mNetworkRecoveryObserver;
   private boolean mIsNetworkRecoveryObserverRegistered = false;
 
-  private boolean mHasHiddenSplashScreen = false;
+  private volatile boolean mHasHiddenSplashScreen = false;
 
   private static final long MIN_RETRY_INTERVAL_MS = 1000L;
   private long mLastRetryTimestampMs = 0L;
