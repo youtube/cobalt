@@ -19,6 +19,7 @@
 
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/media_resource_tracker.h"
 #include "starboard/android/shared/safe_jni.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
@@ -123,7 +124,9 @@ AudioTrackBridge::AudioTrackBridge(
     const DataArray& j_audio_data)
     : max_samples_per_write_(max_samples_per_write),
       j_audio_track_bridge_(j_audio_track_bridge),
-      j_audio_data_(j_audio_data) {}
+      j_audio_data_(j_audio_data) {
+  MediaResourceTracker::GetInstance()->Increment();
+}
 
 AudioTrackBridge::~AudioTrackBridge() {
   if (!j_audio_track_bridge_.is_null()) {
@@ -135,6 +138,7 @@ AudioTrackBridge::~AudioTrackBridge() {
     AudioOutputManager::GetInstance()->DestroyAudioTrackBridge(
         env, audio_track_bridge);
   }
+  MediaResourceTracker::GetInstance()->Decrement();
 }
 
 void AudioTrackBridge::Play() {
