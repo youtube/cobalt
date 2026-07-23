@@ -59,7 +59,7 @@ class DialServerImpl final : public content::DocumentService<mojom::DialServer>,
           http_request_handler_callback,
       mojom::DialResponsePtr);
 
-  SEQUENCE_CHECKER(sequence_checker_;)
+  SEQUENCE_CHECKER(sequence_checker_);
 
   mojo::Remote<mojom::DialRequestHandler> request_handler_
       GUARDED_BY_CONTEXT(sequence_checker_);
