@@ -102,36 +102,84 @@ python3 build/linux/sysroot_scripts/install-sysroot.py --arch=arm
 
 ### Build Cobalt binary for the RDK platform
 
-Generate the build files and compile Cobalt:
+Generate the build files and compile Cobalt for RDK hardware:
 
-1.  **Ensure environment variables are set**:
+#### Option A: Compiling Cobalt Core & RDK Loader from Source
 
-    ```
+1. **Ensure environment variables are set**:
+
+    ```bash
     export PATH="$HOME/depot_tools:$PATH"
     export RDK_HOME=$HOME/rdk/toolchain
     ```
 
-2.  **Generate build files**:
+2. **Generate build files**:
 
-    ```
+    ```bash
     cobalt/build/gn.py -p evergreen-arm-hardfp-rdk -c qa --no-rbe
     ```
 
-3.  **Compile targets**:
+3. **Compile Cobalt Core library, LZ4 compression tool, and RDK plugin targets**:
 
-    ```
-    autoninja -C out/evergreen-arm-hardfp-rdk_qa/ cobalt_loader nplb_loader loader_app_rdk_plugin
+    ```bash
+    autoninja -C out/evergreen-arm-hardfp-rdk_qa/ cobalt lz4_compress loader_app_rdk_plugin nplb_loader
     ```
 
 > [!NOTE]
-> The compile target name contains `_plugin` (`loader_app_rdk_plugin`) because this target compiles both the standalone executable (`loader_app`) and the WPE plugin library (`libloader_app.so`). Both build successfully.
+> `cobalt lz4_compress` directly builds the uncompressed shared library (`app/cobalt/lib/libcobalt.so`) and host compression tool. The compile target name contains `_plugin` (`loader_app_rdk_plugin`) because it compiles both the standalone executable (`loader_app`) and the WPE plugin library (`libloader_app.so`).
 
+#### Option B: Deploying Official Google Prebuilt CRX Packages for RDK
+
+In production and certification, SoC partners and OEMs do not compile Cobalt Core (`libcobalt.so`) from source. Instead, partners build `loader_app_rdk_plugin` and deploy official Google-built prebuilt `.crx` packages onto the device.
+
+1. **Download Official Prebuilt CRX Package**:
+
+   ```bash
+   export LOCAL_CRX_DIR=/tmp/cobalt_dl
+   rm -rf $LOCAL_CRX_DIR && mkdir -p $LOCAL_CRX_DIR
+
+   COBALT_CRX_URL="https://github.com/youtube/cobalt/releases/download/<version>/cobalt_evergreen_<version>_arm-hardfp_<config>.crx"
+   wget $COBALT_CRX_URL -O $LOCAL_CRX_DIR/cobalt_prebuilt.crx
+   ```
+
+2. **Unpack the CRX Package**:
+
+   ```bash
+   unzip $LOCAL_CRX_DIR/cobalt_prebuilt.crx -d $LOCAL_CRX_DIR/cobalt_prebuilt
+   ```
+
+3. **Stage Unpacked Files into 27.lts Slot 0 (`app/cobalt/`) Layout**:
+
+   > [!IMPORTANT]
+   > **Cobalt 27.lts Slot 0 Path Change vs. 25.lts:**
+   > Unlike Cobalt 25.lts (which placed CRX contents directly in `$EVERGREEN_DIR/` or `$EVERGREEN_DIR/install/lib/`), Cobalt 27.lts strictly requires all Slot 0 factory artifacts to be located under `<target_root>/app/cobalt/`.
+
+   *Staging in local build output directory (`$EVERGREEN_DIR`):*
+
+   ```bash
+   export EVERGREEN_DIR=out/evergreen-arm-hardfp-rdk_qa
+   mkdir -p $EVERGREEN_DIR/app/cobalt/lib $EVERGREEN_DIR/app/cobalt/content
+
+   cp -f $LOCAL_CRX_DIR/cobalt_prebuilt/manifest.json $EVERGREEN_DIR/app/cobalt/
+   cp -rf $LOCAL_CRX_DIR/cobalt_prebuilt/lib/* $EVERGREEN_DIR/app/cobalt/lib/
+   cp -rf $LOCAL_CRX_DIR/cobalt_prebuilt/content/* $EVERGREEN_DIR/app/cobalt/content/
+   ```
+
+   *Direct deployment to RDK device target root (e.g. `/usr/share/content/data/`):*
+
+   ```bash
+   ssh root@{RDK IP address} "mkdir -p /usr/share/content/data/app/cobalt/lib /usr/share/content/data/app/cobalt/content"
+
+   scp $LOCAL_CRX_DIR/cobalt_prebuilt/manifest.json root@{RDK IP address}:/usr/share/content/data/app/cobalt/
+   scp -r $LOCAL_CRX_DIR/cobalt_prebuilt/lib/* root@{RDK IP address}:/usr/share/content/data/app/cobalt/lib/
+   scp -r $LOCAL_CRX_DIR/cobalt_prebuilt/content/* root@{RDK IP address}:/usr/share/content/data/app/cobalt/content/
+   ```
 
 ### Generate Archive
 
-Bundle the build artifacts into a tarball for deployment.
+Bundle the build artifacts into a tarball for deployment:
 
-```
+```bash
 tar -czvf archive.tar.gz -C out/evergreen-arm-hardfp-rdk_qa/ \
   -T out/evergreen-arm-hardfp-rdk_qa/cobalt_loader.runtime_deps libloader_app.so \
   -T out/evergreen-arm-hardfp-rdk_qa/nplb_loader.runtime_deps gen/build_info.json

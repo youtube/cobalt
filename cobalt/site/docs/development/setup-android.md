@@ -144,9 +144,9 @@ build_type = "qa"       # Options: "debug", "devel", "qa", "gold"
 
 Chrobalt ATV packages its implementation into `Cobalt.apk` defined in `//cobalt/android/BUILD.gn`.
 
-### Building the Application APK
+### Compiling Native Cobalt Core & Application APK
 
-Build the target using `autoninja` (which automatically optimizes core utilization):
+For Android TV builds, the Cobalt Core engine is compiled directly into a native shared library (`libchrobalt.so`) embedded inside `Cobalt.apk`:
 
 ```bash
 autoninja -C out/android-arm_qa cobalt_apk
@@ -157,6 +157,13 @@ Upon successful compilation, the output APK will be available at:
 ```bash
 out/android-arm_qa/apks/Cobalt.apk
 ```
+
+> [!IMPORTANT]
+> **Prebuilt CRX & Evergreen Unpacking Applicability Note:**
+> Unlike Linux and RDK platforms (which use `use_evergreen = true`), Android TV operates as a **Native Monolithic APK** (`use_evergreen = false`).
+> * **CRX Packages**: Prebuilt `.crx` package downloading, unpacking, and Slot 0 file replacement do **NOT** apply to Android TV.
+> * **Library Compression**: `lz4_compress` is neither supported nor needed, as the Android package manager handles APK native library extraction natively.
+> * **Updating Core Logic**: To deploy core logic updates or custom C++ modifications to Android TV hardware, recompile `cobalt_apk` and reinstall the entire package via `adb install -r -d Cobalt.apk`.
 
 ---
 
