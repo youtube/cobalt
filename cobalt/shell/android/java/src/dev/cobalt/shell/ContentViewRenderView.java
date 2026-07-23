@@ -14,6 +14,7 @@ import android.view.View;
 import android.widget.FrameLayout;
 
 import org.chromium.base.CommandLine;
+import org.chromium.base.Log;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.EventForwarder;
 import org.chromium.ui.base.WindowAndroid;
@@ -29,6 +30,8 @@ import org.jni_zero.NativeMethods;
  */
 @JNINamespace("cobalt")
 public class ContentViewRenderView extends FrameLayout {
+    private static final String TAG = "cobalt";
+
     // The native side of this object.
     private long mNativeContentViewRenderView;
     private WindowAndroid mWindowAndroid;
@@ -53,11 +56,11 @@ public class ContentViewRenderView extends FrameLayout {
     }
 
     protected SurfaceBridge createSurfaceBridge() {
-        if (CommandLine.getInstance().hasSwitch("enable-window-surface-ui")) {
-            // Window Surface mode: renders UI directly onto the root Window surface (Z=0).
+        if (CommandLine.getInstance().hasSwitch("use-window-surface-for-ui")) {
+            Log.i(TAG, "ContentViewRenderView is created using WindowSurfaceBridge");
             return new WindowSurfaceBridge();
         }
-        // SurfaceView mode: uses a dedicated child SurfaceView for UI rendering.
+        Log.i(TAG, "ContentViewRenderView is created with SurfaceView");
         return new SurfaceViewBridge();
     }
 
@@ -140,19 +143,6 @@ public class ContentViewRenderView extends FrameLayout {
             mWindowAndroid.onVisibilityChanged(false);
         } else if (visibility == View.VISIBLE) {
             mWindowAndroid.onVisibilityChanged(true);
-        }
-    }
-
-    /**
-     * Sets the background color of the surface view.  This method is necessary because the
-     * background color of ContentViewRenderView itself is covered by the background of
-     * SurfaceView.
-     * @param color The color of the background.
-     */
-    public void setSurfaceViewBackgroundColor(int color) {
-        SurfaceView surfaceView = mSurfaceBridge.getSurfaceView();
-        if (surfaceView != null) {
-            surfaceView.setBackgroundColor(color);
         }
     }
 
