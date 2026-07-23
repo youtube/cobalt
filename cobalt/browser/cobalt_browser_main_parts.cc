@@ -38,6 +38,12 @@
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/resource_coordinator_service.h"
+
+#if BUILDFLAG(USE_EVERGREEN)
+#include "starboard/extension/native_stability.h"
+#include "starboard/system.h"
+#endif
+
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/client_process_impl.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
@@ -230,6 +236,31 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   client->SetUserAgentCrashAnnotation();
 
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
+
+#if BUILDFLAG(USE_EVERGREEN)
+  // TODO: b/528362453 - This startup extension query is for debugging and to
+  // serve as an example of how to invoke the NativeStability extension.
+  // Remove this block once the NativeStabilityManager singleton is added to
+  // the browser to query the extension to respond to web app requests.
+  auto native_stability_extension =
+      static_cast<const CobaltExtensionNativeStabilityApi*>(
+          SbSystemGetExtension(kCobaltExtensionNativeStabilityName));
+  if (native_stability_extension && native_stability_extension->version >= 1 &&
+      native_stability_extension->ReadReports) {
+    constexpr int max_num_reports = 16;  // A somewhat arbitrary, large number
+    SbNativeStabilityReport reports[max_num_reports];
+    int count =
+        native_stability_extension->ReadReports(reports, max_num_reports);
+    LOG(INFO) << "=== NativeStability extension query at startup returned "
+              << count << " reports ===";
+    for (int i = 0; i < count; ++i) {
+      LOG(INFO) << "Report [" << i
+                << "]: event_uuid=" << reports[i].native_stability_event_uuid
+                << ", event_time_s=" << reports[i].event_time_s
+                << ", type=" << static_cast<int>(reports[i].report_type);
+    }
+  }
+#endif
 
   int result = ShellBrowserMainParts::PreMainMessageLoopRun();
 

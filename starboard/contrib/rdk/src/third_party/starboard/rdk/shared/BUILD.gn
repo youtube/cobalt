@@ -290,6 +290,13 @@ static_library("starboard_platform_sources") {
     "window/window_internal.cc",
   ]
 
+  if (use_evergreen) {
+    sources += [
+      "//starboard/shared/starboard/native_stability.cc",
+      "//starboard/shared/starboard/native_stability.h",
+    ]
+  }
+
   # TODO: b/495477543 - Fix speech synthesis for executable type loader_app cobalt launch.
   if (starboard_level_final_executable_type == "executable") {
     sources -= ["speech/speech_synthesis_is_supported.cc",]
