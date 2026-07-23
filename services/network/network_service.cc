@@ -1009,14 +1009,22 @@ void NetworkService::UpdateMaskedDomainListFlatbuffer(
     uint64_t default_file_size,
     base::File regular_browsing_file,
     uint64_t regular_browsing_file_size) {
-  masked_domain_list_manager_->UpdateMaskedDomainListFlatbuffer(
-      std::move(default_file), default_file_size,
-      std::move(regular_browsing_file), regular_browsing_file_size);
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+  if (masked_domain_list_manager_) {
+    masked_domain_list_manager_->UpdateMaskedDomainListFlatbuffer(
+        std::move(default_file), default_file_size,
+        std::move(regular_browsing_file), regular_browsing_file_size);
+  }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void NetworkService::UpdateProbabilisticRevealTokenRegistry(
     base::Value::Dict registry) {
-  probabilistic_reveal_token_registry_->UpdateRegistry(std::move(registry));
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+  if (probabilistic_reveal_token_registry_) {
+    probabilistic_reveal_token_registry_->UpdateRegistry(std::move(registry));
+  }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 #if BUILDFLAG(IS_ANDROID)

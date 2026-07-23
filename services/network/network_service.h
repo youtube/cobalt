@@ -508,6 +508,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
   // this with |owned_network_contexts_|.
   std::set<raw_ptr<NetworkContext, SetExperimental>> network_contexts_;
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   std::unique_ptr<ip_protection::MaskedDomainListManager>
       masked_domain_list_manager_;
 
@@ -515,6 +516,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
   // Reveal Tokens.
   std::unique_ptr<ip_protection::ProbabilisticRevealTokenRegistry>
       probabilistic_reveal_token_registry_;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   // A per-process_id map of origins that are white-listed to allow
   // them to request raw headers for resources they request.
@@ -562,12 +564,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
 
   std::unique_ptr<network::tpcd::metadata::Manager> tpcd_metadata_manager_;
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
-  std::unique_ptr<ip_protection::MaskedDomainListManager>
-      masked_domain_list_manager_;
-  std::unique_ptr<ip_protection::ProbabilisticRevealTokenRegistry>
-      probabilistic_reveal_token_registry_;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+
 
   bool exclusive_cookie_database_locking_ = true;
   base::WeakPtrFactory<NetworkService> weak_factory_{this};
