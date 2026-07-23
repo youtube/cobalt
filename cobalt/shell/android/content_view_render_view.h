@@ -62,6 +62,7 @@ class ContentViewRenderView : public content::CompositorClient {
   ~ContentViewRenderView() override;
 
   void InitCompositor();
+  void UpdateCompositorBackground();
 
   base::android::ScopedJavaGlobalRef<jobject> java_obj_;
 
@@ -69,6 +70,8 @@ class ContentViewRenderView : public content::CompositorClient {
 
   gfx::NativeWindow root_window_;
   int current_surface_format_;
+  bool overlay_video_mode_enabled_ = false;
+  bool is_surface_translucent_ = false;
 };
 
 }  // namespace cobalt

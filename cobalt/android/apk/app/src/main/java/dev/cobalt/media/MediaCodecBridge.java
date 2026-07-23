@@ -20,6 +20,7 @@ package dev.cobalt.media;
 
 import static dev.cobalt.media.Log.TAG;
 
+import android.app.Activity;
 import android.media.MediaCodec;
 import android.media.MediaCodec.CryptoInfo;
 import android.media.MediaCodec.CryptoInfo.Pattern;
@@ -36,7 +37,10 @@ import android.view.Surface;
 import androidx.annotation.GuardedBy;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import dev.cobalt.coat.CobaltActivity;
+import dev.cobalt.coat.StarboardBridge;
 import dev.cobalt.media.MediaCodecFrameRateEstimator.FrameRateEstimator;
+import dev.cobalt.shell.ContentViewRenderView;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.SynchronizedHolder;
 import java.nio.ByteBuffer;
@@ -364,26 +368,36 @@ class MediaCodecBridge {
       mMediaCodec.get().setCallback(mCallback);
     }
 
-    if (mEnableFrameRendererListener) {
-      mFrameRendererListener =
-          new MediaCodec.OnFrameRenderedListener() {
-            @Override
-            public void onFrameRendered(MediaCodec codec, long presentationTimeUs, long nanoTime) {
+    mFrameRendererListener =
+        new MediaCodec.OnFrameRenderedListener() {
+          @Override
+          public void onFrameRendered(MediaCodec codec, long presentationTimeUs, long nanoTime) {
+            if (mEnableFrameRendererListener) {
               synchronized (mNativeBridgeLock) {
-                if (mNativeMediaCodecBridge == 0 || mIsFlushing) {
-                  return;
+                if (mNativeMediaCodecBridge != 0 && !mIsFlushing) {
+                  MediaCodecBridgeJni.get()
+                      .onMediaCodecFrameRendered(
+                          mNativeMediaCodecBridge, presentationTimeUs, nanoTime);
                 }
-                MediaCodecBridgeJni.get()
-                    .onMediaCodecFrameRendered(
-                        mNativeMediaCodecBridge, presentationTimeUs, nanoTime);
               }
             }
-          };
-      if (mEnableIgnoreCallbacksDuringFlushing) {
-        mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, mMainHandler);
-      } else {
-        mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, null);
-      }
+            try {
+              CobaltActivity activity = CobaltActivity.getInstance();
+              if (activity != null) {
+                ContentViewRenderView renderView = activity.getContentViewRenderView();
+                if (renderView != null) {
+                  renderView.onFirstVideoFrameRendered();
+                }
+              }
+            } catch (Throwable e) {
+              // Ignore if activity is not available
+            }
+          }
+        };
+    if (mEnableIgnoreCallbacksDuringFlushing) {
+      mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, mMainHandler);
+    } else {
+      mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, null);
     }
 
     if (mIsTunnelingPlayback) {

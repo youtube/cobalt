@@ -12,7 +12,9 @@ import android.view.MotionEvent;
 import android.view.SurfaceView;
 import android.view.View;
 import android.widget.FrameLayout;
+import android.util.Log;
 
+import org.chromium.base.CommandLine;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.EventForwarder;
 import org.chromium.ui.base.WindowAndroid;
@@ -28,15 +30,38 @@ import org.jni_zero.NativeMethods;
  */
 @JNINamespace("cobalt")
 public class ContentViewRenderView extends FrameLayout {
+    private static final String TAG = "cobalt";
+
     // The native side of this object.
     private long mNativeContentViewRenderView;
     private WindowAndroid mWindowAndroid;
 
     protected SurfaceBridge mSurfaceBridge;
     protected WebContents mWebContents;
+    private boolean mIsOverlayVideoModeActive = false;
+    private boolean mIsVideoFrameRendered = false;
+    private Runnable mOverlayTimeoutRunnable;
+    private boolean mUseWindowSurface = false;
+    private SurfaceHolder mExternalSurfaceHolder;
+    private SurfaceHolder.Callback mSurfaceCallback;
 
     private int mWidth;
     private int mHeight;
+
+    public void setExternalSurfaceHolder(SurfaceHolder holder) {
+        mExternalSurfaceHolder = holder;
+    }
+
+    public SurfaceHolder.Callback getSurfaceCallback() {
+        return mSurfaceCallback;
+    }
+
+    public SurfaceHolder getSurfaceHolder() {
+        if (mExternalSurfaceHolder != null) {
+            return mExternalSurfaceHolder;
+        }
+        return getSurfaceView() != null ? getSurfaceView().getHolder() : null;
+    }
 
     /**
      * Constructs a new ContentViewRenderView.
@@ -47,6 +72,8 @@ public class ContentViewRenderView extends FrameLayout {
      */
     public ContentViewRenderView(Context context) {
         super(context);
+        mUseWindowSurface = CommandLine.getInstance().hasSwitch("enable-window-surface-ui");
+        Log.i(TAG, "ContentViewRenderView constructor, mUseWindowSurface=" + mUseWindowSurface);
 
         mSurfaceBridge = createSurfaceBridge();
         mSurfaceBridge.initialize(this);
@@ -62,14 +89,14 @@ public class ContentViewRenderView extends FrameLayout {
      * @param rootWindow The {@link WindowAndroid} this render view should be linked to.
      */
     public void onNativeLibraryLoaded(WindowAndroid rootWindow) {
-        assert !getSurfaceView().getHolder().getSurface().isValid()
+        assert mUseWindowSurface || getSurfaceHolder() == null || !getSurfaceHolder().getSurface().isValid()
             : "Surface created before native library loaded.";
         assert rootWindow != null;
         mNativeContentViewRenderView =
                 ContentViewRenderViewJni.get().init(ContentViewRenderView.this, rootWindow);
         assert mNativeContentViewRenderView != 0;
         mWindowAndroid = rootWindow;
-        SurfaceHolder.Callback surfaceCallback = new SurfaceHolder.Callback() {
+        mSurfaceCallback = new SurfaceHolder.Callback() {
             @Override
             public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
                 assert mNativeContentViewRenderView != 0;
@@ -87,6 +114,10 @@ public class ContentViewRenderView extends FrameLayout {
 
             @Override
             public void surfaceCreated(SurfaceHolder holder) {
+                if (mUseWindowSurface) {
+                    int format = mIsOverlayVideoModeActive ? PixelFormat.TRANSLUCENT : PixelFormat.OPAQUE;
+                    holder.setFormat(format);
+                }
                 assert mNativeContentViewRenderView != 0;
                 ContentViewRenderViewJni.get().surfaceCreated(
                         mNativeContentViewRenderView, ContentViewRenderView.this);
@@ -96,7 +127,9 @@ public class ContentViewRenderView extends FrameLayout {
                 // devices, where a relayout never happens. This bug is out of Chromium's
                 // control, but can be worked around by forcibly re-setting the visibility of
                 // the surface view. Otherwise, the screen stays black, and some tests fail.
-                getSurfaceView().setVisibility(getSurfaceView().getVisibility());
+                if (getSurfaceView() != null) {
+                    getSurfaceView().setVisibility(getSurfaceView().getVisibility());
+                }
 
                 onReadyToRender();
             }
@@ -108,7 +141,25 @@ public class ContentViewRenderView extends FrameLayout {
                         mNativeContentViewRenderView, ContentViewRenderView.this);
             }
         };
-        mSurfaceBridge.connect(surfaceCallback);
+        if (mUseWindowSurface) {
+            maybeReplaySurfaceCallbacks();
+            return;
+        }
+        mSurfaceBridge.connect(mSurfaceCallback);
+    }
+
+    private void maybeReplaySurfaceCallbacks() {
+        SurfaceHolder holder = getSurfaceHolder();
+        if (holder == null || holder.getSurface() == null || !holder.getSurface().isValid()) {
+            return;
+        }
+        mSurfaceCallback.surfaceCreated(holder);
+
+        android.graphics.Rect frame = holder.getSurfaceFrame();
+        if (frame == null) {
+            return;
+        }
+        mSurfaceCallback.surfaceChanged(holder, 0, frame.width(), frame.height());
     }
 
     @Override
@@ -158,7 +209,9 @@ public class ContentViewRenderView extends FrameLayout {
      * native resource can be freed.
      */
     public void destroy() {
-        mSurfaceBridge.disconnect();
+        if (!mUseWindowSurface) {
+            mSurfaceBridge.disconnect();
+        }
         mWindowAndroid = null;
         ContentViewRenderViewJni.get().destroy(
                 mNativeContentViewRenderView, ContentViewRenderView.this);
@@ -199,7 +252,8 @@ public class ContentViewRenderView extends FrameLayout {
      * @return whether the surface view is initialized and ready to render.
      */
     public boolean isInitialized() {
-        return getSurfaceView().getHolder().getSurface() != null;
+        SurfaceHolder holder = getSurfaceHolder();
+        return holder != null && holder.getSurface() != null;
     }
 
     /**
@@ -207,18 +261,75 @@ public class ContentViewRenderView extends FrameLayout {
      * @param enabled Whether overlay mode is enabled.
      */
     public void setOverlayVideoMode(boolean enabled) {
-        int format = enabled ? PixelFormat.TRANSLUCENT : PixelFormat.OPAQUE;
-        getSurfaceView().getHolder().setFormat(format);
+        mIsOverlayVideoModeActive = enabled;
+        if (!enabled) {
+            mIsVideoFrameRendered = false;
+            cancelOverlayTimeout();
+            updateSurfaceFormat(false);
+        } else {
+            if (mIsVideoFrameRendered) {
+                updateSurfaceFormat(true);
+            } else {
+                updateSurfaceFormat(false);
+                scheduleOverlayTimeout();
+            }
+        }
         ContentViewRenderViewJni.get().setOverlayVideoMode(
                 mNativeContentViewRenderView, ContentViewRenderView.this, enabled);
     }
 
+    public void onFirstVideoFrameRendered() {
+        post(new Runnable() {
+            @Override
+            public void run() {
+                if (mIsVideoFrameRendered) return;
+                mIsVideoFrameRendered = true;
+                cancelOverlayTimeout();
+                if (mIsOverlayVideoModeActive) {
+                    updateSurfaceFormat(true);
+                }
+            }
+        });
+    }
+
+    private void updateSurfaceFormat(boolean translucent) {
+        int format = translucent ? PixelFormat.TRANSLUCENT : PixelFormat.OPAQUE;
+        SurfaceHolder holder = getSurfaceHolder();
+        if (holder != null) {
+            holder.setFormat(format);
+        }
+    }
+
+    private void scheduleOverlayTimeout() {
+        cancelOverlayTimeout();
+        mOverlayTimeoutRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (mIsOverlayVideoModeActive && !mIsVideoFrameRendered) {
+                    Log.w(TAG, "Overlay format timeout; forcing TRANSLUCENT");
+                    updateSurfaceFormat(true);
+                }
+            }
+        };
+        postDelayed(mOverlayTimeoutRunnable, 3000);
+    }
+
+    private void cancelOverlayTimeout() {
+        if (mOverlayTimeoutRunnable != null) {
+            removeCallbacks(mOverlayTimeoutRunnable);
+            mOverlayTimeoutRunnable = null;
+        }
+    }
+
     @CalledByNative
     private void didSwapFrame() {
-        if (getSurfaceView().getBackground() != null) {
+        if (getSurfaceView() != null && getSurfaceView().getBackground() != null) {
             post(new Runnable() {
                 @Override
                 public void run() {
+                    if (getSurfaceView() == null) {
+                        return;
+                    }
                     getSurfaceView().setBackgroundResource(0);
                 }
             });
@@ -237,6 +348,9 @@ public class ContentViewRenderView extends FrameLayout {
         }
 
         protected void initialize(ContentViewRenderView renderView) {
+            if (renderView.mUseWindowSurface) {
+                return;
+            }
             mSurfaceView = renderView.createSurfaceView(renderView.getContext());
             mSurfaceView.setZOrderMediaOverlay(true);
 
@@ -248,11 +362,17 @@ public class ContentViewRenderView extends FrameLayout {
 
         protected void connect(SurfaceHolder.Callback surfaceCallback) {
             mSurfaceCallback = surfaceCallback;
+            if (mSurfaceView == null) {
+                return;
+            }
             mSurfaceView.getHolder().addCallback(mSurfaceCallback);
             mSurfaceView.setVisibility(VISIBLE);
         }
 
         protected void disconnect() {
+            if (mSurfaceView == null) {
+                return;
+            }
             mSurfaceView.getHolder().removeCallback(mSurfaceCallback);
         }
     }

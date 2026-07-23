@@ -38,6 +38,7 @@ public class VideoSurfaceView extends SurfaceView {
   }
 
   private static Surface sCurrentSurface = null;
+  private static VideoSurfaceView sActiveInstance = null;
 
   public VideoSurfaceView(Context context) {
     super(context);
@@ -60,6 +61,7 @@ public class VideoSurfaceView extends SurfaceView {
   }
 
   private void initialize(Context context) {
+    sActiveInstance = this;
     setBackgroundColor(Color.TRANSPARENT);
     getHolder().addCallback(new SurfaceHolderCallback());
 
@@ -74,6 +76,7 @@ public class VideoSurfaceView extends SurfaceView {
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
+      sActiveInstance = VideoSurfaceView.this;
       sCurrentSurface = holder.getSurface();
       VideoSurfaceViewJni.get().onVideoSurfaceChanged(sCurrentSurface);
     }
@@ -89,8 +92,11 @@ public class VideoSurfaceView extends SurfaceView {
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
-      sCurrentSurface = null;
-      VideoSurfaceViewJni.get().onVideoSurfaceChanged(sCurrentSurface);
+      if (sActiveInstance == VideoSurfaceView.this) {
+        sCurrentSurface = null;
+        sActiveInstance = null;
+        VideoSurfaceViewJni.get().onVideoSurfaceChanged(sCurrentSurface);
+      }
     }
   }
 

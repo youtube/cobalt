@@ -43,6 +43,7 @@ import dev.cobalt.coat.javabridge.HTMLMediaElementExtension;
 import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
+import dev.cobalt.shell.ContentViewRenderView;
 import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
 import dev.cobalt.shell.ShellManagerJni;
@@ -55,7 +56,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 import org.chromium.base.CommandLine;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
@@ -90,12 +90,19 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   @SuppressWarnings("unused")
   private CobaltA11yHelper mA11yHelper;
 
+  private static CobaltActivity sInstance;
+
+  public static CobaltActivity getInstance() {
+    return sInstance;
+  }
+
   private VideoSurfaceView mVideoSurfaceView;
 
   private boolean mForceCreateNewVideoSurfaceView;
 
   private ShellManager mShellManager;
   private ActivityWindowAndroid mWindowAndroid;
+  private WindowSurfaceDelegate mWindowSurfaceDelegate;
   private Intent mLastSentIntent;
   private String mStartupUrl;
   private IntentRequestTracker mIntentRequestTracker;
@@ -234,12 +241,17 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
             /* trackOcclusion= */ false);
     mIntentRequestTracker.restoreInstanceState(savedInstanceState);
     mShellManager.setWindow(mWindowAndroid);
+    mWindowSurfaceDelegate = new WindowSurfaceDelegate(getWindow(), mShellManager);
+    mWindowSurfaceDelegate.initialize();
     // Set up the animation placeholder to be the SurfaceView. This disables the
     // SurfaceView's 'hole' clipping during animations that are notified to the window.
-    mWindowAndroid.setAnimationPlaceholderView(
-        mShellManager.getContentViewRenderView().getSurfaceView());
-    mA11yHelper =
-        new CobaltA11yHelper(this, mShellManager.getContentViewRenderView().getSurfaceView());
+    ContentViewRenderView renderView = mShellManager.getContentViewRenderView();
+    View placeholderView = renderView.getSurfaceView();
+    if (mWindowSurfaceDelegate.isEnabled() || placeholderView == null) {
+      placeholderView = renderView;
+    }
+    mWindowAndroid.setAnimationPlaceholderView(placeholderView);
+    mA11yHelper = new CobaltA11yHelper(this, placeholderView);
 
     if (mStartupUrl == null || mStartupUrl.isEmpty()) {
       String[] args = getStarboardBridge().getArgs();
@@ -443,6 +455,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
+    sInstance = this;
     super.onCreate(savedInstanceState);
 
     setupStartupGuard();
@@ -629,6 +642,9 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       OnBackInvokedHelper.unregister(this, mBackInvokedCallback);
       mBackInvokedCallback = null;
     }
+    if (sInstance == this) {
+      sInstance = null;
+    }
     super.onDestroy();
   }
 
@@ -707,10 +723,13 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
           mVideoSurfaceView,
           index,
           new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-      Log.i(TAG, "inserted new mVideoSurfaceView at index:" + index);
     } else {
       Log.w(TAG, "Unexpected surface view parent class " + parent.getClass().getName());
     }
+  }
+
+  public ContentViewRenderView getContentViewRenderView() {
+    return mShellManager != null ? mShellManager.getContentViewRenderView() : null;
   }
 
   public void evaluateJavaScript(String jsCode) {
