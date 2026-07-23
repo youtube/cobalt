@@ -47,7 +47,7 @@
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
-#include "starboard/shared/starboard/player/filter/video_renderer_internal_impl.h"
+#include "starboard/shared/starboard/player/filter/video_renderer_impl_internal.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 #include "third_party/jni_zero/jni_zero.h"
 

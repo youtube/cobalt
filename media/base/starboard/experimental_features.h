@@ -48,7 +48,9 @@ class MEDIA_EXPORT ExperimentalFeatureKey {
  public:
   using ValueType = T;
 
-  constexpr explicit ExperimentalFeatureKey(std::string_view key) : key_(key) {}
+  template <size_t N>
+  constexpr explicit ExperimentalFeatureKey(const char (&key)[N])
+      : key_(key, N - 1) {}
 
   constexpr std::string_view key() const { return key_; }
 
@@ -166,6 +168,9 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaForceDecodeToTexture(
 
 inline constexpr ExperimentalFeatureKey<int> kMediaMaxSamplesPerWrite(
     "Media.MaxSamplesPerWrite");
+
+inline constexpr ExperimentalFeatureKey<bool> kMediaUseExternalMediaMemoryPool(
+    "Media.UseExternalMediaMemoryPool");
 // keep-sorted end
 
 }  // namespace media

@@ -7,7 +7,6 @@
 | **android**   | [![Status][android-badge]][android-link] | [![Status][android-nightly-badge]][android-nightly-link] |
 | **evergreen** | [![Status][eg-badge]][eg-link]           | [![Status][eg-nightly-badge]][eg-nightly-link]           |
 | **linux**     | [![Status][linux-badge]][linux-link]     | [![Status][linux-nightly-badge]][linux-nightly-link]     |
-| **raspi-2**   | [![Status][raspi-badge]][raspi-link]     | [![Status][raspi-nightly-badge]][raspi-nightly-link]     |
 | **tvos**      | [![Status][tvos-badge]][tvos-link]       | [![Status][tvos-nightly-badge]][tvos-nightly-link]     |
 
 [android-badge]: https://github.com/youtube/cobalt/actions/workflows/android.yaml/badge.svg?event=push&branch=main
@@ -25,11 +24,6 @@
 [linux-nightly-badge]: https://github.com/youtube/cobalt/actions/workflows/linux.yaml/badge.svg?event=workflow_dispatch&branch=main
 [linux-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/linux.yaml?query=event%3Aworkflow_dispatch+branch%3Amain
 
-[raspi-badge]: https://github.com/youtube/cobalt/actions/workflows/raspi-2-modular.yaml/badge.svg?event=push&branch=main
-[raspi-link]: https://github.com/youtube/cobalt/actions/workflows/raspi-2-modular.yaml?query=event%3Apush+branch%3Amain
-[raspi-nightly-badge]: https://github.com/youtube/cobalt/actions/workflows/raspi-2-modular.yaml/badge.svg?event=workflow_dispatch&branch=main
-[raspi-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/raspi-2-modular.yaml?query=event%3Aworkflow_dispatch+branch%3Amain
-
 [tvos-badge]: https://github.com/youtube/cobalt/actions/workflows/tvos.yaml/badge.svg?event=push&branch=main
 [tvos-link]: https://github.com/youtube/cobalt/actions/workflows/tvos.yaml?query=event%3Apush+branch%3Amain
 [tvos-nightly-badge]: https://github.com/youtube/cobalt/actions/workflows/tvos.yaml/badge.svg?event=workflow_dispatch&branch=main
@@ -44,7 +38,6 @@
 | **android**   | [![Status][android-27-lts-badge]][android-27-lts-link] | [![Status][android-27-lts-nightly-badge]][android-27-lts-nightly-link] |
 | **evergreen** | [![Status][eg-27-lts-badge]][eg-27-lts-link]           | [![Status][eg-27-lts-nightly-badge]][eg-27-lts-nightly-link]           |
 | **linux**     | [![Status][linux-27-lts-badge]][linux-27-lts-link]     | [![Status][linux-27-lts-nightly-badge]][linux-27-lts-nightly-link]     |
-| **raspi-2**   | [![Status][raspi-27-lts-badge]][raspi-27-lts-link]     | [![Status][raspi-27-lts-nightly-badge]][raspi-27-lts-nightly-link]     |
 | **tvos**      | [![Status][tvos-27-lts-badge]][tvos-27-lts-link]       | [![Status][tvos-27-lts-nightly-badge]][tvos-27-lts-nightly-link]       |
 
 [android-27-lts-badge]: https://github.com/youtube/cobalt/actions/workflows/android_27.lts.yaml/badge.svg?event=push&branch=27.lts
@@ -61,11 +54,6 @@
 [linux-27-lts-link]: https://github.com/youtube/cobalt/actions/workflows/linux_27.lts.yaml?query=event%3Apush+branch%3A27.lts
 [linux-27-lts-nightly-badge]: https://github.com/youtube/cobalt/actions/workflows/linux_27.lts.yaml/badge.svg?event=workflow_dispatch&branch=27.lts
 [linux-27-lts-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/linux_27.lts.yaml?query=event%3Aworkflow_dispatch+branch%3A27.lts
-
-[raspi-27-lts-badge]: https://github.com/youtube/cobalt/actions/workflows/raspi-2-modular_27.lts.yaml/badge.svg?event=push&branch=27.lts
-[raspi-27-lts-link]: https://github.com/youtube/cobalt/actions/workflows/raspi-2-modular_27.lts.yaml?query=event%3Apush+branch%3A27.lts
-[raspi-27-lts-nightly-badge]: https://github.com/youtube/cobalt/actions/workflows/raspi-2-modular_27.lts.yaml/badge.svg?event=workflow_dispatch&branch=27.lts
-[raspi-27-lts-nightly-link]: https://github.com/youtube/cobalt/actions/workflows/raspi-2-modular_27.lts.yaml?query=event%3Aworkflow_dispatch+branch%3A27.lts
 
 [tvos-27-lts-badge]: https://github.com/youtube/cobalt/actions/workflows/tvos_27.lts.yaml/badge.svg?event=push&branch=27.lts
 [tvos-27-lts-link]: https://github.com/youtube/cobalt/actions/workflows/tvos_27.lts.yaml?query=event%3Apush+branch%3A27.lts

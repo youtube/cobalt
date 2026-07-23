@@ -47,7 +47,9 @@ template <typename T>
 class ExperimentalFeatureKey {
  public:
   using ValueType = T;
-  constexpr explicit ExperimentalFeatureKey(std::string_view key) : key_(key) {}
+  template <size_t N>
+  constexpr explicit ExperimentalFeatureKey(const char (&key)[N])
+      : key_(key, N - 1) {}
   constexpr std::string_view key() const { return key_; }
 
  private:
@@ -164,9 +166,6 @@ inline constexpr ExperimentalFeatureKey<bool>
 
 inline constexpr ExperimentalFeatureKey<bool> kMediaEnableFlushDuringSeek(
     "Media.EnableFlushDuringSeek");
-
-inline constexpr ExperimentalFeatureKey<bool> kMediaEnableLowLatency(
-    "Media.EnableLowLatency");
 
 inline constexpr ExperimentalFeatureKey<bool> kMediaEnableResetAudioDecoder(
     "Media.EnableResetAudioDecoder");

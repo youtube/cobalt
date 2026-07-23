@@ -182,6 +182,7 @@ component("modules") {
       "//third_party/blink/renderer/modules/private_attribution",
       "//third_party/blink/renderer/modules/shared_storage",
       "//third_party/blink/renderer/modules/storage_access",
+      "//third_party/blink/renderer/modules/ad_auction",
     ]
   }
 
@@ -221,6 +222,10 @@ component("modules") {
     if (enable_native_on_screen_keyboard) {
       sub_modules +=
           [ "//third_party/blink/renderer/modules/cobalt/on_screen_keyboard" ]
+    }
+
+    if (enable_in_app_dial) {
+      sub_modules += [ "//third_party/blink/renderer/modules/cobalt/dial" ]
     }
   }
 
@@ -325,6 +330,13 @@ source_set("modules_testing") {
     "webaudio/testing/internals_web_audio.cc",
     "webaudio/testing/internals_web_audio.h",
   ]
+
+  # If in the future privacy sandbox components are removed from the code base, ignore this if block.
+  if (!enable_privacy_sandbox_apis) {
+    _ad_auction_testing_filtered_sources = filter_exclude(sources, [ "ad_auction/testing/*" ])
+    sources = []
+    sources = _ad_auction_testing_filtered_sources
+  }
 
   if (enable_compute_pressure) {
     sources += [
@@ -832,7 +844,10 @@ source_set("unit_tests") {
   # If in the future privacy sandbox components are removed from the code base, ignore this if block.
   if (!enable_privacy_sandbox_apis) {
     sources -= [ "shared_storage/shared_storage_worklet_unittest.cc" ]
-    deps -= [ "//third_party/blink/renderer/modules/storage_access:unit_tests" ]
+    deps -= [
+      "//third_party/blink/renderer/modules/storage_access:unit_tests",
+      "//third_party/blink/renderer/modules/ad_auction:unit_tests",
+    ]
   }
 
   if (is_cobalt) {

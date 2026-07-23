@@ -195,6 +195,8 @@ static_library("starboard_platform") {
     "media_is_buffer_pool_allocate_on_demand.cc",
     "media_is_key_system_supported.cc",
     "media_is_video_supported.cc",
+    "media_resource_tracker.cc",
+    "media_resource_tracker.h",
     "memfd_media_buffer_pool.cc",
     "memfd_media_buffer_pool.h",
     "microphone_impl.cc",
@@ -219,7 +221,6 @@ static_library("starboard_platform") {
 
     # TODO: b/374300500 - posix_emu things should not be used on Android anymore
     # "posix_emu/dirent.cc",
-    # "posix_emu/errno.cc",
     # "posix_emu/pthread.cc",
 
     "runtime_resource_overlay.cc",
@@ -318,19 +319,35 @@ static_library("starboard_platform") {
     ]
   }
 
-  if (is_starboard && current_toolchain == starboard_toolchain) {
+  if (is_starboard) {
     sources -= [
       "crash_handler.cc",
       "crash_handler.h",
+      "system_platform_error.cc",
     ]
     sources += [
       "//starboard/shared/starboard/crash_handler.cc",
       "//starboard/shared/starboard/crash_handler.h",
       "//starboard/shared/starboard/loader_app_metrics.cc",
       "//starboard/shared/starboard/loader_app_metrics.h",
+
+      # TODO(https://crbug.com/495203133): Symbols required on AOSP. The
+      # missing implementations are not not needed for the current set of
+      # passing nplb tests.
+      "//starboard/shared/stub/speech_synthesis_cancel.cc",
+      "//starboard/shared/stub/speech_synthesis_is_supported.cc",
+      "//starboard/shared/stub/speech_synthesis_speak.cc",
+      "//starboard/shared/stub/system_network_is_disconnected.cc",
+      "//starboard/shared/stub/system_raise_platform_error.cc",
+      "//starboard/shared/stub/window_create.cc",
+      "//starboard/shared/stub/window_destroy.cc",
+      "//starboard/shared/stub/window_get_diagonal_size_in_inches.cc",
+      "//starboard/shared/stub/window_get_platform_handle.cc",
+      "//starboard/shared/stub/window_get_size.cc",
       "asset_manager.cc",
       "asset_manager.h",
       "posix_emu/access.cc",
+      "posix_emu/errno.cc",
       "posix_emu/file.cc",
       "posix_emu/stat.cc",
     ]
@@ -427,13 +444,13 @@ test("starboard_platform_tests") {
               "media_codec_decoder_test.cc",
               "media_codec_video_decoder_helpers_test.cc",
               "media_codec_video_decoder_test.cc",
+              "media_resource_tracker_test.cc",
               "memfd_media_buffer_pool_test.cc",
               "mock_media_capabilities_cache.cc",
               "mock_media_capabilities_cache.h",
               "model_year_test.cc",
               "player_get_preferred_output_mode_test.cc",
               "video_frame_tracker_test.cc",
-              "video_window_test.cc",
             ]
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
@@ -443,14 +460,12 @@ test("starboard_platform_tests") {
     ":starboard_platform",
     ":test_support",
     "//base",
-    "//cobalt/android:cobalt_main_java",
     "//starboard:starboard_group",
     "//starboard/shared/starboard/drm:drm_test_helpers",
     "//starboard/shared/starboard/player/filter/testing:test_util",
     "//starboard/testing:scoped_feature_list",
     "//testing/gmock",
     "//testing/gtest",
-    "//third_party/jni_zero:jni_zero",
   ]
 }
 

@@ -1,1 +1,8 @@
-[]
+[
+  {
+    "target": "starboard/nplb:nplb_loader",
+    "executable": "out/aosp-arm_devel/apks/nplb.apk",
+    "runs_on": "device",
+    "test_type": "gtest"
+  }
+]

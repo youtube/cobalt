@@ -32,6 +32,8 @@
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_STARBOARD)
+#include <inttypes.h>
+
 #include "starboard/extension/crash_handler.h"
 #include "starboard/system.h"
 #endif
@@ -57,9 +59,18 @@ std::atomic<LoggingLevel> g_threadpool_log_level{LoggingLevel::kNone};
 std::atomic<LoggingLevel> g_io_thread_log_level{LoggingLevel::kNone};
 std::atomic<LoggingLevel> g_main_thread_log_level{LoggingLevel::kNone};
 std::atomic<LoggingLevel> g_compositor_thread_log_level{LoggingLevel::kNone};
+
 #if BUILDFLAG(IS_COBALT)
 std::atomic<LoggingLevel> g_browser_process_renderer_thread_log_level{LoggingLevel::kNone};
-static inline HangWatcher::Delegate* g_hang_watcher_delegate = nullptr;
+
+std::atomic<int64_t> g_hang_watch_time_us{
+    WatchHangsInScope::kDefaultHangWatchTime.InMicroseconds()};
+std::atomic<int64_t> g_hang_watch_monitoring_period_us{
+    base::Seconds(10).InMicroseconds()};
+
+std::atomic<bool> g_hang_reporting_enabled{true};
+
+static std::atomic<HangWatcher::Delegate*> g_hang_watcher_delegate{nullptr};
 #endif
 
 // Indicates whether HangWatcher::Run() should return after the next monitoring.
@@ -238,7 +249,7 @@ bool ThreadTypeLoggingLevelGreaterOrEqual(HangWatcher::ThreadType thread_type,
 #if BUILDFLAG(IS_COBALT)
 void HangWatcher::SetDelegate(Delegate* delegate) {
   DCHECK(!g_instance) << "SetDelegate must be called before Start()";
-  g_hang_watcher_delegate = delegate;
+  g_hang_watcher_delegate.store(delegate, std::memory_order_relaxed);
 }
 #endif
 
@@ -326,6 +337,19 @@ constexpr const char* kThreadName = "HangWatcher";
 constexpr auto kMonitoringPeriod = base::Seconds(10);
 
 WatchHangsInScope::WatchHangsInScope(TimeDelta timeout) {
+#if BUILDFLAG(IS_COBALT)
+  // Only override the timeout with the global configuration if the caller
+  // did not explicitly hardcode a custom timeout (e.g. for heavy startup
+  // tasks).
+  if (timeout == kDefaultHangWatchTime) {
+    int64_t watch_time_us =
+        g_hang_watch_time_us.load(std::memory_order_relaxed);
+    if (watch_time_us > 0) {
+      timeout = base::Microseconds(watch_time_us);
+    }
+  }
+#endif
+
   internal::HangWatchState* current_hang_watch_state =
       HangWatcher::IsEnabled()
           ? internal::HangWatchState::GetHangWatchStateForCurrentThread()
@@ -421,6 +445,66 @@ WatchHangsInScope::~WatchHangsInScope() {
 
   state->DecrementNestingLevel();
 }
+
+#if BUILDFLAG(IS_COBALT)
+// static
+void HangWatcher::UpdateConfiguration() {
+  auto* delegate = g_hang_watcher_delegate.load(std::memory_order_relaxed);
+  if (!delegate) {
+    return;
+  }
+
+  if (auto configured_timeout = delegate->GetHangWatchTime()) {
+    g_hang_watch_time_us.store(configured_timeout->InMicroseconds(),
+                               std::memory_order_relaxed);
+  } else {
+    g_hang_watch_time_us.store(
+        WatchHangsInScope::kDefaultHangWatchTime.InMicroseconds(),
+        std::memory_order_relaxed);
+  }
+
+  if (auto configured_period = delegate->GetHangWatchMonitoringPeriod()) {
+    g_hang_watch_monitoring_period_us.store(configured_period->InMicroseconds(),
+                                            std::memory_order_relaxed);
+  } else {
+    g_hang_watch_monitoring_period_us.store(kMonitoringPeriod.InMicroseconds(),
+                                            std::memory_order_relaxed);
+  }
+
+  g_hang_reporting_enabled.store(delegate->IsHangReportingEnabled(),
+                                 std::memory_order_relaxed);
+
+  // Update logging levels for thread scopes.
+  if (auto io_enabled = delegate->IsThreadDumpingEnabled(
+          HangWatcher::ThreadType::kIOThread)) {
+    LoggingLevel io_level =
+        *io_enabled ? LoggingLevel::kUmaAndCrash : LoggingLevel::kNone;
+    g_io_thread_log_level.store(io_level, std::memory_order_relaxed);
+  }
+
+  if (auto main_enabled = delegate->IsThreadDumpingEnabled(
+          HangWatcher::ThreadType::kMainThread)) {
+    LoggingLevel main_level =
+        *main_enabled ? LoggingLevel::kUmaAndCrash : LoggingLevel::kNone;
+    g_main_thread_log_level.store(main_level, std::memory_order_relaxed);
+  }
+
+  if (auto pool_enabled = delegate->IsThreadDumpingEnabled(
+          HangWatcher::ThreadType::kThreadPoolThread)) {
+    LoggingLevel pool_level =
+        *pool_enabled ? LoggingLevel::kUmaAndCrash : LoggingLevel::kNone;
+    g_threadpool_log_level.store(pool_level, std::memory_order_relaxed);
+  }
+
+  if (auto renderer_enabled = delegate->IsThreadDumpingEnabled(
+          HangWatcher::ThreadType::kRendererThread)) {
+    LoggingLevel renderer_level =
+        *renderer_enabled ? LoggingLevel::kUmaAndCrash : LoggingLevel::kNone;
+    g_browser_process_renderer_thread_log_level.store(
+        renderer_level, std::memory_order_relaxed);
+  }
+}
+#endif
 
 // static
 void HangWatcher::InitializeOnMainThread(ProcessType process_type,
@@ -804,6 +888,13 @@ void HangWatcher::Run() {
   DCHECK_CALLED_ON_VALID_THREAD(hang_watcher_thread_checker_);
 
   while (g_keep_monitoring.load(std::memory_order_relaxed)) {
+#if BUILDFLAG(IS_COBALT)
+    int64_t period_us =
+        g_hang_watch_monitoring_period_us.load(std::memory_order_relaxed);
+    if (period_us > 0) {
+      monitoring_period_ = base::Microseconds(period_us);
+    }
+#endif
     Wait();
 
     if (!IsWatchListEmpty() &&
@@ -1125,6 +1216,40 @@ void HangWatcher::DoDumpWithoutCrashing(
   SCOPED_CRASH_KEY_BOOL("HangWatcher", "shutting-down",
                         g_shutting_down.load(std::memory_order_relaxed));
 
+#if BUILDFLAG(IS_COBALT)
+  int64_t configured_timeout =
+      g_hang_watch_time_us.load(std::memory_order_relaxed);
+  char timeout_buf[32];
+  snprintf(timeout_buf, sizeof(timeout_buf), "%" PRId64,
+           static_cast<int64_t>(configured_timeout /
+                                base::Time::kMicrosecondsPerSecond));
+  SCOPED_CRASH_KEY_STRING32("HangWatcher", "hang-timeout-sec", timeout_buf);
+
+  int64_t configured_period =
+      g_hang_watch_monitoring_period_us.load(std::memory_order_relaxed);
+  char period_buf[32];
+  snprintf(period_buf, sizeof(period_buf), "%" PRId64,
+           static_cast<int64_t>(configured_period /
+                                base::Time::kMicrosecondsPerSecond));
+  SCOPED_CRASH_KEY_STRING32("HangWatcher", "hang-period-sec", period_buf);
+
+  bool main_enabled = g_main_thread_log_level.load(std::memory_order_relaxed) >=
+                      LoggingLevel::kUmaAndCrash;
+  SCOPED_CRASH_KEY_BOOL("HangWatcher", "hang-dump-main", main_enabled);
+
+  bool io_enabled = g_io_thread_log_level.load(std::memory_order_relaxed) >=
+                    LoggingLevel::kUmaAndCrash;
+  SCOPED_CRASH_KEY_BOOL("HangWatcher", "hang-dump-io", io_enabled);
+
+  bool pool_enabled = g_threadpool_log_level.load(std::memory_order_relaxed) >=
+                      LoggingLevel::kUmaAndCrash;
+  SCOPED_CRASH_KEY_BOOL("HangWatcher", "hang-dump-pool", pool_enabled);
+
+  bool renderer_enabled =
+      g_browser_process_renderer_thread_log_level.load(
+          std::memory_order_relaxed) >= LoggingLevel::kUmaAndCrash;
+  SCOPED_CRASH_KEY_BOOL("HangWatcher", "hang-dump-renderer", renderer_enabled);
+
 #if BUILDFLAG(IS_STARBOARD)
   // Evergreen builds cannot currently use the crash key system directly and we
   // instead use a Starboard extension to pass annotations from the Cobalt layer
@@ -1142,9 +1267,21 @@ void HangWatcher::DoDumpWithoutCrashing(
     crash_handler_extension->SetString(
         "shutting-down",
         g_shutting_down.load(std::memory_order_relaxed) ? "true" : "false");
+
+    crash_handler_extension->SetString("hang-timeout-sec", timeout_buf);
+    crash_handler_extension->SetString("hang-period-sec", period_buf);
+    crash_handler_extension->SetString("hang-dump-main",
+                                       main_enabled ? "true" : "false");
+    crash_handler_extension->SetString("hang-dump-io",
+                                       io_enabled ? "true" : "false");
+    crash_handler_extension->SetString("hang-dump-pool",
+                                       pool_enabled ? "true" : "false");
+    crash_handler_extension->SetString("hang-dump-renderer",
+                                       renderer_enabled ? "true" : "false");
   }
-#endif
-#endif
+#endif  // BUILDFLAG(IS_STARBOARD)
+#endif  // BUILDFLAG(IS_COBALT)
+#endif  // !BUILDFLAG(IS_NACL)
 
   // To avoid capturing more than one hang that blames a subset of the same
   // threads it's necessary to keep track of what is the furthest deadline
@@ -1171,8 +1308,7 @@ void HangWatcher::DoDumpWithoutCrashing(
     on_hang_closure_for_testing_.Run();
   } else {
 #if BUILDFLAG(IS_COBALT)
-    if (g_hang_watcher_delegate &&
-        g_hang_watcher_delegate->IsHangReportingEnabled()) {
+    if (g_hang_reporting_enabled.load(std::memory_order_relaxed)) {
       RecordHang();
     } else {
       LOG(INFO) << "Freeze detection: RecordHang() skipped due to reporting disabled.";
@@ -1202,6 +1338,10 @@ void HangWatcher::SetOnHangClosureForTesting(base::RepeatingClosure closure) {
 void HangWatcher::SetMonitoringPeriodForTesting(base::TimeDelta period) {
   DCHECK_CALLED_ON_VALID_THREAD(constructing_thread_checker_);
   monitoring_period_ = period;
+#if BUILDFLAG(IS_COBALT)
+  g_hang_watch_monitoring_period_us.store(period.InMicroseconds(),
+                                          std::memory_order_relaxed);
+#endif
 }
 
 void HangWatcher::SetAfterWaitCallbackForTesting(
