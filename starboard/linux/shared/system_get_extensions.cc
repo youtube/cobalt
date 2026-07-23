@@ -35,9 +35,11 @@
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "starboard/extension/crash_handler.h"
+#include "starboard/extension/native_stability.h"
 #include "starboard/extension/platform_service.h"
 #include "starboard/linux/shared/platform_service.h"
 #include "starboard/shared/starboard/crash_handler.h"
+#include "starboard/shared/starboard/native_stability.h"
 #endif
 
 const void* SbSystemGetExtension(const char* name) {
@@ -58,6 +60,9 @@ const void* SbSystemGetExtension(const char* name) {
 #if BUILDFLAG(USE_EVERGREEN)
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
     return starboard::GetCrashHandlerApi();
+  }
+  if (strcmp(name, kCobaltExtensionNativeStabilityName) == 0) {
+    return starboard::GetNativeStabilityApi();
   }
 
   // TODO: b/371419798 - enable for non-evergreen builds once we've resolved the
