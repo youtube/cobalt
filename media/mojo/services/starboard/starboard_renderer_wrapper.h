@@ -22,11 +22,13 @@
 #include "base/memory/weak_ptr.h"
 #include "base/threading/sequence_bound.h"
 #include "base/threading/thread_checker.h"
+#include "base/timer/timer.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
 #include "gpu/ipc/service/command_buffer_stub.h"
 #include "media/base/renderer.h"
 #include "media/gpu/starboard/starboard_gpu_factory_impl.h"
+#include "media/mojo/common/starboard/mojo_renderer_bypass_bridge.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
 #include "media/mojo/services/gpu_mojo_media_client.h"
 #include "media/starboard/starboard_renderer.h"
@@ -48,6 +50,7 @@ class TimeDelta;
 namespace media {
 
 class StarboardGpuFactory;
+class ProxyRendererClient;
 
 // Simple wrapper around a StarboardRenderer.
 // Wraps media::StarboardRenderer to remove its dependence on
@@ -84,12 +87,12 @@ class StarboardRendererWrapper
   void Initialize(MediaResource* media_resource,
                   RendererClient* client,
                   PipelineStatusCallback init_cb) override;
-  void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb) override;
-  void SetLatencyHint(absl::optional<base::TimeDelta> latency_hint) override;
   void Flush(base::OnceClosure flush_cb) override;
   void StartPlayingFrom(base::TimeDelta time) override;
   void SetPlaybackRate(double playback_rate) override;
   void SetVolume(float volume) override;
+  void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb) override;
+  void SetLatencyHint(absl::optional<base::TimeDelta> latency_hint) override;
   base::TimeDelta GetMediaTime() override;
   RendererType GetRendererType() override;
 
@@ -98,9 +101,14 @@ class StarboardRendererWrapper
       mojom::CommandBufferIdPtr command_buffer_id) override;
   void GetCurrentVideoFrame(GetCurrentVideoFrameCallback callback) override;
   void OnSbWindowHandleReady(uint64_t sb_window_handle) override;
+  void InitializeWithBypassBridge(
+      uint32_t bypass_bridge_id,
+      InitializeWithBypassBridgeCallback callback) override;
 #if BUILDFLAG(IS_ANDROID)
   void OnOverlayInfoChanged(const OverlayInfo& overlay_info) override;
 #endif  // BUILDFLAG(IS_ANDROID)
+
+  bool IsBypassing() const { return !!bypass_bridge_; }
 
   StarboardRenderer* GetRenderer();
   base::SequenceBound<StarboardGpuFactory>* GetGpuFactory();
@@ -119,6 +127,10 @@ class StarboardRendererWrapper
   }
 
  private:
+  void ContinueInitialization(MediaResource* media_resource,
+                              RendererClient* client,
+                              PipelineStatusCallback init_cb);
+  bool IsGpuChannelTokenAvailable() const { return !!command_buffer_id_; }
   void OnPaintVideoHoleFrameByStarboard(const gfx::Size& size);
   void OnUpdateStarboardRenderingModeByStarboard(
       const StarboardRenderingMode mode);
@@ -128,11 +140,6 @@ class StarboardRendererWrapper
 #if BUILDFLAG(IS_ANDROID)
   void OnRequestOverlayInfoByStarboard(bool restart_for_transitions);
 #endif  // BUILDFLAG(IS_ANDROID)
-
-  void ContinueInitialization(MediaResource* media_resource,
-                              RendererClient* client,
-                              PipelineStatusCallback init_cb);
-  bool IsGpuChannelTokenAvailable() const { return !!command_buffer_id_; }
   SbDecodeTargetGraphicsContextProvider*
   GetSbDecodeTargetGraphicsContextProvider();
   void GetCurrentDecodeTarget();
@@ -147,6 +154,9 @@ class StarboardRendererWrapper
       SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
       SbDecodeTargetGlesContextRunnerTarget target_function,
       void* target_function_context);
+  void PollMediaTime();
+  void StartMediaTimePollingIfNeeded();
+  void StopMediaTimePolling();
 
   mojo::Receiver<RendererExtension> renderer_extension_receiver_;
   mojo::Remote<ClientExtension> client_extension_remote_;
@@ -168,6 +178,10 @@ class StarboardRendererWrapper
   std::vector<uint32_t> last_texture_service_ids_;
   SbDecodeTarget decode_target_ = kSbDecodeTargetInvalid;
 
+  scoped_refptr<MojoRendererBypassBridge> bypass_bridge_;
+  std::unique_ptr<MediaResource> proxy_media_resource_;
+  std::unique_ptr<ProxyRendererClient> proxy_renderer_client_;
+
   raw_ptr<StarboardRenderer> test_renderer_;
   raw_ptr<base::SequenceBound<StarboardGpuFactory>> test_gpu_factory_;
 
@@ -176,6 +190,8 @@ class StarboardRendererWrapper
   mojo::Receiver<cobalt::media::mojom::VideoGeometryChangeClient>
       video_geometry_change_client_receiver_{this};
 
+  double playback_rate_ = 0.0;
+  base::RepeatingTimer time_update_timer_;
   THREAD_CHECKER(thread_checker_);
 
   // NOTE: Do not add member variables after weak_factory_
