@@ -18,6 +18,7 @@
 #include <sys/stat.h>
 
 #include <map>
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -54,7 +55,7 @@ const char kNativeStabilityHangUuidKey[] = "native_stability_hang_uuid";
 
 namespace {
 
-base::FilePath* g_database_path_override_for_testing = nullptr;
+std::unique_ptr<base::FilePath> g_database_path_override_for_testing;
 
 // TODO: Get evergreen information from installation.
 const std::string kCrashpadVersion = "1.0.0.0";
@@ -441,11 +442,11 @@ int ReadReports(SbNativeStabilityReport* reports, int max_num_reports) {
 namespace internal {
 
 void SetDatabasePathForTesting(const base::FilePath& path) {
-  delete g_database_path_override_for_testing;
   if (path.empty()) {
-    g_database_path_override_for_testing = nullptr;
+    g_database_path_override_for_testing.reset();
   } else {
-    g_database_path_override_for_testing = new base::FilePath(path);
+    g_database_path_override_for_testing =
+        std::make_unique<base::FilePath>(path);
   }
 }
 
