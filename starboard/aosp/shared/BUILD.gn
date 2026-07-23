@@ -19,3 +19,16 @@ static_library("starboard_platform") {
 
   public_deps = [ "//starboard/android/shared:starboard_platform" ]
 }
+
+source_set("aosp_loader_glue") {
+  sources = [
+    "main_activity.cc",
+    "starboard_library_loader.cc",
+  ]
+
+  deps = [
+    "//base",
+    "//cobalt/aosp:jni_headers",
+    "//starboard/android/shared:starboard_platform",
+  ]
+}
