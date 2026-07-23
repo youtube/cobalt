@@ -50,6 +50,11 @@
 #include "starboard/shared/starboard/loader_app_metrics.h"
 #endif
 
+#if BUILDFLAG(USE_EVERGREEN)
+#include "starboard/extension/native_stability.h"
+#include "starboard/shared/starboard/native_stability.h"
+#endif
+
 const void* SbSystemGetExtension(const char* name) {
 #if BUILDFLAG(IS_STARBOARD)
   const elf_loader::EvergreenConfig* evergreen_config =
@@ -66,6 +71,11 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kStarboardExtensionLoaderAppMetricsName) == 0) {
     return starboard::GetLoaderAppMetricsApi();
+  }
+#endif
+#if BUILDFLAG(USE_EVERGREEN)
+  if (strcmp(name, kCobaltExtensionNativeStabilityName) == 0) {
+    return starboard::GetNativeStabilityApi();
   }
 #endif
   if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
