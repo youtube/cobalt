@@ -59,9 +59,6 @@
 #include "third_party/blink/renderer/modules/encryptedmedia/media_key_system_access_initializer_base.h"
 #include "third_party/blink/renderer/modules/media_capabilities/media_capabilities_identifiability_metrics.h"
 #include "third_party/blink/renderer/modules/media_capabilities_names.h"
-#if !BUILDFLAG(IS_COBALT)
-#include "third_party/blink/renderer/modules/mediarecorder/media_recorder_handler.h"  // nogncheck
-#endif  // !BUILDFLAG(IS_COBALT)
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/bindings/v8_throw_exception.h"
@@ -84,6 +81,10 @@
 #include "third_party/webrtc/api/video_codecs/sdp_video_format.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
+
+#if !BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/modules/mediarecorder/media_recorder_handler.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 
 namespace blink {
 
@@ -149,16 +150,14 @@ bool UseGpuFactoriesForPowerEfficient(
     ExecutionContext* execution_context,
     const MediaKeySystemAccess* key_system_access) {
   // TODO(1105258): GpuFactories isn't available in worker scope yet.
-  if (!execution_context || execution_context->IsWorkerGlobalScope()) {
+  if (!execution_context || execution_context->IsWorkerGlobalScope())
     return false;
-  }
 
   // TODO(1105258): Decoding w/ EME often means we can't use the GPU accelerated
   // path. Add additional logic to detect when GPU acceleration is really
   // available.
-  if (key_system_access) {
+  if (key_system_access)
     return false;
-  }
 
   return base::FeatureList::IsEnabled(
       media::kMediaCapabilitiesQueryGpuFactories);
@@ -236,9 +235,8 @@ class MediaCapabilitiesKeySystemAccessInitializer final
       std::unique_ptr<WebContentDecryptionModuleAccess> access) override {
     DVLOG(3) << __func__;
 
-    if (!IsExecutionContextValid()) {
+    if (!IsExecutionContextValid())
       return;
-    }
 
     // Query the client for smoothness and power efficiency of the video. It
     // will resolve the promise.
@@ -250,9 +248,8 @@ class MediaCapabilitiesKeySystemAccessInitializer final
   void RequestNotSupported(const WebString& error_message) override {
     DVLOG(3) << __func__ << " error: " << error_message.Ascii();
 
-    if (!IsExecutionContextValid()) {
+    if (!IsExecutionContextValid())
       return;
-    }
 
     MediaCapabilitiesDecodingInfo* info =
         CreateEncryptedDecodingInfoWith(false, nullptr);
@@ -277,32 +274,27 @@ bool IsValidMimeType(const String& content_type,
                      bool is_webrtc) {
   ParsedContentType parsed_content_type(content_type);
 
-  if (!parsed_content_type.IsValid()) {
+  if (!parsed_content_type.IsValid())
     return false;
-  }
 
   // Valid ParsedContentType implies we have a mime type.
   DCHECK(parsed_content_type.MimeType());
   if (!parsed_content_type.MimeType().StartsWith(prefix) &&
-      (is_webrtc || !parsed_content_type.MimeType().StartsWith(
-                        kApplicationMimeTypePrefix))) {
+      (is_webrtc ||
+       !parsed_content_type.MimeType().StartsWith(kApplicationMimeTypePrefix)))
     return false;
-  }
 
   // No requirement on parameters for RTP MIME types.
-  if (is_webrtc) {
+  if (is_webrtc)
     return true;
-  }
 
   const auto& parameters = parsed_content_type.GetParameters();
 
-  if (parameters.ParameterCount() > 1) {
+  if (parameters.ParameterCount() > 1)
     return false;
-  }
 
-  if (parameters.ParameterCount() == 0) {
+  if (parameters.ParameterCount() == 0)
     return true;
-  }
 
   return EqualIgnoringASCIICase(parameters.begin()->name, kCodecsMimeTypeParam);
 }
@@ -316,23 +308,19 @@ bool IsValidVideoConfiguration(const VideoConfiguration* configuration,
                                bool is_webrtc) {
   DCHECK(configuration->hasContentType());
   if (!IsValidMimeType(configuration->contentType(), kVideoMimeTypePrefix,
-                       is_webrtc)) {
+                       is_webrtc))
     return false;
-  }
 
   DCHECK(configuration->hasFramerate());
-  if (!IsValidFrameRate(configuration->framerate())) {
+  if (!IsValidFrameRate(configuration->framerate()))
     return false;
-  }
 
   // scalabilityMode only valid for WebRTC encode configuration.
-  if ((!is_webrtc || is_decode) && configuration->hasScalabilityMode()) {
+  if ((!is_webrtc || is_decode) && configuration->hasScalabilityMode())
     return false;
-  }
   // spatialScalability only valid for WebRTC decode configuration.
-  if ((!is_webrtc || !is_decode) && configuration->hasSpatialScalability()) {
+  if ((!is_webrtc || !is_decode) && configuration->hasSpatialScalability())
     return false;
-  }
 
   return true;
 }
@@ -342,9 +330,8 @@ bool IsValidAudioConfiguration(const AudioConfiguration* configuration,
   DCHECK(configuration->hasContentType());
 
   if (!IsValidMimeType(configuration->contentType(), kAudioMimeTypePrefix,
-                       is_webrtc)) {
+                       is_webrtc))
     return false;
-  }
 
   return true;
 }
@@ -448,13 +435,11 @@ WebAudioConfiguration ToWebAudioConfiguration(
                                    ? WebString(configuration->channels())
                                    : WebString();
 
-  if (configuration->hasBitrate()) {
+  if (configuration->hasBitrate())
     web_configuration.bitrate = configuration->bitrate();
-  }
 
-  if (configuration->hasSamplerate()) {
+  if (configuration->hasSamplerate())
     web_configuration.samplerate = configuration->samplerate();
-  }
 
   return web_configuration;
 }
@@ -557,9 +542,8 @@ bool CheckMseSupport(const String& mime_type, const String& codec) {
   base::span<const std::string> codecs;
 
   const std::string codec_ascii = codec.Ascii();
-  if (!codec.Ascii().empty()) {
+  if (!codec.Ascii().empty())
     codecs = base::span_from_ref(codec_ascii);
-  }
 
   if (media::SupportsType::kSupported !=
       media::StreamParserFactory::IsTypeSupported(mime_type.Ascii(), codecs)) {
@@ -707,9 +691,8 @@ bool IsAudioConfigurationSupported(
                                    &is_audio_codec_ambiguous, &audio_codec);
   DCHECK(parsed && !is_audio_codec_ambiguous);
 
-  if (audio_config->hasSpatialRendering()) {
+  if (audio_config->hasSpatialRendering())
     is_spatial_rendering = audio_config->spatialRendering();
-  }
 
   return media::IsDecoderSupportedAudioType(
       {audio_codec, audio_profile, is_spatial_rendering});
@@ -1197,8 +1180,8 @@ ScriptPromise<MediaCapabilitiesInfo> MediaCapabilities::encodingInfo(
           task_runner, KeyFrameRequestProcessor::Configuration())) {
     task_runner->PostTask(
         FROM_HERE,
-        WTF::BindOnce(&MediaRecorderHandler::EncodingInfo,
-                      WrapPersistent(handler), ToWebMediaConfiguration(config),
+        WTF::BindOnce(&MediaRecorderHandler::EncodingInfo, WrapPersistent(handler),
+                      ToWebMediaConfiguration(config),
                       WTF::BindOnce(&OnMediaCapabilitiesEncodingInfo,
                                     WrapPersistent(resolver))));
 
@@ -1217,16 +1200,14 @@ bool MediaCapabilities::EnsureLearningPredictors(
   DCHECK(execution_context && !execution_context->IsContextDestroyed());
 
   // One or both of these will have been bound in an earlier pass.
-  if (bad_window_predictor_.is_bound() || nnr_predictor_.is_bound()) {
+  if (bad_window_predictor_.is_bound() || nnr_predictor_.is_bound())
     return true;
-  }
 
   // MediaMetricsProvider currently only exposed via render frame.
   // TODO(chcunningham): Expose in worker contexts pending outcome of
   // media-learning experiments.
-  if (execution_context->IsWorkerGlobalScope()) {
+  if (execution_context->IsWorkerGlobalScope())
     return false;
-  }
 
   scoped_refptr<base::SingleThreadTaskRunner> task_runner =
       execution_context->GetTaskRunner(TaskType::kMediaElementEvent);
@@ -1235,9 +1216,8 @@ bool MediaCapabilities::EnsureLearningPredictors(
   execution_context->GetBrowserInterfaceBroker().GetInterface(
       metrics_provider.BindNewPipeAndPassReceiver(task_runner));
 
-  if (!metrics_provider) {
+  if (!metrics_provider)
     return false;
-  }
 
   if (GetLearningBadWindowThreshold() != -1.0) {
     DCHECK_GE(GetLearningBadWindowThreshold(), 0);
@@ -1258,13 +1238,11 @@ bool MediaCapabilities::EnsureLearningPredictors(
 
 bool MediaCapabilities::EnsurePerfHistoryService(
     ExecutionContext* execution_context) {
-  if (decode_history_service_.is_bound()) {
+  if (decode_history_service_.is_bound())
     return true;
-  }
 
-  if (!execution_context) {
+  if (!execution_context)
     return false;
-  }
 
   scoped_refptr<base::SingleThreadTaskRunner> task_runner =
       execution_context->GetTaskRunner(TaskType::kMediaElementEvent);
@@ -1276,13 +1254,11 @@ bool MediaCapabilities::EnsurePerfHistoryService(
 
 bool MediaCapabilities::EnsureWebrtcPerfHistoryService(
     ExecutionContext* execution_context) {
-  if (webrtc_history_service_.is_bound()) {
+  if (webrtc_history_service_.is_bound())
     return true;
-  }
 
-  if (!execution_context) {
+  if (!execution_context)
     return false;
-  }
 
   scoped_refptr<base::SingleThreadTaskRunner> task_runner =
       execution_context->GetTaskRunner(TaskType::kMediaElementEvent);
@@ -1378,9 +1354,8 @@ ScriptPromise<MediaCapabilitiesDecodingInfo> MediaCapabilities::GetEmeSupport(
 
   // Set the sessionTypes attribute to
   // config.keySystemConfiguration.sessionTypes.
-  if (key_system_config->hasSessionTypes()) {
+  if (key_system_config->hasSessionTypes())
     eme_config->setSessionTypes(key_system_config->sessionTypes());
-  }
 
   // If an audio is present in config...
   if (configuration->hasAudio()) {
@@ -1392,9 +1367,8 @@ ScriptPromise<MediaCapabilitiesDecodingInfo> MediaCapabilities::GetEmeSupport(
     audio_capability->setContentType(configuration->audio()->contentType());
     // If config.keySystemConfiguration.audio is present, set the robustness
     // attribute to config.keySystemConfiguration.audio.robustness.
-    if (key_system_config->hasAudio()) {
+    if (key_system_config->hasAudio())
       audio_capability->setRobustness(key_system_config->audio()->robustness());
-    }
 
     eme_config->setAudioCapabilities(
         HeapVector<Member<MediaKeySystemMediaCapability>>(1, audio_capability));
@@ -1410,9 +1384,8 @@ ScriptPromise<MediaCapabilitiesDecodingInfo> MediaCapabilities::GetEmeSupport(
     video_capability->setContentType(configuration->video()->contentType());
     // If config.keySystemConfiguration.video is present, set the robustness
     // attribute to config.keySystemConfiguration.video.robustness.
-    if (key_system_config->hasVideo()) {
+    if (key_system_config->hasVideo())
       video_capability->setRobustness(key_system_config->video()->robustness());
-    }
 
     eme_config->setVideoCapabilities(
         HeapVector<Member<MediaKeySystemMediaCapability>>(1, video_capability));
@@ -1451,9 +1424,8 @@ void MediaCapabilities::GetPerfInfo(
     ScriptPromiseResolver<MediaCapabilitiesDecodingInfo>* resolver,
     MediaKeySystemAccess* access) {
   ExecutionContext* execution_context = resolver->GetExecutionContext();
-  if (!execution_context || execution_context->IsContextDestroyed()) {
+  if (!execution_context || execution_context->IsContextDestroyed())
     return;
-  }
 
   if (!decoding_config->hasVideo()) {
     // Audio-only is always smooth and power efficient.
@@ -1623,22 +1595,19 @@ void MediaCapabilities::ResolveCallbackIfReady(int callback_id) {
   ExecutionContext* execution_context =
       pending_cb_map_.at(callback_id)->resolver->GetExecutionContext();
 
-  if (!pending_cb->db_is_power_efficient.has_value()) {
+  if (!pending_cb->db_is_power_efficient.has_value())
     return;
-  }
 
   // Both db_* fields should be set simultaneously by the DB callback.
   DCHECK(pending_cb->db_is_smooth.has_value());
 
   if (nnr_predictor_.is_bound() &&
-      !pending_cb->is_nnr_prediction_smooth.has_value()) {
+      !pending_cb->is_nnr_prediction_smooth.has_value())
     return;
-  }
 
   if (bad_window_predictor_.is_bound() &&
-      !pending_cb->is_bad_window_prediction_smooth.has_value()) {
+      !pending_cb->is_bad_window_prediction_smooth.has_value())
     return;
-  }
 
   if (UseGpuFactoriesForPowerEfficient(execution_context,
                                        pending_cb->key_system_access) &&
