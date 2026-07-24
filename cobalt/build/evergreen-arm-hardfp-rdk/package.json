@@ -18,7 +18,6 @@
                 "app/crash_sandbox/lib/libcrash_sandbox.lz4",
                 "app/noop_sandbox/lib/libnoop_sandbox.lz4",
                 "app/one_app_only_sandbox/lib/libone_app_only_sandbox.lz4",
-                "loader_app",
                 "libloader_app.so",
                 "native_target/crashpad_handler",
                 {
