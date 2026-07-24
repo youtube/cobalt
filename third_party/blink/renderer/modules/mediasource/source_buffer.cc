@@ -1073,6 +1073,17 @@ void SourceBuffer::ChangeType_Locked(
   DCHECK(!updating_);
   source_->AssertAttachmentsMutexHeldIfCrossThreadForDebugging();
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (!MediaSource::IsTypeSupportedInternal(
+          GetExecutionContext(), type,
+          false /* allow underspecified codecs in |type| */) ||
+      !web_source_buffer_->CanChangeType(type)) {
+    MediaSource::LogAndThrowDOMException(
+        *exception_state, DOMExceptionCode::kNotSupportedError,
+        "Changing to the type provided ('" + type + "') is not supported.");
+    return;
+  }
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
   // 4. If type contains a MIME type that is not supported or contains a MIME
   //    type that is not supported with the types specified (currently or
   //    previously) of SourceBuffer objects in the sourceBuffers attribute of
@@ -1093,6 +1104,7 @@ void SourceBuffer::ChangeType_Locked(
         "Changing to the type provided ('" + type + "') is not supported.");
     return;
   }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // 5. If the readyState attribute of the parent media source is in the "ended"
   //    state then run the following steps:
@@ -1108,7 +1120,11 @@ void SourceBuffer::ChangeType_Locked(
   //    value in the "Generate Timestamps Flag" column of the byte stream format
   //    registry entry that is associated with type.
   // This call also updates the pipeline to switch bytestream parser and codecs.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  web_source_buffer_->ChangeType(type);
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
   web_source_buffer_->ChangeType(content_type.GetType(), codecs);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // 8. If the generate timestamps flag equals true: Set the mode attribute on
   //    this SourceBuffer object to "sequence", including running the associated

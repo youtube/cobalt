@@ -153,6 +153,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   void CreatePlayerBridge();
   void ApplyPendingBounds();
   void UpdateDecoderConfig(DemuxerStream* stream);
+  void ApplyPendingAudioConfig();
+  void ApplyPendingVideoConfig();
   void OnDemuxerStreamRead(DemuxerStream* stream,
                            int max_buffers,
                            DemuxerStream::Status status,
@@ -230,6 +232,15 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   OverlayInfo overlay_info_;
 
   std::optional<gfx::Rect> output_rect_;
+
+  // Stored video/audio configs to store the new config from a
+  // SourceBuffer.changeType() call. Configs from changeType() are not applied
+  // to StarboardRenderer when DemuxerStream::kConfigChanged occurs, but when
+  // the first sample of the updated player config is applied. We do this to
+  // prevent in-flight samples from being written with the incorrect decoder
+  // configuration.
+  std::optional<AudioDecoderConfig> pending_audio_config_;
+  std::optional<VideoDecoderConfig> pending_video_config_;
 
   // Temporary callback used for Initialize().
   PipelineStatusCallback init_cb_;
