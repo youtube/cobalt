@@ -74,6 +74,9 @@ class AudioInputStreamStarboard : public AgcAudioStream<AudioInputStream> {
   bool closing_ = false;
   std::unique_ptr<AudioBus> audio_bus_;
   std::vector<int16_t> buffer_;
+
+  int total_frames_read_{0};
+  base::TimeTicks last_rate_log_time_;
 };
 
 }  // namespace media

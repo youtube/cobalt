@@ -52,7 +52,10 @@ AudioInputStream::OpenOutcome AudioInputStreamStarboard::Open() {
 
   LOG(INFO) << "AudioInputStreamStarboard::Open() - Creating mic with rate="
             << params_.sample_rate() << ", channels=" << params_.channels()
-            << ", buffer_size=" << buffer_size_bytes;
+            << ", buffer_size=" << buffer_size_bytes
+            << ", frames_per_buffer=" << params_.frames_per_buffer();
+  SB_LOG(INFO) << "KJ: Browser Process - Open with: "
+               << params_.AsHumanReadableString();
   microphone_ =
       SbMicrophoneCreate(info.id, params_.sample_rate(), buffer_size_bytes);
 
@@ -178,6 +181,23 @@ void AudioInputStreamStarboard::ReadAudio() {
 
     audio_bus_->FromInterleaved<SignedInt16SampleTypeTraits>(buffer_.data(),
                                                              frames_read);
+
+    total_frames_read_ += frames_read;
+    base::TimeTicks now = base::TimeTicks::Now();
+    if (last_rate_log_time_.is_null()) {
+      last_rate_log_time_ = now;
+    }
+    base::TimeDelta elapsed = now - last_rate_log_time_;
+    if (elapsed >= base::Seconds(1)) {
+      double rate = total_frames_read_ / elapsed.InSecondsF();
+      LOG(INFO) << "KJ: Browser Process - Consumption Rate: rate=" << rate
+                << ", target=" << params_.sample_rate();
+      total_frames_read_ = 0;
+      last_rate_log_time_ = now;
+    }
+    LOG(INFO) << "KJ: Browser Process: Pushing data: frames="
+              << audio_bus_->frames() << ", rate=" << params_.sample_rate()
+              << ", ts=" << now;
 
     callback_->OnData(audio_bus_.get(), base::TimeTicks::Now(), 1.0, {});
 
