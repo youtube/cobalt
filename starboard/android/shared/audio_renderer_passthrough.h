@@ -34,6 +34,7 @@
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
+#include "starboard/shared/starboard/player/filter/passthrough_time_tracker.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/job_thread.h"
@@ -148,6 +149,9 @@ class AudioRendererPassthrough : public AudioRenderer,
   // invalidated.
   std::unique_ptr<AudioTrackBridge> audio_track_bridge_;
   std::unique_ptr<JobThread> audio_track_thread_;
+
+  ::starboard::shared::starboard::player::filter::PassthroughTimeTracker
+      time_tracker_;
 };
 
 }  // namespace starboard

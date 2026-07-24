@@ -396,10 +396,10 @@ vector<vector<const char*>> GetSupportedTests() {
   return test_params;
 }
 
-INSTANTIATE_TEST_CASE_P(AdaptiveAudioDecoderTests,
-                        AdaptiveAudioDecoderTest,
-                        Combine(ValuesIn(GetSupportedTests()), Bool()),
-                        GetAdaptiveAudioDecoderTestConfigName);
+INSTANTIATE_TEST_SUITE_P(AdaptiveAudioDecoderTests,
+                         AdaptiveAudioDecoderTest,
+                         Combine(ValuesIn(GetSupportedTests()), Bool()),
+                         GetAdaptiveAudioDecoderTestConfigName);
 
 }  // namespace
 
