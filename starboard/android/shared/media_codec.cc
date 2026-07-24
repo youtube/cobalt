@@ -14,8 +14,6 @@
 
 #include "starboard/android/shared/media_codec.h"
 
-#include <android/api-level.h>
-
 #include <memory>
 #include <optional>
 #include <string>
@@ -55,7 +53,7 @@ bool CanUseNdkMediaCodec(
     return false;
   }
   // NDK AMediaCodec requires API level >= 28.
-  if (android_get_device_api_level() < 28) {
+  if (GetDeviceApiLevel() < kAndroidApiLevelPie) {
     return false;
   }
 
@@ -172,7 +170,7 @@ NonNullResult<std::unique_ptr<MediaCodec>> MediaCodec::CreateVideoMediaCodec(
 
 // static
 bool MediaCodec::IsFrameRenderedCallbackEnabled() {
-  return android_get_device_api_level() >= 34;
+  return GetDeviceApiLevel() >= kAndroidApiLevelU;
 }
 
 FrameSize::FrameSize() : FrameSize(Size(), /*has_crop_values=*/false) {}
