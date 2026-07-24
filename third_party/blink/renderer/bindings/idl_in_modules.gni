@@ -1337,6 +1337,16 @@ if (is_cobalt) {
             "abspath")
   }
 
+  _filtered_mediarecorder_idl = filter_exclude(
+          static_idl_files_in_modules,
+          [
+            "//third_party/blink/renderer/modules/mediarecorder/blob_event.idl",
+            "//third_party/blink/renderer/modules/mediarecorder/blob_event_init.idl",
+            "//third_party/blink/renderer/modules/mediarecorder/media_recorder.idl",
+          ])
+  static_idl_files_in_modules = []
+  static_idl_files_in_modules = _filtered_mediarecorder_idl
+
   if (enable_in_app_dial) {
     static_idl_files_in_modules += get_path_info(
             [

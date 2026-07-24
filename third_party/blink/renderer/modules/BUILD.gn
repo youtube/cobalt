@@ -188,6 +188,7 @@ component("modules") {
 
   if (is_cobalt) {
     sub_modules -= [
+      "//third_party/blink/renderer/modules/mediarecorder",
       "//third_party/blink/renderer/modules/ml",
       "//third_party/blink/renderer/modules/webgpu",
       "//third_party/blink/renderer/modules/xr",
@@ -219,7 +220,8 @@ component("modules") {
     }
 
     if (enable_native_on_screen_keyboard) {
-      sub_modules += [ "//third_party/blink/renderer/modules/cobalt/on_screen_keyboard" ]
+      sub_modules +=
+          [ "//third_party/blink/renderer/modules/cobalt/on_screen_keyboard" ]
     }
 
     if (enable_in_app_dial) {
@@ -760,6 +762,7 @@ source_set("unit_tests") {
   }
 
   if (is_cobalt) {
+    sources -= filter_include(sources, [ "mediarecorder/*" ])
     sources += [
       "cobalt/h5vcc_accessibility/h_5_vcc_accessibility_test.cc",
       "cobalt/h5vcc_experiments/experiments_utils_test.cc",
