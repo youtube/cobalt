@@ -62,7 +62,9 @@
 #include "content/web_test/browser/web_test_fedcm_manager.h"
 #include "content/web_test/browser/web_test_origin_trial_throttle.h"
 #include "content/web_test/browser/web_test_permission_manager.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/web_test/browser/web_test_privacy_sandbox.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/web_test/browser/web_test_sensor_provider_manager.h"
 #include "content/web_test/browser/web_test_storage_access_manager.h"
 #include "content/web_test/browser/web_test_tts_platform.h"
@@ -591,9 +593,11 @@ void WebTestContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
   map->Add<blink::test::mojom::WebSensorProviderAutomation>(base::BindRepeating(
       &WebTestContentBrowserClient::BindWebSensorProviderAutomation,
       base::Unretained(this)));
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   map->Add<blink::test::mojom::WebPrivacySandboxAutomation>(base::BindRepeating(
       &WebTestContentBrowserClient::BindWebPrivacySandboxAutomation,
       base::Unretained(this)));
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 #if BUILDFLAG(ENABLE_COMPUTE_PRESSURE)
   map->Add<blink::test::mojom::WebPressureManagerAutomation>(
@@ -695,9 +699,11 @@ void WebTestContentBrowserClient::BindWebPrivacySandboxAutomation(
     RenderFrameHost* render_frame_host,
     mojo::PendingReceiver<blink::test::mojom::WebPrivacySandboxAutomation>
         receiver) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   WebTestPrivacySandbox::GetOrCreate(
       WebContents::FromRenderFrameHost(render_frame_host))
       ->Bind(std::move(receiver));
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 #if BUILDFLAG(ENABLE_COMPUTE_PRESSURE)
