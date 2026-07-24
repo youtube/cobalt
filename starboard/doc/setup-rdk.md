@@ -242,7 +242,7 @@ Then, on the target device, run the commands interactively.
 **Important:** You must execute the `setup-cobalt-env.sh` script before running Cobalt each new `ssh` session.
 
 ```bash
-source /home/root/setup-cobalt-env.sh; /data/out_cobalt/loader_app --content=/data/out_cobalt --url="https://www.youtube.com/tv"
+source /home/root/setup-cobalt-env.sh; /data/out_cobalt/loader_app --url="https://www.youtube.com/tv"
 ```
 
 ## 4. Additional Information
