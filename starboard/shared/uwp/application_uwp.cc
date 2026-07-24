@@ -59,6 +59,10 @@
 #include "starboard/shared/win32/wchar_utils.h"
 #include "starboard/system.h"
 
+#if SB_SOCKET_LOG_HANDLER_ENABLED
+#include "starboard/common/socket_log_handler.h"
+#endif  // SB_SOCKET_LOG_HANDLER_ENABLED
+
 namespace starboard {
 
 using Microsoft::WRL::ComPtr;
@@ -393,6 +397,16 @@ ref class App sealed : public IFrameworkView {
     display_request = dr.Detach();
 
     SbAudioSinkPrivate::Initialize();
+
+#if SB_SOCKET_LOG_HANDLER_ENABLED
+    // Initialize socket log handler to stream SB_LOG logs to remote server
+    starboard::SocketLogHandler::GetInstance()->Start(SB_SOCKET_LOG_HANDLER_HOSTNAME,
+                                                  SB_SOCKET_LOG_HANDLER_PORT);
+    SB_LOG(INFO) << "Socket log handler initialized and streaming logs to "
+                 << SB_SOCKET_LOG_HANDLER_HOSTNAME << ":"
+                 << SB_SOCKET_LOG_HANDLER_PORT;
+#endif  // SB_SOCKET_LOG_HANDLER_ENABLED
+
     Windows::Networking::Connectivity::NetworkInformation::
         NetworkStatusChanged += ref new Windows::Networking::Connectivity::
             NetworkStatusChangedEventHandler(this,
@@ -432,6 +446,12 @@ ref class App sealed : public IFrameworkView {
 #endif  // SB_API_VERSION >= 15
   }
   virtual void Uninitialize() {
+#if SB_SOCKET_LOG_HANDLER_ENABLED
+    // Stop socket log handler before teardown
+    SB_LOG(INFO) << "Stopping socket log handler";
+    starboard::SocketLogHandler::GetInstance()->Stop();
+#endif  // SB_SOCKET_LOG_HANDLER_ENABLED
+
     SbAudioSinkPrivate::TearDown();
     display_request->Release();
     display_request = nullptr;

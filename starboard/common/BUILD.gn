@@ -93,6 +93,15 @@ static_library("common") {
   ]
 }
 
+static_library("socket_log_handler") {
+  sources = [
+    "socket_log_handler.cc",
+    "socket_log_handler.h",
+  ]
+
+  deps = [ ":common" ]
+}
+
 target(gtest_target_type, "common_test") {
   testonly = true
   sources = [
