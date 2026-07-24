@@ -29,10 +29,13 @@
 #include "base/trace_event/trace_event.h"
 #include "components/browsing_data/core/cookie_or_cache_deletion_choice.h"
 #include "components/fingerprinting_protection_filter/interventions/common/interventions_features.h"
+#include "build/buildflag.h"
 #include "content/browser/browser_context_impl.h"
 #include "content/browser/browsing_data/browsing_data_filter_builder_impl.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/btm/btm_service_impl.h"
 #include "content/browser/btm/btm_utils.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/fingerprinting_protection/canvas_noise_token_data.h"
 #include "content/browser/preloading/prefetch/prefetch_features.h"
 #include "content/browser/preloading/prefetch/prefetch_service.h"
@@ -732,6 +735,7 @@ void BrowsingDataRemoverImpl::RemoveImpl(
     }
   }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // Different types of BTM events are cleared for DATA_TYPE_HISTORY and
   // DATA_TYPE_COOKIES.
   BtmEventRemovalType btm_mask = BtmEventRemovalType::kNone;
@@ -751,6 +755,7 @@ void BrowsingDataRemoverImpl::RemoveImpl(
                                 btm_mask);
     }
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   //////////////////////////////////////////////////////////////////////////////
   // Regenerate CanvasNoiseToken:

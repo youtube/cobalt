@@ -3779,6 +3779,8 @@ source_set("browser") {
                                          "aggregation_service/*",
                                          "fenced_frame/*",
                                          "webid/*",
+                                         "btm/*",
+                                         "tpcd_heuristics/*",
                                          "in_memory_federated_permission_context.*",
                                          "devtools/protocol/fedcm_handler.*",
                                          "devtools/auction_worklet_devtools_agent_host.*",

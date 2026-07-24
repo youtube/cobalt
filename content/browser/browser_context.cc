@@ -390,7 +390,11 @@ ResourceContext* BrowserContext::GetResourceContext() const {
 
 void BrowserContext::BackfillPopupHeuristicGrants(
     base::OnceCallback<void(bool)> callback) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   return impl_->BackfillPopupHeuristicGrants(std::move(callback));
+#else
+  std::move(callback).Run(false);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 base::WeakPtr<BrowserContext> BrowserContext::GetWeakPtr() {

@@ -18,7 +18,9 @@
 #include "components/content_settings/core/common/features.h"
 #include "content/browser/background_sync/background_sync_scheduler.h"
 #include "content/browser/browsing_data/browsing_data_remover_impl.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/btm/btm_service_impl.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/download/download_manager_impl.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/in_memory_federated_permission_context.h"
@@ -79,6 +81,7 @@ BrowserContextImpl* BrowserContextImpl::From(BrowserContext* self) {
   return self->impl();
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 void BrowserContextImpl::MaybeCleanupBtm() {
   base::ScopedClosureRunner quit_runner(btm_cleanup_loop_.QuitClosure());
   // Don't attempt to delete the database if the BTM feature is enabled; we need
@@ -108,12 +111,14 @@ void BrowserContextImpl::MaybeCleanupBtm() {
 void BrowserContextImpl::WaitForBtmCleanupForTesting() {
   btm_cleanup_loop_.Run();
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 BrowserContextImpl::BrowserContextImpl(BrowserContext* self) : self_(self) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   background_sync_scheduler_ = base::MakeRefCounted<BackgroundSyncScheduler>();
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // Run MaybeCleanupBtm() very soon. We can't call it right now because it
   // calls a virtual function (BrowserContext::IsOffTheRecord()), which causes
   // undefined behavior since we're called by the BrowserContext constructor
@@ -121,6 +126,7 @@ BrowserContextImpl::BrowserContextImpl(BrowserContext* self) : self_(self) {
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&BrowserContextImpl::MaybeCleanupBtm,
                                 weak_factory_.GetWeakPtr()));
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 BrowserContextImpl::~BrowserContextImpl() {
@@ -295,10 +301,12 @@ void BrowserContextImpl::ShutdownStoragePartitions() {
 
   storage_partition_map_.reset();
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // Delete the BtmService, causing its SQLite database file to be closed. This
   // is necessary for TestBrowserContext to be able to delete its temporary
   // directory.
   btm_service_.reset();
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 DownloadManager* BrowserContextImpl::GetDownloadManager() {
@@ -402,6 +410,7 @@ void BrowserContextImpl::WriteIntoTrace(
   proto->set_id(UniqueId());
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 namespace {
 bool ShouldEnableBtm(BrowserContext* browser_context) {
   if (!base::FeatureList::IsEnabled(features::kBtm)) {
@@ -485,4 +494,5 @@ void BrowserContextImpl::BackfillPopupHeuristicGrants(
       .Then(base::BindOnce(&CreatePopupHeuristicGrants, self_->GetWeakPtr(),
                            std::move(callback)));
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }  // namespace content

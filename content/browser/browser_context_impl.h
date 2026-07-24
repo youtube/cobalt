@@ -14,7 +14,9 @@
 #include "base/run_loop.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/btm/btm_service_impl.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/resource_context.h"
 #include "content/public/browser/shared_cors_origin_access_list.h"
@@ -122,6 +124,7 @@ class CONTENT_EXPORT BrowserContextImpl {
     return resource_context_.get();
   }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   BtmServiceImpl* GetBtmService();
   // If the BTM database file should be deleted, wait for it. Otherwise, return
   // immediately.
@@ -132,6 +135,7 @@ class CONTENT_EXPORT BrowserContextImpl {
 
   // (See BrowserContext::BackfillPopupHeuristicGrants().)
   void BackfillPopupHeuristicGrants(base::OnceCallback<void(bool)> callback);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
  private:
   // Creates the media service for storing/retrieving WebRTC encoding and
@@ -145,7 +149,9 @@ class CONTENT_EXPORT BrowserContextImpl {
   //
   // TODO: crbug.com/356624038 - delete this method when the BTM feature flag is
   // removed.
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   void MaybeCleanupBtm();
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   // BrowserContextImpl is owned and build from BrowserContext constructor.
   // TODO(crbug.com/40169693): Invert the dependency. Make BrowserContext
@@ -177,6 +183,7 @@ class CONTENT_EXPORT BrowserContextImpl {
   std::unique_ptr<media::VideoDecodePerfHistory> video_decode_perf_history_;
   std::unique_ptr<media::WebrtcVideoPerfHistory> webrtc_video_perf_history_;
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // Manages BTM for all WebContentses using this browser context.
   std::unique_ptr<BtmServiceImpl> btm_service_;
   // If BTM is disabled, any existing database file is asynchronously deleted
@@ -186,6 +193,7 @@ class CONTENT_EXPORT BrowserContextImpl {
   // TODO: crbug.com/356624038 - delete this when the BTM feature flag is
   // removed.
   base::RunLoop btm_cleanup_loop_;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   // TODO(crbug.com/40604019): Get rid of ResourceContext.
   // Created on the UI thread, otherwise lives on and is destroyed on the IO
