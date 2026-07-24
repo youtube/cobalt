@@ -5,6 +5,10 @@
 #include "third_party/blink/renderer/core/inspector/inspector_log_agent.h"
 
 #include "base/format_macros.h"
+#include "base/functional/bind.h"
+#include "base/logging.h"
+#include "base/synchronization/lock.h"
+#include "base/task/single_thread_task_runner.h"
 #include "third_party/blink/renderer/core/frame/performance_monitor.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
 #include "third_party/blink/renderer/core/inspector/console_message_storage.h"
@@ -13,11 +17,52 @@
 #include "third_party/blink/renderer/platform/bindings/script_forbidden_scope.h"
 #include "third_party/blink/renderer/platform/bindings/source_location.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
 
 namespace {
+
+base::Lock& GetAgentLock() {
+  static base::Lock* lock = new base::Lock();
+  return *lock;
+}
+
+using AgentVector =
+    std::vector<std::pair<InspectorLogAgent*,
+                          scoped_refptr<base::SingleThreadTaskRunner>>>;
+
+AgentVector& GetAgents() {
+  static AgentVector* agents = new AgentVector();
+  return *agents;
+}
+
+logging::LogMessageHandlerFunction g_previous_handler = nullptr;
+
+bool GlobalLogHandler(int severity, const char* file, int line,
+                      size_t message_start, const std::string& str) {
+  if (g_previous_handler &&
+      g_previous_handler(severity, file, line, message_start, str)) {
+    return true;
+  }
+
+  std::string message_str = str.substr(message_start);
+  if (!message_str.empty() && message_str.back() == '\n') {
+    message_str.pop_back();
+  }
+
+  base::AutoLock lock(GetAgentLock());
+  for (const auto& pair : GetAgents()) {
+    String blink_message = String::FromUTF8(message_str.c_str());
+    pair.second->PostTask(
+        FROM_HERE,
+        base::BindOnce(&InspectorLogAgent::LogFromBase,
+                       WrapWeakPersistent(pair.first), severity, blink_message));
+  }
+
+  return false;
+}
 
 String MessageSourceValue(mojom::blink::ConsoleMessageSource source) {
   DCHECK(source != mojom::blink::ConsoleMessageSource::kConsoleApi);
@@ -85,9 +130,26 @@ InspectorLogAgent::InspectorLogAgent(
       performance_monitor_(performance_monitor),
       v8_session_(v8_session),
       enabled_(&agent_state_, /*default_value=*/false),
-      violation_thresholds_(&agent_state_, -1.0) {}
+      violation_thresholds_(&agent_state_, -1.0) {
+  base::AutoLock lock(GetAgentLock());
+  if (GetAgents().empty()) {
+    g_previous_handler = logging::GetLogMessageHandler();
+    logging::SetLogMessageHandler(GlobalLogHandler);
+  }
+  GetAgents().emplace_back(this,
+                           base::SingleThreadTaskRunner::GetCurrentDefault());
+}
 
-InspectorLogAgent::~InspectorLogAgent() = default;
+InspectorLogAgent::~InspectorLogAgent() {
+  base::AutoLock lock(GetAgentLock());
+  AgentVector& agents = GetAgents();
+  for (auto it = agents.begin(); it != agents.end(); ++it) {
+    if (it->first == this) {
+      agents.erase(it);
+      break;
+    }
+  }
+}
 
 void InspectorLogAgent::Trace(Visitor* visitor) const {
   visitor->Trace(storage_);
@@ -282,6 +344,20 @@ void InspectorLogAgent::ReportGenericViolation(PerformanceMonitor::Violation,
       mojom::blink::ConsoleMessageSource::kViolation,
       mojom::blink::ConsoleMessageLevel::kVerbose, text, location->Clone());
   ConsoleMessageAdded(message);
+}
+
+void InspectorLogAgent::LogFromBase(int severity, const String& message) {
+  if (!enabled_.Get())
+    return;
+  auto level = mojom::blink::ConsoleMessageLevel::kInfo;
+  if (severity >= logging::LOGGING_ERROR)
+    level = mojom::blink::ConsoleMessageLevel::kError;
+  else if (severity >= logging::LOGGING_WARNING)
+    level = mojom::blink::ConsoleMessageLevel::kWarning;
+
+  auto* console_message = MakeGarbageCollected<ConsoleMessage>(
+      mojom::blink::ConsoleMessageSource::kOther, level, message);
+  ConsoleMessageAdded(console_message);
 }
 
 }  // namespace blink
