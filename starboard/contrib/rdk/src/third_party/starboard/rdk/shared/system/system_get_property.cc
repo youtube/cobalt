@@ -61,7 +61,7 @@ bool CopyStringAndTestIfSuccess(char* out_value,
   return true;
 }
 
-bool TryReadFromPropertiesFile(const char* prefix, size_t prefix_len, char* out_value, size_t value_length) {
+bool TryReadFromPropertiesFile(const char* prefix, size_t prefix_len, char* out_value, size_t value_length, bool upper_case = true) {
   FILE* properties = fopen("/etc/device.properties", "r");
   if (!properties) {
     return false;
@@ -79,10 +79,13 @@ bool TryReadFromPropertiesFile(const char* prefix, size_t prefix_len, char* out_
         // trim the newline character
         for(int i = remainder_length - 1; i >= 0 && !std::isalnum(remainder[i]); --i)
           remainder[i] = '\0';
-        std::transform(
-          remainder, remainder + remainder_length - 1, remainder,
-          [](unsigned char c) -> unsigned char { return toupper(c); } );
-        starboard::strlcpy<char>(out_value, remainder, remainder_length);
+        if (upper_case) {
+          std::transform(
+            // remainder_length ensures any line is correct, including last line without newline
+            remainder, remainder + remainder_length, remainder,
+            [](unsigned char c) -> unsigned char { return std::toupper(c); } );
+        }
+        starboard::strlcpy<char>(out_value, remainder, value_length);
         result = true;
         break;
       }
@@ -127,8 +130,8 @@ bool GetModelName(char* out_value, int value_length) {
   if (env && CopyStringAndTestIfSuccess(out_value, value_length, env))
     return true;
 
-  const char kPrefixStr[] = "MODEL_NUM=";
-  const size_t kPrefixStrLength = SB_ARRAY_SIZE(kPrefixStr) - 1;
+  static constexpr char kPrefixStr[] = "MODEL_NUM=";
+  static constexpr size_t kPrefixStrLength = SB_ARRAY_SIZE(kPrefixStr) - 1;
   if (TryReadFromPropertiesFile(kPrefixStr, kPrefixStrLength, out_value, value_length)) {
     if (AuthService::GetExperience(prop) && prop == "Flex") {
       starboard::strlcat<char>(out_value, prop.c_str(), value_length);
@@ -181,8 +184,8 @@ bool GetManufacturerName(char* out_value, int value_length) {
     if (env && CopyStringAndTestIfSuccess(out_value, value_length, env))
         return true;
 
-    const char kPrefixStr[] = "MANUFACTURE=";
-    const size_t kPrefixStrLength = SB_ARRAY_SIZE(kPrefixStr) - 1;
+    static constexpr char kPrefixStr[] = "MANUFACTURE=";
+    static constexpr size_t kPrefixStrLength = SB_ARRAY_SIZE(kPrefixStr) - 1;
     if (TryReadFromPropertiesFile(kPrefixStr, kPrefixStrLength, out_value, value_length))
         return true;
 #if defined(SB_PLATFORM_MANUFACTURER_NAME)
@@ -215,30 +218,40 @@ bool GetCertificationScope(char* out_value, int value_length) {
   if ( cert_scope_file_name == nullptr )
     cert_scope_file_name = "/opt/drm/0681000006810001.bin";
 
-  starboard::ScopedFile file(cert_scope_file_name, O_RDONLY);
-  if ( !file.IsValid() ) {
-    SB_LOG(INFO) << "Cannot open cert scope file '" << cert_scope_file_name << "'";
-    return false;
+  auto get_cert_from_file = [cert_scope_file_name, out_value, value_length]() {
+    ::starboard::ScopedFile file(cert_scope_file_name, O_RDONLY);
+    if (!file.IsValid()) {
+      SB_LOG(INFO) << "Cannot open cert scope file '" << cert_scope_file_name << "'";
+      return false;
+    }
+
+    auto sz = file.GetSize();
+    if ((sz < 0) || (sz + 1 > value_length)) {
+      SB_LOG(ERROR) << "Cannot read cert scope contents of size: " << sz
+                    << " from: '" << cert_scope_file_name << "'";
+      return false;
+    }
+
+    std::vector<char> buf;
+    buf.resize(sz + 1);
+    if (file.ReadAll(buf.data(), sz) != sz) {
+      SB_LOG(ERROR) << "Failed to read cert scope contents of size: " << sz
+                    << " from: '" << cert_scope_file_name << "'";
+      return false;
+    }
+    buf[sz] = 0;
+
+    SB_LOG(INFO) << "Device cert scope: '" << buf.data() << "'";
+    return CopyStringAndTestIfSuccess(out_value, value_length, buf.data()) && out_value[0] != '\0';
+  };
+
+  if (get_cert_from_file()) {
+    return true;
   }
 
-  auto sz = file.GetSize();
-  if ( (sz < 0) || (sz + 1 > value_length) ) {
-    SB_LOG(ERROR) << "Cannot read cert scope contents of size: " << sz
-                  << " from: '" << cert_scope_file_name << "'";
-    return false;
-  }
-
-  std::vector<char> buf;
-  buf.resize(sz + 1);
-  if ( file.ReadAll(buf.data(), sz) != sz ) {
-    SB_LOG(ERROR) << "Failed to read cert scope contents of size: " << sz
-                  << " from: '" << cert_scope_file_name << "'";
-    return false;
-  }
-  buf[sz] = 0;
-
-  SB_LOG(INFO) << "Device cert scope: '" << buf.data() << "'";
-  return starboard::strlcpy<char>(out_value, buf.data(), value_length);
+  static constexpr char kPrefixStr[] = "CERT_SCOPE=";
+  static constexpr size_t kPrefixStrLength = SB_ARRAY_SIZE(kPrefixStr) - 1;
+  return TryReadFromPropertiesFile(kPrefixStr, kPrefixStrLength, out_value, value_length, false) && out_value[0] != '\0';
 }
 
 bool GetLimitAdTracking(char* out_value, int value_length) {
