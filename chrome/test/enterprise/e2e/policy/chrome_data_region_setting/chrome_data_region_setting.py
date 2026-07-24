@@ -38,7 +38,7 @@ class ChromeDataRegionSettingTest(ChromeEnterpriseTestCase):
     # Enroll browser in OU with ChromeDataRegionSetting set to No Preference (0)
     path = "gs://%s/secrets/ChromeDataRegionSettingNoPref-enrollToken" % (
         self.gsbucket)
-    cmd = r'gsutil cat ' + path
+    cmd = r'gcloud storage cat ' + path
     token = self.RunCommand(self.win_config['dc'], cmd).rstrip().decode()
     self.SetPolicy('win2022-dc', r'CloudManagementEnrollmentToken', token,
                    'String')
@@ -63,7 +63,7 @@ class ChromeDataRegionSettingTest(ChromeEnterpriseTestCase):
     # Enroll browser in OU with ChromeDataRegionSetting set to Europe (2)
     path = "gs://%s/secrets/ChromeDataRegionSettingEurope-enrollToken" % (
         self.gsbucket)
-    cmd = r'gsutil cat ' + path
+    cmd = r'gcloud storage cat ' + path
     token = self.RunCommand(self.win_config['dc'], cmd).rstrip().decode()
     self.SetPolicy('win2022-dc', r'CloudManagementEnrollmentToken', token,
                    'String')
@@ -88,7 +88,7 @@ class ChromeDataRegionSettingTest(ChromeEnterpriseTestCase):
     # User belongs to an OU with ChromeDataRegionSetting set to No Preference (0)
     account = "account2@chromepizzatest.com"
     path = f"gs://{self.gsbucket}/secrets/account2-password"
-    cmd = r"gsutil cat " + path
+    cmd = r"gcloud storage cat " + path
     password = self.RunCommand(self.win_config["dc"], cmd).strip().decode()
 
     instance_name = "drz-user-nopref"
@@ -111,7 +111,7 @@ class ChromeDataRegionSettingTest(ChromeEnterpriseTestCase):
     # User belongs to an OU with ChromeDataRegionSetting set to Europe (2)
     account = "account1@chromepizzatest.com"
     path = f"gs://{self.gsbucket}/secrets/account1-password"
-    cmd = r"gsutil cat " + path
+    cmd = r"gcloud storage cat " + path
     password = self.RunCommand(self.win_config["dc"], cmd).strip().decode()
 
     instance_name = "drz-user-europe"
