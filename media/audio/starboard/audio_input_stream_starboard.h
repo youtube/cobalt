@@ -19,6 +19,7 @@
 #include "base/threading/thread.h"
 #include "media/audio/agc_audio_stream.h"
 #include "media/audio/audio_io.h"
+#include "media/base/audio_fifo.h"
 #include "media/base/audio_parameters.h"
 #include "starboard/microphone.h"
 
@@ -73,7 +74,10 @@ class AudioInputStreamStarboard : public AgcAudioStream<AudioInputStream> {
   SbMicrophone microphone_ = kSbMicrophoneInvalid;
   bool closing_ = false;
   std::unique_ptr<AudioBus> audio_bus_;
-  std::vector<int16_t> buffer_;
+  std::vector<int16_t> temp_buffer_;
+  int read_size_in_bytes_ = 0;
+  std::unique_ptr<AudioFifo> fifo_;
+  std::unique_ptr<AudioBus> temp_audio_bus_;
 };
 
 }  // namespace media
