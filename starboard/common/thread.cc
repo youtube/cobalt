@@ -156,6 +156,8 @@ void* Thread::ThreadEntryPoint(void* context) {
                        ? std::to_string(static_cast<int>(*this_ptr->priority_))
                        : "(default)");
 
+  ::base::memory::SetCurrentMemoryContext(this_ptr->memory_context_);
+
   this_ptr->Run();
 
   TerminateOnThread();
