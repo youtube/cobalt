@@ -34,11 +34,11 @@ provides links to crashes and coverage reports.
 ## Corpus
 
 Chromium developers can access the corpus stored in the [Corpus GCS Bucket] via
-web interface or by using `gsutil` tool (the latter is easier for downloading):
+web interface or by using `gcloud storage` tool (the latter is easier for downloading):
 
 ```bash
 mkdir local_corpus_dir
-gsutil -m cp -r gs://clusterfuzz-corpus/libfuzzer/<fuzz_target> local_corpus_dir
+gcloud storage cp --recursive gs://clusterfuzz-corpus/libfuzzer/<fuzz_target> local_corpus_dir
 ```
 
 [Buildbot]: https://ci.chromium.org/p/chromium/g/chromium.fuzz/builders
