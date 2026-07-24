@@ -666,6 +666,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   // and to store information conveyed in the corresponding responses.
   //
   // May return null if Trust Tokens support is disabled.
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   PendingTrustTokenStore* trust_token_store() {
     return trust_token_store_.get();
   }
@@ -673,6 +674,11 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
     return trust_token_store_.get();
   }
   bool are_trust_tokens_blocked() const { return block_trust_tokens_; }
+#else
+  PendingTrustTokenStore* trust_token_store() { return nullptr; }
+  const PendingTrustTokenStore* trust_token_store() const { return nullptr; }
+  bool are_trust_tokens_blocked() const { return true; }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   WebBundleManager& GetWebBundleManager() { return web_bundle_manager_; }
 
@@ -819,8 +825,10 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   // SQL-based) persistence layer, |FinishConstructingTrustTokenStore|
   // constructs and populates |trust_token_store_| once the persister's
   // asynchronous initialization has finished.
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   void FinishConstructingTrustTokenStore(
       std::unique_ptr<SQLiteTrustTokenPersister> persister);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   bool IsAllowedToUseAllHttpAuthSchemes(
       const url::SchemeHostPort& scheme_host_port);
@@ -904,6 +912,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   mojo::UniqueReceiverSet<mojom::ProxyResolvingSocketFactory>
       proxy_resolving_socket_factories_;
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   // See the comment for |trust_token_store()|.
   std::unique_ptr<PendingTrustTokenStore> trust_token_store_;
 
@@ -916,6 +925,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   // Whether the user is blocking Trust Tokens, value provided by the
   // PrivacySandboxSettings service.
   bool block_trust_tokens_ = false;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 #if BUILDFLAG(ENABLE_WEBSOCKETS)
   std::unique_ptr<WebSocketFactory> websocket_factory_;

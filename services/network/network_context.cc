@@ -132,6 +132,7 @@
 #include "services/network/public/cpp/simple_host_resolver.h"
 #include "services/network/public/mojom/clear_data_filter.mojom.h"
 #include "services/network/public/mojom/connection_change_observer_client.mojom-forward.h"
+#include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/cookie_encryption_provider.mojom.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/reporting_service.mojom.h"
@@ -150,14 +151,16 @@
 #include "services/network/throttling/network_conditions.h"
 #include "services/network/throttling/throttling_controller.h"
 #include "services/network/throttling/throttling_network_transaction_factory.h"
-#include "services/network/trust_tokens/expiry_inspecting_record_expiry_delegate.h"
-#include "services/network/trust_tokens/in_memory_trust_token_persister.h"
-#include "services/network/trust_tokens/pending_trust_token_store.h"
-#include "services/network/trust_tokens/sqlite_trust_token_persister.h"
-#include "services/network/trust_tokens/suitable_trust_token_origin.h"
-#include "services/network/trust_tokens/trust_token_parameterization.h"
-#include "services/network/trust_tokens/trust_token_query_answerer.h"
-#include "services/network/trust_tokens/trust_token_store.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#include "services/network/trust_tokens/expiry_inspecting_record_expiry_delegate.h"  // nogncheck
+#include "services/network/trust_tokens/in_memory_trust_token_persister.h"  // nogncheck
+#include "services/network/trust_tokens/pending_trust_token_store.h"  // nogncheck
+#include "services/network/trust_tokens/sqlite_trust_token_persister.h"  // nogncheck
+#include "services/network/trust_tokens/suitable_trust_token_origin.h"  // nogncheck
+#include "services/network/trust_tokens/trust_token_parameterization.h"  // nogncheck
+#include "services/network/trust_tokens/trust_token_query_answerer.h"  // nogncheck
+#include "services/network/trust_tokens/trust_token_store.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "services/network/url_loader.h"
 #include "services/network/url_request_context_builder_mojo.h"
 #include "services/network/web_transport.h"
@@ -1106,6 +1109,7 @@ void NetworkContext::OnComputedFirstPartySetMetadata(
 void NetworkContext::GetTrustTokenQueryAnswerer(
     mojo::PendingReceiver<mojom::TrustTokenQueryAnswerer> receiver,
     const url::Origin& top_frame_origin) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   // Only called when Trust Tokens is enabled, i.e. trust_token_store_ is
   // non-null.
   DCHECK(trust_token_store_);
@@ -1125,10 +1129,12 @@ void NetworkContext::GetTrustTokenQueryAnswerer(
       key_commitment_getter);
 
   trust_token_query_answerers_.Add(std::move(answerer), std::move(receiver));
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void NetworkContext::GetStoredTrustTokenCounts(
     GetStoredTrustTokenCountsCallback callback) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (trust_token_store_) {
     auto get_trust_token_counts_from_store =
         [](NetworkContext::GetStoredTrustTokenCountsCallback callback,
@@ -1143,35 +1149,35 @@ void NetworkContext::GetStoredTrustTokenCounts(
         };
     trust_token_store_->ExecuteOrEnqueue(
         base::BindOnce(get_trust_token_counts_from_store, std::move(callback)));
-  } else {
-    // The Trust Tokens feature is disabled, return immediately with an empty
-    // vector.
-    std::move(callback).Run({});
+    return;
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+  std::move(callback).Run({});
 }
 
 void NetworkContext::GetPrivateStateTokenRedemptionRecords(
     GetPrivateStateTokenRedemptionRecordsCallback callback) {
-  // The Trust Tokens feature is disabled, return immediately with an empty
-  // map.
-  if (!trust_token_store_) {
-    base::flat_map<url::Origin, std::vector<mojom::ToplevelRedemptionRecordPtr>>
-        empty_result;
-    std::move(callback).Run(std::move(empty_result));
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+  if (trust_token_store_) {
+    auto get_redemption_records_from_store =
+        [](NetworkContext::GetPrivateStateTokenRedemptionRecordsCallback callback,
+           TrustTokenStore* trust_token_store) {
+          std::move(callback).Run(trust_token_store->GetRedemptionRecords());
+        };
+    trust_token_store_->ExecuteOrEnqueue(
+        base::BindOnce(get_redemption_records_from_store, std::move(callback)));
     return;
   }
-  auto get_redemption_records_from_store =
-      [](NetworkContext::GetPrivateStateTokenRedemptionRecordsCallback callback,
-         TrustTokenStore* trust_token_store) {
-        std::move(callback).Run(trust_token_store->GetRedemptionRecords());
-      };
-  trust_token_store_->ExecuteOrEnqueue(
-      base::BindOnce(get_redemption_records_from_store, std::move(callback)));
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+  base::flat_map<url::Origin, std::vector<mojom::ToplevelRedemptionRecordPtr>>
+      empty_result;
+  std::move(callback).Run(std::move(empty_result));
 }
 
 void NetworkContext::DeleteStoredTrustTokens(
     const url::Origin& issuer,
     DeleteStoredTrustTokensCallback callback) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (!trust_token_store_) {
     std::move(callback).Run(
         mojom::DeleteStoredTrustTokensStatus::kFailureFeatureDisabled);
@@ -1197,10 +1203,16 @@ void NetworkContext::DeleteStoredTrustTokens(
         std::move(callback).Run(status);
       },
       std::move(*suitable_issuer_origin), std::move(callback)));
+#else
+  std::move(callback).Run(
+      mojom::DeleteStoredTrustTokensStatus::kFailureFeatureDisabled);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void NetworkContext::SetBlockTrustTokens(bool block) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   block_trust_tokens_ = block;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 void NetworkContext::SetTrackingProtectionContentSetting(
@@ -1285,41 +1297,46 @@ bool NetworkContext::SkipReportingPermissionCheck() const {
 
 void NetworkContext::ClearTrustTokenData(mojom::ClearDataFilterPtr filter,
                                          base::OnceClosure done) {
-  if (!trust_token_store_) {
-    std::move(done).Run();
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+  if (trust_token_store_) {
+    trust_token_store_->ExecuteOrEnqueue(base::BindOnce(
+        [](mojom::ClearDataFilterPtr filter, base::OnceClosure done,
+           TrustTokenStore* store) {
+          std::ignore = store->ClearDataForFilter(std::move(filter));
+          std::move(done).Run();
+        },
+        std::move(filter), std::move(done)));
     return;
   }
-  trust_token_store_->ExecuteOrEnqueue(base::BindOnce(
-      [](mojom::ClearDataFilterPtr filter, base::OnceClosure done,
-         TrustTokenStore* store) {
-        std::ignore = store->ClearDataForFilter(std::move(filter));
-        std::move(done).Run();
-      },
-      std::move(filter), std::move(done)));
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+  std::move(done).Run();
 }
 
 void NetworkContext::ClearTrustTokenSessionOnlyData(
     ClearTrustTokenSessionOnlyDataCallback callback) {
-  // Only called when Private State Tokens is enabled, i.e.,
-  // `trust_token_store_` is non-null.
-  DCHECK(trust_token_store_);
-  DCHECK(cookie_manager_);
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+  if (trust_token_store_) {
+    DCHECK(cookie_manager_);
 
-  DeleteCookiePredicate cookie_predicate =
-      cookie_manager_->cookie_settings().CreateDeleteCookieOnExitPredicate();
+    DeleteCookiePredicate cookie_predicate =
+        cookie_manager_->cookie_settings().CreateDeleteCookieOnExitPredicate();
 
-  auto store_predicate = base::BindRepeating(
-      [](DeleteCookiePredicate predicate, const std::string& origin) {
-        return predicate.Run(origin, net::CookieSourceScheme::kSecure);
-      },
-      std::move(cookie_predicate));
-  trust_token_store_->ExecuteOrEnqueue(base::BindOnce(
-      [](base::RepeatingCallback<bool(const std::string&)> pred,
-         ClearTrustTokenSessionOnlyDataCallback cb, TrustTokenStore* store) {
-        bool any_data_deleted = store->ClearDataForPredicate(std::move(pred));
-        std::move(cb).Run(any_data_deleted);
-      },
-      std::move(store_predicate), std::move(callback)));
+    auto store_predicate = base::BindRepeating(
+        [](DeleteCookiePredicate predicate, const std::string& origin) {
+          return predicate.Run(origin, net::CookieSourceScheme::kSecure);
+        },
+        std::move(cookie_predicate));
+    trust_token_store_->ExecuteOrEnqueue(base::BindOnce(
+        [](base::RepeatingCallback<bool(const std::string&)> pred,
+           ClearTrustTokenSessionOnlyDataCallback cb, TrustTokenStore* store) {
+          bool any_data_deleted = store->ClearDataForPredicate(std::move(pred));
+          std::move(cb).Run(any_data_deleted);
+        },
+        std::move(store_predicate), std::move(callback)));
+    return;
+  }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+  std::move(callback).Run(false);
 }
 
 void NetworkContext::ClearNetworkingHistoryBetween(
@@ -2688,6 +2705,7 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
     builder.set_network_quality_estimator(
         network_service_->network_quality_estimator());
   }
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   trust_token_store_ = std::make_unique<PendingTrustTokenStore>();
 
   base::FilePath trust_token_path;
@@ -2708,6 +2726,7 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
         std::make_unique<ExpiryInspectingRecordExpiryDelegate>(
             network_service()->trust_token_key_commitments())));
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   std::unique_ptr<net::StaticHttpUserAgentSettings> user_agent_settings =
       std::make_unique<net::StaticHttpUserAgentSettings>(
@@ -3251,6 +3270,7 @@ void NetworkContext::InitializeCorsParams() {
   acam_preflight_spec_conformant_ = params_->acam_preflight_spec_conformant;
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 void NetworkContext::FinishConstructingTrustTokenStore(
     std::unique_ptr<SQLiteTrustTokenPersister> persister) {
   trust_token_store_->OnStoreReady(std::make_unique<TrustTokenStore>(
@@ -3258,6 +3278,7 @@ void NetworkContext::FinishConstructingTrustTokenStore(
       std::make_unique<ExpiryInspectingRecordExpiryDelegate>(
           network_service()->trust_token_key_commitments())));
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 bool NetworkContext::IsAllowedToUseAllHttpAuthSchemes(
     const url::SchemeHostPort& scheme_host_port) {
