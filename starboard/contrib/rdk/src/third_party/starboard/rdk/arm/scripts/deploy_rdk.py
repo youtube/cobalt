@@ -316,25 +316,20 @@ def launch_on_device(
                 config = res["result"]
                 sb_args = config.get("sbmainargs", [])
                 
-                # Filter out any existing url, profiling and remote debugging arguments to prevent duplicates
-                blocked_flags = {
-                    "--remote-debugging-port",
-                    "--enable-heap-profiling",
-                    "--memlog",
-                    "--memlog-stack-mode",
-                    "--trace-startup",
-                    "--trace-startup-duration",
-                    "--trace-startup-format",
-                    "--trace-startup-file",
-                    "--url",
-                }
-                sb_args = [arg for arg in sb_args if arg.split("=", 1)[0] not in blocked_flags]
-                
+                new_args = []
                 if devtools:
-                    sb_args.append("--remote-debugging-port=9222")
-
+                    new_args.append("--remote-debugging-port=9222")
                 if param:
-                    sb_args.extend(param)
+                    new_args.extend(param)
+
+                # Filter out existing flags in sb_args whose key is being overridden by new_args
+                override_keys = {
+                    arg.split("=", 1)[0] for arg in new_args if arg.startswith("--")
+                }
+                sb_args = [
+                    arg for arg in sb_args if arg.split("=", 1)[0] not in override_keys
+                ]
+                sb_args.extend(new_args)
 
                 config["sbmainargs"] = sb_args
 
