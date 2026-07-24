@@ -45,11 +45,14 @@ jlong GetSystemNanoTime() {
 
 VideoRenderAlgorithmAndroid::VideoRenderAlgorithmAndroid(
     MediaCodecVideoDecoder* video_decoder,
-    VideoFrameTracker* frame_tracker)
+    VideoFrameTracker* frame_tracker,
+    bool ignore_stale_rendered_frames_after_seek)
     : video_decoder_(video_decoder),
       frame_tracker_(frame_tracker),
       release_frames_after_audio_starts_(features::FeatureList::IsEnabled(
-          features::kReleaseVideoFramesAfterAudioStarts)) {
+          features::kReleaseVideoFramesAfterAudioStarts)),
+      ignore_stale_rendered_frames_after_seek_(
+          ignore_stale_rendered_frames_after_seek) {
   SB_CHECK(video_decoder_);
   video_decoder_->SetPlaybackRate(playback_rate_);
 }
@@ -128,8 +131,19 @@ void VideoRenderAlgorithmAndroid::Render(
     early_us = (adjusted_release_time_ns - system_time_ns) / 1000;
 
     if (early_us < kBufferTooLateThreshold) {
-      frames->pop_front();
-      ++dropped_frames_;
+      if (ignore_stale_rendered_frames_after_seek_ && !first_frame_released_) {
+        // When IgnoreStaleRenderedFramesAfterSeek is enabled, force render
+        // the initial post-seek frame immediately instead of dropping it as
+        // too late due to initial preroll audio clock skew.
+        [[maybe_unused]] auto status =
+            draw_frame_cb(frames->front(), system_time_ns);
+        SB_DCHECK_EQ(status, VideoRendererSink::kReleased);
+        frames->pop_front();
+        first_frame_released_ = true;
+      } else {
+        frames->pop_front();
+        ++dropped_frames_;
+      }
     } else if (early_us < kBufferReadyThreshold) {
       [[maybe_unused]] auto status =
           draw_frame_cb(frames->front(), adjusted_release_time_ns);

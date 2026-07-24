@@ -25,8 +25,12 @@ namespace starboard {
 
 class VideoFrameTracker {
  public:
-  explicit VideoFrameTracker(int max_pending_frames_size)
-      : max_pending_frames_size_(max_pending_frames_size) {}
+  explicit VideoFrameTracker(
+      int max_pending_frames_size,
+      bool ignore_stale_rendered_frames_after_seek = false)
+      : max_pending_frames_size_(max_pending_frames_size),
+        ignore_stale_rendered_frames_after_seek_(
+            ignore_stale_rendered_frames_after_seek) {}
 
   int64_t seek_to_time() const;
 
@@ -46,6 +50,8 @@ class VideoFrameTracker {
   std::list<int64_t> frames_to_be_rendered_;
 
   const int max_pending_frames_size_;
+  const bool ignore_stale_rendered_frames_after_seek_;
+  bool awaiting_first_frame_after_seek_ = false;
   int dropped_frames_ = 0;
   int64_t seek_to_time_ = 0;  // microseconds
 

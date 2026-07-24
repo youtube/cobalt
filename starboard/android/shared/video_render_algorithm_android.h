@@ -25,8 +25,10 @@ namespace starboard {
 
 class VideoRenderAlgorithmAndroid : public VideoRenderAlgorithm {
  public:
-  VideoRenderAlgorithmAndroid(MediaCodecVideoDecoder* video_decoder,
-                              VideoFrameTracker* frame_tracker);
+  VideoRenderAlgorithmAndroid(
+      MediaCodecVideoDecoder* video_decoder,
+      VideoFrameTracker* frame_tracker,
+      bool ignore_stale_rendered_frames_after_seek = false);
 
   void Render(MediaTimeProvider* media_time_provider,
               std::list<scoped_refptr<VideoFrame>>* frames,
@@ -56,6 +58,7 @@ class VideoRenderAlgorithmAndroid : public VideoRenderAlgorithm {
   int64_t seek_to_time_ = 0;  // microseconds
 
   const bool release_frames_after_audio_starts_;
+  const bool ignore_stale_rendered_frames_after_seek_;
 };
 
 }  // namespace starboard

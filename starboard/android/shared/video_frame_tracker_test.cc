@@ -158,5 +158,60 @@ TEST(VideoFrameTrackerTest, UnorderedInputFramesAreHandled) {
   EXPECT_EQ(video_frame_tracker.UpdateAndGetDroppedFrames(), 0);
 }
 
+TEST(VideoFrameTrackerTest, StalePreSeekRenderedCallbacksAreIgnoredPostSeek) {
+  VideoFrameTracker video_frame_tracker(
+      /*max_pending_frames_size=*/100,
+      /*ignore_stale_rendered_frames_after_seek=*/true);
+
+  video_frame_tracker.OnInputBuffer(10000);
+  video_frame_tracker.OnInputBuffer(20000);
+  video_frame_tracker.OnFrameRendered(10000);
+
+  // Seek back to 0 (e.g. looping)
+  video_frame_tracker.Seek(0);
+
+  // Post-seek new stream input buffers queued starting at 0
+  video_frame_tracker.OnInputBuffer(0);
+  video_frame_tracker.OnInputBuffer(10000);
+  video_frame_tracker.OnInputBuffer(20000);
+
+  // A stale OnFrameRendered callback from pre-seek flushed stream arrives
+  video_frame_tracker.OnFrameRendered(20000);
+
+  // Should NOT count as dropped frame because stale callback is ignored
+  // post-seek
+  EXPECT_EQ(video_frame_tracker.UpdateAndGetDroppedFrames(), 0);
+
+  // Actual post-seek frames rendered
+  video_frame_tracker.OnFrameRendered(0);
+  video_frame_tracker.OnFrameRendered(10000);
+
+  EXPECT_EQ(video_frame_tracker.UpdateAndGetDroppedFrames(), 0);
+}
+
+TEST(VideoFrameTrackerTest, FirstPostSeekFrameDroppedIsHandled) {
+  VideoFrameTracker video_frame_tracker(
+      /*max_pending_frames_size=*/100,
+      /*ignore_stale_rendered_frames_after_seek=*/true);
+
+  video_frame_tracker.Seek(0);
+
+  // Post-seek stream: input frames 0, 10000, 20000
+  video_frame_tracker.OnInputBuffer(0);
+  video_frame_tracker.OnInputBuffer(10000);
+  video_frame_tracker.OnInputBuffer(20000);
+
+  // Frame 0 was dropped post-seek. The first rendered frame received is 10000.
+  video_frame_tracker.OnFrameRendered(10000);
+
+  // Should record 1 dropped frame (frame 0) and ungate
+  // awaiting_first_frame_after_seek_
+  EXPECT_EQ(video_frame_tracker.UpdateAndGetDroppedFrames(), 1);
+
+  // Subsequent frame 20000 is rendered normally without extra drops
+  video_frame_tracker.OnFrameRendered(20000);
+  EXPECT_EQ(video_frame_tracker.UpdateAndGetDroppedFrames(), 1);
+}
+
 }  // namespace
 }  // namespace starboard
