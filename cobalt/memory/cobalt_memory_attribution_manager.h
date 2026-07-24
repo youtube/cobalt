@@ -15,6 +15,7 @@
 #ifndef COBALT_MEMORY_COBALT_MEMORY_ATTRIBUTION_MANAGER_H_
 #define COBALT_MEMORY_COBALT_MEMORY_ATTRIBUTION_MANAGER_H_
 
+#include <array>
 #include <atomic>
 #include <cstdint>
 #include <memory>
@@ -23,6 +24,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/cobalt_memory_context.h"
 #include "base/memory/singleton.h"
+#include "base/power_monitor/power_observer.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
@@ -45,7 +47,8 @@ namespace memory {
 // is also called on the main thread. The underlying observer can be called from
 // any thread.
 class CobaltMemoryAttributionManager
-    : public base::trace_event::MemoryDumpProvider {
+    : public base::trace_event::MemoryDumpProvider,
+      public base::PowerSuspendObserver {
  public:
   static CobaltMemoryAttributionManager* Get();
 
@@ -54,7 +57,7 @@ class CobaltMemoryAttributionManager
   CobaltMemoryAttributionManager& operator=(
       const CobaltMemoryAttributionManager&) = delete;
 
-  void Start();
+  void Start(int report_interval_secs, int sampling_interval_bytes);
   void Stop();  // For testing
   void RequestReportUmaForTesting(base::OnceClosure callback);
 
@@ -65,6 +68,10 @@ class CobaltMemoryAttributionManager
   // base::trace_event::MemoryDumpProvider implementation.
   bool OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
                     base::trace_event::ProcessMemoryDump* pmd) override;
+
+  // base::PowerSuspendObserver implementation.
+  void OnSuspend() override;
+  void OnResume() override;
 
  private:
   friend struct base::DefaultSingletonTraits<CobaltMemoryAttributionManager>;
@@ -77,11 +84,12 @@ class CobaltMemoryAttributionManager
 
   void ReportUma();
 
-  uint64_t
-      last_snapshots_[static_cast<size_t>(base::memory::MemoryContext::kCount)];
+  std::array<uint64_t, static_cast<size_t>(base::memory::MemoryContext::kCount)>
+      last_snapshots_;
   base::TimeTicks last_report_time_;
   base::RepeatingTimer timer_;
   bool is_observing_ = false;
+  int report_interval_secs_ = 60;
 };
 
 }  // namespace memory

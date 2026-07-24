@@ -5,10 +5,14 @@
 #ifndef BASE_MEMORY_COBALT_MEMORY_CONTEXT_H_
 #define BASE_MEMORY_COBALT_MEMORY_CONTEXT_H_
 
+#include <pthread.h>
+
 #include <atomic>
 #include <cstdint>
 #include <string_view>
+
 #include "base/base_export.h"
+#include "build/build_config.h"
 
 namespace base {
 namespace memory {
@@ -23,7 +27,7 @@ enum class MemoryContext : uint8_t {
   kGraphics = 6,
   kStorage = 7,
 
-  // Next-Generation Granular Sub-Regions
+  // Granular Sub-Regions
   kGraphicsCanvas = 8,
   kGraphicsCompositor = 9,
   kGraphicsGlyphs = 10,
@@ -33,18 +37,44 @@ enum class MemoryContext : uint8_t {
   kNetworkLoader = 14,
   kNetworkCache = 15,
   kBlinkDOM = 16,
-  kBlinkStyle = 17,
+  kBlinkStyle = 17,  // CSS Style resolution
   kBlinkParser = 18,
   kPlatformIPC = 19,
   kPlatformStarboard = 20,
   kPlatformDevTools = 21,
   kBrowserMain = 22,
+  kBlinkPlatform = 23,
+  kBlinkModules = 24,
+  kBlinkCore = 25,
+  kBlinkHTML = 26,
+  kBlinkWTF = 27,
+  kBase = 28,
+  kComponents = 29,
+  kCobalt = 30,
+  kContent = 31,
+  kV8Bindings = 32,
+  kBlinkFrame = 33,
+  kBlinkLoader = 34,
+  kBlinkPage = 35,
+  kBlinkEvents = 36,
+  kBlinkWorkers = 37,
+  kBlinkScript = 38,
+  kThirdParty = 39,
+  kBlinkScriptLoader = 40,
+  kBlinkScriptRunner = 41,
 
   kCount
 };
 
-BASE_EXPORT MemoryContext GetCurrentMemoryContext();
-BASE_EXPORT void SetCurrentMemoryContext(MemoryContext context);
+#if defined(__GNUC__)
+#define MAYBE_COBALT_WEAK __attribute__((weak))
+#else
+#define MAYBE_COBALT_WEAK
+#endif
+
+pthread_key_t GetSharedMemoryContextKey();
+MemoryContext GetCurrentMemoryContext();
+void SetCurrentMemoryContext(MemoryContext context);
 
 // ScopedMemoryContext is a helper class that sets the current thread's
 // memory context for the duration of its lifetime, restoring the previous
@@ -59,8 +89,21 @@ BASE_EXPORT void SetCurrentMemoryContext(MemoryContext context);
 // it was constructed.
 class BASE_EXPORT ScopedMemoryContext {
  public:
-  explicit ScopedMemoryContext(MemoryContext context);
-  ~ScopedMemoryContext();
+  explicit ScopedMemoryContext(MemoryContext context) {
+    if (context != MemoryContext::kUnknown) {
+      prev_context_ = GetCurrentMemoryContext();
+      SetCurrentMemoryContext(context);
+      is_set_ = true;
+    } else {
+      is_set_ = false;
+    }
+  }
+
+  ~ScopedMemoryContext() {
+    if (is_set_) {
+      SetCurrentMemoryContext(prev_context_);
+    }
+  }
 
   ScopedMemoryContext(const ScopedMemoryContext&) = delete;
   ScopedMemoryContext& operator=(const ScopedMemoryContext&) = delete;
@@ -69,12 +112,20 @@ class BASE_EXPORT ScopedMemoryContext {
 
  private:
   MemoryContext prev_context_;
+  bool is_set_ = false;
 };
 
-BASE_EXPORT std::string_view ContextToString(MemoryContext context);
+using FileToContextResolver = MemoryContext (*)(const char*);
+MAYBE_COBALT_WEAK void SetFileToContextResolver(FileToContextResolver resolver);
+
+MAYBE_COBALT_WEAK std::string_view ContextToString(MemoryContext context);
+MAYBE_COBALT_WEAK MemoryContext ContextFromFile(const char* file_name);
 
 }  // namespace memory
 }  // namespace base
 
-#endif  // BASE_MEMORY_COBALT_MEMORY_CONTEXT_H_
+extern "C" {
+void CobaltSetMemoryContextForThread(const char* name);
+}
 
+#endif  // BASE_MEMORY_COBALT_MEMORY_CONTEXT_H_

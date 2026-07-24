@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/threading/platform_thread.h"
-
+#include "base/strings/string_util.h"
 #include "base/task/current_thread.h"
 #include "base/threading/thread_id_name_manager.h"
 #include "base/trace_event/base_tracing.h"

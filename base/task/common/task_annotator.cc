@@ -5,9 +5,6 @@
 #include "base/task/common/task_annotator.h"
 
 
-#if BUILDFLAG(IS_COBALT)
-#include "base/memory/cobalt_memory_context.h"
-#endif
 
 #include <stdint.h>
 
@@ -26,6 +23,7 @@
 #include "base/time/time.h"
 #include "base/trace_event/base_tracing.h"
 #include "base/tracing_buildflags.h"
+#include "base/memory/cobalt_memory_context.h"
 
 #if BUILDFLAG(ENABLE_BASE_TRACING)
 #include "third_party/perfetto/protos/perfetto/trace/track_event/chrome_mojo_event_info.pbzero.h"  // nogncheck
@@ -167,6 +165,9 @@ void TaskAnnotator::RunTaskImpl(PendingTask& pending_task) {
   TRACE_HEAP_PROFILER_API_SCOPED_TASK_EXECUTION(
       pending_task.posted_from.file_name());
 
+  base::memory::ScopedMemoryContext cobalt_memory_context(
+      base::memory::ContextFromFile(pending_task.posted_from.file_name()));
+
   // Before running the task, store the IPC context and the task backtrace with
   // the chain of PostTasks that resulted in this call and deliberately alias it
   // to ensure it is on the stack if the task crashes. Be careful not to assume
@@ -211,10 +212,7 @@ void TaskAnnotator::RunTaskImpl(PendingTask& pending_task) {
     if (g_task_annotator_observer) {
       g_task_annotator_observer->BeforeRunTask(&pending_task);
     }
-#if BUILDFLAG(IS_COBALT)
-    base::memory::ScopedMemoryContext scoped_context(
-        pending_task.memory_context);
-#endif
+
     std::move(pending_task.task).Run();
   }
 

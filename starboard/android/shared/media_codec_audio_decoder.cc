@@ -127,7 +127,8 @@ void MediaCodecAudioDecoder::Initialize(const OutputCB& output_cb,
 
 void MediaCodecAudioDecoder::Decode(const InputBuffers& input_buffers,
                                     const ConsumedCB& consumed_cb) {
-  SB_CHECK(BelongsToCurrentThread());
+  SB_DCHECK(BelongsToCurrentThread());
+
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK(output_cb_);
   SB_DCHECK(media_decoder_);
