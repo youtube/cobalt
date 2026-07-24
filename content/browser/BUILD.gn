@@ -3777,6 +3777,7 @@ source_set("browser") {
                                          "interest_group/*",
                                          "private_aggregation/*",
                                          "aggregation_service/*",
+                                         "fenced_frame/*",
                                          "devtools/auction_worklet_devtools_agent_host.*",
                                        ])
     sources = []

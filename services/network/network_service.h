@@ -61,7 +61,9 @@
 #include "services/network/public/mojom/url_loader_network_service_observer.mojom.h"
 #include "services/network/restricted_cookie_manager.h"
 #include "services/network/tpcd/metadata/manager.h"
-#include "services/network/trust_tokens/trust_token_key_commitments.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+#include "services/network/trust_tokens/trust_token_key_commitments.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "services/service_manager/public/cpp/binder_registry.h"
 
 #if BUILDFLAG(IS_CT_SUPPORTED)
@@ -349,9 +351,11 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
   // same object (although the object's state can change on updates to the
   // commitments). As a consequence, it's safe to store long-lived copies of the
   // pointer.
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   const TrustTokenKeyCommitments* trust_token_key_commitments() const {
     return trust_token_key_commitments_.get();
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 #if BUILDFLAG(IS_CT_SUPPORTED)
   SCTAuditingCache* sct_auditing_cache() { return sct_auditing_cache_.get(); }
@@ -526,7 +530,9 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
   // Globally-scoped cryptographic state for the Trust Tokens protocol
   // (https://github.com/wicg/trust-token-api), updated via a Mojo IPC and
   // provided to NetworkContexts via the getter.
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   std::unique_ptr<TrustTokenKeyCommitments> trust_token_key_commitments_;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   std::unique_ptr<DelayedDohProbeActivator> doh_probe_activator_;
 
