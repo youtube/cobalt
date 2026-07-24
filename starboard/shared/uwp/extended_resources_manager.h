@@ -45,6 +45,7 @@ class ExtendedResourcesManager {
 
   void AcquireExtendedResources();
   void ReleaseExtendedResources();
+  void OnDeviceLost();
   void Quit();
   void ReleaseBuffersHeap();
 

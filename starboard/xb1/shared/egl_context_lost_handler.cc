@@ -15,11 +15,9 @@
 #include "starboard/xb1/shared/egl_context_lost_handler.h"
 
 #include "starboard/extension/egl_context_lost_handler.h"
-#include "starboard/shared/starboard/media/mime_supportability_cache.h"
-#include "starboard/shared/uwp/application_uwp.h"
+#include "starboard/shared/uwp/extended_resources_manager.h"
 
-using starboard::shared::starboard::media::MimeSupportabilityCache;
-using starboard::shared::uwp::ApplicationUwp;
+using starboard::shared::uwp::ExtendedResourcesManager;
 
 namespace starboard {
 namespace xb1 {
@@ -28,20 +26,7 @@ namespace shared {
 namespace {
 
 void HandleEglContextLost() {
-  MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
-  ApplicationUwp::Get()->Inject(
-      new ApplicationUwp::Event(kSbEventTypeBlur, NULL, NULL));
-  ApplicationUwp::Get()->Inject(
-      new ApplicationUwp::Event(kSbEventTypeConceal, NULL, NULL));
-  ApplicationUwp::Get()->Inject(
-      new ApplicationUwp::Event(kSbEventTypeFreeze, NULL, NULL));
-
-  ApplicationUwp::Get()->Inject(
-      new ApplicationUwp::Event(kSbEventTypeUnfreeze, NULL, NULL));
-  ApplicationUwp::Get()->Inject(
-      new ApplicationUwp::Event(kSbEventTypeReveal, NULL, NULL));
-  ApplicationUwp::Get()->Inject(
-      new ApplicationUwp::Event(kSbEventTypeFocus, NULL, NULL));
+  ExtendedResourcesManager::GetInstance()->OnDeviceLost();
 }
 
 const CobaltExtensionEglContextLostHandlerApi kEglContextLostHandlerApi = {
