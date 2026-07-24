@@ -14,6 +14,7 @@
 
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 
+#include <android/api-level.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -97,6 +98,23 @@ bool HasRemoteAudioOutput() {
     index++;
   }
   return false;
+}
+
+bool CanUseAAudio(std::optional<int> tunnel_mode_audio_session_id) {
+  if (!features::FeatureList::IsEnabled(features::kEnableNdkAudio)) {
+    return false;
+  }
+
+  // AAudio does not support tunnel mode.
+  if (tunnel_mode_audio_session_id) {
+    return false;
+  }
+  // AAudio requires Android API level >= 26 (Oreo).
+  if (android_get_device_api_level() < 26) {
+    return false;
+  }
+
+  return true;
 }
 
 }  // namespace
@@ -572,6 +590,13 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     bool is_web_audio,
     bool allow_audio_writing_on_pause,
     void* context) {
+  if (CanUseAAudio(tunnel_mode_audio_session_id)) {
+    // TODO: b/428008986 - Implement the AAudio-based audio sink and instantiate
+    // it here.
+    SB_LOG(WARNING) << "AAudio-based AudioSink is not implemented yet. Falling "
+                       "back to Java AudioTrack.";
+  }
+
   int min_required_frames = SbAudioSinkGetMinBufferSizeInFrames(
       channels, audio_sample_type, sampling_frequency_hz);
   SB_DCHECK_GE(frames_per_channel, min_required_frames);
