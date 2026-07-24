@@ -23,13 +23,8 @@
 
 namespace net {
 
-<<<<<<< HEAD
-// Wrapper around TrustStoreInMemory to lazily load trusted root certificates.
-class NET_EXPORT TrustStoreInMemoryStarboard : public TrustStore {
-=======
 // Wrapper around TrustStoreInMemory to eagerly load trusted root certificates.
-class NET_EXPORT TrustStoreInMemoryStarboard : public PlatformTrustStore {
->>>>>>> f5d2add8af (Load SSL root certificates to avoid runtime wipe crashes (#11413))
+class NET_EXPORT TrustStoreInMemoryStarboard : public TrustStore {
  public:
   TrustStoreInMemoryStarboard();
   ~TrustStoreInMemoryStarboard() override;
@@ -42,38 +37,16 @@ class NET_EXPORT TrustStoreInMemoryStarboard : public PlatformTrustStore {
 
   // Returns true if the trust store contains the given ParsedCertificate
   // (matches by DER).
-<<<<<<< HEAD
   bool Contains(const ParsedCertificate* cert) const {
-    base::AutoLock scoped_lock(load_mutex_);
-=======
-  bool Contains(const bssl::ParsedCertificate* cert) const {
->>>>>>> f5d2add8af (Load SSL root certificates to avoid runtime wipe crashes (#11413))
     return underlying_trust_store_.Contains(cert);
   }
 
  private:
-<<<<<<< HEAD
   TrustStoreInMemoryStarboard(const TrustStoreInMemoryStarboard&) = delete;
   TrustStoreInMemoryStarboard& operator=(const TrustStoreInMemoryStarboard&) =
       delete;
 
   TrustStoreInMemory underlying_trust_store_;
-
-  // Given a certificate's canonical name, try to load this cert from trusted
-  // certs on disk if it is found.
-  std::shared_ptr<const ParsedCertificate> TryLoadCert(
-      const base::StringPiece& cert_name) const;
-
-  // The memory trust store can be accessed by multiple threads, in Chromium,
-  // the synchronization issue is solved by initializing trust store at startup
-  // and passing constant reference to consumers. Cobalt loads certs lazily and
-  // therefore guards the underlying_trust_store_ with mutex.
-  mutable base::Lock load_mutex_;
-
-  const std::unordered_set<std::string> trusted_cert_names_on_disk_;
-=======
-  bssl::TrustStoreInMemory underlying_trust_store_;
->>>>>>> f5d2add8af (Load SSL root certificates to avoid runtime wipe crashes (#11413))
 };
 
 }  // namespace net
