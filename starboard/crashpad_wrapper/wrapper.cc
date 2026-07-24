@@ -365,8 +365,8 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
   }
 
   auto native_stability_extension =
-      static_cast<const CobaltExtensionNativeStabilityApi*>(
-          SbSystemGetExtension(kCobaltExtensionNativeStabilityName));
+      static_cast<const StarboardExtensionNativeStabilityApi*>(
+          SbSystemGetExtension(kStarboardExtensionNativeStabilityName));
   if (native_stability_extension && native_stability_extension->version >= 1 &&
       native_stability_extension->RegisterReadReportsCallback) {
     native_stability_extension->RegisterReadReportsCallback(&ReadReports);
