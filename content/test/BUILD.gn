@@ -895,6 +895,15 @@ static_library("test_support") {
       "../public/test/embedded_worker_instance_test_harness.h",
     ]
   }
+
+  if (!enable_devtools_backend) {
+    sources -= [
+      "../public/test/mock_devtools_agent_host.cc",
+      "../public/test/mock_devtools_agent_host.h",
+      "../public/test/test_devtools_protocol_client.cc",
+      "../public/test/test_devtools_protocol_client.h",
+    ]
+  }
 }
 
 # Fuchsia performance tests on smart displays use web_engine and a browser
@@ -1842,7 +1851,7 @@ test("content_browsertests") {
     sources += [ "../browser/security/coop/cross_origin_opener_policy_reporting_browsertest.cc" ]
   }
 
-  if (use_viz_debugger) {
+  if (use_viz_debugger && enable_devtools_backend) {
     sources += [
       "../browser/devtools/protocol/visual_debugger_handler_browsertest.cc",
     ]
@@ -2457,6 +2466,20 @@ test("content_browsertests") {
       "//build/config/fuchsia/test/network.shard.test-cml",
       "//build/config/fuchsia/test/present_view.shard.test-cml",
       "//third_party/fuchsia-sdk/sdk/pkg/vulkan/client.shard.cml",
+    ]
+  }
+
+  if (!enable_devtools_backend) {
+    sources -= [
+      "../browser/devtools/devtools_issue_storage_browsertest.cc",
+      "../browser/devtools/devtools_trust_token_browsertest.cc",
+      "../browser/devtools/devtools_video_consumer_browsertest.cc",
+      "../browser/devtools/protocol/devtools_network_resource_loader_browsertest.cc",
+      "../browser/devtools/protocol/devtools_protocol_browsertest.cc",
+      "../browser/devtools/protocol/devtools_protocol_test_support.cc",
+      "../browser/devtools/protocol/devtools_protocol_test_support.h",
+      "../browser/devtools/render_frame_devtools_agent_host_browsertest.cc",
+      "../browser/devtools/site_per_process_devtools_browsertest.cc",
     ]
   }
 
@@ -3202,6 +3225,19 @@ test("content_unittests") {
     ]
   }
 
+  if (!enable_devtools_backend) {
+    sources -= [
+      "../browser/devtools/devtools_background_services_context_impl_unittest.cc",
+      "../browser/devtools/devtools_frontend_host_impl_unittest.cc",
+      "../browser/devtools/devtools_http_handler_unittest.cc",
+      "../browser/devtools/devtools_video_consumer_unittest.cc",
+      "../browser/devtools/protocol/tracing_handler_unittest.cc",
+      "../browser/devtools/protocol_unittest.cc",
+      "../browser/devtools/request_body_collector_unittest.cc",
+      "../browser/devtools/shared_storage_worklet_devtools_agent_host_unittest.cc",
+    ]
+  }
+
   configs += [ "//build/config:precompiled_headers" ]
 
   public_deps = [ "//content:content_resources" ]
@@ -3381,6 +3417,12 @@ test("content_unittests") {
     "//ui/webui:test_support",
     "//url",
   ]
+
+  if (!enable_devtools_backend) {
+    deps -= [
+      "//content/browser/devtools:devtools_background_services_proto",
+    ]
+  }
 
   if (enable_nocompile_tests) {
     deps += [ ":content_nocompile_tests" ]
@@ -3622,6 +3664,12 @@ test("content_unittests") {
         "//components/soda:constants",
         "//components/soda:utils",
         "//media/mojo/mojom:speech_recognition",
+      ]
+    }
+
+    if (!enable_devtools_backend) {
+      sources -= [
+        "../browser/devtools/protocol/webauthn_handler_unittest.cc",
       ]
     }
   }

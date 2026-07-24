@@ -25,6 +25,10 @@ blink_modules_sources("storage") {
     "storage_namespace.cc",
     "storage_namespace.h",
   ]
+
+  if (!enable_devtools_backend) {
+    sources -= [ "inspector_dom_storage_agent.cc" ]
+  }
 }
 
 source_set("unit_tests") {

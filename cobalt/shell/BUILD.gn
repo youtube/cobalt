@@ -15,6 +15,7 @@
 import("//build/buildflag_header.gni")
 import("//build/config/cast.gni")
 import("//build/config/ui.gni")
+import("//cobalt/build/configs/cobalt.gni")
 import("//content/browser/devtools/features.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 import("//starboard/build/buildflags.gni")
@@ -318,6 +319,15 @@ static_library("cobalt_shell_lib") {
         "browser/shell_web_contents_view_delegate_aura.cc",
       ]
     }
+  }
+
+  if (!enable_devtools_backend) {
+    sources -= [
+      "browser/shell_devtools_bindings.cc",
+      "browser/shell_devtools_bindings.h",
+      "browser/shell_devtools_frontend.cc",
+      "browser/shell_devtools_frontend.h",
+    ]
   }
 
   if (is_starboard) {

@@ -3846,6 +3846,24 @@ source_set("browser") {
       ]
     }
   }
+  if (!enable_devtools_backend) {
+    _filtered_sources = filter_exclude(sources, [
+      "devtools/*",
+      "devtools/protocol/*",
+      "$target_gen_dir/devtools/protocol/*",
+    ])
+    sources = []
+    sources = _filtered_sources
+    sources += [
+      "devtools/devtools_background_services_context_impl.cc",
+      "devtools_stubs.cc",
+    ]
+
+    deps -= [
+      "//content/browser/devtools:devtools_background_services_proto",
+      "//content/browser/devtools:protocol_sources",
+    ]
+  }
 }
 
 if (is_android) {

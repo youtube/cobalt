@@ -23,6 +23,9 @@ static_library("test_support") {
 
 blink_core_sources("exported") {
   sources = blink_core_sources_exported
+  if (!enable_devtools_backend) {
+    sources -= [ "web_dev_tools_agent_impl.cc" ]
+  }
 
   deps = [
     "//third_party/blink/renderer/core:core_generated",

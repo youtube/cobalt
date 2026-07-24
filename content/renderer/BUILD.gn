@@ -6,6 +6,7 @@ import("//build/config/cast.gni")
 import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/features.gni")
 import("//build/config/ui.gni")
+import("//content/browser/devtools/features.gni")
 import("//content/common/features.gni")
 import("//media/media_options.gni")
 import("//ppapi/buildflags/buildflags.gni")
@@ -189,6 +190,9 @@ target(link_target_type, "renderer") {
       "media/audio_decoder.cc",
       "media/audio_decoder.h",
     ]
+    if (!enable_devtools_backend) {
+      sources -= [ "media/inspector_media_event_handler.cc" ]
+    }
   }
 
   if (is_linux || is_chromeos) {

@@ -37,7 +37,6 @@
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/devtools/network_service_devtools_observer.h"
-#include "content/browser/devtools/protocol/network_handler.h"
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
 #include "content/browser/fenced_frame/fenced_frame_config.h"
 #include "content/browser/interest_group/interest_group_pa_report_util.h"

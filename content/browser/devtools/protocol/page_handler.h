@@ -17,6 +17,10 @@
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "build/build_config.h"
+#include "third_party/blink/public/common/buildflags.h"
+
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
 #include "cc/trees/render_frame_metadata.h"
 #include "content/browser/devtools/devtools_video_consumer.h"
 #include "content/browser/devtools/protocol/devtools_domain_handler.h"
@@ -286,5 +290,48 @@ class PageHandler : public DevToolsDomainHandler,
 
 }  // namespace protocol
 }  // namespace content
+
+#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
+#include <string>
+#include <vector>
+
+#include "base/functional/callback.h"
+#include "base/unguessable_token.h"
+#include "content/public/common/javascript_dialog_type.h"
+#include "url/gurl.h"
+
+namespace content {
+
+class WebContentsImpl;
+
+namespace protocol {
+
+class PageHandler {
+ public:
+  using JavaScriptDialogCallback =
+      base::OnceCallback<void(bool success, const std::u16string& user_input)>;
+  static std::vector<PageHandler*> EnabledForWebContents(
+      WebContentsImpl* contents);
+  void DidRunJavaScriptDialog(const GURL& url,
+                              const base::UnguessableToken& frame_id,
+                              const std::u16string& message,
+                              const std::u16string& default_prompt,
+                              JavaScriptDialogType dialog_type,
+                              bool has_non_devtools_handlers,
+                              JavaScriptDialogCallback callback);
+  void DidRunBeforeUnloadConfirm(const GURL& url,
+                                 const base::UnguessableToken& frame_id,
+                                 bool has_non_devtools_handlers,
+                                 JavaScriptDialogCallback callback);
+  void DidCloseJavaScriptDialog(const base::UnguessableToken& frame_id,
+                                bool success,
+                                const std::u16string& user_input);
+};
+
+}  // namespace protocol
+}  // namespace content
+
+#endif  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #endif  // CONTENT_BROWSER_DEVTOOLS_PROTOCOL_PAGE_HANDLER_H_
