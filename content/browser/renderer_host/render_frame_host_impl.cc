@@ -83,11 +83,13 @@
 #include "content/browser/dom_storage/dom_storage_context_wrapper.h"
 #include "content/browser/download/data_url_blob_reader.h"
 #include "content/browser/feature_observer.h"
-#include "content/browser/fenced_frame/automatic_beacon_info.h"
-#include "content/browser/fenced_frame/fenced_document_data.h"
-#include "content/browser/fenced_frame/fenced_frame.h"
-#include "content/browser/fenced_frame/fenced_frame_reporter.h"
-#include "content/browser/fenced_frame/fenced_frame_url_mapping.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+#include "content/browser/fenced_frame/automatic_beacon_info.h"   // nogncheck
+#include "content/browser/fenced_frame/fenced_document_data.h"     // nogncheck
+#include "content/browser/fenced_frame/fenced_frame.h"            // nogncheck
+#include "content/browser/fenced_frame/fenced_frame_reporter.h"   // nogncheck
+#include "content/browser/fenced_frame/fenced_frame_url_mapping.h" // nogncheck
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/file_system/file_system_manager_impl.h"
 #include "content/browser/file_system/file_system_url_loader_factory.h"
 #include "content/browser/file_system_access/file_system_access_manager_impl.h"
@@ -97,9 +99,9 @@
 #include "content/browser/guest_page_holder_impl.h"
 #include "content/browser/idle/idle_manager_impl.h"
 #include "content/browser/installedapp/installed_app_provider_impl.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/interest_group/ad_auction_document_data.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/loader/file_url_loader_factory.h"
 #include "content/browser/loader/keep_alive_url_loader_service.h"
 #include "content/browser/loader/navigation_early_hints_manager.h"
@@ -173,9 +175,11 @@
 #include "content/browser/web_package/prefetched_signed_exchange_cache.h"
 #include "content/browser/webauth/authenticator_impl.h"
 #include "content/browser/webauth/webauth_request_security_checker.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/webid/digital_credentials/digital_identity_request_impl.h"
 #include "content/browser/webid/federated_auth_request_impl.h"
 #include "content/browser/webid/flags.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/websockets/websocket_connector_impl.h"
 #include "content/browser/webtransport/web_transport_connector_impl.h"
 #include "content/browser/webui/url_data_manager_backend.h"
@@ -665,6 +669,7 @@ DetermineWhetherToForbidTrustTokenOperation(
   std::unique_ptr<network::PermissionsPolicy> subframe_policy;
   // TODO(crbug.com/40263106): Add WPT to test how TrustTokens behave in
   // a FencedFrame's subframe.
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (frame->IsFencedFrameRoot()) {
     const std::optional<FencedFrameProperties>& fenced_frame_properties =
         frame->frame_tree_node()->GetFencedFrameProperties();
@@ -698,6 +703,7 @@ DetermineWhetherToForbidTrustTokenOperation(
           fenced_frame_properties->effective_enabled_permissions());
     }
   } else {
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
     // For main frame loads, the frame's permissions policy is determined
     // entirely by response headers, which are provided by the renderer.
     if (!frame->GetParent())
@@ -711,7 +717,9 @@ DetermineWhetherToForbidTrustTokenOperation(
 
     subframe_policy = network::PermissionsPolicy::CreateFromParentPolicy(
         parent_policy, /*header_policy=*/{}, container_policy, subframe_origin);
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   switch (operation) {
     case network::mojom::TrustTokenOperationType::kRedemption:
@@ -1091,6 +1099,7 @@ bool CoopSuppressOpener(const RenderFrameHostImpl* opener) {
   }
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 void RecordAutomaticBeaconOutcome(const blink::AutomaticBeaconOutcome outcome) {
   base::UmaHistogramEnumeration(blink::kAutomaticBeaconOutcomeHistogram,
                                 outcome);
@@ -1102,6 +1111,7 @@ void RecordAutomaticBeaconOutcome(const blink::AutomaticBeaconOutcome outcome) {
 // `is_same_origin` is set to false (i.e. the frame initiating an automatic
 // beacon is cross-origin to the mapped URL of the root frame's fenced frame
 // config), the data must be marked as cross-origin exposed.
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 FencedDocumentData* GetFencedDocumentData(
     RenderFrameHostImpl* rfh,
     blink::mojom::AutomaticBeaconType event_type,
@@ -1135,6 +1145,7 @@ FencedDocumentData* GetFencedDocumentData(
   }
   return nullptr;
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 bool FencedFrameAutomaticBeaconsAllowed(RenderFrameHostImpl* rfh) {
   if (!rfh->GetLastResponseHead() || !rfh->GetLastResponseHead()->headers) {
@@ -1147,6 +1158,7 @@ bool FencedFrameAutomaticBeaconsAllowed(RenderFrameHostImpl* rfh) {
 
   return allow && base::EqualsCaseInsensitiveASCII(*allow, "true");
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 bool NewProcessUsedForNavigationWhenSameSiteProcessExists(
     RenderFrameHostImpl* committing_frame) {
@@ -3022,12 +3034,16 @@ bool RenderFrameHostImpl::IsNestedWithinFencedFrame() const {
 }
 
 bool RenderFrameHostImpl::IsUntrustedNetworkDisabled() const {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   return frame_tree_node_->GetFencedFrameProperties(
              FencedFramePropertiesNodeSource::kFrameTreeRoot) &&
          frame_tree_node_
              ->GetFencedFrameProperties(
                  FencedFramePropertiesNodeSource::kFrameTreeRoot)
              ->HasDisabledNetworkForCurrentFrameTree();
+#else
+  return false;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 void RenderFrameHostImpl::ForEachRenderFrameHostWithAction(
@@ -9711,6 +9727,7 @@ void RenderFrameHostImpl::CreateNewWindow(
     return;
   }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // Fenced frames that have revoked network access can't open popups.
   if (base::FeatureList::IsEnabled(
           blink::features::kFencedFramesLocalUnpartitionedDataAccess)) {
@@ -9729,6 +9746,7 @@ void RenderFrameHostImpl::CreateNewWindow(
       return;
     }
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   bool no_javascript_access = false;
 
@@ -9961,7 +9979,7 @@ void RenderFrameHostImpl::SendLegacyTechEvent(
 
 void RenderFrameHostImpl::SendPrivateAggregationRequestsForFencedFrameEvent(
     const std::string& event_type) {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (!base::FeatureList::IsEnabled(blink::features::kPrivateAggregationApi) ||
       !blink::features::kPrivateAggregationApiEnabledInProtectedAudience
            .Get()) {
@@ -10010,17 +10028,22 @@ void RenderFrameHostImpl::SendPrivateAggregationRequestsForFencedFrameEvent(
 
   fenced_frame_properties->fenced_frame_reporter()
       ->SendPrivateAggregationRequestsForEvent(event_type);
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 std::vector<FencedFrame*> RenderFrameHostImpl::GetFencedFrames() const {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   std::vector<FencedFrame*> result;
   for (const std::unique_ptr<FencedFrame>& fenced_frame : fenced_frames_)
     result.push_back(fenced_frame.get());
   return result;
+#else
+  return {};
+#endif
 }
 
 void RenderFrameHostImpl::DestroyFencedFrame(FencedFrame& fenced_frame) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   auto it = std::ranges::find_if(fenced_frames_,
                                  base::MatchesUniquePtr(&fenced_frame));
   CHECK(it != fenced_frames_.end());
@@ -10042,8 +10065,8 @@ void RenderFrameHostImpl::DestroyFencedFrame(FencedFrame& fenced_frame) {
 
   fenced_frames_.erase(it);
   // An ancestor's network revocation status could've changed as a result of
-  // this fenced frame being removed.
   GetOutermostMainFrame()->CalculateUntrustedNetworkStatus();
+#endif
 }
 
 void RenderFrameHostImpl::TakeGuestOwnership(
@@ -10078,6 +10101,7 @@ void RenderFrameHostImpl::CreateFencedFrame(
     blink::mojom::RemoteFrameInterfacesFromRendererPtr remote_frame_interfaces,
     const blink::RemoteFrameToken& frame_token,
     const base::UnguessableToken& devtools_frame_token) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // We should defer fenced frame creation during prerendering, so creation at
   // this point is an error.
   if (GetLifecycleState() == RenderFrameHost::LifecycleState::kPrerendering) {
@@ -10157,6 +10181,10 @@ void RenderFrameHostImpl::CreateFencedFrame(
         ->GetFencedFrameProperties()
         ->MarkDisabledNetworkForCurrentAndDescendantFrameTrees();
   }
+#else
+  bad_message::ReceivedBadMessage(
+      GetProcess(), bad_message::RFH_FENCED_FRAME_MOJO_WHEN_DISABLED);
+#endif
 }
 
 void RenderFrameHostImpl::ForwardFencedFrameEventAndUserActivationToEmbedder(
@@ -10227,6 +10255,7 @@ void RenderFrameHostImpl::SendFencedFrameReportingBeacon(
     const std::string& event_type,
     const std::vector<blink::FencedFrame::ReportingDestination>& destinations,
     bool cross_origin_exposed) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (!IsFencedFrameReportingFromRendererAllowed(cross_origin_exposed)) {
     return;
   }
@@ -10250,6 +10279,7 @@ void RenderFrameHostImpl::SendFencedFrameReportingBeacon(
         DestinationEnumEvent(event_type, event_data, cross_origin_exposed),
         destination);
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 // TODO(crbug.com/40250533): Move SendFencedFrameReportingBeaconToCustomURL into
@@ -10257,6 +10287,7 @@ void RenderFrameHostImpl::SendFencedFrameReportingBeacon(
 void RenderFrameHostImpl::SendFencedFrameReportingBeaconToCustomURL(
     const GURL& destination_url,
     bool cross_origin_exposed) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (!destination_url.is_valid() ||
       !destination_url.SchemeIs(url::kHttpsScheme)) {
     mojo::ReportBadMessage(
@@ -10272,11 +10303,13 @@ void RenderFrameHostImpl::SendFencedFrameReportingBeaconToCustomURL(
   SendFencedFrameReportingBeaconInternal(
       DestinationURLEvent(destination_url, cross_origin_exposed),
       blink::FencedFrame::ReportingDestination::kBuyer);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 void RenderFrameHostImpl::MaybeSendFencedFrameAutomaticReportingBeacon(
     NavigationRequest& navigation_request,
     blink::mojom::AutomaticBeaconType event_type) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (!blink::features::IsFencedFramesEnabled()) {
     return;
   }
@@ -10390,8 +10423,10 @@ void RenderFrameHostImpl::MaybeSendFencedFrameAutomaticReportingBeacon(
   if (fenced_document_data) {
     fenced_document_data->MaybeResetAutomaticBeaconData(event_type);
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 bool RenderFrameHostImpl::IsFencedFrameReportingFromRendererAllowed(
     bool cross_origin_exposed) {
   if (!blink::features::IsFencedFramesEnabled()) {
@@ -10500,6 +10535,7 @@ void RenderFrameHostImpl::SendFencedFrameReportingBeaconInternal(
     AddMessageToConsole(console_message_level, error_message);
   }
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 void RenderFrameHostImpl::SetFencedFrameAutomaticBeaconReportEventData(
     blink::mojom::AutomaticBeaconType event_type,
@@ -10507,6 +10543,7 @@ void RenderFrameHostImpl::SetFencedFrameAutomaticBeaconReportEventData(
     const std::vector<blink::FencedFrame::ReportingDestination>& destinations,
     bool once,
     bool cross_origin_exposed) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (!blink::features::IsFencedFramesEnabled()) {
     mojo::ReportBadMessage(
         "SetFencedFrameAutomaticBeaconReportEventData() received while "
@@ -10586,10 +10623,12 @@ void RenderFrameHostImpl::SetFencedFrameAutomaticBeaconReportEventData(
 
   base::UmaHistogramEnumeration(blink::kAutomaticBeaconEventTypeHistogram,
                                 event_type);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 void RenderFrameHostImpl::DisableUntrustedNetworkInFencedFrame(
     DisableUntrustedNetworkInFencedFrameCallback callback) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (!blink::features::IsFencedFramesEnabled()) {
     mojo::ReportBadMessage(
         "DisableUntrustedNetworkInFencedFrame() received while FencedFrames "
@@ -10679,9 +10718,13 @@ void RenderFrameHostImpl::RevokeNetworkForNonceCallback(
   // can be considered disabled.
   properties->MarkDisabledNetworkForCurrentFrameTree();
   GetOutermostMainFrame()->CalculateUntrustedNetworkStatus();
+#else
+  std::move(callback).Run();
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 void RenderFrameHostImpl::CalculateUntrustedNetworkStatus() {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   FrameTree::NodeRange node_range =
       frame_tree()->NodesIncludingInnerTreeNodes();
   std::vector<FrameTreeNode*> subframe_nodes(std::next(node_range.begin()),
@@ -10759,6 +10802,7 @@ void RenderFrameHostImpl::CalculateUntrustedNetworkStatus() {
               ->frame_tree_node_id());
     }
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 RenderFrameHostImpl* RenderFrameHostImpl::GetBeforeUnloadInitiator() {
@@ -10773,6 +10817,7 @@ RenderFrameHostImpl* RenderFrameHostImpl::GetBeforeUnloadInitiator() {
 void RenderFrameHostImpl::ExemptUrlFromNetworkRevocationForTesting(
     const GURL& exempted_url,
     ExemptUrlFromNetworkRevocationForTestingCallback callback) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (!blink::features::IsFencedFramesEnabled()) {
     mojo::ReportBadMessage(
         "DisableUntrustedNetworkInFencedFrame() received while "
@@ -10808,6 +10853,9 @@ void RenderFrameHostImpl::ExemptUrlFromNetworkRevocationForTesting(
               ? GetPage().credentialless_iframes_nonce()
               : properties->partition_nonce()->GetValueIgnoringVisibility(),
           std::move(callback));
+#else
+  std::move(callback).Run();
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 void RenderFrameHostImpl::OnViewTransitionOptInChanged(
@@ -13767,6 +13815,7 @@ void RenderFrameHostImpl::CreateWebUsbService(
 
 void RenderFrameHostImpl::ResetPermissionsPolicy(
     const network::ParsedPermissionsPolicy& header_policy) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (IsFencedFrameRoot()) {
     const std::optional<FencedFrameProperties>& fenced_frame_properties =
         frame_tree_node()->GetFencedFrameProperties();
@@ -13803,6 +13852,7 @@ void RenderFrameHostImpl::ResetPermissionsPolicy(
     }
     return;
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   auto isolation_info = GetSiteInstance()->GetWebExposedIsolationInfo();
 
@@ -14255,12 +14305,16 @@ void RenderFrameHostImpl::BindWebOTPServiceReceiver(
 
 void RenderFrameHostImpl::BindDigitalIdentityRequestReceiver(
     mojo::PendingReceiver<blink::mojom::DigitalIdentityRequest> receiver) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   DigitalIdentityRequestImpl::CreateInstance(*this, std::move(receiver));
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 void RenderFrameHostImpl::BindFederatedAuthRequestReceiver(
     mojo::PendingReceiver<blink::mojom::FederatedAuthRequest> receiver) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   FederatedAuthRequestImpl::Create(this, std::move(receiver));
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 void RenderFrameHostImpl::BindRestrictedCookieManager(
@@ -15442,6 +15496,7 @@ bool RenderFrameHostImpl::DidCommitNavigationInternal(
     document_associated_data_->set_keep_alive_url_loader_factory_context(
         navigation_request->keep_alive_url_loader_factory_context());
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
     const std::optional<FencedFrameProperties>& fenced_frame_properties =
         navigation_request->ComputeFencedFrameProperties();
     // On navigations of fenced frame/urn iframe roots initiated within the
@@ -15464,7 +15519,6 @@ bool RenderFrameHostImpl::DidCommitNavigationInternal(
                 ->GetValueIgnoringVisibility());
       }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
       if (fenced_frame_properties->ad_auction_data().has_value()) {
         AdAuctionDocumentData::CreateForCurrentDocument(
             this,
@@ -15475,8 +15529,8 @@ bool RenderFrameHostImpl::DidCommitNavigationInternal(
                 ->GetValueIgnoringVisibility()
                 .interest_group_name);
       }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
     }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
     // Continue observing the events for the committed navigation.
     // This is intended to receive delayed IPC calls. If `navigation_request`
@@ -15634,10 +15688,12 @@ void RenderFrameHostImpl::DidCommitNewDocument(
   // a new document.)
   // This must be done before `ResetPermissionsPolicy()` below, which looks up
   // the stored fenced frame properties.
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (navigation_request->GetFencedFrameProperties()) {
     frame_tree_node()->set_fenced_frame_properties(
         navigation_request->GetFencedFrameProperties());
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   ResetPermissionsPolicy(params.permissions_policy_header);
 
@@ -18612,6 +18668,7 @@ bool RenderFrameHostImpl::ShouldChangeRenderFrameHostOnSameSiteNavigation()
 }
 
 bool RenderFrameHostImpl::CanReadFromSharedStorage() {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (!IsNestedWithinFencedFrame()) {
     return false;
   }
@@ -18620,6 +18677,9 @@ bool RenderFrameHostImpl::CanReadFromSharedStorage() {
       FencedFramePropertiesNodeSource::kFrameTreeRoot);
   return properties.has_value() &&
          properties->HasDisabledNetworkForCurrentAndDescendantFrameTrees();
+#else
+  return false;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 bool RenderFrameHostImpl::ShouldReuseCompositing(

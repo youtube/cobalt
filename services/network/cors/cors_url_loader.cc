@@ -55,7 +55,9 @@
 #include "services/network/shared_dictionary/shared_dictionary_storage.h"
 #include "services/network/shared_dictionary/shared_dictionary_writer.h"
 #include "services/network/shared_storage/shared_storage_header_utils.h"
-#include "services/network/trust_tokens/trust_token_operation_metrics_recorder.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+#include "services/network/trust_tokens/trust_token_operation_metrics_recorder.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "services/network/url_loader.h"
 #include "services/network/url_loader_factory.h"
 #include "services/network/url_loader_util.h"
@@ -1202,11 +1204,13 @@ void CorsURLLoader::HandleComplete(URLLoaderCompletionStatus status) {
               net::NetLogWithSourceToFlow(net_log_), "error_code",
               status.error_code);
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (request_.trust_token_params) {
     HistogramTrustTokenOperationNetError(request_.trust_token_params->operation,
                                          status.trust_token_operation_status,
                                          status.error_code);
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   if (status.error_code == net::OK) {
     DCHECK_GE(status.completion_time, network_loader_start_time_);

@@ -28,6 +28,7 @@
 #include "base/trace_event/trace_event.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "components/download/public/common/in_progress_download_manager.h"
 #include "components/services/storage/privileged/mojom/indexed_db_control.mojom.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
@@ -35,7 +36,9 @@
 #include "content/browser/browsing_data/browsing_data_remover_impl.h"
 #include "content/browser/child_process_host_impl.h"
 #include "content/browser/child_process_security_policy_impl.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/in_memory_federated_permission_context.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/media/browser_feature_provider.h"
 #include "content/browser/preloading/prefetch/prefetch_container.h"
 #include "content/browser/preloading/prefetch/prefetch_service.h"
@@ -387,7 +390,11 @@ ResourceContext* BrowserContext::GetResourceContext() const {
 
 void BrowserContext::BackfillPopupHeuristicGrants(
     base::OnceCallback<void(bool)> callback) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   return impl_->BackfillPopupHeuristicGrants(std::move(callback));
+#else
+  std::move(callback).Run(false);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 base::WeakPtr<BrowserContext> BrowserContext::GetWeakPtr() {
@@ -447,17 +454,29 @@ BrowserContext::CreateVideoDecodePerfHistory() {
 
 FederatedIdentityApiPermissionContextDelegate*
 BrowserContext::GetFederatedIdentityApiPermissionContext() {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   return impl()->GetFederatedPermissionContext();
+#else
+  return nullptr;
+#endif
 }
 
 FederatedIdentityAutoReauthnPermissionContextDelegate*
 BrowserContext::GetFederatedIdentityAutoReauthnPermissionContext() {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   return impl()->GetFederatedPermissionContext();
+#else
+  return nullptr;
+#endif
 }
 
 FederatedIdentityPermissionContextDelegate*
 BrowserContext::GetFederatedIdentityPermissionContext() {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   return impl()->GetFederatedPermissionContext();
+#else
+  return nullptr;
+#endif
 }
 
 KAnonymityServiceDelegate* BrowserContext::GetKAnonymityServiceDelegate() {

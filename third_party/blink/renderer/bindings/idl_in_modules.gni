@@ -1462,6 +1462,8 @@ if (!enable_privacy_sandbox_apis) {
         "//third_party/blink/renderer/modules/locks/shared_storage_worklet_navigator_locks.idl",
         "//third_party/blink/renderer/modules/permissions/top_level_storage_access_permission_descriptor.idl",
         "//third_party/blink/renderer/modules/ad_auction/*",
+        "//third_party/blink/renderer/modules/credentialmanagement/*",
+        "//third_party/blink/renderer/modules/payments/secure_payment_confirmation_request.idl",
       ])
   static_idl_files_in_modules = []
   static_idl_files_in_modules = _filtered_static_idl_files
@@ -1514,6 +1516,7 @@ if (!enable_privacy_sandbox_apis) {
       static_idl_files_in_modules_for_testing,
       [
         "//third_party/blink/renderer/modules/ad_auction/testing/*",
+        "//third_party/blink/renderer/modules/credentialmanagement/testing/*",
       ])
   static_idl_files_in_modules_for_testing = []
   static_idl_files_in_modules_for_testing = _filtered_static_idl_files_for_testing
