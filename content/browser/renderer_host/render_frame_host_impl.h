@@ -4339,6 +4339,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // and event data.
   // Note: This function has side effects. It may terminate misbehaving
   // renderers. It may also add messages for certain cases that return false.
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   bool IsFencedFrameReportingFromRendererAllowed(bool cross_origin_exposed);
 
   // Helper function that handles creating and sending a fenced frame beacon for
@@ -4347,6 +4348,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
       const FencedFrameReporter::DestinationVariant& event_variant,
       blink::FencedFrame::ReportingDestination destination,
       std::optional<int64_t> navigation_id = std::nullopt);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   // Indicates whether this frame has third-party storage
   // partitioning enabled. This depends on the deprecation trial (which can
@@ -5187,9 +5189,11 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // Keeps the track of the latest ServiceWorkerClient.
   base::WeakPtr<ServiceWorkerClient> last_committed_service_worker_client_;
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   // The fenced frames owned by this document, ordered with newer fenced frames
   // being appended to the end.
   std::vector<std::unique_ptr<FencedFrame>> fenced_frames_;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   // The guest frame trees owned by this document.
   std::vector<std::unique_ptr<GuestPageHolderImpl>> guest_pages_;
