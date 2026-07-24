@@ -413,6 +413,11 @@ void UserMediaClient::StopTrack(MediaStreamComponent* track) {
   auto* queue =
       GetRequestQueue(track->Source()->GetPlatformSource()->device().type);
   queue->EnqueueAndMaybeProcess(MakeGarbageCollected<Request>(track));
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (!IsCapturing()) {
+    is_microphone_requested_ = false;
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 bool UserMediaClient::IsCapturing() {
@@ -430,6 +435,11 @@ void UserMediaClient::CancelUserMediaRequest(
     UserMediaRequest* user_media_request) {
   pending_device_requests_->CancelUserMediaRequest(user_media_request);
   pending_display_requests_->CancelUserMediaRequest(user_media_request);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (!IsCapturing()) {
+    is_microphone_requested_ = false;
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void UserMediaClient::DeleteAllUserMediaRequests() {
@@ -438,6 +448,9 @@ void UserMediaClient::DeleteAllUserMediaRequests() {
     frame_->SetIsCapturingMediaCallback(LocalFrame::IsCapturingMediaCallback());
   pending_device_requests_->DeleteAllUserMediaRequests();
   pending_display_requests_->DeleteAllUserMediaRequests();
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  is_microphone_requested_ = false;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void UserMediaClient::ContextDestroyed() {
