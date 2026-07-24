@@ -326,6 +326,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
     std::string* error_message)
     : JobOwner(job_queue),
       video_codec_(stream_config.video_stream_info.codec),
+      video_mime_(stream_config.video_stream_info.mime),
       drm_system_(static_cast<DrmSystem*>(stream_config.drm_system)),
       output_mode_(stream_config.output_mode),
       decode_target_graphics_context_provider_(
@@ -516,6 +517,45 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
   MEDIA_TRACE_EVENT("starboard", "VideoDecoder::WriteInputBuffers", "timestamp",
                     input_buffers.front()->timestamp(), "size",
                     input_buffers.size());
+
+  SbMediaVideoCodec new_codec =
+      input_buffers.front()->video_stream_info().codec;
+  const std::string& new_mime = input_buffers.front()->video_stream_info().mime;
+
+  bool codec_or_mime_changed = (new_codec != video_codec_) ||
+                               (!new_mime.empty() && new_mime != video_mime_);
+
+  if (just_reset_) {
+    just_reset_ = false;
+    if (codec_or_mime_changed) {
+      SB_LOG(INFO)
+          << "TEST: Codec or MIME change detected after Reset. Recreating "
+             "codec immediately without draining...";
+      TeardownCodec();
+      video_codec_ = new_codec;
+      video_mime_ = new_mime;
+      input_buffer_written_ = 0;
+      video_fps_ = 0;
+    }
+  }
+
+  if (input_buffer_written_ > 0 && codec_or_mime_changed && !draining_codec_) {
+    draining_codec_ = true;
+    pending_video_codec_ = new_codec;
+    pending_video_stream_info_ = input_buffers.front()->video_stream_info();
+
+    pending_input_buffers_.insert(pending_input_buffers_.end(),
+                                  input_buffers.begin(), input_buffers.end());
+
+    media_decoder_->WriteEndOfStream();
+    return;
+  }
+
+  if (draining_codec_) {
+    pending_input_buffers_.insert(pending_input_buffers_.end(),
+                                  input_buffers.begin(), input_buffers.end());
+    return;
+  }
 
   if (input_buffer_written_ == 0) {
     SB_DCHECK_EQ(video_fps_, 0);
@@ -977,6 +1017,21 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
 
   bool is_end_of_stream =
       dequeue_output_result.flags & MediaCodec::kBufferFlagEndOfStream;
+
+  if (is_end_of_stream && draining_codec_) {
+    SB_LOG(INFO) << "TEST: EOS received during draining.";
+    eos_received_in_draining_ = true;
+    media_codec_bridge->ReleaseOutputBuffer(dequeue_output_result.index, false);
+    if (buffered_output_frames_ == 0) {
+      SB_LOG(INFO) << "TEST: Old video fully rendered on screen. Scheduling "
+                      "internal hot-swap on worker thread.";
+      Schedule(std::bind(&MediaCodecVideoDecoder::PerformInternalDecoderHotSwap,
+                         this));
+    }
+    decoder_status_cb_(kNeedMoreInput, NULL);
+    return;
+  }
+
   if (!is_end_of_stream) {
     ++decoded_output_frames_;
     if (output_format_) {
@@ -1143,6 +1198,14 @@ void MediaCodecVideoDecoder::OnVideoFrameRelease() {
     --buffered_output_frames_;
     SB_DCHECK_GE(buffered_output_frames_, 0);
   }
+
+  if (draining_codec_ && eos_received_in_draining_ &&
+      buffered_output_frames_ == 0) {
+    SB_LOG(INFO) << "TEST: Old video fully rendered on screen. Scheduling "
+                    "internal hot-swap on worker thread.";
+    Schedule(std::bind(&MediaCodecVideoDecoder::PerformInternalDecoderHotSwap,
+                       this));
+  }
 }
 
 void MediaCodecVideoDecoder::OnSurfaceDestroyed() {
@@ -1212,11 +1275,52 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   tunnel_mode_prerolled_frames_.store(0);
   end_of_stream_written_ = false;
   pending_input_buffers_.clear();
+  just_reset_ = true;
+  draining_codec_ = false;
+  eos_received_in_draining_ = false;
+  pending_video_codec_ = kSbMediaVideoCodecNone;
 
   // TODO: We rely on VideoRenderAlgorithmTunneled::Seek() to be called inside
   //       VideoRenderer::Seek() after calling MediaCodecVideoDecoder::Reset()
   //       to update the seek status of |video_frame_tracker_|.  This is
   //       slightly flaky as it depends on the behavior of the video renderer.
+}
+
+void MediaCodecVideoDecoder::PerformInternalDecoderHotSwap() {
+  SB_CHECK(BelongsToCurrentThread());
+  SB_LOG(INFO) << "TEST: Performing internal decoder hot-swap from "
+               << GetMediaVideoCodecName(video_codec_) << " to "
+               << GetMediaVideoCodecName(pending_video_codec_);
+
+  TeardownCodec();
+
+  video_codec_ = pending_video_codec_;
+  video_mime_ = pending_video_stream_info_.mime;
+  needs_fps_to_initialize_codec_ =
+      (video_codec_ == kSbMediaVideoCodecAv1 &&
+       MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30());
+
+  input_buffer_written_ = 0;
+  video_fps_ = 0;
+  draining_codec_ = false;
+  eos_received_in_draining_ = false;
+
+  auto result = InitializeCodec(pending_video_stream_info_);
+  if (!result) {
+    std::string error_message =
+        "Failed to initialize video decoder internally: " + result.error();
+    SB_LOG(ERROR) << error_message;
+    TeardownCodec();
+    ReportError(kSbPlayerErrorDecode, error_message);
+    return;
+  }
+
+  if (!pending_input_buffers_.empty()) {
+    SB_LOG(INFO) << "TEST: Feeding " << pending_input_buffers_.size()
+                 << " queued new samples to the new decoder.";
+    WriteInputBuffersInternal(pending_input_buffers_);
+    pending_input_buffers_.clear();
+  }
 }
 
 }  // namespace starboard
