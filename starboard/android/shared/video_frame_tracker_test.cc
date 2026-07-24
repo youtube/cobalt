@@ -158,5 +158,38 @@ TEST(VideoFrameTrackerTest, UnorderedInputFramesAreHandled) {
   EXPECT_EQ(video_frame_tracker.UpdateAndGetDroppedFrames(), 0);
 }
 
+TEST(VideoFrameTrackerTest, OldRenderedFramesAfterSeekAreIgnored) {
+  VideoFrameTracker video_frame_tracker(100);
+
+  // Preroll/Play some frames
+  video_frame_tracker.OnInputBuffer(10000);
+  video_frame_tracker.OnInputBuffer(20000);
+  video_frame_tracker.OnFrameRendered(10000);
+  EXPECT_EQ(video_frame_tracker.UpdateAndGetDroppedFrames(), 0);
+
+  // Seek to a new time
+  const int64_t kSeekToTime = 100'000;  // 100ms
+  video_frame_tracker.Seek(kSeekToTime);
+
+  // Push new frames after seek
+  video_frame_tracker.OnInputBuffer(100000);
+  video_frame_tracker.OnInputBuffer(110000);
+
+  // An old rendered frame (e.g. 20000) arrives late (after Seek)
+  // This can happen on Android 14+ due to flushed frames being reported late.
+  video_frame_tracker.OnFrameRendered(20000);
+
+  // Render the new frames
+  video_frame_tracker.OnFrameRendered(100000);
+  video_frame_tracker.OnFrameRendered(110000);
+
+  // Without RemoveUnexpectedRenderedFrames, the late frame (20000) would
+  // compare with 100000, find it > 5000us early, and cause 100000 (and
+  // potentially 110000) to be marked as dropped. With
+  // RemoveUnexpectedRenderedFrames, 20000 is discarded, and we should have 0
+  // drops.
+  EXPECT_EQ(video_frame_tracker.UpdateAndGetDroppedFrames(), 0);
+}
+
 }  // namespace
 }  // namespace starboard

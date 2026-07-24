@@ -15,7 +15,6 @@
 #ifndef STARBOARD_ANDROID_SHARED_VIDEO_FRAME_TRACKER_H_
 #define STARBOARD_ANDROID_SHARED_VIDEO_FRAME_TRACKER_H_
 
-#include <list>
 #include <mutex>
 #include <vector>
 
@@ -26,7 +25,12 @@ namespace starboard {
 class VideoFrameTracker {
  public:
   explicit VideoFrameTracker(int max_pending_frames_size)
-      : max_pending_frames_size_(max_pending_frames_size) {}
+      : max_pending_frames_size_(max_pending_frames_size) {
+    // Reserve max_pending_frames_size + 1 to prevent reallocation when the
+    // queue size temporarily reaches max_pending_frames_size + 1 in
+    // OnInputBuffer before the oldest frame is popped.
+    frames_to_be_rendered_.reserve(max_pending_frames_size + 1);
+  }
 
   int64_t seek_to_time() const;
 
@@ -43,7 +47,7 @@ class VideoFrameTracker {
 
   ThreadChecker thread_checker_;
 
-  std::list<int64_t> frames_to_be_rendered_;
+  std::vector<int64_t> frames_to_be_rendered_;
 
   const int max_pending_frames_size_;
   int dropped_frames_ = 0;
