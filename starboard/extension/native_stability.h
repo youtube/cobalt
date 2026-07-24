@@ -23,8 +23,8 @@
 extern "C" {
 #endif
 
-#define kCobaltExtensionNativeStabilityName \
-  "dev.cobalt.extension.NativeStability"
+#define kStarboardExtensionNativeStabilityName \
+  "dev.starboard.extension.NativeStability"
 
 typedef enum SbNativeStabilityReportType {
   kSbNativeStabilityReportUnknown = 0,
@@ -44,8 +44,8 @@ typedef struct SbNativeStabilityReport {
 typedef int (*ReadReportsCallback)(SbNativeStabilityReport* reports,
                                    int max_num_reports);
 
-typedef struct CobaltExtensionNativeStabilityApi {
-  // Name should be the string |kCobaltExtensionNativeStabilityName|.
+typedef struct StarboardExtensionNativeStabilityApi {
+  // Name should be the string |kStarboardExtensionNativeStabilityName|.
   // This helps to validate that the extension API is correct.
   const char* name;
 
@@ -65,7 +65,7 @@ typedef struct CobaltExtensionNativeStabilityApi {
   // |ReadReports| implementation. This is used to delegate to an injected
   // dependency to avoid dependency cycles.
   void (*RegisterReadReportsCallback)(ReadReportsCallback callback);
-} CobaltExtensionNativeStabilityApi;
+} StarboardExtensionNativeStabilityApi;
 
 #ifdef __cplusplus
 }  // extern "C"
