@@ -62,9 +62,8 @@ class MODULES_EXPORT UserMediaClient
 
   bool IsCapturing();
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  bool IsMicrophoneRequested() const {
-    return is_microphone_requested_ ||
-           const_cast<UserMediaClient*>(this)->IsCapturing();
+  bool IsMicrophoneRequested() {
+    return is_microphone_requested_ || IsCapturing();
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 

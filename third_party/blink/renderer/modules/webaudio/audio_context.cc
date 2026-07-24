@@ -239,8 +239,8 @@ AudioContext* AudioContext::Create(ExecutionContext* context,
     if (!sample_rate.has_value()) {
       sample_rate = cobalt::media::kSampleRate;
     }
-    LOG(INFO) << "Cobalt: Microphone recording context initialized at 16kHz "
-                 "with silent sink descriptor.";
+    LOG(INFO) << "Cobalt: Microphone recording context initialized at "
+              << sample_rate.value() << "Hz with silent sink descriptor.";
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
