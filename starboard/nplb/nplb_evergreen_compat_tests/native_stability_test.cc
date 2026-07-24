@@ -19,7 +19,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if !BUILDFLAG(USE_EVERGREEN)
-#error Only Evergreen platforms are required to implement the tested extension
+#error Only Evergreen platforms must implement the NativeStability extension
 #endif
 
 namespace nplb {
@@ -30,7 +30,7 @@ TEST(NativeStabilityTest, VerifyNativeStabilityExtension) {
   auto extension = static_cast<const CobaltExtensionNativeStabilityApi*>(
       SbSystemGetExtension(kCobaltExtensionNativeStabilityName));
 
-  ASSERT_TRUE(extension != nullptr)
+  ASSERT_NE(extension, nullptr)
       << "Please update your platform's SbSystemGetExtension() implementation "
       << "to return the shared instance of this extension. The linux reference "
       << "platform can be used as an example.";
