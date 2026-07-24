@@ -371,6 +371,15 @@ void UserMediaClient::RequestUserMedia(UserMediaRequest* user_media_request) {
   }
 #endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // specifically for Cobalt, we can assume that an audio only
+  // getUserMedia request is for microphone capture, and is used to
+  // signal our fastpath microphone capture path.
+  if (user_media_request->Audio() && !user_media_request->Video()) {
+    is_microphone_requested_ = true;
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   user_media_request->set_has_transient_user_activation(
       has_transient_user_activation);
   mojom::blink::MediaStreamType type =

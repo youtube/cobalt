@@ -61,6 +61,12 @@ class MODULES_EXPORT UserMediaClient
   void ContextDestroyed() override;
 
   bool IsCapturing();
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  bool IsMicrophoneRequested() const {
+    return is_microphone_requested_ ||
+           const_cast<UserMediaClient*>(this)->IsCapturing();
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   static UserMediaClient* From(LocalDOMWindow*);
 
@@ -144,6 +150,10 @@ class MODULES_EXPORT UserMediaClient
 
   Member<RequestQueue> pending_device_requests_;
   Member<RequestQueue> pending_display_requests_;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  bool is_microphone_requested_ = false;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   THREAD_CHECKER(thread_checker_);
 };

@@ -61,10 +61,9 @@
 #endif
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "base/feature_list.h"
-#include "media/base/media_switches.h"
 #include "cobalt/media/audio/audio_input_constants.h"
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "third_party/blink/renderer/modules/mediastream/user_media_client.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace blink {
 
@@ -207,24 +206,9 @@ AudioContext* AudioContext::Create(ExecutionContext* context,
     sample_rate = context_options->sampleRate();
   }
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Force 16kHz default for Cobalt if no rate is specified.
-  // This aligns the JS engine with the native "Straight Pipe" 16kHz hardware capture,
-  // bypassing the heavy OfflineAudioContext downsampling in the YouTube application.
-  if (!sample_rate.has_value()) {
-    sample_rate = cobalt::media::kSampleRate;
-    LOG(INFO) << "Cobalt: Force-set sample rate to " << sample_rate.value();
-  }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
   // The empty string means the default audio device.
   auto frame_token = window.GetLocalFrameToken();
-  WebAudioSinkDescriptor sink_descriptor =
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-      WebAudioSinkDescriptor(frame_token);
-#else
-      WebAudioSinkDescriptor(g_empty_string, frame_token);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+  WebAudioSinkDescriptor sink_descriptor(g_empty_string, frame_token);
   // In order to not break echo cancellation of PeerConnection audio, we must
   // not update the echo cancellation reference unless the sink ID is explicitly
   // specified.
@@ -242,6 +226,23 @@ AudioContext* AudioContext::Create(ExecutionContext* context,
       sink_descriptor = WebAudioSinkDescriptor(frame_token);
     }
   }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  UserMediaClient* user_media_client = UserMediaClient::From(&window);
+  bool is_capturing =
+      user_media_client && user_media_client->IsMicrophoneRequested();
+  bool is_16k_requested = sample_rate.has_value() &&
+                          (sample_rate.value() == cobalt::media::kSampleRate);
+
+  if (is_capturing || is_16k_requested) {
+    sink_descriptor = WebAudioSinkDescriptor(frame_token);
+    if (!sample_rate.has_value()) {
+      sample_rate = cobalt::media::kSampleRate;
+    }
+    LOG(INFO) << "Cobalt: Microphone recording context initialized at 16kHz "
+                 "with silent sink descriptor.";
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Validate options before trying to construct the actual context.
   if (sample_rate.has_value() &&
