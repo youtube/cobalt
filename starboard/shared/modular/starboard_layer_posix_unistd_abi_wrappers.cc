@@ -157,6 +157,20 @@ musl_off_t __abi_wrap_lseek(int fildes, musl_off_t offset, int whence) {
 }
 
 long __abi_wrap_sysconf(int name) {
+#if defined(__ANDROID__)
+  // V6 names are not defined by the Android NDK
+  // XBS5 names are defined but rejected by bionic's sysconf() with EINVAL.
+  // Return -1 without EINVAL (valid POSIX for an unsupported option).
+  // The names are being intercepted here instead of an implementation
+  // on android's posix_emu layer because of the symbols that arent't
+  // defined in the NDK.
+  if (name == MUSL_SC_V6_ILP32_OFF32 || name == MUSL_SC_V6_ILP32_OFFBIG ||
+      name == MUSL_SC_V6_LP64_OFF64 || name == MUSL_SC_V6_LPBIG_OFFBIG ||
+      name == MUSL_SC_XBS5_ILP32_OFF32 || name == MUSL_SC_XBS5_ILP32_OFFBIG ||
+      name == MUSL_SC_XBS5_LP64_OFF64 || name == MUSL_SC_XBS5_LPBIG_OFFBIG) {
+    return -1;
+  }
+#endif
   switch (name) {
 #if defined(_SC_ARG_MAX)
     case MUSL_SC_ARG_MAX:
@@ -683,6 +697,19 @@ long __abi_wrap_sysconf(int name) {
 // If |musl_conf_to_platform_conf| returns -1,
 // just return -1 (errno is set to EINVAL by musl_conf_to_platform_conf()).
 long __abi_wrap_pathconf(const char* path, int name) {
+#if defined(__ANDROID__)
+  // _PC_SOCK_MAXBUF is not defined by the Android NDK
+  // _PC_REC_INCR_XFER_SIZE / _PC_REC_MAX_XFER_SIZE are defined but
+  // rejected by bionic's pathconf() with EINVAL. Return -1 without
+  // EINVAL (valid POSIX for an unsupported option).
+  // The names are being intercepted here instead of an implementation
+  // on android's posix_emu layer because of the symbols that arent't
+  // defined in the NDK.
+  if (name == MUSL_PC_SOCK_MAXBUF || name == MUSL_PC_REC_INCR_XFER_SIZE ||
+      name == MUSL_PC_REC_MAX_XFER_SIZE) {
+    return -1;
+  }
+#endif
   int converted_name = musl_conf_to_platform_conf(name);
   return (converted_name == -1) ? -1 : pathconf(path, converted_name);
 }
