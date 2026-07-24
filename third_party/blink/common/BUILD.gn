@@ -353,6 +353,9 @@ source_set("common") {
 test("blink_common_unittests") {
   visibility = [ "*" ]
   sources = []
+  if (is_cobalt_hermetic_build) {
+    sources += [ "//starboard/testing/sbeventhandle_from_main_with_args.cc" ]
+  }
   deps = [
     ":common_unittests_sources",
     "//services/metrics/public/cpp:metrics_cpp",
