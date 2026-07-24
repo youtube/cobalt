@@ -20,6 +20,7 @@
 #include <jni.h>
 
 #include <string>
+#include <vector>
 
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/shared/internal_only.h"
@@ -53,7 +54,8 @@ void SbFileAndroidTeardown();
 
 bool IsAndroidAssetPath(const char* path);
 AAsset* OpenAndroidAsset(const char* path);
-AAssetDir* OpenAndroidAssetDir(const char* path);
+
+std::vector<std::string> ListAndroidAssetDir(const char* path);
 
 }  // namespace starboard
 

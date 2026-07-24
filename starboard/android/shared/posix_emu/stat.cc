@@ -20,8 +20,8 @@
 #include "starboard/android/shared/file_internal.h"
 
 using starboard::IsAndroidAssetPath;
+using starboard::ListAndroidAssetDir;
 using starboard::OpenAndroidAsset;
-using starboard::OpenAndroidAssetDir;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Implementations below exposed externally in pure C for emulation.
@@ -58,13 +58,12 @@ int __wrap_fstatat(int dirfd, const char* path, struct stat* info, int flags) {
     return 0;
   }
 
-  if (AAssetDir* asset_dir = OpenAndroidAssetDir(path)) {
+  if (!ListAndroidAssetDir(path).empty()) {
     info->st_mode = S_IFDIR | S_IRUSR | S_IXUSR;  // Read-only, traversable dir.
     info->st_ctime = 0;
     info->st_atime = 0;
     info->st_mtime = 0;
     info->st_size = 0;
-    AAssetDir_close(asset_dir);
     return 0;
   }
 

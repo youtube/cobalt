@@ -220,7 +220,6 @@ static_library("starboard_platform") {
     "player_set_video_surface_view.h",
 
     # TODO: b/374300500 - posix_emu things should not be used on Android anymore
-    # "posix_emu/dirent.cc",
     # "posix_emu/pthread.cc",
 
     "runtime_resource_overlay.cc",
@@ -347,6 +346,7 @@ static_library("starboard_platform") {
       "asset_manager.cc",
       "asset_manager.h",
       "posix_emu/access.cc",
+      "posix_emu/dirent.cc",
       "posix_emu/errno.cc",
       "posix_emu/file.cc",
       "posix_emu/net_if.cc",

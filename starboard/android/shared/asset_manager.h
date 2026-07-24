@@ -19,6 +19,7 @@
 #include <mutex>
 #include <set>
 #include <string>
+#include <vector>
 
 namespace starboard {
 
@@ -29,6 +30,11 @@ class AssetManager {
   int Open(const char* path, int oflag);
   int Close(int fd);
   bool IsAssetFd(int fd) const;
+
+  int OpenDirectory(const char* path);
+  int CloseDirectory(int fd);
+  bool IsAssetDirFd(int fd) const;
+  bool GetDirectoryEntries(int fd, std::vector<std::string>* entries) const;
 
  private:
   AssetManager();
@@ -42,6 +48,8 @@ class AssetManager {
   uint64_t internal_fd_ = 0;                       // Guarded by |mutex_|.
   std::set<uint64_t> in_use_internal_fd_set_;      // Guarded by |mutex_|.
   std::map<int, uint64_t> fd_to_internal_fd_map_;  // Guarded by |mutex_|.
+  // Maps a reserved placeholder fd to the asset directory entries
+  std::map<int, std::vector<std::string>> dir_fd_to_entries_map_;
 };
 
 }  // namespace starboard

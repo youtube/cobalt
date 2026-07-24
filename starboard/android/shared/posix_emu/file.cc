@@ -50,6 +50,9 @@ int __wrap_close(int fildes) {
   if (asset_manager->IsAssetFd(fildes)) {
     return asset_manager->Close(fildes);
   }
+  if (asset_manager->IsAssetDirFd(fildes)) {
+    return asset_manager->CloseDirectory(fildes);
+  }
   return __real_close(fildes);
 }
 
@@ -63,6 +66,10 @@ int __wrap_openat(int dirfd, const char* path, int oflag, ...) {
       return __real_openat(dirfd, path, oflag, mode);
     }
     return __real_openat(dirfd, path, oflag);
+  }
+  // handle asset paths
+  if ((oflag & O_DIRECTORY) == O_DIRECTORY) {
+    return AssetManager::GetInstance()->OpenDirectory(path);
   }
   return AssetManager::GetInstance()->Open(path, oflag);
 }
