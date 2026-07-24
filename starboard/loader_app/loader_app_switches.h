@@ -50,6 +50,30 @@ extern const char kLoaderTrackMemory[];
 
 // Reset the Evergreen update for the app based on the the initial URL.
 extern const char kResetEvergreenUpdate[];
+
+// Enable streaming decompression for Zstd compressed binaries.
+extern const char kStreamingDecompression[];
+
+// Enable chunked decompression for Zstd compressed binaries.
+extern const char kChunkedDecompression[];
+
+// Enable parallel decompression for Zstd compressed binaries.
+extern const char kParallelDecompression[];
+
+// Enable pipelined parallel decompression for Zstd compressed binaries.
+extern const char kPipelinedParallelDecompression[];
+
+// Enable segment-aware parallel decompression for Zstd compressed binaries.
+extern const char kSegmentDecompression[];
+
+// Enable fully deferred parallel decompression for Zstd compressed binaries.
+extern const char kFullyDeferredDecompression[];
+
+// Flush the library from the disk cache before loading.
+extern const char kFlushCache[];
+
+// Run the memory bus contention diagnostic.
+extern const char kContentionDiagnostic[];
 }  // namespace loader_app
 
 #endif  // STARBOARD_LOADER_APP_LOADER_APP_SWITCHES_H_

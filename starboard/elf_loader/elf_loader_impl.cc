@@ -24,7 +24,15 @@
 #include "starboard/elf_loader/file.h"
 #include "starboard/elf_loader/file_impl.h"
 #include "starboard/elf_loader/log.h"
+#include "starboard/elf_loader/chunked_zstd_file_impl.h"
+#include "starboard/elf_loader/contention_diagnostic_file_impl.h"
+#include "starboard/elf_loader/fully_deferred_parallel_zstd_file_impl.h"
 #include "starboard/elf_loader/lz4_file_impl.h"
+#include "starboard/elf_loader/parallel_zstd_file_impl.h"
+#include "starboard/elf_loader/pipelined_parallel_zstd_file_impl.h"
+#include "starboard/elf_loader/segment_parallel_zstd_file_impl.h"
+#include "starboard/elf_loader/streaming_zstd_file_impl.h"
+#include "starboard/elf_loader/zstd_file_impl.h"
 #include "starboard/extension/loader_app_metrics.h"
 #include "starboard/system.h"
 
@@ -48,7 +56,14 @@ ElfLoaderImpl::ElfLoaderImpl() {
 
 bool ElfLoaderImpl::Load(const char* name,
                          bool use_compression,
-                         bool use_memory_mapped_files) {
+                         bool use_memory_mapped_files,
+                         bool use_streaming,
+                         bool use_chunked,
+                         bool use_parallel,
+                         bool use_pipelined_parallel,
+                         bool use_segment_decompression,
+                         bool use_fully_deferred,
+                         bool use_contention_diagnostic) {
   if (use_compression && use_memory_mapped_files) {
     SB_LOG(ERROR) << "Loading " << name
                   << " Compression is not supported with memory mapped files.";
@@ -56,9 +71,35 @@ bool ElfLoaderImpl::Load(const char* name,
   }
 
   std::unique_ptr<File> elf_file;
-  if (use_compression && EndsWith(name, kCompressionSuffix)) {
+  if (use_contention_diagnostic) {
+    elf_file.reset(new ContentionDiagnosticFileImpl());
+    SB_LOG(INFO) << "Running memory bus contention diagnostic";
+  } else if (use_compression && EndsWith(name, kLz4CompressionSuffix)) {
     elf_file.reset(new LZ4FileImpl());
-    SB_LOG(INFO) << "Loading " << name << " using compression";
+    SB_LOG(INFO) << "Loading " << name << " using LZ4 compression";
+  } else if (use_compression && EndsWith(name, kZstdCompressionSuffix)) {
+    if (use_streaming) {
+      elf_file.reset(new StreamingZstdFileImpl());
+      SB_LOG(INFO) << "Loading " << name << " using Zstd streaming compression";
+    } else if (use_pipelined_parallel) {
+      elf_file.reset(new PipelinedParallelZstdFileImpl());
+      SB_LOG(INFO) << "Loading " << name << " using Zstd pipelined parallel compression";
+    } else if (use_parallel) {
+      elf_file.reset(new ParallelZstdFileImpl());
+      SB_LOG(INFO) << "Loading " << name << " using Zstd parallel compression";
+    } else if (use_segment_decompression) {
+      elf_file.reset(new SegmentParallelZstdFileImpl());
+      SB_LOG(INFO) << "Loading " << name << " using Zstd segment parallel compression";
+    } else if (use_fully_deferred) {
+      elf_file.reset(new FullyDeferredParallelZstdFileImpl());
+      SB_LOG(INFO) << "Loading " << name << " using Zstd fully deferred parallel compression";
+    } else if (use_chunked) {
+      elf_file.reset(new ChunkedZstdFileImpl());
+      SB_LOG(INFO) << "Loading " << name << " using Zstd chunked compression";
+    } else {
+      elf_file.reset(new ZstdFileImpl());
+      SB_LOG(INFO) << "Loading " << name << " using Zstd compression";
+    }
   } else {
     SB_LOG(INFO) << "Loading " << name;
     elf_file.reset(new FileImpl());

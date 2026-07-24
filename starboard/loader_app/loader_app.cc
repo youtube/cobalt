@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <fcntl.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include <string>
 #include <vector>
@@ -48,14 +50,29 @@
 
 namespace {
 
+void FlushCache(const std::string& path) {
+  int fd = open(path.c_str(), O_RDONLY);
+  if (fd != -1) {
+    if (posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED) == 0) {
+      SB_LOG(INFO) << "Surgically flushed " << path << " from disk cache.";
+    } else {
+      SB_LOG(WARNING) << "Failed to flush " << path << " from disk cache.";
+    }
+    close(fd);
+  }
+}
+
 // Relative path to the Cobalt's system image content path.
 const char kSystemImageContentPath[] = "app/cobalt/content";
 
 // Relative path to the Cobalt's system image library.
 const char kSystemImageLibraryPath[] = "app/cobalt/lib/libcobalt.so";
 
-// Relative path to the compressed Cobalt's system image library.
-const char kSystemImageCompressedLibraryPath[] = "app/cobalt/lib/libcobalt.lz4";
+// Relative path to the LZ4 compressed Cobalt's system image library.
+const char kSystemImageLz4LibraryPath[] = "app/cobalt/lib/libcobalt.lz4";
+
+// Relative path to the Zstd compressed Cobalt's system image library.
+const char kSystemImageZstdLibraryPath[] = "app/cobalt/lib/libcobalt.zst";
 
 // Relative path to Cobalt's system image manifest.json.
 const char kSystemImageManifestPath[] = "app/cobalt/manifest.json";
@@ -67,15 +84,41 @@ elf_loader::ElfLoader g_elf_loader;
 // Cobalt binary.
 void (*g_sb_event_func)(const SbEvent*) = NULL;
 
+class LibraryLoader {
+ public:
+  virtual bool Load(const std::string& library_path,
+                    const std::string& content_path,
+                    bool use_compression,
+                    bool use_memory_mapped_file,
+                    bool use_streaming,
+                    bool use_chunked,
+                    bool use_parallel,
+                    bool use_pipelined_parallel,
+                    bool use_contention_diagnostic) = 0;
+  virtual void* Resolve(const std::string& symbol) = 0;
+  virtual ~LibraryLoader() {}
+};
+
 class CobaltLibraryLoader : public loader_app::LibraryLoader {
  public:
   virtual bool Load(const std::string& library_path,
                     const std::string& content_path,
                     bool use_compression,
-                    bool use_memory_mapped_file) {
+                    bool use_memory_mapped_file,
+                    bool use_streaming,
+                    bool use_chunked,
+                    bool use_parallel,
+                    bool use_pipelined_parallel,
+                    bool use_segment_decompression,
+                    bool use_fully_deferred,
+                    bool use_contention_diagnostic) {
     return g_elf_loader.Load(library_path, content_path, false,
                              &loader_app::SbSystemGetExtensionShim,
-                             use_compression, use_memory_mapped_file);
+                             use_compression, use_memory_mapped_file,
+                             use_streaming, use_chunked, use_parallel,
+                             use_pipelined_parallel, use_segment_decompression,
+                             use_fully_deferred,
+                             use_contention_diagnostic);
   }
   virtual void* Resolve(const std::string& symbol) {
     return g_elf_loader.LookupSymbol(symbol.c_str());
@@ -115,7 +158,15 @@ void InsertVersionAnnotationFromManifest(const std::string& content_dir) {
 }
 
 void LoadLibraryAndInitialize(const std::string& alternative_content_path,
-                              bool use_memory_mapped_file) {
+                              bool use_memory_mapped_file,
+                              bool use_streaming,
+                              bool use_chunked,
+                              bool use_parallel,
+                              bool use_pipelined_parallel,
+                              bool use_segment_decompression,
+                              bool flush_cache,
+                              bool use_fully_deferred,
+                              bool use_contention_diagnostic) {
   std::string content_dir;
   if (!GetContentDir(&content_dir)) {
     SB_LOG(ERROR) << "Failed to get the content dir";
@@ -135,25 +186,34 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
   std::string library_path = content_dir;
   library_path += kSbFileSepString;
 
-  std::string compressed_library_path(library_path);
-  compressed_library_path += kSystemImageCompressedLibraryPath;
+  std::string zstd_library_path(library_path);
+  zstd_library_path += kSystemImageZstdLibraryPath;
+
+  std::string lz4_library_path(library_path);
+  lz4_library_path += kSystemImageLz4LibraryPath;
 
   std::string uncompressed_library_path(library_path);
   uncompressed_library_path += kSystemImageLibraryPath;
 
   bool use_compression;
   struct stat info;
-  if (stat(compressed_library_path.c_str(), &info) == 0) {
-    library_path = compressed_library_path;
+  if (stat(zstd_library_path.c_str(), &info) == 0) {
+    library_path = zstd_library_path;
+    use_compression = true;
+  } else if (stat(lz4_library_path.c_str(), &info) == 0) {
+    library_path = lz4_library_path;
     use_compression = true;
   } else if (stat(uncompressed_library_path.c_str(), &info) == 0) {
     library_path = uncompressed_library_path;
     use_compression = false;
   } else {
-    SB_LOG(ERROR) << "No library found at compressed "
-                  << compressed_library_path << " or uncompressed "
-                  << uncompressed_library_path << " path";
+    SB_LOG(ERROR) << "No library found at " << zstd_library_path << ", "
+                  << lz4_library_path << " or " << uncompressed_library_path;
     return;
+  }
+
+  if (flush_cache) {
+    FlushCache(library_path);
   }
 
   if (use_compression && use_memory_mapped_file) {
@@ -162,7 +222,9 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
   }
 
   if (!g_elf_loader.Load(library_path, content_path, false, nullptr,
-                         use_compression, use_memory_mapped_file)) {
+                         use_compression, use_memory_mapped_file,
+                         use_streaming, use_chunked, use_parallel,
+                         use_pipelined_parallel, use_contention_diagnostic)) {
     SB_NOTREACHED() << "Failed to load library at '"
                     << g_elf_loader.GetLibraryPath() << "'.";
     return;
@@ -276,6 +338,38 @@ void SbEventHandle(const SbEvent* event) {
         command_line.HasSwitch(loader_app::kLoaderUseMemoryMappedFile);
     SB_LOG(INFO) << "use_memory_mapped_file=" << use_memory_mapped_file;
 
+    bool use_streaming =
+        command_line.HasSwitch(loader_app::kStreamingDecompression);
+    SB_LOG(INFO) << "use_streaming=" << use_streaming;
+
+    bool use_chunked =
+        command_line.HasSwitch(loader_app::kChunkedDecompression);
+    SB_LOG(INFO) << "use_chunked=" << use_chunked;
+
+    bool use_parallel =
+        command_line.HasSwitch(loader_app::kParallelDecompression);
+    SB_LOG(INFO) << "use_parallel=" << use_parallel;
+
+    bool use_pipelined_parallel =
+        command_line.HasSwitch(loader_app::kPipelinedParallelDecompression);
+    SB_LOG(INFO) << "use_pipelined_parallel=" << use_pipelined_parallel;
+
+    bool use_segment_decompression =
+        command_line.HasSwitch(loader_app::kSegmentDecompression);
+    SB_LOG(INFO) << "use_segment_decompression=" << use_segment_decompression;
+
+    bool use_fully_deferred =
+        command_line.HasSwitch(loader_app::kFullyDeferredDecompression);
+    SB_LOG(INFO) << "use_fully_deferred=" << use_fully_deferred;
+
+    bool flush_cache =
+        command_line.HasSwitch(loader_app::kFlushCache);
+    SB_LOG(INFO) << "flush_cache=" << flush_cache;
+
+    bool use_contention_diagnostic =
+        command_line.HasSwitch(loader_app::kContentionDiagnostic);
+    SB_LOG(INFO) << "use_contention_diagnostic=" << use_contention_diagnostic;
+
     if (use_compressed_updates && use_memory_mapped_file) {
       SB_LOG(ERROR) << "Compression and memory mapping are incompatible."
                     << " Compressed updates should not be installed because"
@@ -302,7 +396,11 @@ void SbEventHandle(const SbEvent* event) {
 
     if (is_evergreen_lite) {
       loader_app::RecordSlotSelectionStatus(SlotSelectionStatus::kEGLite);
-      LoadLibraryAndInitialize(alternative_content, use_memory_mapped_file);
+      LoadLibraryAndInitialize(alternative_content, use_memory_mapped_file,
+                               use_streaming, use_chunked, use_parallel,
+                               use_pipelined_parallel, use_segment_decompression,
+                               flush_cache, use_fully_deferred,
+                               use_contention_diagnostic);
     } else {
       std::string url = command_line.GetSwitchValue(loader_app::kURL);
       if (url.empty()) {
@@ -312,16 +410,22 @@ void SbEventHandle(const SbEvent* event) {
       SB_CHECK(!app_key.empty());
 
       g_sb_event_func = reinterpret_cast<void (*)(const SbEvent*)>(
-          loader_app::LoadSlotManagedLibrary(app_key, alternative_content,
-                                             &g_cobalt_library_loader,
-                                             use_memory_mapped_file));
+          loader_app::LoadSlotManagedLibrary(
+              app_key, alternative_content, &g_cobalt_library_loader,
+              use_memory_mapped_file, use_streaming, use_chunked, use_parallel,
+              use_pipelined_parallel, use_segment_decompression, 
+              use_fully_deferred, flush_cache, use_contention_diagnostic));
 
       if (g_sb_event_func == NULL) {
         SB_LOG(ERROR) << "Failed to initialize Installation Manager. Loading "
                          "system image instead.";
         loader_app::RecordSlotSelectionStatus(
             SlotSelectionStatus::kLoadSysImgFailedToInitInstallationManager);
-        LoadLibraryAndInitialize(alternative_content, use_memory_mapped_file);
+        LoadLibraryAndInitialize(alternative_content, use_memory_mapped_file,
+                                 use_streaming, use_chunked, use_parallel,
+                                 use_pipelined_parallel, use_segment_decompression,
+                                 flush_cache, use_fully_deferred,
+                                 use_contention_diagnostic);
       }
     }
     // If g_sb_event_func is NULL at this point, the app has no choice but to
