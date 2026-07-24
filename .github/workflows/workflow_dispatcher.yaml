@@ -1,0 +1,66 @@
+name: Workflow Dispatcher
+
+on:
+  pull_request_target:
+    types: [labeled]
+
+permissions: read-all
+
+jobs:
+  dispatch:
+    if: github.event.label.name == 'runtest' || github.event.label.name == 'yts_playback_test'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Check label and trigger PR jobs
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const event = context.payload;
+            const pr = event.pull_request;
+
+            if (context.eventName !== 'pull_request_target' || event.action !== 'labeled') {
+              console.log('Not a pull_request_target labeled event.');
+              return;
+            }
+
+            // Workflows that use main.yaml. tvos.yaml is excluded as it does not use main.yaml.
+            const workflows = [
+              'android.yaml',
+              'aosp.yaml',
+              'evergreen.yaml',
+              'linux.yaml'
+            ];
+
+            await Promise.all(workflows.map(async (workflow) => {
+              try {
+                console.log(`Looking for runs of ${workflow} for branch ${pr.head.ref}`);
+                const runs = await github.rest.actions.listWorkflowRuns({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: workflow,
+                  head_sha: pr.head.sha,
+                  event: 'pull_request'
+                });
+
+                const prRuns = runs.data.workflow_runs;
+                if (prRuns.length === 0) {
+                  console.log(`No runs found for workflow ${workflow}, branch ${pr.head.ref}, and SHA ${pr.head.sha}`);
+                  return;
+                }
+
+                const latestRun = prRuns[0];
+
+                console.log(`Rerunning run ${latestRun.id} for workflow ${workflow}`);
+                await github.rest.actions.rerunWorkflow({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: latestRun.id
+                });
+                console.log(`Successfully requested rerun for ${workflow}`);
+              } catch (error) {
+                console.error(`Failed to rerun ${workflow}:`, error);
+              }
+            }));
