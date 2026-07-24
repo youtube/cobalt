@@ -7,14 +7,17 @@
 #include <utility>
 
 #include "base/logging.h"
+#include "build/buildflag.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_object_builder.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_payment_complete.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_payment_validation_errors.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "third_party/blink/renderer/modules/credentialmanagement/authenticator_assertion_response.h"
 #include "third_party/blink/renderer/modules/credentialmanagement/credential_manager_type_converters.h"
 #include "third_party/blink/renderer/modules/credentialmanagement/public_key_credential.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "third_party/blink/renderer/modules/payments/payment_address.h"
 #include "third_party/blink/renderer/modules/payments/payment_state_resolver.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
@@ -29,6 +32,7 @@ ScriptObject BuildDetails(ScriptState* script_state,
                           mojom::blink::GetAssertionAuthenticatorResponsePtr
                               get_assertion_authentication_response) {
   if (get_assertion_authentication_response) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
     const auto& info = get_assertion_authentication_response->info;
     auto* authenticator_response =
         MakeGarbageCollected<AuthenticatorAssertionResponse>(
@@ -44,6 +48,9 @@ ScriptObject BuildDetails(ScriptState* script_state,
         ConvertTo<AuthenticationExtensionsClientOutputs*>(
             get_assertion_authentication_response->extensions));
     return ScriptObject(script_state->GetIsolate(), result->ToV8(script_state));
+#else
+    return V8ObjectBuilder(script_state).ToScriptObject();
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   }
 
   if (json.empty()) {

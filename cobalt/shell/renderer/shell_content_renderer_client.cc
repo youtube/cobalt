@@ -17,6 +17,7 @@
 #include <string>
 
 #include "base/check_op.h"
+#include "build/buildflag.h"
 #include "base/command_line.h"
 #include "base/files/file.h"
 #include "base/functional/bind.h"
@@ -86,6 +87,7 @@ class ShellContentRendererUrlLoaderThrottleProvider
       const network::ResourceRequest& request) override {
     std::vector<std::unique_ptr<blink::URLLoaderThrottle>> throttles;
     if (local_frame_token.has_value()) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
       auto throttle =
           content::MaybeCreateIdentityUrlLoaderThrottle(base::BindRepeating(
               [](const blink::LocalFrameToken& local_frame_token,
@@ -108,6 +110,7 @@ class ShellContentRendererUrlLoaderThrottleProvider
       if (throttle) {
         throttles.push_back(std::move(throttle));
       }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
     }
 
     return throttles;
