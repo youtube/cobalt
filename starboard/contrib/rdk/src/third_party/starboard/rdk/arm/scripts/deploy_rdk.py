@@ -253,6 +253,43 @@ def ensure_dolby_vision_policy(device_id: Optional[str], device_ip: Optional[str
     run_remote_command(f"echo 1 > {policy_file}", device_id, device_ip)
 
 
+def _extract_flag_key(arg: str) -> str:
+    """Extracts option key from flag string (e.g. '--foo' from '--foo=val', '--foo val', or '--foo')."""
+    return arg.split("=", 1)[0].split()[0]
+
+
+def deduplicate_sb_args(sb_args: List[str], new_args: List[str]) -> List[str]:
+    """Filters pre-existing flags from sb_args whose keys are overridden by new_args.
+
+    Handles inline equals ('--foo=val'), single-string space ('--foo val'),
+    valueless/boolean flags ('--foo'), and two-item space-separated ('--foo', 'val').
+    """
+    override_keys = set()
+    for arg in new_args:
+        if arg.startswith("--"):
+            override_keys.add(_extract_flag_key(arg))
+
+    filtered_sb_args = []
+    i = 0
+    while i < len(sb_args):
+        arg = sb_args[i]
+        if arg.startswith("--"):
+            key = _extract_flag_key(arg)
+            if key in override_keys:
+                # Key is overridden by new_args. Skip this flag.
+                # If value was in separate argument item (no '=' or space in arg),
+                # skip the next argument item too if it's a non-flag value.
+                if "=" not in arg and " " not in arg and (i + 1 < len(sb_args)) and not sb_args[i + 1].startswith("--"):
+                    i += 1  # Skip space-separated value item
+            else:
+                filtered_sb_args.append(arg)
+        else:
+            filtered_sb_args.append(arg)
+        i += 1
+
+    return filtered_sb_args + new_args
+
+
 def launch_on_device(
     device_id: Optional[str],
     device_ip: Optional[str],
@@ -316,27 +353,13 @@ def launch_on_device(
                 config = res["result"]
                 sb_args = config.get("sbmainargs", [])
                 
-                # Filter out any existing url, profiling and remote debugging arguments to prevent duplicates
-                blocked_flags = {
-                    "--remote-debugging-port",
-                    "--enable-heap-profiling",
-                    "--memlog",
-                    "--memlog-stack-mode",
-                    "--trace-startup",
-                    "--trace-startup-duration",
-                    "--trace-startup-format",
-                    "--trace-startup-file",
-                    "--url",
-                }
-                sb_args = [arg for arg in sb_args if arg.split("=", 1)[0] not in blocked_flags]
-                
+                new_args = []
                 if devtools:
-                    sb_args.append("--remote-debugging-port=9222")
-
+                    new_args.append("--remote-debugging-port=9222")
                 if param:
-                    sb_args.extend(param)
+                    new_args.extend(param)
 
-                config["sbmainargs"] = sb_args
+                config["sbmainargs"] = deduplicate_sb_args(sb_args, new_args)
 
                 # Set configuration
                 rpc_set_config = json.dumps({

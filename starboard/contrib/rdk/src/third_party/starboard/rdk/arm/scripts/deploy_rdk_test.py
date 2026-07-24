@@ -530,5 +530,73 @@ class TestDeployRdkDeviceDetection(unittest.TestCase):
                 self.fail("KeyboardInterrupt was not caught by deploy_rdk --logs")
 
 
+class TestDeduplicateSbArgs(unittest.TestCase):
+    """Unit tests for deduplicate_sb_args function."""
+
+    def test_inline_key_value(self):
+        """Verifies deduplication of --key=value flags."""
+        sb_args = ["--url=https://old.com", "--v=1"]
+        new_args = ["--url=https://new.com"]
+        result = deploy_rdk.deduplicate_sb_args(sb_args, new_args)
+        self.assertEqual(result, ["--v=1", "--url=https://new.com"])
+
+    def test_valueless_boolean_flag(self):
+        """Verifies deduplication of valueless/boolean flags."""
+        sb_args = ["--enable-heap-profiling", "--v=1"]
+        new_args = ["--enable-heap-profiling"]
+        result = deploy_rdk.deduplicate_sb_args(sb_args, new_args)
+        self.assertEqual(result, ["--v=1", "--enable-heap-profiling"])
+
+    def test_space_separated_key_value(self):
+        """Verifies deduplication of space-separated --key value arguments."""
+        # When sb_args has space-separated key and value
+        sb_args = ["--bar", "old_val", "--v=1"]
+        new_args = ["--bar=new_val"]
+        result = deploy_rdk.deduplicate_sb_args(sb_args, new_args)
+        self.assertEqual(result, ["--v=1", "--bar=new_val"])
+
+        # When both sb_args and new_args use space-separated key and value
+        sb_args = ["--bar", "old_val", "--v=1"]
+        new_args = ["--bar", "new_val"]
+        result = deploy_rdk.deduplicate_sb_args(sb_args, new_args)
+        self.assertEqual(result, ["--v=1", "--bar", "new_val"])
+
+    def test_all_three_flag_types_combined(self):
+        """Verifies deduplication when inline, valueless, and space-separated flags are all present and overridden."""
+        sb_args = [
+            "--foo=old_inline",
+            "--bar",
+            "--baz", "old_space_val",
+            "--keep=123",
+        ]
+        new_args = [
+            "--foo=new_inline",
+            "--bar",
+            "--baz=new_space_val",
+        ]
+        result = deploy_rdk.deduplicate_sb_args(sb_args, new_args)
+        expected = [
+            "--keep=123",
+            "--foo=new_inline",
+            "--bar",
+            "--baz=new_space_val",
+        ]
+        self.assertEqual(result, expected)
+
+    def test_single_string_space_arg(self):
+        """Verifies deduplication when arguments contain internal spaces like '--bar 1'."""
+        # Single string with space in sb_args overridden by equals syntax
+        res1 = deploy_rdk.deduplicate_sb_args(["--bar 1", "--v=1"], ["--bar=2"])
+        self.assertEqual(res1, ["--v=1", "--bar=2"])
+
+        # Equals syntax in sb_args overridden by single string with space
+        res2 = deploy_rdk.deduplicate_sb_args(["--bar=1", "--v=1"], ["--bar 2"])
+        self.assertEqual(res2, ["--v=1", "--bar 2"])
+
+        # Two-item space arg in sb_args overridden by single string with space
+        res3 = deploy_rdk.deduplicate_sb_args(["--bar", "1", "--v=1"], ["--bar 2"])
+        self.assertEqual(res3, ["--v=1", "--bar 2"])
+
+
 if __name__ == "__main__":
     unittest.main()
