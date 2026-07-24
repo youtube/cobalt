@@ -24,19 +24,11 @@ namespace blink {
 H5vccRuntime::H5vccRuntime(LocalDOMWindow& window)
     : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
       remote_h5vcc_runtime_(window.GetExecutionContext()),
-      deep_link_receiver_(this, window.GetExecutionContext()) {
-  EnsureRemoteIsBound();
-  remote_h5vcc_runtime_->GetAndClearInitialDeepLinkSync(&initial_deep_link_);
-  LOG(INFO) << "H5vccRuntime initial DeepLink: " << initial_deep_link_;
-}
+      deep_link_receiver_(this, window.GetExecutionContext()) {}
 
 void H5vccRuntime::ContextDestroyed() {
   remote_h5vcc_runtime_.reset();
   deep_link_receiver_.reset();
-}
-
-String H5vccRuntime::initialDeepLink() {
-  return initial_deep_link_;
 }
 
 void H5vccRuntime::MaybeFireDeepLinkEvent(const String& url) {
