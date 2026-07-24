@@ -539,7 +539,7 @@ class CONTENT_EXPORT FrameTreeNode : public RenderFrameHostOwner {
   // this means setting a new fenced frame nonce. See comment on
   // fenced_frame_nonce() for when it is set to a non-null value. Invoked
   // by FrameTree::Init() or FrameTree::AddFrame().
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   void SetFencedFramePropertiesIfNeeded();
 
   // Set the current FencedFrameProperties to have "opaque ads mode".
@@ -555,7 +555,7 @@ class CONTENT_EXPORT FrameTreeNode : public RenderFrameHostOwner {
           ->SetFencedFramePropertiesOpaqueAdsModeForTesting();
     }
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   // Returns the mode attribute from the `FencedFrameProperties` if this frame
   // is in a fenced frame tree, otherwise returns `kDefault`.
@@ -594,7 +594,7 @@ class CONTENT_EXPORT FrameTreeNode : public RenderFrameHostOwner {
   void SetSrcdocValue(const std::string& srcdoc_value);
   const std::string& srcdoc_value() const { return srcdoc_value_; }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   void set_fenced_frame_properties(
       const std::optional<FencedFrameProperties>& fenced_frame_properties) {
     // TODO(crbug.com/40202462): Reenable this DCHECK once ShadowDOM and
@@ -603,7 +603,7 @@ class CONTENT_EXPORT FrameTreeNode : public RenderFrameHostOwner {
     //          RenderFrameHostImpl::FencedFrameStatus::kFencedFrameRoot);
     fenced_frame_properties_ = fenced_frame_properties;
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   // This function returns the fenced frame properties associated with the given
   // source.
@@ -617,7 +617,7 @@ class CONTENT_EXPORT FrameTreeNode : public RenderFrameHostOwner {
   // iframe.
   // - `kFrameTreeRoot`: returns the fenced frame properties from the fenced
   // frame.
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // Clients should decide which one to use depending on how the application of
   // the fenced frame properties interact with urn iframes.
   // TODO(crbug.com/40060657): Once navigation support for urn::uuid in iframes
@@ -634,7 +634,7 @@ class CONTENT_EXPORT FrameTreeNode : public RenderFrameHostOwner {
   bool HasFencedFrameProperties() const {
     return fenced_frame_properties_.has_value();
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   // Returns the number of fenced frame boundaries above this frame. The
   // outermost main frame's frame tree has fenced frame depth 0, a topmost
@@ -647,7 +647,7 @@ class CONTENT_EXPORT FrameTreeNode : public RenderFrameHostOwner {
   // originates from shared storage only (i.e. not from FLEDGE).
   // TODO(crbug.com/40233168): Remove this check once we put permissions inside
   // FencedFrameConfig.
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   size_t GetFencedFrameDepth(size_t& shared_storage_fenced_frame_root_count);
 
   // Traverse up from this node. Return all valid
@@ -667,7 +667,7 @@ class CONTENT_EXPORT FrameTreeNode : public RenderFrameHostOwner {
   // frame within the config's fenced frame tree (or a same-origin descendant of
   // a URN iframe).
   std::optional<std::u16string> GetEmbedderSharedStorageContextIfAllowed();
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   // Accessor to BrowsingContextState for subframes only. Only main frame
   // navigations can change BrowsingInstances and BrowsingContextStates,
@@ -962,13 +962,13 @@ class CONTENT_EXPORT FrameTreeNode : public RenderFrameHostOwner {
   const FencedFrameStatus fenced_frame_status_ =
       FencedFrameStatus::kNotNestedInFencedFrame;
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // If this is a fenced frame resulting from a urn:uuid navigation, this
   // contains all the metadata specifying the resulting context.
   // TODO(crbug.com/40202462): Move this into the FrameTree once ShadowDOM
   // and urn iframes are gone.
   std::optional<FencedFrameProperties> fenced_frame_properties_;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   // The tracker of the task that restarts the BFCache navigation. It might be
   // used to cancel the task.

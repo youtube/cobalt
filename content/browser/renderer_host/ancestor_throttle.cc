@@ -60,7 +60,7 @@ bool HeadersContainFrameAncestorsCSP(
 RenderFrameHostImpl* GetParentForFrameAncestors(NavigationRequest* request,
                                                 RenderFrameHostImpl* frame) {
   bool allows_information_inflow = false;
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (base::FeatureList::IsEnabled(
           blink::features::kFencedFramesLocalUnpartitionedDataAccess)) {
     if (request) {
@@ -80,7 +80,7 @@ RenderFrameHostImpl* GetParentForFrameAncestors(NavigationRequest* request,
   }
 #else
   allows_information_inflow = !frame->IsFencedFrameRoot();
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   if (!allows_information_inflow && request &&
       base::FeatureList::IsEnabled(
