@@ -31,6 +31,7 @@ if (current_toolchain == starboard_toolchain) {
       "audio_frame_discarder_test.cc",
       "audio_renderer_internal_test.cc",
       "audio_resampler_test.cc",
+      "audio_time_stretcher_test.cc",
       "experimental_features_test.cc",
       "file_cache_reader_test.cc",
       "media_time_provider_impl_test.cc",
@@ -67,6 +68,7 @@ if (current_toolchain == starboard_toolchain) {
       "//starboard/common/benchmark_main.cc",
       "audio_decoder_benchmark.cc",
       "decoded_audio_benchmark.cc",
+      "wsola_benchmark.cc",
     ]
 
     public_deps = [
