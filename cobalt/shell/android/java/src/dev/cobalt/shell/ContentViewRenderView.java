@@ -278,8 +278,7 @@ public class ContentViewRenderView extends FrameLayout {
         }
     }
 
-    protected static class WindowSurfaceBridge extends SurfaceBridge implements SurfaceHolder.Callback2 {
-        private SurfaceHolder.Callback mSurfaceCallback;
+    protected static class WindowSurfaceBridge extends SurfaceBridge {
         private SurfaceHolder mWindowSurfaceHolder;
         private Integer mSurfaceFormat;
 
@@ -287,8 +286,8 @@ public class ContentViewRenderView extends FrameLayout {
         protected void initialize(ContentViewRenderView renderView) {}
 
         @Override
-        protected void connect(SurfaceHolder.Callback surfaceCallback, WindowAndroid windowAndroid) {
-            mSurfaceCallback = surfaceCallback;
+        protected void connect(
+                SurfaceHolder.Callback surfaceCallback, WindowAndroid windowAndroid) {
             if (windowAndroid == null) {
                 return;
             }
@@ -296,13 +295,43 @@ public class ContentViewRenderView extends FrameLayout {
             if (activity == null || activity.getWindow() == null) {
                 return;
             }
-            activity.getWindow().takeSurface(this);
+
+            activity.getWindow().takeSurface(new SurfaceHolder.Callback2() {
+                @Override
+                public void surfaceCreated(SurfaceHolder holder) {
+                    mWindowSurfaceHolder = holder;
+                    if (mSurfaceFormat != null) {
+                        Log.i(TAG, "Applying pending format");
+                        mWindowSurfaceHolder.setFormat(mSurfaceFormat);
+                    }
+                    surfaceCallback.surfaceCreated(holder);
+                }
+
+                @Override
+                public void surfaceChanged(
+                        SurfaceHolder holder, int format, int width, int height) {
+                    mWindowSurfaceHolder = holder;
+                    surfaceCallback.surfaceChanged(holder, format, width, height);
+                }
+
+                @Override
+                public void surfaceDestroyed(SurfaceHolder holder) {
+                    mWindowSurfaceHolder = null;
+                    surfaceCallback.surfaceDestroyed(holder);
+                }
+
+                @Override
+                public void surfaceRedrawNeeded(SurfaceHolder holder) {
+                    if (surfaceCallback instanceof SurfaceHolder.Callback2) {
+                        ((SurfaceHolder.Callback2) surfaceCallback).surfaceRedrawNeeded(holder);
+                    }
+                }
+            });
         }
 
         @Override
         protected void disconnect() {
             mWindowSurfaceHolder = null;
-            mSurfaceCallback = null;
             mSurfaceFormat = null;
         }
 
@@ -319,46 +348,6 @@ public class ContentViewRenderView extends FrameLayout {
                 return;
             }
             mWindowSurfaceHolder.setFormat(format);
-        }
-
-        @Override
-        public void surfaceCreated(SurfaceHolder holder) {
-            mWindowSurfaceHolder = holder;
-            if (mSurfaceFormat != null) {
-                Log.i(TAG, "Applying pending format");
-                mWindowSurfaceHolder.setFormat(mSurfaceFormat);
-            }
-
-            if (mSurfaceCallback == null) {
-                return;
-            }
-            mSurfaceCallback.surfaceCreated(holder);
-        }
-
-        @Override
-        public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-            mWindowSurfaceHolder = holder;
-            if (mSurfaceCallback == null) {
-                return;
-            }
-            mSurfaceCallback.surfaceChanged(holder, format, width, height);
-        }
-
-        @Override
-        public void surfaceDestroyed(SurfaceHolder holder) {
-            mWindowSurfaceHolder = null;
-            if (mSurfaceCallback == null) {
-                return;
-            }
-            mSurfaceCallback.surfaceDestroyed(holder);
-        }
-
-        @Override
-        public void surfaceRedrawNeeded(SurfaceHolder holder) {
-            if (!(mSurfaceCallback instanceof SurfaceHolder.Callback2)) {
-                return;
-            }
-            ((SurfaceHolder.Callback2) mSurfaceCallback).surfaceRedrawNeeded(holder);
         }
     }
 
