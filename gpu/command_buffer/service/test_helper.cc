@@ -637,9 +637,9 @@ void TestHelper::SetupFeatureInfoInitExpectationsWithGLVersion(
   }
 
   // These expectations are for IsGL_REDSupportedOnFBOs(), which is
-  // skipped universally on macOS, and by default (with a Finch
-  // kill-switch) on Android.
-#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID)
+  // skipped universally on macOS and Starboard platforms, and by default
+  // (with a Finch kill-switch) on Android.
+#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
   if (gl_info.is_es3 || gfx::HasExtension(extension_set, "GL_EXT_texture_rg") ||
       (gfx::HasExtension(extension_set, "GL_ARB_texture_rg"))) {
 #if DCHECK_IS_ON()
