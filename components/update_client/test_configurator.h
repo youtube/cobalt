@@ -169,8 +169,13 @@ class TestConfigurator : public Configurator {
   raw_ptr<TestActivityDataService> activity_data_service_;
   std::vector<GURL> update_check_urls_;
   GURL ping_url_;
+#if BUILDFLAG(IS_STARBOARD)
   scoped_refptr<UnzipperFactory> unzip_factory_;
   scoped_refptr<PatcherFactory> patch_factory_;
+#else
+  scoped_refptr<update_client::UnzipChromiumFactory> unzip_factory_;
+  scoped_refptr<update_client::PatchChromiumFactory> patch_factory_;
+#endif
   scoped_refptr<network::SharedURLLoaderFactory> test_shared_loader_factory_;
   network::TestURLLoaderFactory test_url_loader_factory_;
   scoped_refptr<NetworkFetcherFactory> network_fetcher_factory_;

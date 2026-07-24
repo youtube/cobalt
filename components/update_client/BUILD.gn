@@ -420,13 +420,9 @@ fuzzer_test("update_client_protocol_parser_fuzzer") {
   seed_corpus = "fuzzer_corpuses/protocol_parser/"
 }
 
-if (!is_starboard || (is_cobalt && use_evergreen)) {
+if (is_cobalt && use_evergreen) {
   test("update_client_unittests") {
-    if (is_starboard) {
-      sources = [ "//components/test/starboard/run_all_unittests.cc" ]
-    } else {
-      sources = [ "//components/test/run_all_unittests.cc" ]
-    }
+    sources = [ "//components/test/starboard/run_all_unittests.cc" ]
     deps = [
       ":unit_tests",
       "//components/test:test_support",

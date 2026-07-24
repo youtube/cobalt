@@ -28,7 +28,10 @@
 namespace update_client {
 
 #if BUILDFLAG(IS_STARBOARD)
-base::OnceClosure CallXzOperation(
+// Starboard's XzOperation takes an OperationResult and completes with one.
+// This overload adapts the upstream call sites in this file (which pass a
+// FilePath and expect a FilePath back) so they can stay identical to upstream.
+base::OnceClosure XzOperation(
     std::unique_ptr<Unzipper> unzipper,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
     const base::FilePath& in_file,
@@ -45,14 +48,6 @@ base::OnceClosure CallXzOperation(
               std::move(callback).Run(base::unexpected(result.error()));
             }
           }));
-}
-#else
-inline base::OnceClosure CallXzOperation(
-    std::unique_ptr<Unzipper> unzipper,
-    base::RepeatingCallback<void(base::Value::Dict)> event_adder,
-    const base::FilePath& in_file,
-    base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)> callback) {
-  return XzOperation(std::move(unzipper), event_adder, in_file, std::move(callback));
 }
 #endif
 
@@ -90,7 +85,7 @@ class XzOperationTest : public testing::Test {
 
 TEST_F(XzOperationTest, Success) {
   base::FilePath in_file = CopyToTemp("file1.xz");
-  CallXzOperation(base::MakeRefCounted<InProcessUnzipperFactory>(
+  XzOperation(base::MakeRefCounted<InProcessUnzipperFactory>(
                   InProcessUnzipperFactory::SymlinkOption::DONT_PRESERVE)
                   ->Create(),
               MakePingCallback(), in_file,
@@ -111,7 +106,7 @@ TEST_F(XzOperationTest, Success) {
 
 TEST_F(XzOperationTest, BadPatch) {
   base::FilePath in_file = CopyToTemp("file1");
-  CallXzOperation(base::MakeRefCounted<InProcessUnzipperFactory>(
+  XzOperation(base::MakeRefCounted<InProcessUnzipperFactory>(
                   InProcessUnzipperFactory::SymlinkOption::DONT_PRESERVE)
                   ->Create(),
               MakePingCallback(), in_file,

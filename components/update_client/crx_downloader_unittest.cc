@@ -8,21 +8,27 @@
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/memory/ref_counted.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
-#include "components/update_client/crx_downloader_factory.h"
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "base/files/scoped_temp_dir.h"
+#include "components/prefs/testing_pref_service.h"
 #include "components/update_client/network.h"
 #include "components/update_client/persisted_data.h"
 #include "components/update_client/test_configurator.h"
+#include "components/update_client/url_fetcher_downloader.h"
+#else
+#include "components/update_client/net/network_chromium.h"  // nogncheck
+#endif
+
+#include "components/update_client/crx_downloader_factory.h"
 #include "components/update_client/test_utils.h"
 #include "components/update_client/update_client_errors.h"
-#include "components/prefs/testing_pref_service.h"
-#include "components/update_client/url_fetcher_downloader.h"
 #include "components/update_client/utils.h"
 #include "net/base/net_errors.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
@@ -84,18 +90,26 @@ class CrxDownloaderTest : public testing::Test {
   // Accumulates the number of loads triggered.
   int interceptor_count_ = 0;
 
+#if BUILDFLAG(IS_STARBOARD)
   base::ScopedTempDir temp_dir_;
 #if defined(IN_MEMORY_UPDATES)
   std::string download_dst_;
 #endif
+#endif
 
  private:
   base::test::TaskEnvironment task_environment_;
+#if !BUILDFLAG(IS_STARBOARD)
+  scoped_refptr<network::SharedURLLoaderFactory>
+      test_shared_url_loader_factory_;
+#endif
   base::OnceClosure quit_closure_;
 
+#if BUILDFLAG(IS_STARBOARD)
   std::unique_ptr<TestingPrefServiceSimple> pref_ =
       std::make_unique<TestingPrefServiceSimple>();
   scoped_refptr<update_client::TestConfigurator> config_;
+#endif
 };
 
 CrxDownloaderTest::CrxDownloaderTest()
@@ -104,34 +118,49 @@ CrxDownloaderTest::CrxDownloaderTest()
       progress_callback_(
           base::BindRepeating(&CrxDownloaderTest::DownloadProgress,
                               base::Unretained(this))),
+#if BUILDFLAG(IS_STARBOARD)
       task_environment_(base::test::TaskEnvironment::MainThreadType::IO,
                         base::test::TaskEnvironment::TimeSource::MOCK_TIME) {
   RegisterPersistedDataPrefs(pref_->registry());
   config_ = base::MakeRefCounted<TestConfigurator>(pref_.get());
 }
+#else
+      task_environment_(base::test::TaskEnvironment::MainThreadType::IO),
+      test_shared_url_loader_factory_(
+          base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
+              &test_url_loader_factory_)) {}
+#endif
 
 CrxDownloaderTest::~CrxDownloaderTest() = default;
 
 void CrxDownloaderTest::SetUp() {
+#if BUILDFLAG(IS_STARBOARD)
   CHECK(config_);
   EXPECT_TRUE(temp_dir_.CreateUniqueTempDir());
-#if BUILDFLAG(IS_STARBOARD)
   SetMockInstallationPath(temp_dir_.GetPath().AsUTF8Unsafe().c_str());
-#endif
   // Do not use the background downloader in these tests.
   auto network_fetcher_factory = config_->GetNetworkFetcherFactory();
   CHECK(network_fetcher_factory);
   auto factory = MakeCrxDownloaderFactory(network_fetcher_factory);
   CHECK(factory);
-#if BUILDFLAG(IS_STARBOARD)
   crx_downloader_ = factory->MakeCrxDownloader(config_);
-#else
-  crx_downloader_ = factory->MakeCrxDownloader(false);
-#endif
   crx_downloader_->set_progress_callback(progress_callback_);
 
   config_->test_url_loader_factory()->SetInterceptor(base::BindLambdaForTesting(
       [&](const network::ResourceRequest& request) { interceptor_count_++; }));
+#else
+  // Do not use the background downloader in these tests.
+  crx_downloader_ =
+      MakeCrxDownloaderFactory(
+          base::MakeRefCounted<NetworkFetcherChromiumFactory>(
+              test_shared_url_loader_factory_,
+              base::BindRepeating([](const GURL& url) { return false; })))
+          ->MakeCrxDownloader(false);
+  crx_downloader_->set_progress_callback(progress_callback_);
+
+  test_url_loader_factory_.SetInterceptor(base::BindLambdaForTesting(
+      [&](const network::ResourceRequest& request) { interceptor_count_++; }));
+#endif
 }
 
 void CrxDownloaderTest::TearDown() {
@@ -170,14 +199,24 @@ void CrxDownloaderTest::AddResponse(const GURL& url,
     head->content_length = data.size();
     network::URLLoaderCompletionStatus status(net_error);
     status.decoded_body_length = data.size();
+#if BUILDFLAG(IS_STARBOARD)
     config_->test_url_loader_factory()->AddResponse(url, std::move(head), data, status);
+#else
+    test_url_loader_factory_.AddResponse(url, std::move(head), data, status);
+#endif
     return;
   }
 
   EXPECT_NE(net_error, net::OK);
+#if BUILDFLAG(IS_STARBOARD)
   config_->test_url_loader_factory()->AddResponse(
       url, network::mojom::URLResponseHead::New(), std::string(),
       network::URLLoaderCompletionStatus(net_error));
+#else
+  test_url_loader_factory_.AddResponse(
+      url, network::mojom::URLResponseHead::New(), std::string(),
+      network::URLLoaderCompletionStatus(net_error));
+#endif
 }
 
 void CrxDownloaderTest::RunThreads() {

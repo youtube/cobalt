@@ -27,7 +27,10 @@
 namespace update_client {
 
 #if BUILDFLAG(IS_STARBOARD)
-base::OnceClosure CallPuffOperation(
+// Starboard's PuffOperation takes an OperationResult and completes with one.
+// This overload adapts the upstream call sites in this file (which pass a
+// FilePath and expect a FilePath back) so they can stay identical to upstream.
+base::OnceClosure PuffOperation(
     scoped_refptr<CrxCache> crx_cache,
     scoped_refptr<Patcher> patcher,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
@@ -36,36 +39,17 @@ base::OnceClosure CallPuffOperation(
     const base::FilePath& patch_file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)> callback) {
   OperationResult op_result;
-#if defined(IN_MEMORY_UPDATES)
-  // Not supported
-#else
   op_result.response = patch_file;
-#endif
   return PuffOperation(
       crx_cache, patcher, event_adder, old_hash, output_hash, op_result,
       base::BindLambdaForTesting(
           [callback = std::move(callback)](base::expected<OperationResult, CategorizedError> result) mutable {
             if (result.has_value()) {
-#if defined(IN_MEMORY_UPDATES)
-              std::move(callback).Run(base::FilePath());
-#else
               std::move(callback).Run(result.value().response);
-#endif
             } else {
               std::move(callback).Run(base::unexpected(result.error()));
             }
           }));
-}
-#else
-inline base::OnceClosure CallPuffOperation(
-    scoped_refptr<CrxCache> crx_cache,
-    scoped_refptr<Patcher> patcher,
-    base::RepeatingCallback<void(base::Value::Dict)> event_adder,
-    const std::string& old_hash,
-    const std::string& output_hash,
-    const base::FilePath& patch_file,
-    base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)> callback) {
-  return PuffOperation(crx_cache, patcher, event_adder, old_hash, output_hash, patch_file, std::move(callback));
 }
 #endif
 
@@ -117,7 +101,7 @@ TEST_F(PuffOperationTest, Success) {
       base::BindLambdaForTesting([&](base::expected<base::FilePath,
                                                     UnpackerError> r) {
         ASSERT_TRUE(r.has_value());
-        CallPuffOperation(
+        PuffOperation(
             cache,
             base::MakeRefCounted<PatchChromiumFactory>(
                 base::BindRepeating(&patch::LaunchInProcessFilePatcher))
@@ -163,7 +147,7 @@ TEST_F(PuffOperationTest, BadPatch) {
       base::BindLambdaForTesting([&](base::expected<base::FilePath,
                                                     UnpackerError> r) {
         ASSERT_TRUE(r.has_value());
-        CallPuffOperation(
+        PuffOperation(
             cache,
             base::MakeRefCounted<PatchChromiumFactory>(
                 base::BindRepeating(&patch::LaunchInProcessFilePatcher))
@@ -202,7 +186,7 @@ TEST_F(PuffOperationTest, NotInCache) {
   base::FilePath patch_file =
       CopyToTemp("puffin_patch_test/puffin_app_v1_to_v2.puff");
 
-  CallPuffOperation(
+  PuffOperation(
       cache,
       base::MakeRefCounted<PatchChromiumFactory>(
           base::BindRepeating(&patch::LaunchInProcessFilePatcher))
@@ -236,7 +220,7 @@ TEST_F(PuffOperationTest, NoCache) {
   base::FilePath patch_file =
       CopyToTemp("puffin_patch_test/puffin_app_v1_to_v2.puff");
 
-  CallPuffOperation(
+  PuffOperation(
       base::MakeRefCounted<CrxCache>(std::nullopt),
       base::MakeRefCounted<PatchChromiumFactory>(
           base::BindRepeating(&patch::LaunchInProcessFilePatcher))
@@ -280,7 +264,7 @@ TEST_F(PuffOperationTest, OutHashMismatch) {
       base::BindLambdaForTesting([&](base::expected<base::FilePath,
                                                     UnpackerError> r) {
         ASSERT_TRUE(r.has_value());
-        CallPuffOperation(
+        PuffOperation(
             cache,
             base::MakeRefCounted<PatchChromiumFactory>(
                 base::BindRepeating(&patch::LaunchInProcessFilePatcher))

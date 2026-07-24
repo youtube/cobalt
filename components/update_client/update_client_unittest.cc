@@ -53,7 +53,7 @@
 #if BUILDFLAG(IS_STARBOARD)
 #include "components/update_client/pipeline.h"
 #endif
-#include "components/update_client/unzip/unzip_impl.h"  // nogncheck (dep is conditional: target can't build with IN_MEMORY_UPDATES)
+#include "components/update_client/unzip/unzip_impl.h"  // nogncheck
 #include "components/update_client/unzipper.h"
 #include "components/update_client/update_checker.h"
 #include "components/update_client/update_client_errors.h"
@@ -682,11 +682,11 @@ class UpdateClientTest : public testing::Test {
     config_ = base::MakeRefCounted<TestConfigurator>(pref_.get());
   }
 
-  void TearDown() override {
 #if BUILDFLAG(IS_STARBOARD)
+  void TearDown() override {
     SetMockRequestRollForwardSuccess(true);
-#endif
   }
+#endif
 
   scoped_refptr<update_client::TestConfigurator> config() { return config_; }
 
@@ -887,11 +887,14 @@ TEST_F(UpdateClientTest, TwoCrxUpdateNoUpdate) {
       download_metrics.download_time_ms = 1000;
 
       base::FilePath path;
-      EXPECT_TRUE(MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path)
 #if defined(IN_MEMORY_UPDATES)
-          && base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst)
+      EXPECT_TRUE(
+          MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path) &&
+          base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst));
+#else
+      EXPECT_TRUE(MakeTestFile(
+          GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
 #endif
-);
 
       Result result;
       result.error = 0;
@@ -1090,11 +1093,14 @@ TEST_F(UpdateClientTest, TwoCrxUpdateFirstServerIgnoresSecond) {
       download_metrics.download_time_ms = 1000;
 
       base::FilePath path;
-      EXPECT_TRUE(MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path)
 #if defined(IN_MEMORY_UPDATES)
-          && base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst)
+      EXPECT_TRUE(
+          MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path) &&
+          base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst));
+#else
+      EXPECT_TRUE(MakeTestFile(
+          GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
 #endif
-);
 
       Result result;
       result.error = 0;
@@ -1280,11 +1286,14 @@ TEST_F(UpdateClientTest, TwoCrxUpdateNoCrxComponentData) {
         download_metrics.total_bytes = 1015;
         download_metrics.download_time_ms = 1000;
 
-        EXPECT_TRUE(MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path)
 #if defined(IN_MEMORY_UPDATES)
-          && base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst)
+        EXPECT_TRUE(
+            MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path) &&
+            base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst));
+#else
+        EXPECT_TRUE(MakeTestFile(
+            GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
 #endif
-);
 
         result.error = 0;
         #if defined(IN_MEMORY_UPDATES)
@@ -1559,11 +1568,14 @@ TEST_F(UpdateClientTest, TwoCrxUpdateDownloadTimeout) {
         download_metrics.total_bytes = 54014;
         download_metrics.download_time_ms = 2000;
 
-        EXPECT_TRUE(MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path)
 #if defined(IN_MEMORY_UPDATES)
-          && base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), dst)
+        EXPECT_TRUE(
+            MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path) &&
+            base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), dst));
+#else
+        EXPECT_TRUE(MakeTestFile(
+            GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path));
 #endif
-);
 
         result.error = 0;
         #if defined(IN_MEMORY_UPDATES)
@@ -1908,11 +1920,14 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdate) {
         download_metrics.total_bytes = 54014;
         download_metrics.download_time_ms = 2000;
 
-        EXPECT_TRUE(MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path)
 #if defined(IN_MEMORY_UPDATES)
-          && base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), dst)
+        EXPECT_TRUE(
+            MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path) &&
+            base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), dst));
+#else
+        EXPECT_TRUE(MakeTestFile(
+            GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path));
 #endif
-);
 
         result.error = 0;
         #if defined(IN_MEMORY_UPDATES)
@@ -1932,11 +1947,14 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdate) {
         download_metrics.total_bytes = 1680;
         download_metrics.download_time_ms = 1000;
 
-        EXPECT_TRUE(MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1to2.puff"), &path)
 #if defined(IN_MEMORY_UPDATES)
-          && base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1to2.puff"), dst)
+        EXPECT_TRUE(
+            MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1to2.puff"), &path) &&
+            base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1to2.puff"), dst));
+#else
+        EXPECT_TRUE(MakeTestFile(
+            GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1to2.puff"), &path));
 #endif
-);
 
         result.error = 0;
         #if defined(IN_MEMORY_UPDATES)
@@ -2321,11 +2339,14 @@ TEST_F(UpdateClientTest, OneCrxInstallError) {
       download_metrics.download_time_ms = 1000;
 
       base::FilePath path;
-      EXPECT_TRUE(MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path)
 #if defined(IN_MEMORY_UPDATES)
-          && base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst)
+      EXPECT_TRUE(
+          MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path) &&
+          base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst));
+#else
+      EXPECT_TRUE(MakeTestFile(
+          GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
 #endif
-);
 
       Result result;
       result.error = 0;
@@ -2659,11 +2680,14 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdateFailsFullUpdateSucceeds) {
         download_metrics.total_bytes = 54014;
         download_metrics.download_time_ms = 2000;
 
-        EXPECT_TRUE(MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path)
 #if defined(IN_MEMORY_UPDATES)
-          && base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), dst)
+        EXPECT_TRUE(
+            MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path) &&
+            base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), dst));
+#else
+        EXPECT_TRUE(MakeTestFile(
+            GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path));
 #endif
-);
 
         result.error = 0;
         #if defined(IN_MEMORY_UPDATES)
@@ -2695,11 +2719,14 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdateFailsFullUpdateSucceeds) {
         download_metrics.total_bytes = 54409;
         download_metrics.download_time_ms = 1000;
 
-        EXPECT_TRUE(MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_2.crx"), &path)
 #if defined(IN_MEMORY_UPDATES)
-          && base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_2.crx"), dst)
+        EXPECT_TRUE(
+            MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_2.crx"), &path) &&
+            base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_2.crx"), dst));
+#else
+        EXPECT_TRUE(MakeTestFile(
+            GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_2.crx"), &path));
 #endif
-);
 
         result.error = 0;
         #if defined(IN_MEMORY_UPDATES)
@@ -3072,11 +3099,14 @@ TEST_F(UpdateClientTest, OneCrxInstall) {
         download_metrics.total_bytes = 1015;
         download_metrics.download_time_ms = 1000;
 
-        EXPECT_TRUE(MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path)
 #if defined(IN_MEMORY_UPDATES)
-          && base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst)
+        EXPECT_TRUE(
+            MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path) &&
+            base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst));
+#else
+        EXPECT_TRUE(MakeTestFile(
+            GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
 #endif
-);
 
         result.error = 0;
         #if defined(IN_MEMORY_UPDATES)
@@ -3494,12 +3524,12 @@ TEST_F(UpdateClientTest, EmptyIdList) {
   runloop_.Run();
 }
 
+#if !BUILDFLAG(IS_STARBOARD)
 // On Starboard the download-stage free-space check is compiled out by design:
 // Cobalt handles insufficient space at update-check time instead
 // (UpdateChecker::SkipUpdate -> UpdateCheckError::OUT_OF_SPACE); see
 // HandleAvailableSpace() in op_download.cc. Cobalt's out-of-space path is
 // covered by the slot-management/loader_app test suites, not by this test.
-#if !BUILDFLAG(IS_STARBOARD)
 TEST_F(UpdateClientTest, DiskFull) {
   class DataCallbackMock {
    public:
@@ -3613,12 +3643,12 @@ TEST_F(UpdateClientTest, DiskFull) {
 }
 #endif  // !BUILDFLAG(IS_STARBOARD)
 
+#if !BUILDFLAG(IS_STARBOARD)
 // On Starboard the download-stage free-space check is compiled out by design:
 // Cobalt handles insufficient space at update-check time instead
 // (UpdateChecker::SkipUpdate -> UpdateCheckError::OUT_OF_SPACE); see
 // HandleAvailableSpace() in op_download.cc. Cobalt's out-of-space path is
 // covered by the slot-management/loader_app test suites, not by this test.
-#if !BUILDFLAG(IS_STARBOARD)
 TEST_F(UpdateClientTest, DiskFullDiff) {
   class DataCallbackMock : public base::RefCountedThreadSafe<DataCallbackMock> {
    public:
@@ -3832,11 +3862,14 @@ TEST_F(UpdateClientTest, DiskFullDiff) {
         download_metrics.total_bytes = 54014;
         download_metrics.download_time_ms = 2000;
 
-        EXPECT_TRUE(MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path)
 #if defined(IN_MEMORY_UPDATES)
-          && base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), dst)
+        EXPECT_TRUE(
+            MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path) &&
+            base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), dst));
+#else
+        EXPECT_TRUE(MakeTestFile(
+            GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path));
 #endif
-);
 
         result.error = 0;
         #if defined(IN_MEMORY_UPDATES)
@@ -4372,11 +4405,14 @@ TEST_F(UpdateClientTest, TwoCrxUpdateOneUpdateDisabled) {
         download_metrics.total_bytes = 54014;
         download_metrics.download_time_ms = 2000;
 
-        EXPECT_TRUE(MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path)
 #if defined(IN_MEMORY_UPDATES)
-          && base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), dst)
+        EXPECT_TRUE(
+            MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path) &&
+            base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), dst));
+#else
+        EXPECT_TRUE(MakeTestFile(
+            GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path));
 #endif
-);
 
         result.error = 0;
         #if defined(IN_MEMORY_UPDATES)
@@ -4560,11 +4596,14 @@ TEST_F(UpdateClientTest, OneCrxUpdateDownloadTimeout) {
       download_metrics.download_time_ms = 1000;
 
       base::FilePath path;
-      EXPECT_TRUE(MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path)
 #if defined(IN_MEMORY_UPDATES)
-          && base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst)
+      EXPECT_TRUE(
+          MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path) &&
+          base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst));
+#else
+      EXPECT_TRUE(MakeTestFile(
+          GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
 #endif
-);
 
       Result result;
       result.error = 200;
@@ -4746,13 +4785,11 @@ TEST_F(UpdateClientTest, OneCrxUpdateCheckFails) {
         : MockPingManagerImpl(config) {}
 
    protected:
-    ~MockPingManager() override {
 #if BUILDFLAG(IS_STARBOARD)
-      EXPECT_EQ(1u, ping_data().size());
+    ~MockPingManager() override { EXPECT_EQ(1u, ping_data().size()); }
 #else
-      EXPECT_TRUE(ping_data().empty());
+    ~MockPingManager() override { EXPECT_TRUE(ping_data().empty()); }
 #endif
-    }
   };
 
   SetMockCrxDownloader<MockCrxDownloader>();
@@ -4932,13 +4969,11 @@ TEST_F(UpdateClientTest, OneCrxErrorUnknownApp) {
         : MockPingManagerImpl(config) {}
 
    protected:
-    ~MockPingManager() override {
 #if BUILDFLAG(IS_STARBOARD)
-      EXPECT_EQ(4u, ping_data().size());
+    ~MockPingManager() override { EXPECT_EQ(4u, ping_data().size()); }
 #else
-      EXPECT_TRUE(ping_data().empty());
+    ~MockPingManager() override { EXPECT_TRUE(ping_data().empty()); }
 #endif
-    }
   };
 
   SetMockCrxDownloader<MockCrxDownloader>();
@@ -5124,12 +5159,14 @@ TEST_F(UpdateClientTest, ActionRun_Install) {
         download_metrics.total_bytes = 48141;
         download_metrics.download_time_ms = 1000;
 
-        EXPECT_TRUE(
-            MakeTestFile(GetTestFilePath("runaction_test_win.crx3"), &path)
 #if defined(IN_MEMORY_UPDATES)
-          && base::ReadFileToString(GetTestFilePath("runaction_test_win.crx3"), dst)
+        EXPECT_TRUE(
+            MakeTestFile(GetTestFilePath("runaction_test_win.crx3"), &path) &&
+            base::ReadFileToString(GetTestFilePath("runaction_test_win.crx3"), dst));
+#else
+        EXPECT_TRUE(
+            MakeTestFile(GetTestFilePath("runaction_test_win.crx3"), &path));
 #endif
-);
 
         result.error = 0;
         #if defined(IN_MEMORY_UPDATES)
@@ -5597,11 +5634,14 @@ TEST_F(UpdateClientTest, CancelInstallBeforeTaskStart) {
         download_metrics.total_bytes = 1015;
         download_metrics.download_time_ms = 1000;
 
-        EXPECT_TRUE(MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path)
 #if defined(IN_MEMORY_UPDATES)
-          && base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst)
+        EXPECT_TRUE(
+            MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path) &&
+            base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst));
+#else
+        EXPECT_TRUE(MakeTestFile(
+            GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
 #endif
-);
 
         result.error = 0;
         #if defined(IN_MEMORY_UPDATES)
@@ -5714,11 +5754,14 @@ TEST_F(UpdateClientTest, CancelInstallBeforeInstall) {
         download_metrics.total_bytes = 1015;
         download_metrics.download_time_ms = 1000;
 
-        EXPECT_TRUE(MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path)
 #if defined(IN_MEMORY_UPDATES)
-          && base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst)
+        EXPECT_TRUE(
+            MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path) &&
+            base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst));
+#else
+        EXPECT_TRUE(MakeTestFile(
+            GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
 #endif
-);
 
         result.error = 0;
         #if defined(IN_MEMORY_UPDATES)
@@ -5884,11 +5927,14 @@ TEST_F(UpdateClientTest, CancelInstallBeforeDownload) {
         download_metrics.total_bytes = 1015;
         download_metrics.download_time_ms = 1000;
 
-        EXPECT_TRUE(MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path)
 #if defined(IN_MEMORY_UPDATES)
-          && base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst)
+        EXPECT_TRUE(
+            MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path) &&
+            base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst));
+#else
+        EXPECT_TRUE(MakeTestFile(
+            GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
 #endif
-);
 
         result.error = 0;
         #if defined(IN_MEMORY_UPDATES)
@@ -6768,11 +6814,14 @@ TEST_F(UpdateClientTest, OneCrxCachedUpdate) {
       download_metrics.download_time_ms = 2000;
 
       base::FilePath path;
-      EXPECT_TRUE(MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path)
 #if defined(IN_MEMORY_UPDATES)
-          && base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst)
+      EXPECT_TRUE(
+          MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path) &&
+          base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst));
+#else
+      EXPECT_TRUE(MakeTestFile(
+          GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
 #endif
-);
 
       Result result;
       result.error = 0;

@@ -36,7 +36,10 @@
 namespace update_client {
 
 #if BUILDFLAG(IS_STARBOARD)
-base::OnceClosure CallZucchiniOperation(
+// Starboard's ZucchiniOperation takes an OperationResult and completes with one.
+// This overload adapts the upstream call sites in this file (which pass a
+// FilePath and expect a FilePath back) so they can stay identical to upstream.
+base::OnceClosure ZucchiniOperation(
     scoped_refptr<CrxCache> crx_cache,
     scoped_refptr<Patcher> patcher,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
@@ -45,36 +48,17 @@ base::OnceClosure CallZucchiniOperation(
     const base::FilePath& patch_file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)> callback) {
   OperationResult op_result;
-#if defined(IN_MEMORY_UPDATES)
-  // Not supported
-#else
   op_result.response = patch_file;
-#endif
   return ZucchiniOperation(
       crx_cache, patcher, event_adder, previous_hash, output_hash, op_result,
       base::BindLambdaForTesting(
           [callback = std::move(callback)](base::expected<OperationResult, CategorizedError> result) mutable {
             if (result.has_value()) {
-#if defined(IN_MEMORY_UPDATES)
-              std::move(callback).Run(base::FilePath());
-#else
               std::move(callback).Run(result.value().response);
-#endif
             } else {
               std::move(callback).Run(base::unexpected(result.error()));
             }
           }));
-}
-#else
-inline base::OnceClosure CallZucchiniOperation(
-    scoped_refptr<CrxCache> crx_cache,
-    scoped_refptr<Patcher> patcher,
-    base::RepeatingCallback<void(base::Value::Dict)> event_adder,
-    const std::string& previous_hash,
-    const std::string& output_hash,
-    const base::FilePath& patch_file,
-    base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)> callback) {
-  return ZucchiniOperation(crx_cache, patcher, event_adder, previous_hash, output_hash, patch_file, std::move(callback));
 }
 #endif
 
@@ -126,7 +110,7 @@ TEST_F(ZucchiniOperationTest, Success) {
       base::BindLambdaForTesting([&](base::expected<base::FilePath,
                                                     UnpackerError> r) {
         ASSERT_TRUE(r.has_value());
-        CallZucchiniOperation(
+        ZucchiniOperation(
             cache,
             base::MakeRefCounted<PatchChromiumFactory>(
                 base::BindRepeating(&patch::LaunchInProcessFilePatcher))
@@ -171,7 +155,7 @@ TEST_F(ZucchiniOperationTest, BadPatch) {
       base::BindLambdaForTesting([&](base::expected<base::FilePath,
                                                     UnpackerError> r) {
         ASSERT_TRUE(r.has_value());
-        CallZucchiniOperation(
+        ZucchiniOperation(
             cache,
             base::MakeRefCounted<PatchChromiumFactory>(
                 base::BindRepeating(&patch::LaunchInProcessFilePatcher))
@@ -210,7 +194,7 @@ TEST_F(ZucchiniOperationTest, NotInCache) {
   base::FilePath patch_file =
       CopyToTemp("zucchini_patch_test/app1_to_app2.zucchini");
 
-  CallZucchiniOperation(
+  ZucchiniOperation(
       cache,
       base::MakeRefCounted<PatchChromiumFactory>(
           base::BindRepeating(&patch::LaunchInProcessFilePatcher))
@@ -244,7 +228,7 @@ TEST_F(ZucchiniOperationTest, NoCache) {
   base::FilePath patch_file =
       CopyToTemp("zucchini_patch_test/app1_to_app2.zucchini");
 
-  CallZucchiniOperation(
+  ZucchiniOperation(
       base::MakeRefCounted<CrxCache>(std::nullopt),
       base::MakeRefCounted<PatchChromiumFactory>(
           base::BindRepeating(&patch::LaunchInProcessFilePatcher))
@@ -288,7 +272,7 @@ TEST_F(ZucchiniOperationTest, OutHashMismatch) {
       base::BindLambdaForTesting([&](base::expected<base::FilePath,
                                                     UnpackerError> r) {
         ASSERT_TRUE(r.has_value());
-        CallZucchiniOperation(
+        ZucchiniOperation(
             cache,
             base::MakeRefCounted<PatchChromiumFactory>(
                 base::BindRepeating(&patch::LaunchInProcessFilePatcher))
