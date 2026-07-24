@@ -549,13 +549,13 @@ struct ClientHintsExtendedData {
       // up traversal.
       // See crbug.com/1470634.
       base::span<const network::mojom::PermissionsPolicyFeature> permissions;
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
       const std::optional<FencedFrameProperties>& fenced_frame_properties =
           frame_tree_node->GetFencedFrameProperties();
       if (fenced_frame_properties) {
         permissions = fenced_frame_properties->effective_enabled_permissions();
       }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
       permissions_policy =
           network::PermissionsPolicy::CreateFixedForFencedFrame(
               resource_origin, /*header_policy=*/{}, permissions);
