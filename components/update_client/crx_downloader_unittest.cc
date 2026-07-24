@@ -14,8 +14,19 @@
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "base/files/scoped_temp_dir.h"
+#include "components/prefs/testing_pref_service.h"
+#include "components/update_client/network.h"
+#include "components/update_client/persisted_data.h"
+#include "components/update_client/test_configurator.h"
+#include "components/update_client/url_fetcher_downloader.h"
+#else
+#include "components/update_client/net/network_chromium.h"  // nogncheck
+#endif
+
 #include "components/update_client/crx_downloader_factory.h"
-#include "components/update_client/net/network_chromium.h"
 #include "components/update_client/test_utils.h"
 #include "components/update_client/update_client_errors.h"
 #include "components/update_client/utils.h"
@@ -79,11 +90,26 @@ class CrxDownloaderTest : public testing::Test {
   // Accumulates the number of loads triggered.
   int interceptor_count_ = 0;
 
+#if BUILDFLAG(IS_STARBOARD)
+  base::ScopedTempDir temp_dir_;
+#if defined(IN_MEMORY_UPDATES)
+  std::string download_dst_;
+#endif
+#endif
+
  private:
   base::test::TaskEnvironment task_environment_;
+#if !BUILDFLAG(IS_STARBOARD)
   scoped_refptr<network::SharedURLLoaderFactory>
       test_shared_url_loader_factory_;
+#endif
   base::OnceClosure quit_closure_;
+
+#if BUILDFLAG(IS_STARBOARD)
+  std::unique_ptr<TestingPrefServiceSimple> pref_ =
+      std::make_unique<TestingPrefServiceSimple>();
+  scoped_refptr<update_client::TestConfigurator> config_;
+#endif
 };
 
 CrxDownloaderTest::CrxDownloaderTest()
@@ -92,14 +118,37 @@ CrxDownloaderTest::CrxDownloaderTest()
       progress_callback_(
           base::BindRepeating(&CrxDownloaderTest::DownloadProgress,
                               base::Unretained(this))),
+#if BUILDFLAG(IS_STARBOARD)
+      task_environment_(base::test::TaskEnvironment::MainThreadType::IO,
+                        base::test::TaskEnvironment::TimeSource::MOCK_TIME) {
+  RegisterPersistedDataPrefs(pref_->registry());
+  config_ = base::MakeRefCounted<TestConfigurator>(pref_.get());
+}
+#else
       task_environment_(base::test::TaskEnvironment::MainThreadType::IO),
       test_shared_url_loader_factory_(
           base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
               &test_url_loader_factory_)) {}
+#endif
 
 CrxDownloaderTest::~CrxDownloaderTest() = default;
 
 void CrxDownloaderTest::SetUp() {
+#if BUILDFLAG(IS_STARBOARD)
+  CHECK(config_);
+  EXPECT_TRUE(temp_dir_.CreateUniqueTempDir());
+  SetMockInstallationPath(temp_dir_.GetPath().AsUTF8Unsafe().c_str());
+  // Do not use the background downloader in these tests.
+  auto network_fetcher_factory = config_->GetNetworkFetcherFactory();
+  CHECK(network_fetcher_factory);
+  auto factory = MakeCrxDownloaderFactory(network_fetcher_factory);
+  CHECK(factory);
+  crx_downloader_ = factory->MakeCrxDownloader(config_);
+  crx_downloader_->set_progress_callback(progress_callback_);
+
+  config_->test_url_loader_factory()->SetInterceptor(base::BindLambdaForTesting(
+      [&](const network::ResourceRequest& request) { interceptor_count_++; }));
+#else
   // Do not use the background downloader in these tests.
   crx_downloader_ =
       MakeCrxDownloaderFactory(
@@ -111,6 +160,7 @@ void CrxDownloaderTest::SetUp() {
 
   test_url_loader_factory_.SetInterceptor(base::BindLambdaForTesting(
       [&](const network::ResourceRequest& request) { interceptor_count_++; }));
+#endif
 }
 
 void CrxDownloaderTest::TearDown() {
@@ -149,20 +199,36 @@ void CrxDownloaderTest::AddResponse(const GURL& url,
     head->content_length = data.size();
     network::URLLoaderCompletionStatus status(net_error);
     status.decoded_body_length = data.size();
+#if BUILDFLAG(IS_STARBOARD)
+    config_->test_url_loader_factory()->AddResponse(url, std::move(head), data, status);
+#else
     test_url_loader_factory_.AddResponse(url, std::move(head), data, status);
+#endif
     return;
   }
 
   EXPECT_NE(net_error, net::OK);
+#if BUILDFLAG(IS_STARBOARD)
+  config_->test_url_loader_factory()->AddResponse(
+      url, network::mojom::URLResponseHead::New(), std::string(),
+      network::URLLoaderCompletionStatus(net_error));
+#else
   test_url_loader_factory_.AddResponse(
       url, network::mojom::URLResponseHead::New(), std::string(),
       network::URLLoaderCompletionStatus(net_error));
+#endif
 }
 
 void CrxDownloaderTest::RunThreads() {
+#if BUILDFLAG(IS_STARBOARD)
+  // 32s covers the sum of the downloader's retry/fallback timer delays so all
+  // queued attempts fire under MOCK_TIME. Update if retry timing changes.
+  task_environment_.FastForwardBy(base::Seconds(32));
+#else
   base::RunLoop runloop;
   quit_closure_ = runloop.QuitClosure();
   runloop.Run();
+#endif
 
   // Since some tests need to drain currently enqueued tasks such as network
   // intercepts on the IO thread, run the threads until they are
@@ -179,15 +245,24 @@ void CrxDownloaderTest::RunThreadsUntilIdle() {
 // Tests that starting a download without a url results in an error.
 TEST_F(CrxDownloaderTest, NoUrl) {
   std::vector<GURL> urls;
+#if defined(IN_MEMORY_UPDATES)
+  crx_downloader_->StartDownload(urls, std::string("abcd"), &download_dst_,
+                                 std::move(callback_));
+#else
   crx_downloader_->StartDownload(urls, std::string("abcd"),
                                  std::move(callback_));
+#endif
   RunThreadsUntilIdle();
 
   EXPECT_EQ(1, num_download_complete_calls_);
   EXPECT_EQ(static_cast<int>(CrxDownloaderError::NO_URL),
             download_complete_result_.error);
   EXPECT_EQ(download_complete_result_.extra_code1, 0);
+#if defined(IN_MEMORY_UPDATES)
+  EXPECT_TRUE(download_dst_.empty());
+#else
   EXPECT_TRUE(download_complete_result_.response.empty());
+#endif
   EXPECT_EQ(0, num_progress_calls_);
 }
 
@@ -195,14 +270,22 @@ TEST_F(CrxDownloaderTest, NoUrl) {
 TEST_F(CrxDownloaderTest, NoHash) {
   std::vector<GURL> urls(1, GURL("http://somehost/somefile"));
 
+#if defined(IN_MEMORY_UPDATES)
+  crx_downloader_->StartDownload(urls, std::string(), &download_dst_, std::move(callback_));
+#else
   crx_downloader_->StartDownload(urls, std::string(), std::move(callback_));
+#endif
   RunThreadsUntilIdle();
 
   EXPECT_EQ(1, num_download_complete_calls_);
   EXPECT_EQ(static_cast<int>(CrxDownloaderError::NO_HASH),
             download_complete_result_.error);
   EXPECT_EQ(download_complete_result_.extra_code1, 0);
+#if defined(IN_MEMORY_UPDATES)
+  EXPECT_TRUE(download_dst_.empty());
+#else
   EXPECT_TRUE(download_complete_result_.response.empty());
+#endif
   EXPECT_EQ(0, num_progress_calls_);
 }
 
@@ -214,8 +297,13 @@ TEST_F(CrxDownloaderTest, OneUrl) {
   const base::FilePath test_file(GetTestFilePath(kTestFileName));
   AddResponse(expected_crx_url, test_file, net::OK);
 
+#if defined(IN_MEMORY_UPDATES)
+  crx_downloader_->StartDownloadFromUrl(
+      expected_crx_url, std::string(hash_jebg), &download_dst_, std::move(callback_));
+#else
   crx_downloader_->StartDownloadFromUrl(
       expected_crx_url, std::string(hash_jebg), std::move(callback_));
+#endif
   RunThreads();
 
   EXPECT_EQ(1, GetInterceptorCount());
@@ -223,10 +311,16 @@ TEST_F(CrxDownloaderTest, OneUrl) {
   EXPECT_EQ(1, num_download_complete_calls_);
   EXPECT_EQ(0, download_complete_result_.error);
   EXPECT_EQ(0, download_complete_result_.extra_code1);
+#if defined(IN_MEMORY_UPDATES)
+  std::string expected_content;
+  EXPECT_TRUE(base::ReadFileToString(test_file, &expected_content));
+  EXPECT_EQ(download_dst_, expected_content);
+#else
   EXPECT_TRUE(ContentsEqual(download_complete_result_.response, test_file));
 
   EXPECT_TRUE(
       DeleteFileAndEmptyParentDirectory(download_complete_result_.response));
+#endif
 
   EXPECT_LE(1, num_progress_calls_);
   EXPECT_EQ(total_bytes_, 1015);
@@ -241,11 +335,20 @@ TEST_F(CrxDownloaderTest, OneUrlBadHash) {
   const base::FilePath test_file(GetTestFilePath(kTestFileName));
   AddResponse(expected_crx_url, test_file, net::OK);
 
+#if defined(IN_MEMORY_UPDATES)
+  crx_downloader_->StartDownloadFromUrl(
+      expected_crx_url,
+      std::string(
+          "813c59747e139a608b3b5fc49633affc6db574373f309f156ea6d27229c0b3f9"),
+      &download_dst_,
+      std::move(callback_));
+#else
   crx_downloader_->StartDownloadFromUrl(
       expected_crx_url,
       std::string(
           "813c59747e139a608b3b5fc49633affc6db574373f309f156ea6d27229c0b3f9"),
       std::move(callback_));
+#endif
   RunThreads();
 
   EXPECT_EQ(1, GetInterceptorCount());
@@ -254,7 +357,11 @@ TEST_F(CrxDownloaderTest, OneUrlBadHash) {
   EXPECT_EQ(static_cast<int>(CrxDownloaderError::BAD_HASH),
             download_complete_result_.error);
   EXPECT_EQ(download_complete_result_.extra_code1, 0);
+#if defined(IN_MEMORY_UPDATES)
+  EXPECT_FALSE(download_dst_.empty());
+#else
   EXPECT_TRUE(download_complete_result_.response.empty());
+#endif
 
   EXPECT_LE(1, num_progress_calls_);
 }
@@ -272,8 +379,13 @@ TEST_F(CrxDownloaderTest, TwoUrls) {
   urls.push_back(expected_crx_url);
   urls.push_back(expected_crx_url);
 
+#if defined(IN_MEMORY_UPDATES)
+  crx_downloader_->StartDownload(urls, std::string(hash_jebg), &download_dst_,
+                                 std::move(callback_));
+#else
   crx_downloader_->StartDownload(urls, std::string(hash_jebg),
                                  std::move(callback_));
+#endif
   RunThreads();
 
   EXPECT_EQ(1, GetInterceptorCount());
@@ -281,10 +393,16 @@ TEST_F(CrxDownloaderTest, TwoUrls) {
   EXPECT_EQ(1, num_download_complete_calls_);
   EXPECT_EQ(0, download_complete_result_.error);
   EXPECT_EQ(0, download_complete_result_.extra_code1);
+#if defined(IN_MEMORY_UPDATES)
+  std::string expected_content;
+  EXPECT_TRUE(base::ReadFileToString(test_file, &expected_content));
+  EXPECT_EQ(download_dst_, expected_content);
+#else
   EXPECT_TRUE(ContentsEqual(download_complete_result_.response, test_file));
 
   EXPECT_TRUE(
       DeleteFileAndEmptyParentDirectory(download_complete_result_.response));
+#endif
 
   EXPECT_LE(1, num_progress_calls_);
 }
@@ -304,8 +422,13 @@ TEST_F(CrxDownloaderTest, TwoUrls_FirstInvalid) {
   urls.push_back(no_file_url);
   urls.push_back(expected_crx_url);
 
+#if defined(IN_MEMORY_UPDATES)
+  crx_downloader_->StartDownload(urls, std::string(hash_jebg), &download_dst_,
+                                 std::move(callback_));
+#else
   crx_downloader_->StartDownload(urls, std::string(hash_jebg),
                                  std::move(callback_));
+#endif
   RunThreads();
 
   EXPECT_EQ(2, GetInterceptorCount());
@@ -313,10 +436,16 @@ TEST_F(CrxDownloaderTest, TwoUrls_FirstInvalid) {
   EXPECT_EQ(1, num_download_complete_calls_);
   EXPECT_EQ(0, download_complete_result_.error);
   EXPECT_EQ(0, download_complete_result_.extra_code1);
+#if defined(IN_MEMORY_UPDATES)
+  std::string expected_content;
+  EXPECT_TRUE(base::ReadFileToString(test_file, &expected_content));
+  EXPECT_EQ(download_dst_, expected_content);
+#else
   EXPECT_TRUE(ContentsEqual(download_complete_result_.response, test_file));
 
   EXPECT_TRUE(
       DeleteFileAndEmptyParentDirectory(download_complete_result_.response));
+#endif
 
   // Expect at least some progress reported by the loader.
   EXPECT_LE(1, num_progress_calls_);
@@ -349,8 +478,13 @@ TEST_F(CrxDownloaderTest, TwoUrls_SecondInvalid) {
   urls.push_back(expected_crx_url);
   urls.push_back(no_file_url);
 
+#if defined(IN_MEMORY_UPDATES)
+  crx_downloader_->StartDownload(urls, std::string(hash_jebg), &download_dst_,
+                                 std::move(callback_));
+#else
   crx_downloader_->StartDownload(urls, std::string(hash_jebg),
                                  std::move(callback_));
+#endif
   RunThreads();
 
   EXPECT_EQ(1, GetInterceptorCount());
@@ -358,10 +492,16 @@ TEST_F(CrxDownloaderTest, TwoUrls_SecondInvalid) {
   EXPECT_EQ(1, num_download_complete_calls_);
   EXPECT_EQ(0, download_complete_result_.error);
   EXPECT_EQ(0, download_complete_result_.extra_code1);
+#if defined(IN_MEMORY_UPDATES)
+  std::string expected_content;
+  EXPECT_TRUE(base::ReadFileToString(test_file, &expected_content));
+  EXPECT_EQ(download_dst_, expected_content);
+#else
   EXPECT_TRUE(ContentsEqual(download_complete_result_.response, test_file));
 
   EXPECT_TRUE(
       DeleteFileAndEmptyParentDirectory(download_complete_result_.response));
+#endif
 
   EXPECT_LE(1, num_progress_calls_);
 
@@ -379,8 +519,13 @@ TEST_F(CrxDownloaderTest, TwoUrls_BothInvalid) {
   urls.push_back(expected_crx_url);
   urls.push_back(expected_crx_url);
 
+#if defined(IN_MEMORY_UPDATES)
+  crx_downloader_->StartDownload(urls, std::string(hash_jebg), &download_dst_,
+                                 std::move(callback_));
+#else
   crx_downloader_->StartDownload(urls, std::string(hash_jebg),
                                  std::move(callback_));
+#endif
   RunThreads();
 
   EXPECT_EQ(2, GetInterceptorCount());
@@ -388,7 +533,11 @@ TEST_F(CrxDownloaderTest, TwoUrls_BothInvalid) {
   EXPECT_EQ(1, num_download_complete_calls_);
   EXPECT_NE(0, download_complete_result_.error);
   EXPECT_EQ(0, download_complete_result_.extra_code1);
+#if defined(IN_MEMORY_UPDATES)
+  EXPECT_TRUE(download_dst_.empty());
+#else
   EXPECT_TRUE(download_complete_result_.response.empty());
+#endif
 
   const auto download_metrics = crx_downloader_->download_metrics();
   ASSERT_EQ(2u, download_metrics.size());

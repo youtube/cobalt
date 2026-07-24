@@ -5,6 +5,7 @@
 import("//build/buildflag_header.gni")
 import("//net/features.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
+import("//testing/test.gni")
 
 source_set("network_impl") {
   sources = [
@@ -202,8 +203,8 @@ static_library("update_client") {
 
   if (is_starboard) {
     deps += [
-      "//starboard:starboard_headers_only",
       "//cobalt/browser:features",
+      "//starboard:starboard_headers_only",
     ]
   }
 
@@ -262,20 +263,29 @@ source_set("test_support") {
   public_deps = [ ":update_client" ]
 
   deps = [
-    ":network_impl",
     ":patch_impl",
-    ":unzip_impl",
     "//base",
     "//components/prefs",
     "//components/services/patch:in_process",
     "//components/services/unzip:in_process",
+    "//components/services/unzip/public/cpp",
     "//mojo/public/cpp/bindings",
     "//net:test_support",
     "//services/network:test_support",
     "//testing/gmock",
     "//testing/gtest",
+    "//third_party/zlib/google:zip",
     "//url",
   ]
+
+  # Excluded for Evergreen: these targets cannot compile when IN_MEMORY_UPDATES
+  # is defined (test_configurator.cc provides Evergreen test doubles instead).
+  if (!(is_cobalt && use_evergreen)) {
+    deps += [
+      ":network_impl",
+      ":unzip_impl",
+    ]
+  }
 }
 
 bundle_data("unit_tests_bundle_data") {
@@ -356,12 +366,9 @@ source_set("unit_tests") {
   }
 
   deps = [
-    ":in_process_unzipper",
-    ":network_impl",
     ":patch_impl",
     ":test_support",
     ":unit_tests_bundle_data",
-    ":unzip_impl",
     ":update_client",
     "//base",
     "//build:branding_buildflags",
@@ -381,7 +388,18 @@ source_set("unit_tests") {
     "//third_party/re2",
   ]
 
+  # Excluded for Evergreen: these targets cannot compile when IN_MEMORY_UPDATES
+  # is defined (test_configurator.cc provides Evergreen test doubles instead).
+  if (!(is_cobalt && use_evergreen)) {
+    deps += [
+      ":in_process_unzipper",
+      ":network_impl",
+      ":unzip_impl",
+    ]
+  }
+
   data_deps = [ "//components/test/data/update_client/puffin_patch_test:puffin_patch_test_files" ]
+  data = [ "//components/test/data/update_client/" ]
 }
 
 fuzzer_test("update_client_protocol_serializer_fuzzer") {
@@ -400,4 +418,16 @@ fuzzer_test("update_client_protocol_parser_fuzzer") {
     "//base",
   ]
   seed_corpus = "fuzzer_corpuses/protocol_parser/"
+}
+
+if (is_cobalt && use_evergreen) {
+  test("update_client_unittests") {
+    sources = [ "//components/test/starboard/run_all_unittests.cc" ]
+    deps = [
+      ":unit_tests",
+      "//components/test:test_support",
+    ]
+    data_deps = [ "//ui/resources:ui_test_pak" ]
+    data = [ "$root_out_dir/ui_test.pak" ]
+  }
 }

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !defined(IN_MEMORY_UPDATES)
 #include "components/update_client/op_puffin.h"
 
 #include "base/files/file_path.h"
@@ -24,6 +25,34 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace update_client {
+
+#if BUILDFLAG(IS_STARBOARD)
+// Starboard's PuffOperation takes an OperationResult and completes with one.
+// This overload adapts the upstream call sites in this file (which pass a
+// FilePath and expect a FilePath back) so they can stay identical to upstream.
+base::OnceClosure PuffOperation(
+    scoped_refptr<CrxCache> crx_cache,
+    scoped_refptr<Patcher> patcher,
+    base::RepeatingCallback<void(base::Value::Dict)> event_adder,
+    const std::string& old_hash,
+    const std::string& output_hash,
+    const base::FilePath& patch_file,
+    base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)> callback) {
+  OperationResult op_result;
+  op_result.response = patch_file;
+  return PuffOperation(
+      crx_cache, patcher, event_adder, old_hash, output_hash, op_result,
+      base::BindLambdaForTesting(
+          [callback = std::move(callback)](base::expected<OperationResult, CategorizedError> result) mutable {
+            if (result.has_value()) {
+              std::move(callback).Run(result.value().response);
+            } else {
+              std::move(callback).Run(base::unexpected(result.error()));
+            }
+          }));
+}
+#endif
+
 
 class PuffOperationTest : public testing::Test {
  private:
@@ -265,3 +294,4 @@ TEST_F(PuffOperationTest, OutHashMismatch) {
 }
 
 }  // namespace update_client
+#endif  // !defined(IN_MEMORY_UPDATES)
