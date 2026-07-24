@@ -74,7 +74,7 @@ const void* SbSystemGetExtension(const char* name) {
   }
 #endif
 #if BUILDFLAG(USE_EVERGREEN)
-  if (strcmp(name, kCobaltExtensionNativeStabilityName) == 0) {
+  if (strcmp(name, kStarboardExtensionNativeStabilityName) == 0) {
     return starboard::GetNativeStabilityApi();
   }
 #endif
