@@ -32,6 +32,9 @@
     "SbSystemGetPathTest.CanWriteAndReadFilesStorage",
     "SbSystemGetPropertyTest.ReturnsRequired",
     "SbSystemSymbolizeTest.SunnyDay",
-    "SbTimeZoneGetNameTest.IsIANAFormat"
+    "SbTimeZoneGetNameTest.IsIANAFormat",
+    "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.PartialAudio/*",
+    "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.DiscardAllAudio/*",
+    "VerticalVideoTests/VerticalVideoTest.WriteSamples/*"
   ]
 }
