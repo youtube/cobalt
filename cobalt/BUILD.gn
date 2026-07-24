@@ -148,6 +148,18 @@ if (is_ios && target_platform == "tvos") {
     ]
   }
 
+  action("merge_rlibs_tvos_archive") {
+    script = "//cobalt/devinfra/kokoro/build/tvos/merge_rlibs_tvos_archive.sh"
+
+    deps = [ ":cobalt_archive" ]
+
+    inputs = [ "$target_out_dir/libcobalt_archive.a" ]
+
+    outputs = [ "$root_out_dir/cobalt.a" ]
+
+    args = [ rebase_path(root_out_dir, root_build_dir) ]
+  }
+
   foreach(locale, cobalt_locales) {
     bundle_data("cobalt_strings_${locale}_bundle_data") {
       sources = [
