@@ -61,7 +61,7 @@ const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
     return starboard::GetCrashHandlerApi();
   }
-  if (strcmp(name, kCobaltExtensionNativeStabilityName) == 0) {
+  if (strcmp(name, kStarboardExtensionNativeStabilityName) == 0) {
     return starboard::GetNativeStabilityApi();
   }
 
