@@ -318,6 +318,10 @@ void V8MetricsRecorder::AddMainThreadEvent(
       case v8::Isolate::Priority::kUserBlocking:
         REPORT_V8_HISTOGRAMS(".UserBlocking")
     }
+    garbage_collection_event_event_counters_full_[event.priority.value()]
+                                                 [event.reason]++;
+    LOG(ERROR) << "Full " << static_cast<int>(event.priority.value()) << " "
+               << event.reason;
   }
 #undef REPORT_V8_HISTOGRAMS
 
@@ -544,6 +548,10 @@ void V8MetricsRecorder::AddMainThreadEvent(
       case v8::Isolate::Priority::kUserBlocking:
         REPORT_V8_HISTOGRAMS(".UserBlocking")
     }
+    garbage_collection_event_event_counters_young_[event.priority.value()]
+                                                  [event.reason]++;
+    LOG(ERROR) << "Young " << static_cast<int>(event.priority.value()) << " "
+               << event.reason;
   }
 #undef REPORT_V8_HISTOGRAMS
 }
