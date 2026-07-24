@@ -90,6 +90,7 @@ source_set("browser") {
     "//components/metrics_services_manager",
     "//components/os_crypt/sync",
     "//components/prefs",
+    "//components/services/storage",
     "//components/variations/service:service",
     "//services/resource_coordinator/public/cpp/memory_instrumentation",
     "//starboard:starboard_group",
