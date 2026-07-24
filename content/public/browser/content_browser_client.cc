@@ -25,8 +25,8 @@
 #include "components/language_detection/content/browser/content_language_detection_driver.h"  // nogncheck
 #include "components/language_detection/content/common/language_detection.mojom.h"  // nogncheck
 #include "components/language_detection/core/browser/language_detection_model_provider.h"  // nogncheck
+#include "content/browser/ai/echo_ai_manager_impl.h"  // nogncheck
 #endif  // !BUILDFLAG(IS_COBALT)
-#include "content/browser/ai/echo_ai_manager_impl.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/public/browser/anchor_element_preconnect_delegate.h"
 #include "content/public/browser/browser_context.h"
@@ -1883,6 +1883,7 @@ bool ContentBrowserClient::ShouldSuppressAXLoadComplete(RenderFrameHost* rfh) {
   return false;
 }
 
+#if !BUILDFLAG(IS_COBALT)
 void ContentBrowserClient::BindAIManager(
     BrowserContext* browser_context,
     base::SupportsUserData* context_user_data,
@@ -1890,6 +1891,8 @@ void ContentBrowserClient::BindAIManager(
     mojo::PendingReceiver<blink::mojom::AIManager> receiver) {
   EchoAIManagerImpl::Create(std::move(receiver));
 }
+#endif  // !BUILDFLAG(IS_COBALT)
+
 
 void ContentBrowserClient::BindTranslationManager(
     BrowserContext* browser_context,

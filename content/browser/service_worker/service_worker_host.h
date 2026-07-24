@@ -144,7 +144,9 @@ class CONTENT_EXPORT ServiceWorkerHost : public BucketContext,
           callback) override;
   storage::BucketClientInfo GetBucketClientInfo() const override;
 
+#if !BUILDFLAG(IS_COBALT)
   void BindAIManager(mojo::PendingReceiver<blink::mojom::AIManager> receiver);
+#endif  // !BUILDFLAG(IS_COBALT)
 
   RenderProcessHost* GetProcessHost() const;
 
