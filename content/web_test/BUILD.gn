@@ -220,6 +220,13 @@ static_library("web_test_browser") {
     ]
   }
 
+  if (!enable_privacy_sandbox_apis) {
+    sources -= [
+      "browser/web_test_privacy_sandbox.cc",
+      "browser/web_test_privacy_sandbox.h",
+    ]
+  }
+
   deps = [
     ":web_test_common",
     "//base",
