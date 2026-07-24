@@ -1,0 +1,31 @@
+// -*- protobuffer -*-
+// proto-file: google3/devtools/kokoro/config/proto/build.proto
+// proto-message: BuildConfig
+
+import '../../common.gcl' as common
+
+build = common.build {
+  build_file = 'src/cobalt/devinfra/kokoro/bin/dind_runner.sh'
+  env_vars = super.env_vars + [
+    {
+      key = 'PACKAGE_PLATFORM'
+      value = 'linux-no-starboard'
+    },
+    {
+      key = 'PLATFORM'
+      value = 'linux-x64x11-no-starboard'
+    },
+    {
+      key = 'GN_TARGET'
+      value = 'chromedriver'
+    },
+    {
+      key = 'TARGET_PLATFORM'
+      value = 'linux-x64x11-no-starboard'
+    },
+    {
+      key = 'REGISTRY_IMAGE_NAME'
+      value = 'cobalt-build-linux'
+    },
+  ]
+}
