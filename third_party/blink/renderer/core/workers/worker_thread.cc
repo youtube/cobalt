@@ -600,6 +600,7 @@ void WorkerThread::InitializeOnWorkerThread(
     const absl::optional<WorkerBackingThreadStartupData>& thread_startup_data,
     std::unique_ptr<WorkerDevToolsParams> devtools_params) {
   DCHECK(IsCurrentThread());
+  LOG(INFO) << "WorkerThread::InitializeOnWorkerThread - TID: " << (int)base::PlatformThread::CurrentId() << " URL: " << global_scope_creation_params->script_url.ElidedString();
   backing_thread_weak_factory_.emplace(this);
   worker_reporting_proxy_.WillInitializeWorkerContext();
   {

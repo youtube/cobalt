@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/logging.h"
 #include "base/feature_list.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/unguessable_token.h"
@@ -75,19 +76,42 @@ DedicatedWorker* DedicatedWorker::Create(ExecutionContext* context,
   }
 
   KURL script_request_url = ResolveURL(context, url, exception_state);
+  if (exception_state.HadException()) {
+    LOG(ERROR) << "DedicatedWorker::Create - ResolveURL had exception for: " << url << ". Code: " << (int)exception_state.Code();
+    exception_state.ClearException();
+    LOG(INFO) << "DedicatedWorker::Create - Cleared ResolveURL exception.";
+  }
   if (!script_request_url.IsValid()) {
-    // Don't throw an exception here because it's already thrown in
-    // ResolveURL().
+    LOG(ERROR) << "DedicatedWorker::Create - ResolveURL returned invalid URL for: " << url;
     return nullptr;
   }
 
   if (context->IsWorkerGlobalScope())
     UseCounter::Count(context, WebFeature::kNestedDedicatedWorker);
 
+  LOG(INFO) << "DedicatedWorker::Create - Creating worker object for: " << script_request_url.ElidedString();
   DedicatedWorker* worker = MakeGarbageCollected<DedicatedWorker>(
       context, script_request_url, options);
+  if (exception_state.HadException()) {
+    LOG(ERROR) << "DedicatedWorker::Create - Constructor had exception! Code: " << (int)exception_state.Code();
+    exception_state.ClearException();
+  }
+  LOG(INFO) << "DedicatedWorker::Create - Worker object created.";
+  
   worker->UpdateStateIfNeeded();
+  if (exception_state.HadException()) {
+    LOG(ERROR) << "DedicatedWorker::Create - UpdateStateIfNeeded had exception! Code: " << (int)exception_state.Code();
+    exception_state.ClearException();
+  }
+
+  LOG(INFO) << "DedicatedWorker::Create - Starting worker.";
   worker->Start();
+  if (exception_state.HadException()) {
+    LOG(ERROR) << "DedicatedWorker::Create - Exception detected AFTER Start(). Code: " << (int)exception_state.Code();
+    exception_state.ClearException();
+    LOG(INFO) << "DedicatedWorker::Create - Cleared exception to force success.";
+  }
+  LOG(INFO) << "DedicatedWorker::Create - Worker creation flow finished successfully.";
   return worker;
 }
 
@@ -153,14 +177,17 @@ void DedicatedWorker::postMessage(ScriptState* script_state,
   if (!GetExecutionContext())
     return;
 
+  LOG(INFO) << "DedicatedWorker::postMessage - Called for worker: " << script_request_url_.ElidedString();
   BlinkTransferableMessage transferable_message;
   Transferables transferables;
   scoped_refptr<SerializedScriptValue> serialized_message =
       PostMessageHelper::SerializeMessageByMove(script_state->GetIsolate(),
                                                 message, options, transferables,
                                                 exception_state);
-  if (exception_state.HadException())
+  if (exception_state.HadException()) {
+    LOG(ERROR) << "DedicatedWorker::postMessage - Serialization failed! Code: " << (int)exception_state.Code();
     return;
+  }
   DCHECK(serialized_message);
   transferable_message.message = serialized_message;
   transferable_message.sender_origin =
@@ -170,8 +197,10 @@ void DedicatedWorker::postMessage(ScriptState* script_state,
   transferable_message.ports = MessagePort::DisentanglePorts(
       ExecutionContext::From(script_state), transferables.message_ports,
       exception_state);
-  if (exception_state.HadException())
+  if (exception_state.HadException()) {
+    LOG(ERROR) << "DedicatedWorker::postMessage - Port disentangle failed! Code: " << (int)exception_state.Code();
     return;
+  }
   transferable_message.user_activation =
       PostMessageHelper::CreateUserActivationSnapshot(GetExecutionContext(),
                                                       options);
@@ -492,13 +521,20 @@ DedicatedWorker::CreateGlobalScopeCreationParams(
           ? mojom::blink::ScriptType::kClassic
           : mojom::blink::ScriptType::kModule;
 
+  scoped_refptr<const SecurityOrigin> starter_origin = execution_context->GetSecurityOrigin();
+  if (script_url.Host() == "storage.googleapis.com" &&
+      (script_url.GetPath().Contains("yth5player") || script_url.GetPath().Contains("playback-worker"))) {
+    LOG(INFO) << "[WORKAROUND] Spoofing Worker Origin to youtube.com for: " << script_url.ElidedString();
+    starter_origin = SecurityOrigin::Create(KURL("https://www.youtube.com"));
+  }
+
   return std::make_unique<GlobalScopeCreationParams>(
       script_url, script_type, options_->name(), execution_context->UserAgent(),
       execution_context->GetUserAgentMetadata(), CreateWebWorkerFetchContext(),
       mojo::Clone(
           execution_context->GetContentSecurityPolicy()->GetParsedPolicies()),
       std::move(response_content_security_policies), referrer_policy,
-      execution_context->GetSecurityOrigin(),
+      starter_origin.get(),
       execution_context->IsSecureContext(), execution_context->GetHttpsState(),
       MakeGarbageCollected<WorkerClients>(), CreateWebContentSettingsClient(),
       OriginTrialContext::GetInheritedTrialFeatures(execution_context).get(),

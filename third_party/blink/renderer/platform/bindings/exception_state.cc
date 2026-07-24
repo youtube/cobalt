@@ -176,6 +176,10 @@ void ExceptionState::SetException(ExceptionCode exception_code,
                                   v8::Local<v8::Value> exception) {
   CHECK(exception_code);
 
+  if (message.Contains("Worker") || message.Contains("script") || exception_code == ToExceptionCode(DOMExceptionCode::kSecurityError)) {
+    LOG(ERROR) << "BLINK EXCEPTION: Code=" << exception_code << " Message=" << message;
+  }
+
   code_ = exception_code;
   message_ = message;
   if (exception.IsEmpty()) {

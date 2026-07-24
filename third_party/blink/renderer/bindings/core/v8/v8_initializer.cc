@@ -199,10 +199,15 @@ void V8Initializer::MessageHandlerInWorker(v8::Local<v8::Message> message,
                                            v8::Local<v8::Value> data) {
   v8::Isolate* isolate = message->GetIsolate();
 
+  LOG(INFO) << "V8Initializer::MessageHandlerInWorker - Error level: " << message->ErrorLevel();
+  LOG(INFO) << "V8Initializer::MessageHandlerInWorker - Message: " << ToCoreStringWithNullCheck(message->Get());
+
   // During the frame teardown, there may not be a valid context.
   ScriptState* script_state = ScriptState::Current(isolate);
-  if (!script_state->ContextIsValid())
+  if (!script_state->ContextIsValid()) {
+    LOG(INFO) << "V8Initializer::MessageHandlerInWorker - Invalid script state, returning";
     return;
+  }
 
   ExecutionContext* context = ExecutionContext::From(script_state);
 
@@ -211,6 +216,9 @@ void V8Initializer::MessageHandlerInWorker(v8::Local<v8::Message> message,
 
   std::unique_ptr<SourceLocation> location =
       CaptureSourceLocation(isolate, message, context);
+  if (location) {
+     LOG(INFO) << "V8Initializer::MessageHandlerInWorker - Source: " << location->Url() << " Line: " << location->LineNumber();
+  }
 
   if (message->ErrorLevel() != v8::Isolate::kMessageError) {
     context->AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
@@ -233,6 +241,8 @@ void V8Initializer::MessageHandlerInWorker(v8::Local<v8::Message> message,
   if (!isolate->IsExecutionTerminating()) {
     ExecutionContext::From(script_state)
         ->DispatchErrorEvent(event, sanitize_script_errors);
+  } else {
+    LOG(INFO) << "V8Initializer::MessageHandlerInWorker - Execution terminating, not dispatching error event";
   }
 }
 

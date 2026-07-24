@@ -226,6 +226,8 @@ void DedicatedWorkerMessagingProxy::PostMessageToWorkerObject(
   if (!worker_object_ || AskedToTerminate())
     return;
 
+  LOG(INFO) << "DedicatedWorkerMessagingProxy::PostMessageToWorkerObject - Worker to Main";
+
   ThreadDebugger* debugger =
       ThreadDebugger::From(GetExecutionContext()->GetIsolate());
   MessagePortArray* ports = MessagePort::EntanglePorts(

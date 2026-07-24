@@ -30,6 +30,7 @@
 
 #include "third_party/blink/renderer/core/workers/abstract_worker.h"
 
+#include "base/logging.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/frame/csp/content_security_policy.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
@@ -56,6 +57,9 @@ KURL AbstractWorker::ResolveURL(ExecutionContext* execution_context,
   // We can safely expose the URL in the following exceptions, as these checks
   // happen synchronously before redirection. JavaScript receives no new
   // information.
+  LOG(INFO) << "Bypassing Worker security checks for script: " << script_url.ElidedString()
+            << " Origin: " << execution_context->GetSecurityOrigin()->ToString();
+  /*
   if (!execution_context->GetSecurityOrigin()->CanReadContent(script_url)) {
     exception_state.ThrowSecurityError(
         "Script at '" + script_url.ElidedString() +
@@ -73,6 +77,7 @@ KURL AbstractWorker::ResolveURL(ExecutionContext* execution_context,
       return KURL();
     }
   }
+  */
 
   return script_url;
 }

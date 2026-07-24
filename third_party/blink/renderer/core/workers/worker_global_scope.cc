@@ -245,6 +245,10 @@ String NetworkErrorMessageAtImportScript(const char* const property_name,
 // Implementation of the "import scripts into worker global scope" algorithm:
 // https://html.spec.whatwg.org/C/#import-scripts-into-worker-global-scope
 void WorkerGlobalScope::ImportScriptsInternal(const Vector<String>& urls) {
+  LOG(INFO) << "WorkerGlobalScope::ImportScriptsInternal - TID: " << base::PlatformThread::CurrentId();
+  for (const String& url : urls) {
+    LOG(INFO) << "  Importing: " << url.Utf8();
+  }
   DCHECK(GetContentSecurityPolicy());
   DCHECK(GetExecutionContext());
   v8::Isolate* isolate = GetThread()->GetIsolate();
@@ -497,6 +501,9 @@ void WorkerGlobalScope::RunWorkerScript() {
   DCHECK(worker_script_);
   DCHECK_EQ(script_eval_state_, ScriptEvalState::kReadyToEvaluate);
 
+  LOG(INFO) << "WorkerGlobalScope::RunWorkerScript - URL: " << Url().GetString();
+  LOG(INFO) << "  [DIAGNOSTIC] Security Origin: " << GetSecurityOrigin()->ToString();
+
   WorkerThreadDebugger* debugger =
       WorkerThreadDebugger::From(GetThread()->GetIsolate());
   if (debugger && stack_id_)
@@ -510,9 +517,28 @@ void WorkerGlobalScope::RunWorkerScript() {
   bool is_success = false;
   if (ScriptState* script_state = ScriptController()->GetScriptState()) {
     v8::HandleScope handle_scope(script_state->GetIsolate());
+
+    // Diagnostic: Check for MediaSourceHandle in the global object
+    {
+      v8::Local<v8::Context> context = script_state->GetContext();
+      v8::Context::Scope context_scope(context);
+      v8::Local<v8::Object> global = context->Global();
+      v8::Local<v8::String> name = V8String(script_state->GetIsolate(), "MediaSourceHandle");
+      v8::Maybe<bool> has_handle = global->Has(context, name);
+      LOG(INFO) << "  [DIAGNOSTIC] Global has MediaSourceHandle: " 
+                << (has_handle.IsJust() && has_handle.FromJust() ? "YES" : "NO");
+
+      v8::Local<v8::String> ms_name = V8String(script_state->GetIsolate(), "MediaSource");
+      v8::Maybe<bool> has_ms = global->Has(context, ms_name);
+      LOG(INFO) << "  [DIAGNOSTIC] Global has MediaSource: " 
+                << (has_ms.IsJust() && has_ms.FromJust() ? "YES" : "NO");
+    }
+
+    LOG(INFO) << "WorkerGlobalScope::RunWorkerScript - Evaluating script...";
     ScriptEvaluationResult result =
         std::move(worker_script_)
             ->RunScriptOnScriptStateAndReturnValue(script_state);
+    LOG(INFO) << "WorkerGlobalScope::RunWorkerScript - Evaluation finished. Result type: " << static_cast<int>(result.GetResultType());
     switch (worker_script_->GetScriptType()) {
       case mojom::blink::ScriptType::kClassic:
         is_success = result.GetResultType() ==
@@ -551,6 +577,7 @@ void WorkerGlobalScope::RunWorkerScript() {
         break;
     }
   }
+  LOG(INFO) << "WorkerGlobalScope::RunWorkerScript - Success: " << is_success;
   ReportingProxy().DidEvaluateTopLevelScript(is_success);
 
   if (debugger && stack_id_)
@@ -561,6 +588,7 @@ void WorkerGlobalScope::RunWorkerScript() {
 
 void WorkerGlobalScope::ReceiveMessage(BlinkTransferableMessage message) {
   DCHECK(!IsContextPaused());
+  LOG(INFO) << "WorkerGlobalScope::ReceiveMessage - TID: " << base::PlatformThread::CurrentId() << " Worker: " << Url().GetString();
   MessagePortArray* ports =
       MessagePort::EntanglePorts(*this, std::move(message.ports));
   WorkerThreadDebugger* debugger =
@@ -569,6 +597,7 @@ void WorkerGlobalScope::ReceiveMessage(BlinkTransferableMessage message) {
     debugger->ExternalAsyncTaskStarted(message.sender_stack_trace_id);
 
   if (message.message->CanDeserializeIn(this)) {
+    LOG(INFO) << "WorkerGlobalScope::ReceiveMessage - Deserialization OK, dispatching MessageEvent";
     UserActivation* user_activation = nullptr;
     if (message.user_activation) {
       user_activation = MakeGarbageCollected<UserActivation>(
@@ -578,6 +607,7 @@ void WorkerGlobalScope::ReceiveMessage(BlinkTransferableMessage message) {
     DispatchEvent(*MessageEvent::Create(ports, std::move(message.message),
                                         user_activation));
   } else {
+    LOG(INFO) << "WorkerGlobalScope::ReceiveMessage - Deserialization FAILED, dispatching MessageEventError";
     DispatchEvent(*MessageEvent::CreateError());
   }
 
