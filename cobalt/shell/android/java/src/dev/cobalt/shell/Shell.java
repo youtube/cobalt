@@ -19,12 +19,7 @@ import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.app.Activity;
 import android.content.Context;
-import android.graphics.Rect;
 import android.text.TextUtils;
-import android.view.ActionMode;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import dev.cobalt.shell.ContentViewRenderView;
@@ -33,13 +28,10 @@ import org.chromium.base.ResettersForTesting;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.content_public.browser.ActionModeCallbackHelper;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.NavigationController;
-import org.chromium.content_public.browser.SelectionPopupController;
 import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
-import org.chromium.ui.base.ViewAndroidDelegate;
 import org.chromium.ui.base.WindowAndroid;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
@@ -158,21 +150,6 @@ public class Shell {
     }
 
     /**
-     * @return Whether the Shell has been destroyed.
-     * @see #onNativeDestroyed()
-     */
-    public boolean isDestroyed() {
-        return mNativeShell == 0;
-    }
-
-    /**
-     * @return Whether or not the Shell is loading content.
-     */
-    public boolean isLoading() {
-        return mLoading;
-    }
-
-    /**
      * Loads an URL.  This will perform minimal amounts of sanitizing of the URL to attempt to
      * make it valid.
      *
@@ -217,10 +194,6 @@ public class Shell {
     @CalledByNative
     private void setIsLoading(boolean loading) {
         mLoading = loading;
-    }
-
-    public @Nullable ShellViewAndroidDelegate getViewAndroidDelegate() {
-        return mViewAndroidDelegate;
     }
 
     /**
@@ -291,44 +264,6 @@ public class Shell {
         }
     }
 
-    /**
-     * {link @ActionMode.Callback} that uses the default implementation in
-     * {@link SelectionPopupController}.
-     */
-    private ActionMode.Callback2 defaultActionCallback() {
-        final ActionModeCallbackHelper helper =
-                SelectionPopupController.fromWebContents(mWebContents)
-                        .getActionModeCallbackHelper();
-
-        return new ActionMode.Callback2() {
-            @Override
-            public boolean onCreateActionMode(ActionMode mode, Menu menu) {
-                helper.onCreateActionMode(mode, menu);
-                return true;
-            }
-
-            @Override
-            public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
-                return helper.onPrepareActionMode(mode, menu);
-            }
-
-            @Override
-            public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
-                return helper.onActionItemClicked(mode, item);
-            }
-
-            @Override
-            public void onDestroyActionMode(ActionMode mode) {
-                helper.onDestroyActionMode();
-            }
-
-            @Override
-            public void onGetContentRect(ActionMode mode, View view, Rect outRect) {
-                helper.onGetContentRect(mode, view, outRect);
-            }
-        };
-    }
-
     @CalledByNative
     public void setOverlayMode(boolean useOverlayMode) {
         assumeNonNull(mContentViewRenderView).setOverlayVideoMode(useOverlayMode);
@@ -350,14 +285,6 @@ public class Shell {
      */
     @CalledByNative
     private void enableUiControl(int controlId, boolean enabled) {}
-
-    /**
-     * @return The {@link View} currently shown by this Shell.
-     */
-    public @Nullable View getContentView() {
-        ViewAndroidDelegate viewDelegate = mWebContents.getViewAndroidDelegate();
-        return viewDelegate != null ? viewDelegate.getContainerView() : null;
-    }
 
      /**
      * @return The {@link WebContents} currently managing the content shown by this Shell.
