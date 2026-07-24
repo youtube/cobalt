@@ -183,6 +183,7 @@ component("modules") {
       "//third_party/blink/renderer/modules/shared_storage",
       "//third_party/blink/renderer/modules/storage_access",
       "//third_party/blink/renderer/modules/ad_auction",
+      "//third_party/blink/renderer/modules/credentialmanagement",
     ]
   }
 
@@ -331,7 +332,7 @@ source_set("modules_testing") {
 
   # If in the future privacy sandbox components are removed from the code base, ignore this if block.
   if (!enable_privacy_sandbox_apis) {
-    _ad_auction_testing_filtered_sources = filter_exclude(sources, [ "ad_auction/testing/*" ])
+    _ad_auction_testing_filtered_sources = filter_exclude(sources, [ "ad_auction/testing/*", "credentialmanagement/testing/*" ])
     sources = []
     sources = _ad_auction_testing_filtered_sources
   }
