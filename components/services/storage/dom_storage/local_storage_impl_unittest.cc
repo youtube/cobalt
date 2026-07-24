@@ -949,7 +949,7 @@ TEST_F(LocalStorageImplTest, OnDisk) {
       leveldb_env::LevelDBStatusValue::LEVELDB_STATUS_OK, 2);
 }
 
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 TEST_F(LocalStorageImplTest, DeleteLockFile) {
   auto key = StdStringToUint8Vector("key");
   auto value = StdStringToUint8Vector("value");
