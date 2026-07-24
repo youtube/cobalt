@@ -237,6 +237,10 @@ SB_EXPORT int __abi_wrap_access(const char* path, int amode);
 
 SB_EXPORT int __abi_wrap_fchown(int fd, musl_uid_t owner, musl_gid_t group);
 
+#if defined(ANDROID)
+SB_EXPORT int __abi_wrap_link(const char* path1, const char* path2);
+#endif
+
 SB_EXPORT int __abi_wrap_unlinkat(int fildes, const char* path, int musl_flag);
 
 SB_EXPORT ssize_t __abi_wrap_pread(int fd,

@@ -88,6 +88,10 @@
 #include "starboard/time_zone.h"
 #include "starboard/window.h"
 
+#if defined(ANDROID)
+#include "starboard/shared/modular/starboard_layer_posix_stdlib_abi_wrappers.h"
+#endif
+
 #define REGISTER_SYMBOL(s)                        \
   do {                                            \
     map_[#s] = reinterpret_cast<const void*>(&s); \
@@ -237,7 +241,10 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(getsockopt);
   REGISTER_SYMBOL(isatty);
   REGISTER_SYMBOL(kill);
+#if !defined(ANDROID) || !SB_IS(MODULAR)
   REGISTER_SYMBOL(link);
+#endif
+
   REGISTER_SYMBOL(listen);
   REGISTER_SYMBOL(madvise);
   REGISTER_SYMBOL(malloc);
@@ -245,8 +252,11 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(mincore);
   REGISTER_SYMBOL(mkdir);
   REGISTER_SYMBOL(mkdtemp);
-  REGISTER_SYMBOL(mkostemp);
   REGISTER_SYMBOL(mkstemp);
+#if !defined(ANDROID) || !SB_IS(MODULAR)
+  REGISTER_SYMBOL(mkostemp);
+  REGISTER_SYMBOL(mkostemps);
+#endif
   REGISTER_SYMBOL(mprotect);
   REGISTER_SYMBOL(msync);
   REGISTER_SYMBOL(munmap);
@@ -326,7 +336,14 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(inotify_init1);
   REGISTER_WRAPPER(inotify_add_watch);
   REGISTER_WRAPPER(inotify_rm_watch);
+#if defined(ANDROID) && SB_IS(MODULAR)
+  REGISTER_WRAPPER(link);
+#endif
   REGISTER_WRAPPER(lseek);
+#if defined(ANDROID) && SB_IS(MODULAR)
+  REGISTER_WRAPPER(mkostemp);
+  REGISTER_WRAPPER(mkostemps);
+#endif
   REGISTER_WRAPPER(mmap);
   REGISTER_WRAPPER(openat);
   REGISTER_WRAPPER(opendir);

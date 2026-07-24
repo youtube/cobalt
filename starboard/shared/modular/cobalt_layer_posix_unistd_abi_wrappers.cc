@@ -70,6 +70,14 @@ int fchown(int fd, uid_t owner, gid_t group) {
   return __abi_wrap_fchown(fd, owner, group);
 }
 
+#if defined(ANDROID)
+int __abi_wrap_link(const char* path1, const char* path2);
+
+int link(const char* path1, const char* path2) {
+  return __abi_wrap_link(path1, path2);
+}
+#endif
+
 int __abi_wrap_unlinkat(int fildes, const char* path, int flag);
 
 int unlinkat(int fildes, const char* path, int flag) {
