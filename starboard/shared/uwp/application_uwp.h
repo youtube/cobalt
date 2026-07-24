@@ -193,6 +193,9 @@ class ApplicationUwp : public shared::starboard::Application,
   Windows::Media::Protection::HdcpSession ^ GetHdcpSession();
   void ResetHdcpSession();
 
+  bool ClearLocalCacheIfNeeded();
+  bool ClearLocalCacheFolder();
+
   // TODO: Check if |window_| requires mutex or that it is safely accessed
   // The single open window, if any.
   SbWindow window_;

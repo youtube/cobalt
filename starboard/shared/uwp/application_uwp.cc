@@ -23,11 +23,13 @@
 #include <windows.graphics.display.core.h>
 #include <windows.h>
 #include <windows.system.display.h>
+#include <windows.applicationmodel.h>
 
 #include <cstdlib>
 #include <memory>
 #include <string>
 #include <vector>
+#include <fstream>
 
 #include "starboard/common/device_type.h"
 #include "starboard/common/file.h"
@@ -57,6 +59,7 @@
 #include "starboard/shared/win32/thread_private.h"
 #include "starboard/shared/win32/video_decoder.h"
 #include "starboard/shared/win32/wchar_utils.h"
+#include "starboard/shared/win32/directory_internal.h"
 #include "starboard/system.h"
 
 namespace starboard {
@@ -92,6 +95,8 @@ using Windows::ApplicationModel::ExtendedExecution::ExtendedExecutionResult;
 using Windows::ApplicationModel::ExtendedExecution::
     ExtendedExecutionRevokedEventArgs;
 using Windows::ApplicationModel::ExtendedExecution::ExtendedExecutionSession;
+using Windows::ApplicationModel::Package;
+using Windows::ApplicationModel::PackageVersion;
 using Windows::Devices::Enumeration::DeviceInformation;
 using Windows::Devices::Enumeration::DeviceInformationUpdate;
 using Windows::Devices::Enumeration::DeviceWatcher;
@@ -119,6 +124,7 @@ using Windows::Media::Protection::HdcpSetProtectionResult;
 using Windows::Security::Authentication::Web::Core::WebTokenRequestResult;
 using Windows::Security::Authentication::Web::Core::WebTokenRequestStatus;
 using Windows::Security::Credentials::WebAccountProvider;
+using Windows::Storage::ApplicationData;
 using Windows::Storage::FileAttributes;
 using Windows::Storage::KnownFolders;
 using Windows::Storage::StorageFile;
@@ -858,6 +864,9 @@ ApplicationUwp::ApplicationUwp()
   SbWindowSetDefaultOptions(&options);
   window_size_ = options.size;
   analog_thumbstick_thread_.reset(new AnalogThumbstickThread(this));
+  // We don't check result of operation because if something went wrong
+  // when we try to delete local cache folder, we can do nothing with it.
+  ClearLocalCacheIfNeeded();
 }
 
 ApplicationUwp::~ApplicationUwp() {
@@ -1041,6 +1050,56 @@ void ApplicationUwp::ResetHdcpSession() {
     delete hdcp_session_;
     hdcp_session_ = nullptr;
   }
+}
+
+bool ApplicationUwp::ClearLocalCacheIfNeeded() {
+  // We compare saved app version (previous launch) and current version.
+  // If they are different, it means that this is the very first launch
+  // after install or after update.
+  // In both cases we clear LocalCacheFolder to ensure that the old saved
+  // data can't impact on new app version.
+  PackageVersion v = Package::Current->Id->Version;
+  std::string version =
+      std::to_string(v.Major) + "." + std::to_string(v.Minor) + "." +
+      std::to_string(v.Build) + "." + std::to_string(v.Revision);
+  SB_LOG(INFO) << "Current package version is " << version;
+
+  auto localFolder = ApplicationData::Current->LocalFolder;
+  std::wstring path = localFolder->Path->Data();
+  path += L"\\app_version.txt";
+
+  std::string prev_version;
+  std::fstream version_file(path.c_str(), std::ios_base::in);
+  if (version_file.is_open()) {
+    version_file >> prev_version;
+    version_file.close();
+  }
+  if (version.compare(prev_version) != 0) {
+    SB_LOG(INFO) << "Previous version is " << prev_version
+                 << ". Trying to clear local cache.";
+    if (ClearLocalCacheFolder()) {
+      // Save current version only in case of success.
+      // If something went wrong, we leave current version unchanged and
+      // this check will be repeated again in next app launch.
+      version_file.open(path.c_str(),
+                        std::ios_base::trunc | std::ios_base::out);
+      if (version_file.is_open()) {
+        version_file << version;
+        version_file.close();
+        return true;
+      } else {
+        SB_LOG(ERROR) << "Unable to open version file for writing.";
+        return false;
+      }
+    }
+  }
+  return false;
+}
+
+bool ApplicationUwp::ClearLocalCacheFolder() {
+  auto cacheFolder = ApplicationData::Current->LocalCacheFolder;
+  std::wstring wpath = cacheFolder->Path->Data();
+  return ::starboard::shared::win32::ClearOrDeleteDirectory(wpath, false);
 }
 
 void ApplicationUwp::Inject(Application::Event* event) {
