@@ -537,9 +537,12 @@ void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
 }
 
 void Shell::PrimaryMainDocumentElementAvailable() {
+<<<<<<< HEAD
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(27);
 #endif
+=======
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
 #if BUILDFLAG(USE_EVERGREEN)
   cobalt::updater::UpdaterModule* updater_module =
       cobalt::updater::UpdaterModule::GetInstance();

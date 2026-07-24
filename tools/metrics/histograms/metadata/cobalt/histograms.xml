@@ -254,6 +254,102 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.LocalStorage.DatabaseResetReason"
+    enum="LocalStorageDatabaseResetReason" expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the reason why the Local Storage database was reset.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StorageMigration.CookieInjectionResult"
+    enum="StorageInjectionResult" expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the outcome of attempting to inject a single cookie into the new
+    Chromium-based storage during migration from legacy Starboard storage.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StorageMigration.CookiesCount" units="cookies"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the total number of cookies found in the legacy Starboard storage
+    record during a migration attempt.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StorageMigration.FastPathDuration" units="ms"
+    expires_after="never">
+  <owner>colinliang@google.com</owner>
+  <summary>
+    Records the total time taken to check for the migration fast path during
+    startup.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StorageMigration.Outcome" enum="MigrationOutcome"
+    expires_after="never">
+  <owner>colinliang@google.com</owner>
+  <summary>
+    Records the final outcome of the storage migration process. Tracks whether
+    the migration took the fast path, skipped due to no data, fully succeeded,
+    or failed during read/injection.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StorageMigration.Duration" units="ms"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the total time taken to migrate data from the legacy Starboard
+    storage record to the new Chromium-based storage.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StorageMigration.LocalStorageCount" units="entries"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the total number of localStorage entries found in the legacy
+    Starboard storage record during a migration attempt.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StorageMigration.LocalStorageInjectionResult"
+    enum="StorageInjectionResult" expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the outcome of attempting to inject a single localStorage entry into
+    the new Chromium-based storage during migration from legacy Starboard
+    storage.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StorageMigration.ReadResult" enum="StorageReadResult"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the outcome of attempting to read and parse the legacy Starboard
+    storage record during migration.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StorageMigration.SentinelWriteResult"
+    enum="SentinelWriteResult" expires_after="never">
+  <owner>colinliang@google.com</owner>
+  <summary>
+    Records the result of writing the migration sentinel file to disk.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.SplashScreen.FetchedFromCache"
     enum="SplashScreenFetchedState" expires_after="never">
   <owner>tasunny@google.com</owner>
