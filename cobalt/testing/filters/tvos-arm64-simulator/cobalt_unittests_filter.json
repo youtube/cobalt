@@ -1,6 +1,0 @@
-{
-  "comment": "SplashScreenTest.PreloadSkipsSplashScreen depends on PR #11435.",
-  "failing_tests": [
-    "SplashScreenTest.PreloadSkipsSplashScreen"
-  ]
-}
