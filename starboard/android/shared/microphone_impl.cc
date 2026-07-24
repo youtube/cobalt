@@ -230,7 +230,13 @@ int SbMicrophoneImpl::Read(void* out_audio_data, int audio_data_size) {
     return -1;
   }
 
-  if (!out_audio_data || audio_data_size == 0 || state_ == kWaitPermission) {
+  // If reading audio_data_size bytes is expected, a null output
+  // buffer is an invalid argument.
+  if (audio_data_size > 0 && !out_audio_data) {
+    return -1;
+  }
+
+  if (audio_data_size == 0 || state_ == kWaitPermission) {
     // No data to be read.
     return 0;
   }
