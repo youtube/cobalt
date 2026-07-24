@@ -183,7 +183,13 @@ def push_to_device(
         raise ValueError("Either device_id or device_ip must be provided to push file.")
 
 
-def configure_build(platform: str, config: str, out_dir: Path, no_rbe: bool = False) -> None:
+def configure_build(
+    platform: str,
+    config: str,
+    out_dir: Path,
+    no_rbe: bool = False,
+    executable_type: Optional[str] = None,
+) -> None:
     """Runs GN configuration."""
     print(f"=== Configuring {platform} ({config}) ===")
     cmd = [
@@ -194,6 +200,15 @@ def configure_build(platform: str, config: str, out_dir: Path, no_rbe: bool = Fa
     if no_rbe:
         cmd.append("--no-rbe")
     run_command(cmd)
+
+    if executable_type:
+        args_gn = out_dir / "args.gn"
+        if args_gn.exists():
+            with open(args_gn, "a", encoding="utf-8") as f:
+                f.write(
+                    f'\nstarboard_level_final_executable_type = "{executable_type}"\n'
+                )
+            run_command(["gn", "gen", str(out_dir)])
 
 
 def build_targets(out_dir: Path, targets: List[str]) -> str:
@@ -779,14 +794,9 @@ def main() -> None:
         deps_file = None
     else:
         # Standard deployment uses cobalt_loader to generate the runtime_deps list.
-        targets = ["cobalt_loader", "loader_app"]
+        targets = ["cobalt_loader"]
         deps_file = out_dir / "cobalt_loader.runtime_deps"
-        
-        if args.mode == "plugin":
-            targets.append("loader_app_rdk_plugin")
-            remote_dir = DEFAULT_REMOTE_DIR
-        else:
-            remote_dir = EXECUTABLE_REMOTE_DIR
+        remote_dir = DEFAULT_REMOTE_DIR if args.mode == "plugin" else EXECUTABLE_REMOTE_DIR
 
     if not args.skip_build:
         rdk_home = os.environ.get("RDK_HOME")
@@ -796,7 +806,12 @@ def main() -> None:
             print("Also, make sure to add it to your ~/.bashrc (e.g., export RDK_HOME=/workspaces/rdk/toolchain).")
             sys.exit(1)
 
-        configure_build(PLATFORM, config, out_dir, args.no_rbe)
+        executable_type = (
+            "executable" if (args.mode == "executable" and not args.tests) else None
+        )
+        configure_build(
+            PLATFORM, config, out_dir, args.no_rbe, executable_type=executable_type
+        )
         build_output = build_targets(out_dir, targets)
         is_up_to_date = build_output and any(
             msg in build_output for msg in ["Everything is up-to-date", "no work to do"])
