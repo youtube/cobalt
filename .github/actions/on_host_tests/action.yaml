@@ -123,6 +123,7 @@ runs:
                 --gtest_shard_index="${GTEST_SHARD_INDEX}" \
                 --gtest_total_shards="${GTEST_TOTAL_SHARDS}" \
                 --gtest_output="xml:${xml_path}" \
+                --test-launcher-jobs=1 \
                 --gtest_filter="${test_filter}" 2>&1 | tee ${log_path} || {
               failed_suites="${failed_suites} ${test_executable}"
             }
