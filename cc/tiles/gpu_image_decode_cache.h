@@ -1005,6 +1005,12 @@ class CC_EXPORT GpuImageDecodeCache
   std::vector<uint32_t> ids_pending_deletion_;
 
   std::unique_ptr<base::MemoryPressureListener> memory_pressure_listener_;
+#if BUILDFLAG(IS_COBALT)
+  void LogStatsPeriodic();
+  base::RepeatingTimer stats_timer_;
+  size_t elapsed_seconds_ = 0;
+  bool use_pooled_memory_ = false;
+#endif
   base::WeakPtrFactory<GpuImageDecodeCache> weak_ptr_factory_{this};
 };
 

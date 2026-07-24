@@ -281,4 +281,10 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    "max_animation_duration",
                    base::Milliseconds(700));
 
+#if BUILDFLAG(IS_COBALT)
+BASE_FEATURE(kPreallocatedImageCachePool,
+             "PreallocatedImageCachePool",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
 }  // namespace features
