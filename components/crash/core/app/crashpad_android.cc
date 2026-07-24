@@ -29,6 +29,7 @@
 #include "base/rand_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
+#include "base/android/cobalt_for_google3_buildflags.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "components/crash/android/jni_headers/PackagePaths_jni.h"
@@ -424,8 +425,16 @@ bool BuildEnvironmentWithApk(bool use_64_bit,
   return true;
 }
 
+#if BUILDFLAG(IS_COBALT_ON_GOOGLE3)
+const char kCrashpadJavaMain[] =
+    "cobalt.org.chromium.components.crash.browser.CrashpadMainCobalt";
+#elif BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROIDTV)
+const char kCrashpadJavaMain[] =
+    "org.chromium.components.crash.browser.CrashpadMainCobalt";
+#else
 const char kCrashpadJavaMain[] =
     "org.chromium.components.crash.browser.CrashpadMain";
+#endif
 const char kCrashReportUrl[] = "https://clients2.google.com/cr/report";
 
 void BuildHandlerArgs(CrashReporterClient* crash_reporter_client,
@@ -572,10 +581,8 @@ class HandlerStarter {
     #endif
 
 
-    if (!base::PathExists(handler_path)) {
-      use_java_handler_ =
-          !GetHandlerTrampoline(&handler_trampoline_, &handler_library_);
-    }
+    use_java_handler_ =
+        !GetHandlerTrampoline(&handler_trampoline_, &handler_library_);
 
     if (!ShouldHandleCrashAndUpdateArguments(
             dump_at_crash, GetCrashReporterClient()->ShouldWriteMinidumpToLog(),
@@ -596,6 +603,14 @@ class HandlerStarter {
       if (!BuildEnvironmentWithApk(kUse64Bit, &env)) {
         return database_path;
       }
+
+#if BUILDFLAG(IS_COBALT)
+      if (use_java_handler_) {
+        LOG(ERROR) << "Cobalt: Starting Java Fallback Handler via " << kCrashpadJavaMain;
+      } else {
+        LOG(ERROR) << "Cobalt: Starting Direct Linker Handler via " << handler_trampoline_;
+      }
+#endif
 
       bool result = use_java_handler_
                         ? GetCrashpadClient().StartJavaHandlerAtCrash(

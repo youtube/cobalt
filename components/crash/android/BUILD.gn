@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("//build/config/android/rules.gni")
+import("//starboard/build/buildflags.gni")
 
 _jni_sources = [
   "java/src/org/chromium/components/crash/CrashKeys.java",
@@ -87,31 +88,51 @@ source_set("unit_tests") {
   ]
 }
 
-_java_handler_jni_sources =
-    [ "java/src/org/chromium/components/crash/browser/CrashpadMain.java" ]
+if (is_cobalt && is_androidtv) {
+  generate_jni("java_handler_jni_headers") {
+    sources = [ "java/src/org/chromium/components/crash/browser/CrashpadMain.java" ]
+  }
 
-generate_jni("java_handler_jni_headers") {
-  sources = _java_handler_jni_sources
-}
+  android_library("handler_java") {
+    sources =
+        [ "java/src/org/chromium/components/crash/browser/CrashpadMainCobalt.java" ]
+    deps = [
+      "//base:jni_java",
+      "//build/android:build_java",
+    ]
+  }
 
-android_library("handler_java") {
-  deps = [
-    "//base:jni_java",
-    "//build/android:build_java",
-  ]
-  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
-  sources = _java_handler_jni_sources
-}
+  static_library("crashpad_main") {
+    sources = []
+    deps = [
+      "//base",
+      "//third_party/crashpad/crashpad/client",
+      "//third_party/crashpad/crashpad/handler",
+    ]
+  }
+} else {
+  generate_jni("java_handler_jni_headers") {
+    sources = [ "java/src/org/chromium/components/crash/browser/CrashpadMain.java" ]
+  }
 
-static_library("crashpad_main") {
-  sources = [ "crashpad_main.cc" ]
+  android_library("handler_java") {
+    sources = [ "java/src/org/chromium/components/crash/browser/CrashpadMain.java" ]
+    deps = [
+      "//base:jni_java",
+      "//build/android:build_java",
+    ]
+    annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+  }
 
-  deps = [
-    ":java_handler_jni_headers",
-    "//base",
-    "//third_party/crashpad/crashpad/client",
-    "//third_party/crashpad/crashpad/handler",
-  ]
+  static_library("crashpad_main") {
+    sources = [ "crashpad_main.cc" ]
+    deps = [
+      ":java_handler_jni_headers",
+      "//base",
+      "//third_party/crashpad/crashpad/client",
+      "//third_party/crashpad/crashpad/handler",
+    ]
+  }
 }
 
 source_set("anr_skipped_reason") {
