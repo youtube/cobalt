@@ -474,6 +474,17 @@ template("rust_target") {
         }
       }
 
+      if (invoker.target_type == "rust_library") {
+        if (defined(output_dir)) {
+          _out_dir = output_dir
+        } else {
+          _out_dir = target_out_dir
+        }
+        metadata = {
+          rust_libraries = [ "$_out_dir/lib${output_name}.rlib" ]
+        }
+      }
+
       if (!_allow_unsafe) {
         configs += [ "//build/rust:forbid_unsafe" ]
       }

@@ -128,10 +128,10 @@ if (is_ios && target_platform == "tvos") {
     info_plist = cobalt_info_plist
   }
 
-  # Bundles the browser engine and starboard dependencies into a unified, non-thin
-  # static library for custom Apple TV application integration and CI packaging.
-  static_library("cobalt_archive") {
+  # The C++ archive containing all C++ dependencies.
+  static_library("cobalt_archive_internal") {
     complete_static_lib = true
+    output_name = "cobalt_archive_internal"
 
     configs -= [ "//build/config/compiler:thin_archive" ]
 
@@ -145,6 +145,36 @@ if (is_ios && target_platform == "tvos") {
       "//components/crash/core/app",
       "//content/public/app",
       "//starboard:starboard_group",
+    ]
+  }
+
+  # Collects the paths of all transitive Rust dependencies.
+  generated_file("cobalt_rust_libraries") {
+    outputs = [ "$target_gen_dir/cobalt_rust_libraries.txt" ]
+    data_keys = [ "rust_libraries" ]
+    rebase = root_build_dir
+    deps = [ ":cobalt_archive_internal" ]
+  }
+
+  # Merges C++ and Rust archives into a single libcobalt_archive.a.
+  action("cobalt_archive") {
+    script = "build/merge_archives.py"
+    outputs = [ "$target_out_dir/libcobalt_archive.a" ]
+    inputs = [
+      "$target_gen_dir/cobalt_rust_libraries.txt",
+      "$target_out_dir/libcobalt_archive_internal.a",
+    ]
+    deps = [
+      ":cobalt_archive_internal",
+      ":cobalt_rust_libraries",
+    ]
+    args = [
+      "--rust-libs-file",
+      rebase_path(inputs[0], root_build_dir),
+      "--cpp-lib",
+      rebase_path(inputs[1], root_build_dir),
+      "--output",
+      rebase_path(outputs[0], root_build_dir),
     ]
   }
 
