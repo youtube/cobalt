@@ -27,8 +27,8 @@ namespace nplb {
 namespace {
 
 TEST(NativeStabilityTest, VerifyNativeStabilityExtension) {
-  auto extension = static_cast<const CobaltExtensionNativeStabilityApi*>(
-      SbSystemGetExtension(kCobaltExtensionNativeStabilityName));
+  auto extension = static_cast<const StarboardExtensionNativeStabilityApi*>(
+      SbSystemGetExtension(kStarboardExtensionNativeStabilityName));
 
   ASSERT_NE(extension, nullptr)
       << "Please update your platform's SbSystemGetExtension() implementation "
