@@ -167,7 +167,7 @@ void VideoRendererImpl::Seek(int64_t seek_to_time) {
   SB_DCHECK_GE(seek_to_time, 0);
 
   if (first_input_written_) {
-    decoder_->Reset();
+    decoder_->Reset(false);
     first_input_written_ = false;
   }
 

@@ -26,6 +26,7 @@
 #include "starboard/common/murmurhash2.h"
 #include "starboard/common/player.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
@@ -201,6 +202,8 @@ HandlerResult FilterBasedPlayerWorkerHandler::Seek(int64_t seek_to_time,
     SB_DLOG(ERROR) << "Try to seek to negative timestamp " << seek_to_time;
     seek_to_time = 0;
   }
+
+  seek_start_time_ = ::starboard::CurrentMonotonicTime();
 
   media_time_provider_->Pause();
   if (video_renderer_) {
@@ -452,6 +455,11 @@ void FilterBasedPlayerWorkerHandler::OnPrerolled(SbMediaType media_type) {
 
   if ((!audio_renderer_ || audio_prerolled_) &&
       (!video_renderer_ || video_prerolled_)) {
+    if (seek_start_time_ != 0) {
+      int64_t latency = ::starboard::CurrentMonotonicTime() - seek_start_time_;
+      SB_LOG(INFO) << "Seek latency: " << latency << "us";
+      seek_start_time_ = 0;
+    }
     update_player_state_cb_(kSbPlayerStatePresenting);
     // The call is required to improve the calculation of media time in
     // PlayerInternal, because it updates the system monotonic time used as the

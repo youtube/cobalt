@@ -99,7 +99,7 @@ class VideoDecoder {
   // over data from previous buffers.  |decoder_status_cb| won't be called
   // after this function returns unless WriteInputFrame() or WriteEndOfStream()
   // is called again.
-  virtual void Reset() = 0;
+  virtual void Reset(bool pending_destroy) = 0;
 
   // Alternative function to Reset the codec specifically in cases where it is
   // being torn down. By default, this function will be equivalent to the

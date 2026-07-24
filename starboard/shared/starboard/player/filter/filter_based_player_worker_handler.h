@@ -111,6 +111,8 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   bool audio_ended_ = false;
   bool video_ended_ = false;
 
+  int64_t seek_start_time_ = 0;
+
   SbPlayerOutputMode output_mode_;
   int max_video_input_size_;
   ::starboard::shared::starboard::ExperimentalFeatures experimental_features_;

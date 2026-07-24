@@ -28,7 +28,7 @@ namespace starboard::shared::starboard::player::filter {
 class StubVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
  public:
   StubVideoDecoder() {}
-  ~StubVideoDecoder() { Reset(); }
+  ~StubVideoDecoder() { Reset(true); }
 
   void Initialize(const DecoderStatusCB& decoder_status_cb,
                   const ErrorCB& error_cb) override;
@@ -39,7 +39,7 @@ class StubVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
 
   void WriteInputBuffers(const InputBuffers& input_buffers) override;
   void WriteEndOfStream() override;
-  void Reset() override;
+  void Reset(bool pending_destroy) override;
 
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
