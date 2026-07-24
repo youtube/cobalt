@@ -250,6 +250,7 @@ source_set("common") {
     "//base",
     "//cc/base",
     "//cobalt/browser:features",
+    "//cobalt/browser:hang_watcher_delegate",
     "//cobalt/browser:switches",
     "//cobalt/browser/h5vcc_accessibility:manager",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",

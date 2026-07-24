@@ -13,6 +13,7 @@
 #include <memory>
 #include <string>
 
+#include "v8-memory-context.h"
 #include "v8-source-location.h"  // NOLINT(build/include_directory)
 #include "v8config.h"            // NOLINT(build/include_directory)
 
@@ -1097,6 +1098,12 @@ class HighAllocationThroughputObserver {
 class Platform {
  public:
   virtual ~Platform() = default;
+
+  /**
+   * Allows the embedder to track memory allocations across different contexts.
+   */
+  virtual void SetMemoryContext(MemoryContext context) {}
+  virtual MemoryContext GetMemoryContext() { return MemoryContext::kUnknown; }
 
   /**
    * Allows the embedder to manage memory page allocations.

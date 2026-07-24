@@ -3870,7 +3870,10 @@ test("base_unittests") {
   ]
 
   if (is_cobalt) {
-    sources += [ "system/sys_info_starboard_unittest.cc" ]
+    sources += [
+      "memory/cobalt_memory_context_unittest.cc",
+      "system/sys_info_starboard_unittest.cc",
+    ]
   }
 
   if (!is_cronet_build) {
