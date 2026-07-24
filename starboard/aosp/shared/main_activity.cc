@@ -13,7 +13,9 @@
 // limitations under the License.
 
 #include <jni.h>
+#include <limits.h>
 #include <pthread.h>
+#include <unistd.h>
 
 #include <string>
 #include <thread>
@@ -21,6 +23,8 @@
 
 #include "cobalt/aosp/jni_headers/MainActivity_jni.h"
 #include "starboard/android/shared/starboard_bridge.h"
+#include "starboard/common/log.h"
+#include "starboard/system.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 int main(int argc, char** argv);
@@ -31,6 +35,17 @@ void StarboardMain() {
   pthread_setname_np(pthread_self(), "StarboardMain");
 
   JNIEnv* env = jni_zero::AttachCurrentThread();
+  // Android starts the process with the working directory at "/" (read-only)
+  // nplb (and POSIX code) may expect relative paths to be writable, so
+  // cd to a writable app directory before startup.
+  char files_dir[PATH_MAX];
+  if (SbSystemGetPath(kSbSystemPathFilesDirectory, files_dir,
+                      sizeof(files_dir))) {
+    if (chdir(files_dir) != 0) {
+      SB_LOG(WARNING) << "cobalt_loader: chdir to " << files_dir << " failed";
+    }
+  }
+
   std::vector<std::string> args;
   args.push_back("cobalt_loader");
   starboard::StarboardBridge::GetInstance()->AppendArgs(env, &args);
