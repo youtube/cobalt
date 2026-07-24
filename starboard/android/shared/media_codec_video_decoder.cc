@@ -993,7 +993,8 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
 
 void MediaCodecVideoDecoder::ProcessOutputBuffer(
     MediaCodec* media_codec_bridge,
-    const DequeueOutputResult& dequeue_output_result) {
+    const DequeueOutputResult& dequeue_output_result,
+    int number_of_pending_inputs) {
   SB_DCHECK(decoder_status_cb_);
   SB_DCHECK_GE(dequeue_output_result.index, 0);
 
@@ -1018,14 +1019,13 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
   }
 
   if (fix_need_more_input_backpressure_) {
-    auto video_frame = make_scoped_refptr<VideoFrameImpl>(
-        dequeue_output_result, media_codec_bridge,
-        std::bind(&MediaCodecVideoDecoder::OnVideoFrameRelease, this));
-
-    Schedule([this, is_end_of_stream, video_frame = std::move(video_frame)]() {
-      ProcessOutputBufferWithBackpressure(is_end_of_stream,
-                                          std::move(video_frame));
-    });
+    bool need_more_input =
+        !is_end_of_stream && number_of_pending_inputs < kMaxPendingInputsSize;
+    decoder_status_cb_(
+        need_more_input ? kNeedMoreInput : kBufferFull,
+        make_scoped_refptr<VideoFrameImpl>(
+            dequeue_output_result, media_codec_bridge,
+            std::bind(&MediaCodecVideoDecoder::OnVideoFrameRelease, this)));
     return;
   }
 
@@ -1034,20 +1034,6 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
       new VideoFrameImpl(
           dequeue_output_result, media_codec_bridge,
           std::bind(&MediaCodecVideoDecoder::OnVideoFrameRelease, this)));
-}
-
-void MediaCodecVideoDecoder::ProcessOutputBufferWithBackpressure(
-    bool is_end_of_stream,
-    scoped_refptr<VideoFrame> video_frame) {
-  SB_CHECK(BelongsToCurrentThread());
-  if (!decoder_status_cb_) {
-    return;
-  }
-  bool need_more_input =
-      !is_end_of_stream && media_decoder_ &&
-      media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize;
-  decoder_status_cb_(need_more_input ? kNeedMoreInput : kBufferFull,
-                     std::move(video_frame));
 }
 
 void MediaCodecVideoDecoder::OnEndOfStreamWritten(

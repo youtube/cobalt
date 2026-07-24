@@ -148,7 +148,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   void WriteInputBuffersInternal(const InputBuffers& input_buffers);
   void ProcessOutputBuffer(MediaCodec* media_codec_bridge,
-                           const DequeueOutputResult& output) override;
+                           const DequeueOutputResult& output,
+                           int number_of_pending_inputs) override;
   void OnEndOfStreamWritten(MediaCodec* media_codec_bridge) override;
   void RefreshOutputFormat(MediaCodec* media_codec_bridge) override;
   bool Tick(MediaCodec* media_codec_bridge) override;
@@ -162,9 +163,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void OnTunnelModeCheckForNeedMoreInput();
 
   void OnVideoFrameRelease();
-  void ProcessOutputBufferWithBackpressure(
-      bool is_end_of_stream,
-      scoped_refptr<VideoFrame> video_frame);
 
   void OnSurfaceDestroyed() override;
   void ReportError(SbPlayerError error, const std::string& error_message);

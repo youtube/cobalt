@@ -484,7 +484,8 @@ void MediaCodecDecoder::AudioDecoderThreadFunc() {
         host_->RefreshOutputFormat(media_codec_bridge_.get());
       } else {
         host_->ProcessOutputBuffer(media_codec_bridge_.get(),
-                                   dequeue_output_result);
+                                   dequeue_output_result,
+                                   GetNumberOfPendingInputs());
       }
     }
 
@@ -548,7 +549,8 @@ void MediaCodecDecoder::VideoDecoderThreadFunc() {
       } else {
         SB_DCHECK(!tunnel_mode_enabled_);
         host_->ProcessOutputBuffer(media_codec_bridge_.get(),
-                                   dequeue_output_result);
+                                   dequeue_output_result,
+                                   GetNumberOfPendingInputs());
       }
       dequeue_output_results.erase(dequeue_output_results.begin());
     }
@@ -645,7 +647,8 @@ void MediaCodecDecoder::OutputThreadFunc() {
         host_->RefreshOutputFormat(media_codec_bridge_.get());
       } else {
         host_->ProcessOutputBuffer(media_codec_bridge_.get(),
-                                   dequeue_output_result);
+                                   dequeue_output_result,
+                                   GetNumberOfPendingInputs());
       }
       dequeue_output_results.erase(dequeue_output_results.begin());
     } else {
