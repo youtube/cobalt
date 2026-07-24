@@ -29,6 +29,8 @@ class AudioManagerBase;
 // We request a buffer twice the size of a single read to allow for double-
 // buffering in the underlying microphone implementation.
 constexpr int kMicrophoneBufferSizeMultiplier = 2;
+// Maximum number of buffers to keep in the FIFO before dropping data.
+constexpr int kMaxFifoBuffers = 3;
 
 class AudioInputStreamStarboard : public AgcAudioStream<AudioInputStream> {
  public:
@@ -74,7 +76,7 @@ class AudioInputStreamStarboard : public AgcAudioStream<AudioInputStream> {
   bool closing_ = false;
   std::unique_ptr<AudioBus> audio_bus_;
   std::vector<int16_t> buffer_;
-  int frames_in_buffer_ = 0;
+  std::vector<uint8_t> audio_fifo_;
 };
 
 }  // namespace media
