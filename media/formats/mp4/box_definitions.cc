@@ -1591,7 +1591,9 @@ bool IamfSpecificBox::Parse(BoxReader* reader) {
   uint32_t config_obus_size;
   RCHECK(ReadLeb128Value(reader, &config_obus_size));
 
-  base::span<const uint8_t> buffer(reader->buffer(), config_obus_size);
+  RCHECK(reader->HasBytes(config_obus_size));
+  base::span<const uint8_t> buffer(reader->buffer() + reader->pos(),
+                                   config_obus_size);
   ia_descriptors.assign(buffer.begin(), buffer.end());
 
   RCHECK(reader->SkipBytes(config_obus_size));
