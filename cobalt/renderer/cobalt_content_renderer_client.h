@@ -16,6 +16,7 @@
 #define COBALT_RENDERER_COBALT_CONTENT_RENDERER_CLIENT_H_
 
 #include <atomic>
+#include <map>
 
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
@@ -47,6 +48,8 @@ namespace cobalt {
 // It allows Cobalt to customize content Renderer module.
 class CobaltContentRendererClient : public content::ContentRendererClient {
  public:
+  static CobaltContentRendererClient* Get();
+
   CobaltContentRendererClient();
 
   CobaltContentRendererClient(const CobaltContentRendererClient&) = delete;
@@ -67,14 +70,16 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
   // JS Injection hook
   void RunScriptsAtDocumentStart(content::RenderFrame* render_frame) override;
   void GetStarboardRendererFactoryTraits(
+      content::RenderFrame* render_frame,
       ::media::RendererFactoryTraits* traits) override;
   void PostSandboxInitialized() override;
+  void OnFrameDestroyed(content::RenderFrame* render_frame);
 
-  uint64_t GetSbWindowHandle() const { return sb_window_handle_; }
+  uint64_t GetSbWindowHandleForFrame(content::RenderFrame* render_frame) const;
 
  private:
   void EnsureH5vccSettingsRemoteInitialized();
-  void OnGetSbWindow(uint64_t handle);
+  void OnGetSbWindow(content::RenderFrame* frame, uint64_t handle);
 
   // Registers a custom content::AudioDeviceFactory
   ::media::CobaltAudioDeviceFactory cobalt_audio_device_factory_;
@@ -93,8 +98,7 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
 
   gfx::Size viewport_size_;
 
-  std::atomic<uint64_t> sb_window_handle_ = 0;
-  bool window_handle_requested_ = false;
+  std::map<content::RenderFrame*, uint64_t> frame_to_window_map_;
 
   COBALT_THREAD_CHECKER(main_thread_checker_);
 

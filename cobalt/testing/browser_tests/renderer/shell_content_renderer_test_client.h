@@ -33,6 +33,7 @@ class ShellContentRendererTestClient : public ShellContentRendererClient {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   void GetStarboardRendererFactoryTraits(
+      RenderFrame* render_frame,
       media::RendererFactoryTraits* renderer_factory_traits) override;
 #endif
 };

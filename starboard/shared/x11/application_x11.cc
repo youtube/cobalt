@@ -38,6 +38,14 @@
 #include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 #include "starboard/shared/x11/window_internal.h"
 
+// X11 defines Success as a macro (0), which collides with
+// starboard::common::Success.
+#if defined(Success)
+#undef Success
+#endif
+
+#include "starboard/shared/starboard/player/player_internal.h"
+
 namespace starboard {
 
 namespace {
@@ -705,7 +713,12 @@ SbWindow ApplicationX11::CreateWindow(const SbWindowOptions* options) {
     return kSbWindowInvalid;
   }
 
-  SbWindow window = new SbWindowPrivate(display_, options);
+  Window parent_window = None;
+  if (!windows_.empty()) {
+    parent_window = windows_[0]->window;
+  }
+
+  SbWindow window = new SbWindowPrivate(display_, options, parent_window);
   windows_.push_back(window);
   if (!dev_input_) {
     // evdev input will be sent to the first created window only.
@@ -754,36 +767,56 @@ void CompositeCallback(void* context) {
 }  // namespace
 
 void ApplicationX11::Composite() {
-  if (!windows_.empty()) {
-    SbWindow window = windows_[0];
-    if (SbWindowIsValid(window)) {
-      std::lock_guard lock(frame_mutex_);
+  std::lock_guard lock(frame_mutex_);
 
+  // 1. Group active player frames by their target SbWindow
+  std::unordered_map<SbWindow, std::vector<FrameInfo>> window_to_frames;
+  for (auto& frame_info : current_video_bounds_) {
+    SbPlayer player = frame_info.player;
+    SbWindow target_window = player->GetWindow();
+    if (SbWindowIsValid(target_window)) {
+      window_to_frames[target_window].push_back(frame_info);
+    } else if (!windows_.empty()) {
+      // Fallback to primary window if player has no window associated
+      window_to_frames[windows_[0]].push_back(frame_info);
+    }
+  }
+
+  // 2. Iterate and composite ALL active windows in the application.
+  // This ensures that even if a window has no video, its UI/graphics are still
+  // rendered.
+  for (SbWindow window : windows_) {
+    if (SbWindowIsValid(window)) {
       window->BeginComposite();
-      for (auto& frame_info : current_video_bounds_) {
-        // Get the cached video frame.
-        SbPlayer player = frame_info.player;
-        scoped_refptr<CpuVideoFrame> cpu_video_frame =
-            static_cast<CpuVideoFrame*>(current_video_frames_[player].get());
-        if (!cpu_video_frame) {
-          // Need to generate a new video frame.
-          cpu_video_frame =
-              static_cast<CpuVideoFrame*>(next_video_frames_[player].get());
+
+      // If this specific window has video frames, composite them
+      auto it = window_to_frames.find(window);
+      if (it != window_to_frames.end()) {
+        for (auto& frame_info : it->second) {
+          SbPlayer player = frame_info.player;
+          scoped_refptr<CpuVideoFrame> cpu_video_frame =
+              static_cast<CpuVideoFrame*>(current_video_frames_[player].get());
           if (!cpu_video_frame) {
-            // The player was already destroyed, so nothing to render.
-            continue;
-          }
-          if (cpu_video_frame->format() != CpuVideoFrame::kBGRA32) {
             cpu_video_frame =
-                cpu_video_frame->ConvertTo(CpuVideoFrame::kBGRA32);
+                static_cast<CpuVideoFrame*>(next_video_frames_[player].get());
+            if (!cpu_video_frame) {
+              continue;
+            }
+            if (cpu_video_frame->format() != CpuVideoFrame::kBGRA32) {
+              cpu_video_frame =
+                  cpu_video_frame->ConvertTo(CpuVideoFrame::kBGRA32);
+            }
+            current_video_frames_[player] = cpu_video_frame;
           }
-          current_video_frames_[player] = cpu_video_frame;
+          window->CompositeVideoFrame(frame_info.rect, cpu_video_frame);
         }
-        window->CompositeVideoFrame(frame_info.rect, cpu_video_frame);
       }
+
+      // Render the graphics (HTML UI) on top
       window->EndComposite();
     }
   }
+
   composite_event_id_ =
       SbEventSchedule(&CompositeCallback, this, 1'000'000 / 60);
 }

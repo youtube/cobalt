@@ -607,7 +607,7 @@ MediaFactory::CreateRendererFactorySelector(
 #if BUILDFLAG(ENABLE_MOJO_RENDERER)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   media::RendererFactoryTraits renderer_factory_traits;
-  GetContentClient()->renderer()->GetStarboardRendererFactoryTraits(&renderer_factory_traits);
+  GetContentClient()->renderer()->GetStarboardRendererFactoryTraits(render_frame_, &renderer_factory_traits);
   renderer_factory_traits.max_video_capabilities = max_video_capabilities;
   is_base_renderer_factory_set = true;
   factory_selector->AddBaseFactory(RendererType::kStarboard,

@@ -42,7 +42,8 @@ bool HasNeededExtensionsForPunchedOutVideo(Display* display) {
 }  // namespace
 
 SbWindowPrivate::SbWindowPrivate(Display* display,
-                                 const SbWindowOptions* options)
+                                 const SbWindowOptions* options,
+                                 Window parent)
     : window(None),
       window_picture(None),
       composition_pixmap(None),
@@ -61,6 +62,7 @@ SbWindowPrivate::SbWindowPrivate(Display* display,
                    &x_visual_info);
 
   Window root_window = RootWindow(display, x_visual_info.screen);
+  Window parent_window = (parent != None) ? parent : root_window;
 
   width = kWindowWidth;
   height = kWindowHeight;
@@ -79,7 +81,7 @@ SbWindowPrivate::SbWindowPrivate(Display* display,
   swa.border_pixel = 0;
   int attribute_flags = CWBorderPixel | CWEventMask | CWColormap;
 
-  window = XCreateWindow(display, root_window, 0, 0, width, height, 0,
+  window = XCreateWindow(display, parent_window, 0, 0, width, height, 0,
                          x_visual_info.depth, InputOutput, x_visual_info.visual,
                          attribute_flags, &swa);
   SB_LOG_IF(FATAL, (window == None)) << "Failed to create the X window.";

@@ -155,13 +155,24 @@ void CobaltContentRendererClient::EnsureH5vccSettingsRemoteInitialized() {
       h5vcc_settings_remote_->BindNewPipeAndPassReceiver());
 }
 
+CobaltContentRendererClient* g_cobalt_content_renderer_client = nullptr;
+
+// static
+CobaltContentRendererClient* CobaltContentRendererClient::Get() {
+  return g_cobalt_content_renderer_client;
+}
+
 CobaltContentRendererClient::CobaltContentRendererClient()
     : h5vcc_settings_remote_(nullptr, base::OnTaskRunnerDeleter(nullptr)) {
+  CHECK(!g_cobalt_content_renderer_client);
+  g_cobalt_content_renderer_client = this;
   CHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
 }
 
 CobaltContentRendererClient::~CobaltContentRendererClient() {
   CHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
+  DCHECK_EQ(g_cobalt_content_renderer_client, this);
+  g_cobalt_content_renderer_client = nullptr;
 }
 
 void CobaltContentRendererClient::RenderFrameCreated(
@@ -176,8 +187,8 @@ void CobaltContentRendererClient::RenderFrameCreated(
     LOG(WARNING) << "RenderFrameCreated is called with no webview.";
   }
 
-  if (sb_window_handle_.load() == 0 && !window_handle_requested_) {
-    window_handle_requested_ = true;
+  // Request SbWindow handle specifically for this new frame
+  {
     mojo::Remote<media::mojom::PlatformWindowProvider> window_provider;
     render_frame->GetBrowserInterfaceBroker().GetInterface(
         window_provider.BindNewPipeAndPassReceiver());
@@ -186,28 +197,47 @@ void CobaltContentRendererClient::RenderFrameCreated(
     window_provider_ptr->GetSbWindow(
         base::BindPostTaskToCurrentDefault(base::BindOnce(
             [](base::WeakPtr<CobaltContentRendererClient> client,
+               content::RenderFrame* frame,
                mojo::Remote<media::mojom::PlatformWindowProvider> remote,
                uint64_t handle) {
               if (client) {
-                client->OnGetSbWindow(handle);
+                client->OnGetSbWindow(frame, handle);
               }
             },
-            weak_factory_.GetWeakPtr(), std::move(window_provider))));
+            weak_factory_.GetWeakPtr(), render_frame,
+            std::move(window_provider))));
   }
 
   EnsureH5vccSettingsRemoteInitialized();
 }
 
-void CobaltContentRendererClient::OnGetSbWindow(uint64_t handle) {
+void CobaltContentRendererClient::OnGetSbWindow(content::RenderFrame* frame,
+                                                uint64_t handle) {
   CHECK(content::RenderThread::IsMainThread());
   if (!handle) {
     LOG(ERROR) << "Renderer received invalid SbWindow handle.";
     return;
   }
 
-  LOG(INFO) << "Renderer received SbWindow handle: "
+  LOG(INFO) << "Renderer received SbWindow handle for frame " << frame << ": "
             << reinterpret_cast<void*>(handle);
-  sb_window_handle_ = handle;
+  frame_to_window_map_[frame] = handle;
+}
+
+uint64_t CobaltContentRendererClient::GetSbWindowHandleForFrame(
+    content::RenderFrame* render_frame) const {
+  CHECK(content::RenderThread::IsMainThread());
+  auto it = frame_to_window_map_.find(render_frame);
+  if (it != frame_to_window_map_.end()) {
+    return it->second;
+  }
+  return 0;
+}
+
+void CobaltContentRendererClient::OnFrameDestroyed(
+    content::RenderFrame* render_frame) {
+  CHECK(content::RenderThread::IsMainThread());
+  frame_to_window_map_.erase(render_frame);
 }
 
 void CobaltContentRendererClient::RenderThreadStarted() {
@@ -313,6 +343,7 @@ void CobaltContentRendererClient::RunScriptsAtDocumentStart(
 }
 
 void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
+    content::RenderFrame* render_frame,
     ::media::RendererFactoryTraits* renderer_factory_traits) {
   CHECK(content::RenderThread::IsMainThread());
 
@@ -325,10 +356,10 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
 #if BUILDFLAG(IS_STARBOARD)
   // Using base::Unretained(this) is safe here because
   // CobaltContentRendererClient is a process-global singleton that outlives
-  // the media pipeline, and GetSbWindowHandle() only accesses an atomic
-  // member variable.
+  // the media pipeline.
   renderer_factory_traits->get_sb_window_handle_callback = base::BindRepeating(
-      &CobaltContentRendererClient::GetSbWindowHandle, base::Unretained(this));
+      &CobaltContentRendererClient::GetSbWindowHandleForFrame,
+      base::Unretained(this), base::Unretained(render_frame));
 #endif  // BUILDFLAG(IS_STARBOARD)
 
   EnsureH5vccSettingsRemoteInitialized();
