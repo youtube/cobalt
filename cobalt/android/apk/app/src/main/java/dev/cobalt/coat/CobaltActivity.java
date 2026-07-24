@@ -945,6 +945,62 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     DisplayUtil.unregisterListener(mDisplayListener);
   }
 
+  // Keep in sync with Android.MemoryPressureNotification enum in enums.xml
+  private static final int COBALT_MEMORY_PRESSURE_UNKNOWN = 0;
+  private static final int COBALT_MEMORY_PRESSURE_COMPLETE = 1;
+  private static final int COBALT_MEMORY_PRESSURE_MODERATE = 2;
+  private static final int COBALT_MEMORY_PRESSURE_BACKGROUND = 3;
+  private static final int COBALT_MEMORY_PRESSURE_UI_HIDDEN = 4;
+  private static final int COBALT_MEMORY_PRESSURE_RUNNING_CRITICAL = 5;
+  private static final int COBALT_MEMORY_PRESSURE_RUNNING_LOW = 6;
+  private static final int COBALT_MEMORY_PRESSURE_RUNNING_MODERATE = 7;
+  private static final int COBALT_MEMORY_PRESSURE_ON_LOW_MEMORY = 8;
+  private static final int COBALT_MEMORY_PRESSURE_NUM_ENTRIES = 9;
+
+  private void recordCobaltMemoryPressure(int notificationType) {
+    RecordHistogram.recordEnumeratedHistogram(
+        "Cobalt.Android.MemoryPressureNotification",
+        notificationType,
+        COBALT_MEMORY_PRESSURE_NUM_ENTRIES);
+  }
+
+  @Override
+  public void onTrimMemory(int level) {
+    super.onTrimMemory(level);
+    switch (level) {
+      case TRIM_MEMORY_COMPLETE:
+        recordCobaltMemoryPressure(COBALT_MEMORY_PRESSURE_COMPLETE);
+        break;
+      case TRIM_MEMORY_MODERATE:
+        recordCobaltMemoryPressure(COBALT_MEMORY_PRESSURE_MODERATE);
+        break;
+      case TRIM_MEMORY_BACKGROUND:
+        recordCobaltMemoryPressure(COBALT_MEMORY_PRESSURE_BACKGROUND);
+        break;
+      case TRIM_MEMORY_UI_HIDDEN:
+        recordCobaltMemoryPressure(COBALT_MEMORY_PRESSURE_UI_HIDDEN);
+        break;
+      case TRIM_MEMORY_RUNNING_CRITICAL:
+        recordCobaltMemoryPressure(COBALT_MEMORY_PRESSURE_RUNNING_CRITICAL);
+        break;
+      case TRIM_MEMORY_RUNNING_LOW:
+        recordCobaltMemoryPressure(COBALT_MEMORY_PRESSURE_RUNNING_LOW);
+        break;
+      case TRIM_MEMORY_RUNNING_MODERATE:
+        recordCobaltMemoryPressure(COBALT_MEMORY_PRESSURE_RUNNING_MODERATE);
+        break;
+      default:
+        recordCobaltMemoryPressure(COBALT_MEMORY_PRESSURE_UNKNOWN);
+        break;
+    }
+  }
+
+  @Override
+  public void onLowMemory() {
+    super.onLowMemory();
+    recordCobaltMemoryPressure(COBALT_MEMORY_PRESSURE_ON_LOW_MEMORY);
+  }
+
   @RequiresApi(api = 33)
   private static class OnBackInvokedHelper {
     private static final Handler sHandler = new Handler(Looper.getMainLooper());
