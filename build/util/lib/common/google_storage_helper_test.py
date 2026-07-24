@@ -80,8 +80,10 @@ class GoogleStorageHelperTest(unittest.TestCase):
                              return_value='path_to_gsutil_py'):
         mock_system.return_value = 'Windows'
         helper.exists(name, bucket)
-        mock_cmd_helper.assert_called_once_with(
-            ['path_to_gsutil_py', '-q', 'stat', 'gs://foo/bar'])
+        mock_cmd_helper.assert_called_once_with([
+            'gcloud', '-q', 'storage', 'objects', 'list', '--stat',
+            '--fetch-encrypted-object-hashes', 'gs://foo/bar'
+        ])
     mock_cmd_helper.reset_mock()
     with self.subTest(name='Linux'):
       with mock.patch.object(helper,
@@ -90,8 +92,10 @@ class GoogleStorageHelperTest(unittest.TestCase):
                              return_value='path_to_gsutil'):
         mock_system.return_value = 'Linux'
         helper.exists(name, bucket)
-        mock_cmd_helper.assert_called_once_with(
-            ['path_to_gsutil', '-q', 'stat', 'gs://foo/bar'])
+        mock_cmd_helper.assert_called_once_with([
+            'gcloud', '-q', 'storage', 'objects', 'list', '--stat',
+            '--fetch-encrypted-object-hashes', 'gs://foo/bar'
+        ])
 
   @mock.patch('platform.system', autospec=True)
   @mock.patch.object(cmd_helper, 'RunCmd', autospec=True)
@@ -108,8 +112,8 @@ class GoogleStorageHelperTest(unittest.TestCase):
         mock_system.return_value = 'Windows'
         helper.upload(name, filepath, bucket)
         mock_cmd_helper.assert_called_once_with([
-            'path_to_gsutil_py', '-q', 'cp',
-            os.path.join('abc', 'def.json'), 'gs://foo/bar'
+            'gcloud', '-q', 'storage', 'cp', os.path.join('abc', 'def.json'),
+            'gs://foo/bar'
         ])
         mock_get_url_link.assert_called_once_with(name, bucket, True)
     mock_cmd_helper.reset_mock()
@@ -122,8 +126,8 @@ class GoogleStorageHelperTest(unittest.TestCase):
         mock_system.return_value = 'Linux'
         helper.upload(name, filepath, bucket)
         mock_cmd_helper.assert_called_once_with([
-            'path_to_gsutil', '-q', 'cp',
-            os.path.join('abc', 'def.json'), 'gs://foo/bar'
+            'gcloud', '-q', 'storage', 'cp', os.path.join('abc', 'def.json'),
+            'gs://foo/bar'
         ])
         mock_get_url_link.assert_called_once_with(name, bucket, True)
 
@@ -147,10 +151,10 @@ class GoogleStorageHelperTest(unittest.TestCase):
     self.assertEqual(expected, got)
 
   @parameterized.expand([
-      ('empty_link', '', ['path_to_gsutil', '-q', 'cat', 'gs://']),
-      ('valid gs_link', '/foo', ['path_to_gsutil', '-q', 'cat', 'gs://foo']),
+      ('empty_link', '', ['gcloud', '-q', 'storage', 'cat', 'gs://']),
+      ('valid gs_link', '/foo', ['gcloud', '-q', 'storage', 'cat', 'gs://foo']),
       ('no_initial_slash', 'foo/bar',
-       ['path_to_gsutil', '-q', 'cat', 'gs://foo/bar'])
+       ['gcloud', '-q', 'storage', 'cat', 'gs://foo/bar'])
   ])  # pylint: disable=no-self-use
   def test_read_from_link(self, _, link, expected_sequence):
     with mock.patch('platform.system', autospec=True, return_value='Linux'):
