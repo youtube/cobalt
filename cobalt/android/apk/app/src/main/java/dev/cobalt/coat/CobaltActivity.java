@@ -310,13 +310,13 @@ public abstract class CobaltActivity extends Activity {
             initializeJavaBridge();
             getStarboardBridge().setWebContents(getActiveWebContents());
 
+            // Load splash screen.
+            mShellManager.getActiveShell().loadSplashScreenWebContents();
+
             // Load the `url` with the same shell we created above.
             mStartupUrl = ShellManagerJni.get().appendMigrationStatus(mStartupUrl);
             Log.i(TAG, "shellManager load url:" + mStartupUrl);
             mShellManager.getActiveShell().loadUrl(mStartupUrl);
-
-            // Load splash screen.
-            mShellManager.getActiveShell().loadSplashScreenWebContents();
           }
         });
   }
