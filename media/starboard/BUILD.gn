@@ -60,6 +60,12 @@ source_set("starboard") {
     ]
 
     deps += [ ":buildflags" ]
+    if (is_ios && target_platform == "tvos") {
+      sources += [
+        "url_player_demuxer.cc",
+        "url_player_demuxer.h",
+      ]
+    }
   }
 
   deps += [

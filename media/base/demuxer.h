@@ -38,6 +38,7 @@ enum class DemuxerType {
   kFrameInjectingDemuxer = 5,
   kStreamProviderDemuxer = 6,
   kManifestDemuxer = 7,
+  kUrlPlayerDemuxer = 8,  // URL player placeholder demuxer.
 };
 
 class MEDIA_EXPORT DemuxerHost {

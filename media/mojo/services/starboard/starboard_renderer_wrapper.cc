@@ -515,6 +515,13 @@ void StarboardRendererWrapper::InitializeWithBypassBridge(
   std::move(callback).Run(true);
 }
 
+void StarboardRendererWrapper::SetSourceUrl(const std::string& source_url) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if SB_HAS(PLAYER_WITH_URL)
+  GetRenderer()->SetSourceUrl(source_url);
+#endif  // SB_HAS(PLAYER_WITH_URL)
+}
+
 #if BUILDFLAG(IS_ANDROID)
 void StarboardRendererWrapper::OnOverlayInfoChanged(
     const OverlayInfo& overlay_info) {
