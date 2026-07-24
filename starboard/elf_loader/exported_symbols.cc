@@ -149,6 +149,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMediaGetInitialBufferCapacity);
   REGISTER_SYMBOL(SbMediaGetVideoBufferBudget);
   REGISTER_SYMBOL(SbMediaIsBufferPoolAllocateOnDemand);
+  REGISTER_SYMBOL(SbMediaSetCanPlayMimeAndKeySystemFuncForTesting);
   REGISTER_SYMBOL(SbMicrophoneClose);
   REGISTER_SYMBOL(SbMicrophoneCreate);
   REGISTER_SYMBOL(SbMicrophoneDestroy);

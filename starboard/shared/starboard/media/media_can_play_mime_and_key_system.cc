@@ -12,20 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <atomic>
+
 #include "starboard/common/log.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/mime_util.h"
 
+namespace {
+std::atomic<SbMediaCanPlayMimeAndKeySystemFunc> g_can_play_func_for_testing{
+    nullptr};
+}  // namespace
+
+void SbMediaSetCanPlayMimeAndKeySystemFuncForTesting(
+    SbMediaCanPlayMimeAndKeySystemFunc func) {
+  g_can_play_func_for_testing.store(func, std::memory_order_release);
+}
+
 SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
                                                   const char* key_system) {
-  if (mime == NULL) {
-    SB_DLOG(WARNING) << "mime cannot be NULL";
+  if (mime == nullptr) {
+    SB_DLOG(WARNING) << "mime cannot be nullptr";
     return kSbMediaSupportTypeNotSupported;
   }
 
-  if (key_system == NULL) {
-    SB_DLOG(WARNING) << "key_system cannot be NULL";
+  if (key_system == nullptr) {
+    SB_DLOG(WARNING) << "key_system cannot be nullptr";
     return kSbMediaSupportTypeNotSupported;
+  }
+
+  auto test_func = g_can_play_func_for_testing.load(std::memory_order_acquire);
+  if (test_func) {
+    return test_func(mime, key_system);
   }
 
   return starboard::CanPlayMimeAndKeySystem(mime, key_system);

@@ -538,6 +538,16 @@ typedef struct SbMediaAudioSampleInfo {
 SB_EXPORT SbMediaSupportType
 SbMediaCanPlayMimeAndKeySystem(const char* mime, const char* key_system);
 
+// Type for a test callback intercepting SbMediaCanPlayMimeAndKeySystem.
+typedef SbMediaSupportType (*SbMediaCanPlayMimeAndKeySystemFunc)(
+    const char* mime,
+    const char* key_system);
+
+// Sets an interceptor function for SbMediaCanPlayMimeAndKeySystem for testing.
+// Pass nullptr to restore the default platform implementation.
+SB_EXPORT void SbMediaSetCanPlayMimeAndKeySystemFuncForTesting(
+    SbMediaCanPlayMimeAndKeySystemFunc func);
+
 // Returns whether the platform supports a transition from the stream
 // configuration described by |current_mime| to |new_mime| for an active
 // SbPlayer instance. Returns |true| if the transition is supported, and will
