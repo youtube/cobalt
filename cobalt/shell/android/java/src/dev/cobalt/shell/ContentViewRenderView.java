@@ -135,18 +135,6 @@ public class ContentViewRenderView extends FrameLayout {
     }
 
     /**
-     * Sets the background color of the surface view.  This method is necessary because the
-     * background color of ContentViewRenderView itself is covered by the background of
-     * SurfaceView.
-     * @param color The color of the background.
-     */
-    public void setSurfaceViewBackgroundColor(int color) {
-        if (getSurfaceView() != null) {
-            getSurfaceView().setBackgroundColor(color);
-        }
-    }
-
-    /**
      * Gets the SurfaceView for this ContentViewRenderView
      */
     public SurfaceView getSurfaceView() {
@@ -193,13 +181,6 @@ public class ContentViewRenderView extends FrameLayout {
      */
     protected SurfaceView createSurfaceView(Context context) {
         return new SurfaceView(context);
-    }
-
-    /**
-     * @return whether the surface view is initialized and ready to render.
-     */
-    public boolean isInitialized() {
-        return getSurfaceView().getHolder().getSurface() != null;
     }
 
     /**
