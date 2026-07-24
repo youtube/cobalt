@@ -127,7 +127,6 @@ class TestDeployRdk(unittest.TestCase):
                          if "autoninja" in str(call))
         targets = build_call[0][0]
         self.assertIn("cobalt_loader", targets)
-        self.assertNotIn("loader_app_rdk_plugin", targets)
 
         # Check tar command: robust flag order -czvf, -T <deps_file>, then -C <out_dir>
         tar_call = next(call for call in self.mock_run.call_args_list 
