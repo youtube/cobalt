@@ -795,6 +795,7 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
     data = pending_input.codec_config.data();
     size = pending_input.codec_config.size();
   } else if (pending_input.type == PendingInput::kWriteInputBuffer) {
+    SB_CHECK(input_buffer);
     data = input_buffer->data();
     size = input_buffer->size();
   } else if (pending_input.type == PendingInput::kWriteEndOfStream) {
@@ -891,6 +892,10 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
       pending_input_to_retry_ = {input_buffer_index, pending_input};
     }
     return false;
+  }
+
+  if (pending_input.type == PendingInput::kWriteInputBuffer) {
+    host_->OnInputBufferQueued(input_buffer->timestamp());
   }
 
   is_output_restricted_ = false;

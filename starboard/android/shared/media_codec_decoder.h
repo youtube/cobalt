@@ -71,6 +71,8 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
     virtual bool IsBufferDecodeOnly(
         const scoped_refptr<InputBuffer>& input_buffer) = 0;
 
+    virtual void OnInputBufferQueued(int64_t timestamp_us) = 0;
+
    protected:
     ~Host() {}
   };

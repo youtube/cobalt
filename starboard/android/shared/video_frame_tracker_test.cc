@@ -158,5 +158,25 @@ TEST(VideoFrameTrackerTest, UnorderedInputFramesAreHandled) {
   EXPECT_EQ(video_frame_tracker.UpdateAndGetDroppedFrames(), 0);
 }
 
+TEST(VideoFrameTrackerTest, DetectsDroppedFrameAtCapacity) {
+  const int kCapacity = 5;
+  VideoFrameTracker video_frame_tracker(kCapacity);
+
+  // Feed exactly kCapacity frames (up to the limit).
+  // frames_to_be_rendered_ should contain [10000, 20000, 30000, 40000, 50000].
+  for (int i = 1; i <= kCapacity; ++i) {
+    video_frame_tracker.OnInputBuffer(i * 10000);
+  }
+
+  // Simulate that the very first frame (10000) was dropped, and all others
+  // rendered.
+  for (int i = 2; i <= kCapacity; ++i) {
+    video_frame_tracker.OnFrameRendered(i * 10000);
+  }
+
+  // Should detect exactly 1 dropped frame (the first one).
+  EXPECT_EQ(video_frame_tracker.UpdateAndGetDroppedFrames(), 1);
+}
+
 }  // namespace
 }  // namespace starboard
