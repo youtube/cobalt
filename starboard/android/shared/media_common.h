@@ -15,6 +15,8 @@
 #ifndef STARBOARD_ANDROID_SHARED_MEDIA_COMMON_H_
 #define STARBOARD_ANDROID_SHARED_MEDIA_COMMON_H_
 
+#include <android/api-level.h>
+
 #include <cstring>
 #include <optional>
 
@@ -25,6 +27,18 @@
 #include "starboard/shared/starboard/player/filter/audio_frame_tracker.h"
 
 namespace starboard {
+
+constexpr int kAndroidApiLevelPie = 28;
+constexpr int kAndroidApiLevelU = 34;
+
+inline int GetDeviceApiLevel() {
+#if __ANDROID_API__ < 24
+  if (android_get_device_api_level == nullptr) {
+    return __ANDROID_API__;
+  }
+#endif
+  return android_get_device_api_level();
+}
 
 inline bool IsWidevineL1(const char* key_system) {
   return strcmp(key_system, "com.widevine") == 0 ||
