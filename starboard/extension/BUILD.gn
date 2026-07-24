@@ -19,7 +19,7 @@ source_set("feature_config_header") {
     "//cobalt/android:java_features_srcjar",
     "//cobalt/common/features:features",
     "//starboard/android/shared:starboard_platform",
-    "//starboard/shared/starboard:feature_list",
+    "//starboard/shared/starboard:features",
   ]
   sources = [ "feature_config.h" ]
 

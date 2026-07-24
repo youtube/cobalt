@@ -19,6 +19,7 @@
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/command_line.h"
+#include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/features.h"
@@ -147,18 +148,10 @@ PlayerComponents::Factory::CreateComponents(
             creation_parameters.video_codec() != kSbMediaVideoCodecNone);
   SB_CHECK(creation_parameters.job_queue());
 
-  bool use_stub_audio_decoder = false;
-  bool use_stub_video_decoder = false;
-#if BUILDFLAG(IS_ANDROID)
-  use_stub_audio_decoder =
+  bool use_stub_audio_decoder =
       features::FeatureList::IsEnabled(features::kUseStubAudioDecoder);
-  use_stub_video_decoder =
+  bool use_stub_video_decoder =
       features::FeatureList::IsEnabled(features::kUseStubVideoDecoder);
-#else
-  auto command_line = Application::Get()->GetCommandLine();
-  use_stub_audio_decoder = command_line->HasSwitch("use_stub_audio_decoder");
-  use_stub_video_decoder = command_line->HasSwitch("use_stub_video_decoder");
-#endif  // BUILDFLAG(IS_ANDROID)
 
   MediaComponents components;
   if (use_stub_audio_decoder && use_stub_video_decoder) {

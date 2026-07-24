@@ -147,7 +147,29 @@ void FeatureList::ValidateParam(const std::string& feature_name,
 
 // static
 bool FeatureList::IsEnabled(const SbFeature& feature) {
-  return IsEnabledByName(feature.name);
+  FeatureList* instance = GetInstance();
+  std::lock_guard lock(instance->mutex_);
+
+  auto override_it = instance->overridden_features_.find(feature.name);
+  if (override_it != instance->overridden_features_.end()) {
+    return override_it->second;
+  }
+
+  if (!instance->IsInitialized()) {
+    return feature.is_enabled;
+  }
+
+  const auto& feature_map = instance->features_;
+  auto feature_it = feature_map.find(feature.name);
+  if (feature_it == feature_map.end()) {
+    SB_LOG(WARNING)
+        << "Feature " << feature.name
+        << " is not initialized in the Starboard level. "
+           "The features extension is available, but does not have "
+           "a value for this feature. This could be due to a version mismatch.";
+    return feature.is_enabled;
+  }
+  return feature_it->second;
 }
 
 // static
@@ -160,9 +182,9 @@ bool FeatureList::IsEnabledByName(const std::string& feature_name) {
     return override_it->second;
   }
 
-  // IsEnabled can only be called after the FeatureList has been initialized.
-  SB_CHECK(instance->IsInitialized())
-      << "Starboard features and parameters are not initialized.";
+  if (!instance->IsInitialized()) {
+    return false;
+  }
 
   const auto& feature_map = instance->features_;
   auto feature_it = feature_map.find(feature_name);
@@ -177,6 +199,9 @@ template <>
 bool FeatureList::GetParam(const SbFeatureParamExt<bool>& param) {
   FeatureList* instance = GetInstance();
   std::lock_guard lock(instance->mutex_);
+  if (!instance->IsInitialized()) {
+    return param.value.bool_value;
+  }
   instance->ValidateParam(param.feature_name, param.param_name,
                           SbFeatureParamTypeBool);
   return std::get<bool>(
@@ -187,6 +212,9 @@ template <>
 int FeatureList::GetParam(const SbFeatureParamExt<int>& param) {
   FeatureList* instance = GetInstance();
   std::lock_guard lock(instance->mutex_);
+  if (!instance->IsInitialized()) {
+    return param.value.int_value;
+  }
   instance->ValidateParam(param.feature_name, param.param_name,
                           SbFeatureParamTypeInt);
   return std::get<int>(
@@ -197,6 +225,9 @@ template <>
 double FeatureList::GetParam(const SbFeatureParamExt<double>& param) {
   FeatureList* instance = GetInstance();
   std::lock_guard lock(instance->mutex_);
+  if (!instance->IsInitialized()) {
+    return param.value.double_value;
+  }
   instance->ValidateParam(param.feature_name, param.param_name,
                           SbFeatureParamTypeDouble);
   return std::get<double>(
@@ -207,6 +238,9 @@ template <>
 std::string FeatureList::GetParam(const SbFeatureParamExt<std::string>& param) {
   FeatureList* instance = GetInstance();
   std::lock_guard lock(instance->mutex_);
+  if (!instance->IsInitialized()) {
+    return param.value.string_value ? param.value.string_value : "";
+  }
   instance->ValidateParam(param.feature_name, param.param_name,
                           SbFeatureParamTypeString);
   return std::get<std::string>(
@@ -217,6 +251,9 @@ template <>
 int64_t FeatureList::GetParam(const SbFeatureParamExt<int64_t>& param) {
   FeatureList* instance = GetInstance();
   std::lock_guard lock(instance->mutex_);
+  if (!instance->IsInitialized()) {
+    return param.value.time_value;
+  }
   instance->ValidateParam(param.feature_name, param.param_name,
                           SbFeatureParamTypeTime);
   return std::get<int64_t>(
