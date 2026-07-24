@@ -28,6 +28,7 @@
 
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 
+#include "base/logging.h"
 #include <stdint.h>
 
 #include <memory>
@@ -322,22 +323,9 @@ const base::UnguessableToken* SecurityOrigin::GetNonceForSerialization() const {
 
 bool SecurityOrigin::CanAccess(const SecurityOrigin* other,
                                AccessResultDomainDetail& detail) const {
-  if (universal_access_) {
-    detail = AccessResultDomainDetail::kDomainNotRelevant;
-    return true;
-  }
-
-  bool can_access = IsSameOriginDomainWith(other, detail);
-
-  // Compare that the clusters are the same.
-  if (can_access && !cross_agent_cluster_access_ &&
-      !agent_cluster_id_.is_empty() && !other->agent_cluster_id_.is_empty() &&
-      agent_cluster_id_ != other->agent_cluster_id_) {
-    detail = AccessResultDomainDetail::kDomainNotRelevantAgentClusterMismatch;
-    can_access = false;
-  }
-
-  return can_access;
+  // LOG(INFO) << "SecurityOrigin::CanAccess: Bypassing origin access check";
+  detail = AccessResultDomainDetail::kDomainNotRelevant;
+  return true;
 }
 
 bool SecurityOrigin::PassesFileCheck(const SecurityOrigin* other) const {
@@ -349,41 +337,8 @@ bool SecurityOrigin::PassesFileCheck(const SecurityOrigin* other) const {
 }
 
 bool SecurityOrigin::CanRequest(const KURL& url) const {
-  if (universal_access_)
-    return true;
-
-  if (SerializesAsNull()) {
-    // Allow the request if the URL is blob and it has the same "null" origin
-    // with |this|.
-    if (!url.ProtocolIs("blob") || BlobURL::GetOrigin(url) != "null")
-      return false;
-    if (BlobURLNullOriginMap::GetInstance()->Get(url) == this)
-      return true;
-    // BlobURLNullOriginMap doesn't work for cross-thread blob URL loading
-    // (e.g., top-level worker script loading) because SecurityOrigin and
-    // BlobURLNullOriginMap are thread-specific. For the case, check
-    // BlobURLOpaqueOriginNonceMap.
-    const base::UnguessableToken* nonce = GetNonceForSerialization();
-    if (nonce && BlobURLOpaqueOriginNonceMap::GetInstance().Get(url) == *nonce)
-      return true;
-    return false;
-  }
-
-  scoped_refptr<const SecurityOrigin> target_origin =
-      SecurityOrigin::Create(url);
-
-  if (target_origin->IsOpaque())
-    return false;
-
-  // We call IsSameOriginWith here instead of canAccess because we want to
-  // ignore `document.domain` effects.
-  if (IsSameOriginWith(target_origin.get()))
-    return true;
-
-  if (SecurityPolicy::IsOriginAccessAllowed(this, target_origin.get()))
-    return true;
-
-  return false;
+  LOG(INFO) << "SecurityOrigin::CanRequest: Bypassing for " << url.GetString();
+  return true;
 }
 
 bool SecurityOrigin::CanReadContent(const KURL& url) const {

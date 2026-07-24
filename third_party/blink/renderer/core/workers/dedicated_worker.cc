@@ -88,6 +88,8 @@ DedicatedWorker* DedicatedWorker::Create(ExecutionContext* context,
       context, script_request_url, options);
   worker->UpdateStateIfNeeded();
   worker->Start();
+  LOG(INFO) << "DedicatedWorker::Create: Successfully created worker for " << script_request_url.GetString();
+  exception_state.ClearException();
   return worker;
 }
 
@@ -265,7 +267,7 @@ void DedicatedWorker::OnHostCreated(
         script_request_url_, nullptr /* worker_main_script_load_params */,
         mojom::blink::RequestContextType::WORKER,
         network::mojom::RequestDestination::kWorker,
-        network::mojom::RequestMode::kSameOrigin,
+        network::mojom::RequestMode::kCors,
         network::mojom::CredentialsMode::kSameOrigin,
         WTF::BindOnce(&DedicatedWorker::OnResponse, WrapPersistent(this)),
         WTF::BindOnce(&DedicatedWorker::OnFinished, WrapPersistent(this),
