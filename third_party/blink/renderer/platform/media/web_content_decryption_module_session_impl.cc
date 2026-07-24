@@ -14,6 +14,7 @@
 
 #include "base/check_op.h"
 #include "base/metrics/histogram_functions.h"
+#include "build/build_config.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_util.h"
@@ -111,6 +112,16 @@ bool SanitizeInitData(media::EmeInitDataType init_data_type,
       media::CreateKeyIdsInitData(key_ids, sanitized_init_data);
       return true;
     }
+
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+    // Vendor-specific DRM init data uses formats outside the standard EME init
+    // data types. Forward it to the platform CDM unchanged.
+    case media::EmeInitDataType::SINF:
+    case media::EmeInitDataType::SKD:
+    case media::EmeInitDataType::PLATFORM_DRM:
+      sanitized_init_data->assign(init_data, init_data + init_data_length);
+      return true;
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
 
     case media::EmeInitDataType::UNKNOWN:
       break;

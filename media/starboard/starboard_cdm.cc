@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "base/logging.h"
+#include "build/build_config.h"
 #include "starboard/common/drm.h"
 
 namespace media {
@@ -35,6 +36,14 @@ const char* GetInitDataTypeName(EmeInitDataType type) {
       return "cenc";
     case EmeInitDataType::KEYIDS:
       return "keyids";
+#if BUILDFLAG(IS_IOS_TVOS)
+    case EmeInitDataType::SINF:
+      return "sinf";
+    case EmeInitDataType::SKD:
+      return "skd";
+    case EmeInitDataType::PLATFORM_DRM:
+      return "fairplay";
+#endif  // BUILDFLAG(IS_IOS_TVOS)
     case EmeInitDataType::UNKNOWN:
       return "unknown";
   }

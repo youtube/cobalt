@@ -9,6 +9,7 @@
 
 #include <optional>
 
+#include "build/build_config.h"
 #include "media/base/media_export.h"
 #include "media/media_buildflags.h"
 
@@ -21,6 +22,12 @@ enum class EmeInitDataType {
   UNKNOWN,
   WEBM,
   CENC,
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Vendor-specific platform DRM init data formats.
+  SINF,          // sinf atom key IDs
+  SKD,           // skd:// key request URI
+  PLATFORM_DRM,  // AVPlayer encrypted event payload
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
   KEYIDS,
   kMaxValue = KEYIDS,
 };
