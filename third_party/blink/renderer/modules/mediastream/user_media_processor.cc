@@ -2342,7 +2342,12 @@ void UserMediaProcessor::StopLocalSource(MediaStreamSource* source,
 
 bool UserMediaProcessor::HasActiveSources() const {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  return !local_sources_.empty() || !pending_local_sources_.empty() ||
+         (current_request_info_ != nullptr);
+#else
   return !local_sources_.empty();
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)

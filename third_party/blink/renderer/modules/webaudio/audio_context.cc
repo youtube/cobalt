@@ -229,8 +229,7 @@ AudioContext* AudioContext::Create(ExecutionContext* context,
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   UserMediaClient* user_media_client = UserMediaClient::From(&window);
-  bool is_capturing =
-      user_media_client && user_media_client->IsMicrophoneRequested();
+  bool is_capturing = user_media_client && user_media_client->IsCapturing();
   bool is_16k_requested = sample_rate.has_value() &&
                           (sample_rate.value() == cobalt::media::kSampleRate);
 

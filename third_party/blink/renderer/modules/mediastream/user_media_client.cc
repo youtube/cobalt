@@ -371,15 +371,6 @@ void UserMediaClient::RequestUserMedia(UserMediaRequest* user_media_request) {
   }
 #endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // specifically for Cobalt, we can assume that an audio only
-  // getUserMedia request is for microphone capture, and is used to
-  // signal our fastpath microphone capture path.
-  if (user_media_request->Audio() && !user_media_request->Video()) {
-    is_microphone_requested_ = true;
-  }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
   user_media_request->set_has_transient_user_activation(
       has_transient_user_activation);
   mojom::blink::MediaStreamType type =
@@ -413,11 +404,6 @@ void UserMediaClient::StopTrack(MediaStreamComponent* track) {
   auto* queue =
       GetRequestQueue(track->Source()->GetPlatformSource()->device().type);
   queue->EnqueueAndMaybeProcess(MakeGarbageCollected<Request>(track));
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (!IsCapturing()) {
-    is_microphone_requested_ = false;
-  }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 bool UserMediaClient::IsCapturing() {
@@ -435,11 +421,6 @@ void UserMediaClient::CancelUserMediaRequest(
     UserMediaRequest* user_media_request) {
   pending_device_requests_->CancelUserMediaRequest(user_media_request);
   pending_display_requests_->CancelUserMediaRequest(user_media_request);
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (!IsCapturing()) {
-    is_microphone_requested_ = false;
-  }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void UserMediaClient::DeleteAllUserMediaRequests() {
@@ -448,9 +429,6 @@ void UserMediaClient::DeleteAllUserMediaRequests() {
     frame_->SetIsCapturingMediaCallback(LocalFrame::IsCapturingMediaCallback());
   pending_device_requests_->DeleteAllUserMediaRequests();
   pending_display_requests_->DeleteAllUserMediaRequests();
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  is_microphone_requested_ = false;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void UserMediaClient::ContextDestroyed() {
