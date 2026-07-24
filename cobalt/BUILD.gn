@@ -121,7 +121,7 @@ if (is_ios && target_platform == "tvos") {
 
     intents_target = "//cobalt/browser/tvos/intents:yt_intents"
 
-    data_deps = [ "//tools/v8_context_snapshot:v8_context_snapshot" ]
+    data_deps = [ "//tools/v8_context_snapshot" ]
 
     bundle_identifier = cobalt_bundle_identifier
     entitlements_path = "//cobalt/shell/app/tvos-entitlements.plist"
@@ -191,7 +191,7 @@ if (is_ios && target_platform == "tvos") {
       deps += [ "//third_party/musl:headers" ]
     }
     if (is_starboard) {
-      deps += [ "//ui/ozone/platform/starboard:starboard" ]
+      deps += [ "//ui/ozone/platform/starboard" ]
     } else {
       # Web test support only built for the linux-x64x11-no-starboard target.
       testonly = true
@@ -204,7 +204,7 @@ if (is_ios && target_platform == "tvos") {
 
     data_deps = [
       "//cobalt/shell:pak",
-      "//tools/v8_context_snapshot:v8_context_snapshot",
+      "//tools/v8_context_snapshot",
     ]
   }
 
@@ -259,7 +259,7 @@ source_set("common") {
     "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:pak",
     "//cobalt/utility",
-    "//components/memory_system:memory_system",
+    "//components/memory_system",
     "//content/public/app",
     "//gpu/command_buffer/service",
     "//media",
@@ -275,11 +275,11 @@ source_set("common") {
   }
 
   if (is_starboard) {
-    deps += [ "//ui/ozone/platform/starboard:starboard" ]
+    deps += [ "//ui/ozone/platform/starboard" ]
   }
 
   if (use_evergreen) {
-    deps += [ "//cobalt/updater:updater" ]
+    deps += [ "//cobalt/updater" ]
   }
 }
 
@@ -322,6 +322,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/metrics/cobalt_metrics_services_manager_client_test.cc",
     "//cobalt/browser/user_agent/user_agent_platform_info_test.cc",
     "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_unittest.cc",
+    "//cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager_unittest.cc",
   ]
 
   # The symbolizer pipeline test requires launching external Python and
@@ -410,7 +411,7 @@ test("cobalt_unittests") {
     "//content/public/common:switches",
     "//content/test:test_support",
     "//gpu/config",
-    "//sandbox/policy:policy",
+    "//sandbox/policy",
     "//ui/events/devices",
   ]
 

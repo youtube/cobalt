@@ -394,6 +394,7 @@ cobalt_test_bundle_data_files = [
   "//media/test/data/bear-opus.webm",
   "//media/test/data/bear-vp8-webvtt.webm",
   "//media/test/data/bear-vp8a.webm",
+  "//media/test/data/bear-vp9.webm",
   "//media/test/data/bear.flac",
   "//media/test/data/bear.mp4",
   "//media/test/data/bear.ogv",

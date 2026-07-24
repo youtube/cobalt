@@ -62,6 +62,9 @@ extern const base::Feature kInMemoryUpdatesMemoryBuffer;
 // Sets the memory buffer size in bytes.
 extern const base::FeatureParam<int> kInMemoryUpdatesMemoryBufferParam;
 
+// Enables video Picture-in-Picture support.
+extern const base::Feature kPictureInPicture;
+
 }  // namespace features
 }  // namespace cobalt
 

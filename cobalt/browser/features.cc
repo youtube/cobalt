@@ -63,5 +63,10 @@ BASE_FEATURE(kInMemoryUpdatesMemoryBuffer,
 const base::FeatureParam<int> kInMemoryUpdatesMemoryBufferParam{
     &kInMemoryUpdatesMemoryBuffer, "memory_buffer_bytes", 35 * 1024 * 1024};
 
+// Enabled by default so PiP works out of the box.
+BASE_FEATURE(kPictureInPicture,
+             "PictureInPicture",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 }  // namespace features
 }  // namespace cobalt
