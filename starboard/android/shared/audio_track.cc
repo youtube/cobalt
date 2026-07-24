@@ -14,12 +14,56 @@
 
 #include "starboard/android/shared/audio_track.h"
 
+#include <android/api-level.h>
+
+#include <atomic>
 #include <memory>
 #include <optional>
 
+#include "starboard/android/shared/aaudio_loader.h"
 #include "starboard/android/shared/audio_track_bridge.h"
+#include "starboard/android/shared/ndk_audio_track.h"
+#include "starboard/common/log.h"
 
 namespace starboard {
+namespace {
+
+std::atomic<bool> g_ndk_audio_enabled = false;
+
+bool CanUseNdkAudioTrack(SbMediaAudioCodingType coding_type,
+                         std::optional<SbMediaAudioSampleType> sample_type,
+                         std::optional<int> tunnel_mode_audio_session_id) {
+  if (!g_ndk_audio_enabled.load(std::memory_order_relaxed)) {
+    return false;
+  }
+
+  if (coding_type != kSbMediaAudioCodingTypePcm ||
+      sample_type != kSbMediaAudioSampleTypeFloat32) {
+    return false;
+  }
+
+  // NDK audio track does not support tunnel mode.
+  if (tunnel_mode_audio_session_id) {
+    return false;
+  }
+  // NDK AAudio requires API level >= 28.
+  if (android_get_device_api_level() < 28) {
+    return false;
+  }
+
+  if (!AAudio::Load()) {
+    return false;
+  }
+
+  return true;
+}
+
+}  // namespace
+
+// static
+void AudioTrack::SetNdkAudioEnabled(bool enabled) {
+  g_ndk_audio_enabled.store(enabled, std::memory_order_relaxed);
+}
 
 // static
 std::unique_ptr<AudioTrack> AudioTrack::Create(
@@ -30,6 +74,19 @@ std::unique_ptr<AudioTrack> AudioTrack::Create(
     int preferred_buffer_size_in_bytes,
     std::optional<int> tunnel_mode_audio_session_id,
     bool is_web_audio) {
+  if (CanUseNdkAudioTrack(coding_type, sample_type,
+                          tunnel_mode_audio_session_id)) {
+    auto ndk_audio_track = NdkAudioTrack::Create(
+        coding_type, sample_type, channels, sampling_frequency_hz,
+        preferred_buffer_size_in_bytes, tunnel_mode_audio_session_id,
+        is_web_audio);
+    if (ndk_audio_track) {
+      return ndk_audio_track;
+    }
+    SB_LOG(WARNING)
+        << "Failed to create NdkAudioTrack. Falling back to AudioTrackBridge.";
+  }
+
   return AudioTrackBridge::Create(coding_type, sample_type, channels,
                                   sampling_frequency_hz,
                                   preferred_buffer_size_in_bytes,
