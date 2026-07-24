@@ -326,6 +326,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     bool enable_flush_during_seek =
+        GetDeviceApiLevel() >= kAndroidApiLevelU ||
         FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
         creation_parameters.experimental_features().GetBool(
             kMediaEnableFlushDuringSeek);
@@ -462,6 +463,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     const auto& experimental_features =
         creation_parameters.experimental_features();
     bool enable_reset_audio_decoder =
+        GetDeviceApiLevel() >= kAndroidApiLevelU ||
         FeatureList::IsEnabled(features::kForceResetAudioDecoder) ||
         experimental_features.GetBool(kMediaEnableResetAudioDecoder) ||
         (video_mime_type &&
@@ -476,6 +478,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << ".";
 
     bool enable_flush_during_seek =
+        GetDeviceApiLevel() >= kAndroidApiLevelU ||
         FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
         experimental_features.GetBool(kMediaEnableFlushDuringSeek) ||
         (video_mime_type &&
@@ -593,6 +596,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek =
+        GetDeviceApiLevel() >= kAndroidApiLevelU ||
         FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
         experimental_features.GetBool(kMediaEnableFlushDuringSeek);
     int64_t flush_delay_usec = features::kFlushDelayUsec.Get();
