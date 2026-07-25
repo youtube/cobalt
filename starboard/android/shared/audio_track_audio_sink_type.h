@@ -169,7 +169,7 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
 
   void ReportError(bool capability_changed, const std::string& error_message);
 
-  int64_t GetFramesDurationUs(int frames) const;
+  int64_t GetFramesDurationUs(int64_t frames) const;
 
   const raw_ptr<Type> type_;
   const int channels_;
