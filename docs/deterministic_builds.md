@@ -115,9 +115,8 @@ Things to do, in order of involvedness and effectiveness:
   the build config (Ctrl-F ".gn") or for toolchain changes (Ctrl-F "clang").
 
 - The deterministic bots try to upload a tar archive to Google Storage.
-  Use `gsutil.py ls gs://chrome-determinism` to see available archives,
-  and use e.g. `gsutil.py cp gs://chrome-determinism/Windows\
-  deterministic/9998/deterministic_build_diffs.tgz .` to copy one archive to
+  Use `gcloud storage ls gs://chrome-determinism` to see available archives,
+  and use e.g. `gcloud storage cp gs://chrome-determinism/Windows\ deterministic/9998/deterministic_build_diffs.tgz .` to copy one archive to
   your workstation. You can then look at the diffs in more detail. See
   https://bugs.chromium.org/p/chromium/issues/detail?id=985285#c6 for an
   example.
