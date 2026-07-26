@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 
 namespace starboard {
 namespace {
@@ -87,6 +88,9 @@ void VideoFrameTracker::OnInputBuffer(int64_t timestamp) {
       static_cast<size_t>(max_pending_frames_size_)) {
     // OnFrameRendered() is only available after API level 23.  Cap the size
     // of |frames_to_be_rendered_| in case OnFrameRendered() is not available.
+    SB_LOG(WARNING)
+        << "Evicting frame from tracker due to queue overflow: PTS(msec)="
+        << FormatWithDigitSeparators(frames_to_be_rendered_.front() / 1'000);
     frames_to_be_rendered_.pop_front();
   }
 

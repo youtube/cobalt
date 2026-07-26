@@ -132,7 +132,13 @@ const int kNonInitialPrerollFrameCount = 1;
 // rendered, the rest of the playback should play without frame drops. So,
 // tunnel mode prerolling only needs 1 frame.
 const int kTunnelModePrerollFrameCount = 1;
-const int kMaxPendingInputsSize = 128;
+constexpr int kMaxPendingInputsSize = 128;
+// The maximum capacity of the VideoFrameTracker. With batch-writing enabled
+// (max_samples_per_write = 12), we can receive a rapid burst of inputs before
+// rendering begins. A capacity of 512 frames (kMaxPendingInputsSize * 4)
+// provides a safe buffer (approx. 8.5 seconds at 60fps) to ensure early frames
+// are not evicted from the tracker.
+constexpr int kVideoFrameTrackerCapacity = kMaxPendingInputsSize * 4;
 
 const int kFpsGuesstimateRequiredInputBufferCount = 3;
 
@@ -405,7 +411,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
 
   if (is_video_frame_tracker_enabled_) {
     video_frame_tracker_ =
-        std::make_unique<VideoFrameTracker>(kMaxPendingInputsSize * 2);
+        std::make_unique<VideoFrameTracker>(kVideoFrameTrackerCapacity);
   }
 
   if (require_software_codec_) {
