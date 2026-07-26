@@ -349,6 +349,7 @@ static_library("starboard_platform") {
       "posix_emu/access.cc",
       "posix_emu/errno.cc",
       "posix_emu/file.cc",
+      "posix_emu/net_if.cc",
       "posix_emu/stat.cc",
     ]
 
