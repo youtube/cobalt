@@ -309,6 +309,11 @@ target(gtest_target_type, "nplb") {
         [ "//starboard/nplb/compiler_compliance/cpp_compiler_version_check.cc" ]
   }
 
+  if (is_win) {
+    sources +=
+        [ "//starboard/shared/uwp/xb1_get_type.cc" ]
+  }
+
   configs += [ "//starboard/build/config:starboard_implementation" ]
   if (sb_enable_cast_codec_tests) {
     configs += [ ":cast_codec_tests" ]
