@@ -18,7 +18,6 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
-#include <list>
 #include <mutex>
 #include <vector>
 
@@ -29,10 +28,9 @@ namespace {
 
 const int64_t kMaxAllowedSkew = 5'000;  // 5ms
 
-// TODO: b/409362474 - Add unit test once starboard unittests are enable on
-// Android.
-void RemoveUnexpectedRenderedFrames(const std::list<int64_t>& frames_to_render,
-                                    std::vector<int64_t>* rendered_frames) {
+void RemoveUnexpectedRenderedFrames(
+    const std::vector<int64_t>& frames_to_render,
+    std::vector<int64_t>* rendered_frames) {
   SB_CHECK(rendered_frames);
   if (rendered_frames->empty()) {
     return;
@@ -87,7 +85,7 @@ void VideoFrameTracker::OnInputBuffer(int64_t timestamp) {
       static_cast<size_t>(max_pending_frames_size_)) {
     // OnFrameRendered() is only available after API level 23.  Cap the size
     // of |frames_to_be_rendered_| in case OnFrameRendered() is not available.
-    frames_to_be_rendered_.pop_front();
+    frames_to_be_rendered_.erase(frames_to_be_rendered_.begin());
   }
 
   // Sort by |timestamp|, because |timestamp| won't be monotonic if there are
@@ -104,7 +102,7 @@ void VideoFrameTracker::OnInputBuffer(int64_t timestamp) {
     }
   }
 
-  frames_to_be_rendered_.emplace_front(timestamp);
+  frames_to_be_rendered_.insert(frames_to_be_rendered_.begin(), timestamp);
 }
 
 void VideoFrameTracker::OnFrameRendered(int64_t frame_timestamp) {
@@ -136,14 +134,13 @@ void VideoFrameTracker::UpdateDroppedFrames() {
     rendered_frames_on_tracker_thread_.swap(rendered_frames_on_decoder_thread_);
   }
 
-  while (!frames_to_be_rendered_.empty() &&
-         frames_to_be_rendered_.front() < seek_to_time_) {
-    // It is possible that the initial frame rendered time is before the
-    // seek to time, when the platform decides to render a frame earlier
-    // than the seek to time during preroll. This shouldn't be an issue
-    // after we align seek time to the next video key frame.
-    frames_to_be_rendered_.pop_front();
-  }
+  // It is possible that the initial frame rendered time is before the
+  // seek to time, when the platform decides to render a frame earlier
+  // than the seek to time during preroll. This shouldn't be an issue
+  // after we align seek time to the next video key frame.
+  auto it = std::lower_bound(frames_to_be_rendered_.begin(),
+                             frames_to_be_rendered_.end(), seek_to_time_);
+  frames_to_be_rendered_.erase(frames_to_be_rendered_.begin(), it);
 
   RemoveUnexpectedRenderedFrames(frames_to_be_rendered_,
                                  &rendered_frames_on_tracker_thread_);
