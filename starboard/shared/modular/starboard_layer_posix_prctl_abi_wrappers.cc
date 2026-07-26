@@ -18,9 +18,50 @@
 #include <linux/prctl.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <sys/prctl.h>
+#include <unistd.h>
 
+#include <mutex>
+
+#include "starboard/common/file.h"
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
+#include "starboard/configuration.h"
+#include "starboard/system.h"
+
+// From third_party/musl/include/sys/prctl.h
+#ifndef PR_SET_VMA
+#define PR_SET_VMA 0x53564d41
+#endif
+#ifndef PR_SET_VMA_ANON_NAME
+#define PR_SET_VMA_ANON_NAME 0
+#endif
+
+namespace {
+
+const char k_vma_tag_file_base_name[] = "cobalt_vma_tags";
+char g_vma_tag_file_path[256] = "";
+std::mutex g_vma_tag_file_mutex;
+
+void VmaTagFileCleanup() {
+  // This function can be called from a signal handler, so it should not use a
+  // mutex that could be held by a thread that is being interrupted. We assume
+  // that g_vma_tag_file_path is written once and then only read.
+  if (g_vma_tag_file_path[0]) {
+    unlink(g_vma_tag_file_path);
+    g_vma_tag_file_path[0] = '\0';
+  }
+}
+
+void VmaTagSignalHandler(int signum) {
+  VmaTagFileCleanup();
+  // Re-raise signal to get default behavior (e.g. core dump).
+  signal(signum, SIG_DFL);
+  raise(signum);
+}
+
+}  // namespace
 
 int musl_op_to_platform_op(int musl_op) {
   switch (musl_op) {
@@ -61,6 +102,8 @@ int musl_op_to_platform_op(int musl_op) {
       return PR_TASK_PERF_EVENTS_ENABLE;
     case MUSL_PR_SET_PTRACER:
       return PR_SET_PTRACER;
+    case MUSL_PR_SET_VMA:
+      return PR_SET_VMA;
     default:
       SB_LOG(WARNING) << "Unknown musl prctl operation: " << musl_op;
       errno = EINVAL;
@@ -93,6 +136,16 @@ long platform_timing_to_musl_timing(int platform_timing) {
       errno = EINVAL;
       return -1;
   }
+}
+
+long musl_vma_attr_to_platform_vma_attr(long musl_vma_attr) {
+  if (musl_vma_attr == MUSL_PR_SET_VMA_ANON_NAME) {
+    return PR_SET_VMA_ANON_NAME;
+  }
+
+  SB_LOG(WARNING) << "Unknown musl vma addr: " << musl_vma_attr;
+  errno = EINVAL;
+  return -1;
 }
 
 int musl_tsc_to_platform_tsc(int musl_tsc) {
@@ -277,6 +330,64 @@ int __abi_wrap_prctl(int op, ...) {
       pid = (pid == MUSL_PR_SET_PTRACER_ANY) ? PR_SET_PTRACER_ANY : pid;
       ret = prctl(platform_op, pid);
       break;
+    }
+    case PR_SET_VMA: {
+      long attr = va_arg(args, long);
+      unsigned long addr = va_arg(args, unsigned long);
+      unsigned long size = va_arg(args, unsigned long);
+      const char* val = va_arg(args, const char*);
+      long platform_attr = musl_vma_attr_to_platform_vma_attr(attr);
+      int result = prctl(platform_op, platform_attr, addr, size, val);
+      if (result == -1 && errno == EINVAL &&
+          platform_attr == MUSL_PR_SET_VMA_ANON_NAME) {
+        // Kernel does not support PR_SET_VMA_ANON_NAME. Fallback to writing to
+        // a file.
+        {
+          std::lock_guard<std::mutex> lock(g_vma_tag_file_mutex);
+          if (g_vma_tag_file_path[0] == '\0') {
+            char file_template[256];
+            snprintf(file_template, sizeof(file_template), "/tmp/%s_%d_XXXXXX",
+                     k_vma_tag_file_base_name, getpid());
+            int fd = mkstemp(file_template);
+            if (fd != -1) {
+              starboard::strlcpy(g_vma_tag_file_path, file_template,
+                                 sizeof(g_vma_tag_file_path));
+              close(fd);
+            } else {
+              SB_LOG(ERROR) << "Failed to create VMA tag file.";
+            }
+          }
+        }
+
+        if (g_vma_tag_file_path[0] == '\0') {
+          return result;
+        }
+
+        FILE* file = fopen(g_vma_tag_file_path, "a");
+        if (file) {
+          static bool cleanup_registered = false;
+          if (!cleanup_registered) {
+            atexit(VmaTagFileCleanup);
+            // Also register signal handlers for common crash signals.
+            // This is not a perfect solution as it can interfere with
+            // application signal handlers and does not handle SIGKILL.
+            signal(SIGSEGV, VmaTagSignalHandler);
+            signal(SIGABRT, VmaTagSignalHandler);
+            signal(SIGTERM, VmaTagSignalHandler);
+            signal(SIGQUIT, VmaTagSignalHandler);
+            signal(SIGINT, VmaTagSignalHandler);
+            cleanup_registered = true;
+          }
+          fprintf(file, "0x%lx 0x%lx %s\n", addr, addr + size, val);
+          fclose(file);
+          return 0;  // Success for our fallback.
+        } else {
+          SB_LOG(ERROR) << "Failed to open VMA tag file: "
+                        << g_vma_tag_file_path;
+          // Fall through to return original error.
+        }
+      }
+      return result;
     }
     // This default case shouldn't be reachable; if we weren't able to convert
     // the musl_op to a platform_op, this function would have returned with -1
