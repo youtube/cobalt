@@ -155,6 +155,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void OnFlushing() override;
   bool IsBufferDecodeOnly(
       const scoped_refptr<InputBuffer>& input_buffer) override;
+  void OnInputBufferQueued(int64_t timestamp_us) override;
 
   void TryToSignalPrerollForTunnelMode();
   void OnFrameRendered(int64_t frame_timestamp);

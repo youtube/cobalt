@@ -79,6 +79,7 @@ class MediaCodecAudioDecoder : public AudioDecoder,
       const scoped_refptr<InputBuffer>& input_buffer) override {
     return false;
   }
+  void OnInputBufferQueued(int64_t timestamp_us) override {}
 
   void ReportError(SbPlayerError error, const std::string& error_message);
 

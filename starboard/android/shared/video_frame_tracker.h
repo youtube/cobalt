@@ -15,18 +15,15 @@
 #ifndef STARBOARD_ANDROID_SHARED_VIDEO_FRAME_TRACKER_H_
 #define STARBOARD_ANDROID_SHARED_VIDEO_FRAME_TRACKER_H_
 
-#include <list>
+#include <atomic>
 #include <mutex>
 #include <vector>
-
-#include "starboard/shared/starboard/thread_checker.h"
 
 namespace starboard {
 
 class VideoFrameTracker {
  public:
-  explicit VideoFrameTracker(int max_pending_frames_size)
-      : max_pending_frames_size_(max_pending_frames_size) {}
+  explicit VideoFrameTracker(int max_tracked_frames);
 
   int64_t seek_to_time() const;
 
@@ -39,19 +36,25 @@ class VideoFrameTracker {
   int UpdateAndGetDroppedFrames();
 
  private:
-  void UpdateDroppedFrames();
+  void UpdateDroppedFrames_Locked();  // Requires |state_mutex_|.
 
-  ThreadChecker thread_checker_;
+  std::mutex state_mutex_;
+  // NOTE: std::vector is used to avoid heap allocations during playback.
+  std::vector<int64_t> frames_to_be_rendered_;  // Guarded by |state_mutex_|.
 
-  std::list<int64_t> frames_to_be_rendered_;
+  const int max_tracked_frames_;
+  int dropped_frames_ = 0;                // Guarded by |state_mutex_|.
+  std::atomic<int64_t> seek_to_time_{0};  // microseconds
 
-  const int max_pending_frames_size_;
-  int dropped_frames_ = 0;
-  int64_t seek_to_time_ = 0;  // microseconds
+  std::vector<int64_t>
+      rendered_frames_on_tracker_thread_;  // Guarded by |state_mutex_|
+                                           // (microseconds).
 
   std::mutex rendered_frames_mutex_;
-  std::vector<int64_t> rendered_frames_on_tracker_thread_;  // microseconds
-  std::vector<int64_t> rendered_frames_on_decoder_thread_;  // microseconds
+  std::vector<int64_t>
+      rendered_frames_on_decoder_thread_;  // Guarded by
+                                           // |rendered_frames_mutex_|
+                                           // (microseconds).
 };
 
 }  // namespace starboard
