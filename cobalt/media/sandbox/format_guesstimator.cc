@@ -134,7 +134,9 @@ std::string ExtractCodecs(const std::string& content_type) {
 }  // namespace
 
 FormatGuesstimator::FormatGuesstimator(const std::string& path_or_url,
-                                       MediaModule* media_module) {
+                                       MediaModule* media_module)
+    : task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {
+  DCHECK(task_runner_);
   GURL url(path_or_url);
   if (url.is_valid()) {
     // If it is a url, assume that it is a progressive video.
@@ -189,7 +191,7 @@ void FormatGuesstimator::InitializeAsAdaptive(const base::FilePath& path,
     // during initialization of |web_media_player_helper|. Wait until it is set
     // before proceeding.
     while (!chunk_demuxer) {
-      base::RunLoop().RunUntilIdle();
+      task_runner_->RunsTasksInCurrentSequence();
     }
 
     const std::string id = "stream";

@@ -24,7 +24,7 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/path_service.h"
-#include "base/task/sequenced_task_runner.h"
+#include "base/task/single_thread_task_executor.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
 #include "cobalt/base/wrap_main.h"
@@ -113,6 +113,9 @@ class Application {
         media_sandbox_(argc, argv,
                        base::FilePath(FILE_PATH_LITERAL(
                            "media_source_sandbox_trace.json"))) {
+    base::SingleThreadTaskExecutor task_executor(base::MessagePumpType::UI);
+    base::RunLoop run_loop;
+    run_loop.BeforeRun();
     if (argc > 1) {
       FormatGuesstimator guesstimator1(argv[argc - 1],
                                        media_sandbox_.GetMediaModule());
@@ -147,6 +150,8 @@ class Application {
       }
     }
 
+    run_loop.AfterRun();
+    run_loop.Quit();
     PrintUsage(argv[0]);
     SbSystemRequestStop(0);
   }
