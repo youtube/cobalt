@@ -82,7 +82,7 @@ directory. For example, try:
 
 Note that the positional argument can be any substring within the test name.
 
-This may require you to set up your `gsutil config` first.
+This may require you to set up your `gcloud config` first.
 
 ## `run_benchmark`
 
