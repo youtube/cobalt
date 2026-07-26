@@ -10,13 +10,43 @@
 #include "base/values.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/prefs/testing_pref_service.h"
+#include "components/sync/buildflags/buildflags.h"
+#if BUILDFLAG(ENABLE_SYNC)
 #include "components/sync/test/test_sync_service.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
+#else
+#include "components/pref_registry/pref_registry_syncable.h"
+#include "components/prefs/pref_notifier_impl.h"
+#endif
 #include "components/variations/pref_names.h"
 #include "components/variations/service/google_groups_manager_prefs.h"
 #include "components/variations/variations_seed_processor.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if !BUILDFLAG(ENABLE_SYNC)
+namespace sync_preferences {
+class TestingPrefServiceSyncable
+    : public TestingPrefServiceBase<PrefService, PrefRegistry> {
+ public:
+  TestingPrefServiceSyncable()
+      : TestingPrefServiceBase<PrefService, PrefRegistry>(
+            /*managed_prefs=*/base::MakeRefCounted<TestingPrefStore>(),
+            /*supervised_user_prefs=*/base::MakeRefCounted<TestingPrefStore>(),
+            /*extension_prefs=*/base::MakeRefCounted<TestingPrefStore>(),
+            /*user_prefs=*/base::MakeRefCounted<TestingPrefStore>(),
+            /*recommended_prefs=*/base::MakeRefCounted<TestingPrefStore>(),
+            base::MakeRefCounted<user_prefs::PrefRegistrySyncable>(),
+            new PrefNotifierImpl()) {}
+
+  ~TestingPrefServiceSyncable() override = default;
+
+  user_prefs::PrefRegistrySyncable* registry() {
+    return static_cast<user_prefs::PrefRegistrySyncable*>(DeprecatedGetPrefRegistry());
+  }
+};
+}  // namespace sync_preferences
+#endif
 
 class GoogleGroupsManagerTest : public ::testing::Test {
  public:
@@ -125,6 +155,7 @@ TEST_F(GoogleGroupsManagerTest,
   CheckTargetPref({"123", "789"});
 }
 
+#if BUILDFLAG(ENABLE_SYNC)
 TEST_F(GoogleGroupsManagerTest, ClearProfilePrefsNotPreviouslySet) {
   syncer::TestSyncService sync_service;
   GoogleGroupsManager google_groups_updater(target_prefs_, key_,
@@ -153,6 +184,7 @@ TEST_F(GoogleGroupsManagerTest, ClearProfilePrefsClearsTargetPref) {
   CheckSourcePrefCleared();
   CheckTargetPref({});
 }
+#endif
 
 // Tests that `IsFeatureGroupControlled` checks whether the internal feature
 // parameter that contains the ids in the google_groups filter is non-empty.
