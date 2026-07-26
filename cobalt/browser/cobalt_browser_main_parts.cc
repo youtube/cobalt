@@ -243,8 +243,8 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   // Remove this block once the NativeStabilityManager singleton is added to
   // the browser to query the extension to respond to web app requests.
   auto native_stability_extension =
-      static_cast<const CobaltExtensionNativeStabilityApi*>(
-          SbSystemGetExtension(kCobaltExtensionNativeStabilityName));
+      static_cast<const StarboardExtensionNativeStabilityApi*>(
+          SbSystemGetExtension(kStarboardExtensionNativeStabilityName));
   if (native_stability_extension && native_stability_extension->version >= 1 &&
       native_stability_extension->ReadReports) {
     constexpr int max_num_reports = 16;  // A somewhat arbitrary, large number
