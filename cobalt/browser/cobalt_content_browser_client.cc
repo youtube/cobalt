@@ -667,6 +667,26 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
 
   SetUpCobaltFeaturesAndParams(feature_list.get());
 
+  // Set a default QUIC retransmittable-on-wire keep-alive interval. Cobalt
+  // targets CE devices that are typically deployed behind consumer-grade
+  // NATs whose UDP idle timeout can be as low as 30 seconds. Without an
+  // active keep-alive, a long-lived, mostly-receive QUIC stream (for
+  // example, a server-push long-poll) can lose its NAT binding and stall
+  // silently while the rest of the session still appears healthy. The
+  // 100 ms value backs off exponentially, so this is not a 100 ms ping
+  // forever on healthy connections. Skipped if any external mechanism
+  // (command-line --force-fieldtrials, a variations seed, etc.) has
+  // already configured the "QUIC" trial so that those configurations
+  // continue to win. The trial parameter is consumed by
+  // components/network_session_configurator/browser/
+  // network_session_configurator.cc.
+  if (!base::FieldTrialList::Find("QUIC")) {
+    base::FieldTrialParams quic_trial_params;
+    quic_trial_params["retransmittable_on_wire_timeout_milliseconds"] = "100";
+    base::AssociateFieldTrialParams("QUIC", "Enabled", quic_trial_params);
+    base::FieldTrialList::CreateFieldTrial("QUIC", "Enabled");
+  }
+
   base::FeatureList::SetInstance(std::move(feature_list));
   UMA_HISTOGRAM_BOOLEAN(
       "Cobalt.Features.TestFinchFeature",
