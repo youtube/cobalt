@@ -107,6 +107,9 @@ void DecoderBufferAllocator::ReleaseIdleMemory() {
 }
 
 void DecoderBufferAllocator::DecommitAllDecommitableBlocks() {
+  if (!decommit_on_suspend_enabled_.load(std::memory_order_relaxed)) {
+    return;
+  }
   base::AutoLock scoped_lock(mutex_);
   if (strategy_) {
     strategy_->DecommitAllDecommitableBlocks();
@@ -238,13 +241,19 @@ void DecoderBufferAllocator::EnableConfigurableDecommitStrategy(
     int block_size,
     int retain_blocks,
     int conservative_decommit_blocks,
-    bool aggressive_decommit_on_suspend) {
+    bool aggressive_decommit_on_suspend,
+    bool allocate_with_page_alignment) {
   auto* allocator = Get();
   CHECK(allocator);
+  if (aggressive_decommit_on_suspend) {
+    // This optimization is enable only, and isn't expected to be disabled.
+    allocator->decommit_on_suspend_enabled_.store(true,
+                                                  std::memory_order_relaxed);
+  }
   allocator->UpdateAllocatorStrategy(base::BindRepeating(
       [](int block_size, int retain_blocks, int conservative_decommit_blocks,
-         bool aggressive_decommit_on_suspend, int initial_capacity,
-         int allocation_unit)
+         bool aggressive_decommit_on_suspend, bool allocate_with_page_alignment,
+         int initial_capacity, int allocation_unit)
           -> std::unique_ptr<DecoderBufferAllocator::Strategy> {
         LOG(INFO)
             << "DecoderBufferAllocator is using "
@@ -256,15 +265,17 @@ void DecoderBufferAllocator::EnableConfigurableDecommitStrategy(
             << "retain_blocks: " << retain_blocks << ", "
             << "conservative_decommit_blocks: " << conservative_decommit_blocks
             << ", aggressive_decommit_on_suspend: "
-            << ToString(aggressive_decommit_on_suspend);
+            << ToString(aggressive_decommit_on_suspend)
+            << ", allocate_with_page_alignment: "
+            << ToString(allocate_with_page_alignment);
 
         return std::make_unique<DefaultReuseAllocatorStrategy>(
             block_size, block_size, /*enable_decommit_on_idle=*/true,
             retain_blocks, conservative_decommit_blocks,
-            aggressive_decommit_on_suspend);
+            aggressive_decommit_on_suspend, allocate_with_page_alignment);
       },
       block_size, retain_blocks, conservative_decommit_blocks,
-      aggressive_decommit_on_suspend));
+      aggressive_decommit_on_suspend, allocate_with_page_alignment));
 }
 
 // static
