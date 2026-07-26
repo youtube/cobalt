@@ -210,7 +210,7 @@ const CobaltMemoryMetricsEmitter::Metric kAllocatorDumpNamesForMetrics[] = {
      {}},
     {"skia/sk_glyph_cache",
      "Skia.SkGlyphCache",
-     CobaltMemoryMetricsEmitter::MetricSize::kSmall,
+     CobaltMemoryMetricsEmitter::MetricSize::kLarge,
      "size",
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
      {}},
