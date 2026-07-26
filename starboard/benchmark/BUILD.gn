@@ -24,10 +24,12 @@ target(_benchmark_type, "benchmark") {
   testonly = true
 
   sources = [
+    "//starboard/android/shared/video_frame_tracker.cc",
     "//starboard/common/benchmark_main.cc",
     "memory_benchmark.cc",
     "thread_benchmark.cc",
     "thread_id_benchmark.cc",
+    "video_frame_tracker_benchmark.cc",
   ]
 
   public_deps = [
