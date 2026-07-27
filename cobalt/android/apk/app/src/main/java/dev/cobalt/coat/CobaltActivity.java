@@ -55,7 +55,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 import org.chromium.base.CommandLine;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
@@ -562,7 +561,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @Override
   protected void onStop() {
-    CobaltContentBrowserClient.flushCookiesAndLocalStorage();
     unregisterDisplayListener();
     super.onStop();
 
@@ -582,6 +580,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
                 if (currentWebContents != null) {
                   currentWebContents.onFreeze();
                 }
+                CobaltContentBrowserClient.flushCookiesAndLocalStorage();
                 mFreezeRunnable = null;
               }
             };
@@ -591,6 +590,8 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
         webContents.onFreeze();
       }
     }
+
+    CobaltContentBrowserClient.flushCookiesAndLocalStorage();
 
     if (VideoSurfaceView.getCurrentSurface() != null) {
       mForceCreateNewVideoSurfaceView = true;
