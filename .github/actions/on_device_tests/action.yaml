@@ -109,7 +109,11 @@ runs:
         # Test results (xml and logs) must be in a subfolder in results_dir
         # to be picked up by the test result processor.
         mkdir -p "${test_output}/${{ matrix.platform }}"
+<<<<<<< HEAD
         gsutil -q cp -r "${{ inputs.gcs_results_path }}/" "${test_output}/${{ matrix.platform }}"
+=======
+        gsutil cp -r "${{ inputs.gcs_results_path }}/" "${test_output}/${{ matrix.platform }}"
+>>>>>>> 7d6b1defc2a (Make GCS results path unique (#5060))
       shell: bash
     - name: Archive Test Results
       uses: actions/upload-artifact@v4
