@@ -67,6 +67,9 @@ approval is necessary unless explicitly requested by the user.
         [Gardener Hotlist](https://b.corp.google.com/hotlists/7245259) and the
         Cobalt component and its children (componentid:114154+) to see if the
         verified error cause matches any known bugs.
+    *   **Device System Logs**: For on-device test failures:
+        1. Check if `Device System Log` matches are present in the report (tagged as `[device_system_log]`). These contain device-level crash tracebacks.
+        2. If device logs are missing (reported as `MISSING` in the report), note this in the summary and suggest manual inspection of the Device Lab Session link if available.
 
 -   [ ] **Summarize Report** Summarize the results using the instructions in
     "Report Format" below.

@@ -75,6 +75,11 @@ RULES = {
         re.compile(r'SIGSEGV'),
         re.compile(r'CRASHED'),
         re.compile(r'Received signal'),
+        re.compile(r'Fatal signal \d+'),
+        re.compile(r'\*\*\* \*\*\* \*\*\* \*\*\* \*\*\* \*\*\* \*\*\* \*\*\*'),
+        re.compile(r'FATAL EXCEPTION:'),
+        re.compile(r'Caused by:'),
+        re.compile(r'Process \S+ \(pid \d+\) has died'),
     ],
 }
 
@@ -118,23 +123,35 @@ def _parse_traceback(lines, start_idx):
   return tb_content, tb_exception_line, tb_exception_line_num, idx
 
 
-def analyze_log(log_path, context_lines=5):
+def analyze_log(log_path,
+                context_lines=5,
+                tag=None,
+                required=True,
+                fallback_no_match=True):
   """Analyzes a job log file for compilation, test, or infra error patterns.
 
   Args:
     log_path: Path to the log file.
     context_lines: Number of lines of context to include around a match.
+    tag: Optional tag to associate with matches (e.g. 'test_log', 'gha_log').
+    required: If True, returns a match indicating file not found if missing.
+    fallback_no_match: If True, returns placeholder if no signatures match.
 
   Returns:
     A list of matches, each containing the line number, matching line,
-    and context snippet.
+    context snippet, log_path, and tag.
   """
-  if not os.path.exists(log_path):
-    return [{
-        'line_num': None,
-        'line': f'Log file not found: {log_path}',
-        'snippet': '',
-    }]
+  if not log_path or not os.path.exists(log_path):
+    if required:
+      return [{
+          'line_num': None,
+          'line': f'Log file not found: {log_path}',
+          'snippet': '',
+          'log_path': log_path,
+          'tag': tag
+      }]
+    else:
+      return []
 
   raw_matches = []
   try:
@@ -186,14 +203,21 @@ def analyze_log(log_path, context_lines=5):
         'line_num': None,
         'line': f'Error reading log file: {e}',
         'snippet': '',
+        'log_path': log_path,
+        'tag': tag
     }]
 
   if not raw_matches:
-    return [{
-        'line_num': None,
-        'line': 'No matching error signature found.',
-        'snippet': '',
-    }]
+    if fallback_no_match:
+      return [{
+          'line_num': None,
+          'line': 'No matching error signature found.',
+          'snippet': '',
+          'log_path': log_path,
+          'tag': tag
+      }]
+    else:
+      return []
 
   # Generate matches with snippets
   matches = []
@@ -209,7 +233,9 @@ def analyze_log(log_path, context_lines=5):
     matches.append({
         'line_num': line_num,
         'line': m['line'],
-        'snippet': snippet
+        'snippet': snippet,
+        'log_path': log_path,
+        'tag': tag
     })
 
   return matches
@@ -258,7 +284,21 @@ def generate_report(results):
 
     for job in run.get('failed_jobs', []):
       log_path = job.get('local_log_path', '')
-      matches = analyze_log(log_path)
+      log_type = job.get('log_type', 'gha_log')
+      system_log_path = job.get('device_system_log_path', '')
+      device_logs_status = job.get('device_logs_status', '')
+
+      matches = []
+      matches.extend(
+          analyze_log(
+              log_path, tag=log_type, required=True, fallback_no_match=False))
+      if system_log_path:
+        matches.extend(
+            analyze_log(
+                system_log_path,
+                tag='device_system_log',
+                required=False,
+                fallback_no_match=False))
 
       job_info = {
           'run_id': run.get('run_id'),
@@ -268,6 +308,8 @@ def generate_report(results):
           'job_name': job.get('name'),
           'job_url': job.get('url'),
           'local_log_path': log_path,
+          'device_system_log_path': system_log_path,
+          'device_logs_status': device_logs_status,
           'time': run.get('createdAt', 'TODO'),
           'matches': matches,
       }
@@ -329,20 +371,35 @@ def generate_report(results):
         report.append(f"#### Job: {job['job_name']}")
         report.append(f"*   **Invocation Time**: {job['time']}")
         report.append(f"*   **Cached Log**: `{job['local_log_path']}`")
+        if job.get('device_system_log_path'):
+          report.append(
+              f"*   **Device System Log**: `{job['device_system_log_path']}`")
+        elif job.get('device_logs_status') == 'MISSING':
+          report.append(
+              '*   **Device System Log**: MISSING (not found in GHA artifacts)')
         report.append(f"*   **URL**: {job['job_url']}")
         report.append('*   **Error Location(s)**:')
 
-        for m in job['matches']:
-          if m['line_num'] is not None:
-            report.append(f"    *   Line {m['line_num']}: `{m['line']}`")
-            context_lines = 5
-            start_line = max(1, m['line_num'] - context_lines)
-            line_count = 1 + context_lines * 2
-            report.append(
-                f'        *   Log Slice Command: `tail -n +{start_line}'
-                f" \"{job['local_log_path']}\" | head -n {line_count}`")
-          else:
-            report.append(f"    *   `{m['line']}`")
+        if job['matches']:
+          for m in job['matches']:
+            tag = m.get('tag')
+            tag_str = f'[{tag}] ' if tag else ''
+            match_log_path = m.get('log_path', job['local_log_path'])
+            if m['line_num'] is not None:
+              line_num = m['line_num']
+              line_val = m['line']
+              report.append(f'    *   {tag_str}Line {line_num}: `{line_val}`')
+              context_lines = 5
+              start_line = max(1, line_num - context_lines)
+              line_count = 1 + context_lines * 2
+              report.append(
+                  f'        *   Log Slice Command: `tail -n +{start_line}'
+                  f' "{match_log_path}" | head -n {line_count}`')
+            else:
+              line_val = m['line']
+              report.append(f'    *   {tag_str}`{line_val}`')
+        else:
+          report.append('    *   No matching error signature found.')
         report.append('')
 
     if outdated_runs:

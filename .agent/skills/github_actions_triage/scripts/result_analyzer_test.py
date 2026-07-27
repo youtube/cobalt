@@ -497,6 +497,15 @@ class TestResultAnalyzer(unittest.TestCase):
     # Invalid date format
     invalid_time = "invalid-date-string"
 
+    fixed_now = datetime.datetime(
+        2026, 7, 20, 13, 0, 0, tzinfo=datetime.timezone.utc)
+
+    class MockDateTime(datetime.datetime):
+
+      @classmethod
+      def now(cls, tz=None):
+        return fixed_now
+
     mock_results = {
         "total_jobs_fetched":
             2,
@@ -516,6 +525,7 @@ class TestResultAnalyzer(unittest.TestCase):
                     "name": "job-naive",
                     "url": "https://github.com/run/201/job/1",
                     "local_log_path": log_infra,
+                    "log_type": "test_log"
                 }],
             },
             {
@@ -533,6 +543,7 @@ class TestResultAnalyzer(unittest.TestCase):
                     "name": "job-invalid",
                     "url": "https://github.com/run/202/job/1",
                     "local_log_path": log_infra,
+                    "log_type": "test_log"
                 }],
             },
         ],
@@ -540,7 +551,12 @@ class TestResultAnalyzer(unittest.TestCase):
 
     # This should execute without throwing offset-naive vs offset-aware
     # TypeError or ValueError
-    report = result_analyzer.generate_report(mock_results)
+    with mock.patch.object(
+        result_analyzer.datetime,
+        "datetime",
+        MockDateTime,
+    ):
+      report = result_analyzer.generate_report(mock_results)
 
     self.assertIn("#### Job: job-naive", report)
     self.assertIn("#### Job: job-invalid", report)
@@ -736,6 +752,118 @@ class TestResultAnalyzer(unittest.TestCase):
     self.assertIn("All runs completed successfully.", report)
     self.assertNotIn("Outdated Failures", report)
     self.assertNotIn("Outdated Failed Runs", report)
+
+  def test_analyze_log_device_crash_signatures(self):
+    content = (
+        "Line 1\n"
+        "Fatal signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), "
+        "fault addr 0x0 in tid 123\n"
+        "Line 3\n"
+        "*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***\n"
+        "Line 5\n"
+        "FATAL EXCEPTION: main\n"
+        "Line 7\n"
+        "Caused by: java.lang.NullPointerException\n"
+        "Line 9\n"
+        "Process com.google.android.youtube.cobalt (pid 456) has died\n")
+    path = self.create_log_file(content)
+    matches = result_analyzer.analyze_log(path)
+    self.assertEqual(len(matches), 5)
+    self.assertEqual(
+        matches[0]["line"], "Fatal signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), "
+        "fault addr 0x0 in tid 123")
+    self.assertEqual(matches[0]["line_num"], 2)
+    self.assertEqual(
+        matches[1]["line"],
+        "*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***")
+    self.assertEqual(matches[1]["line_num"], 4)
+    self.assertEqual(matches[2]["line"], "FATAL EXCEPTION: main")
+    self.assertEqual(matches[2]["line_num"], 6)
+    self.assertEqual(matches[3]["line"],
+                     "Caused by: java.lang.NullPointerException")
+    self.assertEqual(matches[3]["line_num"], 8)
+    self.assertEqual(
+        matches[4]["line"],
+        "Process com.google.android.youtube.cobalt (pid 456) has died")
+    self.assertEqual(matches[4]["line_num"], 10)
+
+  def test_generate_report_with_device_system_log(self):
+    log_test = self.create_log_file("[  FAILED  ] MyTest.TestOne")
+    log_system = self.create_log_file("Fatal signal 11")
+    now = datetime.datetime.now(datetime.timezone.utc)
+    recent_time = ((now - datetime.timedelta(hours=2)).isoformat().replace(
+        "+00:00", "Z"))
+
+    mock_results = {
+        "total_jobs_fetched":
+            1,
+        "runs": [{
+            "run_id":
+                301,
+            "workflow_name":
+                "test-device",
+            "branch":
+                "main",
+            "event":
+                "push",
+            "createdAt":
+                recent_time,
+            "failed_jobs": [{
+                "name": "job-device",
+                "url": "https://github.com/run/301/job/1",
+                "local_log_path": log_test,
+                "log_type": "test_log",
+                "device_system_log_path": log_system,
+            }],
+        }],
+    }
+
+    report = result_analyzer.generate_report(mock_results)
+
+    self.assertIn("#### Job: job-device", report)
+    self.assertIn(f"*   **Cached Log**: `{log_test}`", report)
+    self.assertIn(f"*   **Device System Log**: `{log_system}`", report)
+    self.assertIn("[test_log] Line 1: `[  FAILED  ] MyTest.TestOne`", report)
+    self.assertIn("[device_system_log] Line 1: `Fatal signal 11`", report)
+    self.assertIn(f"Log Slice Command: `tail -n +1 \"{log_test}\"", report)
+    self.assertIn(f"Log Slice Command: `tail -n +1 \"{log_system}\"", report)
+
+  def test_generate_report_with_missing_device_logs(self):
+    log_test = self.create_log_file("[  FAILED  ] MyTest.TestOne")
+    now = datetime.datetime.now(datetime.timezone.utc)
+    recent_time = ((now - datetime.timedelta(hours=2)).isoformat().replace(
+        "+00:00", "Z"))
+
+    mock_results = {
+        "total_jobs_fetched":
+            1,
+        "runs": [{
+            "run_id":
+                302,
+            "workflow_name":
+                "test-device-missing",
+            "branch":
+                "main",
+            "event":
+                "push",
+            "createdAt":
+                recent_time,
+            "failed_jobs": [{
+                "name": "job-device-missing",
+                "url": "https://github.com/run/302/job/1",
+                "local_log_path": log_test,
+                "log_type": "test_log",
+                "device_logs_status": "MISSING",
+            }],
+        }],
+    }
+
+    report = result_analyzer.generate_report(mock_results)
+
+    self.assertIn("#### Job: job-device-missing", report)
+    self.assertIn(
+        "*   **Device System Log**: MISSING (not found in GHA artifacts)",
+        report)
 
 
 if __name__ == "__main__":

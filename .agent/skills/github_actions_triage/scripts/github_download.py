@@ -9,8 +9,10 @@ import getpass
 import glob
 import json
 import os
+import shutil
 import sys
 import tempfile
+import traceback
 import xml.etree.ElementTree as ET
 
 _scripts_dir = os.path.dirname(os.path.abspath(__file__))
@@ -141,18 +143,94 @@ def download_test_results(run_id, dest_dir):
     return False
 
 
-def process_job(run_id, job, cache_dir):
+def _determine_cached_log_type(log_path, system_log_path):
+  """Determines the log type of a cached log file."""
+  try:
+    with open(log_path, 'r', encoding='utf-8') as f:
+      first_line = f.readline()
+      if first_line.startswith('JUnit Failure:'):
+        return 'synthetic'
+  except Exception:  # pylint: disable=broad-exception-caught
+    pass
+  if os.path.exists(system_log_path):
+    return 'test_log'
+  return 'gha_log'
+
+
+# pylint: disable=too-many-positional-arguments
+def _extract_logs_from_artifacts(run_temp_dir, platform, target_name,
+                                 dest_log_path, dest_system_log_path, job):
+  """Extracts target-specific logs and system logs from run artifacts.
+
+  Args:
+    run_temp_dir: Directory where run artifacts are downloaded.
+    platform: Platform name (e.g. 'android-arm64').
+    target_name: Target name (e.g. 'skia_unittests').
+    dest_log_path: Path where target log should be copied.
+    dest_system_log_path: Path where system log should be copied.
+    job: Job metadata dict to update.
+
+  Returns:
+    True if at least one log was found and copied, False otherwise.
+  """
+  found_logs = False
+  if platform:
+    log_pattern = os.path.join(run_temp_dir, f'**/{platform}',
+                               f'**/{target_name}_log.txt')
+    system_log_patterns = [
+        os.path.join(run_temp_dir, f'**/{platform}',
+                     f'**/{target_name}_device_logcat.txt'),
+        os.path.join(run_temp_dir, f'**/{platform}',
+                     f'**/{target_name}_device_log.txt'),
+    ]
+  else:
+    log_pattern = os.path.join(run_temp_dir, f'**/{target_name}_log.txt')
+    system_log_patterns = [
+        os.path.join(run_temp_dir, f'**/{target_name}_device_logcat.txt'),
+        os.path.join(run_temp_dir, f'**/{target_name}_device_log.txt'),
+    ]
+
+  # Search for target-specific log
+  log_files = glob.glob(log_pattern, recursive=True)
+  if log_files:
+    shutil.copy(log_files[0], dest_log_path)
+    job['local_log_path'] = dest_log_path
+    job['log_type'] = 'test_log'
+    found_logs = True
+    print(
+        f'Found test log for {target_name} in artifact: {log_files[0]}',
+        file=sys.stderr,
+    )
+
+  # Search for device system log
+  for pattern in system_log_patterns:
+    system_log_files = glob.glob(pattern, recursive=True)
+    if system_log_files:
+      shutil.copy(system_log_files[0], dest_system_log_path)
+      job['device_system_log_path'] = dest_system_log_path
+      print(
+          f'Found device system log for {target_name} in artifact:'
+          f' {system_log_files[0]}',
+          file=sys.stderr,
+      )
+      break
+
+  return found_logs
+
+
+def process_job(job, cache_dir, run_temp_dir):
   """Processes a single GHA job.
 
   Args:
-    run_id: ID of the GHA run.
     job: Job metadata dict to update with local log path.
     cache_dir: Directory where logs should be stored.
+    run_temp_dir: Directory where run artifacts are downloaded, or None.
   """
   job_id = job['job_id']
   job_name = job['name']
 
   dest_log_path = os.path.join(cache_dir, f'{job_id}.log')
+  dest_system_log_path = os.path.join(cache_dir, f'{job_id}_system_log.txt')
 
   if os.path.exists(dest_log_path) and os.path.getsize(dest_log_path) > 0:
     print(
@@ -161,55 +239,90 @@ def process_job(run_id, job, cache_dir):
         file=sys.stderr,
     )
     job['local_log_path'] = dest_log_path
+    # Also check if system log exists in cache
+    if os.path.exists(dest_system_log_path):
+      job['device_system_log_path'] = dest_system_log_path
+    job['log_type'] = _determine_cached_log_type(dest_log_path,
+                                                 dest_system_log_path)
     return
 
-  is_test_job = 'test' in job_name.lower() or 'results' in job_name.lower()
+  # Extract target name and platform if possible
+  target_name = None
+  if ':' in job_name:
+    target_name = job_name.split(':')[-1].strip()
 
-  if is_test_job:
+  platform = None
+  if '/' in job_name:
+    platform = job_name.split('/')[0].strip()
+
+  is_test_job = 'test' in job_name.lower() or 'results' in job_name.lower(
+  ) or target_name is not None
+
+  if is_test_job and run_temp_dir:
     print(
-        f'Job {job_name} ({job_id}) classified as Test Job. Attempting XML'
-        ' download...',
+        f'Job {job_name} ({job_id}) classified as Test Job '
+        f'(target: {target_name}, platform: {platform}).'
+        ' Looking for logs in downloaded artifacts...',
         file=sys.stderr,
     )
-    # Use a separate temp dir for this run's artifacts to avoid mixing
-    with tempfile.TemporaryDirectory() as temp_dl_dir:
-      if download_test_results(run_id, temp_dl_dir):
-        # Find all XMLs
-        xml_files = glob.glob(
-            os.path.join(temp_dl_dir, '**/*.xml'), recursive=True)
-        failures = []
-        for xml_file in xml_files:
-          failures.extend(parse_junit_xml(xml_file))
+    found_logs = False
+    if target_name:
+      found_logs = _extract_logs_from_artifacts(run_temp_dir, platform,
+                                                target_name, dest_log_path,
+                                                dest_system_log_path, job)
 
-        if failures:
-          print(
-              f'Found {len(failures)} failures in JUnit XMLs. Writing synthetic'
-              ' log.',
-              file=sys.stderr,
-          )
-          write_synthetic_log(failures, dest_log_path)
-          job['local_log_path'] = dest_log_path
-          return
-        else:
-          print(
-              f'No failures found in XMLs for job {job_name} ({job_id}).'
-              ' Falling back to full log.',
-              file=sys.stderr,
-          )
-      else:
+    if not found_logs:
+      # Fallback to old behavior: parse all XMLs and write synthetic log
+      xml_pattern = os.path.join(
+          run_temp_dir,
+          f'**/{target_name}_testoutput.xml') if target_name else os.path.join(
+              run_temp_dir, '**/*.xml')
+      xml_files = glob.glob(xml_pattern, recursive=True)
+      failures = []
+      for xml_file in xml_files:
+        failures.extend(parse_junit_xml(xml_file))
+
+      if failures:
         print(
-            f'Failed to download XMLs for job {job_name} ({job_id}). Falling'
-            ' back to full log.',
+            f'Found {len(failures)} failures in JUnit XMLs. '
+            'Writing synthetic log.',
             file=sys.stderr,
         )
+        write_synthetic_log(failures, dest_log_path)
+        job['local_log_path'] = dest_log_path
+        job['log_type'] = 'synthetic'
+        found_logs = True
 
-  # Fallback to full log download
+    if found_logs:
+      return
+    else:
+      print(
+          f'No logs or failures found in artifacts for job '
+          f'{job_name} ({job_id}).'
+          ' Marking device logs as MISSING.',
+          file=sys.stderr,
+      )
+      job['device_logs_status'] = 'MISSING'
+
+  elif is_test_job and not run_temp_dir:
+    print(
+        f'Job {job_name} ({job_id}) is a Test Job but '
+        'no artifacts were downloaded.'
+        ' Marking device logs as MISSING.',
+        file=sys.stderr,
+    )
+    job['device_logs_status'] = 'MISSING'
+
+  # Fallback to full log download (GHA job log)
   print(
-      f'Downloading full log for job {job_name} ({job_id})...', file=sys.stderr)
+      f'Downloading full GHA log for job {job_name} ({job_id})...',
+      file=sys.stderr)
   if download_job_log(job_id, dest_log_path):
     job['local_log_path'] = dest_log_path
+    job['log_type'] = 'gha_log'
   else:
     job['local_log_path'] = ''
+    job['log_type'] = ''
 
 
 def main():
@@ -236,11 +349,12 @@ def main():
 
   username = getpass.getuser()
   cache_dir = os.path.join('/tmp', f'github_gardener_{username}')
+  os.makedirs(cache_dir, exist_ok=True)
   print(f'Using cache directory: {cache_dir}', file=sys.stderr)
 
   now = datetime.datetime.now(datetime.timezone.utc)
-  # Collect all tasks to run in parallel
-  tasks = []
+  # Group jobs by run_id
+  run_tasks = {}
   for run in data.get('runs', []):
     run_id = run['run_id']
     is_outdated, age_str = gardener_utils.check_run_age(run, now)
@@ -251,17 +365,37 @@ def main():
           file=sys.stderr,
       )
       continue
-    for job in run.get('failed_jobs', []):
-      tasks.append((run_id, job))
+    run_tasks[run_id] = {'run': run, 'jobs': run.get('failed_jobs', [])}
 
-  print(f'Processing {len(tasks)} failed jobs in parallel...', file=sys.stderr)
-  with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-    futures = [
-        executor.submit(process_job, run_id, job, cache_dir)
-        for run_id, job in tasks
-    ]
-    # Wait for all to complete
-    concurrent.futures.wait(futures)
+  temp_dirs = {}
+  futures = []
+
+  try:
+    print('Processing runs...', file=sys.stderr)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+      for run_id, run_data in run_tasks.items():
+        print(f'Downloading artifacts for run {run_id}...', file=sys.stderr)
+        temp_dir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+        temp_dirs[run_id] = temp_dir
+
+        download_success = download_test_results(run_id, temp_dir.name)
+        run_temp_dir = temp_dir.name if download_success else None
+
+        for job in run_data['jobs']:
+          futures.append(
+              executor.submit(process_job, job, cache_dir, run_temp_dir))
+
+      # Wait for all to complete and check for exceptions
+      for future in concurrent.futures.as_completed(futures):
+        try:
+          future.result()
+        except Exception as e:  # pylint: disable=broad-exception-caught
+          print(f'Exception in process_job: {e}', file=sys.stderr)
+          traceback.print_exc(file=sys.stderr)
+  finally:
+    # Cleanup temp dirs
+    for temp_dir in temp_dirs.values():
+      temp_dir.cleanup()
 
   # Rename key if we want to follow the final schema
   # The output is basically the same but with local_log_path populated in
