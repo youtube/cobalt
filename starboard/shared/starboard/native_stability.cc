@@ -43,8 +43,8 @@ void RegisterReadReportsCallback(ReadReportsCallback callback) {
   SB_CHECK_EQ(pthread_mutex_unlock(&g_read_reports_callback_mutex), 0);
 }
 
-const CobaltExtensionNativeStabilityApi kNativeStabilityApi = {
-    kCobaltExtensionNativeStabilityName,
+const StarboardExtensionNativeStabilityApi kNativeStabilityApi = {
+    kStarboardExtensionNativeStabilityName,
     1,
     &ReadReports,
     &RegisterReadReportsCallback,

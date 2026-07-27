@@ -631,8 +631,8 @@ TEST(ExtensionTest, StarboardMediaBufferPoolExtension) {
 }
 
 TEST(ExtensionTest, NativeStabilityExtension) {
-  typedef CobaltExtensionNativeStabilityApi ExtensionApi;
-  const char* kExtensionName = kCobaltExtensionNativeStabilityName;
+  typedef StarboardExtensionNativeStabilityApi ExtensionApi;
+  const char* kExtensionName = kStarboardExtensionNativeStabilityName;
 
   const ExtensionApi* extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
