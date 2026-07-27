@@ -17,10 +17,14 @@ package dev.cobalt.app;
 import android.app.Activity;
 import android.app.Service;
 import android.os.Bundle;
+import android.view.Surface;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import dev.cobalt.coat.BaseCobaltActivity;
 import dev.cobalt.coat.BaseStarboardBridge;
 import dev.cobalt.coat.CobaltService;
 import dev.cobalt.libraries.services.clientloginfo.ClientLogInfoModule;
+import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -58,23 +62,61 @@ public class MainActivity extends BaseCobaltActivity {
   interface Natives {
     // Spawns the loader thread, whose main() runs the app loader.
     void startLoader();
+    void nativeOnSurfaceCreated(Surface surface);
+    void nativeOnSurfaceDestroyed();
   }
+
+  private boolean mStarboardStarted;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
 
+    // BaseStarboardBridge.getDisplaySize()/getDisplayDpi() read the DisplayMetrics DisplayUtil
+    // caches, which stays null until cacheDefaultDisplay() runs. CobaltActivity does this from
+    // onStart(); the AOSP app doesn't build CobaltActivity, so do it here.
+    DisplayUtil.cacheDefaultDisplay(this);
+
     String startDeepLink = getIntentUrlAsString(getIntent());
-    if (getStarboardBridge() == null) {
+    boolean coldStart = getStarboardBridge() == null;
+    if (coldStart) {
       // Cold start - Instantiate the singleton BaseStarboardBridge.
       BaseStarboardBridge starboardBridge = createStarboardBridge(getArgs(), startDeepLink);
       ((BaseStarboardBridge.HostApplication) getApplication()).setStarboardBridge(starboardBridge);
-      // Spawn the loader thread.
-      MainActivityJni.get().startLoader();
     } else if (savedInstanceState == null) {
       // Warm start - Pass the deep link to the running Starboard app.
       getStarboardBridge().handleDeepLink(startDeepLink);
     }
+
+    // The NDK uses an ANativeWindow to represent a producer of an image queue - it can send the
+    // produced images to other consumers or it can be displayed on screen.
+    // The SurfaceView creates a drawing surface in the view hierarchy, creating an ANativeWindow
+    // set to act as the rendering surface that we need to render cobalt UI. It's not immediately
+    // available, so we set a callback to wait for the surface, store it and then start the loader.
+    SurfaceView surfaceView = new SurfaceView(this);
+    surfaceView
+        .getHolder()
+        .addCallback(
+            new SurfaceHolder.Callback() {
+              @Override
+              public void surfaceCreated(SurfaceHolder holder) {
+                MainActivityJni.get().nativeOnSurfaceCreated(holder.getSurface());
+                if (coldStart && !mStarboardStarted) {
+                  mStarboardStarted = true;
+                  // Spawn the loader thread.
+                  MainActivityJni.get().startLoader();
+                }
+              }
+
+              @Override
+              public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {}
+
+              @Override
+              public void surfaceDestroyed(SurfaceHolder holder) {
+                MainActivityJni.get().nativeOnSurfaceDestroyed();
+              }
+            });
+    setContentView(surfaceView);
   }
 
   @Override

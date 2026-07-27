@@ -19,6 +19,7 @@
 #include <cstdint>
 
 #include "starboard/shared/starboard/queue_application.h"
+#include "starboard/window.h"
 
 namespace starboard {
 
@@ -54,6 +55,16 @@ class ApplicationAOSP : public QueueApplication {
   static ApplicationAOSP* GetIfExists() {
     return g_instance.load(std::memory_order_acquire);
   }
+
+  // Aborts if there is no application. Only use this from the Starboard thread,
+  // (from code that runs inside SbRunStarboardMain)
+  static ApplicationAOSP* Get() {
+    return static_cast<ApplicationAOSP*>(Application::Get());
+  }
+
+  // proxies for SbWindowCreate/SbWindowDestroy
+  SbWindow CreateWindow(const SbWindowOptions* options);
+  bool DestroyWindow(SbWindow window);
 
  protected:
   bool MayHaveSystemEvents() override { return false; }

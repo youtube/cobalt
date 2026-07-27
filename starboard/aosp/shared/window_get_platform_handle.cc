@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_WINDOW_INTERNAL_H_
-#define STARBOARD_ANDROID_SHARED_WINDOW_INTERNAL_H_
-
-#include <android/native_window.h>
-
 #include "starboard/window.h"
 
-struct SbWindowPrivate {
-  ANativeWindow* native_window;
-};
+#include "starboard/aosp/shared/window_internal.h"
 
-#endif  // STARBOARD_ANDROID_SHARED_WINDOW_INTERNAL_H_
+void* SbWindowGetPlatformHandle(SbWindow window) {
+  if (!SbWindowIsValid(window)) {
+    return nullptr;
+  }
+  // EGLNativeWindowType and ANativeWindow* are the same on Android, so it
+  // can be handled straight to eglCreateWindowSurface().
+  return window->native_window;
+}

@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// clang-format off
 #include "starboard/window.h"
-// clang-format on
 
-#include "starboard/android/shared/application_android.h"
+#include "starboard/aosp/shared/application_aosp.h"
 
 bool SbWindowDestroy(SbWindow window) {
-  return starboard::ApplicationAndroid::Get()->DestroyWindow(window);
+  return starboard::ApplicationAOSP::Get()->DestroyWindow(window);
 }

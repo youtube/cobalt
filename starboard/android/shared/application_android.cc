@@ -30,7 +30,6 @@
 #include "cobalt/android/jni_headers/HTMLMediaElementExtension_jni.h"
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/android/shared/starboard_bridge.h"
-#include "starboard/android/shared/window_internal.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"

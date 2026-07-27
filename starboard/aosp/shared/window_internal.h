@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2017 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef STARBOARD_AOSP_SHARED_WINDOW_INTERNAL_H_
+#define STARBOARD_AOSP_SHARED_WINDOW_INTERNAL_H_
+
+#include <android/native_window.h>
+
 #include "starboard/window.h"
 
-// #include "starboard/android/shared/application_android.h"
+struct SbWindowPrivate {
+  ANativeWindow* native_window;
+};
 
-SbWindow SbWindowCreate(const SbWindowOptions* options) {
-  // return starboard::ApplicationAndroid::Get()->CreateWindow(
-  //     options);
-}
+#endif  // STARBOARD_AOSP_SHARED_WINDOW_INTERNAL_H_

@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,30 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/window.h"
+
 #include <android/native_window.h>
 #include <jni.h>
 
-#include "starboard/android/shared/starboard_bridge.h"
-#include "starboard/android/shared/window_internal.h"
-#include "starboard/common/log.h"
-#include "starboard/window.h"
+#include <algorithm>
 
-using jni_zero::AttachCurrentThread;
+#include "starboard/android/shared/starboard_bridge.h"
+#include "starboard/aosp/shared/window_internal.h"
+#include "starboard/common/log.h"
 
 bool SbWindowGetSize(SbWindow window, SbWindowSize* size) {
   if (!SbWindowIsValid(window)) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Invalid window.";
     return false;
   }
-
-  if (window->native_window == NULL) {
+  if (window->native_window == nullptr) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Native window has been destroyed.";
     return false;
   }
+
   size->width = ANativeWindow_getWidth(window->native_window);
   size->height = ANativeWindow_getHeight(window->native_window);
+  if (size->width <= 0 || size->height <= 0) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Native window has no size yet.";
+    return false;
+  }
 
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   starboard::Size display_size =
       starboard::StarboardBridge::GetInstance()->GetDeviceResolution(env);
 
