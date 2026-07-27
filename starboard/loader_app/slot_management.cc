@@ -14,8 +14,10 @@
 
 #include "starboard/loader_app/slot_management.h"
 
+#include <fcntl.h>
 #include <stdio.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include <algorithm>
 #include <iostream>
@@ -40,7 +42,21 @@
 #include "starboard/loader_app/read_evergreen_version.h"
 
 namespace loader_app {
+
 namespace {
+
+void FlushCache(const std::string& path) {
+  int fd = open(path.c_str(), O_RDONLY);
+  if (fd != -1) {
+    if (posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED) == 0) {
+      SB_LOG(INFO) << "Surgically flushed " << path << " from disk cache.";
+    } else {
+      SB_LOG(WARNING) << "Failed to flush " << path << " from disk cache.";
+    }
+    close(fd);
+  }
+}
+
 
 // The max number of installations slots.
 const int kMaxNumInstallations = 2;
@@ -50,6 +66,12 @@ const char kCobaltLibraryPath[] = "lib";
 
 // Filename for the Cobalt binary.
 const char kCobaltLibraryName[] = "libcobalt.so";
+
+// Filename for the LZ4 compressed Cobalt binary.
+const char kLz4CompressedCobaltLibraryName[] = "libcobalt.lz4";
+
+// Filename for the Zstd compressed Cobalt binary.
+const char kZstdCompressedCobaltLibraryName[] = "libcobalt.zst";
 
 // Filename for the compressed Cobalt binary.
 const char kCompressedCobaltLibraryName[] = "libcobalt.lz4";
@@ -222,7 +244,15 @@ void InsertVersionAnnotationFromManifest(int installation_index) {
 void* LoadSlotManagedLibrary(const std::string& app_key,
                              const std::string& alternative_content_path,
                              LibraryLoader* library_loader,
-                             bool use_memory_mapped_file) {
+                             bool use_memory_mapped_file,
+                             bool use_streaming,
+                             bool use_chunked,
+                             bool use_parallel,
+                             bool use_pipelined_parallel,
+                             bool use_segment_decompression,
+                             bool use_fully_deferred,
+                             bool flush_cache,
+                             bool use_contention_diagnostic) {
   // Initialize the Installation Manager.
   if (ImInitialize(kMaxNumInstallations, app_key.c_str()) != IM_SUCCESS) {
     SB_LOG(ERROR) << "Abort. Failed to initialize Installation Manager";
@@ -347,11 +377,19 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
       }
     }
 
-    // installation_n/lib/libcobalt.so
-    std::vector<char> compressed_lib_path(kSbFileMaxPath);
-    snprintf(compressed_lib_path.data(), kSbFileMaxPath, "%s%s%s%s%s",
+    // installation_n/lib/libcobalt.zst
+    std::vector<char> zstd_lib_path(kSbFileMaxPath);
+    snprintf(zstd_lib_path.data(), kSbFileMaxPath, "%s%s%s%s%s",
              installation_path.data(), kSbFileSepString, kCobaltLibraryPath,
-             kSbFileSepString, kCompressedCobaltLibraryName);
+             kSbFileSepString, kZstdCompressedCobaltLibraryName);
+
+    // installation_n/lib/libcobalt.lz4
+    std::vector<char> lz4_lib_path(kSbFileMaxPath);
+    snprintf(lz4_lib_path.data(), kSbFileMaxPath, "%s%s%s%s%s",
+             installation_path.data(), kSbFileSepString, kCobaltLibraryPath,
+             kSbFileSepString, kLz4CompressedCobaltLibraryName);
+
+    // installation_n/lib/libcobalt.so
     std::vector<char> uncompressed_lib_path(kSbFileMaxPath);
     snprintf(uncompressed_lib_path.data(), kSbFileMaxPath, "%s%s%s%s%s",
              installation_path.data(), kSbFileSepString, kCobaltLibraryPath,
@@ -360,22 +398,28 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
     std::string lib_path;
     bool use_compression;
     struct stat info;
-    if (stat(compressed_lib_path.data(), &info) == 0) {
-      lib_path = compressed_lib_path.data();
+    if (stat(zstd_lib_path.data(), &info) == 0) {
+      lib_path = zstd_lib_path.data();
+      use_compression = true;
+    } else if (stat(lz4_lib_path.data(), &info) == 0) {
+      lib_path = lz4_lib_path.data();
       use_compression = true;
     } else if (stat(uncompressed_lib_path.data(), &info) == 0) {
       lib_path = uncompressed_lib_path.data();
       use_compression = false;
     } else {
-      SB_LOG(ERROR) << "No library found at compressed "
-                    << compressed_lib_path.data() << " or uncompressed "
-                    << uncompressed_lib_path.data() << " path";
+      SB_LOG(ERROR) << "No library found at " << zstd_lib_path.data() << ", "
+                    << lz4_lib_path.data() << " or " << uncompressed_lib_path.data();
       return NULL;
     }
 
     if (use_compression && use_memory_mapped_file) {
       SB_LOG(ERROR) << "Using both compression and mmap files is not supported";
       return NULL;
+    }
+
+    if (flush_cache) {
+      FlushCache(lib_path);
     }
 
     SB_LOG(INFO) << "lib_path=" << lib_path;
@@ -394,7 +438,10 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
     SB_LOG(INFO) << "content=" << content;
 
     if (!library_loader->Load(lib_path, content.c_str(), use_compression,
-                              use_memory_mapped_file)) {
+                              use_memory_mapped_file, use_streaming,
+                              use_chunked, use_parallel, use_pipelined_parallel,
+                              use_segment_decompression, use_fully_deferred,
+                              use_contention_diagnostic)) {
       SB_LOG(WARNING) << "Failed to load Cobalt!";
 
       // Hard failure. Discard the image and auto rollback, but only if
