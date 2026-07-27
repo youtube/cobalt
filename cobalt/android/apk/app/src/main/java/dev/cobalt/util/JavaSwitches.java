@@ -43,9 +43,6 @@ public class JavaSwitches {
 
   public static final String USE_MINOR_MS_FOR_MINOR_GC = "UseMinorMSForMinorGC";
 
-  /** flag to delete stale leveldb LOCK file on startup. */
-  public static final String LOCAL_STORAGE_DELETE_LOCK_FILE = "LocalStorageDeleteLockFile";
-
   /** flag to tune compositor offscreen interest area size in pixels. */
   public static final String INTEREST_AREA_SIZE_IN_PIXELS = "InterestAreaSizeInPixels";
 
@@ -108,10 +105,6 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.USE_IPV4_FOR_DNS)) {
       enabledFeatures.add("UseIPv4ForDNS");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.LOCAL_STORAGE_DELETE_LOCK_FILE)) {
-      enabledFeatures.add("LocalStorageDeleteLockFile");
     }
 
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
