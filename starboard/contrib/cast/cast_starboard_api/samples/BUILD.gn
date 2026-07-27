@@ -1,0 +1,79 @@
+# Copyright 2022 Google LLC. All rights reserved.
+import("//starboard/contrib/cast/cast.gni")
+
+assert(use_contrib_cast)
+
+group("cast") {
+  public_deps = [ ":cast_starboard_api" ]
+}
+
+_CAST_STARBOARD_API_SOURCES = [
+  "../cast_starboard_api.h",
+  "cast_starboard_api_impl.cc",
+]
+
+if (final_executable_type == "shared_library") {
+  # Sample implementation of cast_starboard_api which utilizes StarboardMain.
+  # This implementation should work on any platform, but cannot currently be
+  # used with test because of the way StarboardMain is defined (by redefining
+  # `main` in the binary)
+  target(final_executable_type, "cast_starboard_api") {
+    sources = _CAST_STARBOARD_API_SOURCES
+    deps = [
+      "//starboard",
+      "//$starboard_path:starboard_platform"
+    ]
+    ldflags = [
+      # Prevents unresolved symbols
+      "-Wl,-z,defs",
+      # This makes Sb*, kSb*, and CastStarboardApi* public, but they could still
+      # be hidden by other compiler flags.
+      "-Wl,--version-script=" + rebase_path("./cast_starboard_api.lds",
+        root_build_dir)
+    ]
+  }
+} else {
+  # Sample implementation of cast_starboard_api which utilizes a platform-
+  # specific implementation. It does not require a specific build
+  # configuration and can be tested with the `cast_starboard_api_test_main`.
+  shared_library("cast_starboard_api") {
+    sources = _CAST_STARBOARD_API_SOURCES
+    defines = [ "CAST_STARBOARD_API_X11"]
+    deps = [
+      "//starboard",
+    ]
+    ldflags = [
+      # Prevents unresolved symbols
+      "-Wl,-z,defs",
+      # This makes Sb*, kSb*, and CastStarboardApi* public, but they could still
+      # be hidden by other compiler flags.
+      "-Wl,--version-script=" + rebase_path("./cast_starboard_api.lds",
+        root_build_dir)
+    ]
+  }
+
+  copy("cast_starboard_api_test_data") {
+    install_content = true
+    sources = ["$root_out_dir/libcast_starboard_api.so"]
+    outputs = [ "$sb_static_contents_output_data_dir/{{source_file_part}}" ]
+    deps = [
+      ":cast_starboard_api"
+    ]
+  }
+
+  target(gtest_target_type, "cast_starboard_api_test") {
+    testonly = true
+    sources = [
+      "//starboard/common/test_main.cc",
+      "cast_starboard_api_test.cc",
+    ]
+    data_deps = [
+      ":cast_starboard_api_test_data",
+    ]
+    deps = [
+      "//starboard",
+      "//testing/gtest",
+      "//starboard/nplb/testdata/file_tests:nplb_file_tests_data",
+    ]
+  }
+}
