@@ -29,11 +29,11 @@ const char kVersionKey[] = "version";
 
 }  // namespace
 
-const int kMaxEgVersionLength = 20;
+const int kMaxEgVersionSize = 20;
 
 bool ReadEvergreenVersion(const std::vector<char>& manifest_file_path,
                           char* version,
-                          int version_length) {
+                          int max_version_size) {
   // Check the manifest file exists
   struct stat info;
   if (stat(manifest_file_path.data(), &info) != 0) {
@@ -61,8 +61,8 @@ bool ReadEvergreenVersion(const std::vector<char>& manifest_file_path,
     return false;
   }
 
-  if (snprintf(version, version_length, "%s",
-               obj[kVersionKey].asString().c_str()) >= version_length) {
+  if (snprintf(version, max_version_size, "%s",
+               obj[kVersionKey].asString().c_str()) >= max_version_size) {
     SB_LOG(WARNING) << "Evergreen version was truncated.";
     return false;
   }
