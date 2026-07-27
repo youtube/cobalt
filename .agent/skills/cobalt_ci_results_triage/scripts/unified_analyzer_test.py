@@ -535,6 +535,182 @@ class TestUnifiedAnalyzer(unittest.TestCase):
     self.assertIn("**Job**: job-device-missing", report)
     self.assertIn("**Device System Log**: MISSING", report)
 
+  def test_generate_report_branch_sorting(self):
+    failed_jobs = [
+        {
+            "source": "github",
+            "branch": "9.lts.1.master",
+            "run_id": "1",
+            "run_name": "run1",
+            "run_url": "url",
+            "job_name": "job1",
+            "job_url": "url",
+            "local_log_path": self.child_log_path,
+            "matches": []
+        },
+        {
+            "source": "github",
+            "branch": "main",
+            "run_id": "2",
+            "run_name": "run2",
+            "run_url": "url",
+            "job_name": "job2",
+            "job_url": "url",
+            "local_log_path": self.child_log_path,
+            "matches": []
+        },
+        {
+            "source": "github",
+            "branch": "25.lts.2.master",
+            "run_id": "3",
+            "run_name": "run3",
+            "run_url": "url",
+            "job_name": "job3",
+            "job_url": "url",
+            "local_log_path": self.child_log_path,
+            "matches": []
+        },
+        {
+            "source": "github",
+            "branch": "25.lts.10.master",
+            "run_id": "4",
+            "run_name": "run4",
+            "run_url": "url",
+            "job_name": "job4",
+            "job_url": "url",
+            "local_log_path": self.child_log_path,
+            "matches": []
+        },
+        {
+            "source": "github",
+            "branch": "25.lts.1.master",
+            "run_id": "5",
+            "run_name": "run5",
+            "run_url": "url",
+            "job_name": "job5",
+            "job_url": "url",
+            "local_log_path": self.child_log_path,
+            "matches": []
+        },
+        {
+            "source": "github",
+            "branch": "COBALT_9",
+            "run_id": "6",
+            "run_name": "run6",
+            "run_url": "url",
+            "job_name": "job6",
+            "job_url": "url",
+            "local_log_path": self.child_log_path,
+            "matches": []
+        },
+        {
+            "source": "github",
+            "branch": "custom-feature",
+            "run_id": "7",
+            "run_name": "run7",
+            "run_url": "url",
+            "job_name": "job7",
+            "job_url": "url",
+            "local_log_path": self.child_log_path,
+            "matches": []
+        },
+        {
+            "source": "github",
+            "branch": "26.android",
+            "run_id": "8",
+            "run_name": "run8",
+            "run_url": "url",
+            "job_name": "job8",
+            "job_url": "url",
+            "local_log_path": self.child_log_path,
+            "matches": []
+        },
+        {
+            "source": "github",
+            "branch": "26.eap",
+            "run_id": "9",
+            "run_name": "run9",
+            "run_url": "url",
+            "job_name": "job9",
+            "job_url": "url",
+            "local_log_path": self.child_log_path,
+            "matches": []
+        },
+    ]
+
+    report = unified_analyzer.generate_report(failed_jobs, [], total_fetched=9)
+
+    # Expected order (version descending):
+    # 1. main
+    # 2. 26.eap
+    # 3. 26.android
+    # 4. 25.lts.10.master
+    # 5. 25.lts.2.master
+    # 6. 25.lts.1.master
+    # 7. 9.lts.1.master
+    # 8. COBALT_9
+    # 9. custom-feature
+
+    health_report_idx = report.find("## Branch Health Report")
+    detailed_failures_idx = report.find("## Detailed Branch Failures")
+
+    self.assertNotEqual(health_report_idx, -1)
+    self.assertNotEqual(detailed_failures_idx, -1)
+
+    # Check Health Report Section
+    health_section = report[health_report_idx:detailed_failures_idx]
+    idx_main = health_section.find("Branch: main")
+    idx_26_eap = health_section.find("Branch: 26.eap")
+    idx_26_android = health_section.find("Branch: 26.android")
+    idx_25_10 = health_section.find("Branch: 25.lts.10.master")
+    idx_25_2 = health_section.find("Branch: 25.lts.2.master")
+    idx_25_1 = health_section.find("Branch: 25.lts.1.master")
+    idx_9 = health_section.find("Branch: 9.lts.1.master")
+    idx_cobalt = health_section.find("Branch: COBALT_9")
+    idx_custom = health_section.find("Branch: custom-feature")
+
+    self.assertNotEqual(idx_main, -1)
+    self.assertNotEqual(idx_26_eap, -1)
+    self.assertNotEqual(idx_26_android, -1)
+    self.assertNotEqual(idx_25_10, -1)
+    self.assertNotEqual(idx_25_2, -1)
+    self.assertNotEqual(idx_25_1, -1)
+    self.assertNotEqual(idx_9, -1)
+    self.assertNotEqual(idx_cobalt, -1)
+    self.assertNotEqual(idx_custom, -1)
+
+    self.assertTrue(
+        idx_main < idx_26_eap < idx_26_android < idx_25_10 < idx_25_2 < idx_25_1 < idx_9 < idx_cobalt < idx_custom,
+        "Branches not sorted in version descending order in Health Report"
+    )
+
+    # Check Detailed Branch Failures Section
+    detailed_section = report[detailed_failures_idx:]
+    idx_main_det = detailed_section.find("Branch: main")
+    idx_26_eap_det = detailed_section.find("Branch: 26.eap")
+    idx_26_android_det = detailed_section.find("Branch: 26.android")
+    idx_25_10_det = detailed_section.find("Branch: 25.lts.10.master")
+    idx_25_2_det = detailed_section.find("Branch: 25.lts.2.master")
+    idx_25_1_det = detailed_section.find("Branch: 25.lts.1.master")
+    idx_9_det = detailed_section.find("Branch: 9.lts.1.master")
+    idx_cobalt_det = detailed_section.find("Branch: COBALT_9")
+    idx_custom_det = detailed_section.find("Branch: custom-feature")
+
+    self.assertNotEqual(idx_main_det, -1)
+    self.assertNotEqual(idx_26_eap_det, -1)
+    self.assertNotEqual(idx_26_android_det, -1)
+    self.assertNotEqual(idx_25_10_det, -1)
+    self.assertNotEqual(idx_25_2_det, -1)
+    self.assertNotEqual(idx_25_1_det, -1)
+    self.assertNotEqual(idx_9_det, -1)
+    self.assertNotEqual(idx_cobalt_det, -1)
+    self.assertNotEqual(idx_custom_det, -1)
+
+    self.assertTrue(
+        idx_main_det < idx_26_eap_det < idx_26_android_det < idx_25_10_det < idx_25_2_det < idx_25_1_det < idx_9_det < idx_cobalt_det < idx_custom_det,
+        "Branches not sorted in version descending order in Detailed Failures"
+    )
+
 
 if __name__ == "__main__":
   unittest.main()

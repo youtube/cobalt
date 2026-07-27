@@ -353,6 +353,32 @@ def process_results_data(
   return failed_jobs_details, outdated_runs_details
 
 
+def branch_sort_key(branch_name: str) -> tuple:
+  """Sort key for branch names to order them by version descending.
+
+  Sort order:
+  1. main / master (Priority 1)
+  2. Versioned branches starting with digits (Priority 0), sorted by version.
+  3. Other branches (Priority -1), sorted alphabetically.
+  """
+  if branch_name in ('master', 'main'):
+    return (1, (float('inf'), '', float('inf')), branch_name)
+
+  match = re.match(r'^(\d+)\.(\w+)(?:\.(\d+))?', branch_name)
+  if match:
+    major = int(match.group(1))
+    track = match.group(2)
+    minor = int(match.group(3)) if match.group(3) else 0
+    return (0, (major, track, minor), branch_name)
+
+  match_cobalt = re.match(r'^COBALT_(\d+)', branch_name)
+  if match_cobalt:
+    major = int(match_cobalt.group(1))
+    return (0, (major, 'cobalt', 0), branch_name)
+
+  return (-1, (0, '', 0), branch_name)
+
+
 def generate_report(failed_jobs: List[Dict[str, Any]],
                     outdated_runs: List[Dict[str,
                                              Any]], total_fetched: int) -> str:
@@ -380,7 +406,7 @@ def generate_report(failed_jobs: List[Dict[str, Any]],
     branches[branch]['outdated'].append(run)
 
   report.append('## Branch Health Report\n')
-  for branch in sorted(branches.keys()):
+  for branch in sorted(branches.keys(), key=branch_sort_key, reverse=True):
     b_data = branches[branch]
     failed_count = len(b_data['failed'])
     outdated_count = len(b_data['outdated'])
@@ -397,12 +423,12 @@ def generate_report(failed_jobs: List[Dict[str, Any]],
       report.append(f'### Branch: {branch} (Unhealthy)')
       report.append(f'*   **Failed Jobs**: {failed_count}')
       if outdated_count > 0:
-        report.append(f'*   **Outdated Failed Runs**: {outdated_count} '
-                      '(retrigger suggested)')
+         report.append(f'*   **Outdated Failed Runs**: {outdated_count} '
+                       '(retrigger suggested)')
       report.append('')
 
   report.append('## Detailed Branch Failures\n')
-  for branch in sorted(branches.keys()):
+  for branch in sorted(branches.keys(), key=branch_sort_key, reverse=True):
     b_data = branches[branch]
     if not b_data['failed'] and not b_data['outdated']:
       continue

@@ -34,3 +34,11 @@ This skill analyzes downloaded CI results stored in a shared incoming directory 
 - [ ] **Summarize and Report**
 
     Present the verified report to the user.
+
+## Report Structure and Sorting
+
+The generated raw report (also referred to as the Script Report) groups failures by branch:
+- **Branch Health Report**: A high-level status summary for each branch.
+- **Detailed Branch Failures**: Detailed failure logs grouped by run for each unhealthy branch.
+
+In both sections, branches are sorted in **release version descending** order (e.g., `main` or `master` appears first, followed by release branches in descending version order like `25.lts.10.master`, `25.lts.2.master`, `19.lts.1.master`, etc.) to ensure that the most active and relevant branches are displayed at the top.
