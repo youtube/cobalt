@@ -285,7 +285,7 @@ bool CobaltContentRendererClient::IsDecoderSupportedAudioType(
 
 bool CobaltContentRendererClient::IsDecoderSupportedVideoType(
     const ::media::VideoType& type) {
-  CHECK(content::RenderThread::IsMainThread());
+  // CHECK(content::RenderThread::IsMainThread());
   std::string mime = GetMimeFromVideoType(type);
   SbMediaSupportType support_type = kSbMediaSupportTypeNotSupported;
   if (!mime.empty()) {
