@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <android/native_window.h>
+#include <android/native_window_jni.h>
 #include <jni.h>
 #include <limits.h>
 #include <pthread.h>
@@ -23,6 +25,7 @@
 
 #include "cobalt/aosp/jni_headers/MainActivity_jni.h"
 #include "starboard/android/shared/starboard_bridge.h"
+#include "starboard/android/shared/window_surface.h"
 #include "starboard/common/log.h"
 #include "starboard/system.h"
 #include "third_party/jni_zero/jni_zero.h"
@@ -66,6 +69,24 @@ namespace starboard {
 
 void JNI_MainActivity_StartLoader(JNIEnv* env) {
   std::thread(StarboardMain).detach();
+}
+
+// The Android graphics SurfaceView hands its Surface to Starboard here. The app
+// only calls nativeStartStarboard() after surfaceCreated, so by the time the
+// inner library's Ozone window asks for it via SbWindowCreate() the
+// ANativeWindow is already published and the create is synchronous.
+void JNI_MainActivity_NativeOnSurfaceCreated(
+    JNIEnv* env,
+    const jni_zero::JavaParamRef<jobject>& surface) {
+  ANativeWindow* native_window = ANativeWindow_fromSurface(env, surface.obj());
+  SB_LOG(INFO) << "cobalt_loader: Starboard surface created, native_window="
+               << native_window;
+  starboard::android::shared::SetWindowSurface(native_window);
+}
+
+void JNI_MainActivity_NativeOnSurfaceDestroyed(JNIEnv*) {
+  SB_LOG(INFO) << "cobalt_loader: Starboard surface destroyed.";
+  starboard::android::shared::SetWindowSurface(nullptr);
 }
 
 }  // namespace starboard

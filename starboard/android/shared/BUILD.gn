@@ -337,11 +337,15 @@ static_library("starboard_platform") {
       "//starboard/shared/stub/speech_synthesis_speak.cc",
       "//starboard/shared/stub/system_network_is_disconnected.cc",
       "//starboard/shared/stub/system_raise_platform_error.cc",
-      "//starboard/shared/stub/window_create.cc",
-      "//starboard/shared/stub/window_destroy.cc",
+
+      # Real Ozone window family for AOSP: the graphics SurfaceView feeds an
+      # ANativeWindow to window_surface.cc, which implements
+      # SbWindowCreate/Destroy/GetPlatformHandle/GetSize. The AndroidTV
+      # window_*.cc files can't be reused: SbWindowCreate/Destroy delegate to
+      # ApplicationAndroid (never instantiated on AOSP) and window_get_size.cc
+      # needs media/device-resolution bring-up AOSP lacks. Diagonal size stays
+      # stubbed for now.
       "//starboard/shared/stub/window_get_diagonal_size_in_inches.cc",
-      "//starboard/shared/stub/window_get_platform_handle.cc",
-      "//starboard/shared/stub/window_get_size.cc",
       "asset_manager.cc",
       "asset_manager.h",
       "posix_emu/access.cc",
@@ -349,6 +353,9 @@ static_library("starboard_platform") {
       "posix_emu/file.cc",
       "posix_emu/net_if.cc",
       "posix_emu/stat.cc",
+      "window_internal.h",
+      "window_surface.cc",
+      "window_surface.h",
     ]
 
     public_deps += [
