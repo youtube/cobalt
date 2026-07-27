@@ -62,7 +62,7 @@ class PictureInPictureWindowManager {
  private:
   friend class base::NoDestructor<PictureInPictureWindowManager>;
 
-  class VideoWebContentsObserver;
+  class PictureInPictureVideoWebContentsObserver;
 
   PictureInPictureWindowManager();
   ~PictureInPictureWindowManager();
@@ -76,7 +76,8 @@ class PictureInPictureWindowManager {
 
   // Observes the active WebContents and closes the PiP window if it is
   // destroyed or navigates.
-  std::unique_ptr<VideoWebContentsObserver> video_web_contents_observer_;
+  std::unique_ptr<PictureInPictureVideoWebContentsObserver>
+      pip_video_web_contents_observer_;
 };
 
 #endif  // COBALT_SHELL_BROWSER_PICTURE_IN_PICTURE_PICTURE_IN_PICTURE_WINDOW_MANAGER_H_

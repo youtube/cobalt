@@ -57,6 +57,7 @@ TEST_F(CobaltContentBrowserClientTest,
                                     /*is_visible=*/true);
   std::unique_ptr<content::VideoOverlayWindow> window =
       client.CreateWindowForVideoPictureInPicture(/*controller=*/nullptr);
+// TODO: b/532158001 - Support PiP on Linux.
 #if BUILDFLAG(IS_ANDROID)
   EXPECT_NE(window, nullptr);
 #else

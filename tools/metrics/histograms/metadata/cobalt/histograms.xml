@@ -261,7 +261,7 @@ Always run the pretty print utility on this file after editing:
 
 <histogram name="Cobalt.PictureInPicture.Enter" enum="Boolean"
     expires_after="never">
-  <owner>cobalt-team@google.com</owner>
+  <owner>ziliangguo@google.com</owner>
   <summary>
     Records whether entering Picture-in-Picture succeeded (true) or failed
     (false). Emitted when attempting to transition to Picture-in-Picture mode.
@@ -270,7 +270,7 @@ Always run the pretty print utility on this file after editing:
 
 <histogram name="Cobalt.PictureInPicture.Exit" enum="Boolean"
     expires_after="never">
-  <owner>cobalt-team@google.com</owner>
+  <owner>ziliangguo@google.com</owner>
   <summary>
     Records whether exiting Picture-in-Picture succeeded (true) or failed
     (false). Emitted when attempting to leave Picture-in-Picture mode.

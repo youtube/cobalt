@@ -27,8 +27,7 @@
 #include "ui/android/window_android_compositor.h"
 #include "ui/android/window_android_observer.h"
 
-// The static factory method remains in the global namespace (or content
-// namespace). static
+// static
 std::unique_ptr<content::VideoOverlayWindow>
 content::VideoOverlayWindow::Create(
     content::VideoPictureInPictureWindowController* controller) {
@@ -52,24 +51,11 @@ CobaltVideoOverlayWindow::CobaltVideoOverlayWindow(
 
 CobaltVideoOverlayWindow::~CobaltVideoOverlayWindow() {
   LOG(INFO) << "CobaltVideoOverlayWindow destructor called";
-  if (compositor_view_) {
-    compositor_view_->SetRootLayer(nullptr);
-    compositor_view_ = nullptr;
-  }
-  if (window_android_) {
-    OnDetachCompositor();
-    window_android_->RemoveObserver(this);
-    window_android_ = nullptr;
-  }
-  // Do not call Close() here, as it may invoke JNI calls on a destroyed state.
-  if (!java_activity_ref_.is_null()) {
-    JNIEnv* env = base::android::AttachCurrentThread();
-    Java_CobaltPictureInPictureActivity_closeActivity(env, java_activity_ref_);
-    java_activity_ref_.Reset();
-  }
+  Close();
 }
 
 void CobaltVideoOverlayWindow::OnRootWindowVisibilityChanged(bool visible) {}
+
 void CobaltVideoOverlayWindow::OnAttachCompositor() {
   if (window_android_ && window_android_->GetCompositor() &&
       surface_layer_->surface_id().is_valid()) {
@@ -85,10 +71,11 @@ void CobaltVideoOverlayWindow::OnDetachCompositor() {
         surface_layer_->surface_id().frame_sink_id());
   }
 }
+
 void CobaltVideoOverlayWindow::OnAnimate(base::TimeTicks frame_begin_time) {}
-void CobaltVideoOverlayWindow::OnActivityStopped() {
-  // MainActivity went to the background. Do NOT close PiP!
-}
+
+void CobaltVideoOverlayWindow::OnActivityStopped() {}
+
 void CobaltVideoOverlayWindow::OnActivityStarted() {}
 
 bool CobaltVideoOverlayWindow::IsActive() const {
@@ -97,10 +84,25 @@ bool CobaltVideoOverlayWindow::IsActive() const {
 
 void CobaltVideoOverlayWindow::Close() {
   LOG(INFO) << "CobaltVideoOverlayWindow::Close called";
+
+  // Safely detach the visual elements while the EGL Surface is still alive.
+  if (compositor_view_) {
+    compositor_view_->SetRootLayer(nullptr);
+    compositor_view_ = nullptr;
+  }
+  if (window_android_) {
+    OnDetachCompositor();
+    window_android_->RemoveObserver(this);
+    window_android_ = nullptr;
+  }
+
   if (!java_activity_ref_.is_null()) {
     JNIEnv* env = base::android::AttachCurrentThread();
+    // Drop the Java pointer so Android doesn't echo back OnActivityDestroyed.
+    Java_CobaltPictureInPictureActivity_clearNativeObject(env,
+                                                          java_activity_ref_);
     Java_CobaltPictureInPictureActivity_closeActivity(env, java_activity_ref_);
-    // Do not reset java_activity_ref_ here. Wait for OnActivityDestroyed.
+    java_activity_ref_.Reset();
   }
   is_visible_ = false;
 }
@@ -114,14 +116,13 @@ void CobaltVideoOverlayWindow::Hide() {
   LOG(INFO) << "CobaltVideoOverlayWindow::Hide called";
   is_visible_ = false;
 
+  // Defer destroying the C++ window until Java OnActivityDestroyed returns.
+  // If no Java activity exists, we destroy synchronously below.
   if (!java_activity_ref_.is_null()) {
     JNIEnv* env = base::android::AttachCurrentThread();
     Java_CobaltPictureInPictureActivity_closeActivity(env, java_activity_ref_);
-    // Defer destroying the C++ window until Java OnActivityDestroyed comes
-    // back!
   } else if (controller_) {
-    // If no Java activity exists, we can safely destroy synchronously.
-    controller_->OnWindowDestroyed(false /* should_pause_video */);
+    controller_->OnWindowDestroyed(/*should_pause_video=*/false);
   }
 }
 
@@ -218,16 +219,19 @@ void CobaltVideoOverlayWindow::SetJavaActivity(
 
 void CobaltVideoOverlayWindow::OnActivityDestroyed(JNIEnv* env) {
   LOG(INFO) << "CobaltVideoOverlayWindow::OnActivityDestroyed called";
+  // TODO: b/540854812 - Android already destroyed the UI surface, so modifying
+  // the cc::Layer tree here causes EGL_BAD_ACCESS. We simply drop the pointers.
+  // Investigate safe layer cleanup for Java-initiated teardowns.
+  compositor_view_ = nullptr;
   if (window_android_) {
     window_android_->RemoveObserver(this);
     window_android_ = nullptr;
   }
-  compositor_view_ = nullptr;
   java_activity_ref_.Reset();
   is_visible_ = false;
 
   if (controller_) {
-    controller_->OnWindowDestroyed(false /* should_pause_video */);
+    controller_->OnWindowDestroyed(/*should_pause_video=*/false);
   }
 }
 
