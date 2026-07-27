@@ -595,7 +595,9 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
                 if (currentWebContents != null) {
                   currentWebContents.onFreeze();
                 }
-                CobaltContentBrowserClient.flushCookiesAndLocalStorage();
+                if (getJavaSwitches().containsKey(JavaSwitches.ENABLE_DOM_STORAGE_SMART_FLUSHING)) {
+                  CobaltContentBrowserClient.flushCookiesAndLocalStorage();
+                }
                 mFreezeRunnable = null;
               }
             };
@@ -606,7 +608,9 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       }
     }
 
-    CobaltContentBrowserClient.flushCookiesAndLocalStorage();
+    if (getJavaSwitches().containsKey(JavaSwitches.ENABLE_DOM_STORAGE_SMART_FLUSHING)) {
+      CobaltContentBrowserClient.flushCookiesAndLocalStorage();
+    }
 
     if (VideoSurfaceView.getCurrentSurface() != null) {
       mForceCreateNewVideoSurfaceView = true;

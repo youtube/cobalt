@@ -46,6 +46,9 @@ public class JavaSwitches {
   /** flag to delete stale leveldb LOCK file on startup. */
   public static final String LOCAL_STORAGE_DELETE_LOCK_FILE = "LocalStorageDeleteLockFile";
 
+  /** flag to enable smart flushing for DOM storage (0ms delay and onStop flush). */
+  public static final String ENABLE_DOM_STORAGE_SMART_FLUSHING = "EnableDomStorageSmartFlushing";
+
   /** flag to tune compositor offscreen interest area size in pixels. */
   public static final String INTEREST_AREA_SIZE_IN_PIXELS = "InterestAreaSizeInPixels";
 
@@ -112,6 +115,10 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.LOCAL_STORAGE_DELETE_LOCK_FILE)) {
       enabledFeatures.add("LocalStorageDeleteLockFile");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_DOM_STORAGE_SMART_FLUSHING)) {
+      enabledFeatures.add("DomStorageSmartFlushing");
     }
 
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
