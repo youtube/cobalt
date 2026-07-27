@@ -15,6 +15,7 @@
 #include <jni.h>
 #include <limits.h>
 #include <pthread.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include <string>
@@ -44,10 +45,18 @@ void StarboardMain() {
     if (chdir(files_dir) != 0) {
       SB_LOG(WARNING) << "cobalt_loader: chdir to " << files_dir << " failed";
     }
+    // point TMPDIR at the writable app files directory
+    if (setenv("TMPDIR", files_dir, 1) != 0) {
+      SB_LOG(WARNING) << "cobalt_loader: setenv TMPDIR to " << files_dir
+                      << " failed";
+    }
   }
 
   std::vector<std::string> args;
   args.push_back("cobalt_loader");
+  // Don't use "/dev/shm" for shared memory; it does not exist on Android
+  // With this switch it falls back to GetTempDir()
+  args.push_back("--disable-dev-shm-usage");
   starboard::StarboardBridge::GetInstance()->AppendArgs(env, &args);
 
   std::vector<char*> argv;
