@@ -53,6 +53,7 @@ using ::media::ChunkDemuxer;
 const std::vector<std::string> kSupportedMimeTypes = {
     "audio/mp4; codecs=\"ac-3\"",
     "audio/mp4; codecs=\"ec-3\"",
+    "audio/mp4; codecs=\"iamf\"",
     "audio/mp4; codecs=\"mp4a.40.2\"",
     "audio/webm; codecs=\"opus\"",
 

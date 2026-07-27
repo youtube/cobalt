@@ -378,6 +378,22 @@ struct MEDIA_EXPORT OpusSpecificBox : Box {
   uint32_t sample_rate;
 };
 
+#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
+struct MEDIA_EXPORT IamfSpecificBox : Box {
+  DECLARE_BOX_METHODS(IamfSpecificBox);
+  bool ReadOBU(BufferReader* reader);
+  bool ReadOBUHeader(BufferReader* reader,
+                     uint8_t* obu_type,
+                     uint32_t* obu_size);
+  bool ReadLeb128Value(BufferReader* reader, uint32_t* value) const;
+
+  uint8_t profile;
+  bool redundant_copy = false;
+
+  std::vector<uint8_t> ia_descriptors;
+};
+#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
+
 struct MEDIA_EXPORT AudioSampleEntry : Box {
   DECLARE_BOX_METHODS(AudioSampleEntry);
 
@@ -391,6 +407,9 @@ struct MEDIA_EXPORT AudioSampleEntry : Box {
   ElementaryStreamDescriptor esds;
   FlacSpecificBox dfla;
   OpusSpecificBox dops;
+#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
+  IamfSpecificBox iamf;
+#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
 };
 
 struct MEDIA_EXPORT SampleDescription : Box {
