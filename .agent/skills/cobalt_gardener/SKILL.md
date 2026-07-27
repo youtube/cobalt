@@ -7,6 +7,9 @@ description: >-
 
 # Cobalt Gardener Skill
 
+> [!NOTE]
+> An implementation plan is NOT necessary for executing this skill. You can proceed directly to execution.
+
 This skill orchestrates the entire CI triage process for Cobalt. It retrieves results from available CI systems using retriever skills, and then performs a unified analysis of the failures.
 
 ## Prerequisites
