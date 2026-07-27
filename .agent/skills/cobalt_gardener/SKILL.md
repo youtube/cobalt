@@ -96,7 +96,7 @@ For each branch, it lists the health status (Healthy, Unhealthy, or Outdated Fai
 
 ### Triage Report
 
-The agent must summarize the raw script reports into a human-readable format for the user, interpreting the matching error locations to deduce the root cause, and grouping issues per branch:
+The agent must summarize the raw script reports into a human-readable format for the user, interpreting the matching error locations to deduce the root cause, and grouping issues per branch (ordered by release version descending, showing later releases first):
 
 For each branch, provide a health status and summarize the failures:
 -   Main failure cause (e.g. Compilation error, Test failure, etc.) deduced from the matching log lines.
