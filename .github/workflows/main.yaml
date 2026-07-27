@@ -731,6 +731,7 @@ jobs:
     if: |
       needs.initialize.outputs.test_yts_wpt == 'true' &&
         (
+          (github.event_name == 'pull_request') ||
           (inputs.nightly == 'true' || github.event_name == 'schedule') ||
           (github.event_name == 'push')
         )
@@ -754,7 +755,7 @@ jobs:
       - name: Run YTS WPT Tests
         uses: ./.github/actions/internal_tests
         with:
-          test_type: 'yts_wpt_test'
+          test_type: 'e2e_test'
           test_targets: '${{ needs.initialize.outputs.yts_wpt_test_targets }}'
 
   on-host-test:
