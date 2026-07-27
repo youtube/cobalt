@@ -20,11 +20,28 @@ static_library("starboard_platform") {
   sources = [
     "//starboard/shared/starboard/queue_application.cc",
     "//starboard/shared/starboard/queue_application.h",
+    "application_aosp.cc",
     "application_aosp.h",
     "run_starboard_main.cc",
+    "window_create.cc",
+    "window_destroy.cc",
+    "window_get_platform_handle.cc",
+    "window_get_size.cc",
+    "window_internal.h",
+    "window_surface.cc",
+    "window_surface.h",
   ]
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
+
+  deps = [
+    # window_get_size.cc includes starboard_bridge.h, whose
+    # base/memory/singleton.h pulls in absl headers. //base is a private dep of
+    # //starboard/android/shared:starboard_platform, so the absl include dir
+    # isn't propagated.
+    "//starboard/common",
+    "//third_party/abseil-cpp:absl",
+  ]
 
   public_deps = [ "//starboard/android/shared:starboard_platform" ]
 }
@@ -36,6 +53,7 @@ source_set("aosp_loader_glue") {
   ]
 
   deps = [
+    ":starboard_platform",
     "//base",
     "//cobalt/aosp:jni_headers",
     "//starboard/android/shared:starboard_platform",

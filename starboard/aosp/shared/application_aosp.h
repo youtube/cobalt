@@ -18,6 +18,7 @@
 #include <cstdint>
 
 #include "starboard/shared/starboard/queue_application.h"
+#include "starboard/window.h"
 
 namespace starboard {
 
@@ -33,6 +34,16 @@ class ApplicationAOSP : public QueueApplication {
  public:
   explicit ApplicationAOSP(SbEventHandleCallback sb_event_handle_callback)
       : QueueApplication(sb_event_handle_callback) {}
+
+  // Aborts if there is no application. Only use this from the Starboard thread,
+  // (from code that runs inside SbRunStarboardMain)
+  static ApplicationAOSP* Get() {
+    return static_cast<ApplicationAOSP*>(Application::Get());
+  }
+
+  // proxies for SbWindowCreate/SbWindowDestroy
+  SbWindow CreateWindow(const SbWindowOptions* options);
+  bool DestroyWindow(SbWindow window);
 
  protected:
   // AOSP has no native event queue for the to poll, Android delivers
