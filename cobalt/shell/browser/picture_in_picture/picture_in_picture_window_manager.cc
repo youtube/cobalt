@@ -83,14 +83,15 @@ void PictureInPictureWindowManager::EnterPictureInPictureWithController(
   base::UmaHistogramBoolean("Cobalt.PictureInPicture.Enter", true);
 }
 
-class PictureInPictureWindowManager::VideoWebContentsObserver final
+class PictureInPictureWindowManager::
+    PictureInPictureVideoWebContentsObserver final
     : public content::WebContentsObserver {
  public:
-  VideoWebContentsObserver(PictureInPictureWindowManager* owner,
-                           content::WebContents* web_contents)
+  PictureInPictureVideoWebContentsObserver(PictureInPictureWindowManager* owner,
+                                           content::WebContents* web_contents)
       : content::WebContentsObserver(web_contents), owner_(owner) {}
 
-  ~VideoWebContentsObserver() final = default;
+  ~PictureInPictureVideoWebContentsObserver() final = default;
 
   void PrimaryPageChanged(content::Page& page) final {
     owner_->CloseWindowInternal();
@@ -114,14 +115,15 @@ void PictureInPictureWindowManager::ExitPictureInPicture() {
 
 void PictureInPictureWindowManager::CreateWindowInternal(
     content::WebContents* web_contents) {
-  video_web_contents_observer_ =
-      std::make_unique<VideoWebContentsObserver>(this, web_contents);
+  pip_video_web_contents_observer_ =
+      std::make_unique<PictureInPictureVideoWebContentsObserver>(this,
+                                                                 web_contents);
   pip_window_controller_ = content::PictureInPictureWindowController::
       GetOrCreateVideoPictureInPictureController(web_contents);
 }
 
 void PictureInPictureWindowManager::CloseWindowInternal() {
-  video_web_contents_observer_.reset();
+  pip_video_web_contents_observer_.reset();
   if (pip_window_controller_) {
     pip_window_controller_->Close(false /* should_pause_video */);
     pip_window_controller_ = nullptr;

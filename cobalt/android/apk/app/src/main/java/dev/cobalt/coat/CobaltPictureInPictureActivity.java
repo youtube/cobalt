@@ -144,7 +144,11 @@ public class CobaltPictureInPictureActivity extends Activity {
 
     getNatives().compositorViewCreated(mNativeCobaltVideoOverlayWindow, mCompositorView);
 
-    // Attempt to enter PiP mode immediately using system default aspect ratio,
+    // If the device lacks support or the transition fails, finish the Activity
+    // to prevent an empty fullscreen window from lingering over the main app.
+    // Attempt to enter PiP mode immediately using the system's default aspect ratio.
+    // Once the actual video size is calculated by the native side,
+    // it later calls updateVideoSize to give the window its correct dimensions.
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
       PictureInPictureParams params = new PictureInPictureParams.Builder().build();
       if (!enterPictureInPictureMode(params)) {
@@ -162,9 +166,20 @@ public class CobaltPictureInPictureActivity extends Activity {
 
   @CalledByNative
   public void closeActivity() {
-    // Do NOT clear mNativeCobaltVideoOverlayWindow here, otherwise
-    // onDestroy() will fail to notify C++ OnActivityDestroyed!
+    // Do NOT clear mNativeCobaltVideoOverlayWindow here. Android invokes
+    // onDestroy() asynchronously after finish() is called. If we clear the
+    // native pointer now, onDestroy() will fail to notify the C++ side
+    // via onActivityDestroyed().
     finish();
+  }
+
+  /**
+   * Called when the native C++ object is being destroyed. Clears the native pointer to prevent
+   * onDestroy() from calling a destroyed C++ object.
+   */
+  @CalledByNative
+  public void clearNativeObject() {
+    mNativeCobaltVideoOverlayWindow = 0;
   }
 
   @CalledByNative
