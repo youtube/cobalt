@@ -1,0 +1,83 @@
+# Copyright 2026 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/config/android/rules.gni")
+import("//cobalt/android/manifest.gni")
+
+template("modular_apk") {
+  _name = invoker.module_name
+  _lib_name = invoker.lib_name
+
+  if (_name == "cobalt") {
+    _loader = "//starboard/loader_app"
+  } else {
+    _loader = "//starboard/elf_loader:elf_loader_sandbox"
+  }
+
+  _assets_target = "${target_name}__assets"
+  android_assets(_assets_target) {
+    forward_variables_from(invoker, [ "testonly" ])
+    disable_compression = true
+
+    renaming_sources = [
+      "$root_build_dir/app/${_name}/content/fonts/fonts.xml",
+      "$root_build_dir/app/${_name}/lib/${_lib_name}.lz4",
+    ]
+    renaming_destinations = [
+      "app/cobalt/content/fonts/fonts.xml",
+      "app/cobalt/lib/${_lib_name}.lz4",
+    ]
+
+    deps = [
+      ":copy_${_name}_empty_fonts($default_toolchain)",
+      ":copy_${_name}_lib($default_toolchain)",
+    ]
+
+    if (_name == "cobalt") {
+      sources = [ "$root_build_dir/cobalt_shell.pak" ]
+      deps += [ "//cobalt/shell:pak($default_toolchain)" ]
+    }
+
+    if (_name == "nplb") {
+      deps += [
+        "//starboard/nplb/testdata/file_tests:nplb_file_tests_data_assets",
+        "//starboard/shared/starboard/player:player_test_data_assets",
+      ]
+    }
+  }
+
+  android_apk(target_name) {
+    forward_variables_from(invoker, [ "testonly" ])
+    apk_name = _name
+    android_manifest = cobalt_manifest
+    android_manifest_dep = "//cobalt/android:cobalt_manifest"
+    include_size_info = is_official_build
+
+    deps = [
+      ":$_assets_target",
+      "//cobalt/aosp:cobalt_apk_java",
+      "//cobalt/aosp:copy_libcpp_shared",
+      "//components/crash/core/app:chrome_crashpad_handler_named_as_so($native_toolchain)",
+    ]
+
+    loadable_modules = [
+      "$root_build_dir/libc++_shared.so",
+      "$root_build_dir/native_target/libchrome_crashpad_handler.so",
+    ]
+    shared_libraries = [ _loader ]
+
+    srcjar_deps =
+        [ get_label_info(_loader, "label_no_toolchain") + "__jni_registration" ]
+  }
+}

@@ -51,7 +51,15 @@ void LoadLibraryAndInitialize(const std::string& library_path,
                   << "=path/to/content/relative/to/loader/content.";
     return;
   }
-  if (!g_elf_loader.Load(library_path, content_path, true)) {
+
+  auto compression_type = elf_loader::CompressionType::kNone;
+  if (starboard::EndsWith(library_path, elf_loader::kLz4Suffix)) {
+    compression_type = elf_loader::CompressionType::kLz4;
+  } else if (starboard::EndsWith(library_path, elf_loader::kZstdSuffix)) {
+    compression_type = elf_loader::CompressionType::kZstd;
+  }
+  if (!g_elf_loader.Load(library_path, content_path, /*is_relative_path=*/true,
+                         /*custom_get_extension=*/nullptr, compression_type)) {
     SB_NOTREACHED() << "Failed to load library at '"
                     << g_elf_loader.GetLibraryPath() << "'.";
     return;

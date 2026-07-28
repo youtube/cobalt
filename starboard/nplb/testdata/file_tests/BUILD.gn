@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+if (is_android && !is_androidtv) {
+  import("//build/config/android/rules.gni")
+}
+
 copy("nplb_file_tests_data") {
   sources = [
     "dir_with_files/file11",
@@ -25,4 +29,21 @@ copy("nplb_file_tests_data") {
   subdir = "starboard/nplb/file_tests"
 
   outputs = [ "$sb_static_contents_output_data_dir/test/$subdir/{{source_target_relative}}" ]
+}
+
+if (is_android && !is_androidtv) {
+  # Android internal_rules.gni forces the use of "_assets" suffix.
+  android_assets("nplb_file_tests_data_assets") {
+    testonly = true
+    disable_compression = true
+
+    renaming_sources = get_target_outputs(":nplb_file_tests_data")
+    renaming_destinations = []
+    foreach(_output, renaming_sources) {
+      renaming_destinations +=
+          [ rebase_path(_output, sb_static_contents_output_data_dir) ]
+    }
+
+    deps = [ ":nplb_file_tests_data" ]
+  }
 }

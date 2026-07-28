@@ -22,12 +22,14 @@
 
 #include "base/command_line.h"
 #include "base/memory/raw_ptr.h"
+#include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_platform_delegate.h"
 #include "content/browser/accessibility/browser_accessibility_state_impl.h"
 #include "content/public/browser/browser_accessibility_state.h"
 #include "content/public/browser/content_browser_client.h"
+#include "content/public/browser/network_service_instance.h"
 #include "content/public/browser/network_service_util.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_switches.h"
@@ -121,7 +123,23 @@ class ShellTestBase : public ::testing::Test {
  public:
   ShellTestBase()
       : task_environment_(content::BrowserTaskEnvironment::IO_MAINLOOP,
-                          base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
+                          base::test::TaskEnvironment::TimeSource::MOCK_TIME) {
+    // b/537618464: Using a separate thread for the NetworkService causes random
+    // crashes in tests using ShellTestBase. This also affects multiple upstream
+    // tests. It is unclear if it is related to the use of MOCK_TIME above or if
+    // it is just the fact that the tests create and destroy a
+    // BrowserTaskEnvironment too quickly.
+    //
+    // From https://chromium-review.googlesource.com/c/chromium/src/+/7656849:
+    // A short-term workaround for new tests to mitigate the integration
+    // issue between the dedicated `NetworkService` thread and
+    // `BrowserTaskEnvironment` (see crbug.com/493322520). If disabled,
+    // `NetworkService` will use IO thread instead. This is valid for these
+    // tests because they do not depend on whether the network service is
+    // running on a dedicated thread or the IO thread.
+    scoped_feature_list_.InitAndDisableFeature(
+        content::kNetworkServiceDedicatedThread);
+  }
   ~ShellTestBase() override = default;
 
   void SetUp() override {
@@ -234,6 +252,7 @@ class ShellTestBase : public ::testing::Test {
   }
 
  protected:
+  base::test::ScopedFeatureList scoped_feature_list_;
   content::BrowserTaskEnvironment task_environment_;
   TestContentClient test_content_client_;
   TestContentBrowserClient test_content_browser_client_;

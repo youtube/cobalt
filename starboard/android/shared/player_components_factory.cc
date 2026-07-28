@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <android/api-level.h>
 #include <jni.h>
 
 #include <atomic>
@@ -47,7 +48,7 @@
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
-#include "starboard/shared/starboard/player/filter/video_renderer_internal_impl.h"
+#include "starboard/shared/starboard/player/filter/video_renderer_impl_internal.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 #include "third_party/jni_zero/jni_zero.h"
 
@@ -56,6 +57,8 @@ namespace {
 
 using features::FeatureList;
 using jni_zero::AttachCurrentThread;
+
+constexpr int kAndroidApiLevelU = 34;
 
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
@@ -326,6 +329,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     bool enable_flush_during_seek =
+        android_get_device_api_level() >= kAndroidApiLevelU ||
         FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
         creation_parameters.experimental_features().GetBool(
             kMediaEnableFlushDuringSeek);
@@ -462,6 +466,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     const auto& experimental_features =
         creation_parameters.experimental_features();
     bool enable_reset_audio_decoder =
+        android_get_device_api_level() >= kAndroidApiLevelU ||
         FeatureList::IsEnabled(features::kForceResetAudioDecoder) ||
         experimental_features.GetBool(kMediaEnableResetAudioDecoder) ||
         (video_mime_type &&
@@ -476,6 +481,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << ".";
 
     bool enable_flush_during_seek =
+        android_get_device_api_level() >= kAndroidApiLevelU ||
         FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
         experimental_features.GetBool(kMediaEnableFlushDuringSeek) ||
         (video_mime_type &&
@@ -593,6 +599,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek =
+        android_get_device_api_level() >= kAndroidApiLevelU ||
         FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
         experimental_features.GetBool(kMediaEnableFlushDuringSeek);
     int64_t flush_delay_usec = features::kFlushDelayUsec.Get();

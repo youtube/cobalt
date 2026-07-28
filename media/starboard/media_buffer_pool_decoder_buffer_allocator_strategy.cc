@@ -29,7 +29,8 @@ MediaBufferPoolDecoderBufferAllocatorStrategy::
     : media_buffer_pool_(media_buffer_pool),
       video_buffer_initial_capacity_(video_buffer_initial_capacity),
       video_buffer_allocation_increment_(video_buffer_allocation_increment),
-      audio_fallback_allocator_(/*enable_decommit_on_idle=*/false),
+      audio_fallback_allocator_(/*enable_decommit_on_idle=*/false,
+                                /*enable_page_alignment=*/false),
       audio_allocator_(
           &audio_fallback_allocator_,
           // Pre-allocate sufficient capacity for audio buffers to

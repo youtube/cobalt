@@ -281,7 +281,7 @@ class MediaCodecBridge {
           @Override
           public void onInputBufferAvailable(MediaCodec codec, int index) {
             synchronized (mNativeBridgeLock) {
-              if (mNativeMediaCodecBridge == 0 || mIsFlushing) {
+              if (mNativeMediaCodecBridge == 0) {
                 return;
               }
               MediaCodecBridgeJni.get()
@@ -315,7 +315,7 @@ class MediaCodecBridge {
           @Override
           public void onOutputFormatChanged(MediaCodec codec, MediaFormat format) {
             synchronized (mNativeBridgeLock) {
-              if (mNativeMediaCodecBridge == 0 || mIsFlushing) {
+              if (mNativeMediaCodecBridge == 0) {
                 return;
               }
               mActiveFormat = new MediaFormatWrapper(format);
@@ -339,7 +339,7 @@ class MediaCodecBridge {
             @Override
             public void onFrameRendered(MediaCodec codec, long presentationTimeUs, long nanoTime) {
               synchronized (mNativeBridgeLock) {
-                if (mNativeMediaCodecBridge == 0 || mIsFlushing) {
+                if (mNativeMediaCodecBridge == 0) {
                   return;
                 }
                 MediaCodecBridgeJni.get()
@@ -1050,7 +1050,7 @@ class MediaCodecBridge {
             @Override
             public void onFirstTunnelFrameReady(MediaCodec codec) {
               synchronized (mNativeBridgeLock) {
-                if (mNativeMediaCodecBridge == 0 || mIsFlushing) {
+                if (mNativeMediaCodecBridge == 0) {
                   return;
                 }
                 MediaCodecBridgeJni.get()
