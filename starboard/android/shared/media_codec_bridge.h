@@ -141,6 +141,7 @@ class MediaCodecBridge {
     virtual void OnMediaCodecOutputFormatChanged() = 0;
     // This is only called on video decoder when tunnel mode is enabled.
     virtual void OnMediaCodecFrameRendered(int64_t frame_timestamp) = 0;
+    virtual void OnMediaCodecFirstTunnelFrameReady() = 0;
 
    protected:
     ~Handler() {}
@@ -200,6 +201,7 @@ class MediaCodecBridge {
   void ReleaseOutputBufferAtTimestamp(jint index, jlong render_timestamp_ns);
 
   void SetPlaybackRate(double playback_rate);
+  void Seek(int64_t seek_to_time);
   bool Restart();
   jint Flush();
   FrameSize GetOutputSize();
@@ -216,6 +218,7 @@ class MediaCodecBridge {
                                          int size);
   void OnMediaCodecOutputFormatChanged();
   void OnMediaCodecFrameRendered(int64_t frame_timestamp);
+  void OnMediaCodecFirstTunnelFrameReady();
 
  private:
   // |MediaCodecBridge|s must only be created through its factory methods.

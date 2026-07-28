@@ -177,13 +177,11 @@ AudioTrackAudioSink::~AudioTrackAudioSink() {
 
 void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
   SB_DCHECK(playback_rate >= 0.0);
-  if (playback_rate != 0.0 && playback_rate != 1.0) {
-    SB_NOTIMPLEMENTED() << "TODO: Only playback rates of 0.0 and 1.0 are "
-                           "currently supported.";
-    playback_rate = (playback_rate > 0.0) ? 1.0 : 0.0;
-  }
   ScopedLock lock(mutex_);
   playback_rate_ = playback_rate;
+  if (playback_rate_ > 0.0) {
+    bridge_.SetPlaybackRate(playback_rate);
+  }
 }
 
 // static

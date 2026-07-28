@@ -31,10 +31,6 @@ const int64_t kMaxAllowedSkew = 5'000;  // 5ms
 
 }  // namespace
 
-int64_t VideoFrameTracker::seek_to_time() const {
-  return seek_to_time_;
-}
-
 void VideoFrameTracker::OnInputBuffer(int64_t timestamp) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
