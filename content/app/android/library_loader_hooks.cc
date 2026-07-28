@@ -54,7 +54,13 @@ bool LibraryLoaded(base::android::LibraryProcessType library_process_type) {
   // Content Schemes need to be registered as early as possible after the
   // CommandLine has been initialized to allow java and tests to use GURL before
   // running ContentMain.
+#if BUILDFLAG(IS_COBALT)
+  // For Cobalt Android: We disable this early eager call to prevent a Catch-22 crash
+  // where it reaches for GetContentClient() before the AppEventRunner creates the
+  // delegate. It will instead be safely called later by ContentMainRunnerImpl::Initialize().
+#else
   RegisterContentSchemes();
+#endif
   return true;
 }
 
