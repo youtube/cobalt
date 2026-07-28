@@ -2641,10 +2641,12 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
 
   // Decide which ProxyDelegate to create. At most one of these will be the
   // case for any given NetworkContext: either PrefetchProxy, handling its
+  // custom proxy configs, or IpProtection, using the proxy allowlist.
+  bool requires_ipp_proxy_delegate = false;
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   auto* mdl_manager = network_service_->masked_domain_list_manager();
   auto* prt_registry = network_service_->probabilistic_reveal_token_registry();
-  bool requires_ipp_proxy_delegate =
+  requires_ipp_proxy_delegate =
       mdl_manager && mdl_manager->IsEnabled() &&
       (params_->ip_protection_core_host ||
        net::features::kIpPrivacyAlwaysCreateCore.Get());
@@ -2666,10 +2668,11 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
         std::make_unique<ip_protection::IpProtectionProxyDelegate>(
             ip_protection_core_impl.get()));
     ip_protection_core_ = std::move(ip_protection_core_impl);
-  } else
+  }
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
-  if (params_->initial_custom_proxy_config ||
-             params_->custom_proxy_config_client_receiver) {
+  if (!requires_ipp_proxy_delegate &&
+      (params_->initial_custom_proxy_config ||
+       params_->custom_proxy_config_client_receiver)) {
     builder.set_proxy_delegate(std::make_unique<NetworkServiceProxyDelegate>(
         std::move(params_->initial_custom_proxy_config),
         std::move(params_->custom_proxy_config_client_receiver),
