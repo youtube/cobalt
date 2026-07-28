@@ -1072,25 +1072,15 @@ void SourceBuffer::ChangeType_Locked(
   DCHECK(source_);
   DCHECK(!updating_);
   source_->AssertAttachmentsMutexHeldIfCrossThreadForDebugging();
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (!MediaSource::IsTypeSupportedInternal(
-          GetExecutionContext(), type,
-          false /* allow underspecified codecs in |type| */) ||
-      !web_source_buffer_->CanChangeType(type)) {
-    MediaSource::LogAndThrowDOMException(
-        *exception_state, DOMExceptionCode::kNotSupportedError,
-        "Changing to the type provided ('" + type + "') is not supported.");
-    return;
-  }
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
   // 4. If type contains a MIME type that is not supported or contains a MIME
   //    type that is not supported with the types specified (currently or
   //    previously) of SourceBuffer objects in the sourceBuffers attribute of
   //    the parent media source, then throw a NotSupportedError exception and
   //    abort these steps.
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
   ContentType content_type(type);
   String codecs = content_type.Parameter("codecs");
+#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
   // TODO(wolenetz): Refactor and use a less-strict version of isTypeSupported
   // here. As part of that, CanChangeType in Chromium should inherit relaxation
   // of impl's StreamParserFactory (since it returns true iff a stream parser
@@ -1098,13 +1088,16 @@ void SourceBuffer::ChangeType_Locked(
   if (!MediaSource::IsTypeSupportedInternal(
           GetExecutionContext(), type,
           false /* allow underspecified codecs in |type| */) ||
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
       !web_source_buffer_->CanChangeType(content_type.GetType(), codecs)) {
+#else  // !BUILDFLAG(USE_STARBOARD_MEDIA)
+      !web_source_buffer_->CanChangeType(type)) {
+#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
     MediaSource::LogAndThrowDOMException(
         *exception_state, DOMExceptionCode::kNotSupportedError,
         "Changing to the type provided ('" + type + "') is not supported.");
     return;
   }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // 5. If the readyState attribute of the parent media source is in the "ended"
   //    state then run the following steps:

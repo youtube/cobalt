@@ -233,15 +233,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 
   std::optional<gfx::Rect> output_rect_;
 
-  // Stored video/audio configs to store the new config from a
-  // SourceBuffer.changeType() call. Configs from changeType() are not applied
-  // to StarboardRenderer when DemuxerStream::kConfigChanged occurs, but when
-  // the first sample of the updated player config is applied. We do this to
-  // prevent in-flight samples from being written with the incorrect decoder
-  // configuration.
-  std::optional<AudioDecoderConfig> pending_audio_config_;
-  std::optional<VideoDecoderConfig> pending_video_config_;
-
   // Temporary callback used for Initialize().
   PipelineStatusCallback init_cb_;
 
@@ -302,6 +293,15 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   // understood as a capability changed error. Do not change this message.
   static inline constexpr const char* kSbPlayerCapabilityChangedErrorMessage =
       "MEDIA_ERR_CAPABILITY_CHANGED";
+
+  // Stored video/audio configs to store the new config from a
+  // SourceBuffer.changeType() call. Configs from changeType() are not applied
+  // to StarboardRenderer when DemuxerStream::kConfigChanged occurs, but when
+  // the first sample of the updated player config is applied. We do this to
+  // prevent in-flight samples from being written with the incorrect decoder
+  // configuration.
+  std::optional<AudioDecoderConfig> pending_audio_config_;
+  std::optional<VideoDecoderConfig> pending_video_config_;
 
   // NOTE: Do not add member variables after weak_factory_
   // It should be the first one destroyed among all members.

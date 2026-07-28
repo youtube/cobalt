@@ -106,7 +106,8 @@ void MojoDemuxerStreamImpl::OnBufferReady(
 
   if (status == Status::kAborted) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    std::move(callback).Run(Status::kAborted, {}, audio_config, video_config, /*mime_type=*/std::nullopt);
+    std::move(callback).Run(Status::kAborted, {}, audio_config, video_config,
+                            /*mime_type=*/std::nullopt);
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     std::move(callback).Run(Status::kAborted, {}, audio_config, video_config);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)

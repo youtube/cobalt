@@ -750,24 +750,6 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
   }
 }
 
-void StarboardRenderer::ApplyPendingVideoConfig() {
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  DCHECK(pending_video_config_.has_value());
-  DCHECK(video_stream_);
-
-  LOG(INFO)
-      << "Applying pending Video config change from changeType transition.";
-
-  client_->OnVideoConfigChange(*pending_video_config_);
-  client_->OnVideoNaturalSizeChange(
-      pending_video_config_->visible_rect().size());
-  paint_video_hole_frame_cb_.Run(pending_video_config_->visible_rect().size());
-
-  UpdateDecoderConfig(video_stream_);
-
-  pending_video_config_.reset();
-}
-
 void StarboardRenderer::ApplyPendingAudioConfig() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(pending_audio_config_.has_value());
@@ -781,6 +763,23 @@ void StarboardRenderer::ApplyPendingAudioConfig() {
   UpdateDecoderConfig(audio_stream_);
 
   pending_audio_config_.reset();
+}
+
+void StarboardRenderer::ApplyPendingVideoConfig() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  DCHECK(pending_video_config_.has_value());
+  DCHECK(video_stream_);
+
+  LOG(INFO)
+      << "Applying pending Video config change from changeType transition.";
+
+  client_->OnVideoConfigChange(*pending_video_config_);
+  client_->OnVideoNaturalSizeChange(
+      pending_video_config_->visible_rect().size());
+
+  UpdateDecoderConfig(video_stream_);
+
+  pending_video_config_.reset();
 }
 
 void StarboardRenderer::OnDemuxerStreamRead(
