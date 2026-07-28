@@ -28,8 +28,18 @@ This skill analyzes downloaded CI results stored in a shared incoming directory 
 
     For each failure in the report:
     - Verify that the detected error signature is the actual cause of the failure.
-    - If no signature was matched, inspect the log file manually (path is in the report) to find the cause.
-    - Check Buganizer for existing bugs matching the failure.
+        *   **Constraint**: Limit verification to log analysis. Do NOT view local source files, run code search for symbols, or check git branches/history to debug the failure or check if fixes are present.
+    - If no signature was matched, inspect the log file manually:
+        *   Open the cached log file.
+        *   Inspect the log (especially near the end) to find the lines detailing the failure.
+        *   Note the root cause and the specific error line for the report.
+        *   Do NOT attempt to debug the code.
+    - Check Buganizer for existing bugs matching the failure:
+        *   Search for the specific error line or test name. Limit search to the first few highly relevant queries.
+        *   Prioritize searching the [Gardener Hotlist](https://b.corp.google.com/hotlists/7245259) and the Cobalt component (componentid:114154).
+        *   If a match is found, record the bug ID/status. If the matching bug is not on the [Gardener Hotlist](https://b.corp.google.com/hotlists/7245259), suggest adding it in the Next Steps.
+        *   If no match is found, mark it as `Bug: NEW` in the report.
+        *   Do NOT attempt to verify if the bug fix is merged in the current workspace.
 
 - [ ] **Summarize and Report**
 
