@@ -99,18 +99,31 @@ For each branch, it lists the health status (Healthy, Unhealthy, or Outdated Fai
 
 ### Triage Report
 
-The agent must summarize the raw script reports into a human-readable format for the user, interpreting the matching error locations to deduce the root cause, and grouping issues per branch (ordered by release version descending, showing later releases first):
+The agent must summarize the raw script reports into a human-readable format for the user, interpreting the matching error locations to deduce the root cause.
 
-For each branch, provide a health status and summarize the failures:
+The report must start with a single, unified list of suggested follow-up actions (e.g. retriggers for outdated runs/infra failures, investigations for new test failures/crashes, bugs to file) to give the user a clear path forward immediately.
+
+Following the suggested actions, group the detailed issues per branch (ordered by release version descending, showing later releases first). For each branch, provide a health status and summarize the failures:
 -   Main failure cause (e.g. Compilation error, Test failure, etc.) deduced from the matching log lines.
 -   Number of failures and list of affected jobs.
 -   Failure log lines.
 -   Links to the CI runs.
--   Suggest actions (e.g. retriggering for outdated runs, filing bugs for new errors, etc.).
+-   Bug status (e.g. `Bug: NEW` or link to existing bug `Bug: b/12345`).
 
 #### Example
 
-*   **main** (Unhealthy) - 3 failed jobs
+### Suggested Actions
+
+#### Retriggers
+- Retrigger `main` [android_27 (ID: 444)](https://github.com/youtube/cobalt/actions/runs/444) (outdated nightly).
+
+#### Investigations
+- Investigate compilation error in `test.cc` on `main` [linux_compilation](https://github.com/youtube/cobalt/actions/runs/101/job/1).
+- Investigate test failure on `main` [cobalt-linux-x64x11](https://sponge.corp.google.com/invocation?id=202).
+
+### Detailed Branch Failures
+
+*   **main** (Unhealthy) - 2 failed jobs
 
     *   **compilation_error**: 1 failure (linux_compilation) [GITHUB]
         *   Syntax error in `test.cc`.
@@ -119,9 +132,9 @@ For each branch, provide a health status and summarize the failures:
         *   Link: [linux_compilation](https://github.com/youtube/cobalt/actions/runs/101/job/1)
     *   **test_failure**: 1 failure (cobalt-linux-x64x11) [KOKORO]
         *   Kokoro parent build reports test jobs failed. (Note: child logs should be triaged if available).
+        *   Bug: [b/12345](https://issuetracker.google.com/12345)
         *   Link: [cobalt-linux-x64x11](https://sponge.corp.google.com/invocation?id=202)
-    *   **Outdated Failures**: 1 run (android_27) [GITHUB]
-        *   Failed 2 day(s) ago.
-        *   Link: [android_27](https://github.com/youtube/cobalt/actions/runs/444)
-        *   **Action**: Suggest retriggering the nightly job.
+*   **Outdated Failures**: 1 run (android_27) [GITHUB] on main
+    *   Failed 2 day(s) ago.
+    *   Link: [android_27](https://github.com/youtube/cobalt/actions/runs/444)
 ```
