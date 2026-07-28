@@ -39,6 +39,15 @@ class TestGitHelper(unittest.TestCase):
                                      text=True)
     self.assertEqual(res, 'output')
 
+  @patch('subprocess.run')
+  def test_git_verbose(self, mock_run):
+    lib.VERBOSE = True
+    mock_run.return_value = MagicMock(stdout='output')
+    with patch('autoroll_lib.log') as mock_log:
+      lib.git('status', 'args')
+      mock_log.assert_called_once_with('Running: git status args')
+    lib.VERBOSE = False
+
 
 class TestGetStartSha(unittest.TestCase):
   """Test cases for get_start_sha()."""
@@ -329,6 +338,21 @@ class TestAutorollMainFlow(unittest.TestCase):
                                                ('date', 'author', 'msg'), False,
                                                ('roll_file', 'sha2'))
       self.assertEqual('- #101\n- #102', mock_stdout.getvalue().strip())
+
+  @patch('autoroll_lib.get_start_sha')
+  @patch('sys.argv', [
+      'autoroll.py', '--source-branch', 'main', '--target-branch', '27.lts',
+      '--autoroll-file', 'roll_file', '--max-commits', '5', '--existing-pr-sha',
+      '', '--verbose'
+  ])
+  def test_main_verbose_flag(self, mock_get_start_sha):
+    mock_get_start_sha.return_value = None
+
+    lib.VERBOSE = False
+    with patch('sys.stderr'):
+      autoroll.main()
+    self.assertTrue(lib.VERBOSE)
+    lib.VERBOSE = False
 
 
 class TestChromiumSubmoduleAndCheckout(unittest.TestCase):
