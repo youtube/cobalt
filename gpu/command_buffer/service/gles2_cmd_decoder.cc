@@ -1889,6 +1889,9 @@ class GLES2DecoderImpl : public GLES2Decoder,
                             const volatile GLint* params);
 
   // Wrappers for glTexParameter functions.
+  bool CheckTexParameterBaseLevel(TextureRef* texture,
+                                  GLenum pname,
+                                  GLint param);
   void DoTexParameterf(GLenum target, GLenum pname, GLfloat param);
   void DoTexParameteri(GLenum target, GLenum pname, GLint param);
   void DoTexParameterfv(GLenum target,
@@ -8254,12 +8257,36 @@ void GLES2DecoderImpl::DoSamplerParameteriv(GLuint client_id,
                                    sampler, pname, params[0]);
 }
 
+bool GLES2DecoderImpl::CheckTexParameterBaseLevel(TextureRef* texture,
+                                                  GLenum pname,
+                                                  GLint param) {
+  if (pname == GL_TEXTURE_BASE_LEVEL &&
+      workarounds().dont_change_base_level_for_npot_immutable_textures) {
+    Texture* tex = texture->texture();
+    if (tex->base_level() != param && tex->target() == GL_TEXTURE_2D &&
+        tex->IsImmutable()) {
+      GLsizei width = 0, height = 0, depth = 0;
+      if (tex->GetLevelSize(tex->target(), 0, &width, &height, &depth) &&
+          (GLES2Util::IsNPOT(width) || GLES2Util::IsNPOT(height))) {
+        MarkContextLost(error::kGuilty);
+        group_->LoseContexts(error::kUnknown);
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 void GLES2DecoderImpl::DoTexParameterf(
     GLenum target, GLenum pname, GLfloat param) {
   TextureRef* texture = texture_manager()->GetTextureInfoForTarget(
       &state_, target);
   if (!texture) {
     LOCAL_SET_GL_ERROR(GL_INVALID_VALUE, "glTexParameterf", "unknown texture");
+    return;
+  }
+
+  if (!CheckTexParameterBaseLevel(texture, pname, static_cast<GLint>(param))) {
     return;
   }
 
@@ -8273,6 +8300,10 @@ void GLES2DecoderImpl::DoTexParameteri(
       &state_, target);
   if (!texture) {
     LOCAL_SET_GL_ERROR(GL_INVALID_VALUE, "glTexParameteri", "unknown texture");
+    return;
+  }
+
+  if (!CheckTexParameterBaseLevel(texture, pname, param)) {
     return;
   }
 
@@ -8290,6 +8321,11 @@ void GLES2DecoderImpl::DoTexParameterfv(GLenum target,
     return;
   }
 
+  if (!CheckTexParameterBaseLevel(texture, pname,
+                                  static_cast<GLint>(*params))) {
+    return;
+  }
+
   texture_manager()->SetParameterf("glTexParameterfv", error_state_.get(),
                                    texture, pname, *params);
 }
@@ -8302,6 +8338,10 @@ void GLES2DecoderImpl::DoTexParameteriv(GLenum target,
   if (!texture) {
     LOCAL_SET_GL_ERROR(
         GL_INVALID_VALUE, "glTexParameteriv", "unknown texture");
+    return;
+  }
+
+  if (!CheckTexParameterBaseLevel(texture, pname, *params)) {
     return;
   }
 
@@ -16000,6 +16040,27 @@ void GLES2DecoderImpl::TexStorageImpl(GLenum target,
     compatibility_internal_format = format_info->decompressed_internal_format;
   }
 
+  // TODO(zmo): We might need to emulate TexStorage using TexImage or
+  // CompressedTexImage on Mac OSX where we expose ES3 APIs when the underlying
+  // driver is lower than 4.2 and ARB_texture_storage extension doesn't exist.
+  LOCAL_COPY_REAL_GL_ERRORS_TO_WRAPPER(function_name);
+  if (dimension == ContextState::k2D) {
+    api()->glTexStorage2DEXTFn(target, levels, compatibility_internal_format,
+                               width, height);
+  } else {
+    api()->glTexStorage3DFn(target, levels, compatibility_internal_format,
+                            width, height, depth);
+  }
+  GLenum error = LOCAL_PEEK_GL_ERROR(function_name);
+  if (error != GL_NO_ERROR) {
+    // The driver rejected the allocation. Do NOT update the decoder-side
+    // LevelInfo / immutable flag, otherwise subsequent TexSubImage bounds
+    // checks (Texture::ValidForTexture) would validate against dimensions
+    // that the driver never allocated, allowing oversized writes to be
+    // forwarded to the native driver.
+    return;
+  }
+
   {
     GLsizei level_width = width;
     GLsizei level_height = height;
@@ -16027,17 +16088,6 @@ void GLES2DecoderImpl::TexStorageImpl(GLenum target,
     }
     texture->ApplyFormatWorkarounds(feature_info_.get());
     texture->SetImmutable(true, true);
-  }
-
-  // TODO(zmo): We might need to emulate TexStorage using TexImage or
-  // CompressedTexImage on Mac OSX where we expose ES3 APIs when the underlying
-  // driver is lower than 4.2 and ARB_texture_storage extension doesn't exist.
-  if (dimension == ContextState::k2D) {
-    api()->glTexStorage2DEXTFn(target, levels, compatibility_internal_format,
-                               width, height);
-  } else {
-    api()->glTexStorage3DFn(target, levels, compatibility_internal_format,
-                            width, height, depth);
   }
 }
 
