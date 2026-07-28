@@ -17,6 +17,7 @@ import android.widget.FrameLayout;
 
 import org.chromium.base.CommandLine;
 import org.chromium.base.Log;
+import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.EventForwarder;
 import org.chromium.ui.base.WindowAndroid;
@@ -301,11 +302,27 @@ public class ContentViewRenderView extends FrameLayout {
         private SurfaceHolder mWindowSurfaceHolder;
 
         /**
-         * The last requested PixelFormat (e.g. TRANSLUCENT for overlay video mode, OPAQUE for normal).
-         * Preserved across surface destruction and recreation so newly created SurfaceHolders
-         * automatically inherit the desired format.
+         * The pending PixelFormat (e.g. TRANSLUCENT for overlay video mode, OPAQUE for normal).
+         * Buffered when setFormat() is called before the surface is ready, and consumed once
+         * the SurfaceHolder becomes available.
          */
-        private Integer mRequestedSurfaceFormat;
+        private Integer mPendingSurfaceFormat;
+
+        private static class SurfaceConfig {
+            public final int format;
+            public final int width;
+            public final int height;
+
+            public SurfaceConfig(int format, int width, int height) {
+                this.format = format;
+                this.width = width;
+                this.height = height;
+            }
+        }
+
+        private boolean mPendingSurfaceCreated;
+        private SurfaceConfig mPendingSurfaceConfig;
+        private boolean mIsObserverRegistered;
 
         private static Window getWindow(WindowAndroid windowAndroid) {
             if (windowAndroid == null || windowAndroid.getActivity() == null) {
@@ -331,23 +348,20 @@ public class ContentViewRenderView extends FrameLayout {
                 @Override
                 public void surfaceCreated(SurfaceHolder holder) {
                     mWindowSurfaceHolder = holder;
-                    if (mRequestedSurfaceFormat != null) {
-                        Log.i(TAG, "ContentViewRenderView: Applying pending format");
-                        mWindowSurfaceHolder.setFormat(mRequestedSurfaceFormat);
-                    }
-                    surfaceCallback.surfaceCreated(holder);
+                    mPendingSurfaceCreated = true;
                 }
 
                 @Override
                 public void surfaceChanged(
                         SurfaceHolder holder, int format, int width, int height) {
-                    mWindowSurfaceHolder = holder;
-                    surfaceCallback.surfaceChanged(holder, format, width, height);
+                    dispatchOrDeferSurfaceEvents(holder, new SurfaceConfig(format, width, height));
                 }
 
                 @Override
                 public void surfaceDestroyed(SurfaceHolder holder) {
                     mWindowSurfaceHolder = null;
+                    mPendingSurfaceCreated = false;
+                    mPendingSurfaceConfig = null;
                     surfaceCallback.surfaceDestroyed(holder);
                 }
 
@@ -357,6 +371,56 @@ public class ContentViewRenderView extends FrameLayout {
                         return;
                     }
                     ((SurfaceHolder.Callback2) surfaceCallback).surfaceRedrawNeeded(holder);
+                }
+
+                private void dispatchOrDeferSurfaceEvents(SurfaceHolder holder, SurfaceConfig config) {
+                    mWindowSurfaceHolder = holder;
+                    mPendingSurfaceConfig = config;
+
+                    if (BrowserStartupController.getInstance().isNativeStarted()) {
+                        dispatchPendingSurfaceEvents();
+                        return;
+                    }
+
+                    if (mIsObserverRegistered) {
+                        Log.i(TAG, "ContentViewRenderView: Startup observer already registered; updated pending config");
+                        return;
+                    }
+                    mIsObserverRegistered = true;
+
+                    Log.i(TAG, "ContentViewRenderView: Deferring surface events until native startup completes");
+                    // Native browser startup (Mojo initialization) is asynchronous and may still be in progress
+                    // during Activity creation, especially on slower devices. For details, see b/539880857.
+                    BrowserStartupController.getInstance().addStartupCompletedObserver(
+                            new BrowserStartupController.StartupCallback() {
+                                @Override
+                                public void onSuccess() {
+                                    dispatchPendingSurfaceEvents();
+                                }
+
+                                @Override
+                                public void onFailure() {}
+                            });
+                }
+
+                private void dispatchPendingSurfaceEvents() {
+                    if (mPendingSurfaceConfig == null || mWindowSurfaceHolder == null) {
+                        return;
+                    }
+
+                    if (mPendingSurfaceCreated) {
+                        mPendingSurfaceCreated = false;
+                        Log.i(TAG, "ContentViewRenderView: Native startup finished, dispatching surface events");
+                        applyPendingSurfaceFormat();
+                        surfaceCallback.surfaceCreated(mWindowSurfaceHolder);
+                    }
+
+                    surfaceCallback.surfaceChanged(
+                            mWindowSurfaceHolder,
+                            mPendingSurfaceConfig.format,
+                            mPendingSurfaceConfig.width,
+                            mPendingSurfaceConfig.height);
+                    mPendingSurfaceConfig = null;
                 }
             });
         }
@@ -370,7 +434,9 @@ public class ContentViewRenderView extends FrameLayout {
             }
             mWindow = null;
             mWindowSurfaceHolder = null;
-            mRequestedSurfaceFormat = null;
+            mPendingSurfaceFormat = null;
+            mPendingSurfaceConfig = null;
+            mPendingSurfaceCreated = false;
         }
 
         @Override
@@ -378,14 +444,23 @@ public class ContentViewRenderView extends FrameLayout {
             return null;
         }
 
-        @Override
-        protected void setFormat(int format) {
-            mRequestedSurfaceFormat = format;
+        private void applyPendingSurfaceFormat() {
+            if (mPendingSurfaceFormat == null) {
+                return;
+            }
             if (mWindowSurfaceHolder == null) {
                 Log.i(TAG, "ContentViewRenderView: surface is not ready yet. Will apply format later");
                 return;
             }
-            mWindowSurfaceHolder.setFormat(format);
+            Log.i(TAG, "ContentViewRenderView: Applying pending format");
+            mWindowSurfaceHolder.setFormat(mPendingSurfaceFormat);
+            mPendingSurfaceFormat = null;
+        }
+
+        @Override
+        protected void setFormat(int format) {
+            mPendingSurfaceFormat = format;
+            applyPendingSurfaceFormat();
         }
     }
 
