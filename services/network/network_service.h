@@ -27,8 +27,8 @@
 #include "base/timer/timer.h"
 #include "build/build_config.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
-#include "components/ip_protection/common/masked_domain_list_manager.h"
-#include "components/ip_protection/common/probabilistic_reveal_token_registry.h"
+#include "components/ip_protection/common/masked_domain_list_manager.h"        // nogncheck
+#include "components/ip_protection/common/probabilistic_reveal_token_registry.h"// nogncheck
 #include "components/privacy_sandbox/masked_domain_list/masked_domain_list.pb.h"
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "mojo/public/cpp/bindings/pending_receiver.h"

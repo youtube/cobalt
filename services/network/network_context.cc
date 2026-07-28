@@ -45,9 +45,9 @@
 #include "components/cookie_config/cookie_store_util.h"
 #include "components/domain_reliability/monitor.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
-#include "components/ip_protection/common/ip_protection_core_host_remote.h"
-#include "components/ip_protection/common/ip_protection_core_impl_mojo.h"
-#include "components/ip_protection/common/ip_protection_proxy_delegate.h"
+#include "components/ip_protection/common/ip_protection_core_host_remote.h"  // nogncheck
+#include "components/ip_protection/common/ip_protection_core_impl_mojo.h"    // nogncheck
+#include "components/ip_protection/common/ip_protection_proxy_delegate.h"   // nogncheck
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "components/network_session_configurator/browser/network_session_configurator.h"
 #include "components/network_session_configurator/common/network_switches.h"
