@@ -30,7 +30,8 @@ class BidirectionalFitDecoderBufferAllocatorStrategy
  public:
   BidirectionalFitDecoderBufferAllocatorStrategy(size_t initial_capacity,
                                                  size_t allocation_increment)
-      : fallback_allocator_(/*enable_decommit_on_idle=*/false),
+      : fallback_allocator_(/*enable_decommit_on_idle=*/false,
+                            /*enable_page_alignment=*/false),
         bidirectional_fit_allocator_(&fallback_allocator_,
                                      initial_capacity,
                                      kSmallAllocationThreshold,
@@ -50,8 +51,10 @@ class BidirectionalFitDecoderBufferAllocatorStrategy
       bool enable_decommit_on_idle,
       size_t retain_blocks,
       size_t conservative_decommit_blocks,
-      bool aggressive_decommit_on_suspend = false)
-      : fallback_allocator_(enable_decommit_on_idle),
+      bool aggressive_decommit_on_suspend = false,
+      bool allocate_with_page_alignment = true)
+      : fallback_allocator_(enable_decommit_on_idle,
+                            allocate_with_page_alignment),
         bidirectional_fit_allocator_(&fallback_allocator_,
                                      initial_capacity,
                                      kSmallAllocationThreshold,
