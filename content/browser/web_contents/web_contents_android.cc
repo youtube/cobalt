@@ -466,8 +466,12 @@ jint WebContentsAndroid::GetVisibility(JNIEnv* env) {
 
 void WebContentsAndroid::UpdateWebContentsVisibility(JNIEnv* env,
                                                      jint visibility) {
+#if BUILDFLAG(IS_COBALT)
+  LOG(FATAL) << __func__ << " should never be called in Cobalt.";
+#else
   web_contents_->UpdateWebContentsVisibility(
       static_cast<Visibility>(visibility));
+#endif
 }
 
 RenderWidgetHostViewAndroid*
@@ -496,11 +500,19 @@ void WebContentsAndroid::ResumeLoadingCreatedWebContents(JNIEnv* env) {
 }
 
 void WebContentsAndroid::OnFreeze(JNIEnv* env) {
+#if BUILDFLAG(IS_COBALT)
+  LOG(FATAL) << __func__ << " should never be called in Cobalt.";
+#else
   web_contents_->SetPageFrozen(true);
+#endif
 }
 
 void WebContentsAndroid::OnResume(JNIEnv* env) {
+#if BUILDFLAG(IS_COBALT)
+  LOG(FATAL) << __func__ << " should never be called in Cobalt.";
+#else
   web_contents_->SetPageFrozen(false);
+#endif
 }
 
 void WebContentsAndroid::SetPrimaryMainFrameImportance(JNIEnv* env,
@@ -510,7 +522,11 @@ void WebContentsAndroid::SetPrimaryMainFrameImportance(JNIEnv* env,
 }
 
 void WebContentsAndroid::SuspendAllMediaPlayers(JNIEnv* env) {
+#if BUILDFLAG(IS_COBALT)
+  LOG(FATAL) << __func__ << " should never be called in Cobalt.";
+#else
   web_contents_->media_web_contents_observer()->SuspendAllMediaPlayers();
+#endif
 }
 
 void WebContentsAndroid::SetAudioMuted(JNIEnv* env, jboolean mute) {
@@ -902,9 +918,13 @@ void WebContentsAndroid::OnScaleFactorChanged(JNIEnv* env) {
 }
 
 void WebContentsAndroid::SetFocus(JNIEnv* env, jboolean focused) {
+#if BUILDFLAG(IS_COBALT)
+  LOG(FATAL) << __func__ << " should never be called in Cobalt.";
+#else
   WebContentsViewAndroid* view =
       static_cast<WebContentsViewAndroid*>(web_contents_->GetView());
   view->SetFocus(focused);
+#endif
 }
 
 bool WebContentsAndroid::IsBeingDestroyed(JNIEnv* env) {
