@@ -91,6 +91,7 @@ public class BaseStarboardBridge {
 
   private volatile boolean mApplicationStopped;
   private volatile boolean mApplicationStarted;
+  private String mStdoutFilePath;
 
   private long mAppStartTimestamp = 0;
 
@@ -270,6 +271,15 @@ public class BaseStarboardBridge {
   @CalledByNative
   protected void applicationStarted() {
     mApplicationStarted = true;
+  }
+
+  public void setStdoutFilePath(String path) {
+    mStdoutFilePath = path;
+  }
+
+  @CalledByNative
+  public String getStdoutFilePath() {
+    return mStdoutFilePath != null ? mStdoutFilePath : "";
   }
 
   @CalledByNative

@@ -256,6 +256,13 @@ void StarboardBridge::AppendArgs(JNIEnv* env,
   AppendJavaStringArrayToStringVector(env, args_java, args_vector);
 }
 
+std::string StarboardBridge::GetStdoutFilePath(JNIEnv* env) {
+  SB_DCHECK(env);
+  ScopedJavaLocalRef<jstring> path_java =
+      Java_BaseStarboardBridge_getStdoutFilePath(env, j_starboard_bridge_);
+  return ConvertJavaStringToUTF8(env, path_java);
+}
+
 ScopedJavaLocalRef<jintArray> StarboardBridge::GetSupportedHdrTypes(
     JNIEnv* env) {
   SB_DCHECK(env);

@@ -25,6 +25,7 @@ import dev.cobalt.util.Holder;
 
 import org.chromium.base.StrictModeContext;
 import org.chromium.base.library_loader.LibraryLoader;
+import org.chromium.build.gtest_apk.NativeTestIntent;
 import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.BrowserStartupController.StartupCallback;
@@ -95,6 +96,14 @@ public abstract class ContentShellBrowserTestActivity extends NativeBrowserTestA
                         new String[0], // args
                         ""); // startDeepLink
         ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(mStarboardBridge);
+
+        Intent intent = getIntent();
+        if (intent != null) {
+            String stdoutFile = intent.getStringExtra(NativeTestIntent.EXTRA_STDOUT_FILE);
+            if (stdoutFile != null) {
+                mStarboardBridge.setStdoutFilePath(stdoutFile);
+            }
+        }
 
         Window wind = this.getWindow();
         wind.addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
