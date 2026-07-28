@@ -118,9 +118,7 @@ ExoPlayerBridge::ExoPlayerBridge(
       return;
     }
 
-    AcquiredSurface acquired_surface = AcquireVideoSurface(job_queue);
-    surface_destroy_notifier_ = acquired_surface.destroy_notifier;
-    j_output_surface = acquired_surface.surface;
+    j_output_surface = AcquireVideoSurface();
     if (!j_output_surface) {
       init_error_msg_ = "Could not acquire video surface for ExoPlayer";
       SB_LOG(ERROR) << init_error_msg_;
@@ -171,10 +169,6 @@ ExoPlayerBridge::~ExoPlayerBridge() {
   if (owns_surface_) {
     CleanUpVideoWindow(false);
     ReleaseVideoSurface();
-    if (surface_destroy_notifier_) {
-      surface_destroy_notifier_->Disconnect();
-      surface_destroy_notifier_ = nullptr;
-    }
   }
 }
 

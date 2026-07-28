@@ -162,7 +162,6 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   EndedCB ended_cb_;
 
   bool owns_surface_ = false;
-  scoped_refptr<SurfaceDestroyNotifier> surface_destroy_notifier_;
   std::string init_error_msg_;
 
   ThreadChecker thread_checker_;
