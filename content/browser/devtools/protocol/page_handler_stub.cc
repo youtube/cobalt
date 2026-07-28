@@ -1,0 +1,123 @@
+#include "content/browser/devtools/protocol/page_handler.h"
+
+#include <map>
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "base/containers/enum_set.h"
+#include "base/functional/callback.h"
+#include "base/memory/ref_counted.h"
+#include "base/memory/safe_ref.h"
+#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
+#include "base/time/time.h"
+#include "base/values.h"
+#include "content/browser/devtools/dedicated_worker_devtools_agent_host.h"
+#include "content/browser/devtools/devtools_agent_host_impl.h"
+#include "content/browser/devtools/devtools_preload_storage.h"
+#include "content/browser/devtools/devtools_throttle_handle.h"
+#include "content/browser/devtools/devtools_url_loader_interceptor.h"
+#include "content/browser/devtools/network_service_devtools_observer.h"
+#include "content/browser/devtools/render_frame_devtools_agent_host.h"
+#include "content/browser/devtools/service_worker_devtools_agent_host.h"
+#include "content/browser/devtools/service_worker_devtools_manager.h"
+#include "content/browser/devtools/shared_worker_devtools_agent_host.h"
+#include "content/browser/devtools/shared_worker_devtools_manager.h"
+#include "content/browser/devtools/worker_devtools_manager.h"
+#include "content/browser/preloading/prefetch/prefetch_status.h"
+#include "content/browser/preloading/prerender/prerender_attributes.h"
+#include "content/browser/preloading/prerender/prerender_final_status.h"
+#include "content/browser/service_worker/service_worker_context_wrapper.h"
+#include "content/browser/web_contents/web_contents_impl.h"
+#include "content/public/browser/devtools_agent_host.h"
+#include "content/public/browser/frame_tree_node_id.h"
+#include "content/public/browser/global_request_id.h"
+#include "content/public/browser/global_routing_id.h"
+#include "content/public/browser/preloading.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
+#include "net/base/auth.h"
+#include "services/network/public/cpp/resource_request.h"
+#include "services/network/public/cpp/url_loader_completion_status.h"
+#include "services/network/public/mojom/client_security_state.mojom.h"
+#include "services/network/public/mojom/devtools_observer.mojom.h"
+#include "services/network/public/mojom/url_response_head.mojom.h"
+#include "third_party/blink/public/common/page/drag_operation.h"
+#include "third_party/blink/public/common/tokens/tokens.h"
+#include "third_party/blink/public/mojom/devtools/devtools_agent.mojom.h"
+#include "third_party/blink/public/mojom/drag/drag.mojom.h"
+#include "third_party/blink/public/mojom/navigation/navigation_params.mojom.h"
+#include "url/gurl.h"
+
+namespace download {
+struct DownloadCreateInfo;
+class DownloadItem;
+class DownloadUrlParameters;
+}  // namespace download
+
+namespace net {
+struct WebTransportError;
+}  // namespace net
+
+namespace network {
+class URLLoaderFactoryBuilder;
+}
+
+#include "content/public/browser/certificate_request_result_type.h"
+
+namespace content {
+
+class FencedFrame;
+class FrameTree;
+class NavigationThrottleRegistry;
+class SignedExchangeEnvelope;
+struct SignedExchangeError;
+class BackForwardCacheCanStoreDocumentResult;
+class BackForwardCacheCanStoreTreeResult;
+struct PrerenderMismatchedHeaders;
+using CertErrorCallback =
+    base::RepeatingCallback<void(CertificateRequestResultType)>;
+
+enum class InterestGroupAuctionEventType;
+enum class InterestGroupAuctionFetchType;
+
+class RenderFrameHostImpl;
+class RenderProcessHost;
+class StoragePartition;
+class NavigationRequest;
+class FrameTreeNode;
+enum JavaScriptDialogType;
+using JavaScriptDialogCallback =
+    base::OnceCallback<void(bool, const std::u16string&)>;
+
+namespace protocol {
+// static
+std::vector<PageHandler*> PageHandler::EnabledForWebContents(
+    WebContentsImpl* contents) {
+  return {};
+}
+
+void PageHandler::DidRunJavaScriptDialog(const GURL& url,
+                                         const base::UnguessableToken& frame_id,
+                                         const std::u16string& message,
+                                         const std::u16string& default_prompt,
+                                         JavaScriptDialogType dialog_type,
+                                         bool has_non_devtools_handlers,
+                                         JavaScriptDialogCallback callback) {}
+
+void PageHandler::DidCloseJavaScriptDialog(
+    const base::UnguessableToken& frame_id,
+    bool success,
+    const std::u16string& user_input) {}
+
+void PageHandler::DidRunBeforeUnloadConfirm(
+    const GURL& url,
+    const base::UnguessableToken& frame_id,
+    bool has_non_devtools_handlers,
+    JavaScriptDialogCallback callback) {}
+}  // namespace protocol
+
+}  // namespace content
