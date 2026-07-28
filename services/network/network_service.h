@@ -564,8 +564,6 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
 
   std::unique_ptr<network::tpcd::metadata::Manager> tpcd_metadata_manager_;
 
-
-
   bool exclusive_cookie_database_locking_ = true;
   base::WeakPtrFactory<NetworkService> weak_factory_{this};
 };
