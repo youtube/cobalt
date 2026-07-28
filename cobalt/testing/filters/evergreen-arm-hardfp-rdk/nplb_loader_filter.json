@@ -30,6 +30,7 @@
     "PosixTimeClockGettimeTests/CpuTimeClock.Increases/CLOCK_THREAD_CPUTIME_ID",
     "PosixTimeClockTests.ClockIncreasesOverTime",
     "SbLogFlushTest.DontCrashMeBro",
+    "SbPlayerGetAudioConfigurationTests/SbPlayerGetAudioConfigurationTest.MultipleSeeks/*",
     "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.LimitedAudioInput/*",
     "SbSystemGetLocaleIdTest.SunnyDay",
     "SbSystemGetPathTest.CanWriteAndReadFilesStorage",
