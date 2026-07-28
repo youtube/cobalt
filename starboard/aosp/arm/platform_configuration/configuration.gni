@@ -19,3 +19,10 @@ if (current_toolchain == default_toolchain) {
   import("//starboard/android/arm/platform_configuration/configuration.gni")
   sb_evergreen_compatible_use_libunwind = true
 }
+
+# The evergreen/modular config forces cobalt_font_package = "empty" and the
+# Android config uses "android_system"; neither bundles a usable, self-contained
+# font set. Cobalt's SkFontMgr_Cobalt aborts without real families
+# so ship the "limited" package.
+# cobalt/aosp/modular_apk.gni packages it into the cobalt APK.
+cobalt_font_package = "limited"
