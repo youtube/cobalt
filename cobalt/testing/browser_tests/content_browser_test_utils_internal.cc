@@ -1128,17 +1128,6 @@ bool CommitNavigationPauser::WillProcessDidCommitNavigation(
   return false;
 }
 
-// TODO(crbug.com/40278950): Use
-// `WebFrameWidgetImpl::NotifySwapAndPresentationTime` instead.
-void WaitForCopyableViewInWebContents(WebContents* web_contents) {
-  WaitForCopyableViewInFrame(web_contents->GetPrimaryMainFrame());
-}
-
-void WaitForCopyableViewInFrame(RenderFrameHost* render_frame_host) {
-  base::test::TestFuture<void> future;
-  NotifyCopyableViewInFrame(render_frame_host, future.GetCallback());
-  CHECK(future.Wait());
-}
 
 namespace {
 

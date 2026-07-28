@@ -19,7 +19,7 @@
 
 #include "base/command_line.h"
 #include "base/feature_list.h"
-#include "base/functional/overloaded.h"
+#include "absl/functional/overload.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "build/build_config.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
@@ -189,7 +189,7 @@ class MockContentMainDelegate : public ContentBrowserTestShellMainDelegate {
 MATCHER_P(InvokedInMatcher, process_type, "") {
   // `arg` is an std::variant. Return true if the type held by the variant is
   // correct for `process_type` (empty means the browser process).
-  return std::visit(base::Overloaded{
+  return std::visit(absl::Overload{
                         [&](ContentMainDelegate::InvokedInBrowserProcess) {
                           return process_type.empty();
                         },
