@@ -8,7 +8,9 @@
 #include "build/build_config.h"
 #include "third_party/blink/public/common/buildflags.h"
 
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+#if !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+#include "content/browser/devtools/worker_devtools_manager_stub.h"
+#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #include <map>
 
@@ -57,37 +59,6 @@ class WorkerDevToolsManager {
 
 }  // namespace content
 
-#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
-
-#include "base/memory/scoped_refptr.h"
-#include "content/public/browser/global_routing_id.h"
-
-namespace content {
-
-class DedicatedWorkerDevToolsAgentHost;
-class DedicatedWorkerHost;
-class DevToolsThrottleHandle;
-
-class WorkerDevToolsManager {
- public:
-  static WorkerDevToolsManager& GetInstance() {
-    static WorkerDevToolsManager instance;
-    return instance;
-  }
-  DedicatedWorkerDevToolsAgentHost* GetDevToolsHost(
-      const DedicatedWorkerHost* host) {
-    return nullptr;
-  }
-  void WorkerCreated(
-      const DedicatedWorkerHost* host,
-      int process_id,
-      const GlobalRenderFrameHostId& ancestor_render_frame_host_id,
-      scoped_refptr<DevToolsThrottleHandle> throttle_handle) {}
-  void WorkerDestroyed(const DedicatedWorkerHost* host) {}
-};
-
-}  // namespace content
-
-#endif  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+#endif  // !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #endif  // CONTENT_BROWSER_DEVTOOLS_WORKER_DEVTOOLS_MANAGER_H_

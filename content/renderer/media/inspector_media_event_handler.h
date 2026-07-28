@@ -8,7 +8,9 @@
 #include "build/build_config.h"
 #include "third_party/blink/public/common/buildflags.h"
 
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+#if !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+#include "content/renderer/media/inspector_media_event_handler_stub.h"
+#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #include <vector>
 
@@ -38,30 +40,6 @@ class CONTENT_EXPORT InspectorMediaEventHandler
 
 }  // namespace content
 
-#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
-
-#include <vector>
-
-#include "content/common/content_export.h"
-#include "content/renderer/media/batching_media_log.h"
-
-namespace blink {
-class MediaInspectorContext;
-}
-
-namespace content {
-
-class CONTENT_EXPORT InspectorMediaEventHandler
-    : public BatchingMediaLog::EventHandler {
- public:
-  explicit InspectorMediaEventHandler(blink::MediaInspectorContext*) {}
-  ~InspectorMediaEventHandler() override = default;
-  void SendQueuedMediaEvents(std::vector<media::MediaLogRecord>) override {}
-  void OnWebMediaPlayerDestroyed() override {}
-};
-
-}  // namespace content
-
-#endif  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+#endif  // !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #endif  // CONTENT_RENDERER_MEDIA_INSPECTOR_MEDIA_EVENT_HANDLER_H_

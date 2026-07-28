@@ -8,7 +8,9 @@
 #include "build/build_config.h"
 #include "third_party/blink/public/common/buildflags.h"
 
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+#if !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+#include "content/browser/devtools/service_worker_devtools_agent_host_stub.h"
+#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #include <stdint.h>
 
@@ -182,24 +184,6 @@ class ServiceWorkerDevToolsAgentHost : public DevToolsAgentHostImpl,
 
 }  // namespace content
 
-#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
-
-#include "base/memory/scoped_refptr.h"
-#include "base/unguessable_token.h"
-#include "content/browser/devtools/devtools_agent_host_impl.h"
-
-namespace content {
-
-class ServiceWorkerDevToolsAgentHost : public DevToolsAgentHostImpl {
- public:
-  const base::UnguessableToken& devtools_worker_token() const {
-    static const base::UnguessableToken token;
-    return token;
-  }
-};
-
-}  // namespace content
-
-#endif  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+#endif  // !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #endif  // CONTENT_BROWSER_DEVTOOLS_SERVICE_WORKER_DEVTOOLS_AGENT_HOST_H_

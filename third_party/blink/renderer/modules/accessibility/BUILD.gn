@@ -83,5 +83,6 @@ blink_modules_sources("accessibility") {
       "inspector_accessibility_agent.cc",
       "inspector_type_builder_helper.cc",
     ]
+    sources += [ "inspector_accessibility_agent_stub.h" ]
   }
 }

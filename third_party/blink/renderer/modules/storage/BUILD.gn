@@ -28,6 +28,7 @@ blink_modules_sources("storage") {
 
   if (!enable_devtools_backend) {
     sources -= [ "inspector_dom_storage_agent.cc" ]
+    sources += [ "inspector_dom_storage_agent_stub.h" ]
   }
 }
 

@@ -8,7 +8,9 @@
 #include "build/build_config.h"
 #include "third_party/blink/public/common/buildflags.h"
 
-#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+#if !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+#include "content/browser/devtools/devtools_preload_storage_stub.h"
+#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #include "content/browser/preloading/prefetch/prefetch_status.h"
 #include "content/browser/preloading/prerender/prerender_final_status.h"
@@ -83,25 +85,6 @@ class DevToolsPreloadStorage : public DocumentUserData<DevToolsPreloadStorage> {
 
 }  // namespace content
 
-#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
-
-namespace content {
-
-class RenderFrameHost;
-
-class DevToolsPreloadStorage {
- public:
-  static DevToolsPreloadStorage* GetOrCreateForCurrentDocument(
-      RenderFrameHost* rfh) {
-    return nullptr;
-  }
-  static DevToolsPreloadStorage* GetForCurrentDocument(RenderFrameHost* rfh) {
-    return nullptr;
-  }
-};
-
-}  // namespace content
-
-#endif  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+#endif  // !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #endif  // CONTENT_BROWSER_DEVTOOLS_DEVTOOLS_PRELOAD_STORAGE_H_
