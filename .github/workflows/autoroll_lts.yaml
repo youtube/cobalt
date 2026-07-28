@@ -103,7 +103,8 @@ jobs:
             --target-branch "${{ matrix.branch.target }}" \
             --autoroll-file "${{ matrix.branch.autoroll }}" \
             --max-commits "${{ env.MAX_COMMITS }}" \
-            --existing-pr-sha "${{ steps.pr_info.outputs.first_sha }}")
+            --existing-pr-sha "${{ steps.pr_info.outputs.first_sha }}" \
+            --verbose)
 
           if [[ -n "${PR_LINKS}" ]]; then
             echo "cherry_picked=true" >> "$GITHUB_OUTPUT"

@@ -37,6 +37,15 @@ class TestGitHelper(unittest.TestCase):
                                      text=True)
     self.assertEqual(res, 'output')
 
+  @patch('subprocess.run')
+  def test_git_verbose(self, mock_run):
+    autoroll_lts.VERBOSE = True
+    mock_run.return_value = MagicMock(stdout='output')
+    with patch('autoroll_lts.log') as mock_log:
+      autoroll_lts.git('status', 'args')
+      mock_log.assert_called_once_with('Running: git status args')
+    autoroll_lts.VERBOSE = False
+
 
 class TestGetStartSha(unittest.TestCase):
   """Test cases for get_start_sha()."""
@@ -368,6 +377,21 @@ class TestMainFlow(unittest.TestCase):
                                                ('date', 'author', 'msg'), False,
                                                'roll_file')
       self.assertEqual('- #101\n- #102', mock_stdout.getvalue().strip())
+
+  @patch('autoroll_lts.get_start_sha')
+  @patch('sys.argv', [
+      'autoroll_lts.py', '--source-branch', 'main', '--target-branch', '27.lts',
+      '--autoroll-file', 'roll_file', '--max-commits', '5', '--existing-pr-sha',
+      '', '--verbose'
+  ])
+  def test_main_verbose_flag(self, mock_get_start_sha):
+    mock_get_start_sha.return_value = None
+
+    autoroll_lts.VERBOSE = False
+    with patch('sys.stderr'):
+      autoroll_lts.main()
+    self.assertTrue(autoroll_lts.VERBOSE)
+    autoroll_lts.VERBOSE = False
 
 
 if __name__ == '__main__':
