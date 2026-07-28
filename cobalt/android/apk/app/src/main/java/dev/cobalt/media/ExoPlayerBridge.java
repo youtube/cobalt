@@ -281,7 +281,9 @@ public class ExoPlayerBridge {
         });
 
     try {
-      releaseLatch.await(PLAYER_RELEASE_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+      if (!releaseLatch.await(PLAYER_RELEASE_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+        Log.e(TAG, "ExoPlayer release timed out!");
+      }
     } catch (InterruptedException e) {
       Log.e(TAG, "Interrupted while waiting for ExoPlayer release.");
       Thread.currentThread().interrupt();

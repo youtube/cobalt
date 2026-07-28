@@ -21,6 +21,7 @@ import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
 import androidx.media3.datasource.TransferListener;
 import androidx.media3.exoplayer.source.BaseMediaSource;
+import androidx.media3.exoplayer.source.ForwardingTimeline;
 import androidx.media3.exoplayer.source.MediaPeriod;
 import androidx.media3.exoplayer.source.SinglePeriodTimeline;
 import androidx.media3.exoplayer.upstream.Allocator;
@@ -31,7 +32,7 @@ import javax.annotation.concurrent.GuardedBy;
  * A custom {@link BaseMediaSource} that receives encoded media data from the native Starboard layer
  * and provides it to ExoPlayer.
  *
- * This source is designed for a single-period lifecycle, mapping to a single audio or video
+ * <p>This source is designed for a single-period lifecycle, mapping to a single audio or video
  * stream provided by the native application.
  */
 public final class ExoPlayerMediaSource extends BaseMediaSource {
@@ -56,14 +57,20 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
 
   @Override
   protected void prepareSourceInternal(@Nullable TransferListener mediaTransferListener) {
+    updateTimelineStartTime(0L);
+  }
+
+  public void updateTimelineStartTime(long startTimeUs) {
     refreshSourceInfo(
-        new SinglePeriodTimeline(
-            /* durationUs= */ C.TIME_UNSET,
-            /* isSeekable= */ true,
-            /* isDynamic= */ false,
-            /* useLiveConfiguration= */ false,
-            /* manifest= */ null,
-            getMediaItem()));
+        new OffsetTimeline(
+            new SinglePeriodTimeline(
+                /* durationUs= */ C.TIME_UNSET,
+                /* isSeekable= */ true,
+                /* isDynamic= */ false,
+                /* useLiveConfiguration= */ false,
+                /* manifest= */ null,
+                getMediaItem()),
+            startTimeUs));
   }
 
   @Override
@@ -81,7 +88,7 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
   public MediaPeriod createPeriod(MediaPeriodId id, Allocator allocator, long startPositionUs) {
     synchronized (mLock) {
       if (mMediaPeriod == null) {
-        mMediaPeriod = new ExoPlayerMediaPeriod(mFormat, mBridge);
+        mMediaPeriod = new ExoPlayerMediaPeriod(this, mBridge);
         return mMediaPeriod;
       }
     }
@@ -103,5 +110,26 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
     }
     throw new IllegalStateException(
         "Called MediaSource.releasePeriod() after period was already released");
+  }
+
+  /**
+   * A custom {@link ForwardingTimeline} that applies a constant time offset to the underlying
+   * timeline's window. This is used to synchronize ExoPlayer's internal clock with the absolute
+   * timestamps of live streams without requiring a seek operation.
+   */
+  private static class OffsetTimeline extends ForwardingTimeline {
+    private final long mOffsetUs;
+
+    public OffsetTimeline(androidx.media3.common.Timeline timeline, long offsetUs) {
+      super(timeline);
+      mOffsetUs = offsetUs;
+    }
+
+    @Override
+    public Window getWindow(int windowIndex, Window window, long defaultPositionProjectionUs) {
+      Window w = super.getWindow(windowIndex, window, defaultPositionProjectionUs);
+      w.positionInFirstPeriodUs = mOffsetUs;
+      return w;
+    }
   }
 }

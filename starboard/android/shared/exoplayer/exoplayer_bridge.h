@@ -153,6 +153,7 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   std::atomic_bool playback_error_occurred_ = false;
   std::atomic_bool initialized_ = false;
   std::atomic_bool seeking_ = false;
+  std::atomic_bool has_written_first_sample_ = false;
   std::atomic_bool is_playing_ = false;
   std::atomic_int32_t dropped_frames_ = 0;
 

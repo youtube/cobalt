@@ -16,7 +16,6 @@ package dev.cobalt.media;
 
 import androidx.annotation.NonNull;
 import androidx.media3.common.C;
-import androidx.media3.common.Format;
 import androidx.media3.common.TrackGroup;
 import androidx.media3.exoplayer.LoadingInfo;
 import androidx.media3.exoplayer.SeekParameters;
@@ -28,12 +27,12 @@ import java.io.IOException;
 
 /** Implements the ExoPlayer MediaPeriod interface to write samples to the ExoPlayerSampleStream. */
 public class ExoPlayerMediaPeriod implements MediaPeriod {
-  private final Format mFormat;
+  private final ExoPlayerMediaSource mMediaSource;
   private final ExoPlayerBridge mBridge;
   private ExoPlayerSampleStream mStream;
 
-  ExoPlayerMediaPeriod(Format format, ExoPlayerBridge bridge) {
-    mFormat = format;
+  ExoPlayerMediaPeriod(ExoPlayerMediaSource mediaSource, ExoPlayerBridge bridge) {
+    mMediaSource = mediaSource;
     mBridge = bridge;
   }
 
@@ -47,7 +46,7 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
 
   @Override
   public TrackGroupArray getTrackGroups() {
-    return new TrackGroupArray(new TrackGroup(mFormat));
+    return new TrackGroupArray(new TrackGroup(mMediaSource.getFormat()));
   }
 
   @Override
@@ -73,7 +72,8 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
 
     for (int i = 0; i < selections.length; ++i) {
       if (streams[i] == null && selections[i] != null) {
-        mStream = new ExoPlayerSampleStream(selections[i].getSelectedFormat(), mBridge);
+        mStream =
+            new ExoPlayerSampleStream(selections[i].getSelectedFormat(), mBridge, mMediaSource);
         streams[i] = mStream;
         streamResetFlags[i] = true;
       }
@@ -111,7 +111,9 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
 
   @Override
   public boolean continueLoading(@NonNull LoadingInfo loadingInfo) {
-    return true;
+    // Return false to prevent ExoPlayer from entering an infinite spinlock.
+    // We push data from native, so we don't actively load data here.
+    return false;
   }
 
   @Override

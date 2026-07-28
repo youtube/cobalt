@@ -30,12 +30,15 @@ public class ExoPlayerSampleStream implements SampleStream {
   private final Format mFormat;
   private final int mType;
   private final ExoPlayerBridge mBridge;
+  private final ExoPlayerMediaSource mMediaSource;
   private boolean mFormatSent = false;
+  private boolean mIsFirstSample = true;
   private final long[] mMetadata = new long[3];
 
-  ExoPlayerSampleStream(Format format, ExoPlayerBridge bridge) {
+  ExoPlayerSampleStream(Format format, ExoPlayerBridge bridge, ExoPlayerMediaSource mediaSource) {
     mFormat = format;
     mBridge = bridge;
+    mMediaSource = mediaSource;
     if (MimeTypes.isVideo(format.sampleMimeType)) {
       mType = ExoPlayerBridge.TYPE_VIDEO;
     } else {
@@ -64,7 +67,7 @@ public class ExoPlayerSampleStream implements SampleStream {
 
     if (result == RESULT_NEEDS_ALLOCATION) {
       int size = (int) mMetadata[1];
-      buffer.ensureSpaceForWrite(size);
+      buffer.data = java.nio.ByteBuffer.allocateDirect(size);
       // Now that it is allocated, read again
       result = mBridge.readSample(mType, buffer.data, mMetadata);
     }
@@ -73,6 +76,11 @@ public class ExoPlayerSampleStream implements SampleStream {
       buffer.timeUs = mMetadata[0];
       int size = (int) mMetadata[1];
       int flags = (int) mMetadata[2];
+
+      if (mIsFirstSample) {
+        mIsFirstSample = false;
+        mMediaSource.updateTimelineStartTime(buffer.timeUs);
+      }
 
       if (buffer.data != null) {
         // Set position to size so that when ExoPlayer calls buffer.flip(),

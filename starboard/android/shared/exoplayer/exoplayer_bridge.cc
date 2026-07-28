@@ -198,8 +198,15 @@ bool ExoPlayerBridge::Init(ErrorCB error_cb,
 
 void ExoPlayerBridge::Seek(int64_t timestamp) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  // TODO: Consider ignoring Seek(0) if no input has been written yet to avoid
-  // unnecessary latency during startup.
+
+  // Ignore redundant Seek(0) calls during startup to prevent unnecessary
+  // MediaCodec flushes that cause the player to stall and hit the preroll
+  // timeout.
+  if (timestamp == 0 && !has_written_first_sample_.load()) {
+    seeking_.store(true);
+    return;
+  }
+
   if (HasPlaybackErrorOccurred()) {
     return;
   }
@@ -289,6 +296,11 @@ int ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers,
                                          : max_video_buffer_duration_us_;
 
   std::lock_guard lock(mutex_);
+
+  if (!input_buffers.empty()) {
+    has_written_first_sample_.store(true);
+  }
+
   int samples_written = 0;
   auto& pending_samples = type == kSbMediaTypeAudio ? pending_audio_samples_
                                                     : pending_video_samples_;
