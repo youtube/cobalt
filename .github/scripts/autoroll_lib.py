@@ -4,9 +4,12 @@ from collections import defaultdict
 import enum
 import json
 import re
+import shlex
 import shutil
 import subprocess
 import sys
+
+VERBOSE = False
 
 
 @enum.unique
@@ -21,7 +24,23 @@ def log(msg):
   print(msg, file=sys.stderr)
 
 
+def git(*args,
+        check=True,
+        stdout=subprocess.PIPE,
+        text=True,
+        cwd=None,
+        **kwargs):
+  """Executes a git command with optional output capture and verbose logging."""
+  cmd = ['git'] + list(args)
+  if VERBOSE:
+    log(f'Running: {shlex.join(cmd)}')
+  return subprocess.run(
+      cmd, check=check, stdout=stdout, text=text, cwd=cwd, **kwargs).stdout
+
+
 def run(cmd, cwd=None):
+  if VERBOSE:
+    log(f'Running: {shlex.join(cmd)}')
   subprocess.run(cmd, check=True, stdout=sys.stderr, cwd=cwd)
 
 
@@ -32,7 +51,7 @@ def get_out(cmd):
 
 def get_start_sha(branch, autoroll_file):
   """Returns an autoroll start SHA or None if CONFLICTED."""
-  start = get_out(['git', 'show', f'{branch}:{autoroll_file}']).strip()
+  start = git('show', f'{branch}:{autoroll_file}').strip()
 
   if start.startswith('CONFLICTED:'):
     return None
@@ -46,10 +65,10 @@ def get_commits(branch, start):
   (sha, title, pr_num) tuple.
   """
   cmd = [
-      'git', 'rev-list', '--oneline', '--no-abbrev-commit', '--reverse',
+      'rev-list', '--oneline', '--no-abbrev-commit', '--reverse',
       f'{start}..{branch}'
   ]
-  lines = get_out(cmd).splitlines()
+  lines = git(*cmd).splitlines()
 
   commits = []
   for line in lines:
@@ -63,7 +82,7 @@ def get_commits(branch, start):
 
 def get_rolled_source_items(rev_range):
   """Returns (rolled_shas, rolled_pr_nums) cherry-picked in rev_range."""
-  output = get_out(['git', 'log', rev_range, '--format=%B'])
+  output = git('log', rev_range, '--format=%B')
   shas = set(
       re.findall(r'\(cherry picked from commit ([0-9a-fA-F]+)\)', output))
   prs = set()
@@ -103,8 +122,7 @@ def get_pr_labels(pr_num):
 
 
 def get_cherry_pick_metadata(sha, title, pr_num):
-  log_output = get_out(
-      ['git', 'log', '-1', '--format=%ad%x00%an <%ae>%x00%b', sha])
+  log_output = git('log', '-1', '--format=%ad%x00%an <%ae>%x00%b', sha)
   parts = log_output.split('\x00', 2)
   date = parts[0]
   author = parts[1]
@@ -133,7 +151,7 @@ def get_unmerged_files():
   - '2': 'ours'
   - '3': 'theirs'
   """
-  lines = get_out(['git', 'ls-files', '-u']).splitlines()
+  lines = git('ls-files', '-u').splitlines()
   files = defaultdict(set)
   stage_map = {'1': 'ancestor', '2': 'ours', '3': 'theirs'}
   for line in lines:
@@ -161,8 +179,8 @@ def resolve_conflicts(unmerged_files):
   # Special handling for .gitmodules to prevent "bad config" fatal errors
   if '.gitmodules' in unmerged_files:
     shutil.move('.gitmodules', '.gitmodules_conflict')
-    run(['git', 'checkout', '--ours', '--', '.gitmodules'])
-    run(['git', 'add', '--sparse', '--', '.gitmodules', '.gitmodules_conflict'])
+    git('checkout', '--ours', '--', '.gitmodules')
+    git('add', '--sparse', '--', '.gitmodules', '.gitmodules_conflict')
     unmerged_files.pop('.gitmodules', None)
 
   deleted_by_us = []
@@ -172,7 +190,7 @@ def resolve_conflicts(unmerged_files):
 
   for path, stages in unmerged_files.items():
     # Check if this path is a submodule (mode 160000)
-    file_info = get_out(['git', 'ls-files', '-u', '--', path])
+    file_info = git('ls-files', '-u', '--', path)
     is_submodule = '160000' in file_info
 
     if 'theirs' in stages and 'ours' not in stages:
@@ -186,26 +204,23 @@ def resolve_conflicts(unmerged_files):
 
   if deleted_by_us:
     log(f'Resolving \'deleted by us\' conflicts: {deleted_by_us}')
-    run(['git', 'rm', '--sparse', '--ignore-unmatch', '--'] + deleted_by_us)
+    git('rm', '--sparse', '--ignore-unmatch', '--', *deleted_by_us)
     for path in deleted_by_us:
       unmerged_files.pop(path, None)
 
   if deleted_by_them:
     log(f'Resolving \'deleted by them\' conflicts: {deleted_by_them}')
-    run(['git', 'rm', '--sparse', '--ignore-unmatch', '--'] + deleted_by_them)
+    git('rm', '--sparse', '--ignore-unmatch', '--', *deleted_by_them)
     for path in deleted_by_them:
       unmerged_files.pop(path, None)
 
   if submodule_conflicts:
     log(f'Resolving submodule conflicts: {submodule_conflicts}')
     for path in submodule_conflicts:
-      ls_files_out = get_out(['git', 'ls-files', '-u', '--', path])
+      ls_files_out = git('ls-files', '-u', '--', path)
       match = re.search(r'160000 ([a-f0-9]+) 3', ls_files_out)
       theirs_sha = match.group(1)
-      run([
-          'git', 'update-index', '--add', '--cacheinfo',
-          f'160000,{theirs_sha},{path}'
-      ])
+      git('update-index', '--add', '--cacheinfo', f'160000,{theirs_sha},{path}')
       unmerged_files.pop(path, None)
 
   if other_conflicts:
@@ -235,7 +250,7 @@ def apply_and_commit(action,
 
   # Apply
   try:
-    run(['git', action, '--no-commit', sha])
+    git(action, '--no-commit', sha)
   except subprocess.CalledProcessError:
     unmerged_files = get_unmerged_files()
     if resolve_conflicts(unmerged_files):
@@ -244,10 +259,10 @@ def apply_and_commit(action,
       unmerged_files = list(unmerged_files)
 
       if not first_commit:
-        run(['git', 'reset', '--hard', 'HEAD'])
+        git('reset', '--hard', 'HEAD')
         return CommitStatus.FAILED, unmerged_files
 
-      run(['git', 'add', '--sparse', '--'] + unmerged_files)
+      git('add', '--sparse', '--', *unmerged_files)
       msg = f'CONFLICTED {msg}'
       result = CommitStatus.CONFLICTED
 
@@ -260,11 +275,9 @@ def apply_and_commit(action,
           f.write(f'CONFLICTED:{autoroll_sha}\n')
         else:
           f.write(f'{autoroll_sha}\n')
-      run(['git', 'add', '--sparse', '--', autoroll_file])
+      git('add', '--sparse', '--', autoroll_file)
 
   # Commit
-  run([
-      'git', 'commit', '--no-verify', f'--date={date}', f'--author={author}',
-      '-m', msg
-  ])
+  git('commit', '--no-verify', f'--date={date}', f'--author={author}', '-m',
+      msg)
   return result, unmerged_files
