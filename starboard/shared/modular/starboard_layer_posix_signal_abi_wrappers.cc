@@ -284,7 +284,7 @@ int __abi_wrap_sigaction(int signum,
       return -1;
     }
     for (int i = 1; i < NSIG; ++i) {
-      if (i <= kMaxSignalNumber && musl_sigismember(&act->sa_mask, i)) {
+      if (i <= kMaxSignalNumber && musl_sigismember(&act->sa_mask, i) == 1) {
         if (sigaddset(&platform_act.sa_mask, i) == -1) {
           return -1;
         }
@@ -319,7 +319,8 @@ int __abi_wrap_sigaction(int signum,
     // Translate the platform's sigset_t back to the musl_sigset_t.
     musl_sigemptyset(&oldact->sa_mask);
     for (int i = 1; i < NSIG; ++i) {
-      if (i <= kMaxSignalNumber && sigismember(&platform_oldact.sa_mask, i)) {
+      if (i <= kMaxSignalNumber &&
+          sigismember(&platform_oldact.sa_mask, i) == 1) {
         musl_sigaddset(&oldact->sa_mask, i);
       }
     }
