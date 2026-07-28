@@ -201,4 +201,36 @@ TEST_F(NativeStabilityManagerTest,
   run_loop.Run();
 }
 
+TEST_F(NativeStabilityManagerTest,
+       GetPendingReportsHandlesNegativeExtensionCount) {
+  auto* manager = NativeStabilityManager::GetInstance();
+
+  static StarboardExtensionNativeStabilityApi s_negative_count_api = {
+      kStarboardExtensionNativeStabilityName,
+      1,
+      [](SbNativeStabilityReport* reports, int max_reports) -> int {
+        return -1;  // Return invalid negative count
+      },
+  };
+
+  manager->SetGetExtensionForTesting(
+      base::BindRepeating([](const char* name) -> const void* {
+        if (std::strcmp(name, kStarboardExtensionNativeStabilityName) == 0) {
+          return &s_negative_count_api;
+        }
+        return nullptr;
+      }));
+
+  base::RunLoop run_loop;
+  manager->GetPendingReports(base::BindOnce(
+      [](base::OnceClosure quit_closure,
+         std::vector<mojom::NativeStabilityReportPtr> reports) {
+        // Verify empty results vector is returned on negative count
+        EXPECT_TRUE(reports.empty());
+        std::move(quit_closure).Run();
+      },
+      run_loop.QuitClosure()));
+  run_loop.Run();
+}
+
 }  // namespace h5vcc_native_stability
