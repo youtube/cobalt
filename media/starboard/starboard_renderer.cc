@@ -643,71 +643,69 @@ void StarboardRenderer::CreatePlayerBridge() {
       surface_view_
 #endif  // BUILDFLAG(IS_ANDROID)
       ));
-  if (player_bridge_->IsValid()) {
-    // TODO(b/267678497): When `player_bridge_->GetAudioConfigurations()`
-    // returns no audio configurations, update the write durations again
-    // before the SbPlayer reaches `kSbPlayerStatePresenting`.
-    audio_write_duration_for_preroll_ = audio_write_duration_ =
-        HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
-            ? audio_write_duration_remote_
-            : audio_write_duration_local_;
-    LOG(INFO) << "SbPlayerBridge created, with audio write duration at "
-              << audio_write_duration_for_preroll_
-              << " and with max_video_capabilities_ at "
-              << max_video_capabilities_;
-  } else {
+
+  if (!player_bridge_->IsValid()) {
     error_message = player_bridge_->GetPlayerCreationErrorMessage();
     player_bridge_.reset();
-    LOG(INFO) << "Failed to create a valid SbPlayerBridge.";
-  }
 
-  if (player_bridge_ && player_bridge_->IsValid()) {
-    ApplyPendingBounds();
+    LOG(INFO) << "StarboardRenderer::CreatePlayerBridge() failed to create a"
+                 " valid SbPlayerBridge - \""
+              << error_message << "\"";
 
-    const auto output_mode = player_bridge_->GetSbPlayerOutputMode();
-    switch (output_mode) {
-      case kSbPlayerOutputModeDecodeToTexture:
-        update_starboard_rendering_mode_cb_.Run(
-            StarboardRenderingMode::kDecodeToTexture);
-        break;
-      case kSbPlayerOutputModePunchOut:
-        update_starboard_rendering_mode_cb_.Run(
-            StarboardRenderingMode::kPunchOut);
-        break;
-      case kSbPlayerOutputModeInvalid:
-        NOTREACHED() << "Invalid SbPlayer output mode";
-        break;
-    }
-
-    if (audio_stream_) {
-      UpdateDecoderConfig(audio_stream_);
-    }
-    if (video_stream_) {
-      UpdateDecoderConfig(video_stream_);
-    }
-
-    player_bridge_->SetVolume(volume_);
-
-    state_ = STATE_FLUSHED;
-
-    // Defer running the initialization callback
-    // (|init_cb_|.Run(PipelineStatus(PIPELINE_OK))) until the `SbPlayer`
-    // reports it is initialized via
-    // `OnPlayerStatus(kSbPlayerStateInitialized)`. This ensures clients don't
-    // call `StartPlayingFrom()` until the SbPlayer is actually ready.
+    state_ = STATE_ERROR;
+    std::move(init_cb_).Run(PipelineStatus(
+        DECODER_ERROR_NOT_SUPPORTED,
+        "StarboardRenderer::CreatePlayerBridge() failed to create a valid"
+        " SbPlayerBridge - \"" +
+            error_message + "\""));
     return;
   }
 
-  LOG(INFO) << "StarboardRenderer::CreatePlayerBridge() failed to create a"
-               " valid SbPlayerBridge - \""
-            << error_message << "\"";
+  // TODO(b/267678497): When `player_bridge_->GetAudioConfigurations()`
+  // returns no audio configurations, update the write durations again
+  // before the SbPlayer reaches `kSbPlayerStatePresenting`.
+  audio_write_duration_for_preroll_ = audio_write_duration_ =
+      HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
+          ? audio_write_duration_remote_
+          : audio_write_duration_local_;
+  LOG(INFO) << "SbPlayerBridge created, with audio write duration at "
+            << audio_write_duration_for_preroll_
+            << " and with max_video_capabilities_ at "
+            << max_video_capabilities_;
 
-  state_ = STATE_ERROR;
-  std::move(init_cb_).Run(PipelineStatus(
-      DECODER_ERROR_NOT_SUPPORTED,
-      "StarboardRenderer::CreatePlayerBridge() failed to create a valid"
-      " SbPlayerBridge - \"" +
-          error_message + "\""));
+  ApplyPendingBounds();
+
+  const auto output_mode = player_bridge_->GetSbPlayerOutputMode();
+  switch (output_mode) {
+    case kSbPlayerOutputModeDecodeToTexture:
+      update_starboard_rendering_mode_cb_.Run(
+          StarboardRenderingMode::kDecodeToTexture);
+      break;
+    case kSbPlayerOutputModePunchOut:
+      update_starboard_rendering_mode_cb_.Run(
+          StarboardRenderingMode::kPunchOut);
+      break;
+    case kSbPlayerOutputModeInvalid:
+      NOTREACHED() << "Invalid SbPlayer output mode";
+      break;
+  }
+
+  if (audio_stream_) {
+    UpdateDecoderConfig(audio_stream_);
+  }
+  if (video_stream_) {
+    UpdateDecoderConfig(video_stream_);
+  }
+
+  player_bridge_->SetVolume(volume_);
+
+  state_ = STATE_FLUSHED;
+
+  // Defer running the initialization callback
+  // (|init_cb_|.Run(PipelineStatus(PIPELINE_OK))) until the `SbPlayer`
+  // reports it is initialized via
+  // `OnPlayerStatus(kSbPlayerStateInitialized)`. This ensures clients don't
+  // call `StartPlayingFrom()` until the SbPlayer is actually ready.
 }
 
 void StarboardRenderer::ApplyPendingBounds() {
