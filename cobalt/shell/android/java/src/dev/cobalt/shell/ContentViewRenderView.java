@@ -299,7 +299,13 @@ public class ContentViewRenderView extends FrameLayout {
     protected static class WindowSurfaceBridge extends SurfaceBridge {
         private Window mWindow;
         private SurfaceHolder mWindowSurfaceHolder;
-        private Integer mSurfaceFormat;
+
+        /**
+         * The last requested PixelFormat (e.g. TRANSLUCENT for overlay video mode, OPAQUE for normal).
+         * Preserved across surface destruction and recreation so newly created SurfaceHolders
+         * automatically inherit the desired format.
+         */
+        private Integer mRequestedSurfaceFormat;
 
         private static Window getWindow(WindowAndroid windowAndroid) {
             if (windowAndroid == null || windowAndroid.getActivity() == null) {
@@ -325,9 +331,9 @@ public class ContentViewRenderView extends FrameLayout {
                 @Override
                 public void surfaceCreated(SurfaceHolder holder) {
                     mWindowSurfaceHolder = holder;
-                    if (mSurfaceFormat != null) {
+                    if (mRequestedSurfaceFormat != null) {
                         Log.i(TAG, "ContentViewRenderView: Applying pending format");
-                        mWindowSurfaceHolder.setFormat(mSurfaceFormat);
+                        mWindowSurfaceHolder.setFormat(mRequestedSurfaceFormat);
                     }
                     surfaceCallback.surfaceCreated(holder);
                 }
@@ -364,7 +370,7 @@ public class ContentViewRenderView extends FrameLayout {
             }
             mWindow = null;
             mWindowSurfaceHolder = null;
-            mSurfaceFormat = null;
+            mRequestedSurfaceFormat = null;
         }
 
         @Override
@@ -374,7 +380,7 @@ public class ContentViewRenderView extends FrameLayout {
 
         @Override
         protected void setFormat(int format) {
-            mSurfaceFormat = format;
+            mRequestedSurfaceFormat = format;
             if (mWindowSurfaceHolder == null) {
                 Log.i(TAG, "ContentViewRenderView: surface is not ready yet. Will apply format later");
                 return;
