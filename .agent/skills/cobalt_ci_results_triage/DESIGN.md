@@ -73,6 +73,14 @@ Both retrieval skills must output JSON files conforming to this schema.
           "type": "string",
           "format": "uri"
         },
+        "conclusion": {
+          "type": "string",
+          "description": "Conclusion of the run (e.g. 'success', 'failure', 'timed_out', 'cancelled', 'FAILED')"
+        },
+        "ignore_age": {
+          "type": "boolean",
+          "description": "Whether to bypass the recency check during triage analysis"
+        },
         "failed_jobs": {
           "type": "array",
           "items": {
