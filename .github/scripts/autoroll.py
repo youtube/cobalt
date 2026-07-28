@@ -26,7 +26,11 @@ def main():
   p.add_argument(
       '--prs-json',
       help='Path to JSON file containing pre-fetched PRs and labels.')
+  p.add_argument('-v', '--verbose', action='store_true')
   args = p.parse_args()
+
+  if args.verbose:
+    lib.VERBOSE = True
 
   target_start = lib.get_start_sha(args.target_branch, args.autoroll_file)
   autoroll_start = lib.get_start_sha('HEAD', args.autoroll_file)
