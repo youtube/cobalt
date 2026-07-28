@@ -2,6 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "build/build_config.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/command_line.h"
+#endif
+
 #include "third_party/blink/renderer/platform/fonts/font_fallback_iterator.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
@@ -45,4 +51,28 @@ TEST_P(TestReset, TestResetWithFallbackPriority) {
   EXPECT_EQ(fallback_iterator_reset, fallback_iterator);
 }
 
+#if BUILDFLAG(IS_ANDROID)
+class FontFallbackIteratorTest : public FontTestBase {};
+
+TEST_F(FontFallbackIteratorTest, MissingFontFallbackDoesNotCrash) {
+  base::CommandLine::ForCurrentProcess()->AppendSwitch(
+      "enable-optimized-font-loading");
+
+  FontDescription font_description;
+  font_description.SetGenericFamily(FontDescription::kSerifFamily);
+  Font font(font_description);
+
+  FontFallbackIterator iterator =
+      font.CreateFontFallbackIterator(FontFallbackPriority::kText);
+
+  FontFallbackIterator::HintCharList hint_list = {'X'};
+
+  while (iterator.HasNext()) {
+    FontDataForRangeSet* range_set = iterator.Next(hint_list);
+    if (!range_set || !range_set->HasFontData()) {
+      break;
+    }
+  }
+}
+#endif
 }  // namespace blink

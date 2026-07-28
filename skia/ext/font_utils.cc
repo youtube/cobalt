@@ -78,7 +78,7 @@ static sk_sp<SkFontMgr> fontmgr_factory() {
     if (base::PathService::Get(base::DIR_ANDROID_APP_DATA, &app_data_dir)) {
       std::string xml_path = app_data_dir.Append("storage").Append("cobalt_android_fonts.xml").value();
       SkFontMgr_Android_CustomFonts custom_fonts;
-      custom_fonts.fSystemFontUse = SkFontMgr_Android_CustomFonts::kOnlyCustom;
+      custom_fonts.fSystemFontUse = SkFontMgr_Android_CustomFonts::kPreferCustom;
       custom_fonts.fBasePath = "/system/fonts/";
       custom_fonts.fFontsXml = xml_path.c_str();
       custom_fonts.fFallbackFontsXml = nullptr;
