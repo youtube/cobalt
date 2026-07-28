@@ -7,7 +7,7 @@
 readonly CALLSIGN="YouTube"
 readonly PROCESS_NAME="YouTube"
 readonly INTERVAL=1
-readonly OUTPUT_FILE="memory_test_results_yttv_$(date +%Y%m%d).txt"
+readonly OUTPUT_FILE="memory_test_results_yttv_$(date +%Y%m%d_%H%M%S).txt"
 # Delay to allow WPEFramework to process state changes and configuration updates
 readonly JSONRPC_DELAY=2
 
