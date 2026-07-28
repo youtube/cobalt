@@ -85,21 +85,21 @@ void NativeStabilityManager::GetPendingReports(
         {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
          base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN});
   }
+  auto* native_stability_extension =
+      static_cast<const StarboardExtensionNativeStabilityApi*>(
+          GetExtension(kStarboardExtensionNativeStabilityName));
   task_runner_->PostTask(
       FROM_HERE,
       base::BindOnce(&NativeStabilityManager::GetPendingReportsOnTaskRunner,
-                     base::Unretained(this),
+                     base::Unretained(this), native_stability_extension,
                      base::BindPostTaskToCurrentDefault(std::move(callback))));
 }
 
 void NativeStabilityManager::GetPendingReportsOnTaskRunner(
+    const StarboardExtensionNativeStabilityApi* native_stability_extension,
     base::OnceCallback<void(std::vector<mojom::NativeStabilityReportPtr>)>
         callback) {
   std::vector<mojom::NativeStabilityReportPtr> results;
-
-  auto native_stability_extension =
-      static_cast<const StarboardExtensionNativeStabilityApi*>(
-          GetExtension(kStarboardExtensionNativeStabilityName));
 
   if (!native_stability_extension || native_stability_extension->version < 1 ||
       !native_stability_extension->ReadReports) {
@@ -115,6 +115,12 @@ void NativeStabilityManager::GetPendingReportsOnTaskRunner(
   SbNativeStabilityReport sb_reports[kMaxNumReports];
   int count =
       native_stability_extension->ReadReports(sb_reports, kMaxNumReports);
+  if (count > kMaxNumReports) {
+    LOG(WARNING) << "NativeStability extension ReadReports returned count ("
+                 << count << ") exceeding max buffer size (" << kMaxNumReports
+                 << "). Clamping result.";
+    count = kMaxNumReports;
+  }
 
   for (int i = 0; i < count; ++i) {
     const auto& sb_report = sb_reports[i];

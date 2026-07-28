@@ -168,4 +168,37 @@ TEST_F(NativeStabilityManagerTest, GetPendingReportsParsesHangReport) {
   run_loop.Run();
 }
 
+TEST_F(NativeStabilityManagerTest,
+       GetPendingReportsClampsOutOfBoundsExtensionCount) {
+  auto* manager = NativeStabilityManager::GetInstance();
+
+  static StarboardExtensionNativeStabilityApi s_violating_api = {
+      kStarboardExtensionNativeStabilityName,
+      1,
+      [](SbNativeStabilityReport* reports, int max_reports) -> int {
+        return 999;  // Return out-of-bounds count exceeding max_reports
+      },
+  };
+
+  manager->SetGetExtensionForTesting(
+      base::BindRepeating([](const char* name) -> const void* {
+        if (std::strcmp(name, kStarboardExtensionNativeStabilityName) == 0) {
+          return &s_violating_api;
+        }
+        return nullptr;
+      }));
+
+  base::RunLoop run_loop;
+  manager->GetPendingReports(base::BindOnce(
+      [](base::OnceClosure quit_closure,
+         std::vector<mojom::NativeStabilityReportPtr> reports) {
+        // Verify no crash occurred and count was clamped to kMaxNumReports
+        // (128)
+        EXPECT_LE(reports.size(), 128u);
+        std::move(quit_closure).Run();
+      },
+      run_loop.QuitClosure()));
+  run_loop.Run();
+}
+
 }  // namespace h5vcc_native_stability

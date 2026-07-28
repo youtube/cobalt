@@ -23,6 +23,7 @@
 #include "base/sequence_checker.h"
 #include "base/task/sequenced_task_runner.h"
 #include "cobalt/browser/h5vcc_native_stability/public/mojom/h5vcc_native_stability.mojom.h"
+#include "starboard/extension/native_stability.h"
 
 namespace h5vcc_native_stability {
 
@@ -30,6 +31,10 @@ namespace h5vcc_native_stability {
 // storage in order to provide native stability reports requested by the
 // H5vccNativeStability Mojo interface. This is a singleton class and its
 // lifetime is scoped to the application.
+//
+// Threading Model:
+// Calls must originate on the UI sequence. Offloads blocking disk I/O to a
+// background task runner and posts response callbacks back to the UI sequence.
 class NativeStabilityManager {
  public:
   static NativeStabilityManager* GetInstance();
@@ -68,6 +73,7 @@ class NativeStabilityManager {
   ~NativeStabilityManager() = default;
 
   void GetPendingReportsOnTaskRunner(
+      const StarboardExtensionNativeStabilityApi* native_stability_extension,
       base::OnceCallback<void(std::vector<mojom::NativeStabilityReportPtr>)>
           callback);
 

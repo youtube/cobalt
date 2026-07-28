@@ -54,9 +54,7 @@ void PopulateBaseReport(
     T* report,
     const h5vcc_native_stability::mojom::blink::BaseReportDataPtr& base,
     V8NativeStabilityReportType::Enum report_type_enum) {
-  if (!base) {
-    return;
-  }
+  CHECK(base);
   report->setNativeStabilityEventUuid(base->native_stability_event_uuid);
   report->setEventTimeSec(base->event_time_sec);
   report->setReportType(V8NativeStabilityReportType(report_type_enum));
