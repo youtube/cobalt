@@ -3802,6 +3802,8 @@ source_set("browser") {
 
   if (is_cobalt) {
     sources -= [
+      "browsing_data/storage_partition_code_cache_data_remover.cc",
+      "browsing_data/storage_partition_code_cache_data_remover.h",
       "bluetooth/advertisement_client.cc",
       "bluetooth/advertisement_client.h",
       "bluetooth/bluetooth_adapter_factory_wrapper.cc",

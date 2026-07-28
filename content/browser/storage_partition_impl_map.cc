@@ -23,6 +23,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "content/browser/background_fetch/background_fetch_context.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
 #include "content/browser/code_cache/generated_code_cache_context.h"
@@ -66,6 +67,7 @@ namespace {
 // The code in GetStoragePartitionPath() constructs these path names.
 //
 // TODO(nasko): Move extension related path code out of content.
+#if !BUILDFLAG(IS_COBALT)
 const base::FilePath::CharType kStoragePartitionDirname[] =
     FILE_PATH_LITERAL("Storage");
 const base::FilePath::CharType kExtensionsDirname[] =
@@ -106,7 +108,9 @@ const base::FilePath::CharType kWebSQLDirname[] =
 // Note, that for 4 9s of reliability, the limit is 237 partition names per
 // partition domain.
 const int kPartitionNameHashBytes = 6;
+#endif  // !BUILDFLAG(IS_COBALT)
 
+#if !BUILDFLAG(IS_COBALT)
 // Needed for selecting all files in ObliterateOneDirectory() below.
 #if BUILDFLAG(IS_POSIX)
 const int kAllFileTypes = base::FileEnumerator::FILES |
@@ -286,6 +290,7 @@ void BlockingGarbageCollect(
   file_access_runner->PostTask(
       FROM_HERE, base::GetDeletePathRecursivelyCallback(trash_directory));
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 }  // namespace
 
@@ -296,6 +301,7 @@ base::FilePath StoragePartitionImplMap::GetStoragePartitionPath(
   if (partition_domain.empty())
     return base::FilePath();
 
+#if !BUILDFLAG(IS_COBALT)
   base::FilePath path = GetStoragePartitionDomainPath(partition_domain);
 
   // TODO(ajwong): Mangle in-memory into this somehow, either by putting
@@ -311,6 +317,9 @@ base::FilePath StoragePartitionImplMap::GetStoragePartitionPath(
   }
 
   return path.Append(kDefaultPartitionDirname);
+#else
+  return base::FilePath();
+#endif
 }
 
 StoragePartitionImplMap::StoragePartitionImplMap(
@@ -351,8 +360,10 @@ StoragePartitionImpl* StoragePartitionImplMap::Get(
   partition->Initialize(fallback_for_blob_urls);
 
   // Arm the serviceworker cookie change observation API.
-  partition->GetCookieStoreManager()->ListenToCookieChanges(
-      partition->GetNetworkContext(), base::DoNothing());
+  if (partition->GetCookieStoreManager()) {
+    partition->GetCookieStoreManager()->ListenToCookieChanges(
+        partition->GetNetworkContext(), base::DoNothing());
+  }
 
   PostCreateInitialization(partition, partition_config.in_memory());
 
@@ -363,6 +374,7 @@ void StoragePartitionImplMap::AsyncObliterate(
     const std::string& partition_domain,
     base::OnceClosure on_gc_required,
     base::OnceClosure done_callback) {
+#if !BUILDFLAG(IS_COBALT)
   // Find the active partitions for the domain. Because these partitions are
   // active, it is not possible to just delete the directories that contain
   // the backing data structures without causing the browser to crash. Instead,
@@ -412,11 +424,17 @@ void StoragePartitionImplMap::AsyncObliterate(
                      base::SingleThreadTaskRunner::GetCurrentDefault(),
                      std::move(on_gc_required)),
       subtask_done_callback);
+#else
+  if (done_callback) {
+    std::move(done_callback).Run();
+  }
+#endif
 }
 
 void StoragePartitionImplMap::GarbageCollect(
     std::unordered_set<base::FilePath> active_paths,
     base::OnceClosure done) {
+#if !BUILDFLAG(IS_COBALT)
   // Include all paths for current StoragePartitions in the active_paths since
   // they cannot be deleted safely.
   for (const auto& part : partitions_) {
@@ -434,6 +452,11 @@ void StoragePartitionImplMap::GarbageCollect(
       base::BindOnce(&BlockingGarbageCollect, storage_root, file_access_runner_,
                      std::move(active_paths)),
       std::move(done));
+#else
+  if (done) {
+    std::move(done).Run();
+  }
+#endif
 }
 
 void StoragePartitionImplMap::ForEach(
@@ -456,6 +479,7 @@ void StoragePartitionImplMap::PostCreateInitialization(
     InitializeResourceContext(browser_context_);
   }
 
+#if !BUILDFLAG(IS_COBALT)
   if (!in_memory) {
     // Clean up any lingering WebSQL user data on disk, now that WebSQL
     // has been deprecated and removed for all platforms.
@@ -465,8 +489,11 @@ void StoragePartitionImplMap::PostCreateInitialization(
             [](const base::FilePath& dir) { base::DeletePathRecursively(dir); },
             partition->GetPath().Append(kWebSQLDirname)));
   }
+#endif  // !BUILDFLAG(IS_COBALT)
 
-  partition->GetBackgroundFetchContext()->Initialize();
+  if (partition->GetBackgroundFetchContext()) {
+    partition->GetBackgroundFetchContext()->Initialize();
+  }
 }
 
 }  // namespace content

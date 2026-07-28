@@ -2082,9 +2082,10 @@ void RenderProcessHostImpl::BindBucketManagerHost(
     base::WeakPtr<BucketContext> bucket_context,
     mojo::PendingReceiver<blink::mojom::BucketManagerHost> receiver) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  storage_partition_impl_->GetBucketManager()->BindReceiver(
-      std::move(bucket_context), std::move(receiver),
-      mojo::GetBadMessageCallback());
+  if (auto* bucket_manager = storage_partition_impl_->GetBucketManager()) {
+    bucket_manager->BindReceiver(std::move(bucket_context), std::move(receiver),
+                                 mojo::GetBadMessageCallback());
+  }
 }
 
 void RenderProcessHostImpl::ForceCrash() {
@@ -2207,9 +2208,11 @@ void RenderProcessHostImpl::CreateLockManager(
 void RenderProcessHostImpl::CreateLockManagerWithBucketInfo(
     mojo::PendingReceiver<blink::mojom::LockManager> receiver,
     storage::QuotaErrorOr<storage::BucketInfo> bucket) {
-  storage_partition_impl_->GetLockManager()->BindReceiver(
-      bucket.has_value() ? bucket->id : storage::BucketId(),
-      std::move(receiver));
+  if (auto* lock_manager = storage_partition_impl_->GetLockManager()) {
+    lock_manager->BindReceiver(
+        bucket.has_value() ? bucket->id : storage::BucketId(),
+        std::move(receiver));
+  }
 }
 
 void RenderProcessHostImpl::CreatePermissionService(

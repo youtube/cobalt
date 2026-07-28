@@ -63,10 +63,10 @@
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
 #if !BUILDFLAG(IS_COBALT)
 #include "content/browser/bluetooth/bluetooth_allowed_devices_map.h"
+#include "content/browser/browsing_data/storage_partition_code_cache_data_remover.h"
 #endif
 #include "content/browser/broadcast_channel/broadcast_channel_service.h"
 #include "content/browser/browsing_data/clear_site_data_handler.h"
-#include "content/browser/browsing_data/storage_partition_code_cache_data_remover.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/browsing_topics/browsing_topics_site_data_manager_impl.h"
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
@@ -1222,7 +1222,9 @@ void StoragePartitionImpl::OnBrowserContextWillBeDestroyed() {
   // RenderProcessHosts and SiteInstances alive, and the codebase assumes these
   // are destroyed before the BrowserContext is destroyed.
   GetServiceWorkerContext()->Shutdown();
-  GetSharedWorkerService()->Shutdown();
+  if (GetSharedWorkerService()) {
+    GetSharedWorkerService()->Shutdown();
+  }
 
   // These hold raw pointers to objects that are about to be destroyed, before
   // this object is destroyed. Shut them down now to avoid dangling pointers.
@@ -1368,7 +1370,9 @@ void StoragePartitionImpl::Initialize(
   dom_storage_context_ = DOMStorageContextWrapper::Create(
       this, browser_context_->GetSpecialStoragePolicy());
 
+#if !BUILDFLAG(IS_COBALT)
   lock_manager_ = std::make_unique<LockManager<storage::BucketId>>();
+#endif
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   shared_storage_runtime_manager_ =
@@ -1378,16 +1382,18 @@ void StoragePartitionImpl::Initialize(
   scoped_refptr<ChromeBlobStorageContext> blob_context =
       ChromeBlobStorageContext::GetFor(browser_context_);
 
+  mojo::PendingRemote<storage::mojom::FileSystemAccessContext>
+      file_system_access_context;
+#if !BUILDFLAG(IS_COBALT)
   file_system_access_manager_ =
       base::MakeRefCounted<FileSystemAccessManagerImpl>(
           filesystem_context_, blob_context,
           browser_context_->GetFileSystemAccessPermissionContext(),
           browser_context_->IsOffTheRecord());
 
-  mojo::PendingRemote<storage::mojom::FileSystemAccessContext>
-      file_system_access_context;
   file_system_access_manager_->BindInternalsReceiver(
       file_system_access_context.InitWithNewPipeAndPassReceiver());
+#endif
   base::FilePath path = is_in_memory() ? base::FilePath() : partition_path_;
   indexed_db_control_wrapper_ =
       std::make_unique<indexed_db::IndexedDBControlWrapper>(
@@ -1418,15 +1424,18 @@ void StoragePartitionImpl::Initialize(
 
   dedicated_worker_service_ = std::make_unique<DedicatedWorkerServiceImpl>();
 
+#if !BUILDFLAG(IS_COBALT)
   shared_worker_service_ =
       std::make_unique<SharedWorkerServiceImpl>(this, service_worker_context_);
 
   push_messaging_context_ = std::make_unique<PushMessagingContext>(
       browser_context_, service_worker_context_);
+#endif
 
   host_zoom_level_context_.reset(new HostZoomLevelContext(
       browser_context_->CreateZoomLevelDelegate(partition_path_)));
 
+#if !BUILDFLAG(IS_COBALT)
   platform_notification_context_ = new PlatformNotificationContextImpl(
       path, browser_context_, service_worker_context_);
   platform_notification_context_->Initialize();
@@ -1450,6 +1459,7 @@ void StoragePartitionImpl::Initialize(
   payment_app_context_->Init(service_worker_context_);
 
   broadcast_channel_service_ = std::make_unique<BroadcastChannelService>();
+#endif
 
 #if !BUILDFLAG(IS_COBALT)
   bluetooth_allowed_devices_map_ =
@@ -1460,6 +1470,7 @@ void StoragePartitionImpl::Initialize(
   // `shared_url_loader_factory_for_browser_process_`. Cookie deprecation
   // traffic labels should not be sent for off-the-record profiles, unless the
   // "enable_otr_profiles" feature parameter is true.
+#if !BUILDFLAG(IS_COBALT)
   if (base::FeatureList::IsEnabled(
           features::kCookieDeprecationFacilitatedTesting) &&
       (!is_in_memory() ||
@@ -1467,6 +1478,7 @@ void StoragePartitionImpl::Initialize(
     cookie_deprecation_label_manager_ =
         std::make_unique<CookieDeprecationLabelManagerImpl>(browser_context_);
   }
+#endif
 
   shared_url_loader_factory_for_browser_process_ = std::make_unique<
       ReconnectableURLLoaderFactoryForIOThreadWrapper>(base::BindRepeating(
@@ -1494,6 +1506,7 @@ void StoragePartitionImpl::Initialize(
         std::make_unique<KeepAliveURLLoaderService>(browser_context_);
   }
 
+#if !BUILDFLAG(IS_COBALT)
   cookie_store_manager_ =
       std::make_unique<CookieStoreManager>(service_worker_context_);
   // Unit tests use the LoadAllSubscriptions() callback to crash early if
@@ -1503,6 +1516,7 @@ void StoragePartitionImpl::Initialize(
   cookie_store_manager_->LoadAllSubscriptions(base::DoNothing());
 
   bucket_manager_ = std::make_unique<BucketManager>(this);
+#endif
 
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (base::FeatureList::IsEnabled(
@@ -3420,9 +3434,15 @@ void StoragePartitionImpl::ClearCodeCaches(
     const base::RepeatingCallback<bool(const GURL&)>& url_matcher,
     base::OnceClosure callback) {
   DCHECK(initialized_);
+#if !BUILDFLAG(IS_COBALT)
   // StoragePartitionCodeCacheDataRemover deletes itself when it is done.
   StoragePartitionCodeCacheDataRemover::Create(this, url_matcher, begin, end)
       ->Remove(std::move(callback));
+#else
+  if (callback) {
+    std::move(callback).Run();
+  }
+#endif
 }
 
 void StoragePartitionImpl::Flush() {

@@ -217,8 +217,10 @@ void BucketHost::GetDirectoryForDevtools(
 
 void BucketHost::GetLockManager(
     mojo::PendingReceiver<blink::mojom::LockManager> receiver) {
-  bucket_manager_host_->GetStoragePartition()->GetLockManager()->BindReceiver(
-      bucket_id_, std::move(receiver));
+  if (auto* lock_manager =
+          bucket_manager_host_->GetStoragePartition()->GetLockManager()) {
+    lock_manager->BindReceiver(bucket_id_, std::move(receiver));
+  }
 }
 
 void BucketHost::OnReceiverDisconnected() {

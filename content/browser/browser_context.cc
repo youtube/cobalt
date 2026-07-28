@@ -23,6 +23,7 @@
 #include "base/lazy_instance.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/weak_ptr.h"
+#include "build/buildflag.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/notreached.h"
 #include "base/trace_event/trace_event.h"
@@ -180,15 +181,27 @@ void BrowserContext::AsyncObliterateStoragePartition(
     const std::string& partition_domain,
     base::OnceClosure on_gc_required,
     base::OnceClosure done_callback) {
+#if !BUILDFLAG(IS_COBALT)
   impl()->GetOrCreateStoragePartitionMap()->AsyncObliterate(
       partition_domain, std::move(on_gc_required), std::move(done_callback));
+#else
+  if (done_callback) {
+    std::move(done_callback).Run();
+  }
+#endif
 }
 
 void BrowserContext::GarbageCollectStoragePartitions(
     std::unordered_set<base::FilePath> active_paths,
     base::OnceClosure done) {
+#if !BUILDFLAG(IS_COBALT)
   impl()->GetOrCreateStoragePartitionMap()->GarbageCollect(
       std::move(active_paths), std::move(done));
+#else
+  if (done) {
+    std::move(done).Run();
+  }
+#endif
 }
 
 StoragePartition* BrowserContext::GetDefaultStoragePartition() {

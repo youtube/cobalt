@@ -671,8 +671,10 @@ void CookieStoreManager::BindReceiverForFrame(
 
   RenderFrameHostImpl* render_frame_host_impl =
       static_cast<RenderFrameHostImpl*>(render_frame_host);
-  storage_partition->GetCookieStoreManager()->BindReceiver(
-      std::move(receiver), render_frame_host_impl->GetStorageKey());
+  if (auto* cookie_store_manager = storage_partition->GetCookieStoreManager()) {
+    cookie_store_manager->BindReceiver(std::move(receiver),
+                                       render_frame_host_impl->GetStorageKey());
+  }
 }
 
 // static
@@ -687,8 +689,9 @@ void CookieStoreManager::BindReceiverForWorker(
 
   StoragePartitionImpl* storage_partition = static_cast<StoragePartitionImpl*>(
       render_process_host->GetStoragePartition());
-  storage_partition->GetCookieStoreManager()->BindReceiver(std::move(receiver),
-                                                           info.storage_key);
+  if (auto* cookie_store_manager = storage_partition->GetCookieStoreManager()) {
+    cookie_store_manager->BindReceiver(std::move(receiver), info.storage_key);
+  }
 }
 
 void CookieStoreManager::DispatchChangeEvent(

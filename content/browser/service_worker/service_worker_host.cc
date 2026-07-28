@@ -241,10 +241,12 @@ void ServiceWorkerHost::CreateBlobUrlStoreProvider(
 
 void ServiceWorkerHost::CreateBucketManagerHost(
     mojo::PendingReceiver<blink::mojom::BucketManagerHost> receiver) {
-  static_cast<StoragePartitionImpl*>(GetStoragePartition())
-      ->GetBucketManager()
-      ->BindReceiver(GetWeakPtr(), std::move(receiver),
-                     mojo::GetBadMessageCallback());
+  if (auto* bucket_manager =
+          static_cast<StoragePartitionImpl*>(GetStoragePartition())
+              ->GetBucketManager()) {
+    bucket_manager->BindReceiver(GetWeakPtr(), std::move(receiver),
+                                 mojo::GetBadMessageCallback());
+  }
 }
 
 base::WeakPtr<ServiceWorkerHost> ServiceWorkerHost::GetWeakPtr() {
