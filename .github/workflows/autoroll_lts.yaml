@@ -46,6 +46,9 @@ jobs:
           git config --global user.name "GitHub Release Automation"
           git config --global user.email "github@google.com"
           git config --global submodule.recurse false
+          # Disable auto GC/maintenance to prevent shallow fetch errors.
+          git config --global maintenance.auto false
+          git config --global gc.auto 0
 
       - name: Prepare Cherry Pick Branch
         env:
