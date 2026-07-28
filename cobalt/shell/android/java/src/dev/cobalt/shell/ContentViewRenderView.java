@@ -17,6 +17,7 @@ import android.widget.FrameLayout;
 
 import org.chromium.base.CommandLine;
 import org.chromium.base.Log;
+import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.EventForwarder;
 import org.chromium.ui.base.WindowAndroid;
@@ -59,7 +60,7 @@ public class ContentViewRenderView extends FrameLayout {
     }
 
     protected SurfaceBridge createSurfaceBridge() {
-        if (CommandLine.getInstance().hasSwitch("use-window-surface-for-ui")) {
+        if (true) {
             Log.i(TAG, "ContentViewRenderView: created using WindowSurfaceBridge");
             return new WindowSurfaceBridge();
         }
@@ -307,6 +308,12 @@ public class ContentViewRenderView extends FrameLayout {
          */
         private Integer mRequestedSurfaceFormat;
 
+        private SurfaceHolder mPendingSurfaceHolder;
+        private int mPendingFormat;
+        private int mPendingWidth;
+        private int mPendingHeight;
+        private boolean mIsObserverRegistered;
+
         private static Window getWindow(WindowAndroid windowAndroid) {
             if (windowAndroid == null || windowAndroid.getActivity() == null) {
                 return null;
@@ -328,26 +335,97 @@ public class ContentViewRenderView extends FrameLayout {
             }
 
             mWindow.takeSurface(new SurfaceHolder.Callback2() {
-                @Override
-                public void surfaceCreated(SurfaceHolder holder) {
+                private void notifySurfaceCreated(SurfaceHolder holder) {
                     mWindowSurfaceHolder = holder;
                     if (mRequestedSurfaceFormat != null) {
                         Log.i(TAG, "ContentViewRenderView: Applying pending format");
-                        mWindowSurfaceHolder.setFormat(mRequestedSurfaceFormat);
+                        int pendingFormat = mRequestedSurfaceFormat;
+                        mRequestedSurfaceFormat = null;
+                        mWindowSurfaceHolder.setFormat(pendingFormat);
                     }
                     surfaceCallback.surfaceCreated(holder);
                 }
 
-                @Override
-                public void surfaceChanged(
+                private void notifySurfaceChanged(
                         SurfaceHolder holder, int format, int width, int height) {
                     mWindowSurfaceHolder = holder;
                     surfaceCallback.surfaceChanged(holder, format, width, height);
                 }
 
+                private void dispatchPendingSurfaceEvents() {
+                    if (mPendingSurfaceHolder == null) {
+                        return;
+                    }
+                    Log.i(TAG, "KJ: ContentViewRenderView: Native startup finished, dispatching deferred surface events");
+                    notifySurfaceCreated(mPendingSurfaceHolder);
+                    notifySurfaceChanged(
+                            mPendingSurfaceHolder, mPendingFormat, mPendingWidth, mPendingHeight);
+                    mPendingSurfaceHolder = null;
+                }
+
+                private void registerStartupObserver() {
+                    if (mIsObserverRegistered) {
+                        return;
+                    }
+                    mIsObserverRegistered = true;
+                    BrowserStartupController.getInstance().addStartupCompletedObserver(
+                            new BrowserStartupController.StartupCallback() {
+                                @Override
+                                public void onSuccess() {
+                                    dispatchPendingSurfaceEvents();
+                                }
+
+                                @Override
+                                public void onFailure() {}
+                            });
+                }
+
+                /**
+                 * Dispatches or defers surface events.
+                 *
+                 * Window.takeSurface() takes direct ownership of the Activity's top-level Window,
+                 * causing Android OS to fire surfaceCreated and surfaceChanged synchronously during
+                 * Activity creation before BrowserStartupController initializes native Mojo thunks.
+                 *
+                 * If native browser startup is not complete (isNativeStarted() == false), surface events
+                 * must be deferred to prevent premature C++ Compositor initialization which triggers
+                 * a fatal Mojo uninitialized crash.
+                 */
+                private void dispatchOrDeferSurfaceEvents(
+                        SurfaceHolder holder, int format, int width, int height) {
+                    if (BrowserStartupController.getInstance().isNativeStarted()) {
+                        if (mPendingSurfaceHolder != null) {
+                            dispatchPendingSurfaceEvents();
+                            return;
+                        }
+                        notifySurfaceCreated(holder);
+                        notifySurfaceChanged(holder, format, width, height);
+                        return;
+                    }
+
+                    Log.i(TAG, "KJ: ContentViewRenderView: Deferring surface events until native startup completes");
+                    mPendingSurfaceHolder = holder;
+                    mPendingFormat = format;
+                    mPendingWidth = width;
+                    mPendingHeight = height;
+                    registerStartupObserver();
+                }
+
+                @Override
+                public void surfaceCreated(SurfaceHolder holder) {
+                    mWindowSurfaceHolder = holder;
+                }
+
+                @Override
+                public void surfaceChanged(
+                        SurfaceHolder holder, int format, int width, int height) {
+                    dispatchOrDeferSurfaceEvents(holder, format, width, height);
+                }
+
                 @Override
                 public void surfaceDestroyed(SurfaceHolder holder) {
                     mWindowSurfaceHolder = null;
+                    mPendingSurfaceHolder = null;
                     surfaceCallback.surfaceDestroyed(holder);
                 }
 
@@ -380,11 +458,12 @@ public class ContentViewRenderView extends FrameLayout {
 
         @Override
         protected void setFormat(int format) {
-            mRequestedSurfaceFormat = format;
             if (mWindowSurfaceHolder == null) {
                 Log.i(TAG, "ContentViewRenderView: surface is not ready yet. Will apply format later");
+                mRequestedSurfaceFormat = format;
                 return;
             }
+            mRequestedSurfaceFormat = null;
             mWindowSurfaceHolder.setFormat(format);
         }
     }
