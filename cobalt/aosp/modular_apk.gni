@@ -14,6 +14,7 @@
 
 import("//build/config/android/rules.gni")
 import("//cobalt/android/manifest.gni")
+import("//starboard/content/ssl/certs.gni")
 
 template("modular_apk") {
   _name = invoker.module_name
@@ -43,6 +44,16 @@ template("modular_apk") {
       ":copy_${_name}_empty_fonts($default_toolchain)",
       ":copy_${_name}_lib($default_toolchain)",
     ]
+
+    # CA certificates, packaged under the content directory. resolves to the
+    # Evergreen content path (/cobalt/assets/app/cobalt/content). See the content-dir in
+    # system_get_path.cc. Package the certs at <content>/ssl/certs to match.
+    foreach(_cert, network_certs) {
+      _cert_file = get_path_info(_cert, "file")
+      renaming_sources += [ "$root_build_dir/ssl/certs/$_cert_file" ]
+      renaming_destinations += [ "app/cobalt/content/ssl/certs/$_cert_file" ]
+    }
+    deps += [ "//starboard/content/ssl:copy_ssl_certificates_evergreen($default_toolchain)" ]
 
     if (_name == "cobalt") {
       sources = [ "$root_build_dir/cobalt_shell.pak" ]
